@@ -33,7 +33,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
-#include "asterisk/module.h"
 
 static int ifmodule_read(struct ast_channel *chan, const char *cmd, char *data,
 		    char *buf, size_t len)

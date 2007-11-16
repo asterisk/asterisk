@@ -34,7 +34,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/dundi.h"
 #include "dundi-parser.h"
-#include "asterisk/dundi.h"
 
 static void internaloutput(const char *str)
 {

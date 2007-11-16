@@ -39,7 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 #include "asterisk/localtime.h"
-#include "asterisk/options.h"
 
 static int function_fieldqty(struct ast_channel *chan, const char *cmd,
 			     char *parse, char *buf, size_t len)

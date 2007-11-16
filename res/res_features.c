@@ -2089,11 +2089,12 @@ static void *do_parking_thread(void *ignore)
 				if (pu->peername[0]) {
 					char *peername = ast_strdupa(pu->peername);
 					char *cp = strrchr(peername, '-');
+					char peername_flat[AST_MAX_EXTENSION]; /* using something like Zap/52 for an extension name is NOT a good idea */
+					int i;
+
 					if (cp) 
 						*cp = 0;
-					char peername_flat[AST_MAX_EXTENSION]; /* using something like Zap/52 for an extension name is NOT a good idea */
 					ast_copy_string(peername_flat,peername,sizeof(peername_flat));
-					int i;
 					for(i=0; peername_flat[i] && i < AST_MAX_EXTENSION; i++) {
 						if (peername_flat[i] == '/') 
 							peername_flat[i]= '0';

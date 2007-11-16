@@ -117,7 +117,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/utils.h"
 #include "asterisk/file.h"
 #include "asterisk/io.h"
-#include "asterisk/lock.h"
 #include "editline/histedit.h"
 #include "asterisk/config.h"
 #include "asterisk/version.h"

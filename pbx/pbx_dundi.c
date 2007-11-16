@@ -40,7 +40,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 #include <netinet/ip.h>
 #include <sys/ioctl.h>
-#include <netinet/in.h>
 #include <net/if.h>
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__Darwin__)
 #include <net/if_dl.h>
@@ -58,7 +57,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/frame.h"
-#include "asterisk/file.h"
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
 #include "asterisk/md5.h"

@@ -214,7 +214,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <errno.h>
 #include <dirent.h>
 #include <ctype.h>
-#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>

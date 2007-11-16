@@ -40,7 +40,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/features.h"
 #include "asterisk/options.h"
-#include "asterisk/logger.h"
 #include "asterisk/say.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"

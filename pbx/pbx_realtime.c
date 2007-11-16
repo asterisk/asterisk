@@ -39,7 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/frame.h"
 #include "asterisk/term.h"
 #include "asterisk/manager.h"
-#include "asterisk/file.h"
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
 #include "asterisk/md5.h"

@@ -66,7 +66,6 @@ static int syslog_level_map[] = {
 #include "asterisk/manager.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/strings.h"
-#include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 
 #if defined(__linux__) && !defined(__NR_gettid)

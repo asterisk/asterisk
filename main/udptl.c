@@ -54,7 +54,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <signal.h>
 #include <errno.h>
 #include <netinet/in.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -65,14 +64,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/channel.h"
 #include "asterisk/acl.h"
-#include "asterisk/channel.h"
 #include "asterisk/config.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 #include "asterisk/netsock.h"
 #include "asterisk/cli.h"
 #include "asterisk/unaligned.h"
-#include "asterisk/utils.h"
 
 #define UDPTL_MTU		1200
 
