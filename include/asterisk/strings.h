@@ -24,8 +24,6 @@
 #define _ASTERISK_STRINGS_H
 
 #include "asterisk/inline_api.h"
-#include "asterisk/compiler.h"
-#include "asterisk/compat.h"
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
 

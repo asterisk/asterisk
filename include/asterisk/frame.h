@@ -32,7 +32,6 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/time.h>
 
-#include "asterisk/compiler.h"
 #include "asterisk/endian.h"
 #include "asterisk/linkedlists.h"
 

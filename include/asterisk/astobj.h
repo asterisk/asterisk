@@ -24,7 +24,6 @@
 #define _ASTERISK_ASTOBJ_H
 
 #include "asterisk/lock.h"
-#include "asterisk/compiler.h"
 
 /*! \file
  * \brief A set of macros implementing objects and containers.

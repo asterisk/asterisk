@@ -24,12 +24,8 @@
  *
  */
 
-#include "asterisk/autoconfig.h"
+#include "asterisk/compat.h"
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
 #include <errno.h>
 #include <time.h>
 #include <sys/stat.h>
@@ -67,8 +63,6 @@ struct ast_channel
 
 
 #include "asterisk/inline_api.h"
-#include "asterisk/compat.h"
-#include "asterisk/compiler.h"
 #include "asterisk/endian.h"
 #include "asterisk/ast_expr.h"
 #include "asterisk/ael_structs.h"

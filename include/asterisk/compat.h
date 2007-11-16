@@ -15,6 +15,8 @@
  * especially those related to header files.
  */
 
+#include "asterisk/compiler.h"
+
 #ifndef _COMPAT_H
 #define _COMPAT_H
 

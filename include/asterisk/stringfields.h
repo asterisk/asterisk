@@ -103,8 +103,6 @@
 #define _ASTERISK_STRINGFIELDS_H
 
 #include "asterisk/inline_api.h"
-#include "asterisk/compiler.h"
-#include "asterisk/compat.h"
 
 /*!
   \internal

@@ -23,8 +23,6 @@
 #ifndef _ASTERISK_UTILS_H
 #define _ASTERISK_UTILS_H
 
-#include "asterisk/compat.h"
-
 #include <netinet/in.h>
 #include <arpa/inet.h>	/* we want to override inet_ntoa */
 #include <netdb.h>
@@ -34,7 +32,6 @@
 #include "asterisk/lock.h"
 #include "asterisk/time.h"
 #include "asterisk/logger.h"
-#include "asterisk/compiler.h"
 #include "asterisk/localtime.h"
 
 /*! 

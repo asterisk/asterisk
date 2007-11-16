@@ -142,7 +142,6 @@ extern "C" {
 #define MAX_LANGUAGE		20	/*!< Max length of the language setting */
 #define MAX_MUSICCLASS		80	/*!< Max length of the music class setting */
 
-#include "asterisk/compat.h"
 #include "asterisk/frame.h"
 #include "asterisk/sched.h"
 #include "asterisk/chanvars.h"
@@ -152,7 +151,6 @@ extern "C" {
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/stringfields.h"
-#include "asterisk/compiler.h"
 #include <limits.h>
 
 #define DATASTORE_INHERIT_FOREVER	INT_MAX
