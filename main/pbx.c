@@ -5569,7 +5569,7 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 				ast_hashtab_remove_object_via_lookup(tmp->peer_label_tree,e);
 			if (tmp->label)
 				ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
-			ast_hashtab_remove_object_via_lookup(con->root_tree, e->exten);
+			ast_hashtab_remove_object_via_lookup(con->root_tree, e);
 			ast_hashtab_insert_safe(con->root_tree, tmp->exten);
 			el->next = tmp;
 		} else {			/* We're the very first extension.  */
@@ -5583,7 +5583,7 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 				ast_hashtab_remove_object_via_lookup(tmp->peer_label_tree,e);
 			if (tmp->label)
 			ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
-			ast_hashtab_remove_object_via_lookup(con->root_tree, e->exten);
+			ast_hashtab_remove_object_via_lookup(con->root_tree, e);
 			ast_hashtab_insert_safe(con->root_tree, tmp->exten);
  			con->root = tmp;
 		}
