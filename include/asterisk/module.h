@@ -216,6 +216,7 @@ struct ast_module_info {
 
 	const char *key;
 	unsigned int flags;
+	unsigned int buildopt_sum[4];		/* The value of AST_BUILDOPT_SUM when this module was compiled */
 };
 
 void ast_module_register(const struct ast_module_info *);
@@ -242,7 +243,8 @@ void ast_module_unref(struct ast_module *);
 		AST_MODULE,				\
 		desc,					\
 		keystr,					\
-		flags_to_set				\
+		flags_to_set,				\
+		AST_BUILDOPT_SUM,			\
 	};						\
 	static void  __attribute__ ((constructor)) __reg_module(void) \
 	{ \
@@ -343,6 +345,7 @@ static void __restore_globals(void)
 		.flags = flags_to_set,				\
 		.description = desc,				\
 		.key = keystr,					\
+		.buildopt_sum = AST_BUILDOPT_SUM,		\
 		fields						\
 	};							\
 	static void  __attribute__ ((constructor)) __reg_module(void) \

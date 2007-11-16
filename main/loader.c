@@ -76,6 +76,8 @@ static unsigned char expected_key[] =
 { 0x87, 0x76, 0x79, 0x35, 0x23, 0xea, 0x3a, 0xd3,
   0x25, 0x2a, 0xbb, 0x35, 0x87, 0xe4, 0x22, 0x24 };
 
+static unsigned int buildopt_sum[4] = AST_BUILDOPT_SUM;
+
 static unsigned int embedding = 1; /* we always start out by registering embedded modules,
 				      since they are here before we dlopen() any
 				   */
@@ -603,6 +605,8 @@ int ast_module_reload(const char *name)
 
 static unsigned int inspect_module(const struct ast_module *mod)
 {
+	unsigned int buildopt_empty[4] = { 0, };
+
 	if (!mod->info->description) {
 		ast_log(LOG_WARNING, "Module '%s' does not provide a description.\n", mod->resource);
 		return 1;
@@ -615,6 +619,13 @@ static unsigned int inspect_module(const struct ast_module *mod)
 
 	if (verify_key((unsigned char *) mod->info->key)) {
 		ast_log(LOG_WARNING, "Module '%s' did not provide a valid license key.\n", mod->resource);
+		return 1;
+	}
+
+	if (memcmp(buildopt_empty, mod->info->buildopt_sum, sizeof(buildopt_empty)) &&
+	    memcmp(buildopt_sum, mod->info->buildopt_sum, sizeof(buildopt_sum))) {
+		ast_log(LOG_WARNING, "Module '%s' was not compiled with the same compile-time options as this version of Asterisk.\n", mod->resource);
+		ast_log(LOG_WARNING, "Module '%s' will not be initialized as it may cause instability.\n", mod->resource);
 		return 1;
 	}
 
