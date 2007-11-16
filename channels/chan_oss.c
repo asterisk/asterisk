@@ -1496,6 +1496,32 @@ static void store_callerid(struct chan_oss_pvt *o, const char *s)
 	ast_callerid_split(s, o->cid_name, sizeof(o->cid_name), o->cid_num, sizeof(o->cid_num));
 }
 
+static void store_config_core(struct chan_oss_pvt *o, const char *var, const char *value)
+{
+	M_START(var, value);
+
+	/* handle jb conf */
+	if (!ast_jb_read_conf(&global_jbconf, (char *)var,(char *) value))
+		return;
+
+	M_BOOL("autoanswer", o->autoanswer)
+	M_BOOL("autohangup", o->autohangup)
+	M_BOOL("overridecontext", o->overridecontext)
+	M_STR("device", o->device)
+	M_UINT("frags", o->frags)
+	M_UINT("debug", oss_debug)
+	M_UINT("queuesize", o->queuesize)
+	M_STR("context", o->ctx)
+	M_STR("language", o->language)
+	M_STR("mohinterpret", o->mohinterpret)
+	M_STR("extension", o->ext)
+	M_F("mixer", store_mixer(o, value))
+	M_F("callerid", store_callerid(o, value))  
+	M_F("boost", store_boost(o, value))
+
+	M_END(/* */);
+}
+
 /*!
  * grab fields from the config file, init the descriptor and open the device.
  */
@@ -1525,28 +1551,7 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 	o->lastopen = ast_tvnow();	/* don't leave it 0 or tvdiff may wrap */
 	/* fill other fields from configuration */
 	for (v = ast_variable_browse(cfg, ctg); v; v = v->next) {
-		M_START(v->name, v->value);
-
-		/* handle jb conf */
-		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
-			continue;
-
-		M_BOOL("autoanswer", o->autoanswer)
-		M_BOOL("autohangup", o->autohangup)
-		M_BOOL("overridecontext", o->overridecontext)
-		M_STR("device", o->device)
-		M_UINT("frags", o->frags)
-		M_UINT("debug", oss_debug)
-		M_UINT("queuesize", o->queuesize)
-		M_STR("context", o->ctx)
-		M_STR("language", o->language)
-		M_STR("mohinterpret", o->mohinterpret)
-		M_STR("extension", o->ext)
-		M_F("mixer", store_mixer(o, v->value))
-		M_F("callerid", store_callerid(o, v->value))
-		M_F("boost", store_boost(o, v->value))
-
-		M_END(/* */);
+		store_config_core(o, v->name, v->value);
 	}
 	if (ast_strlen_zero(o->device))
 		ast_copy_string(o->device, DEV_DSP, sizeof(o->device));
