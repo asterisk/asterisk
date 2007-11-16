@@ -34,20 +34,14 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <stdlib.h>
 #include <errno.h>
 #include <ctype.h>
-#include <unistd.h>
-#include <string.h>
 #include <signal.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <sys/time.h>
 #include <sys/signal.h>
 #include <netinet/in.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#include <unistd.h>
 #include <sys/ioctl.h>
 #ifdef SOLARIS
 #include <thread.h>

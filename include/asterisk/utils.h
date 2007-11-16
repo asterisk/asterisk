@@ -25,14 +25,10 @@
 
 #include "asterisk/compat.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>	/* we want to override inet_ntoa */
 #include <netdb.h>
 #include <limits.h>
-#include <string.h>
 #include <time.h>	/* we want to override localtime_r */
 
 #include "asterisk/lock.h"

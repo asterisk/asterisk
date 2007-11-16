@@ -36,11 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEBUG(a) 
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/time.h>
-#include <unistd.h>
-#include <string.h>
 
 #include "asterisk/sched.h"
 #include "asterisk/logger.h"

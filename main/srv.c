@@ -33,7 +33,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/nameser.h>
 #ifdef __APPLE__
@@ -42,9 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 #endif
 #include <resolv.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
 
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"

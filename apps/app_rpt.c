@@ -209,12 +209,7 @@ enum {HF_SCAN_OFF, HF_SCAN_DOWN_SLOW, HF_SCAN_DOWN_QUICK,
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <signal.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
 #include <search.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <dirent.h>

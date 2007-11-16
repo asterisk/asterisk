@@ -30,7 +30,6 @@
 #ifndef _ABSTRACT_JB_H_
 #define _ABSTRACT_JB_H_
 
-#include <stdio.h>
 #include <sys/time.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)

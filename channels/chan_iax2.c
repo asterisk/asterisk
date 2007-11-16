@@ -37,9 +37,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/types.h>
 #include <sys/mman.h>
 #include <dirent.h>
 #include <sys/socket.h>
@@ -50,10 +47,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 #include <sys/signal.h>
 #include <signal.h>
-#include <string.h>
 #include <strings.h>
 #include <errno.h>
-#include <unistd.h>
 #include <netdb.h>
 #include <fcntl.h>
 #include <sys/stat.h>

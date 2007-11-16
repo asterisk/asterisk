@@ -30,10 +30,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"
 #include "asterisk/module.h"

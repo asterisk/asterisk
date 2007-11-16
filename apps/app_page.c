@@ -34,10 +34,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <errno.h>
 
 #include "asterisk/options.h"

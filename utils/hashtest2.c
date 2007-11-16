@@ -32,19 +32,10 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <sys/types.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#ifdef HAVE_ALLOCA_H
-#include <alloca.h>
-#endif
-#include <string.h>
 #include <pthread.h>
 #include <sys/stat.h>
 #include <signal.h>
 #include <errno.h>
-#include <unistd.h>
 
 #include "asterisk/compat.h"
 #include "asterisk/lock.h"

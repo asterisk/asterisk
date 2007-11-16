@@ -34,14 +34,10 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <sys/types.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#include <stdio.h>
 #include <dirent.h>
-#include <string.h>
 #include <errno.h>
-#include <unistd.h>
 #include <fcntl.h>
 
 #include "asterisk/file.h"

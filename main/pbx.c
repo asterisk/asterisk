@@ -27,11 +27,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <sys/types.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
 #include <time.h>

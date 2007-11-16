@@ -42,11 +42,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <sys/types.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <sqlite.h>
 
 #include "asterisk/channel.h"

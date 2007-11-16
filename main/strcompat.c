@@ -21,16 +21,7 @@
 
 #include "asterisk.h"
 
-#include <sys/types.h>
 #include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-
-#ifdef HAVE_ALLOCA_H
-#include <alloca.h>
-#endif
 
 #ifndef HAVE_STRSEP
 char *strsep(char **str, const char *delims)

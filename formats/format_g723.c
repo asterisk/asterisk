@@ -29,13 +29,9 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
-#include <string.h>
 #include <sys/time.h>
 
 #include "asterisk/lock.h"

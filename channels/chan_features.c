@@ -34,12 +34,8 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
 #include <sys/socket.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>

@@ -33,15 +33,7 @@
 #if !defined(_PLC_H_)
 #define _PLC_H_
 
-#ifdef SOLARIS
-#include <sys/int_types.h>
-#else
-#if defined(__OpenBSD__) || defined( __FreeBSD__)
-#include <inttypes.h>
-#else
-#include <stdint.h>
-#endif
-#endif
+/* solaris used to #include <sys/int_types.h> */
 
 /*! \page plc_page Packet loss concealment
 \section plc_page_sec_1 What does it do?

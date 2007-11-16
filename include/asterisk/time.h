@@ -23,8 +23,9 @@
 #ifndef _ASTERISK_TIME_H
 #define _ASTERISK_TIME_H
 
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#include <stdlib.h>
+#endif
 
 #include "asterisk/inline_api.h"
 

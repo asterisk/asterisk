@@ -25,10 +25,7 @@
 #ifndef _ASTERISK_LOGGER_H
 #define _ASTERISK_LOGGER_H
 
-#include "asterisk/compat.h"
 #include "asterisk/options.h"
-
-#include <stdarg.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

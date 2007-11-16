@@ -63,11 +63,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #undef sched_setscheduler
 #undef setpriority
-#include <unistd.h>
-#include <stdlib.h>
 #include <sys/time.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <signal.h>
 #include <sched.h>
 #include <sys/socket.h>

@@ -38,7 +38,7 @@ ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
     # ppro's, etc, as well as the AMD K6 and K7.  
     #K6OPT=-DK6OPT
 
-    OPTIMIZE?=-O6
+    OPTIMIZE?=-O2
     ASTCFLAGS+=$(OPTIMIZE)
 endif
 

@@ -30,12 +30,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <stdarg.h>
 #include <limits.h>
 #include <mach-o/dyld.h>
 #include <mach-o/nlist.h>

@@ -23,10 +23,6 @@
 #ifndef _ASTERISK_STRINGS_H
 #define _ASTERISK_STRINGS_H
 
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-
 #include "asterisk/inline_api.h"
 #include "asterisk/compiler.h"
 #include "asterisk/compat.h"

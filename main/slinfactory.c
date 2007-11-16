@@ -28,8 +28,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <string.h>
-
 #include "asterisk/frame.h"
 #include "asterisk/slinfactory.h"
 #include "asterisk/logger.h"

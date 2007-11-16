@@ -28,14 +28,8 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <ctype.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <errno.h>
-#include <stdarg.h>
-#include <stdio.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

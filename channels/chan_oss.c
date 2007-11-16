@@ -40,15 +40,11 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <stdio.h>
 #include <ctype.h>
 #include <math.h>
-#include <string.h>
-#include <unistd.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <sys/time.h>
-#include <stdlib.h>
 #include <errno.h>
 
 #ifdef __linux

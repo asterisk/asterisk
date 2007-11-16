@@ -65,14 +65,9 @@ c-client (http://www.washington.edu/imap/
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <stdlib.h>
 #include <errno.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdio.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/mman.h>
 #include <time.h>
 #include <dirent.h>

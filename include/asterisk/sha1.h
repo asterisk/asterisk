@@ -18,15 +18,8 @@
 #ifndef _SHA1_H_
 #define _SHA1_H_
 
-
-
-#if defined(__OpenBSD__) || defined( __FreeBSD__)
-#include <inttypes.h>
-#else
-#include <stdint.h>
-#endif
-
 /*
+ * We assume that the standard asterisk headers have been included before this one.
  * If you do not have the ISO standard stdint.h header file, then you
  * must typdef the following:
  *    name              meaning

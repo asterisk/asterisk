@@ -19,8 +19,6 @@
 #ifndef _ASTERISK_MANAGER_H
 #define _ASTERISK_MANAGER_H
 
-#include <stdarg.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

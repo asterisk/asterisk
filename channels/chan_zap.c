@@ -50,8 +50,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <stdio.h>
-#include <string.h>
 #ifdef __NetBSD__
 #include <pthread.h>
 #include <signal.h>
@@ -59,11 +57,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/signal.h>
 #endif
 #include <errno.h>
-#include <stdlib.h>
-#if !defined(SOLARIS) && !defined(__FreeBSD__)
-#include <stdint.h>
-#endif
-#include <unistd.h>
 #include <sys/ioctl.h>
 #include <math.h>
 #include <ctype.h>

@@ -29,11 +29,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <assert.h>
-#include <string.h>
-#include <unistd.h>
 
 #include "asterisk/utils.h"
 #include "fixedjitterbuf.h"

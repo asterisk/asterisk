@@ -141,23 +141,19 @@
  * Back: \ref App_minivm
  */
 
-#include <stdlib.h>
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <errno.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/mman.h>
 #include <time.h>
 #include <dirent.h>
 #include <locale.h>
 
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/astobj.h"
 #include "asterisk/lock.h"

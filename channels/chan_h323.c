@@ -59,11 +59,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <netdb.h>
-#include <stdio.h>
-#include <string.h>
 #include <errno.h>
 #include <fcntl.h>
 

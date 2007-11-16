@@ -35,11 +35,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <fcntl.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <netinet/in.h>
-#include <string.h>
-#include <stdio.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/translate.h"

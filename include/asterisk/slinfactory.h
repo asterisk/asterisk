@@ -23,9 +23,6 @@
 
 #ifndef _ASTERISK_SLINFACTORY_H
 #define _ASTERISK_SLINFACTORY_H
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

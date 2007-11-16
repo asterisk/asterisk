@@ -29,14 +29,10 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <string.h>
-#include <stdio.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <signal.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"

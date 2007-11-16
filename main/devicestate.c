@@ -112,12 +112,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <sys/types.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"

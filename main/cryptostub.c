@@ -27,9 +27,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <unistd.h>
-#include <stdlib.h>
-
 #include "asterisk/crypto.h"
 #include "asterisk/logger.h"
 

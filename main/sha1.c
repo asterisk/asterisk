@@ -60,7 +60,7 @@
  *
  */
 
-
+#include "asterisk/compat.h"
 #include "asterisk/sha1.h"
 
 /*! Define the SHA1 circular left shift macro */

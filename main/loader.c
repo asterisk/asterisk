@@ -31,12 +31,8 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <stdio.h>
 #include <dirent.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <errno.h>
-#include <string.h>
 
 #include "asterisk/linkedlists.h"
 #include "asterisk/module.h"

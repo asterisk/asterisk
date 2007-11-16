@@ -102,10 +102,6 @@
 #ifndef _ASTERISK_STRINGFIELDS_H
 #define _ASTERISK_STRINGFIELDS_H
 
-#include <string.h>
-#include <stdarg.h>
-#include <stddef.h>
-
 #include "asterisk/inline_api.h"
 #include "asterisk/compiler.h"
 #include "asterisk/compat.h"

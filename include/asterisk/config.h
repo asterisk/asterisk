@@ -28,7 +28,6 @@ extern "C" {
 #endif
 
 #include "asterisk/utils.h"
-#include <stdarg.h>
 
 struct ast_config;
 

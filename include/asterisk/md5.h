@@ -23,8 +23,6 @@
 #ifndef _ASTERISK_MD5_H
 #define _ASTERISK_MD5_H
 
-#include <inttypes.h>
-
 struct MD5Context {
 	uint32_t buf[4];
 	uint32_t bits[2];

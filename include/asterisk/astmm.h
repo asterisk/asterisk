@@ -27,13 +27,6 @@
 
 #include "asterisk.h"
 
-/* Include these now to prevent them from being needed later */
-#include <sys/types.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
-
 /* Undefine any macros */
 #undef malloc
 #undef calloc

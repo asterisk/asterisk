@@ -24,8 +24,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <string.h>		/* for memcpy() */
-
 #include "asterisk/endian.h"
 #include "asterisk/md5.h"
 

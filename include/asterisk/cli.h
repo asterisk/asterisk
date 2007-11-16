@@ -27,8 +27,6 @@
 extern "C" {
 #endif
 
-#include <stdarg.h>
-
 #include "asterisk/linkedlists.h"
 
 void ast_cli(int fd, const char *fmt, ...)

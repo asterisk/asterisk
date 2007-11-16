@@ -29,11 +29,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <errno.h>
-#include <stdio.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"

@@ -44,20 +44,17 @@
 
 /*LINTLIBRARY*/
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#ifdef DEBUG
-#include <stdio.h>
-#endif
-#include <float.h>
 
-
-#include "private.h"
-#include "tzfile.h"
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <float.h>
+
+#include "private.h"
+#include "tzfile.h"
 
 #include "asterisk/lock.h"
 #include "asterisk/localtime.h"

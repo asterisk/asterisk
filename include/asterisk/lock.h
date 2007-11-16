@@ -46,7 +46,7 @@
 #define _ASTERISK_LOCK_H
 
 #include <pthread.h>
-#include <netdb.h>
+// #include <netdb.h>
 #include <time.h>
 #include <sys/param.h>
 
@@ -99,9 +99,6 @@
 #endif
 
 #include <errno.h>
-#include <string.h>
-#include <stdio.h>
-#include <unistd.h>
 
 #define AST_MUTEX_INIT_VALUE { PTHREAD_MUTEX_INIT_VALUE, 1, { NULL }, { 0 }, 0, { NULL }, { 0 }, PTHREAD_MUTEX_INIT_VALUE }
 #define AST_MUTEX_INIT_VALUE_NOTRACKING \

@@ -35,14 +35,10 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
 
 #define ALSA_PCM_NEW_HW_PARAMS_API
 #define ALSA_PCM_NEW_SW_PARAMS_API
