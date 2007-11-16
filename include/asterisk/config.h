@@ -132,6 +132,13 @@ char *ast_category_browse(struct ast_config *config, const char *prev);
  */
 struct ast_variable *ast_variable_browse(const struct ast_config *config, const char *category);
 
+/*!
+ * \brief given a pointer to a category, return the root variable.
+ * This is equivalent to ast_variable_browse(), but more efficient if we
+ * already have the struct ast_category * (e.g. from ast_category_get())
+ */
+struct ast_variable *ast_category_first(struct ast_category *cat);
+
 /*! 
  * \brief Gets a variable 
  * \param config which (opened) config to use

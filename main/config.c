@@ -587,6 +587,12 @@ static struct ast_category *next_available_category(struct ast_category *cat)
 	return cat;
 }
 
+/*! return the first var of a category */
+struct ast_variable *ast_category_first(struct ast_category *cat)
+{
+	return (cat) ? cat->root : NULL;
+}
+
 struct ast_variable *ast_category_root(struct ast_config *config, char *cat)
 {
 	struct ast_category *category = ast_category_get(config, cat);
