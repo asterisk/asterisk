@@ -868,8 +868,10 @@ static void log_match_char_tree(struct match_char *node, char *prefix)
 static void cli_match_char_tree(struct match_char *node, char *prefix, int fd)
 {
 	char my_prefix[1024];
-	
-	ast_cli(fd, "%s%s:%c:%d:%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "");
+	if (strlen(node->x) > 1 )
+		ast_cli(fd, "%s[%s]:%c:%d:%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "");
+	else
+		ast_cli(fd, "%s%s:%c:%d:%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "");
 	strcpy(my_prefix,prefix);
 	strcat(my_prefix,"+       ");
 	if (node->next_char)
@@ -1084,6 +1086,7 @@ struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast
 		if (pattern && *s1 == '[' && *(s1-1) != '\\') {
 			char *s2 = buf;
 			buf[0] = 0;
+			s1++; /* get past the '[' */
 			while (*s1 != ']' && *(s1-1) != '\\' ) {
 				if (*s1 == '\\') {
 					if (*(s1+1) == ']') {
@@ -1110,6 +1113,7 @@ struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast
 					*s2++ = *s1++;
 				}
 			}
+			*s2 = 0; /* null terminate the exploded range */
 			specif = strlen(buf);
 		} else {
 			if (*s1 == '\\') {

@@ -2104,8 +2104,15 @@ static void *do_parking_thread(void *ignore)
 					}
 					if (con) {
 						char returnexten[AST_MAX_EXTENSION];
+						char peername_flat[AST_MAX_EXTENSION]; /* using something like Zap/52 for an extension name is NOT a good idea */
+						int i;
+						ast_copy_string(peername_flat,peername,sizeof(peername_flat));
+						for(i=0; peername_flat[i] && i < AST_MAX_EXTENSION; i++) {
+							if (peername_flat[i] == '/') 
+								peername_flat[i]= '0';
+						}
 						snprintf(returnexten, sizeof(returnexten), "%s,,t", peername);
-						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", ast_strdup(returnexten), ast_free_ptr, registrar);
+						ast_add_extension2(con, 1, peername_flat, 1, NULL, NULL, "Dial", ast_strdup(returnexten), ast_free_ptr, registrar);
 					}
 					if (comebacktoorigin) { 
 						set_c_e_p(chan, parking_con_dial, peername, 1);
