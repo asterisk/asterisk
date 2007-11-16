@@ -17,7 +17,10 @@
  */
 
 /*! \file
- * \brief General Asterisk channel locking definitions.
+ * \brief Asterisk locking-related definitions:
+ * - ast_mutext_t, ast_rwlock_t and related functions;
+ * - atomic arithmetic instructions;
+ * - wrappers for channel locking.
  *
  * - See \ref LockDef
  */
@@ -46,8 +49,6 @@
 #define _ASTERISK_LOCK_H
 
 #include <pthread.h>
-// #include <netdb.h>
-#include <time.h>
 #include <sys/param.h>
 
 #include "asterisk/logger.h"
@@ -88,6 +89,13 @@
 #define AST_MUTEX_KIND			PTHREAD_MUTEX_RECURSIVE
 #endif /* PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP */
 
+/*
+ * Definition of ast_mutex_t, ast_cont_d and related functions with/without debugging
+ * (search for DEBUG_THREADS to find the start/end of the sections).
+ *
+ * The non-debug code contains just wrappers for the corresponding pthread functions.
+ * The debug code tracks usage and tries to identify deadlock situations.
+ */
 #ifdef DEBUG_THREADS
 
 #define __ast_mutex_logger(...)  do { if (canlog) ast_log(LOG_ERROR, __VA_ARGS__); else fprintf(stderr, __VA_ARGS__); } while (0)
@@ -645,27 +653,26 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 	return res;
 }
 
-#define ast_mutex_destroy(a) __ast_pthread_mutex_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define ast_mutex_lock(a) __ast_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define ast_mutex_unlock(a) __ast_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define ast_mutex_trylock(a) __ast_pthread_mutex_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define ast_cond_init(cond, attr) __ast_cond_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond, attr)
-#define ast_cond_destroy(cond) __ast_cond_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define ast_cond_signal(cond) __ast_cond_signal(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define ast_cond_broadcast(cond) __ast_cond_broadcast(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define ast_cond_wait(cond, mutex) __ast_cond_wait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex)
-#define ast_cond_timedwait(cond, mutex, time) __ast_cond_timedwait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex, time)
+#define ast_mutex_destroy(a)			__ast_pthread_mutex_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define ast_mutex_lock(a)			__ast_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define ast_mutex_unlock(a)			__ast_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define ast_mutex_trylock(a)			__ast_pthread_mutex_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define ast_cond_init(cond, attr)		__ast_cond_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond, attr)
+#define ast_cond_destroy(cond)			__ast_cond_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
+#define ast_cond_signal(cond)			__ast_cond_signal(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
+#define ast_cond_broadcast(cond)		__ast_cond_broadcast(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
+#define ast_cond_wait(cond, mutex)		__ast_cond_wait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex)
+#define ast_cond_timedwait(cond, mutex, time)	__ast_cond_timedwait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex, time)
 
 #else /* !DEBUG_THREADS */
 
 
 typedef pthread_mutex_t ast_mutex_t;
 
-#define AST_MUTEX_INIT_VALUE	((ast_mutex_t) PTHREAD_MUTEX_INIT_VALUE)
-#define AST_MUTEX_INIT_VALUE_NOTRACKING \
-	((ast_mutex_t) PTHREAD_MUTEX_INIT_VALUE)
+#define AST_MUTEX_INIT_VALUE			((ast_mutex_t) PTHREAD_MUTEX_INIT_VALUE)
+#define AST_MUTEX_INIT_VALUE_NOTRACKING		((ast_mutex_t) PTHREAD_MUTEX_INIT_VALUE)
 
-#define ast_mutex_init_notracking(m) ast_mutex_init(m)
+#define ast_mutex_init_notracking(m)		ast_mutex_init(m)
 
 static inline int ast_mutex_init(ast_mutex_t *pmutex)
 {
@@ -737,43 +744,45 @@ static inline int ast_cond_timedwait(ast_cond_t *cond, ast_mutex_t *t, const str
 #endif /* !DEBUG_THREADS */
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
-/* If AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
- destructors to destroy mutexes and create it on the fly.  */
-#define __AST_MUTEX_DEFINE(scope, mutex, init_val, track) \
-	scope ast_mutex_t mutex = init_val; \
-static void  __attribute__ ((constructor)) init_##mutex(void) \
-{ \
-	if (track) \
-		ast_mutex_init(&mutex); \
-	else \
-		ast_mutex_init_notracking(&mutex); \
-} \
-static void  __attribute__ ((destructor)) fini_##mutex(void) \
-{ \
-	ast_mutex_destroy(&mutex); \
+/*
+ * If AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope constructors
+ * and destructors to create/destroy global mutexes.
+ */
+#define __AST_MUTEX_DEFINE(scope, mutex, init_val, track)	\
+	scope ast_mutex_t mutex = init_val;			\
+static void  __attribute__ ((constructor)) init_##mutex(void)	\
+{								\
+	if (track)						\
+		ast_mutex_init(&mutex);				\
+	else							\
+		ast_mutex_init_notracking(&mutex);		\
+}								\
+								\
+static void  __attribute__ ((destructor)) fini_##mutex(void)	\
+{								\
+	ast_mutex_destroy(&mutex);				\
 }
 #else /* !AST_MUTEX_INIT_W_CONSTRUCTORS */
 /* By default, use static initialization of mutexes. */ 
-#define __AST_MUTEX_DEFINE(scope, mutex, init_val, track) \
-	scope ast_mutex_t mutex = init_val
+#define __AST_MUTEX_DEFINE(scope, mutex, init_val, track)	scope ast_mutex_t mutex = init_val
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
-#define pthread_mutex_t use_ast_mutex_t_instead_of_pthread_mutex_t
-#define pthread_mutex_lock use_ast_mutex_lock_instead_of_pthread_mutex_lock
-#define pthread_mutex_unlock use_ast_mutex_unlock_instead_of_pthread_mutex_unlock
-#define pthread_mutex_trylock use_ast_mutex_trylock_instead_of_pthread_mutex_trylock
-#define pthread_mutex_init use_ast_mutex_init_instead_of_pthread_mutex_init
-#define pthread_mutex_destroy use_ast_mutex_destroy_instead_of_pthread_mutex_destroy
-#define pthread_cond_t use_ast_cond_t_instead_of_pthread_cond_t
-#define pthread_cond_init use_ast_cond_init_instead_of_pthread_cond_init
-#define pthread_cond_destroy use_ast_cond_destroy_instead_of_pthread_cond_destroy
-#define pthread_cond_signal use_ast_cond_signal_instead_of_pthread_cond_signal
-#define pthread_cond_broadcast use_ast_cond_broadcast_instead_of_pthread_cond_broadcast
-#define pthread_cond_wait use_ast_cond_wait_instead_of_pthread_cond_wait
-#define pthread_cond_timedwait use_ast_cond_timedwait_instead_of_pthread_cond_timedwait
+#define pthread_mutex_t		use_ast_mutex_t_instead_of_pthread_mutex_t
+#define pthread_mutex_lock	use_ast_mutex_lock_instead_of_pthread_mutex_lock
+#define pthread_mutex_unlock	use_ast_mutex_unlock_instead_of_pthread_mutex_unlock
+#define pthread_mutex_trylock	use_ast_mutex_trylock_instead_of_pthread_mutex_trylock
+#define pthread_mutex_init	use_ast_mutex_init_instead_of_pthread_mutex_init
+#define pthread_mutex_destroy	use_ast_mutex_destroy_instead_of_pthread_mutex_destroy
+#define pthread_cond_t		use_ast_cond_t_instead_of_pthread_cond_t
+#define pthread_cond_init	use_ast_cond_init_instead_of_pthread_cond_init
+#define pthread_cond_destroy	use_ast_cond_destroy_instead_of_pthread_cond_destroy
+#define pthread_cond_signal	use_ast_cond_signal_instead_of_pthread_cond_signal
+#define pthread_cond_broadcast	use_ast_cond_broadcast_instead_of_pthread_cond_broadcast
+#define pthread_cond_wait	use_ast_cond_wait_instead_of_pthread_cond_wait
+#define pthread_cond_timedwait	use_ast_cond_timedwait_instead_of_pthread_cond_timedwait
 
-#define AST_MUTEX_DEFINE_STATIC(mutex) __AST_MUTEX_DEFINE(static, mutex, AST_MUTEX_INIT_VALUE, 1)
-#define AST_MUTEX_DEFINE_STATIC_NOTRACKING(mutex) __AST_MUTEX_DEFINE(static, mutex, AST_MUTEX_INIT_VALUE_NOTRACKING, 0)
+#define AST_MUTEX_DEFINE_STATIC(mutex)			__AST_MUTEX_DEFINE(static, mutex, AST_MUTEX_INIT_VALUE, 1)
+#define AST_MUTEX_DEFINE_STATIC_NOTRACKING(mutex)	__AST_MUTEX_DEFINE(static, mutex, AST_MUTEX_INIT_VALUE_NOTRACKING, 0)
 
 #define AST_MUTEX_INITIALIZER __use_AST_MUTEX_DEFINE_STATIC_rather_than_AST_MUTEX_INITIALIZER__
 
@@ -782,6 +791,12 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 #ifndef __linux__
 #define pthread_create __use_ast_pthread_create_instead__
 #endif
+
+/*
+ * Same as above, definitions of ast_rwlock_t for the various cases:
+ * simple wrappers for the pthread equivalent in the non-debug case,
+ * more sophisticated tracking in the debug case.
+ */
 
 typedef pthread_rwlock_t ast_rwlock_t;
 
@@ -793,7 +808,13 @@ typedef pthread_rwlock_t ast_rwlock_t;
 
 #ifdef DEBUG_THREADS
 
-#define ast_rwlock_init(rwlock) __ast_rwlock_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #rwlock, rwlock)
+#define ast_rwlock_init(rwlock)		__ast_rwlock_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #rwlock, rwlock)
+#define ast_rwlock_destroy(rwlock)	__ast_rwlock_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #rwlock, rwlock)
+#define ast_rwlock_unlock(a)		_ast_rwlock_unlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ast_rwlock_rdlock(a)		_ast_rwlock_rdlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ast_rwlock_wrlock(a)		_ast_rwlock_wrlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ast_rwlock_tryrdlock(a)		_ast_rwlock_tryrdlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ast_rwlock_trywrlock(a) _ast_rwlock_trywrlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 
 static inline int __ast_rwlock_init(const char *filename, int lineno, const char *func, const char *rwlock_name, ast_rwlock_t *prwlock)
@@ -820,7 +841,6 @@ static inline int __ast_rwlock_init(const char *filename, int lineno, const char
 	return res;
 }
 
-#define ast_rwlock_destroy(rwlock) __ast_rwlock_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #rwlock, rwlock)
 
 static inline int __ast_rwlock_destroy(const char *filename, int lineno, const char *func, const char *rwlock_name, ast_rwlock_t *prwlock)
 {
@@ -842,8 +862,6 @@ static inline int __ast_rwlock_destroy(const char *filename, int lineno, const c
 	return res;
 }
 
-#define ast_rwlock_unlock(a) \
-	_ast_rwlock_unlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 static inline int _ast_rwlock_unlock(ast_rwlock_t *lock, const char *name,
 	const char *file, int line, const char *func)
@@ -869,8 +887,6 @@ static inline int _ast_rwlock_unlock(ast_rwlock_t *lock, const char *name,
 	return res;
 }
 
-#define ast_rwlock_rdlock(a) \
-	_ast_rwlock_rdlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 static inline int _ast_rwlock_rdlock(ast_rwlock_t *lock, const char *name,
 	const char *file, int line, const char *func)
@@ -902,8 +918,6 @@ static inline int _ast_rwlock_rdlock(ast_rwlock_t *lock, const char *name,
 	return res;
 }
 
-#define ast_rwlock_wrlock(a) \
-	_ast_rwlock_wrlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 static inline int _ast_rwlock_wrlock(ast_rwlock_t *lock, const char *name,
 	const char *file, int line, const char *func)
@@ -935,8 +949,6 @@ static inline int _ast_rwlock_wrlock(ast_rwlock_t *lock, const char *name,
 	return res;
 }
 
-#define ast_rwlock_tryrdlock(a) \
-	_ast_rwlock_tryrdlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 static inline int _ast_rwlock_tryrdlock(ast_rwlock_t *lock, const char *name,
 	const char *file, int line, const char *func)
@@ -968,8 +980,6 @@ static inline int _ast_rwlock_tryrdlock(ast_rwlock_t *lock, const char *name,
 	return res;
 }
 
-#define ast_rwlock_trywrlock(a) \
-	_ast_rwlock_trywrlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 static inline int _ast_rwlock_trywrlock(ast_rwlock_t *lock, const char *name,
 	const char *file, int line, const char *func)
@@ -1053,25 +1063,25 @@ static inline int ast_rwlock_trywrlock(ast_rwlock_t *prwlock)
 /* Statically declared read/write locks */
 
 #ifndef HAVE_PTHREAD_RWLOCK_INITIALIZER
-#define __AST_RWLOCK_DEFINE(scope, rwlock) \
-        scope ast_rwlock_t rwlock; \
-static void  __attribute__ ((constructor)) init_##rwlock(void) \
-{ \
-        ast_rwlock_init(&rwlock); \
-} \
-static void  __attribute__ ((destructor)) fini_##rwlock(void) \
-{ \
-        ast_rwlock_destroy(&rwlock); \
+#define __AST_RWLOCK_DEFINE(scope, rwlock)			\
+        scope ast_rwlock_t rwlock;				\
+static void  __attribute__ ((constructor)) init_##rwlock(void)	\
+{								\
+        ast_rwlock_init(&rwlock);				\
+}								\
+								\
+static void  __attribute__ ((destructor)) fini_##rwlock(void)	\
+{								\
+        ast_rwlock_destroy(&rwlock);				\
 }
 #else
-#define __AST_RWLOCK_DEFINE(scope, rwlock) \
-        scope ast_rwlock_t rwlock = AST_RWLOCK_INIT_VALUE
+#define __AST_RWLOCK_DEFINE(scope, rwlock)	scope ast_rwlock_t rwlock = AST_RWLOCK_INIT_VALUE
 #endif
 
 #define AST_RWLOCK_DEFINE_STATIC(rwlock) __AST_RWLOCK_DEFINE(static, rwlock)
 
 /*
- * Initial support for atomic instructions.
+ * Support for atomic instructions.
  * For platforms that have it, use the native cpu instruction to
  * implement them. For other platforms, resort to a 'slow' version
  * (defined in utils.c) that protects the atomic instruction with

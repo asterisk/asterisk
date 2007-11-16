@@ -353,6 +353,10 @@ static force_inline int inaddrcmp(const struct sockaddr_in *sin1, const struct s
 		|| (sin1->sin_port != sin2->sin_port));
 }
 
+/*
+ * Thread management support (should be moved to lock.h or a different header)
+ */
+ 
 #define AST_STACKSIZE 240 * 1024
 
 #if defined(LOW_MEMORY)
@@ -372,24 +376,25 @@ int ast_pthread_create_detached_stack(pthread_t *thread, pthread_attr_t *attr, v
 				 void *data, size_t stacksize, const char *file, const char *caller,
 				 int line, const char *start_fn);
 
-#define ast_pthread_create(a, b, c, d) ast_pthread_create_stack(a, b, c, d,			\
-							        0,				\
-	 						        __FILE__, __FUNCTION__,		\
- 							        __LINE__, #c)
-#define ast_pthread_create_detached(a, b, c, d) ast_pthread_create_detached_stack(a, b, c, d, \
-									0, \
-									__FILE__, __FUNCTION__, \
-									__LINE__, #c)
+#define ast_pthread_create(a, b, c, d) 				\
+	ast_pthread_create_stack(a, b, c, d,			\
+		0, __FILE__, __FUNCTION__, __LINE__, #c)
 
-#define ast_pthread_create_background(a, b, c, d) ast_pthread_create_stack(a, b, c, d,			\
-									   AST_BACKGROUND_STACKSIZE,	\
-									   __FILE__, __FUNCTION__,	\
-									   __LINE__, #c)
+#define ast_pthread_create_detached(a, b, c, d)			\
+	ast_pthread_create_detached_stack(a, b, c, d,		\
+		0, __FILE__, __FUNCTION__, __LINE__, #c)
 
-#define ast_pthread_create_detached_background(a, b, c, d) ast_pthread_create_detached_stack(a, b, c, d, \
-									AST_BACKGROUND_STACKSIZE, \
-									__FILE__, __FUNCTION__, \
-									__LINE__, #c)
+#define ast_pthread_create_background(a, b, c, d)		\
+	ast_pthread_create_stack(a, b, c, d,			\
+		AST_BACKGROUND_STACKSIZE,			\
+		__FILE__, __FUNCTION__, __LINE__, #c)
+
+#define ast_pthread_create_detached_background(a, b, c, d)	\
+	ast_pthread_create_detached_stack(a, b, c, d,		\
+		AST_BACKGROUND_STACKSIZE,			\
+		__FILE__, __FUNCTION__, __LINE__, #c)
+
+/* End of thread management support */
 
 /*!
 	\brief Process a string to find and replace characters
