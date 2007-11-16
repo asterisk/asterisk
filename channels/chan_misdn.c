@@ -1686,11 +1686,11 @@ static char *complete_ch_helper(struct ast_cli_args *a, int rpos)
 			if (++which > a->n)
 				break;
 		}
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 	}
 	if (c) {
 		ret = ast_strdup(c->name);
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 	} else
 		ret = NULL;
 	return ret;
