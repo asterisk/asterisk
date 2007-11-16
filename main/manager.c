@@ -2403,7 +2403,7 @@ static int process_message(struct mansession *s, const struct message *m)
 			sleep(1);
 			ast_mutex_lock(&s->__lock);
 			astman_send_error(s, m, "Login Already In Use");
-			ast_mutex_lock(&s->__lock);
+			ast_mutex_unlock(&s->__lock);
 			return -1;
 		}
 	}
