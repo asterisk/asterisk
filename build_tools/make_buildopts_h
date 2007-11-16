@@ -14,7 +14,4 @@ done
 if ${GREP} AST_DEVMODE makeopts | ${GREP} -q yes
 then
 	echo "#define AST_DEVMODE 1"
-	TMP="${TMP} AST_DEVMODE"
 fi
-BUILDSUM=`echo ${TMP} | md5sum`
-echo "#define AST_BUILDOPT_SUM {0x${BUILDSUM:0:8}, 0x${BUILDSUM:8:8}, 0x${BUILDSUM:16:8}, 0x${BUILDSUM:24:8}}"
