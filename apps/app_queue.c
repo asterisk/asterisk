@@ -4153,11 +4153,9 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
-	struct call_queue *q, tmpq = {
-		.name = data,	
-	};
 	struct member *m;
 	struct ao2_iterator mem_iter;
+	struct call_queue *q;
 	char *option;
 
 	if (ast_strlen_zero(data)) {
@@ -4169,8 +4167,7 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 		*option++ = '\0';
 	else
 		option = "logged";
-	
-	if ((q = ao2_find(queues, &tmpq, OBJ_POINTER))) {
+	if ((q = load_realtime_queue(data))) {
 		ao2_lock(q);
 		if(!strcasecmp(option, "logged")) {
 			mem_iter = ao2_iterator_init(q->members, 0);
@@ -4205,10 +4202,8 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 static int queue_function_qac_dep(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
-	struct call_queue *q, tmpq = {
-		.name = data,	
-	};
 	struct member *m;
+	struct call_queue *q;
 	struct ao2_iterator mem_iter;
 	static int depflag = 1;
 
@@ -4222,7 +4217,7 @@ static int queue_function_qac_dep(struct ast_channel *chan, const char *cmd, cha
 		return -1;
 	}
 	
-	if ((q = ao2_find(queues, &tmpq, OBJ_POINTER))) {
+	if((q = load_realtime_queue(data))) {
 		ao2_lock(q);
 		mem_iter = ao2_iterator_init(q->members, 0);
 		while ((m = ao2_iterator_next(&mem_iter))) {
