@@ -253,13 +253,13 @@ ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
 
 MOD_SUBDIRS:=channels pbx apps codecs formats cdr funcs
 OTHER_SUBDIRS:=utils agi
-SUBDIRS:=$(OTHER_SUBDIRS) $(MOD_SUBDIRS)
 # in cygwin we need to build main (i.e. asterisk.dll) first, then res.
 ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
   SUBDIRS+= main res
 else
-  OTHER_SUBDIRS += res main
+  MOD_SUBDIRS += res main
 endif
+SUBDIRS:=$(OTHER_SUBDIRS) $(MOD_SUBDIRS)
 SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)
 SUBDIRS_CLEAN:=$(SUBDIRS:%=%-clean)
 SUBDIRS_DIST_CLEAN:=$(SUBDIRS:%=%-dist-clean)
