@@ -36,6 +36,11 @@ ifeq ($(OSARCH),NetBSD)
   H323LIB=-lh323_NetBSD_x86_r
 endif
 
+ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
+  C_MODS:=$(filter-out chan_oss,$(C_MODS))
+  C_MODS:=$(filter-out chan_unistim,$(C_MODS))
+endif
+
 ifeq ($(wildcard h323/libchanh323.a),)
   CC_MODS:=$(filter-out chan_h323,$(CC_MODS))
 endif
