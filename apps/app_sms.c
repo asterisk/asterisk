@@ -512,7 +512,7 @@ static void packdate(unsigned char *o, time_t w)
 	int z;
 
 	ast_localtime(&tv, &t, NULL);
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__) || defined(__CYGWIN__)
 	z = -t.tm_gmtoff / 60 / 15;
 #else
 	z = timezone / 60 / 15;
