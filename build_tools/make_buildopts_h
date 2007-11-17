@@ -22,8 +22,8 @@ then
 	TMP="${TMP} AST_DEVMODE"
 fi
 
-case ${OSARCH} in
-*BSD)
+case ${OSARCH} in	# actually we should check build_os
+*BSD|mingw*)
 	BUILDSUM=`echo ${TMP} | md5`
 	echo "#define AST_BUILDOPT_SUM {0x0, 0x0, 0x0, 0x0} /* dummy */"
 	;;
