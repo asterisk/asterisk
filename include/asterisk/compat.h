@@ -56,6 +56,12 @@
 #include <string.h>
 #endif
 
+#ifdef HAVE_SYS_POLL_H
+#include <sys/poll.h>
+#else
+#include "asterisk/poll-compat.h"
+#endif
+
 #if !defined(HAVE_ASPRINTF) && !defined(__AST_DEBUG_MALLOC)
 int asprintf(char **str, const char *fmt, ...);
 #endif

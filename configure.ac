@@ -288,7 +288,10 @@ AC_CHECK_FUNCS([asprintf atexit bzero dup2 endpwent ftruncate getcwd gethostbyna
 
 AC_CHECK_FUNCS([glob])
 AC_CHECK_FUNCS([timersub])
-AC_CHECK_HEADER([sys/poll.h], [HAS_POLL=1],)
+AC_CHECK_HEADER([sys/poll.h], 
+   [HAS_POLL=1]
+   AC_DEFINE([HAVE_SYS_POLL_H], 1, [Define to 1 if your system has working sys/poll.h]),
+   )
 AC_SUBST(HAS_POLL)
 
 # https support (in main/http.c) uses funopen on BSD systems,

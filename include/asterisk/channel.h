@@ -125,7 +125,7 @@ References:
 
 #include "asterisk/abstract_jb.h"
 
-#ifdef HAVE_POLL 
+#ifdef HAVE_SYS_POLL_H
 #include <sys/poll.h>
 #else
 #include "asterisk/poll-compat.h"
