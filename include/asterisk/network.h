@@ -19,6 +19,8 @@
 /*! \file
  * \brief Wrapper for network related headers,
  * masking differences between various operating systems.
+ * On passing, we also provide here trivial functions or
+ * other simple wrappers to network-related functions.
  */
 
 #ifndef _ASTERISK_NETWORK_H
@@ -28,21 +30,29 @@
 extern "C" {
 #endif
 
-#ifdef HAVE_WINSOCK2_H_NOT
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#elif defined(HAVE_WINSOCK_H)
-#include <winsock.h>
-typedef int socklen_t;
-
-#else
-#include <arpa/inet.h>  /* include early to override inet_ntoa */
+/*
+ * Include relevant network headers.
+ * Our preferred choice are the standard BSD/linux/unix headers.
+ * Missing them (e.g. for solaris or various windows environments),
+ * we resort to whatever we find around, and provide local definitions
+ * for the missing bits.
+ */
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>		/* include early to override inet_ntoa */
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
-#include <sys/socket.h>  
+#include <sys/socket.h>
+#elif defined(HAVE_WINSOCK_H)
+#include <winsock.h>
+typedef int socklen_t;
+#elif defined(HAVE_WINSOCK2_H)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#error don't know how to handle network functions here.
 #endif
 
 #ifndef HAVE_INET_ATON
