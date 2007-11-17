@@ -19,6 +19,10 @@ ifeq ($(OSARCH),SunOS)
   LIBS+=-lsocket -lnsl
 endif
 
+ifeq ($(OSARCH),mingw32)
+    AGIS:=
+endif
+
 include $(ASTTOPDIR)/Makefile.rules
 
 all: $(AGIS)
