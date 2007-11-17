@@ -142,7 +142,17 @@ endif
 minimime/libmmime.a: CHECK_SUBDIR
 	@cd minimime && $(MAKE) libmmime.a
 
-asterisk: $(OBJS) editline/libedit.a db1-ast/libdb1.a minimime/libmmime.a $(AST_EMBED_LDSCRIPTS)
+ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
+MAIN_TGT:=asterisk.dll
+asterisk: cygload
+	mv cygload.exe asterisk.exe
+
+cygload: asterisk.dll
+else
+MAIN_TGT:=asterisk
+endif
+
+$(MAIN_TGT): $(OBJS) editline/libedit.a db1-ast/libdb1.a minimime/libmmime.a $(AST_EMBED_LDSCRIPTS)
 	@$(CC) -c -o buildinfo.o $(ASTCFLAGS) buildinfo.c
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 ifneq ($(findstring chan_h323,$(MENUSELECT_CHANNELS)),)
