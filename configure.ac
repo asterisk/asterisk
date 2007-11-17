@@ -241,6 +241,8 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/file.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h termios.h unistd.h utime.h])
 
+AC_CHECK_HEADERS([winsock.h winsock2.h])
+
 AC_SYS_LARGEFILE
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -285,6 +287,7 @@ AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([asprintf atexit bzero dup2 endpwent ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtol strtoq unsetenv utime vasprintf])
 
 AC_CHECK_FUNCS([glob])
+AC_CHECK_FUNCS([timersub])
 AC_CHECK_HEADER([sys/poll.h], [HAS_POLL=1],)
 AC_SUBST(HAS_POLL)
 

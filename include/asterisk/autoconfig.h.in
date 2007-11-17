@@ -879,6 +879,9 @@
 /* Define to 1 if you have the <termios.h> header file. */
 #undef HAVE_TERMIOS_H
 
+/* Define to 1 if you have the `timersub' function. */
+#undef HAVE_TIMERSUB
+
 /* Define this to indicate the ${TINFO_DESCRIP} library */
 #undef HAVE_TINFO
 
@@ -950,6 +953,12 @@
 
 /* Define to 1 if you have the `vprintf' function. */
 #undef HAVE_VPRINTF
+
+/* Define to 1 if you have the <winsock2.h> header file. */
+#undef HAVE_WINSOCK2_H
+
+/* Define to 1 if you have the <winsock.h> header file. */
+#undef HAVE_WINSOCK_H
 
 /* Define to 1 if `fork' works. */
 #undef HAVE_WORKING_FORK
