@@ -52,7 +52,7 @@ typedef int socklen_t;
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
-#error don't know how to handle network functions here.
+#error "don't know how to handle network functions here."
 #endif
 
 #ifndef HAVE_INET_ATON

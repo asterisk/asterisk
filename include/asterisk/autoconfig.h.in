@@ -562,6 +562,19 @@
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
 
+/* Define if your system has the PTHREAD_MUTEX_RECURSIVE_NP headers. */
+#undef HAVE_PTHREAD_MUTEX_RECURSIVE_NP
+
+/* Define PTHREAD_MUTEX_RECURSIVE_NP headers version */
+#undef HAVE_PTHREAD_MUTEX_RECURSIVE_NP_VERSION
+
+/* Define if your system has the PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+   headers. */
+#undef HAVE_PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+
+/* Define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP headers version */
+#undef HAVE_PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP_VERSION
+
 /* Define if your system has the PTHREAD_RWLOCK_INITIALIZER headers. */
 #undef HAVE_PTHREAD_RWLOCK_INITIALIZER
 
