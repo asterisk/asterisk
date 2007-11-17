@@ -20,6 +20,11 @@
 #ifndef _COMPAT_H
 #define _COMPAT_H
 
+#ifndef __STDC_VERSION__
+/* flex output wants to find this defined. */
+#define	__STDC_VERSION__ 0
+#endif
+
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
