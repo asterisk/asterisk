@@ -44,7 +44,10 @@ $(addsuffix .oo,$(CC_MODS)) $(addsuffix .o,$(C_MODS)):	\
 	ASTCFLAGS+= -DAST_MODULE=\"$*\" $(MENUSELECT_OPTS_$*:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_INCLUDE))
 
 # For loadable modules, pass _LIB and _LDFLAGS from menuselect.
+ifneq ($(OSARCH),mingw32)       # -fPIC is default on mingw32 and cygwin
 $(LOADABLE_MODS:%=%.so): ASTCFLAGS+=-fPIC
+endif
+
 $(LOADABLE_MODS:%=%.so): LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_LIB))
 $(LOADABLE_MODS:%=%.so): ASTLDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_LDFLAGS))
 
