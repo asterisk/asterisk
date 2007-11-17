@@ -228,6 +228,10 @@ AST_EXT_LIB_SETUP([ZAPTEL], [Zaptel], [zaptel])
 AST_EXT_LIB_SETUP([ZAPTEL_TRANSCODE], [Zaptel_transcode], [zaptel_transcode])
 AST_EXT_LIB_SETUP([ZAPTEL_VLDTMF], [Zaptel_vldtmf], [zaptel_vldtmf])
 
+AST_EXT_LIB_SETUP([SDL], [Sdl], [sdl])
+AST_EXT_LIB_SETUP([SDL_IMAGE], [Sdl Image library], [SDL_image])
+AST_EXT_LIB_SETUP([FFMPEG], [Ffmpeg and avcodec library], [avcodec])
+
 # check for basic system features and functionality before
 # checking for package libraries
 
@@ -1151,6 +1155,10 @@ AC_CHECK_HEADER([linux/ixjuser.h], [PBX_IXJUSER=1], [PBX_IXJUSER=0], [
 				   #endif
 				   ])
 AC_SUBST(PBX_IXJUSER)
+
+AST_EXT_TOOL_CHECK([SDL], [sdl])
+AST_EXT_LIB_CHECK([SDL_IMAGE], [SDL_image], [IMG_Load], [SDL/SDL_image.h], [${SDL_LIB}])
+AST_EXT_LIB_CHECK([FFMPEG], [avcodec], [sws_getContext], [ffmpeg/avcodec.h], [-lpthread -lz -lm])
 
 PBX_GTK=0
 AC_CHECK_TOOL(GTKCONFIG, gtk-config, No)

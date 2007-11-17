@@ -228,6 +228,12 @@
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
+/* Define this to indicate the ${FFMPEG_DESCRIP} library */
+#undef HAVE_FFMPEG
+
+/* Define to indicate the ${FFMPEG_DESCRIP} library version */
+#undef HAVE_FFMPEG_VERSION
+
 /* Define this to indicate the ${FLOOR_DESCRIP} library */
 #undef HAVE_FLOOR
 
@@ -636,6 +642,15 @@
 
 /* Define RTLD_NOLOAD headers version */
 #undef HAVE_RTLD_NOLOAD_VERSION
+
+/* Define if your system has the SDL libraries. */
+#undef HAVE_SDL
+
+/* Define this to indicate the ${SDL_IMAGE_DESCRIP} library */
+#undef HAVE_SDL_IMAGE
+
+/* Define to indicate the ${SDL_IMAGE_DESCRIP} library version */
+#undef HAVE_SDL_IMAGE_VERSION
 
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT

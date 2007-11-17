@@ -152,6 +152,23 @@ fi
 ])
 
 
+# check for a tool using xxx-config
+# AST_EXT_TOOL_CHECK([package symbol name], [package library name], [symbol], [version])
+AC_DEFUN([AST_EXT_TOOL_CHECK],
+[
+PBX_$1=0
+AC_CHECK_TOOL(CONFIG_$1, $2-config, No)
+if test ! "x${CONFIG_$1}" = xNo; then
+   $1_INCLUDE=$(${CONFIG_$1} --cflags $3)
+   $1_LIB=$(${CONFIG_$1} --libs $3)
+   PBX_$1=1
+   AC_DEFINE([HAVE_$1], 1, [Define if your system has the $1 libraries.])
+fi
+AC_SUBST(PBX_$1)
+AC_SUBST($1_INCLUDE)
+AC_SUBST($1_LIB)
+])
+
 AC_DEFUN(
 [AST_CHECK_GNU_MAKE], [AC_CACHE_CHECK(for GNU make, GNU_MAKE,
    GNU_MAKE='Not Found' ;
