@@ -259,6 +259,7 @@ static void *hashtest(void *data)
 	printf("\ntotals..................... lookups=%d/%d, added=%d, removed=%d; traversals=%d\n",
 		   els_found, els_lookedup, els_added, els_removed, els_traversals);
 	pthread_exit(0);
+	return NULL;
 }
 
 static void run_hashtest(int numthr)
