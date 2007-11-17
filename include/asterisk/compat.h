@@ -53,6 +53,8 @@
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>	/* not necessarily present - could be in stdlib */
+#elif defined(HAVE_ALLOCA)
+#include <malloc.h>	/* see if it is here... */
 #endif
 
 #include <stdio.h>	/* this is always present */
