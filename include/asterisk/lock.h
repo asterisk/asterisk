@@ -81,7 +81,7 @@
 
 /* Asterisk REQUIRES recursive (not error checking) mutexes
    and will not run without them. */
-#if defined(PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP)
+#if defined(PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP) && defined(PTHREAD_MUTEX_RECURSIVE_NP)
 #define PTHREAD_MUTEX_INIT_VALUE	PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 #define AST_MUTEX_KIND			PTHREAD_MUTEX_RECURSIVE_NP
 #else
@@ -767,13 +767,15 @@ static void  __attribute__ ((destructor)) fini_##mutex(void)	\
 #define __AST_MUTEX_DEFINE(scope, mutex, init_val, track)	scope ast_mutex_t mutex = init_val
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
+#ifndef __CYGWIN__	/* temporary disabled for cygwin */
 #define pthread_mutex_t		use_ast_mutex_t_instead_of_pthread_mutex_t
+#define pthread_cond_t		use_ast_cond_t_instead_of_pthread_cond_t
+#endif
 #define pthread_mutex_lock	use_ast_mutex_lock_instead_of_pthread_mutex_lock
 #define pthread_mutex_unlock	use_ast_mutex_unlock_instead_of_pthread_mutex_unlock
 #define pthread_mutex_trylock	use_ast_mutex_trylock_instead_of_pthread_mutex_trylock
 #define pthread_mutex_init	use_ast_mutex_init_instead_of_pthread_mutex_init
 #define pthread_mutex_destroy	use_ast_mutex_destroy_instead_of_pthread_mutex_destroy
-#define pthread_cond_t		use_ast_cond_t_instead_of_pthread_cond_t
 #define pthread_cond_init	use_ast_cond_init_instead_of_pthread_cond_init
 #define pthread_cond_destroy	use_ast_cond_destroy_instead_of_pthread_cond_destroy
 #define pthread_cond_signal	use_ast_cond_signal_instead_of_pthread_cond_signal
