@@ -33,9 +33,8 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/nameser.h>
+#include "asterisk/network.h"
+#include <arpa/nameser.h>	/* res_* functions */
 #include <resolv.h>
 
 #include "asterisk/logger.h"

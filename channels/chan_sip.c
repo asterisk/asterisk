@@ -88,19 +88,14 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <ctype.h>
-#include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <net/if.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <netdb.h>
 #include <signal.h>
 #include <sys/signal.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <arpa/inet.h>
-#include <netinet/ip.h>
 #include <regex.h>
+
+#include "asterisk/network.h"
 
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
