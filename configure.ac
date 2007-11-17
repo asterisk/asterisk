@@ -86,7 +86,7 @@ case "${host_os}" in
      OSARCH=SunOS
      ;;
      *)
-     OSARCH=${HOST_OS}
+     OSARCH=${host_os}
      ;;
 esac
 
@@ -279,6 +279,8 @@ AC_FUNC_STRTOD
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([asprintf atexit bzero dup2 endpwent ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtol strtoq unsetenv utime vasprintf])
+
+AC_CHECK_FUNCS([glob])
 
 # https support (in main/http.c) uses funopen on BSD systems,
 # fopencookie on linux
@@ -1240,6 +1242,8 @@ fi
 AC_MSG_NOTICE(Package configured for: )
 AC_MSG_NOTICE( OS type  : $host_os)
 AC_MSG_NOTICE( Host CPU : $host_cpu)
+AC_MSG_NOTICE( build-cpu:vendor:os: $build_cpu : $build_vendor : $build_os :) 
+AC_MSG_NOTICE( host-cpu:vendor:os: $host_cpu : $host_vendor : $host_os :) 
 if test "${cross_compiling}" = "yes"; then
    AC_MSG_NOTICE( Cross Compilation = YES)
 fi
