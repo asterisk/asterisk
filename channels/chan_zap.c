@@ -658,6 +658,11 @@ static struct zt_pvt {
 	struct zt_ss7 *ss7;
 	struct isup_call *ss7call;
 	char charge_number[50];
+	char gen_add_number[50];
+	unsigned char gen_add_num_plan;
+	unsigned char gen_add_nai;
+	unsigned char gen_add_pres_ind;
+	unsigned char gen_add_type;
 	int transcap;
 	int cic;							/*!< CIC associated with channel */
 	unsigned int dpc;						/*!< CIC's DPC */
@@ -2242,6 +2247,9 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		char ss7_calling_nai;
 		int calling_nai_strip;
 		const char *charge_str = NULL;
+#if 0
+		const char *gen_address = NULL;
+#endif
 
 		c = strchr(dest, '/');
 		if (c)
@@ -2309,8 +2317,14 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		charge_str = pbx_builtin_getvar_helper(ast, "SS7_CHARGE_NUMBER");
 		if (charge_str)
 			isup_set_charge(p->ss7call, charge_str, SS7_ANI_CALLING_PARTY_SUB_NUMBER, 0x10);
-
-
+		
+#if 0
+		/* Set the generic address if it is set */
+		gen_address = pbx_builtin_getvar_helper(ast, "SS7_GENERIC_ADDRESS");
+		if (gen_address)
+			isup_set_gen_address(p->ss7call, gen_address, p->gen_add_nai,p->gen_add_pres_ind, p->gen_add_num_plan,p->gen_add_type); /* need to add some types here for NAI,PRES,TYPE */
+#endif
+		
 		isup_iam(p->ss7->ss7, p->ss7call);
 		ast_setstate(ast, AST_STATE_DIALING);
 		ss7_rel(p->ss7);
@@ -7577,7 +7591,7 @@ static int pri_create_spanmap(int span, int trunkgroup, int logicalspan)
 
 #ifdef HAVE_SS7
 
-static unsigned int parse_pointcode(char *pcstring)
+static unsigned int parse_pointcode(const char *pcstring)
 {
 	unsigned int code1, code2, code3;
 	int numvals;
@@ -8663,6 +8677,11 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 		/* Clear this after we set it */
 		p->charge_number[0] = 0;
 	}
+	if (!ast_strlen_zero(p->gen_add_number)) {
+		pbx_builtin_setvar_helper(c, "SS7_GENERIC_ADDRESS", p->gen_add_number);
+		/* Clear this after we set it */
+		p->gen_add_number[0] = 0;
+	}
 
 }
 
@@ -8929,15 +8948,20 @@ static void *ss7_linkset(void *data)
 					st = strchr(p->exten, '#');
 					if (st)
 						*st = '\0';
-				} else
-					p->exten[0] = '\0';
+					} else
+						p->exten[0] = '\0';
 
-				/* Need to fill these fields */
 				p->cid_ani[0] = '\0';
 				p->cid_name[0] = '\0';
 				p->cid_ani2 = e->iam.oli_ani2;
 				p->cid_ton = 0;
 				ast_copy_string(p->charge_number, e->iam.charge_number, sizeof(p->charge_number));
+
+				ast_copy_string(p->gen_add_number, e->iam.gen_add_number, sizeof(p->gen_add_number));
+				p->gen_add_type = e->iam.gen_add_type;
+				p->gen_add_nai = e->iam.gen_add_nai;
+				p->gen_add_pres_ind = e->iam.gen_add_pres_ind;
+				p->gen_add_num_plan = e->iam.gen_add_num_plan;
 					
 				/* Set DNID */
 				if (!ast_strlen_zero(e->iam.called_party_num))
