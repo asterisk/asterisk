@@ -277,7 +277,7 @@ ifeq ($(OSARCH),SunOS)
   SOLINK=-shared -fpic -L/usr/local/ssl/lib
 endif
 
-ifeq ($(OSARCH),mingw32)
+ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
   SOLINK=-Xlinker -r
 endif
 
