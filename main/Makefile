@@ -85,6 +85,10 @@ ifeq ($(OSARCH),FreeBSD)
   AST_LIBS+=-lcrypto
 endif
 
+ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
+  AST_LIBS+=-lminires -ldl
+  ASTLINK+= -shared -Wl,--out-implib,asterisk.dll
+endif
 ifeq ($(OSARCH),NetBSD)
   AST_LIBS+=-lpthread -lcrypto -lm -L/usr/pkg/lib $(EDITLINE_LIB)
 endif

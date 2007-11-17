@@ -30,6 +30,14 @@ ifeq ($(OSARCH),OpenBSD)
   UTILS:=$(filter-out muted,$(UTILS))
 endif
 
+ifeq ($(OSARCH),cygwin)
+  UTILS:=$(filter-out muted,$(UTILS))
+endif
+
+ifeq ($(OSARCH),mingw32)
+  UTILS:=
+endif
+
 ifneq ($(findstring darwin,$(OSARCH)),)
   AUDIO_LIBS=-framework CoreAudio
 endif

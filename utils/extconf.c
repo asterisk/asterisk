@@ -1146,7 +1146,7 @@ extern int ast_language_is_prefix;
 
 /* Asterisk REQUIRES recursive (not error checking) mutexes
    and will not run without them. */
-#if defined(PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP)
+#if defined(PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP) && defined(PTHREAD_MUTEX_RECURSIVE_NP)
 #define PTHREAD_MUTEX_INIT_VALUE	PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 #define AST_MUTEX_KIND			PTHREAD_MUTEX_RECURSIVE_NP
 #else
