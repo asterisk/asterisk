@@ -277,6 +277,10 @@ ifeq ($(OSARCH),SunOS)
   SOLINK=-shared -fpic -L/usr/local/ssl/lib
 endif
 
+ifeq ($(OSARCH),mingw32)
+  SOLINK=-Xlinker -r
+endif
+
 # This is used when generating the doxygen documentation
 ifneq ($(DOT),:)
   HAVEDOT=yes
