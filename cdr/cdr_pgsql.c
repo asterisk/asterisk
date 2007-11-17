@@ -51,7 +51,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
-#include "asterisk.h"
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 

@@ -76,7 +76,6 @@ extern "C" {
 #include "asterisk/pbx.h"
 #include "asterisk/options.h"
 #include "asterisk/utils.h"
-#include "asterisk/lock.h"
 #include "asterisk/sched.h"
 #include "asterisk/io.h"
 #include "asterisk/rtp.h"

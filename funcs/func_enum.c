@@ -44,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
-#include "asterisk/pbx.h"
 #include "asterisk/options.h"
 #include "asterisk/enum.h"
 #include "asterisk/app.h"

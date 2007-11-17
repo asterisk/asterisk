@@ -40,7 +40,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/astdb.h"
 #include "asterisk/lock.h"
-#include "asterisk/options.h"
 
 /*! \todo XXX Remove this application after 1.4 is relased */
 static char *d_descrip =

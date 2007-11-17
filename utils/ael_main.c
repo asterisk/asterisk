@@ -7,7 +7,6 @@
 #include "asterisk/compat.h"
 #include "asterisk/channel.h"
 #include "asterisk/ast_expr.h"
-#include "asterisk/ast_expr.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
 #include "asterisk/ael_structs.h"
