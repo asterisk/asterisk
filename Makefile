@@ -341,29 +341,28 @@ makeopts.embed_rules: menuselect.makeopts
 
 $(SUBDIRS): include/asterisk/version.h include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
 
-# ensure that all module subdirectories are processed before 'main' during
-# a parallel build, since if there are modules selected to be embedded the
-# directories containing them must be completed before the main Asterisk
-# binary can be built
 ifeq ($(findstring $(OSARCH), mingw32 cygwin ),)
+    # Non-windows:
+    # ensure that all module subdirectories are processed before 'main' during
+    # a parallel build, since if there are modules selected to be embedded the
+    # directories containing them must be completed before the main Asterisk
+    # binary can be built
 main: $(filter-out main,$(MOD_SUBDIRS))
 else
-SUBDIR_DEPS=main res
-main:
-	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" \
-	ASTLDFLAGS="$(ASTLDFLAGS)" AST_LIBS="$(AST_LIBS)" \
-	$(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
+    # Windows: we need to build main (i.e. the asterisk dll) first,
+    # followed by res, followed by the other directories, because
+    # dll symbols must be resolved during linking and not at runtime.
+D1:= $(filter-out main,$(MOD_SUBDIRS))
+D1:= $(filter-out res,$(D1))
 
+$(D1): res
 res:	main
-	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" \
-	ASTLDFLAGS="$(ASTLDFLAGS)" AST_LIBS="$(AST_LIBS)" \
-	$(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
 endif
 
-$(MOD_SUBDIRS): $(SUBDIR_DEPS)
+$(MOD_SUBDIRS):
 	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
 
-$(OTHER_SUBDIRS): $(SUBDIR_DEPS)
+$(OTHER_SUBDIRS):
 	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
 
 defaults.h: makeopts
