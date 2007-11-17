@@ -251,9 +251,15 @@ endif
 
 ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
 
-MOD_SUBDIRS:=res channels pbx apps codecs formats cdr funcs main
+MOD_SUBDIRS:=channels pbx apps codecs formats cdr funcs
 OTHER_SUBDIRS:=utils agi
 SUBDIRS:=$(OTHER_SUBDIRS) $(MOD_SUBDIRS)
+# in cygwin we need to build main (i.e. asterisk.dll) first, then res.
+ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
+  SUBDIRS+= main res
+else
+  OTHER_SUBDIRS += res main
+endif
 SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)
 SUBDIRS_CLEAN:=$(SUBDIRS:%=%-clean)
 SUBDIRS_DIST_CLEAN:=$(SUBDIRS:%=%-dist-clean)
@@ -339,12 +345,25 @@ $(SUBDIRS): include/asterisk/version.h include/asterisk/build.h include/asterisk
 # a parallel build, since if there are modules selected to be embedded the
 # directories containing them must be completed before the main Asterisk
 # binary can be built
+ifeq ($(findstring $(OSARCH), mingw32 cygwin ),)
 main: $(filter-out main,$(MOD_SUBDIRS))
+else
+SUBDIR_DEPS=main res
+main:
+	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" \
+	ASTLDFLAGS="$(ASTLDFLAGS)" AST_LIBS="$(AST_LIBS)" \
+	$(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
 
-$(MOD_SUBDIRS):
+res:	main
+	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" \
+	ASTLDFLAGS="$(ASTLDFLAGS)" AST_LIBS="$(AST_LIBS)" \
+	$(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
+endif
+
+$(MOD_SUBDIRS): $(SUBDIR_DEPS)
 	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
 
-$(OTHER_SUBDIRS):
+$(OTHER_SUBDIRS): $(SUBDIR_DEPS)
 	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
 
 defaults.h: makeopts
