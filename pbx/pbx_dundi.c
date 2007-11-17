@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <zlib.h>
 #include <sys/signal.h>
 #include <pthread.h>
+#include <net/if.h>
 
 #include "asterisk/file.h"
 #include "asterisk/logger.h"

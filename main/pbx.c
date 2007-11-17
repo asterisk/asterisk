@@ -3630,9 +3630,23 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 				ex.priority = priority;
 				exten2 = ast_hashtab_lookup(exten->peer_tree, &ex);
 				if (exten2) {
+					if (exten2->label) /* if this exten has a label, remove that, too */
+						ast_hashtab_remove_this_object(exten->peer_label_tree,exten2);
 					ast_hashtab_remove_this_object(exten->peer_tree, exten2);
 					ast_log(LOG_NOTICE,"Removed priority %d from extension %s context %s table\n",
 							priority, exten->exten, con->name);
+					if (ast_hashtab_size(exten->peer_tree) == 0) {
+						/* well, if the last priority of an exten is to be removed,
+						   then, the extension is removed, too! */
+						struct match_char *x = add_exten_to_pattern_tree(con, exten);
+						if (x->exten) { /* this test for safety purposes */
+							x->deleted = 1; /* with this marked as deleted, it will never show up in the scoreboard, and therefore never be found */
+							x->exten = 0; /* get rid of what will become a bad pointer */
+							ast_hashtab_remove_this_object(con->root_tree, exten);
+							ast_log(LOG_NOTICE,"Removed extension %s from context %s table\n",
+									exten->exten, con->name);
+						}
+					}
 				} else {
 					ast_log(LOG_ERROR,"Could not find priority %d of exten %s in context %s!\n",
 							priority, exten->exten, con->name);
@@ -3691,13 +3705,21 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 			 * The next node is either the next priority or the next extension
 			 */
 			struct ast_exten *next_node = peer->peer ? peer->peer : peer->next;
-
-			if (!prev_exten)	/* change the root... */
+			if (next_node == peer->peer) {
+				next_node->peer_tree = exten->peer_tree; /* move the priority hash tabs over */
+				exten->peer_tree = 0;
+				next_node->peer_tree = exten->peer_label_tree;
+				exten->peer_label_tree = 0;
+			}
+			if (!prev_exten) {	/* change the root... */
 				con->root = next_node;
-			else
+			} else {
 				prev_exten->next = next_node; /* unlink */
-			if (peer->peer)	/* XXX update the new head of the pri list */
+			}
+			if (peer->peer)	{ /* XXX update the new head of the pri list */
 				peer->peer->next = peer->next;
+			}
+			
 		} else { /* easy, we are not first priority in extension */
 			previous_peer->peer = peer->peer;
 		}
