@@ -41,14 +41,8 @@ OBJS+=say.o
 AST_LIBS += $(SSL_LIB)
 AST_LIBS += $(BKTR_LIB)
 
-ifneq ($(findstring darwin,$(OSARCH)),)
+ifeq ($(POLL_AVAILABLE),)
   OBJS+=poll.o
-  ASTCFLAGS+=-DPOLLCOMPAT
-else
-  ifeq ($(wildcard /usr/include/sys/poll.h),)
-    OBJS+=poll.o
-    ASTCFLAGS+=-DPOLLCOMPAT
-  endif
 endif
 
 ifeq ($(wildcard /usr/include/dlfcn.h),)

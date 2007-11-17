@@ -125,11 +125,10 @@ References:
 
 #include "asterisk/abstract_jb.h"
 
-#include <unistd.h>
-#ifdef POLLCOMPAT 
-#include "asterisk/poll-compat.h"
-#else
+#ifdef HAVE_POLL 
 #include <sys/poll.h>
+#else
+#include "asterisk/poll-compat.h"
 #endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
