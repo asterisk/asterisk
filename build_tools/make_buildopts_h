@@ -29,6 +29,6 @@ case ${OSARCH} in	# actually we should check build_os
 	;;
 *)
 	BUILDSUM=`echo ${TMP} | md5sum`
-	echo "#define AST_BUILDOPT_SUM { `echo -n ${BUILDSUM} | cut -c1-8`, `echo -n ${BUILDSUM} | cut -c9-16`, `echo -n ${BUILDSUM} | cut -c17-24`, `echo -n ${BUILDSUM} | cut -c25-32` }"
+	echo "#define AST_BUILDOPT_SUM { 0x`echo -n ${BUILDSUM} | cut -c1-8`, 0x`echo -n ${BUILDSUM} | cut -c9-16`, 0x`echo -n ${BUILDSUM} | cut -c17-24`, 0x`echo -n ${BUILDSUM} | cut -c25-32` }"
 	;;
 esac
