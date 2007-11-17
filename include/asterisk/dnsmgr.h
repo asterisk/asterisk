@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-#include <netinet/in.h>
+#include "asterisk/network.h"
 
 struct ast_dnsmgr_entry;
 

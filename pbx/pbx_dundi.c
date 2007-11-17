@@ -30,21 +30,9 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
+#include "asterisk/network.h"
 #include <errno.h>
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(SOLARIS) || defined(__Darwin__)
-#include <sys/types.h>
-#include <netinet/in_systm.h>
-#endif
-#include <netinet/ip.h>
 #include <sys/ioctl.h>
-#include <net/if.h>
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__Darwin__)
-#include <net/if_dl.h>
-#include <ifaddrs.h>
-#endif
 #include <zlib.h>
 #include <sys/signal.h>
 #include <pthread.h>

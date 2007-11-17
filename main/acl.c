@@ -30,13 +30,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 #include <signal.h>
 #include <errno.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <net/if.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 #include <sys/ioctl.h>
 
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)

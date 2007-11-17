@@ -30,14 +30,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <ctype.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
 #ifdef HAVE_DEV_URANDOM
 #include <fcntl.h>
 #endif
+
+#include "asterisk/network.h"
 
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in lock.h if required */
 #include "asterisk/lock.h"

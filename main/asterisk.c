@@ -67,7 +67,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #include <signal.h>
 #include <sched.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <errno.h>
@@ -87,14 +86,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif /* linux */
 #include <regex.h>
 
-#ifdef HAVE_NETDB_H
-#include <netdb.h>
-#endif
 #if defined(SOLARIS)
 int daemon(int, int);  /* defined in libresolv of all places */
 #include <sys/loadavg.h>
 #endif
 
+#include "asterisk/network.h"
 #include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/cli.h"

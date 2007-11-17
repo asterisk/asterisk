@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 
-#include <netinet/in.h>
+#include "asterisk/network.h"
 #include "asterisk/io.h"
 #include "asterisk/astobj.h"
 

@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 
-#include <netinet/in.h>
+#include "asterisk/network.h"
 #include "asterisk/io.h"
 
 #define AST_SENSE_DENY                  0

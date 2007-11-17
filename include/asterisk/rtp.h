@@ -26,7 +26,7 @@
 #ifndef _ASTERISK_RTP_H
 #define _ASTERISK_RTP_H
 
-#include <netinet/in.h>
+#include "asterisk/network.h"
 
 #include "asterisk/frame.h"
 #include "asterisk/io.h"

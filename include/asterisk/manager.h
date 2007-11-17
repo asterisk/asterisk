@@ -19,10 +19,7 @@
 #ifndef _ASTERISK_MANAGER_H
 #define _ASTERISK_MANAGER_H
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
+#include "asterisk/network.h"
 #include "asterisk/lock.h"
 
 /*!

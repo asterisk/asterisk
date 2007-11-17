@@ -27,11 +27,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <netdb.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
 #include <math.h>
 #include <signal.h>
 #include <sys/time.h>
@@ -40,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/wait.h>
 #include <sys/stat.h>
 
+#include "asterisk/network.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"

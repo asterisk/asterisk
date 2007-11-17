@@ -305,6 +305,8 @@ AC_SUBST(HAS_POLL)
 # fopencookie on linux
 AC_CHECK_FUNCS([funopen fopencookie])
 
+AC_CHECK_FUNCS([inet_aton])
+
 # check if we have IP_PKTINFO constant defined
 AC_LINK_IFELSE(
 		AC_LANG_PROGRAM([#include <netinet/in.h>],

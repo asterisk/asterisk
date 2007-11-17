@@ -18,12 +18,11 @@
 #ifndef _ASTERISK_UDPTL_H
 #define _ASTERISK_UDPTL_H
 
+#include "asterisk/network.h"
 #include "asterisk/frame.h"
 #include "asterisk/io.h"
 #include "asterisk/sched.h"
 #include "asterisk/channel.h"
-
-#include <netinet/in.h>
 
 enum
 {

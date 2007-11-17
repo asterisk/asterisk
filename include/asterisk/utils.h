@@ -23,9 +23,8 @@
 #ifndef _ASTERISK_UTILS_H
 #define _ASTERISK_UTILS_H
 
-#include <netinet/in.h>
-#include <arpa/inet.h>	/* we want to override inet_ntoa */
-#include <netdb.h>
+#include "asterisk/network.h"
+
 #include <limits.h>
 #include <time.h>	/* we want to override localtime_r */
 
@@ -310,23 +309,6 @@ static force_inline void ast_slinear_saturated_divide(short *input, short *value
 
 int test_for_thread_safety(void);
 
-/*!
- * \brief thread-safe replacement for inet_ntoa().
- *
- * \note It is very important to note that even though this is a thread-safe
- *       replacement for inet_ntoa(), it is *not* reentrant.  In a single
- *       thread, the result from a previous call to this function is no longer
- *       valid once it is called again.  If the result from multiple calls to
- *       this function need to be kept or used at once, then the result must be
- *       copied to a local buffer before calling this function again.
- */
-const char *ast_inet_ntoa(struct in_addr ia);
-
-#ifdef inet_ntoa
-#undef inet_ntoa
-#endif
-#define inet_ntoa __dont__use__inet_ntoa__use__ast_inet_ntoa__instead__
-
 #ifdef localtime_r
 #undef localtime_r
 #endif
@@ -345,13 +327,6 @@ int ast_wait_for_input(int fd, int ms);
 	have a need to wait.  This way, we get better performance.
 */
 int ast_carefulwrite(int fd, char *s, int len, int timeoutms);
-
-/*! \brief Compares the source address and port of two sockaddr_in */
-static force_inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockaddr_in *sin2)
-{
-	return ((sin1->sin_addr.s_addr != sin2->sin_addr.s_addr) 
-		|| (sin1->sin_port != sin2->sin_port));
-}
 
 /*
  * Thread management support (should be moved to lock.h or a different header)
