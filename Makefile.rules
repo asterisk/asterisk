@@ -85,7 +85,7 @@ endif
 	$(CMD_PREFIX) $(LD) -r -T .$@.ld -o $@ $<
 	$(CMD_PREFIX) rm -f .$@.ld
 
-%.eoo: %.o
+%.eo: %.oo
 	$(ECHO_PREFIX) echo "   [EMBED] $< -> $@"
 	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_eo_script $* > .$@.ld
 	$(CMD_PREFIX) $(LD) -r -T .$@.ld -o $@ $<

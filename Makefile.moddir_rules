@@ -58,7 +58,6 @@ $(addsuffix .so,$(filter $(LOADABLE_MODS),$(C_MODS))): %.so: %.o
 $(addsuffix .so,$(filter $(LOADABLE_MODS),$(CC_MODS))): %.so: %.oo
 
 modules.link: $(addsuffix .eo,$(filter $(EMBEDDED_MODS),$(C_MODS)))
-modules.link: $(addsuffix .eoo,$(filter $(EMBEDDED_MODS),$(CC_MODS)))
 
 .PHONY: clean uninstall _all
 
@@ -84,11 +83,11 @@ endif
 
 modules.link:
 	@rm -f $@
-	@for file in $(patsubst %,$(SUBDIR)/%,$(filter %.eo %.eoo,$^)); do echo "INPUT (../$${file})" >> $@; done
-	@for file in $(patsubst %,$(SUBDIR)/%,$(filter-out %.eo %.eoo,$^)); do echo "INPUT (../$${file})" >> $@; done
+	@for file in $(patsubst %,$(SUBDIR)/%,$(filter %.eo,$^)); do echo "INPUT (../$${file})" >> $@; done
+	@for file in $(patsubst %,$(SUBDIR)/%,$(filter-out %.eo,$^)); do echo "INPUT (../$${file})" >> $@; done
 
 clean::
-	rm -f *.so *.o *.oo *.eo *.eoo
+	rm -f *.so *.o *.oo *.eo
 	rm -f .*.o.d .*.oo.d
 	rm -f *.s *.i
 	rm -f modules.link
