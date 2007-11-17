@@ -287,7 +287,14 @@ AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([asprintf atexit bzero dup2 endpwent ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtol strtoq unsetenv utime vasprintf])
 
 AC_CHECK_FUNCS([glob])
-AC_CHECK_FUNCS([timersub])
+AC_LINK_IFELSE(
+	AC_LANG_PROGRAM([#include <sys/time.h>],
+		[struct timeval *a; timersub(a, a, a);]),
+	AC_MSG_RESULT(yes)
+		AC_DEFINE([HAVE_TIMERSUB], 1, [Define to 1 if your system defines timersub.]),
+	AC_MSG_RESULT(no)
+)
+
 AC_CHECK_HEADER([sys/poll.h], 
    [HAS_POLL=1]
    AC_DEFINE([HAVE_SYS_POLL_H], 1, [Define to 1 if your system has working sys/poll.h]),

@@ -882,7 +882,7 @@
 /* Define to 1 if you have the <termios.h> header file. */
 #undef HAVE_TERMIOS_H
 
-/* Define to 1 if you have the `timersub' function. */
+/* Define to 1 if your system defines timersub. */
 #undef HAVE_TIMERSUB
 
 /* Define this to indicate the ${TINFO_DESCRIP} library */
