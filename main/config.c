@@ -30,10 +30,10 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/network.h"	/* we do some sockaddr manipulation here */
 #include <errno.h>
 #include <time.h>
 #include <sys/stat.h>
-#include <sys/socket.h>		/* for AF_INET */
 #define AST_INCLUDE_GLOB 1
 #ifdef AST_INCLUDE_GLOB
 #if defined(__Darwin__) || defined(__CYGWIN__)
