@@ -61,6 +61,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define RTLD_NOW 0
 #endif
 
+#ifndef RTLD_LOCAL
+#define RTLD_LOCAL 0
+#endif
+
 struct ast_module_user {
 	struct ast_channel *chan;
 	AST_LIST_ENTRY(ast_module_user) entry;
