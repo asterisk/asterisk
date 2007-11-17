@@ -251,14 +251,8 @@ endif
 
 ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
 
-MOD_SUBDIRS:=channels pbx apps codecs formats cdr funcs
+MOD_SUBDIRS:=channels pbx apps codecs formats cdr funcs main res
 OTHER_SUBDIRS:=utils agi
-# in cygwin we need to build main (i.e. asterisk.dll) first, then res.
-ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
-  SUBDIRS+= main res
-else
-  MOD_SUBDIRS += res main
-endif
 SUBDIRS:=$(OTHER_SUBDIRS) $(MOD_SUBDIRS)
 SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)
 SUBDIRS_CLEAN:=$(SUBDIRS:%=%-clean)
@@ -303,6 +297,9 @@ else
 	mK=" make"
 endif
 
+# comment to print directories during submakes
+PRINT_DIR:= --no-print-directory
+
 all: _all
 	@echo " +--------- Asterisk Build Complete ---------+"  
 	@echo " + Asterisk has successfully been built, and +"  
@@ -324,20 +321,20 @@ menuselect.makeopts: menuselect/menuselect menuselect-tree
 	menuselect/menuselect --check-deps $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts
 
 $(MOD_SUBDIRS_EMBED_LDSCRIPT):
-	@echo "EMBED_LDSCRIPTS+="`$(MAKE) --quiet --no-print-directory -C $(@:-embed-ldscript=) SUBDIR=$(@:-embed-ldscript=) __embed_ldscript` >> makeopts.embed_rules
+	@echo "EMBED_LDSCRIPTS+="`$(MAKE) --quiet $(PRINT_DIR) -C $(@:-embed-ldscript=) SUBDIR=$(@:-embed-ldscript=) __embed_ldscript` >> makeopts.embed_rules
 
 $(MOD_SUBDIRS_EMBED_LDFLAGS):
-	@echo "EMBED_LDFLAGS+="`$(MAKE) --quiet --no-print-directory -C $(@:-embed-ldflags=) SUBDIR=$(@:-embed-ldflags=) __embed_ldflags` >> makeopts.embed_rules
+	@echo "EMBED_LDFLAGS+="`$(MAKE) --quiet $(PRINT_DIR) -C $(@:-embed-ldflags=) SUBDIR=$(@:-embed-ldflags=) __embed_ldflags` >> makeopts.embed_rules
 
 $(MOD_SUBDIRS_EMBED_LIBS):
-	@echo "EMBED_LIBS+="`$(MAKE) --quiet --no-print-directory -C $(@:-embed-libs=) SUBDIR=$(@:-embed-libs=) __embed_libs` >> makeopts.embed_rules
+	@echo "EMBED_LIBS+="`$(MAKE) --quiet $(PRINT_DIR) -C $(@:-embed-libs=) SUBDIR=$(@:-embed-libs=) __embed_libs` >> makeopts.embed_rules
 
 makeopts.embed_rules: menuselect.makeopts
 	@echo "Generating embedded module rules ..."
 	@rm -f $@
-	@$(MAKE) --no-print-directory $(MOD_SUBDIRS_EMBED_LDSCRIPT)
-	@$(MAKE) --no-print-directory $(MOD_SUBDIRS_EMBED_LDFLAGS)
-	@$(MAKE) --no-print-directory $(MOD_SUBDIRS_EMBED_LIBS)
+	@$(MAKE) $(PRINT_DIR) $(MOD_SUBDIRS_EMBED_LDSCRIPT)
+	@$(MAKE) $(PRINT_DIR) $(MOD_SUBDIRS_EMBED_LDFLAGS)
+	@$(MAKE) $(PRINT_DIR) $(MOD_SUBDIRS_EMBED_LIBS)
 
 $(SUBDIRS): include/asterisk/version.h include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
 
@@ -360,10 +357,10 @@ res:	main
 endif
 
 $(MOD_SUBDIRS):
-	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
+	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) $(PRINT_DIR) --no-builtin-rules -C $@ SUBDIR=$@ all
 
 $(OTHER_SUBDIRS):
-	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
+	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) $(PRINT_DIR) --no-builtin-rules -C $@ SUBDIR=$@ all
 
 defaults.h: makeopts
 	@build_tools/make_defaults_h > $@.tmp
@@ -394,10 +391,10 @@ include/asterisk/build.h:
 	@rm -f $@.tmp
 
 $(SUBDIRS_CLEAN):
-	@$(MAKE) --no-print-directory -C $(@:-clean=) clean
+	@$(MAKE) $(PRINT_DIR) -C $(@:-clean=) clean
 
 $(SUBDIRS_DIST_CLEAN):
-	@$(MAKE) --no-print-directory -C $(@:-dist-clean=) dist-clean
+	@$(MAKE) $(PRINT_DIR) -C $(@:-dist-clean=) dist-clean
 
 clean: $(SUBDIRS_CLEAN)
 	rm -f defaults.h
@@ -720,7 +717,7 @@ cleantest:
 	@cmp -s .cleancount .lastclean || $(MAKE) clean
 
 $(SUBDIRS_UNINSTALL):
-	@$(MAKE) --no-print-directory -C $(@:-uninstall=) uninstall
+	@$(MAKE) $(PRINT_DIR) -C $(@:-uninstall=) uninstall
 
 _uninstall: $(SUBDIRS_UNINSTALL)
 	rm -f $(DESTDIR)$(MODULES_DIR)/*
