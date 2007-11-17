@@ -285,6 +285,8 @@ AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([asprintf atexit bzero dup2 endpwent ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtol strtoq unsetenv utime vasprintf])
 
 AC_CHECK_FUNCS([glob])
+AC_CHECK_HEADER([sys/poll.h], [HAS_POLL=1],)
+AC_SUBST(HAS_POLL)
 
 # https support (in main/http.c) uses funopen on BSD systems,
 # fopencookie on linux
