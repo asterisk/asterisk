@@ -34,13 +34,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <errno.h>
 #include <sys/ioctl.h>
 
-#include <net/if.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
 #include <fcntl.h>
-#include <net/route.h>
 #endif
 
 #if defined(SOLARIS)
