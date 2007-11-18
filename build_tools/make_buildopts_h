@@ -23,7 +23,7 @@ then
 fi
 
 case ${OSARCH} in	# actually we should check build_os
-*BSD|mingw*)
+*BSD|mingw|darwin*)
 	BUILDSUM=`echo ${TMP} | md5`
 	echo "#define AST_BUILDOPT_SUM {0x0, 0x0, 0x0, 0x0} /* dummy */"
 	;;
