@@ -53,7 +53,7 @@
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>    /* not necessarily present - could be in stdlib */
-#elif defined(HAVE_ALLOCA)
+#elif defined(HAVE_ALLOCA) && defined(__MINGW32__)
 #include <malloc.h>    /* see if it is here... */
 #endif
 
