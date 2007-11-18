@@ -287,6 +287,8 @@ AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([asprintf atexit bzero dup2 endpwent ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtol strtoq unsetenv utime vasprintf])
 
 AC_CHECK_FUNCS([glob])
+
+AC_MSG_CHECKING(for timersub in time.h)
 AC_LINK_IFELSE(
 	AC_LANG_PROGRAM([#include <sys/time.h>],
 		[struct timeval *a; timersub(a, a, a);]),
@@ -308,6 +310,7 @@ AC_CHECK_FUNCS([funopen fopencookie])
 AC_CHECK_FUNCS([inet_aton])
 
 # check if we have IP_PKTINFO constant defined
+AC_MSG_CHECKING(for IP_PKTINFO)
 AC_LINK_IFELSE(
 		AC_LANG_PROGRAM([#include <netinet/in.h>],
 						[int pi = IP_PKTINFO;]),
