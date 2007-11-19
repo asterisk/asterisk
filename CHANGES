@@ -68,7 +68,7 @@ SIP changes
      since they where replaced by "mohsuggest" and "mohinterpret" in version 1.4
   * The "localmask" setting was removed in version 1.2 and the reminder about it
      being removed is now also removed.
-  * A new option "busy-level" for setting a level of calls where asterisk reports
+  * A new option "busylevel" for setting a level of calls where asterisk reports
      a device as busy, to separate it from call-limit. This value is also added
      to the SIP_PEER dialplan function.
   * A new realtime family called "sipregs" is now supported to store SIP registration

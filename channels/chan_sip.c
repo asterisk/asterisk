@@ -17811,7 +17811,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			peer->call_limit = atoi(v->value);
 			if (peer->call_limit < 0)
 				peer->call_limit = 0;
-		} else if (!strcasecmp(v->name, "busy-level")) {
+		} else if (!strcasecmp(v->name, "busylevel")) {
 			peer->busy_level = atoi(v->value);
 			if (peer->busy_level < 0)
 				peer->busy_level = 0;
