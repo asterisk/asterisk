@@ -34,10 +34,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/time.h>
-
 #include <vorbis/codec.h>
 #include <vorbis/vorbisenc.h>
 
@@ -46,8 +42,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #endif
 
-#include "asterisk/lock.h"
-#include "asterisk/channel.h"
 #include "asterisk/file.h"
 #include "asterisk/module.h"
 #include "asterisk/options.h"

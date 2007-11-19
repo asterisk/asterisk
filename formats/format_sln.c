@@ -26,14 +26,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/time.h>
-
-#include "asterisk/lock.h"
-#include "asterisk/channel.h"
 #include "asterisk/file.h"
-#include "asterisk/sched.h"
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
 

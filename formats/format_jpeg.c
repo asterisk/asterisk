@@ -28,16 +28,9 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/time.h>
-
-#include "asterisk/channel.h"
 #include "asterisk/file.h"
-#include "asterisk/sched.h"
 #include "asterisk/module.h"
 #include "asterisk/image.h"
-#include "asterisk/lock.h"
 #include "asterisk/endian.h"
 
 static struct ast_frame *jpeg_read_image(int fd, int len)
