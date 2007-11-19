@@ -29,19 +29,12 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision: 87233 $")
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
 #if defined(HAVE_SYSINFO)
 #include <sys/sysinfo.h>
 #endif
 
 #include "asterisk/module.h"
-#include "asterisk/channel.h"
 #include "asterisk/pbx.h"
-#include "asterisk/utils.h"
-#include "asterisk/app.h"
 
 static int sysinfo_helper(struct ast_channel *chan, const char *cmd, char *data,
 		                         char *buf, size_t len)
