@@ -27,10 +27,8 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
-#include "asterisk/channel.h"
-#include "asterisk/pbx.h"
+#include "asterisk/pbx.h"	/* function register/unregister */
 #include "asterisk/utils.h"
-#include "asterisk/app.h"
 
 static int base64_encode(struct ast_channel *chan, const char *cmd, char *data,
 			 char *buf, size_t len)

@@ -34,7 +34,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
-#include "asterisk/linkedlists.h"
 #include "asterisk/audiohook.h"
 
 struct volume_information {
