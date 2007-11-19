@@ -313,9 +313,10 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	int s;
 	struct sockaddr_in sin;
 	socklen_t slen;
+
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s < 0) {
-		ast_log(LOG_WARNING, "Cannot create socket\n");
+		ast_log(LOG_ERROR, "Cannot create socket\n");
 		return -1;
 	}
 	sin.sin_family = AF_INET;
@@ -333,6 +334,7 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 		return -1;
 	}
 	close(s);
+	ast_debug(3, "Found IP address for this socket\n");
 	*us = sin.sin_addr;
 	return 0;
 }
@@ -347,6 +349,7 @@ int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 	/* just use the bind address if it is nonzero */
 	if (ntohl(bindaddr.sin_addr.s_addr)) {
 		memcpy(ourip, &bindaddr.sin_addr, sizeof(*ourip));
+		ast_debug(3, "Attached to given IP address\n");
 		return 0;
 	}
 	/* try to use our hostname */
@@ -356,12 +359,15 @@ int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 		hp = ast_gethostbyname(ourhost, &ahp);
 		if (hp) {
 			memcpy(ourip, hp->h_addr, sizeof(*ourip));
+			ast_debug(3, "Found one IP address based on local hostname %s.\n", ourhost);
 			return 0;
 		}
 	}
+	ast_debug(3, "Trying to check A.ROOT-SERVERS.NET and get our IP address for that connection\n");
 	/* A.ROOT-SERVERS.NET. */
 	if (inet_aton("198.41.0.4", &saddr) && !ast_ouraddrfor(&saddr, ourip))
 		return 0;
+	ast_debug(3, "Failed to find any IP address for us\n");
 	return -1;
 }
 
