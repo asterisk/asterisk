@@ -216,7 +216,8 @@ struct ast_module_info {
 
 	const char *key;
 	unsigned int flags;
-	unsigned int buildopt_sum[4];		/* The value of AST_BUILDOPT_SUM when this module was compiled */
+	/*! The value of AST_BUILDOPT_SUM when this module was compiled */
+	uint32_t buildopt_sum[4];
 };
 
 void ast_module_register(const struct ast_module_info *);
