@@ -28,14 +28,10 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <fcntl.h>
-#include <netinet/in.h>
 
-#include "asterisk/lock.h"
 #include "asterisk/module.h"
 #include "asterisk/config.h"
-#include "asterisk/options.h"
 #include "asterisk/translate.h"
-#include "asterisk/channel.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/utils.h"
 

@@ -39,7 +39,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <fcntl.h>
-#include <netinet/in.h>
 #include <speex/speex.h>
 
 /* We require a post 1.1.8 version of Speex to enable preprocessing
@@ -48,12 +47,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <speex/speex_preprocess.h>
 #endif
 
-#include "asterisk/lock.h"
 #include "asterisk/translate.h"
 #include "asterisk/module.h"
 #include "asterisk/config.h"
-#include "asterisk/options.h"
-#include "asterisk/channel.h"
 #include "asterisk/utils.h"
 
 /* Sample frame data */

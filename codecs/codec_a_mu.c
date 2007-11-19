@@ -28,12 +28,9 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <fcntl.h>
-#include <netinet/in.h>
 
-#include "asterisk/lock.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
-#include "asterisk/channel.h"
 #include "asterisk/alaw.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/utils.h"
