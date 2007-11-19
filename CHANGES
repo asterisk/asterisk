@@ -44,6 +44,7 @@ Dialplan functions
     of devices or the name associated with a hint.
   * Added EXTENSION_STATE() dialplan function which allows retrieving the state
     of any extension.
+  * Added SYSINFO() dialplan function which allows retrieval of system information
 
 CLI Changes
 -----------
