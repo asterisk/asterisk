@@ -55,9 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <resolv.h>
 #include <ctype.h>
 #include <regex.h>
-#include <errno.h>
 
-#include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/enum.h"
 #include "asterisk/dns.h"

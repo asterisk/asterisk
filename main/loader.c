@@ -32,13 +32,11 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <dirent.h>
-#include <errno.h>
 
 #include "asterisk/linkedlists.h"
 #include "asterisk/module.h"
 #include "asterisk/options.h"
 #include "asterisk/config.h"
-#include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/term.h"
 #include "asterisk/manager.h"

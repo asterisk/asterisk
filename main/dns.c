@@ -37,7 +37,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <arpa/nameser.h>	/* res_* functions */
 #include <resolv.h>
 
-#include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/dns.h"
 #include "asterisk/endian.h"

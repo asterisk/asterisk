@@ -28,7 +28,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/chanvars.h"
-#include "asterisk/logger.h"
 #include "asterisk/strings.h"
 #include "asterisk/utils.h"
 

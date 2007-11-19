@@ -28,7 +28,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/alaw.h"
-#include "asterisk/logger.h"
 
 #ifndef G711_NEW_ALGORITHM
 #define AMI_MASK 0x55

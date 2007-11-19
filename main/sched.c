@@ -39,7 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 
 #include "asterisk/sched.h"
-#include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"

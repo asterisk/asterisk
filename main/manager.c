@@ -48,7 +48,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <ctype.h>
 #include <sys/time.h>
 #include <signal.h>
-#include <errno.h>
 #include <sys/mman.h>
 
 #include "asterisk/channel.h"
@@ -57,7 +56,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/callerid.h"
 #include "asterisk/lock.h"
-#include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/cli.h"
 #include "asterisk/app.h"

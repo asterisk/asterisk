@@ -29,7 +29,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/time.h>
 #include <signal.h>
-#include <errno.h>
 #include <math.h>
 
 #include "asterisk/zapata.h"
@@ -40,7 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/channel.h"
 #include "asterisk/musiconhold.h"
-#include "asterisk/logger.h"
 #include "asterisk/say.h"
 #include "asterisk/file.h"
 #include "asterisk/cli.h"

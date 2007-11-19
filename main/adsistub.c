@@ -23,7 +23,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/channel.h"
 #include "asterisk/adsi.h"
-#include "asterisk/logger.h"
 
 #ifdef SKREP
 #define build_stub(func_name,...) \

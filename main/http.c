@@ -37,7 +37,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/signal.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
 

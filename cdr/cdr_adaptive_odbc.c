@@ -47,7 +47,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_odbc.h"
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"
-#include "asterisk/logger.h"
 
 #define	CONFIG	"cdr_adaptive_odbc.conf"
 

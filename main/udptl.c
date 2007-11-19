@@ -52,12 +52,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/time.h>
 #include <signal.h>
-#include <errno.h>
 #include <fcntl.h>
 
 #include "asterisk/udptl.h"
 #include "asterisk/frame.h"
-#include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/channel.h"
 #include "asterisk/acl.h"

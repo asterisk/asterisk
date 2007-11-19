@@ -35,7 +35,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <signal.h>
 #include <time.h>
-#include <errno.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #if ((defined(AST_DEVMODE)) && (defined(linux)))

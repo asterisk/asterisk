@@ -31,7 +31,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 
 #include "asterisk/io.h"
-#include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/options.h"
 

@@ -116,7 +116,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/logger.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"

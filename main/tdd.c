@@ -37,7 +37,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/ulaw.h"
 #include "asterisk/tdd.h"
-#include "asterisk/logger.h"
 #include "asterisk/fskmodem.h"
 #include "ecdisa.h"
 

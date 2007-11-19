@@ -31,7 +31,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/network.h"	/* we do some sockaddr manipulation here */
-#include <errno.h>
 #include <time.h>
 #include <sys/stat.h>
 #define AST_INCLUDE_GLOB 1
@@ -46,7 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
 #include "asterisk/options.h"
-#include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/channel.h"
 #include "asterisk/app.h"

@@ -31,7 +31,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/time.h>
 #include <signal.h>
-#include <errno.h>
 #include <sys/ioctl.h>
 
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
@@ -43,7 +42,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 #include "asterisk/acl.h"
-#include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/options.h"
 #include "asterisk/utils.h"

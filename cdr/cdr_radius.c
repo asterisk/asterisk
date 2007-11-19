@@ -34,14 +34,12 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Rev$")
 
-#include <errno.h>
 #include <time.h>
 #include <radiusclient-ng.h>
 
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"
-#include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/options.h"
 

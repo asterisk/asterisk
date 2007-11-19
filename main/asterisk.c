@@ -69,7 +69,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sched.h>
 #include <sys/un.h>
 #include <sys/wait.h>
-#include <errno.h>
 #include <ctype.h>
 #include <sys/resource.h>
 #include <grp.h>
@@ -92,7 +91,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #endif
 
 #include "asterisk/network.h"
-#include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/cli.h"
 #include "asterisk/channel.h"

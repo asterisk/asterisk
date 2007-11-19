@@ -32,7 +32,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <errno.h>
 #include <time.h>
 
 #include "asterisk/config.h"
@@ -40,7 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"
 #include "asterisk/options.h"
-#include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 

@@ -28,7 +28,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <ctype.h>
-#include <errno.h>
 #include <sys/stat.h>
 
 #ifdef HAVE_DEV_URANDOM
@@ -40,7 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in lock.h if required */
 #include "asterisk/lock.h"
 #include "asterisk/io.h"
-#include "asterisk/logger.h"
 #include "asterisk/md5.h"
 #include "asterisk/sha1.h"
 #include "asterisk/options.h"

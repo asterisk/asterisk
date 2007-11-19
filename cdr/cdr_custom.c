@@ -34,7 +34,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <errno.h>
 #include <time.h>
 
 #include "asterisk/channel.h"
@@ -42,7 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/config.h"
 #include "asterisk/pbx.h"
-#include "asterisk/logger.h"
 #include "asterisk/utils.h"
 
 #define CUSTOM_LOG_DIR "/cdr_custom"
