@@ -30,6 +30,7 @@
 #include "asterisk/compat.h"
 
 #include "asterisk/paths.h"
+#include "asterisk/logger.h"
 
 /* Default to allowing the umask or filesystem ACLs to determine actual file
  * creation permissions

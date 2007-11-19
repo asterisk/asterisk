@@ -38,7 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/ioctl.h>
-#include <errno.h>
 #include <sys/mman.h>
 #include <zaptel/zaptel.h>
 
@@ -48,7 +47,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/module.h"
 #include "asterisk/cli.h"
-#include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"

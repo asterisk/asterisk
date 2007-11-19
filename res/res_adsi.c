@@ -36,13 +36,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <time.h>
 #include <math.h>
-#include <errno.h>
 
 #include "asterisk/adsi.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"
 #include "asterisk/callerid.h"
-#include "asterisk/logger.h"
 #include "asterisk/fskmodem.h"
 #include "asterisk/channel.h"
 #include "asterisk/module.h"

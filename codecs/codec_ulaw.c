@@ -31,7 +31,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <netinet/in.h>
 
 #include "asterisk/lock.h"
-#include "asterisk/logger.h"
 #include "asterisk/module.h"
 #include "asterisk/config.h"
 #include "asterisk/options.h"

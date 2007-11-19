@@ -34,7 +34,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/socket.h>
 
 #include "asterisk/config.h"
-#include "asterisk/logger.h"
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
 #include "asterisk/frame.h"

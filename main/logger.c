@@ -25,6 +25,10 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
+/* Prevent inclusion of logger.h - it redefines LOG_* which we need
+ * to define syslog_level_map. Later, we force its inclusion again.
+ */
+#define _ASTERISK_LOGGER_H
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -55,6 +59,7 @@ static int syslog_level_map[] = {
 
 #define SYSLOG_NLEVELS sizeof(syslog_level_map) / sizeof(int)
 
+#undef _ASTERISK_LOGGER_H	/* now include logger.h */
 #include "asterisk/logger.h"
 #include "asterisk/lock.h"
 #include "asterisk/options.h"

@@ -60,7 +60,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netdb.h>
-#include <errno.h>
 #include <fcntl.h>
 
 #ifdef __cplusplus
@@ -68,7 +67,6 @@ extern "C" {
 #endif
 
 #include "asterisk/lock.h"
-#include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
 #include "asterisk/module.h"

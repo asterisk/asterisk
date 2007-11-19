@@ -45,7 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <sys/time.h>
-#include <errno.h>
 
 #ifdef __linux
 #include <linux/soundcard.h>
@@ -57,7 +56,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/lock.h"
 #include "asterisk/frame.h"
-#include "asterisk/logger.h"
 #include "asterisk/callerid.h"
 #include "asterisk/channel.h"
 #include "asterisk/module.h"

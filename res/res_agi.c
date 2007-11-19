@@ -31,13 +31,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <signal.h>
 #include <sys/time.h>
 #include <fcntl.h>
-#include <errno.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 
 #include "asterisk/network.h"
 #include "asterisk/file.h"
-#include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"

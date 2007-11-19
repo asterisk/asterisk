@@ -36,7 +36,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <fcntl.h>
-#include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
 
@@ -45,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <alsa/asoundlib.h>
 
 #include "asterisk/frame.h"
-#include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/module.h"
 #include "asterisk/options.h"
