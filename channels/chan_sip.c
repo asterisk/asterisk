@@ -12964,9 +12964,12 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 	struct sip_peer *peer;
 	char *colname;
 
-	if ((colname = strchr(data, ':')))	/*! \todo Will be deprecated after 1.4 */
+	if ((colname = strchr(data, ':'))) {	/*! \todo Will be deprecated after 1.4 */
+		static int deprecation_warning = 0;
 		*colname++ = '\0';
-	else if ((colname = strchr(data, '|')))
+		if (deprecation_warning++ % 10 == 0)
+			ast_log(LOG_WARNING, "SIPPEER(): usage of ':' to separate arguments is deprecated.  Please use ',' instead.\n");
+	} else if ((colname = strchr(data, ',')))
 		*colname++ = '\0';
 	else
 		colname = "ip";
@@ -13035,7 +13038,7 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 struct ast_custom_function sippeer_function = {
 	.name = "SIPPEER",
 	.synopsis = "Gets SIP peer information",
-	.syntax = "SIPPEER(<peername>[|item])",
+	.syntax = "SIPPEER(<peername>[,item])",
 	.read = function_sippeer,
 	.desc = "Valid items are:\n"
 	"- ip (default)          The IP address.\n"
