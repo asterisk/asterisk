@@ -12988,6 +12988,8 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 		ast_copy_string(buf, peer->regexten, len);
 	} else  if (!strcasecmp(colname, "limit")) {
 		snprintf(buf, len, "%d", peer->call_limit);
+	} else  if (!strcasecmp(colname, "busylevel")) {
+		snprintf(buf, len, "%d", peer->busy_level);
 	} else  if (!strcasecmp(colname, "curcalls")) {
 		snprintf(buf, len, "%d", peer->inUse);
 	} else  if (!strcasecmp(colname, "accountcode")) {
@@ -13052,6 +13054,7 @@ struct ast_custom_function sippeer_function = {
 	"- status                Status (if qualify=yes).\n"
 	"- regexten              Registration extension\n"
 	"- limit                 Call limit (call-limit)\n"
+	"- busylevel             Configured call level for signalling busy\n"
 	"- curcalls              Current amount of calls \n"
 	"                        Only available if call-limit is set\n"
 	"- language              Default language for peer\n"
