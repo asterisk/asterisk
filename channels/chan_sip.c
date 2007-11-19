@@ -9518,8 +9518,10 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 	return 0;
 }
 
-/*! \brief Find out who the call is for 
-	We use the INVITE uri to find out
+/*! \brief Find out who the call is for.
+	We use the request uri as a destination. 
+	This code assumes authentication has been done, so that the
+	device (peer/user) context is already set.
 	\return 0 on success (found a matching extension),
 	1 for pickup extension or overlap dialling support (if we support it),
 	-1 on error.
@@ -9527,7 +9529,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 {
 	char tmp[256] = "", *uri, *a;
-	char tmpf[256] = "", *from;
+	char tmpf[256] = "", *from = NULL;
 	struct sip_request *req;
 	char *colon;
 	
@@ -9551,14 +9553,15 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	uri += 4;
 
 	/* Now find the From: caller ID and name */
+	/* XXX Why is this done in get_destination? Isn't it already done?
+	   Needs to be checked 
+        */
 	ast_copy_string(tmpf, get_header(req, "From"), sizeof(tmpf));
 	if (!ast_strlen_zero(tmpf)) {
 		if (pedanticsipchecking)
 			ast_uri_decode(tmpf);
 		from = get_in_brackets(tmpf);
-	} else {
-		from = NULL;
-	}
+	} 
 	
 	if (!ast_strlen_zero(from)) {
 		if (strncasecmp(from, "sip:", 4)) {
@@ -14565,15 +14568,24 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 	return res;
 }
 
-/*! \brief Handle incoming OPTIONS request */
+/*! \brief Handle incoming OPTIONS request 
+	An OPTIONS request should be answered like an INVITE from the same UA, including SDP
+*/
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 {
 	int res;
 
+	/*! XXX get_destination assumes we're already authenticated. This means that a request from
+		a known device (peer/user) will end up in the wrong context if this is out-of-dialog.
+		However, we want to handle OPTIONS as light as possible, so we might want to have
+		a configuration option whether we care or not. Some devices use this for testing
+		capabilities, which means that we need to match device to answer with proper 
+		capabilities (including SDP).
+		\todo Fix handle_request_options device handling with optional authentication
+			(this needs to be fixed in 1.4 as well)
+	*/
 	res = get_destination(p, req);
 	build_contact(p);
-
-	/* XXX Should we authenticate OPTIONS? XXX */
 
 	if (ast_strlen_zero(p->context))
 		ast_string_field_set(p, context, default_context);
