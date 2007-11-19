@@ -3705,10 +3705,10 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 			 * The next node is either the next priority or the next extension
 			 */
 			struct ast_exten *next_node = peer->peer ? peer->peer : peer->next;
-			if (next_node == peer->peer) {
+			if (next_node && next_node == peer->peer) {
 				next_node->peer_tree = exten->peer_tree; /* move the priority hash tabs over */
 				exten->peer_tree = 0;
-				next_node->peer_tree = exten->peer_label_tree;
+				next_node->peer_label_tree = exten->peer_label_tree;
 				exten->peer_label_tree = 0;
 			}
 			if (!prev_exten) {	/* change the root... */
