@@ -1185,8 +1185,6 @@ AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 #define ast_channel_trylock(x)		ast_mutex_trylock(&x->lock_dont_use)
 #else
 
-struct ast_channel;
-
 /*! \brief Lock AST channel (and print debugging output)
 \note You need to enable DEBUG_CHANNEL_LOCKS for this function */
 int ast_channel_lock(struct ast_channel *chan);

@@ -36,7 +36,6 @@
 extern "C" {
 #endif
 
-struct ast_channel;
 struct ast_frame;
 
 /* Configuration flags */

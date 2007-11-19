@@ -176,4 +176,14 @@ typedef unsigned int	u_int32_t;
 typedef unsigned long long uint64_t;
 #endif
 
+/*! \brief
+ * Definition of various structures that many asterisk files need,
+ * but only because they need to know that the type exists.
+ *
+ * We can move them to a different global header if necessary.
+ */
+struct ast_channel;
+struct ast_frame;
+struct ast_module;
+
 #endif

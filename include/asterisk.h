@@ -68,12 +68,6 @@ void ast_event_init(void);          /*!< Provided by event.c */
 int ast_device_state_engine_init(void); /*!< Provided by devicestate.c */
 int astobj2_init(void);				/*! Provided by astobj2.c */
 
-/* Many headers need 'ast_channel' to be defined */
-struct ast_channel;
-
-/* Many headers need 'ast_module' to be defined */
-struct ast_module;
-
 /*!
  * \brief Reload asterisk modules.
  * \param name the name of the module to reload
