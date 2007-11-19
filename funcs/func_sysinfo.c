@@ -91,6 +91,7 @@ static struct ast_custom_function sysinfo_function = {
 "  Options:\n"
 "    loadavg   - system load average from past minute\n"
 "    numcalls  - number of active calls currently in progress\n"
+#if defined(HAVE_SYSINFO)
 "    uptime    - system uptime in hours\n"
 "    totalram  - total usable main memory size in KiB\n"
 "    freeram   - available memory size in KiB\n"
@@ -98,6 +99,7 @@ static struct ast_custom_function sysinfo_function = {
 "    totalswap - total swap space size in KiB\n"
 "    freeswap  - free swap space still available in KiB\n"
 "    numprocs  - number of current processes\n",
+#endif /* HAVE_SYSINFO */
 };
 
 static int unload_module(void)
