@@ -31,7 +31,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/network.h"
-#include <errno.h>
 #include <sys/ioctl.h>
 #include <zlib.h>
 #include <sys/signal.h>

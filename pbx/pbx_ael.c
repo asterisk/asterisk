@@ -31,7 +31,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <ctype.h>
-#include <errno.h>
 #include <regex.h>
 #include <sys/stat.h>
 

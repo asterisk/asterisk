@@ -35,7 +35,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <errno.h>
 #include <signal.h>
 
 #include "asterisk/lock.h"

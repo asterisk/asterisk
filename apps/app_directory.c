@@ -42,7 +42,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 
 #ifdef ODBC_STORAGE
-#include <errno.h>
 #include <sys/mman.h>
 #include "asterisk/res_odbc.h"
 

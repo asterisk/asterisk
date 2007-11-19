@@ -37,8 +37,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <errno.h>
-
 #include "asterisk/zapata.h"
 
 #include "asterisk/lock.h"

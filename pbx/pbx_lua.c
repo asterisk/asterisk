@@ -32,8 +32,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <errno.h>
-
 #include "asterisk/options.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
