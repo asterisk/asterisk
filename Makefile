@@ -277,10 +277,6 @@ ifeq ($(OSARCH),SunOS)
   SOLINK=-shared -fpic -L/usr/local/ssl/lib
 endif
 
-ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
-  SOLINK=-Xlinker -r
-endif
-
 # This is used when generating the doxygen documentation
 ifneq ($(DOT),:)
   HAVEDOT=yes
@@ -298,7 +294,7 @@ else
 endif
 
 # comment to print directories during submakes
-PRINT_DIR:= --no-print-directory
+PRINT_DIR?= --no-print-directory
 
 all: _all
 	@echo " +--------- Asterisk Build Complete ---------+"  

@@ -87,7 +87,7 @@ endif
 
 ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
   AST_LIBS+=-lminires -ldl
-  ASTLINK+= -shared -Wl,--out-implib,asterisk.dll
+  ASTLINK+= -shared -Wl,--out-implib,libasterisk.a
 endif
 ifeq ($(OSARCH),NetBSD)
   AST_LIBS+=-lpthread -lcrypto -lm -L/usr/pkg/lib $(EDITLINE_LIB)
