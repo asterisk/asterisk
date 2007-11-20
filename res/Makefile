@@ -25,6 +25,13 @@ all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
+ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
+  # order-only dependency: build res_monitor before res_features
+  res_features.so: | res_monitor.so
+  # res_features uses some functions from res_monitor
+  res_features.so_LIBS:= -lres_monitor.so
+endif
+
 ael/ael_lex.o: ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h
 ael/ael_lex.o: ASTCFLAGS+=-I. -Iael 
 

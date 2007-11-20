@@ -66,9 +66,8 @@ _all: $(LOADABLE_MODS:%=%.so)
 ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
   # linker options and extra libraries for cygwin
   SOLINK=-Wl,--out-implib=lib$@.a -shared
-  LIBS+=-L../main -lasterisk -L../res
+  LIBS+=-L../main -lasterisk -L../res $($@_LIBS)
   # additional libraries in res/
-  LIBS_RES:= -lres_monitor -lres_adsi -lres_features
 endif
 endif
 

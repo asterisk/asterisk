@@ -39,3 +39,9 @@ endif
 all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
+
+ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
+  LIBS+= -lres_features.so -lres_ael_share.so -lres_monitor.so -lres_speech.so
+  LIBS+= -lres_smdi.so
+endif
+

@@ -25,6 +25,10 @@ all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
+ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
+  LIBS+= -lres_ael_share.so -lres_monitor.so
+endif
+
 clean::
 	rm -f ael/*.o
 
