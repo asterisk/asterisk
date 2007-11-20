@@ -3143,15 +3143,11 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 			if (!rr->port)
 				rr->port = misdn_cfg_get_next_port_spin(rr->port);
 			
-			for (; rr->port > 0 && rr->port != port_start;
-				 rr->port = misdn_cfg_get_next_port_spin(rr->port)) {
+			for (; rr->port > 0; rr->port = misdn_cfg_get_next_port_spin(rr->port)) {
 				int port_up;
 				int check;
 				int max_chan;
 				int last_chance = 0;
-
-				if (!port_start)
-					port_start = rr->port;
 
 				misdn_cfg_get(rr->port, MISDN_CFG_GROUPNAME, cfg_group, BUFFERSIZE);
 				if (strcasecmp(cfg_group, group))
@@ -3165,6 +3161,12 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 
 				if (check && port_up < 0)
 					ast_log(LOG_WARNING,"This port (%d) is blocked\n", rr->port);
+
+				if ((port_start == rr->port) && (port_up <= 0))
+					break;
+
+				if (!port_start)
+					port_start = rr->port;
 
 				if (port_up <= 0)
 					continue;
