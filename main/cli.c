@@ -28,6 +28,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/_private.h"
+#include "asterisk/paths.h"	/* use ast_config_AST_MODULE_DIR */
 #include <sys/signal.h>
 #include <signal.h>
 #include <ctype.h>

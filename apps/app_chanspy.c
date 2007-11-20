@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <ctype.h>
 
+#include "asterisk/paths.h"	/* use ast_config_AST_MONITOR_DIR */
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
 #include "asterisk/audiohook.h"

@@ -31,6 +31,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <dirent.h>
 #include <sys/stat.h>
 
+#include "asterisk/paths.h"	/* use ast_config_AST_DATA_DIR */
 #include "asterisk/frame.h"
 #include "asterisk/file.h"
 #include "asterisk/cli.h"

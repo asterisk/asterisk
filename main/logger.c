@@ -36,6 +36,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/_private.h"
+#include "asterisk/paths.h"	/* use ast_config_AST_LOG_DIR */
 #include <signal.h>
 #include <time.h>
 #include <sys/stat.h>

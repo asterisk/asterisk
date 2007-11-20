@@ -34,6 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #include <sys/stat.h>
 
+#include "asterisk/paths.h"	/* use ast_config_AST_LOG_DIR */
 #include "asterisk/channel.h"
 #include "asterisk/options.h"
 #include "asterisk/module.h"

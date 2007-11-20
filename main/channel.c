@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <signal.h>
 #include <math.h>
 
+#include "asterisk/paths.h"	/* use ast_config_AST_SYSTEM_NAME */
 #include "asterisk/zapata.h"
 
 #include "asterisk/pbx.h"

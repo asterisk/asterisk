@@ -18,8 +18,6 @@
 #ifndef _ASTERISK_PATHS_H
 #define _ASTERISK_PATHS_H
 
-#include <limits.h>
-
 extern char ast_config_AST_CONFIG_DIR[PATH_MAX];
 extern char ast_config_AST_CONFIG_FILE[PATH_MAX];
 extern char ast_config_AST_MODULE_DIR[PATH_MAX];

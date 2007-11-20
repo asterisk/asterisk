@@ -150,7 +150,6 @@ extern "C" {
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/stringfields.h"
-#include <limits.h>
 
 #define DATASTORE_INHERIT_FOREVER	INT_MAX
 

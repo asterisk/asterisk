@@ -95,6 +95,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <regex.h>
 
 #include "asterisk/network.h"
+#include "asterisk/paths.h"	/* need ast_config_AST_SYSTEM_NAME */
 
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"

@@ -30,6 +30,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #include <libgen.h>
 
+#include "asterisk/paths.h"	/* use ast_config_AST_MONITOR_DIR */
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
 #include "asterisk/file.h"

@@ -154,6 +154,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <locale.h>
 
 
+#include "asterisk/paths.h"	/* use various paths */
 #include "asterisk/astobj.h"
 #include "asterisk/lock.h"
 #include "asterisk/file.h"

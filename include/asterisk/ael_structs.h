@@ -25,6 +25,12 @@
 #ifndef _ASTERISK_AEL_STRUCTS_H
 #define _ASTERISK_AEL_STRUCTS_H
 
+/*
+ * We include asterisk/paths.h here because it is a convenient place
+ * that doesn't require us to rebuild ael files from .fl/.y
+ */
+#include "asterisk/paths.h"
+
 #include "pval.h"
 
 #if !defined(SOLARIS) && !defined(__CYGWIN__)

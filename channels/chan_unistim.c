@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <arpa/inet.h>
 #include <ctype.h>
 
+#include "asterisk/paths.h"	/* ast_config_AST_LOG_DIR used in (too ?) many places */
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"

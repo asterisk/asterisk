@@ -25,7 +25,6 @@
 
 #include "asterisk/network.h"
 
-#include <limits.h>
 #include <time.h>	/* we want to override localtime_r */
 
 #include "asterisk/lock.h"

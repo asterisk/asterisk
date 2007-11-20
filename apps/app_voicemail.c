@@ -65,6 +65,7 @@ c-client (http://www.washington.edu/imap/
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/paths.h"	/* use ast_config_AST_SPOOL_DIR */
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/mman.h>

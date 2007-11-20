@@ -54,6 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <regex.h>
 
 #include "asterisk/zapata.h"
+#include "asterisk/paths.h"	/* need ast_config_AST_DATA_DIR for firmware */
 
 #include "asterisk/lock.h"
 #include "asterisk/frame.h" 

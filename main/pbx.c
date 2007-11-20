@@ -28,10 +28,10 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/_private.h"
+#include "asterisk/paths.h"	/* use ast_config_AST_SYSTEM_NAME */
 #include <ctype.h>
 #include <time.h>
 #include <sys/time.h>
-#include <limits.h>
 #if defined(HAVE_SYSINFO)
 #include <sys/sysinfo.h>
 #endif
