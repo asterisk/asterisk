@@ -354,9 +354,11 @@ macro queue-success()
                 case I:
                         Playback(agent-loginok);
                         Hangup();
+						break;
                 case O:
                         Playback(agent-loggedoff);
                         Hangup();
+						break;
                 }
         }
 }
@@ -369,25 +371,20 @@ macro queue-addremove(queuename,penalty)
         switch(${MACRO_EXTEN:0:1})
         {
         case I:  // Login
-                {
                 AddQueueMember(${queuename},Local/${MACRO_EXTEN:1}@agents,${penalty});
-                }
+				break;
         case O:  // Logout
-                {
                 RemoveQueueMember(${queuename},Local/${MACRO_EXTEN:1}@agents);
-                }
+				break;
         case P:  // Pause
-                {
                 PauseQueueMember(${queuename},Local/${MACRO_EXTEN:1}@agents);
-                }
+				break;
         case U:  // Unpause
-                {
                 UnpauseQueueMember(${queuename},Local/${MACRO_EXTEN:1}@agents);
-                }
+				break;
         default: // Invalid
-                {
                 Playback(invalid);
-                }
+				break;
         }
 }
 
