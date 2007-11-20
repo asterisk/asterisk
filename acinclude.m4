@@ -164,7 +164,7 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
          PBX_$1=1
          # XXX don't know how to evaluate the description (third argument) in AC_DEFINE_UNQUOTED
          AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define this to indicate the ${$1_DESCRIP} library])
-	 AC_DEFINE_UNQUOTED([HAVE_$1_VERSION], [$6], [Define to indicate the ${$1_DESCRIP} library version])
+	 AC_DEFINE_UNQUOTED([HAVE_$1_VERSION], [$7], [Define to indicate the ${$1_DESCRIP} library version])
       fi
    fi
 fi
