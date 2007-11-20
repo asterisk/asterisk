@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/term.h"
+#include "asterisk/paths.h"
 
 #include <lua.h>
 #include <lauxlib.h>

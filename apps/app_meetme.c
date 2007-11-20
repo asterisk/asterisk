@@ -59,6 +59,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/dial.h"
 #include "asterisk/causes.h"
+#include "asterisk/paths.h"
 
 #include "enter.h"
 #include "leave.h"

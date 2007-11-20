@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
+#include "asterisk/paths.h"
 
 #define LOG_UNIQUEID	0
 #define LOG_USERFIELD	0
