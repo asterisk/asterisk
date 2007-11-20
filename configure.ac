@@ -1141,12 +1141,12 @@ AST_C_DEFINE_CHECK([ZAPTEL_TRANSCODE], [ZT_TCOP_ALLOCATE], [zaptel/zaptel.h])
 # On FreeBSD, try old zaptel (0.80 or so) and pretend we have vldtmf
 case "${host_os}" in
     freebsd*)
-	AST_EXT_LIB_CHECK([ZAPTEL], [zaptel],, [zaptel.h],, [80])
-	AST_EXT_LIB_CHECK([ZAPTEL_VLDTMF], [zaptel],, [zaptel/zaptel.h],, [90])
-	AST_EXT_LIB_CHECK([ZAPTEL_VLDTMF], [zaptel],, [zaptel.h],, [80])
+	AST_EXT_LIB_CHECK([ZAPTEL], [zaptel],, [zaptel.h],,, [80])
+	AST_EXT_LIB_CHECK([ZAPTEL_VLDTMF], [zaptel],, [zaptel/zaptel.h],,, [90])
+	AST_EXT_LIB_CHECK([ZAPTEL_VLDTMF], [zaptel],, [zaptel.h],,, [80])
 
 	# other case, old tonezone (0.80)
-	AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel.h], [${tonezone_extra}], [80])
+	AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel.h], [${tonezone_extra}],, [80])
 	;;
 esac
 
@@ -1179,7 +1179,7 @@ AC_CHECK_HEADER([linux/ixjuser.h], [PBX_IXJUSER=1], [PBX_IXJUSER=0], [
 AC_SUBST(PBX_IXJUSER)
 
 AST_EXT_TOOL_CHECK([SDL], [sdl])
-AST_EXT_LIB_CHECK([SDL_IMAGE], [SDL_image], [IMG_Load], [SDL/SDL_image.h], [${SDL_LIB}])
+AST_EXT_LIB_CHECK([SDL_IMAGE], [SDL_image], [IMG_Load], [SDL_image.h], [${SDL_LIB}], [${SDL_INCLUDE}])
 AST_EXT_LIB_CHECK([FFMPEG], [avcodec], [sws_getContext], [ffmpeg/avcodec.h], [-lpthread -lz -lm])
 
 PBX_GTK=0

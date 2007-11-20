@@ -117,11 +117,13 @@ AC_DEFUN([AST_C_DEFINE_CHECK],
 # in a library, or, if no function is supplied, only check for the
 # existence of the header files.
 
-# AST_EXT_LIB_CHECK([package], [library], [function], [header], [additional LIB data], [version])
+# AST_EXT_LIB_CHECK([package], [library], [function], [header],
+#	 [extra libs], [extra cflags], [version])
 AC_DEFUN([AST_EXT_LIB_CHECK],
 [
 if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
    pbxlibdir=""
+   # if --with-$1=DIR has been specified, use it.
    if test "x${$1_DIR}" != "x"; then
       if test -d ${$1_DIR}/lib; then
       	 pbxlibdir="-L${$1_DIR}/lib"
@@ -136,22 +138,21 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
       AC_CHECK_LIB([$2], [${pbxfuncname}], [AST_$1_FOUND=yes], [AST_$1_FOUND=no], ${pbxlibdir} $5)
    fi
 
+   # now check for the header.
    if test "${AST_$1_FOUND}" = "yes"; then
-      $1_LIB="-l$2 $5"
-      $1_HEADER_FOUND="1"
+      $1_LIB="${pbxlibdir} -l$2 $5"
+      # if --with-$1=DIR has been specified, use it.
       if test "x${$1_DIR}" != "x"; then
-         $1_LIB="${pbxlibdir} ${$1_LIB}"
 	 $1_INCLUDE="-I${$1_DIR}/include"
-	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${$1_DIR}/include"
-	 if test "x$4" != "x" ; then
-	    AC_CHECK_HEADER([${$1_DIR}/include/$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
-	 fi
-	 CPPFLAGS="${saved_cppflags}"
-      else
-	 if test "x$4" != "x" ; then
-            AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
-	 fi
+      fi
+      $1_INCLUDE="${$1_INCLUDE} $6"
+      if test "x$4" = "x" ; then	# no header, assume found
+         $1_HEADER_FOUND="1"
+      else				# check for the header
+         saved_cppflags="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE} $6"
+	 AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
+         CPPFLAGS="${saved_cppflags}"
       fi
       if test "x${$1_HEADER_FOUND}" = "x0" ; then
          $1_LIB=""
