@@ -494,7 +494,7 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 	case CLI_INIT:
 		e->command = "core show translation [recalc]";
 		e->usage =
-			"Usage: core show translation [recalc] [<recalc seconds>]\n"
+			"Usage: core show translation [recalc [<recalc seconds>]]\n"
 			"       Displays known codec translators and the cost associated\n"
 			"       with each conversion.  If the argument 'recalc' is supplied along\n"
 			"       with optional number of seconds to test a new test will be performed\n"
@@ -523,7 +523,8 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 		AST_RWLIST_WRLOCK(&translators);
 		rebuild_matrix(z);
 		AST_RWLIST_UNLOCK(&translators);
-	}
+	} else if (a->argc > 3)
+		return CLI_SHOWUSAGE;
 
 	AST_RWLIST_RDLOCK(&translators);
 
