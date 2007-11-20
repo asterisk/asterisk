@@ -50,6 +50,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include "asterisk/compat.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/astobj.h"
