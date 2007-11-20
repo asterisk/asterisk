@@ -1070,9 +1070,9 @@ if test "${host_os}" != "linux-gnu" ; then
 fi
 
 # new tonezone, version 1.4.0
-AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel/tonezone.h], [${tonezone_extra}], [140])
+AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel/tonezone.h], [${tonezone_extra}], , [], [140])
 # other case, old tonezone (0.80)
-AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel/zaptel.h], [${tonezone_extra}], [80])
+AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel/zaptel.h], [${tonezone_extra}], , [], [80])
 
 AST_EXT_LIB_CHECK([USB], [usb], [usb_init], [usb.h], [])
 
