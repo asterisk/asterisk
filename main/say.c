@@ -59,7 +59,7 @@ static int wait_file(struct ast_channel *chan, const char *ints, const char *fil
 static int say_character_str_full(struct ast_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
 {
 	const char *fn;
-	char fnbuf[256];
+	char fnbuf[10], asciibuf[20] = "letters/ascii";
 	char ltr;
 	int num = 0;
 	int res = 0;
@@ -121,7 +121,8 @@ static int say_character_str_full(struct ast_channel *chan, const char *str, con
 			fnbuf[8] = ltr;
 			fn = fnbuf;
 		}
-		if (fn && ast_fileexists(fn, NULL, lang) > 0) {
+		if ((fn && ast_fileexists(fn, NULL, lang) > 0) ||
+			(snprintf(asciibuf + 13, sizeof(asciibuf) - 13, "%d", str[num]) > 0 && ast_fileexists(asciibuf, NULL, lang) > 0 && (fn = asciibuf))) {
 			res = ast_streamfile(chan, fn, lang);
 			if (!res) {
 				if ((audiofd  > -1) && (ctrlfd > -1))
