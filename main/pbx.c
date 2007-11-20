@@ -2002,6 +2002,7 @@ void ast_hint_state_changed(const char *device)
 {
 	struct ast_hint *hint;
 
+	ast_mutex_lock(&conlock);
 	AST_LIST_LOCK(&hints);
 
 	AST_LIST_TRAVERSE(&hints, hint, list) {
@@ -2039,6 +2040,7 @@ void ast_hint_state_changed(const char *device)
 	}
 
 	AST_LIST_UNLOCK(&hints);
+	ast_mutex_unlock(&conlock);
 }
 
 /*! \brief  ast_extension_state_add: Add watcher for extension states */
