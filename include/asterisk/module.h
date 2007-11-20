@@ -194,10 +194,11 @@ enum ast_module_flags {
 
 struct ast_module_info {
 
-	/*! The 'self' pointer for a module; it will be set by the loader before
-	   it calls the module's load_module() entrypoint, and used by various
-	   other macros that need to identify the module.
-	*/
+	/*!
+	 * The 'self' pointer for a module; it will be set by the loader before
+	 * it calls the module's load_module() entrypoint, and used by various
+	 * other macros that need to identify the module.
+	 */
 
 	struct ast_module *self;
 	enum ast_module_load_result (*load)(void);	/*!< register stuff etc. Optional. */
@@ -216,8 +217,9 @@ struct ast_module_info {
 
 	const char *key;
 	unsigned int flags;
+
 	/*! The value of AST_BUILDOPT_SUM when this module was compiled */
-	uint32_t buildopt_sum[4];
+	const char buildopt_sum[33];
 };
 
 void ast_module_register(const struct ast_module_info *);
