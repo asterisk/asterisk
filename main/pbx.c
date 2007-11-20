@@ -1743,10 +1743,8 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	/* Now try any includes we have in this context */
 	for (i = tmp->includes; i; i = i->next) {
 		if (include_valid(i)) {
-			if ((e = pbx_find_extension(chan, bypass, q, i->rname, exten, priority, label, callerid, action))) {
-				ast_log(LOG_NOTICE,"pbx_find_extension returns exten %s from recursive call\n", e->exten);
+			if ((e = pbx_find_extension(chan, bypass, q, i->rname, exten, priority, label, callerid, action)))
 				return e;
-			}
 			
 			if (q->swo)
 				return NULL;
@@ -3662,8 +3660,6 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 					x->deleted = 1; /* with this marked as deleted, it will never show up in the scoreboard, and therefore never be found */
 					x->exten = 0; /* get rid of what will become a bad pointer */
 					ast_hashtab_remove_this_object(con->root_tree, exten);
-					ast_log(LOG_NOTICE,"Removed extension %s from context %s table\n",
-							exten->exten, con->name);
 				} else {
 					ast_log(LOG_WARNING,"Trying to delete an exten from a context, but the pattern tree node returned isn't a full extension\n");
 				}
@@ -3674,8 +3670,6 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 					if (exten2->label) /* if this exten has a label, remove that, too */
 						ast_hashtab_remove_this_object(exten->peer_label_tree,exten2);
 					ast_hashtab_remove_this_object(exten->peer_tree, exten2);
-					ast_log(LOG_NOTICE,"Removed priority %d from extension %s context %s table\n",
-							priority, exten->exten, con->name);
 					if (ast_hashtab_size(exten->peer_tree) == 0) {
 						/* well, if the last priority of an exten is to be removed,
 						   then, the extension is removed, too! */
@@ -3684,8 +3678,6 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 							x->deleted = 1; /* with this marked as deleted, it will never show up in the scoreboard, and therefore never be found */
 							x->exten = 0; /* get rid of what will become a bad pointer */
 							ast_hashtab_remove_this_object(con->root_tree, exten);
-							ast_log(LOG_NOTICE,"Removed extension %s from context %s table\n",
-									exten->exten, con->name);
 						}
 					}
 				} else {
