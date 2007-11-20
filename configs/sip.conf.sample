@@ -210,8 +210,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; for a device. When the call limit is filled, we will indicate busy. Note that
 ; you need at least 2 in order to be able to do attended transfers.
 ;
-; If you set the busy-level in addition to the call limit, we will indicate busy
-; when we have a number of calls that matches busy-level, but still allow calls
+; If you set the busylevel in addition to the call limit, we will indicate busy
+; when we have a number of calls that matches busylevel, but still allow calls
 ; up to the call-limit. This allows for transfers while still having blinking
 ; lamps and queues understanding that a device is busy.
 ;
@@ -569,7 +569,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; videosupport		      videosupport
 ; maxcallbitrate	      maxcallbitrate
 ; rfc2833compensate           mailbox
-;			      busy-level
+;			      busylevel
 ;                             username
 ;                             template
 ;                             fromdomain
@@ -606,7 +606,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;call-limit=5				; permit only 5 simultaneous outgoing calls to this peer
 					; Call-limits will not be enforced on real-time peers,
 					; since they are not stored in-memory
-;busy-level=2				; Signal busy at 2 or more calls
+;busylevel=2				; Signal busy at 2 or more calls
 ;outboundproxy=proxy.provider.domain	; send outbound signaling to this proxy, not directly to the peer
 ;port=80				; The port number we want to connect to on the remote side
 					; Also used as "defaultport" in combination with "defaultip" settings
