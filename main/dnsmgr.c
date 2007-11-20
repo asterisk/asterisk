@@ -27,6 +27,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/_private.h"
 #include <regex.h>
 #include <signal.h>
 

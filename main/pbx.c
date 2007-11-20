@@ -27,6 +27,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/_private.h"
 #include <ctype.h>
 #include <time.h>
 #include <sys/time.h>

@@ -61,6 +61,8 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/_private.h"
+
 #undef sched_setscheduler
 #undef setpriority
 #include <sys/time.h>

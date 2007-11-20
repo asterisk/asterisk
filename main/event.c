@@ -27,6 +27,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/_private.h"
 #include "asterisk/event.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/lock.h"

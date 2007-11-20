@@ -25,14 +25,17 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
-/* Prevent inclusion of logger.h - it redefines LOG_* which we need
- * to define syslog_level_map. Later, we force its inclusion again.
+/*
+ * define _ASTERISK_LOGGER_H to prevent the inclusion of logger.h;
+ * it redefines LOG_* which we need to define syslog_level_map.
+ * Later, we force the inclusion of logger.h again.
  */
 #define _ASTERISK_LOGGER_H
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/_private.h"
 #include <signal.h>
 #include <time.h>
 #include <sys/stat.h>
@@ -511,7 +514,7 @@ static int rotate_file(const char *filename)
 	return res;
 }
 
-int reload_logger(int rotate)
+static int reload_logger(int rotate)
 {
 	char old[PATH_MAX] = "";
 	int event_rotate = rotate, queue_rotate = rotate;

@@ -31,6 +31,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/_private.h"
 #include <sys/time.h>
 #include <signal.h>
 #include <dirent.h>

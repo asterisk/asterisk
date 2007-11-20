@@ -24,8 +24,15 @@
  */
 
 #include "asterisk.h"
+#include "asterisk/_private.h"
 
-#if defined(DEBUG_THREADLOCALS)
+#if !defined(DEBUG_THREADLOCALS)
+
+void threadstorage_init(void)
+{
+}
+
+#else /* !defined(DEBUG_THREADLOCALS) */
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
@@ -224,12 +231,6 @@ static struct ast_cli_entry cli[] = {
 void threadstorage_init(void)
 {
 	ast_cli_register_multiple(cli, sizeof(cli) / sizeof(cli[0]));
-}
-
-#else /* !defined(DEBUG_THREADLOCALS) */
-
-void threadstorage_init(void)
-{
 }
 
 #endif /* !defined(DEBUG_THREADLOCALS) */

@@ -27,6 +27,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/_private.h"
 #include <sys/signal.h>
 #include <signal.h>
 #include <ctype.h>
