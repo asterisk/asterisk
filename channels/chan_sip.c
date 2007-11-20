@@ -11945,9 +11945,9 @@ static char *sip_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		e->command = "sip show {channels|subscriptions}";
 		e->usage =
 		"Usage: sip show channels\n"
-		"       Lists all currently active SIP channels.\n"
+		"       Lists all currently active SIP calls (dialogs).\n"
 		"Usage: sip show subscriptions\n"
-		"       Lists active SIP subscriptions for extension states\n";
+		"       Lists active SIP subscriptions.\n";
 		return NULL;
 	} else if (cmd == CLI_GENERATE)
 		return NULL;
@@ -11969,7 +11969,7 @@ static char *sip_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 	/* print summary information */
 	ast_cli(arg.fd, "%d active SIP %s%s\n", arg.numchans,
-		(arg.subscriptions ? "subscription" : "channel"),
+		(arg.subscriptions ? "subscription" : "dialog"),
 		ESS(arg.numchans));	/* ESS(n) returns an "s" if n>1 */
 	return CLI_SUCCESS;
 #undef FORMAT
@@ -12132,8 +12132,8 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	case CLI_INIT:
 		e->command = "sip show channel";
 		e->usage =
-			"Usage: sip show channel <channel>\n"
-			"       Provides detailed status on a given SIP channel.\n";
+			"Usage: sip show channel <call-id>\n"
+			"       Provides detailed status on a given SIP dialog (identified by SIP call-id).\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_sipch(a->line, a->word, a->pos, a->n);
