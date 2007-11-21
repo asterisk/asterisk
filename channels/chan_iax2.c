@@ -11400,6 +11400,7 @@ static struct ast_cli_entry cli_iax2[] = {
 static int __unload_module(void)
 {
 	struct iax2_thread *thread = NULL;
+	struct ast_context *con;
 	int x;
 
 	/* Make sure threads do not hold shared resources when they are canceled */
@@ -11465,7 +11466,11 @@ static int __unload_module(void)
 
 	ao2_ref(peers, -1);
 	ao2_ref(users, -1);
-
+	
+	con = ast_context_find(regcontext);
+	if (con)
+		ast_context_destroy(con, "IAX2");
+	
 	return 0;
 }
 

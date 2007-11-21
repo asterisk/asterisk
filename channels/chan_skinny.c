@@ -92,6 +92,7 @@ enum skinny_codecs {
 
 static int keep_alive = 120;
 static char vmexten[AST_MAX_EXTENSION];		/* Voicemail pilot number */
+static char used_context[AST_MAX_EXTENSION];		/* Voicemail pilot number */
 static char regcontext[AST_MAX_CONTEXT];	/* Context for auto-extension */
 static char date_format[6] = "D-M-Y";
 static char version_id[16] = "P002F202";
@@ -5508,6 +5509,7 @@ static int reload_config(void)
 			cleanup_stale_contexts(stringp, oldregcontext);
 			/* Create contexts if they don't exist already */
 			while ((context = strsep(&stringp, "&"))) {
+				ast_copy_string(used_context, context, sizeof(used_context));
 				if (!ast_context_find(context))
 					ast_context_create(NULL, context, "Skinny");
 			}
@@ -5705,6 +5707,7 @@ static int unload_module(void)
 	struct skinny_device *d;
 	struct skinny_line *l;
 	struct skinny_subchannel *sub;
+	struct ast_context *con;
 
 	ast_mutex_lock(&sessionlock);
 	/* Destroy all the interfaces and free their memory */
@@ -5762,6 +5765,10 @@ static int unload_module(void)
 	if (sched)
 		sched_context_destroy(sched);
 
+	con = ast_context_find(used_context);
+	if (con)
+		ast_context_destroy(con, "Skinny");
+	
 	return 0;
 }
 

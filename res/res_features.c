@@ -3305,6 +3305,7 @@ static int load_module(void)
 
 static int unload_module(void)
 {
+	struct ast_context *con;
 	ast_manager_unregister("ParkedCalls");
 	ast_manager_unregister("Bridge");
 	ast_manager_unregister("Park");
@@ -3312,6 +3313,12 @@ static int unload_module(void)
 	ast_unregister_application(parkcall);
 	ast_unregister_application(app_bridge);
 	ast_devstate_prov_del("Park");
+	con = ast_context_find(parking_con);
+	if (con)
+		ast_context_destroy(con, registrar);
+	con = ast_context_find(parking_con_dial);
+	if (con)
+		ast_context_destroy(con, registrar); 	
 	return ast_unregister_application(parkedcall);
 }
 

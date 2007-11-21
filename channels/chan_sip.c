@@ -555,6 +555,7 @@ static char default_mohsuggest[MAX_MUSICCLASS];	   /*!< Global setting for moh c
                                                     *   a bridged channel on hold */
 static int default_maxcallbitrate;	/*!< Maximum bitrate for call */
 static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
+static char used_context[AST_MAX_CONTEXT]; /*!< name of automatically created context for unloading */
 
 /*! \brief a place to store all global settings for the sip channel driver */
 struct sip_settings {
@@ -18191,6 +18192,7 @@ static int reload_config(enum channelreloadreason reason)
 			cleanup_stale_contexts(stringp, oldregcontext);
 			/* Create contexts if they don't exist already */
 			while ((context = strsep(&stringp, "&"))) {
+				ast_copy_string(used_context, context, sizeof(used_context));
 				if (!ast_context_find(context))
 					ast_context_create(NULL, context,"SIP");
 			}
@@ -19205,6 +19207,7 @@ static int load_module(void)
 static int unload_module(void)
 {
 	struct sip_pvt *p, *pl;
+	struct ast_context *con;
 	
 	/* First, take us out of the channel type list */
 	ast_channel_unregister(&sip_tech);
@@ -19274,6 +19277,9 @@ static int unload_module(void)
 	clear_sip_domains();
 	close(sipsock);
 	sched_context_destroy(sched);
+	con = ast_context_find(used_context);
+	if (con)
+		ast_context_destroy(con, "SIP");
 
 	return 0;
 }

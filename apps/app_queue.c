@@ -5516,6 +5516,7 @@ static int unload_module(void)
 
 	if ((con = ast_context_find("app_queue_gosub_virtual_context"))) {
 		ast_context_remove_extension2(con, "s", 1, NULL);
+		ast_context_destroy(con, "app_queue"); /* leave no trace */
 	}
 
 	clear_and_free_interfaces();
