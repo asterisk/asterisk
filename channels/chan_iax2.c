@@ -1473,7 +1473,7 @@ static int make_trunk(unsigned short callno, int locked)
  * happens for *every* incoming media frame.  It iterates through every
  * possible call number, locking and unlocking each one, to try to match the
  * incoming frame to an active call.  Call numbers can be up to 2^15, 32768.
- * So, for an call with a local call number of 20000, every incoming audio
+ * So, for a call with a local call number of 20000, every incoming audio
  * frame would require 20000 mutex lock and unlock operations.  Ouch.
  *
  * It's a shame that IAX2 media frames carry the source call number instead of
