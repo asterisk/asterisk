@@ -390,7 +390,6 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	AST_LIST_LOCK(&parkinglot);
 	/* Check for channel variable PARKINGEXTEN */
 	parkingexten = pbx_builtin_getvar_helper(chan, "PARKINGEXTEN");
-	ast_log(LOG_NOTICE,"Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	if (!ast_strlen_zero(parkingexten)) {
 		if (ast_exists_extension(NULL, parking_con, parkingexten, 1, NULL)) {
 			AST_LIST_UNLOCK(&parkinglot);
@@ -398,12 +397,10 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			ast_log(LOG_WARNING, "Requested parking extension already exists: %s@%s\n", parkingexten, parking_con);
 			return 0;	/* Continue execution if possible */
 		}
-		ast_log(LOG_NOTICE,"2. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 		ast_copy_string(pu->parkingexten, parkingexten, sizeof(pu->parkingexten));
 		x = atoi(parkingexten);
 	} else {
 		/* Select parking space within range */
-		ast_log(LOG_NOTICE,"3. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 		parking_range = parking_stop - parking_start+1;
 		for (i = 0; i < parking_range; i++) {
 			x = (i + parking_offset) % parking_range + parking_start;
@@ -426,7 +423,6 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			parking_offset = x - parking_start + 1;
 	}
 	
-	ast_log(LOG_NOTICE,"4. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	chan->appl = "Parked Call";
 	chan->data = NULL; 
 
@@ -439,7 +435,6 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			!ast_strlen_zero(parkmohclass) ? strlen(parkmohclass) + 1 : 0);
 	}
 	
-	ast_log(LOG_NOTICE,"5. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	pu->start = ast_tvnow();
 	pu->parkingnum = x;
 	pu->parkingtime = (timeout > 0) ? timeout : parkingtime;
@@ -456,19 +451,16 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	pu->priority = chan->macropriority ? chan->macropriority : chan->priority;
 	AST_LIST_INSERT_TAIL(&parkinglot, pu, list);
 
-	ast_log(LOG_NOTICE,"6. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	/* If parking a channel directly, don't quiet yet get parking running on it */
 	if (peer == chan) 
 		pu->notquiteyet = 1;
 	AST_LIST_UNLOCK(&parkinglot);
 	/* Wake up the (presumably select()ing) thread */
-	ast_log(LOG_NOTICE,"7. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	pthread_kill(parking_thread, SIGURG);
 	ast_verb(2, "Parked %s on %d@%s. Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, parking_con, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
 
 	if (pu->parkingnum != -1)
 		snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", x);
-	ast_log(LOG_NOTICE,"8. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	manager_event(EVENT_FLAG_CALL, "ParkedCall",
 		"Exten: %s\r\n"
 		"Channel: %s\r\n"
@@ -482,43 +474,35 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		S_OR(pu->chan->cid.cid_name, "<unknown>")
 		);
 
-	ast_log(LOG_NOTICE,"9. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	if (peer && adsipark && ast_adsi_available(peer)) {
 		adsi_announce_park(peer, pu->parkingexten);	/* Only supports parking numbers */
 		ast_adsi_unload_session(peer);
 	}
 
-	ast_log(LOG_NOTICE,"10. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	con = ast_context_find(parking_con);
 	if (!con) 
 		con = ast_context_create(NULL, parking_con, registrar);
 	if (!con)	/* Still no context? Bad */
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 	/* Tell the peer channel the number of the parking space */
-	ast_log(LOG_NOTICE,"11. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	if (peer && pu->parkingnum != -1) { /* Only say number if it's a number */
 		/* Make sure we don't start saying digits to the channel being parked */
 		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
 		ast_clear_flag(peer, AST_FLAG_MASQ_NOSTREAM);
-		ast_log(LOG_NOTICE,"12. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	}
 	if (con) {
 		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, ast_strdup(pu->parkingexten), ast_free_ptr, registrar))
 			notify_metermaids(pu->parkingexten, parking_con, AST_DEVICE_INUSE);
-		ast_log(LOG_NOTICE,"13. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	}
 	if (pu->notquiteyet) {
 		/* Wake up parking thread if we're really done */
-		ast_log(LOG_NOTICE,"14. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 		ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
 			S_OR(parkmohclass, NULL),
 			!ast_strlen_zero(parkmohclass) ? strlen(parkmohclass) + 1 : 0);
 		pu->notquiteyet = 0;
 		pthread_kill(parking_thread, SIGURG);
-		ast_log(LOG_NOTICE,"15. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	}
-	ast_log(LOG_NOTICE,"16. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	return 0;
 }
 
@@ -528,20 +512,17 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	struct ast_channel *chan;
 	struct ast_frame *f;
 
-	ast_log(LOG_NOTICE,"a. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
 	if (!(chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, rchan->accountcode, rchan->exten, rchan->context, rchan->amaflags, "Parked/%s",rchan->name))) {
 		ast_log(LOG_WARNING, "Unable to create parked channel\n");
 		return -1;
 	}
 
-	ast_log(LOG_NOTICE,"b. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	/* Make formats okay */
 	chan->readformat = rchan->readformat;
 	chan->writeformat = rchan->writeformat;
 	ast_channel_masquerade(chan, rchan);
 
-	ast_log(LOG_NOTICE,"c. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	/* Setup the extensions and such */
 	set_c_e_p(chan, rchan->context, rchan->exten, rchan->priority);
 
@@ -550,9 +531,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	if (f)
 		ast_frfree(f);
 
-	ast_log(LOG_NOTICE,"d. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	ast_park_call(chan, peer, timeout, extout);
-	ast_log(LOG_NOTICE,"e. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	return 0;
 }
 
@@ -611,9 +590,7 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 	set_peers(&parker, &parkee, peer, chan, sense);
 	/* Setup the exten/priority to be s/1 since we don't know
 	   where this call should return */
-	ast_log(LOG_NOTICE,"A. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	strcpy(chan->exten, "s");
-	ast_log(LOG_NOTICE,"B. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	chan->priority = 1;
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
@@ -621,7 +598,6 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 		res = ast_safe_sleep(chan, 1000);
 	if (!res)
 		res = ast_park_call(parkee, parker, 0, NULL);
-	ast_log(LOG_NOTICE,"C. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 
 	ast_module_user_remove(u);
 
@@ -790,8 +766,6 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	char xferto[256];
 	int res;
 
-	ast_log(LOG_NOTICE,"W. Chan %s cont/ext/prio = %s/%s/%d\n", chan->name, chan->context, chan->exten, chan->priority);
-	ast_log(LOG_NOTICE,"W. Peer %s cont/ext/prio = %s/%s/%d\n", peer->name, peer->context, peer->exten, peer->priority);
 	set_peers(&transferer, &transferee, peer, chan, sense);
 	transferer_real_context = real_ctx(transferer, transferee);
 	/* Start autoservice on chan while we talk to the originator */
@@ -815,30 +789,21 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		finishup(transferee);
 		return res;
 	}
-	ast_log(LOG_NOTICE,"X. Chan %s cont/ext/prio = %s/%s/%d\n", chan->name, chan->context, chan->exten, chan->priority);
-	ast_log(LOG_NOTICE,"X. Peer %s cont/ext/prio = %s/%s/%d\n", peer->name, peer->context, peer->exten, peer->priority);
 	if (!strcmp(xferto, ast_parking_ext())) {
 		res = finishup(transferee);
-		ast_log(LOG_NOTICE,"Y. Chan %s cont/ext/prio = %s/%s/%d\n", chan->name, chan->context, chan->exten, chan->priority);
-		ast_log(LOG_NOTICE,"Y. Peer %s cont/ext/prio = %s/%s/%d\n", peer->name, peer->context, peer->exten, peer->priority);
 		if (res)
 			res = -1;
 		else if (!ast_park_call(transferee, transferer, 0, NULL)) {	/* success */
 			/* We return non-zero, but tell the PBX not to hang the channel when
 			   the thread dies -- We have to be careful now though.  We are responsible for 
 			   hanging up the channel, else it will never be hung up! */
-			ast_log(LOG_NOTICE,"Y2. Chan %s cont/ext/prio = %s/%s/%d\n", chan->name, chan->context, chan->exten, chan->priority);
-			ast_log(LOG_NOTICE,"Y2. Peer %s cont/ext/prio = %s/%s/%d\n", peer->name, peer->context, peer->exten, peer->priority);
+
 			return (transferer == peer) ? AST_PBX_KEEPALIVE : AST_PBX_NO_HANGUP_PEER;
 		} else {
-			ast_log(LOG_NOTICE,"Z. Chan %s cont/ext/prio = %s/%s/%d\n", chan->name, chan->context, chan->exten, chan->priority);
-			ast_log(LOG_NOTICE,"Z. Peer %s cont/ext/prio = %s/%s/%d\n", peer->name, peer->context, peer->exten, peer->priority);
 			ast_log(LOG_WARNING, "Unable to park call %s\n", transferee->name);
 		}
 		/*! \todo XXX Maybe we should have another message here instead of invalid extension XXX */
 	} else if (ast_exists_extension(transferee, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
-		ast_log(LOG_NOTICE,"ZZ. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
-		ast_log(LOG_NOTICE,"ZZ. Peer cont/ext/prio = %s/%s/%d\n", peer->context, peer->exten, peer->priority);
 		pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", transferee->name);
 		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
 		res=finishup(transferee);
@@ -858,19 +823,13 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			if (option_verbose > 2) 
 				ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
 								,transferee->name, xferto, transferer_real_context);
-			ast_log(LOG_NOTICE,"ZZZ. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
-			ast_log(LOG_NOTICE,"ZZZ. Peer cont/ext/prio = %s/%s/%d\n", peer->context, peer->exten, peer->priority);
 			if (ast_async_goto(transferee, transferer_real_context, xferto, 1))
 				ast_log(LOG_WARNING, "Async goto failed :-(\n");
 		} else {
 			/* Set the channel's new extension, since it exists, using transferer context */
 			set_c_e_p(transferee, transferer_real_context, xferto, 0);
-			ast_log(LOG_NOTICE,"ZZZZ. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
-			ast_log(LOG_NOTICE,"ZZZZ. Peer cont/ext/prio = %s/%s/%d\n", peer->context, peer->exten, peer->priority);
 		}
 		check_goto_on_transfer(transferer);
-		ast_log(LOG_NOTICE,"ZZZZZ. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
-		ast_log(LOG_NOTICE,"ZZZZZ. Peer cont/ext/prio = %s/%s/%d\n", peer->context, peer->exten, peer->priority);
 		return res;
 	} else {
 		ast_verb(3, "Unable to find extension '%s' in context '%s'\n", xferto, transferer_real_context);
@@ -885,8 +844,6 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		ast_verb(2, "Hungup during autoservice stop on '%s'\n", transferee->name);
 		return res;
 	}
-	ast_log(LOG_NOTICE,"ZZZZZZ. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
-	ast_log(LOG_NOTICE,"ZZZZZZ. Peer cont/ext/prio = %s/%s/%d\n", peer->context, peer->exten, peer->priority);
 	return FEATURE_RETURN_SUCCESS;
 }
 
@@ -2283,7 +2240,6 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 	if (!res)
 		res = ast_safe_sleep(chan, 1000);
 	/* Park the call */
-	ast_log(LOG_NOTICE,"PCE. Chan cont/ext/prio = %s/%s/%d\n", chan->context, chan->exten, chan->priority);
 	if (!res)
 		res = ast_park_call(chan, chan, 0, NULL);
 
