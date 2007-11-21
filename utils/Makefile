@@ -19,6 +19,8 @@
 ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted check_expr conf2ael hashtest2 hashtest
 UTILS:=$(ALL_UTILS)
 
+LIBS += $(BKTR_LIB)	# astobj2 with devmode uses backtrace
+
 include $(ASTTOPDIR)/Makefile.rules
 
 ifeq ($(OSARCH),SunOS)

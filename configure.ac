@@ -861,7 +861,7 @@ AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [])
 
 AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
 
-AST_EXT_LIB_CHECK([BKTR], [execinfo], [backtrace], [execinfo.h], [-lexecinfo])
+AST_EXT_LIB_CHECK([BKTR], [execinfo], [backtrace], [execinfo.h])
 
 # possible places for oss definitions
 AST_EXT_LIB_CHECK([OSS], [ossaudio], [], [linux/soundcard.h])
