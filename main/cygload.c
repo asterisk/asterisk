@@ -17,4 +17,5 @@ int main(int argc, char *argv[])
 	if (ast_main)
 		return ast_main(argc, argv);
 	fprintf(stderr, "could not load asterisk, %s\n", dlerror());
+	return 1;	/* there was an error */
 }
