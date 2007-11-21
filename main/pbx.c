@@ -319,14 +319,13 @@ int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_setvar_multiple(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
 static void set_ext_pri(struct ast_channel *c, const char *exten, int pri);
-void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid);
-struct match_char *already_in_tree(struct match_char *current, char *pat);
-struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1, int findonly);
-struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity);
-void create_match_char_tree(struct ast_context *con);
-void log_match_char_tree(struct match_char *node, char *prefix);
-struct ast_exten *get_canmatch_exten(struct match_char *node);
-void destroy_pattern_tree(struct match_char *pattern_tree);
+static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid);
+static struct match_char *already_in_tree(struct match_char *current, char *pat);
+static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1, int findonly);
+static struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity);
+static void create_match_char_tree(struct ast_context *con);
+static struct ast_exten *get_canmatch_exten(struct match_char *node);
+static void destroy_pattern_tree(struct match_char *pattern_tree);
 static int hashtab_compare_contexts(const void *ah_a, const void *ah_b);
 static int hashtab_compare_extens(const void *ha_a, const void *ah_b);
 static int hashtab_compare_exten_numbers(const void *ah_a, const void *ah_b);
@@ -852,49 +851,7 @@ static void update_scoreboard(struct scoreboard *board, int length, int spec, st
 	}
 }
 
-void log_match_char_tree(struct match_char *node, char *prefix)
-{
-	char my_prefix[1024];
-	char extenstr[40];
-	
-	extenstr[0] = 0;
-	if (node && node->exten && node->exten)
-		sprintf(extenstr,"(%x)",(unsigned int)node->exten);
-	
-	if (strlen(node->x) > 1 )
-		ast_log(LOG_DEBUG,"%s[%s]:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->deleted? 'D':'-', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "", extenstr);
-	else
-		ast_log(LOG_DEBUG,"%s%s:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->deleted? 'D':'-', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "", extenstr);
-	strcpy(my_prefix,prefix);
-	strcat(my_prefix,"+       ");
-	if (node->next_char)
-		log_match_char_tree(node->next_char, my_prefix);
-	if (node->alt_char)
-		log_match_char_tree(node->alt_char, prefix);
-}
-
-static void cli_match_char_tree(struct match_char *node, char *prefix, int fd)
-{
-	char my_prefix[1024];
-	char extenstr[40];
-	
-	extenstr[0] = 0;
-	if (node && node->exten && node->exten)
-		sprintf(extenstr,"(%x)",(unsigned int)node->exten);
-	
-	if (strlen(node->x) > 1)
-		ast_cli(fd, "%s[%s]:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->deleted ? 'D' : '-', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "", extenstr);
-	else
-		ast_cli(fd, "%s%s:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->deleted ? 'D' : '-', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "", extenstr);
-	strcpy(my_prefix,prefix);
-	strcat(my_prefix,"+       ");
-	if (node->next_char)
-		cli_match_char_tree(node->next_char, my_prefix, fd);
-	if (node->alt_char)
-		cli_match_char_tree(node->alt_char, prefix, fd);
-}
-
-struct ast_exten *get_canmatch_exten(struct match_char *node)
+static struct ast_exten *get_canmatch_exten(struct match_char *node)
 {
 	/* find the exten at the end of the rope */
 	struct match_char *node2 = node;
@@ -929,7 +886,7 @@ static struct ast_exten *trie_find_next_match(struct match_char *node)
 	return NULL;
 }
 
-void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid)
+static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid)
 {
 	struct match_char *p; /* note minimal stack storage requirements */
 	for (p=tree; p; p=p->alt_char) {
@@ -1042,8 +999,7 @@ void new_find_extension(const char *str, struct scoreboard *score, struct match_
  * I guess forming this pattern tree would be analogous to compiling a regex.
  */
 
-
-struct match_char *already_in_tree(struct match_char *current, char *pat)
+static struct match_char *already_in_tree(struct match_char *current, char *pat)
 {
 	struct match_char *t;
 	if (!current)
@@ -1055,7 +1011,7 @@ struct match_char *already_in_tree(struct match_char *current, char *pat)
 	return 0;
 }
 
-struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity)
+static struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity)
 {
 	struct match_char *m = ast_calloc(1,sizeof(struct match_char));
 	m->x = ast_strdup(pattern);
@@ -1091,7 +1047,7 @@ struct match_char *add_pattern_node(struct ast_context *con, struct match_char *
 	return m;
 }
 
-struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1, int findonly)
+static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1, int findonly)
 {
 	struct match_char *m1=0,*m2=0;
 	int specif;
@@ -1195,7 +1151,7 @@ struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast
 	return m1;
 }
 
-void create_match_char_tree(struct ast_context *con)
+static void create_match_char_tree(struct ast_context *con)
 {
 	struct ast_hashtab_iter *t1;
 	struct ast_exten *e1;
@@ -1217,7 +1173,7 @@ void create_match_char_tree(struct ast_context *con)
 	ast_hashtab_end_traversal(t1);
 }
 
-void destroy_pattern_tree(struct match_char *pattern_tree) /* pattern tree is a simple binary tree, sort of, so the proper way to destroy it is... recursively! */
+static void destroy_pattern_tree(struct match_char *pattern_tree) /* pattern tree is a simple binary tree, sort of, so the proper way to destroy it is... recursively! */
 {
 	/* destroy all the alternates */
 	if (pattern_tree->alt_char) {
@@ -1552,7 +1508,7 @@ struct ast_context *ast_context_find(const char *name)
 	ast_rdlock_contexts();
 	if( contexts_tree ) {
 		tmp = ast_hashtab_lookup(contexts_tree,&item);
-    } else {
+	} else {
 		while ( (tmp = ast_walk_contexts(tmp)) ) {
 			if (!name || !strcasecmp(name, tmp->name))
 				break;
@@ -4435,7 +4391,6 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 			ast_cli(fd,    "                              [matched exten]: If all chars matched to this point, which extension this matches. In form: EXTEN:<exten string> \r\n");
 			ast_cli(fd,    "                        In general, you match a trie node to a string character, from left to right. All possible matching chars\r\n");
 			ast_cli(fd,    "                        are in a string vertically, separated by an unbroken string of '+' characters.\r\n\r\n");
-			cli_match_char_tree(c->pattern_tree, " ", fd);
 		}
 
 		ast_unlock_context(c);
