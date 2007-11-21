@@ -305,10 +305,7 @@ static int metermaidstate(const char *data)
 		return AST_DEVICE_INUSE;
 }
 
-/*! \brief Park a call 
- 	\note We put the user in the parking list, then wake up the parking thread to be sure it looks
-	after these channels too */
-int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout)
+static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout, char *orig_chan_name)
 {
 	struct parkeduser *pu, *cur;
 	int i, x = -1, parking_range;
@@ -375,8 +372,9 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	pu->parkingtime = (timeout > 0) ? timeout : parkingtime;
 	if (extout)
 		*extout = x;
-
-	if (peer) 
+	if (!ast_strlen_zero(orig_chan_name))
+		ast_copy_string(pu->peername, orig_chan_name, sizeof(pu->peername));
+	else if (peer) 
 		ast_copy_string(pu->peername, peer->name, sizeof(pu->peername));
 
 	/* Remember what had been dialed, so that if the parking
@@ -422,7 +420,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	if (!con)	/* Still no context? Bad */
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 	/* Tell the peer channel the number of the parking space */
-	if (peer && pu->parkingnum != -1) { /* Only say number if it's a number */
+	if ((peer && pu->parkingnum != -1 && ast_strlen_zero(orig_chan_name)) || (strlen(orig_chan_name) == strlen(peer->name) && !strncasecmp(peer->name, orig_chan_name, strlen(peer->name)))) { /* Only say number if it's a number and the channel hasn't been masqueraded away */
 		/* Make sure we don't start saying digits to the channel being parked */
 		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
@@ -441,6 +439,14 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		pthread_kill(parking_thread, SIGURG);
 	}
 	return 0;
+}
+
+/*! \brief Park a call 
+ 	\note We put the user in the parking list, then wake up the parking thread to be sure it looks
+	after these channels too */
+int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout)
+{
+	return park_call_full(chan, peer, timeout, extout, NULL);
 }
 
 int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
@@ -1799,6 +1805,10 @@ std:					for (x=0; x<AST_MAX_FDS; x++) {	/* mark fds for next round */
 /*! \brief Park a call */
 static int park_call_exec(struct ast_channel *chan, void *data)
 {
+	/* Cache the original channel name in case we get masqueraded in the middle
+	 * of a park--it is still theoretically possible for a transfer to happen before
+	 * we get here, but it is _really_ unlikely */
+	char *orig_chan_name = ast_strdupa(chan->name);
 	/* Data is unused at the moment but could contain a parking
 	   lot context eventually */
 	int res = 0;
@@ -1818,7 +1828,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 		res = ast_safe_sleep(chan, 1000);
 	/* Park the call */
 	if (!res)
-		res = ast_park_call(chan, chan, 0, NULL);
+		res = park_call_full(chan, chan, 0, NULL, orig_chan_name);
 
 	ast_module_user_remove(u);
 
