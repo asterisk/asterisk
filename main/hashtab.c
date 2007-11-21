@@ -383,66 +383,27 @@ void ast_hashtab_destroy( struct ast_hashtab *tab, void (*objdestroyfunc)(void *
 
 int ast_hashtab_insert_immediate(struct ast_hashtab *tab, const void *obj)
 {
-	/* normally, you'd insert "safely" by checking to see if the element is
-	   already there; in this case, you must already have checked. If an element
-	   is already in the hashtable, that matches this one, most likely this one
-	   will be found first, but.... */
-
-	/* will force a resize if the resize func returns 1 */
-	/* returns 1 on success, 0 if there's a problem */
 	unsigned int h;
-	int c;
-	struct ast_hashtab_bucket *b;
+	int res=0;
 	
-	if (!tab)
-		return 0;
-
-	if (!obj)
-		return 0;
+	if (!tab || !obj)
+		return res;
 
 	if (tab->do_locking)
 		ast_rwlock_wrlock(&tab->lock);
 
 	h = (*tab->hash)(obj) % tab->hash_tab_size;
 
-	for (c = 0, b = tab->array[h]; b; b = b->next)
-		c++;
-
-	if (c + 1 > tab->largest_bucket_size)
-		tab->largest_bucket_size = c + 1;
-
-	if (!(b = ast_calloc(1, sizeof(*b))))
-		return 0;
-
-	b->object = obj;
-	b->next = tab->array[h];
-
-	if (b->next)
-		b->next->prev = b;
-
-	tlist_add_head(&(tab->tlist), b);
-	
-	tab->array[h] = b;
-	tab->hash_tab_elements++;
-
-	if ((*tab->resize)(tab))
-		ast_hashtab_resize(tab);
+	res = ast_hashtab_insert_immediate_bucket(tab,obj,h);
 
 	if (tab->do_locking)
 		ast_rwlock_unlock(&tab->lock);
 
-	return 1;
+	return res;
 }
 
 int ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj, unsigned int h)
 {
-	/* normally, you'd insert "safely" by checking to see if the element is
-	   already there; in this case, you must already have checked. If an element
-	   is already in the hashtable, that matches this one, most likely this one
-	   will be found first, but.... */
-
-	/* will force a resize if the resize func returns 1 */
-	/* returns 1 on success, 0 if there's a problem */
 	int c;
 	struct ast_hashtab_bucket *b;
 	
@@ -759,8 +720,7 @@ static void *ast_hashtab_remove_object_internal(struct ast_hashtab *tab, struct 
 void *ast_hashtab_remove_object_via_lookup(struct ast_hashtab *tab, void *obj)
 {
 	/* looks up the object; removes the corresponding bucket */
-	unsigned int h;
-	struct ast_hashtab_bucket *b;
+	const void *obj2;
 
 	if (!tab || !obj)
 		return 0;
@@ -768,24 +728,12 @@ void *ast_hashtab_remove_object_via_lookup(struct ast_hashtab *tab, void *obj)
 	if (tab->do_locking)
 		ast_rwlock_wrlock(&tab->lock);
 
-	h = (*tab->hash)(obj) % tab->hash_tab_size;
-	for (b = tab->array[h]; b; b = b->next) {
-		void *obj2;
-		
-		if (!(*tab->compare)(obj,b->object)) {
-			obj2 = ast_hashtab_remove_object_internal(tab,b,h);
-			
-			if (tab->do_locking)
-				ast_rwlock_unlock(&tab->lock);
-			
-			return (void *) obj2; /* inside this code, the obj's are untouchable, but outside, they aren't */
-		}
-	}
+	obj2 = ast_hashtab_remove_object_via_lookup_nolock(tab,obj);
 
 	if (tab->do_locking)
 		ast_rwlock_unlock(&tab->lock);
 
-	return 0;
+	return (void *)obj2;
 }
 
 void *ast_hashtab_remove_object_via_lookup_nolock(struct ast_hashtab *tab, void *obj)
@@ -799,14 +747,11 @@ void *ast_hashtab_remove_object_via_lookup_nolock(struct ast_hashtab *tab, void 
 
 	h = (*tab->hash)(obj) % tab->hash_tab_size;
 	for (b = tab->array[h]; b; b = b->next) {
-		void *obj2;
 		
 		if (!(*tab->compare)(obj, b->object)) {
+			const void *obj2;
 
 			obj2 = ast_hashtab_remove_object_internal(tab, b, h);
-			
-			if (tab->do_locking)
-				ast_rwlock_unlock(&tab->lock);
 			
 			return (void *) obj2; /* inside this code, the obj's are untouchable, but outside, they aren't */
 		}
@@ -820,8 +765,7 @@ void *ast_hashtab_remove_this_object(struct ast_hashtab *tab, void *obj)
 	/* looks up the object by hash and then comparing pts in bucket list instead of
 	   calling the compare routine; removes the bucket -- a slightly cheaper operation */
 	/* looks up the object; removes the corresponding bucket */
-	unsigned int h;
-	struct ast_hashtab_bucket *b;
+	const void *obj2;
 
 	if (!tab || !obj)
 		return 0;
@@ -829,23 +773,12 @@ void *ast_hashtab_remove_this_object(struct ast_hashtab *tab, void *obj)
 	if (tab->do_locking)
 		ast_rwlock_wrlock(&tab->lock);
 
-	h = (*tab->hash)(obj) % tab->hash_tab_size;
-	for (b = tab->array[h]; b; b = b->next) {
-		const void *obj2;
-		
-		if (obj == b->object) {
-			obj2 = ast_hashtab_remove_object_internal(tab, b, h);
-			if (tab->do_locking)
-				ast_rwlock_unlock(&tab->lock);
-
-			return (void *) obj2; /* inside this code, the obj's are untouchable, but outside, they aren't */
-		}
-	}
+	obj2 = ast_hashtab_remove_this_object_nolock(tab,obj);
 	
 	if (tab->do_locking)
 		ast_rwlock_unlock(&tab->lock);
 
-	return 0;
+	return (void *)obj2;
 }
 
 void *ast_hashtab_remove_this_object_nolock(struct ast_hashtab *tab, void *obj)
@@ -861,14 +794,11 @@ void *ast_hashtab_remove_this_object_nolock(struct ast_hashtab *tab, void *obj)
  
 	h = (*tab->hash)(obj) % tab->hash_tab_size;
 	for (b = tab->array[h]; b; b = b->next) {
-		const void *obj2;
 		
 		if (obj == b->object) {
+			const void *obj2;
 			obj2 = ast_hashtab_remove_object_internal(tab, b, h);
 			
-			if (tab->do_locking)
-				ast_rwlock_unlock(&tab->lock);
-
 			return (void *) obj2; /* inside this code, the obj's are untouchable, but outside, they aren't */
 		}
 	}
