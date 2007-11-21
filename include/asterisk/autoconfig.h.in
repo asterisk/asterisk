@@ -961,6 +961,9 @@
 /* Define to 1 if you have the <vfork.h> header file. */
 #undef HAVE_VFORK_H
 
+/* Define to 1 if your system has linux/videodev.h. */
+#undef HAVE_VIDEODEV_H
+
 /* Define this to indicate the ${VORBIS_DESCRIP} library */
 #undef HAVE_VORBIS
 
