@@ -117,9 +117,6 @@ enum busy_detect {
 /*! Remember last 15 units */
 #define DSP_HISTORY 		15
 
-/*! Define if you want the fax detector -- NOT RECOMMENDED IN -STABLE */
-#define FAX_DETECT
-
 #define TONE_THRESH		10.0	/*!< How much louder the tone should be than channel energy */
 #define TONE_MIN_THRESH 	1e8	/*!< How much tone there should be at least to attempt */
 
@@ -162,17 +159,9 @@ enum gsamp_thresh {
 #define DTMF_2ND_HARMONIC_COL	63.1    /* 18dB */
 #define DTMF_TO_TOTAL_ENERGY	42.0
 
-#ifdef OLD_DSP_ROUTINES
-#define MF_THRESHOLD		8.0e7
-#define MF_NORMAL_TWIST		5.3     /* 8dB */
-#define MF_REVERSE_TWIST	4.0     /* was 2.5 */
-#define MF_RELATIVE_PEAK	5.3     /* 8dB */
-#define MF_2ND_HARMONIC		1.7	/* was 2.5  */
-#else
 #define BELL_MF_THRESHOLD	1.6e9
 #define BELL_MF_TWIST		4.0     /* 6dB */
 #define BELL_MF_RELATIVE_PEAK	12.6    /* 11dB */
-#endif
 
 #if !defined(BUSYDETECT_MARTIN) && !defined(BUSYDETECT) && !defined(BUSYDETECT_TONEONLY) && !defined(BUSYDETECT_COMPARE_TONE_AND_SILENCE)
 #define BUSYDETECT_MARTIN
@@ -183,9 +172,7 @@ typedef struct {
 	int v3;
 	int chunky;
 	int fac;
-#ifndef OLD_DSP_ROUTINES
 	int samples;
-#endif	
 } goertzel_state_t;
 
 typedef struct {
@@ -197,22 +184,8 @@ typedef struct
 {
 	goertzel_state_t row_out[4];
 	goertzel_state_t col_out[4];
-#ifdef FAX_DETECT
 	goertzel_state_t fax_tone;
-#endif
-#ifdef OLD_DSP_ROUTINES
-	goertzel_state_t row_out2nd[4];
-	goertzel_state_t col_out2nd[4];
-#ifdef FAX_DETECT
-	goertzel_state_t fax_tone2nd;    
-#endif
-	int hit1;
-	int hit2;
-	int hit3;
-	int hit4;
-#else
 	int lasthit;
-#endif	
 	int mhit;
 	float energy;
 	int current_sample;
@@ -223,25 +196,14 @@ typedef struct
 	int detected_digits;
 	int lost_digits;
 	int digit_hits[16];
-#ifdef FAX_DETECT
 	int fax_hits;
-#endif
 } dtmf_detect_state_t;
 
 typedef struct
 {
 	goertzel_state_t tone_out[6];
 	int mhit;
-#ifdef OLD_DSP_ROUTINES
-	int hit1;
-	int hit2;
-	int hit3;
-	int hit4;
-	goertzel_state_t tone_out2nd[6];
-	float energy;
-#else
 	int hits[5];
-#endif
 	int current_sample;
 	
 	char digits[MAX_DTMF_DIGITS + 1];
@@ -249,9 +211,6 @@ typedef struct
 	int current_digits;
 	int detected_digits;
 	int lost_digits;
-#ifdef FAX_DETECT
-	int fax_hits;
-#endif
 } mf_detect_state_t;
 
 static float dtmf_row[] =
@@ -268,24 +227,11 @@ static float mf_tones[] =
 	700.0, 900.0, 1100.0, 1300.0, 1500.0, 1700.0
 };
 
-#ifdef FAX_DETECT
 static float fax_freq = 1100.0;
-#endif
 
 static char dtmf_positions[] = "123A" "456B" "789C" "*0#D";
 
-#ifdef OLD_DSP_ROUTINES
-static char mf_hit[6][6] = {
-	/*  700 + */ {   0, '1', '2', '4', '7', 'C' },
-	/*  900 + */ { '1',   0, '3', '5', '8', 'A' },
-	/* 1100 + */ { '2', '3',   0, '6', '9', '*' },
-	/* 1300 + */ { '4', '5', '6',   0, '0', 'B' },
-	/* 1500 + */ { '7', '8', '9', '0',  0, '#' },
-	/* 1700 + */ { 'C', 'A', '*', 'B', '#',  0  },
-};
-#else
 static char bell_mf_positions[] = "1247C-358A--69*---0B----#";
-#endif
 
 static inline void goertzel_sample(goertzel_state_t *s, short sample)
 {
@@ -326,9 +272,7 @@ static inline void goertzel_init(goertzel_state_t *s, float freq, int samples)
 {
 	s->v2 = s->v3 = s->chunky = 0.0;
 	s->fac = (int)(32768.0 * 2.0 * cos(2.0 * M_PI * (freq / 8000.0)));
-#ifndef OLD_DSP_ROUTINES
 	s->samples = samples;
-#endif
 }
 
 static inline void goertzel_reset(goertzel_state_t *s)
@@ -369,33 +313,15 @@ static void ast_dtmf_detect_init (dtmf_detect_state_t *s)
 {
 	int i;
 
-#ifdef OLD_DSP_ROUTINES
-	s->hit1 = 
-	s->mhit = 
-	s->hit3 =
-	s->hit4 = 
-	s->hit2 = 0;
-#else
 	s->lasthit = 0;
-#endif
 	for (i = 0;  i < 4;  i++) {
 		goertzel_init (&s->row_out[i], dtmf_row[i], 102);
 		goertzel_init (&s->col_out[i], dtmf_col[i], 102);
-#ifdef OLD_DSP_ROUTINES
-		goertzel_init (&s->row_out2nd[i], dtmf_row[i] * 2.0, 102);
-		goertzel_init (&s->col_out2nd[i], dtmf_col[i] * 2.0, 102);
-#endif	
 		s->energy = 0.0;
 	}
-#ifdef FAX_DETECT
 	/* Same for the fax dector */
 	goertzel_init (&s->fax_tone, fax_freq, 102);
 
-#ifdef OLD_DSP_ROUTINES
-	/* Same for the fax dector 2nd harmonic */
-	goertzel_init (&s->fax_tone2nd, fax_freq * 2.0, 102);
-#endif	
-#endif /* FAX_DETECT */
 	s->current_sample = 0;
 	s->detected_digits = 0;
 	s->current_digits = 0;
@@ -407,18 +333,9 @@ static void ast_dtmf_detect_init (dtmf_detect_state_t *s)
 static void ast_mf_detect_init (mf_detect_state_t *s)
 {
 	int i;
-#ifdef OLD_DSP_ROUTINES
-	s->hit1 = 
-	s->hit2 = 0;
-#else	
 	s->hits[0] = s->hits[1] = s->hits[2] = s->hits[3] = s->hits[4] = 0;
-#endif
 	for (i = 0;  i < 6;  i++) {
 		goertzel_init (&s->tone_out[i], mf_tones[i], 160);
-#ifdef OLD_DSP_ROUTINES
-		goertzel_init (&s->tone_out2nd[i], mf_tones[i] * 2.0, 160);
-		s->energy = 0.0;
-#endif
 	}
 	s->current_digits = 0;
 	memset(&s->digits, 0, sizeof(s->digits));
@@ -434,12 +351,7 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 {
 	float row_energy[4];
 	float col_energy[4];
-#ifdef FAX_DETECT
-	float fax_energy;
-#ifdef OLD_DSP_ROUTINES
-	float fax_energy_2nd;
-#endif	
-#endif /* FAX_DETECT */
+	float fax_energy = 0.0;
 	float famp;
 	int i;
 	int j;
@@ -456,16 +368,6 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 			limit = sample + (102 - s->current_sample);
 		else
 			limit = samples;
-#if defined(USE_3DNOW)
-		_dtmf_goertzel_update (s->row_out, amp + sample, limit - sample);
-		_dtmf_goertzel_update (s->col_out, amp + sample, limit - sample);
-#ifdef OLD_DSP_ROUTINES
-		_dtmf_goertzel_update (s->row_out2nd, amp + sample, limit2 - sample);
-		_dtmf_goertzel_update (s->col_out2nd, amp + sample, limit2 - sample);
-#endif		
-		/* XXX Need to fax detect for 3dnow too XXX */
-		#warning "Fax Support Broken"
-#else
 		/* The following unrolled loop takes only 35% (rough estimate) of the 
 		   time of a rolled loop on the machine on which it was developed */
 		for (j = sample; j < limit; j++) {
@@ -481,44 +383,11 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 			goertzel_sample(s->col_out + 2, amp[j]);
 			goertzel_sample(s->row_out + 3, amp[j]);
 			goertzel_sample(s->col_out + 3, amp[j]);
-#ifdef FAX_DETECT
+
 			/* Update fax tone */
-			goertzel_sample(&s->fax_tone, amp[j]);
-#endif /* FAX_DETECT */
-#ifdef OLD_DSP_ROUTINES
-			v1 = s->col_out2nd[0].v2;
-			s->col_out2nd[0].v2 = s->col_out2nd[0].v3;
-			s->col_out2nd[0].v3 = s->col_out2nd[0].fac*s->col_out2nd[0].v2 - v1 + famp;
-			v1 = s->row_out2nd[0].v2;
-			s->row_out2nd[0].v2 = s->row_out2nd[0].v3;
-			s->row_out2nd[0].v3 = s->row_out2nd[0].fac*s->row_out2nd[0].v2 - v1 + famp;
-			v1 = s->col_out2nd[1].v2;
-			s->col_out2nd[1].v2 = s->col_out2nd[1].v3;
-			s->col_out2nd[1].v3 = s->col_out2nd[1].fac*s->col_out2nd[1].v2 - v1 + famp;
-			v1 = s->row_out2nd[1].v2;
-			s->row_out2nd[1].v2 = s->row_out2nd[1].v3;
-			s->row_out2nd[1].v3 = s->row_out2nd[1].fac*s->row_out2nd[1].v2 - v1 + famp;
-			v1 = s->col_out2nd[2].v2;
-			s->col_out2nd[2].v2 = s->col_out2nd[2].v3;
-			s->col_out2nd[2].v3 = s->col_out2nd[2].fac*s->col_out2nd[2].v2 - v1 + famp;
-			v1 = s->row_out2nd[2].v2;
-			s->row_out2nd[2].v2 = s->row_out2nd[2].v3;
-			s->row_out2nd[2].v3 = s->row_out2nd[2].fac*s->row_out2nd[2].v2 - v1 + famp;
-			v1 = s->col_out2nd[3].v2;
-			s->col_out2nd[3].v2 = s->col_out2nd[3].v3;
-			s->col_out2nd[3].v3 = s->col_out2nd[3].fac*s->col_out2nd[3].v2 - v1 + famp;
-			v1 = s->row_out2nd[3].v2;
-			s->row_out2nd[3].v2 = s->row_out2nd[3].v3;
-			s->row_out2nd[3].v3 = s->row_out2nd[3].fac*s->row_out2nd[3].v2 - v1 + famp;
-#ifdef FAX_DETECT
-			/* Update fax tone */            
-			v1 = s->fax_tone.v2;
-			s->fax_tone2nd.v2 = s->fax_tone2nd.v3;
-			s->fax_tone2nd.v3 = s->fax_tone2nd.fac*s->fax_tone2nd.v2 - v1 + famp;
-#endif /* FAX_DETECT */
-#endif
+			if (faxdetect)
+				goertzel_sample(&s->fax_tone, amp[j]);
 		}
-#endif
 		s->current_sample += (limit - sample);
 		if (s->current_sample < 102) {
 			if (hit && !((digitmode & DSP_DIGITMODE_NOQUELCH))) {
@@ -530,10 +399,9 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 			}
 			continue;
 		}
-#ifdef FAX_DETECT
 		/* Detect the fax energy, too */
-		fax_energy = goertzel_result(&s->fax_tone);
-#endif
+		if (faxdetect)
+			fax_energy = goertzel_result(&s->fax_tone);
 		/* We are at the end of a DTMF detection block */
 		/* Find the peak row and the peak column */
 		row_energy[0] = goertzel_result (&s->row_out[0]);
@@ -562,17 +430,9 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 					break;
 				}
 			}
-#ifdef OLD_DSP_ROUTINES
-			/* ... and second harmonic test */
-			if (i >= 4 && 
-			    (row_energy[best_row] + col_energy[best_col]) > 42.0*s->energy &&
-                	    goertzel_result(&s->col_out2nd[best_col])*DTMF_2ND_HARMONIC_COL < col_energy[best_col]
-			    && goertzel_result(&s->row_out2nd[best_row])*DTMF_2ND_HARMONIC_ROW < row_energy[best_row]) {
-#else
 			/* ... and fraction of total energy test */
 			if (i >= 4 &&
 			    (row_energy[best_row] + col_energy[best_col]) > DTMF_TO_TOTAL_ENERGY*s->energy) {
-#endif
 				/* Got a hit */
 				hit = dtmf_positions[(best_row << 2) + best_col];
 				if (!(digitmode & DSP_DIGITMODE_NOQUELCH)) {
@@ -581,30 +441,9 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 						amp[i] = 0;
 					*writeback = 1;
 				}
-#ifdef OLD_DSP_ROUTINES
-				/* Look for two successive similar results */
-				/* The logic in the next test is:
-				   We need two successive identical clean detects, with
-				   something different preceeding it. This can work with
-				   back to back differing digits. More importantly, it
-				   can work with nasty phones that give a very wobbly start
-				   to a digit */
-				if (hit == s->hit3  &&  s->hit3 != s->hit2) {
-					s->mhit = hit;
-					s->digit_hits[(best_row << 2) + best_col]++;
-					s->detected_digits++;
-					if (s->current_digits < MAX_DTMF_DIGITS) {
-						s->digits[s->current_digits++] = hit;
-						s->digits[s->current_digits] = '\0';
-					} else {
-						s->lost_digits++;
-					}
-				}
-#endif
 			}
 		} 
 
-#ifndef OLD_DSP_ROUTINES
 		/* Look for two successive similar results */
 		/* The logic in the next test is:
 		   We need two successive identical clean detects, with
@@ -625,15 +464,9 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 			}
 			s->mhit = hit;
 		}
-#endif
 
-#ifdef FAX_DETECT
-		if (!hit && (fax_energy >= FAX_THRESHOLD) && 
-			(fax_energy >= DTMF_TO_TOTAL_ENERGY*s->energy) &&
-			(faxdetect)) {
-#if 0
-			printf("Fax energy/Second Harmonic: %f\n", fax_energy);
-#endif					
+		if (!hit && faxdetect && (fax_energy >= FAX_THRESHOLD) && 
+			(fax_energy >= DTMF_TO_TOTAL_ENERGY*s->energy)) {
 			/* XXX Probably need better checking than just this the energy XXX */
 			hit = 'f';
 			s->fax_hits++;
@@ -651,64 +484,29 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 			}
 			s->fax_hits = 0;
 		}
-#endif /* FAX_DETECT */
-#ifdef OLD_DSP_ROUTINES
-		s->hit1 = s->hit2;
-		s->hit2 = s->hit3;
-		s->hit3 = hit;
-#else
 		s->lasthit = hit;
-#endif		
 		/* Reinitialise the detector for the next block */
 		for (i = 0;  i < 4;  i++) {
 			goertzel_reset(&s->row_out[i]);
 			goertzel_reset(&s->col_out[i]);
-#ifdef OLD_DSP_ROUTINES
-			goertzel_reset(&s->row_out2nd[i]);
-			goertzel_reset(&s->col_out2nd[i]);
-#endif			
 		}
-#ifdef FAX_DETECT
-		goertzel_reset (&s->fax_tone);
-#ifdef OLD_DSP_ROUTINES
-		goertzel_reset (&s->fax_tone2nd);
-#endif			
-#endif
+		if (faxdetect)
+			goertzel_reset (&s->fax_tone);
 		s->energy = 0.0;
 		s->current_sample = 0;
 	}
-#ifdef OLD_DSP_ROUTINES
-	if ((!s->mhit) || (s->mhit != hit)) {
-		s->mhit = 0;
-		return(0);
-	}
-	return (hit);
-#else
 	return (s->mhit);	/* return the debounced hit */
-#endif
 }
 
 /* MF goertzel size */
-#ifdef OLD_DSP_ROUTINES
-#define	MF_GSIZE 160
-#else
 #define MF_GSIZE 120
-#endif
 
 static int mf_detect (mf_detect_state_t *s, int16_t amp[],
                  int samples, int digitmode, int *writeback)
 {
-#ifdef OLD_DSP_ROUTINES
-	float tone_energy[6];
-	int best1;
-	int best2;
-	float max;
-	int sofarsogood;
-#else
 	float energy[6];
 	int best;
 	int second_best;
-#endif
 	float famp;
 	int i;
 	int j;
@@ -723,23 +521,10 @@ static int mf_detect (mf_detect_state_t *s, int16_t amp[],
 			limit = sample + (MF_GSIZE - s->current_sample);
 		else
 			limit = samples;
-#if defined(USE_3DNOW)
-		_dtmf_goertzel_update (s->row_out, amp + sample, limit - sample);
-		_dtmf_goertzel_update (s->col_out, amp + sample, limit - sample);
-#ifdef OLD_DSP_ROUTINES
-		_dtmf_goertzel_update (s->row_out2nd, amp + sample, limit2 - sample);
-		_dtmf_goertzel_update (s->col_out2nd, amp + sample, limit2 - sample);
-#endif
-		/* XXX Need to fax detect for 3dnow too XXX */
-		#warning "Fax Support Broken"
-#else
 		/* The following unrolled loop takes only 35% (rough estimate) of the 
 		   time of a rolled loop on the machine on which it was developed */
 		for (j = sample;  j < limit;  j++) {
 			famp = amp[j];
-#ifdef OLD_DSP_ROUTINES
-			s->energy += famp*famp;
-#endif
 			/* With GCC 2.95, the following unrolled code seems to take about 35%
 			   (rough estimate) as long as a neat little 0-3 loop */
 			goertzel_sample(s->tone_out, amp[j]);
@@ -748,28 +533,7 @@ static int mf_detect (mf_detect_state_t *s, int16_t amp[],
 			goertzel_sample(s->tone_out + 3, amp[j]);
 			goertzel_sample(s->tone_out + 4, amp[j]);
 			goertzel_sample(s->tone_out + 5, amp[j]);
-#ifdef OLD_DSP_ROUTINES
-			v1 = s->tone_out2nd[0].v2;
-			s->tone_out2nd[0].v2 = s->tone_out2nd[0].v3;
-			s->tone_out2nd[0].v3 = s->tone_out2nd[0].fac*s->tone_out2nd[0].v2 - v1 + famp;
-			v1 = s->tone_out2nd[1].v2;
-			s->tone_out2nd[1].v2 = s->tone_out2nd[1].v3;
-			s->tone_out2nd[1].v3 = s->tone_out2nd[1].fac*s->tone_out2nd[1].v2 - v1 + famp;
-			v1 = s->tone_out2nd[2].v2;
-			s->tone_out2nd[2].v2 = s->tone_out2nd[2].v3;
-			s->tone_out2nd[2].v3 = s->tone_out2nd[2].fac*s->tone_out2nd[2].v2 - v1 + famp;
-			v1 = s->tone_out2nd[3].v2;
-			s->tone_out2nd[3].v2 = s->tone_out2nd[3].v3;
-			s->tone_out2nd[3].v3 = s->tone_out2nd[3].fac*s->tone_out2nd[3].v2 - v1 + famp;
-			v1 = s->tone_out2nd[4].v2;
-			s->tone_out2nd[4].v2 = s->tone_out2nd[4].v3;
-			s->tone_out2nd[4].v3 = s->tone_out2nd[4].fac*s->tone_out2nd[2].v2 - v1 + famp;
-			v1 = s->tone_out2nd[3].v2;
-			s->tone_out2nd[5].v2 = s->tone_out2nd[6].v3;
-			s->tone_out2nd[5].v3 = s->tone_out2nd[6].fac*s->tone_out2nd[3].v2 - v1 + famp;
-#endif
 		}
-#endif
 		s->current_sample += (limit - sample);
 		if (s->current_sample < MF_GSIZE) {
 			if (hit && !((digitmode & DSP_DIGITMODE_NOQUELCH))) {
@@ -781,99 +545,6 @@ static int mf_detect (mf_detect_state_t *s, int16_t amp[],
 			}
 			continue;
 		}
-#ifdef OLD_DSP_ROUTINES		
-		/* We're at the end of an MF detection block.  Go ahead and calculate
-		   all the energies. */
-		for (i=0;i<6;i++) {
-			tone_energy[i] = goertzel_result(&s->tone_out[i]);
-		}
-		/* Find highest */
-		best1 = 0;
-		max = tone_energy[0];
-		for (i=1;i<6;i++) {
-			if (tone_energy[i] > max) {
-				max = tone_energy[i];
-				best1 = i;
-			}
-		}
-
-		/* Find 2nd highest */
-		if (best1) {
-			max = tone_energy[0];
-			best2 = 0;
-		} else {
-			max = tone_energy[1];
-			best2 = 1;
-		}
-
-		for (i=0;i<6;i++) {
-			if (i == best1) continue;
-			if (tone_energy[i] > max) {
-				max = tone_energy[i];
-				best2 = i;
-			}
-		}
-		hit = 0;
-		if (best1 != best2) 
-			sofarsogood=1;
-		else 
-			sofarsogood=0;
-		/* Check for relative energies */
-		for (i=0;i<6;i++) {
-			if (i == best1) 
-				continue;
-			if (i == best2) 
-				continue;
-			if (tone_energy[best1] < tone_energy[i] * MF_RELATIVE_PEAK) {
-				sofarsogood = 0;
-				break;
-			}
-			if (tone_energy[best2] < tone_energy[i] * MF_RELATIVE_PEAK) {
-				sofarsogood = 0;
-				break;
-			}
-		}
-		
-		if (sofarsogood) {
-			/* Check for 2nd harmonic */
-			if (goertzel_result(&s->tone_out2nd[best1]) * MF_2ND_HARMONIC > tone_energy[best1]) 
-				sofarsogood = 0;
-			else if (goertzel_result(&s->tone_out2nd[best2]) * MF_2ND_HARMONIC > tone_energy[best2])
-				sofarsogood = 0;
-		}
-		if (sofarsogood) {
-			hit = mf_hit[best1][best2];
-			if (!(digitmode & DSP_DIGITMODE_NOQUELCH)) {
-				/* Zero out frame data if this is part DTMF */
-				for (i=sample;i<limit;i++) 
-					amp[i] = 0;
-				*writeback = 1;
-			}
-			/* Look for two consecutive clean hits */
-			if ((hit == s->hit3) && (s->hit3 != s->hit2)) {
-				s->mhit = hit;
-				s->detected_digits++;
-				if (s->current_digits < MAX_DTMF_DIGITS - 2) {
-					s->digits[s->current_digits++] = hit;
-					s->digits[s->current_digits] = '\0';
-				} else {
-					s->lost_digits++;
-				}
-			}
-		}
-		
-		s->hit1 = s->hit2;
-		s->hit2 = s->hit3;
-		s->hit3 = hit;
-		/* Reinitialise the detector for the next block */
-		for (i = 0;  i < 6;  i++) {
-			goertzel_reset(&s->tone_out[i]);
-			goertzel_reset(&s->tone_out2nd[i]);
-		}
-		s->energy = 0.0;
-		s->current_sample = 0;
-	}
-#else
 		/* We're at the end of an MF detection block.  */
 		/* Find the two highest energies. The spec says to look for
 		   two tones and two tones only. Taking this literally -ie
@@ -957,7 +628,6 @@ static int mf_detect (mf_detect_state_t *s, int16_t amp[],
 			goertzel_reset(&s->tone_out[i]);
 		s->current_sample = 0;
 	}
-#endif	
 	if ((!s->mhit) || (s->mhit != hit)) {
 		s->mhit = 0;
 		return(0);
@@ -1064,11 +734,6 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 			float hz[7];
 			for (y=0;y<7;y++)
 				hz[y] = goertzel_result(&dsp->freqs[y]);
-#if 0
-			printf("\n350:     425:     440:     480:     620:     950:     1400:    1800:    Energy:   \n");
-			printf("%.2e %.2e %.2e %.2e %.2e %.2e %.2e %.2e %.2e\n", 
-				hz[HZ_350], hz[HZ_425], hz[HZ_440], hz[HZ_480], hz[HZ_620], hz[HZ_950], hz[HZ_1400], hz[HZ_1800], dsp->genergy);
-#endif
 			switch (dsp->progmode) {
 			case PROG_MODE_NA:
 				if (pair_there(hz[HZ_480], hz[HZ_620], hz[HZ_350], hz[HZ_440], dsp->genergy)) {
@@ -1148,17 +813,13 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 						break;
 				}
 				if (dsp->ringtimeout==THRESH_RING2ANSWER) {
-#if 0
-					ast_log(LOG_NOTICE, "Consider call as answered because of timeout after last ring\n");
-#endif
+					ast_debug(1, "Consider call as answered because of timeout after last ring\n");
 					res = AST_CONTROL_ANSWER;
 					dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
 				}
 			} else {
-#if 0
-				ast_log(LOG_NOTICE, "Stop state %d with duration %d\n", dsp->tstate, dsp->tcount);
-				ast_log(LOG_NOTICE, "Start state %d\n", newstate);
-#endif
+				ast_debug(5, "Stop state %d with duration %d\n", dsp->tstate, dsp->tcount);
+				ast_debug(5, "Start state %d\n", newstate);
 				dsp->tstate = newstate;
 				dsp->tcount = 1;
 			}
@@ -1170,10 +831,7 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 			dsp->genergy = 0.0;
 		}
 	}
-#if 0
-	if (res)
-		printf("Returning %d\n", res);
-#endif		
+
 	return res;
 }
 
@@ -1328,11 +986,9 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 	}
 #endif
 #ifndef BUSYDETECT_TONEONLY
-#if 1
 	if (res) {
 		ast_debug(1, "ast_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
 	}
-#endif
 #endif
 	return res;
 }
@@ -1665,16 +1321,8 @@ void ast_dsp_digitreset(struct ast_dsp *dsp)
 		/* Reinitialise the detector for the next block */
 		for (i = 0;  i < 6;  i++) {
 			goertzel_reset(&dsp->td.mf.tone_out[i]);
-#ifdef OLD_DSP_ROUTINES
-			goertzel_reset(&dsp->td.mf.tone_out2nd[i]);
-#endif			
 		}
-#ifdef OLD_DSP_ROUTINES
-		dsp->td.mf.energy = 0.0;
-		dsp->td.mf.hit1 = dsp->td.mf.hit2 = dsp->td.mf.hit3 = dsp->td.mf.hit4 = dsp->td.mf.mhit = 0;
-#else
 		dsp->td.mf.hits[4] = dsp->td.mf.hits[3] = dsp->td.mf.hits[2] = dsp->td.mf.hits[1] = dsp->td.mf.hits[0] = dsp->td.mf.mhit = 0;
-#endif		
 		dsp->td.mf.current_sample = 0;
 	} else {
 		memset(dsp->td.dtmf.digits, 0, sizeof(dsp->td.dtmf.digits));
@@ -1683,22 +1331,9 @@ void ast_dsp_digitreset(struct ast_dsp *dsp)
 		for (i = 0;  i < 4;  i++) {
 			goertzel_reset(&dsp->td.dtmf.row_out[i]);
 			goertzel_reset(&dsp->td.dtmf.col_out[i]);
-#ifdef OLD_DSP_ROUTINES
-			goertzel_reset(&dsp->td.dtmf.row_out2nd[i]);
-			goertzel_reset(&dsp->td.dtmf.col_out2nd[i]);
-#endif			
 		}
-#ifdef FAX_DETECT
 		goertzel_reset (&dsp->td.dtmf.fax_tone);
-#endif
-#ifdef OLD_DSP_ROUTINES
-#ifdef FAX_DETECT
-		goertzel_reset (&dsp->td.dtmf.fax_tone2nd);
-#endif
-		dsp->td.dtmf.hit1 = dsp->td.dtmf.hit2 = dsp->td.dtmf.hit3 = dsp->td.dtmf.hit4 = dsp->td.dtmf.mhit = 0;
-#else
 		dsp->td.dtmf.lasthit = dsp->td.dtmf.mhit = 0;
-#endif		
 		dsp->td.dtmf.energy = 0.0;
 		dsp->td.dtmf.current_sample = 0;
 	}
