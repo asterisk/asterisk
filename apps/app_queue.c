@@ -2296,7 +2296,7 @@ static int is_our_turn(struct queue_ent *qe)
 	
 		if (qe->parent->strategy == QUEUE_STRATEGY_RINGALL) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Even though there may be multiple members available, the strategy is ringall so only the head call is allowed in\n", avl);
+				ast_log(LOG_DEBUG, "Even though there may be multiple members available, the strategy is ringall so only the head call is allowed in\n");
 			avl = 1;
 		} else {
 			struct ao2_iterator mem_iter = ao2_iterator_init(qe->parent->members, 0);
