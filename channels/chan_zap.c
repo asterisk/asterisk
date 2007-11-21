@@ -7525,7 +7525,6 @@ static int pri_resolve_span(int *span, int channel, int offset, struct zt_spanin
 			*span = -1;
 		} else {
 			if (si->totalchans == 3) {
-				ast_log(LOG_NOTICE, "Matt was wrong\n");
 				pris[*span].dchannels[0] = 3 + offset;
 			} else if (si->totalchans == 31) { /* if it's an E1 */
 				pris[*span].dchannels[0] = 16 + offset;
