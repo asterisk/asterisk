@@ -29,6 +29,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/paths.h"	/* use ast_config_AST_LOG_DIR */
 #include <time.h>
 
 #include "asterisk/cli.h"
