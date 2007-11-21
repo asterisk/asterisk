@@ -16,19 +16,9 @@
  * at the top of the source tree.
  */
 
-#include <stdio.h>
-#include <stddef.h>
-#include <stdarg.h>
-#include <string.h>
-#include <stdlib.h>
+#include "asterisk.h"
 
-struct ast_channel 
-{
-	char x; /* basically empty! */
-};
-
-#include "../include/asterisk/compat.h"
-#include "../include/asterisk/ast_expr.h"
+#include "asterisk/ast_expr.h"
 
 #define AST_API_MODULE 1
 #include "asterisk/inline_api.h"
@@ -145,9 +135,8 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	fflush(stdout);
 	va_end(vars);
 }
-void ast_add_profile(void);
-void ast_register_file_version(const char *file, const char *version);
-void ast_unregister_file_version(const char *file);
+//void ast_register_file_version(const char *file, const char *version);
+//void ast_unregister_file_version(const char *file);
 
 char *find_var(const char *varname);
 void set_var(const char *varname, const char *varval);
@@ -155,13 +144,7 @@ unsigned int check_expr(char* buffer, char* error_report);
 int check_eval(char *buffer, char *error_report);
 void parse_file(const char *fname);
 
-void ast_add_profile(void)
-{
-}
-
-void ast_register_file_version(const char *file, const char *version)
-{
-}
+void ast_register_file_version(const char *file, const char *version) { }
 
 void ast_unregister_file_version(const char *file)
 {

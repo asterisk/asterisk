@@ -35,9 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <pthread.h>
 #include <sys/stat.h>
 #include <signal.h>
-#include <errno.h>
 
-#include "asterisk/compat.h"
 #include "asterisk/lock.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/channel.h"

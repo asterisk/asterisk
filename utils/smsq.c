@@ -17,19 +17,15 @@
  * at the top of the source tree.
  */
 
-#include <stdio.h>
+#include "asterisk.h"
+
 #include <popt.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include <string.h>
 #include <ctype.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <time.h>
 
-#include <asterisk/compat.h>
 #ifdef SOLARIS
 #define     POPT_ARGFLAG_SHOW_DEFAULT 0x00800000
 #endif
