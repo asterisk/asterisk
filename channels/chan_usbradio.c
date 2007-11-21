@@ -224,7 +224,7 @@ END_CONFIG
  * Likely we will come up with a better way of doing config file parsing.
  */
 #define M_START(var, val) \
-        char *__s = var; char *__val = val;
+        const char *__s = var; const char *__val = val;
 #define M_END(x)   x;
 #define M_F(tag, f)			if (!strcasecmp((__s), tag)) { f; } else
 #define M_BOOL(tag, dst)	M_F(tag, (dst) = ast_true(__val) )
@@ -505,7 +505,7 @@ static struct chan_usbradio_pvt usbradio_default = {
 
 /*	DECLARE FUNCTION PROTOTYPES	*/
 
-static void store_txtoctype(struct chan_usbradio_pvt *o, char *s);
+static void store_txtoctype(struct chan_usbradio_pvt *o, const char *s);
 static int	hidhdwconfig(struct chan_usbradio_pvt *o);
 static int set_txctcss_level(struct chan_usbradio_pvt *o);
 static void pmrdump(struct chan_usbradio_pvt *o);
@@ -576,7 +576,8 @@ snd_ctl_elem_info_t *info;
 	sprintf(str,"hw:%d",devnum);
 	if (snd_hctl_open(&hctl, str, 0)) return(-1);
 	snd_hctl_load(hctl);
-	snd_ctl_elem_id_alloca(&id);
+	id = alloca(snd_ctl_elem_id_sizeof());
+	memset(id, 0, snd_ctl_elem_id_sizeof());
 	snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
 	snd_ctl_elem_id_set_name(id, param);  
 	elem = snd_hctl_find_elem(hctl, id);
@@ -585,7 +586,8 @@ snd_ctl_elem_info_t *info;
 		snd_hctl_close(hctl);
 		return(-1);
 	}
-	snd_ctl_elem_info_alloca(&info);
+	info = alloca(snd_ctl_elem_info_sizeof());
+	memset(info, 0, snd_ctl_elem_info_sizeof());
 	snd_hctl_elem_info(elem,info);
 	type = snd_ctl_elem_info_get_type(info);
 	rv = 0;
@@ -621,7 +623,8 @@ snd_ctl_elem_info_t *info;
 	sprintf(str,"hw:%d",devnum);
 	if (snd_hctl_open(&hctl, str, 0)) return(-1);
 	snd_hctl_load(hctl);
-	snd_ctl_elem_id_alloca(&id);
+	id = alloca(snd_ctl_elem_id_sizeof());
+	memset(id, 0, snd_ctl_elem_id_sizeof());
 	snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
 	snd_ctl_elem_id_set_name(id, param);  
 	elem = snd_hctl_find_elem(hctl, id);
@@ -630,10 +633,12 @@ snd_ctl_elem_info_t *info;
 		snd_hctl_close(hctl);
 		return(-1);
 	}
-	snd_ctl_elem_info_alloca(&info);
+	info = alloca(snd_ctl_elem_info_sizeof());
+	memset(info, 0, snd_ctl_elem_info_sizeof());
 	snd_hctl_elem_info(elem,info);
 	type = snd_ctl_elem_info_get_type(info);
-	snd_ctl_elem_value_alloca(&control);
+	control = alloca(snd_ctl_elem_value_sizeof());
+	memset(control, 0, snd_ctl_elem_value_sizeof());
 	snd_ctl_elem_value_set_id(control, id);    
 	switch(type)
 	{
@@ -1927,13 +1932,13 @@ static struct ast_cli_entry cli_usbradio[] = {
  * store the callerid components
  */
 #if 0
-static void store_callerid(struct chan_usbradio_pvt *o, char *s)
+static void store_callerid(struct chan_usbradio_pvt *o, const char *s)
 {
 	ast_callerid_split(s, o->cid_name, sizeof(o->cid_name), o->cid_num, sizeof(o->cid_num));
 }
 #endif
 
-static void store_rxdemod(struct chan_usbradio_pvt *o, char *s)
+static void store_rxdemod(struct chan_usbradio_pvt *o, const char *s)
 {
 	if (!strcasecmp(s,"no")){
 		o->rxdemod = RX_AUDIO_NONE;
@@ -1952,7 +1957,7 @@ static void store_rxdemod(struct chan_usbradio_pvt *o, char *s)
 }
 
 					   
-static void store_txmixa(struct chan_usbradio_pvt *o, char *s)
+static void store_txmixa(struct chan_usbradio_pvt *o, const char *s)
 {
 	if (!strcasecmp(s,"no")){
 		o->txmixa = TX_OUT_OFF;
@@ -1976,7 +1981,7 @@ static void store_txmixa(struct chan_usbradio_pvt *o, char *s)
 	//ast_log(LOG_WARNING, "set txmixa = %s\n", s);
 }
 
-static void store_txmixb(struct chan_usbradio_pvt *o, char *s)
+static void store_txmixb(struct chan_usbradio_pvt *o, const char *s)
 {
 	if (!strcasecmp(s,"no")){
 		o->txmixb = TX_OUT_OFF;
@@ -2001,7 +2006,7 @@ static void store_txmixb(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_rxcdtype(struct chan_usbradio_pvt *o, char *s)
+static void store_rxcdtype(struct chan_usbradio_pvt *o, const char *s)
 {
 	if (!strcasecmp(s,"no")){
 		o->rxcdtype = CD_IGNORE;
@@ -2026,7 +2031,7 @@ static void store_rxcdtype(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_rxsdtype(struct chan_usbradio_pvt *o, char *s)
+static void store_rxsdtype(struct chan_usbradio_pvt *o, const char *s)
 {
 	if (!strcasecmp(s,"no") || !strcasecmp(s,"SD_IGNORE")){
 		o->rxsdtype = SD_IGNORE;
@@ -2048,7 +2053,7 @@ static void store_rxsdtype(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_rxgain(struct chan_usbradio_pvt *o, char *s)
+static void store_rxgain(struct chan_usbradio_pvt *o, const char *s)
 {
 	float f;
 	sscanf(s,"%f",&f);
@@ -2057,7 +2062,7 @@ static void store_rxgain(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_rxvoiceadj(struct chan_usbradio_pvt *o, char *s)
+static void store_rxvoiceadj(struct chan_usbradio_pvt *o, const char *s)
 {
 	float f;
 	sscanf(s,"%f",&f);
@@ -2066,7 +2071,7 @@ static void store_rxvoiceadj(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_rxctcssadj(struct chan_usbradio_pvt *o, char *s)
+static void store_rxctcssadj(struct chan_usbradio_pvt *o, const char *s)
 {
 	float f;
 	sscanf(s,"%f",&f);
@@ -2075,7 +2080,7 @@ static void store_rxctcssadj(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_txtoctype(struct chan_usbradio_pvt *o, char *s)
+static void store_txtoctype(struct chan_usbradio_pvt *o, const char *s)
 {
 	if (!strcasecmp(s,"no") || !strcasecmp(s,"TOC_NONE")){
 		o->txtoctype = TOC_NONE;
@@ -2094,7 +2099,7 @@ static void store_txtoctype(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_rxctcssfreq(struct chan_usbradio_pvt *o, char *s)
+static void store_rxctcssfreq(struct chan_usbradio_pvt *o, const char *s)
 {
 	float f;
 	sscanf(s,"%f",&f);
@@ -2103,7 +2108,7 @@ static void store_rxctcssfreq(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_txctcssfreq(struct chan_usbradio_pvt *o, char *s)
+static void store_txctcssfreq(struct chan_usbradio_pvt *o, const char *s)
 {
 	float f;
 	sscanf(s,"%f",&f);
