@@ -176,7 +176,8 @@ AC_ARG_ENABLE(dev-mode,
 AC_SUBST(AST_DEVMODE)
 
 # package option names should be in alphabetical order
-# by the --with option name, to make things easier for the users :-)
+# by the --with option name (the third field),
+# to make things easier for the users.
 
 AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
 
@@ -187,7 +188,7 @@ AST_EXT_LIB_SETUP([CAP], [POSIX 1.e capabilities], [cap])
 AST_EXT_LIB_SETUP([CURL], [cURL], [curl])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
 AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography support], [crypto])
-AST_EXT_LIB_SETUP([GSM], [GSM], [gsm], [, or 'internal'])
+AST_EXT_LIB_SETUP([GSM], [External GSM library], [gsm], [, use 'internal' GSM otherwise])
 AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber Library], [iksemel])
 AST_EXT_LIB_SETUP([IMAP_TK], [UW IMAP Toolkit], [imap])
 AST_EXT_LIB_SETUP([ISDNNET], [ISDN4Linux Library], [isdnnet])
@@ -223,6 +224,7 @@ AST_EXT_LIB_SETUP([TONEZONE], [tonezone], [tonezone])
 AST_EXT_LIB_SETUP([USB], [usb], [usb])
 AST_EXT_LIB_SETUP([VORBIS], [Vorbis], [vorbis])
 AST_EXT_LIB_SETUP([VPB], [Voicetronix API], [vpb])
+AST_EXT_LIB_SETUP([X11], [X11 support], [x11])
 AST_EXT_LIB_SETUP([ZLIB], [zlib], [z])
 AST_EXT_LIB_SETUP([ZAPTEL], [Zaptel], [zaptel])
 AST_EXT_LIB_SETUP([ZAPTEL_TRANSCODE], [Zaptel_transcode], [zaptel_transcode])
@@ -1181,6 +1183,10 @@ AC_SUBST(PBX_IXJUSER)
 AST_EXT_TOOL_CHECK([SDL], [sdl])
 AST_EXT_LIB_CHECK([SDL_IMAGE], [SDL_image], [IMG_Load], [SDL_image.h], [${SDL_LIB}], [${SDL_INCLUDE}])
 AST_EXT_LIB_CHECK([FFMPEG], [avcodec], [sws_getContext], [ffmpeg/avcodec.h], [-lpthread -lz -lm])
+
+# possible places for X11
+AST_EXT_LIB_CHECK([X11], [X11], [XOpenDisplay], [X11/Xlib.h],,, [standard_path])
+AST_EXT_LIB_CHECK([X11], [X11], [XOpenDisplay], [X11/Xlib.h],, [-I/usr/X11R6/include], [X11R6])
 
 PBX_GTK=0
 AC_CHECK_TOOL(GTKCONFIG, gtk-config, No)

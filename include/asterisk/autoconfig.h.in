@@ -985,6 +985,12 @@
 /* Define to 1 if `vfork' works. */
 #undef HAVE_WORKING_VFORK
 
+/* Define this to indicate the ${X11_DESCRIP} library */
+#undef HAVE_X11
+
+/* Define to indicate the ${X11_DESCRIP} library version */
+#undef HAVE_X11_VERSION
+
 /* Define this to indicate the ${ZAPTEL_DESCRIP} library */
 #undef HAVE_ZAPTEL
 
