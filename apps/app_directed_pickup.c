@@ -35,7 +35,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
-#include "asterisk/options.h"
 #include "asterisk/features.h"
 
 #define PICKUPMARK "PICKUPMARK"

@@ -47,7 +47,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
-#include "asterisk/options.h"
 #include "asterisk/app.h"
 
 #define FESTIVAL_CONFIG "festival.conf"

@@ -32,7 +32,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/paths.h"	/* ast_config_AST_CONFIG_DIR */
 #include "asterisk/pbx.h"
 #include "asterisk/config.h"
-#include "asterisk/options.h"
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/cli.h"

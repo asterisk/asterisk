@@ -37,7 +37,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/image.h"
 #include "asterisk/app.h"
-#include "asterisk/options.h"
 
 static char *app = "SendImage";
 

@@ -43,7 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
-#include "asterisk/options.h"
 
 #define ICES "/usr/bin/ices"
 #define LOCAL_ICES "/usr/local/bin/ices"

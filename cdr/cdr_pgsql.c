@@ -46,7 +46,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <libpq-fe.h>
 
 #include "asterisk/config.h"
-#include "asterisk/options.h"
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"

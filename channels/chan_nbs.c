@@ -45,7 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
-#include "asterisk/options.h"
 #include "asterisk/utils.h"
 
 static const char tdesc[] = "Network Broadcast Sound Driver";

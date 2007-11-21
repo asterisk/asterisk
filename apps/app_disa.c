@@ -44,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ulaw.h"
 #include "asterisk/callerid.h"
 #include "asterisk/stringfields.h"
-#include "asterisk/options.h"
 
 static char *app = "DISA";
 

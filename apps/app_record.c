@@ -37,7 +37,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/dsp.h"
 #include "asterisk/utils.h"
-#include "asterisk/options.h"
 #include "asterisk/app.h"
 
 

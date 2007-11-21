@@ -34,7 +34,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 #include "asterisk/features.h"
-#include "asterisk/options.h"
 
 static char *app = "ChannelRedirect";
 static char *synopsis = "Redirects given channel to a dialplan target.";

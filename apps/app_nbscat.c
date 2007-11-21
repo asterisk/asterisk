@@ -41,7 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
-#include "asterisk/options.h"
 
 #define LOCAL_NBSCAT "/usr/local/bin/nbscat8k"
 #define NBSCAT "/usr/bin/nbscat8k"

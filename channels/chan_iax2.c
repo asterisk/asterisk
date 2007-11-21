@@ -64,7 +64,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/io.h"
 #include "asterisk/config.h"
-#include "asterisk/options.h"
 #include "asterisk/cli.h"
 #include "asterisk/translate.h"
 #include "asterisk/md5.h"

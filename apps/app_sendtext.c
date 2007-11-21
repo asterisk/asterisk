@@ -38,7 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
 #include "asterisk/image.h"
-#include "asterisk/options.h"
 #include "asterisk/app.h"
 
 static const char *app = "SendText";

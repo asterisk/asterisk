@@ -41,7 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/dsp.h"
 #include "asterisk/module.h"
-#include "asterisk/options.h"
 
 static char *app = "WaitForSilence";
 static char *synopsis = "Waits for a specified amount of silence";

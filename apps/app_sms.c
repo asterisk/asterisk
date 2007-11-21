@@ -45,7 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/paths.h"	/* use ast_config_AST_SPOOL_DIR and LOG_DIR */
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
-#include "asterisk/options.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"

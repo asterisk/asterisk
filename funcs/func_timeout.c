@@ -33,7 +33,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
-#include "asterisk/options.h"
 
 static int timeout_read(struct ast_channel *chan, const char *cmd, char *data,
 			char *buf, size_t len)

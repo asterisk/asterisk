@@ -37,7 +37,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/astdb.h"
 #include "asterisk/utils.h"
-#include "asterisk/options.h"
 
 enum {
 	OPT_ACCOUNT = (1 << 0),

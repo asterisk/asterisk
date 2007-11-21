@@ -38,7 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/audiohook.h"
 #include "asterisk/features.h"
-#include "asterisk/options.h"
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
 #include "asterisk/say.h"

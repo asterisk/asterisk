@@ -72,7 +72,6 @@ extern "C" {
 #include "asterisk/module.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/pbx.h"
-#include "asterisk/options.h"
 #include "asterisk/utils.h"
 #include "asterisk/sched.h"
 #include "asterisk/io.h"

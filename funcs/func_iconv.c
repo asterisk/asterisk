@@ -39,7 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
-#include "asterisk/options.h"
 
 /*! 
  * Some systems define the second arg to iconv() as (const char *),

@@ -41,7 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev$")
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
-#include "asterisk/options.h"
 
 /*! ISO 8601 standard format */
 #define DATE_FORMAT "%Y-%m-%d %T %z"
