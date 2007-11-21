@@ -78,6 +78,9 @@ Applications:
   introduced dialplan functions LOCK(), TRYLOCK(), and UNLOCK().  You may use
   these functions in any location where you desire to ensure that only one
   channel is executing that path at any one time.
+* Read() now sets a READSTATUS variable on exit.  It does NOT automatically
+  return -1 (and hangup) anymore on error.  If you want to hangup on error,
+  you need to do so explicitly in your dialplan.
 
 Dialplan Functions:
 

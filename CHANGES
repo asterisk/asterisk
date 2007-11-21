@@ -52,6 +52,9 @@ CLI Changes
   * Added 'core show channels count' CLI command.
   * Added the ability to set the core debug and verbose values on a per-file basis.
   * Added 'queue pause member' and 'queue unpause member' CLI commands
+  * Ability to set process limits ("ulimit") without restarting Asterisk
+  * Enhanced "agi debug" to print the channel name as a prefix to the debug
+     output to make debugging on busy systems much easier.
 
 SIP changes
 -----------
@@ -99,6 +102,7 @@ IAX2 changes
 Skinny changes
 -------------
   * Added skinny show device, skinny show line, and skinny show settings CLI commands.
+  * Proper codec support in chan_skinny.
 
 DUNDi changes
 -------------
@@ -199,6 +203,27 @@ MeetMe Changes
   * Added the ability to specify the music on hold class used to play into the
      conference when there is only one member and the M option is used.
 
+Other Dialplan Application Changes
+----------------------------------
+  * Argument support for Gosub application
+  * From the to-do lists: straighten out the app timeout args:
+     Wait() app now really does 0.3 seconds- was truncating arg to an int.
+     WaitExten() same as Wait().
+     Congestion() - Now takes floating pt. argument.
+     Busy() - now takes floating pt. argument.
+     Read() - timeout now can be floating pt.
+     WaitForRing() now takes floating pt timeout arg.
+     SpeechBackground() -- clarified in the docstrings that the timeout is an integer seconds.
+  * Added 's' option to Page application.
+  * Added 'E' and 'V' commands to ExternalIVR.
+  * Added 'o' and 'X' options to Chanspy.
+  * Added a new dialplan application, Bridge, which allows you to bridge the
+     calling channel to any other active channel on the system.
+  * Added the ability to specify a music on hold class to play instead of ringing
+     for the SLATrunk application.
+  * The Read application no longer exits the dialplan on error.  Instead, it sets
+     READSTATUS to ERROR, which you can catch and handle separately.
+
 Music On Hold Changes
 ---------------------
   * A new option, "digit", has been added for music on hold classes in 
@@ -271,37 +296,27 @@ Language Support Changes
 Miscellaneous 
 -------------
   * Added the bindaddr option to gtalk.conf.
-  * Argument support for Gosub application
-  * Ability to set process limits without restarting Asterisk
-  * Proper codec support in chan_skinny.
   * Ability to use libcap to set high ToS bits when non-root
      on Linux. If configure is unable to find libcap then you
      can use --with-cap to specify the path.
-  * Added rotatetimestamp option to logger.conf which will use
-     the time to name the logger files instead of sequence number.
+  * Added rotatestrategy option to logger.conf, along with two new options:
+     "timestamp" which will use the time to name the logger files instead of
+     sequence number; and "rotate", which rotates the names of the logfiles,
+     similar to the way syslog rotates files.
+  * Added exec_after_rotate option to logger.conf, which allows a system
+     command to be run after rotation.  This is primarily useful with
+     rotatestrategry=rotate, to allow a limit on the number of logfiles kept
+     and to ensure that the oldest log file gets deleted.
   * Added Masquerade manager event for when a masquerade happens between
      two channels.
-  * From the to-do lists: straighten out the app timeout args:
-     Wait() app now really does 0.3 seconds- was truncating arg to an int.
-     WaitExten() same as Wait().
-     Congestion() - Now takes floating pt. argument.
-     Busy() - now takes floating pt. argument.
-     Read() - timeout now can be floating pt.
-     WaitForRing() now takes floating pt timeout arg.
-     SpeechBackground() -- clarified in the docstrings that the timeout is an integer seconds.
   * Added maxfiles option to options section of asterisk.conf which allows you to specify
      what Asterisk should set as the maximum number of open files when it loads.
   * Added the jittertargetextra configuration option.
   * Added G729 passthrough support to chan_phone for Sigma Designs boards.
-  * Added 's' option to Page application.
-  * Added 'E' and 'V' commands to ExternalIVR.
-  * Added 'o' and 'X' options to Chanspy.
   * Added a new CDR module, cdr_sqlite3_custom.
   * The cdr_manager module has a [mappings] feature, like cdr_custom,
     to add fields to the manager event from the CDR variables.
   * Added a new realtime configuration module, res_config_sqlite
-  * Added a new dialplan application, Bridge, which allows you to bridge the
-     calling channel to any other active channel on the system.
   * Added support for setting the CoS for VLAN traffic (802.1p).  See the sample
      configuration files for the IP channel drivers.  The new option is "cos".
      This information is also documented in doc/qos.tex, or the IP Quality of Service
@@ -321,10 +336,6 @@ Miscellaneous
      It allows you to configure a prefix for auto-monitor recordings.
   * Added support for writing and running your dialplan in lua.  See
      configs/extensions.lua.sample for examples of how to do this.
- * Added a new channel driver, chan_unistim.  See doc/unistim.txt and
-    configs/unistim.conf.sample for details.  This new channel driver allows
-    you to use Nortel i2002, i2004, and i2050 phones with Asterisk.
- * Enhanced "agi debug" to print the channel name as a prefix to the debug
-    output to make debugging on busy systems much easier.
-  * Added the ability to specify a music on hold class to play instead of ringing
-     for the SLATrunk application.
+  * Added a new channel driver, chan_unistim.  See doc/unistim.txt and
+     configs/unistim.conf.sample for details.  This new channel driver allows
+     you to use Nortel i2002, i2004, and i2050 phones with Asterisk.

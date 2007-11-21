@@ -73,8 +73,11 @@ static char *descrip =
 "  attempts   -- if greater than 1, that many attempts will be made in the \n"
 "                event no data is entered.\n"
 "  timeout    -- The number of seconds to wait for a digit response. If greater\n"
-"                than 0, that value will override the default timeout. Can be floating point.\n\n"
-"Read should disconnect if the function fails or errors out.\n";
+"                than 0, that value will override the default timeout. Can be floating point.\n"
+"This application sets the following channel variable upon completion:\n"
+"    READSTATUS - This is the status of the read operation.\n"
+"                 Possible values are:\n"
+"                 OK | ERROR | HANGUP | INTERRUPTED | SKIPPED | TIMEOUT\n";
 
 
 #define ast_next_data(instr,ptr,delim) if((ptr=strchr(instr,delim))) { *(ptr) = '\0' ; ptr++;}
@@ -87,10 +90,11 @@ static int read_exec(struct ast_channel *chan, void *data)
 	int tries = 1, to = 0, x = 0;
 	double tosec;
 	char *argcopy = NULL;
-	struct ind_tone_zone_sound *ts;
+	struct ind_tone_zone_sound *ts = NULL;
 	struct ast_flags flags = {0};
+	const char *status = "ERROR";
 
-	 AST_DECLARE_APP_ARGS(arglist,
+	AST_DECLARE_APP_ARGS(arglist,
 		AST_APP_ARG(variable);
 		AST_APP_ARG(filename);
 		AST_APP_ARG(maxdigits);
@@ -99,9 +103,10 @@ static int read_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(timeout);
 	);
 	
+	pbx_builtin_setvar_helper(chan, "READSTATUS", status);
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Read requires an argument (variable)\n");
-		return -1;
+		return 0;
 	}
 	
 	argcopy = ast_strdupa(data);
@@ -122,14 +127,8 @@ static int read_exec(struct ast_channel *chan, void *data)
 		tosec = atof(arglist.timeout);
 		if (tosec <= 0)
 			to = 0;
-		else {
+		else
 			to = tosec * 1000.0;
-			if (to <= 0) {
-				/* Make sure we don't use the default timeout. */
-				ast_log(LOG_WARNING, "Read timeout less than 1 ms, assuming 1 ms timeout\n");
-				to = 1;
-			}
-		}
 	}
 
 	if (ast_strlen_zero(arglist.filename)) {
@@ -137,27 +136,27 @@ static int read_exec(struct ast_channel *chan, void *data)
 	}
 	if (!ast_strlen_zero(arglist.maxdigits)) {
 		maxdigits = atoi(arglist.maxdigits);
-		if ((maxdigits<1) || (maxdigits>255)) {
-    			maxdigits = 255;
+		if ((maxdigits < 1) || (maxdigits > 255)) {
+			maxdigits = 255;
 		} else
 			ast_verb(3, "Accepting a maximum of %d digits.\n", maxdigits);
 	}
 	if (ast_strlen_zero(arglist.variable)) {
 		ast_log(LOG_WARNING, "Invalid! Usage: Read(variable[,filename][,maxdigits][,option][,attempts][,timeout])\n\n");
-		return -1;
+		return 0;
 	}
-	ts=NULL;
-	if (ast_test_flag(&flags,OPT_INDICATION)) {
-		if (!ast_strlen_zero(arglist.filename)) {
-			ts = ast_get_indication_tone(chan->zone,arglist.filename);
+	if (ast_test_flag(&flags, OPT_INDICATION)) {
+		if (! ast_strlen_zero(arglist.filename)) {
+			ts = ast_get_indication_tone(chan->zone, arglist.filename);
 		}
 	}
 	if (chan->_state != AST_STATE_UP) {
-		if (ast_test_flag(&flags,OPT_SKIP)) {
+		if (ast_test_flag(&flags, OPT_SKIP)) {
 			/* At the user's option, skip if the line is not up */
-			pbx_builtin_setvar_helper(chan, arglist.variable, "\0");
+			pbx_builtin_setvar_helper(chan, arglist.variable, "");
+			pbx_builtin_setvar_helper(chan, "READSTATUS", "SKIPPED");
 			return 0;
-		} else if (!ast_test_flag(&flags,OPT_NOANSWER)) {
+		} else if (!ast_test_flag(&flags, OPT_NOANSWER)) {
 			/* Otherwise answer unless we're supposed to read while on-hook */
 			res = ast_answer(chan);
 		}
@@ -173,17 +172,29 @@ static int read_exec(struct ast_channel *chan, void *data)
 					res = ast_waitfordigit(chan, to);
 					ast_playtones_stop(chan);
 					if (res < 1) {
+						if (res == 0)
+							status = "TIMEOUT";
 						tmp[x]='\0';
 						break;
 					}
 					tmp[x++] = res;
 					if (tmp[x-1] == '#') {
 						tmp[x-1] = '\0';
+						status = "OK";
 						break;
+					}
+					if (x >= maxdigits) {
+						status = "OK";
 					}
 				}
 			} else {
 				res = ast_app_getdata(chan, arglist.filename, tmp, maxdigits, to);
+				if (res == 0)
+					status = "OK";
+				else if (res == 1)
+					status = "TIMEOUT";
+				else if (res == 2)
+					status = "INTERRUPTED";
 			}
 			if (res > -1) {
 				pbx_builtin_setvar_helper(chan, arglist.variable, tmp);
@@ -192,11 +203,11 @@ static int read_exec(struct ast_channel *chan, void *data)
 					tries = 0;
 				} else {
 					tries--;
-						if (tries)
+					if (tries)
 						ast_verb(3, "User entered nothing, %d chance%s left\n", tries, (tries != 1) ? "s" : "");
-						else
+					else
 						ast_verb(3, "User entered nothing.\n");
-					}
+				}
 				res = 0;
 			} else {
 				pbx_builtin_setvar_helper(chan, arglist.variable, tmp);
@@ -205,7 +216,10 @@ static int read_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	return res;
+	if (ast_check_hangup(chan))
+		status = "HANGUP";
+	pbx_builtin_setvar_helper(chan, "READSTATUS", status);
+	return 0;
 }
 
 static int unload_module(void)
