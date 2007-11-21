@@ -193,6 +193,8 @@ static const char config[] = "zapata.conf";
 #define SIG_FXOGS	ZT_SIG_FXOGS
 #define SIG_FXOKS	ZT_SIG_FXOKS
 #define SIG_PRI		ZT_SIG_CLEAR
+#define SIG_BRI		(0x2000000 | ZT_SIG_CLEAR)
+#define SIG_BRI_PTMP	(0X4000000 | ZT_SIG_CLEAR)
 #define SIG_SS7		(0x1000000 | ZT_SIG_CLEAR)
 #define	SIG_SF		ZT_SIG_SF
 #define SIG_SFWINK 	(0x0100000 | ZT_SIG_SF)
@@ -403,6 +405,7 @@ struct zt_pri {
 	int resetpos;
 	time_t lastreset;						/*!< time when unused channels were last reset */
 	long resetinterval;						/*!< Interval (in seconds) for resetting unused channels */
+	int sig;
 	struct zt_pvt *pvts[MAX_CHANNELS];				/*!< Member channel pvt structs */
 	struct zt_pvt *crvs;						/*!< Member CRV structs */
 	struct zt_pvt *crvend;						/*!< Pointer to end of CRV structs */
@@ -953,6 +956,8 @@ static void zap_queue_frame(struct zt_pvt *p, struct ast_frame *f, void *data)
 	if (data) {
 		switch (p->sig) {
 #ifdef HAVE_PRI
+		case SIG_BRI:
+		case SIG_BRI_PTMP:
 		case SIG_PRI:
 			ast_mutex_unlock(&pri->lock);
 			break;
@@ -985,6 +990,8 @@ static void zap_queue_frame(struct zt_pvt *p, struct ast_frame *f, void *data)
 	if (data) {
 		switch (p->sig) {
 #ifdef HAVE_PRI
+		case SIG_BRI:
+		case SIG_BRI_PTMP:
 		case SIG_PRI:
 			ast_mutex_lock(&pri->lock);
 			break;
@@ -1181,7 +1188,8 @@ static int zt_digit_begin(struct ast_channel *chan, char digit)
 		goto out;
 
 #ifdef HAVE_PRI
-	if ((pvt->sig == SIG_PRI) && (chan->_state == AST_STATE_DIALING) && !pvt->proceeding) {
+	if (((pvt->sig == SIG_PRI) || (pvt->sig == SIG_BRI) || (pvt->sig == SIG_BRI_PTMP)) 
+			&& (chan->_state == AST_STATE_DIALING) && !pvt->proceeding) {
 		if (pvt->setup_ack) {
 			if (!pri_grab(pvt, pvt->pri)) {
 				pri_information(pvt->pri->pri, pvt->call, digit);
@@ -1244,7 +1252,8 @@ static int zt_digit_end(struct ast_channel *chan, char digit, unsigned int durat
 
 #ifdef HAVE_PRI
 	/* This means that the digit was already sent via PRI signalling */
-	if (pvt->sig == SIG_PRI && !pvt->begindigit)
+	if (((pvt->sig == SIG_PRI) || (pvt->sig == SIG_BRI) || (pvt->sig == SIG_BRI_PTMP))
+			&& !pvt->begindigit)
 		goto out;
 #endif
 
@@ -1364,6 +1373,10 @@ static char *zap_sig2str(int sig)
 		return "FXO Kewlstart";
 	case SIG_PRI:
 		return "ISDN PRI";
+	case SIG_BRI:
+		return "ISDN BRI Point to Point";
+	case SIG_BRI_PTMP:
+		return "ISDN BRI Point to MultiPoint";
 	case SIG_SS7:
 		return "SS7";
 	case SIG_SF:
@@ -1589,7 +1602,7 @@ static void zt_enable_ec(struct zt_pvt *p)
 		return;
 	}
 	if (p->echocancel) {
-		if ((p->sig == SIG_PRI) || (p->sig == SIG_SS7)) {
+		if ((p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP) || (p->sig == SIG_PRI) || (p->sig == SIG_SS7)) {
 			x = 1;
 			res = ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &x);
 			if (res)
@@ -1793,7 +1806,7 @@ static inline int zt_confmute(struct zt_pvt *p, int muted)
 {
 	int x, y, res;
 	x = muted;
-	if ((p->sig == SIG_PRI) || (p->sig == SIG_SS7)) {
+	if ((p->sig == SIG_PRI) || (p->sig == SIG_SS7) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) {
 		y = 1;
 		res = ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &y);
 		if (res)
@@ -2229,6 +2242,8 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		ast_setstate(ast, AST_STATE_UP);
 		break;		
 	case SIG_PRI:
+	case SIG_BRI:
+	case SIG_BRI_PTMP:
 	case SIG_SS7:
 		/* We'll get it in a moment -- but use dialdest to store pre-setup_ack digits */
 		p->dialdest[0] = '\0';
@@ -2824,7 +2839,7 @@ static int zt_hangup(struct ast_channel *ast)
 	
 	index = zt_get_index(ast, p, 1);
 
-	if ((p->sig == SIG_PRI) || (p->sig == SIG_SS7)) {
+	if ((p->sig == SIG_PRI) || (p->sig == SIG_SS7) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) {
 		x = 1;
 		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 	}
@@ -3055,7 +3070,7 @@ static int zt_hangup(struct ast_channel *ast)
 			}
 		}
 #endif
-		if (p->sig && ((p->sig != SIG_PRI) && (p->sig != SIG_SS7)))
+		if (p->sig && ((p->sig != SIG_PRI) && (p->sig != SIG_SS7) && (p->sig != SIG_BRI) && (p->sig != SIG_BRI_PTMP)))
 			res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_ONHOOK);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to hangup line %s\n", ast->name);
@@ -3106,7 +3121,7 @@ static int zt_hangup(struct ast_channel *ast)
 		update_conf(p);
 		reset_conf(p);
 		/* Restore data mode */
-		if ((p->sig == SIG_PRI) || (p->sig == SIG_SS7)) {
+		if ((p->sig == SIG_PRI) || (p->sig == SIG_SS7) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) {
 			x = 0;
 			ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 		}
@@ -3215,6 +3230,8 @@ static int zt_answer(struct ast_channel *ast)
 		}
 		break;
 #ifdef HAVE_PRI
+	case SIG_BRI:
+	case SIG_BRI_PTMP:
 	case SIG_PRI:
 		/* Send a pri acknowledge */
 		if (!pri_grab(p, p->pri)) {
@@ -4137,7 +4154,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		p->pulsedial =  (res & ZT_EVENT_PULSEDIGIT) ? 1 : 0;
 		ast_debug(1, "Detected %sdigit '%c'\n", p->pulsedial ? "pulse ": "", res & 0xff);
 #ifdef HAVE_PRI
-		if (!p->proceeding && p->sig == SIG_PRI && p->pri && (p->pri->overlapdial & ZAP_OVERLAPDIAL_INCOMING)) {
+		if (!p->proceeding && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) && p->pri && (p->pri->overlapdial & ZAP_OVERLAPDIAL_INCOMING)) {
 			/* absorb event */
 		} else {
 #endif
@@ -4218,7 +4235,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;
 		case ZT_EVENT_ALARM:
 #ifdef HAVE_PRI
-			if (p->sig == SIG_PRI) {
+			if ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) {
 				if (!p->pri || !p->pri->pri || (pri_get_timer(p->pri->pri, PRI_TIMER_T309) < 0)) {
 					/* T309 is not enabled : hangup calls when alarm occurs */
 					if (p->call) {
@@ -5290,7 +5307,7 @@ static struct ast_frame  *zt_read(struct ast_channel *ast)
 				}
 			} else if (f->frametype == AST_FRAME_DTMF) {
 #ifdef HAVE_PRI
-				if (!p->proceeding && p->sig==SIG_PRI && p->pri && 
+				if (!p->proceeding && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) && p->pri && 
 				    ((!p->outgoing && (p->pri->overlapdial & ZAP_OVERLAPDIAL_INCOMING)) ||
 				     (p->outgoing && (p->pri->overlapdial & ZAP_OVERLAPDIAL_OUTGOING)))) {
 					/* Don't accept in-band DTMF when in overlap dial mode */
@@ -5431,11 +5448,13 @@ static int zt_indicate(struct ast_channel *chan, int condition, const void *data
 		switch (condition) {
 		case AST_CONTROL_BUSY:
 #ifdef HAVE_PRI
-			if (p->priindication_oob && p->sig == SIG_PRI) {
+			if (p->priindication_oob && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP))) {
 				chan->hangupcause = AST_CAUSE_USER_BUSY;
 				chan->_softhangup |= AST_SOFTHANGUP_DEV;
 				res = 0;
-			} else if (!p->progress && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+			} else if (!p->progress && 
+					((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP))
+					&& p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
@@ -5452,7 +5471,8 @@ static int zt_indicate(struct ast_channel *chan, int condition, const void *data
 			break;
 		case AST_CONTROL_RINGING:
 #ifdef HAVE_PRI
-			if ((!p->alerting) && p->sig==SIG_PRI && p->pri && !p->outgoing && (chan->_state != AST_STATE_UP)) {
+			if ((!p->alerting) && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) 
+					&& p->pri && !p->outgoing && (chan->_state != AST_STATE_UP)) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_acknowledge(p->pri->pri,p->call, PVT_TO_CHANNEL(p), !p->digital);
@@ -5488,7 +5508,8 @@ static int zt_indicate(struct ast_channel *chan, int condition, const void *data
 		case AST_CONTROL_PROCEEDING:
 			ast_debug(1,"Received AST_CONTROL_PROCEEDING on %s\n",chan->name);
 #ifdef HAVE_PRI
-			if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+			if (!p->proceeding && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP))
+					&& p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_proceeding(p->pri->pri,p->call, PVT_TO_CHANNEL(p), !p->digital);
@@ -5518,7 +5539,8 @@ static int zt_indicate(struct ast_channel *chan, int condition, const void *data
 			ast_debug(1,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
 #ifdef HAVE_PRI
 			p->digital = 0;	/* Digital-only calls isn't allows any inband progress messages */
-			if (!p->progress && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+			if (!p->progress && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP))
+					&& p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
@@ -5547,11 +5569,12 @@ static int zt_indicate(struct ast_channel *chan, int condition, const void *data
 		case AST_CONTROL_CONGESTION:
 			chan->hangupcause = AST_CAUSE_CONGESTION;
 #ifdef HAVE_PRI
-			if (p->priindication_oob && p->sig == SIG_PRI) {
+			if (p->priindication_oob && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP))) {
 				chan->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 				chan->_softhangup |= AST_SOFTHANGUP_DEV;
 				res = 0;
-			} else if (!p->progress && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+			} else if (!p->progress && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) 
+					&& p->pri && !p->outgoing) {
 				if (p->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
@@ -5718,7 +5741,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 				i->dsp_features = features & ~DSP_PROGRESS_TALK;
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
 				/* We cannot do progress detection until receives PROGRESS message */
-				if (i->outgoing && ((i->sig == SIG_PRI) || (i->sig == SIG_SS7))) {
+				if (i->outgoing && ((i->sig == SIG_PRI) || (i->sig == SIG_BRI) || (i->sig == SIG_BRI_PTMP) || (i->sig == SIG_SS7))) {
 					/* Remember requested DSP features, don't treat
 					   talking as ANSWER */
 					features = 0;
@@ -5896,6 +5919,8 @@ static void *ss_thread(void *data)
 	switch (p->sig) {
 #ifdef HAVE_PRI
 	case SIG_PRI:
+	case SIG_BRI:
+	case SIG_BRI_PTMP:
 		/* Now loop looking for an extension */
 		ast_copy_string(exten, p->exten, sizeof(exten));
 		len = strlen(exten);
@@ -7210,6 +7235,8 @@ static int handle_init_event(struct zt_pvt *i, int event)
 			break;
 		case SIG_PRI:
 		case SIG_SS7:
+		case SIG_BRI:
+		case SIG_BRI_PTMP:
 			zt_disable_ec(i);
 			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, -1);
 			break;
@@ -7497,7 +7524,10 @@ static int pri_resolve_span(int *span, int channel, int offset, struct zt_spanin
 			ast_log(LOG_WARNING, "Unable to use span %d implicitly since it is already part of trunk group %d\n", *span, pris[*span].mastertrunkgroup);
 			*span = -1;
 		} else {
-			if (si->totalchans == 31) { /* if it's an E1 */
+			if (si->totalchans == 3) {
+				ast_log(LOG_NOTICE, "Matt was wrong\n");
+				pris[*span].dchannels[0] = 3 + offset;
+			} else if (si->totalchans == 31) { /* if it's an E1 */
 				pris[*span].dchannels[0] = 16 + offset;
 			} else { /* T1 or BRI: D Channel is the last Channel */
 				pris[*span].dchannels[0] = 
@@ -7746,13 +7776,14 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 			}
 #endif
 #ifdef HAVE_PRI
-			if ((conf.chan.sig == SIG_PRI) || (conf.chan.sig == SIG_GR303FXOKS) || (conf.chan.sig == SIG_GR303FXSKS)) {
+			if ((conf.chan.sig == SIG_PRI) || (conf.chan.sig == SIG_BRI) || (conf.chan.sig == SIG_BRI_PTMP) || (conf.chan.sig == SIG_GR303FXOKS) || (conf.chan.sig == SIG_GR303FXSKS)) {
 				int offset;
 				int myswitchtype;
 				int matchesdchan;
 				int x,y;
 				offset = 0;
-				if ((conf.chan.sig == SIG_PRI) && ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
+				if (((conf.chan.sig == SIG_PRI) || (conf.chan.sig == SIG_BRI) || (conf.chan.sig == SIG_BRI_PTMP)) 
+						&& ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
 					ast_log(LOG_ERROR, "Unable to set clear mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
 					destroy_zt_pvt(&tmp);
 					return NULL;
@@ -7776,7 +7807,9 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 						destroy_zt_pvt(&tmp);
 						return NULL;
 					}
-					if (conf.chan.sig == SIG_PRI)
+					if ((conf.chan.sig == SIG_PRI) ||
+							(conf.chan.sig == SIG_BRI) ||
+							(conf.chan.sig == SIG_BRI_PTMP))
 						myswitchtype = conf.pri.switchtype;
 					else
 						myswitchtype = PRI_SWITCH_GR303_TMC;
@@ -7833,6 +7866,8 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 							destroy_zt_pvt(&tmp);
 							return NULL;
 						}
+
+						pris[span].sig = conf.chan.sig;
 						pris[span].nodetype = conf.pri.nodetype;
 						pris[span].switchtype = myswitchtype;
 						pris[span].nsf = conf.pri.nsf;
@@ -8050,7 +8085,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 				ast_dsp_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
 			update_conf(tmp);
 			if (!here) {
-				if ((conf.chan.sig != SIG_PRI) && (conf.chan.sig != SIG_SS7))
+				if ((conf.chan.sig != SIG_BRI) && (conf.chan.sig != SIG_BRI_PTMP) && (conf.chan.sig != SIG_PRI) && (conf.chan.sig != SIG_SS7))
 					/* Hang it up to be sure it's good */
 					zt_set_hook(tmp->subs[SUB_REAL].zfd, ZT_ONHOOK);
 			}
@@ -8077,7 +8112,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 		tmp->sendcalleridafter = conf.chan.sendcalleridafter;
 		if (!here) {
 			tmp->locallyblocked = tmp->remotelyblocked = 0;
-			if ((conf.chan.sig == SIG_PRI) || (conf.chan.sig == SIG_SS7))
+			if ((conf.chan.sig == SIG_PRI) || (conf.chan.sig == SIG_BRI) || (conf.chan.sig == SIG_BRI_PTMP) || (conf.chan.sig == SIG_SS7))
 				tmp->inservice = 0;
 			else /* We default to in service on protocols that don't have a reset */
 				tmp->inservice = 1;
@@ -10645,7 +10680,16 @@ static int start_pri(struct zt_pri *pri)
 			pri->fds[i] = -1;
 			return -1;
 		}
-		pri->dchans[i] = pri_new(pri->fds[i], pri->nodetype, pri->switchtype);
+		switch (pri->sig) {
+			case SIG_BRI:
+				pri->dchans[i] = pri_new_bri(pri->fds[i], 1, pri->nodetype, pri->switchtype);
+				break;
+			case SIG_BRI_PTMP:
+				pri->dchans[i] = pri_new_bri(pri->fds[i], 0, pri->nodetype, pri->switchtype);
+				break;
+			default:
+				pri->dchans[i] = pri_new(pri->fds[i], pri->nodetype, pri->switchtype);
+		}
 		/* Force overlap dial if we're doing GR-303! */
 		if (pri->switchtype == PRI_SWITCH_GR303_TMC)
 			pri->overlapdial |= ZAP_OVERLAPDIAL_BOTH;
@@ -12626,6 +12670,20 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 					confp->chan.sig = SIG_PRI;
 					confp->chan.radio = 0;
 					confp->pri.nodetype = PRI_CPE;
+				} else if (!strcasecmp(v->value, "bri_cpe")) {
+					confp->chan.sig = SIG_BRI;
+					confp->chan.radio = 0;
+					confp->pri.nodetype = PRI_CPE;
+				} else if (!strcasecmp(v->value, "bri_net")) {
+					confp->chan.sig = SIG_BRI;
+					confp->chan.radio = 0;
+					confp->pri.nodetype = PRI_NETWORK;
+				} else if (!strcasecmp(v->value, "bri_cpe_ptmp")) {
+					confp->chan.sig = SIG_BRI_PTMP;
+					confp->chan.radio = 0;
+					confp->pri.nodetype = PRI_CPE;
+				} else if (!strcasecmp(v->value, "bri_net_ptmp")) {
+					ast_log(LOG_WARNING, "How cool would it be if someone implemented this mode!  For now, sucks for you.\n");
 				} else if (!strcasecmp(v->value, "gr303fxoks_net")) {
 					confp->chan.sig = SIG_GR303FXOKS;
 					confp->chan.radio = 0;
