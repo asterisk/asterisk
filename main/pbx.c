@@ -2722,7 +2722,6 @@ static void handle_statechange(const char *device)
 {
 	struct ast_hint *hint;
 
-	ast_rdlock_contexts();
 	AST_RWLIST_RDLOCK(&hints);
 
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
@@ -2760,7 +2759,6 @@ static void handle_statechange(const char *device)
 	}
 
 	AST_RWLIST_UNLOCK(&hints);
-	ast_unlock_contexts();
 }
 
 static int statechange_queue(const char *dev)
