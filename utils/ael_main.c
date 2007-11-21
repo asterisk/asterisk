@@ -4,7 +4,7 @@
 #include <regex.h>
 #include <limits.h>
 
-#include "asterisk/compat.h"
+#include "asterisk.h"
 #include "asterisk/channel.h"
 #include "asterisk/ast_expr.h"
 #include "asterisk/module.h"
@@ -75,10 +75,7 @@ char last_exten[18000];
 char ast_config_AST_CONFIG_DIR[PATH_MAX];
 char ast_config_AST_VAR_DIR[PATH_MAX];
 
-void ast_add_profile(void);
 void ast_cli_register_multiple(void);
-void ast_register_file_version(void);
-void ast_unregister_file_version(void);
 int ast_add_extension2(struct ast_context *con,
 					   int replace, const char *extension, int priority, const char *label, const char *callerid,
 						const char *application, void *data, void (*datad)(void *),
@@ -155,11 +152,20 @@ struct ast_custom_function *ast_custom_function_find(const char *name)
 	return 0; /* in "standalone" mode, functions are just not avail */
 }
 
+void ast_register_file_version(const char *file, const char *version)
+{
+}
 
-void ast_add_profile(void)
+void ast_unregister_file_version(const char *file)
+{
+}
+
+int ast_add_profile(const char *x, uint64_t scale)
 {
 	if (!no_comp)
 		printf("Executed ast_add_profile();\n");
+
+	return 0;
 }
 
 int ast_loader_register(int (*updater)(void))
@@ -186,20 +192,6 @@ void ast_cli_register_multiple(void)
         	printf("Executed ast_cli_register_multiple();\n");
 }
 
-void ast_register_file_version(void)
-{
-	/* if(!no_comp)
-		printf("Executed ast_register_file_version();\n"); */
-	/* I'm erasing this, because I don't think anyone really ever needs to see it anyway */
-}
-
-void ast_unregister_file_version(void)
-{
-	/* if(!no_comp)
-		printf("Executed ast_unregister_file_version();\n"); */
-	/* I'm erasing this, because I don't think anyone really ever needs to see it anyway */
-
-}
 void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count);
 void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count)
 {

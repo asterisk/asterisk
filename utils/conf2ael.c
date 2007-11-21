@@ -42,7 +42,7 @@
 #include <regex.h>
 #include <limits.h>
 
-#include "asterisk/compat.h"
+#include "asterisk.h"
 #include "asterisk/pbx.h"
 #include "asterisk/ast_expr.h"
 #include "asterisk/channel.h"
@@ -80,26 +80,12 @@ char ast_config_AST_SYSTEM_NAME[20] = ""; */
 /* static AST_RWLIST_HEAD_STATIC(acf_root, ast_custom_function); */
 extern char ast_config_AST_CONFIG_DIR[PATH_MAX];
 
-/* modulation */
-void ast_add_profile(void);
-void ast_register_file_version(void);
-void ast_unregister_file_version(void);
-
-void ast_add_profile(void)
+void ast_register_file_version(const char *file, const char *version)
 {
 }
-void ast_register_file_version(void)
-{
-	/* if(!no_comp)
-	   printf("Executed ast_register_file_version();\n"); */
-	/* I'm erasing this, because I don't think anyone really ever needs to see it anyway */
-}
 
-void ast_unregister_file_version(void)
+void ast_unregister_file_version(const char *file)
 {
-	/* if(!no_comp)
-		printf("Executed ast_unregister_file_version();\n"); */
-	/* I'm erasing this, because I don't think anyone really ever needs to see it anyway */
 }
 
 /* Our own version of ast_log, since the expr parser uses it. -- stolen from utils/check_expr.c */

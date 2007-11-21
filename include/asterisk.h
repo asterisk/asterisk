@@ -162,4 +162,14 @@ int64_t ast_mark(int, int start1_stop0);
 #define ast_mark(a, b) do { } while (0)
 #endif /* LOW_MEMORY */
 
+/*! \brief
+ * Definition of various structures that many asterisk files need,
+ * but only because they need to know that the type exists.
+ *
+ */
+
+struct ast_channel;
+struct ast_frame;
+struct ast_module;
+
 #endif /* _ASTERISK_H */
