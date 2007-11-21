@@ -324,6 +324,7 @@ struct match_char *already_in_tree(struct match_char *current, char *pat);
 struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1, int findonly);
 struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity);
 void create_match_char_tree(struct ast_context *con);
+void log_match_char_tree(struct match_char *node, char *prefix);
 struct ast_exten *get_canmatch_exten(struct match_char *node);
 void destroy_pattern_tree(struct match_char *pattern_tree);
 static int hashtab_compare_contexts(const void *ah_a, const void *ah_b);
@@ -851,28 +852,40 @@ static void update_scoreboard(struct scoreboard *board, int length, int spec, st
 	}
 }
 
-#ifdef NEED_DEBUG
-static void log_match_char_tree(struct match_char *node, char *prefix)
+void log_match_char_tree(struct match_char *node, char *prefix)
 {
 	char my_prefix[1024];
+	char extenstr[40];
 	
-	ast_log(LOG_DEBUG,"%s%s:%c:%d:%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->specificity, node->exten? "EXTEN":"");
+	extenstr[0] = 0;
+	if (node && node->exten && node->exten)
+		sprintf(extenstr,"(%x)",(unsigned int)node->exten);
+	
+	if (strlen(node->x) > 1 )
+		ast_log(LOG_DEBUG,"%s[%s]:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->deleted? 'D':'-', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "", extenstr);
+	else
+		ast_log(LOG_DEBUG,"%s%s:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->deleted? 'D':'-', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "", extenstr);
 	strcpy(my_prefix,prefix);
 	strcat(my_prefix,"+       ");
 	if (node->next_char)
-		print_match_char_tree(node->next_char, my_prefix);
+		log_match_char_tree(node->next_char, my_prefix);
 	if (node->alt_char)
-		print_match_char_tree(node->alt_char, prefix);
+		log_match_char_tree(node->alt_char, prefix);
 }
-#endif
 
 static void cli_match_char_tree(struct match_char *node, char *prefix, int fd)
 {
 	char my_prefix[1024];
-	if (strlen(node->x) > 1 )
-		ast_cli(fd, "%s[%s]:%c:%d:%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "");
+	char extenstr[40];
+	
+	extenstr[0] = 0;
+	if (node && node->exten && node->exten)
+		sprintf(extenstr,"(%x)",(unsigned int)node->exten);
+	
+	if (strlen(node->x) > 1)
+		ast_cli(fd, "%s[%s]:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->deleted ? 'D' : '-', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "", extenstr);
 	else
-		ast_cli(fd, "%s%s:%c:%d:%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "");
+		ast_cli(fd, "%s%s:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->deleted ? 'D' : '-', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "", extenstr);
 	strcpy(my_prefix,prefix);
 	strcat(my_prefix,"+       ");
 	if (node->next_char)
@@ -1153,9 +1166,11 @@ struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast
 		}
 		m2 = 0;
 		if (already && (m2=already_in_tree(m1,buf)) && m2->next_char) {
-			if (!(*(s1+1)))  /* if this is the end of the pattern, but not the end of the tree, then mark this node with the exten...
+			if (!(*(s1+1))) {  /* if this is the end of the pattern, but not the end of the tree, then mark this node with the exten...
 								a shorter pattern might win if the longer one doesn't match */
 				m2->exten = e1;
+				m2->deleted = 0;
+			}
 			m1 = m2->next_char; /* m1 points to the node to compare against */
 		} else {
 			if (m2) {
@@ -1168,8 +1183,11 @@ struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast
 				m1 = add_pattern_node(con, m1, buf, pattern, already,specif); /* m1 is the node just added */
 			}
 			
-			if (!(*(s1+1)))
+			if (!(*(s1+1))) {
+				m1->deleted = 0;
 				m1->exten = e1;
+			}
+			
 			already = 0;
 		}
 		s1++; /* advance to next char */
@@ -1565,7 +1583,9 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 
 	pattern.label = label;
 	pattern.priority = priority;
-
+#ifdef NEED_DEBUG
+	ast_log(LOG_NOTICE,"Looking for cont/ext/prio/label/action = %s/%s/%d/%s/%d\n", context, exten, priority, label, (int)action);
+#endif
 	/* Initialize status if appropriate */
 	if (q->stacklen == 0) {
 		q->status = STATUS_NO_CONTEXT;
@@ -1615,10 +1635,13 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		create_match_char_tree(tmp);
 #ifdef NEED_DEBUG
 		ast_log(LOG_DEBUG,"Tree Created in context %s:\n", context);
-		print_match_char_tree(tmp->pattern_tree," ");
+		log_match_char_tree(tmp->pattern_tree," ");
 #endif
 	}
-	
+#ifdef NEED_DEBUG
+	ast_log(LOG_NOTICE,"The Trie we are searching in:\n");
+	log_match_char_tree(tmp->pattern_tree, "::  ");
+#endif	
 	new_find_extension(exten, &score, tmp->pattern_tree, 0, 0, callerid);
 	eroot = score.exten;
 
@@ -3647,9 +3670,13 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 	/* Handle this is in the new world */
 
 	if (con->pattern_tree) {
-		/* find this particular extension */
-		struct ast_exten ex, *exten2;
+		struct ast_exten ex, *exten2, *exten3;
 		char dummy_name[1024];
+
+#ifdef NEED_DEBUG
+		ast_log(LOG_NOTICE,"Removing %s/%s/%d from trees, registrar=%s\n", con->name, extension, priority, registrar);
+#endif
+		/* find this particular extension */
 		ex.exten = dummy_name;
 		ex.matchcid = 0;
 		ast_copy_string(dummy_name,extension, sizeof(dummy_name));
@@ -3662,7 +3689,7 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 				if (x->exten) { /* this test for safety purposes */
 					x->deleted = 1; /* with this marked as deleted, it will never show up in the scoreboard, and therefore never be found */
 					x->exten = 0; /* get rid of what will become a bad pointer */
-					ast_hashtab_remove_this_object(con->root_tree, exten);
+					exten2 = ast_hashtab_remove_this_object(con->root_tree, exten);
 				} else {
 					ast_log(LOG_WARNING,"Trying to delete an exten from a context, but the pattern tree node returned isn't a full extension\n");
 				}
@@ -3670,9 +3697,16 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 				ex.priority = priority;
 				exten2 = ast_hashtab_lookup(exten->peer_tree, &ex);
 				if (exten2) {
-					if (exten2->label) /* if this exten has a label, remove that, too */
-						ast_hashtab_remove_this_object(exten->peer_label_tree,exten2);
-					ast_hashtab_remove_this_object(exten->peer_tree, exten2);
+					
+					if (exten2->label) { /* if this exten has a label, remove that, too */
+						exten3 = ast_hashtab_remove_this_object(exten->peer_label_tree,exten2);
+						if (!exten3)
+							ast_log(LOG_ERROR,"Did not remove this priority label (%d/%s) from the peer_label_tree of context %s, extension %s!\n", priority, exten2->label, con->name, exten2->exten);
+					}
+							
+					exten3 = ast_hashtab_remove_this_object(exten->peer_tree, exten2);
+					if (!exten3)
+						ast_log(LOG_ERROR,"Did not remove this priority (%d) from the peer_tree of context %s, extension %s!\n", priority, con->name, exten2->exten);
 					if (ast_hashtab_size(exten->peer_tree) == 0) {
 						/* well, if the last priority of an exten is to be removed,
 						   then, the extension is removed, too! */
@@ -3680,7 +3714,9 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 						if (x->exten) { /* this test for safety purposes */
 							x->deleted = 1; /* with this marked as deleted, it will never show up in the scoreboard, and therefore never be found */
 							x->exten = 0; /* get rid of what will become a bad pointer */
-							ast_hashtab_remove_this_object(con->root_tree, exten);
+							exten3 = ast_hashtab_remove_this_object(con->root_tree, exten);
+							if (!exten3)
+								ast_log(LOG_ERROR,"Did not remove this exten (%s) from the context root_tree (%s) (priority %d)\n", exten->exten, con->name, priority);
 						}
 					}
 				} else {
@@ -3693,6 +3729,10 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 			ast_log(LOG_WARNING,"Cannot find extension %s in pattern tree in context %s\n",
 					extension, con->name);
 		}
+#ifdef NEED_DEBUG
+		ast_log(LOG_NOTICE,"match char tree after exten removal:\n");
+		log_match_char_tree(con->pattern_tree, " ");
+#endif
 	}
 	
 
@@ -5666,6 +5706,7 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 				ast_hashtab_insert_safe(eh->peer_label_tree,tmp);
 			ep->peer = tmp;
 		} else if (el) {		/* We're the first extension. Take over e's functions */
+			struct match_char *x = add_exten_to_pattern_tree(con, e, 1);
 			tmp->peer_tree = e->peer_tree;
 			tmp->peer_label_tree = e->peer_label_tree;
 			ast_hashtab_remove_object_via_lookup(tmp->peer_tree,e);
@@ -5677,7 +5718,16 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 			ast_hashtab_remove_object_via_lookup(con->root_tree, e);
 			ast_hashtab_insert_safe(con->root_tree, tmp);
 			el->next = tmp;
+			/* The pattern trie points to this exten; replace the pointer,
+			   and all will be well */
+			
+			if (x->exten) { /* this test for safety purposes */
+				x->exten = tmp; /* replace what would become a bad pointer */
+			} else {
+				ast_log(LOG_ERROR,"Trying to delete an exten from a context, but the pattern tree node returned isn't an extension\n");
+			}
 		} else {			/* We're the very first extension.  */
+			struct match_char *x = add_exten_to_pattern_tree(con, e, 1);
 			ast_hashtab_remove_object_via_lookup(con->root_tree,e);
 			ast_hashtab_insert_safe(con->root_tree,tmp);
 			tmp->peer_tree = e->peer_tree;
@@ -5691,6 +5741,13 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 			ast_hashtab_remove_object_via_lookup(con->root_tree, e);
 			ast_hashtab_insert_safe(con->root_tree, tmp);
  			con->root = tmp;
+			/* The pattern trie points to this exten; replace the pointer,
+			   and all will be well */
+			if (x->exten) { /* this test for safety purposes */
+				x->exten = tmp; /* replace what would become a bad pointer */
+			} else {
+				ast_log(LOG_ERROR,"Trying to delete an exten from a context, but the pattern tree node returned isn't an extension\n");
+			}
 		}
 		if (tmp->priority == PRIORITY_HINT)
 			ast_change_hint(e,tmp);
