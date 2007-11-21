@@ -167,7 +167,8 @@ enum {
 	OPT_ARG_EXITKEYS   = 1,
 	OPT_ARG_DURATION_STOP = 2,
 	OPT_ARG_DURATION_LIMIT = 3,
-	OPT_ARG_ARRAY_SIZE = 4,
+	OPT_ARG_MOH_CLASS = 4,
+	OPT_ARG_ARRAY_SIZE = 5,
 };
 
 AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
@@ -183,7 +184,7 @@ AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
 	AST_APP_OPTION('F', CONFFLAG_PASS_DTMF ),
 	AST_APP_OPTION('i', CONFFLAG_INTROUSER ),
 	AST_APP_OPTION('I', CONFFLAG_INTROUSERNOREVIEW ),
-	AST_APP_OPTION('M', CONFFLAG_MOH ),
+	AST_APP_OPTION_ARG('M', CONFFLAG_MOH, OPT_ARG_MOH_CLASS ),
 	AST_APP_OPTION('m', CONFFLAG_STARTMUTED ),
 	AST_APP_OPTION('P', CONFFLAG_ALWAYSPROMPT ),
 	AST_APP_OPTION_ARG('p', CONFFLAG_KEYEXIT, OPT_ARG_EXITKEYS ),
@@ -249,7 +250,11 @@ static const char *descrip =
 "      'I' -- announce user join/leave without review\n"
 "      'l' -- set listen only mode (Listen only, no talking)\n"
 "      'm' -- set initially muted\n"
-"      'M' -- enable music on hold when the conference has a single caller\n"
+"      'M[(<class>]\n"
+"        ' -- enable music on hold when the conference has a single caller.\n"
+"             Optionally, specify a musiconhold class to use.  If one is not\n"
+"             provided, it will use the channel's currently set music class,\n"
+"             or \"default\".\n"
 "      'o' -- set talker optimization - treats talkers who aren't speaking as\n"
 "             being muted, meaning (a) No encode is done on transmission and\n"
 "             (b) Received audio that is not registered as talking is omitted\n"
@@ -323,7 +328,7 @@ static const char *descrip4 =
 "";
 
 static const char *slastation_desc =
-"  SLAStation(station):\n"
+"  SLAStation(<station name>):\n"
 "This application should be executed by an SLA station.  The argument depends\n"
 "on how the call was initiated.  If the phone was just taken off hook, then\n"
 "the argument \"station\" should be just the station name.  If the call was\n"
@@ -336,13 +341,15 @@ static const char *slastation_desc =
 "";
 
 static const char *slatrunk_desc =
-"  SLATrunk(trunk):\n"
+"  SLATrunk(<trunk name>[,options]):\n"
 "This application should be executed by an SLA trunk on an inbound call.\n"
 "The channel calling this application should correspond to the SLA trunk\n"
 "with the name \"trunk\" that is being passed as an argument.\n"
 "  On exit, this application will set the variable SLATRUNK_STATUS to\n"
 "one of the following values:\n"
-"   FAILURE | SUCCESS | UNANSWERED | RINGTIMEOUT\n" 
+"   FAILURE | SUCCESS | UNANSWERED | RINGTIMEOUT\n"
+"  The available options are:\n"
+"    M[(<class>)]          - Play back the specified MOH class instead of ringing\n"
 "";
 
 #define MAX_CONFNUM 80
@@ -1453,6 +1460,21 @@ static int dispose_conf(struct ast_conference *conf)
 	return res;
 }
 
+static void conf_start_moh(struct ast_channel *chan, const char *musicclass)
+{
+  	char *original_moh;
+
+	ast_channel_lock(chan);
+	original_moh = ast_strdupa(chan->musicclass);
+	ast_string_field_set(chan, musicclass, musicclass);
+	ast_channel_unlock(chan);
+
+	ast_moh_start(chan, original_moh, NULL);
+
+	ast_channel_lock(chan);
+	ast_string_field_set(chan, musicclass, original_moh);
+	ast_channel_unlock(chan);
+}
 
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags, char *optargs[])
 {
@@ -2086,8 +2108,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 							}
 						}
 					}
-					if (musiconhold == 0 && (confflags & CONFFLAG_MOH)) {
-						ast_moh_start(chan, NULL, NULL);
+					if (!musiconhold && (confflags & CONFFLAG_MOH)) {
+						conf_start_moh(chan, optargs[OPT_ARG_MOH_CLASS]);
 						musiconhold = 1;
 					}
 				} else if(currentmarked >= 1 && lastmarked == 0) {
@@ -2119,8 +2141,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			/* trying to add moh for single person conf */
 			if ((confflags & CONFFLAG_MOH) && !(confflags & CONFFLAG_WAITMARKED)) {
 				if (conf->users == 1) {
-					if (musiconhold == 0) {
-						ast_moh_start(chan, NULL, NULL);
+					if (!musiconhold) {
+						conf_start_moh(chan, optargs[OPT_ARG_MOH_CLASS]);
 						musiconhold = 1;
 					} 
 				} else {
@@ -2472,7 +2494,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						}
 					}
 					if (musiconhold)
-			   			ast_moh_start(chan, NULL, NULL);
+						conf_start_moh(chan, optargs[OPT_ARG_MOH_CLASS]);
 
 					if (ioctl(fd, ZT_SETCONF, &ztc)) {
 						ast_log(LOG_WARNING, "Error setting conference\n");
@@ -4944,23 +4966,57 @@ static struct sla_ringing_trunk *queue_ringing_trunk(struct sla_trunk *trunk)
 	return ringing_trunk;
 }
 
+enum {
+	SLA_TRUNK_OPT_MOH = (1 << 0),
+};
+
+enum {
+	SLA_TRUNK_OPT_ARG_MOH_CLASS = 0,
+	SLA_TRUNK_OPT_ARG_ARRAY_SIZE = 1,
+};
+
+AST_APP_OPTIONS(sla_trunk_opts, BEGIN_OPTIONS
+	AST_APP_OPTION_ARG('M', SLA_TRUNK_OPT_MOH, SLA_TRUNK_OPT_ARG_MOH_CLASS),
+END_OPTIONS );
+
 static int sla_trunk_exec(struct ast_channel *chan, void *data)
 {
-	const char *trunk_name = data;
 	char conf_name[MAX_CONFNUM];
 	struct ast_conference *conf;
 	struct ast_flags conf_flags = { 0 };
 	struct sla_trunk *trunk;
 	struct sla_ringing_trunk *ringing_trunk;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(trunk_name);
+		AST_APP_ARG(options);
+	);
+	char *opts[SLA_TRUNK_OPT_ARG_ARRAY_SIZE] = { NULL, };
+	char *conf_opt_args[OPT_ARG_ARRAY_SIZE] = { NULL, };
+	struct ast_flags opt_flags = { 0 };
+	char *parse;
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "The SLATrunk application requires an argument, the trunk name\n");
+		return -1;
+	}
+
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+	if (args.argc == 2) {
+		if (ast_app_parse_options(sla_trunk_opts, &opt_flags, opts, args.options)) {
+			ast_log(LOG_ERROR, "Error parsing options for SLATrunk\n");
+			return -1;
+		}
+	}
 
 	AST_RWLIST_RDLOCK(&sla_trunks);
-	trunk = sla_find_trunk(trunk_name);
+	trunk = sla_find_trunk(args.trunk_name);
 	if (trunk)
 		ast_atomic_fetchadd_int((int *) &trunk->ref_count, 1);
 	AST_RWLIST_UNLOCK(&sla_trunks);
 
 	if (!trunk) {
-		ast_log(LOG_ERROR, "SLA Trunk '%s' not found!\n", trunk_name);
+		ast_log(LOG_ERROR, "SLA Trunk '%s' not found!\n", args.trunk_name);
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
 		ast_atomic_fetchadd_int((int *) &trunk->ref_count, -1);
 		sla_queue_event(SLA_EVENT_CHECK_RELOAD);	
@@ -4969,7 +5025,7 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 
 	if (trunk->chan) {
 		ast_log(LOG_ERROR, "Call came in on %s, but the trunk is already in use!\n",
-			trunk_name);
+			args.trunk_name);
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
 		ast_atomic_fetchadd_int((int *) &trunk->ref_count, -1);
 		sla_queue_event(SLA_EVENT_CHECK_RELOAD);	
@@ -4985,7 +5041,7 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	snprintf(conf_name, sizeof(conf_name), "SLA_%s", trunk_name);
+	snprintf(conf_name, sizeof(conf_name), "SLA_%s", args.trunk_name);
 	conf = build_conf(conf_name, "", "", 1, 1, 1, chan);
 	if (!conf) {
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
@@ -4995,8 +5051,15 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 	}
 	ast_set_flag(&conf_flags, 
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_MARKEDUSER | CONFFLAG_PASS_DTMF);
-	ast_indicate(chan, AST_CONTROL_RINGING);
-	conf_run(chan, conf, conf_flags.flags, NULL);
+
+	if (ast_test_flag(&opt_flags, SLA_TRUNK_OPT_MOH)) {
+		ast_indicate(chan, -1);
+		ast_set_flag(&conf_flags, CONFFLAG_MOH);
+		conf_opt_args[OPT_ARG_MOH_CLASS] = opts[SLA_TRUNK_OPT_ARG_MOH_CLASS];
+	} else
+		ast_indicate(chan, AST_CONTROL_RINGING);
+
+	conf_run(chan, conf, conf_flags.flags, opts);
 	dispose_conf(conf);
 	conf = NULL;
 	trunk->chan = NULL;
