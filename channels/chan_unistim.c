@@ -223,8 +223,6 @@ static struct sockaddr_in addr_from;
 static unsigned int size_addr_from = sizeof(addr_from);
 /*! Receive buffer address */
 static unsigned char *buff;
-/*! Used for test */
-static unsigned char flag = 0;
 static int unistim_reloading = 0;
 AST_MUTEX_DEFINE_STATIC(unistim_reload_lock);
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
@@ -1383,22 +1381,6 @@ static void send_texttitle(struct unistimsession *pte, const char *text)
 
 }
 
-static void SendTest(struct unistimsession *pte)
-{
-	char text[TEXT_LENGTH_MAX];
-	int i;
-	if (unistimdebug)
-		ast_verbose("Sending test packet %x\n", flag);
-
-	sprintf(text, "first/last char0x%x/0x%x", flag, flag + TEXT_LENGTH_MAX - 1);
-	send_text(TEXT_LINE1, TEXT_NORMAL, pte, text);
-
-	for (i = 0; i < TEXT_LENGTH_MAX; i++) {
-		text[i] = flag++;
-	}
-	text[i] = '\0';
-	send_text(TEXT_LINE0, TEXT_NORMAL, pte, text);
-}
 static void send_date_time(struct unistimsession *pte)
 {
 	BUFFSEND;
@@ -3033,14 +3015,14 @@ static void show_entry_history(struct unistimsession *pte, FILE ** f)
 		fclose(*f);
 		return;
 	}
-	line[TEXT_LENGTH_MAX + 1] = 0;
+	line[sizeof(line) - 1] = '\0';
 	send_text(TEXT_LINE0, TEXT_NORMAL, pte, line);
 	if (fread(line, TEXT_LENGTH_MAX, 1, *f) != 1) {
 		display_last_error("Can't read callerid entry");
 		fclose(*f);
 		return;
 	}
-	line[TEXT_LENGTH_MAX + 1] = 0;
+	line[sizeof(line) - 1] = '\0';
 	ast_copy_string(pte->device->lst_cid, line, sizeof(pte->device->lst_cid));
 	send_text(TEXT_LINE1, TEXT_NORMAL, pte, line);
 	if (fread(line, TEXT_LENGTH_MAX, 1, *f) != 1) {
@@ -3048,7 +3030,7 @@ static void show_entry_history(struct unistimsession *pte, FILE ** f)
 		fclose(*f);
 		return;
 	}
-	line[TEXT_LENGTH_MAX + 1] = 0;
+	line[sizeof(line) - 1] = '\0';
 	send_text(TEXT_LINE2, TEXT_NORMAL, pte, line);
 	fclose(*f);
 
@@ -3427,12 +3409,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 		if (unistimdebug)
 			ast_verbose("Key pressed : keycode = 0x%.2x - current state : %d\n", keycode,
 						pte->state);
-		/* test key */
-		if (keycode == KEY_COMPUTR) {
-			SendTest(pte);
-			return;
-		}
-		/* End of the test section */
+
 		switch (pte->state) {
 		case STATE_INIT:
 			if (unistimdebug)
@@ -4413,16 +4390,16 @@ static int unistim_sendtext(struct ast_channel *ast, const char *text)
 			return 0;
 		}
 		memcpy(tmp, text + TEXT_LENGTH_MAX, TEXT_LENGTH_MAX);
-		tmp[TEXT_LENGTH_MAX + 1] = '\0';
+		tmp[sizeof(tmp) - 1] = '\0';
 		send_text(TEXT_LINE2, TEXT_NORMAL, pte, tmp);
 		return 0;
 	}
 	send_text(TEXT_LINE0, TEXT_NORMAL, pte, text);
 	memcpy(tmp, text + TEXT_LENGTH_MAX, TEXT_LENGTH_MAX);
-	tmp[TEXT_LENGTH_MAX + 1] = '\0';
+	tmp[sizeof(tmp) - 1] = '\0';
 	send_text(TEXT_LINE1, TEXT_NORMAL, pte, tmp);
 	memcpy(tmp, text + TEXT_LENGTH_MAX * 2, TEXT_LENGTH_MAX);
-	tmp[TEXT_LENGTH_MAX + 1] = '\0';
+	tmp[sizeof(tmp) - 1] = '\0';
 	send_text(TEXT_LINE2, TEXT_NORMAL, pte, tmp);
 	return 0;
 }
