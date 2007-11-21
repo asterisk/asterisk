@@ -38,7 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/astobj.h"
 #include "asterisk/io.h"
-#include "asterisk/options.h"
 
 /* Message expiry time in milliseconds */
 #define SMDI_MSG_EXPIRY_TIME	30000 /* 30 seconds */

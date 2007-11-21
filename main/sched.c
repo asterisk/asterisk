@@ -43,7 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/options.h"
 
 struct sched {
 	AST_LIST_ENTRY(sched) list;

@@ -47,7 +47,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/http.h"
 #include "asterisk/utils.h"
 #include "asterisk/strings.h"
-#include "asterisk/options.h"
 #include "asterisk/config.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/version.h"

@@ -93,7 +93,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #endif
 
 #include "asterisk/network.h"
-#include "asterisk/options.h"
 #include "asterisk/cli.h"
 #include "asterisk/channel.h"
 #include "asterisk/ulaw.h"

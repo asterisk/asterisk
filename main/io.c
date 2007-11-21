@@ -32,7 +32,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/io.h"
 #include "asterisk/utils.h"
-#include "asterisk/options.h"
 
 #ifdef DEBUG_IO
 #define DEBUG DEBUG_M

@@ -38,7 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/indications.h"
 #include "asterisk/frame.h"
-#include "asterisk/options.h"
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 

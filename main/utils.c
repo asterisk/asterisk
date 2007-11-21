@@ -41,7 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/io.h"
 #include "asterisk/md5.h"
 #include "asterisk/sha1.h"
-#include "asterisk/options.h"
 #include "asterisk/cli.h"
 #include "asterisk/linkedlists.h"
 

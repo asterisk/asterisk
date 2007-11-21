@@ -65,7 +65,6 @@ static int syslog_level_map[] = {
 #undef _ASTERISK_LOGGER_H	/* now include logger.h */
 #include "asterisk/logger.h"
 #include "asterisk/lock.h"
-#include "asterisk/options.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
 #include "asterisk/term.h"

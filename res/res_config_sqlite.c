@@ -92,7 +92,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/config.h"
 #include "asterisk/module.h"
-#include "asterisk/options.h"
 #include "asterisk/linkedlists.h"
 
 #define MACRO_BEGIN	do {

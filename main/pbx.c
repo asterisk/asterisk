@@ -43,7 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/pbx.h"
 #include "asterisk/channel.h"
-#include "asterisk/options.h"
 #include "asterisk/file.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cdr.h"

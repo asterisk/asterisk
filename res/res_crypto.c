@@ -44,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/say.h"
 #include "asterisk/module.h"
-#include "asterisk/options.h"
 #include "asterisk/crypto.h"
 #include "asterisk/md5.h"
 #include "asterisk/cli.h"

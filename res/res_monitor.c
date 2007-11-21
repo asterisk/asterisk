@@ -42,7 +42,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
 #include "asterisk/config.h"
-#include "asterisk/options.h"
 
 AST_MUTEX_DEFINE_STATIC(monitorlock);
 

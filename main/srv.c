@@ -45,7 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/srv.h"
 #include "asterisk/dns.h"
-#include "asterisk/options.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
 

@@ -30,7 +30,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/_private.h"
 #include "asterisk/lock.h"
 #include "asterisk/frame.h"
-#include "asterisk/options.h"
 #include "asterisk/channel.h"
 #include "asterisk/cli.h"
 #include "asterisk/term.h"

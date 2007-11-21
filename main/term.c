@@ -34,7 +34,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 
 #include "asterisk/term.h"
-#include "asterisk/options.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 

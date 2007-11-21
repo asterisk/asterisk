@@ -33,7 +33,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/paths.h"	/* use ast_config_AST_DATA_DIR */
 #include "asterisk/sched.h"
-#include "asterisk/options.h"
 #include "asterisk/channel.h"
 #include "asterisk/file.h"
 #include "asterisk/image.h"

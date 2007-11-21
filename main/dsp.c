@@ -52,7 +52,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"
 #include "asterisk/utils.h"
-#include "asterisk/options.h"
 
 /*! Number of goertzels for progress detect */
 enum gsamp_size {

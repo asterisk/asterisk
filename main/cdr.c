@@ -42,7 +42,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cdr.h"
 #include "asterisk/callerid.h"
 #include "asterisk/causes.h"
-#include "asterisk/options.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/utils.h"
 #include "asterisk/sched.h"

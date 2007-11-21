@@ -33,7 +33,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/linkedlists.h"
 #include "asterisk/cli.h"
 #include "asterisk/term.h"
-#include "asterisk/options.h"
 #include "asterisk/speech.h"
 
 

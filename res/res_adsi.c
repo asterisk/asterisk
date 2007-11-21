@@ -46,7 +46,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/config.h"
 #include "asterisk/file.h"
-#include "asterisk/options.h"
 
 #define DEFAULT_ADSI_MAX_RETRIES 3
 
