@@ -27,6 +27,10 @@
 extern "C" {
 #endif
 
+/* these two are used in struct ast_audiohook */
+#include "asterisk/lock.h"
+#include "asterisk/linkedlists.h"
+
 #include "asterisk/slinfactory.h"
 
 enum ast_audiohook_type {

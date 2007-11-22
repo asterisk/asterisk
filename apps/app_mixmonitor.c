@@ -39,15 +39,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/paths.h"	/* use ast_config_AST_MONITOR_DIR */
 #include "asterisk/file.h"
-#include "asterisk/channel.h"
 #include "asterisk/audiohook.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
-#include "asterisk/lock.h"
 #include "asterisk/cli.h"
 #include "asterisk/app.h"
-#include "asterisk/linkedlists.h"
-#include "asterisk/utils.h"
 
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 
