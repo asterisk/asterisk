@@ -29,23 +29,12 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <sys/time.h>
-#include <signal.h>
-#include <sys/ioctl.h>
-
-#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
-#include <fcntl.h>
-#endif
-
 #if defined (SOLARIS)
 #include <sys/sockio.h>
 #endif
 
 #include "asterisk/netsock.h"
-#include "asterisk/channel.h"
 #include "asterisk/utils.h"
-#include "asterisk/lock.h"
-#include "asterisk/srv.h"
 
 struct ast_netsock {
 	ASTOBJ_COMPONENTS(struct ast_netsock);

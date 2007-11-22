@@ -27,7 +27,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <fcntl.h>
 #include <dirent.h>
 #include <sys/stat.h>
 
