@@ -22,7 +22,8 @@ int dnsmgr_reload(void);		/*!< Provided by dnsmgr.c */
 void threadstorage_init(void);		/*!< Provided by threadstorage.c */
 void ast_event_init(void);		/*!< Provided by event.c */
 int ast_device_state_engine_init(void);	/*!< Provided by devicestate.c */
-int astobj2_init(void);			/*! Provided by astobj2.c */
+int astobj2_init(void);			/*!< Provided by astobj2.c */
+int ast_file_init(void);		/*!< Provided by file.c */
 
 /*!
  * \brief Reload asterisk modules.

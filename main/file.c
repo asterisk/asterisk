@@ -31,9 +31,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <dirent.h>
 #include <sys/stat.h>
 
+#include "asterisk/_private.h"	/* declare ast_file_init() */
 #include "asterisk/paths.h"	/* use ast_config_AST_DATA_DIR */
-#include "asterisk/frame.h"
-#include "asterisk/file.h"
+#include "asterisk/mod_format.h"
 #include "asterisk/cli.h"
 #include "asterisk/channel.h"
 #include "asterisk/sched.h"

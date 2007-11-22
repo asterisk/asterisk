@@ -42,7 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #endif
 
-#include "asterisk/file.h"
+#include "asterisk/mod_format.h"
 #include "asterisk/module.h"
 
 /*

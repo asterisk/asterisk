@@ -29,7 +29,6 @@
 extern "C" {
 #endif
 
-#include <sys/types.h>
 #include <sys/time.h>
 
 #include "asterisk/endian.h"

@@ -31,7 +31,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/file.h"
+#include "asterisk/mod_format.h"
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
 
