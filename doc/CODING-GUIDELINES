@@ -1,5 +1,15 @@
-== Asterisk Patch/Coding Guidelines ==
---------------------------------------
+	    --------------------------------------
+	    == Asterisk Coding Guidelines ==
+	    --------------------------------------
+
+This document gives some basic indication on how the asterisk code
+is structured. The first part covers the structure and style of
+individual files. The second part (TO BE COMPLETED) covers the
+overall code structure and the build architecture.
+
+Please read it to the end to understand in detail how the asterisk
+code is organized, and to know how to extend asterisk or contribute
+new code.
 
 We are looking forward to your contributions to Asterisk - the 
 Open Source PBX! As Asterisk is a large and in some parts very
@@ -24,6 +34,10 @@ can list them in the "svn diff" command:
 
 /usr/src/asterisk$ svn diff somefile.c someotherfile.c > mypatch
 
+		-----------------------------------
+		==  PART ONE: CODING GUIDELINES  ==
+		-----------------------------------
+
 * General rules
 ---------------
 
@@ -44,6 +58,62 @@ can list them in the "svn diff" command:
 
 - Use spaces instead of tabs when aligning in-line comments or #defines (this makes 
   your comments aligned even if the code is viewed with another tabsize)
+
+* File structure and header inclusion
+-------------------------------------
+
+Every C source file should start with a proper copyright
+and a brief description of the content of the file.
+Following that, you should immediately put the following lines:
+
+#include "asterisk.h"
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+"asterisk.h" resolves OS and compiler dependencies for the basic
+set of unix functions (data types, system calls, basic I/O
+libraries) and the basic Asterisk APIs.
+ASTERISK_FILE_VERSION() stores in the executable information
+about the file.   
+
+Next, you should #include extra headers according to the functionality
+that your file uses or implements. For each group of functions that
+you use there is a common header, which covers OS header dependencies
+and defines the 'external' API of those functions (the equivalent
+of 'public' members of a class).  As an example:
+
+    asterisk/module.h
+        if you are implementing a module, this should be included in one
+        of the files that are linked with the module.
+
+    asterisk/fileio.h
+        access to extra file I/O functions (stat, fstat, playing with
+        directories etc)
+
+    asterisk/network.h
+        basic network I/O - all of the socket library, select/poll,
+        and asterisk-specific (usually either thread-safe or reentrant
+        or both) functions to play with socket addresses.
+
+    asterisk/app.h
+        parsing of application arguments
+
+    asterisk/channel.h
+        struct ast_channel and functions to manipulate it
+
+For more information look at the headers in include/asterisk/ .
+These files are usually self-sufficient, i.e. they recursively #include
+all the extra headers they need.
+
+The equivalent of 'private' members of a class are either directly in
+the C source file, or in files named asterisk/mod_*.h to make it clear
+that they are not for inclusion by generic code.
+
+Keep the number of header files small by not including them unnecessarily.
+Don't cut&paste list of header files from other sources, but only include
+those you really need. Apart from obvious cases (e.g. module.h which
+is almost always necessary) write a short comment next to each #include to
+explain why you need it.
+
 
 * Declaration of functions and variables
 ----------------------------------------
@@ -553,6 +623,13 @@ The old style, with one event named "ThisEventOn" and another named
 
 Check manager.txt for more information on manager and existing
 headers. Please update this file if you add new headers.
+
+	    ------------------------------------
+	    ==  PART TWO: BUILD ARCHITECTURE  ==
+	    ------------------------------------
+
+TO BE COMPLETED
+
 
 -----------------------------------------------
 Welcome to the Asterisk development community!
