@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/cli.h"
+#include "asterisk/channel.h"	/* AST_MAX_EXTENSION */
 #include "asterisk/callerid.h"
 
 static char *config = "extensions.conf";

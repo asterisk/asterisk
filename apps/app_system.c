@@ -32,6 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
+#include "asterisk/channel.h"	/* autoservice */
 
 static char *app = "System";
 

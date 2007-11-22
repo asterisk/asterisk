@@ -1442,6 +1442,15 @@ struct ast_variable *ast_channeltype_list(void);
  */
 const char *ast_channel_reason2str(int reason);
 
+/*! \brief channel group info
+ */
+struct ast_group_info {
+        struct ast_channel *chan;
+        char *category;
+        char *group;
+        AST_LIST_ENTRY(ast_group_info) list;   
+};
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

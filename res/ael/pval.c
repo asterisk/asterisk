@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/cli.h"
 #include "asterisk/app.h"
+#include "asterisk/channel.h"
 #include "asterisk/callerid.h"
 #include "asterisk/pval.h"
 #include "asterisk/ael_structs.h"

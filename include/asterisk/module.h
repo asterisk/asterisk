@@ -370,6 +370,59 @@ static void __restore_globals(void)
 		       )
 #endif
 
+/*! 
+ * \brief Register an application.
+ *
+ * \param app Short name of the application
+ * \param execute a function callback to execute the application. It should return
+ *                non-zero if the channel needs to be hung up.
+ * \param synopsis a short description (one line synopsis) of the application
+ * \param description long description with all of the details about the use of 
+ *                    the application
+ * 
+ * This registers an application with Asterisk's internal application list. 
+ * \note The individual applications themselves are responsible for registering and unregistering
+ *       and unregistering their own CLI commands.
+ * 
+ * \retval 0 success 
+ * \retval -1 failure.
+ */
+#define ast_register_application(app, execute, synopsis, description) ast_register_application2(app, execute, synopsis, description, ast_module_info->self)
+
+/*!
+ * \brief Register an application.
+ *
+ * \param app Short name of the application
+ * \param execute a function callback to execute the application. It should return
+ *                non-zero if the channel needs to be hung up.
+ * \param synopsis a short description (one line synopsis) of the application
+ * \param description long description with all of the details about the use of
+ *                    the application
+ * \param mod module this application belongs to
+ *
+ * This registers an application with Asterisk's internal application list.
+ * \note The individual applications themselves are responsible for registering and unregistering
+ *       and unregistering their own CLI commands.
+ *
+ * \retval 0 success
+ * \retval -1 failure.
+ */
+int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, void *),
+				     const char *synopsis, const char *description, void *mod);
+
+/*! 
+ * \brief Unregister an application
+ * 
+ * \param app name of the application (does not have to be the same string as the one that was registered)
+ * 
+ * This unregisters an application from Asterisk's internal application list.
+ * 
+ * \retval 0 success 
+ * \retval -1 failure
+ */
+int ast_unregister_application(const char *app);
+
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
+#include "asterisk/channel.h"
 #include "asterisk/dsp.h"	/* use dsp routines for silence detection */
 
 

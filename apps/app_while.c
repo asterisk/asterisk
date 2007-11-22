@@ -31,6 +31,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
+#include "asterisk/channel.h"
 
 static char *start_app = "While";
 static char *start_desc = 

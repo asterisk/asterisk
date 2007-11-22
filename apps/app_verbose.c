@@ -31,6 +31,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
+#include "asterisk/channel.h"
 
 static char *app_verbose = "Verbose";
 static char *verbose_synopsis = "Send arbitrary text to verbose output";

@@ -171,5 +171,7 @@ int64_t ast_mark(int, int start1_stop0);
 struct ast_channel;
 struct ast_frame;
 struct ast_module;
+struct ast_variable;
+struct ast_str;
 
 #endif /* _ASTERISK_H */

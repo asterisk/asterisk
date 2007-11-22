@@ -23,6 +23,8 @@
 #ifndef _ASTERISK_APP_H
 #define _ASTERISK_APP_H
 
+struct ast_flags64;
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -227,12 +229,7 @@ int ast_unlock_path(const char *path);
 /*! Read a file into asterisk*/
 char *ast_read_textfile(const char *file);
 
-struct ast_group_info {
-	struct ast_channel *chan;
-	char *category;
-	char *group;
-	AST_LIST_ENTRY(ast_group_info) list;
-};
+struct ast_group_info;
 
 /*! Split a group string into group and category, returning a default category if none is provided. */
 int ast_app_group_split_group(const char *data, char *group, int group_max, char *category, int category_max);
