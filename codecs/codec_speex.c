@@ -38,7 +38,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <fcntl.h>
 #include <speex/speex.h>
 
 /* We require a post 1.1.8 version of Speex to enable preprocessing

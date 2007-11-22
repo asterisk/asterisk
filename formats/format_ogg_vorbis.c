@@ -39,7 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #ifdef _WIN32
 #include <io.h>
-#include <fcntl.h>
 #endif
 
 #include "asterisk/mod_format.h"

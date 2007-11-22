@@ -30,8 +30,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <fcntl.h>
-
 #include "asterisk/linkedlists.h"
 #include "asterisk/module.h"
 #include "asterisk/config.h"

@@ -29,8 +29,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <fcntl.h>
-
 #include "asterisk/translate.h"
 #include "asterisk/module.h"
 #include "asterisk/utils.h"

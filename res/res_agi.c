@@ -30,7 +30,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <math.h>
 #include <signal.h>
 #include <sys/time.h>
-#include <fcntl.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 
