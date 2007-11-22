@@ -28,7 +28,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"

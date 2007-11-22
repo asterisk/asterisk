@@ -29,17 +29,15 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/lock.h"
 #include "asterisk/file.h"
-#include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
-#include "asterisk/translate.h"
-#include "asterisk/utils.h"
 #include "asterisk/app.h"
+/* This file provides config-file based 'say' functions, and implenents
+ * some CLI commands.
+ */
+#include "asterisk/say.h"	/* provides config-file based 'say' functions */
 #include "asterisk/cli.h"
-#include "asterisk/localtime.h"
-#include "asterisk/say.h"
 
 static char *app = "Playback";
 

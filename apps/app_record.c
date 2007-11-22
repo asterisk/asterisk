@@ -29,15 +29,11 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/lock.h"
 #include "asterisk/file.h"
-#include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
-#include "asterisk/translate.h"
-#include "asterisk/dsp.h"
-#include "asterisk/utils.h"
 #include "asterisk/app.h"
+#include "asterisk/dsp.h"	/* use dsp routines for silence detection */
 
 
 static char *app = "Record";
