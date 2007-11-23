@@ -4877,7 +4877,8 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 				ast_getformatname(f->subclass), p->owner->name);
 			return &ast_null_frame;
 		}
-		ast_debug(1, "Oooh, format changed to %d\n", f->subclass);
+		ast_debug(1, "Oooh, format changed to %d %s\n",
+			f->subclass, ast_getformatname(f->subclass));
 		p->owner->nativeformats = (p->owner->nativeformats & (AST_FORMAT_VIDEO_MASK | AST_FORMAT_TEXT_MASK)) | f->subclass;
 		ast_set_read_format(p->owner, p->owner->readformat);
 		ast_set_write_format(p->owner, p->owner->writeformat);
@@ -5867,6 +5868,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			/* Note: This should all be done in the context of the m= above */
 			if (!strncasecmp(mimeSubtype, "H26", 3) || !strncasecmp(mimeSubtype, "MP4", 3)) {         /* Video */
 				/* Not going to do anything here for the moment, but we will soon */
+				ast_rtp_set_rtpmap_type(newtextrtp, codec, "video", mimeSubtype, 1);
 			} else if (!strncasecmp(mimeSubtype, "T140",4)) { /* Text */
 				if (p->trtp) {
 					/* ast_verbose("Adding t140 mimeSubtype to textrtp struct\n"); */
@@ -5995,7 +5997,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
 		ast_verbose("Capabilities: us - %s, peer - audio=%s/video=%s/text=%s, combined - %s\n",
 			    ast_getformatname_multiple(s1, BUFSIZ, p->capability),
-			    ast_getformatname_multiple(s2, BUFSIZ, newpeercapability),
+			    ast_getformatname_multiple(s2, BUFSIZ, peercapability),
 			    ast_getformatname_multiple(s3, BUFSIZ, vpeercapability),
 			    ast_getformatname_multiple(s4, BUFSIZ, tpeercapability),
 			    ast_getformatname_multiple(s5, BUFSIZ, newjointcapability));
