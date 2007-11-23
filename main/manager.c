@@ -69,6 +69,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/threadstorage.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/term.h"
+#include "asterisk/astobj2.h"
 
 struct fast_originate_helper {
 	char tech[AST_MAX_EXTENSION];
@@ -274,6 +275,47 @@ static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int low
 	}
 }
 
+struct variable_count {
+	char *varname;
+	int count;
+};
+
+static int compress_char(char c)
+{
+	c &= 0x7f;
+	if (c < 32)
+		return 0;
+	else if (c >= 'a' && c <= 'z')
+		return c - 64;
+	else if (c > 'z')
+		return '_';
+	else
+		return c - 32;
+}
+
+static int variable_count_hash_fn(const void *vvc, const int flags)
+{
+	const struct variable_count *vc = vvc;
+	int res = 0, i;
+	for (i = 0; i < 5; i++) {
+		if (vc->varname[i] == '\0')
+			break;
+		res += compress_char(vc->varname[i]) << (i * 6);
+	}
+	return res;
+}
+
+static int variable_count_cmp_fn(void *obj, void *vstr, int flags)
+{
+	/* Due to the simplicity of struct variable_count, it makes no difference
+	 * if you pass in objects or strings, the same operation applies. This is
+	 * due to the fact that the hash occurs on the first element, which means
+	 * the address of both the struct and the string are exactly the same. */
+	struct variable_count *vc = obj;
+	char *str = vstr;
+	return !strcmp(vc->varname, str) ? CMP_MATCH : 0;
+}
+
 static char *xml_translate(char *in, struct ast_variable *vars)
 {
 	struct ast_variable *v;
@@ -287,7 +329,9 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 	int escaped = 0;
 	int inobj = 0;
 	int x;
-	
+	struct variable_count *vc = NULL;
+	struct ao2_container *vco = NULL;
+
 	for (v = vars; v; v = v->next) {
 		if (!dest && !strcasecmp(v->name, "ajaxdest"))
 			dest = v->value;
@@ -303,7 +347,7 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 			colons++;
 		else if (in[x] == '\n')
 			breaks++;
-		else if (strchr("&\"<>", in[x]))
+		else if (strchr("&\"<>\'", in[x]))
 			escaped++;
 	}
 	len = (size_t) (strlen(in) + colons * 5 + breaks * (40 + strlen(dest) + strlen(objtype)) + escaped * 10); /* foo="bar", "<response type=\"object\" id=\"dest\"", "&amp;" */
@@ -319,6 +363,10 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 			if ((count > 3) && inobj) {
 				ast_build_string(&tmp, &len, " /></response>\n");
 				inobj = 0;
+
+				/* Entity is closed, so close out the name cache */
+				ao2_ref(vco, -1);
+				vco = NULL;
 			}
 			count = 0;
 			while (*in && (*in < 32)) {
@@ -333,19 +381,39 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 				if (*val == ' ')
 					val++;
 				if (!inobj) {
+					vco = ao2_container_alloc(37, variable_count_hash_fn, variable_count_cmp_fn);
 					ast_build_string(&tmp, &len, "<response type='object' id='%s'><%s", dest, objtype);
 					inobj = 1;
 				}
-				ast_build_string(&tmp, &len, " ");				
+
+				/* Check if the var has been used already */
+				if ((vc = ao2_find(vco, var, 0)))
+					vc->count++;
+				else {
+					/* Create a new entry for this one */
+					vc = ao2_alloc(sizeof(*vc), NULL);
+					vc->varname = var;
+					vc->count = 1;
+					/* Increment refcount, because we're going to deref once later */
+					ao2_ref(vc, 1);
+					ao2_link(vco, vc);
+				}
+
+				ast_build_string(&tmp, &len, " ");
 				xml_copy_escape(&tmp, &len, var, 1);
+				if (vc->count > 1)
+					ast_build_string(&tmp, &len, "-%d", vc->count);
 				ast_build_string(&tmp, &len, "='");
 				xml_copy_escape(&tmp, &len, val, 0);
 				ast_build_string(&tmp, &len, "'");
+				ao2_ref(vc, -1);
 			}
 		}
 	}
 	if (inobj)
 		ast_build_string(&tmp, &len, " /></response>\n");
+	if (vco)
+		ao2_ref(vco, -1);
 	return out;
 }
 
