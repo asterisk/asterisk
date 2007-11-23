@@ -69,6 +69,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/threadstorage.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/term.h"
+#include "asterisk/astobj2.h"
 
 /*!
  * Linked list of events.
@@ -2935,6 +2936,47 @@ static void xml_copy_escape(struct ast_str **out, const char *src, int mode)
 	}
 }
 
+struct variable_count {
+	char *varname;
+	int count;
+};
+
+static int compress_char(char c)
+{
+	c &= 0x7f;
+	if (c < 32)
+		return 0;
+	else if (c >= 'a' && c <= 'z')
+		return c - 64;
+	else if (c > 'z')
+		return '_';
+	else
+		return c - 32;
+}
+
+static int variable_count_hash_fn(const void *vvc, const int flags)
+{
+	const struct variable_count *vc = vvc;
+	int res = 0, i;
+	for (i = 0; i < 5; i++) {
+		if (vc->varname[i] == '\0')
+			break;
+		res += compress_char(vc->varname[i]) << (i * 6);
+	}
+	return res;
+}
+
+static int variable_count_cmp_fn(void *obj, void *vstr, int flags)
+{
+	/* Due to the simplicity of struct variable_count, it makes no difference
+	 * if you pass in objects or strings, the same operation applies. This is
+	 * due to the fact that the hash occurs on the first element, which means
+	 * the address of both the struct and the string are exactly the same. */
+	struct variable_count *vc = obj;
+	char *str = vstr;
+	return !strcmp(vc->varname, str) ? CMP_MATCH : 0;
+}
+
 /*! \brief Convert the input into XML or HTML.
  * The input is supposed to be a sequence of lines of the form
  *	Name: value
@@ -2972,6 +3014,8 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *v
 	int in_data = 0;	/* parsing data */
 	int inobj = 0;
 	int xml = (format == FORMAT_XML);
+	struct variable_count *vc = NULL;
+	struct ao2_container *vco = NULL;
 
 	for (v = vars; v; v = v->next) {
 		if (!dest && !strcasecmp(v->name, "ajaxdest"))
@@ -2983,36 +3027,14 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *v
 		dest = "unknown";
 	if (!objtype)
 		objtype = "generic";
-#if 0
-	/* determine how large is the response.
-	 * This is a heuristic - counting colons (for headers),
-	 * newlines (for extra arguments), and escaped chars.
-	 * XXX needs to be checked carefully for overflows.
-	 * Even better, use some code that allows extensible strings.
-	 */
-	for (x = 0; in[x]; x++) {
-		if (in[x] == ':')
-			colons++;
-		else if (in[x] == '\n')
-			breaks++;
-		else if (strchr("&\"<>", in[x]))
-			escaped++;
-	}
-	len = (size_t) (1 + strlen(in) + colons * 5 + breaks * (40 + strlen(dest) + strlen(objtype)) + escaped * 10); /* foo="bar", "<response type=\"object\" id=\"dest\"", "&amp;" */
-	out = ast_malloc(len);
-	if (!out)
-		return NULL;
-	tmp = out;
-	*tmp = '\0';
-#endif
+
 	/* we want to stop when we find an empty line */
 	while (in && *in) {
 		val = strsep(&in, "\r\n");	/* mark start and end of line */
 		if (in && *in == '\n')		/* remove trailing \n if any */
 			in++;
 		ast_trim_blanks(val);
-		if (0)
-			ast_verbose("inobj %d in_data %d line <%s>\n", inobj, in_data, val);
+		ast_debug(5, "inobj %d in_data %d line <%s>\n", inobj, in_data, val);
 		if (ast_strlen_zero(val)) {
 			if (in_data) { /* close data */
 				ast_str_append(out, 0, xml ? "'" : "</td></tr>\n");
@@ -3021,8 +3043,11 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *v
 			ast_str_append(out, 0, xml ? " /></response>\n" :
 				"<tr><td colspan=\"2\"><hr></td></tr>\r\n");
 			inobj = 0;
+			ao2_ref(vco, -1);
+			vco = NULL;
 			continue;
 		}
+
 		/* we expect Name: value lines */
 		if (in_data) {
 			var = NULL;
@@ -3036,16 +3061,33 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *v
 				var = "Opaque-data";
 			}
 		}
+
 		if (!inobj) {
 			if (xml)
 				ast_str_append(out, 0, "<response type='object' id='%s'><%s", dest, objtype);
 			else
 				ast_str_append(out, 0, "<body>\n");
+			vco = ao2_container_alloc(37, variable_count_hash_fn, variable_count_cmp_fn);
 			inobj = 1;
 		}
+
 		if (!in_data) {	/* build appropriate line start */
 			ast_str_append(out, 0, xml ? " " : "<tr><td>");
+			if ((vc = ao2_find(vco, var, 0)))
+				vc->count++;
+			else {
+				/* Create a new entry for this one */
+				vc = ao2_alloc(sizeof(*vc), NULL);
+				vc->varname = var;
+				vc->count = 1;
+				/* Increment refcount, because we're going to deref once later */
+				ao2_ref(vc, 1);
+				ao2_link(vco, vc);
+			}
 			xml_copy_escape(out, var, xml ? 1 | 2 : 0);
+			if (vc->count > 1)
+				ast_str_append(out, 0, "-%d", vc->count);
+			ao2_ref(vc, -1);
 			ast_str_append(out, 0, xml ? "='" : "</td><td>");
 			if (!strcmp(var, "Opaque-data"))
 				in_data = 1;
@@ -3056,9 +3098,11 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *v
 		else
 			ast_str_append(out, 0, xml ? "\n" : "<br>\n");
 	}
-	if (inobj)
+	if (inobj) {
 		ast_str_append(out, 0, xml ? " /></response>\n" :
 			"<tr><td colspan=\"2\"><hr></td></tr>\r\n");
+		ao2_ref(vco, -1);
+	}
 }
 
 static struct ast_str *generic_http_callback(enum output_format format,
