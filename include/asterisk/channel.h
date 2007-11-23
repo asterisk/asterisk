@@ -203,13 +203,29 @@ struct ast_datastore {
  * \note All string fields here are malloc'ed, so they need to be
  * freed when the structure is deleted.
  * Also, NULL and "" must be considered equivalent.
+ * 
+ * SIP and IAX2 has utf8 encoded Unicode caller ID names.
+ * In some cases, we also have an alternative (RPID) E.164 number that can be used
+ * as caller ID on numeric E.164 phone networks (zaptel or SIP/IAX2 to pstn gateway).
+
+ * SIP and IAX2 will prefer the cid_utf8 if it exists, otherwise use the cid_name.
+ * \todo Implement this in chan_sip.c and chan_iax2.c
+ *
+ * \todo Implement settings for transliteration between UTF8 caller ID names in
+ *       to Ascii Caller ID's (Zaptel). Östen Åsklund might be transliterated into
+ *	 Osten Asklund or Oesten Aasklund depending upon language and person...
+ *	 We need automatic routines for incoming calls and static settings for
+ * 	 our own accounts.
  */
 struct ast_callerid {
 	char *cid_dnid;		/*!< Malloc'd Dialed Number Identifier */
 	char *cid_num;		/*!< Malloc'd Caller Number */
-	char *cid_name;		/*!< Malloc'd Caller Name */
+	char *cid_name;		/*!< Malloc'd Caller Name (ASCII) */
 	char *cid_ani;		/*!< Malloc'd ANI */
 	char *cid_rdnis;	/*!< Malloc'd RDNIS */
+	char *cid_utf8;		/*!< Malloc'd Caller ID name in utf8 */
+	char *cid_domain;	/*!< Malloc'd Caller ID domain (ascii. IDN supported) */
+	char *cid_e164;		/*!< Malloc'd Alternative Caller ID E.164 (alternative to SIP/IAX2 utf8 uri, RPID) */
 	int cid_pres;		/*!< Callerid presentation/screening */
 	int cid_ani2;		/*!< Callerid ANI 2 (Info digits) */
 	int cid_ton;		/*!< Callerid Type of Number */
