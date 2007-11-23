@@ -289,7 +289,8 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 		*op = '\0';
 	newval = va_arg(aq, const char *);
 	op = !strchr(newparam, ' ') ? " =" : "";
-	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?", table, newparam, op);
+	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?%s", table, newparam, op,
+		strcasestr(newparam, "LIKE") ? " ESCAPE '\\'" : "");
 	while((newparam = va_arg(aq, const char *))) {
 		op = !strchr(newparam, ' ') ? " =" : "";
 		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?%s", newparam, op,
