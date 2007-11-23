@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2007, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -19,6 +19,7 @@
  * at the top of the source tree.
  */
 
+// #define HAVE_VIDEO_CONSOLE	// uncomment to enable video
 /*! \file
  *
  * \brief Channel driver for OSS sound cards
@@ -303,6 +304,7 @@ static struct sound sounds[] = {
 	{ -1, NULL, 0, 0, 0, 0 },	/* end marker */
 };
 
+struct video_desc;		/* opaque type for video support */
 
 /*!
  * \brief descriptor for one of our channels.
@@ -359,6 +361,9 @@ struct chan_oss_pvt {
 	pthread_t sthread;
 
 	struct ast_channel *owner;
+
+	struct video_desc *env;			/*!< parameters for video support */
+
 	char ext[AST_MAX_EXTENSION];
 	char ctx[AST_MAX_CONTEXT];
 	char language[MAX_LANGUAGE];
@@ -377,6 +382,15 @@ struct chan_oss_pvt {
 	struct ast_frame read_f;	/*!< returned by oss_read */
 };
 
+/*! forward declaration */
+static struct chan_oss_pvt *find_desc(char *dev);
+
+/*! \brief return the pointer to the video descriptor */
+static attribute_unused struct video_desc *get_video_desc(struct ast_channel *c)
+{
+	struct chan_oss_pvt *o = c->tech_pvt;
+	return o ? o->env : NULL;
+}
 static struct chan_oss_pvt oss_default = {
 	.cursound = -1,
 	.sounddev = -1,
@@ -410,10 +424,24 @@ static int oss_indicate(struct ast_channel *chan, int cond, const void *data, si
 static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static char tdesc[] = "OSS Console Channel Driver";
 
+#ifdef HAVE_VIDEO_CONSOLE
+#include "console_video.c"
+#else
+#define CONSOLE_VIDEO_CMDS					\
+		"console {device}"
+/* provide replacements for some symbols used */
+#define	console_write_video		NULL
+#define	console_video_start(x, y)	{}
+#define	console_video_uninit(x)		{}
+#define	console_video_config(x, y, z)	1	/* pretend nothing recognised */
+#define	console_video_cli(x, y, z)	0	/* pretend nothing recognised */
+#define	CONSOLE_FORMAT_VIDEO		0
+#endif
+
 static const struct ast_channel_tech oss_tech = {
 	.type = "Console",
 	.description = tdesc,
-	.capabilities = AST_FORMAT_SLINEAR,
+	.capabilities = AST_FORMAT_SLINEAR | CONSOLE_FORMAT_VIDEO,
 	.requester = oss_request,
 	.send_digit_begin = oss_digit_begin,
 	.send_digit_end = oss_digit_end,
@@ -423,6 +451,7 @@ static const struct ast_channel_tech oss_tech = {
 	.read = oss_read,
 	.call = oss_call,
 	.write = oss_write,
+	.write_video = console_write_video,
 	.indicate = oss_indicate,
 	.fixup = oss_fixup,
 };
@@ -857,6 +886,7 @@ static int oss_hangup(struct ast_channel *c)
 	c->tech_pvt = NULL;
 	o->owner = NULL;
 	ast_verbose(" << Hangup on console >> \n");
+	console_video_uninit(o->env);
 	ast_module_unref(ast_module_info->self);
 	if (o->hookstate) {
 		if (o->autoanswer || o->autohangup) {
@@ -1021,6 +1051,10 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 		setformat(o, O_RDWR);
 	ast_channel_set_fd(c, 0, o->sounddev); /* -1 if device closed, override later */
 	c->nativeformats = AST_FORMAT_SLINEAR;
+	/* if the console makes the call, add video to the offer */
+	if (state == AST_STATE_RINGING)
+		c->nativeformats |= CONSOLE_FORMAT_VIDEO;
+
 	c->readformat = AST_FORMAT_SLINEAR;
 	c->writeformat = AST_FORMAT_SLINEAR;
 	c->tech_pvt = o;
@@ -1044,6 +1078,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 			/* XXX what about the channel itself ? */
 		}
 	}
+	console_video_start(get_video_desc(c), c); /* XXX cleanup */
 
 	return c;
 }
@@ -1082,6 +1117,46 @@ static struct ast_channel *oss_request(const char *type, int format, void *data,
 		return NULL;
 	}
 	return c;
+}
+
+static void store_config_core(struct chan_oss_pvt *o, const char *var, const char *value);
+
+/*! Generic console command handler. Basically a wrapper for a subset
+ *  of config file options which are also available from the CLI
+ */
+static char *console_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct chan_oss_pvt *o = find_desc(oss_active);
+	const char *var, *value;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = CONSOLE_VIDEO_CMDS;
+		e->usage = "Usage: " CONSOLE_VIDEO_CMDS "...\n"
+		"       Generic handler for console commands.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < e->args)
+		return CLI_SHOWUSAGE;
+	if (o == NULL) {
+		ast_log(LOG_WARNING, "Cannot find device %s (should not happen!)\n",
+			oss_active);
+		return CLI_FAILURE;
+	}
+	var = a->argv[e->args-1];
+	value = a->argc > e->args ? a->argv[e->args] : NULL;
+	if (value)      /* handle setting */
+		store_config_core(o, var, value);
+	if (console_video_cli(o->env, var, a->fd))	/* print video-related values */
+		return CLI_SUCCESS;
+	/* handle other values */
+	if (!strcasecmp(var, "device")) {
+		ast_cli(a->fd, "device is [%s]\n", o->device);
+	}
+	return CLI_SUCCESS;
 }
 
 static char *console_autoanswer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -1454,6 +1529,7 @@ static struct ast_cli_entry cli_oss[] = {
 	AST_CLI_DEFINE(console_dial, "Dial an extension on the console"),
 	AST_CLI_DEFINE(console_mute, "Disable/Enable mic input"),
 	AST_CLI_DEFINE(console_transfer, "Transfer a call to a different extension"),	
+	AST_CLI_DEFINE(console_cmd, "Generic console command"),
 	AST_CLI_DEFINE(console_sendtext, "Send text to the remote device"),
 	AST_CLI_DEFINE(console_autoanswer, "Sets/displays autoanswer"),
 	AST_CLI_DEFINE(console_boost, "Sets/displays mic boost in dB"),
@@ -1497,6 +1573,8 @@ static void store_config_core(struct chan_oss_pvt *o, const char *var, const cha
 	if (!ast_jb_read_conf(&global_jbconf, (char *)var,(char *) value))
 		return;
 
+	if (!console_video_config(&o->env, var, value))
+		return;
 	M_BOOL("autoanswer", o->autoanswer)
 	M_BOOL("autohangup", o->autohangup)
 	M_BOOL("overridecontext", o->overridecontext)
