@@ -89,13 +89,13 @@ static int jpeg_write_image(int fd, struct ast_frame *fr)
 }
 
 static struct ast_imager jpeg_format = {
-	"jpg",
-	"JPEG (Joint Picture Experts Group)",
-	"jpg|jpeg",
-	AST_FORMAT_JPEG,
-	jpeg_read_image,
-	jpeg_identify,
-	jpeg_write_image,
+	.name = "jpg",
+	.desc = "JPEG (Joint Picture Experts Group)",
+	.exts = "jpg|jpeg",
+	.format = AST_FORMAT_JPEG,
+	.read_image = jpeg_read_image,
+	.identify = jpeg_identify,
+	.write_image = jpeg_write_image,
 };
 
 static int load_module(void)
