@@ -2357,10 +2357,13 @@ static void cleanup_connection(unsigned call_reference, const char *call_token)
 		if (!pvt->owner || !ast_channel_trylock(pvt->owner))
 			break;
 #if 1
-#ifdef DEBUG_THREADS
-		ast_log(LOG_NOTICE, "Avoiding H.323 destory deadlock on %s, locked at %ld/%d by %s (%s:%d)\n", call_token, pvt->owner->lock.thread[0], pvt->owner->lock.reentrancy, pvt->owner->lock.func[0], pvt->owner->lock.file[0], pvt->owner->lock.lineno[0]);
-#else
 		ast_log(LOG_NOTICE, "Avoiding H.323 destory deadlock on %s\n", call_token);
+#ifdef DEBUG_THREADS
+		/* XXX to be completed
+		 * If we want to print more info on who is holding the lock,
+		 * implement the relevant code in lock.h and use the routines
+		 * supplied there.
+		 */
 #endif
 #endif
 		ast_mutex_unlock(&pvt->lock);
