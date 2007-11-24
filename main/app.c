@@ -31,6 +31,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #endif
 #include <regex.h>
+#include <sys/file.h> /* added this to allow to compile, sorry! */
 
 #include "asterisk/paths.h"	/* use ast_config_AST_DATA_DIR */
 #include "asterisk/channel.h"
