@@ -314,6 +314,7 @@ static int pbx_builtin_saynumber(struct ast_channel *, void *);
 static int pbx_builtin_saydigits(struct ast_channel *, void *);
 static int pbx_builtin_saycharacters(struct ast_channel *, void *);
 static int pbx_builtin_sayphonetic(struct ast_channel *, void *);
+static int matchcid(const char *cidpattern, const char *callerid);
 int pbx_builtin_setvar(struct ast_channel *, void *);
 void log_match_char_tree(struct match_char *node, char *prefix); /* for use anywhere */
 static int pbx_builtin_setvar_multiple(struct ast_channel *, void *);
@@ -408,6 +409,7 @@ AST_RWLOCK_DEFINE_STATIC(globalslock);
 static struct varshead globals = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 
 static int autofallthrough = 1;
+static int extenpatternmatchnew = 0;
 
 /*! \brief Subscription for device state change events */
 static struct ast_event_sub *device_state_sub;
@@ -909,6 +911,12 @@ static struct ast_exten *trie_find_next_match(struct match_char *node)
 	struct match_char *m4;
 	struct ast_exten *e3;
 	
+	if (node && node->x[0] == '.' && !node->x[1]) /* dot and ! will ALWAYS be next match in a matchmore */
+		return node->exten;
+	
+	if (node && node->x[0] == '!' && !node->x[1])
+		return node->exten;
+	
 	if (!node || !node->next_char)
 		return NULL;
 	
@@ -931,9 +939,15 @@ static struct ast_exten *trie_find_next_match(struct match_char *node)
 static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid)
 {
 	struct match_char *p; /* note minimal stack storage requirements */
+#ifdef DEBUG_THIS
+	if (tree)
+		ast_log(LOG_NOTICE,"new_find_extension called with %s on (sub)tree %s\n", str, tree->x);
+	else
+		ast_log(LOG_NOTICE,"new_find_extension called with %s on (sub)tree NULL\n", str);
+#endif
 	for (p=tree; p; p=p->alt_char) {
 		if (p->x[0] == 'N' && p->x[1] == 0 && *str >= '2' && *str <= '9' ) {
-			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
+			if (p->exten && !(*(str+1))) /* if a shorter pattern matches along the way, might as well report it */
 				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted, p);
 
 			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
@@ -948,7 +962,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 				return;
 			}
 		} else if (p->x[0] == 'Z' && p->x[1] == 0 && *str >= '1' && *str <= '9' ) {
-			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
+			if (p->exten && !(*(str+1))) /* if a shorter pattern matches along the way, might as well report it */
 				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted,p);
 
 			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
@@ -963,7 +977,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 				return;
 			}
 		} else if (p->x[0] == 'X' && p->x[1] == 0 && *str >= '0' && *str <= '9' ) {
-			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
+			if (p->exten && !(*(str+1))) /* if a shorter pattern matches along the way, might as well report it */
 				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted,p);
 
 			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
@@ -980,10 +994,11 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 		} else if (p->x[0] == '.' && p->x[1] == 0) {
 			/* how many chars will the . match against? */
 			int i = 0;
-			while (*str++) {
+			const char *str2 = str;
+			while (*str2++) {
 				i++;
 			}
-			if (p->exten)
+			if (p->exten && !(*(str+1)))
 				update_scoreboard(score, length+i, spec+(i*p->specificity), p->exten, '.', callerid, p->deleted, p);
 			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
 				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid);
@@ -992,10 +1007,11 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 		} else if (p->x[0] == '!' && p->x[1] == 0) {
 			/* how many chars will the . match against? */
 			int i = 0;
-			while (*str++) {
+			const char *str2 = str;
+			while (*str2++) {
 				i++;
 			}
-			if (p->exten)
+			if (p->exten && !(*(str+1)))
 				update_scoreboard(score, length+1, spec+(p->specificity*i), p->exten, '!', callerid, p->deleted, p);
 			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
 				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid);
@@ -1007,7 +1023,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 				new_find_extension(callerid, score, p->next_char, length+1, spec, callerid);
 			}
 		} else if (index(p->x, *str)) {
-			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
+			if (p->exten && !(*(str+1))) /* if a shorter pattern matches along the way, might as well report it */
 				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted, p);
 
 
@@ -1153,10 +1169,19 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 			*s2 = 0; /* null terminate the exploded range */
 			specif = strlen(buf);
 		} else {
+			
 			if (*s1 == '\\') {
 				s1++;
 				buf[0] = *s1;
 			} else {
+				if (pattern) {
+					if (*s1 == 'n') /* make sure n,x,z patterns are canonicalized to N,X,Z */
+						*s1 = 'N';
+					else if (*s1 == 'x')
+						*s1 = 'X';
+					else if (*s1 == 'z')
+						*s1 = 'Z';
+				}
 				buf[0] = *s1;
 			}
 			buf[1] = 0;
@@ -1566,6 +1591,17 @@ struct ast_context *ast_context_find(const char *name)
 #define STATUS_NO_LABEL		4
 #define STATUS_SUCCESS		5
 
+static int matchcid(const char *cidpattern, const char *callerid)
+{
+	/* If the Caller*ID pattern is empty, then we're matching NO Caller*ID, so
+	   failing to get a number should count as a match, otherwise not */
+
+	if (ast_strlen_zero(callerid))
+		return ast_strlen_zero(cidpattern) ? 1 : 0;
+
+	return ast_extension_match(cidpattern, callerid);
+}
+
 struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	struct ast_context *bypass, struct pbx_find_info *q,
 	const char *context, const char *exten, int priority,
@@ -1639,96 +1675,117 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 #ifdef NEED_DEBUG
 	ast_log(LOG_NOTICE,"The Trie we are searching in:\n");
 	log_match_char_tree(tmp->pattern_tree, "::  ");
-#endif	
-	new_find_extension(exten, &score, tmp->pattern_tree, 0, 0, callerid);
-	eroot = score.exten;
+#endif
 
-	if (score.last_char == '!' && action == E_MATCHMORE) {
-		/* We match an extension ending in '!'.
-		 * The decision in this case is final and is NULL (no match).
-		 */
-		return NULL;
-	}
-
-	if (!eroot && (action == E_CANMATCH || action == E_MATCHMORE) && score.canmatch_exten) {
-		q->status = STATUS_SUCCESS;
-		return score.canmatch_exten;
-	}
-
-	if (action == E_MATCHMORE && eroot) {
-		if (score.node) {
-			struct ast_exten *z = trie_find_next_match(score.node);
-			return z;
-		}
-		return NULL;  /* according to the code, complete matches are null matches in MATCHMORE mode */
-	}
-	
-
-	if (eroot) {
-		/* found entry, now look for the right priority */
-		if (q->status < STATUS_NO_PRIORITY)
-			q->status = STATUS_NO_PRIORITY;
-		e = NULL;
-		if (action == E_FINDLABEL && label ) {
-			if (q->status < STATUS_NO_LABEL)
-				q->status = STATUS_NO_LABEL;
-			e = ast_hashtab_lookup(eroot->peer_label_tree, &pattern);
-		} else {
-			e = ast_hashtab_lookup(eroot->peer_tree, &pattern);
-		}
-		if (e) {	/* found a valid match */
-			q->status = STATUS_SUCCESS;
-			q->foundcontext = context;
-			return e;
-		}
-	}
-
-#ifdef NOTNOW2
-	/* scan the list trying to match extension and CID */
-	eroot = NULL;
-	while ( (eroot = ast_walk_context_extensions(tmp, eroot)) ) {
-		int match = extension_match_core(eroot->exten, exten, action);
-		/* 0 on fail, 1 on match, 2 on earlymatch */
-
-		if (!match || (eroot->matchcid && !matchcid(eroot->cidmatch, callerid)))
-			continue;	/* keep trying */
-		if (match == 2 && action == E_MATCHMORE) {
+	if (extenpatternmatchnew) {
+		new_find_extension(exten, &score, tmp->pattern_tree, 0, 0, callerid);
+		eroot = score.exten;
+		
+		if (score.last_char == '!' && action == E_MATCHMORE) {
 			/* We match an extension ending in '!'.
 			 * The decision in this case is final and is NULL (no match).
 			 */
+#ifdef NEED_DEBUG
+			ast_log(LOG_NOTICE,"Returning MATCHMORE NULL with exclamation point.\n");
+#endif
 			return NULL;
 		}
-		/* found entry, now look for the right priority */
-		if (q->status < STATUS_NO_PRIORITY)
-			q->status = STATUS_NO_PRIORITY;
-		e = NULL;
-		if (action == E_FINDLABEL && label ) {
-			if (q->status < STATUS_NO_LABEL)
-				q->status = STATUS_NO_LABEL;
-			e = ast_hashtab_lookup(eroot->peer_label_tree, &pattern);
-		} else {
-			e = ast_hashtab_lookup(eroot->peer_tree, &pattern);
+		
+		if (!eroot && (action == E_CANMATCH || action == E_MATCHMORE) && score.canmatch_exten) {
+			q->status = STATUS_SUCCESS;
+#ifdef NEED_DEBUG
+			ast_log(LOG_NOTICE,"Returning CANMATCH exten %s\n", score.canmatch_exten->exten);
+#endif
+			return score.canmatch_exten;
 		}
-#ifdef NOTNOW
-		while ( (e = ast_walk_extension_priorities(eroot, e)) ) {
-			/* Match label or priority */
-			if (action == E_FINDLABEL) {
+		
+		if ((action == E_MATCHMORE || action == E_CANMATCH)  && eroot) {
+			if (score.node) {
+				struct ast_exten *z = trie_find_next_match(score.node);
+#ifdef NEED_DEBUG
+				if (z)
+					ast_log(LOG_NOTICE,"Returning CANMATCH/MATCHMORE next_match exten %s\n", z->exten);
+				else
+					ast_log(LOG_NOTICE,"Returning CANMATCH/MATCHMORE next_match exten NULL\n");
+#endif
+				return z;
+			}
+#ifdef NEED_DEBUG
+			ast_log(LOG_NOTICE,"Returning CANMATCH/MATCHMORE NULL (no next_match)\n");
+#endif
+			return NULL;  /* according to the code, complete matches are null matches in MATCHMORE mode */
+		}
+		
+		if (eroot) {
+			/* found entry, now look for the right priority */
+			if (q->status < STATUS_NO_PRIORITY)
+				q->status = STATUS_NO_PRIORITY;
+			e = NULL;
+			if (action == E_FINDLABEL && label ) {
 				if (q->status < STATUS_NO_LABEL)
 					q->status = STATUS_NO_LABEL;
-				if (label && e->label && !strcmp(label, e->label))
-					break;	/* found it */
-			} else if (e->priority == priority) {
-				break;	/* found it */
-			} /* else keep searching */
-		}
+				e = ast_hashtab_lookup(eroot->peer_label_tree, &pattern);
+			} else {
+				e = ast_hashtab_lookup(eroot->peer_tree, &pattern);
+			}
+			if (e) {	/* found a valid match */
+				q->status = STATUS_SUCCESS;
+				q->foundcontext = context;
+#ifdef NEED_DEBUG
+				ast_log(LOG_NOTICE,"Returning complete match of exten %s\n", e->exten);
 #endif
-		if (e) {	/* found a valid match */
-			q->status = STATUS_SUCCESS;
-			q->foundcontext = context;
-			return e;
+				return e;
+			}
+		}
+	} else {
+		
+		/* scan the list trying to match extension and CID */
+		eroot = NULL;
+		while ( (eroot = ast_walk_context_extensions(tmp, eroot)) ) {
+			int match = extension_match_core(eroot->exten, exten, action);
+			/* 0 on fail, 1 on match, 2 on earlymatch */
+			
+			if (!match || (eroot->matchcid && !matchcid(eroot->cidmatch, callerid)))
+				continue;	/* keep trying */
+			if (match == 2 && action == E_MATCHMORE) {
+				/* We match an extension ending in '!'.
+				 * The decision in this case is final and is NULL (no match).
+				 */
+				return NULL;
+			}
+			/* found entry, now look for the right priority */
+			if (q->status < STATUS_NO_PRIORITY)
+				q->status = STATUS_NO_PRIORITY;
+			e = NULL;
+			if (action == E_FINDLABEL && label ) {
+				if (q->status < STATUS_NO_LABEL)
+					q->status = STATUS_NO_LABEL;
+				e = ast_hashtab_lookup(eroot->peer_label_tree, &pattern);
+			} else {
+				e = ast_hashtab_lookup(eroot->peer_tree, &pattern);
+			}
+#ifdef NOTNOW
+			while ( (e = ast_walk_extension_priorities(eroot, e)) ) {
+				/* Match label or priority */
+				if (action == E_FINDLABEL) {
+					if (q->status < STATUS_NO_LABEL)
+						q->status = STATUS_NO_LABEL;
+					if (label && e->label && !strcmp(label, e->label))
+						break;	/* found it */
+				} else if (e->priority == priority) {
+					break;	/* found it */
+				} /* else keep searching */
+			}
+#endif
+			if (e) {	/* found a valid match */
+				q->status = STATUS_SUCCESS;
+				q->foundcontext = context;
+				return e;
+			}
 		}
 	}
-#endif
+	
+	
 	/* Check alternative switches */
 	AST_LIST_TRAVERSE(&tmp->alts, sw, list) {
 		struct ast_switch *asw = pbx_findswitch(sw->name);
@@ -1765,9 +1822,12 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	/* Now try any includes we have in this context */
 	for (i = tmp->includes; i; i = i->next) {
 		if (include_valid(i)) {
-			if ((e = pbx_find_extension(chan, bypass, q, i->rname, exten, priority, label, callerid, action)))
+			if ((e = pbx_find_extension(chan, bypass, q, i->rname, exten, priority, label, callerid, action))) {
+#ifdef NEED_DEBUG
+				ast_log(LOG_NOTICE,"Returning recursive match of %s\n", e->exten);
+#endif
 				return e;
-			
+			}
 			if (q->swo)
 				return NULL;
 		}
@@ -3497,6 +3557,13 @@ int pbx_set_autofallthrough(int newval)
 	return oldval;
 }
 
+int pbx_set_extenpatternmatchnew(int newval)
+{
+	int oldval = extenpatternmatchnew;
+	extenpatternmatchnew = newval;
+	return oldval;
+}
+
 /*!
  * \brief lookup for a context with a given name,
  * \retval with conlock held if found.
@@ -4777,6 +4844,62 @@ static char *handle_set_global(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	return CLI_SUCCESS;
 }
 
+static char *handle_set_extenpatternmatchnew(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int oldval = 0;
+	
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dialplan set extenpaternmatchnew true";
+		e->usage = 
+			"Usage: dialplan set extenpatternmatchnew true|false\n"
+			"       Use the NEW extension pattern matching algorithm, true or false.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	oldval =  pbx_set_extenpatternmatchnew(1);
+	
+	if (oldval)
+		ast_cli(a->fd, "\n    -- Still using the NEW pattern match algorithm for extension names in the dialplan.\n");
+	else
+		ast_cli(a->fd, "\n    -- Switched to using the NEW pattern match algorithm for extension names in the dialplan.\n");
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_unset_extenpatternmatchnew(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int oldval = 0;
+	
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dialplan set extenpaternmatchnew false";
+		e->usage = 
+			"Usage: dialplan set extenpatternmatchnew true|false\n"
+			"       Use the NEW extension pattern matching algorithm, true or false.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	oldval =  pbx_set_extenpatternmatchnew(0);
+	
+	if (!oldval)
+		ast_cli(a->fd, "\n    -- Still using the OLD pattern match algorithm for extension names in the dialplan.\n");
+	else
+		ast_cli(a->fd, "\n    -- Switched to using the OLD pattern match algorithm for extension names in the dialplan.\n");
+
+	return CLI_SUCCESS;
+}
+
 /*
  * CLI entries for upper commands ...
  */
@@ -4790,6 +4913,8 @@ static struct ast_cli_entry pbx_cli[] = {
 	AST_CLI_DEFINE(handle_show_application, "Describe a specific dialplan application"),
 	AST_CLI_DEFINE(handle_set_global, "Set global dialplan variable"),
 	AST_CLI_DEFINE(handle_show_dialplan, "Show dialplan"),
+	AST_CLI_DEFINE(handle_unset_extenpatternmatchnew, "Use the Old extension pattern matching algorithm."),
+	AST_CLI_DEFINE(handle_set_extenpatternmatchnew, "Use the New extension pattern matching algorithm."),
 };
 
 static void unreference_cached_app(struct ast_app *app)

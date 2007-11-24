@@ -841,6 +841,11 @@ int ast_extension_patmatch(const char *pattern, const char *data);
   set to 1, sets to auto fall through.  If newval set to 0, sets to no auto
   fall through (reads extension instead).  Returns previous value. */
 int pbx_set_autofallthrough(int newval);
+
+/*! Set "extenpatternmatchnew" flag, if newval is <0, does not acutally set.  If
+  set to 1, sets to use the new Trie-based pattern matcher.  If newval set to 0, sets to use
+  the old linear-search algorithm.  Returns previous value. */
+int pbx_set_extenpatternmatchnew(int newval);
 int ast_goto_if_exists(struct ast_channel *chan, const char *context, const char *exten, int priority);
 /* I can find neither parsable nor parseable at dictionary.com, but google gives me 169000 hits for parseable and only 49,800 for parsable */
 int ast_parseable_goto(struct ast_channel *chan, const char *goto_string);

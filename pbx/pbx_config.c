@@ -46,6 +46,7 @@ static int static_config = 0;
 static int write_protect_config = 1;
 static int autofallthrough_config = 1;
 static int clearglobalvars_config = 0;
+static int extenpatternmatchnew_config = 0;
 
 AST_MUTEX_DEFINE_STATIC(save_dialplan_lock);
 
@@ -780,11 +781,12 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 	}
 
 	/* fireout general info */
-	fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\nautofallthrough=%s\nclearglobalvars=%s\n\n",
+	fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\nautofallthrough=%s\nclearglobalvars=%s\nextenpatternmatchnew=%s\n\n",
 		static_config ? "yes" : "no",
 		write_protect_config ? "yes" : "no",
                 autofallthrough_config ? "yes" : "no",
-                clearglobalvars_config ? "yes" : "no");
+				clearglobalvars_config ? "yes" : "no",
+				extenpatternmatchnew_config ? "yes" : "no");
 
 	if ((v = ast_variable_browse(cfg, "globals"))) {
 		fprintf(output, "[globals]\n");
@@ -1367,6 +1369,7 @@ static int pbx_load_config(const char *config_file)
 	struct ast_variable *v;
 	const char *cxt;
 	const char *aft;
+	const char *newpm;
 	struct ast_flags config_flags = { 0 };
 
 	cfg = ast_config_load(config_file, config_flags);
@@ -1378,7 +1381,10 @@ static int pbx_load_config(const char *config_file)
 	write_protect_config = ast_true(ast_variable_retrieve(cfg, "general", "writeprotect"));
 	if ((aft = ast_variable_retrieve(cfg, "general", "autofallthrough")))
 		autofallthrough_config = ast_true(aft);
+	if ((newpm = ast_variable_retrieve(cfg, "general", "extenpatternmatchnew")))
+		extenpatternmatchnew_config = ast_true(newpm);
 	clearglobalvars_config = ast_true(ast_variable_retrieve(cfg, "general", "clearglobalvars"));
+	
 
 	if ((cxt = ast_variable_retrieve(cfg, "general", "userscontext"))) 
 		ast_copy_string(userscontext, cxt, sizeof(userscontext));
@@ -1631,6 +1637,7 @@ static int pbx_load_module(void)
 		ast_context_verify_includes(con);
 
 	pbx_set_autofallthrough(autofallthrough_config);
+	pbx_set_extenpatternmatchnew(extenpatternmatchnew_config);
 
 	return 0;
 }

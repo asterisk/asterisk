@@ -36,6 +36,26 @@ writeprotect=no
 ;
 ;autofallthrough=no
 ;
+; By default, the old pattern matcher is used. 
+
+; If extenpatternmatchnew is set (true, yes, etc), then a new algorithm that uses
+; a Trie to find the best matching pattern is used. In dialplans
+; with more than about 20-40 extensions in a single context, this
+; new algorithm can provide a noticeable speedup. 
+; With 1000 extensions, the speedup is ~25x
+; with 10,000 extensions, the speedup is 374x
+; Basically, the new algorithm provides a fairly flat response 
+; time, no matter the number of extensions.
+;
+; The new pattern matcher is for the brave, the bold, and 
+; the desperate. If you have large dialplans, and/or high 
+; call volume, you might consider setting this value to "yes" !!
+;
+; This value can be switched at runtime using the cli command "dialplan set extenpatternmatchnew true"
+; or "dialplan set extenpatternmatchnew false", so you can experiment to your hearts content.
+;
+;extenpatternmatchnew=no
+;
 ; If clearglobalvars is set, global variables will be cleared 
 ; and reparsed on an extensions reload, or Asterisk reload.
 ;
