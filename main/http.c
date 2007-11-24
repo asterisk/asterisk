@@ -39,7 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #include <sys/signal.h>
 #include <fcntl.h>
-#include <pthread.h>
 
 #include "minimime/mm.h"
 

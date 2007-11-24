@@ -29,14 +29,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/network.h"
 
-#include <sys/time.h>
-#include <signal.h>
-#include <sys/ioctl.h>
-
-#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
-#include <fcntl.h>
-#endif
-
 #if defined(SOLARIS)
 #include <sys/sockio.h>
 #endif

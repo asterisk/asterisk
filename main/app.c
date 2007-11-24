@@ -27,11 +27,9 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <sys/time.h>
-#include <signal.h>
-#include <dirent.h>
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
-#include <sys/file.h>
+#endif
 #include <regex.h>
 
 #include "asterisk/paths.h"	/* use ast_config_AST_DATA_DIR */
