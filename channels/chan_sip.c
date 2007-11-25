@@ -17540,7 +17540,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
 		} else if (!strcasecmp(v->name, "callcounter")) {
-			user->call_limit = ast_strue(v->value) ? 999 : 0;
+			user->call_limit = ast_true(v->value) ? 999 : 0;
 		} else if (!strcasecmp(v->name, "call-limit")) {
 			user->call_limit = atoi(v->value);
 			if (user->call_limit < 0)
@@ -17838,7 +17838,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		} else if (!strcasecmp(v->name, "callbackextension")) {
 			ast_copy_string(callback, v->value, sizeof(callback));
 		} else if (!strcasecmp(v->name, "callcounter")) {
-			peer->call_limit = ast_strue(v->value) ? 999 : 0;
+			peer->call_limit = ast_true(v->value) ? 999 : 0;
 		} else if (!strcasecmp(v->name, "call-limit")) {
 			peer->call_limit = atoi(v->value);
 			if (peer->call_limit < 0)
