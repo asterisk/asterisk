@@ -239,14 +239,6 @@ enum invitestates {
 	INV_CANCELLED = 7,	/*!< Transaction cancelled by client or server in non-terminated state */
 };
 
-/* Do _NOT_ make any changes to this enum, or the array following it;
-   if you think you are doing the right thing, you are probably
-   not doing the right thing. If you think there are changes
-   needed, get someone else to review them first _before_
-   submitting a patch. If these two lists do not match properly
-   bad things will happen.
-*/
-
 enum xmittype {
 	XMIT_CRITICAL = 2,              /*!< Transmit critical SIP message reliably, with re-transmits.
                                               If it fails, it's critical and will cause a teardown of the session */
@@ -284,26 +276,6 @@ static const struct cfsubscription_types {
 	{ MWI_NOTIFICATION,	"message-summary", "application/simple-message-summary", "mwi" } /* RFC 3842: Mailbox notification */
 };
 
-/*! \brief SIP Request methods known by Asterisk */
-enum sipmethod {
-	SIP_UNKNOWN,		/* Unknown response */
-	SIP_RESPONSE,		/* Not request, response to outbound request */
-	SIP_REGISTER,
-	SIP_OPTIONS,
-	SIP_NOTIFY,
-	SIP_INVITE,
-	SIP_ACK,
-	SIP_PRACK,		/* Not supported at all */
-	SIP_BYE,
-	SIP_REFER,
-	SIP_SUBSCRIBE,
-	SIP_MESSAGE,
-	SIP_UPDATE,		/* We can send UPDATE; but not accept it */
-	SIP_INFO,
-	SIP_CANCEL,
-	SIP_PUBLISH,		/* Not supported at all */
-	SIP_PING,		/* Not supported at all, no standard but still implemented out there */
-};
 
 /*! \brief Authentication types - proxy or www authentication 
 	\note Endpoints, like Asterisk, should always use WWW authentication to
@@ -324,7 +296,7 @@ enum check_auth_result {
 	AUTH_CHALLENGE_SENT = 1,
 	AUTH_SECRET_FAILED = -1,
 	AUTH_USERNAME_MISMATCH = -2,
-	AUTH_NOT_FOUND = -3,	/* returned by register_verify */
+	AUTH_NOT_FOUND = -3,	/*!< returned by register_verify */
 	AUTH_FAKE_AUTH = -4,
 	AUTH_UNKNOWN_DOMAIN = -5,
 	AUTH_PEER_NOT_DYNAMIC = -6,
@@ -379,13 +351,47 @@ struct sip_proxy {
 	/* Room for a SRV record chain based on the name */
 };
 
+/*! \brief States whether a SIP message can create a dialog in Asterisk. */
 enum can_create_dialog {
 	CAN_NOT_CREATE_DIALOG,
 	CAN_CREATE_DIALOG,
 	CAN_CREATE_DIALOG_UNSUPPORTED_METHOD,
 };
 
-/*! XXX Note that sip_methods[i].id == i must hold or the code breaks */
+/*! \brief SIP Request methods known by Asterisk 
+
+   \note Do _NOT_ make any changes to this enum, or the array following it;
+   if you think you are doing the right thing, you are probably
+   not doing the right thing. If you think there are changes
+   needed, get someone else to review them first _before_
+   submitting a patch. If these two lists do not match properly
+   bad things will happen.
+*/
+
+enum sipmethod {
+	SIP_UNKNOWN,		/*!< Unknown response */
+	SIP_RESPONSE,		/*!< Not request, response to outbound request */
+	SIP_REGISTER,		/*!< Registration to the mothership, tell us where you are located */
+	SIP_OPTIONS,		/*!< Check capabilities of a device, used for "ping" too */
+	SIP_NOTIFY,		/*!< Status update, Part of the event package standard, result of a SUBSCRIBE or a REFER */
+	SIP_INVITE,		/*!< Set up a session */
+	SIP_ACK,		/*!< End of a three-way handshake started with INVITE. */
+	SIP_PRACK,		/*!< Reliable pre-call signalling. Not supported in Asterisk. */
+	SIP_BYE,		/*!< End of a session */
+	SIP_REFER,		/*!< Refer to another URI (transfer) */
+	SIP_SUBSCRIBE,		/*!< Subscribe for updates (voicemail, session status, device status, presence) */
+	SIP_MESSAGE,		/*!< Text messaging */
+	SIP_UPDATE,		/*!< Update a dialog. We can send UPDATE; but not accept it */
+	SIP_INFO,		/*!< Information updates during a session */
+	SIP_CANCEL,		/*!< Cancel an INVITE */
+	SIP_PUBLISH,		/*!< Not supported in Asterisk */
+	SIP_PING,		/*!< Not supported at all, no standard but still implemented out there */
+};
+
+/*! \brief The core structure to setup dialogs. We parse incoming messages by using
+	structure and then route the messages according to the type.
+
+      \note Note that sip_methods[i].id == i must hold or the code breaks */
 static const struct  cfsip_methods { 
 	enum sipmethod id;
 	int need_rtp;		/*!< when this is the 'primary' use for a pvt structure, does it need RTP? */
@@ -424,6 +430,7 @@ static const struct  cfsip_methods {
 #define SUPPORTED		1
 #define NOT_SUPPORTED		0
 
+/* SIP options */
 #define SIP_OPT_REPLACES	(1 << 0)
 #define SIP_OPT_100REL		(1 << 1)
 #define SIP_OPT_TIMER		(1 << 2)
