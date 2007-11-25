@@ -12217,7 +12217,7 @@ static char *sip_show_history(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		e->command = "sip show history";
 		e->usage =
 			"Usage: sip show history <call-id>\n"
-			"       Provides detailed dialog history on a given SIP call (specified by call-hid).\n";
+			"       Provides detailed dialog history on a given SIP call (specified by call-id).\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_sip_show_history(a->line, a->word, a->pos, a->n);
