@@ -3755,22 +3755,22 @@ int ast_do_masquerade(struct ast_channel *original)
 	return 0;
 }
 
-void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char *calleridname, const char *ani)
+void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char *cid_name, const char *cid_ani)
 {
-	if (callerid) {
+	if (cid_num) {
 		if (chan->cid.cid_num)
 			ast_free(chan->cid.cid_num);
-		chan->cid.cid_num = ast_strdup(callerid);
+		chan->cid.cid_num = ast_strdup(cid_num);
 	}
-	if (calleridname) {
+	if (cid_name) {
 		if (chan->cid.cid_name)
 			ast_free(chan->cid.cid_name);
-		chan->cid.cid_name = ast_strdup(calleridname);
+		chan->cid.cid_name = ast_strdup(cid_name);
 	}
-	if (ani) {
+	if (cid_ani) {
 		if (chan->cid.cid_ani)
 			ast_free(chan->cid.cid_ani);
-		chan->cid.cid_ani = ast_strdup(ani);
+		chan->cid.cid_ani = ast_strdup(cid_ani);
 	}
 	if (chan->cdr)
 		ast_cdr_setcid(chan->cdr, chan);

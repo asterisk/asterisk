@@ -712,16 +712,30 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *s
  * \param data data to pass to the channel requester
  * \param timeout maximum amount of time to wait for an answer
  * \param reason why unsuccessful (if unsuccessful)
- * \param cidnum Caller-ID Number
- * \param cidname Caller-ID Name
+ * \param cid_num Caller-ID Number
+ * \param cid_name Caller-ID Name (ascii)
  * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
 struct ast_channel *ast_request_and_dial(const char *type, int format, void *data,
-	int timeout, int *reason, const char *cidnum, const char *cidname);
+	int timeout, int *reason, const char *cid_num, const char *cid_name);
 
+/*!
+ * \brief Request a channel of a given type, with data as optional information used 
+ * by the low level module and attempt to place a call on it
+ * \param type type of channel to request
+ * \param format requested channel format
+ * \param data data to pass to the channel requester
+ * \param timeout maximum amount of time to wait for an answer
+ * \param reason why unsuccessful (if unsuccessful)
+ * \param cid_num Caller-ID Number
+ * \param cid_name Caller-ID Name (ascii)
+ * \param oh Outgoing helper
+ * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
+ * to know if the call was answered or not.
+ */
 struct ast_channel *__ast_request_and_dial(const char *type, int format, void *data,
-	int timeout, int *reason, const char *cidnum, const char *cidname, struct outgoing_helper *oh);
+	int timeout, int *reason, const char *cid_num, const char *cid_name, struct outgoing_helper *oh);
 
 /*!\brief Register a channel technology (a new channel driver)
  * Called by a channel module to register the kind of channels it supports.
@@ -1200,7 +1214,8 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 /*! Deactivate an active generator */
 void ast_deactivate_generator(struct ast_channel *chan);
 
-void ast_set_callerid(struct ast_channel *chan, const char *cidnum, const char *cidname, const char *ani);
+/*! Set caller ID number, name and ANI */
+void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char *cid_name, const char *cid_ani);
 
 /*! Set the file descriptor on the channel */
 void ast_channel_set_fd(struct ast_channel *chan, int which, int fd);
