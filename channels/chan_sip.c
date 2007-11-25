@@ -261,6 +261,11 @@ enum subscriptiontype {
 	MWI_NOTIFICATION
 };
 
+/*! \brief Subscription types that we support. We support
+   - dialoginfo updates (really device status, not dialog info as was the original intent of the standard)
+   - SIMPLE presence used for device status
+   - Voicemail notification subscriptions
+*/
 static const struct cfsubscription_types {
 	enum subscriptiontype type;
 	const char * const event;
@@ -495,7 +500,10 @@ static const struct cfsip_options {
 };
 
 
-/*! \brief SIP Methods we support */
+/*! \brief SIP Methods we support 
+	\todo This string should be set dynamically. We only support REFER and SUBSCRIBE is we have
+	allowsubscribe and allowrefer on in sip.conf.
+*/
 #define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY"
 
 /*! \brief SIP Extensions we support */
@@ -510,8 +518,9 @@ static const struct cfsip_options {
  * we do not support this feature at the moment.
  */
 
-/* Default values, set and reset in reload_config before reading configuration */
-/* These are default values in the source. There are other recommended values in the
+/*! \brief Default values, set and reset in reload_config before reading configuration 
+
+   These are default values in the source. There are other recommended values in the
    sip.conf.sample for new installations. These may differ to keep backwards compatibility,
    yet encouraging new behaviour on new installations 
  */
