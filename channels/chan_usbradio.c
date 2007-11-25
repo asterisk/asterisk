@@ -140,7 +140,7 @@ static struct ast_jb_conf default_jbconf =
 };
 static struct ast_jb_conf global_jbconf;
 
-/*
+/*! 
  * usbradio.conf parameters are
 START_CONFIG
 
@@ -202,7 +202,7 @@ END_CONFIG
 
  */
 
-/*
+/*! \brief
  * Helper macros to parse config arguments. They will go in a common
  * header file if their usage is globally accepted. In the meantime,
  * we define them here. Typical usage is as below.
@@ -230,7 +230,7 @@ END_CONFIG
 #define M_UINT(tag, dst)	M_F(tag, (dst) = strtoul(__val, NULL, 0) )
 #define M_STR(tag, dst)		M_F(tag, ast_copy_string(dst, __val, sizeof(dst)))
 
-/*
+/*!
  * The following parameters are used in the driver:
  *
  *  FRAME_SIZE	the size of an audio frame, in samples.
@@ -306,7 +306,7 @@ static int usbradio_debug_level = 0;
 
 enum {RX_AUDIO_NONE,RX_AUDIO_SPEAKER,RX_AUDIO_FLAT};
 enum {CD_IGNORE,CD_XPMR_NOISE,CD_XPMR_VOX,CD_HID,CD_HID_INVERT};
-enum {SD_IGNORE,SD_HID,SD_HID_INVERT,SD_XPMR};    				 // no,external,externalinvert,software
+enum {SD_IGNORE,SD_HID,SD_HID_INVERT,SD_XPMR};    				 /* no,external,externalinvert,software */
 enum {RX_KEY_CARRIER,RX_KEY_CARRIER_CODE};
 enum {TX_OUT_OFF,TX_OUT_VOICE,TX_OUT_LSD,TX_OUT_COMPOSITE,TX_OUT_AUX};
 enum {TOC_NONE,TOC_PHASE,TOC_NOTONE};
@@ -418,18 +418,18 @@ struct chan_usbradio_pvt {
 	
 
 	char debuglevel;
-	char radioduplex;			// 
+	char radioduplex;			
 
 	char lastrx;
 	char rxhidsq;
-	char rxcarrierdetect;		// status from pmr channel
-	char rxctcssdecode;			// status from pmr channel
+	char rxcarrierdetect;		/*!< status from pmr channel */
+	char rxctcssdecode;			/*!< status from pmr channel */
 
 	char rxkeytype;
-	char rxkeyed;	  			// indicates rx signal present
+	char rxkeyed;	  			/*!< indicates rx signal present */
 
 	char lasttx;
-	char txkeyed;				// tx key request from upper layers 
+	char txkeyed;				/*! tx key request from upper layers  */
 	char txchankey;
 	char txtestkey;
 
@@ -445,7 +445,7 @@ struct chan_usbradio_pvt {
 	float	rxgain;
 	char 	rxcdtype;
 	char 	rxsdtype;
-	int		rxsquelchadj;   /* this copy needs to be here for initialization */
+	int	rxsquelchadj;   /*!< this copy needs to be here for initialization */
 	char	txtoctype;
 
 	char    txprelim;
@@ -460,7 +460,7 @@ struct chan_usbradio_pvt {
 	float 	rxctcssfreq;
 	float 	txctcssfreq;
 
-	int	   	rxmixerset;	   	
+	int	rxmixerset;	   	
 	int 	rxboostset;
 	float	rxvoiceadj;
 	float	rxctcssadj;
@@ -469,24 +469,24 @@ struct chan_usbradio_pvt {
 	int     txctcssadj;
 
 	int    	hdwtype;
-	int		hid_gpio_ctl;		
-	int		hid_gpio_ctl_loc;	
-	int		hid_io_cor; 		
-	int		hid_io_cor_loc; 	
-	int		hid_io_ctcss;		
-	int		hid_io_ctcss_loc; 	
-	int		hid_io_ptt; 		
-	int		hid_gpio_loc; 		
+	int	hid_gpio_ctl;		
+	int	hid_gpio_ctl_loc;	
+	int	hid_io_cor; 		
+	int	hid_io_cor_loc; 	
+	int	hid_io_ctcss;		
+	int	hid_io_ctcss_loc; 	
+	int	hid_io_ptt; 		
+	int	hid_gpio_loc; 		
 
 	struct {
-	    unsigned rxcapraw:1;
+	    	unsigned rxcapraw:1;
 		unsigned txcapraw:1;
 		unsigned txcap2:1;
 		unsigned rxcap2:1;
 	}b;
 };
 
-// maw add additional defaults !!!
+/* maw add additional defaults !!! */
 static struct chan_usbradio_pvt usbradio_default = {
 	.cursound = -1,
 	.sounddev = -1,
@@ -565,23 +565,23 @@ Note: must add -lasound to end of linkage */
 
 static int amixer_max(int devnum,char *param)
 {
-int	rv,type;
-char	str[100];
-snd_hctl_t *hctl;
-snd_ctl_elem_id_t *id;
-snd_hctl_elem_t *elem;
-snd_ctl_elem_info_t *info;
+	int	rv,type;
+	char	str[100];
+	snd_hctl_t *hctl;
+	snd_ctl_elem_id_t *id;
+	snd_hctl_elem_t *elem;
+	snd_ctl_elem_info_t *info;
 
 	sprintf(str,"hw:%d",devnum);
-	if (snd_hctl_open(&hctl, str, 0)) return(-1);
+	if (snd_hctl_open(&hctl, str, 0))
+		return(-1);
 	snd_hctl_load(hctl);
 	id = alloca(snd_ctl_elem_id_sizeof());
 	memset(id, 0, snd_ctl_elem_id_sizeof());
 	snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
 	snd_ctl_elem_id_set_name(id, param);  
 	elem = snd_hctl_find_elem(hctl, id);
-	if (!elem)
-	{
+	if (!elem) {
 		snd_hctl_close(hctl);
 		return(-1);
 	}
@@ -590,8 +590,7 @@ snd_ctl_elem_info_t *info;
 	snd_hctl_elem_info(elem,info);
 	type = snd_ctl_elem_info_get_type(info);
 	rv = 0;
-	switch(type)
-	{
+	switch(type) {
 	    case SND_CTL_ELEM_TYPE_INTEGER:
 		rv = snd_ctl_elem_info_get_max(info);
 		break;
@@ -603,7 +602,7 @@ snd_ctl_elem_info_t *info;
 	return(rv);
 }
 
-/* Call with:  devnum: alsa major device number, param: ascii Formal
+/*! \brief Call with:  devnum: alsa major device number, param: ascii Formal
 Parameter Name, val1, first or only value, val2 second value, or 0 
 if only 1 value. Values: 0-99 (percent) or 0-1 for baboon.
 
@@ -611,24 +610,24 @@ Note: must add -lasound to end of linkage */
 
 static int setamixer(int devnum,char *param, int v1, int v2)
 {
-int	type;
-char	str[100];
-snd_hctl_t *hctl;
-snd_ctl_elem_id_t *id;
-snd_ctl_elem_value_t *control;
-snd_hctl_elem_t *elem;
-snd_ctl_elem_info_t *info;
+	int	type;
+	char	str[100];
+	snd_hctl_t *hctl;
+	snd_ctl_elem_id_t *id;
+	snd_ctl_elem_value_t *control;
+	snd_hctl_elem_t *elem;
+	snd_ctl_elem_info_t *info;
 
 	sprintf(str,"hw:%d",devnum);
-	if (snd_hctl_open(&hctl, str, 0)) return(-1);
+	if (snd_hctl_open(&hctl, str, 0))
+		return(-1);
 	snd_hctl_load(hctl);
 	id = alloca(snd_ctl_elem_id_sizeof());
 	memset(id, 0, snd_ctl_elem_id_sizeof());
 	snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
 	snd_ctl_elem_id_set_name(id, param);  
 	elem = snd_hctl_find_elem(hctl, id);
-	if (!elem)
-	{
+	if (!elem) {
 		snd_hctl_close(hctl);
 		return(-1);
 	}
@@ -639,8 +638,7 @@ snd_ctl_elem_info_t *info;
 	control = alloca(snd_ctl_elem_value_sizeof());
 	memset(control, 0, snd_ctl_elem_value_sizeof());
 	snd_ctl_elem_value_set_id(control, id);    
-	switch(type)
-	{
+	switch(type) {
 	    case SND_CTL_ELEM_TYPE_INTEGER:
 		snd_ctl_elem_value_set_integer(control, 0, v1);
 		if (v2 > 0) snd_ctl_elem_value_set_integer(control, 1, v2);
@@ -649,8 +647,7 @@ snd_ctl_elem_info_t *info;
 		snd_ctl_elem_value_set_integer(control, 0, (v1 != 0));
 		break;
 	}
-	if (snd_hctl_elem_write(elem, control))
-	{
+	if (snd_hctl_elem_write(elem, control)) {
 		snd_hctl_close(hctl);
 		return(-1);
 	}
@@ -682,30 +679,24 @@ static void hid_get_inputs(struct usb_dev_handle *handle,
 
 static struct usb_device *hid_device_init(void)
 {
-    struct usb_bus *usb_bus;
-    struct usb_device *dev;
-    usb_init();
-    usb_find_busses();
-    usb_find_devices();
-    for (usb_bus = usb_busses;
-         usb_bus;
-         usb_bus = usb_bus->next) {
-        for (dev = usb_bus->devices;
-             dev;
-             dev = dev->next) {
-            if ((dev->descriptor.idVendor
-                  == C108_VENDOR_ID) &&
-                (dev->descriptor.idProduct
-                  == C108_PRODUCT_ID))
-                return dev;
-        }
-    }
-    return NULL;
+	struct usb_bus *usb_bus;
+	struct usb_device *dev;
+
+	usb_init();
+	usb_find_busses();
+	usb_find_devices();
+	for (usb_bus = usb_busses; usb_bus; usb_bus = usb_bus->next) {
+		for (dev = usb_bus->devices; dev; dev = dev->next) {
+			if ((dev->descriptor.idVendor == C108_VENDOR_ID) && (dev->descriptor.idProduct == C108_PRODUCT_ID))
+				return dev;
+		}
+	}
+	return NULL;
 }
 
-static int	hidhdwconfig(struct chan_usbradio_pvt *o)
+static int hidhdwconfig(struct chan_usbradio_pvt *o)
 {
-	if(o->hdwtype==1)	  //sphusb
+	if(o->hdwtype==1)	  /*sphusb */
 	{
 		o->hid_gpio_ctl		=  0x08;	/* set GPIO4 to output mode */
 		o->hid_gpio_ctl_loc	=  2; 	/* For CTL of GPIO */
@@ -716,7 +707,7 @@ static int	hidhdwconfig(struct chan_usbradio_pvt *o)
 		o->hid_io_ptt 		=  8;  	/* GPIO 4 is PTT */
 		o->hid_gpio_loc 	=  1;  	/* For ALL GPIO */
 	}
-	else if(o->hdwtype==0)	//dudeusb
+	else if(o->hdwtype==0)	/* dudeusb */
 	{
 		o->hid_gpio_ctl		=  0x0c;	/* set GPIO 3 & 4 to output mode */
 		o->hid_gpio_ctl_loc	=  2; 	/* For CTL of GPIO */
@@ -727,7 +718,7 @@ static int	hidhdwconfig(struct chan_usbradio_pvt *o)
 		o->hid_io_ptt 		=  4;  	/* GPIO 3 is PTT */
 		o->hid_gpio_loc 	=  1;  	/* For ALL GPIO */
 	}
-	else if(o->hdwtype==3)	// custom version
+	else if(o->hdwtype==3)	/* custom version */
 	{
 		o->hid_gpio_ctl		=  0x0c;	/* set GPIO 3 & 4 to output mode */
 		o->hid_gpio_ctl_loc	=  2; 	/* For CTL of GPIO */
@@ -761,8 +752,7 @@ static void *hidthread(void *arg)
 	        ast_log(LOG_ERROR,"Not able to open USB device\n");
 		pthread_exit(NULL);
 	}
-	if (usb_claim_interface(usb_handle,C108_HID_INTERFACE) < 0)
-	{
+	if (usb_claim_interface(usb_handle,C108_HID_INTERFACE) < 0) {
 	        if (usb_detach_kernel_driver_np(usb_handle,C108_HID_INTERFACE) < 0) {
 		        ast_log(LOG_ERROR,"Not able to detach the USB device\n");
 			pthread_exit(NULL);
@@ -778,25 +768,25 @@ static void *hidthread(void *arg)
 	hid_set_outputs(usb_handle,buf);
 	traceusb1(("hidthread: Starting normally!!\n"));
 	lastrx = 0;
-	while(!o->stophid)
-	{
+	while(!o->stophid) {
 		buf[o->hid_gpio_ctl_loc] = o->hid_gpio_ctl;
 		hid_get_inputs(usb_handle,buf);
 		keyed = !(buf[o->hid_io_cor_loc] & o->hid_io_cor);
-		if (keyed != o->rxhidsq)
-		{
-			if(o->debuglevel)printf("chan_usbradio() hidthread: update rxhidsq = %d\n",keyed);
+		if (keyed != o->rxhidsq) {
+			if(o->debuglevel)
+				printf("chan_usbradio() hidthread: update rxhidsq = %d\n", keyed);
 			o->rxhidsq=keyed;		 
 		}
 
 		/* if change in tx stuff */
 		txtmp=0;
-		if(o->txkeyed || o->txchankey || o->txtestkey || o->pmrChan->txPttOut) txtmp=1;
+		if(o->txkeyed || o->txchankey || o->txtestkey || o->pmrChan->txPttOut)
+			txtmp=1;
 		
-		if (o->lasttx != txtmp)
-		{
+		if (o->lasttx != txtmp) {
 			o->lasttx = txtmp;
-			if(o->debuglevel)printf("hidthread: tx set to %d\n",txtmp);
+			if(o->debuglevel)
+				printf("hidthread: tx set to %d\n", txtmp);
 			buf[o->hid_gpio_loc] = 0;
 			if (txtmp) buf[o->hid_gpio_loc] = o->hid_io_ptt;
 			buf[o->hid_gpio_ctl_loc] = o->hid_gpio_ctl;
@@ -813,7 +803,7 @@ static void *hidthread(void *arg)
 	pthread_exit(0);
 }
 
-/*
+/*! \brief
  * returns a pointer to the descriptor with the given name
  */
 static struct chan_usbradio_pvt *find_desc(char *dev)
@@ -831,7 +821,7 @@ static struct chan_usbradio_pvt *find_desc(char *dev)
 	return o;
 }
 
-/*
+/*! \brief
  * split a string in extension-context, returns pointers to malloc'ed
  * strings.
  * If we do not have 'overridecontext' then the last @ is considered as
@@ -867,7 +857,7 @@ static char *ast_ext_ctx(const char *src, char **ext, char **ctx)
 }
 #endif
 
-/*
+/*! \brief
  * Returns the number of blocks used in the audio output channel
  */
 static int used_blocks(struct chan_usbradio_pvt *o)
@@ -891,7 +881,7 @@ static int used_blocks(struct chan_usbradio_pvt *o)
 	return o->total_blocks - info.fragments;
 }
 
-/* Write an exactly FRAME_SIZE sized frame */
+/*! \brief Write an exactly FRAME_SIZE sized frame */
 static int soundcard_writeframe(struct chan_usbradio_pvt *o, short *data)
 {
 	int res;
@@ -917,7 +907,7 @@ static int soundcard_writeframe(struct chan_usbradio_pvt *o, short *data)
 	return write(o->sounddev, ((void *) data), FRAME_SIZE * 2 * 12);
 }
 
-/*
+/*! \brief
  * Handler for 'sound writable' events from the sound thread.
  * Builds a frame from the high level description of the sounds,
  * and passes it to the audio device.
@@ -1233,7 +1223,7 @@ static int usbradio_write(struct ast_channel *c, struct ast_frame *f)
 	int src,datalen;
 	struct chan_usbradio_pvt *o = c->tech_pvt;
 
-	traceusb2(("usbradio_write() o->nosound= %i\n",o->nosound));	//sph maw asdf
+	traceusb2(("usbradio_write() o->nosound= %i\n",o->nosound));	/*sph maw asdf */
 
 	/* Immediately return if no sound is enabled */
 	if (o->nosound)
@@ -1250,17 +1240,15 @@ static int usbradio_write(struct ast_channel *c, struct ast_frame *f)
 	if(o->txkeyed||o->txtestkey)o->pmrChan->txPttIn=1;
 	else o->pmrChan->txPttIn=0;
 
-	#if DEBUG_CAPTURES == 1	// to write input data to a file   datalen=320
-	if (ftxcapraw && o->b.txcapraw)
-	{
+	#if DEBUG_CAPTURES == 1	/* to write input data to a file   datalen=320 */
+	if (ftxcapraw && o->b.txcapraw) {
 		i16 i, tbuff[f->datalen];
-		for(i=0;i<f->datalen;i+=2)
-		{
+		for(i=0;i<f->datalen;i+=2) {
 			tbuff[i]= ((i16*)(f->data))[i/2];
 			tbuff[i+1]= o->txkeyed*M_Q13;
 		}
 		fwrite(tbuff,2,f->datalen,ftxcapraw);
-		//fwrite(f->data,1,f->datalen,ftxcapraw);
+		/*fwrite(f->data,1,f->datalen,ftxcapraw); */
 	}
 	#endif
 
