@@ -85,6 +85,12 @@ void ast_odbc_release_obj(struct odbc_obj *obj);
  */
 int ast_odbc_sanity_check(struct odbc_obj *obj);
 
+/*! \brief Checks if the database natively supports backslash as an escape character.
+ * \param obj The ODBC object
+ * \return Returns 1 if an ESCAPE clause is needed to support '\', 0 otherwise
+ */
+int ast_odbc_backslash_is_escape(struct odbc_obj *obj);
+
 /*! \brief Prepares, executes, and returns the resulting statement handle.
  * \param obj The ODBC object
  * \param prepare_cb A function callback, which, when called, should return a statement handle prepared, with any necessary parameters or result columns bound.
