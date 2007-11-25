@@ -515,6 +515,7 @@ static const struct cfsip_options {
 #define DEFAULT_CALLERID 	"asterisk"
 #define DEFAULT_NOTIFYMIME 	"application/simple-message-summary"
 #define DEFAULT_ALLOWGUEST	TRUE
+#define DEFAULT_CALLCOUNTER	FALSE
 #define DEFAULT_SRVLOOKUP	TRUE		/*!< Recommended setting is ON */
 #define DEFAULT_COMPACTHEADERS	FALSE
 #define DEFAULT_TOS_SIP         0               /*!< Call signalling packets should be marked as DSCP CS3, but the default is 0 to be compatible with previous versions. */
@@ -584,6 +585,9 @@ static int global_rtpkeepalive;		/*!< Send RTP keepalives */
 static int global_reg_timeout;	
 static int global_regattempts_max;	/*!< Registration attempts before giving up */
 static int global_allowguest;		/*!< allow unauthenticated users/peers to connect? */
+static int global_callcounter;		/*!< Enable call counters for all devices. This is currently enabled by setting the peer
+						call-limit to 999. When we remove the call-limit from the code, we can make it
+						with just a boolean flag in the device structure */
 static int global_allowsubscribe;	/*!< Flag for disabling ALL subscriptions, this is FALSE only if all peers are FALSE 
 					    the global setting is in globals_flags[1] */
 static unsigned int global_tos_sip;		/*!< IP type of service for SIP packets */
@@ -11711,6 +11715,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  MatchAuthUsername:      %s\n", cli_yesno(global_match_auth_username));
 	ast_cli(a->fd, "  Allow unknown access:   %s\n", cli_yesno(global_allowguest));
 	ast_cli(a->fd, "  Allow subscriptions:    %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
+	ast_cli(a->fd, "  Enable call counters:   %s\n", cli_yesno(global_callcounter));
 	ast_cli(a->fd, "  Allow overlap dialing:  %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP)));
 	ast_cli(a->fd, "  Promsic. redir:         %s\n", cli_yesno(ast_test_flag(&global_flags[0], SIP_PROMISCREDIR)));
 	ast_cli(a->fd, "  SIP domain support:     %s\n", cli_yesno(!AST_LIST_EMPTY(&domain_list)));
@@ -17469,6 +17474,8 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	user->allowtransfer = global_allowtransfer;
 	user->maxcallbitrate = default_maxcallbitrate;
 	user->autoframing = global_autoframing;
+	if (global_callcounter)
+		user->call_limit=999;
 	user->prefs = default_prefs;
 	/* set default context */
 	strcpy(user->context, default_context);
@@ -17516,6 +17523,8 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			ast_copy_string(user->mohsuggest, v->value, sizeof(user->mohsuggest));
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
+		} else if (!strcasecmp(v->name, "callcounter")) {
+			user->call_limit = ast_strue(v->value) ? 999 : 0;
 		} else if (!strcasecmp(v->name, "call-limit")) {
 			user->call_limit = atoi(v->value);
 			if (user->call_limit < 0)
@@ -17585,6 +17594,8 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->rtpkeepalive = global_rtpkeepalive;
 	peer->allowtransfer = global_allowtransfer;
 	peer->autoframing = global_autoframing;
+	if (global_callcounter)
+		peer->call_limit=999;
 	strcpy(peer->vmexten, default_vmexten);
 	peer->secret[0] = '\0';
 	peer->md5secret[0] = '\0';
@@ -17810,6 +17821,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			ast_copy_string(peer->regexten, v->value, sizeof(peer->regexten));
 		} else if (!strcasecmp(v->name, "callbackextension")) {
 			ast_copy_string(callback, v->value, sizeof(callback));
+		} else if (!strcasecmp(v->name, "callcounter")) {
+			peer->call_limit = ast_strue(v->value) ? 999 : 0;
 		} else if (!strcasecmp(v->name, "call-limit")) {
 			peer->call_limit = atoi(v->value);
 			if (peer->call_limit < 0)
@@ -18057,6 +18070,7 @@ static int reload_config(enum channelreloadreason reason)
 	autocreatepeer = DEFAULT_AUTOCREATEPEER;
 	global_autoframing = 0;
 	global_allowguest = DEFAULT_ALLOWGUEST;
+	global_callcounter = DEFAULT_CALLCOUNTER;
 	global_match_auth_username = FALSE;		/*!< Match auth username if available instead of From: Default off. */
 	global_rtptimeout = 0;
 	global_rtpholdtimeout = 0;
@@ -18112,6 +18126,8 @@ static int reload_config(enum channelreloadreason reason)
 			ast_copy_string(default_context, v->value, sizeof(default_context));
 		} else if (!strcasecmp(v->name, "subscribecontext")) {
 			ast_copy_string(default_subscribecontext, v->value, sizeof(default_subscribecontext));
+  		} else if (!strcasecmp(v->name, "callcounter")) {
+			global_callcounter = ast_true(v->value) ? 1 : 0;
   		} else if (!strcasecmp(v->name, "allowguest")) {
 			global_allowguest = ast_true(v->value) ? 1 : 0;
 		} else if (!strcasecmp(v->name, "realm")) {

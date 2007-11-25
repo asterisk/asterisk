@@ -23,6 +23,15 @@
 ;				Active SIP peers will not be reconfigured
 ;
 
+; ** Deprecated options **
+; The "call-limit" configuation option is deprecated. It still works in
+; this version of Asterisk, but will disappear in the next version.
+; You are encouraged to use the dialplan groupcount functionality
+; to enforce call limits instead of using this channel-specific method.
+;
+; You can still set limits per device in sip.conf or in a database by using 
+; "setvar" to set variables that can be used in the dialplan for various limits.
+
 [general]
 context=default			; Default context for incoming calls
 ;allowguest=no			; Allow or reject guest calls (default is yes)
@@ -206,14 +215,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; (See extensions.conf.sample for examples)
 ; chan_sip support two major formats for notifications: dialog-info and SIMPLE 
 ;
-; You will get more detailed reports (busy etc) if you have a call limit set
-; for a device. When the call limit is filled, we will indicate busy. Note that
-; you need at least 2 in order to be able to do attended transfers.
+; You will get more detailed reports (busy etc) if you have a call counter enabled
+; for a device. 
 ;
-; If you set the busylevel in addition to the call limit, we will indicate busy
-; when we have a number of calls that matches busylevel, but still allow calls
-; up to the call-limit. This allows for transfers while still having blinking
-; lamps and queues understanding that a device is busy.
+; If you set the busylevel, we will indicate busy when we have a number of calls that 
+; matches the busylevel treshold.
 ;
 ; For queues, you will need this level of detail in status reporting, regardless
 ; if you use SIP subscriptions. Queues and manager use the same internal interface
@@ -230,12 +236,14 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;notifyhold = yes		; Notify subscriptions on HOLD state (default: no)
 				; Turning on notifyringing and notifyhold will add a lot
 				; more database transactions if you are using realtime.
-;limitonpeer = yes		; Apply call limits on peers only. This will improve 
+;limitonpeer = yes		; Apply call counting on peers only. This will improve 
 				; status notification when you are using type=friend
 				; Inbound calls, that really apply to the user part
 				; of a friend will now be added to and compared with
-				; the peer limit instead of applying two call limits,
+				; the peer counter instead of applying two call counters,
 				; one for the peer and one for the user.
+;callcounter = yes		; Enable call counters on devices. This can be set per
+				; device too.
 
 ;----------------------------------------- T.38 FAX PASSTHROUGH SUPPORT -----------------------
 ;
@@ -561,7 +569,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; setvar                      setvar
 ; callerid		      callerid
 ; amaflags		      amaflags
-; call-limit		      call-limit
+; call-limit		      call-limit	(deprecated)
+; callcounter                 callcounter
 ; allowoverlap		      allowoverlap
 ; allowsubscribe	      allowsubscribe
 ; allowtransfer	      	      allowtransfer
@@ -603,9 +612,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;fromdomain=provider.sip.domain	
 ;host=box.provider.com
 ;usereqphone=yes			; This provider requires ";user=phone" on URI
-;call-limit=5				; permit only 5 simultaneous outgoing calls to this peer
-					; Call-limits will not be enforced on real-time peers,
-					; since they are not stored in-memory
+;callcounter=yes			; Enable call counter
 ;busylevel=2				; Signal busy at 2 or more calls
 ;outboundproxy=proxy.provider.domain	; send outbound signaling to this proxy, not directly to the peer
 ;port=80				; The port number we want to connect to on the remote side
@@ -690,11 +697,10 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;canreinvite=yes		; allow RTP voice traffic to bypass Asterisk
 ;dtmfmode=info			; either RFC2833 or INFO for the BudgeTone
 ;call-limit=1			; permit only 1 outgoing call and 1 incoming call at a time
-				; from the phone to asterisk
+				; from the phone to asterisk (deprecated)
 				; 1 for the explicit peer, 1 for the explicit user,
 				; remember that a friend equals 1 peer and 1 user in
 				; memory
-				; This will affect your subscriptions as well.
 				; There is no combined call counter for a "friend"
 				; so there's currently no way in sip.conf to limit
 				; to one inbound or outbound call per phone. Use
