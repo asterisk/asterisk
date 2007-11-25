@@ -40,6 +40,9 @@ username => oscar
 password => thegrouch
 pre-connect => yes
 sanitysql => select count(*) from systables
+; Many databases have a default of '\' to escape special characters.  MS SQL
+; Server does not.
+backslash_is_escape => no
 
 
 

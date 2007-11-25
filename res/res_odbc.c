@@ -60,6 +60,7 @@ struct odbc_class
 	unsigned int limit:10;          /* Gives a limit of 1023 maximum */
 	unsigned int count:10;          /* Running count of pooled connections */
 	unsigned int delme:1;			/* Purge the class */
+	unsigned int backslash_is_escape:1;	/* On this database, the backslash is a native escape sequence */
 	AST_LIST_HEAD(, odbc_obj) odbc_obj;
 };
 
@@ -227,7 +228,7 @@ static int load_odbc_config(void)
 	struct ast_variable *v;
 	char *cat;
 	const char *dsn, *username, *password, *sanitysql;
-	int enabled, pooling, limit;
+	int enabled, pooling, limit, bse;
 	int connect = 0, res = 0;
 	struct ast_flags config_flags = { 0 };
 
@@ -251,6 +252,7 @@ static int load_odbc_config(void)
 			connect = 0;
 			pooling = 0;
 			limit = 0;
+			bse = 1;
 			for (v = ast_variable_browse(config, cat); v; v = v->next) {
 				if (!strcasecmp(v->name, "pooling")) {
 					if (ast_true(v->value))
@@ -277,6 +279,8 @@ static int load_odbc_config(void)
 					password = v->value;
 				} else if (!strcasecmp(v->name, "sanitysql")) {
 					sanitysql = v->value;
+				} else if (!strcasecmp(v->name, "backslash_is_escape")) {
+					bse = ast_true(v->value);
 				}
 			}
 
@@ -317,6 +321,8 @@ static int load_odbc_config(void)
 						new->limit = 5;
 					}
 				}
+
+				new->backslash_is_escape = bse ? 1 : 0;
 
 				odbc_register_class(new, connect);
 				ast_log(LOG_NOTICE, "Registered ODBC class '%s' dsn->[%s]\n", cat, dsn);
@@ -420,6 +426,11 @@ void ast_odbc_release_obj(struct odbc_obj *obj)
 	/* For pooled connections, this frees the connection to be
 	 * reused.  For non-pooled connections, it does nothing. */
 	obj->used = 0;
+}
+
+int ast_odbc_backslash_is_escape(struct odbc_obj *obj)
+{
+	return obj->parent->backslash_is_escape;
 }
 
 struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
@@ -577,7 +588,7 @@ static int reload(void)
 	struct ast_variable *v;
 	char *cat;
 	const char *dsn, *username, *password, *sanitysql;
-	int enabled, pooling, limit;
+	int enabled, pooling, limit, bse;
 	int connect = 0, res = 0;
 	struct ast_flags config_flags = { CONFIG_FLAG_FILEUNCHANGED };
 
@@ -605,6 +616,7 @@ static int reload(void)
 				connect = 0;
 				pooling = 0;
 				limit = 0;
+				bse = 1;
 				for (v = ast_variable_browse(config, cat); v; v = v->next) {
 					if (!strcasecmp(v->name, "pooling")) {
 						pooling = 1;
@@ -630,6 +642,8 @@ static int reload(void)
 						password = v->value;
 					} else if (!strcasecmp(v->name, "sanitysql")) {
 						sanitysql = v->value;
+					} else if (!strcasecmp(v->name, "backslash_is_escape")) {
+						bse = ast_true(v->value);
 					}
 				}
 
@@ -685,6 +699,8 @@ static int reload(void)
 							new->limit = 5;
 						}
 					}
+
+					new->backslash_is_escape = bse;
 
 					if (class) {
 						ast_log(LOG_NOTICE, "Refreshing ODBC class '%s' dsn->[%s]\n", cat, dsn);
