@@ -304,7 +304,7 @@ all: _all
 	@echo " +               $(mK) install               +"  
 	@echo " +-------------------------------------------+"  
 
-_all: cleantest $(SUBDIRS)
+_all: cleantest makeopts $(SUBDIRS)
 
 makeopts: configure
 	@echo "****"
