@@ -1472,7 +1472,7 @@ static int handle_context_add_extension_deprecated(int fd, int argc, char *argv[
 	if (!app_data)
 		app_data="";
 	if (ast_add_extension(argv[4], argc == 6 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
-		(void *)strdup(app_data), free, registrar)) {
+		(void *)strdup(app_data), ast_free, registrar)) {
 		switch (errno) {
 		case ENOMEM:
 			ast_cli(fd, "Out of free memory\n");
@@ -1565,7 +1565,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	if (!app_data)
 		app_data="";
 	if (ast_add_extension(argv[5], argc == 7 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
-		(void *)strdup(app_data), free, registrar)) {
+		(void *)strdup(app_data), ast_free, registrar)) {
 		switch (errno) {
 		case ENOMEM:
 			ast_cli(fd, "Out of free memory\n");
