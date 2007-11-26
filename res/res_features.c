@@ -2235,9 +2235,6 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 	/* Data is unused at the moment but could contain a parking
 	   lot context eventually */
 	int res = 0;
-	struct ast_module_user *u;
-
-	u = ast_module_user_add(chan);
 
 	/* Setup the exten/priority to be s/1 since we don't know
 	   where this call should return */
@@ -2253,8 +2250,6 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 	if (!res)
 		res = park_call_full(chan, chan, 0, NULL, orig_chan_name);
 
-	ast_module_user_remove(u);
-
 	return !res ? AST_PBX_KEEPALIVE : res;
 }
 
@@ -2262,14 +2257,11 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 static int park_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	struct ast_channel *peer=NULL;
 	struct parkeduser *pu;
 	struct ast_context *con;
 	int park = 0;
 	struct ast_bridge_config config;
-
-	u = ast_module_user_add(chan);
 
 	if (data)
 		park = atoi((char *)data);
@@ -2336,7 +2328,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 			if (error) {
 				ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
 				ast_hangup(peer);
-				ast_module_user_remove(u);
 				return -1;
 			}
 		} else
@@ -2346,7 +2337,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
 			ast_hangup(peer);
-			ast_module_user_remove(u);
 			return -1;
 		}
 		/* This runs sorta backwards, since we give the incoming channel control, as if it
@@ -2372,7 +2362,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 		/* Simulate the PBX hanging up */
 		if (res != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
-		ast_module_user_remove(u);
 		return res;
 	} else {
 		/*! \todo XXX Play a message XXX */
@@ -2381,8 +2370,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 		ast_verb(3, "Channel %s tried to talk to nonexistent parked call %d\n", chan->name, park);
 		res = -1;
 	}
-
-	ast_module_user_remove(u);
 
 	return res;
 }
@@ -3147,7 +3134,6 @@ END_OPTIONS );
 */
 static int bridge_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	struct ast_channel *current_dest_chan, *final_dest_chan;
 	char *tmp_data  = NULL;
 	struct ast_flags opts = { 0, };
@@ -3162,8 +3148,6 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Bridge require at least 1 argument specifying the other end of the bridge\n");
 		return -1;
 	}
-	
-	u = ast_module_user_add(chan);
 
 	tmp_data = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, tmp_data);
@@ -3182,7 +3166,6 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 					"Channel2: %s\r\n",
 					chan->name, args.dest_chan);
 		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "LOOP");
-		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -3197,7 +3180,6 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 					"Channel1: %s\r\n"
 					"Channel2: %s\r\n", chan->name, args.dest_chan);
 		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "NONEXISTENT");
-		ast_module_user_remove(u);
 		return 0;
 	}
 	ast_channel_unlock(current_dest_chan);
@@ -3229,7 +3211,6 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 					"Channel2: %s\r\n", chan->name, final_dest_chan->name);
 		ast_hangup(final_dest_chan); /* may be we should return this channel to the PBX? */
 		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "INCOMPATIBLE");
-		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -3266,8 +3247,6 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 		ast_debug(1, "hangup chan %s since the other endpoint has hung up\n", final_dest_chan->name);
 		ast_hangup(final_dest_chan);
 	}
-
-	ast_module_user_remove(u);
 
 	return 0;
 }

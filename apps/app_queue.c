@@ -4306,8 +4306,8 @@ static int queue_function_queuememberlist(struct ast_channel *chan, const char *
 
 /*! \brief Dialplan function QUEUE_MEMBER_PENALTY() 
  * Gets the members penalty. */
-static int queue_function_memberpenalty_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len) {
-	struct ast_module_user *lu;
+static int queue_function_memberpenalty_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
 	int penalty;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
@@ -4321,13 +4321,10 @@ static int queue_function_memberpenalty_read(struct ast_channel *chan, const cha
 		return -1;
 	}
 
-	lu = ast_module_user_add(chan);
-
 	AST_STANDARD_APP_ARGS(args, data);
 
 	if (args.argc < 2) {
 		ast_log(LOG_ERROR, "Missing argument. QUEUE_MEMBER_PENALTY(<queuename>,<interface>)\n");
-		ast_module_user_remove(lu);
 		return -1;
 	}
 
@@ -4335,15 +4332,14 @@ static int queue_function_memberpenalty_read(struct ast_channel *chan, const cha
 	
 	if (penalty >= 0) /* remember that buf is already '\0' */
 		snprintf (buf, len, "%d", penalty);
-	
-	ast_module_user_remove(lu);
+
 	return 0;
 }
 
 /*! Dialplan function QUEUE_MEMBER_PENALTY() 
  * Sets the members penalty. */
-static int queue_function_memberpenalty_write(struct ast_channel *chan, const char *cmd, char *data, const char *value) {
-	struct ast_module_user *lu;
+static int queue_function_memberpenalty_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
 	int penalty;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
@@ -4355,33 +4351,26 @@ static int queue_function_memberpenalty_write(struct ast_channel *chan, const ch
 		return -1;
 	}
 
-	lu = ast_module_user_add(chan);
-
 	AST_STANDARD_APP_ARGS(args, data);
 
 	if (args.argc < 2) {
 		ast_log(LOG_ERROR, "Missing argument. QUEUE_MEMBER_PENALTY(<queuename>,<interface>)\n");
-		ast_module_user_remove(lu);
 		return -1;
 	}
 
 	penalty = atoi(value);
 	if (penalty < 0) {
 		ast_log(LOG_ERROR, "Invalid penalty\n");
-		ast_module_user_remove(lu);
 		return -1;
 	}
 
 	if (ast_strlen_zero(args.interface)) {
 		ast_log (LOG_ERROR, "<interface> parameter can't be null\n");
-		ast_module_user_remove(lu);
 		return -1;
 	}
 
 	/* if queuename = NULL then penalty will be set for interface in all the queues. */
 	set_member_penalty(args.queuename, args.interface, penalty);
-
-	ast_module_user_remove(lu);
 
 	return 0;
 }
