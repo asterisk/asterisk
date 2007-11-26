@@ -4850,7 +4850,7 @@ static char *handle_set_extenpatternmatchnew(struct ast_cli_entry *e, int cmd, s
 	
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "dialplan set extenpaternmatchnew true";
+		e->command = "dialplan set extenpatternmatchnew true";
 		e->usage = 
 			"Usage: dialplan set extenpatternmatchnew true|false\n"
 			"       Use the NEW extension pattern matching algorithm, true or false.\n";
@@ -4878,7 +4878,7 @@ static char *handle_unset_extenpatternmatchnew(struct ast_cli_entry *e, int cmd,
 	
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "dialplan set extenpaternmatchnew false";
+		e->command = "dialplan set extenpatternmatchnew false";
 		e->usage = 
 			"Usage: dialplan set extenpatternmatchnew true|false\n"
 			"       Use the NEW extension pattern matching algorithm, true or false.\n";

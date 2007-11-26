@@ -55,6 +55,7 @@ CLI Changes
   * Ability to set process limits ("ulimit") without restarting Asterisk
   * Enhanced "agi debug" to print the channel name as a prefix to the debug
      output to make debugging on busy systems much easier.
+  * New CLI commands "dialplan set extenpatternmatching true/false"
 
 SIP changes
 -----------
@@ -345,3 +346,12 @@ Miscellaneous
   * Added a new channel driver, chan_unistim.  See doc/unistim.txt and
      configs/unistim.conf.sample for details.  This new channel driver allows
      you to use Nortel i2002, i2004, and i2050 phones with Asterisk.
+  * A new extension pattern matching algorithm, based on a trie, is introduced
+    here, that could noticeably speed up mid-sized to large dialplans.
+    It is NOT used by default, as duplicating the behaviour of the old pattern
+    matcher is still under development. A config file option, in extensions.conf,
+    in the [general] section, called "extenpatternmatchingnew", is by default
+    set to false; setting that to true will force the use of the new algorithm.
+    Also, the cli commands "dialplan set extenpatternmatchingnew true/false" can
+    be used to switch the algorithms at run time.
+
