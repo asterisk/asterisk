@@ -202,10 +202,10 @@ static struct ast_jb_conf default_jbconf =
 	.resync_threshold = -1,
 	.impl = ""
 };
-static struct ast_jb_conf global_jbconf;
+static struct ast_jb_conf global_jbconf;	/*!< Global jitterbuffer configuration */
 
-static const char config[] = "sip.conf";
-static const char notify_config[] = "sip_notify.conf";
+static const char config[] = "sip.conf";	/*!< Main configuration file */
+static const char notify_config[] = "sip_notify.conf";	/*!< Configuration file for sending Notify with CLI commands to reconfigure or reboot phones */
 
 #define RTP 	1
 #define NO_RTP	0
@@ -326,6 +326,7 @@ enum sipregistrystate {
 		 */
 
 	REG_STATE_REGISTERED,	/*!< Registered and done */
+
 	REG_STATE_REJECTED,	/*!< Registration rejected */
 		/* only used when the remote party has an expire larger than
 		 * our max-expire. This is a final state from which we do not
@@ -516,14 +517,17 @@ static const struct cfsip_options {
  * There is a limited number of places in asterisk where we could,
  * in principle, use a different "default" port number, but
  * we do not support this feature at the moment.
+ * You can run Asterisk with SIP on a different port with a configuration
+ * option. If you change this value, the signalling will be incorrect.
  */
 
-/*! \brief Default values, set and reset in reload_config before reading configuration 
+/*! \name DefaultValues Default values, set and reset in reload_config before reading configuration 
 
    These are default values in the source. There are other recommended values in the
    sip.conf.sample for new installations. These may differ to keep backwards compatibility,
    yet encouraging new behaviour on new installations 
  */
+/*@{*/ 
 #define DEFAULT_CONTEXT		"default"
 #define DEFAULT_MOHINTERPRET    "default"
 #define DEFAULT_MOHSUGGEST      ""
@@ -556,9 +560,13 @@ static const struct cfsip_options {
 #define DEFAULT_SDPSESSION "Asterisk PBX"	/*!< Default SDP session name, (s=) header unless re-defined in sip.conf */
 #define DEFAULT_SDPOWNER "root"		/*!< Default SDP username field in (o=) header unless re-defined in sip.conf */
 #endif
+/*@}*/ 
 
-/* Default setttings are used as a channel setting and as a default when
-   configuring devices */
+/*! \name DefaultSettings
+	Default setttings are used as a channel setting and as a default when
+	configuring devices 
+*/
+/*@{*/ 
 static char default_context[AST_MAX_CONTEXT];
 static char default_subscribecontext[AST_MAX_CONTEXT];
 static char default_language[MAX_LANGUAGE];
@@ -572,7 +580,6 @@ static char default_mohsuggest[MAX_MUSICCLASS];	   /*!< Global setting for moh c
                                                     *   a bridged channel on hold */
 static int default_maxcallbitrate;	/*!< Maximum bitrate for call */
 static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
-static char used_context[AST_MAX_CONTEXT]; /*!< name of automatically created context for unloading */
 
 /*! \brief a place to store all global settings for the sip channel driver */
 struct sip_settings {
@@ -582,21 +589,26 @@ struct sip_settings {
 };
 
 static struct sip_settings sip_cfg;
+/*@}*/ 
 
-/* Global settings only apply to the channel */
+/*! \name GlobalSettings
+	Global settings apply to the channel (often settings you can change in the general section
+	of sip.conf
+*/
+/*@{*/ 
 static int global_directrtpsetup;	/*!< Enable support for Direct RTP setup (no re-invites) */
 static int global_limitonpeers;		/*!< Match call limit on peers only */
-static int global_rtautoclear;
+static int global_rtautoclear;		/*!< Realtime ?? */
 static int global_notifyringing;	/*!< Send notifications on ringing */
 static int global_notifyhold;		/*!< Send notifications on hold */
 static int global_alwaysauthreject;	/*!< Send 401 Unauthorized for all failing requests */
-static int global_srvlookup;			/*!< SRV Lookup on or off. Default is on */
+static int global_srvlookup;		/*!< SRV Lookup on or off. Default is on */
 static int pedanticsipchecking;		/*!< Extra checking ?  Default off */
 static int autocreatepeer;		/*!< Auto creation of peers at registration? Default off. */
 static int global_match_auth_username;		/*!< Match auth username if available instead of From: Default off. */
-static int global_relaxdtmf;			/*!< Relax DTMF */
+static int global_relaxdtmf;		/*!< Relax DTMF */
 static int global_rtptimeout;		/*!< Time out call if no RTP */
-static int global_rtpholdtimeout;
+static int global_rtpholdtimeout;	/*!< Time out call if no RTP during hold */
 static int global_rtpkeepalive;		/*!< Send RTP keepalives */
 static int global_reg_timeout;	
 static int global_regattempts_max;	/*!< Registration attempts before giving up */
@@ -634,6 +646,7 @@ static int global_matchexterniplocally; /*!< Match externip/externhost setting a
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
+/*@}*/ 
 
 /* Object counters */
 static int suserobjs = 0;                /*!< Static users */
@@ -644,6 +657,7 @@ static int apeerobjs = 0;                /*!< Autocreated peer objects */
 static int regobjs = 0;                  /*!< Registry objects */
 
 static struct ast_flags global_flags[2] = {{0}};        /*!< global SIP_ flags */
+static char used_context[AST_MAX_CONTEXT]; /*!< name of automatically created context for unloading */
 
 AST_MUTEX_DEFINE_STATIC(netlock);
 
@@ -775,7 +789,8 @@ struct sip_auth {
 	struct sip_auth *next;          /*!< Next auth structure in list */
 };
 
-/*--- Various flags for the flags field in the pvt structure 
+/*! \name SIPflags
+	Various flags for the flags field in the pvt structure 
 	Trying to sort these up (one or more of the following):
 	D: Dialog
 	P: Peer/user
@@ -783,6 +798,7 @@ struct sip_auth {
 	When flags are used by multiple structures, it is important that
 	they have a common layout so it is easy to copy them.
 */
+/*@{*/ 
 #define SIP_OUTGOING		(1 << 0)	/*!< D: Direction of the last transaction in this dialog */
 #define SIP_RINGING		(1 << 2)	/*!< D: Have sent 180 ringing */
 #define SIP_PROGRESS_SENT	(1 << 3)	/*!< D: Have sent 183 message progress */
@@ -839,8 +855,11 @@ struct sip_auth {
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
 	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT | SIP_G726_NONSTANDARD | \
 	 SIP_USEREQPHONE | SIP_INSECURE)
+/*@}*/ 
 
-/*--- a new page of flags (for flags[1] */
+/*! \name SIPflags2
+	a second page of flags (for flags[1] */
+/*@{*/ 
 /* realtime flags */
 #define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)	/*!< GP: Should we keep RT objects in memory for extended time? */
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< GP: Should we clean memory from peers after expiry? */
@@ -871,8 +890,12 @@ struct sip_auth {
 	SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | SIP_PAGE2_BUGGY_MWI | \
 	SIP_PAGE2_TEXTSUPPORT )
 
+/*@}*/ 
 
-/* T.38 set of flags */
+/*! \name SIPflagsT38
+	T.38 set of flags */
+
+/*@{*/ 
 #define T38FAX_FILL_BIT_REMOVAL			(1 << 0)	/*!< Default: 0 (unset)*/
 #define T38FAX_TRANSCODING_MMR			(1 << 1)	/*!< Default: 0 (unset)*/
 #define T38FAX_TRANSCODING_JBIG			(1 << 2)	/*!< Default: 0 (unset)*/
@@ -897,6 +920,7 @@ struct sip_auth {
 
 /*!< This is default: NO MMR and JBIG transcoding, NO fill bit removal, transferredTCF TCF, UDP FEC, Version 0 and 9600 max fax rate */
 static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_RATE_4800 | T38FAX_RATE_7200 | T38FAX_RATE_9600;
+/*@}*/ 
 
 /*! \brief debugging state
  * We store separately the debugging requests from the config file
