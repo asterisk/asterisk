@@ -185,7 +185,7 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 	AST_LIST_INSERT_HEAD(&head, n, entries);
 
 	/* scan the body, one piece at a time */
-	while ( ret <= 0 && (x = strsep(&rule, ",")) ) { /* exit on key */
+	while ( !ret && (x = strsep(&rule, ",")) ) { /* exit on key */
 		char fn[128];
 		const char *p, *fmt, *data; /* format and data pointers */
 
@@ -233,6 +233,10 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 				fn2[l++] = *p;
 				strcpy(fn2 + l, data);
 				ret = do_say(a, fn2, options, depth);
+			}
+			
+			if (ret) {
+				break;
 			}
 		}
 	}
