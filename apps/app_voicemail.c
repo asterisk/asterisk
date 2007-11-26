@@ -2489,6 +2489,7 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	char tmp[80] = "/tmp/astmail-XXXXXX";
 	long len;
 	void *buf;
+	int tempcopy = 0;
 	STRING str;
 	
 	/* Attach only the first format */
@@ -2504,8 +2505,14 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	else
 		ast_copy_string (fn, dir, sizeof(fn));
 	
-	if (ast_strlen_zero(vmu->email))
+	if (ast_strlen_zero(vmu->email)) {
+		/*we need the vmu->email to be set when we call make_email_file, but if we keep it set,
+		 * a duplicate e-mail will be created. So at the end of this function, we will revert back to an empty
+		 * string if tempcopy is 1
+		 */
 		ast_copy_string(vmu->email, vmu->imapuser, sizeof(vmu->email));
+		tempcopy = 1;
+	}
 
 	if (!strcmp(fmt, "wav49"))
 		fmt = "WAV";
@@ -2515,6 +2522,8 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	   command hangs */
 	if (!(p = vm_mkftemp(tmp))) {
 		ast_log(LOG_WARNING, "Unable to store '%s' (can't create temporary file)\n", fn);
+		if(tempcopy)
+			*(vmu->email) = '\0';
 		return -1;
 	}
 
@@ -2529,6 +2538,8 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	rewind(p);
 	if (!(buf = ast_malloc(len+1))) {
 		ast_log(LOG_ERROR, "Can't allocate %ld bytes to read message\n", len+1);
+		if(tempcopy)
+			*(vmu->email) = '\0';
 		return -1;
 	}
 	fread(buf, len, 1, p);
@@ -2542,6 +2553,10 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	unlink(tmp);
 	ast_free(buf);
 	ast_debug(3, "%s stored\n", fn);
+	
+	if(tempcopy)
+		*(vmu->email) = '\0';
+	
 	return 0;
 
 }
