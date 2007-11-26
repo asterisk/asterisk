@@ -17,6 +17,7 @@
  */
 
 #include "asterisk.h"
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/ast_expr.h"
 
@@ -145,6 +146,7 @@ int check_eval(char *buffer, char *error_report);
 void parse_file(const char *fname);
 
 void ast_register_file_version(const char *file, const char *version) { }
+int ast_add_profile(const char *x, uint64_t scale) { return 0;} 
 
 void ast_unregister_file_version(const char *file)
 {

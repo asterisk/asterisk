@@ -26,7 +26,8 @@
 	<depend>res_ael_share</depend>
  ***/
 
-#include "asterisk/autoconfig.h"
+#include "asterisk.h"
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -87,6 +88,7 @@ void ast_register_file_version(const char *file, const char *version)
 void ast_unregister_file_version(const char *file)
 {
 }
+int ast_add_profile(const char *x, uint64_t scale) { return 0;}
 
 /* Our own version of ast_log, since the expr parser uses it. -- stolen from utils/check_expr.c */
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));

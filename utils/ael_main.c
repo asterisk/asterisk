@@ -5,6 +5,8 @@
 #include <limits.h>
 
 #include "asterisk.h"
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/channel.h"
 #include "asterisk/ast_expr.h"
 #include "asterisk/module.h"
