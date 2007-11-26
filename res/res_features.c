@@ -2336,6 +2336,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 			if (error) {
 				ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
 				ast_hangup(peer);
+				ast_module_user_remove(u);
 				return -1;
 			}
 		} else
@@ -2345,6 +2346,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
 			ast_hangup(peer);
+			ast_module_user_remove(u);
 			return -1;
 		}
 		/* This runs sorta backwards, since we give the incoming channel control, as if it
@@ -2370,6 +2372,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		/* Simulate the PBX hanging up */
 		if (res != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
+		ast_module_user_remove(u);
 		return res;
 	} else {
 		/*! \todo XXX Play a message XXX */
