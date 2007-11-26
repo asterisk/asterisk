@@ -211,14 +211,14 @@ static void *mixmonitor_thread(void *obj)
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "End MixMonitor Recording %s\n", mixmonitor->name);
 
+	if (fs)
+		ast_closestream(fs);
+
 	if (mixmonitor->post_process) {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_2 "Executing [%s]\n", mixmonitor->post_process);
 		ast_safe_system(mixmonitor->post_process);
 	}
-		
-	if (fs)
-		ast_closestream(fs);
 
 	free(mixmonitor);
 
