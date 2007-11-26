@@ -2308,6 +2308,7 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	char tmp[80] = "/tmp/astmail-XXXXXX";
 	long len;
 	void *buf;
+	int tempcopy = 0;
 	STRING str;
 	
 	/* Attach only the first format */
@@ -2320,8 +2321,14 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 
 	make_file(fn, sizeof(fn), dir, msgnum);
 
-	if (ast_strlen_zero(vmu->email))
+	if (ast_strlen_zero(vmu->email)) {
+		/*we need the vmu->email to be set when we call make_email_file, but if we keep it set,
+		 * a duplicate e-mail will be created. So at the end of this function, we will revert back to an empty
+		 * string if tempcopy is 1
+		 */
 		ast_copy_string(vmu->email, vmu->imapuser, sizeof(vmu->email));
+		tempcopy = 1;
+	}
 
 	if (!strcmp(fmt, "wav49"))
 		fmt = "WAV";
@@ -2331,6 +2338,8 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	   command hangs */
 	if ((p = vm_mkftemp(tmp)) == NULL) {
 		ast_log(LOG_WARNING, "Unable to store '%s' (can't create temporary file)\n", fn);
+		if(tempcopy)
+			*(vmu->email) = '\0';
 		return -1;
 	} else {
 		make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, fmt, duration, 1, chan, NULL, 1);
@@ -2354,6 +2363,8 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 		if(option_debug > 2)
 			ast_log(LOG_DEBUG, "%s stored\n", fn);
 	}
+	if(tempcopy)
+		*(vmu->email) = '\0';
 	return 0;
 
 }
