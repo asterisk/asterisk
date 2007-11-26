@@ -124,7 +124,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 
 	if (args.options) {
 		ast_app_parse_options(cpb_opts, &opts, opt_args, args.options);		
-		if (ast_test_flag(&opts, OPT_OFFSET) && !ast_strlen_zero(opt_args[OPT_ARG_OFFSET]))
+		if (ast_test_flag(&opts, OPT_OFFSET))
 			offsetms = atol(opt_args[OPT_ARG_OFFSET]);
 	}
 

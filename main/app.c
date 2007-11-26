@@ -1608,7 +1608,6 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
 	s = optstr;
 	while (*s) {
 		curarg = *s++ & 0x7f;	/* the array (in app.h) has 128 entries */
-		ast_set_flag(flags, options[curarg].flag);
 		argloc = options[curarg].arg_index;
 		if (*s == '(') {
 			/* Has argument */
@@ -1625,6 +1624,8 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
 		} else if (argloc) {
 			args[argloc - 1] = NULL;
 		}
+		if (!argloc || !ast_strlen_zero(args[argloc - 1]))
+			ast_set_flag(flags, options[curarg].flag);
 	}
 
 	return res;
