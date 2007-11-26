@@ -236,7 +236,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;notifyhold = yes		; Notify subscriptions on HOLD state (default: no)
 				; Turning on notifyringing and notifyhold will add a lot
 				; more database transactions if you are using realtime.
-;limitonpeer = yes		; Apply call counting on peers only. This will improve 
+;counteronpeer = yes		; Apply call counting on peers only. This will improve 
 				; status notification when you are using type=friend
 				; Inbound calls, that really apply to the user part
 				; of a friend will now be added to and compared with
