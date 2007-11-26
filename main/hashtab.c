@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision")
 #include "asterisk/hashtab.h"
 
 static void ast_hashtab_resize( struct ast_hashtab *tab);
+static void *ast_hashtab_lookup_internal(struct ast_hashtab *tab, const void *obj, unsigned int h);
 
 /* some standard, default routines for general use */
 
@@ -208,12 +209,12 @@ unsigned int ast_hashtab_hash_short(const short x)
 	return x;
 }
 
-struct ast_hashtab *ast_hashtab_create(int initial_buckets,
-	int (*compare)(const void *a, const void *b), /* a func to compare two elements in the hash -- cannot be null  */
-	int (*resize)(struct ast_hashtab *), /* a func to decide if the table needs to be resized, a NULL ptr here will cause a default to be used */
-	int (*newsize)(struct ast_hashtab *tab), /* a ptr to func that returns a new size of the array. A NULL will cause a default to be used */
-	unsigned int (*hash)(const void *obj), /* a func to do the hashing */
-	int do_locking ) /* use locks to guarantee safety of iterators/insertion/deletion -- real simpleminded right now */
+struct ast_hashtab *ast_hashtab_create(int initial_buckets, 
+	int (*compare)(const void *a, const void *b), 
+	int (*resize)(struct ast_hashtab *), 
+	int (*newsize)(struct ast_hashtab *tab),
+	unsigned int (*hash)(const void *obj), 
+	int do_locking)
 {
 	struct ast_hashtab *ht;
 	
@@ -460,12 +461,11 @@ int ast_hashtab_insert_safe(struct ast_hashtab *tab, const void *obj)
 	return 0;
 }
 
-void * ast_hashtab_lookup(struct ast_hashtab *tab, const void *obj)
+void *ast_hashtab_lookup(struct ast_hashtab *tab, const void *obj)
 {
 	/* lookup this object in the hash table. return a ptr if found, or NULL if not */
 	unsigned int h;
-	const void *ret;
-	struct ast_hashtab_bucket *b;
+	void *ret;
 
 	if (!tab || !obj)
 		return 0;
@@ -474,27 +474,21 @@ void * ast_hashtab_lookup(struct ast_hashtab *tab, const void *obj)
 		ast_rwlock_rdlock(&tab->lock);
 
 	h = (*tab->hash)(obj) % tab->hash_tab_size;
-	for (b = tab->array[h]; b; b = b->next) {
-		if (!(*tab->compare)(obj,b->object)) {
-			ret = b->object;
-			if (tab->do_locking)
-				ast_rwlock_unlock(&tab->lock);
-			return (void*) ret; /* I can't touch obj in this func, but the outside world is welcome to */
-		}
-	}
+
+	ret = ast_hashtab_lookup_internal(tab,obj,h);
 
 	if (tab->do_locking)
 		ast_rwlock_unlock(&tab->lock);
 
-	return 0;
+	return ret;
 }
+
 
 void *ast_hashtab_lookup_with_hash(struct ast_hashtab *tab, const void *obj, unsigned int hashval)
 {
 	/* lookup this object in the hash table. return a ptr if found, or NULL if not */
 	unsigned int h;
-	const void *ret;
-	struct ast_hashtab_bucket *b;
+	void *ret;
 
 	if (!tab || !obj)
 		return 0;
@@ -503,38 +497,43 @@ void *ast_hashtab_lookup_with_hash(struct ast_hashtab *tab, const void *obj, uns
 		ast_rwlock_rdlock(&tab->lock);
 		
 	h = hashval % tab->hash_tab_size;
-	for (b = tab->array[h]; b; b = b->next) {
-		if (!(*tab->compare)(obj,b->object)) {
-			ret = b->object;
-			if (tab->do_locking)
-				ast_rwlock_unlock(&tab->lock);
-			return (void*) ret; /* I can't touch obj in this func, but the outside world is welcome to */
-		}
-	}
 
+	ret = ast_hashtab_lookup_internal(tab,obj,h);
+	
 	if (tab->do_locking)
 		ast_rwlock_unlock(&tab->lock);
 
-	return 0;
+	return ret;
 }
 
-void * ast_hashtab_lookup_bucket(struct ast_hashtab *tab, const void *obj, unsigned int *bucket)
+void *ast_hashtab_lookup_bucket(struct ast_hashtab *tab, const void *obj, unsigned int *bucket)
 {
 	/* lookup this object in the hash table. return a ptr if found, or NULL if not */
 	unsigned int h;
-	struct ast_hashtab_bucket *b;
+	void *ret;
 
 	if (!tab || !obj)
 		return 0;
 	
 	h = (*tab->hash)(obj) % tab->hash_tab_size;
+	
+	ret = ast_hashtab_lookup_internal(tab,obj,h);
+	
+	*bucket = h; 
+	
+	return ret;
+}
+
+static void *ast_hashtab_lookup_internal(struct ast_hashtab *tab, const void *obj, unsigned int h)
+{
+	struct ast_hashtab_bucket *b;
+
 	for (b = tab->array[h]; b; b = b->next) {
-		if (!(*tab->compare)(obj,b->object))
+		if (!(*tab->compare)(obj,b->object)) {
 			return (void*) b->object; /* I can't touch obj in this func, but the outside world is welcome to */
+		}
 	}
 
-	*bucket = h;
-	
 	return 0;
 }
 
