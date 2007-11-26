@@ -47,6 +47,9 @@ Core:
   'rotatestrategy'.  This new option supports a 'rotate' strategy that more
   closely mimics the system logger in terms of file rotation.
 
+* The concise versions of various CLI commands are now deprecated. We recommend
+  using the manager interface (AMI) for application integration with Asterisk.
+
 Voicemail:
 
 * The voicemail configuration values 'maxmessage' and 'minmessage' have
@@ -106,14 +109,18 @@ Formats:
 
 Channel Drivers:
 
-* chan_sip.c: a small upgrade to support the "Record" button on the SNOM360,
+* SIP: a small upgrade to support the "Record" button on the SNOM360,
   which sends a sip INFO message with a "Record: on" or "Record: off" 
-  header. If asterisk is set up (via features.conf) to accept "One Touch Monitor"
+  header. If Asterisk is set up (via features.conf) to accept "One Touch Monitor"
   requests (by default, via '*1'), then the user-configured dialpad sequence
   is generated, and recording can be started and stopped via this button. The
   file names and formats are all controlled via the normal mechanisms. If the
   user has not configured the automon feature, the normal "415 Unsupported media type"
   is returned, and nothing is done.
+* SIP: The "call-limit" option is marked as deprecated. It still works in this version of
+  Asterisk, but will be removed in the following version. Please use the groupcount functions
+  in the dialplan to enforce call limits. The "limitonpeer" configuration option is
+  now renamed to "counteronpeer".
 
 * chan_local.c: the comma delimiter inside the channel name has been changed to a
   semicolon, in order to make the Local channel driver compatible with the comma

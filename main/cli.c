@@ -592,7 +592,9 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			"       'concise' is specified, the format is abridged and in a more easily\n"
 			"       machine parsable format. If 'verbose' is specified, the output includes\n"
 			"       more and longer fields. If 'count' is specified only the channel and call\n"
-			"       count is output.\n";
+			"       count is output.\n"
+			"	The 'concise' option is deprecated and will be removed from future versions\n"
+			"	of Asterisk.\n";
 		return NULL;
 
 	case CLI_GENERATE:

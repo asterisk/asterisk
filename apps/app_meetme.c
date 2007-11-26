@@ -963,7 +963,7 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 	case CLI_INIT:
 		e->command = "meetme";
 		e->usage =
-			"Usage: meetme concise|(un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
+			"Usage: meetme (un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
 			"       Executes a command for the conference or on a conferee\n";
 		return NULL;
 	case CLI_GENERATE:

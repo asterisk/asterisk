@@ -92,9 +92,6 @@ SIP changes
   * The new default is that 100 Trying is not sent on REGISTER attempts as the RFC specifically
      states it is not needed. For phones, however, that do require it the "registertrying" option
      has been added so it can be enabled. 
-  * The "call-limit" option is marked as deprecated. It still works in this version of
-    Asterisk, but will be removed in the following version. Please use the groupcount functions
-    in the dialplan to enforce call limits.
   * A new option called "callcounter" (global/peer/user level) enables call counters needed
     for better status reports needed for queues and SIP subscriptions. (Call-Limit was previously
     used to enable this functionality).
