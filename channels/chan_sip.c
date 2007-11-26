@@ -2753,8 +2753,9 @@ static char *get_in_brackets(char *tmp)
 /*! \brief * parses a URI in its components.
  *
  * \note 
- *- If scheme is specified, drop it from the top.
+ * - If scheme is specified, drop it from the top.
  * - If a component is not requested, do not split around it.
+ *
  * This means that if we don't have domain, we cannot split
  * name:pass and domain:port.
  * It is safe to call with ret_name, pass, domain, port
@@ -4576,6 +4577,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	int needtext = 0;
 	char buf[BUFSIZ];
 	char *decoded_exten;
+
 	{
 		const char *my_name;	/* pick a good name */
 	
@@ -4658,6 +4660,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		if (global_relaxdtmf)
 			ast_dsp_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
 	}
+
+	/* Set file descriptors for audio, video, realtime text and UDPTL as needed */
 	if (i->rtp) {
 		ast_channel_set_fd(tmp, 0, ast_rtp_fd(i->rtp));
 		ast_channel_set_fd(tmp, 1, ast_rtcp_fd(i->rtp));
@@ -4666,12 +4670,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		ast_channel_set_fd(tmp, 2, ast_rtp_fd(i->vrtp));
 		ast_channel_set_fd(tmp, 3, ast_rtcp_fd(i->vrtp));
 	}
-	if (needtext && i->trtp) {
+	if (needtext && i->trtp) 
 		ast_channel_set_fd(tmp, 4, ast_rtp_fd(i->trtp));
-	}
-	if (i->udptl) {
+	if (i->udptl)
 		ast_channel_set_fd(tmp, 5, ast_udptl_fd(i->udptl));
-	}
+
 	if (state == AST_STATE_RING)
 		tmp->rings = 1;
 	tmp->adsicpe = AST_ADSI_UNAVAILABLE;
@@ -17102,14 +17105,13 @@ static int sip_devicestate(void *data)
 	SIP calls initiated by the PBX arrive here */
 static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause)
 {
-	int oldformat;
 	struct sip_pvt *p;
 	struct ast_channel *tmpc = NULL;
 	char *ext, *host;
 	char tmp[256];
 	char *dest = data;
+	int oldformat = format;
 
-	oldformat = format;
 	/* mask request with some set of allowed formats.
 	 * XXX this needs to be fixed.
 	 * The original code uses AST_FORMAT_AUDIO_MASK, but it is
@@ -17192,6 +17194,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	return tmpc;
 }
 
+/*! Parse insecure= setting in sip.conf and set flags according to setting */
 static void set_insecure_flags (struct ast_flags *flags, const char *value, int lineno)
 {
 	if (ast_strlen_zero(value))
