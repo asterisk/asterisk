@@ -776,6 +776,7 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 	if (needqueue) {
 		if (pipe(tmp->alertpipe)) {
 			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
+			sched_context_destroy(tmp->sched);
 			ast_string_field_free_memory(tmp);
 			free(tmp);
 			return NULL;
