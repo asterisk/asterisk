@@ -152,7 +152,6 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 	struct varshead head = { .first = NULL, .last = NULL };
 	struct ast_var_t *n;
 
-	ast_log(LOG_WARNING, "string <%s> depth <%d>\n", s, depth);
 	if (depth++ > 10) {
 		ast_log(LOG_WARNING, "recursion too deep, exiting\n");
 		return -1;
@@ -164,7 +163,6 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 	/* scan languages same as in file.c */
 	if (a->language == NULL)
 		a->language = "en";     /* default */
-	ast_log(LOG_WARNING, "try <%s> in <%s>\n", s, a->language);
 	lang = ast_strdupa(a->language);
 	for (;;) {
 		for (v = ast_variable_browse(say_cfg, lang); v ; v = v->next) {
@@ -190,7 +188,6 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 		s = x + 1;
 	if ( (x = strchr(s, ':')) )
 		s = x + 1;
-	ast_log(LOG_WARNING, "value is <%s>\n", s);
 	n = ast_var_assign("SAY", s);
 	AST_LIST_INSERT_HEAD(&head, n, entries);
 
@@ -206,7 +203,6 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 		/* replace variables */
 		memset(fn, 0, sizeof(fn)); /* XXX why isn't done in pbx_substitute_variables_helper! */
 		pbx_substitute_variables_varshead(&head, x, fn, sizeof(fn));
-		ast_log(LOG_WARNING, "doing [%s]\n", fn);
 
 		/* locate prefix and data, if any */
 		fmt = index(fn, ':');
