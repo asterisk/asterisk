@@ -2298,8 +2298,10 @@ int ast_spawn_extension(struct ast_channel *c, const char *context, const char *
 /* helper function to set extension and priority */
 static void set_ext_pri(struct ast_channel *c, const char *exten, int pri)
 {
+	ast_channel_lock(c);
 	ast_copy_string(c->exten, exten, sizeof(c->exten));
 	c->priority = pri;
+	ast_channel_unlock(c);
 }
 
 /*!
