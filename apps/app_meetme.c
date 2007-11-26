@@ -5191,6 +5191,9 @@ static void sla_destroy(void)
 		pthread_join(sla.thread, NULL);
 	}
 
+	/* Drop any created contexts from the dialplan */
+	ast_context_destroy(NULL, sla_registrar);
+
 	ast_mutex_destroy(&sla.lock);
 	ast_cond_destroy(&sla.cond);
 }
