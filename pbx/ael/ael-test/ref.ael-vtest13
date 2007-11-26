@@ -1953,13 +1953,13 @@ exten => sw-76-TORTURE,11,Goto(s\,10)
 
 
 [fillcidname]
-exten => s,1,GotoIf($["${CALLERID(number)}" = "" ]?2:3)
+exten => s,1,GotoIf($["${CALLERID(num)}" = "" ]?2:3)
 exten => s,2,Return()
 exten => s,3,NoOp(Finish if-fillcidname-77)
 exten => s,4,Set(cidn=${DB(cidname/${CALLERID(num)})})
 exten => s,5,GotoIf($["${CALLERID(name)}" != "" ]?6:9)
 exten => s,6,GotoIf($[("${cidn}" = "Privacy Manager" & "${CALLERID(name)}" != "Privacy Manager") | "${cidn}" = "" ]?7:8)
-exten => s,7,Set(DB(cidname/${CALLERID(number)})=${CALLERID(name)})
+exten => s,7,Set(DB(cidname/${CALLERID(num)})=${CALLERID(name)})
 exten => s,8,NoOp(Finish if-if-fillcidname-78-79)
 exten => s,9,NoOp(Finish if-fillcidname-78)
 exten => s,10,GotoIf($[( "${cidn}" != "" ) & ( "${CALLERID(name)}" = ""                                                    | "${CALLERID(name)}" = "CODY\,WY        "                                                       | "${CALLERID(name)}" = "POWELL\,WY      "                                                       | "${CALLERID(name)}" = "WIRELESS CALLER"                                                     | "${CALLERID(name)}" = "SUBSCRIBER\,WIRE"                                                     | "${CALLERID(name)}" = "CELLULAR ONE"                                                     | "${CALLERID(name)}" = "Cellular One Customer"                                                       | "${CALLERID(name)}" = "CELLULAR ONE   "                                                       | "${CALLERID(name)}" = "Privacy Manager"                                                    | "${CALLERID(name)}" = "RIVERTON\,WY    "                                                     | "${CALLERID(name)}" = "BASIN\,WY       "                                                     | "${CALLERID(name)}" = "BILLINGS\,MT    "                                                   | "${CALLERID(name)}" = "PROVO\,UT       "                                                     | "${CALLERID(name)}" = "TOLL FREE      " ) ]?11:12)

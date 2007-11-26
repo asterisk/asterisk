@@ -291,10 +291,10 @@ context extension
 	}	
 	873 => {
 		NOOP(this is a forkcdr test);
-		Set(CALLERID(number)=1234567890);
+		Set(CALLERID(num)=1234567890);
 		Set(CALLERID(name)=before fork);
 		Forkcdr(v);
-		Set(CALLERID(number)=0987654321);
+		Set(CALLERID(num)=0987654321);
 		Set(CALLERID(name)=after fork);
 		Answer();
 		Echo();

@@ -89,10 +89,10 @@ macro checkanddial(prov,proto,ext,arg1,arg2,arg3,arg4) {
 };
 
 macro trunkdial(ext) {	// Dial sunrocket and set correct collerid
-	if("${CALLERID(number)}" = "1") {
-		Set(CALLERID(number)=7322271653);
+	if("${CALLERID(num)}" = "1") {
+		Set(CALLERID(num)=7322271653);
 	} else {
-		Set(CALLERID(number)=7326260100);
+		Set(CALLERID(num)=7326260100);
 	};
 	Set(CALLERID(name)=Sergey Okhapkin);
 	&checkanddial(${TRUNK},${TRUNCPROTO},${ext},60,T);
@@ -174,7 +174,7 @@ repeat:
 		goto s|start;
 	};
 	101 => {	// Voicemail
-		VoicemailMain(${CALLERID(number)});
+		VoicemailMain(${CALLERID(num)});
 		Hangup;
 	};
 	102 => MusicOnHold();
@@ -189,7 +189,7 @@ repeat:
 	7312 => {
 		ForkCDR;
 		Set(CALLERID(name)=Sergey Okhapkin);
-		Set(CALLERID(number)=7326260100);
+		Set(CALLERID(num)=7326260100);
 		DISA(1111|home);
 	};
 };
@@ -267,17 +267,17 @@ context outbound {
 	};
 	_014. => {	//TARIO by SIP ID
 		Set(CALLERID(name)=Sergey Okhapkin);
-		Set(CALLERID(number)=1400898);
+		Set(CALLERID(num)=1400898);
 		Dial(${TARIOPROTO}/${EXTEN:3}@${TARIO},60,T);
 	};
 	_0157. => {	//TARIO outbound Russia
 		Set(CALLERID(name)=Sergey Okhapkin);
-		Set(CALLERID(number)=1400898);
+		Set(CALLERID(num)=1400898);
 		Dial(${TARIOPROTO}/8${EXTEN:4}@${TARIO},60,T);
 	};
 //	_015. => {	//TARIO outbound international
 //		CALLERID(name)="Sergey Okhapkin";
-//		CALLERID(number)=1400898;
+//		CALLERID(num)=1400898;
 //		Dial(${TARIOPROTO}/810${EXTEN:3}@${TARIO},60,T);
 //	};
 	_0161NXXNXXXXXX => {	//Callpacket outbound USA/Canada
@@ -305,8 +305,8 @@ context sunrocket-in {
 	7322271653 => jump s;
 	7326260100 => jump 2@default;
 	s => {
-		if("${CALLERID(number)}" = "sunrocketcom")
-			Set(CALLERID(number)=);
+		if("${CALLERID(num)}" = "sunrocketcom")
+			Set(CALLERID(num)=);
 		switch(${CALLERID(RDNIS)}) {
 		case 7326260100:
 			jump 2@default;
@@ -323,8 +323,8 @@ context sunrocket-in {
 
 context pstn-in {
 	3 => {
-		if ("${CALLERID(number)}" = "7322271677")
-			Set(CALLERID(number)=);
+		if ("${CALLERID(num)}" = "7322271677")
+			Set(CALLERID(num)=);
 		jump 3@default;
 	};
 };
@@ -332,8 +332,8 @@ context pstn-in {
 context tario.net-in {
 	_X. => {
 		Set(CALLERID(name)=);
-		if("${CALLERID(number):-11:1}" = "8")
-			Set(CALLERID(number)=7${CALLERID(number):1});
+		if("${CALLERID(num):-11:1}" = "8")
+			Set(CALLERID(num)=7${CALLERID(num):1});
 		if("${SIP_HEADER(To)}" = "<sip:2271677@sipnet.ru>") {
 			jump 3@default;
 		} else if("${SIP_HEADER(To)}" = "<sip:2271653@sipnet.ru>") {
@@ -370,7 +370,7 @@ context fromfwdOUT-isgood {
 	_17322271677 => jump 3@default;
 	_1NXXNXXXXXX => {
 		Set(CALLERID(name)=Sergey Okhapkin);
-//		Set(CALLERID(number)=7326260100);
+//		Set(CALLERID(num)=7326260100);
 //		Dial(${TRUNCPROTO}/*67${EXTEN:${TRUNKMSD}}@${TRUNK},60,,L(1800000:60000));
 		Dial(${CPPROTO}/${EXTEN}@${CPACKET2},60,,L(1800000:60000));
 	};

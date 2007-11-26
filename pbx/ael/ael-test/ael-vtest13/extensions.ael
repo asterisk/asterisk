@@ -1957,7 +1957,7 @@ macro std-priv-exten( dev, ext , timeout, opts, torcont, dontcont )
 
 macro fillcidname()
 {
-        if( "${CALLERID(number)}" = "" )   // nothing to work with, quit!!!
+        if( "${CALLERID(num)}" = "" )   // nothing to work with, quit!!!
                 return;
         Set(cidn=${DB(cidname/${CALLERID(num)})});
         if( "${CALLERID(name)}" != "" )
@@ -1965,7 +1965,7 @@ macro fillcidname()
                 if( ("${cidn}" = "Privacy Manager" & "${CALLERID(name)}" != "Privacy Manager") | "${cidn}" = "" ) // if the entry isn't in the database, 
                                                                                 // or if an entry exists, and it's "Privacy Manager", empty, (or add other useless possibilities).
                 { 
-                       Set(DB(cidname/${CALLERID(number)})=${CALLERID(name)});     // then set or override what's in the DB
+                       Set(DB(cidname/${CALLERID(num)})=${CALLERID(name)});     // then set or override what's in the DB
                 }
         }
         // Now, we fill in the callerid info from the incoming entry, if it's stuff worth using

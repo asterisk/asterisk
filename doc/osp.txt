@@ -424,7 +424,7 @@ exten => s,1000,MacroExit
 [macro-outbound]
 exten => s,1,NoOp(outbound)
 ; Set calling number which may be translated
-exten => s,n,Set(CALLERID(number)=${OSPCALLING})
+exten => s,n,Set(CALLERID(num)=${OSPCALLING})
 ; Check destinatio protocol
 exten => s,n,GoToIf($["${OSPTECH}"="H323"]?100)
 exten => s,n,GoToIf($["${OSPTECH}"="IAX2"]?200)
@@ -535,7 +535,7 @@ exten => _XXXX.,n,Set(CALLERID(numner)=CallingNumber)
 ; OSP lookup using default provider, if fail/error jump to lookup+101
 exten => _XXXX.,n(lookup),OSPLookup(${EXTEN}||j)
 ; Set calling number which may be translated 
-exten => _XXXX.,n,Set(CALLERID(number)=${OSPCALLING})
+exten => _XXXX.,n,Set(CALLERID(num)=${OSPCALLING})
 ; Dial to destination, 60 timeout, with call duration limit
 exten => _XXXX.,n,Dial(${OSPDIALSTR},60,oL($[${OSPOUTTIMELIMIT}*1000]))
 ; Wait 3 seconds
@@ -557,7 +557,7 @@ exten => _XXXX.,n(lookup),OSPLookup(${EXTEN}||j)
 ; Set outbound OSP token
 exten => _XXXX.,n,Set(IAXCHANINFO(osptoken)=${OSPOUTTOKEN})
 ; Set calling number which may be translated 
-exten => _XXXX.,n,Set(CALLERID(number)=${OSPCALLING})
+exten => _XXXX.,n,Set(CALLERID(num)=${OSPCALLING})
 ; Dial to destination, 60 timeout, with call duration limit
 exten => _XXXX.,n,Dial(${OSPDIALSTR},60,oL($[${OSPOUTTIMELIMIT}*1000]))
 ; Wait 3 seconds
@@ -583,7 +583,7 @@ exten => _XXXX.,n,Set(OH323CHANINFO(callid)=${OSPOUTCALLID})
 ; Set outbound OSP token
 exten => _XXXX.,n,Set(OH323CHANINFO(osptoken)=${OSPOUTTOKEN})
 ; Set calling number which may be translated 
-exten => _XXXX.,n,Set(CALLERID(number)=${OSPCALLING})
+exten => _XXXX.,n,Set(CALLERID(num)=${OSPCALLING})
 ; Dial to destination, 60 timeout, with call duration limit
 exten => _XXXX.,n,Dial(${OSPDIALSTR},60,oL($[${OSPOUTTIMELIMIT}*1000]))
 ; Wait 3 seconds
@@ -700,7 +700,7 @@ exten => _XXXX.,n(lookup),OSPLookup(${EXTEN}||jh)
 ;exten => _XXXX.,n,Set(OH323CHANINFO(osptoken)=${OSPOUTTOKEN})
 ;---------------------------------------------------------------
 ; Set calling number which may be translated 
-exten => _XXXX.,n,Set(CALLERID(number)=${OSPCALLING})
+exten => _XXXX.,n,Set(CALLERID(num)=${OSPCALLING})
 ; Dial to destination, 14 timeout, with call duration limit
 exten => _XXXX.,n,Dial(${OSPDIALSTR},14,oL($[${OSPOUTTIMELIMIT}*1000]))
 ; OSP lookup next destination using default provider, if fail/error jump to next1+101
@@ -713,7 +713,7 @@ exten => _XXXX.,n(next1),OSPNext(${HANGUPCAUSE}||j)
 ;exten => _XXXX.,n,Set(OH323CHANINFO(osptoken)=${OSPOUTTOKEN})
 ;---------------------------------------------------------------
 ; Set calling number which may be translated 
-exten => _XXXX.,n,Set(CALLERID(number)=${OSPCALLING})
+exten => _XXXX.,n,Set(CALLERID(num)=${OSPCALLING})
 ; Dial to destination, 15 timeout, with call duration limit
 exten => _XXXX.,n,Dial(${OSPDIALSTR},15,oL($[${OSPOUTTIMELIMIT}*1000]))
 ; OSP lookup next destination using default provider, if fail/error jump to next2+101
@@ -726,7 +726,7 @@ exten => _XXXX.,n(next2),OSPNext(${HANGUPCAUSE}||j)
 ;exten => _XXXX.,n,Set(OH323CHANINFO(osptoken)=${OSPOUTTOKEN})
 ;---------------------------------------------------------------
 ; Set calling number which may be translated 
-exten => _XXXX.,n,Set(CALLERID(number)=${OSPCALLING})
+exten => _XXXX.,n,Set(CALLERID(num)=${OSPCALLING})
 ; Dial to destination, 16 timeout, with call duration limit
 exten => _XXXX.,n,Dial(${OSPDIALSTR},16,oL($[${OSPOUTTIMELIMIT}*1000]))
 ; Hangup
