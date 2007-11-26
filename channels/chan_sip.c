@@ -1492,6 +1492,15 @@ static struct sockaddr_in debugaddr;
 
 static struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we know how to send */
 
+/*! some list management macros. */
+ 
+#define UNLINK(element, head, prev) do {	\
+	if (prev)				\
+		(prev)->next = (element)->next;	\
+	else					\
+		(head) = (element)->next;	\
+	} while (0)
+
 /*---------------------------- Forward declarations of functions in chan_sip.c */
 /*! \note This is added to help splitting up chan_sip.c into several files
 	in coming releases */
@@ -1886,14 +1895,6 @@ static int map_s_x(const struct _map_x_s *table, const char *s, int errorvalue)
 	return errorvalue;
 }
 
-/**--- some list management macros. **/
- 
-#define UNLINK(element, head, prev) do {	\
-	if (prev)				\
-		(prev)->next = (element)->next;	\
-	else					\
-		(head) = (element)->next;	\
-	} while (0)
 
 /*! \brief Interface structure with callbacks used to connect to RTP module */
 static struct ast_rtp_protocol sip_rtp = {
@@ -2954,6 +2955,7 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 	}
 }
 
+/*! Destroy mailbox subscriptions */
 static void destroy_mailbox(struct sip_mailbox *mailbox)
 {
 	if (mailbox->mailbox)
@@ -2965,6 +2967,7 @@ static void destroy_mailbox(struct sip_mailbox *mailbox)
 	ast_free(mailbox);
 }
 
+/*! Destroy all peer-related mailbox subscriptions */
 static void clear_peer_mailboxes(struct sip_peer *peer)
 {
 	struct sip_mailbox *mailbox;
@@ -3220,7 +3223,10 @@ static int sip_addrcmp(char *name, struct sockaddr_in *sin)
 
 /*! \brief Locate peer by name or ip address 
  *	This is used on incoming SIP message to find matching peer on ip
-	or outgoing message to find matching peer on name */
+	or outgoing message to find matching peer on name 
+	\note Avoid using this function in new functions if there's a way to avoid it, i
+	since it causes a database lookup or a traversal of the in-memory peer list.
+*/
 static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime)
 {
 	struct sip_peer *p = NULL;
@@ -3331,7 +3337,10 @@ static void do_setnat(struct sip_pvt *p, int natflags)
 }
 
 /*! \brief Create address structure from peer reference.
- *  return -1 on error, 0 on success.
+ *	This function copies data from peer to the dialog, so we don't have to look up the peer
+ *	again from memory or database during the life time of the dialog.
+ *
+ * \return -1 on error, 0 on success.
  */
 static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 {
@@ -3371,9 +3380,9 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_udptl_destroy(dialog->udptl);
 		dialog->udptl = NULL;
 	}
-	do_setnat(dialog, ast_test_flag(&dialog->flags[0], SIP_NAT) & SIP_NAT_ROUTE );
+	do_setnat(dialog, ast_test_flag(&dialog->flags[0], SIP_NAT) & SIP_NAT_ROUTE);
 
-	if (dialog->rtp) {
+	if (dialog->rtp) { /* Audio */
 		ast_rtp_setdtmf(dialog->rtp, ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
 		ast_rtp_setdtmfcompensate(dialog->rtp, ast_test_flag(&dialog->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
 		ast_rtp_set_rtptimeout(dialog->rtp, peer->rtptimeout);
@@ -3383,14 +3392,14 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_rtp_codec_setpref(dialog->rtp, &dialog->prefs);
 		dialog->autoframing = peer->autoframing;
 	}
-	if (dialog->vrtp) {
+	if (dialog->vrtp) { /* Video */
 		ast_rtp_setdtmf(dialog->vrtp, 0);
 		ast_rtp_setdtmfcompensate(dialog->vrtp, 0);
 		ast_rtp_set_rtptimeout(dialog->vrtp, peer->rtptimeout);
 		ast_rtp_set_rtpholdtimeout(dialog->vrtp, peer->rtpholdtimeout);
 		ast_rtp_set_rtpkeepalive(dialog->vrtp, peer->rtpkeepalive);
 	}
-	if (dialog->trtp) {
+	if (dialog->trtp) { /* Realtime text */
 		ast_rtp_setdtmf(dialog->trtp, 0);
 		ast_rtp_setdtmfcompensate(dialog->trtp, 0);
 		ast_rtp_set_rtptimeout(dialog->trtp, peer->rtptimeout);
@@ -3407,43 +3416,46 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	ast_string_field_set(dialog, mohinterpret, peer->mohinterpret);
 	ast_string_field_set(dialog, tohost, peer->tohost);
 	ast_string_field_set(dialog, fullcontact, peer->fullcontact);
-	if (!dialog->initreq.headers && !ast_strlen_zero(peer->fromdomain)) {
-		char *tmpcall;
-		char *c;
-		tmpcall = ast_strdupa(dialog->callid);
-		c = strchr(tmpcall, '@');
-		if (c) {
-			*c = '\0';
-			ast_string_field_build(dialog, callid, "%s@%s", tmpcall, peer->fromdomain);
-		}
-	}
+	ast_string_field_set(dialog, context, peer->context);
 	dialog->outboundproxy = obproxy_get(dialog, peer);
-	if (ast_strlen_zero(dialog->tohost))
-		ast_string_field_set(dialog, tohost, ast_inet_ntoa(dialog->sa.sin_addr));
-	if (!ast_strlen_zero(peer->fromdomain))
-		ast_string_field_set(dialog, fromdomain, peer->fromdomain);
-	if (!ast_strlen_zero(peer->fromuser))
-		ast_string_field_set(dialog, fromuser, peer->fromuser);
-	if (!ast_strlen_zero(peer->language))
-		ast_string_field_set(dialog, language, peer->language);
 	dialog->callgroup = peer->callgroup;
 	dialog->pickupgroup = peer->pickupgroup;
 	dialog->allowtransfer = peer->allowtransfer;
+	dialog->jointnoncodeccapability = dialog->noncodeccapability;
+	dialog->rtptimeout = peer->rtptimeout;
+	dialog->maxcallbitrate = peer->maxcallbitrate;
+	if (ast_strlen_zero(dialog->tohost))
+		ast_string_field_set(dialog, tohost, ast_inet_ntoa(dialog->sa.sin_addr));
+	if (!ast_strlen_zero(peer->fromdomain)) {
+		ast_string_field_set(dialog, fromdomain, peer->fromdomain);
+		if (!dialog->initreq.headers) {
+			char *c;
+			char *tmpcall = ast_strdupa(dialog->callid);
+
+			c = strchr(tmpcall, '@');
+			if (c) {
+				*c = '\0';
+				ast_string_field_build(dialog, callid, "%s@%s", tmpcall, peer->fromdomain);
+			}
+		}
+	}
+	if (!ast_strlen_zero(peer->fromuser)) 
+		ast_string_field_set(dialog, fromuser, peer->fromuser);
+	if (!ast_strlen_zero(peer->language))
+		ast_string_field_set(dialog, language, peer->language);
+
 	/* Set timer T1 to RTT for this peer (if known by qualify=) */
 	/* Minimum is settable or default to 100 ms */
 	if (peer->maxms && peer->lastms)
 		dialog->timer_t1 = peer->lastms < global_t1min ? global_t1min : peer->lastms;
+
 	if ((ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
 	    (ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
 		dialog->noncodeccapability |= AST_RTP_DTMF;
 	else
 		dialog->noncodeccapability &= ~AST_RTP_DTMF;
-	dialog->jointnoncodeccapability = dialog->noncodeccapability;
-	ast_string_field_set(dialog, context, peer->context);
-	dialog->rtptimeout = peer->rtptimeout;
 	if (peer->call_limit)
 		ast_set_flag(&dialog->flags[0], SIP_CALL_LIMIT);
-	dialog->maxcallbitrate = peer->maxcallbitrate;
 	
 	return 0;
 }
