@@ -61,6 +61,7 @@ struct ast_dial_channel {
 	const char *device;                    /*! Device being dialed */
 	void *options[AST_DIAL_OPTION_MAX];    /*! Channel specific options */
 	int cause;                             /*! Cause code in case of failure */
+	int is_running_app:1;                  /*! Is this running an application? */
 	struct ast_channel *owner;             /*! Asterisk channel */
 	AST_LIST_ENTRY(ast_dial_channel) list; /*! Linked list information */
 };
@@ -123,8 +124,9 @@ static int answer_exec_disable(void *data)
 }
 
 /* Application execution function for 'ANSWER_EXEC' option */
-static void answer_exec_run(struct ast_channel *chan, char *app, char *args)
+static void answer_exec_run(struct ast_dial *dial, struct ast_dial_channel *dial_channel, char *app, char *args)
 {
+	struct ast_channel *chan = dial_channel->owner;
 	struct ast_app *ast_app = pbx_findapp(app);
 
 	/* If the application was not found, return immediately */
@@ -133,6 +135,12 @@ static void answer_exec_run(struct ast_channel *chan, char *app, char *args)
 
 	/* All is well... execute the application */
 	pbx_exec(chan, ast_app, args);
+
+	/* If another thread is not taking over hang up the channel */
+	if (dial->thread != AST_PTHREADT_STOP) {
+		ast_hangup(chan);
+		dial_channel->owner = NULL;
+	}
 
 	return;
 }
@@ -510,8 +518,11 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 			channel->owner = NULL;
 		}
 		/* If ANSWER_EXEC is enabled as an option, execute application on answered channel */
-		if ((channel = find_relative_dial_channel(dial, who)) && (answer_exec = FIND_RELATIVE_OPTION(dial, channel, AST_DIAL_OPTION_ANSWER_EXEC)))
-			answer_exec_run(who, answer_exec->app, answer_exec->args);
+		if ((channel = find_relative_dial_channel(dial, who)) && (answer_exec = FIND_RELATIVE_OPTION(dial, channel, AST_DIAL_OPTION_ANSWER_EXEC))) {
+			channel->is_running_app = 1;
+			answer_exec_run(dial, channel, answer_exec->app, answer_exec->args);
+			channel->is_running_app = 0;
+		}
 	} else if (dial->state == AST_DIAL_RESULT_HANGUP) {
 		/* Hangup everything */
 		AST_LIST_TRAVERSE(&dial->channels, channel, list) {
@@ -615,8 +626,16 @@ enum ast_dial_result ast_dial_join(struct ast_dial *dial)
 	/* Stop the thread */
 	dial->thread = AST_PTHREADT_STOP;
 
-	/* Now we signal it with SIGURG so it will break out of it's waitfor */
-	pthread_kill(thread, SIGURG);
+	/* If the answered channel is running an application we have to soft hangup it, can't just poke the thread */
+	if (AST_LIST_FIRST(&dial->channels)->is_running_app) {
+		struct ast_channel *chan = AST_LIST_FIRST(&dial->channels)->owner;
+		ast_channel_lock(chan);
+		ast_softhangup(chan, AST_SOFTHANGUP_EXPLICIT);
+		ast_channel_unlock(chan);
+	} else {
+		/* Now we signal it with SIGURG so it will break out of it's waitfor */
+		pthread_kill(thread, SIGURG);
+	}
 
 	/* Finally wait for the thread to exit */
 	pthread_join(thread, NULL);
