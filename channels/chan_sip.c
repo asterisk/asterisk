@@ -11923,12 +11923,13 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 		if (cur->subscribed == NONE && !arg->subscriptions) {
 			/* set if SIP transfer in progress */
 			const char *referstatus = cur->refer ? referstatus2str(cur->refer->status) : "";
+			char formatbuf[BUFSIZ/2];
 
 			ast_cli(arg->fd, FORMAT, ast_inet_ntoa(dst->sin_addr), 
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
 				cur->callid, 
-				cur->ocseq, cur->icseq, 
-				ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), 
+				cur->ocseq, cur->icseq,
+				ast_getformatname_multiple(formatbuf, sizeof(formatbuf), cur->owner ? cur->owner->nativeformats : 0),
 				cli_yesno(ast_test_flag(&cur->flags[1], SIP_PAGE2_CALL_ONHOLD)),
 				cur->needdestroy ? "(d)" : "",
 				cur->lastmsg ,
