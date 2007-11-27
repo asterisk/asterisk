@@ -1139,8 +1139,10 @@ long int ast_random(void)
 	if (dev_urandom_fd >= 0) {
 		int read_res = read(dev_urandom_fd, &res, sizeof(res));
 		if (read_res > 0) {
+			long int rm = RAND_MAX;
 			res = res < 0 ? ~res : res;
-			return res;
+			rm++;
+			return res % rm;
 		}
 	}
 #endif
