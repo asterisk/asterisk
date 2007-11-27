@@ -4743,10 +4743,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 			"Channel: %s\r\nUniqueid: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\n",
 			tmp->name, tmp->uniqueid, "SIP", i->callid, i->fullcontact);
 
-	manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
-		"Channel: %s\r\nUniqueid: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\n",
-		tmp->name, tmp->uniqueid, "SIP", i->callid, i->fullcontact);
-
 	return tmp;
 }
 
