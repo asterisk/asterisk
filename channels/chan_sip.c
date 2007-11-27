@@ -4743,6 +4743,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 			"Channel: %s\r\nUniqueid: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\n",
 			tmp->name, tmp->uniqueid, "SIP", i->callid, i->fullcontact);
 
+	manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
+		"Channel: %s\r\nUniqueid: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\n",
+		tmp->name, tmp->uniqueid, "SIP", i->callid, i->fullcontact);
+
 	return tmp;
 }
 
@@ -6165,7 +6169,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		/* Queue Manager Unhold event */
 		append_history(p, "Unhold", "%s", req->data);
 		if (global_callevents)
-			manager_event(EVENT_FLAG_CALL, "Unhold",
+			manager_event(EVENT_FLAG_CALL, "Hold",
+				      "Status: Off\r\n"
 				      "Channel: %s\r\n"
 				      "Uniqueid: %s\r\n",
 				      p->owner->name,
@@ -6187,6 +6192,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		append_history(p, "Hold", "%s", req->data);
 		if (global_callevents && !ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD)) {
 			manager_event(EVENT_FLAG_CALL, "Hold",
+				      "Status: On\r\n"
 				      "Channel: %s\r\n"
 				      "Uniqueid: %s\r\n",
 				      p->owner->name, 
@@ -8676,7 +8682,7 @@ static int expire_register(const void *data)
 
 	destroy_association(peer);	/* remove registration data from storage */
 	
-	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
+	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
 	peer->expire = -1;
 	ast_device_state_changed("SIP/%s", peer->name);
@@ -8936,7 +8942,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry, peer->username, peer->fullcontact);
 	if (!peer->rt_fromcontact) 
 		ast_db_put("SIP/Registry", peer->name, data);
-	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
+	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
 
 	/* Is this a new IP address for us? */
 	if (inaddrcmp(&peer->addr, &oldsin)) {
@@ -9461,7 +9467,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			case PARSE_REGISTER_UPDATE:
 				/* Say OK and ask subsystem to retransmit msg counter */
 				transmit_response_with_date(p, "200 OK", req);
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
 				peer->lastmsgssent = -1;
 				res = 0;
 				break;
@@ -13824,7 +13830,7 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 			peer->name, s, pingtime, peer->maxms);
 		ast_device_state_changed("SIP/%s", peer->name);
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
-			"Peer: SIP/%s\r\nPeerStatus: %s\r\nTime: %d\r\n",
+			"ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: %s\r\nTime: %d\r\n",
 			peer->name, s, pingtime);
 		if (is_reachable && global_regextenonqualify)
 			register_peer_exten(peer, TRUE);
@@ -15426,6 +15432,12 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	ast_set_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
 
 	/* Perform the transfer */
+	manager_event(EVENT_FLAG_CALL, "Transfer", "TransferMethod: SIP\r\nTransferType: Attended\r\nChannel: %s\r\nUniqueid: %s\r\nSIP-Callid: %s\r\nTargetChannel: %s\r\nTargetUniqueid: %s\r\n",
+		transferer->owner->name,
+		transferer->owner->uniqueid,
+		transferer->callid,
+		target.chan1->name,
+		target.chan1->uniqueid);
 	res = attempt_transfer(current, &target);
 	sip_pvt_unlock(targetcall_pvt);
 	if (res) {
@@ -15690,6 +15702,13 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
 		p->refer->status = REFER_200OK;
 		append_history(p, "Xfer", "REFER to call parking.");
+		manager_event(EVENT_FLAG_CALL, "Transfer", "TransferMethod: SIP\r\nTransferType: Blind\r\nChannel: %s\r\nUniqueid: %s\r\nSIP-Callid: %s\r\nTargetChannel: %s\r\nTargetUniqueid: %s\r\nTransferExten: %s\r\nTransfer2Parking: Yes\r\n",
+			current.chan1->name,
+			current.chan1->uniqueid,
+			p->callid,
+			current.chan2->name,
+			current.chan2->uniqueid,
+			p->refer->refer_to);
 		if (sipdebug)
 			ast_debug(4, "SIP transfer to parking: trying to park %s. Parked by %s\n", current.chan2->name, current.chan1->name);
 		sip_park(current.chan2, current.chan1, req, seqno);
@@ -15755,11 +15774,19 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	}
 	ast_set_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
 
+
 	/* For blind transfers, move the call to the new extensions. For attended transfers on multiple
 	   servers - generate an INVITE with Replaces. Either way, let the dial plan decided  */
 	res = ast_async_goto(current.chan2, p->refer->refer_to_context, p->refer->refer_to, 1);
 
 	if (!res) {
+		manager_event(EVENT_FLAG_CALL, "Transfer", "TransferMethod: SIP\r\nTransferType: Blind\r\nChannel: %s\r\nUniqueid: %s\r\nSIP-Callid: %s\r\nTargetChannel: %s\r\nTargetUniqueid: %s\r\nTransferExten: %s\r\nTransferContext: %s\r\n",
+			current.chan1->name,
+			current.chan1->uniqueid,
+			p->callid,
+			current.chan2->name,
+			current.chan2->uniqueid,
+			p->refer->refer_to, p->refer->refer_to_context);
 		/* Success  - we have a new channel */
 		ast_debug(3, "%s transfer succeeded. Telling transferer.\n", p->refer->attendedtransfer? "Attended" : "Blind");
 		transmit_notify_with_sipfrag(p, seqno, "200 Ok", TRUE);
@@ -16932,7 +16959,7 @@ static int sip_poke_noanswer(const void *data)
 	peer->pokeexpire = -1;
 	if (peer->lastms > -1) {
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
-		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
+		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
 		if (global_regextenonqualify)
 			register_peer_exten(peer, FALSE);
 	}
