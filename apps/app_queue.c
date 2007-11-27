@@ -1016,7 +1016,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		if (!strcasecmp(val, "vars")) {
 			q->eventwhencalled = QUEUE_EVENT_VARIABLES;
 		} else {
-			q->eventwhencalled = -(ast_true(val));
+			q->eventwhencalled = ast_true(val) ? 1 : 0;
 		}
 	} else if (!strcasecmp(param, "reportholdtime")) {
 		q->reportholdtime = ast_true(val);
