@@ -989,6 +989,7 @@ static void iax2_free_variable_datastore(void *old)
 	ast_free(oldlist);
 }
 
+
 /* WARNING: insert_idle_thread should only ever be called within the
  * context of an iax2_process_thread() thread.
  */
@@ -4695,6 +4696,7 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 			astman_append(s, 
 				"Event: PeerEntry\r\n%s"
 				"Channeltype: IAX2\r\n"
+				"ChanObjectType: peer\r\n"
 				"ObjectName: %s\r\n"
 				"IPaddress: %s\r\n"
 				"IPport: %d\r\n"
@@ -4927,7 +4929,7 @@ static char *handle_cli_iax2_show_firmware(struct ast_cli_entry *e, int cmd, str
 	return CLI_SUCCESS;
 }
 
-/* JDG: callback to display iax peers in manager */
+/*! \brief callback to display iax peers in manager */
 static int manager_iax2_show_peers(struct mansession *s, const struct message *m)
 {
 	char *a[] = { "iax2", "show", "users" };
@@ -4938,7 +4940,49 @@ static int manager_iax2_show_peers(struct mansession *s, const struct message *m
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
 	astman_send_ack(s, m, "Peer status list will follow");
 	return __iax2_show_peers(1, -1, s, 3, a );
-} /* /JDG */
+} 
+
+/*! \brief callback to display iax peers in manager format */
+static int manager_iax2_show_peer_list(struct mansession *s, const struct message *m)
+{
+	struct iax2_peer *peer = NULL;
+	int peer_count = 0;
+	char nm[20];
+	char status[20];
+	const char *id = astman_get_header(m,"ActionID");
+	char idtext[256] = "";
+	struct ao2_iterator i;
+
+	if (!ast_strlen_zero(id))
+		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
+
+	astman_append(s, "Response: Success\r\n%sMessage: IAX Peer status list will follow\r\n\r\n", idtext);
+
+
+	i = ao2_iterator_init(peers, 0);
+	for (peer = ao2_iterator_next(&i); peer; peer_unref(peer), peer = ao2_iterator_next(&i)) {
+
+		astman_append(s, "Event: PeerEntry\r\n%sChanneltype: IAX\r\n", idtext);
+		if (!ast_strlen_zero(peer->username)) {
+			astman_append(s, "ObjectName: %s\r\nObjectUsername: %s\r\n", peer->name, peer->username);
+		} else {
+			astman_append(s, "ObjectName: %s\r\n", peer->name);
+		}
+		astman_append(s, "ChanObjectType: peer\r\n");
+		astman_append(s, "IPaddress: %s\r\n", peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "-none-");
+		ast_copy_string(nm, ast_inet_ntoa(peer->mask), sizeof(nm));
+		astman_append(s, "Mask: %s\r\n", nm);
+		astman_append(s, "Port: %d\r\n", ntohs(peer->addr.sin_port));
+		astman_append(s, "Dynamic: %s\r\n", ast_test_flag(peer, IAX_DYNAMIC) ? "Yes" : "No");
+		peer_status(peer, status, sizeof(status));
+		astman_append(s, "Status: %s\r\n\r\n", status);
+		peer_count++;
+	}
+
+	astman_append(s, "Event: PeerlistComplete\r\n%sListItems: %d\r\n\r\n", idtext, peer_count);
+	return RESULT_SUCCESS;
+}
+
 
 static char *regstate2str(int regstate)
 {
@@ -5134,6 +5178,7 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 		}
 		ast_mutex_unlock(&iaxsl[x]);
 	}
+
 	return numchans;
 }
 
@@ -6366,7 +6411,7 @@ static void __expire_registry(const void *data)
 	ast_debug(1, "Expiring registration for peer '%s'\n", peer->name);
 	if (ast_test_flag((&globalflags), IAX_RTUPDATE) && (ast_test_flag(peer, IAX_TEMPONLY|IAX_RTCACHEFRIENDS)))
 		realtime_update_peer(peer->name, &peer->addr, 0);
-	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
+	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
 	/* Reset the address */
 	memset(&peer->addr, 0, sizeof(peer->addr));
 	/* Reset expiry value */
@@ -6489,13 +6534,13 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 			ast_db_put("IAX/Registry", p->name, data);
 			ast_verb(3, "Registered IAX2 '%s' (%s) at %s:%d\n", p->name,
 					    ast_test_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED) ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
+			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
 			register_peer_exten(p, 1);
 			ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 		} else if (!ast_test_flag(p, IAX_TEMPONLY)) {
 			ast_verb(3, "Unregistered IAX2 '%s' (%s)\n", p->name,
 					    ast_test_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED) ? "AUTHENTICATED" : "UNAUTHENTICATED");
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
+			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
 			register_peer_exten(p, 0);
 			ast_db_del("IAX/Registry", p->name);
 			ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
@@ -7903,6 +7948,7 @@ retryowner:
 				        /* Generate Manager Hold event, if necessary*/
 					if (iaxs[fr->callno]->owner) {
 						manager_event(EVENT_FLAG_CALL, "Hold",
+							"Status: On\r\n"
 							"Channel: %s\r\n"
 							"Uniqueid: %s\r\n",
 							iaxs[fr->callno]->owner->name, 
@@ -7928,7 +7974,8 @@ retryowner:
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
 				        /* Generate Manager Unhold event, if necessary*/
 					if (iaxs[fr->callno]->owner && ast_test_flag(iaxs[fr->callno], IAX_QUELCH)) {
-						manager_event(EVENT_FLAG_CALL, "Unhold",
+						manager_event(EVENT_FLAG_CALL, "Hold",
+							"Status: Off\r\n"
 							"Channel: %s\r\n"
 							"Uniqueid: %s\r\n",
 							iaxs[fr->callno]->owner->name, 
@@ -8322,13 +8369,13 @@ retryowner2:
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) {
 						if (iaxs[fr->callno]->pingtime <= peer->maxms) {
 							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[fr->callno]->pingtime);
-							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, iaxs[fr->callno]->pingtime); 
+							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, iaxs[fr->callno]->pingtime); 
 							ast_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
 					} else if ((peer->historicms > 0) && (peer->historicms <= peer->maxms)) {
 						if (iaxs[fr->callno]->pingtime > peer->maxms) {
 							ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[fr->callno]->pingtime);
-							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, iaxs[fr->callno]->pingtime); 
+							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, iaxs[fr->callno]->pingtime); 
 							ast_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
 					}
@@ -9292,7 +9339,7 @@ static void __iax2_poke_noanswer(const void *data)
 	struct iax2_peer *peer = (struct iax2_peer *)data;
 	if (peer->lastms > -1) {
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE! Time: %d\n", peer->name, peer->lastms);
-		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, peer->lastms);
+		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, peer->lastms);
 		ast_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 	}
 	if (peer->callno > 0) {
@@ -11451,6 +11498,7 @@ static int __unload_module(void)
 			iax2_destroy(x);
 	}
 	ast_manager_unregister( "IAXpeers" );
+	ast_manager_unregister( "IAXpeerlist" );
 	ast_manager_unregister( "IAXnetstats" );
 	ast_unregister_application(papp);
 	ast_cli_unregister_multiple(cli_iax2, sizeof(cli_iax2) / sizeof(struct ast_cli_entry));
@@ -11564,6 +11612,7 @@ static int load_module(void)
 	ast_register_application(papp, iax2_prov_app, psyn, pdescrip);
 	
 	ast_manager_register( "IAXpeers", 0, manager_iax2_show_peers, "List IAX Peers" );
+	ast_manager_register( "IAXpeerlist", 0, manager_iax2_show_peer_list, "List IAX Peers" );
 	ast_manager_register( "IAXnetstats", 0, manager_iax2_show_netstats, "Show IAX Netstats" );
 
 	if(set_config(config, 0) == -1)
