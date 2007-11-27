@@ -5203,16 +5203,37 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			continue;
 		} else if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) == 2) {
 			/* We have a rtpmap to handle */
-			if (debug)
-				ast_verbose("Found description format %s for ID %d\n", mimeSubtype, codec);
-			found_rtpmap_codecs[last_rtpmap_codec] = codec;
-			last_rtpmap_codec++;
+			int found = FALSE;
+			/* We should propably check if this is an audio or video codec
+				so we know where to look */
 
 			/* Note: should really look at the 'freq' and '#chans' params too */
-			ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
-					ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0);
-			if (p->vrtp)
-				ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0);
+			if(ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
+					ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0) != -1) {
+				if (debug)
+					ast_verbose("Found audio description format %s for ID %d\n", mimeSubtype, codec);
+				found_rtpmap_codecs[last_rtpmap_codec] = codec;
+				last_rtpmap_codec++;
+				found = TRUE;
+
+			} else if (p->vrtp) {
+				if(ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0) != -1) {
+					if (debug)
+						ast_verbose("Found video description format %s for ID %d\n", mimeSubtype, codec);
+					found_rtpmap_codecs[last_rtpmap_codec] = codec;
+					last_rtpmap_codec++;
+					found = TRUE;
+				}
+			}
+			if (!found) {
+				/* Remove this codec since it's an unknown media type for us */
+				/* XXX This is buggy since the media line for audio and video can have the
+					same numbers. We need to check as described above, but for testing this works... */
+				ast_rtp_unset_m_type(newaudiortp, codec);
+				ast_rtp_unset_m_type(newvideortp, codec);
+				if (debug) 
+					ast_verbose("Found unknown media description format %s for ID %d\n", mimeSubtype, codec);
+			}
 		}
 	}
 	

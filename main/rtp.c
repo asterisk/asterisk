@@ -1640,23 +1640,36 @@ void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt)
 	ast_mutex_unlock(&rtp->bridge_lock);
 } 
 
+/*! \brief remove setting from payload type list if the rtpmap header indicates
+    an unknown media type */
+void ast_rtp_unset_m_type(struct ast_rtp* rtp, int pt) 
+{
+	ast_mutex_lock(&rtp->bridge_lock);
+	rtp->current_RTP_PT[pt].isAstFormat = 0;
+	rtp->current_RTP_PT[pt].code = 0;
+	ast_mutex_unlock(&rtp->bridge_lock);
+}
+
 /*! \brief Make a note of a RTP payload type (with MIME type) that was seen in
  * an SDP "a=rtpmap:" line.
+ * \return 0 if the MIME type was found and set, -1 if it wasn't found
  */
-void ast_rtp_set_rtpmap_type(struct ast_rtp *rtp, int pt,
+int ast_rtp_set_rtpmap_type(struct ast_rtp *rtp, int pt,
 			     char *mimeType, char *mimeSubtype,
 			     enum ast_rtp_options options)
 {
 	unsigned int i;
+	int found = 0;
 
 	if (pt < 0 || pt > MAX_RTP_PT) 
-		return; /* bogus payload type */
+		return -1; /* bogus payload type */
 	
 	ast_mutex_lock(&rtp->bridge_lock);
 
 	for (i = 0; i < sizeof(mimeTypes)/sizeof(mimeTypes[0]); ++i) {
 		if (strcasecmp(mimeSubtype, mimeTypes[i].subtype) == 0 &&
 		    strcasecmp(mimeType, mimeTypes[i].type) == 0) {
+			found = 1;
 			rtp->current_RTP_PT[pt] = mimeTypes[i].payloadType;
 			if ((mimeTypes[i].payloadType.code == AST_FORMAT_G726) &&
 			    mimeTypes[i].payloadType.isAstFormat &&
@@ -1668,7 +1681,7 @@ void ast_rtp_set_rtpmap_type(struct ast_rtp *rtp, int pt,
 
 	ast_mutex_unlock(&rtp->bridge_lock);
 
-	return;
+	return (found ? 0 : -1);
 } 
 
 /*! \brief Return the union of all of the codecs that were set by rtp_set...() calls 
