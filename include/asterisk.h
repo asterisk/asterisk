@@ -88,6 +88,13 @@ void ast_register_file_version(const char *file, const char *version);
  */
 void ast_unregister_file_version(const char *file);
 
+/*! \brief Find version for given module name
+ * \param file Module name (i.e. chan_sip.so)
+ * \return version string or NULL if the module is not found
+ */
+const char *ast_file_version_find(const char *file);
+
+
 /*!
  * \brief Register/unregister a source code file with the core.
  * \param file the source file name
