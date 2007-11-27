@@ -69,7 +69,7 @@ static int stat_read(struct ast_channel *chan, const char *cmd, char *data,
 	char *action;
 	struct stat s;
 
-	*buf = '\0';
+	ast_copy_string(buf, "0", len);
 
 	action = strsep(&data, ",");
 	if (stat(data, &s)) {
