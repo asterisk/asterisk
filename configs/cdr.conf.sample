@@ -13,6 +13,16 @@
 ; any loading of backend CDR modules.  Default is "yes".
 ;enable=yes
 
+; Define whether or not to log unanswered calls. Setting this to "yes" will
+; report every attempt to ring a phone in dialing attempts, when it was not 
+; answered. For example, if you try to dial 3 extensions, and this option is "yes",
+; you will get 3 CDR's, one for each phone that was rung. Default is "no". Some
+; find this information horribly useless. Others find it very valuable. Note, in "yes"
+; mode, you will see one CDR, with one of the call targets on one side, and the originating
+; channel on the other, and then one CDR for each channel attempted. This may seem 
+; redundant, but cannot be helped.
+;unanswered = no
+
 ; Define the CDR batch mode, where instead of posting the CDR at the end of
 ; every call, the data will be stored in a buffer to help alleviate load on the
 ; asterisk server.  Default is "no".

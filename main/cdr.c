@@ -89,6 +89,7 @@ static pthread_t cdr_thread = AST_PTHREADT_NULL;
 #define BATCH_SAFE_SHUTDOWN_DEFAULT 1
 
 static int enabled;		/*! Is the CDR subsystem enabled ? */
+static int unanswered;
 static int batchmode;
 static int batchsize;
 static int batchtime;
@@ -101,6 +102,11 @@ AST_MUTEX_DEFINE_STATIC(cdr_batch_lock);
 AST_MUTEX_DEFINE_STATIC(cdr_pending_lock);
 static ast_cond_t cdr_pending_cond;
 
+
+int ast_cdr_log_unanswered(void)
+{
+	return unanswered;
+}
 
 /*! Register a CDR driver. Each registered CDR driver generates a CDR 
 	\return 0 on success, -1 on failure 
@@ -984,8 +990,6 @@ static void post_cdr(struct ast_cdr *cdr)
 	struct ast_cdr_beitem *i;
 
 	for ( ; cdr ; cdr = cdr->next) {
-		if (cdr->disposition < AST_CDR_ANSWERED && (ast_strlen_zero(cdr->channel) || ast_strlen_zero(cdr->dstchannel)))
-			continue; /* people don't want to see unanswered single-channel events */
 		chan = S_OR(cdr->channel, "<unknown>");
 		check_post(cdr);
 		if (ast_tvzero(cdr->end))
@@ -1247,6 +1251,7 @@ static int handle_cli_status(int fd, int argc, char *argv[])
 	ast_cli(fd, "CDR logging: %s\n", enabled ? "enabled" : "disabled");
 	ast_cli(fd, "CDR mode: %s\n", batchmode ? "batch" : "simple");
 	if (enabled) {
+		ast_cli(fd, "CDR output unanswered calls: %s\n", unanswered ? "yes" : "no");
 		if (batchmode) {
 			if (batch)
 				cnt = batch->size;
@@ -1298,6 +1303,7 @@ static int do_reload(void)
 {
 	struct ast_config *config;
 	const char *enabled_value;
+	const char *unanswered_value;
 	const char *batched_value;
 	const char *scheduleronly_value;
 	const char *batchsafeshutdown_value;
@@ -1328,6 +1334,9 @@ static int do_reload(void)
 	if ((config = ast_config_load("cdr.conf"))) {
 		if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
 			enabled = ast_true(enabled_value);
+		}
+		if ((unanswered_value = ast_variable_retrieve(config, "general", "unanswered"))) {
+			unanswered = ast_true(unanswered_value);
 		}
 		if ((batched_value = ast_variable_retrieve(config, "general", "batch"))) {
 			batchmode = ast_true(batched_value);
