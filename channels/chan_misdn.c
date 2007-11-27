@@ -1665,31 +1665,9 @@ static char *handle_cli_misdn_send_display(struct ast_cli_entry *e, int cmd, str
 	return CLI_SUCCESS;
 }
 
-static char *complete_ch_helper(struct ast_cli_args *a, int rpos)
-{
-	struct ast_channel *c;
-	int which = 0;
-	char *ret;
-	if (a->pos != rpos)
-		return NULL;
-	for (c = ast_channel_walk_locked(NULL); c; c = ast_channel_walk_locked(c)) {
-		if (!strncasecmp(a->word, c->name, strlen(a->word))) {
-			if (++which > a->n)
-				break;
-		}
-		ast_channel_unlock(c);
-	}
-	if (c) {
-		ret = ast_strdup(c->name);
-		ast_channel_unlock(c);
-	} else
-		ret = NULL;
-	return ret;
-}
-
 static char *complete_ch(struct ast_cli_args *a)
 {
-	return complete_ch_helper(a, 3);
+	return ast_complete_channels(a->line, a->word, a->pos, a->n, 3);
 }
 
 static char *complete_debug_port (struct ast_cli_args *a)
