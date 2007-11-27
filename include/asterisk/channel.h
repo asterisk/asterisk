@@ -251,10 +251,18 @@ struct ast_channel_tech {
 
 	int (* const devicestate)(void *data);	/*!< Devicestate call back */
 
-	/*! \brief Start sending a literal DTMF digit */
+	/*! 
+	 * \brief Start sending a literal DTMF digit 
+	 *
+	 * \note The channel is not locked when this function gets called. 
+	 */
 	int (* const send_digit_begin)(struct ast_channel *chan, char digit);
 
-	/*! \brief Stop sending a literal DTMF digit */
+	/*! 
+	 * \brief Stop sending a literal DTMF digit 
+	 *
+	 * \note The channel is not locked when this function gets called. 
+	 */
 	int (* const send_digit_end)(struct ast_channel *chan, char digit, unsigned int duration);
 
 	/*! \brief Call a given phone number (address, etc), but don't
