@@ -207,6 +207,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; of a friend will now be added to and compared with
 				; the peer limit instead of applying two call limits,
 				; one for the peer and one for the user.
+				; "sip show inuse" will only show active calls on 
+				; the peer side of a "type=friend" object if this
+				; setting is turned on.
 
 ;----------------------------------------- T.38 FAX PASSTHROUGH SUPPORT -----------------------
 ;
