@@ -236,14 +236,17 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;notifyhold = yes		; Notify subscriptions on HOLD state (default: no)
 				; Turning on notifyringing and notifyhold will add a lot
 				; more database transactions if you are using realtime.
+;callcounter = yes		; Enable call counters on devices. This can be set per
+				; device too.
 ;counteronpeer = yes		; Apply call counting on peers only. This will improve 
 				; status notification when you are using type=friend
 				; Inbound calls, that really apply to the user part
 				; of a friend will now be added to and compared with
 				; the peer counter instead of applying two call counters,
 				; one for the peer and one for the user.
-;callcounter = yes		; Enable call counters on devices. This can be set per
-				; device too.
+				; "sip show inuse" will only show active calls on 
+				; the peer side of a "type=friend" object if this
+				; setting is turned on.
 
 ;----------------------------------------- T.38 FAX PASSTHROUGH SUPPORT -----------------------
 ;
