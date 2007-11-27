@@ -10,7 +10,8 @@
 ;
 
 [general]
-; Default formats for writing Voicemail
+; Formats for writing Voicemail.  Note that when using IMAP storage for
+; voicemail, only the first format specified will be used.
 ;format=g723sf|wav49|wav
 format=wav49|gsm|wav
 ;
