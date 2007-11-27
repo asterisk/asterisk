@@ -47,6 +47,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 struct asent {
 	struct ast_channel *chan;
+	/*! This gets incremented each time autoservice gets started on the same
+	 *  channel.  It will ensure that it doesn't actually get stopped until 
+	 *  it gets stopped for the last time. */
+	unsigned int use_count;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) dtmf_frames;
 	AST_LIST_ENTRY(asent) list;
 };
 
@@ -74,8 +79,42 @@ static void *autoservice_run(void *ign)
 		AST_RWLIST_UNLOCK(&aslist);
 
 		if ((chan = ast_waitfor_n(mons, x, &ms))) {
-			/* Read and ignore anything that occurs */
 			struct ast_frame *f = ast_read(chan);
+			
+			/* Do not add a default entry in this switch statement.  Each new
+			 * frame type should be addressed directly as to whether it should
+			 * be queued up or not. */
+			switch (f->frametype) {
+			/* Save these frames */
+			case AST_FRAME_DTMF_BEGIN:
+			case AST_FRAME_DTMF_END:
+			case AST_FRAME_CONTROL:
+			case AST_FRAME_TEXT:
+			case AST_FRAME_IMAGE:
+			case AST_FRAME_HTML:
+			{
+				struct ast_frame *dup_f;
+
+				AST_RWLIST_WRLOCK(&aslist);
+				AST_RWLIST_TRAVERSE(&aslist, as, list) {
+					if (as->chan != chan)
+						continue;
+					if ((dup_f = ast_frdup(f)))
+						AST_LIST_INSERT_TAIL(&as->dtmf_frames, dup_f, frame_list);
+				}
+				AST_RWLIST_UNLOCK(&aslist);
+			}
+
+			/* Throw these frames away */
+			case AST_FRAME_VOICE:
+			case AST_FRAME_VIDEO:
+			case AST_FRAME_NULL:
+			case AST_FRAME_IAX:
+			case AST_FRAME_CNG:
+			case AST_FRAME_MODEM:
+				break;
+			}
+
 			if (f)
 				ast_frfree(f);
 		}
@@ -95,13 +134,16 @@ int ast_autoservice_start(struct ast_channel *chan)
 
 	/* Check if the channel already has autoservice */
 	AST_RWLIST_TRAVERSE(&aslist, as, list) {
-		if (as->chan == chan)
+		if (as->chan == chan) {
+			as->use_count++;
 			break;
+		}
 	}
 
 	/* If not, start autoservice on channel */
 	if (!as && (as = ast_calloc(1, sizeof(*as)))) {
 		as->chan = chan;
+		as->use_count = 1;
 		AST_RWLIST_INSERT_HEAD(&aslist, as, list);
 		res = 0;
 		if (asthread == AST_PTHREADT_NULL) { /* need start the thread */
@@ -116,7 +158,9 @@ int ast_autoservice_start(struct ast_channel *chan)
 				pthread_kill(asthread, SIGURG);
 		}
 	}
+
 	AST_RWLIST_UNLOCK(&aslist);
+
 	return res;
 }
 
@@ -124,11 +168,22 @@ int ast_autoservice_stop(struct ast_channel *chan)
 {
 	int res = -1;
 	struct asent *as;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) dtmf_frames;
+	struct ast_frame *f;
+	int removed = 1;
+
+	AST_LIST_HEAD_INIT_NOLOCK(&dtmf_frames);
 
 	AST_RWLIST_WRLOCK(&aslist);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&aslist, as, list) {	
 		if (as->chan == chan) {
 			AST_RWLIST_REMOVE_CURRENT(list);
+			as->use_count--;
+			if (as->use_count) {
+				removed = 0;
+				break;
+			}
+			AST_LIST_APPEND_LIST(&dtmf_frames, &as->dtmf_frames, frame_list);
 			ast_free(as);
 			if (!ast_check_hangup(chan))
 				res = 0;
@@ -137,13 +192,22 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 
-	if (asthread != AST_PTHREADT_NULL) 
+	if (removed && asthread != AST_PTHREADT_NULL) 
 		pthread_kill(asthread, SIGURG);
+	
 	AST_RWLIST_UNLOCK(&aslist);
+
+	if (!removed)
+		return 0;
 
 	/* Wait for it to un-block */
 	while (ast_test_flag(chan, AST_FLAG_BLOCKING))
 		usleep(1000);
+
+	while ((f = AST_LIST_REMOVE_HEAD(&dtmf_frames, frame_list))) {
+		ast_queue_frame(chan, f);
+		ast_frfree(f);
+	}
 
 	return res;
 }
