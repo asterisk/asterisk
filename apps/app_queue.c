@@ -1112,7 +1112,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		if (!strcasecmp(val, "vars")) {
 			q->eventwhencalled = QUEUE_EVENT_VARIABLES;
 		} else {
-			q->eventwhencalled = ast_true(val);
+			q->eventwhencalled = -(ast_true(val));
 		}
 	} else if (!strcasecmp(param, "reportholdtime")) {
 		q->reportholdtime = ast_true(val);
@@ -1868,8 +1868,8 @@ static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 			if (tmp[i + 1] == '\0')
 				break;
 			if (tmp[i] == '\n') {
-				vars[j] = '\r';
-				vars[++j] = '\n';
+				vars[j++] = '\r';
+				vars[j++] = '\n';
 
 				ast_copy_string(&(vars[j]), "Variable: ", len - j);
 				j += 9;
