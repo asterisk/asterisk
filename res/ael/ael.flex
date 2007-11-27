@@ -33,7 +33,7 @@
  * add option noyywrap to remove it.
  */
 %option prefix="ael_yy"
-%option noyywrap
+%option noyywrap 8bit
 
 /* batch gives a bit more performance if we are using it in
  * a non-interactive mode. We probably don't care much.
@@ -178,6 +178,8 @@ NOARGG		([^(),\{\}\[\]]|\\[,()\[\]\{\}])*
 
 NOSEMIC		([^;()\{\}\[\]]|\\[;()\[\]\{\}])*
 
+HIBIT		[\x80-\xff]
+
 %%
 
 \{		{ STORE_POS; return LC;}
@@ -233,7 +235,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 [ ]+		{ my_col += yyleng; }
 [\t]+		{ my_col += (yyleng*8)-(my_col%8); }
 
-[-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]][-a-zA-Z0-9'"_/.!\*\+\<\>\{\}$#\[\]]*	{
+([-a-zA-Z0-9'"_/.\<\>\*\\\+!$#\[\]]|{HIBIT})([-a-zA-Z0-9'"_/.!\*\\\+\<\>\{\}$#\[\]]|{HIBIT})*	{
 		STORE_POS;
 		yylval->str = strdup(yytext);
 		prev_word = yylval->str;

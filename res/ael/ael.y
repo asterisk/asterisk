@@ -278,6 +278,14 @@ extension : word EXTENMARK statement {
 		$$ = npval2(PV_EXTENSION, &@1, &@3);
 		$$->u1.str = $1;
 		$$->u2.statements = $3; set_dads($$,$3);}
+	| word AT word EXTENMARK statement {
+		$$ = npval2(PV_EXTENSION, &@1, &@3);
+		$$->u1.str = malloc(strlen($1)+strlen($3)+2);
+		strcpy($$->u1.str,$1);
+		strcat($$->u1.str,"@");
+		strcat($$->u1.str,$3);
+		free($1);
+		$$->u2.statements = $5; set_dads($$,$5);}
 	| KW_REGEXTEN word EXTENMARK statement {
 		$$ = npval2(PV_EXTENSION, &@1, &@4);
 		$$->u1.str = $2;
@@ -294,7 +302,6 @@ extension : word EXTENMARK statement {
 		$$->u2.statements = $8; set_dads($$,$8);
 		$$->u4.regexten=1;
 		$$->u3.hints = $4;}
-
 	;
 
 /* list of statements in a block or after a case label - can be empty */

@@ -5,11 +5,10 @@
 
 
 (You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
-LOG: lev:2 file:pbx_ael.c  line:3910 func: pbx_load_module  Starting AEL load process.
-LOG: lev:2 file:pbx_ael.c  line:3917 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:3925 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:3928 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
-Executed ast_context_create(conts, name=test1, registrar=pbx_ael);
+LOG: lev:2 file:pbx_ael.c  line:113 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:126 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:129 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+Executed ast_context_find_or_create(conts, name=test1, registrar=pbx_ael);
 Executed ast_add_extension2(context=test1, rep=0, exten=771, priority=1, label=(null), callerid=(null), appl=Set, data=i=$[0], FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=test1, rep=0, exten=771, priority=2, label=(null), callerid=(null), appl=GotoIf, data=$[ 
 			${i} <= 3]?3:6, FREE, registrar=pbx_ael);
@@ -23,9 +22,9 @@ Executed ast_add_extension2(context=test1, rep=0, exten=772, priority=3, label=(
 Executed ast_add_extension2(context=test1, rep=0, exten=772, priority=4, label=(null), callerid=(null), appl=Set, data=i=$[ ${i} + 1 ], FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=test1, rep=0, exten=772, priority=5, label=(null), callerid=(null), appl=Goto, data=2, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=test1, rep=0, exten=772, priority=6, label=(null), callerid=(null), appl=NoOp, data=Finish for-test1-2, FREE, registrar=pbx_ael);
-LOG: lev:2 file:pbx_ael.c  line:3930 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:131 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
 Executed ast_merge_contexts_and_delete();
-LOG: lev:2 file:pbx_ael.c  line:3933 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:134 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
 Executed ast_walk_contexts();
-LOG: lev:2 file:pbx_ael.c  line:3936 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
-LOG: lev:4 file:ael2_parse  line:479 func: main  1 contexts, 2 extensions, 12 priorities
+LOG: lev:2 file:pbx_ael.c  line:137 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:531 func: main  1 contexts, 2 extensions, 12 priorities
