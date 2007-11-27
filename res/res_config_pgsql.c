@@ -187,7 +187,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 				}
 			}
 		}
-		free(fieldnames);
+		ast_free(fieldnames);
 	} else {
 		ast_log(LOG_WARNING,
 				"Postgresql RealTime: Could not find any rows in table %s.\n", table);
@@ -335,7 +335,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 			}
 			ast_category_append(cfg, cat);
 		}
-		free(fieldnames);
+		ast_free(fieldnames);
 	} else {
 		ast_log(LOG_WARNING,
 				"Postgresql RealTime: Could not find any rows in table %s.\n", table);
@@ -717,7 +717,7 @@ static int pgsql_reconnect(const char *database)
 		ast_log(LOG_DEBUG, "%u connInfo=%s\n", size, connInfo);
 		pgsqlConn = PQconnectdb(connInfo);
 		ast_log(LOG_DEBUG, "%u connInfo=%s\n", size, connInfo);
-		free(connInfo);
+		ast_free(connInfo);
 		connInfo = NULL;
 		ast_log(LOG_DEBUG, "pgsqlConn=%p\n", pgsqlConn);
 		if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
