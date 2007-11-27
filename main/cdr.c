@@ -83,6 +83,7 @@ static pthread_t cdr_thread = AST_PTHREADT_NULL;
 #define BATCH_SAFE_SHUTDOWN_DEFAULT 1
 
 static int enabled;		/*! Is the CDR subsystem enabled ? */
+static int unanswered;
 static int batchmode;
 static int batchsize;
 static int batchtime;
@@ -98,6 +99,11 @@ static ast_cond_t cdr_pending_cond;
 int check_cdr_enabled()
 {
 	return enabled;
+}
+
+int ast_cdr_log_unanswered(void)
+{
+	return unanswered;
 }
 
 /*! Register a CDR driver. Each registered CDR driver generates a CDR 
@@ -976,8 +982,6 @@ static void post_cdr(struct ast_cdr *cdr)
 	struct ast_cdr_beitem *i;
 
 	for ( ; cdr ; cdr = cdr->next) {
-		if (cdr->disposition < AST_CDR_ANSWERED && (ast_strlen_zero(cdr->channel) || ast_strlen_zero(cdr->dstchannel)))
-			continue; /* people don't want to see unanswered single-channel events */
 		chan = S_OR(cdr->channel, "<unknown>");
 		check_post(cdr);
 		if (ast_tvzero(cdr->end))
@@ -1241,6 +1245,7 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "CDR logging: %s\n", enabled ? "enabled" : "disabled");
 	ast_cli(a->fd, "CDR mode: %s\n", batchmode ? "batch" : "simple");
 	if (enabled) {
+		ast_cli(a->fd, "CDR output unanswered calls: %s\n", unanswered ? "yes" : "no");
 		if (batchmode) {
 			if (batch)
 				cnt = batch->size;
@@ -1291,6 +1296,7 @@ static int do_reload(int reload)
 {
 	struct ast_config *config;
 	const char *enabled_value;
+	const char *unanswered_value;
 	const char *batched_value;
 	const char *scheduleronly_value;
 	const char *batchsafeshutdown_value;
@@ -1325,6 +1331,9 @@ static int do_reload(int reload)
 	if (config) {
 		if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
 			enabled = ast_true(enabled_value);
+		}
+		if ((unanswered_value = ast_variable_retrieve(config, "general", "unanswered"))) {
+			unanswered = ast_true(unanswered_value);
 		}
 		if ((batched_value = ast_variable_retrieve(config, "general", "batch"))) {
 			batchmode = ast_true(batched_value);
