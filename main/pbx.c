@@ -1764,7 +1764,8 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
 	pbx_substitute_variables_helper(c, e->data, passdata, datalen - 1);
 }
 
-/*! \brief The return value depends on the action:
+/*! 
+ * \brief The return value depends on the action:
  *
  * E_MATCH, E_CANMATCH, E_MATCHMORE require a real match,
  *	and return 0 on failure, -1 on match;
@@ -1772,6 +1773,12 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
  *	the priority on success, ... XXX
  * E_SPAWN, spawn an application,
  *	and return 0 on success, -1 on failure.
+ *
+ * \note The channel is auto-serviced in this function, because doing an extension
+ * match may block for a long time.  For example, if the lookup has to use a network
+ * dialplan switch, such as DUNDi or IAX2, it may take a while.  However, the channel
+ * auto-service code will queue up any important signalling frames to be processed
+ * after this is done.
  */
 static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 	const char *context, const char *exten, int priority,
@@ -1785,21 +1792,26 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 
 	int matching_action = (action == E_MATCH || action == E_CANMATCH || action == E_MATCHMORE);
 
+	ast_autoservice_start(c);
+
 	ast_mutex_lock(&conlock);
 	e = pbx_find_extension(c, con, &q, context, exten, priority, label, callerid, action);
 	if (e) {
 		if (matching_action) {
 			ast_mutex_unlock(&conlock);
+			ast_autoservice_stop(c);
 			return -1;	/* success, we found it */
 		} else if (action == E_FINDLABEL) { /* map the label to a priority */
 			res = e->priority;
 			ast_mutex_unlock(&conlock);
+			ast_autoservice_stop(c);
 			return res;	/* the priority we were looking for */
 		} else {	/* spawn */
 			app = pbx_findapp(e->app);
 			ast_mutex_unlock(&conlock);
 			if (!app) {
 				ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
+				ast_autoservice_stop(c);
 				return -1;
 			}
 			if (c->context != context)
@@ -1835,17 +1847,20 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 					"AppData: %s\r\n"
 					"Uniqueid: %s\r\n",
 					c->name, c->context, c->exten, c->priority, app->name, passdata, c->uniqueid);
+			ast_autoservice_stop(c);
 			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */
 		ast_mutex_unlock(&conlock);
-		if (matching_action)
+		if (matching_action) {
+			ast_autoservice_stop(c);
 			return -1;
-		else {
+		} else {
 			if (!q.swo->exec) {
 				ast_log(LOG_WARNING, "No execution engine for switch %s\n", q.swo->name);
 				res = -1;
 			}
+			ast_autoservice_stop(c);
 			return q.swo->exec(c, q.foundcontext ? q.foundcontext : context, exten, priority, callerid, q.data);
 		}
 	} else {	/* not found anywhere, see what happened */
@@ -1871,6 +1886,8 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Shouldn't happen!\n");
 		}
+
+		ast_autoservice_stop(c);
 
 		return (matching_action) ? 0 : -1;
 	}
