@@ -3604,7 +3604,8 @@ static struct ast_context *find_context_locked(const char *context)
 			return c;
 	}
 #endif
-	ast_unlock_contexts();
+	if (!c)
+		ast_unlock_contexts();
 
 	return c;
 }

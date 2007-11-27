@@ -1000,7 +1000,7 @@ static char *handle_cli_dialplan_add_extension(struct ast_cli_entry *e, int cmd,
 	if (!app_data)
 		app_data="";
 	if (ast_add_extension(a->argv[5], a->argc == 7 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
-		(void *)strdup(app_data), ast_free, registrar)) {
+		(void *)strdup(app_data), ast_free_ptr, registrar)) {
 		switch (errno) {
 		case ENOMEM:
 			ast_cli(a->fd, "Out of free memory\n");
