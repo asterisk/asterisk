@@ -1624,8 +1624,11 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
 		} else if (argloc) {
 			args[argloc - 1] = NULL;
 		}
-		if (!argloc || !ast_strlen_zero(args[argloc - 1]))
-			ast_set_flag(flags, options[curarg].flag);
+		if (argloc && ast_strlen_zero(args[argloc - 1])) {
+			ast_log(LOG_WARNING, "Argument supplied for option '%c' was empty, option ignored.\n", curarg);
+			continue;
+		}
+		ast_set_flag(flags, options[curarg].flag);
 	}
 
 	return res;
