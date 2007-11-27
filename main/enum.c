@@ -61,6 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
 #include "asterisk/utils.h"
+#include "asterisk/manager.h"
 
 #ifdef __APPLE__
 #undef T_NAPTR
@@ -639,6 +640,7 @@ static int private_enum_init(int reload)
 	}
 	enumver++;
 	ast_mutex_unlock(&enumlock);
+	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Module: Enum\r\nStatus: Enabled\r\nMessage: ENUM reload Requested\r\n");
 	return 0;
 }
 

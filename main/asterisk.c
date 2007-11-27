@@ -3073,7 +3073,7 @@ int main(int argc, char *argv[])
 	__ast_mm_init();
 #endif	
 
-	ast_startuptime = ast_tvnow();
+	ast_lastreloadtime = ast_startuptime = ast_tvnow();
 	ast_cli_register_multiple(cli_asterisk, sizeof(cli_asterisk) / sizeof(struct ast_cli_entry));
 
 	if (ast_opt_console) {

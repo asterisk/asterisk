@@ -2929,14 +2929,14 @@ static int manager_jabber_send(struct mansession *s, const struct message *m)
 	}	
 	if (strchr(screenname, '@') && message){
 		ast_aji_send_chat(client, screenname, message);	
+		astman_append(s, "Response: Success\r\n");
 		if (!ast_strlen_zero(id))
 			astman_append(s, "ActionID: %s\r\n",id);
-		astman_append(s, "Response: Success\r\n");
 		return 0;
 	}
+	astman_append(s, "Response: Error\r\n");
 	if (!ast_strlen_zero(id))
 		astman_append(s, "ActionID: %s\r\n",id);
-	astman_append(s, "Response: Failure\r\n");
 	return 0;
 }
 
