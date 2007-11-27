@@ -32,10 +32,16 @@
 
 \verbatim
 
+ For Actions replies, the first line of the reply is a "Response:" header with
+ values "success", "error" or "follows". "Follows" implies that the
+ response is coming as separate events with the same ActionID. If the
+ Action request has no ActionID, it will be hard matching events
+ to the Action request in the manager client.
+
  The first header type is the "Event" header.  Other headers vary from
- event to event.  Headers end with standard \r\n termination.
+ event to event.  Headers end with standard \\r\\n termination.
  The last line of the manager response or event is an empty line.
- (\r\n)
+ (\\r\\n)
 
 \endverbatim
 
@@ -44,7 +50,7 @@
     You can find a reference of standard headers in doc/manager.txt
  */
 
-#define AMI_VERSION			"1.0"
+#define AMI_VERSION                     "1.1"
 #define DEFAULT_MANAGER_PORT 5038	/* Default port for Asterisk management via TCP */
 
 #define EVENT_FLAG_SYSTEM 		(1 << 0) /* System events such as module load/unload */
