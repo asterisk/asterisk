@@ -1054,6 +1054,9 @@ static int authenticate(struct mansession *s, const struct message *m)
 		struct ast_variable *v;
 		const char *password = NULL;
 		int hasmanager = 0;
+		const char *readperms = NULL;
+		const char *writeperms = NULL;
+
 		if (strcasecmp(cat, user) || !strcasecmp(cat, "general")) {
 			cat = ast_category_browse(cfg, cat);
 			continue;
@@ -1063,6 +1066,10 @@ static int authenticate(struct mansession *s, const struct message *m)
 				password = v->value;
 			else if (!strcasecmp(v->name, "hasmanager"))
 				hasmanager = ast_true(v->value);
+			else if (!strcasecmp(v->name, "managerread"))
+				readperms = v->value;
+			else if (!strcasecmp(v->name, "managerwrite"))
+				writeperms = v->value;
 		}
 		if (!hasmanager)
 			break;
@@ -1072,8 +1079,8 @@ static int authenticate(struct mansession *s, const struct message *m)
 			return -1;
 		}
 		ast_copy_string(s->username, cat, sizeof(s->username));
-		s->readperm = -1;
-		s->writeperm = -1;
+		s->readperm = readperms ? get_perm(readperms) : -1;
+		s->writeperm = writeperms ? get_perm(writeperms) : -1;
 		ast_config_destroy(cfg);
 		if (events)
 			set_eventmask(s, events);
