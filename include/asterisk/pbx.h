@@ -846,10 +846,29 @@ int pbx_set_autofallthrough(int newval);
   set to 1, sets to use the new Trie-based pattern matcher.  If newval set to 0, sets to use
   the old linear-search algorithm.  Returns previous value. */
 int pbx_set_extenpatternmatchnew(int newval);
+
+/*!
+ * \note This function will handle locking the channel as needed.
+ */
 int ast_goto_if_exists(struct ast_channel *chan, const char *context, const char *exten, int priority);
-/* I can find neither parsable nor parseable at dictionary.com, but google gives me 169000 hits for parseable and only 49,800 for parsable */
+
+/*!
+ * \note I can find neither parsable nor parseable at dictionary.com, 
+ *       but google gives me 169000 hits for parseable and only 49,800 
+ *       for parsable 
+ *
+ * \note This function will handle locking the channel as needed.
+ */
 int ast_parseable_goto(struct ast_channel *chan, const char *goto_string);
+
+/*!
+ * \note This function will handle locking the channel as needed.
+ */
 int ast_explicit_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
+
+/*!
+ * \note This function will handle locking the channel as needed.
+ */
 int ast_async_goto_if_exists(struct ast_channel *chan, const char *context, const char *exten, int priority);
 
 struct ast_custom_function* ast_custom_function_find(const char *name);

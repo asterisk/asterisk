@@ -5719,6 +5719,8 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
 	if (!chan)
 		return -1;
 
+	ast_channel_lock(chan);
+
 	if (!ast_strlen_zero(context))
 		ast_copy_string(chan->context, context, sizeof(chan->context));
 	if (!ast_strlen_zero(exten))
@@ -5729,6 +5731,8 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
 		if (ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP))
 			chan->priority--;
 	}
+
+	ast_channel_unlock(chan);
 
 	return 0;
 }
