@@ -2310,6 +2310,10 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	void *buf;
 	int tempcopy = 0;
 	STRING str;
+
+	/*Greetings are not retrieved from IMAP, so there is no reason to attempt storing them there either*/
+	if(msgnum < 0)
+		return 0;
 	
 	/* Attach only the first format */
 	fmt = ast_strdupa(fmt);
