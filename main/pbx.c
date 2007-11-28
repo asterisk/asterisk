@@ -2649,13 +2649,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			c->priority = priority;
 			pbx_substitute_variables(passdata, sizeof(passdata), c, e);
 			if (option_debug) {
-				char atmp[80];
-				char atmp2[EXT_DATA_SIZE+100];
 				ast_debug(1, "Launching '%s'\n", app->name);
-				snprintf(atmp, sizeof(atmp), "STACK-%s-%s-%d", context, exten, priority);
-				snprintf(atmp2, sizeof(atmp2), "%s(\"%s\", \"%s\") %s",
-					app->name, c->name, passdata, "in new stack");
-				pbx_builtin_setvar_helper(c, atmp, atmp2);
 			}
 			if (option_verbose > 2) {
 				char tmp[80], tmp2[80], tmp3[EXT_DATA_SIZE];
