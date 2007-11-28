@@ -639,82 +639,134 @@ int ast_channel_datastore_free(struct ast_datastore *datastore);
 /*! \brief Inherit datastores from a parent to a child. */
 int ast_channel_datastore_inherit(struct ast_channel *from, struct ast_channel *to);
 
-/*! \brief Add a datastore to a channel */
+/*! 
+ * \brief Add a datastore to a channel 
+ *
+ * \note The channel should be locked before calling this function.
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
 int ast_channel_datastore_add(struct ast_channel *chan, struct ast_datastore *datastore);
 
-/*! \brief Remove a datastore from a channel */
+/*! 
+ * \brief Remove a datastore from a channel 
+ *
+ * \note The channel should be locked before calling this function.
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
 int ast_channel_datastore_remove(struct ast_channel *chan, struct ast_datastore *datastore);
 
-/*! \brief Find a datastore on a channel */
+/*! 
+ * \brief Find a datastore on a channel 
+ *
+ * \note The channel should be locked before calling this function.
+ *
+ * \note The datastore returned from this function must not be used if the
+ *       reference to the channel is released.
+ */
 struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const struct ast_datastore_info *info, const char *uid);
 
 /*! \brief Change the state of a channel */
 int ast_setstate(struct ast_channel *chan, enum ast_channel_state);
 
-/*! \brief Create a channel structure 
-    \return Returns NULL on failure to allocate.
-	\note New channels are 
-	by default set to the "default" context and
-	extension "s"
+/*! 
+ * \brief Create a channel structure 
+ *
+ * \retval NULL failure
+ * \retval non-NULL successfully allocated channel
+ *
+ * \note By default, new channels are set to the "s" extension
+ *       and "default" context.
  */
 struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_num, const char *cid_name, const char *acctcode, const char *exten, const char *context, const int amaflag, const char *name_fmt, ...);
 
-/*! \brief Queue an outgoing frame */
+/*! 
+ * \brief Queue an outgoing frame 
+ *
+ * \note The channel does not need to be locked before calling this function.
+ */
 int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
 
-/*! \brief Queue a hangup frame */
+/*! 
+ * \brief Queue a hangup frame 
+ *
+ * \note The channel does not need to be locked before calling this function.
+ */
 int ast_queue_hangup(struct ast_channel *chan);
 
 /*!
-  \brief Queue a control frame with payload
-  \param chan channel to queue frame onto
-  \param control type of control frame
-  \return zero on success, non-zero on failure
-*/
+ * \brief Queue a control frame with payload
+ *
+ * \param chan channel to queue frame onto
+ * \param control type of control frame
+ *
+ * \note The channel does not need to be locked before calling this function.
+ *
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
 int ast_queue_control(struct ast_channel *chan, enum ast_control_frame_type control);
 
 /*!
-  \brief Queue a control frame with payload
-  \param chan channel to queue frame onto
-  \param control type of control frame
-  \param data pointer to payload data to be included in frame
-  \param datalen number of bytes of payload data
-  \return zero on success, non-zero on failure
-
-  The supplied payload data is copied into the frame, so the caller's copy
-  is not modified nor freed, and the resulting frame will retain a copy of
-  the data even if the caller frees their local copy.
-
-  \note This method should be treated as a 'network transport'; in other
-  words, your frames may be transferred across an IAX2 channel to another
-  system, which may be a different endianness than yours. Because of this,
-  you should ensure that either your frames will never be expected to work
-  across systems, or that you always put your payload data into 'network byte
-  order' before calling this function.
-*/
+ * \brief Queue a control frame with payload
+ *
+ * \param chan channel to queue frame onto
+ * \param control type of control frame
+ * \param data pointer to payload data to be included in frame
+ * \param datalen number of bytes of payload data
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ *
+ * The supplied payload data is copied into the frame, so the caller's copy
+ * is not modified nor freed, and the resulting frame will retain a copy of
+ * the data even if the caller frees their local copy.
+ *
+ * \note This method should be treated as a 'network transport'; in other
+ * words, your frames may be transferred across an IAX2 channel to another
+ * system, which may be a different endianness than yours. Because of this,
+ * you should ensure that either your frames will never be expected to work
+ * across systems, or that you always put your payload data into 'network byte
+ * order' before calling this function.
+ *
+ * \note The channel does not need to be locked before calling this function.
+ */
 int ast_queue_control_data(struct ast_channel *chan, enum ast_control_frame_type control,
 			   const void *data, size_t datalen);
 
-/*! \brief Change channel name */
+/*! 
+ * \brief Change channel name 
+ *
+ * \note The channel must be locked before calling this function.
+ */
 void ast_change_name(struct ast_channel *chan, char *newname);
 
 /*! \brief Free a channel structure */
 void  ast_channel_free(struct ast_channel *);
 
-/*! \brief Requests a channel 
+/*! 
+ * \brief Requests a channel 
+ *
  * \param type type of channel to request
  * \param format requested channel format (codec)
  * \param data data to pass to the channel requester
  * \param status status
+ *
  * Request a channel of a given type, with data as optional information used 
  * by the low level module
- * \return Returns an ast_channel on success, NULL on failure.
+ *
+ * \retval NULL failure
+ * \retval non-NULL channel on success
  */
 struct ast_channel *ast_request(const char *type, int format, void *data, int *status);
 
 /*!
  * \brief Request a channel of a given type, with data as optional information used 
- * by the low level module and attempt to place a call on it
+ *        by the low level module and attempt to place a call on it
+ *
  * \param type type of channel to request
  * \param format requested channel format
  * \param data data to pass to the channel requester
@@ -722,6 +774,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *s
  * \param reason why unsuccessful (if unsuccessful)
  * \param cid_num Caller-ID Number
  * \param cid_name Caller-ID Name (ascii)
+ *
  * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
@@ -773,11 +826,18 @@ const struct ast_channel_tech *ast_get_channel_tech(const char *name);
  */
 int ast_hangup(struct ast_channel *chan);
 
-/*! \brief Softly hangup up a channel 
+/*! 
+ * \brief Softly hangup up a channel 
+ *
  * \param chan channel to be soft-hung-up
- * Call the protocol layer, but don't destroy the channel structure (use this if you are trying to
- * safely hangup a channel managed by another thread.
  * \param cause	Ast hangupcause for hangup
+ *
+ * Call the protocol layer, but don't destroy the channel structure 
+ * (use this if you are trying to
+ * safely hangup a channel managed by another thread.
+ *
+ * \note The channel passed to this function does not need to be locked.
+ *
  * \return Returns 0 regardless
  */
 int ast_softhangup(struct ast_channel *chan, int cause);
@@ -806,17 +866,31 @@ int ast_check_hangup(struct ast_channel *chan);
 int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset);
 
 /*! \brief Set when to hang a channel up 
+ *
  * \param chan channel on which to check for hang up
  * \param offset offset in seconds from current time of when to hang up
+ *
  * This function sets the absolute time out on a channel (when to hang up).
+ *
+ * \note This function does not require that the channel is locked before
+ *       calling it.
+ *
+ * \return Nothing
  */
 void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset);
 
-/*! \brief Answer a channel
+/*! 
+ * \brief Answer a channel
+ * 
  * \param chan channel to answer
+ *
  * This function answers a channel and handles all necessary call
  * setup functions.
- * \return Returns 0 on success, non-zero on failure
+ *
+ * \note The channel passed does not need to be locked.
+ *
+ * \retval 0 on success
+ * \retval non-zero on failure
  */
 int ast_answer(struct ast_channel *chan);
 int __ast_answer(struct ast_channel *chan, unsigned int delay);
@@ -966,11 +1040,18 @@ int ast_set_read_format(struct ast_channel *chan, int format);
  */
 int ast_set_write_format(struct ast_channel *chan, int format);
 
-/*! \brief Sends text to a channel 
- * Write text to a display on a channel
+/*! 
+ * \brief Sends text to a channel 
+ *
  * \param chan channel to act upon
  * \param text string of text to send on the channel
- * \return Returns 0 on success, -1 on failure
+ *
+ * Write text to a display on a channel
+ *
+ * \note The channel does not need to be locked before calling this function.
+ *
+ * \retval 0 on success 
+ * \retval -1 on failure
  */
 int ast_sendtext(struct ast_channel *chan, const char *text);
 
@@ -1109,15 +1190,21 @@ int ast_channel_early_bridge(struct ast_channel *c0, struct ast_channel *c1);
 int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,
 	struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc);
 
-/*! \brief Weird function made for call transfers
+/*! 
+ * \brief Weird function made for call transfers
+ *
  * \param original channel to make a copy of
  * \param clone copy of the original channel
+ *
  * This is a very strange and freaky function used primarily for transfer.  Suppose that
-   "original" and "clone" are two channels in random situations.  This function takes
-   the guts out of "clone" and puts them into the "original" channel, then alerts the
-   channel driver of the change, asking it to fixup any private information (like the
-   p->owner pointer) that is affected by the change.  The physical layer of the original
-   channel is hung up.  */
+ * "original" and "clone" are two channels in random situations.  This function takes
+ * the guts out of "clone" and puts them into the "original" channel, then alerts the
+ * channel driver of the change, asking it to fixup any private information (like the
+ * p->owner pointer) that is affected by the change.  The physical layer of the original
+ * channel is hung up.  
+ *
+ * \note Neither channel passed here needs to be locked before calling this function.
+ */
 int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone);
 
 /*! Gives the string form of a given cause code */
