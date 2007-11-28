@@ -145,10 +145,15 @@ int ast_audiohook_detach(struct ast_audiohook *audiohook);
  */
 int ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list);
 
-/*! \brief Detach specified source audiohook from channel
+/*! 
+ * \brief Detach specified source audiohook from channel
+ *
  * \param chan Channel to detach from
  * \param source Name of source to detach
+ *
  * \return Returns 0 on success, -1 on failure
+ *
+ * \note The channel does not need to be locked before calling this function.
  */
 int ast_audiohook_detach_source(struct ast_channel *chan, const char *source);
 
