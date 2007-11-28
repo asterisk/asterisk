@@ -1362,6 +1362,7 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 			member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", queuename, NULL);
 			if (!member_config) {
 				ast_log(LOG_ERROR, "no queue_members defined in your config (extconfig.conf).\n");
+				ast_variables_destroy(queue_vars);
 				return NULL;
 			}
 		}

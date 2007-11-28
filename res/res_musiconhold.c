@@ -1108,6 +1108,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 					}
 				}
 			}
+			ast_variables_destroy(var);
 			if (ast_strlen_zero(mohclass->dir)) {
 				if (!strcasecmp(mohclass->mode, "custom")) {
 					strcpy(mohclass->dir, "nodir");
@@ -1206,7 +1207,8 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 
 			}
 
-		}
+		} else if (var)
+			ast_variables_destroy(var);
 	}
 
 	
