@@ -1,6 +1,11 @@
 ;
 ; Music on Hold -- Sample Configuration
 ;
+[general]
+;cachertclasses=yes ; use 1 instance of moh class for all users who are using it,
+                    ; decrease consumable cpu cycles and memory
+                    ; disabled by default
+
 
 ; valid mode options:
 ; files		-- read files from a directory in any Asterisk supported 

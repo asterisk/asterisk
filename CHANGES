@@ -234,6 +234,10 @@ Music On Hold Changes
      musiconhold.conf.  If this is set for a music on hold class, a caller
      listening to music on hold can press this digit to switch to listening
      to this music on hold class.
+  * Support for realtime music on hold has been added.
+  * In conjunction with the realtime music on hold, a general section has
+    been added to musiconhold.conf, its sole variable is cachertclasses. If this
+	is set, then music on hold classes found in realtime will be cached in memory.
 
 AEL Changes
 -----------
