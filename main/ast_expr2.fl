@@ -115,6 +115,7 @@ static char *expr2_token_subst(const char *mess);
 
 %option prefix="ast_yy"
 %option batch
+%option 8bit
 %option outfile="ast_expr2f.c"
 %option reentrant
 %option bison-bridge
@@ -171,7 +172,7 @@ static char *expr2_token_subst(const char *mess);
 		return TOKEN;
 	}
 
-[a-zA-Z0-9\.';\\_^$#@]+	{
+([a-zA-Z0-9\.';\\_^$#@]|[\x80-\xff])+	{
 		SET_COLUMNS;
 		SET_STRING;
 		return TOKEN;
