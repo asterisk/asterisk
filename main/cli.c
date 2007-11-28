@@ -1787,6 +1787,9 @@ int ast_cli_command(int fd, const char *s)
 	struct ast_cli_entry *e;
 	int x;
 	char *dup = parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
+	char *retval = NULL;
+	struct ast_cli_args a = {
+		.fd = fd, .argc = x, .argv = args+1 };
 
 	if (dup == NULL)
 		return -1;
@@ -1809,9 +1812,7 @@ int ast_cli_command(int fd, const char *s)
 	 */
 	args[0] = (char *)e;
 
-	struct ast_cli_args a = {
-		.fd = fd, .argc = x, .argv = args+1 };
-	char *retval = e->handler(e, CLI_HANDLER, &a);
+	retval = e->handler(e, CLI_HANDLER, &a);
 
 	if (retval == CLI_SHOWUSAGE) {
 		ast_cli(fd, "%s", S_OR(e->usage, "Invalid usage, but no usage information available.\n"));
