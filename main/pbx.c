@@ -4230,7 +4230,7 @@ static char *handle_show_switches(struct ast_cli_entry *e, int cmd, struct ast_c
 	if (AST_RWLIST_EMPTY(&switches)) {
 		AST_RWLIST_UNLOCK(&switches);
 		ast_cli(a->fd, "There are no registered alternative switches\n");
-		return RESULT_SUCCESS;
+		return CLI_SUCCESS;
 	}
 
 	ast_cli(a->fd, "\n    -= Registered Asterisk Alternative Switches =-\n");

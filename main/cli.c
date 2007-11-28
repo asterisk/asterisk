@@ -565,7 +565,7 @@ static char *handle_modlist(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	ast_cli(a->fd,"%d modules loaded\n", ast_update_module_list(modlist_modentry, like));
 	climodentryfd = -1;
 	ast_mutex_unlock(&climodentrylock);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 #undef MODLIST_FORMAT
 #undef MODLIST_FORMAT2
@@ -885,7 +885,7 @@ static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, str
 		c = ast_channel_walk_locked(c);
 	}
 	ast_cli(a->fd, "Debugging on new channels is %s\n", is_off ? "disabled" : "enabled");
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 static char *handle_debugchan_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -1354,7 +1354,7 @@ static int __ast_cli_unregister(struct ast_cli_entry *e, struct ast_cli_entry *e
 		AST_RWLIST_UNLOCK(&helpers);
 		ast_free(e->_full_cmd);
 		e->_full_cmd = NULL;
-		if (e->new_handler) {
+		if (e->handler) {
 			/* this is a new-style entry. Reset fields and free memory. */
 			bzero((char **)(e->cmda), sizeof(e->cmda));
 			ast_free(e->command);
@@ -1370,26 +1370,25 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 	struct ast_cli_entry *cur;
 	int i, lf, ret = -1;
 
-	if (e->handler == NULL) {	/* new style entry, run the handler to init fields */
-		struct ast_cli_args a;	/* fake argument */
-		char **dst = (char **)e->cmda;	/* need to cast as the entry is readonly */
-		char *s;
+	struct ast_cli_args a;	/* fake argument */
+	char **dst = (char **)e->cmda;	/* need to cast as the entry is readonly */
+	char *s;
 
-		bzero (&a, sizeof(a));
-		e->new_handler(e, CLI_INIT, &a);
-		/* XXX check that usage and command are filled up */
-		s = ast_skip_blanks(e->command);
-		s = e->command = ast_strdup(s);
-		for (i=0; !ast_strlen_zero(s) && i < AST_MAX_CMD_LEN-1; i++) {
-			*dst++ = s;	/* store string */
-			s = ast_skip_nonblanks(s);
-			if (*s == '\0')	/* we are done */
-				break;
-			*s++ = '\0';
-			s = ast_skip_blanks(s);
-		}
-		*dst++ = NULL;
+	bzero (&a, sizeof(a));
+	e->handler(e, CLI_INIT, &a);
+	/* XXX check that usage and command are filled up */
+	s = ast_skip_blanks(e->command);
+	s = e->command = ast_strdup(s);
+	for (i=0; !ast_strlen_zero(s) && i < AST_MAX_CMD_LEN-1; i++) {
+		*dst++ = s;	/* store string */
+		s = ast_skip_nonblanks(s);
+		if (*s == '\0')	/* we are done */
+			break;
+		*s++ = '\0';
+		s = ast_skip_blanks(s);
 	}
+	*dst++ = NULL;
+	
 	AST_RWLIST_WRLOCK(&helpers);
 	
 	if (find_cli(e->cmda, 1)) {
@@ -1549,7 +1548,7 @@ static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		ast_cli(a->fd, "No help text available for '%s'.\n", fullcmd);
 	}
 	AST_RWLIST_UNLOCK(&helpers);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 static char *parse_args(const char *s, int *argc, char *argv[], int max, int *trailingwhitespace)
@@ -1760,14 +1759,12 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 			 * (only one entry in the list should have this property).
 			 * Run the generator if one is available. In any case we are done.
 			 */
-			if (e->generator)
-				ret = e->generator(matchstr, word, argindex, state - matchnum);
-			else if (e->new_handler) {	/* new style command */
+			if (e->handler) {	/* new style command */
 				struct ast_cli_args a = {
 					.line = matchstr, .word = word,
 					.pos = argindex,
 					.n = state - matchnum };
-				ret = e->new_handler(e, CLI_GENERATE, &a);
+				ret = e->handler(e, CLI_GENERATE, &a);
 			}
 			if (ret)
 				break;
@@ -1789,7 +1786,6 @@ int ast_cli_command(int fd, const char *s)
 	char *args[AST_MAX_ARGS + 1];
 	struct ast_cli_entry *e;
 	int x;
-	int res;
 	char *dup = parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
 
 	if (dup == NULL)
@@ -1813,39 +1809,25 @@ int ast_cli_command(int fd, const char *s)
 	 */
 	args[0] = (char *)e;
 
-	if (!e->new_handler)	/* old style */
-		res = e->handler(fd, x, args + 1);
-	else {
-		struct ast_cli_args a = {
-			.fd = fd, .argc = x, .argv = args+1 };
-		char *retval = e->new_handler(e, CLI_HANDLER, &a);
+	struct ast_cli_args a = {
+		.fd = fd, .argc = x, .argv = args+1 };
+	char *retval = e->handler(e, CLI_HANDLER, &a);
 
-		if (retval == CLI_SUCCESS)
-			res = RESULT_SUCCESS;
-		else if (retval == CLI_SHOWUSAGE)
-			res = RESULT_SHOWUSAGE;
-		else
-			res = RESULT_FAILURE;
-	}
-	switch (res) {
-	case RESULT_SHOWUSAGE:
+	if (retval == CLI_SHOWUSAGE) {
 		ast_cli(fd, "%s", S_OR(e->usage, "Invalid usage, but no usage information available.\n"));
 		AST_RWLIST_RDLOCK(&helpers);
 		if (e->deprecated)
 			ast_cli(fd, "The '%s' command is deprecated and will be removed in a future release. Please use '%s' instead.\n", e->_full_cmd, e->_deprecated_by);
 		AST_RWLIST_UNLOCK(&helpers);
-		break;
-	case RESULT_FAILURE:
-		ast_cli(fd, "Command '%s' failed.\n", s);
-		/* FALLTHROUGH */
-	default:
+	} else {
+		if (retval == CLI_FAILURE)
+			ast_cli(fd, "Command '%s' failed.\n", s);
 		AST_RWLIST_RDLOCK(&helpers);
 		if (e->deprecated == 1) {
 			ast_cli(fd, "The '%s' command is deprecated and will be removed in a future release. Please use '%s' instead.\n", e->_full_cmd, e->_deprecated_by);
 			e->deprecated = 2;
 		}
 		AST_RWLIST_UNLOCK(&helpers);
-		break;
 	}
 	ast_atomic_fetchadd_int(&e->inuse, -1);
 done:

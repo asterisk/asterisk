@@ -487,7 +487,7 @@ static void md52sum(char *sum, unsigned char *md5)
  * \param e CLI command
  * \param cmd
  * \param a list of CLI arguments
- * \return RESULT_SUCCESS
+ * \return CLI_SUCCESS
 */
 static char *handle_cli_keys_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -533,7 +533,7 @@ static char *handle_cli_keys_show(struct ast_cli_entry *e, int cmd, struct ast_c
  * \param e CLI command
  * \param cmd 
  * \param a list of CLI arguments
- * \return RESULT_SUCCESS
+ * \return CLI_SUCCESS
 */
 static char *handle_cli_keys_init(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
