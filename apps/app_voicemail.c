@@ -1971,15 +1971,13 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
 			char *passdata;
 			int vmlen = strlen(fromstring)*3 + 200;
-			if ((passdata = alloca(vmlen))) {
-				memset(passdata, 0, vmlen);
-				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-				pbx_substitute_variables_helper(ast, fromstring, passdata, vmlen);
-				len_passdata = strlen(passdata) * 2 + 3;
-				passdata2 = alloca(len_passdata);
-				fprintf(p, "From: %s <%s>" ENDL, quote(passdata, passdata2, len_passdata), who);
-			} else
-				ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+			passdata = alloca(vmlen);
+			memset(passdata, 0, vmlen);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+			pbx_substitute_variables_helper(ast, fromstring, passdata, vmlen);
+			len_passdata = strlen(passdata) * 2 + 3;
+			passdata2 = alloca(len_passdata);
+			fprintf(p, "From: %s <%s>" ENDL, quote(passdata, passdata2, len_passdata), who);
 			ast_channel_free(ast);
 		} else
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
@@ -1993,13 +1991,11 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
 			char *passdata;
 			int vmlen = strlen(emailsubject) * 3 + 200;
-			if ((passdata = alloca(vmlen))) {
-				memset(passdata, 0, vmlen);
-				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-				pbx_substitute_variables_helper(ast, emailsubject, passdata, vmlen);
-				fprintf(p, "Subject: %s" ENDL, passdata);
-			} else
-				ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+			passdata = alloca(vmlen);
+			memset(passdata, 0, vmlen);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+			pbx_substitute_variables_helper(ast, emailsubject, passdata, vmlen);
+			fprintf(p, "Subject: %s" ENDL, passdata);
 			ast_channel_free(ast);
 		} else
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
@@ -2048,13 +2044,11 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
 			char *passdata;
 			int vmlen = strlen(emailbody)*3 + 200;
-			if ((passdata = alloca(vmlen))) {
-				memset(passdata, 0, vmlen);
-				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-				pbx_substitute_variables_helper(ast, emailbody, passdata, vmlen);
-				fprintf(p, "%s" ENDL, passdata);
-			} else
-				ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+			passdata = alloca(vmlen);
+			memset(passdata, 0, vmlen);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+			pbx_substitute_variables_helper(ast, emailbody, passdata, vmlen);
+			fprintf(p, "%s" ENDL, passdata);
 			ast_channel_free(ast);
 		} else
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
@@ -2167,13 +2161,11 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
 			char *passdata;
 			int vmlen = strlen(fromstring)*3 + 200;
-			if ((passdata = alloca(vmlen))) {
-				memset(passdata, 0, vmlen);
-				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-				pbx_substitute_variables_helper(ast, pagerfromstring, passdata, vmlen);
-				fprintf(p, "From: %s <%s>\n", passdata, who);
-			} else 
-				ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+			passdata = alloca(vmlen);
+			memset(passdata, 0, vmlen);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+			pbx_substitute_variables_helper(ast, pagerfromstring, passdata, vmlen);
+			fprintf(p, "From: %s <%s>\n", passdata, who);
 			ast_channel_free(ast);
 		} else 
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
@@ -2185,13 +2177,11 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
 			char *passdata;
 			int vmlen = strlen(pagersubject) * 3 + 200;
-			if ((passdata = alloca(vmlen))) {
-				memset(passdata, 0, vmlen);
-				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-				pbx_substitute_variables_helper(ast, pagersubject, passdata, vmlen);
-				fprintf(p, "Subject: %s\n\n", passdata);
-			} else
-				ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+			passdata = alloca(vmlen);
+			memset(passdata, 0, vmlen);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+			pbx_substitute_variables_helper(ast, pagersubject, passdata, vmlen);
+			fprintf(p, "Subject: %s\n\n", passdata);
 			ast_channel_free(ast);
 		} else
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
