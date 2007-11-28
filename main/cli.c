@@ -1728,6 +1728,9 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 		/* XXX repeated code */
 		int src = 0, dst = 0, n = 0;
 
+		if (e->command[0] == '_')
+			continue;
+
 		/*
 		 * Try to match words, up to and excluding the last word, which
 		 * is either a blank or something that we want to extend.
