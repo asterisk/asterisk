@@ -46,6 +46,11 @@ hasiax = yes
 ;
 hasmanager = no
 ;
+; Set permissions for manager entry (see manager.conf.sample for documentation)
+; (defaults to *all* permissions)
+;managerread = system,call,log,verbose,command,agent,user,config
+;managerwrite = system,call,log,verbose,command,agent,user,config
+;
 ; Remaining options are not specific to users.conf entries but are general.
 ;
 callwaiting = yes

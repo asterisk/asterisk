@@ -1037,9 +1037,12 @@ static int authenticate(struct mansession *s, const struct message *m)
 					ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
 				else
 					s->writetimeout = val;
-			} else if (!strcasecmp(v->name, "hasmanager")) {
+			} else if (!strcasecmp(v->name, "hasmanager"))
 				hasmanager = ast_true(v->value);
-			}
+			else if (!strcasecmp(v->name, "managerread"))
+				readperm = get_perm(v->value);
+			else if (!strcasecmp(v->name, "managerwrite"))
+				writeperm = get_perm(v->value);
 		}
 		ast_config_destroy(cfg);
 		if (!hasmanager) {
