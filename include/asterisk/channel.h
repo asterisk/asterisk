@@ -1309,7 +1309,11 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 /*! Deactivate an active generator */
 void ast_deactivate_generator(struct ast_channel *chan);
 
-/*! Set caller ID number, name and ANI */
+/*!
+ * \brief Set caller ID number, name and ANI
+ *
+ * \note The channel does not need to be locked before calling this function.
+ */
 void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char *cid_name, const char *cid_ani);
 
 /*! Set the file descriptor on the channel */

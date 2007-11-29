@@ -72,6 +72,8 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 		}
 	} else {
+		ast_channel_lock(chan);
+
 		if (!strncasecmp("all", data, 3)) {
 			snprintf(buf, len, "\"%s\" <%s>",
 				 S_OR(chan->cid.cid_name, ""),
@@ -105,6 +107,8 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 		}
+
+		ast_channel_unlock(chan);
 	}
 
 	return 0;
@@ -133,15 +137,17 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 		} else
 			ast_set_callerid(chan, NULL, NULL, value);
 	} else if (!strncasecmp("dnid", data, 4)) {
-		/* do we need to lock chan here? */
+		ast_channel_lock(chan);
 		if (chan->cid.cid_dnid)
 			ast_free(chan->cid.cid_dnid);
 		chan->cid.cid_dnid = ast_strdup(value);
+		ast_channel_unlock(chan);
 	} else if (!strncasecmp("rdnis", data, 5)) {
-		/* do we need to lock chan here? */
+		ast_channel_lock(chan);
 		if (chan->cid.cid_rdnis)
 			ast_free(chan->cid.cid_rdnis);
 		chan->cid.cid_rdnis = ast_strdup(value);
+		ast_channel_unlock(chan);
 	} else if (!strncasecmp("pres", data, 4)) {
 		int i;
 		char *s, *val;
