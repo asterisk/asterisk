@@ -111,8 +111,8 @@ static int callerid_write(struct ast_channel *chan, char *cmd, char *data,
 		char name[256];
 		char num[256];
 
-	if (!ast_callerid_split(value, name, sizeof(name), num, sizeof(num)))
-		ast_set_callerid(chan, num, name, num);
+		if (!ast_callerid_split(value, name, sizeof(name), num, sizeof(num)))
+			ast_set_callerid(chan, num, name, num);
 	} else if (!strncasecmp("name", data, 4)) {
 		ast_set_callerid(chan, NULL, value, NULL);
 	} else if (!strncasecmp("num", data, 3) ||
