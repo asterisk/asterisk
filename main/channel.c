@@ -3874,6 +3874,8 @@ int ast_do_masquerade(struct ast_channel *original)
 
 void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char *calleridname, const char *ani)
 {
+	ast_channel_lock(chan);
+
 	if (callerid) {
 		if (chan->cid.cid_num)
 			free(chan->cid.cid_num);
@@ -3904,6 +3906,8 @@ void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char
 				chan->cid.cid_pres,
 				ast_describe_caller_presentation(chan->cid.cid_pres)
 				);
+	
+	ast_channel_unlock(chan);
 }
 
 int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
