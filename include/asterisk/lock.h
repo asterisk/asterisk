@@ -114,6 +114,8 @@
 
 #define AST_MAX_REENTRANCY 10
 
+struct ast_channel;
+
 struct ast_mutex_info {
 	pthread_mutex_t mutex;
 	/*! Track which thread holds this lock */
