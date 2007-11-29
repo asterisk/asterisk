@@ -150,10 +150,9 @@ hashtest2: hashtest2.o md5.o utils.o astobj2.o sha1.o strcompat.o threadstorage.
 
 hashtest: hashtest.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o clicompat.o
 
-hashtest.o : hashtest.c
-	$(CC) -g -O0 -c hashtest.c -I/usr/include -I../include
+hashtest.o: ASTCFLAGS+=-O0
 
-extconf.o : extconf.c
+extconf.o: extconf.c
 
 conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o aelbison.o aelparse.o pbx_ael.o pval.o extconf.o strcompat.o
 
