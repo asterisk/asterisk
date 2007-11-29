@@ -4381,7 +4381,7 @@ static int manager_add_queue_member(struct mansession *s, const struct message *
 
 	if (ast_strlen_zero(penalty_s))
 		penalty = 0;
-	else if (sscanf(penalty_s, "%d", &penalty) != 1)
+	else if (sscanf(penalty_s, "%d", &penalty) != 1 || penalty < 0)
 		penalty = 0;
 
 	if (ast_strlen_zero(paused_s))
