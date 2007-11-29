@@ -85,7 +85,7 @@ static int ogg_vorbis_open(struct ast_filestream *s)
 	int result;
 	char **ptr;
 	char *buffer;
-	struct vorbis_desc *tmp = (struct vorbis_desc *)s->private;
+	struct vorbis_desc *tmp = (struct vorbis_desc *)s->_private;
 
 	tmp->writing = 0;
 
@@ -195,7 +195,7 @@ static int ogg_vorbis_rewrite(struct ast_filestream *s,
 	ogg_packet header;
 	ogg_packet header_comm;
 	ogg_packet header_code;
-	struct vorbis_desc *tmp = (struct vorbis_desc *)s->private;
+	struct vorbis_desc *tmp = (struct vorbis_desc *)s->_private;
 
 	tmp->writing = 1;
 
@@ -272,7 +272,7 @@ static int ogg_vorbis_write(struct ast_filestream *fs, struct ast_frame *f)
 	int i;
 	float **buffer;
 	short *data;
-	struct vorbis_desc *s = (struct vorbis_desc *)fs->private;
+	struct vorbis_desc *s = (struct vorbis_desc *)fs->_private;
 
 	if (!s->writing) {
 		ast_log(LOG_ERROR, "This stream is not set up for writing!\n");
@@ -311,7 +311,7 @@ static int ogg_vorbis_write(struct ast_filestream *fs, struct ast_frame *f)
  */
 static void ogg_vorbis_close(struct ast_filestream *fs)
 {
-	struct vorbis_desc *s = (struct vorbis_desc *)fs->private;
+	struct vorbis_desc *s = (struct vorbis_desc *)fs->_private;
 
 	if (s->writing) {
 		/* Tell the Vorbis encoder that the stream is finished
@@ -343,7 +343,7 @@ static int read_samples(struct ast_filestream *fs, float ***pcm)
 	int result;
 	char *buffer;
 	int bytes;
-	struct vorbis_desc *s = (struct vorbis_desc *)fs->private;
+	struct vorbis_desc *s = (struct vorbis_desc *)fs->_private;
 
 	while (1) {
 		samples_in = vorbis_synthesis_pcmout(&s->vd, pcm);
@@ -426,7 +426,7 @@ static struct ast_frame *ogg_vorbis_read(struct ast_filestream *fs,
 	int val;
 	int samples_in;
 	int samples_out = 0;
-	struct vorbis_desc *s = (struct vorbis_desc *)fs->private;
+	struct vorbis_desc *s = (struct vorbis_desc *)fs->_private;
 	short *buf;	/* SLIN data buffer */
 
 	fs->fr.frametype = AST_FRAME_VOICE;

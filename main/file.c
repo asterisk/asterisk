@@ -282,7 +282,7 @@ static struct ast_filestream *get_filestream(struct ast_format *fmt, FILE *bfile
 	s->f = bfile;
 
 	if (fmt->desc_size)
-		s->private = ((char *)(s+1)) + fmt->buf_size;
+		s->_private = ((char *)(s+1)) + fmt->buf_size;
 	if (fmt->buf_size)
 		s->buf = (char *)(s+1);
 	s->fr.src = fmt->name;

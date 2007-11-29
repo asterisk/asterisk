@@ -370,7 +370,7 @@ static int wav_open(struct ast_filestream *s)
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
 	   and be sure it's a valid file.  */
-	struct wavg_desc *fs = (struct wavg_desc *)s->private;
+	struct wavg_desc *fs = (struct wavg_desc *)s->_private;
 
 	if (check_header(s->f))
 		return -1;
@@ -401,7 +401,7 @@ static void wav_close(struct ast_filestream *s)
 static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 {
 	/* Send a frame from the file to the appropriate channel */
-	struct wavg_desc *fs = (struct wavg_desc *)s->private;
+	struct wavg_desc *fs = (struct wavg_desc *)s->_private;
 
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_GSM;
@@ -435,7 +435,7 @@ static int wav_write(struct ast_filestream *s, struct ast_frame *f)
 {
 	int len;
 	int size;
-	struct wavg_desc *fs = (struct wavg_desc *)s->private;
+	struct wavg_desc *fs = (struct wavg_desc *)s->_private;
 
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
@@ -481,7 +481,7 @@ static int wav_write(struct ast_filestream *s, struct ast_frame *f)
 static int wav_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	off_t offset=0, distance, max;
-	struct wavg_desc *s = (struct wavg_desc *)fs->private;
+	struct wavg_desc *s = (struct wavg_desc *)fs->_private;
 
 	off_t min = MSGSM_DATA_OFFSET;
 	off_t cur = ftello(fs->f);

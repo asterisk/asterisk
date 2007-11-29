@@ -62,7 +62,7 @@ struct g726_desc  {
  */
 static int g726_open(struct ast_filestream *tmp, int rate)
 {
-	struct g726_desc *s = (struct g726_desc *)tmp->private;
+	struct g726_desc *s = (struct g726_desc *)tmp->_private;
 	s->rate = rate;
 	ast_debug(1, "Created filestream G.726-%dk.\n", 40 - s->rate * 8);
 	return 0;
@@ -115,7 +115,7 @@ static int g726_16_rewrite(struct ast_filestream *s, const char *comment)
 static struct ast_frame *g726_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
-	struct g726_desc *fs = (struct g726_desc *)s->private;
+	struct g726_desc *fs = (struct g726_desc *)s->_private;
 
 	/* Send a frame from the file to the appropriate channel */
 	s->fr.frametype = AST_FRAME_VOICE;
@@ -135,7 +135,7 @@ static struct ast_frame *g726_read(struct ast_filestream *s, int *whennext)
 static int g726_write(struct ast_filestream *s, struct ast_frame *f)
 {
 	int res;
-	struct g726_desc *fs = (struct g726_desc *)s->private;
+	struct g726_desc *fs = (struct g726_desc *)s->_private;
 
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
