@@ -1049,6 +1049,10 @@ static int authenticate(struct mansession *s, const struct message *m)
 			ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
 			return -1;
 		}
+		if (!readperm)
+			readperm = -1;
+		if (!writeperm)
+			writeperm = -1;
 	}
 
 	}
