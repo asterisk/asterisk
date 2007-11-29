@@ -66,9 +66,14 @@ int ast_stream_and_wait(struct ast_channel *chan, const char *file, const char *
 
 /*! 
  * \brief Stops a stream 
+ *
  * \param c The channel you wish to stop playback on
+ *
  * Stop playback of a stream 
- * \return 0 regardless
+ *
+ * \retval 0 always
+ *
+ * \note The channel does not need to be locked before calling this function.
  */
 int ast_stopstream(struct ast_channel *c);
 
