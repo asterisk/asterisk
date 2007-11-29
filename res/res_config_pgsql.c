@@ -68,8 +68,8 @@ static struct ast_cli_entry cli_realtime[] = {
 static struct ast_variable *realtime_pgsql(const char *database, const char *table, va_list ap)
 {
 	PGresult *result = NULL;
-	int num_rows = 0;
-	char sql[256];
+	int num_rows = 0, pgerror;
+	char sql[256], escapebuf[513];
 	char *stringp;
 	char *chunk;
 	char *op;
@@ -98,16 +98,31 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
 	op = strchr(newparam, ' ') ? "" : " =";
 
+	PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
+	if (pgerror) {
+		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
+		va_end(ap);
+		return NULL;
+	}
+
 	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s '%s'", table, newparam, op,
-			 newval);
+			 escapebuf);
 	while ((newparam = va_arg(ap, const char *))) {
 		newval = va_arg(ap, const char *);
 		if (!strchr(newparam, ' '))
 			op = " =";
 		else
 			op = "";
+
+		PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
+		if (pgerror) {
+			ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
+			va_end(ap);
+			return NULL;
+		}
+
 		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s '%s'", newparam,
-				 op, newval);
+				 op, escapebuf);
 	}
 	va_end(ap);
 
@@ -190,8 +205,8 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 static struct ast_config *realtime_multi_pgsql(const char *database, const char *table, va_list ap)
 {
 	PGresult *result = NULL;
-	int num_rows = 0;
-	char sql[256];
+	int num_rows = 0, pgerror;
+	char sql[256], escapebuf[513];
 	const char *initfield = NULL;
 	char *stringp;
 	char *chunk;
@@ -235,16 +250,31 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	else
 		op = "";
 
+	PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
+	if (pgerror) {
+		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
+		va_end(ap);
+		return NULL;
+	}
+
 	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s '%s'", table, newparam, op,
-			 newval);
+			 escapebuf);
 	while ((newparam = va_arg(ap, const char *))) {
 		newval = va_arg(ap, const char *);
 		if (!strchr(newparam, ' '))
 			op = " =";
 		else
 			op = "";
+
+		PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
+		if (pgerror) {
+			ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
+			va_end(ap);
+			return NULL;
+		}
+
 		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s '%s'", newparam,
-				 op, newval);
+				 op, escapebuf);
 	}
 
 	if (initfield) {
@@ -335,8 +365,8 @@ static int update_pgsql(const char *database, const char *table, const char *key
 						const char *lookup, va_list ap)
 {
 	PGresult *result = NULL;
-	int numrows = 0;
-	char sql[256];
+	int numrows = 0, pgerror;
+	char sql[256], escapebuf[513];
 	const char *newparam, *newval;
 
 	if (!table) {
@@ -360,15 +390,38 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
 
-	snprintf(sql, sizeof(sql), "UPDATE %s SET %s = '%s'", table, newparam, newval);
+	PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
+	if (pgerror) {
+		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
+		va_end(ap);
+		return -1;
+	}
+	snprintf(sql, sizeof(sql), "UPDATE %s SET %s = '%s'", table, newparam, escapebuf);
+
 	while ((newparam = va_arg(ap, const char *))) {
 		newval = va_arg(ap, const char *);
+
+		PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
+		if (pgerror) {
+			ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
+			va_end(ap);
+			return -1;
+		}
+
 		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s = '%s'", newparam,
-				 newval);
+				 escapebuf);
 	}
 	va_end(ap);
+
+	PQescapeStringConn(pgsqlConn, escapebuf, lookup, (sizeof(escapebuf) - 1) / 2, &pgerror);
+	if (pgerror) {
+		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", lookup);
+		va_end(ap);
+		return -1;
+	}
+
 	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " WHERE %s = '%s'", keyfield,
-			 lookup);
+			 escapebuf);
 
 	ast_debug(1, "PostgreSQL RealTime: Update SQL: %s\n", sql);
 
