@@ -14773,7 +14773,8 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	ast_quiet_chan(targetcall);
 	ast_debug(4, "Invite/Replaces: preparing to masquerade %s into %s\n", c->name, replacecall->name);
 	/* Unlock clone, but not original (replacecall) */
-	ast_channel_unlock(c);
+	if (!oneleggedreplace)
+		ast_channel_unlock(c);
 
 	/* Unlock PVT */
 	sip_pvt_unlock(p->refer->refer_call);
@@ -14804,7 +14805,8 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 			ast_log(LOG_WARNING, "Invite/Replace:  Could not read frame from RING channel \n");
 		}
 		c->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
-		ast_channel_unlock(replacecall);
+		if (!oneleggedreplace)
+			ast_channel_unlock(replacecall);
 	} else {	/* Bridged call, UP channel */
 		if ((f = ast_read(replacecall))) {	/* Force the masq to happen */
 			/* Masq ok */
@@ -14835,7 +14837,8 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	ast_debug(4, "End After transfer:----------------------------\n");
 
 	ast_channel_unlock(p->owner);	/* Unlock new owner */
-	sip_pvt_unlock(p);	/* Unlock SIP structure */
+	if (!oneleggedreplace)
+		sip_pvt_unlock(p);	/* Unlock SIP structure */
 
 	/* The call should be down with no ast_channel, so hang it up */
 	c->tech_pvt = dialog_unref(c->tech_pvt);
