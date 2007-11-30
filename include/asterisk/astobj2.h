@@ -114,10 +114,6 @@ The function returns NULL in case of errors (and the object
 is not inserted in the container). Other values mean success
 (we are not supposed to use the value as a pointer to anything).
 
-\note inserting the object in the container grabs the reference
-to the object (which is now owned by the container) so we do not
-need to drop ours when we are done.
-
 \note While an object o is in a container, we expect that
 my_hash_fn(o) will always return the same value. The function
 does not lock the object to be computed, so modifications of
@@ -348,16 +344,21 @@ int ao2_container_count(struct ao2_container *c);
  * We can use the functions below on any kind of 
  * object defined by the user.
  */
+
 /*!
- * Add an object to a container.
+ * \brief Add an object to a container.
  *
  * \param c the container to operate on.
- * \param obj the object to be added.
+ * \param newobj the object to be added.
+ *
  * \return NULL on errors, other values on success.
  *
- * This function insert an object in a container according its key.
+ * This function inserts an object in a container according its key.
  *
  * \note Remember to set the key before calling this function.
+ *
+ * \note This function automatically increases the reference count to
+ *       account for the reference to the object that the container now holds.
  *
  * For Asterisk 1.4 only, there is a dirty hack here to ensure that chan_iax2
  * can have objects linked in to the container at the head instead of tail
@@ -367,6 +368,7 @@ int ao2_container_count(struct ao2_container *c);
  */
 #define ao2_link(c, o) __ao2_link(c, o, 0)
 void *__ao2_link(struct ao2_container *c, void *newobj, int iax2_hack);
+
 /*!
  * \brief Remove an object from the container
  *
@@ -380,9 +382,7 @@ void *__ao2_link(struct ao2_container *c, void *newobj, int iax2_hack);
  *       be called.
  *
  * \note If the object gets unlinked from the container, the container's
- *       reference to the object will be automatically released.  This is
- *       slightly different than ao2_link(), which inherits a reference instead
- *       of automatically increasing the reference count.
+ *       reference to the object will be automatically released.
  */
 void *ao2_unlink(struct ao2_container *c, void *obj);
 

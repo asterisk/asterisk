@@ -1069,6 +1069,8 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 			m->realtime = 1;
 			add_to_interfaces(interface);
 			ao2_link(q->members, m);
+			ao2_ref(m, -1);
+			m = NULL;
 			q->membercount++;
 		}
 	} else {
@@ -3036,6 +3038,8 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 		if ((new_member = create_queue_member(interface, membername, penalty, paused))) {
 			new_member->dynamic = 1;
 			ao2_link(q->members, new_member);
+			ao2_ref(new_member, -1);
+			new_member = NULL;
 			q->membercount++;
 			manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
 				"Queue: %s\r\n"
@@ -4021,6 +4025,8 @@ static int reload_queues(void)
 
 						newm = create_queue_member(interface, membername, penalty, cur ? cur->paused : 0);
 						ao2_link(q->members, newm);
+						ao2_ref(newm, -1);
+						newm = NULL;
 
 						if (cur)
 							ao2_ref(cur, -1);

@@ -394,8 +394,6 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 					vc = ao2_alloc(sizeof(*vc), NULL);
 					vc->varname = var;
 					vc->count = 1;
-					/* Increment refcount, because we're going to deref once later */
-					ao2_ref(vc, 1);
 					ao2_link(vco, vc);
 				}
 

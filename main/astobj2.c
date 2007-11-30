@@ -365,6 +365,7 @@ void *__ao2_link(struct ao2_container *c, void *user_data, int iax2_hack)
 	else
 		AST_LIST_INSERT_TAIL(&c->buckets[i], p, entry);
 	ast_atomic_fetchadd_int(&c->elements, 1);
+	ao2_ref(user_data, +1);
 	ao2_unlock(c);
 	
 	return p;
