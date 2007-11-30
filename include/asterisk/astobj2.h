@@ -367,7 +367,24 @@ int ao2_container_count(struct ao2_container *c);
  */
 #define ao2_link(c, o) __ao2_link(c, o, 0)
 void *__ao2_link(struct ao2_container *c, void *newobj, int iax2_hack);
-void *ao2_unlink(struct ao2_container *c, void *newobj);
+/*!
+ * \brief Remove an object from the container
+ *
+ * \arg c the container
+ * \arg obj the object to unlink
+ *
+ * \retval NULL, always
+ *
+ * \note The object requested to be unlinked must be valid.  However, if it turns
+ *       out that it is not in the container, this function is still safe to
+ *       be called.
+ *
+ * \note If the object gets unlinked from the container, the container's
+ *       reference to the object will be automatically released.  This is
+ *       slightly different than ao2_link(), which inherits a reference instead
+ *       of automatically increasing the reference count.
+ */
+void *ao2_unlink(struct ao2_container *c, void *obj);
 
 /*! \struct Used as return value if the flag OBJ_MULTIPLE is set */
 struct ao2_list {
