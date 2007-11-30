@@ -3087,8 +3087,6 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *v
 				vc = ao2_alloc(sizeof(*vc), NULL);
 				vc->varname = var;
 				vc->count = 1;
-				/* Increment refcount, because we're going to deref once later */
-				ao2_ref(vc, 1);
 				ao2_link(vco, vc);
 			}
 			xml_copy_escape(out, var, xml ? 1 | 2 : 0);

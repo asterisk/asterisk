@@ -119,12 +119,6 @@ The function returns NULL in case of errors (and the object
 is not inserted in the container). Other values mean success
 (we are not supposed to use the value as a pointer to anything).
 
-\note inserting an object in a container grabs the reference
-to the object (which is now owned by the container), so we do not
-need to drop our reference - in fact, we don't own it anymore,
-so we are not even supposed to access the object as someone might
-delete it.
-
 \note While an object o is in a container, we expect that
 my_hash_fn(o) will always return the same value. The function
 does not lock the object to be computed, so modifications of
@@ -352,18 +346,25 @@ int ao2_container_count(struct ao2_container *c);
  * We can use the functions below on any kind of 
  * object defined by the user.
  */
+
 /*!
- * Add an object to a container.
+ * \brief Add an object to a container.
  *
  * \param c the container to operate on.
  * \param newobj the object to be added.
- * \return NULL on errors, other values on success.
  *
- * This function insert an object in a container according its key.
+ * \retval NULL on errors
+ * \retval newobj on success.
+ *
+ * This function inserts an object in a container according its key.
  *
  * \note Remember to set the key before calling this function.
+ *
+ * \note This function automatically increases the reference count to account
+ *       for the reference that the container now holds to the object.
  */
 void *ao2_link(struct ao2_container *c, void *newobj);
+
 /*!
  * \brief Remove an object from the container
  *
@@ -377,9 +378,7 @@ void *ao2_link(struct ao2_container *c, void *newobj);
  *       be called.
  *
  * \note If the object gets unlinked from the container, the container's
- *       reference to the object will be automatically released.  This is
- *       slightly different than ao2_link(), which inherits a reference instead
- *       of automatically increasing the reference count.
+ *       reference to the object will be automatically released.  
  */
 void *ao2_unlink(struct ao2_container *c, void *obj);
 

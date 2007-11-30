@@ -1431,7 +1431,6 @@ static void set_fn(char *fn, int fn_size, const char *file, const char *configfi
 		fx->lineno = 1;
 		*fi = fx;
 		ao2_link(fileset, fx);
-		ao2_ref(fx,1); /* bump the ref count, so it looks like we just got the ref from find */
 	}
 }
 

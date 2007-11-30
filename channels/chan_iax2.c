@@ -3014,7 +3014,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
  			if (peer->expire == -1)
  				peer_unref(peer);
 		}
-		ao2_link(peers, peer_ref(peer));
+		ao2_link(peers, peer);
 		if (ast_test_flag(peer, IAX_DYNAMIC))
 			reg_source_db(peer);
 	} else {
@@ -3069,7 +3069,7 @@ static struct iax2_user *realtime_user(const char *username)
 
 	if (ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
 		ast_set_flag(user, IAX_RTCACHEFRIENDS);
-		ao2_link(users, user_ref(user));
+		ao2_link(users, user);
 	} else {
 		ast_set_flag(user, IAX_TEMPONLY);	
 	}
@@ -10695,14 +10695,14 @@ static int set_config(char *config_file, int reload)
 					user = build_user(cat, gen, ast_variable_browse(ucfg, cat), 0);
 					if (user) {
 						ao2_link(users, user);
-						user = NULL;
+						user = user_unref(user);
 					}
 					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0);
 					if (peer) {
 						if (ast_test_flag(peer, IAX_DYNAMIC))
 							reg_source_db(peer);
 						ao2_link(peers, peer);
-						peer = NULL;
+						peer = peer_unref(peer);
 					}
 				}
 				if (ast_true(registeriax) || (!registeriax && genregisteriax)) {
@@ -10739,7 +10739,7 @@ static int set_config(char *config_file, int reload)
 					user = build_user(cat, ast_variable_browse(cfg, cat), NULL, 0);
 					if (user) {
 						ao2_link(users, user);
-						user = NULL;
+						user = user_unref(user);
 					}
 				}
 				if (!strcasecmp(utype, "peer") || !strcasecmp(utype, "friend")) {
@@ -10748,7 +10748,7 @@ static int set_config(char *config_file, int reload)
 						if (ast_test_flag(peer, IAX_DYNAMIC))
 							reg_source_db(peer);
 						ao2_link(peers, peer);
-						peer = NULL;
+						peer = peer_unref(peer);
 					}
 				} else if (strcasecmp(utype, "user")) {
 					ast_log(LOG_WARNING, "Unknown type '%s' for '%s' in %s\n", utype, cat, config_file);
