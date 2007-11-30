@@ -171,6 +171,28 @@ struct ast_frame *ast_audiohook_write_list(struct ast_channel *chan, struct ast_
  */
 void ast_audiohook_trigger_wait(struct ast_audiohook *audiohook);
 
+/*!
+  \brief Find out how many audiohooks from  a certain source exist on a given channel, regardless of status.
+  \param chan The channel on which to find the spies 
+  \param source The audiohook's source
+  \param type The type of audiohook 
+  \return Return the number of audiohooks which are from the source specified
+
+  Note: Function performs nlocking.
+*/
+int ast_channel_audiohook_count_by_source(struct ast_channel *chan, const char *source, enum ast_audiohook_type type);
+
+/*!
+  \brief Find out how many spies of a certain type exist on a given channel, and are in state running.
+  \param chan The channel on which to find the spies
+  \param source The source of the audiohook
+  \param type The type of spy to look for
+  \return Return the number of running audiohooks which are from the source specified
+
+  Note: Function performs no locking.
+*/
+int ast_channel_audiohook_count_by_source_running(struct ast_channel *chan, const char *source, enum ast_audiohook_type type);
+
 /*! \brief Lock an audiohook
  * \param ah Audiohook structure
  */

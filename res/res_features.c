@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/adsi.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/monitor.h"
+#include "asterisk/audiohook.h"
 
 #define DEFAULT_PARK_TIME 45000
 #define DEFAULT_TRANSFER_DIGIT_TIMEOUT 3000
@@ -150,6 +151,12 @@ static char *descrip2 = "Park(): "
 
 static struct ast_app *monitor_app = NULL;
 static int monitor_ok = 1;
+
+static struct ast_app *mixmonitor_app = NULL;
+static int mixmonitor_ok = 1;
+
+static struct ast_app *stopmixmonitor_app = NULL;
+static int stopmixmonitor_ok = 1;
 
 struct parkeduser {
 	struct ast_channel *chan;                   /*!< Parking channel */
@@ -717,6 +724,118 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	return -1;
 }
 
+static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
+{
+	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_filename = NULL;
+	int x = 0;
+	size_t len;
+	struct ast_channel *caller_chan, *callee_chan;
+	const char *mixmonitor_spy_type = "MixMonitor";
+	int count = 0;
+
+	if (!mixmonitor_ok) {
+		ast_log(LOG_ERROR,"Cannot record the call. The mixmonitor application is disabled.\n");
+		return -1;
+	}
+
+	if (!(mixmonitor_app = pbx_findapp("MixMonitor"))) {
+		mixmonitor_ok = 0;
+		ast_log(LOG_ERROR,"Cannot record the call. The mixmonitor application is disabled.\n");
+		return -1;
+	}
+
+	set_peers(&caller_chan, &callee_chan, peer, chan, sense);
+
+	if (!ast_strlen_zero(courtesytone)) {
+		if (ast_autoservice_start(callee_chan))
+			return -1;
+		if (ast_stream_and_wait(caller_chan, courtesytone, "")) {
+			ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+			ast_autoservice_stop(callee_chan);
+			return -1;
+		}
+		if (ast_autoservice_stop(callee_chan))
+			return -1;
+	}
+
+	ast_channel_lock(callee_chan);
+	count = ast_channel_audiohook_count_by_source(callee_chan, mixmonitor_spy_type, AST_AUDIOHOOK_TYPE_SPY);
+	ast_channel_unlock(callee_chan);
+
+	// This means a mixmonitor is attached to the channel, running or not is unknown.
+	if (count > 0) {
+		
+		if (option_verbose > 3)
+			ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to stop recording call.\n", code);
+
+		//Make sure they are running
+		ast_channel_lock(callee_chan);
+		count = ast_channel_audiohook_count_by_source_running(callee_chan, mixmonitor_spy_type, AST_AUDIOHOOK_TYPE_SPY);
+		ast_channel_unlock(callee_chan);
+		if (count > 0) {
+			if (!stopmixmonitor_ok) {
+				ast_log(LOG_ERROR,"Cannot stop recording the call. The stopmixmonitor application is disabled.\n");
+				return -1;
+			}
+			if (!(stopmixmonitor_app = pbx_findapp("StopMixMonitor"))) {
+				stopmixmonitor_ok = 0;
+				ast_log(LOG_ERROR,"Cannot stop recording the call. The stopmixmonitor application is disabled.\n");
+				return -1;
+			} else {
+				pbx_exec(callee_chan, stopmixmonitor_app, "");
+				return FEATURE_RETURN_SUCCESS;
+			}
+		}
+		
+		ast_log(LOG_WARNING,"Stopped MixMonitors are attached to the channel.\n");	
+	}			
+
+	if (caller_chan && callee_chan) {
+		const char *touch_format = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MIXMONITOR_FORMAT");
+		const char *touch_monitor = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MIXMONITOR");
+
+		if (!touch_format)
+			touch_format = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MIXMONITOR_FORMAT");
+
+		if (!touch_monitor)
+			touch_monitor = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MIXMONITOR");
+
+		if (touch_monitor) {
+			len = strlen(touch_monitor) + 50;
+			args = alloca(len);
+			touch_filename = alloca(len);
+			snprintf(touch_filename, len, "auto-%ld-%s", (long)time(NULL), touch_monitor);
+			snprintf(args, len, "%s.%s,b", touch_filename, (touch_format) ? touch_format : "wav");
+		} else {
+			caller_chan_id = ast_strdupa(S_OR(caller_chan->cid.cid_num, caller_chan->name));
+			callee_chan_id = ast_strdupa(S_OR(callee_chan->cid.cid_num, callee_chan->name));
+			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
+			args = alloca(len);
+			touch_filename = alloca(len);
+			snprintf(touch_filename, len, "auto-%ld-%s-%s", (long)time(NULL), caller_chan_id, callee_chan_id);
+			snprintf(args, len, "%s.%s,b", touch_filename, S_OR(touch_format, "wav"));
+		}
+
+		for( x = 0; x < strlen(args); x++) {
+			if (args[x] == '/')
+				args[x] = '-';
+		}
+
+		if (option_verbose > 3)
+			ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to record call. filename: %s\n", code, touch_filename);
+
+		pbx_exec(callee_chan, mixmonitor_app, args);
+		pbx_builtin_setvar_helper(callee_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
+		pbx_builtin_setvar_helper(caller_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
+		return FEATURE_RETURN_SUCCESS;
+	
+	}
+
+	ast_log(LOG_NOTICE,"Cannot record the call. One or both channels have gone away.\n");
+	return -1;
+
+}
+
 static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	ast_verb(4, "User hit '%s' to disconnect call.\n", code);
@@ -1136,6 +1255,7 @@ static struct ast_call_feature builtin_features[] =
 	{ AST_FEATURE_AUTOMON, "One Touch Monitor", "automon", "", "", builtin_automonitor, AST_FEATURE_FLAG_NEEDSDTMF, "" },
 	{ AST_FEATURE_DISCONNECT, "Disconnect Call", "disconnect", "*", "*", builtin_disconnect, AST_FEATURE_FLAG_NEEDSDTMF, "" },
 	{ AST_FEATURE_PARKCALL, "Park Call", "parkcall", "", "", builtin_parkcall, AST_FEATURE_FLAG_NEEDSDTMF, "" },
+	{ AST_FEATURE_AUTOMIXMON, "One Touch MixMonitor", "automixmon", "", "", builtin_automixmonitor, AST_FEATURE_FLAG_NEEDSDTMF, "" },
 };
 
 

@@ -52,6 +52,7 @@ context => parkedcalls		; Which context parked calls are in
 ;automon => *1			; One Touch Record a.k.a. Touch Monitor
 ;atxfer => *2			; Attended transfer
 ;parkcall => #72                ; Park call (one step parking)
+;automixmon => *3		; One Touch Record a.k.a. Touch MixMonitor
 
 [applicationmap]
 ; Note that the DYNAMIC_FEATURES channel variable must be set to use the features

@@ -203,8 +203,12 @@ static char *descrip =
 "    w    - Allow the called party to enable recording of the call by sending\n"
 "           the DTMF sequence defined for one-touch recording in features.conf.\n"
 "    W    - Allow the calling party to enable recording of the call by sending\n"
-"           the DTMF sequence defined for one-touch recording in features.conf.\n";
-
+"           the DTMF sequence defined for one-touch recording in features.conf.\n"
+"    x    - Allow the called party to enable recording of the call by sending\n"
+"           the DTMF sequence defined for one-touch automixmonitor in features.conf\n"
+"    X    - Allow the calling party to enable recording of the call by sending\n"
+"           the DTMF sequence defined for one-touch automixmonitor in features.conf\n";
+ 
 /* RetryDial App by Anthony Minessale II <anthmct@yahoo.com> Jan/2005 */
 static char *rapp = "RetryDial";
 static char *rsynopsis = "Place a call, retrying on failure allowing optional exit extension.";
@@ -250,12 +254,14 @@ enum {
 	OPT_CALLER_PARK =	(1 << 26),
 	OPT_IGNORE_FORWARDING = (1 << 27),
 	OPT_CALLEE_GOSUB =	(1 << 28),
-	OPT_CANCEL_ELSEWHERE =  (1 << 29),
-	OPT_PEER_H =            (1 << 30),
+	OPT_CALLEE_MIXMONITOR = (1 << 29),
+	OPT_CALLER_MIXMONITOR = (1 << 30),
 };
 
 #define DIAL_STILLGOING			(1 << 31)
 #define DIAL_NOFORWARDHTML		((uint64_t)1 << 32) /* flags are now 64 bits, so keep it up! */
+#define OPT_CANCEL_ELSEWHERE	((uint64_t)1 << 33)
+#define OPT_PEER_H   			((uint64_t)1 << 34)
 
 enum {
 	OPT_ARG_ANNOUNCE = 0,
@@ -305,6 +311,8 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('U', OPT_CALLEE_GOSUB, OPT_ARG_CALLEE_GOSUB),
 	AST_APP_OPTION('w', OPT_CALLEE_MONITOR),
 	AST_APP_OPTION('W', OPT_CALLER_MONITOR),
+	AST_APP_OPTION('x', OPT_CALLEE_MIXMONITOR),
+	AST_APP_OPTION('X', OPT_CALLER_MIXMONITOR),
 END_OPTIONS );
 
 #define CAN_EARLY_BRIDGE(flags) (!ast_test_flag64(flags, OPT_CALLEE_HANGUP | \
@@ -621,6 +629,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
 						       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
 						       OPT_CALLEE_PARK | OPT_CALLER_PARK |
+						       OPT_CALLEE_MIXMONITOR | OPT_CALLER_MIXMONITOR |
 						       DIAL_NOFORWARDHTML);
 					ast_copy_string(c->dialcontext, "", sizeof(c->dialcontext));
 					ast_copy_string(c->exten, "", sizeof(c->exten));
@@ -655,6 +664,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
 							       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
 							       OPT_CALLEE_PARK | OPT_CALLER_PARK |
+							       OPT_CALLEE_MIXMONITOR | OPT_CALLER_MIXMONITOR |
 							       DIAL_NOFORWARDHTML);
 						ast_copy_string(c->dialcontext, "", sizeof(c->dialcontext));
 						ast_copy_string(c->exten, "", sizeof(c->exten));
@@ -1332,6 +1342,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
 				       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
 				       OPT_CALLEE_PARK | OPT_CALLER_PARK |
+				       OPT_CALLEE_MIXMONITOR | OPT_CALLER_MIXMONITOR |
 				       OPT_RINGBACK | OPT_MUSICBACK | OPT_FORCECLID);
 			ast_set2_flag64(tmp, args.url, DIAL_NOFORWARDHTML);	
 		}
@@ -1758,6 +1769,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_set_flag(&(config.features_callee), AST_FEATURE_PARKCALL);
 			if (ast_test_flag64(peerflags, OPT_CALLER_PARK))
 				ast_set_flag(&(config.features_caller), AST_FEATURE_PARKCALL);
+			if (ast_test_flag64(peerflags, OPT_CALLEE_MIXMONITOR))
+				ast_set_flag(&(config.features_callee), AST_FEATURE_AUTOMIXMON);
+			if (ast_test_flag64(peerflags, OPT_CALLER_MIXMONITOR))
+				ast_set_flag(&(config.features_caller), AST_FEATURE_AUTOMIXMON);
 
 			if (moh) {
 				moh = 0;

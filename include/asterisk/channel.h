@@ -565,6 +565,7 @@ enum {
 	AST_FEATURE_ATXFER =       (1 << 3),
 	AST_FEATURE_AUTOMON =      (1 << 4),
 	AST_FEATURE_PARKCALL =     (1 << 5),
+	AST_FEATURE_AUTOMIXMON =   (1 << 6),
 };
 
 /*! \brief bridge configuration */

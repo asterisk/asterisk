@@ -344,7 +344,7 @@ unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arra
  */
 struct ast_app_option {
 	/*! \brief The flag bit that represents this option. */
-	unsigned int flag;
+	uint64_t flag;
 	/*! \brief The index of the entry in the arguments array
 	  that should be used for this option's argument. */
 	unsigned int arg_index;

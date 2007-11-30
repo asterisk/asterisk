@@ -612,3 +612,83 @@ void ast_audiohook_trigger_wait(struct ast_audiohook *audiohook)
 	
 	return;
 }
+
+/* Count number of channel audiohooks by type, regardless of type */
+int ast_channel_audiohook_count_by_source(struct ast_channel *chan, const char *source, enum ast_audiohook_type type)
+{
+	int count = 0;
+	struct ast_audiohook *ah = NULL;
+
+	if (!chan->audiohooks)
+		return -1;
+
+	switch (type) {
+		case AST_AUDIOHOOK_TYPE_SPY:
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->audiohooks->spy_list, ah, list) {
+				if (!strcmp(ah->source, source)) {
+					count++;
+				}
+			}
+			AST_LIST_TRAVERSE_SAFE_END;
+			break;
+		case AST_AUDIOHOOK_TYPE_WHISPER:
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->audiohooks->whisper_list, ah, list) {
+				if (!strcmp(ah->source, source)) {
+					count++;
+				}
+			}
+			AST_LIST_TRAVERSE_SAFE_END;
+			break;
+		case AST_AUDIOHOOK_TYPE_MANIPULATE:
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->audiohooks->manipulate_list, ah, list) {
+				if (!strcmp(ah->source, source)) {
+					count++;
+				}
+			}
+			AST_LIST_TRAVERSE_SAFE_END;
+			break;
+		default:
+			ast_log(LOG_DEBUG, "Invalid audiohook type supplied, (%d)\n", type);
+			return -1;
+	}
+
+	return count;
+}
+
+/* Count number of channel audiohooks by type that are running */
+int ast_channel_audiohook_count_by_source_running(struct ast_channel *chan, const char *source, enum ast_audiohook_type type)
+{
+	int count = 0;
+	struct ast_audiohook *ah = NULL;
+	if (!chan->audiohooks)
+		return -1;
+
+	switch (type) {
+		case AST_AUDIOHOOK_TYPE_SPY:
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->audiohooks->spy_list, ah, list) {
+				if ((!strcmp(ah->source, source)) && (ah->status == AST_AUDIOHOOK_STATUS_RUNNING))
+					count++;
+			}
+			AST_LIST_TRAVERSE_SAFE_END;
+			break;
+		case AST_AUDIOHOOK_TYPE_WHISPER:
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->audiohooks->whisper_list, ah, list) {
+				if ((!strcmp(ah->source, source)) && (ah->status == AST_AUDIOHOOK_STATUS_RUNNING))
+					count++;
+			}
+			AST_LIST_TRAVERSE_SAFE_END;
+			break;
+		case AST_AUDIOHOOK_TYPE_MANIPULATE:
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->audiohooks->manipulate_list, ah, list) {
+				if ((!strcmp(ah->source, source)) && (ah->status == AST_AUDIOHOOK_STATUS_RUNNING))
+					count++;
+			}
+			AST_LIST_TRAVERSE_SAFE_END;
+			break;
+		default:
+			ast_log(LOG_DEBUG, "Invalid audiohook type supplied, (%d)\n", type);
+			return -1;
+	}
+	return count;
+}
+

@@ -152,6 +152,9 @@ static char *descrip =
 "             the DTMF sequence defined for call parking in features.conf.\n"
 "      'K' -- Allow the calling party to enable parking of the call by sending\n"
 "             the DTMF sequence defined for call parking in features.conf.\n"
+"      'x' -- allow the called user to write the conversation to disk via MixMonitor\n"
+"      'X' -- allow the calling user to write the conversation to disk via MixMonitor\n"
+ 
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
 "  The optional URL will be sent to the called party if the channel supports\n"
@@ -2775,6 +2778,13 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		case 'i':
 			forwardsallowed = 0;
 			break;
+		case 'x':
+			ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_AUTOMIXMON);
+			break;
+		case 'X':
+			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_AUTOMIXMON);
+			break;
+
 		}
 
 	/* Hold the lock while we setup the outgoing calls */
