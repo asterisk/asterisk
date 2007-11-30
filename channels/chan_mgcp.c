@@ -2696,6 +2696,7 @@ static void *mgcp_ss(void *data)
 			transmit_notify_request(sub, "G/cg");
 			/*zt_wait_event(p->subs[index].zfd);*/
 			ast_hangup(chan);
+			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			return NULL;
 		} else if (p->hascallwaiting && p->callwaiting && !strcmp(p->dtmf_buf, "*70")) {
 			ast_verb(3, "Disabling call waiting on %s\n", chan->name);
