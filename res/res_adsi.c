@@ -1012,18 +1012,19 @@ static void init_state(void)
 	alignment = ADSI_JUST_CENT;
 }
 
-static void adsi_load(void)
+static void adsi_load(int reload)
 {
 	int x = 0;
 	struct ast_config *conf = NULL;
 	struct ast_variable *v;
-	struct ast_flags config_flags = { 0 };
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	char *name, *sname;
 	init_state();
 
 	if (!(conf = ast_config_load("adsi.conf", config_flags)))
 		return;
-	
+	else if (conf == CONFIG_STATUS_FILEUNCHANGED)
+		return;
 	for (v = ast_variable_browse(conf, "intro"); v; v = v->next) {
 		if (!strcasecmp(v->name, "alignment"))
 			alignment = str2align(v->value);
@@ -1066,13 +1067,13 @@ static void adsi_load(void)
 
 static int reload(void)
 {
-	adsi_load();
+	adsi_load(1);
 	return 0;
 }
 
 static int load_module(void)
 {
-	adsi_load();
+	adsi_load(0);
 
 	ast_adsi_begin_download = _ast_adsi_begin_download;
 	ast_adsi_end_download = _ast_adsi_end_download;
