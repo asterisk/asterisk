@@ -3384,8 +3384,6 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 		if ((new_member = create_queue_member(interface, membername, penalty, paused))) {
 			new_member->dynamic = 1;
 			ao2_link(q->members, new_member);
-			ao2_ref(new_member, -1);
-			new_member = NULL;
 			q->membercount++;
 			manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
 				"Queue: %s\r\n"
@@ -3402,6 +3400,9 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 				new_member->penalty, new_member->calls, (int) new_member->lastcall,
 				new_member->status, new_member->paused);
 			
+			ao2_ref(new_member, -1);
+			new_member = NULL;
+
 			if (dump)
 				dump_queue_members(q);
 			
