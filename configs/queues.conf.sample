@@ -253,6 +253,13 @@ shared_lastcall=no
 			;       ("All reps busy / wait for next")
 ;periodic-announce = queue-periodic-announce
 ;
+; A set of periodic announcements can be defined by separating 
+; periodic announcements to reproduce by commas. For example:
+;periodic-announce = queue-periodic-announce,your-call-is-important,please-wait
+;
+; The announcements will be played in the order in which they are defined. After
+; playing the last announcement, the announcements begin again from the beginning.
+;
 ; Calls may be recorded using Asterisk's monitor/MixMonitor resource
 ; This can be enabled from within the Queue application, starting recording
 ; when the call is actually picked up; thus, only successful calls are
