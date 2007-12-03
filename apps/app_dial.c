@@ -646,6 +646,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			f = ast_read(winner);
 			if (!f) {
 				in->hangupcause = c->hangupcause;
+#ifdef HAVE_EPOLL
+				ast_poll_channel_del(in, c);
+#endif
 				ast_hangup(c);
 				c = o->chan = NULL;
 				ast_clear_flag64(o, DIAL_STILLGOING);
@@ -852,8 +855,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	}
 	
 #ifdef HAVE_EPOLL
-	for (epollo = outgoing; epollo; epollo = epollo->next)
-		ast_poll_channel_del(in, epollo->chan);
+	for (epollo = outgoing; epollo; epollo = epollo->next) {
+		if (epollo->chan)
+			ast_poll_channel_del(in, epollo->chan);
+	}
 #endif
 
 	return peer;
