@@ -138,6 +138,7 @@ size_t strlcpy(char *dst, const char *src, size_t siz);
 #include <sys/stat.h>
 #include <signal.h>
 #include <netinet/in.h>
+#include <sys/loadavg.h>
 #include <dat/dat_platform_specific.h>
 
 #ifndef BYTE_ORDER
