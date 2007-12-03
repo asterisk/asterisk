@@ -7356,9 +7356,9 @@ out:
 	if (vmu)
 		free_user(vmu);
 	if (vms.deleted)
-		free(vms.deleted);
+		ast_free(vms.deleted);
 	if (vms.heard)
-		free(vms.heard);
+		ast_free(vms.heard);
 
 	return res;
 }
@@ -7803,7 +7803,7 @@ static void *mb_poll_thread(void *data)
 
 static void mwi_sub_destroy(struct mwi_sub *mwi_sub)
 {
-	free(mwi_sub);
+	ast_free(mwi_sub);
 }
 
 static void mwi_unsub_event_cb(const struct ast_event *event, void *userdata)
