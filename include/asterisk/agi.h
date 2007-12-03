@@ -32,6 +32,7 @@ typedef struct agi_state {
 	int audio;	/* FD for audio output */
 	int ctrl;		/* FD for input control */
 	unsigned int fast:1; /* flag for fast agi or not */
+	struct ast_speech *speech; /* Speech structure for speech recognition */
 } AGI;
 
 typedef struct agi_command {

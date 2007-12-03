@@ -301,6 +301,11 @@ Language Support Changes
   * Brazilian Portuguese (pt-BR) in VM, and say.c was added
   * Added support for the Hungarian language for saying numbers, dates, and times.
 
+AGI Changes
+-----------
+  * Added SPEECH commands for speech recognition. A complete listing can be found
+     using agi show.
+
 Miscellaneous 
 -------------
   * Added the bindaddr option to gtalk.conf.

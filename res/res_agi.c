@@ -51,6 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/strings.h"
 #include "asterisk/agi.h"
+#include "asterisk/speech.h"
 
 #define MAX_ARGS 128
 #define AGI_NANDFS_RETRY 3
@@ -1337,6 +1338,291 @@ static int handle_setmusic(struct ast_channel *chan, AGI *agi, int argc, char *a
 	return RESULT_SUCCESS;
 }
 
+static int handle_speechcreate(struct ast_channel *chan, AGI *agi, int argc, char **argv)
+{
+	/* If a structure already exists, return an error */
+        if (agi->speech) {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+		return RESULT_SUCCESS;
+	}
+	
+	if ((agi->speech = ast_speech_new(argv[2], AST_FORMAT_SLINEAR)))
+		ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
+	else
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+	
+	return RESULT_SUCCESS;
+}
+
+static int handle_speechset(struct ast_channel *chan, AGI *agi, int argc, char **argv)
+{
+	/* Check for minimum arguments */
+        if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	
+	/* Check to make sure speech structure exists */
+	if (!agi->speech) {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+		return RESULT_SUCCESS;
+	}
+	
+	ast_speech_change(agi->speech, argv[2], argv[3]);
+	ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
+	
+	return RESULT_SUCCESS;
+}
+
+static int handle_speechdestroy(struct ast_channel *chan, AGI *agi, int argc, char **argv)
+{
+	if (agi->speech) {
+		ast_speech_destroy(agi->speech);
+		agi->speech = NULL;
+		ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
+	} else {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+	}
+	
+	return RESULT_SUCCESS;
+}
+
+static int handle_speechloadgrammar(struct ast_channel *chan, AGI *agi, int argc, char **argv)
+{
+	if (argc != 5)
+		return RESULT_SHOWUSAGE;
+	
+	if (!agi->speech) {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+		return RESULT_SUCCESS;
+	}
+	
+	if (ast_speech_grammar_load(agi->speech, argv[3], argv[4]))
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+	else
+		ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
+	
+	return RESULT_SUCCESS;
+}
+
+static int handle_speechunloadgrammar(struct ast_channel *chan, AGI *agi, int argc, char **argv)
+{
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	
+	if (!agi->speech) {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+		return RESULT_SUCCESS;
+	}
+	
+	if (ast_speech_grammar_unload(agi->speech, argv[3]))
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+	else
+		ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
+	
+	return RESULT_SUCCESS;
+}
+
+static int handle_speechactivategrammar(struct ast_channel *chan, AGI *agi, int argc, char **argv)
+{
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	
+	if (!agi->speech) {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+		return RESULT_SUCCESS;
+	}
+	
+	if (ast_speech_grammar_activate(agi->speech, argv[3]))
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+	else
+		ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
+	
+	return RESULT_SUCCESS;
+}
+
+static int handle_speechdeactivategrammar(struct ast_channel *chan, AGI *agi, int argc, char **argv)
+{
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	
+	if (!agi->speech) {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+		return RESULT_SUCCESS;
+	}
+	
+	if (ast_speech_grammar_deactivate(agi->speech, argv[3]))
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+	else
+		ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
+	
+	return RESULT_SUCCESS;
+}
+
+static int speech_streamfile(struct ast_channel *chan, const char *filename, const char *preflang, int offset)
+{
+	struct ast_filestream *fs = NULL;
+	
+	if (!(fs = ast_openstream(chan, filename, preflang)))
+		return -1;
+	
+	if (offset)
+		ast_seekstream(fs, offset, SEEK_SET);
+	
+	if (ast_applystream(chan, fs))
+		return -1;
+	
+	if (ast_playstream(fs))
+		return -1;
+	
+	return 0;
+}
+
+static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, char **argv)
+{
+	struct ast_speech *speech = agi->speech;
+	char *prompt, dtmf = 0, tmp[4096] = "", *buf = tmp;
+	int timeout = 0, offset = 0, old_read_format = 0, res = 0, i = 0;
+	long current_offset = 0;
+	const char *reason = NULL;
+	struct ast_frame *fr = NULL;
+	struct ast_speech_result *result = NULL;
+	size_t left = sizeof(tmp);
+	time_t start = 0, current;
+	
+	if (argc < 4)
+		return RESULT_SHOWUSAGE;
+	
+	if (!speech) {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+		return RESULT_SUCCESS;
+	}
+	
+	prompt = argv[2];
+	timeout = atoi(argv[3]);
+	
+	/* If offset is specified then convert from text to integer */
+	if (argc == 5)
+		offset = atoi(argv[4]);
+	
+	/* We want frames coming in signed linear */
+	old_read_format = chan->readformat;
+	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR)) {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
+		return RESULT_SUCCESS;
+	}
+	
+	/* Setup speech structure */
+	if (speech->state == AST_SPEECH_STATE_NOT_READY || speech->state == AST_SPEECH_STATE_DONE) {
+		ast_speech_change_state(speech, AST_SPEECH_STATE_NOT_READY);
+		ast_speech_start(speech);
+	}
+	
+	/* Start playing prompt */
+	speech_streamfile(chan, prompt, chan->language, offset);
+	
+	/* Go into loop reading in frames, passing to speech thingy, checking for hangup, all that jazz */
+	while (ast_strlen_zero(reason)) {
+		/* Run scheduled items */
+                ast_sched_runq(chan->sched);
+		
+		/* See maximum time of waiting */
+		if ((res = ast_sched_wait(chan->sched)) < 0)
+			res = 1000;
+		
+		/* Wait for frame */
+		if (ast_waitfor(chan, res) > 0) {
+			if (!(fr = ast_read(chan))) {
+				reason = "hangup";
+				break;
+			}
+		}
+		
+		/* Perform timeout check */
+		if ((timeout > 0) && (start > 0)) {
+			time(&current);
+			if ((current - start) >= timeout) {
+				reason = "timeout";
+				if (fr)
+					ast_frfree(fr);
+				break;
+			}
+		}
+		
+		/* Check the speech structure for any changes */
+		ast_mutex_lock(&speech->lock);
+		
+		/* See if we need to quiet the audio stream playback */
+		if (ast_test_flag(speech, AST_SPEECH_QUIET) && chan->stream) {
+			current_offset = ast_tellstream(chan->stream);
+			ast_stopstream(chan);
+			ast_clear_flag(speech, AST_SPEECH_QUIET);
+		}
+		
+		/* Check each state */
+		switch (speech->state) {
+		case AST_SPEECH_STATE_READY:
+			/* If the stream is done, start timeout calculation */
+			if ((timeout > 0) && ((!chan->stream) || (chan->streamid == -1 && chan->timingfunc == NULL))) {
+				ast_stopstream(chan);
+				time(&start);
+			}
+			/* Write audio frame data into speech engine if possible */
+			if (fr && fr->frametype == AST_FRAME_VOICE)
+				ast_speech_write(speech, fr->data, fr->datalen);
+			break;
+		case AST_SPEECH_STATE_WAIT:
+			/* Cue waiting sound if not already playing */
+			if ((!chan->stream) || (chan->streamid == -1 && chan->timingfunc == NULL)) {
+				ast_stopstream(chan);
+				/* If a processing sound exists, or is not none - play it */
+				if (!ast_strlen_zero(speech->processing_sound) && strcasecmp(speech->processing_sound, "none"))
+					speech_streamfile(chan, speech->processing_sound, chan->language, 0);
+			}
+			break;
+		case AST_SPEECH_STATE_DONE:
+			/* Get the results */
+			speech->results = ast_speech_results_get(speech);
+			/* Change state to not ready */
+			ast_speech_change_state(speech, AST_SPEECH_STATE_NOT_READY);
+			reason = "speech";
+			break;
+		default:
+			break;
+		}
+		ast_mutex_unlock(&speech->lock);
+		
+		/* Check frame for DTMF or hangup */
+		if (fr) {
+			if (fr->frametype == AST_FRAME_DTMF) {
+				reason = "dtmf";
+				dtmf = fr->subclass;
+			} else if (fr->frametype == AST_FRAME_CONTROL && fr->subclass == AST_CONTROL_HANGUP) {
+				reason = "hangup";
+			}
+			ast_frfree(fr);
+		}
+	}
+	
+	if (!strcasecmp(reason, "speech")) {
+		/* Build string containing speech results */
+                for (result = speech->results; result; result = AST_LIST_NEXT(result, list)) {
+			/* Build result string */
+			ast_build_string(&buf, &left, "%sscore%d=%d text%d=\"%s\" grammar%d=%s", (i > 0 ? " " : ""), i, result->score, i, result->text, i, result->grammar);
+                        /* Increment result count */
+			i++;
+		}
+                /* Print out */
+		ast_agi_fdprintf(chan, agi->fd, "200 result=1 (speech) endpos=%ld results=%d %s\n", current_offset, i, tmp);
+	} else if (!strcasecmp(reason, "dtmf")) {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=1 (digit) digit=%c endpos=%ld\n", dtmf, current_offset);
+	} else if (!strcasecmp(reason, "hangup") || !strcasecmp(reason, "timeout")) {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=1 (%s) endpos=%ld\n", reason, current_offset);
+	} else {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=0 endpos=%ld\n", current_offset);
+	}
+	
+	return RESULT_SUCCESS;
+}
+
 static char usage_setmusic[] =
 " Usage: SET MUSIC ON <on|off> <class>\n"
 "	Enables/Disables the music on hold generator.  If <class> is\n"
@@ -1584,6 +1870,38 @@ static char usage_noop[] =
 " Usage: NoOp\n"
 "	Does nothing.\n";
 
+static char usage_speechcreate[] =
+" Usage: SPEECH CREATE <engine>\n"
+"       Create a speech object to be used by the other Speech AGI commands.\n";
+
+static char usage_speechset[] =
+" Usage: SPEECH SET <name> <value>\n"
+"       Set an engine-specific setting.\n";
+
+static char usage_speechdestroy[] =
+" Usage: SPEECH DESTROY\n"
+"       Destroy the speech object created by SPEECH CREATE.\n";
+
+static char usage_speechloadgrammar[] =
+" Usage: SPEECH LOAD GRAMMAR <grammar name> <path to grammar>\n"
+"       Loads the specified grammar as the specified name.\n";
+
+static char usage_speechunloadgrammar[] =
+" Usage: SPEECH UNLOAD GRAMMAR <grammar name>\n"
+"       Unloads the specified grammar.\n";
+
+static char usage_speechactivategrammar[] =
+" Usage: SPEECH ACTIVATE GRAMMAR <grammar name>\n"
+"       Activates the specified grammar on the speech object.\n";
+
+static char usage_speechdeactivategrammar[] =
+" Usage: SPEECH DEACTIVATE GRAMMAR <grammar name>\n"
+"       Deactivates the specified grammar on the speech object.\n";
+
+static char usage_speechrecognize[] =
+" Usage: SPEECH RECOGNIZE <prompt> <timeout> [<offset>]\n"
+"       Plays back given prompt while listening for speech and dtmf.\n";
+
 /*!
  * \brief AGI commands list
  */
@@ -1625,6 +1943,14 @@ static struct agi_command commands[] = {
 	{ { "tdd", "mode", NULL }, handle_tddmode, "Toggles TDD mode (for the deaf)", usage_tddmode , 0 },
 	{ { "verbose", NULL }, handle_verbose, "Logs a message to the asterisk verbose log", usage_verbose , 1 },
 	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit , 0 },
+	{ { "speech", "create", NULL }, handle_speechcreate, "Creates a speech object", usage_speechcreate, 0 },
+	{ { "speech", "set", NULL }, handle_speechset, "Sets a speech engine setting", usage_speechset, 0 },
+	{ { "speech", "destroy", NULL }, handle_speechdestroy, "Destroys a speech object", usage_speechdestroy, 1 },
+	{ { "speech", "load", "grammar", NULL }, handle_speechloadgrammar, "Loads a grammar", usage_speechloadgrammar, 0 },
+	{ { "speech", "unload", "grammar", NULL }, handle_speechunloadgrammar, "Unloads a grammar", usage_speechunloadgrammar, 1 },
+	{ { "speech", "activate", "grammar", NULL }, handle_speechactivategrammar, "Activates a grammar", usage_speechactivategrammar, 0 },
+	{ { "speech", "deactivate", "grammar", NULL }, handle_speechdeactivategrammar, "Deactivates a grammar", usage_speechdeactivategrammar, 0 },
+	{ { "speech", "recognize", NULL }, handle_speechrecognize, "Recognizes speech", usage_speechrecognize, 0 },
 };
 
 static AST_RWLIST_HEAD_STATIC(agi_commands, agi_command);
@@ -1637,7 +1963,7 @@ static char *help_workhorse(int fd, char *match[])
 	if (match)
 		ast_join(matchstr, sizeof(matchstr), match);
 
-	ast_cli(fd, "%5.5s %20.20s   %s\n","Dead","Command","Description");
+	ast_cli(fd, "%5.5s %30.30s   %s\n","Dead","Command","Description");
 	AST_RWLIST_RDLOCK(&agi_commands);
 	AST_RWLIST_TRAVERSE(&agi_commands, e, list) {
 		if (!e->cmda[0])
@@ -1648,7 +1974,7 @@ static char *help_workhorse(int fd, char *match[])
 		ast_join(fullcmd, sizeof(fullcmd), e->cmda);
 		if (match && strncasecmp(matchstr, fullcmd, strlen(matchstr)))
 			continue;
-		ast_cli(fd, "%5.5s %20.20s   %s\n", e->dead ? "Yes" : "No" , fullcmd, e->summary);
+		ast_cli(fd, "%5.5s %30.30s   %s\n", e->dead ? "Yes" : "No" , fullcmd, e->summary);
 	}
 	AST_RWLIST_UNLOCK(&agi_commands);
 
