@@ -467,6 +467,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 			AST_LIST_INSERT_TAIL(&p->chan->varshead, new, entries);
 		}
 	}
+	ast_channel_datastore_inherit(p->owner, p->chan);
 
 	/* Start switch on sub channel */
 	if (!(res = ast_pbx_start(p->chan)))
