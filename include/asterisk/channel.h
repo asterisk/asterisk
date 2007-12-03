@@ -437,6 +437,8 @@ struct ast_channel {
 	unsigned int emulate_dtmf_duration;	/*!< Number of ms left to emulate DTMF for */
 	struct timeval dtmf_tv;       /*!< The time that an in process digit began, or the last digit ended */
 
+	int visible_indication;                         /*!< Indication currently playing on the channel */
+
 	/*! \brief Data stores on the channel */
 	AST_LIST_HEAD_NOLOCK(datastores, ast_datastore) datastores;
 };
