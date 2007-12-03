@@ -2619,7 +2619,7 @@ static void *mgcp_ss(void *data)
 		while (strlen(p->dtmf_buf) == len){
 			ast_safe_sleep(chan, loop_pause);
 			timeout -= loop_pause;
-			if ( (timeout -= loop_pause) <= 0){
+			if (timeout <= 0){
 				res = 0;
 				break;
 			}
