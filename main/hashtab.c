@@ -534,7 +534,7 @@ static void *ast_hashtab_lookup_internal(struct ast_hashtab *tab, const void *ob
 		}
 	}
 
-	return 0;
+	return NULL;
 }
 
 void ast_hashtab_get_stats( struct ast_hashtab *tab, int *biggest_bucket_size, int *resize_count, int *num_objects, int *num_buckets)
