@@ -1349,7 +1349,7 @@ static int conf_free(struct ast_conference *conf)
 		ast_hangup(conf->lchan);
 	if (conf->chan)
 		ast_hangup(conf->chan);
-	else
+	if (conf->fd >= 0)
 		close(conf->fd);
 
 	ast_mutex_destroy(&conf->playlock);
