@@ -3119,7 +3119,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		rtp->smoother = NULL;
 	}
 
-	if (!rtp->smoother && subclass != AST_FORMAT_SPEEX) {
+	if (!rtp->smoother && subclass != AST_FORMAT_SPEEX && subclass != AST_FORMAT_G723_1) {
 		struct ast_format_list fmt = ast_codec_pref_getsize(&rtp->pref, subclass);
 		if (fmt.inc_ms) { /* if codec parameters is set / avoid division by zero */
 			if (!(rtp->smoother = ast_smoother_new((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms))) {
