@@ -1519,7 +1519,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 	default:
 		break;
 	}
-
+	chan->visible_indication = 0;
 	ast_channel_unlock(chan);
 
 	return res;
@@ -2557,6 +2557,7 @@ int ast_indicate_data(struct ast_channel *chan, int condition, const void *data,
 				ast_debug(1, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
 				ast_playtones_start(chan,0,ts->data, 1);
 				res = 0;
+				chan->visible_indication = condition;
 			} else if (condition == AST_CONTROL_PROGRESS) {
 				/* ast_playtones_stop(chan); */
 			} else if (condition == AST_CONTROL_PROCEEDING) {
@@ -2573,7 +2574,9 @@ int ast_indicate_data(struct ast_channel *chan, int condition, const void *data,
 				res = -1;
 			}
 		}
-	}
+	} else
+		chan->visible_indication = condition;
+
 	return res;
 }
 
@@ -3724,6 +3727,10 @@ int ast_do_masquerade(struct ast_channel *original)
 	} else
 		ast_log(LOG_WARNING, "Channel type '%s' does not have a fixup routine (for %s)!  Bad things may happen.\n",
 			original->tech->type, original->name);
+
+	/* If an indication is currently playing maintain it on the channel that is taking the place of original */
+	if (original->visible_indication)
+		ast_indicate(original, original->visible_indication);
 	
 	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
 	   a zombie so nothing tries to touch it.  If it's already been marked as a

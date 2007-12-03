@@ -505,6 +505,7 @@ struct ast_channel {
 	int epfd;
 	struct ast_epoll_data *epfd_data[AST_MAX_FDS];
 #endif
+	int visible_indication;                         /*!< Indication currently playing on the channel */
 };
 
 /*! \brief ast_channel_tech Properties */
