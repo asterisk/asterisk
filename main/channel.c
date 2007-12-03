@@ -3464,7 +3464,7 @@ void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_
 			}
 			break;
 		case 2:
-			newvar = ast_var_assign(ast_var_full_name(current), ast_var_value(current));
+			newvar = ast_var_assign(varname, ast_var_value(current));
 			if (newvar) {
 				AST_LIST_INSERT_TAIL(&child->varshead, newvar, entries);
 				ast_debug(1, "Copying hard-transferable variable %s.\n", ast_var_name(newvar));
