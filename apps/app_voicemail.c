@@ -148,7 +148,7 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 static void update_messages_by_imapuser(const char *user, unsigned long number);
 
 static int imap_remove_file (char *dir, int msgnum);
-static int imap_retrieve_file (char *dir, int msgnum, char *mailbox, char *context);
+static int imap_retrieve_file (char *dir, int msgnum, const char *mailbox, char *context);
 static int imap_delete_old_greeting (char *dir, struct vm_state *vms);
 struct vmstate {
 	struct vm_state *vms;
@@ -4283,7 +4283,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 
 			/* play name if available, else play extension number */
 			snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, receiver->context, s);
- 			RETRIEVE(fn, -1, (char *)s, receiver->context);
+ 			RETRIEVE(fn, -1, s, receiver->context);
 			if (ast_fileexists(fn, NULL, NULL) > 0) {
 				res = ast_stream_and_wait(chan, fn, ecodes);
 				if (res) {
