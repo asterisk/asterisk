@@ -13309,6 +13309,8 @@ static int setup_zap(int reload)
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
+	mwimonitornotify[0] = '\0';
+
 	v = ast_variable_browse(cfg, "channels");
 	res = process_zap(&base_conf, v, reload, 0);
 	ast_mutex_unlock(&iflock);
