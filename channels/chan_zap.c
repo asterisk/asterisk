@@ -5861,7 +5861,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 #if defined(HAVE_PRI)
 	tmp->transfercapability = transfercapability;
 	pbx_builtin_setvar_helper(tmp, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
-	if (transfercapability & PRI_TRANS_CAP_DIGITAL)
+	if (transfercapability & AST_TRANS_CAP_DIGITAL)
 		i->digital = 1;
 	/* Assume calls are not idle calls unless we're told differently */
 	i->isidlecall = 0;
@@ -9538,13 +9538,10 @@ static void zt_pri_message(struct pri *pri, char *s)
 			}
 			dchancount = 0;
 		}
-		if ((dchan >= 0) && (span >= 0)) {
-			if (dchancount > 1)
-				ast_verbose("[Span %d D-Channel %d]%s", span, dchan, s);
-			else
-				ast_verbose("%s", s);
-		} else
-			ast_log(LOG_ERROR, "PRI debug error: could not find pri associated it with debug message output\n");
+		if (dchancount > 1 && (span > -1))
+			ast_verbose("[Span %d D-Channel %d]%s", span, dchan, s);
+		else
+			ast_verbose("%s", s);
 	} else
 		ast_verbose("%s", s);
 
@@ -9577,13 +9574,10 @@ static void zt_pri_error(struct pri *pri, char *s)
 			}
 			dchancount = 0;
 		}
-		if ((dchan >= 0) && (span >= 0)) {
-			if (dchancount > 1)
-				ast_log(LOG_ERROR, "[Span %d D-Channel %d] PRI: %s", span, dchan, s);
-			else
-				ast_log(LOG_ERROR, "%s", s);
-		} else
-			ast_log(LOG_ERROR, "PRI debug error: could not find pri associated it with debug message output\n");
+		if ((dchancount > 1) && (span > -1))
+			ast_log(LOG_ERROR, "[Span %d D-Channel %d] PRI: %s", span, dchan, s);
+		else
+			ast_log(LOG_ERROR, "%s", s);
 	} else
 		ast_log(LOG_ERROR, "%s", s);
 
