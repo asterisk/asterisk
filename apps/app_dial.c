@@ -1244,7 +1244,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	);
 	struct ast_flags64 opts = { 0, };
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
-	struct ast_datastore *datastore;
+	struct ast_datastore *datastore = NULL;
 	int fulldial = 0, num_dialed = 0;
 
 	if (ast_strlen_zero(data)) {
