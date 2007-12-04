@@ -649,6 +649,7 @@ int ast_channel_datastore_inherit(struct ast_channel *from, struct ast_channel *
  * \retval 0 success
  * \retval non-zero failure
  */
+
 int ast_channel_datastore_add(struct ast_channel *chan, struct ast_datastore *datastore);
 
 /*! 

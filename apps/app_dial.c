@@ -54,6 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/privacy.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/global_datastores.h"
 
 static char *app = "Dial";
 
@@ -326,7 +327,6 @@ struct chanlist {
 	struct chanlist *next;
 	struct ast_channel *chan;
 	uint64_t flags;
-	int forwards;
 };
 
 
@@ -346,8 +346,6 @@ static void hanguptree(struct chanlist *outgoing, struct ast_channel *exception,
 		ast_free(oo);
 	}
 }
-
-#define AST_MAX_FORWARDS   8
 
 #define AST_MAX_WATCHERS 256
 
@@ -480,28 +478,22 @@ static void do_forward(struct chanlist *o,
 		tech = "Local";
 	}
 	/* Before processing channel, go ahead and check for forwarding */
-	o->forwards++;
-	if (o->forwards < AST_MAX_FORWARDS) {
-		ast_verb(3, "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, c->name);
-		/* If we have been told to ignore forwards, just set this channel to null and continue processing extensions normally */
-		if (ast_test_flag64(peerflags, OPT_IGNORE_FORWARDING)) {
-			ast_verb(3, "Forwarding %s to '%s/%s' prevented.\n", in->name, tech, stuff);
-			c = o->chan = NULL;
-			cause = AST_CAUSE_BUSY;
-		} else {
-			/* Setup parameters */
-			c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
-			if (c) {
-				if (single)
-					ast_channel_make_compatible(o->chan, in);
-				ast_channel_inherit_variables(in, o->chan);
-			} else
-				ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
-		}
-	} else {
-		ast_verb(3, "Too many forwards from %s\n", c->name);
-		cause = AST_CAUSE_CONGESTION;
+	ast_verb(3, "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, c->name);
+	/* If we have been told to ignore forwards, just set this channel to null and continue processing extensions normally */
+	if (ast_test_flag64(peerflags, OPT_IGNORE_FORWARDING)) {
+		ast_verb(3, "Forwarding %s to '%s/%s' prevented.\n", in->name, tech, stuff);
 		c = o->chan = NULL;
+		cause = AST_CAUSE_BUSY;
+	} else {
+		/* Setup parameters */
+		c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
+		if (c) {
+			if (single)
+				ast_channel_make_compatible(o->chan, in);
+			ast_channel_inherit_variables(in, o->chan);
+			ast_channel_datastore_inherit(in, o->chan);
+		} else
+			ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
 	}
 	if (!c) {
 		ast_clear_flag64(o, DIAL_STILLGOING);	
@@ -1252,6 +1244,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	);
 	struct ast_flags64 opts = { 0, };
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
+	struct ast_datastore *datastore;
+	int fulldial = 0, num_dialed = 0;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology/number)\n");
@@ -1333,7 +1327,13 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		struct ast_channel *tc;	/* channel for this destination */
 		/* Get a technology/[device:]number pair */
 		char *number = cur;
+		char *interface = ast_strdupa(number);
 		char *tech = strsep(&number, "/");
+		/* find if we already dialed this interface */
+		int dialed = 0;
+		struct ast_dialed_interface *di;
+		AST_LIST_HEAD(, ast_dialed_interface) *dialed_interfaces;
+		num_dialed++;
 		if (!number) {
 			ast_log(LOG_WARNING, "Dial argument takes format (technology/[device:]number1)\n");
 			goto out;
@@ -1353,6 +1353,50 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 		ast_copy_string(numsubst, number, sizeof(numsubst));
 		/* Request the peer */
+		if (!(datastore = ast_channel_datastore_find(chan, &dialed_interface_info, NULL))) {
+			if(!(datastore = ast_channel_datastore_alloc(&dialed_interface_info, NULL))) {
+				ast_log(LOG_WARNING, "Unable to create channel datastore for dialed interfaces. Aborting!\n"); 
+				free(tmp);
+				goto out;
+			}
+			else {
+				datastore->inheritance = DATASTORE_INHERIT_FOREVER;
+				if((dialed_interfaces = ast_calloc(1, sizeof(*dialed_interfaces)))) {
+					datastore->data = dialed_interfaces;
+					AST_LIST_HEAD_INIT(dialed_interfaces);
+					ast_channel_datastore_add(chan, datastore);
+				} else {
+					free(tmp);
+					goto out;
+				}
+			}
+		} else 
+			dialed_interfaces = datastore->data;
+		AST_LIST_LOCK(dialed_interfaces);
+		AST_LIST_TRAVERSE(dialed_interfaces, di, list) {
+			/* XXX case sensitive??? */
+			if(!strcasecmp(di->interface, interface)) {
+				dialed = 1;
+				break;
+			}
+		}
+		if(!dialed && strcasecmp(tech, "Local")) {
+			if(!(di = ast_calloc(1, sizeof(*di) + strlen(interface)))) {
+				AST_LIST_UNLOCK(dialed_interfaces);
+				free(tmp);
+				goto out;
+			}
+			strcpy(di->interface, interface);
+			AST_LIST_INSERT_TAIL(dialed_interfaces, di, list);
+		} else {
+			AST_LIST_UNLOCK(dialed_interfaces);
+			ast_log(LOG_WARNING, "Skipping dialing interface '%s' again since it has already been dialed\n", di->interface);
+			fulldial++;
+			free(tmp);
+			continue;
+		}
+		AST_LIST_UNLOCK(dialed_interfaces);
+
 		tc = ast_request(tech, chan->nativeformats, numsubst, &cause);
 		if (!tc) {
 			/* If we can't, just go on to the next call */
@@ -1365,50 +1409,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			continue;
 		}
 		pbx_builtin_setvar_helper(tc, "DIALEDPEERNUMBER", numsubst);
-		if (!ast_strlen_zero(tc->call_forward)) {
-			char tmpchan[256];
-			char *stuff;
-			char *tech;
-			ast_copy_string(tmpchan, tc->call_forward, sizeof(tmpchan));
-			if ((stuff = strchr(tmpchan, '/'))) {
-				*stuff++ = '\0';
-				tech = tmpchan;
-			} else {
-				snprintf(tmpchan, sizeof(tmpchan), "%s@%s", tc->call_forward, tc->context);
-				stuff = tmpchan;
-				tech = "Local";
-			}
-			tmp->forwards++;
-			if (tmp->forwards < AST_MAX_FORWARDS) {
-				ast_verb(3, "Now forwarding %s to '%s/%s' (thanks to %s)\n",
-					chan->name, tech, stuff, tc->name);
-				ast_hangup(tc);
-				/* If we have been told to ignore forwards, just set this channel to null
-				 * and continue processing extensions normally */
-				if (ast_test_flag64(&opts, OPT_IGNORE_FORWARDING)) {
-					tc = NULL;
-					cause = AST_CAUSE_BUSY;
-					ast_verb(3, "Forwarding %s to '%s/%s' prevented.\n",
-							chan->name, tech, stuff);
-				} else {
-					tc = ast_request(tech, chan->nativeformats, stuff, &cause);
-				}
-				if (!tc)
-					ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
-				else
-					ast_channel_inherit_variables(chan, tc);
-			} else {
-				ast_verb(3, "Too many forwards from %s\n", tc->name);
-				ast_hangup(tc);
-				tc = NULL;
-				cause = AST_CAUSE_CONGESTION;
-			}
-			if (!tc) {
-				handle_cause(cause, &num);
-				ast_free(tmp);
-				continue;
-			}
-		}
 
 		/* Setup outgoing SDP to match incoming one */
 		ast_rtp_make_compatible(tc, chan, !outgoing && !rest);
@@ -1498,6 +1498,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 	if (!outgoing) {
 		strcpy(pa.status, "CHANUNAVAIL");
+		if(fulldial == num_dialed) {
+			res = -1;
+			goto out;
+		}
 	} else {
 		/* Our status will at least be NOANSWER */
 		strcpy(pa.status, "NOANSWER");
@@ -1520,7 +1524,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 	time(&start_time);
 	peer = wait_for_answer(chan, outgoing, &to, peerflags, &pa, &num, &result);
-	
+
+	ast_channel_datastore_remove(chan, datastore);
+	ast_channel_datastore_free(datastore);
 	if (!peer) {
 		if (result) {
 			res = result;

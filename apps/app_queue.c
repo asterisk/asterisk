@@ -87,6 +87,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/event.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/strings.h"
+#include "asterisk/global_datastores.h"
 
 enum {
 	QUEUE_STRATEGY_RINGALL = 0,
@@ -2295,6 +2296,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						numnochan++;
 					} else {
 						ast_channel_inherit_variables(in, o->chan);
+						ast_channel_datastore_inherit(in, o->chan);
 						if (o->chan->cid.cid_num)
 							ast_free(o->chan->cid.cid_num);
 						o->chan->cid.cid_num = ast_strdup(in->cid.cid_num);
@@ -2733,6 +2735,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	int forwardsallowed = 1;
 	int callcompletedinsl;
 	struct ao2_iterator memi;
+	struct ast_datastore *datastore = ast_channel_datastore_find(qe->chan, &dialed_interface_info, NULL);
 
 	memset(&bridge_config, 0, sizeof(bridge_config));
 	tmpid[0] = 0;
@@ -2802,7 +2805,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	memi = ao2_iterator_init(qe->parent->members, 0);
 	while ((cur = ao2_iterator_next(&memi))) {
 		struct callattempt *tmp = ast_calloc(1, sizeof(*tmp));
-
+		struct ast_dialed_interface *di;
+		int dialed = 0;
+		AST_LIST_HEAD(, ast_dialed_interface) *dialed_interfaces;
 		if (!tmp) {
 			ao2_ref(cur, -1);
 			ao2_unlock(qe->parent);
@@ -2810,6 +2815,49 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_unlock(queues);
 			goto out;
 		}
+		if (!datastore) {
+			if(!(datastore = ast_channel_datastore_alloc(&dialed_interface_info, NULL))) {
+				ao2_ref(cur, -1);
+				ast_mutex_unlock(&qe->parent->lock);
+				if(use_weight)
+					AST_LIST_UNLOCK(&queues);
+				free(tmp);
+				goto out;
+			}
+			datastore->inheritance = DATASTORE_INHERIT_FOREVER;
+			dialed_interfaces = ast_calloc(1, sizeof(*dialed_interfaces));
+			datastore->data = dialed_interfaces;
+			AST_LIST_HEAD_INIT(dialed_interfaces);
+			ast_channel_datastore_add(qe->chan, datastore);
+		} else
+			dialed_interfaces = datastore->data;
+		AST_LIST_LOCK(dialed_interfaces);
+		AST_LIST_TRAVERSE(dialed_interfaces, di, list) {
+			/* XXX case sensitive ?? */
+			if(!strcasecmp(cur->interface, di->interface)) {
+				dialed = 1;
+				break;
+			}
+		}
+		if (!dialed && strncasecmp(cur->interface, "Local/", 6)) {
+			if(!(di = ast_calloc(1, sizeof(*di) + strlen(cur->interface)))) {
+				ao2_ref(cur, -1);
+				AST_LIST_UNLOCK(dialed_interfaces);
+				ast_mutex_unlock(&qe->parent->lock);
+				if(use_weight)
+					AST_LIST_UNLOCK(&queues);
+				free(tmp);
+				goto out;
+			}
+			strcpy(di->interface, cur->interface);
+			AST_LIST_INSERT_TAIL(dialed_interfaces, di, list);
+		} else {
+			AST_LIST_UNLOCK(dialed_interfaces);
+			ast_log(LOG_DEBUG, "Skipping dialing interface '%s' since it has already been dialed\n", di->interface);
+			free(tmp);
+			continue;
+		}
+		AST_LIST_UNLOCK(dialed_interfaces);
 		tmp->stillgoing = -1;
 		tmp->member = cur;
 		tmp->oldstatus = cur->status;
@@ -2842,6 +2890,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	if (use_weight)
 		ao2_unlock(queues);
 	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies, ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT), forwardsallowed);
+	ast_channel_datastore_remove(qe->chan, datastore);
+	ast_channel_datastore_free(datastore);
 	ao2_lock(qe->parent);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
 		store_next_rr(qe, outgoing);
