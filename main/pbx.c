@@ -1809,7 +1809,15 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		else /* action == E_MATCH */
 			aswf = asw->exists;
 		datap = sw->eval ? sw->tmpdata : sw->data;
-		res = !aswf ? 0 : aswf(chan, context, exten, priority, callerid, datap);
+		if (!aswf)
+			res = 0;
+		else {
+			if (chan)
+				ast_autoservice_start(chan);
+			res = aswf(chan, context, exten, priority, callerid, datap);
+			if (chan)
+				ast_autoservice_stop(chan);
+		}
 		if (res) {	/* Got a match */
 			q->swo = asw;
 			q->data = datap;
@@ -2609,9 +2617,6 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 
 	int matching_action = (action == E_MATCH || action == E_CANMATCH || action == E_MATCHMORE);
 
-	if (c)
-		ast_autoservice_start(c);
-	
 	ast_rdlock_contexts();
 	if (found)
 		*found = 0;
@@ -2622,14 +2627,10 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			*found = 1;
 		if (matching_action) {
 			ast_unlock_contexts();
-			if (c)
-				ast_autoservice_stop(c);
 			return -1;	/* success, we found it */
 		} else if (action == E_FINDLABEL) { /* map the label to a priority */
 			res = e->priority;
 			ast_unlock_contexts();
-			if (c)
-				ast_autoservice_stop(c);
 			return res;	/* the priority we were looking for */
 		} else {	/* spawn */
 			if (!e->cached_app)
@@ -2638,8 +2639,6 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			ast_unlock_contexts();
 			if (!app) {
 				ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
-				if (c)
-					ast_autoservice_stop(c);
 				return -1;
 			}
 			if (c->context != context)
@@ -2667,23 +2666,17 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 					"AppData: %s\r\n"
 					"Uniqueid: %s\r\n",
 					c->name, c->context, c->exten, c->priority, app->name, passdata, c->uniqueid);
-			if (c)
-				ast_autoservice_stop(c);
 			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */
 		ast_unlock_contexts();
 		if (matching_action) {
-			if (c)
-				ast_autoservice_stop(c);
 			return -1;
 		} else {
 			if (!q.swo->exec) {
 				ast_log(LOG_WARNING, "No execution engine for switch %s\n", q.swo->name);
 				res = -1;
 			}
-			if (c)
-				ast_autoservice_stop(c);
 			return q.swo->exec(c, q.foundcontext ? q.foundcontext : context, exten, priority, callerid, q.data);
 		}
 	} else {	/* not found anywhere, see what happened */
@@ -2708,9 +2701,6 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 		default:
 			ast_debug(1, "Shouldn't happen!\n");
 		}
-
-		if (c)
-			ast_autoservice_stop(c);
 
 		return (matching_action) ? 0 : -1;
 	}
