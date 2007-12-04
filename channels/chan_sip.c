@@ -10813,6 +10813,59 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 #undef FORMAT
 }
 
+/*! \brief Manager Action SIPShowRegistry description */
+static char mandescr_show_registry[] =
+"Description: Lists all registration requests and status\n"
+"Registrations will follow as separate events. followed by a final event called\n"
+"RegistrationsComplete.\n"
+"Variables: \n"
+"  ActionID: <id>       Action ID for this transaction. Will be returned.\n";
+
+/*! \brief Show SIP registrations in the manager API */
+static int manager_show_registry(struct mansession *s, const struct message *m)
+{
+	const char *id = astman_get_header(m, "ActionID");
+	char idtext[256] = "";
+	char tmpdat[256] = "";
+	int total = 0;
+	struct ast_tm tm;
+
+	if (!ast_strlen_zero(id))
+		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
+
+	astman_send_listack(s, m, "Registrations will follow", "start");
+
+	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
+		ASTOBJ_RDLOCK(iterator);
+		if (iterator->regtime.tv_sec) {
+			ast_localtime(&iterator->regtime, &tm, NULL);
+			ast_strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T", &tm);
+		} else
+			tmpdat[0] = '\0';
+		astman_append(s,
+			"Event: RegistryEntry\r\n"
+			"Host: %s\r\n"
+			"Port: %d\r\n"
+			"Username: %s\r\n"
+			"Refresh: %d\r\n"
+			"State: %s\r\n"
+			"Reg.Time: %s\r\n"
+			"\r\n", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT,
+			iterator->username, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
+		ASTOBJ_UNLOCK(iterator);
+		total++;
+	} while(0));
+
+	astman_append(s,
+		"Event: RegistrationsComplete\r\n"
+		"EventList: Complete\r\n"
+		"ListItems: %d\r\n"
+		"%s"
+		"\r\n", total, idtext);
+	
+	return 0;
+}
+
 static char mandescr_show_peers[] = 
 "Description: Lists SIP peers in text format with details on current status.\n"
 "Peerlist will follow as separate events, followed by a final event called\n"
@@ -19307,7 +19360,8 @@ static int load_module(void)
 			"List SIP peers (text format)", mandescr_show_peers);
 	ast_manager_register2("SIPshowpeer", EVENT_FLAG_SYSTEM, manager_sip_show_peer,
 			"Show SIP peer (text format)", mandescr_show_peer);
-
+	ast_manager_register2("SIPshowregistry", EVENT_FLAG_SYSTEM, manager_show_registry,
+			"Show SIP registrations (text format)", mandescr_show_registry);
 	sip_poke_all_peers();	
 	sip_send_all_registers();
 	
@@ -19348,6 +19402,7 @@ static int unload_module(void)
 	/* Unregister AMI actions */
 	ast_manager_unregister("SIPpeers");
 	ast_manager_unregister("SIPshowpeer");
+	ast_manager_unregister("SIPshowregistry");
 
 	dialoglist_lock();
 	/* Hangup all dialogs if they have an owner */

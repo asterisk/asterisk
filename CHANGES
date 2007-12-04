@@ -4,6 +4,7 @@
 
 AMI - The manager (TCP/TLS/HTTP)
 --------------------------------
+  * Added a new action 'SIPshowregistry' to list SIP registrations.
   * Added TLS support for the manager interface and HTTP server
   * Added the URI redirect option for the built-in HTTP server
   * The output of CallerID in Manager events is now more consistent.
