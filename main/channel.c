@@ -673,6 +673,10 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 	if (needqueue) {
 		if (pipe(tmp->alertpipe)) {
 			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
+#ifdef HAVE_ZAPTEL
+			if (tmp->timingfd > -1)
+				close(tmp->timingfd);
+#endif
 			sched_context_destroy(tmp->sched);
 			ast_string_field_free_memory(tmp);
 			ast_free(tmp);
