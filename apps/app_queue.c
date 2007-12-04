@@ -729,15 +729,15 @@ static void *device_state_thread(void *data)
 
 		handle_statechange(sc);
 
-		free(sc);
+		ast_free(sc);
 		sc = NULL;
 	}
 
 	if (sc)
-		free(sc);
+		ast_free(sc);
 
 	while ((sc = AST_LIST_REMOVE_HEAD(&device_state.state_change_q, entry)))
-		free(sc);
+		ast_free(sc);
 
 	return NULL;
 }
@@ -2829,7 +2829,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				break;
 		} else {
 			ao2_ref(cur, -1);
-			free(tmp);
+			ast_free(tmp);
 		}
 	}
 	if (qe->expire && (!qe->parent->timeout || (qe->expire - now) <= qe->parent->timeout))
