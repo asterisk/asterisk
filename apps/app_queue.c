@@ -2818,9 +2818,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (!datastore) {
 			if(!(datastore = ast_channel_datastore_alloc(&dialed_interface_info, NULL))) {
 				ao2_ref(cur, -1);
-				ast_mutex_unlock(&qe->parent->lock);
+				ao2_unlock(qe->parent);
 				if(use_weight)
-					AST_LIST_UNLOCK(&queues);
+					ao2_unlock(queues);
 				free(tmp);
 				goto out;
 			}
@@ -2843,9 +2843,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			if(!(di = ast_calloc(1, sizeof(*di) + strlen(cur->interface)))) {
 				ao2_ref(cur, -1);
 				AST_LIST_UNLOCK(dialed_interfaces);
-				ast_mutex_unlock(&qe->parent->lock);
+				ao2_unlock(qe->parent);
 				if(use_weight)
-					AST_LIST_UNLOCK(&queues);
+					ao2_unlock(queues);
 				free(tmp);
 				goto out;
 			}
