@@ -47,6 +47,9 @@
 /* Define to 1 if your GCC C compiler supports the 'const' attribute. */
 #undef HAVE_ATTRIBUTE_const
 
+/* Define to 1 if your GCC C compiler supports the 'deprecated' attribute. */
+#undef HAVE_ATTRIBUTE_deprecated
+
 /* Define to 1 if your GCC C compiler supports the 'malloc' attribute. */
 #undef HAVE_ATTRIBUTE_malloc
 

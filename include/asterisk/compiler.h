@@ -53,4 +53,10 @@
 #define attribute_malloc
 #endif
 
+#if HAVE_ATTRIBUTE_deprecated
+#define attribute_deprecated __attribute__((deprecated))
+#else
+#define attribute_deprecated
+#endif
+
 #endif /* _ASTERISK_COMPILER_H */

@@ -132,7 +132,13 @@ struct ast_filestream {
 	FILE *f;
 	struct ast_frame fr;	/* frame produced by read, typically */
 	char *buf;		/* buffer pointed to by ast_frame; */
-	void *_private;	/* pointer to private buffer */
+	/* pointer to private buffer */
+	union {
+		void *_private;
+#if !defined(__cplusplus) && !defined(c_plusplus)
+		void *private attribute_deprecated;
+#endif
+	};
 	const char *orig_chan_name;
 };
 

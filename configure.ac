@@ -316,6 +316,7 @@ AST_GCC_ATTRIBUTE(malloc)
 AST_GCC_ATTRIBUTE(const)
 AST_GCC_ATTRIBUTE(unused)
 AST_GCC_ATTRIBUTE(always_inline)
+AST_GCC_ATTRIBUTE(deprecated)
 
 AC_MSG_CHECKING(for -ffunction-sections support)
 saved_CFLAGS="${CFLAGS}"
