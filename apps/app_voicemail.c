@@ -4283,7 +4283,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 
 			/* play name if available, else play extension number */
 			snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, receiver->context, s);
- 			RETRIEVE(fn, -1, s, receiver->context);
+ 			RETRIEVE(fn, -1, (char *)s, receiver->context);
 			if (ast_fileexists(fn, NULL, NULL) > 0) {
 				res = ast_stream_and_wait(chan, fn, ecodes);
 				if (res) {
