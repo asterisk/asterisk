@@ -5800,7 +5800,10 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	tmp->cid.cid_pres = i->callingpres;
 	tmp->cid.cid_ton = i->cid_ton;
 	tmp->cid.cid_ani2 = i->cid_ani2;
-#if defined(HAVE_PRI) || defined(HAVE_SS7)
+/* TODO: enable this code for HAVE_SS7 when PRI_TRANS_CAP_DIGITAL gets renamed
+   and doesn't come from libpri.h any longer
+*/
+#if defined(HAVE_PRI)
 	tmp->transfercapability = transfercapability;
 	pbx_builtin_setvar_helper(tmp, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
 	if (transfercapability & PRI_TRANS_CAP_DIGITAL)
@@ -8560,8 +8563,14 @@ next:
 	return tmp;
 }
 
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
+static int zt_setlaw(int zfd, int law)
+{
+	return ioctl(zfd, ZT_SETLAW, &law);
+}
+#endif
+
 #ifdef HAVE_SS7
-static int zt_setlaw(int zfd, int law);
 
 static int ss7_find_cic(struct zt_ss7 *linkset, int cic)
 {
@@ -9578,14 +9587,6 @@ static void apply_plan_to_number(char *buf, size_t size, const struct zt_pri *pr
 	}
 }
 
-static int zt_setlaw(int zfd, int law)
-{
-	int res;
-	res = ioctl(zfd, ZT_SETLAW, &law);
-	if (res)
-		return res;
-	return 0;
-}
 
 static void *pri_dchannel(void *vpri)
 {
@@ -11778,9 +11779,11 @@ static int __unload_module(void)
 {
 	int x;
 	struct zt_pvt *p, *pl;
-
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
 	int i;
+#endif
+
+#if defined(HAVE_PRI)
 	for (i = 0; i < NUM_SPANS; i++) {
 		if (pris[i].master != AST_PTHREADT_NULL) 
 			pthread_cancel(pris[i].master);
@@ -11788,6 +11791,7 @@ static int __unload_module(void)
 	ast_cli_unregister_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(struct ast_cli_entry));
 	ast_unregister_application(zap_send_keypad_facility_app);
 #endif
+
 	ast_cli_unregister_multiple(zap_cli, sizeof(zap_cli) / sizeof(struct ast_cli_entry));
 	ast_manager_unregister( "ZapDialOffhook" );
 	ast_manager_unregister( "ZapHangup" );
@@ -11836,20 +11840,23 @@ static int __unload_module(void)
 	iflist = NULL;
 	ifcount = 0;
 	ast_mutex_unlock(&iflock);
-#ifdef HAVE_PRI		
+
+#if defined(HAVE_PRI)
 	for (i = 0; i < NUM_SPANS; i++) {
 		if (pris[i].master && (pris[i].master != AST_PTHREADT_NULL))
 			pthread_join(pris[i].master, NULL);
 		zt_close(pris[i].fds[i]);
 	}
-#endif
-#ifdef HAVE_SS7
+#endif /* HAVE_PRI */
+
+#if defined(HAVE_SS7)
 	for (i = 0; i < NUM_SPANS; i++) {
 		if (linksets[i].master && (linksets[i].master != AST_PTHREADT_NULL))
 			pthread_join(linksets[i].master, NULL);
 		zt_close(linksets[i].fds[i]);
 	}
 #endif /* HAVE_SS7 */
+
 	return 0;
 }
 
