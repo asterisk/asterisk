@@ -4201,6 +4201,83 @@ static char *handle_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	return CLI_SUCCESS;
 }
 
+/*! \brief autocomplete for CLI command 'core show hint' */
+static char *complete_core_show_hint(const char *line, const char *word, int pos, int state)
+{
+	struct ast_hint *hint;
+	char *ret = NULL;
+	int which = 0;
+	int wordlen;
+
+	if (pos != 3)
+		return NULL;
+	
+	wordlen = strlen(word);
+
+	AST_RWLIST_RDLOCK(&hints);
+	/* walk through all hints */
+	AST_RWLIST_TRAVERSE(&hints, hint, list) {
+		if (!strncasecmp(word, ast_get_extension_name(hint->exten), wordlen) && ++which > state) {
+			ret = ast_strdup(ast_get_extension_name(hint->exten));
+			break;
+		}
+	}
+	AST_RWLIST_UNLOCK(&hints);
+
+        return ret;
+}
+
+/*! \brief  handle_show_hint: CLI support for listing registered dial plan hint */
+static char *handle_show_hint(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_hint *hint;
+	int watchers;
+	int num = 0, extenlen;
+	struct ast_state_cb *watcher;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show hint";
+		e->usage =
+			"Usage: core show hint <exten>\n"
+			"       List registered hint\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_core_show_hint(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc < 4)
+		return CLI_SHOWUSAGE;
+
+	AST_RWLIST_RDLOCK(&hints);
+	if (AST_RWLIST_EMPTY(&hints)) {
+		ast_cli(a->fd, "There are no registered dialplan hints\n");
+		AST_RWLIST_UNLOCK(&hints);
+		return CLI_SUCCESS;
+	}
+	extenlen = strlen(a->argv[3]);
+	AST_RWLIST_TRAVERSE(&hints, hint, list) {
+		if (!strncasecmp(ast_get_extension_name(hint->exten), a->argv[3], extenlen)) {
+			watchers = 0;
+			for (watcher = hint->callbacks; watcher; watcher = watcher->next)
+				watchers++;
+			ast_cli(a->fd, "   %20s@%-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
+				ast_get_extension_name(hint->exten),
+				ast_get_context_name(ast_get_extension_context(hint->exten)),
+				ast_get_extension_app(hint->exten),
+				ast_extension_state2str(hint->laststate), watchers);
+			num++;
+		}
+	}
+	AST_RWLIST_UNLOCK(&hints);
+	if (!num)
+		ast_cli(a->fd, "No hints matching extension %s\n", a->argv[3]);
+	else
+		ast_cli(a->fd, "%d hint%s matching extension %s\n", num, (num!=1 ? "s":""), a->argv[3]);
+	return CLI_SUCCESS;
+}
+
+
 /*! \brief  handle_show_switches: CLI support for listing registered dial plan switches */
 static char *handle_show_switches(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -4929,6 +5006,7 @@ static struct ast_cli_entry pbx_cli[] = {
 	AST_CLI_DEFINE(handle_show_functions, "Shows registered dialplan functions"),
 	AST_CLI_DEFINE(handle_show_switches, "Show alternative switches"),
 	AST_CLI_DEFINE(handle_show_hints, "Show dialplan hints"),
+	AST_CLI_DEFINE(handle_show_hint, "Show dialplan hint"),
 	AST_CLI_DEFINE(handle_show_globals, "Show global dialplan variables"),
 	AST_CLI_DEFINE(handle_show_function, "Describe a specific dialplan function"),
 	AST_CLI_DEFINE(handle_show_application, "Describe a specific dialplan application"),
