@@ -157,6 +157,8 @@ Voicemail Changes
 
 Queue changes
 -------------
+  * Added the general option 'shared_lastcall' so that member's wrapuptime may be
+     used across multiple queues.
   * Added QUEUE_VARIABLES function to set queue variables added setqueuevar and 
      setqueueentryvar options for each queue, see queues.conf.sample for details.
   * Added keepstats option to queues.conf which will keep queue
