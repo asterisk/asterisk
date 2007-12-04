@@ -225,6 +225,9 @@ static const char config[] = "zapata.conf";
 static char defaultcic[64] = "";
 static char defaultozz[64] = "";
 
+/*! Run this script when the MWI state changes on an FXO line, if mwimonitor is enabled */
+static char mwimonitornotify[PATH_MAX] = "";
+
 static char progzone[10] = "";
 
 static int usedistinctiveringdetection = 0;
@@ -552,6 +555,7 @@ static struct zt_pvt {
 	unsigned int usedistinctiveringdetection:1;
 	unsigned int zaptrcallerid:1;			/*!< should we use the callerid from incoming call on zap transfer or not */
 	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
+	unsigned int mwimonitor:1;
 	/* Channel state or unavilability flags */
 	unsigned int inservice:1;
 	unsigned int locallyblocked:1;
@@ -608,6 +612,7 @@ static struct zt_pvt {
 	int callwaitingrepeat;				/*!< How many samples to wait before repeating call waiting */
 	int cidcwexpire;				/*!< When to expire our muting for CID/CW */
 	unsigned char *cidspill;
+	struct callerid_state *mwi_state;
 	int cidpos;
 	int cidlen;
 	int ringt;
@@ -1842,6 +1847,56 @@ static int save_conference(struct zt_pvt *p)
 	}
 	ast_debug(1, "Disabled conferencing\n");
 	return 0;
+}
+
+/*!
+ * \brief Send MWI state change
+ *
+ * \arg mailbox_full This is the mailbox associated with the FXO line that the
+ *      MWI state has changed on.
+ * \arg thereornot This argument should simply be set to 1 or 0, to indicate
+ *      whether there are messages waiting or not.
+ *
+ *  \return nothing
+ *
+ * This function does two things:
+ *
+ * 1) It generates an internal Asterisk event notifying any other module that
+ *    cares about MWI that the state of a mailbox has changed.
+ *
+ * 2) It runs the script specified by the mwimonitornotify option to allow
+ *    some custom handling of the state change.
+ */
+static void notify_message(char *mailbox_full, int thereornot)
+{
+	char s[sizeof(mwimonitornotify) + 80];
+	struct ast_event *event;
+	char *mailbox, *context;
+
+	/* Strip off @default */
+	context = mailbox = ast_strdupa(mailbox_full);
+	strsep(&context, "@");
+	if (ast_strlen_zero(context))
+		context = "default";
+
+	if (!(event = ast_event_new(AST_EVENT_MWI,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
+			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, thereornot,
+			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, thereornot,
+			AST_EVENT_IE_END))) {
+		return;
+	}
+
+	ast_event_queue_and_cache(event,
+		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR,
+		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR,
+		AST_EVENT_IE_END);
+
+	if (!ast_strlen_zero(mailbox) && !ast_strlen_zero(mwimonitornotify)) {
+		snprintf(s, sizeof(s), "%s %s %d", mwimonitornotify, mailbox, thereornot);
+		ast_safe_system(s);
+	}
 }
 
 static int restore_conference(struct zt_pvt *p)
@@ -7328,7 +7383,14 @@ static void *do_monitor(void *data)
 					pfds[count].events = POLLPRI;
 					pfds[count].revents = 0;
 					/* Message waiting or r2 channels also get watched for reading */
-					if (i->cidspill)
+					if (i->mwimonitor && (i->sig & __ZT_SIG_FXS) && !i->mwi_state) {
+						if (!i->mwi_state) {
+							i->mwi_state = callerid_new(i->cid_signalling);
+							bump_gains(i);
+							zt_setlinear(i->subs[SUB_REAL].zfd, 0);
+						}
+					}
+					if (i->cidspill || i->mwi_state)
 						pfds[count].events |= POLLIN;
 					count++;
 				}
@@ -7417,29 +7479,57 @@ static void *do_monitor(void *data)
 						i = i->next;
 						continue;
 					}
-					if (!i->cidspill) {
+					if (!i->cidspill && !i->mwi_state) {
 						ast_log(LOG_WARNING, "Whoa....  I'm reading but have no cidspill (%d)...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
 						continue;
 					}
 					res = read(i->subs[SUB_REAL].zfd, buf, sizeof(buf));
 					if (res > 0) {
-						/* We read some number of bytes.  Write an equal amount of data */
-						if (res > i->cidlen - i->cidpos) 
-							res = i->cidlen - i->cidpos;
-						res2 = write(i->subs[SUB_REAL].zfd, i->cidspill + i->cidpos, res);
-						if (res2 > 0) {
-							i->cidpos += res2;
-							if (i->cidpos >= i->cidlen) {
-								ast_free(i->cidspill);
-								i->cidspill = 0;
-								i->cidpos = 0;
-								i->cidlen = 0;
-							}
-						} else {
-							ast_log(LOG_WARNING, "Write failed: %s\n", strerror(errno));
-							i->msgstate = -1;
-						}
+ 						if (i->mwi_state) {
+ 							if (i->cid_signalling == CID_SIG_V23_JP) {
+ 								res = callerid_feed_jp(i->mwi_state, (unsigned char *)buf, res, AST_LAW(i));
+ 							} else {
+ 								res = callerid_feed(i->mwi_state, (unsigned char *)buf, res, AST_LAW(i));
+ 							}
+ 							if (res < 0) {
+ 								ast_log(LOG_WARNING, "MWI CallerID feed failed: %s!\n", strerror(errno));
+ 								callerid_free(i->mwi_state);
+ 								i->mwi_state = NULL;
+ 							} else if (res) {
+ 								char *name, *number;
+ 								int flags;
+ 								callerid_get(i->mwi_state, &number, &name, &flags);
+ 								if (flags & CID_MSGWAITING) {
+ 									ast_log(LOG_NOTICE, "MWI: Channel %d message waiting!\n",i->channel);
+ 									notify_message(i->mailbox, 1);
+ 								} else if (flags & CID_NOMSGWAITING) {
+ 									ast_log(LOG_NOTICE, "MWI: Channel %d no message waiting!\n",i->channel);
+ 									notify_message(i->mailbox, 0);
+ 								} else 
+ 									ast_log(LOG_NOTICE, "MWI: Channel %d status unknown\n", i->channel);
+ 								callerid_free(i->mwi_state);
+ 								i->mwi_state = NULL;
+ 							}
+ 						} else if (i->cidspill) {
+ 							/* We read some number of bytes.  Write an equal amount of data */
+ 							if (res > i->cidlen - i->cidpos) 
+ 								res = i->cidlen - i->cidpos;
+ 							res2 = write(i->subs[SUB_REAL].zfd, i->cidspill + i->cidpos, res);
+ 							if (res2 > 0) {
+ 								i->cidpos += res2;
+ 								if (i->cidpos >= i->cidlen) {
+ 									free(i->cidspill);
+ 									i->cidspill = 0;
+ 									i->cidpos = 0;
+ 									i->cidlen = 0;
+ 								}
+ 							} else {
+ 								ast_log(LOG_WARNING, "Write failed: %s\n", strerror(errno));
+ 								i->msgstate = -1;
+ 							}
+  						}
+
 					} else {
 						ast_log(LOG_WARNING, "Read failed with %d: %s\n", res, strerror(errno));
 					}
@@ -7457,6 +7547,12 @@ static void *do_monitor(void *data)
 							ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d)...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
 						continue;
+					}
+					if (i->mwi_state) {
+						callerid_free(i->mwi_state);
+						i->mwi_state = NULL;
+						zt_setlinear(i->subs[SUB_REAL].zfd, i->subs[SUB_REAL].linear);
+						restore_gains(i);
 					}
 					res = zt_get_event(i->subs[SUB_REAL].zfd);
 					ast_debug(1, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
@@ -7973,6 +8069,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 #endif
 		tmp->immediate = conf.chan.immediate;
 		tmp->transfertobusy = conf.chan.transfertobusy;
+		tmp->mwimonitor = conf.chan.mwimonitor;
 		tmp->sig = conf.chan.sig;
 		tmp->outsigmod = conf.chan.outsigmod;
 		tmp->radio = conf.chan.radio;
@@ -11339,6 +11436,7 @@ static char *zap_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			ast_cli(a->fd, "Caller ID: %s\n", tmp->cid_num);
 			ast_cli(a->fd, "Calling TON: %d\n", tmp->cid_ton);
 			ast_cli(a->fd, "Caller ID name: %s\n", tmp->cid_name);
+			ast_cli(a->fd, "Mailbox: %s\n", S_OR(tmp->mailbox, "none"));
 			if (tmp->vars) {
 				struct ast_variable *v;
 				ast_cli(a->fd, "Variables:\n");
@@ -12512,6 +12610,8 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 			confp->chan.immediate = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "transfertobusy")) {
 			confp->chan.transfertobusy = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "mwimonitor")) {
+			confp->chan.mwimonitor = ast_true(v->value) ? 1 : 0;
 		} else if (!strcasecmp(v->name, "cid_rxgain")) {
 			if (sscanf(v->value, "%f", &confp->chan.cid_rxgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid cid_rxgain: %s\n", v->value);
@@ -13074,7 +13174,9 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				ast_copy_string(defaultcic, v->value, sizeof(defaultcic));
 			} else if (!strcasecmp(v->name, "defaultozz")) {
 				ast_copy_string(defaultozz, v->value, sizeof(defaultozz));
-			} 
+			} else if (!strcasecmp(v->name, "mwimonitornotify")) {
+				ast_copy_string(mwimonitornotify, v->value, sizeof(mwimonitornotify));
+			}
 		} else if (!skipchannels)
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 	}

@@ -49,6 +49,8 @@
 #define CID_PRIVATE_NUMBER		(1 << 1)
 #define CID_UNKNOWN_NAME		(1 << 2)
 #define CID_UNKNOWN_NUMBER		(1 << 3)
+#define CID_MSGWAITING			(1 << 4)
+#define CID_NOMSGWAITING		(1 << 5)
 
 #define CID_SIG_BELL	1
 #define CID_SIG_V23	2

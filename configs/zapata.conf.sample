@@ -337,6 +337,19 @@ usecallerid=yes
 ;
 ;hidecallerid=yes
 ;
+; The following option enables receiving MWI on FXO lines.  The default
+; value is no.  When this is enabled, and MWI notification indicates on or off,
+; the script specified by the mwimonitornotify option is executed.
+;
+;mwimonitor=no
+;
+; This option is used in conjunction with mwimonitor.  This will get executed
+; when incoming MWI state changes.  The script is passed 2 arguments.  The
+; first is the corresponding mailbox, and the second is 1 or 0, indicating if
+; there are messages waiting or not.
+;
+;mwimonitornotify=/usr/local/bin/zapnotify.sh
+;
 ; Whether or not to enable call waiting on internal extensions
 ; With this set to 'yes', busy extensions will hear the call-waiting
 ; tone, and can use hook-flash to switch between callers. The Dial()
