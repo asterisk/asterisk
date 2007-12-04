@@ -12655,6 +12655,8 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 			confp->chan.hanguponpolarityswitch = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "sendcalleridafter")) {
 			confp->chan.sendcalleridafter = atoi(v->value);
+		} else if (!strcasecmp(v->name, "mwimonitornotify")) {
+			ast_copy_string(mwimonitornotify, v->value, sizeof(mwimonitornotify));
 		} else if (!reload){ 
 			 if (!strcasecmp(v->name, "signalling") || !strcasecmp(v->name, "signaling")) {
 				confp->chan.outsigmod = -1;
@@ -13168,8 +13170,6 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				ast_copy_string(defaultcic, v->value, sizeof(defaultcic));
 			} else if (!strcasecmp(v->name, "defaultozz")) {
 				ast_copy_string(defaultozz, v->value, sizeof(defaultozz));
-			} else if (!strcasecmp(v->name, "mwimonitornotify")) {
-				ast_copy_string(mwimonitornotify, v->value, sizeof(mwimonitornotify));
 			}
 		} else if (!skipchannels)
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
