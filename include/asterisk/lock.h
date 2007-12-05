@@ -1115,12 +1115,12 @@ AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 #elif defined(HAVE_OSX_ATOMICS) && (SIZEOF_INT == 4)
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
-	return OSAtomicAdd32(v, (int32_t *) p);
+	return OSAtomicAdd32(v, (int32_t *) p) - v;
 })
 #elif defined(HAVE_OSX_ATOMICS) && (SIZEOF_INT == 8)
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
-	return OSAtomicAdd64(v, (int64_t *) p);
+	return OSAtomicAdd64(v, (int64_t *) p) - v;
 #elif defined (__i386__) || defined(__x86_64__)
 #ifdef sun
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
