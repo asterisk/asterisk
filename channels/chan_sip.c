@@ -12016,9 +12016,9 @@ struct __show_chan_arg {
 	int numchans;   /* return value */
 };
 
-#define FORMAT3 "%-15.15s  %-10.10s  %-11.11s  %-15.15s  %-13.13s  %-15.15s %-10.10s\n"
-#define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-4.4s  %-7.7s  %-15.15s\n"
-#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-3.3s %-3.3s  %-15.15s %-10.10s\n"
+#define FORMAT3 "%-15.15s  %-10.10s  %-15.15s  %-15.15s  %-13.13s  %-15.15s %-10.10s\n"
+#define FORMAT2 "%-15.15s  %-10.10s  %-15.15s  %-4.4s  %-7.7s  %-15.15s\n"
+#define FORMAT  "%-15.15s  %-10.10s  %-15.15s  %-4.4s  %-3.3s %-3.3s  %-15.15s %-10.10s\n"
 
 /*! \brief callback for show channel|subscription */
 static int show_channels_cb(void *__cur, void *__arg, int flags)
@@ -12036,7 +12036,6 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 			ast_cli(arg->fd, FORMAT, ast_inet_ntoa(dst->sin_addr), 
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
 				cur->callid, 
-				cur->ocseq, cur->icseq,
 				ast_getformatname_multiple(formatbuf, sizeof(formatbuf), cur->owner ? cur->owner->nativeformats : 0),
 				cli_yesno(ast_test_flag(&cur->flags[1], SIP_PAGE2_CALL_ONHOLD)),
 				cur->needdestroy ? "(d)" : "",
@@ -12089,7 +12088,7 @@ static char *sip_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 	arg.subscriptions = !strcasecmp(a->argv[e->args - 1], "subscriptions");
 	if (!arg.subscriptions)
-		ast_cli(arg.fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Format", "Hold", "Last Message");
+		ast_cli(arg.fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Format", "Hold", "Last Message");
 	else
 		ast_cli(arg.fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type", "Mailbox");
 
