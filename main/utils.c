@@ -743,6 +743,10 @@ static int handle_show_locks(int fd, int argc, char *argv[])
 			if (!lock_info->locks[i].pending)
 				continue;
 
+			/* We only have further details for mutexes right now */
+			if (lock_info->locks[i].type != AST_MUTEX)
+				continue;
+
 			lock = lock_info->locks[i].lock_addr;
 
 			ast_reentrancy_lock(lock);
