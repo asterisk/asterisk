@@ -231,6 +231,8 @@ Other Dialplan Application Changes
      for the SLATrunk application.
   * The Read application no longer exits the dialplan on error.  Instead, it sets
      READSTATUS to ERROR, which you can catch and handle separately.
+  * Added 'm' option to Directory, which lists out names, 8 at a time, instead
+     of asking for verification of each name, one at a time.
 
 Music On Hold Changes
 ---------------------

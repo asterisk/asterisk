@@ -69,7 +69,9 @@ static char *descrip =
 "    e - In addition to the name, also read the extension number to the\n"
 "        caller before presenting dialing options.\n"
 "    f - Allow the caller to enter the first name of a user in the directory\n"
-"        instead of using the last name.\n";
+"        instead of using the last name.\n"
+"    m - Instead of reading each name sequentially and asking for confirmation,\n"
+"        create a menu of up to 8 names.\n";
 
 /* For simplicity, I'm keeping the format compatible with the voicemail config,
    but i'm open to suggestions for isolating it */
@@ -79,6 +81,24 @@ static char *descrip =
 /* How many digits to read in */
 #define NUMDIGITS 3
 
+enum {
+	OPT_LISTBYFIRSTNAME = (1 << 0),
+	OPT_SAYEXTENSION =    (1 << 1),
+	OPT_FROMVOICEMAIL =   (1 << 2),
+	OPT_SELECTFROMMENU =  (1 << 3),
+} directory_option_flags;
+
+struct items {
+	char exten[AST_MAX_EXTENSION + 1];
+	char name[AST_MAX_EXTENSION + 1];
+};
+
+AST_APP_OPTIONS(directory_app_options, {
+	AST_APP_OPTION('f', OPT_LISTBYFIRSTNAME),
+	AST_APP_OPTION('e', OPT_SAYEXTENSION),
+	AST_APP_OPTION('v', OPT_FROMVOICEMAIL),
+	AST_APP_OPTION('m', OPT_SELECTFROMMENU),
+});
 
 #ifdef ODBC_STORAGE
 struct generic_prepare_struct {
@@ -270,11 +290,9 @@ static char *convert(const char *lastname)
  *           '*' for skipped entry from directory
  */
 static int play_mailbox_owner(struct ast_channel *chan, const char *context,
-		const char *dialcontext, const char *ext, const char *name, int readext,
-		int fromappvm)
+		const char *ext, const char *name, struct ast_flags *flags)
 {
 	int res = 0;
-	int loop;
 	char fn[256];
 
 	/* Check for the VoiceMail2 greeting first */
@@ -297,13 +315,13 @@ static int play_mailbox_owner(struct ast_channel *chan, const char *context,
 		res = ast_stream_and_wait(chan, fn, AST_DIGIT_ANY);
 		ast_stopstream(chan);
 		/* If Option 'e' was specified, also read the extension number with the name */
-		if (readext) {
+		if (ast_test_flag(flags, OPT_SAYEXTENSION)) {
 			ast_stream_and_wait(chan, "vm-extension", AST_DIGIT_ANY);
 			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
 		}
 	} else {
 		res = ast_say_character_str(chan, S_OR(name, ext), AST_DIGIT_ANY, chan->language);
-		if (!ast_strlen_zero(name) && readext) {
+		if (!ast_strlen_zero(name) && ast_test_flag(flags, OPT_SAYEXTENSION)) {
 			ast_stream_and_wait(chan, "vm-extension", AST_DIGIT_ANY);
 			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
 		}
@@ -312,6 +330,15 @@ static int play_mailbox_owner(struct ast_channel *chan, const char *context,
 	ast_filedelete(fn, NULL);	
 #endif
 
+	return res;
+}
+
+static int get_mailbox_response(struct ast_channel *chan, const char *context, const char *dialcontext, const char *ext, const char *name, struct ast_flags *flags)
+{
+	int res = 0;
+	int loop = 3;
+
+	res = play_mailbox_owner(chan, context, ext, name, flags);
 	for (loop = 3 ; loop > 0; loop--) {
 		if (!res)
 			res = ast_stream_and_wait(chan, "dir-instr", AST_DIGIT_ANY);
@@ -322,7 +349,7 @@ static int play_mailbox_owner(struct ast_channel *chan, const char *context,
 		if (res < 0) /* User hungup, so jump out now */
 			break;
 		if (res == '1') {	/* Name selected */
-			if (fromappvm) {
+			if (ast_test_flag(flags, OPT_FROMVOICEMAIL)) {
 				/* We still want to set the exten though */
 				ast_copy_string(chan->exten, ext, sizeof(chan->exten));
 			} else {
@@ -344,6 +371,47 @@ static int play_mailbox_owner(struct ast_channel *chan, const char *context,
 	}
 
 	return(res);
+}
+
+static int select_item(struct ast_channel *chan, const struct items *items, int itemcount, const char *context, const char *dialcontext, struct ast_flags *flags)
+{
+	int i, res = 0;
+	char buf[9];
+	for (i = 0; i < itemcount; i++) {
+		snprintf(buf, sizeof(buf), "digits/%d", i + 1);
+		/* Press <num> for <name>, [ extension <ext> ] */
+		res = ast_streamfile(chan, "dir-multi1", chan->language) ||
+			ast_waitstream(chan, AST_DIGIT_ANY) ||
+			ast_streamfile(chan, buf, chan->language) ||
+			ast_waitstream(chan, AST_DIGIT_ANY) ||
+			ast_streamfile(chan, "dir-multi2", chan->language) ||
+			ast_waitstream(chan, AST_DIGIT_ANY) ||
+			play_mailbox_owner(chan, context, items[i].exten, items[i].name, flags) ||
+			ast_waitstream(chan, AST_DIGIT_ANY) ||
+			ast_waitfordigit(chan, 800);
+		if (res)
+			break;
+	}
+	/* Press "9" for more names. */
+	if (!res)
+		res = ast_waitstream(chan, AST_DIGIT_ANY) ||
+			(itemcount == 8 && ast_streamfile(chan, "dir-multi9", chan->language)) ||
+			ast_waitstream(chan, AST_DIGIT_ANY) ||
+			ast_waitfordigit(chan, 3000);
+
+	if (res && res > '0' && res < '9') {
+		if (ast_test_flag(flags, OPT_FROMVOICEMAIL)) {
+			/* We still want to set the exten */
+			ast_copy_string(chan->exten, items[res - '0'].exten, sizeof(chan->exten));
+		} else if (ast_goto_if_exists(chan, dialcontext, items[res - '1'].exten, 1)) {
+			ast_log(LOG_WARNING,
+				"Can't find extension '%s' in context '%s'.  "
+				"Did you pass the wrong context to Directory?\n",
+				items[res - '0'].exten, dialcontext);
+			res = -1;
+		}
+	}
+	return res;
 }
 
 static struct ast_config *realtime_directory(char *context)
@@ -405,7 +473,7 @@ static struct ast_config *realtime_directory(char *context)
 	return cfg;
 }
 
-static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct ast_config *ucfg, char *context, char *dialcontext, char digit, int last, int readext, int fromappvm)
+static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, struct ast_config *ucfg, char *context, char *dialcontext, char digit, struct ast_flags *flags)
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
 	char ext[NUMDIGITS + 1], *cat;
@@ -415,7 +483,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 	int found=0;
 	int lastuserchoice = 0;
 	char *start, *conv, *stringp = NULL;
-	const char *pos;
+	char *pos;
 	int breakout = 0;
 
 	if (ast_strlen_zero(context)) {
@@ -451,43 +519,94 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 	res = 0;
 	if (ast_readstring(chan, ext + 1, NUMDIGITS - 1, 3000, 3000, "#") < 0) res = -1;
 	if (!res) {
-		/* Search for all names which start with those digits */
-		v = ast_variable_browse(cfg, context);
-		while(v && !res) {
-			/* Find all candidate extensions */
-			while(v) {
-				/* Find a candidate extension */
-				start = ast_strdup(v->value);
-				if (start && !strcasestr(start, "hidefromdir=yes")) {
-					stringp=start;
-					strsep(&stringp, ",");
-					pos = strsep(&stringp, ",");
-					if (pos) {
-						ast_copy_string(name, pos, sizeof(name));
-						/* Grab the last name */
-						if (last && strrchr(pos,' '))
-							pos = strrchr(pos, ' ') + 1;
-						conv = convert(pos);
-						if (conv) {
-							if (!strncmp(conv, ext, strlen(ext))) {
-								/* Match! */
-								found++;
-								ast_free(conv);
-								ast_free(start);
-								break;
-							}
-							ast_free(conv);
+		if (ast_test_flag(flags, OPT_SELECTFROMMENU)) {
+			char buf[AST_MAX_EXTENSION + 1], *bufptr, *fullname;
+			struct items menuitems[8];
+			int menucount = 0;
+			for (v = ast_variable_browse(vmcfg, context); v; v = v->next) {
+				if (strcasestr(v->value, "hidefromdir=yes") == NULL) {
+					ast_copy_string(buf, v->value, sizeof(buf));
+					bufptr = buf;
+					/* password,Full Name,email,pager,options */
+					strsep(&bufptr, ",");
+					pos = strsep(&bufptr, ",");
+					fullname = pos;
+
+					if (ast_test_flag(flags, OPT_LISTBYFIRSTNAME) && strrchr(pos, ' '))
+						pos = strrchr(pos, ' ') + 1;
+					conv = convert(pos);
+
+					if (conv && strcmp(conv, ext) == 0) {
+						/* Match */
+						found = 1;
+						ast_copy_string(menuitems[menucount].name, fullname, sizeof(menuitems[0].name));
+						ast_copy_string(menuitems[menucount].exten, v->name, sizeof(menuitems[0].exten));
+						menucount++;
+					}
+
+					if (menucount == 8) {
+						/* We have a full menu */
+						res = select_item(chan, menuitems, menucount, context, dialcontext, flags);
+						menucount = 0;
+						if (res != '9' && res != 0) {
+							if (res != -1)
+								lastuserchoice = res;
+							break;
 						}
 					}
-					ast_free(start);
 				}
-				v = v->next;
 			}
 
-			if (v) {
-				/* We have a match -- play a greeting if they have it */
-				res = play_mailbox_owner(chan, context, dialcontext, v->name, name, readext, fromappvm);
-				switch (res) {
+			if (menucount > 0) {
+				/* We have a partial menu left over */
+				res = select_item(chan, menuitems, menucount, context, dialcontext, flags);
+				if (res != '9') {
+					if (res != -1)
+						lastuserchoice = res;
+				}
+			}
+
+			/* Make this flag conform to the old expected result */
+			if (lastuserchoice > '1' && lastuserchoice < '9')
+				lastuserchoice = '1';
+		} else {
+			/* Search for all names which start with those digits */
+			v = ast_variable_browse(vmcfg, context);
+			while(v && !res) {
+				/* Find all candidate extensions */
+				while(v) {
+					/* Find a candidate extension */
+					start = ast_strdup(v->value);
+					if (start && !strcasestr(start, "hidefromdir=yes")) {
+						stringp=start;
+						strsep(&stringp, ",");
+						pos = strsep(&stringp, ",");
+						if (pos) {
+							ast_copy_string(name, pos, sizeof(name));
+							/* Grab the last name */
+							if (!ast_test_flag(flags, OPT_LISTBYFIRSTNAME) && strrchr(pos,' '))
+								pos = strrchr(pos, ' ') + 1;
+							conv = convert(pos);
+							if (conv) {
+								if (!strncmp(conv, ext, strlen(ext))) {
+									/* Match! */
+									found++;
+									ast_free(conv);
+									ast_free(start);
+									break;
+								}
+								ast_free(conv);
+							}
+						}
+						ast_free(start);
+					}
+					v = v->next;
+				}
+
+				if (v) {
+					/* We have a match -- play a greeting if they have it */
+					res = get_mailbox_response(chan, context, dialcontext, v->name, name, flags);
+					switch (res) {
 					case -1:
 						/* user pressed '1' but extension does not exist, or
 						 * user hungup
@@ -496,7 +615,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 						break;
 					case '1':
 						/* user pressed '1' and extensions exists;
-						   play_mailbox_owner will already have done
+						   get_mailbox_response will already have done
 						   a goto() on the channel
 						 */
 						lastuserchoice = res;
@@ -508,68 +627,120 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 						break;
 					default:
 						break;
+					}
+					v = v->next;
 				}
-				v = v->next;
 			}
 		}
 
 		if (!res && ucfg) {
 			/* Search users.conf for all names which start with those digits */
-			for (cat = ast_category_browse(ucfg, NULL); cat && !res ; cat = ast_category_browse(ucfg, cat)) {
-				if (!strcasecmp(cat, "general"))
-					continue;
-				if (!ast_true(ast_config_option(ucfg, cat, "hasdirectory")))
-					continue;
+			if (ast_test_flag(flags, OPT_SELECTFROMMENU)) {
+				char *fullname;
+				struct items menuitems[8];
+				int menucount = 0;
+				for (cat = ast_category_browse(ucfg, NULL); cat && !res ; cat = ast_category_browse(ucfg, cat)) {
+					const char *pos;
+					if (!strcasecmp(cat, "general"))
+						continue;
+					if (!ast_true(ast_config_option(ucfg, cat, "hasdirectory")))
+						continue;
 				
-				/* Find all candidate extensions */
-				if ((pos = ast_variable_retrieve(ucfg, cat, "fullname"))) {
-					ast_copy_string(name, pos, sizeof(name));
-					/* Grab the last name */
-					if (last && strrchr(pos,' '))
-						pos = strrchr(pos, ' ') + 1;
-					conv = convert(pos);
-					if (conv) {
-						if (!strcmp(conv, ext)) {
+					/* Find all candidate extensions */
+					if ((pos = ast_variable_retrieve(ucfg, cat, "fullname"))) {
+						ast_copy_string(name, pos, sizeof(name));
+						/* Grab the last name */
+						if (!ast_test_flag(flags, OPT_LISTBYFIRSTNAME) && strrchr(pos,' '))
+							pos = strrchr(pos, ' ') + 1;
+						conv = convert(pos);
+						if (conv && strcmp(conv, ext) == 0) {
+							/* Match */
+							found = 1;
+							ast_copy_string(menuitems[menucount].name, fullname, sizeof(menuitems[0].name));
+							ast_copy_string(menuitems[menucount].exten, v->name, sizeof(menuitems[0].exten));
+							menucount++;
+
+							if (menucount == 8) {
+								/* We have a full menu */
+								res = select_item(chan, menuitems, menucount, context, dialcontext, flags);
+								menucount = 0;
+								if (res != '9' && res != 0) {
+									if (res != -1)
+										lastuserchoice = res;
+									break;
+								}
+							}
+						}
+					}
+				}
+				if (menucount > 0) {
+					/* We have a partial menu left over */
+					res = select_item(chan, menuitems, menucount, context, dialcontext, flags);
+					if (res != '9') {
+						if (res != -1)
+							lastuserchoice = res;
+					}
+				}
+
+				/* Make this flag conform to the old expected result */
+				if (lastuserchoice > '1' && lastuserchoice < '9')
+					lastuserchoice = '1';
+			} else { /* !menu */
+				for (cat = ast_category_browse(ucfg, NULL); cat && !res ; cat = ast_category_browse(ucfg, cat)) {
+					const char *pos;
+					if (!strcasecmp(cat, "general"))
+						continue;
+					if (!ast_true(ast_config_option(ucfg, cat, "hasdirectory")))
+						continue;
+				
+					/* Find all candidate extensions */
+					if ((pos = ast_variable_retrieve(ucfg, cat, "fullname"))) {
+						ast_copy_string(name, pos, sizeof(name));
+						/* Grab the last name */
+						if (ast_test_flag(flags, OPT_LISTBYFIRSTNAME) && strrchr(pos,' '))
+							pos = strrchr(pos, ' ') + 1;
+						conv = convert(pos);
+						if (conv && strcmp(conv, ext) == 0) {
 							/* Match! */
 							found++;
 							/* We have a match -- play a greeting if they have it */
-							res = play_mailbox_owner(chan, context, dialcontext, cat, name, readext, fromappvm);
-							switch (res) {
-							case -1:
-								/* user pressed '1' but extension does not exist, or
-								 * user hungup
-								 */
-								lastuserchoice = 0;
-								breakout = 1;
-								break;
-							case '1':
-								/* user pressed '1' and extensions exists;
-								   play_mailbox_owner will already have done
-								   a goto() on the channel
-								 */
-								lastuserchoice = res;
-								breakout = 1;
-								break;
-							case '*':
-								/* user pressed '*' to skip something found */
-								lastuserchoice = res;
-								breakout = 0;
-								res = 0;
-								break;
-							default:
-								breakout = 1;
-								break;
-							}
-							ast_free(conv);
-							if (breakout)
-								break;
-						} else
-							ast_free(conv);
-					}
+							res = get_mailbox_response(chan, context, dialcontext, cat, name, flags);
+						}
+						switch (res) {
+						case -1:
+							/* user pressed '1' but extension does not exist, or
+							 * user hungup
+							 */
+							lastuserchoice = 0;
+							breakout = 1;
+							break;
+						case '1':
+							/* user pressed '1' and extensions exists;
+							   play_mailbox_owner will already have done
+							   a goto() on the channel
+							 */
+							lastuserchoice = res;
+							breakout = 1;
+							break;
+						case '*':
+							/* user pressed '*' to skip something found */
+							lastuserchoice = res;
+							breakout = 0;
+							res = 0;
+							break;
+						default:
+							breakout = 1;
+							break;
+						}
+						ast_free(conv);
+						if (breakout)
+							break;
+					} else
+						ast_free(conv);
 				}
 			}
 		}
-			
+
 		if (lastuserchoice != '1') {
 			res = ast_streamfile(chan, found ? "dir-nomore" : "dir-nomatch", chan->language);
 			if (!res)
@@ -585,11 +756,9 @@ static int directory_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct ast_config *cfg, *ucfg;
-	int last = 1;
-	int readext = 0;
-	int fromappvm = 0;
 	const char *dirintro;
-	char *parse;
+	char *parse, *opts[0];
+	struct ast_flags flags = { 0 };
 	struct ast_flags config_flags = { 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vmcontext);
@@ -605,15 +774,9 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
-		
-	if (args.options) {
-		if (strchr(args.options, 'f'))
-			last = 0;
-		if (strchr(args.options, 'e'))
-			readext = 1;
-		if (strchr(args.options, 'v'))
-			fromappvm = 1;
-	}
+
+	if (args.options && ast_app_parse_options(directory_app_options, &flags, opts, args.options))
+		return -1;
 
 	if (ast_strlen_zero(args.dialcontext))	
 		args.dialcontext = args.vmcontext;
@@ -630,7 +793,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	if (ast_strlen_zero(dirintro))
 		dirintro = ast_variable_retrieve(cfg, "general", "directoryintro");
 	if (ast_strlen_zero(dirintro))
-		dirintro = last ? "dir-intro" : "dir-intro-fn";
+		dirintro = ast_test_flag(&flags, OPT_LISTBYFIRSTNAME) ? "dir-intro-fn" : "dir-intro";
 
 	if (chan->_state != AST_STATE_UP) 
 		res = ast_answer(chan);
@@ -642,7 +805,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		if (!res)
 			res = ast_waitfordigit(chan, 5000);
 		if (res > 0) {
-			res = do_directory(chan, cfg, ucfg, args.vmcontext, args.dialcontext, res, last, readext, fromappvm);
+			res = do_directory(chan, cfg, ucfg, args.vmcontext, args.dialcontext, res, &flags);
 			if (res > 0) {
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
 				ast_stopstream(chan);
