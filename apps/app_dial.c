@@ -1591,8 +1591,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (chan && peer && ast_test_flag64(&opts, OPT_GOTO) && !ast_strlen_zero(opt_args[OPT_ARG_GOTO])) {
 			replace_macro_delimiter(opt_args[OPT_ARG_GOTO]);
 			ast_parseable_goto(chan, opt_args[OPT_ARG_GOTO]);
-			ast_parseable_goto(peer, opt_args[OPT_ARG_GOTO]);
-			peer->priority++;
+			/* peer goes to the same context and extension as chan, so just copy info from chan*/
+			ast_copy_string(peer->context, chan->context, sizeof(peer->context));
+			ast_copy_string(peer->exten, chan->exten, sizeof(peer->exten));
+			peer->priority = chan->priority + 2;
 			ast_pbx_start(peer);
 			hanguptree(outgoing, NULL, ast_test_flag64(&opts, OPT_CANCEL_ELSEWHERE) ? 1 : 0);
 			if (continue_exec)
