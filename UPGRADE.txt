@@ -121,6 +121,11 @@ Channel Drivers:
   Asterisk, but will be removed in the following version. Please use the groupcount functions
   in the dialplan to enforce call limits. The "limitonpeer" configuration option is
   now renamed to "counteronpeer".
+* SIP: The "username" option is now renamed to "defaultuser" to match "defaultip".
+  These are used only before registration to call a peer with the uri 
+	sip:defaultuser@defaultip
+  The "username" setting still work, but is deprecated and will not work in 
+  the next version of Asterisk.
 
 * chan_local.c: the comma delimiter inside the channel name has been changed to a
   semicolon, in order to make the Local channel driver compatible with the comma
