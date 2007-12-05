@@ -48,7 +48,6 @@ bindaddr=127.0.0.1
 ; To produce a certificate you can e.g. use openssl
 ;	openssl req -new -x509 -days 365 -nodes -out /tmp/foo.pem -keyout /tmp/foo.pem
 ;
-;prefix=asterisk
 
 ; The post_mappings section maps URLs to real paths on the filesystem.  If a
 ; POST is done from within an authenticated manager session to one of the
