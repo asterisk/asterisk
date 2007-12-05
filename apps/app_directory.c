@@ -482,7 +482,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, stru
 	int res;
 	int found=0;
 	int lastuserchoice = 0;
-	char *start, *conv, *stringp = NULL;
+	char *start, *conv = NULL, *stringp = NULL;
 	char *pos;
 	int breakout = 0;
 
@@ -636,7 +636,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, stru
 		if (!res && ucfg) {
 			/* Search users.conf for all names which start with those digits */
 			if (ast_test_flag(flags, OPT_SELECTFROMMENU)) {
-				char *fullname;
+				char *fullname = NULL;
 				struct items menuitems[8];
 				int menucount = 0;
 				for (cat = ast_category_browse(ucfg, NULL); cat && !res ; cat = ast_category_browse(ucfg, cat)) {
