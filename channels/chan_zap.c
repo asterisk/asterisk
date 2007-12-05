@@ -5855,10 +5855,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	tmp->cid.cid_pres = i->callingpres;
 	tmp->cid.cid_ton = i->cid_ton;
 	tmp->cid.cid_ani2 = i->cid_ani2;
-/* TODO: enable this code for HAVE_SS7 when PRI_TRANS_CAP_DIGITAL gets renamed
-   and doesn't come from libpri.h any longer
-*/
-#if defined(HAVE_PRI)
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
 	tmp->transfercapability = transfercapability;
 	pbx_builtin_setvar_helper(tmp, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
 	if (transfercapability & AST_TRANS_CAP_DIGITAL)
