@@ -470,7 +470,7 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
 				ast_mutex_destroy(&obj->lock);
-				free(obj);
+				ast_free(obj);
 				obj = NULL;
 				class->count--;
 			} else {
