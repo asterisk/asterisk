@@ -6493,9 +6493,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	/* Set language from config to override channel language */
 	if (!ast_strlen_zero(vmu->language))
 		ast_string_field_set(chan, language, vmu->language);
-#ifndef IMAP_STORAGE
 	create_dirpath(vms.curdir, sizeof(vms.curdir), vmu->context, vms.username, "");
-#endif
 	/* Retrieve old and new message counts */
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Before open_mailbox\n");
