@@ -71,5 +71,5 @@ bindaddr = 0.0.0.0
 ;displayconnects = yes	; Display on CLI user login/logoff
 ;
 ; Authorization for various classes 
-;read = system,call,log,verbose,command,agent,user,config,dtmf,reporting
-;write = system,call,log,verbose,command,agent,user,config,dtmf,reporting
+;read = system,call,log,verbose,command,agent,user,config,dtmf,reporting,cdr
+;write = system,call,log,verbose,command,agent,user,config,dtmf,reporting,cdr

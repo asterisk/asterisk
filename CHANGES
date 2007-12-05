@@ -23,6 +23,8 @@ AMI - The manager (TCP/TLS/HTTP)
   * Added a "ListAllVoicemailUsers" action that allows you to get a list of all
      the voicemail users setup.
   * Added 'DBDel' and 'DBDelTree' manager commands.
+  * cdr_manager now reports events via the "cdr" level, separating it from
+     the very verbose "call" level.
 
 Dialplan functions
 ------------------

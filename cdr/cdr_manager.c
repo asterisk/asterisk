@@ -146,7 +146,7 @@ static int manager_log(struct ast_cdr *cdr)
 		pbx_substitute_variables_helper(&dummy, customfields->str, buf, sizeof(buf) - 1);
 	}
 
-	manager_event(EVENT_FLAG_CALL, "Cdr",
+	manager_event(EVENT_FLAG_CDR, "Cdr",
 	    "AccountCode: %s\r\n"
 	    "Source: %s\r\n"
 	    "Destination: %s\r\n"

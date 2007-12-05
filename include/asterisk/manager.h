@@ -63,6 +63,8 @@
 #define EVENT_FLAG_CONFIG		(1 << 7) /* Ability to modify configurations */
 #define EVENT_FLAG_DTMF  		(1 << 8) /* Ability to read DTMF events */
 #define EVENT_FLAG_REPORTING		(1 << 9) /* Reporting events such as rtcp sent */
+#define EVENT_FLAG_CDR			(1 << 10) /* CDR events */
+
 /* Export manager structures */
 #define AST_MAX_MANHEADERS 128
 

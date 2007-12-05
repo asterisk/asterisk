@@ -309,6 +309,7 @@ static struct permalias {
 	{ EVENT_FLAG_CONFIG, "config" },
 	{ EVENT_FLAG_DTMF, "dtmf" },
 	{ EVENT_FLAG_REPORTING, "reporting" },
+	{ EVENT_FLAG_CDR, "cdr" },
 	{ -1, "all" },
 	{ 0, "none" },
 };

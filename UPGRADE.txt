@@ -146,3 +146,7 @@ Manager:
 * The IAXpeers command output has been changed to more closely resemble the
   output of the SIPpeers command.
 
+* cdr_manager now reports at the "cdr" level, not at "call"  You may need to
+   change your manager.conf to add the level to existing AMI users, if they
+   want to see the CDR events generated.
+
