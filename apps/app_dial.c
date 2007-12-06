@@ -426,19 +426,20 @@ static const char *get_cid_name(char *name, int namelen, struct ast_channel *cha
 	return ast_get_hint(NULL, 0, name, namelen, chan, context, exten) ? name : "";
 }
 
-static void senddialevent(struct ast_channel *src, struct ast_channel *dst)
+static void senddialevent(struct ast_channel *src, struct ast_channel *dst, const char *dialstring)
 {
 	manager_event(EVENT_FLAG_CALL, "Dial", 
 			   "SubEvent: Begin\r\n"
-			   "Source: %s\r\n"
+			   "Channel: %s\r\n"
 			   "Destination: %s\r\n"
 			   "CallerIDNum: %s\r\n"
 			   "CallerIDName: %s\r\n"
-			   "SrcUniqueID: %s\r\n"
-			   "DestUniqueID: %s\r\n",
+			   "UniqueID: %s\r\n"
+			   "DestUniqueID: %s\r\n"
+			   "Dialstring: %s\r\n",
 			   src->name, dst->name, S_OR(src->cid.cid_num, "<unknown>"),
 			   S_OR(src->cid.cid_name, "<unknown>"), src->uniqueid,
-			   dst->uniqueid);
+			   dst->uniqueid, dialstring ? dialstring : "");
 }
 
 static void senddialendevent(const struct ast_channel *src, const char *dialstatus)
@@ -446,8 +447,9 @@ static void senddialendevent(const struct ast_channel *src, const char *dialstat
 	manager_event(EVENT_FLAG_CALL, "Dial",
 			   		"SubEvent: End\r\n"
 					"Channel: %s\r\n"
+			   		"UniqueID: %s\r\n"
 					"DialStatus: %s\r\n",
-					src->name, dialstatus);
+					src->name, src->uniqueid, dialstatus);
 }	
 
 /*!
@@ -528,7 +530,7 @@ static void do_forward(struct chanlist *o,
 			c = o->chan = NULL;
 			num->nochan++;
 		} else {
-			senddialevent(in, c);
+			senddialevent(in, c, stuff);
 			/* After calling, set callerid to extension */
 			if (!ast_test_flag64(peerflags, OPT_ORIGINAL_CLID)) {
 				char cidname[AST_MAX_EXTENSION] = "";
@@ -1469,7 +1471,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_free(tmp);
 			continue;
 		} else {
-			senddialevent(chan, tc);
+			senddialevent(chan, tc, numsubst);
 			ast_verb(3, "Called %s\n", numsubst);
 			if (!ast_test_flag64(peerflags, OPT_ORIGINAL_CLID))
 				ast_set_callerid(tc, S_OR(chan->macroexten, chan->exten), get_cid_name(cidname, sizeof(cidname), chan), NULL);
