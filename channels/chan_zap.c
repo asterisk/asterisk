@@ -11825,7 +11825,13 @@ static int action_zapshowchannels(struct mansession *s, const struct message *m)
 {
 	struct zt_pvt *tmp = NULL;
 	const char *id = astman_get_header(m, "ActionID");
+	const char *zapchannel = astman_get_header(m, "ZapChannel");
 	char idText[256] = "";
+	int channels = 0;
+	int zapchanquery = -1;
+	if (!ast_strlen_zero(zapchannel)) {
+		zapchanquery = atoi(zapchannel);
+	}
 
 	astman_send_ack(s, m, "Zapata channel status will follow");
 	if (!ast_strlen_zero(id))
@@ -11837,18 +11843,52 @@ static int action_zapshowchannels(struct mansession *s, const struct message *m)
 	while (tmp) {
 		if (tmp->channel > 0) {
 			int alarm = get_alarms(tmp);
-			astman_append(s,
-				"Event: ZapShowChannels\r\n"
-				"Channel: %d\r\n"
-				"Signalling: %s\r\n"
-				"Context: %s\r\n"
-				"DND: %s\r\n"
-				"Alarm: %s\r\n"
-				"%s"
-				"\r\n",
-				tmp->channel, sig2str(tmp->sig), tmp->context, 
-				tmp->dnd ? "Enabled" : "Disabled",
-				alarm2str(alarm), idText);
+
+			/* If a specific channel is queried for, only deliver status for that channel */
+			if (zapchanquery > 0 && tmp->channel != zapchanquery)
+				continue;
+
+			channels++;
+			if (tmp->owner) {
+				/* Add data if we have a current call */
+				astman_append(s,
+					"Event: ZapShowChannels\r\n"
+					"ZapChannel: %d\r\n"
+					"Channel: %s\r\n"
+					"Uniqueid: %s\r\n"
+					"AccountCode: %s\r\n"
+					"Signalling: %s\r\n"
+					"SignallingCode: %d\r\n"
+					"Context: %s\r\n"
+					"DND: %s\r\n"
+					"Alarm: %s\r\n"
+					"%s"
+					"\r\n",
+					tmp->channel, 
+					tmp->owner->name,
+					tmp->owner->uniqueid,
+					tmp->owner->accountcode,
+					sig2str(tmp->sig), 
+					tmp->sig,
+					tmp->context, 
+					tmp->dnd ? "Enabled" : "Disabled",
+					alarm2str(alarm), idText);
+			} else {
+				astman_append(s,
+					"Event: ZapShowChannels\r\n"
+					"ZapChannel: %d\r\n"
+					"Signalling: %s\r\n"
+					"SignallingCode: %d\r\n"
+					"Context: %s\r\n"
+					"DND: %s\r\n"
+					"Alarm: %s\r\n"
+					"%s"
+					"\r\n",
+					tmp->channel, sig2str(tmp->sig), tmp->sig, 
+					tmp->context, 
+					tmp->dnd ? "Enabled" : "Disabled",
+					alarm2str(alarm), idText);
+			}
 		} 
 
 		tmp = tmp->next;
@@ -11859,8 +11899,10 @@ static int action_zapshowchannels(struct mansession *s, const struct message *m)
 	astman_append(s, 
 		"Event: ZapShowChannelsComplete\r\n"
 		"%s"
+		"Items: %d\r\n"
 		"\r\n", 
-		idText);
+		idText,
+		channels);
 	return 0;
 }
 
