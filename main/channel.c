@@ -736,13 +736,18 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 		 */
 		manager_event(EVENT_FLAG_CALL, "Newchannel",
 			      "Channel: %s\r\n"
-			      "State: %s\r\n"
+			      "ChannelState: %d\r\n"
+			      "ChannelStateDesc: %s\r\n"
 			      "CallerIDNum: %s\r\n"
 			      "CallerIDName: %s\r\n"
+			      "AccountCode: %s\r\n"
 			      "Uniqueid: %s\r\n",
-			      tmp->name, ast_state2str(state),
-			      S_OR(cid_num, "<unknown>"),
-			      S_OR(cid_name, "<unknown>"),
+			      tmp->name, 
+				state, 
+			      ast_state2str(state),
+			      S_OR(cid_num, ""),
+			      S_OR(cid_name, ""),
+			      tmp->accountcode,
 			      tmp->uniqueid);
 	}
 
@@ -3437,7 +3442,7 @@ retrymasq:
 
 void ast_change_name(struct ast_channel *chan, char *newname)
 {
-	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", chan->name, newname, chan->uniqueid);
+	manager_event(EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", chan->name, newname, chan->uniqueid);
 	ast_string_field_set(chan, name, newname);
 }
 
@@ -3570,8 +3575,8 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_string_field_set(clone, name, masqn);
 	
 	/* Notify any managers of the change, first the masq then the other */
-	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", newn, masqn, clone->uniqueid);
-	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", orig, newn, original->uniqueid);
+	manager_event(EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", newn, masqn, clone->uniqueid);
+	manager_event(EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", orig, newn, original->uniqueid);
 
 	/* Swap the technologies */	
 	t = original->tech;
@@ -3657,7 +3662,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	snprintf(zombn, sizeof(zombn), "%s<ZOMBIE>", orig);
 	/* Mangle the name of the clone channel */
 	ast_string_field_set(clone, name, zombn);
-	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", masqn, zombn, clone->uniqueid);
+	manager_event(EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", masqn, zombn, clone->uniqueid);
 
 	/* Update the type. */
 	t_pvt = original->monitor;
@@ -3788,15 +3793,15 @@ void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char 
 	}
 	if (chan->cdr)
 		ast_cdr_setcid(chan->cdr, chan);
-	manager_event(EVENT_FLAG_CALL, "Newcallerid",
+	manager_event(EVENT_FLAG_CALL, "NewCallerid",
 				"Channel: %s\r\n"
 				"CallerIDNum: %s\r\n"
 				"CallerIDName: %s\r\n"
 				"Uniqueid: %s\r\n"
 				"CID-CallingPres: %d (%s)\r\n",
 				chan->name,
-				S_OR(chan->cid.cid_num, "<Unknown>"),
-				S_OR(chan->cid.cid_name, "<Unknown>"),
+				S_OR(chan->cid.cid_num, ""),
+				S_OR(chan->cid.cid_name, ""),
 				chan->uniqueid,
 				chan->cid.cid_pres,
 				ast_describe_caller_presentation(chan->cid.cid_pres)
@@ -3818,13 +3823,14 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 	manager_event(EVENT_FLAG_CALL,
 		      "Newstate",
 		      "Channel: %s\r\n"
-		      "State: %s\r\n"
+		      "ChannelState: %d\r\n"
+		      "ChannelStateDesc: %s\r\n"
 		      "CallerIDNum: %s\r\n"
 		      "CallerIDName: %s\r\n"
 		      "Uniqueid: %s\r\n",
-		      chan->name, ast_state2str(chan->_state),
-		      S_OR(chan->cid.cid_num, "<unknown>"),
-		      S_OR(chan->cid.cid_name, "<unknown>"),
+		      chan->name, chan->_state, ast_state2str(chan->_state),
+		      S_OR(chan->cid.cid_num, ""),
+		      S_OR(chan->cid.cid_name, ""),
 		      chan->uniqueid);
 
 	return 0;
@@ -4033,6 +4039,27 @@ int ast_channel_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 	return c0->tech->early_bridge(c0, c1);
 }
 
+/*! \brief Send manager event for bridge link and unlink events.
+	\param type	1 for core, 2 for native
+*/
+static void manager_bridge_event(int onoff, int type, struct ast_channel *c0, struct ast_channel *c1)
+{
+	manager_event(EVENT_FLAG_CALL, "Bridge",
+			"Bridgestate: %s\r\n"
+		     "Bridgetype: %s\r\n"
+		      "Channel1: %s\r\n"
+		      "Channel2: %s\r\n"
+		      "Uniqueid1: %s\r\n"
+		      "Uniqueid2: %s\r\n"
+		      "CallerID1: %s\r\n"
+		      "CallerID2: %s\r\n",
+			onoff ? "Link" : "Unlink",
+			type == 1 ? "core" : "native",
+			c0->name, c1->name, c0->uniqueid, c1->uniqueid, 
+			S_OR(c0->cid.cid_num, ""), 
+			S_OR(c1->cid.cid_num, ""));
+}
+
 /*! \brief Bridge two channels together */
 enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1,
 					  struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
@@ -4086,15 +4113,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	c0->_bridge = c1;
 	c1->_bridge = c0;
 
-	/* \todo  XXX here should check that cid_num is not NULL */
-	manager_event(EVENT_FLAG_CALL, "Link",
-		      "Channel1: %s\r\n"
-		      "Channel2: %s\r\n"
-		      "Uniqueid1: %s\r\n"
-		      "Uniqueid2: %s\r\n"
-		      "CallerID1: %s\r\n"
-		      "CallerID2: %s\r\n",
-		      c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
 
 	o0nativeformats = c0->nativeformats;
 	o1nativeformats = c1->nativeformats;
@@ -4111,6 +4129,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		ast_set_flag(c1, AST_FLAG_END_DTMF_ONLY);
 	if (!c1->tech->send_digit_begin)
 		ast_set_flag(c0, AST_FLAG_END_DTMF_ONLY);
+	manager_bridge_event(1, 1, c0, c1);
 
 	for (/* ever */;;) {
 		struct timeval now = { 0, };
@@ -4247,15 +4266,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		    !(c0->generator || c1->generator)) {
 			if (ast_channel_make_compatible(c0, c1)) {
 				ast_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
-				/* \todo  XXX here should check that cid_num is not NULL */
-                                manager_event(EVENT_FLAG_CALL, "Unlink",
-					      "Channel1: %s\r\n"
-					      "Channel2: %s\r\n"
-					      "Uniqueid1: %s\r\n"
-					      "Uniqueid2: %s\r\n"
-					      "CallerID1: %s\r\n"
-					      "CallerID2: %s\r\n",
-					      c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
+				manager_bridge_event(0, 1, c0, c1);
 				return AST_BRIDGE_FAILED;
 			}
 			o0nativeformats = c0->nativeformats;
