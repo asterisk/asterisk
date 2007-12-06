@@ -68,6 +68,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/version.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/version.h"
 #include "asterisk/term.h"
 #include "asterisk/astobj2.h"
 
@@ -1114,7 +1115,7 @@ static char mandescr_ping[] =
 
 static int action_ping(struct mansession *s, const struct message *m)
 {
-	astman_send_response(s, m, "Pong", NULL);
+	astman_send_response(s, m, "Success", "Ping: Pong\r\n");
 	return 0;
 }
 
@@ -1483,9 +1484,9 @@ static int action_events(struct mansession *s, const struct message *m)
 
 	res = set_eventmask(s, mask);
 	if (res > 0)
-		astman_send_response(s, m, "Events On", NULL);
+		astman_send_response(s, m, "Success", "Events: On\r\n");
 	else if (res == 0)
-		astman_send_response(s, m, "Events Off", NULL);
+		astman_send_response(s, m, "Success", "Events: Off\r\n");
 
 	return 0;
 }
@@ -1646,6 +1647,7 @@ static int action_status(struct mansession *s, const struct message *m)
 	char bridge[256];
 	struct timeval now = ast_tvnow();
 	long elapsed_seconds = 0;
+	int channels = 0;
 	int all = ast_strlen_zero(name); /* set if we want all channels */
 	const char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
@@ -1663,10 +1665,12 @@ static int action_status(struct mansession *s, const struct message *m)
 		}
 	}
 	astman_send_ack(s, m, "Channel status will follow");
+
 	/* if we look by name, we break after the first iteration */
 	while (c) {
+		channels++;
 		if (c->_bridge)
-			snprintf(bridge, sizeof(bridge), "Link: %s\r\n", c->_bridge->name);
+			snprintf(bridge, sizeof(bridge), "BridgedChannel: %s\r\nBridgedUniqueid: %s\r\n", c->_bridge->name, c->_bridge->uniqueid);
 		else
 			bridge[0] = '\0';
 		if (c->pbx) {
@@ -1679,8 +1683,9 @@ static int action_status(struct mansession *s, const struct message *m)
 			"Channel: %s\r\n"
 			"CallerIDNum: %s\r\n"
 			"CallerIDName: %s\r\n"
-			"Account: %s\r\n"
-			"State: %s\r\n"
+			"Accountcode: %s\r\n"
+			"ChannelState: %d\r\n"
+			"ChannelStateDesc: %s\r\n"
 			"Context: %s\r\n"
 			"Extension: %s\r\n"
 			"Priority: %d\r\n"
@@ -1690,9 +1695,10 @@ static int action_status(struct mansession *s, const struct message *m)
 			"%s"
 			"\r\n",
 			c->name,
-			S_OR(c->cid.cid_num, "<unknown>"),
-			S_OR(c->cid.cid_name, "<unknown>"),
+			S_OR(c->cid.cid_num, ""),
+			S_OR(c->cid.cid_name, ""),
 			c->accountcode,
+			c->_state,
 			ast_state2str(c->_state), c->context,
 			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, idText);
 		} else {
@@ -1722,7 +1728,8 @@ static int action_status(struct mansession *s, const struct message *m)
 	astman_append(s,
 	"Event: StatusComplete\r\n"
 	"%s"
-	"\r\n",idText);
+	"Items: %d\r\n"
+	"\r\n",idText, channels);
 	return 0;
 }
 
@@ -2485,8 +2492,10 @@ static int process_message(struct mansession *s, const struct message *m)
 	AST_RWLIST_UNLOCK(&actions);
 
 	if (!tmp) {
+		char buf[BUFSIZ];
+		snprintf(buf, sizeof(buf), "Invalid/unknown command: %s. Use Action: ListCommands to show available commands.", action);
 		ast_mutex_lock(&s->__lock);
-		astman_send_error(s, m, "Invalid/unknown command. Use Action: ListCommands to show available commands.");
+		astman_send_error(s, m, buf);
 		ast_mutex_unlock(&s->__lock);
 	}
 	if (ret)
@@ -3625,6 +3634,8 @@ static int __init_manager(int reload)
 	if (newhttptimeout > 0)
 		httptimeout = newhttptimeout;
 
+	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Module: Manager\r\nStatus: %s\r\nMessage: Manager reload Requested\r\n", manager_enabled ? "Enabled" : "Disabled");
+
 	server_start(&ami_desc);
 	if (ssl_setup(amis_desc.tls_cfg))
 		server_start(&amis_desc);
@@ -3638,6 +3649,5 @@ int init_manager(void)
 
 int reload_manager(void)
 {
-	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Message: Reload Requested\r\n");
 	return __init_manager(1);
 }
