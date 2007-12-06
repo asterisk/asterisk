@@ -1893,7 +1893,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				"Meetme: %s\r\n"
 				"Usernum: %d\r\n"
 				"CallerIDnum: %s\r\n"
-			      	"CallerIDname: %s\r\n"
+			      	"CallerIDname: %s\r\n",
 			      	chan->name, chan->uniqueid, conf->confno, 
 				user->user_no,
 				S_OR(user->chan->cid.cid_num, "<unknown>"),
