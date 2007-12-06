@@ -64,6 +64,9 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 void ast_backtrace(void);
 
+/*! \brief Reload logger without rotating log files */
+int logger_reload(void);
+
 void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 	__attribute__ ((format (printf, 5, 6)));
 

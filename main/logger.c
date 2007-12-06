@@ -483,13 +483,21 @@ int reload_logger(int rotate)
 	return res;
 }
 
+/*! \brief Reload the logger module without rotating log files (also used from loader.c during
+	a full Asterisk reload) */
+int logger_reload(void)
+{
+	if(reload_logger(0))
+		return RESULT_FAILURE;
+	return RESULT_SUCCESS;
+}
+
 static int handle_logger_reload(int fd, int argc, char *argv[])
 {
-	if(reload_logger(0)) {
+	int result = logger_reload();
+	if (result == RESULT_FAILURE)
 		ast_cli(fd, "Failed to reload the logger\n");
-		return RESULT_FAILURE;
-	} else
-		return RESULT_SUCCESS;
+	return result;
 }
 
 static int handle_logger_rotate(int fd, int argc, char *argv[])
@@ -497,8 +505,8 @@ static int handle_logger_rotate(int fd, int argc, char *argv[])
 	if(reload_logger(1)) {
 		ast_cli(fd, "Failed to reload the logger and rotate log files\n");
 		return RESULT_FAILURE;
-	} else
-		return RESULT_SUCCESS;
+	}
+	return RESULT_SUCCESS;
 }
 
 /*! \brief CLI command to show logging system configuration */
