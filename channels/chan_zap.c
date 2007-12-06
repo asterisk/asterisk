@@ -3031,7 +3031,7 @@ static int zt_hangup(struct ast_channel *ast)
 		p->faxhandled = 0;
 		p->pulsedial = 0;
 		p->onhooktime = time(NULL);
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
 		p->proceeding = 0;
 		p->progress = 0;
 		p->alerting = 0;
