@@ -148,6 +148,7 @@ static int close_logger_thread;
 static FILE *eventlog;
 static FILE *qlog;
 
+/*! \brief Logging channels used in the Asterisk logging system */
 static char *levels[] = {
 	"DEBUG",
 	"EVENT",
@@ -158,6 +159,7 @@ static char *levels[] = {
 	"DTMF"
 };
 
+/*! \brief Colors used in the console for logging */
 static int colors[] = {
 	COLOR_BRGREEN,
 	COLOR_BRBLUE,
@@ -754,7 +756,7 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
         syslog(syslog_level_map[level], "%s", buf);
 }
 
-/* Print a normal log message to the channels */
+/*! \brief Print a normal log message to the channels */
 static void logger_print_normal(struct logmsg *logmsg)
 {
 	struct logchannel *chan = NULL;
@@ -840,7 +842,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 	return;
 }
 
-/* Print a verbose message to the verbosers */
+/*! \brief Print a verbose message to the verbosers */
 static void logger_print_verbose(struct logmsg *logmsg)
 {
 	struct verb *v = NULL;
@@ -854,7 +856,7 @@ static void logger_print_verbose(struct logmsg *logmsg)
 	return;
 }
 
-/* Actual logging thread */
+/*! \brief Actual logging thread */
 static void *logger_thread(void *data)
 {
 	struct logmsg *next = NULL, *msg = NULL;
@@ -1113,7 +1115,7 @@ void ast_verbose(const char *fmt, ...)
                 char date[40];
                 char *datefmt;
 
-				tv = ast_tvnow();
+		tv = ast_tvnow();
                 ast_localtime(&tv, &tm, NULL);
                 ast_strftime(date, sizeof(date), dateformat, &tm);
                 datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
