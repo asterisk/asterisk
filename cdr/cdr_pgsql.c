@@ -88,28 +88,33 @@ static int pgsql_log(struct ast_cdr *cdr)
 
 	if (connected) {
 		char *clid=NULL, *dcontext=NULL, *channel=NULL, *dstchannel=NULL, *lastapp=NULL, *lastdata=NULL;
-		char *uniqueid=NULL, *userfield=NULL;
+		char *src=NULL, *dst=NULL, *uniqueid=NULL, *userfield=NULL;
+		int pgerr;
 
 		/* Maximum space needed would be if all characters needed to be escaped, plus a trailing NULL */
 		if ((clid = alloca(strlen(cdr->clid) * 2 + 1)) != NULL)
-			PQescapeString(clid, cdr->clid, strlen(cdr->clid));
+			PQescapeStringConn(conn, clid, cdr->clid, strlen(cdr->clid), &pgerr);
 		if ((dcontext = alloca(strlen(cdr->dcontext) * 2 + 1)) != NULL)
-			PQescapeString(dcontext, cdr->dcontext, strlen(cdr->dcontext));
+			PQescapeStringConn(conn, dcontext, cdr->dcontext, strlen(cdr->dcontext), &pgerr);
 		if ((channel = alloca(strlen(cdr->channel) * 2 + 1)) != NULL)
-			PQescapeString(channel, cdr->channel, strlen(cdr->channel));
+			PQescapeStringConn(conn, channel, cdr->channel, strlen(cdr->channel), &pgerr);
 		if ((dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1)) != NULL)
-			PQescapeString(dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
+			PQescapeStringConn(conn, dstchannel, cdr->dstchannel, strlen(cdr->dstchannel), &pgerr);
 		if ((lastapp = alloca(strlen(cdr->lastapp) * 2 + 1)) != NULL)
-			PQescapeString(lastapp, cdr->lastapp, strlen(cdr->lastapp));
+			PQescapeStringConn(conn, lastapp, cdr->lastapp, strlen(cdr->lastapp), &pgerr);
 		if ((lastdata = alloca(strlen(cdr->lastdata) * 2 + 1)) != NULL)
-			PQescapeString(lastdata, cdr->lastdata, strlen(cdr->lastdata));
+			PQescapeStringConn(conn, lastdata, cdr->lastdata, strlen(cdr->lastdata), &pgerr);
 		if ((uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1)) != NULL)
-			PQescapeString(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
+			PQescapeStringConn(conn, uniqueid, cdr->uniqueid, strlen(cdr->uniqueid), &pgerr);
 		if ((userfield = alloca(strlen(cdr->userfield) * 2 + 1)) != NULL)
-			PQescapeString(userfield, cdr->userfield, strlen(cdr->userfield));
+			PQescapeStringConn(conn, userfield, cdr->userfield, strlen(cdr->userfield), &pgerr);
+		if ((src = alloca(strlen(cdr->src) * 2 + 1)) != NULL)
+			PQescapeStringConn(conn, src, cdr->src, strlen(cdr->src), &pgerr);
+		if ((dst = alloca(strlen(cdr->dst) * 2 + 1)) != NULL)
+			PQescapeStringConn(conn, dst, cdr->dst, strlen(cdr->dst), &pgerr);
 
 		/* Check for all alloca failures above at once */
-		if ((!clid) || (!dcontext) || (!channel) || (!dstchannel) || (!lastapp) || (!lastdata) || (!uniqueid) || (!userfield)) {
+		if ((!clid) || (!dcontext) || (!channel) || (!dstchannel) || (!lastapp) || (!lastdata) || (!uniqueid) || (!userfield) || (!src) || (!dst)) {
 			ast_log(LOG_ERROR, "cdr_pgsql:  Out of memory error (insert fails)\n");
 			ast_mutex_unlock(&pgsql_lock);
 			return -1;
@@ -120,7 +125,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,"
 				 "lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) VALUES"
 				 " ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%ld,%ld,'%s',%ld,'%s','%s','%s')",
-				 table,timestr,clid,cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata,
+				 table, timestr, clid, src, dst, dcontext, channel, dstchannel, lastapp, lastdata,
 				 cdr->duration,cdr->billsec,ast_cdr_disp2str(cdr->disposition),cdr->amaflags, cdr->accountcode, uniqueid, userfield);
 		
 		ast_debug(3, "cdr_pgsql: SQL command executed:  %s\n",sqlcmd);
