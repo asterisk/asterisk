@@ -6947,10 +6947,14 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		goto out;
 
 	if (!(vms.deleted = ast_calloc(vmu->maxmsg, sizeof(int)))) {
-		/* TODO: Handle memory allocation failure */
+		ast_log(LOG_ERROR, "Could not allocate memory for deleted message storage!\n");
+		cmd = ast_play_and_wait(chan, "an-error-has-occured");
+		return -1;
 	}
 	if (!(vms.heard = ast_calloc(vmu->maxmsg, sizeof(int)))) {
-		/* TODO: Handle memory allocation failure */
+		ast_log(LOG_ERROR, "Could not allocate memory for heard message storage!\n");
+		cmd = ast_play_and_wait(chan, "an-error-has-occured");
+		return -1;
 	}
 	
 	/* Set language from config to override channel language */
