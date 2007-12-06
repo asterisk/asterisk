@@ -616,8 +616,10 @@ static unsigned int inspect_module(const struct ast_module *mod)
 		return 1;
 	}
 
-	if (!ast_strlen_zero(mod->info->buildopt_sum) &&
-	    strcmp(buildopt_sum, mod->info->buildopt_sum)) {
+	if (!ast_test_flag(mod->info, AST_MODFLAG_BUILDSUM)) {
+		ast_log(LOG_WARNING, "Module '%s' was not compiled against a recent version of Asterisk and may cause instability.\n", mod->resource);
+	} else if (!ast_strlen_zero(mod->info->buildopt_sum) &&
+		   strcmp(buildopt_sum, mod->info->buildopt_sum)) {
 		ast_log(LOG_WARNING, "Module '%s' was not compiled with the same compile-time options as this version of Asterisk.\n", mod->resource);
 		ast_log(LOG_WARNING, "Module '%s' will not be initialized as it may cause instability.\n", mod->resource);
 		return 1;
