@@ -139,9 +139,8 @@ Configuration:
 
 Manager:
 
-* The CallerID fields across Manager events have now been made more
-  consistent. CallerID Number will be sent as CallerIDNum and CallerID
-  Name will be sent as CallerIDName wherever used.
+* Manager has been upgraded to version 1.1 with a lot of changes. 
+  Please check doc/manager_1_1.txt for information
 
 * The IAXpeers command output has been changed to more closely resemble the
   output of the SIPpeers command.
