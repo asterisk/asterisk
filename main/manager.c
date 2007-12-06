@@ -2358,6 +2358,72 @@ static int action_reload(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static char mandescr_coreshowchannels[] =
+"Description: List currently defined channels and some information\n"
+"             about them.\n"
+"Variables:\n"
+"          ActionID: Optional Action id for message matching.\n";
+
+/*! \brief  Manager command "CoreShowChannels" - List currently defined channels 
+ *          and some information about them. */
+static int action_coreshowchannels(struct mansession *s, const struct message *m)
+{
+	const char *actionid = astman_get_header(m, "ActionID");
+	char actionidtext[256] = "";
+	struct ast_channel *c = NULL;
+	int numchans = 0;
+	int duration, durh, durm, durs;
+
+	if (!ast_strlen_zero(actionid))
+		snprintf(actionidtext, sizeof(actionidtext), "ActionID: %s\r\n", actionid);
+
+	astman_send_listack(s, m, "Channels will follow", "start");	
+
+	while ((c = ast_channel_walk_locked(c)) != NULL) {
+		struct ast_channel *bc = ast_bridged_channel(c);
+		char durbuf[10] = "";
+
+		if (c->cdr && !ast_tvzero(c->cdr->start)) {
+			duration = (int)(ast_tvdiff_ms(ast_tvnow(), c->cdr->start) / 1000);
+			durh = duration / 3600;
+			durm = (duration % 3600) / 60;
+			durs = duration % 60;
+			snprintf(durbuf, sizeof(durbuf), "%02d:%02d:%02d", durh, durm, durs);
+		}
+
+		astman_append(s,
+			"Channel: %s\r\n"
+			"UniqueID: %s\r\n"
+			"Context: %s\r\n"
+			"Extension: %s\r\n"
+			"Priority: %d\r\n"
+			"ChannelState: %d\r\n"
+			"ChannelStateDesc: %s\r\n"
+			"Application: %s\r\n"
+			"ApplicationData: %s\r\n"
+			"CallerIDnum: %s\r\n"
+			"Duration: %s\r\n"
+			"AccountCode: %s\r\n"
+			"BridgedChannel: %s\r\n"
+			"BridgedUniqueID: %s\r\n"
+			"\r\n", c->name, c->uniqueid, c->context, c->exten, c->priority, c->_state, ast_state2str(c->_state),
+			c->appl ? c->appl : "", c->data ? S_OR(c->data, ""): "",
+			S_OR(c->cid.cid_num, ""), durbuf, S_OR(c->accountcode, ""), bc ? bc->name : "", bc ? bc->uniqueid : "");
+		ast_channel_unlock(c);
+		numchans++;
+	}
+
+	astman_append(s,
+                "Event: CoreShowChannelsComplete\r\n"
+                "EventList: Complete\r\n"
+                "ListItems: %d\r\n"
+                "%s"
+                "\r\n", numchans, actionidtext);
+
+	return 0;
+}
+
+
 /*
  * Done with the action handlers here, we start with the code in charge
  * of accepting connections and serving them.
@@ -3373,6 +3439,7 @@ static int __init_manager(int reload)
 		ast_manager_register2("CoreSettings", EVENT_FLAG_SYSTEM, action_coresettings, "Show PBX core settings (version etc)", mandescr_coresettings);
 		ast_manager_register2("CoreStatus", EVENT_FLAG_SYSTEM, action_corestatus, "Show PBX core status variables", mandescr_corestatus);
 		ast_manager_register2("Reload", EVENT_FLAG_CONFIG, action_reload, "Send a reload event", mandescr_reload);
+		ast_manager_register2("CoreShowChannels", EVENT_FLAG_SYSTEM, action_coreshowchannels, "List currently defined channels", mandescr_coreshowchannels);
 
 		ast_cli_register_multiple(cli_manager, sizeof(cli_manager) / sizeof(struct ast_cli_entry));
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);

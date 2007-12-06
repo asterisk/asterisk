@@ -4,6 +4,8 @@
 
 AMI - The manager (TCP/TLS/HTTP)
 --------------------------------
+  * Added a new action 'CoreShowChannels' to list currently defined channels
+     and some information about them. 
   * Added a new action 'SIPshowregistry' to list SIP registrations.
   * Added TLS support for the manager interface and HTTP server
   * Added the URI redirect option for the built-in HTTP server
