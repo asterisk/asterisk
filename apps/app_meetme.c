@@ -1891,13 +1891,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			        "Channel: %s\r\n"
 			        "Uniqueid: %s\r\n"
 				"Meetme: %s\r\n"
+				"Usernum: %d\r\n"
 				"CallerIDnum: %s\r\n"
 			      	"CallerIDname: %s\r\n"
-			      	"Duration: %ld\r\n",
 			      	chan->name, chan->uniqueid, conf->confno, 
-			      user->user_no,
-			      S_OR(user->chan->cid.cid_num, "<unknown>"),
-			      S_OR(user->chan->cid.cid_name, "<unknown>"),
+				user->user_no,
+				S_OR(user->chan->cid.cid_num, "<unknown>"),
+				S_OR(user->chan->cid.cid_name, "<unknown>")
+				);
 		sent_event = 1;
 	}
 
@@ -5195,6 +5196,9 @@ static void sla_destroy(void)
 		ast_mutex_unlock(&sla.lock);
 		pthread_join(sla.thread, NULL);
 	}
+
+	/* Drop any created contexts from the dialplan */
+	ast_context_destroy(NULL, sla_registrar);
 
 	ast_mutex_destroy(&sla.lock);
 	ast_cond_destroy(&sla.cond);
