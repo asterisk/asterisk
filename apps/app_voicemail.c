@@ -160,7 +160,11 @@ static struct vmstate *vmstates = NULL;
 #define INTRO "vm-intro"
 
 #define MAXMSG 100
+#ifndef IMAP_STORAGE
 #define MAXMSGLIMIT 9999
+#else
+#define MAXMSGLIMIT 255
+#endif
 
 #define BASEMAXINLINE 256
 #define BASELINELEN 72
@@ -2560,6 +2564,10 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	char dest[256];
 	struct vm_state *sendvms = NULL, *destvms = NULL;
 	char messagestring[10]; /*I guess this could be a problem if someone has more than 999999999 messages...*/
+	if(msgnum >= recip->maxmsg) {
+		ast_log(LOG_WARNING, "Unable to copy mail, mailbox %s is full\n", recip->mailbox);
+		return -1;
+	}
 	if(!(sendvms = get_vm_state_by_imapuser(vmu->imapuser, 2)))
 	{
 		ast_log(LOG_ERROR, "Couldn't get vm_state for originator's mailbox!!\n");
@@ -3003,6 +3011,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		if (vms->quota_limit && vms->quota_usage >= vms->quota_limit) {
 			if(option_debug)
 				ast_log(LOG_DEBUG, "*** QUOTA EXCEEDED!! %u >= %u\n", vms->quota_usage, vms->quota_limit);
+			ast_play_and_wait(chan, "vm-mailboxfull");
+			return -1;
+		}
+		/* Check if we have exceeded maxmsg */
+		if (msgnum >= vmu->maxmsg) {
+			ast_log(LOG_WARNING, "Unable to leave message since we will exceed the maximum number of messages allowed (%u > %u)\n", msgnum, vmu->maxmsg);
 			ast_play_and_wait(chan, "vm-mailboxfull");
 			return -1;
 		}
