@@ -98,7 +98,6 @@ struct ast_udptl {
 	struct sockaddr_in us;
 	struct sockaddr_in them;
 	int *ioid;
-	uint16_t seqno;
 	struct sched_context *sched;
 	struct io_context *io;
 	void *data;
@@ -336,7 +335,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 					s->f[ifp_no].subclass = AST_MODEM_T38;
 
 					s->f[ifp_no].mallocd = 0;
-					//s->f[ifp_no].???seq_no = seq_no - i;
+					s->f[ifp_no].seqno = seq_no - i;
 					s->f[ifp_no].datalen = lengths[i - 1];
 					s->f[ifp_no].data = (uint8_t *) bufs[i - 1];
 					s->f[ifp_no].offset = 0;
@@ -347,23 +346,6 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 					ifp_no++;
 				}
 			}
-		}
-		/* If packets are received out of sequence, we may have already processed this packet from the error
-		   recovery information in a packet already received. */
-		if (seq_no >= s->rx_seq_no) {
-			/* Decode the primary IFP packet */
-			s->f[ifp_no].frametype = AST_FRAME_MODEM;
-			s->f[ifp_no].subclass = AST_MODEM_T38;
-			
-			s->f[ifp_no].mallocd = 0;
-			//s->f[ifp_no].???seq_no = seq_no;
-			s->f[ifp_no].datalen = ifp_len;
-			s->f[ifp_no].data = (uint8_t *) ifp;
-			s->f[ifp_no].offset = 0;
-			s->f[ifp_no].src = "UDPTL";
-			if (ifp_no > 0)
-				AST_LIST_NEXT(&s->f[ifp_no - 1], frame_list) = &s->f[ifp_no];
-			AST_LIST_NEXT(&s->f[ifp_no], frame_list) = NULL;
 		}
 	}
 	else
@@ -455,7 +437,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 				s->f[ifp_no].subclass = AST_MODEM_T38;
 			
 				s->f[ifp_no].mallocd = 0;
-				//s->f[ifp_no].???seq_no = j;
+				s->f[ifp_no].seqno = j;
 				s->f[ifp_no].datalen = s->rx[l].buf_len;
 				s->f[ifp_no].data = s->rx[l].buf;
 				s->f[ifp_no].offset = 0;
@@ -466,12 +448,17 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 				ifp_no++;
 			}
 		}
+	}
+
+	/* If packets are received out of sequence, we may have already processed this packet from the error
+	   recovery information in a packet already received. */
+	if (seq_no >= s->rx_seq_no) {
 		/* Decode the primary IFP packet */
 		s->f[ifp_no].frametype = AST_FRAME_MODEM;
 		s->f[ifp_no].subclass = AST_MODEM_T38;
-			
+		
 		s->f[ifp_no].mallocd = 0;
-		//s->f[ifp_no].???seq_no = j;
+		s->f[ifp_no].seqno = seq_no;
 		s->f[ifp_no].datalen = ifp_len;
 		s->f[ifp_no].data = (uint8_t *) ifp;
 		s->f[ifp_no].offset = 0;
@@ -479,10 +466,12 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 		if (ifp_no > 0)
 			AST_LIST_NEXT(&s->f[ifp_no - 1], frame_list) = &s->f[ifp_no];
 		AST_LIST_NEXT(&s->f[ifp_no], frame_list) = NULL;
+
+		ifp_no++;
 	}
 
 	s->rx_seq_no = seq_no + 1;
-	return 0;
+	return ifp_no;
 }
 /*- End of function --------------------------------------------------------*/
 
@@ -675,7 +664,8 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 #if 0
 	printf("Got UDPTL packet from %s:%d (seq %d, len = %d)\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), seqno, res);
 #endif
-	udptl_rx_packet(udptl, udptl->rawdata + AST_FRIENDLY_OFFSET, res);
+	if (udptl_rx_packet(udptl, udptl->rawdata + AST_FRIENDLY_OFFSET, res) < 1)
+		return &ast_null_frame;
 
 	return &udptl->f[0];
 }
@@ -784,7 +774,6 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struc
 		udptl->tx[i].buf_len = -1;
 	}
 
-	udptl->seqno = ast_random() & 0xffff;
 	udptl->them.sin_family = AF_INET;
 	udptl->us.sin_family = AF_INET;
 
@@ -882,6 +871,7 @@ void ast_udptl_destroy(struct ast_udptl *udptl)
 
 int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 {
+	int seq;
 	int len;
 	int res;
 	uint8_t buf[LOCAL_FAX_MAX_DATAGRAM];
@@ -899,6 +889,9 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 		return -1;
 	}
 
+	/* Save seq_no for debug output because udptl_build_packet increments it */
+	seq = s->tx_seq_no & 0xFFFF;
+
 	/* Cook up the UDPTL packet, with the relevant EC info. */
 	len = udptl_build_packet(s, buf, f->data, f->datalen);
 
@@ -911,7 +904,7 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 		if (udptl_debug_test_addr(&s->them))
 			ast_verbose("Sent UDPTL packet to %s:%d (type %d, seq %d, len %d)\n",
 					ast_inet_ntoa(s->them.sin_addr),
-					ntohs(s->them.sin_port), 0, s->seqno, len);
+					ntohs(s->them.sin_port), 0, seq, len);
 	}
 		
 	return 0;
