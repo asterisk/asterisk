@@ -1912,7 +1912,7 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 		return winner;
 	}
 
-	for (i = 0; i < 25; i++) {
+	for (i = 0; i < res; i++) {
 		struct ast_epoll_data *aed = ev[i].data.ptr;
 
 		if (!ev[i].events || !aed)
