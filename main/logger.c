@@ -616,6 +616,15 @@ static int reload_logger(int rotate)
 	return res;
 }
 
+/*! \brief Reload the logger module without rotating log files (also used from loader.c during
+	a full Asterisk reload) */
+int logger_reload(void)
+{
+	if(reload_logger(0))
+		return RESULT_FAILURE;
+	return RESULT_SUCCESS;
+}
+
 static char *handle_logger_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -631,8 +640,8 @@ static char *handle_logger_reload(struct ast_cli_entry *e, int cmd, struct ast_c
 	if (reload_logger(0)) {
 		ast_cli(a->fd, "Failed to reload the logger\n");
 		return CLI_FAILURE;
-	} else
-		return CLI_SUCCESS;
+	}
+	return CLI_SUCCESS;
 }
 
 static char *handle_logger_rotate(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -650,8 +659,8 @@ static char *handle_logger_rotate(struct ast_cli_entry *e, int cmd, struct ast_c
 	if (reload_logger(1)) {
 		ast_cli(a->fd, "Failed to reload the logger and rotate log files\n");
 		return CLI_FAILURE;
-	} else
-		return CLI_SUCCESS;
+	} 
+	return CLI_SUCCESS;
 }
 
 /*! \brief CLI command to show logging system configuration */
