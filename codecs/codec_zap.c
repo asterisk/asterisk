@@ -146,6 +146,15 @@ static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		/* Copy at front of buffer */
 		hdr->srcoffset = 0;
 
+	/* if we get handed a G.729 frame that is not a multiple of
+	   10 bytes (10 milliseconds), then it has a CNG frame and
+	   we need to avoid sending that to the transcoder
+	*/
+	if ((f->subclass == AST_FORMAT_G729A) && ((f->datalen % 10) != 0)) {
+		f->datalen -= f->datalen % 10;
+		f->samples = f->datalen * 8;
+	}
+
 	if (hdr->srclen + f->datalen > sizeof(hdr->srcdata)) {
 		ast_log(LOG_WARNING, "Out of space for codec translation!\n");
 		return -1;
