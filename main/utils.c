@@ -820,6 +820,7 @@ static void *dummy_start(void *data)
 	struct thr_arg a = *((struct thr_arg *) data);	/* make a local copy */
 #ifdef DEBUG_THREADS
 	struct thr_lock_info *lock_info;
+	pthread_mutexattr_t mutex_attr;
 #endif
 
 	/* note that even though data->name is a pointer to allocated memory,
@@ -837,7 +838,11 @@ static void *dummy_start(void *data)
 
 	lock_info->thread_id = pthread_self();
 	lock_info->thread_name = strdup(a.name);
-	pthread_mutex_init(&lock_info->lock, NULL);
+
+	pthread_mutexattr_init(&mutex_attr);
+	pthread_mutexattr_settype(&mutex_attr, AST_MUTEX_KIND);
+	pthread_mutex_init(&lock_info->lock, &mutex_attr);
+	pthread_mutexattr_destroy(&mutex_attr);
 
 	pthread_mutex_lock(&lock_infos_lock.mutex); /* Intentionally not the wrapper */
 	AST_LIST_INSERT_TAIL(&lock_infos, lock_info, entry);
