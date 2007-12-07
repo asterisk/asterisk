@@ -301,7 +301,7 @@ static int lua_get_variable_value(lua_State *L)
  * seen in extensions.lua.
  *
  * \code
- * channel.variable:set()
+ * channel.variable:set("value")
  * \endcode
  */
 static int lua_set_variable_value(lua_State *L)

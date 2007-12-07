@@ -78,9 +78,9 @@ TRUNKMSD = 1
 --   channel.func_name(1,2,3):set("value")
 --   value = channel.func_name(1,2,3):get()
 --
---   channel["func_name(1|2|3)"]:set("value")
---   channel["func_name(1|2|3)"] = "value"
---   value = channel["func_name(1|2|3)"]:get()
+--   channel["func_name(1,2,3)"]:set("value")
+--   channel["func_name(1,2,3)"] = "value"
+--   value = channel["func_name(1,2,3)"]:get()
 --
 -- Note the use of the ':' operator to access the get() and set()
 -- methods.
