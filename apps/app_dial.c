@@ -1159,7 +1159,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 			strcpy(di->interface, interface);
 			AST_LIST_INSERT_TAIL(dialed_interfaces, di, list);
-		} else {
+		} else if (dialed) {
 			AST_LIST_UNLOCK(dialed_interfaces);
 			ast_log(LOG_WARNING, "Skipping dialing interface '%s' again since it has already been dialed\n", di->interface);
 			fulldial++;
