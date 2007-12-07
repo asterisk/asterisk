@@ -59,9 +59,23 @@ static AST_RWLIST_HEAD_STATIC(aslist, asent);
 
 static pthread_t asthread = AST_PTHREADT_NULL;
 
+static void defer_frame(struct ast_channel *chan, struct ast_frame *f)
+{
+	struct ast_frame *dup_f;
+	struct asent *as;
+
+	AST_RWLIST_WRLOCK(&aslist);
+	AST_RWLIST_TRAVERSE(&aslist, as, list) {
+		if (as->chan != chan)
+			continue;
+		if ((dup_f = ast_frdup(f)))
+			AST_LIST_INSERT_TAIL(&as->dtmf_frames, dup_f, frame_list);
+	}
+	AST_RWLIST_UNLOCK(&aslist);
+}
+
 static void *autoservice_run(void *ign)
 {
-
 	for (;;) {
 		struct ast_channel *mons[MAX_AUTOMONS], *chan;
 		struct asent *as;
@@ -82,8 +96,18 @@ static void *autoservice_run(void *ign)
 			struct ast_frame *f = ast_read(chan);
 	
 			if (!f) {
-				/* NULL means we got a hangup*/
-				ast_queue_hangup(chan);
+				struct ast_frame hangup_frame = { 0, };
+				/* No frame means the channel has been hung up.
+				 * A hangup frame needs to be queued here as ast_waitfor() may
+				 * never return again for the condition to be detected outside
+				 * of autoservice.  So, we'll leave a HANGUP queued up so the
+				 * thread in charge of this channel will know. */
+
+				hangup_frame.frametype = AST_FRAME_CONTROL;
+				hangup_frame.subclass = AST_CONTROL_HANGUP;
+
+				defer_frame(chan, &hangup_frame);
+
 				continue;
 			}
 			
@@ -98,18 +122,8 @@ static void *autoservice_run(void *ign)
 			case AST_FRAME_TEXT:
 			case AST_FRAME_IMAGE:
 			case AST_FRAME_HTML:
-			{
-				struct ast_frame *dup_f;
-
-				AST_RWLIST_WRLOCK(&aslist);
-				AST_RWLIST_TRAVERSE(&aslist, as, list) {
-					if (as->chan != chan)
-						continue;
-					if ((dup_f = ast_frdup(f)))
-						AST_LIST_INSERT_TAIL(&as->dtmf_frames, dup_f, frame_list);
-				}
-				AST_RWLIST_UNLOCK(&aslist);
-			}
+				defer_frame(chan, f);
+				break;
 
 			/* Throw these frames away */
 			case AST_FRAME_VOICE:
