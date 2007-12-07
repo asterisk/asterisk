@@ -90,8 +90,11 @@ static void *autoservice_run(void *ign)
 		if (chan) {
 			struct ast_frame *f = ast_read(chan);
 	
-			if (!f)
+			if (!f) {
+				/* NULL means we got a hangup*/
+				ast_queue_hangup(chan);
 				continue;
+			}
 			
 			/* Do not add a default entry in this switch statement.  Each new
 			 * frame type should be addressed directly as to whether it should
