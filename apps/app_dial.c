@@ -1332,7 +1332,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		char *interface = ast_strdupa(number);
 		char *tech = strsep(&number, "/");
 		/* find if we already dialed this interface */
-		int dialed = 0;
 		struct ast_dialed_interface *di;
 		AST_LIST_HEAD(, ast_dialed_interface) *dialed_interfaces;
 		num_dialed++;
@@ -1355,49 +1354,67 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 		ast_copy_string(numsubst, number, sizeof(numsubst));
 		/* Request the peer */
-		if (!(datastore = ast_channel_datastore_find(chan, &dialed_interface_info, NULL))) {
-			if(!(datastore = ast_channel_datastore_alloc(&dialed_interface_info, NULL))) {
+
+		ast_channel_lock(chan);
+		datastore = ast_channel_datastore_find(chan, &dialed_interface_info, NULL);
+		ast_channel_unlock(chan);
+
+		if (datastore)
+			dialed_interfaces = datastore->data;
+		else {
+			if (!(datastore = ast_channel_datastore_alloc(&dialed_interface_info, NULL))) {
 				ast_log(LOG_WARNING, "Unable to create channel datastore for dialed interfaces. Aborting!\n"); 
 				free(tmp);
 				goto out;
 			}
-			else {
-				datastore->inheritance = DATASTORE_INHERIT_FOREVER;
-				if((dialed_interfaces = ast_calloc(1, sizeof(*dialed_interfaces)))) {
-					datastore->data = dialed_interfaces;
-					AST_LIST_HEAD_INIT(dialed_interfaces);
-					ast_channel_datastore_add(chan, datastore);
-				} else {
-					free(tmp);
-					goto out;
-				}
+
+			datastore->inheritance = DATASTORE_INHERIT_FOREVER;
+
+			if (!(dialed_interfaces = ast_calloc(1, sizeof(*dialed_interfaces)))) {
+				free(tmp);
+				goto out;
 			}
-		} else 
-			dialed_interfaces = datastore->data;
+
+			datastore->data = dialed_interfaces;
+			AST_LIST_HEAD_INIT(dialed_interfaces);
+
+			ast_channel_lock(chan);
+			ast_channel_datastore_add(chan, datastore);
+			ast_channel_unlock(chan);
+		}
+
 		AST_LIST_LOCK(dialed_interfaces);
 		AST_LIST_TRAVERSE(dialed_interfaces, di, list) {
-			/* XXX case sensitive??? */
-			if(!strcasecmp(di->interface, interface)) {
-				dialed = 1;
+			if (!strcasecmp(di->interface, interface)) {
+				ast_log(LOG_WARNING, "Skipping dialing interface '%s' again since it has already been dialed\n", 
+					di->interface);
 				break;
 			}
 		}
-		if(!dialed && strcasecmp(tech, "Local")) {
-			if(!(di = ast_calloc(1, sizeof(*di) + strlen(interface)))) {
+		AST_LIST_UNLOCK(dialed_interfaces);
+
+		if (di) {
+			fulldial++;
+			free(tmp);
+			continue;
+		}
+
+		/* It is always ok to dial a Local interface.  We only keep track of
+		 * which "real" interfaces have been dialed.  The Local channel will
+		 * inherit this list so that if it ends up dialing a real interface,
+		 * it won't call one that has already been called. */
+		if (strcasecmp(tech, "Local")) {
+			if (!(di = ast_calloc(1, sizeof(*di) + strlen(interface)))) {
 				AST_LIST_UNLOCK(dialed_interfaces);
 				free(tmp);
 				goto out;
 			}
 			strcpy(di->interface, interface);
+
+			AST_LIST_LOCK(dialed_interfaces);
 			AST_LIST_INSERT_TAIL(dialed_interfaces, di, list);
-		} else if (dialed) {
-			ast_log(LOG_WARNING, "Skipping dialing interface '%s' again since it has already been dialed\n", di->interface);
 			AST_LIST_UNLOCK(dialed_interfaces);
-			fulldial++;
-			free(tmp);
-			continue;
 		}
-		AST_LIST_UNLOCK(dialed_interfaces);
 
 		tc = ast_request(tech, chan->nativeformats, numsubst, &cause);
 		if (!tc) {
