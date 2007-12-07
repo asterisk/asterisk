@@ -67,6 +67,8 @@ static oid asterisk_oid[] = { 1, 3, 6, 1, 4, 1, 22736, 1 };
 #define		ASTCONFRELOADTIME		2
 #define		ASTCONFPID				3
 #define		ASTCONFSOCKET			4
+#define		ASTCONFACTIVECALLS	5
+#define		ASTCONFPROCESSEDCALLS   6
 
 #define	ASTMODULES				3
 #define		ASTMODCOUNT				1
@@ -592,6 +594,12 @@ static u_char *ast_var_Config(struct variable *vp, oid *name, size_t *length,
 	case ASTCONFSOCKET:
 		*var_len = strlen(ast_config_AST_SOCKET);
 		return (u_char *)ast_config_AST_SOCKET;
+	case ASTCONFACTIVECALLS:
+		long_ret = ast_active_calls();
+		return (u_char *)&long_ret;
+	case ASTCONFPROCESSEDCALLS:
+		long_ret = ast_processed_calls();
+		return (u_char *)&long_ret;
 	default:
 		break;
 	}
@@ -723,6 +731,8 @@ static void init_asterisk_mib(void)
 		{ASTCONFRELOADTIME,      ASN_TIMETICKS, RONLY, ast_var_Config,              2, {ASTCONFIGURATION, ASTCONFRELOADTIME}},
 		{ASTCONFPID,             ASN_INTEGER,   RONLY, ast_var_Config,              2, {ASTCONFIGURATION, ASTCONFPID}},
 		{ASTCONFSOCKET,          ASN_OCTET_STR, RONLY, ast_var_Config,              2, {ASTCONFIGURATION, ASTCONFSOCKET}},
+		{ASTCONFACTIVECALLS,     ASN_GAUGE,   	RONLY, ast_var_Config,              2, {ASTCONFIGURATION, ASTCONFACTIVECALLS}},
+		{ASTCONFPROCESSEDCALLS,  ASN_INTEGER,   RONLY, ast_var_Config,              2, {ASTCONFIGURATION, ASTCONFPROCESSEDCALLS}},
 		{ASTMODCOUNT,            ASN_INTEGER,   RONLY, ast_var_Modules ,            2, {ASTMODULES, ASTMODCOUNT}},
 		{ASTINDCOUNT,            ASN_INTEGER,   RONLY, ast_var_indications,         2, {ASTINDICATIONS, ASTINDCOUNT}},
 		{ASTINDCURRENT,          ASN_OCTET_STR, RONLY, ast_var_indications,         2, {ASTINDICATIONS, ASTINDCURRENT}},

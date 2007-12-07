@@ -416,6 +416,7 @@ static struct ast_event_sub *device_state_sub;
 
 AST_MUTEX_DEFINE_STATIC(maxcalllock);
 static int countcalls;
+static int totalcalls;
 
 static AST_RWLIST_HEAD_STATIC(acf_root, ast_custom_function);
 
@@ -3472,8 +3473,10 @@ static int increase_call_count(const struct ast_channel *c)
 	}
 #endif
 		
-	if (!failed)
+	if (!failed) {
 		countcalls++;
+		totalcalls++;
+	}
 	ast_mutex_unlock(&maxcalllock);
 
 	return failed;
@@ -3558,6 +3561,11 @@ enum ast_pbx_result ast_pbx_run(struct ast_channel *c)
 int ast_active_calls(void)
 {
 	return countcalls;
+}
+
+int ast_processed_calls(void)
+{
+	return totalcalls;
 }
 
 int pbx_set_autofallthrough(int newval)

@@ -892,6 +892,11 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
  * \brief Retrieve the number of active calls
  */
 int ast_active_calls(void);
+
+/*! 
+ * \brief Retrieve the total number of calls processed through the PBX since last restart
+ */
+int ast_processed_calls(void);
 	
 /*!
  * \brief executes a read operation on a function 

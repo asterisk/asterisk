@@ -570,6 +570,61 @@ static char *handle_modlist(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 #undef MODLIST_FORMAT
 #undef MODLIST_FORMAT2
 
+static char *handle_showcalls(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct timeval curtime = ast_tvnow();
+	int showuptime, printsec;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show calls [uptime]";
+		e->usage =
+			"Usage: core show calls [uptime] [seconds]\n"
+			"       Lists number of currently active calls and total number of calls\n"
+			"       processed through PBX since last restart. If 'uptime' is specified\n"
+			"       the system uptime is also displayed. If 'seconds' is specified in\n"
+			"       addition to 'uptime', the system uptime is displayed in seconds.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		if (a->pos != e->args)
+			return NULL;
+		return a->n == 0  ? ast_strdup("seconds") : NULL;
+	}
+
+	/* regular handler */
+	if (a->argc >= e->args && !strcasecmp(a->argv[e->args-1],"uptime")) {
+		showuptime = 1;
+
+		if (a->argc == e->args+1 && !strcasecmp(a->argv[e->args],"seconds"))
+			printsec = 1;
+		else if (a->argc == e->args)
+			printsec = 0;
+		else
+			return CLI_SHOWUSAGE;
+	} else if (a->argc == e->args-1) {
+		showuptime = 0;
+		printsec = 0;
+	} else
+		return CLI_SHOWUSAGE;
+
+	if (option_maxcalls) {
+		ast_cli(a->fd, "%d of %d max active call%s (%5.2f%% of capacity)\n",
+		   ast_active_calls(), option_maxcalls, ESS(ast_active_calls()),
+		   ((double)ast_active_calls() / (double)option_maxcalls) * 100.0);
+	} else {
+		ast_cli(a->fd, "%d active call%s\n", ast_active_calls(), ESS(ast_active_calls()));
+	}
+   
+	ast_cli(a->fd, "%d call%s processed\n", ast_processed_calls(), ESS(ast_processed_calls()));
+
+	if (ast_startuptime.tv_sec && showuptime) {
+		print_uptimestr(a->fd, ast_tvsub(curtime, ast_startuptime), "System uptime", printsec);
+	}
+
+	return RESULT_SUCCESS;
+}
+
 static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT_STRING  "%-20.20s %-20.20s %-7.7s %-30.30s\n"
@@ -680,6 +735,8 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				((double)ast_active_calls() / (double)option_maxcalls) * 100.0);
 		else
 			ast_cli(fd, "%d active call%s\n", ast_active_calls(), ESS(ast_active_calls()));
+
+		ast_cli(fd, "%d call%s processed\n", ast_processed_calls(), ESS(ast_processed_calls()));
 	}
 	return CLI_SUCCESS;
 	
@@ -1123,6 +1180,8 @@ static struct ast_cli_entry cli_cli[] = {
 	AST_CLI_DEFINE(handle_nodebugchan_deprecated, "Disable debugging on channel(s)"),
 
 	AST_CLI_DEFINE(handle_chanlist, "Display information on channels"),
+
+	AST_CLI_DEFINE(handle_showcalls, "Display information on calls"),
 
 	AST_CLI_DEFINE(handle_showchan, "Display information on a specific channel"),
 
