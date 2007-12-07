@@ -10525,7 +10525,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		 * Auth header's username instead of the 'From' name, if available.
 		 * Do not enable this block unless you understand the side effects (if any!)
 		 * Note, the search for "username" should be done in a more robust way.
-		 * Note2, at the moment we chech both fields, though maybe we should
+		 * Note2, at the moment we check both fields, though maybe we should
 		 * pick one or another depending on the request ? XXX
 		 */
 		const char *hdr = get_header(req, "Authorization");
