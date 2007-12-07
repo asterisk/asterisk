@@ -187,7 +187,7 @@ static inline void ast_reentrancy_unlock(ast_mutex_t *p_ast_mutex)
 static inline void ast_reentrancy_init(ast_mutex_t *p_ast_mutex)
 {
 	int i;
-	static pthread_mutexattr_t reentr_attr;
+	pthread_mutexattr_t reentr_attr;
 
 	for (i = 0; i < AST_MAX_REENTRANCY; i++) {
 		p_ast_mutex->file[i] = NULL;
