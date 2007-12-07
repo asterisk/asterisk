@@ -213,7 +213,7 @@ static inline int __ast_pthread_mutex_init(int track, const char *filename, int 
 						const char *mutex_name, ast_mutex_t *t) 
 {
 	int res;
-	static pthread_mutexattr_t  attr;
+	pthread_mutexattr_t  attr;
 
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
 
