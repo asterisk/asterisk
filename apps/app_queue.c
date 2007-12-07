@@ -2851,9 +2851,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			}
 			strcpy(di->interface, cur->interface);
 			AST_LIST_INSERT_TAIL(dialed_interfaces, di, list);
-		} else {
-			if (di)
-				ast_log(LOG_DEBUG, "Skipping dialing interface '%s' since it has already been dialed\n", di->interface);
+		} else if (dialed) {
+			ast_log(LOG_DEBUG, "Skipping dialing interface '%s' since it has already been dialed\n", di->interface);
 			AST_LIST_UNLOCK(dialed_interfaces);
 			free(tmp);
 			continue;
