@@ -38,8 +38,8 @@ extern "C" {
  * for the missing bits.
  */
 #ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>		/* include early to override inet_ntoa */
 #include <netinet/in.h>
+#include <arpa/inet.h>		/* include early to override inet_ntoa */
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
