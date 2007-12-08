@@ -160,8 +160,7 @@ static struct ast_comment *ALLOC_COMMENT(const char *buffer)
 /* I need to keep track of each config file, and all its inclusions,
    so that we can track blank lines in each */
 
-struct inclfile
-{
+struct inclfile {
 	char *fname;
 	int lineno;
 };
@@ -171,8 +170,7 @@ static int hash_string(const void *obj, const int flags)
 	char *str = ((struct inclfile*)obj)->fname;
 	int total;
 
-	for (total=0; *str; str++)
-	{
+	for (total=0; *str; str++) {
 		unsigned int tmp = total;
 		total <<= 1; /* multiply by 2 */
 		total += tmp; /* multiply by 3 */
@@ -361,8 +359,7 @@ void ast_include_rename(struct ast_config *conf, const char *from_file, const ch
 struct ast_config_include *ast_include_find(struct ast_config *conf, const char *included_file)
 {
 	struct ast_config_include *x;
-	for (x=conf->includes;x;x=x->next)
-	{
+	for (x=conf->includes;x;x=x->next) {
 		if (strcmp(x->included_file,included_file) == 0)
 			return x;
 	}
@@ -454,18 +451,10 @@ static struct ast_variable *variable_clone(const struct ast_variable *old)
 static void move_variables(struct ast_category *old, struct ast_category *new)
 {
 	struct ast_variable *var = old->root;
+
 	old->root = NULL;
-#if 1
 	/* we can just move the entire list in a single op */
 	ast_variable_append(new, var);
-#else
-	while (var) {
-		struct ast_variable *next = var->next;
-		var->next = NULL;
-		ast_variable_append(new, var);
-		var = next;
-	}
-#endif
 }
 
 struct ast_category *ast_category_new(const char *name, const char *in_file, int lineno) 
@@ -521,6 +510,7 @@ void ast_category_append(struct ast_config *config, struct ast_category *categor
 static void ast_destroy_comments(struct ast_category *cat)
 {
 	struct ast_comment *n, *p;
+
 	for (p=cat->precomments; p; p=n) {
 		n = p->next;
 		free(p);
@@ -590,6 +580,7 @@ struct ast_variable *ast_category_first(struct ast_category *cat)
 struct ast_variable *ast_category_root(struct ast_config *config, char *cat)
 {
 	struct ast_category *category = ast_category_get(config, cat);
+
 	if (category)
 		return category->root;
 	return NULL;
@@ -647,6 +638,7 @@ static void inherit_category(struct ast_category *new, const struct ast_category
 {
 	struct ast_variable *var;
 	struct ast_category_template_instance *x = ast_calloc(1,sizeof(struct ast_category_template_instance));
+
 	strcpy(x->name, base->name);
 	x->inst = base;
 	AST_LIST_INSERT_TAIL(&new->template_instances, x, next);
@@ -667,6 +659,7 @@ int ast_variable_delete(struct ast_category *category, const char *variable, con
 {
 	struct ast_variable *cur, *prev=NULL, *curn;
 	int res = -1;
+
 	cur = category->root;
 	while (cur) {
 		if (cur->name == variable) {
@@ -751,6 +744,7 @@ int ast_variable_update(struct ast_category *category, const char *variable,
 int ast_category_delete(struct ast_config *cfg, const char *category)
 {
 	struct ast_category *prev=NULL, *cat;
+
 	cat = cfg->root;
 	while (cat) {
 		if (cat->name == category) {
@@ -1409,6 +1403,7 @@ static void gen_header(FILE *f1, const char *configfile, const char *fn, const c
 {
 	char date[256]="";
 	time_t t;
+
 	time(&t);
 	ast_copy_string(date, ctime(&t), sizeof(date));
 
@@ -1426,6 +1421,7 @@ static void gen_header(FILE *f1, const char *configfile, const char *fn, const c
 static void   inclfile_destroy(void *obj)
 {
 	const struct inclfile *o = obj;
+
 	if (o->fname)
 		free(o->fname);
 }
@@ -1459,6 +1455,7 @@ static void set_fn(char *fn, int fn_size, const char *file, const char *configfi
 static int count_linefeeds(char *str)
 {
 	int count = 0;
+
 	while (*str) {
 		if (*str =='\n')
 			count++;
@@ -1470,8 +1467,8 @@ static int count_linefeeds(char *str)
 static int count_linefeeds_in_comments(struct ast_comment *x)
 {
 	int count = 0;
-	while (x)
-	{
+
+	while (x) {
 		count += count_linefeeds(x->cmt);
 		x = x->next;
 	}
@@ -2048,7 +2045,6 @@ int ast_check_realtime(const char *family)
 	if (eng)
 		return 1;
 	return 0;
-
 }
 
 /*! \brief Check if there's any realtime engines loaded */
