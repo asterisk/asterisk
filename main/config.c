@@ -1153,6 +1153,11 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			for (i=0; i<globbuf.gl_pathc; i++) {
 				ast_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
 #endif
+	/*
+	 * The following is not a loop, but just a convenient way to define a block
+	 * (using do { } while(0) ), and be able to exit from it with 'continue'
+	 * or 'break' in case of errors. Nice trick.
+	 */
 	do {
 		if (stat(fn, &statbuf))
 			continue;
