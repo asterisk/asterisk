@@ -1,10 +1,18 @@
+/*
+ * XXX this file probably need a fair amount of cleanup, at the very least:
+ *
+ * - documenting its purpose;
+ * - removing all unnecessary headers and other stuff from the sources
+ *   it was copied from;
+ * - fixing the formatting
+ */
+#include "asterisk.h"
+
 #include <locale.h>
 #include <ctype.h>
-#include <errno.h>
 #include <regex.h>
 #include <limits.h>
 
-#include "asterisk.h"
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/channel.h"
