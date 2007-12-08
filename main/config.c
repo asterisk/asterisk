@@ -34,12 +34,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/network.h"	/* we do some sockaddr manipulation here */
 #include <time.h>
 #include <sys/stat.h>
+
 #define AST_INCLUDE_GLOB 1
+
 #ifdef AST_INCLUDE_GLOB
+/* glob compat stuff - eventually this should go in compat.h or some
+ * header in include/asterisk/
+ */
 #if defined(__Darwin__) || defined(__CYGWIN__)
 #define GLOB_ABORTED GLOB_ABEND
 #endif
-# include <glob.h>
+
+#include <glob.h>
+
+#ifdef SOLARIS
+#define MY_GLOB_FLAGS	GLOB_NOCHECK
+#else
+#define MY_GLOB_FLAGS	(GLOB_NOMAGIC|GLOB_BRACE)
+#endif
+
 #endif
 
 #include "asterisk/config.h"
@@ -1130,11 +1143,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		int glob_ret;
 		glob_t globbuf;
 		globbuf.gl_offs = 0;	/* initialize it to silence gcc */
-#ifdef SOLARIS
-		glob_ret = glob(fn, GLOB_NOCHECK, NULL, &globbuf);
-#else
-		glob_ret = glob(fn, GLOB_NOMAGIC|GLOB_BRACE, NULL, &globbuf);
-#endif
+		glob_ret = glob(fn, MY_GLOB_FLAGS, NULL, &globbuf);
 		if (glob_ret == GLOB_NOSPACE)
 			ast_log(LOG_WARNING,
 				"Glob Expansion of pattern '%s' failed: Not enough memory\n", fn);
@@ -1189,11 +1198,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 #ifdef AST_INCLUDE_GLOB
 				int glob_ret;
 				glob_t globbuf = { .gl_offs = 0 };
-#ifdef SOLARIS
-				glob_ret = glob(cfinclude->include, GLOB_NOCHECK, NULL, &globbuf);
-#else
-				glob_ret = glob(cfinclude->include, GLOB_NOMAGIC|GLOB_BRACE, NULL, &globbuf);
-#endif
+				glob_ret = glob(cfinclude->include, MY_GLOB_FLAGS, NULL, &globbuf);
 				/* On error, we reparse */
 				if (glob_ret == GLOB_NOSPACE || glob_ret  == GLOB_ABORTED)
 					unchanged = 0;
