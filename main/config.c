@@ -878,21 +878,36 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 	AST_LIST_UNLOCK(&cfmtime_head);
 }
 
-static int process_text_line(struct ast_config *cfg, struct ast_category **cat, char *buf, int lineno, const char *configfile, struct ast_flags flags,
-							 char **comment_buffer, int *comment_buffer_size, char **lline_buffer, int *lline_buffer_size, const char *suggested_include_file, struct ast_category **last_cat, struct ast_variable **last_var)
+/*! \brief parse one line in the configuration.
+ * We can have a category header	[foo](...)
+ * a directive				#include / #exec
+ * or a regular line			name = value
+ */
+static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
+	char *buf, int lineno, const char *configfile, struct ast_flags flags,
+	char **comment_buffer, int *comment_buffer_size,
+	char **lline_buffer, int *lline_buffer_size,
+	const char *suggested_include_file,
+	struct ast_category **last_cat, struct ast_variable **last_var)
 {
 	char *c;
 	char *cur = buf;
 	struct ast_variable *v;
 	char cmd[512], exec_file[512];
-	int object, do_exec, do_include;
 
 	/* Actually parse the entry */
-	if (cur[0] == '[') {
+	if (cur[0] == '[') { /* A category header */
+		/* format is one of the following:
+		 * [foo]	define a new category named 'foo'
+		 * [foo](!)	define a new template category named 'foo'
+		 * [foo](+)	append to category 'foo', error if foo does not exist.
+		 * [foo](a)	define a new category and inherit from template a.
+		 *		You can put a comma-separated list of templates and '!' and '+'
+		 *		between parentheses, with obvious meaning.
+		 */
 		struct ast_category *newcat = NULL;
 		char *catname;
 
-		/* A category header */
 		c = strchr(cur, ']');
 		if (!c) {
 			ast_log(LOG_WARNING, "parse error: no closing ']', line %d of %s\n", lineno, configfile);
@@ -957,8 +972,9 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
  		}
 		if (newcat)
 			ast_category_append(cfg, *cat);
-	} else if (cur[0] == '#') {
-		/* A directive */
+	} else if (cur[0] == '#') { /* A directive - #include or #exec */
+		int do_exec, do_include;
+
 		cur++;
 		c = cur;
 		while (*c && (*c > 32)) c++;
@@ -1040,6 +1056,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 		}
 		c = strchr(cur, '=');
 		if (c) {
+			int object;
 			*c = 0;
 			c++;
 			/* Ignore > in => */
