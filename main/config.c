@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/strings.h"	/* for the ast_str_*() API */
 
 #define MAX_NESTED_COMMENTS 128
 #define COMMENT_START ";--"
@@ -94,79 +95,37 @@ struct cache_file_mtime {
 
 static AST_LIST_HEAD_STATIC(cfmtime_head, cache_file_mtime);
 
-#define CB_INCR 250
 
-static void CB_INIT(char **comment_buffer, int *comment_buffer_size, char **lline_buffer, int *lline_buffer_size)
+/* comment buffers are better implemented using the ast_str_*() API */
+#define CB_SIZE 250	/* initial size of comment buffers */
+
+static void  CB_ADD(struct ast_str **cb, const char *str)
 {
-	if (!(*comment_buffer)) {
-		*comment_buffer = ast_malloc(CB_INCR);
-		if (!(*comment_buffer))
-			return;
-		(*comment_buffer)[0] = 0;
-		*comment_buffer_size = CB_INCR;
-		*lline_buffer = ast_malloc(CB_INCR);
-		if (!(*lline_buffer))
-			return;
-		(*lline_buffer)[0] = 0;
-		*lline_buffer_size = CB_INCR;
-	} else {
-		(*comment_buffer)[0] = 0;
-		(*lline_buffer)[0] = 0;
-	}
+	ast_str_append(cb, 0, "%s", str);
 }
 
-static void  CB_ADD(char **comment_buffer, int *comment_buffer_size, char *str)
+static void  CB_ADD_LEN(struct ast_str **cb, const char *str, int len)
 {
-	int rem = *comment_buffer_size - strlen(*comment_buffer) - 1;
-	int siz = strlen(str);
-	if (rem < siz+1) {
-		*comment_buffer = ast_realloc(*comment_buffer, *comment_buffer_size + CB_INCR + siz + 1);
-		if (!(*comment_buffer))
-			return;
-		*comment_buffer_size += CB_INCR+siz+1;
-	}
-	strcat(*comment_buffer,str);
+	char *s = alloca(len + 1);
+	ast_copy_string(s, str, len);
+	ast_str_append(cb, 0, "%s", str);
 }
 
-static void  CB_ADD_LEN(char **comment_buffer, int *comment_buffer_size, char *str, int len)
-{
-	int cbl = strlen(*comment_buffer) + 1;
-	int rem = *comment_buffer_size - cbl;
-	if (rem < len+1) {
-		*comment_buffer = ast_realloc(*comment_buffer, *comment_buffer_size + CB_INCR + len + 1);
-		if (!(*comment_buffer))
-			return;
-		*comment_buffer_size += CB_INCR+len+1;
-	}
-	strncat(*comment_buffer,str,len);
-	(*comment_buffer)[cbl+len-1] = 0;
-}
-
-static void  LLB_ADD(char **lline_buffer, int *lline_buffer_size, char *str)
-{
-	int rem = *lline_buffer_size - strlen(*lline_buffer) - 1;
-	int siz = strlen(str);
-	if (rem < siz+1) {
-		*lline_buffer = ast_realloc(*lline_buffer, *lline_buffer_size + CB_INCR + siz + 1);
-		if (!(*lline_buffer)) 
-			return;
-		*lline_buffer_size += CB_INCR + siz + 1;
-	}
-	strcat(*lline_buffer,str);
-}
-
-static void CB_RESET(char **comment_buffer, char **lline_buffer)  
+static void CB_RESET(struct ast_str *cb, struct ast_str *llb)  
 { 
-	(*comment_buffer)[0] = 0; 
-	(*lline_buffer)[0] = 0;
+	if (cb)
+		cb->used = 0;
+	if (llb)
+		llb->used = 0;
 }
 
-
-static struct ast_comment *ALLOC_COMMENT(const char *buffer)
+static struct ast_comment *ALLOC_COMMENT(const struct ast_str *buffer)
 { 
-	struct ast_comment *x;
-	x = ast_calloc(1, sizeof(*x)+strlen(buffer)+1);
-	strcpy(x->cmt, buffer);
+	struct ast_comment *x = NULL;
+	if (buffer && buffer->used)
+		x = ast_calloc(1, sizeof(*x) + buffer->used + 1);
+	if (x)
+		strcpy(x->cmt, buffer->str);
 	return x;
 }
 
@@ -892,8 +851,8 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
  */
 static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 	char *buf, int lineno, const char *configfile, struct ast_flags flags,
-	char **comment_buffer, int *comment_buffer_size,
-	char **lline_buffer, int *lline_buffer_size,
+	struct ast_str *comment_buffer,
+	struct ast_str *lline_buffer,
 	const char *suggested_include_file,
 	struct ast_category **last_cat, struct ast_variable **last_var)
 {
@@ -933,12 +892,10 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		*last_cat = newcat;
 		
 		/* add comments */
-		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && *comment_buffer && (*comment_buffer)[0] ) {
-			newcat->precomments = ALLOC_COMMENT(*comment_buffer);
-		}
-		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && *lline_buffer && (*lline_buffer)[0] ) {
-			newcat->sameline = ALLOC_COMMENT(*lline_buffer);
-		}
+		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
+			newcat->precomments = ALLOC_COMMENT(comment_buffer);
+		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
+			newcat->sameline = ALLOC_COMMENT(lline_buffer);
 		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
 			CB_RESET(comment_buffer, lline_buffer);
 		
@@ -1081,12 +1038,10 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				v->blanklines = 0;
 				ast_variable_append(*cat, v);
 				/* add comments */
-				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && *comment_buffer && (*comment_buffer)[0] ) {
-					v->precomments = ALLOC_COMMENT(*comment_buffer);
-				}
-				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && *lline_buffer && (*lline_buffer)[0] ) {
-					v->sameline = ALLOC_COMMENT(*lline_buffer);
-				}
+				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
+					v->precomments = ALLOC_COMMENT(comment_buffer);
+				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
+					v->sameline = ALLOC_COMMENT(lline_buffer);
 				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
 					CB_RESET(comment_buffer, lline_buffer);
 				
@@ -1116,11 +1071,14 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	struct ast_variable *last_var = 0;
 	struct ast_category *last_cat = 0;
 	/*! Growable string buffer */
+	struct ast_str *comment_buffer = NULL, *lline_buffer = NULL;
+#if 0
 	char *comment_buffer=0;   /*!< this will be a comment collector.*/
 	int   comment_buffer_size=0;  /*!< the amount of storage so far alloc'd for the comment_buffer */
 
 	char *lline_buffer=0;    /*!< A buffer for stuff behind the ; */
 	int  lline_buffer_size=0;
+#endif
 
 	if (cfg)
 		cat = ast_config_get_current_category(cfg);
@@ -1132,8 +1090,12 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	}
 
 	if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
-		CB_INIT(&comment_buffer, &comment_buffer_size, &lline_buffer, &lline_buffer_size);
-		if (!lline_buffer || !comment_buffer) {
+		comment_buffer = ast_str_create(CB_SIZE);
+		if (comment_buffer)
+			lline_buffer = ast_str_create(CB_SIZE);
+		if (!lline_buffer) {
+			if (comment_buffer)
+				ast_free(comment_buffer);
 			ast_log(LOG_ERROR, "Failed to initialize the comment buffer!\n");
 			return NULL;
 		}
@@ -1251,9 +1213,9 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		while (!feof(f)) {
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
-				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
-					CB_ADD(&comment_buffer, &comment_buffer_size, lline_buffer);       /* add the current lline buffer to the comment buffer */
-					lline_buffer[0] = 0;        /* erase the lline buffer */
+				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && lline_buffer && lline_buffer->used) {
+					CB_ADD(&comment_buffer, lline_buffer->str);       /* add the current lline buffer to the comment buffer */
+					lline_buffer->used = 0;        /* erase the lline buffer */
 				}
 				
 				new_buf = buf;
@@ -1262,9 +1224,9 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				else
 					process_buf = buf;
 				
-				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer[0] && (ast_strlen_zero(buf) || strlen(buf) == strspn(buf," \t\n\r"))) {
+				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer->used && (ast_strlen_zero(buf) || strlen(buf) == strspn(buf," \t\n\r"))) {
 					/* blank line? really? Can we add it to an existing comment and maybe preserve inter- and post- comment spacing? */
-					CB_ADD(&comment_buffer, &comment_buffer_size, "\n");       /* add a newline to the comment buffer */
+					CB_ADD(&comment_buffer, "\n");       /* add a newline to the comment buffer */
 					continue; /* go get a new line, then */
 				}
 				
@@ -1295,8 +1257,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 								char *oldptr;
 								oldptr = process_buf + strlen(process_buf);
 								if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
-									CB_ADD(&comment_buffer, &comment_buffer_size, ";");
-									CB_ADD_LEN(&comment_buffer, &comment_buffer_size, oldptr+1, new_buf-oldptr-1);
+									CB_ADD(&comment_buffer, ";");
+									CB_ADD_LEN(&comment_buffer, oldptr+1, new_buf-oldptr-1);
 								}
 								
 								memmove(oldptr, new_buf, strlen(new_buf) + 1);
@@ -1309,7 +1271,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 							/* If ; is found, and we are not nested in a comment, 
 							   we immediately stop all comment processing */
 							if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
-								LLB_ADD(&lline_buffer, &lline_buffer_size, comment_p);
+								CB_ADD(&lline_buffer, comment_p);
 							}
 							*comment_p = '\0'; 
 							new_buf = comment_p;
@@ -1317,15 +1279,14 @@ static struct ast_config *config_text_file_load(const char *database, const char
 							new_buf = comment_p + 1;
 					}
 				}
-				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment && !process_buf )
-				{
-					CB_ADD(&comment_buffer, &comment_buffer_size, buf);  /* the whole line is a comment, store it */
+				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment && !process_buf ) {
+					CB_ADD(&comment_buffer, buf);  /* the whole line is a comment, store it */
 				}
 				
 				if (process_buf) {
 					char *buf = ast_strip(process_buf);
 					if (!ast_strlen_zero(buf)) {
-						if (process_text_line(cfg, &cat, buf, lineno, fn, flags, &comment_buffer, &comment_buffer_size, &lline_buffer, &lline_buffer_size, suggested_include_file, &last_cat, &last_var)) {
+						if (process_text_line(cfg, &cat, buf, lineno, fn, flags, comment_buffer, lline_buffer, suggested_include_file, &last_cat, &last_var)) {
 							cfg = NULL;
 							break;
 						}
@@ -1335,24 +1296,28 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		}
 		/* end of file-- anything in a comment buffer? */
 		if (last_cat) {
-			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer[0] ) {
-				CB_ADD(&comment_buffer, &comment_buffer_size, lline_buffer);       /* add the current lline buffer to the comment buffer */
-				lline_buffer[0] = 0;        /* erase the lline buffer */
+			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer->used ) {
+				if (lline_buffer && lline_buffer->used) {
+					CB_ADD(&comment_buffer, lline_buffer->str);       /* add the current lline buffer to the comment buffer */
+					lline_buffer->used = 0;        /* erase the lline buffer */
+				}
 				last_cat->trailing = ALLOC_COMMENT(comment_buffer);
 			}
 		} else if (last_var) {
-			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer[0] ) {
-				CB_ADD(&comment_buffer, &comment_buffer_size, lline_buffer);       /* add the current lline buffer to the comment buffer */
-				lline_buffer[0] = 0;        /* erase the lline buffer */
+			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer->used ) {
+				if (lline_buffer && lline_buffer->used) {
+					CB_ADD(&comment_buffer, lline_buffer->str);       /* add the current lline buffer to the comment buffer */
+					lline_buffer->used = 0;        /* erase the lline buffer */
+				}
 				last_var->trailing = ALLOC_COMMENT(comment_buffer);
 			}
 		} else {
-			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && (comment_buffer)[0] ) {
-				ast_debug(1, "Nothing to attach comments to, discarded: %s\n", comment_buffer);
+			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer->used) {
+				ast_debug(1, "Nothing to attach comments to, discarded: %s\n", comment_buffer->str);
 			}
 		}
 		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
-			CB_RESET(&comment_buffer, &lline_buffer);
+			CB_RESET(comment_buffer, lline_buffer);
 
 		fclose(f);		
 	} while (0);
@@ -1368,13 +1333,13 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		}
 #endif
 
-	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED && cfg->include_level == 1 && ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer) {
-		ast_free(comment_buffer);
-		ast_free(lline_buffer);
+	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED && cfg->include_level == 1 && ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
+		if (comment_buffer)
+			ast_free(comment_buffer);
+		if (lline_buffer)
+			ast_free(lline_buffer);
 		comment_buffer = NULL;
 		lline_buffer = NULL;
-		comment_buffer_size = 0;
-		lline_buffer_size = 0;
 	}
 	
 	if (count == 0)
