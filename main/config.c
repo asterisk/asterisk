@@ -937,7 +937,10 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		if (newcat)
 			ast_category_append(cfg, *cat);
 	} else if (cur[0] == '#') { /* A directive - #include or #exec */
-		int do_exec, do_include;
+		char *cur2;
+		char real_inclusion_name[256];
+		struct ast_config_include *inclu;
+		int do_include = 0;	/* otherwise, it is exec */
 
 		cur++;
 		c = cur;
@@ -950,21 +953,27 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				c = NULL;
 		} else 
 			c = NULL;
-		do_include = !strcasecmp(cur, "include");
-		if (!do_include)
-			do_exec = !strcasecmp(cur, "exec");
-		else
-			do_exec = 0;
-		if (do_exec && !ast_opt_exec_includes) {
-			ast_log(LOG_WARNING, "Cannot perform #exec unless execincludes option is enabled in asterisk.conf (options section)!\n");
-			do_exec = 0;
+		if (!strcasecmp(cur, "include")) {
+			do_include = 1;
+		} else if (!strcasecmp(cur, "exec")) {
+			if (!ast_opt_exec_includes) {
+				ast_log(LOG_WARNING, "Cannot perform #exec unless execincludes option is enabled in asterisk.conf (options section)!\n");
+				return 0;	/* XXX is this correct ? or we should return -1 ? */
+			}
+		} else {
+			ast_log(LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
+			return 0;	/* XXX is this correct ? or we should return -1 ? */
 		}
-		if (do_include || do_exec) {
-			if (c) {
-				char *cur2;
-				char real_inclusion_name[256];
-				struct ast_config_include *inclu;
-				
+
+		if (c == NULL) {
+			ast_log(LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n", 
+					do_include ? "include" : "exec",
+					do_include ? "filename" : "/path/to/executable",
+					lineno,
+					configfile);
+			return 0;	/* XXX is this correct ? or we should return -1 ? */
+		}
+
 				/* Strip off leading and trailing "'s and <>'s */
 				while ((*c == '<') || (*c == '>') || (*c == '\"')) c++;
 				/* Get rid of leading mess */
@@ -979,7 +988,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				}
 				/* #exec </path/to/executable>
 				   We create a tmp file, then we #include it, then we delete it. */
-				if (do_exec) {
+				if (!do_include) {
 					if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
 						config_cache_attribute(configfile, ATTRIBUTE_EXEC, NULL);
 					snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%d.%ld", (int)time(NULL), (long)pthread_self());
@@ -993,24 +1002,15 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				}
 				/* A #include */
 				/* record this inclusion */
-				inclu = ast_include_new(cfg, configfile, cur, do_exec, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
+				inclu = ast_include_new(cfg, configfile, cur, !do_include, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
 
 				do_include = ast_config_internal_load(cur, cfg, flags, real_inclusion_name) ? 1 : 0;
 				if (!ast_strlen_zero(exec_file))
 					unlink(exec_file);
 				if (!do_include)
 					return 0;
+				/* XXX otherwise what ? the default return is 0 anyways */
 
-			} else {
-				ast_log(LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n", 
-						do_exec ? "exec" : "include",
-						do_exec ? "/path/to/executable" : "filename",
-						lineno,
-						configfile);
-			}
-		}
-		else 
-			ast_log(LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
 	} else {
 		/* Just a line (variable = value) */
 		if (!(*cat)) {
@@ -1071,14 +1071,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	struct ast_variable *last_var = 0;
 	struct ast_category *last_cat = 0;
 	/*! Growable string buffer */
-	struct ast_str *comment_buffer = NULL, *lline_buffer = NULL;
-#if 0
-	char *comment_buffer=0;   /*!< this will be a comment collector.*/
-	int   comment_buffer_size=0;  /*!< the amount of storage so far alloc'd for the comment_buffer */
-
-	char *lline_buffer=0;    /*!< A buffer for stuff behind the ; */
-	int  lline_buffer_size=0;
-#endif
+	struct ast_str *comment_buffer = NULL;	/*!< this will be a comment collector.*/
+	struct ast_str *lline_buffer = NULL;	/*!< A buffer for stuff behind the ; */
 
 	if (cfg)
 		cat = ast_config_get_current_category(cfg);
