@@ -9,7 +9,7 @@
 # the GNU General Public License
 #
 
--include ../menuselect.makeopts ../menuselect.makedeps
+-include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
 C_MODS:=$(filter-out $(MENUSELECT_APPS),$(patsubst %.c,%,$(wildcard app_*.c)))
 CC_MODS:=$(filter-out $(MENUSELECT_APPS),$(patsubst %.cc,%,$(wildcard app_*.cc)))
@@ -23,17 +23,17 @@ endif
 
 MENUSELECT_OPTS_app_directory:=$(MENUSELECT_OPTS_app_voicemail)
 ifneq ($(findstring ODBC_STORAGE,$(MENUSELECT_OPTS_app_voicemail)),)
-MENUSELECT_DEPENDS_app_voicemail+=$(MENUSELECT_DEPENDS_ODBC_STORAGE)
-MENUSELECT_DEPENDS_app_directory+=$(MENUSELECT_DEPENDS_ODBC_STORAGE)
+  MENUSELECT_DEPENDS_app_voicemail+=$(MENUSELECT_DEPENDS_ODBC_STORAGE)
+  MENUSELECT_DEPENDS_app_directory+=$(MENUSELECT_DEPENDS_ODBC_STORAGE)
 endif
 ifneq ($(findstring IMAP_STORAGE,$(MENUSELECT_OPTS_app_voicemail)),)
-MENUSELECT_DEPENDS_app_voicemail+=$(MENUSELECT_DEPENDS_IMAP_STORAGE)
-MENUSELECT_DEPENDS_app_directory+=$(MENUSELECT_DEPENDS_IMAP_STORAGE)
+  MENUSELECT_DEPENDS_app_voicemail+=$(MENUSELECT_DEPENDS_IMAP_STORAGE)
+  MENUSELECT_DEPENDS_app_directory+=$(MENUSELECT_DEPENDS_IMAP_STORAGE)
 endif
 
 ifeq (SunOS,$(shell uname))
-MENUSELECT_DEPENDS_app_chanspy+=RT
-RT_LIB=-lrt
+  MENUSELECT_DEPENDS_app_chanspy+=RT
+  RT_LIB=-lrt
 endif
 
 all: _all

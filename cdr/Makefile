@@ -9,7 +9,7 @@
 # the GNU General Public License
 #
 
--include ../menuselect.makeopts ../menuselect.makedeps
+-include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
 C_MODS:=$(filter-out $(MENUSELECT_CDR),$(patsubst %.c,%,$(wildcard cdr_*.c)))
 CC_MODS:=$(filter-out $(MENUSELECT_CDR),$(patsubst %.cc,%,$(wildcard cdr_*.cc)))

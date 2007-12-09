@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
--include ../menuselect.makeopts
+-include $(ASTTOPDIR)/menuselect.makeopts
 
 .PHONY: clean all uninstall
 
