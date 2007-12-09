@@ -53,7 +53,6 @@ export RANLIB
 export HOST_CC
 export STATIC_BUILD
 export INSTALL
-export DESTDIR
 export PROC
 export SOLINK
 export STRIP
@@ -88,12 +87,13 @@ OVERWRITE=y
 # Include debug and macro symbols in the executables (-g) and profiling info (-pg)
 DEBUG=-g3
 
-# Staging directory
+# DESTDIR is the staging directory.
 # Files are copied here temporarily during the install process
-# For example, make DESTDIR=/tmp/asterisk woud put things in
-# /tmp/asterisk/etc/asterisk
-# !!! Watch out, put no spaces or comments after the value !!!
-#DESTDIR?=/tmp/asterisk
+# WARNING: do not put spaces or comments after the value.
+# Also, do not export it before this point or the 'export' will
+# assign it to the empty string so ?= fails.
+DESTDIR?=$(INSTALL_PATH)
+export DESTDIR
 
 # Define standard directories for various platforms
 # These apply if they are not redefined in asterisk.conf 
@@ -578,7 +578,7 @@ samples: adsi
 	@if [ "$(OVERWRITE)" = "y" ] || [ ! -f $(DESTDIR)$(ASTCONFPATH) ]; then \
 		echo "Creating asterisk.conf"; \
 		( \
-		echo "[directories]" ; \
+		echo "[directories](!) ; remove the (!) to enable this" ; \
 		echo "astetcdir => $(ASTETCDIR)" ; \
 		echo "astmoddir => $(MODULES_DIR)" ; \
 		echo "astvarlibdir => $(ASTVARLIBDIR)" ; \
