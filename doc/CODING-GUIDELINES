@@ -628,7 +628,48 @@ headers. Please update this file if you add new headers.
 	    ==  PART TWO: BUILD ARCHITECTURE  ==
 	    ------------------------------------
 
+The asterisk build architecture relies on 'autoconf' to detect the
+system configuration, and on a locally developed tool (menuselect) to
+select build options and modules list, and on gmake to do the build.
+
+autoconf will store its findings in two files:
+
+    + include/asterisk/autoconfig.h
+	contains C macros, normally #define HAVE_FOO or HAVE_FOO_H ,
+	for all functions and headers that have been detected at build time.
+	These are meant to be used by C or C++ source files.
+
+    + makeopts
+	contains variables that can be used by Makefiles.
+	In addition to the usual CC, LD, ... variables pointing to
+	the various build tools, and prefix, includedir ... which are
+	useful for generic compiler flags, there are variables
+	for each package detected.
+	These are normally of the form FOO_INCLUDE=... FOO_LIB=...
+	FOO_DIR=... indicating, for each package, the useful libraries
+	and header files. 
+
+menuselect produces two files, both to be read by the Makefile:
+    + menuselect.makeopts
+	contains for each subdirectory a list of modules that must be
+	excluded from the build, plus some additional informatiom.
+    + menuselect.makedeps
+	contains, for each module, a list of packages it depends on.
+	For each of these packages, we can collect the relevant INCLUDE
+	and LIB files from makeopts
+
+The top level Makefile is in charge of setting up the build environment,
+creating header files with build options, and recursively invoking the
+subdir Makefiles to produce modules and the main executable.
+
+The sources are split in multiple directories, more or less divided by
+module type (apps/ channels/ funcs/ res/ ...) or by function, for the main
+binary (main/ pbx/).
+
+
 TO BE COMPLETED
+
+    
 
 
 -----------------------------------------------
