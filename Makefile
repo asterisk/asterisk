@@ -504,7 +504,7 @@ bininstall: _all
 	fi
 
 $(SUBDIRS_INSTALL):
-	@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" $(MAKE) -C $(@:-install=) install
+	@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" $(MAKE) --quiet $(PRINT_DIR) -C $(@:-install=) install
 
 NEWMODS=$(notdir $(wildcard */*.so))
 OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
