@@ -1341,6 +1341,7 @@ static struct {
 	{{1, AST_FORMAT_SLINEAR}, "audio", "L16"},
 	{{1, AST_FORMAT_LPC10}, "audio", "LPC"},
 	{{1, AST_FORMAT_G729A}, "audio", "G729"},
+	{{1, AST_FORMAT_G729A}, "audio", "G729A"},
 	{{1, AST_FORMAT_SPEEX}, "audio", "speex"},
 	{{1, AST_FORMAT_ILBC}, "audio", "iLBC"},
 	{{1, AST_FORMAT_G722}, "audio", "G722"},
