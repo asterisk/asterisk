@@ -20,16 +20,26 @@
 # SOLINK - linker flags used only for creating shared objects (.so files),
 #      used for all .so links
 #
-# Default values fo ASTCFLAGS and ASTLDFLAGS can be specified in the
+# Default values for ASTCFLAGS and ASTLDFLAGS can be specified in the
 # environment when running make, as follows:
 #
 # $ ASTCFLAGS="-Werror" make
 
-export ASTTOPDIR
+export ASTTOPDIR		# Top level dir, used in subdirs' Makefiles
 export ASTERISKVERSION
 export ASTERISKVERSIONNUM
-export INSTALL_PATH
-export ASTETCDIR
+
+#--- values used for default paths
+
+# DESTDIR is the staging (or final) directory where files are copied
+# during the install process. Define it before 'export', otherwise
+# export will set it to the empty string making ?= fail.
+# WARNING: do not put spaces or comments after the value.
+DESTDIR?=$(INSTALL_PATH)
+export DESTDIR
+
+export INSTALL_PATH	# Additional prefix for the following paths
+export ASTETCDIR		# Path for config files
 export ASTVARRUNDIR
 export MODULES_DIR
 export ASTSPOOLDIR
@@ -43,23 +53,31 @@ export ASTBINDIR
 export ASTSBINDIR
 export AGI_DIR
 export ASTCONFPATH
-export NOISY_BUILD
-export MENUSELECT_CFLAGS
-export AST_DEVMODE
+
+export OSARCH			# Operating system
+export PROC			# Processor type
+
+export NOISY_BUILD		# Used in Makefile.rules
+export MENUSELECT_CFLAGS	# Options selected in menuselect.
+export AST_DEVMODE		# Set to "yes" for additional compiler
+				# and runtime checks
+
+export SOLINK			# linker flags for shared objects
+export STATIC_BUILD		# Additional cflags, set to -static
+				# for static builds. Probably
+				# should go directly to ASTLDFLAGS
+
+#--- paths to various commands
 export CC
 export CXX
 export AR
 export RANLIB
 export HOST_CC
-export STATIC_BUILD
 export INSTALL
-export PROC
-export SOLINK
 export STRIP
 export DOWNLOAD
 export GREP
 export ID
-export OSARCH
 
 # even though we could use '-include makeopts' here, use a wildcard
 # lookup anyway, so that make won't try to build makeopts if it doesn't
@@ -76,9 +94,6 @@ ASTLDFLAGS+=$(LDOPTS)
 #Uncomment this to see all build commands instead of 'quiet' output
 #NOISY_BUILD=yes
 
-# Create OPTIONS variable
-OPTIONS=
-
 ASTTOPDIR:=$(CURDIR)
 
 # Overwite config files on "make samples"
@@ -87,13 +102,6 @@ OVERWRITE=y
 # Include debug and macro symbols in the executables (-g) and profiling info (-pg)
 DEBUG=-g3
 
-# DESTDIR is the staging directory.
-# Files are copied here temporarily during the install process
-# WARNING: do not put spaces or comments after the value.
-# Also, do not export it before this point or the 'export' will
-# assign it to the empty string so ?= fails.
-DESTDIR?=$(INSTALL_PATH)
-export DESTDIR
 
 # Define standard directories for various platforms
 # These apply if they are not redefined in asterisk.conf 
@@ -159,6 +167,9 @@ USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
 
 MOD_SUBDIR_CFLAGS=-I$(ASTTOPDIR)/include
 OTHER_SUBDIR_CFLAGS=-I$(ASTTOPDIR)/include
+
+# Create OPTIONS variable, but probably we can assign directly to ASTCFLAGS
+OPTIONS=
 
 ifeq ($(OSARCH),linux-gnu)
   ifeq ($(PROC),x86_64)
@@ -246,9 +257,13 @@ else
 endif
 
 ifneq ($(wildcard .svn),)
-  ASTERISKVERSIONNUM=999999
+  ASTERISKVERSIONNUM:=999999
 endif
 
+# XXX MALLOC_DEBUG is probably unused, Makefile.moddir_rules adds the
+#	value directly to ASTCFLAGS
+# XXX BUSYDETECT is probably useless, the only similar reference is to
+#	#ifdef BUSYDETECT in main/dsp.c
 ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
 
 MOD_SUBDIRS:=channels pbx apps codecs formats cdr funcs main res
