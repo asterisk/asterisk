@@ -107,6 +107,10 @@ Changes to manager version 1.1:
 	New header
 	- (new)		-> Items: 	Reports number of channels reported
 
+- Action VoicemailUsersList
+	Added new headers for SayEnvelope, SayCID, AttachMessage, CanReview
+        and CallOperator voicemail configuration settings.
+
 * NEW ACTIONS
 -------------
 - Action: ModuleLoad

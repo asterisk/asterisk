@@ -7960,8 +7960,14 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 			      "UniqueID: %s\r\n"
 			      "ExitContext: %s\r\n"
 			      "SayDurationMinimum: %d\r\n"
+			      "SayEnvelope: %s\r\n"
+			      "SayCID: %s\r\n"
+			      "AttachMessage: %s\r\n"
 			      "AttachmentFormat: %s\r\n"
+			      "DeleteMessage: %s\r\n"
 			      "VolumeGain: %.2f\r\n"
+			      "CanReview: %s\r\n"
+			      "CallOperator: %s\r\n"
 			      "MaxMessageCount: %d\r\n"
 			      "MaxMessageLength: %d\r\n"
 			      "NewMessageCount: %d\r\n"
@@ -7970,11 +7976,31 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 			      "IMAPUser: %s\r\n"
 #endif
 			      "\r\n",
-			      actionid, vmu->context, vmu->mailbox, vmu->fullname, vmu->email,
-			      vmu->pager, vmu->serveremail, vmu->mailcmd, vmu->language,
-			      vmu->zonetag, vmu->callback, vmu->dialout, vmu->uniqueid,
-			      vmu->exit, vmu->saydurationm, vmu->attachfmt, vmu->volgain,
-			      vmu->maxmsg, vmu->maxsecs, 
+			      actionid,
+			      vmu->context,
+			      vmu->mailbox,
+			      vmu->fullname,
+			      vmu->email,
+			      vmu->pager,
+			      vmu->serveremail,
+			      vmu->mailcmd,
+			      vmu->language,
+			      vmu->zonetag,
+			      vmu->callback,
+			      vmu->dialout,
+			      vmu->uniqueid,
+			      vmu->exit,
+			      vmu->saydurationm,
+			      ast_test_flag(vmu, VM_ENVELOPE) ? "Yes" : "No",
+			      ast_test_flag(vmu, VM_SAYCID) ? "Yes" : "No",
+			      ast_test_flag(vmu, VM_ATTACH) ? "Yes" : "No",
+			      vmu->attachfmt,
+			      ast_test_flag(vmu, VM_DELETE) ? "Yes" : "No",
+			      vmu->volgain,
+			      ast_test_flag(vmu, VM_REVIEW) ? "Yes" : "No",
+			      ast_test_flag(vmu, VM_OPERATOR) ? "Yes" : "No",
+			      vmu->maxmsg,
+			      vmu->maxsecs,
 #ifdef IMAP_STORAGE
 				  new, old, vmu->imapuser
 #else
