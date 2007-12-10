@@ -4072,8 +4072,7 @@ static int sip_hangup(struct ast_channel *ast)
 		return 0;
 	}
 	if (ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "This call was answered elsewhere");
+		ast_debug(1, "This call was answered elsewhere");
 		append_history(p, "Cancel", "Call answered elsewhere");
 		p->answered_elsewhere = TRUE;
 	}
@@ -8480,8 +8479,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	}
 	r->regstate = auth ? REG_STATE_AUTHSENT : REG_STATE_REGSENT;
 	r->regattempts++;	/* Another attempt */
-	if (option_debug > 3)
-		ast_verbose("REGISTER attempt %d to %s@%s\n", r->regattempts, r->username, r->hostname);
+	ast_debug(4, "REGISTER attempt %d to %s@%s\n", r->regattempts, r->username, r->hostname);
 	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 }
 
