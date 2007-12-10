@@ -148,6 +148,14 @@ void parse_file(const char *fname);
 void ast_register_file_version(const char *file, const char *version) { }
 int ast_add_profile(const char *x, uint64_t scale) { return 0;} 
 
+int ast_atomic_fetchadd_int_slow(volatile int *p, int v)
+{
+        int ret;
+        ret = *p;
+        *p += v;
+        return ret;
+}
+
 void ast_unregister_file_version(const char *file)
 {
 }
