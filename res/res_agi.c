@@ -2208,7 +2208,8 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 		if (needhup) {
 			needhup = 0;
 			dead = 1;
-			kill(pid, SIGHUP);
+			if (pid > -1)
+				kill(pid, SIGHUP);
 		}
 		ms = -1;
 		c = ast_waitfor_nandfds(&chan, dead ? 0 : 1, &agi->ctrl, 1, NULL, &outfd, &ms);
