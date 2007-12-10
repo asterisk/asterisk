@@ -2663,8 +2663,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	if (use_weight)
 		AST_LIST_UNLOCK(&queues);
 	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies, ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT), forwardsallowed);
-	ast_channel_datastore_remove(qe->chan, datastore);
-	ast_channel_datastore_free(datastore);
+	if (datastore) {
+		ast_channel_datastore_remove(qe->chan, datastore);
+		ast_channel_datastore_free(datastore);
+	}
 	ast_mutex_lock(&qe->parent->lock);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
 		store_next(qe, outgoing);
