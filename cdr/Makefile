@@ -11,15 +11,7 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-C_MODS:=$(filter-out $(MENUSELECT_CDR),$(patsubst %.c,%,$(wildcard cdr_*.c)))
-CC_MODS:=$(filter-out $(MENUSELECT_CDR),$(patsubst %.cc,%,$(wildcard cdr_*.cc)))
-
-LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
-
-ifneq ($(findstring cdr,$(MENUSELECT_EMBED)),)
-  EMBEDDED_MODS:=$(LOADABLE_MODS)
-  LOADABLE_MODS:=
-endif
+MODULE_PREFIX=cdr_
 
 all: _all
 

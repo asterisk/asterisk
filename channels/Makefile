@@ -11,8 +11,7 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-C_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.c,%,$(wildcard chan_*.c)))
-CC_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.cc,%,$(wildcard chan_*.cc)))
+MODULE_PREFIX=chan_
 
 ifeq ($(OSARCH),OpenBSD)
   PTLIB=-lpt_OpenBSD_x86_r
@@ -36,13 +35,13 @@ ifeq ($(OSARCH),NetBSD)
   H323LIB=-lh323_NetBSD_x86_r
 endif
 
+MODULE_EXCLUDE:=
 ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
-  C_MODS:=$(filter-out chan_oss,$(C_MODS))
-  C_MODS:=$(filter-out chan_unistim,$(C_MODS))
+  MODULE_EXCLUDE+= chan_oss chan_unistim
 endif
 
 ifeq ($(wildcard h323/libchanh323.a),)
-  CC_MODS:=$(filter-out chan_h323,$(CC_MODS))
+  MODULE_EXCLUDE += chan_h323
 endif
 
 ifndef OPENH323DIR
@@ -51,13 +50,6 @@ endif
 
 ifndef PWLIBDIR
   PWLIBDIR=$(HOME)/pwlib
-endif
-
-LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
-
-ifneq ($(findstring channels,$(MENUSELECT_EMBED)),)
-  EMBEDDED_MODS:=$(LOADABLE_MODS)
-  LOADABLE_MODS:=
 endif
 
 all: _all

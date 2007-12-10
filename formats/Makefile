@@ -11,15 +11,7 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-C_MODS:=$(filter-out $(MENUSELECT_FORMATS),$(patsubst %.c,%,$(wildcard format_*.c)))
-CC_MODS:=$(filter-out $(MENUSELECT_FORMATS),$(patsubst %.cc,%,$(wildcard format_*.cc)))
-
-LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
-
-ifneq ($(findstring formats,$(MENUSELECT_EMBED)),)
-  EMBEDDED_MODS:=$(LOADABLE_MODS)
-  LOADABLE_MODS:=
-endif
+MODULE_PREFIX=format_
 
 all: _all
 
