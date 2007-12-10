@@ -1132,6 +1132,7 @@ struct sip_pvt {
 						*/
 	
 	int initid;				/*!< Auto-congest ID if appropriate (scheduler) */
+	int waitid;				/*!< Wait ID for scheduler after 491 or other delays */
 	int autokillid;				/*!< Auto-kill ID (scheduler) */
 	enum transfermodes allowtransfer;	/*!< REFER: restriction scheme */
 	struct sip_refer *refer;		/*!< REFER: SIP transfer data structure */
@@ -1691,7 +1692,7 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 	Functions for enabling debug per IP or fully, or enabling history logging for
 	a SIP dialog
 */
-static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEBUG at end of dialog, before destroying data */
+static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to debuglog at end of dialog, before destroying data */
 static inline int sip_debug_test_addr(const struct sockaddr_in *addr);
 static inline int sip_debug_test_pvt(struct sip_pvt *p);
 static void append_history_full(struct sip_pvt *p, const char *fmt, ...);
@@ -2464,8 +2465,7 @@ static int __sip_autodestruct(const void *data)
 
 	/* If there are packets still waiting for delivery, delay the destruction */
 	if (p->packets) {
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
+		ast_debug(3, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
 		append_history(p, "ReliableXmit", "timeout");
 		return 10000;
 	}
@@ -3690,6 +3690,8 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		ast_extension_state_del(p->stateid, NULL);
 	if (p->initid > -1)
 		ast_sched_del(sched, p->initid);
+	if (p->waitid > -1)
+		ast_sched_del(sched, p->waitid);
 	if (p->autokillid > -1)
 		ast_sched_del(sched, p->autokillid);
 
@@ -4214,6 +4216,9 @@ static int sip_hangup(struct ast_channel *ast)
 				   but we can't send one while we have "INVITE" outstanding. */
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 				ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
+				if (p->waitid)
+					ast_sched_del(sched, p->waitid);
+				p->waitid = -1;
 				sip_cancel_destroy(p);
 			}
 		}
@@ -5055,6 +5060,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 
 	p->method = intended_method;
 	p->initid = -1;
+	p->waitid = -1;
 	p->autokillid = -1;
 	p->subscribed = NONE;
 	p->stateid = -1;
@@ -13338,7 +13344,7 @@ static void check_pendings(struct sip_pvt *p)
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	} else if (ast_test_flag(&p->flags[0], SIP_NEEDREINVITE)) {
 		/* if we can't REINVITE, hold it for later */
-		if (p->pendinginvite || p->invitestate == INV_CALLING || p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA) {
+		if (p->pendinginvite || p->invitestate == INV_CALLING || p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA || p->waitid > 0) {
 			ast_debug(2, "NOT Sending pending reinvite (yet) on '%s'\n", p->callid);
 		} else {
 			ast_debug(2, "Sending pending reinvite on '%s'\n", p->callid);
@@ -13348,6 +13354,20 @@ static void check_pendings(struct sip_pvt *p)
 		}
 	}
 }
+
+/*! \brief Reset the NEEDREINVITE flag after waiting when we get 491 on a Re-invite
+	to avoid race conditions between asterisk servers.
+	Called from the scheduler.
+*/
+static int sip_reinvite_retry(const void *data) 
+{
+	struct sip_pvt *p = (struct sip_pvt *) data;
+
+	ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);	
+	p->waitid = -1;
+	return 0;
+}
+
 
 /*! \brief Handle SIP response to INVITE dialogue */
 static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
@@ -13639,13 +13659,20 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		}
 		break;
 	case 491: /* Pending */
-		/* we really should have to wait a while, then retransmit */
-			/* We should support the retry-after at some point */
-		/* At this point, we treat this as a congestion */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-		if (p->owner && !req->ignore)
-			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-		p->needdestroy = 1;
+		if (p->owner && !req->ignore) {
+			if (p->owner->_state != AST_STATE_UP) {
+				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+				p->needdestroy = 1;
+			} else {
+				/* This is a re-invite that failed. */
+				/* Reset the flag after a while 
+				 */
+				int wait = 3 + ast_random() % 5;
+				p->waitid = ast_sched_add(sched, wait, sip_reinvite_retry, p); 
+				ast_debug(2, "Reinvite race. Waiting %d secs before retry\n", wait);
+			}
+		}
 		break;
 
 	case 501: /* Not implemented */
