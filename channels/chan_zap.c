@@ -11683,6 +11683,151 @@ static char *zap_show_version(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	return CLI_SUCCESS;
 }
 
+static char *zap_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int channel;
+	int gain;
+	int tx;
+	struct zt_hwgain hwgain;
+	ast_mutex_t *lock;
+	struct zt_pvt *tmp = NULL;
+
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "zap set hwgain";
+		e->usage = 
+			"Usage: zap set hwgain <rx|tx> <chan#> <gain>\n"
+			"	Sets the hardware gain on a a given channel, overriding the\n"
+			"   value provided at module loadtime, whether the channel is in\n"
+			"   use or not.  Changes take effect immediately.\n"
+			"   <rx|tx> which direction do you want to change (relative to our module)\n"
+			"   <chan num> is the channel number relative to the device\n"
+			"   <gain> is the gain in dB (e.g. -3.5 for -3.5dB)\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+
+	lock = &iflock;
+
+	if (a->argc != 6)
+		return CLI_SHOWUSAGE;
+	
+	if (!strcasecmp("rx", a->argv[3]))
+		tx = 0; /* rx */
+	else if (!strcasecmp("tx", a->argv[3]))
+		tx = 1; /* tx */
+	else
+		return CLI_SHOWUSAGE;
+
+	channel = atoi(a->argv[4]);
+	gain = atof(a->argv[5])*10.0;
+
+	ast_mutex_lock(lock);
+	for (tmp = iflist; tmp; tmp = tmp->next) {
+
+		if (tmp->channel != channel)
+			continue;
+
+		if (tmp->subs[SUB_REAL].zfd == -1)
+			break;
+
+		hwgain.newgain = gain;
+		hwgain.tx = tx;
+		if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_HWGAIN, &hwgain) < 0) {
+			ast_cli(a->fd, "Unable to set the hardware gain for channel %d\n", channel);
+			ast_mutex_unlock(lock);
+			return CLI_FAILURE;
+		}
+		ast_cli(a->fd, "hardware %s gain set to %d (%.1f dB) on channel %d\n",
+			tx ? "tx" : "rx", gain, (float)gain/10.0, channel);
+		break;
+	}
+	ast_mutex_unlock(lock);
+
+	if (tmp)
+		return CLI_SUCCESS;
+
+	ast_cli(a->fd, "Unable to find given channel %d\n", channel);
+	return CLI_FAILURE;
+
+}
+
+static char *zap_set_swgain(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int channel;
+	float gain;
+	int tx;
+	int res;
+	ast_mutex_t *lock;
+	struct zt_pvt *tmp = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "zap set swgain";
+		e->usage = 
+			"Usage: zap set swgain <rx|tx> <chan#> <gain>\n"
+			"	Sets the software gain on a a given channel, overriding the\n"
+			"   value provided at module loadtime, whether the channel is in\n"
+			"   use or not.  Changes take effect immediately.\n"
+			"   <rx|tx> which direction do you want to change (relative to our module)\n"
+			"   <chan num> is the channel number relative to the device\n"
+			"   <gain> is the gain in dB (e.g. -3.5 for -3.5dB)\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+
+	lock = &iflock;
+
+	if (a->argc != 6)
+		return CLI_SHOWUSAGE;
+	
+	if (!strcasecmp("rx", a->argv[3]))
+		tx = 0; /* rx */
+	else if (!strcasecmp("tx", a->argv[3]))
+		tx = 1; /* tx */
+	else
+		return CLI_SHOWUSAGE;
+
+	channel = atoi(a->argv[4]);
+	gain = atof(a->argv[5]);
+
+	ast_mutex_lock(lock);
+	for (tmp = iflist; tmp; tmp = tmp->next) {
+
+		if (tmp->channel != channel)
+			continue;
+
+		if (tmp->subs[SUB_REAL].zfd == -1)
+			break;
+
+		if (tx)
+			res = set_actual_txgain(tmp->subs[SUB_REAL].zfd, channel, gain, tmp->law);
+		else
+			res = set_actual_rxgain(tmp->subs[SUB_REAL].zfd, channel, gain, tmp->law);
+
+		if (res) {
+			ast_cli(a->fd, "Unable to set the software gain for channel %d\n", channel);
+			ast_mutex_unlock(lock);
+			return CLI_FAILURE;
+		}
+
+		ast_cli(a->fd, "software %s gain set to %.1f on channel %d\n",
+			tx ? "tx" : "rx", gain, channel);
+		break;
+	}
+	ast_mutex_unlock(lock);
+
+	if (tmp)
+		return CLI_SUCCESS;
+
+	ast_cli(a->fd, "Unable to find given channel %d\n", channel);
+	return CLI_FAILURE;
+
+}
+
 static struct ast_cli_entry zap_cli[] = {
 	AST_CLI_DEFINE(handle_zap_show_cadences, "List cadences"),
 	AST_CLI_DEFINE(zap_show_channels, "Show active zapata channels"),
@@ -11691,6 +11836,8 @@ static struct ast_cli_entry zap_cli[] = {
 	AST_CLI_DEFINE(zap_restart_cmd, "Fully restart zaptel channels"),
 	AST_CLI_DEFINE(zap_show_status, "Show all Zaptel cards status"),
 	AST_CLI_DEFINE(zap_show_version, "Show the Zaptel version in use"),
+	AST_CLI_DEFINE(zap_set_hwgain, "Set hardware gains at the port driver"),
+	AST_CLI_DEFINE(zap_set_swgain, "Set software gain table values"),
 };
 
 #define TRANSFER	0
