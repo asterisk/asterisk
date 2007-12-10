@@ -11,6 +11,7 @@
 # the GNU General Public License
 #
 
+ASTTOPDIR?=..
 -include $(ASTTOPDIR)/menuselect.makeopts
 
 .PHONY: clean all uninstall
@@ -77,7 +78,7 @@ clean:
 	rm -f aelparse.c aelbison.c conf2ael
 	rm -f utils.c threadstorage.c sha1.c astobj2.c hashtest2 hashtest
 
-md5.c: ../main/md5.c
+md5.c: $(ASTTOPDIR)/main/md5.c
 	@cp $< $@
 
 astman: astman.o md5.o
@@ -86,62 +87,62 @@ astman: LIBS+=$(NEWT_LIB)
 stereorize: stereorize.o frame.o
 stereorize: LIBS+=-lm
 
-hashtab.c: ../main/hashtab.c
+hashtab.c: $(ASTTOPDIR)/main/hashtab.c
 	@cp $< $@
 
-strcompat.c: ../main/strcompat.c
+strcompat.c: $(ASTTOPDIR)/main/strcompat.c
 	@cp $< $@
 
-../main/ast_expr2.c:
-	@echo "   [BISON] ../main/ast_expr2.y -> $@"
-	@bison -o $@ -d --name-prefix=ast_yy ../main/ast_expr2.y
+$(ASTTOPDIR)/main/ast_expr2.c:
+	@echo "   [BISON] $(ASTTOPDIR)/main/ast_expr2.y -> $@"
+	@bison -o $@ -d --name-prefix=ast_yy $(ASTTOPDIR)/main/ast_expr2.y
 
-../main/ast_expr2f.c:
-	@echo "   [FLEX] ../main/ast_expr2.fl -> $@"
-	@flex -o $@ --full ../main/ast_expr2.fl
+$(ASTTOPDIR)/main/ast_expr2f.c:
+	@echo "   [FLEX] $(ASTTOPDIR)/main/ast_expr2.fl -> $@"
+	@flex -o $@ --full $(ASTTOPDIR)/main/ast_expr2.fl
 
-pval.c: ../res/ael/pval.c
+pval.c: $(ASTTOPDIR)/res/ael/pval.c
 	@cp $< $@
 
-ast_expr2.c: ../main/ast_expr2.c
+ast_expr2.c: $(ASTTOPDIR)/main/ast_expr2.c
 	@cp $< $@
 
-ast_expr2f.c: ../main/ast_expr2f.c
+ast_expr2f.c: $(ASTTOPDIR)/main/ast_expr2f.c
 	@cp $< $@
 
-ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE_AEL -I../main
+ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE_AEL -I$(ASTTOPDIR)/main
 
 pval.o : ASTCFLAGS+=-DSTANDALONE
 
 check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o threadstorage.o clicompat.o
 
-aelbison.c: ../res/ael/ael.tab.c
+aelbison.c: $(ASTTOPDIR)/res/ael/ael.tab.c
 	@cp $< $@
 
-aelbison.o: ASTCFLAGS+=-I../res/ael  -DYYENABLE_NLS=0
+aelbison.o: ASTCFLAGS+=-I$(ASTTOPDIR)/res/ael  -DYYENABLE_NLS=0
 
-pbx_ael.c: ../pbx/pbx_ael.c
+pbx_ael.c: $(ASTTOPDIR)/pbx/pbx_ael.c
 	@cp $< $@
 
 pbx_ael.o: ASTCFLAGS+=-DSTANDALONE_AEL
 
-aelparse.c: ../res/ael/ael_lex.c
+aelparse.c: $(ASTTOPDIR)/res/ael/ael_lex.c
 	@cp $< $@
 
-aelparse.o: ASTCFLAGS+=-I../res -DSTANDALONE_AEL
+aelparse.o: ASTCFLAGS+=-I$(ASTTOPDIR)/res -DSTANDALONE_AEL
 
 aelparse: aelparse.o aelbison.o pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
 
-astobj2.c: ../main/astobj2.c
+astobj2.c: $(ASTTOPDIR)/main/astobj2.c
 	@cp $< $@
 
-utils.c: ../main/utils.c
+utils.c: $(ASTTOPDIR)/main/utils.c
 	@cp $< $@
 
-sha1.c: ../main/sha1.c
+sha1.c: $(ASTTOPDIR)/main/sha1.c
 	@cp $< $@
 
-threadstorage.c: ../main/threadstorage.c
+threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 	@cp $< $@
 
 hashtest2.o: ASTCFLAGS+=-O0
@@ -156,9 +157,9 @@ extconf.o: extconf.c
 
 conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o aelbison.o aelparse.o pbx_ael.o pval.o extconf.o strcompat.o
 
-testexpr2s: ../main/ast_expr2f.c ../main/ast_expr2.c ../main/ast_expr2.h
-	$(CC) -g -c -I../include -DSTANDALONE_AEL ../main/ast_expr2f.c -o ast_expr2f.o
-	$(CC) -g -c -I../include -DSTANDALONE_AEL ../main/ast_expr2.c -o ast_expr2.o
+testexpr2s: $(ASTTOPDIR)/main/ast_expr2f.c $(ASTTOPDIR)/main/ast_expr2.c $(ASTTOPDIR)/main/ast_expr2.h
+	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE_AEL $(ASTTOPDIR)/main/ast_expr2f.c -o ast_expr2f.o
+	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE_AEL $(ASTTOPDIR)/main/ast_expr2.c -o ast_expr2.o
 	$(CC) -g -o testexpr2s ast_expr2f.o ast_expr2.o
 	rm ast_expr2.o ast_expr2f.o 
 	./testexpr2s expr2.testinput
