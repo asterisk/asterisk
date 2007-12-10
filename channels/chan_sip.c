@@ -10694,11 +10694,12 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 			referstatus = referstatus2str(cur->refer->status);
 		}
 		if (cur->subscribed == NONE && !subscriptions) {
+			char formatbuf[BUFSIZ/2];
 			ast_cli(fd, FORMAT, ast_inet_ntoa(cur->sa.sin_addr), 
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
 				cur->callid, 
-				cur->ocseq, cur->icseq, 
-				ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), 
+				cur->ocseq, cur->icseq,
+				ast_getformatname_multiple(formatbuf, sizeof(formatbuf), cur->owner ? cur->owner->nativeformats : 0),
 				ast_test_flag(&cur->flags[1], SIP_PAGE2_CALL_ONHOLD) ? "Yes" : "No",
 				ast_test_flag(&cur->flags[0], SIP_NEEDDESTROY) ? "(d)" : "",
 				cur->lastmsg ,
