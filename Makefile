@@ -25,6 +25,9 @@
 #
 # $ ASTCFLAGS="-Werror" make
 
+# You can add the path of local module subdirs from the command line with
+#   make LOCAL_MOD_SUBDIRS= ....
+
 export ASTTOPDIR		# Top level dir, used in subdirs' Makefiles
 export ASTERISKVERSION
 export ASTERISKVERSIONNUM
@@ -266,7 +269,7 @@ endif
 #	#ifdef BUSYDETECT in main/dsp.c
 ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
 
-MOD_SUBDIRS:=channels pbx apps codecs formats cdr funcs main res
+MOD_SUBDIRS:=channels pbx apps codecs formats cdr funcs main res $(LOCAL_MOD_SUBDIRS)
 OTHER_SUBDIRS:=utils agi
 SUBDIRS:=$(OTHER_SUBDIRS) $(MOD_SUBDIRS)
 SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)
@@ -506,7 +509,7 @@ bininstall: _all
 $(SUBDIRS_INSTALL):
 	@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" $(MAKE) --quiet $(PRINT_DIR) -C $(@:-install=) install
 
-NEWMODS=$(notdir $(wildcard */*.so))
+NEWMODS:=$(foreach d,$(MOD_SUBDIRS),$(notdir $(wildcard $(d)/*.so)))
 OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
 
 oldmodcheck:
