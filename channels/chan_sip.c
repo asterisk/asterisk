@@ -2200,14 +2200,16 @@ static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us)
 	 *    when passed to ast_apply_ha() so it does need to be remapped.
 	 *    This fourth condition is checked later.
 	 */
-	int want_remap = localaddr &&
-		(externip.sin_addr.s_addr || stunaddr.sin_addr.s_addr) &&
-		ast_apply_ha(localaddr, &theirs) == AST_SENSE_ALLOW ;
+	int want_remap;
 
 	*us = internip;		/* starting guess for the internal address */
 	/* now ask the system what would it use to talk to 'them' */
 	ast_ouraddrfor(them, &us->sin_addr);
 	theirs.sin_addr = *them;
+
+	want_remap = localaddr &&
+		(externip.sin_addr.s_addr || stunaddr.sin_addr.s_addr) &&
+		ast_apply_ha(localaddr, &theirs) == AST_SENSE_ALLOW ;
 
 	if (want_remap &&
 	    (!global_matchexterniplocally || !ast_apply_ha(localaddr, us)) ) {
