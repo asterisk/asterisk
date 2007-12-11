@@ -65,6 +65,7 @@ static void *dialed_interface_duplicate(void *data)
 		struct ast_dialed_interface *di2 = ast_calloc(1, sizeof(*di2) + strlen(di->interface));
 		if(!di2) {
 			AST_LIST_UNLOCK(old_list);
+			dialed_interface_destroy(new_list);
 			return NULL;
 		}
 		strcpy(di2->interface, di->interface);
