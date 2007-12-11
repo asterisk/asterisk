@@ -15,6 +15,10 @@
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
+/*! \file External configuration handlers (realtime and static configuration)
+ *  \author Steve Murphy <murf@digium.com>
+ *
+ */
 
 #ifndef _ASTERISK_EXTCONF_H
 #define _ASTERISK_EXTCONF_H
@@ -68,7 +72,7 @@ struct ast_config {
 
 /* ================== above: the config world; below, the dialplan world */
 
-/*! \brief ast_app: A registered application */
+/*! \brief A registered application */
 struct ast_app {
 	int (*execute)(struct ast_channel *chan, void *data);
 	const char *synopsis;			/*!< Synopsis text for 'show applications' */
@@ -78,7 +82,7 @@ struct ast_app {
 	char name[0];				/*!< Name of the application */
 };
 /*!
-   \brief ast_exten: An extension
+   \brief An extension
 	The dialplan is saved as a linked list with each context
 	having it's own linked list of extensions - one item per
 	priority.
@@ -108,7 +112,7 @@ struct ast_timing {
 	unsigned int dowmask;			/*!< Mask for day of week (mon-sun) */
 	unsigned int minmask[24];		/*!< Mask for minute */
 };
-/*! \brief ast_include: include= support in extensions.conf */
+/*! \brief include= support in extensions.conf */
 struct ast_include {
 	const char *name;
 	const char *rname;			/*!< Context to include */
@@ -119,7 +123,7 @@ struct ast_include {
 	char stuff[0];
 };
 
-/*! \brief ast_sw: Switch statement in extensions.conf */
+/*! \brief Switch statement in extensions.conf */
 struct ast_sw {
 	char *name;
 	const char *registrar;			/*!< Registrar */
@@ -130,14 +134,14 @@ struct ast_sw {
 	char stuff[0];
 };
 
-*! \brief ast_ignorepat: Ignore patterns in dial plan */
+*! \brief Ignore patterns in dial plan */
 struct ast_ignorepat {
 	const char *registrar;
 	struct ast_ignorepat *next;
 	const char pattern[0];
 };
 
-/*! \brief ast_context: An extension context */
+/*! \brief An extension context */
 struct ast_context {
 	ast_rwlock_t lock; 			/*!< A lock to prevent multiple threads from clobbering the context */
 	struct ast_exten *root;			/*!< The root of the list of extensions */

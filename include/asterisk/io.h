@@ -48,7 +48,7 @@ extern "C" {
 /*! Invalid fd */
 #define AST_IO_NVAL	POLLNVAL
 
-/*!
+/*! \brief
  * An Asterisk IO callback takes its id, a file descriptor, list of events, and
  * callback data as arguments and returns 0 if it should not be
  * run again, or non-zero if it should be run again.

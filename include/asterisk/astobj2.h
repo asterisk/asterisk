@@ -18,8 +18,9 @@
 #define _ASTERISK_ASTOBJ2_H
 
 /*! \file 
+ * \ref AstObj2
  *
- * \brief Object Model implementing objects and containers.
+ * \page AstObj2 Object Model implementing objects and containers.
 
 This module implements an abstraction for objects (with locks and
 reference counts), and containers for these user-defined objects,
@@ -28,7 +29,7 @@ also supporting locking, reference counting and callbacks.
 The internal implementation of objects and containers is opaque to the user,
 so we can use different data structures as needs arise.
 
-USAGE - OBJECTS
+\section AstObj2_UsageObjects USAGE - OBJECTS
 
 An ao2 object is a block of memory that the user code can access,
 and for which the system keeps track (with a bit of help from the
@@ -53,21 +54,21 @@ The value returned points to the user-visible portion of the objects
 operations such as refcount and lock manipulations.
 
 On return from ao2_alloc():
-- the object has a refcount = 1;
 
-- the memory for the object is allocated dynamically and zeroed;
-
-- we cannot realloc() the object itself;
-
-- we cannot call free(o) to dispose of the object. Rather, we
-  tell the system that we do not need the reference anymore:
+ - the object has a refcount = 1;
+ - the memory for the object is allocated dynamically and zeroed;
+ - we cannot realloc() the object itself;
+ - we cannot call free(o) to dispose of the object. Rather, we
+   tell the system that we do not need the reference anymore:
 
     ao2_ref(o, -1)
 
   causing the destructor to be called (and then memory freed) when
   the refcount goes to 0. This is also available as ao2_unref(o),
   and returns NULL as a convenience, so you can do things like
+
 	o = ao2_unref(o);
+
   and clean the original pointer to prevent errors.
 
 - ao2_ref(o, +1) can be used to modify the refcount on the
@@ -77,7 +78,7 @@ On return from ao2_alloc():
   to manipulate the lock associated with the object.
 
 
-USAGE - CONTAINERS
+\section AstObj2_UsageContainers USAGE - CONTAINERS
 
 An ao2 container is an abstract data structure where we can store
 ao2 objects, search them (hopefully in an efficient way), and iterate
@@ -94,7 +95,9 @@ parameters. At the moment, this is done as follows:
 
     c = ao2_container_alloc(MAX_BUCKETS, my_hash_fn, my_cmp_fn);
     \endcode
+
 where
+
 - MAX_BUCKETS is the number of buckets in the hash table,
 - my_hash_fn() is the (user-supplied) function that returns a
   hash key for the object (further reduced modulo MAX_BUCKETS
@@ -129,9 +132,12 @@ reinserting it after the change (this is not terribly expensive).
 \note A container with a single buckets is effectively a linked
 list. However there is no ordering among elements.
 
+- \ref AstObj2_Containers
+- \ref astobj2.h All documentation for functions and data structures
+
  */
 
-/*!
+/*! \brief
  * Typedef for an object destructor. This is called just before freeing
  * the memory for the object. It is passed a pointer to the user-defined
  * data of the object.
@@ -139,7 +145,7 @@ list. However there is no ordering among elements.
 typedef void (*ao2_destructor_fn)(void *);
 
 
-/*!
+/*! \brief
  * Allocate and initialize an object.
  * 
  * \param data_size The sizeof() of the user-defined structure.
@@ -156,7 +162,7 @@ typedef void (*ao2_destructor_fn)(void *);
  */
 void *ao2_alloc(const size_t data_size, ao2_destructor_fn destructor_fn);
 
-/*!
+/*! \brief
  * Reference/unreference an object and return the old refcount.
  *
  * \param o A pointer to the object
@@ -178,7 +184,7 @@ void *ao2_alloc(const size_t data_size, ao2_destructor_fn destructor_fn);
  */
 int ao2_ref(void *o, int delta);
 
-/*!
+/*! \brief
  * Lock an object.
  * 
  * \param a A pointer to the object we want lock.
@@ -186,7 +192,7 @@ int ao2_ref(void *o, int delta);
  */
 int ao2_lock(void *a);
 
-/*!
+/*! \brief
  * Unlock an object.
  * 
  * \param a A pointer to the object we want unlock.
@@ -194,31 +200,31 @@ int ao2_lock(void *a);
  */
 int ao2_unlock(void *a);
 
-/*!
+/*! 
  *
- * Containers
+ \page AstObj2_Containers AstObj2 Containers
 
 Containers are data structures meant to store several objects,
 and perform various operations on them.
 Internally, objects are stored in lists, hash tables or other
 data structures depending on the needs.
 
-NOTA BENE: at the moment the only container we support is the
-hash table and its degenerate form, the list.
+\note NOTA BENE: at the moment the only container we support is the
+	hash table and its degenerate form, the list.
 
 Operations on container include:
 
-    c = ao2_container_alloc(size, cmp_fn, hash_fn)
+  -  c = \b ao2_container_alloc(size, cmp_fn, hash_fn)
 	allocate a container with desired size and default compare
 	and hash function
 
-    ao2_find(c, arg, flags)
+  -  \b ao2_find(c, arg, flags)
 	returns zero or more element matching a given criteria
 	(specified as arg). Flags indicate how many results we
 	want (only one or all matching entries), and whether we
 	should unlink the object from the container.
 
-    ao2_callback(c, flags, fn, arg)
+  -  \b ao2_callback(c, flags, fn, arg)
 	apply fn(obj, arg) to all objects in the container.
 	Similar to find. fn() can tell when to stop, and
 	do anything with the object including unlinking it.
@@ -231,8 +237,10 @@ Operations on container include:
 	can do basically anything e.g. counting, deleting records, etc.
 	possibly using arg to store the results.
    
-    iterate on a container
+  -  \b iterate on a container
 	this is done with the following sequence
+
+\code
 
 	    struct ao2_container *c = ... // our container
 	    struct ao2_iterator i;
@@ -244,38 +252,40 @@ Operations on container include:
 		... do something on o ...
 		ao2_ref(o, -1);
 	    }
+\endcode
 
 	The difference with the callback is that the control
 	on how to iterate is left to us.
 
-    ao2_ref(c, -1)
+    - \b ao2_ref(c, -1)
 	dropping a reference to a container destroys it, very simple!
  
 Containers are ao2 objects themselves, and this is why their
 implementation is simple too.
 
+Before declaring containers, we need to declare the types of the
+arguments passed to the constructor - in turn, this requires
+to define callback and hash functions and their arguments.
+
+- \ref AstObj2
+- \ref astobj2.h
  */
 
-/*!
- * Before declaring containers, we need to declare the types of the
- * arguments passed to the constructor - in turn, this requires
- * to define callback and hash functions and their arguments.
- */
-
-/*!
+/*! \brief
  * Type of a generic callback function
  * \param obj  pointer to the (user-defined part) of an object.
  * \param arg callback argument from ao2_callback()
  * \param flags flags from ao2_callback()
+ *
  * The return values are a combination of enum _cb_results.
  * Callback functions are used to search or manipulate objects in a container,
  */
 typedef int (ao2_callback_fn)(void *obj, void *arg, int flags);
 
-/*! a very common callback is one that matches by address. */
+/*! \brief a very common callback is one that matches by address. */
 ao2_callback_fn ao2_match_by_addr;
 
-/*!
+/*! \brief
  * A callback function will return a combination of CMP_MATCH and CMP_STOP.
  * The latter will terminate the search in a container.
  */
@@ -284,7 +294,7 @@ enum _cb_results {
 	CMP_STOP	= 0x2,	/*!< stop the search now */
 };
 
-/*!
+/*! \brief
  * Flags passed to ao2_callback() and ao2_hash_fn() to modify its behaviour.
  */
 enum search_flags {
@@ -312,12 +322,13 @@ enum search_flags {
  */
 typedef int (ao2_hash_fn)(const void *obj, const int flags);
 
-/*!
+/*! \name Object Containers 
  * Here start declarations of containers.
  */
+/*@{ */
 struct ao2_container;
 
-/*!
+/*! \brief
  * Allocate and initialize a container 
  * with the desired number of buckets.
  * 
@@ -335,17 +346,19 @@ struct ao2_container;
 struct ao2_container *ao2_container_alloc(const uint n_buckets,
 		ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn);
 
-/*!
+/*! \brief
  * Returns the number of elements in a container.
  */
 int ao2_container_count(struct ao2_container *c);
+/*@} */
 
-/*
+/*! \name Object Management
  * Here we have functions to manage objects.
  *
  * We can use the functions below on any kind of 
  * object defined by the user.
  */
+/*@{ */
 
 /*!
  * \brief Add an object to a container.
@@ -387,8 +400,9 @@ struct ao2_list {
 	struct ao2_list *next;
 	void *obj;	/* pointer to the user portion of the object */
 };
+/*@} */
 
-/*!
+/*! \brief
  * ao2_callback() is a generic function that applies cb_fn() to all objects
  * in a container, as described below.
  * 
@@ -400,6 +414,7 @@ struct ao2_list {
  * \return 	A pointer to the object found/marked, 
  * 		a pointer to a list of objects matching comparison function,
  * 		NULL if not found.
+ *
  * If the function returns any objects, their refcount is incremented,
  * and the caller is in charge of decrementing them once done.
  * Also, in case of multiple values returned, the list used
@@ -453,7 +468,7 @@ void *ao2_callback(struct ao2_container *c,
  */
 void *ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
 
-/*!
+/*! \brief
  *
  *
  * When we need to walk through a container, we use
@@ -502,8 +517,10 @@ void *ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
  *
  */
 
-/*!
- * You are not supposed to know the internals of an iterator!
+/*! \brief 
+ * The Astobj2 iterator
+ *
+ * \note You are not supposed to know the internals of an iterator!
  * We would like the iterator to be opaque, unfortunately
  * its size needs to be known if we want to store it around
  * without too much trouble.
@@ -513,6 +530,7 @@ void *ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
  * should be locked or not while navigating on it.
  * The iterator "points" to the current object, which is identified
  * by three values:
+ *
  * - a bucket number;
  * - the object_id, which is also the container version number
  *   when the object was inserted. This identifies the object
@@ -521,10 +539,10 @@ void *ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
  * - a pointer, and a container version when we saved the pointer.
  *   If the container has not changed its version number, then we
  *   can safely follow the pointer to reach the object in constant time.
+ *
  * Details are in the implementation of ao2_iterator_next()
  * A freshly-initialized iterator has bucket=0, version = 0.
  */
-
 struct ao2_iterator {
 	/*! the container */
 	struct ao2_container *c;

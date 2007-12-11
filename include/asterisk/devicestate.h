@@ -41,7 +41,7 @@
 extern "C" {
 #endif
 
-/*! Device States 
+/*! \brief Device States 
  *  \note The order of these states may not change because they are included
  *        in Asterisk events which may be transmitted across the network to
  *        other servers.

@@ -43,9 +43,8 @@ extern "C" {
 #define VERBOSE_PREFIX_3 "    -- "
 #define VERBOSE_PREFIX_4 "       > "
 
-/*! Used for sending a log message */
-/*!
-	\brief This is the standard logger function.  Probably the only way you will invoke it would be something like this:
+/*! \brief Used for sending a log message 
+	This is the standard logger function.  Probably the only way you will invoke it would be something like this:
 	ast_log(LOG_WHATEVER, "Problem with the %s Captain.  We should get some more.  Will %d be enough?\n", "flux capacitor", 10);
 	where WHATEVER is one of ERROR, DEBUG, EVENT, NOTICE, or WARNING depending
 	on which log you wish to output to. These are implemented as macros, that

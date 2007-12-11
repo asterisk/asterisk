@@ -21,8 +21,9 @@
 
 /*! \file
  * \brief Generic (perhaps overly so) hashtable implementation
-*/
-/*! \note
+ * \ref AstHash
+ */
+/*! \page AstHash Hash Table support in Asterisk
 
 A hash table is a structure that allows for an exact-match search
 in O(1) (or close to that) time.
@@ -39,6 +40,7 @@ The key for a value must be contained in the value, or we won't
 be able to find it in the bucket list.
 
 This implementation is pretty generic, because:
+
  1. The value and key are expected to be in a structure
     (along with other data, perhaps) and it's address is a "void *".
  2. The pointer to a compare function must be passed in at the

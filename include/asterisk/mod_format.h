@@ -31,8 +31,9 @@
 extern "C" {
 #endif
 
-/*!
- * Each supported file format is described by the following fields.
+/*! \brief
+ * Each supported file format is described by the following structure.
+ *
  * Not all are necessary, the support routine implement default
  * values for some of them.
  * A handler typically fills a structure initializing the desired
@@ -91,7 +92,7 @@ struct ast_format {
 	struct ast_module *module;
 };
 
-/*!
+/*! \brief
  * This structure is allocated by file.c in one chunk,
  * together with buf_size and desc_size bytes of memory
  * to be used for private purposes (e.g. buffers etc.)

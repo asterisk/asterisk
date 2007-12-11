@@ -33,16 +33,22 @@ struct ast_db_entry {
 	char data[0];
 };
 
+/*! \brief Get key value specified by family/key */
 int ast_db_get(const char *family, const char *key, char *out, int outlen);
 
+/*! \brief Store value addressed by family/key*/
 int ast_db_put(const char *family, const char *key, const char *value);
 
+/*! \brief Delete entry in astdb */
 int ast_db_del(const char *family, const char *key);
 
+/*! \brief Delete a whole family (for some reason also called "tree" */
 int ast_db_deltree(const char *family, const char *keytree);
 
+/*! \brief Get a whole family */
 struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree);
 
+/*! \brief Free in-memory data */
 void ast_db_freetree(struct ast_db_entry *entry);
 
 #if defined(__cplusplus) || defined(c_plusplus)

@@ -350,7 +350,6 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg Implemented in \ref chan_h323.c
  * \section h323conf h323.conf
  * \ref chan_h323.c
- * \verbinclude h323.txt
  */
 
 /*! \page Config_oss OSS configuration

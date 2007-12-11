@@ -17,7 +17,9 @@
  */
 
 /*! \file
- * \brief Wrappers for AES encryption/decryption
+ * Wrappers for AES encryption/decryption
+ *
+ * \author Kevin P. Fleming <kpfleming@digium.com>
  *
  * These wrappers provided a generic interface to either the
  * AES methods provided by OpenSSL's crypto library, or the

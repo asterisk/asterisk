@@ -20,6 +20,7 @@
  * \brief Structures for AEL - the Asterisk extension language
  *
  * \ref pbx_ael.c
+ * \todo document this file (ael.h)
  */
 
 #ifndef _ASTERISK_AEL_STRUCTS_H
@@ -113,8 +114,8 @@ struct ael_extension
 	struct ael_priority *plist_last;
 	struct ael_extension *next_exten;
 
-	struct ael_priority *loop_break;  /* set by latest loop for breaks */
-	struct ael_priority *loop_continue; /* set by lastest loop for continuing */
+	struct ael_priority *loop_break;  /*!< set by latest loop for breaks */
+	struct ael_priority *loop_continue; /*!< set by lastest loop for continuing */
 	struct ael_priority *return_target;
 	int return_needed;
 };

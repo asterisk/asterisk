@@ -20,6 +20,8 @@
  * \brief CallerID (and other GR30) management and generation
  * Includes code and algorithms from the Zapata library.
  *
+ * \ref CID
+ *
  */
 
 /*!

@@ -30,16 +30,21 @@
 #define AST_CDR_FLAG_CHILD			(1 << 3)
 #define AST_CDR_FLAG_POST_DISABLED		(1 << 4)
 
+/*! \name CDR Flags */
+/*@{ */
 #define AST_CDR_NULL                0
 #define AST_CDR_FAILED				(1 << 0)
 #define AST_CDR_BUSY				(1 << 1)
 #define AST_CDR_NOANSWER			(1 << 2)
 #define AST_CDR_ANSWERED			(1 << 3)
+/*@} */
 
-/*! AMA Flags */
+/*! \name CDR AMA Flags */
+/*@{ */
 #define AST_CDR_OMIT				(1)
 #define AST_CDR_BILLING				(2)
 #define AST_CDR_DOCUMENTATION			(3)
+/*@} */
 
 #define AST_MAX_USER_FIELD			256
 #define AST_MAX_ACCOUNT_CODE			20
@@ -48,7 +53,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 
-/*! Responsible for call detail data */
+/*! \brief Responsible for call detail data */
 struct ast_cdr {
 	/*! Caller*ID with text */
 	char clid[AST_MAX_EXTENSION];
@@ -298,11 +303,15 @@ char *ast_cdr_flags2str(int flags);
  */
 void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from);
 
+/*! \brief Set account code, will generate AMI event */
 int ast_cdr_setaccount(struct ast_channel *chan, const char *account);
+
+/*! \brief Set AMA flags for channel */
 int ast_cdr_setamaflags(struct ast_channel *chan, const char *amaflags);
 
-
+/*! \brief Set CDR user field for channel (stored in CDR) */
 int ast_cdr_setuserfield(struct ast_channel *chan, const char *userfield);
+/*! \brief Append to CDR user field for channel (stored in CDR) */
 int ast_cdr_appenduserfield(struct ast_channel *chan, const char *userfield);
 
 
@@ -316,10 +325,10 @@ extern char ast_default_accountcode[AST_MAX_ACCOUNT_CODE];
 
 struct ast_cdr *ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr);
 
-/*! Reload the configuration file cdr.conf and start/stop CDR scheduling thread */
+/*! \brief Reload the configuration file cdr.conf and start/stop CDR scheduling thread */
 int ast_cdr_engine_reload(void);
 
-/*! Load the configuration file cdr.conf and possibly start the CDR scheduling thread */
+/*! \brief Load the configuration file cdr.conf and possibly start the CDR scheduling thread */
 int ast_cdr_engine_init(void);
 
 /*! Submit any remaining CDRs and prepare for shutdown */

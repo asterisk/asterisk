@@ -24,6 +24,8 @@
 #define _ASTERISK_ADSI_H
 
 #include "asterisk/callerid.h"
+/*! \name ADSI parameters */
+/*@{ */
 
 /* ADSI Message types */
 #define ADSI_MSG_DISPLAY	132
@@ -116,6 +118,8 @@
 
 #define ADSI_DIR_FROM_LEFT (0)
 #define ADSI_DIR_FROM_RIGHT (1)
+
+/*@} */
 
 /*! Perform Asterisk ADSI initialization (for channel drivers that want 
  *    to support ADSI when the handset is first lifted) 

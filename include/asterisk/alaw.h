@@ -24,8 +24,7 @@
 #define _ASTERISK_ALAW_H
 
 
-/*! Init the ulaw conversion stuff */
-/*!
+/*! \brief
  * To init the alaw to slinear conversion stuff, this needs to be run.
  */
 void ast_alaw_init(void);
@@ -37,9 +36,7 @@ void ast_alaw_init(void);
 #define AST_ALAW_AMI_MASK  0x55
 
 
-/*! converts signed linear to alaw */
-/*!
- */
+/*! \brief converts signed linear to alaw */
 #ifndef G711_NEW_ALGORITHM
 extern unsigned char __ast_lin2a[8192];
 #else
@@ -55,7 +52,7 @@ extern short __ast_alaw[256];
 #define AST_LIN2A_LOOKUP(mag)							\
 	__ast_lin2a[(mag) >> AST_ALAW_BIT_LOSS]
 
-/*! convert signed linear sample to sign-magnitude pair for a-Law */
+/*! \brief Convert signed linear sample to sign-magnitude pair for a-Law */
 static inline void ast_alaw_get_sign_mag(short sample, unsigned *sign, unsigned *mag)
 {
 	/* It may look illogical to retrive the sign this way in both cases,
