@@ -308,6 +308,7 @@ struct queue_ent {
 	time_t last_pos;                    /*!< Last time we told the user their position */
 	int opos;                           /*!< Where we started in the queue */
 	int handled;                        /*!< Whether our call was handled */
+	int pending;                        /*!< Non-zero if we are attempting to call a member */
 	int max_penalty;                    /*!< Limit the members that can take this call to this penalty or lower */
 	time_t start;                       /*!< When we started holding */
 	time_t expire;                      /*!< When this entry should expire (time out of queue) */
@@ -2320,7 +2321,7 @@ static int is_our_turn(struct queue_ent *qe)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "There are %d available members.\n", avl);
 	
-		while ((idx < avl) && (ch) && (ch != qe)) {
+		while ((idx < avl) && (ch) &&  !ch->pending && (ch != qe)) {
 			idx++;
 			ch = ch->next;			
 		}
@@ -2658,6 +2659,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		to = (qe->expire - now) * 1000;
 	else
 		to = (qe->parent->timeout) ? qe->parent->timeout * 1000 : -1;
+	++qe->pending;
 	ring_one(qe, outgoing, &numbusies);
 	ast_mutex_unlock(&qe->parent->lock);
 	if (use_weight)
@@ -2674,6 +2676,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	ast_mutex_unlock(&qe->parent->lock);
 	peer = lpeer ? lpeer->chan : NULL;
 	if (!peer) {
+		qe->pending = 0;
 		if (to) {
 			/* Must gotten hung up */
 			res = -1;
