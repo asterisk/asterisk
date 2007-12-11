@@ -29,43 +29,43 @@ extern "C" {
 
 #ifdef __GNUC__
 /* If we just tell GCC what's going on, we can trust it to behave optimally */
-static inline unsigned int get_unaligned_uint32(void *p)
+static inline unsigned int get_unaligned_uint32(const void *p)
 {
-	struct { unsigned int d; } __attribute__((packed)) *pp = (void *)p;
+	const struct { unsigned int d; } __attribute__((packed)) *pp = p;
 
 	return pp->d;
 }
-static inline unsigned short get_unaligned_uint16(void *p)
+static inline unsigned short get_unaligned_uint16(const void *p)
 {
-	struct { unsigned short d; } __attribute__((packed)) *pp = (void *)p;
+	const struct { unsigned short d; } __attribute__((packed)) *pp = p;
 
 	return pp->d;
 }
 
 static inline void put_unaligned_uint32(void *p, unsigned int datum)
 {
-	struct { unsigned int d; } __attribute__((packed)) *pp = (void *)p;
+	struct { unsigned int d; } __attribute__((packed)) *pp = p;
 
 	pp->d = datum;
 }
 
 static inline void put_unaligned_uint16(void *p, unsigned short datum)
 {
-	struct { unsigned short d; } __attribute__((packed)) *pp = (void *)p;
+	struct { unsigned short d; } __attribute__((packed)) *pp = p;
 
 	pp->d = datum;
 }
 #elif defined(SOLARIS) && defined(__sparc__)
-static inline unsigned int get_unaligned_uint32(void *p)
+static inline unsigned int get_unaligned_uint32(const void *p)
 {
-	unsigned char *cp = p;
+	const unsigned char *cp = p;
 
 	return (cp[0] << 24) | (cp[1] << 16) | (cp[2] << 8) | cp[3];
 }
 
-static inline unsigned short get_unaligned_uint16(void *p)
+static inline unsigned short get_unaligned_uint16(const void *p)
 {
-	unsigned char *cp = p;
+	const unsigned char *cp = p;
 
 	return (cp[0] << 8) | cp[1] ;
 }
