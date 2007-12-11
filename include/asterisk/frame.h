@@ -449,7 +449,10 @@ int ast_getformatbyname(const char *name);
  */
 char *ast_codec2str(int codec);
 
-/*! \page ast_smooth
+/*! \name AST_Smoother 
+*/
+/*@{ */
+/*! \page ast_smooth The AST Frame Smoother
 The ast_smoother interface was designed specifically
 to take frames of variant sizes and produce frames of a single expected
 size, precisely what you want to do.
@@ -464,8 +467,6 @@ The basic interface is:
 */
 struct ast_smoother;
 
-struct ast_format_list *ast_get_format_list_index(int index);
-struct ast_format_list *ast_get_format_list(size_t *size);
 struct ast_smoother *ast_smoother_new(int bytes);
 void ast_smoother_set_flags(struct ast_smoother *smoother, int flags);
 int ast_smoother_get_flags(struct ast_smoother *smoother);
@@ -482,7 +483,10 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s);
 #define ast_smoother_feed_be(s,f) __ast_smoother_feed(s, f, 0)
 #define ast_smoother_feed_le(s,f) __ast_smoother_feed(s, f, 1)
 #endif
+/*@} Doxygen marker */
 
+struct ast_format_list *ast_get_format_list_index(int index);
+struct ast_format_list *ast_get_format_list(size_t *size);
 void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix);
 
 /*! \page AudioCodecPref Audio Codec Preferences
