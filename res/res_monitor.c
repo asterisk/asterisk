@@ -458,14 +458,16 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 	parse = ast_strdupa((char*)data);
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (strchr(args.options, 'm'))
-		stream_action |= X_JOIN;
-	if (strchr(args.options, 'b'))
-		waitforbridge = 1;
-	if (strchr(args.options, 'i'))
-		stream_action &= ~X_REC_IN;
-	if (strchr(args.options, 'o'))
-		stream_action &= ~X_REC_OUT;
+	if (!ast_strlen_zero(args.options)) {
+		if (strchr(args.options, 'm'))
+			stream_action |= X_JOIN;
+		if (strchr(args.options, 'b'))
+			waitforbridge = 1;
+		if (strchr(args.options, 'i'))
+			stream_action &= ~X_REC_IN;
+		if (strchr(args.options, 'o'))
+			stream_action &= ~X_REC_OUT;
+	}
 
 	arg = strchr(args.format, ':');
 	if (arg) {
