@@ -11683,6 +11683,7 @@ static char *zap_show_version(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	return CLI_SUCCESS;
 }
 
+#ifdef HAVE_ZAPTEL_HWGAIN
 static char *zap_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int channel;
@@ -11753,6 +11754,7 @@ static char *zap_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	return CLI_FAILURE;
 
 }
+#endif
 
 static char *zap_set_swgain(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -11836,7 +11838,9 @@ static struct ast_cli_entry zap_cli[] = {
 	AST_CLI_DEFINE(zap_restart_cmd, "Fully restart zaptel channels"),
 	AST_CLI_DEFINE(zap_show_status, "Show all Zaptel cards status"),
 	AST_CLI_DEFINE(zap_show_version, "Show the Zaptel version in use"),
+#ifdef HAVE_ZAPTEL_HWGAIN
 	AST_CLI_DEFINE(zap_set_hwgain, "Set hardware gains at the port driver"),
+#endif
 	AST_CLI_DEFINE(zap_set_swgain, "Set software gain table values"),
 };
 

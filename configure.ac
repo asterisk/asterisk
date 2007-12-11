@@ -1140,6 +1140,9 @@ AST_C_DEFINE_CHECK([ZAPTEL_VLDTMF], [ZT_EVENT_REMOVED], [zaptel/zaptel.h])
 # Check for transcode support
 AST_C_DEFINE_CHECK([ZAPTEL_TRANSCODE], [ZT_TCOP_ALLOCATE], [zaptel/zaptel.h])
 
+# Check for Zaptel hwgain support
+AST_C_DEFINE_CHECK([ZAPTEL_HWGAIN], [ZT_SET_HWGAIN], [zaptel/zaptel.h])
+
 # On FreeBSD, try old zaptel (0.80 or so) and pretend we have vldtmf
 case "${host_os}" in
     freebsd*)
