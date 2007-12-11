@@ -11,6 +11,12 @@
  * the GNU General Public License
  */
 
+/*! \file \brief
+ * Interface to mISDN - Config
+ * \author Christian Richter <crich@beronet.com>
+ */
+
+
 
 
 #ifndef CHAN_MISDN_CONFIG_H

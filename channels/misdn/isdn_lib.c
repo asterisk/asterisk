@@ -11,6 +11,12 @@
  * the GNU General Public License
  */
 
+/*! \file \brief
+ * Interface to mISDN
+ * \author Christian Richter <crich@beronet.com>
+ */
+
+
 
 #include <syslog.h>
 #include <mISDNuser/isdn_debug.h>

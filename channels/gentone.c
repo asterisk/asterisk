@@ -1,6 +1,11 @@
 /* Generate a header file for a particular 
    single or double frequency */
 
+/*! \file
+ * \brief
+ * Generate a header file for a particular single or double frequency 
+ */
+
 #include <stdio.h>
 #include <math.h>
 #include <string.h>

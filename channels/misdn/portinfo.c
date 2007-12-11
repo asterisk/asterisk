@@ -1,3 +1,7 @@
+/*! \file \brief
+ * Interface to mISDN - ???
+ * \author Christian Richter <crich@beronet.com>
+ */
 
 
 #include "isdn_lib.h"

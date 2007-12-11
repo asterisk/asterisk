@@ -11,6 +11,13 @@
  * the GNU General Public License
  */
 
+/*! \file \brief
+ * 
+ * Interface to mISDN
+ *
+ * \author Christian Richter <crich@beronet.com>
+ */
+
 #ifndef TE_LIB
 #define TE_LIB
 

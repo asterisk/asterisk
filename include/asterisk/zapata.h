@@ -19,10 +19,7 @@
 
 /*! \file
  * \brief Stub to find zaptel headers
- */
-
-
-/*
+*
  * Stub to find the zaptel headers. The configure script will
  * define HAVE_ZAPTEL_VERSION according to what it has found.
  * Applications should include "zapata.h" and not (directly)

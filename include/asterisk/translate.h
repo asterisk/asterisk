@@ -18,6 +18,7 @@
 
 /*! \file
  * \brief Support for translation of data formats.
+ * \ref translate.c
  */
 
 #ifndef _ASTERISK_TRANSLATE_H
@@ -40,7 +41,9 @@ extern "C" {
 struct ast_trans_pvt;	/* declared below */
 
 /*! \brief
- * Descriptor of a translator. Name, callbacks, and various options
+ * Descriptor of a translator. 
+ *
+ * Name, callbacks, and various options
  * related to run-time operation (size of buffers, auxiliary
  * descriptors, etc).
  *
@@ -116,7 +119,7 @@ struct ast_translator {
 /*! \brief
  * Default structure for translators, with the basic fields and buffers,
  * all allocated as part of the same chunk of memory. The buffer is
- * preceded by AST_FRIENDLY_OFFSET bytes in front of the user portion.
+ * preceded by \ref AST_FRIENDLY_OFFSET bytes in front of the user portion.
  * 'buf' points right after this space.
  *
  * *_framein() routines operate in two ways:
@@ -158,6 +161,8 @@ struct ast_trans_pvt;
  * \return 0 on success, -1 on failure
  */
 int __ast_register_translator(struct ast_translator *t, struct ast_module *module);
+
+/*! \brief See \ref __ast_register_translator() */
 #define ast_register_translator(t) __ast_register_translator(t, ast_module_info->self)
 
 /*!

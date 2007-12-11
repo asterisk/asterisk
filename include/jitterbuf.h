@@ -13,6 +13,13 @@
  * Copyright on this file is disclaimed to Digium for inclusion in Asterisk
  */
 
+/*! \file
+ * \brief 
+ * jitterbuf: an application-independent jitterbuffer
+ * \ref jitterbuf.c
+ */
+
+
 #ifndef _JITTERBUF_H_
 #define _JITTERBUF_H_
 
@@ -20,7 +27,8 @@
 extern "C" {
 #endif
 
-/* configuration constants */
+/*! \name configuration constants */
+/*@{ */
 	/*! Number of historical timestamps to use in calculating jitter and drift */
 #define JB_HISTORY_SZ		500	
 	/*! what percentage of timestamps should we drop from the history when we examine it;
@@ -34,6 +42,7 @@ extern "C" {
 #define JB_TARGET_EXTRA 40
 	/*! ms between growing and shrinking; may not be honored if jitterbuffer runs out of space */
 #define JB_ADJUST_DELAY 40
+/*@} */
 
 enum jb_return_code {
 	/* return codes */
@@ -47,10 +56,10 @@ enum jb_return_code {
 
 enum jb_frame_type {
 	/* frame types */
-	JB_TYPE_CONTROL,  /* 0            */
-	JB_TYPE_VOICE,    /* 1            */
-	JB_TYPE_VIDEO,    /* 2 - reserved */
-	JB_TYPE_SILENCE   /* 3            */
+	JB_TYPE_CONTROL,  /*!< 0            */
+	JB_TYPE_VOICE,    /*!< 1            */
+	JB_TYPE_VIDEO,    /*!< 2 - reserved */
+	JB_TYPE_SILENCE   /*!< 3            */
 };
 
 typedef struct jb_conf {
@@ -111,18 +120,20 @@ typedef struct jitterbuf {
 } jitterbuf;
 
 
-/* new jitterbuf */
+/*! \brief new jitterbuf */
 jitterbuf *		jb_new(void);
 
-/* destroy jitterbuf */
+/*! \brief destroy jitterbuf */
 void			jb_destroy(jitterbuf *jb);
 
-/* reset jitterbuf */
-/* NOTE:  The jitterbuffer should be empty before you call this, otherwise
+/*! \brief reset jitterbuf
+ * \note The jitterbuffer should be empty before you call this, otherwise
  * you will leak queued frames, and some internal structures */
 void			jb_reset(jitterbuf *jb);
 
-/* queue a frame data=frame data, timings (in ms): ms=length of frame (for voice), ts=ts (sender's time) 
+/*!\brief  queue a frame 
+ * 
+ * data=frame data, timings (in ms): ms=length of frame (for voice), ts=ts (sender's time) 
  * now=now (in receiver's time) return value is one of 
  * JB_OK: Frame added. Last call to jb_next() still valid
  * JB_DROP: Drop this frame immediately
@@ -130,7 +141,7 @@ void			jb_reset(jitterbuf *jb);
  */
 enum jb_return_code jb_put(jitterbuf *jb, void *data, const enum jb_frame_type type, long ms, long ts, long now);
 
-/* get a frame for time now (receiver's time)  return value is one of
+/*! \brief get a frame for time now (receiver's time)  return value is one of
  * JB_OK:  You've got frame!
  * JB_DROP: Here's an audio frame you should just drop.  Ask me again for this time..
  * JB_NOFRAME: There's no frame scheduled for this time.
@@ -139,21 +150,21 @@ enum jb_return_code jb_put(jitterbuf *jb, void *data, const enum jb_frame_type t
  */
 enum jb_return_code jb_get(jitterbuf *jb, jb_frame *frame, long now, long interpl);
 
-/* unconditionally get frames from jitterbuf until empty */
+/*! \brief unconditionally get frames from jitterbuf until empty */
 enum jb_return_code jb_getall(jitterbuf *jb, jb_frame *frameout);
 
-/* when is the next frame due out, in receiver's time (0=EMPTY) 
+/*! \brief when is the next frame due out, in receiver's time (0=EMPTY) 
  * This value may change as frames are added (esp non-audio frames) */
-long			jb_next(jitterbuf *jb);
+long	jb_next(jitterbuf *jb);
 
-/*! get jitterbuf info: only "statistics" may be valid */
+/*! \brief get jitterbuf info: only "statistics" may be valid */
 enum jb_return_code jb_getinfo(jitterbuf *jb, jb_info *stats);
 
-/*! set jitterbuf conf */
+/*! \brief set jitterbuf conf */
 enum jb_return_code jb_setconf(jitterbuf *jb, jb_conf *conf);
 
-typedef 		void (*jb_output_function_t)(const char *fmt, ...);
-void 			jb_setoutput(jb_output_function_t err, jb_output_function_t warn, jb_output_function_t dbg);
+typedef	void (*jb_output_function_t)(const char *fmt, ...);
+void jb_setoutput(jb_output_function_t err, jb_output_function_t warn, jb_output_function_t dbg);
 
 #ifdef __cplusplus
 }

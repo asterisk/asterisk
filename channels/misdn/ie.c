@@ -15,6 +15,11 @@
  * the GNU General Public License
  */
 
+/*! \file \brief
+ * Interface to mISDN
+ * \author Christian Richter <crich@beronet.com>
+ */
+
 /*
   the pointer of enc_ie_* always points to the IE itself
   if qi is not NULL (TE-mode), offset is set

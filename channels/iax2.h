@@ -10,6 +10,15 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  */
+
+/*! \file
+ * \brief
+ *
+ * Implementation of Inter-Asterisk eXchange, version 2
+ * \ref iax2-parser.c
+ * \ref iax2-parser.h
+ * \ref chan_iax2.c
+ */
  
 #ifndef _IAX2_H
 #define _IAX2_H

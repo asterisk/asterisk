@@ -24,7 +24,6 @@
 #define _ASTERISK_ULAW_H
 
 
-/*! Init the ulaw conversion stuff */
 /*!
  * To init the ulaw to slinear conversion stuff, this needs to be run.
  */
@@ -35,9 +34,7 @@ void ast_ulaw_init(void);
 #define AST_ULAW_TAB_SIZE  (32768 / AST_ULAW_STEP + 1)
 #define AST_ULAW_SIGN_BIT  0x80
 
-/*! converts signed linear to mulaw */
-/*!
-  */
+/*! \brief converts signed linear to mulaw */
 #ifndef G711_NEW_ALGORITHM
 extern unsigned char __ast_lin2mu[16384];
 #else
@@ -57,7 +54,7 @@ extern short __ast_mulaw[256];
 	__ast_lin2mu[((mag) + AST_ULAW_STEP / 2) >> AST_ULAW_BIT_LOSS]
 
 
-/*! convert signed linear sample to sign-magnitude pair for u-Law */
+/*! \brief convert signed linear sample to sign-magnitude pair for u-Law */
 static inline void ast_ulaw_get_sign_mag(short sample, unsigned *sign, unsigned *mag)
 {
        /* It may look illogical to retrive the sign this way in both cases,

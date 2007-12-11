@@ -11,6 +11,12 @@
  * the GNU General Public License
  */
 
+/*! \file \brief
+ * Interface to mISDN - message parser
+ * \author Christian Richter <crich@beronet.com>
+ */
+
+
 
 #include "isdn_lib_intern.h"
 

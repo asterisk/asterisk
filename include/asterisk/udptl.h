@@ -15,6 +15,14 @@
  * this code.
  */
 
+/*! \file
+ * \brief UDPTL support for T.38
+ * \author Steve Underwood <steveu@coppice.org>
+ * \ref udptl.c
+ * \todo add doxygen documentation to this file!
+ */
+
+
 #ifndef _ASTERISK_UDPTL_H
 #define _ASTERISK_UDPTL_H
 
@@ -24,8 +32,8 @@
 #include "asterisk/sched.h"
 #include "asterisk/channel.h"
 
-enum
-{
+
+enum {
     UDPTL_ERROR_CORRECTION_NONE,
     UDPTL_ERROR_CORRECTION_FEC,
     UDPTL_ERROR_CORRECTION_REDUNDANCY
@@ -36,9 +44,9 @@ extern "C" {
 #endif
 
 struct ast_udptl_protocol {
-	/* Get UDPTL struct, or NULL if unwilling to transfer */
+	/*! \brief Get UDPTL struct, or NULL if unwilling to transfer */
 	struct ast_udptl *(*get_udptl_info)(struct ast_channel *chan);
-	/* Set UDPTL peer */
+	/*! \brief Set UDPTL peer */
 	int (* const set_udptl_peer)(struct ast_channel *chan, struct ast_udptl *peer);
 	const char * const type;
 	AST_RWLIST_ENTRY(ast_udptl_protocol) list;
