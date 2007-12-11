@@ -748,7 +748,6 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	/* Initiating music_state for current channel. Channel should know name of moh class */
 	if (!chan->music_state && (state = ast_calloc(1, sizeof(*state)))) {
 		chan->music_state = state;
-		memset(state, 0, sizeof(*state));
 		state->class = class;
 	} else
 		state = chan->music_state;
