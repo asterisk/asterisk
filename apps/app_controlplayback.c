@@ -55,7 +55,9 @@ static const char *descrip =
 "  CPLAYBACKSTATUS -  This variable contains the status of the attempt as a text\n"
 "                     string, one of: SUCCESS | USERSTOPPED | ERROR\n"
 "  CPLAYBACKOFFSET -  This contains the offset in ms into the file where\n"
-"                     playback was at when it stopped.  -1 is end of file.\n";
+"                     playback was at when it stopped.  -1 is end of file.\n"
+"  CPLAYBACKSTOPKEY - If the playback is stopped by the user this variable contains\n"
+"                     the key that was pressed.\n";
 
 enum {
 	OPT_OFFSET = (1 << 1),
@@ -82,6 +84,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	int skipms = 0;
 	long offsetms = 0;
 	char offsetbuf[20];
+	char stopkeybuf[2];
 	char *tmp;
 	struct ast_flags opts = { 0, };
 	char *opt_args[OPT_ARG_ARRAY_LEN];
@@ -132,8 +135,10 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 
 	/* If we stopped on one of our stop keys, return 0  */
 	if (res > 0 && args.stop && strchr(args.stop, res)) {
-		res = 0;
 		pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "USERSTOPPED");
+		snprintf(stopkeybuf, sizeof(stopkeybuf), "%c", res);
+		pbx_builtin_setvar_helper(chan, "CPLAYBACKSTOPKEY", stopkeybuf);
+		res = 0;
 	} else {
 		if (res < 0) {
 			res = 0;
