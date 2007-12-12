@@ -1059,7 +1059,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	struct ast_flags features;
 	int res = FEATURE_RETURN_PASSDIGITS;
 	struct ast_call_feature *feature;
-	char *dynamic_features;
+	const char *dynamic_features;
 	char *tmp, *tok;
 
 	if (sense == FEATURE_SENSE_CHAN) {
