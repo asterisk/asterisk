@@ -1531,7 +1531,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
  	long time_left_ms = 0;
  	struct timeval nexteventts = { 0, };
  	int to;
- 
+	int setusercount = 0;
+
 	if (!(user = ast_calloc(1, sizeof(*user))))
 		return ret;
 
@@ -1671,9 +1672,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		goto outrun;
 	}
 
-	if (confflags & CONFFLAG_MARKEDUSER)
-		conf->markedusers++;
-      
    	ast_mutex_lock(&conf->playlock);
 
 	if (AST_LIST_EMPTY(&conf->userlist))
@@ -1695,12 +1693,33 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	user->userflags = confflags;
 	user->adminflags = (confflags & CONFFLAG_STARTMUTED) ? ADMINFLAG_SELFMUTED : 0;
 	user->talking = -1;
+
+	ast_mutex_unlock(&conf->playlock);
+
+	if (!(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW))) {
+		snprintf(user->namerecloc, sizeof(user->namerecloc),
+			 "%s/meetme/meetme-username-%s-%d", ast_config_AST_SPOOL_DIR,
+			 conf->confno, user->user_no);
+		if (confflags & CONFFLAG_INTROUSERNOREVIEW)
+			res = ast_play_and_record(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, 128, 0, NULL);
+		else
+			res = ast_record_review(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, NULL);
+		if (res == -1)
+			goto outrun;
+	}
+
+	ast_mutex_lock(&conf->playlock);
+
+	if (confflags & CONFFLAG_MARKEDUSER)
+		conf->markedusers++;
 	conf->users++;
 	if (rt_log_members) {
 		/* Update table */
 		snprintf(members, sizeof(members), "%d", conf->users);
 		ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
 	}
+	setusercount = 1;
+
 	/* This device changed state now - if this is the first user */
 	if (conf->users == 1)
 		ast_devstate_changed(AST_DEVICE_INUSE, "meetme:%s", conf->confno);
@@ -1717,18 +1736,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			ast_copy_string(exitcontext, chan->macrocontext, sizeof(exitcontext));
 		else
 			ast_copy_string(exitcontext, chan->context, sizeof(exitcontext));
-	}
-
-	if (!(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW))) {
-		snprintf(user->namerecloc, sizeof(user->namerecloc),
-			 "%s/meetme/meetme-username-%s-%d", ast_config_AST_SPOOL_DIR,
-			 conf->confno, user->user_no);
-		if (confflags & CONFFLAG_INTROUSERNOREVIEW)
-			res = ast_play_and_record(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, 128, 0, NULL);
-		else
-			res = ast_record_review(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, NULL);
-		if (res == -1)
-			goto outrun;
 	}
 
 	if ( !(confflags & (CONFFLAG_QUIET | CONFFLAG_NOONLYPERSON)) ) {
@@ -2647,14 +2654,16 @@ bailoutandtrynormal:
 				      (long)(now.tv_sec - user->jointime));
 		}
 
-		conf->users--;
-		if (rt_log_members){
-			/* Update table */
-			snprintf(members, sizeof(members), "%d", conf->users);
-			ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
+		if (setusercount) {
+			conf->users--;
+			if (rt_log_members){
+				/* Update table */
+				snprintf(members, sizeof(members), "%d", conf->users);
+				ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
+			}
+			if (confflags & CONFFLAG_MARKEDUSER) 
+				conf->markedusers--;
 		}
-		if (confflags & CONFFLAG_MARKEDUSER) 
-			conf->markedusers--;
 		/* Remove ourselves from the list */
 		AST_LIST_REMOVE(&conf->userlist, user, list);
 

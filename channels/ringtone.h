@@ -1,9 +1,5 @@
 /* ringtone.h: Generated from frequencies 440 and 480 
    by gentone.  200 samples  */
-/*! \file
-    \brief
- Generated from frequencies 440 and 480 by gentone.  200 samples 
-*/
 static short ringtone[200] = {
 	    0, 11581, 21659, 28927, 32445, 31764, 26981, 18727, 
 	 8084, -3559, -14693, -23875, -29927, -32083, -30088, -24228, 
