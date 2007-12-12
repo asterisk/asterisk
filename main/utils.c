@@ -790,7 +790,7 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 	ast_cli(a->fd, "%s", str->str);
 
-	free(str);
+	ast_free(str);
 
 	return CLI_SUCCESS;
 }

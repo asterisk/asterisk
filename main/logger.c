@@ -285,7 +285,7 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 
 		if (0 > chan->facility) {
 			fprintf(stderr, "Logger Warning: bad syslog facility in logger.conf\n");
-			free(chan);
+			ast_free(chan);
 			return NULL;
 		}
 
@@ -332,7 +332,7 @@ static void init_logger_chain(int reload, int locked)
 	if (!locked)
 		AST_RWLIST_WRLOCK(&logchannels);
 	while ((chan = AST_RWLIST_REMOVE_HEAD(&logchannels, list)))
-		free(chan);
+		ast_free(chan);
 	if (!locked)
 		AST_RWLIST_UNLOCK(&logchannels);
 	
@@ -882,7 +882,7 @@ static void *logger_thread(void *data)
 				logger_print_verbose(msg);
 
 			/* Free the data since we are done */
-			free(msg);
+			ast_free(msg);
 		}
 
 		/* If we should stop, then stop */
@@ -1060,7 +1060,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		AST_LIST_UNLOCK(&logmsgs);
 	} else {
 		logger_print_normal(logmsg);
-		free(logmsg);
+		ast_free(logmsg);
 	}
 
 	return;
@@ -1089,7 +1089,7 @@ void ast_backtrace(void)
 		} else {
 			ast_debug(1, "Could not allocate memory for backtrace\n");
 		}
-		free(addresses);
+		ast_free(addresses);
 	}
 #else
 	ast_log(LOG_WARNING, "Must run configure with '--enable-dev-mode' for stack backtraces.\n");
@@ -1150,7 +1150,7 @@ void ast_verbose(const char *fmt, ...)
 		AST_LIST_UNLOCK(&logmsgs);
 	} else {
 		logger_print_verbose(logmsg);
-		free(logmsg);
+		ast_free(logmsg);
 	}
 }
 
@@ -1178,7 +1178,7 @@ int ast_unregister_verbose(void (*v)(const char *string))
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&verbosers, cur, list) {
 		if (cur->verboser == v) {
 			AST_RWLIST_REMOVE_CURRENT(list);
-			free(cur);
+			ast_free(cur);
 			break;
 		}
 	}

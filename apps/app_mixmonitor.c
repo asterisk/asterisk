@@ -252,7 +252,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 
 	/* Setup the actual spy before creating our thread */
 	if (ast_audiohook_init(&mixmonitor->audiohook, AST_AUDIOHOOK_TYPE_SPY, mixmonitor_spy_type)) {
-		free(mixmonitor);
+		ast_free(mixmonitor);
 		return;
 	}
 
