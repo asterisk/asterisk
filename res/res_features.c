@@ -1555,7 +1555,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	struct ast_call_feature *feature;
 	struct feature_group *fg = NULL;
 	struct feature_group_exten *fge;
-	char *dynamic_features;
+	const char *dynamic_features;
 	char *tmp, *tok;
 
 	if (sense == FEATURE_SENSE_CHAN) {
