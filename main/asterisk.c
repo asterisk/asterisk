@@ -1983,7 +1983,7 @@ static char *cli_prompt(EditLine *el)
 
 static char **ast_el_strtoarr(char *buf)
 {
-	char **match_list = NULL, *retstr;
+	char **match_list = NULL, **match_list_tmp, *retstr;
 	size_t match_list_len;
 	int matches = 0;
 
@@ -1994,8 +1994,12 @@ static char **ast_el_strtoarr(char *buf)
 			break;
 		if (matches + 1 >= match_list_len) {
 			match_list_len <<= 1;
-			if (!(match_list = ast_realloc(match_list, match_list_len * sizeof(char *)))) {
-				/* TODO: Handle memory allocation failure */
+			if ((match_list_tmp = ast_realloc(match_list, match_list_len * sizeof(char *)))) {
+				match_list = match_list_tmp;
+			} else {
+				if (match_list)
+					ast_free(match_list);
+				return (char **) NULL;
 			}
 		}
 
@@ -2006,8 +2010,12 @@ static char **ast_el_strtoarr(char *buf)
 		return (char **) NULL;
 
 	if (matches >= match_list_len) {
-		if (!(match_list = ast_realloc(match_list, (match_list_len + 1) * sizeof(char *)))) {
-			/* TODO: Handle memory allocation failure */
+		if ((match_list_tmp = ast_realloc(match_list, (match_list_len + 1) * sizeof(char *)))) {
+			match_list = match_list_tmp;
+		} else {
+			if (match_list)
+				ast_free(match_list);
+			return (char **) NULL;
 		}
 	}
 
