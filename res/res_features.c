@@ -1555,14 +1555,18 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	struct ast_call_feature *feature;
 	struct feature_group *fg = NULL;
 	struct feature_group_exten *fge;
-	const char *dynamic_features=pbx_builtin_getvar_helper(chan,"DYNAMIC_FEATURES");
+	char *dynamic_features;
 	char *tmp, *tok;
 
-	if (sense == FEATURE_SENSE_CHAN)
+	if (sense == FEATURE_SENSE_CHAN) {
 		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);
-	else
+		dynamic_features = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
+	}
+	else {
 		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);
-	ast_debug(3, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
+		dynamic_features = pbx_builtin_getvar_helper(peer, "DYNAMIC_FEATURES");
+	}
+	ast_debug(3, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d, dynamic=%s\n", chan->name, peer->name, sense, features.flags, dynamic_features);
 
 	ast_rwlock_rdlock(&features_lock);
 	for (x = 0; x < FEATURES_COUNT; x++) {
