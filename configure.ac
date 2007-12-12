@@ -789,10 +789,10 @@ if test "${PG_CONFIG}" != No; then
          exit 1
 	  fi
    else 
-      AC_CHECK_LIB([pq], [PQexec], AC_DEFINE_UNQUOTED([HAVE_PGSQL], 1,
+      AC_CHECK_LIB([pq], [PQescapeStringConn], AC_DEFINE_UNQUOTED([HAVE_PGSQL], 1,
       [Define to indicate the PostgreSQL library]), [], -L${PGSQL_libdir} -lz)
 
-      if test "${ac_cv_lib_pq_PQexec}" = "yes"; then
+      if test "${ac_cv_lib_pq_PQescapeStringConn}" = "yes"; then
          PGSQL_LIB="-L${PGSQL_libdir} -lpq -lz"
          PGSQL_INCLUDE="-I${PGSQL_includedir}"
          PBX_PGSQL=1
