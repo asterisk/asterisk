@@ -2196,7 +2196,6 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 	const char *queue = qe->parent->name;
 	struct callattempt *o;
 	int status;
-	int sentringing = 0;
 	int numbusies = prebusies;
 	int numnochan = 0;
 	int stillgoing = 0;
@@ -2370,12 +2369,6 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							break;
 						case AST_CONTROL_RINGING:
 							ast_verb(3, "%s is ringing\n", o->chan->name);
-							if (!sentringing) {
-#if 0
-								ast_indicate(in, AST_CONTROL_RINGING);
-#endif								
-								sentringing++;
-							}
 							break;
 						case AST_CONTROL_OFFHOOK:
 							/* Ignore going off hook */
