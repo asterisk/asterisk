@@ -1008,7 +1008,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				if (!ast_strlen_zero(exec_file))
 					unlink(exec_file);
 				if (!do_include)
-					return 0;
+					return -1;
 				/* XXX otherwise what ? the default return is 0 anyways */
 
 	} else {

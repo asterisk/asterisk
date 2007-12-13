@@ -2746,6 +2746,56 @@ static struct ast_cli_entry cli_h323[] = {
 	AST_CLI_DEFINE(handle_cli_h323_show_tokens, "Show all active call tokens"),
 };
 
+static void delete_users(void)
+{
+	int pruned = 0;
+
+	/* Delete all users */
+	ASTOBJ_CONTAINER_WRLOCK(&userl);
+	ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
+		ASTOBJ_RDLOCK(iterator);
+		ASTOBJ_MARK(iterator);
+		++pruned;
+		ASTOBJ_UNLOCK(iterator);
+	} while (0) );
+	if (pruned) {
+		ASTOBJ_CONTAINER_PRUNE_MARKED(&userl, oh323_destroy_user);
+	}
+	ASTOBJ_CONTAINER_UNLOCK(&userl);
+
+	ASTOBJ_CONTAINER_WRLOCK(&peerl);
+	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
+		ASTOBJ_RDLOCK(iterator);
+		ASTOBJ_MARK(iterator);
+		ASTOBJ_UNLOCK(iterator);
+	} while (0) );
+	ASTOBJ_CONTAINER_UNLOCK(&peerl);
+}
+
+static void delete_aliases(void)
+{
+	int pruned = 0;
+
+	/* Delete all aliases */
+	ASTOBJ_CONTAINER_WRLOCK(&aliasl);
+	ASTOBJ_CONTAINER_TRAVERSE(&aliasl, 1, do {
+		ASTOBJ_RDLOCK(iterator);
+		ASTOBJ_MARK(iterator);
+		++pruned;
+		ASTOBJ_UNLOCK(iterator);
+	} while (0) );
+	if (pruned) {
+		ASTOBJ_CONTAINER_PRUNE_MARKED(&aliasl, oh323_destroy_alias);
+	}
+	ASTOBJ_CONTAINER_UNLOCK(&aliasl);
+}
+
+static void prune_peers(void)
+{
+	/* Prune peers who still are supposed to be deleted */
+	ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl, oh323_destroy_peer);
+}
+
 static int reload_config(int is_reload)
 {
 	struct ast_config *cfg, *ucfg;
@@ -2971,56 +3021,6 @@ static int reload_config(int is_reload)
 		}
 	}
 	return 0;
-}
-
-static void delete_users(void)
-{
-	int pruned = 0;
-
-	/* Delete all users */
-	ASTOBJ_CONTAINER_WRLOCK(&userl);
-	ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
-		ASTOBJ_RDLOCK(iterator);
-		ASTOBJ_MARK(iterator);
-		++pruned;
-		ASTOBJ_UNLOCK(iterator);
-	} while (0) );
-	if (pruned) {
-		ASTOBJ_CONTAINER_PRUNE_MARKED(&userl, oh323_destroy_user);
-	}
-	ASTOBJ_CONTAINER_UNLOCK(&userl);
-
-	ASTOBJ_CONTAINER_WRLOCK(&peerl);
-	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
-		ASTOBJ_RDLOCK(iterator);
-		ASTOBJ_MARK(iterator);
-		ASTOBJ_UNLOCK(iterator);
-	} while (0) );
-	ASTOBJ_CONTAINER_UNLOCK(&peerl);
-}
-
-static void delete_aliases(void)
-{
-	int pruned = 0;
-
-	/* Delete all aliases */
-	ASTOBJ_CONTAINER_WRLOCK(&aliasl);
-	ASTOBJ_CONTAINER_TRAVERSE(&aliasl, 1, do {
-		ASTOBJ_RDLOCK(iterator);
-		ASTOBJ_MARK(iterator);
-		++pruned;
-		ASTOBJ_UNLOCK(iterator);
-	} while (0) );
-	if (pruned) {
-		ASTOBJ_CONTAINER_PRUNE_MARKED(&aliasl, oh323_destroy_alias);
-	}
-	ASTOBJ_CONTAINER_UNLOCK(&aliasl);
-}
-
-static void prune_peers(void)
-{
-	/* Prune peers who still are supposed to be deleted */
-	ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl, oh323_destroy_peer);
 }
 
 static int h323_reload(void)
