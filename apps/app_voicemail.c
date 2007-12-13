@@ -2218,9 +2218,9 @@ static int get_date(char *s, int len)
 	struct ast_tm tm;
 	struct timeval t = ast_tvnow();
 	
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&t, &tm, "UTC");
 
-	return ast_strftime(s, len, "%a %b %e %r %Z %Y", &tm);
+	return ast_strftime(s, len, "%a %b %e %r UTC %Y", &tm);
 }
 
 static int invent_message(struct ast_channel *chan, char *context, char *ext, int busy, char *ecodes)
