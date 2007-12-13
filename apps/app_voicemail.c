@@ -1847,10 +1847,10 @@ static int base_encode(char *filename, FILE *so)
 		}
 	}
 
-	if (fputs(eol,so) == EOF)
-		return 0;
-
 	fclose(fi);
+	
+	if (fputs(eol,so)==EOF)
+		return 0;
 
 	return 1;
 }
