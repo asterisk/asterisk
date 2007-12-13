@@ -97,7 +97,7 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode);
  * This function calulates use counts and notifies anyone trying to keep track
  * of them.  It should be called whenever your module's usecount changes.
  *
- * \note The LOCAL_USER macros take care of calling this function for you.
+ * \note The ast_module_user_* functions take care of calling this function for you.
  */
 void ast_update_use_count(void);
 

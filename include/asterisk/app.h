@@ -394,7 +394,7 @@ struct ast_app_option {
   	... do any argument parsing here ...
 
 	if (ast_parseoptions(my_app_options, &opts, opt_args, options)) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
   }

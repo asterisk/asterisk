@@ -2457,7 +2457,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 	 /* Answer if need be */
 	if (chan->_state != AST_STATE_UP) {
 		if (ast_answer(chan)) {
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return -1;
 		}
 	}

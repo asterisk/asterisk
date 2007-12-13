@@ -287,10 +287,6 @@ char *discstr = "!!DISCONNECT!!";
 static char *remote_rig_ft897 = "ft897";
 static char *remote_rig_rbi = "rbi";
 
-#ifdef	OLD_ASTERISK
-STANDARD_LOCAL_USER;
-#endif
-
 #define	MSWAIT 200
 #define	HANGTIME 5000
 #define	TOTIME 180000
