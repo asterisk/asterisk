@@ -9534,6 +9534,20 @@ static void set_timing(void)
 #endif
 }
 
+static void set_config_destroy(void)
+{
+	strcpy(accountcode, "");
+	strcpy(language, "");
+	strcpy(mohinterpret, "default");
+	strcpy(mohsuggest, "");
+	amaflags = 0;
+	delayreject = 0;
+	ast_clear_flag((&globalflags), IAX_NOTRANSFER);	
+	ast_clear_flag((&globalflags), IAX_TRANSFERMEDIA);	
+	ast_clear_flag((&globalflags), IAX_USEJITTERBUF);	
+	ast_clear_flag((&globalflags), IAX_FORCEJITTERBUF);	
+	delete_users();
+}
 
 /*! \brief Load configuration */
 static int set_config(char *config_file, int reload)
@@ -9559,6 +9573,10 @@ static int set_config(char *config_file, int reload)
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config_file);
 		return -1;
+	}
+
+	if (reload) {
+		set_config_destroy();
 	}
 
 	/* Reset global codec prefs */	
@@ -9886,7 +9904,7 @@ static int set_config(char *config_file, int reload)
 	}
 	ast_config_destroy(cfg);
 	set_timing();
-	return capability;
+	return 1;
 }
 
 static void poke_all_peers(void)
@@ -9905,26 +9923,16 @@ static int reload_config(void)
 	char *config = "iax.conf";
 	struct iax2_registry *reg;
 
-	strcpy(accountcode, "");
-	strcpy(language, "");
-	strcpy(mohinterpret, "default");
-	strcpy(mohsuggest, "");
-	amaflags = 0;
-	delayreject = 0;
-	ast_clear_flag((&globalflags), IAX_NOTRANSFER);	
-	ast_clear_flag((&globalflags), IAX_TRANSFERMEDIA);	
-	ast_clear_flag((&globalflags), IAX_USEJITTERBUF);	
-	ast_clear_flag((&globalflags), IAX_FORCEJITTERBUF);	
-	delete_users();
-	set_config(config, 1);
-	prune_peers();
-	prune_users();
-	AST_LIST_LOCK(&registrations);
-	AST_LIST_TRAVERSE(&registrations, reg, entry)
-		iax2_do_register(reg);
-	AST_LIST_UNLOCK(&registrations);
-	/* Qualify hosts, too */
-	poke_all_peers();
+	if (set_config(config, 1) > 0) {
+		prune_peers();
+		prune_users();
+		AST_LIST_LOCK(&registrations);
+		AST_LIST_TRAVERSE(&registrations, reg, entry)
+			iax2_do_register(reg);
+		AST_LIST_UNLOCK(&registrations);
+		/* Qualify hosts, too */
+		poke_all_peers();
+	}
 	reload_firmware(0);
 	iax_provision_reload();
 
