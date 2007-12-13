@@ -3796,6 +3796,11 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							ast_setstate(ast, AST_STATE_UP);
 							p->subs[index].f.frametype = AST_FRAME_CONTROL;
 							p->subs[index].f.subclass = AST_CONTROL_ANSWER;
+							/* If aops=0 and hops=1, this is necessary */
+							p->polarity = POLARITY_REV;
+						} else {
+							/* Start clean, so we can catch the change to REV polarity when party answers */
+							p->polarity = POLARITY_IDLE;
 						}
 					}
 				}
@@ -4084,14 +4089,6 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				if (ast->_state == AST_STATE_RING) {
 					p->ringt = p->ringt_base;
 				}
-
-				/* If we get a ring then we cannot be in 
-				 * reversed polarity. So we reset to idle */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Setting IDLE polarity due "
-						"to ring. Old polarity was %d\n", 
-						p->polarity);
-				p->polarity = POLARITY_IDLE;
 
 				/* Fall through */
 			case SIG_EM:
@@ -6376,6 +6373,14 @@ static void *ss_thread(void *data)
 					if (i & ZT_IOMUX_SIGEVENT) {
 						res = zt_get_event(p->subs[index].zfd);
 						ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+						/* If we get a PR event, they hung up while processing calerid */
+						if ( res == ZT_EVENT_POLARITY && p->hanguponpolarityswitch && p->polarity == POLARITY_REV) {
+							ast_log(LOG_DEBUG, "Hanging up due to polarity reversal on channel %d while detecting callerid\n", p->channel);
+							p->polarity = POLARITY_IDLE;
+							callerid_free(cs);
+							ast_hangup(chan);
+							return NULL;
+						}
 						res = 0;
 						/* Let us detect callerid when the telco uses distinctive ring */
 
@@ -6738,6 +6743,13 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FXSLS:
 		case SIG_FXSKS:
 		case SIG_FXSGS:
+			/* We have already got a PR before the channel was 
+			   created, but it wasn't handled. We need polarity 
+			   to be REV for remote hangup detection to work. 
+			   At least in Spain */
+			if (i->hanguponpolarityswitch)
+				i->polarity = POLARITY_REV;
+
 			if (i->cid_start == CID_START_POLARITY) {
 				i->polarity = POLARITY_REV;
 				ast_verbose(VERBOSE_PREFIX_2 "Starting post polarity "
