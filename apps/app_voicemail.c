@@ -2356,6 +2356,7 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 		rewind(p);
 		if((buf = ast_malloc(len+1)) == NIL) {
 			ast_log(LOG_ERROR, "Can't allocate %ld bytes to read message\n", len+1);
+			fclose(p);
 			return -1;
 		}
 		fread(buf, len, 1, p);
