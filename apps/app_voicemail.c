@@ -1686,10 +1686,10 @@ static int base_encode(char *filename, FILE *so)
 		}
 	}
 
+	fclose(fi);
+	
 	if (fputs(eol,so)==EOF)
 		return 0;
-
-	fclose(fi);
 
 	return 1;
 }
