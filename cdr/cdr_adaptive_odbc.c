@@ -327,6 +327,12 @@ static int odbc_log(struct ast_cdr *cdr)
 		lensql = snprintf(sql, sizesql, "INSERT INTO %s (", tableptr->table);
 		lensql2 = snprintf(sql2, sizesql2, " VALUES (");
 
+		/* No need to check the connection now; we'll handle any failure in prepare_and_execute */
+		if (!(obj = ast_odbc_request_obj(tableptr->connection, 0))) {
+			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Unable to retrieve database handle for '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, sql);
+			continue;
+		}
+
 		AST_LIST_TRAVERSE(&(tableptr->columns), entry, list) {
 			/* Check if we have a similarly named variable */
 			ast_cdr_getvar(cdr, entry->cdrname, &colptr, colbuf, sizeof(colbuf), 0,
@@ -369,7 +375,7 @@ static int odbc_log(struct ast_cdr *cdr)
 						if (*tmp == '\'') {
 							strcpy(sql2 + lensql2, "''");
 							lensql2 += 2;
-						} else if (*tmp == '\\') {
+						} else if (*tmp == '\\' && ast_odbc_backslash_is_escape(obj)) {
 							strcpy(sql2 + lensql2, "\\\\");
 							lensql2 += 2;
 						} else {
@@ -552,21 +558,16 @@ static int odbc_log(struct ast_cdr *cdr)
 		strcat(sql + lensql, sql2);
 
 		ast_verb(11, "[%s]\n", sql);
-		/* No need to check the connection now; we'll handle any failure in prepare_and_execute */
-		obj = ast_odbc_request_obj(tableptr->connection, 0);
-		if (obj) {
-			stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, sql);
-			if (stmt) {
-				SQLRowCount(stmt, &rows);
-				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-			}
-			if (rows == 0) {
-				ast_log(LOG_WARNING, "cdr_adaptive_odbc: Insert failed on '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, sql);
-			}
-			ast_odbc_release_obj(obj);
-		} else {
-			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Unable to retrieve database handle for '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, sql);
+
+		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, sql);
+		if (stmt) {
+			SQLRowCount(stmt, &rows);
+			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		}
+		if (rows == 0) {
+			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Insert failed on '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, sql);
+		}
+		ast_odbc_release_obj(obj);
 	}
 	AST_RWLIST_UNLOCK(&odbc_tables);
 
