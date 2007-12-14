@@ -154,10 +154,10 @@ unsigned int ast_verbose_get_by_file(const char *file);
 		ast_log(LOG_DEBUG, __VA_ARGS__); \
 } while (0)
 
-#define VERBOSITY_LEVEL(level) (option_verbose >= (level) || (ast_opt_verb_file && ast_verbose_get_by_file(__FILE__) >= (level)))
+#define VERBOSITY_ATLEAST(level) (option_verbose >= (level) || (ast_opt_verb_file && ast_verbose_get_by_file(__FILE__) >= (level)))
 
 #define ast_verb(level, ...) do { \
-	if (VERBOSITY_LEVEL((level)) ) { \
+	if (VERBOSITY_ATLEAST((level)) ) { \
 		if (level >= 4) \
 			ast_verbose(VERBOSE_PREFIX_4 __VA_ARGS__); \
 		else if (level == 3) \

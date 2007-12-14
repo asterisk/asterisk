@@ -2649,7 +2649,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			c->priority = priority;
 			pbx_substitute_variables(passdata, sizeof(passdata), c, e);
 			ast_debug(1, "Launching '%s'\n", app->name);
-			if (VERBOSITY_LEVEL(2)) {
+			if (VERBOSITY_ATLEAST(2)) {
 				char tmp[80], tmp2[80], tmp3[EXT_DATA_SIZE];
 				ast_verb(3, "Executing [%s@%s:%d] %s(\"%s\", \"%s\") %s\n",
 					exten, context, priority,

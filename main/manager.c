@@ -2677,7 +2677,7 @@ static void purge_sessions(int n_max)
 		if (s->sessiontimeout && (now > s->sessiontimeout) && !s->inuse) {
 			AST_LIST_REMOVE_CURRENT(list);
 			ast_atomic_fetchadd_int(&num_sessions, -1);
-			if (s->authenticated && (VERBOSITY_LEVEL(1)) && manager_displayconnects(s)) {
+			if (s->authenticated && (VERBOSITY_ATLEAST(1)) && manager_displayconnects(s)) {
 				ast_verb(2, "HTTP Manager '%s' timed out from %s\n",
 					s->username, ast_inet_ntoa(s->sin.sin_addr));
 			}
