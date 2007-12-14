@@ -91,7 +91,7 @@ endif
 
 # Some build systems, such as the one in openwrt, like to pass custom target
 # CFLAGS and LDFLAGS in the COPTS and LDOPTS variables.
-ASTCFLAGS+=$(COPTS)
+ASTCFLAGS+=$(COPTS) -D_XPG4_2
 ASTLDFLAGS+=$(LDOPTS)
 
 #Uncomment this to see all build commands instead of 'quiet' output

@@ -76,6 +76,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/event.h"
+#include "asterisk/localtime.h"
 
 /*! Beware, G729 and G723 are not supported by asterisk, except with the proper licence */
 #define CAPABILITY AST_FORMAT_ALAW | AST_FORMAT_ULAW    /* | AST_FORMAT_G729A | AST_FORMAT_G723_1 */
@@ -722,31 +723,9 @@ static void display_last_error(const char *sz_msg)
 			strerror(errno));
 }
 
-static void get_localtime(struct systemtime * systime)
-{
-	struct tm *stm;
-	time_t cur_time;
-	
-	time(&cur_time);
-
-	if ((stm = localtime(&cur_time)) == 0) {
-		display_last_error("Error in localtime()");
-		return;
-	}
-
-	systime->w_year = stm->tm_year;
-	systime->w_month = stm->tm_mon + 1;
-	systime->w_day_of_week = stm->tm_wday;
-	systime->w_day = stm->tm_mday;
-	systime->w_hour = stm->tm_hour;
-	systime->w_minute = stm->tm_min;
-	systime->w_second = stm->tm_sec;
-	systime->w_milliseconds = 0;
-}
-
 static unsigned int get_tick_count(void)
 {
-	struct timeval tv = ast_tvnow();;
+	struct timeval tv = ast_tvnow();
 
 	return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 }
@@ -774,7 +753,7 @@ static void send_raw_client(int size, unsigned char *data, struct sockaddr_in *a
 	msg.msg_flags = 0;		      /* flags on received message */
 
 	ip_msg->cmsg_len = CMSG_LEN(sizeof(*pki));
-	ip_msg->cmsg_level = SOL_IP;
+	ip_msg->cmsg_level = IPPROTO_IP;
 	ip_msg->cmsg_type = IP_PKTINFO;
 	pki->ipi_ifindex = 0;	   /* Interface index, 0 = use interface specified in routing table */
 	pki->ipi_spec_dst.s_addr = addr_ourip->sin_addr.s_addr; /* Local address */
@@ -1383,61 +1362,55 @@ static void send_texttitle(struct unistimsession *pte, const char *text)
 static void send_date_time(struct unistimsession *pte)
 {
 	BUFFSEND;
-	struct systemtime systime;
-	systime.w_year = systime.w_month = systime.w_day_of_week = 0;
-	systime.w_day = systime.w_hour = systime.w_minute = 0;
-	systime.w_second = systime.w_milliseconds = 0;
+	struct timeval tv = ast_tvnow();
+	struct ast_tm atm = { 0, };
 
 	if (unistimdebug)
 		ast_verbose("Sending Time & Date\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_date_time, sizeof(packet_send_date_time));
-	get_localtime(&systime);
-	buffsend[10] = (unsigned char) systime.w_month;
-	buffsend[11] = (unsigned char) systime.w_day;
-	buffsend[12] = (unsigned char) systime.w_hour;
-	buffsend[13] = (unsigned char) systime.w_minute;
+	ast_localtime(&tv, &atm, NULL);
+	buffsend[10] = (unsigned char) atm.tm_mon + 1;
+	buffsend[11] = (unsigned char) atm.tm_mday;
+	buffsend[12] = (unsigned char) atm.tm_hour;
+	buffsend[13] = (unsigned char) atm.tm_min;
 	send_client(SIZE_HEADER + sizeof(packet_send_date_time), buffsend, pte);
 }
 
 static void send_date_time2(struct unistimsession *pte)
 {
 	BUFFSEND;
-	struct systemtime systime;
-	systime.w_year = systime.w_month = systime.w_day_of_week = 0;
-	systime.w_day = systime.w_hour = systime.w_minute = 0;
-	systime.w_second = systime.w_milliseconds = 0;
+	struct timeval tv = ast_tvnow();
+	struct ast_tm atm = { 0, };
 
 	if (unistimdebug)
 		ast_verbose("Sending Time & Date #2\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_date_time2, sizeof(packet_send_date_time2));
-	get_localtime(&systime);
+	ast_localtime(&tv, &atm, NULL);
 	if (pte->device)
 		buffsend[9] = pte->device->datetimeformat;
 	else
 		buffsend[9] = 61;
-	buffsend[14] = (unsigned char) systime.w_month;
-	buffsend[15] = (unsigned char) systime.w_day;
-	buffsend[16] = (unsigned char) systime.w_hour;
-	buffsend[17] = (unsigned char) systime.w_minute;
+	buffsend[14] = (unsigned char) atm.tm_mon + 1;
+	buffsend[15] = (unsigned char) atm.tm_mday;
+	buffsend[16] = (unsigned char) atm.tm_hour;
+	buffsend[17] = (unsigned char) atm.tm_min;
 	send_client(SIZE_HEADER + sizeof(packet_send_date_time2), buffsend, pte);
 }
 
 static void send_date_time3(struct unistimsession *pte)
 {
 	BUFFSEND;
-	struct systemtime systime;
-	systime.w_year = systime.w_month = systime.w_day_of_week = 0;
-	systime.w_day = systime.w_hour = systime.w_minute = 0;
-	systime.w_second = systime.w_milliseconds = 0;
+	struct timeval tv = ast_tvnow();
+	struct ast_tm atm = { 0, };
 
 	if (unistimdebug)
 		ast_verbose("Sending Time & Date #3\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_date_time3, sizeof(packet_send_date_time3));
-	get_localtime(&systime);
-	buffsend[10] = (unsigned char) systime.w_month;
-	buffsend[11] = (unsigned char) systime.w_day;
-	buffsend[12] = (unsigned char) systime.w_hour;
-	buffsend[13] = (unsigned char) systime.w_minute;
+	ast_localtime(&tv, &atm, NULL);
+	buffsend[10] = (unsigned char) atm.tm_mon + 1;
+	buffsend[11] = (unsigned char) atm.tm_mday;
+	buffsend[12] = (unsigned char) atm.tm_hour;
+	buffsend[13] = (unsigned char) atm.tm_min;
 	send_client(SIZE_HEADER + sizeof(packet_send_date_time3), buffsend, pte);
 }
 
@@ -1729,10 +1702,9 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 	char count = 0, *histbuf;
 	int size;
 	FILE *f, *f2;
-	struct systemtime systime;
-	systime.w_year = systime.w_month = systime.w_day_of_week = 0;
-	systime.w_day = systime.w_hour = systime.w_minute = 0;
-	systime.w_second = systime.w_milliseconds = 0;
+	struct timeval tv = ast_tvnow();
+	struct ast_tm atm = { 0, };
+
 	if (!pte->device)
 		return -1;
 	if (!pte->device->callhistory)
@@ -1742,14 +1714,16 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 				pte->device->name);
 		return -1;
 	}
+
 	snprintf(tmp, sizeof(tmp), "%s/%s", (char *) ast_config_AST_LOG_DIR, USTM_LOG_DIR);
-	if (mkdir(tmp, 0770)) {
+	if (ast_mkdir(tmp, 0770)) {
 		if (errno != EEXIST) {
-			display_last_error("Unable to create directory for history.");
+			display_last_error("Unable to create directory for history");
 			return -1;
 		}
 	}
-	get_localtime(&systime);
+
+	ast_localtime(&tv, &atm, NULL);
 	if (ismissed) {
 		if (way == 'i')
 			strcpy(tmp2, "Miss");
@@ -1758,12 +1732,12 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 	} else
 		strcpy(tmp2, "Answ");
 	snprintf(line1, sizeof(line1), "%04d/%02d/%02d %02d:%02d:%02d %s",
-			 systime.w_year + 1900, systime.w_month, systime.w_day, systime.w_hour,
-			 systime.w_minute, systime.w_second, tmp2);
+			 atm.tm_year + 1900, atm.tm_mon + 1, atm.tm_mday, atm.tm_hour,
+			 atm.tm_min, atm.tm_sec, tmp2);
+
 	snprintf(tmp, sizeof(tmp), "%s/%s/%s-%c.csv", (char *) ast_config_AST_LOG_DIR,
 			 USTM_LOG_DIR, pte->device->name, way);
-	f = fopen(tmp, "r");
-	if (f) {
+	if ((f = fopen(tmp, "r"))) {
 		struct stat bufstat;
 
 		if (stat(tmp, &bufstat)) {
@@ -1774,12 +1748,14 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 		size = 1 + (MAX_ENTRY_LOG * TEXT_LENGTH_MAX * 3);
 		if (bufstat.st_size != size) {
 			ast_log(LOG_WARNING,
-					"History file %s have an incorrect size (%d instead of %d). It will be replaced by a new one.",
+					"History file %s has an incorrect size (%d instead of %d). It will be replaced by a new one.",
 					tmp, (int) bufstat.st_size, size);
-			f = 0;
+			fclose(f);
+			f = NULL;
 			count = 1;
 		}
 	}
+
 	/* If we can't open the log file, we create a brand new one */
 	if (!f) {
 		char c = 1;
@@ -1824,26 +1800,28 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 	}
 	snprintf(tmp2, sizeof(tmp2), "%s/%s/%s-%c.csv.tmp", (char *) ast_config_AST_LOG_DIR,
 			 USTM_LOG_DIR, pte->device->name, way);
-	f2 = fopen(tmp2, "w");
-	if (!f2) {
+	if (!(f2 = fopen(tmp2, "w"))) {
 		display_last_error("Unable to create temporary history log.");
 		fclose(f);
 		return -1;
 	}
-	count++;
-	if (count > MAX_ENTRY_LOG)
+
+	if (++count > MAX_ENTRY_LOG)
 		count = MAX_ENTRY_LOG;
+
 	if (write_entry_history(pte, f2, count, line1)) {
 		fclose(f);
 		fclose(f2);
 		return -1;
 	}
+
 	size = (MAX_ENTRY_LOG - 1) * TEXT_LENGTH_MAX * 3;
 	if (!(histbuf = ast_malloc(size))) {
 		fclose(f);
 		fclose(f2);
 		return -1;
 	}
+
 	if (fread(histbuf, size, 1, f) != 1) {
 		ast_free(histbuf);
 		fclose(f);
@@ -1983,6 +1961,8 @@ void change_callerid(struct unistimsession *pte, int type, char *callerid)
 	else
 		data = pte->device->lst_cid;
 
+	/* This is very nearly strncpy(), except that the remaining buffer
+	 * is padded with ' ', instead of '\0' */
 	memset(data, ' ', TEXT_LENGTH_MAX);
 	size = strlen(callerid);
 	if (size > TEXT_LENGTH_MAX)
@@ -5281,21 +5261,21 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 	if (ast_strlen_zero(d->maintext1))
 		strcpy(d->maintext1, d->name);
 	if (ast_strlen_zero(d->titledefault)) {
-		struct tm *stm;
-		time_t cur_time = time(0);
+		struct ast_tm tm;
+		struct timeval cur_time = ast_tvnow();
 
-		if ((stm = localtime(&cur_time)) == 0) {
-			display_last_error("Error in localtime()");
+		if ((ast_localtime(&cur_time, &tm, 0)) == 0) {
+			display_last_error("Error in ast_localtime()");
 			ast_copy_string(d->titledefault, "UNISTIM for*", 12);
 		} else {
-			if (strlen(stm->tm_zone) < 4) {
+			if (strlen(tm.tm_zone) < 4) {
 				strcpy(d->titledefault, "TimeZone ");
-				strcat(d->titledefault, stm->tm_zone);
-			} else if (strlen(stm->tm_zone) < 9) {
+				strcat(d->titledefault, tm.tm_zone);
+			} else if (strlen(tm.tm_zone) < 9) {
 				strcpy(d->titledefault, "TZ ");
-				strcat(d->titledefault, stm->tm_zone);
+				strcat(d->titledefault, tm.tm_zone);
 			} else
-				ast_copy_string(d->titledefault, stm->tm_zone, 12);
+				ast_copy_string(d->titledefault, tm.tm_zone, 12);
 		}
 	}
 	/* Update the chained link if it's a new device */
