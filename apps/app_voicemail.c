@@ -2273,7 +2273,11 @@ static void free_zone(struct vm_zone *z)
 static const char *mbox(int id)
 {
 	static const char *msgs[] = {
+#ifdef IMAP_STORAGE
+		imapfolder,
+#else
 		"INBOX",
+#endif
 		"Old",
 		"Work",
 		"Family",
@@ -2292,7 +2296,11 @@ static int folder_int(const char *folder)
 	/*assume a NULL folder means INBOX*/
 	if (!folder)
 		return 0;
-	if(!strcasecmp(folder, "INBOX"))
+#ifdef IMAP_STORAGE
+	if (!strcasecmp(folder, imapfolder))
+#else
+	if (!strcasecmp(folder, "INBOX"))
+#endif
 		return 0;
 	else if (!strcasecmp(folder, "Old"))
 		return 1;
@@ -2706,7 +2714,7 @@ static int inboxcount(const char *mailbox_context, int *newmsgs, int *oldmsgs)
 		mailboxnc = (char *)mailbox_context;
 	}
 	if (newmsgs) {
-		if((*newmsgs = messagecount(context, mailboxnc, "INBOX")) < 0)
+		if((*newmsgs = messagecount(context, mailboxnc, imapfolder)) < 0)
 			return -1;
 	}
 	if (oldmsgs) {
