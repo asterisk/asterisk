@@ -4432,11 +4432,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			ch->overlap_tv = ast_tvnow();
 			ast_mutex_unlock(&ch->overlap_tv_lock);
 
+			wait_for_digits(ch, bc, chan);
 			if (ch->overlap_dial_task == -1) 
 				ch->overlap_dial_task = 
 					misdn_tasks_add_variable(ch->overlap_dial, misdn_overlap_dial_task, ch);
 
-			wait_for_digits(ch, bc, chan);
 			break;
 		}
 
