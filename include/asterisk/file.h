@@ -29,6 +29,10 @@
 #include <fcntl.h>
 #endif
 
+#ifdef HAVE_MMAP
+#include <sys/mman.h>
+#endif
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
