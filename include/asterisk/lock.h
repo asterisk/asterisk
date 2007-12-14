@@ -322,7 +322,7 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 #ifdef DETECT_DEADLOCKS
 	{
 		time_t seconds = time(NULL);
-		time_t current;
+		time_t wait_time, reported_wait = 0;
 		do {
 #ifdef	HAVE_MTX_PROFILE
 			ast_mark(mtx_prof, 1);
@@ -332,15 +332,16 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 			ast_mark(mtx_prof, 0);
 #endif
 			if (res == EBUSY) {
-				current = time(NULL);
-				if ((current - seconds) && (!((current - seconds) % 5))) {
+				wait_time = time(NULL) - seconds;
+				if (wait_time > reported_wait && (wait_time % 5) == 0) {
 					__ast_mutex_logger("%s line %d (%s): Deadlock? waited %d sec for mutex '%s'?\n",
-							   filename, lineno, func, (int)(current - seconds), mutex_name);
+							   filename, lineno, func, (int) wait_time, mutex_name);
 					ast_reentrancy_lock(t);
 					__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
 							   t->file[t->reentrancy-1], t->lineno[t->reentrancy-1],
 							   t->func[t->reentrancy-1], mutex_name);
 					ast_reentrancy_unlock(t);
+					reported_wait = wait_time;
 				}
 				usleep(200);
 			}
