@@ -10674,8 +10674,8 @@ static int sip_show_subscriptions(int fd, int argc, char *argv[])
 static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions)
 {
 #define FORMAT3 "%-15.15s  %-10.10s  %-11.11s  %-15.15s  %-13.13s  %-15.15s %-10.10s\n"
-#define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-4.4s  %-7.7s  %-15.15s\n"
-#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-3.3s %-3.3s  %-15.15s %-10.10s\n"
+#define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-15.15s  %-7.7s  %-15.15s\n"
+#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-15.15s  %-3.3s %-3.3s  %-15.15s %-10.10s\n"
 	struct sip_pvt *cur;
 	int numchans = 0;
 	char *referstatus = NULL;
