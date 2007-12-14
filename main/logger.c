@@ -586,8 +586,7 @@ static int reload_logger(int rotate)
 		eventlog = fopen(old, "a");
 		if (eventlog) {
 			ast_log(LOG_EVENT, "Restarted Asterisk Event Logger\n");
-			if (option_verbose)
-				ast_verbose("Asterisk Event Logger restarted\n");
+			ast_verb(1, "Asterisk Event Logger restarted\n");
 		} else {
 			ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 			res = -1;
@@ -605,8 +604,7 @@ static int reload_logger(int rotate)
 			ast_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "%s", "");
 			AST_RWLIST_WRLOCK(&logchannels);
 			ast_log(LOG_EVENT, "Restarted Asterisk Queue Logger\n");
-			if (option_verbose)
-				ast_verbose("Asterisk Queue Logger restarted\n");
+			ast_verb(1, "Asterisk Queue Logger restarted\n");
 		} else {
 			ast_log(LOG_ERROR, "Unable to create queue log: %s\n", strerror(errno));
 			res = -1;
