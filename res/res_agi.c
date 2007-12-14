@@ -85,7 +85,7 @@ static char *descrip =
 "  Use the CLI command 'agi show' to list available agi commands\n"
 "  This application sets the following channel variable upon completion:\n"
 "     AGISTATUS      The status of the attempt to the run the AGI script\n"
-"                    text string, one of SUCCESS | FAILED | NOTFOUND | HANGUP\n";
+"                    text string, one of SUCCESS | FAILURE | NOTFOUND | HANGUP\n";
 
 static int agidebug = 0;
 
