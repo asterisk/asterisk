@@ -2738,13 +2738,19 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 			} else if (!strcasecmp(var->name, "adminopts")) {
 				ast_copy_string(adminopts, var->value, sizeof(adminopts));
 			} else if (!strcasecmp(var->name, "endtime")) {
-				struct ast_tm tm = { 0, };
-				strptime(var->value, "%Y-%m-%d %H:%M:%S", (struct tm *)&tm);
-				endtime = ast_mktime(&tm, NULL);
+				union {
+					struct ast_tm atm;
+					struct tm tm;
+				} t = { { 0, }, };
+				strptime(var->value, "%Y-%m-%d %H:%M:%S", &t.tm);
+				endtime = ast_mktime(&t.atm, NULL);
 			} else if (!strcasecmp(var->name, "starttime")) {
-				struct ast_tm tm = { 0, };
-				strptime(var->value, "%Y-%m-%d %H:%M:%S", (struct tm *)&tm);
-				starttime = ast_mktime(&tm, NULL);
+				union {
+					struct ast_tm atm;
+					struct tm tm;
+				} t = { { 0, }, };
+				strptime(var->value, "%Y-%m-%d %H:%M:%S", &t.tm);
+				starttime = ast_mktime(&t.atm, NULL);
 			}
 
 			var = var->next;
