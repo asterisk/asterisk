@@ -5029,7 +5029,7 @@ static int imap_remove_file(char *dir, int msgnum)
 	return 0;
 }
 
-static int imap_retrieve_file (char *dir, int msgnum, char *mailbox, char *context)
+static int imap_retrieve_file (char *dir, int msgnum, const char *mailbox, char *context)
 {
 	struct ast_vm_user *vmu;
 	struct vm_state *vms_p;
