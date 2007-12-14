@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/agi.h"
 #include "asterisk/version.h"
 #include "asterisk/speech.h"
+#include "asterisk/manager.h"
 
 #define MAX_ARGS 128
 #define AGI_NANDFS_RETRY 3
@@ -2150,7 +2151,15 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int
 	char *argv[MAX_ARGS];
 	int argc = MAX_ARGS, res;
 	agi_command *c;
+	const char *ami_res = "Unknown Result";
+	char *ami_cmd = ast_strdupa(buf);
+	int command_id = ast_random(), resultcode = 200;
 
+	manager_event(EVENT_FLAG_CALL, "AGIExec", 
+			"SubEvent: Start\r\n"
+			"Channel: %s\r\n"
+			"CommandId: %d\r\n"
+			"Command: %s\r\n", chan->name, command_id, ami_cmd);
 	parse_args(buf, &argc, argv);
 	if ((c = find_command(argv, 0)) && (!dead || (dead && c->dead))) {
 		/* if this command wasnt registered by res_agi, be sure to usecount
@@ -2160,6 +2169,19 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int
 		res = c->handler(chan, agi, argc, argv);
 		if (c->mod != ast_module_info->self)
 			ast_module_unref(c->mod);
+		switch (res) {
+		case RESULT_SHOWUSAGE: ami_res = "Usage"; resultcode = 520; break;
+		case AST_PBX_KEEPALIVE: ami_res = "KeepAlive"; resultcode = 210; break;
+		case RESULT_FAILURE: ami_res = "Failure"; resultcode = -1; break;
+		case RESULT_SUCCESS: ami_res = "Success"; resultcode = 200; break;
+		}
+		manager_event(EVENT_FLAG_CALL, "AGIExec",
+				"SubEvent: End\r\n"
+				"Channel: %s\r\n"
+				"CommandId: %d\r\n"
+				"Command: %s\r\n"
+				"ResultCode: %d\r\n"
+				"Result: %s\r\n", chan->name, command_id, ami_cmd, resultcode, ami_res);
 		switch(res) {
 		case RESULT_SHOWUSAGE:
 			ast_agi_fdprintf(chan, agi->fd, "520-Invalid command syntax.  Proper usage follows:\n");
@@ -2177,8 +2199,22 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int
 		}
 	} else if ((c = find_command(argv, 0))) {
 		ast_agi_fdprintf(chan, agi->fd, "511 Command Not Permitted on a dead channel\n");
+		manager_event(EVENT_FLAG_CALL, "AGIExec",
+				"SubEvent: End\r\n"
+				"Channel: %s\r\n"
+				"CommandId: %d\r\n"
+				"Command: %s\r\n"
+				"ResultCode: 511\r\n"
+				"Result: Command not permitted on a dead channel\r\n", chan->name, command_id, ami_cmd);
 	} else {
 		ast_agi_fdprintf(chan, agi->fd, "510 Invalid or unknown command\n");
+		manager_event(EVENT_FLAG_CALL, "AGIExec",
+				"SubEvent: End\r\n"
+				"Channel: %s\r\n"
+				"CommandId: %d\r\n"
+				"Command: %s\r\n"
+				"ResultCode: 510\r\n"
+				"Result: Invalid or unknown command\r\n", chan->name, command_id, ami_cmd);
 	}
 	return 0;
 }
