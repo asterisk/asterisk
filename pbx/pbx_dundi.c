@@ -3949,7 +3949,7 @@ static void drds_destroy_cb(void *data)
 	drds_destroy(drds);
 }
 
-const struct ast_datastore_info dundi_result_datastore_info = {
+static const struct ast_datastore_info dundi_result_datastore_info = {
 	.type = "DUNDIQUERY",
 	.destroy = drds_destroy_cb,
 };
