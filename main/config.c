@@ -1007,8 +1007,10 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				do_include = ast_config_internal_load(cur, cfg, flags, real_inclusion_name) ? 1 : 0;
 				if (!ast_strlen_zero(exec_file))
 					unlink(exec_file);
-				if (!do_include)
+				if (!do_include) {
+					ast_log(LOG_ERROR, "The file '%s' was listed as a #include but it does not exist.\n", cur);
 					return -1;
+				}
 				/* XXX otherwise what ? the default return is 0 anyways */
 
 	} else {
