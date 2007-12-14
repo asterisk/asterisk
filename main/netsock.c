@@ -149,18 +149,14 @@ int ast_netsock_set_qos(int netsocket, int tos, int cos)
 	
 	if ((res = setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))))
 		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
-	else {
-	    if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
-	}
+	else 
+		ast_verb(2, "Using TOS bits %d\n", tos);
 
 #if defined(linux)								
 	if (setsockopt(netsocket, SOL_SOCKET, SO_PRIORITY, &cos, sizeof(cos)))
-	    ast_log(LOG_WARNING, "Unable to set CoS to %d\n", cos);
-	else {
-	    if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Using CoS mark %d\n", cos);
-	}
+		ast_log(LOG_WARNING, "Unable to set CoS to %d\n", cos);
+	else
+		ast_verb(2, "Using CoS mark %d\n", cos);
 #endif
 							
 	return res;

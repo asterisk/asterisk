@@ -3294,8 +3294,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				if ((res == AST_PBX_ERROR) && ast_exists_extension(c, c->context, "e", 1, c->cid.cid_num)) {
 					/* if we are already on the 'e' exten, don't jump to it again */
 					if (!strcmp(c->exten, "e")) {
-						if (option_verbose > 1)
-							ast_verbose(VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited ERROR while already on 'e' exten on '%s'\n", c->context, c->exten, c->priority, c->name);
+						ast_verb(2, "Spawn extension (%s, %s, %d) exited ERROR while already on 'e' exten on '%s'\n", c->context, c->exten, c->priority, c->name);
 						error = 1;
 					} else {
 						pbx_builtin_raise_exception(c, "ERROR");

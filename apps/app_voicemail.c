@@ -6743,8 +6743,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			if (chan->cid.cid_num) {
 				ast_copy_string(mailbox, chan->cid.cid_num, mailbox_size);
 			} else {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Username not entered\n");	
+				ast_verb(3,"Username not entered\n");	
 				return -1;
 			}
 		}
@@ -8929,8 +8928,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 				char mailbox[AST_MAX_EXTENSION * 2 + 2];
 				snprintf(mailbox, sizeof(mailbox), "%s@%s", num, vmu->context);
 
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Leaving voicemail for '%s' in context '%s'\n", num, vmu->context);
+				ast_verb(3, "Leaving voicemail for '%s' in context '%s'\n", num, vmu->context);
 				
 				memset(&leave_options, 0, sizeof(leave_options));
 				leave_options.record_gain = record_gain;
@@ -9005,8 +9003,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				break;
 			} else {
 				/* Otherwise 1 is to save the existing message */
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Saving message as is\n");
+				ast_verb(3, "Saving message as is\n");
 				if (!outsidecaller) 
 					ast_filerename(tempfile, recordfile, NULL);
 				ast_stream_and_wait(chan, "vm-msgsaved", "");
@@ -9019,20 +9016,17 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			}
 		case '2':
 			/* Review */
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Reviewing the message\n");
+			ast_verb(3, "Reviewing the message\n");
 			cmd = ast_stream_and_wait(chan, tempfile, AST_DIGIT_ANY);
 			break;
 		case '3':
 			message_exists = 0;
 			/* Record */
-			if (recorded == 1) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Re-recording the message\n");
-			} else {	
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Recording the message\n");
-			}
+			if (recorded == 1) 
+				ast_verb(3, "Re-recording the message\n");
+			else	
+				ast_verb(3, "Recording the message\n");
+			
 			if (recorded && outsidecaller) {
 				cmd = ast_play_and_wait(chan, INTRO);
 				cmd = ast_play_and_wait(chan, "beep");

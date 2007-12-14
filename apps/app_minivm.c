@@ -1256,8 +1256,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 		switch (cmd) {
  		case '2':
  			/* Review */
- 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Reviewing the message\n");
+			ast_verb(3, "Reviewing the message\n");
  			ast_streamfile(chan, recordfile, chan->language);
  			cmd = ast_waitstream(chan, AST_DIGIT_ANY);
  			break;
@@ -1266,9 +1265,9 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  			/* Record */
 			if (option_verbose > 2) {
  				if (recorded == 1) 
-					ast_verbose(VERBOSE_PREFIX_3 "Re-recording the message\n");
+					ast_verb(3, "Re-recording the message\n");
  				else
-					ast_verbose(VERBOSE_PREFIX_3 "Recording the message\n");
+					ast_verb(3, "Recording the message\n");
 			}
 			if (recorded && outsidecaller) 
  				cmd = ast_play_and_wait(chan, "beep");
@@ -1571,8 +1570,7 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 		}
 
 		if (duration < global_vmminmessage) {
-			if (option_verbose > 2) 
-				ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, global_vmminmessage);
+			ast_verb(3, "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, global_vmminmessage);
 			fclose(txt);
 			ast_filedelete(tmptxtfile, NULL);
 			unlink(tmptxtfile);

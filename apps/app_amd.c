@@ -199,8 +199,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 			framelength = (ast_codec_get_samples(f) / DEFAULT_SAMPLES_PER_MS);
 			iTotalTime += framelength;
 			if (iTotalTime >= totalAnalysisTime) {
-				if (option_verbose > 2)	
-					ast_verbose(VERBOSE_PREFIX_3 "AMD: Channel [%s]. Too long...\n", chan->name );
+				ast_verb(3, "AMD: Channel [%s]. Too long...\n", chan->name );
 				ast_frfree(f);
 				strcpy(amdStatus , "NOTSURE");
 				sprintf(amdCause , "TOOLONG-%d", iTotalTime);
@@ -216,16 +215,14 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 				if (silenceDuration >= betweenWordsSilence) {
 					if (currentState != STATE_IN_SILENCE ) {
 						previousState = currentState;
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "AMD: Changed state to STATE_IN_SILENCE\n");
+						ast_verb(3, "AMD: Changed state to STATE_IN_SILENCE\n");
 					}
 					currentState  = STATE_IN_SILENCE;
 					consecutiveVoiceDuration = 0;
 				}
 				
 				if (inInitialSilence == 1  && silenceDuration >= initialSilence) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: silenceDuration:%d initialSilence:%d\n",
+					ast_verb(3, "AMD: ANSWERING MACHINE: silenceDuration:%d initialSilence:%d\n",
 							    silenceDuration, initialSilence);
 					ast_frfree(f);
 					strcpy(amdStatus , "MACHINE");
@@ -250,15 +247,13 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 				   number of words if my previous state was Silence, which means that I moved into a word. */
 				if (consecutiveVoiceDuration >= minimumWordLength && currentState == STATE_IN_SILENCE) {
 					iWordsCount++;
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "AMD: Word detected. iWordsCount:%d\n", iWordsCount);
+					ast_verb(3, "AMD: Word detected. iWordsCount:%d\n", iWordsCount);
 					previousState = currentState;
 					currentState = STATE_IN_WORD;
 				}
 				
 				if (iWordsCount >= maximumNumberOfWords) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: iWordsCount:%d\n", iWordsCount);
+					ast_verb(3, "AMD: ANSWERING MACHINE: iWordsCount:%d\n", iWordsCount);
 					ast_frfree(f);
 					strcpy(amdStatus , "MACHINE");
 					sprintf(amdCause , "MAXWORDS-%d-%d", iWordsCount, maximumNumberOfWords);

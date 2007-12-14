@@ -1427,7 +1427,7 @@ static struct skinny_line *find_line_by_name(const char *dest)
 			/* This is a match, since we're checking for line on every device. */
 		} else if (!strcasecmp(d->name, device)) {
 			if (skinnydebug)
-				ast_verbose(VERBOSE_PREFIX_2 "Found device: %s\n", d->name);
+				ast_verb(2, "Found device: %s\n", d->name);
 		} else
 			continue;
 
@@ -1436,7 +1436,7 @@ static struct skinny_line *find_line_by_name(const char *dest)
 			/* Search for the right line */
 			if (!strcasecmp(l->name, line)) {
 				if (tmpl) {
-					ast_verbose(VERBOSE_PREFIX_2 "Ambiguous line name: %s\n", line);
+					ast_verb(2, "Ambiguous line name: %s\n", line);
 					ast_mutex_unlock(&devicelock);
 					return NULL;
 				} else

@@ -141,8 +141,7 @@ static void *mixmonitor_thread(void *obj)
 	char *ext;
 	int errflag = 0;
 
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Begin MixMonitor Recording %s\n", mixmonitor->name);
+	ast_verb(2, "Begin MixMonitor Recording %s\n", mixmonitor->name);
 	
 	ast_audiohook_lock(&mixmonitor->audiohook);
 
@@ -188,15 +187,13 @@ static void *mixmonitor_thread(void *obj)
 	ast_audiohook_unlock(&mixmonitor->audiohook);
 	ast_audiohook_destroy(&mixmonitor->audiohook);
 
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "End MixMonitor Recording %s\n", mixmonitor->name);
+	ast_verb(2, "End MixMonitor Recording %s\n", mixmonitor->name);
 
 	if (fs)
 		ast_closestream(fs);
 
 	if (mixmonitor->post_process) {
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_2 "Executing [%s]\n", mixmonitor->post_process);
+		ast_verb(2, "Executing [%s]\n", mixmonitor->post_process);
 		ast_safe_system(mixmonitor->post_process);
 	}
 

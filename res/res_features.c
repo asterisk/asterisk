@@ -765,8 +765,7 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 	// This means a mixmonitor is attached to the channel, running or not is unknown.
 	if (count > 0) {
 		
-		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to stop recording call.\n", code);
+		ast_verb(3, "User hit '%s' to stop recording call.\n", code);
 
 		//Make sure they are running
 		ast_channel_lock(callee_chan);
@@ -821,8 +820,7 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 				args[x] = '-';
 		}
 
-		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to record call. filename: %s\n", code, touch_filename);
+		ast_verb(3, "User hit '%s' to record call. filename: %s\n", code, touch_filename);
 
 		pbx_exec(callee_chan, mixmonitor_app, args);
 		pbx_builtin_setvar_helper(callee_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
@@ -945,8 +943,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		}
 		if (!transferee->pbx) {
 			/* Doh!  Use our handy async_goto functions */
-			if (option_verbose > 2) 
-				ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
+			ast_verb(3, "Transferring %s to '%s' (context %s) priority 1\n"
 								,transferee->name, xferto, transferer_real_context);
 			if (ast_async_goto(transferee, transferer_real_context, xferto, 1))
 				ast_log(LOG_WARNING, "Async goto failed :-(\n");

@@ -369,8 +369,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	ast_audiohook_unlock(&csth.spy_audiohook);
 	ast_audiohook_destroy(&csth.spy_audiohook);
 	
-	if (option_verbose >= 2)
-		ast_verbose(VERBOSE_PREFIX_2 "Done Spying on channel %s\n", name);
+	ast_verb(2, "Done Spying on channel %s\n", name);
 	
 	return running;
 }

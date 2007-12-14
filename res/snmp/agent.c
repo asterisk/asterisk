@@ -145,7 +145,7 @@ static oid asterisk_oid[] = { 1, 3, 6, 1, 4, 1, 22736, 1 };
 
 void *agent_thread(void *arg)
 {
-	ast_verbose(VERBOSE_PREFIX_2 "Starting %sAgent\n", res_snmp_agentx_subagent ? "Sub" : "");
+	ast_verb(2, "Starting %sAgent\n", res_snmp_agentx_subagent ? "Sub" : "");
 
 	snmp_enable_stderrlog();
 
@@ -168,8 +168,7 @@ void *agent_thread(void *arg)
 
 	snmp_shutdown("asterisk");
 
-	ast_verbose(VERBOSE_PREFIX_2 "Terminating %sAgent\n",
-				res_snmp_agentx_subagent ? "Sub" : "");
+	ast_verb(2, "Terminating %sAgent\n", res_snmp_agentx_subagent ? "Sub" : "");
 
 	return NULL;
 }

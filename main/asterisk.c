@@ -986,8 +986,7 @@ static void *netconsole(void *vconsole)
 				break;
 		}
 	}
-	if (option_verbose > 2) 
-		ast_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection disconnected\n");
+	ast_verb(3, "Remote UNIX connection disconnected\n");
 	close(con->fd);
 	close(con->p[0]);
 	close(con->p[1]);
@@ -1050,10 +1049,8 @@ static void *listener(void *unused)
 				fdprint(s, "No more connections allowed\n");
 				ast_log(LOG_WARNING, "No more connections allowed\n");
 				close(s);
-			} else if (consoles[x].fd > -1) {
-				if (option_verbose > 2) 
-					ast_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection\n");
-			}
+			} else if (consoles[x].fd > -1) 
+				ast_verb(3, "Remote UNIX connection\n");
 		}
 	}
 	return NULL;

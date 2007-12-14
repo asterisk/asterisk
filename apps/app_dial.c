@@ -1121,11 +1121,10 @@ static int setup_privacy_args(struct privacy_args *pa,
 		l = ast_strdupa(chan->cid.cid_num);
 		ast_shrink_phone_number(l);
 		if (ast_test_flag64(opts, OPT_PRIVACY) ) {
-			ast_verb(3, "Privacy DB is '%s', clid is '%s'\n",
-					     opt_args[OPT_ARG_PRIVACY], l);
+			ast_verb(3, "Privacy DB is '%s', clid is '%s'\n", opt_args[OPT_ARG_PRIVACY], l);
 			pa->privdb_val = ast_privacy_check(opt_args[OPT_ARG_PRIVACY], l);
 		} else {
-			ast_verb(3,  "Privacy Screening, clid is '%s'\n", l);
+			ast_verb(3, "Privacy Screening, clid is '%s'\n", l);
 			pa->privdb_val = AST_PRIVACY_UNKNOWN;
 		}
 	} else {
@@ -1134,7 +1133,7 @@ static int setup_privacy_args(struct privacy_args *pa,
 		tnam = ast_strdupa(chan->name);
 		/* clean the channel name so slashes don't try to end up in disk file name */
 		for (tn2 = tnam; *tn2; tn2++) {
-			if (*tn2 == '/')	/* any other chars to be afraid of? */
+			if (*tn2 == '/')  /* any other chars to be afraid of? */
 				*tn2 = '=';
 		}
 		ast_verb(3, "Privacy-- callerid is empty\n");
@@ -1147,19 +1146,16 @@ static int setup_privacy_args(struct privacy_args *pa,
 	ast_copy_string(pa->privcid, l, sizeof(pa->privcid));
 
 	if (strncmp(pa->privcid, "NOCALLERID", 10) != 0 && ast_test_flag64(opts, OPT_SCREEN_NOCLID)) {
-		/* if callerid is set, and OPT_SCREEN_NOCLID is set also */  
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3  "CallerID set (%s); N option set; Screening should be off\n", pa->privcid);
+		/* if callerid is set and OPT_SCREEN_NOCLID is set also */  
+		ast_verb(3, "CallerID set (%s); N option set; Screening should be off\n", pa->privcid);
 		pa->privdb_val = AST_PRIVACY_ALLOW;
-	} else if (ast_test_flag64(opts, OPT_SCREEN_NOCLID) && strncmp(pa->privcid, "NOCALLERID", 10) == 0 ) {
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3  "CallerID blank; N option set; Screening should happen; dbval is %d\n", pa->privdb_val);
+	} else if (ast_test_flag64(opts, OPT_SCREEN_NOCLID) && strncmp(pa->privcid, "NOCALLERID", 10) == 0) {
+		ast_verb(3, "CallerID blank; N option set; Screening should happen; dbval is %d\n", pa->privdb_val);
 	}
 	
 	if (pa->privdb_val == AST_PRIVACY_DENY) {
+		ast_verb(3, "Privacy DB reports PRIVACY_DENY for this callerid. Dial reports unavailable\n");
 		ast_copy_string(pa->status, "NOANSWER", sizeof(pa->status));
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3  "Privacy DB reports PRIVACY_DENY for this callerid. Dial reports unavailable\n");
 		return 0;
 	} else if (pa->privdb_val == AST_PRIVACY_KILL) {
 		ast_copy_string(pa->status, "DONTCALL", sizeof(pa->status));
@@ -1832,8 +1828,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				oprmode.peer = peer;
 				oprmode.mode = opermode;
 
-				ast_channel_setoption(chan,
-					AST_OPTION_OPRMODE, &oprmode, sizeof(oprmode), 0);
+				ast_channel_setoption(chan, AST_OPTION_OPRMODE, &oprmode, sizeof(oprmode), 0);
 			}
 			res = ast_bridge_call(chan, peer, &config);
 			end_time = time(NULL);
