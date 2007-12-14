@@ -80,7 +80,7 @@ char	*fgetln(FILE *fp, size_t *len);
 #ifdef SUNOS
 # undef REGEX
 # undef REGEXP
-# include <malloc.h>
+/* # include <malloc.h> XXX Removed for Solaris build XXX */
 typedef void (*sig_t)(int);
 # ifdef __GNUC__
 /*
