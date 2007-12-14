@@ -106,14 +106,16 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 	case 'a':
 	case 'A':
 		ast_channel_setwhentohangup(chan, x);
+		if(option_verbose > 2) {
 			if (chan->whentohangup) {
 				struct timeval tv = { chan->whentohangup, 0 };
 				ast_strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S.%3q %Z",
 					ast_localtime(&tv, &myt, NULL));
-			ast_verb(3, "Channel will hangup at %s.\n", timestr);
+				ast_verbose("Channel will hangup at %s.\n", timestr);
 			} else {
-			ast_verb(3, "Channel hangup cancelled.\n");
+				ast_verbose("Channel hangup cancelled.\n");
 			}
+		}
 		break;
 
 	case 'r':
