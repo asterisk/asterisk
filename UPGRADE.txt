@@ -84,6 +84,8 @@ Applications:
 * Read() now sets a READSTATUS variable on exit.  It does NOT automatically
   return -1 (and hangup) anymore on error.  If you want to hangup on error,
   you need to do so explicitly in your dialplan.
+* Privacy() no longer uses privacy.conf, so any options must be specified
+  directly in the application arguments.
 
 Dialplan Functions:
 

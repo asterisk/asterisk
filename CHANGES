@@ -237,6 +237,8 @@ Other Dialplan Application Changes
      READSTATUS to ERROR, which you can catch and handle separately.
   * Added 'm' option to Directory, which lists out names, 8 at a time, instead
      of asking for verification of each name, one at a time.
+  * Privacy() no longer uses privacy.conf, as all options are specifyable as
+     direct options to the app.
 
 Music On Hold Changes
 ---------------------

@@ -41,24 +41,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/config.h"
 
-#define PRIV_CONFIG "privacy.conf"
-
 static char *app = "PrivacyManager";
 
 static char *synopsis = "Require phone number to be entered, if no CallerID sent";
 
 static char *descrip =
-  "  PrivacyManager([maxretries[,minlength[,options]]]): If no Caller*ID \n"
+  "  PrivacyManager([maxretries][,minlength]): If no Caller*ID \n"
   "is sent, PrivacyManager answers the channel and asks the caller to\n"
-  "enter their phone number. The caller is given 3 attempts to do so.\n"
+  "enter their phone number. The caller is given 'maxretries' attempts to do so.\n"
   "The application does nothing if Caller*ID was received on the channel.\n"
-  "  Configuration file privacy.conf contains two variables:\n"
   "   maxretries  default 3  -maximum number of attempts the caller is allowed \n"
   "               to input a callerid.\n"
   "   minlength   default 10 -minimum allowable digits in the input callerid number.\n"
-  "If you don't want to use the config file and have an i/o operation with\n"
-  "every call, you can also specify maxretries and minlength as application\n"
-  "parameters. Doing so supercedes any values set in privacy.conf.\n"
   "The application sets the following channel variable upon completion: \n"
   "PRIVACYMGRSTATUS  The status of the privacy manager's attempt to collect \n"
   "                  a phone number from the user. A text string that is either:\n" 
@@ -73,11 +67,8 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 	int maxretries = 3;
 	int minlength = 10;
 	int x = 0;
-	const char *s;
 	char phone[30];
-	struct ast_config *cfg = NULL;
 	char *parse = NULL;
-	struct ast_flags config_flags = { 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(maxretries);
 		AST_APP_ARG(minlength);
@@ -114,34 +105,14 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 
 		}		
 
-		if (!x)
-		{
-			/*Read in the config file*/
-			cfg = ast_config_load(PRIV_CONFIG, config_flags);
-		
-			if (cfg && (s = ast_variable_retrieve(cfg, "general", "maxretries"))) {
-				if (sscanf(s, "%d", &x) == 1) 
-					maxretries = x;
-				else
-					ast_log(LOG_WARNING, "Invalid max retries argument\n");
-        		}
-
-			if (cfg && (s = ast_variable_retrieve(cfg, "general", "minlength"))) {
-				if (sscanf(s, "%d", &x) == 1) 
-					minlength = x;
-				else
-					ast_log(LOG_WARNING, "Invalid min length argument\n");
-			}
-		}	
-		
-		/*Play unidentified call*/
+		/* Play unidentified call */
 		res = ast_safe_sleep(chan, 1000);
 		if (!res)
 			res = ast_streamfile(chan, "privacy-unident", chan->language);
 		if (!res)
 			res = ast_waitstream(chan, "");
 
-		/*Ask for 10 digit number, give 3 attempts*/
+		/* Ask for 10 digit number, give 3 attempts */
 		for (retries = 0; retries < maxretries; retries++) {
 			if (!res)
 				res = ast_streamfile(chan, "privacy-prompt", chan->language);
@@ -154,7 +125,7 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 			if (res < 0)
 				break;
 
-			/*Make sure we get at least digits*/
+			/* Make sure we get at least digits */
 			if (strlen(phone) >= minlength ) 
 				break;
 			else {
@@ -164,7 +135,7 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 			}
 		}
 		
-		/*Got a number, play sounds and send them on their way*/
+		/* Got a number, play sounds and send them on their way */
 		if ((retries < maxretries) && res >= 0 ) {
 			res = ast_streamfile(chan, "privacy-thankyou", chan->language);
 			if (!res)
@@ -184,8 +155,6 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 		} else {
 			pbx_builtin_setvar_helper(chan, "PRIVACYMGRSTATUS", "FAILED");
 		}
-		if (cfg) 
-			ast_config_destroy(cfg);
 	}
 
 	return 0;
