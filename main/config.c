@@ -744,8 +744,17 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				do_include = ast_config_internal_load(cur, cfg, withcomments) ? 1 : 0;
 				if(!ast_strlen_zero(exec_file))
 					unlink(exec_file);
-				if(!do_include)
-					return -1;
+				if (!do_include) {
+					ast_log(LOG_ERROR, "*********************************************************\n");
+					ast_log(LOG_ERROR, "*********** YOU SHOULD REALLY READ THIS ERROR ***********\n");
+					ast_log(LOG_ERROR, "Future versions of Asterisk will treat a #include of a "
+					                   "file that does not exist as an error, and will fail to "
+					                   "load that configuration file.  Please ensure that the "
+					                   "file '%s' exists, even if it is empty.\n", cur);
+					ast_log(LOG_ERROR, "*********** YOU SHOULD REALLY READ THIS ERROR ***********\n");
+					ast_log(LOG_ERROR, "*********************************************************\n");
+					return 0;
+				}
 
 			} else {
 				ast_log(LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n", 
