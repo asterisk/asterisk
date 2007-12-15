@@ -41,11 +41,9 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <ctype.h>
+#include <ctype.h>		/* isalnum() used here */
 #include <math.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <sys/time.h>
+#include <sys/ioctl.h>		
 
 #ifdef __linux
 #include <linux/soundcard.h>
@@ -55,19 +53,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <soundcard.h>
 #endif
 
-#include "asterisk/lock.h"
-#include "asterisk/frame.h"
-#include "asterisk/callerid.h"
 #include "asterisk/channel.h"
+#include "asterisk/file.h"
+#include "asterisk/callerid.h"
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
-#include "asterisk/config.h"
 #include "asterisk/cli.h"
-#include "asterisk/utils.h"
 #include "asterisk/causes.h"
-#include "asterisk/endian.h"
-#include "asterisk/stringfields.h"
-#include "asterisk/abstract_jb.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/app.h"
 
