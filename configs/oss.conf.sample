@@ -69,6 +69,69 @@
     ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
     ;-----------------------------------------------------------------------------------
 
+; Below are the settings to support video. You can include them
+; in your general configuration as [general](+,video)
+; The parameters are all available through the CLI as "console name value"
+; Section names used here are only examples.
+
+[my_video](!)      ; you can just include in your config
+    videodevice = /dev/video0	; uses your V4L webcam as video source
+    videodevice = X11		; X11 grabber. Dragging on the local display moves the origin.
+    videocodec = h263		; also h261, h263p, h264, mpeg4, ...
+
+    ; video_size is the geometry used by the encoder.
+    ; Depending on the codec your choice is restricted.
+    video_size = 352x288	; the format WIDTHxHEIGHT is also ok
+    video_size = cif		; sqcif, qcif, cif, qvga, vga, ...
+
+    ; You can also set the geometry used for the camera, local display and remote display.
+    ; The local window is on the right, the remote window is on the left.
+    ; Right clicking with the mouse on a video window increases the size,
+    ; center-clicking reduces the size.
+    camera_size = cif
+    remote_size = cif
+    local_size = qcif
+
+    bitrate = 60000             ; rate told to ffmpeg.
+    fps = 5                     ; frames per second from the source.
+    ; qmin = 3                  ; quantizer value passed to the encoder.
+
+; The keypad is made of an image (in any format supported by SDL_image)
+; and some configuration entries indicating the location and function of buttons.
+; These entries can also be contained in the comment field of the image,
+; which is a lot more convenient to manage.
+; E.g. for jpeg you can write them with wrjpgcom (part of libjpeg).
+; The format to define keys is
+;	keypad_entry = <event> <shape> x0 y0 x1 y1 h
+; where <event> is the event to be generated (a digit, pickup, hangup,...)
+; <shape> is the shape of the region (currently 'rect' and 'circle' are
+; supported, the latter is really an ellipse),  x0 y0 x1 y1 are the
+; coordinates of the base of the rectangle or main diameter of the ellipse,
+; (they can be rotated) while h is the height of the rectangle or the other
+; diameter of the ellipse.
+;
+[my_skin](!)
+    keypad = /tmp/keypad.jpg
+    keypad_entry = 1 rect   19  18    67  18  28
+    keypad_entry = 2 rect   84  18   133  18  28
+    keypad_entry = 3 rect  152  18   201  18  28
+    keypad_entry = 4 rect   19  60    67  60  28
+    keypad_entry = 5 rect   84  60   133  60  28
+    keypad_entry = 6 rect  152  60   201  60  28
+    keypad_entry = 7 rect   19 103    67 103  28
+    keypad_entry = 8 rect   84 103   133 103  28
+    keypad_entry = 9 rect  152 103   201 103  28
+    keypad_entry = * rect   19 146    67 146  28
+    keypad_entry = 0 rect   84 146   133 146  28
+    keypad_entry = # rect  152 146   201 146  28
+    keypad_entry = pickup rect  229 15  267 15 40
+    keypad_entry = hangup rect  230 66  270 64 40
+    keypad_entry = mute circle  232 141 264 141 33   
+    keypad_entry = sendvideo circle  235 185 266 185 33
+    keypad_entry = autoanswer rect 228 212 275 212 50
+
+; uncomment this line to add video support
+; [default](+,my_video,my_skin)
 
 [card1]
     ; device = /dev/dsp1	; alternate device
