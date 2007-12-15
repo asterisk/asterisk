@@ -30,7 +30,7 @@
 #endif
 
 #ifdef HAVE_MMAP
-#include <sys/mmap.h>
+#include <sys/mman.h>
 #endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
