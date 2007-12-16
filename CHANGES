@@ -101,6 +101,9 @@ SIP changes
   * A new option called "callcounter" (global/peer/user level) enables call counters needed
     for better status reports needed for queues and SIP subscriptions. (Call-Limit was previously
     used to enable this functionality).
+  * New settings for timer T1 and timer B on a global level or per device. This makes it 
+    possible to force timeout faster on non-responsive SIP servers. These settings are
+    considered advanced, so don't use them unless you have a problem.
 
 IAX2 changes
 ------------

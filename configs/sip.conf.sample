@@ -81,13 +81,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; and subscriptions (seconds)
 ;minexpiry=60			; Minimum length of registrations/subscriptions (default 60)
 ;defaultexpiry=120		; Default length of incoming/outgoing registration
-;t1min=100			; Minimum roundtrip time for messages to monitored hosts
-				; Defaults to 100 ms
-;timert1=500		; Default T1 timer
-				; Defaults to 500 ms
-;timerb=32000		; Call setup timer. If a provisional response is not received
-						; in this amount of time, the call will autocongest
-				; Defaults to 64*timert1
 ;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
 ;buggymwi=no			; Cisco SIP firmware doesn't support the MWI RFC
 				; fully. Enable this option to not get error messages
@@ -191,6 +184,19 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; this setting will enforce inactivation of the regexten
 				; extension for the peer
 ;
+;--------------------------- SIP timers ----------------------------------------------------
+; These timers are used primarily in INVITE transactions. 
+; The default for Timer T1 is 500 ms or the measured run-trip time between
+; Asterisk and the device if you have qualify=yes for the device.
+;
+;t1min=100			; Minimum roundtrip time for messages to monitored hosts
+				; Defaults to 100 ms
+;timert1=500		        ; Default T1 timer
+				; Defaults to 500 ms
+;timerb=32000		        ; Call setup timer. If a provisional response is not received
+				; in this amount of time, the call will autocongest
+				; Defaults to 64*timert1
+
 ;--------------------------- RTP timers ----------------------------------------------------
 ; These timers are currently used for both audio and video streams. The RTP timeouts
 ; are only applied to the audio channel.
