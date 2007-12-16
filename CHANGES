@@ -31,6 +31,7 @@ AMI - The manager (TCP/TLS/HTTP)
     list (delete or add accounts) you need to reload manager.
   * Added Masquerade manager event for when a masquerade happens between
      two channels.
+  * Added "manager reload" command for the CLI
 
 Dialplan functions
 ------------------

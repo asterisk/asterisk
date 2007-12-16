@@ -709,6 +709,26 @@ static char *handle_showmaneventq(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 
+/*! \brief CLI command manager reload */
+static char *handle_manager_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager reload";
+		e->usage =
+			"Usage: manager reload\n"
+			"       Reloads the manager configuration.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc > 2)
+		return CLI_SHOWUSAGE;
+	reload_manager();
+	return CLI_SUCCESS;
+}
+
+
 static struct ast_cli_entry cli_manager[] = {
 	AST_CLI_DEFINE(handle_showmancmd, "Show a manager interface command"),
 	AST_CLI_DEFINE(handle_showmancmds, "List manager interface commands"),
@@ -717,6 +737,7 @@ static struct ast_cli_entry cli_manager[] = {
 	AST_CLI_DEFINE(handle_showmanagers, "List configured manager users"),
 	AST_CLI_DEFINE(handle_showmanager, "Display information on a specific manager user"),
 	AST_CLI_DEFINE(handle_mandebug, "Show, enable, disable debugging of the manager code"),
+	AST_CLI_DEFINE(handle_manager_reload, "Reload manager configurations"),
 };
 
 /*
