@@ -122,6 +122,10 @@ MGCP changes
 ------------
   * Added separate settings for media QoS in mgcp.conf
 
+OSS Channel changes
+-------------------
+  * Added experimental support for video under X windows
+
 DUNDi changes
 -------------
   * Added the ability to specify arguments to the Dial application when using
