@@ -83,6 +83,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;defaultexpiry=120		; Default length of incoming/outgoing registration
 ;t1min=100			; Minimum roundtrip time for messages to monitored hosts
 				; Defaults to 100 ms
+;timert1=500		; Default T1 timer
+				; Defaults to 500 ms
+;timerb=32000		; Call setup timer. If a provisional response is not received
+						; in this amount of time, the call will autocongest
+				; Defaults to 64*timert1
 ;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
 ;buggymwi=no			; Cisco SIP firmware doesn't support the MWI RFC
 				; fully. Enable this option to not get error messages
@@ -598,6 +603,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             rfc2833compensate
 ;                             callbackextension
 ;                             registertrying
+;                             timert1
+;                             timerb
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)

@@ -181,8 +181,8 @@ static int expiry = DEFAULT_EXPIRY;
 
 #define DEFAULT_RETRANS              1000             /*!< How frequently to retransmit Default: 2 * 500 ms in RFC 3261 */
 #define MAX_RETRANS                  6                /*!< Try only 6 times for retransmissions, a total of 7 transmissions */
-#define SIP_TIMER_T1		     500              /* SIP timer T1 (according to RFC 3261) */
-#define SIP_TRANS_TIMEOUT            32000            /*!< SIP request timeout (rfc 3261) 64*T1 
+#define SIP_TIMER_T1                 500              /* SIP timer T1 (according to RFC 3261) */
+#define SIP_TRANS_TIMEOUT            64 * SIP_TIMER_T1/*!< SIP request timeout (rfc 3261) 64*T1 
                                                       \todo Use known T1 for timeout (peerpoke)
                                                       */
 #define DEFAULT_TRANS_TIMEOUT        -1               /* Use default SIP transaction timeout */
@@ -636,7 +636,9 @@ static char global_sdpsession[AST_MAX_EXTENSION];	/*!< SDP session name for the 
 static char global_sdpowner[AST_MAX_EXTENSION];	/*!< SDP owner name for the SIP channel */
 static int allow_external_domains;	/*!< Accept calls to external SIP domains? */
 static int global_callevents;		/*!< Whether we send manager events or not */
+static int global_t1;			/*!< T1 time */
 static int global_t1min;		/*!< T1 roundtrip time minimum */
+static int global_timer_b;    /*!< Timer B - RFC 3261 Section 17.1.1.2 */
 static int global_regextenonqualify;  /*!< Whether to add/remove regexten when qualifying peers */
 static int global_autoframing;          /*!< Turn autoframing on or off. */
 static enum transfermodes global_allowtransfer;	/*!< SIP Refer restriction scheme */
@@ -1088,6 +1090,7 @@ struct sip_pvt {
 	char notext;				/*!< Text not supported  (?) */
 
 	int timer_t1;				/*!< SIP timer T1, ms rtt */
+	int timer_b;            /*!< SIP timer B, ms */
 	unsigned int sipoptions;		/*!< Supported SIP options on the other end */
 	struct ast_codec_pref prefs;		/*!< codec prefs */
 	int capability;				/*!< Special capability (codec) */
@@ -1349,6 +1352,8 @@ struct sip_peer {
 	struct ast_variable *chanvars;	/*!<  Variables to set for channel created by user */
 	struct sip_pvt *mwipvt;		/*!<  Subscription for MWI */
 	int autoframing;
+	int timer_t1;		/*!<  The maximum T1 value for the peer */
+	int timer_b;      /*!<  The maximum timer B (transaction timeouts) */
 };
 
 
@@ -2502,8 +2507,10 @@ static int __sip_autodestruct(const void *data)
 static void sip_scheddestroy(struct sip_pvt *p, int ms)
 {
 	if (ms < 0) {
-		if (p->timer_t1 == 0)
-			p->timer_t1 = SIP_TIMER_T1;	/* Set timer T1 if not set (RFC 3261) */
+		if (p->timer_t1 == 0) {
+			p->timer_t1 = global_t1;	/* Set timer T1 if not set (RFC 3261) */
+			p->timer_b = global_timer_b;  /* Set timer B if not set (RFC 3261) */
+		}
 		ms = p->timer_t1 * 64;
 	}
 	if (sip_debug_test_pvt(p))
@@ -3449,8 +3456,19 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 
 	/* Set timer T1 to RTT for this peer (if known by qualify=) */
 	/* Minimum is settable or default to 100 ms */
+	/* If there is a maxms and lastms from a qualify use that over a manual T1
+	   value. Otherwise, use the peer's T1 value. */
 	if (peer->maxms && peer->lastms)
 		dialog->timer_t1 = peer->lastms < global_t1min ? global_t1min : peer->lastms;
+	else
+		dialog->timer_t1 = peer->timer_t1;
+
+	/* Set timer B to control transaction timeouts, the peer setting is the default and overrides
+	   the known timer */
+	if (peer->timer_b)
+		dialog->timer_b = peer->timer_b;
+	else
+		dialog->timer_b = 64 * dialog->timer_t1;
 
 	if ((ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
 	    (ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
@@ -3481,7 +3499,8 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 	if (port)
 		*port++ = '\0';
 	dialog->sa.sin_family = AF_INET;
-	dialog->timer_t1 = SIP_TIMER_T1; /* Default SIP retransmission timer T1 (RFC 3261) */
+	dialog->timer_t1 = global_t1; /* Default SIP retransmission timer T1 (RFC 3261) */
+	dialog->timer_b = global_timer_b; /* Default SIP transaction timer B (RFC 3261) */
 	peer = find_peer(peername, NULL, 1);
 
 	if (peer) {
@@ -3633,7 +3652,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		p->invitestate = INV_CALLING;
 	
 		/* Initialize auto-congest time */
-		p->initid = ast_sched_replace(p->initid, sched, SIP_TRANS_TIMEOUT, 
+		p->initid = ast_sched_replace(p->initid, sched, p->timer_b, 
 			auto_congest, dialog_ref(p));
 	}
 
@@ -5067,8 +5086,10 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	p->stateid = -1;
 	p->prefs = default_prefs;		/* Set default codecs for this call */
 
-	if (intended_method != SIP_OPTIONS)	/* Peerpoke has it's own system */
-		p->timer_t1 = SIP_TIMER_T1;	/* Default SIP retransmission timer T1 (RFC 3261) */
+	if (intended_method != SIP_OPTIONS) {	/* Peerpoke has it's own system */
+		p->timer_t1 = global_t1;	/* Default SIP retransmission timer T1 (RFC 3261) */
+		p->timer_b = global_timer_b;	/* Default SIP transaction timer B (RFC 3261) */
+	}
 
 	if (!sin)
 		p->ourip = internip;
@@ -10377,6 +10398,15 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		p->callingpres = peer->callingpres;
 	if (peer->maxms && peer->lastms)
 		p->timer_t1 = peer->lastms < global_t1min ? global_t1min : peer->lastms;
+ 	else
+ 		p->timer_t1 = peer->timer_t1;
+ 
+ 	/* Set timer B to control transaction timeouts */
+ 	if (peer->timer_b)
+ 		p->timer_b = peer->timer_b;
+ 	else
+ 		p->timer_b = 64 * p->timer_t1;
+ 
 	if (ast_test_flag(&peer->flags[0], SIP_INSECURE_INVITE)) {
 		/* Pretend there is no required authentication */
 		ast_string_field_set(p, peersecret, NULL);
@@ -11539,6 +11569,8 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 
 		/* - is enumerated */
 		ast_cli(fd, "  DTMFmode     : %s\n", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
+		ast_cli(fd, "  Timer T1     : %d\n", peer->timer_t1);
+		ast_cli(fd, "  Timer B      : %d\n", peer->timer_b);
 		ast_cli(fd, "  ToHost       : %s\n", peer->tohost);
 		ast_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
 		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
@@ -11934,7 +11966,6 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Codec Order:            ");
 	print_codec_to_cli(a->fd, &default_prefs);
 	ast_cli(a->fd, "\n");
-	ast_cli(a->fd, "  T1 minimum:             %d\n", global_t1min);
 	ast_cli(a->fd, "  Relax DTMF:             %s\n", cli_yesno(global_relaxdtmf));
 	ast_cli(a->fd, "  Compact SIP headers:    %s\n", cli_yesno(compactheaders));
 	ast_cli(a->fd, "  RTP Keepalive:          %d %s\n", global_rtpkeepalive, global_rtpkeepalive ? "" : "(Disabled)" );
@@ -11955,6 +11986,9 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Auto-Framing:           %s\n", cli_yesno(global_autoframing));
 	ast_cli(a->fd, "  Outb. proxy:            %s %s\n", ast_strlen_zero(global_outboundproxy.name) ? "<not set>" : global_outboundproxy.name,
 							global_outboundproxy.force ? "(forced)" : "");
+ 	ast_cli(a->fd, "  Timer T1:               %d\n", global_t1);
+	ast_cli(a->fd, "  Timer T1 minimum:       %d\n", global_t1min);
+ 	ast_cli(a->fd, "  Timer B:                %d\n", global_timer_b);
 
 	ast_cli(a->fd, "\nDefault Settings:\n");
 	ast_cli(a->fd, "-----------------\n");
@@ -17801,6 +17835,8 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->pickupgroup = 0;
 	peer->maxms = default_qualify;
 	peer->prefs = default_prefs;
+	peer->timer_t1 = global_t1;
+	peer->timer_b = global_timer_b;
 	clear_peer_mailboxes(peer);
 }
 
@@ -18076,6 +18112,16 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
 				peer->rtpkeepalive = global_rtpkeepalive;
 			}
+      } else if (!strcasecmp(v->name, "timert1")) {
+         if ((sscanf(v->value, "%d", &peer->timer_t1) != 1) || (peer->timer_t1 < 0)) {
+            ast_log(LOG_WARNING, "'%s' is not a valid T1 time at line %d.  Using default.\n", v->value, v->lineno);
+            peer->timer_t1 = global_t1;
+         }
+      } else if (!strcasecmp(v->name, "timerb")) {
+         if ((sscanf(v->value, "%d", &peer->timer_b) != 1) || (peer->timer_b < 0)) {
+            ast_log(LOG_WARNING, "'%s' is not a valid Timer B time at line %d.  Using default.\n", v->value, v->lineno);
+            peer->timer_b = global_timer_b;
+         }
 		} else if (!strcasecmp(v->name, "setvar")) {
 			peer->chanvars = add_var(v->value, peer->chanvars);
 		} else if (!strcasecmp(v->name, "qualify")) {
@@ -18296,6 +18342,8 @@ static int reload_config(enum channelreloadreason reason)
 	/* Misc settings for the channel */
 	global_relaxdtmf = FALSE;
 	global_callevents = FALSE;
+	global_t1 = SIP_TIMER_T1;
+	global_timer_b = 64 * SIP_TIMER_T1;
 	global_t1min = DEFAULT_T1MIN;		
 
 	global_matchexterniplocally = FALSE;
