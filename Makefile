@@ -378,30 +378,22 @@ $(OTHER_SUBDIRS):
 
 defaults.h: makeopts
 	@build_tools/make_defaults_h > $@.tmp
-	@if cmp -s $@.tmp $@ ; then : ; else \
-		mv $@.tmp $@ ; \
-	fi
+	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
 include/asterisk/version.h:
 	@build_tools/make_version_h > $@.tmp
-	@if cmp -s $@.tmp $@ ; then : ; else \
-		mv $@.tmp $@ ; \
-	fi
+	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
 include/asterisk/buildopts.h: menuselect.makeopts
 	@build_tools/make_buildopts_h > $@.tmp
-	@if cmp -s $@.tmp $@ ; then : ; else \
-		mv $@.tmp $@ ; \
-	fi
+	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
 include/asterisk/build.h:
 	@build_tools/make_build_h > $@.tmp
-	@if cmp -s $@.tmp $@ ; then : ; else \
-		mv $@.tmp $@ ; \
-	fi
+	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
 $(SUBDIRS_CLEAN):
