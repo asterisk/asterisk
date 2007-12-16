@@ -167,10 +167,10 @@ static AST_LIST_HEAD_STATIC(sessions, mansession);
 struct ast_manager_user {
 	char username[80];
 	char *secret;
-	char *deny;
-	char *permit;
-	char *read;
-	char *write;
+	struct ast_ha *ha;		/*!< ACL setting */
+	int readperm;			/*! Authorization for reading */
+	int writeperm;			/*! Authorization for writing */
+	int writetimeout;		/*! Per user Timeout for ast_carefulwrite() */
 	int displayconnects;	/*!< XXX unused */
 	int keep;	/*!< mark entries created on a reload */
 	AST_RWLIST_ENTRY(ast_manager_user) list;
@@ -519,6 +519,9 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 	struct ast_manager_user *user = NULL;
 	int l, which;
 	char *ret = NULL;
+	struct ast_str *rauthority = ast_str_alloca(80);
+	struct ast_str *wauthority = ast_str_alloca(80);
+
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "manager show user";
@@ -557,17 +560,15 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 	ast_cli(a->fd,
 		"       username: %s\n"
 		"         secret: %s\n"
-		"           deny: %s\n"
-		"         permit: %s\n"
-		"           read: %s\n"
-		"          write: %s\n"
+		"            acl: %s\n"
+		"      read perm: %s\n"
+		"     write perm: %s\n"
 		"displayconnects: %s\n",
 		(user->username ? user->username : "(N/A)"),
 		(user->secret ? "<Set>" : "(N/A)"),
-		(user->deny ? user->deny : "(N/A)"),
-		(user->permit ? user->permit : "(N/A)"),
-		(user->read ? user->read : "(N/A)"),
-		(user->write ? user->write : "(N/A)"),
+		(user->ha ? "yes" : "no"),
+		authority_to_str(user->readperm, &rauthority),
+		authority_to_str(user->writeperm, &wauthority),
 		(user->displayconnects ? "yes" : "no"));
 
 	AST_RWLIST_UNLOCK(&users);
@@ -956,118 +957,22 @@ static int set_eventmask(struct mansession *s, const char *eventmask)
 /* helper function for action_login() */
 static int authenticate(struct mansession *s, const struct message *m)
 {
-	const char *user = astman_get_header(m, "Username");
+	const char *username = astman_get_header(m, "Username");
+	const char *password = astman_get_header(m, "Secret");
 	int error = -1;
-	struct ast_ha *ha = NULL;
-	char *password = NULL;
-	int readperm = 0, writeperm = 0;
-	struct ast_flags config_flags = { 0 };
+	struct ast_manager_user *user = NULL;
 
-	if (ast_strlen_zero(user))	/* missing username */
+	if (ast_strlen_zero(username))	/* missing username */
 		return -1;
 
-    {
-	/*
-	 * XXX there should be no need to scan the config file again here,
-	 * suffices to call get_manager_by_name_locked() to fetch
-	 * the user's entry.
-	 */
-	struct ast_config *cfg = ast_config_load("manager.conf", config_flags);
-	char *cat = NULL;
-	struct ast_variable *v;
+	/* locate user in locked state */
+	AST_RWLIST_WRLOCK(&users);
 
-	if (!cfg)
-		return -1;
-	while ( (cat = ast_category_browse(cfg, cat)) ) {
-		/* "general" is not a valid user */
-		if (strcasecmp(cat, user) || !strcasecmp(cat, "general"))
-			continue;
-		/* collect parameters for the user's entry */
-		for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
-			if (!strcasecmp(v->name, "secret"))
-				password = ast_strdupa(v->value);
-			else if (!strcasecmp(v->name, "read"))
-				readperm = get_perm(v->value);
-			else if (!strcasecmp(v->name, "write"))
-				writeperm = get_perm(v->value);
-			else if (!strcasecmp(v->name, "permit") ||
-				   !strcasecmp(v->name, "deny")) {
-				ha = ast_append_ha(v->name, v->value, ha, NULL);
-			} else if (!strcasecmp(v->name, "writetimeout")) {
-				int val = atoi(v->value);
-	
-				if (val < 100)
-					ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
-				else
-					s->writetimeout = val;
-			}
-		}
-		break;
-	}
-
-	ast_config_destroy(cfg);
-	if (!cat) {
-		/* Didn't find the user in manager.conf, check users.conf */
-		int hasmanager = 0;
-		cfg = ast_config_load("users.conf", config_flags);
-		if (!cfg)
-			return -1;
-		while ( (cat = ast_category_browse(cfg, cat)) ) {
-			if (!strcasecmp(cat, user) && strcasecmp(cat, "general"))
-				break;
-		}
-		if (!cat) {
-			ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
-			ast_config_destroy(cfg);
-			return -1;
-		}
-		/* collect parameters for the user's entry from users.conf */
-		for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
-			if (!strcasecmp(v->name, "secret"))
-				password = ast_strdupa(v->value);
-			else if (!strcasecmp(v->name, "read"))
-				readperm = get_perm(v->value);
-			else if (!strcasecmp(v->name, "write"))
-				writeperm = get_perm(v->value);
-			else if (!strcasecmp(v->name, "permit") ||
-				   !strcasecmp(v->name, "deny")) {
-				ha = ast_append_ha(v->name, v->value, ha, NULL);
-			} else if (!strcasecmp(v->name, "writetimeout")) {
-				int val = atoi(v->value);
-	
-				if (val < 100)
-					ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
-				else
-					s->writetimeout = val;
-			} else if (!strcasecmp(v->name, "hasmanager"))
-				hasmanager = ast_true(v->value);
-			else if (!strcasecmp(v->name, "managerread"))
-				readperm = get_perm(v->value);
-			else if (!strcasecmp(v->name, "managerwrite"))
-				writeperm = get_perm(v->value);
-		}
-		ast_config_destroy(cfg);
-		if (!hasmanager) {
-			ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
-			return -1;
-		}
-		if (!readperm)
-			readperm = -1;
-		if (!writeperm)
-			writeperm = -1;
-	}
-
-	}
-
-	if (ha) {
-		int good = ast_apply_ha(ha, &(s->sin));
-		ast_free_ha(ha);
-		if (!good) {
-			ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
-			return -1;
-		}
-	}
-	if (!strcasecmp(astman_get_header(m, "AuthType"), "MD5")) {
+	if (!(user = get_manager_by_name_locked(username))) {
+		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), username);
+	} else if (user->ha && !ast_apply_ha(user->ha, &(s->sin))) {
+		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), username);
+	} else if (!strcasecmp(astman_get_header(m, "AuthType"), "MD5")) {
 		const char *key = astman_get_header(m, "Key");
 		if (!ast_strlen_zero(key) && !ast_strlen_zero(s->challenge) &&
 		    !ast_strlen_zero(password)) {
@@ -1088,22 +993,26 @@ static int authenticate(struct mansession *s, const struct message *m)
 		} else {
 			ast_debug(1, "MD5 authentication is not possible.  challenge: '%s'\n", 
 				S_OR(s->challenge, ""));
-			return -1;
 		}
-	} else if (password) {
-		const char *pass = astman_get_header(m, "Secret");
-		if (!strcmp(password, pass))
-			error = 0;
-	}
+	} else if (password && user->secret && !strcmp(password, user->secret))
+		error = 0;
+
 	if (error) {
-		ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
+		ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), username);
+		AST_RWLIST_UNLOCK(&users);
 		return -1;
 	}
-	ast_copy_string(s->username, user, sizeof(s->username));
-	s->readperm = readperm;
-	s->writeperm = writeperm;
+
+	/* auth complete */
+	
+	ast_copy_string(s->username, username, sizeof(s->username));
+	s->readperm = user->readperm;
+	s->writeperm = user->writeperm;
+	s->writetimeout = user->writetimeout;
 	s->sessionstart = time(NULL);
 	set_eventmask(s, astman_get_header(m, "Events"));
+	
+	AST_RWLIST_UNLOCK(&users);
 	return 0;
 }
 
@@ -3409,7 +3318,7 @@ static struct server_args amis_desc = {
 
 static int __init_manager(int reload)
 {
-	struct ast_config *cfg = NULL;
+	struct ast_config *ucfg = NULL, *cfg = NULL;
 	const char *val;
 	char *cat = NULL;
 	int newhttptimeout = 60;
@@ -3461,7 +3370,7 @@ static int __init_manager(int reload)
 
 	displayconnects = 1;
 	if (!cfg) {
-		ast_log(LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
+		ast_log(LOG_NOTICE, "Unable to open AMI configuration manager.conf. Asterisk management interface (AMI) disabled.\n");
 		return 0;
 	}
 
@@ -3537,7 +3446,83 @@ static int __init_manager(int reload)
 	
 	AST_RWLIST_WRLOCK(&users);
 
+	/* First, get users from users.conf */
+	ucfg = ast_config_load("users.conf", config_flags);
+	if (ucfg && (ucfg != CONFIG_STATUS_FILEUNCHANGED)) {
+		const char *hasmanager;
+		int genhasmanager = ast_true(ast_variable_retrieve(ucfg, "general", "hasmanager"));
+
+		while ((cat = ast_category_browse(ucfg, cat))) {
+			if (!strcasecmp(cat, "general"))
+				continue;
+			
+			hasmanager = ast_variable_retrieve(ucfg, cat, "hasmanager");
+			if ((!hasmanager && genhasmanager) || ast_true(hasmanager)) {
+				const char *user_secret = ast_variable_retrieve(ucfg, cat, "secret");
+				const char *user_read = ast_variable_retrieve(ucfg, cat, "read");
+				const char *user_write = ast_variable_retrieve(ucfg, cat, "write");
+				const char *user_displayconnects = ast_variable_retrieve(ucfg, cat, "displayconnects");
+				const char *user_writetimeout = ast_variable_retrieve(ucfg, cat, "writetimeout");
+				
+				/* Look for an existing entry,
+				 * if none found - create one and add it to the list
+				 */
+				if (!(user = get_manager_by_name_locked(cat))) {
+					if (!(user = ast_calloc(1, sizeof(*user))))
+						break;
+
+					/* Copy name over */
+					ast_copy_string(user->username, cat, sizeof(user->username));
+					/* Insert into list */
+					AST_LIST_INSERT_TAIL(&users, user, list);
+					user->ha = NULL;
+					user->readperm = -1;
+					user->writeperm = -1;
+					/* Default displayconnect from [general] */
+					user->displayconnects = displayconnects;
+					user->writetimeout = 100;
+				}
+
+				if (!user_secret)
+					user_secret = ast_variable_retrieve(ucfg, "general", "secret");
+				if (!user_read)
+					user_read = ast_variable_retrieve(ucfg, "general", "read");
+				if (!user_write)
+					user_write = ast_variable_retrieve(ucfg, "general", "write");
+				if (!user_displayconnects)
+					user_displayconnects = ast_variable_retrieve(ucfg, "general", "displayconnects");
+				if (!user_writetimeout)
+					user_writetimeout = ast_variable_retrieve(ucfg, "general", "writetimeout");
+
+				if (!ast_strlen_zero(user_secret)) {
+					if (user->secret)
+						ast_free(user->secret);
+					user->secret = ast_strdup(user_secret);
+				}
+
+				if (user_read)
+					user->readperm = get_perm(user_read);
+				if (user_write)
+					user->writeperm = get_perm(user_write);
+				if (user_displayconnects)
+					user->displayconnects = ast_true(user_displayconnects);
+
+				if (user_writetimeout) {
+					int val = atoi(user_writetimeout);
+					if (val < 100)
+						ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at users.conf line %d\n", var->value, var->lineno);
+					else
+						user->writetimeout = val;
+				}
+			}
+		}
+		ast_config_destroy(ucfg);
+	}
+
+	/* cat is NULL here in any case */
+
 	while ((cat = ast_category_browse(cfg, cat))) {
+		struct ast_ha *oldha;
 
 		if (!strcasecmp(cat, "general"))
 			continue;
@@ -3548,45 +3533,50 @@ static int __init_manager(int reload)
 				break;
 			/* Copy name over */
 			ast_copy_string(user->username, cat, sizeof(user->username));
+
+			user->ha = NULL;
+			user->readperm = 0;
+			user->writeperm = 0;
+			/* Default displayconnect from [general] */
+			user->displayconnects = displayconnects;
+			user->writetimeout = 100;
+
 			/* Insert into list */
 			AST_RWLIST_INSERT_TAIL(&users, user, list);
 		}
 
 		/* Make sure we keep this user and don't destroy it during cleanup */
 		user->keep = 1;
-		/* Default displayconnect to [general] */
-		user->displayconnects = displayconnects;
+		oldha = user->ha;
+		user->ha = NULL;
 
 		var = ast_variable_browse(cfg, cat);
-		while (var) {
+		for (; var; var = var->next) {
 			if (!strcasecmp(var->name, "secret")) {
 				if (user->secret)
 					ast_free(user->secret);
 				user->secret = ast_strdup(var->value);
-			} else if (!strcasecmp(var->name, "deny") ) {
-				if (user->deny)
-					ast_free(user->deny);
-				user->deny = ast_strdup(var->value);
-			} else if (!strcasecmp(var->name, "permit") ) {
-				if (user->permit)
-					ast_free(user->permit);
-				user->permit = ast_strdup(var->value);
+			} else if (!strcasecmp(var->name, "deny") ||
+				       !strcasecmp(var->name, "permit")) {
+				user->ha = ast_append_ha(var->name, var->value, user->ha, NULL);
 			}  else if (!strcasecmp(var->name, "read") ) {
-				if (user->read)
-					ast_free(user->read);
-				user->read = ast_strdup(var->value);
+				user->readperm = get_perm(var->value);
 			}  else if (!strcasecmp(var->name, "write") ) {
-				if (user->write)
-					ast_free(user->write);
-				user->write = ast_strdup(var->value);
-			}  else if (!strcasecmp(var->name, "displayconnects") )
+				user->writeperm = get_perm(var->value);
+			}  else if (!strcasecmp(var->name, "displayconnects") ) {
 				user->displayconnects = ast_true(var->value);
-			else {
+			} else if (!strcasecmp(var->name, "writetimeout")) {
+				int val = atoi(var->value);
+				if (val < 100)
+					ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", var->value, var->lineno);
+				else
+					user->writetimeout = val;
+			} else
 				ast_debug(1, "%s is an unknown option.\n", var->name);
-			}
-			var = var->next;
 		}
+		ast_free_ha(oldha);
 	}
+	ast_config_destroy(cfg);
 
 	/* Perform cleanup - essentially prune out old users that no longer exist */
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&users, user, list) {
@@ -3599,21 +3589,12 @@ static int __init_manager(int reload)
 		/* Free their memory now */
 		if (user->secret)
 			ast_free(user->secret);
-		if (user->deny)
-			ast_free(user->deny);
-		if (user->permit)
-			ast_free(user->permit);
-		if (user->read)
-			ast_free(user->read);
-		if (user->write)
-			ast_free(user->write);
+		ast_free_ha(user->ha);
 		ast_free(user);
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 
 	AST_RWLIST_UNLOCK(&users);
-
-	ast_config_destroy(cfg);
 
 	if (webmanager_enabled && manager_enabled) {
 		if (!webregged) {

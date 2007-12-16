@@ -11,7 +11,7 @@ AMI - The manager (TCP/TLS/HTTP)
   * Added the URI redirect option for the built-in HTTP server
   * The output of CallerID in Manager events is now more consistent.
      CallerIDNum is used for number and CallerIDName for name.
-  * enable https support for builtin web server.
+  * Enable https support for builtin web server.
      See configs/http.conf.sample for details.
   * Added a new action, GetConfigJSON, which can return the contents of an
      Asterisk configuration file in JSON format.  This is intended to help
@@ -27,6 +27,10 @@ AMI - The manager (TCP/TLS/HTTP)
   * Added 'DBDel' and 'DBDelTree' manager commands.
   * cdr_manager now reports events via the "cdr" level, separating it from
      the very verbose "call" level.
+  * Manager users are now stored in memory. If you change the manager account
+    list (delete or add accounts) you need to reload manager.
+  * Added Masquerade manager event for when a masquerade happens between
+     two channels.
 
 Dialplan functions
 ------------------
@@ -111,6 +115,10 @@ IAX2 changes
   * Added the srvlookup option to iax.conf
   * Added support for OSP.  The token is set and retrieved through the CHANNEL()
      dialplan function.
+
+XMPP Google Talk/Jingle changes
+-------------------------------
+  * Added the bindaddr option to gtalk.conf.
 
 Skinny changes
 -------------
@@ -337,7 +345,6 @@ AGI Changes
 
 Miscellaneous 
 -------------
-  * Added the bindaddr option to gtalk.conf.
   * Ability to use libcap to set high ToS bits when non-root
      on Linux. If configure is unable to find libcap then you
      can use --with-cap to specify the path.
@@ -349,8 +356,6 @@ Miscellaneous
      command to be run after rotation.  This is primarily useful with
      rotatestrategry=rotate, to allow a limit on the number of logfiles kept
      and to ensure that the oldest log file gets deleted.
-  * Added Masquerade manager event for when a masquerade happens between
-     two channels.
   * Added maxfiles option to options section of asterisk.conf which allows you to specify
      what Asterisk should set as the maximum number of open files when it loads.
   * Added the jittertargetextra configuration option.
