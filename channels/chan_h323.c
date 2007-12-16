@@ -970,7 +970,7 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 	if (h323debug)
 		ast_debug(1, "Created RTP channel\n");
 
-	ast_rtp_setqos(pvt->rtp, tos, cos);
+	ast_rtp_setqos(pvt->rtp, tos, cos, "H323 RTP");
 
 	if (h323debug)
 		ast_debug(1, "Setting NAT on RTP to %d\n", pvt->options.nat);
@@ -2904,13 +2904,23 @@ static int reload_config(int is_reload)
 			} else {
 				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
 			}
-		} else if (!strcasecmp(v->name, "tos")) {
+		} else if (!strcasecmp(v->name, "tos")) {	/* Needs to be removed in next release */
+			ast_log(LOG_WARNING, "The \"tos\" setting is deprecated in this version of Asterisk. Please change to \"tos_audio\".\n");
 			if (ast_str2tos(v->value, &tos)) {
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, for more info read doc/qos.tex\n", v->lineno);			
+				ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, refer to QoS documentation\n", v->lineno);			
 			}
-		} else if (!strcasecmp(v->name, "cos")) {		
+		} else if (!strcasecmp(v->name, "tos_audio")) {
+			if (ast_str2tos(v->value, &tos)) {
+				ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, refer to QoS documentation\n", v->lineno);			
+			}
+		} else if (!strcasecmp(v->name, "cos")) {
+			ast_log(LOG_WARNING, "The \"cos\" setting is deprecated in this version of Asterisk. Please change to \"cos_audio\".\n");
 			if (ast_str2cos(v->value, &cos)) {
-				ast_log(LOG_WARNING, "Invalid cos value at line %d, for more info read doc/qos.tex\n", v->lineno);			
+				ast_log(LOG_WARNING, "Invalid cos_audio value at line %d, refer to QoS documentation\n", v->lineno);			
+			}
+		} else if (!strcasecmp(v->name, "cos_audio")) {
+			if (ast_str2cos(v->value, &cos)) {
+				ast_log(LOG_WARNING, "Invalid cos_audio value at line %d, refer to QoS documentation\n", v->lineno);			
 			}
 		} else if (!strcasecmp(v->name, "gatekeeper")) {
 			if (!strcasecmp(v->value, "DISABLE")) {

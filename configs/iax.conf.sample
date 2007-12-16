@@ -225,7 +225,7 @@ forcejitterbuffer=no
 ;
 ;authdebug=no
 ;
-; See doc/qos.tex for a description of the tos parameters.
+; See qos.tex or Quality of Service section of asterisk.pdf for a description of these parameters.
 ;tos=ef
 ;cos=5
 ;

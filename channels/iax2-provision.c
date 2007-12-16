@@ -323,7 +323,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 				ast_log(LOG_WARNING, "Ignoring invalid codec '%s' for '%s' at line %d\n", v->value, s, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (ast_str2tos(v->value, &cur->tos))
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, see doc/qos.tex for more information.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "user")) {
 			strncpy(cur->user, v->value, sizeof(cur->user) - 1);
 			if (strcmp(cur->user, v->value))

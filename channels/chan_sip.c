@@ -545,7 +545,7 @@ static const struct cfsip_options {
 #define DEFAULT_COS_SIP         4
 #define DEFAULT_COS_AUDIO       5
 #define DEFAULT_COS_VIDEO       6
-#define DEFAULT_COS_TEXT        0
+#define DEFAULT_COS_TEXT        5
 #define DEFAULT_ALLOW_EXT_DOM	TRUE
 #define DEFAULT_REALM		"asterisk"
 #define DEFAULT_NOTIFYRINGING	TRUE
@@ -5130,14 +5130,14 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			ast_free(p);
 			return NULL;
 		}
-		ast_rtp_setqos(p->rtp, global_tos_audio, global_cos_audio);
+		ast_rtp_setqos(p->rtp, global_tos_audio, global_cos_audio, "SIP RTP");
 		ast_rtp_setdtmf(p->rtp, ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
 		ast_rtp_setdtmfcompensate(p->rtp, ast_test_flag(&p->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
 		ast_rtp_set_rtptimeout(p->rtp, global_rtptimeout);
 		ast_rtp_set_rtpholdtimeout(p->rtp, global_rtpholdtimeout);
 		ast_rtp_set_rtpkeepalive(p->rtp, global_rtpkeepalive);
 		if (p->vrtp) {
-			ast_rtp_setqos(p->vrtp, global_tos_video, global_cos_video);
+			ast_rtp_setqos(p->vrtp, global_tos_video, global_cos_video, "SIP VRTP");
 			ast_rtp_setdtmf(p->vrtp, 0);
 			ast_rtp_setdtmfcompensate(p->vrtp, 0);
 			ast_rtp_set_rtptimeout(p->vrtp, global_rtptimeout);
@@ -5145,7 +5145,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			ast_rtp_set_rtpkeepalive(p->vrtp, global_rtpkeepalive);
 		}
 		if (p->trtp) {
-			ast_rtp_setqos(p->trtp, global_tos_text, global_cos_text);
+			ast_rtp_setqos(p->trtp, global_tos_text, global_cos_text, "SIP TRTP");
 			ast_rtp_setdtmf(p->trtp, 0);
 			ast_rtp_setdtmfcompensate(p->trtp, 0);
 		}
@@ -18575,24 +18575,28 @@ static int reload_config(enum channelreloadreason reason)
 				registry_count++;
 		} else if (!strcasecmp(v->name, "tos_sip")) {
 			if (ast_str2tos(v->value, &global_tos_sip))
-				ast_log(LOG_WARNING, "Invalid tos_sip value at line %d, recommended value is 'cs3'. See doc/qos.tex.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos_sip value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "tos_audio")) {
 			if (ast_str2tos(v->value, &global_tos_audio))
-				ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, recommended value is 'ef'. See doc/qos.tex.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "tos_video")) {
 			if (ast_str2tos(v->value, &global_tos_video))
-				ast_log(LOG_WARNING, "Invalid tos_video value at line %d, recommended value is 'af41'. See doc/qos.tex.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos_video value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "tos_text")) {
 			if (ast_str2tos(v->value, &global_tos_text))
-				ast_log(LOG_WARNING, "Invalid tos_text value at line %d, recommended value is 'af41'. See doc/qos.tex.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos_text value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "cos_sip")) {
-			ast_str2cos(v->value, &global_cos_sip);
+			if (ast_str2cos(v->value, &global_cos_sip))
+				ast_log(LOG_WARNING, "Invalid cos_sip value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "cos_audio")) {
-			ast_str2cos(v->value, &global_cos_audio);
+			if (ast_str2cos(v->value, &global_cos_audio))
+				ast_log(LOG_WARNING, "Invalid cos_audio value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "cos_video")) {
-			ast_str2cos(v->value, &global_cos_video);
+			if (ast_str2cos(v->value, &global_cos_video))
+				ast_log(LOG_WARNING, "Invalid cos_video value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "cos_text")) {
-			ast_str2cos(v->value, &global_cos_text);
+			if (ast_str2cos(v->value, &global_cos_text))
+				ast_log(LOG_WARNING, "Invalid cos_text value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "bindport")) {
 			int i;
 			if (sscanf(v->value, "%d", &i) == 1) {
@@ -18761,7 +18765,7 @@ static int reload_config(enum channelreloadreason reason)
 			} else {
 				ast_verb(2, "SIP Listening on %s:%d\n",
 						ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-				ast_netsock_set_qos(sipsock, global_tos_sip, global_cos_sip);
+				ast_netsock_set_qos(sipsock, global_tos_sip, global_cos_sip, "SIP");
 			}
 		}
 	}

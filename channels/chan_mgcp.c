@@ -153,8 +153,9 @@ static ast_group_t cur_callergroup = 0;
 static ast_group_t cur_pickupgroup = 0;
 
 static unsigned int tos = 0;
-
+static unsigned int tos_audio = 0;
 static unsigned int cos = 0;
+static unsigned int cos_audio = 0;
 
 static int immediate = 0;
 
@@ -2591,8 +2592,10 @@ static void start_rtp(struct mgcp_subchannel *sub)
 	sub->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
 	if (sub->rtp && sub->owner)
 		ast_channel_set_fd(sub->owner, 0, ast_rtp_fd(sub->rtp));
-	if (sub->rtp)
+	if (sub->rtp) {
+		ast_rtp_setqos(sub->rtp, tos_audio, cos_audio, "MGCP RTP");
 		ast_rtp_setnat(sub->rtp, sub->nat);
+	}
 #if 0
 	ast_rtp_set_callback(p->rtp, rtpready);
 	ast_rtp_set_data(p->rtp, p);
@@ -4097,10 +4100,16 @@ static int reload_config(int reload)
 				capability &= ~format;
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (ast_str2tos(v->value, &tos))
-			    ast_log(LOG_WARNING, "Invalid tos value at line %d, see doc/qos.tex for more information.\n", v->lineno);
+			    ast_log(LOG_WARNING, "Invalid tos value at line %d, refer to QoS documentation\n", v->lineno);
+		} else if (!strcasecmp(v->name, "tos_audio")) {
+			if (ast_str2tos(v->value, &tos_audio))
+			    ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "cos")) {				
 			if (ast_str2cos(v->value, &cos))
-			    ast_log(LOG_WARNING, "Invalid cos value at line %d, see doc/qos.tex for more information.\n", v->lineno);
+			    ast_log(LOG_WARNING, "Invalid cos value at line %d, refer to QoS documentation\n", v->lineno);
+		} else if (!strcasecmp(v->name, "cos_audio")) {				
+			if (ast_str2cos(v->value, &cos_audio))
+			    ast_log(LOG_WARNING, "Invalid cos_audio value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "port")) {
 			if (sscanf(v->value, "%d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
@@ -4184,7 +4193,7 @@ static int reload_config(int reload)
 		} else {
 			ast_verb(2, "MGCP Listening on %s:%d\n",
 					ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-			ast_netsock_set_qos(mgcpsock, tos, cos);
+			ast_netsock_set_qos(mgcpsock, tos, cos, "MGCP");
 		}
 	}
 	ast_mutex_unlock(&netlock);

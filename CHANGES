@@ -116,6 +116,11 @@ Skinny changes
 -------------
   * Added skinny show device, skinny show line, and skinny show settings CLI commands.
   * Proper codec support in chan_skinny.
+  * Added settings for IP and Ethernet QoS requests
+
+MGCP changes
+------------
+  * Added separate settings for media QoS in mgcp.conf
 
 DUNDi changes
 -------------

@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/io.h"
 #include "asterisk/rtp.h"
+#include "asterisk/netsock.h"
 #include "asterisk/acl.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cli.h"
@@ -89,6 +90,13 @@ enum skinny_codecs {
 #define DEFAULT_SKINNY_PORT	2000
 #define DEFAULT_SKINNY_BACKLOG	2
 #define SKINNY_MAX_PACKET	1000
+
+static unsigned int tos = 0;
+static unsigned int tos_audio = 0;
+static unsigned int tos_video = 0;
+static unsigned int cos = 0;
+static unsigned int cos_audio = 0;
+static unsigned int cos_video = 0;
 
 static int keep_alive = 120;
 static char vmexten[AST_MAX_EXTENSION];		/* Voicemail pilot number */
@@ -2976,9 +2984,11 @@ static void start_rtp(struct skinny_subchannel *sub)
 		ast_channel_set_fd(sub->owner, 3, ast_rtcp_fd(sub->vrtp));
 	}
 	if (sub->rtp) {
+		ast_rtp_setqos(sub->rtp, tos_audio, cos_audio, "Skinny RTP");
 		ast_rtp_setnat(sub->rtp, l->nat);
 	}
 	if (sub->vrtp) {
+		ast_rtp_setqos(sub->vrtp, tos_video, cos_video, "Skinny VRTP");
 		ast_rtp_setnat(sub->vrtp, l->nat);
 	}
 	/* Set Frame packetization */
@@ -5516,6 +5526,24 @@ static int reload_config(void)
 			ast_copy_string(regcontext, v->value, sizeof(regcontext));
 		} else if (!strcasecmp(v->name, "dateformat")) {
 			memcpy(date_format, v->value, sizeof(date_format));
+                } else if (!strcasecmp(v->name, "tos")) {
+                        if (ast_str2tos(v->value, &tos))
+                    		ast_log(LOG_WARNING, "Invalid tos value at line %d, refer to QoS documentation\n", v->lineno);
+                } else if (!strcasecmp(v->name, "tos_audio")) {
+                        if (ast_str2tos(v->value, &tos_audio))
+                    		ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, refer to QoS documentation\n", v->lineno);
+                } else if (!strcasecmp(v->name, "tos_video")) {
+                        if (ast_str2tos(v->value, &tos_video))
+                    		ast_log(LOG_WARNING, "Invalid tos_video value at line %d, refer to QoS documentation\n", v->lineno);
+		} else if (!strcasecmp(v->name, "cos")) {
+		        if (ast_str2cos(v->value, &cos))
+		                ast_log(LOG_WARNING, "Invalid cos value at line %d, refer to QoS documentation\n", v->lineno);
+		} else if (!strcasecmp(v->name, "cos_audio")) {
+		        if (ast_str2cos(v->value, &cos_audio))
+		                ast_log(LOG_WARNING, "Invalid cos_audio value at line %d, refer to QoS documentation\n", v->lineno);
+		} else if (!strcasecmp(v->name, "cos_video")) {
+		        if (ast_str2cos(v->value, &cos_video))
+		                ast_log(LOG_WARNING, "Invalid cos_video value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "allow")) {
 			ast_parse_allow_disallow(&default_prefs, &default_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
@@ -5604,6 +5632,7 @@ static int reload_config(void)
 			}
 			ast_verb(2, "Skinny listening on %s:%d\n",
 					ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
+			ast_netsock_set_qos(skinnysock, tos, cos, "Skinny");
 			ast_pthread_create_background(&accept_t,NULL, accept_thread, NULL);
 		}
 	}

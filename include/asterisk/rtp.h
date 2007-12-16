@@ -168,7 +168,7 @@ int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit);
 
 int ast_rtp_sendcng(struct ast_rtp *rtp, int level);
 
-int ast_rtp_setqos(struct ast_rtp *rtp, int tos, int cos);
+int ast_rtp_setqos(struct ast_rtp *rtp, int tos, int cos, char *desc);
 
 /*! \brief  Setting RTP payload types from lines in a SDP description: */
 void ast_rtp_pt_clear(struct ast_rtp* rtp);

@@ -10422,13 +10422,13 @@ static int set_config(char *config_file, int reload)
 	tosval = ast_variable_retrieve(cfg, "general", "tos");
 	if (tosval) {
 		if (ast_str2tos(tosval, &tos))
-			ast_log(LOG_WARNING, "Invalid tos value, see doc/qos.tex for more information.\n");
+			ast_log(LOG_WARNING, "Invalid tos value, refer to QoS documentation\n");
 	}
 	/* Seed initial cos value */
 	tosval = ast_variable_retrieve(cfg, "general", "cos");
 	if (tosval) {
 		if (ast_str2cos(tosval, &cos))
-			ast_log(LOG_WARNING, "Invalid cos value, see doc/qos.tex for more information.\n");
+			ast_log(LOG_WARNING, "Invalid cos value, refer to QoS documentation\n");
 	}
 	while(v) {
 		if (!strcasecmp(v->name, "bindport")){ 
@@ -10601,10 +10601,10 @@ static int set_config(char *config_file, int reload)
 				ast_context_create(NULL, regcontext, "IAX2");
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (ast_str2tos(v->value, &tos))
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, see doc/qos.tex for more information.'\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "cos")) {
 			if (ast_str2cos(v->value, &cos))
-				ast_log(LOG_WARNING, "Invalid cos value at line %d, see doc/qos.tex for more information.'\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid cos value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(accountcode, v->value, sizeof(accountcode));
 		} else if (!strcasecmp(v->name, "mohinterpret")) {

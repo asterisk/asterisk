@@ -132,6 +132,9 @@ Channel Drivers:
 * chan_local.c: the comma delimiter inside the channel name has been changed to a
   semicolon, in order to make the Local channel driver compatible with the comma
   delimiter change in applications.
+* H323: The "tos" setting has changed name to "tos_audio" and "cos" to "cos_audio"
+  to be compatible with settings in sip.conf. The "tos" and "cos" configuration
+  is deprecated and will stop working in the next release of Asterisk.
 
 Configuration:
 

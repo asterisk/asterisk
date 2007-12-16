@@ -4722,7 +4722,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 				ast_log(LOG_WARNING, "Invalid global endpoint identifier '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (ast_str2tos(v->value, &tos)) 
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, please read docs/qos.tex\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "department")) {
 			ast_copy_string(dept, v->value, sizeof(dept));
 		} else if (!strcasecmp(v->name, "organization")) {
@@ -4856,7 +4856,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	
-	ast_netsock_set_qos(netsocket, tos, 0);
+	ast_netsock_set_qos(netsocket, tos, 0, "DUNDi");
 	
 	if (start_network_thread()) {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");

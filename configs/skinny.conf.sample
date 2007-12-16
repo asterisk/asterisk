@@ -28,6 +28,14 @@ keepalive=120
 ;allow=all		; see doc/rtp-packetization for framing options
 ;disallow=
 
+; See qos.tex or Quality of Service section of asterisk.pdf for a description of these parameters.
+;tos=cs3		; Sets TOS for signaling packets.
+;tos_audio=ef		; Sets TOS for RTP audio packets.
+;tos_video=af41		; Sets TOS for RTP video packets.
+;cos=3			; Sets 802.1p priority for signaling packets.
+;cos_audio=5		; Sets 802.1p priority for RTP audio packets.
+;cos_video=4		; Sets 802.1p priority for RTP video packets.
+
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ;jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
                              ; skinny channel. Defaults to "no". An enabled jitterbuffer will

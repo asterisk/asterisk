@@ -53,7 +53,7 @@ int ast_netsock_release(struct ast_netsock_list *list);
 struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
 				     struct sockaddr_in *sa);
 
-int ast_netsock_set_qos(int netsocket, int tos, int cos);
+int ast_netsock_set_qos(int netsocket, int tos, int cos, const char *desc);
 
 int ast_netsock_sockfd(const struct ast_netsock *ns);
 

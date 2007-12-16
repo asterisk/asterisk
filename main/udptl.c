@@ -849,7 +849,7 @@ struct ast_udptl *ast_udptl_new(struct sched_context *sched, struct io_context *
 
 int ast_udptl_setqos(struct ast_udptl *udptl, int tos, int cos)
 {
-	return ast_netsock_set_qos(udptl->fd, tos, cos);
+	return ast_netsock_set_qos(udptl->fd, tos, cos, "UDPTL");
 }
 
 void ast_udptl_set_peer(struct ast_udptl *udptl, struct sockaddr_in *them)

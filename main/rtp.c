@@ -2292,9 +2292,9 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, 
 	return ast_rtp_new_with_bindaddr(sched, io, rtcpenable, callbackmode, ia);
 }
 
-int ast_rtp_setqos(struct ast_rtp *rtp, int tos, int cos)
+int ast_rtp_setqos(struct ast_rtp *rtp, int tos, int cos, char *desc)
 {
-	return ast_netsock_set_qos(rtp->s, tos, cos);
+	return ast_netsock_set_qos(rtp->s, tos, cos, desc);
 }
 
 void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them)

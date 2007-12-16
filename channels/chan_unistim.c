@@ -59,6 +59,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/io.h"
 #include "asterisk/rtp.h"
+#include "asterisk/netsock.h"
 #include "asterisk/acl.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cli.h"
@@ -214,6 +215,10 @@ static int unistim_port;
 static enum autoprovision autoprovisioning = AUTOPROVISIONING_NO;
 static int unistim_keepalive;
 static int unistimsock = -1;
+static unsigned int tos = 0;
+static unsigned int tos_audio = 0;
+static unsigned int cos = 0;
+static unsigned int cos_audio = 0;
 static struct io_context *io;
 static struct sched_context *sched;
 static struct sockaddr_in public_ip = { 0, };
@@ -2075,8 +2080,10 @@ static void start_rtp(struct unistim_subchannel *sub)
 		sub->owner->fds[0] = ast_rtp_fd(sub->rtp);
 		sub->owner->fds[1] = ast_rtcp_fd(sub->rtp);
 	}
-	if (sub->rtp)
+	if (sub->rtp) {
+		ast_rtp_setqos(sub->rtp, tos_audio, cos_audio, "UNISTIM RTP");
 		ast_rtp_setnat(sub->rtp, sub->parent->parent->nat);
+	}
 
 	/* Create the RTP connection */
 	ast_rtp_get_us(sub->rtp, &us);
@@ -5330,7 +5337,19 @@ static int reload_config(void)
 			unistim_keepalive = atoi(v->value);
 		else if (!strcasecmp(v->name, "port"))
 			unistim_port = atoi(v->value);
-		else if (!strcasecmp(v->name, "autoprovisioning")) {
+                else if (!strcasecmp(v->name, "tos")) {
+                        if (ast_str2tos(v->value, &tos))
+                            ast_log(LOG_WARNING, "Invalid tos value at line %d, refer to QoS documentation\n", v->lineno);
+                } else if (!strcasecmp(v->name, "tos_audio")) {
+                        if (ast_str2tos(v->value, &tos_audio))
+                            ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, refer to QoS documentation\n", v->lineno);
+                } else if (!strcasecmp(v->name, "cos")) {
+                        if (ast_str2cos(v->value, &cos))
+                            ast_log(LOG_WARNING, "Invalid cos value at line %d, refer to QoS documentation\n", v->lineno);
+                } else if (!strcasecmp(v->name, "cos_audio")) {
+                        if (ast_str2cos(v->value, &cos_audio))
+                            ast_log(LOG_WARNING, "Invalid cos_audio value at line %d, refer to QoS documentation\n", v->lineno);
+		} else if (!strcasecmp(v->name, "autoprovisioning")) {
 			if (!strcasecmp(v->value, "no"))
 				autoprovisioning = AUTOPROVISIONING_NO;
 			else if (!strcasecmp(v->value, "yes"))
@@ -5511,6 +5530,7 @@ static int reload_config(void)
 						"UNISTIM Listening on %s:%d\n",
 						ast_inet_ntoa(bindaddr.sin_addr), htons(bindaddr.sin_port));
 		}
+		ast_netsock_set_qos(unistimsock, tos, cos, "UNISTIM");
 	}
 	return 0;
 }
