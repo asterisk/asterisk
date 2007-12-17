@@ -10142,8 +10142,13 @@ static void *pri_dchannel(void *vpri)
 					else if (!ast_strlen_zero(e->ring.callednum)) {
 						ast_copy_string(pri->pvts[chanpos]->exten, e->ring.callednum, sizeof(pri->pvts[chanpos]->exten));
 						ast_copy_string(pri->pvts[chanpos]->dnid, e->ring.callednum, sizeof(pri->pvts[chanpos]->dnid));
-					} else
+					} else if (pri->overlapdial)
 						pri->pvts[chanpos]->exten[0] = '\0';
+					else {
+						/* Some PRI circuits are set up to send _no_ digits.  Handle them as 's'. */
+						pri->pvts[chanpos]->exten[0] = 's';
+						pri->pvts[chanpos]->exten[1] = '\0';
+					}
 					/* Set DNID on all incoming calls -- even immediate */
 					if (!ast_strlen_zero(e->ring.callednum))
 						ast_copy_string(pri->pvts[chanpos]->dnid, e->ring.callednum, sizeof(pri->pvts[chanpos]->dnid));
