@@ -521,7 +521,7 @@ static int show_translation_deprecated(int fd, int argc, char *argv[])
 	ast_cli(fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
 	/* Get the length of the longest (usable?) codec name, so we know how wide the left side should be */
 	for (x = 0; x < SHOW_TRANS; x++) {
-		curlen = strlen(ast_getformatname(1 << (x + 1)));
+		curlen = strlen(ast_getformatname(1 << (x)));
 		if (curlen > longest)
 			longest = curlen;
 	}
@@ -533,7 +533,8 @@ static int show_translation_deprecated(int fd, int argc, char *argv[])
 		*buf++ = ' ';
 		*buf = '\0';
 		for (y = -1; y < SHOW_TRANS; y++) {
-			curlen = strlen(ast_getformatname(1 << (y)));
+			if (y >= 0)
+				curlen = strlen(ast_getformatname(1 << (y)));
 
 			if (x >= 0 && y >= 0 && tr_matrix[x][y].step) {
 				/* XXX 999 is a little hackish
@@ -542,10 +543,10 @@ static int show_translation_deprecated(int fd, int argc, char *argv[])
 				ast_build_string(&buf, &left, "%*d", curlen + 1, tr_matrix[x][y].cost > 999 ? 0 : tr_matrix[x][y].cost);
 			} else if (x == -1 && y >= 0) {
 				/* Top row - use a dynamic size */
-				ast_build_string(&buf, &left, "%*s", curlen + 1, ast_getformatname(1 << (x + y + 1)) );
+				ast_build_string(&buf, &left, "%*s", curlen + 1, ast_getformatname(1 << (y)) );
 			} else if (y == -1 && x >= 0) {
 				/* Left column - use a static size. */
-				ast_build_string(&buf, &left, "%*s", longest, ast_getformatname(1 << (x + y + 1)) );
+				ast_build_string(&buf, &left, "%*s", longest, ast_getformatname(1 << (x)) );
 			} else if (x >= 0 && y >= 0) {
 				ast_build_string(&buf, &left, "%*s", curlen + 1, "-");
 			} else {
@@ -601,7 +602,8 @@ static int show_translation(int fd, int argc, char *argv[])
 		*buf++ = ' ';
 		*buf = '\0';
 		for (y = -1; y < SHOW_TRANS; y++) {
-			curlen = strlen(ast_getformatname(1 << (y)));
+			if (y >= 0)
+				curlen = strlen(ast_getformatname(1 << (y)));
 
 			if (x >= 0 && y >= 0 && tr_matrix[x][y].step) {
 				/* XXX 999 is a little hackish
@@ -610,10 +612,10 @@ static int show_translation(int fd, int argc, char *argv[])
 				ast_build_string(&buf, &left, "%*d", curlen + 1, tr_matrix[x][y].cost > 999 ? 0 : tr_matrix[x][y].cost);
 			} else if (x == -1 && y >= 0) {
 				/* Top row - use a dynamic size */
-				ast_build_string(&buf, &left, "%*s", curlen + 1, ast_getformatname(1 << (x + y + 1)) );
+				ast_build_string(&buf, &left, "%*s", curlen + 1, ast_getformatname(1 << (y)) );
 			} else if (y == -1 && x >= 0) {
 				/* Left column - use a static size. */
-				ast_build_string(&buf, &left, "%*s", longest, ast_getformatname(1 << (x + y + 1)) );
+				ast_build_string(&buf, &left, "%*s", longest, ast_getformatname(1 << (x)) );
 			} else if (x >= 0 && y >= 0) {
 				ast_build_string(&buf, &left, "%*s", curlen + 1, "-");
 			} else {
