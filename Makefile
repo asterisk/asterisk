@@ -298,9 +298,13 @@ ifeq ($(OSARCH),SunOS)
 endif
 
 # comment to print directories during submakes
-PRINT_DIR?= --no-print-directory
+#PRINT_DIR=yes
 
-SUBMAKE=$(MAKE) --quiet $(PRINT_DIR)
+ifneq ($(PRINT_DIR)$(NOISY_BUILD),)
+SUBMAKE=$(MAKE) --quiet
+else
+SUBMAKE=$(MAKE) --quiet --no-print-directory
+endif
 
 # This is used when generating the doxygen documentation
 ifneq ($(DOT),:)
