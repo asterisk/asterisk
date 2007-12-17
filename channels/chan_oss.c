@@ -35,7 +35,6 @@
 
 /*** MODULEINFO
 	<depend>ossaudio</depend>
-	<conflict>winarch</conflict>
  ***/
 
 #include "asterisk.h"
@@ -48,7 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #ifdef __linux
 #include <linux/soundcard.h>
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__CYGWIN__)
 #include <sys/soundcard.h>
 #else
 #include <soundcard.h>
