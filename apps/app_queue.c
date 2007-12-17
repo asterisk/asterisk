@@ -4622,9 +4622,7 @@ static int reload_queues(int reload)
 				 * scheme for queue members, we must devise the queue's strategy before other initializations
 				 */
 				if((tmpvar = ast_variable_retrieve(cfg, cat, "strategy"))) {
-					ast_log(LOG_DEBUG, "Success!!\n");
 					q->strategy = strat2int(tmpvar);
-					ast_log(LOG_DEBUG, "Queue strategy set to '%s'\n", int2strat(q->strategy));
 					if (q->strategy < 0) {
 						ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
 						tmpvar, q->name);
