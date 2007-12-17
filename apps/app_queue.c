@@ -56,6 +56,10 @@
  * \ingroup applications
  */
 
+/*** MODULEINFO
+        <depend>res_monitor</depend>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")

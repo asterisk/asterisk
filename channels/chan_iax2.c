@@ -30,6 +30,7 @@
 
 /*** MODULEINFO
 	<use>zaptel</use>
+        <depend>res_features</depend>
  ***/
 
 #include "asterisk.h"
