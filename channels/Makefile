@@ -37,11 +37,6 @@ ifeq ($(OSARCH),NetBSD)
   H323LIB=-lh323_NetBSD_x86_r
 endif
 
-MODULE_EXCLUDE:=
-ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
-  MODULE_EXCLUDE+= chan_oss chan_unistim
-endif
-
 ifeq ($(wildcard h323/libchanh323.a),)
   MODULE_EXCLUDE += chan_h323
 endif

@@ -32,6 +32,10 @@
  * \ingroup channel_drivers
  */
 
+/*** MODULEINFO
+	<conflict>winarch</conflict>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")

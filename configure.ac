@@ -68,6 +68,8 @@ AC_SUBST(HOST_CPU)
 AC_SUBST(HOST_VENDOR)
 AC_SUBST(HOST_OS)
 
+WINARCH=0
+
 case "${host_os}" in
      freebsd*)
      OSARCH=FreeBSD
@@ -81,12 +83,21 @@ case "${host_os}" in
      solaris*)
      OSARCH=SunOS
      ;;
+     mingw32)
+     OSARCH=mingw32
+     WINARCH=1
+     ;;
+     cygwin)
+     OSARCH=cygwin
+     WINARCH=1
+     ;;
      *)
      OSARCH=${host_os}
      ;;
 esac
 
 AC_SUBST(OSARCH)
+AC_SUBST(WINARCH)
 
 #  check for uname
 AC_PATH_TOOL([UNAME], [uname], No)

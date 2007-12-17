@@ -35,6 +35,7 @@
 
 /*** MODULEINFO
 	<depend>ossaudio</depend>
+	<conflict>winarch</conflict>
  ***/
 
 #include "asterisk.h"
