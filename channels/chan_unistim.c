@@ -5269,10 +5269,10 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 	if (ast_strlen_zero(d->maintext1))
 		strcpy(d->maintext1, d->name);
 	if (ast_strlen_zero(d->titledefault)) {
-		struct ast_tm tm;
+		struct ast_tm tm = { 0, };
 		struct timeval cur_time = ast_tvnow();
 
-		if ((ast_localtime(&cur_time, &tm, 0)) == 0) {
+		if ((ast_localtime(&cur_time, &tm, 0)) == 0 || ast_strlen_zero(tm.tm_zone)) {
 			display_last_error("Error in ast_localtime()");
 			ast_copy_string(d->titledefault, "UNISTIM for*", 12);
 		} else {
