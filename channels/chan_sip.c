@@ -82,6 +82,10 @@
  * the sip_hangup() function
  */
 
+/*** MODULEINFO
+        <depend>res_features</depend>
+ ***/
+
 
 #include "asterisk.h"
 
