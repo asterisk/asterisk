@@ -4591,6 +4591,7 @@ static void *do_monitor(void *data)
 				ast_verbose(VERBOSE_PREFIX_1 "Reloading unistim.conf...\n");
 			reload_config();
 		}
+		pthread_testcancel();
 	}
 	/* Never reached */
 	return NULL;
@@ -4617,7 +4618,7 @@ static int restart_monitor(void)
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
 		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 		/* Start a new monitor */
 		if (ast_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
 			ast_mutex_unlock(&monlock);
