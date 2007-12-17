@@ -33,55 +33,30 @@
  */
 
 /*** MODULEINFO
-	<conflict>winarch</conflict>
  ***/
 
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <sys/socket.h>
-#include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <net/if.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <sys/signal.h>
-#include <signal.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <arpa/inet.h>
-#include <ctype.h>
 
 #include "asterisk/paths.h"	/* ast_config_AST_LOG_DIR used in (too ?) many places */
-#include "asterisk/lock.h"
+#include "asterisk/network.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
-#include "asterisk/sched.h"
-#include "asterisk/io.h"
+#include "asterisk/event.h"
 #include "asterisk/rtp.h"
 #include "asterisk/netsock.h"
 #include "asterisk/acl.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cli.h"
-#include "asterisk/say.h"
-#include "asterisk/cdr.h"
-#include "asterisk/astdb.h"
-#include "asterisk/features.h"
 #include "asterisk/app.h"
 #include "asterisk/musiconhold.h"
-#include "asterisk/utils.h"
 #include "asterisk/causes.h"
 #include "asterisk/indications.h"
-#include "asterisk/dsp.h"
-#include "asterisk/devicestate.h"
-#include "asterisk/stringfields.h"
-#include "asterisk/abstract_jb.h"
-#include "asterisk/event.h"
-#include "asterisk/localtime.h"
 
 /*! Beware, G729 and G723 are not supported by asterisk, except with the proper licence */
 #define CAPABILITY AST_FORMAT_ALAW | AST_FORMAT_ULAW    /* | AST_FORMAT_G729A | AST_FORMAT_G723_1 */
