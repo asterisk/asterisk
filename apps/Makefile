@@ -11,10 +11,10 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-#interesting files in this directory start with app_
-MODULE_PREFIX=app_
+MODULE_PREFIX=app
+MENUSELECT_CATEGORY=APPS
+MENUSELECT_DESCRIPTION=Applications
 
-# create extra MENUSELECT_DEPENDS entries.
 MENUSELECT_OPTS_app_directory:=$(MENUSELECT_OPTS_app_voicemail)
 ifneq ($(findstring ODBC_STORAGE,$(MENUSELECT_OPTS_app_voicemail)),)
   MENUSELECT_DEPENDS_app_voicemail+=$(MENUSELECT_DEPENDS_ODBC_STORAGE)

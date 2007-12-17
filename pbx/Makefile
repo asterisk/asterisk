@@ -11,7 +11,9 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-MODULE_PREFIX=pbx_
+MODULE_PREFIX=pbx
+MENUSELECT_CATEGORY=PBX
+MENUSELECT_DESCRIPTION=PBX Modules
 
 all: _all
 

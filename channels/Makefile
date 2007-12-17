@@ -11,7 +11,9 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-MODULE_PREFIX=chan_
+MODULE_PREFIX=chan
+MENUSELECT_CATEGORY=CHANNELS
+MENUSELECT_DESCRIPTION=Channel Drivers
 
 ifeq ($(OSARCH),OpenBSD)
   PTLIB=-lpt_OpenBSD_x86_r

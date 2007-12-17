@@ -11,7 +11,9 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-MODULE_PREFIX=cdr_
+MODULE_PREFIX=cdr
+MENUSELECT_CATEGORY=CDR
+MENUSELECT_DESCRIPTION=Call Detail Recording
 
 all: _all
 

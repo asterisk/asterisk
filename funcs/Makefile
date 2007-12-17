@@ -11,7 +11,9 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-MODULE_PREFIX=func_
+MODULE_PREFIX=func
+MENUSELECT_CATEGORY=FUNCS
+MENUSELECT_DESCRIPTION=Dialplan Functions
 
 all: _all
 

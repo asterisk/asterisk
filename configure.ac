@@ -8,11 +8,7 @@
 
 AC_PREREQ(2.60)
 
-m4_define([PBX_VERSION],
-          m4_bpatsubst(m4_esyscmd([build_tools/make_version .]),
-                       [\([0-9.]*\)\(\w\|\W\)*],
-                       [\1]))
-AC_INIT(asterisk, PBX_VERSION, www.asterisk.org)
+AC_INIT(asterisk, 1.4, www.asterisk.org)
 
 # cross-compile macros
 AC_CANONICAL_BUILD
@@ -143,6 +139,7 @@ if test "x$with_gnu_ld" = "xyes" ; then
 fi
 AC_SUBST(GNU_LD)
 
+AC_PATH_PROG([AWK], [awk], :)
 AC_PATH_PROG([GREP], [grep], :)
 AC_PATH_PROG([FIND], [find], :)
 AC_PATH_PROG([COMPRESS], [compress], :)

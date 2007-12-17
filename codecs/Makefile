@@ -13,7 +13,9 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-MODULE_PREFIX=codec_
+MODULE_PREFIX=codec
+MENUSELECT_CATEGORY=CODECS
+MENUSELECT_DESCRIPTION=Codec Translators
 
 LIBILBC:=ilbc/libilbc.a
 LIBLPC10:=lpc10/liblpc10.a

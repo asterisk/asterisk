@@ -79,6 +79,7 @@ export HOST_CC
 export INSTALL
 export STRIP
 export DOWNLOAD
+export AWK
 export GREP
 export ID
 
@@ -250,10 +251,10 @@ ifeq ($(OSARCH),SunOS)
   ASTCFLAGS+=-Wcast-align -DSOLARIS -I../include/solaris-compat -I/opt/ssl/include -I/usr/local/ssl/include
 endif
 
-ASTERISKVERSION:=$(shell build_tools/make_version .)
+ASTERISKVERSION:=$(shell GREP=$(GREP) AWK=$(AWK) build_tools/make_version .)
 
 ifneq ($(wildcard .version),)
-  ASTERISKVERSIONNUM:=$(shell awk -F. '{printf "%01d%02d%02d", $$1, $$2, $$3}' .version)
+  ASTERISKVERSIONNUM:=$(shell $(AWK) -F. '{printf "%01d%02d%02d", $$1, $$2, $$3}' .version)
   RPMVERSION:=$(shell sed 's/[-\/:]/_/g' .version)
 else
   RPMVERSION=unknown
@@ -279,6 +280,7 @@ SUBDIRS_UNINSTALL:=$(SUBDIRS:%=%-uninstall)
 MOD_SUBDIRS_EMBED_LDSCRIPT:=$(MOD_SUBDIRS:%=%-embed-ldscript)
 MOD_SUBDIRS_EMBED_LDFLAGS:=$(MOD_SUBDIRS:%=%-embed-ldflags)
 MOD_SUBDIRS_EMBED_LIBS:=$(MOD_SUBDIRS:%=%-embed-libs)
+MOD_SUBDIRS_MENUSELECT_TREE:=$(MOD_SUBDIRS:%=%-menuselect-tree)
 
 ifneq ($(findstring darwin,$(OSARCH)),)
   ASTCFLAGS+=-D__Darwin__
@@ -295,6 +297,11 @@ ifeq ($(OSARCH),SunOS)
   SOLINK=-shared -fpic -L/usr/local/ssl/lib
 endif
 
+# comment to print directories during submakes
+PRINT_DIR?= --no-print-directory
+
+SUBMAKE=$(MAKE) --quiet $(PRINT_DIR)
+
 # This is used when generating the doxygen documentation
 ifneq ($(DOT),:)
   HAVEDOT=yes
@@ -310,9 +317,6 @@ ifeq ($(MAKE), gmake)
 else
 	mK=" make"
 endif
-
-# comment to print directories during submakes
-PRINT_DIR?= --no-print-directory
 
 all: _all
 	@echo " +--------- Asterisk Build Complete ---------+"  
@@ -335,13 +339,17 @@ menuselect.makeopts: menuselect/menuselect menuselect-tree
 	menuselect/menuselect --check-deps $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts
 
 $(MOD_SUBDIRS_EMBED_LDSCRIPT):
-	@echo "EMBED_LDSCRIPTS+="`$(MAKE) --quiet $(PRINT_DIR) -C $(@:-embed-ldscript=) SUBDIR=$(@:-embed-ldscript=) __embed_ldscript` >> makeopts.embed_rules
+	@echo "EMBED_LDSCRIPTS+="`$(SUBMAKE) -C $(@:-embed-ldscript=) SUBDIR=$(@:-embed-ldscript=) __embed_ldscript` >> makeopts.embed_rules
 
 $(MOD_SUBDIRS_EMBED_LDFLAGS):
-	@echo "EMBED_LDFLAGS+="`$(MAKE) --quiet $(PRINT_DIR) -C $(@:-embed-ldflags=) SUBDIR=$(@:-embed-ldflags=) __embed_ldflags` >> makeopts.embed_rules
+	@echo "EMBED_LDFLAGS+="`$(SUBMAKE) -C $(@:-embed-ldflags=) SUBDIR=$(@:-embed-ldflags=) __embed_ldflags` >> makeopts.embed_rules
 
 $(MOD_SUBDIRS_EMBED_LIBS):
-	@echo "EMBED_LIBS+="`$(MAKE) --quiet $(PRINT_DIR) -C $(@:-embed-libs=) SUBDIR=$(@:-embed-libs=) __embed_libs` >> makeopts.embed_rules
+	@echo "EMBED_LIBS+="`$(SUBMAKE) -C $(@:-embed-libs=) SUBDIR=$(@:-embed-libs=) __embed_libs` >> makeopts.embed_rules
+
+$(MOD_SUBDIRS_MENUSELECT_TREE):
+	@$(SUBMAKE) -C $(@:-menuselect-tree=) SUBDIR=$(@:-menuselect-tree=) moduleinfo
+	@$(SUBMAKE) -C $(@:-menuselect-tree=) SUBDIR=$(@:-menuselect-tree=) makeopts
 
 makeopts.embed_rules: menuselect.makeopts
 	@echo "Generating embedded module rules ..."
@@ -782,7 +790,15 @@ menuselect/makeopts:
 
 menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml sounds/sounds.xml build_tools/embed_modules.xml configure
 	@echo "Generating input for menuselect ..."
-	@build_tools/prep_moduledeps > $@
+	@echo "<?xml version=\"1.0\"?>" > $@
+	@echo >> $@
+	@echo "<menu name=\"Asterisk Module and Build Option Selection\">" >> $@
+	@for dir in $(sort $(filter-out main,$(MOD_SUBDIRS))); do $(SUBMAKE) -C $${dir} SUBDIR=$${dir} moduleinfo >> $@; done
+	@for dir in $(sort $(filter-out main,$(MOD_SUBDIRS))); do $(SUBMAKE) -C $${dir} SUBDIR=$${dir} makeopts >> $@; done
+	@cat build_tools/cflags.xml >> $@
+	@cat build_tools/embed_modules.xml >> $@
+	@cat sounds/sounds.xml >> $@
+	@echo "</menu>" >> $@
 
 pdf: asterisk.pdf
 asterisk.pdf:

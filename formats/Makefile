@@ -11,7 +11,9 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-MODULE_PREFIX=format_
+MODULE_PREFIX=format
+MENUSELECT_CATEGORY=FORMATS
+MENUSELECT_DESCRIPTION=Format Interpreters
 
 all: _all
 

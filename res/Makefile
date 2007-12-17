@@ -11,7 +11,9 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-MODULE_PREFIX=res_
+MODULE_PREFIX=res
+MENUSELECT_CATEGORY=RES
+MENUSELECT_DESCRIPTION=Resource Modules
 
 all: _all
 
