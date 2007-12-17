@@ -740,7 +740,7 @@ static int handle_show_locks(int fd, int argc, char *argv[])
 				lock_info->locks[i].lock_addr, 
 				lock_info->locks[i].times_locked);
 
-			if (!lock_info->locks[i].pending)
+			if (!lock_info->locks[i].pending || lock_info->locks[i].pending == -1)
 				continue;
 
 			/* We only have further details for mutexes right now */
