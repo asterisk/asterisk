@@ -19,8 +19,8 @@ MENUSELECT_DESCRIPTION=Codec Translators
 ALL_C_MODS:=$(patsubst %.c,%,$(wildcard codec_*.c))
 ALL_CC_MODS:=$(patsubst %.cc,%,$(wildcard codec_*.cc))
 
-C_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_C_MODS))
-CC_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_CC_MODS))
+C_MODS:=$(filter-out $(MENUSELECT_CODECS),$(ALL_C_MODS))
+CC_MODS:=$(filter-out $(MENUSELECT_CODECS),$(ALL_CC_MODS))
 
 LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
 

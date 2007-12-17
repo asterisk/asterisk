@@ -17,8 +17,8 @@ MENUSELECT_DESCRIPTION=PBX Modules
 ALL_C_MODS:=$(patsubst %.c,%,$(wildcard pbx_*.c))
 ALL_CC_MODS:=$(patsubst %.cc,%,$(wildcard pbx_*.cc))
 
-C_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_C_MODS))
-CC_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_CC_MODS))
+C_MODS:=$(filter-out $(MENUSELECT_PBX),$(ALL_C_MODS))
+CC_MODS:=$(filter-out $(MENUSELECT_PBX),$(ALL_CC_MODS))
 
 LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
 

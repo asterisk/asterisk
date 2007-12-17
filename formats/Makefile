@@ -17,8 +17,8 @@ MENUSELECT_DESCRIPTION=Format Interpreters
 ALL_C_MODS:=$(patsubst %.c,%,$(wildcard format_*.c))
 ALL_CC_MODS:=$(patsubst %.cc,%,$(wildcard format_*.cc))
 
-C_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_C_MODS))
-CC_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_CC_MODS))
+C_MODS:=$(filter-out $(MENUSELECT_FORMATS),$(ALL_C_MODS))
+CC_MODS:=$(filter-out $(MENUSELECT_FORMATS),$(ALL_CC_MODS))
 
 LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
 

@@ -17,8 +17,8 @@ MENUSELECT_DESCRIPTION=Resource Modules
 ALL_C_MODS:=$(patsubst %.c,%,$(wildcard res_*.c))
 ALL_CC_MODS:=$(patsubst %.cc,%,$(wildcard res_*.cc))
 
-C_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_C_MODS))
-CC_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_CC_MODS))
+C_MODS:=$(filter-out $(MENUSELECT_RES),$(ALL_C_MODS))
+CC_MODS:=$(filter-out $(MENUSELECT_RES),$(ALL_CC_MODS))
 
 LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
 

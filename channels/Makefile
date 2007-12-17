@@ -17,8 +17,8 @@ MENUSELECT_DESCRIPTION=Channel Drivers
 ALL_C_MODS:=$(patsubst %.c,%,$(wildcard chan_*.c))
 ALL_CC_MODS:=$(patsubst %.cc,%,$(wildcard chan_*.cc))
 
-C_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_C_MODS))
-CC_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_CC_MODS))
+C_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(ALL_C_MODS))
+CC_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(ALL_CC_MODS))
 
 ifeq ($(OSARCH),OpenBSD)
   PTLIB=-lpt_OpenBSD_x86_r
