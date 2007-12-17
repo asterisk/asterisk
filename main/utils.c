@@ -753,7 +753,7 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 				lock_info->locks[i].lock_addr, 
 				lock_info->locks[i].times_locked);
 
-			if (!lock_info->locks[i].pending)
+			if (!lock_info->locks[i].pending || lock_info->locks[i].pending == -1)
 				continue;
 
 			/* We only have further details for mutexes right now */
