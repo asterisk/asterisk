@@ -531,7 +531,7 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 	ast_cli(a->fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
 	/* Get the length of the longest (usable?) codec name, so we know how wide the left side should be */
 	for (x = 0; x < SHOW_TRANS; x++) {
-		curlen = strlen(ast_getformatname(1 << (x + 1)));
+		curlen = strlen(ast_getformatname(1 << (x)));
 		if (curlen > longest)
 			longest = curlen;
 	}
@@ -540,7 +540,8 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 		
 		ast_str_set(&out, -1, " ");
 		for (y = -1; y < SHOW_TRANS; y++) {
-			curlen = strlen(ast_getformatname(1 << (y)));
+			if (y >= 0)
+				curlen = strlen(ast_getformatname(1 << (y)));
 			if (curlen < 5)
 				curlen = 5;
 			if (x >= 0 && y >= 0 && tr_matrix[x][y].step) {
@@ -550,10 +551,10 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 				ast_str_append(&out, -1, "%*d", curlen + 1, tr_matrix[x][y].cost > 99999 ? 0 : tr_matrix[x][y].cost);
 			} else if (x == -1 && y >= 0) {
 				/* Top row - use a dynamic size */
-				ast_str_append(&out, -1, "%*s", curlen + 1, ast_getformatname(1 << (x + y + 1)) );
+				ast_str_append(&out, -1, "%*s", curlen + 1, ast_getformatname(1 << (y)) );
 			} else if (y == -1 && x >= 0) {
 				/* Left column - use a static size. */
-				ast_str_append(&out, -1, "%*s", longest, ast_getformatname(1 << (x + y + 1)) );
+				ast_str_append(&out, -1, "%*s", longest, ast_getformatname(1 << (x)) );
 			} else if (x >= 0 && y >= 0) {
 				ast_str_append(&out, -1, "%*s", curlen + 1, "-");
 			} else {
