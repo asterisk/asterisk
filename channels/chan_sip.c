@@ -16921,7 +16921,7 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 		return;
 
 	/* If we have no timers set, return now */
-	if (ast_rtp_get_rtpkeepalive(dialog->rtp) == 0 || (ast_rtp_get_rtptimeout(dialog->rtp) == 0 && ast_rtp_get_rtpholdtimeout(dialog->rtp) == 0))
+	if ((ast_rtp_get_rtpkeepalive(dialog->rtp) == 0) && (ast_rtp_get_rtptimeout(dialog->rtp) == 0) && (ast_rtp_get_rtpholdtimeout(dialog->rtp) == 0))
 		return;
 
 	/* Check AUDIO RTP keepalives */
@@ -16948,7 +16948,7 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 		if (sin.sin_addr.s_addr || (ast_rtp_get_rtpholdtimeout(dialog->rtp) &&
 		     (t > dialog->lastrtprx + ast_rtp_get_rtpholdtimeout(dialog->rtp)))) {
 			/* Needs a hangup */
-			if (dialog->rtptimeout) {
+			if (ast_rtp_get_rtptimeout(dialog->rtp)) {
 				while (dialog->owner && ast_channel_trylock(dialog->owner)) {
 					sip_pvt_unlock(dialog);
 					usleep(1);
