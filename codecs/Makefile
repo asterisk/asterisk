@@ -13,8 +13,14 @@
 
 -include ../menuselect.makeopts ../menuselect.makedeps
 
-C_MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.c,%,$(wildcard codec_*.c)))
-CC_MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.cc,%,$(wildcard codec_*.cc)))
+MENUSELECT_CATEGORY=CODECS
+MENUSELECT_DESCRIPTION=Codec Translators
+
+ALL_C_MODS:=$(patsubst %.c,%,$(wildcard codec_*.c))
+ALL_CC_MODS:=$(patsubst %.cc,%,$(wildcard codec_*.cc))
+
+C_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_C_MODS))
+CC_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_CC_MODS))
 
 LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
 

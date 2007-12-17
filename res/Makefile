@@ -11,8 +11,14 @@
 
 -include ../menuselect.makeopts ../menuselect.makedeps
 
-C_MODS:=$(filter-out $(MENUSELECT_RES),$(patsubst %.c,%,$(wildcard res_*.c)))
-CC_MODS:=$(filter-out $(MENUSELECT_RES),$(patsubst %.cc,%,$(wildcard res_*.cc)))
+MENUSELECT_CATEGORY=RES
+MENUSELECT_DESCRIPTION=Resource Modules
+
+ALL_C_MODS:=$(patsubst %.c,%,$(wildcard res_*.c))
+ALL_CC_MODS:=$(patsubst %.cc,%,$(wildcard res_*.cc))
+
+C_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_C_MODS))
+CC_MODS:=$(filter-out $(MENUSELECT_APPS),$(ALL_CC_MODS))
 
 LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
 

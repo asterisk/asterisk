@@ -42,7 +42,7 @@ $(addsuffix .so,$(filter $(LOADABLE_MODS),$(CC_MODS))): %.so: %.oo
 modules.link: $(addsuffix .o,$(filter $(EMBEDDED_MODS),$(C_MODS)))
 modules.link: $(addsuffix .oo,$(filter $(EMBEDDED_MODS),$(CC_MODS)))
 
-.PHONY: clean uninstall _all
+.PHONY: clean uninstall _all moduleinfo makeopts
 
 ifneq ($(LOADABLE_MODS),)
 _all: $(LOADABLE_MODS:%=%.so)
@@ -78,6 +78,40 @@ install:: all
 	for x in $(LOADABLE_MODS:%=%.so); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 uninstall::
+
+dist-clean::
+	rm -f .*.moduleinfo .moduleinfo
+	rm -f .*.makeopts .makeopts
+
+.%.moduleinfo: %.c
+	@echo "<member name=\"$*\" displayname=\"$(shell $(GREP) -e AST_MODULE_INFO $< | head -n 1 | cut -d '"' -f 2)\" remove_on_change=\"$(SUBDIR)/$*.o $(SUBDIR)/$*.so\">" > $@
+	$(AWK) -f $(ASTTOPDIR)/build_tools/get_moduleinfo $< >> $@
+	echo "</member>" >> $@
+
+.%.moduleinfo: %.cc
+	@echo "<member name=\"$*\" displayname=\"$(shell $(GREP) -e AST_MODULE_INFO $< | head -n 1 | cut -d '"' -f 2)\" remove_on_change=\"$(SUBDIR)/$*.oo $(SUBDIR)/$*.so\">" > $@
+	$(AWK) -f $(ASTTOPDIR)/build_tools/get_moduleinfo $< >> $@
+	echo "</member>" >> $@
+
+.moduleinfo:: $(addsuffix .moduleinfo,$(addprefix .,$(ALL_C_MODS) $(ALL_CC_MODS)))
+	@echo "<category name=\"MENUSELECT_$(MENUSELECT_CATEGORY)\" displayname=\"$(MENUSELECT_DESCRIPTION)\" remove_on_change=\"$(SUBDIR)/modules.link\">" > $@
+	@cat $^ >> $@
+	@echo "</category>" >> $@
+
+moduleinfo: .moduleinfo
+	@cat $<
+
+.%.makeopts: %.c
+	@$(AWK) -f $(ASTTOPDIR)/build_tools/get_makeopts $< > $@
+
+.%.makeopts: %.cc
+	@$(AWK) -f $(ASTTOPDIR)/build_tools/get_makeopts $< > $@
+
+.makeopts:: $(addsuffix .makeopts,$(addprefix .,$(ALL_C_MODS) $(ALL_CC_MODS)))
+	@cat $^ > $@
+
+makeopts: .makeopts
+	@cat $<
 
 ifneq ($(wildcard .*.d),)
    include .*.d

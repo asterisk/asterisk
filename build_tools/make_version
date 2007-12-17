@@ -3,7 +3,7 @@
 if [ -f ${1}/.version ]; then
 	cat ${1}/.version
 elif [ -d .svn ]; then
-    PARTS=`LANG=C svn info ${1} | grep URL | awk '{print $2;}' | sed -e 's:^.*/svn/asterisk/::' | sed -e 's:/: :g'`
+    PARTS=`LANG=C svn info ${1} | ${GREP} URL | ${AWK} '{print $2;}' | sed -e 's:^.*/svn/asterisk/::' | sed -e 's:/: :g'`
     BRANCH=0
     TEAM=0
     TAG=0
