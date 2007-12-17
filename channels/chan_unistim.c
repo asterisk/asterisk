@@ -41,6 +41,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/stat.h>
 
+#if defined(__CYGWIN__)
+/*
+ * cygwin headers are partly inconsistent. struct iovec is defined in sys/uio.h
+ * which is not included by default by sys/socket.h - in_pktinfo is defined in
+ * w32api/ws2tcpip.h but this probably has compatibility problems with sys/socket.h
+ * So for the time being we simply disable HAVE_PKTINFO when building under cygwin.
+ *    This should be done in some common header, but for now this is the only file
+ * using iovec and in_pktinfo so it suffices to apply the fix here.
+ */
+#ifdef HAVE_PKTINFO
+#undef HAVE_PKTINFO
+#endif
+#endif /* __CYGWIN__ */
+
 #include "asterisk/paths.h"	/* ast_config_AST_LOG_DIR used in (too ?) many places */
 #include "asterisk/network.h"
 #include "asterisk/channel.h"
