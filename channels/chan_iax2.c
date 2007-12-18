@@ -2631,7 +2631,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		var = ast_load_realtime("iaxpeers", "name", peername, "host", "dynamic", NULL);
 		if (!var)
 			var = ast_load_realtime("iaxpeers", "name", peername, "host", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
-	} else {
+	} else if (sin) {
 		char porta[25];
 		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
 		sprintf(porta, "%d", ntohs(sin->sin_port));
