@@ -149,6 +149,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/compiler.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/translate.h"
+#include "asterisk/dnsmgr.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -2497,9 +2498,35 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	unsigned short portnum;
 
 	/* First check on peer name */
-	if (newpeername) 
-		var = ast_load_realtime("sippeers", "name", newpeername, NULL);
-	else if (sin) {	/* Then check on IP address */
+	if (newpeername) {
+		var = ast_load_realtime("sippeers", "name", newpeername, "host", "dynamic", NULL);
+		if (!var && sin) {
+			var = ast_load_realtime("sippeers", "name", newpeername, "host", ast_inet_ntoa(sin->sin_addr), NULL);
+			if (!var) {
+				var = ast_load_realtime("sippeers", "name", newpeername, NULL);
+				/*!\note
+				 * If this one loaded something, then we need to ensure that the host
+				 * field matched.  The only reason why we can't have this as a criteria
+				 * is because we only have the IP address and the host field might be
+				 * set as a name (and the reverse PTR might not match).
+				 */
+				if (var) {
+					for (tmp = var; tmp; tmp = tmp->next) {
+						if (!strcasecmp(var->name, "host")) {
+							struct in_addr sin2 = { 0, };
+							struct ast_dnsmgr_entry *dnsmgr = NULL;
+							if ((ast_dnsmgr_lookup(tmp->value, &sin2, &dnsmgr) < 0) || (memcmp(&sin2, &sin->sin_addr, sizeof(sin2)) != 0)) {
+								/* No match */
+								ast_variables_destroy(var);
+								var = NULL;
+							}
+							break;
+						}
+					}
+				}
+			}
+		}
+	} else if (sin) {	/* Then check on IP address */
 		iabuf = ast_inet_ntoa(sin->sin_addr);
 		portnum = ntohs(sin->sin_port);
 		sprintf(portstring, "%d", portnum);
