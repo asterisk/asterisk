@@ -166,6 +166,12 @@ Voop AS - Financial support for a lot of work with the SIP driver and the IAX
 Cedric Hans - Development of chan_unistim
   cedric.hans(AT)mlkj.net
 
+Sergio Fadda - console_video: video support for chan_oss and chan_alsa
+
+Marta Carbone - console_video and the astobj2 framework
+
+Luigi Rizzo - astobj2, console_video, windows build, chan_oss cleanup,
+	and a bunch of infrastructure work (loader, new_cli, ...)
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
