@@ -2740,9 +2740,18 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 {
 	int res = -1;
 	struct ast_frame *f = NULL, *f2 = NULL;
+	int count = 0;
 
+	/*Deadlock avoidance*/
+	while(ast_channel_trylock(chan)) {
+		/*cannot goto done since the channel is not locked*/
+		if(count++ > 10) {
+			ast_debug(1, "Deadlock avoided for write to channel '%s'\n", chan->name);
+			return 0;
+		}
+		usleep(1);
+	}
 	/* Stop if we're a zombie or need a soft hangup */
-	ast_channel_lock(chan);
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan))
 		goto done;
 
@@ -2886,20 +2895,9 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			}
 		}
 
-		if (f) {
-			struct ast_channel *base = NULL;
-			if (!chan->tech->get_base_channel || chan == chan->tech->get_base_channel(chan))
-				res = chan->tech->write(chan, f);
-			else {
-				while (chan->tech->get_base_channel && (((base = chan->tech->get_base_channel(chan)) && ast_channel_trylock(base)) || base == NULL)) {
-					ast_channel_unlock(chan);
-					usleep(1);
-					ast_channel_lock(chan);
-				}
-				res = base->tech->write(base, f);
-				ast_channel_unlock(base);
-			}
-		} else
+		if (f) 
+			res = chan->tech->write(chan,f);
+		else
 			res = 0;
 		break;
 	case AST_FRAME_NULL:
