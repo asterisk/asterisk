@@ -233,6 +233,8 @@ static char *_argv[256];
 static int shuttingdown;
 static int restartnow;
 static pthread_t consolethread = AST_PTHREADT_NULL;
+static int canary_pid = 0;
+static char canary_filename[128];
 
 static char randompool[256];
 
@@ -2625,6 +2627,35 @@ static void *monitor_sig_flags(void *unused)
 	return NULL;
 }
 
+static void *canary_thread(void *unused)
+{
+	struct stat canary_stat;
+	struct timeval tv;
+
+	/* Give the canary time to sing */
+	sleep(120);
+
+	for (;;) {
+		stat(canary_filename, &canary_stat);
+		tv = ast_tvnow();
+		if (tv.tv_sec > canary_stat.st_mtime + 60) {
+			ast_log(LOG_WARNING, "Canary is dead!!! Reducing priority\n");
+			ast_set_priority(0);
+			pthread_exit(NULL);
+		}
+
+		/* Check the canary once a minute */
+		sleep(60);
+	}
+}
+
+/* Used by libc's atexit(3) function */
+static void canary_exit(void)
+{
+	if (canary_pid > 0)
+		kill(canary_pid, SIGKILL);
+}
+
 int main(int argc, char *argv[])
 {
 	int c;
@@ -2808,10 +2839,49 @@ int main(int argc, char *argv[])
 	if ((!runuser) && !ast_strlen_zero(ast_config_AST_RUN_USER))
 		runuser = ast_config_AST_RUN_USER;
 
+	/* Must install this signal handler up here to ensure that if the canary
+	 * fails to execute that it doesn't kill the Asterisk process.
+	 */
+	signal(SIGCHLD, child_handler);
+
 #ifndef __CYGWIN__
 
-	if (isroot) 
+	if (isroot) {
 		ast_set_priority(ast_opt_high_priority);
+		if (ast_opt_high_priority) {
+			snprintf(canary_filename, sizeof(canary_filename), "%s/alt.asterisk.canary.tweet.tweet.tweet", ast_config_AST_RUN_DIR);
+
+			canary_pid = fork();
+			if (canary_pid == 0) {
+				char canary_binary[128], *lastslash;
+				int fd;
+
+				/* Reset signal handler */
+				signal(SIGCHLD, SIG_DFL);
+
+				for (fd = 0; fd < 100; fd++)
+					close(fd);
+
+				execlp("astcanary", "astcanary", canary_filename, NULL);
+
+				/* If not found, try the same path as used to execute asterisk */
+				ast_copy_string(canary_binary, argv[0], sizeof(canary_binary));
+				if ((lastslash = strrchr(canary_binary, '/'))) {
+					ast_copy_string(lastslash + 1, "astcanary", sizeof(canary_binary) + canary_binary - (lastslash + 1));
+					execl(canary_binary, "astcanary", canary_filename, NULL);
+				}
+
+				/* Should never happen */
+				_exit(1);
+			} else if (canary_pid > 0) {
+				pthread_t dont_care;
+				ast_pthread_create_detached(&dont_care, NULL, canary_thread, NULL);
+			}
+
+			/* Kill the canary when we exit */
+			atexit(canary_exit);
+		}
+	}
 
 	if (isroot && rungroup) {
 		struct group *gr;
@@ -2975,7 +3045,6 @@ int main(int argc, char *argv[])
 	signal(SIGINT, __quit_handler);
 	signal(SIGTERM, __quit_handler);
 	signal(SIGHUP, hup_handler);
-	signal(SIGCHLD, child_handler);
 	signal(SIGPIPE, SIG_IGN);
 
 	/* ensure that the random number generators are seeded with a different value every time

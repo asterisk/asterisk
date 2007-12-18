@@ -17,7 +17,7 @@ ASTTOPDIR?=..
 .PHONY: clean all uninstall
 
 # to get check_expr, add it to the ALL_UTILS list
-ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted check_expr conf2ael hashtest2 hashtest
+ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted check_expr conf2ael hashtest2 hashtest astcanary
 UTILS:=$(ALL_UTILS)
 
 LIBS += $(BKTR_LIB)	# astobj2 with devmode uses backtrace
