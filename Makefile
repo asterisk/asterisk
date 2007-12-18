@@ -20,11 +20,20 @@
 # SOLINK - linker flags used only for creating shared objects (.so files),
 #      used for all .so links
 #
-# Default values for ASTCFLAGS and ASTLDFLAGS can be specified in the
+# Initial values for ASTCFLAGS and ASTLDFLAGS can be specified in the
 # environment when running make, as follows:
 #
-# $ ASTCFLAGS="-Werror" make
-
+#	$ ASTCFLAGS="-Werror" make ...
+#
+# note that this is different from
+#
+#	$ make ASTCFLAGS="-Werror" ...
+#
+# If you need to pass compiler/linker flags as 'make' variables, please use
+#
+#	$ make COPTS="..." LDOPTS="..." ...
+#
+#
 # You can add the path of local module subdirs from the command line with
 #   make LOCAL_MOD_SUBDIRS= ....
 
@@ -782,15 +791,17 @@ menuselect: menuselect/menuselect menuselect-tree
 gmenuselect: menuselect/gmenuselect menuselect-tree
 	-@menuselect/gmenuselect $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
+# options for make in menuselect/
+MAKE_MENUSELECT=CC="$(HOST_CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
+
 menuselect/menuselect: menuselect/makeopts
-	echo "doing menuselect with $(HOST_CC)"
-	@CC="$(HOST_CC)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
+	$(MAKE_MENUSELECT)
 
 menuselect/gmenuselect: menuselect/makeopts
-	@CC="$(HOST_CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect gmenuselect CONFIGURE_SILENT="--silent"
+	$(MAKE_MENUSELECT) gmenuselect
 
 menuselect/makeopts:
-	@CC="$(HOST_CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect makeopts CONFIGURE_SILENT="--silent"
+	$(MAKE_MENUSELECT) makeopts
 
 menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml sounds/sounds.xml build_tools/embed_modules.xml configure
 	@echo "Generating input for menuselect ..."
