@@ -17,7 +17,7 @@
 
 #ifndef _ASTERISK_PATHS_H
 #define _ASTERISK_PATHS_H
-#
+
 extern const char ast_config_AST_CONFIG_DIR[PATH_MAX];
 extern const char ast_config_AST_CONFIG_FILE[PATH_MAX];
 extern const char ast_config_AST_MODULE_DIR[PATH_MAX];
@@ -35,13 +35,5 @@ extern const char ast_config_AST_RUN_DIR[PATH_MAX];
 extern const char ast_config_AST_RUN_GROUP[PATH_MAX];
 extern const char ast_config_AST_RUN_USER[PATH_MAX];
 extern const char ast_config_AST_SYSTEM_NAME[20];
-
-#if 0 /* only used in main/asterisk.c */
-extern const char ast_config_AST_CTL_PERMISSIONS[PATH_MAX];
-extern const char ast_config_AST_CTL_OWNER[PATH_MAX];
-extern const char ast_config_AST_CTL_GROUP[PATH_MAX];
-extern const char ast_config_AST_CTL[PATH_MAX];
-#endif
-
 
 #endif /* _ASTERISK_PATHS_H */
