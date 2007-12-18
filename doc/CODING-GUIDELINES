@@ -628,11 +628,12 @@ headers. Please update this file if you add new headers.
 	    ==  PART TWO: BUILD ARCHITECTURE  ==
 	    ------------------------------------
 
-The asterisk build architecture relies on 'autoconf' to detect the
+The asterisk build architecture relies on autoconf to detect the
 system configuration, and on a locally developed tool (menuselect) to
 select build options and modules list, and on gmake to do the build.
 
-autoconf will store its findings in two files:
+The first step, usually to be done soon after a checkout, is running
+"./configure", which will store its findings in two files:
 
     + include/asterisk/autoconfig.h
 	contains C macros, normally #define HAVE_FOO or HAVE_FOO_H ,
@@ -649,7 +650,10 @@ autoconf will store its findings in two files:
 	FOO_DIR=... indicating, for each package, the useful libraries
 	and header files. 
 
+The next step is to run "menuselect", to extract the dependencies existing
+between files and modules, and to store build options.
 menuselect produces two files, both to be read by the Makefile:
+
     + menuselect.makeopts
 	contains for each subdirectory a list of modules that must be
 	excluded from the build, plus some additional informatiom.
