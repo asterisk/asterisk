@@ -37,13 +37,17 @@ include $(ASTTOPDIR)/Makefile.rules
 # If MODULE_PREFIX is defined, use it to run the standard functions to set
 # C_MODS, CC_MODS, LOADABLE_MODS and EMBEDDED_MODS.
 # Each word of MODULE_PREFIX is a prefix for filenames that we consider
-# valid C or CC modules (eg. app_, func_ ...).
+# valid C or CC modules (eg. app, func ...). Note that the underscore
+# is added here, and does not need to be in MODULE_PREFIX
+#
 # Use MODULE_EXCLUDE to specify additional modules to exclude.
 
 ifneq ($(MODULE_PREFIX),)
-    ALL_C_MODS:=$(patsubst %.c,%,$(wildcard $(MODULE_PREFIX)_*.c))
-    ALL_CC_MODS:=$(patsubst %.cc,%,$(wildcard $(MODULE_PREFIX)_*.cc))
-
+    ALL_C_MODS:=
+    ALL_C_MODS+=$(foreach p,$(MODULE_PREFIX),$(patsubst %.c,%,$(wildcard $(p)_*.c)))
+    ALL_CC_MODS:=
+    ALL_CC_MODS+=$(foreach p,$(MODULE_PREFIX),$(patsubst %.cc,%,$(wildcard $(p)_*.cc)))
+ 
     C_MODS:=$(filter-out $(MENUSELECT_$(MENUSELECT_CATEGORY)),$(ALL_C_MODS))
     CC_MODS:=$(filter-out $(MENUSELECT_$(MENUSELECT_CATEGORY)),$(ALL_CC_MODS))
 
