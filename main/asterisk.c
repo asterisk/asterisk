@@ -164,7 +164,8 @@ long option_minmemfree;				/*!< Minimum amount of free system memory - stop acce
 
 /*! @} */
 
-char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
+/* XXX tmpdir is a subdir of the spool directory, and no way to remap it */
+char record_cache_dir[AST_CACHE_DIR_LEN] = DEFAULT_TMP_DIR;
 
 static int ast_socket = -1;		/*!< UNIX Socket for allowing remote control */
 static int ast_consock = -1;		/*!< UNIX Socket for controlling another asterisk */
@@ -2402,7 +2403,7 @@ static void ast_readconfig(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	char *config = AST_CONFIG_FILE;
+	char *config = DEFAULT_CONFIG_FILE;
 	char hostname[MAXHOSTNAMELEN] = "";
 	struct ast_flags config_flags = { 0 };
 	struct {
@@ -2418,19 +2419,19 @@ static void ast_readconfig(void)
 		cfg = ast_config_load(config, config_flags);
 
 	/* init with buildtime config */
-	ast_copy_string(ast_config_AST_CONFIG_DIR, AST_CONFIG_DIR, sizeof(ast_config_AST_CONFIG_DIR));
-	ast_copy_string(ast_config_AST_SPOOL_DIR, AST_SPOOL_DIR, sizeof(ast_config_AST_SPOOL_DIR));
-	ast_copy_string(ast_config_AST_MODULE_DIR, AST_MODULE_DIR, sizeof(ast_config_AST_MODULE_DIR));
+	ast_copy_string(ast_config_AST_CONFIG_DIR, DEFAULT_CONFIG_DIR, sizeof(ast_config_AST_CONFIG_DIR));
+	ast_copy_string(ast_config_AST_SPOOL_DIR, DEFAULT_SPOOL_DIR, sizeof(ast_config_AST_SPOOL_DIR));
+	ast_copy_string(ast_config_AST_MODULE_DIR, DEFAULT_MODULE_DIR, sizeof(ast_config_AST_MODULE_DIR));
  	snprintf(ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", ast_config_AST_SPOOL_DIR);
-	ast_copy_string(ast_config_AST_VAR_DIR, AST_VAR_DIR, sizeof(ast_config_AST_VAR_DIR));
-	ast_copy_string(ast_config_AST_DATA_DIR, AST_DATA_DIR, sizeof(ast_config_AST_DATA_DIR));
-	ast_copy_string(ast_config_AST_LOG_DIR, AST_LOG_DIR, sizeof(ast_config_AST_LOG_DIR));
-	ast_copy_string(ast_config_AST_AGI_DIR, AST_AGI_DIR, sizeof(ast_config_AST_AGI_DIR));
-	ast_copy_string(ast_config_AST_DB, AST_DB, sizeof(ast_config_AST_DB));
-	ast_copy_string(ast_config_AST_KEY_DIR, AST_KEY_DIR, sizeof(ast_config_AST_KEY_DIR));
-	ast_copy_string(ast_config_AST_PID, AST_PID, sizeof(ast_config_AST_PID));
-	ast_copy_string(ast_config_AST_SOCKET, AST_SOCKET, sizeof(ast_config_AST_SOCKET));
-	ast_copy_string(ast_config_AST_RUN_DIR, AST_RUN_DIR, sizeof(ast_config_AST_RUN_DIR));
+	ast_copy_string(ast_config_AST_VAR_DIR, DEFAULT_VAR_DIR, sizeof(ast_config_AST_VAR_DIR));
+	ast_copy_string(ast_config_AST_DATA_DIR, DEFAULT_DATA_DIR, sizeof(ast_config_AST_DATA_DIR));
+	ast_copy_string(ast_config_AST_LOG_DIR, DEFAULT_LOG_DIR, sizeof(ast_config_AST_LOG_DIR));
+	ast_copy_string(ast_config_AST_AGI_DIR, DEFAULT_AGI_DIR, sizeof(ast_config_AST_AGI_DIR));
+	ast_copy_string(ast_config_AST_DB, DEFAULT_DB, sizeof(ast_config_AST_DB));
+	ast_copy_string(ast_config_AST_KEY_DIR, DEFAULT_KEY_DIR, sizeof(ast_config_AST_KEY_DIR));
+	ast_copy_string(ast_config_AST_PID, DEFAULT_PID, sizeof(ast_config_AST_PID));
+	ast_copy_string(ast_config_AST_SOCKET, DEFAULT_SOCKET, sizeof(ast_config_AST_SOCKET));
+	ast_copy_string(ast_config_AST_RUN_DIR, DEFAULT_RUN_DIR, sizeof(ast_config_AST_RUN_DIR));
 
 	/* no asterisk.conf? no problem, use buildtime config! */
 	if (!cfg) {
