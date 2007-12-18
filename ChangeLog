@@ -1,3 +1,7 @@
+2007-12-18  Russell Bryant <russell@digium.com>
+
+	* Asterisk 1.4.16 released.
+
 2007-12-18 18:45 +0000 [r93668-93676]  Tilghman Lesher <tlesher@digium.com>
 
 	* /, channels/chan_sip.c, channels/chan_iax2.c: Merged revisions
