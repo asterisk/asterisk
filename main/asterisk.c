@@ -1135,7 +1135,7 @@ static int ast_tryconnect(void)
 	}
 	memset(&sunaddr, 0, sizeof(sunaddr));
 	sunaddr.sun_family = AF_LOCAL;
-	ast_copy_string(sunaddr.sun_path, (char *) ast_config_AST_SOCKET, sizeof(sunaddr.sun_path));
+	ast_copy_string(sunaddr.sun_path, ast_config_AST_SOCKET, sizeof(sunaddr.sun_path));
 	res = connect(ast_consock, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
 	if (res) {
 		close(ast_consock);

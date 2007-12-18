@@ -449,13 +449,13 @@ static void crypto_load(int ifd, int ofd)
 	}
 
 	/* Load new keys */
-	if ((dir = opendir((char *)ast_config_AST_KEY_DIR))) {
+	if ((dir = opendir(ast_config_AST_KEY_DIR))) {
 		while((ent = readdir(dir))) {
-			try_load_key((char *)ast_config_AST_KEY_DIR, ent->d_name, ifd, ofd, &note);
+			try_load_key(ast_config_AST_KEY_DIR, ent->d_name, ifd, ofd, &note);
 		}
 		closedir(dir);
 	} else
-		ast_log(LOG_WARNING, "Unable to open key directory '%s'\n", (char *)ast_config_AST_KEY_DIR);
+		ast_log(LOG_WARNING, "Unable to open key directory '%s'\n", ast_config_AST_KEY_DIR);
 
 	if (note)
 		ast_log(LOG_NOTICE, "Please run the command 'init keys' to enter the passcodes for the keys\n");
@@ -562,7 +562,7 @@ static char *handle_cli_keys_init(struct ast_cli_entry *e, int cmd, struct ast_c
 		if (key->ktype & KEY_NEEDS_PASSCODE) {
 			kn = key->fn + strlen(ast_config_AST_KEY_DIR) + 1;
 			ast_copy_string(tmp, kn, sizeof(tmp));
-			try_load_key((char *) ast_config_AST_KEY_DIR, tmp, a->fd, a->fd, &ign);
+			try_load_key(ast_config_AST_KEY_DIR, tmp, a->fd, a->fd, &ign);
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END

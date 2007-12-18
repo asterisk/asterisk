@@ -1711,7 +1711,7 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 		return -1;
 	}
 
-	snprintf(tmp, sizeof(tmp), "%s/%s", (char *) ast_config_AST_LOG_DIR, USTM_LOG_DIR);
+	snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_LOG_DIR, USTM_LOG_DIR);
 	if (ast_mkdir(tmp, 0770)) {
 		if (errno != EEXIST) {
 			display_last_error("Unable to create directory for history");
@@ -1731,7 +1731,7 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 			 atm.tm_year + 1900, atm.tm_mon + 1, atm.tm_mday, atm.tm_hour,
 			 atm.tm_min, atm.tm_sec, tmp2);
 
-	snprintf(tmp, sizeof(tmp), "%s/%s/%s-%c.csv", (char *) ast_config_AST_LOG_DIR,
+	snprintf(tmp, sizeof(tmp), "%s/%s/%s-%c.csv", ast_config_AST_LOG_DIR,
 			 USTM_LOG_DIR, pte->device->name, way);
 	if ((f = fopen(tmp, "r"))) {
 		struct stat bufstat;
@@ -1794,7 +1794,7 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 		fclose(f);
 		return -1;
 	}
-	snprintf(tmp2, sizeof(tmp2), "%s/%s/%s-%c.csv.tmp", (char *) ast_config_AST_LOG_DIR,
+	snprintf(tmp2, sizeof(tmp2), "%s/%s/%s-%c.csv.tmp", ast_config_AST_LOG_DIR,
 			 USTM_LOG_DIR, pte->device->name, way);
 	if (!(f2 = fopen(tmp2, "w"))) {
 		display_last_error("Unable to create temporary history log.");
@@ -3036,7 +3036,7 @@ static char OpenHistory(struct unistimsession *pte, char way, FILE ** f)
 	char tmp[AST_CONFIG_MAX_PATH];
 	char count;
 
-	snprintf(tmp, sizeof(tmp), "%s/%s/%s-%c.csv", (char *) ast_config_AST_LOG_DIR,
+	snprintf(tmp, sizeof(tmp), "%s/%s/%s-%c.csv", ast_config_AST_LOG_DIR,
 			 USTM_LOG_DIR, pte->device->name, way);
 	*f = fopen(tmp, "r");
 	if (!*f) {

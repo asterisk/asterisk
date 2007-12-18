@@ -3656,7 +3656,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		if (use_local_dir)
 			snprintf(fn, sizeof(fn), "./%s", filename);
 		else
-			snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, filename);
+			snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_CONFIG_DIR, filename);
 	}
 
 	if (withcomments && cfg && cfg->include_level < 2 ) {

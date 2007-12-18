@@ -258,7 +258,7 @@ static int writefile(char *s, char *acc)
 		return -1;
 	}
 
-	snprintf(tmp, sizeof(tmp), "%s/%s/%s.csv", (char *)ast_config_AST_LOG_DIR,CSV_LOG_DIR, acc);
+	snprintf(tmp, sizeof(tmp), "%s/%s/%s.csv", ast_config_AST_LOG_DIR,CSV_LOG_DIR, acc);
 
 	ast_mutex_lock(&acf_lock);
 	if (!(f = fopen(tmp, "a"))) {

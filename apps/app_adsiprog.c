@@ -1356,7 +1356,7 @@ static struct adsi_script *compile_script(char *script)
 	if (script[0] == '/')
 		ast_copy_string(fn, script, sizeof(fn));
 	else
-		snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, script);
+		snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_CONFIG_DIR, script);
 
 	if (!(f = fopen(fn, "r"))) {
 		ast_log(LOG_WARNING, "Can't open file '%s'\n", fn);

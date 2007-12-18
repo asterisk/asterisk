@@ -1893,7 +1893,7 @@ static void reload_firmware(int unload)
 
 	/* Now that we have marked them dead... load new ones */
 	if (!unload) {
-		snprintf(dir, sizeof(dir), "%s/firmware/iax", (char *)ast_config_AST_DATA_DIR);
+		snprintf(dir, sizeof(dir), "%s/firmware/iax", ast_config_AST_DATA_DIR);
 		fwd = opendir(dir);
 		if (fwd) {
 			while((de = readdir(fwd))) {

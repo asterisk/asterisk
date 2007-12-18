@@ -465,7 +465,7 @@ void __ast_mm_init(void)
 
 	ast_cli_register_multiple(cli_memory, sizeof(cli_memory) / sizeof(struct ast_cli_entry));
 	
-	snprintf(filename, sizeof(filename), "%s/mmlog", (char *)ast_config_AST_LOG_DIR);
+	snprintf(filename, sizeof(filename), "%s/mmlog", ast_config_AST_LOG_DIR);
 	
 	if (option_verbose)
 		ast_verbose("Asterisk Malloc Debugger Started (see %s))\n", filename);

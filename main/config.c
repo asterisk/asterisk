@@ -1082,7 +1082,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	if (filename[0] == '/') {
 		ast_copy_string(fn, filename, sizeof(fn));
 	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, filename);
+		snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_CONFIG_DIR, filename);
 	}
 
 	if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
