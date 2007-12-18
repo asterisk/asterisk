@@ -2625,11 +2625,13 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 	struct iax2_peer *peer=NULL;
 	time_t regseconds, nowtime;
 	int dynamic=0;
+	char iabuf[INET_ADDRSTRLEN];
 
-	if (peername)
-		var = ast_load_realtime("iaxpeers", "name", peername, NULL);
-	else {
-		char iabuf[INET_ADDRSTRLEN];
+	if (peername) {
+		var = ast_load_realtime("iaxpeers", "name", peername, "host", "dynamic", NULL);
+		if (!var)
+			var = ast_load_realtime("iaxpeers", "name", peername, "host", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+	} else {
 		char porta[25];
 		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
 		sprintf(porta, "%d", ntohs(sin->sin_port));
@@ -2641,6 +2643,29 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 				if (!strcasecmp(tmp->name, "name"))
 					peername = tmp->value;
 				tmp = tmp->next;
+			}
+		}
+	}
+	if (!var) { /* Last ditch effort */
+		var = ast_load_realtime("iaxpeers", "name", peername, NULL);
+		/*!\note
+		 * If this one loaded something, then we need to ensure that the host
+		 * field matched.  The only reason why we can't have this as a criteria
+		 * is because we only have the IP address and the host field might be
+		 * set as a name (and the reverse PTR might not match).
+		 */
+		if (var) {
+			for (tmp = var; tmp; tmp = tmp->next) {
+				if (!strcasecmp(tmp->name, "host")) {
+					struct in_addr sin2 = { 0, };
+					struct ast_dnsmgr_entry *dnsmgr = NULL;
+					if ((ast_dnsmgr_lookup(tmp->value, &sin2, &dnsmgr) < 0) || (memcmp(&sin2, &sin->sin_addr, sizeof(sin2)) != 0)) {
+						/* No match */
+						ast_variables_destroy(var);
+						var = NULL;
+					}
+					break;
+				}
 			}
 		}
 	}
@@ -2720,13 +2745,46 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 	return peer;
 }
 
-static struct iax2_user *realtime_user(const char *username)
+static struct iax2_user *realtime_user(const char *username, struct sockaddr_in *sin)
 {
 	struct ast_variable *var;
 	struct ast_variable *tmp;
 	struct iax2_user *user=NULL;
+	char iabuf[INET_ADDRSTRLEN];
 
-	var = ast_load_realtime("iaxusers", "name", username, NULL);
+	var = ast_load_realtime("iaxusers", "name", username, "host", "dynamic", NULL);
+	if (!var && sin)
+		var = ast_load_realtime("iaxusers", "name", username, "host", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+	if (!var && sin) {
+		char porta[6];
+		snprintf(porta, sizeof(porta), "%d", ntohs(sin->sin_port));
+		var = ast_load_realtime("iaxusers", "name", username, "ipaddr", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), "port", porta, NULL);
+		if (!var)
+			var = ast_load_realtime("iaxusers", "ipaddr", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), "port", porta, NULL);
+	}
+	if (!var) { /* Last ditch effort */
+		var = ast_load_realtime("iaxusers", "name", username, NULL);
+		/*!\note
+		 * If this one loaded something, then we need to ensure that the host
+		 * field matched.  The only reason why we can't have this as a criteria
+		 * is because we only have the IP address and the host field might be
+		 * set as a name (and the reverse PTR might not match).
+		 */
+		if (var) {
+			for (tmp = var; tmp; tmp = tmp->next) {
+				if (!strcasecmp(tmp->name, "host")) {
+					struct in_addr sin2 = { 0, };
+					struct ast_dnsmgr_entry *dnsmgr = NULL;
+					if ((ast_dnsmgr_lookup(tmp->value, &sin2, &dnsmgr) < 0) || (memcmp(&sin2, &sin->sin_addr, sizeof(sin2)) != 0)) {
+						/* No match */
+						ast_variables_destroy(var);
+						var = NULL;
+					}
+					break;
+				}
+			}
+		}
+	}
 	if (!var)
 		return NULL;
 
@@ -4878,7 +4936,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	ast_mutex_unlock(&userl.lock);
 	user = best;
 	if (!user && !ast_strlen_zero(iaxs[callno]->username)) {
-		user = realtime_user(iaxs[callno]->username);
+		user = realtime_user(iaxs[callno]->username, sin);
 		if (user && !ast_strlen_zero(iaxs[callno]->context) &&			/* No context specified */
 		    !apply_context(user->contexts, iaxs[callno]->context)) {		/* Context is permitted */
 			destroy_user(user);
