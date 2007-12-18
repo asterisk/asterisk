@@ -146,7 +146,7 @@ static struct ast_key *__ast_key_get(const char *kname, int ktype)
  * \retval key on success.
  * \retval NULL on failure.
 */
-static struct ast_key *try_load_key(char *dir, char *fname, int ifd, int ofd, int *not2)
+static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd, int ofd, int *not2)
 {
 	int ktype = 0, found = 0;
 	char *c = NULL, ffname[256];

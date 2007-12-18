@@ -2907,7 +2907,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	char regseconds[20];
 	char *tablename = NULL;
 
-	char *sysname = ast_config_AST_SYSTEM_NAME;
+	const char *sysname = ast_config_AST_SYSTEM_NAME;
 	char *syslabel = NULL;
 
 	time_t nowtime = time(NULL) + expirey;

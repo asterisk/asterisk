@@ -53,7 +53,7 @@
 # include <glob.h>
 #endif
 
-static char ast_config_AST_CONFIG_DIR[PATH_MAX] = {"/etc/asterisk"};
+static const char ast_config_AST_CONFIG_DIR[PATH_MAX] = {"/etc/asterisk"};
 #define AST_API_MODULE  1 /* gimme the inline defs! */
 struct ast_channel 
 {

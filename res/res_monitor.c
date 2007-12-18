@@ -320,7 +320,7 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 			const char *format = !strcasecmp(chan->monitor->format,"wav49") ? "WAV" : chan->monitor->format;
 			char *name = chan->monitor->filename_base;
 			int directory = strchr(name, '/') ? 1 : 0;
-			char *dir = directory ? "" : ast_config_AST_MONITOR_DIR;
+			const char *dir = directory ? "" : ast_config_AST_MONITOR_DIR;
 			const char *execute, *execute_args;
 
 			/* Set the execute application */

@@ -63,7 +63,7 @@ void get_start_stop(unsigned int *word, int bitsperword, int totalbits, int *sta
 int all_bits_set(unsigned int *word, int bitsperword, int totalbits);
 extern char *days[];
 extern char *months[];
-char ast_config_AST_CONFIG_DIR[PATH_MAX];
+const char ast_config_AST_CONFIG_DIR[PATH_MAX];
 
 char *config = "extensions.conf";
 
@@ -79,7 +79,7 @@ char ast_config_AST_SYSTEM_NAME[20] = ""; */
 /*! Go no deeper than this through includes (not counting loops) */
 #define AST_PBX_MAX_STACK	128
 /* static AST_RWLIST_HEAD_STATIC(acf_root, ast_custom_function); */
-extern char ast_config_AST_CONFIG_DIR[PATH_MAX];
+//extern char ast_config_AST_CONFIG_DIR[PATH_MAX];
 
 void ast_register_file_version(const char *file, const char *version)
 {
@@ -363,7 +363,7 @@ int main(int argc, char **argv)
 	if (!localdir)
 		printf(" (You could use -d the use the extensions.conf in the current directory!)\n");
 
-	strcpy(ast_config_AST_CONFIG_DIR,"/etc/asterisk");
+	strcpy((char *)ast_config_AST_CONFIG_DIR,"/etc/asterisk");
 	
 	printf("Loading %s/%s...\n", ast_config_AST_CONFIG_DIR, config);
 

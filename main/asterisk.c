@@ -92,6 +92,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include <sys/loadavg.h>
 #endif
 
+#include "asterisk/paths.h"	/* we define here the variables so better agree on the prototype */
 #include "asterisk/network.h"
 #include "asterisk/cli.h"
 #include "asterisk/channel.h"
@@ -199,27 +200,27 @@ static int ast_el_add_history(char *);
 static int ast_el_read_history(char *);
 static int ast_el_write_history(char *);
 
-char ast_config_AST_CONFIG_DIR[PATH_MAX];
-char ast_config_AST_CONFIG_FILE[PATH_MAX];
-char ast_config_AST_MODULE_DIR[PATH_MAX];
-char ast_config_AST_SPOOL_DIR[PATH_MAX];
-char ast_config_AST_MONITOR_DIR[PATH_MAX];
-char ast_config_AST_VAR_DIR[PATH_MAX];
-char ast_config_AST_DATA_DIR[PATH_MAX];
-char ast_config_AST_LOG_DIR[PATH_MAX];
-char ast_config_AST_AGI_DIR[PATH_MAX];
-char ast_config_AST_DB[PATH_MAX];
-char ast_config_AST_KEY_DIR[PATH_MAX];
-char ast_config_AST_PID[PATH_MAX];
-char ast_config_AST_SOCKET[PATH_MAX];
-char ast_config_AST_RUN_DIR[PATH_MAX];
-char ast_config_AST_RUN_USER[PATH_MAX];
-char ast_config_AST_RUN_GROUP[PATH_MAX];
-char ast_config_AST_CTL_PERMISSIONS[PATH_MAX];
-char ast_config_AST_CTL_OWNER[PATH_MAX] = "\0";
-char ast_config_AST_CTL_GROUP[PATH_MAX] = "\0";
-char ast_config_AST_CTL[PATH_MAX] = "asterisk.ctl";
-char ast_config_AST_SYSTEM_NAME[20] = "";
+const char ast_config_AST_CONFIG_DIR[PATH_MAX];
+const char ast_config_AST_CONFIG_FILE[PATH_MAX];
+const char ast_config_AST_MODULE_DIR[PATH_MAX];
+const char ast_config_AST_SPOOL_DIR[PATH_MAX];
+const char ast_config_AST_MONITOR_DIR[PATH_MAX];
+const char ast_config_AST_VAR_DIR[PATH_MAX];
+const char ast_config_AST_DATA_DIR[PATH_MAX];
+const char ast_config_AST_LOG_DIR[PATH_MAX];
+const char ast_config_AST_AGI_DIR[PATH_MAX];
+const char ast_config_AST_DB[PATH_MAX];
+const char ast_config_AST_KEY_DIR[PATH_MAX];
+const char ast_config_AST_PID[PATH_MAX];
+const char ast_config_AST_SOCKET[PATH_MAX];
+const char ast_config_AST_RUN_DIR[PATH_MAX];
+const char ast_config_AST_RUN_USER[PATH_MAX];
+const char ast_config_AST_RUN_GROUP[PATH_MAX];
+static const char ast_config_AST_CTL_PERMISSIONS[PATH_MAX];
+static const char ast_config_AST_CTL_OWNER[PATH_MAX] = "\0";
+static const char ast_config_AST_CTL_GROUP[PATH_MAX] = "\0";
+static const char ast_config_AST_CTL[PATH_MAX] = "asterisk.ctl";
+const char ast_config_AST_SYSTEM_NAME[20] = "";
 
 extern const char *ast_build_hostname;
 extern const char *ast_build_kernel;
@@ -2419,19 +2420,20 @@ static void ast_readconfig(void)
 		cfg = ast_config_load(config, config_flags);
 
 	/* init with buildtime config */
-	ast_copy_string(ast_config_AST_CONFIG_DIR, DEFAULT_CONFIG_DIR, sizeof(ast_config_AST_CONFIG_DIR));
-	ast_copy_string(ast_config_AST_SPOOL_DIR, DEFAULT_SPOOL_DIR, sizeof(ast_config_AST_SPOOL_DIR));
-	ast_copy_string(ast_config_AST_MODULE_DIR, DEFAULT_MODULE_DIR, sizeof(ast_config_AST_MODULE_DIR));
- 	snprintf(ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", ast_config_AST_SPOOL_DIR);
-	ast_copy_string(ast_config_AST_VAR_DIR, DEFAULT_VAR_DIR, sizeof(ast_config_AST_VAR_DIR));
-	ast_copy_string(ast_config_AST_DATA_DIR, DEFAULT_DATA_DIR, sizeof(ast_config_AST_DATA_DIR));
-	ast_copy_string(ast_config_AST_LOG_DIR, DEFAULT_LOG_DIR, sizeof(ast_config_AST_LOG_DIR));
-	ast_copy_string(ast_config_AST_AGI_DIR, DEFAULT_AGI_DIR, sizeof(ast_config_AST_AGI_DIR));
-	ast_copy_string(ast_config_AST_DB, DEFAULT_DB, sizeof(ast_config_AST_DB));
-	ast_copy_string(ast_config_AST_KEY_DIR, DEFAULT_KEY_DIR, sizeof(ast_config_AST_KEY_DIR));
-	ast_copy_string(ast_config_AST_PID, DEFAULT_PID, sizeof(ast_config_AST_PID));
-	ast_copy_string(ast_config_AST_SOCKET, DEFAULT_SOCKET, sizeof(ast_config_AST_SOCKET));
-	ast_copy_string(ast_config_AST_RUN_DIR, DEFAULT_RUN_DIR, sizeof(ast_config_AST_RUN_DIR));
+#define _SETVAR(dst, src)	ast_copy_string((char *)dst, src, sizeof(dst))
+	_SETVAR(ast_config_AST_CONFIG_DIR, DEFAULT_CONFIG_DIR);
+	_SETVAR(ast_config_AST_SPOOL_DIR, DEFAULT_SPOOL_DIR);
+	_SETVAR(ast_config_AST_MODULE_DIR, DEFAULT_MODULE_DIR);
+ 	snprintf((char *)ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", ast_config_AST_SPOOL_DIR);
+	_SETVAR(ast_config_AST_VAR_DIR, DEFAULT_VAR_DIR);
+	_SETVAR(ast_config_AST_DATA_DIR, DEFAULT_DATA_DIR);
+	_SETVAR(ast_config_AST_LOG_DIR, DEFAULT_LOG_DIR);
+	_SETVAR(ast_config_AST_AGI_DIR, DEFAULT_AGI_DIR);
+	_SETVAR(ast_config_AST_DB, DEFAULT_DB);
+	_SETVAR(ast_config_AST_KEY_DIR, DEFAULT_KEY_DIR);
+	_SETVAR(ast_config_AST_PID, DEFAULT_PID);
+	_SETVAR(ast_config_AST_SOCKET, DEFAULT_SOCKET);
+	_SETVAR(ast_config_AST_RUN_DIR, DEFAULT_RUN_DIR);
 
 	/* no asterisk.conf? no problem, use buildtime config! */
 	if (!cfg) {
@@ -2440,45 +2442,45 @@ static void ast_readconfig(void)
 
 	for (v = ast_variable_browse(cfg, "files"); v; v = v->next) {
 		if (!strcasecmp(v->name, "astctlpermissions"))
-			ast_copy_string(ast_config_AST_CTL_PERMISSIONS, v->value, sizeof(ast_config_AST_CTL_PERMISSIONS));
+			_SETVAR(ast_config_AST_CTL_PERMISSIONS, v->value);
 		else if (!strcasecmp(v->name, "astctlowner"))
-			ast_copy_string(ast_config_AST_CTL_OWNER, v->value, sizeof(ast_config_AST_CTL_OWNER));
+			_SETVAR(ast_config_AST_CTL_OWNER, v->value);
 		else if (!strcasecmp(v->name, "astctlgroup"))
-			ast_copy_string(ast_config_AST_CTL_GROUP, v->value, sizeof(ast_config_AST_CTL_GROUP));
+			_SETVAR(ast_config_AST_CTL_GROUP, v->value);
 		else if (!strcasecmp(v->name, "astctl"))
-			ast_copy_string(ast_config_AST_CTL, v->value, sizeof(ast_config_AST_CTL));
+			_SETVAR(ast_config_AST_CTL, v->value);
 	}
 
 	for (v = ast_variable_browse(cfg, "directories"); v; v = v->next) {
 		if (!strcasecmp(v->name, "astetcdir")) {
-			ast_copy_string(ast_config_AST_CONFIG_DIR, v->value, sizeof(ast_config_AST_CONFIG_DIR));
+			_SETVAR(ast_config_AST_CONFIG_DIR, v->value);
 		} else if (!strcasecmp(v->name, "astspooldir")) {
-			ast_copy_string(ast_config_AST_SPOOL_DIR, v->value, sizeof(ast_config_AST_SPOOL_DIR));
-			snprintf(ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", v->value);
+			_SETVAR(ast_config_AST_SPOOL_DIR, v->value);
+			snprintf((char *)ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", v->value);
 		} else if (!strcasecmp(v->name, "astvarlibdir")) {
-			ast_copy_string(ast_config_AST_VAR_DIR, v->value, sizeof(ast_config_AST_VAR_DIR));
+			_SETVAR(ast_config_AST_VAR_DIR, v->value);
 			if (!found.dbdir)
-				snprintf(ast_config_AST_DB, sizeof(ast_config_AST_DB), "%s/astdb", v->value);
+				snprintf((char *)ast_config_AST_DB, sizeof(ast_config_AST_DB), "%s/astdb", v->value);
 		} else if (!strcasecmp(v->name, "astdbdir")) {
-			snprintf(ast_config_AST_DB, sizeof(ast_config_AST_DB), "%s/astdb", v->value);
+			snprintf((char *)ast_config_AST_DB, sizeof(ast_config_AST_DB), "%s/astdb", v->value);
 			found.dbdir = 1;
 		} else if (!strcasecmp(v->name, "astdatadir")) {
-			ast_copy_string(ast_config_AST_DATA_DIR, v->value, sizeof(ast_config_AST_DATA_DIR));
+			_SETVAR(ast_config_AST_DATA_DIR, v->value);
 			if (!found.keydir)
-				snprintf(ast_config_AST_KEY_DIR, sizeof(ast_config_AST_KEY_DIR), "%s/keys", v->value);
+				snprintf((char *)ast_config_AST_KEY_DIR, sizeof(ast_config_AST_KEY_DIR), "%s/keys", v->value);
 		} else if (!strcasecmp(v->name, "astkeydir")) {
-			snprintf(ast_config_AST_KEY_DIR, sizeof(ast_config_AST_KEY_DIR), "%s/keys", v->value);
+			snprintf((char *)ast_config_AST_KEY_DIR, sizeof(ast_config_AST_KEY_DIR), "%s/keys", v->value);
 			found.keydir = 1;
 		} else if (!strcasecmp(v->name, "astlogdir")) {
-			ast_copy_string(ast_config_AST_LOG_DIR, v->value, sizeof(ast_config_AST_LOG_DIR));
+			_SETVAR(ast_config_AST_LOG_DIR, v->value);
 		} else if (!strcasecmp(v->name, "astagidir")) {
-			ast_copy_string(ast_config_AST_AGI_DIR, v->value, sizeof(ast_config_AST_AGI_DIR));
+			_SETVAR(ast_config_AST_AGI_DIR, v->value);
 		} else if (!strcasecmp(v->name, "astrundir")) {
-			snprintf(ast_config_AST_PID, sizeof(ast_config_AST_PID), "%s/%s", v->value, "asterisk.pid");
-			snprintf(ast_config_AST_SOCKET, sizeof(ast_config_AST_SOCKET), "%s/%s", v->value, ast_config_AST_CTL);
-			ast_copy_string(ast_config_AST_RUN_DIR, v->value, sizeof(ast_config_AST_RUN_DIR));
+			snprintf((char *)ast_config_AST_PID, sizeof(ast_config_AST_PID), "%s/%s", v->value, "asterisk.pid");
+			snprintf((char *)ast_config_AST_SOCKET, sizeof(ast_config_AST_SOCKET), "%s/%s", v->value, ast_config_AST_CTL);
+			_SETVAR(ast_config_AST_RUN_DIR, v->value);
 		} else if (!strcasecmp(v->name, "astmoddir")) {
-			ast_copy_string(ast_config_AST_MODULE_DIR, v->value, sizeof(ast_config_AST_MODULE_DIR));
+			_SETVAR(ast_config_AST_MODULE_DIR, v->value);
 		}
 	}
 
@@ -2561,19 +2563,19 @@ static void ast_readconfig(void)
 			set_ulimit(option_maxfiles);
 		/* What user to run as */
 		} else if (!strcasecmp(v->name, "runuser")) {
-			ast_copy_string(ast_config_AST_RUN_USER, v->value, sizeof(ast_config_AST_RUN_USER));
+			_SETVAR(ast_config_AST_RUN_USER, v->value);
 		/* What group to run as */
 		} else if (!strcasecmp(v->name, "rungroup")) {
-			ast_copy_string(ast_config_AST_RUN_GROUP, v->value, sizeof(ast_config_AST_RUN_GROUP));
+			_SETVAR(ast_config_AST_RUN_GROUP, v->value);
 		} else if (!strcasecmp(v->name, "systemname")) {
-			ast_copy_string(ast_config_AST_SYSTEM_NAME, v->value, sizeof(ast_config_AST_SYSTEM_NAME));
+			_SETVAR(ast_config_AST_SYSTEM_NAME, v->value);
 		} else if (!strcasecmp(v->name, "autosystemname")) {
 			if (ast_true(v->value)) {
 				if (!gethostname(hostname, sizeof(hostname) - 1))
-					ast_copy_string(ast_config_AST_SYSTEM_NAME, hostname, sizeof(ast_config_AST_SYSTEM_NAME));
+					_SETVAR(ast_config_AST_SYSTEM_NAME, hostname);
 				else {
 					if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)){
-						ast_copy_string(ast_config_AST_SYSTEM_NAME, "localhost", sizeof(ast_config_AST_SYSTEM_NAME));
+						_SETVAR(ast_config_AST_SYSTEM_NAME, "localhost");
 					}
 					ast_log(LOG_ERROR, "Cannot obtain hostname for this system.  Using '%s' instead.\n", ast_config_AST_SYSTEM_NAME);
 				}
@@ -2636,7 +2638,7 @@ int main(int argc, char *argv[])
 	int num;
 	int isroot = 1;
 	char *buf;
-	char *runuser = NULL, *rungroup = NULL;
+	const char *runuser = NULL, *rungroup = NULL;
 
 	/* Remember original args for restart */
 	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {
@@ -2732,7 +2734,7 @@ int main(int argc, char *argv[])
 			xarg = optarg;
 			break;
 		case 'C':
-			ast_copy_string(ast_config_AST_CONFIG_FILE, optarg, sizeof(ast_config_AST_CONFIG_FILE));
+			_SETVAR(ast_config_AST_CONFIG_FILE, optarg);
 			ast_set_flag(&ast_options, AST_OPT_FLAG_OVERRIDE_CONFIG);
 			break;
 		case 'I':
