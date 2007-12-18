@@ -7575,7 +7575,7 @@ static int determine_firstline_parts(struct sip_request *req)
 		req->rlPart2 = e;
 	} else { /* We have a request */
 		if ( *e == '<' ) { /* XXX the spec says it must not be in <> ! */
-			ast_log(LOG_WARNING, "bogus uri in <> %s\n", e);
+			ast_debug(3, "Oops. Bogus uri in <> %s\n", e);
 			e++;
 			if (!*e)
 				return -1; 
@@ -7586,7 +7586,7 @@ static int determine_firstline_parts(struct sip_request *req)
 			*e++ = '\0';
 		e = ast_skip_blanks(e);
 		if (strcasecmp(e, "SIP/2.0") ) {
-			ast_log(LOG_WARNING, "Bad request protocol %s\n", e);
+			ast_debug(3, "Skipping packet - Bad request protocol %s\n", e);
 			return -1;
 		}
 	}
