@@ -37,6 +37,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/stat.h>
+#include <signal.h>
 
 #if defined(__CYGWIN__)
 /*
