@@ -2805,10 +2805,20 @@ int ast_write_video(struct ast_channel *chan, struct ast_frame *fr)
 int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 {
 	int res = -1;
+	int count = 0;
 	struct ast_frame *f = NULL;
 
+	/*Deadlock avoidance*/
+	while(ast_channel_trylock(chan)) {
+		/*cannot goto done since the channel is not locked*/
+		if(count++ > 10) {
+			if(option_debug)
+				ast_log(LOG_DEBUG, "Deadlock avoided for write to channel '%s'\n", chan->name);
+			return 0;
+		}
+		usleep(1);
+	}
 	/* Stop if we're a zombie or need a soft hangup */
-	ast_channel_lock(chan);
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan))
 		goto done;
 
@@ -2973,20 +2983,9 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			/* and now put it through the regular translator */
 			f = (chan->writetrans) ? ast_translate(chan->writetrans, f, 0) : f;
 		}
-		if (f) {
-			struct ast_channel *base = NULL;
-			if (!chan->tech->get_base_channel || chan == chan->tech->get_base_channel(chan))
-				res = chan->tech->write(chan, f);
-			else {
-				while (chan->tech->get_base_channel && (((base = chan->tech->get_base_channel(chan)) && ast_mutex_trylock(&base->lock)) || base == NULL)) {
-					ast_mutex_unlock(&chan->lock);
-					usleep(1);
-					ast_mutex_lock(&chan->lock);
-				}
-				res = base->tech->write(base, f);
-				ast_mutex_unlock(&base->lock);
-			}
-		} else
+		if (f) 
+			res = chan->tech->write(chan,f);
+		else
 			res = 0;
 		break;
 	case AST_FRAME_NULL:
