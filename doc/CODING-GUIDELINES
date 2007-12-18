@@ -650,17 +650,18 @@ The first step, usually to be done soon after a checkout, is running
 	FOO_DIR=... indicating, for each package, the useful libraries
 	and header files. 
 
-The next step is to run "menuselect", to extract the dependencies existing
+The next step is to run "make menuselect", to extract the dependencies existing
 between files and modules, and to store build options.
 menuselect produces two files, both to be read by the Makefile:
 
     + menuselect.makeopts
-	contains for each subdirectory a list of modules that must be
+	Contains for each subdirectory a list of modules that must be
 	excluded from the build, plus some additional informatiom.
     + menuselect.makedeps
-	contains, for each module, a list of packages it depends on.
+	Contains, for each module, a list of packages it depends on.
 	For each of these packages, we can collect the relevant INCLUDE
-	and LIB files from makeopts
+	and LIB files from makeopts. This file is based on information
+	in the .c source code files for each module.
 
 The top level Makefile is in charge of setting up the build environment,
 creating header files with build options, and recursively invoking the
@@ -674,8 +675,6 @@ binary (main/ pbx/).
 TO BE COMPLETED
 
     
-
-
 -----------------------------------------------
 Welcome to the Asterisk development community!
 Meet you on the asterisk-dev mailing list. 
