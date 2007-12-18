@@ -2639,7 +2639,7 @@ static void *canary_thread(void *unused)
 		stat(canary_filename, &canary_stat);
 		tv = ast_tvnow();
 		if (tv.tv_sec > canary_stat.st_mtime + 60) {
-			ast_log(LOG_WARNING, "Canary is dead!!! Reducing priority\n");
+			ast_log(LOG_WARNING, "The canary is no more.  He has ceased to be!  He's expired and gone to meet his maker!  He's a stiff!  Bereft of life, he rests in peace.  His metabolic processes are now history!  He's off the twig!  He's kicked the bucket.  He's shuffled off his mortal coil, run down the curtain, and joined the bleeding choir invisibile!!  THIS is an EX-CANARY.  (Reducing priority)\n");
 			ast_set_priority(0);
 			pthread_exit(NULL);
 		}
