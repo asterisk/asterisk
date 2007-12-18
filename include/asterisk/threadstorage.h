@@ -47,8 +47,6 @@
 #ifndef ASTERISK_THREADSTORAGE_H
 #define ASTERISK_THREADSTORAGE_H
 
-#include <pthread.h>
-
 #include "asterisk/utils.h"
 #include "asterisk/inline_api.h"
 
