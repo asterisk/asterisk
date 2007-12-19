@@ -35,6 +35,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <time.h>
 #include <sys/stat.h>
 
+#include <math.h>	/* HUGE_VAL */
+
 #define AST_INCLUDE_GLOB 1
 
 #ifdef AST_INCLUDE_GLOB
@@ -2149,6 +2151,32 @@ int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
 		break;
 	    }
 
+	case PARSE_DOUBLE:
+	    {
+		double *result = p_result;
+		double x, def = result ? *result : 0,
+			low = -HUGE_VAL, high = HUGE_VAL;
+
+		/* optional argument: first default value, then range */
+		if (flags & PARSE_DEFAULT)
+			def = va_arg(ap, double);
+		if (flags & (PARSE_IN_RANGE|PARSE_OUT_RANGE)) {
+			/* range requested, update bounds */
+			low = va_arg(ap, double);
+			high = va_arg(ap, double);
+		}
+		x = strtod(arg, NULL);
+		error = (x < low) || (x > high);
+		if (flags & PARSE_OUT_RANGE)
+			error = !error;
+		if (result)
+			*result  = error ? def : x;
+		ast_debug(3,
+			"extract double from [%s] in [%f, %f] gives [%f](%d)\n",
+			arg, low, high,
+			result ? *result : x, error);
+		break;
+	    }
 	case PARSE_INADDR:
 	    {
 		char *port, *buf;

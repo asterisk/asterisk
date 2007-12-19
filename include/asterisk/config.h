@@ -289,15 +289,18 @@ enum ast_parse_flags {
 	/* numeric types, with optional default value and bound checks.
 	 * Additional arguments are passed by value.
 	 */
-	PARSE_INT16	= 	0x0001,
-	PARSE_INT32	= 	0x0002,
-	PARSE_UINT16	= 	0x0003,
-	PARSE_UINT32	= 	0x0004,
+	PARSE_INT32	= 	0x0001,
+	PARSE_UINT32	= 	0x0002,
+	PARSE_DOUBLE	= 	0x0003,
+#if 0	/* not supported yet */
+	PARSE_INT16	= 	0x0004,
+	PARSE_UINT16	= 	0x0005,
+#endif
 	/* Returns a struct sockaddr_in, with optional default value
 	 * (passed by reference) and port handling (accept, ignore,
 	 * require, forbid). The format is 'host.name[:port]'
 	 */
-	PARSE_INADDR	= 	0x0005,
+	PARSE_INADDR	= 	0x000f,
 
 	/* Other data types can be added as needed */
 
