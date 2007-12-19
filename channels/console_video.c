@@ -2306,6 +2306,23 @@ static void keypad_pick_up(struct video_desc *env)
 }
 
 #if 0 /* still unused */
+/*
+ * As an alternative to SDL_TTF, we can simply load the font from
+ * an image and blit characters on the background of the GUI.
+ *
+ * To generate a font we can use the 'fly' command with the
+ * following script (3 lines with 32 chars each)
+ 
+size 320,64
+name font.png
+transparent 0,0,0
+string 255,255,255,  0, 0,giant, !"#$%&'()*+,-./0123456789:;<=>?
+string 255,255,255,  0,20,giant,@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+string 255,255,255,  0,40,giant,`abcdefghijklmnopqrstuvwxyz{|}~
+end
+
+ */
+
 /* Print given text on the gui */
 static int gui_output(struct video_desc *env, const char *text)
 {
