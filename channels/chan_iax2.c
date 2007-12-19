@@ -2674,7 +2674,7 @@ static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newcha
  */
 static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin)
 {
-	struct ast_variable *var;
+	struct ast_variable *var = NULL;
 	struct ast_variable *tmp;
 	struct iax2_peer *peer=NULL;
 	time_t regseconds = 0, nowtime;
