@@ -109,6 +109,8 @@ SIP changes
   * New settings for timer T1 and timer B on a global level or per device. This makes it 
     possible to force timeout faster on non-responsive SIP servers. These settings are
     considered advanced, so don't use them unless you have a problem.
+  * Added a dial string option to be able to set the To: header in an INVITE to any
+    SIP uri.
 
 IAX2 changes
 ------------

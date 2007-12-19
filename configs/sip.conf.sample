@@ -1,17 +1,37 @@
 ;
 ; SIP Configuration example for Asterisk
 ;
-; Syntax for specifying a SIP device in extensions.conf is
-; SIP/devicename where devicename is defined in a section below.
+; SIP dial strings
+;-----------------------------------------------------------
+; In the dialplan (extensions.conf) you can use several 
+; syntaxes for dialing SIP devices.
+;	SIP/devicename
+;	SIP/username@domain   (SIP uri)
+;	SIP/username@host:port
+;	SIP/devicename/extension
 ;
-; You may also use 
-; SIP/username@domain to call any SIP user on the Internet
-; (Don't forget to enable DNS SRV records if you want to use this)
+;
+; Devicename
+;      devicename is defined as a peer in a section below.
+;
+; username@domain
+; 	Call any SIP user on the Internet
+;	(Don't forget to enable DNS SRV records if you want to use this)
 ; 
-; If you define a SIP proxy as a peer below, you may call
-; SIP/proxyhostname/user or SIP/user@proxyhostname 
-; where the proxyhostname is defined in a section below 
-; 
+; devicename/extension
+; 	If you define a SIP proxy as a peer below, you may call
+; 	SIP/proxyhostname/user or SIP/user@proxyhostname 
+; 	where the proxyhostname is defined in a section below 
+;	This syntax also works with ATA's with FXO ports
+;
+; All of these dial strings specify the SIP request URI.
+; In addition, you can specify a specific To: header by adding an
+; exclamation mark after the dial string, like
+;
+; 	SIP/sales@mysipproxy!sales@edvina.net
+;
+; CLI Commands
+; -------------------------------------------------------------
 ; Useful CLI commands to check peers/users:
 ;   sip show peers		Show all SIP peers (including friends)
 ;   sip show users		Show all SIP users (including friends)
@@ -23,7 +43,7 @@
 ;				Active SIP peers will not be reconfigured
 ;
 
-; ** Deprecated options **
+; ** Deprecated configuration options **
 ; The "call-limit" configuation option is deprecated. It still works in
 ; this version of Asterisk, but will disappear in the next version.
 ; You are encouraged to use the dialplan groupcount functionality
