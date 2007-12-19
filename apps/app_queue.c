@@ -3559,6 +3559,11 @@ static int set_member_penalty(char *queuename, char *interface, int penalty)
 	struct member *mem;
 	struct ao2_iterator queue_iter;
 
+	if (penalty < 0) {
+		ast_log(LOG_ERROR, "Invalid penalty (%d)\n", penalty);
+		return RESULT_FAILURE;
+	}
+
 	queue_iter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_iterator_next(&queue_iter))) {
 		ao2_lock(q);
@@ -3583,7 +3588,7 @@ static int set_member_penalty(char *queuename, char *interface, int penalty)
 
 	if (foundinterface) {
 		return RESULT_SUCCESS;
-	} else if (foundqueue) {
+	} else if (!foundqueue) {
 		ast_log (LOG_ERROR, "Invalid queuename\n"); 
 	} else {
 		ast_log (LOG_ERROR, "Invalid interface\n");
@@ -4448,10 +4453,6 @@ static int queue_function_memberpenalty_write(struct ast_channel *chan, const ch
 	}
 
 	penalty = atoi(value);
-	if (penalty < 0) {
-		ast_log(LOG_ERROR, "Invalid penalty\n");
-		return -1;
-	}
 
 	if (ast_strlen_zero(args.interface)) {
 		ast_log (LOG_ERROR, "<interface> parameter can't be null\n");
@@ -4459,7 +4460,10 @@ static int queue_function_memberpenalty_write(struct ast_channel *chan, const ch
 	}
 
 	/* if queuename = NULL then penalty will be set for interface in all the queues. */
-	set_member_penalty(args.queuename, args.interface, penalty);
+	if (set_member_penalty(args.queuename, args.interface, penalty)) {
+		ast_log(LOG_ERROR, "Invalid interface, queue or penalty\n");
+		return -1;
+	}
 
 	return 0;
 }
@@ -5241,7 +5245,7 @@ static int manager_queue_member_penalty(struct mansession *s, const struct messa
 	penalty = atoi(penalty_s);
 
 	if (set_member_penalty((char *)queuename, (char *)interface, penalty))
-		astman_send_error(s, m, "Invalid interface or queuename");
+		astman_send_error(s, m, "Invalid interface, queuename or penalty");
 	else
 		astman_send_ack(s, m, "Interface penalty set successfully");
 
@@ -5509,7 +5513,7 @@ static char *handle_queue_set_member_penalty(struct ast_cli_entry *e, int cmd, s
 
 	if (a->argc != 6 && a->argc != 8) {
 		return CLI_SHOWUSAGE;
-	} else if (strcmp(a->argv[5], "from")) {
+	} else if (strcmp(a->argv[4], "on") || (a->argc > 6 && strcmp(a->argv[6], "in"))) {
 		return CLI_SHOWUSAGE;
 	}
 
@@ -5517,11 +5521,6 @@ static char *handle_queue_set_member_penalty(struct ast_cli_entry *e, int cmd, s
 		queuename = a->argv[7];
 	interface = a->argv[5];
 	penalty = atoi(a->argv[3]);
-
-	if (penalty < 0) {
-		ast_cli(a->fd, "Invalid penalty (%d)\n", penalty);
-		return CLI_FAILURE;
-	}
 
 	switch (set_member_penalty(queuename, interface, penalty)) {
 	case RESULT_SUCCESS:
