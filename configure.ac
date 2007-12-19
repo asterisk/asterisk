@@ -151,6 +151,11 @@ else
 fi
 AC_SUBST(DOWNLOAD)
 
+AC_CHECK_TOOL([SOXMIX], [soxmix], [:])
+if test "${SOXMIX}" != ":" ; then
+	AC_DEFINE([HAVE_SOXMIX], 1, [Define to 1 if your system has soxmix application.])
+fi
+
 ACX_PTHREAD
 
 AC_LANG(C)
