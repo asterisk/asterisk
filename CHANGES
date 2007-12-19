@@ -4,6 +4,9 @@
 
 AMI - The manager (TCP/TLS/HTTP)
 --------------------------------
+  * Manager has undergone a lot of changes, all of them documented
+    in doc/manager_1_1.txt
+  * Manager version has changed to 1.1
   * Added a new action 'CoreShowChannels' to list currently defined channels
      and some information about them. 
   * Added a new action 'SIPshowregistry' to list SIP registrations.
@@ -137,6 +140,48 @@ OSS Channel changes
 -------------------
   * Added experimental support for video under X windows
 
+Phone channel changes (chan_phone)
+----------------------------------
+  * Added G729 passthrough support to chan_phone for Sigma Designs boards.
+
+H.323 channel Changes
+---------------------
+  * H323 remote hold notification support added (by NOTIFY message
+     and/or H.450 supplementary service)
+
+Local channel changes
+---------------------
+  * The device state functionality in the Local channel driver has been updated
+     to indicate INUSE or NOT_INUSE when a Local channel is being used as opposed
+     to just UNKNOWN if the extension exists.
+  * Added jitterbuffer support for chan_local.  This allows you to use the
+     generic jitterbuffer on incoming calls going to Asterisk applications.
+     For example, this would allow you to use a jitterbuffer for an incoming
+     SIP call to Voicemail by putting a Local channel in the middle.  This
+     feature is enabled by using the 'j' option in the Dial string to the Local
+     channel in conjunction with the existing 'n' option for local channels.
+
+Zaptel channel driver (chan_zap) Changes
+----------------------------------------
+  * SS7 support in chan_zap (via libss7 library)
+  * In India, some carriers transmit CID via dtmf. Some code has been added
+    that will handle some situations. The cidstart=polarity_IN choice has been added for
+    those carriers that transmit CID via dtmf after a polarity change.
+  * CID matching information is now shown when doing 'dialplan show'.
+  * Added zap show version CLI command to chan_zap.
+  * Added setvar support to zapata.conf channel entries.
+  * Added two new options: mwimonitor and mwimonitornotify.  These options allow
+     you to enable MWI monitoring on FXO lines.  When the MWI state changes,
+     the script specified in the mwimonitornotify option is executed.  An internal
+	 event indicating the new state of the mailbox is also generated, so that
+	 the normal MWI facilities in Asterisk work as usual.
+
+A new channel driver: Unistim
+-----------------------------
+  * Added a new channel driver, chan_unistim.  See doc/unistim.txt and
+     configs/unistim.conf.sample for details.  This new channel driver allows
+     you to use Nortel i2002, i2004, and i2050 phones with Asterisk.
+ 
 DUNDi changes
 -------------
   * Added the ability to specify arguments to the Dial application when using
@@ -300,26 +345,6 @@ AEL Changes
   * aelparse will now read extensions.conf to see if a referenced
     macro or context is there before issueing a warning.
 
-Zaptel channel driver (chan_zap) Changes
-----------------------------------------
-  * SS7 support in chan_zap (via libss7 library)
-  * In India, some carriers transmit CID via dtmf. Some code has been added
-    that will handle some situations. The cidstart=polarity_IN choice has been added for
-    those carriers that transmit CID via dtmf after a polarity change.
-  * CID matching information is now shown when doing 'dialplan show'.
-  * Added zap show version CLI command to chan_zap.
-  * Added setvar support to zapata.conf channel entries.
-  * Added two new options: mwimonitor and mwimonitornotify.  These options allow
-     you to enable MWI monitoring on FXO lines.  When the MWI state changes,
-     the script specified in the mwimonitornotify option is executed.  An internal
-	 event indicating the new state of the mailbox is also generated, so that
-	 the normal MWI facilities in Asterisk work as usual.
- 
-H.323 Changes
--------------
-  * H323 remote hold notification support added (by NOTIFY message
-     and/or H.450 supplementary service)
-
 Call Features (res_features) Changes
 ------------------------------------
   * Added the parkedcalltransfers option to features.conf
@@ -346,11 +371,8 @@ AGI Changes
   * Added SPEECH commands for speech recognition. A complete listing can be found
      using agi show.
 
-Miscellaneous 
--------------
-  * Ability to use libcap to set high ToS bits when non-root
-     on Linux. If configure is unable to find libcap then you
-     can use --with-cap to specify the path.
+Logger changes
+--------------
   * Added rotatestrategy option to logger.conf, along with two new options:
      "timestamp" which will use the time to name the logger files instead of
      sequence number; and "rotate", which rotates the names of the logfiles,
@@ -359,10 +381,15 @@ Miscellaneous
      command to be run after rotation.  This is primarily useful with
      rotatestrategry=rotate, to allow a limit on the number of logfiles kept
      and to ensure that the oldest log file gets deleted.
+
+Miscellaneous 
+-------------
+  * Ability to use libcap to set high ToS bits when non-root
+     on Linux. If configure is unable to find libcap then you
+     can use --with-cap to specify the path.
   * Added maxfiles option to options section of asterisk.conf which allows you to specify
      what Asterisk should set as the maximum number of open files when it loads.
   * Added the jittertargetextra configuration option.
-  * Added G729 passthrough support to chan_phone for Sigma Designs boards.
   * Added a new CDR module, cdr_sqlite3_custom.
   * The cdr_manager module has a [mappings] feature, like cdr_custom,
     to add fields to the manager event from the CDR variables.
@@ -371,24 +398,12 @@ Miscellaneous
      configuration files for the IP channel drivers.  The new option is "cos".
      This information is also documented in doc/qos.tex, or the IP Quality of Service
      section of asterisk.pdf.
-  * The device state functionality in the Local channel driver has been updated
-     to indicate INUSE or NOT_INUSE when a Local channel is being used as opposed
-     to just UNKNOWN if the extension exists.
   * When originating a call using AMI or pbx_spool that fails the reason for failure
      will now be available in the failed extension using the REASON dialplan variable.
-  * Added jitterbuffer support for chan_local.  This allows you to use the
-     generic jitterbuffer on incoming calls going to Asterisk applications.
-     For example, this would allow you to use a jitterbuffer for an incoming
-     SIP call to Voicemail by putting a Local channel in the middle.  This
-     feature is enabled by using the 'j' option in the Dial string to the Local
-     channel in conjunction with the existing 'n' option for local channels.
   * Added support for reading the TOUCH_MONITOR_PREFIX channel variable.
      It allows you to configure a prefix for auto-monitor recordings.
   * Added support for writing and running your dialplan in lua.  See
      configs/extensions.lua.sample for examples of how to do this.
-  * Added a new channel driver, chan_unistim.  See doc/unistim.txt and
-     configs/unistim.conf.sample for details.  This new channel driver allows
-     you to use Nortel i2002, i2004, and i2050 phones with Asterisk.
   * A new extension pattern matching algorithm, based on a trie, is introduced
     here, that could noticeably speed up mid-sized to large dialplans.
     It is NOT used by default, as duplicating the behaviour of the old pattern
