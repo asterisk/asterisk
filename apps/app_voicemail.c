@@ -7761,9 +7761,33 @@ static char *handle_voicemail_show_zones(struct ast_cli_entry *e, int cmd, struc
 	return res;
 }
 
+/*! \brief Reload voicemail configuration from the CLI */
+static char *handle_voicemail_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "voicemail reload";
+		e->usage =
+			"Usage: voicemail reload\n"
+			"       Reload voicemail configuration\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "Reloading voicemail configuration...\n");	
+	load_config(1);
+	
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_voicemail[] = {
 	AST_CLI_DEFINE(handle_voicemail_show_users, "List defined voicemail boxes"),
 	AST_CLI_DEFINE(handle_voicemail_show_zones, "List zone message formats"),
+	AST_CLI_DEFINE(handle_voicemail_reload, "Reload voicemail configuration"),
 };
 
 static void poll_subscribed_mailboxes(void)
