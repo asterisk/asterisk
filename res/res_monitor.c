@@ -69,8 +69,13 @@ static char *monitor_descrip = "  Monitor([file_format[:urlbase],[fname_base],[o
 "    m   - when the recording ends mix the two leg files into one and\n"
 "          delete the two leg files.  If the variable MONITOR_EXEC is set, the\n"
 "          application referenced in it will be executed instead of\n"
+#ifdef HAVE_SOXMIX
 "          soxmix and the raw leg files will NOT be deleted automatically.\n"
 "          soxmix or MONITOR_EXEC is handed 3 arguments, the two leg files\n"
+#else
+"          sox and the raw leg files will NOT be deleted automatically.\n"
+"          sox or MONITOR_EXEC is handed 3 arguments, the two leg files\n"
+#endif
 "          and a target mixed file name which is the same as the leg file names\n"
 "          only without the in/out designator.\n"
 "          If MONITOR_EXEC_ARGS is set, the contents will be passed on as\n"
@@ -325,8 +330,12 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 
 			/* Set the execute application */
 			execute = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC");
-			if (ast_strlen_zero(execute)) { 
+			if (ast_strlen_zero(execute)) {
+#ifdef HAVE_SOXMIX
 				execute = "nice -n 19 soxmix";
+#else
+				execute = "nice -n 19 sox -m";
+#endif
 				format = get_soxmix_format(format);
 				delfiles = 1;
 			} 
