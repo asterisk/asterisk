@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <osp/osp.h>
 #include <osp/osputils.h>
 
+#include "asterisk/paths.h"
 #include "asterisk/lock.h"
 #include "asterisk/config.h"
 #include "asterisk/utils.h"
