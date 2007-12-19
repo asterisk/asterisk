@@ -689,6 +689,9 @@
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
+/* Define to 1 if your system has soxmix application. */
+#undef HAVE_SOXMIX
+
 /* Define this to indicate the ${SPEEX_DESCRIP} library */
 #undef HAVE_SPEEX
 
