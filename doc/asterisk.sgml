@@ -8,7 +8,7 @@
 		<application>asterisk</application>
 	</refentrytitle>
 	<manvolnum>8</manvolnum>
-	<refmiscinfo>asterisk 1.2</refmiscinfo>
+	<refmiscinfo>asterisk 1.6</refmiscinfo>
 </refmeta>
 <refnamediv>
 	<refname>
@@ -21,7 +21,7 @@
 <refsynopsisdiv>
 	<cmdsynopsis>
 	<command>asterisk</command>
-<arg><option>-tThfdvVqpRgciIn</option></arg>
+<arg><option>-tThfdvVqpRgciIns</option></arg>
 <arg><option>-C </option><replaceable class="parameter">file</replaceable></arg>
 <arg><option>-U </option><replaceable class="parameter">user</replaceable></arg>
 <arg><option>-G </option><replaceable class="parameter">group</replaceable></arg>
@@ -38,7 +38,7 @@
 </refsynopsisdiv>
 <refsect1>
 	<refsect1info>
-		<date>2006-03-29</date>
+		<date>2007-12-19</date>
 	</refsect1info>
 	<title>DESCRIPTION</title>
 	<para>
@@ -47,9 +47,9 @@
 	Automated Call Distribution (ACD), Voice over IP (VoIP) gatewaying, 
 	Conferencing, and a plethora of other telephony applications to a broad
 	range of telephony devices including packet voice (SIP, IAX2, MGCP, Skinny,
-	H.323) devices (both endpoints and proxies), as well as traditional TDM
+	H.323, Unistim) devices (both endpoints and proxies), as well as traditional TDM
 	hardware including T1, E1, ISDN PRI, GR-303, RBS, Loopstart, Groundstart,
-	ISDN BRI, and many more.
+	ISDN BRI and many more.
 	</para>
 	<para>
 	At start, Asterisk reads the /etc/asterisk/asterisk.conf main configuration
@@ -230,6 +230,15 @@
 			to a running Asterisk process and provide a console interface
 			for controlling it. Additionally, if connection to the Asterisk 
 			process is lost, attempt to reconnect for as long as 30 seconds.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-s <replaceable class="parameter">socket file name</replaceable></term>
+		<listitem>
+			<para>
+			In combination with <command>-r</command>, connect directly to a specified
+			Asterisk server socket.
 			</para>
 		</listitem>
 	</varlistentry>

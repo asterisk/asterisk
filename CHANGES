@@ -395,4 +395,7 @@ Miscellaneous
     set to false; setting that to true will force the use of the new algorithm.
     Also, the cli commands "dialplan set extenpatternmatchingnew true/false" can
     be used to switch the algorithms at run time.
+  * A new option when starting a remote asterisk (rasterisk, asterisk -r) for
+    specifying which socket to use to connect to the running Asterisk daemon
+    (-s)
 

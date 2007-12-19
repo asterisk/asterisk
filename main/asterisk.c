@@ -2398,6 +2398,7 @@ static int show_cli_help(void) {
 	printf("                   of output to the CLI\n");
 	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
 	printf("   -x <cmd>        Execute command <cmd> (only valid with -r)\n");
+	printf("   -s <socket>     Connect to Asterisk via socket <socket> (only valid with -r)\n");
 	printf("\n");
 	return 0;
 }
@@ -2670,6 +2671,7 @@ int main(int argc, char *argv[])
 	int isroot = 1;
 	char *buf;
 	const char *runuser = NULL, *rungroup = NULL;
+	char *remotesock = NULL;
 
 	/* Remember original args for restart */
 	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {
@@ -2700,7 +2702,7 @@ int main(int argc, char *argv[])
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	/* Check for options */
-	while ((c = getopt(argc, argv, "mtThfFdvVqprRgciInx:U:G:C:L:M:e:")) != -1) {
+	while ((c = getopt(argc, argv, "mtThfFdvVqprRgciInx:U:G:C:L:M:e:s:")) != -1) {
 		switch (c) {
 #if defined(HAVE_SYSINFO)
 		case 'e':
@@ -2789,6 +2791,9 @@ int main(int argc, char *argv[])
 		case 'G':
 			rungroup = optarg;
 			break;
+		case 's':
+			remotesock = optarg;
+			break;
 		case '?':
 			exit(1);
 		}
@@ -2820,6 +2825,9 @@ int main(int argc, char *argv[])
 	if (ast_opt_console && !option_verbose) 
 		ast_verbose("[ Reading Master Configuration ]\n");
 	ast_readconfig();
+
+	if (ast_opt_remote && remotesock != NULL)
+		ast_copy_string((char *) ast_config_AST_SOCKET, remotesock, sizeof(ast_config_AST_SOCKET));
 
 	if (!ast_language_is_prefix && !ast_opt_remote)
 		ast_log(LOG_WARNING, "The 'languageprefix' option in asterisk.conf is deprecated; in a future release it will be removed, and your sound files will need to be organized in the 'new style' language layout.\n");
