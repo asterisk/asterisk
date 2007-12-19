@@ -37,6 +37,39 @@ typedef typeof(tv.tv_sec) ast_time_t;
 typedef typeof(tv.tv_usec) ast_suseconds_t;
 
 /*!
+ * \brief Computes the difference (in seconds) between two \c struct \c timeval instances.
+ * \param end the end of the time period
+ * \param start the beginning of the time period
+ * \return the difference in seconds
+ */
+AST_INLINE_API(
+int ast_tvdiff_sec(struct timeval end, struct timeval start),
+{
+	int result = end.tv_sec - start.tv_sec;
+	if (result > 0 && end.tv_usec < start.tv_usec)
+		result--;
+	else if (result < 0 && end.tv_usec > start.tv_usec)
+		result++;
+
+	return result;
+}
+)
+
+/*!
+ * \brief Computes the difference (in microseconds) between two \c struct \c timeval instances.
+ * \param end the end of the time period
+ * \param start the beginning of the time period
+ * \return the difference in microseconds
+ */
+AST_INLINE_API(
+int64_t ast_tvdiff_us(struct timeval end, struct timeval start),
+{
+	return (end.tv_sec - start.tv_sec) * (int64_t) 1000000 +
+		end.tv_usec - start.tv_usec;
+}
+)
+
+/*!
  * \brief Computes the difference (in milliseconds) between two \c struct \c timeval instances.
  * \param end end of the time period
  * \param start beginning of the time period
