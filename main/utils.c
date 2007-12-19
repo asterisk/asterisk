@@ -1020,6 +1020,43 @@ char *ast_unescape_semicolon(char *s)
 	return s;
 }
 
+/* !\brief unescape some C sequences in place, return pointer to the original string.
+ */
+char *ast_unescape_c(char *src)
+{
+	char c, *ret, *dst;
+
+	if (src == NULL)
+		return NULL;
+	for (ret = dst = src; (c = *src++); *dst++ = c ) {
+		if (c != '\\')
+			continue;	/* copy char at the end of the loop */
+		switch ((c = *src++)) {
+		case '\0':	/* special, trailing '\' */
+			c = '\\';
+			break;
+		case 'b':	/* backspace */
+			c = '\b';
+			break;
+		case 'f':	/* form feed */
+			c = '\f';
+			break;
+		case 'n':
+			c = '\n';
+			break;
+		case 'r':
+			c = '\r';
+			break;
+		case 't':
+			c = '\t';
+			break;
+		}
+		/* default, use the char literally */
+	}
+	*dst = '\0';
+	return ret;
+}
+
 int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap)
 {
 	int result;

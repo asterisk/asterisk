@@ -155,6 +155,14 @@ char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes);
 char *ast_unescape_semicolon(char *s);
 
 /*!
+  \brief Convert some C escape sequences (\b\f\n\r\t) into the
+	equivalent characters.
+  \brief s The string to be converted (will be modified).
+  \return The converted string.
+ */
+char *ast_unescape_c(char *s);
+
+/*!
   \brief Size-limited null-terminating string copy.
   \arg dst The destination buffer.
   \arg src The source string
