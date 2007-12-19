@@ -183,7 +183,13 @@ AC_ARG_ENABLE(dev-mode,
 	esac])
 AC_SUBST(AST_DEVMODE)
 
-# package option names should be in alphabetical order
+# AST_EXT_LIB_SETUP is used to tell configure to handle variables for
+# various packages.
+# $1 is the prefix for the variables in makeopts and autoconfig.h
+# $2 is the short comment, $4 is the long comment
+# $3 is the name used in --with- or --without- flags for configure.
+#
+# Package option names should be in alphabetical order
 # by the --with option name (the third field),
 # to make things easier for the users.
 
@@ -197,6 +203,8 @@ AST_EXT_LIB_SETUP([CURL], [cURL], [curl])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
 AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography support], [crypto])
 AST_EXT_LIB_SETUP([GSM], [External GSM library], [gsm], [, use 'internal' GSM otherwise])
+AST_EXT_LIB_SETUP([GTK], [gtk libraries], [gtk])
+AST_EXT_LIB_SETUP([GTK2], [gtk2 libraries], [gtk2])
 AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber Library], [iksemel])
 AST_EXT_LIB_SETUP([IMAP_TK], [UW IMAP Toolkit], [imap])
 AST_EXT_LIB_SETUP([ISDNNET], [ISDN4Linux Library], [isdnnet])
@@ -835,33 +843,8 @@ AST_EXT_LIB_CHECK([NBS], [nbs], [nbs_connect], [nbs.h])
 
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
 
-NETSNMP_CONFIG=No
-if test "${USE_NETSNMP}" != "no"; then	
-   if test "x${NETSNMP_DIR}" != "x"; then
-      AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], No, [${NETSNMP_DIR}/bin])
-      if test x"${NETSNMP_CONFIG}" = xNo; then
-         AC_MSG_NOTICE([***])
-         AC_MSG_NOTICE([*** net-snmp-config was not found in the path you specified:])
-         AC_MSG_NOTICE([*** ${NETSNMP_DIR}/bin])
-         AC_MSG_NOTICE([*** Either correct the installation, or run configure])
-         AC_MSG_NOTICE([*** including --without-netsnmp])
-         exit 1
-      fi
-   else
-      AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], No)
-   fi
-fi
-if test x"${NETSNMP_CONFIG}" != xNo; then
-   NETSNMP_libs=`${NETSNMP_CONFIG} --agent-libs`
-   
-   AC_CHECK_LIB([netsnmp], [snmp_register_callback], AC_DEFINE_UNQUOTED([HAVE_NETSNMP], 1,
-   [Define to indicate the Net-SNMP library]), [], ${NETSNMP_libs})
-
-   if test "${ac_cv_lib_netsnmp_snmp_register_callback}" = "yes"; then
-      NETSNMP_LIB="${NETSNMP_libs}"
-      PBX_NETSNMP=1
-   fi
-fi
+# XXX do we need to check for snmp_register_callback ?
+AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp], , [--agent-libs])
 
 AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 
@@ -1203,17 +1186,8 @@ AC_CHECK_HEADER([linux/videodev.h],
 AST_EXT_LIB_CHECK([X11], [X11], [XOpenDisplay], [X11/Xlib.h],,, [standard_path])
 AST_EXT_LIB_CHECK([X11], [X11], [XOpenDisplay], [X11/Xlib.h],, [-I/usr/X11R6/include], [X11R6])
 
-PBX_GTK=0
-AC_CHECK_TOOL(GTKCONFIG, gtk-config, No)
-if test ! "x${GTKCONFIG}" = xNo; then
-   GTK_INCLUDE=$(${GTKCONFIG} --cflags gthread)
-   GTK_LIB=$(${GTKCONFIG} --libs gthread)
-   PBX_GTK=1
-   AC_DEFINE([HAVE_GTK], 1, [Define if your system has the GTK libraries.])
-fi
-AC_SUBST(PBX_GTK)
-AC_SUBST(GTK_INCLUDE)
-AC_SUBST(GTK_LIB)
+# we don't use gtk right now...
+AST_EXT_TOOL_CHECK([GTK], [gtk])
 
 PBX_GTK2=0
 AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
