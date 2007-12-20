@@ -2704,7 +2704,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		 * is because we only have the IP address and the host field might be
 		 * set as a name (and the reverse PTR might not match).
 		 */
-		if (var) {
+		if (var && sin) {
 			for (tmp = var; tmp; tmp = tmp->next) {
 				if (!strcasecmp(tmp->name, "host")) {
 					struct in_addr sin2 = { 0, };
