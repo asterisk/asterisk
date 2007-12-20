@@ -8813,6 +8813,9 @@ static void *pri_dchannel(void *vpri)
 							} else {
 								c = zt_new(pri->pvts[chanpos], AST_STATE_RESERVED, 0, SUB_REAL, law, e->ring.ctype);
 							}
+
+							ast_mutex_unlock(&pri->pvts[chanpos]->lock);
+
 							if (!ast_strlen_zero(e->ring.callingsubaddr)) {
 								pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
 							}
@@ -8831,8 +8834,10 @@ static void *pri_dchannel(void *vpri)
 							pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 							if (e->ring.redirectingreason >= 0)
 								pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
-							
+						
+							ast_mutex_lock(&pri->pvts[chanpos]->lock);
 							ast_mutex_lock(&pri->lock);
+
 							pthread_attr_init(&attr);
 							pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 							if (c && !ast_pthread_create(&threadid, &attr, ss_thread, c)) {
@@ -8855,9 +8860,11 @@ static void *pri_dchannel(void *vpri)
 							ast_mutex_unlock(&pri->lock);
 							/* Release PRI lock while we create the channel */
 							c = zt_new(pri->pvts[chanpos], AST_STATE_RING, 1, SUB_REAL, law, e->ring.ctype);
-							ast_mutex_lock(&pri->lock);
 							if (c) {
 								char calledtonstr[10];
+
+								ast_mutex_unlock(&pri->pvts[chanpos]->lock);
+
 								if (e->ring.ani2 >= 0) {
 									snprintf(ani2str, 5, "%d", e->ring.ani2);
 									pbx_builtin_setvar_helper(c, "ANI2", ani2str);
@@ -8874,12 +8881,19 @@ static void *pri_dchannel(void *vpri)
 							
 								snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
 								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
+
+								ast_mutex_lock(&pri->pvts[chanpos]->lock);
+								ast_mutex_lock(&pri->lock);
+
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d/%d, span %d\n",
 										plancallingnum, pri->pvts[chanpos]->exten, 
 											pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
 								zt_enable_ec(pri->pvts[chanpos]);
 							} else {
+
+								ast_mutex_lock(&pri->lock);
+
 								ast_log(LOG_WARNING, "Unable to start PBX on channel %d/%d, span %d\n", 
 									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
 								pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
@@ -8938,7 +8952,10 @@ static void *pri_dchannel(void *vpri)
 
 #ifdef SUPPORT_USERUSER
 						if (!ast_strlen_zero(e->ringing.useruserinfo)) {
+							struct ast_channel *owner = pri->pvts[chanpos]->owner;
+							ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 							pbx_builtin_setvar_helper(pri->pvts[chanpos]->owner, "USERUSERINFO", e->ringing.useruserinfo);
+							ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						}
 #endif
 
@@ -9093,7 +9110,10 @@ static void *pri_dchannel(void *vpri)
 
 #ifdef SUPPORT_USERUSER
 						if (!ast_strlen_zero(e->answer.useruserinfo)) {
+							struct ast_channel *owner = pri->pvts[chanpos]->owner;
+							ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 							pbx_builtin_setvar_helper(pri->pvts[chanpos]->owner, "USERUSERINFO", e->answer.useruserinfo);
+							ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						}
 #endif
 
@@ -9159,7 +9179,10 @@ static void *pri_dchannel(void *vpri)
 
 #ifdef SUPPORT_USERUSER
 						if (pri->pvts[chanpos]->owner && !ast_strlen_zero(e->hangup.useruserinfo)) {
+							struct ast_channel *owner = pri->pvts[chanpos]->owner;
+							ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 							pbx_builtin_setvar_helper(pri->pvts[chanpos]->owner, "USERUSERINFO", e->hangup.useruserinfo);
+							ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						}
 #endif
 
@@ -9225,7 +9248,10 @@ static void *pri_dchannel(void *vpri)
 
 #ifdef SUPPORT_USERUSER
 						if (!ast_strlen_zero(e->hangup.useruserinfo)) {
+							struct ast_channel *owner = pri->pvts[chanpos]->owner;
+							ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 							pbx_builtin_setvar_helper(pri->pvts[chanpos]->owner, "USERUSERINFO", e->hangup.useruserinfo);
+							ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						}
 #endif
 
@@ -9253,7 +9279,10 @@ static void *pri_dchannel(void *vpri)
 
 #ifdef SUPPORT_USERUSER
 						if (!ast_strlen_zero(e->hangup.useruserinfo)) {
+							struct ast_channel *owner = pri->pvts[chanpos]->owner;
+							ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 							pbx_builtin_setvar_helper(pri->pvts[chanpos]->owner, "USERUSERINFO", e->hangup.useruserinfo);
+							ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						}
 #endif
 
