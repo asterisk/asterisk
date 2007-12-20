@@ -61,17 +61,12 @@ c-client (http://www.washington.edu/imap/
 </category>
  ***/
 
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-
-#include "asterisk/paths.h"	/* use ast_config_AST_SPOOL_DIR */
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <time.h>
-#include <dirent.h>
-
+/*It is important to include the IMAP_STORAGE related headers
+ * before asterisk.h since asterisk.h includes logger.h. logger.h
+ * and c-client.h have conflicting definitions for LOG_WARNING and
+ * LOG_DEBUG, so it's important that we use Asterisk's definitions
+ * here instead of the c-client's 
+ */
 #ifdef IMAP_STORAGE
 #include <ctype.h>
 #include <signal.h>
@@ -86,6 +81,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "linkage.h"
 #endif
 #endif
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/paths.h"	/* use ast_config_AST_SPOOL_DIR */
+#include <sys/time.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <time.h>
+#include <dirent.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
