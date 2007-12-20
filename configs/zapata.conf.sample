@@ -339,7 +339,10 @@ usecallerid=yes
 ;
 ; The following option enables receiving MWI on FXO lines.  The default
 ; value is no.  When this is enabled, and MWI notification indicates on or off,
-; the script specified by the mwimonitornotify option is executed.
+; the script specified by the mwimonitornotify option is executed.  Also, an
+; internal Asterisk MWI event will be generated so that any other part of
+; Asterisk that cares about MWI state changes will get notified, just as if
+; the state change came from app_voicemail.
 ;
 ;mwimonitor=no
 ;
