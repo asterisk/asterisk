@@ -2629,7 +2629,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 
 	if (peername) {
 		var = ast_load_realtime("iaxpeers", "name", peername, "host", "dynamic", NULL);
-		if (!var)
+		if (!var && sin)
 			var = ast_load_realtime("iaxpeers", "name", peername, "host", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 	} else if (sin) {
 		char porta[25];
@@ -2646,7 +2646,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 			}
 		}
 	}
-	if (!var) { /* Last ditch effort */
+	if (!var && peername) { /* Last ditch effort */
 		var = ast_load_realtime("iaxpeers", "name", peername, NULL);
 		/*!\note
 		 * If this one loaded something, then we need to ensure that the host
