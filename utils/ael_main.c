@@ -82,8 +82,11 @@ struct namelist *globalvars_last;
 
 int conts=0, extens=0, priors=0;
 char last_exten[18000];
-const char ast_config_AST_CONFIG_DIR[PATH_MAX];
-const char ast_config_AST_VAR_DIR[PATH_MAX];
+
+static char config_dir[PATH_MAX];
+static char var_dir[PATH_MAX];
+const char *ast_config_AST_CONFIG_DIR = config_dir;
+const char *ast_config_AST_VAR_DIR = var_dir;
 
 void ast_cli_register_multiple(void);
 int ast_add_extension2(struct ast_context *con,
@@ -514,14 +517,14 @@ int main(int argc, char **argv)
 	}
 
 	if( use_curr_dir ) {
-		strcpy((char *)ast_config_AST_CONFIG_DIR, ".");
+		strcpy(config_dir, ".");
 		localized_use_local_dir();
 	}
 	else {
-		strcpy((char *)ast_config_AST_CONFIG_DIR, "/etc/asterisk");
+		strcpy(config_dir, "/etc/asterisk");
 		localized_use_conf_dir();
 	}
-	strcpy((char *)ast_config_AST_VAR_DIR, "/var/lib/asterisk");
+	strcpy(var_dir, "/var/lib/asterisk");
 	
 	if( dump_extensions ) {
 		dumpfile = fopen("extensions.conf.aeldump","w");

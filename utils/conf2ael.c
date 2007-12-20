@@ -29,19 +29,13 @@
 #include "asterisk.h"
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
+#include "asterisk/paths.h"	/* CONFIG_DIR */
 #include <locale.h>
 #include <ctype.h>
 #if !defined(SOLARIS) && !defined(__CYGWIN__)
 #include <err.h>
 #endif
-#include <errno.h>
 #include <regex.h>
-#include <limits.h>
 
 #include "asterisk.h"
 #include "asterisk/pbx.h"
@@ -59,11 +53,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pval.h"
 #include "asterisk/extconf.h"
 
+const char *ast_config_AST_CONFIG_DIR = "/etc/asterisk";	/* placeholder */
+
 void get_start_stop(unsigned int *word, int bitsperword, int totalbits, int *start, int *end);
 int all_bits_set(unsigned int *word, int bitsperword, int totalbits);
 extern char *days[];
 extern char *months[];
-const char ast_config_AST_CONFIG_DIR[PATH_MAX];
 
 char *config = "extensions.conf";
 

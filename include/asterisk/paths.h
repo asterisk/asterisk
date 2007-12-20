@@ -18,22 +18,22 @@
 #ifndef _ASTERISK_PATHS_H
 #define _ASTERISK_PATHS_H
 
-extern const char ast_config_AST_CONFIG_DIR[PATH_MAX];
-extern const char ast_config_AST_CONFIG_FILE[PATH_MAX];
-extern const char ast_config_AST_MODULE_DIR[PATH_MAX];
-extern const char ast_config_AST_SPOOL_DIR[PATH_MAX];
-extern const char ast_config_AST_MONITOR_DIR[PATH_MAX];
-extern const char ast_config_AST_VAR_DIR[PATH_MAX];
-extern const char ast_config_AST_DATA_DIR[PATH_MAX];
-extern const char ast_config_AST_LOG_DIR[PATH_MAX];
-extern const char ast_config_AST_AGI_DIR[PATH_MAX];
-extern const char ast_config_AST_DB[PATH_MAX];
-extern const char ast_config_AST_KEY_DIR[PATH_MAX];
-extern const char ast_config_AST_PID[PATH_MAX];
-extern const char ast_config_AST_SOCKET[PATH_MAX];
-extern const char ast_config_AST_RUN_DIR[PATH_MAX];
-extern const char ast_config_AST_RUN_GROUP[PATH_MAX];
-extern const char ast_config_AST_RUN_USER[PATH_MAX];
-extern const char ast_config_AST_SYSTEM_NAME[20];
+extern const char *ast_config_AST_CONFIG_DIR;
+extern const char *ast_config_AST_CONFIG_FILE;
+extern const char *ast_config_AST_MODULE_DIR;
+extern const char *ast_config_AST_SPOOL_DIR;
+extern const char *ast_config_AST_MONITOR_DIR;
+extern const char *ast_config_AST_VAR_DIR;
+extern const char *ast_config_AST_DATA_DIR;
+extern const char *ast_config_AST_LOG_DIR;
+extern const char *ast_config_AST_AGI_DIR;
+extern const char *ast_config_AST_DB;
+extern const char *ast_config_AST_KEY_DIR;
+extern const char *ast_config_AST_PID;
+extern const char *ast_config_AST_SOCKET;
+extern const char *ast_config_AST_RUN_DIR;
+extern const char *ast_config_AST_RUN_GROUP;
+extern const char *ast_config_AST_RUN_USER;
+extern const char *ast_config_AST_SYSTEM_NAME;
 
 #endif /* _ASTERISK_PATHS_H */

@@ -25,6 +25,7 @@
  */
 
 #include "asterisk/compat.h"
+#include "asterisk/paths.h"	/* we use AST_CONFIG_DIR */
 
 #include <errno.h>
 #include <time.h>
@@ -53,7 +54,6 @@
 # include <glob.h>
 #endif
 
-static const char ast_config_AST_CONFIG_DIR[PATH_MAX] = {"/etc/asterisk"};
 #define AST_API_MODULE  1 /* gimme the inline defs! */
 struct ast_channel 
 {

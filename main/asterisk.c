@@ -200,27 +200,52 @@ static int ast_el_add_history(char *);
 static int ast_el_read_history(char *);
 static int ast_el_write_history(char *);
 
-const char ast_config_AST_CONFIG_DIR[PATH_MAX];
-const char ast_config_AST_CONFIG_FILE[PATH_MAX];
-const char ast_config_AST_MODULE_DIR[PATH_MAX];
-const char ast_config_AST_SPOOL_DIR[PATH_MAX];
-const char ast_config_AST_MONITOR_DIR[PATH_MAX];
-const char ast_config_AST_VAR_DIR[PATH_MAX];
-const char ast_config_AST_DATA_DIR[PATH_MAX];
-const char ast_config_AST_LOG_DIR[PATH_MAX];
-const char ast_config_AST_AGI_DIR[PATH_MAX];
-const char ast_config_AST_DB[PATH_MAX];
-const char ast_config_AST_KEY_DIR[PATH_MAX];
-const char ast_config_AST_PID[PATH_MAX];
-const char ast_config_AST_SOCKET[PATH_MAX];
-const char ast_config_AST_RUN_DIR[PATH_MAX];
-const char ast_config_AST_RUN_USER[PATH_MAX];
-const char ast_config_AST_RUN_GROUP[PATH_MAX];
-static const char ast_config_AST_CTL_PERMISSIONS[PATH_MAX];
-static const char ast_config_AST_CTL_OWNER[PATH_MAX] = "\0";
-static const char ast_config_AST_CTL_GROUP[PATH_MAX] = "\0";
-static const char ast_config_AST_CTL[PATH_MAX] = "asterisk.ctl";
-const char ast_config_AST_SYSTEM_NAME[20] = "";
+struct _cfg_paths {
+	char config_dir[PATH_MAX];
+	char module_dir[PATH_MAX];
+	char spool_dir[PATH_MAX];
+	char monitor_dir[PATH_MAX];
+	char var_dir[PATH_MAX];
+	char data_dir[PATH_MAX];
+	char log_dir[PATH_MAX];
+	char agi_dir[PATH_MAX];
+	char run_dir[PATH_MAX];
+	char key_dir[PATH_MAX];
+
+	char config_file[PATH_MAX];
+	char db_path[PATH_MAX];
+	char pid_path[PATH_MAX];
+	char socket_path[PATH_MAX];
+	char run_user[PATH_MAX];
+	char run_group[PATH_MAX];
+	char system_name[128];
+};
+
+static struct _cfg_paths cfg_paths;
+
+const char *ast_config_AST_CONFIG_DIR	= cfg_paths.config_dir;
+const char *ast_config_AST_CONFIG_FILE	= cfg_paths.config_file;
+const char *ast_config_AST_MODULE_DIR	= cfg_paths.module_dir;
+const char *ast_config_AST_SPOOL_DIR	= cfg_paths.spool_dir;
+const char *ast_config_AST_MONITOR_DIR	= cfg_paths.monitor_dir;
+const char *ast_config_AST_VAR_DIR	= cfg_paths.var_dir;
+const char *ast_config_AST_DATA_DIR	= cfg_paths.data_dir;
+const char *ast_config_AST_LOG_DIR	= cfg_paths.log_dir;
+const char *ast_config_AST_AGI_DIR	= cfg_paths.agi_dir;
+const char *ast_config_AST_KEY_DIR	= cfg_paths.key_dir;
+const char *ast_config_AST_RUN_DIR	= cfg_paths.run_dir;
+
+const char *ast_config_AST_DB		= cfg_paths.db_path;
+const char *ast_config_AST_PID		= cfg_paths.pid_path;
+const char *ast_config_AST_SOCKET	= cfg_paths.socket_path;
+const char *ast_config_AST_RUN_USER	= cfg_paths.run_user;
+const char *ast_config_AST_RUN_GROUP	= cfg_paths.run_group;
+const char *ast_config_AST_SYSTEM_NAME	= cfg_paths.system_name;
+
+static char ast_config_AST_CTL_PERMISSIONS[PATH_MAX];
+static char ast_config_AST_CTL_OWNER[PATH_MAX] = "\0";
+static char ast_config_AST_CTL_GROUP[PATH_MAX] = "\0";
+static char ast_config_AST_CTL[PATH_MAX] = "asterisk.ctl";
 
 extern const char *ast_build_hostname;
 extern const char *ast_build_kernel;
@@ -2423,20 +2448,19 @@ static void ast_readconfig(void)
 		cfg = ast_config_load(config, config_flags);
 
 	/* init with buildtime config */
-#define _SETVAR(dst, src)	ast_copy_string((char *)dst, src, sizeof(dst))
-	_SETVAR(ast_config_AST_CONFIG_DIR, DEFAULT_CONFIG_DIR);
-	_SETVAR(ast_config_AST_SPOOL_DIR, DEFAULT_SPOOL_DIR);
-	_SETVAR(ast_config_AST_MODULE_DIR, DEFAULT_MODULE_DIR);
- 	snprintf((char *)ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", ast_config_AST_SPOOL_DIR);
-	_SETVAR(ast_config_AST_VAR_DIR, DEFAULT_VAR_DIR);
-	_SETVAR(ast_config_AST_DATA_DIR, DEFAULT_DATA_DIR);
-	_SETVAR(ast_config_AST_LOG_DIR, DEFAULT_LOG_DIR);
-	_SETVAR(ast_config_AST_AGI_DIR, DEFAULT_AGI_DIR);
-	_SETVAR(ast_config_AST_DB, DEFAULT_DB);
-	_SETVAR(ast_config_AST_KEY_DIR, DEFAULT_KEY_DIR);
-	_SETVAR(ast_config_AST_PID, DEFAULT_PID);
-	_SETVAR(ast_config_AST_SOCKET, DEFAULT_SOCKET);
-	_SETVAR(ast_config_AST_RUN_DIR, DEFAULT_RUN_DIR);
+	ast_copy_string(cfg_paths.config_dir, DEFAULT_CONFIG_DIR, sizeof(cfg_paths.config_dir));
+	ast_copy_string(cfg_paths.spool_dir, DEFAULT_SPOOL_DIR, sizeof(cfg_paths.spool_dir));
+	ast_copy_string(cfg_paths.module_dir, DEFAULT_MODULE_DIR, sizeof(cfg_paths.module_dir));
+ 	snprintf(cfg_paths.monitor_dir, sizeof(cfg_paths.monitor_dir) - 1, "%s/monitor", cfg_paths.spool_dir);
+	ast_copy_string(cfg_paths.var_dir, DEFAULT_VAR_DIR, sizeof(cfg_paths.var_dir));
+	ast_copy_string(cfg_paths.data_dir, DEFAULT_DATA_DIR, sizeof(cfg_paths.data_dir));
+	ast_copy_string(cfg_paths.log_dir, DEFAULT_LOG_DIR, sizeof(cfg_paths.log_dir));
+	ast_copy_string(cfg_paths.agi_dir, DEFAULT_AGI_DIR, sizeof(cfg_paths.agi_dir));
+	ast_copy_string(cfg_paths.db_path, DEFAULT_DB, sizeof(cfg_paths.db_path));
+	ast_copy_string(cfg_paths.key_dir, DEFAULT_KEY_DIR, sizeof(cfg_paths.key_dir));
+	ast_copy_string(cfg_paths.pid_path, DEFAULT_PID, sizeof(cfg_paths.pid_path));
+	ast_copy_string(cfg_paths.socket_path, DEFAULT_SOCKET, sizeof(cfg_paths.socket_path));
+	ast_copy_string(cfg_paths.run_dir, DEFAULT_RUN_DIR, sizeof(cfg_paths.run_dir));
 
 	/* no asterisk.conf? no problem, use buildtime config! */
 	if (!cfg) {
@@ -2445,45 +2469,45 @@ static void ast_readconfig(void)
 
 	for (v = ast_variable_browse(cfg, "files"); v; v = v->next) {
 		if (!strcasecmp(v->name, "astctlpermissions"))
-			_SETVAR(ast_config_AST_CTL_PERMISSIONS, v->value);
+			ast_copy_string(ast_config_AST_CTL_PERMISSIONS, v->value, sizeof(ast_config_AST_CTL_PERMISSIONS));
 		else if (!strcasecmp(v->name, "astctlowner"))
-			_SETVAR(ast_config_AST_CTL_OWNER, v->value);
+			ast_copy_string(ast_config_AST_CTL_OWNER, v->value, sizeof(ast_config_AST_CTL_OWNER));
 		else if (!strcasecmp(v->name, "astctlgroup"))
-			_SETVAR(ast_config_AST_CTL_GROUP, v->value);
+			ast_copy_string(ast_config_AST_CTL_GROUP, v->value, sizeof(ast_config_AST_CTL_GROUP));
 		else if (!strcasecmp(v->name, "astctl"))
-			_SETVAR(ast_config_AST_CTL, v->value);
+			ast_copy_string(ast_config_AST_CTL, v->value, sizeof(ast_config_AST_CTL));
 	}
 
 	for (v = ast_variable_browse(cfg, "directories"); v; v = v->next) {
 		if (!strcasecmp(v->name, "astetcdir")) {
-			_SETVAR(ast_config_AST_CONFIG_DIR, v->value);
+			ast_copy_string(cfg_paths.config_dir, v->value, sizeof(cfg_paths.config_dir));
 		} else if (!strcasecmp(v->name, "astspooldir")) {
-			_SETVAR(ast_config_AST_SPOOL_DIR, v->value);
-			snprintf((char *)ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", v->value);
+			ast_copy_string(cfg_paths.spool_dir, v->value, sizeof(cfg_paths.spool_dir));
+			snprintf(cfg_paths.monitor_dir, sizeof(cfg_paths.monitor_dir) - 1, "%s/monitor", v->value);
 		} else if (!strcasecmp(v->name, "astvarlibdir")) {
-			_SETVAR(ast_config_AST_VAR_DIR, v->value);
+			ast_copy_string(cfg_paths.var_dir, v->value, sizeof(cfg_paths.var_dir));
 			if (!found.dbdir)
-				snprintf((char *)ast_config_AST_DB, sizeof(ast_config_AST_DB), "%s/astdb", v->value);
+				snprintf(cfg_paths.db_path, sizeof(cfg_paths.db_path), "%s/astdb", v->value);
 		} else if (!strcasecmp(v->name, "astdbdir")) {
-			snprintf((char *)ast_config_AST_DB, sizeof(ast_config_AST_DB), "%s/astdb", v->value);
+			snprintf(cfg_paths.db_path, sizeof(cfg_paths.db_path), "%s/astdb", v->value);
 			found.dbdir = 1;
 		} else if (!strcasecmp(v->name, "astdatadir")) {
-			_SETVAR(ast_config_AST_DATA_DIR, v->value);
+			ast_copy_string(cfg_paths.data_dir, v->value, sizeof(cfg_paths.data_dir));
 			if (!found.keydir)
-				snprintf((char *)ast_config_AST_KEY_DIR, sizeof(ast_config_AST_KEY_DIR), "%s/keys", v->value);
+				snprintf(cfg_paths.key_dir, sizeof(cfg_paths.key_dir), "%s/keys", v->value);
 		} else if (!strcasecmp(v->name, "astkeydir")) {
-			snprintf((char *)ast_config_AST_KEY_DIR, sizeof(ast_config_AST_KEY_DIR), "%s/keys", v->value);
+			snprintf(cfg_paths.key_dir, sizeof(cfg_paths.key_dir), "%s/keys", v->value);
 			found.keydir = 1;
 		} else if (!strcasecmp(v->name, "astlogdir")) {
-			_SETVAR(ast_config_AST_LOG_DIR, v->value);
+			ast_copy_string(cfg_paths.log_dir, v->value, sizeof(cfg_paths.log_dir));
 		} else if (!strcasecmp(v->name, "astagidir")) {
-			_SETVAR(ast_config_AST_AGI_DIR, v->value);
+			ast_copy_string(cfg_paths.agi_dir, v->value, sizeof(cfg_paths.agi_dir));
 		} else if (!strcasecmp(v->name, "astrundir")) {
-			snprintf((char *)ast_config_AST_PID, sizeof(ast_config_AST_PID), "%s/%s", v->value, "asterisk.pid");
-			snprintf((char *)ast_config_AST_SOCKET, sizeof(ast_config_AST_SOCKET), "%s/%s", v->value, ast_config_AST_CTL);
-			_SETVAR(ast_config_AST_RUN_DIR, v->value);
+			snprintf(cfg_paths.pid_path, sizeof(cfg_paths.pid_path), "%s/%s", v->value, "asterisk.pid");
+			snprintf(cfg_paths.socket_path, sizeof(cfg_paths.socket_path), "%s/%s", v->value, ast_config_AST_CTL);
+			ast_copy_string(cfg_paths.run_dir, v->value, sizeof(cfg_paths.run_dir));
 		} else if (!strcasecmp(v->name, "astmoddir")) {
-			_SETVAR(ast_config_AST_MODULE_DIR, v->value);
+			ast_copy_string(cfg_paths.module_dir, v->value, sizeof(cfg_paths.module_dir));
 		}
 	}
 
@@ -2566,19 +2590,19 @@ static void ast_readconfig(void)
 			set_ulimit(option_maxfiles);
 		/* What user to run as */
 		} else if (!strcasecmp(v->name, "runuser")) {
-			_SETVAR(ast_config_AST_RUN_USER, v->value);
+			ast_copy_string(cfg_paths.run_user, v->value, sizeof(cfg_paths.run_user));
 		/* What group to run as */
 		} else if (!strcasecmp(v->name, "rungroup")) {
-			_SETVAR(ast_config_AST_RUN_GROUP, v->value);
+			ast_copy_string(cfg_paths.run_group, v->value, sizeof(cfg_paths.run_group));
 		} else if (!strcasecmp(v->name, "systemname")) {
-			_SETVAR(ast_config_AST_SYSTEM_NAME, v->value);
+			ast_copy_string(cfg_paths.system_name, v->value, sizeof(cfg_paths.system_name));
 		} else if (!strcasecmp(v->name, "autosystemname")) {
 			if (ast_true(v->value)) {
 				if (!gethostname(hostname, sizeof(hostname) - 1))
-					_SETVAR(ast_config_AST_SYSTEM_NAME, hostname);
+					ast_copy_string(cfg_paths.system_name, hostname, sizeof(cfg_paths.system_name));
 				else {
 					if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)){
-						_SETVAR(ast_config_AST_SYSTEM_NAME, "localhost");
+						ast_copy_string(cfg_paths.system_name, "localhost", sizeof(cfg_paths.system_name));
 					}
 					ast_log(LOG_ERROR, "Cannot obtain hostname for this system.  Using '%s' instead.\n", ast_config_AST_SYSTEM_NAME);
 				}
@@ -2767,7 +2791,7 @@ int main(int argc, char *argv[])
 			xarg = optarg;
 			break;
 		case 'C':
-			_SETVAR(ast_config_AST_CONFIG_FILE, optarg);
+			ast_copy_string(cfg_paths.config_file, optarg, sizeof(cfg_paths.config_file));
 			ast_set_flag(&ast_options, AST_OPT_FLAG_OVERRIDE_CONFIG);
 			break;
 		case 'I':

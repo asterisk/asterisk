@@ -51,6 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
+#include "asterisk/paths.h"	/* need ast_config_AST_SOCKET */
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"
 #include "asterisk/options.h"
@@ -70,9 +71,6 @@ int header_generic(struct variable *, oid *, size_t *, int, size_t *, WriteMetho
 int header_simple_table(struct variable *, oid *, size_t *, int, size_t *, WriteMethod **, int);
 int register_sysORTable(oid *, size_t, const char *);
 int unregister_sysORTable(oid *, size_t);
-
-/* Not defined in header files */
-extern char ast_config_AST_SOCKET[];
 
 /* Forward declaration */
 static void init_asterisk_mib(void);
