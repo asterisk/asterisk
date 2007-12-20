@@ -178,34 +178,6 @@ END_CONFIG
  */
 
 /*
- * Helper macros to parse config arguments. They will go in a common
- * header file if their usage is globally accepted. In the meantime,
- * we define them here. Typical usage is as below.
- * Remember to open a block right before M_START (as it declares
- * some variables) and use the M_* macros WITHOUT A SEMICOLON:
- *
- *	{
- *		M_START(v->name, v->value) 
- *
- *		M_BOOL("dothis", x->flag1)
- *		M_STR("name", x->somestring)
- *		M_F("bar", some_c_code)
- *		M_END(some_final_statement)
- *		... other code in the block
- *	}
- *
- * XXX NOTE these macros should NOT be replicated in other parts of asterisk. 
- * Likely we will come up with a better way of doing config file parsing.
- */
-#define M_START(var, val) \
-        const char *__s = var; const char *__val = val;
-#define M_END(x)   x;
-#define M_F(tag, f)			if (!strcasecmp((__s), tag)) { f; } else
-#define M_BOOL(tag, dst)	M_F(tag, (dst) = ast_true(__val) )
-#define M_UINT(tag, dst)	M_F(tag, (dst) = strtoul(__val, NULL, 0) )
-#define M_STR(tag, dst)		M_F(tag, ast_copy_string(dst, __val, sizeof(dst)))
-
-/*
  * The following parameters are used in the driver:
  *
  *  FRAME_SIZE	the size of an audio frame, in samples.
@@ -1559,7 +1531,7 @@ static void store_callerid(struct chan_oss_pvt *o, const char *s)
 
 static void store_config_core(struct chan_oss_pvt *o, const char *var, const char *value)
 {
-	M_START(var, value);
+	CV_START(var, value);
 
 	/* handle jb conf */
 	if (!ast_jb_read_conf(&global_jbconf, (char *)var,(char *) value))
@@ -1567,22 +1539,22 @@ static void store_config_core(struct chan_oss_pvt *o, const char *var, const cha
 
 	if (!console_video_config(&o->env, var, value))
 		return;
-	M_BOOL("autoanswer", o->autoanswer)
-	M_BOOL("autohangup", o->autohangup)
-	M_BOOL("overridecontext", o->overridecontext)
-	M_STR("device", o->device)
-	M_UINT("frags", o->frags)
-	M_UINT("debug", oss_debug)
-	M_UINT("queuesize", o->queuesize)
-	M_STR("context", o->ctx)
-	M_STR("language", o->language)
-	M_STR("mohinterpret", o->mohinterpret)
-	M_STR("extension", o->ext)
-	M_F("mixer", store_mixer(o, value))
-	M_F("callerid", store_callerid(o, value))  
-	M_F("boost", store_boost(o, value))
+	CV_BOOL("autoanswer", o->autoanswer);
+	CV_BOOL("autohangup", o->autohangup);
+	CV_BOOL("overridecontext", o->overridecontext);
+	CV_STR("device", o->device);
+	CV_UINT("frags", o->frags);
+	CV_UINT("debug", oss_debug);
+	CV_UINT("queuesize", o->queuesize);
+	CV_STR("context", o->ctx);
+	CV_STR("language", o->language);
+	CV_STR("mohinterpret", o->mohinterpret);
+	CV_STR("extension", o->ext);
+	CV_F("mixer", store_mixer(o, value));
+	CV_F("callerid", store_callerid(o, value))  ;
+	CV_F("boost", store_boost(o, value));
 
-	M_END(/* */);
+	CV_END;
 }
 
 /*!

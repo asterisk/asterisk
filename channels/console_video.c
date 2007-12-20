@@ -2987,18 +2987,6 @@ no_sdl:
 		cleanup_sdl(env);
 }
 
-/* see chan_oss.c for these macros */
-#ifndef M_START
-#define _UNDO_M_START
-#define M_START(var, val) \
-        const char *__s = var; const char *__val = val;
-#define M_END(x)		x;
-#define M_F(tag, f)		if (!strcasecmp((__s), tag)) { f; } else
-#define M_BOOL(tag, dst)        M_F(tag, (dst) = ast_true(__val) )
-#define M_UINT(tag, dst)        M_F(tag, (dst) = strtoul(__val, NULL, 0) )
-#define M_STR(tag, dst)         M_F(tag, ast_copy_string(dst, __val, sizeof(dst)))
-#endif
-
 /*
  * Parse a geometry string, accepting also common names for the formats.
  * Trick: if we have a leading > or < and a numeric geometry,
@@ -3245,7 +3233,6 @@ static int console_video_config(struct video_desc **penv,
 	const char *var, const char *val)
 {
 	struct video_desc *env;
-	M_START(var, val);
 
 	if (penv == NULL) {
 		ast_log(LOG_WARNING, "bad argument penv=NULL\n");
@@ -3267,31 +3254,25 @@ static int console_video_config(struct video_desc **penv,
 		env->out.sendvideo = 1;
 		env->out.qmin = 3;
 	}
-        M_STR("videodevice", env->out.videodevice)
-        M_BOOL("sendvideo", env->out.sendvideo)
-        M_F("video_size", video_geom(&env->out.enc_in, val))
-        M_F("camera_size", video_geom(&env->out.loc_src, val))
-        M_F("local_size", video_geom(&env->out.loc_dpy, val))
-        M_F("remote_size", video_geom(&env->in.rem_dpy, val))
-        M_STR("keypad", env->keypad_file)
-        M_F("keypad_entry", keypad_cfg_read(&env->gui, val))
-        M_STR("keypad_mask", env->keypad_mask)
-	M_STR("keypad_font", env->keypad_font)
-        M_UINT("fps", env->out.fps)
-        M_UINT("bitrate", env->out.bitrate)
-        M_UINT("qmin", env->out.qmin)
-	M_STR("videocodec", env->codec_name)
-	M_END(return 1;)	/* the 'nothing found' case */
+	CV_START(var, val);
+        CV_STR("videodevice", env->out.videodevice);
+        CV_BOOL("sendvideo", env->out.sendvideo);
+        CV_F("video_size", video_geom(&env->out.enc_in, val));
+        CV_F("camera_size", video_geom(&env->out.loc_src, val));
+        CV_F("local_size", video_geom(&env->out.loc_dpy, val));
+        CV_F("remote_size", video_geom(&env->in.rem_dpy, val));
+        CV_STR("keypad", env->keypad_file);
+        CV_F("keypad_entry", keypad_cfg_read(&env->gui, val));
+        CV_STR("keypad_mask", env->keypad_mask);
+	CV_STR("keypad_font", env->keypad_font);
+        CV_UINT("fps", env->out.fps);
+        CV_UINT("bitrate", env->out.bitrate);
+        CV_UINT("qmin", env->out.qmin);
+	CV_STR("videocodec", env->codec_name);
+	return 1;	/* nothing found */
+
+	CV_END;		/* the 'nothing found' case */
 	return 0;		/* found something */
 }
-#ifdef _UNDO_M_START
-#undef M_START
-#undef M_END
-#undef M_F
-#undef M_BOOL
-#undef M_UINT
-#undef M_STR
-#undef _UNDO_M_START
-#endif
 
 #endif	/* video support */

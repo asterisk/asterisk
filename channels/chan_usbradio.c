@@ -202,34 +202,6 @@ END_CONFIG
 
  */
 
-/*! \brief
- * Helper macros to parse config arguments. They will go in a common
- * header file if their usage is globally accepted. In the meantime,
- * we define them here. Typical usage is as below.
- * Remember to open a block right before M_START (as it declares
- * some variables) and use the M_* macros WITHOUT A SEMICOLON:
- *
- *	{
- *		M_START(v->name, v->value) 
- *
- *		M_BOOL("dothis", x->flag1)
- *		M_STR("name", x->somestring)
- *		M_F("bar", some_c_code)
- *		M_END(some_final_statement)
- *		... other code in the block
- *	}
- *
- * XXX NOTE these macros should NOT be replicated in other parts of asterisk. 
- * Likely we will come up with a better way of doing config file parsing.
- */
-#define M_START(var, val) \
-        const char *__s = var; const char *__val = val;
-#define M_END(x)   x;
-#define M_F(tag, f)			if (!strcasecmp((__s), tag)) { f; } else
-#define M_BOOL(tag, dst)	M_F(tag, (dst) = ast_true(__val) )
-#define M_UINT(tag, dst)	M_F(tag, (dst) = strtoul(__val, NULL, 0) )
-#define M_STR(tag, dst)		M_F(tag, ast_copy_string(dst, __val, sizeof(dst)))
-
 /*!
  * The following parameters are used in the driver:
  *
@@ -2414,45 +2386,35 @@ static struct chan_usbradio_pvt *store_config(struct ast_config *cfg, char *ctg)
 	o->spkrmax = amixer_max(o->devicenum, MIXER_PARAM_SPKR_PLAYBACK_VOL);
 	/* fill other fields from configuration */
 	for (v = ast_variable_browse(cfg, ctg); v; v = v->next) {
-		M_START(v->name, v->value);
 
 		/* handle jb conf */
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
 			continue;
+		CV_START(v->name, v->value);
 
-#if	0
-			M_BOOL("autoanswer", o->autoanswer)
-			M_BOOL("autohangup", o->autohangup)
-			M_BOOL("overridecontext", o->overridecontext)
-			M_STR("context", o->ctx)
-			M_STR("language", o->language)
-			M_STR("mohinterpret", o->mohinterpret)
-			M_STR("extension", o->ext)
-			M_F("callerid", store_callerid(o, v->value))
-#endif
-			M_UINT("frags", o->frags)
-			M_UINT("queuesize", o->queuesize)
-			M_UINT("devicenum", o->devicenum)
-			M_UINT("debug", usbradio_debug)
-			M_BOOL("rxcpusaver", o->rxcpusaver)
-			M_BOOL("txcpusaver", o->txcpusaver)
-			M_BOOL("invertptt", o->invertptt)
-			M_F("rxdemod", store_rxdemod(o, v->value))
-			M_BOOL("txprelim", o->txprelim);
-			M_F("txmixa", store_txmixa(o, v->value))
-			M_F("txmixb", store_txmixb(o, v->value))
-			M_F("carrierfrom", store_rxcdtype(o, v->value))
-			M_F("rxsdtype", store_rxsdtype(o, v->value))
-			M_F("rxctcssfreq", store_rxctcssfreq(o, v->value))
-			M_F("txctcssfreq", store_txctcssfreq(o, v->value))
-			M_F("rxgain", store_rxgain(o, v->value))
- 			M_BOOL("rxboostset", o->rxboostset)
-			M_UINT("rxctcssrelax", o->rxctcssrelax)
-			M_F("txtoctype", store_txtoctype(o, v->value))
-			M_UINT("hdwtype", o->hdwtype)
-			M_UINT("duplex", o->radioduplex)
-			M_END(;
-			);
+		CV_UINT("frags", o->frags);
+		CV_UINT("queuesize", o->queuesize);
+		CV_UINT("devicenum", o->devicenum);
+		CV_UINT("debug", usbradio_debug);
+		CV_BOOL("rxcpusaver", o->rxcpusaver);
+		CV_BOOL("txcpusaver", o->txcpusaver);
+		CV_BOOL("invertptt", o->invertptt);
+		CV_F("rxdemod", store_rxdemod(o, v->value));
+		CV_BOOL("txprelim", o->txprelim);;
+		CV_F("txmixa", store_txmixa(o, v->value));
+		CV_F("txmixb", store_txmixb(o, v->value));
+		CV_F("carrierfrom", store_rxcdtype(o, v->value));
+		CV_F("rxsdtype", store_rxsdtype(o, v->value));
+		CV_F("rxctcssfreq", store_rxctcssfreq(o, v->value));
+		CV_F("txctcssfreq", store_txctcssfreq(o, v->value));
+		CV_F("rxgain", store_rxgain(o, v->value));
+		CV_BOOL("rxboostset", o->rxboostset);
+		CV_UINT("rxctcssrelax", o->rxctcssrelax);
+		CV_F("txtoctype", store_txtoctype(o, v->value));
+		CV_UINT("hdwtype", o->hdwtype);
+		CV_UINT("duplex", o->radioduplex);
+
+		CV_END;
 	}
 	
 	cfg1 = ast_config_load(config1, config_flags);
@@ -2468,16 +2430,15 @@ static struct chan_usbradio_pvt *store_config(struct ast_config *cfg, char *ctg)
 	} else  {
 		for (v = ast_variable_browse(cfg1, ctg); v; v = v->next) {
 	
-			M_START(v->name, v->value);
-			M_UINT("rxmixerset", o->rxmixerset)
-			M_UINT("txmixaset", o->txmixaset)
-			M_UINT("txmixbset", o->txmixbset)
-			M_F("rxvoiceadj", store_rxvoiceadj(o, v->value))
-			M_F("rxctcssadj", store_rxctcssadj(o, v->value))
-			M_UINT("txctcssadj", o->txctcssadj);
-			M_UINT("rxsquelchadj", o->rxsquelchadj)
-			M_END(;
-			);
+			CV_START(v->name, v->value);
+			CV_UINT("rxmixerset", o->rxmixerset);
+			CV_UINT("txmixaset", o->txmixaset);
+			CV_UINT("txmixbset", o->txmixbset);
+			CV_F("rxvoiceadj", store_rxvoiceadj(o, v->value));
+			CV_F("rxctcssadj", store_rxctcssadj(o, v->value));
+			CV_UINT("txctcssadj", o->txctcssadj);
+			CV_UINT("rxsquelchadj", o->rxsquelchadj);
+			CV_END;
 		}
 		ast_config_destroy(cfg1);
 	}

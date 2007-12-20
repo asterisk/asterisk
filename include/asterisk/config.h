@@ -271,6 +271,7 @@ int ast_variable_update(struct ast_category *category, const char *variable,
 int config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator);
 
 struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl_file);
+
 /*! \brief Support code to parse config file arguments
  *
  * The function ast_parse_arg() provides a generic interface to parse
@@ -357,6 +358,45 @@ enum ast_parse_flags {
  */
 int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
         void *result, ...);
+
+/*
+ * Parsing config file options in C is slightly annoying because we cannot use
+ * string in a switch() statement, yet we need a similar behaviour, with many
+ * branches and a break on a matching one.
+ * The following somehow simplifies the job: we create a block using
+ * the 	CV_START and CV_END macros, and then within the block we can run
+ * actions such as "if (condition) { body; break; }"
+ * Additional macros are present to run simple functions (e.g. ast_copy_string)
+ * or to pass arguments to ast_parse_arg()
+ *
+ * As an example:
+
+	CV_START(v->name, v->value);	// start the block
+	CV_STR("foo", x_foo);		// static string
+	CV_DSTR("bar", y_bar);		// malloc'ed string
+	CV_F("bar", ...);		// call a generic function
+	CV_END;				// end the block
+ */
+
+/*! \brief the macro to open a block for variable parsing */
+#define CV_START(__in_var, __in_val) 		\
+	do {					\
+		const char *__var = __in_var;	\
+		const char *__val = __in_val;
+
+/*! \brief close a variable parsing block */
+#define	CV_END			} while (0)
+
+/*! \brief call a generic function if the name matches. */
+#define	CV_F(__pattern, __body)	if (!strcasecmp((__var), __pattern)) { __body; break; }
+
+/*! \brief helper macros to assign the value to a BOOL, UINT, static string and
+ * dynamic string
+ */
+#define	CV_BOOL(__x, __dst)	CV_F(__x, (__dst) = ast_true(__val) )
+#define CV_UINT(__x, __dst)	CV_F(__x, (__dst) = strtoul(__val, NULL, 0) )
+#define CV_STR(__x, __dst)	CV_F(__x, ast_copy_string(__dst, __val, sizeof(__dst)))
+#define CV_DSTR(__x, __dst)	CV_F(__x, if (__dst) ast_free(__dst); __dst = ast_strdup(__val))
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
