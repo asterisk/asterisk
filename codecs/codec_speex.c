@@ -373,8 +373,8 @@ static int parse_config(int reload)
 	int res;
 	float res_f;
 
-	if (cfg == NULL || cfg == CONFIG_STATUS_FILEUNCHANGED)
-		return -1;
+	if (cfg == NULL)
+		return 0;
 	if (cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 

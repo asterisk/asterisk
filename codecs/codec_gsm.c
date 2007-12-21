@@ -229,8 +229,8 @@ static int parse_config(int reload)
 	struct ast_variable *var;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_config *cfg = ast_config_load("codecs.conf", config_flags);
-	if (!cfg)
-		return -1;
+	if (cfg == NULL)
+		return 0;
 	if (cfg == CONFIG_STATUS_FILEUNCHANGED) 
 		return 0;
 	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
