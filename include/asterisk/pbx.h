@@ -652,7 +652,9 @@ int ast_ignore_pattern(const char *context, const char *pattern);
  * \retval 0 on success 
  * \retval -1 on error
  */
-int ast_lock_contexts(void);
+int ast_lock_contexts(void); /* equivalent to wrlock */
+int ast_rdlock_contexts(void);
+int ast_wrlock_contexts(void);
 
 /*! 
  * \brief Unlocks contexts

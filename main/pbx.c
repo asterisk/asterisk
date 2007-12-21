@@ -488,7 +488,7 @@ static struct pbx_builtin {
 };
 
 static struct ast_context *contexts;
-AST_MUTEX_DEFINE_STATIC(conlock); 		/*!< Lock for the ast_context list */
+AST_RWLOCK_DEFINE_STATIC(conlock); 		/*!< Lock for the ast_context list */
 
 static AST_LIST_HEAD_STATIC(apps, ast_app);
 
@@ -890,12 +890,16 @@ int ast_extension_close(const char *pattern, const char *data, int needmore)
 struct ast_context *ast_context_find(const char *name)
 {
 	struct ast_context *tmp = NULL;
-	ast_mutex_lock(&conlock);
+
+	ast_rdlock_contexts();
+
 	while ( (tmp = ast_walk_contexts(tmp)) ) {
 		if (!name || !strcasecmp(name, tmp->name))
 			break;
 	}
-	ast_mutex_unlock(&conlock);
+
+	ast_unlock_contexts();
+
 	return tmp;
 }
 
@@ -1800,19 +1804,19 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 
 	int matching_action = (action == E_MATCH || action == E_CANMATCH || action == E_MATCHMORE);
 
-	ast_mutex_lock(&conlock);
+	ast_rdlock_contexts();
 	e = pbx_find_extension(c, con, &q, context, exten, priority, label, callerid, action);
 	if (e) {
 		if (matching_action) {
-			ast_mutex_unlock(&conlock);
+			ast_unlock_contexts();
 			return -1;	/* success, we found it */
 		} else if (action == E_FINDLABEL) { /* map the label to a priority */
 			res = e->priority;
-			ast_mutex_unlock(&conlock);
+			ast_unlock_contexts();
 			return res;	/* the priority we were looking for */
 		} else {	/* spawn */
 			app = pbx_findapp(e->app);
-			ast_mutex_unlock(&conlock);
+			ast_unlock_contexts();
 			if (!app) {
 				ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
 				return -1;
@@ -1847,7 +1851,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */
-		ast_mutex_unlock(&conlock);
+		ast_unlock_contexts();
 		if (matching_action) {
 			return -1;
 		} else {
@@ -1858,7 +1862,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			return q.swo->exec(c, q.foundcontext ? q.foundcontext : context, exten, priority, callerid, q.data);
 		}
 	} else {	/* not found anywhere, see what happened */
-		ast_mutex_unlock(&conlock);
+		ast_unlock_contexts();
 		switch (q.status) {
 		case STATUS_NO_CONTEXT:
 			if (!matching_action)
@@ -1891,9 +1895,9 @@ static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *c
 	struct ast_exten *e;
 	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is set in pbx_find_context */
 
-	ast_mutex_lock(&conlock);
+	ast_rdlock_contexts();
 	e = pbx_find_extension(c, NULL, &q, context, exten, PRIORITY_HINT, NULL, "", E_MATCH);
-	ast_mutex_unlock(&conlock);
+	ast_unlock_contexts();
 
 	return e;
 }
@@ -2011,7 +2015,7 @@ void ast_hint_state_changed(const char *device)
 {
 	struct ast_hint *hint;
 
-	ast_mutex_lock(&conlock);
+	ast_rdlock_contexts();
 	AST_LIST_LOCK(&hints);
 
 	AST_LIST_TRAVERSE(&hints, hint, list) {
@@ -2049,7 +2053,7 @@ void ast_hint_state_changed(const char *device)
 	}
 
 	AST_LIST_UNLOCK(&hints);
-	ast_mutex_unlock(&conlock);
+	ast_unlock_contexts();
 }
 
 /*! \brief  ast_extension_state_add: Add watcher for extension states */
@@ -2684,7 +2688,7 @@ static struct ast_context *find_context_locked(const char *context)
 {
 	struct ast_context *c = NULL;
 
-	ast_lock_contexts();
+	ast_rdlock_contexts();
 	while ( (c = ast_walk_contexts(c)) ) {
 		if (!strcmp(ast_get_context_name(c), context))
 			return c;
@@ -2907,7 +2911,7 @@ int ast_context_lockmacro(const char *context)
 	struct ast_context *c = NULL;
 	int ret = -1;
 
-	ast_lock_contexts();
+	ast_rdlock_contexts();
 
 	while ((c = ast_walk_contexts(c))) {
 		if (!strcmp(ast_get_context_name(c), context)) {
@@ -2935,7 +2939,7 @@ int ast_context_unlockmacro(const char *context)
 	struct ast_context *c = NULL;
 	int ret = -1;
 
-	ast_lock_contexts();
+	ast_rdlock_contexts();
 
 	while ((c = ast_walk_contexts(c))) {
 		if (!strcmp(ast_get_context_name(c), context)) {
@@ -3463,7 +3467,7 @@ static char *complete_show_dialplan_context(const char *line, const char *word, 
 	if (pos != 2)
 		return NULL;
 
-	ast_lock_contexts();
+	ast_rdlock_contexts();
 
 	wordlen = strlen(word);
 
@@ -3508,7 +3512,7 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 	struct ast_context *c = NULL;
 	int res = 0, old_total_exten = dpc->total_exten;
 
-	ast_lock_contexts();
+	ast_rdlock_contexts();
 
 	/* walk all contexts ... */
 	while ( (c = ast_walk_contexts(c)) ) {
@@ -3861,7 +3865,7 @@ static struct ast_context *__ast_context_create(struct ast_context **extcontexts
 	int length = sizeof(struct ast_context) + strlen(name) + 1;
 
 	if (!extcontexts) {
-		ast_mutex_lock(&conlock);
+		ast_rdlock_contexts();
 		local_contexts = &contexts;
 	} else
 		local_contexts = extcontexts;
@@ -3873,28 +3877,31 @@ static struct ast_context *__ast_context_create(struct ast_context **extcontexts
 				tmp = NULL;
 			}
 			if (!extcontexts)
-				ast_mutex_unlock(&conlock);
+				ast_unlock_contexts();
 			return tmp;
 		}
 	}
+	
+	if (!extcontexts)
+		ast_unlock_contexts();
+
 	if ((tmp = ast_calloc(1, length))) {
 		ast_mutex_init(&tmp->lock);
 		ast_mutex_init(&tmp->macrolock);
 		strcpy(tmp->name, name);
-		tmp->root = NULL;
 		tmp->registrar = registrar;
+		if (!extcontexts)
+			ast_wrlock_contexts();
 		tmp->next = *local_contexts;
-		tmp->includes = NULL;
-		tmp->ignorepats = NULL;
 		*local_contexts = tmp;
+		if (!extcontexts)
+			ast_unlock_contexts();
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Registered context '%s'\n", tmp->name);
 		if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "Registered extension context '%s'\n", tmp->name);
 	}
 
-	if (!extcontexts)
-		ast_mutex_unlock(&conlock);
 	return tmp;
 }
 
@@ -3939,7 +3946,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	   in addition, the locks _must_ be taken in this order, because there are already
 	   other code paths that use this order
 	*/
-	ast_mutex_lock(&conlock);
+	ast_wrlock_contexts();
 	AST_LIST_LOCK(&hints);
 
 	/* preserve all watchers for hints associated with this registrar */
@@ -4017,7 +4024,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	}
 
 	AST_LIST_UNLOCK(&hints);
-	ast_mutex_unlock(&conlock);
+	ast_unlock_contexts();
 
 	return;
 }
@@ -5289,7 +5296,6 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 	struct ast_exten *e, *el, *en;
 	struct ast_ignorepat *ipi;
 
-	ast_mutex_lock(&conlock);
 	for (tmp = contexts; tmp; ) {
 		struct ast_context *next;	/* next starting point */
 		for (; tmp; tmpl = tmp, tmp = tmp->next) {
@@ -5339,12 +5345,13 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 		/* if we have a specific match, we are done, otherwise continue */
 		tmp = con ? NULL : next;
 	}
-	ast_mutex_unlock(&conlock);
 }
 
 void ast_context_destroy(struct ast_context *con, const char *registrar)
 {
+	ast_wrlock_contexts();
 	__ast_context_destroy(con,registrar);
+	ast_unlock_contexts();
 }
 
 static void wait_for_hangup(struct ast_channel *chan, void *data)
@@ -6112,12 +6119,22 @@ int load_pbx(void)
  */
 int ast_lock_contexts()
 {
-	return ast_mutex_lock(&conlock);
+	return ast_rwlock_wrlock(&conlock);
+}
+
+int ast_rdlock_contexts(void)
+{
+	return ast_rwlock_rdlock(&conlock);
+}
+
+int ast_wrlock_contexts(void)
+{
+	return ast_rwlock_wrlock(&conlock);
 }
 
 int ast_unlock_contexts()
 {
-	return ast_mutex_unlock(&conlock);
+	return ast_rwlock_unlock(&conlock);
 }
 
 /*
