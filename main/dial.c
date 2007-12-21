@@ -814,7 +814,7 @@ int ast_dial_destroy(struct ast_dial *dial)
 		/* Free structure */
 		ast_free(channel->tech);
 		ast_free(channel->device);
-		AST_LIST_REMOVE_CURRENT(&dial->channels, list);
+		AST_LIST_REMOVE_CURRENT(list);
 		ast_free(channel);
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
