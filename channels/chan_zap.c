@@ -8905,10 +8905,11 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 	/* Clear this after we set it */
 	p->gen_dig_scheme = 0;
 
-	if (!ast_strlen_zero(p->lspi_ident))
+	if (!ast_strlen_zero(p->lspi_ident)) {
 		pbx_builtin_setvar_helper(c, "SS7_LSPI_IDENT", p->lspi_ident);
-	/* Clear this after we set it */
-	p->lspi_ident[0] = 0;
+		/* Clear this after we set it */
+		p->lspi_ident[0] = 0;
+	}
 
 	snprintf(tmp, sizeof(tmp), "%d", p->call_ref_ident);
 	pbx_builtin_setvar_helper(c, "SS7_CALLREF_IDENT", tmp);
