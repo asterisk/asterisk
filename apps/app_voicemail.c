@@ -2753,7 +2753,6 @@ static int has_voicemail(const char *mailbox, const char *folder)
 
 static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt, char *dir)
 {
-	char dest[256];
 	struct vm_state *sendvms = NULL, *destvms = NULL;
 	char messagestring[10]; /*I guess this could be a problem if someone has more than 999999999 messages...*/
 	if(!(sendvms = get_vm_state_by_imapuser(vmu->imapuser, 2)))
@@ -2766,9 +2765,8 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 		ast_log(LOG_ERROR, "Couldn't get vm_state for destination mailbox!\n");
 		return -1;
 	}
-	imap_mailbox_name(dest, sizeof(dest), destvms, imbox, 1);
 	snprintf(messagestring, sizeof(messagestring), "%ld", sendvms->msgArray[msgnum]);
-	if((mail_copy(sendvms->mailstream, messagestring, dest) == T))
+	if((mail_copy(sendvms->mailstream, messagestring, (char *) mbox(imbox)) == T))
 		return 0;
 	ast_log(LOG_WARNING, "Unable to copy message from mailbox %s to mailbox %s\n", vmu->mailbox, recip->mailbox);
 	return -1;
@@ -3422,7 +3420,6 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 #ifdef IMAP_STORAGE
 	/* we must use mbox(x) folder names, and copy the message there */
 	/* simple. huh? */
-	char dbox[256];
 	long res;
 	char sequence[10];
 
@@ -3430,9 +3427,8 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	if (box == 1) return 10;
 	/* get the real IMAP message number for this message */
 	snprintf(sequence, sizeof(sequence), "%ld", vms->msgArray[msg]);
-	imap_mailbox_name(dbox, sizeof(dbox), vms, box, 1);
 	ast_debug(3, "Copying sequence %s to mailbox %s\n",sequence,dbox);
-	res = mail_copy(vms->mailstream, sequence, dbox);
+	res = mail_copy(vms->mailstream,sequence,(char *) mbox(box));
 	if (res == 1) return 0;
 	return 1;
 #else
