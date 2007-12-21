@@ -797,7 +797,7 @@ int ast_dial_destroy(struct ast_dial *dial)
 		return -1;
 	
 	/* Hangup and deallocate all the dialed channels */
-	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&dial->channels, channel, list) {
 		/* Disable any enabled options */
 		for (i = 0; i < AST_DIAL_OPTION_MAX; i++) {
 			if (!channel->options[i])
@@ -814,8 +814,10 @@ int ast_dial_destroy(struct ast_dial *dial)
 		/* Free structure */
 		ast_free(channel->tech);
 		ast_free(channel->device);
+		AST_LIST_REMOVE_CURRENT(&dial->channels, list);
 		ast_free(channel);
 	}
+	AST_LIST_TRAVERSE_SAFE_END;
        
 	/* Disable any enabled options globally */
 	for (i = 0; i < AST_DIAL_OPTION_MAX; i++) {
