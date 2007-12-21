@@ -362,6 +362,13 @@ shared_lastcall=no
 ;
 ; timeoutrestart = no
 ;
+; If you wish to implement a rule defined in queuerules.conf (see 
+; configs/queuerules.conf.sample from the asterisk source directory for
+; more information about penalty rules) by default, you may specify this
+; by setting defaultrule to the rule's name
+;
+; defaultrule = myrule
+;
 ; Each member of this call queue is listed on a separate line in
 ; the form technology/dialstring.  "member" means a normal member of a
 ; queue.  An optional penalty may be specified after a comma, such that

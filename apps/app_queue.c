@@ -135,7 +135,7 @@ static char *app = "Queue";
 static char *synopsis = "Queue a call for a call queue";
 
 static char *descrip =
-"  Queue(queuename[,options[,URL][,announceoverride][,timeout][,AGI][,macro][,gosub]):\n"
+"  Queue(queuename[,options[,URL][,announceoverride][,timeout][,AGI][,macro][,gosub][,rule]):\n"
 "Queues an incoming call in a particular call queue as defined in queues.conf.\n"
 "This application will return to the dialplan if the queue does not exist, or\n"
 "any of the join options cause the caller to not enter the queue.\n"
@@ -170,6 +170,8 @@ static char *descrip =
 "calling party's channel once they are connected to a queue member.\n"
 "  The optional gosub parameter will run a gosub on the \n"
 "calling party's channel once they are connected to a queue member.\n"
+"  The optional rule parameter will cause the queue's defaultrule to be\n"
+"overridden by the rule specified.\n"
 "  The timeout will cause the queue to fail out after a specified number of\n"
 "seconds, checked between each queues.conf 'timeout' and 'retry' cycle.\n"
 "  This application sets the following channel variable upon completion:\n"
@@ -314,28 +316,31 @@ struct callattempt {
 
 
 struct queue_ent {
-	struct call_queue *parent;          /*!< What queue is our parent */
-	char moh[80];                       /*!< Name of musiconhold to be used */
-	char announce[80];                  /*!< Announcement to play for member when call is answered */
-	char context[AST_MAX_CONTEXT];      /*!< Context when user exits queue */
-	char digits[AST_MAX_EXTENSION];     /*!< Digits entered while in queue */
-	int valid_digits;		    /*!< Digits entered correspond to valid extension. Exited */
-	int pos;                            /*!< Where we are in the queue */
-	int prio;                           /*!< Our priority */
-	int last_pos_said;                  /*!< Last position we told the user */
-	time_t last_periodic_announce_time; /*!< The last time we played a periodic announcement */
-	int last_periodic_announce_sound;   /*!< The last periodic announcement we made */
-	time_t last_pos;                    /*!< Last time we told the user their position */
-	int opos;                           /*!< Where we started in the queue */
-	int handled;                        /*!< Whether our call was handled */
-	int pending;                        /*!< Non-zero if we are attempting to call a member */
-	int max_penalty;                    /*!< Limit the members that can take this call to this penalty or lower */
-	int linpos;							/*!< If using linear strategy, what position are we at? */
-	int linwrapped;						/*!< Is the linpos wrapped? */
-	time_t start;                       /*!< When we started holding */
-	time_t expire;                      /*!< When this entry should expire (time out of queue) */
-	struct ast_channel *chan;           /*!< Our channel */
-	struct queue_ent *next;             /*!< The next queue entry */
+	struct call_queue *parent;             /*!< What queue is our parent */
+	char moh[80];                          /*!< Name of musiconhold to be used */
+	char announce[80];                     /*!< Announcement to play for member when call is answered */
+	char context[AST_MAX_CONTEXT];         /*!< Context when user exits queue */
+	char digits[AST_MAX_EXTENSION];        /*!< Digits entered while in queue */
+	int valid_digits;		               /*!< Digits entered correspond to valid extension. Exited */
+	int pos;                               /*!< Where we are in the queue */
+	int prio;                              /*!< Our priority */
+	int last_pos_said;                     /*!< Last position we told the user */
+	time_t last_periodic_announce_time;    /*!< The last time we played a periodic announcement */
+	int last_periodic_announce_sound;      /*!< The last periodic announcement we made */
+	time_t last_pos;                       /*!< Last time we told the user their position */
+	int opos;                              /*!< Where we started in the queue */
+	int handled;                           /*!< Whether our call was handled */
+	int pending;                           /*!< Non-zero if we are attempting to call a member */
+	int max_penalty;                       /*!< Limit the members that can take this call to this penalty or lower */
+	int min_penalty;                       /*!< Limit the members that can take this call to this penalty or higher */
+	int linpos;							   /*!< If using linear strategy, what position are we at? */
+	int linwrapped;						   /*!< Is the linpos wrapped? */
+	time_t start;                          /*!< When we started holding */
+	time_t expire;                         /*!< When this entry should expire (time out of queue) */
+	struct ast_channel *chan;              /*!< Our channel */
+	AST_LIST_HEAD_NOLOCK(,penalty_rule) qe_rules; /*!< Local copy of the queue's penalty rules */
+	struct penalty_rule *pr;               /*!< Pointer to the next penalty rule to implement */
+	struct queue_ent *next;                /*!< The next queue entry */
 };
 
 struct member {
@@ -368,6 +373,15 @@ static AST_LIST_HEAD_STATIC(interfaces, member_interface);
 #define ANNOUNCEHOLDTIME_ONCE 2
 #define QUEUE_EVENT_VARIABLES 3
 
+struct penalty_rule {
+	int time;                           /*!< Number of seconds that need to pass before applying this rule */
+	int max_value;                      /*!< The amount specified in the penalty rule for max penalty */
+	int min_value;                      /*!< The amount specified in the penalty rule for min penalty */
+	int max_relative;                   /*!< Is the max adjustment relative? 1 for relative, 0 for absolute */
+	int min_relative;                   /*!< Is the min adjustment relative? 1 for relative, 0 for absolute */
+	AST_LIST_ENTRY(penalty_rule) list;  /*!< Next penalty_rule */
+};
+
 struct call_queue {
 	AST_DECLARE_STRING_FIELDS(
 		/*! Queue name */
@@ -382,6 +396,8 @@ struct call_queue {
 		AST_STRING_FIELD(membermacro);
 		/*! Gosub to run upon member connection */
 		AST_STRING_FIELD(membergosub);
+		/*! Default rule to use if none specified in call to Queue() */
+		AST_STRING_FIELD(defaultrule);
 		/*! Sound file: "Your call is now first in line" (def. queue-youarenext) */
 		AST_STRING_FIELD(sound_next);
 		/*! Sound file: "There are currently" (def. queue-thereare) */
@@ -456,7 +472,16 @@ struct call_queue {
 	int membercount;
 	struct queue_ent *head;             /*!< Head of the list of callers */
 	AST_LIST_ENTRY(call_queue) list;    /*!< Next call queue */
+	AST_LIST_HEAD_NOLOCK(, penalty_rule) rules; /*!< The list of penalty rules to invoke */
 };
+
+struct rule_list {
+	char name[80];
+	AST_LIST_HEAD_NOLOCK(,penalty_rule) rules;
+	AST_LIST_ENTRY(rule_list) list;
+};
+
+AST_LIST_HEAD_STATIC(rule_lists, rule_list);
 
 static struct ao2_container *queues;
 
@@ -570,7 +595,7 @@ enum queue_member_status {
 	QUEUE_NORMAL
 };
 
-static enum queue_member_status get_member_status(struct call_queue *q, int max_penalty)
+static enum queue_member_status get_member_status(struct call_queue *q, int max_penalty, int min_penalty)
 {
 	struct member *member;
 	struct ao2_iterator mem_iter;
@@ -579,7 +604,7 @@ static enum queue_member_status get_member_status(struct call_queue *q, int max_
 	ao2_lock(q);
 	mem_iter = ao2_iterator_init(q->members, 0);
 	for (; (member = ao2_iterator_next(&mem_iter)); ao2_ref(member, -1)) {
-		if (max_penalty && (member->penalty > max_penalty))
+		if ((max_penalty && (member->penalty > max_penalty)) || (min_penalty && (member->penalty < min_penalty)))
 			continue;
 
 		switch (member->status) {
@@ -790,7 +815,7 @@ static struct member *create_queue_member(const char *interface, const char *mem
 		cur->penalty = penalty;
 		cur->paused = paused;
 		ast_copy_string(cur->interface, interface, sizeof(cur->interface));
-		if(!ast_strlen_zero(membername))
+		if (!ast_strlen_zero(membername))
 			ast_copy_string(cur->membername, membername, sizeof(cur->membername));
 		else
 			ast_copy_string(cur->membername, interface, sizeof(cur->membername));
@@ -834,6 +859,7 @@ static int member_cmp_fn(void *obj1, void *obj2, int flags)
 static void init_queue(struct call_queue *q)
 {
 	int i;
+	struct penalty_rule *pr_iter;
 
 	q->dead = 0;
 	q->retry = DEFAULT_RETRY;
@@ -853,8 +879,8 @@ static void init_queue(struct call_queue *q)
 	q->montype = montype_default;
 	q->monfmt[0] = '\0';
 	q->periodicannouncefrequency = 0;
-	if(!q->members) {
-		if(q->strategy == QUEUE_STRATEGY_LINEAR)
+	if (!q->members) {
+		if (q->strategy == QUEUE_STRATEGY_LINEAR)
 			/* linear strategy depends on order, so we have to place all members in a single bucket */
 			q->members = ao2_container_alloc(1, member_hash_fn, member_cmp_fn);
 		else
@@ -880,6 +906,9 @@ static void init_queue(struct call_queue *q)
 		if (q->sound_periodicannounce[i])
 			ast_str_set(&q->sound_periodicannounce[i], 0, "%s", "");
 	}
+
+	while ((pr_iter = AST_LIST_REMOVE_HEAD(&q->rules,list)))
+		ast_free(pr_iter);
 }
 
 static void clear_queue(struct call_queue *q)
@@ -972,6 +1001,78 @@ static void clear_and_free_interfaces(void)
 	while ((curint = AST_LIST_REMOVE_HEAD(&interfaces, list)))
 		ast_free(curint);
 	AST_LIST_UNLOCK(&interfaces);
+}
+
+/*Note: call this with the rule_lists locked */
+static int insert_penaltychange (const char *list_name, const char *content, const int linenum)
+{
+	char *timestr, *maxstr, *minstr, *contentdup;
+	struct penalty_rule *rule = NULL, *rule_iter;
+	struct rule_list *rl_iter;
+	int time, inserted = 0;
+
+	if (!(rule = ast_calloc(1, sizeof(*rule)))) {
+		ast_log(LOG_ERROR, "Cannot allocate memory for penaltychange rule at line %d!\n", linenum);
+		return -1;
+	}
+
+	contentdup = ast_strdupa(content);
+	
+	if (!(maxstr = strchr(contentdup, ','))) {
+		ast_log(LOG_WARNING, "Improperly formatted penaltychange rule at line %d. Ignoring.\n", linenum);
+		ast_free(rule);
+		return -1;
+	}
+
+	*maxstr++ = '\0';
+	timestr = contentdup;
+
+	if ((time = atoi(timestr)) < 0) {
+		ast_log(LOG_WARNING, "Improper time parameter specified for penaltychange rule at line %d. Ignoring.\n", linenum);
+		ast_free(rule);
+		return -1;
+	}
+
+	rule->time = time;
+
+	if ((minstr = strchr(maxstr,',')))
+		*minstr++ = '\0';
+	
+	/* The last check will evaluate true if either no penalty change is indicated for a given rule
+	 * OR if a min penalty change is indicated but no max penalty change is */
+	if (*maxstr == '+' || *maxstr == '-' || *maxstr == '\0') {
+		rule->max_relative = 1;
+	}
+
+	rule->max_value = atoi(maxstr);
+
+	if (!ast_strlen_zero(minstr)) {
+		if (*minstr == '+' || *minstr == '-')
+			rule->min_relative = 1;
+		rule->min_value = atoi(minstr);
+	} else /*there was no minimum specified, so assume this means no change*/
+		rule->min_relative = 1;
+
+	/*We have the rule made, now we need to insert it where it belongs*/
+	AST_LIST_TRAVERSE(&rule_lists, rl_iter, list){
+		if (strcasecmp(rl_iter->name, list_name))
+			continue;
+
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&rl_iter->rules, rule_iter, list) {
+			if (rule->time < rule_iter->time) {
+				AST_LIST_INSERT_BEFORE_CURRENT(rule, list);
+				inserted = 1;
+				break;
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+	
+		if (!inserted) {
+			AST_LIST_INSERT_TAIL(&rl_iter->rules, rule, list);
+		}
+	}
+
+	return 0;
 }
 
 /*! \brief Configure a queue parameter.
@@ -1135,6 +1236,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		   we will not see any effect on use_weight until next reload. */
 	} else if (!strcasecmp(param, "timeoutrestart")) {
 		q->timeoutrestart = ast_true(val);
+	} else if (!strcasecmp(param, "defaultrule")) {
+		ast_string_field_set(q, defaultrule, val);
 	} else if (failunknown) {
 		if (linenum >= 0) {
 			ast_log(LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queues.conf\n",
@@ -1396,14 +1499,14 @@ static int update_realtime_member_field(struct member *mem, const char *queue_na
 	struct ast_variable *var;
 	int ret = -1;
 
-	if(!(var = ast_load_realtime("queue_members", "interface", mem->interface, "queue_name", queue_name, NULL))) 
+	if (!(var = ast_load_realtime("queue_members", "interface", mem->interface, "queue_name", queue_name, NULL))) 
 		return ret;
 	while (var) {
-		if(!strcmp(var->name, "uniqueid"))
+		if (!strcmp(var->name, "uniqueid"))
 			break;
 		var = var->next;
 	}
-	if(var && !ast_strlen_zero(var->value)) {
+	if (var && !ast_strlen_zero(var->value)) {
 		if ((ast_update_realtime("queue_members", "uniqueid", var->value, field, value, NULL)) > -1)
 			ret = 0;
 	}
@@ -1472,7 +1575,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	ao2_lock(q);
 
 	/* This is our one */
-	stat = get_member_status(q, qe->max_penalty);
+	stat = get_member_status(q, qe->max_penalty, qe->min_penalty);
 	if (!q->joinempty && (stat == QUEUE_NO_MEMBERS))
 		*reason = QUEUE_JOINEMPTY;
 	else if ((q->joinempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS))
@@ -1705,6 +1808,7 @@ static void leave_queue(struct queue_ent *qe)
 {
 	struct call_queue *q;
 	struct queue_ent *cur, *prev = NULL;
+	struct penalty_rule *pr_iter;
 	int pos = 0;
 
 	if (!(q = qe->parent))
@@ -1727,6 +1831,9 @@ static void leave_queue(struct queue_ent *qe)
 				prev->next = cur->next;
 			else
 				q->head = cur->next;
+			/* Free penalty rules */
+			while ((pr_iter = AST_LIST_REMOVE_HEAD(&qe->qe_rules, list)))
+				ast_free(pr_iter);
 		} else {
 			/* Renumber the people after us in the queue based on a new count */
 			cur->pos = ++pos;
@@ -1736,8 +1843,8 @@ static void leave_queue(struct queue_ent *qe)
 	ao2_unlock(q);
 
 	/*If the queue is a realtime queue, check to see if it's still defined in real time*/
-	if(q->realtime) {
-		if(!ast_load_realtime("queues", "name", q->name, NULL))
+	if (q->realtime) {
+		if (!ast_load_realtime("queues", "name", q->name, NULL))
 			q->dead = 1;
 	}
 
@@ -2219,7 +2326,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 	starttime = (long) time(NULL);
 #ifdef HAVE_EPOLL
 	for (epollo = outgoing; epollo; epollo = epollo->q_next) {
-		if(epollo->chan)
+		if (epollo->chan)
 			ast_poll_channel_add(in, epollo->chan);
 	}
 #endif
@@ -2424,8 +2531,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 	}
 
 #ifdef HAVE_EPOLL
-	for(epollo = outgoing; epollo; epollo = epollo->q_next) {
-		if(epollo->chan)
+	for (epollo = outgoing; epollo; epollo = epollo->q_next) {
+		if (epollo->chan)
 			ast_poll_channel_del(in, epollo->chan);
 	}
 #endif
@@ -2498,6 +2605,28 @@ static int is_our_turn(struct queue_ent *qe)
 	return res;
 }
 
+static void update_qe_rule(struct queue_ent *qe)
+{
+	int max_penalty = qe->pr->max_relative ? qe->max_penalty + qe->pr->max_value : qe->pr->max_value;
+	int min_penalty = qe->pr->min_relative ? qe->min_penalty + qe->pr->min_value : qe->pr->min_value;
+	char max_penalty_str[20], min_penalty_str[20]; 
+	/* a relative change to the penalty could put it below 0 */
+	if (max_penalty < 0)
+		max_penalty = 0;
+	if (min_penalty < 0)
+		min_penalty = 0;
+	if (min_penalty > max_penalty)
+		min_penalty = max_penalty;
+	snprintf(max_penalty_str, sizeof(max_penalty_str) - 1, "%d", max_penalty);
+	snprintf(min_penalty_str, sizeof(min_penalty_str) - 1, "%d", min_penalty);
+	pbx_builtin_setvar_helper(qe->chan, "QUEUE_MAX_PENALTY", max_penalty_str);
+	pbx_builtin_setvar_helper(qe->chan, "QUEUE_MIN_PENALTY", min_penalty_str);
+	qe->max_penalty = max_penalty;
+	qe->min_penalty = min_penalty;
+	ast_debug(3, "Setting max penalty to %d and min penalty to %d for caller %s since %d seconds have elapsed\n", qe->max_penalty, qe->min_penalty, qe->chan->name, qe->pr->time);
+	qe->pr = AST_LIST_NEXT(qe->pr, list);
+}
+
 static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *reason)
 {
 	int res = 0;
@@ -2515,7 +2644,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 			break;
 		}
 
-		stat = get_member_status(qe->parent, qe->max_penalty);
+		stat = get_member_status(qe->parent, qe->max_penalty, qe->min_penalty);
 
 		/* leave the queue if no agents, if enabled */
 		if (qe->parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
@@ -2548,6 +2677,11 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		if (qe->parent->periodicannouncefrequency &&
 			(res = say_periodic_announcement(qe,ringing)))
 			break;
+		
+		/* see if we need to move to the next penalty level for this queue */
+		while (qe->pr && ((time(NULL) - qe->start) > qe->pr->time)) {
+			update_qe_rule(qe);
+		}
 
 		/* Wait a second before checking again */
 		if ((res = ast_waitfordigit(qe->chan, RECHECK * 1000))) {
@@ -2597,7 +2731,7 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 
 static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct callattempt *tmp)
 {
-	if (qe->max_penalty && (mem->penalty > qe->max_penalty))
+	if ((qe->max_penalty && (mem->penalty > qe->max_penalty)) || (qe->min_penalty && (mem->penalty < qe->min_penalty)))
 		return -1;
 
 	switch (q->strategy) {
@@ -3407,7 +3541,7 @@ static int remove_from_queue(const char *queuename, const char *interface)
 		ao2_lock(q);
 		if ((mem = ao2_find(q->members, &tmpmem, OBJ_POINTER))) {
 			/* XXX future changes should beware of this assumption!! */
-			if(!mem->dynamic) {
+			if (!mem->dynamic) {
 				ao2_ref(mem, -1);
 				ao2_unlock(q);
 				return RES_NOT_DYNAMIC;
@@ -3507,7 +3641,7 @@ static int set_member_paused(const char *queuename, const char *interface, const
 		ast_queue_log("NONE", "NONE", interface, (paused ? "PAUSEALL" : "UNPAUSEALL"), "%s", "");
 
 	queue_iter = ao2_iterator_init(queues, 0);
-	while((q = ao2_iterator_next(&queue_iter))) {
+	while ((q = ao2_iterator_next(&queue_iter))) {
 		ao2_lock(q);
 		if (ast_strlen_zero(queuename) || !strcasecmp(q->name, queuename)) {
 			if ((mem = interface_exists(q, interface))) {
@@ -3520,7 +3654,7 @@ static int set_member_paused(const char *queuename, const char *interface, const
 				if (queue_persistent_members)
 					dump_queue_members(q);
 
-				if(mem->realtime)
+				if (mem->realtime)
 					update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0");
 
 				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", S_OR(reason, ""));
@@ -3945,15 +4079,45 @@ static int ql_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+static void copy_rules(struct queue_ent *qe, const char *rulename)
+{
+	struct penalty_rule *pr_iter;
+	struct rule_list *rl_iter;
+	const char *tmp = ast_strlen_zero(rulename) ? qe->parent->defaultrule : rulename;
+	AST_LIST_LOCK(&rule_lists);
+	AST_LIST_TRAVERSE(&rule_lists, rl_iter, list) {
+		if (!strcasecmp(rl_iter->name, tmp))
+			break;
+	}
+	if (rl_iter) {
+		AST_LIST_TRAVERSE(&rl_iter->rules, pr_iter, list) {
+			struct penalty_rule *new_pr = ast_calloc(1, sizeof(*new_pr));
+			if (!new_pr) {
+				ast_log(LOG_ERROR, "Memory allocation error when copying penalty rules! Aborting!\n");
+				AST_LIST_UNLOCK(&rule_lists);
+				break;
+			}
+			new_pr->time = pr_iter->time;
+			new_pr->max_value = pr_iter->max_value;
+			new_pr->min_value = pr_iter->min_value;
+			new_pr->max_relative = pr_iter->max_relative;
+			new_pr->min_relative = pr_iter->min_relative;
+			AST_LIST_INSERT_TAIL(&qe->qe_rules, new_pr, list);
+		}
+	}
+	AST_LIST_UNLOCK(&rule_lists);
+}
+
 static int queue_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	int ringing=0;
 	const char *user_priority;
 	const char *max_penalty_str;
+	const char *min_penalty_str;
 	int prio;
 	int qcontinue = 0;
-	int max_penalty;
+	int max_penalty, min_penalty;
 	enum queue_result reason = QUEUE_UNKNOWN;
 	/* whether to exit Queue application after the timeout hits */
 	int tries = 0;
@@ -3969,6 +4133,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(agi);
 		AST_APP_ARG(macro);
 		AST_APP_ARG(gosub);
+		AST_APP_ARG(rule);
 	);
 	/* Our queue entry */
 	struct queue_ent qe;
@@ -4007,6 +4172,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	}
 
 	/* Get the maximum penalty from the variable ${QUEUE_MAX_PENALTY} */
+
 	if ((max_penalty_str = pbx_builtin_getvar_helper(chan, "QUEUE_MAX_PENALTY"))) {
 		if (sscanf(max_penalty_str, "%d", &max_penalty) == 1) {
 			ast_debug(1, "%s: Got max penalty %d from ${QUEUE_MAX_PENALTY}.\n", chan->name, max_penalty);
@@ -4017,6 +4183,18 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		}
 	} else {
 		max_penalty = 0;
+	}
+
+	if ((min_penalty_str = pbx_builtin_getvar_helper(chan, "QUEUE_MIN_PENALTY"))) {
+		if (sscanf(min_penalty_str, "%d", &min_penalty) == 1) {
+			ast_debug(1, "%s: Got min penalty %d from ${QUEUE_MIN_PENALTY}.\n", chan->name, min_penalty);
+		} else {
+			ast_log(LOG_WARNING, "${QUEUE_MIN_PENALTY}: Invalid value (%s), channel %s.\n",
+				min_penalty_str, chan->name);
+			min_penalty = 0;
+		}
+	} else {
+		min_penalty = 0;
 	}
 
 	if (args.options && (strchr(args.options, 'r')))
@@ -4031,6 +4209,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	qe.chan = chan;
 	qe.prio = prio;
 	qe.max_penalty = max_penalty;
+	qe.min_penalty = min_penalty;
 	qe.last_pos_said = 0;
 	qe.last_pos = 0;
 	qe.last_periodic_announce_time = time(NULL);
@@ -4039,6 +4218,8 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	if (!join_queue(args.queuename, &qe, &reason)) {
 		ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", S_OR(args.url, ""),
 			S_OR(chan->cid.cid_num, ""));
+		copy_rules(&qe, args.rule);
+		qe.pr = AST_LIST_FIRST(&qe.qe_rules);
 check_turns:
 		if (ringing) {
 			ast_indicate(chan, AST_CONTROL_RINGING);
@@ -4091,7 +4272,7 @@ check_turns:
 				goto stop;
 			}
 
-			stat = get_member_status(qe.parent, qe.max_penalty);
+			stat = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty);
 
 			/* exit after 'timeout' cycle if 'n' option enabled */
 			if (noption && tries >= qe.parent->membercount) {
@@ -4134,6 +4315,11 @@ check_turns:
 				res = 0;
 				ast_queue_log(qe.parent->name, qe.chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", qe.pos, qe.opos, (long) time(NULL) - qe.start);
 				break;
+			}
+
+			/* see if we need to move to the next penalty level for this queue */
+			while (qe.pr && ((time(NULL) - qe.start) > qe.pr->time)) {
+				update_qe_rule(&qe);
 			}
 
 			/* If using dynamic realtime members, we should regenerate the member list for this queue */
@@ -4255,7 +4441,7 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 		option = "logged";
 	if ((q = load_realtime_queue(data))) {
 		ao2_lock(q);
-		if(!strcasecmp(option, "logged")) {
+		if (!strcasecmp(option, "logged")) {
 			mem_iter = ao2_iterator_init(q->members, 0);
 			while ((m = ao2_iterator_next(&mem_iter))) {
 				/* Count the agents who are logged in and presently answering calls */
@@ -4264,7 +4450,7 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 				}
 				ao2_ref(m, -1);
 			}
-		} else if(!strcasecmp(option, "free")) {
+		} else if (!strcasecmp(option, "free")) {
 			mem_iter = ao2_iterator_init(q->members, 0);
 			while ((m = ao2_iterator_next(&mem_iter))) {
 				/* Count the agents who are logged in and presently answering calls */
@@ -4303,7 +4489,7 @@ static int queue_function_qac_dep(struct ast_channel *chan, const char *cmd, cha
 		return -1;
 	}
 	
-	if((q = load_realtime_queue(data))) {
+	if ((q = load_realtime_queue(data))) {
 		ao2_lock(q);
 		mem_iter = ao2_iterator_init(q->members, 0);
 		while ((m = ao2_iterator_next(&mem_iter))) {
@@ -4537,6 +4723,48 @@ static struct ast_custom_function queuememberpenalty_function = {
 	.write = queue_function_memberpenalty_write,
 };
 
+static int reload_queue_rules(int reload)
+{
+	struct ast_config *cfg;
+	struct rule_list *rl_iter, *new_rl;
+	struct penalty_rule *pr_iter;
+	char *rulecat = NULL;
+	struct ast_variable *rulevar = NULL;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	
+	if (!(cfg = ast_config_load("queuerules.conf", config_flags))) {
+		ast_log(LOG_NOTICE, "No queuerules.conf file found, queues will not follow penalty rules\n");
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+		ast_log(LOG_NOTICE, "queuerules.conf has not changed since it was last loaded. Not taking any action.\n");
+		return AST_MODULE_LOAD_SUCCESS;
+	} else {
+		AST_LIST_LOCK(&rule_lists);
+		while ((rl_iter = AST_LIST_REMOVE_HEAD(&rule_lists, list))) {
+			while ((pr_iter = AST_LIST_REMOVE_HEAD(&rl_iter->rules, list)))
+				ast_free(pr_iter);
+			ast_free(rl_iter);
+		}
+		while ((rulecat = ast_category_browse(cfg, rulecat))) {
+			if (!(new_rl = ast_calloc(1, sizeof(*new_rl)))) {
+				ast_log(LOG_ERROR, "Memory allocation error while loading queuerules.conf! Aborting!\n");
+				AST_LIST_UNLOCK(&rule_lists);
+				return AST_MODULE_LOAD_FAILURE;
+			} else {
+				ast_copy_string(new_rl->name, rulecat, sizeof(new_rl->name));
+				AST_LIST_INSERT_TAIL(&rule_lists, new_rl, list);
+				for (rulevar = ast_variable_browse(cfg, rulecat); rulevar; rulevar = rulevar->next)
+					if(!strcasecmp(rulevar->name, "penaltychange"))
+						insert_penaltychange(new_rl->name, rulevar->value, rulevar->lineno);
+					else
+						ast_log(LOG_WARNING, "Don't know how to handle rule type '%s' on line %d\n", rulevar->name, rulevar->lineno);
+			}
+		}
+		AST_LIST_UNLOCK(&rule_lists);
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
+}
+
 
 static int reload_queues(int reload)
 {
@@ -4559,7 +4787,11 @@ static int reload_queues(int reload)
 		AST_APP_ARG(penalty);
 		AST_APP_ARG(membername);
 	);
-	
+
+	/*First things first. Let's load queuerules.conf*/
+	if (reload_queue_rules(reload) == AST_MODULE_LOAD_FAILURE)
+		return AST_MODULE_LOAD_FAILURE;
+		
 	if (!(cfg = ast_config_load("queues.conf", config_flags))) {
 		ast_log(LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
 		return 0;
@@ -4570,7 +4802,7 @@ static int reload_queues(int reload)
 	/* Mark all queues as dead for the moment */
 	queue_iter = ao2_iterator_init(queues, F_AO2I_DONTLOCK);
 	while ((q = ao2_iterator_next(&queue_iter))) {
-		if(!q->realtime) {
+		if (!q->realtime) {
 			q->dead = 1;
 			q->found = 0;
 		}
@@ -4622,14 +4854,14 @@ static int reload_queues(int reload)
 				/* Check if a queue with this name already exists */
 				if (q->found) {
 					ast_log(LOG_WARNING, "Queue '%s' already defined! Skipping!\n", cat);
-					if(!new)
+					if (!new)
 						ao2_unlock(q);
 					continue;
 				}
 				/* Due to the fact that the "linear" strategy will have a different allocation
 				 * scheme for queue members, we must devise the queue's strategy before other initializations
 				 */
-				if((tmpvar = ast_variable_retrieve(cfg, cat, "strategy"))) {
+				if ((tmpvar = ast_variable_retrieve(cfg, cat, "strategy"))) {
 					q->strategy = strat2int(tmpvar);
 					if (q->strategy < 0) {
 						ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
@@ -4659,7 +4891,7 @@ static int reload_queues(int reload)
 						AST_NONSTANDARD_APP_ARGS(args, parse, ',');
 
 						interface = args.interface;
-						if(!ast_strlen_zero(args.penalty)) {
+						if (!ast_strlen_zero(args.penalty)) {
 							tmp = args.penalty;
 							while (*tmp && *tmp < 33) tmp++;
 							penalty = atoi(tmp);
@@ -4853,7 +5085,7 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 	struct ao2_iterator queue_iter;
 
 	queue_iter = ao2_iterator_init(queues, 0);
-	while((q = ao2_iterator_next(&queue_iter))) {
+	while ((q = ao2_iterator_next(&queue_iter))) {
 		if (!strncasecmp(word, q->name, wordlen) && ++which > state) {
 			ret = ast_strdup(q->name);
 			queue_unref(q);
@@ -4901,6 +5133,30 @@ static int manager_queues_show(struct mansession *s, const struct message *m)
 	return RESULT_SUCCESS;
 }
 
+static int manager_queue_rule_show(struct mansession *s, const struct message *m)
+{
+	const char *rule = astman_get_header(m, "Rule");
+	struct rule_list *rl_iter;
+	struct penalty_rule *pr_iter;
+
+	AST_LIST_LOCK(&rule_lists);
+	AST_LIST_TRAVERSE(&rule_lists, rl_iter, list) {
+		if (ast_strlen_zero(rule) || !strcasecmp(rule, rl_iter->name)) {
+			astman_append(s, "RuleList: %s\r\n", rl_iter->name);
+			AST_LIST_TRAVERSE(&rl_iter->rules, pr_iter, list) {
+				astman_append(s, "Rule: %d,%s%d,%s%d\r\n", pr_iter->time, pr_iter->max_relative && pr_iter->max_value >= 0 ? "+" : "", pr_iter->max_value, pr_iter->min_relative && pr_iter->min_value >= 0 ? "+" : "", pr_iter->min_value );
+			}
+			if (!ast_strlen_zero(rule))
+				break;
+		}
+	}
+	AST_LIST_UNLOCK(&rule_lists);
+
+	astman_append(s, "\r\n\r\n");
+
+	return RESULT_SUCCESS;
+}
+
 /* Dump summary of queue info */
 static int manager_queues_summary(struct mansession *s, const struct message *m)
 {
@@ -4923,7 +5179,7 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 	if (!ast_strlen_zero(id))
 		snprintf(idText, 256, "ActionID: %s\r\n", id);
 	queue_iter = ao2_iterator_init(queues, 0);
-	while((q = ao2_iterator_next(&queue_iter))) {
+	while ((q = ao2_iterator_next(&queue_iter))) {
 		ao2_lock(q);
 
 		/* List queue properties */
@@ -5452,19 +5708,19 @@ static char *handle_queue_pause_member(struct ast_cli_entry *e, int cmd, struct 
 	reason = a->argc == 8 ? a->argv[7] : NULL;
 	paused = !strcasecmp(a->argv[1], "pause");
 
-	if(set_member_paused(queuename, interface, reason, paused) == RESULT_SUCCESS) {
+	if (set_member_paused(queuename, interface, reason, paused) == RESULT_SUCCESS) {
 		ast_cli(a->fd, "%spaused interface '%s'", paused ? "" : "un", interface);
-		if(!ast_strlen_zero(queuename))
+		if (!ast_strlen_zero(queuename))
 			ast_cli(a->fd, " in queue '%s'", queuename);
-		if(!ast_strlen_zero(reason))
+		if (!ast_strlen_zero(reason))
 			ast_cli(a->fd, " for reason '%s'", reason);
 		ast_cli(a->fd, "\n");
 		return CLI_SUCCESS;
 	} else {
 		ast_cli(a->fd, "Unable to %spause interface '%s'", paused ? "" : "un", interface);
-		if(!ast_strlen_zero(queuename))
+		if (!ast_strlen_zero(queuename))
 			ast_cli(a->fd, " in queue '%s'", queuename);
-		if(!ast_strlen_zero(reason))
+		if (!ast_strlen_zero(reason))
 			ast_cli(a->fd, " for reason '%s'", reason);
 		ast_cli(a->fd, "\n");
 		return CLI_FAILURE;
@@ -5517,7 +5773,7 @@ static char *handle_queue_set_member_penalty(struct ast_cli_entry *e, int cmd, s
 		return CLI_SHOWUSAGE;
 	}
 
-	if(a->argc == 8)
+	if (a->argc == 8)
 		queuename = a->argv[7];
 	interface = a->argv[5];
 	penalty = atoi(a->argv[3]);
@@ -5532,6 +5788,79 @@ static char *handle_queue_set_member_penalty(struct ast_cli_entry *e, int cmd, s
 	default:
 		return CLI_FAILURE;
 	}
+}
+
+static char *complete_queue_rule_show(const char *line, const char *word, int pos, int state) 
+{
+	int which = 0;
+	struct rule_list *rl_iter;
+	int wordlen = strlen(word);
+	char *ret = NULL;
+	if (pos != 3) /* Wha? */ {
+		ast_log(LOG_DEBUG, "Hitting this???, pos is %d\n", pos);
+		return NULL;
+	}
+
+	AST_LIST_LOCK(&rule_lists);
+	AST_LIST_TRAVERSE(&rule_lists, rl_iter, list) {
+		if (!strncasecmp(word, rl_iter->name, wordlen) && ++which > state) {
+			ret = ast_strdup(rl_iter->name);
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(&rule_lists);
+
+	return ret;
+}
+
+static char *handle_queue_rule_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *rule;
+	struct rule_list *rl_iter;
+	struct penalty_rule *pr_iter;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "queue rules show";
+		e->usage =
+		"Usage: queue rules show [rulename]\n"
+		"Show the list of rules associated with rulename. If no\n"
+		"rulename is specified, list all rules defined in queuerules.conf\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_queue_rule_show(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc != 3 && a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	rule = a->argc == 4 ? a->argv[3] : "";
+	AST_LIST_LOCK(&rule_lists);
+	AST_LIST_TRAVERSE(&rule_lists, rl_iter, list) {
+		if (ast_strlen_zero(rule) || !strcasecmp(rl_iter->name, rule)) {
+			ast_cli(a->fd, "Rule: %s\n", rl_iter->name);
+			AST_LIST_TRAVERSE(&rl_iter->rules, pr_iter, list) {
+				ast_cli(a->fd, "\tAfter %d seconds, adjust QUEUE_MAX_PENALTY %s %d and adjust QUEUE_MIN_PENALTY %s %d\n", pr_iter->time, pr_iter->max_relative ? "by" : "to", pr_iter->max_value, pr_iter->min_relative ? "by" : "to", pr_iter->min_value);
+			}
+		}
+	}
+	AST_LIST_UNLOCK(&rule_lists);
+	return CLI_SUCCESS; 
+}
+
+static char *handle_queue_rule_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+		case CLI_INIT:
+			e->command = "queue rules reload";
+			e->usage = 
+				"Usage: queue rules reload\n"
+				"Reloads rules defined in queuerules.conf\n";
+			return NULL;
+		case CLI_GENERATE:
+			return NULL;
+	}
+	reload_queue_rules(1);
+	return CLI_SUCCESS;
 }
 
 static const char qpm_cmd_usage[] = 
@@ -5549,6 +5878,8 @@ static struct ast_cli_entry cli_queue[] = {
 	AST_CLI_DEFINE(handle_queue_remove_member, "Removes a channel from a specified queue"),
 	AST_CLI_DEFINE(handle_queue_pause_member, "Pause or unpause a queue member"),
 	AST_CLI_DEFINE(handle_queue_set_member_penalty, "Set penalty for a channel of a specified queue"),
+	AST_CLI_DEFINE(handle_queue_rule_show, "Show the rules defined in queuerules.conf"),
+	AST_CLI_DEFINE(handle_queue_rule_reload, "Reload the rules defined in queuerules.conf"),
 };
 
 static int unload_module(void)
@@ -5642,6 +5973,7 @@ static int load_module(void)
 	res |= ast_manager_register("QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable");
 	res |= ast_manager_register("QueueLog", EVENT_FLAG_AGENT, manager_queue_log_custom, "Adds custom entry in queue_log");
 	res |= ast_manager_register("QueuePenalty", EVENT_FLAG_AGENT, manager_queue_member_penalty, "Set the penalty for a queue member"); 
+	res |= ast_manager_register("QueueRule", 0, manager_queue_rule_show, "Queue Rules");
 	res |= ast_custom_function_register(&queuevar_function);
 	res |= ast_custom_function_register(&queuemembercount_function);
 	res |= ast_custom_function_register(&queuemembercount_dep);
