@@ -562,6 +562,7 @@ static struct zt_pvt {
 	unsigned int locallyblocked:1;
 	unsigned int remotelyblocked:1;
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
+	unsigned int rlt:1;	
 	unsigned int alerting:1;
 	unsigned int alreadyhungup:1;
 	unsigned int isidlecall:1;
@@ -665,10 +666,20 @@ static struct zt_pvt {
 	struct isup_call *ss7call;
 	char charge_number[50];
 	char gen_add_number[50];
+	char gen_dig_number[50];
 	unsigned char gen_add_num_plan;
 	unsigned char gen_add_nai;
 	unsigned char gen_add_pres_ind;
 	unsigned char gen_add_type;
+	unsigned char gen_dig_type;
+	unsigned char gen_dig_scheme;
+	char jip_number[50];
+	unsigned char lspi_type;
+	unsigned char lspi_scheme;
+	unsigned char lspi_context;
+	char lspi_ident[50];
+	unsigned int call_ref_ident;
+	unsigned int call_ref_pc;
 	int transcap;
 	int cic;							/*!< CIC associated with channel */
 	unsigned int dpc;						/*!< CIC's DPC */
@@ -2315,9 +2326,15 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		char ss7_calling_nai;
 		int calling_nai_strip;
 		const char *charge_str = NULL;
-#if 0
 		const char *gen_address = NULL;
-#endif
+		const char *gen_digits = NULL;
+		const char *gen_dig_type = NULL;
+		const char *gen_dig_scheme = NULL;
+		const char *jip_digits = NULL;
+		const char *lspi_ident = NULL;
+		const char *rlt_flag = NULL;
+		const char *call_ref_id = NULL;
+		const char *call_ref_pc = NULL;
 
 		c = strchr(dest, '/');
 		if (c)
@@ -2386,12 +2403,32 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		if (charge_str)
 			isup_set_charge(p->ss7call, charge_str, SS7_ANI_CALLING_PARTY_SUB_NUMBER, 0x10);
 		
-#if 0
-		/* Set the generic address if it is set */
 		gen_address = pbx_builtin_getvar_helper(ast, "SS7_GENERIC_ADDRESS");
 		if (gen_address)
 			isup_set_gen_address(p->ss7call, gen_address, p->gen_add_nai,p->gen_add_pres_ind, p->gen_add_num_plan,p->gen_add_type); /* need to add some types here for NAI,PRES,TYPE */
-#endif
+		
+		gen_digits = pbx_builtin_getvar_helper(ast, "SS7_GENERIC_DIGITS");
+		gen_dig_type = pbx_builtin_getvar_helper(ast, "SS7_GENERIC_DIGTYPE");
+		gen_dig_scheme = pbx_builtin_getvar_helper(ast, "SS7_GENERIC_DIGSCHEME");
+		if (gen_digits)
+			isup_set_gen_digits(p->ss7call, gen_digits, atoi(gen_dig_type), atoi(gen_dig_scheme)); 
+		
+		jip_digits = pbx_builtin_getvar_helper(ast, "SS7_JIP");
+		if (jip_digits)
+			isup_set_jip_digits(p->ss7call, jip_digits);
+		
+		lspi_ident = pbx_builtin_getvar_helper(ast, "SS7_LSPI_IDENT");
+		if (lspi_ident)
+			isup_set_lspi(p->ss7call, lspi_ident, 0x18, 0x7, 0x00); 
+		
+		rlt_flag = pbx_builtin_getvar_helper(ast, "SS7_RLT_ON");
+		if ((rlt_flag) && ((strncmp("NO", rlt_flag, strlen(rlt_flag))) != 0 ))
+			isup_set_lspi(p->ss7call, rlt_flag, 0x18, 0x7, 0x00); /* Setting for Nortel DMS-250/500 */
+		
+		call_ref_id = pbx_builtin_getvar_helper(ast, "SS7_CALLREF_IDENT");
+		call_ref_pc = pbx_builtin_getvar_helper(ast, "SS7_CALLREF_PC");
+		if (call_ref_id)
+			isup_set_callref(p->ss7call, (unsigned int) call_ref_id, (unsigned int) call_ref_pc);
 		
 		isup_iam(p->ss7->ss7, p->ss7call);
 		ast_setstate(ast, AST_STATE_DIALING);
@@ -3037,6 +3074,7 @@ static int zt_hangup(struct ast_channel *ast)
 		p->progress = 0;
 		p->alerting = 0;
 		p->setup_ack = 0;
+		p->rlt = 0;
 #endif		
 		if (p->dsp) {
 			ast_dsp_free(p->dsp);
@@ -5549,20 +5587,25 @@ static int zt_indicate(struct ast_channel *chan, int condition, const void *data
 			if ((!p->alerting) && (p->sig == SIG_SS7) && p->ss7 && !p->outgoing && (chan->_state != AST_STATE_UP)) {
 				if (p->ss7->ss7) {
 					ss7_grab(p, p->ss7);
-					isup_cpg(p->ss7->ss7, p->ss7call, CPG_EVENT_ALERTING);
+					
+					if ((isup_far(p->ss7->ss7, p->ss7call)) != -1)
+						p->rlt = 1;
+					if (p->rlt != 1) /* No need to send CPG if call will be RELEASE */
+						isup_cpg(p->ss7->ss7, p->ss7call, CPG_EVENT_ALERTING);
 					p->alerting = 1;
 					ss7_rel(p->ss7);
 				}
 			}
 #endif
-
+				
 			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_RINGTONE);
+			
 			if (chan->_state != AST_STATE_UP) {
 				if ((chan->_state != AST_STATE_RING) ||
 					((p->sig != SIG_FXSKS) &&
-					 (p->sig != SIG_FXSLS) &&
-					 (p->sig != SIG_FXSGS)))
-					ast_setstate(chan, AST_STATE_RINGING);
+				 (p->sig != SIG_FXSLS) &&
+				 (p->sig != SIG_FXSGS)))
+				ast_setstate(chan, AST_STATE_RINGING);
 			}
 			break;
 		case AST_CONTROL_PROCEEDING:
@@ -5582,7 +5625,13 @@ static int zt_indicate(struct ast_channel *chan, int condition, const void *data
 			}
 #endif
 #ifdef HAVE_SS7
-			if (!p->proceeding && p->sig==SIG_SS7 && p->ss7 && !p->outgoing) {
+			/* This IF sends the FAR for an answered ALEG call */
+			if (chan->_state == AST_STATE_UP && (p->rlt != 1) && (p->sig == SIG_SS7)){
+				if ((isup_far(p->ss7->ss7, p->ss7call)) != -1)
+					p->rlt = 1; 
+			}
+				
+			if (!p->proceeding && p->sig == SIG_SS7 && p->ss7 && !p->outgoing) {
 				if (p->ss7->ss7) {
 					ss7_grab(p, p->ss7);
 					isup_acm(p->ss7->ss7, p->ss7call);
@@ -8800,6 +8849,7 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 	int res;
 	int law = 1;
 	struct ast_channel *c;
+	char tmp[256];
 
 	if (ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &law) == -1)
 		ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", p->channel, law);
@@ -8834,7 +8884,42 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 		/* Clear this after we set it */
 		p->gen_add_number[0] = 0;
 	}
+	if (!ast_strlen_zero(p->jip_number)) {
+		pbx_builtin_setvar_helper(c, "SS7_JIP", p->jip_number);
+		/* Clear this after we set it */
+		p->jip_number[0] = 0;
+	}
+	if (!ast_strlen_zero(p->gen_dig_number)) {
+		pbx_builtin_setvar_helper(c, "SS7_GENERIC_DIGITS", p->gen_dig_number);
+		/* Clear this after we set it */
+		p->gen_dig_number[0] = 0;
+	}
 
+	snprintf(tmp, sizeof(tmp), "%d", p->gen_dig_type);
+	pbx_builtin_setvar_helper(c, "SS7_GENERIC_DIGTYPE", tmp);
+	/* Clear this after we set it */
+	p->gen_dig_type = 0;
+
+	snprintf(tmp, sizeof(tmp), "%d", p->gen_dig_scheme);
+	pbx_builtin_setvar_helper(c, "SS7_GENERIC_DIGSCHEME", tmp);
+	/* Clear this after we set it */
+	p->gen_dig_scheme = 0;
+
+	if (!ast_strlen_zero(p->lspi_ident))
+		pbx_builtin_setvar_helper(c, "SS7_LSPI_IDENT", p->lspi_ident);
+	/* Clear this after we set it */
+	p->lspi_ident[0] = 0;
+
+	snprintf(tmp, sizeof(tmp), "%d", p->call_ref_ident);
+	pbx_builtin_setvar_helper(c, "SS7_CALLREF_IDENT", tmp);
+	/* Clear this after we set it */
+	p->call_ref_ident = 0;
+
+	snprintf(tmp, sizeof(tmp), "%d", p->call_ref_pc);
+	pbx_builtin_setvar_helper(c, "SS7_CALLREF_PC", tmp);
+	/* Clear this after we set it */
+	p->call_ref_pc = 0;
+	
 }
 
 static void ss7_apply_plan_to_number(char *buf, size_t size, const struct zt_ss7 *ss7, const char *number, const unsigned nai)
@@ -9108,12 +9193,15 @@ static void *ss7_linkset(void *data)
 				p->cid_ani2 = e->iam.oli_ani2;
 				p->cid_ton = 0;
 				ast_copy_string(p->charge_number, e->iam.charge_number, sizeof(p->charge_number));
-
 				ast_copy_string(p->gen_add_number, e->iam.gen_add_number, sizeof(p->gen_add_number));
 				p->gen_add_type = e->iam.gen_add_type;
 				p->gen_add_nai = e->iam.gen_add_nai;
 				p->gen_add_pres_ind = e->iam.gen_add_pres_ind;
 				p->gen_add_num_plan = e->iam.gen_add_num_plan;
+				ast_copy_string(p->gen_dig_number, e->iam.gen_dig_number, sizeof(p->gen_dig_number));
+				p->gen_dig_type = e->iam.gen_dig_type;
+				p->gen_dig_scheme = e->iam.gen_dig_scheme;
+				ast_copy_string(p->jip_number, e->iam.jip_number, sizeof(p->jip_number));
 					
 				/* Set DNID */
 				if (!ast_strlen_zero(e->iam.called_party_num))
@@ -9194,6 +9282,10 @@ static void *ss7_linkset(void *data)
 					p = linkset->pvts[chanpos];
 
 					ast_debug(1, "Queueing frame from SS7_EVENT_ACM on CIC %d\n", p->cic);
+					
+					if (e->acm.call_ref_ident > 0) {
+						p->rlt = 1; /* Setting it but not using it here*/
+					}
 
 					ast_mutex_lock(&p->lock);
 					zap_queue_frame(p, &f, linkset);
@@ -9321,6 +9413,22 @@ static void *ss7_linkset(void *data)
 						p->ss7call = NULL;
 					else
 						ast_log(LOG_NOTICE, "Received RLC out and we haven't sent REL.  Ignoring.\n");
+					ast_mutex_unlock(&p->lock);
+					}
+					break;
+			case ISUP_EVENT_FAA:
+				chanpos = ss7_find_cic(linkset, e->faa.cic);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "FAA on unconfigured CIC %d\n", e->faa.cic);
+					break;
+				} else {
+					p = linkset->pvts[chanpos];
+					ast_debug(1, "FAA received on CIC %d\n", e->faa.cic);
+					ast_mutex_lock(&p->lock);
+					if (p->alreadyhungup){
+						p->ss7call = NULL;
+						ast_log(LOG_NOTICE, "Received FAA and we haven't sent FAR.  Ignoring.\n");
+					}
 					ast_mutex_unlock(&p->lock);
 				}
 				break;
