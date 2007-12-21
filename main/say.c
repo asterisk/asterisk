@@ -5298,7 +5298,7 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 	char sndfile[256], nextmsg[256];
 
 	if (format == NULL)
-		format = "Ad 'digits/pt-de' B 'digits/pt-de' Y 'digits/at' IMp";
+		format = "Ad 'digits/pt-de' B 'digits/pt-de' Y I 'digits/pt-e' Mp";
 
 	ast_localtime(&tv, &tm, timezone);
 
@@ -5369,8 +5369,6 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 						}
 						if (!res)
 							res = ast_say_number(chan, (tm.tm_hour % 12), ints, lang, "f");
-						if ((!res) && (format[offset] == 'I'))
-						res = ast_say_date_with_format(chan, time, ints, lang, "P", timezone);
 					}
 				} else {
 					if (tm.tm_hour == 0) {
@@ -5442,10 +5440,9 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan, ints, "digits/pt-hora", lang);
 						if (tm.tm_hour != 1)
 							if (!res)
-								res = wait_file(chan, ints, "digits/pt-sss", lang);			} else {
-						res = wait_file(chan,ints,"digits/pt-e",lang);
-						if (!res)
-							res = ast_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);	
+								res = wait_file(chan, ints, "digits/pt-sss", lang);			
+					} else {
+						res = ast_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);	
 					}
 				}
 				break;
@@ -5637,7 +5634,7 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan,ints,nextmsg,lang);
 					}
 				}
-				if(!res) res = wait_file(chan,ints,"digits/day",lang);
+				if (!res) res = wait_file(chan,ints,"digits/day",lang);
 				break;
 			case 'Y':
 				/* Year */
@@ -6723,15 +6720,14 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 			/* 100 < num < 200 */
 			snprintf(fn, sizeof(fn), "digits/hundred-100");
 			num %= 100;
-		}else if (num < 1000) {
+		} else if (num < 1000) {
 			/* 200 < num < 1000 */
 			snprintf(fn, sizeof(fn), "digits/hundred-%d", (num/100)*100);
 			num %= 100;
-		}else if (num < 2000){
+		} else if (num < 2000){
 			snprintf(fn, sizeof(fn), "digits/xilia");
 			num %= 1000;
-		}
-		else {
+		} else {
 			/* num >  1000 */ 
 			if (num < 1000000) {
 				res = ast_say_number_full_gr(chan, (num / 1000), ints, chan->language, audiofd, ctrlfd);
@@ -7274,7 +7270,7 @@ static int ast_say_number_full_ge(struct ast_channel *chan, int num, const char 
 		ast_free(new_string);
 
 		remainder = s + 1;  /* position just after the found space char. */
-		while(*remainder == ' ')  /* skip multiple spaces */
+		while (*remainder == ' ')  /* skip multiple spaces */
 			remainder++;
 	}
 
