@@ -197,7 +197,6 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define MAXMSG 100
 #define MAXMSGLIMIT 9999
 
-#define BASEMAXINLINE 256
 #define BASELINELEN 72
 #define BASEMAXINLINE 256
 #define eol "\r\n"
@@ -1793,7 +1792,10 @@ static int ochar(struct baseio *bio, int c, FILE *so)
 
 static int base_encode(char *filename, FILE *so)
 {
-	unsigned char dtable[BASEMAXINLINE];
+	static const unsigned char dtable[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
+		'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+		'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0',
+		'1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'};
 	int i,hiteof= 0;
 	FILE *fi;
 	struct baseio bio;
@@ -1805,22 +1807,6 @@ static int base_encode(char *filename, FILE *so)
 		ast_log(LOG_WARNING, "Failed to open file: %s: %s\n", filename, strerror(errno));
 		return -1;
 	}
-
-	for (i= 0; i<9; i++) {
-		dtable[i]= 'A'+i;
-		dtable[i+9]= 'J'+i;
-		dtable[26+i]= 'a'+i;
-		dtable[26+i+9]= 'j'+i;
-	}
-	for (i= 0; i<8; i++) {
-		dtable[i+18]= 'S'+i;
-		dtable[26+i+18]= 's'+i;
-	}
-	for (i= 0; i<10; i++) {
-		dtable[52+i]= '0'+i;
-	}
-	dtable[62]= '+';
-	dtable[63]= '/';
 
 	while (!hiteof){
 		unsigned char igroup[3], ogroup[4];
