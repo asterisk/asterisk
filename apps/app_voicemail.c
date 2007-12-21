@@ -156,6 +156,8 @@ static void update_messages_by_imapuser(const char *user, unsigned long number);
 static int imap_remove_file (char *dir, int msgnum);
 static int imap_retrieve_file (char *dir, int msgnum, const char *mailbox, char *context);
 static int imap_delete_old_greeting (char *dir, struct vm_state *vms);
+static void check_quota(struct vm_state *vms, char *mailbox);
+static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box);
 struct vmstate {
 	struct vm_state *vms;
 	AST_LIST_ENTRY(vmstate) list;
@@ -3193,13 +3195,19 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", "IMAP_STORAGE");
 
 		/* Check if mailbox is full */
+		check_quota(vms, imapfolder);
 		if (vms->quota_limit && vms->quota_usage >= vms->quota_limit) {
 			ast_debug(1, "*** QUOTA EXCEEDED!! %u >= %u\n", vms->quota_usage, vms->quota_limit);
 			ast_play_and_wait(chan, "vm-mailboxfull");
 			return -1;
 		}
-		/* here is a big difference! We add one to it later */
-		ast_debug(3, "Messagecount set to %d\n",msgnum);
+		
+		/* Check if we have exceeded maxmsg */
+		if (msgnum >= vmu->maxmsg) {
+			ast_log(LOG_WARNING, "Unable to leave message since we will exceed the maximum number of messages allowed (%u > %u)\n", msgnum, vmu->maxmsg);
+			ast_play_and_wait(chan, "vm-mailboxfull");
+			return -1;
+		}
 
 #else
 		if (count_messages(vmu, dir) >= vmu->maxmsg) {
@@ -4969,7 +4977,6 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 	SEARCHPGM *pgm;
 	SEARCHHEADER *hdr;
 	int ret;
-	char dbox[256];
 
 	ast_copy_string(vms->imapuser,vmu->imapuser, sizeof(vms->imapuser));
 	ast_debug(3,"Before init_mailstream, user is %s\n",vmu->imapuser);
@@ -4983,6 +4990,12 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 	mail_parameters(NULL, SET_QUOTA, (void *) mm_parsequota);
 	imap_mailbox_name(dbox, sizeof(dbox), vms, box, 1);
 	imap_getquotaroot(vms->mailstream, dbox);
+
+	/* Check Quota */
+	if  (box == 0)  {
+		ast_debug(3, "Mailbox name set to: %s, about to check quotas\n", mbox(box));
+		check_quota(vms,(char *)mbox(box));
+	}
 
 	pgm = mail_newsearchpgm();
 
@@ -7031,6 +7044,11 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		ast_debug(3, "Checking quotas: comparing %u to %u\n",vms.quota_usage,vms.quota_limit);
 		if (vms.quota_limit && vms.quota_usage >= vms.quota_limit) {
 			ast_debug(1, "*** QUOTA EXCEEDED!!\n");
+			cmd = ast_play_and_wait(chan, "vm-mailboxfull");
+		}
+		ast_debug(3, "Checking quotas: User has %d messages and limit is %d.\n",(vms.newmessages + vms.oldmessages),vmu->maxmsg);
+		if ((vms.newmessages + vms.oldmessages) >= vmu->maxmsg) {
+			ast_log(LOG_WARNING, "No more messages possible.  User has %d messages and limit is %d.\n",(vms.newmessages + vms.oldmessages),vmu->maxmsg);
 			cmd = ast_play_and_wait(chan, "vm-mailboxfull");
 		}
 #endif
@@ -9688,6 +9706,17 @@ static void get_mailbox_delimiter(MAILSTREAM *stream) {
 	char tmp[50];
 	snprintf(tmp, sizeof(tmp), "{%s}", imapserver);
 	mail_list(stream, tmp, "*");
+}
+
+/* Check Quota for user */
+static void check_quota(struct vm_state *vms, char *mailbox) {
+	mail_parameters(NULL, SET_QUOTA, (void *) mm_parsequota);
+	ast_debug(3, "Mailbox name set to: %s, about to check quotas\n", mailbox);
+	if (vms && vms->mailstream != NULL) {
+		imap_getquotaroot(vms->mailstream, mailbox);
+	} else {
+		ast_log(LOG_WARNING,"Mailstream not available for mailbox: %s\n",mailbox);
+	}
 }
 
 #endif /* IMAP_STORAGE */
