@@ -253,6 +253,9 @@ Queue changes
   * Added ability for non-realtime queues to have realtime members
   * Added the "linear" strategy to queues.
   * Added the "wrandom" strategy to queues.
+  * Added new channel variable QUEUE_MIN_PENALTY
+  * QUEUE_MAX_PENALTY and QUEUE_MIN_PENALTY may be adjusted in mid-call by defining
+     rules in queuerules.conf. See configs/queuerules.conf.sample for details
 
 MeetMe Changes
 --------------
