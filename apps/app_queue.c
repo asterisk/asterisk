@@ -4762,6 +4762,8 @@ static int reload_queue_rules(int reload)
 		AST_LIST_UNLOCK(&rule_lists);
 	}
 
+	ast_config_destroy(cfg);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
