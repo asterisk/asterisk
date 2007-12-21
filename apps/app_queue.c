@@ -4266,6 +4266,11 @@ check_turns:
 				if ((res = say_periodic_announcement(&qe,ringing)))
 					goto stop;
 
+			/* see if we need to move to the next penalty level for this queue */
+			while (qe.pr && ((time(NULL) - qe.start) > qe.pr->time)) {
+				update_qe_rule(&qe);
+			}
+
 			/* Try calling all queue members for 'timeout' seconds */
 			res = try_calling(&qe, args.options, args.announceoverride, args.url, &tries, &noption, args.agi, args.macro, args.gosub, ringing);
 			if (res) {
@@ -4315,11 +4320,6 @@ check_turns:
 				res = 0;
 				ast_queue_log(qe.parent->name, qe.chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", qe.pos, qe.opos, (long) time(NULL) - qe.start);
 				break;
-			}
-
-			/* see if we need to move to the next penalty level for this queue */
-			while (qe.pr && ((time(NULL) - qe.start) > qe.pr->time)) {
-				update_qe_rule(&qe);
 			}
 
 			/* If using dynamic realtime members, we should regenerate the member list for this queue */
