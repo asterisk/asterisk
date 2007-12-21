@@ -2351,7 +2351,6 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				break;
 			/* On "ringall" strategy we only move to the next penalty level
 			   when *all* ringing phones are done in the current penalty level */
-			ast_log(LOG_DEBUG, "I actually hit this...\n");
 			ring_one(qe, outgoing, &numbusies);
 			/* and retry... */
 		}
