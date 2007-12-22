@@ -51,6 +51,8 @@ endif
 
 all: _all
 
+chan_oss.so: console_video.o
+
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
 ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)

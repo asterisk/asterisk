@@ -63,6 +63,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/app.h"
 
+#include "console_video.h"
+
 /* ringtones we use */
 #include "busy.h"
 #include "ringtone.h"
@@ -268,8 +270,6 @@ static struct sound sounds[] = {
 	{ -1, NULL, 0, 0, 0, 0 },	/* end marker */
 };
 
-struct video_desc;		/* opaque type for video support */
-
 /*!
  * \brief descriptor for one of our channels.
  *
@@ -350,7 +350,7 @@ struct chan_oss_pvt {
 static struct chan_oss_pvt *find_desc(char *dev);
 
 /*! \brief return the pointer to the video descriptor */
-static attribute_unused struct video_desc *get_video_desc(struct ast_channel *c)
+struct video_desc *get_video_desc(struct ast_channel *c)
 {
 	struct chan_oss_pvt *o = c->tech_pvt;
 	return o ? o->env : NULL;
@@ -388,24 +388,11 @@ static int oss_indicate(struct ast_channel *chan, int cond, const void *data, si
 static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static char tdesc[] = "OSS Console Channel Driver";
 
-#ifdef HAVE_VIDEO_CONSOLE
-#include "console_video.c"
-#else
-#define CONSOLE_VIDEO_CMDS					\
-		"console {device}"
-/* provide replacements for some symbols used */
-#define	console_write_video		NULL
-#define	console_video_start(x, y)	{}
-#define	console_video_uninit(x)		{}
-#define	console_video_config(x, y, z)	1	/* pretend nothing recognised */
-#define	console_video_cli(x, y, z)	0	/* pretend nothing recognised */
-#define	CONSOLE_FORMAT_VIDEO		0
-#endif
-
-static const struct ast_channel_tech oss_tech = {
+/* cannot do const because need to update some fields at runtime */
+static struct ast_channel_tech oss_tech = {
 	.type = "Console",
 	.description = tdesc,
-	.capabilities = AST_FORMAT_SLINEAR | CONSOLE_FORMAT_VIDEO,
+	.capabilities = AST_FORMAT_SLINEAR, /* overwritten later */
 	.requester = oss_request,
 	.send_digit_begin = oss_digit_begin,
 	.send_digit_end = oss_digit_end,
@@ -1017,7 +1004,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	c->nativeformats = AST_FORMAT_SLINEAR;
 	/* if the console makes the call, add video to the offer */
 	if (state == AST_STATE_RINGING)
-		c->nativeformats |= CONSOLE_FORMAT_VIDEO;
+		c->nativeformats |= console_video_formats;
 
 	c->readformat = AST_FORMAT_SLINEAR;
 	c->writeformat = AST_FORMAT_SLINEAR;
@@ -1114,7 +1101,7 @@ static char *console_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	value = a->argc > e->args ? a->argv[e->args] : NULL;
 	if (value)      /* handle setting */
 		store_config_core(o, var, value);
-	if (console_video_cli(o->env, var, a->fd))	/* print video-related values */
+	if (!console_video_cli(o->env, var, a->fd))	/* print video-related values */
 		return CLI_SUCCESS;
 	/* handle other values */
 	if (!strcasecmp(var, "device")) {
@@ -1161,14 +1148,29 @@ static char *console_autoanswer(struct ast_cli_entry *e, int cmd, struct ast_cli
 	return CLI_SUCCESS;
 }
 
+/*! \brief helper function for the answer key/cli command */
+char *console_do_answer(int fd);
+char *console_do_answer(int fd)
+{
+	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
+	struct chan_oss_pvt *o = find_desc(oss_active);
+	if (!o->owner) {
+		if (fd > -1)
+			ast_cli(fd, "No one is calling us\n");
+		return CLI_FAILURE;
+	}
+	o->hookstate = 1;
+	o->cursound = -1;
+	o->nosound = 0;
+	ast_queue_frame(o->owner, &f);
+	return CLI_SUCCESS;
+}
+
 /*!
  * \brief answer command from the console
  */
 static char *console_answer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
-	struct chan_oss_pvt *o = find_desc(oss_active);
-
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "console answer";
@@ -1182,15 +1184,7 @@ static char *console_answer(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	}
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	if (!o->owner) {
-		ast_cli(a->fd, "No one is calling us\n");
-		return CLI_FAILURE;
-	}
-	o->hookstate = 1;
-	o->cursound = -1;
-	o->nosound = 0;
-	ast_queue_frame(o->owner, &f);
-	return CLI_SUCCESS;
+	return console_do_answer(a->fd);
 }
 
 /*!
@@ -1538,7 +1532,7 @@ static void store_config_core(struct chan_oss_pvt *o, const char *var, const cha
 		return;
 
 	if (!console_video_config(&o->env, var, value))
-		return;
+		return;	/* matched there */
 	CV_BOOL("autoanswer", o->autoanswer);
 	CV_BOOL("autohangup", o->autohangup);
 	CV_BOOL("overridecontext", o->overridecontext);
@@ -1656,6 +1650,8 @@ static int load_module(void)
 		/* XXX should cleanup allocated memory etc. */
 		return AST_MODULE_LOAD_FAILURE;
 	}
+
+	oss_tech.capabilities |= console_video_formats;
 
 	if (ast_channel_register(&oss_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel type 'OSS'\n");

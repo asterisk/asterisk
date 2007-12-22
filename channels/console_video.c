@@ -20,6 +20,14 @@
 //#define DROP_PACKETS 5       /* if set, drop this % of video packets */
 //#define OLD_FFMPEG	1	/* set for old ffmpeg with no swscale */
 
+#include "asterisk.h"
+#include <sys/ioctl.h>
+#include <math.h>	/* sqrt */
+#include "asterisk/cli.h"
+#include "asterisk/file.h"
+#include "asterisk/channel.h"
+
+#include "console_video.h"
 
 /*
 The code is structured as follows.
@@ -84,7 +92,40 @@ iax.conf too) the following:
  * In principle SDL is optional too (used for rendering only, but we
  * could still source data withouth it), however at the moment it is required.
  */
-#if defined(HAVE_FFMPEG) && defined(HAVE_SDL)
+#if !defined(HAVE_VIDEO_CONSOLE) || !defined(HAVE_FFMPEG) || !defined(HAVE_SDL)
+/* stubs if required pieces are missing */
+int console_write_video(struct ast_channel *chan, struct ast_frame *f)
+{
+	return 0;	/* writing video not supported */
+}
+
+int console_video_cli(struct video_desc *env, const char *var, int fd)
+{
+	return 1;	/* nothing matched */
+}
+
+int console_video_config(struct video_desc **penv, const char *var, const char *val)
+{
+	return 1;	/* no configuration */
+}
+
+void console_video_start(struct video_desc *env, struct ast_channel *owner)
+{
+	ast_log(LOG_WARNING, "console video support not present\n");
+}
+
+void console_video_uninit(struct video_desc *env)
+{
+}
+
+int console_video_formats = 0;
+
+#else /* defined(HAVE_FFMPEG) && defined(HAVE_SDL) */
+
+/*! The list of video formats we support. */
+int console_video_formats = 
+	AST_FORMAT_H263_PLUS | AST_FORMAT_H263 |
+	AST_FORMAT_MP4_VIDEO | AST_FORMAT_H264 | AST_FORMAT_H261 ;
 
 #ifdef HAVE_X11
 #include <X11/Xlib.h>		/* this should be conditional */
@@ -303,12 +344,6 @@ struct video_desc {
 	char                    keypad_font[256];       /* font for the keypad */
 	struct display_window	win[WIN_MAX];
 };
-
-/*! The list of video formats we support. */
-#define CONSOLE_FORMAT_VIDEO	(			\
-	AST_FORMAT_H263_PLUS | AST_FORMAT_H263 |	\
-	AST_FORMAT_MP4_VIDEO |				\
-	AST_FORMAT_H264 | AST_FORMAT_H261)
 
 static AVPicture *fill_pict(struct fbuf_t *b, AVPicture *p);
 
@@ -1867,7 +1902,7 @@ static void cleanup_sdl(struct video_desc *env)
  * uses the chan lock, we need to unlock here. This is unsafe,
  * and we should really use refcounts for the channels.
  */
-static void console_video_uninit(struct video_desc *env)
+void console_video_uninit(struct video_desc *env)
 {
 	int i, t = 100;	/* initial wait is shorter, than make it longer */
 	env->shutdown = 1;
@@ -2011,7 +2046,7 @@ static void show_frame(struct video_desc *env, int out)
 	SDL_UnlockYUVOverlay(bmp);
 }
 
-static struct video_desc *get_video_desc(struct ast_channel *c);
+struct video_desc *get_video_desc(struct ast_channel *c);
 
 /*
  * This function is called (by asterisk) for each video packet
@@ -2023,7 +2058,8 @@ static struct video_desc *get_video_desc(struct ast_channel *c);
  * - if the fragment is the last (RTP Marker) we decode it with decode_video()
  * - after the decoding is completed we display the decoded frame with show_frame()
  */
-static int console_write_video(struct ast_channel *chan, struct ast_frame *f)
+int console_write_video(struct ast_channel *chan, struct ast_frame *f);
+int console_write_video(struct ast_channel *chan, struct ast_frame *f)
 {
 	struct video_desc *env = get_video_desc(chan);
 	struct video_in_desc *v = &env->in;
@@ -2236,13 +2272,11 @@ static void append_char(char *str, int *str_pos, const char c)
 /* accumulate digits, possibly call dial if in connected mode */
 static void keypad_digit(struct video_desc *env, int digit)
 {	
-	struct chan_oss_pvt *o = find_desc(oss_active);
-
-	if (o->owner) {		/* we have a call, send the digit */
+	if (env->owner) {		/* we have a call, send the digit */
 		struct ast_frame f = { AST_FRAME_DTMF, 0 };
 
 		f.subclass = digit;
-		ast_queue_frame(o->owner, &f);
+		ast_queue_frame(env->owner, &f);
 	} else {		/* no call, accumulate digits */
 		append_char(env->gui.inbuf, &env->gui.inbuf_pos, digit);
 	}
@@ -2258,25 +2292,31 @@ static void keypad_send_command(struct video_desc *env, char *command)
 }
 
 /* function used to toggle on/off the status of some variables */
-static char *keypad_toggle(int index)
+static char *keypad_toggle(struct video_desc *env, int index)
 {
-	struct chan_oss_pvt *o = find_desc(oss_active);
 	ast_log(LOG_WARNING, "keypad_toggle(%i) called\n", index);
 
 	switch (index) {
-	case KEY_MUTE:
-		o->mute = !o->mute;
-		break;
 	case KEY_SENDVIDEO:
-		o->env->out.sendvideo = !o->env->out.sendvideo;
+		env->out.sendvideo = !env->out.sendvideo;
 		break;
-	case KEY_AUTOANSWER:
+#ifdef notyet
+	case KEY_MUTE: {
+		struct chan_oss_pvt *o = find_desc(oss_active);
+		o->mute = !o->mute;
+		}
+		break;
+	case KEY_AUTOANSWER: {
+		struct chan_oss_pvt *o = find_desc(oss_active);
 		o->autoanswer = !o->autoanswer;
+		}
 		break;
+#endif
 	}
 	return NULL;
 }
 
+char *console_do_answer(int fd);
 /*
  * Function called when the pick up button is pressed
  * perform actions according the channel status:
@@ -2289,15 +2329,10 @@ static char *keypad_toggle(int index)
  */
 static void keypad_pick_up(struct video_desc *env)
 {
-	struct chan_oss_pvt *o = find_desc(oss_active);
 	ast_log(LOG_WARNING, "keypad_pick_up called\n");
 
-	if (o->owner) { /* someone is calling us, just answer */
-		struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
-		o->hookstate = 1;
-		o->cursound = -1;
-		o->nosound = 0;
-		ast_queue_frame(o->owner, &f);
+	if (env->owner) { /* someone is calling us, just answer */
+		console_do_answer(-1);
 	} else if (env->gui.inbuf_pos) { /* we have someone to call */
 		ast_cli_command(env->gui.outfd, env->gui.inbuf);
 	}
@@ -2404,7 +2439,7 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 	case KEY_MUTE:
 	case KEY_AUTOANSWER:
 	case KEY_SENDVIDEO:
-		keypad_toggle(index);
+		keypad_toggle(env, index);
 		break;
 
 	case KEY_LOCALVIDEO:
@@ -2822,8 +2857,7 @@ static int set_win(SDL_Surface *screen, struct display_window *win, int fmt,
  * We do our best to progress even if some of the components are not
  * available.
  */
-static void console_video_start(struct video_desc *env,
-	struct ast_channel *owner)
+void console_video_start(struct video_desc *env, struct ast_channel *owner)
 {
 	if (env == NULL)	/* video not initialized */
 		return;
@@ -3187,21 +3221,11 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)
 	return 1;
 }
 
-/* list of commands supported by the cli.
- * For write operation we use the commands in console_video_config(),
- * for reads we use console_video_cli(). XXX Names should be fixed.
- */
-#define CONSOLE_VIDEO_CMDS				\
-	"console {videodevice|videocodec|sendvideo"	\
-	"|video_size|bitrate|fps|qmin"			\
-	"|keypad|keypad_mask|keypad_entry"		\
-	"}"
-
 /* extend ast_cli with video commands. Called by console_video_config */
-static int console_video_cli(struct video_desc *env, const char *var, int fd)
+int console_video_cli(struct video_desc *env, const char *var, int fd)
 {
 	if (env == NULL)
-		return 0;	/* unrecognised */
+		return 1;	/* unrecognised */
 
         if (!strcasecmp(var, "videodevice")) {
 		ast_cli(fd, "videodevice is [%s]\n", env->out.videodevice);
@@ -3223,13 +3247,13 @@ static int console_video_cli(struct video_desc *env, const char *var, int fd)
         } else if (!strcasecmp(var, "fps")) {
 		ast_cli(fd, "fps is [%d]\n", env->out.fps);
         } else {
-		return 0;	/* unrecognised */
+		return 1;	/* unrecognised */
 	}
-	return 1;	/* recognised */
+	return 0;	/* recognised */
 }
 
 /*! parse config command for video support. */
-static int console_video_config(struct video_desc **penv,
+int console_video_config(struct video_desc **penv,
 	const char *var, const char *val)
 {
 	struct video_desc *env;
