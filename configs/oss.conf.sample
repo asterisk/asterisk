@@ -102,7 +102,7 @@
 ; which is a lot more convenient to manage.
 ; E.g. for jpeg you can write them with wrjpgcom (part of libjpeg).
 ; The format to define keys is
-;	keypad_entry = <event> <shape> x0 y0 x1 y1 h
+;	region = <event> <shape> x0 y0 x1 y1 h
 ; where <event> is the event to be generated (a digit, pickup, hangup,...)
 ; <shape> is the shape of the region (currently 'rect' and 'circle' are
 ; supported, the latter is really an ellipse),  x0 y0 x1 y1 are the
@@ -112,23 +112,23 @@
 ;
 [my_skin](!)
     keypad = /tmp/keypad.jpg
-    keypad_entry = 1 rect   19  18    67  18  28
-    keypad_entry = 2 rect   84  18   133  18  28
-    keypad_entry = 3 rect  152  18   201  18  28
-    keypad_entry = 4 rect   19  60    67  60  28
-    keypad_entry = 5 rect   84  60   133  60  28
-    keypad_entry = 6 rect  152  60   201  60  28
-    keypad_entry = 7 rect   19 103    67 103  28
-    keypad_entry = 8 rect   84 103   133 103  28
-    keypad_entry = 9 rect  152 103   201 103  28
-    keypad_entry = * rect   19 146    67 146  28
-    keypad_entry = 0 rect   84 146   133 146  28
-    keypad_entry = # rect  152 146   201 146  28
-    keypad_entry = pickup rect  229 15  267 15 40
-    keypad_entry = hangup rect  230 66  270 64 40
-    keypad_entry = mute circle  232 141 264 141 33   
-    keypad_entry = sendvideo circle  235 185 266 185 33
-    keypad_entry = autoanswer rect 228 212 275 212 50
+    region = 1 rect   19  18    67  18  28
+    region = 2 rect   84  18   133  18  28
+    region = 3 rect  152  18   201  18  28
+    region = 4 rect   19  60    67  60  28
+    region = 5 rect   84  60   133  60  28
+    region = 6 rect  152  60   201  60  28
+    region = 7 rect   19 103    67 103  28
+    region = 8 rect   84 103   133 103  28
+    region = 9 rect  152 103   201 103  28
+    region = * rect   19 146    67 146  28
+    region = 0 rect   84 146   133 146  28
+    region = # rect  152 146   201 146  28
+    region = pickup rect  229 15  267 15 40
+    region = hangup rect  230 66  270 64 40
+    region = mute circle  232 141 264 141 33   
+    region = sendvideo circle  235 185 266 185 33
+    region = autoanswer rect 228 212 275 212 50
 
 ; uncomment this line to add video support
 ; [default](+,my_video,my_skin)

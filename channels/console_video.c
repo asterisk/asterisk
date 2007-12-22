@@ -2926,6 +2926,8 @@ static void sdl_setup(struct video_desc *env)
 		 * You can add it to a jpeg file using wrjpgcom
 		 */
 		do { /* only once, in fact */
+			const char region[] = "region";
+			int reg_len = strlen(region);
 			const unsigned char *s, *e;
 
 			fd = open(env->keypad_file, O_RDONLY);
@@ -2945,8 +2947,10 @@ static void sdl_setup(struct video_desc *env)
 			}
 			e = (const unsigned char *)p + l;
 			for (s = p; s < e - 20 ; s++) {
-				if (!memcmp(s, "keypad_entry", 12)) { /* keyword found */
+				if (!memcmp(s, region, reg_len)) { /* keyword found */
 					ast_log(LOG_WARNING, "found entry\n");
+					/* reset previous entries */
+					keypad_cfg_read(&env->gui, "reset");
 					break;
 				}
 			}
@@ -2957,9 +2961,9 @@ static void sdl_setup(struct video_desc *env)
 					continue;
 				if (*s > 127)	/* likely end of comment */
 					break;
-				if (memcmp(s, "keypad_entry", 12)) /* keyword not found */
+				if (memcmp(s, region, reg_len)) /* keyword not found */
 					break;
-				s += 12;
+				s += reg_len;
 				l = MIN(sizeof(buf), e - s);
 				ast_copy_string(buf, s, l);
 				s1 = ast_skip_blanks(buf);	/* between token and '=' */
@@ -3148,7 +3152,6 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)
 		if (gui->kp) {
 			gui->kp_used = 0;
 		}
-		ret = 1;
 		break;
 	case 5: /* token circle xc yc diameter */
 		if (strcasecmp(s2, "circle"))	/* invalid */
@@ -3286,7 +3289,7 @@ int console_video_config(struct video_desc **penv,
         CV_F("local_size", video_geom(&env->out.loc_dpy, val));
         CV_F("remote_size", video_geom(&env->in.rem_dpy, val));
         CV_STR("keypad", env->keypad_file);
-        CV_F("keypad_entry", keypad_cfg_read(&env->gui, val));
+        CV_F("region", keypad_cfg_read(&env->gui, val));
         CV_STR("keypad_mask", env->keypad_mask);
 	CV_STR("keypad_font", env->keypad_font);
         CV_UINT("fps", env->out.fps);
