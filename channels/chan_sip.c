@@ -3093,33 +3093,34 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 			varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
 
 		var = ast_load_realtime("sippeers", "name", newpeername, "host", "dynamic", NULL);
-		if (!var && sin) {
+		if (!var && sin)
 			var = ast_load_realtime("sippeers", "name", newpeername, "host", ast_inet_ntoa(sin->sin_addr), NULL);
-			if (!var) {
-				var = ast_load_realtime("sippeers", "name", newpeername, NULL);
-				/*!\note
-				 * If this one loaded something, then we need to ensure that the host
-				 * field matched.  The only reason why we can't have this as a criteria
-				 * is because we only have the IP address and the host field might be
-				 * set as a name (and the reverse PTR might not match).
-				 */
-				if (var) {
-					for (tmp = var; tmp; tmp = tmp->next) {
-						if (!strcasecmp(var->name, "host")) {
-							struct in_addr sin2 = { 0, };
-							struct ast_dnsmgr_entry *dnsmgr = NULL;
-							if ((ast_dnsmgr_lookup(tmp->value, &sin2, &dnsmgr) < 0) || (memcmp(&sin2, &sin->sin_addr, sizeof(sin2)) != 0)) {
-								/* No match */
-								ast_variables_destroy(var);
-								var = NULL;
-							}
-							break;
+		if (!var) {
+			var = ast_load_realtime("sippeers", "name", newpeername, NULL);
+			/*!\note
+			 * If this one loaded something, then we need to ensure that the host
+			 * field matched.  The only reason why we can't have this as a criteria
+			 * is because we only have the IP address and the host field might be
+			 * set as a name (and the reverse PTR might not match).
+			 */
+			if (var) {
+				for (tmp = var; tmp; tmp = tmp->next) {
+					if (!strcasecmp(var->name, "host")) {
+						struct in_addr sin2 = { 0, };
+						struct ast_dnsmgr_entry *dnsmgr = NULL;
+						if ((ast_dnsmgr_lookup(tmp->value, &sin2, &dnsmgr) < 0) || (memcmp(&sin2, &sin->sin_addr, sizeof(sin2)) != 0)) {
+							/* No match */
+							ast_variables_destroy(var);
+							var = NULL;
 						}
+						break;
 					}
 				}
 			}
 		}
-	} else if (sin) {	/* Then check on IP address for dynamic peers */
+	}
+
+	if (!var && sin) {	/* Then check on IP address for dynamic peers */
 		ast_copy_string(ipaddr, ast_inet_ntoa(sin->sin_addr), sizeof(ipaddr));
 		portnum = ntohs(sin->sin_port);
 		sprintf(portstring, "%u", portnum);
@@ -3139,7 +3140,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 				var = ast_load_realtime("sippeers", "name", newpeername, NULL);
 			}
 		}
-		if(!var) { /*We couldn't match on ipaddress and port, so we need to check if port is insecure*/
+		if (!var) { /*We couldn't match on ipaddress and port, so we need to check if port is insecure*/
 			peerlist = ast_load_realtime_multientry("sippeers", "host", ipaddr, NULL);
 			if (peerlist) {
 				var = get_insecure_variable_from_config(peerlist);
@@ -3163,7 +3164,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 					}
 				}
 			} else {
-				if(realtimeregs) {
+				if (realtimeregs) {
 					peerlist = ast_load_realtime_multientry("sipregs", "ipaddr", ipaddr, NULL);
 					if (peerlist) {
 						varregs = get_insecure_variable_from_config(peerlist);
