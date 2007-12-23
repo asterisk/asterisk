@@ -89,10 +89,16 @@ gentone: gentone.c
 	$(CMD_PREFIX) $(HOST_CC) -o $@ $^ -lm
 
 busy.h: gentone
+	-@mv $@ $@.tmp
 	./gentone busy 480 620
+	@cmp -s $@.tmp $@ && mv $@.tmp $@
+	-@rm -f  $@.tmp
 
 ringtone.h: gentone
+	-@mv $@ $@.tmp
 	./gentone ringtone 440 480
+	@cmp -s $@.tmp $@ && mv $@.tmp $@
+	-@rm -f  $@.tmp
 
 $(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): iax2-parser.o iax2-provision.o
 
