@@ -2895,8 +2895,15 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val);
 static void sdl_setup(struct video_desc *env)
 {
 	int dpy_fmt = SDL_IYUV_OVERLAY;	/* YV12 causes flicker in SDL */
-	int maxw, maxh;
+	int depth, maxw, maxh;
+	const SDL_VideoInfo *info = SDL_GetVideoInfo();
 
+	/* We want at least 16bpp to support YUV overlays.
+	 * E.g with SDL_VIDEODRIVER = aalib the default is 8
+	 */
+	depth = info->vfmt->BitsPerPixel;
+	if (depth < 16)
+		depth = 16;
 	/*
 	 * initialize the SDL environment. We have one large window
 	 * with local and remote video, and a keypad.
@@ -2989,7 +2996,7 @@ static void sdl_setup(struct video_desc *env)
 	maxh = MAX( MAX(env->in.rem_dpy.h, env->out.loc_dpy.h), env->out.keypad_dpy.h);
 	maxw += 4 * BORDER;
 	maxh += 2 * BORDER;
-	env->screen = SDL_SetVideoMode(maxw, maxh, 0, 0);
+	env->screen = SDL_SetVideoMode(maxw, maxh, depth, 0);
 	if (!env->screen) {
 		ast_log(LOG_ERROR, "SDL: could not set video mode - exiting\n");
 		goto no_sdl;
