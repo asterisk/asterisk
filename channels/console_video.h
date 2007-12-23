@@ -37,6 +37,7 @@ void console_video_start(struct video_desc *env, struct ast_channel *owner);
         "console {videodevice|videocodec|sendvideo"     \
         "|video_size|bitrate|fps|qmin"                  \
         "|keypad|keypad_mask|keypad_entry"              \
+	"|sdl_videodriver"				\
         "|device"					\
 	"}"
 

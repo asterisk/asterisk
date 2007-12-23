@@ -341,6 +341,8 @@ struct video_desc {
 	SDL_Surface             *screen;	/* the main window */
 	char			keypad_file[256];	/* image for the keypad */
 	char                    keypad_font[256];       /* font for the keypad */
+
+	char			sdl_videodriver[256];
 	struct display_window	win[WIN_MAX];
 };
 
@@ -2679,10 +2681,23 @@ static void *video_thread(void *arg)
 {
 	struct video_desc *env = arg;
 	int count = 0;
+	char save_display[128] = "";
 
 	env->screen = NULL;
 	bzero(env->win, sizeof(env->win));
 
+	/* if sdl_videodriver is set, override the environment. Also,
+	 * if it contains 'console' override DISPLAY around the call to SDL_Init
+	 * so we use the console as opposed to the x11 version of aalib
+	 */
+	if (!ast_strlen_zero(env->sdl_videodriver)) { /* override */
+		const char *s = getenv("DISPLAY");
+		setenv("SDL_VIDEODRIVER", env->sdl_videodriver, 1);
+		if (s && !strcasecmp(env->sdl_videodriver, "aalib-console")) {
+			ast_copy_string(save_display, s, sizeof(save_display));
+			unsetenv("DISPLAY");
+		}
+	}
 	if (SDL_Init(SDL_INIT_VIDEO)) {
 		ast_log(LOG_WARNING, "Could not initialize SDL - %s\n",
 			SDL_GetError());
@@ -2696,6 +2711,9 @@ static void *video_thread(void *arg)
 		if (!env->gui_ok)
 			ast_log(LOG_WARNING, "cannot init console gui\n");
 	}
+	if (!ast_strlen_zero(save_display))
+		setenv("DISPLAY", save_display, 1);
+
 	if (video_open(&env->out)) {
 		ast_log(LOG_WARNING, "cannot open local video source\n");
 	} else {
@@ -3301,6 +3319,7 @@ int console_video_config(struct video_desc **penv,
 	CV_STR("keypad", env->keypad_file);
 	CV_F("region", keypad_cfg_read(&env->gui, val));
 	CV_STR("keypad_font", env->keypad_font);
+	CV_STR("sdl_videodriver", env->sdl_videodriver);
 	CV_UINT("fps", env->out.fps);
 	CV_UINT("bitrate", env->out.bitrate);
 	CV_UINT("qmin", env->out.qmin);
