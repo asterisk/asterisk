@@ -340,7 +340,6 @@ struct video_desc {
 	int			gui_ok;
 	SDL_Surface             *screen;	/* the main window */
 	char			keypad_file[256];	/* image for the keypad */
-	char			keypad_mask[256];	/* background for the keypad */
 	char                    keypad_font[256];       /* font for the keypad */
 	struct display_window	win[WIN_MAX];
 };
@@ -2221,7 +2220,6 @@ to implement keypad functionalities or to drag the capture device.
 Configuration options control the appeareance of the gui:
 
     keypad = /tmp/phone.jpg		; the keypad on the screen
-    keypad_mask = /tmp/phone.png	; the grayscale mask
     keypad_font = /tmp/font.ttf		; the font to use for output
 
  *
@@ -2891,6 +2889,89 @@ void console_video_start(struct video_desc *env, struct ast_channel *owner)
 }
 
 static int keypad_cfg_read(struct gui_info *gui, const char *val);
+
+static void keypad_setup(struct video_desc *env)
+{
+	int fd = -1;
+	void *p = NULL;
+	off_t l = 0;
+
+	if (env->gui.keypad)
+		return;
+	env->gui.keypad = get_keypad(env->keypad_file);
+	if (!env->gui.keypad)
+		return;
+
+	env->out.keypad_dpy.w = env->gui.keypad->w;
+	env->out.keypad_dpy.h = env->gui.keypad->h;
+	/*
+	 * If the keypad image has a comment field, try to read
+	 * the button location from there. The block must be
+	 *	keypad_entry = token shape x0 y0 x1 y1 h
+	 *	...
+	 * (basically, lines have the same format as config file entries.
+	 * same as the keypad_entry.
+	 * You can add it to a jpeg file using wrjpgcom
+	 */
+	do { /* only once, in fact */
+		const char region[] = "region";
+		int reg_len = strlen(region);
+		const unsigned char *s, *e;
+
+		fd = open(env->keypad_file, O_RDONLY);
+		if (fd < 0) {
+			ast_log(LOG_WARNING, "fail to open %s\n", env->keypad_file);
+			break;
+		}
+		l = lseek(fd, 0, SEEK_END);
+		if (l <= 0) {
+			ast_log(LOG_WARNING, "fail to lseek %s\n", env->keypad_file);
+			break;
+		}
+		p = mmap(NULL, l, PROT_READ, 0, fd, 0);
+		if (p == NULL) {
+			ast_log(LOG_WARNING, "fail to mmap %s size %ld\n", env->keypad_file, (long)l);
+			break;
+		}
+		e = (const unsigned char *)p + l;
+		for (s = p; s < e - 20 ; s++) {
+			if (!memcmp(s, region, reg_len)) { /* keyword found */
+				/* reset previous entries */
+				keypad_cfg_read(&env->gui, "reset");
+				break;
+			}
+		}
+		for ( ;s < e - 20; s++) {
+			char buf[256];
+			const unsigned char *s1;
+			if (index(" \t\r\n", *s))	/* ignore blanks */
+				continue;
+			if (*s > 127)	/* likely end of comment */
+				break;
+			if (memcmp(s, region, reg_len)) /* keyword not found */
+				break;
+			s += reg_len;
+			l = MIN(sizeof(buf), e - s);
+			ast_copy_string(buf, s, l);
+			s1 = ast_skip_blanks(buf);	/* between token and '=' */
+			if (*s1++ != '=')	/* missing separator */
+				break;
+			if (*s1 == '>')	/* skip => */
+				s1++;
+			keypad_cfg_read(&env->gui, ast_skip_blanks(s1));
+			/* now wait for a newline */
+			s1 = s;
+			while (s1 < e - 20 && !index("\r\n", *s1) && *s1 < 128)
+				s1++;
+			s = s1;
+		}
+	} while (0);
+	if (p)
+		munmap(p, l);
+	if (fd >= 0)
+		close(fd);
+}
+
 /* [re]set the main sdl window, useful in case of resize */
 static void sdl_setup(struct video_desc *env)
 {
@@ -2913,84 +2994,7 @@ static void sdl_setup(struct video_desc *env)
 	 * - on the right, the local video
 	 */
 
-	/* Fetch the keypad now, we need it to know its size */
-	if (!env->gui.keypad)
-		env->gui.keypad = get_keypad(env->keypad_file);
-	if (env->gui.keypad) {
-		int fd = -1;
-		void *p = NULL;
-		off_t l = 0;
-
-		env->out.keypad_dpy.w = env->gui.keypad->w;
-		env->out.keypad_dpy.h = env->gui.keypad->h;
-		/*
-		 * If the keypad image has a comment field, try to read
-		 * the button location from there. The block must be
-		 *	keypad_entry = token shape x0 y0 x1 y1 h
-		 *	...
-		 * (basically, lines have the same format as config file entries.
-		 * same as the keypad_entry.
-		 * You can add it to a jpeg file using wrjpgcom
-		 */
-		do { /* only once, in fact */
-			const char region[] = "region";
-			int reg_len = strlen(region);
-			const unsigned char *s, *e;
-
-			fd = open(env->keypad_file, O_RDONLY);
-			if (fd < 0) {
-				ast_log(LOG_WARNING, "fail to open %s\n", env->keypad_file);
-				break;
-			}
-			l = lseek(fd, 0, SEEK_END);
-			if (l <= 0) {
-				ast_log(LOG_WARNING, "fail to lseek %s\n", env->keypad_file);
-				break;
-			}
-			p = mmap(NULL, l, PROT_READ, 0, fd, 0);
-			if (p == NULL) {
-				ast_log(LOG_WARNING, "fail to mmap %s size %ld\n", env->keypad_file, (long)l);
-				break;
-			}
-			e = (const unsigned char *)p + l;
-			for (s = p; s < e - 20 ; s++) {
-				if (!memcmp(s, region, reg_len)) { /* keyword found */
-					ast_log(LOG_WARNING, "found entry\n");
-					/* reset previous entries */
-					keypad_cfg_read(&env->gui, "reset");
-					break;
-				}
-			}
-			for ( ;s < e - 20; s++) {
-				char buf[256];
-				const unsigned char *s1;
-				if (index(" \t\r\n", *s))	/* ignore blanks */
-					continue;
-				if (*s > 127)	/* likely end of comment */
-					break;
-				if (memcmp(s, region, reg_len)) /* keyword not found */
-					break;
-				s += reg_len;
-				l = MIN(sizeof(buf), e - s);
-				ast_copy_string(buf, s, l);
-				s1 = ast_skip_blanks(buf);	/* between token and '=' */
-				if (*s1++ != '=')	/* missing separator */
-					break;
-				if (*s1 == '>')	/* skip => */
-					s1++;
-				keypad_cfg_read(&env->gui, ast_skip_blanks(s1));
-				/* now wait for a newline */
-				s1 = s;
-				while (s1 < e - 20 && !index("\r\n", *s1) && *s1 < 128)
-					s1++;
-				s = s1;
-			}
-		} while (0);
-		if (p)
-			munmap(p, l);
-		if (fd >= 0)
-			close(fd);
-	}
+	keypad_setup(env);
 #define BORDER	5	/* border around our windows */
 	maxw = env->in.rem_dpy.w + env->out.loc_dpy.w + env->out.keypad_dpy.w;
 	maxh = MAX( MAX(env->in.rem_dpy.h, env->out.loc_dpy.h), env->out.keypad_dpy.h);
@@ -3226,7 +3230,6 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)
 	}
 	if (gui->kp_size == gui->kp_used)
 		return 0;
-	ast_log(LOG_WARNING, "allocated entry %d\n", gui->kp_used);
 	gui->kp[gui->kp_used++] = e;
 	return 1;
 }
@@ -3289,19 +3292,18 @@ int console_video_config(struct video_desc **penv,
 		env->out.qmin = 3;
 	}
 	CV_START(var, val);
-        CV_STR("videodevice", env->out.videodevice);
-        CV_BOOL("sendvideo", env->out.sendvideo);
-        CV_F("video_size", video_geom(&env->out.enc_in, val));
-        CV_F("camera_size", video_geom(&env->out.loc_src, val));
-        CV_F("local_size", video_geom(&env->out.loc_dpy, val));
-        CV_F("remote_size", video_geom(&env->in.rem_dpy, val));
-        CV_STR("keypad", env->keypad_file);
-        CV_F("region", keypad_cfg_read(&env->gui, val));
-        CV_STR("keypad_mask", env->keypad_mask);
+	CV_STR("videodevice", env->out.videodevice);
+	CV_BOOL("sendvideo", env->out.sendvideo);
+	CV_F("video_size", video_geom(&env->out.enc_in, val));
+	CV_F("camera_size", video_geom(&env->out.loc_src, val));
+	CV_F("local_size", video_geom(&env->out.loc_dpy, val));
+	CV_F("remote_size", video_geom(&env->in.rem_dpy, val));
+	CV_STR("keypad", env->keypad_file);
+	CV_F("region", keypad_cfg_read(&env->gui, val));
 	CV_STR("keypad_font", env->keypad_font);
-        CV_UINT("fps", env->out.fps);
-        CV_UINT("bitrate", env->out.bitrate);
-        CV_UINT("qmin", env->out.qmin);
+	CV_UINT("fps", env->out.fps);
+	CV_UINT("bitrate", env->out.bitrate);
+	CV_UINT("qmin", env->out.qmin);
 	CV_STR("videocodec", env->codec_name);
 	return 1;	/* nothing found */
 
