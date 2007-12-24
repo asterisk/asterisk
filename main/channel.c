@@ -831,22 +831,6 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 		ast_string_field_build_va(tmp, name, name_fmt, ap1, ap2);
 		va_end(ap1);
 		va_end(ap2);
-
-		/* and now, since the channel structure is built, and has its name, let's call the
-		 * manager event generator with this Newchannel event. This is the proper and correct
-		 * place to make this call, but you sure do have to pass a lot of data into this func
-		 * to do it here!
-		 */
-		manager_event(EVENT_FLAG_CALL, "Newchannel",
-			      "Channel: %s\r\n"
-			      "State: %s\r\n"
-			      "CallerIDNum: %s\r\n"
-			      "CallerIDName: %s\r\n"
-			      "Uniqueid: %s\r\n",
-			      tmp->name, ast_state2str(state),
-			      S_OR(cid_num, "<unknown>"),
-			      S_OR(cid_name, "<unknown>"),
-			      tmp->uniqueid);
 	}
 
 	/* Reminder for the future: under what conditions do we NOT want to track cdrs on channels? */
@@ -892,6 +876,25 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 	AST_LIST_LOCK(&channels);
 	AST_LIST_INSERT_HEAD(&channels, tmp, chan_list);
 	AST_LIST_UNLOCK(&channels);
+
+	/*\!note
+	 * and now, since the channel structure is built, and has its name, let's
+	 * call the manager event generator with this Newchannel event. This is the
+	 * proper and correct place to make this call, but you sure do have to pass
+	 * a lot of data into this func to do it here!
+	 */
+	if (!ast_strlen_zero(name_fmt)) {
+		manager_event(EVENT_FLAG_CALL, "Newchannel",
+		      "Channel: %s\r\n"
+		      "State: %s\r\n"
+		      "CallerIDNum: %s\r\n"
+		      "CallerIDName: %s\r\n"
+		      "Uniqueid: %s\r\n",
+		      tmp->name, ast_state2str(state),
+		      S_OR(cid_num, "<unknown>"),
+		      S_OR(cid_name, "<unknown>"),
+		      tmp->uniqueid);
+	}
 
 	return tmp;
 }
