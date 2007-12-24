@@ -15497,7 +15497,14 @@ restartsearch:
 		   get back to this point every millisecond or less)
 		*/
 		for (sip = iflist; !fastrestart && sip; sip = sip->next) {
-			ast_mutex_lock(&sip->lock);
+			/*! \note If we can't get a lock on an interface, skip it and come
+			 * back later. Note that there is the possibility of a deadlock with
+			 * sip_hangup otherwise, because sip_hangup is called with the channel
+			 * locked first, and the iface lock is attempted second.
+			 */
+			if (ast_mutex_trylock(&sip->lock))
+				continue;
+
 			/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
 			if (sip->rtp && sip->owner &&
 			    (sip->owner->_state == AST_STATE_UP) &&
