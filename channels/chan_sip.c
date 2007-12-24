@@ -2565,8 +2565,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 				}
 			}
 		}
-	} else
-		return NULL;
+	}
 
 	if (!var) {
 		if(peerlist)
