@@ -32,6 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <pthread.h>
 
 #include "asterisk/paths.h"	/* use many ast_config_AST_*_DIR */
 #include "asterisk/network.h"
@@ -392,6 +393,7 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 
 	/* User information */
 	ast_agi_fdprintf(chan, fd, "agi_accountcode: %s\n", chan->accountcode ? chan->accountcode : "");
+	ast_agi_fdprintf(chan, fd, "agi_threadid: %ld\n", (long)pthread_self());
 
 	/* Send any parameters to the fastagi server that have been passed via the agi application */
 	/* Agi application paramaters take the form of: AGI(/path/to/example/script|${EXTEN}) */
