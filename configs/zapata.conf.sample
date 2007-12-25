@@ -99,22 +99,22 @@
 ; pridialplan may be also set at dialtime, by prefixing the dialled number with
 ; one of the following letters:
 ; U - Unknown
-; P - Private
-; L - Local
-; N - National
 ; I - International
-; D - Dynamic
-; R - Redundant
+; N - National
+; L - Local (Net Specific)
+; S - Subscriber
+; V - Abbreviated
+; R - Reserved (should probably never be used but is included for completeness)
 ;
 ; Additionally, you may also set the following NPI bits (also by prefixing the
 ; dialled string with one of the following letters):
 ; u - Unknown
-; e - E.163/E.164
-; x - X.121
-; f - F.69
+; e - E.163/E.164 (ISDN/telephony)
+; x - X.121 (Data)
+; f - F.69 (Telex)
 ; n - National
 ; p - Private
-; r - Reserved
+; r - Reserved (should probably never be used but is included for completeness)
 ;
 ; You may also set the prilocaldialplan in the same way, but by prefixing the
 ; Caller*ID Number, rather than the dialled number.  Please note that telcos

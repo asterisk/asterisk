@@ -2562,7 +2562,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			case 'S':
 				pridialplan = (PRI_TON_SUBSCRIBER << 4) | (pridialplan & 0xf);
 				break;
-			case 'A':
+			case 'V':
 				pridialplan = (PRI_TON_ABBREVIATED << 4) | (pridialplan & 0xf);
 				break;
 			case 'R':
@@ -2632,7 +2632,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				case 'S':
 					prilocaldialplan = (PRI_TON_SUBSCRIBER << 4) | (prilocaldialplan & 0xf);
 					break;
-				case 'A':
+				case 'V':
 					prilocaldialplan = (PRI_TON_ABBREVIATED << 4) | (prilocaldialplan & 0xf);
 					break;
 				case 'R':
