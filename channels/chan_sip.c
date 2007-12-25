@@ -2487,7 +2487,7 @@ static void update_peer(struct sip_peer *p, int expiry)
 static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_in *sin)
 {
 	struct sip_peer *peer=NULL;
-	struct ast_variable *var;
+	struct ast_variable *var = NULL;
 	struct ast_config *peerlist = NULL;
 	struct ast_variable *tmp;
 	struct ast_flags flags = {0};
