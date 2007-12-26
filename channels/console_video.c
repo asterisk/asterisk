@@ -22,7 +22,6 @@
 
 #include "asterisk.h"
 #include <sys/ioctl.h>
-#include <math.h>	/* sqrt */
 #include "asterisk/cli.h"
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
@@ -250,43 +249,6 @@ struct video_in_desc {
 	struct fbuf_t rem_dpy;	/* display remote image, no buffer (it is in win[WIN_REMOTE].bmp) */
 };
 
-/* our representation of a displayed window. SDL can only do one main
- * window so we map everything within that one
- */
-enum { WIN_LOCAL, WIN_REMOTE, WIN_KEYPAD, WIN_MAX };
-
-struct display_window	{
-	SDL_Overlay             *bmp;
-	SDL_Rect		rect;	/* loc. of images */
-};
-
-#define GUI_BUFFER_LEN 256			/* buffer lenght used for input buffers */
-
-enum kp_type { KP_NONE, KP_RECT, KP_CIRCLE };
-struct keypad_entry {
-	int c;	/* corresponding character */
-	int x0, y0, x1, y1, h;	/* arguments */
-	enum kp_type type;
-};
-
-/*! \brief info related to the gui: button status, mouse coords, etc. */
-struct gui_info {
-	char			inbuf[GUI_BUFFER_LEN];	/* buffer for to-dial buffer */
-	int			inbuf_pos;	/* next free position in inbuf */
-	char			msgbuf[GUI_BUFFER_LEN];	/* buffer for text-message buffer */
-	int			msgbuf_pos;	/* next free position in msgbuf */
-	int			text_mode;	/* switch to-dial and text-message mode */
-	int			drag_mode;	/* switch phone and drag-source mode */
-	int			x_drag;		/* x coordinate where the drag starts */
-	int			y_drag;		/* y coordinate where the drag starts */
-#ifdef HAVE_SDL_TTF
-	TTF_Font                *font;          /* font to be used */ 
-#endif
-	int			outfd;		/* fd for output */
-	SDL_Surface		*keypad;	/* the pixmap for the keypad */
-	int kp_size, kp_used;
-	struct keypad_entry *kp;
-};
 
 /*
  * The overall descriptor, with room for config info, video source and
@@ -302,11 +264,10 @@ struct video_desc {
 	struct video_in_desc	in;		/* remote video descriptor */
 	struct video_out_desc	out;		/* local video descriptor */
 
-	struct gui_info		gui;
+	struct gui_info		*gui;
 
 	/* support for display. */
 	int                     sdl_ok;
-	int			gui_ok;
 	SDL_Surface             *screen;	/* the main window */
 	char			keypad_file[256];	/* image for the keypad */
 	char                    keypad_font[256];       /* font for the keypad */
@@ -1147,10 +1108,6 @@ static void *video_thread(void *arg)
 		sdl_setup(env);
 		if (env->sdl_ok)
 			ast_mutex_init(&env->in.dec_in_lock);
-		/* TODO, segfault if not X display present */
-		env->gui_ok = !gui_init(env);
-		if (!env->gui_ok)
-			ast_log(LOG_WARNING, "cannot init console gui\n");
 	}
 	if (!ast_strlen_zero(save_display))
 		setenv("DISPLAY", save_display, 1);
@@ -1190,7 +1147,7 @@ static void *video_thread(void *arg)
 		/* manage keypad events */
 		/* XXX here we should always check for events,
 		* otherwise the drag will not work */ 
-		if (env->gui_ok)
+		if (env->gui)
 			eventhandler(env);
  
 		/* sleep for a while */
@@ -1447,7 +1404,7 @@ int console_video_config(struct video_desc **penv,
 	CV_F("local_size", video_geom(&env->out.loc_dpy, val));
 	CV_F("remote_size", video_geom(&env->in.rem_dpy, val));
 	CV_STR("keypad", env->keypad_file);
-	CV_F("region", keypad_cfg_read(&env->gui, val));
+	CV_F("region", keypad_cfg_read(env->gui, val));
 	CV_STR("keypad_font", env->keypad_font);
 	CV_STR("sdl_videodriver", env->sdl_videodriver);
 	CV_UINT("fps", env->out.fps);

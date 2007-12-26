@@ -4,30 +4,73 @@
  * $Revision$
  */
 
+#include "asterisk.h"
+#include "console_video.h"
+#include "asterisk/lock.h"
+#include "asterisk/frame.h"
+#include "asterisk/utils.h"	/* ast_calloc and ast_realloc */
+#include <math.h>		/* sqrt */
+
+enum kp_type { KP_NONE, KP_RECT, KP_CIRCLE };
+struct keypad_entry {
+        int c;  /* corresponding character */
+        int x0, y0, x1, y1, h;  /* arguments */
+        enum kp_type type;
+};
+
+#define GUI_BUFFER_LEN 256			/* buffer lenght used for input buffers */
+
+struct keypad_entry;	/* defined in console_gui.c */
+
+/*! \brief info related to the gui: button status, mouse coords, etc. */
+struct gui_info {
+	char			inbuf[GUI_BUFFER_LEN];	/* buffer for to-dial buffer */
+	int			inbuf_pos;	/* next free position in inbuf */
+	char			msgbuf[GUI_BUFFER_LEN];	/* buffer for text-message buffer */
+	int			msgbuf_pos;	/* next free position in msgbuf */
+	int			text_mode;	/* switch to-dial and text-message mode */
+	int			drag_mode;	/* switch phone and drag-source mode */
+	int			x_drag;		/* x coordinate where the drag starts */
+	int			y_drag;		/* y coordinate where the drag starts */
+#ifdef HAVE_SDL_TTF
+	TTF_Font                *font;          /* font to be used */ 
+#endif
+	int			outfd;		/* fd for output */
+	SDL_Surface		*keypad;	/* the pixmap for the keypad */
+	int kp_size, kp_used;
+	struct keypad_entry *kp;
+};
+
 static void cleanup_sdl(struct video_desc *env)  
 {
 	int i;
+	struct gui_info *gui = env->gui;
 
+    if (gui) {
 #ifdef HAVE_SDL_TTF
 	/* unload font file */ 
-	if (env->gui.font) {
-		TTF_CloseFont(env->gui.font);
-		env->gui.font = NULL; 
+	if (gui->font) {
+		TTF_CloseFont(gui->font);
+		gui->font = NULL; 
 	}
 
 	/* uninitialize SDL_ttf library */
 	if ( TTF_WasInit() )
 		TTF_Quit();
 #endif
+	if (gui->keypad)
+		SDL_FreeSurface(gui->keypad);
+	gui->keypad = NULL;
+	/* XXX free the keys entries */
+	ast_free(gui);
+	env->gui = NULL;
+    }
 
 	/* uninitialize the SDL environment */
 	for (i = 0; i < WIN_MAX; i++) {
 		if (env->win[i].bmp)
 			SDL_FreeYUVOverlay(env->win[i].bmp);
 	}
-	if (env->gui.keypad)
-		SDL_FreeSurface(env->gui.keypad);
-	env->gui.keypad = NULL;
 	SDL_Quit();
 	env->screen = NULL; /* XXX check reference */
 	bzero(env->win, sizeof(env->win));
@@ -177,7 +220,7 @@ static void keypad_digit(struct video_desc *env, int digit)
 		f.subclass = digit;
 		ast_queue_frame(env->owner, &f);
 	} else {		/* no call, accumulate digits */
-		append_char(env->gui.inbuf, &env->gui.inbuf_pos, digit);
+		append_char(env->gui->inbuf, &env->gui->inbuf_pos, digit);
 	}
 }
 
@@ -186,7 +229,7 @@ static void keypad_digit(struct video_desc *env, int digit)
 static void keypad_send_command(struct video_desc *env, char *command)
 {	
 	ast_log(LOG_WARNING, "keypad_send_command(%s) called\n", command);
-	ast_cli_command(env->gui.outfd, command);
+	ast_cli_command(env->gui->outfd, command);
 	return;
 }
 
@@ -228,15 +271,17 @@ char *console_do_answer(int fd);
  */
 static void keypad_pick_up(struct video_desc *env)
 {
+	struct gui_info *gui = env->gui;
+
 	ast_log(LOG_WARNING, "keypad_pick_up called\n");
 
 	if (env->owner) { /* someone is calling us, just answer */
 		console_do_answer(-1);
-	} else if (env->gui.inbuf_pos) { /* we have someone to call */
-		ast_cli_command(env->gui.outfd, env->gui.inbuf);
+	} else if (gui->inbuf_pos) { /* we have someone to call */
+		ast_cli_command(gui->outfd, gui->inbuf);
 	}
 
-	append_char(env->gui.inbuf, &env->gui.inbuf_pos, '\0'); /* clear buffer */
+	append_char(gui->inbuf, &gui->inbuf_pos, '\0'); /* clear buffer */
 }
 
 #if 0 /* still unused */
@@ -267,11 +312,12 @@ static int gui_output(struct video_desc *env, const char *text)
 	SDL_Surface *output = NULL;
 	SDL_Color color = {0, 0, 0};	/* text color */
 	SDL_Rect dest = {env->win[WIN_KEYPAD].rect.x + x, y};
+	struct gui_info *gui = env->gui;
 
 	/* clean surface each rewrite */
-	SDL_BlitSurface(env->gui.keypad, NULL, env->screen, &env->win[WIN_KEYPAD].rect);
+	SDL_BlitSurface(gui->keypad, NULL, env->screen, &env->win[WIN_KEYPAD].rect);
 
-	output = TTF_RenderText_Solid(env->gui.font, text, color);
+	output = TTF_RenderText_Solid(gui->font, text, color);
 	if (output == NULL) {
 		ast_log(LOG_WARNING, "Cannot render text on gui - %s\n", TTF_GetError());
 		return 1;
@@ -279,7 +325,7 @@ static int gui_output(struct video_desc *env, const char *text)
 
 	SDL_BlitSurface(output, NULL, env->screen, &dest);
 	
-	SDL_UpdateRects(env->gui.keypad, 1, &env->win[WIN_KEYPAD].rect);
+	SDL_UpdateRects(gui->keypad, 1, &env->win[WIN_KEYPAD].rect);
 	SDL_FreeSurface(output);
 	return 0;	/* success */
 #endif
@@ -300,8 +346,12 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 {
 	uint8_t index = KEY_OUT_OF_KEYPAD;	/* the key or region of the display we clicked on */
 
+#if 0
+	ast_log(LOG_WARNING, "event %d %d have %d/%d regions at %p\n",
+		button.x, button.y, env->gui->kp_used, env->gui->kp_size, env->gui->kp);
+#endif
 	/* for each click we come back in normal mode */
-	env->gui.text_mode = 0;
+	env->gui->text_mode = 0;
 
 	/* define keypad boundary */
 	if (button.x < env->in.rem_dpy.w)
@@ -310,11 +360,11 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 		index = KEY_LOC_DPY; /* click on local video */
 	else if (button.y > env->out.keypad_dpy.h)
 		index = KEY_OUT_OF_KEYPAD; /* click outside the keypad */
-	else if (env->gui.kp) {
+	else if (env->gui->kp) {
 		int i;
-		for (i = 0; i < env->gui.kp_used; i++) {
-			if (kp_match_area(&env->gui.kp[i], button.x - env->in.rem_dpy.w, button.y)) {
-				index = env->gui.kp[i].c;
+		for (i = 0; i < env->gui->kp_used; i++) {
+			if (kp_match_area(&env->gui->kp[i], button.x - env->in.rem_dpy.w, button.y)) {
+				index = env->gui->kp[i].c;
 				break;
 			}
 		}
@@ -347,7 +397,7 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 		break;
 	case KEY_WRITEMESSAGE:
 		/* goes in text-mode */
-		env->gui.text_mode = 1;
+		env->gui->text_mode = 1;
 		break;
 
 
@@ -358,9 +408,9 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 			if (index == KEY_LOC_DPY) {
 				/* store points where the drag start
 				* and switch in drag mode */
-				env->gui.x_drag = button.x;
-				env->gui.y_drag = button.y;
-				env->gui.drag_mode = 1;
+				env->gui->x_drag = button.x;
+				env->gui->y_drag = button.y;
+				env->gui->drag_mode = 1;
 			}
 			break;
 		} else {
@@ -394,20 +444,20 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
  */
 static void handle_keyboard_input(struct video_desc *env, SDLKey key)
 {
-	if (env->gui.text_mode) {
+	if (env->gui->text_mode) {
 		/* append in the text-message buffer */
 		if (key == SDLK_RETURN) {
 			/* send the text message and return in normal mode */
-			env->gui.text_mode = 0;
+			env->gui->text_mode = 0;
 			keypad_send_command(env, "send text");
 		} else {
 			/* accumulate the key in the message buffer */
-			append_char(env->gui.msgbuf, &env->gui.msgbuf_pos, key);
+			append_char(env->gui->msgbuf, &env->gui->msgbuf_pos, key);
 		}
 	}
 	else {
 		/* append in the dial buffer */
-		append_char(env->gui.inbuf, &env->gui.inbuf_pos, key);
+		append_char(env->gui->inbuf, &env->gui->inbuf_pos, key);
 	}
 
 	return;
@@ -445,11 +495,11 @@ static void move_capture_source(struct video_desc *env, int x_final_drag, int y_
 
 	/* move the origin */
 #define POLARITY -1		/* +1 or -1 depending on the desired direction */
-	new_x = x + POLARITY*move_accel(x_final_drag - env->gui.x_drag) * 3;
-	new_y = y + POLARITY*move_accel(y_final_drag - env->gui.y_drag) * 3;
+	new_x = x + POLARITY*move_accel(x_final_drag - env->gui->x_drag) * 3;
+	new_y = y + POLARITY*move_accel(y_final_drag - env->gui->y_drag) * 3;
 #undef POLARITY
-	env->gui.x_drag = x_final_drag;	/* update origin */
-	env->gui.y_drag = y_final_drag;
+	env->gui->x_drag = x_final_drag;	/* update origin */
+	env->gui->y_drag = y_final_drag;
 
 	/* check boundary and let the source to grab from the new points */
 	env->out.loc_src.x = boundary_checks(new_x, env->out.screen_width - env->out.loc_src.w);
@@ -483,16 +533,16 @@ static void eventhandler(struct video_desc *env)
 				handle_keyboard_input(env, ev[i].key.keysym.sym);
 				break;
 			case SDL_MOUSEMOTION:
-				if (env->gui.drag_mode != 0)
+				if (env->gui->drag_mode != 0)
 					move_capture_source(env, ev[i].motion.x, ev[i].motion.y);
 				break;
 			case SDL_MOUSEBUTTONDOWN:
 				handle_button_event(env, ev[i].button);
 				break;
 			case SDL_MOUSEBUTTONUP:
-				if (env->gui.drag_mode != 0) {
+				if (env->gui->drag_mode != 0) {
 					move_capture_source(env, ev[i].button.x, ev[i].button.y);
-					env->gui.drag_mode = 0;
+					env->gui->drag_mode = 0;
 				}
 				break;
 			}
@@ -529,43 +579,50 @@ static SDL_Surface *get_keypad(const char *file)
 
 /* TODO: consistency checks, check for bpp, widht and height */
 /* Init the mask image used to grab the action. */
-static int gui_init(struct video_desc *env)
+static struct gui_info *gui_init(struct video_desc *env)
 {
+	struct gui_info *gui = ast_calloc(1, sizeof(*gui));
+
+	if (gui == NULL)
+		return NULL;
 	/* initialize keypad status */
-	env->gui.text_mode = 0;
-	env->gui.drag_mode = 0;
+	gui->text_mode = 0;
+	gui->drag_mode = 0;
 
 	/* initialize grab coordinates */
 	env->out.loc_src.x = 0;
 	env->out.loc_src.y = 0;
 
 	/* initialize keyboard buffer */
-	append_char(env->gui.inbuf, &env->gui.inbuf_pos, '\0');
-	append_char(env->gui.msgbuf, &env->gui.msgbuf_pos, '\0');
+	append_char(gui->inbuf, &gui->inbuf_pos, '\0');
+	append_char(gui->msgbuf, &gui->msgbuf_pos, '\0');
 
 #ifdef HAVE_SDL_TTF
 	/* Initialize SDL_ttf library and load font */
 	if (TTF_Init() == -1) {
 		ast_log(LOG_WARNING, "Unable to init SDL_ttf, no output available\n");
-		return -1;
+		goto error;
 	}
 
 #define GUI_FONTSIZE 28
-	env->gui.font = TTF_OpenFont( env->keypad_font, GUI_FONTSIZE);
-	if (!env->gui.font) {
+	gui->font = TTF_OpenFont( env->keypad_font, GUI_FONTSIZE);
+	if (!gui->font) {
 		ast_log(LOG_WARNING, "Unable to load font %s, no output available\n", env->keypad_font);
-		return -1;
+		goto error;
 	}
 	ast_log(LOG_WARNING, "Loaded font %s\n", env->keypad_font);
 #endif
 
-	env->gui.outfd = open ("/dev/null", O_WRONLY);	/* discard output, temporary */
-	if ( env->gui.outfd < 0 ) {
+	gui->outfd = open ("/dev/null", O_WRONLY);	/* discard output, temporary */
+	if (gui->outfd < 0) {
 		ast_log(LOG_WARNING, "Unable output fd\n");
-		return -1;
+		goto error;
 	}
+	return gui;
 
-	return 0;
+error:
+	ast_free(gui);
+	return NULL;
 }
 
 /* setup an sdl overlay and associated info, return 0 on success, != 0 on error */
@@ -590,14 +647,14 @@ static void keypad_setup(struct video_desc *env)
 	void *p = NULL;
 	off_t l = 0;
 
-	if (env->gui.keypad)
+	if (env->gui->keypad)
 		return;
-	env->gui.keypad = get_keypad(env->keypad_file);
-	if (!env->gui.keypad)
+	env->gui->keypad = get_keypad(env->keypad_file);
+	if (!env->gui->keypad)
 		return;
 
-	env->out.keypad_dpy.w = env->gui.keypad->w;
-	env->out.keypad_dpy.h = env->gui.keypad->h;
+	env->out.keypad_dpy.w = env->gui->keypad->w;
+	env->out.keypad_dpy.h = env->gui->keypad->h;
 	/*
 	 * If the keypad image has a comment field, try to read
 	 * the button location from there. The block must be
@@ -631,7 +688,7 @@ static void keypad_setup(struct video_desc *env)
 		for (s = p; s < e - 20 ; s++) {
 			if (!memcmp(s, region, reg_len)) { /* keyword found */
 				/* reset previous entries */
-				keypad_cfg_read(&env->gui, "reset");
+				keypad_cfg_read(env->gui, "reset");
 				break;
 			}
 		}
@@ -652,7 +709,7 @@ static void keypad_setup(struct video_desc *env)
 				break;
 			if (*s1 == '>')	/* skip => */
 				s1++;
-			keypad_cfg_read(&env->gui, ast_skip_blanks(s1));
+			keypad_cfg_read(env->gui, ast_skip_blanks(s1));
 			/* now wait for a newline */
 			s1 = s;
 			while (s1 < e - 20 && !index("\r\n", *s1) && *s1 < 128)
@@ -686,9 +743,17 @@ static void sdl_setup(struct video_desc *env)
 	 * - on the left, the remote video;
 	 * - on the center, the keypad
 	 * - on the right, the local video
+	 * We need to read in the skin for the keypad before creating the main
+	 * SDL window, because the size is only known here.
 	 */
 
-	keypad_setup(env);
+	env->gui = gui_init(env);
+	ast_log(LOG_WARNING, "gui_init returned %p\n", env->gui);
+	if (env->gui) {
+		keypad_setup(env);
+		ast_log(LOG_WARNING, "keypad_setup returned %p %d\n",
+			env->gui->keypad, env->gui->kp_used);
+	}
 #define BORDER	5	/* border around our windows */
 	maxw = env->in.rem_dpy.w + env->out.loc_dpy.w + env->out.keypad_dpy.w;
 	maxh = MAX( MAX(env->in.rem_dpy.h, env->out.loc_dpy.h), env->out.keypad_dpy.h);
@@ -712,13 +777,13 @@ static void sdl_setup(struct video_desc *env)
 	/* display the skin, but do not free it as we need it later to
 	 * restore text areas and maybe sliders too.
 	 */
-	if (env->gui.keypad) {
+	if (env->gui && env->gui->keypad) {
 		struct SDL_Rect *dest = &env->win[WIN_KEYPAD].rect;
 		dest->x = 2*BORDER + env->in.rem_dpy.w;
 		dest->y = BORDER;
-		dest->w = env->gui.keypad->w;
-		dest->h = env->gui.keypad->h;
-		SDL_BlitSurface(env->gui.keypad, NULL, env->screen, dest);
+		dest->w = env->gui->keypad->w;
+		dest->h = env->gui->keypad->h;
+		SDL_BlitSurface(env->gui->keypad, NULL, env->screen, dest);
 		SDL_UpdateRects(env->screen, 1, dest);
 	}
 	env->in.dec_in_cur = &env->in.dec_in[0];
@@ -765,15 +830,6 @@ static int kp_match_area(const struct keypad_entry *e, int x, int y)
 	return ret;
 }
 
-/*
- * read a keypad entry line in the format
- *	reset
- *	token circle xc yc diameter
- *	token circle xc yc x1 y1 h	# ellipse, main diameter and height
- *	token rect x0 y0 x1 y1 h	# rectangle with main side and eight
- * token is the token to be returned, either a character or a symbol
- * as KEY_* above
- */
 struct _s_k { const char *s; int k; };
 static struct _s_k gui_key_map[] = {
 	{"PICK_UP",	KEY_PICK_UP },
@@ -789,11 +845,23 @@ static struct _s_k gui_key_map[] = {
         {"GUI_CLOSE",	KEY_GUI_CLOSE },
         {NULL, 0 } };
 
+/*! \brief read a keypad entry line in the format
+ *	reset
+ *	token circle xc yc diameter
+ *	token circle xc yc x1 y1 h	# ellipse, main diameter and height
+ *	token rect x0 y0 x1 y1 h	# rectangle with main side and eight
+ * token is the token to be returned, either a character or a symbol
+ * as KEY_* above
+ * Return 1 on success, 0 on error.
+ */
 static int keypad_cfg_read(struct gui_info *gui, const char *val)
 {
 	struct keypad_entry e;
 	char s1[16], s2[16];
 	int i, ret = 0;
+
+	if (gui == NULL || val == NULL)
+		return 0;
 
 	bzero(&e, sizeof(e));
 	i = sscanf(val, "%14s %14s %d %d %d %d %d",
@@ -876,5 +944,6 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)
 	if (gui->kp_size == gui->kp_used)
 		return 0;
 	gui->kp[gui->kp_used++] = e;
+	ast_log(LOG_WARNING, "now %d regions\n", gui->kp_used);
 	return 1;
 }

@@ -3,6 +3,14 @@
  * $Revision$
  */
 
+#include "asterisk.h"
+#include "console_video.h"
+#include "asterisk/frame.h"
+
+struct video_out_desc;
+struct video_in_desc;
+struct fbuf_t;
+
 /*
  * Each codec is defined by a number of callbacks
  */
@@ -13,6 +21,7 @@ typedef int (*encoder_init_f)(AVCodecContext *v);
 typedef int (*encoder_encode_f)(struct video_out_desc *v);
 
 /*! \brief encapsulate the bistream in RTP frames */
+/* struct fbuf_t, int mtu, struct ast_frame **tail */
 typedef struct ast_frame *(*encoder_encap_f)(struct video_out_desc *out,
 		struct ast_frame **tail);
 
@@ -953,7 +962,7 @@ struct _cm {    /* map ffmpeg codec types to asterisk formats */
 	uint32_t	ast_format;	/* 0 is a terminator */
 	enum CodecID	codec;
 	enum { CM_RD = 1, CM_WR = 2, CM_RDWR = 3 } rw;  /* read or write or both ? */
-	struct video_codec_desc *codec_desc;
+	//struct video_codec_desc *codec_desc;
 };
 
 static struct _cm video_formats[] = {

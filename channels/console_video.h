@@ -20,8 +20,55 @@
  * $Revision$
  */
 
-struct video_desc;		/* opaque type for video support */
+#ifndef CONSOLE_VIDEO_H
+#define CONSOLE_VIDEO_H
 
+#if !defined(HAVE_VIDEO_CONSOLE) || !defined(HAVE_FFMPEG) || !defined(HAVE_SDL)
+#define CONSOLE_VIDEO_CMDS					\
+		"console {device}"
+#else
+
+#ifdef HAVE_X11
+#include <X11/Xlib.h>           /* this should be conditional */
+#endif
+        
+#include <ffmpeg/avcodec.h>
+#ifndef OLD_FFMPEG
+#include <ffmpeg/swscale.h>     /* requires a recent ffmpeg */
+#endif
+
+#include <SDL/SDL.h>
+#ifdef HAVE_SDL_IMAGE
+#include <SDL/SDL_image.h>      /* for loading images */
+#endif
+#ifdef HAVE_SDL_TTF
+#include <SDL/SDL_ttf.h>        /* render text on sdl surfaces */
+#endif
+
+/* our representation of a displayed window. SDL can only do one main
+ * window so we map everything within that one
+ */
+enum { WIN_LOCAL, WIN_REMOTE, WIN_KEYPAD, WIN_MAX };
+/* our representation of a displayed window. SDL can only do one main
+ * window so we map everything within that one
+ */
+struct display_window   {   
+	SDL_Overlay	*bmp;
+	SDL_Rect	rect;	/* location of the window */
+};
+
+
+#define CONSOLE_VIDEO_CMDS                              \
+        "console {videodevice|videocodec|sendvideo"     \
+        "|video_size|bitrate|fps|qmin"                  \
+        "|keypad|keypad_mask|keypad_entry"              \
+	"|sdl_videodriver"				\
+        "|device"					\
+	"}"
+
+#endif	/* HAVE_VIDEO_CONSOLE and others */
+
+struct video_desc;		/* opaque type for video support */
 struct video_desc *get_video_desc(struct ast_channel *c);
 
 /* linked by console_video.o */
@@ -32,18 +79,5 @@ int console_video_config(struct video_desc **penv, const char *var, const char *
 void console_video_uninit(struct video_desc *env);
 void console_video_start(struct video_desc *env, struct ast_channel *owner);
 
-#ifdef HAVE_VIDEO_CONSOLE
-#define CONSOLE_VIDEO_CMDS                              \
-        "console {videodevice|videocodec|sendvideo"     \
-        "|video_size|bitrate|fps|qmin"                  \
-        "|keypad|keypad_mask|keypad_entry"              \
-	"|sdl_videodriver"				\
-        "|device"					\
-	"}"
-
-#else
-#define CONSOLE_VIDEO_CMDS					\
-		"console {device}"
-#endif
-
+#endif /* CONSOLE_VIDEO_H */
 /* end of file */
