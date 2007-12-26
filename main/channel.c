@@ -2330,6 +2330,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				}
 				if (chan->audiohooks) {
 					struct ast_frame *old_frame = f;
+					/*!
+					 * \todo XXX It is possible to write a digit to the audiohook twice
+					 * if the digit was originally read while the channel was in autoservice. */
 					f = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_READ, f);
 					if (old_frame != f)
 						ast_frfree(old_frame);
