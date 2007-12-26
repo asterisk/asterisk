@@ -384,6 +384,7 @@ Logger changes
      command to be run after rotation.  This is primarily useful with
      rotatestrategry=rotate, to allow a limit on the number of logfiles kept
      and to ensure that the oldest log file gets deleted.
+  * Added realtime support for the queue log
 
 Miscellaneous 
 -------------

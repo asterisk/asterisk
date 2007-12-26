@@ -59,4 +59,5 @@
 ;queues => odbc,asterisk
 ;queue_members => odbc,asterisk
 ;musiconhold => mysql,asterisk
+;queue_log => mysql,aasterisk
 

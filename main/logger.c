@@ -418,18 +418,34 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
 	va_list ap;
 	char qlog_msg[8192];
 	int qlog_len;
-	if (qlog) {
+	char time_str[16];
+
+	if (ast_check_realtime("queue_log")) {
 		va_start(ap, fmt);
-		qlog_len = snprintf(qlog_msg, sizeof(qlog_msg), "%ld|%s|%s|%s|%s|", (long)time(NULL), callid, queuename, agent, event);
-		vsnprintf(qlog_msg + qlog_len, sizeof(qlog_msg) - qlog_len, fmt, ap);
+		vsnprintf(qlog_msg, sizeof(qlog_msg), fmt, ap);
 		va_end(ap);
+		snprintf(time_str, sizeof(time_str), "%ld", (long)time(NULL));
+		ast_store_realtime("queue_log", "time", time_str, 
+						"callid", callid, 
+						"queuename", queuename, 
+						"agent", agent, 
+						"event", event,
+						"data", qlog_msg,
+						NULL);
+	} else {
+		if (qlog) {
+			va_start(ap, fmt);
+			qlog_len = snprintf(qlog_msg, sizeof(qlog_msg), "%ld|%s|%s|%s|%s|", (long)time(NULL), callid, queuename, agent, event);
+			vsnprintf(qlog_msg + qlog_len, sizeof(qlog_msg) - qlog_len, fmt, ap);
+			va_end(ap);
+		}
+		AST_RWLIST_RDLOCK(&logchannels);
+		if (qlog) {
+			fprintf(qlog, "%s\n", qlog_msg);
+			fflush(qlog);
+		}
+		AST_RWLIST_UNLOCK(&logchannels);
 	}
-	AST_RWLIST_RDLOCK(&logchannels);
-	if (qlog) {
-		fprintf(qlog, "%s\n", qlog_msg);
-		fflush(qlog);
-	}
-	AST_RWLIST_UNLOCK(&logchannels);
 }
 
 static int rotate_file(const char *filename)
