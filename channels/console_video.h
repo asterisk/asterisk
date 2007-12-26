@@ -45,17 +45,6 @@
 #include <SDL/SDL_ttf.h>        /* render text on sdl surfaces */
 #endif
 
-/* our representation of a displayed window. SDL can only do one main
- * window so we map everything within that one
- */
-enum { WIN_LOCAL, WIN_REMOTE, WIN_KEYPAD, WIN_MAX };
-/* our representation of a displayed window. SDL can only do one main
- * window so we map everything within that one
- */
-struct display_window   {   
-	SDL_Overlay	*bmp;
-	SDL_Rect	rect;	/* location of the window */
-};
 
 
 #define CONSOLE_VIDEO_CMDS                              \

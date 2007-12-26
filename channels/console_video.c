@@ -196,7 +196,6 @@ struct video_out_desc {
 	struct fbuf_t	enc_in;		/* encoder input buffer, allocated in video_out_init() */
 	struct fbuf_t	enc_out;	/* encoder output buffer, allocated in video_out_init() */
 	struct fbuf_t	loc_dpy;	/* display source buffer, no buffer (managed by SDL in bmp[1]) */
-	struct fbuf_t	keypad_dpy;	/* keypad source buffer, XXX */
 
 	struct video_codec_desc *enc;	/* encoder */
 	void		*enc_ctx;	/* encoding context */
@@ -273,7 +272,6 @@ struct video_desc {
 	char                    keypad_font[256];       /* font for the keypad */
 
 	char			sdl_videodriver[256];
-	struct display_window	win[WIN_MAX];
 };
 
 static AVPicture *fill_pict(struct fbuf_t *b, AVPicture *p);
@@ -1086,7 +1084,6 @@ static void *video_thread(void *arg)
 	char save_display[128] = "";
 
 	env->screen = NULL;
-	bzero(env->win, sizeof(env->win));
 
 	/* if sdl_videodriver is set, override the environment. Also,
 	 * if it contains 'console' override DISPLAY around the call to SDL_Init
@@ -1153,7 +1150,8 @@ static void *video_thread(void *arg)
 		/* sleep for a while */
 		ast_select(0, NULL, NULL, NULL, &t);
 
-		SDL_UpdateRects(env->screen, 1, &env->win[WIN_KEYPAD].rect);// XXX inefficient
+		if (env->gui)
+			SDL_UpdateRects(env->screen, 1, &env->gui->win[WIN_KEYPAD].rect);// XXX inefficient
 		/*
 		 * While there is something to display, call the decoder and free
 		 * the buffer, possibly enabling the receiver to store new data.

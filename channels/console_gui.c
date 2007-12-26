@@ -18,6 +18,17 @@ struct keypad_entry {
         enum kp_type type;
 };
 
+/* our representation of a displayed window. SDL can only do one main
+ * window so we map everything within that one
+ */
+enum { WIN_LOCAL, WIN_REMOTE, WIN_KEYPAD, WIN_MAX };
+/* our representation of a displayed window. SDL can only do one main
+ * window so we map everything within that one
+ */
+struct display_window   {   
+	SDL_Overlay	*bmp;
+	SDL_Rect	rect;	/* location of the window */
+};
 #define GUI_BUFFER_LEN 256			/* buffer lenght used for input buffers */
 
 struct keypad_entry;	/* defined in console_gui.c */
@@ -39,6 +50,8 @@ struct gui_info {
 	SDL_Surface		*keypad;	/* the pixmap for the keypad */
 	int kp_size, kp_used;
 	struct keypad_entry *kp;
+
+	struct display_window   win[WIN_MAX];
 };
 
 static void cleanup_sdl(struct video_desc *env)  
@@ -61,19 +74,19 @@ static void cleanup_sdl(struct video_desc *env)
 	if (gui->keypad)
 		SDL_FreeSurface(gui->keypad);
 	gui->keypad = NULL;
+
+	/* uninitialize the SDL environment */
+	for (i = 0; i < WIN_MAX; i++) {
+		if (gui->win[i].bmp)
+			SDL_FreeYUVOverlay(gui->win[i].bmp);
+	}
+	bzero(gui->win, sizeof(gui->win));
 	/* XXX free the keys entries */
 	ast_free(gui);
 	env->gui = NULL;
     }
-
-	/* uninitialize the SDL environment */
-	for (i = 0; i < WIN_MAX; i++) {
-		if (env->win[i].bmp)
-			SDL_FreeYUVOverlay(env->win[i].bmp);
-	}
 	SDL_Quit();
 	env->screen = NULL; /* XXX check reference */
-	bzero(env->win, sizeof(env->win));
 	if (env->sdl_ok)
 		ast_mutex_destroy(&(env->in.dec_in_lock));
 }
@@ -93,6 +106,7 @@ static void show_frame(struct video_desc *env, int out)
 	AVPicture *p_in, p_out;
 	struct fbuf_t *b_in, *b_out;
 	SDL_Overlay *bmp;
+	struct gui_info *gui = env->gui;
 
 	if (!env->sdl_ok)
 		return;
@@ -112,7 +126,7 @@ static void show_frame(struct video_desc *env, int out)
 		b_out = &env->in.rem_dpy;
 		p_in = (AVPicture *)env->in.d_frame;
 	}
-	bmp = env->win[out].bmp;
+	bmp = gui->win[out].bmp;
 	SDL_LockYUVOverlay(bmp);
 	/* output picture info - this is sdl, YUV420P */
 	bzero(&p_out, sizeof(p_out));
@@ -126,7 +140,7 @@ static void show_frame(struct video_desc *env, int out)
 	my_scale(b_in, p_in, b_out, &p_out);
 
 	/* lock to protect access to Xlib by different threads. */
-	SDL_DisplayYUVOverlay(bmp, &env->win[out].rect);
+	SDL_DisplayYUVOverlay(bmp, &gui->win[out].rect);
 	SDL_UnlockYUVOverlay(bmp);
 }
 
@@ -311,11 +325,11 @@ static int gui_output(struct video_desc *env, const char *text)
 	int x = 30, y = 20;	/* XXX change */
 	SDL_Surface *output = NULL;
 	SDL_Color color = {0, 0, 0};	/* text color */
-	SDL_Rect dest = {env->win[WIN_KEYPAD].rect.x + x, y};
 	struct gui_info *gui = env->gui;
+	SDL_Rect dest = {gui->win[WIN_KEYPAD].rect.x + x, y};
 
 	/* clean surface each rewrite */
-	SDL_BlitSurface(gui->keypad, NULL, env->screen, &env->win[WIN_KEYPAD].rect);
+	SDL_BlitSurface(gui->keypad, NULL, env->screen, &gui->win[WIN_KEYPAD].rect);
 
 	output = TTF_RenderText_Solid(gui->font, text, color);
 	if (output == NULL) {
@@ -325,7 +339,7 @@ static int gui_output(struct video_desc *env, const char *text)
 
 	SDL_BlitSurface(output, NULL, env->screen, &dest);
 	
-	SDL_UpdateRects(gui->keypad, 1, &env->win[WIN_KEYPAD].rect);
+	SDL_UpdateRects(gui->keypad, 1, &gui->win[WIN_KEYPAD].rect);
 	SDL_FreeSurface(output);
 	return 0;	/* success */
 #endif
@@ -356,9 +370,9 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 	/* define keypad boundary */
 	if (button.x < env->in.rem_dpy.w)
 		index = KEY_REM_DPY; /* click on remote video */
-	else if (button.x > env->in.rem_dpy.w + env->out.keypad_dpy.w)
+	else if (button.x > env->in.rem_dpy.w + env->gui->keypad->w)
 		index = KEY_LOC_DPY; /* click on local video */
-	else if (button.y > env->out.keypad_dpy.h)
+	else if (button.y > env->gui->keypad->h)
 		index = KEY_OUT_OF_KEYPAD; /* click outside the keypad */
 	else if (env->gui->kp) {
 		int i;
@@ -653,8 +667,6 @@ static void keypad_setup(struct video_desc *env)
 	if (!env->gui->keypad)
 		return;
 
-	env->out.keypad_dpy.w = env->gui->keypad->w;
-	env->out.keypad_dpy.h = env->gui->keypad->h;
 	/*
 	 * If the keypad image has a comment field, try to read
 	 * the button location from there. The block must be
@@ -729,6 +741,7 @@ static void sdl_setup(struct video_desc *env)
 	int dpy_fmt = SDL_IYUV_OVERLAY;	/* YV12 causes flicker in SDL */
 	int depth, maxw, maxh;
 	const SDL_VideoInfo *info = SDL_GetVideoInfo();
+	int kp_w = 0, kp_h = 0;	/* keypad width and height */
 
 	/* We want at least 16bpp to support YUV overlays.
 	 * E.g with SDL_VIDEODRIVER = aalib the default is 8
@@ -753,10 +766,14 @@ static void sdl_setup(struct video_desc *env)
 		keypad_setup(env);
 		ast_log(LOG_WARNING, "keypad_setup returned %p %d\n",
 			env->gui->keypad, env->gui->kp_used);
+		if (env->gui->keypad) {
+			kp_w = env->gui->keypad->w;
+			kp_h = env->gui->keypad->h;
+		}
 	}
 #define BORDER	5	/* border around our windows */
-	maxw = env->in.rem_dpy.w + env->out.loc_dpy.w + env->out.keypad_dpy.w;
-	maxh = MAX( MAX(env->in.rem_dpy.h, env->out.loc_dpy.h), env->out.keypad_dpy.h);
+	maxw = env->in.rem_dpy.w + env->out.loc_dpy.w + kp_w;
+	maxh = MAX( MAX(env->in.rem_dpy.h, env->out.loc_dpy.h), kp_h);
 	maxw += 4 * BORDER;
 	maxh += 2 * BORDER;
 	env->screen = SDL_SetVideoMode(maxw, maxh, depth, 0);
@@ -766,19 +783,19 @@ static void sdl_setup(struct video_desc *env)
 	}
 
 	SDL_WM_SetCaption("Asterisk console Video Output", NULL);
-	if (set_win(env->screen, &env->win[WIN_REMOTE], dpy_fmt,
+	if (set_win(env->screen, &env->gui->win[WIN_REMOTE], dpy_fmt,
 			env->in.rem_dpy.w, env->in.rem_dpy.h, BORDER, BORDER))
 		goto no_sdl;
-	if (set_win(env->screen, &env->win[WIN_LOCAL], dpy_fmt,
+	if (set_win(env->screen, &env->gui->win[WIN_LOCAL], dpy_fmt,
 			env->out.loc_dpy.w, env->out.loc_dpy.h,
-			3*BORDER+env->in.rem_dpy.w + env->out.keypad_dpy.w, BORDER))
+			3*BORDER+env->in.rem_dpy.w + kp_w, BORDER))
 		goto no_sdl;
 
 	/* display the skin, but do not free it as we need it later to
 	 * restore text areas and maybe sliders too.
 	 */
 	if (env->gui && env->gui->keypad) {
-		struct SDL_Rect *dest = &env->win[WIN_KEYPAD].rect;
+		struct SDL_Rect *dest = &env->gui->win[WIN_KEYPAD].rect;
 		dest->x = 2*BORDER + env->in.rem_dpy.w;
 		dest->y = BORDER;
 		dest->w = env->gui->keypad->w;
