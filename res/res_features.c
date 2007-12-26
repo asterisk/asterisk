@@ -372,9 +372,8 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	pu->parkingtime = (timeout > 0) ? timeout : parkingtime;
 	if (extout)
 		*extout = x;
-	if (!ast_strlen_zero(orig_chan_name))
-		ast_copy_string(pu->peername, orig_chan_name, sizeof(pu->peername));
-	else if (peer) 
+
+	if (peer) 
 		ast_copy_string(pu->peername, peer->name, sizeof(pu->peername));
 
 	/* Remember what had been dialed, so that if the parking
@@ -420,7 +419,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	if (!con)	/* Still no context? Bad */
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 	/* Tell the peer channel the number of the parking space */
-	if (peer && ((pu->parkingnum != -1 && ast_strlen_zero(orig_chan_name)) || (strlen(orig_chan_name) == strlen(peer->name) && !strncasecmp(peer->name, orig_chan_name, strlen(peer->name))))) { /* Only say number if it's a number and the channel hasn't been masqueraded away */
+	if (peer && ((pu->parkingnum != -1 && ast_strlen_zero(orig_chan_name)) || !strcasecmp(peer->name, orig_chan_name))) { /* Only say number if it's a number and the channel hasn't been masqueraded away */
 		/* Make sure we don't start saying digits to the channel being parked */
 		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
@@ -1831,7 +1830,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 		res = ast_safe_sleep(chan, 1000);
 	/* Park the call */
 	if (!res)
-		res = park_call_full(chan, chan, 0, NULL, orig_chan_name);
+		res = park_call_full(chan, NULL, 0, NULL, orig_chan_name);
 
 	ast_module_user_remove(u);
 
