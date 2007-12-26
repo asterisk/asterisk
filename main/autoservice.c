@@ -116,7 +116,6 @@ static void *autoservice_run(void *ign)
 			 * be queued up or not. */
 			switch (f->frametype) {
 			/* Save these frames */
-			case AST_FRAME_DTMF_BEGIN:
 			case AST_FRAME_DTMF_END:
 			case AST_FRAME_CONTROL:
 			case AST_FRAME_TEXT:
@@ -126,6 +125,7 @@ static void *autoservice_run(void *ign)
 				break;
 
 			/* Throw these frames away */
+			case AST_FRAME_DTMF_BEGIN:
 			case AST_FRAME_VOICE:
 			case AST_FRAME_VIDEO:
 			case AST_FRAME_NULL:
