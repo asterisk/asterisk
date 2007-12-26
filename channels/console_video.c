@@ -1078,13 +1078,9 @@ static void *video_thread(void *arg)
 			unsetenv("DISPLAY");
 		}
 	}
-	if (SDL_Init(SDL_INIT_VIDEO)) {
-		ast_log(LOG_WARNING, "Could not initialize SDL - %s\n",
-			SDL_GetError());
-		/* again not fatal, just we won't display anything */
-	} else {
-		sdl_setup(env);
-	}
+	sdl_setup(env);
+	if (env->gui)
+		SDL_UpdateRects(env->gui->screen, 1, &env->gui->win[WIN_KEYPAD].rect);// XXX inefficient
 	ast_mutex_init(&env->in.dec_in_lock);
 	if (!ast_strlen_zero(save_display))
 		setenv("DISPLAY", save_display, 1);
@@ -1130,8 +1126,6 @@ static void *video_thread(void *arg)
 		/* sleep for a while */
 		ast_select(0, NULL, NULL, NULL, &t);
 
-		if (env->gui)
-			SDL_UpdateRects(env->gui->screen, 1, &env->gui->win[WIN_KEYPAD].rect);// XXX inefficient
 		/*
 		 * While there is something to display, call the decoder and free
 		 * the buffer, possibly enabling the receiver to store new data.

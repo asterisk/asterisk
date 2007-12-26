@@ -443,9 +443,6 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 	case KEY_OUT_OF_KEYPAD:
 		break;
 
-	case KEY_GUI_CLOSE:
-		env->gui = cleanup_sdl(env->gui);
-		break;
 	case KEY_DIGIT_BACKGROUND:
 		break;
 	default:
@@ -532,12 +529,18 @@ static void move_capture_source(struct video_desc *env, int x_final_drag, int y_
  * and windowmaker. It is unclear what causes it.
  */
 
-/* grab a bunch of events */
+/*! \brief refresh the screen, and also grab a bunch of events.
+ */
 static void eventhandler(struct video_desc *env)
 {
+	struct gui_info *gui = env->gui;
 #define N_EVENTS	32
 	int i, n;
 	SDL_Event ev[N_EVENTS];
+
+	if (!gui)
+		return;
+	// SDL_UpdateRects(gui->screen, 1, &gui->win[WIN_KEYPAD].rect);// XXX inefficient
 
 #define MY_EV (SDL_MOUSEBUTTONDOWN|SDL_KEYDOWN)
 	while ( (n = SDL_PeepEvents(ev, N_EVENTS, SDL_GETEVENT, SDL_ALLEVENTS)) > 0) {
@@ -558,7 +561,7 @@ static void eventhandler(struct video_desc *env)
 				handle_button_event(env, ev[i].button);
 				break;
 			case SDL_MOUSEBUTTONUP:
-				if (env->gui->drag_mode != 0) {
+				if (gui->drag_mode != 0) {
 					move_capture_source(env, ev[i].button.x, ev[i].button.y);
 					env->gui->drag_mode = 0;
 				}
@@ -597,7 +600,7 @@ static SDL_Surface *get_keypad(const char *file)
 
 /* TODO: consistency checks, check for bpp, widht and height */
 /* Init the mask image used to grab the action. */
-static struct gui_info *gui_init(struct video_desc *env)
+static struct gui_info *gui_init(void)
 {
 	struct gui_info *gui = ast_calloc(1, sizeof(*gui));
 
@@ -606,10 +609,6 @@ static struct gui_info *gui_init(struct video_desc *env)
 	/* initialize keypad status */
 	gui->text_mode = 0;
 	gui->drag_mode = 0;
-
-	/* initialize grab coordinates */
-	env->out.loc_src.x = 0;
-	env->out.loc_src.y = 0;
 
 	/* initialize keyboard buffer */
 	append_char(gui->inbuf, &gui->inbuf_pos, '\0');
@@ -714,21 +713,18 @@ static void keypad_setup(struct gui_info *gui, const char *kp_file)
 	fclose(fd);
 }
 
-/* [re]set the main sdl window, useful in case of resize */
+/*! \brief [re]set the main sdl window, useful in case of resize.
+ * We can tell the first from subsequent calls from the value of
+ * env->gui, which is NULL the first time.
+ */
 static void sdl_setup(struct video_desc *env)
 {
 	int dpy_fmt = SDL_IYUV_OVERLAY;	/* YV12 causes flicker in SDL */
 	int depth, maxw, maxh;
-	const SDL_VideoInfo *info = SDL_GetVideoInfo();
+	const SDL_VideoInfo *info;
 	int kp_w = 0, kp_h = 0;	/* keypad width and height */
 	int sdl_ok = 0;
 
-	/* We want at least 16bpp to support YUV overlays.
-	 * E.g with SDL_VIDEODRIVER = aalib the default is 8
-	 */
-	depth = info->vfmt->BitsPerPixel;
-	if (depth < 16)
-		depth = 16;
 	/*
 	 * initialize the SDL environment. We have one large window
 	 * with local and remote video, and a keypad.
@@ -740,13 +736,32 @@ static void sdl_setup(struct video_desc *env)
 	 * SDL window, because the size is only known here.
 	 */
 
-	env->gui = gui_init(env);
-	ast_log(LOG_WARNING, "gui_init returned %p\n", env->gui);
+	if (env->gui == NULL && SDL_Init(SDL_INIT_VIDEO)) {
+ 		ast_log(LOG_WARNING, "Could not initialize SDL - %s\n",
+                        SDL_GetError());
+                /* again not fatal, just we won't display anything */
+		return;
+	}
+	info = SDL_GetVideoInfo();
+	/* We want at least 16bpp to support YUV overlays.
+	 * E.g with SDL_VIDEODRIVER = aalib the default is 8
+	 */
+	depth = info->vfmt->BitsPerPixel;
+	if (depth < 16)
+		depth = 16;
+	if (!env->gui)
+		env->gui = gui_init();
 	if (!env->gui)
 		goto no_sdl;
+	/* initialize grab coordinates */
+	env->out.loc_src.x = 0;
+	env->out.loc_src.y = 0;
+
 	keypad_setup(env->gui, env->keypad_file);
+#if 0
 	ast_log(LOG_WARNING, "keypad_setup returned %p %d\n",
 		env->gui->keypad, env->gui->kp_used);
+#endif
 	if (env->gui->keypad) {
 		kp_w = env->gui->keypad->w;
 		kp_h = env->gui->keypad->h;
