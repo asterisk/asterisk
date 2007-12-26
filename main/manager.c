@@ -2589,6 +2589,14 @@ static void *session_do(void *data)
 			ast_verb(2, "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
 		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 	}
+
+	/* If the entire session occurs in a single context switch, then it's
+	 * possible to get an unsafe memory condition by free()ing the memory
+	 * before letting other threads run at least once.  This actually seems
+	 * like a workaround for a glibc bug.
+	 */
+	usleep(1);
+
 	destroy_session(s);
 
 done:
