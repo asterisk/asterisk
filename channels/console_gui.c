@@ -661,82 +661,57 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val);
 
 static void keypad_setup(struct gui_info *gui, const char *kp_file)
 {
-	int fd = -1;
-	void *p = NULL;
-	off_t l = 0;
+	FILE *fd;
+	char buf[1024];
+	const char region[] = "region";
+	int reg_len = strlen(region);
+	int in_comment = 0;
 
 	if (gui->keypad)
 		return;
 	gui->keypad = get_keypad(kp_file);
 	if (!gui->keypad)
 		return;
-
+	/* now try to read the keymap from the file. */
+	fd = fopen(kp_file, "r");
+	if (fd == NULL) {
+		ast_log(LOG_WARNING, "fail to open %s\n", kp_file);
+		return;
+	}
 	/*
 	 * If the keypad image has a comment field, try to read
-	 * the button location from there. The block must be
-	 *	keypad_entry = token shape x0 y0 x1 y1 h
+	 * the button location from there. The block must start with
+	 * a comment (or empty) line, and continue with entries like:
+	 *	region = token shape x0 y0 x1 y1 h
 	 *	...
-	 * (basically, lines have the same format as config file entries.
-	 * same as the keypad_entry.
+	 * (basically, lines have the same format as config file entries).
 	 * You can add it to a jpeg file using wrjpgcom
 	 */
-	do { /* only once, in fact */
-		const char region[] = "region";
-		int reg_len = strlen(region);
-		const unsigned char *s, *e;
+	while (fgets(buf, sizeof(buf), fd)) {
+		char *s;
 
-		fd = open(kp_file, O_RDONLY);
-		if (fd < 0) {
-			ast_log(LOG_WARNING, "fail to open %s\n", kp_file);
-			break;
-		}
-		l = lseek(fd, 0, SEEK_END);
-		if (l <= 0) {
-			ast_log(LOG_WARNING, "fail to lseek %s\n", kp_file);
-			break;
-		}
-		p = mmap(NULL, l, PROT_READ, 0, fd, 0);
-		if (p == NULL) {
-			ast_log(LOG_WARNING, "fail to mmap %s size %ld\n", kp_file, (long)l);
-			break;
-		}
-		e = (const unsigned char *)p + l;
-		for (s = p; s < e - 20 ; s++) {
-			if (!memcmp(s, region, reg_len)) { /* keyword found */
-				/* reset previous entries */
-				keypad_cfg_read(gui, "reset");
-				break;
-			}
-		}
-		for ( ;s < e - 20; s++) {
-			char buf[256];
-			const unsigned char *s1;
-			if (index(" \t\r\n", *s))	/* ignore blanks */
+		if (!strstr(buf, region)) { /* no keyword yet */
+			if (!in_comment)	/* still waiting for initial comment block */
 				continue;
-			if (*s > 127)	/* likely end of comment */
+			else
 				break;
-			if (memcmp(s, region, reg_len)) /* keyword not found */
-				break;
-			s += reg_len;
-			l = MIN(sizeof(buf), e - s);
-			ast_copy_string(buf, s, l);
-			s1 = ast_skip_blanks(buf);	/* between token and '=' */
-			if (*s1++ != '=')	/* missing separator */
-				break;
-			if (*s1 == '>')	/* skip => */
-				s1++;
-			keypad_cfg_read(gui, ast_skip_blanks(s1));
-			/* now wait for a newline */
-			s1 = s;
-			while (s1 < e - 20 && !index("\r\n", *s1) && *s1 < 128)
-				s1++;
-			s = s1;
 		}
-	} while (0);
-	if (p)
-		munmap(p, l);
-	if (fd >= 0)
-		close(fd);
+		if (!in_comment) {	/* first keyword, reset previous entries */
+			keypad_cfg_read(gui, "reset");
+			in_comment = 1;
+		}
+		s = ast_skip_blanks(buf);
+		ast_trim_blanks(s);
+		if (memcmp(s, region, reg_len))
+			break;	/* keyword not found */
+		s = ast_skip_blanks(s + reg_len); /* space between token and '=' */
+		if (*s++ != '=')	/* missing separator */
+			break;
+		if (*s == '>')	/* skip '>' if present */
+			s++;
+		keypad_cfg_read(gui, ast_skip_blanks(s));
+	}
+	fclose(fd);
 }
 
 /* [re]set the main sdl window, useful in case of resize */
