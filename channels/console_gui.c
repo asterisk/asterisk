@@ -46,6 +46,9 @@ struct gui_info {
 #ifdef HAVE_SDL_TTF
 	TTF_Font                *font;          /* font to be used */ 
 #endif
+	/* support for display. */
+	SDL_Surface             *screen;	/* the main window */
+
 	int			outfd;		/* fd for output */
 	SDL_Surface		*keypad;	/* the pixmap for the keypad */
 	int kp_size, kp_used;
@@ -82,13 +85,12 @@ static void cleanup_sdl(struct video_desc *env)
 	}
 	bzero(gui->win, sizeof(gui->win));
 	/* XXX free the keys entries */
+	gui->screen = NULL; /* XXX check reference */
+	ast_mutex_destroy(&(env->in.dec_in_lock));
 	ast_free(gui);
 	env->gui = NULL;
     }
 	SDL_Quit();
-	env->screen = NULL; /* XXX check reference */
-	if (env->sdl_ok)
-		ast_mutex_destroy(&(env->in.dec_in_lock));
 }
 
 /*
@@ -108,7 +110,7 @@ static void show_frame(struct video_desc *env, int out)
 	SDL_Overlay *bmp;
 	struct gui_info *gui = env->gui;
 
-	if (!env->sdl_ok)
+	if (!gui)
 		return;
 
 	if (out == WIN_LOCAL) {	/* webcam/x11 to sdl */
@@ -329,7 +331,7 @@ static int gui_output(struct video_desc *env, const char *text)
 	SDL_Rect dest = {gui->win[WIN_KEYPAD].rect.x + x, y};
 
 	/* clean surface each rewrite */
-	SDL_BlitSurface(gui->keypad, NULL, env->screen, &gui->win[WIN_KEYPAD].rect);
+	SDL_BlitSurface(gui->keypad, NULL, gui->screen, &gui->win[WIN_KEYPAD].rect);
 
 	output = TTF_RenderText_Solid(gui->font, text, color);
 	if (output == NULL) {
@@ -337,7 +339,7 @@ static int gui_output(struct video_desc *env, const char *text)
 		return 1;
 	}
 
-	SDL_BlitSurface(output, NULL, env->screen, &dest);
+	SDL_BlitSurface(output, NULL, gui->screen, &dest);
 	
 	SDL_UpdateRects(gui->keypad, 1, &gui->win[WIN_KEYPAD].rect);
 	SDL_FreeSurface(output);
@@ -742,6 +744,7 @@ static void sdl_setup(struct video_desc *env)
 	int depth, maxw, maxh;
 	const SDL_VideoInfo *info = SDL_GetVideoInfo();
 	int kp_w = 0, kp_h = 0;	/* keypad width and height */
+	int sdl_ok = 0;
 
 	/* We want at least 16bpp to support YUV overlays.
 	 * E.g with SDL_VIDEODRIVER = aalib the default is 8
@@ -762,31 +765,31 @@ static void sdl_setup(struct video_desc *env)
 
 	env->gui = gui_init(env);
 	ast_log(LOG_WARNING, "gui_init returned %p\n", env->gui);
-	if (env->gui) {
-		keypad_setup(env);
-		ast_log(LOG_WARNING, "keypad_setup returned %p %d\n",
-			env->gui->keypad, env->gui->kp_used);
-		if (env->gui->keypad) {
-			kp_w = env->gui->keypad->w;
-			kp_h = env->gui->keypad->h;
-		}
+	if (!env->gui)
+		goto no_sdl;
+	keypad_setup(env);
+	ast_log(LOG_WARNING, "keypad_setup returned %p %d\n",
+		env->gui->keypad, env->gui->kp_used);
+	if (env->gui->keypad) {
+		kp_w = env->gui->keypad->w;
+		kp_h = env->gui->keypad->h;
 	}
 #define BORDER	5	/* border around our windows */
 	maxw = env->in.rem_dpy.w + env->out.loc_dpy.w + kp_w;
 	maxh = MAX( MAX(env->in.rem_dpy.h, env->out.loc_dpy.h), kp_h);
 	maxw += 4 * BORDER;
 	maxh += 2 * BORDER;
-	env->screen = SDL_SetVideoMode(maxw, maxh, depth, 0);
-	if (!env->screen) {
+	env->gui->screen = SDL_SetVideoMode(maxw, maxh, depth, 0);
+	if (!env->gui->screen) {
 		ast_log(LOG_ERROR, "SDL: could not set video mode - exiting\n");
 		goto no_sdl;
 	}
 
 	SDL_WM_SetCaption("Asterisk console Video Output", NULL);
-	if (set_win(env->screen, &env->gui->win[WIN_REMOTE], dpy_fmt,
+	if (set_win(env->gui->screen, &env->gui->win[WIN_REMOTE], dpy_fmt,
 			env->in.rem_dpy.w, env->in.rem_dpy.h, BORDER, BORDER))
 		goto no_sdl;
-	if (set_win(env->screen, &env->gui->win[WIN_LOCAL], dpy_fmt,
+	if (set_win(env->gui->screen, &env->gui->win[WIN_LOCAL], dpy_fmt,
 			env->out.loc_dpy.w, env->out.loc_dpy.h,
 			3*BORDER+env->in.rem_dpy.w + kp_w, BORDER))
 		goto no_sdl;
@@ -800,15 +803,15 @@ static void sdl_setup(struct video_desc *env)
 		dest->y = BORDER;
 		dest->w = env->gui->keypad->w;
 		dest->h = env->gui->keypad->h;
-		SDL_BlitSurface(env->gui->keypad, NULL, env->screen, dest);
-		SDL_UpdateRects(env->screen, 1, dest);
+		SDL_BlitSurface(env->gui->keypad, NULL, env->gui->screen, dest);
+		SDL_UpdateRects(env->gui->screen, 1, dest);
 	}
 	env->in.dec_in_cur = &env->in.dec_in[0];
 	env->in.dec_in_dpy = NULL;	/* nothing to display */
-	env->sdl_ok = 1;
+	sdl_ok = 1;
 
 no_sdl:
-	if (env->sdl_ok == 0)	/* free resources in case of errors */
+	if (!sdl_ok)	/* free resources in case of errors */
 		cleanup_sdl(env);
 }
 

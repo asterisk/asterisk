@@ -126,22 +126,6 @@ int console_video_formats =
 	AST_FORMAT_H263_PLUS | AST_FORMAT_H263 |
 	AST_FORMAT_MP4_VIDEO | AST_FORMAT_H264 | AST_FORMAT_H261 ;
 
-#ifdef HAVE_X11
-#include <X11/Xlib.h>		/* this should be conditional */
-#endif
-
-#include <ffmpeg/avcodec.h>
-#ifndef OLD_FFMPEG
-#include <ffmpeg/swscale.h>	/* requires a recent ffmpeg */
-#endif
-
-#include <SDL/SDL.h>
-#ifdef HAVE_SDL_IMAGE
-#include <SDL/SDL_image.h>	/* for loading images */
-#endif
-#ifdef HAVE_SDL_TTF
-#include <SDL/SDL_ttf.h>	/* render text on sdl surfaces */
-#endif
 
 /*
  * In many places we use buffers to store the raw frames (but not only),
@@ -265,9 +249,6 @@ struct video_desc {
 
 	struct gui_info		*gui;
 
-	/* support for display. */
-	int                     sdl_ok;
-	SDL_Surface             *screen;	/* the main window */
 	char			keypad_file[256];	/* image for the keypad */
 	char                    keypad_font[256];       /* font for the keypad */
 
@@ -948,6 +929,8 @@ int console_write_video(struct ast_channel *chan, struct ast_frame *f)
 	struct video_desc *env = get_video_desc(chan);
 	struct video_in_desc *v = &env->in;
 
+	if (!env->gui)	/* no gui, no rendering */
+		return 0;
 	if (v->dec == NULL) {	/* try to get the codec */
 		v->dec = map_video_codec(f->subclass & ~1);
 		if (v->dec == NULL) {
@@ -1083,8 +1066,6 @@ static void *video_thread(void *arg)
 	int count = 0;
 	char save_display[128] = "";
 
-	env->screen = NULL;
-
 	/* if sdl_videodriver is set, override the environment. Also,
 	 * if it contains 'console' override DISPLAY around the call to SDL_Init
 	 * so we use the console as opposed to the x11 version of aalib
@@ -1103,9 +1084,8 @@ static void *video_thread(void *arg)
 		/* again not fatal, just we won't display anything */
 	} else {
 		sdl_setup(env);
-		if (env->sdl_ok)
-			ast_mutex_init(&env->in.dec_in_lock);
 	}
+	ast_mutex_init(&env->in.dec_in_lock);
 	if (!ast_strlen_zero(save_display))
 		setenv("DISPLAY", save_display, 1);
 
@@ -1151,7 +1131,7 @@ static void *video_thread(void *arg)
 		ast_select(0, NULL, NULL, NULL, &t);
 
 		if (env->gui)
-			SDL_UpdateRects(env->screen, 1, &env->gui->win[WIN_KEYPAD].rect);// XXX inefficient
+			SDL_UpdateRects(env->gui->screen, 1, &env->gui->win[WIN_KEYPAD].rect);// XXX inefficient
 		/*
 		 * While there is something to display, call the decoder and free
 		 * the buffer, possibly enabling the receiver to store new data.
@@ -1209,9 +1189,9 @@ static void *video_thread(void *arg)
 	video_in_uninit(&env->in);
 	video_out_uninit(&env->out);
 
-	if (env->sdl_ok)
+	if (env->gui)
 		cleanup_sdl(env);
-
+	ast_mutex_destroy(&(env->in.dec_in_lock));
 	env->shutdown = 0;
 	return NULL;
 }
