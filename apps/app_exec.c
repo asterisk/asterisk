@@ -77,9 +77,9 @@ static char *tryexec_descrip =
 static char *app_execif = "ExecIf";
 static char *execif_synopsis = "Executes dialplan application, conditionally";
 static char *execif_descrip = 
-"  ExecIF (<expr>?<app>(<data>):<app2>(<data2>))\n"
-"If <expr> is true, execute and return the result of <app>(<data>).\n"
-"If <expr> is true, but <app> is not found, then the application\n"
+"  ExecIF (<expr>?<appiftrue>(<args>)[:<appiffalse>(<args>)])\n"
+"If <expr> is true, execute and return the result of <appiftrue>(<args>).\n"
+"If <expr> is true, but <appiftrue> is not found, then the application\n"
 "will return a non-zero value.\n";
 
 static int exec_exec(struct ast_channel *chan, void *data)
@@ -162,7 +162,7 @@ static int execif_exec(struct ast_channel *chan, void *data)
 
 	AST_NONSTANDARD_APP_ARGS(expr, parse, '?');
 	if (ast_strlen_zero(expr.remainder)) {
-		ast_log(LOG_ERROR, "Usage: ExecIf(<cond>?<appiftrue>(<args>):<appiffalse>(<args))\n");
+		ast_log(LOG_ERROR, "Usage: ExecIf(<expr>?<appiftrue>(<args>)[:<appiffalse>(<args)])\n");
 		return -1;
 	}
 
@@ -187,8 +187,8 @@ static int execif_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Could not find application! (%s)\n", apps.t);
 			res = -1;
 		}
-	} else {
-		if (!ast_strlen_zero(apps.f) && (app = pbx_findapp(apps.f))) {
+	} else if (!ast_strlen_zero(apps.f)) {
+		if ((app = pbx_findapp(apps.f))) {
 			res = pbx_exec(chan, app, S_OR(falsedata, ""));
 		} else {
 			ast_log(LOG_WARNING, "Could not find application! (%s)\n", apps.f);
