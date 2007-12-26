@@ -205,7 +205,11 @@ static const char config[] = "zapata.conf";
 #define SIG_GR303FXOKS	(0x0100000 | ZT_SIG_FXOKS)
 #define SIG_GR303FXSKS	(0x0100000 | ZT_SIG_FXSKS)
 
+#ifdef LOTS_OF_SPANS
+#define NUM_SPANS	ZT_MAX_SPANS
+#else
 #define NUM_SPANS 		32
+#endif
 #define NUM_DCHANS		4	/*!< No more than 4 d-channels */
 #define MAX_CHANNELS	672		/*!< No more than a DS3 per trunk group */
 
