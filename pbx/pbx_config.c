@@ -1639,7 +1639,7 @@ static int pbx_load_module(void)
 	pbx_set_autofallthrough(autofallthrough_config);
 	pbx_set_extenpatternmatchnew(extenpatternmatchnew_config);
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int load_module(void)
@@ -1651,15 +1651,14 @@ static int load_module(void)
 		ast_cli_register(&cli_dialplan_save);
 	ast_cli_register_multiple(cli_pbx_config, sizeof(cli_pbx_config) / sizeof(struct ast_cli_entry));
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int reload(void)
 {
 	if (clearglobalvars_config)
 		pbx_builtin_clear_globals();
-	pbx_load_module();
-	return 0;
+	return pbx_load_module();
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Text Extension Configuration",

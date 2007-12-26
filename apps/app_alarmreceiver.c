@@ -801,8 +801,11 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if(load_config())
-		return ast_register_application(app, alarmreceiver_exec, synopsis, descrip);
+	if(load_config()) {
+		if (ast_register_application(app, alarmreceiver_exec, synopsis, descrip))
+			return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_SUCCESS;
+	}	
 	else
 		return AST_MODULE_LOAD_DECLINE;
 }

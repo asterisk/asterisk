@@ -308,7 +308,7 @@ static int amd_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static void load_config(int reload)
+static int load_config(int reload)
 {
 	struct ast_config *cfg = NULL;
 	char *cat = NULL;
@@ -317,9 +317,9 @@ static void load_config(int reload)
 
 	if (!(cfg = ast_config_load("amd.conf", config_flags))) {
 		ast_log(LOG_ERROR, "Configuration file amd.conf missing.\n");
-		return;
+		return -1;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
-		return;
+		return 0;
 
 	cat = ast_category_browse(cfg, NULL);
 
@@ -360,7 +360,7 @@ static void load_config(int reload)
 				dfltInitialSilence, dfltGreeting, dfltAfterGreetingSilence, dfltTotalAnalysisTime,
 				dfltMinimumWordLength, dfltBetweenWordsSilence, dfltMaximumNumberOfWords, dfltSilenceThreshold );
 
-	return;
+	return 0;
 }
 
 static int unload_module(void)
@@ -370,14 +370,18 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	load_config(0);
-	return ast_register_application(app, amd_exec, synopsis, descrip);
+	if (load_config(0))
+		return AST_MODULE_LOAD_DECLINE;
+	if (ast_register_application(app, amd_exec, synopsis, descrip))
+		return AST_MODULE_LOAD_FAILURE;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int reload(void)
 {
-	load_config(1);
-	return 0;
+	if (load_config(1))
+		return AST_MODULE_LOAD_DECLINE;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Answering Machine Detection Application",

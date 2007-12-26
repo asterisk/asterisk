@@ -243,8 +243,9 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	ast_register_switch(&realtime_switch);
-	return 0;
+	if (ast_register_switch(&realtime_switch))
+		return AST_MODULE_LOAD_FAILURE;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Realtime Switch");

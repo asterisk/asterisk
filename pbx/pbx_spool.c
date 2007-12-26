@@ -494,16 +494,16 @@ static int load_module(void)
 	snprintf(qdir, sizeof(qdir), "%s/%s", ast_config_AST_SPOOL_DIR, "outgoing");
 	if (ast_mkdir(qdir, 0777)) {
 		ast_log(LOG_WARNING, "Unable to create queue directory %s -- outgoing spool disabled\n", qdir);
-		return 0;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	snprintf(qdonedir, sizeof(qdir), "%s/%s", ast_config_AST_SPOOL_DIR, "outgoing_done");
 
 	if ((ret = ast_pthread_create_detached_background(&thread, NULL, scan_thread, NULL))) {
 		ast_log(LOG_WARNING, "Unable to create thread :( (returned error: %d)\n", ret);
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Outgoing Spool Support");

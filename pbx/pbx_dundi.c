@@ -4779,9 +4779,9 @@ static int reload(void)
 	struct sockaddr_in sin;
 
 	if (set_config("dundi.conf", &sin, 1))
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int load_module(void)

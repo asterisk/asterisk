@@ -55,7 +55,9 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(nocdr_app, nocdr_exec, nocdr_synopsis, nocdr_descrip);
+	if (ast_register_application(nocdr_app, nocdr_exec, nocdr_synopsis, nocdr_descrip))
+		return AST_MODULE_LOAD_FAILURE;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Tell Asterisk to not maintain a CDR for the current call");

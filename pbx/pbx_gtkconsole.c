@@ -230,7 +230,7 @@ static int reload_module(void *mod)
 		}
 	}
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static void file_ok_sel(GtkWidget *w, GtkFileSelection *fs)
@@ -473,7 +473,7 @@ static int load_module(void *mod)
 {
 	if (pipe(clipipe)) {
 		ast_log(LOG_WARNING, "Unable to create CLI pipe\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	g_thread_init(NULL);
 	if (gtk_init_check(NULL, NULL))  {
@@ -489,7 +489,7 @@ static int load_module(void *mod)
 		else
 			ast_verb(2, "GTK is not available -- skipping monitor\n");
 	}
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static const char *description(void)
