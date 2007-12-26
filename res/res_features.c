@@ -446,9 +446,8 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	pu->parkingtime = (timeout > 0) ? timeout : parkingtime;
 	if (extout)
 		*extout = x;
-	if (!ast_strlen_zero(orig_chan_name))
-		ast_copy_string(pu->peername, orig_chan_name, sizeof(pu->peername));
-	else if (peer) 
+
+	if (peer) 
 		ast_copy_string(pu->peername, peer->name, sizeof(pu->peername));
 
 	/* Remember what had been dialed, so that if the parking
@@ -2369,7 +2368,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 		res = ast_safe_sleep(chan, 1000);
 	/* Park the call */
 	if (!res)
-		res = park_call_full(chan, chan, 0, NULL, orig_chan_name);
+		res = park_call_full(chan, NULL, 0, NULL, orig_chan_name);
 
 	return !res ? AST_PBX_KEEPALIVE : res;
 }
