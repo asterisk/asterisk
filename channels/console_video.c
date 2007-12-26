@@ -1190,7 +1190,7 @@ static void *video_thread(void *arg)
 	video_out_uninit(&env->out);
 
 	if (env->gui)
-		cleanup_sdl(env);
+		env->gui = cleanup_sdl(env->gui);
 	ast_mutex_destroy(&(env->in.dec_in_lock));
 	env->shutdown = 0;
 	return NULL;

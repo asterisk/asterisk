@@ -57,12 +57,16 @@ struct gui_info {
 	struct display_window   win[WIN_MAX];
 };
 
-static void cleanup_sdl(struct video_desc *env)  
+/*! \brief free the resources in struct gui_info and the descriptor itself.
+ *  Return NULL so we can assign the value back to the descriptor in case.
+ */
+static struct gui_info *cleanup_sdl(struct gui_info *gui)
 {
 	int i;
-	struct gui_info *gui = env->gui;
 
-    if (gui) {
+	if (gui == NULL)
+		return NULL;
+
 #ifdef HAVE_SDL_TTF
 	/* unload font file */ 
 	if (gui->font) {
@@ -77,20 +81,18 @@ static void cleanup_sdl(struct video_desc *env)
 	if (gui->keypad)
 		SDL_FreeSurface(gui->keypad);
 	gui->keypad = NULL;
+	if (gui->kp)
+		ast_free(gui->kp);
 
 	/* uninitialize the SDL environment */
 	for (i = 0; i < WIN_MAX; i++) {
 		if (gui->win[i].bmp)
 			SDL_FreeYUVOverlay(gui->win[i].bmp);
 	}
-	bzero(gui->win, sizeof(gui->win));
-	/* XXX free the keys entries */
-	gui->screen = NULL; /* XXX check reference */
-	ast_mutex_destroy(&(env->in.dec_in_lock));
+	bzero(gui, sizeof(gui));
 	ast_free(gui);
-	env->gui = NULL;
-    }
 	SDL_Quit();
+	return NULL;
 }
 
 /*
@@ -150,7 +152,7 @@ static void show_frame(struct video_desc *env, int out)
  * GUI layout, structure and management
  *
 
-For the GUI we use SDL to create a large surface (env->screen)
+For the GUI we use SDL to create a large surface (gui->screen)
 containing tree sections: remote video on the left, local video
 on the right, and the keypad with all controls and text windows
 in the center.
@@ -442,7 +444,7 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 		break;
 
 	case KEY_GUI_CLOSE:
-		cleanup_sdl(env);
+		env->gui = cleanup_sdl(env->gui);
 		break;
 	case KEY_DIGIT_BACKGROUND:
 		break;
@@ -657,16 +659,16 @@ static int set_win(SDL_Surface *screen, struct display_window *win, int fmt,
 
 static int keypad_cfg_read(struct gui_info *gui, const char *val);
 
-static void keypad_setup(struct video_desc *env)
+static void keypad_setup(struct gui_info *gui, const char *kp_file)
 {
 	int fd = -1;
 	void *p = NULL;
 	off_t l = 0;
 
-	if (env->gui->keypad)
+	if (gui->keypad)
 		return;
-	env->gui->keypad = get_keypad(env->keypad_file);
-	if (!env->gui->keypad)
+	gui->keypad = get_keypad(kp_file);
+	if (!gui->keypad)
 		return;
 
 	/*
@@ -683,26 +685,26 @@ static void keypad_setup(struct video_desc *env)
 		int reg_len = strlen(region);
 		const unsigned char *s, *e;
 
-		fd = open(env->keypad_file, O_RDONLY);
+		fd = open(kp_file, O_RDONLY);
 		if (fd < 0) {
-			ast_log(LOG_WARNING, "fail to open %s\n", env->keypad_file);
+			ast_log(LOG_WARNING, "fail to open %s\n", kp_file);
 			break;
 		}
 		l = lseek(fd, 0, SEEK_END);
 		if (l <= 0) {
-			ast_log(LOG_WARNING, "fail to lseek %s\n", env->keypad_file);
+			ast_log(LOG_WARNING, "fail to lseek %s\n", kp_file);
 			break;
 		}
 		p = mmap(NULL, l, PROT_READ, 0, fd, 0);
 		if (p == NULL) {
-			ast_log(LOG_WARNING, "fail to mmap %s size %ld\n", env->keypad_file, (long)l);
+			ast_log(LOG_WARNING, "fail to mmap %s size %ld\n", kp_file, (long)l);
 			break;
 		}
 		e = (const unsigned char *)p + l;
 		for (s = p; s < e - 20 ; s++) {
 			if (!memcmp(s, region, reg_len)) { /* keyword found */
 				/* reset previous entries */
-				keypad_cfg_read(env->gui, "reset");
+				keypad_cfg_read(gui, "reset");
 				break;
 			}
 		}
@@ -723,7 +725,7 @@ static void keypad_setup(struct video_desc *env)
 				break;
 			if (*s1 == '>')	/* skip => */
 				s1++;
-			keypad_cfg_read(env->gui, ast_skip_blanks(s1));
+			keypad_cfg_read(gui, ast_skip_blanks(s1));
 			/* now wait for a newline */
 			s1 = s;
 			while (s1 < e - 20 && !index("\r\n", *s1) && *s1 < 128)
@@ -767,7 +769,7 @@ static void sdl_setup(struct video_desc *env)
 	ast_log(LOG_WARNING, "gui_init returned %p\n", env->gui);
 	if (!env->gui)
 		goto no_sdl;
-	keypad_setup(env);
+	keypad_setup(env->gui, env->keypad_file);
 	ast_log(LOG_WARNING, "keypad_setup returned %p %d\n",
 		env->gui->keypad, env->gui->kp_used);
 	if (env->gui->keypad) {
@@ -812,7 +814,7 @@ static void sdl_setup(struct video_desc *env)
 
 no_sdl:
 	if (!sdl_ok)	/* free resources in case of errors */
-		cleanup_sdl(env);
+		env->gui = cleanup_sdl(env->gui);
 }
 
 /*
@@ -964,6 +966,6 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)
 	if (gui->kp_size == gui->kp_used)
 		return 0;
 	gui->kp[gui->kp_used++] = e;
-	ast_log(LOG_WARNING, "now %d regions\n", gui->kp_used);
+	// ast_log(LOG_WARNING, "now %d regions\n", gui->kp_used);
 	return 1;
 }
