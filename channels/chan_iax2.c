@@ -6454,7 +6454,7 @@ static void unlink_peer(struct iax2_peer *peer)
 		}
 	}
 
-	unlink_peer(peer);
+	ao2_unlink(peers, peer);
 }
 
 static void __expire_registry(const void *data)
@@ -9872,6 +9872,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			oldha = peer->ha;
 			peer->ha = NULL;
 		}
+		unlink_peer(peer);
 	} else if ((peer = ao2_alloc(sizeof(*peer), peer_destructor))) {
 		peer->expire = -1;
 		peer->pokeexpire = -1;
