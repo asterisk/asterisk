@@ -176,6 +176,7 @@ int ast_autoservice_start(struct ast_channel *chan)
 	} else {
 		/* New entry created */
 		as->chan = chan;
+		ast_set_flag(chan, AST_FLAG_END_DTMF_ONLY);
 		as->use_count = 1;
 		AST_LIST_INSERT_HEAD(&aslist, as, list);
 		if (asthread == AST_PTHREADT_NULL) { /* need start the thread */
@@ -218,6 +219,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 			removed = 1;
 			if (!chan->_softhangup)
 				res = 0;
+			ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
 			break;
 		}
 	}
