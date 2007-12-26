@@ -223,6 +223,12 @@ static const char config[] = "zapata.conf";
 #define ZAP_OVERLAPDIAL_INCOMING 2
 #define ZAP_OVERLAPDIAL_BOTH (ZAP_OVERLAPDIAL_INCOMING|ZAP_OVERLAPDIAL_OUTGOING)
 
+
+#define CALLPROGRESS_PROGRESS		1
+#define CALLPROGRESS_FAX_OUTGOING	2
+#define CALLPROGRESS_FAX_INCOMING	4
+#define CALLPROGRESS_FAX		(CALLPROGRESS_FAX_INCOMING | CALLPROGRESS_FAX_OUTGOING)
+
 static char defaultcic[64] = "";
 static char defaultozz[64] = "";
 
@@ -4172,7 +4178,7 @@ static void zt_handle_dtmfup(struct ast_channel *ast, int index, struct ast_fram
 		*dest = &p->subs[index].f;
 	} else if (f->subclass == 'f') {
 		/* Fax tone -- Handle and return NULL */
-		if ((p->callprogress & 0x6) && !p->faxhandled) {
+		if ((p->callprogress & CALLPROGRESS_FAX) && !p->faxhandled) {
 			p->faxhandled++;
 			if (strcmp(ast->exten, "fax")) {
 				const char *target_context = S_OR(ast->macrocontext, ast->context);
@@ -4313,7 +4319,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						}
 					}
 					if (ast->_state == AST_STATE_DIALING) {
-						if ((p->callprogress & 1) && CANPROGRESSDETECT(p) && p->dsp && p->outgoing) {
+						if ((p->callprogress & CALLPROGRESS_PROGRESS) && CANPROGRESSDETECT(p) && p->dsp && p->outgoing) {
 							ast_debug(1, "Done dialing, but waiting for progress detection before doing more...\n");
 						} else if (p->confirmanswer || (!p->dialednone && ((mysig == SIG_EM) || (mysig == SIG_EM_E1) ||  (mysig == SIG_EMWINK) || (mysig == SIG_FEATD) || (mysig == SIG_FEATDMF_TA) || (mysig == SIG_FEATDMF) || (mysig == SIG_E911) || (mysig == SIG_FGC_CAMA) || (mysig == SIG_FGC_CAMAMF) || (mysig == SIG_FEATB) || (mysig == SIG_SF) || (mysig == SIG_SFWINK) || (mysig == SIG_SF_FEATD) || (mysig == SIG_SF_FEATDMF) || (mysig == SIG_SF_FEATB)))) {
 							ast_setstate(ast, AST_STATE_RINGING);
@@ -5819,10 +5825,10 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	if (index == SUB_REAL) {
 		if (i->busydetect && CANBUSYDETECT(i))
 			features |= DSP_FEATURE_BUSY_DETECT;
-		if ((i->callprogress & 1) && CANPROGRESSDETECT(i))
+		if ((i->callprogress & CALLPROGRESS_PROGRESS) && CANPROGRESSDETECT(i))
 			features |= DSP_FEATURE_CALL_PROGRESS;
-		if ((!i->outgoing && (i->callprogress & 4)) || 
-		    (i->outgoing && (i->callprogress & 2))) {
+		if ((!i->outgoing && (i->callprogress & CALLPROGRESS_FAX_INCOMING)) || 
+		    (i->outgoing && (i->callprogress & CALLPROGRESS_FAX_OUTGOING))) {
 			features |= DSP_FEATURE_FAX_DETECT;
 		}
 #ifdef ZT_TONEDETECT
@@ -12877,21 +12883,17 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				ast_log(LOG_ERROR, "busypattern= expects busypattern=tonelength,quietlength\n");
 			}
 		} else if (!strcasecmp(v->name, "callprogress")) {
+			confp->chan.callprogress &= ~CALLPROGRESS_PROGRESS;
 			if (ast_true(v->value))
-				confp->chan.callprogress |= 1;
-			else
-				confp->chan.callprogress &= ~1;
+				confp->chan.callprogress |= CALLPROGRESS_PROGRESS;
 		} else if (!strcasecmp(v->name, "faxdetect")) {
+			confp->chan.callprogress &= ~CALLPROGRESS_FAX;
 			if (!strcasecmp(v->value, "incoming")) {
-				confp->chan.callprogress |= 4;
-				confp->chan.callprogress &= ~2;
+				confp->chan.callprogress |= CALLPROGRESS_FAX_INCOMING;
 			} else if (!strcasecmp(v->value, "outgoing")) {
-				confp->chan.callprogress &= ~4;
-				confp->chan.callprogress |= 2;
+				confp->chan.callprogress |= CALLPROGRESS_FAX_OUTGOING;
 			} else if (!strcasecmp(v->value, "both") || ast_true(v->value))
-				confp->chan.callprogress |= 6;
-			else
-				confp->chan.callprogress &= ~6;
+				confp->chan.callprogress |= CALLPROGRESS_FAX_INCOMING | CALLPROGRESS_FAX_OUTGOING;
 		} else if (!strcasecmp(v->name, "echocancel")) {
 			if (!ast_strlen_zero(v->value)) {
 				y = atoi(v->value);
