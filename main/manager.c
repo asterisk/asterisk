@@ -2590,11 +2590,17 @@ static void *session_do(void *data)
 		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 	}
 
-	/* If the entire session occurs in a single context switch, then it's
-	 * possible to get an unsafe memory condition by free()ing the memory
-	 * before letting other threads run at least once.  This actually seems
-	 * like a workaround for a glibc bug.
-	 */
+	/* It is possible under certain circumstances for this session thread
+	   to complete its work and exit *before* the thread that created it
+	   has finished executing the ast_pthread_create_background() function.
+	   If this occurs, some versions of glibc appear to act in a buggy
+	   fashion and attempt to write data into memory that it thinks belongs
+	   to the thread but is in fact not owned by the thread (or may have
+	   been freed completely).
+
+	   Causing this thread to yield to other threads at least one time
+	   appears to work around this bug.
+	*/
 	usleep(1);
 
 	destroy_session(s);
