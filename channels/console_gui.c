@@ -4,12 +4,34 @@
  * $Revision$
  */
 
+
 #include "asterisk.h"
 #include "console_video.h"
 #include "asterisk/lock.h"
 #include "asterisk/frame.h"
 #include "asterisk/utils.h"	/* ast_calloc and ast_realloc */
 #include <math.h>		/* sqrt */
+
+/* we support 3 regions in the GUI */
+enum { WIN_LOCAL, WIN_REMOTE, WIN_KEYPAD, WIN_MAX };
+
+#ifndef HAVE_SDL
+/* stubs if we don't have any sdl */
+static void show_frame(struct video_desc *env, int out)	{}
+static void sdl_setup(struct video_desc *env)		{}
+static struct gui_info *cleanup_sdl(struct gui_info *gui)	{ return NULL; }
+static void eventhandler(struct video_desc *env, const char *caption)	{}
+static int keypad_cfg_read(struct gui_info *gui, const char *val)	{ return 0; }
+
+#else /* HAVE_SDL, the real rendering code */
+
+#include <SDL/SDL.h>
+#ifdef HAVE_SDL_IMAGE
+#include <SDL/SDL_image.h>      /* for loading images */
+#endif
+#ifdef HAVE_SDL_TTF
+#include <SDL/SDL_ttf.h>        /* render text on sdl surfaces */
+#endif
 
 enum kp_type { KP_NONE, KP_RECT, KP_CIRCLE };
 struct keypad_entry {
@@ -18,10 +40,6 @@ struct keypad_entry {
         enum kp_type type;
 };
 
-/* our representation of a displayed window. SDL can only do one main
- * window so we map everything within that one
- */
-enum { WIN_LOCAL, WIN_REMOTE, WIN_KEYPAD, WIN_MAX };
 /* our representation of a displayed window. SDL can only do one main
  * window so we map everything within that one
  */
@@ -531,7 +549,7 @@ static void move_capture_source(struct video_desc *env, int x_final_drag, int y_
 
 /*! \brief refresh the screen, and also grab a bunch of events.
  */
-static void eventhandler(struct video_desc *env)
+static void eventhandler(struct video_desc *env, const char *caption)
 {
 	struct gui_info *gui = env->gui;
 #define N_EVENTS	32
@@ -540,7 +558,8 @@ static void eventhandler(struct video_desc *env)
 
 	if (!gui)
 		return;
-	// SDL_UpdateRects(gui->screen, 1, &gui->win[WIN_KEYPAD].rect);// XXX inefficient
+	if (caption)
+		SDL_WM_SetCaption(caption, NULL);
 
 #define MY_EV (SDL_MOUSEBUTTONDOWN|SDL_KEYDOWN)
 	while ( (n = SDL_PeepEvents(ev, N_EVENTS, SDL_GETEVENT, SDL_ALLEVENTS)) > 0) {
@@ -959,3 +978,4 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)
 	// ast_log(LOG_WARNING, "now %d regions\n", gui->kp_used);
 	return 1;
 }
+#endif	/* HAVE_SDL */

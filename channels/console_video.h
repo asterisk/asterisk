@@ -23,7 +23,7 @@
 #ifndef CONSOLE_VIDEO_H
 #define CONSOLE_VIDEO_H
 
-#if !defined(HAVE_VIDEO_CONSOLE) || !defined(HAVE_FFMPEG) || !defined(HAVE_SDL)
+#if !defined(HAVE_VIDEO_CONSOLE) || !defined(HAVE_FFMPEG)
 #define CONSOLE_VIDEO_CMDS					\
 		"console {device}"
 #else
@@ -36,16 +36,6 @@
 #ifndef OLD_FFMPEG
 #include <ffmpeg/swscale.h>     /* requires a recent ffmpeg */
 #endif
-
-#include <SDL/SDL.h>
-#ifdef HAVE_SDL_IMAGE
-#include <SDL/SDL_image.h>      /* for loading images */
-#endif
-#ifdef HAVE_SDL_TTF
-#include <SDL/SDL_ttf.h>        /* render text on sdl surfaces */
-#endif
-
-
 
 #define CONSOLE_VIDEO_CMDS                              \
         "console {videodevice|videocodec|sendvideo"     \

@@ -88,10 +88,10 @@ iax.conf too) the following:
 
 /*
  * Codecs are absolutely necessary or we cannot do anything.
- * In principle SDL is optional too (used for rendering only, but we
- * could still source data withouth it), however at the moment it is required.
+ * SDL is optional (used for rendering only), so that we can still
+ * stream video withouth displaying it.
  */
-#if !defined(HAVE_VIDEO_CONSOLE) || !defined(HAVE_FFMPEG) || !defined(HAVE_SDL)
+#if !defined(HAVE_VIDEO_CONSOLE) || !defined(HAVE_FFMPEG)
 /* stubs if required pieces are missing */
 int console_write_video(struct ast_channel *chan, struct ast_frame *f)
 {
@@ -1079,8 +1079,6 @@ static void *video_thread(void *arg)
 		}
 	}
 	sdl_setup(env);
-	if (env->gui)
-		SDL_UpdateRects(env->gui->screen, 1, &env->gui->win[WIN_KEYPAD].rect);// XXX inefficient
 	ast_mutex_init(&env->in.dec_in_lock);
 	if (!ast_strlen_zero(save_display))
 		setenv("DISPLAY", save_display, 1);
@@ -1097,16 +1095,15 @@ static void *video_thread(void *arg)
 	}
 
 	for (;;) {
-		/* XXX 20 times/sec */
-		struct timeval t = { 0, 50000 };
+		struct timeval t = { 0, 50000 };	/* XXX 20 times/sec */
 		struct ast_frame *p, *f;
 		struct video_in_desc *v = &env->in;
 		struct ast_channel *chan = env->owner;
 		int fd = chan->alertpipe[1];
+		char *caption = NULL, buf[160];
 
 		/* determine if video format changed */
 		if (count++ % 10 == 0) {
-			char buf[160];
 			if (env->out.sendvideo)
 			    sprintf(buf, "%s %s %dx%d @@ %dfps %dkbps",
 				env->out.videodevice, env->codec_name,
@@ -1114,14 +1111,14 @@ static void *video_thread(void *arg)
 				env->out.fps, env->out.bitrate/1000);
 			else
 			    sprintf(buf, "hold");
-			SDL_WM_SetCaption(buf, NULL);
+			caption = buf;
 		}
 
 		/* manage keypad events */
 		/* XXX here we should always check for events,
 		* otherwise the drag will not work */ 
 		if (env->gui)
-			eventhandler(env);
+			eventhandler(env, caption);
  
 		/* sleep for a while */
 		ast_select(0, NULL, NULL, NULL, &t);
