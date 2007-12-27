@@ -23,6 +23,9 @@
  *
  * \brief codec_g722.c - translate between signed linear and ITU G.722-64kbps
  *
+ * \arg http://soft-switch.org/downloads/non-gpl-bits.tgz
+ * \arg http://lists.digium.com/pipermail/asterisk-dev/2006-September/022866.html
+ *
  * \ingroup codecs
  */
 
