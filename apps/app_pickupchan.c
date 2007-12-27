@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Gary Cook
+ * Copyright (C) 2008, Gary Cook
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -46,7 +46,9 @@ static const char *synopsis = "Pickup a ringing channel";
 static const char *descrip =
 "  PickupChan(channel[&channel...]): This application can pickup any ringing channel\n";
 
-/* Helper function that determines whether a channel is capable of being picked up */
+/*! \todo This application should return a result code, like PICKUPRESULT */
+
+/*! \brief Helper function that determines whether a channel is capable of being picked up */
 static int can_pickup(struct ast_channel *chan)
 {
 	ast_debug(3, "Checking Pickup '%s' state '%s ( %d )'\n", chan->name, ast_state2str(chan->_state), chan->_state);
@@ -58,7 +60,7 @@ static int can_pickup(struct ast_channel *chan)
 	}
 }
 
-/* Helper Function to walk through ALL channels checking NAME and STATE */
+/*! \brief Helper Function to walk through ALL channels checking NAME and STATE */
 static struct ast_channel *my_ast_get_channel_by_name_locked(char *channame)
 {
 	struct ast_channel *chan;
@@ -81,7 +83,7 @@ static struct ast_channel *my_ast_get_channel_by_name_locked(char *channame)
 	return NULL;
 }
 
-/* Perform actual pickup between two channels */
+/*! \brief Perform actual pickup between two channels */
 static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
 {
 	int res = 0;
@@ -106,7 +108,7 @@ static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
 	return res;
 }
 
-/* Attempt to pick up specified channel named , does not use context */
+/*! \brief Attempt to pick up specified channel named , does not use context */
 static int pickup_by_channel(struct ast_channel *chan, char *pickup)
 {
 	int res = 0;
@@ -124,7 +126,7 @@ static int pickup_by_channel(struct ast_channel *chan, char *pickup)
 	return res;
 }
 
-/* Main application entry point */
+/*! \brief Main application entry point */
 static int pickupchan_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
