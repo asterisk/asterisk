@@ -2851,7 +2851,7 @@ int main(int argc, char *argv[])
 	ast_readconfig();
 
 	if (ast_opt_remote && remotesock != NULL)
-		ast_copy_string((char *) ast_config_AST_SOCKET, remotesock, sizeof(ast_config_AST_SOCKET));
+		ast_copy_string((char *) cfg_paths.socket_path, remotesock, sizeof(cfg_paths.socket_path));
 
 	if (!ast_language_is_prefix && !ast_opt_remote)
 		ast_log(LOG_WARNING, "The 'languageprefix' option in asterisk.conf is deprecated; in a future release it will be removed, and your sound files will need to be organized in the 'new style' language layout.\n");

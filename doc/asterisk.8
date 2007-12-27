@@ -12,7 +12,7 @@ asterisk \- All-purpose telephony server.
 \fBasterisk\fR [ \fB-tThfdvVqpRgciIn\fR ] [ \fB-C \fIfile\fB\fR ] [ \fB-U \fIuser\fB\fR ] [ \fB-G \fIgroup\fB\fR ] [ \fB-x \fIcommand\fB\fR ] [ \fB-M \fIvalue\fB\fR ]
 
 
-\fBasterisk -r\fR [ \fB-v\fR ] [ \fB-x \fIcommand\fB\fR ]
+\fBasterisk -r\fR [ \fB-v\fR ] [ \fB-x \fIcommand\fB\fR ] [ \fB-s \fIsocket\fB\fR ]
 
 .SH "DESCRIPTION"
 .PP
@@ -116,6 +116,10 @@ Much like \fB-r\fR\&.  Instead of running a new Asterisk process, attempt to con
 to a running Asterisk process and provide a console interface
 for controlling it. Additionally, if connection to the Asterisk 
 process is lost, attempt to reconnect for as long as 30 seconds.
+.TP
+\fB-s \fIsocket\fB\fR
+Allows to specify the socket file to be used to connect to the
+Asterisk console. Used in conjunction with \fB-r\fR or \fB-R\fR.
 .TP
 \fB-I\fR
 Enable internal timing if Zaptel timer is available
