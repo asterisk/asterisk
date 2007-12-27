@@ -138,7 +138,9 @@ MGCP changes
 
 OSS Channel changes
 -------------------
-  * Added experimental support for video under X windows
+  * Added experimental support for video send&receive.
+    Requires SDL and ffmpeg/avcodec, plus Video4Linux or X11
+    to act as video source.
 
 Phone channel changes (chan_phone)
 ----------------------------------
