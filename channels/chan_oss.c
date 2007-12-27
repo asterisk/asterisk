@@ -1528,7 +1528,7 @@ static void store_config_core(struct chan_oss_pvt *o, const char *var, const cha
 	CV_START(var, value);
 
 	/* handle jb conf */
-	if (!ast_jb_read_conf(&global_jbconf, (char *)var,(char *) value))
+	if (!ast_jb_read_conf(&global_jbconf, var, value))
 		return;
 
 	if (!console_video_config(&o->env, var, value))
