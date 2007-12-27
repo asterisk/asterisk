@@ -170,7 +170,7 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 						if (speed > 4) {
 							speed = 1;
 						}
-						res = ast_say_number(chan, speed, AST_DIGIT_ANY, chan->language, (char *) NULL);
+						res = ast_say_number(chan, speed, AST_DIGIT_ANY, chan->language, NULL);
 						break;
 					case '7':
 						samples -= ffactor;

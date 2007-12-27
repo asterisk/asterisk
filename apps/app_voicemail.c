@@ -3954,7 +3954,7 @@ static int get_folder(struct ast_channel *chan, int start)
 	if (d)
 		return d;
 	for (x = start; x< 5; x++) {	/* For all folders */
-		if ((d = ast_say_number(chan, x, AST_DIGIT_ANY, chan->language, (char *) NULL)))
+		if ((d = ast_say_number(chan, x, AST_DIGIT_ANY, chan->language, NULL)))
 			return d;
 		d = ast_play_and_wait(chan, "vm-for");	/* "for" */
 		if (d)
@@ -4699,7 +4699,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		res = wait_file2(chan, vms, "vm-message");	/* "message" */
 		if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
 			if (!res)
-				res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, (char *) NULL);
+				res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, NULL);
 		}
 	}
 
