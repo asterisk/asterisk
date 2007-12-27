@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 }
 #endif
 
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <sys/param.h>
