@@ -3403,7 +3403,7 @@ static int resequence_mailbox(struct ast_vm_user *vmu, char *dir)
 static int say_and_wait(struct ast_channel *chan, int num, const char *language)
 {
 	int d;
-	d = ast_say_number(chan, num, AST_DIGIT_ANY, language, (char *) NULL);
+	d = ast_say_number(chan, num, AST_DIGIT_ANY, language, NULL);
 	return d;
 }
 

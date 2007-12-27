@@ -86,11 +86,11 @@ static int icesencode(char *filename, int fd)
 			close(x);
 	}
 	/* Most commonly installed in /usr/local/bin */
-	execl(ICES, "ices", filename, (char *)NULL);
+	execl(ICES, "ices", filename, NULL);
 	/* But many places has it in /usr/bin */
-	execl(LOCAL_ICES, "ices", filename, (char *)NULL);
+	execl(LOCAL_ICES, "ices", filename, NULL);
 	/* As a last-ditch effort, try to use PATH */
-	execlp("ices", "ices", filename, (char *)NULL);
+	execlp("ices", "ices", filename, NULL);
 	ast_log(LOG_WARNING, "Execute of ices failed\n");
 	_exit(0);
 }

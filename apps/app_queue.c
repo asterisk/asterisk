@@ -1704,7 +1704,7 @@ static int say_position(struct queue_ent *qe, int ringing)
 			res = play_file(qe->chan, qe->parent->sound_thereare);
 			if (res)
 				goto playout;
-			res = ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
+			res = ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language, NULL); /* Needs gender */
 			if (res)
 				goto playout;
 			res = play_file(qe->chan, qe->parent->sound_calls);
