@@ -6602,7 +6602,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 			snprintf(contact, sizeof(contact), "%s;expires=%d", p->our_contact, p->expiry);
 			add_header(resp, "Contact", contact);	/* Not when we unregister */
 		}
-	} else if (msg[0] != '4' && p->our_contact[0]) {
+	} else if (msg[0] != '4' && !ast_strlen_zero(p->our_contact)) {
 		add_header(resp, "Contact", p->our_contact);
 	}
 
