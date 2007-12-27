@@ -796,10 +796,10 @@ int ast_translator_best_choice(int *dst, int *srcs)
 	int cur, cursrc;
 	int besttime = INT_MAX;
 	int beststeps = INT_MAX;
-	int common = (*dst) & (*srcs);	/* are there common formats ? */
+	int common = ((*dst) & (*srcs)) & AST_FORMAT_AUDIO_MASK;	/* are there common formats ? */
 
 	if (common) { /* yes, pick one and return */
-		for (cur = 1, y = 0; y < MAX_FORMAT; cur <<= 1, y++) {
+		for (cur = 1, y = 0; y <= AST_FORMAT_MAX_AUDIO; cur <<= 1, y++) {
 			if (cur & common)	/* guaranteed to find one */
 				break;
 		}
@@ -808,10 +808,10 @@ int ast_translator_best_choice(int *dst, int *srcs)
 		return 0;
 	} else {	/* No, we will need to translate */
 		AST_LIST_LOCK(&translators);
-		for (cur = 1, y = 0; y < MAX_FORMAT; cur <<= 1, y++) {
+		for (cur = 1, y = 0; y <= AST_FORMAT_MAX_AUDIO; cur <<= 1, y++) {
 			if (! (cur & *dst))
 				continue;
-			for (cursrc = 1, x = 0; x < MAX_FORMAT; cursrc <<= 1, x++) {
+			for (cursrc = 1, x = 0; x <= AST_FORMAT_MAX_AUDIO; cursrc <<= 1, x++) {
 				if (!(*srcs & cursrc) || !tr_matrix[x][y].step ||
 				    tr_matrix[x][y].cost >  besttime)
 					continue;	/* not existing or no better */
