@@ -16,7 +16,7 @@
 
 /*! \file
  *
- * \brief Dialplan group functions check if a context exists
+ * \brief Dialplan group functions check if a dialplan entry exists
  *
  * \author Gregory Nietsky AKA irroot <gregory@networksentry.co.za>
  * \author Russell Bryant <russell@digium.com>
