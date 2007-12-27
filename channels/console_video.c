@@ -1079,9 +1079,17 @@ static void *video_thread(void *arg)
 		}
 	}
 	sdl_setup(env);
-	ast_mutex_init(&env->in.dec_in_lock);
 	if (!ast_strlen_zero(save_display))
 		setenv("DISPLAY", save_display, 1);
+
+        /* initialize grab coordinates */
+        env->out.loc_src.x = 0;
+        env->out.loc_src.y = 0;
+
+	/* reset the pointers to the current decoded image */
+	env->in.dec_in_cur = &env->in.dec_in[0];
+	env->in.dec_in_dpy = NULL;	/* nothing to display */
+	ast_mutex_init(&env->in.dec_in_lock);	/* used to sync decoder and renderer */
 
 	if (video_open(&env->out)) {
 		ast_log(LOG_WARNING, "cannot open local video source\n");

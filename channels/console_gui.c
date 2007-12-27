@@ -744,7 +744,6 @@ static void sdl_setup(struct video_desc *env)
 	int depth, maxw, maxh;
 	const SDL_VideoInfo *info;
 	int kp_w = 0, kp_h = 0;	/* keypad width and height */
-	int sdl_ok = 0;
 	struct gui_info *gui = env->gui;
 
 	/*
@@ -775,9 +774,6 @@ static void sdl_setup(struct video_desc *env)
 		env->gui = gui = gui_init();
 	if (!gui)
 		goto no_sdl;
-	/* initialize grab coordinates */
-	env->out.loc_src.x = 0;
-	env->out.loc_src.y = 0;
 
 	keypad_setup(gui, env->keypad_file);
 #if 0
@@ -811,7 +807,7 @@ static void sdl_setup(struct video_desc *env)
 	/* display the skin, but do not free it as we need it later to
 	 * restore text areas and maybe sliders too.
 	 */
-	if (gui && gui->keypad) {
+	if (gui->keypad) {
 		struct SDL_Rect *dest = &gui->win[WIN_KEYPAD].rect;
 		dest->x = 2*BORDER + env->in.rem_dpy.w;
 		dest->y = BORDER;
@@ -820,13 +816,11 @@ static void sdl_setup(struct video_desc *env)
 		SDL_BlitSurface(gui->keypad, NULL, gui->screen, dest);
 		SDL_UpdateRects(gui->screen, 1, dest);
 	}
-	env->in.dec_in_cur = &env->in.dec_in[0];
-	env->in.dec_in_dpy = NULL;	/* nothing to display */
-	sdl_ok = 1;
+	return;
 
 no_sdl:
-	if (!sdl_ok)	/* free resources in case of errors */
-		env->gui = cleanup_sdl(gui);
+	/* free resources in case of errors */
+	env->gui = cleanup_sdl(gui);
 }
 
 /*
