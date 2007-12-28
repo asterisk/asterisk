@@ -226,107 +226,6 @@ static void fbuf_free(struct fbuf_t *b)
 	b->pix_fmt = x.pix_fmt;
 }
 
-/*
- * Append a chunk of data to a buffer taking care of bit alignment
- * Return 0 on success, != 0 on failure
- */
-static int fbuf_append(struct fbuf_t *b, uint8_t *src, int len,
-	int sbit, int ebit)
-{
-	/*
-	 * Allocate buffer. ffmpeg wants an extra FF_INPUT_BUFFER_PADDING_SIZE,
-	 * and also wants 0 as a buffer terminator to prevent trouble.
-	 */
-	int need = len + FF_INPUT_BUFFER_PADDING_SIZE;
-	int i;
-	uint8_t *dst, mask;
-
-	if (b->data == NULL) {
-		b->size = need;
-		b->used = 0;
-		b->ebit = 0;
-		b->data = ast_calloc(1, b->size);
-	} else if (b->used + need > b->size) {
-		b->size = b->used + need;
-		b->data = ast_realloc(b->data, b->size);
-	}
-	if (b->data == NULL) {
-		ast_log(LOG_WARNING, "alloc failure for %d, discard\n",
-			b->size);
-		return 1;
-	}
-	if (b->used == 0 && b->ebit != 0) {
-		ast_log(LOG_WARNING, "ebit not reset at start\n");
-		b->ebit = 0;
-	}
-	dst = b->data + b->used;
-	i = b->ebit + sbit;	/* bits to ignore around */
-	if (i == 0) {	/* easy case, just append */
-		/* do everything in the common block */
-	} else if (i == 8) { /* easy too, just handle the overlap byte */
-		mask = (1 << b->ebit) - 1;
-		/* update the last byte in the buffer */
-		dst[-1] &= ~mask;	/* clear bits to ignore */
-		dst[-1] |= (*src & mask);	/* append new bits */
-		src += 1;	/* skip and prepare for common block */
-		len --;
-	} else {	/* must shift the new block, not done yet */
-		ast_log(LOG_WARNING, "must handle shift %d %d at %d\n",
-			b->ebit, sbit, b->used);
-		return 1;
-	}
-	memcpy(dst, src, len);
-	b->used += len;
-	b->ebit = ebit;
-	b->data[b->used] = 0;	/* padding */
-	return 0;
-}
-
-/*!
- * Build an ast_frame for a given chunk of data, and link it into
- * the queue, with possibly 'head' bytes at the beginning to
- * fill in some fields later.
- */
-static struct ast_frame *create_video_frame(uint8_t *start, uint8_t *end,
-	               int format, int head, struct ast_frame *prev)
-{
-	int len = end-start;
-	uint8_t *data;
-	struct ast_frame *f;
-
-	data = ast_calloc(1, len+head);
-	f = ast_calloc(1, sizeof(*f));
-	if (f == NULL || data == NULL) {
-		ast_log(LOG_WARNING, "--- frame error f %p data %p len %d format %d\n",
-				f, data, len, format);
-		if (f)
-			ast_free(f);
-		if (data)
-			ast_free(data);
-		return NULL;
-	}
-	memcpy(data+head, start, len);
-	f->data = data;
-	f->mallocd = AST_MALLOCD_DATA | AST_MALLOCD_HDR;
-	//f->has_timing_info = 1;
-	//f->ts = ast_tvdiff_ms(ast_tvnow(), out->ts);
-	f->datalen = len+head;
-	f->frametype = AST_FRAME_VIDEO;
-	f->subclass = format;
-	f->samples = 0;
-	f->offset = 0;
-	f->src = "Console";
-	f->delivery.tv_sec = 0;
-	f->delivery.tv_usec = 0;
-	f->seqno = 0;
-	AST_LIST_NEXT(f, frame_list) = NULL;
-
-	if (prev)
-	        AST_LIST_NEXT(prev, frame_list) = f;
-
-	return f;
-}
-
 #include "vcodecs.c"
 #include "console_gui.c"
 
@@ -924,7 +823,7 @@ static struct ast_frame *get_video_frames(struct video_desc *env, struct ast_fra
 		return NULL;
 	}
 	v->enc->enc_run(v);
-	return v->enc->enc_encap(v, tail);
+	return v->enc->enc_encap(&v->enc_out, v->mtu, tail);
 }
 
 /*

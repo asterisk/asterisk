@@ -6,6 +6,7 @@
 #include "asterisk.h"
 #include "console_video.h"
 #include "asterisk/frame.h"
+#include "asterisk/utils.h"	/* ast_calloc() */
 
 struct video_out_desc;
 struct video_dec_desc;
@@ -21,8 +22,7 @@ typedef int (*encoder_init_f)(AVCodecContext *v);
 typedef int (*encoder_encode_f)(struct video_out_desc *v);
 
 /*! \brief encapsulate the bistream in RTP frames */
-/* struct fbuf_t, int mtu, struct ast_frame **tail */
-typedef struct ast_frame *(*encoder_encap_f)(struct video_out_desc *out,
+typedef struct ast_frame *(*encoder_encap_f)(struct fbuf_t *, int mtu,
 		struct ast_frame **tail);
 
 /*! \brief inizialize the decoder */
@@ -200,6 +200,107 @@ void dump_buf(struct fbuf_t *b)
 }
 #endif /* debugging_only */
 
+/*!
+ * Build an ast_frame for a given chunk of data, and link it into
+ * the queue, with possibly 'head' bytes at the beginning to
+ * fill in some fields later.
+ */
+static struct ast_frame *create_video_frame(uint8_t *start, uint8_t *end,
+	               int format, int head, struct ast_frame *prev)
+{
+	int len = end-start;
+	uint8_t *data;
+	struct ast_frame *f;
+
+	data = ast_calloc(1, len+head);
+	f = ast_calloc(1, sizeof(*f));
+	if (f == NULL || data == NULL) {
+		ast_log(LOG_WARNING, "--- frame error f %p data %p len %d format %d\n",
+				f, data, len, format);
+		if (f)
+			ast_free(f);
+		if (data)
+			ast_free(data);
+		return NULL;
+	}
+	memcpy(data+head, start, len);
+	f->data = data;
+	f->mallocd = AST_MALLOCD_DATA | AST_MALLOCD_HDR;
+	//f->has_timing_info = 1;
+	//f->ts = ast_tvdiff_ms(ast_tvnow(), out->ts);
+	f->datalen = len+head;
+	f->frametype = AST_FRAME_VIDEO;
+	f->subclass = format;
+	f->samples = 0;
+	f->offset = 0;
+	f->src = "Console";
+	f->delivery.tv_sec = 0;
+	f->delivery.tv_usec = 0;
+	f->seqno = 0;
+	AST_LIST_NEXT(f, frame_list) = NULL;
+
+	if (prev)
+	        AST_LIST_NEXT(prev, frame_list) = f;
+
+	return f;
+}
+
+
+/*
+ * Append a chunk of data to a buffer taking care of bit alignment
+ * Return 0 on success, != 0 on failure
+ */
+static int fbuf_append(struct fbuf_t *b, uint8_t *src, int len,
+	int sbit, int ebit)
+{
+	/*
+	 * Allocate buffer. ffmpeg wants an extra FF_INPUT_BUFFER_PADDING_SIZE,
+	 * and also wants 0 as a buffer terminator to prevent trouble.
+	 */
+	int need = len + FF_INPUT_BUFFER_PADDING_SIZE;
+	int i;
+	uint8_t *dst, mask;
+
+	if (b->data == NULL) {
+		b->size = need;
+		b->used = 0;
+		b->ebit = 0;
+		b->data = ast_calloc(1, b->size);
+	} else if (b->used + need > b->size) {
+		b->size = b->used + need;
+		b->data = ast_realloc(b->data, b->size);
+	}
+	if (b->data == NULL) {
+		ast_log(LOG_WARNING, "alloc failure for %d, discard\n",
+			b->size);
+		return 1;
+	}
+	if (b->used == 0 && b->ebit != 0) {
+		ast_log(LOG_WARNING, "ebit not reset at start\n");
+		b->ebit = 0;
+	}
+	dst = b->data + b->used;
+	i = b->ebit + sbit;	/* bits to ignore around */
+	if (i == 0) {	/* easy case, just append */
+		/* do everything in the common block */
+	} else if (i == 8) { /* easy too, just handle the overlap byte */
+		mask = (1 << b->ebit) - 1;
+		/* update the last byte in the buffer */
+		dst[-1] &= ~mask;	/* clear bits to ignore */
+		dst[-1] |= (*src & mask);	/* append new bits */
+		src += 1;	/* skip and prepare for common block */
+		len --;
+	} else {	/* must shift the new block, not done yet */
+		ast_log(LOG_WARNING, "must handle shift %d %d at %d\n",
+			b->ebit, sbit, b->used);
+		return 1;
+	}
+	memcpy(dst, src, len);
+	b->used += len;
+	b->ebit = ebit;
+	b->data[b->used] = 0;	/* padding */
+	return 0;
+}
 
 /*
  * Here starts the glue code for the various supported video codecs.
@@ -236,12 +337,12 @@ static int h263p_enc_init(AVCodecContext *enc_ctx)
  * PSC or a GBSC, but if we don't find a suitable place just break somewhere.
  * Everything is byte-aligned.
  */
-static struct ast_frame *h263p_encap(struct video_out_desc *out,
+static struct ast_frame *h263p_encap(struct fbuf_t *b, int mtu,
 	struct ast_frame **tail)
 {
 	struct ast_frame *cur = NULL, *first = NULL;
-	uint8_t *d = out->enc_out.data;
-	int len = out->enc_out.used;
+	uint8_t *d = b->data;
+	int len = b->used;
 	int l = len; /* size of the current fragment. If 0, must look for a psc */
 
 	for (;len > 0; len -= l, d += l) {
@@ -258,10 +359,10 @@ static struct ast_frame *h263p_encap(struct video_out_desc *out,
 				}
 			}
 		}
-		if (l > out->mtu || l > len) { /* psc not found, split */
-			l = MIN(len, out->mtu);
+		if (l > mtu || l > len) { /* psc not found, split */
+			l = MIN(len, mtu);
 		}
-		if (l < 1 || l > out->mtu) {
+		if (l < 1 || l > mtu) {
 			ast_log(LOG_WARNING, "--- frame error l %d\n", l);
 			break;
 		}
@@ -451,11 +552,11 @@ static int h263_enc_init(AVCodecContext *enc_ctx)
  * 
  * The assumption below is that we start with a PSC.
  */
-static struct ast_frame *h263_encap(struct video_out_desc *out,
+static struct ast_frame *h263_encap(struct fbuf_t *b, int mtu,
 		struct ast_frame **tail)
 {
-	uint8_t *d = out->enc_out.data;
-	int start = 0, i, len = out->enc_out.used;
+	uint8_t *d = b->data;
+	int start = 0, i, len = b->used;
 	struct ast_frame *f, *cur = NULL, *first = NULL;
 	const int pheader_len = 4;	/* Use RFC-2190 Mode A */
 	uint8_t h263_hdr[12];	/* worst case, room for a type c header */
@@ -605,11 +706,11 @@ static int h261_enc_init(AVCodecContext *enc_ctx)
  * with MacroBlock fragmentation. However it is likely that blocks
  * are not bit-aligned so we must take care of this.
  */
-static struct ast_frame *h261_encap(struct video_out_desc *out,
+static struct ast_frame *h261_encap(struct fbuf_t *b, int mtu,
 		struct ast_frame **tail)
 {
-	uint8_t *d = out->enc_out.data;
-	int start = 0, i, len = out->enc_out.used;
+	uint8_t *d = b->data;
+	int start = 0, i, len = b->used;
 	struct ast_frame *f, *cur = NULL, *first = NULL;
 	const int pheader_len = 4;
 	uint8_t h261_hdr[4];
@@ -656,7 +757,7 @@ static struct ast_frame *h261_encap(struct video_out_desc *out,
 			/* now we have a GBSC starting somewhere in d[i-1],
 			 * but it might be not byte-aligned. Just remember it.
 			 */
-			if (i - start > out->mtu) /* too large, stop now */
+			if (i - start > mtu) /* too large, stop now */
 				break;
 			found_ebit = ebit;
 			found = i;
@@ -666,7 +767,7 @@ static struct ast_frame *h261_encap(struct video_out_desc *out,
 			i = len;
 			ebit = 0;	/* hopefully... should ask the bitstream ? */
 		}
-		if (i - start > out->mtu && found) {
+		if (i - start > mtu && found) {
 			/* use the previous GBSC, hope is within the mtu */
 			i = found;
 			ebit = found_ebit;
@@ -747,17 +848,17 @@ static int mpeg4_enc_init(AVCodecContext *enc_ctx)
 }
 
 /* simplistic encapsulation - just split frames in mtu-size units */
-static struct ast_frame *mpeg4_encap(struct  video_out_desc *out,
+static struct ast_frame *mpeg4_encap(struct fbuf_t *b, int mtu,
 	struct ast_frame **tail)
 {
 	struct ast_frame *f, *cur = NULL, *first = NULL;
-	uint8_t *d = out->enc_out.data;
-	uint8_t *end = d+out->enc_out.used;
+	uint8_t *d = b->data;
+	uint8_t *end = d + b->used;
 	int len;
 
 	for (;d < end; d += len, cur = f) {
-		len = MIN(out->mtu, end-d);
-		f = create_video_frame(d, d+len, AST_FORMAT_MP4_VIDEO, 0, cur);
+		len = MIN(mtu, end - d);
+		f = create_video_frame(d, d + len, AST_FORMAT_MP4_VIDEO, 0, cur);
 		if (!f)
 			break;
 		if (!first)
@@ -835,12 +936,12 @@ static int h264_dec_init(AVCodecContext *dec_ctx)
  * If fragments are too long... we don't support it yet.
  * - encapsulate (or fragment) the byte-stream (with NAL header included)
  */
-static struct ast_frame *h264_encap(struct video_out_desc *out,
+static struct ast_frame *h264_encap(struct fbuf_t *b, int mtu,
 	struct ast_frame **tail)
 {
 	struct ast_frame *f = NULL, *cur = NULL, *first = NULL;
-	uint8_t *d, *start = out->enc_out.data;
-	uint8_t *end = start + out->enc_out.used;
+	uint8_t *d, *start = b->data;
+	uint8_t *end = start + b->used;
 
 	/* Search the first start code prefix - ITU-T H.264 sec. B.2,
 	 * and move start right after that, on the NAL header byte.
@@ -872,13 +973,13 @@ static struct ast_frame *h264_encap(struct video_out_desc *out,
 		d = end + 4;
 	} else if (ty == 0 || ty == 31) { /* found but invalid type, skip */
 		ast_log(LOG_WARNING, "skip invalid nal type %d at %d of %d\n",
-			ty, d - out->enc_out.data, out->enc_out.used);
+			ty, d - (uint8_t *)b->data, b->used);
 		continue;
 	}
 
 	size = d - start - 4;	/* don't count the end */
 
-	if (size < out->mtu) {	// test - don't fragment
+	if (size < mtu) {	// test - don't fragment
 		// Single NAL Unit
 		f = create_video_frame(start, d - 4, AST_FORMAT_H264, 0, cur);
 		if (!f)
@@ -896,7 +997,7 @@ static struct ast_frame *h264_encap(struct video_out_desc *out,
 	size--;		/* skip the NAL header */
 	while (size) {
 		uint8_t *data;
-		int frag_size = MIN(size, out->mtu);
+		int frag_size = MIN(size, mtu);
 
 		f = create_video_frame(start, start+frag_size, AST_FORMAT_H264, 2, cur);
 		if (!f)
