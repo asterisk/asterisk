@@ -127,24 +127,6 @@ int console_video_formats =
 	AST_FORMAT_MP4_VIDEO | AST_FORMAT_H264 | AST_FORMAT_H261 ;
 
 
-/*
- * In many places we use buffers to store the raw frames (but not only),
- * so here is a structure to keep all the info. data = NULL means the
- * structure is not initialized, so the other fields are invalid.
- * size = 0 means the buffer is not malloc'ed so we don't have to free it.
- */
-struct fbuf_t {		/* frame buffers, dynamically allocated */
-	uint8_t	*data;	/* memory, malloced if size > 0, just reference
-			 * otherwise */
-	int	size;	/* total size in bytes */
-	int	used;	/* space used so far */
-	int	ebit;	/* bits to ignore at the end */
-	int	x;	/* origin, if necessary */
-	int	y;
-	int	w;	/* size */ 
-	int	h;
-	int	pix_fmt;
-};
 
 static void my_scale(struct fbuf_t *in, AVPicture *p_in,
 	struct fbuf_t *out, AVPicture *p_out);
@@ -177,9 +159,7 @@ struct video_out_desc {
 	int sendvideo;
 
 	struct fbuf_t	loc_src;	/* local source buffer, allocated in video_open() */
-	struct fbuf_t	enc_in;		/* encoder input buffer, allocated in video_out_init() */
 	struct fbuf_t	enc_out;	/* encoder output buffer, allocated in video_out_init() */
-	struct fbuf_t	loc_dpy;	/* display source buffer, no buffer (managed by SDL in bmp[1]) */
 
 	struct video_codec_desc *enc;	/* encoder */
 	void		*enc_ctx;	/* encoding context */
@@ -200,59 +180,35 @@ struct video_out_desc {
 };
 
 /*
- * Descriptor for the incoming stream, with a buffer for the bitstream
- * extracted by the RTP packets, RTP reassembly info, and a frame buffer
- * for the decoded frame (buf).
- * and store the result in a suitable frame buffer for later display.
- * NOTE: dec_ctx == NULL means the rest is invalid (e.g. because no
- *	codec, no memory, etc.) and we must drop all incoming frames.
- *
- * Incoming payload is stored in one of the dec_in[] buffers, which are
- * emptied by the video thread. These buffers are organized in a circular
- * queue, with dec_in_cur being the buffer in use by the incoming stream,
- * and dec_in_dpy is the one being displayed. When the pointers need to
- * be changed, we synchronize the access to them with dec_in_lock.
- * When the list is full dec_in_cur = NULL (we cannot store new data),
- * when the list is empty dec_in_dpy is NULL (we cannot display frames).
- */
-struct video_in_desc {
-	struct video_codec_desc *dec;	/* decoder */
-	AVCodecContext          *dec_ctx;	/* information about the codec in the stream */
-	AVCodec                 *codec;		/* reference to the codec */
-	AVFrame                 *d_frame;	/* place to store the decoded frame */
-	AVCodecParserContext    *parser;
-	uint16_t 		next_seq;	/* must be 16 bit */
-	int                     discard;	/* flag for discard status */
-#define N_DEC_IN	3	/* number of incoming buffers */
-	struct fbuf_t		*dec_in_cur;	/* buffer being filled in */
-	struct fbuf_t		*dec_in_dpy;	/* buffer to display */
-	ast_mutex_t		dec_in_lock;
-	struct fbuf_t dec_in[N_DEC_IN];	/* incoming bitstream, allocated/extended in fbuf_append() */
-	struct fbuf_t dec_out;	/* decoded frame, no buffer (data is in AVFrame) */
-	struct fbuf_t rem_dpy;	/* display remote image, no buffer (it is in win[WIN_REMOTE].bmp) */
-};
-
-
-/*
  * The overall descriptor, with room for config info, video source and
  * received data descriptors, SDL info, etc.
+ * This should be globally visible to all modules (grabber, vcodecs, gui)
+ * and contain all configurtion info.
  */
 struct video_desc {
 	char			codec_name[64];	/* the codec we use */
 
 	pthread_t		vthread;	/* video thread */
+	ast_mutex_t		dec_lock;	/* sync decoder and video thread */
 	int			shutdown;	/* set to shutdown vthread */
 	struct ast_channel	*owner;		/* owner channel */
 
-	struct video_in_desc	in;		/* remote video descriptor */
-	struct video_out_desc	out;		/* local video descriptor */
 
-	struct gui_info		*gui;
+	struct fbuf_t	enc_in;		/* encoder input buffer, allocated in video_out_init() */
 
 	char			keypad_file[256];	/* image for the keypad */
 	char                    keypad_font[256];       /* font for the keypad */
 
 	char			sdl_videodriver[256];
+
+	struct fbuf_t		rem_dpy;	/* display remote video, no buffer (it is in win[WIN_REMOTE].bmp) */
+	struct fbuf_t		loc_dpy;	/* display local source, no buffer (managed by SDL in bmp[1]) */
+
+
+	/* local information for grabbers, codecs, gui */
+	struct gui_info		*gui;
+	struct video_dec_desc	*in;		/* remote video descriptor */
+	struct video_out_desc	out;		/* local video descriptor */
 };
 
 static AVPicture *fill_pict(struct fbuf_t *b, AVPicture *p);
@@ -604,84 +560,12 @@ static struct video_codec_desc *map_config_video_format(char *name)
 	return supported_codecs[i];
 }
 
-/*! \brief uninitialize the descriptor for remote video stream */
-static int video_in_uninit(struct video_in_desc *v)
-{
-	int i;
-
-	if (v->parser) {
-		av_parser_close(v->parser);
-		v->parser = NULL;
-	}
-	if (v->dec_ctx) {
-		avcodec_close(v->dec_ctx);
-		av_free(v->dec_ctx);
-		v->dec_ctx = NULL;
-	}
-	if (v->d_frame) {
-		av_free(v->d_frame);
-		v->d_frame = NULL;
-	}
-	v->codec = NULL;	/* only a reference */
-	v->dec = NULL;		/* forget the decoder */
-	v->discard = 1;		/* start in discard mode */
-	for (i = 0; i < N_DEC_IN; i++)
-		fbuf_free(&v->dec_in[i]);
-	fbuf_free(&v->dec_out);
-	fbuf_free(&v->rem_dpy);
-	return -1;	/* error, in case someone cares */
-}
-
-/*
- * initialize ffmpeg resources used for decoding frames from the network.
- */
-static int video_in_init(struct video_in_desc *v, uint32_t format)
-{
-	enum CodecID codec;
-
-	/* XXX should check that these are already set */
-	v->codec = NULL;
-	v->dec_ctx = NULL;
-	v->d_frame = NULL;
-	v->parser = NULL;
-	v->discard = 1;
-
-	codec = map_video_format(format, CM_RD);
-
-	v->codec = avcodec_find_decoder(codec);
-	if (!v->codec) {
-		ast_log(LOG_WARNING, "Unable to find the decoder for format %d\n", codec);
-		return video_in_uninit(v);
-	}
-	/*
-	* Initialize the codec context.
-	*/
-	v->dec_ctx = avcodec_alloc_context();
-	/* XXX call dec_init() ? */
-	if (avcodec_open(v->dec_ctx, v->codec) < 0) {
-		ast_log(LOG_WARNING, "Cannot open the codec context\n");
-		av_free(v->dec_ctx);
-		v->dec_ctx = NULL;
-		return video_in_uninit(v);
-	}
-
-	v->parser = av_parser_init(codec);
-	if (!v->parser) {
-		ast_log(LOG_WARNING, "Cannot initialize the decoder parser\n");
-		return video_in_uninit(v);
-	}
-
-	v->d_frame = avcodec_alloc_frame();
-	if (!v->d_frame) {
-		ast_log(LOG_WARNING, "Cannot allocate decoding video frame\n");
-		return video_in_uninit(v);
-	}
-	return 0;	/* ok */
-}
 
 /*! \brief uninitialize the descriptor for local video stream */
-static int video_out_uninit(struct video_out_desc *v)
+static int video_out_uninit(struct video_desc *env)
 {
+	struct video_out_desc *v = &env->out;
+
 	/* XXX this should be a codec callback */
 	if (v->enc_ctx) {
 		AVCodecContext *enc_ctx = (AVCodecContext *)v->enc_ctx;
@@ -696,9 +580,8 @@ static int video_out_uninit(struct video_out_desc *v)
 	v->codec = NULL;	/* only a reference */
 	
 	fbuf_free(&v->loc_src);
-	fbuf_free(&v->enc_in);
+	fbuf_free(&env->enc_in);
 	fbuf_free(&v->enc_out);
-	fbuf_free(&v->loc_dpy);
 	if (v->image) {	/* X11 grabber */
 		XCloseDisplay(v->dpy);
 		v->dpy = NULL;
@@ -732,14 +615,14 @@ static int video_out_init(struct video_desc *env)
 
 	if (v->loc_src.data == NULL) {
 		ast_log(LOG_WARNING, "No local source active\n");
-		return video_out_uninit(v);
+		return -1;	/* error, but nothing to undo yet */
 	}
 	codec = map_video_format(v->enc->format, CM_WR);
 	v->codec = avcodec_find_encoder(codec);
 	if (!v->codec) {
 		ast_log(LOG_WARNING, "Cannot find the encoder for format %d\n",
 			codec);
-		return video_out_uninit(v);
+		return -1;	/* error, but nothing to undo yet */
 	}
 
 	v->mtu = 1400;	/* set it early so the encoder can use it */
@@ -747,19 +630,19 @@ static int video_out_init(struct video_desc *env)
 	/* allocate the input buffer for encoding.
 	 * ffmpeg only supports PIX_FMT_YUV420P for the encoding.
 	 */
-	enc_in = &v->enc_in;
+	enc_in = &env->enc_in;
 	enc_in->pix_fmt = PIX_FMT_YUV420P;
 	enc_in->size = (enc_in->w * enc_in->h * 3)/2;
 	enc_in->data = ast_calloc(1, enc_in->size);
 	if (!enc_in->data) {
 		ast_log(LOG_WARNING, "Cannot allocate encoder input buffer\n");
-		return video_out_uninit(v);
+		return video_out_uninit(env);
 	}
 	/* construct an AVFrame that points into buf_in */
 	v->enc_in_frame = avcodec_alloc_frame();
 	if (!v->enc_in_frame) {
 		ast_log(LOG_WARNING, "Unable to allocate the encoding video frame\n");
-		return video_out_uninit(v);
+		return video_out_uninit(env);
 	}
 
 	/* parameters for PIX_FMT_YUV420P */
@@ -798,7 +681,7 @@ static int video_out_init(struct video_desc *env)
 			codec);
 		av_free(enc_ctx);
 		v->enc_ctx = NULL;
-		return video_out_uninit(v);
+		return video_out_uninit(env);
 	}
     }
 	/*
@@ -927,26 +810,16 @@ int console_write_video(struct ast_channel *chan, struct ast_frame *f);
 int console_write_video(struct ast_channel *chan, struct ast_frame *f)
 {
 	struct video_desc *env = get_video_desc(chan);
-	struct video_in_desc *v = &env->in;
+	struct video_dec_desc *v = env->in;
 
 	if (!env->gui)	/* no gui, no rendering */
 		return 0;
-	if (v->dec == NULL) {	/* try to get the codec */
-		v->dec = map_video_codec(f->subclass & ~1);
-		if (v->dec == NULL) {
-			ast_log(LOG_WARNING, "cannot find video codec, drop input 0x%x\n", f->subclass);
-			return 0;
-		}
-		if (video_in_init(v, v->dec->format)) {
-			/* This is not fatal, but we won't have incoming video */
-			ast_log(LOG_WARNING, "Cannot initialize input decoder\n");
-			v->dec = NULL;
-			return 0;
-		}
-	}
-	if (v->dec_ctx == NULL) {
-		ast_log(LOG_WARNING, "cannot decode, dropping frame\n");
-		return 0;	/* error */
+	if (v == NULL)
+		env->in = v = dec_init(f->subclass & ~1);
+	if (v == NULL) {
+		/* This is not fatal, but we won't have incoming video */
+		ast_log(LOG_WARNING, "Cannot initialize input decoder\n");
+		return 0;
 	}
 
 	if (v->dec_in_cur == NULL)	/* no buffer for incoming frames, drop */
@@ -993,14 +866,14 @@ int console_write_video(struct ast_channel *chan, struct ast_frame *f)
 		ast_log(LOG_WARNING, "empty video frame, discard\n");
 		return 0;
 	}
-	if (v->dec->dec_decap(v->dec_in_cur, f->data, f->datalen)) {
+	if (v->d_callbacks->dec_decap(v->dec_in_cur, f->data, f->datalen)) {
 		ast_log(LOG_WARNING, "error in dec_decap, enter discard\n");
 		v->discard = 1;
 	}
 	if (f->subclass & 0x01) {	// RTP Marker
 		/* prepare to decode: advance the buffer so the video thread knows. */
 		struct fbuf_t *tmp = v->dec_in_cur;	/* store current pointer */
-		ast_mutex_lock(&v->dec_in_lock);
+		ast_mutex_lock(&env->dec_lock);
 		if (++v->dec_in_cur == &v->dec_in[N_DEC_IN])	/* advance to next, circular */
 			v->dec_in_cur = &v->dec_in[0];
 		if (v->dec_in_dpy == NULL) {	/* were not displaying anything, so set it */
@@ -1008,7 +881,7 @@ int console_write_video(struct ast_channel *chan, struct ast_frame *f)
 		} else if (v->dec_in_dpy == v->dec_in_cur) { /* current slot is busy */
 			v->dec_in_cur = NULL;
 		}
-		ast_mutex_unlock(&v->dec_in_lock);
+		ast_mutex_unlock(&env->dec_lock);
 	}
 	return 0;
 }
@@ -1040,7 +913,7 @@ static struct ast_frame *get_video_frames(struct video_desc *env, struct ast_fra
 	/* Scale the video for the encoder, then use it for local rendering
 	 * so we will see the same as the remote party.
 	 */
-	my_scale(&v->loc_src, NULL, &v->enc_in, NULL);
+	my_scale(&v->loc_src, NULL, &env->enc_in, NULL);
 	show_frame(env, WIN_LOCAL);
 	if (!v->sendvideo)
 		return NULL;
@@ -1086,10 +959,7 @@ static void *video_thread(void *arg)
         env->out.loc_src.x = 0;
         env->out.loc_src.y = 0;
 
-	/* reset the pointers to the current decoded image */
-	env->in.dec_in_cur = &env->in.dec_in[0];
-	env->in.dec_in_dpy = NULL;	/* nothing to display */
-	ast_mutex_init(&env->in.dec_in_lock);	/* used to sync decoder and renderer */
+	ast_mutex_init(&env->dec_lock);	/* used to sync decoder and renderer */
 
 	if (video_open(&env->out)) {
 		ast_log(LOG_WARNING, "cannot open local video source\n");
@@ -1105,7 +975,6 @@ static void *video_thread(void *arg)
 	for (;;) {
 		struct timeval t = { 0, 50000 };	/* XXX 20 times/sec */
 		struct ast_frame *p, *f;
-		struct video_in_desc *v = &env->in;
 		struct ast_channel *chan = env->owner;
 		int fd = chan->alertpipe[1];
 		char *caption = NULL, buf[160];
@@ -1115,7 +984,7 @@ static void *video_thread(void *arg)
 			if (env->out.sendvideo)
 			    sprintf(buf, "%s %s %dx%d @@ %dfps %dkbps",
 				env->out.videodevice, env->codec_name,
-				env->out.enc_in.w, env->out.enc_in.h,
+				env->enc_in.w, env->enc_in.h,
 				env->out.fps, env->out.bitrate/1000);
 			else
 			    sprintf(buf, "hold");
@@ -1131,6 +1000,9 @@ static void *video_thread(void *arg)
 		/* sleep for a while */
 		ast_select(0, NULL, NULL, NULL, &t);
 
+	    if (env->in) {
+		struct video_dec_desc *v = env->in;
+		
 		/*
 		 * While there is something to display, call the decoder and free
 		 * the buffer, possibly enabling the receiver to store new data.
@@ -1138,11 +1010,11 @@ static void *video_thread(void *arg)
 		while (v->dec_in_dpy) {
 			struct fbuf_t *tmp = v->dec_in_dpy;	/* store current pointer */
 
-			if (v->dec->dec_run(v, tmp))
+			if (v->d_callbacks->dec_run(v, tmp))
 				show_frame(env, WIN_REMOTE);
 			tmp->used = 0;	/* mark buffer as free */
 			tmp->ebit = 0;
-			ast_mutex_lock(&v->dec_in_lock);
+			ast_mutex_lock(&env->dec_lock);
 			if (++v->dec_in_dpy == &v->dec_in[N_DEC_IN])	/* advance to next, circular */
 				v->dec_in_dpy = &v->dec_in[0];
 
@@ -1150,9 +1022,9 @@ static void *video_thread(void *arg)
 				v->dec_in_cur = tmp;	/* using the slot just freed */
 			else if (v->dec_in_dpy == v->dec_in_cur) /* this was the last slot */
 				v->dec_in_dpy = NULL;	/* nothing more to display */
-			ast_mutex_unlock(&v->dec_in_lock);
+			ast_mutex_unlock(&env->dec_lock);
 		}
-
+	    }
 
 		f = get_video_frames(env, &p);	/* read and display */
 		if (!f)
@@ -1185,12 +1057,12 @@ static void *video_thread(void *arg)
 	}
 	/* thread terminating, here could call the uninit */
 	/* uninitialize the local and remote video environments */
-	video_in_uninit(&env->in);
-	video_out_uninit(&env->out);
+	env->in = dec_uninit(env->in);
+	video_out_uninit(env);
 
 	if (env->gui)
 		env->gui = cleanup_sdl(env->gui);
-	ast_mutex_destroy(&(env->in.dec_in_lock));
+	ast_mutex_destroy(&env->dec_lock);
 	env->shutdown = 0;
 	return NULL;
 }
@@ -1210,9 +1082,9 @@ static void copy_geometry(struct fbuf_t *src, struct fbuf_t *dst)
 static void init_env(struct video_desc *env)
 {
 	struct fbuf_t *c = &(env->out.loc_src);		/* local source */
-	struct fbuf_t *ei = &(env->out.enc_in);		/* encoder input */
-	struct fbuf_t *ld = &(env->out.loc_dpy);	/* local display */
-	struct fbuf_t *rd = &(env->in.rem_dpy);		/* remote display */
+	struct fbuf_t *ei = &(env->enc_in);		/* encoder input */
+	struct fbuf_t *ld = &(env->loc_dpy);	/* local display */
+	struct fbuf_t *rd = &(env->rem_dpy);		/* remote display */
 
 	c->pix_fmt = PIX_FMT_YUV420P;	/* default - camera format */
 	ei->pix_fmt = PIX_FMT_YUV420P;	/* encoder input */
@@ -1245,7 +1117,7 @@ void console_video_start(struct video_desc *env, struct ast_channel *owner)
 	env->out.enc = map_config_video_format(env->codec_name);
 
 	ast_log(LOG_WARNING, "start video out %s %dx%d\n",
-		env->codec_name, env->out.enc_in.w,  env->out.enc_in.h);
+		env->codec_name, env->enc_in.w,  env->enc_in.h);
 	/*
 	 * Register all codecs supported by the ffmpeg library.
 	 * We only need to do it once, but probably doesn't
@@ -1329,12 +1201,17 @@ int console_video_cli(struct video_desc *env, const char *var, int fd)
         } else if (!strcasecmp(var, "sendvideo")) {
 		ast_cli(fd, "sendvideo is [%s]\n", env->out.sendvideo ? "on" : "off");
         } else if (!strcasecmp(var, "video_size")) {
+		int in_w = 0, in_h = 0;
+		if (env->in) {
+			in_w = env->in->dec_out.w;
+			in_h = env->in->dec_out.h;
+		}
 		ast_cli(fd, "sizes: video %dx%d camera %dx%d local %dx%d remote %dx%d in %dx%d\n",
-			env->out.enc_in.w, env->out.enc_in.h,
+			env->enc_in.w, env->enc_in.h,
 			env->out.loc_src.w, env->out.loc_src.h,
-			env->out.loc_dpy.w, env->out.loc_dpy.h,
-			env->in.rem_dpy.w, env->in.rem_dpy.h,
-			env->in.dec_out.w, env->in.dec_out.h);
+			env->loc_dpy.w, env->loc_dpy.h,
+			env->rem_dpy.w, env->rem_dpy.h,
+			in_w, in_h);
         } else if (!strcasecmp(var, "bitrate")) {
 		ast_cli(fd, "bitrate is [%d]\n", env->out.bitrate);
         } else if (!strcasecmp(var, "qmin")) {
@@ -1376,10 +1253,10 @@ int console_video_config(struct video_desc **penv,
 	CV_START(var, val);
 	CV_STR("videodevice", env->out.videodevice);
 	CV_BOOL("sendvideo", env->out.sendvideo);
-	CV_F("video_size", video_geom(&env->out.enc_in, val));
+	CV_F("video_size", video_geom(&env->enc_in, val));
 	CV_F("camera_size", video_geom(&env->out.loc_src, val));
-	CV_F("local_size", video_geom(&env->out.loc_dpy, val));
-	CV_F("remote_size", video_geom(&env->in.rem_dpy, val));
+	CV_F("local_size", video_geom(&env->loc_dpy, val));
+	CV_F("remote_size", video_geom(&env->rem_dpy, val));
 	CV_STR("keypad", env->keypad_file);
 	CV_F("region", keypad_cfg_read(env->gui, val));
 	CV_STR("keypad_font", env->keypad_font);

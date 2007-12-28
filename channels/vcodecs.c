@@ -8,7 +8,7 @@
 #include "asterisk/frame.h"
 
 struct video_out_desc;
-struct video_in_desc;
+struct video_dec_desc;
 struct fbuf_t;
 
 /*
@@ -34,7 +34,7 @@ typedef int (*decoder_init_f)(AVCodecContext *enc_ctx);
 typedef int (*decoder_decap_f)(struct fbuf_t *b, uint8_t *data, int len);
 
 /*! \brief actually call the decoder */
-typedef int (*decoder_decode_f)(struct video_in_desc *v, struct fbuf_t *b);
+typedef int (*decoder_decode_f)(struct video_dec_desc *v, struct fbuf_t *b);
 
 struct video_codec_desc {
 	const char		*name;		/* format name */
@@ -45,6 +45,35 @@ struct video_codec_desc {
 	decoder_init_f		dec_init;
 	decoder_decap_f		dec_decap;
 	decoder_decode_f	dec_run;
+};
+
+/*
+ * Descriptor for the incoming stream, with multiple buffers for the bitstream
+ * extracted from the RTP packets, RTP reassembly info, and a frame buffer
+ * for the decoded frame (buf).
+ * The descriptor is allocated as the first frame comes in.
+ *
+ * Incoming payload is stored in one of the dec_in[] buffers, which are
+ * emptied by the video thread. These buffers are organized in a circular
+ * queue, with dec_in_cur being the buffer in use by the incoming stream,
+ * and dec_in_dpy is the one being displayed. When the pointers need to
+ * be changed, we synchronize the access to them with dec_lock.
+ * When the list is full dec_in_cur = NULL (we cannot store new data),
+ * when the list is empty dec_in_dpy = NULL (we cannot display frames).
+ */
+struct video_dec_desc {
+	struct video_codec_desc *d_callbacks;	/* decoder callbacks */
+	AVCodecContext          *dec_ctx;	/* information about the codec in the stream */
+	AVCodec                 *codec;		/* reference to the codec */
+	AVFrame                 *d_frame;	/* place to store the decoded frame */
+	AVCodecParserContext    *parser;
+	uint16_t 		next_seq;	/* must be 16 bit */
+	int                     discard;	/* flag for discard status */
+#define N_DEC_IN	3	/* number of incoming buffers */
+	struct fbuf_t		*dec_in_cur;	/* buffer being filled in */
+	struct fbuf_t		*dec_in_dpy;	/* buffer to display */
+	struct fbuf_t dec_in[N_DEC_IN];	/* incoming bitstream, allocated/extended in fbuf_append() */
+	struct fbuf_t dec_out;	/* decoded frame, no buffer (data is in AVFrame) */
 };
 
 #ifdef debugging_only
@@ -170,6 +199,8 @@ void dump_buf(struct fbuf_t *b)
 		ast_log(LOG_WARNING, "%s\n", buf);
 }
 #endif /* debugging_only */
+
+
 /*
  * Here starts the glue code for the various supported video codecs.
  * For each of them, we need to provide routines for initialization,
@@ -327,7 +358,7 @@ static int ffmpeg_encode(struct video_out_desc *v)
  * proper frames. After that, if we have a valid frame, we decode it
  * until the entire frame is processed.
  */
-static int ffmpeg_decode(struct video_in_desc *v, struct fbuf_t *b)
+static int ffmpeg_decode(struct video_dec_desc *v, struct fbuf_t *b)
 {
 	uint8_t *src = b->data;
 	int srclen = b->used;
@@ -743,7 +774,7 @@ static int mpeg4_decap(struct fbuf_t *b, uint8_t *data, int len)
 	return fbuf_append(b, data, len, 0, 0);
 }
 
-static int mpeg4_decode(struct video_in_desc *v, struct fbuf_t *b)
+static int mpeg4_decode(struct video_dec_desc *v, struct fbuf_t *b)
 {
 	int full_frame = 0, datalen = b->used;
 	int ret = avcodec_decode_video(v->dec_ctx, v->d_frame, &full_frame,
@@ -1015,4 +1046,89 @@ static struct video_codec_desc *map_video_codec(int fmt)
 	return NULL;
 }
 
+/*! \brief uninitialize the descriptor for remote video stream */
+static struct video_dec_desc *dec_uninit(struct video_dec_desc *v)
+{
+	int i;
+
+	if (v->parser) {
+		av_parser_close(v->parser);
+		v->parser = NULL;
+	}
+	if (v->dec_ctx) {
+		avcodec_close(v->dec_ctx);
+		av_free(v->dec_ctx);
+		v->dec_ctx = NULL;
+	}
+	if (v->d_frame) {
+		av_free(v->d_frame);
+		v->d_frame = NULL;
+	}
+	v->codec = NULL;	/* only a reference */
+	v->d_callbacks = NULL;		/* forget the decoder */
+	v->discard = 1;		/* start in discard mode */
+	for (i = 0; i < N_DEC_IN; i++)
+		fbuf_free(&v->dec_in[i]);
+	fbuf_free(&v->dec_out);
+	ast_free(v);
+	return NULL;	/* error, in case someone cares */
+}
+
+/*
+ * initialize ffmpeg resources used for decoding frames from the network.
+ */
+static struct video_dec_desc *dec_init(uint32_t the_ast_format)
+{
+	enum CodecID codec;
+	struct video_dec_desc *v = ast_calloc(1, sizeof(*v));
+	if (v == NULL)
+		return NULL;
+
+	v->discard = 1;
+
+	v->d_callbacks = map_video_codec(the_ast_format);
+	if (v->d_callbacks == NULL) {
+		ast_log(LOG_WARNING, "cannot find video codec, drop input 0x%x\n", the_ast_format);
+		return dec_uninit(v);
+	}
+
+	codec = map_video_format(v->d_callbacks->format, CM_RD);
+
+	v->codec = avcodec_find_decoder(codec);
+	if (!v->codec) {
+		ast_log(LOG_WARNING, "Unable to find the decoder for format %d\n", codec);
+		return dec_uninit(v);
+	}
+	/*
+	 * Initialize the codec context.
+	 */
+	v->dec_ctx = avcodec_alloc_context();
+	if (!v->dec_ctx) {
+		ast_log(LOG_WARNING, "Cannot allocate the decoder context\n");
+		return dec_uninit(v);
+	}
+	/* XXX call dec_init() ? */
+	if (avcodec_open(v->dec_ctx, v->codec) < 0) {
+		ast_log(LOG_WARNING, "Cannot open the decoder context\n");
+		av_free(v->dec_ctx);
+		v->dec_ctx = NULL;
+		return dec_uninit(v);
+	}
+
+	v->parser = av_parser_init(codec);
+	if (!v->parser) {
+		ast_log(LOG_WARNING, "Cannot initialize the decoder parser\n");
+		return dec_uninit(v);
+	}
+
+	v->d_frame = avcodec_alloc_frame();
+	if (!v->d_frame) {
+		ast_log(LOG_WARNING, "Cannot allocate decoding video frame\n");
+		return dec_uninit(v);
+	}
+        v->dec_in_cur = &v->dec_in[0];	/* buffer for incoming frames */
+        v->dec_in_dpy = NULL;      /* nothing to display */
+
+	return v;	/* ok */
+}
 /*------ end codec specific code -----*/

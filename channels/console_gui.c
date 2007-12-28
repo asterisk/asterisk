@@ -96,6 +96,8 @@ static struct gui_info *cleanup_sdl(struct gui_info *gui)
 	if ( TTF_WasInit() )
 		TTF_Quit();
 #endif
+	if (gui->outfd > -1)
+		close(gui->outfd);
 	if (gui->keypad)
 		SDL_FreeSurface(gui->keypad);
 	gui->keypad = NULL;
@@ -134,19 +136,22 @@ static void show_frame(struct video_desc *env, int out)
 		return;
 
 	if (out == WIN_LOCAL) {	/* webcam/x11 to sdl */
-		b_in = &env->out.enc_in;
-		b_out = &env->out.loc_dpy;
+		b_in = &env->enc_in;
+		b_out = &env->loc_dpy;
 		p_in = NULL;
 	} else {
 		/* copy input format from the decoding context */
-		AVCodecContext *c = env->in.dec_ctx;
-		b_in = &env->in.dec_out;
+		AVCodecContext *c;
+		if (env->in == NULL)	/* XXX should not happen - decoder not ready */
+			return;
+		c = env->in->dec_ctx;
+		b_in = &env->in->dec_out;
                 b_in->pix_fmt = c->pix_fmt;
                 b_in->w = c->width;
                 b_in->h = c->height;
 
-		b_out = &env->in.rem_dpy;
-		p_in = (AVPicture *)env->in.d_frame;
+		b_out = &env->rem_dpy;
+		p_in = (AVPicture *)env->in->d_frame;
 	}
 	bmp = gui->win[out].bmp;
 	SDL_LockYUVOverlay(bmp);
@@ -391,16 +396,16 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 	gui->text_mode = 0;
 
 	/* define keypad boundary */
-	if (button.x < env->in.rem_dpy.w)
+	if (button.x < env->rem_dpy.w)
 		index = KEY_REM_DPY; /* click on remote video */
-	else if (button.x > env->in.rem_dpy.w + gui->keypad->w)
+	else if (button.x > env->rem_dpy.w + gui->keypad->w)
 		index = KEY_LOC_DPY; /* click on local video */
 	else if (button.y > gui->keypad->h)
 		index = KEY_OUT_OF_KEYPAD; /* click outside the keypad */
 	else if (gui->kp) {
 		int i;
 		for (i = 0; i < gui->kp_used; i++) {
-			if (kp_match_area(&gui->kp[i], button.x - env->in.rem_dpy.w, button.y)) {
+			if (kp_match_area(&gui->kp[i], button.x - env->rem_dpy.w, button.y)) {
 				index = gui->kp[i].c;
 				break;
 			}
@@ -452,7 +457,7 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 			break;
 		} else {
 			char buf[128];
-			struct fbuf_t *fb = index == KEY_LOC_DPY ? &env->out.loc_dpy : &env->in.rem_dpy;
+			struct fbuf_t *fb = index == KEY_LOC_DPY ? &env->loc_dpy : &env->rem_dpy;
 			sprintf(buf, "%c%dx%d", button.button == SDL_BUTTON_RIGHT ? '>' : '<',
 				fb->w, fb->h);
 			video_geom(fb, buf);
@@ -619,9 +624,11 @@ static SDL_Surface *get_keypad(const char *file)
 	return temp;
 }
 
+static void keypad_setup(struct gui_info *gui, const char *kp_file);
+
 /* TODO: consistency checks, check for bpp, widht and height */
 /* Init the mask image used to grab the action. */
-static struct gui_info *gui_init(void)
+static struct gui_info *gui_init(const char *keypad_file)
 {
 	struct gui_info *gui = ast_calloc(1, sizeof(*gui));
 
@@ -630,11 +637,15 @@ static struct gui_info *gui_init(void)
 	/* initialize keypad status */
 	gui->text_mode = 0;
 	gui->drag_mode = 0;
+	gui->outfd = -1;
 
 	/* initialize keyboard buffer */
 	append_char(gui->inbuf, &gui->inbuf_pos, '\0');
 	append_char(gui->msgbuf, &gui->msgbuf_pos, '\0');
 
+	keypad_setup(gui, keypad_file);
+	if (gui->keypad == NULL)	/* no keypad, we are done */
+		return gui;
 #ifdef HAVE_SDL_TTF
 	/* Initialize SDL_ttf library and load font */
 	if (TTF_Init() == -1) {
@@ -771,22 +782,17 @@ static void sdl_setup(struct video_desc *env)
 	if (depth < 16)
 		depth = 16;
 	if (!gui)
-		env->gui = gui = gui_init();
+		env->gui = gui = gui_init(env->keypad_file);
 	if (!gui)
 		goto no_sdl;
 
-	keypad_setup(gui, env->keypad_file);
-#if 0
-	ast_log(LOG_WARNING, "keypad_setup returned %p %d\n",
-		gui->keypad, gui->kp_used);
-#endif
 	if (gui->keypad) {
 		kp_w = gui->keypad->w;
 		kp_h = gui->keypad->h;
 	}
 #define BORDER	5	/* border around our windows */
-	maxw = env->in.rem_dpy.w + env->out.loc_dpy.w + kp_w;
-	maxh = MAX( MAX(env->in.rem_dpy.h, env->out.loc_dpy.h), kp_h);
+	maxw = env->rem_dpy.w + env->loc_dpy.w + kp_w;
+	maxh = MAX( MAX(env->rem_dpy.h, env->loc_dpy.h), kp_h);
 	maxw += 4 * BORDER;
 	maxh += 2 * BORDER;
 	gui->screen = SDL_SetVideoMode(maxw, maxh, depth, 0);
@@ -797,11 +803,11 @@ static void sdl_setup(struct video_desc *env)
 
 	SDL_WM_SetCaption("Asterisk console Video Output", NULL);
 	if (set_win(gui->screen, &gui->win[WIN_REMOTE], dpy_fmt,
-			env->in.rem_dpy.w, env->in.rem_dpy.h, BORDER, BORDER))
+			env->rem_dpy.w, env->rem_dpy.h, BORDER, BORDER))
 		goto no_sdl;
 	if (set_win(gui->screen, &gui->win[WIN_LOCAL], dpy_fmt,
-			env->out.loc_dpy.w, env->out.loc_dpy.h,
-			3*BORDER+env->in.rem_dpy.w + kp_w, BORDER))
+			env->loc_dpy.w, env->loc_dpy.h,
+			3*BORDER+env->rem_dpy.w + kp_w, BORDER))
 		goto no_sdl;
 
 	/* display the skin, but do not free it as we need it later to
@@ -809,7 +815,7 @@ static void sdl_setup(struct video_desc *env)
 	 */
 	if (gui->keypad) {
 		struct SDL_Rect *dest = &gui->win[WIN_KEYPAD].rect;
-		dest->x = 2*BORDER + env->in.rem_dpy.w;
+		dest->x = 2*BORDER + env->rem_dpy.w;
 		dest->y = BORDER;
 		dest->w = gui->keypad->w;
 		dest->h = gui->keypad->h;

@@ -47,6 +47,25 @@
 
 #endif	/* HAVE_VIDEO_CONSOLE and others */
 
+/*
+ * In many places we use buffers to store the raw frames (but not only),
+ * so here is a structure to keep all the info. data = NULL means the
+ * structure is not initialized, so the other fields are invalid.
+ * size = 0 means the buffer is not malloc'ed so we don't have to free it.
+ */
+struct fbuf_t {		/* frame buffers, dynamically allocated */
+	uint8_t	*data;	/* memory, malloced if size > 0, just reference
+			 * otherwise */
+	int	size;	/* total size in bytes */
+	int	used;	/* space used so far */
+	int	ebit;	/* bits to ignore at the end */
+	int	x;	/* origin, if necessary */
+	int	y;
+	int	w;	/* size */ 
+	int	h;
+	int	pix_fmt;
+};
+
 struct video_desc;		/* opaque type for video support */
 struct video_desc *get_video_desc(struct ast_channel *c);
 
