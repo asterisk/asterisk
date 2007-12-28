@@ -1332,7 +1332,7 @@ int console_video_cli(struct video_desc *env, const char *var, int fd)
 		ast_cli(fd, "sizes: video %dx%d camera %dx%d local %dx%d remote %dx%d in %dx%d\n",
 			env->out.enc_in.w, env->out.enc_in.h,
 			env->out.loc_src.w, env->out.loc_src.h,
-			env->out.loc_dpy.w, env->out.loc_src.h,
+			env->out.loc_dpy.w, env->out.loc_dpy.h,
 			env->in.rem_dpy.w, env->in.rem_dpy.h,
 			env->in.dec_out.w, env->in.dec_out.h);
         } else if (!strcasecmp(var, "bitrate")) {
