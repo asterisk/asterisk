@@ -312,6 +312,8 @@ Other Dialplan Application Changes
      of asking for verification of each name, one at a time.
   * Privacy() no longer uses privacy.conf, as all options are specifyable as
      direct options to the app.
+  * AMD() has a new "maximum word length" option. "show application AMD" from the CLI
+     for more details
 
 Music On Hold Changes
 ---------------------

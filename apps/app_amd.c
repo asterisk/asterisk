@@ -45,7 +45,7 @@ static char *synopsis = "Attempts to detect answering machines";
 static char *descrip =
 "  AMD([initialSilence],[greeting],[afterGreetingSilence],[totalAnalysisTime]\n"
 "      ,[minimumWordLength],[betweenWordsSilence],[maximumNumberOfWords]\n"
-"      ,[silenceThreshold])\n"
+"      ,[silenceThreshold],[|maximumWordLength])\n"
 "  This application attempts to detect answering machines at the beginning\n"
 "  of outbound calls.  Simply call this application after the call\n"
 "  has been answered (outbound only, of course).\n"
@@ -65,6 +65,7 @@ static char *descrip =
 "- 'maximumNumberOfWords'is the maximum number of words in the greeting. \n"
 "   If exceeded then MACHINE.\n"
 "- 'silenceThreshold' is the silence threshold.\n"
+"- 'maximumWordLength' is the maximum duration of a word to accept. If exceeded then MACHINE\n"
 "This application sets the following channel variables upon completion:\n"
 "    AMDSTATUS - This is the status of the answering machine detection.\n"
 "                Possible values are:\n"
@@ -75,7 +76,8 @@ static char *descrip =
 "               INITIALSILENCE-<%d silenceDuration>-<%d initialSilence>\n"
 "               HUMAN-<%d silenceDuration>-<%d afterGreetingSilence>\n"
 "               MAXWORDS-<%d wordsCount>-<%d maximumNumberOfWords>\n"
-"               LONGGREETING-<%d voiceDuration>-<%d greeting>\n";
+"               LONGGREETING-<%d voiceDuration>-<%d greeting>\n"
+"               MAXWORDLENGTH-<%d consecutiveVoiceDuration>\n";
 
 #define STATE_IN_WORD       1
 #define STATE_IN_SILENCE    2
@@ -89,6 +91,7 @@ static int dfltMinimumWordLength    = 100;
 static int dfltBetweenWordsSilence  = 50;
 static int dfltMaximumNumberOfWords = 3;
 static int dfltSilenceThreshold     = 256;
+static int dfltMaximumWordLength    = 5000; /* Setting this to a large default so it is not used unless specify it in the configs or command line */
 
 static void isAnsweringMachine(struct ast_channel *chan, void *data)
 {
@@ -120,6 +123,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 	int betweenWordsSilence  = dfltBetweenWordsSilence;
 	int maximumNumberOfWords = dfltMaximumNumberOfWords;
 	int silenceThreshold     = dfltSilenceThreshold;
+	int maximumWordLength	 = dfltMaximumWordLength;
 
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(argInitialSilence);
@@ -130,6 +134,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 			     AST_APP_ARG(argBetweenWordsSilence);
 			     AST_APP_ARG(argMaximumNumberOfWords);
 			     AST_APP_ARG(argSilenceThreshold);
+			     AST_APP_ARG(argMaximumWordLength);
 	);
 
 	ast_verb(3, "AMD: %s %s %s (Fmt: %d)\n", chan->name ,chan->cid.cid_ani, chan->cid.cid_rdnis, chan->readformat);
@@ -154,15 +159,17 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 			maximumNumberOfWords = atoi(args.argMaximumNumberOfWords);
 		if (!ast_strlen_zero(args.argSilenceThreshold))
 			silenceThreshold = atoi(args.argSilenceThreshold);
+ 		if (!ast_strlen_zero(args.argMaximumWordLength))
+ 			maximumWordLength = atoi(args.argMaximumWordLength);			
 	} else {
 		ast_debug(1, "AMD using the default parameters.\n");
 	}
 
 	/* Now we're ready to roll! */
 	ast_verb(3, "AMD: initialSilence [%d] greeting [%d] afterGreetingSilence [%d] "
-		"totalAnalysisTime [%d] minimumWordLength [%d] betweenWordsSilence [%d] maximumNumberOfWords [%d] silenceThreshold [%d] \n",
+		"totalAnalysisTime [%d] minimumWordLength [%d] betweenWordsSilence [%d] maximumNumberOfWords [%d] silenceThreshold [%d] maximumWordLength [%d] \n",
 				initialSilence, greeting, afterGreetingSilence, totalAnalysisTime,
-				minimumWordLength, betweenWordsSilence, maximumNumberOfWords, silenceThreshold );
+				minimumWordLength, betweenWordsSilence, maximumNumberOfWords, silenceThreshold, maximumWordLength);
 
 	/* Set read format to signed linear so we get signed linear frames in */
 	readFormat = chan->readformat;
@@ -188,7 +195,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 	while ((res = ast_waitfor(chan, totalAnalysisTime)) > -1) {
 		/* If we fail to read in a frame, that means they hung up */
 		if (!(f = ast_read(chan))) {
-			ast_verb(3, "AMD: HANGUP\n");
+			ast_verb(3, "AMD: Channel [%s]. HANGUP\n", chan->name);
 			ast_debug(1, "Got hangup\n");
 			strcpy(amdStatus, "HANGUP");
 			break;
@@ -215,15 +222,19 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 				if (silenceDuration >= betweenWordsSilence) {
 					if (currentState != STATE_IN_SILENCE ) {
 						previousState = currentState;
-						ast_verb(3, "AMD: Changed state to STATE_IN_SILENCE\n");
+						ast_verb(3, "AMD: Channel [%s]. Changed state to STATE_IN_SILENCE\n", chan->name);
 					}
+					/* Find words less than word duration */
+ 					if (consecutiveVoiceDuration < minimumWordLength && consecutiveVoiceDuration > 0){
+ 						ast_verb(3, "AMD: Channel [%s]. Short Word Duration: %d\n", chan->name, consecutiveVoiceDuration);
+ 					}					
 					currentState  = STATE_IN_SILENCE;
 					consecutiveVoiceDuration = 0;
 				}
 				
 				if (inInitialSilence == 1  && silenceDuration >= initialSilence) {
-					ast_verb(3, "AMD: ANSWERING MACHINE: silenceDuration:%d initialSilence:%d\n",
-							    silenceDuration, initialSilence);
+					ast_verb(3, "AMD: Channel [%s]. ANSWERING MACHINE: silenceDuration:%d initialSilence:%d\n",
+							    chan->name, silenceDuration, initialSilence);
 					ast_frfree(f);
 					strcpy(amdStatus , "MACHINE");
 					sprintf(amdCause , "INITIALSILENCE-%d-%d", silenceDuration, initialSilence);
@@ -231,8 +242,8 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 				}
 				
 				if (silenceDuration >= afterGreetingSilence  &&  inGreeting == 1) {
-					ast_verb(3, "AMD: HUMAN: silenceDuration:%d afterGreetingSilence:%d\n",
-							    silenceDuration, afterGreetingSilence);
+					ast_verb(3, "AMD: Channel [%s]. HUMAN: silenceDuration:%d afterGreetingSilence:%d\n",
+							    chan->name, silenceDuration, afterGreetingSilence);
 					ast_frfree(f);
 					strcpy(amdStatus , "HUMAN");
 					sprintf(amdCause , "HUMAN-%d-%d", silenceDuration, afterGreetingSilence);
@@ -247,13 +258,19 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 				   number of words if my previous state was Silence, which means that I moved into a word. */
 				if (consecutiveVoiceDuration >= minimumWordLength && currentState == STATE_IN_SILENCE) {
 					iWordsCount++;
-					ast_verb(3, "AMD: Word detected. iWordsCount:%d\n", iWordsCount);
+					ast_verb(3, "AMD: Channel [%s]. Word detected. iWordsCount:%d\n", chan->name, iWordsCount);
 					previousState = currentState;
 					currentState = STATE_IN_WORD;
 				}
-				
+ 				if (consecutiveVoiceDuration >= maximumWordLength){
+ 					ast_verb(3, "AMD: Channel [%s]. Maximum Word Length detected. [%d]\n", chan->name, consecutiveVoiceDuration);
+ 					ast_frfree(f);
+ 					strcpy(amdStatus , "MACHINE");
+ 					sprintf(amdCause , "MAXWORDLENGTH-%d", consecutiveVoiceDuration);
+ 					break;
+ 				}				
 				if (iWordsCount >= maximumNumberOfWords) {
-					ast_verb(3, "AMD: ANSWERING MACHINE: iWordsCount:%d\n", iWordsCount);
+					ast_verb(3, "AMD: Channel [%s]. ANSWERING MACHINE: iWordsCount:%d\n", chan->name, iWordsCount);
 					ast_frfree(f);
 					strcpy(amdStatus , "MACHINE");
 					sprintf(amdCause , "MAXWORDS-%d-%d", iWordsCount, maximumNumberOfWords);
@@ -261,7 +278,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 				}
 				
 				if (inGreeting == 1 && voiceDuration >= greeting) {
-					ast_verb(3, "AMD: ANSWERING MACHINE: voiceDuration:%d greeting:%d\n", voiceDuration, greeting);
+					ast_verb(3, "AMD: Channel [%s]. ANSWERING MACHINE: voiceDuration:%d greeting:%d\n", chan->name, voiceDuration, greeting);
 					ast_frfree(f);
 					strcpy(amdStatus , "MACHINE");
 					sprintf(amdCause , "LONGGREETING-%d-%d", voiceDuration, greeting);
@@ -269,7 +286,14 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 				}
 				
 				if (voiceDuration >= minimumWordLength ) {
+					if (silenceDuration > 0)
+						ast_verb(3, "AMD: Channel [%s]. Detected Talk, previous silence duration: %d\n", chan->name, silenceDuration);
 					silenceDuration = 0;
+				}
+				if (consecutiveVoiceDuration >= minimumWordLength && inGreeting == 0){
+					/* Only go in here once to change the greeting flag when we detect the 1st word */
+					if (silenceDuration > 0)
+						ast_verb(3, "AMD: Channel [%s]. Before Greeting Time:  silenceDuration: %d voiceDuration: %d\n", chan->name, silenceDuration, voiceDuration);
 					inInitialSilence = 0;
 					inGreeting = 1;
 				}
@@ -343,6 +367,9 @@ static int load_config(int reload)
 					dfltBetweenWordsSilence = atoi(var->value);
 				} else if (!strcasecmp(var->name, "maximum_number_of_words")) {
 					dfltMaximumNumberOfWords = atoi(var->value);
+				} else if (!strcasecmp(var->name, "maximum_word_length")) {
+					dfltMaximumWordLength = atoi(var->value);
+					
 				} else {
 					ast_log(LOG_WARNING, "%s: Cat:%s. Unknown keyword %s at line %d of amd.conf\n",
 						app, cat, var->name, var->lineno);
@@ -356,9 +383,9 @@ static int load_config(int reload)
 	ast_config_destroy(cfg);
 
 	ast_verb(3, "AMD defaults: initialSilence [%d] greeting [%d] afterGreetingSilence [%d] "
-		"totalAnalysisTime [%d] minimumWordLength [%d] betweenWordsSilence [%d] maximumNumberOfWords [%d] silenceThreshold [%d] \n",
+		"totalAnalysisTime [%d] minimumWordLength [%d] betweenWordsSilence [%d] maximumNumberOfWords [%d] silenceThreshold [%d] maximumWordLength [%d]\n",
 				dfltInitialSilence, dfltGreeting, dfltAfterGreetingSilence, dfltTotalAnalysisTime,
-				dfltMinimumWordLength, dfltBetweenWordsSilence, dfltMaximumNumberOfWords, dfltSilenceThreshold );
+				dfltMinimumWordLength, dfltBetweenWordsSilence, dfltMaximumNumberOfWords, dfltSilenceThreshold, dfltMaximumWordLength);
 
 	return 0;
 }
