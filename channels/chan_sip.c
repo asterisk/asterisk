@@ -5538,10 +5538,6 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 	snprintf(req->header[req->headers], maxlen, "%s: %s\r\n", var, value);
 	req->len += strlen(req->header[req->headers]);
 	req->headers++;
-	if (req->headers < SIP_MAX_HEADERS)
-		req->headers++;
-	else
-		ast_log(LOG_WARNING, "Out of SIP header space... Will generate broken SIP message\n");
 
 	return 0;	
 }
