@@ -1051,6 +1051,9 @@ static int video_geom(struct fbuf_t *b, const char *s)
 	static struct {
 		const char *s; int w; int h;
 	} *fp, formats[] = {
+		{"16cif",	1408, 1152 },
+		{"xga",		1024, 768 },
+		{"4cif",	704, 576 },
 		{"vga",		640, 480 },
 		{"cif",		352, 288 },
 		{"qvga",	320, 240 },
