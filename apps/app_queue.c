@@ -2158,16 +2158,14 @@ static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *bus
 			for (cur = outgoing; cur; cur = cur->q_next) {
 				if (cur->stillgoing && !cur->chan && cur->metric <= best->metric) {
 					ast_debug(1, "(Parallel) Trying '%s' with metric %d\n", cur->interface, cur->metric);
-					ring_entry(qe, cur, busies);
+					ret |= ring_entry(qe, cur, busies);
 				}
 			}
 		} else {
 			/* Ring just the best channel */
 			ast_debug(1, "Trying '%s' with metric %d\n", best->interface, best->metric);
-			ring_entry(qe, best, busies);
+			ret = ring_entry(qe, best, busies);
 		}
-		if (best->chan) /* break out with result = 1 */
-			ret = 1;
 	}
 
 	return ret;
