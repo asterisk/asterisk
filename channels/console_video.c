@@ -1,4 +1,20 @@
 /*
+ * Asterisk -- An open source telephony toolkit.
+ *
+ * Copyright 2007, Marta Carbone, Sergio Fadda, Luigi Rizzo
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
  * Experimental support for video sessions. We use SDL for rendering, ffmpeg
  * as the codec library for encoding and decoding, and Video4Linux and X11
  * to generate the local video stream.
@@ -131,7 +147,6 @@ int console_video_formats =
 static void my_scale(struct fbuf_t *in, AVPicture *p_in,
 	struct fbuf_t *out, AVPicture *p_out);
 
-struct grab_desc;		/* grabber description */
 struct video_codec_desc;	/* forward declaration */
 /*
  * Descriptor of the local source, made of the following pieces:
@@ -208,7 +223,7 @@ struct video_desc {
 
 static AVPicture *fill_pict(struct fbuf_t *b, AVPicture *p);
 
-static void fbuf_free(struct fbuf_t *b)
+void fbuf_free(struct fbuf_t *b)
 {
 	struct fbuf_t x = *b;
 
@@ -224,292 +239,14 @@ static void fbuf_free(struct fbuf_t *b)
 #include "vcodecs.c"
 #include "console_gui.c"
 
-/*------ end codec specific code -----*/
-
-/* descriptor for a grabber */
-struct grab_desc {
-	const char *name;
-	void *(*open)(const char *name, struct fbuf_t *geom, int fps);
-	struct fbuf_t *(*read)(void *d);
-	void (*move)(void *d, int dx, int dy);
-	void *(*close)(void *d);
-};
-
-
-#ifdef HAVE_X11
-struct grab_x11_desc {
-	Display		*dpy;			/* x11 grabber info */
-	XImage		*image;
-	int		screen_width;	/* width of X screen */
-	int		screen_height;	/* height of X screen */
-	struct fbuf_t	b;
-};
-
-static void *grab_x11_open(const char *name, struct fbuf_t *geom, int fps)
-{
-	XImage *im;
-	int screen_num;
-	struct grab_x11_desc *v;
-	struct fbuf_t *b;
-
-	if (strcasecmp(name, "X11"))
-		return NULL;	/* not us */
-	v = ast_calloc(1, sizeof(*v));
-	if (v == NULL)
-		return NULL;	/* no memory */
-
-	/* init the connection with the X server */
-	v->dpy = XOpenDisplay(NULL);
-	if (v->dpy == NULL) {
-		ast_log(LOG_WARNING, "error opening display\n");
-		goto error;
-	}
-
-	v->b = *geom;	/* copy geometry */
-	b = &v->b;	/* shorthand */
-	/* find width and height of the screen */
-	screen_num = DefaultScreen(v->dpy);
-	v->screen_width = DisplayWidth(v->dpy, screen_num);
-	v->screen_height = DisplayHeight(v->dpy, screen_num);
-
-	v->image = im = XGetImage(v->dpy,
-		RootWindow(v->dpy, DefaultScreen(v->dpy)),
-		b->x, b->y, b->w, b->h, AllPlanes, ZPixmap);
-	if (v->image == NULL) {
-		ast_log(LOG_WARNING, "error creating Ximage\n");
-		goto error;
-	}
-	switch (im->bits_per_pixel) {
-	case 32:
-		b->pix_fmt = PIX_FMT_RGBA32;
-		break;
-	case 16:
-		b->pix_fmt = (im->green_mask == 0x7e0) ? PIX_FMT_RGB565 : PIX_FMT_RGB555;
-		break;
-	}
-
-	ast_log(LOG_NOTICE, "image: data %p %d bpp fmt %d, mask 0x%lx 0x%lx 0x%lx\n",
-		im->data,
-		im->bits_per_pixel,
-		b->pix_fmt,
-		im->red_mask, im->green_mask, im->blue_mask);
-
-	/* set the pointer but not the size as this is not malloc'ed */
-	b->data = (uint8_t *)im->data;
-	return v;
-
-error:
-	/* XXX maybe XDestroy (v->image) ? */
-	if (v->dpy)
-		XCloseDisplay(v->dpy);
-	v->dpy = NULL;
-	ast_free(v);
-	return NULL;
-}
-
-static struct fbuf_t *grab_x11_read(void *desc)
-{
-	/* read frame from X11 */
-	struct grab_x11_desc *v = desc;
-	struct fbuf_t *b = &v->b;
-
-	XGetSubImage(v->dpy,
-		RootWindow(v->dpy, DefaultScreen(v->dpy)),
-			b->x, b->y, b->w, b->h, AllPlanes, ZPixmap, v->image, 0, 0);
-
-		b->data = (uint8_t *)v->image->data;
-	return b;
-}
-
-static int boundary_checks(int x, int limit)
-{
-        return (x <= 0) ? 0 : (x > limit ? limit : x);
-}
-
-/* move the origin for the grabbed area */
-static void grab_x11_move(void *desc, int dx, int dy)
-{
-	struct grab_x11_desc *v = desc;
-
-        v->b.x = boundary_checks(v->b.x + dx, v->screen_width - v->b.w);
-        v->b.y = boundary_checks(v->b.y + dy, v->screen_height - v->b.h);
-}
-
-static void *grab_x11_close(void *desc)
-{
-	struct grab_x11_desc *v = desc;
-
-	XCloseDisplay(v->dpy);
-	v->dpy = NULL;
-	v->image = NULL;
-	ast_free(v);
-	return NULL;
-}
-
-static struct grab_desc grab_x11_desc = {
-	.name = "X11",
-	.open = grab_x11_open,
-	.read = grab_x11_read,
-	.move = grab_x11_move,
-	.close = grab_x11_close,
-};
-
-#endif	/* HAVE_X11 */
-
-/* Video4Linux stuff is only used in grabber_open() */
-#ifdef HAVE_VIDEODEV_H
-#include <linux/videodev.h>
-
-struct grab_v4l1_desc {
-	int fd;
-	int fps;
-	struct fbuf_t	b;
-};
-
-/*!
- * Open the local video source and allocate a buffer
- * for storing the image. Return 0 on success, -1 on error
- */
-static void *grab_v4l1_open(const char *dev, struct fbuf_t *geom, int fps)
-{
-	struct video_window vw = { 0 };	/* camera attributes */
-	struct video_picture vp;
-	int fd, i;
-	struct grab_v4l1_desc *v;
-	struct fbuf_t *b;
-
-	fd = open(dev, O_RDONLY | O_NONBLOCK);
-	if (fd < 0) {
-		ast_log(LOG_WARNING, "error opening camera %s\n", dev);
-		return NULL;
-	}
-
-	v = ast_calloc(1, sizeof(*v));
-	if (v == NULL) {
-		ast_log(LOG_WARNING, "no memory for camera %s\n", dev);
-		close(fd);
-		return NULL;	/* no memory */
-	}
-	v->fd = fd;
-	v->b = *geom;
-	b = &v->b;	/* shorthand */
-
-	i = fcntl(fd, F_GETFL);
-	if (-1 == fcntl(fd, F_SETFL, i | O_NONBLOCK)) {
-		/* non fatal, just emit a warning */
-		ast_log(LOG_WARNING, "error F_SETFL for %s [%s]\n",
-			dev, strerror(errno));
-	}
-	/* set format for the camera.
-	 * In principle we could retry with a different format if the
-	 * one we are asking for is not supported.
-	 */
-	vw.width = b->w;
-	vw.height = b->h;
-	vw.flags = fps << 16;
-	if (ioctl(fd, VIDIOCSWIN, &vw) == -1) {
-		ast_log(LOG_WARNING, "error setting format for %s [%s]\n",
-			dev, strerror(errno));
-		goto error;
-	}
-	if (ioctl(fd, VIDIOCGPICT, &vp) == -1) {
-		ast_log(LOG_WARNING, "error reading picture info\n");
-		goto error;
-	}
-	ast_log(LOG_WARNING,
-		"contrast %d bright %d colour %d hue %d white %d palette %d\n",
-		vp.contrast, vp.brightness,
-		vp.colour, vp.hue,
-		vp.whiteness, vp.palette);
-	/* set the video format. Here again, we don't necessary have to
-	 * fail if the required format is not supported, but try to use
-	 * what the camera gives us.
-	 */
-	b->pix_fmt = vp.palette;
-	vp.palette = VIDEO_PALETTE_YUV420P;
-	if (ioctl(v->fd, VIDIOCSPICT, &vp) == -1) {
-		ast_log(LOG_WARNING, "error setting palette, using %d\n",
-			b->pix_fmt);
-	} else
-		b->pix_fmt = vp.palette;
-	/* allocate the source buffer.
-	 * XXX, the code here only handles yuv411, for other formats
-	 * we need to look at pix_fmt and set size accordingly
-	 */
-	b->size = (b->w * b->h * 3)/2;	/* yuv411 */
-	ast_log(LOG_WARNING, "videodev %s opened, size %dx%d %d\n",
-		dev, b->w, b->h, b->size);
-	b->data = ast_calloc(1, b->size);
-	if (!b->data) {
-		ast_log(LOG_WARNING, "error allocating buffer %d bytes\n",
-			b->size);
-		goto error;
-	}
-	ast_log(LOG_WARNING, "success opening camera\n");
-	return v;
-
-error:
-	close(v->fd);
-	fbuf_free(b);
-	ast_free(v);
-	return NULL;
-}
-
-static struct fbuf_t *grab_v4l1_read(void *desc)
-{
-	struct grab_v4l1_desc *v = desc;
-	struct fbuf_t *b = &v->b;
-	for (;;) {
-		int r, l = b->size - b->used;
-		r = read(v->fd, b->data + b->used, l);
-		// ast_log(LOG_WARNING, "read %d of %d bytes from webcam\n", r, l);
-		if (r < 0)	/* read error */
-			break;
-		if (r == 0)	/* no data */
-			break;
-		b->used += r;
-		if (r == l) {
-			b->used = 0; /* prepare for next frame */
-			return b;
-		}
-	}
-	return NULL;
-}
-
-static void *grab_v4l1_close(void *desc)
-{
-	struct grab_v4l1_desc *v = desc;
-
-	close(v->fd);
-	v->fd = -1;
-	fbuf_free(&v->b);
-	ast_free(v);
-	return NULL;
-}
-
-static struct grab_desc grab_v4l1_desc = {
-	.name = "v4l1",
-	.open = grab_v4l1_open,
-	.read = grab_v4l1_read,
-	.close = grab_v4l1_close,
-};
-#endif /* HAVE_VIDEODEV_H */
-
-static struct grab_desc *my_grabbers[] = {
-	&grab_x11_desc,
-	&grab_v4l1_desc,
-	NULL
-};
-
-/* try to open a video source, return 0 on success, 1 on error
- */
+/*! \brief Try to open a video source, return 0 on success, 1 on error */
 static int grabber_open(struct video_out_desc *v)
 {
 	struct grab_desc *g;
 	void *g_data;
 	int i;
 
-	for (i = 0; (g = my_grabbers[i]); i++) {
+	for (i = 0; (g = console_grabbers[i]); i++) {
 		g_data = g->open(v->videodevice, &v->loc_src_geometry, v->fps);
 		if (g_data) {
 			v->grabber = g;
@@ -539,21 +276,15 @@ static struct fbuf_t *grabber_read(struct video_out_desc *v)
 	return v->grabber->read(v->grabber_data);
 }
 
+/*! \brief handler run when dragging with the left button on
+ * the local source window - the effect is to move the offset
+ * of the captured area.
+ */
 static void grabber_move(struct video_out_desc *v, int dx, int dy)
 {
 	if (v->grabber && v->grabber->move)
                 v->grabber->move(v->grabber_data, dx, dy);
 }
-
-/* Helper function to process incoming video.
- * For each incoming video call invoke ffmpeg_init() to intialize
- * the decoding structure then incoming video frames are processed
- * by write_video() which in turn calls pre_process_data(), to extract
- * the bitstream; accumulates data into a buffer within video_desc. When
- * a frame is complete (determined by the marker bit in the RTP header)
- * call decode_video() to decoding and if it successful call show_frame()
- * to display the frame.
- */
 
 /*
  * Map the codec name to the library. If not recognised, use a default.
@@ -607,8 +338,8 @@ static int video_out_uninit(struct video_desc *env)
 
 /*
  * Initialize the encoder for the local source:
- * - AVCodecContext, AVCodec, AVFrame are used by ffmpeg for encoding;
- * - encbuf is used to store the encoded frame (to be sent)
+ * - enc_ctx, codec, enc_in_frame are used by ffmpeg for encoding;
+ * - enc_out is used to store the encoded frame (to be sent)
  * - mtu is used to determine the max size of video fragment
  * NOTE: we enter here with the video source already open.
  */
@@ -922,7 +653,7 @@ static struct ast_frame *get_video_frames(struct video_desc *env, struct ast_fra
 	if (v->enc_out.data == NULL) {
 		static volatile int a = 0;
 		if (a++ < 2)
-			ast_log(LOG_WARNING, "fail, no encbuf\n");
+			ast_log(LOG_WARNING, "fail, no encoder output buffer\n");
 		return NULL;
 	}
 	v->enc->enc_run(v);

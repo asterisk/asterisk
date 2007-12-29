@@ -51,7 +51,7 @@ endif
 
 all: _all
 
-chan_oss.so: console_video.o
+chan_oss.so: console_video.o vgrabbers.o
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 

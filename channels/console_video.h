@@ -28,10 +28,6 @@
 		"console {device}"
 #else
 
-#ifdef HAVE_X11
-#include <X11/Xlib.h>           /* this should be conditional */
-#endif
-        
 #include <ffmpeg/avcodec.h>
 #ifndef OLD_FFMPEG
 #include <ffmpeg/swscale.h>     /* requires a recent ffmpeg */
@@ -65,6 +61,19 @@ struct fbuf_t {		/* frame buffers, dynamically allocated */
 	int	h;
 	int	pix_fmt;
 };
+
+void fbuf_free(struct fbuf_t *);
+
+/* descriptor for a grabber */
+struct grab_desc {
+	const char *name;
+	void *(*open)(const char *name, struct fbuf_t *geom, int fps);
+	struct fbuf_t *(*read)(void *d);
+	void (*move)(void *d, int dx, int dy);
+	void *(*close)(void *d);
+};
+
+extern struct grab_desc *console_grabbers[];
 
 struct video_desc;		/* opaque type for video support */
 struct video_desc *get_video_desc(struct ast_channel *c);
