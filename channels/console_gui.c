@@ -503,17 +503,6 @@ static void handle_keyboard_input(struct video_desc *env, SDLKey key)
 	return;
 }
 
-/*
- * Check if the grab point is inside the X screen.
- *
- * x represent the new grab value
- * limit represent the upper value to use
- */
-static int boundary_checks(int x, int limit)
-{
-	return (x <= 0) ? 0 : (x > limit ? limit : x);
-}
-
 /* implement superlinear acceleration on the movement */
 static int move_accel(int delta)
 {
@@ -521,6 +510,7 @@ static int move_accel(int delta)
 	return (delta > 0) ? delta + d1 : delta - d1;
 }
 
+static void grabber_move(struct video_out_desc *, int dx, int dy);
 /*
  * Move the source of the captured video.
  *
@@ -529,21 +519,17 @@ static int move_accel(int delta)
  */
 static void move_capture_source(struct video_desc *env, int x_final_drag, int y_final_drag)
 {
-	int new_x, new_y;		/* new coordinates for grabbing local video */
-	int x = env->out.loc_src.x;	/* old value */
-	int y = env->out.loc_src.y;	/* old value */
+	int dx, dy;
 
 	/* move the origin */
 #define POLARITY -1		/* +1 or -1 depending on the desired direction */
-	new_x = x + POLARITY*move_accel(x_final_drag - env->gui->x_drag) * 3;
-	new_y = y + POLARITY*move_accel(y_final_drag - env->gui->y_drag) * 3;
+	dx = POLARITY*move_accel(x_final_drag - env->gui->x_drag) * 3;
+	dy = POLARITY*move_accel(y_final_drag - env->gui->y_drag) * 3;
 #undef POLARITY
 	env->gui->x_drag = x_final_drag;	/* update origin */
 	env->gui->y_drag = y_final_drag;
 
-	/* check boundary and let the source to grab from the new points */
-	env->out.loc_src.x = boundary_checks(new_x, env->out.screen_width - env->out.loc_src.w);
-	env->out.loc_src.y = boundary_checks(new_y, env->out.screen_height - env->out.loc_src.h);
+	grabber_move(&env->out, dx, dy);
 	return;
 }
 
