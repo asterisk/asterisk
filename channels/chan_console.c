@@ -67,28 +67,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! 
  * \brief The sample rate to request from PortAudio 
  *
- * \note This should be changed to 16000 once there is a translator for going
- *       between SLINEAR and SLINEAR16.  Making it a configuration parameter
- *       would be even better, but 16 kHz should be the default.
- *
- * \note If this changes, NUM_SAMPLES will need to change, as well.
+ * \todo Make this optional.  If this is only going to talk to 8 kHz endpoints,
+ *       then it makes sense to use 8 kHz natively.
  */
-#define SAMPLE_RATE      8000
+#define SAMPLE_RATE      16000
 
 /*! 
  * \brief The number of samples to configure the portaudio stream for
  *
- * 160 samples (20 ms) is the most common frame size in Asterisk.  So, the code
- * in this module reads 160 sample frames from the portaudio stream and queues
- * them up on the Asterisk channel.  Frames of any sizes can be written to a
+ * 320 samples (20 ms) is the most common frame size in Asterisk.  So, the code
+ * in this module reads 320 sample frames from the portaudio stream and queues
+ * them up on the Asterisk channel.  Frames of any size can be written to a
  * portaudio stream, but the portaudio documentation does say that for high
  * performance applications, the data should be written to Pa_WriteStream in
  * the same size as what is used to initialize the stream.
- *
- * \note This will need to be dynamic once the sample rate can be something
- *       other than 8 kHz.
  */
-#define NUM_SAMPLES      160
+#define NUM_SAMPLES      320
 
 /*! \brief Mono Input */
 #define INPUT_CHANNELS   1
@@ -198,10 +192,8 @@ static int console_fixup(struct ast_channel *oldchan, struct ast_channel *newcha
 
 /*!
  * \brief Formats natively supported by this module.
- *
- * \note Once 16 kHz is supported, AST_FORMAT_SLINEAR16 needs to be added.
  */
-#define SUPPORTED_FORMATS ( AST_FORMAT_SLINEAR )
+#define SUPPORTED_FORMATS ( AST_FORMAT_SLINEAR16 )
 
 static const struct ast_channel_tech console_tech = {
 	.type = "Console",
@@ -243,7 +235,7 @@ static void *stream_monitor(void *data)
 	PaError res;
 	struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_SLINEAR,
+		.subclass = AST_FORMAT_SLINEAR16,
 		.src = "console_stream_monitor",
 		.data = buf,
 		.datalen = sizeof(buf),
@@ -335,9 +327,9 @@ static struct ast_channel *console_new(struct console_pvt *pvt, const char *ext,
 	}
 
 	chan->tech = &console_tech;
-	chan->nativeformats = AST_FORMAT_SLINEAR;
-	chan->readformat = AST_FORMAT_SLINEAR;
-	chan->writeformat = AST_FORMAT_SLINEAR;
+	chan->nativeformats = AST_FORMAT_SLINEAR16;
+	chan->readformat = AST_FORMAT_SLINEAR16;
+	chan->writeformat = AST_FORMAT_SLINEAR16;
 	chan->tech_pvt = pvt;
 
 	pvt->owner = chan;
