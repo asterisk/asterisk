@@ -5211,7 +5211,8 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	   cannot be restored
 	*/
 	while ((this = AST_LIST_REMOVE_HEAD(&store, list))) {
-		exten = ast_hint_extension(NULL, this->context, this->exten);
+		struct pbx_find_info q = { .stacklen = 0 };
+		exten = pbx_find_extension(NULL, NULL, &q, this->context, this->exten, PRIORITY_HINT, NULL, "", E_MATCH);
 		/* Find the hint in the list of hints */
 		AST_RWLIST_TRAVERSE(&hints, hint, list) {
 			if (hint->exten == exten)
