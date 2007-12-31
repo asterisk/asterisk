@@ -1238,7 +1238,7 @@ const char *ast_state2str(enum ast_channel_state);
  * \param transfercapability transfercapabilty to get the name of
  * Give a name to a transfercapbility
  * See above
- * Returns the text form of the binary transfer capbaility
+ * Returns the text form of the binary transfer capability
  */
 char *ast_transfercapability2str(int transfercapability) attribute_const;
 
