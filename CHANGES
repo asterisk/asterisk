@@ -429,3 +429,6 @@ Miscellaneous
   * A new option when starting a remote asterisk (rasterisk, asterisk -r) for
     specifying which socket to use to connect to the running Asterisk daemon
     (-s)
+  * Added a new codec translation module, codec_resample, which re-samples
+     signed linear audio between 8 kHz and 16 kHz to help support wideband
+     codecs.

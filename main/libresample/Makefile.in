@@ -1,0 +1,52 @@
+# Run configure to generate Makefile from Makefile.in on
+# any system supported by GNU autoconf.  For all other
+# systems, use this file as a template to create a
+# working Makefile.
+
+CC = @CC@
+CFLAGS = @CFLAGS@ -Wall
+
+LIBS = @LIBS@ -lm
+
+AR = @AR@
+RANLIB = @RANLIB@
+
+OBJS = \
+	src/resample.c.o \
+	src/resamplesubs.c.o \
+	src/filterkit.c.o
+
+TARGETS = @TARGETS@
+
+all: $(TARGETS)
+
+libresample.a: $(OBJS) Makefile
+	$(AR) ruv libresample.a $(OBJS)
+	ranlib libresample.a
+
+tests/testresample: libresample.a tests/testresample.c
+	$(CC) -o tests/testresample \
+		$(CFLAGS) tests/testresample.c \
+		libresample.a $(LIBS)
+
+tests/compareresample: libresample.a tests/compareresample.c
+	$(CC) -o tests/compareresample \
+		$(CFLAGS) tests/compareresample.c \
+		libresample.a -lsamplerate $(LIBS)
+
+tests/resample-sndfile: libresample.a tests/resample-sndfile.c
+	$(CC) -o tests/resample-sndfile \
+		$(CFLAGS) tests/resample-sndfile.c \
+		libresample.a -lsndfile $(LIBS)
+
+clean:
+	rm -f $(TARGETS) $(OBJS)
+
+distclean: clean
+	rm -f Makefile
+	rm -f config.status config.cache config.log src/config.h
+	rm -f *~ src/*~ tests/*~ include/*~
+
+%.c.o: %.c Makefile include/libresample.h \
+	src/resample_defs.h src/filterkit.h src/config.h
+	$(CC) -c $(CFLAGS) $< -o $@

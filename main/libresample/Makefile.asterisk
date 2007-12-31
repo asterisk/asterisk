@@ -1,0 +1,11 @@
+include $(ASTTOPDIR)/Makefile.moddir_rules
+
+ASTCFLAGS+= -Isrc -Iinclude
+
+libresample.a: src/resample.o src/resamplesubs.o src/filterkit.o
+	$(ECHO_PREFIX) echo "   [AR] $^ -> $@"
+	$(CMD_PREFIX) $(AR) cr $@ $^
+	$(CMD_PREFIX) $(RANLIB) $@
+
+clean::
+	rm -f src/*.o libresample.a
