@@ -541,6 +541,12 @@
 /* Define to indicate the ${POPT_DESCRIP} library version */
 #undef HAVE_POPT_VERSION
 
+/* Define this to indicate the ${PORTAUDIO_DESCRIP} library */
+#undef HAVE_PORTAUDIO
+
+/* Define to indicate the ${PORTAUDIO_DESCRIP} library version */
+#undef HAVE_PORTAUDIO_VERSION
+
 /* Define this to indicate the ${POW_DESCRIP} library */
 #undef HAVE_POW
 
