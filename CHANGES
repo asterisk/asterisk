@@ -58,6 +58,8 @@ Dialplan functions
   * Added EXTENSION_STATE() dialplan function which allows retrieving the state
     of any extension.
   * Added SYSINFO() dialplan function which allows retrieval of system information
+  * Added a new dialplan function, DIALPLAN_EXISTS(), which allows you to check for
+     the existence of a dialplan target.
 
 CLI Changes
 -----------
@@ -136,11 +138,15 @@ MGCP changes
 ------------
   * Added separate settings for media QoS in mgcp.conf
 
-OSS Channel changes
+Console Channel Driver changes
 -------------------
-  * Added experimental support for video send&receive.
-    Requires SDL and ffmpeg/avcodec, plus Video4Linux or X11
-    to act as video source.
+  * Added experimental support for video send & receive to chan_oss.
+    This requires SDL and ffmpeg/avcodec, plus Video4Linux or X11 to act as
+    a video source.
+  * Added a new channel driver, chan_console, which uses portaudio as a cross
+     platform audio interface.  It was written as a channel driver that would
+     work with Mac CoreAudio, but portaudio supports a number of other audio
+     interfaces, as well.
 
 Phone channel changes (chan_phone)
 ----------------------------------
@@ -175,8 +181,8 @@ Zaptel channel driver (chan_zap) Changes
   * Added two new options: mwimonitor and mwimonitornotify.  These options allow
      you to enable MWI monitoring on FXO lines.  When the MWI state changes,
      the script specified in the mwimonitornotify option is executed.  An internal
-	 event indicating the new state of the mailbox is also generated, so that
-	 the normal MWI facilities in Asterisk work as usual.
+     event indicating the new state of the mailbox is also generated, so that
+     the normal MWI facilities in Asterisk work as usual.
 
 A new channel driver: Unistim
 -----------------------------
@@ -324,7 +330,7 @@ Music On Hold Changes
   * Support for realtime music on hold has been added.
   * In conjunction with the realtime music on hold, a general section has
     been added to musiconhold.conf, its sole variable is cachertclasses. If this
-	is set, then music on hold classes found in realtime will be cached in memory.
+    is set, then music on hold classes found in realtime will be cached in memory.
 
 AEL Changes
 -----------
@@ -423,5 +429,3 @@ Miscellaneous
   * A new option when starting a remote asterisk (rasterisk, asterisk -r) for
     specifying which socket to use to connect to the running Asterisk daemon
     (-s)
-  * Added a new dialplan function, DIALPLAN_EXISTS(), which allows you to check for
-     the existence of a dialplan target.

@@ -31,8 +31,9 @@ noload => pbx_kdeconsole.so
 ;
 load => res_musiconhold.so
 ;
-; Load either OSS or ALSA, not both
-; By default, load OSS only (automatically) and do not load ALSA
+; Load one of: chan_oss, alsa, or console (portaudio).
+; By default, load chan_oss only (automatically).
 ;
 noload => chan_alsa.so
 ;noload => chan_oss.so
+;noload => chan_console.so
