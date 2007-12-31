@@ -225,8 +225,9 @@ AST_EXT_LIB_SETUP([UNIXODBC], [unixODBC], [odbc])
 AST_EXT_LIB_SETUP([OGG], [OGG], [ogg])
 AST_EXT_LIB_SETUP([OSPTK], [OSP Toolkit], [osptk])
 AST_EXT_LIB_SETUP([OSS], [Open Sound System], [oss])
-AST_EXT_LIB_SETUP([POPT], [popt], [popt])
 AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
+AST_EXT_LIB_SETUP([POPT], [popt], [popt])
+AST_EXT_LIB_SETUP([PORTAUDIO], [PortAudio], [portaudio])
 AST_EXT_LIB_SETUP([PRI], [ISDN PRI], [pri])
 AST_EXT_LIB_SETUP([SS7], [ISDN SS7], [ss7])
 AST_EXT_LIB_SETUP([PWLIB], [PWlib], [pwlib])
@@ -911,6 +912,8 @@ if test "${PG_CONFIG}" != No; then
 fi
 
 AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
+
+AST_EXT_LIB_CHECK([PORTAUDIO], [portaudio], [Pa_GetDeviceCount], [portaudio.h])
 
 AST_EXT_LIB_CHECK([PRI], [pri], [pri_new_bri], [libpri.h])
 
