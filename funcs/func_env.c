@@ -73,7 +73,7 @@ static int stat_read(struct ast_channel *chan, const char *cmd, char *data,
 
 	action = strsep(&data, ",");
 	if (stat(data, &s)) {
-		return -1;
+		return 0;
 	} else {
 		switch (*action) {
 		case 'e':
