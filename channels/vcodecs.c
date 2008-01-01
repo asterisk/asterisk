@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright 2007, Sergio Fadda, Luigi Rizzo
+ * Copyright 2007-2008, Sergio Fadda, Luigi Rizzo
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -1168,6 +1168,8 @@ static struct video_dec_desc *dec_uninit(struct video_dec_desc *v)
 {
 	int i;
 
+	if (v == NULL)		/* not initialized yet */
+		return NULL;
 	if (v->parser) {
 		av_parser_close(v->parser);
 		v->parser = NULL;
