@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright 2007, Marta Carbone, Sergio Fadda, Luigi Rizzo
+ * Copyright 2007-2008, Marta Carbone, Sergio Fadda, Luigi Rizzo
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -328,7 +328,6 @@ static int video_out_uninit(struct video_desc *env)
 	fbuf_free(&env->enc_in);
 	fbuf_free(&v->enc_out);
 	/* close the grabber */
-	sleep(1);
 	if (v->grabber) {
 		v->grabber_data = v->grabber->close(v->grabber_data);
 		v->grabber = NULL;
