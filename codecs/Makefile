@@ -56,4 +56,6 @@ $(LIBG722):
 $(if $(filter codec_g722,$(EMBEDDED_MODS)),modules.link,codec_g722.so): $(LIBG722)
 
 codec_resample.o: ASTCFLAGS+=-I$(ASTTOPDIR)/main/libresample/include
-codec_resample.so: LIBS += $(ASTTOPDIR)/main/libresample/libresample.a
+ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
+  codec_resample.so: LIBS += $(ASTTOPDIR)/main/libresample/libresample.a
+endif
