@@ -29,7 +29,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* These are for SHRT_MAX and FLT_MAX -- { */
-#if defined(__Darwin__) || defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) 
+#if defined(__Darwin__) || defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__CYGWIN__)
 #include <float.h>
 #else
 #include <values.h>
