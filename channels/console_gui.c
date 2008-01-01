@@ -4,7 +4,6 @@
  * $Revision$
  */
 
-
 #include "asterisk.h"
 #include "console_video.h"
 #include "asterisk/lock.h"
@@ -423,7 +422,7 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 		keypad_pick_up(env);
 		break;
 	case KEY_HANG_UP:
-		keypad_send_command(env, "console hangup");
+		ast_cli_command(gui->outfd, "console hangup");
 		break;
 
 	/* other functions */
