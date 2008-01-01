@@ -756,6 +756,10 @@ GTK2_LIB
 GTK2_INCLUDE
 GTK2_DIR
 PBX_GTK2
+ICONV_LIB
+ICONV_INCLUDE
+ICONV_DIR
+PBX_ICONV
 IKSEMEL_LIB
 IKSEMEL_INCLUDE
 IKSEMEL_DIR
@@ -1568,6 +1572,7 @@ Optional Packages:
                           'internal' GSM otherwise
   --with-gtk=PATH         use gtk libraries files in PATH
   --with-gtk2=PATH        use gtk2 libraries files in PATH
+  --with-iconv=PATH       use Iconv Library files in PATH
   --with-iksemel=PATH     use Iksemel Jabber Library files in PATH
   --with-imap=PATH        use UW IMAP Toolkit files in PATH
   --with-isdnnet=PATH     use ISDN4Linux Library files in PATH
@@ -8126,6 +8131,34 @@ fi
 
 
 
+    ICONV_DESCRIP="Iconv Library"
+    ICONV_OPTION="iconv"
+
+# Check whether --with-iconv was given.
+if test "${with_iconv+set}" = set; then
+  withval=$with_iconv;
+	case ${withval} in
+	n|no)
+	USE_ICONV=no
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} ICONV"
+	;;
+	*)
+	ICONV_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} ICONV"
+	;;
+	esac
+
+fi
+
+    PBX_ICONV=0
+
+
+
+
+
+
     IKSEMEL_DESCRIP="Iksemel Jabber Library"
     IKSEMEL_OPTION="iksemel"
 
@@ -12732,13 +12765,11 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-#include <sys/types.h> /* for off_t */
-     #include <stdio.h>
+#include <stdio.h>
 int
 main ()
 {
-int (*fp) (FILE *, off_t, int) = fseeko;
-     return fseeko (stdin, 0, 0) && fp (stdin, 0, 0);
+return fseeko (stdin, 0, 0) && (fseeko) (stdin, 0, 0);
   ;
   return 0;
 }
@@ -12778,13 +12809,11 @@ cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
 #define _LARGEFILE_SOURCE 1
-#include <sys/types.h> /* for off_t */
-     #include <stdio.h>
+#include <stdio.h>
 int
 main ()
 {
-int (*fp) (FILE *, off_t, int) = fseeko;
-     return fseeko (stdin, 0, 0) && fp (stdin, 0, 0);
+return fseeko (stdin, 0, 0) && (fseeko) (stdin, 0, 0);
   ;
   return 0;
 }
@@ -31716,6 +31745,268 @@ _ACEOF
 fi
 
 
+if test "x${PBX_ICONV}" != "x1" -a "${USE_ICONV}" != "no"; then
+   pbxlibdir=""
+   # if --with-ICONV=DIR has been specified, use it.
+   if test "x${ICONV_DIR}" != "x"; then
+      if test -d ${ICONV_DIR}/lib; then
+      	 pbxlibdir="-L${ICONV_DIR}/lib"
+      else
+      	 pbxlibdir="-L${ICONV_DIR}"
+      fi
+   fi
+   pbxfuncname="libiconv"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_ICONV_FOUND=yes
+   else
+      as_ac_Lib=`echo "ac_cv_lib_iconv_${pbxfuncname}" | $as_tr_sh`
+{ echo "$as_me:$LINENO: checking for ${pbxfuncname} in -liconv" >&5
+echo $ECHO_N "checking for ${pbxfuncname} in -liconv... $ECHO_C" >&6; }
+if { as_var=$as_ac_Lib; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-liconv ${pbxlibdir}  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  eval "$as_ac_Lib=yes"
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	eval "$as_ac_Lib=no"
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+ac_res=`eval echo '${'$as_ac_Lib'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+if test `eval echo '${'$as_ac_Lib'}'` = yes; then
+  AST_ICONV_FOUND=yes
+else
+  AST_ICONV_FOUND=no
+fi
+
+   fi
+
+   # now check for the header.
+   if test "${AST_ICONV_FOUND}" = "yes"; then
+      ICONV_LIB="${pbxlibdir} -liconv "
+      # if --with-ICONV=DIR has been specified, use it.
+      if test "x${ICONV_DIR}" != "x"; then
+	 ICONV_INCLUDE="-I${ICONV_DIR}/include"
+      fi
+      ICONV_INCLUDE="${ICONV_INCLUDE} "
+      if test "xiconv.h" = "x" ; then	# no header, assume found
+         ICONV_HEADER_FOUND="1"
+      else				# check for the header
+         saved_cppflags="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${ICONV_INCLUDE} "
+	 if test "${ac_cv_header_iconv_h+set}" = set; then
+  { echo "$as_me:$LINENO: checking for iconv.h" >&5
+echo $ECHO_N "checking for iconv.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_iconv_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_iconv_h" >&5
+echo "${ECHO_T}$ac_cv_header_iconv_h" >&6; }
+else
+  # Is the header compilable?
+{ echo "$as_me:$LINENO: checking iconv.h usability" >&5
+echo $ECHO_N "checking iconv.h usability... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <iconv.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_header_compiler=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6; }
+
+# Is the header present?
+{ echo "$as_me:$LINENO: checking iconv.h presence" >&5
+echo $ECHO_N "checking iconv.h presence... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <iconv.h>
+_ACEOF
+if { (ac_try="$ac_cpp conftest.$ac_ext"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null && {
+	 test -z "$ac_c_preproc_warn_flag$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       }; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+
+rm -f conftest.err conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6; }
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: iconv.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: iconv.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: iconv.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: iconv.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: iconv.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: iconv.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: iconv.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: iconv.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: iconv.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: iconv.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: iconv.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: iconv.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: iconv.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: iconv.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: iconv.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: iconv.h: in the future, the compiler will take precedence" >&2;}
+    ( cat <<\_ASBOX
+## ------------------------------- ##
+## Report this to www.asterisk.org ##
+## ------------------------------- ##
+_ASBOX
+     ) | sed "s/^/$as_me: WARNING:     /" >&2
+    ;;
+esac
+{ echo "$as_me:$LINENO: checking for iconv.h" >&5
+echo $ECHO_N "checking for iconv.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_iconv_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_iconv_h=$ac_header_preproc
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_iconv_h" >&5
+echo "${ECHO_T}$ac_cv_header_iconv_h" >&6; }
+
+fi
+if test $ac_cv_header_iconv_h = yes; then
+  ICONV_HEADER_FOUND=1
+else
+  ICONV_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${saved_cppflags}"
+      fi
+      if test "x${ICONV_HEADER_FOUND}" = "x0" ; then
+         ICONV_LIB=""
+         ICONV_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+	    ICONV_LIB=""
+	 fi
+         PBX_ICONV=1
+         # XXX don't know how to evaluate the description (third argument) in AC_DEFINE_UNQUOTED
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ICONV 1
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ICONV_VERSION
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
 if test "x${PBX_IKSEMEL}" != "x1" -a "${USE_IKSEMEL}" != "no"; then
    pbxlibdir=""
    # if --with-IKSEMEL=DIR has been specified, use it.
@@ -48523,6 +48814,10 @@ GTK2_LIB!$GTK2_LIB$ac_delim
 GTK2_INCLUDE!$GTK2_INCLUDE$ac_delim
 GTK2_DIR!$GTK2_DIR$ac_delim
 PBX_GTK2!$PBX_GTK2$ac_delim
+ICONV_LIB!$ICONV_LIB$ac_delim
+ICONV_INCLUDE!$ICONV_INCLUDE$ac_delim
+ICONV_DIR!$ICONV_DIR$ac_delim
+PBX_ICONV!$PBX_ICONV$ac_delim
 IKSEMEL_LIB!$IKSEMEL_LIB$ac_delim
 IKSEMEL_INCLUDE!$IKSEMEL_INCLUDE$ac_delim
 IKSEMEL_DIR!$IKSEMEL_DIR$ac_delim
@@ -48577,10 +48872,6 @@ OGG_DIR!$OGG_DIR$ac_delim
 PBX_OGG!$PBX_OGG$ac_delim
 OSPTK_LIB!$OSPTK_LIB$ac_delim
 OSPTK_INCLUDE!$OSPTK_INCLUDE$ac_delim
-OSPTK_DIR!$OSPTK_DIR$ac_delim
-PBX_OSPTK!$PBX_OSPTK$ac_delim
-OSS_LIB!$OSS_LIB$ac_delim
-OSS_INCLUDE!$OSS_INCLUDE$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -48622,6 +48913,10 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+OSPTK_DIR!$OSPTK_DIR$ac_delim
+PBX_OSPTK!$PBX_OSPTK$ac_delim
+OSS_LIB!$OSS_LIB$ac_delim
+OSS_INCLUDE!$OSS_INCLUDE$ac_delim
 OSS_DIR!$OSS_DIR$ac_delim
 PBX_OSS!$PBX_OSS$ac_delim
 PGSQL_LIB!$PGSQL_LIB$ac_delim
@@ -48715,10 +49010,6 @@ PBX_X11!$PBX_X11$ac_delim
 ZLIB_LIB!$ZLIB_LIB$ac_delim
 ZLIB_INCLUDE!$ZLIB_INCLUDE$ac_delim
 ZLIB_DIR!$ZLIB_DIR$ac_delim
-PBX_ZLIB!$PBX_ZLIB$ac_delim
-ZAPTEL_LIB!$ZAPTEL_LIB$ac_delim
-ZAPTEL_INCLUDE!$ZAPTEL_INCLUDE$ac_delim
-ZAPTEL_DIR!$ZAPTEL_DIR$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -48760,6 +49051,10 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+PBX_ZLIB!$PBX_ZLIB$ac_delim
+ZAPTEL_LIB!$ZAPTEL_LIB$ac_delim
+ZAPTEL_INCLUDE!$ZAPTEL_INCLUDE$ac_delim
+ZAPTEL_DIR!$ZAPTEL_DIR$ac_delim
 PBX_ZAPTEL!$PBX_ZAPTEL$ac_delim
 ZAPTEL_TRANSCODE_LIB!$ZAPTEL_TRANSCODE_LIB$ac_delim
 ZAPTEL_TRANSCODE_INCLUDE!$ZAPTEL_TRANSCODE_INCLUDE$ac_delim
@@ -48814,7 +49109,7 @@ CURL_CONFIG!$CURL_CONFIG$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 52; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 56; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

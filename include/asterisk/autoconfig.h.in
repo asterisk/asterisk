@@ -324,6 +324,12 @@
 /* Define if your system has the GTK2 libraries. */
 #undef HAVE_GTK2
 
+/* Define this to indicate the ${ICONV_DESCRIP} library */
+#undef HAVE_ICONV
+
+/* Define to indicate the ${ICONV_DESCRIP} library version */
+#undef HAVE_ICONV_VERSION
+
 /* Define this to indicate the ${IKSEMEL_DESCRIP} library */
 #undef HAVE_IKSEMEL
 

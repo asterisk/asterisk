@@ -210,6 +210,7 @@ AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography support], [crypto])
 AST_EXT_LIB_SETUP([GSM], [External GSM library], [gsm], [, use 'internal' GSM otherwise])
 AST_EXT_LIB_SETUP([GTK], [gtk libraries], [gtk])
 AST_EXT_LIB_SETUP([GTK2], [gtk2 libraries], [gtk2])
+AST_EXT_LIB_SETUP([ICONV], [Iconv Library], [iconv])
 AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber Library], [iksemel])
 AST_EXT_LIB_SETUP([IMAP_TK], [UW IMAP Toolkit], [imap])
 AST_EXT_LIB_SETUP([ISDNNET], [ISDN4Linux Library], [isdnnet])
@@ -616,6 +617,8 @@ if test "${USE_GSM}" != "no"; then
       AC_DEFINE_UNQUOTED([HAVE_GSM_HEADER], 1, [Define to indicate that gsm.h has no prefix for its location])
    fi
 fi
+
+AST_EXT_LIB_CHECK([ICONV], [iconv], [libiconv], [iconv.h])
 
 AST_EXT_LIB_CHECK([IKSEMEL], [iksemel], [iks_start_sasl], [iksemel.h])
 
