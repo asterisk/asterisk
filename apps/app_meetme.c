@@ -2696,7 +2696,7 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		char useropts[32] = "";
 		char adminopts[32] = "";
 		struct ast_tm tm, etm;
-		struct timeval starttime = { .tv_sec=0 }, endtime = { .tv_sec=0 };
+		struct timeval starttime = { .tv_sec = 0 }, endtime = { .tv_sec = 0 };
 
 		if (rt_schedule) {
 			now = ast_tvnow();
