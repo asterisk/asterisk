@@ -281,7 +281,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		runningdata[0] = '\0';
 
 		/* What application will execute? */
-		if (ast_lock_contexts()) {
+		if (ast_rdlock_contexts()) {
 			ast_log(LOG_WARNING, "Failed to lock contexts list\n");
 		} else {
 			for (c = ast_walk_contexts(NULL), e = NULL; c; c = ast_walk_contexts(c)) {
