@@ -618,7 +618,11 @@ if test "${USE_GSM}" != "no"; then
    fi
 fi
 
-AST_EXT_LIB_CHECK([ICONV], [iconv], [libiconv], [iconv.h])
+if test "${host_os}" != "linux-gnu" ; then
+  AST_EXT_LIB_CHECK([ICONV], [iconv], [iconv_open], [iconv.h])
+else
+  PBX_ICONV=1
+fi
 
 AST_EXT_LIB_CHECK([IKSEMEL], [iksemel], [iks_start_sasl], [iksemel.h])
 
