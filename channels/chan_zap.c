@@ -11858,16 +11858,14 @@ static char *zap_show_version(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	return CLI_SUCCESS;
 }
 
-#ifdef HAVE_ZAPTEL_HWGAIN
+#if defined(HAVE_ZAPTEL_HWGAIN)
 static char *zap_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int channel;
 	int gain;
 	int tx;
 	struct zt_hwgain hwgain;
-	ast_mutex_t *lock;
 	struct zt_pvt *tmp = NULL;
-
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -11885,8 +11883,6 @@ static char *zap_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return NULL;	
 	}
 
-	lock = &iflock;
-
 	if (a->argc != 6)
 		return CLI_SHOWUSAGE;
 	
@@ -11900,7 +11896,8 @@ static char *zap_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	channel = atoi(a->argv[4]);
 	gain = atof(a->argv[5])*10.0;
 
-	ast_mutex_lock(lock);
+	ast_mutex_lock(&iflock);
+
 	for (tmp = iflist; tmp; tmp = tmp->next) {
 
 		if (tmp->channel != channel)
@@ -11913,14 +11910,15 @@ static char *zap_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		hwgain.tx = tx;
 		if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_HWGAIN, &hwgain) < 0) {
 			ast_cli(a->fd, "Unable to set the hardware gain for channel %d\n", channel);
-			ast_mutex_unlock(lock);
+			ast_mutex_unlock(&iflock);
 			return CLI_FAILURE;
 		}
 		ast_cli(a->fd, "hardware %s gain set to %d (%.1f dB) on channel %d\n",
 			tx ? "tx" : "rx", gain, (float)gain/10.0, channel);
 		break;
 	}
-	ast_mutex_unlock(lock);
+
+	ast_mutex_unlock(&iflock);
 
 	if (tmp)
 		return CLI_SUCCESS;
@@ -12013,10 +12011,10 @@ static struct ast_cli_entry zap_cli[] = {
 	AST_CLI_DEFINE(zap_restart_cmd, "Fully restart zaptel channels"),
 	AST_CLI_DEFINE(zap_show_status, "Show all Zaptel cards status"),
 	AST_CLI_DEFINE(zap_show_version, "Show the Zaptel version in use"),
-#ifdef HAVE_ZAPTEL_HWGAIN
-	AST_CLI_DEFINE(zap_set_hwgain, "Set hardware gains at the port driver"),
+#if defined(HAVE_ZAPTEL_HWGAIN)
+	AST_CLI_DEFINE(zap_set_hwgain, "Set hardware gain on a channel"),
 #endif
-	AST_CLI_DEFINE(zap_set_swgain, "Set software gain table values"),
+	AST_CLI_DEFINE(zap_set_swgain, "Set software gain on a channel"),
 };
 
 #define TRANSFER	0
