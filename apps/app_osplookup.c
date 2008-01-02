@@ -1938,7 +1938,7 @@ static char *handle_cli_osp_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 static const char* app1= "OSPAuth";
 static const char* synopsis1 = "OSP authentication";
 static const char* descrip1 =
-"  OSPAuth([provider[|options]]):  Authenticate a SIP INVITE by OSP and sets\n"
+"  OSPAuth([provider[,options]]):  Authenticate a SIP INVITE by OSP and sets\n"
 "the variables:\n"
 " ${OSPINHANDLE}:  The inbound call transaction handle\n"
 " ${OSPINTIMELIMIT}:  The inbound call duration limit in seconds\n"
@@ -1950,7 +1950,7 @@ static const char* descrip1 =
 static const char* app2= "OSPLookup";
 static const char* synopsis2 = "Lookup destination by OSP";
 static const char* descrip2 =
-"  OSPLookup(exten[|provider[|options]]):  Looks up an extension via OSP and sets\n"
+"  OSPLookup(exten[,provider[,options]]):  Looks up an extension via OSP and sets\n"
 "the variables, where 'n' is the number of the result beginning with 1:\n"
 " ${OSPOUTHANDLE}:  The OSP Handle for anything remaining\n"
 " ${OSPTECH}:  The technology to use for the call\n"
@@ -1975,7 +1975,7 @@ static const char* descrip2 =
 static const char* app3 = "OSPNext";
 static const char* synopsis3 = "Lookup next destination by OSP";
 static const char* descrip3 =
-"  OSPNext(cause[|provider[|options]]):  Looks up the next OSP Destination for ${OSPOUTHANDLE}\n"
+"  OSPNext(cause[,provider[,options]]):  Looks up the next OSP Destination for ${OSPOUTHANDLE}\n"
 "See OSPLookup for more information\n"
 "\n"
 "This application sets the following channel variable upon completion:\n"
@@ -1985,7 +1985,7 @@ static const char* descrip3 =
 static const char* app4 = "OSPFinish";
 static const char* synopsis4 = "Record OSP entry";
 static const char* descrip4 =
-"  OSPFinish([status[|options]]):  Records call state for ${OSPINHANDLE}, according to\n"
+"  OSPFinish([status[,options]]):  Records call state for ${OSPINHANDLE}, according to\n"
 "status, which should be one of BUSY, CONGESTION, ANSWER, NOANSWER, or CHANUNAVAIL\n"
 "or coincidentally, just what the Dial application stores in its ${DIALSTATUS}.\n"
 "\n"
