@@ -2256,8 +2256,13 @@ static int aji_client_connect(void *data, ikspak *pak)
  */
 static int aji_initialize(struct aji_client *client)
 {
+	int connected = IKS_NET_NOCONN;
+	
+	/* reset stream flags */
+	client->stream_flags = 0;
+
 	/* If it's a component, connect to user, otherwise, connect to server */
-	int connected = iks_connect_via(client->p, S_OR(client->serverhost, client->jid->server), client->port, client->component ? client->user : client->jid->server);
+	connected = iks_connect_via(client->p, S_OR(client->serverhost, client->jid->server), client->port, client->component ? client->user : client->jid->server);
 
 	if (connected == IKS_NET_NOCONN) {
 		ast_log(LOG_ERROR, "JABBER ERROR: No Connection\n");
