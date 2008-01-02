@@ -42,7 +42,6 @@
  * - transfer CLI command
  * - boost CLI command and .conf option
  * - console_video support
- * - Add ringing sound on incoming calls
  */
 
 /*** MODULEINFO
@@ -466,18 +465,19 @@ static int console_call(struct ast_channel *c, char *dest, int timeout)
 	console_pvt_lock(pvt);
 
 	if (pvt->autoanswer) {
-		ast_verb(1, V_BEGIN "Auto-answered" V_END);
 		pvt->hookstate = 1;
+		console_pvt_unlock(pvt);
+		ast_verb(1, V_BEGIN "Auto-answered" V_END);
 		f.frametype = AST_FRAME_CONTROL;
 		f.subclass = AST_CONTROL_ANSWER;
 	} else {
+		console_pvt_unlock(pvt);
 		ast_verb(1, V_BEGIN "Type 'console answer' to answer, or use the 'autoanswer' option "
 				"for future calls" V_END);
 		f.frametype = AST_FRAME_CONTROL;
 		f.subclass = AST_CONTROL_RINGING;
+		ast_indicate(c, AST_CONTROL_RINGING);
 	}
-
-	console_pvt_unlock(pvt);
 
 	ast_queue_frame(c, &f);
 
@@ -502,12 +502,12 @@ static int console_indicate(struct ast_channel *chan, int cond, const void *data
 	case AST_CONTROL_BUSY:
 	case AST_CONTROL_CONGESTION:
 	case AST_CONTROL_RINGING:
+	case -1:
 		res = -1;  /* Ask for inband indications */
 		break;
 	case AST_CONTROL_PROGRESS:
 	case AST_CONTROL_PROCEEDING:
 	case AST_CONTROL_VIDUPDATE:
-	case -1:
 		break;
 	case AST_CONTROL_HOLD:
 		ast_verb(1, V_BEGIN "Console Has Been Placed on Hold" V_END);
@@ -835,6 +835,9 @@ static char *cli_console_answer(struct ast_cli_entry *e, int cmd, struct ast_cli
 	}
 
 	pvt->hookstate = 1;
+
+	ast_indicate(pvt->owner, -1);
+
 	ast_queue_frame(pvt->owner, &f);
 
 	return CLI_SUCCESS;
