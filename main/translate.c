@@ -485,7 +485,7 @@ static void rebuild_matrix(int samples)
 
 static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define SHOW_TRANS 13
+#define SHOW_TRANS 16
 	int x, y, z;
 	int curlen = 0, longest = 0;
 
