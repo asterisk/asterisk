@@ -12819,6 +12819,60 @@ static int build_channels(struct zt_chan_conf conf, int iscrv, const char *value
 /** The length of the parameters list of 'zapchan'. 
  * \todo Move definition of MAX_CHANLIST_LEN to a proper place. */
 #define MAX_CHANLIST_LEN 80
+
+#if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
+static void process_echocancel(struct zt_chan_conf *confp, const char *data, unsigned int line)
+{
+	char *parse = ast_strdupa(data);
+	char *params[ZT_MAX_ECHOCANPARAMS + 1];
+	unsigned int param_count;
+	unsigned int x;
+
+	if (!(param_count = ast_app_separate_args(parse, ',', params, sizeof(params) / sizeof(params[0]))))
+		return;
+
+	memset(&confp->chan.echocancel, 0, sizeof(confp->chan.echocancel));
+
+	/* first parameter is tap length, process it here */
+
+	x = ast_strlen_zero(params[0]) ? 0 : atoi(params[0]);
+	
+	if ((x == 32) || (x == 64) || (x == 128) || (x == 256) || (x == 512) || (x == 1024))
+		confp->chan.echocancel.head.tap_length = x;
+	else if ((confp->chan.echocancel.head.tap_length = ast_true(params[0])))
+		confp->chan.echocancel.head.tap_length = 128;
+
+	/* now process any remaining parameters */
+
+	for (x = 1; x < param_count; x++) {
+		struct {
+			char *name;
+			char *value;
+		} param;
+
+		if (ast_app_separate_args(params[x], '=', (char **) &param, 2) < 1) {
+			ast_log(LOG_WARNING, "Invalid echocancel parameter supplied at line %d: '%s'\n", line, params[x]);
+			continue;
+		}
+
+		if (ast_strlen_zero(param.name) || (strlen(param.name) > sizeof(confp->chan.echocancel.params[0].name)-1)) {
+			ast_log(LOG_WARNING, "Invalid echocancel parameter supplied at line %d: '%s'\n", line, param.name);
+			continue;
+		}
+
+		strcpy(confp->chan.echocancel.params[confp->chan.echocancel.head.param_count].name, param.name);
+
+		if (param.value) {
+			if (sscanf(param.value, "%ud", &confp->chan.echocancel.params[confp->chan.echocancel.head.param_count].value) != 1) {
+				ast_log(LOG_WARNING, "Invalid echocancel parameter value supplied at line %d: '%s'\n", line, param.value);
+				continue;
+			}
+		}
+		confp->chan.echocancel.head.param_count++;
+	}
+}
+#endif /* defined(HAVE_ZAPTEL_ECHOCANPARAMS) */
+
 static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int reload, int skipchannels)
 {
 	struct zt_pvt *tmp;
@@ -12948,17 +13002,15 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				confp->chan.callprogress |= CALLPROGRESS_FAX_INCOMING | CALLPROGRESS_FAX_OUTGOING;
 		} else if (!strcasecmp(v->name, "echocancel")) {
 #if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
-			unsigned int *ec = &confp->chan.echocancel.head.tap_length;
+			process_echocancel(confp, v->value, v->lineno);
 #else
-			int *ec = &confp->chan.echocancel;
-#endif
-
 			y = ast_strlen_zero(v->value) ? 0 : atoi(v->value);
 
 			if ((y == 32) || (y == 64) || (y == 128) || (y == 256) || (y == 512) || (y == 1024))
-				*ec = y;
-			else if ((*ec = ast_true(v->value)))
-				*ec = 128;
+				confp->chan.echocancel = y;
+			else if ((confp->chan.echocancel = ast_true(v->value)))
+				confp->chan.echocancel = 128;
+#endif
 		} else if (!strcasecmp(v->name, "echotraining")) {
 			if (sscanf(v->value, "%d", &y) == 1) {
 				if ((y < 10) || (y > 4000)) {
