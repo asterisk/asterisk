@@ -55,4 +55,4 @@ $(LIBG722):
 
 $(if $(filter codec_g722,$(EMBEDDED_MODS)),modules.link,codec_g722.so): $(LIBG722)
 
-codec_resample.o: ASTCFLAGS+=-I$(ASTTOPDIR)/res/libresample/include
+codec_resample.o: ASTCFLAGS+=-I$(ASTTOPDIR)/main/libresample/include

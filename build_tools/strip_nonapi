@@ -14,8 +14,9 @@
 #	__ast_
 #	astman_
 #	pbx_
+#	resample_
 
-FILTER="${GREP} -v -e ^ast_ -e ^_ast_ -e ^__ast_ -e ^astman_ -e ^pbx_"
+FILTER="${GREP} -v -e ^ast_ -e ^_ast_ -e ^__ast_ -e ^astman_ -e ^pbx_ -e ^resample_"
 
 case "${OSARCH}" in
     linux-gnu|FreeBSD)

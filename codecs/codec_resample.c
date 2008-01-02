@@ -24,10 +24,6 @@
  * \ingroup codecs
  */
 
-/*** MODULEINFO
-	<depend>res_resample</depend>
- ***/
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
