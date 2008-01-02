@@ -9048,9 +9048,14 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 {
 	char tmp[256] = "", *c, *a;
 	struct sip_request *req = oreq ? oreq : &p->initreq;
-	struct sip_refer *referdata = p->refer;
+	struct sip_refer *referdata = NULL;
 	const char *transfer_context = NULL;
 	
+	if (!p->refer && !sip_refer_allocate(p))
+		return -1;
+
+	referdata = p->refer;
+
 	ast_copy_string(tmp, get_header(req, "Also"), sizeof(tmp));
 	c = get_in_brackets(tmp);
 
