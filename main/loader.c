@@ -348,28 +348,31 @@ static void unload_dynamic_module(struct ast_module *mod)
 
 static struct ast_module *load_dynamic_module(const char *resource_in, unsigned int global_symbols_only)
 {
-	char fn[256] = "";
+	char fn[PATH_MAX] = "";
 	void *lib = NULL;
 	struct ast_module *mod;
-	char *resource = (char *) resource_in;
 	unsigned int wants_global;
+	int space;	/* room needed for the descriptor */
+	int missing_so = 0;
 
-	if (strcasecmp(resource + strlen(resource) - 3, ".so")) {
-		resource = alloca(strlen(resource_in) + 3);
-	        strcpy(resource, resource_in);
-		strcat(resource, ".so");
+	space = sizeof(*resource_being_loaded) + strlen(resource_in) + 1;
+	if (strcasecmp(resource_in + strlen(resource_in) - 3, ".so")) {
+		missing_so = 1;
+		space += 3;	/* room for the extra ".so" */
 	}
 
-	snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_MODULE_DIR, resource);
+	snprintf(fn, sizeof(fn), "%s/%s%s", ast_config_AST_MODULE_DIR, resource_in, missing_so ? ".so" : "");
 
 	/* make a first load of the module in 'quiet' mode... don't try to resolve
 	   any symbols, and don't export any symbols. this will allow us to peek into
 	   the module's info block (if available) to see what flags it has set */
 
-	if (!(resource_being_loaded = ast_calloc(1, sizeof(*resource_being_loaded) + strlen(resource) + 1)))
+	resource_being_loaded = ast_calloc(1, space);
+	if (!resource_being_loaded)
 		return NULL;
-
-	strcpy(resource_being_loaded->resource, resource);
+	strcpy(resource_being_loaded->resource, resource_in);
+	if (missing_so)
+		strcat(resource_being_loaded->resource, ".so");
 
 	if (!(lib = dlopen(fn, RTLD_LAZY | RTLD_LOCAL))) {
 		ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
@@ -418,11 +421,12 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	resource_being_loaded = NULL;
 
 	/* start the load process again */
-
-	if (!(resource_being_loaded = ast_calloc(1, sizeof(*resource_being_loaded) + strlen(resource) + 1)))
+	resource_being_loaded = ast_calloc(1, space);
+	if (!resource_being_loaded)
 		return NULL;
-
-	strcpy(resource_being_loaded->resource, resource);
+	strcpy(resource_being_loaded->resource, resource_in);
+	if (missing_so)
+		strcat(resource_being_loaded->resource, ".so");
 
 	if (!(lib = dlopen(fn, wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL))) {
 		ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
@@ -512,7 +516,7 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 
 	AST_LIST_UNLOCK(&module_list);
 
-	if (!error && !mod->lib)
+	if (!error && !mod->lib && mod->info && mod->info->restore_globals)
 		mod->info->restore_globals();
 
 #ifdef LOADABLE_MODULES
