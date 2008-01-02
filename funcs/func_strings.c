@@ -379,7 +379,7 @@ static int hash_read(struct ast_channel *chan, const char *cmd, char *data, char
 		hashkeys_read(chan, "HASHKEYS", arg.hashname, colnames, sizeof(colnames));
 		pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", colnames);
 
-		AST_NONSTANDARD_APP_ARGS(arg2, colnames, ',');
+		AST_STANDARD_APP_ARGS(arg2, colnames);
 		*buf = '\0';
 
 		/* Now get the corresponding column values, in exactly the same order */

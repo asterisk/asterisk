@@ -968,7 +968,7 @@ static void load_rpt_vars(int n, int init)
 			ast_copy_string(rpt_vars[n].p.tonezone, var->value, sizeof(rpt_vars[n].p.tonezone));
 		} else if (!strcmp(var->name, "tailmessagelist")) {
 			rpt_vars[n].p.tailmsgbuf = ast_strdup(var->value);
-			AST_NONSTANDARD_APP_ARGS(rpt_vars[n].p.tailmsg, rpt_vars[n].p.tailmsgbuf, ',');
+			AST_STANDARD_APP_ARGS(rpt_vars[n].p.tailmsg, rpt_vars[n].p.tailmsgbuf);
 		} else if (!strcmp(var->name, "memory")) {
 			ast_copy_string(rpt_vars[n].p.memory, var->value, sizeof(rpt_vars[n].p.memory));
 		} else if (!strcmp(var->name, "macro")) {
@@ -1005,7 +1005,7 @@ static void load_rpt_vars(int n, int init)
 #ifdef	__RPT_NOTCH
 		} else if (!strcmp(var->name, "rxnotch")) {
 			char *tmp = ast_strdupa(val);
-			AST_NONSTANDARD_APP_ARGS(strs, tmp, ',');
+			AST_STANDARD_APP_ARGS(strs, tmp);
 			strs.argc &= ~1; /* force an even number, rounded down */
 			if (strs.argc >= 2) {
 				for (j = 0; j < strs.argc; j += 2) {
@@ -2881,7 +2881,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			break;
 		}
 		s = ast_strdupa(val);
-		AST_NONSTANDARD_APP_ARGS(args, s, ',');
+		AST_STANDARD_APP_ARGS(args, s);
 		rpt_mutex_lock(&myrpt->lock);
 		l = myrpt->links.next;
 		/* try to find this one in queue */
@@ -2989,7 +2989,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			break;
 		}
 		s = ast_strdupa(val);
-		AST_NONSTANDARD_APP_ARGS(args, s, ',');
+		AST_STANDARD_APP_ARGS(args, s);
 		rpt_mutex_lock(&myrpt->lock);
 		l = myrpt->links.next;
 		/* try to find this one in queue */
@@ -3176,7 +3176,7 @@ static int function_autopatchup(struct rpt *myrpt, char *param, char *digitbuf, 
 		if (param) {
 			/* Process parameter list */
 			char *tmp = ast_strdupa(param);
-			AST_NONSTANDARD_APP_ARGS(params, tmp, ',');
+			AST_STANDARD_APP_ARGS(params, tmp);
 			for (i = 0; i < params.argc; i++) {
 				index = matchkeyword(params.list[i], &value, keywords);
 				if (value)
@@ -3461,7 +3461,7 @@ static int collect_function_digits(struct rpt *myrpt, char *digits, int command_
 
 	/* Found a match, retrieve value part and parse */
 	stringp = ast_strdupa(vp->value);
-	AST_NONSTANDARD_APP_ARGS(args, stringp, ',');
+	AST_STANDARD_APP_ARGS(args, stringp);
 
 	ast_debug(1, "@@@@ action: %s, param = %s\n", args.action, S_OR(args.param, "(null)"));
 	/* Look up the action */
@@ -4677,7 +4677,7 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 			return DC_COMPLETE;
 		}
 		s = ast_strdupa(val);
-		AST_NONSTANDARD_APP_ARGS(args1, s, ',');
+		AST_STANDARD_APP_ARGS(args1, s);
 		if (args1.argc < 3)
 			return DC_ERROR;
 		ast_copy_string(myrpt->freq, args1.freq, sizeof(myrpt->freq));
@@ -5450,7 +5450,7 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 	remque((struct qelem *) l);
 	rpt_mutex_unlock(&myrpt->lock);
 	s = ast_strdupa(val);
-	AST_NONSTANDARD_APP_ARGS(args, s, ',');
+	AST_STANDARD_APP_ARGS(args, s);
 
 	/* XXX This section doesn't make any sense.  Why not just use args.channel? XXX */
 	snprintf(deststr, sizeof(deststr), "IAX2/%s", args.channel);

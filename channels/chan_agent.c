@@ -275,7 +275,7 @@ static struct agent_pvt *add_agent(const char *agent, int pending)
 	parse = ast_strdupa(agent);
 
 	/* Extract username (agt), password and name from agent (args). */
-	AST_NONSTANDARD_APP_ARGS(args, parse, ',');
+	AST_STANDARD_APP_ARGS(args, parse);
 
 	if(args.argc == 0) {
 		ast_log(LOG_WARNING, "A blank agent line!\n");

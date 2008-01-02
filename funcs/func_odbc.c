@@ -606,7 +606,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		AST_DECLARE_APP_ARGS(write,
 			AST_APP_ARG(dsn)[5];
 		);
-		AST_NONSTANDARD_APP_ARGS(write, tmp2, ',');
+		AST_STANDARD_APP_ARGS(write, tmp2);
 		for (i = 0; i < 5; i++) {
 			if (!ast_strlen_zero(write.dsn[i]))
 				ast_copy_string((*query)->writehandle[i], write.dsn[i], sizeof((*query)->writehandle[i]));
@@ -618,7 +618,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		AST_DECLARE_APP_ARGS(read,
 			AST_APP_ARG(dsn)[5];
 		);
-		AST_NONSTANDARD_APP_ARGS(read, tmp2, ',');
+		AST_STANDARD_APP_ARGS(read, tmp2);
 		for (i = 0; i < 5; i++) {
 			if (!ast_strlen_zero(read.dsn[i]))
 				ast_copy_string((*query)->readhandle[i], read.dsn[i], sizeof((*query)->readhandle[i]));
