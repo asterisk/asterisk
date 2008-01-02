@@ -3644,7 +3644,7 @@ static void dundi_precache_full(void)
 
 	AST_LIST_TRAVERSE(&mappings, cur, list) {
 		ast_log(LOG_NOTICE, "Should precache context '%s'\n", cur->dcontext);
-		ast_lock_contexts();
+		ast_rdlock_contexts();
 		con = ast_walk_contexts(NULL);
 		while (con) {
 			if (!strcasecmp(cur->lcontext, ast_get_context_name(con))) {
