@@ -4904,7 +4904,7 @@ static int reload_queues(int reload)
 						/* Add a new member */
 						ast_copy_string(parse, var->value, sizeof(parse));
 						
-						AST_NONSTANDARD_APP_ARGS(args, parse, ',');
+						AST_STANDARD_APP_ARGS(args, parse);
 
 						interface = args.interface;
 						if (!ast_strlen_zero(args.penalty)) {
