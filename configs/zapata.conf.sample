@@ -436,17 +436,28 @@ callreturn=yes
 ; modules, they take precedence over the software echo canceller compiled
 ; into Zaptel automatically.
 ;
+;
 echocancel=yes
+;
+; As of Zaptel 1.4.8, some Zaptel echo cancellers (software and hardware)
+; support adjustable parameters; these parameters can be supplied as
+; additional options to the 'echocancel' setting. Note that Asterisk
+; does not attempt to validate the parameters or their values, so if you
+; supply an invalid parameter you will not know the specific reason it
+; failed without checking the kernel message log for the error(s)
+; put there by Zaptel.
+;
+;echocancel=128,param1=32,param2=0,param3=14
 ;
 ; Generally, it is not necessary (and in fact undesirable) to echo cancel when
 ; the circuit path is entirely TDM.  You may, however, change this behavior
-; by enabling the echo cancel during pure TDM bridging below.
+; by enabling the echo canceller during pure TDM bridging below.
 ;
 echocancelwhenbridged=yes
 ;
 ; In some cases, the echo canceller doesn't train quickly enough and there
 ; is echo at the beginning of the call.  Enabling echo training will cause
-; asterisk to briefly mute the channel, send an impulse, and use the impulse
+; Zaptel to briefly mute the channel, send an impulse, and use the impulse
 ; response to pre-train the echo canceller so it can start out with a much
 ; closer idea of the actual echo.  Value may be "yes", "no", or a number of
 ; milliseconds to delay before training (default = 400)

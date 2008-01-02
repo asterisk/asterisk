@@ -632,7 +632,14 @@ static struct zt_pvt {
 	int stripmsd;
 	int callwaitcas;
 	int callwaitrings;
+#if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
+	struct {
+		struct zt_echocanparams head;
+		struct zt_echocanparam params[ZT_MAX_ECHOCANPARAMS];
+	} echocancel;
+#else
 	int echocancel;
+#endif
 	int echotraining;
 	char echorest[20];
 	int busycount;
@@ -776,7 +783,11 @@ static struct zt_chan_conf zt_chan_conf_default(void) {
 
 			.tonezone = -1,
 
+#if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
+			.echocancel.head.tap_length = 1,
+#else
 			.echocancel = 1,
+#endif
 
 			.busycount = 3,
 
@@ -1627,18 +1638,26 @@ static void zt_enable_ec(struct zt_pvt *p)
 		ast_debug(1, "Echo cancellation isn't required on digital connection\n");
 		return;
 	}
+#if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
+	if (p->echocancel.head.tap_length) {
+#else
 	if (p->echocancel) {
+#endif
 		if ((p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP) || (p->sig == SIG_PRI) || (p->sig == SIG_SS7)) {
 			x = 1;
 			res = ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &x);
 			if (res)
-				ast_log(LOG_WARNING, "Unable to enable echo cancellation on channel %d\n", p->channel);
+				ast_log(LOG_WARNING, "Unable to enable audio mode on channel %d\n", p->channel);
 		}
+#if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
+		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOCANCEL_PARAMS, &p->echocancel);
+#else
 		x = p->echocancel;
 		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOCANCEL, &x);
-		if (res) 
+#endif
+		if (res)  {
 			ast_log(LOG_WARNING, "Unable to enable echo cancellation on channel %d\n", p->channel);
-		else {
+		} else {
 			p->echocanon = 1;
 			ast_debug(1, "Enabled echo cancellation on channel %d\n", p->channel);
 		}
@@ -1650,29 +1669,40 @@ static void zt_train_ec(struct zt_pvt *p)
 {
 	int x;
 	int res;
-	if (p && p->echocancel && p->echotraining) {
+	
+	if (p && p->echocanon && p->echotraining) {
 		x = p->echotraining;
 		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOTRAIN, &x);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to request echo training on channel %d\n", p->channel);
 		else
 			ast_debug(1, "Engaged echo training on channel %d\n", p->channel);
-	} else
+	} else {
 		ast_debug(1, "No echo training requested\n");
+	}
 }
 
 static void zt_disable_ec(struct zt_pvt *p)
 {
-	int x;
 	int res;
-	if (p->echocancel) {
-		x = 0;
+
+	if (p->echocanon) {
+#if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
+		struct zt_echocanparams ecp = { .tap_length = 0 };
+
+		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOCANCEL_PARAMS, &ecp);
+#else
+		int x = 0;
+
 		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOCANCEL, &x);
+#endif
+
 		if (res)
 			ast_log(LOG_WARNING, "Unable to disable echo cancellation on channel %d\n", p->channel);
 		else
-			ast_debug(1, "disabled echo cancellation on channel %d\n", p->channel);
+			ast_debug(1, "Disabled echo cancellation on channel %d\n", p->channel);
 	}
+
 	p->echocanon = 0;
 }
 
@@ -11638,7 +11668,24 @@ static char *zap_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			ast_cli(a->fd, "Default law: %s\n", tmp->law == ZT_LAW_MULAW ? "ulaw" : tmp->law == ZT_LAW_ALAW ? "alaw" : "unknown");
 			ast_cli(a->fd, "Fax Handled: %s\n", tmp->faxhandled ? "yes" : "no");
 			ast_cli(a->fd, "Pulse phone: %s\n", tmp->pulsedial ? "yes" : "no");
-			ast_cli(a->fd, "Echo Cancellation: %d taps%s, currently %s\n", tmp->echocancel, tmp->echocanbridged ? "" : " unless TDM bridged", tmp->echocanon ? "ON" : "OFF");
+			ast_cli(a->fd, "Echo Cancellation:\n");
+#if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
+			if (tmp->echocancel.head.tap_length) {
+				ast_cli(a->fd, "\t%d taps\n", tmp->echocancel.head.tap_length);
+				for (x = 0; x < tmp->echocancel.head.param_count; x++) {
+					ast_cli(a->fd, "\t\t%s: %ud\n", tmp->echocancel.params[x].name, tmp->echocancel.params[x].value);
+				}
+				ast_cli(a->fd, "\t%scurrently %s\n", tmp->echocanbridged ? "" : "(unless TDM bridged) ", tmp->echocanon ? "ON" : "OFF");
+			} else {
+				ast_cli(a->fd, "\tnone\n");
+			}
+#else
+			if (tmp->echocancel)
+				ast_cli(a->fd, "\t%d taps\n", tmp->echocancel);
+				ast_cli(a->fd, "\t%scurrently %s\n", tmp->echocanbridged ? "" : "(unless TDM bridged) ", tmp->echocanon ? "ON" : "OFF");
+			else
+				ast_cli(a->fd, "\tnone\n");
+#endif
 			if (tmp->master)
 				ast_cli(a->fd, "Master Channel: %d\n", tmp->master->channel);
 			for (x = 0; x < MAX_SLAVES; x++) {
@@ -12899,17 +12946,18 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 			} else if (!strcasecmp(v->value, "both") || ast_true(v->value))
 				confp->chan.callprogress |= CALLPROGRESS_FAX_INCOMING | CALLPROGRESS_FAX_OUTGOING;
 		} else if (!strcasecmp(v->name, "echocancel")) {
-			if (!ast_strlen_zero(v->value)) {
-				y = atoi(v->value);
-			} else
-				y = 0;
+#if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
+			unsigned int *ec = &confp->chan.echocancel.head.tap_length;
+#else
+			int *ec = &confp->chan.echocancel;
+#endif
+
+			y = ast_strlen_zero(v->value) ? 0 : atoi(v->value);
+
 			if ((y == 32) || (y == 64) || (y == 128) || (y == 256) || (y == 512) || (y == 1024))
-				confp->chan.echocancel = y;
-			else {
-				confp->chan.echocancel = ast_true(v->value);
-				if (confp->chan.echocancel)
-					confp->chan.echocancel=128;
-			}
+				*ec = y;
+			else if ((*ec = ast_true(v->value)))
+				*ec = 128;
 		} else if (!strcasecmp(v->name, "echotraining")) {
 			if (sscanf(v->value, "%d", &y) == 1) {
 				if ((y < 10) || (y > 4000)) {
