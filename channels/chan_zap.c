@@ -2437,8 +2437,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		
 		call_ref_id = pbx_builtin_getvar_helper(ast, "SS7_CALLREF_IDENT");
 		call_ref_pc = pbx_builtin_getvar_helper(ast, "SS7_CALLREF_PC");
-		if (call_ref_id)
-			isup_set_callref(p->ss7call, (unsigned int) call_ref_id, (unsigned int) call_ref_pc);
+		if (call_ref_id) {
+			isup_set_callref(p->ss7call, atoi(call_ref_id),
+					 call_ref_pc ? atoi(call_ref_pc) : 0);
+		}
 		
 		isup_iam(p->ss7->ss7, p->ss7call);
 		ast_setstate(ast, AST_STATE_DIALING);
