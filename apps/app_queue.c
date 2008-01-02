@@ -4087,6 +4087,7 @@ static int reload_queues(void)
 				for (var = ast_variable_browse(cfg, cat); var; var = var->next) {
 					if (!strcasecmp(var->name, "member")) {
 						struct member tmpmem;
+						membername = NULL;
 
 						/* Add a new member */
 						ast_copy_string(parse, var->value, sizeof(parse));
