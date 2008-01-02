@@ -54,5 +54,3 @@ $(LIBG722):
 	@$(MAKE) -C g722 all
 
 $(if $(filter codec_g722,$(EMBEDDED_MODS)),modules.link,codec_g722.so): $(LIBG722)
-
-codec_resample.o: ASTCFLAGS+=-I$(ASTTOPDIR)/main/libresample/include

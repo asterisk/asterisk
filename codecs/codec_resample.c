@@ -39,8 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
-
-#include "libresample.h"
+#include "asterisk/libresample.h"
 
 #include "slin_resample_ex.h"
 
