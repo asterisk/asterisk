@@ -100,7 +100,14 @@ AC_DEFUN([AST_C_DEFINE_CHECK],
 	CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
 
 	AC_COMPILE_IFELSE(
-	    [ AC_LANG_PROGRAM( [#include <$3>], [int foo = $2;]) ],
+	    [ AC_LANG_PROGRAM( [#include <$3>],
+			       [#if defined($2)
+				int foo = 0;
+			        #else
+			        int foo = bar;
+			        #endif
+				0
+			       ])],
 	    [   AC_MSG_RESULT(yes)
 		PBX_$1=1
 		AC_DEFINE([HAVE_$1], 1, [Define if your system has the $1 headers.])

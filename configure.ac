@@ -250,8 +250,10 @@ AST_EXT_LIB_SETUP([VPB], [Voicetronix API], [vpb])
 AST_EXT_LIB_SETUP([X11], [X11 support], [x11])
 AST_EXT_LIB_SETUP([ZLIB], [zlib], [z])
 AST_EXT_LIB_SETUP([ZAPTEL], [Zaptel], [zaptel])
-AST_EXT_LIB_SETUP([ZAPTEL_TRANSCODE], [Zaptel_transcode], [zaptel_transcode])
-AST_EXT_LIB_SETUP([ZAPTEL_VLDTMF], [Zaptel_vldtmf], [zaptel_vldtmf])
+AST_EXT_LIB_SETUP([ZAPTEL_TRANSCODE], [Zaptel Transcoder Support], [zaptel_transcode])
+AST_EXT_LIB_SETUP([ZAPTEL_VLDTMF], [Zaptel VLDTMF Support], [zaptel_vldtmf])
+AST_EXT_LIB_SETUP([ZAPTEL_HWGAIN], [Zaptel Hardware Gain Support], [zaptel_hwgain])
+AST_EXT_LIB_SETUP([ZAPTEL_ECHOCANPARAMS], [Zaptel Echo Canceler Parameter Support], [zaptel_echocanparams])
 
 AST_EXT_LIB_SETUP([SDL], [Sdl], [sdl])
 AST_EXT_LIB_SETUP([SDL_IMAGE], [Sdl Image library], [SDL_image])
@@ -1143,7 +1145,10 @@ AST_C_DEFINE_CHECK([ZAPTEL], [ZT_DIAL_OP_CANCEL], [zaptel/zaptel.h], [90])
 # Check for VLDTMF support
 AST_C_DEFINE_CHECK([ZAPTEL_VLDTMF], [ZT_EVENT_REMOVED], [zaptel/zaptel.h])
 
-# Check for transcode support
+# Check for echo canceler parameters support
+AST_C_DEFINE_CHECK([ZAPTEL_ECHOCANPARAMS], [ZT_ECHOCANCEL_PARAMS], [zaptel/zaptel.h])
+
+# Check for transcoder support
 AST_C_DEFINE_CHECK([ZAPTEL_TRANSCODE], [ZT_TCOP_ALLOCATE], [zaptel/zaptel.h])
 
 # Check for Zaptel hwgain support
