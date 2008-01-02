@@ -470,7 +470,7 @@ static int console_call(struct ast_channel *c, char *dest, int timeout)
 		f.frametype = AST_FRAME_CONTROL;
 		f.subclass = AST_CONTROL_ANSWER;
 	} else {
-		ast_verb(1, V_BEGIN "Type 'answer' to answer, or use 'autoanswer' "
+		ast_verb(1, V_BEGIN "Type 'console answer' to answer, or use the 'autoanswer' option "
 				"for future calls" V_END);
 		f.frametype = AST_FRAME_CONTROL;
 		f.subclass = AST_CONTROL_RINGING;
