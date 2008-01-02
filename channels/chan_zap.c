@@ -11680,9 +11680,10 @@ static char *zap_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 				ast_cli(a->fd, "\tnone\n");
 			}
 #else
-			if (tmp->echocancel)
+			if (tmp->echocancel) {
 				ast_cli(a->fd, "\t%d taps\n", tmp->echocancel);
 				ast_cli(a->fd, "\t%scurrently %s\n", tmp->echocanbridged ? "" : "(unless TDM bridged) ", tmp->echocanon ? "ON" : "OFF");
+			}
 			else
 				ast_cli(a->fd, "\tnone\n");
 #endif
