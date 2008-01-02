@@ -42,6 +42,7 @@
  * - transfer CLI command
  * - boost CLI command and .conf option
  * - console_video support
+ * - Add ringing sound on incoming calls
  */
 
 /*** MODULEINFO
