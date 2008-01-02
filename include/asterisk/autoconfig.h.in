@@ -574,11 +574,9 @@
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
 
-/* Define if your system has the PTHREAD_MUTEX_RECURSIVE_NP headers. */
+/* Define to 1 if your system defines PTHREAD_MUTEX_RECURSIVE_NP in pthread.h
+   */
 #undef HAVE_PTHREAD_MUTEX_RECURSIVE_NP
-
-/* Define PTHREAD_MUTEX_RECURSIVE_NP headers version */
-#undef HAVE_PTHREAD_MUTEX_RECURSIVE_NP_VERSION
 
 /* Define if your system has the PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
    headers. */
@@ -593,11 +591,9 @@
 /* Define PTHREAD_RWLOCK_INITIALIZER headers version */
 #undef HAVE_PTHREAD_RWLOCK_INITIALIZER_VERSION
 
-/* Define if your system has the PTHREAD_RWLOCK_PREFER_WRITER_NP headers. */
+/* Define to 1 if your system defines PTHREAD_RWLOCK_PREFER_WRITER_NP in
+   pthread.h */
 #undef HAVE_PTHREAD_RWLOCK_PREFER_WRITER_NP
-
-/* Define PTHREAD_RWLOCK_PREFER_WRITER_NP headers version */
-#undef HAVE_PTHREAD_RWLOCK_PREFER_WRITER_NP_VERSION
 
 /* Define to 1 if the system has the type `ptrdiff_t'. */
 #undef HAVE_PTRDIFF_T
