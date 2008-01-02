@@ -294,7 +294,7 @@ int ast_app_group_list_unlock(void);
   \param parse A modifiable buffer containing the input to be parsed
 
   This function will separate the input string using the standard argument
-  separator character '|' and fill in the provided structure, including
+  separator character ',' and fill in the provided structure, including
   the argc argument counter field.
  */
 #define AST_STANDARD_APP_ARGS(args, parse) \
