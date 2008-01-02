@@ -87,7 +87,7 @@ void *resample_open(int highQuality, double minFactor, double maxFactor)
 
    /* Just exit if we get invalid factors */
    if (minFactor <= 0.0 || maxFactor <= 0.0 || maxFactor < minFactor) {
-      #if DEBUG
+      #ifdef DEBUG
       fprintf(stderr,
               "libresample: "
               "minFactor and maxFactor must be positive real numbers,\n"
@@ -187,7 +187,7 @@ int resample_process(void   *handle,
    int Nx;
    int i, len;
 
-   #if DEBUG
+   #ifdef DEBUG
    fprintf(stderr, "resample_process: in=%d, out=%d lastFlag=%d\n",
            inBufferLen, outBufferLen, lastFlag);
    #endif
@@ -197,7 +197,7 @@ int resample_process(void   *handle,
    outSampleCount = 0;
 
    if (factor < hp->minFactor || factor > hp->maxFactor) {
-      #if DEBUG
+      #ifdef DEBUG
       fprintf(stderr,
               "libresample: factor %f is not between "
               "minFactor=%f and maxFactor=%f",

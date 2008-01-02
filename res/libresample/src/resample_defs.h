@@ -20,8 +20,6 @@
 #endif
 #endif
 
-#define DEBUG 0
-
 #ifndef TRUE
 #define TRUE  1
 #endif
