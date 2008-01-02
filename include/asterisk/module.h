@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2008, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  * Kevin P. Fleming <kpfleming@digium.com>
@@ -184,7 +184,6 @@ struct ast_module_user_list;
 /*! \page ModMngmnt The Asterisk Module management interface
  *
  * All modules must implement the module API (load, unload...)
- * whose functions are exported through fields of a "struct module_symbol";
  */
 
 enum ast_module_flags {
@@ -244,6 +243,8 @@ void ast_module_unref(struct ast_module *);
 		reload_func,				\
 		unload_func,				\
 		AST_MODULE,				\
+		NULL,					\
+		NULL,					\
 		desc,					\
 		keystr,					\
 		flags_to_set,				\
@@ -265,13 +266,26 @@ void ast_module_unref(struct ast_module *);
 			unload_module,		\
 			NULL			\
 		       )
-#else
+#else /* plain C */
+
 /* forward declare this pointer in modules, so that macro/function
    calls that need it can get it, since it will actually be declared
    and populated at the end of the module's source file... */
 const static __attribute__((unused)) struct ast_module_info *ast_module_info;
 
-#if defined(EMBEDDED_MODULE)
+#if !defined(EMBEDDED_MODULE)
+#define __MODULE_INFO_SECTION
+#define __MODULE_INFO_GLOBALS
+#else
+/*
+ * For embedded modules we need additional information to backup and
+ * restore the global variables in the module itself, so we can unload
+ * reload the module.
+ * EMBEDDED_MODULE is defined as the module name, so the calls to make_var()
+ * below will actually define different symbols for each module.
+ */
+#define __MODULE_INFO_SECTION	__attribute__((section(".embed_module")))
+#define __MODULE_INFO_GLOBALS	.backup_globals = __backup_globals, .restore_globals = __restore_globals,
 
 #define make_var_sub(mod, type) __ ## mod ## _ ## type
 #define make_var(mod, type) make_var_sub(mod, type)
@@ -314,36 +328,15 @@ static void __restore_globals(void)
 
 	memcpy(& make_var(EMBEDDED_MODULE, data_start), __global_backup, data_size);
 }
+#undef make_var
+#undef make_var_sub
+#endif /* EMBEDDED_MODULE */
 
 #define AST_MODULE_INFO(keystr, flags_to_set, desc, fields...)	\
 	static struct ast_module_info 				\
-		 __attribute__((section(".embed_module")))	\
+		__MODULE_INFO_SECTION				\
 		__mod_info = {					\
-		.backup_globals = __backup_globals,		\
-		.restore_globals = __restore_globals,		\
-		.name = AST_MODULE,				\
-		.flags = flags_to_set,				\
-		.description = desc,				\
-		.key = keystr,					\
-		fields						\
-	};							\
-	static void  __attribute__ ((constructor)) __reg_module(void) \
-	{ \
-		ast_module_register(&__mod_info); \
-	} \
-	static void  __attribute__ ((destructor)) __unreg_module(void) \
-	{ \
-		ast_module_unregister(&__mod_info); \
-	} \
-	const static struct ast_module_info *ast_module_info = &__mod_info
-
-#undef make_var
-#undef make_var_sub
-
-#else /* !defined(EMBEDDED_MODULE) */
-
-#define AST_MODULE_INFO(keystr, flags_to_set, desc, fields...)	\
-	static struct ast_module_info __mod_info = {		\
+		__MODULE_INFO_GLOBALS				\
 		.name = AST_MODULE,				\
 		.flags = flags_to_set,				\
 		.description = desc,				\
@@ -361,14 +354,12 @@ static void __restore_globals(void)
 	} \
 	const static struct ast_module_info *ast_module_info = &__mod_info
 
-#endif /* !defined(EMBEDDED_MODULE) */
-
 #define AST_MODULE_INFO_STANDARD(keystr, desc)		\
 	AST_MODULE_INFO(keystr, AST_MODFLAG_DEFAULT, desc,	\
 			.load = load_module,			\
 			.unload = unload_module,		\
 		       )
-#endif
+#endif	/* plain C */
 
 /*! 
  * \brief Register an application.
