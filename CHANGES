@@ -146,7 +146,8 @@ Console Channel Driver changes
   * Added a new channel driver, chan_console, which uses portaudio as a cross
      platform audio interface.  It was written as a channel driver that would
      work with Mac CoreAudio, but portaudio supports a number of other audio
-     interfaces, as well.
+     interfaces, as well. Note that this channel driver requires v19 or higher
+     of portaudio; older versions have a different API.
 
 Phone channel changes (chan_phone)
 ----------------------------------
