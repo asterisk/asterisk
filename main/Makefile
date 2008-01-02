@@ -17,6 +17,8 @@ all: asterisk
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
+RESAMPLE_OBJS:=libresample/src/resample.o libresample/src/resamplesubs.o libresample/src/filterkit.o
+
 OBJS=	io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o pbx.o cli.o md5.o term.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
@@ -27,7 +29,7 @@ OBJS=	io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o \
 	cryptostub.o sha1.o http.o fixedjitterbuf.o abstract_jb.o \
 	strcompat.o threadstorage.o dial.o event.o adsistub.o audiohook.o \
-	astobj2.o hashtab.o global_datastores.o
+	astobj2.o hashtab.o global_datastores.o $(RESAMPLE_OBJS)
 
 # we need to link in the objects statically, not as a library, because
 # otherwise modules will not have them available if none of the static
@@ -111,9 +113,6 @@ editline/libedit.a: CHECK_SUBDIR
 db1-ast/libdb1.a: CHECK_SUBDIR
 	CFLAGS="$(ASTCFLAGS)" LDFLAGS="$(ASTLDFLAGS)" $(MAKE) -C db1-ast libdb1.a
 
-libresample/libresample.a: CHECK_SUBDIR
-	$(MAKE) -f Makefile.asterisk -C libresample libresample.a
-
 ast_expr2.c ast_expr2.h:
 	bison -o $@ -d --name-prefix=ast_yy ast_expr2.y
 
@@ -129,8 +128,6 @@ testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	rm ast_expr2.o ast_expr2f.o 
 
 channel.o: ASTCFLAGS+=$(ZAPTEL_INCLUDE)
-
-translate.o: ASTCFLAGS+=-Ilibresample/include
 
 AST_EMBED_LDSCRIPTS:=$(sort $(EMBED_LDSCRIPTS))
 AST_EMBED_LDFLAGS:=$(foreach dep,$(EMBED_LDFLAGS),$(value $(dep)))
@@ -157,7 +154,7 @@ else
 MAIN_TGT:=asterisk
 endif
 
-$(MAIN_TGT): $(OBJS) editline/libedit.a db1-ast/libdb1.a minimime/libmmime.a $(AST_EMBED_LDSCRIPTS) libresample/libresample.a
+$(MAIN_TGT): $(OBJS) editline/libedit.a db1-ast/libdb1.a minimime/libmmime.a $(AST_EMBED_LDSCRIPTS)
 	@$(CC) -c -o buildinfo.o $(ASTCFLAGS) buildinfo.c
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 ifneq ($(findstring chan_h323,$(MENUSELECT_CHANNELS)),)
@@ -174,4 +171,4 @@ clean::
 	@$(MAKE) -C db1-ast clean
 	@$(MAKE) -C stdtime clean
 	@$(MAKE) -C minimime clean
-	@$(MAKE) -f Makefile.asterisk -C libresample clean
+	rm -f libresample/src/*.o

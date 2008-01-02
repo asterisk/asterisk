@@ -39,13 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/term.h"
 
-#include "libresample.h"
-
 #define MAX_RECALC 1000 /* max sample recalc */
-
-/* hack to ensure that the libresample code gets linked in */
-
-static attribute_unused void (*resample_hack)(void *) = resample_close;
 
 /*! \brief the list of translators */
 static AST_RWLIST_HEAD_STATIC(translators, ast_translator);
