@@ -111,9 +111,6 @@ editline/libedit.a: CHECK_SUBDIR
 db1-ast/libdb1.a: CHECK_SUBDIR
 	CFLAGS="$(ASTCFLAGS)" LDFLAGS="$(ASTLDFLAGS)" $(MAKE) -C db1-ast libdb1.a
 
-libresample/libresample.a: CHECK_SUBDIR
-	$(MAKE) -f Makefile.asterisk -C libresample libresample.a
-
 ast_expr2.c ast_expr2.h:
 	bison -o $@ -d --name-prefix=ast_yy ast_expr2.y
 
@@ -155,7 +152,7 @@ else
 MAIN_TGT:=asterisk
 endif
 
-$(MAIN_TGT): $(OBJS) editline/libedit.a db1-ast/libdb1.a minimime/libmmime.a $(AST_EMBED_LDSCRIPTS) libresample/libresample.a
+$(MAIN_TGT): $(OBJS) editline/libedit.a db1-ast/libdb1.a minimime/libmmime.a $(AST_EMBED_LDSCRIPTS)
 	@$(CC) -c -o buildinfo.o $(ASTCFLAGS) buildinfo.c
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 ifneq ($(findstring chan_h323,$(MENUSELECT_CHANNELS)),)
@@ -172,4 +169,3 @@ clean::
 	@$(MAKE) -C db1-ast clean
 	@$(MAKE) -C stdtime clean
 	@$(MAKE) -C minimime clean
-	@$(MAKE) -f Makefile.asterisk -C libresample clean

@@ -47,6 +47,9 @@ ael/ael.tab.c ael/ael.tab.h:
 
 ael/pval.o: ael/pval.c
 
+res_resample.so: libresample/src/resample.o libresample/src/resamplesubs.o libresample/src/filterkit.o
+
 clean::
 	rm -f snmp/*.o
 	rm -f ael/*.o
+	rm -f libresample/src/*.o
