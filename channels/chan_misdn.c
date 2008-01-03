@@ -672,9 +672,16 @@ static int misdn_overlap_dial_task (const void *data)
 	diff = ast_tvdiff_ms(tv_end, tv_now);
 
 	if (diff <= 100) {
+		char *dad=ch->bc->dad, sexten[]="s";
 		/* if we are 100ms near the timeout, we are satisfied.. */
 		stop_indicate(ch);
-		if (ast_exists_extension(ch->ast, ch->context, ch->bc->dad, 1, ch->bc->oad)) {
+		
+		if (ast_strlen_zero(ch->bc->dad)) {
+			dad=sexten;
+			strcpy(ch->ast->exten, sexten);
+		}
+
+		if (ast_exists_extension(ch->ast, ch->context, dad, 1, ch->bc->oad)) {
 			ch->state=MISDN_DIALING;
 			if (pbx_start_chan(ch) < 0) {
 				chan_misdn_log(-1, ch->bc->port, "ast_pbx_start returned < 0 in misdn_overlap_dial_task\n");
