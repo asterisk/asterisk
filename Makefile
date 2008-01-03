@@ -309,10 +309,11 @@ endif
 # comment to print directories during submakes
 #PRINT_DIR=yes
 
+SILENTMAKE:=$(MAKE) --quiet --no-print-directory
 ifneq ($(PRINT_DIR)$(NOISY_BUILD),)
-SUBMAKE=$(MAKE) --quiet
+SUBMAKE:=$(MAKE) --quiet
 else
-SUBMAKE=$(MAKE) --quiet --no-print-directory
+SUBMAKE:=$(MAKE) --quiet --no-print-directory
 endif
 
 # This is used when generating the doxygen documentation
@@ -352,13 +353,13 @@ menuselect.makeopts: menuselect/menuselect menuselect-tree
 	menuselect/menuselect --check-deps $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts
 
 $(MOD_SUBDIRS_EMBED_LDSCRIPT):
-	@echo "EMBED_LDSCRIPTS+="`$(SUBMAKE) -C $(@:-embed-ldscript=) SUBDIR=$(@:-embed-ldscript=) __embed_ldscript` >> makeopts.embed_rules
+	@echo "EMBED_LDSCRIPTS+="`$(SILENTMAKE) -C $(@:-embed-ldscript=) SUBDIR=$(@:-embed-ldscript=) __embed_ldscript` >> makeopts.embed_rules
 
 $(MOD_SUBDIRS_EMBED_LDFLAGS):
-	@echo "EMBED_LDFLAGS+="`$(SUBMAKE) -C $(@:-embed-ldflags=) SUBDIR=$(@:-embed-ldflags=) __embed_ldflags` >> makeopts.embed_rules
+	@echo "EMBED_LDFLAGS+="`$(SILENTMAKE) -C $(@:-embed-ldflags=) SUBDIR=$(@:-embed-ldflags=) __embed_ldflags` >> makeopts.embed_rules
 
 $(MOD_SUBDIRS_EMBED_LIBS):
-	@echo "EMBED_LIBS+="`$(SUBMAKE) -C $(@:-embed-libs=) SUBDIR=$(@:-embed-libs=) __embed_libs` >> makeopts.embed_rules
+	@echo "EMBED_LIBS+="`$(SILENTMAKE) -C $(@:-embed-libs=) SUBDIR=$(@:-embed-libs=) __embed_libs` >> makeopts.embed_rules
 
 $(MOD_SUBDIRS_MENUSELECT_TREE):
 	@$(SUBMAKE) -C $(@:-menuselect-tree=) SUBDIR=$(@:-menuselect-tree=) moduleinfo
