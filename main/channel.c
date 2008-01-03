@@ -965,7 +965,7 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 				 */
 			}
 			if (name) { /* want match by name */
-				if ((!namelen && strcasecmp(c->name, name)) ||
+				if ((!namelen && strcasecmp(c->name, name) && strcmp(c->uniqueid, name)) ||
 				    (namelen && strncasecmp(c->name, name, namelen)))
 					continue;	/* name match failed */
 			} else if (exten) {
@@ -3534,10 +3534,10 @@ int ast_do_masquerade(struct ast_channel *original)
 	struct ast_cdr *cdr;
 	int rformat = original->readformat;
 	int wformat = original->writeformat;
-	char newn[100];
-	char orig[100];
-	char masqn[100];
-	char zombn[100];
+	char newn[AST_CHANNEL_NAME];
+	char orig[AST_CHANNEL_NAME];
+	char masqn[AST_CHANNEL_NAME];
+	char zombn[AST_CHANNEL_NAME];
 
 	ast_debug(4, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
 		clone->name, clone->_state, original->name, original->_state);
@@ -3662,7 +3662,7 @@ int ast_do_masquerade(struct ast_channel *original)
 		ast_channel_unlock(clone);
 		return -1;
 	}
-	
+
 	snprintf(zombn, sizeof(zombn), "%s<ZOMBIE>", orig);
 	/* Mangle the name of the clone channel */
 	ast_string_field_set(clone, name, zombn);
@@ -3672,7 +3672,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	t_pvt = original->monitor;
 	original->monitor = clone->monitor;
 	clone->monitor = t_pvt;
-	
+
 	/* Keep the same language.  */
 	ast_string_field_set(original, language, clone->language);
 	/* Copy the FD's other than the generator fd */
@@ -3706,16 +3706,16 @@ int ast_do_masquerade(struct ast_channel *original)
 	tmpcid = original->cid;
 	original->cid = clone->cid;
 	clone->cid = tmpcid;
-	
+
 	/* Restore original timing file descriptor */
 	ast_channel_set_fd(original, AST_TIMING_FD, original->timingfd);
-	
+
 	/* Our native formats are different now */
 	original->nativeformats = clone->nativeformats;
-	
+
 	/* Context, extension, priority, app data, jump table,  remain the same */
 	/* pvt switches.  pbx stays the same, as does next */
-	
+
 	/* Set the write format */
 	ast_set_write_format(original, wformat);
 
@@ -3744,7 +3744,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* If an indication is currently playing maintain it on the channel that is taking the place of original */
 	if (original->visible_indication)
 		ast_indicate(original, original->visible_indication);
-	
+
 	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
 	   a zombie so nothing tries to touch it.  If it's already been marked as a
 	   zombie, then free it now (since it already is considered invalid). */
@@ -3768,7 +3768,7 @@ int ast_do_masquerade(struct ast_channel *original)
 		ast_queue_frame(clone, &ast_null_frame);
 		ast_channel_unlock(clone);
 	}
-	
+
 	/* Signal any blocker */
 	if (ast_test_flag(original, AST_FLAG_BLOCKING))
 		pthread_kill(original->blocker, SIGURG);
