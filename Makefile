@@ -101,7 +101,7 @@ endif
 
 # Some build systems, such as the one in openwrt, like to pass custom target
 # CFLAGS and LDFLAGS in the COPTS and LDOPTS variables.
-ASTCFLAGS+=$(COPTS) -D_XPG4_2
+ASTCFLAGS+=$(COPTS)
 ASTLDFLAGS+=$(LDOPTS)
 
 #Uncomment this to see all build commands instead of 'quiet' output
@@ -257,7 +257,7 @@ ifeq ($(OSARCH),OpenBSD)
 endif
 
 ifeq ($(OSARCH),SunOS)
-  ASTCFLAGS+=-Wcast-align -DSOLARIS -I../include/solaris-compat -I/opt/ssl/include -I/usr/local/ssl/include
+  ASTCFLAGS+=-Wcast-align -DSOLARIS -I../include/solaris-compat -I/opt/ssl/include -I/usr/local/ssl/include -D_XPG4_2
 endif
 
 ASTERISKVERSION:=$(shell GREP=$(GREP) AWK=$(AWK) build_tools/make_version .)
