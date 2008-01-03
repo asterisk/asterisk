@@ -1109,13 +1109,13 @@ char *ast_recvtext(struct ast_channel *chan, int timeout);
  */
 struct ast_channel *ast_channel_walk_locked(const struct ast_channel *prev);
 
-/*! \brief Get channel by name (locks channel) */
+/*! \brief Get channel by name or uniqueid (locks channel) */
 struct ast_channel *ast_get_channel_by_name_locked(const char *chan);
 
-/*! \brief Get channel by name prefix (locks channel) */
+/*! \brief Get channel by name or uniqueid prefix (locks channel) */
 struct ast_channel *ast_get_channel_by_name_prefix_locked(const char *name, const int namelen);
 
-/*! \brief Get channel by name prefix (locks channel) */
+/*! \brief Get channel by name or uniqueid prefix (locks channel) */
 struct ast_channel *ast_walk_channel_by_name_prefix_locked(const struct ast_channel *chan, const char *name, const int namelen);
 
 /*! \brief Get channel by exten (and optionally context) and lock it */
