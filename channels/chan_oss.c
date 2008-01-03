@@ -65,12 +65,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "console_video.h"
 
-/* ringtones we use */
-#include "busy.h"
-#include "ringtone.h"
-#include "ring10.h"
-#include "answer.h"
-
 /*! Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
 {
@@ -247,30 +241,6 @@ static char *config = "oss.conf";	/* default config file */
 static int oss_debug;
 
 /*!
- * Each sound is made of 'datalen' samples of sound, repeated as needed to
- * generate 'samplen' samples of data, then followed by 'silencelen' samples
- * of silence. The loop is repeated if 'repeat' is set.
- */
-struct sound {
-	int ind;
-	char *desc;
-	short *data;
-	int datalen;
-	int samplen;
-	int silencelen;
-	int repeat;
-};
-
-static struct sound sounds[] = {
-	{ AST_CONTROL_RINGING, "RINGING", ringtone, sizeof(ringtone)/2, 16000, 32000, 1 },
-	{ AST_CONTROL_BUSY, "BUSY", busy, sizeof(busy)/2, 4000, 4000, 1 },
-	{ AST_CONTROL_CONGESTION, "CONGESTION", busy, sizeof(busy)/2, 2000, 2000, 1 },
-	{ AST_CONTROL_RING, "RING10", ring10, sizeof(ring10)/2, 16000, 32000, 1 },
-	{ AST_CONTROL_ANSWER, "ANSWER", answer, sizeof(answer)/2, 2200, 0, 0 },
-	{ -1, NULL, 0, 0, 0, 0 },	/* end marker */
-};
-
-/*!
  * \brief descriptor for one of our channels.
  *
  * There is one used for 'default' values (from the [general] entry in
@@ -282,18 +252,6 @@ struct chan_oss_pvt {
 	struct chan_oss_pvt *next;
 
 	char *name;
-	/*!
-	 * cursound indicates which in struct sound we play. -1 means nothing,
-	 * any other value is a valid sound, in which case sampsent indicates
-	 * the next sample to send in [0..samplen + silencelen]
-	 * nosound is set to disable the audio data from the channel
-	 * (so we can play the tones etc.).
-	 */
-	int sndcmd[2];				/*!< Sound command pipe */
-	int cursound;				/*!< index of sound to send */
-	int sampsent;				/*!< # of sound samples sent  */
-	int nosound;				/*!< set to block audio from the PBX */
-
 	int total_blocks;			/*!< total blocks in the output device */
 	int sounddev;
 	enum { M_UNSET, M_FULL, M_READ, M_WRITE } duplex;
@@ -356,7 +314,6 @@ struct video_desc *get_video_desc(struct ast_channel *c)
 	return o ? o->env : NULL;
 }
 static struct chan_oss_pvt oss_default = {
-	.cursound = -1,
 	.sounddev = -1,
 	.duplex = M_UNSET,			/* XXX check this */
 	.autoanswer = 1,
@@ -511,135 +468,6 @@ static int soundcard_writeframe(struct chan_oss_pvt *o, short *data)
 }
 
 /*!
- * \brief Handler for 'sound writable' events from the sound thread.
- *
- * Builds a frame from the high level description of the sounds,
- * and passes it to the audio device.
- * The actual sound is made of 1 or more sequences of sound samples
- * (s->datalen, repeated to make s->samplen samples) followed by
- * s->silencelen samples of silence. The position in the sequence is stored
- * in o->sampsent, which goes between 0 .. s->samplen+s->silencelen.
- * In case we fail to write a frame, don't update o->sampsent.
- */
-static void send_sound(struct chan_oss_pvt *o)
-{
-	short myframe[FRAME_SIZE];
-	int ofs, l, start;
-	int l_sampsent = o->sampsent;
-	struct sound *s;
-
-	if (o->cursound < 0)		/* no sound to send */
-		return;
-
-	s = &sounds[o->cursound];
-
-	for (ofs = 0; ofs < FRAME_SIZE; ofs += l) {
-		l = s->samplen - l_sampsent;	/* # of available samples */
-		if (l > 0) {
-			start = l_sampsent % s->datalen;	/* source offset */
-			l = MIN(l, FRAME_SIZE - ofs);	/* don't overflow the frame */
-			l = MIN(l, s->datalen - start);	/* don't overflow the source */
-			bcopy(s->data + start, myframe + ofs, l * 2);
-			if (0)
-				ast_log(LOG_WARNING, "send_sound sound %d/%d of %d into %d\n", l_sampsent, l, s->samplen, ofs);
-			l_sampsent += l;
-		} else {				/* end of samples, maybe some silence */
-			static const short silence[FRAME_SIZE] = { 0, };
-
-			l += s->silencelen;
-			if (l > 0) {
-				l = MIN(l, FRAME_SIZE - ofs);
-				bcopy(silence, myframe + ofs, l * 2);
-				l_sampsent += l;
-			} else {			/* silence is over, restart sound if loop */
-				if (s->repeat == 0) {	/* last block */
-					o->cursound = -1;
-					o->nosound = 0;	/* allow audio data */
-					if (ofs < FRAME_SIZE)	/* pad with silence */
-						bcopy(silence, myframe + ofs, (FRAME_SIZE - ofs) * 2);
-				}
-				l_sampsent = 0;
-			}
-		}
-	}
-	l = soundcard_writeframe(o, myframe);
-	if (l > 0)
-		o->sampsent = l_sampsent;	/* update status */
-}
-
-static void *sound_thread(void *arg)
-{
-	char ign[4096];
-	struct chan_oss_pvt *o = (struct chan_oss_pvt *) arg;
-
-	/*
-	 * Just in case, kick the driver by trying to read from it.
-	 * Ignore errors - this read is almost guaranteed to fail.
-	 */
-	read(o->sounddev, ign, sizeof(ign));
-	for (;;) {
-		fd_set rfds, wfds;
-		int maxfd, res;
-		struct timeval *to = NULL, t;
-
-		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
-		FD_SET(o->sndcmd[0], &rfds);
-		maxfd = o->sndcmd[0];	/* pipe from the main process */
-		if (o->cursound > -1 && o->sounddev < 0)
-			setformat(o, O_RDWR);	/* need the channel, try to reopen */
-		else if (o->cursound == -1 && o->owner == NULL)
-			setformat(o, O_CLOSE);	/* can close */
-		if (o->sounddev > -1) {
-			if (!o->owner) {	/* no one owns the audio, so we must drain it */
-				FD_SET(o->sounddev, &rfds);
-				maxfd = MAX(o->sounddev, maxfd);
-			}
-			if (o->cursound > -1) {
-				/*
-				 * We would like to use select here, but the device
-				 * is always writable, so this would become busy wait.
-				 * So we rather set a timeout to 1/2 of the frame size.
-				 */
-				t.tv_sec = 0;
-				t.tv_usec = (1000000 * FRAME_SIZE) / (5 * DEFAULT_SAMPLE_RATE);
-				to = &t;
-			}
-		}
-		/* ast_select emulates linux behaviour in terms of timeout handling */
-		res = ast_select(maxfd + 1, &rfds, &wfds, NULL, to);
-		if (res < 0) {
-			ast_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
-			sleep(1);
-			continue;
-		}
-		if (FD_ISSET(o->sndcmd[0], &rfds)) {
-			/* read which sound to play from the pipe */
-			int i, what = -1;
-
-			read(o->sndcmd[0], &what, sizeof(what));
-			for (i = 0; sounds[i].ind != -1; i++) {
-				if (sounds[i].ind == what) {
-					o->cursound = i;
-					o->sampsent = 0;
-					o->nosound = 1;	/* block audio from pbx */
-					break;
-				}
-			}
-			if (sounds[i].ind == -1)
-				ast_log(LOG_WARNING, "invalid sound index: %d\n", what);
-		}
-		if (o->sounddev > -1) {
-			if (FD_ISSET(o->sounddev, &rfds))	/* read and ignore errors */
-				read(o->sounddev, ign, sizeof(ign));
-			if (to != NULL)			/* maybe it is possible to write */
-				send_sound(o);
-		}
-	}
-	return NULL;				/* Never reached */
-}
-
-/*!
  * reset and close the device if opened,
  * then open and initialize it in the desired mode,
  * trigger reads and writes so we can start using it.
@@ -763,13 +591,6 @@ static int oss_text(struct ast_channel *c, const char *text)
 	return 0;
 }
 
-/*! \brief Play ringtone 'x' on device 'o' */
-static void ring(struct chan_oss_pvt *o, int x)
-{
-	write(o->sndcmd[1], &x, sizeof(x));
-}
-
-
 /*!
  * \brief handler for incoming calls. Either autoanswer, or start ringing
  */
@@ -794,7 +615,7 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout)
 		f.frametype = AST_FRAME_CONTROL;
 		f.subclass = AST_CONTROL_RINGING;
 		ast_queue_frame(c, &f);
-		ring(o, AST_CONTROL_RING);
+		ast_indicate(c, AST_CONTROL_RINGING);
 	} else if (o->autoanswer) {
 		ast_verbose(" << Auto-answered >> \n");
 		f.frametype = AST_FRAME_CONTROL;
@@ -805,7 +626,7 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout)
 		f.frametype = AST_FRAME_CONTROL;
 		f.subclass = AST_CONTROL_RINGING;
 		ast_queue_frame(c, &f);
-		ring(o, AST_CONTROL_RING);
+		ast_indicate(c, AST_CONTROL_RINGING);
 	}
 	return 0;
 }
@@ -815,16 +636,8 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout)
  */
 static int oss_answer(struct ast_channel *c)
 {
-	struct chan_oss_pvt *o = c->tech_pvt;
-
 	ast_verbose(" << Console call has been answered >> \n");
-#if 0
-	/* play an answer tone (XXX do we really need it ?) */
-	ring(o, AST_CONTROL_ANSWER);
-#endif
 	ast_setstate(c, AST_STATE_UP);
-	o->cursound = -1;
-	o->nosound = 0;
 	return 0;
 }
 
@@ -832,8 +645,6 @@ static int oss_hangup(struct ast_channel *c)
 {
 	struct chan_oss_pvt *o = c->tech_pvt;
 
-	o->cursound = -1;
-	o->nosound = 0;
 	c->tech_pvt = NULL;
 	o->owner = NULL;
 	ast_verbose(" << Hangup on console >> \n");
@@ -844,9 +655,6 @@ static int oss_hangup(struct ast_channel *c)
 			/* Assume auto-hangup too */
 			o->hookstate = 0;
 			setformat(o, O_CLOSE);
-		} else {
-			/* Make congestion noise */
-			ring(o, AST_CONTROL_CONGESTION);
 		}
 	}
 	return 0;
@@ -858,11 +666,6 @@ static int oss_write(struct ast_channel *c, struct ast_frame *f)
 	int src;
 	struct chan_oss_pvt *o = c->tech_pvt;
 
-	/* Immediately return if no sound is enabled */
-	if (o->nosound)
-		return 0;
-	/* Stop any currently playing sound */
-	o->cursound = -1;
 	/*
 	 * we could receive a block which is not a multiple of our
 	 * FRAME_SIZE, so buffer it locally and write to the device
@@ -948,43 +751,33 @@ static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static int oss_indicate(struct ast_channel *c, int cond, const void *data, size_t datalen)
 {
 	struct chan_oss_pvt *o = c->tech_pvt;
-	int res = -1;
+	int res = 0;
 
 	switch (cond) {
 	case AST_CONTROL_BUSY:
 	case AST_CONTROL_CONGESTION:
 	case AST_CONTROL_RINGING:
-		res = cond;
-		break;
-
 	case -1:
-		o->cursound = -1;
-		o->nosound = 0;		/* when cursound is -1 nosound must be 0 */
-		return 0;
-
-	case AST_CONTROL_VIDUPDATE:
 		res = -1;
 		break;
-
+	case AST_CONTROL_PROGRESS:
+	case AST_CONTROL_PROCEEDING:
+	case AST_CONTROL_VIDUPDATE:
+		break;
 	case AST_CONTROL_HOLD:
 		ast_verbose(" << Console Has Been Placed on Hold >> \n");
 		ast_moh_start(c, data, o->mohinterpret);
 		break;
-
 	case AST_CONTROL_UNHOLD:
 		ast_verbose(" << Console Has Been Retrieved from Hold >> \n");
 		ast_moh_stop(c);
 		break;
-
 	default:
 		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, c->name);
 		return -1;
 	}
 
-	if (res > -1)
-		ring(o, res);
-
-	return 0;
+	return res;
 }
 
 /*!
@@ -1149,8 +942,7 @@ static char *console_autoanswer(struct ast_cli_entry *e, int cmd, struct ast_cli
 }
 
 /*! \brief helper function for the answer key/cli command */
-char *console_do_answer(int fd);
-char *console_do_answer(int fd)
+static char *console_do_answer(int fd)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
 	struct chan_oss_pvt *o = find_desc(oss_active);
@@ -1160,8 +952,6 @@ char *console_do_answer(int fd)
 		return CLI_FAILURE;
 	}
 	o->hookstate = 1;
-	o->cursound = -1;
-	o->nosound = 0;
 	ast_queue_frame(o->owner, &f);
 	return CLI_SUCCESS;
 }
@@ -1242,8 +1032,6 @@ static char *console_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	o->cursound = -1;
-	o->nosound = 0;
 	if (!o->owner && !o->hookstate) { /* XXX maybe only one ? */
 		ast_cli(a->fd, "No call to hang up\n");
 		return CLI_FAILURE;
@@ -1271,8 +1059,6 @@ static char *console_flash(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	o->cursound = -1;
-	o->nosound = 0;				/* when cursound is -1 nosound must be 0 */
 	if (!o->owner) {			/* XXX maybe !o->hookstate too ? */
 		ast_cli(a->fd, "No call to flash\n");
 		return CLI_FAILURE;
@@ -1595,7 +1381,7 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 	if (o == &oss_default)		/* we are done with the default */
 		return NULL;
 
-  openit:
+openit:
 #ifdef TRYOPEN
 	if (setformat(o, O_RDWR) < 0) {	/* open device */
 		ast_verb(1, "Device %s not detected\n", ctg);
@@ -1605,11 +1391,7 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 	if (o->duplex != M_FULL)
 		ast_log(LOG_WARNING, "XXX I don't work right with non " "full-duplex sound cards XXX\n");
 #endif /* TRYOPEN */
-	if (pipe(o->sndcmd) != 0) {
-		ast_log(LOG_ERROR, "Unable to create pipe\n");
-		goto error;
-	}
-	ast_pthread_create_background(&o->sthread, NULL, sound_thread, o);
+
 	/* link into list of devices */
 	if (o != &oss_default) {
 		o->next = oss_default.next;
@@ -1617,10 +1399,12 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 	}
 	return o;
 
-  error:
+#ifdef TRYOPEN
+error:
 	if (o != &oss_default)
 		ast_free(o);
 	return NULL;
+#endif
 }
 
 static int load_module(void)
@@ -1673,15 +1457,10 @@ static int unload_module(void)
 
 	for (o = oss_default.next; o; o = o->next) {
 		close(o->sounddev);
-		if (o->sndcmd[0] > 0) {
-			close(o->sndcmd[0]);
-			close(o->sndcmd[1]);
-		}
 		if (o->owner)
 			ast_softhangup(o->owner, AST_SOFTHANGUP_APPUNLOAD);
 		if (o->owner)			/* XXX how ??? */
 			return -1;
-		/* XXX what about the thread ? */
 		/* XXX what about the memory allocated ? */
 	}
 	return 0;

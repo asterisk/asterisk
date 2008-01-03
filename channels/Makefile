@@ -58,7 +58,6 @@ ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
 endif
 
 clean::
-	rm -f gentone
 	$(MAKE) -C misdn clean
 
 ifneq ($(wildcard h323/Makefile.ast),)
@@ -80,23 +79,6 @@ endif
 
 dist-clean::
 	rm -f h323/Makefile
-
-# gentone must be built with the HOST environment
-gentone: gentone.c
-	$(ECHO_PREFIX) echo "   [HOST_CC] $^ -> $@"
-	$(CMD_PREFIX) $(HOST_CC) -o $@ $^ -lm
-
-busy.h: gentone
-	-@mv $@ $@.tmp
-	./gentone busy 480 620
-	@cmp -s $@.tmp $@ && mv $@.tmp $@
-	-@rm -f  $@.tmp
-
-ringtone.h: gentone
-	-@mv $@ $@.tmp
-	./gentone ringtone 440 480
-	@cmp -s $@.tmp $@ && mv $@.tmp $@
-	-@rm -f  $@.tmp
 
 $(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): iax2-parser.o iax2-provision.o
 
