@@ -665,7 +665,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 	struct ast_variable *new_v;
 	struct ast_category *cur_cat = NULL;
 	char sqlbuf[1024] = "";
-	char *sql;
+	char *sql = sqlbuf;
 	size_t sqlleft = sizeof(sqlbuf);
 	char last[80] = "";
 	int last_cat_metric = 0;
