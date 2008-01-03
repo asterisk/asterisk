@@ -2894,13 +2894,13 @@ int main(int argc, char *argv[])
 				for (fd = 0; fd < 100; fd++)
 					close(fd);
 
-				execlp("astcanary", "astcanary", canary_filename, NULL);
+				execlp("astcanary", "astcanary", canary_filename, (char *)NULL);
 
 				/* If not found, try the same path as used to execute asterisk */
 				ast_copy_string(canary_binary, argv[0], sizeof(canary_binary));
 				if ((lastslash = strrchr(canary_binary, '/'))) {
 					ast_copy_string(lastslash + 1, "astcanary", sizeof(canary_binary) + canary_binary - (lastslash + 1));
-					execl(canary_binary, "astcanary", canary_filename, NULL);
+					execl(canary_binary, "astcanary", canary_filename, (char *)NULL);
 				}
 
 				/* Should never happen */
