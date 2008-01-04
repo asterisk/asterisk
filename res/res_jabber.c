@@ -65,7 +65,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 /*-- Forward declarations */
-static int aji_highest_bit(int number);
 static void aji_buddy_destroy(struct aji_buddy *obj);
 static void aji_client_destroy(struct aji_client *obj);
 static int aji_send_exec(struct ast_channel *chan, void *data);
@@ -295,23 +294,6 @@ static int gtalk_yuck(iks *node)
 	if (iks_find_with_attrib(node, "c", "node", "http://www.google.com/xmpp/client/caps"))
 		return 1;
 	return 0;
-}
-
-/*!
- * \brief Detects the highest bit in a number.
- * \param number  Number you want to have evaluated.
- * \return the highest power of 2 that can go into the number.
- */
-static int aji_highest_bit(int number)
-{
-	int x = sizeof(number) * 8 - 1;
-	if (!number)
-		return 0;
-	for (; x > 0; x--) {
-		if (number & (1 << x))
-			break;
-	}
-	return (1 << x);
 }
 
 /*!
@@ -783,10 +765,6 @@ static void aji_log_hook(void *data, const char *xmpp, size_t size, int is_incom
  * \param username
  * \param pass password.
  *
- * If SASL authentication type is MD5, we simply call iks_start_sasl().
- * If type is PLAIN, we compute the authentication string by ourselves, 
- * because it looks like Google's jabber server does not accept the value 
- * computed with iks_start_sasl().
  * \return IKS_OK on success, IKSNET_NOTSUPP on failure.
  */
 static int aji_start_sasl(struct aji_client *client, enum ikssasltype type, char *username, char *pass)
@@ -796,8 +774,15 @@ static int aji_start_sasl(struct aji_client *client, enum ikssasltype type, char
 	char *s;
 	char *base64;
 
-	if (type == IKS_STREAM_SASL_MD5)
-		return iks_start_sasl(client->p, IKS_SASL_DIGEST_MD5, username, pass);
+	/* trigger SASL DIGEST-MD5 only over an unsecured connection.
+	   iks_start_sasl is an iksemel API function and relies on GnuTLS,
+	   whereas we use OpenSSL */
+	if ((type & IKS_STREAM_SASL_MD5) && !aji_is_secure(client))
+		return iks_start_sasl(client->p, IKS_SASL_DIGEST_MD5, username, pass); 
+	if (!(type & IKS_STREAM_SASL_PLAIN)) {
+		ast_log(LOG_ERROR, "Server does not support SASL PLAIN authentication\n");
+		return IKS_NET_NOTSUPP;
+	}
 
 	x = iks_new("auth"); 
 	if (!x) {
@@ -811,7 +796,12 @@ static int aji_start_sasl(struct aji_client *client, enum ikssasltype type, char
 	base64 = alloca((len + 2) * 4 / 3);
 	iks_insert_attrib(x, "mechanism", "PLAIN");
 	snprintf(s, len, "%c%s%c%s", 0, username, 0, pass);
-	ast_base64encode(base64, (const unsigned char *) s, len, (len + 2) * 4 / 3);
+
+	/* exclude the NULL training byte from the base64 encoding operation
+	   as some XMPP servers will refuse it.
+	   The format for authentication is [authzid]\0authcid\0password
+	   not [authzid]\0authcid\0password\0 */
+	ast_base64encode(base64, (const unsigned char *) s, len - 1, (len + 2) * 4 / 3);
 	iks_insert_cdata(x, base64, 0);
 	ast_aji_send(client, x);
 	iks_delete(x);
@@ -916,7 +906,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 							ast_log(LOG_ERROR, "Malformed Jabber ID : %s (domain missing?)\n", client->jid->full);
 							break;
 						}
-						features = aji_highest_bit(features);
+
 						ret = aji_start_sasl(client, features, client->jid->user, client->password);
 						if (ret != IKS_OK) {
 							ASTOBJ_UNREF(client, aji_client_destroy);
