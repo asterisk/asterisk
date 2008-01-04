@@ -17054,6 +17054,9 @@ static void *do_monitor(void *data)
 					sipsock_read_id = ast_io_change(io, sipsock_read_id, sipsock, NULL, 0, NULL);
 				else
 					sipsock_read_id = ast_io_add(io, sipsock, sipsock_read, AST_IO_IN, NULL);
+			} else if (sipsock_read_id) {
+				ast_io_remove(io, sipsock_read_id);
+				sipsock_read_id = NULL;
 			}
 		}
 
