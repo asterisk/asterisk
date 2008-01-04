@@ -254,6 +254,7 @@ AST_EXT_LIB_SETUP([ZAPTEL_TRANSCODE], [Zaptel Transcoder Support], [zaptel_trans
 AST_EXT_LIB_SETUP([ZAPTEL_VLDTMF], [Zaptel VLDTMF Support], [zaptel_vldtmf])
 AST_EXT_LIB_SETUP([ZAPTEL_HWGAIN], [Zaptel Hardware Gain Support], [zaptel_hwgain])
 AST_EXT_LIB_SETUP([ZAPTEL_ECHOCANPARAMS], [Zaptel Echo Canceler Parameter Support], [zaptel_echocanparams])
+AST_EXT_LIB_SETUP([ZAPTEL_CHANALARMS], [Zaptel Channel Alarm Support], [zaptel_chanalarms])
 
 AST_EXT_LIB_SETUP([SDL], [Sdl], [sdl])
 AST_EXT_LIB_SETUP([SDL_IMAGE], [Sdl Image library], [SDL_image])
@@ -1166,8 +1167,11 @@ AST_C_DEFINE_CHECK([ZAPTEL_ECHOCANPARAMS], [ZT_ECHOCANCEL_PARAMS], [zaptel/zapte
 # Check for transcoder support
 AST_C_DEFINE_CHECK([ZAPTEL_TRANSCODE], [ZT_TCOP_ALLOCATE], [zaptel/zaptel.h])
 
-# Check for Zaptel hwgain support
+# Check for hwgain support
 AST_C_DEFINE_CHECK([ZAPTEL_HWGAIN], [ZT_SET_HWGAIN], [zaptel/zaptel.h])
+
+# Check for channel alarm support
+AST_C_COMPILE_CHECK([ZAPTEL_CHANALARMS], [size_t foo = sizeof(struct zt_params_v1)], [zaptel/zaptel.h])
 
 # On FreeBSD, try old zaptel (0.80 or so) and pretend we have vldtmf
 case "${host_os}" in

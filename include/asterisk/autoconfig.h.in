@@ -1008,6 +1008,12 @@
 /* Define this to indicate the ${ZAPTEL_DESCRIP} library */
 #undef HAVE_ZAPTEL
 
+/* Define if your system has the ZAPTEL_CHANALARMS headers. */
+#undef HAVE_ZAPTEL_CHANALARMS
+
+/* Define ZAPTEL_CHANALARMS headers version */
+#undef HAVE_ZAPTEL_CHANALARMS_VERSION
+
 /* Define if your system has the ZAPTEL_ECHOCANPARAMS headers. */
 #undef HAVE_ZAPTEL_ECHOCANPARAMS
 

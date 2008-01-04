@@ -75,6 +75,7 @@ AC_DEFUN([AST_CHECK_MANDATORY],
 
 # The next three functions check for the availability of a given package.
 # AST_C_DEFINE_CHECK looks for the presence of a #define in a header file,
+# AST_C_COMPILE_CHECK can be used for testing for various items in header files,
 # AST_EXT_LIB_CHECK looks for a symbol in a given library, or at least
 #	for the presence of a header file.
 # AST_EXT_TOOL_CHECK looks for a symbol in using $1-config to determine CFLAGS and LIBS
@@ -108,6 +109,35 @@ AC_DEFUN([AST_C_DEFINE_CHECK],
 			        #endif
 				0
 			       ])],
+	    [   AC_MSG_RESULT(yes)
+		PBX_$1=1
+		AC_DEFINE([HAVE_$1], 1, [Define if your system has the $1 headers.])
+		AC_DEFINE([HAVE_$1_VERSION], $4, [Define $1 headers version])
+	    ],
+	    [       AC_MSG_RESULT(no) ] 
+	)
+	CPPFLAGS="${saved_cppflags}"
+    fi
+])
+
+
+# Check if a given expression will compile using a certain header.
+
+# AST_C_COMPILE_CHECK([package], [expression], [header file], [version])
+AC_DEFUN([AST_C_COMPILE_CHECK],
+[
+    if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
+	AC_MSG_CHECKING([if "$2" compiles using $3])
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${$1_DIR}" != "x"; then
+	    $1_INCLUDE="-I${$1_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
+
+	AC_COMPILE_IFELSE(
+	    [ AC_LANG_PROGRAM( [#include <$3>],
+			       [ $2; ]
+			       )],
 	    [   AC_MSG_RESULT(yes)
 		PBX_$1=1
 		AC_DEFINE([HAVE_$1], 1, [Define if your system has the $1 headers.])

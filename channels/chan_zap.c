@@ -4170,18 +4170,35 @@ static int check_for_conference(struct zt_pvt *p)
 	return 0;
 }
 
+/*! Checks channel for alarms
+ * \param p a channel to check for alarms.
+ * \returns the alarms on the span to which the channel belongs, or alarms on
+ *          the channel if no span alarms.
+ */
 static int get_alarms(struct zt_pvt *p)
 {
 	int res;
 	ZT_SPANINFO zi;
+#if defined(HAVE_ZAPTEL_CHANALARMS)
+	struct zt_params params;
+#endif
+
 	memset(&zi, 0, sizeof(zi));
 	zi.spanno = p->span;
-	res = ioctl(p->subs[SUB_REAL].zfd, ZT_SPANSTAT, &zi);
-	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to determine alarm on channel %d\n", p->channel);
-		return 0;
+	if ((res = ioctl(p->subs[SUB_REAL].zfd, ZT_SPANSTAT, &zi)) >= 0) {
+		if (zi.alarms != ZT_ALARM_NONE)
+			return zi.alarms;
 	}
-	return zi.alarms;
+
+#if defined(HAVE_ZAPTEL_CHANALARMS)
+	/* No alarms on the span. Check for channel alarms. */
+	if ((res = ioctl(p->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &params)) >= 0)
+		return params.chan_alarms;
+#endif
+
+	ast_log(LOG_WARNING, "Unable to determine alarm on channel %d\n", p->channel);
+
+	return ZT_ALARM_NONE;
 }
 
 static void zt_handle_dtmfup(struct ast_channel *ast, int index, struct ast_frame **dest)
