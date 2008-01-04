@@ -432,7 +432,7 @@ static void do_state_change(const char *device)
 	devstate_event(device, state, CACHE_OFF);
 }
 
-static int __ast_devstate_changed_literal(enum ast_device_state state, char *buf)
+static int __ast_devstate_changed_literal(enum ast_device_state state, char *buf, int norecurse)
 {
 	char *device;
 	struct state_change *change;
@@ -441,10 +441,6 @@ static int __ast_devstate_changed_literal(enum ast_device_state state, char *buf
 	ast_debug(3, "Notification of state change to be queued on device/channel %s\n", buf);
 
 	device = buf;
-
-	tmp = strrchr(device, '-');
-	if (tmp)
-		*tmp = '\0';
 
 	if (state != AST_DEVICE_UNKNOWN) {
 		devstate_event(device, state, CACHE_ON);
@@ -461,6 +457,18 @@ static int __ast_devstate_changed_literal(enum ast_device_state state, char *buf
 		AST_LIST_UNLOCK(&state_changes);
 	}
 
+	/* The problem with this API is that a device may be called with the unique
+	 * identifier appended or not, but it's separated from the channel name
+	 * with a '-', which is also a legitimate character in a channel name.  So,
+	 * we have to force both names to get their names checked for state changes
+	 * to ensure that the right one gets notified.  Not a huge performance hit,
+	 * but it might could be fixed by an enterprising programmer in trunk.
+	 */
+	if (!norecurse && (tmp = strrchr(device, '-'))) {
+		*tmp = '\0';
+		__ast_devstate_changed_literal(state, tmp, 1);
+	}
+	
 	return 1;
 }
 
@@ -470,7 +478,7 @@ int ast_devstate_changed_literal(enum ast_device_state state, const char *dev)
 
 	buf = ast_strdupa(dev);
 
-	return __ast_devstate_changed_literal(state, buf);
+	return __ast_devstate_changed_literal(state, buf, 0);
 }
 
 int ast_device_state_changed_literal(const char *dev)
@@ -479,7 +487,7 @@ int ast_device_state_changed_literal(const char *dev)
 
 	buf = ast_strdupa(dev);
 
-	return __ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, buf);
+	return __ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, buf, 0);
 }
 
 int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...) 
@@ -491,7 +499,7 @@ int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	return __ast_devstate_changed_literal(state, buf);
+	return __ast_devstate_changed_literal(state, buf, 0);
 }
 
 /*! \brief Accept change notification, add it to change queue */
@@ -504,7 +512,7 @@ int ast_device_state_changed(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	return __ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, buf);
+	return __ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, buf, 0);
 }
 
 /*! \brief Go through the dev state change queue and update changes in the dev state thread */
