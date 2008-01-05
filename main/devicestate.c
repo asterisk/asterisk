@@ -466,7 +466,7 @@ static int __ast_devstate_changed_literal(enum ast_device_state state, char *buf
 	 */
 	if (!norecurse && (tmp = strrchr(device, '-'))) {
 		*tmp = '\0';
-		__ast_devstate_changed_literal(state, tmp, 1);
+		__ast_devstate_changed_literal(state, device, 1);
 	}
 	
 	return 1;
