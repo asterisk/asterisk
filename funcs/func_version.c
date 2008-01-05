@@ -34,39 +34,35 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/version.h"
 #include "asterisk/build.h"
 
-#define STRING_IT(vernum) STRING_IT2(vernum)
-#define STRING_IT2(vernum) #vernum
-
 static int acf_version_exec(struct ast_channel *chan, const char *cmd,
 			 char *parse, char *buffer, size_t buflen)
 {
-	char *response_char = ASTERISK_VERSION;
+	const char *response_char = ast_get_version();
 	AST_DECLARE_APP_ARGS(args,
-			     AST_APP_ARG(info);
+		AST_APP_ARG(info);
 	);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!ast_strlen_zero(args.info) ) {
-		if (strcasecmp(args.info,"ASTERISK_VERSION_NUM") == 0)
-			response_char = STRING_IT(ASTERISK_VERSION_NUM);
-		else if (strcasecmp(args.info,"BUILD_USER") == 0)
+		if (!strcasecmp(args.info,"ASTERISK_VERSION_NUM"))
+			response_char = ast_get_version_num();
+		else if (!strcasecmp(args.info,"BUILD_USER"))
 			response_char = BUILD_USER;
-		else if (strcasecmp(args.info,"BUILD_HOSTNAME") == 0)
+		else if (!strcasecmp(args.info,"BUILD_HOSTNAME"))
 			response_char = BUILD_HOSTNAME;
-		else if (strcasecmp(args.info,"BUILD_MACHINE") == 0)
+		else if (!strcasecmp(args.info,"BUILD_MACHINE"))
 			response_char = BUILD_MACHINE;
-		else if (strcasecmp(args.info,"BUILD_KERNEL") == 0)
+		else if (!strcasecmp(args.info,"BUILD_KERNEL"))
 			response_char = BUILD_KERNEL;
-		else if (strcasecmp(args.info,"BUILD_OS") == 0)
+		else if (!strcasecmp(args.info,"BUILD_OS"))
 			response_char = BUILD_OS;
-		else if (strcasecmp(args.info,"BUILD_DATE") == 0)
+		else if (!strcasecmp(args.info,"BUILD_DATE"))
 			response_char = BUILD_DATE;
-
 	}
 
-
 	ast_debug(1, "VERSION returns %s result, given %s argument\n", response_char, args.info);
+
 	snprintf(buffer, buflen, "%s", response_char);
 
 	return 0;

@@ -135,7 +135,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 
 /*! \brief Welcome message when starting a CLI interface */
 #define WELCOME_MESSAGE \
-    ast_verbose("Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2007 Digium, Inc. and others.\n" \
+    ast_verbose("Asterisk %s, Copyright (C) 1999 - 2007 Digium, Inc. and others.\n" \
                 "Created by Mark Spencer <markster@digium.com>\n" \
                 "Asterisk comes with ABSOLUTELY NO WARRANTY; type 'core show warranty' for details.\n" \
                 "This is free software, with components licensed under the GNU General Public\n" \
@@ -143,7 +143,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
                 "certain conditions. Type 'core show license' for details.\n" \
                 "=========================================================================\n" \
                 "NOTE: This is a development version of Asterisk, and should not be used in\n" \
-                "production installations.\n");
+                "production installations.\n", ast_get_version());
 
 /*! \defgroup main_options Main Configuration Options
  * \brief Main configuration options from asterisk.conf or OS command line on starting Asterisk.
@@ -394,7 +394,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 
 	ast_cli(a->fd, "\nPBX Core settings\n");
 	ast_cli(a->fd, "-----------------\n");
-	ast_cli(a->fd, "  Version:                     %s\n", "" ASTERISK_VERSION "" );
+	ast_cli(a->fd, "  Version:                     %s\n", ast_get_version());
 	if (option_maxcalls)
 		ast_cli(a->fd, "  Max. calls:                  %d (Current %d)\n", option_maxcalls, ast_active_channels());
 	else
@@ -980,7 +980,7 @@ static void *netconsole(void *vconsole)
 	
 	if (gethostname(hostname, sizeof(hostname)-1))
 		ast_copy_string(hostname, "<Unknown>", sizeof(hostname));
-	snprintf(tmp, sizeof(tmp), "%s/%ld/%s\n", hostname, (long)ast_mainpid, ASTERISK_VERSION);
+	snprintf(tmp, sizeof(tmp), "%s/%ld/%s\n", hostname, (long)ast_mainpid, ast_get_version());
 	fdprint(con->fd, tmp);
 	for (;;) {
 		fds[0].fd = con->fd;
@@ -1515,7 +1515,7 @@ static char *handle_version(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 	ast_cli(a->fd, "Asterisk %s built by %s @ %s on a %s running %s on %s\n",
-		ASTERISK_VERSION, ast_build_user, ast_build_hostname,
+		ast_get_version(), ast_build_user, ast_build_hostname,
 		ast_build_machine, ast_build_os, ast_build_date);
 	return CLI_SUCCESS;
 }
@@ -2387,12 +2387,12 @@ static void ast_remotecontrol(char * data)
 
 static int show_version(void)
 {
-	printf("Asterisk " ASTERISK_VERSION "\n");
+	printf("Asterisk %s\n", ast_get_version());
 	return 0;
 }
 
 static int show_cli_help(void) {
-	printf("Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2007, Digium, Inc. and others.\n");
+	printf("Asterisk %s, Copyright (C) 1999 - 2007, Digium, Inc. and others.\n", ast_get_version());
 	printf("Usage: asterisk [OPTIONS]\n");
 	printf("Valid Options:\n");
 	printf("   -V              Display version number and exit\n");

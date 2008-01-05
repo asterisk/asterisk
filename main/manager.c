@@ -2222,7 +2222,7 @@ static int action_coresettings(struct mansession *s, const struct message *m)
 			,
 		        idText,
 			AMI_VERSION,
-			ASTERISK_VERSION, 
+			ast_get_version(), 
 			ast_config_AST_SYSTEM_NAME,
 			option_maxcalls,
 			option_maxload,

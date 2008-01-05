@@ -744,7 +744,7 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	ast_agi_fdprintf(chan, fd, "agi_language: %s\n", chan->language);
 	ast_agi_fdprintf(chan, fd, "agi_type: %s\n", chan->tech->type);
 	ast_agi_fdprintf(chan, fd, "agi_uniqueid: %s\n", chan->uniqueid);
-	ast_agi_fdprintf(chan, fd, "agi_version: %s\n", ASTERISK_VERSION);
+	ast_agi_fdprintf(chan, fd, "agi_version: %s\n", ast_get_version());
 
 	/* ANI/DNIS */
 	ast_agi_fdprintf(chan, fd, "agi_callerid: %s\n", S_OR(chan->cid.cid_num, "unknown"));

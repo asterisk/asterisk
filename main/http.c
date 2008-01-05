@@ -186,7 +186,7 @@ static struct ast_str *static_callback(struct server_instance *ser, const char *
 		"Cache-Control: no-cache, no-store\r\n"
 		"Content-Length: %d\r\n"
 		"Content-type: %s\r\n\r\n",
-		ASTERISK_VERSION, buf, (int) st.st_size, mtype);
+		ast_get_version(), buf, (int) st.st_size, mtype);
 
 	while ((len = read(fd, buf, sizeof(buf))) > 0)
 		fwrite(buf, 1, len, ser->f);
@@ -847,7 +847,7 @@ static void *httpd_helper_thread(void *data)
 				"Date: %s\r\n"
 				"Connection: close\r\n"
 				"%s",
-			status, title ? title : "OK", ASTERISK_VERSION, timebuf,
+			status, title ? title : "OK", ast_get_version(), timebuf,
 			static_content ? "" : "Cache-Control: no-cache, no-store\r\n");
 		if (!contentlength) {	/* opaque body ? just dump it hoping it is properly formatted */
 			fprintf(ser->f, "%s", out->str);
