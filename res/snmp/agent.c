@@ -731,10 +731,13 @@ static u_char *ast_var_Version(struct variable *vp, oid *name, size_t *length,
 
 	switch (vp->magic) {
 	case ASTVERSTRING:
-		*var_len = strlen(ASTERISK_VERSION);
-		return (u_char *)ASTERISK_VERSION;
+	{
+		const char *version = ast_get_version();
+		*var_len = strlen(version);
+		return (u_char *)version;
+	}
 	case ASTVERTAG:
-		long_ret = ASTERISK_VERSION_NUM;
+		sscanf(ast_get_version_num(), "%lu", &long_ret);
 		return (u_char *)&long_ret;
 	default:
 		break;
