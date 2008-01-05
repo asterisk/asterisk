@@ -114,12 +114,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/dsp.h"
 
-/* ringtones we use */
-#include "busy.h"
-#include "ringtone.h"
-#include "ring10.h"
-#include "answer.h"
-
 #define C108_VENDOR_ID		0x0d8c
 #define C108_PRODUCT_ID  	0x000c
 #define C108_HID_INTERFACE	3
@@ -286,31 +280,6 @@ enum {TOC_NONE,TOC_PHASE,TOC_NOTONE};
 /*	DECLARE STRUCTURES */
 
 /*
- * Each sound is made of 'datalen' samples of sound, repeated as needed to
- * generate 'samplen' samples of data, then followed by 'silencelen' samples
- * of silence. The loop is repeated if 'repeat' is set.
- */
-struct sound {
-	int ind;
-	char *desc;
-	short *data;
-	int datalen;
-	int samplen;
-	int silencelen;
-	int repeat;
-};
-
-static struct sound sounds[] = {
-	{ AST_CONTROL_RINGING, "RINGING", ringtone, sizeof(ringtone)/2, 16000, 32000, 1 },
-	{ AST_CONTROL_BUSY, "BUSY", busy, sizeof(busy)/2, 4000, 4000, 1 },
-	{ AST_CONTROL_CONGESTION, "CONGESTION", busy, sizeof(busy)/2, 2000, 2000, 1 },
-	{ AST_CONTROL_RING, "RING10", ring10, sizeof(ring10)/2, 16000, 32000, 1 },
-	{ AST_CONTROL_ANSWER, "ANSWER", answer, sizeof(answer)/2, 2200, 0, 0 },
-	{ -1, NULL, 0, 0, 0, 0 },	/* end marker */
-};
-
-
-/*
  * descriptor for one of our channels.
  * There is one used for 'default' values (from the [general] entry in
  * the configuration file), and then one instance for each device
@@ -321,17 +290,6 @@ struct chan_usbradio_pvt {
 	struct chan_usbradio_pvt *next;
 
 	char *name;
-	/*
-	 * cursound indicates which in struct sound we play. -1 means nothing,
-	 * any other value is a valid sound, in which case sampsent indicates
-	 * the next sample to send in [0..samplen + silencelen]
-	 * nosound is set to disable the audio data from the channel
-	 * (so we can play the tones etc.).
-	 */
-	int sndcmd[2];              /* Sound command pipe */
-	int cursound;               /* index of sound to send */
-	int sampsent;               /* # of sound samples sent  */
-	int nosound;                /* set to block audio from the PBX */
 
 	int total_blocks;           /* total blocks in the output device */
 	int sounddev;
@@ -460,7 +418,6 @@ struct chan_usbradio_pvt {
 
 /* maw add additional defaults !!! */
 static struct chan_usbradio_pvt usbradio_default = {
-	.cursound = -1,
 	.sounddev = -1,
 	.duplex = M_UNSET,			/* XXX check this */
 	.autoanswer = 1,
@@ -875,129 +832,6 @@ static int soundcard_writeframe(struct chan_usbradio_pvt *o, short *data)
 	return write(o->sounddev, ((void *) data), FRAME_SIZE * 2 * 12);
 }
 
-/*! \brief
- * Handler for 'sound writable' events from the sound thread.
- * Builds a frame from the high level description of the sounds,
- * and passes it to the audio device.
- * The actual sound is made of 1 or more sequences of sound samples
- * (s->datalen, repeated to make s->samplen samples) followed by
- * s->silencelen samples of silence. The position in the sequence is stored
- * in o->sampsent, which goes between 0 .. s->samplen+s->silencelen.
- * In case we fail to write a frame, don't update o->sampsent.
- */
-static void send_sound(struct chan_usbradio_pvt *o)
-{
-	short myframe[FRAME_SIZE];
-	int ofs, l, start;
-	int l_sampsent = o->sampsent;
-	struct sound *s;
-
-	if (o->cursound < 0)		/* no sound to send */
-		return;
-
-	s = &sounds[o->cursound];
-
-	for (ofs = 0; ofs < FRAME_SIZE; ofs += l) {
-		l = s->samplen - l_sampsent;	/* # of available samples */
-		if (l > 0) {
-			start = l_sampsent % s->datalen;	/* source offset */
-			if (l > FRAME_SIZE - ofs)	/* don't overflow the frame */
-				l = FRAME_SIZE - ofs;
-			if (l > s->datalen - start)	/* don't overflow the source */
-				l = s->datalen - start;
-			memcpy(myframe + ofs, s->data + start, l * 2);
-			ast_debug(4, "send_sound sound %d/%d of %d into %d\n", l_sampsent, l, s->samplen, ofs);
-			l_sampsent += l;
-		} else {				/* end of samples, maybe some silence */
-			static const short silence[FRAME_SIZE] = { 0, };
-
-			l += s->silencelen;
-			if (l > 0) {
-				if (l > FRAME_SIZE - ofs)
-					l = FRAME_SIZE - ofs;
-				memcpy(myframe + ofs, silence, l * 2);
-				l_sampsent += l;
-			} else {			/* silence is over, restart sound if loop */
-				if (s->repeat == 0) {	/* last block */
-					o->cursound = -1;
-					o->nosound = 0;	/* allow audio data */
-					if (ofs < FRAME_SIZE)	/* pad with silence */
-						memcpy(myframe + ofs, silence, (FRAME_SIZE - ofs) * 2);
-				}
-				l_sampsent = 0;
-			}
-		}
-	}
-	l = soundcard_writeframe(o, myframe);
-	if (l > 0)
-		o->sampsent = l_sampsent;	/* update status */
-}
-
-static void *sound_thread(void *arg)
-{
-	char ign[4096];
-	struct chan_usbradio_pvt *o = arg;
-
-	/*
-	 * Just in case, kick the driver by trying to read from it.
-	 * Ignore errors - this read is almost guaranteed to fail.
-	 */
-	read(o->sounddev, ign, sizeof(ign));
-	for (;;) {
-		fd_set rfds, wfds;
-		int maxfd, res;
-
-		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
-		FD_SET(o->sndcmd[0], &rfds);
-		maxfd = o->sndcmd[0];	/* pipe from the main process */
-		if (o->cursound > -1 && o->sounddev < 0)
-			setformat(o, O_RDWR);	/* need the channel, try to reopen */
-		else if (o->cursound == -1 && o->owner == NULL)
-			setformat(o, O_CLOSE);	/* can close */
-		if (o->sounddev > -1) {
-			if (!o->owner) {	/* no one owns the audio, so we must drain it */
-				FD_SET(o->sounddev, &rfds);
-				maxfd = MAX(o->sounddev, maxfd);
-			}
-			if (o->cursound > -1) {
-				FD_SET(o->sounddev, &wfds);
-				maxfd = MAX(o->sounddev, maxfd);
-			}
-		}
-		/* ast_select emulates linux behaviour in terms of timeout handling */
-		res = ast_select(maxfd + 1, &rfds, &wfds, NULL, NULL);
-		if (res < 1) {
-			ast_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
-			sleep(1);
-			continue;
-		}
-		if (FD_ISSET(o->sndcmd[0], &rfds)) {
-			/* read which sound to play from the pipe */
-			int i, what = -1;
-
-			read(o->sndcmd[0], &what, sizeof(what));
-			for (i = 0; sounds[i].ind != -1; i++) {
-				if (sounds[i].ind == what) {
-					o->cursound = i;
-					o->sampsent = 0;
-					o->nosound = 1;	/* block audio from pbx */
-					break;
-				}
-			}
-			if (sounds[i].ind == -1)
-				ast_log(LOG_WARNING, "invalid sound index: %d\n", what);
-		}
-		if (o->sounddev > -1) {
-			if (FD_ISSET(o->sounddev, &rfds))	/* read and ignore errors */
-				read(o->sounddev, ign, sizeof(ign)); 
-			if (FD_ISSET(o->sounddev, &wfds))
-				send_sound(o);
-		}
-	}
-	return NULL;				/* Never reached */
-}
-
 /*
  * reset and close the device if opened,
  * then open and initialize it in the desired mode,
@@ -1125,12 +959,6 @@ static int usbradio_text(struct ast_channel *c, const char *text)
 	return 0;
 }
 
-/* Play ringtone 'x' on device 'o' */
-static void ring(struct chan_usbradio_pvt *o, int x)
-{
-	write(o->sndcmd[1], &x, sizeof(x));
-}
-
 /*
  * handler for incoming calls. Either autoanswer, or start ringing
  */
@@ -1149,11 +977,8 @@ static int usbradio_call(struct ast_channel *c, char *dest, int timeout)
  */
 static int usbradio_answer(struct ast_channel *c)
 {
-	struct chan_usbradio_pvt *o = c->tech_pvt;
-
 	ast_setstate(c, AST_STATE_UP);
-	o->cursound = -1;
-	o->nosound = 0;
+
 	return 0;
 }
 
@@ -1161,8 +986,6 @@ static int usbradio_hangup(struct ast_channel *c)
 {
 	struct chan_usbradio_pvt *o = c->tech_pvt;
 
-	o->cursound = -1;
-	o->nosound = 0;
 	c->tech_pvt = NULL;
 	o->owner = NULL;
 	ast_module_unref(ast_module_info->self);
@@ -1171,9 +994,6 @@ static int usbradio_hangup(struct ast_channel *c)
 			/* Assume auto-hangup too */
 			o->hookstate = 0;
 			setformat(o, O_CLOSE);
-		} else {
-			/* Make congestion noise */
-			ring(o, AST_CONTROL_CONGESTION);
 		}
 	}
 	o->stophid = 1;
@@ -1190,11 +1010,6 @@ static int usbradio_write(struct ast_channel *c, struct ast_frame *f)
 
 	traceusb2("usbradio_write() o->nosound=%d\n", o->nosound);	/*sph maw asdf */
 
-	/* Immediately return if no sound is enabled */
-	if (o->nosound)
-		return 0;
-	/* Stop any currently playing sound */
-	o->cursound = -1;
 	/*
 	 * we could receive a block which is not a multiple of our
 	 * FRAME_SIZE, so buffer it locally and write to the device
@@ -1417,56 +1232,43 @@ static int usbradio_fixup(struct ast_channel *oldchan, struct ast_channel *newch
 static int usbradio_indicate(struct ast_channel *c, int cond, const void *data, size_t datalen)
 {
 	struct chan_usbradio_pvt *o = c->tech_pvt;
-	int res = -1;
+	int res = 0;
 
 	switch (cond) {
-		case AST_CONTROL_BUSY:
-		case AST_CONTROL_CONGESTION:
-		case AST_CONTROL_RINGING:
-			res = cond;
-			break;
-
-		case -1:
-			o->cursound = -1;
-			o->nosound = 0;		/* when cursound is -1 nosound must be 0 */
-			return 0;
-
-		case AST_CONTROL_VIDUPDATE:
-			res = -1;
-			break;
-		case AST_CONTROL_HOLD:
-			ast_verbose(" << Console Has Been Placed on Hold >> \n");
-			ast_moh_start(c, data, o->mohinterpret);
-			break;
-		case AST_CONTROL_UNHOLD:
-			ast_verbose(" << Console Has Been Retrieved from Hold >> \n");
-			ast_moh_stop(c);
-			break;
-		case AST_CONTROL_PROCEEDING:
-			ast_verbose(" << Call Proceeding... >> \n");
-			ast_moh_stop(c);
-			break;
-		case AST_CONTROL_PROGRESS:
-			ast_verbose(" << Call Progress... >> \n");
-			ast_moh_stop(c);
-			break;
-		case AST_CONTROL_RADIO_KEY:
-			o->txkeyed = 1;
-			if(o->debuglevel)ast_verbose(" << Radio Transmit On. >> \n");
-			break;
-		case AST_CONTROL_RADIO_UNKEY:
-			o->txkeyed = 0;
-			if(o->debuglevel)ast_verbose(" << Radio Transmit Off. >> \n");
-			break;
-		default:
-			ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, c->name);
-			return -1;
+	case AST_CONTROL_BUSY:
+	case AST_CONTROL_CONGESTION:
+	case AST_CONTROL_RINGING:
+	case -1:
+		res = -1;
+		break;
+	case AST_CONTROL_PROGRESS:
+	case AST_CONTROL_PROCEEDING:
+	case AST_CONTROL_VIDUPDATE:
+		break;
+	case AST_CONTROL_HOLD:
+		ast_verbose(" << Console Has Been Placed on Hold >> \n");
+		ast_moh_start(c, data, o->mohinterpret);
+		break;
+	case AST_CONTROL_UNHOLD:
+		ast_verbose(" << Console Has Been Retrieved from Hold >> \n");
+		ast_moh_stop(c);
+		break;
+	case AST_CONTROL_RADIO_KEY:
+		o->txkeyed = 1;
+		if (o->debuglevel)
+			ast_verbose(" << Radio Transmit On. >> \n");
+		break;
+	case AST_CONTROL_RADIO_UNKEY:
+		o->txkeyed = 0;
+		if (o->debuglevel)
+			ast_verbose(" << Radio Transmit Off. >> \n");
+		break;
+	default:
+		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, c->name);
+		return -1;
 	}
 
-	if (res > -1)
-		ring(o, res);
-
-	return 0;
+	return res;
 }
 
 /*
@@ -2523,25 +2325,12 @@ static struct chan_usbradio_pvt *store_config(struct ast_config *cfg, char *ctg)
 
 	/* pmrdump(o); */
 
-	if (pipe(o->sndcmd) != 0) {
-		ast_log(LOG_ERROR, "Unable to create pipe\n");
-		goto error;
-	}
-
-	ast_debug(4, "creating sound thread\n");
-	ast_pthread_create_background(&o->sthread, NULL, sound_thread, o);
-
 	/* link into list of devices */
 	if (o != &usbradio_default) {
 		o->next = usbradio_default.next;
 		usbradio_default.next = o;
 	}
 	return o;
-  
-error:
-	if (o != &usbradio_default)
-		ast_free(o);
-	return NULL;
 }
 
 #if	DEBUG_FILETEST == 1
@@ -2686,10 +2475,6 @@ static int unload_module(void)
 		#endif
 
 		close(o->sounddev);
-		if (o->sndcmd[0] > 0) {
-			close(o->sndcmd[0]);
-			close(o->sndcmd[1]);
-		}
 		if (o->dsp)
 			ast_dsp_free(o->dsp);
 		if (o->owner)
