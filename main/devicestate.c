@@ -329,7 +329,7 @@ static int __ast_device_state_changed_literal(char *buf, int norecurse)
 	 */
 	if (!norecurse && (tmp = strrchr(device, '-'))) {
 		*tmp = '\0';
-		__ast_device_state_changed_literal(tmp, 1);
+		__ast_device_state_changed_literal(device, 1);
 	}
 	
 	return 1;
