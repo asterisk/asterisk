@@ -2268,6 +2268,7 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_module *mod)
 {
 	struct ast_custom_function *cur;
+	char tmps[80];
 
 	if (!acf)
 		return -1;
@@ -2297,7 +2298,7 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
 
 	AST_RWLIST_UNLOCK(&acf_root);
 
-	ast_verb(2, "Registered custom function %s\n", acf->name);
+	ast_verb(2, "Registered custom function '%s'\n", term_color(tmps, acf->name, COLOR_BRCYAN, 0, sizeof(tmps)));
 
 	return 0;
 }
