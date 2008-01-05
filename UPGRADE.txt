@@ -136,6 +136,13 @@ Channel Drivers:
   to be compatible with settings in sip.conf. The "tos" and "cos" configuration
   is deprecated and will stop working in the next release of Asterisk.
 
+* Console: A new console channel driver, chan_console, has been added to Asterisk.
+  This new module can not be loaded at the same time as chan_alsa or chan_oss.  The
+  default modules.conf only loads one of them (chan_oss by default).  So, unless you
+  have modified your modules.conf to not use the autoload option, then you will need
+  to modify modules.conf to add another "noload" line to ensure that only one of
+  these three modules gets loaded.
+
 Configuration:
 
 * pbx_dundi.c: tos parameter changed to use new values. Old values like lowdelay,
