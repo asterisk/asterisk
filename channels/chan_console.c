@@ -29,6 +29,11 @@
  * 
  * \ingroup channel_drivers
  *
+ * \arg http://www.portaudio.com/
+ *
+ * To install portaudio v19 from svn, check it out using the following command:
+ *  - svn co https://www.portaudio.com/repos/portaudio/branches/v19-devel
+ *
  * \note Since this works with any audio system that libportaudio supports,
  * including ALSA and OSS, this may someday deprecate chan_alsa and chan_oss.
  * However, before that can be done, it needs to *at least* have all of the
