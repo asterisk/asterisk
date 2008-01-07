@@ -251,6 +251,12 @@ static void append_char(char *str, int *str_pos, const char c)
 	*str_pos = i;
 }
 
+static void append_string(char *str, int *str_pos, const char *s)
+{
+	while (*s)
+		append_char(str, str_pos, *s++);
+}
+
 /* accumulate digits, possibly call dial if in connected mode */
 static void keypad_digit(struct video_desc *env, int digit)
 {	
@@ -316,12 +322,12 @@ static void keypad_pick_up(struct video_desc *env)
 	ast_log(LOG_WARNING, "keypad_pick_up called\n");
 
 	if (env->owner) { /* someone is calling us, just answer */
-		console_do_answer(-1);
+		ast_cli_command(gui->outfd, "console answer");
 	} else if (gui->inbuf_pos) { /* we have someone to call */
 		ast_cli_command(gui->outfd, gui->inbuf);
 	}
-
 	append_char(gui->inbuf, &gui->inbuf_pos, '\0'); /* clear buffer */
+	append_string(gui->inbuf, &gui->inbuf_pos, "console dial ");
 }
 
 #if 0 /* still unused */
@@ -626,6 +632,7 @@ static struct gui_info *gui_init(const char *keypad_file)
 
 	/* initialize keyboard buffer */
 	append_char(gui->inbuf, &gui->inbuf_pos, '\0');
+	append_string(gui->inbuf, &gui->inbuf_pos, "console dial ");
 	append_char(gui->msgbuf, &gui->msgbuf_pos, '\0');
 
 	keypad_setup(gui, keypad_file);
