@@ -8213,6 +8213,31 @@ static int load_config(int reload)
 			ast_copy_string(greetingfolder, imapfolder, sizeof(greetingfolder));
 		}
 
+		/* Handle the timeouts */
+		if ((val = ast_variable_retrieve(cfg, "general", "imapreadtimeout"))) {
+			mail_parameters(NIL, SET_READTIMEOUT, (void *) (atol(val)));
+		} else {
+			mail_parameters(NIL, SET_READTIMEOUT, (void *) 60);
+		}
+
+		if ((val = ast_variable_retrieve(cfg, "general", "imapwritetimeout"))) {
+			mail_parameters(NIL, SET_WRITETIMEOUT, (void *) (atol(val)));
+		} else {
+			mail_parameters(NIL, SET_WRITETIMEOUT, (void *) 60);
+		}
+
+		if ((val = ast_variable_retrieve(cfg, "general", "imapopentimeout"))) {
+			mail_parameters(NIL, SET_OPENTIMEOUT, (void *) (atol(val)));
+		} else {
+			mail_parameters(NIL, SET_OPENTIMEOUT, (void *) 60);
+		}
+
+		if ((val = ast_variable_retrieve(cfg, "general", "imapclosetimeout"))) {
+			mail_parameters(NIL, SET_CLOSETIMEOUT, (void *) (atol(val)));
+		} else {
+			mail_parameters(NIL, SET_CLOSETIMEOUT, (void *) 60);
+		}
+
 #endif
 		/* External voicemail notify application */
 		if ((val = ast_variable_retrieve(cfg, "general", "externnotify"))) {
