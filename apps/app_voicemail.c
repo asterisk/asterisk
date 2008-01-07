@@ -8220,25 +8220,25 @@ static int load_config(int reload)
 		if ((val = ast_variable_retrieve(cfg, "general", "imapreadtimeout"))) {
 			mail_parameters(NIL, SET_READTIMEOUT, (void *) (atol(val)));
 		} else {
-			mail_parameters(NIL, SET_READTIMEOUT, (void *) 60);
+			mail_parameters(NIL, SET_READTIMEOUT, (void *) 60L);
 		}
 
 		if ((val = ast_variable_retrieve(cfg, "general", "imapwritetimeout"))) {
 			mail_parameters(NIL, SET_WRITETIMEOUT, (void *) (atol(val)));
 		} else {
-			mail_parameters(NIL, SET_WRITETIMEOUT, (void *) 60);
+			mail_parameters(NIL, SET_WRITETIMEOUT, (void *) 60L);
 		}
 
 		if ((val = ast_variable_retrieve(cfg, "general", "imapopentimeout"))) {
 			mail_parameters(NIL, SET_OPENTIMEOUT, (void *) (atol(val)));
 		} else {
-			mail_parameters(NIL, SET_OPENTIMEOUT, (void *) 60);
+			mail_parameters(NIL, SET_OPENTIMEOUT, (void *) 60L);
 		}
 
 		if ((val = ast_variable_retrieve(cfg, "general", "imapclosetimeout"))) {
 			mail_parameters(NIL, SET_CLOSETIMEOUT, (void *) (atol(val)));
 		} else {
-			mail_parameters(NIL, SET_CLOSETIMEOUT, (void *) 60);
+			mail_parameters(NIL, SET_CLOSETIMEOUT, (void *) 60L);
 		}
 
 #endif
