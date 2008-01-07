@@ -454,6 +454,12 @@ datafiles: _all
 	for x in static-http/*; do \
 		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/static-http ; \
 	done
+	if [ -d doc/tex/asterisk ] ; then \
+			mkdir -p $(DESTDIR)$(ASTDATADIR)/static-http/docs ; \
+			for n in doc/tex/asterisk/* ; do \
+				$(INSTALL) -m 644 $$n $(DESTDIR)$(ASTDATADIR)/static-http/docs ; \
+			done \
+	fi
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/images
 	for x in images/*.jpg; do \
 		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/images ; \
