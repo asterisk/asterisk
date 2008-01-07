@@ -113,6 +113,8 @@ struct gui_info {
 	int			outfd;		/* fd for output */
 	SDL_Surface		*keypad;	/* the skin for the keypad */
 
+	SDL_Rect		kp_rect;	/* portion of the skin to display - default all */
+
 	/* variable-size array mapping keypad regions to functions */
 	int kp_size, kp_used;
 	struct keypad_entry *kp;
@@ -217,12 +219,12 @@ static void show_frame(struct video_desc *env, int out)
 }
 
 /*
- * Identifier for each region of the main window.
+ * Identifiers for regions of the main window.
  * Values between 0 and 127 correspond to ASCII characters.
  * The corresponding strings to be used in the skin comment section
  * are defined in gui_key_map.
  */
-enum pixel_value {
+enum skin_area {
 	/* answer/close functions */
 	KEY_PICK_UP = 128,
 	KEY_HANG_UP = 129,
@@ -233,12 +235,19 @@ enum pixel_value {
 	KEY_LOCALVIDEO = 133,
 	KEY_REMOTEVIDEO = 134,
 	KEY_WRITEMESSAGE = 135,
-	KEY_GUI_CLOSE = 136,		/* close gui */
+	KEY_FLASH = 136,
+	KEY_GUI_CLOSE = 199,		/* close gui */
+
+	/* regions of the skin - active area, fonts, etc. */
+	KEY_KEYPAD = 200,		/* the keypad - default to the whole image */
+	KEY_FONT = 201,		/* the font */
 
 	/* areas outside the keypad - simulated */
-	KEY_OUT_OF_KEYPAD = 251,
-	KEY_REM_DPY = 252,
-	KEY_LOC_DPY = 253,
+	KEY_OUT_OF_KEYPAD = 241,
+	KEY_REM_DPY = 242,
+	KEY_LOC_DPY = 243,
+	KEY_RESET = 253,		/* the 'reset' keyword */
+	KEY_NONE = 254,			/* invalid area */
 	KEY_DIGIT_BACKGROUND = 255,	/* other areas within the keypad */
 };
 
@@ -782,8 +791,13 @@ static void sdl_setup(struct video_desc *env)
 		goto no_sdl;
 
 	if (gui->keypad) {
-		kp_w = gui->keypad->w;
-		kp_h = gui->keypad->h;
+		if (gui->kp_rect.w > 0 && gui->kp_rect.h > 0) {
+			kp_w = gui->kp_rect.w;
+			kp_h = gui->kp_rect.h;
+		} else {
+			kp_w = gui->keypad->w;
+			kp_h = gui->keypad->h;
+		}
 	}
 #define BORDER	5	/* border around our windows */
 	maxw = env->rem_dpy.w + env->loc_dpy.w + kp_w;
@@ -810,11 +824,12 @@ static void sdl_setup(struct video_desc *env)
 	 */
 	if (gui->keypad) {
 		struct SDL_Rect *dest = &gui->win[WIN_KEYPAD].rect;
+		struct SDL_Rect *src = (gui->kp_rect.w > 0 && gui->kp_rect.h > 0) ? & gui->kp_rect : NULL;
 		dest->x = 2*BORDER + env->rem_dpy.w;
 		dest->y = BORDER;
-		dest->w = gui->keypad->w;
-		dest->h = gui->keypad->h;
-		SDL_BlitSurface(gui->keypad, NULL, gui->screen, dest);
+		dest->w = kp_w;
+		dest->h = kp_h;
+		SDL_BlitSurface(gui->keypad, src, gui->screen, dest);
 		SDL_UpdateRects(gui->screen, 1, dest);
 	}
 	return;
@@ -866,13 +881,30 @@ static struct _s_k gui_key_map[] = {
         {"HANG_UP",	KEY_HANG_UP },
         {"HANGUP",	KEY_HANG_UP },
         {"MUTE",	KEY_MUTE },
+        {"FLASH",	KEY_FLASH },
         {"AUTOANSWER",	KEY_AUTOANSWER },
         {"SENDVIDEO",	KEY_SENDVIDEO },
         {"LOCALVIDEO",	KEY_LOCALVIDEO },
         {"REMOTEVIDEO",	KEY_REMOTEVIDEO },
         {"WRITEMESSAGE", KEY_WRITEMESSAGE },
         {"GUI_CLOSE",	KEY_GUI_CLOSE },
+        {"KEYPAD",	KEY_KEYPAD },	/* x0 y0 w h - active area of the keypad */
+        {"FONT",	KEY_FONT },	/* x0 yo w h rows cols - location and format of the font */
         {NULL, 0 } };
+
+static int gui_map_token(const char *s)
+{
+	/* map the string into token to be returned */
+	int i = atoi(s);
+	struct _s_k *p;
+	if (i > 0 || s[1] == '\0')	/* numbers or single characters */
+		return (i > 9) ? i : s[0];
+	for (p = gui_key_map; p->s; p++) {
+		if (!strcasecmp(p->s, s))
+			return p->k;
+	}
+	return KEY_NONE;	/* not found */
+}
 
 /*! \brief read a keypad entry line in the format
  *	reset
@@ -887,35 +919,51 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)
 {
 	struct keypad_entry e;
 	char s1[16], s2[16];
-	int i, ret = 0;
+	int i, ret = 0; /* default, error */
 
 	if (gui == NULL || val == NULL)
 		return 0;
 
+	s1[0] = s2[0] = '\0';
 	bzero(&e, sizeof(e));
 	i = sscanf(val, "%14s %14s %d %d %d %d %d",
                 s1, s2, &e.x0, &e.y0, &e.x1, &e.y1, &e.h);
 
+	e.c = gui_map_token(s1);
+	if (e.c == KEY_NONE)
+		return 0;	/* nothing found */
 	switch (i) {
 	default:
 		break;
 	case 1:	/* only "reset" is allowed */
-		if (strcasecmp(s1, "reset"))	/* invalid */
+		if (e.c != KEY_RESET)
 			break;
-		if (gui->kp) {
+		if (gui->kp)
 			gui->kp_used = 0;
-		}
 		break;
-	case 5: /* token circle xc yc diameter */
+	case 5:
+		if (e.c == KEY_KEYPAD) {	/* active keypad area */
+			gui->kp_rect.x = atoi(s2);
+			gui->kp_rect.y = e.x0;
+			gui->kp_rect.w = e.y0;
+			gui->kp_rect.h = e.x1;
+			break;
+		}
 		if (strcasecmp(s2, "circle"))	/* invalid */
 			break;
+		/* token circle xc yc diameter */
 		e.h = e.x1;
 		e.y1 = e.y0;	/* map radius in x1 y1 */
 		e.x1 = e.x0 + e.h;	/* map radius in x1 y1 */
 		e.x0 = e.x0 - e.h;	/* map radius in x1 y1 */
 		/* fallthrough */
 
-	case 7: /* token circle|rect x0 y0 x1 y1 h */
+	case 7:
+		if (e.c == KEY_FONT) {	/* font - x0 y0 w h rows cols */
+			ast_log(LOG_WARNING, "font not supported yet\n");
+			break;
+		}
+		/* token circle|rect x0 y0 x1 y1 h */
 		if (e.x1 < e.x0 || e.h <= 0) {
 			ast_log(LOG_WARNING, "error in coordinates\n");
 			e.type = 0;
@@ -936,23 +984,6 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)
 	// ast_log(LOG_WARNING, "reading [%s] returns %d %d\n", val, i, ret);
 	if (ret == 0)
 		return 0;
-	/* map the string into token to be returned */
-	i = atoi(s1);
-	if (i > 0 || s1[1] == '\0')	/* numbers or single characters */
-		e.c = (i > 9) ? i : s1[0];
-	else {
-		struct _s_k *p;
-		for (p = gui_key_map; p->s; p++) {
-			if (!strcasecmp(p->s, s1)) {
-				e.c = p->k;
-				break;
-			}
-		}
-	}
-	if (e.c == 0) {
-		ast_log(LOG_WARNING, "missing token\n");
-		return 0;
-	}
 	if (gui->kp_size == 0) {
 		gui->kp = ast_calloc(10, sizeof(e));
 		if (gui->kp == NULL) {
