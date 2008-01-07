@@ -626,6 +626,8 @@ static int smdi_load(int reload)
 
 			ast_copy_string(iface->name, v->value, sizeof(iface->name));
 
+			iface->thread = AST_PTHREADT_NULL;
+
 			if (!(iface->file = fopen(iface->name, "r"))) {
 				ast_log(LOG_ERROR, "Error opening SMDI interface %s (%s)\n", iface->name, strerror(errno));
 				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
