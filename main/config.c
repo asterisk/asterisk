@@ -2249,16 +2249,21 @@ static char *handle_cli_core_show_config_mappings(struct ast_cli_entry *e, int c
 	
 	ast_mutex_lock(&config_lock);
 
-	ast_cli(a->fd, "\n\n");
-	for (eng = config_engine_list; eng; eng = eng->next) {
-		ast_cli(a->fd, "\nConfig Engine: %s\n", eng->name);
-		for (map = config_maps; map; map = map->next)
-			if (!strcasecmp(map->driver, eng->name)) {
-				ast_cli(a->fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
-					map->table ? map->table : map->name);
+	if (!config_engine_list) {
+		ast_cli(a->fd, "No config mappings found.\n");
+	} else {
+		ast_cli(a->fd, "\n\n");
+		for (eng = config_engine_list; eng; eng = eng->next) {
+			ast_cli(a->fd, "\nConfig Engine: %s\n", eng->name);
+			for (map = config_maps; map; map = map->next) {
+				if (!strcasecmp(map->driver, eng->name)) {
+					ast_cli(a->fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
+							map->table ? map->table : map->name);
+				}
 			}
+		}
+		ast_cli(a->fd,"\n\n");
 	}
-	ast_cli(a->fd,"\n\n");
 	
 	ast_mutex_unlock(&config_lock);
 
