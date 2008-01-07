@@ -2,6 +2,15 @@
 ; Asterisk Builtin mini-HTTP server
 ;
 ;
+; Note about Asterisk documentation:
+;   If Asterisk was installed from a tarball, then the HTML documentation should
+;   be installed in the static-http/docs directory which is
+;   (/var/lib/asterisk/static-http/docs) on linux by default.  If the Asterisk
+;   HTTP server is enabled in this file by setting the "enabled", "bindaddr",
+;   and "bindport" options, then you should be able to view the documentation
+;   remotely by browsing to:
+;       http://<server_ip>:<bindport/asterisk/static/docs/index.html
+;
 [general]
 ;
 ; Whether HTTP/HTTPS interface is enabled or not.  Default is no.
