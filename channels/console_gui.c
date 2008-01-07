@@ -4,6 +4,37 @@
  * $Revision$
  */
 
+/*
+ * GUI layout, structure and management
+ 
+For the GUI we use SDL to create a large surface (gui->screen)
+containing tree sections: remote video on the left, local video
+on the right, and the keypad with all controls and text windows
+in the center.
+The central section is built using an image for the skin, fonts and
+other GUI elements.  Comments embedded in the image to indicate to
+what function each area is mapped to.
+
+Mouse and keyboard events are detected on the whole surface, and
+handled differently according to their location:
+
+- drag on the local video window are used to move the captured
+  area (in the case of X11 grabber) or the picture-in-picture
+  location (in case of camera included on the X11 grab).
+- click on the keypad are mapped to the corresponding key;
+- drag on some keypad areas (sliders etc.) are mapped to the
+  corresponding functions;
+- keystrokes are used as keypad functions, or as text input
+  if we are in text-input mode.
+
+Configuration options control the appeareance of the gui:
+
+    keypad = /tmp/phone.jpg	; the skin
+    keypad_font = /tmp/font.ttf	; the font to use for output (XXX deprecated)
+
+ *
+ */
+
 #include "asterisk.h"
 #include "console_video.h"
 #include "asterisk/lock.h"
@@ -11,11 +42,10 @@
 #include "asterisk/utils.h"	/* ast_calloc and ast_realloc */
 #include <math.h>		/* sqrt */
 
-/* we support 3 regions in the GUI */
+/* We use 3 'windows' in the GUI */
 enum { WIN_LOCAL, WIN_REMOTE, WIN_KEYPAD, WIN_MAX };
 
-#ifndef HAVE_SDL
-/* stubs if we don't have any sdl */
+#ifndef HAVE_SDL	/* stubs if we don't have any sdl */
 static void show_frame(struct video_desc *env, int out)	{}
 static void sdl_setup(struct video_desc *env)		{}
 static struct gui_info *cleanup_sdl(struct gui_info *gui)	{ return NULL; }
@@ -48,7 +78,21 @@ struct display_window   {
 };
 #define GUI_BUFFER_LEN 256			/* buffer lenght used for input buffers */
 
-struct keypad_entry;	/* defined in console_gui.c */
+/* Where do we send the keyboard/keypad output */
+enum kb_output {
+	KO_NONE,
+	KO_INPUT,	/* the local input window */
+	KO_DIALED,	/* the 'dialed number' window */
+};
+
+enum drag_window {	/* which window are we dragging */
+	DRAG_NONE,
+	DRAG_LOCAL,	/* local video */
+	DRAG_REMOTE,	/* remote video */
+	DRAG_DIALED,	/* dialed number */
+	DRAG_INPUT,	/* input window */
+	DRAG_MESSAGE,	/* message window */
+};
 
 /*! \brief info related to the gui: button status, mouse coords, etc. */
 struct gui_info {
@@ -56,8 +100,8 @@ struct gui_info {
 	int			inbuf_pos;	/* next free position in inbuf */
 	char			msgbuf[GUI_BUFFER_LEN];	/* buffer for text-message buffer */
 	int			msgbuf_pos;	/* next free position in msgbuf */
-	int			text_mode;	/* switch to-dial and text-message mode */
-	int			drag_mode;	/* switch phone and drag-source mode */
+	enum kb_output		kb_output;	/* where the keyboard output goes */
+	enum drag_window	drag_window;	/* which window are we dragging */
 	int			x_drag;		/* x coordinate where the drag starts */
 	int			y_drag;		/* y coordinate where the drag starts */
 #ifdef HAVE_SDL_TTF
@@ -67,7 +111,9 @@ struct gui_info {
 	SDL_Surface             *screen;	/* the main window */
 
 	int			outfd;		/* fd for output */
-	SDL_Surface		*keypad;	/* the pixmap for the keypad */
+	SDL_Surface		*keypad;	/* the skin for the keypad */
+
+	/* variable-size array mapping keypad regions to functions */
 	int kp_size, kp_used;
 	struct keypad_entry *kp;
 
@@ -171,51 +217,16 @@ static void show_frame(struct video_desc *env, int out)
 }
 
 /*
- * GUI layout, structure and management
- *
-
-For the GUI we use SDL to create a large surface (gui->screen)
-containing tree sections: remote video on the left, local video
-on the right, and the keypad with all controls and text windows
-in the center.
-The central section is built using two images: one is the skin,
-the other one is a mask where the sensitive areas of the skin
-are colored in different grayscale levels according to their
-functions. The mapping between colors and function is defined
-in the 'enum pixel_value' below.
-
-Mouse and keyboard events are detected on the whole surface, and
-handled differently according to their location, as follows:
-
-- drag on the local video window are used to move the captured
-  area (in the case of X11 grabber) or the picture-in-picture
-  location (in case of camera included on the X11 grab).
-- click on the keypad are mapped to the corresponding key;
-- drag on some keypad areas (sliders etc.) are mapped to the
-  corresponding functions;
-- keystrokes are used as keypad functions, or as text input
-  if we are in text-input mode.
-
-To manage these behavior we use two status variables,
-that defines if keyboard events should be redirect to dialing functions
-or to write message functions, and if mouse events should be used
-to implement keypad functionalities or to drag the capture device.
-
-Configuration options control the appeareance of the gui:
-
-    keypad = /tmp/phone.jpg		; the keypad on the screen
-    keypad_font = /tmp/font.ttf		; the font to use for output
-
- *
+ * Identifier for each region of the main window.
+ * Values between 0 and 127 correspond to ASCII characters.
+ * The corresponding strings to be used in the skin comment section
+ * are defined in gui_key_map.
  */
-
-/* enumerate for the pixel value. 0..127 correspond to ascii chars */
 enum pixel_value {
 	/* answer/close functions */
 	KEY_PICK_UP = 128,
 	KEY_HANG_UP = 129,
 
-	/* other functions */
 	KEY_MUTE = 130,
 	KEY_AUTOANSWER = 131,
 	KEY_SENDVIDEO = 132,
@@ -224,20 +235,18 @@ enum pixel_value {
 	KEY_WRITEMESSAGE = 135,
 	KEY_GUI_CLOSE = 136,		/* close gui */
 
-	/* other areas within the keypad */
-	KEY_DIGIT_BACKGROUND = 255,
-
 	/* areas outside the keypad - simulated */
 	KEY_OUT_OF_KEYPAD = 251,
 	KEY_REM_DPY = 252,
 	KEY_LOC_DPY = 253,
+	KEY_DIGIT_BACKGROUND = 255,	/* other areas within the keypad */
 };
 
 /*
  * Handlers for the various keypad functions
  */
 
-/*! \brief append a character, or reset if '\0' */
+/*! \brief append a character, or reset if  c = '\0' */
 static void append_char(char *str, int *str_pos, const char c)
 {
 	int i = *str_pos;
@@ -251,6 +260,7 @@ static void append_char(char *str, int *str_pos, const char c)
 	*str_pos = i;
 }
 
+/*! \brief append string to a buffer */
 static void append_string(char *str, int *str_pos, const char *s)
 {
 	while (*s)
@@ -268,15 +278,6 @@ static void keypad_digit(struct video_desc *env, int digit)
 	} else {		/* no call, accumulate digits */
 		append_char(env->gui->inbuf, &env->gui->inbuf_pos, digit);
 	}
-}
-
-/* this is a wrapper for actions that are available through the cli */
-/* TODO append arg to command and send the resulting string as cli command */
-static void keypad_send_command(struct video_desc *env, char *command)
-{	
-	ast_log(LOG_WARNING, "keypad_send_command(%s) called\n", command);
-	ast_cli_command(env->gui->outfd, command);
-	return;
 }
 
 /* function used to toggle on/off the status of some variables */
@@ -388,7 +389,7 @@ static int kp_match_area(const struct keypad_entry *e, int x, int y);
  *
  * x, y are referred to the upper left corner of the main SDL window.
  */
-static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent button)
+static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button)
 {
 	uint8_t index = KEY_OUT_OF_KEYPAD;	/* the key or region of the display we clicked on */
 	struct gui_info *gui = env->gui;
@@ -397,8 +398,8 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 	ast_log(LOG_WARNING, "event %d %d have %d/%d regions at %p\n",
 		button.x, button.y, gui->kp_used, gui->kp_size, gui->kp);
 #endif
-	/* for each click we come back in normal mode */
-	gui->text_mode = 0;
+	/* for each mousedown we end previous drag */
+	gui->drag_window = DRAG_NONE;
 
 	/* define keypad boundary */
 	if (button.x < env->rem_dpy.w)
@@ -442,11 +443,6 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 		break;
 	case KEY_REMOTEVIDEO:
 		break;
-	case KEY_WRITEMESSAGE:
-		/* goes in text-mode */
-		env->gui->text_mode = 1;
-		break;
-
 
 	/* press outside the keypad. right increases size, center decreases, left drags */
 	case KEY_LOC_DPY:
@@ -457,7 +453,7 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
 				* and switch in drag mode */
 				env->gui->x_drag = button.x;
 				env->gui->y_drag = button.y;
-				env->gui->drag_mode = 1;
+				env->gui->drag_window = DRAG_LOCAL;
 			}
 			break;
 		} else {
@@ -485,24 +481,31 @@ static void handle_button_event(struct video_desc *env, SDL_MouseButtonEvent but
  * depending on the text_mode variable value.
  *
  * key is the SDLKey structure corresponding to the key pressed.
+ * XXX needs to be cleaned up when handling returns etc.
  */
 static void handle_keyboard_input(struct video_desc *env, SDLKey key)
 {
 	struct gui_info *gui = env->gui;
-	if (gui->text_mode) {
+	switch (gui->kb_output) {
+	default:
+		break;
+	case KO_INPUT:
 		/* append in the text-message buffer */
 		if (key == SDLK_RETURN) {
 			/* send the text message and return in normal mode */
-			gui->text_mode = 0;
-			keypad_send_command(env, "send text");
+			gui->kb_output = KO_NONE;
+			ast_cli_command(gui->outfd, gui->msgbuf);
+			append_char(gui->msgbuf, &gui->msgbuf_pos, '\0');
 		} else {
 			/* accumulate the key in the message buffer */
 			append_char(gui->msgbuf, &gui->msgbuf_pos, key);
 		}
-	}
-	else {
+		break;
+	case KO_DIALED:
+		/* XXX actually, enter should be a 'console dial ' */
 		/* append in the dial buffer */
 		append_char(gui->inbuf, &gui->inbuf_pos, key);
+		break;
 	}
 
 	return;
@@ -571,16 +574,16 @@ static void eventhandler(struct video_desc *env, const char *caption)
 				handle_keyboard_input(env, ev[i].key.keysym.sym);
 				break;
 			case SDL_MOUSEMOTION:
-				if (gui->drag_mode != 0)
+				if (gui->drag_window == DRAG_LOCAL)
 					move_capture_source(env, ev[i].motion.x, ev[i].motion.y);
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				handle_button_event(env, ev[i].button);
+				handle_mousedown(env, ev[i].button);
 				break;
 			case SDL_MOUSEBUTTONUP:
-				if (gui->drag_mode != 0) {
+				if (gui->drag_window == DRAG_LOCAL) {
 					move_capture_source(env, ev[i].button.x, ev[i].button.y);
-					gui->drag_mode = 0;
+					gui->drag_window = DRAG_NONE;
 				}
 				break;
 			}
@@ -600,7 +603,7 @@ static void eventhandler(struct video_desc *env, const char *caption)
 	}
 }
 
-static SDL_Surface *get_keypad(const char *file)
+static SDL_Surface *load_image(const char *file)
 {
 	SDL_Surface *temp;
  
@@ -626,8 +629,8 @@ static struct gui_info *gui_init(const char *keypad_file)
 	if (gui == NULL)
 		return NULL;
 	/* initialize keypad status */
-	gui->text_mode = 0;
-	gui->drag_mode = 0;
+	gui->kb_output = KO_DIALED;
+	gui->drag_window = DRAG_NONE;
 	gui->outfd = -1;
 
 	/* initialize keyboard buffer */
@@ -692,7 +695,7 @@ static void keypad_setup(struct gui_info *gui, const char *kp_file)
 
 	if (gui->keypad)
 		return;
-	gui->keypad = get_keypad(kp_file);
+	gui->keypad = load_image(kp_file);
 	if (!gui->keypad)
 		return;
 	/* now try to read the keymap from the file. */
