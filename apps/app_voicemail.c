@@ -8213,7 +8213,10 @@ static int load_config(int reload)
 			ast_copy_string(greetingfolder, imapfolder, sizeof(greetingfolder));
 		}
 
-		/* Handle the timeouts */
+		/* There is some very unorthodox casting done here. This is due
+		 * to the way c-client handles the argument passed in. It expects a 
+		 * void pointer and casts the pointer directly to a long without
+		 * first dereferencing it. */
 		if ((val = ast_variable_retrieve(cfg, "general", "imapreadtimeout"))) {
 			mail_parameters(NIL, SET_READTIMEOUT, (void *) (atol(val)));
 		} else {
