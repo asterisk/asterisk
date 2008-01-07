@@ -530,87 +530,85 @@ static int aji_act_hook(void *data, int type, iks *node)
 			break;
 
 		case IKS_NODE_NORMAL:
-			{
+			if (!strcmp("stream:features", iks_name(node))) {
 				int features = 0;
-				if (!strcmp("stream:features", iks_name(node))) {
-					features = iks_stream_features(node);
-					if (client->usesasl) {
-						if (client->usetls && !iks_is_secure(client->p))
-							break;
-						if (client->authorized) {
-							if (features & IKS_STREAM_BIND) {
-								iks_filter_add_rule (client->f, aji_client_connect, client, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_SUBTYPE, IKS_TYPE_RESULT, IKS_RULE_DONE);
-								auth = iks_make_resource_bind(client->jid);
-								if (auth) {
-									iks_insert_attrib(auth, "id", client->mid);
-									ast_aji_increment_mid(client->mid);
-									iks_send(client->p, auth);
-									iks_delete(auth);
-								} else {
-									ast_log(LOG_ERROR, "Out of memory.\n");
-									break;
-								}
-							}
-							if (features & IKS_STREAM_SESSION) {
-								iks_filter_add_rule (client->f, aji_client_connect, client, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_SUBTYPE, IKS_TYPE_RESULT, IKS_RULE_ID, "auth", IKS_RULE_DONE);
-								auth = iks_make_session();
-								if (auth) {
-									iks_insert_attrib(auth, "id", "auth");
-									ast_aji_increment_mid(client->mid);
-									iks_send(client->p, auth);
-									iks_delete(auth);
-								} else {
-									ast_log(LOG_ERROR, "Out of memory.\n");
-								}
-							}
-						} else {
-							if (!client->jid->user) {
-								ast_log(LOG_ERROR, "Malformed Jabber ID : %s (domain missing?)\n", client->jid->full);
+				features = iks_stream_features(node);
+				if (client->usesasl) {
+					if (client->usetls && !iks_is_secure(client->p))
+						break;
+					if (client->authorized) {
+						if (features & IKS_STREAM_BIND) {
+							iks_filter_add_rule (client->f, aji_client_connect, client, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_SUBTYPE, IKS_TYPE_RESULT, IKS_RULE_DONE);
+							auth = iks_make_resource_bind(client->jid);
+							if (auth) {
+								iks_insert_attrib(auth, "id", client->mid);
+								ast_aji_increment_mid(client->mid);
+								iks_send(client->p, auth);
+								iks_delete(auth);
+							} else {
+								ast_log(LOG_ERROR, "Out of memory.\n");
 								break;
 							}
-							features = aji_highest_bit(features);
-							if (features == IKS_STREAM_SASL_MD5)
-								iks_start_sasl(client->p, IKS_SASL_DIGEST_MD5, client->jid->user, client->password);
-							else {
-								if (features == IKS_STREAM_SASL_PLAIN) {
-									iks *x = NULL;
-									x = iks_new("auth");
-									if (x) {
-										int len = strlen(client->jid->user) + strlen(client->password) + 3;
-										/* XXX Check return values XXX */
-										char *s = ast_malloc(80 + len);
-										char *base64 = ast_malloc(80 + len * 2);
-										iks_insert_attrib(x, "xmlns", IKS_NS_XMPP_SASL);
-										iks_insert_attrib(x, "mechanism", "PLAIN");
-										sprintf(s, "%c%s%c%s", 0, client->jid->user, 0, client->password);
+						}
+						if (features & IKS_STREAM_SESSION) {
+							iks_filter_add_rule (client->f, aji_client_connect, client, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_SUBTYPE, IKS_TYPE_RESULT, IKS_RULE_ID, "auth", IKS_RULE_DONE);
+							auth = iks_make_session();
+							if (auth) {
+								iks_insert_attrib(auth, "id", "auth");
+								ast_aji_increment_mid(client->mid);
+								iks_send(client->p, auth);
+								iks_delete(auth);
+							} else {
+								ast_log(LOG_ERROR, "Out of memory.\n");
+							}
+						}
+					} else {
+						if (!client->jid->user) {
+							ast_log(LOG_ERROR, "Malformed Jabber ID : %s (domain missing?)\n", client->jid->full);
+							break;
+						}
+						features = aji_highest_bit(features);
+						if (features == IKS_STREAM_SASL_MD5)
+							iks_start_sasl(client->p, IKS_SASL_DIGEST_MD5, client->jid->user, client->password);
+						else {
+							if (features == IKS_STREAM_SASL_PLAIN) {
+								iks *x = NULL;
+								x = iks_new("auth");
+								if (x) {
+									int len = strlen(client->jid->user) + strlen(client->password) + 3;
+									/* XXX Check return values XXX */
+									char *s = ast_malloc(80 + len);
+									char *base64 = ast_malloc(80 + len * 2);
+									iks_insert_attrib(x, "xmlns", IKS_NS_XMPP_SASL);
+									iks_insert_attrib(x, "mechanism", "PLAIN");
+									sprintf(s, "%c%s%c%s", 0, client->jid->user, 0, client->password);
 										
-										/* exclude the NULL training byte from the base64 encoding operation
-										   as some XMPP servers will refuse it.
-										   The format for authentication is [authzid]\0authcid\0password
-										   not [authzid]\0authcid\0password\0 */
-										ast_base64encode(base64, (const unsigned char *) s, len - 1, len * 2);
-										iks_insert_cdata(x, base64, 0);
-										iks_send(client->p, x);
-										iks_delete(x);
-										if (base64)
-											free(base64);
-										if (s)
-											free(s);
-									} else {
-										ast_log(LOG_ERROR, "Out of memory.\n");
-									}
+									/* exclude the NULL training byte from the base64 encoding operation
+									   as some XMPP servers will refuse it.
+									   The format for authentication is [authzid]\0authcid\0password
+									   not [authzid]\0authcid\0password\0 */
+									ast_base64encode(base64, (const unsigned char *) s, len - 1, len * 2);
+									iks_insert_cdata(x, base64, 0);
+									iks_send(client->p, x);
+									iks_delete(x);
+									if (base64)
+										free(base64);
+									if (s)
+										free(s);
+								} else {
+									ast_log(LOG_ERROR, "Out of memory.\n");
 								}
 							}
 						}
 					}
-				} else if (!strcmp("failure", iks_name(node))) {
-					ast_log(LOG_ERROR, "JABBER: encryption failure. possible bad password.\n");
-				} else if (!strcmp("success", iks_name(node))) {
-					client->authorized = 1;
-					iks_send_header(client->p, client->jid->server);
 				}
-				break;
+			} else if (!strcmp("failure", iks_name(node))) {
+				ast_log(LOG_ERROR, "JABBER: encryption failure. possible bad password.\n");
+			} else if (!strcmp("success", iks_name(node))) {
+				client->authorized = 1;
+				iks_send_header(client->p, client->jid->server);
 			}
+			break;
 		case IKS_NODE_ERROR: 
 				ast_log(LOG_ERROR, "JABBER: Node Error\n");
 				ASTOBJ_UNREF(client, aji_client_destroy);
