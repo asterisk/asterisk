@@ -55,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/file.h"
 #include "asterisk/manager.h"
+#include "asterisk/module.h"
 #include "asterisk/config.h"
 #include "asterisk/callerid.h"
 #include "asterisk/lock.h"
@@ -2360,6 +2361,101 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	return 0;
 }
 
+static char mandescr_modulecheck[] = 
+"Description: Checks if Asterisk module is loaded\n"
+"Variables: \n"
+"  ActionID: <id>          Action ID for this transaction. Will be returned.\n"
+"  Module: <name>          Asterisk module name (not including extension)\n"
+"\n"
+"Will return Success/Failure\n"
+"For success returns, the module revision number is included.\n";
+
+/* Manager function to check if module is loaded */
+static int manager_modulecheck(struct mansession *s, const struct message *m)
+{
+	int res;
+	const char *module = astman_get_header(m, "Module");
+	const char *id = astman_get_header(m,"ActionID");
+	char idText[BUFSIZ];
+	const char *version;
+	char filename[BUFSIZ/2];
+	char *cut;
+
+	snprintf(filename, sizeof(filename), module);
+	if ((cut = strchr(filename, '.'))) {
+		*cut = '\0';
+	} else {
+		cut = filename + strlen(filename);
+	}
+	sprintf(cut, ".so");
+	ast_log(LOG_DEBUG, "**** ModuleCheck .so file %s\n", filename);
+	res = ast_module_check(filename);
+	if (!res) {
+		astman_send_error(s, m, "Module not loaded");
+		return 0;
+	}
+	sprintf(cut, ".c");
+	ast_log(LOG_DEBUG, "**** ModuleCheck .c file %s\n", filename);
+	version = ast_file_version_find(filename);
+
+	if (!ast_strlen_zero(id))
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+	astman_append(s, "Response: Success\r\n%s", idText);
+	astman_append(s, "Version: %s\r\n\r\n", version ? version : "");
+	return 0;
+}
+
+static char mandescr_moduleload[] = 
+"Description: Loads, unloads or reloads an Asterisk module in a running system.\n"
+"Variables: \n"
+"  ActionID: <id>          Action ID for this transaction. Will be returned.\n"
+"  Module: <name>          Asterisk module name (including .so extension)\n"
+"                          or subsystem identifier:\n"
+"				cdr, enum, dnsmgr, extconfig, manager, rtp, http\n"
+"  LoadType: load | unload | reload\n"
+"                          The operation to be done on module\n"
+" If no module is specified for a reload loadtype, all modules are reloaded";
+
+static int manager_moduleload(struct mansession *s, const struct message *m)
+{
+	int res;
+	const char *module = astman_get_header(m, "Module");
+	const char *loadtype = astman_get_header(m, "LoadType");
+
+	if (!loadtype || strlen(loadtype) == 0)
+		astman_send_error(s, m, "Incomplete ModuleLoad action.");
+	if ((!module || strlen(module) == 0) && strcasecmp(loadtype, "reload") != 0)
+		astman_send_error(s, m, "Need module name");
+
+	if (!strcasecmp(loadtype, "load")) {
+		res = ast_load_resource(module);
+		if (res)
+			astman_send_error(s, m, "Could not load module.");
+		else
+			astman_send_ack(s, m, "Module loaded.");
+	} else if (!strcasecmp(loadtype, "unload")) {
+		res = ast_unload_resource(module, AST_FORCE_SOFT);
+		if (res)
+			astman_send_error(s, m, "Could not unload module.");
+		else
+			astman_send_ack(s, m, "Module unloaded.");
+	} else if (!strcasecmp(loadtype, "reload")) {
+		if (module != NULL) {
+			res = ast_module_reload(module);
+			if (res == 0)
+				astman_send_error(s, m, "No such module.");
+			else if (res == 1)
+				astman_send_error(s, m, "Module does not support reload action.");
+			else
+				astman_send_ack(s, m, "Module reloaded.");
+		} else {
+			ast_module_reload(NULL);	/* Reload all modules */
+			astman_send_ack(s, m, "All modules reloaded");
+		}
+	} else 
+		astman_send_error(s, m, "Incomplete ModuleLoad action.");
+	return 0;
+}
 
 /*
  * Done with the action handlers here, we start with the code in charge
@@ -3393,6 +3489,8 @@ static int __init_manager(int reload)
 		ast_manager_register2("CoreStatus", EVENT_FLAG_SYSTEM, action_corestatus, "Show PBX core status variables", mandescr_corestatus);
 		ast_manager_register2("Reload", EVENT_FLAG_CONFIG, action_reload, "Send a reload event", mandescr_reload);
 		ast_manager_register2("CoreShowChannels", EVENT_FLAG_SYSTEM, action_coreshowchannels, "List currently active channels", mandescr_coreshowchannels);
+		ast_manager_register2("ModuleLoad", EVENT_FLAG_SYSTEM, manager_moduleload, "Module management", mandescr_moduleload);
+		ast_manager_register2("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck, "Check if module is loaded", mandescr_modulecheck);
 
 		ast_cli_register_multiple(cli_manager, sizeof(cli_manager) / sizeof(struct ast_cli_entry));
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);
