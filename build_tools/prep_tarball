@@ -10,4 +10,4 @@ make AWK=awk GREP=grep menuselect-tree
 
 VERSION=`cat .version`
 sed -i -e "s/ASTERISKVERSION/${VERSION}/" doc/tex/asterisk.tex
-cd doc/tex && rubber --pdf asterisk.tex
+cd doc/tex && rubber --pdf asterisk.tex && latex2html asterisk.tex
