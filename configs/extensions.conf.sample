@@ -487,7 +487,7 @@ exten => i,1,Playback(invalid)		; "That's not valid, try again"
 ; Asterisk demo.
 ;
 exten => 500,1,Playback(demo-abouttotry); Let them know what's going on
-exten => 500,n,Dial(IAX2/guest@misery.digium.com/s@default)	; Call the Asterisk demo
+exten => 500,n,Dial(IAX2/guest@pbx.digium.com/s@default)	; Call the Asterisk demo
 exten => 500,n,Playback(demo-nogo)	; Couldn't connect to the demo site
 exten => 500,n,Goto(s,6)		; Return to the start over message.
 
