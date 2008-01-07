@@ -583,7 +583,12 @@ static int aji_act_hook(void *data, int type, iks *node)
 										iks_insert_attrib(x, "xmlns", IKS_NS_XMPP_SASL);
 										iks_insert_attrib(x, "mechanism", "PLAIN");
 										sprintf(s, "%c%s%c%s", 0, client->jid->user, 0, client->password);
-										ast_base64encode(base64, (const unsigned char *) s, len, len * 2);
+										
+										/* exclude the NULL training byte from the base64 encoding operation
+										   as some XMPP servers will refuse it.
+										   The format for authentication is [authzid]\0authcid\0password
+										   not [authzid]\0authcid\0password\0 */
+										ast_base64encode(base64, (const unsigned char *) s, len - 1, len * 2);
 										iks_insert_cdata(x, base64, 0);
 										iks_send(client->p, x);
 										iks_delete(x);
