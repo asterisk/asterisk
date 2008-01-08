@@ -50,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 
-#define MAX_AUTOMONS 256
+#define MAX_AUTOMONS 1500
 
 struct asent {
 	struct ast_channel *chan;
