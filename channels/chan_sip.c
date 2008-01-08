@@ -3412,6 +3412,7 @@ static void do_setnat(struct sip_pvt *p, int natflags)
 	}
 }
 
+/*! \brief Set the global T38 capabilities on a SIP dialog structure */
 static void set_t38_capabilities(struct sip_pvt *p)
 {
 	p->t38.capability = global_t38_capability;
