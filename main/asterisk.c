@@ -2788,7 +2788,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'x':
 			ast_set_flag(&ast_options, AST_OPT_FLAG_EXEC);
-			xarg = optarg;
+			xarg = ast_strdupa(optarg);
 			break;
 		case 'C':
 			ast_copy_string(cfg_paths.config_file, optarg, sizeof(cfg_paths.config_file));
@@ -2810,10 +2810,10 @@ int main(int argc, char *argv[])
 			show_version();
 			exit(0);
 		case 'U':
-			runuser = optarg;
+			runuser = ast_strdupa(optarg);
 			break;
 		case 'G':
-			rungroup = optarg;
+			rungroup = ast_strdupa(optarg);
 			break;
 		case 's':
 			remotesock = optarg;
