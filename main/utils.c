@@ -510,7 +510,7 @@ static int dev_urandom_fd;
 #ifdef DEBUG_THREADS
 
 /*! \brief A reasonable maximum number of locks a thread would be holding ... */
-#define AST_MAX_LOCKS 32
+#define AST_MAX_LOCKS 64
 
 /* Allow direct use of pthread_mutex_t and friends */
 #undef pthread_mutex_t
