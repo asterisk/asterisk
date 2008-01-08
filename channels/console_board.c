@@ -1,39 +1,51 @@
+/*
+ * Asterisk -- An open source telephony toolkit.
+ *
+ * Copyright 2007-2008, Marta Carbone, Luigi Rizzo
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ *
+ * $Revision$
+ */
+
 /* 
  * Message board implementation.
  *
- * A message board is a section of an sdl screen where
+ * A message board is a region of the SDL screen where
  * messages can be printed, like on a terminal window.
+ *
+ * At the moment we support fix-size font.
+ *
  * The text is stored in a buffer
  * of fixed size (rows and cols). A portion of the buffer is
  * visible on the screen, and the visible window can be moved up and
- * down by dragging.
+ * down by dragging (not yet!)
  * 
  * TODO: font dynamic allocation
  *
- * OLD: The physical section displayed on the screen is defined
+ * The region where the text is displayed on the screen is defined
  * as keypad element, (the name is defined in the `region' variable
  * so the board geometry can be read from the skin or from the
- * configuration file.
- *
- * OLD: To define a message board:
- *  - declare a board in the gui_info structure;
- *  - define a region name in the keypad skin and update
- *    the gui_key_map list;
- *  - add and manage focus events on its.
- *
+ * configuration file).
  */
 
 #include "asterisk.h"	/* ast_strdupa */
 #include "asterisk/utils.h"	/* ast_strdupa */
 
-#ifndef HAVE_SDL
-/* nothing */
-#else
+#ifdef HAVE_SDL	/* we only use this code if SDL is available */
 #include <SDL/SDL.h>
 
 #define GUI_BUFFER_LEN 256			/* buffer lenght used for input buffers */
 
-/* Fonts characterization, TODO, read from file */
+/* Fonts characterization. XXX should be read from the file */
 #define FONT_H 20			/* char height, pixels */
 #define FONT_W 9			/* char width, pixels */
 
@@ -100,10 +112,12 @@ struct board *board_setup(SDL_Surface *screen, SDL_Rect *dest,
 	b->v_h = b->p_h * 10; /* XXX 10 times larger */
 	b->v_w = b->p_w;	/* same width */
 
+	/* the rectangle we actually use */
 	br.h = b->p_h * FONT_H;	/* pixel sizes of the background */
 	br.w = b->p_w * FONT_W;
 	br.x = br.y = 0;
-	
+
+	/* allocate a buffer for the text */
 	b->text = ast_calloc(b->v_w*b->v_h + 1, 1);
 	if (b->text == NULL) {
 		ast_log(LOG_WARNING, "Unable to allocate board history memory.\n");
@@ -112,7 +126,7 @@ struct board *board_setup(SDL_Surface *screen, SDL_Rect *dest,
 	}
 	memset(b->text, ' ', b->v_w * b->v_h);	/* fill with spaces */
 
-	/* XXX make a copy of the original, for cleaning up */
+	/* make a copy of the original rectangle, for cleaning up */
 	b->blank = SDL_CreateRGBSurface(screen->flags, br.w, br.h,
 		screen->format->BitsPerPixel,
 		screen->format->Rmask, screen->format->Gmask,
@@ -140,34 +154,6 @@ struct board *board_setup(SDL_Surface *screen, SDL_Rect *dest,
 	return b;
 }
 
-#if 0
-
-/*! \brief Remap and blit the virtual surface on the physical surface */
-static void blit_on_screen(struct gui_info *gui, struct board *b)
-{
-	/* Blit a section of the virtual board on the main surface */
-	SDL_Rect mapped_rect;	/* coordinates related to the main surface */
-
-	mapped_rect.x = 0;
-	mapped_rect.y = b->rendering_offset;
-	mapped_rect.w = b->p_rect.w;
-	mapped_rect.h = b->p_rect.h;
-
-	/* Clean the surface (print backgroud) */
-	// This sould be done in the main loop
-	// SDL_BlitSurface(gui->keypad, NULL, gui->screen, &b->p_rect);
-	SDL_BlitSurface(gui->keypad, NULL, gui->screen, &b->p_rect);
-
-	/* Blit the virtual surface on the main surface */
-	SDL_BlitSurface(b->v_board, &mapped_rect, gui->screen, &b->p_rect);
-
-	/* Update the keypad screen, should be done in the main loop */
-	SDL_UpdateRects(gui->screen, 1, &gui->message_board.p_rect);
-	//SDL_UpdateRects(gui->screen, 1, &gui->message_board.p_rect);
-}
-
-#endif /* notyet */
-
 /* Render the text on the board surface.
  * The first line to render is the one at v_h - p_h - cur_line,
  * the size is p_h * p_w.
@@ -193,7 +179,9 @@ static void render_board(struct board *b)
 
 	/* blit all characters */
 	for (i = first_char, col = 0; i <  last_char; i++) {
-		int c = b->text[i] - 32;
+		int c = b->text[i] - 32;	/* XXX first 32 chars are not printable */
+		if (c < 0)	/* should not happen, but just in case... */
+			continue;
 		SDL_BlitSurface(b->font, &b->font_rects[c], b->screen, &dst);
 		/* point dst to next char position */
 		dst.x += dst.w;
@@ -204,8 +192,7 @@ static void render_board(struct board *b)
 			col = 0;
 		}
 	}
-	/* Update the written portion of the keypad on the screen */
-	SDL_UpdateRects(b->screen, 1, b->p_rect);
+	SDL_UpdateRects(b->screen, 1, b->p_rect);	/* Update the screen */
 }
 
 /* Store the message on the history board
@@ -295,7 +282,6 @@ int print_message(struct board *b, const char *s)
 	}
 	b->cur_col = col;
 	/* everything is printed now, must do the rendering */
-	//board_dump(b);
 	render_board(b);
 	return 1;
 }
