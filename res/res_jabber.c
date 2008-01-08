@@ -20,7 +20,7 @@
  * \brief A resource for interfacing asterisk directly as a client
  * or a component to a jabber compliant server.
  *
- * \extref Iksemel http://iksemel.jabberstudio.org/
+ * \extref Iksemel http://code.google.com/p/iksemel/
  *
  * \todo If you unload this module, chan_gtalk/jingle will be dead. How do we handle that?
  *
