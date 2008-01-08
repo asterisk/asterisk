@@ -102,4 +102,4 @@ $(if $(filter chan_misdn,$(EMBEDDED_MODS)),modules.link,chan_misdn.so): misdn_co
 
 chan_vpb.oo: ASTCFLAGS:=$(filter-out -Wdeclaration-after-statement,$(ASTCFLAGS))
 
-$(if $(filter chan_oss,$(EMBEDDED_MODS)),modules.link,chan_oss.so): console_video.o vgrabbers.o
+$(if $(filter chan_oss,$(EMBEDDED_MODS)),modules.link,chan_oss.so): console_video.o vgrabbers.o console_board.o

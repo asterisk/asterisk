@@ -659,6 +659,8 @@ static struct ast_frame *get_video_frames(struct video_desc *env, struct ast_fra
 	return v->enc->enc_encap(&v->enc_out, v->mtu, tail);
 }
 
+int print_message(struct board *b, const char *s);
+
 /*
  * Helper thread to periodically poll the video source and enqueue the
  * generated frames to the channel's queue.
@@ -714,6 +716,10 @@ static void *video_thread(void *arg)
 		struct ast_channel *chan = env->owner;
 		int fd = chan->alertpipe[1];
 		char *caption = NULL, buf[160];
+
+		sprintf(buf, "%d   \r", count);
+		if (env->gui)
+			print_message(env->gui->bd_msg, buf);
 
 		/* determine if video format changed */
 		if (count++ % 10 == 0) {

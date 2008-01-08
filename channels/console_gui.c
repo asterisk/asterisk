@@ -58,9 +58,6 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)	{ return 0; }
 #ifdef HAVE_SDL_IMAGE
 #include <SDL/SDL_image.h>      /* for loading images */
 #endif
-#ifdef HAVE_SDL_TTF
-#include <SDL/SDL_ttf.h>        /* render text on sdl surfaces */
-#endif
 
 enum kp_type { KP_NONE, KP_RECT, KP_CIRCLE };
 struct keypad_entry {
@@ -94,6 +91,8 @@ enum drag_window {	/* which window are we dragging */
 	DRAG_MESSAGE,	/* message window */
 };
 
+struct board;	/* external. we only need the pointer */
+
 /*! \brief info related to the gui: button status, mouse coords, etc. */
 struct gui_info {
 	char			inbuf[GUI_BUFFER_LEN];	/* buffer for to-dial buffer */
@@ -104,16 +103,26 @@ struct gui_info {
 	enum drag_window	drag_window;	/* which window are we dragging */
 	int			x_drag;		/* x coordinate where the drag starts */
 	int			y_drag;		/* y coordinate where the drag starts */
-#ifdef HAVE_SDL_TTF
-	TTF_Font                *font;          /* font to be used */ 
-#endif
 	/* support for display. */
 	SDL_Surface             *screen;	/* the main window */
 
 	int			outfd;		/* fd for output */
 	SDL_Surface		*keypad;	/* the skin for the keypad */
-
 	SDL_Rect		kp_rect;	/* portion of the skin to display - default all */
+	SDL_Surface		*font;		/* font to be used */ 
+	SDL_Rect		font_rects[96];	/* only printable chars */
+
+	SDL_Rect		kp_msg;		/* incoming msg, relative to kpad */
+	SDL_Rect		kp_msg_s;	/* incoming msg, rel. to screen */
+	struct board		*bd_msg;
+
+	SDL_Rect		kp_edit;	/* edit user input */
+	SDL_Rect		kp_edit_s;	/* incoming msg, rel. to screen */
+	struct board		*bd_edit;
+
+	SDL_Rect		kp_dialed;	/* dialed number */
+	SDL_Rect		kp_dialed_s;	/* incoming msg, rel. to screen */
+	struct board		*bd_dialed;
 
 	/* variable-size array mapping keypad regions to functions */
 	int kp_size, kp_used;
@@ -132,17 +141,12 @@ static struct gui_info *cleanup_sdl(struct gui_info *gui)
 	if (gui == NULL)
 		return NULL;
 
-#ifdef HAVE_SDL_TTF
 	/* unload font file */ 
 	if (gui->font) {
-		TTF_CloseFont(gui->font);
+		SDL_FreeSurface(gui->font);
 		gui->font = NULL; 
 	}
 
-	/* uninitialize SDL_ttf library */
-	if ( TTF_WasInit() )
-		TTF_Quit();
-#endif
 	if (gui->outfd > -1)
 		close(gui->outfd);
 	if (gui->keypad)
@@ -240,7 +244,10 @@ enum skin_area {
 
 	/* regions of the skin - active area, fonts, etc. */
 	KEY_KEYPAD = 200,		/* the keypad - default to the whole image */
-	KEY_FONT = 201,		/* the font */
+	KEY_FONT = 201,		/* the font. Maybe not really useful */
+	KEY_MESSAGE = 202,	/* area for incoming messages */
+	KEY_DIALED = 203,	/* area for dialed numbers */
+	KEY_EDIT = 204,		/* area for editing user input */
 
 	/* areas outside the keypad - simulated */
 	KEY_OUT_OF_KEYPAD = 241,
@@ -361,30 +368,7 @@ end
 /* Print given text on the gui */
 static int gui_output(struct video_desc *env, const char *text)
 {
-#ifndef HAVE_SDL_TTF
 	return 1;	/* error, not supported */
-#else
-	int x = 30, y = 20;	/* XXX change */
-	SDL_Surface *output = NULL;
-	SDL_Color color = {0, 0, 0};	/* text color */
-	struct gui_info *gui = env->gui;
-	SDL_Rect dest = {gui->win[WIN_KEYPAD].rect.x + x, y};
-
-	/* clean surface each rewrite */
-	SDL_BlitSurface(gui->keypad, NULL, gui->screen, &gui->win[WIN_KEYPAD].rect);
-
-	output = TTF_RenderText_Solid(gui->font, text, color);
-	if (output == NULL) {
-		ast_log(LOG_WARNING, "Cannot render text on gui - %s\n", TTF_GetError());
-		return 1;
-	}
-
-	SDL_BlitSurface(output, NULL, gui->screen, &dest);
-	
-	SDL_UpdateRects(gui->keypad, 1, &gui->win[WIN_KEYPAD].rect);
-	SDL_FreeSurface(output);
-	return 0;	/* success */
-#endif
 }
 #endif 
 
@@ -585,6 +569,10 @@ static void eventhandler(struct video_desc *env, const char *caption)
 			case SDL_MOUSEMOTION:
 				if (gui->drag_window == DRAG_LOCAL)
 					move_capture_source(env, ev[i].motion.x, ev[i].motion.y);
+#if 0
+				else if (gui->drag_window == DRAG_MESSAGE)
+					scroll_message(...);
+#endif
 				break;
 			case SDL_MOUSEBUTTONDOWN:
 				handle_mousedown(env, ev[i].button);
@@ -631,7 +619,7 @@ static void keypad_setup(struct gui_info *gui, const char *kp_file);
 
 /* TODO: consistency checks, check for bpp, widht and height */
 /* Init the mask image used to grab the action. */
-static struct gui_info *gui_init(const char *keypad_file)
+static struct gui_info *gui_init(const char *keypad_file, const char *font)
 {
 	struct gui_info *gui = ast_calloc(1, sizeof(*gui));
 
@@ -650,21 +638,28 @@ static struct gui_info *gui_init(const char *keypad_file)
 	keypad_setup(gui, keypad_file);
 	if (gui->keypad == NULL)	/* no keypad, we are done */
 		return gui;
-#ifdef HAVE_SDL_TTF
-	/* Initialize SDL_ttf library and load font */
-	if (TTF_Init() == -1) {
-		ast_log(LOG_WARNING, "Unable to init SDL_ttf, no output available\n");
-		goto error;
-	}
+	/* XXX load image */
+	if (!ast_strlen_zero(font)) {
+		int i;
+		SDL_Rect *r;
 
-#define GUI_FONTSIZE 28
-	gui->font = TTF_OpenFont( env->keypad_font, GUI_FONTSIZE);
-	if (!gui->font) {
-		ast_log(LOG_WARNING, "Unable to load font %s, no output available\n", env->keypad_font);
-		goto error;
+		gui->font = load_image(font);
+		if (!gui->font) {
+			ast_log(LOG_WARNING, "Unable to load font %s, no output available\n", font);
+			goto error;
+		}
+		ast_log(LOG_WARNING, "Loaded font %s\n", font);
+		/* XXX hardwired constants - 3 rows of 32 chars */
+		r = gui->font_rects;
+#define FONT_H 20
+#define FONT_W 9
+		for (i = 0; i < 96; r++, i++) {
+                	r->x = (i % 32 ) * FONT_W;
+                	r->y = (i / 32 ) * FONT_H;
+                	r->w = FONT_W;
+                	r->h = FONT_H;
+		}
 	}
-	ast_log(LOG_WARNING, "Loaded font %s\n", env->keypad_font);
-#endif
 
 	gui->outfd = open ("/dev/null", O_WRONLY);	/* discard output, temporary */
 	if (gui->outfd < 0) {
@@ -749,6 +744,9 @@ static void keypad_setup(struct gui_info *gui, const char *kp_file)
 	fclose(fd);
 }
 
+struct board *board_setup(SDL_Surface *screen, SDL_Rect *dest,
+	SDL_Surface *font, SDL_Rect *font_rects);
+
 /*! \brief [re]set the main sdl window, useful in case of resize.
  * We can tell the first from subsequent calls from the value of
  * env->gui, which is NULL the first time.
@@ -786,7 +784,7 @@ static void sdl_setup(struct video_desc *env)
 	if (depth < 16)
 		depth = 16;
 	if (!gui)
-		env->gui = gui = gui_init(env->keypad_file);
+		env->gui = gui = gui_init(env->keypad_file, env->keypad_font);
 	if (!gui)
 		goto no_sdl;
 
@@ -799,6 +797,7 @@ static void sdl_setup(struct video_desc *env)
 			kp_h = gui->keypad->h;
 		}
 	}
+	/* XXX same for other boards */
 #define BORDER	5	/* border around our windows */
 	maxw = env->rem_dpy.w + env->loc_dpy.w + kp_w;
 	maxh = MAX( MAX(env->rem_dpy.h, env->loc_dpy.h), kp_h);
@@ -830,6 +829,17 @@ static void sdl_setup(struct video_desc *env)
 		dest->w = kp_w;
 		dest->h = kp_h;
 		SDL_BlitSurface(gui->keypad, src, gui->screen, dest);
+		if (gui->kp_msg.w > 0 && gui->kp_msg.h > 0) {
+			gui->kp_msg_s = gui->kp_msg;
+			gui->kp_msg_s.x += dest->x;
+			gui->kp_msg_s.y += dest->y;
+			if (!gui->bd_msg) {	/* initial call */
+				gui->bd_msg = board_setup(gui->screen, &gui->kp_msg_s,
+					gui->font, gui->font_rects);
+			} else {
+				/* call a refresh */
+			}
+		}
 		SDL_UpdateRects(gui->screen, 1, dest);
 	}
 	return;
@@ -889,6 +899,9 @@ static struct _s_k gui_key_map[] = {
         {"WRITEMESSAGE", KEY_WRITEMESSAGE },
         {"GUI_CLOSE",	KEY_GUI_CLOSE },
         {"KEYPAD",	KEY_KEYPAD },	/* x0 y0 w h - active area of the keypad */
+        {"MESSAGE",	KEY_MESSAGE },	/* x0 y0 w h - incoming messages */
+        {"DIALED",	KEY_DIALED },	/* x0 y0 w h - dialed number */
+        {"EDIT",	KEY_EDIT },	/* x0 y0 w h - edit user input */
         {"FONT",	KEY_FONT },	/* x0 yo w h rows cols - location and format of the font */
         {NULL, 0 } };
 
@@ -918,6 +931,7 @@ static int gui_map_token(const char *s)
 static int keypad_cfg_read(struct gui_info *gui, const char *val)
 {
 	struct keypad_entry e;
+	SDL_Rect *r = NULL;
 	char s1[16], s2[16];
 	int i, ret = 0; /* default, error */
 
@@ -942,11 +956,19 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)
 			gui->kp_used = 0;
 		break;
 	case 5:
-		if (e.c == KEY_KEYPAD) {	/* active keypad area */
-			gui->kp_rect.x = atoi(s2);
-			gui->kp_rect.y = e.x0;
-			gui->kp_rect.w = e.y0;
-			gui->kp_rect.h = e.x1;
+		if (e.c == KEY_KEYPAD)	/* active keypad area */
+			r = &gui->kp_rect;
+		else if (e.c == KEY_MESSAGE)
+			r = &gui->kp_msg;
+		else if (e.c == KEY_DIALED)
+			r = &gui->kp_dialed;
+		else if (e.c == KEY_EDIT)
+			r = &gui->kp_edit;
+		if (r) {
+			r->x = atoi(s2);
+			r->y = e.x0;
+			r->w = e.y0;
+			r->h = e.x1;
 			break;
 		}
 		if (strcasecmp(s2, "circle"))	/* invalid */
