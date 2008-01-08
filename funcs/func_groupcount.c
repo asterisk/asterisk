@@ -45,6 +45,24 @@ static int group_count_function_read(struct ast_channel *chan, char *cmd,
 	ast_app_group_split_group(data, group, sizeof(group), category,
 				  sizeof(category));
 
+	/* If no group has been provided let's find one */
+	if (ast_strlen_zero(group)) {
+		struct ast_group_info *gi = NULL;
+
+		ast_app_group_list_lock();
+		for (gi = ast_app_group_list_head(); gi; gi = AST_LIST_NEXT(gi, list)) {
+			if (gi->chan != chan)
+				continue;
+			if (ast_strlen_zero(category) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category)))
+				break;
+		}
+		if (gi) {
+			ast_copy_string(group, gi->group, sizeof(group));
+			ast_copy_string(category, gi->category, sizeof(category));
+		}
+		ast_app_group_list_unlock();
+	}
+
 	if ((count = ast_app_group_get_count(group, category)) == -1)
 		ast_log(LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);
 	else
