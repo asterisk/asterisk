@@ -2021,6 +2021,11 @@ static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 	return vars;
 }
 
+/*! \brief Part 2 of ring_one
+ *
+ * Does error checking before attempting to request a channel and call a member. This
+ * function is only called from ring_one
+ */
 static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies)
 {
 	int res;
@@ -2168,6 +2173,14 @@ static struct callattempt *find_best(struct callattempt *outgoing)
 	return best;
 }
 
+/*! \brief Place a call to a queue member
+ *
+ * Once metrics have been calculated for each member, this function is used
+ * to place a call to the appropriate member (or members). The low-level
+ * channel-handling and error detection is handled in ring_entry
+ *
+ * Returns 1 if a member was called successfully, 0 otherwise
+ */
 static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *busies)
 {
 	int ret = 0;
@@ -2325,7 +2338,16 @@ static void rna(int rnatime, struct queue_ent *qe, char *interface, char *member
 }
 
 #define AST_MAX_WATCHERS 256
-
+/*! \brief Wait for a member to answer the call
+ *
+ * \param[in] qe the queue_ent corresponding to the caller in the queue
+ * \param[in] outgoing the list of callattempts. Relevant ones will have their chan and stillgoing parameters non-zero
+ * \param[in] to the amount of time (in milliseconds) to wait for a response
+ * \param[out] digit if a user presses a digit to exit the queue, this is the digit the caller pressed
+ * \param[in] prebusies number of busy members calculated prior to calling wait_for_answer
+ * \param[in] caller_disconnect if the 'H' option is used when calling Queue(), this is used to detect if the caller pressed * to disconnect the call
+ * \param[in] forwardsallowed used to detect if we should allow call forwarding, based on the 'i' option to Queue()
+ */
 static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callattempt *outgoing, int *to, char *digit, int prebusies, int caller_disconnect, int forwardsallowed)
 {
 	const char *queue = qe->parent->name;
@@ -2572,7 +2594,15 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 
 	return peer;
 }
-
+/*! \brief Check if we should start attempting to call queue members
+ *
+ * The behavior of this function is dependent first on whether autofill is enabled
+ * and second on whether the ring strategy is ringall. If autofill is not enabled,
+ * then return true if we're the head of the queue. If autofill is enabled, then
+ * we count the available members and see if the number of available members is enough
+ * that given our position in the queue, we would theoretically be able to connect to
+ * one of those available members
+ */
 static int is_our_turn(struct queue_ent *qe)
 {
 	struct queue_ent *ch;
@@ -2637,7 +2667,6 @@ static int is_our_turn(struct queue_ent *qe)
 
 	return res;
 }
-
 static void update_qe_rule(struct queue_ent *qe)
 {
 	int max_penalty = qe->pr->max_relative ? qe->max_penalty + qe->pr->max_value : qe->pr->max_value;
@@ -2660,6 +2689,15 @@ static void update_qe_rule(struct queue_ent *qe)
 	qe->pr = AST_LIST_NEXT(qe->pr, list);
 }
 
+/*! \brief The waiting areas for callers who are not actively calling members
+ *
+ * This function is one large loop. This function will return if a caller
+ * either exits the queue or it becomes that caller's turn to attempt calling
+ * queue members. Inside the loop, we service the caller with periodic announcements,
+ * holdtime announcements, etc. as configured in queues.conf
+ *
+ * \retval res 0 if the caller's turn has arrived, -1 if the caller should exit the queue.
+ */
 static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *reason)
 {
 	int res = 0;
@@ -2762,6 +2800,12 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 	return 0;
 }
 
+/*! \brief Calculate the metric of each member in the outgoing callattempts
+ *
+ * A numeric metric is given to each member depending on the ring strategy used
+ * by the queue. Members with lower metrics will be called before members with
+ * higher metrics
+ */
 static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct callattempt *tmp)
 {
 	if ((qe->max_penalty && (mem->penalty > qe->max_penalty)) || (qe->min_penalty && (mem->penalty < qe->min_penalty)))
@@ -2860,7 +2904,32 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
 		(long)(callstart - qe->start), (long)(time(NULL) - callstart), reason,
 		qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, vars_len) : "");
 }
-
+/*! \brief A large function which calls members, updates statistics, and bridges the caller and a member
+ * 
+ * Here is the process of this function
+ * 1. Process any options passed to the Queue() application. Options here mean the third argument to Queue()
+ * 2. Iterate trough the members of the queue, creating a callattempt corresponding to each member. During this
+ *    iteration, we also check the dialed_interfaces datastore to see if we have already attempted calling this
+ *    member. If we have, we do not create a callattempt. This is in place to prevent call forwarding loops. Also
+ *    during each iteration, we call calc_metric to determine which members should be rung when.
+ * 3. Call ring_one to place a call to the appropriate member(s)
+ * 4. Call wait_for_answer to wait for an answer. If no one answers, return.
+ * 5. Take care of any holdtime announcements, member delays, or other options which occur after a call has been answered.
+ * 6. Start the monitor or mixmonitor if the option is set
+ * 7. Remove the caller from the queue to allow other callers to advance
+ * 8. Bridge the call.
+ * 9. Do any post processing after the call has disconnected.
+ *
+ * \param[in] qe the queue_ent structure which corresponds to the caller attempting to reach members
+ * \param[in] options the options passed as the third parameter to the Queue() application
+ * \param[in] url the url passed as the fourth parameter to the Queue() application
+ * \param[in,out] tries the number of times we have tried calling queue members
+ * \param[out] noption set if the call to Queue() has the 'n' option set.
+ * \param[in] agi the agi passed as the fifth parameter to the Queue() application
+ * \param[in] macro the macro passed as the sixth parameter to the Queue() application
+ * \param[in] gosub the gosub passed as the seventh parameter to the Queue() application
+ * \param[in] ringing 1 if the 'r' option is set, otherwise 0
+ */
 static int try_calling(struct queue_ent *qe, const char *options, char *announceoverride, const char *url, int *tries, int *noption, const char *agi, const char *macro, const char *gosub, int ringing)
 {
 	struct member *cur;
@@ -4140,6 +4209,18 @@ static void copy_rules(struct queue_ent *qe, const char *rulename)
 	AST_LIST_UNLOCK(&rule_lists);
 }
 
+/*!\brief The starting point for all queue calls
+ *
+ * The process involved here is to 
+ * 1. Parse the options specified in the call to Queue()
+ * 2. Join the queue
+ * 3. Wait in a loop until it is our turn to try calling a queue member
+ * 4. Attempt to call a queue member
+ * 5. If 4. did not result in a bridged call, then check for between
+ *    call options such as periodic announcements etc.
+ * 6. Try 4 again uless some condition (such as an expiration time) causes us to 
+ *    exit the queue.
+ */
 static int queue_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
