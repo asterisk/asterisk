@@ -1756,8 +1756,6 @@ static void  __attribute__ ((destructor)) fini_##rwlock(void) \
  * as ast_atomic_fetchadd_int_slow()
  */
 
-int ast_atomic_fetchadd_int_slow(volatile int *p, int v);
-
 #if defined(HAVE_OSX_ATOMICS)
 #include "libkern/OSAtomic.h"
 #endif
@@ -1791,7 +1789,14 @@ AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 	: "m" (*p));                    /* 2 */
 	return (v);
 })
-#else   /* low performance version in utils.c */
+#else
+static int ast_atomic_fetchadd_int_slow(volatile int *p, int v)
+{
+	int ret;
+	ret = *p;
+	*p += v;
+	return ret;
+}
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	return ast_atomic_fetchadd_int_slow(p, v);
