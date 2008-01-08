@@ -716,7 +716,7 @@ static struct member *create_queue_member(const char *interface, const char *mem
 		cur->penalty = penalty;
 		cur->paused = paused;
 		ast_copy_string(cur->interface, interface, sizeof(cur->interface));
-		if(!ast_strlen_zero(membername))
+		if (!ast_strlen_zero(membername))
 			ast_copy_string(cur->membername, membername, sizeof(cur->membername));
 		else
 			ast_copy_string(cur->membername, interface, sizeof(cur->membername));
@@ -788,7 +788,7 @@ static void init_queue(struct call_queue *q)
 	q->context[0] = '\0';
 	q->monfmt[0] = '\0';
 	q->periodicannouncefrequency = 0;
-	if(!q->members)
+	if (!q->members)
 		q->members = ao2_container_alloc(37, member_hash_fn, member_cmp_fn);
 	q->membercount = 0;
 	q->found = 1;
@@ -1246,14 +1246,14 @@ static int update_realtime_member_field(struct member *mem, const char *queue_na
 	struct ast_variable *var;
 	int ret = -1;
 
-	if(!(var = ast_load_realtime("queue_members", "interface", mem->interface, "queue_name", queue_name, NULL))) 
+	if (!(var = ast_load_realtime("queue_members", "interface", mem->interface, "queue_name", queue_name, NULL))) 
 		return ret;
 	while (var) {
-		if(!strcmp(var->name, "uniqueid"))
+		if (!strcmp(var->name, "uniqueid"))
 			break;
 		var = var->next;
 	}
-	if(var && !ast_strlen_zero(var->value)) {
+	if (var && !ast_strlen_zero(var->value)) {
 		if ((ast_update_realtime("queue_members", "uniqueid", var->value, field, value, NULL)) > -1)
 			ret = 0;
 	}
@@ -3083,7 +3083,7 @@ static int remove_from_queue(const char *queuename, const char *interface)
 
 		if ((mem = ao2_find(q->members, &tmpmem, OBJ_POINTER))) {
 			/* XXX future changes should beware of this assumption!! */
-			if(!mem->dynamic) {
+			if (!mem->dynamic) {
 				res = RES_NOT_DYNAMIC;
 				ao2_ref(mem, -1);
 				ast_mutex_unlock(&q->lock);
@@ -3197,7 +3197,7 @@ static int set_member_paused(const char *queuename, const char *interface, int p
 				if (queue_persistent_members)
 					dump_queue_members(q);
 
-				if(mem->realtime)
+				if (mem->realtime)
 					update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0");
 
 				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", "");
@@ -3863,7 +3863,7 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 
 	lu = ast_module_user_add(chan);
 
-	if((q = load_realtime_queue(data))) {
+	if ((q = load_realtime_queue(data))) {
 		ast_mutex_lock(&q->lock);
 		mem_iter = ao2_iterator_init(q->members, 0);
 		while ((m = ao2_iterator_next(&mem_iter))) {
@@ -4039,7 +4039,7 @@ static int reload_queues(void)
 	use_weight=0;
 	/* Mark all non-realtime queues as dead for the moment */
 	AST_LIST_TRAVERSE(&queues, q, list) {
-		if(!q->realtime) {
+		if (!q->realtime) {
 			q->dead = 1;
 			q->found = 0;
 		}
@@ -4080,7 +4080,7 @@ static int reload_queues(void)
 				/* Check if a queue with this name already exists */
 				if (q->found) {
 					ast_log(LOG_WARNING, "Queue '%s' already defined! Skipping!\n", cat);
-					if(!new)
+					if (!new)
 						ast_mutex_unlock(&q->lock);
 					continue;
 				}
@@ -4105,7 +4105,7 @@ static int reload_queues(void)
 						AST_NONSTANDARD_APP_ARGS(args, parse, ',');
 
 						interface = args.interface;
-						if(!ast_strlen_zero(args.penalty)) {
+						if (!ast_strlen_zero(args.penalty)) {
 							tmp = args.penalty;
 							while (*tmp && *tmp < 33) tmp++;
 							penalty = atoi(tmp);
