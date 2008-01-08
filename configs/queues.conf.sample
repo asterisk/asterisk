@@ -375,7 +375,10 @@ shared_lastcall=no
 ; entries with higher penalties are considered last.  An optional member
 ; name may also be specified after a second comma, which is used in log
 ; messages as a "friendly name".  Multiple interfaces may share a single
-; member name.
+; member name. An optional state interface may be specified after a third
+; comma. This interface will be the one for which app_queue receives device
+; state notifications, even though the first interface specified is the one
+; that is actually called.
 ;
 ; It is important to ensure that channel drivers used for members are loaded
 ; before app_queue.so itself or they may be marked invalid until reload. This
@@ -386,6 +389,7 @@ shared_lastcall=no
 ;member => Zap/3,10,Bob Johnson
 ;member => Agent/1001
 ;member => Agent/1002
+;member => Local/1000@default,0,John Smith,SIP/1000
 
 ;
 ; Note that using agent groups is probably not what you want.  Strategies do
