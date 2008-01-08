@@ -3412,6 +3412,20 @@ static void do_setnat(struct sip_pvt *p, int natflags)
 	}
 }
 
+static void set_t38_capabilities(struct sip_pvt *p)
+{
+	p->t38.capability = global_t38_capability;
+	if (p->udptl) {
+		if (ast_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_FEC )
+			p->t38.capability |= T38FAX_UDP_EC_FEC;
+		else if (ast_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY )
+			p->t38.capability |= T38FAX_UDP_EC_REDUNDANCY;
+		else if (ast_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_NONE )
+			p->t38.capability |= T38FAX_UDP_EC_NONE;
+		p->t38.capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
+	}
+}
+
 /*! \brief Create address structure from peer reference.
  *	This function copies data from peer to the dialog, so we don't have to look up the peer
  *	again from memory or database during the life time of the dialog.
@@ -3440,17 +3454,8 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	}
 	dialog->prefs = peer->prefs;
 	if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_T38SUPPORT)) {
-		dialog->t38.capability = global_t38_capability;
-		if (dialog->udptl) {
-			if (ast_udptl_get_error_correction_scheme(dialog->udptl) == UDPTL_ERROR_CORRECTION_FEC )
-				dialog->t38.capability |= T38FAX_UDP_EC_FEC;
-			else if (ast_udptl_get_error_correction_scheme(dialog->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY )
-				dialog->t38.capability |= T38FAX_UDP_EC_REDUNDANCY;
-			else if (ast_udptl_get_error_correction_scheme(dialog->udptl) == UDPTL_ERROR_CORRECTION_NONE )
-				dialog->t38.capability |= T38FAX_UDP_EC_NONE;
-			dialog->t38.capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
-			ast_debug(2,"Our T38 capability (%d)\n", dialog->t38.capability);
-		}
+		ast_copy_flags(&dialog->t38.t38support, &peer->flags[1], SIP_PAGE2_T38SUPPORT);
+		set_t38_capabilities(dialog);
 		dialog->t38.jointcapability = dialog->t38.capability;
 	} else if (dialog->udptl) {
 		ast_udptl_destroy(dialog->udptl);
@@ -5272,14 +5277,8 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
 		p->noncodeccapability |= AST_RTP_DTMF;
 	if (p->udptl) {
-		p->t38.capability = global_t38_capability;
-		if (ast_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY)
-			p->t38.capability |= T38FAX_UDP_EC_REDUNDANCY;
-		else if (ast_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_FEC)
-			p->t38.capability |= T38FAX_UDP_EC_FEC;
-		else if (ast_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_NONE)
-			p->t38.capability |= T38FAX_UDP_EC_NONE;
-		p->t38.capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
+		ast_copy_flags(&p->t38.t38support, &p->flags[1], SIP_PAGE2_T38SUPPORT);
+		set_t38_capabilities(p);
 		p->t38.jointcapability = p->t38.capability;
 	}
 	ast_string_field_set(p, context, default_context);
