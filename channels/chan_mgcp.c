@@ -434,6 +434,7 @@ static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int mgcp_senddigit_begin(struct ast_channel *ast, char digit);
 static int mgcp_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int mgcp_devicestate(void *data);
+static void add_header_offhook(struct mgcp_subchannel *sub, struct mgcp_request *resp);
 
 static const struct ast_channel_tech mgcp_tech = {
 	.type = "MGCP",
@@ -1276,23 +1277,50 @@ static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 static int mgcp_senddigit_begin(struct ast_channel *ast, char digit)
 {
-	/* Let asterisk play inband indications */
-	return -1;
+	struct mgcp_subchannel *sub = ast->tech_pvt;
+	struct mgcp_endpoint *p = sub->parent;
+	int res = 0;
+
+	ast_mutex_lock(&sub->lock);
+	if (p->dtmfmode & MGCP_DTMF_INBAND || p->dtmfmode & MGCP_DTMF_HYBRID) {
+		ast_log(LOG_DEBUG, "Sending DTMF using inband/hybrid\n");
+		res = -1; /* Let asterisk play inband indications */
+	} else if (p->dtmfmode & MGCP_DTMF_RFC2833) {
+		ast_log(LOG_DEBUG, "Sending DTMF using RFC2833");
+		ast_rtp_senddigit_begin(sub->rtp, digit);
+	} else {
+		ast_log(LOG_ERROR, "Don't know about DTMF_MODE %d\n", p->dtmfmode);
+	}
+	ast_mutex_unlock(&sub->lock);
+
+	return res;
 }
 
 static int mgcp_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct mgcp_subchannel *sub = ast->tech_pvt;
+	struct mgcp_endpoint *p = sub->parent;
+	int res = 0;
 	char tmp[4];
 
-	tmp[0] = 'D';
-	tmp[1] = '/';
-	tmp[2] = digit;
-	tmp[3] = '\0';
 	ast_mutex_lock(&sub->lock);
-	transmit_notify_request(sub, tmp);
+	if (p->dtmfmode & MGCP_DTMF_INBAND || p->dtmfmode & MGCP_DTMF_HYBRID) {
+		ast_log(LOG_DEBUG, "Stopping DTMF using inband/hybrid\n");
+		res = -1; /* Tell Asterisk to stop inband indications */
+	} else if (p->dtmfmode & MGCP_DTMF_RFC2833) {
+		ast_log(LOG_DEBUG, "Stopping DTMF using RFC2833\n");
+		tmp[0] = 'D';
+		tmp[1] = '/';
+		tmp[2] = digit;
+		tmp[3] = '\0';
+		transmit_notify_request(sub, tmp);
+                ast_rtp_senddigit_end(sub->rtp, digit);
+	} else {
+		ast_log(LOG_ERROR, "Don't know about DTMF_MODE %d\n", p->dtmfmode);
+	}
 	ast_mutex_unlock(&sub->lock);
-	return -1; /* Return non-zero so that Asterisk will stop the inband indications */
+
+	return res;
 }
 
 /*!
@@ -2193,7 +2221,7 @@ static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone)
 		add_header(&resp, "R", "L/hd(N)");
 		break;
 	case MGCP_OFFHOOK:
-		add_header(&resp, "R", (sub->rtp && (p->dtmfmode & MGCP_DTMF_INBAND)) ? "L/hu(N),L/hf(N)" : "L/hu(N),L/hf(N),D/[0-9#*](N)");
+		add_header_offhook(sub, &resp);
 		break;
 	}
 	if (!ast_strlen_zero(tone)) {
@@ -2236,7 +2264,7 @@ static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, ch
 		add_header(&resp, "R", "L/hd(N)");
 		break;
 	case MGCP_OFFHOOK:
-		add_header(&resp, "R",  (sub->rtp && (p->dtmfmode & MGCP_DTMF_INBAND)) ? "L/hu(N),L/hf(N)" : "L/hu(N),L/hf(N),D/[0-9#*](N)");
+		add_header_offhook(sub, &resp);
 		break;
 	}
 	if (!ast_strlen_zero(tone2)) {
@@ -2277,7 +2305,7 @@ static int transmit_modify_request(struct mgcp_subchannel *sub)
 		add_header(&resp, "R", "L/hd(N)");
 		break;
 	case MGCP_OFFHOOK:
-		add_header(&resp, "R",  (sub->rtp && (p->dtmfmode & MGCP_DTMF_INBAND)) ? "L/hu(N), L/hf(N)" : "L/hu(N),L/hf(N),D/[0-9#*](N)");
+		add_header_offhook(sub, &resp);
 		break;
 	}
 	/* fill in new fields */
@@ -2286,6 +2314,16 @@ static int transmit_modify_request(struct mgcp_subchannel *sub)
 	return send_request(p, sub, &resp, oseq); /* SC */
 }
 
+
+static void add_header_offhook(struct mgcp_subchannel *sub, struct mgcp_request *resp)
+{
+	struct mgcp_endpoint *p = sub->parent;
+
+	if (p && p->sub && p->sub->owner && p->sub->owner->_state >= AST_STATE_RINGING && (p->dtmfmode & (MGCP_DTMF_INBAND | MGCP_DTMF_HYBRID)))
+		add_header(resp, "R", "L/hu(N),L/hf(N)");
+	else
+		add_header(resp, "R", "L/hu(N),L/hf(N),D/[0-9#*](N)");
+}
 
 static int transmit_audit_endpoint(struct mgcp_endpoint *p)
 {
