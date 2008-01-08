@@ -5557,7 +5557,7 @@ static int manager_queue_member_penalty(struct mansession *s, const struct messa
 
 static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *queuename, *interface, *membername = NULL, *state_interface;
+	char *queuename, *interface, *membername = NULL, *state_interface = NULL;
 	int penalty;
 
 	switch ( cmd ) {
