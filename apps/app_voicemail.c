@@ -240,13 +240,15 @@ enum {
 	OPT_RECORDGAIN =       (1 << 3),
 	OPT_PREPEND_MAILBOX =  (1 << 4),
 	OPT_AUTOPLAY =         (1 << 6),
+	OPT_DTMFEXIT =         (1 << 7),
 } vm_option_flags;
 
 enum {
 	OPT_ARG_RECORDGAIN = 0,
 	OPT_ARG_PLAYFOLDER = 1,
+	OPT_ARG_DTMFEXIT   = 2,
 	/* This *must* be the last value in this enum! */
-	OPT_ARG_ARRAY_SIZE = 2,
+	OPT_ARG_ARRAY_SIZE = 3,
 } vm_option_args;
 
 AST_APP_OPTIONS(vm_app_options, {
@@ -254,6 +256,7 @@ AST_APP_OPTIONS(vm_app_options, {
 	AST_APP_OPTION('b', OPT_BUSY_GREETING),
 	AST_APP_OPTION('u', OPT_UNAVAIL_GREETING),
 	AST_APP_OPTION_ARG('g', OPT_RECORDGAIN, OPT_ARG_RECORDGAIN),
+	AST_APP_OPTION_ARG('d', OPT_DTMFEXIT, OPT_ARG_DTMFEXIT),
 	AST_APP_OPTION('p', OPT_PREPEND_MAILBOX),
 	AST_APP_OPTION_ARG('a', OPT_AUTOPLAY, OPT_ARG_PLAYFOLDER),
 });
@@ -496,12 +499,14 @@ static char *descrip_vm =
 	"               application. The possible values are:\n"
 	"               SUCCESS | USEREXIT | FAILED\n\n"
 	"  Options:\n"
-	"    b    - Play the 'busy' greeting to the calling party.\n"
-	"    g(#) - Use the specified amount of gain when recording the voicemail\n"
-	"           message. The units are whole-number decibels (dB).\n"
-	"    s    - Skip the playback of instructions for leaving a message to the\n"
-	"           calling party.\n"
-	"    u    - Play the 'unavailable' greeting.\n";
+	"    b      - Play the 'busy' greeting to the calling party.\n"
+	"    d([c]) - Accept digits for a new extension in context c, if played during\n"
+	"             the greeting.  Context defaults to the current context.\n"
+	"    g(#)   - Use the specified amount of gain when recording the voicemail\n"
+	"             message. The units are whole-number decibels (dB).\n"
+	"    s      - Skip the playback of instructions for leaving a message to the\n"
+	"             calling party.\n"
+	"    u      - Play the 'unavailable' greeting.\n";
 
 static char *synopsis_vmain = "Check Voicemail messages";
 
@@ -2952,6 +2957,7 @@ static void run_externnotify(char *context, char *extension)
 struct leave_vm_options {
 	unsigned int flags;
 	signed char record_gain;
+	char *exitcontext;
 };
 
 static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_options *options)
@@ -2983,11 +2989,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	char ext_context[256] = "";
 	char fmt[80];
 	char *context;
-	char ecodes[16] = "#";
+	char ecodes[17] = "#";
 	char tmp[1024] = "", *tmpptr;
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
-	const char *category = NULL;
+	const char *category = NULL, *code, *alldtmf = "0123456789ABCD*#";
 
 	ast_copy_string(tmp, ext, sizeof(tmp));
 	ext = tmp;
@@ -3058,6 +3064,15 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		ausemacro = 1;
 	}
 
+	if (ast_test_flag(options, OPT_DTMFEXIT)) {
+		for (code = alldtmf; *code; code++) {
+			char e[2] = "";
+			e[0] = *code;
+			if (strchr(ecodes, e[0]) == NULL && ast_canmatch_extension(chan, chan->context, e, 1, chan->cid.cid_num))
+				strncat(ecodes, e, sizeof(ecodes) - strlen(ecodes) - 1);
+		}
+	}
+
 	/* Play the beginning intro if desired */
 	if (!ast_strlen_zero(prefile)) {
 #ifdef ODBC_STORAGE
@@ -3102,7 +3117,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		ast_stopstream(chan);
 	/* Check for a '*' here in case the caller wants to escape from voicemail to something
 	 other than the operator -- an automated attendant or mailbox login for example */
-	if (res == '*') {
+	if (!ast_strlen_zero(vmu->exit) && (res == '*')) {
 		chan->exten[0] = 'a';
 		chan->exten[1] = '\0';
 		if (!ast_strlen_zero(vmu->exit)) {
@@ -3117,7 +3132,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	}
 
 	/* Check for a '0' here */
-	if (res == '0') {
+	if (ast_test_flag(vmu, VM_OPERATOR) && res == '0') {
 	transfer:
 		if (ouseexten || ousemacro) {
 			chan->exten[0] = 'o';
@@ -3134,6 +3149,16 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		}
 		return 0;
 	}
+
+	/* Allow all other digits to exit Voicemail and return to the dialplan */
+	if (ast_test_flag(options, OPT_DTMFEXIT) && res > 0) {
+		if (!ast_strlen_zero(options->exitcontext))
+			ast_copy_string(chan->context, options->exitcontext, sizeof(chan->context));
+		free_user(vmu);
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
+		return res;
+	}
+
 	if (res < 0) {
 		free_user(vmu);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
@@ -7400,7 +7425,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		if (args.argc == 2) {
 			if (ast_app_parse_options(vm_app_options, &flags, opts, args.argv1))
 				return -1;
-			ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING);
+			ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING | OPT_DTMFEXIT);
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
 
@@ -7410,6 +7435,10 @@ static int vm_exec(struct ast_channel *chan, void *data)
 				} else {
 					leave_options.record_gain = (signed char) gain;
 				}
+			}
+			if (ast_test_flag(&flags, OPT_DTMFEXIT)) {
+				if (!ast_strlen_zero(opts[OPT_ARG_DTMFEXIT]))
+					leave_options.exitcontext = opts[OPT_ARG_DTMFEXIT];
 			}
 		}
 	} else {
