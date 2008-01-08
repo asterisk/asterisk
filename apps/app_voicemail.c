@@ -2743,11 +2743,11 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 {
 	struct vm_state *sendvms = NULL, *destvms = NULL;
 	char messagestring[10]; /*I guess this could be a problem if someone has more than 999999999 messages...*/
-	if (!(sendvms = get_vm_state_by_imapuser(vmu->imapuser, 2))) {
+	if (!(sendvms = get_vm_state_by_imapuser(vmu->imapuser, 0))) {
 		ast_log(LOG_ERROR, "Couldn't get vm_state for originator's mailbox!!\n");
 		return -1;
 	}
-	if (!(destvms = get_vm_state_by_imapuser(recip->imapuser, 2))) {
+	if (!(destvms = get_vm_state_by_imapuser(recip->imapuser, 0))) {
 		ast_log(LOG_ERROR, "Couldn't get vm_state for destination mailbox!\n");
 		return -1;
 	}
@@ -4936,7 +4936,7 @@ static int init_mailstream(struct vm_state *vms, int box)
 		stream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
 		if (stream == NIL) {
 			ast_log (LOG_ERROR, "Can't connect to imap server %s\n", tmp);
-			return NIL;
+			return -1;
 		}
 		get_mailbox_delimiter(stream);
 		/* update delimiter in imapfolder */
