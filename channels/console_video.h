@@ -86,5 +86,16 @@ int console_video_config(struct video_desc **penv, const char *var, const char *
 void console_video_uninit(struct video_desc *env);
 void console_video_start(struct video_desc *env, struct ast_channel *owner);
 
+/* console_board.c */
+struct board;
+/* !\brief print a message on a board */
+int print_message(struct board *b, const char *s);
+
+/*! \brief return the whole text from a board */
+const char *read_message(const struct board *b);
+
+/*! \brief reset the board to blank */
+int reset_board(struct board *b);
+
 #endif /* CONSOLE_VIDEO_H */
 /* end of file */

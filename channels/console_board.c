@@ -39,6 +39,7 @@
 
 #include "asterisk.h"	/* ast_strdupa */
 #include "asterisk/utils.h"	/* ast_strdupa */
+#include "console_video.h"	/* ast_strdupa */
 
 #ifdef HAVE_SDL	/* we only use this code if SDL is available */
 #include <SDL/SDL.h>
@@ -180,8 +181,8 @@ static void render_board(struct board *b)
 	/* blit all characters */
 	for (i = first_char, col = 0; i <  last_char; i++) {
 		int c = b->text[i] - 32;	/* XXX first 32 chars are not printable */
-		if (c < 0)	/* should not happen, but just in case... */
-			continue;
+		if (c < 0) /* buffer terminator or anything else is a blank */
+			c = 0;
 		SDL_BlitSurface(b->font, &b->font_rects[c], b->screen, &dst);
 		/* point dst to next char position */
 		dst.x += dst.w;
@@ -195,11 +196,24 @@ static void render_board(struct board *b)
 	SDL_UpdateRects(b->screen, 1, b->p_rect);	/* Update the screen */
 }
 
+/* return the content of a board */
+const char *read_message(const struct board *b)
+{
+	return b->text;
+}
+
+int reset_board(struct board *b)
+{
+	memset(b->text, ' ', b->v_w * b->v_h);	/* fill with spaces */
+	b->cur_col = 0;
+	b->cur_line = 0;
+	render_board(b);
+	return 0;
+}
 /* Store the message on the history board
  * and blit on screen if required.
  * XXX now easy. only regular chars
  */
-int print_message(struct board *b, const char *s);
 int print_message(struct board *b, const char *s)
 {
 	int i, l, row, col;
@@ -261,12 +275,14 @@ int print_message(struct board *b, const char *s)
 			col = 0;
 			break;
 		case '\n':	/* move to beginning of next line */
+			dst[col] = '\0'; /* mark the rest of the line as empty */
 			col = 0;
 			dst += b->v_w;
 			break;
 		case '\b':	/* one char back */
 			if (col > 0)
 				col--;
+			dst[col] = ' '; /* delete current char */
 			break;
 		default:
 			if (s[i] < 32) /* signed, so take up to 127 */
@@ -280,6 +296,7 @@ int print_message(struct board *b, const char *s)
 			break;
 		}
 	}
+	dst[col] = '\0'; /* the current position is empty */
 	b->cur_col = col;
 	/* everything is printed now, must do the rendering */
 	render_board(b);

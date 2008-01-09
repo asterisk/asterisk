@@ -80,6 +80,7 @@ enum kb_output {
 	KO_NONE,
 	KO_INPUT,	/* the local input window */
 	KO_DIALED,	/* the 'dialed number' window */
+	KO_MESSAGE,	/* the 'message' window */
 };
 
 enum drag_window {	/* which window are we dragging */
@@ -91,14 +92,8 @@ enum drag_window {	/* which window are we dragging */
 	DRAG_MESSAGE,	/* message window */
 };
 
-struct board;	/* external. we only need the pointer */
-
 /*! \brief info related to the gui: button status, mouse coords, etc. */
 struct gui_info {
-	char			inbuf[GUI_BUFFER_LEN];	/* buffer for to-dial buffer */
-	int			inbuf_pos;	/* next free position in inbuf */
-	char			msgbuf[GUI_BUFFER_LEN];	/* buffer for text-message buffer */
-	int			msgbuf_pos;	/* next free position in msgbuf */
 	enum kb_output		kb_output;	/* where the keyboard output goes */
 	enum drag_window	drag_window;	/* which window are we dragging */
 	int			x_drag;		/* x coordinate where the drag starts */
@@ -238,11 +233,12 @@ enum skin_area {
 	KEY_SENDVIDEO = 132,
 	KEY_LOCALVIDEO = 133,
 	KEY_REMOTEVIDEO = 134,
-	KEY_WRITEMESSAGE = 135,
 	KEY_FLASH = 136,
 	KEY_GUI_CLOSE = 199,		/* close gui */
 
-	/* regions of the skin - active area, fonts, etc. */
+	/* regions of the skin - displayed area, fonts, etc.
+	 * XXX NOTE these are not sensitive areas.
+	 */
 	KEY_KEYPAD = 200,		/* the keypad - default to the whole image */
 	KEY_FONT = 201,		/* the font. Maybe not really useful */
 	KEY_MESSAGE = 202,	/* area for incoming messages */
@@ -262,27 +258,6 @@ enum skin_area {
  * Handlers for the various keypad functions
  */
 
-/*! \brief append a character, or reset if  c = '\0' */
-static void append_char(char *str, int *str_pos, const char c)
-{
-	int i = *str_pos;
-	if (c == '\0')
-		i = 0;
-	else if (i < GUI_BUFFER_LEN - 1)
-		str[i++] = c;
-	else
-		i = GUI_BUFFER_LEN - 1; /* unnecessary, i think */
-	str = '\0';
-	*str_pos = i;
-}
-
-/*! \brief append string to a buffer */
-static void append_string(char *str, int *str_pos, const char *s)
-{
-	while (*s)
-		append_char(str, str_pos, *s++);
-}
-
 /* accumulate digits, possibly call dial if in connected mode */
 static void keypad_digit(struct video_desc *env, int digit)
 {	
@@ -292,7 +267,9 @@ static void keypad_digit(struct video_desc *env, int digit)
 		f.subclass = digit;
 		ast_queue_frame(env->owner, &f);
 	} else {		/* no call, accumulate digits */
-		append_char(env->gui->inbuf, &env->gui->inbuf_pos, digit);
+		char buf[2] = { digit, '\0' };
+		if (env->gui->bd_msg) /* XXX not strictly necessary ... */
+			print_message(env->gui->bd_msg, buf);
 	}
 }
 
@@ -340,11 +317,15 @@ static void keypad_pick_up(struct video_desc *env)
 
 	if (env->owner) { /* someone is calling us, just answer */
 		ast_cli_command(gui->outfd, "console answer");
-	} else if (gui->inbuf_pos) { /* we have someone to call */
-		ast_cli_command(gui->outfd, gui->inbuf);
+	} else { /* we have someone to call */
+		char buf[160];
+		buf[sizeof(buf) - 1] = '\0';
+		snprintf(buf, sizeof(buf) - 1, "console dial %s",
+			ast_skip_blanks(read_message(gui->bd_msg)));
+		ast_log(LOG_WARNING, "doing <%s>\n", buf);
+		reset_board(gui->bd_msg);
+		ast_cli_command(gui->outfd, buf);
 	}
-	append_char(gui->inbuf, &gui->inbuf_pos, '\0'); /* clear buffer */
-	append_string(gui->inbuf, &gui->inbuf_pos, "console dial ");
 }
 
 #if 0 /* still unused */
@@ -474,30 +455,68 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
  * depending on the text_mode variable value.
  *
  * key is the SDLKey structure corresponding to the key pressed.
- * XXX needs to be cleaned up when handling returns etc.
+ * Note that SDL returns modifiers (ctrl, shift, alt) as independent
+ * information so the key itself is not enough and we need to
+ * use a translation table, below - one line per entry,
+ * plain, shift, ctrl, ... using the first char as key.
  */
-static void handle_keyboard_input(struct video_desc *env, SDLKey key)
+static const char *us_kbd_map[] = {
+	"`~", "1!", "2@", "3#", "4$", "5%", "6^",
+	"7&", "8*", "9(", "0)", "-_", "=+", "[{",
+	"]}", "\\|", ";:", "'\"", ",<", ".>", "/?",
+	"jJ\n",
+	NULL
+};
+
+static const char map_key(SDL_keysym *ks)
 {
+	const char *s, **p = us_kbd_map;
+	int c = ks->sym;
+
+	if (c == '\r')	/* map cr into lf */
+		c = '\n';
+	if (c >= SDLK_NUMLOCK && c <= SDLK_COMPOSE)
+		return 0;	/* only a modifier */
+	if (ks->mod == 0)
+		return c;
+	while ((s = *p) && s[0] != c)
+		p++;
+	if (s) { /* see if we have a modifier and a chance to use it */
+		int l = strlen(s), mod = 0;
+		if (l > 1)
+			mod |= (ks->mod & KMOD_SHIFT) ? 1 : 0;
+		if (l > 2 + mod)
+			mod |= (ks->mod & KMOD_CTRL) ? 2 : 0;
+		if (l > 4 + mod)
+			mod |= (ks->mod & KMOD_ALT) ? 4 : 0;
+		c = s[mod];
+	}
+	if (ks->mod & (KMOD_CAPS|KMOD_SHIFT) && c >= 'a' && c <='z')
+		c += 'A' - 'a';
+	return c;
+}
+
+static void handle_keyboard_input(struct video_desc *env, SDL_keysym *ks)
+{
+	char buf[2] = { map_key(ks), '\0' };
 	struct gui_info *gui = env->gui;
+	if (buf[0] == 0)	/* modifier ? */
+		return;
 	switch (gui->kb_output) {
 	default:
 		break;
-	case KO_INPUT:
-		/* append in the text-message buffer */
-		if (key == SDLK_RETURN) {
-			/* send the text message and return in normal mode */
-			gui->kb_output = KO_NONE;
-			ast_cli_command(gui->outfd, gui->msgbuf);
-			append_char(gui->msgbuf, &gui->msgbuf_pos, '\0');
-		} else {
-			/* accumulate the key in the message buffer */
-			append_char(gui->msgbuf, &gui->msgbuf_pos, key);
+	case KO_INPUT:	/* to be completed */
+		break;
+	case KO_MESSAGE:
+		if (gui->bd_msg) {
+			print_message(gui->bd_msg, buf);
+			if (buf[0] == '\r' || buf[0] == '\n') {
+				keypad_pick_up(env);
+			}
 		}
 		break;
-	case KO_DIALED:
-		/* XXX actually, enter should be a 'console dial ' */
-		/* append in the dial buffer */
-		append_char(gui->inbuf, &gui->inbuf_pos, key);
+
+	case KO_DIALED: /* to be completed */
 		break;
 	}
 
@@ -564,7 +583,7 @@ static void eventhandler(struct video_desc *env, const char *caption)
 #endif
 			switch (ev[i].type) {
 			case SDL_KEYDOWN:
-				handle_keyboard_input(env, ev[i].key.keysym.sym);
+				handle_keyboard_input(env, &ev[i].key.keysym);
 				break;
 			case SDL_MOUSEMOTION:
 				if (gui->drag_window == DRAG_LOCAL)
@@ -626,14 +645,9 @@ static struct gui_info *gui_init(const char *keypad_file, const char *font)
 	if (gui == NULL)
 		return NULL;
 	/* initialize keypad status */
-	gui->kb_output = KO_DIALED;
+	gui->kb_output = KO_MESSAGE;	/* XXX temp */
 	gui->drag_window = DRAG_NONE;
 	gui->outfd = -1;
-
-	/* initialize keyboard buffer */
-	append_char(gui->inbuf, &gui->inbuf_pos, '\0');
-	append_string(gui->inbuf, &gui->inbuf_pos, "console dial ");
-	append_char(gui->msgbuf, &gui->msgbuf_pos, '\0');
 
 	keypad_setup(gui, keypad_file);
 	if (gui->keypad == NULL)	/* no keypad, we are done */
@@ -896,7 +910,6 @@ static struct _s_k gui_key_map[] = {
         {"SENDVIDEO",	KEY_SENDVIDEO },
         {"LOCALVIDEO",	KEY_LOCALVIDEO },
         {"REMOTEVIDEO",	KEY_REMOTEVIDEO },
-        {"WRITEMESSAGE", KEY_WRITEMESSAGE },
         {"GUI_CLOSE",	KEY_GUI_CLOSE },
         {"KEYPAD",	KEY_KEYPAD },	/* x0 y0 w h - active area of the keypad */
         {"MESSAGE",	KEY_MESSAGE },	/* x0 y0 w h - incoming messages */
