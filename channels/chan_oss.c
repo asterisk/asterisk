@@ -307,10 +307,12 @@ struct chan_oss_pvt {
 /*! forward declaration */
 static struct chan_oss_pvt *find_desc(char *dev);
 
+static char *oss_active;	 /*!< the active device */
+
 /*! \brief return the pointer to the video descriptor */
 struct video_desc *get_video_desc(struct ast_channel *c)
 {
-	struct chan_oss_pvt *o = c->tech_pvt;
+	struct chan_oss_pvt *o = c ? c->tech_pvt : find_desc(oss_active);
 	return o ? o->env : NULL;
 }
 static struct chan_oss_pvt oss_default = {
@@ -327,7 +329,6 @@ static struct chan_oss_pvt oss_default = {
 	.boost = BOOST_SCALE,
 };
 
-static char *oss_active;	 /*!< the active device */
 
 static int setformat(struct chan_oss_pvt *o, int mode);
 
