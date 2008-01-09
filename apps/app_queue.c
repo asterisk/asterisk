@@ -497,6 +497,7 @@ static struct ao2_container *queues;
 static void update_realtime_members(struct call_queue *q);
 static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused);
 
+/*! \brief sets the QUEUESTATUS channel variable */
 static void set_queue_result(struct ast_channel *chan, enum queue_result res)
 {
 	int i;
@@ -604,6 +605,12 @@ enum queue_member_status {
 	QUEUE_NORMAL
 };
 
+/*! \brief Check if members are available
+ *
+ * This function checks to see if members are available to be called. If any member
+ * is available, the function immediately returns QUEUE_NORMAL. If no members are available,
+ * the appropriate reason why is returned
+ */
 static enum queue_member_status get_member_status(struct call_queue *q, int max_penalty, int min_penalty)
 {
 	struct member *member;
@@ -645,7 +652,7 @@ struct statechange {
 	int state;
 	char dev[0];
 };
-
+/*! \brief set a member's status based on device state of that member's state_interface*/
 static void *handle_statechange(struct statechange *sc)
 {
 	struct call_queue *q;
@@ -748,6 +755,7 @@ static struct {
 	.thread = AST_PTHREADT_NULL,
 };
 
+/*! \brief Consumer of the statechange queue */
 static void *device_state_thread(void *data)
 {
 	struct statechange *sc = NULL;
@@ -781,7 +789,7 @@ static void *device_state_thread(void *data)
 
 	return NULL;
 }
-
+/*! \brief Producer of the statechange queue */
 static int statechange_queue(const char *dev, enum ast_device_state state)
 {
 	struct statechange *sc;
@@ -799,7 +807,6 @@ static int statechange_queue(const char *dev, enum ast_device_state state)
 
 	return 0;
 }
-
 static void device_state_cb(const struct ast_event *event, void *unused)
 {
 	enum ast_device_state state;
@@ -816,6 +823,7 @@ static void device_state_cb(const struct ast_event *event, void *unused)
 	statechange_queue(device, state);
 }
 
+/*! \brief allocate space for new queue member and set fields based on parameters passed */
 static struct member *create_queue_member(const char *interface, const char *membername, int penalty, int paused, const char *state_interface)
 {
 	struct member *cur;
