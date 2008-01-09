@@ -1647,7 +1647,7 @@ static void zt_enable_ec(struct zt_pvt *p)
 			x = 1;
 			res = ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &x);
 			if (res)
-				ast_log(LOG_WARNING, "Unable to enable audio mode on channel %d (%s)\n", p->channel, strerror(res));
+				ast_log(LOG_WARNING, "Unable to enable audio mode on channel %d (%s)\n", p->channel, strerror(errno));
 		}
 #if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
 		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOCANCEL_PARAMS, &p->echocancel);
@@ -1656,7 +1656,7 @@ static void zt_enable_ec(struct zt_pvt *p)
 		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOCANCEL, &x);
 #endif
 		if (res)  {
-			ast_log(LOG_WARNING, "Unable to enable echo cancellation on channel %d (%s)\n", p->channel, strerror(res));
+			ast_log(LOG_WARNING, "Unable to enable echo cancellation on channel %d (%s)\n", p->channel, strerror(errno));
 		} else {
 			p->echocanon = 1;
 			ast_debug(1, "Enabled echo cancellation on channel %d\n", p->channel);
