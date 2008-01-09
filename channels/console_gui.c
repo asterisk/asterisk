@@ -462,7 +462,7 @@ static const char *us_kbd_map[] = {
 	NULL
 };
 
-static const char map_key(SDL_keysym *ks)
+static char map_key(SDL_keysym *ks)
 {
 	const char *s, **p = us_kbd_map;
 	int c = ks->sym;
