@@ -919,6 +919,9 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 		return NULL;
 	}
 
+	/* Set CALLERID(name) to the full JID of the remote peer */
+	ast_copy_string(tmp->cid_name, tmp->them, sizeof(tmp->cid_name));
+
 	if(strchr(tmp->us, '/')) {
 		data = ast_strdupa(tmp->us);
 		exten = strsep(&data, "/");
@@ -940,7 +943,6 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	int fmt;
 	int what;
 	const char *n2;
-	char *data = NULL, *cid = NULL;
 
 	if (title)
 		n2 = title;
@@ -999,20 +1001,7 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	ast_module_ref(ast_module_info->self);
 	ast_copy_string(tmp->context, client->context, sizeof(tmp->context));
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
-	/* Don't use ast_set_callerid() here because it will
-	 * generate a needless NewCallerID event */
-	if (!strcasecmp(client->name, "guest")) {
-		data = ast_strdupa(i->them);
-		if (strchr(data, '/')) {
-			cid = strsep(&data, "/");
-		} else
-			cid = data;
-	} else {
-		data =  ast_strdupa(client->user);
-		cid = data;
-	}
-	cid = strsep(&cid, "@");
-	tmp->cid.cid_ani = ast_strdup(cid);
+
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
 		tmp->cid.cid_dnid = ast_strdup(i->exten);
 	tmp->priority = 1;
