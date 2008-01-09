@@ -1248,7 +1248,7 @@ static char *complete_mod_4(const char *line, const char *word, int pos, int sta
 
 static char *complete_fn_2(const char *line, const char *word, int pos, int state)
 {
-	char *c;
+	char *c, *d;
 	char filename[256];
 
 	if (pos != 1)
@@ -1259,17 +1259,20 @@ static char *complete_fn_2(const char *line, const char *word, int pos, int stat
 	else
 		snprintf(filename, sizeof(filename), "%s/%s", ast_config_AST_MODULE_DIR, word);
 	
-	c = filename_completion_function(filename, state);
+	c = d = filename_completion_function(filename, state);
 	
 	if (c && word[0] != '/')
 		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
+	if (c)
+		c = strdup(c);
+	free(d);
 	
-	return c ? strdup(c) : c;
+	return c;
 }
 
 static char *complete_fn_3(const char *line, const char *word, int pos, int state)
 {
-	char *c;
+	char *c, *d;
 	char filename[256];
 
 	if (pos != 2)
@@ -1280,12 +1283,15 @@ static char *complete_fn_3(const char *line, const char *word, int pos, int stat
 	else
 		snprintf(filename, sizeof(filename), "%s/%s", ast_config_AST_MODULE_DIR, word);
 	
-	c = filename_completion_function(filename, state);
+	c = d = filename_completion_function(filename, state);
 	
 	if (c && word[0] != '/')
 		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
+	if (c)
+		c = strdup(c);
+	free(d);
 	
-	return c ? strdup(c) : c;
+	return c;
 }
 
 static int group_show_channels(int fd, int argc, char *argv[])
