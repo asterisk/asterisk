@@ -436,3 +436,11 @@ Miscellaneous
   * Added a new codec translation module, codec_resample, which re-samples
      signed linear audio between 8 kHz and 16 kHz to help support wideband
      codecs.
+  * Added a new module, res_phoneprov, which allows auto-provisioning of phones
+     based on configuration templates that use Asterisk dialplan function and
+     variable substitution.  It should be possible to create phone profiles and
+     templates that work for the majority of phones provisioned over http. It
+     is currently only intended to provision a single user account per phone.
+     An example profile and set of templates for Polycom phones is provided.
+     NOTE: Polycom firmware is not included, but should be placed in
+     AST_DATA_DIR/phoneprov/configs to match up with the included templates. 

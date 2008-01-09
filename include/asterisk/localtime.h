@@ -41,6 +41,7 @@ struct ast_tm {
 };
 
 struct ast_tm *ast_localtime(const struct timeval *timep, struct ast_tm *p_tm, const char *zone);
+void ast_get_dst_info(const time_t * const timep, int *dst_enabled, time_t *dst_start, time_t *dst_end, int *gmt_off, const char * const zone);
 struct timeval ast_mktime(struct ast_tm * const tmp, const char *zone);
 int ast_strftime(char *buf, size_t len, const char *format, const struct ast_tm *tm);
 

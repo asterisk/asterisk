@@ -450,6 +450,10 @@ datafiles: _all
 # Should static HTTP be installed during make samples or even with its own target ala
 # webvoicemail?  There are portions here that *could* be customized but might also be
 # improved a lot.  I'll put it here for now.
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/phoneprov
+	for x in phoneprov/*; do \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/phoneprov ; \
+	done
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/static-http
 	for x in static-http/*; do \
 		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/static-http ; \

@@ -1144,6 +1144,121 @@ struct ast_tm *ast_localtime(const struct timeval *timep, struct ast_tm *tmp, co
 }
 
 /*
+** This function provides informaton about daylight savings time 
+** for the given timezone.  This includes whether it can determine 
+** if daylight savings is used for this timezone, the UTC times for 
+** when daylight savings transitions, and the offset in seconds from 
+** UTC. 
+*/
+
+void ast_get_dst_info(const time_t * const timep, int *dst_enabled, time_t *dst_start, time_t *dst_end, int *gmt_off, const char * const zone)
+{
+	int i;	
+	int transition1 = -1;
+	int transition2 = -1;
+	time_t		seconds;
+	int  bounds_exceeded = 0;
+	time_t  t = *timep;
+	const struct state *sp;
+	
+	if (NULL == dst_enabled)
+		return;
+	*dst_enabled = 0;
+
+	if (NULL == dst_start || NULL == dst_end || NULL == gmt_off)
+		return;
+
+	*gmt_off = 0; 
+	
+	sp = ast_tzset(zone);
+	if (NULL == sp) 
+		return;
+	
+	/* If the desired time exceeds the bounds of the defined time transitions  
+	* then give give up on determining DST info and simply look for gmt offset 
+	* This requires that I adjust the given time using increments of Gregorian 
+	* repeats to place the time within the defined time transitions in the 
+	* timezone structure.  
+	*/
+	if ((sp->goback && t < sp->ats[0]) ||
+			(sp->goahead && t > sp->ats[sp->timecnt - 1])) {
+		time_t		tcycles;
+		int_fast64_t	icycles;
+
+		if (t < sp->ats[0])
+			seconds = sp->ats[0] - t;
+		else	seconds = t - sp->ats[sp->timecnt - 1];
+		--seconds;
+		tcycles = seconds / YEARSPERREPEAT / AVGSECSPERYEAR;
+		++tcycles;
+		icycles = tcycles;
+		if (tcycles - icycles >= 1 || icycles - tcycles >= 1)
+			return;
+		seconds = icycles;
+		seconds *= YEARSPERREPEAT;
+		seconds *= AVGSECSPERYEAR;
+		if (t < sp->ats[0])
+			t += seconds;
+		else
+			t -= seconds;
+		
+		if (t < sp->ats[0] || t > sp->ats[sp->timecnt - 1])
+			return;	/* "cannot happen" */
+
+		bounds_exceeded = 1;
+	}
+
+	if (sp->timecnt == 0 || t < sp->ats[0]) {
+		/* I have no transition times or I'm before time */
+		*dst_enabled = 0;
+		/* Find where I can get gmtoff */
+		i = 0;
+		while (sp->ttis[i].tt_isdst)
+			if (++i >= sp->typecnt) {
+			i = 0;
+			break;
+			}
+			*gmt_off = sp->ttis[i].tt_gmtoff;
+			return;
+	} 
+
+	for (i = 1; i < sp->timecnt; ++i) {
+		if (t < sp->ats[i]) {
+			transition1 = sp->types[i - 1];
+			transition2 = sp->types[i];
+			break;
+		} 
+	}
+	/* if I found transition times that do not bounded the given time and these correspond to 
+		or the bounding zones do not reflect a changes in day light savings, then I do not have dst active */
+	if (i >= sp->timecnt || 0 > transition1 || 0 > transition2 ||
+			(sp->ttis[transition1].tt_isdst == sp->ttis[transition2].tt_isdst)) {
+		*dst_enabled = 0;
+		*gmt_off 	 = sp->ttis[sp->types[sp->timecnt -1]].tt_gmtoff;
+	} else {
+		/* I have valid daylight savings information. */
+		if(sp->ttis[transition2].tt_isdst) 
+			*gmt_off = sp->ttis[transition1].tt_gmtoff;
+		else 
+			*gmt_off = sp->ttis[transition2].tt_gmtoff;
+
+		/* If I adjusted the time earlier, indicate that the dst is invalid */
+		if (!bounds_exceeded) {
+			*dst_enabled = 1;
+			/* Determine which of the bounds is the start of daylight savings and which is the end */
+			if(sp->ttis[transition2].tt_isdst) {
+				*dst_start = sp->ats[i];
+				*dst_end = sp->ats[i -1];
+			} else {
+				*dst_start = sp->ats[i -1];
+				*dst_end = sp->ats[i];
+			}
+		}
+	}	
+	return;
+}
+
+/*
 ** gmtsub is to gmtime as localsub is to localtime.
 */
 

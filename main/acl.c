@@ -39,11 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/srv.h"
 
-struct my_ifreq {
-	char ifrn_name[IFNAMSIZ];	/* Interface name, e.g. "eth0", "ppp0", etc.  */
-	struct sockaddr_in ifru_addr;
-};
-
 /* Free HA structure */
 void ast_free_ha(struct ast_ha *ha)
 {

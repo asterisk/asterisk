@@ -30,6 +30,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <regex.h>
+#include <ctype.h>
 
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
@@ -800,6 +801,40 @@ static struct ast_custom_function keypadhash_function = {
 	.desc = "Example:  ${KEYPADHASH(Les)} returns \"537\"\n",
 };
 
+static int string_toupper(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	char *bufptr = buf, *dataptr = data;
+
+	while ((bufptr < buf + len - 1) && (*bufptr++ = toupper(*dataptr++)));
+
+	return 0;
+}
+
+static struct ast_custom_function toupper_function = {
+	.name = "TOUPPER",
+	.synopsis = "Convert the string to upper case.",
+	.syntax = "TOUPPER(<string>)",
+	.read = string_toupper,
+	.desc = "Example: ${TOUPPER(Example)} returns \"EXAMPLE\"\n",
+};
+
+static int string_tolower(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	char *bufptr = buf, *dataptr = data;
+
+	while ((bufptr < buf + len - 1) && (*bufptr++ = tolower(*dataptr++)));
+
+	return 0;
+}
+
+static struct ast_custom_function tolower_function = {
+	.name = "TOLOWER",
+	.synopsis = "Convert the string to lower case.",
+	.syntax = "TOLOWER(<string>)",
+	.read = string_tolower,
+	.desc = "Example: ${TOLOWER(Example)} returns \"example\"\n",
+};
+
 static int unload_module(void)
 {
 	int res = 0;
@@ -818,6 +853,8 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&hashkeys_function);
 	res |= ast_custom_function_unregister(&hash_function);
 	res |= ast_unregister_application(app_clearhash);
+	res |= ast_custom_function_unregister(&toupper_function);
+	res |= ast_custom_function_unregister(&tolower_function);
 
 	return res;
 }
@@ -840,6 +877,8 @@ static int load_module(void)
 	res |= ast_custom_function_register(&hashkeys_function);
 	res |= ast_custom_function_register(&hash_function);
 	res |= ast_register_application(app_clearhash, exec_clearhash, syn_clearhash, desc_clearhash);
+	res |= ast_custom_function_register(&toupper_function);
+	res |= ast_custom_function_register(&tolower_function);
 
 	return res;
 }
