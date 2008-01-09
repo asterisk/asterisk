@@ -33,12 +33,12 @@
 #include <ffmpeg/swscale.h>     /* requires a recent ffmpeg */
 #endif
 
-#define CONSOLE_VIDEO_CMDS                              \
-        "console {videodevice|videocodec|sendvideo"     \
-        "|video_size|bitrate|fps|qmin"                  \
-        "|keypad|keypad_mask|keypad_entry"              \
-	"|sdl_videodriver"				\
-        "|device"					\
+#define CONSOLE_VIDEO_CMDS			\
+	"console {videodevice|videocodec"	\
+	"|video_size|bitrate|fps|qmin"		\
+	"|sendvideo|keypad"			\
+	"|sdl_videodriver"			\
+	"|device|startgui|stopgui"		\
 	"}"
 
 #endif	/* HAVE_VIDEO_CONSOLE and others */

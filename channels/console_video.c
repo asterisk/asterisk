@@ -198,6 +198,7 @@ struct video_out_desc {
 struct video_desc {
 	char			codec_name[64];	/* the codec we use */
 
+	int			stayopen;	/* set if gui starts manually */
 	pthread_t		vthread;	/* video thread */
 	ast_mutex_t		dec_lock;	/* sync decoder and video thread */
 	int			shutdown;	/* set to shutdown vthread */
@@ -432,7 +433,10 @@ static int video_out_init(struct video_desc *env)
 	return 0;
 }
 
-/*! \brief uninitialize the entire environment.
+/*! \brief possibly uninitialize the video console.
+ * Called at the end of a call, should reset the 'owner' field,
+ * then possibly terminate the video thread if the gui has
+ * not been started manually.
  * In practice, signal the thread and give it a bit of time to
  * complete, giving up if it gets stuck. Because uninit
  * is called from hangup with the channel locked, and the thread
@@ -442,14 +446,18 @@ static int video_out_init(struct video_desc *env)
 void console_video_uninit(struct video_desc *env)
 {
 	int i, t = 100;	/* initial wait is shorter, than make it longer */
-	env->shutdown = 1;
-	for (i=0; env->shutdown && i < 10; i++) {
-                ast_channel_unlock(env->owner);
-                usleep(t);
-		t = 1000000;
-                ast_channel_lock(env->owner);
-        }
-	env->owner = NULL;
+	if (env->stayopen == 0) {	/* in a call */
+		env->shutdown = 1;
+		for (i=0; env->shutdown && i < 10; i++) {
+			if (env->owner)
+				ast_channel_unlock(env->owner);
+			usleep(t);
+			t = 1000000;
+			if (env->owner)
+				ast_channel_lock(env->owner);
+		}
+	}
+	env->owner = NULL;	/* this is unconditional */
 }
 
 /*! fill an AVPicture from our fbuf info, as it is required by
@@ -713,8 +721,8 @@ static void *video_thread(void *arg)
 	for (;;) {
 		struct timeval t = { 0, 50000 };	/* XXX 20 times/sec */
 		struct ast_frame *p, *f;
-		struct ast_channel *chan = env->owner;
-		int fd = chan->alertpipe[1];
+		struct ast_channel *chan;
+		int fd;
 		char *caption = NULL, buf[160];
 
 		sprintf(buf, "%d   \r", count);
@@ -774,6 +782,9 @@ static void *video_thread(void *arg)
 		if (!f)
 			continue;
 		chan = env->owner;
+		if (chan == NULL)
+			continue;
+		fd = chan->alertpipe[1];
 		ast_channel_lock(chan);
 
 		/* AST_LIST_INSERT_TAIL is only good for one frame, cannot use here */
@@ -850,11 +861,12 @@ static void init_env(struct video_desc *env)
  */
 void console_video_start(struct video_desc *env, struct ast_channel *owner)
 {
+	ast_log(LOG_WARNING, "env %p chan %p\n", env, owner);
 	if (env == NULL)	/* video not initialized */
 		return;
-	if (owner == NULL)	/* nothing to do if we don't have a channel */
-		return;
-	env->owner = owner;
+	env->owner = owner;	/* work even if no owner is specified */
+	if (env->stayopen)
+		return;		/* already initialized, nothing to do */
 	init_env(env);
 	env->out.enc = map_config_video_format(env->codec_name);
 
@@ -877,8 +889,9 @@ void console_video_start(struct video_desc *env, struct ast_channel *owner)
 		env->out.bitrate = 65000;
 		ast_log(LOG_WARNING, "bitrate unset, forcing to %d\n", env->out.bitrate);
 	}
-
 	ast_pthread_create_background(&env->vthread, NULL, video_thread, env);
+	if (env->owner == NULL)
+		env->stayopen = 1;	/* manually opened so don't close on hangup */
 }
 
 /*
@@ -963,6 +976,14 @@ int console_video_cli(struct video_desc *env, const char *var, int fd)
 		ast_cli(fd, "qmin is [%d]\n", env->out.qmin);
         } else if (!strcasecmp(var, "fps")) {
 		ast_cli(fd, "fps is [%d]\n", env->out.fps);
+        } else if (!strcasecmp(var, "startgui")) {
+		console_video_start(env, NULL);
+        } else if (!strcasecmp(var, "stopgui") && env->stayopen != 0) {
+		env->stayopen = 0;
+		if (env->gui && env->owner)
+			ast_cli_command(-1, "console hangup");
+		else /* not in a call */
+			console_video_uninit(env);
         } else {
 		return 1;	/* unrecognised */
 	}
