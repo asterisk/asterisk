@@ -1724,10 +1724,9 @@ void ast_cli_unregister_multiple(struct ast_cli_entry *e, int len)
 }
 
 
-/*! \brief helper for help_workhorse and final part of
- * handle_help. if locked = 0 it's just help_workhorse,
- * otherwise assume the list is already locked and print
- * an error message if not found.
+/*! \brief helper for help_workhorse and final part of handle_help
+ * if locked = 0 it's just help_workhorse, otherwise assume the
+ * list is already locked.
  */
 static int help1(int fd, char *match[], int locked)
 {
@@ -1757,7 +1756,7 @@ static int help1(int fd, char *match[], int locked)
 	}
 	if (!locked)
 		AST_LIST_UNLOCK(&helpers);
-	if (!locked && !found && matchstr[0])
+	if (!found && matchstr[0])
 		ast_cli(fd, "No such command '%s'.\n", matchstr);
 	return RESULT_SUCCESS;
 }
