@@ -421,16 +421,18 @@ static int find_transcoders(void)
 	int fd, res;
 	unsigned int x, y;
 
-	info.op = ZT_TCOP_GETINFO;
 	if ((fd = open("/dev/zap/transcode", O_RDWR)) < 0) {
-		ast_debug(1, "No Zaptel transcoder support!\n");
+		ast_verbose(VERBOSE_PREFIX_2 "No hardware transcoders found.\n");
 		return 0;
 	}
+
+	info.op = ZT_TCOP_GETINFO;
 	for (info.tcnum = 0; !(res = ioctl(fd, ZT_TRANSCODE_OP, &info)); info.tcnum++) {
 		ast_verb(2, "Found transcoder '%s'.\n", info.name);
 		build_translators(&map, info.dstfmts, info.srcfmts);
 		ast_atomic_fetchadd_int(&channels.total, info.numchannels / 2);
 	}
+
 	close(fd);
 
 	if (!info.tcnum)
