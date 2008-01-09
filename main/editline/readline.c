@@ -1189,68 +1189,63 @@ tilde_expand(char *txt)
 
 /*
  * return first found file name starting by the ``text'' or NULL if no
- * such file can be found
- * value of ``state'' is ignored
+ * such file can be found.
+ * The first ``state'' matches are ignored.
  *
  * it's caller's responsibility to free returned string
  */
 char *
 filename_completion_function(const char *text, int state)
 {
-	static DIR *dir = NULL;
-	static char *filename = NULL, *dirname = NULL;
-	static size_t filename_len = 0;
+	DIR *dir = NULL;
+	char *filename = NULL, *dirname = NULL;
+	size_t filename_len = 0;
 	struct dirent *entry;
 	char *temp;
 	size_t len;
+	int count = 0;
 
-	if (state == 0 || dir == NULL) {
-		if (dir != NULL) {
-			closedir(dir);
-			dir = NULL;
-		}
-		temp = strrchr(text, '/');
-		if (temp) {
-			temp++;
-			filename = realloc(filename, strlen(temp) + 1);
-			(void) strcpy(filename, temp);
-			len = temp - text;	/* including last slash */
-			dirname = realloc(dirname, len + 1);
-			(void) strncpy(dirname, text, len);
-			dirname[len] = '\0';
-		} else {
-			filename = strdup(text);
-			dirname = NULL;
-		}
-
-		/* support for ``~user'' syntax */
-		if (dirname && *dirname == '~') {
-			temp = tilde_expand(dirname);
-			dirname = realloc(dirname, strlen(temp) + 1);
-			(void) strcpy(dirname, temp);	/* safe */
-			free(temp);	/* no longer needed */
-		}
-		/* will be used in cycle */
-		filename_len = strlen(filename);
-		if (filename_len == 0)
-			return (NULL);	/* no expansion possible */
-
-		dir = opendir(dirname ? dirname : ".");
-		if (!dir)
-			return (NULL);	/* cannot open the directory */
+	temp = strrchr(text, '/');
+	if (temp) {
+		temp++;
+		filename = realloc(filename, strlen(temp) + 1);
+		(void) strcpy(filename, temp);
+		len = temp - text;	/* including last slash */
+		dirname = realloc(dirname, len + 1);
+		(void) strncpy(dirname, text, len);
+		dirname[len] = '\0';
+	} else {
+		filename = strdup(text);
+		dirname = NULL;
 	}
+
+	/* support for ``~user'' syntax */
+	if (dirname && *dirname == '~') {
+		temp = tilde_expand(dirname);
+		dirname = realloc(dirname, strlen(temp) + 1);
+		(void) strcpy(dirname, temp);	/* safe */
+		free(temp);	/* no longer needed */
+	}
+	/* will be used in cycle */
+	filename_len = strlen(filename);
+
+	dir = opendir(dirname ? dirname : ".");
+	if (!dir)
+		return (NULL);	/* cannot open the directory */
+
 	/* find the match */
 	while ((entry = readdir(dir)) != NULL) {
 		/* otherwise, get first entry where first */
 		/* filename_len characters are equal	  */
-		if (entry->d_name[0] == filename[0]
+		if (
 #if defined(__SVR4) || defined(__linux__)
-		    && strlen(entry->d_name) >= filename_len
+		    strlen(entry->d_name) >= filename_len
 #else
-		    && entry->d_namlen >= filename_len
+		    entry->d_namlen >= filename_len
 #endif
 		    && strncmp(entry->d_name, filename,
-			filename_len) == 0)
+			filename_len) == 0
+			&& (state-- == 0))
 			break;
 	}
 
@@ -1272,6 +1267,7 @@ filename_completion_function(const char *text, int state)
 			strcat(temp, "/");	/* safe */
 	} else
 		temp = NULL;
+	closedir(dir);
 
 	return (temp);
 }

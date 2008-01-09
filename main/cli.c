@@ -121,7 +121,7 @@ static AST_RWLIST_HEAD_STATIC(helpers, ast_cli_entry);
 
 static char *complete_fn(const char *word, int state)
 {
-	char *c;
+	char *c, *d;
 	char filename[256];
 
 	if (word[0] == '/')
@@ -129,13 +129,15 @@ static char *complete_fn(const char *word, int state)
 	else
 		snprintf(filename, sizeof(filename), "%s/%s", ast_config_AST_MODULE_DIR, word);
 
-	/* XXX the following function is not reentrant, so we better not use it */
-	c = filename_completion_function(filename, state);
+	c = d = filename_completion_function(filename, state);
 	
 	if (c && word[0] != '/')
 		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
+	if (c)
+		c = ast_strdup(c);
+	free(d);
 	
-	return c ? ast_strdup(c) : c;
+	return c;
 }
 
 static char *handle_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
