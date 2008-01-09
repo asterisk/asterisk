@@ -2816,7 +2816,7 @@ int main(int argc, char *argv[])
 			rungroup = ast_strdupa(optarg);
 			break;
 		case 's':
-			remotesock = optarg;
+			remotesock = ast_strdupa(optarg);
 			break;
 		case '?':
 			exit(1);
