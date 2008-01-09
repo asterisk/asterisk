@@ -2696,7 +2696,8 @@ static void update_qe_rule(struct queue_ent *qe)
  * queue members. Inside the loop, we service the caller with periodic announcements,
  * holdtime announcements, etc. as configured in queues.conf
  *
- * \retval res 0 if the caller's turn has arrived, -1 if the caller should exit the queue.
+ * \retval  0 if the caller's turn has arrived
+ * \retval -1 if the caller should exit the queue.
  */
 static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *reason)
 {
