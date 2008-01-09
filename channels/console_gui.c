@@ -73,31 +73,10 @@ struct display_window   {
 	SDL_Overlay	*bmp;
 	SDL_Rect	rect;	/* location of the window */
 };
-#define GUI_BUFFER_LEN 256			/* buffer lenght used for input buffers */
 
-/* Where do we send the keyboard/keypad output */
-enum kb_output {
-	KO_NONE,
-	KO_INPUT,	/* the local input window */
-	KO_DIALED,	/* the 'dialed number' window */
-	KO_MESSAGE,	/* the 'message' window */
-};
-
-enum drag_window {	/* which window are we dragging */
-	DRAG_NONE,
-	DRAG_LOCAL,	/* local video */
-	DRAG_REMOTE,	/* remote video */
-	DRAG_DIALED,	/* dialed number */
-	DRAG_INPUT,	/* input window */
-	DRAG_MESSAGE,	/* message window */
-};
-
-/*! \brief info related to the gui: button status, mouse coords, etc. */
 struct gui_info {
 	enum kb_output		kb_output;	/* where the keyboard output goes */
-	enum drag_window	drag_window;	/* which window are we dragging */
-	int			x_drag;		/* x coordinate where the drag starts */
-	int			y_drag;		/* y coordinate where the drag starts */
+	struct drag_info	drag;		/* info on the window are we dragging */
 	/* support for display. */
 	SDL_Surface             *screen;	/* the main window */
 
@@ -107,16 +86,17 @@ struct gui_info {
 	SDL_Surface		*font;		/* font to be used */ 
 	SDL_Rect		font_rects[96];	/* only printable chars */
 
-	SDL_Rect		kp_msg;		/* incoming msg, relative to kpad */
-	SDL_Rect		kp_msg_s;	/* incoming msg, rel. to screen */
+	/* each board has two rectangles,
+	 * [0] is the geometry relative to the keypad,
+	 * [1] is the geometry relative to the whole screen
+	 */
+	SDL_Rect		kp_msg[2];		/* incoming msg, relative to kpad */
 	struct board		*bd_msg;
 
-	SDL_Rect		kp_edit;	/* edit user input */
-	SDL_Rect		kp_edit_s;	/* incoming msg, rel. to screen */
+	SDL_Rect		kp_edit[2];	/* edit user input */
 	struct board		*bd_edit;
 
-	SDL_Rect		kp_dialed;	/* dialed number */
-	SDL_Rect		kp_dialed_s;	/* incoming msg, rel. to screen */
+	SDL_Rect		kp_dialed[2];	/* dialed number */
 	struct board		*bd_dialed;
 
 	/* variable-size array mapping keypad regions to functions */
@@ -234,8 +214,13 @@ enum skin_area {
 	KEY_LOCALVIDEO = 133,
 	KEY_REMOTEVIDEO = 134,
 	KEY_FLASH = 136,
-	KEY_GUI_CLOSE = 199,		/* close gui */
 
+	/* sensitive areas for the various text windows */
+	KEY_MESSAGEBOARD = 140,
+	KEY_DIALEDBOARD = 141,
+	KEY_EDITBOARD = 142,
+
+	KEY_GUI_CLOSE = 199,		/* close gui */
 	/* regions of the skin - displayed area, fonts, etc.
 	 * XXX NOTE these are not sensitive areas.
 	 */
@@ -319,10 +304,12 @@ static void keypad_pick_up(struct video_desc *env)
 		ast_cli_command(gui->outfd, "console answer");
 	} else { /* we have someone to call */
 		char buf[160];
+		const char *who = ast_skip_blanks(read_message(gui->bd_msg));
 		buf[sizeof(buf) - 1] = '\0';
-		snprintf(buf, sizeof(buf) - 1, "console dial %s",
-			ast_skip_blanks(read_message(gui->bd_msg)));
+		snprintf(buf, sizeof(buf) - 1, "console dial %s", who);
 		ast_log(LOG_WARNING, "doing <%s>\n", buf);
+		print_message(gui->bd_dialed, "\n");
+		print_message(gui->bd_dialed, who);
 		reset_board(gui->bd_msg);
 		ast_cli_command(gui->outfd, buf);
 	}
@@ -357,6 +344,13 @@ static int video_geom(struct fbuf_t *b, const char *s);
 static void sdl_setup(struct video_desc *env);
 static int kp_match_area(const struct keypad_entry *e, int x, int y);
 
+static void set_drag(struct drag_info *drag, int x, int y, enum drag_window win)
+{
+	drag->x_start = x;
+	drag->y_start = y;
+	drag->drag_window = win;
+}
+
 /*
  * Handle SDL_MOUSEBUTTONDOWN type, finding the palette
  * index value and calling the right callback.
@@ -373,7 +367,7 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
 		button.x, button.y, gui->kp_used, gui->kp_size, gui->kp);
 #endif
 	/* for each mousedown we end previous drag */
-	gui->drag_window = DRAG_NONE;
+	gui->drag.drag_window = DRAG_NONE;
 
 	/* define keypad boundary */
 	if (button.x < env->rem_dpy.w)
@@ -418,17 +412,17 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
 	case KEY_REMOTEVIDEO:
 		break;
 
+	case KEY_MESSAGEBOARD:
+		if (button.button == SDL_BUTTON_LEFT)
+			set_drag(&gui->drag, button.x, button.y, DRAG_MESSAGE);
+		break;
+
 	/* press outside the keypad. right increases size, center decreases, left drags */
 	case KEY_LOC_DPY:
 	case KEY_REM_DPY:
 		if (button.button == SDL_BUTTON_LEFT) {
-			if (index == KEY_LOC_DPY) {
-				/* store points where the drag start
-				* and switch in drag mode */
-				env->gui->x_drag = button.x;
-				env->gui->y_drag = button.y;
-				env->gui->drag_window = DRAG_LOCAL;
-			}
+			if (index == KEY_LOC_DPY)
+				set_drag(&gui->drag, button.x, button.y, DRAG_LOCAL);
 			break;
 		} else {
 			char buf[128];
@@ -523,34 +517,19 @@ static void handle_keyboard_input(struct video_desc *env, SDL_keysym *ks)
 	return;
 }
 
-/* implement superlinear acceleration on the movement */
-static int move_accel(int delta)
-{
-	int d1 = delta*delta / 100;
-	return (delta > 0) ? delta + d1 : delta - d1;
-}
-
 static void grabber_move(struct video_out_desc *, int dx, int dy);
-/*
- * Move the source of the captured video.
- *
- * x_final_drag and y_final_drag are the coordinates where the drag ends,
- * start coordinares are in the gui_info structure.
- */
-static void move_capture_source(struct video_desc *env, int x_final_drag, int y_final_drag)
+
+int compute_drag(int *start, int end, int magnifier);
+int compute_drag(int *start, int end, int magnifier)
 {
-	int dx, dy;
-
-	/* move the origin */
-#define POLARITY -1		/* +1 or -1 depending on the desired direction */
-	dx = POLARITY*move_accel(x_final_drag - env->gui->x_drag) * 3;
-	dy = POLARITY*move_accel(y_final_drag - env->gui->y_drag) * 3;
+	int delta = end - *start;
+#define POLARITY -1
+	/* add a small quadratic term */
+	delta += delta * delta * (delta > 0 ? 1 : -1 )/100;
+	delta *= POLARITY * magnifier;
 #undef POLARITY
-	env->gui->x_drag = x_final_drag;	/* update origin */
-	env->gui->y_drag = y_final_drag;
-
-	grabber_move(&env->out, dx, dy);
-	return;
+	*start = end;
+	return delta;
 }
 
 /*
@@ -565,12 +544,14 @@ static void move_capture_source(struct video_desc *env, int x_final_drag, int y_
 static void eventhandler(struct video_desc *env, const char *caption)
 {
 	struct gui_info *gui = env->gui;
+	struct drag_info *drag;
 #define N_EVENTS	32
 	int i, n;
 	SDL_Event ev[N_EVENTS];
 
 	if (!gui)
 		return;
+	drag = &gui->drag;
 	if (caption)
 		SDL_WM_SetCaption(caption, NULL);
 
@@ -586,24 +567,24 @@ static void eventhandler(struct video_desc *env, const char *caption)
 				handle_keyboard_input(env, &ev[i].key.keysym);
 				break;
 			case SDL_MOUSEMOTION:
-				if (gui->drag_window == DRAG_LOCAL)
-					move_capture_source(env, ev[i].motion.x, ev[i].motion.y);
-#if 0
-				else if (gui->drag_window == DRAG_MESSAGE)
-					scroll_message(...);
-#endif
+			case SDL_MOUSEBUTTONUP:
+				if (drag->drag_window == DRAG_LOCAL) {
+					/* move the capture source */
+					int dx = compute_drag(&drag->x_start, ev[i].motion.x, 3);
+					int dy = compute_drag(&drag->y_start, ev[i].motion.y, 3);
+					grabber_move(&env->out, dx, dy);
+				} else if (drag->drag_window == DRAG_MESSAGE) {
+					/* scroll up/down the window */
+					int dy = compute_drag(&drag->y_start, ev[i].motion.y, 1);
+					move_message_board(gui->bd_msg, dy);
+				}
+				if (ev[i].type == SDL_MOUSEBUTTONUP)
+					drag->drag_window = DRAG_NONE;
 				break;
 			case SDL_MOUSEBUTTONDOWN:
 				handle_mousedown(env, ev[i].button);
 				break;
-			case SDL_MOUSEBUTTONUP:
-				if (gui->drag_window == DRAG_LOCAL) {
-					move_capture_source(env, ev[i].button.x, ev[i].button.y);
-					gui->drag_window = DRAG_NONE;
-				}
-				break;
 			}
-
 		}
 	}
 	if (1) {
@@ -646,7 +627,7 @@ static struct gui_info *gui_init(const char *keypad_file, const char *font)
 		return NULL;
 	/* initialize keypad status */
 	gui->kb_output = KO_MESSAGE;	/* XXX temp */
-	gui->drag_window = DRAG_NONE;
+	gui->drag.drag_window = DRAG_NONE;
 	gui->outfd = -1;
 
 	keypad_setup(gui, keypad_file);
@@ -761,6 +742,21 @@ static void keypad_setup(struct gui_info *gui, const char *kp_file)
 struct board *board_setup(SDL_Surface *screen, SDL_Rect *dest,
 	SDL_Surface *font, SDL_Rect *font_rects);
 
+/*! \brief initialize the boards we have in the keypad */
+static void init_board(struct gui_info *gui, struct board **dst, SDL_Rect *r, int dx, int dy)
+{
+	if (r[0].w == 0 || r[0].h == 0)
+		return;	/* not available */
+	r[1] = r[0];	/* copy geometry */
+	r[1].x += dx;	/* add offset of main window */
+	r[1].y += dy;
+	if (*dst == NULL) {	/* initial call */
+		*dst = board_setup(gui->screen, &r[1], gui->font, gui->font_rects);
+	} else {
+		/* call a refresh */
+	}
+}
+
 /*! \brief [re]set the main sdl window, useful in case of resize.
  * We can tell the first from subsequent calls from the value of
  * env->gui, which is NULL the first time.
@@ -838,22 +834,14 @@ static void sdl_setup(struct video_desc *env)
 	if (gui->keypad) {
 		struct SDL_Rect *dest = &gui->win[WIN_KEYPAD].rect;
 		struct SDL_Rect *src = (gui->kp_rect.w > 0 && gui->kp_rect.h > 0) ? & gui->kp_rect : NULL;
+		/* set the coordinates of the keypad relative to the main screen */
 		dest->x = 2*BORDER + env->rem_dpy.w;
 		dest->y = BORDER;
 		dest->w = kp_w;
 		dest->h = kp_h;
 		SDL_BlitSurface(gui->keypad, src, gui->screen, dest);
-		if (gui->kp_msg.w > 0 && gui->kp_msg.h > 0) {
-			gui->kp_msg_s = gui->kp_msg;
-			gui->kp_msg_s.x += dest->x;
-			gui->kp_msg_s.y += dest->y;
-			if (!gui->bd_msg) {	/* initial call */
-				gui->bd_msg = board_setup(gui->screen, &gui->kp_msg_s,
-					gui->font, gui->font_rects);
-			} else {
-				/* call a refresh */
-			}
-		}
+		init_board(gui, &gui->bd_msg, gui->kp_msg, dest->x, dest->y);
+		init_board(gui, &gui->bd_dialed, gui->kp_dialed, dest->x, dest->y);
 		SDL_UpdateRects(gui->screen, 1, dest);
 	}
 	return;
@@ -911,6 +899,9 @@ static struct _s_k gui_key_map[] = {
         {"LOCALVIDEO",	KEY_LOCALVIDEO },
         {"REMOTEVIDEO",	KEY_REMOTEVIDEO },
         {"GUI_CLOSE",	KEY_GUI_CLOSE },
+        {"MESSAGEBOARD",	KEY_MESSAGEBOARD },
+        {"DIALEDBOARD",	KEY_DIALEDBOARD },
+        {"EDITBOARD",	KEY_EDITBOARD },
         {"KEYPAD",	KEY_KEYPAD },	/* x0 y0 w h - active area of the keypad */
         {"MESSAGE",	KEY_MESSAGE },	/* x0 y0 w h - incoming messages */
         {"DIALED",	KEY_DIALED },	/* x0 y0 w h - dialed number */
@@ -972,11 +963,11 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)
 		if (e.c == KEY_KEYPAD)	/* active keypad area */
 			r = &gui->kp_rect;
 		else if (e.c == KEY_MESSAGE)
-			r = &gui->kp_msg;
+			r = gui->kp_msg;
 		else if (e.c == KEY_DIALED)
-			r = &gui->kp_dialed;
+			r = gui->kp_dialed;
 		else if (e.c == KEY_EDIT)
-			r = &gui->kp_edit;
+			r = gui->kp_edit;
 		if (r) {
 			r->x = atoi(s2);
 			r->y = e.x0;

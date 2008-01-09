@@ -87,8 +87,34 @@ void console_video_uninit(struct video_desc *env);
 void console_video_start(struct video_desc *env, struct ast_channel *owner);
 
 /* console_board.c */
+
+/* Where do we send the keyboard/keypad output */
+enum kb_output {
+	KO_NONE,
+	KO_INPUT,	/* the local input window */
+	KO_DIALED,	/* the 'dialed number' window */
+	KO_MESSAGE,	/* the 'message' window */
+};
+
+enum drag_window {	/* which window are we dragging */
+	DRAG_NONE,
+	DRAG_LOCAL,	/* local video */
+	DRAG_REMOTE,	/* remote video */
+	DRAG_DIALED,	/* dialed number */
+	DRAG_INPUT,	/* input window */
+	DRAG_MESSAGE,	/* message window */
+};
+
+/*! \brief support for drag actions */
+struct drag_info {
+	int		x_start;	/* last known mouse position */
+	int		y_start;
+	enum drag_window drag_window;
+};
+/*! \brief info related to the gui: button status, mouse coords, etc. */
 struct board;
 /* !\brief print a message on a board */
+void move_message_board(struct board *b, int dy);
 int print_message(struct board *b, const char *s);
 
 /*! \brief return the whole text from a board */

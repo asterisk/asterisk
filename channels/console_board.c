@@ -44,8 +44,6 @@
 #ifdef HAVE_SDL	/* we only use this code if SDL is available */
 #include <SDL/SDL.h>
 
-#define GUI_BUFFER_LEN 256			/* buffer lenght used for input buffers */
-
 /* Fonts characterization. XXX should be read from the file */
 #define FONT_H 20			/* char height, pixels */
 #define FONT_W 9			/* char width, pixels */
@@ -194,6 +192,17 @@ static void render_board(struct board *b)
 		}
 	}
 	SDL_UpdateRects(b->screen, 1, b->p_rect);	/* Update the screen */
+}
+
+void move_message_board(struct board *b, int dy)
+{
+	int cur = b->cur_line + dy;
+	if (cur < 0)
+		cur = 0;
+	else if (cur >= b->v_h - b->p_h)
+		cur = b->v_h - b->p_h - 1;
+	b->cur_line = cur;
+	render_board(b);
 }
 
 /* return the content of a board */
