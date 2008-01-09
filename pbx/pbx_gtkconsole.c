@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/paths.h"
+#include "asterisk/term.h"
 
 AST_MUTEX_DEFINE_STATIC(verb_lock);
 
@@ -96,11 +97,16 @@ static int cleanup(void *useless)
 }
 
 
-static void __verboser(const char *stuff)
+static void __verboser(const char *_stuff)
 {
 	char *s2[2];
 	struct timeval tv;
 	int ms;
+	char *stuff;
+
+	stuff = ast_strdupa(_stuff);
+	term_strip(stuff, stuff, strlen(stuff) + 1);
+
 	s2[0] = (char *)stuff;
 	s2[1] = NULL;
 	gtk_clist_freeze(GTK_CLIST(verb));
