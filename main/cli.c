@@ -1576,6 +1576,7 @@ static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 {
 	char fullcmd[80];
 	struct ast_cli_entry *my_e;
+	char *res = CLI_SUCCESS;
 
 	if (cmd == CLI_INIT) {
 		e->command = "help";
@@ -1600,8 +1601,11 @@ static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 	AST_RWLIST_RDLOCK(&helpers);
 	my_e = find_cli(a->argv + 1, 1);	/* try exact match first */
-	if (!my_e)
-		return help1(a->fd, a->argv + 1, 1 /* locked */);
+	if (!my_e) {
+		res = help1(a->fd, a->argv + 1, 1 /* locked */);
+		AST_RWLIST_UNLOCK(&helpers);
+		return res;
+	}
 	if (my_e->usage)
 		ast_cli(a->fd, "%s", my_e->usage);
 	else {
@@ -1609,7 +1613,7 @@ static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		ast_cli(a->fd, "No help text available for '%s'.\n", fullcmd);
 	}
 	AST_RWLIST_UNLOCK(&helpers);
-	return CLI_SUCCESS;
+	return res;
 }
 
 static char *parse_args(const char *s, int *argc, char *argv[], int max, int *trailingwhitespace)
