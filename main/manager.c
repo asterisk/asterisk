@@ -1392,7 +1392,7 @@ static int action_listcommands(struct mansession *s, const struct message *m)
 
 	astman_start_ack(s, m);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
-		if (s->writeperm & cur->authority)
+		if (s->writeperm & cur->authority || cur->authority == 0)
 			astman_append(s, "%s: %s (Priv: %s)\r\n",
 				cur->action, cur->synopsis, authority_to_str(cur->authority, &temp));
 	}
@@ -2510,7 +2510,7 @@ static int process_message(struct mansession *s, const struct message *m)
 	AST_RWLIST_TRAVERSE(&actions, tmp, list) {
 		if (strcasecmp(action, tmp->action))
 			continue;
-		if (s->writeperm & tmp->authority)
+		if (s->writeperm & tmp->authority || tmp->authority == 0)
 			ret = tmp->func(s, m);
 		else
 			astman_send_error(s, m, "Permission denied");
