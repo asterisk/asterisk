@@ -98,11 +98,30 @@ static int g722tolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct g722_decoder_pvt *tmp = pvt->pvt;
 	unsigned char *src = f->data;
-	int16_t *dst = (int16_t *) pvt->outbuf + pvt->samples;
+	int out_samples;
 
-	g722_decode(&tmp->g722, dst, src, f->samples);
-	pvt->samples += f->samples;
-	pvt->datalen += 2 * f->samples;
+	out_samples = g722_decode(&tmp->g722, (int16_t *) &pvt->outbuf[pvt->samples * sizeof(int16_t)], 
+		src, f->samples);
+
+	pvt->samples += out_samples;
+
+	pvt->datalen += (out_samples * sizeof(int16_t));
+
+	return 0;
+}
+
+static int g722tolin16_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
+{
+	struct g722_decoder_pvt *tmp = pvt->pvt;
+	int out_samples;
+
+	out_samples = g722_decode(&tmp->g722, (int16_t *) &pvt->outbuf[pvt->samples * sizeof(int16_t)], 
+		(uint8_t *) f->data, f->samples);
+
+	/* sample rate the same between formats, but don't assume that it won't output more ... */
+	pvt->samples += out_samples;
+
+	pvt->datalen += (out_samples * sizeof(int16_t));
 
 	return 0;
 }
@@ -110,13 +129,29 @@ static int g722tolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 static int lintog722_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct g722_encoder_pvt *tmp = pvt->pvt;
-	int16_t *src = f->data;
+	int outlen;
 
-	g722_encode(&tmp->g722, (uint8_t*)(&pvt->outbuf[pvt->datalen]), src, f->samples);
-	/* Since G.722 64kbps per second is one bye per sample, all of these
-	   calculations are easy */
-	pvt->samples += f->samples;
-	pvt->datalen += f->samples;
+	outlen = g722_encode(&tmp->g722, (uint8_t *) (&pvt->outbuf[pvt->datalen]), 
+		(int16_t *) f->data, f->samples);
+
+	pvt->samples += outlen;
+
+	pvt->datalen += outlen;
+
+	return 0;
+}
+
+static int lin16tog722_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
+{
+	struct g722_encoder_pvt *tmp = pvt->pvt;
+	int16_t *src = f->data;
+	int outlen;
+
+	outlen = g722_encode(&tmp->g722, (uint8_t*)(&pvt->outbuf[pvt->datalen]), src, f->samples);
+
+	pvt->samples += outlen;
+
+	pvt->datalen += outlen;
 
 	return 0;
 }
@@ -127,7 +162,7 @@ static struct ast_frame *g722tolin_sample(void)
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_G722,
 		.datalen = sizeof(g722_slin_ex),
-		.samples = sizeof(g722_slin_ex) / sizeof(g722_slin_ex[0]),
+		.samples = sizeof(g722_slin_ex),
 		.src = __PRETTY_FUNCTION__,
 		.data = g722_slin_ex,
 	};
@@ -141,7 +176,7 @@ static struct ast_frame *g722tolin16_sample(void)
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_G722,
 		.datalen = sizeof(slin_g722_ex),
-		.samples = sizeof(slin_g722_ex) / sizeof(slin_g722_ex[0]),
+		.samples = sizeof(slin_g722_ex),
 		.src = __PRETTY_FUNCTION__,
 		.data = slin_g722_ex,
 	};
@@ -185,7 +220,7 @@ static struct ast_translator g722tolin = {
 	.framein = g722tolin_framein,
 	.sample = g722tolin_sample,
 	.desc_size = sizeof(struct g722_decoder_pvt),
-	.buffer_samples = BUFFER_SAMPLES,
+	.buffer_samples = BUFFER_SAMPLES / sizeof(int16_t),
 	.buf_size = BUFFER_SAMPLES,
 	.plc_samples = 160,
 };
@@ -207,10 +242,10 @@ static struct ast_translator g722tolin16 = {
 	.srcfmt = AST_FORMAT_G722,
 	.dstfmt = AST_FORMAT_SLINEAR16,
 	.newpvt = g722tolin16_new,	/* same for both directions */
-	.framein = g722tolin_framein,
+	.framein = g722tolin16_framein,
 	.sample = g722tolin16_sample,
 	.desc_size = sizeof(struct g722_decoder_pvt),
-	.buffer_samples = BUFFER_SAMPLES,
+	.buffer_samples = BUFFER_SAMPLES / sizeof(int16_t),
 	.buf_size = BUFFER_SAMPLES,
 	.plc_samples = 160,
 };
@@ -220,7 +255,7 @@ static struct ast_translator lin16tog722 = {
 	.srcfmt = AST_FORMAT_SLINEAR16,
 	.dstfmt = AST_FORMAT_G722,
 	.newpvt = lin16tog722_new,	/* same for both directions */
-	.framein = lintog722_framein,
+	.framein = lin16tog722_framein,
 	.sample = lin16tog722_sample,
 	.desc_size = sizeof(struct g722_encoder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
