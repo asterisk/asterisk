@@ -53,7 +53,8 @@ static int group_count_function_read(struct ast_channel *chan, const char *cmd,
 		}
 		if (gi) {
 			ast_copy_string(group, gi->group, sizeof(group));
-			ast_copy_string(category, gi->category, sizeof(category));
+			if (!ast_strlen_zero(gi->category))
+				ast_copy_string(category, gi->category, sizeof(category));
 		}
 		ast_app_group_list_unlock();
 	}
