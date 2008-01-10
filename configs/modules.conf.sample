@@ -25,12 +25,9 @@ preload => func_strings.so
 ;preload => res_speech.so
 ;
 ; If you want, load the GTK console right away.  
-; Don't load the KDE console since
-; it's not as sophisticated right now.
 ;
 noload => pbx_gtkconsole.so
 ;load => pbx_gtkconsole.so
-noload => pbx_kdeconsole.so
 ;
 load => res_musiconhold.so
 ;
