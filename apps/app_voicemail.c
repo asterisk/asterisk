@@ -2020,7 +2020,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		fprintf(p, "X-Asterisk-VM-Duration: %d" ENDL, duration);
 		if (!ast_strlen_zero(category)) 
 			fprintf(p, "X-Asterisk-VM-Category: %s" ENDL, category);
-		fprintf(p, "X-Asterisk-VM-Message-Type: %s\n", msgnum > -1 ? "Message" : greeting_attachment);
+		fprintf(p, "X-Asterisk-VM-Message-Type: %s" ENDL, msgnum > -1 ? "Message" : greeting_attachment);
 		fprintf(p, "X-Asterisk-VM-Orig-date: %s" ENDL, date);
 		fprintf(p, "X-Asterisk-VM-Orig-time: %ld" ENDL, (long)time(NULL));
 	}
