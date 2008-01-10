@@ -294,6 +294,14 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 	return head;
 }
 
+static inline int is16kHz(int format)
+{
+	if (format == AST_FORMAT_G722)
+		return 1;
+
+	return 0;
+}
+
 /*! \brief do the actual translation */
 struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f, int consume)
 {
@@ -312,6 +320,11 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 
 	/* XXX hmmm... check this below */
 	if (!ast_tvzero(f->delivery)) {
+		int in_rate = 8000;
+
+		if (is16kHz(f->subclass))
+			in_rate = 16000;
+		
 		if (!ast_tvzero(path->nextin)) {
 			/* Make sure this is in line with what we were expecting */
 			if (!ast_tveq(path->nextin, f->delivery)) {
@@ -330,7 +343,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			path->nextout = f->delivery;
 		}
 		/* Predict next incoming sample */
-		path->nextin = ast_tvadd(path->nextin, ast_samp2tv(f->samples, 8000));
+		path->nextin = ast_tvadd(path->nextin, ast_samp2tv(f->samples, in_rate));
 	}
 	delivery = f->delivery;
 	for ( ; out && p ; p = p->next) {
@@ -343,6 +356,11 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		return NULL;
 	/* we have a frame, play with times */
 	if (!ast_tvzero(delivery)) {
+		int out_rate = 8000;
+
+		if (is16kHz(out->subclass))
+			out_rate = 16000;
+
 		/* Regenerate prediction after a discontinuity */
 		if (ast_tvzero(path->nextout))
 			path->nextout = ast_tvnow();
@@ -352,7 +370,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		
 		/* Predict next outgoing timestamp from samples in this
 		   frame. */
-		path->nextout = ast_tvadd(path->nextout, ast_samp2tv( out->samples, 8000));
+		path->nextout = ast_tvadd(path->nextout, ast_samp2tv(out->samples, out_rate));
 	} else {
 		out->delivery = ast_tv(0, 0);
 		out->has_timing_info = has_timing_info;
@@ -371,10 +389,14 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 /*! \brief compute the cost of a single translation step */
 static void calc_cost(struct ast_translator *t, int seconds)
 {
-	int sofar=0;
+	int num_samples = 0;
 	struct ast_trans_pvt *pvt;
 	struct timeval start;
 	int cost;
+	int out_rate = 8000;
+
+	if (is16kHz(t->dstfmt))
+		out_rate = 16000;
 
 	if (!seconds)
 		seconds = 1;
@@ -385,15 +407,18 @@ static void calc_cost(struct ast_translator *t, int seconds)
 		t->cost = 99999;
 		return;
 	}
+
 	pvt = newpvt(t);
 	if (!pvt) {
 		ast_log(LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
 		t->cost = 99999;
 		return;
 	}
+
 	start = ast_tvnow();
+
 	/* Call the encoder until we've processed the required number of samples */
-	while (sofar < seconds * 8000) {
+	while (num_samples < seconds * out_rate) {
 		struct ast_frame *f = t->sample();
 		if (!f) {
 			ast_log(LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
@@ -404,13 +429,17 @@ static void calc_cost(struct ast_translator *t, int seconds)
 		framein(pvt, f);
 		ast_frfree(f);
 		while ((f = t->frameout(pvt))) {
-			sofar += f->samples;
+			num_samples += f->samples;
 			ast_frfree(f);
 		}
 	}
+
 	cost = ast_tvdiff_ms(ast_tvnow(), start);
+
 	destroy(pvt);
+
 	t->cost = cost / seconds;
+
 	if (!t->cost)
 		t->cost = 1;
 }
