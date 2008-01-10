@@ -2478,11 +2478,18 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		ast_variables_destroy(peer->chanvars);
 		peer->chanvars = NULL;
 	}
-	if (peer->expire > -1)
-		ast_sched_del(sched, peer->expire);
 
-	if (peer->pokeexpire > -1)
-		ast_sched_del(sched, peer->pokeexpire);
+	/* If the schedule delete fails, that means the schedule is currently
+	 * running, which means we should wait for that thread to complete.
+	 * Otherwise, there's a crashable race condition.
+	 *
+	 * NOTE: once peer is refcounted, this probably is no longer necessary.
+	 */
+	while (peer->expire > -1 && ast_sched_del(sched, peer->expire))
+		usleep(1);
+	while (peer->pokeexpire > -1 && ast_sched_del(sched, peer->pokeexpire))
+		usleep(1);
+
 	register_peer_exten(peer, FALSE);
 	ast_free_ha(peer->ha);
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT))

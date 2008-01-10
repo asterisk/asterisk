@@ -232,7 +232,10 @@ struct ast_frame *ast_trans_frameout(struct ast_trans_pvt *pvt,
 	f->offset = AST_FRIENDLY_OFFSET;
 	f->src = pvt->t->name;
 	f->data = pvt->outbuf;
-	return f;
+	/* We must clone the frame, because the pvt could disappear
+	 * the moment after we return (and unlock the source channel).
+	 */
+	return ast_frisolate(f);
 }
 
 static struct ast_frame *default_frameout(struct ast_trans_pvt *pvt)
