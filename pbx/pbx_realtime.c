@@ -195,7 +195,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 						 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
 						 term_color(tmp2, chan->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
 						 term_color(tmp3, S_OR(appdata, ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
-				manager_event(EVENT_FLAG_CALL, "Newexten",
+				manager_event(EVENT_FLAG_DIALPLAN, "Newexten",
 							  "Channel: %s\r\n"
 							  "Context: %s\r\n"
 							  "Extension: %s\r\n"

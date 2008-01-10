@@ -11670,9 +11670,9 @@ static int load_module(void)
 
 	ast_register_application(papp, iax2_prov_app, psyn, pdescrip);
 	
-	ast_manager_register( "IAXpeers", 0, manager_iax2_show_peers, "List IAX Peers" );
-	ast_manager_register( "IAXpeerlist", 0, manager_iax2_show_peer_list, "List IAX Peers" );
-	ast_manager_register( "IAXnetstats", 0, manager_iax2_show_netstats, "Show IAX Netstats" );
+	ast_manager_register( "IAXpeers", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peers, "List IAX Peers" );
+	ast_manager_register( "IAXpeerlist", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peer_list, "List IAX Peers" );
+	ast_manager_register( "IAXnetstats", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_netstats, "Show IAX Netstats" );
 
 	if(set_config(config, 0) == -1)
 		return AST_MODULE_LOAD_DECLINE;

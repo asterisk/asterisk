@@ -35,6 +35,10 @@ AMI - The manager (TCP/TLS/HTTP)
   * Added Masquerade manager event for when a masquerade happens between
      two channels.
   * Added "manager reload" command for the CLI
+  * Lots of commands that only provided information are now allowed under the
+     Reporting privilege, instead of only under Call or System.
+  * The IAX* commands now require either System or Reporting privilege, to
+     mirror the privileges of the SIP* commands.
 
 Dialplan functions
 ------------------

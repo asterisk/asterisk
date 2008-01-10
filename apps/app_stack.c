@@ -100,7 +100,7 @@ static int frame_set_var(struct ast_channel *chan, struct gosub_stack_frame *fra
 		} else
 			pbx_builtin_setvar_helper(chan, var, value);
 
-		manager_event(EVENT_FLAG_CALL, "VarSet", 
+		manager_event(EVENT_FLAG_DIALPLAN, "VarSet", 
 			"Channel: %s\r\n"
 			"Variable: LOCAL(%s)\r\n"
 			"Value: %s\r\n"

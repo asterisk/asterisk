@@ -68,6 +68,7 @@
 #define EVENT_FLAG_DTMF  		(1 << 8) /* Ability to read DTMF events */
 #define EVENT_FLAG_REPORTING		(1 << 9) /* Reporting events such as rtcp sent */
 #define EVENT_FLAG_CDR			(1 << 10) /* CDR events */
+#define EVENT_FLAG_DIALPLAN		(1 << 11) /* Dialplan events (VarSet, NewExten) */
 /*@} */
 
 /*! \brief Export manager structures */

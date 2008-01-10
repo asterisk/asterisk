@@ -19590,11 +19590,11 @@ static int load_module(void)
 	ast_custom_function_register(&checksipdomain_function);
 
 	/* Register manager commands */
-	ast_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
+	ast_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_show_peers,
 			"List SIP peers (text format)", mandescr_show_peers);
-	ast_manager_register2("SIPshowpeer", EVENT_FLAG_SYSTEM, manager_sip_show_peer,
+	ast_manager_register2("SIPshowpeer", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_show_peer,
 			"Show SIP peer (text format)", mandescr_show_peer);
-	ast_manager_register2("SIPshowregistry", EVENT_FLAG_SYSTEM, manager_show_registry,
+	ast_manager_register2("SIPshowregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_show_registry,
 			"Show SIP registrations (text format)", mandescr_show_registry);
 	sip_poke_all_peers();	
 	sip_send_all_registers();

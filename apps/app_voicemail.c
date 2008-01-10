@@ -8745,7 +8745,7 @@ static int load_module(void)
 	res |= ast_register_application(app3, vm_box_exists, synopsis_vm_box_exists, descrip_vm_box_exists);
 	res |= ast_register_application(app4, vmauthenticate, synopsis_vmauthenticate, descrip_vmauthenticate);
 	res |= ast_custom_function_register(&mailbox_exists_acf);
-	res |= ast_manager_register("VoicemailUsersList", EVENT_FLAG_CALL, manager_list_voicemail_users, "List All Voicemail User Information");
+	res |= ast_manager_register("VoicemailUsersList", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_list_voicemail_users, "List All Voicemail User Information");
 	if (res)
 		return res;
 

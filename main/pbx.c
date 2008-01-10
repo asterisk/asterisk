@@ -2659,7 +2659,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 					term_color(tmp3, passdata, COLOR_BRMAGENTA, 0, sizeof(tmp3)),
 					"in new stack");
 			}
-			manager_event(EVENT_FLAG_CALL, "Newexten",
+			manager_event(EVENT_FLAG_DIALPLAN, "Newexten",
 					"Channel: %s\r\n"
 					"Context: %s\r\n"
 					"Extension: %s\r\n"
@@ -7232,7 +7232,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 			ast_verb(2, "Setting global variable '%s' to '%s'\n", name, value);
 		newvariable = ast_var_assign(name, value);
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
-		manager_event(EVENT_FLAG_CALL, "VarSet", 
+		manager_event(EVENT_FLAG_DIALPLAN, "VarSet", 
 			"Channel: %s\r\n"
 			"Variable: %s\r\n"
 			"Value: %s\r\n"
@@ -7465,7 +7465,7 @@ int load_pbx(void)
 	}
 	
 	/* Register manager application */
-	ast_manager_register2("ShowDialPlan", EVENT_FLAG_CONFIG, manager_show_dialplan, "List dialplan", mandescr_show_dialplan);
+	ast_manager_register2("ShowDialPlan", EVENT_FLAG_CONFIG | EVENT_FLAG_REPORTING, manager_show_dialplan, "List dialplan", mandescr_show_dialplan);
 
 	ast_mutex_init(&device_state.lock);
 	ast_cond_init(&device_state.cond, NULL);

@@ -312,6 +312,7 @@ static struct permalias {
 	{ EVENT_FLAG_DTMF, "dtmf" },
 	{ EVENT_FLAG_REPORTING, "reporting" },
 	{ EVENT_FLAG_CDR, "cdr" },
+	{ EVENT_FLAG_DIALPLAN, "dialplan" },
 	{ -1, "all" },
 	{ 0, "none" },
 };
@@ -1391,7 +1392,7 @@ static int action_listcommands(struct mansession *s, const struct message *m)
 
 	astman_start_ack(s, m);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
-		if ((s->writeperm & cur->authority) == cur->authority)
+		if (s->writeperm & cur->authority)
 			astman_append(s, "%s: %s (Priv: %s)\r\n",
 				cur->action, cur->synopsis, authority_to_str(cur->authority, &temp));
 	}
@@ -2509,7 +2510,7 @@ static int process_message(struct mansession *s, const struct message *m)
 	AST_RWLIST_TRAVERSE(&actions, tmp, list) {
 		if (strcasecmp(action, tmp->action))
 			continue;
-		if ((s->writeperm & tmp->authority) == tmp->authority)
+		if (s->writeperm & tmp->authority)
 			ret = tmp->func(s, m);
 		else
 			astman_send_error(s, m, "Permission denied");
@@ -3467,28 +3468,28 @@ static int __init_manager(int reload)
 		ast_manager_register2("Logoff", 0, action_logoff, "Logoff Manager", mandescr_logoff);
 		ast_manager_register2("Login", 0, action_login, "Login Manager", NULL);
 		ast_manager_register2("Challenge", 0, action_challenge, "Generate Challenge for MD5 Auth", NULL);
-		ast_manager_register2("Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel", mandescr_hangup);
-		ast_manager_register("Status", EVENT_FLAG_CALL, action_status, "Lists channel status" );
+		ast_manager_register2("Hangup", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, action_hangup, "Hangup Channel", mandescr_hangup);
+		ast_manager_register("Status", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_status, "Lists channel status" );
 		ast_manager_register2("Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar );
-		ast_manager_register2("Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable", mandescr_getvar );
-		ast_manager_register2("GetConfig", EVENT_FLAG_CONFIG, action_getconfig, "Retrieve configuration", mandescr_getconfig);
-		ast_manager_register2("GetConfigJSON", EVENT_FLAG_CONFIG, action_getconfigjson, "Retrieve configuration (JSON format)", mandescr_getconfigjson);
+		ast_manager_register2("Getvar", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_getvar, "Gets a Channel Variable", mandescr_getvar );
+		ast_manager_register2("GetConfig", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfig, "Retrieve configuration", mandescr_getconfig);
+		ast_manager_register2("GetConfigJSON", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfigjson, "Retrieve configuration (JSON format)", mandescr_getconfigjson);
 		ast_manager_register2("UpdateConfig", EVENT_FLAG_CONFIG, action_updateconfig, "Update basic configuration", mandescr_updateconfig);
 		ast_manager_register2("Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect (transfer) a call", mandescr_redirect );
 		ast_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
 		ast_manager_register2("Command", EVENT_FLAG_COMMAND, action_command, "Execute Asterisk CLI Command", mandescr_command );
-		ast_manager_register2("ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status", mandescr_extensionstate );
-		ast_manager_register2("AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout", mandescr_timeout );
-		ast_manager_register2("MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
-		ast_manager_register2("MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count", mandescr_mailboxcount );
+		ast_manager_register2("ExtensionState", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_extensionstate, "Check Extension Status", mandescr_extensionstate );
+		ast_manager_register2("AbsoluteTimeout", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout", mandescr_timeout );
+		ast_manager_register2("MailboxStatus", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
+		ast_manager_register2("MailboxCount", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_mailboxcount, "Check Mailbox Message Count", mandescr_mailboxcount );
 		ast_manager_register2("ListCommands", 0, action_listcommands, "List available manager commands", mandescr_listcommands);
 		ast_manager_register2("SendText", EVENT_FLAG_CALL, action_sendtext, "Send text message to channel", mandescr_sendtext);
 		ast_manager_register2("UserEvent", EVENT_FLAG_USER, action_userevent, "Send an arbitrary event", mandescr_userevent);
 		ast_manager_register2("WaitEvent", 0, action_waitevent, "Wait for an event to occur", mandescr_waitevent);
-		ast_manager_register2("CoreSettings", EVENT_FLAG_SYSTEM, action_coresettings, "Show PBX core settings (version etc)", mandescr_coresettings);
-		ast_manager_register2("CoreStatus", EVENT_FLAG_SYSTEM, action_corestatus, "Show PBX core status variables", mandescr_corestatus);
-		ast_manager_register2("Reload", EVENT_FLAG_CONFIG, action_reload, "Send a reload event", mandescr_reload);
-		ast_manager_register2("CoreShowChannels", EVENT_FLAG_SYSTEM, action_coreshowchannels, "List currently active channels", mandescr_coreshowchannels);
+		ast_manager_register2("CoreSettings", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coresettings, "Show PBX core settings (version etc)", mandescr_coresettings);
+		ast_manager_register2("CoreStatus", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_corestatus, "Show PBX core status variables", mandescr_corestatus);
+		ast_manager_register2("Reload", EVENT_FLAG_CONFIG | EVENT_FLAG_SYSTEM, action_reload, "Send a reload event", mandescr_reload);
+		ast_manager_register2("CoreShowChannels", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coreshowchannels, "List currently active channels", mandescr_coreshowchannels);
 		ast_manager_register2("ModuleLoad", EVENT_FLAG_SYSTEM, manager_moduleload, "Module management", mandescr_moduleload);
 		ast_manager_register2("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck, "Check if module is loaded", mandescr_modulecheck);
 

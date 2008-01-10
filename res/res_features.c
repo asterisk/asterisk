@@ -3409,7 +3409,7 @@ static int load_module(void)
 		ast_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls");
 		ast_manager_register2("Park", EVENT_FLAG_CALL, manager_park,
 			"Park a channel", mandescr_park); 
-		ast_manager_register2("Bridge", EVENT_FLAG_COMMAND, action_bridge, "Bridge two channels already in the PBX", mandescr_bridge);
+		ast_manager_register2("Bridge", EVENT_FLAG_CALL, action_bridge, "Bridge two channels already in the PBX", mandescr_bridge);
 	}
 
 	res |= ast_devstate_prov_add("Park", metermaidstate);
