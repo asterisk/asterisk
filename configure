@@ -848,10 +848,6 @@ OPENH323_LIB
 OPENH323_INCLUDE
 OPENH323_DIR
 PBX_OPENH323
-QT_LIB
-QT_INCLUDE
-QT_DIR
-PBX_QT
 RADIUS_LIB
 RADIUS_INCLUDE
 RADIUS_DIR
@@ -970,7 +966,6 @@ OPENH323_INCDIR
 OPENH323_LIBDIR
 OPENH323_SUFFIX
 OPENH323_BUILD
-QTMOC
 EDITLINE_LIB
 PBX_H323
 PBX_IXJUSER
@@ -1607,7 +1602,6 @@ Optional Packages:
   --with-ss7=PATH         use ISDN SS7 files in PATH
   --with-pwlib=PATH       use PWlib files in PATH
   --with-h323=PATH        use OpenH323 files in PATH
-  --with-qt=PATH          use Qt files in PATH
   --with-radius=PATH      use Radius Client files in PATH
   --with-speex=PATH       use Speex files in PATH
   --with-sqlite=PATH      use SQLite files in PATH
@@ -8788,34 +8782,6 @@ if test "${with_h323+set}" = set; then
 fi
 
     PBX_OPENH323=0
-
-
-
-
-
-
-    QT_DESCRIP="Qt"
-    QT_OPTION="qt"
-
-# Check whether --with-qt was given.
-if test "${with_qt+set}" = set; then
-  withval=$with_qt;
-	case ${withval} in
-	n|no)
-	USE_QT=no
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} QT"
-	;;
-	*)
-	QT_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} QT"
-	;;
-	esac
-
-fi
-
-    PBX_QT=0
 
 
 
@@ -40066,262 +40032,6 @@ _ACEOF
 
 fi
 
-ac_ext=cpp
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
-
-if test "${USE_QT}" != "no"; then
-   { echo "$as_me:$LINENO: checking for QDate in -lqt" >&5
-echo $ECHO_N "checking for QDate in -lqt... $ECHO_C" >&6; }
-   saved_libs="${LIBS}"
-   saved_cppflags="${CPPFLAGS}"
-   if test "x${QT_DIR}" != "x"; then
-      LIBS="${LIBS} -L${QT_DIR}/lib"
-      CPPFLAGS="${CPPFLAGS} -I${QT_DIR}/include"
-   fi
-   LIBS="${LIBS} -lqt"
-   qtlib="qt"
-   cat >conftest.$ac_ext <<_ACEOF
-
-		/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-#include <qt3/qdatetime.h>
-int
-main ()
-{
-QDate date();
-  ;
-  return 0;
-}
-
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
-  (eval "$ac_link") 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } && {
-	 test -z "$ac_cxx_werror_flag" ||
-	 test ! -s conftest.err
-       } && test -s conftest$ac_exeext &&
-       $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_qt_qt_date="yes"
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-	ac_cv_lib_qt_qt_date="no"
-fi
-
-rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
-      conftest$ac_exeext conftest.$ac_ext
-   LIBS="${saved_libs}"
-   CPPFLAGS="${saved_cppflags}"
-
-   if test "${ac_cv_lib_qt_qt_date}" = "no"; then
-      saved_libs="${LIBS}"
-      saved_cppflags="${CPPFLAGS}"
-      if test "x${QT_DIR}" != "x"; then
-      	 LIBS="${LIBS} -L${QT_DIR}/lib"
-	 CPPFLAGS="${CPPFLAGS} -I${QT_DIR}/include"
-      fi
-      LIBS="${LIBS} -lqt-mt"
-      qtlib="qt-mt"
-      cat >conftest.$ac_ext <<_ACEOF
-
-			/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-#include <qt3/qdatetime.h>
-int
-main ()
-{
-QDate date();
-  ;
-  return 0;
-}
-
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
-  (eval "$ac_link") 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } && {
-	 test -z "$ac_cxx_werror_flag" ||
-	 test ! -s conftest.err
-       } && test -s conftest$ac_exeext &&
-       $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_qt_qt_date="yes"
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-	ac_cv_lib_qt_qt_date="no"
-fi
-
-rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
-      conftest$ac_exeext conftest.$ac_ext
-      LIBS="${saved_libs}"
-      CPPFLAGS="${saved_cppflags}"
-   fi
-
-   if test "${ac_cv_lib_qt_qt_date}" = "yes"; then
-      { echo "$as_me:$LINENO: result: yes" >&5
-echo "${ECHO_T}yes" >&6; }
-   else
-      { echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6; }
-   fi
-
-   if test "${ac_cv_lib_qt_qt_date}" = "yes"; then
-      QT_LIB="-l${qtlib}"
-      if test "${QT_DIR}" != ""; then
-      	 QT_LIB="-L${QT_DIR}/lib ${QT_LIB}"
-	 QT_INCLUDE="-I${QT_DIR}/include"
-      fi
-      PBX_QT=1
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_QT 1
-_ACEOF
-
-      if test -n "$ac_tool_prefix"; then
-  # Extract the first word of "${ac_tool_prefix}moc", so it can be a program name with args.
-set dummy ${ac_tool_prefix}moc; ac_word=$2
-{ echo "$as_me:$LINENO: checking for $ac_word" >&5
-echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6; }
-if test "${ac_cv_path_QTMOC+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  case $QTMOC in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_QTMOC="$QTMOC" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-  for ac_exec_ext in '' $ac_executable_extensions; do
-  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
-    ac_cv_path_QTMOC="$as_dir/$ac_word$ac_exec_ext"
-    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-QTMOC=$ac_cv_path_QTMOC
-if test -n "$QTMOC"; then
-  { echo "$as_me:$LINENO: result: $QTMOC" >&5
-echo "${ECHO_T}$QTMOC" >&6; }
-else
-  { echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6; }
-fi
-
-
-fi
-if test -z "$ac_cv_path_QTMOC"; then
-  ac_pt_QTMOC=$QTMOC
-  # Extract the first word of "moc", so it can be a program name with args.
-set dummy moc; ac_word=$2
-{ echo "$as_me:$LINENO: checking for $ac_word" >&5
-echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6; }
-if test "${ac_cv_path_ac_pt_QTMOC+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  case $ac_pt_QTMOC in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_ac_pt_QTMOC="$ac_pt_QTMOC" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-  for ac_exec_ext in '' $ac_executable_extensions; do
-  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
-    ac_cv_path_ac_pt_QTMOC="$as_dir/$ac_word$ac_exec_ext"
-    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-ac_pt_QTMOC=$ac_cv_path_ac_pt_QTMOC
-if test -n "$ac_pt_QTMOC"; then
-  { echo "$as_me:$LINENO: result: $ac_pt_QTMOC" >&5
-echo "${ECHO_T}$ac_pt_QTMOC" >&6; }
-else
-  { echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6; }
-fi
-
-  if test "x$ac_pt_QTMOC" = x; then
-    QTMOC="No"
-  else
-    case $cross_compiling:$ac_tool_warned in
-yes:)
-{ echo "$as_me:$LINENO: WARNING: In the future, Autoconf will not detect cross-tools
-whose name does not start with the host triplet.  If you think this
-configuration is useful to you, please write to autoconf@gnu.org." >&5
-echo "$as_me: WARNING: In the future, Autoconf will not detect cross-tools
-whose name does not start with the host triplet.  If you think this
-configuration is useful to you, please write to autoconf@gnu.org." >&2;}
-ac_tool_warned=yes ;;
-esac
-    QTMOC=$ac_pt_QTMOC
-  fi
-else
-  QTMOC="$ac_cv_path_QTMOC"
-fi
-
-   fi
-fi
-
-ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-
 LUA_INCLUDE="-I/usr/include/lua5.1"
 LUA_LIB="-llua5.1"
 
@@ -49240,10 +48950,6 @@ OPENH323_LIB!$OPENH323_LIB$ac_delim
 OPENH323_INCLUDE!$OPENH323_INCLUDE$ac_delim
 OPENH323_DIR!$OPENH323_DIR$ac_delim
 PBX_OPENH323!$PBX_OPENH323$ac_delim
-QT_LIB!$QT_LIB$ac_delim
-QT_INCLUDE!$QT_INCLUDE$ac_delim
-QT_DIR!$QT_DIR$ac_delim
-PBX_QT!$PBX_QT$ac_delim
 RADIUS_LIB!$RADIUS_LIB$ac_delim
 RADIUS_INCLUDE!$RADIUS_INCLUDE$ac_delim
 RADIUS_DIR!$RADIUS_DIR$ac_delim
@@ -49303,6 +49009,10 @@ PBX_X11!$PBX_X11$ac_delim
 ZLIB_LIB!$ZLIB_LIB$ac_delim
 ZLIB_INCLUDE!$ZLIB_INCLUDE$ac_delim
 ZLIB_DIR!$ZLIB_DIR$ac_delim
+PBX_ZLIB!$PBX_ZLIB$ac_delim
+ZAPTEL_LIB!$ZAPTEL_LIB$ac_delim
+ZAPTEL_INCLUDE!$ZAPTEL_INCLUDE$ac_delim
+ZAPTEL_DIR!$ZAPTEL_DIR$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -49344,10 +49054,6 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
-PBX_ZLIB!$PBX_ZLIB$ac_delim
-ZAPTEL_LIB!$ZAPTEL_LIB$ac_delim
-ZAPTEL_INCLUDE!$ZAPTEL_INCLUDE$ac_delim
-ZAPTEL_DIR!$ZAPTEL_DIR$ac_delim
 PBX_ZAPTEL!$PBX_ZAPTEL$ac_delim
 ZAPTEL_TRANSCODE_LIB!$ZAPTEL_TRANSCODE_LIB$ac_delim
 ZAPTEL_TRANSCODE_INCLUDE!$ZAPTEL_TRANSCODE_INCLUDE$ac_delim
@@ -49403,7 +49109,6 @@ OPENH323_INCDIR!$OPENH323_INCDIR$ac_delim
 OPENH323_LIBDIR!$OPENH323_LIBDIR$ac_delim
 OPENH323_SUFFIX!$OPENH323_SUFFIX$ac_delim
 OPENH323_BUILD!$OPENH323_BUILD$ac_delim
-QTMOC!$QTMOC$ac_delim
 EDITLINE_LIB!$EDITLINE_LIB$ac_delim
 PBX_H323!$PBX_H323$ac_delim
 PBX_IXJUSER!$PBX_IXJUSER$ac_delim
@@ -49414,7 +49119,7 @@ CURL_CONFIG!$CURL_CONFIG$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 68; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 63; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
