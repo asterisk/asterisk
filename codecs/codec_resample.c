@@ -206,7 +206,7 @@ static struct ast_translator slin8_to_slin16 = {
 	.framein = slin8_to_slin16_framein,
 	.sample = slin8_to_slin16_sample,
 	.desc_size = sizeof(struct slin8_to_slin16_pvt),
-	.buffer_samples = OUTBUF_SIZE,
+	.buffer_samples = (OUTBUF_SIZE / sizeof(int16_t)),
 	.buf_size = OUTBUF_SIZE,
 };
 
