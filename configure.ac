@@ -1161,16 +1161,7 @@ AST_EXT_LIB_CHECK([X11], [X11], [XOpenDisplay], [X11/Xlib.h],,, [standard_path])
 AST_EXT_LIB_CHECK([X11], [X11], [XOpenDisplay], [X11/Xlib.h],, [-I/usr/X11R6/include], [X11R6])
 
 PBX_GTK=0
-AC_CHECK_TOOL(GTKCONFIG, gtk-config, No)
-if test ! "x${GTKCONFIG}" = xNo; then
-   GTK_INCLUDE=$(${GTKCONFIG} --cflags gthread)
-   GTK_LIB=$(${GTKCONFIG} --libs gthread)
-   PBX_GTK=1
-   AC_DEFINE([HAVE_GTK], 1, [Define if your system has the GTK libraries.])
-fi
-AC_SUBST(PBX_GTK)
-AC_SUBST(GTK_INCLUDE)
-AC_SUBST(GTK_LIB)
+AST_EXT_TOOL_CHECK([GTK], [gtk], [--cflags gthread], [--libs gthread])
 
 PBX_GTK2=0
 AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
