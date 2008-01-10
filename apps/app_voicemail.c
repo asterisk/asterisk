@@ -4070,8 +4070,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		/* start optimistic */
 		valid_extensions = 1;
 		while (s) {
-			/* Don't forward to ourselves.  find_user is going to malloc since we have a NULL as first argument */
-			if (strcmp(s,sender->mailbox) && (receiver = find_user(NULL, context, s))) {
+			/* Don't forward to ourselves but allow leaving a message for ourselves (flag == 1).  find_user is going to malloc since we have a NULL as first argument */
+			if ((flag == 1 || strcmp(s,sender->mailbox)) && (receiver = find_user(NULL, context, s))) {
 				AST_LIST_INSERT_HEAD(&extensions, receiver, list);
 				found++;
 			} else {
