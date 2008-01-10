@@ -419,7 +419,7 @@ void ast_swapcopy_samples(void *dst, const void *src, int samples);
 
 /*! \brief Get the name of a format
  * \param format id of format
- * \return A static string containing the name of the format or "UNKN" if unknown.
+ * \return A static string containing the name of the format or "unknown" if unknown.
  */
 char* ast_getformatname(int format);
 
