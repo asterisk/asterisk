@@ -50,9 +50,6 @@
 
 int ast_set_priority(int);			/*!< Provided by asterisk.c */
 
-const char *ast_get_version(void);
-const char *ast_get_version_num(void);
-
 /*!
  * \brief Register a function to be executed before Asterisk exits.
  * \param func The callback function to use.
