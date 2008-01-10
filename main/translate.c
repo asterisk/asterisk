@@ -204,7 +204,7 @@ struct ast_frame *ast_trans_frameout(struct ast_trans_pvt *pvt,
 {
 	struct ast_frame *f = &pvt->f;
 
-        if (samples)
+	if (samples)
 		f->samples = samples;
 	else {
 		if (pvt->samples == 0)
