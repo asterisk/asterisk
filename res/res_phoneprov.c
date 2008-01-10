@@ -29,6 +29,8 @@
 #include "asterisk.h"
 
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <net/if.h>
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision: 96773 $")
 
@@ -57,12 +59,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision: 96773 $")
 #endif /* LOW_MEMORY */
 
 #define VAR_BUF_SIZE 4096
-
-/*! \brief for use in lookup_iface */
-struct my_ifreq {
-	char ifrn_name[IFNAMSIZ];	/* Interface name, e.g. "eth0", "ppp0", etc.  */
-	struct sockaddr_in ifru_addr;
-};
 
 /*! \brief for use in lookup_iface */
 static struct in_addr __ourip = { .s_addr = 0x00000000, };
@@ -183,10 +179,11 @@ static char *ftype2mtype(const char *ftype)
 static int lookup_iface(const char *iface, struct in_addr *address)
 {
 	int mysock, res = 0;
-	struct my_ifreq ifreq;
+	struct ifreq ifr;
+	struct sockaddr_in *sin;
 
-	memset(&ifreq, 0, sizeof(ifreq));
-	ast_copy_string(ifreq.ifrn_name, iface, sizeof(ifreq.ifrn_name));
+	memset(&ifr, 0, sizeof(ifr));
+	ast_copy_string(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
 
 	mysock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
 	if (mysock < 0) {
@@ -194,7 +191,7 @@ static int lookup_iface(const char *iface, struct in_addr *address)
 		return -1;
 	}
 
-	res = ioctl(mysock, SIOCGIFADDR, &ifreq);
+	res = ioctl(mysock, SIOCGIFADDR, &ifr);
 
 	close(mysock);
 
@@ -203,7 +200,8 @@ static int lookup_iface(const char *iface, struct in_addr *address)
 		memcpy(address, &__ourip, sizeof(__ourip));
 		return -1;
 	} else {
-		memcpy(address, &ifreq.ifru_addr.sin_addr, sizeof(ifreq.ifru_addr.sin_addr));
+		sin = (struct sockaddr_in *)&ifr.ifr_addr;
+		memcpy(address, &sin->sin_addr, sizeof(*address));
 		return 0;
 	}
 }
