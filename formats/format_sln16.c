@@ -66,32 +66,36 @@ static int slinear_write(struct ast_filestream *fs, struct ast_frame *f)
 		return -1;
 	}
 	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
-			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
-			return -1;
+		ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
+		return -1;
 	}
 	return 0;
 }
 
 static int slinear_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
-	off_t offset=0, min, cur, max;
+	off_t offset = 0, min = 0, cur, max;
 
-	min = 0;
 	sample_offset <<= 1;
+
 	cur = ftello(fs->f);
+
 	fseeko(fs->f, 0, SEEK_END);
+
 	max = ftello(fs->f);
+
 	if (whence == SEEK_SET)
 		offset = sample_offset;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
 		offset = sample_offset + cur;
 	else if (whence == SEEK_END)
 		offset = max - sample_offset;
-	if (whence != SEEK_FORCECUR) {
-		offset = (offset > max)?max:offset;
-	}
+
+	if (whence != SEEK_FORCECUR)
+		offset = (offset > max) ? max : offset;
+
 	/* always protect against seeking past begining. */
-	offset = (offset < min)?min:offset;
+	offset = (offset < min) ? min : offset;
 
 	return fseeko(fs->f, offset, SEEK_SET);
 }
