@@ -99,6 +99,7 @@ static char *expr2_token_subst(const char *mess);
 %option bison-bridge
 %option bison-locations
 %option noyywrap
+%option noyyfree
 %x var trail
 
 %%
@@ -212,6 +213,14 @@ static char *expr2_token_subst(const char *mess);
 
 int ast_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
 int ast_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
+
+void ast_yyfree(void *ptr, yyscan_t yyscanner)
+{
+      if (ptr) /* the normal generated yyfree func just frees its first arg;
+                    this get complaints on some systems, as sometimes this
+                    arg is a nil ptr! It's usually not fatal, but is irritating! */
+              free( (char *) ptr );
+}
 
 int ast_expr(char *expr, char *buf, int length)
 {

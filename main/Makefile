@@ -105,8 +105,8 @@ ast_expr2.c ast_expr2.h:
 	bison -o $@ -d --name-prefix=ast_yy ast_expr2.y
 
 ast_expr2f.c:
-	flex -o $@ --full ast_expr2.fl
-	sed 's@free( (char \*) ptr );@if(ptr) free( (char *) ptr );@' ast_expr2f.c > zz
+	flex -o $@ --full ast_expr2.fl # moved the correction of yyfree into the flex input file itself.
+	sed 's@#if __STDC_VERSION__ >= 199901L@#if !defined __STDC_VERSION__ || __STDC_VERSION__ >= 199901L@' ast_expr2f.c > zz
 	mv zz ast_expr2f.c
 
 testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
