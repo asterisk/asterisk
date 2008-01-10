@@ -196,7 +196,6 @@ AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
 AST_EXT_LIB_SETUP([PRI], [ISDN PRI], [pri])
 AST_EXT_LIB_SETUP([PWLIB], [PWlib], [pwlib])
 AST_EXT_LIB_SETUP([OPENH323], [OpenH323], [h323])
-AST_EXT_LIB_SETUP([QT], [Qt], [qt])
 AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
 AST_EXT_LIB_SETUP([SPEEX], [Speex], [speex])
 AST_EXT_LIB_SETUP([SQLITE], [SQLite], [sqlite])
@@ -870,78 +869,6 @@ if test "${USE_OPENH323}" != "no" -a "x${ac_cv_lib_OPENH323}" != "xyes" -a -n "$
    AC_MSG_NOTICE([*** including --without-h323])
    exit 1
 fi
-
-
-AC_LANG_PUSH(C++)
-
-if test "${USE_QT}" != "no"; then
-   AC_MSG_CHECKING(for QDate in -lqt)
-   saved_libs="${LIBS}"
-   saved_cppflags="${CPPFLAGS}"
-   if test "x${QT_DIR}" != "x"; then
-      LIBS="${LIBS} -L${QT_DIR}/lib"
-      CPPFLAGS="${CPPFLAGS} -I${QT_DIR}/include"
-   fi
-   LIBS="${LIBS} -lqt"
-   qtlib="qt"
-   AC_LINK_IFELSE(
-	[
-		AC_LANG_PROGRAM(
-		[#include <qt3/qdatetime.h>],
-		[QDate date();])
-	],
-	[ac_cv_lib_qt_qt_date="yes"],
-	[ac_cv_lib_qt_qt_date="no"])
-   LIBS="${saved_libs}"
-   CPPFLAGS="${saved_cppflags}"
-	
-   if test "${ac_cv_lib_qt_qt_date}" = "no"; then
-      saved_libs="${LIBS}"
-      saved_cppflags="${CPPFLAGS}"
-      if test "x${QT_DIR}" != "x"; then
-      	 LIBS="${LIBS} -L${QT_DIR}/lib"
-	 CPPFLAGS="${CPPFLAGS} -I${QT_DIR}/include"
-      fi
-      LIBS="${LIBS} -lqt-mt"
-      qtlib="qt-mt"	
-      AC_LINK_IFELSE(
-		[
-			AC_LANG_PROGRAM(
-			[#include <qt3/qdatetime.h>],
-			[QDate date();])
-		],
-		[ac_cv_lib_qt_qt_date="yes"],
-		[ac_cv_lib_qt_qt_date="no"])
-      LIBS="${saved_libs}"
-      CPPFLAGS="${saved_cppflags}"
-   fi	
-
-   if test "${ac_cv_lib_qt_qt_date}" = "yes"; then
-      AC_MSG_RESULT(yes) 
-   else
-      AC_MSG_RESULT(no) 
-   fi
-	
-   if test "${ac_cv_lib_qt_qt_date}" = "yes"; then
-      QT_LIB="-l${qtlib}"
-      if test "${QT_DIR}" != ""; then
-      	 QT_LIB="-L${QT_DIR}/lib ${QT_LIB}"
-	 QT_INCLUDE="-I${QT_DIR}/include"
-      fi
-      PBX_QT=1
-      AC_DEFINE([HAVE_QT], 1, [Define if your system has the Qt library])
-      AC_PATH_TOOL(QTMOC, moc, No)
-   elif test -n "${QT_MANDATORY}"; 
-   then
-      AC_MSG_NOTICE([***])
-      AC_MSG_NOTICE([*** The Qt installation on this system appears to be broken.])
-      AC_MSG_NOTICE([*** Either correct the installation, or run configure])
-      AC_MSG_NOTICE([*** including --without-qt.])
-      exit 1
-   fi
-fi
-
-AC_LANG_POP
 
 AST_EXT_LIB_CHECK([RADIUS], [radiusclient-ng], [rc_read_config], [radiusclient-ng.h])
 

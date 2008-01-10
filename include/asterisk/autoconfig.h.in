@@ -289,9 +289,6 @@
 /* Define if your system has the PWLib libraries. */
 #undef HAVE_PWLIB
 
-/* Define if your system has the Qt library */
-#undef HAVE_QT
-
 /* Define to indicate the ${RADIUS_DESCRIP} library */
 #undef HAVE_RADIUS
 
