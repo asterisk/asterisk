@@ -35,6 +35,10 @@
 %option prefix="ael_yy"
 %option noyywrap
 
+/* yyfree normally just frees its arg. It can be null sometimes,
+   which some systems will complain about, so, we'll define our own version */
+%option noyyfree
+
 /* batch gives a bit more performance if we are using it in
  * a non-interactive mode. We probably don't care much.
  */
@@ -470,6 +474,12 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 static void pbcpush(char x)
 {
 	pbcstack[pbcpos++] = x;
+}
+
+void ael_yyfree(void *ptr, yyscan_t yyscanner)
+{
+	if (ptr)
+		free( (char*) ptr );
 }
 
 static int pbcpop(char x)
