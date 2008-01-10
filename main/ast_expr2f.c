@@ -3963,7 +3963,8 @@ void *ast_yyrealloc  (void * ptr, yy_size_t  size , yyscan_t yyscanner)
 
 void ast_yyfree (void * ptr , yyscan_t yyscanner)
 {
-	free( (char *) ptr );	/* see ast_yyrealloc() for (char *) cast */
+	if (ptr)
+		free( (char *) ptr );	/* see ast_yyrealloc() for (char *) cast */
 }
 
 #define YYTABLES_NAME "yytables"
