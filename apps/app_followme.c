@@ -1012,7 +1012,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(caller, "ANSWEREDTIME", toast);
 		if (outbound)
 			ast_hangup(outbound);
-		res = 1;
 	}
 
 	outrun:
