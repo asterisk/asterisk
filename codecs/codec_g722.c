@@ -1,9 +1,10 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2008, Digium, Inc.
  *
  * Matthew Fredrickson <creslin@digium.com>
+ * Russell Bryant <russell@digium.com>
  *
  * Special thanks to Steve Underwood for the implementation
  * and for doing the 8khz<->g.722 direct translation code.
@@ -22,6 +23,9 @@
 /*! \file
  *
  * \brief codec_g722.c - translate between signed linear and ITU G.722-64kbps
+ *
+ * \author Matthew Fredrickson <creslin@digium.com>
+ * \author Russell Bryant <russell@digium.com>
  *
  * \arg http://soft-switch.org/downloads/non-gpl-bits.tgz
  * \arg http://lists.digium.com/pipermail/asterisk-dev/2006-September/022866.html
@@ -162,7 +166,7 @@ static struct ast_frame *g722tolin_sample(void)
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_G722,
 		.datalen = sizeof(g722_slin_ex),
-		.samples = sizeof(g722_slin_ex),
+		.samples = sizeof(g722_slin_ex) * 2,
 		.src = __PRETTY_FUNCTION__,
 		.data = g722_slin_ex,
 	};
@@ -176,7 +180,7 @@ static struct ast_frame *g722tolin16_sample(void)
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_G722,
 		.datalen = sizeof(slin_g722_ex),
-		.samples = sizeof(slin_g722_ex),
+		.samples = sizeof(slin_g722_ex) * 2,
 		.src = __PRETTY_FUNCTION__,
 		.data = slin_g722_ex,
 	};
@@ -233,7 +237,7 @@ static struct ast_translator lintog722 = {
 	.framein = lintog722_framein,
 	.sample = lintog722_sample,
 	.desc_size = sizeof(struct g722_encoder_pvt),
-	.buffer_samples = BUFFER_SAMPLES,
+	.buffer_samples = BUFFER_SAMPLES * 2,
 	.buf_size = BUFFER_SAMPLES,
 };
 
@@ -258,7 +262,7 @@ static struct ast_translator lin16tog722 = {
 	.framein = lin16tog722_framein,
 	.sample = lin16tog722_sample,
 	.desc_size = sizeof(struct g722_encoder_pvt),
-	.buffer_samples = BUFFER_SAMPLES,
+	.buffer_samples = BUFFER_SAMPLES * 2,
 	.buf_size = BUFFER_SAMPLES,
 };
 
