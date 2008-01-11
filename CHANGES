@@ -190,6 +190,13 @@ Zaptel channel driver (chan_zap) Changes
      the script specified in the mwimonitornotify option is executed.  An internal
      event indicating the new state of the mailbox is also generated, so that
      the normal MWI facilities in Asterisk work as usual.
+  * Added signalling type 'auto', which attempts to use the same signalling type
+    for a channel as configured in Zaptel. This is primarily designed for analog
+    ports, but will also work for digital ports that are configured for FXS or FXO
+    signalling types. This mode is also the default now, so if your zapata.conf
+    does not specify signalling for a channel (which is unlikely as the sample
+    configuration file has always recommended specifying it for every channel) then
+    the 'auto' mode will be used for that channel if possible.
 
 A new channel driver: Unistim
 -----------------------------

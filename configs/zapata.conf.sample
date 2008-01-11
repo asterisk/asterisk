@@ -197,7 +197,8 @@
 ;
 ; pritimer cannot be changed on a reload.
 ;
-; Signalling method (default is fxs).  Valid values:
+; Signalling method. The default is "auto". Valid values:
+; auto:           Use the current value from Zaptel.
 ; em:             E & M
 ; em_e1:          E & M E1
 ; em_w:           E & M Wink
@@ -249,7 +250,7 @@
 ;
 ; signalling of a channel can not be changed on a reload.
 ;
-signalling=fxo_ls
+;signalling=fxo_ls
 ;
 ; If you have an outbound signalling format that is different from format
 ; specified above (but compatible), you can specify outbound signalling format,
@@ -833,7 +834,7 @@ pickupgroup=1
 ; ---------------- Options for use with signalling=ss7 -----------------
 ; None of them can be changed by a reload.
 ;
-; Variant of SS7 signaling:
+; Variant of SS7 signalling:
 ; Options are itu and ansi
 ;ss7type = itu
 
@@ -873,7 +874,7 @@ pickupgroup=1
 ; number format or in the xxx-xxx-xxx format
 ;pointcode = 1
 
-; Point code of node adjacent to this signaling link (Possibly the STP between you and
+; Point code of node adjacent to this signalling link (Possibly the STP between you and
 ; your destination).  Point code format follows the same rules as above.
 ;adjpointcode = 2
 
@@ -889,7 +890,7 @@ pickupgroup=1
 ; national, national_spare, international, international_spare
 ;networkindicator=international
 
-; First signaling channel
+; First signalling channel
 ;sigchan = 48
 
 ; Channels to associate with CICs on this linkset

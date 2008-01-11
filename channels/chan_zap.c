@@ -22,12 +22,12 @@
  *
  * \author Mark Spencer <markster@digium.com>
  * 
- * Connects to the zaptel telephony library as well as 
+ * Connects to the Zaptel telephony library as well as 
  * libpri. Libpri is optional and needed only if you are
  * going to use ISDN connections.
  *
  * You need to install libraries before you attempt to compile
- * and install the zaptel channel.
+ * and install the Zaptel channel.
  *
  * \par See also
  * \arg \ref Config_zap
@@ -126,7 +126,7 @@ static struct ast_jb_conf default_jbconf =
 static struct ast_jb_conf global_jbconf;
 
 #if !defined(ZT_SIG_EM_E1) || (defined(HAVE_PRI) && !defined(ZT_SIG_HARDHDLC))
-#error "Your zaptel is too old.  Please update"
+#error "Your Zaptel is too old.  Please update"
 #endif
 
 #ifndef ZT_TONEDETECT
@@ -725,6 +725,7 @@ struct zt_chan_conf {
 	struct zt_ss7 ss7;
 #endif
 	ZT_PARAMS timing;
+	int is_sig_auto; /*!< Use channel signalling from Zaptel? */
 
 	char smdi_port[SMDI_MAX_FILENAME_LEN];
 };
@@ -810,6 +811,7 @@ static struct zt_chan_conf zt_chan_conf_default(void) {
 			.rxflashtime = -1,
 			.debouncetime = -1
 		},
+		.is_sig_auto = 1,
 		.smdi_port = "/dev/ttyS0",
 	};
 
@@ -7231,7 +7233,7 @@ static void *ss_thread(void *data)
 	return NULL;
 }
 
-/* destroy a zaptel channel, identified by its number */
+/* destroy a Zaptel channel, identified by its number */
 static int zap_destroy_channel_bynum(int channel)
 {
 	struct zt_pvt *tmp = NULL;
@@ -7862,6 +7864,16 @@ static struct zt_ss7 * ss7_resolve_linkset(int linkset)
 }
 #endif /* HAVE_SS7 */
 
+/* converts a Zaptel sigtype to signalling as can be configured from
+ * zapata.conf.
+ * While both have basically the same values, this will later be the
+ * place to add filters and sanity checks
+ */
+static int sigtype_to_signalling(int sigtype)
+{
+        return sigtype;
+}
+
 static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pri *pri, int reloading)
 {
 	/* Make a zt_pvt structure for this interface (or CRV if "pri" is specified) */
@@ -7939,6 +7951,8 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 					destroy_zt_pvt(&tmp);
 					return NULL;
 				}
+				if (conf.is_sig_auto)
+					conf.chan.sig = sigtype_to_signalling(p.sigtype);
 				if (p.sigtype != (conf.chan.sig & 0x3ffff)) {
 					ast_log(LOG_ERROR, "Signalling requested on channel %d is %s but line is in %s signalling\n", channel, sig2str(conf.chan.sig), sig2str(p.sigtype));
 					destroy_zt_pvt(&tmp);
@@ -10538,7 +10552,7 @@ static void *pri_dchannel(void *vpri)
 							/* Work around broken, out of spec USER_BUSY cause in a progress message */
 							if (e->proceeding.cause == AST_CAUSE_USER_BUSY) {
 								if (pri->pvts[chanpos]->owner) {
-									ast_verb(3, "PROGRESS with 'user busy' received, signaling AST_CONTROL_BUSY instead of AST_CONTROL_PROGRESS\n");
+									ast_verb(3, "PROGRESS with 'user busy' received, signalling AST_CONTROL_BUSY instead of AST_CONTROL_PROGRESS\n");
 
 									pri->pvts[chanpos]->owner->hangupcause = e->proceeding.cause;
 									f.subclass = AST_CONTROL_BUSY;
@@ -11418,9 +11432,9 @@ static char *zap_destroy_channel(struct ast_cli_entry *e, int cmd, struct ast_cl
 static int setup_zap(int reload);
 static int zap_restart(void)
 {
-	ast_verb(1, "Destroying channels and reloading zaptel configuration.\n");
+	ast_verb(1, "Destroying channels and reloading Zaptel configuration.\n");
 	while (iflist) {
-		ast_debug(1, "Destroying zaptel channel no. %d\n", iflist->channel);
+		ast_debug(1, "Destroying Zaptel channel no. %d\n", iflist->channel);
 		/* Also updates iflist: */
 		destroy_channel(NULL, iflist, 1);
 	}
@@ -11439,9 +11453,9 @@ static char *zap_restart_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		e->command = "zap restart";
 		e->usage = 
 			"Usage: zap restart\n"
-			"	Restarts the zaptel channels: destroys them all and then\n"
+			"	Restarts the Zaptel channels: destroys them all and then\n"
 			"	re-reads them from zapata.conf.\n"
-			"	Note that this will STOP any running CALL on zaptel channels.\n"
+			"	Note that this will STOP any running CALL on Zaptel channels.\n"
 			"";
 		return NULL;
 	case CLI_GENERATE:
@@ -11458,7 +11472,7 @@ static char *zap_restart_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 static int action_zaprestart(struct mansession *s, const struct message *m)
 {
 	if (zap_restart() != 0) {
-		astman_send_error(s, m, "Failed rereading zaptel configuration");
+		astman_send_error(s, m, "Failed rereading Zaptel configuration");
 		return 1;
 	}
 	astman_send_ack(s, m, "ZapRestart: Success");
@@ -12073,7 +12087,7 @@ static struct ast_cli_entry zap_cli[] = {
 	AST_CLI_DEFINE(zap_show_channels, "Show active zapata channels"),
 	AST_CLI_DEFINE(zap_show_channel, "Show information on a channel"),
 	AST_CLI_DEFINE(zap_destroy_channel, "Destroy a channel"),
-	AST_CLI_DEFINE(zap_restart_cmd, "Fully restart zaptel channels"),
+	AST_CLI_DEFINE(zap_restart_cmd, "Fully restart Zaptel channels"),
 	AST_CLI_DEFINE(zap_show_status, "Show all Zaptel cards status"),
 	AST_CLI_DEFINE(zap_show_version, "Show the Zaptel version in use"),
 #if defined(HAVE_ZAPTEL_HWGAIN)
@@ -12755,7 +12769,7 @@ static int build_channels(struct zt_chan_conf conf, int iscrv, const char *value
 	int trunkgroup, y;
 #endif
 	
-	if ((reload == 0) && (conf.chan.sig < 0)) {
+	if ((reload == 0) && (conf.chan.sig < 0) && !conf.is_sig_auto) {
 		ast_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
 		return -1;
 	}
@@ -13147,32 +13161,31 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 			ast_copy_string(mwimonitornotify, v->value, sizeof(mwimonitornotify));
 		} else if (!reload){ 
 			 if (!strcasecmp(v->name, "signalling") || !strcasecmp(v->name, "signaling")) {
+				int orig_radio = confp->chan.radio;
+				int orig_outsigmod = confp->chan.outsigmod;
+				int orig_auto = confp->is_sig_auto;
+
+				confp->chan.radio = 0;
 				confp->chan.outsigmod = -1;
+				confp->is_sig_auto = 0;
 				if (!strcasecmp(v->value, "em")) {
 					confp->chan.sig = SIG_EM;
 				} else if (!strcasecmp(v->value, "em_e1")) {
 					confp->chan.sig = SIG_EM_E1;
 				} else if (!strcasecmp(v->value, "em_w")) {
 					confp->chan.sig = SIG_EMWINK;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "fxs_ls")) {
 					confp->chan.sig = SIG_FXSLS;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "fxs_gs")) {
 					confp->chan.sig = SIG_FXSGS;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "fxs_ks")) {
 					confp->chan.sig = SIG_FXSKS;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "fxo_ls")) {
 					confp->chan.sig = SIG_FXOLS;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "fxo_gs")) {
 					confp->chan.sig = SIG_FXOGS;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "fxo_ks")) {
 					confp->chan.sig = SIG_FXOKS;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "fxs_rx")) {
 					confp->chan.sig = SIG_FXSKS;
 					confp->chan.radio = 1;
@@ -13199,22 +13212,16 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 					confp->chan.radio = 2;
 				} else if (!strcasecmp(v->value, "sf")) {
 					confp->chan.sig = SIG_SF;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "sf_w")) {
 					confp->chan.sig = SIG_SFWINK;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "sf_featd")) {
 					confp->chan.sig = SIG_FEATD;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "sf_featdmf")) {
 					confp->chan.sig = SIG_FEATDMF;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "sf_featb")) {
 					confp->chan.sig = SIG_SF_FEATB;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "sf")) {
 					confp->chan.sig = SIG_SF;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "sf_rx")) {
 					confp->chan.sig = SIG_SF;
 					confp->chan.radio = 1;
@@ -13229,63 +13236,53 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 					confp->chan.radio = 2;
 				} else if (!strcasecmp(v->value, "featd")) {
 					confp->chan.sig = SIG_FEATD;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "featdmf")) {
 					confp->chan.sig = SIG_FEATDMF;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "featdmf_ta")) {
 					confp->chan.sig = SIG_FEATDMF_TA;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "e911")) {
 					confp->chan.sig = SIG_E911;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "fgccama")) {
 					confp->chan.sig = SIG_FGC_CAMA;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "fgccamamf")) {
 					confp->chan.sig = SIG_FGC_CAMAMF;
-					confp->chan.radio = 0;
 				} else if (!strcasecmp(v->value, "featb")) {
 					confp->chan.sig = SIG_FEATB;
-					confp->chan.radio = 0;
 #ifdef HAVE_PRI
 				} else if (!strcasecmp(v->value, "pri_net")) {
-					confp->chan.radio = 0;
 					confp->chan.sig = SIG_PRI;
 					confp->pri.nodetype = PRI_NETWORK;
 				} else if (!strcasecmp(v->value, "pri_cpe")) {
 					confp->chan.sig = SIG_PRI;
-					confp->chan.radio = 0;
 					confp->pri.nodetype = PRI_CPE;
 				} else if (!strcasecmp(v->value, "bri_cpe")) {
 					confp->chan.sig = SIG_BRI;
-					confp->chan.radio = 0;
 					confp->pri.nodetype = PRI_CPE;
 				} else if (!strcasecmp(v->value, "bri_net")) {
 					confp->chan.sig = SIG_BRI;
-					confp->chan.radio = 0;
 					confp->pri.nodetype = PRI_NETWORK;
 				} else if (!strcasecmp(v->value, "bri_cpe_ptmp")) {
 					confp->chan.sig = SIG_BRI_PTMP;
-					confp->chan.radio = 0;
 					confp->pri.nodetype = PRI_CPE;
 				} else if (!strcasecmp(v->value, "bri_net_ptmp")) {
 					ast_log(LOG_WARNING, "How cool would it be if someone implemented this mode!  For now, sucks for you.\n");
 				} else if (!strcasecmp(v->value, "gr303fxoks_net")) {
 					confp->chan.sig = SIG_GR303FXOKS;
-					confp->chan.radio = 0;
 					confp->pri.nodetype = PRI_NETWORK;
 				} else if (!strcasecmp(v->value, "gr303fxsks_cpe")) {
 					confp->chan.sig = SIG_GR303FXSKS;
-					confp->chan.radio = 0;
 					confp->pri.nodetype = PRI_CPE;
 #endif
 #ifdef HAVE_SS7
 				} else if (!strcasecmp(v->value, "ss7")) {
 					confp->chan.sig = SIG_SS7;
-					confp->chan.radio = 0;
 #endif
+				} else if (!strcasecmp(v->value, "auto")) {
+					confp->is_sig_auto = 1;
 				} else {
+					confp->chan.outsigmod = orig_outsigmod;
+					confp->chan.radio = orig_radio;
+					confp->is_sig_auto = orig_auto;
 					ast_log(LOG_ERROR, "Unknown signalling method '%s'\n", v->value);
 				}
 			 } else if (!strcasecmp(v->name, "outsignalling") || !strcasecmp(v->name, "outsignaling")) {
@@ -13574,7 +13571,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 						} else {
 							if (firstcadencepos == 0) {
 								firstcadencepos = i; /* only recorded to avoid duplicate specification */
-											/* duration will be passed negative to the zaptel driver */
+											/* duration will be passed negative to the Zaptel driver */
 							} else {
 								 ast_log(LOG_ERROR, "First cadence position specified twice: %s\n",original_args);
 								cadence_is_ok = 0;
@@ -13910,7 +13907,7 @@ static int load_module(void)
 	ast_manager_register( "ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
 	ast_manager_register( "ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
 	ast_manager_register("ZapShowChannels", 0, action_zapshowchannels, "Show status zapata channels");
-	ast_manager_register("ZapRestart", 0, action_zaprestart, "Fully Restart zaptel channels (terminates calls)");
+	ast_manager_register("ZapRestart", 0, action_zaprestart, "Fully Restart Zaptel channels (terminates calls)");
 
 	return res;
 }
