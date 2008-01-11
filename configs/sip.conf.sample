@@ -101,6 +101,10 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; and subscriptions (seconds)
 ;minexpiry=60			; Minimum length of registrations/subscriptions (default 60)
 ;defaultexpiry=120		; Default length of incoming/outgoing registration
+;qualifyfreq=60                 ; Qualification: How often to check for the 
+                                ; host to be up in seconds
+                                ; Set to low value if you use low timeout for
+                                ; NAT of UDP sessions
 ;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
 ;buggymwi=no			; Cisco SIP firmware doesn't support the MWI RFC
 				; fully. Enable this option to not get error messages
@@ -631,6 +635,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             registertrying
 ;                             timert1
 ;                             timerb
+;                             qualifyfreq
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)
@@ -812,6 +817,10 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;qualify=1000			; Consider it down if it's 1 second to reply
 				; Helps with NAT session
 				; qualify=yes uses default value
+;qualifyfreq=60 ; Qualification: How often to check for the 
+				; host to be up in seconds
+				; Set to low value if you use low timeout for
+				; NAT of UDP sessions
 ;
 ; Call group and Pickup group should be in the range from 0 to 63
 ;

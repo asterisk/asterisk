@@ -120,6 +120,8 @@ SIP changes
     considered advanced, so don't use them unless you have a problem.
   * Added a dial string option to be able to set the To: header in an INVITE to any
     SIP uri.
+  * Added a new global and per-peer option, qualifyfreq, which allows you to configure
+     the qualify frequency.
 
 IAX2 changes
 ------------

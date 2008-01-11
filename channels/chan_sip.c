@@ -181,7 +181,7 @@ static int expiry = DEFAULT_EXPIRY;
 #define CALLERID_UNKNOWN        "Unknown"
 
 #define DEFAULT_MAXMS                2000             /*!< Qualification: Must be faster than 2 seconds by default */
-#define DEFAULT_FREQ_OK              60 * 1000        /*!< Qualification: How often to check for the host to be up */
+#define DEFAULT_QUALIFYFREQ          60 * 1000        /*!< Qualification: How often to check for the host to be up */
 #define DEFAULT_FREQ_NOTOK           10 * 1000        /*!< Qualification: How often to check, if the host is down... */
 
 #define DEFAULT_RETRANS              1000             /*!< How frequently to retransmit Default: 2 * 500 ms in RFC 3261 */
@@ -648,8 +648,9 @@ static int global_regextenonqualify;  /*!< Whether to add/remove regexten when q
 static int global_autoframing;          /*!< Turn autoframing on or off. */
 static enum transfermodes global_allowtransfer;	/*!< SIP Refer restriction scheme */
 static struct sip_proxy global_outboundproxy;	/*!< Outbound proxy */
-
 static int global_matchexterniplocally; /*!< Match externip/externhost setting against localnet setting */
+static int global_qualifyfreq; /*!< Qualify frequency */
+
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
@@ -1351,6 +1352,7 @@ struct sip_peer {
 	int pokeexpire;			/*!<  When to expire poke (qualify= checking) */
 	int lastms;			/*!<  How long last response took (in ms), or -1 for no response */
 	int maxms;			/*!<  Max ms we will accept for the host to be up, 0 to not monitor */
+	int qualifyfreq;		/*!<  Qualification: How often to check for the host to be up */
 	struct timeval ps;		/*!<  Time for sending SIP OPTION in sip_pke_peer() */
 	struct sockaddr_in defaddr;	/*!<  Default IP address, used until registration */
 	struct ast_ha *ha;		/*!<  Access control list */
@@ -11722,6 +11724,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "%s\n",status);
  		ast_cli(fd, "  Useragent    : %s\n", peer->useragent);
  		ast_cli(fd, "  Reg. Contact : %s\n", peer->fullcontact);
+		ast_cli(fd, "  Qualify Freq : %d ms\n", peer->qualifyfreq);
 		if (peer->chanvars) {
  			ast_cli(fd, "  Variables    :\n");
 			for (v = peer->chanvars ; v ; v = v->next)
@@ -11798,6 +11801,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "%s\r\n", status);
  		astman_append(s, "SIP-Useragent: %s\r\n", peer->useragent);
  		astman_append(s, "Reg-Contact : %s\r\n", peer->fullcontact);
+		astman_append(s, "Qualify Freq : %d ms\n", peer->qualifyfreq);
 		if (peer->chanvars) {
 			for (v = peer->chanvars ; v ; v = v->next) {
  				astman_append(s, "ChanVariable:\n");
@@ -12043,6 +12047,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_cli(a->fd, "  SIP realtime:           Disabled\n" );
 	else
 		ast_cli(a->fd, "  SIP realtime:           Enabled\n" );
+	ast_cli(a->fd, "  Qualify Freq :          %d ms\n", global_qualifyfreq);
 
 	ast_cli(a->fd, "\nNetwork Settings:\n");
 	ast_cli(a->fd, "---------------------------\n");
@@ -14084,7 +14089,7 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 
 	/* Try again eventually */
 	peer->pokeexpire = ast_sched_replace(peer->pokeexpire, sched,
-		is_reachable ? DEFAULT_FREQ_OK : DEFAULT_FREQ_NOTOK,
+		is_reachable ? peer->qualifyfreq : DEFAULT_FREQ_NOTOK,
 		sip_poke_peer_s, peer);
 }
 
@@ -17966,6 +17971,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->rtpkeepalive = global_rtpkeepalive;
 	peer->allowtransfer = global_allowtransfer;
 	peer->autoframing = global_autoframing;
+	peer->qualifyfreq = global_qualifyfreq;
 	if (global_callcounter)
 		peer->call_limit=999;
 	strcpy(peer->vmexten, default_vmexten);
@@ -18278,6 +18284,14 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
 				peer->maxms = 0;
 			}
+		} else if (!strcasecmp(v->name, "qualifyfreq")) {
+			int i;
+			if (sscanf(v->value, "%d", &i) == 1)
+				peer->qualifyfreq = i * 1000;  
+			else {
+				ast_log(LOG_WARNING, "Invalid qualifyfreq number '%s' at line %d of %s\n",v->value, v->lineno, config);
+				peer->qualifyfreq = global_qualifyfreq;
+			}
 		} else if (!strcasecmp(v->name, "maxcallbitrate")) {
 			peer->maxcallbitrate = atoi(v->value);
 			if (peer->maxcallbitrate < 0)
@@ -18489,7 +18503,8 @@ static int reload_config(enum channelreloadreason reason)
 	global_callevents = FALSE;
 	global_t1 = SIP_TIMER_T1;
 	global_timer_b = 64 * SIP_TIMER_T1;
-	global_t1min = DEFAULT_T1MIN;		
+	global_t1min = DEFAULT_T1MIN;
+	global_qualifyfreq = DEFAULT_QUALIFYFREQ;
 
 	global_matchexterniplocally = FALSE;
 
@@ -18757,6 +18772,14 @@ static int reload_config(enum channelreloadreason reason)
 			} else if (sscanf(v->value, "%d", &default_qualify) != 1) {
 				ast_log(LOG_WARNING, "Qualification default should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", v->lineno);
 				default_qualify = 0;
+			}
+		} else if (!strcasecmp(v->name, "qualifyfreq")) {
+			int i;
+			if (sscanf(v->value, "%d", &i) == 1)
+				global_qualifyfreq = i * 1000;
+			else {
+				ast_log(LOG_WARNING, "Invalid qualifyfreq number '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_qualifyfreq = DEFAULT_QUALIFYFREQ;
 			}
 		} else if (!strcasecmp(v->name, "callevents")) {
 			global_callevents = ast_true(v->value);
