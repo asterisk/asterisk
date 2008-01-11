@@ -14,6 +14,15 @@ else
 	@echo "** generated.  When complete, it will be   ***"
 	@echo "** located at asterisk.pdf.                ***"	
 	@echo "**********************************************"
+ifneq ($(findstring kpsewhich,$(KPATHSEA)),)
+ifeq ($(findstring fncychap.sty,$(shell find `$(KPATHSEA) --expand-braces='$$(TEXMF)'| tr -d \! | sed 's/:/ /g'` -name fncychap.sty -print)),)
+	@echo
+	@echo "WARNING:  The fncychap.sty document was not found"
+	@echo "On Ubuntu, install the texlive-latex-extra package."
+	@echo
+	@exit
+endif
+endif
 	@cp asterisk.tex asterisk.tex.orig
 	sed -i -e 's/ASTERISKVERSION/$(shell echo $(ASTERISKVERSION) | sed -e 's/\//\\\//g')/' asterisk.tex
 	@$(RUBBER) --pdf asterisk.tex

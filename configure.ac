@@ -162,6 +162,7 @@ AC_PATH_PROG([LN], [ln], :)
 AC_PATH_PROG([DOT], [dot], :)
 AC_PATH_PROG([WGET], [wget], :)
 AC_PATH_PROG([RUBBER], [rubber], :)
+AC_PATH_PROG([KPATHSEA], [kpsewhich], :)
 if test "${WGET}" != ":" ; then
   DOWNLOAD=${WGET}
 else
