@@ -557,9 +557,14 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 	}
 	for (x = -1; x < SHOW_TRANS; x++) {
 		struct ast_str *out = ast_str_alloca(120);
-		
+		/*Go ahead and move to next iteration if dealing with an unknown codec*/
+		if(x >= 0 && !strcmp(ast_getformatname(1 << (x)), "unknown"))
+			continue;
 		ast_str_set(&out, -1, " ");
 		for (y = -1; y < SHOW_TRANS; y++) {
+			/*Go ahead and move to next iteration if dealing with an unknown codec*/
+			if (y >= 0 && !strcmp(ast_getformatname(1 << (y)), "unknown"))
+				continue;
 			if (y >= 0)
 				curlen = strlen(ast_getformatname(1 << (y)));
 			if (curlen < 5)
