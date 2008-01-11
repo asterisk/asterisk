@@ -3112,6 +3112,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 	int cause = 0;
 	struct ast_channel *chan;
 	int res = 0;
+	int last_subclass = 0;
 	
 	if (outstate)
 		*outstate = 0;
@@ -3193,6 +3194,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 				default:
 					ast_log(LOG_NOTICE, "Don't know what to do with control frame %d\n", f->subclass);
 				}
+				last_subclass = f->subclass;
 			}
 			ast_frfree(f);
 		}
@@ -3211,6 +3213,8 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 		*outstate = AST_CONTROL_ANSWER;
 
 	if (res <= 0) {
+		if ( AST_CONTROL_RINGING == last_subclass ) 
+			chan->hangupcause = AST_CAUSE_NO_ANSWER;
 		if (!chan->cdr && (chan->cdr = ast_cdr_alloc()))
 			ast_cdr_init(chan->cdr, chan);
 		if (chan->cdr) {
