@@ -415,7 +415,7 @@ static void reset_global_eid(void)
 			snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth%d", x);
 			if (!ioctl(s, SIOCGIFHWADDR, &ifr)) {
 				memcpy(&global_eid, ((unsigned char *)&ifr.ifr_hwaddr) + 2, sizeof(global_eid));
-				ast_log(LOG_DEBUG, "Seeding global EID '%s' from '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifr.ifr_name);
+				ast_log(LOG_DEBUG, "Seeding global EID '%s' from '%s' using 'siocgifhwaddr'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifr.ifr_name);
 				close(s);
 				return;
 			}
@@ -430,12 +430,10 @@ static void reset_global_eid(void)
 	if (getifaddrs(&ifap) == 0) {
 		struct ifaddrs *p;
 		for (p = ifap; p; p = p->ifa_next) {
-			if (p->ifa_addr->sa_family == AF_LINK) {
+			if ((p->ifa_addr->sa_family == AF_LINK) && !(p->ifa_flags & IFF_LOOPBACK) && (p->ifa_flags & IFF_RUNNING)) {
 				struct sockaddr_dl* sdp = (struct sockaddr_dl*) p->ifa_addr;
-				memcpy(
-					&(global_eid.eid),
-					sdp->sdl_data + sdp->sdl_nlen, 6);
-				ast_log(LOG_DEBUG, "Seeding global EID '%s' from '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifap->ifa_name);
+				memcpy(&(global_eid.eid), sdp->sdl_data + sdp->sdl_nlen, 6);
+				ast_log(LOG_DEBUG, "Seeding global EID '%s' from '%s' using 'getifaddrs'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), p->ifa_name);
 				freeifaddrs(ifap);
 				return;
 			}
@@ -444,7 +442,7 @@ static void reset_global_eid(void)
 	}
 #endif
 #endif
-	ast_log(LOG_NOTICE, "No ethernet interface found for seeding global EID  You will have to set it manually.\n");
+	ast_log(LOG_NOTICE, "No ethernet interface found for seeding global EID. You will have to set it manually.\n");
 }
 
 static int get_trans_id(void)
