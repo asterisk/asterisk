@@ -101,28 +101,11 @@ static int g722tolin16_new(struct ast_trans_pvt *pvt)
 static int g722tolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct g722_decoder_pvt *tmp = pvt->pvt;
-	unsigned char *src = f->data;
-	int out_samples;
-
-	out_samples = g722_decode(&tmp->g722, (int16_t *) &pvt->outbuf[pvt->samples * sizeof(int16_t)], 
-		src, f->samples);
-
-	pvt->samples += out_samples;
-
-	pvt->datalen += (out_samples * sizeof(int16_t));
-
-	return 0;
-}
-
-static int g722tolin16_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
-{
-	struct g722_decoder_pvt *tmp = pvt->pvt;
 	int out_samples;
 
 	out_samples = g722_decode(&tmp->g722, (int16_t *) &pvt->outbuf[pvt->samples * sizeof(int16_t)], 
 		(uint8_t *) f->data, f->samples);
 
-	/* sample rate the same between formats, but don't assume that it won't output more ... */
 	pvt->samples += out_samples;
 
 	pvt->datalen += (out_samples * sizeof(int16_t));
@@ -137,21 +120,6 @@ static int lintog722_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 
 	outlen = g722_encode(&tmp->g722, (uint8_t *) (&pvt->outbuf[pvt->datalen]), 
 		(int16_t *) f->data, f->samples);
-
-	pvt->samples += outlen;
-
-	pvt->datalen += outlen;
-
-	return 0;
-}
-
-static int lin16tog722_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
-{
-	struct g722_encoder_pvt *tmp = pvt->pvt;
-	int16_t *src = f->data;
-	int outlen;
-
-	outlen = g722_encode(&tmp->g722, (uint8_t*)(&pvt->outbuf[pvt->datalen]), src, f->samples);
 
 	pvt->samples += outlen;
 
@@ -246,7 +214,7 @@ static struct ast_translator g722tolin16 = {
 	.srcfmt = AST_FORMAT_G722,
 	.dstfmt = AST_FORMAT_SLINEAR16,
 	.newpvt = g722tolin16_new,	/* same for both directions */
-	.framein = g722tolin16_framein,
+	.framein = g722tolin_framein,
 	.sample = g722tolin16_sample,
 	.desc_size = sizeof(struct g722_decoder_pvt),
 	.buffer_samples = BUFFER_SAMPLES / sizeof(int16_t),
@@ -259,7 +227,7 @@ static struct ast_translator lin16tog722 = {
 	.srcfmt = AST_FORMAT_SLINEAR16,
 	.dstfmt = AST_FORMAT_G722,
 	.newpvt = lin16tog722_new,	/* same for both directions */
-	.framein = lin16tog722_framein,
+	.framein = lintog722_framein,
 	.sample = lin16tog722_sample,
 	.desc_size = sizeof(struct g722_encoder_pvt),
 	.buffer_samples = BUFFER_SAMPLES * 2,
