@@ -145,15 +145,19 @@ static int resample_frame(struct ast_trans_pvt *pvt,
 static int slin16_to_slin8_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct slin16_to_slin8_pvt *resamp_pvt = pvt->pvt;
+	void *resampler = resamp_pvt->resampler;
+	float resample_factor = resamp_pvt->resample_factor;
 
-	return resample_frame(pvt, resamp_pvt->resampler, resamp_pvt->resample_factor, f);
+	return resample_frame(pvt, resampler, resample_factor, f);
 }
 
 static int slin8_to_slin16_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct slin8_to_slin16_pvt *resamp_pvt = pvt->pvt;
+	void *resampler = resamp_pvt->resampler;
+	float resample_factor = resamp_pvt->resample_factor;
 
-	return resample_frame(pvt, resamp_pvt->resampler, resamp_pvt->resample_factor, f);
+	return resample_frame(pvt, resampler, resample_factor, f);
 }
 
 static struct ast_frame *slin16_to_slin8_sample(void)
