@@ -1342,7 +1342,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 			}
 			f = ast_read(chan);
 			if (!f) {
-				ast_agi_fdprintf(chan, agi->fd, "200 result=%d (hangup) endpos=%ld\n", 0, sample_offset);
+				ast_agi_fdprintf(chan, agi->fd, "200 result=%d (hangup) endpos=%ld\n", -1, sample_offset);
 				ast_closestream(fs);
 				if (sildet)
 					ast_dsp_free(sildet);
