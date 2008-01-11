@@ -74,12 +74,12 @@ static SQLHSTMT prepare_cb(struct odbc_obj *obj, void *data)
 		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
 		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,"
 		"lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) "
-		"VALUES ('%s',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", table, timestr);
+		"VALUES ({ts '%s'},?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", table, timestr);
 	} else {
 		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
 		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,"
 		"duration,billsec,disposition,amaflags,accountcode) "
-		"VALUES ('%s',?,?,?,?,?,?,?,?,?,?,?,?,?)", table, timestr);
+		"VALUES ({ts '%s'},?,?,?,?,?,?,?,?,?,?,?,?,?)", table, timestr);
 	}
 
 	ODBC_res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
