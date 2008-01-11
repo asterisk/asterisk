@@ -49,12 +49,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 struct slin16_to_slin8_pvt {
 	void *resampler;
-	double resample_factor;
+	float resample_factor;
 };
 
 struct slin8_to_slin16_pvt {
 	void *resampler;
-	double resample_factor;
+	float resample_factor;
 };
 
 static int slin16_to_slin8_new(struct ast_trans_pvt *pvt)
@@ -98,7 +98,7 @@ static void slin8_to_slin16_destroy(struct ast_trans_pvt *pvt)
 }
 
 static int resample_frame(struct ast_trans_pvt *pvt,
-	void *resampler, double resample_factor, struct ast_frame *f)
+	void *resampler, float resample_factor, struct ast_frame *f)
 {
 	int total_in_buf_used = 0;
 	int total_out_buf_used = 0;
