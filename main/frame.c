@@ -1491,9 +1491,9 @@ int ast_codec_get_samples(struct ast_frame *f)
 		break;
 	case AST_FORMAT_ULAW:
 	case AST_FORMAT_ALAW:
-	case AST_FORMAT_G722:
 		samples = f->datalen;
 		break;
+	case AST_FORMAT_G722:
 	case AST_FORMAT_ADPCM:
 	case AST_FORMAT_G726:
 	case AST_FORMAT_G726_AAL2:
@@ -1527,6 +1527,7 @@ int ast_codec_get_len(int format, int samples)
 	case AST_FORMAT_ALAW:
 		len = samples;
 		break;
+	case AST_FORMAT_G722:
 	case AST_FORMAT_ADPCM:
 	case AST_FORMAT_G726:
 	case AST_FORMAT_G726_AAL2:
