@@ -174,6 +174,7 @@ AC_SUBST(AST_DEVMODE)
 
 AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
 AST_EXT_LIB_SETUP([CURL], [cURL], [curl])
+AST_EXT_LIB_SETUP([CAP], [POSIX 1.e capabilities], [cap])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
 AST_EXT_LIB_SETUP([GNUTLS], [GNU TLS support (used for iksemel only)], [gnutls])
 AST_EXT_LIB_SETUP([GSM], [GSM], [gsm], [, or 'internal'])
@@ -397,6 +398,10 @@ AC_CHECK_SIZEOF(int)
 AST_EXT_LIB_CHECK([ALSA], [asound], [snd_spcm_init], [alsa/asoundlib.h], [-lm -ldl])
 
 AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
+
+if test "x${host_os}" = "xlinux-gnu" ; then
+  AST_EXT_LIB_CHECK([CAP], [cap], [cap_from_text], [sys/capability.h])
+fi
 
 GSM_INTERNAL="yes"
 AC_SUBST(GSM_INTERNAL)

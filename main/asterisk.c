@@ -82,12 +82,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #ifdef linux
 #include <sys/prctl.h>
-#endif
+#ifdef HAVE_CAP
+#include <sys/capability.h>
+#endif /* HAVE_CAP */
+#endif /* linux */
 #include <regex.h>
-
-#ifdef linux
-#include <sys/prctl.h>
-#endif
 
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
 #include <netdb.h>
@@ -2734,12 +2733,21 @@ int main(int argc, char *argv[])
 	}
 
 	if (runuser && !ast_test_flag(&ast_options, AST_OPT_FLAG_REMOTE)) {
+#ifdef HAVE_CAP
+		int has_cap = 1;
+#endif /* HAVE_CAP */
 		struct passwd *pw;
 		pw = getpwnam(runuser);
 		if (!pw) {
 			ast_log(LOG_WARNING, "No such user '%s'!\n", runuser);
 			exit(1);
 		}
+#ifdef HAVE_CAP
+		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0)) {
+			ast_log(LOG_WARNING, "Unable to keep capabilities.\n");
+			has_cap = 0;
+		}
+#endif /* HAVE_CAP */
 		if (!isroot && pw->pw_uid != geteuid()) {
 			ast_log(LOG_ERROR, "Asterisk started as nonroot, but runuser '%s' requested.\n", runuser);
 			exit(1);
@@ -2760,6 +2768,19 @@ int main(int argc, char *argv[])
 		}
 		if (option_verbose)
 			ast_verbose("Running as user '%s'\n", runuser);
+#ifdef HAVE_CAP
+		if (has_cap) {
+			cap_t cap;
+
+			cap = cap_from_text("cap_net_admin=ep");
+
+			if (cap_set_proc(cap))
+				ast_log(LOG_WARNING, "Unable to install capabilities.\n");
+
+			if (cap_free(cap))
+				ast_log(LOG_WARNING, "Unable to drop capabilities.\n");
+		}
+#endif /* HAVE_CAP */
 	}
 
 #endif /* __CYGWIN__ */
