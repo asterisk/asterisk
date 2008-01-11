@@ -12625,6 +12625,8 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			event = 11;
 		else if ((buf[0] >= 'A') && (buf[0] <= 'D'))
 			event = 12 + buf[0] - 'A';
+		else if (buf[0] == '!')
+			event = 16;
 		else
 			event = atoi(buf);
 		if (event == 16) {
