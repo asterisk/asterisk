@@ -1062,6 +1062,10 @@ static int bridge_p2p_rtp_write(struct ast_rtp *rtp, struct ast_rtp *bridged, un
 	/* Check what the payload value should be */
 	rtpPT = ast_rtp_lookup_pt(rtp, payload);
 
+	/* If the payload coming in is not one of the negotiated ones then send it to the core, this will cause formats to change and the bridge to break */
+	if (!bridged->current_RTP_PT[payload].code)
+		return -1;
+
 	/* If the payload is DTMF, and we are listening for DTMF - then feed it into the core */
 	if (ast_test_flag(rtp, FLAG_P2P_NEED_DTMF) && !rtpPT.isAstFormat && rtpPT.code == AST_RTP_DTMF)
 		return -1;
@@ -3142,6 +3146,12 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 	cs[1] = c1;
 	cs[2] = NULL;
 	for (;;) {
+		/* If the underlying formats have changed force this bridge to break */
+		if ((c0->rawreadformat != c1->rawwriteformat) || (c1->rawreadformat != c0->rawwriteformat)) {
+			ast_log(LOG_DEBUG, "Oooh, formats changed, backing out\n");
+			res = AST_BRIDGE_FAILED_NOWARN;
+			break;
+		}
 		/* Check if anything changed */
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
