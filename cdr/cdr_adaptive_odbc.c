@@ -404,8 +404,8 @@ static int odbc_log(struct ast_cdr *cdr)
 							year += 2000;
 
 						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
-						LENGTHEN_BUF2(10);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "'%04d-%02d-%02d',", year, month, day);
+						LENGTHEN_BUF2(17);
+						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "{ d '%04d-%02d-%02d' },", year, month, day);
 					}
 					break;
 				case SQL_TYPE_TIME:
@@ -419,8 +419,8 @@ static int odbc_log(struct ast_cdr *cdr)
 						}
 
 						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
-						LENGTHEN_BUF2(8);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "'%02d:%02d:%02d',", hour, minute, second);
+						LENGTHEN_BUF2(15);
+						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "{ t '%02d:%02d:%02d' },", hour, minute, second);
 					}
 					break;
 				case SQL_TYPE_TIMESTAMP:
@@ -445,8 +445,8 @@ static int odbc_log(struct ast_cdr *cdr)
 							year += 2000;
 
 						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
-						LENGTHEN_BUF2(19);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "'%04d-%02d-%02d %02d:%02d:%02d',", year, month, day, hour, minute, second);
+						LENGTHEN_BUF2(26);
+						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "{ ts '%04d-%02d-%02d %02d:%02d:%02d' },", year, month, day, hour, minute, second);
 					}
 					break;
 				case SQL_INTEGER:
