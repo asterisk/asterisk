@@ -20,7 +20,7 @@
  *
  * \brief Internal generic event system
  *
- * \author Russell 'drumkilla' Bryant <russell@digium.com>
+ * \author Russell Bryant <russell@digium.com>
  */
 
 #include "asterisk.h"
