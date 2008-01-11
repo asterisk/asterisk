@@ -136,7 +136,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/version.h"
 #include "asterisk/event.h"
-#include "asterisk/astobj2.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -1159,7 +1158,7 @@ struct sip_pvt {
 	struct ast_rtp *rtp;			/*!< RTP Session */
 	struct ast_rtp *vrtp;			/*!< Video RTP session */
 	struct ast_rtp *trtp;			/*!< Text RTP session */
-	struct ao2_container *packets;		/*!< Packets scheduled for re-transmission */
+	struct sip_pkt *packets;		/*!< Packets scheduled for re-transmission */
 	struct sip_history_head *history;	/*!< History of this SIP dialog */
 	size_t history_entries;			/*!< Number of entires in the history */
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
@@ -1226,6 +1225,7 @@ static struct sip_pvt *dialog_unref(struct sip_pvt *p)
  * require retransmissions.
  */
 struct sip_pkt {
+	struct sip_pkt *next;			/*!< Next packet in linked list */
 	int retrans;				/*!< Retransmission number */
 	int method;				/*!< SIP method for this packet */
 	int seqno;				/*!< Sequence number */
@@ -2295,15 +2295,12 @@ static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
 /*! \brief Retransmit SIP message if no answer (Called from scheduler) */
 static int retrans_pkt(const void *data)
 {
-	struct sip_pkt *pkt = (struct sip_pkt *)data, *prev;
+	struct sip_pkt *pkt = (struct sip_pkt *)data, *prev, *cur = NULL;
 	int reschedule = DEFAULT_RETRANS;
 	int xmitres = 0;
 
-	ao2_ref(pkt, 1); /* Make sure this cannot go away while we're using it */
-
 	/* Lock channel PVT */
-	if (pkt->owner)
-		sip_pvt_lock(pkt->owner);
+	sip_pvt_lock(pkt->owner);
 
 	if (pkt->retrans < MAX_RETRANS) {
 		pkt->retrans++;
@@ -2330,7 +2327,7 @@ static int retrans_pkt(const void *data)
  			ast_debug(4, "** SIP timers: Rescheduling retransmission %d to %d ms (t1 %d ms (Retrans id #%d)) \n", pkt->retrans +1, siptimer_a, pkt->timer_t1, pkt->retransid);
  		} 
 
-		if (pkt->owner && sip_debug_test_pvt(pkt->owner)) {
+		if (sip_debug_test_pvt(pkt->owner)) {
 			const struct sockaddr_in *dst = sip_real_dst(pkt->owner);
 			ast_verbose("Retransmitting #%d (%s) to %s:%d:\n%s\n---\n",
 				pkt->retrans, sip_nat_mode(pkt->owner),
@@ -2340,14 +2337,11 @@ static int retrans_pkt(const void *data)
 
 		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data);
 		xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
-		if (pkt->owner)
-			sip_pvt_unlock(pkt->owner);
+		sip_pvt_unlock(pkt->owner);
 		if (xmitres == XMIT_ERROR)
-			ast_log(LOG_WARNING, "Network error on retransmit in dialog %s\n", pkt->owner ? pkt->owner->callid : "<unknown>");
-		else {
-			ao2_ref(pkt, -1);
+			ast_log(LOG_WARNING, "Network error on retransmit in dialog %s\n", pkt->owner->callid);
+		else 
 			return  reschedule;
-		}
 	} 
 	/* Too many retries */
 	if (pkt->owner && pkt->method != SIP_OPTIONS && xmitres == 0) {
@@ -2355,31 +2349,29 @@ static int retrans_pkt(const void *data)
 			ast_log(LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n",
 				pkt->owner->callid, pkt->seqno,
 				pkt->is_fatal ? "Critical" : "Non-critical", pkt->is_resp ? "Response" : "Request");
-	} else if (pkt->owner && (pkt->method == SIP_OPTIONS) && sipdebug) {
-		ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
+	} else if (pkt->method == SIP_OPTIONS && sipdebug) {
+			ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
 
 	} 
-	if (pkt->owner) {
-		if (xmitres == XMIT_ERROR) {
-			ast_log(LOG_WARNING, "Transmit error :: Cancelling transmission of transaction in call id %s \n", pkt->owner->callid);
-			append_history(pkt->owner, "XmitErr", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
-		} else
-			append_history(pkt->owner, "MaxRetries", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
- 	}
+	if (xmitres == XMIT_ERROR) {
+		ast_log(LOG_WARNING, "Transmit error :: Cancelling transmission on Call ID %s\n", pkt->owner->callid);
+		append_history(pkt->owner, "XmitErr", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
+	} else 
+		append_history(pkt->owner, "MaxRetries", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
+ 		
 	pkt->retransid = -1;
 
 	if (pkt->is_fatal) {
-		while (pkt->owner && pkt->owner->owner && ast_channel_trylock(pkt->owner->owner)) {
+		while(pkt->owner->owner && ast_channel_trylock(pkt->owner->owner)) {
 			sip_pvt_unlock(pkt->owner);	/* SIP_PVT, not channel */
 			usleep(1);
-			if (pkt->owner)
-				sip_pvt_lock(pkt->owner);
+			sip_pvt_lock(pkt->owner);
 		}
 
-		if (pkt->owner && pkt->owner->owner && !pkt->owner->owner->hangupcause) 
+		if (pkt->owner->owner && !pkt->owner->owner->hangupcause) 
 			pkt->owner->owner->hangupcause = AST_CAUSE_NO_USER_RESPONSE;
 		
-		if (pkt->owner && pkt->owner->owner) {
+		if (pkt->owner->owner) {
 			sip_alreadygone(pkt->owner);
 			ast_log(LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", pkt->owner->callid);
 			ast_queue_hangup(pkt->owner->owner);
@@ -2388,7 +2380,7 @@ static int retrans_pkt(const void *data)
 			/* If no channel owner, destroy now */
 
 			/* Let the peerpoke system expire packets when the timer expires for poke_noanswer */
-			if (pkt->owner && pkt->method != SIP_OPTIONS && pkt->method != SIP_REGISTER) {
+			if (pkt->method != SIP_OPTIONS && pkt->method != SIP_REGISTER) {
 				pkt->owner->needdestroy = 1;
 				sip_alreadygone(pkt->owner);
 				append_history(pkt->owner, "DialogKill", "Killing this failed dialog immediately");
@@ -2396,7 +2388,7 @@ static int retrans_pkt(const void *data)
 		}
 	}
 
-	if (pkt->owner && pkt->method == SIP_BYE) {
+	if (pkt->method == SIP_BYE) {
 		/* We're not getting answers on SIP BYE's.  Tear down the call anyway. */
 		if (pkt->owner->owner) 
 			ast_channel_unlock(pkt->owner->owner);
@@ -2405,23 +2397,18 @@ static int retrans_pkt(const void *data)
 	}
 
 	/* Remove the packet */
-	if (pkt->owner && (prev = ao2_find(pkt->owner->packets, pkt, OBJ_UNLINK | OBJ_POINTER))) {
-		/* Destroy the container's reference (inherited) */
-		ao2_ref(prev, -1);
-		sip_pvt_unlock(pkt->owner);
-		/* Now destroy our initial reference */
-		ao2_ref(pkt, -1);
-		/* And destroy the sched ref */
-		ao2_ref(pkt, -1);
-		return 0;
-	} else {
-		ast_log(LOG_WARNING, "Weird, couldn't find packet owner!\n");
-		if (pkt->owner)
+	for (prev = NULL, cur = pkt->owner->packets; cur; prev = cur, cur = cur->next) {
+		if (cur == pkt) {
+			UNLINK(cur, pkt->owner->packets, prev);
 			sip_pvt_unlock(pkt->owner);
-		ao2_ref(pkt, -1); /* Initial ref */
-		ao2_ref(pkt, -1); /* Sched ref */
-		return 0;
+			ast_free(pkt);
+			return 0;
+		}
 	}
+	/* error case */
+	ast_log(LOG_WARNING, "Weird, couldn't find packet owner!\n");
+	sip_pvt_unlock(pkt->owner);
+	return 0;
 }
 
 /*! \brief Transmit packet with retransmits 
@@ -2433,7 +2420,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	int siptimer_a = DEFAULT_RETRANS;
 	int xmitres = 0;
 
-	if (!(pkt = ao2_alloc(sizeof(*pkt) + len + 1, ast_free)))
+	if (!(pkt = ast_calloc(1, sizeof(*pkt) + len + 1)))
 		return AST_FAILURE;
 	/* copy data, add a terminator and save length */
 	memcpy(pkt->data, data, len);
@@ -2445,13 +2432,17 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	pkt->is_resp = resp;
 	pkt->is_fatal = fatal;
 	pkt->owner = dialog_ref(p);
+	pkt->next = p->packets;
+	p->packets = pkt;
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
 	if (pkt->timer_t1)
 		siptimer_a = pkt->timer_t1 * 2;
 
-	if (option_debug > 3 && sipdebug)
-		ast_log(LOG_DEBUG, "*** SIP TIMER: Initializing retransmit timer on packet: Id  #%d\n", pkt->retransid);
-
+	/* Schedule retransmission */
+	pkt->retransid = ast_sched_replace_variable(pkt->retransid, sched, 
+		siptimer_a, retrans_pkt, pkt, 1);
+	if (sipdebug)
+		ast_debug(4, "*** SIP TIMER: Initializing retransmit timer on packet: Id  #%d\n", pkt->retransid);
 	if (sipmethod == SIP_INVITE) {
 		/* Note this is a pending invite */
 		p->pendinginvite = seqno;
@@ -2461,25 +2452,11 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 
 	if (xmitres == XMIT_ERROR) {	/* Serious network trouble, no need to try again */
 		append_history(pkt->owner, "XmitErr", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
+		ast_sched_del(sched, pkt->retransid);	/* No more retransmission */
 		pkt->retransid = -1;
-		ao2_ref(pkt, -1);	/* and deallocate */
 		return AST_FAILURE;
-	} else {
-		/* Add refcount for scheduler pointer */
-		ao2_ref(pkt, 1);
-		/* Schedule retransmission */
-		pkt->retransid = ast_sched_add_variable(sched, siptimer_a, retrans_pkt, pkt, 1);
-		/* Link into the list of packets */
-		ao2_link(p->packets, pkt);
+	} else
 		return AST_SUCCESS;
-	}
-}
-
-static int __deref_ao2_owner_cb(void *obj, void *unused, int flags)
-{
-	struct sip_pkt *pkt = obj;
-	pkt->owner = NULL;
-	return 0;
 }
 
 /*! \brief Kill a SIP dialog (called only by the scheduler)
@@ -2500,11 +2477,11 @@ static int __sip_autodestruct(const void *data)
 		return 10000;	/* Reschedule this destruction so that we know that it's gone */
 	}
 
-	/* If there are packets still waiting for delivery, make sure they can't callback to us anymore. */
-	if (ao2_container_count(p->packets)) {
-		sip_pvt_lock(p);
-		ao2_callback(p->packets, 0, __deref_ao2_owner_cb, NULL);
-		sip_pvt_unlock(p);
+	/* If there are packets still waiting for delivery, delay the destruction */
+	if (p->packets) {
+		ast_debug(3, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
+		append_history(p, "ReliableXmit", "timeout");
+		return 10000;
 	}
 
 	if (p->subscribed == MWI_NOTIFICATION)
@@ -2568,8 +2545,7 @@ static void sip_cancel_destroy(struct sip_pvt *p)
 /*! \brief Acknowledges receipt of a packet and stops retransmission */
 static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 {
-	struct sip_pkt *cur;
-	struct ao2_iterator ao2i;
+	struct sip_pkt *cur, *prev = NULL;
 	const char *msg = "Not Found";	/* used only for debugging */
 
 	sip_pvt_lock(p);
@@ -2582,8 +2558,7 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 	if (p->outboundproxy && !p->outboundproxy->force)
 		p->outboundproxy = NULL;
 
-	ao2i = ao2_iterator_init(p->packets, 0);
-	while ((cur = ao2_iterator_next(&ao2i))) {
+	for (cur = p->packets; cur; prev = cur, cur = cur->next) {
 		if (cur->seqno != seqno || cur->is_resp != resp)
 			continue;
 		if (cur->is_resp || cur->method == sipmethod) {
@@ -2595,65 +2570,57 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			if (cur->retransid > -1) {
 				if (sipdebug)
 					ast_debug(4, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
-				if (!ast_sched_del(sched, cur->retransid))
-					ao2_ref(cur, -1); /* scheduler deref */
+				ast_sched_del(sched, cur->retransid);
 				cur->retransid = -1;
 			}
-
-			/* Remove it from the list */
-			ao2_unlink(p->packets, cur);
-			ao2_ref(cur, -1); /* iterator deref */
+			UNLINK(cur, p->packets, prev);
+			dialog_unref(cur->owner);
+			ast_free(cur);
 			break;
 		}
-
-		ao2_ref(cur, -1); /* iterator deref */
 	}
 	sip_pvt_unlock(p);
 	ast_debug(1, "Stopping retransmission on '%s' of %s %d: Match %s\n",
 		p->callid, resp ? "Response" : "Request", seqno, msg);
 }
 
-static int __sip_pretend_ack_cb(void *obj, void *vp, int flags)
-{
-	struct sip_pvt *p = vp;
-	struct sip_pkt *pkt = obj;
-	__sip_ack(p, pkt->seqno, pkt->is_resp, pkt->method ? pkt->method : find_sip_method(pkt->data));
-	return 0;
-}
-
-/*! \brief Pretend to ack all packets */
+/*! \brief Pretend to ack all packets
+ * maybe the lock on p is not strictly necessary but there might be a race */
 static void __sip_pretend_ack(struct sip_pvt *p)
 {
-	ao2_callback(p->packets, 0, __sip_pretend_ack_cb, p);
+	struct sip_pkt *cur = NULL;
+
+	while (p->packets) {
+		int method;
+		if (cur == p->packets) {
+			ast_log(LOG_WARNING, "Have a packet that doesn't want to give up! %s\n", sip_methods[cur->method].text);
+			return;
+		}
+		cur = p->packets;
+		method = (cur->method) ? cur->method : find_sip_method(cur->data);
+		__sip_ack(p, cur->seqno, cur->is_resp, method);
+	}
 }
 
 /*! \brief Acks receipt of packet, keep it around (used for provisional responses) */
 static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 {
-	struct sip_pkt *cur, *found;
+	struct sip_pkt *cur;
 	int res = -1;
-	struct ao2_iterator ao2i;
 
-	ao2i = ao2_iterator_init(p->packets, 0);
-	while ((cur = ao2_iterator_next(&ao2i))) {
+	for (cur = p->packets; cur; cur = cur->next) {
 		if (cur->seqno == seqno && cur->is_resp == resp &&
 			(cur->is_resp || method_match(sipmethod, cur->data))) {
 			/* this is our baby */
 			if (cur->retransid > -1) {
 				if (sipdebug)
 					ast_debug(4, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, sip_methods[sipmethod].text);
-				if (!ast_sched_del(sched, cur->retransid))
-					ao2_ref(cur, -1); /* scheduler deref */
+				ast_sched_del(sched, cur->retransid);
 				cur->retransid = -1;
 			}
 			res = 0;
-			/* Now remove it from the packet list. */
-			if ((found = ao2_find(p->packets, cur, OBJ_UNLINK | OBJ_POINTER)))
-				ao2_ref(found, -1); /* container item deref */
-			ao2_ref(cur, -1); /* iterator deref */
 			break;
 		}
-		ao2_ref(cur, -1); /* iterator deref */
 	}
 	ast_debug(1, "(Provisional) Stopping retransmission (but retaining packet) on '%s' %s %d: %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
 	return res;
@@ -3764,21 +3731,11 @@ static void sip_registry_destroy(struct sip_registry *reg)
 	
 }
 
-static int __sip_destroy_packet_cb(void *obj, void *unused, int flags)
-{
-	struct sip_pkt *pkt = obj;
-	if (pkt->retransid > -1) {
-		if (!ast_sched_del(sched, pkt->retransid))
-			ao2_ref(pkt, -1); /* scheduler deref */
-	}
-	pkt->owner = NULL;
-	return 0;
-}
-
 /*! \brief Execute destruction of SIP dialog structure, release memory */
 static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 {
 	struct sip_pvt *cur, *prev = NULL;
+	struct sip_pkt *cp;
 
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Really destroying SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
@@ -3864,8 +3821,13 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	} 
 
 	/* remove all current packets in this dialog */
-	ao2_callback(p->packets, 0, __sip_destroy_packet_cb, NULL);
-
+	while((cp = p->packets)) {
+		p->packets = p->packets->next;
+		if (cp->retransid > -1)
+			ast_sched_del(sched, cp->retransid);
+		dialog_unref(cp->owner);
+		ast_free(cp);
+	}
 	if (p->chanvars) {
 		ast_variables_destroy(p->chanvars);
 		p->chanvars = NULL;
@@ -5145,22 +5107,6 @@ static void make_our_tag(char *tagbuf, size_t len)
 	snprintf(tagbuf, len, "as%08lx", ast_random());
 }
 
-static int packet_hash_fn(const void *obj, const int flags)
-{
-	const struct sip_pkt *pkt = obj;
-	return pkt->seqno;
-}
-
-static int packet_cmp_fn(void *obj1, void *obj2, int flags)
-{
-	struct sip_pkt *p1 = obj1, *p2 = obj2;
-
-	if (flags & OBJ_POINTER)
-		return p1 == p2 ? CMP_MATCH : 0;
-	else
-		return p1->seqno == p2->seqno ? CMP_MATCH : 0;
-}
-
 /*! \brief Allocate sip_pvt structure, set defaults and link in the container.
  * Returns a reference to the object so whoever uses it later must
  * remember to release the reference.
@@ -5169,18 +5115,11 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 				 int useglobal_nat, const int intended_method)
 {
 	struct sip_pvt *p;
-	struct ao2_container *aoc;
 
-	if (!(aoc = ao2_container_alloc(37, packet_hash_fn, packet_cmp_fn)))
+	if (!(p = ast_calloc(1, sizeof(*p))))
 		return NULL;
-
-	if (!(p = ast_calloc(1, sizeof(*p)))) {
-		ao2_ref(aoc, -1);
-		return NULL;
-	}
 
 	if (ast_string_field_init(p, 512)) {
-		ao2_ref(aoc, -1);
 		ast_free(p);
 		return NULL;
 	}
@@ -5194,7 +5133,6 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	p->subscribed = NONE;
 	p->stateid = -1;
 	p->prefs = default_prefs;		/* Set default codecs for this call */
-	p->packets = aoc;
 
 	if (intended_method != SIP_OPTIONS) {	/* Peerpoke has it's own system */
 		p->timer_t1 = global_t1;	/* Default SIP retransmission timer T1 (RFC 3261) */
@@ -17151,8 +17089,7 @@ restartsearch:
 			/* If we have sessions that needs to be destroyed, do it now */
 			/* Check if we have outstanding requests not responsed to or an active call
 				- if that's the case, wait with destruction */
-			if (dialog->needdestroy && !ao2_container_count(dialog->packets) &&
-			    !dialog->owner) {
+			if (dialog->needdestroy && !dialog->packets && !dialog->owner) {
 				sip_pvt_unlock(dialog);
 				__sip_destroy(dialog, TRUE, FALSE);
 				goto restartsearch;
