@@ -6041,6 +6041,29 @@ static int zt_wink(struct zt_pvt *p, int index)
 	return 0;
 }
 
+/*! enable or disable the chan_zap Do-Not-Disturb mode for a Zaptel channel
+ * @zapchan "Physical" Zaptel channel (e.g: Zap/5)
+ * @on: 1 to enable, 0 to disable
+ *
+ * chan_zap has a DND (Do Not Disturb) mode for each zapchan (physical 
+ * zaptel channel). Use this to enable or disable it.
+ *
+ * \fixme the use of the word "channel" for those zapchans is really
+ * confusing.
+ */
+static void zap_dnd(struct zt_pvt *zapchan, int on)
+{
+	/* Do not disturb */
+	zapchan->dnd = on;
+	ast_verb(3, "%s DND on channel %d\n", 
+			on? "Enabled" : "Disabled",
+			zapchan->channel);
+	manager_event(EVENT_FLAG_SYSTEM, "DNDState",
+			"Channel: Zap/%d\r\n"
+			"Status: %s\r\n", zapchan->channel,
+			on? "enabled" : "disabled");
+}
+
 static void *ss_thread(void *data)
 {
 	struct ast_channel *chan = data;
@@ -6557,24 +6580,16 @@ static void *ss_thread(void *data)
 					res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				break;
 			} else if (!strcmp(exten, "*78")) {
+				zap_dnd(p, 1);
 				/* Do not disturb */
-				ast_verb(3, "Enabled DND on channel %d\n", p->channel);
-				manager_event(EVENT_FLAG_SYSTEM, "DNDState",
-							"Channel: Zap/%d\r\n"
-							"Status: enabled\r\n", p->channel);
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
-				p->dnd = 1;
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
 			} else if (!strcmp(exten, "*79")) {
+				zap_dnd(p, 0);
 				/* Do not disturb */
-				ast_verb(3, "Disabled DND on channel %d\n", p->channel);
-				manager_event(EVENT_FLAG_SYSTEM, "DNDState",
-							"Channel: Zap/%d\r\n"
-							"Status: disabled\r\n", p->channel);
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
-				p->dnd = 0;
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
@@ -11699,6 +11714,7 @@ static char *zap_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			ast_cli(a->fd, "Default law: %s\n", tmp->law == ZT_LAW_MULAW ? "ulaw" : tmp->law == ZT_LAW_ALAW ? "alaw" : "unknown");
 			ast_cli(a->fd, "Fax Handled: %s\n", tmp->faxhandled ? "yes" : "no");
 			ast_cli(a->fd, "Pulse phone: %s\n", tmp->pulsedial ? "yes" : "no");
+			ast_cli(a->fd, "DND: %s\n", tmp->dnd ? "yes" : "no");
 			ast_cli(a->fd, "Echo Cancellation:\n");
 #if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
 			if (tmp->echocancel.head.tap_length) {
@@ -12082,6 +12098,63 @@ static char *zap_set_swgain(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 }
 
+static char *zap_set_dnd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int channel;
+	int on;
+	struct zt_pvt *zt_chan = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "zap set dnd";
+		e->usage = 
+			"Usage: zap set dnd <chan#> <on|off>\n"
+			"   Sets/resets DND (Do Not Disturb) mode on a channel.\n"
+			"   Changes take effect immediately.\n"
+			"   <chan num> is the channel number\n"
+			"   <on|off> Enable or disable DND mode?\n"
+			;
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+
+	if (a->argc != 5)
+		return CLI_SHOWUSAGE;
+
+	if ((channel = atoi(a->argv[3])) <= 0) {
+		ast_cli(a->fd, "Expected channel number, got '%s'\n", a->argv[3]);
+		return CLI_SHOWUSAGE;
+	}
+	
+	if (ast_true(a->argv[4]))
+		on = 1;
+	else if (ast_false(a->argv[4]))
+		on = 0;
+	else {
+		ast_cli(a->fd, "Expected 'on' or 'off', got '%s'\n", a->argv[4]);
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_mutex_lock(&iflock);
+	for (zt_chan = iflist; zt_chan; zt_chan = zt_chan->next) {
+		if (zt_chan->channel != channel)
+			continue;
+
+		/* Found the channel. Actually set it */
+		zap_dnd(zt_chan, on);
+		break;
+	}
+	ast_mutex_unlock(&iflock);
+
+	if (!zt_chan) {
+		ast_cli(a->fd, "Unable to find given channel %d\n", channel);
+		return CLI_FAILURE;
+	}
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry zap_cli[] = {
 	AST_CLI_DEFINE(handle_zap_show_cadences, "List cadences"),
 	AST_CLI_DEFINE(zap_show_channels, "Show active zapata channels"),
@@ -12094,6 +12167,7 @@ static struct ast_cli_entry zap_cli[] = {
 	AST_CLI_DEFINE(zap_set_hwgain, "Set hardware gain on a channel"),
 #endif
 	AST_CLI_DEFINE(zap_set_swgain, "Set software gain on a channel"),
+	AST_CLI_DEFINE(zap_set_dnd, "Set software gain on a channel"),
 };
 
 #define TRANSFER	0

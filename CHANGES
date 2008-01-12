@@ -197,6 +197,9 @@ Zaptel channel driver (chan_zap) Changes
     does not specify signalling for a channel (which is unlikely as the sample
     configuration file has always recommended specifying it for every channel) then
     the 'auto' mode will be used for that channel if possible.
+  * Added a 'zap set dnd' command to allow CLI control of the Do-Not-Disturb
+    state for a channel; also ensured that the DNDState Manager event is
+    emitted no matter how the DND state is set or cleared.
 
 A new channel driver: Unistim
 -----------------------------
