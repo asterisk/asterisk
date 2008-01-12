@@ -849,6 +849,10 @@ static void *httpd_helper_thread(void *data)
 				"%s",
 			status, title ? title : "OK", ast_get_version(), timebuf,
 			static_content ? "" : "Cache-Control: no-cache, no-store\r\n");
+			/* We set the no-cache headers only for dynamic content.
+			* If you want to make sure the static file you requested is not from cache,
+			* append a random variable to your GET request.  Ex: 'something.html?r=109987734'
+			*/
 		if (!contentlength) {	/* opaque body ? just dump it hoping it is properly formatted */
 			fprintf(ser->f, "%s", out->str);
 		} else {
