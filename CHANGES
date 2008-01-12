@@ -76,6 +76,7 @@ CLI Changes
   * Enhanced "agi debug" to print the channel name as a prefix to the debug
      output to make debugging on busy systems much easier.
   * New CLI commands "dialplan set extenpatternmatching true/false"
+  * New CLI command: "core set chanvar" to set a channel variable from the CLI.
 
 SIP changes
 -----------

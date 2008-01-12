@@ -4931,11 +4931,49 @@ static char *handle_set_global(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return NULL;	
 	}
 
-	if (a->argc != 5)
+	if (a->argc != e->args + 2)
 		return CLI_SHOWUSAGE;
 
 	pbx_builtin_setvar_helper(NULL, a->argv[3], a->argv[4]);
 	ast_cli(a->fd, "\n    -- Global variable %s set to %s\n", a->argv[3], a->argv[4]);
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_set_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_channel *chan;
+	const char *chan_name, *var_name, *var_value;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core set chanvar";
+		e->usage = 
+			"Usage: core set chanvar <channel> <varname> <value>\n"
+			"       Set channel variable <varname> to <value>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return ast_complete_channels(a->line, a->word, a->pos, a->n, 3);
+	}
+
+	if (a->argc != e->args + 3)
+		return CLI_SHOWUSAGE;
+
+	chan_name = a->argv[e->args];
+	var_name = a->argv[e->args + 1];
+	var_value = a->argv[e->args + 2];
+
+	if (!(chan = ast_get_channel_by_name_locked(chan_name))) {
+		ast_cli(a->fd, "Channel '%s' not found\n", chan_name);
+		return CLI_FAILURE;
+	}
+
+	pbx_builtin_setvar_helper(chan, var_name, var_value);
+
+	ast_channel_unlock(chan);
+
+	ast_cli(a->fd, "\n    -- Channel variable '%s' set to '%s' for '%s'\n", 
+		var_name, var_value, chan_name);
 
 	return CLI_SUCCESS;
 }
@@ -5009,6 +5047,7 @@ static struct ast_cli_entry pbx_cli[] = {
 	AST_CLI_DEFINE(handle_show_function, "Describe a specific dialplan function"),
 	AST_CLI_DEFINE(handle_show_application, "Describe a specific dialplan application"),
 	AST_CLI_DEFINE(handle_set_global, "Set global dialplan variable"),
+	AST_CLI_DEFINE(handle_set_chanvar, "Set a channel variable"),
 	AST_CLI_DEFINE(handle_show_dialplan, "Show dialplan"),
 	AST_CLI_DEFINE(handle_unset_extenpatternmatchnew, "Use the Old extension pattern matching algorithm."),
 	AST_CLI_DEFINE(handle_set_extenpatternmatchnew, "Use the New extension pattern matching algorithm."),
