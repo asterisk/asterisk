@@ -997,8 +997,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), username);
 	} else if (!strcasecmp(astman_get_header(m, "AuthType"), "MD5")) {
 		const char *key = astman_get_header(m, "Key");
-		if (!ast_strlen_zero(key) && !ast_strlen_zero(s->challenge) &&
-		    !ast_strlen_zero(password)) {
+		if (!ast_strlen_zero(key) && !ast_strlen_zero(s->challenge)) {
 			int x;
 			int len = 0;
 			char md5key[256] = "";
@@ -1007,7 +1006,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 
 			MD5Init(&md5);
 			MD5Update(&md5, (unsigned char *) s->challenge, strlen(s->challenge));
-			MD5Update(&md5, (unsigned char *) password, strlen(password));
+			MD5Update(&md5, (unsigned char *) user->secret, strlen(user->secret));
 			MD5Final(digest, &md5);
 			for (x=0; x<16; x++)
 				len += sprintf(md5key + len, "%2.2x", digest[x]);
