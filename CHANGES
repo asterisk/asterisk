@@ -43,22 +43,22 @@ AMI - The manager (TCP/TLS/HTTP)
 Dialplan functions
 ------------------
   * Added the DEVICE_STATE() dialplan function which allows retrieving any device
-    state in the dialplan, as well as creating custom device states that are
-    controllable from the dialplan.
+     state in the dialplan, as well as creating custom device states that are
+     controllable from the dialplan.
   * Extend CALLERID() function with "pres" and "ton" parameters to
      fetch string representation of calling number presentation indicator
      and numeric representation of type of calling number value.
   * MailboxExists converted to dialplan function
   * A new option to Dial() for telling IP phones not to count the call
-    as "missed" when dial times out and cancels.
+     as "missed" when dial times out and cancels.
   * Added LOCK(), TRYLOCK(), and UNLOCK(), which provide a single level dialplan
-    mutex.  No deadlocks are possible, as LOCK() only allows a single lock to be
-    held for any given channel.  Also, locks are automatically freed when a
-    channel is hung up.
+     mutex.  No deadlocks are possible, as LOCK() only allows a single lock to be
+     held for any given channel.  Also, locks are automatically freed when a
+     channel is hung up.
   * Added HINT() dialplan function that allows retrieving hint information.
-    Hints are mappings between extensions and devices for the sake of 
-    determining the state of an extension.  This function can retrieve the list
-    of devices or the name associated with a hint.
+     Hints are mappings between extensions and devices for the sake of 
+     determining the state of an extension.  This function can retrieve the list
+     of devices or the name associated with a hint.
   * Added EXTENSION_STATE() dialplan function which allows retrieving the state
     of any extension.
   * Added SYSINFO() dialplan function which allows retrieval of system information
@@ -114,13 +114,13 @@ SIP changes
      states it is not needed. For phones, however, that do require it the "registertrying" option
      has been added so it can be enabled. 
   * A new option called "callcounter" (global/peer/user level) enables call counters needed
-    for better status reports needed for queues and SIP subscriptions. (Call-Limit was previously
-    used to enable this functionality).
+     for better status reports needed for queues and SIP subscriptions. (Call-Limit was previously
+     used to enable this functionality).
   * New settings for timer T1 and timer B on a global level or per device. This makes it 
-    possible to force timeout faster on non-responsive SIP servers. These settings are
-    considered advanced, so don't use them unless you have a problem.
+     possible to force timeout faster on non-responsive SIP servers. These settings are
+     considered advanced, so don't use them unless you have a problem.
   * Added a dial string option to be able to set the To: header in an INVITE to any
-    SIP uri.
+     SIP uri.
   * Added a new global and per-peer option, qualifyfreq, which allows you to configure
      the qualify frequency.
 
@@ -150,11 +150,6 @@ Console Channel Driver changes
   * Added experimental support for video send & receive to chan_oss.
     This requires SDL and ffmpeg/avcodec, plus Video4Linux or X11 to act as
     a video source.
-  * Added a new channel driver, chan_console, which uses portaudio as a cross
-     platform audio interface.  It was written as a channel driver that would
-     work with Mac CoreAudio, but portaudio supports a number of other audio
-     interfaces, as well. Note that this channel driver requires v19 or higher
-     of portaudio; older versions have a different API.
 
 Phone channel changes (chan_phone)
 ----------------------------------
@@ -181,8 +176,8 @@ Zaptel channel driver (chan_zap) Changes
 ----------------------------------------
   * SS7 support in chan_zap (via libss7 library)
   * In India, some carriers transmit CID via dtmf. Some code has been added
-    that will handle some situations. The cidstart=polarity_IN choice has been added for
-    those carriers that transmit CID via dtmf after a polarity change.
+     that will handle some situations. The cidstart=polarity_IN choice has been added for
+     those carriers that transmit CID via dtmf after a polarity change.
   * CID matching information is now shown when doing 'dialplan show'.
   * Added zap show version CLI command to chan_zap.
   * Added setvar support to zapata.conf channel entries.
@@ -192,21 +187,26 @@ Zaptel channel driver (chan_zap) Changes
      event indicating the new state of the mailbox is also generated, so that
      the normal MWI facilities in Asterisk work as usual.
   * Added signalling type 'auto', which attempts to use the same signalling type
-    for a channel as configured in Zaptel. This is primarily designed for analog
-    ports, but will also work for digital ports that are configured for FXS or FXO
-    signalling types. This mode is also the default now, so if your zapata.conf
-    does not specify signalling for a channel (which is unlikely as the sample
-    configuration file has always recommended specifying it for every channel) then
-    the 'auto' mode will be used for that channel if possible.
+     for a channel as configured in Zaptel. This is primarily designed for analog
+     ports, but will also work for digital ports that are configured for FXS or FXO
+     signalling types. This mode is also the default now, so if your zapata.conf
+     does not specify signalling for a channel (which is unlikely as the sample
+     configuration file has always recommended specifying it for every channel) then
+     the 'auto' mode will be used for that channel if possible.
   * Added a 'zap set dnd' command to allow CLI control of the Do-Not-Disturb
-    state for a channel; also ensured that the DNDState Manager event is
-    emitted no matter how the DND state is set or cleared.
+     state for a channel; also ensured that the DNDState Manager event is
+     emitted no matter how the DND state is set or cleared.
 
-A new channel driver: Unistim
------------------------------
+New Channel Drivers
+-------------------
   * Added a new channel driver, chan_unistim.  See doc/unistim.txt and
      configs/unistim.conf.sample for details.  This new channel driver allows
      you to use Nortel i2002, i2004, and i2050 phones with Asterisk.
+  * Added a new channel driver, chan_console, which uses portaudio as a cross
+     platform audio interface.  It was written as a channel driver that would
+     work with Mac CoreAudio, but portaudio supports a number of other audio
+     interfaces, as well. Note that this channel driver requires v19 or higher
+     of portaudio; older versions have a different API.
  
 DUNDi changes
 -------------
@@ -350,8 +350,8 @@ Music On Hold Changes
      to this music on hold class.
   * Support for realtime music on hold has been added.
   * In conjunction with the realtime music on hold, a general section has
-    been added to musiconhold.conf, its sole variable is cachertclasses. If this
-    is set, then music on hold classes found in realtime will be cached in memory.
+     been added to musiconhold.conf, its sole variable is cachertclasses. If this
+     is set, then music on hold classes found in realtime will be cached in memory.
 
 AEL Changes
 -----------
@@ -373,11 +373,11 @@ AEL Changes
      fashion:  Set(LOCAL(myvar)=someval);  ("local" is now
      an AEL keyword).
   * utils/conf2ael introduced. Will convert an extensions.conf
-    file into extensions.ael. Very crude and unfinished, but 
-    will be improved as time goes by. Should be useful for a
-    first pass at conversion.
+     file into extensions.ael. Very crude and unfinished, but 
+     will be improved as time goes by. Should be useful for a
+     first pass at conversion.
   * aelparse will now read extensions.conf to see if a referenced
-    macro or context is there before issueing a warning.
+     macro or context is there before issueing a warning.
 
 Call Features (res_features) Changes
 ------------------------------------
@@ -417,39 +417,10 @@ Logger changes
      and to ensure that the oldest log file gets deleted.
   * Added realtime support for the queue log
 
-Miscellaneous 
--------------
-  * Ability to use libcap to set high ToS bits when non-root
-     on Linux. If configure is unable to find libcap then you
-     can use --with-cap to specify the path.
-  * Added maxfiles option to options section of asterisk.conf which allows you to specify
-     what Asterisk should set as the maximum number of open files when it loads.
-  * Added the jittertargetextra configuration option.
+Miscellaneous New Modules
+-------------------------
   * Added a new CDR module, cdr_sqlite3_custom.
-  * The cdr_manager module has a [mappings] feature, like cdr_custom,
-    to add fields to the manager event from the CDR variables.
   * Added a new realtime configuration module, res_config_sqlite
-  * Added support for setting the CoS for VLAN traffic (802.1p).  See the sample
-     configuration files for the IP channel drivers.  The new option is "cos".
-     This information is also documented in doc/qos.tex, or the IP Quality of Service
-     section of asterisk.pdf.
-  * When originating a call using AMI or pbx_spool that fails the reason for failure
-     will now be available in the failed extension using the REASON dialplan variable.
-  * Added support for reading the TOUCH_MONITOR_PREFIX channel variable.
-     It allows you to configure a prefix for auto-monitor recordings.
-  * Added support for writing and running your dialplan in lua.  See
-     configs/extensions.lua.sample for examples of how to do this.
-  * A new extension pattern matching algorithm, based on a trie, is introduced
-    here, that could noticeably speed up mid-sized to large dialplans.
-    It is NOT used by default, as duplicating the behaviour of the old pattern
-    matcher is still under development. A config file option, in extensions.conf,
-    in the [general] section, called "extenpatternmatchingnew", is by default
-    set to false; setting that to true will force the use of the new algorithm.
-    Also, the cli commands "dialplan set extenpatternmatchingnew true/false" can
-    be used to switch the algorithms at run time.
-  * A new option when starting a remote asterisk (rasterisk, asterisk -r) for
-    specifying which socket to use to connect to the running Asterisk daemon
-    (-s)
   * Added a new codec translation module, codec_resample, which re-samples
      signed linear audio between 8 kHz and 16 kHz to help support wideband
      codecs.
@@ -473,3 +444,36 @@ Miscellaneous
      on as the channel's audio.  This is very useful for building custom
      vocoders or doing recording or analysis of the channel's audio in another
      application.
+
+Miscellaneous 
+-------------
+  * Ability to use libcap to set high ToS bits when non-root
+     on Linux. If configure is unable to find libcap then you
+     can use --with-cap to specify the path.
+  * Added maxfiles option to options section of asterisk.conf which allows you to specify
+     what Asterisk should set as the maximum number of open files when it loads.
+  * Added the jittertargetextra configuration option.
+  * The cdr_manager module has a [mappings] feature, like cdr_custom,
+    to add fields to the manager event from the CDR variables.
+  * Added support for setting the CoS for VLAN traffic (802.1p).  See the sample
+     configuration files for the IP channel drivers.  The new option is "cos".
+     This information is also documented in doc/qos.tex, or the IP Quality of Service
+     section of asterisk.pdf.
+  * When originating a call using AMI or pbx_spool that fails the reason for failure
+     will now be available in the failed extension using the REASON dialplan variable.
+  * Added support for reading the TOUCH_MONITOR_PREFIX channel variable.
+     It allows you to configure a prefix for auto-monitor recordings.
+  * Added support for writing and running your dialplan in lua.  See
+     configs/extensions.lua.sample for examples of how to do this.
+  * A new extension pattern matching algorithm, based on a trie, is introduced
+     here, that could noticeably speed up mid-sized to large dialplans.
+     It is NOT used by default, as duplicating the behaviour of the old pattern
+     matcher is still under development. A config file option, in extensions.conf,
+     in the [general] section, called "extenpatternmatchingnew", is by default
+     set to false; setting that to true will force the use of the new algorithm.
+     Also, the cli commands "dialplan set extenpatternmatchingnew true/false" can
+     be used to switch the algorithms at run time.
+  * A new option when starting a remote asterisk (rasterisk, asterisk -r) for
+     specifying which socket to use to connect to the running Asterisk daemon
+     (-s)
+
