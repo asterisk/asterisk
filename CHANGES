@@ -284,7 +284,7 @@ Queue changes
      rules in queuerules.conf. See configs/queuerules.conf.sample for details
   * Added a new parameter for member definition, called state_interface. This may be
     used so that a member may be called via one interface but have a different interface's
-	device state reported.
+    device state reported.
 
 MeetMe Changes
 --------------
@@ -460,4 +460,16 @@ Miscellaneous
      is currently only intended to provision a single user account per phone.
      An example profile and set of templates for Polycom phones is provided.
      NOTE: Polycom firmware is not included, but should be placed in
-     AST_DATA_DIR/phoneprov/configs to match up with the included templates. 
+     AST_DATA_DIR/phoneprov/configs to match up with the included templates.
+  * Added a new module, app_jack, which provides interfaces to JACK, the Jack
+     Audio Connection Kit (http://www.jackaudio.org/).  Two interfaces are
+     provided; there is a JACK() application, and a JACK_HOOK() function.  Both
+     interfaces create an input and output JACK port.  The application makes
+     these ports the endpoint of the call.  The audio coming from the channel
+     goes out the output port and whatever comes back in on the input port is
+     what gets sent to the channel.  The JACK_HOOK() function turns on a JACK
+     audiohook on the channel.  This lets you run the audio coming from a
+     channel through JACK, and whatever comes back in is what gets forwarded
+     on as the channel's audio.  This is very useful for building custom
+     vocoders or doing recording or analysis of the channel's audio in another
+     application.
