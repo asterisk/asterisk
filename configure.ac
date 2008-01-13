@@ -215,7 +215,6 @@ AST_EXT_LIB_SETUP([ICONV], [Iconv Library], [iconv])
 AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber Library], [iksemel])
 AST_EXT_LIB_SETUP([IMAP_TK], [UW IMAP Toolkit], [imap])
 AST_EXT_LIB_SETUP([ISDNNET], [ISDN4Linux Library], [isdnnet])
-AST_EXT_LIB_SETUP([KDE], [KDE], [kde])
 AST_EXT_LIB_SETUP([LTDL], [libtool], [ltdl])
 AST_EXT_LIB_SETUP([LUA], [Lua], [lua])
 AST_EXT_LIB_SETUP([MISDN], [mISDN User Library], [misdn])
@@ -810,55 +809,6 @@ fi
 
 # Needed by unixodbc
 AST_EXT_LIB_CHECK([LTDL], [ltdl], [lt_dlinit], [ltdl.h], [])
-
-AC_LANG_PUSH(C++)
-
-if test "${USE_KDE}" != "no"; then
-   AC_MSG_CHECKING(for crashHandler in -lkdecore)
-   saved_libs="${LIBS}"
-   saved_cppflags="${CPPFLAGS}"
-   CPPFLAGS="${CPPFLAGS} -I${KDE_DIR}/include"
-   if test -d ${KDE_DIR}/lib; then
-      kdelibdir="${KDE_DIR}/lib"
-   else
-      kdelibdir="${KDE_DIR}"
-   fi
-   LIBS="${LIBS} -L${kdelibdir} -lkdecore"
-
-   AC_LINK_IFELSE(
-	[AC_LANG_PROGRAM(
-			[#include "kcrash.h"],
-			[KCrash::defaultCrashHandler(1);])
-	],
-	[ac_cv_lib_kde_crash="yes"],
-	[ac_cv_lib_kde_crash="no"])
-		
-   LIBS="${saved_libs}"
-   CPPFLAGS="${saved_cppflags}"
-	
-   if test "${ac_cv_lib_kde_crash}" = "yes"; then
-      AC_MSG_RESULT(yes) 
-      KDE_LIB="-lkdecore -lkdeui"
-      if test "${KDE_DIR}" != ""; then
-      	 KDE_LIB="-L${kdelibdir} ${KDE_LIB}"
-	 KDE_INCLUDE="-I${KDE_DIR}/include"
-      fi
-      PBX_KDE=1
-      AC_DEFINE([HAVE_LIBKDE], 1, [Define if your system has the KDE libraries.])
-   else
-      AC_MSG_RESULT(no) 
-   fi
-fi
-if test "${PBX_KDE}" = 1; then
-   AC_PATH_TOOL(KDEINIT, kdeinit, No)
-   if test ! x"${KDEINIT}" = xNo; then
-      KDEDIR=$(${DIRNAME} ${KDEINIT})
-      KDEDIR=$(${DIRNAME} ${KDEDIR})
-   fi
-   AC_SUBST([KDEDIR])
-fi
-
-AC_LANG_POP
 
 AST_EXT_LIB_CHECK([MISDN], [mISDN], [mISDN_open], [mISDNuser/mISDNlib.h])
 
