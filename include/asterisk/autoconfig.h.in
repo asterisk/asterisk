@@ -367,6 +367,12 @@
 /* Define to indicate the ${ISDNNET_DESCRIP} library version */
 #undef HAVE_ISDNNET_VERSION
 
+/* Define this to indicate the ${JACK_DESCRIP} library */
+#undef HAVE_JACK
+
+/* Define to indicate the ${JACK_DESCRIP} library version */
+#undef HAVE_JACK_VERSION
+
 /* Define to 1 if you have the <libintl.h> header file. */
 #undef HAVE_LIBINTL_H
 
