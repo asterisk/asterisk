@@ -357,7 +357,6 @@ int ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list)
 	/* Drop any manipulaters */
 	while ((audiohook = AST_LIST_REMOVE_HEAD(&audiohook_list->manipulate_list, list))) {
 		ast_audiohook_lock(audiohook);
-		ast_mutex_lock(&audiohook->lock);
 		audiohook->status = AST_AUDIOHOOK_STATUS_DONE;
 		ast_audiohook_unlock(audiohook);
 		audiohook->manipulate_callback(audiohook, NULL, NULL, 0);
