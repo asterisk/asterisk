@@ -8812,8 +8812,10 @@ static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
 			if (vlist->vms->imapuser) {
 				if (!strcmp(vlist->vms->imapuser,user)) {
 					if (interactive == 2) {
+						ast_mutex_unlock(&vmstate_lock);
 						return vlist->vms;
 					} else if (vlist->vms->interactive == interactive) {
+						ast_mutex_unlock(&vmstate_lock);
 						return vlist->vms;
 					}
 				}
@@ -8849,6 +8851,7 @@ static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interac
 				if (!strcmp(vlist->vms->username,mailbox) && vlist->vms->interactive == interactive) {
 					if (option_debug > 2)
 						ast_log(LOG_DEBUG, "	Found it!\n");
+					ast_mutex_unlock(&vmstate_lock);
 					return vlist->vms;
 				}
 			} else {
