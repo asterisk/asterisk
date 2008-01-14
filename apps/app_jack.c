@@ -63,7 +63,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 "    i(<name>) - Connect the output port that gets created to the specified\n" \
 "                jack input port.\n" \
 "    o(<name>) - Connect the input port that gets created to the specified\n" \
-"                jack output port.\n"
+"                jack output port.\n" \
+"    n         - Do not automatically start the JACK server if it is not already\n" \
+"                running.\n"
 
 static char *jack_app = "JACK";
 static char *jack_synopsis = 
@@ -94,6 +96,7 @@ struct jack_data {
 	double input_resample_factor;
 	unsigned int stop:1;
 	unsigned int has_audiohook:1;
+	unsigned int no_start_server:1;
 	/*! Only used with JACK_HOOK */
 	struct ast_audiohook audiohook;
 };
@@ -349,6 +352,7 @@ static int init_jack_data(struct ast_channel *chan, struct jack_data *jack_data)
 {
 	const char *chan_name;
 	jack_status_t status = 0;
+	jack_options_t jack_options = JackNullOption;
 
 	ast_channel_lock(chan);
 	chan_name = ast_strdupa(chan->name);
@@ -360,11 +364,15 @@ static int init_jack_data(struct ast_channel *chan, struct jack_data *jack_data)
 	if (!(jack_data->input_rb = jack_ringbuffer_create(RINGBUFFER_SIZE)))
 		return -1;
 
+	if (jack_data->no_start_server)
+		jack_options |= JackNoStartServer;
+
 	if (!ast_strlen_zero(jack_data->server_name)) {
-		jack_data->client = jack_client_open(chan_name, JackServerName, &status,
+		jack_options |= JackServerName;
+		jack_data->client = jack_client_open(chan_name, jack_options, &status,
 			jack_data->server_name);
 	} else {
-		jack_data->client = jack_client_open(chan_name, JackNullOption, &status);
+		jack_data->client = jack_client_open(chan_name, jack_options, &status);
 	}
 
 	if (status)
@@ -598,9 +606,10 @@ static void handle_jack_audio(struct ast_channel *chan, struct jack_data *jack_d
 }
 
 enum {
-	OPT_SERVER_NAME = (1 << 0),
-	OPT_INPUT_PORT =  (1 << 1),
-	OPT_OUTPUT_PORT = (1 << 2),
+	OPT_SERVER_NAME =    (1 << 0),
+	OPT_INPUT_PORT =     (1 << 1),
+	OPT_OUTPUT_PORT =    (1 << 2),
+	OPT_NOSTART_SERVER = (1 << 3),
 };
 
 enum {
@@ -615,6 +624,7 @@ AST_APP_OPTIONS(jack_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('s', OPT_SERVER_NAME, OPT_ARG_SERVER_NAME),
 	AST_APP_OPTION_ARG('i', OPT_INPUT_PORT, OPT_ARG_INPUT_PORT),
 	AST_APP_OPTION_ARG('o', OPT_OUTPUT_PORT, OPT_ARG_OUTPUT_PORT),
+	AST_APP_OPTION('n', OPT_NOSTART_SERVER),
 END_OPTIONS );
 
 static struct jack_data *jack_data_alloc(void)
@@ -671,6 +681,8 @@ static int handle_options(struct jack_data *jack_data, const char *__options_str
 			return -1;
 		}
 	}
+
+	jack_data->no_start_server = ast_test_flag(&options, OPT_NOSTART_SERVER) ? 1 : 0;
 
 	return 0;
 }
