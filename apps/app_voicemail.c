@@ -380,6 +380,7 @@ struct ast_vm_user {
 	unsigned int flags;              /*!< VM_ flags */	
 	int saydurationm;
 	int maxmsg;                      /*!< Maximum number of msgs per folder for this mailbox */
+	int maxdeletedmsg;               /*!< Maximum number of deleted msgs saved for this mailbox */
 	int maxsecs;                     /*!< Maximum number of seconds per message for this mailbox */
 #ifdef IMAP_STORAGE
 	char imapuser[80];               /*!< IMAP server login */
@@ -563,6 +564,7 @@ static AST_LIST_HEAD_STATIC(users, ast_vm_user);
 static AST_LIST_HEAD_STATIC(zones, vm_zone);
 static int maxsilence;
 static int maxmsg;
+static int maxdeletedmsg;
 static int silencethreshold = 128;
 static char serveremail[80];
 static char mailcmd[160];	/* Configurable mail cmd */
@@ -683,6 +685,8 @@ static void populate_defaults(struct ast_vm_user *vmu)
 		vmu->maxsecs = vmmaxsecs;
 	if (maxmsg)
 		vmu->maxmsg = maxmsg;
+	if (maxdeletedmsg)
+		vmu->maxdeletedmsg = maxdeletedmsg;
 	vmu->volgain = volgain;
 }
 
@@ -756,6 +760,21 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		} else if (vmu->maxmsg > MAXMSGLIMIT) {
 			ast_log(LOG_WARNING, "Maximum number of messages per folder is %d. Cannot accept value maxmsg=%s\n", MAXMSGLIMIT, value);
 			vmu->maxmsg = MAXMSGLIMIT;
+		}
+	} else if (!strcasecmp(var, "backupdeleted")) {
+		if (sscanf(value, "%d", &x) == 1)
+			vmu->maxdeletedmsg = x;
+		else if (ast_true(value))
+			vmu->maxdeletedmsg = MAXMSG;
+		else
+			vmu->maxdeletedmsg = 0;
+
+		if (vmu->maxdeletedmsg < 0) {
+			ast_log(LOG_WARNING, "Invalid number of deleted messages saved per mailbox backupdeleted=%s. Using default value %d\n", value, MAXMSG);
+			vmu->maxdeletedmsg = MAXMSG;
+		} else if (vmu->maxdeletedmsg > MAXMSGLIMIT) {
+			ast_log(LOG_WARNING, "Maximum number of deleted messages saved per mailbox is %d. Cannot accept value backupdeleted=%s\n", MAXMSGLIMIT, value);
+			vmu->maxdeletedmsg = MAXMSGLIMIT;
 		}
 	} else if (!strcasecmp(var, "volgain")) {
 		sscanf(value, "%lf", &vmu->volgain);
@@ -2286,6 +2305,7 @@ static const char *mbox(int id)
 		"Cust3",
 		"Cust4",
 		"Cust5",
+		"Deleted",
 	};
 	return (id >= 0 && id < (sizeof(msgs)/sizeof(msgs[0]))) ? msgs[id] : "Unknown";
 }
@@ -2319,6 +2339,8 @@ static int folder_int(const char *folder)
 		return 8;
 	else if (!strcasecmp(folder, "Cust5"))
 		return 9;
+	else if (!strcasecmp(folder, "Deleted"))
+		return 10;
 	else /*assume they meant INBOX if folder is not found otherwise*/
 		return 0;
 }
@@ -3456,20 +3478,33 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	char dfn[PATH_MAX];
 	char ddir[PATH_MAX];
 	const char *dbox = mbox(box);
-	int x;
-	make_file(sfn, sizeof(sfn), dir, msg);
+	int x, i;
 	create_dirpath(ddir, sizeof(ddir), context, username, dbox);
 
 	if (vm_lock_path(ddir))
 		return ERROR_LOCK_PATH;
 
 	x = last_message_index(vmu, ddir) + 1;
-	make_file(dfn, sizeof(dfn), ddir, x);
 
-	if (x >= vmu->maxmsg) {
-		ast_unlock_path(ddir);
-		return -1;
+	if (box == 10 && x >= vmu->maxdeletedmsg) { /* "Deleted" folder*/
+		x--;
+		for (i = 1; i <= x; i++) {
+			/* Push files down a "slot".  The oldest file (msg0000) will be deleted. */
+			make_file(sfn, sizeof(sfn), ddir, i);
+			make_file(dfn, sizeof(dfn), ddir, i - 1);
+			if (EXISTS(ddir, i, sfn, NULL)) {
+				RENAME(ddir, i, vmu->mailbox, vmu->context, ddir, i - 1, sfn, dfn);
+			} else
+				break;
+		}
+	} else {
+		if (x >= vmu->maxmsg) {
+			ast_unlock_path(ddir);
+			return -1;
+		}
 	}
+	make_file(sfn, sizeof(sfn), dir, msg);
+	make_file(dfn, sizeof(dfn), ddir, x);
 	if (strcmp(sfn, dfn)) {
 		COPY(dir, msg, ddir, x, username, context, sfn, dfn);
 	}
@@ -5251,14 +5286,23 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 				vms->deleted[x] = 0;
 				vms->heard[x] = 0;
 				--x;
-			} 
+			}
+		} else if (vms->deleted[x] && vmu->maxdeletedmsg) {
+			/* Move to deleted folder */ 
+			res = save_to_folder(vmu, vms, x, 10);
+			if (res == ERROR_LOCK_PATH) {
+				/* If save failed do not delete the message */
+				vms->deleted[x] = 0;
+				vms->heard[x] = 0;
+				--x;
+			}
 		} else if (vms->deleted[x] && ast_check_realtime("voicemail_data")) {
 			/* If realtime storage enabled - we should explicitly delete this message,
 			cause RENAME() will overwrite files, but will keep duplicate records in RT-storage */
 			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x);
 			if (EXISTS(vms->curdir, x, vms->fn, NULL))
 				DELETE(vms->curdir, x, vms->fn);
-		} 
+		}
 	} 
 
 	/* Delete ALL remaining messages */
@@ -8174,6 +8218,25 @@ static int load_config(int reload)
 			} else if (maxmsg > MAXMSGLIMIT) {
 				ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value '%s'\n", MAXMSGLIMIT, val);
 				maxmsg = MAXMSGLIMIT;
+			}
+		}
+
+		if (!(val = ast_variable_retrieve(cfg, "general", "backupdeleted"))) {
+			maxdeletedmsg = 0;
+		} else {
+			if (sscanf(val, "%d", &x) == 1)
+				maxdeletedmsg = x;
+			else if (ast_true(val))
+				maxdeletedmsg = MAXMSG;
+			else
+				maxdeletedmsg = 0;
+
+			if (maxdeletedmsg < 0) {
+				ast_log(LOG_WARNING, "Invalid number of deleted messages saved per mailbox '%s'. Using default value %i\n", val, MAXMSG);
+				maxdeletedmsg = MAXMSG;
+			} else if (maxdeletedmsg > MAXMSGLIMIT) {
+				ast_log(LOG_WARNING, "Maximum number of deleted messages saved per mailbox is %i. Cannot accept value '%s'\n", MAXMSGLIMIT, val);
+				maxdeletedmsg = MAXMSGLIMIT;
 			}
 		}
 

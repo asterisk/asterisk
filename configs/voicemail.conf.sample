@@ -265,6 +265,13 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 ; listen-control-restart-key=2	; Customize the key that restarts message playback
 ; listen-control-stop-key=13456789	; Customize the keys that interrupt message playback, probably all keys not set above
 
+; Maximum number of messages allowed in the 'Deleted' folder. If set to 0
+; or no then no deleted messages will be moved. If non-zero (max 9999) then up
+; to this number of messages will be automagically saved when they are
+; 'deleted' on a FIFO basis.
+; defaults to being off
+; backupdeleted=100
+
 
 [zonemessages]
 eastern=America/New_York|'vm-received' Q 'digits/at' IMp

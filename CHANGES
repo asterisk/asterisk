@@ -256,6 +256,8 @@ Voicemail Changes
      future.  The default is the old behavior, lockfile.  However, there is a
      new method, "flock", that uses a different method for situations where the
      lockfile will not work, such as on SMB/CIFS mounts.
+  * Added the ability to backup deleted messages, to ease recovery in the case
+     that a user accidentally deletes a message, and discovers that they need it.
 
 Queue changes
 -------------
