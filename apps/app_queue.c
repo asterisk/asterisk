@@ -802,7 +802,7 @@ static void init_queue(struct call_queue *q)
 	q->joinempty = 0;
 	q->leavewhenempty = 0;
 	q->memberdelay = 0;
-	q->eventmemberstatus = 0;
+	q->maskmemberstatus = 0;
 	q->eventwhencalled = 0;
 	q->weight = 0;
 	q->timeoutrestart = 0;
