@@ -7298,6 +7298,8 @@ int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 	mydata = ast_strdupa(data);
 	name = strsep(&mydata, "=");
 	value = mydata;
+	if (strchr(name, ' '))
+		ast_log(LOG_WARNING, "Please avoid unnecessary spaces on variables as it may lead to unexpected results ('%s' set to '%s').\n", name, mydata);
 
 	pbx_builtin_setvar_helper(chan, name, value);
 	return(0);
@@ -7325,10 +7327,13 @@ static int pbx_builtin_setvar_multiple(struct ast_channel *chan, void *vdata)
 
 	for (x = 0; x < args.argc; x++) {
 		AST_NONSTANDARD_APP_ARGS(pair, args.pair[x], '=');
-		if (pair.argc == 2)
+		if (pair.argc == 2) {
 			pbx_builtin_setvar_helper(chan, pair.name, pair.value);
-		else
+			if (strchr(pair.name, ' '))
+				ast_log(LOG_WARNING, "Please avoid unnecessary spaces on variables as it may lead to unexpected results ('%s' set to '%s').\n", pair.name, pair.value);
+		} else {
 			ast_log(LOG_WARNING, "MSet: ignoring entry '%s' with no '=' (in %s@%s:%d\n", pair.name, chan->exten, chan->context, chan->priority);
+		}
 	}
 
 	return 0;
