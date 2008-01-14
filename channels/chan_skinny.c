@@ -2770,6 +2770,9 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 		d->prefs = default_prefs;
 		if (!ast_strlen_zero(vmexten))
 			ast_copy_string(device_vmexten, vmexten, sizeof(device_vmexten));
+		else
+			memset(device_vmexten, 0, sizeof(device_vmexten));
+
 		while(v) {
 			if (!strcasecmp(v->name, "host")) {
 				if (ast_get_ip(&d->addr, v->value)) {
@@ -2904,8 +2907,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 					ast_copy_string(l->mailbox, mailbox, sizeof(l->mailbox));
 					if (!ast_strlen_zero(mailbox))
 						ast_verb(3, "Setting mailbox '%s' on %s@%s\n", mailbox, d->name, l->name);
-					if (!ast_strlen_zero(device_vmexten))
-						ast_copy_string(l->vmexten, device_vmexten, sizeof(vmexten));
+					ast_copy_string(l->vmexten, device_vmexten, sizeof(vmexten));
 					l->chanvars = chanvars;
 					l->msgstate = -1;
 					l->capability = d->capability;
