@@ -64,6 +64,8 @@ Dialplan functions
   * Added SYSINFO() dialplan function which allows retrieval of system information
   * Added a new dialplan function, DIALPLAN_EXISTS(), which allows you to check for
      the existence of a dialplan target.
+  * Added two new dialplan functions, TOUPPER and TOLOWER, which convert a string to
+     upper and lower case, respectively.
 
 CLI Changes
 -----------
