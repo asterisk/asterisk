@@ -900,7 +900,6 @@ static void init_queue(struct call_queue *q)
 	q->montype = montype_default;
 	q->monfmt[0] = '\0';
 	q->reportholdtime = 0;
-	q->monitorjoin = 0;
 	q->wrapuptime = 0;
 	q->autofill = 0;
 	q->joinempty = 0;
