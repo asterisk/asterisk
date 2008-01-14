@@ -371,6 +371,18 @@ struct call_info_message {
 	uint32_t space[3];
 };
 
+#define FORWARD_STAT_MESSAGE 0x0090
+struct forward_stat_message {
+	uint32_t activeforward;
+	uint32_t lineNumber;
+	uint32_t fwdall;
+	char fwdallnum[24];
+	uint32_t fwdbusy;
+	char fwdbusynum[24];
+	uint32_t fwdnoanswer;
+	char fwdnoanswernum[24];
+};
+
 #define SPEED_DIAL_STAT_RES_MESSAGE 0x0091
 struct speed_dial_stat_res_message {
 	uint32_t speedDialNumber;
@@ -422,6 +434,7 @@ struct button_definition_template {
 #define STIMULUS_LINE			0x09
 #define STIMULUS_VOICEMAIL		0x0F
 #define STIMULUS_AUTOANSWER		0x11
+#define STIMULUS_DND			0x3F
 #define STIMULUS_CONFERENCE		0x7D
 #define STIMULUS_CALLPARK		0x7E
 #define STIMULUS_CALLPICKUP		0x7F
@@ -439,6 +452,7 @@ struct button_definition_template {
 #define BT_LINE				STIMULUS_LINE
 #define BT_VOICEMAIL			STIMULUS_VOICEMAIL
 #define BT_AUTOANSWER			STIMULUS_AUTOANSWER
+#define BT_DND				STIMULUS_DND
 #define BT_CONFERENCE			STIMULUS_CONFERENCE
 #define BT_CALLPARK			STIMULUS_CALLPARK
 #define BT_CALLPICKUP			STIMULUS_CALLPICKUP
@@ -551,6 +565,8 @@ struct soft_key_template_definition {
 #define SOFTKEY_MEETME			0x10
 #define SOFTKEY_PICKUP			0x11
 #define SOFTKEY_GPICKUP			0x12
+#define SOFTKEY_DND			0x13
+#define SOFTKEY_IDIVERT			0x14
 
 struct soft_key_template_definition soft_key_template_default[] = {
 	{ "\200\001", 		SOFTKEY_REDIAL },
@@ -571,6 +587,8 @@ struct soft_key_template_definition soft_key_template_default[] = {
 	{ "\200\020", 		SOFTKEY_MEETME },
 	{ "\200\021", 		SOFTKEY_PICKUP },
 	{ "\200\022", 		SOFTKEY_GPICKUP },
+	{ "\200\077", 		SOFTKEY_DND },
+	{ "\200\120", 		SOFTKEY_IDIVERT },
 };
 
 /* Localized message "codes" (in octal)
@@ -718,6 +736,7 @@ static const uint8_t soft_key_default_onhook[] = {
 	SOFTKEY_NEWCALL,
 	SOFTKEY_CFWDALL,
 	SOFTKEY_CFWDBUSY,
+	SOFTKEY_DND,
 	SOFTKEY_GPICKUP,
 	SOFTKEY_CONFRN,
 };
@@ -911,6 +930,7 @@ union skinny_data {
 	struct dialed_number_message dialednumber;
 	struct soft_key_event_message softkeyeventmessage;
 	struct enbloc_call_message enbloccallmessage;
+	struct forward_stat_message forwardstat;
 };
 
 /* packet composition */
@@ -1037,6 +1057,10 @@ static int canreinvite = 0;
 #define SKINNY_RING_OUTSIDE 3
 #define SKINNY_RING_FEATURE 4
 
+#define SKINNY_CFWD_ALL       (1 << 0)
+#define SKINNY_CFWD_BUSY      (1 << 1)
+#define SKINNY_CFWD_NOANSWER  (1 << 2)
+
 #define TYPE_TRUNK 1
 #define TYPE_LINE 2
 
@@ -1121,7 +1145,10 @@ struct skinny_line {
 	char cid_num[AST_MAX_EXTENSION];		/* Caller*ID */
 	char cid_name[AST_MAX_EXTENSION];		/* Caller*ID */
 	char lastcallerid[AST_MAX_EXTENSION];		/* Last Caller*ID */
-	char call_forward[AST_MAX_EXTENSION];
+	int cfwdtype;
+	char call_forward_all[AST_MAX_EXTENSION];
+	char call_forward_busy[AST_MAX_EXTENSION];
+	char call_forward_noanswer[AST_MAX_EXTENSION];
 	char mailbox[AST_MAX_EXTENSION];
 	char vmexten[AST_MAX_EXTENSION];
 	char regexten[AST_MAX_EXTENSION];		/* Extension for auto-extensions */
@@ -1137,6 +1164,7 @@ struct skinny_line {
 	int threewaycalling;
 	int mwiblink;
 	int cancallforward;
+	int getforward;
 	int callreturn;
 	int dnd; /* How does this affect callwait?  Do we just deny a skinny_request if we're dnd? */
 	int hascallerid;
@@ -1583,6 +1611,41 @@ static int codec_ast2skinny(int astcodec)
 	default:
 		return 0;
 	}
+}
+
+static int set_callforwards(struct skinny_line *l, const char *cfwd, int cfwdtype)
+{
+	if (!l)
+		return 0;
+
+	if (!ast_strlen_zero(cfwd)) {
+		if (cfwdtype & SKINNY_CFWD_ALL) {
+			l->cfwdtype |= SKINNY_CFWD_ALL;
+			ast_copy_string(l->call_forward_all, cfwd, sizeof(l->call_forward_all));
+		}
+		if (cfwdtype & SKINNY_CFWD_BUSY) {
+			l->cfwdtype |= SKINNY_CFWD_BUSY;
+			ast_copy_string(l->call_forward_busy, cfwd, sizeof(l->call_forward_busy));
+		}
+		if (cfwdtype & SKINNY_CFWD_NOANSWER) {
+			l->cfwdtype |= SKINNY_CFWD_NOANSWER;
+			ast_copy_string(l->call_forward_noanswer, cfwd, sizeof(l->call_forward_noanswer));
+		}
+	} else {
+		if (cfwdtype & SKINNY_CFWD_ALL) {
+			l->cfwdtype &= ~SKINNY_CFWD_ALL;
+			memset(l->call_forward_all, 0, sizeof(l->call_forward_all));
+		}
+		if (cfwdtype & SKINNY_CFWD_BUSY) {
+			l->cfwdtype &= ~SKINNY_CFWD_BUSY;
+			memset(l->call_forward_busy, 0, sizeof(l->call_forward_busy));
+		}
+		if (cfwdtype & SKINNY_CFWD_NOANSWER) {
+			l->cfwdtype &= ~SKINNY_CFWD_NOANSWER;
+			memset(l->call_forward_noanswer, 0, sizeof(l->call_forward_noanswer));
+		}
+	}
+	return l->cfwdtype;
 }
 
 static void cleanup_stale_contexts(char *new, char *old)
@@ -2043,6 +2106,51 @@ static void transmit_callstate(struct skinnysession *s, int instance, int state,
 		req->data.activatecallplane.lineInstance = htolel(instance);
 		transmit_response(s, req);
 	}
+}
+
+
+static void transmit_cfwdstate(struct skinnysession *s, struct skinny_line *l)
+{
+	struct skinny_req *req;
+	int anyon = 0;
+
+	if (!(req = req_alloc(sizeof(struct forward_stat_message), FORWARD_STAT_MESSAGE)))
+		return;
+
+	if (l->cfwdtype & SKINNY_CFWD_ALL) {
+		if (!ast_strlen_zero(l->call_forward_all)) {
+			ast_copy_string(req->data.forwardstat.fwdallnum, l->call_forward_all, sizeof(req->data.forwardstat.fwdallnum));
+			req->data.forwardstat.fwdall = htolel(1);
+			anyon++;
+		} else {
+			req->data.forwardstat.fwdall = htolel(0);
+		}
+	}
+	if (l->cfwdtype & SKINNY_CFWD_BUSY) {
+		if (!ast_strlen_zero(l->call_forward_busy)) {
+			ast_copy_string(req->data.forwardstat.fwdbusynum, l->call_forward_busy, sizeof(req->data.forwardstat.fwdbusynum));
+			req->data.forwardstat.fwdbusy = htolel(1);
+			anyon++;
+		} else {
+			req->data.forwardstat.fwdbusy = htolel(0);
+		}
+	}
+	if (l->cfwdtype & SKINNY_CFWD_NOANSWER) {
+		if (!ast_strlen_zero(l->call_forward_noanswer)) {
+			ast_copy_string(req->data.forwardstat.fwdnoanswernum, l->call_forward_noanswer, sizeof(req->data.forwardstat.fwdnoanswernum));
+			req->data.forwardstat.fwdnoanswer = htolel(1);
+			anyon++;
+		} else {
+			req->data.forwardstat.fwdnoanswer = htolel(0);
+		}
+	}
+	req->data.forwardstat.lineNumber = htolel(l->instance);
+	if (anyon)
+		req->data.forwardstat.activeforward = htolel(7);
+	else
+		req->data.forwardstat.activeforward = htolel(0);
+
+	transmit_response(s, req);
 }
 
 static int skinny_extensionstate_cb(char *context, char *exten, int state, void *data)
@@ -2665,7 +2773,9 @@ static char *handle_skinny_show_line(struct ast_cli_entry *e, int cmd, struct as
 			ast_cli(a->fd, "CallerId Number:  %s\n", S_OR(l->cid_num, "<not set>"));
 			ast_cli(a->fd, "CallerId Name:    %s\n", S_OR(l->cid_name, "<not set>"));
 			ast_cli(a->fd, "Hide CallerId:    %s\n", (l->hidecallerid ? "Yes" : "No"));
-			ast_cli(a->fd, "CallForward:      %s\n", S_OR(l->call_forward, "<not set>"));
+			ast_cli(a->fd, "CFwdAll:          %s\n", S_COR((l->cfwdtype & SKINNY_CFWD_ALL), l->call_forward_all, "<not set>"));
+			ast_cli(a->fd, "CFwdBusy:         %s\n", S_COR((l->cfwdtype & SKINNY_CFWD_BUSY), l->call_forward_busy, "<not set>"));
+			ast_cli(a->fd, "CFwdNoAnswer:     %s\n", S_COR((l->cfwdtype & SKINNY_CFWD_NOANSWER), l->call_forward_noanswer, "<not set>"));
 			ast_cli(a->fd, "VoicemailBox:     %s\n", S_OR(l->mailbox, "<not set>"));
 			ast_cli(a->fd, "VoicemailNumber:  %s\n", S_OR(l->vmexten, "<not set>"));
 			ast_cli(a->fd, "MWIblink:         %d\n", l->mwiblink);
@@ -2923,6 +3033,8 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 					l->pickupgroup = cur_pickupgroup;
 					l->callreturn = callreturn;
 					l->cancallforward = cancallforward;
+					l->getforward = 0;
+					set_callforwards(l, NULL, 0);
 					l->callwaiting = callwaiting;
 					l->transfer = transfer;
 					l->threewaycalling = threewaycalling;
@@ -3035,7 +3147,6 @@ static void *skinny_ss(void *data)
 	int len = 0;
 	int timeout = firstdigittimeout;
 	int res = 0;
-	int getforward=0;
 	int loop_pause = 100;
 
 	ast_verb(3, "Starting simple switch on '%s@%s'\n", l->name, d->name);
@@ -3062,22 +3173,26 @@ static void *skinny_ss(void *data)
 		}
 		if (ast_exists_extension(c, c->context, d->exten, 1, l->cid_num)) {
 			if (!res || !ast_matchmore_extension(c, c->context, d->exten, 1, l->cid_num)) {
-				if (getforward) {
+				if (l->getforward) {
 					/* Record this as the forwarding extension */
-					ast_copy_string(l->call_forward, d->exten, sizeof(l->call_forward));
-					ast_verb(3, "Setting call forward to '%s' on channel %s\n",
-							l->call_forward, c->name);
+					set_callforwards(l, d->exten, l->getforward);
+					ast_verb(3, "Setting call forward (%d) to '%s' on channel %s\n",
+							l->cfwdtype, d->exten, c->name);
 					transmit_tone(s, SKINNY_DIALTONE, l->instance, sub->callid);
-					if (res) {
-						break;
-					}
+					transmit_lamp_indication(s, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_ON);
+					transmit_displaynotify(s, "CFwd enabled", 10);
+					transmit_cfwdstate(s, l);
 					ast_safe_sleep(c, 500);
 					ast_indicate(c, -1);
  					ast_safe_sleep(c, 1000);
 					memset(d->exten, 0, sizeof(d->exten));
-					transmit_tone(s, SKINNY_DIALTONE, l->instance, sub->callid);
 					len = 0;
-					getforward = 0;
+					l->getforward = 0;
+					if (sub->owner && sub->owner->_state != AST_STATE_UP) {
+						ast_indicate(c, -1);
+						ast_hangup(c);
+					}
+					return NULL;
 				} else {
 					ast_copy_string(c->exten, d->exten, sizeof(c->exten));
 					ast_copy_string(l->lastnumberdialed, d->exten, sizeof(l->lastnumberdialed));
@@ -3368,6 +3483,35 @@ static int skinny_senddigit_end(struct ast_channel *ast, char digit, unsigned in
 	return -1; /* Stop inband indications */
 }
 
+static int get_devicestate(struct skinny_line *l)
+{
+	struct skinny_subchannel *sub;
+	int res = AST_DEVICE_UNKNOWN;
+
+	if (!l)
+		res = AST_DEVICE_INVALID;
+	else if (!l->parent)
+		res = AST_DEVICE_UNAVAILABLE;
+	else if (l->dnd)
+		res = AST_DEVICE_BUSY;
+	else {
+		if (l->hookstate == SKINNY_ONHOOK) {
+			res = AST_DEVICE_NOT_INUSE;
+		} else {
+			res = AST_DEVICE_INUSE;
+		}
+
+		for (sub = l->sub; sub; sub = sub->next) {
+			if (sub->onhold) {
+				res = AST_DEVICE_ONHOLD;
+				break;
+			}
+		}
+	}
+
+	return res;
+}
+
 static char *control2str(int ind) {
 	char *tmp;
 
@@ -3554,7 +3698,16 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		ast_module_ref(ast_module_info->self);
 		tmp->callgroup = l->callgroup;
 		tmp->pickupgroup = l->pickupgroup;
-		ast_string_field_set(tmp, call_forward, l->call_forward);
+
+		/* XXX Need to figure out how to handle CFwdNoAnswer */
+		if (l->cfwdtype & SKINNY_CFWD_ALL) {
+			ast_string_field_set(tmp, call_forward, l->call_forward_all);
+		} else if (l->cfwdtype & SKINNY_CFWD_BUSY) {
+			if (get_devicestate(l) != AST_DEVICE_NOT_INUSE) {
+				ast_string_field_set(tmp, call_forward, l->call_forward_busy);
+			}
+		}
+
 		ast_copy_string(tmp->context, l->context, sizeof(tmp->context));
 		ast_copy_string(tmp->exten, l->exten, sizeof(tmp->exten));
 
@@ -3707,6 +3860,45 @@ static int handle_register_message(struct skinny_req *req, struct skinnysession 
 	return res;
 }
 
+static int handle_callforward_button(struct skinny_subchannel *sub, int cfwdtype)
+{
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->parent;
+	struct skinnysession *s = d->session;
+	struct ast_channel *c = sub->owner;
+	pthread_t t;
+
+	if (l->hookstate == SKINNY_ONHOOK) {
+		l->hookstate = SKINNY_OFFHOOK;
+		transmit_speaker_mode(s, SKINNY_SPEAKERON);
+		transmit_callstate(s, l->instance, SKINNY_OFFHOOK, sub->callid);
+	}
+	if (skinnydebug)
+		ast_verbose("Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
+	transmit_displaymessage(s, NULL, l->instance, sub->callid); /* clear display */
+
+	if (l->cfwdtype & cfwdtype) {
+		set_callforwards(l, NULL, cfwdtype);
+		ast_safe_sleep(c, 500);
+		transmit_speaker_mode(s, SKINNY_SPEAKEROFF);
+		transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
+		transmit_displaynotify(s, "CFwd disabled", 10);
+		if (sub->owner && sub->owner->_state != AST_STATE_UP) {
+			ast_indicate(c, -1);
+			ast_hangup(c);
+		}
+		transmit_cfwdstate(s, l);
+	} else {
+		l->getforward = cfwdtype;
+		transmit_tone(s, SKINNY_DIALTONE, l->instance, sub->callid);
+		transmit_selectsoftkeys(s, l->instance, sub->callid, KEYDEF_RINGOUT);
+		if (ast_pthread_create(&t, NULL, skinny_ss, c)) {
+			ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
+			ast_hangup(c);
+		}
+	}
+	return 0;
+}
 static int handle_ip_port_message(struct skinny_req *req, struct skinnysession *s)
 {
 	/* no response necessary */
@@ -3974,32 +4166,75 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			ast_verbose("Received Stimulus: Park Call(%d/%d)\n", instance, callreference);
 		/* XXX Park the call */
 		break;
-	case STIMULUS_FORWARDALL:
+	case STIMULUS_DND:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Forward All(%d/%d)\n", instance, callreference);
-		/* Why is DND under FORWARDALL? */
-		/* Because it's the same thing. */
+			ast_verbose("Received Stimulus: DND (%d/%d)\n", instance, callreference);
 
 		/* Do not disturb */
 		if (l->dnd != 0){
 			ast_verb(3, "Disabling DND on %s@%s\n", l->name, d->name);
 			l->dnd = 0;
-			transmit_lamp_indication(s, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_ON);
+			transmit_lamp_indication(s, STIMULUS_DND, 1, SKINNY_LAMP_ON);
 			transmit_displaynotify(s, "DnD disabled", 10);
 		} else {
 			ast_verb(3, "Enabling DND on %s@%s\n", l->name, d->name);
 			l->dnd = 1;
-			transmit_lamp_indication(s, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_OFF);
+			transmit_lamp_indication(s, STIMULUS_DND, 1, SKINNY_LAMP_OFF);
 			transmit_displaynotify(s, "DnD enabled", 10);
+		}
+		break;
+	case STIMULUS_FORWARDALL:
+		if (skinnydebug)
+			ast_verbose("Received Stimulus: Forward All(%d/%d)\n", instance, callreference);
+
+		if (!sub || !sub->owner) {
+			c = skinny_new(l, AST_STATE_DOWN);
+		} else {
+			c = sub->owner;
+		}
+
+		if (!c) {
+			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
+		} else {
+			sub = c->tech_pvt;
+			handle_callforward_button(sub, SKINNY_CFWD_ALL);
 		}
 		break;
 	case STIMULUS_FORWARDBUSY:
 		if (skinnydebug)
 			ast_verbose("Received Stimulus: Forward Busy (%d/%d)\n", instance, callreference);
+
+		if (!sub || !sub->owner) {
+			c = skinny_new(l, AST_STATE_DOWN);
+		} else {
+			c = sub->owner;
+		}
+
+		if (!c) {
+			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
+		} else {
+			sub = c->tech_pvt;
+			handle_callforward_button(sub, SKINNY_CFWD_BUSY);
+		}
 		break;
 	case STIMULUS_FORWARDNOANSWER:
 		if (skinnydebug)
 			ast_verbose("Received Stimulus: Forward No Answer (%d/%d)\n", instance, callreference);
+
+#if 0 /* Not sure how to handle this yet */
+		if (!sub || !sub->owner) {
+			c = skinny_new(l, AST_STATE_DOWN);
+		} else {
+			c = sub->owner;
+		}
+
+		if (!c) {
+			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
+		} else {
+			sub = c->tech_pvt;
+			handle_callforward_button(sub, SKINNY_CFWD_NOANSWER);
+		}
+#endif
 		break;
 	case STIMULUS_DISPLAY:
 		/* Not sure what this is */
@@ -4796,30 +5031,75 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_verbose("Received Softkey Event: Transfer(%d/%d)\n", instance, callreference);
 		/* XXX figure out how to transfer */
 		break;
-	case SOFTKEY_CFWDALL:
+	case SOFTKEY_DND:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Forward All(%d/%d)\n", instance, callreference);
+			ast_verbose("Received Softkey Event: DND(%d/%d)\n", instance, callreference);
 
 		/* Do not disturb */
 		if (l->dnd != 0){
 			ast_verb(3, "Disabling DND on %s@%s\n", l->name, d->name);
 			l->dnd = 0;
-			transmit_lamp_indication(s, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_ON);
+			transmit_lamp_indication(s, STIMULUS_DND, 1, SKINNY_LAMP_ON);
 			transmit_displaynotify(s, "DnD disabled", 10);
 		} else {
 			ast_verb(3, "Enabling DND on %s@%s\n", l->name, d->name);
 			l->dnd = 1;
-			transmit_lamp_indication(s, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_OFF);
+			transmit_lamp_indication(s, STIMULUS_DND, 1, SKINNY_LAMP_OFF);
 			transmit_displaynotify(s, "DnD enabled", 10);
+		}
+		break;
+	case SOFTKEY_CFWDALL:
+		if (skinnydebug)
+			ast_verbose("Received Softkey Event: Forward All(%d/%d)\n", instance, callreference);
+
+		if (!sub || !sub->owner) {
+			c = skinny_new(l, AST_STATE_DOWN);
+		} else {
+			c = sub->owner;
+		}
+
+		if (!c) {
+			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
+		} else {
+			sub = c->tech_pvt;
+			handle_callforward_button(sub, SKINNY_CFWD_ALL);
 		}
 		break;
 	case SOFTKEY_CFWDBUSY:
 		if (skinnydebug)
 			ast_verbose("Received Softkey Event: Forward Busy (%d/%d)\n", instance, callreference);
+
+		if (!sub || !sub->owner) {
+			c = skinny_new(l, AST_STATE_DOWN);
+		} else {
+			c = sub->owner;
+		}
+
+		if (!c) {
+			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
+		} else {
+			sub = c->tech_pvt;
+			handle_callforward_button(sub, SKINNY_CFWD_BUSY);
+		}
 		break;
 	case SOFTKEY_CFWDNOANSWER:
 		if (skinnydebug)
 			ast_verbose("Received Softkey Event: Forward No Answer (%d/%d)\n", instance, callreference);
+
+#if 0 /* Not sure how to handle this yet */
+		if (!sub || !sub->owner) {
+			c = skinny_new(l, AST_STATE_DOWN);
+		} else {
+			c = sub->owner;
+		}
+
+		if (!c) {
+			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
+		} else {
+			sub = c->tech_pvt;
+			handle_callforward_button(sub, SKINNY_CFWD_NOANSWER);
+		}
+#endif
 		break;
 	case SOFTKEY_BKSPC:
 		if (skinnydebug)
@@ -5391,6 +5671,18 @@ static int restart_monitor(void)
 	return 0;
 }
 
+static int skinny_devicestate(void *data)
+{
+	struct skinny_line *l;
+	char *tmp;
+
+	tmp = ast_strdupa(data);
+
+	l = find_line_by_name(tmp);
+
+	return get_devicestate(l);
+}
+
 static struct ast_channel *skinny_request(const char *type, int format, void *data, int *cause)
 {
 	int oldformat;
@@ -5424,41 +5716,6 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
 	}
 	restart_monitor();
 	return tmpc;
-}
-
-static int skinny_devicestate(void *data)
-{
-	struct skinny_line *l;
-	struct skinny_subchannel *sub;
-	char *tmp;
-	int res = AST_DEVICE_UNKNOWN;
-
-	tmp = ast_strdupa(data);
-
-	l = find_line_by_name(tmp);
-
-	if (!l)
-		res = AST_DEVICE_INVALID;
-	else if (!l->parent)
-		res = AST_DEVICE_UNAVAILABLE;
-	else if (l->dnd)
-		res = AST_DEVICE_BUSY;
-	else {
-		if (l->hookstate == SKINNY_ONHOOK) {
-			res = AST_DEVICE_NOT_INUSE;
-		} else {
-			res = AST_DEVICE_INUSE;
-		}
-
-		for (sub = l->sub; sub; sub = sub->next) {
-			if (sub->onhold) {
-				res = AST_DEVICE_ONHOLD;
-				break;
-			}
-		}
-	}
-
-	return res;
 }
 
 static int reload_config(void)
