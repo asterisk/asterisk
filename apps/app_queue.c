@@ -899,6 +899,17 @@ static void init_queue(struct call_queue *q)
 	q->autofill = autofill_default;
 	q->montype = montype_default;
 	q->monfmt[0] = '\0';
+	q->reportholdtime = 0;
+	q->monitorjoin = 0;
+	q->wrapuptime = 0;
+	q->autofill = 0;
+	q->joinempty = 0;
+	q->leavewhenempty = 0;
+	q->memberdelay = 0;
+	q->maskmemberstatus = 0;
+	q->eventwhencalled = 0;
+	q->weight = 0;
+	q->timeoutrestart = 0;
 	q->periodicannouncefrequency = 0;
 	if (!q->members) {
 		if (q->strategy == QUEUE_STRATEGY_LINEAR)
