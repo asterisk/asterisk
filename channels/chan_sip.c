@@ -4864,7 +4864,7 @@ static int find_sdp(struct sip_request *req)
 		return 0;
 
 	/* if there is no boundary marker, it's invalid */
-	if (!(search = strcasestr(content_type, ";boundary=")))
+	if (!(search = strcasestr(content_type, ";boundary=")) && (!(search = strcasestr(content_type, "; boundary="))))
 		return 0;
 
 	search += 10;
