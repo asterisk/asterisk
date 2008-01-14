@@ -795,6 +795,17 @@ static void init_queue(struct call_queue *q)
 	q->context[0] = '\0';
 	q->monfmt[0] = '\0';
 	q->periodicannouncefrequency = 0;
+	q->reportholdtime = 0;
+	q->monitorjoin = 0;
+	q->wrapuptime = 0;
+	q->autofill = 0;
+	q->joinempty = 0;
+	q->leavewhenempty = 0;
+	q->memberdelay = 0;
+	q->eventmemberstatus = 0;
+	q->eventwhencalled = 0;
+	q->weight = 0;
+	q->timeoutrestart = 0;
 	if (!q->members)
 		q->members = ao2_container_alloc(37, member_hash_fn, member_cmp_fn);
 	q->membercount = 0;
