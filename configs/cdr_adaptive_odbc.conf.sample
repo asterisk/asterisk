@@ -32,5 +32,9 @@
 ;alias channel => source_channel
 ;alias dst => dest
 ;alias dstchannel => dest_channel
+;
+; Any filter specified MUST match exactly or the CDR will be discarded
+;filter accountcode => somename
+;filter src => 123
 
 

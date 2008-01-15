@@ -56,6 +56,7 @@ static int maxsize = 512, maxsize2 = 512;
 struct columns {
 	char *name;
 	char *cdrname;
+	char *filtervalue;
 	SQLSMALLINT type;
 	SQLINTEGER size;
 	SQLSMALLINT decimals;
@@ -153,7 +154,7 @@ static int load_config(void)
 		ast_verb(3, "Found adaptive CDR table %s@%s.\n", tableptr->table, tableptr->connection);
 
 		while ((res = SQLFetch(stmt)) != SQL_NO_DATA && res != SQL_ERROR) {
-			char *cdrvar = "";
+			char *cdrvar = "", *filter = "";
 
 			SQLGetData(stmt,  4, SQL_C_CHAR, columnname, sizeof(columnname), &sqlptr);
 
@@ -164,14 +165,24 @@ static int load_config(void)
 			 * really don't parse this file all that often, anyway.
 			 */
 			for (var = ast_variable_browse(cfg, catg); var; var = var->next) {
-				if (strcasecmp(var->value, columnname) == 0) {
+				if (strncmp(var->name, "alias", 5) == 0 && strcasecmp(var->value, columnname) == 0) {
 					char *tmp = ast_strdupa(var->name + 5);
 					cdrvar = ast_strip(tmp);
 					ast_verb(3, "Found alias %s for column %s in %s@%s\n", cdrvar, columnname, tableptr->table, tableptr->connection);
 					break;
 				}
 			}
-			entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(columnname) + 1 + strlen(cdrvar) + 1);
+			/* Two loops, because alias and filter could be in reverse order */
+			for (var = ast_variable_browse(cfg, catg); var; var = var->next) {
+				if (strncmp(var->name, "filter", 6) == 0 && strcasecmp(var->name + 6, S_OR(cdrvar, columnname))) {
+					char *tmp = ast_strdupa(var->name + 6);
+					filter = ast_strip(tmp);
+					ast_verb(3, "Found filter %s for cdr variable %s in %s@%s\n", filter, S_OR(cdrvar, columnname), tableptr->table, tableptr->connection);
+					break;
+				}
+			}
+
+			entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(columnname) + 1 + strlen(cdrvar) + 1 + strlen(filter) + 1);
 			if (!entry) {
 				ast_log(LOG_ERROR, "Out of memory creating entry for column '%s' in table '%s' on connection '%s'\n", columnname, table, connection);
 				res = -1;
@@ -185,6 +196,11 @@ static int load_config(void)
 				strcpy(entry->cdrname, cdrvar);
 			} else /* Point to same place as the column name */
 				entry->cdrname = (char *)entry + sizeof(*entry);
+
+			if (!ast_strlen_zero(filter)) {
+				entry->filtervalue = entry->cdrname + strlen(entry->cdrname) + 1;
+				strcpy(entry->filtervalue, filter);
+			}
 
 			SQLGetData(stmt,  5, SQL_C_SHORT, &entry->type, sizeof(entry->type), NULL);
 			SQLGetData(stmt,  7, SQL_C_LONG, &entry->size, sizeof(entry->size), NULL);
@@ -341,6 +357,17 @@ static int odbc_log(struct ast_cdr *cdr)
 				 strcasecmp(entry->cdrname, "end") == 0) ? 0 : 1);
 
 			if (colptr) {
+				/* Check first if the column filters this entry.  Note that this
+				 * is very specifically NOT ast_strlen_zero(), because the filter
+				 * could legitimately specify that the field is blank, which is
+				 * different from the field being unspecified (NULL). */
+				if (entry->filtervalue && strcasecmp(colptr, entry->filtervalue) != 0) {
+					ast_verb(4, "CDR column '%s' with value '%s' does not match filter of"
+						" '%s'.  Cancelling this CDR.\n",
+						entry->cdrname, colptr, entry->filtervalue);
+					goto early_release;
+				}
+
 				LENGTHEN_BUF1(strlen(entry->name));
 
 				switch (entry->type) {
@@ -567,6 +594,7 @@ static int odbc_log(struct ast_cdr *cdr)
 		if (rows == 0) {
 			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Insert failed on '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, sql);
 		}
+early_release:
 		ast_odbc_release_obj(obj);
 	}
 	AST_RWLIST_UNLOCK(&odbc_tables);
