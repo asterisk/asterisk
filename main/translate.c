@@ -133,6 +133,18 @@ static void destroy(struct ast_trans_pvt *pvt)
 {
 	struct ast_translator *t = pvt->t;
 
+	if (ast_test_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR)) {
+		/* If this flag is still set, that means that the translation path has
+		 * been torn down, while we still have a frame out there being used.
+		 * When ast_frfree() gets called on that frame, this ast_trans_pvt
+		 * will get destroyed, too. */
+
+		/* Set the magic hint that this has been requested to be destroyed. */
+		pvt->datalen = -1;
+
+		return;
+	}
+
 	if (t->destroy)
 		t->destroy(pvt);
 	ast_free(pvt);
@@ -147,7 +159,7 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	int samples = pvt->samples;	/* initial value */
 	
 	/* Copy the last in jb timing info to the pvt */
-	pvt->f.has_timing_info = f->has_timing_info;
+	ast_copy_flags(&pvt->f, f, AST_FRFLAG_HAS_TIMING_INFO);
 	pvt->f.ts = f->ts;
 	pvt->f.len = f->len;
 	pvt->f.seqno = f->seqno;
@@ -225,6 +237,8 @@ struct ast_frame *ast_trans_frameout(struct ast_trans_pvt *pvt,
 	f->offset = AST_FRIENDLY_OFFSET;
 	f->src = pvt->t->name;
 	f->data = pvt->outbuf;
+
+	ast_set_flag(f, AST_FRFLAG_FROM_TRANSLATOR);
 
 	return f;
 }
@@ -304,7 +318,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 	long len;
 	int seqno;
 
-	has_timing_info = f->has_timing_info;
+	has_timing_info = ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO);
 	ts = f->ts;
 	len = f->len;
 	seqno = f->seqno;
@@ -354,7 +368,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		path->nextout = ast_tvadd(path->nextout, ast_samp2tv(out->samples, format_rate(out->subclass)));
 	} else {
 		out->delivery = ast_tv(0, 0);
-		out->has_timing_info = has_timing_info;
+		ast_set2_flag(out, has_timing_info, AST_FRFLAG_HAS_TIMING_INFO);
 		if (has_timing_info) {
 			out->ts = ts;
 			out->len = len;
@@ -874,4 +888,18 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 	AST_RWLIST_UNLOCK(&translators);
 
 	return res;
+}
+
+void ast_translate_frame_freed(struct ast_frame *fr)
+{
+	struct ast_trans_pvt *pvt;
+
+	ast_clear_flag(fr, AST_FRFLAG_FROM_TRANSLATOR);
+
+	pvt = (struct ast_trans_pvt *) (((char *) fr) - offsetof(struct ast_trans_pvt, f));
+
+	if (pvt->datalen != -1)
+		return;
+	
+	destroy(pvt);
 }

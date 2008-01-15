@@ -122,6 +122,15 @@ enum ast_frame_type {
 };
 #define AST_FRAME_DTMF AST_FRAME_DTMF_END
 
+enum {
+	/*! This frame contains valid timing information */
+	AST_FRFLAG_HAS_TIMING_INFO = (1 << 0),
+	/*! This frame came from a translator and is still the original frame.
+	 *  The translator can not be free'd if the frame inside of it still has
+	 *  this flag set. */
+	AST_FRFLAG_FROM_TRANSLATOR = (1 << 1),
+};
+
 /*! \brief Data structure associated with a single frame of data
  */
 struct ast_frame {
@@ -147,8 +156,8 @@ struct ast_frame {
 	struct timeval delivery;
 	/*! For placing in a linked list */
 	AST_LIST_ENTRY(ast_frame) frame_list;
-	/*! Timing data flag */
-	int has_timing_info;
+	/*! Misc. frame flags */
+	unsigned int flags;
 	/*! Timestamp in milliseconds */
 	long ts;
 	/*! Length in milliseconds */

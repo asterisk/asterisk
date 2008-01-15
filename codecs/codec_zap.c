@@ -87,7 +87,6 @@ struct pvt {
 	int lasttotalms;
 #endif
 	struct zt_transcode_header *hdr;
-	struct ast_frame f;
 };
 
 static char *handle_cli_transcoder_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -160,13 +159,14 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 
 	if (ztp->fake == 2) {
 		ztp->fake = 1;
-		ztp->f.frametype = AST_FRAME_VOICE;
-		ztp->f.subclass = 0;
-		ztp->f.samples = 160;
-		ztp->f.data = NULL;
-		ztp->f.offset = 0;
-		ztp->f.datalen = 0;
-		ztp->f.mallocd = 0;
+		pvt->f.frametype = AST_FRAME_VOICE;
+		pvt->f.subclass = 0;
+		pvt->f.samples = 160;
+		pvt->f.data = NULL;
+		pvt->f.offset = 0;
+		pvt->f.datalen = 0;
+		pvt->f.mallocd = 0;
+		ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
 		pvt->samples = 0;
 	} else if (ztp->fake == 1) {
 		return NULL;
@@ -179,14 +179,15 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 				ztp->lasttotalms = ztp->totalms;
 			}
 #endif
-			ztp->f.frametype = AST_FRAME_VOICE;
-			ztp->f.subclass = hdr->dstfmt;
-			ztp->f.samples = hdr->dstsamples;
-			ztp->f.data = hdr->dstdata + hdr->dstoffset;
-			ztp->f.offset = hdr->dstoffset;
-			ztp->f.datalen = hdr->dstlen;
-			ztp->f.mallocd = 0;
-			pvt->samples -= ztp->f.samples;
+			pvt->f.frametype = AST_FRAME_VOICE;
+			pvt->f.subclass = hdr->dstfmt;
+			pvt->f.samples = hdr->dstsamples;
+			pvt->f.data = hdr->dstdata + hdr->dstoffset;
+			pvt->f.offset = hdr->dstoffset;
+			pvt->f.datalen = hdr->dstlen;
+			pvt->f.mallocd = 0;
+			ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
+			pvt->samples -= pvt->f.samples;
 			hdr->dstlen = 0;
 			
 		} else {
@@ -200,7 +201,7 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 		}
 	}
 
-	return &ztp->f;
+	return &pvt->f;
 }
 
 static void zap_destroy(struct ast_trans_pvt *pvt)
