@@ -1310,7 +1310,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			ast_frame_byteswap_be(&rtp->f);
 		calc_rxstamp(&rtp->f.delivery, rtp, timestamp, mark);
 		/* Add timing data to let ast_generic_bridge() put the frame into a jitterbuf */
-		rtp->f.has_timing_info = 1;
+		ast_set_flag(&rtp->f, AST_FRFLAG_HAS_TIMING_INFO);
 		rtp->f.ts = timestamp / 8;
 		rtp->f.len = rtp->f.samples / 8;
 	} else {
@@ -2657,7 +2657,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	if (rtp->lastts > rtp->lastdigitts)
 		rtp->lastdigitts = rtp->lastts;
 
-	if (f->has_timing_info)
+	if (ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO))
 		rtp->lastts = f->ts * 8;
 
 	/* Get a pointer to the header */

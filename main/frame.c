@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/translate.h"
 
 #ifdef TRACE_FRAMES
 static int headers;
@@ -368,6 +369,9 @@ void ast_frame_free(struct ast_frame *fr, int cache)
 #endif			
 		free(fr);
 	}
+
+	if (ast_test_flag(fr, AST_FRFLAG_FROM_TRANSLATOR))
+		ast_translate_frame_freed(fr);
 }
 
 /*!
@@ -379,7 +383,9 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 {
 	struct ast_frame *out;
 	void *newdata;
-	
+
+	ast_clear_flag(fr, AST_FRFLAG_FROM_TRANSLATOR);
+
 	if (!(fr->mallocd & AST_MALLOCD_HDR)) {
 		/* Allocate a new header if needed */
 		if (!(out = ast_frame_header_new()))
@@ -391,8 +397,8 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 		out->offset = fr->offset;
 		out->data = fr->data;
 		/* Copy the timing data */
-		out->has_timing_info = fr->has_timing_info;
-		if (fr->has_timing_info) {
+		ast_copy_flags(out, fr, AST_FRFLAG_HAS_TIMING_INFO);
+		if (ast_test_flag(fr, AST_FRFLAG_HAS_TIMING_INFO)) {
 			out->ts = fr->ts;
 			out->len = fr->len;
 			out->seqno = fr->seqno;
@@ -495,7 +501,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 		/* Must have space since we allocated for it */
 		strcpy((char *)out->src, f->src);
 	}
-	out->has_timing_info = f->has_timing_info;
+	ast_copy_flags(out, f, AST_FRFLAG_HAS_TIMING_INFO);
 	out->ts = f->ts;
 	out->len = f->len;
 	out->seqno = f->seqno;
