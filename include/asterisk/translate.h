@@ -138,13 +138,7 @@ struct ast_trans_pvt {
 	struct ast_translator *t;
 	struct ast_frame f;	/*!< used in frameout */
 	int samples;		/*!< samples available in outbuf */
-	/*! 
-	 * \brief actual space used in outbuf
-	 *
-	 * Also, for the sake of ABI compatability, a magic value of -1 in this
-	 * field means that the pvt has been requested to be destroyed, but is
-	 * pending destruction until ast_translate_frame_freed() gets called. 
-	 */
+	/*! \brief actual space used in outbuf */
 	int datalen;
 	void *pvt;		/*!< more private data, if any */
 	char *outbuf;		/*!< the useful portion of the buffer */
@@ -152,6 +146,7 @@ struct ast_trans_pvt {
 	struct ast_trans_pvt *next;	/*!< next in translator chain */
 	struct timeval nextin;
 	struct timeval nextout;
+	unsigned int destroy:1;
 };
 
 /*! \brief generic frameout function */

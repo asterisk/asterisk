@@ -139,8 +139,7 @@ static void destroy(struct ast_trans_pvt *pvt)
 		 * When ast_frfree() gets called on that frame, this ast_trans_pvt
 		 * will get destroyed, too. */
 
-		/* Set the magic hint that this has been requested to be destroyed. */
-		pvt->datalen = -1;
+		pvt->destroy = 1;
 
 		return;
 	}
@@ -898,7 +897,7 @@ void ast_translate_frame_freed(struct ast_frame *fr)
 
 	pvt = (struct ast_trans_pvt *) (((char *) fr) - offsetof(struct ast_trans_pvt, f));
 
-	if (pvt->datalen != -1)
+	if (!pvt->destroy)
 		return;
 	
 	destroy(pvt);
