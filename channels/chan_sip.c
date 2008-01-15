@@ -9167,6 +9167,8 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		list_route(p->route);
 }
 
+AST_THREADSTORAGE(check_auth_buf);
+#define CHECK_AUTH_BUF_INITLEN   256
 
 /*! \brief  Check user authorization from peer definition 
 	Some actions, like REGISTER and INVITEs from peers require
@@ -9182,11 +9184,12 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	const char *authtoken;
 	char a1_hash[256];
 	char resp_hash[256]="";
-	char tmp[BUFSIZ * 2];                /* Make a large enough buffer */
 	char *c;
 	int  wrongnonce = FALSE;
 	int  good_response;
 	const char *usednonce = p->randdata;
+	struct ast_str *buf;
+	int res;
 
 	/* table of recognised keywords, and their value in the digest */
 	enum keys { K_RESP, K_URI, K_USER, K_NONCE, K_LAST };
@@ -9241,10 +9244,16 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	/* Whoever came up with the authentication section of SIP can suck my %&#$&* for not putting
 	   an example in the spec of just what it is you're doing a hash on. */
 
+	if (!(buf = ast_str_thread_get(&check_auth_buf, CHECK_AUTH_BUF_INITLEN)))
+		return AUTH_SECRET_FAILED; /*! XXX \todo need a better return code here */
 
 	/* Make a copy of the response and parse it */
-	ast_copy_string(tmp, authtoken, sizeof(tmp));
-	c = tmp;
+	res = ast_str_set(&buf, 0, "%s", authtoken);
+
+	if (res == AST_DYNSTR_BUILD_FAILED)
+		return AUTH_SECRET_FAILED; /*! XXX \todo need a better return code here */
+
+	c = buf->str;
 
 	while(c && *(c = ast_skip_blanks(c)) ) { /* lookup for keys */
 		for (i = keys; i->key != NULL; i++) {
