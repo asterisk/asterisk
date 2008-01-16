@@ -86,6 +86,45 @@
         <depend>res_features</depend>
  ***/
 
+/*!  \page sip_session_timers SIP Session Timers in Asterisk Chan_sip
+
+	The SIP Session-Timers is an extension of the SIP protocol that allows end-points and proxies to
+	refresh a session periodically. The sessions are kept alive by sending a RE-INVITE or UPDATE
+	request at a negotiated interval. If a session refresh fails then all the entities that support Session-
+	Timers clear their internal session state. In addition, UAs generate a BYE request in order to clear
+	the state in the proxies and the remote UA (this is done for the benefit of SIP entities in the path
+	that do not support Session-Timers).
+
+	The Session-Timers can be configured on a system-wide, per-user, or per-peer basis. The peruser/
+	per-peer settings override the global settings. The following new parameters have been
+	added to the sip.conf file.
+		session-timers=["accept", "originate", "refuse"]
+		session-expires=[integer]
+		session-minse=[integer]
+		session-refresher=["uas", "uac"]
+
+	The session-timers parameter in sip.conf defines the mode of operation of SIP session-timers feature in
+	Asterisk. The Asterisk can be configured in one of the following three modes:
+
+	1. Accept :: In the "accept" mode, the Asterisk server honors session-timers requests
+		made by remote end-points. A remote end-point can request Asterisk to engage
+		session-timers by either sending it an INVITE request with a "Supported: timer"
+		header in it or by responding to Asterisk's INVITE with a 200 OK that contains
+		Session-Expires: header in it. In this mode, the Asterisk server does not 
+		request session-timers from remote end-points. This is the default mode.
+	2. Originate :: In the "originate" mode, the Asterisk server requests the remote 
+		end-points to activate session-timers in addition to honoring such requests
+		made by the remote end-pints. In order to get as much protection as possible
+		against hanging SIP channels due to network or end-point failures, Asterisk
+		resends periodic re-INVITEs even if a remote end-point does not support
+		the session-timers feature.
+	3. Refuse :: In the "refuse" mode, Asterisk acts as if it does not support session-
+		timers for inbound or outbound requests. If a remote end-point requests
+		session-timers in a dialog, then Asterisk ignores that request unless it's
+		noted as a requirement (Require: header), in which case the INVITE is 
+		rejected with a 420 Bad Extension response.
+
+*/
 
 #include "asterisk.h"
 
@@ -197,6 +236,9 @@ static int expiry = DEFAULT_EXPIRY;
 #define SIP_MAX_PACKET               4096             /*!< Also from RFC 3261 (2543), should sub headers tho */
 
 #define INITIAL_CSEQ                 101              /*!< our initial sip sequence number */
+
+#define DEFAULT_MAX_SE               1800             /*!< Session-Timer Default Session-Expires period (RFC 4028) */
+#define DEFAULT_MIN_SE               90               /*!< Session-Timer Default Min-SE period (RFC 4028) */
 
 /*! \brief Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
@@ -347,6 +389,22 @@ enum sipregistrystate {
 		/* fatal - no chance to proceed */
 };
 
+/*! \brief Modes in which Asterisk can be configured to run SIP Session-Timers */
+enum st_mode {
+        SESSION_TIMER_MODE_INVALID = 0, /*!< Invalid value */ 
+        SESSION_TIMER_MODE_ACCEPT,      /*!< Honor inbound Session-Timer requests */
+        SESSION_TIMER_MODE_ORIGINATE,   /*!< Originate outbound and honor inbound requests */
+        SESSION_TIMER_MODE_REFUSE       /*!< Ignore inbound Session-Timers requests */
+};
+
+/*! \brief The entity playing the refresher role for Session-Timers */
+enum st_refresher {
+        SESSION_TIMER_REFRESHER_AUTO,    /*!< Negotiated                      */
+        SESSION_TIMER_REFRESHER_UAC,     /*!< Session is refreshed by the UAC */
+        SESSION_TIMER_REFRESHER_UAS      /*!< Session is refreshed by the UAS */
+};
+
+
 /*! \brief definition of a sip proxy server
  *
  * For outbound proxies, this is allocated in the SIP peer dynamically or
@@ -458,6 +516,8 @@ static const struct  cfsip_methods {
 #define SIP_OPT_NOREFERSUB	(1 << 14)
 #define SIP_OPT_HISTINFO	(1 << 15)
 #define SIP_OPT_RESPRIORITY	(1 << 16)
+#define SIP_OPT_UNKNOWN		(1 << 17)
+
 
 /*! \brief List of well-known SIP options. If we get this in a require,
    we should check the list and answer accordingly. */
@@ -472,8 +532,8 @@ static const struct cfsip_options {
 	{ SIP_OPT_REPLACES,	SUPPORTED,	"replace" },	
 	/* RFC3262: PRACK 100% reliability */
 	{ SIP_OPT_100REL,	NOT_SUPPORTED,	"100rel" },	
-	/* RFC4028: SIP Session Timers */
-	{ SIP_OPT_TIMER,	NOT_SUPPORTED,	"timer" },
+	/* RFC4028: SIP Session-Timers */
+	{ SIP_OPT_TIMER,	SUPPORTED,	"timer" },
 	/* RFC3959: SIP Early session support */
 	{ SIP_OPT_EARLY_SESSION, NOT_SUPPORTED,	"early-session" },
 	/* RFC3911: SIP Join header support */
@@ -512,7 +572,7 @@ static const struct cfsip_options {
 #define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY"
 
 /*! \brief SIP Extensions we support */
-#define SUPPORTED_EXTENSIONS "replaces" 
+#define SUPPORTED_EXTENSIONS "replaces, timer" 
 
 /*! \brief Standard SIP port from RFC 3261. DO NOT CHANGE THIS */
 #define STANDARD_SIP_PORT	5060
@@ -665,6 +725,12 @@ static int regobjs = 0;                  /*!< Registry objects */
 
 static struct ast_flags global_flags[2] = {{0}};        /*!< global SIP_ flags */
 static char used_context[AST_MAX_CONTEXT]; /*!< name of automatically created context for unloading */
+
+static enum st_mode global_st_mode;           /*!< Mode of operation for Session-Timers           */
+static enum st_refresher global_st_refresher; /*!< Session-Timer refresher                        */
+static int global_min_se;                     /*!< Lowest threshold for session refresh interval  */
+static int global_max_se;                     /*!< Highest threshold for session refresh interval */
+
 
 AST_MUTEX_DEFINE_STATIC(netlock);
 
@@ -1026,6 +1092,37 @@ struct sip_refer {
 	enum referstatus status;			/*!< REFER status */
 };
 
+
+/*! \brief Structure that encapsulates all attributes related to running 
+ *   SIP Session-Timers feature on a per dialog basis.
+ */
+struct sip_st_dlg {
+	int st_active;                          /*!< Session-Timers on/off */ 
+	int st_interval;                        /*!< Session-Timers negotiated session refresh interval */
+	int st_schedid;                         /*!< Session-Timers ast_sched scheduler id */
+	enum st_refresher st_ref;               /*!< Session-Timers session refresher */
+	int st_expirys;                         /*!< Session-Timers number of expirys */
+	int st_active_peer_ua;                  /*!< Session-Timers on/off in peer UA */
+	int st_cached_min_se;                   /*!< Session-Timers cached Min-SE */
+	int st_cached_max_se;                   /*!< Session-Timers cached Session-Expires */
+	enum st_mode st_cached_mode;            /*!< Session-Timers cached M.O. */
+	enum st_refresher st_cached_ref;        /*!< Session-Timers cached refresher */
+};
+
+
+/*! \brief Structure that encapsulates all attributes related to configuration 
+ *   of SIP Session-Timers feature on a per user/peer basis.
+ */
+struct sip_st_cfg {
+	enum st_mode st_mode_oper;      /*!< Mode of operation for Session-Timers           */
+	enum st_refresher st_ref;       /*!< Session-Timer refresher                        */
+	int st_min_se;                  /*!< Lowest threshold for session refresh interval  */
+	int st_max_se;                  /*!< Highest threshold for session refresh interval */
+};
+
+
+
+
 /*! \brief sip_pvt: structures used for each SIP dialog, ie. a call, a registration, a subscribe.
  * Created and initialized by sip_alloc(), the descriptor goes into the list of
  * descriptors (dialoglist).
@@ -1098,6 +1195,7 @@ struct sip_pvt {
 	int timer_t1;				/*!< SIP timer T1, ms rtt */
 	int timer_b;            /*!< SIP timer B, ms */
 	unsigned int sipoptions;		/*!< Supported SIP options on the other end */
+	unsigned int reqsipoptions;		/*!< Required SIP options on the other end */
 	struct ast_codec_pref prefs;		/*!< codec prefs */
 	int capability;				/*!< Special capability (codec) */
 	int jointcapability;			/*!< Supported capability at both ends (codecs) */
@@ -1118,6 +1216,8 @@ struct sip_pvt {
 	char tag[11];				/*!< Our tag for this session */
 	int sessionid;				/*!< SDP Session ID */
 	int sessionversion;			/*!< SDP Session Version */
+	int sessionversion_remote;		/*!< Remote UA's SDP Session Version */
+	int session_modify;			/*!< Session modification request true/false  */
 	struct sockaddr_in sa;			/*!< Our peer */
 	struct sockaddr_in redirip;		/*!< Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/*!< Where our Video RTP should be going if not to us */
@@ -1167,7 +1267,9 @@ struct sip_pvt {
 							before strolling to the Grokyzpå
 							(A bit unsure of this, please correct if
 							you know more) */
+	struct sip_st_dlg *stimer;		/*!< SIP Session-Timers */              
 };
+
 
 /*! Max entires in the history list for a sip_pvt */
 #define MAX_HISTORY_ENTRIES 50
@@ -1273,6 +1375,7 @@ struct sip_user {
 	struct ast_variable *chanvars;	/*!< Variables to set for channel created by user */
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
 	int autoframing;
+	struct sip_st_cfg stimer;	/*!< SIP Session-Timers */
 };
 
 /*!
@@ -1359,8 +1462,9 @@ struct sip_peer {
 	struct ast_variable *chanvars;	/*!<  Variables to set for channel created by user */
 	struct sip_pvt *mwipvt;		/*!<  Subscription for MWI */
 	int autoframing;
-	int timer_t1;		/*!<  The maximum T1 value for the peer */
-	int timer_b;      /*!<  The maximum timer B (transaction timeouts) */
+	struct sip_st_cfg stimer;	/*!<  SIP Session-Timers */
+	int timer_t1;			/*!<  The maximum T1 value for the peer */
+	int timer_b;			/*!<  The maximum timer B (transaction timeouts) */
 };
 
 
@@ -1545,7 +1649,7 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 static int transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req);
 static int transmit_response_reliable(struct sip_pvt *p, const char *msg, const struct sip_request *req);
 static int transmit_response_with_date(struct sip_pvt *p, const char *msg, const struct sip_request *req);
-static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
+static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable, int oldsdp);
 static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *unsupported);
 static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
 static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
@@ -1553,7 +1657,7 @@ static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *r
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init);
-static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version);
+static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int oldsdp);
 static int transmit_info_with_digit(struct sip_pvt *p, const char digit, unsigned int duration);
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
 static int transmit_message_with_text(struct sip_pvt *p, const char *text);
@@ -1607,7 +1711,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_rate,
 				struct ast_str **m_buf, struct ast_str **a_buf,
 				int debug);
-static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p);
+static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int oldsdp);
 static void do_setnat(struct sip_pvt *p, int natflags);
 static void stop_media_flows(struct sip_pvt *p);
 
@@ -1843,6 +1947,21 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
 static struct ast_udptl *sip_get_udptl_peer(struct ast_channel *chan);
 static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl);
+
+/*------ Session-Timers functions --------- */
+static void proc_422_rsp(struct sip_pvt *p, struct sip_request *rsp);
+static int  proc_session_timer(const void *vp);
+static void stop_session_timer(struct sip_pvt *p);
+static void start_session_timer(struct sip_pvt *p);
+static void restart_session_timer(struct sip_pvt *p);
+static const char *strefresher2str(enum st_refresher r);
+static int parse_session_expires(const char *p_hdrval, int *const p_interval, enum st_refresher *const p_ref);
+static int parse_minse(const char *p_hdrval, int *const p_interval);
+static int st_get_se(struct sip_pvt *, int max);
+static enum st_refresher st_get_refresher(struct sip_pvt *);
+static enum st_mode st_get_mode(struct sip_pvt *);
+static struct sip_st_dlg* sip_st_alloc(struct sip_pvt *const p);
+
 
 /*! \brief Definition of this channel for PBX channel registration */
 static const struct ast_channel_tech sip_tech = {
@@ -2106,6 +2225,14 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported
 				break;
 			}
 		}
+
+		/* This function is used to parse both Suported: and Require: headers.
+		Let the caller of this function know that an unknown option tag was 
+		encountered, so that if the UAC requires it then the request can be 
+		rejected with a 420 response. */
+		if (!found)
+			profile |= SIP_OPT_UNKNOWN;
+
 		if (!found && sipdebug) {
 			if (!strncasecmp(next, "x-", 2))
 				ast_debug(3, "Found private SIP option, not supported: %s\n", next);
@@ -2526,6 +2653,9 @@ static void sip_scheddestroy(struct sip_pvt *p, int ms)
 	if (p->do_history)
 		append_history(p, "SchedDestroy", "%d ms", ms);
 	p->autokillid = ast_sched_add(sched, ms, __sip_autodestruct, dialog_ref(p));
+
+	if (p->stimer && p->stimer->st_active == TRUE && p->stimer->st_schedid > 0)
+		stop_session_timer(p);
 }
 
 /*! \brief Cancel destruction of SIP dialog.
@@ -2867,7 +2997,7 @@ static int sip_sendhtml(struct ast_channel *chan, int subclass, const char *data
 		break;
 	case AST_STATE_UP:
 		if (!p->pendinginvite) {		/* We are up, and have no outstanding invite */
-			transmit_reinvite_with_sdp(p, FALSE);
+			transmit_reinvite_with_sdp(p, FALSE, FALSE);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);	
 		}	
@@ -3298,6 +3428,7 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 static void sip_destroy_user(struct sip_user *user)
 {
 	ast_debug(3, "Destroying user object from memory: %s\n", user->name);
+
 	ast_free_ha(user->ha);
 	if (user->chanvars) {
 		ast_variables_destroy(user->chanvars);
@@ -3782,6 +3913,13 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		if (p->registry->call == p)
 			p->registry->call = NULL;
 		p->registry = registry_unref(p->registry);
+	}
+
+	/* Destroy Session-Timers if allocated */
+	if (p->stimer) {
+		if (p->stimer->st_active == TRUE && p->stimer->st_schedid > -1)
+			ast_sched_del(sched, p->stimer->st_schedid);
+		ast_free(p->stimer);
 	}
 
 	/* Unlink us from the owner if we have one */
@@ -4338,7 +4476,7 @@ static int sip_answer(struct ast_channel *ast)
 			ast_debug(2,"T38State change to %d on channel %s\n", p->t38.state, ast->name);
 			res = transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
 		} else 
-			res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
+			res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL, FALSE);
 	}
 	sip_pvt_unlock(p);
 	return res;
@@ -4371,7 +4509,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				if ((ast->_state != AST_STATE_UP) &&
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
-					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
+					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 				}
 				p->lastrtptx = time(NULL);
@@ -4388,7 +4526,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				if ((ast->_state != AST_STATE_UP) &&
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
-					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
+					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 				}
 				p->lastrtptx = time(NULL);
@@ -4405,7 +4543,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				if ((ast->_state != AST_STATE_UP) &&
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
-					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
+					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 				}
 				p->lastrtptx = time(NULL);
@@ -4601,7 +4739,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 		    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 			p->invitestate = INV_EARLY_MEDIA;
-			transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
+			transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE);
 			ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 			break;
 		}
@@ -5053,7 +5191,7 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 			if (!p->pendinginvite) {
 				ast_debug(3, "Sending reinvite on SIP (%s) for T.38 negotiation.\n",ast->name);
 				p->t38.state = T38_LOCAL_REINVITE;
-				transmit_reinvite_with_sdp(p, TRUE);
+				transmit_reinvite_with_sdp(p, TRUE, FALSE);
 				ast_debug(2, "T38 state changed to %d on channel %s\n", p->t38.state, ast->name);
 			}
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
@@ -5107,6 +5245,26 @@ static void make_our_tag(char *tagbuf, size_t len)
 	snprintf(tagbuf, len, "as%08lx", ast_random());
 }
 
+/*! \brief Allocate Session-Timers struct w/in dialog */
+static struct sip_st_dlg* sip_st_alloc(struct sip_pvt *const p)
+{
+	struct sip_st_dlg *stp;
+
+	if (p->stimer) {
+		ast_log(LOG_ERROR, "Session-Timer struct already allocated\n");
+		return p->stimer;
+	}
+
+	if (!(stp = ast_calloc(1, sizeof(struct sip_st_dlg))))
+		return NULL;
+
+	p->stimer = stp;
+
+	stp->st_schedid = -1;           /* Session-Timers ast_sched scheduler id */
+
+	return p->stimer;
+}
+
 /*! \brief Allocate sip_pvt structure, set defaults and link in the container.
  * Returns a reference to the object so whoever uses it later must
  * remember to release the reference.
@@ -5132,6 +5290,9 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	p->autokillid = -1;
 	p->subscribed = NONE;
 	p->stateid = -1;
+	p->sessionversion_remote = -1;
+	p->session_modify = TRUE;
+	p->stimer = NULL;
 	p->prefs = default_prefs;		/* Set default codecs for this call */
 
 	if (intended_method != SIP_OPTIONS) {	/* Peerpoke has it's own system */
@@ -5230,6 +5391,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		p->t38.jointcapability = p->t38.capability;
 	}
 	ast_string_field_set(p, context, default_context);
+
 
 	/* Add to active dialog list */
 	dialoglist_lock();
@@ -5646,6 +5808,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	const char *m;		/* SDP media offer */
 	const char *c;
 	const char *a;
+	const char *o;		/* Pointer to o= line */
+	char *o_copy;		/* Copy of o= line */
+	char *token;
 	char host[258];
 	int len = -1;
 	int portno = -1;		/*!< RTP Audio port number */
@@ -5687,6 +5852,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int last_rtpmap_codec=0;
 
 	char buf[BUFSIZ];
+	int rua_version;
 
 	if (!p->rtp) {
 		ast_log(LOG_ERROR, "Got SDP but have no RTP session allocated.\n");
@@ -5712,6 +5878,50 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	/* Update our last rtprx when we receive an SDP, too */
 	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
 
+	/* Store the SDP version number of remote UA. This will allow us to 
+	distinguish between session modifications and session refreshes. If 
+	the remote UA does not send an incremented SDP version number in a 
+	subsequent RE-INVITE then that means its not changing media session. 
+	The RE-INVITE may have been sent to update connected party, remote  
+	target or to refresh the session (Session-Timers).  Asterisk must not 
+	change media session and increment its own version number in answer 
+	SDP in this case. */ 
+	
+	o = get_sdp(req, "o");
+	if (ast_strlen_zero(o)) {
+		ast_log(LOG_WARNING, "SDP sytax error. SDP without an o= line\n");
+		return -1;
+	}
+
+	o_copy = ast_strdupa(o);
+	token = strsep(&o_copy, " ");  /* Skip username   */
+	if (!o_copy) { 
+		ast_log(LOG_WARNING, "SDP sytax error in o= line username\n");
+		return -1;
+	}
+	token = strsep(&o_copy, " ");  /* Skip session-id */
+	if (!o_copy) { 
+		ast_log(LOG_WARNING, "SDP sytax error in o= line session-id\n");
+		return -1;
+	}
+	token = strsep(&o_copy, " ");  /* Version         */
+	if (!o_copy) { 
+		ast_log(LOG_WARNING, "SDP sytax error in o= line\n");
+		return -1;
+	}
+	if (!sscanf(token, "%d", &rua_version)) {
+		ast_log(LOG_WARNING, "SDP sytax error in o= line version\n");
+		return -1;
+	}
+
+	if (p->sessionversion_remote < 0 || p->sessionversion_remote != rua_version) {
+ 		p->sessionversion_remote = rua_version;
+		p->session_modify = TRUE;
+	} else if (p->sessionversion_remote == rua_version) {
+		p->session_modify = FALSE;
+		ast_debug(2, "SDP version number same as previous SDP\n");
+		return 0;
+	} 
 
 	/* Try to find first media stream */
 	m = get_sdp(req, "m");
@@ -6598,6 +6808,16 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 		add_header(resp, "User-Agent", global_useragent);
 	add_header(resp, "Allow", ALLOWED_METHODS);
 	add_header(resp, "Supported", SUPPORTED_EXTENSIONS);
+
+	/* Add Session-Timers related headers if the feature is active for this session */
+	if (p->stimer && p->stimer->st_active == TRUE && p->stimer->st_active_peer_ua == TRUE) {
+		char se_hdr[256];
+		snprintf(se_hdr, sizeof(se_hdr), "%d;refresher=%s", p->stimer->st_interval, 
+			strefresher2str(p->stimer->st_ref));
+		add_header(resp, "Require", "timer");
+		add_header(resp, "Session-Expires", se_hdr);
+	}
+
 	if (msg[0] == '2' && (p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
 		/* For registration responses, we also need expiry and
 		   contact info */
@@ -6729,6 +6949,17 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		ast_string_field_set(p, url, NULL);
 	}
 
+	/* Add Session-Timers related headers if the feature is active for this session */
+	if (p->stimer && p->stimer->st_active == TRUE && p->stimer->st_active_peer_ua == TRUE) {
+		char se_hdr[256];
+		snprintf(se_hdr, sizeof(se_hdr), "%d;refresher=%s", p->stimer->st_interval, 
+			strefresher2str(p->stimer->st_ref));
+		add_header(req, "Require", "timer");
+		add_header(req, "Session-Expires", se_hdr);
+		snprintf(se_hdr, sizeof(se_hdr), "%d", st_get_se(p, FALSE));
+		add_header(req, "Min-SE", se_hdr);
+	}
+
 	return 0;
 }
 
@@ -6839,6 +7070,23 @@ static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg
 	add_header_contentLength(&resp, 0);
 	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
 }
+
+/*! \brief Transmit 422 response with Min-SE header (Session-Timers)  */
+static int transmit_response_with_minse(struct sip_pvt *p, const char *msg, const struct sip_request *req, int minse_int)
+{
+	struct sip_request resp;
+	char minse_str[20];
+
+	respprep(&resp, p, msg, req);
+	append_date(&resp);
+
+	snprintf(minse_str, sizeof(minse_str), "%d", minse_int);
+	add_header(&resp, "Min-SE", minse_str);
+
+	add_header_contentLength(&resp, 0);
+	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
+}
+
 
 /*! \brief Transmit response, Make sure you get an ACK
 	This is only used for responses to INVITEs, where we need to make sure we get an ACK
@@ -7222,8 +7470,13 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo,
 
 #define SDP_SAMPLE_RATE(x) (x == AST_FORMAT_G722) ? 16000 : 8000
 
-/*! \brief Add Session Description Protocol message */
-static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
+/*! \brief Add Session Description Protocol message 
+
+    If oldsdp is TRUE, then the SDP version number is not incremented. This mechanism
+    is used in Session-Timers where RE-INVITEs are used for refreshing SIP sessions 
+    without modifying the media session in any way. 
+*/
+static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int oldsdp)
 {
 	int len = 0;
 	int alreadysent = 0;
@@ -7276,8 +7529,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	if (!p->sessionid) {
 		p->sessionid = (int)ast_random();
 		p->sessionversion = p->sessionid;
-	} else
-		p->sessionversion++;
+	} else {
+		if (oldsdp == FALSE)
+			p->sessionversion++;
+	}
 
 	capability = p->jointcapability;
 
@@ -7539,7 +7794,7 @@ static void copy_request(struct sip_request *dst, const struct sip_request *src)
 /*! \brief Used for 200 OK and 183 early media 
 	\return Will return XMIT_ERROR for network errors.
 */
-static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable)
+static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable, int oldsdp)
 {
 	struct sip_request resp;
 	int seqno;
@@ -7554,7 +7809,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 			ast_rtp_codec_setpref(p->rtp, &p->prefs);
 		}
 		try_suggested_sip_codec(p);	
-		add_sdp(&resp, p);
+		add_sdp(&resp, p, oldsdp);
 	} else 
 		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
 	if (reliable && !p->pendinginvite)
@@ -7611,27 +7866,38 @@ static int determine_firstline_parts(struct sip_request *req)
 	
 	If t38version is TRUE, we send T38 SDP for re-invite from audio/video to
 	T38 UDPTL transmission on the channel
+
+    If oldsdp is TRUE then the SDP version number is not incremented. This
+    is needed for Session-Timers so we can send a re-invite to refresh the
+    SIP session without modifying the media session. 
 */
-static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version)
+static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int oldsdp)
 {
 	struct sip_request req;
 
 	reqprep(&req, p, ast_test_flag(&p->flags[0], SIP_REINVITE_UPDATE) ?  SIP_UPDATE : SIP_INVITE, 0, 1);
-	
+
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
-	if (sipdebug)
-		add_header(&req, "X-asterisk-Info", "SIP re-invite (External RTP bridge)");
+	if (sipdebug) {
+		if (oldsdp == TRUE)
+			add_header(&req, "X-asterisk-Info", "SIP re-invite (Session-Timers)");
+		else
+			add_header(&req, "X-asterisk-Info", "SIP re-invite (External RTP bridge)");
+	}
+
 	if (p->do_history)
 		append_history(p, "ReInv", "Re-invite sent");
 	if (t38version)
 		add_t38_sdp(&req, p);
 	else
-		add_sdp(&req, p);
+		add_sdp(&req, p, oldsdp);
+
 	/* Use this as the basis */
 	initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
-	ast_set_flag(&p->flags[0], SIP_OUTGOING);		/* Change direction of this dialog */
+	ast_set_flag(&p->flags[0], SIP_OUTGOING);       /* Change direction of this dialog */
+
 	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 }
 
@@ -7942,6 +8208,20 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		add_header(&req, "Require", "replaces");
 	}
 
+	/* Add Session-Timers related headers */
+	if (st_get_mode(p) == SESSION_TIMER_MODE_ORIGINATE) {
+		char i2astr[10];
+
+		if (!p->stimer->st_interval)
+			p->stimer->st_interval = st_get_se(p, TRUE);
+
+		p->stimer->st_active = TRUE;
+		
+		snprintf(i2astr, sizeof(i2astr), "%d", p->stimer->st_interval);
+		add_header(&req, "Session-Expires", i2astr);
+		add_header(&req, "Min-SE", i2astr);
+	}
+
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 	if (p->options && p->options->addsipheaders && p->owner) {
@@ -7990,7 +8270,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 			ast_debug(1, "T38 is in state %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
 			add_t38_sdp(&req, p);
 		} else if (p->rtp) 
-			add_sdp(&req, p);
+			add_sdp(&req, p, FALSE);
 	} else {
 		add_header_contentLength(&req, 0);
 	}
@@ -10829,6 +11109,45 @@ static const char *nat2str(int nat)
 /*! \brief  Report Peer status in character string
  *  \return 0 if peer is unreachable, 1 if peer is online, -1 if unmonitored
  */
+
+
+/* Session-Timer Modes */
+static struct _map_x_s stmodes[] = {
+        { SESSION_TIMER_MODE_ACCEPT,    "Accept"},
+        { SESSION_TIMER_MODE_ORIGINATE, "Originate"},
+        { SESSION_TIMER_MODE_REFUSE,    "Refuse"},
+        { -1,                           NULL},
+};
+
+static const char *stmode2str(enum st_mode m)
+{
+	return map_x_s(stmodes, m, "Unknown");
+}
+
+static enum st_mode str2stmode(const char *s)
+{
+	return map_s_x(stmodes, s, -1);
+}
+
+/* Session-Timer Refreshers */
+static struct _map_x_s strefreshers[] = {
+        { SESSION_TIMER_REFRESHER_AUTO,     "auto"},
+        { SESSION_TIMER_REFRESHER_UAC,      "uac"},
+        { SESSION_TIMER_REFRESHER_UAS,      "uas"},
+        { -1,                               NULL},
+};
+
+static const char *strefresher2str(enum st_refresher r)
+{
+	return map_x_s(strefreshers, r, "Unknown");
+}
+
+static enum st_refresher str2strefresher(const char *s)
+{
+	return map_s_x(strefreshers, s, -1);
+}
+
+
 static int peer_status(struct sip_peer *peer, char *status, int statuslen)
 {
 	int res = 0;
@@ -11510,8 +11829,6 @@ static int manager_sip_show_peer(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-
-
 /*! \brief Show one peer in detail */
 static char *sip_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -11667,7 +11984,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		print_codec_to_cli(fd, &peer->prefs);
 		ast_cli(fd, ")\n");
 
-		ast_cli(fd, "  Auto-Framing:  %s \n", cli_yesno(peer->autoframing));
+		ast_cli(fd, "  Auto-Framing :  %s \n", cli_yesno(peer->autoframing));
 		ast_cli(fd, "  100 on REG   : %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_REGISTERTRYING) ? "Yes" : "No");
 		ast_cli(fd, "  Status       : ");
 		peer_status(peer, status, sizeof(status));
@@ -11680,6 +11997,11 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 			for (v = peer->chanvars ; v ; v = v->next)
  				ast_cli(fd, "                 %s = %s\n", v->name, v->value);
 		}
+
+		ast_cli(fd, "  Sess-Timers  : %s\n", stmode2str(peer->stimer.st_mode_oper));
+		ast_cli(fd, "  Sess-Refresh : %s\n", strefresher2str(peer->stimer.st_ref));
+		ast_cli(fd, "  Sess-Expires : %d secs\n", peer->stimer.st_max_se);
+		ast_cli(fd, "  Min-Sess     : %d secs\n", peer->stimer.st_min_se);
 		ast_cli(fd,"\n");
 		unref_peer(peer);
 	} else  if (peer && type == 1) { /* manager listing */
@@ -11722,6 +12044,10 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "SIP-UserPhone: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)?"Y":"N"));
 		astman_append(s, "SIP-VideoSupport: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT)?"Y":"N"));
 		astman_append(s, "SIP-TextSupport: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT)?"Y":"N"));
+		astman_append(s, "SIP-Sess-Timers: %s\r\n", stmode2str(peer->stimer.st_mode_oper));
+		astman_append(s, "SIP-Sess-Refresh: %s\r\n", strefresher2str(peer->stimer.st_ref));
+		astman_append(s, "SIP-Sess-Expires: %d\r\n", peer->stimer.st_max_se);
+		astman_append(s, "SIP-Sess-Min: %d\r\n", peer->stimer.st_min_se);
 
 		/* - is enumerated */
 		astman_append(s, "SIP-DTMFmode: %s\r\n", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
@@ -11816,6 +12142,11 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		print_group(a->fd, user->pickupgroup, 0);
 		ast_cli(a->fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>"));
 		ast_cli(a->fd, "  ACL          : %s\n", cli_yesno(user->ha != NULL));
+ 		ast_cli(a->fd, "  Sess-Timers  : %s\n", stmode2str(user->stimer.st_mode_oper));
+ 		ast_cli(a->fd, "  Sess-Refresh : %s\n", strefresher2str(user->stimer.st_ref));
+ 		ast_cli(a->fd, "  Sess-Expires : %d secs\n", user->stimer.st_max_se);
+ 		ast_cli(a->fd, "  Sess-Min-SE  : %d secs\n", user->stimer.st_min_se);
+
 		ast_cli(a->fd, "  Codec Order  : (");
 		print_codec_to_cli(a->fd, &user->prefs);
 		ast_cli(a->fd, ")\n");
@@ -11826,7 +12157,9 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 			for (v = user->chanvars ; v ; v = v->next)
  				ast_cli(a->fd, "                 %s = %s\n", v->name, v->value);
 		}
+
 		ast_cli(a->fd,"\n");
+
 		unref_user(user);
 	} else {
 		ast_cli(a->fd,"User %s not found.\n", a->argv[3]);
@@ -12058,6 +12391,10 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Auto-Framing:           %s\n", cli_yesno(global_autoframing));
 	ast_cli(a->fd, "  Outb. proxy:            %s %s\n", ast_strlen_zero(global_outboundproxy.name) ? "<not set>" : global_outboundproxy.name,
 							global_outboundproxy.force ? "(forced)" : "");
+	ast_cli(a->fd, "  Session Timers:         %s\n", stmode2str(global_st_mode));
+	ast_cli(a->fd, "  Session Refresher:      %s\n", strefresher2str (global_st_refresher));
+	ast_cli(a->fd, "  Session Expires:        %d secs\n", global_max_se);
+	ast_cli(a->fd, "  Session Min-SE:         %d secs\n", global_min_se);
  	ast_cli(a->fd, "  Timer T1:               %d\n", global_t1);
 	ast_cli(a->fd, "  Timer T1 minimum:       %d\n", global_t1min);
  	ast_cli(a->fd, "  Timer B:                %d\n", global_timer_b);
@@ -12438,9 +12775,29 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 					if (cur->sipoptions & sip_options[x].id)
 						ast_cli(a->fd, "%s ", sip_options[x].text);
 				}
+				ast_cli(a->fd, "\n");
 			} else
 				ast_cli(a->fd, "(none)\n");
+
+			if (!cur->stimer)
+ 				ast_cli(a->fd, "  Session-Timer:          Uninitiallized\n");
+			else {
+ 				ast_cli(a->fd, "  Session-Timer:          %s\n", cur->stimer->st_active ? "Active" : "Inactive");
+ 				if (cur->stimer->st_active == TRUE) {
+ 					ast_cli(a->fd, "  S-Timer Interval:       %d\n", cur->stimer->st_interval);
+ 					ast_cli(a->fd, "  S-Timer Refresher:      %s\n", strefresher2str(cur->stimer->st_ref));
+ 					ast_cli(a->fd, "  S-Timer Expirys:        %d\n", cur->stimer->st_expirys);
+ 					ast_cli(a->fd, "  S-Timer Sched Id:       %d\n", cur->stimer->st_schedid);
+ 					ast_cli(a->fd, "  S-Timer Peer Sts:       %s\n", cur->stimer->st_active_peer_ua ? "Active" : "Inactive");
+ 					ast_cli(a->fd, "  S-Timer Cached Min-SE:  %d\n", cur->stimer->st_cached_min_se);
+ 					ast_cli(a->fd, "  S-Timer Cached SE:      %d\n", cur->stimer->st_cached_max_se);
+ 					ast_cli(a->fd, "  S-Timer Cached Ref:     %s\n", strefresher2str(cur->stimer->st_cached_ref));
+ 					ast_cli(a->fd, "  S-Timer Cached Mode:    %s\n", stmode2str(cur->stimer->st_cached_mode));
+ 				}
+			}
+
 			ast_cli(a->fd, "\n\n");
+
 			found++;
 		}
 	}
@@ -13457,7 +13814,7 @@ static void check_pendings(struct sip_pvt *p)
 		} else {
 			ast_debug(2, "Sending pending reinvite on '%s'\n", p->callid);
 			/* Didn't get to reinvite yet, so do it now */
-			transmit_reinvite_with_sdp(p, FALSE);
+			transmit_reinvite_with_sdp(p, FALSE, FALSE);
 			ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
 		}
 	}
@@ -13485,6 +13842,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	int xmitres = 0;
 	int reinvite = (p->owner && p->owner->_state == AST_STATE_UP);
 	struct ast_channel *bridgepeer = NULL;
+	char *p_hdrval;
+	int rtn;
 	
 	if (reinvite)
 		ast_debug(4, "SIP response %d to RE-invite on %s call %s\n", resp, outgoing ? "outgoing" : "incoming", p->callid);
@@ -13657,6 +14016,39 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			if (!req->ignore)
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 		}
+
+		/* Check for Session-Timers related headers */
+		if (st_get_mode(p) != SESSION_TIMER_MODE_REFUSE && p->outgoing_call == TRUE && !reinvite) {
+			p_hdrval = (char*)get_header(req, "Session-Expires");
+        		if (!ast_strlen_zero(p_hdrval)) {
+				/* UAS supports Session-Timers */
+				enum st_refresher tmp_st_ref = SESSION_TIMER_REFRESHER_AUTO;
+				int tmp_st_interval = 0;
+				rtn = parse_session_expires(p_hdrval, &tmp_st_interval, &tmp_st_ref);
+				if (rtn != 0) {
+					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
+				}
+				if (tmp_st_ref == SESSION_TIMER_REFRESHER_UAC || 
+					tmp_st_ref == SESSION_TIMER_REFRESHER_UAS) {
+					p->stimer->st_ref = tmp_st_ref;
+				} 
+				if (tmp_st_interval) {
+					p->stimer->st_interval = tmp_st_interval;
+				}
+				p->stimer->st_active = TRUE;
+				p->stimer->st_active_peer_ua = TRUE;
+				start_session_timer(p);
+			} else {
+				/* UAS doesn't support Session-Timers */
+				if (st_get_mode(p) == SESSION_TIMER_MODE_ORIGINATE) {
+					p->stimer->st_ref = SESSION_TIMER_REFRESHER_UAC;
+					p->stimer->st_active_peer_ua = FALSE;
+					start_session_timer(p);
+				}
+			}
+		}
+
+
 		/* If I understand this right, the branch is different for a non-200 ACK only */
 		p->invitestate = INV_TERMINATED;
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, TRUE);
@@ -13711,6 +14103,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		break;
+
+	case 422: /* Session-Timers: Session interval too small */
+		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
+		ast_string_field_set(p, theirtag, NULL);
+		proc_422_rsp(p, req);
+		break;
+
 	case 487: /* Cancelled transaction */
 		/* We have sent CANCEL on an outbound INVITE 
 			This transaction is already scheduled to be killed by sip_hangup().
@@ -14214,6 +14613,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				p->needdestroy = 1;
 			}
 			break;
+
+		case 422: /* Session-Timers: Session Interval Too Small */
+			if (sipmethod == SIP_INVITE) {
+				handle_response_invite(p, resp, rest, req, seqno);
+			}
+			break;
+
 		case 481: /* Call leg does not exist */
 			if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, seqno);
@@ -14936,7 +15342,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 		/* We should answer something here. If we are here, the
 			call we are replacing exists, so an accepted 
 			can't harm */
-		transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE);
+		transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE, FALSE);
 		/* Do something more clever here */
 		ast_channel_unlock(c);
 		sip_pvt_unlock(p->refer->refer_call);
@@ -14970,7 +15376,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	   Targetcall is not touched by the masq */
 
 	/* Answer the incoming call and set channel to UP state */
-	transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE);
+	transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE, FALSE);
 		
 	ast_setstate(c, AST_STATE_UP);
 	
@@ -15069,6 +15475,17 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	unsigned int required_profile = 0;
 	struct ast_channel *c = NULL;		/* New channel */
 	int reinvite = 0;
+	int rtn;
+
+	const char *p_uac_se_hdr;       /* UAC's Session-Expires header string                      */
+	const char *p_uac_min_se;       /* UAC's requested Min-SE interval (char string)            */
+	int uac_max_se = -1;            /* UAC's Session-Expires in integer format                  */
+	int uac_min_se = -1;            /* UAC's Min-SE in integer format                           */
+	int st_active = FALSE;          /* Session-Timer on/off boolean                             */
+	int st_interval = 0;            /* Session-Timer negotiated refresh interval                */
+	enum st_refresher st_ref;       /* Session-Timer session refresher                          */
+	int dlg_min_se = -1;
+	st_ref = SESSION_TIMER_REFRESHER_AUTO;
 
 	/* Find out what they support */
 	if (!p->sipoptions) {
@@ -15081,8 +15498,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	required = get_header(req, "Require");
 	if (!ast_strlen_zero(required)) {
 		required_profile = parse_sip_options(NULL, required);
-		if (required_profile && required_profile != SIP_OPT_REPLACES) {
-			/* At this point we only support REPLACES */
+		if (required_profile && required_profile != SIP_OPT_REPLACES && required_profile != SIP_OPT_TIMER) {
+			/* At this point we only support REPLACES and Session-Timer */
 			transmit_response_with_unsupported(p, "420 Bad extension (unsupported)", req, required);
 			ast_log(LOG_WARNING,"Received SIP INVITE with unsupported required extension: %s\n", required);
 			p->invitestate = INV_COMPLETED;
@@ -15091,6 +15508,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			return -1;
 		}
 	}
+
+	/* The option tags may be present in Supported: or Require: headers.
+	Include the Require: option tags for further processing as well */
+	p->sipoptions |= required_profile;
+	p->reqsipoptions = required_profile;
 
 	/* Check if this is a loop */
 	if (ast_test_flag(&p->flags[0], SIP_OUTGOING) && p->owner && (p->owner->_state != AST_STATE_UP)) {
@@ -15218,7 +15640,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 	}
 
-
 	/* Check if this is an INVITE that sets up a new dialog or
 	   a re-invite in an existing dialog */
 
@@ -15343,6 +15764,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return 0;
 		} else {
+
 			/* If no extension was specified, use the s one */
 			/* Basically for calling to IP/Host name only */
 			if (ast_strlen_zero(p->exten))
@@ -15369,8 +15791,139 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			else
 				ast_debug(2, "Got a SIP re-transmit of INVITE for call %s\n", p->callid);
 		}
+
 		reinvite = 1;
 		c = p->owner;
+	}
+
+	/* Session-Timers */
+	if (p->sipoptions == SIP_OPT_TIMER) {
+		/* The UAC has requested session-timers for this session. Negotiate
+		the session refresh interval and who will be the refresher */
+		ast_debug(2, "Incoming INVITE with 'timer' option enabled\n");
+
+		/* Allocate Session-Timers struct w/in the dialog */
+		if (!p->stimer)
+			sip_st_alloc(p);
+
+		/* Parse the Session-Expires header */
+		p_uac_se_hdr = get_header(req, "Session-Expires");
+		if (!ast_strlen_zero(p_uac_se_hdr)) {
+			rtn = parse_session_expires(p_uac_se_hdr, &uac_max_se, &st_ref);
+			if (rtn != 0) {
+				transmit_response(p, "400 Session-Expires Invalid Syntax", req);
+				p->invitestate = INV_COMPLETED;
+				if (!p->lastinvite) {
+					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+				}
+				return -1;
+			}
+		}
+
+		/* Parse the Min-SE header */
+		p_uac_min_se = get_header(req, "Min-SE");
+		if (!ast_strlen_zero(p_uac_min_se)) {
+			rtn = parse_minse(p_uac_min_se, &uac_min_se); 
+			if (rtn != 0) {
+        			transmit_response(p, "400 Min-SE Invalid Syntax", req);
+       	   			p->invitestate = INV_COMPLETED;
+       	   			if (!p->lastinvite) {
+					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+				}
+				return -1;
+			}
+		}
+
+		dlg_min_se = st_get_se(p, FALSE);
+		switch (st_get_mode(p)) {
+		case SESSION_TIMER_MODE_ACCEPT:
+		case SESSION_TIMER_MODE_ORIGINATE:
+			if (uac_max_se > 0 && uac_max_se < dlg_min_se) {
+				transmit_response_with_minse(p, "422 Session Interval Too Small", req, dlg_min_se);
+				p->invitestate = INV_COMPLETED;
+				if (!p->lastinvite) {
+					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+				}
+				return -1;
+			}
+
+			p->stimer->st_active_peer_ua = TRUE;
+			st_active = TRUE;
+			if (st_ref == SESSION_TIMER_REFRESHER_AUTO) {
+				st_ref = st_get_refresher(p);
+			}
+
+			if (uac_max_se > 0) {
+				int dlg_max_se = st_get_se(p, TRUE);
+				if (dlg_max_se >= uac_min_se) {
+					st_interval = (uac_max_se < dlg_max_se) ? uac_max_se : dlg_max_se;
+				} else {
+					st_interval = uac_max_se;
+				}
+			} else {
+				st_interval = uac_min_se;
+			}
+			break;
+
+		case SESSION_TIMER_MODE_REFUSE:
+			if (p->reqsipoptions == SIP_OPT_TIMER) {
+				transmit_response_with_unsupported(p, "420 Option Disabled", req, required);
+				ast_log(LOG_WARNING,"Received SIP INVITE with supported but disabled option: %s\n", required);
+				p->invitestate = INV_COMPLETED;
+				if (!p->lastinvite) {
+					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+				}
+				return -1;
+			}
+			break;
+
+		default:
+			ast_log(LOG_ERROR, "Internal Error %d at %s:%d\n", st_get_mode(p), __FILE__, __LINE__);
+			break;
+		}
+	} else {
+		/* The UAC did not request session-timers.  Asterisk (UAS), will now decide
+		(based on session-timer-mode in sip.conf) whether to run session-timers for
+		this session or not. */
+		switch (st_get_mode(p)) {
+		case SESSION_TIMER_MODE_ORIGINATE:
+			st_active = TRUE;
+			st_interval = st_get_se(p, TRUE);
+			st_ref = SESSION_TIMER_REFRESHER_UAS;
+			p->stimer->st_active_peer_ua = FALSE;
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	if (reinvite == 0) {
+		/* Session-Timers: Start session refresh timer based on negotiation/config */
+		if (st_active == TRUE) {
+			p->stimer->st_active   = TRUE;
+			p->stimer->st_interval = st_interval;
+			p->stimer->st_ref      = st_ref;
+			start_session_timer(p);
+		}
+	} else {
+		if (p->stimer->st_active == TRUE) {
+			/* Session-Timers:  A re-invite request sent within a dialog will serve as 
+			a refresh request, no matter whether the re-invite was sent for refreshing 
+			the session or modifying it.*/
+			ast_debug (2, "Restarting session-timers on a refresh - %s\n", p->callid);
+
+			/* The UAC may be adjusting the session-timers mid-session */
+			if (st_interval > 0) {
+				p->stimer->st_interval = st_interval;
+				p->stimer->st_ref      = st_ref;
+			}
+
+			restart_session_timer(p);
+			if (p->stimer->st_expirys > 0) {
+				p->stimer->st_expirys--;
+			}
+		}
 	}
 
 	if (!req->ignore && p)
@@ -15537,9 +16090,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					}
 				} 
 				/* Respond to normal re-invite */
-				if (sendok)
+				if (sendok) {
 					/* If this is not a re-invite or something to ignore - it's critical */
-					transmit_response_with_sdp(p, "200 OK", req, (reinvite || req->ignore) ?  XMIT_UNRELIABLE : XMIT_CRITICAL);
+					transmit_response_with_sdp(p, "200 OK", req, (reinvite || req->ignore) ?  XMIT_UNRELIABLE : XMIT_CRITICAL, p->session_modify == TRUE ? FALSE:TRUE); 
+				}
 			}
 			p->invitestate = INV_TERMINATED;
 			break;
@@ -16188,6 +16742,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
+    stop_session_timer(p); /* Stop Session-Timer */
 
 	if (!ast_strlen_zero(get_header(req, "Also"))) {
 		ast_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
@@ -17159,6 +17714,331 @@ static int restart_monitor(void)
 	return 0;
 }
 
+
+/*! \brief Session-Timers: Restart session timer */
+static void restart_session_timer(struct sip_pvt *p)
+{
+	if (!p->stimer) {
+		ast_log(LOG_WARNING, "Null stimer in restart_session_timer - %s\n", p->callid);
+		return;
+	}
+
+	if (p->stimer->st_active == TRUE) {
+		if (ast_sched_del(sched, p->stimer->st_schedid) != 0) {
+			ast_log(LOG_WARNING, "ast_sched_del failed: %d - %s\n", p->stimer->st_schedid, p->callid);
+		}
+
+		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
+		start_session_timer(p);
+	}
+}
+
+
+/*! \brief Session-Timers: Stop session timer */
+static void stop_session_timer(struct sip_pvt *p)
+{
+	if (!p->stimer) {
+		ast_log(LOG_WARNING, "Null stimer in stop_session_timer - %s\n", p->callid);
+		return;
+	}
+
+	if (p->stimer->st_active == TRUE) {
+		p->stimer->st_active = FALSE;
+		ast_sched_del(sched, p->stimer->st_schedid);
+		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
+	}
+}
+
+
+/*! \brief Session-Timers: Start session timer */
+static void start_session_timer(struct sip_pvt *p)
+{
+	if (!p->stimer) {
+		ast_log(LOG_WARNING, "Null stimer in start_session_timer - %s\n", p->callid);
+		return;
+	}
+
+	p->stimer->st_schedid  = ast_sched_add(sched, p->stimer->st_interval * 1000 / 2, proc_session_timer, p);
+	if (p->stimer->st_schedid < 0) {
+		ast_log(LOG_ERROR, "ast_sched_add failed.\n");
+	}
+	ast_debug(2, "Session timer started: %d - %s\n", p->stimer->st_schedid, p->callid);
+}
+
+
+/*! \brief Session-Timers: Process session refresh timeout event */
+static int proc_session_timer(const void *vp)
+{
+	struct sip_pvt *p = (struct sip_pvt *) vp;
+	int sendreinv = FALSE;
+
+	if (!p->stimer) {
+		ast_log(LOG_WARNING, "Null stimer in proc_session_timer - %s\n", p->callid);
+		return 0;
+	}
+
+	ast_debug(2, "Session timer expired: %d - %s\n", p->stimer->st_schedid, p->callid);
+
+	if (!p->owner) {
+		if (p->stimer->st_active == TRUE) {
+			stop_session_timer(p);
+		}
+		return 0;
+	}
+
+	if ((p->stimer->st_active != TRUE) || (p->owner->_state != AST_STATE_UP)) {
+		return 0;
+	}
+
+	switch (p->stimer->st_ref) {
+	case SESSION_TIMER_REFRESHER_UAC:
+		if (p->outgoing_call == TRUE) {
+	  		sendreinv = TRUE;
+		}
+		break;
+	case SESSION_TIMER_REFRESHER_UAS:
+		if (p->outgoing_call != TRUE) {
+  			sendreinv = TRUE;
+		}
+		break;
+	default:
+		ast_log(LOG_ERROR, "Unknown session refresher %d\n", p->stimer->st_ref);
+		return -1;
+	}
+
+	if (sendreinv == TRUE) {
+		transmit_reinvite_with_sdp(p, FALSE, TRUE);
+	} else {
+		p->stimer->st_expirys++;
+		if (p->stimer->st_expirys >= 2) {
+			ast_log(LOG_WARNING, "Session-Timer expired - %s\n", p->callid);
+			stop_session_timer(p);
+
+			while (p->owner && ast_channel_trylock(p->owner)) {
+				sip_pvt_unlock(p);
+				usleep(1);
+				sip_pvt_lock(p);
+          		}
+
+           		ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+           		ast_channel_unlock(p->owner);
+		}
+	}
+	return 1;
+}
+
+
+/* Session-Timers: Function for parsing Min-SE header */
+int parse_minse (const char *p_hdrval, int *const p_interval)
+{
+	if (ast_strlen_zero(p_hdrval)) {
+		ast_log(LOG_WARNING, "Null Min-SE header\n");
+		return -1;
+	}
+
+	*p_interval = 0;
+	p_hdrval = ast_skip_blanks(p_hdrval);
+	if (!sscanf(p_hdrval, "%d", p_interval)) {
+		ast_log(LOG_WARNING, "Parsing of Min-SE header failed %s\n", p_hdrval);
+		return -1;
+	}
+
+	ast_debug(2, "Received Min-SE: %d\n", *p_interval);
+	return 0;
+}
+
+
+/* Session-Timers: Function for parsing Session-Expires header */
+int parse_session_expires(const char *p_hdrval, int *const p_interval, enum st_refresher *const p_ref)
+{
+	char *p_token;
+	int  ref_idx;
+	char *p_se_hdr;
+
+	if (ast_strlen_zero(p_hdrval)) {
+		ast_log(LOG_WARNING, "Null Session-Expires header\n");
+		return -1;
+	}
+
+	*p_ref = SESSION_TIMER_REFRESHER_AUTO;
+	*p_interval = 0;
+
+	p_se_hdr = ast_strdupa(p_hdrval);
+	p_se_hdr = ast_skip_blanks(p_se_hdr);
+
+	while ((p_token = strsep(&p_se_hdr, ";"))) {
+		p_token = ast_skip_blanks(p_token);
+		if (!sscanf(p_token, "%d", p_interval)) {
+			ast_log(LOG_WARNING, "Parsing of Session-Expires failed\n");
+			return -1;
+		}
+
+		ast_debug(2, "Session-Expires: %d\n", *p_interval);
+
+		if (!p_se_hdr)
+			continue;
+		
+		ref_idx = strlen("refresher=");
+		if (!strncasecmp(p_se_hdr, "refresher=", ref_idx)) {
+			p_se_hdr += ref_idx;
+			p_se_hdr = ast_skip_blanks(p_se_hdr);
+
+			if (!strncasecmp(p_se_hdr, "uac", strlen("uac"))) {
+				*p_ref = SESSION_TIMER_REFRESHER_UAC;
+				ast_debug(2, "Refresher: UAC\n");
+			} else if (!strncasecmp(p_se_hdr, "uas", strlen("uas"))) {
+				*p_ref = SESSION_TIMER_REFRESHER_UAS;
+				ast_debug(2, "Refresher: UAS\n");
+			} else {
+				ast_log(LOG_WARNING, "Invalid refresher value %s\n", p_se_hdr);
+				return -1;
+			}
+			break;
+		}
+	}
+	return 0;
+}
+
+
+/*! \brief Handle 422 response to INVITE with session-timer requested
+
+   Session-Timers:   An INVITE originated by Asterisk that asks for session-timers support
+   from the UAS can result into a 422 response. This is how a UAS or an intermediary proxy 
+   server tells Asterisk that the session refresh interval offered by Asterisk is too low 
+   for them.  The proc_422_rsp() function handles a 422 response.  It extracts the Min-SE 
+   header that comes back in 422 and sends a new INVITE accordingly. */
+static void proc_422_rsp(struct sip_pvt *p, struct sip_request *rsp)
+{
+	int rtn;
+	const char *p_hdrval;
+	int minse;
+
+	p_hdrval = get_header(rsp, "Min-SE");
+	if (ast_strlen_zero(p_hdrval)) {
+		ast_log(LOG_WARNING, "422 response without a Min-SE header %s\n", p_hdrval);
+		return;
+	}
+	rtn = parse_minse(p_hdrval, &minse);
+	if (rtn != 0) {
+		ast_log(LOG_WARNING, "Parsing of Min-SE header failed %s\n", p_hdrval);
+		return;
+	}
+	p->stimer->st_interval = minse;
+	transmit_invite(p, SIP_INVITE, 1, 2); 
+}
+
+
+/*! \brief Get Max or Min SE (session timer expiry)
+	\param max if true, get max se, otherwise min se
+*/
+int st_get_se(struct sip_pvt *p, int max)
+{
+	if (max == TRUE) {
+		if (p->stimer->st_cached_max_se) {
+			return p->stimer->st_cached_max_se;
+		} else {
+			if (p->username) {
+				struct sip_user *up = find_user(p->username, 1);
+				if (up) {
+					p->stimer->st_cached_max_se = up->stimer.st_max_se;
+					return (p->stimer->st_cached_max_se);
+				}
+			} 
+			if (p->peername) {
+				struct sip_peer *pp = find_peer(p->peername, NULL, 1);
+				if (pp) {
+					p->stimer->st_cached_max_se = pp->stimer.st_max_se;
+					return (p->stimer->st_cached_max_se);
+				}
+			}
+		}
+		p->stimer->st_cached_max_se = global_max_se;
+		return (p->stimer->st_cached_max_se);
+	} else {
+		if (p->stimer->st_cached_min_se) {
+			return p->stimer->st_cached_min_se;
+		} else {
+			if (p->username) {
+				struct sip_user *up = find_user(p->username, 1);
+				if (up) {
+					p->stimer->st_cached_min_se = up->stimer.st_min_se;
+					return (p->stimer->st_cached_min_se);
+				}
+			} 
+			if (p->peername) {
+				struct sip_peer *pp = find_peer(p->peername, NULL, 1);
+				if (pp) {
+					p->stimer->st_cached_min_se = pp->stimer.st_min_se;
+					return (p->stimer->st_cached_min_se);
+				}
+			}
+		}
+		p->stimer->st_cached_min_se = global_min_se;
+		return (p->stimer->st_cached_min_se);
+	}
+}
+
+
+/*! \brief Get the entity (UAC or UAS) that's acting as the session-timer refresher 
+	\param sip_pvt pointer to the SIP dialog 
+*/
+enum st_refresher st_get_refresher(struct sip_pvt *p)
+{
+	if (p->stimer->st_cached_ref != SESSION_TIMER_REFRESHER_AUTO) 
+		return p->stimer->st_cached_ref;
+
+	if (p->username) {
+		struct sip_user *up = find_user(p->username, 1);
+		if (up) {
+			p->stimer->st_cached_ref = up->stimer.st_ref;
+			return up->stimer.st_ref;
+		}
+	} 
+
+	if (p->peername) {
+		struct sip_peer *pp = find_peer(p->peername, NULL, 1);
+		if (pp) {
+			p->stimer->st_cached_ref = pp->stimer.st_ref;
+			return pp->stimer.st_ref;
+		}
+	}
+	
+	p->stimer->st_cached_ref = global_st_refresher;
+	return global_st_refresher;
+}
+
+
+/*! \brief Get the session-timer mode 
+	\param sip_pvt pointer to the SIP dialog 
+*/
+enum st_mode st_get_mode(struct sip_pvt *p)
+{
+	if (!p->stimer) 
+		sip_st_alloc(p);
+
+	if (p->stimer->st_cached_mode != SESSION_TIMER_MODE_INVALID) 
+		return p->stimer->st_cached_mode;
+
+	if (p->username) {
+		struct sip_user *up = find_user(p->username, 1);
+		if (up) {
+			p->stimer->st_cached_mode = up->stimer.st_mode_oper;
+			return up->stimer.st_mode_oper;
+		}
+	} 
+	if (p->peername) {
+		struct sip_peer *pp = find_peer(p->peername, NULL, 1);
+		if (pp) {
+			p->stimer->st_cached_mode = pp->stimer.st_mode_oper;
+			return pp->stimer.st_mode_oper;
+		}
+	}
+
+	p->stimer->st_cached_mode = global_st_mode;
+	return global_st_mode;
+}
+
+
 /*! \brief React to lack of answer to Qualify poke */
 static int sip_poke_noanswer(const void *data)
 {
@@ -17191,7 +18071,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 
 	if (!peer->maxms || !peer->addr.sin_addr.s_addr) {
 		/* IF we have no IP, or this isn't to be monitored, return
-		  imeediately after clearing things out */
+		  immediately after clearing things out */
 		if (peer->pokeexpire > -1)
 			ast_sched_del(sched, peer->pokeexpire);
 		peer->lastms = 0;
@@ -17798,6 +18678,11 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	if (global_callcounter)
 		user->call_limit=999;
 	user->prefs = default_prefs;
+	user->stimer.st_mode_oper = global_st_mode;	/* Session-Timers */
+	user->stimer.st_ref = global_st_refresher;
+	user->stimer.st_min_se = global_min_se;
+	user->stimer.st_max_se = global_max_se;
+
 	/* set default context */
 	strcpy(user->context, default_context);
 	strcpy(user->language, default_language);
@@ -17875,7 +18760,38 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			user->maxcallbitrate = atoi(v->value);
 			if (user->maxcallbitrate < 0)
 				user->maxcallbitrate = default_maxcallbitrate;
+		} else if (!strcasecmp(v->name, "session-timers")) {
+			int i = (int) str2stmode(v->value); 
+			if (i < 0) {
+				ast_log(LOG_WARNING, "Invalid session-timers '%s' at line %d of %s\n", v->value, v->lineno, config);
+				user->stimer.st_mode_oper = global_st_mode;
+			} else {
+				user->stimer.st_mode_oper = i;
+			}
+		} else if (!strcasecmp(v->name, "session-expires")) {
+			if (sscanf(v->value, "%d", &user->stimer.st_max_se) != 1) {
+				ast_log(LOG_WARNING, "Invalid session-expires '%s' at line %d of %s\n", v->value, v->lineno, config);
+				user->stimer.st_max_se = global_max_se;
+			} 
+		} else if (!strcasecmp(v->name, "session-minse")) {
+			if (sscanf(v->value, "%d", &user->stimer.st_min_se) != 1) {
+				ast_log(LOG_WARNING, "Invalid session-minse '%s' at line %d of %s\n", v->value, v->lineno, config);
+				user->stimer.st_min_se = global_min_se;
+			} 
+			if (user->stimer.st_min_se < 90) {
+				ast_log(LOG_WARNING, "session-minse '%s' at line %d of %s is not allowed to be < 90 secs\n", v->value, v->lineno, config);
+				user->stimer.st_min_se = global_min_se;
+			} 
+		} else if (!strcasecmp(v->name, "session-refresher")) {
+			int i = (int) str2strefresher(v->value); 
+			if (i < 0) {
+				ast_log(LOG_WARNING, "Invalid session-refresher '%s' at line %d of %s\n", v->value, v->lineno, config);
+				user->stimer.st_ref = global_st_refresher;
+			} else {
+				user->stimer.st_ref = i;
+			}
 		}
+
 		/* We can't just report unknown options here because this may be a
 		 * type=friend entry.  All user options are valid for a peer, but not
 		 * the other way around.  */
@@ -17930,6 +18846,11 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->pickupgroup = 0;
 	peer->maxms = default_qualify;
 	peer->prefs = default_prefs;
+	peer->stimer.st_mode_oper = global_st_mode;	/* Session-Timers */
+	peer->stimer.st_ref = global_st_refresher;
+	peer->stimer.st_min_se = global_min_se;
+	peer->stimer.st_max_se = global_max_se;
+
 	peer->timer_t1 = global_t1;
 	peer->timer_b = global_timer_b;
 	clear_peer_mailboxes(peer);
@@ -18240,6 +19161,36 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			peer->maxcallbitrate = atoi(v->value);
 			if (peer->maxcallbitrate < 0)
 				peer->maxcallbitrate = default_maxcallbitrate;
+		} else if (!strcasecmp(v->name, "session-timers")) {
+			int i = (int) str2stmode(v->value); 
+			if (i < 0) {
+				ast_log(LOG_WARNING, "Invalid session-timers '%s' at line %d of %s\n", v->value, v->lineno, config);
+				peer->stimer.st_mode_oper = global_st_mode;
+			} else {
+				peer->stimer.st_mode_oper = i;
+			}
+		} else if (!strcasecmp(v->name, "session-expires")) {
+			if (sscanf(v->value, "%d", &peer->stimer.st_max_se) != 1) {
+				ast_log(LOG_WARNING, "Invalid session-expires '%s' at line %d of %s\n", v->value, v->lineno, config);
+				peer->stimer.st_max_se = global_max_se;
+			} 
+		} else if (!strcasecmp(v->name, "session-minse")) {
+			if (sscanf(v->value, "%d", &peer->stimer.st_min_se) != 1) {
+				ast_log(LOG_WARNING, "Invalid session-minse '%s' at line %d of %s\n", v->value, v->lineno, config);
+				peer->stimer.st_min_se = global_min_se;
+			} 
+			if (peer->stimer.st_min_se < 90) {
+				ast_log(LOG_WARNING, "session-minse '%s' at line %d of %s is not allowed to be < 90 secs\n", v->value, v->lineno, config);
+				peer->stimer.st_min_se = global_min_se;
+			} 
+		} else if (!strcasecmp(v->name, "session-refresher")) {
+			int i = (int) str2strefresher(v->value); 
+			if (i < 0) {
+				ast_log(LOG_WARNING, "Invalid session-refresher '%s' at line %d of %s\n", v->value, v->lineno, config);
+				peer->stimer.st_ref = global_st_refresher;
+			} else {
+				peer->stimer.st_ref = i;
+			}
 		}
 	}
 	if (!sip_cfg.ignore_regexpire && peer->host_dynamic && realtime) {
@@ -18422,6 +19373,11 @@ static int reload_config(enum channelreloadreason reason)
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE);	/* Default for peers, users: TRUE */
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP);		/* Default for peers, users: TRUE */
 	sip_cfg.peer_rtupdate = TRUE;
+
+	global_st_mode = SESSION_TIMER_MODE_ACCEPT;    /* Session-Timers */
+	global_st_refresher = SESSION_TIMER_REFRESHER_UAS;
+	global_min_se  = DEFAULT_MIN_SE;
+	global_max_se  = DEFAULT_MAX_SE;
 
 	/* Initialize some reasonable defaults at SIP reload (used both for channel and as default for peers and users */
 	ast_copy_string(default_context, DEFAULT_CONTEXT, sizeof(default_context));
@@ -18733,6 +19689,36 @@ static int reload_config(enum channelreloadreason reason)
 				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
 		} else if (!strcasecmp(v->name, "matchexterniplocally")) {
 			global_matchexterniplocally = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "session-timers")) {
+			int i = (int) str2stmode(v->value); 
+			if (i < 0) {
+				ast_log(LOG_WARNING, "Invalid session-timers '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_st_mode = SESSION_TIMER_MODE_ACCEPT;
+			} else {
+				global_st_mode = i;
+			}
+		} else if (!strcasecmp(v->name, "session-expires")) {
+			if (sscanf(v->value, "%d", &global_max_se) != 1) {
+				ast_log(LOG_WARNING, "Invalid session-expires '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_max_se = DEFAULT_MAX_SE;
+			} 
+		} else if (!strcasecmp(v->name, "session-minse")) {
+			if (sscanf(v->value, "%d", &global_min_se) != 1) {
+				ast_log(LOG_WARNING, "Invalid session-minse '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_min_se = DEFAULT_MIN_SE;
+			} 
+			if (global_min_se < 90) {
+				ast_log(LOG_WARNING, "session-minse '%s' at line %d of %s is not allowed to be < 90 secs\n", v->value, v->lineno, config);
+				global_min_se = DEFAULT_MIN_SE;
+			} 
+		} else if (!strcasecmp(v->name, "session-refresher")) {
+			int i = (int) str2strefresher(v->value); 
+			if (i < 0) {
+				ast_log(LOG_WARNING, "Invalid session-refresher '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_st_refresher = SESSION_TIMER_REFRESHER_UAS;
+			} else {
+				global_st_refresher = i;
+			}
 		}
 	}
 
@@ -18962,7 +19948,7 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 	if (!ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 		if (!p->pendinginvite) {
 			ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : p->ourip.sin_addr), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
-			transmit_reinvite_with_sdp(p, TRUE);
+			transmit_reinvite_with_sdp(p, TRUE, FALSE);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 			ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : p->ourip.sin_addr), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
 			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
@@ -19017,7 +20003,7 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 					ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
 				else
 					ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip.sin_addr));
-				transmit_reinvite_with_sdp(p, TRUE);
+				transmit_reinvite_with_sdp(p, TRUE, FALSE);
 			} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 				if (flag)
 					ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
@@ -19197,7 +20183,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 			ast_debug(1, "Early remote bridge setting SIP '%s' - Sending media to %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip.sin_addr));
 		} else if (!p->pendinginvite) {		/* We are up, and have no outstanding invite */
 			ast_debug(3, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip.sin_addr));
-			transmit_reinvite_with_sdp(p, FALSE);
+			transmit_reinvite_with_sdp(p, FALSE, FALSE);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 			ast_debug(3, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip.sin_addr));
 			/* We have a pending Invite. Send re-invite when we're done with the invite */

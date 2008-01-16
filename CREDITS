@@ -17,6 +17,9 @@ nic.at - ENUM support in Asterisk
 
 Paul Bagyenda, Digital Solutions - for initial Voicetronix driver development
 
+John Todd, TalkPlus, Inc.  and JR Richardson, Ntegrated Solutions. - for funding
+    the development of SIP Session Timers support.
+
 === WISHLIST CONTRIBUTERS ===
 Jeremy McNamara - SpeeX support
 Nick Seraphin - RDNIS support

@@ -236,6 +236,28 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; when we're on hold (must be > rtptimeout)
 ;rtpkeepalive=<secs>		; Send keepalives in the RTP stream to keep NAT open
 				; (default is off - zero)
+
+;--------------------------- SIP Session-Timers (RFC 4028)------------------------------------
+; SIP Session-Timers provide an end-to-end keep-alive mechanism for active SIP sessions.
+; This mechanism can detect and reclaim SIP channels that do not terminate through normal
+; signaling procedures. Session-Timers can be configured globally or at a user/peer level.
+; The operation of Session-Timers is driven by the following configuration parameters:
+;
+; * session-timers    - Session-Timers feature operates in the following three modes:
+;                            originate : Request and run session-timers always
+;                            accept    : Run session-timers only when requested by other UA
+;                            refuse    : Do not run session timers in any case
+;                       The default mode of operation is 'accept'.
+; * session-expires   - Maximum session refresh interval in seconds. Defaults to 1800 secs.
+; * session-minse     - Minimum session refresh interval in seconds. Defualts to 90 secs.
+; * session-refresher - The session refresher (uac|uas). Defaults to 'uas'.
+;
+;session-timers=originate
+;session-expires=600
+;session-minse=90
+;session-refresher=uas
+
+
 ;--------------------------- SIP DEBUGGING ---------------------------------------------------
 ;sipdebug = yes			; Turn on SIP debugging by default, from
 				; the moment the channel loads this configuration
@@ -616,13 +638,14 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; videosupport		      videosupport
 ; maxcallbitrate	      maxcallbitrate
 ; rfc2833compensate           mailbox
-;			      busylevel
-;                             template
-;                             fromdomain
-;                             regexten
-;                             fromuser
-;                             host
-;                             port
+; session-timers             busylevel
+; session-expires            
+; session-minse              template
+; session-refresher          fromdomain
+;                            regexten
+;                            fromuser
+;                            host
+;                            port
 ;                             qualify
 ;                             defaultip
 ;                             defaultuser
@@ -633,9 +656,14 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             rfc2833compensate
 ;                             callbackextension
 ;                             registertrying
+;                             session-timers
+;                             session-expires
+;                             session-minse
+;                             session-refresher
 ;                             timert1
 ;                             timerb
 ;                             qualifyfreq
+
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)
