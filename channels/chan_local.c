@@ -493,8 +493,16 @@ static int local_hangup(struct ast_channel *ast)
 	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
 		const char *status = pbx_builtin_getvar_helper(p->chan, "DIALSTATUS");
-		if ((status) && (p->owner))
+		if ((status) && (p->owner)) {
+			/* Deadlock avoidance */
+			while (ast_channel_trylock(p->owner)) {
+				ast_mutex_unlock(&p->lock);
+				usleep(1);
+				ast_mutex_lock(&p->lock);
+			}
 			pbx_builtin_setvar_helper(p->owner, "CHANLOCALSTATUS", status);
+			ast_channel_unlock(p->owner);
+		}
 		p->chan = NULL;
 		ast_clear_flag(p, LOCAL_LAUNCHED_PBX);
 		ast_module_user_remove(p->u_chan);
