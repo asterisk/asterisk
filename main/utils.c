@@ -451,7 +451,7 @@ char *ast_uri_encode(const char *string, char *outbuf, int buflen, int doreserve
 
 	/* If there's no characters to convert, just go through and don't do anything */
 	while (*ptr) {
-		if (((unsigned char) *ptr) > 127 || (doreserved && strchr(reserved, *ptr)) ) {
+		if ((*ptr < 32 || (unsigned char) *ptr) > 127 || (doreserved && strchr(reserved, *ptr)) ) {
 			/* Oops, we need to start working here */
 			if (!buf) {
 				buf = outbuf;
