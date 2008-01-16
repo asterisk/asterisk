@@ -474,7 +474,10 @@ datafiles: _all
 update: 
 	@if [ -d .svn ]; then \
 		echo "Updating from Subversion..." ; \
+		fromrev="`svn info | $(AWK) '/Revision: / {print $$2}'`"; \
 		svn update | tee update.out; \
+		torev="`svn info | $(AWK) '/Revision: / {print $$2}'`"; \
+		echo "`date`  Updated from revision $${fromrev} to $${torev}." >> update.log; \
 		rm -f .version; \
 		if [ `grep -c ^C update.out` -gt 0 ]; then \
 			echo ; echo "The following files have conflicts:" ; \
