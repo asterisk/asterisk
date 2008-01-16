@@ -480,4 +480,5 @@ Miscellaneous
   * A new option when starting a remote asterisk (rasterisk, asterisk -r) for
      specifying which socket to use to connect to the running Asterisk daemon
      (-s)
+  * Added logging to 'make update' command.  See update.log
 
