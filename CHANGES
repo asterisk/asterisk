@@ -448,6 +448,10 @@ Miscellaneous New Modules
      on as the channel's audio.  This is very useful for building custom
      vocoders or doing recording or analysis of the channel's audio in another
      application.
+  * Added a new module, res_config_curl, which permits using a HTTP POST url
+     to retrieve, create, update, and delete realtime information from a remote
+     web server.  Note that this module requires func_curl.so to be loaded for
+     backend functionality.
 
 Miscellaneous 
 -------------
