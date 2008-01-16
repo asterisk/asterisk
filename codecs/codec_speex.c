@@ -29,6 +29,7 @@
 
 /*** MODULEINFO
 	<depend>speex</depend>
+	<use>speexdsp</use>
  ***/
 
 #include "asterisk.h"
