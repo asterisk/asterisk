@@ -137,7 +137,7 @@ struct http_route {
 
 static struct ao2_container *profiles;
 static struct ao2_container *http_routes;
-AST_RWLIST_HEAD_STATIC(users, user);
+static AST_RWLIST_HEAD_STATIC(users, user);
 
 /*! \brief Extensions whose mime types we think we know */
 static struct {
