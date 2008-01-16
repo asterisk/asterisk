@@ -52,6 +52,7 @@ struct ast_dial {
 	ast_dial_state_callback state_callback;          /*! Status callback */
 	AST_LIST_HEAD_NOLOCK(, ast_dial_channel) channels; /*! Channels being dialed */
 	pthread_t thread;                                  /*! Thread (if running in async) */
+	ast_mutex_t lock;                                  /*! Lock to protect the thread information above */
 };
 
 /*! \brief Dialing channel structure. Contains per-channel dialing options, asterisk channel, and more! */
@@ -137,10 +138,12 @@ static void answer_exec_run(struct ast_dial *dial, struct ast_dial_channel *dial
 	pbx_exec(chan, ast_app, args);
 
 	/* If another thread is not taking over hang up the channel */
+	ast_mutex_lock(&dial->lock);
 	if (dial->thread != AST_PTHREADT_STOP) {
 		ast_hangup(chan);
 		dial_channel->owner = NULL;
 	}
+	ast_mutex_unlock(&dial->lock);
 
 	return;
 }
@@ -190,6 +193,9 @@ struct ast_dial *ast_dial_create(void)
 
 	/* Initialize thread to NULL */
 	dial->thread = AST_PTHREADT_NULL;
+
+	/* Can't forget about the lock */
+	ast_mutex_init(&dial->lock);
 
 	return dial;
 }
@@ -623,6 +629,9 @@ enum ast_dial_result ast_dial_join(struct ast_dial *dial)
 	/* Record thread */
 	thread = dial->thread;
 
+	/* Boom, commence locking */
+	ast_mutex_lock(&dial->lock);
+
 	/* Stop the thread */
 	dial->thread = AST_PTHREADT_STOP;
 
@@ -636,6 +645,9 @@ enum ast_dial_result ast_dial_join(struct ast_dial *dial)
 		/* Now we signal it with SIGURG so it will break out of it's waitfor */
 		pthread_kill(thread, SIGURG);
 	}
+
+	/* Yay done with it */
+	ast_mutex_unlock(&dial->lock);
 
 	/* Finally wait for the thread to exit */
 	pthread_join(thread, NULL);
@@ -709,6 +721,9 @@ int ast_dial_destroy(struct ast_dial *dial)
 			option_types[i].disable(dial->options[i]);
 		dial->options[i] = NULL;
 	}
+
+	/* Lock be gone! */
+	ast_mutex_destroy(&dial->lock);
 
 	/* Free structure */
 	free(dial);
