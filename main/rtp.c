@@ -2874,7 +2874,7 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
 		    (c0->masq || c0->masqr || c1->masq || c1->masqr) ||
-		    (c0->monitor || c0->spies || c1->monitor || c1->spies)) {
+		    (c0->monitor || c0->audiohooks || c1->monitor || c1->audiohooks)) {
 			ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
 			if (c0->tech_pvt == pvt0)
 				if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0))
@@ -3158,7 +3158,7 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
 		    (c0->masq || c0->masqr || c1->masq || c1->masqr) ||
-		    (c0->monitor || c0->spies || c1->monitor || c1->spies)) {
+		    (c0->monitor || c0->audiohooks || c1->monitor || c1->audiohooks)) {
 			ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
 			if ((c0->masq || c0->masqr) && (fr = ast_read(c0)))
 				ast_frfree(fr);

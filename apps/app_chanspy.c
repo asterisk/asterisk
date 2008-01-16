@@ -40,7 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
-#include "asterisk/chanspy.h"
+#include "asterisk/audiohook.h"
 #include "asterisk/features.h"
 #include "asterisk/options.h"
 #include "asterisk/app.h"
@@ -143,7 +143,8 @@ AST_APP_OPTIONS(spy_opts, {
 
 struct chanspy_translation_helper {
 	/* spy data */
-	struct ast_channel_spy spy;
+	struct ast_audiohook spy_audiohook;
+	struct ast_audiohook whisper_audiohook;
 	int fd;
 	int volfactor;
 };
@@ -163,15 +164,17 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 {
 	struct chanspy_translation_helper *csth = data;
 	struct ast_frame *f;
-		
-	if (csth->spy.status != CHANSPY_RUNNING)
-		/* Channel is already gone more than likely */
-		return -1;
 
-	ast_mutex_lock(&csth->spy.lock);
-	f = ast_channel_spy_read_frame(&csth->spy, samples);
-	ast_mutex_unlock(&csth->spy.lock);
-		
+	ast_audiohook_lock(&csth->spy_audiohook);
+	if (csth->spy_audiohook.status != AST_AUDIOHOOK_STATUS_RUNNING) {
+		ast_audiohook_unlock(&csth->spy_audiohook);
+		return -1;
+	}
+
+	f = ast_audiohook_read_frame(&csth->spy_audiohook, samples, AST_AUDIOHOOK_DIRECTION_BOTH, AST_FORMAT_SLINEAR);
+
+	ast_audiohook_unlock(&csth->spy_audiohook);
+
 	if (!f)
 		return 0;
 		
@@ -194,50 +197,19 @@ static struct ast_generator spygen = {
 	.generate = spy_generate, 
 };
 
-static int start_spying(struct ast_channel *chan, struct ast_channel *spychan, struct ast_channel_spy *spy) 
+static int start_spying(struct ast_channel *chan, struct ast_channel *spychan, struct ast_audiohook *audiohook) 
 {
 	int res;
 	struct ast_channel *peer;
 
 	ast_log(LOG_NOTICE, "Attaching %s to %s\n", spychan->name, chan->name);
 
-	ast_channel_lock(chan);
-	res = ast_channel_spy_add(chan, spy);
-	ast_channel_unlock(chan);
+	res = ast_audiohook_attach(chan, audiohook);
 
 	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan)))
 		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
 
 	return res;
-}
-
-/* Map 'volume' levels from -4 through +4 into
-   decibel (dB) settings for channel drivers
-*/
-static signed char volfactor_map[] = {
-	-24,
-	-18,
-	-12,
-	-6,
-	0,
-	6,
-	12,
-	18,
-	24,
-};
-
-/* attempt to set the desired gain adjustment via the channel driver;
-   if successful, clear it out of the csth structure so the
-   generator will not attempt to do the adjustment itself
-*/
-static void set_volume(struct ast_channel *chan, struct chanspy_translation_helper *csth)
-{
-	signed char volume_adjust = volfactor_map[csth->volfactor + 4];
-
-	if (!ast_channel_setoption(chan, AST_OPTION_TXGAIN, &volume_adjust, sizeof(volume_adjust), 0))
-		csth->volfactor = 0;
-	csth->spy.read_vol_adjustment = csth->volfactor;
-	csth->spy.write_vol_adjustment = csth->volfactor;
 }
 
 static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int *volfactor, int fd,
@@ -258,49 +230,27 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		ast_verbose(VERBOSE_PREFIX_2 "Spying on channel %s\n", name);
 
 	memset(&csth, 0, sizeof(csth));
-	ast_set_flag(&csth.spy, CHANSPY_FORMAT_AUDIO);
-	ast_set_flag(&csth.spy, CHANSPY_TRIGGER_NONE);
-	ast_set_flag(&csth.spy, CHANSPY_MIXAUDIO);
-	csth.spy.type = "ChanSpy";
-	csth.spy.status = CHANSPY_RUNNING;
-	csth.spy.read_queue.format = AST_FORMAT_SLINEAR;
-	csth.spy.write_queue.format = AST_FORMAT_SLINEAR;
-	ast_mutex_init(&csth.spy.lock);
-	csth.volfactor = *volfactor;
-	set_volume(chan, &csth);
-	if (csth.volfactor) {
-		ast_set_flag(&csth.spy, CHANSPY_READ_VOLADJUST);
-		csth.spy.read_vol_adjustment = csth.volfactor;
-		ast_set_flag(&csth.spy, CHANSPY_WRITE_VOLADJUST);
-		csth.spy.write_vol_adjustment = csth.volfactor;
-	}
-	csth.fd = fd;
 	
-	if (start_spying(spyee, chan, &csth.spy)) {
-		ast_mutex_destroy(&csth.spy.lock);
+	ast_audiohook_init(&csth.spy_audiohook, AST_AUDIOHOOK_TYPE_SPY, "ChanSpy");
+	
+	if (start_spying(spyee, chan, &csth.spy_audiohook)) {
+		ast_audiohook_destroy(&csth.spy_audiohook);
 		return 0;
 	}
-
+	
 	if (ast_test_flag(flags, OPTION_WHISPER)) {
-		struct ast_filestream *beepstream;
-		int old_write_format = 0;
-
-		ast_channel_whisper_start(csth.spy.chan);
-		old_write_format = chan->writeformat;
-		if ((beepstream = ast_openstream_full(chan, "beep", chan->language, 1))) {
-			struct ast_frame *f;
-
-			while ((f = ast_readframe(beepstream))) {
-				ast_channel_whisper_feed(csth.spy.chan, f);
-				ast_frfree(f);
-			}
-
-			ast_closestream(beepstream);
-			chan->stream = NULL;
-		}
-		if (old_write_format)
-			ast_set_write_format(chan, old_write_format);
+		ast_audiohook_init(&csth.whisper_audiohook, AST_AUDIOHOOK_TYPE_WHISPER, "ChanSpy");
+		start_spying(spyee, chan, &csth.whisper_audiohook);
 	}
+	
+	csth.volfactor = *volfactor;
+	
+	if (csth.volfactor) {
+		csth.spy_audiohook.options.read_volume = csth.volfactor;
+		csth.spy_audiohook.options.write_volume = csth.volfactor;
+	}
+	
+	csth.fd = fd;
 
 	if (ast_test_flag(flags, OPTION_PRIVATE))
 		silgen = ast_channel_start_silence_generator(chan);
@@ -321,17 +271,16 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	   has arrived, since the spied-on channel could have gone away while
 	   we were waiting
 	*/
-	while ((res = ast_waitfor(chan, -1) > -1) &&
-	       csth.spy.status == CHANSPY_RUNNING &&
-	       csth.spy.chan) {
+	while ((res = ast_waitfor(chan, -1) > -1) && csth.spy_audiohook.status == AST_AUDIOHOOK_STATUS_RUNNING) {
 		if (!(f = ast_read(chan)) || ast_check_hangup(chan)) {
 			running = -1;
 			break;
 		}
 
-		if (ast_test_flag(flags, OPTION_WHISPER) &&
-		    (f->frametype == AST_FRAME_VOICE)) {
-			ast_channel_whisper_feed(csth.spy.chan, f);
+		if (ast_test_flag(flags, OPTION_WHISPER) && (f->frametype == AST_FRAME_VOICE)) {
+			ast_audiohook_lock(&csth.whisper_audiohook);
+			ast_audiohook_write_frame(&csth.whisper_audiohook, AST_AUDIOHOOK_DIRECTION_WRITE, f);
+			ast_audiohook_unlock(&csth.whisper_audiohook);
 			ast_frfree(f);
 			continue;
 		}
@@ -364,38 +313,29 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Setting spy volume on %s to %d\n", chan->name, *volfactor);
 			csth.volfactor = *volfactor;
-			set_volume(chan, &csth);
-			if (csth.volfactor) {
-				ast_set_flag(&csth.spy, CHANSPY_READ_VOLADJUST);
-				csth.spy.read_vol_adjustment = csth.volfactor;
-				ast_set_flag(&csth.spy, CHANSPY_WRITE_VOLADJUST);
-				csth.spy.write_vol_adjustment = csth.volfactor;
-			} else {
-				ast_clear_flag(&csth.spy, CHANSPY_READ_VOLADJUST);
-				ast_clear_flag(&csth.spy, CHANSPY_WRITE_VOLADJUST);
-			}
+			csth.spy_audiohook.options.read_volume = csth.volfactor;
+			csth.spy_audiohook.options.write_volume = csth.volfactor;
 		} else if (res >= '0' && res <= '9') {
 			inp[x++] = res;
 		}
 	}
-
-	if (ast_test_flag(flags, OPTION_WHISPER) && csth.spy.chan)
-		ast_channel_whisper_stop(csth.spy.chan);
 
 	if (ast_test_flag(flags, OPTION_PRIVATE))
 		ast_channel_stop_silence_generator(chan, silgen);
 	else
 		ast_deactivate_generator(chan);
 
-	csth.spy.status = CHANSPY_DONE;
-
-	/* If a channel still exists on our spy structure then we need to remove ourselves */
-	if (csth.spy.chan) {
-		ast_channel_lock(csth.spy.chan);
-		ast_channel_spy_remove(csth.spy.chan, &csth.spy);
-		ast_channel_unlock(csth.spy.chan);
+	if (ast_test_flag(flags, OPTION_WHISPER)) {
+		ast_audiohook_lock(&csth.whisper_audiohook);
+		ast_audiohook_detach(&csth.whisper_audiohook);
+		ast_audiohook_unlock(&csth.whisper_audiohook);
+		ast_audiohook_destroy(&csth.whisper_audiohook);
 	}
-	ast_channel_spy_free(&csth.spy);
+	
+	ast_audiohook_lock(&csth.spy_audiohook);
+	ast_audiohook_detach(&csth.spy_audiohook);
+	ast_audiohook_unlock(&csth.spy_audiohook);
+	ast_audiohook_destroy(&csth.spy_audiohook);
 	
 	if (option_verbose >= 2)
 		ast_verbose(VERBOSE_PREFIX_2 "Done Spying on channel %s\n", name);

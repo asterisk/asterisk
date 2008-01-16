@@ -47,7 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/options.h"
 #include "asterisk/channel.h"
-#include "asterisk/chanspy.h"
+#include "asterisk/audiohook.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/logger.h"
 #include "asterisk/say.h"
@@ -69,24 +69,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sha1.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/slinfactory.h"
-
-struct channel_spy_trans {
-	int last_format;
-	struct ast_trans_pvt *path;
-};
-
-struct ast_channel_spy_list {
-	struct channel_spy_trans read_translator;
-	struct channel_spy_trans write_translator;
-	AST_LIST_HEAD_NOLOCK(, ast_channel_spy) list;
-};
-
-struct ast_channel_whisper_buffer {
-	ast_mutex_t lock;
-	struct ast_slinfactory sf;
-	unsigned int original_format;
-	struct ast_trans_pvt *path;
-};
 
 /* uncomment if you have problems with 'monitoring' synchronized files */
 #if 0
@@ -1233,10 +1215,6 @@ void ast_channel_free(struct ast_channel *chan)
 	if (chan->music_state)
 		ast_moh_cleanup(chan);
 
-	/* if someone is whispering on the channel, stop them */
-	if (chan->whisper)
-		ast_channel_whisper_stop(chan);
-
 	/* Free translators */
 	if (chan->readtrans)
 		ast_translator_free_path(chan->readtrans);
@@ -1393,176 +1371,6 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
 	return datastore;
 }
 
-int ast_channel_spy_add(struct ast_channel *chan, struct ast_channel_spy *spy)
-{
-	/* Link the owner channel to the spy */
-	spy->chan = chan;
-
-	if (!ast_test_flag(spy, CHANSPY_FORMAT_AUDIO)) {
-		ast_log(LOG_WARNING, "Could not add channel spy '%s' to channel '%s', only audio format spies are supported.\n",
-			spy->type, chan->name);
-		return -1;
-	}
-
-	if (ast_test_flag(spy, CHANSPY_READ_VOLADJUST) && (spy->read_queue.format != AST_FORMAT_SLINEAR)) {
-		ast_log(LOG_WARNING, "Cannot provide volume adjustment on '%s' format spies\n",
-			ast_getformatname(spy->read_queue.format));
-		return -1;
-	}
-
-	if (ast_test_flag(spy, CHANSPY_WRITE_VOLADJUST) && (spy->write_queue.format != AST_FORMAT_SLINEAR)) {
-		ast_log(LOG_WARNING, "Cannot provide volume adjustment on '%s' format spies\n",
-			ast_getformatname(spy->write_queue.format));
-		return -1;
-	}
-
-	if (ast_test_flag(spy, CHANSPY_MIXAUDIO) &&
-	    ((spy->read_queue.format != AST_FORMAT_SLINEAR) ||
-	     (spy->write_queue.format != AST_FORMAT_SLINEAR))) {
-		ast_log(LOG_WARNING, "Cannot provide audio mixing on '%s'-'%s' format spies\n",
-			ast_getformatname(spy->read_queue.format), ast_getformatname(spy->write_queue.format));
-		return -1;
-	}
-
-	if (!chan->spies) {
-		if (!(chan->spies = ast_calloc(1, sizeof(*chan->spies)))) {
-			return -1;
-		}
-
-		AST_LIST_HEAD_INIT_NOLOCK(&chan->spies->list);
-		AST_LIST_INSERT_HEAD(&chan->spies->list, spy, list);
-	} else {
-		AST_LIST_INSERT_TAIL(&chan->spies->list, spy, list);
-	}
-
-	if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE) {
-		ast_cond_init(&spy->trigger, NULL);
-		ast_set_flag(spy, CHANSPY_TRIGGER_READ);
-		ast_clear_flag(spy, CHANSPY_TRIGGER_WRITE);
-	}
-
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Spy %s added to channel %s\n",
-			spy->type, chan->name);
-
-	return 0;
-}
-
-/* Clean up a channel's spy information */
-static void spy_cleanup(struct ast_channel *chan)
-{
-	if (!AST_LIST_EMPTY(&chan->spies->list))
-		return;
-	if (chan->spies->read_translator.path)
-		ast_translator_free_path(chan->spies->read_translator.path);
-	if (chan->spies->write_translator.path)
-		ast_translator_free_path(chan->spies->write_translator.path);
-	free(chan->spies);
-	chan->spies = NULL;
-	return;
-}
-
-/* Detach a spy from it's channel */
-static void spy_detach(struct ast_channel_spy *spy, struct ast_channel *chan)
-{
-	/* We only need to poke them if they aren't already done */
-	if (spy->status != CHANSPY_DONE) {
-		ast_mutex_lock(&spy->lock);
-		/* Indicate to the spy to stop */
-		spy->status = CHANSPY_STOP;
-		spy->chan = NULL;
-		/* Poke the spy if needed */
-		if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
-			ast_cond_signal(&spy->trigger);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Spy %s removed from channel %s\n", spy->type, chan->name);
-		ast_mutex_unlock(&spy->lock);
-	}
-
-	return;
-}
-
-void ast_channel_spy_stop_by_type(struct ast_channel *chan, const char *type)
-{
-	struct ast_channel_spy *spy = NULL;
-	
-	if (!chan->spies)
-		return;
-
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->spies->list, spy, list) {
-		if ((spy->type == type) && (spy->status == CHANSPY_RUNNING)) {
-			AST_LIST_REMOVE_CURRENT(&chan->spies->list, list);
-			spy_detach(spy, chan);
-		}
-	}
-	AST_LIST_TRAVERSE_SAFE_END
-	spy_cleanup(chan);
-}
-
-void ast_channel_spy_trigger_wait(struct ast_channel_spy *spy)
-{
-	struct timeval tv;
-	struct timespec ts;
-
-	tv = ast_tvadd(ast_tvnow(), ast_samp2tv(50000, 1000));
-	ts.tv_sec = tv.tv_sec;
-	ts.tv_nsec = tv.tv_usec * 1000;
-
-	ast_cond_timedwait(&spy->trigger, &spy->lock, &ts);
-}
-
-void ast_channel_spy_remove(struct ast_channel *chan, struct ast_channel_spy *spy)
-{
-	if (!chan->spies)
-		return;
-
-	AST_LIST_REMOVE(&chan->spies->list, spy, list);
-	spy_detach(spy, chan);
-	spy_cleanup(chan);
-}
-
-void ast_channel_spy_free(struct ast_channel_spy *spy)
-{
-	struct ast_frame *f = NULL;
-
-	if (spy->status == CHANSPY_DONE)
-		return;
-
-	/* Switch status to done in case we get called twice */
-	spy->status = CHANSPY_DONE;
-
-	/* Drop any frames in the queue */
-	while ((f = AST_LIST_REMOVE_HEAD(&spy->write_queue.list, frame_list)))
-		ast_frfree(f);
-	while ((f = AST_LIST_REMOVE_HEAD(&spy->read_queue.list, frame_list)))
-		ast_frfree(f);
-
-	/* Destroy the condition if in use */
-	if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
-		ast_cond_destroy(&spy->trigger);
-
-	/* Destroy our mutex since it is no longer in use */
-	ast_mutex_destroy(&spy->lock);
-
-	return;
-}
-
-static void detach_spies(struct ast_channel *chan)
-{
-	struct ast_channel_spy *spy = NULL;
-
-	if (!chan->spies)
-		return;
-
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->spies->list, spy, list) {
-		AST_LIST_REMOVE_CURRENT(&chan->spies->list, list);
-		spy_detach(spy, chan);
-	}
-	AST_LIST_TRAVERSE_SAFE_END
-
-	spy_cleanup(chan);
-}
-
 /*! \brief Softly hangup a channel, don't lock */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 {
@@ -1587,129 +1395,6 @@ int ast_softhangup(struct ast_channel *chan, int cause)
 	return res;
 }
 
-enum spy_direction {
-	SPY_READ,
-	SPY_WRITE,
-};
-
-#define SPY_QUEUE_SAMPLE_LIMIT 4000			/* half of one second */
-
-static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, enum spy_direction dir)
-{
-	struct ast_frame *translated_frame = NULL;
-	struct ast_channel_spy *spy;
-	struct channel_spy_trans *trans;
-
-	trans = (dir == SPY_READ) ? &chan->spies->read_translator : &chan->spies->write_translator;
-
-	AST_LIST_TRAVERSE(&chan->spies->list, spy, list) {
-		struct ast_channel_spy_queue *queue;
-		struct ast_frame *duped_fr;
-
-		if (spy->status != CHANSPY_RUNNING)
-			continue;
-
-		ast_mutex_lock(&spy->lock);
-
-		queue = (dir == SPY_READ) ? &spy->read_queue : &spy->write_queue;
-
-		if ((queue->format == AST_FORMAT_SLINEAR) && (f->subclass != AST_FORMAT_SLINEAR)) {
-			if (!translated_frame) {
-				if (trans->path && (trans->last_format != f->subclass)) {
-					ast_translator_free_path(trans->path);
-					trans->path = NULL;
-				}
-				if (!trans->path) {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Building translator from %s to SLINEAR for spies on channel %s\n",
-							ast_getformatname(f->subclass), chan->name);
-					if ((trans->path = ast_translator_build_path(AST_FORMAT_SLINEAR, f->subclass)) == NULL) {
-						ast_log(LOG_WARNING, "Cannot build a path from %s to %s\n",
-							ast_getformatname(f->subclass), ast_getformatname(AST_FORMAT_SLINEAR));
-						ast_mutex_unlock(&spy->lock);
-						continue;
-					} else {
-						trans->last_format = f->subclass;
-					}
-				}
-				if (!(translated_frame = ast_translate(trans->path, f, 0))) {
-					ast_log(LOG_ERROR, "Translation to %s failed, dropping frame for spies\n",
-						ast_getformatname(AST_FORMAT_SLINEAR));
-					ast_mutex_unlock(&spy->lock);
-					break;
-				}
-			}
-			duped_fr = ast_frdup(translated_frame);
-		} else if (f->subclass != queue->format) {
-			ast_log(LOG_WARNING, "Spy '%s' on channel '%s' wants format '%s', but frame is '%s', dropping\n",
-				spy->type, chan->name,
-				ast_getformatname(queue->format), ast_getformatname(f->subclass));
-			ast_mutex_unlock(&spy->lock);
-			continue;
-		} else
-			duped_fr = ast_frdup(f);
-
-		AST_LIST_INSERT_TAIL(&queue->list, duped_fr, frame_list);
-
-		queue->samples += f->samples;
-
-		if (queue->samples > SPY_QUEUE_SAMPLE_LIMIT) {
-			if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE) {
-				switch (ast_test_flag(spy, CHANSPY_TRIGGER_MODE)) {
-				case CHANSPY_TRIGGER_READ:
-					if (dir == SPY_WRITE) {
-						ast_set_flag(spy, CHANSPY_TRIGGER_WRITE);
-						ast_clear_flag(spy, CHANSPY_TRIGGER_READ);
-						if (option_debug)
-							ast_log(LOG_DEBUG, "Switching spy '%s' on '%s' to write-trigger mode\n",
-								spy->type, chan->name);
-					}
-					break;
-				case CHANSPY_TRIGGER_WRITE:
-					if (dir == SPY_READ) {
-						ast_set_flag(spy, CHANSPY_TRIGGER_READ);
-						ast_clear_flag(spy, CHANSPY_TRIGGER_WRITE);
-						if (option_debug)
-							ast_log(LOG_DEBUG, "Switching spy '%s' on '%s' to read-trigger mode\n",
-								spy->type, chan->name);
-					}
-					break;
-				}
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Triggering queue flush for spy '%s' on '%s'\n",
-						spy->type, chan->name);
-				ast_set_flag(spy, CHANSPY_TRIGGER_FLUSH);
-				ast_cond_signal(&spy->trigger);
-			} else {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Spy '%s' on channel '%s' %s queue too long, dropping frames\n",
-						spy->type, chan->name, (dir == SPY_READ) ? "read" : "write");
-				while (queue->samples > SPY_QUEUE_SAMPLE_LIMIT) {
-					struct ast_frame *drop = AST_LIST_REMOVE_HEAD(&queue->list, frame_list);
-					queue->samples -= drop->samples;
-					ast_frfree(drop);
-				}
-			}
-		} else {
-			switch (ast_test_flag(spy, CHANSPY_TRIGGER_MODE)) {
-			case CHANSPY_TRIGGER_READ:
-				if (dir == SPY_READ)
-					ast_cond_signal(&spy->trigger);
-				break;
-			case CHANSPY_TRIGGER_WRITE:
-				if (dir == SPY_WRITE)
-					ast_cond_signal(&spy->trigger);
-				break;
-			}
-		}
-
-		ast_mutex_unlock(&spy->lock);
-	}
-
-	if (translated_frame)
-		ast_frfree(translated_frame);
-}
-
 static void free_translation(struct ast_channel *clone)
 {
 	if (clone->writetrans)
@@ -1732,7 +1417,10 @@ int ast_hangup(struct ast_channel *chan)
 	   if someone is going to masquerade as us */
 	ast_channel_lock(chan);
 
-	detach_spies(chan);		/* get rid of spies */
+	if (chan->audiohooks) {
+		ast_audiohook_detach_list(chan->audiohooks);
+		chan->audiohooks = NULL;
+	}
 
 	ast_autoservice_stop(chan);
 
@@ -2416,6 +2104,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 						chan->emulate_dtmf_duration = AST_DEFAULT_EMULATE_DTMF_DURATION;
 					ast_log(LOG_DTMF, "DTMF begin emulation of '%c' with duration %u queued on %s\n", f->subclass, chan->emulate_dtmf_duration, chan->name);
 				}
+				if (chan->audiohooks) {
+					struct ast_frame *old_frame = f;
+					f = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_READ, f);
+					if (old_frame != f)
+						ast_frfree(old_frame);
+                                }
 			} else {
 				struct timeval now = ast_tvnow();
 				if (ast_test_flag(chan, AST_FLAG_IN_DTMF)) {
@@ -2437,6 +2131,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				} else {
 					ast_log(LOG_DTMF, "DTMF end passthrough '%c' on %s\n", f->subclass, chan->name);
 					chan->dtmf_tv = now;
+				}
+				if (chan->audiohooks) {
+					struct ast_frame *old_frame = f;
+					f = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_READ, f);
+					if (old_frame != f)
+						ast_frfree(old_frame);
 				}
 			}
 			break;
@@ -2498,6 +2198,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					f->subclass = chan->emulate_dtmf_digit;
 					f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
 					chan->dtmf_tv = now;
+					if (chan->audiohooks) {
+						struct ast_frame *old_frame = f;
+						f = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_READ, f);
+						if (old_frame != f)
+							ast_frfree(old_frame);
+					}
 					ast_log(LOG_DTMF, "DTMF end emulation of '%c' queued on %s\n", f->subclass, chan->name);
 				} else {
 					/* Drop voice frames while we're still in the middle of the digit */
@@ -2512,9 +2218,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				ast_frfree(f);
 				f = &ast_null_frame;
 			} else if ((f->frametype == AST_FRAME_VOICE)) {
-				if (chan->spies)
-					queue_frame_to_spies(chan, f, SPY_READ);
-				
+				if (chan->audiohooks) {
+					struct ast_frame *old_frame = f;
+					f = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_READ, f);
+					if (old_frame != f)
+						ast_frfree(old_frame);
+				}
 				if (chan->monitor && chan->monitor->read_stream ) {
 					/* XXX what does this do ? */
 #ifndef MONITOR_CONSTANT_DELAY
@@ -2809,7 +2518,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 {
 	int res = -1;
 	int count = 0;
-	struct ast_frame *f = NULL;
+	struct ast_frame *f = NULL, *f2 = NULL;
 
 	/*Deadlock avoidance*/
 	while(ast_channel_trylock(chan)) {
@@ -2866,6 +2575,12 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			chan->tech->indicate(chan, fr->subclass, fr->data, fr->datalen);
 		break;
 	case AST_FRAME_DTMF_BEGIN:
+		if (chan->audiohooks) {
+			struct ast_frame *old_frame = fr;
+			fr = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_WRITE, fr);
+			if (old_frame != fr)
+				f = fr;
+		}
 		ast_clear_flag(chan, AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
 		res = ast_senddigit_begin(chan, fr->subclass);
@@ -2873,6 +2588,12 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		CHECK_BLOCKING(chan);
 		break;
 	case AST_FRAME_DTMF_END:
+		if (chan->audiohooks) {
+			struct ast_frame *old_frame = fr;
+			fr = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_WRITE, fr);
+			if (old_frame != fr)
+				f = fr;
+		}
 		ast_clear_flag(chan, AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
 		res = ast_senddigit_end(chan, fr->subclass, fr->len);
@@ -2900,41 +2621,24 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		if (chan->tech->write == NULL)
 			break;	/*! \todo XXX should return 0 maybe ? */
 
-		/* If someone is whispering on this channel then we must ensure that we are always getting signed linear frames */
-		if (ast_test_flag(chan, AST_FLAG_WHISPER)) {
-			if (fr->subclass == AST_FORMAT_SLINEAR)
-				f = fr;
-			else {
-				ast_mutex_lock(&chan->whisper->lock);
-				if (chan->writeformat != AST_FORMAT_SLINEAR) {
-					/* Rebuild the translation path and set our write format back to signed linear */
-					chan->whisper->original_format = chan->writeformat;
-					ast_set_write_format(chan, AST_FORMAT_SLINEAR);
-					if (chan->whisper->path)
-						ast_translator_free_path(chan->whisper->path);
-					chan->whisper->path = ast_translator_build_path(AST_FORMAT_SLINEAR, chan->whisper->original_format);
-				}
-				/* Translate frame using the above translation path */
-				f = (chan->whisper->path) ? ast_translate(chan->whisper->path, fr, 0) : fr;
-				ast_mutex_unlock(&chan->whisper->lock);
-			}
-		} else {
-			/* If the frame is in the raw write format, then it's easy... just use the frame - otherwise we will have to translate */
-			if (fr->subclass == chan->rawwriteformat)
-				f = fr;
-			else
-				f = (chan->writetrans) ? ast_translate(chan->writetrans, fr, 0) : fr;
+		if (chan->audiohooks) {
+			struct ast_frame *old_frame = fr;
+			fr = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_WRITE, fr);
+			if (old_frame != fr)
+				f2 = fr;
 		}
+		
+		/* If the frame is in the raw write format, then it's easy... just use the frame - otherwise we will have to translate */
+		if (fr->subclass == chan->rawwriteformat)
+			f = fr;
+		else
+			f = (chan->writetrans) ? ast_translate(chan->writetrans, fr, 0) : fr;
 
 		/* If we have no frame of audio, then we have to bail out */
-		if (f == NULL) {
+		if (!f) {
 			res = 0;
 			break;
 		}
-
-		/* If spies are on the channel then queue the frame out to them */
-		if (chan->spies)
-			queue_frame_to_spies(chan, f, SPY_WRITE);
 
 		/* If Monitor is running on this channel, then we have to write frames out there too */
 		if (chan->monitor && chan->monitor->write_stream) {
@@ -2963,29 +2667,6 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			}
 		}
 
-		/* Finally the good part! Write this out to the channel */
-		if (ast_test_flag(chan, AST_FLAG_WHISPER)) {
-			/* frame is assumed to be in SLINEAR, since that is
-			   required for whisper mode */
-			ast_frame_adjust_volume(f, -2);
-			if (ast_slinfactory_available(&chan->whisper->sf) >= f->samples) {
-				short buf[f->samples];
-				struct ast_frame whisper = {
-					.frametype = AST_FRAME_VOICE,
-					.subclass = AST_FORMAT_SLINEAR,
-					.data = buf,
-					.datalen = sizeof(buf),
-					.samples = f->samples,
-				};
-				
-				ast_mutex_lock(&chan->whisper->lock);
-				if (ast_slinfactory_read(&chan->whisper->sf, buf, f->samples))
-					ast_frame_slinear_sum(f, &whisper);
-				ast_mutex_unlock(&chan->whisper->lock);
-			}
-			/* and now put it through the regular translator */
-			f = (chan->writetrans) ? ast_translate(chan->writetrans, f, 0) : f;
-		}
 		if (f) 
 			res = chan->tech->write(chan,f);
 		else
@@ -3006,6 +2687,8 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 
 	if (f && f != fr)
 		ast_frfree(f);
+	if (f2)
+		ast_frfree(f2);
 	ast_clear_flag(chan, AST_FLAG_BLOCKING);
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0)
@@ -3627,8 +3310,6 @@ int ast_do_masquerade(struct ast_channel *original)
 	void *t_pvt;
 	struct ast_callerid tmpcid;
 	struct ast_channel *clone = original->masq;
-	struct ast_channel_spy_list *spy_list = NULL;
-	struct ast_channel_spy *spy = NULL;
 	struct ast_cdr *cdr;
 	int rformat = original->readformat;
 	int wformat = original->writeformat;
@@ -3735,27 +3416,6 @@ int ast_do_masquerade(struct ast_channel *original)
 	original->rawwriteformat = clone->rawwriteformat;
 	clone->rawwriteformat = x;
 
-	/* Swap the spies */
-	spy_list = original->spies;
-	original->spies = clone->spies;
-	clone->spies = spy_list;
-
-	/* Update channel on respective spy lists if present */
-	if (original->spies) {
-		AST_LIST_TRAVERSE(&original->spies->list, spy, list) {
-			ast_mutex_lock(&spy->lock);
-			spy->chan = original;
-			ast_mutex_unlock(&spy->lock);
-		}
-	}
-	if (clone->spies) {
-		AST_LIST_TRAVERSE(&clone->spies->list, spy, list) {
-			ast_mutex_lock(&spy->lock);
-			spy->chan = clone;
-			ast_mutex_unlock(&spy->lock);
-		}
-	}
-
 	clone->_softhangup = AST_SOFTHANGUP_DEV;
 
 	/* And of course, so does our current state.  Note we need not
@@ -3800,16 +3460,6 @@ int ast_do_masquerade(struct ast_channel *original)
 	}
 
 	ast_app_group_update(clone, original);
-
-	/* move any whisperer over */
-	ast_channel_whisper_stop(original);
-	if (ast_test_flag(clone, AST_FLAG_WHISPER)) {
-		original->whisper = clone->whisper;
-		ast_set_flag(original, AST_FLAG_WHISPER);
-		clone->whisper = NULL;
-		ast_clear_flag(clone, AST_FLAG_WHISPER);
-	}
-
 	/* Move data stores over */
 	if (AST_LIST_FIRST(&clone->datastores))
 		AST_LIST_APPEND_LIST(&original->datastores, &clone->datastores, entry);
@@ -4327,7 +3977,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		    (config->timelimit == 0) &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
 		    !nativefailed && !c0->monitor && !c1->monitor &&
-		    !c0->spies && !c1->spies && !ast_test_flag(&(config->features_callee),AST_FEATURE_REDIRECT) &&
+		    !c0->audiohooks && !c1->audiohooks && !ast_test_flag(&(config->features_callee),AST_FEATURE_REDIRECT) &&
 		    !ast_test_flag(&(config->features_caller),AST_FEATURE_REDIRECT) &&
 		    !c0->masq && !c0->masqr && !c1->masq && !c1->masqr) {
 			/* Looks like they share a bridge method and nothing else is in the way */
@@ -4711,129 +4361,6 @@ void ast_set_variables(struct ast_channel *chan, struct ast_variable *vars)
 		pbx_builtin_setvar_helper(chan, cur->name, cur->value);	
 }
 
-static void copy_data_from_queue(struct ast_channel_spy_queue *queue, short *buf, unsigned int samples)
-{
-	struct ast_frame *f;
-	int tocopy;
-	int bytestocopy;
-
-	while (samples) {
-		if (!(f = AST_LIST_FIRST(&queue->list))) {
-			ast_log(LOG_ERROR, "Ran out of frames before buffer filled!\n");
-			break;
-		}
-
-		tocopy = (f->samples > samples) ? samples : f->samples;
-		bytestocopy = ast_codec_get_len(queue->format, tocopy);
-		memcpy(buf, f->data, bytestocopy);
-		samples -= tocopy;
-		buf += tocopy;
-		f->samples -= tocopy;
-		f->data += bytestocopy;
-		f->datalen -= bytestocopy;
-		f->offset += bytestocopy;
-		queue->samples -= tocopy;
-
-		if (!f->samples)
-			ast_frfree(AST_LIST_REMOVE_HEAD(&queue->list, frame_list));
-	}
-}
-
-struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsigned int samples)
-{
-	struct ast_frame *result;
-	/* buffers are allocated to hold SLINEAR, which is the largest format */
-        short read_buf[samples];
-        short write_buf[samples];
-	struct ast_frame *read_frame;
-	struct ast_frame *write_frame;
-	int need_dup;
-	struct ast_frame stack_read_frame = { .frametype = AST_FRAME_VOICE,
-					      .subclass = spy->read_queue.format,
-					      .data = read_buf,
-					      .samples = samples,
-					      .datalen = ast_codec_get_len(spy->read_queue.format, samples),
-	};
-	struct ast_frame stack_write_frame = { .frametype = AST_FRAME_VOICE,
-					       .subclass = spy->write_queue.format,
-					       .data = write_buf,
-					       .samples = samples,
-					       .datalen = ast_codec_get_len(spy->write_queue.format, samples),
-	};
-
-	/* if a flush has been requested, dump everything in whichever queue is larger */
-	if (ast_test_flag(spy, CHANSPY_TRIGGER_FLUSH)) {
-		if (spy->read_queue.samples > spy->write_queue.samples) {
-			if (ast_test_flag(spy, CHANSPY_READ_VOLADJUST)) {
-				AST_LIST_TRAVERSE(&spy->read_queue.list, result, frame_list)
-					ast_frame_adjust_volume(result, spy->read_vol_adjustment);
-			}
-			result = AST_LIST_FIRST(&spy->read_queue.list);
-			AST_LIST_HEAD_SET_NOLOCK(&spy->read_queue.list, NULL);
-			spy->read_queue.samples = 0;
-		} else {
-			if (ast_test_flag(spy, CHANSPY_WRITE_VOLADJUST)) {
-				AST_LIST_TRAVERSE(&spy->write_queue.list, result, frame_list)
-					ast_frame_adjust_volume(result, spy->write_vol_adjustment);
-			}
-			result = AST_LIST_FIRST(&spy->write_queue.list);
-			AST_LIST_HEAD_SET_NOLOCK(&spy->write_queue.list, NULL);
-			spy->write_queue.samples = 0;
-		}
-		ast_clear_flag(spy, CHANSPY_TRIGGER_FLUSH);
-		return result;
-	}
-
-	if ((spy->read_queue.samples < samples) || (spy->write_queue.samples < samples))
-		return NULL;
-
-	/* short-circuit if both head frames have exactly what we want */
-	if ((AST_LIST_FIRST(&spy->read_queue.list)->samples == samples) &&
-	    (AST_LIST_FIRST(&spy->write_queue.list)->samples == samples)) {
-		read_frame = AST_LIST_REMOVE_HEAD(&spy->read_queue.list, frame_list);
-		write_frame = AST_LIST_REMOVE_HEAD(&spy->write_queue.list, frame_list);
-
-		spy->read_queue.samples -= samples;
-		spy->write_queue.samples -= samples;
-
-		need_dup = 0;
-	} else {
-		copy_data_from_queue(&spy->read_queue, read_buf, samples);
-		copy_data_from_queue(&spy->write_queue, write_buf, samples);
-
-		read_frame = &stack_read_frame;
-		write_frame = &stack_write_frame;
-		need_dup = 1;
-	}
-	
-	if (ast_test_flag(spy, CHANSPY_READ_VOLADJUST))
-		ast_frame_adjust_volume(read_frame, spy->read_vol_adjustment);
-
-	if (ast_test_flag(spy, CHANSPY_WRITE_VOLADJUST))
-		ast_frame_adjust_volume(write_frame, spy->write_vol_adjustment);
-
-	if (ast_test_flag(spy, CHANSPY_MIXAUDIO)) {
-		ast_frame_slinear_sum(read_frame, write_frame);
-
-		if (need_dup)
-			result = ast_frdup(read_frame);
-		else {
-			result = read_frame;
-			ast_frfree(write_frame);
-		}
-	} else {
-		if (need_dup) {
-			result = ast_frdup(read_frame);
-			AST_LIST_NEXT(result, frame_list) = ast_frdup(write_frame);
-		} else {
-			result = read_frame;
-			AST_LIST_NEXT(result, frame_list) = write_frame;
-		}
-	}
-
-	return result;
-}
-
 static void *silence_generator_alloc(struct ast_channel *chan, void *data)
 {
 	/* just store the data pointer in the channel structure */
@@ -5094,45 +4621,3 @@ int ast_say_digits_full(struct ast_channel *chan, int num,
         return ast_say_digit_str_full(chan, buf, ints, lang, audiofd, ctrlfd);
 }
 
-int ast_channel_whisper_start(struct ast_channel *chan)
-{
-	if (chan->whisper)
-		return -1;
-
-	if (!(chan->whisper = ast_calloc(1, sizeof(*chan->whisper))))
-		return -1;
-
-	ast_mutex_init(&chan->whisper->lock);
-	ast_slinfactory_init(&chan->whisper->sf);
-	ast_set_flag(chan, AST_FLAG_WHISPER);
-
-	return 0;
-}
-
-int ast_channel_whisper_feed(struct ast_channel *chan, struct ast_frame *f)
-{
-	if (!chan->whisper)
-		return -1;
-
-	ast_mutex_lock(&chan->whisper->lock);
-	ast_slinfactory_feed(&chan->whisper->sf, f);
-	ast_mutex_unlock(&chan->whisper->lock);
-
-	return 0;
-}
-
-void ast_channel_whisper_stop(struct ast_channel *chan)
-{
-	if (!chan->whisper)
-		return;
-
-	ast_clear_flag(chan, AST_FLAG_WHISPER);
-	if (chan->whisper->path)
-		ast_translator_free_path(chan->whisper->path);
-	if (chan->whisper->original_format && chan->writeformat == AST_FORMAT_SLINEAR)
-		ast_set_write_format(chan, chan->whisper->original_format);
-	ast_slinfactory_destroy(&chan->whisper->sf);
-	ast_mutex_destroy(&chan->whisper->lock);
-	free(chan->whisper);
-	chan->whisper = NULL;
-}
