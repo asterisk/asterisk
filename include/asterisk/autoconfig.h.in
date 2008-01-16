@@ -499,7 +499,7 @@
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H
 
-/* Define if your system has the NETSNMP libraries. */
+/* Define to indicate the Net-SNMP library */
 #undef HAVE_NETSNMP
 
 /* Define this to indicate the ${NEWT_DESCRIP} library */
