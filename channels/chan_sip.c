@@ -17283,9 +17283,6 @@ static int sip_devicestate(void *data)
 {
 	char *host;
 	char *tmp;
-
-	struct hostent *hp;
-	struct ast_hostent ahp;
 	struct sip_peer *p;
 
 	int res = AST_DEVICE_INVALID;
@@ -17338,12 +17335,7 @@ static int sip_devicestate(void *data)
 		}
 		unref_peer(p);
 	} else {
-		char *port = strchr(host, ':');
-		if (port)
-			*port = '\0';
-		hp = ast_gethostbyname(host, &ahp);
-		if (hp)
-			res = AST_DEVICE_UNKNOWN;
+		res = AST_DEVICE_UNKNOWN;
 	}
 
 	return res;
