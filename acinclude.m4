@@ -210,9 +210,9 @@ fi
 
 # Check for a package using $2-config. Similar to AST_EXT_LIB_CHECK,
 # but use $2-config to determine cflags and libraries to use.
-# $3 and $4 can be used to replace --cflags and --libs in the request 
+# $3 and $4 can be used to replace --cflags and --libs in the request
 
-# AST_EXT_TOOL_CHECK([package], [tool name], [--cflags], [--libs])
+# AST_EXT_TOOL_CHECK([package], [tool name], [--cflags], [--libs], [includes], [expression])
 AC_DEFUN([AST_EXT_TOOL_CHECK],
 [
     if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
@@ -223,8 +223,27 @@ AC_DEFUN([AST_EXT_TOOL_CHECK],
 	    $1_INCLUDE=$(${CONFIG_$1} $A)
 	    if test x"$4" = x ; then A=--libs ; else A="$4" ; fi
 	    $1_LIB=$(${CONFIG_$1} $A)
-	    PBX_$1=1
-	    AC_DEFINE([HAVE_$1], 1, [Define if your system has the $1 libraries.])
+	    if test x"$5" != x ; then
+		saved_cppflags="${CPPFLAGS}"
+		if test "x${$1_DIR}" != "x"; then
+		    $1_INCLUDE="-I${$1_DIR}/include"
+		fi
+		CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
+
+		AC_COMPILE_IFELSE(
+		    [ AC_LANG_PROGRAM( [ $5 ],
+				       [ $6; ]
+				       )],
+		    [   PBX_$1=1
+			AC_DEFINE([HAVE_$1], 1, [Define if your system has the $1 headers.])
+		    ],
+		    []
+		)
+		CPPFLAGS="${saved_cppflags}"
+	    else
+		PBX_$1=1
+		AC_DEFINE([HAVE_$1], 1, [Define if your system has the $1 libraries.])
+	    fi
 	fi
     fi
 ])

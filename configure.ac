@@ -828,32 +828,11 @@ AST_EXT_LIB_CHECK([NBS], [nbs], [nbs_connect], [nbs.h])
 
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
 
-NETSNMP_CONFIG=No
-if test "${USE_NETSNMP}" != "no"; then
-   if test "x${NETSNMP_DIR}" != "x"; then
-      AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], No, [${NETSNMP_DIR}/bin])
-      if test x"${NETSNMP_CONFIG}" = xNo; then
-         AC_MSG_NOTICE([***])
-         AC_MSG_NOTICE([*** net-snmp-config was not found in the path you specified:])
-         AC_MSG_NOTICE([*** ${NETSNMP_DIR}/bin])
-         AC_MSG_NOTICE([*** Either correct the installation, or run configure])
-         AC_MSG_NOTICE([*** including --without-netsnmp])
-         exit 1
-      fi
-   else
-      AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], No)
-   fi
-fi
-if test x"${NETSNMP_CONFIG}" != xNo; then
-   NETSNMP_libs=`${NETSNMP_CONFIG} --agent-libs`
-
-   AC_CHECK_LIB([netsnmp], [snmp_register_callback], AC_DEFINE_UNQUOTED([HAVE_NETSNMP], 1,
-   [Define to indicate the Net-SNMP library]), [], ${NETSNMP_LIBS})
-   if test "${ac_cv_lib_netsnmp_snmp_register_callback}" = "yes"; then
-      NETSNMP_LIB="${NETSNMP_libs}"
-      PBX_NETSNMP=1
-   fi
-fi
+AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp], , [--agent-libs],
+[#include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-includes.h>
+#include <net-snmp/agent/net-snmp-agent-includes.h>],
+[int callback = snmp_register_callback(0, 0, NULL, NULL)])
 
 AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 
