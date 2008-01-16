@@ -16,9 +16,19 @@
 #include <stdio.h>
 #include "asterisk.h"
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+#ifdef STANDALONE
+#ifndef __USE_ISOC99
+#define __USE_ISOC99 1
+#endif
+#endif
 
+#ifdef __USE_ISOC99
 #define FP___PRINTF "%.18Lg"
 #define FP___TYPE    long double
+#else
+#define FP___PRINTF "%.16g"
+#define FP___TYPE    double
+#endif
 
 #ifdef HAVE_COSL
 #define FUNC_COS   cosl
