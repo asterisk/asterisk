@@ -48,4 +48,15 @@
 		</member>
 		<member name="THREAD_CRASH" displayname="Crash on mutex errors">
 		</member>
+		<member name="BUSYDETECT_TONEONLY" displayname="Enable additional comparision of only the tone duration not the silence part">
+			<conflict>BUSYDETECT_COMPARE_TONE_AND_SILENCE</conflict>
+			<defaultenabled>no</defaultenabled>
+		</member>
+		<member name="BUSYDETECT_COMPARE_TONE_AND_SILENCE" displayname="Assume that tone and silence have the same duration">
+			<conflict>BUSYDETECT_TONEONLY</conflict>
+			<defaultenabled>no</defaultenabled>
+		</member>
+		<member name="BUSYDETECT_DEBUG" displayname="Enable additional busy detection debugging">
+			<defaultenabled>no</defaultenabled>
+		</member>
 	</category>

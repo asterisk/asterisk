@@ -52,6 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"
 #include "asterisk/utils.h"
+#include "asterisk/options.h"
 
 /*! Number of goertzels for progress detect */
 enum gsamp_size {
@@ -162,8 +163,8 @@ enum gsamp_thresh {
 #define BELL_MF_TWIST		4.0     /* 6dB */
 #define BELL_MF_RELATIVE_PEAK	12.6    /* 11dB */
 
-#if !defined(BUSYDETECT_MARTIN) && !defined(BUSYDETECT) && !defined(BUSYDETECT_TONEONLY) && !defined(BUSYDETECT_COMPARE_TONE_AND_SILENCE)
-#define BUSYDETECT_MARTIN
+#if defined(BUSYDETECT_TONEONLY) && defined(BUSYDETECT_COMPARE_TONE_AND_SILENCE)
+#error You cant use BUSYDETECT_TONEONLY together with BUSYDETECT_COMPARE_TONE_AND_SILENCE
 #endif
 
 typedef struct {
@@ -902,7 +903,6 @@ static int __ast_dsp_silence(struct ast_dsp *dsp, short *s, int len, int *totals
 	return res;
 }
 
-#ifdef BUSYDETECT_MARTIN
 int ast_dsp_busydetect(struct ast_dsp *dsp)
 {
 	int res = 0, x;
@@ -948,9 +948,6 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 	if ((hittone >= dsp->busycount - 1) && (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX)) {
 #endif
 #ifdef BUSYDETECT_COMPARE_TONE_AND_SILENCE
-#ifdef BUSYDETECT_TONEONLY
-#error You cant use BUSYDETECT_TONEONLY together with BUSYDETECT_COMPARE_TONE_AND_SILENCE
-#endif
 		if (avgtone > avgsilence) {
 			if (avgtone - avgtone*BUSY_PERCENT/100 <= avgsilence)
 				res = 1;
@@ -965,9 +962,9 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 	/* If we know the expected busy tone length, check we are in the range */
 	if (res && (dsp->busy_tonelength > 0)) {
 		if (abs(avgtone - dsp->busy_tonelength) > (dsp->busy_tonelength*BUSY_PAT_PERCENT/100)) {
-#if 0
-			ast_log(LOG_NOTICE, "busy detector: avgtone of %d not close enough to desired %d\n",
-						avgtone, dsp->busy_tonelength);
+#ifdef BUSYDETECT_DEBUG
+			ast_debug(5, "busy detector: avgtone of %d not close enough to desired %d\n",
+				avgtone, dsp->busy_tonelength);
 #endif
 			res = 0;
 		}
@@ -976,67 +973,23 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 	/* If we know the expected busy tone silent-period length, check we are in the range */
 	if (res && (dsp->busy_quietlength > 0)) {
 		if (abs(avgsilence - dsp->busy_quietlength) > (dsp->busy_quietlength*BUSY_PAT_PERCENT/100)) {
-#if 0
-			ast_log(LOG_NOTICE, "busy detector: avgsilence of %d not close enough to desired %d\n",
-						avgsilence, dsp->busy_quietlength);
+#ifdef BUSYDETECT_DEBUG
+		ast_debug(5, "busy detector: avgsilence of %d not close enough to desired %d\n",
+			avgsilence, dsp->busy_quietlength);
 #endif
 			res = 0;
 		}
 	}
 #endif
-#ifndef BUSYDETECT_TONEONLY
+#if !defined(BUSYDETECT_TONEONLY) && defined(BUSYDETECT_DEBUG)
 	if (res) {
-		ast_debug(1, "ast_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
+		ast_debug(5, "ast_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
+	} else {
+		ast_debug(5, "busy detector: FAILED with avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
 	}
 #endif
 	return res;
 }
-#endif
-
-#ifdef BUSYDETECT
-int ast_dsp_busydetect(struct ast_dsp *dsp)
-{
-	int x;
-	int res = 0;
-	int max, min;
-
-#if 0
-	if (dsp->busy_hits > 5);
-	return 0;
-#endif
-	if (dsp->busymaybe) {
-#if 0
-		printf("Maybe busy!\n");
-#endif		
-		dsp->busymaybe = 0;
-		min = 9999;
-		max = 0;
-		for (x = DSP_HISTORY - dsp->busycount; x < DSP_HISTORY; x++) {
-#if 0
-			printf("Silence: %d, Noise: %d\n", dsp->historicsilence[x], dsp->historicnoise[x]);
-#endif			
-			if (dsp->historicsilence[x] < min)
-				min = dsp->historicsilence[x];
-			if (dsp->historicnoise[x] < min)
-				min = dsp->historicnoise[x];
-			if (dsp->historicsilence[x] > max)
-				max = dsp->historicsilence[x];
-			if (dsp->historicnoise[x] > max)
-				max = dsp->historicnoise[x];
-		}
-		if ((max - min < BUSY_THRESHOLD) && (max < BUSY_MAX) && (min > BUSY_MIN)) {
-#if 0
-			printf("Busy!\n");
-#endif			
-			res = 1;
-		}
-#if 0
-		printf("Min: %d, max: %d\n", min, max);
-#endif		
-	}
-	return res;
-}
-#endif
 
 int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence)
 {

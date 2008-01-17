@@ -11829,6 +11829,19 @@ static char *zap_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			ast_cli(a->fd, "Propagated Conference: %d\n", tmp->propconfno);
 			ast_cli(a->fd, "Real in conference: %d\n", tmp->inconference);
 			ast_cli(a->fd, "DSP: %s\n", tmp->dsp ? "yes" : "no");
+			ast_cli(a->fd, "Busy Detection: %s\n", tmp->busydetect ? "yes" : "no");
+			if (tmp->busydetect) {
+#if defined(BUSYDETECT_TONEONLY)
+				ast_cli(a->fd, "    Busy Detector Helper: BUSYDETECT_TONEONLY\n");
+#elif defined(BUSYDETECT_COMPARE_TONE_AND_SILENCE)
+				ast_cli(a->fd, "    Busy Detector Helper: BUSYDETECT_COMPARE_TONE_AND_SILENCE\n");
+#endif
+#ifdef BUSYDETECT_DEBUG
+				ast_cli(a->fd, "    Busy Detector Debug: Enabled\n");
+#endif
+				ast_cli(a->fd, "    Busy Count: %d\n", tmp->busycount);
+				ast_cli(a->fd, "    Busy Pattern: %d,%d\n", tmp->busy_tonelength, tmp->busy_quietlength);
+			}
 			ast_cli(a->fd, "TDD: %s\n", tmp->tdd ? "yes" : "no");
 			ast_cli(a->fd, "Relax DTMF: %s\n", tmp->dtmfrelax ? "yes" : "no");
 			ast_cli(a->fd, "Dialing/CallwaitCAS: %d/%d\n", tmp->dialing, tmp->callwaitcas);

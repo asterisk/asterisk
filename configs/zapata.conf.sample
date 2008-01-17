@@ -599,10 +599,14 @@ pickupgroup=1
 ;
 ;busypattern=500,500
 ;
-; NOTE: In the Asterisk Makefile you'll find further options to tweak the busy
+; NOTE: In make menuselect, you'll find further options to tweak the busy
 ; detector.  If your country has a busy tone with the same length tone and
-; silence (as many countries do), consider defining the
-; -DBUSYDETECT_COMPARE_TONE_AND_SILENCE option.
+; silence (as many countries do), consider enabling the
+; BUSYDETECT_COMPARE_TONE_AND_SILENCE option.
+;
+; To further detect which hangup tone your telco provider is sending, it is
+; useful to use the ztmonitor utility to record the audio that main/dsp.c
+; is receiving after the caller hangs up.
 ;
 ; Use a polarity reversal to mark when a outgoing call is answered by the
 ; remote party.

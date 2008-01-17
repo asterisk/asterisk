@@ -275,9 +275,7 @@ endif
 
 # XXX MALLOC_DEBUG is probably unused, Makefile.moddir_rules adds the
 #	value directly to ASTCFLAGS
-# XXX BUSYDETECT is probably useless, the only similar reference is to
-#	#ifdef BUSYDETECT in main/dsp.c
-ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
+ASTCFLAGS+=$(MALLOC_DEBUG)$(OPTIONS)
 
 MOD_SUBDIRS:=channels pbx apps codecs formats cdr funcs tests main res $(LOCAL_MOD_SUBDIRS)
 OTHER_SUBDIRS:=utils agi
