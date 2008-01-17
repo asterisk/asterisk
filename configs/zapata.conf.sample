@@ -522,6 +522,8 @@ pickupgroup=1
 ;
 ; Specify whether the channel should be answered immediately or if the simple
 ; switch should provide dialtone, read digits, etc.
+; Note: If immediate=yes the dialplan execution will always start at extension
+; 's' priority 1 regardless of the dialed number!
 ;
 ;immediate=yes
 ;
