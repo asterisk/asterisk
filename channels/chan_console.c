@@ -787,7 +787,11 @@ static char *cli_list_devices(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 
-	ast_cli(a->fd, "Available Devices:\n---------------------------------\n");
+	ast_cli(a->fd, "\n"
+	            "=============================================================\n"
+	            "=== Available Devices =======================================\n"
+	            "=============================================================\n"
+	            "===\n");
 
 	num = Pa_GetDeviceCount();
 	if (!num) {
@@ -801,14 +805,16 @@ static char *cli_list_devices(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		const PaDeviceInfo *dev = Pa_GetDeviceInfo(index);
 		if (!dev)
 			continue;
-		ast_cli(a->fd, "Device Name: %s %s %s\n", dev->name,
-			dev->maxInputChannels ? "(Input)" : "",
-			dev->maxOutputChannels ? "(Output)" : "");
-		if (index == def_input)
-			ast_cli(a->fd, "    ---> Default Input Device\n");
-		if (index == def_output)
-			ast_cli(a->fd, "    ---> Default Output Device\n");
+		ast_cli(a->fd, "=== ---------------------------------------------------------\n"
+		               "=== Device Name: %s\n", dev->name);
+		if (dev->maxInputChannels)
+			ast_cli(a->fd, "=== ---> %sInput Device\n", (index == def_input) ? "Default " : "");
+		if (dev->maxOutputChannels)
+			ast_cli(a->fd, "=== ---> %sOutput Device\n", (index == def_output) ? "Default " : "");
+		ast_cli(a->fd, "=== ---------------------------------------------------------\n===\n");
 	}
+
+	ast_cli(a->fd, "=============================================================\n\n");
 
 	return CLI_SUCCESS;
 }
