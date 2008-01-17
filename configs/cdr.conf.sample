@@ -11,7 +11,7 @@
 
 ; Define whether or not to use CDR logging.  Setting this to "no" will override
 ; any loading of backend CDR modules.  Default is "yes".
-enable=yes
+;enable=yes
 
 ; Define whether or not to log unanswered calls. Setting this to "yes" will
 ; report every attempt to ring a phone in dialing attempts, when it was not 
