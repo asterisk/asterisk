@@ -343,9 +343,11 @@ usecallerid=yes
 ; the script specified by the mwimonitornotify option is executed.  Also, an
 ; internal Asterisk MWI event will be generated so that any other part of
 ; Asterisk that cares about MWI state changes will get notified, just as if
-; the state change came from app_voicemail.
+; the state change came from app_voicemail. The energy level that must be seen
+; before starting the MWI detection process can be set with 'mwilevel'.
 ;
 ;mwimonitor=no
+;mwilevel=512
 ;
 ; This option is used in conjunction with mwimonitor.  This will get executed
 ; when incoming MWI state changes.  The script is passed 2 arguments.  The

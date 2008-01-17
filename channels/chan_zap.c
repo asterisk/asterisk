@@ -163,6 +163,7 @@ static struct ast_jb_conf global_jbconf;
 
 #define AST_LAW(p) (((p)->law == ZT_LAW_ALAW) ? AST_FORMAT_ALAW : AST_FORMAT_ULAW)
 
+
 /*! \brief Signaling types that need to use MF detection should be placed in this macro */
 #define NEED_MFDETECT(p) (((p)->sig == SIG_FEATDMF) || ((p)->sig == SIG_FEATDMF_TA) || ((p)->sig == SIG_E911) || ((p)->sig == SIG_FGC_CAMA) || ((p)->sig == SIG_FGC_CAMAMF) || ((p)->sig == SIG_FEATB)) 
 
@@ -245,6 +246,8 @@ static int usedistinctiveringdetection = 0;
 static int distinctiveringaftercid = 0;
 
 static int numbufs = 4;
+
+static int mwilevel = 512;
 
 #ifdef HAVE_PRI
 static struct ast_channel inuse;
@@ -566,7 +569,8 @@ static struct zt_pvt {
 	unsigned int usedistinctiveringdetection:1;
 	unsigned int zaptrcallerid:1;			/*!< should we use the callerid from incoming call on zap transfer or not */
 	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
-	unsigned int mwimonitor:1;
+	unsigned int mwimonitor:1;			/*!< monitor this FXO port for MWI indication from other end */
+	unsigned int mwimonitoractive:1;		/*!< an MWI monitor thread is currently active */
 	/* Channel state or unavilability flags */
 	unsigned int inservice:1;
 	unsigned int locallyblocked:1;
@@ -624,7 +628,6 @@ static struct zt_pvt {
 	int callwaitingrepeat;				/*!< How many samples to wait before repeating call waiting */
 	int cidcwexpire;				/*!< When to expire our muting for CID/CW */
 	unsigned char *cidspill;
-	struct callerid_state *mwi_state;
 	int cidpos;
 	int cidlen;
 	int ringt;
@@ -7248,6 +7251,139 @@ static void *ss_thread(void *data)
 	return NULL;
 }
 
+struct mwi_thread_data {
+	struct zt_pvt *pvt;
+	unsigned char buf[READ_SIZE];
+	size_t len;
+};
+
+static int calc_energy(const unsigned char *buf, int len, int law)
+{
+	int x;
+	int sum = 0;
+
+	if (!len)
+		return 0;
+
+	for (x = 0; x < len; x++)
+		sum += abs(law == AST_FORMAT_ULAW ? AST_MULAW(buf[x]) : AST_ALAW(buf[x]));
+
+	return sum / len;
+}
+
+static void *mwi_thread(void *data)
+{
+	struct mwi_thread_data *mtd = data;
+	struct callerid_state *cs;
+	pthread_attr_t attr;
+	pthread_t threadid;
+	int samples = 0;
+	char *name, *number;
+	int flags;
+	int i, res;
+	unsigned int spill_done = 0;
+	int spill_result = -1;
+	
+	if (!(cs = callerid_new(mtd->pvt->cid_signalling))) {
+		mtd->pvt->mwimonitoractive = 0;
+
+		return NULL;
+	}
+	
+	callerid_feed(cs, mtd->buf, mtd->len, AST_LAW(mtd->pvt));
+
+	bump_gains(mtd->pvt);
+
+	for (;;) {	
+		i = ZT_IOMUX_READ | ZT_IOMUX_SIGEVENT;
+		if ((res = ioctl(mtd->pvt->subs[SUB_REAL].zfd, ZT_IOMUX, &i))) {
+			ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
+			goto quit;
+		}
+
+		if (i & ZT_IOMUX_SIGEVENT) {
+			struct ast_channel *chan;
+
+			/* If we get an event, cancel and go to the simple switch to let it deal with it */
+			res = zt_get_event(mtd->pvt->subs[SUB_REAL].zfd);
+			ast_log(LOG_NOTICE, "Got event %d (%s)...  Passing along to ss_thread\n", res, event2str(res));
+			callerid_free(cs);
+			
+			restore_gains(mtd->pvt);
+			mtd->pvt->ringt = mtd->pvt->ringt_base;
+
+			if ((chan = zt_new(mtd->pvt, AST_STATE_RING, 0, SUB_REAL, 0, 0))) {
+				pthread_attr_init(&attr);
+				pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+				if (ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
+					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", mtd->pvt->channel);
+					res = tone_zone_play_tone(mtd->pvt->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
+					if (res < 0)
+						ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", mtd->pvt->channel);
+					ast_hangup(chan);
+					goto quit;
+				}
+				goto quit_no_clean;
+
+			} else {
+				ast_log(LOG_WARNING, "Could not create channel to handle call\n");
+			}
+		} else if (i & ZT_IOMUX_READ) {
+			if ((res = read(mtd->pvt->subs[SUB_REAL].zfd, mtd->buf, sizeof(mtd->buf))) < 0) {
+				if (errno != ELAST) {
+					ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
+					goto quit;
+				}
+				break;
+			}
+			samples += res;
+			if (!spill_done) {
+				if ((spill_result = callerid_feed(cs, mtd->buf, res, AST_LAW(mtd->pvt))) < 0) {
+					ast_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
+					break;
+				} else if (spill_result) {
+					spill_done = 1;
+				}
+			} else {
+				/* keep reading data until the energy level drops below the threshold
+				   so we don't get another 'trigger' on the remaining carrier signal
+				*/
+				if (calc_energy(mtd->buf, res, AST_LAW(mtd->pvt)) <= mwilevel)
+					break;
+			}
+			if (samples > (8000 * 4)) /*Termination case - time to give up*/
+				break;
+		}
+	}
+
+	if (spill_result == 1) {
+		callerid_get(cs, &name, &number, &flags);
+		if (flags & CID_MSGWAITING) {
+			ast_log(LOG_NOTICE, "mwi: Have Messages on channel %d\n", mtd->pvt->channel);
+			notify_message(mtd->pvt->mailbox, 1);
+		} else if (flags & CID_NOMSGWAITING) {
+			ast_log(LOG_NOTICE, "mwi: No Messages on channel %d\n", mtd->pvt->channel);
+			notify_message(mtd->pvt->mailbox, 0);
+		} else {
+			ast_log(LOG_NOTICE, "mwi: Status unknown on channel %d\n", mtd->pvt->channel);
+		}
+	}
+
+
+quit:
+	callerid_free(cs);
+
+	restore_gains(mtd->pvt);
+
+quit_no_clean:
+	mtd->pvt->mwimonitoractive = 0;
+
+	ast_free(mtd);
+
+	return NULL;
+}
+
 /* destroy a Zaptel channel, identified by its number */
 static int zap_destroy_channel_bynum(int channel)
 {
@@ -7273,6 +7409,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 	struct ast_channel *chan;
 
 	/* Handle an event on a given channel for the monitor thread. */
+
 	switch (event) {
 	case ZT_EVENT_NONE:
 	case ZT_EVENT_BITSCHANGED:
@@ -7519,20 +7656,14 @@ static void *do_monitor(void *data)
 		i = iflist;
 		while (i) {
 			if ((i->subs[SUB_REAL].zfd > -1) && i->sig && (!i->radio)) {
-				if (!i->owner && !i->subs[SUB_REAL].owner) {
+				if (!i->owner && !i->subs[SUB_REAL].owner && !i->mwimonitoractive) {
 					/* This needs to be watched, as it lacks an owner */
 					pfds[count].fd = i->subs[SUB_REAL].zfd;
 					pfds[count].events = POLLPRI;
 					pfds[count].revents = 0;
-					/* Message waiting or r2 channels also get watched for reading */
-					if (i->mwimonitor && (i->sig & __ZT_SIG_FXS) && !i->mwi_state) {
-						if (!i->mwi_state) {
-							i->mwi_state = callerid_new(i->cid_signalling);
-							bump_gains(i);
-							zt_setlinear(i->subs[SUB_REAL].zfd, 0);
-						}
-					}
-					if (i->cidspill || i->mwi_state)
+					/* If we are monitoring for VMWI or sending CID, we need to
+					   read from the channel as well */
+					if (i->cidspill || i->mwimonitor)
 						pfds[count].events |= POLLIN;
 					count++;
 				}
@@ -7621,57 +7752,52 @@ static void *do_monitor(void *data)
 						i = i->next;
 						continue;
 					}
-					if (!i->cidspill && !i->mwi_state) {
+					if (!i->cidspill && !i->mwimonitor) {
 						ast_log(LOG_WARNING, "Whoa....  I'm reading but have no cidspill (%d)...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
 						continue;
 					}
 					res = read(i->subs[SUB_REAL].zfd, buf, sizeof(buf));
 					if (res > 0) {
- 						if (i->mwi_state) {
- 							if (i->cid_signalling == CID_SIG_V23_JP) {
- 								res = callerid_feed_jp(i->mwi_state, (unsigned char *)buf, res, AST_LAW(i));
- 							} else {
- 								res = callerid_feed(i->mwi_state, (unsigned char *)buf, res, AST_LAW(i));
- 							}
- 							if (res < 0) {
- 								ast_log(LOG_WARNING, "MWI CallerID feed failed: %s!\n", strerror(errno));
- 								callerid_free(i->mwi_state);
- 								i->mwi_state = NULL;
- 							} else if (res) {
- 								char *name, *number;
- 								int flags;
- 								callerid_get(i->mwi_state, &number, &name, &flags);
- 								if (flags & CID_MSGWAITING) {
- 									ast_log(LOG_NOTICE, "MWI: Channel %d message waiting!\n",i->channel);
- 									notify_message(i->mailbox, 1);
- 								} else if (flags & CID_NOMSGWAITING) {
- 									ast_log(LOG_NOTICE, "MWI: Channel %d no message waiting!\n",i->channel);
- 									notify_message(i->mailbox, 0);
- 								} else 
- 									ast_log(LOG_NOTICE, "MWI: Channel %d status unknown\n", i->channel);
- 								callerid_free(i->mwi_state);
- 								i->mwi_state = NULL;
- 							}
- 						} else if (i->cidspill) {
- 							/* We read some number of bytes.  Write an equal amount of data */
- 							if (res > i->cidlen - i->cidpos) 
- 								res = i->cidlen - i->cidpos;
- 							res2 = write(i->subs[SUB_REAL].zfd, i->cidspill + i->cidpos, res);
- 							if (res2 > 0) {
- 								i->cidpos += res2;
- 								if (i->cidpos >= i->cidlen) {
- 									free(i->cidspill);
- 									i->cidspill = 0;
- 									i->cidpos = 0;
- 									i->cidlen = 0;
- 								}
- 							} else {
- 								ast_log(LOG_WARNING, "Write failed: %s\n", strerror(errno));
- 								i->msgstate = -1;
- 							}
-  						}
+						if (i->mwimonitor) {
+							if (calc_energy((unsigned char *) buf, res, AST_LAW(i)) > mwilevel) {
+								pthread_attr_t attr;
+								pthread_t threadid;
+								struct mwi_thread_data *mtd;
 
+								pthread_attr_init(&attr);
+								pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+								ast_log(LOG_DEBUG, "Maybe some MWI on port %d!\n", i->channel);
+								if ((mtd = ast_calloc(1, sizeof(*mtd)))) {
+									mtd->pvt = i;
+									memcpy(mtd->buf, buf, res);
+									mtd->len = res;
+									if (ast_pthread_create_background(&threadid, &attr, mwi_thread, mtd)) {
+										ast_log(LOG_WARNING, "Unable to start mwi thread on channel %d\n", i->channel);
+										ast_free(mtd);
+									}
+									i->mwimonitoractive = 1;
+								}
+							}
+						} else if (i->cidspill) {
+							/* We read some number of bytes.  Write an equal amount of data */
+							if (res > i->cidlen - i->cidpos) 
+								res = i->cidlen - i->cidpos;
+							res2 = write(i->subs[SUB_REAL].zfd, i->cidspill + i->cidpos, res);
+							if (res2 > 0) {
+								i->cidpos += res2;
+								if (i->cidpos >= i->cidlen) {
+									free(i->cidspill);
+									i->cidspill = 0;
+									i->cidpos = 0;
+									i->cidlen = 0;
+								}
+							} else {
+								ast_log(LOG_WARNING, "Write failed: %s\n", strerror(errno));
+								i->msgstate = -1;
+							}
+						}
 					} else {
 						ast_log(LOG_WARNING, "Read failed with %d: %s\n", res, strerror(errno));
 					}
@@ -7689,12 +7815,6 @@ static void *do_monitor(void *data)
 							ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d)...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
 						continue;
-					}
-					if (i->mwi_state) {
-						callerid_free(i->mwi_state);
-						i->mwi_state = NULL;
-						zt_setlinear(i->subs[SUB_REAL].zfd, i->subs[SUB_REAL].linear);
-						restore_gains(i);
 					}
 					res = zt_get_event(i->subs[SUB_REAL].zfd);
 					ast_debug(1, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
@@ -8223,7 +8343,8 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 #endif
 		tmp->immediate = conf.chan.immediate;
 		tmp->transfertobusy = conf.chan.transfertobusy;
-		tmp->mwimonitor = conf.chan.mwimonitor;
+		if (conf.chan.sig & __ZT_SIG_FXS)
+			tmp->mwimonitor = conf.chan.mwimonitor;
 		tmp->sig = conf.chan.sig;
 		tmp->outsigmod = conf.chan.outsigmod;
 		tmp->radio = conf.chan.radio;
@@ -13729,6 +13850,8 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				ast_copy_string(defaultcic, v->value, sizeof(defaultcic));
 			} else if (!strcasecmp(v->name, "defaultozz")) {
 				ast_copy_string(defaultozz, v->value, sizeof(defaultozz));
+			} else if (!strcasecmp(v->name, "mwilevel")) {
+				mwilevel = atoi(v->value);
 			}
 		} else if (!skipchannels)
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
