@@ -801,7 +801,9 @@ static char *cli_list_devices(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		const PaDeviceInfo *dev = Pa_GetDeviceInfo(index);
 		if (!dev)
 			continue;
-		ast_cli(a->fd, "Device Name: %s\n", dev->name);
+		ast_cli(a->fd, "Device Name: %s %s %s\n", dev->name,
+			dev->maxInputChannels ? "(Input)" : "",
+			dev->maxOutputChannels ? "(Output)" : "");
 		if (index == def_input)
 			ast_cli(a->fd, "    ---> Default Input Device\n");
 		if (index == def_output)
