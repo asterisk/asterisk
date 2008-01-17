@@ -531,6 +531,10 @@ void ast_codec_pref_remove(struct ast_codec_pref *pref, int format);
 */
 int ast_codec_pref_append(struct ast_codec_pref *pref, int format);
 
+/*! \brief Prepend an audio codec to a preference list, removing it first if it was already there 
+*/
+void ast_codec_pref_prepend(struct ast_codec_pref *pref, int format, int only_if_existing);
+
 /*! \brief Select the best audio format according to preference list from supplied options. 
    If "find_best" is non-zero then if nothing is found, the "Best" format of 
    the format list is selected, otherwise 0 is returned. */

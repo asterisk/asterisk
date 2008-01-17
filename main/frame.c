@@ -1025,7 +1025,7 @@ void ast_codec_pref_remove(struct ast_codec_pref *pref, int format)
 /*! \brief Append codec to list */
 int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
 {
-	int x, newindex = -1;
+	int x, newindex = 0;
 
 	ast_codec_pref_remove(pref, format);
 
@@ -1048,6 +1048,42 @@ int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
 	return x;
 }
 
+/*! \brief Prepend codec to list */
+void ast_codec_pref_prepend(struct ast_codec_pref *pref, int format, int only_if_existing)
+{
+	int x, newindex = 0;
+
+	/* First step is to get the codecs "index number" */
+	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
+		if (AST_FORMAT_LIST[x].bits == format) {
+			newindex = x + 1;
+			break;
+		}
+	}
+	/* Done if its unknown */
+	if (!newindex)
+		return;
+
+	/* Now find any existing occurrence, or the end */
+	for (x = 0; x < 32; x++) {
+		if (!pref->order[x] || pref->order[x] == newindex)
+			break;
+	}
+
+	if (only_if_existing && !pref->order[x])
+		return;
+
+	/* Move down to make space to insert - either all the way to the end,
+	   or as far as the existing location (which will be overwritten) */
+	for (; x > 0; x--) {
+		pref->order[x] = pref->order[x - 1];
+		pref->framing[x] = pref->framing[x - 1];
+	}
+
+	/* And insert the new entry */
+	pref->order[0] = newindex;
+	pref->framing[0] = 0; /* ? */
+}
 
 /*! \brief Set packet size for codec */
 int ast_codec_pref_setsize(struct ast_codec_pref *pref, int format, int framems)
