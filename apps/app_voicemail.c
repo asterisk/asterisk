@@ -3466,7 +3466,7 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	if (box == 1) return 10;
 	/* get the real IMAP message number for this message */
 	snprintf(sequence, sizeof(sequence), "%ld", vms->msgArray[msg]);
-	ast_debug(3, "Copying sequence %s to mailbox %s\n",sequence,dbox);
+	ast_debug(3, "Copying sequence %s to mailbox %s\n",sequence,mbox(box));
 	res = mail_copy(vms->mailstream,sequence,(char *) mbox(box));
 	if (res == 1) return 0;
 	return 1;
@@ -5030,11 +5030,6 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 		return -1;
 	}
 	
-	/* Check Quota (here for now to test) */
-	mail_parameters(NULL, SET_QUOTA, (void *) mm_parsequota);
-	imap_mailbox_name(dbox, sizeof(dbox), vms, box, 1);
-	imap_getquotaroot(vms->mailstream, dbox);
-
 	/* Check Quota */
 	if  (box == 0)  {
 		ast_debug(3, "Mailbox name set to: %s, about to check quotas\n", mbox(box));
