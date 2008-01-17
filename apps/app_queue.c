@@ -842,7 +842,7 @@ static struct member *create_queue_member(const char *interface, const char *mem
 			ast_copy_string(cur->membername, interface, sizeof(cur->membername));
 		if (!strchr(cur->interface, '/'))
 			ast_log(LOG_WARNING, "No location at interface '%s'\n", interface);
-		cur->status = ast_device_state(interface);
+		cur->status = ast_device_state(state_interface);
 	}
 
 	return cur;
