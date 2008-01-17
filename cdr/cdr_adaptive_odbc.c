@@ -153,8 +153,33 @@ static int load_config(void)
 
 		ast_verb(3, "Found adaptive CDR table %s@%s.\n", tableptr->table, tableptr->connection);
 
+		/* Check for filters first */
+		for (var = ast_variable_browse(cfg, catg); var; var = var->next) {
+			if (strncmp(var->name, "filter", 6) == 0) {
+				char *cdrvar = ast_strdupa(var->name + 6);
+				cdrvar = ast_strip(cdrvar);
+				ast_verb(3, "Found filter %s for cdr variable %s in %s@%s\n", var->value, cdrvar, tableptr->table, tableptr->connection);
+
+				entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(cdrvar) + 1 + strlen(var->value) + 1);
+				if (!entry) {
+					ast_log(LOG_ERROR, "Out of memory creating filter entry for CDR variable '%s' in table '%s' on connection '%s'\n", cdrvar, table, connection);
+					res = -1;
+					break;
+				}
+
+				/* NULL column entry means this isn't a column in the database */
+				entry->name = NULL;
+				entry->cdrname = (char *)entry + sizeof(*entry);
+				entry->filtervalue = (char *)entry + sizeof(*entry) + strlen(cdrvar) + 1;
+				strcpy(entry->cdrname, cdrvar);
+				strcpy(entry->filtervalue, var->value);
+
+				AST_LIST_INSERT_TAIL(&(tableptr->columns), entry, list);
+			}
+		}
+
 		while ((res = SQLFetch(stmt)) != SQL_NO_DATA && res != SQL_ERROR) {
-			char *cdrvar = "", *filter = "";
+			char *cdrvar = "";
 
 			SQLGetData(stmt,  4, SQL_C_CHAR, columnname, sizeof(columnname), &sqlptr);
 
@@ -172,17 +197,8 @@ static int load_config(void)
 					break;
 				}
 			}
-			/* Two loops, because alias and filter could be in reverse order */
-			for (var = ast_variable_browse(cfg, catg); var; var = var->next) {
-				if (strncmp(var->name, "filter", 6) == 0 && strcasecmp(var->name + 6, S_OR(cdrvar, columnname))) {
-					char *tmp = ast_strdupa(var->name + 6);
-					filter = ast_strip(tmp);
-					ast_verb(3, "Found filter %s for cdr variable %s in %s@%s\n", filter, S_OR(cdrvar, columnname), tableptr->table, tableptr->connection);
-					break;
-				}
-			}
 
-			entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(columnname) + 1 + strlen(cdrvar) + 1 + strlen(filter) + 1);
+			entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(columnname) + 1 + strlen(cdrvar) + 1);
 			if (!entry) {
 				ast_log(LOG_ERROR, "Out of memory creating entry for column '%s' in table '%s' on connection '%s'\n", columnname, table, connection);
 				res = -1;
@@ -196,11 +212,6 @@ static int load_config(void)
 				strcpy(entry->cdrname, cdrvar);
 			} else /* Point to same place as the column name */
 				entry->cdrname = (char *)entry + sizeof(*entry);
-
-			if (!ast_strlen_zero(filter)) {
-				entry->filtervalue = entry->cdrname + strlen(entry->cdrname) + 1;
-				strcpy(entry->filtervalue, filter);
-			}
 
 			SQLGetData(stmt,  5, SQL_C_SHORT, &entry->type, sizeof(entry->type), NULL);
 			SQLGetData(stmt,  7, SQL_C_LONG, &entry->size, sizeof(entry->size), NULL);
@@ -367,6 +378,10 @@ static int odbc_log(struct ast_cdr *cdr)
 						entry->cdrname, colptr, entry->filtervalue);
 					goto early_release;
 				}
+
+				/* Only a filter? */
+				if (ast_strlen_zero(entry->name))
+					continue;
 
 				LENGTHEN_BUF1(strlen(entry->name));
 
