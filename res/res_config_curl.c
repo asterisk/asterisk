@@ -407,7 +407,7 @@ static struct ast_config *config_curl(const char *url, const char *unused, const
 	struct ast_str *query;
 	char buf1[200];
 	char *stringp, *line, *pair, *key;
-	int EncodeSpecialChars = 1, last_cat_metric = -1, cat_metric;
+	int EncodeSpecialChars = 1, last_cat_metric = -1, cat_metric = -1;
 	struct ast_category *cat=NULL;
 	char *buffer, *cur_cat = "";
 	char *category = "", *var_name = "", *var_val = "";
