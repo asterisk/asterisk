@@ -2639,6 +2639,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 	char *c = workspace;
 	char *retval = NULL;
 	struct ast_variable *v;
+	unsigned int new_session = 0;
 
 	for (v = params; v; v = v->next) {
 		if (!strcasecmp(v->name, "mansession_id")) {
@@ -2670,6 +2671,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 		ast_atomic_fetchadd_int(&s->eventq->usecount, 1);
 		ast_atomic_fetchadd_int(&num_sessions, 1);
 		AST_LIST_UNLOCK(&sessions);
+		new_session = 1;
 	}
 
 	/* Reset HTTP timeout.  If we're not yet authenticated, keep it extremely short */
@@ -2710,8 +2712,10 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 			s->needdestroy = 1;
 		}
 		ast_build_string(&c, &len, "Content-type: text/%s\r\n", contenttype[format]);
-		sprintf(tmp, "%08lx", s->managerid);
-		ast_build_string(&c, &len, "%s\r\n", ast_http_setcookie("mansession_id", tmp, httptimeout, cookie, sizeof(cookie)));
+		if (new_session) {
+			sprintf(tmp, "%08lx", s->managerid);
+			ast_build_string(&c, &len, "%s\r\n", ast_http_setcookie("mansession_id", tmp, httptimeout, cookie, sizeof(cookie)));
+		}
 		if (format == FORMAT_HTML)
 			ast_build_string(&c, &len, "<title>Asterisk&trade; Manager Interface</title>");
 		if (format == FORMAT_XML) {
