@@ -153,7 +153,7 @@ static struct {
 };
 
 char global_server[80] = "";	/*!< Server to substitute into templates */
-char global_serverport[6] = "5060";	/*!< Server port to substitute into templates */
+char global_serverport[6] = "";	/*!< Server port to substitute into templates */
 char global_default_profile[80] = "";	/*!< Default profile to use if one isn't specified */	
 
 /*! \brief List of global variables currently available: VOICEMAIL_EXTEN, EXTENSION_LENGTH */
@@ -395,6 +395,23 @@ static struct ast_str *phoneprov_callback(struct server_instance *ser, const cha
 			if (file)
 				ast_free(file);
 			goto out500;
+		}
+
+		/* Unless we are overridden by serveriface or serveraddr, we set the SERVER variable to
+		 * the IP address we are listening on that the phone contacted for this config file */
+		if (ast_strlen_zero(global_server)) {
+			struct sockaddr name;
+			socklen_t namelen = sizeof(name);
+			int res;
+
+			if ((res = getsockname(ser->fd, &name, &namelen)))
+				ast_log(LOG_WARNING, "Could not get server IP, breakage likely.\n");
+			else {
+				struct ast_var_t *var;
+
+				if ((var = ast_var_assign("SERVER", ast_inet_ntoa(((struct sockaddr_in *)&name)->sin_addr))))
+					AST_LIST_INSERT_TAIL(route->user->headp, var, entries);
+			}
 		}
 
 		pbx_substitute_variables_varshead(route->user->headp, file, tmp, bufsize);
@@ -698,10 +715,11 @@ static struct user *build_user(struct ast_config *cfg, const char *name, const c
 	if (!ast_strlen_zero(global_server)) {
 		if ((var = ast_var_assign("SERVER", global_server)))
 			AST_LIST_INSERT_TAIL(user->headp, var, entries);
-		if (!ast_strlen_zero(global_serverport)) {
-			if ((var = ast_var_assign("SERVER_PORT", global_serverport)))
-				AST_LIST_INSERT_TAIL(user->headp, var, entries);
-		}
+	}
+
+	if (!ast_strlen_zero(global_serverport)) {
+		if ((var = ast_var_assign("SERVER_PORT", global_serverport)))
+			AST_LIST_INSERT_TAIL(user->headp, var, entries);
 	}
 
 	/* Append profile variables here, and substitute variables on profile
@@ -736,20 +754,27 @@ static int build_user_routes(struct user *user)
 /* \brief Parse config files and create appropriate structures */
 static int set_config(void)
 {
-	struct ast_config *phoneprov_cfg, *users_cfg;
+	struct ast_config *cfg;
 	char *cat;
 	struct ast_variable *v;
 	struct ast_flags config_flags = { 0 };
 
-	if (!(phoneprov_cfg = ast_config_load("phoneprov.conf", config_flags))) {
+	/* Try to grab the port from sip.conf.  If we don't get it here, we'll set it
+	 * to whatever is set in phoneprov.conf or default to 5060 */
+	if ((cfg = ast_config_load("sip.conf", config_flags))) {
+		ast_copy_string(global_serverport, S_OR(ast_variable_retrieve(cfg, "general", "bindport"), "5060"), sizeof(global_serverport));
+		ast_config_destroy(cfg);
+	}
+
+	if (!(cfg = ast_config_load("phoneprov.conf", config_flags))) {
 		ast_log(LOG_ERROR, "Unable to load config phoneprov.conf\n");
 		return -1;
 	}
 
 	cat = NULL;
-	while ((cat = ast_category_browse(phoneprov_cfg, cat))) {
+	while ((cat = ast_category_browse(cfg, cat))) {
 		if (!strcasecmp(cat, "general")) {
-			for (v = ast_variable_browse(phoneprov_cfg, cat); v; v = v->next) {
+			for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
 				if (!strcasecmp(v->name, "serveraddr"))
 					ast_copy_string(global_server, v->value, sizeof(global_server));
 				else if (!strcasecmp(v->name, "serveriface")) {
@@ -761,28 +786,26 @@ static int set_config(void)
 				else if (!strcasecmp(v->name, "default_profile"))
 					ast_copy_string(global_default_profile, v->value, sizeof(global_default_profile));
 			}
-			if (ast_strlen_zero(global_server))
-				ast_log(LOG_WARNING, "No serveraddr/serveriface set in phoneprov.conf.  Breakage likely.\n");
 		} else 
-			build_profile(cat, ast_variable_browse(phoneprov_cfg, cat));
+			build_profile(cat, ast_variable_browse(cfg, cat));
 	}
 
-	ast_config_destroy(phoneprov_cfg);
+	ast_config_destroy(cfg);
 
-	if (!(users_cfg = ast_config_load("users.conf", config_flags))) {
+	if (!(cfg = ast_config_load("users.conf", config_flags))) {
 		ast_log(LOG_WARNING, "Unable to load users.cfg\n");
 		return 0;
 	}
 
 	cat = NULL;
-	while ((cat = ast_category_browse(users_cfg, cat))) {
+	while ((cat = ast_category_browse(cfg, cat))) {
 		const char *tmp, *mac;
 		struct user *user;
 		struct phone_profile *profile;
 		struct ast_var_t *var;
 
 		if (!strcasecmp(cat, "general")) {
-			for (v = ast_variable_browse(users_cfg, cat); v; v = v->next) {
+			for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
 				if (!strcasecmp(v->name, "vmexten")) {
 					if ((var = ast_var_assign("VOICEMAIL_EXTEN", v->value)))
 						AST_LIST_INSERT_TAIL(&global_variables, var, entries);
@@ -797,15 +820,15 @@ static int set_config(void)
 		if (!strcasecmp(cat, "authentication"))
 			continue;
 
-		if (!((tmp = ast_variable_retrieve(users_cfg, cat, "autoprov")) && ast_true(tmp)))	
+		if (!((tmp = ast_variable_retrieve(cfg, cat, "autoprov")) && ast_true(tmp)))	
 			continue;
 
-		if (!(mac = ast_variable_retrieve(users_cfg, cat, "macaddress"))) {
+		if (!(mac = ast_variable_retrieve(cfg, cat, "macaddress"))) {
 			ast_log(LOG_WARNING, "autoprov set for %s, but no mac address - skipping.\n", cat);
 			continue;
 		}
 
-		tmp = S_OR(ast_variable_retrieve(users_cfg, cat, "profile"), global_default_profile);
+		tmp = S_OR(ast_variable_retrieve(cfg, cat, "profile"), global_default_profile);
 		if (ast_strlen_zero(tmp)) {
 			ast_log(LOG_WARNING, "No profile for user [%s] with mac '%s' - skipping\n", cat, mac);
 			continue;
@@ -816,7 +839,7 @@ static int set_config(void)
 			continue;
 		}
 
-		if (!(user = build_user(users_cfg, cat, mac, profile))) {
+		if (!(user = build_user(cfg, cat, mac, profile))) {
 			ast_log(LOG_WARNING, "Could not create user %s - skipping.\n", cat);
 			continue;
 		}
@@ -832,7 +855,7 @@ static int set_config(void)
 		AST_RWLIST_UNLOCK(&users);
 	}
 
-	ast_config_destroy(users_cfg);
+	ast_config_destroy(cfg);
 
 	return 0;
 }

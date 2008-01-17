@@ -21,20 +21,26 @@ Below is a sample of the general section of \path{phoneprov.conf}:
 \begin{verbatim}
 [general]
 ;serveriface=eth0
-serveraddr=192.168.1.1
-serverport=5060
+;serveraddr=192.168.1.1
+;serverport=5060
 default_profile=polycom
 \end{verbatim}
 \end{astlisting}
 
-There are two choices for setting the SERVER variable. If the IP address of the server is 
-known, or the hostname resolvable by the phones, the appropriate \textbf{serveraddr} 
-value should be set.  Alternatively, the network interface that the server listens on can 
-be set by specifying a \textbf{serveriface} and SERVER will be set to the IP address of 
-that interface.  Only one of these options should be set.
+By default, res\_phoneprov will set the SERVER variable to the IP address on the server
+that the requesting phone uses to contact the asterisk HTTP server.  The SERVER\_PORT
+variable will default to the \textbf{bindport} setting in sip.conf.
 
-The SERVER\_PORT variable is set by setting the \textbf{serverport}.  If serverport is 
-not specified, it is set to a default value of 5060.
+Should the defaults be insufficient, there are two choices for overriding the default 
+setting of the SERVER variable. If the IP address of the server is known, or the hostname 
+resolvable by the phones, the appropriate \textbf{serveraddr} value should be set.  
+Alternatively, the network interface that the server listens on can be set by specifying a
+\textbf{serveriface} and SERVER will be set to the IP address of that interface.  Only one
+of these options should be set.
+
+The default SERVER\_PORT variable can be overridden by setting the \textbf{serverport}.
+If \textbf{bindport} is not set in \path{sip.conf} and serverport is not specified, it 
+is set to a default value of 5060.
 
 Any user set for auto-provisioning in users.conf without a specified profile will be 
 assumed to belong to the profile set with \textbf{default\_profile}.
