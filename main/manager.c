@@ -2711,7 +2711,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 		}
 		ast_build_string(&c, &len, "Content-type: text/%s\r\n", contenttype[format]);
 		sprintf(tmp, "%08lx", s->managerid);
-		ast_build_string(&c, &len, "%s", ast_http_setcookie("mansession_id", tmp, httptimeout, cookie, sizeof(cookie)));
+		ast_build_string(&c, &len, "%s\r\n", ast_http_setcookie("mansession_id", tmp, httptimeout, cookie, sizeof(cookie)));
 		if (format == FORMAT_HTML)
 			ast_build_string(&c, &len, "<title>Asterisk&trade; Manager Interface</title>");
 		if (format == FORMAT_XML) {
