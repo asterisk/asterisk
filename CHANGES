@@ -79,6 +79,9 @@ CLI Changes
      output to make debugging on busy systems much easier.
   * New CLI commands "dialplan set extenpatternmatching true/false"
   * New CLI command: "core set chanvar" to set a channel variable from the CLI.
+  * Added an easy way to execute Asterisk CLI commands at startup.  Any commands
+    listed in the startup_commands file in the Asterisk configuration directory
+    will get executed.
 
 SIP changes
 -----------

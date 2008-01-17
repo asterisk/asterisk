@@ -2664,7 +2664,7 @@ static void *canary_thread(void *unused)
 		stat(canary_filename, &canary_stat);
 		tv = ast_tvnow();
 		if (tv.tv_sec > canary_stat.st_mtime + 60) {
-			ast_log(LOG_WARNING, "The canary is no more.  He has ceased to be!  He's expired and gone to meet his maker!  He's a stiff!  Bereft of life, he rests in peace.  His metabolic processes are now history!  He's off the twig!  He's kicked the bucket.  He's shuffled off his mortal coil, run down the curtain, and joined the bleeding choir invisibile!!  THIS is an EX-CANARY.  (Reducing priority)\n");
+			ast_log(LOG_WARNING, "The canary is no more.  He has ceased to be!  He's expired and gone to meet his maker!  He's a stiff!  Bereft of life, he rests in peace.  His metabolic processes are now history!  He's off the twig!  He's kicked the bucket.  He's shuffled off his mortal coil, run down the curtain, and joined the bleeding choir invisible!!  THIS is an EX-CANARY.  (Reducing priority)\n");
 			ast_set_priority(0);
 			pthread_exit(NULL);
 		}
@@ -2679,6 +2679,40 @@ static void canary_exit(void)
 {
 	if (canary_pid > 0)
 		kill(canary_pid, SIGKILL);
+}
+
+static void run_startup_commands(void)
+{
+	char filename[PATH_MAX];
+	char buf[256];
+	FILE *f;
+	int fd;
+	
+	fd = open("/dev/null", O_RDWR);
+	if (fd < 0)
+		return;
+
+	snprintf(filename, sizeof(filename), "%s/startup_commands", ast_config_AST_CONFIG_DIR);
+
+	if (!(f = fopen(filename, "r"))) {
+		close(fd);
+		return;
+	}
+
+	while (fgets(buf, sizeof(buf), f)) {
+		size_t res = strlen(buf);
+
+		if (!res)
+			continue;
+
+		if (buf[res - 1] == '\n')
+			buf[res - 1] = '\0';
+
+		ast_cli_command(fd, buf);
+	}
+
+	fclose(f);
+	close(fd);
 }
 
 int main(int argc, char *argv[])
@@ -3185,6 +3219,8 @@ int main(int argc, char *argv[])
 
 	ast_lastreloadtime = ast_startuptime = ast_tvnow();
 	ast_cli_register_multiple(cli_asterisk, sizeof(cli_asterisk) / sizeof(struct ast_cli_entry));
+
+	run_startup_commands();
 
 	if (ast_opt_console) {
 		/* Console stuff now... */
