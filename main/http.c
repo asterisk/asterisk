@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "minimime/mm.h"
 
 #include "asterisk/cli.h"
+#include "asterisk/tcptls.h"
 #include "asterisk/http.h"
 #include "asterisk/utils.h"
 #include "asterisk/strings.h"
@@ -59,7 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define	DO_SSL	/* comment in/out if you want to support ssl */
 #endif
 
-static struct tls_config http_tls_cfg;
+static struct ast_tls_config http_tls_cfg;
 
 static void *httpd_helper_thread(void *arg);
 
@@ -647,7 +648,7 @@ cleanup:
  * We use wrappers rather than SSL_read/SSL_write directly so
  * we can put in some debugging.
  */
-static HOOK_T ssl_read(void *cookie, char *buf, LEN_T len)
+/*static HOOK_T ssl_read(void *cookie, char *buf, LEN_T len)
 {
 	int i = SSL_read(cookie, buf, len-1);
 #if 0
@@ -675,54 +676,8 @@ static int ssl_close(void *cookie)
 	SSL_shutdown(cookie);
 	SSL_free(cookie);
 	return 0;
-}
+}*/
 #endif	/* DO_SSL */
-
-/*!
- * creates a FILE * from the fd passed by the accept thread.
- * This operation is potentially expensive (certificate verification),
- * so we do it in the child thread context.
- */
-static void *make_file_from_fd(void *data)
-{
-	struct server_instance *ser = data;
-
-	/*
-	 * open a FILE * as appropriate.
-	 */
-	if (!ser->parent->tls_cfg)
-		ser->f = fdopen(ser->fd, "w+");
-#ifdef DO_SSL
-	else if ( (ser->ssl = SSL_new(ser->parent->tls_cfg->ssl_ctx)) ) {
-		SSL_set_fd(ser->ssl, ser->fd);
-		if (SSL_accept(ser->ssl) == 0)
-			ast_verbose(" error setting up ssl connection");
-		else {
-#if defined(HAVE_FUNOPEN)	/* the BSD interface */
-			ser->f = funopen(ser->ssl, ssl_read, ssl_write, NULL, ssl_close);
-
-#elif defined(HAVE_FOPENCOOKIE)	/* the glibc/linux interface */
-			static const cookie_io_functions_t cookie_funcs = {
-				ssl_read, ssl_write, NULL, ssl_close
-			};
-			ser->f = fopencookie(ser->ssl, "w+", cookie_funcs);
-#else
-			/* could add other methods here */
-#endif
-		}
-		if (!ser->f)	/* no success opening descriptor stacking */
-			SSL_free(ser->ssl);
-	}
-#endif /* DO_SSL */
-
-	if (!ser->f) {
-		close(ser->fd);
-		ast_log(LOG_WARNING, "FILE * open failed!\n");
-		ast_free(ser);
-		return NULL;
-	}
-	return ser->parent->worker_fn(ser);
-}
 
 static void *httpd_helper_thread(void *data)
 {
@@ -874,153 +829,6 @@ done:
 	fclose(ser->f);
 	ast_free(ser);
 	return NULL;
-}
-
-void *server_root(void *data)
-{
-	struct server_args *desc = data;
-	int fd;
-	struct sockaddr_in sin;
-	socklen_t sinlen;
-	struct server_instance *ser;
-	pthread_t launched;
-	
-	for (;;) {
-		int i, flags;
-
-		if (desc->periodic_fn)
-			desc->periodic_fn(desc);
-		i = ast_wait_for_input(desc->accept_fd, desc->poll_timeout);
-		if (i <= 0)
-			continue;
-		sinlen = sizeof(sin);
-		fd = accept(desc->accept_fd, (struct sockaddr *)&sin, &sinlen);
-		if (fd < 0) {
-			if ((errno != EAGAIN) && (errno != EINTR))
-				ast_log(LOG_WARNING, "Accept failed: %s\n", strerror(errno));
-			continue;
-		}
-		ser = ast_calloc(1, sizeof(*ser));
-		if (!ser) {
-			ast_log(LOG_WARNING, "No memory for new session: %s\n", strerror(errno));
-			close(fd);
-			continue;
-		}
-		flags = fcntl(fd, F_GETFL);
-		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
-		ser->fd = fd;
-		ser->parent = desc;
-		memcpy(&ser->requestor, &sin, sizeof(ser->requestor));
-			
-		if (ast_pthread_create_detached_background(&launched, NULL, make_file_from_fd, ser)) {
-			ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
-			close(ser->fd);
-			ast_free(ser);
-		}
-
-	}
-	return NULL;
-}
-
-int ssl_setup(struct tls_config *cfg)
-{
-#ifndef DO_SSL
-	cfg->enabled = 0;
-	return 0;
-#else
-	if (!cfg->enabled)
-		return 0;
-	SSL_load_error_strings();
-	SSLeay_add_ssl_algorithms();
-	cfg->ssl_ctx = SSL_CTX_new( SSLv23_server_method() );
-	if (!ast_strlen_zero(cfg->certfile)) {
-		if (SSL_CTX_use_certificate_file(cfg->ssl_ctx, cfg->certfile, SSL_FILETYPE_PEM) == 0 ||
-		    SSL_CTX_use_PrivateKey_file(cfg->ssl_ctx, cfg->certfile, SSL_FILETYPE_PEM) == 0 ||
-		    SSL_CTX_check_private_key(cfg->ssl_ctx) == 0 ) {
-			ast_verbose("ssl cert error <%s>", cfg->certfile);
-			sleep(2);
-			cfg->enabled = 0;
-			return 0;
-		}
-	}
-	if (!ast_strlen_zero(cfg->cipher)) {
-		if (SSL_CTX_set_cipher_list(cfg->ssl_ctx, cfg->cipher) == 0 ) {
-			ast_verbose("ssl cipher error <%s>", cfg->cipher);
-			sleep(2);
-			cfg->enabled = 0;
-			return 0;
-		}
-	}
-	ast_verbose("ssl cert ok");
-	return 1;
-#endif
-}
-
-/*!
- * This is a generic (re)start routine for a TCP server,
- * which does the socket/bind/listen and starts a thread for handling
- * accept().
- */
-void server_start(struct server_args *desc)
-{
-	int flags;
-	int x = 1;
-	
-	/* Do nothing if nothing has changed */
-	if (!memcmp(&desc->oldsin, &desc->sin, sizeof(desc->oldsin))) {
-		ast_debug(1, "Nothing changed in %s\n", desc->name);
-		return;
-	}
-	
-	desc->oldsin = desc->sin;
-	
-	/* Shutdown a running server if there is one */
-	if (desc->master != AST_PTHREADT_NULL) {
-		pthread_cancel(desc->master);
-		pthread_kill(desc->master, SIGURG);
-		pthread_join(desc->master, NULL);
-	}
-	
-	if (desc->accept_fd != -1)
-		close(desc->accept_fd);
-
-	/* If there's no new server, stop here */
-	if (desc->sin.sin_family == 0)
-		return;
-
-	desc->accept_fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (desc->accept_fd < 0) {
-		ast_log(LOG_WARNING, "Unable to allocate socket for %s: %s\n",
-			desc->name, strerror(errno));
-		return;
-	}
-	
-	setsockopt(desc->accept_fd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
-	if (bind(desc->accept_fd, (struct sockaddr *)&desc->sin, sizeof(desc->sin))) {
-		ast_log(LOG_NOTICE, "Unable to bind %s to %s:%d: %s\n",
-			desc->name,
-			ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
-			strerror(errno));
-		goto error;
-	}
-	if (listen(desc->accept_fd, 10)) {
-		ast_log(LOG_NOTICE, "Unable to listen for %s!\n", desc->name);
-		goto error;
-	}
-	flags = fcntl(desc->accept_fd, F_GETFL);
-	fcntl(desc->accept_fd, F_SETFL, flags | O_NONBLOCK);
-	if (ast_pthread_create_background(&desc->master, NULL, desc->accept_fn, desc)) {
-		ast_log(LOG_NOTICE, "Unable to launch %s on %s:%d: %s\n",
-			desc->name,
-			ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
-			strerror(errno));
-		goto error;
-	}
-	return;
-
-error:
-	close(desc->accept_fd);
-	desc->accept_fd = -1;
 }
 
 /*!

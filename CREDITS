@@ -56,7 +56,7 @@ Anthony Minessale II - Countless big and small fixes, and relentless forward
 	and sip configs.
 	anthmct(AT)yahoo.com              http://www.asterlink.com
 
-James Golovich - Innumerable contributions
+James Golovich - Innumerable contributions, including SIP TCP and TLS support.
 	You can find him and asterisk-perl at http://asterisk.gnuinter.net
 
 Andre Bierwirth - Extension hints and status
@@ -175,6 +175,11 @@ Marta Carbone - console_video and the astobj2 framework
 
 Luigi Rizzo - astobj2, console_video, windows build, chan_oss cleanup,
 	and a bunch of infrastructure work (loader, new_cli, ...)
+
+Brett Bryant - digit option for musiconhold selection, ENUMQUERY and ENUMRESULT functions,
+	feature group configuration for features.conf, per-file CLI debug and verbose settings,
+	TCP and TLS support for SIP, and various bug fixes.
+	brettbryant(AT)gmail.com
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt

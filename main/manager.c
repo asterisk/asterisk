@@ -65,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/md5.h"
 #include "asterisk/acl.h"
 #include "asterisk/utils.h"
+#include "asterisk/tcptls.h"
 #include "asterisk/http.h"
 #include "asterisk/version.h"
 #include "asterisk/threadstorage.h"
@@ -3425,7 +3426,7 @@ static void purge_old_stuff(void *data)
 	purge_events();
 }
 
-struct tls_config ami_tls_cfg;
+struct ast_tls_config ami_tls_cfg;
 static struct server_args ami_desc = {
         .accept_fd = -1,
         .master = AST_PTHREADT_NULL,

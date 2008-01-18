@@ -20,6 +20,8 @@
 #define _ASTERISK_HTTP_H
 
 #include "asterisk/config.h"
+#include "asterisk/tcptls.h"
+#include "asterisk/linkedlists.h"
 
 /*!
  * \file http.h
@@ -50,90 +52,6 @@
  * be run earlier in the startup process so modules have it available.
  */
 
-#if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
-#define	DO_SSL	/* comment in/out if you want to support ssl */
-#endif
-
-#ifdef DO_SSL
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#else
-/* declare dummy types so we can define a pointer to them */
-typedef struct {} SSL;
-typedef struct {} SSL_CTX;
-#endif /* DO_SSL */
-
-/*! SSL support */  
-#define AST_CERTFILE "asterisk.pem"
-
-struct tls_config {
-	int enabled;
-	char *certfile;
-	char *cipher;
-	SSL_CTX *ssl_ctx;
-};
-
-/*!
- * The following code implements a generic mechanism for starting
- * services on a TCP or TLS socket.
- * The service is configured in the struct server_args, and
- * then started by calling server_start(desc) on the descriptor.
- * server_start() first verifies if an instance of the service is active,
- * and in case shuts it down. Then, if the service must be started, creates
- * a socket and a thread in charge of doing the accept().
- *
- * The body of the thread is desc->accept_fn(desc), which the user can define
- * freely. We supply a sample implementation, server_root(), structured as an
- * infinite loop. At the beginning of each iteration it runs periodic_fn()
- * if defined (e.g. to perform some cleanup etc.) then issues a poll()
- * or equivalent with a timeout of 'poll_timeout' milliseconds, and if the
- * following accept() is successful it creates a thread in charge of
- * running the session, whose body is desc->worker_fn(). The argument of
- * worker_fn() is a struct server_instance, which contains the address
- * of the other party, a pointer to desc, the file descriptors (fd) on which
- * we can do a select/poll (but NOT IO/, and a FILE * on which we can do I/O.
- * We have both because we want to support plain and SSL sockets, and
- * going through a FILE * lets us provide the encryption/decryption
- * on the stream without using an auxiliary thread.
- *
- * NOTE: in order to let other parts of asterisk use these services,
- * we need to do the following:
- *    + move struct server_instance and struct server_args to
- *	a common header file, together with prototypes for
- *	server_start() and server_root().
- *    +
- */
- 
-/*!
- * describes a server instance
- */
-struct server_instance {
-	FILE *f;	/* fopen/funopen result */
-	int fd;		/* the socket returned by accept() */
-	SSL *ssl;	/* ssl state */
-	struct sockaddr_in requestor;
-	struct server_args *parent;
-};
-
-/*!
- * arguments for the accepting thread
- */
-struct server_args {
-	struct sockaddr_in sin;
-	struct sockaddr_in oldsin;
-	struct tls_config *tls_cfg;	/* points to the SSL configuration if any */
-	int accept_fd;
-	int poll_timeout;
-	pthread_t master;
-	void *(*accept_fn)(void *);	/* the function in charge of doing the accept */
-	void (*periodic_fn)(void *);	/* something we may want to run before after select on the accept socket */
-	void *(*worker_fn)(void *);	/* the function in charge of doing the actual work */
-	const char *name;
-};
-
-void *server_root(void *);
-void server_start(struct server_args *desc);
-int ssl_setup(struct tls_config *cfg);
 
 /*! \brief HTTP Callbacks take the socket
 

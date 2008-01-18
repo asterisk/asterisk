@@ -19,7 +19,7 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 
 RESAMPLE_OBJS:=libresample/src/resample.o libresample/src/resamplesubs.o libresample/src/filterkit.o
 
-OBJS=	io.o sched.o logger.o frame.o loader.o config.o channel.o \
+OBJS= tcptls.o io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o pbx.o cli.o md5.o term.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
 	cdr.o tdd.o acl.o rtp.o udptl.o manager.o asterisk.o \
