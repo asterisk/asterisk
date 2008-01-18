@@ -149,7 +149,7 @@ struct ast_trans_pvt {
 	struct ast_trans_pvt *next;	/*!< next in translator chain */
 	struct timeval nextin;
 	struct timeval nextout;
-};
+} attribute_packed;
 
 /*! \brief generic frameout function */
 struct ast_frame *ast_trans_frameout(struct ast_trans_pvt *pvt,
