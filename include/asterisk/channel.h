@@ -428,9 +428,8 @@ struct ast_channel {
 	int rawwriteformat;				/*!< Raw write format */
 
 	struct ast_audiohook_list *audiohooks;
-	/*! This pointer should stay for Asterisk 1.4.  It just keeps the struct size the same
-	 *  for the sake of ABI compatability. */
-	void *__unused;
+	void *unused; /*! This pointer should stay for Asterisk 1.4.  It just keeps the struct size the same
+			 *  for the sake of ABI compatability. */
 
 	AST_LIST_ENTRY(ast_channel) chan_list;		/*!< For easy linking */
 	
