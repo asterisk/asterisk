@@ -1128,8 +1128,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			ast_hangup(newchan);
 			return -1;
 		}
-		tobj->chan = xferchan;
-		tobj->peer = newchan;
+		tobj->chan = newchan;
+		tobj->peer = xferchan;
 		tobj->bconfig = *config;
 
 		if (ast_stream_and_wait(newchan, xfersound, ""))
@@ -1224,8 +1224,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			ast_hangup(newchan);
 			return -1;
 		}
-		tobj->chan = xferchan;
-		tobj->peer = newchan;
+		tobj->chan = newchan;
+		tobj->peer = xferchan;
 		tobj->bconfig = *config;
 
 		if (ast_stream_and_wait(newchan, xfersound, ""))
