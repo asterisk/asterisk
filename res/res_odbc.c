@@ -52,8 +52,8 @@ struct odbc_class
 	AST_LIST_ENTRY(odbc_class) list;
 	char name[80];
 	char dsn[80];
-	char username[80];
-	char password[80];
+	char *username;
+	char *password;
 	char sanitysql[256];
 	SQLHENV env;
 	unsigned int haspool:1;         /* Boolean - TDS databases need this */
@@ -297,9 +297,9 @@ static int load_odbc_config(void)
 				if (dsn)
 					ast_copy_string(new->dsn, dsn, sizeof(new->dsn));
 				if (username)
-					ast_copy_string(new->username, username, sizeof(new->username));
+					new->username = ast_strdup(username);
 				if (password)
-					ast_copy_string(new->password, password, sizeof(new->password));
+					new->password = ast_strdup(password);
 				if (sanitysql)
 					ast_copy_string(new->sanitysql, sanitysql, sizeof(new->sanitysql));
 
@@ -611,6 +611,7 @@ static int reload(void)
 					ast_log(LOG_NOTICE, "Adding ENV var: %s=%s\n", v->name, v->value);
 				}
 			} else {
+				char *freeme = NULL;
 				/* Reset all to defaults for each class of odbc connections */
 				dsn = username = password = sanitysql = NULL;
 				enabled = 1;
@@ -672,10 +673,27 @@ static int reload(void)
 						ast_copy_string(new->name, cat, sizeof(new->name));
 					if (dsn)
 						ast_copy_string(new->dsn, dsn, sizeof(new->dsn));
+
+					/* Safely replace username */
+					if (class && class->username)
+						freeme = class->username;
 					if (username)
-						ast_copy_string(new->username, username, sizeof(new->username));
+						new->username = ast_strdup(username);
+					if (freeme) {
+						ast_free(freeme);
+						freeme = NULL;
+					}
+
+					/* Safely replace password */
+					if (class && class->password)
+						 freeme = class->password;
 					if (password)
-						ast_copy_string(new->password, password, sizeof(new->password));
+						new->password = ast_strdup(password);
+					if (freeme) {
+						ast_free(freeme);
+						freeme = NULL;
+					}
+
 					if (sanitysql)
 						ast_copy_string(new->sanitysql, sanitysql, sizeof(new->sanitysql));
 
@@ -725,6 +743,10 @@ static int reload(void)
 			}
 
 			AST_LIST_REMOVE_CURRENT(list);
+			if (class->username)
+				ast_free(class->username);
+			if (class->password)
+				ast_free(class->password);
 			ast_free(class);
 		}
 	}
@@ -742,7 +764,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if(load_odbc_config() == -1)
+	if (load_odbc_config() == -1)
 		return AST_MODULE_LOAD_DECLINE;
 	ast_cli_register_multiple(cli_odbc, sizeof(cli_odbc) / sizeof(struct ast_cli_entry));
 	ast_log(LOG_NOTICE, "res_odbc loaded.\n");
