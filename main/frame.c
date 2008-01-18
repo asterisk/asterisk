@@ -334,6 +334,9 @@ static void frame_cache_cleanup(void *data)
 
 void ast_frame_free(struct ast_frame *fr, int cache)
 {
+	if (ast_test_flag(fr, AST_FRFLAG_FROM_TRANSLATOR))
+		ast_translate_frame_freed(fr);
+
 	if (!fr->mallocd)
 		return;
 
@@ -369,9 +372,6 @@ void ast_frame_free(struct ast_frame *fr, int cache)
 #endif			
 		free(fr);
 	}
-
-	if (ast_test_flag(fr, AST_FRFLAG_FROM_TRANSLATOR))
-		ast_translate_frame_freed(fr);
 }
 
 /*!
