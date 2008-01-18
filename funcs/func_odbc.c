@@ -98,7 +98,7 @@ static void odbc_datastore_free(void *data)
 	ast_free(result);
 }
 
-static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
+static SQLHSTMT generic_execute(struct odbc_obj *obj, void *data)
 {
 	int res;
 	char *sql = data;
@@ -110,9 +110,9 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 		return NULL;
 	}
 
-	res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
+	res = SQLExecDirect(stmt, (unsigned char *)sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+		ast_log(LOG_WARNING, "SQL Exec Direct failed![%s]\n", sql);
 		SQLCloseCursor(stmt);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		return NULL;
@@ -209,7 +209,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		if (!ast_strlen_zero(query->writehandle[dsn])) {
 			obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
 			if (obj)
-				stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, buf);
+				stmt = ast_odbc_direct_execute(obj, generic_execute, buf);
 		}
 		if (stmt)
 			break;
@@ -310,7 +310,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		if (!ast_strlen_zero(query->writehandle[dsn])) {
 			obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
 			if (obj)
-				stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, sql);
+				stmt = ast_odbc_direct_execute(obj, generic_execute, sql);
 		}
 		if (stmt)
 			break;
