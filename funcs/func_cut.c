@@ -63,7 +63,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 	int count=1, count2, element_count=0;
 	struct sortable_keys *sortable_keys;
 
-	memset(buffer, 0, buflen);
+	*buffer = '\0';
 
 	if (!data)
 		return ERROR_NOARG;
@@ -118,7 +118,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 		AST_APP_ARG(field);
 	);
 
-	memset(buffer, 0, buflen); 
+	*buffer = '\0';
 
 	parse = ast_strdupa(data);
 
@@ -139,7 +139,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 		}
 
 		if (ast_get_encoded_char(args.delimiter, ds, &delim_consumed))
-			return ERROR_NOARG;
+			ast_copy_string(ds, "-", sizeof(ds));
 
 		/* String form of the delimiter, for use with strsep(3) */
 		d = *ds;
