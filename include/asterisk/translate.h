@@ -147,7 +147,7 @@ struct ast_trans_pvt {
 	struct timeval nextin;
 	struct timeval nextout;
 	unsigned int destroy:1;
-} attribute_packed;
+};
 
 /*! \brief generic frameout function */
 struct ast_frame *ast_trans_frameout(struct ast_trans_pvt *pvt,
