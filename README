@@ -53,8 +53,8 @@ distribution.
 
 --- Others
   Asterisk has also been 'ported' and reportedly runs properly on other
-operating systems as well, including Sun Solaris, Apple's Mac OS X, and
-the BSD variants.
+operating systems as well, including Sun Solaris, Apple's Mac OS X, Cygwin,
+and the BSD variants.
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
