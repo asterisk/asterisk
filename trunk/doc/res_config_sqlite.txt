@@ -1,0 +1,124 @@
+/*
+ * res_config_sqlite - SQLite 2 support for Asterisk
+ *
+ * This module can be used as a static/RealTime configuration module, and a CDR
+ * handler.  See the Doxygen documentation for a detailed description of the
+ * module, and the configs/ directory for the sample configuration file.
+ */
+
+/*
+ * Tables for res_config_sqlite.so.
+ */
+
+/*
+ * RealTime static table.
+ */
+CREATE TABLE ast_config (
+	id		INTEGER,
+	cat_metric	INT(11)		NOT NULL	DEFAULT 0,
+	var_metric	INT(11)		NOT NULL	DEFAULT 0,
+	commented	TINYINT(1)	NOT NULL	DEFAULT 0,
+	filename	VARCHAR(128)	NOT NULL	DEFAULT '',
+	category	VARCHAR(128)	NOT NULL	DEFAULT 'default',
+	var_name	VARCHAR(128)	NOT NULL	DEFAULT '',
+	var_val		TEXT		NOT NULL	DEFAULT '',
+	PRIMARY KEY	(id)
+);
+
+CREATE INDEX ast_config__idx__cat_metric		ON ast_config(cat_metric);
+CREATE INDEX ast_config__idx__var_metric		ON ast_config(var_metric);
+CREATE INDEX ast_config__idx__filename_commented	ON ast_config(filename, commented);
+
+/*
+ * CDR table (this table is automatically created if non existent).
+ */
+CREATE TABLE ast_cdr (
+	id		INTEGER,
+	clid		VARCHAR(80)	NOT NULL	DEFAULT '',
+	src		VARCHAR(80)	NOT NULL	DEFAULT '',
+	dst		VARCHAR(80)	NOT NULL	DEFAULT '',
+	dcontext	VARCHAR(80)	NOT NULL	DEFAULT '',
+	channel		VARCHAR(80)	NOT NULL	DEFAULT '',
+	dstchannel	VARCHAR(80)	NOT NULL	DEFAULT '',
+	lastapp		VARCHAR(80)	NOT NULL	DEFAULT '',
+	lastdata	VARCHAR(80)	NOT NULL	DEFAULT '',
+	start		DATETIME	NOT NULL	DEFAULT '0000-00-00 00:00:00',
+	answer		DATETIME	NOT NULL	DEFAULT '0000-00-00 00:00:00',
+	end		DATETIME	NOT NULL	DEFAULT '0000-00-00 00:00:00',
+	duration	INT(11)		NOT NULL	DEFAULT 0,
+	billsec		INT(11)		NOT NULL	DEFAULT 0,
+	disposition	VARCHAR(45)	NOT NULL	DEFAULT '',
+	amaflags	INT(11)		NOT NULL	DEFAULT 0,
+	accountcode	VARCHAR(20)	NOT NULL	DEFAULT '',
+	uniqueid	VARCHAR(32)	NOT NULL	DEFAULT '',
+	userfield	VARCHAR(255)	NOT NULL	DEFAULT '',
+	PRIMARY KEY	(id)
+);
+
+/*
+ * SIP RealTime table.
+ */
+CREATE TABLE ast_sip (
+	id		INTEGER,
+	commented	TINYINT(1)	NOT NULL	DEFAULT 0,
+	name		VARCHAR(80)	NOT NULL	DEFAULT '',
+	host		VARCHAR(31)	NOT NULL	DEFAULT '',
+	nat		VARCHAR(5)	NOT NULL	DEFAULT 'no',
+	type		VARCHAR(6)	NOT NULL	DEFAULT 'friend',
+	accountcode	VARCHAR(20)			DEFAULT NULL,
+	amaflags	VARCHAR(13)			DEFAULT NULL,
+	callgroup	VARCHAR(10)			DEFAULT NULL,
+	callerid	VARCHAR(80)			DEFAULT NULL,
+	cancallforward	CHAR(3)				DEFAULT 'yes',
+	canreinvite	CHAR(3)				DEFAULT 'yes',
+	context		VARCHAR(80)			DEFAULT NULL,
+	defaultip	VARCHAR(15)			DEFAULT NULL,
+	dtmfmode	VARCHAR(7)			DEFAULT NULL,
+	fromuser	VARCHAR(80)			DEFAULT NULL,
+	fromdomain	VARCHAR(80)			DEFAULT NULL,
+	insecure	VARCHAR(4)			DEFAULT NULL,
+	language	CHAR(2)				DEFAULT NULL,
+	mailbox		VARCHAR(50)			DEFAULT NULL,
+	md5secret	VARCHAR(80)			DEFAULT NULL,
+	deny		VARCHAR(95)			DEFAULT NULL,
+	permit		VARCHAR(95)			DEFAULT NULL,
+	mask		VARCHAR(95)			DEFAULT NULL,
+	musiconhold	VARCHAR(100)			DEFAULT NULL,
+	pickupgroup	VARCHAR(10)			DEFAULT NULL,
+	qualify		CHAR(3)				DEFAULT NULL,
+	regexten	VARCHAR(80)			DEFAULT NULL,
+	restrictcid	CHAR(3)				DEFAULT NULL,
+	rtptimeout	CHAR(3)				DEFAULT NULL,
+	rtpholdtimeout	CHAR(3)				DEFAULT NULL,
+	secret		VARCHAR(80)			DEFAULT NULL,
+	setvar		VARCHAR(100)			DEFAULT NULL,
+	disallow	VARCHAR(100)			DEFAULT 'all',
+	allow		VARCHAR(100)			DEFAULT 'g729,ilbc,gsm,ulaw,alaw',
+	fullcontact	VARCHAR(80)	NOT NULL	DEFAULT '',
+	ipaddr		VARCHAR(15)	NOT NULL	DEFAULT '',
+	port		INT(11)		NOT NULL	DEFAULT 0,
+	regserver	VARCHAR(100)			DEFAULT NULL,
+	regseconds	INT(11)		NOT NULL	DEFAULT 0,
+	username	VARCHAR(80)	NOT NULL	DEFAULT '',
+	PRIMARY KEY	(id)
+	UNIQUE		(name)
+);
+
+CREATE INDEX ast_sip__idx__commented ON ast_sip(commented);
+
+/*
+ * Dialplan RealTime table.
+ */
+CREATE TABLE ast_exten (
+	id		INTEGER,
+	commented	TINYINT(1)	NOT NULL	DEFAULT 0,
+	context		VARCHAR(80)	NOT NULL	DEFAULT '',
+	exten		VARCHAR(40)	NOT NULL	DEFAULT '',
+	priority	INT(11)		NOT NULL	DEFAULT 0,
+	app		VARCHAR(128)	NOT NULL	DEFAULT '',
+	appdata		VARCHAR(128)	NOT NULL	DEFAULT '',
+	PRIMARY KEY	(id)
+);
+
+CREATE INDEX ast_exten__idx__commented			ON ast_exten(commented);
+CREATE INDEX ast_exten__idx__context_exten_priority	ON ast_exten(context, exten, priority);

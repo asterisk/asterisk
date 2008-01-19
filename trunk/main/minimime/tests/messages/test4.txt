@@ -1,0 +1,168 @@
+X-Envelope-From: <511-bounces@hannover.ccc.de>
+X-Envelope-To: <rezine@criminology.de>
+X-Delivery-Time: 1070263752
+Received: from gost.hannover.ccc.de (hannover.ccc.de [62.48.71.164])
+	by mailin.webmailer.de (8.12.10/8.12.10) with ESMTP id hB17TAUR020052
+	for <rezine@criminology.de>; Mon, 1 Dec 2003 08:29:10 +0100 (MET)
+Received: from localhost.hannover.ccc.de (unknown [127.0.0.1])
+	by gost.hannover.ccc.de (Postfix) with ESMTP
+	id 092C8BC81; Mon,  1 Dec 2003 08:29:23 +0100 (CET)
+X-Original-To: 511@hannover.ccc.de
+Delivered-To: 511@hannover.ccc.de
+Received: from sbapp3 (unknown [211.157.36.9])
+	by gost.hannover.ccc.de (Postfix) with ESMTP id 3F93ABC7C
+	for <511@hannover.ccc.de>; Mon,  1 Dec 2003 08:29:12 +0100 (CET)
+From: "Vanessa Lintner" <reply@seekercenter.net>
+To: 511@hannover.ccc.de
+Date: Mon, 1 Dec 2003 15:30:57 +0800
+X-Priority: 3
+X-Library: Indy 8.0.25
+Message-Id: <20031201072912.3F93ABC7C@gost.hannover.ccc.de>
+Subject: [CCC511] http://lists.hannover.ccc.de
+X-BeenThere: 511@hannover.ccc.de
+X-Mailman-Version: 2.1.2
+Precedence: list
+Reply-To: Vanessa Lintner <vanessa@seekercenter.net>,
+        Oeffentliche Mailingliste des C3H <511@hannover.ccc.de>
+List-Id: Oeffentliche Mailingliste des C3H  <511.hannover.ccc.de>
+List-Unsubscribe: <http://hannover.ccc.de/mailman/listinfo/511>,
+	<mailto:511-request@hannover.ccc.de?subject=unsubscribe>
+List-Post: <mailto:511@hannover.ccc.de>
+List-Help: <mailto:511-request@hannover.ccc.de?subject=help>
+List-Subscribe: <http://hannover.ccc.de/mailman/listinfo/511>,
+	<mailto:511-request@hannover.ccc.de?subject=subscribe>
+Content-Type: multipart/mixed; boundary="===============14807035762661644=="
+Sender: 511-bounces@hannover.ccc.de
+Errors-To: 511-bounces@hannover.ccc.de
+
+--===============14807035762661644==
+Content-Type: text/html;
+
+<html>
+<head>
+<title></title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<style type="text/css">
+.stbtm {
+	BACKGROUND-COLOR:#cecbde; BORDER-BOTTOM: #665b8e 1px solid; BORDER-LEFT: #ffffff 1px solid; BORDER-RIGHT: #665b8e 1px solid; BORDER-TOP: #ffffff 1px solid; COLOR: #000000; FONT-SIZE: 12pt; HEIGHT: 26px; WIDTH: 120px; clip:        rect(   )}
+.stedit {
+	 background-color:#484C68; white-space: nowrap; border: #000000; BORDER-BOTTOM: #ffffff 1px solid; BORDER-LEFT: #ffffff 1px solid; BORDER-RIGHT: #ffffff 1px solid; BORDER-TOP: #ffffff 1px solid; FONT-SIZE: 10pt; color: #CCCCCC; font-weight: bold}
+
+</style>
+</head>
+<BODY leftMargin=0 onload="" topMargin=0 marginheight="0" marginwidth="0" bgcolor="#FFFFFF">
+  <table border="0" cellspacing="0" cellpadding="0" width="580">
+    <tr> 
+      <td width="20" rowspan="2">&nbsp;</td>
+      <td colspan="3"> 
+        <table border="0" cellspacing="0" cellpadding="0" align="left" width="560">
+          <tr> 
+            <td width="330" height="307"> 
+              <table width="330" border="0" cellspacing="0" cellpadding="0" background="http://www.imagespool.com/skbmp/letter_01.gif" height="307">
+                <tr> 
+                  <td> 
+                    <p> <font face=Arial size=2> </font> <font face=Arial size=2><font face="Verdana, Arial, Helvetica, sans-serif" color="#000000">Hello,<br>
+                      <br>
+                      I have visited <a href='http://lists.hannover.ccc.de'>lists.hannover.ccc.de</a> 
+                      and noticed that your website is not listed on some search 
+                      engines. I am sure that through our service the number of 
+                      people who visit your website will definitely increase. 
+                      <a target=_blank href="http://www.seekercenter.net/index.php">SeekerCenter</a> 
+                      is a unique technology that instantly submits your website 
+                      to over 500,000 search engines and directories -- a really 
+                      low-cost and effective way to advertise your site. For more 
+                      details please go to <a target=_blank href="http://www.seekercenter.net/index.php">SeekerCenter.net</a>.<br>
+                      <br>
+                      Give your website maximum exposure today!<br>
+                      Looking forward to hearing from you.<br>
+                      <br>
+                      </font></font> 
+                    <table border=0 width=100%>
+                      <tr> 
+                        <td width=50%> <font face="Arial" color="#000000" size="2">Best 
+                          Regards,<br>
+                          Vanessa Lintner<br>
+                          Sales &amp; Marketing <br>
+                          <a target=_blank href="http://www.seekercenter.net/index.php">www.SeekerCenter.net</a></font> 
+                  <TD><td width=50%>
+                   <div align="center" valign=middle>
+                   <form target=_blank action=http://www.seekercenter.net method=POST>
+                          <input type="submit" name="Submit" value="Signup Now!!!" class="stbtm">
+                   </form>
+                        </div>
+                  </TD>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+            <td width="250" height="64" valign="middle"> 
+              <table width="230" border="0" cellspacing="0" cellpadding="0">
+                <tr> 
+                  <td colspan="3" height="2"></td>
+                </tr>
+                <tr> 
+                  <td colspan="3"><img src="http://report.imagespool.com/report_email.php?s=1&e=511@hannover.ccc.de" border=0 width=0 height=0> 
+                    <p><img src="http://www.imagespool.com/skbmp/letter_04.gif" height="12"></p>
+                  </td>
+                </tr>
+                <tr> 
+                  <td colspan="3"><img src="http://www.imagespool.com/skbmp/letter_05.gif" height="127"><img src="http://ww2.imagespool.com/1/9/b/0r066.jpg" width="177" height="127"><img src="http://www.imagespool.com/skbmp/letter_07.gif" width="33" height="127"></td>
+                </tr>
+                <tr> 
+                  <td colspan="3" height="92" background="http://www.imagespool.com/skbmp/letter_08.gif" valign="bottom"> 
+                    <table width="230" border="0" cellspacing="0" cellpadding="0" height="92">
+                      <tr> 
+                        <td width="36" height="43">&nbsp;</td>
+                        <td width="157" height="43">&nbsp;</td>
+                        <td width="134" height="43">&nbsp;</td>
+                      </tr>
+                      <tr> 
+                        <td width="36" height="2">&nbsp;</td>
+                        <td width="157" height="2">&nbsp;</td>
+                        <td width="134" height="2">&nbsp;</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr> </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr> 
+      <td colspan="3"> 
+        <table width="560" border="0" cellspacing="0" cellpadding="1" bordercolor="0">
+          <tr> 
+            <td>&nbsp;</td>
+          </tr>
+          <tr> 
+            <td bgcolor="#EFEFEF"><font face="Verdana, Arial, Helvetica, sans-serif" size="1">You 
+              are receiving this email because you opted-in to receive special 
+              offers through a partner website. If you feel that you received 
+              this email in error or do not wish to receive additional special 
+              offers, please enter your email address here and click the button 
+              of &quot;Remove Me&quot;: <a href="http://www.seekercenter.net/remove.php?email=511@hannover.ccc.de"> 
+              <img src="http://www.imagespool.com/skbmp/removeme.gif" width="73" height="17" border="0"></a> 
+              </font></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+
+--===============14807035762661644==
+Content-Type: text/plain; charset="iso-8859-1"
+MIME-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+
+_______________________________________________
+511 mailing list
+511@hannover.ccc.de
+--===============14807035762661644==--

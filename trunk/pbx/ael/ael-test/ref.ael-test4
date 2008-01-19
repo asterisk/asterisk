@@ -1,0 +1,28 @@
+
+(If you find progress and other non-error messages irritating, you can use -q to suppress them)
+
+(You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
+LOG: lev:2 file:pbx_ael.c  line:113 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:ael.flex  line:662 func: setup_filestack    --Read in included file ././apptest.ael2, 3474 chars
+LOG: lev:3 file:ael.y  line:546 func: ael_yyparse  ==== File: ././apptest.ael2, Line 46, Cols: 8-11: Suggestion: Use the goto statement instead of the Goto() application call in AEL.
+LOG: lev:2 file:pbx_ael.c  line:126 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 35-35: application call to EndWhile affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 37-37: application call to ExecIf affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 38-38: application call to ExecIfTime affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 44-44: application call to Gosub affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 45-45: application call to GosubIf affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pval.c  line:1346 func: check_goto  Warning: file ././apptest.ael2, line 46-46: goto:  Couldn't find goto target cont|exten|prior, not even in extensions.conf!
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 47-47: application call to GotoIf affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 48-48: application call to GotoIfTime affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 58-58: application call to Macro affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pval.c  line:2512 func: check_pval_item  Warning: file ././apptest.ael2, line 59-59: I am converting the MacroExit call here to a return statement.
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 60-60: application call to MacroIf affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 85-85: application call to Random affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 94-94: application call to Return affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 119-119: application call to StackPop affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pval.c  line:2507 func: check_pval_item  Warning: file ././apptest.ael2, line 141-141: application call to While affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:2 file:pbx_ael.c  line:129 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:131 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:134 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:137 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:531 func: main  1 contexts, 1 extensions, 142 priorities

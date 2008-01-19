@@ -1,0 +1,286 @@
+Changes to manager version 1.1:
+-------------------------------
+
+
+* SYNTAX CLEANUPS
+-----------------
+
+- Response: headers are now either
+	"Success"	- Action OK, this message contains response
+	"Error"		- Action failed, reason in Message: header
+	"Follows"	- Action OK, response follows in following Events.
+
+- Manager version changed to 1.1
+
+* CHANGED EVENTS AND ACTIONS
+----------------------------
+- The Hold/Unhold events
+	- Both are now "Hold" events
+		For hold, there's a "Status: On" header, for unhold, status is off
+	- Modules chan_sip/chan_iax2
+
+- The Ping Action
+	- Now use Response: success
+	- New header "Ping: pong" :-)
+
+- The Events action
+	- Now use Response: Success
+	- The new status is reported as "Events: On" or "Events: Off"
+
+- The JabberSend action
+	- The Response: header is now the first header in the response
+	- now sends "Response: Error" instead of "Failure"
+
+- Newstate and Newchannel events
+	- these have changed headers
+	"State"		-> ChannelStateDesc	Text based channel state
+			-> ChannelState		Numeric channel state
+	- The events does not send "<unknown>" for unknown caller IDs just an empty field
+
+- Newchannel event
+	- Now includes "AccountCode"
+
+- Newstate event
+	- Now has "CalleridNum" for numeric caller id, like Newchannel
+	- The event does not send "<unknown>" for unknown caller IDs just an empty field
+
+- Newexten and VarSet events
+	- Now are part of the new Dialplan privilege class, instead of the Call class
+
+- Dial event
+	- Event Dial has new headers, to comply with other events
+	- Source	-> Channel		Channel name (caller)
+	- SrcUniqueID	-> UniqueID		Uniqueid
+	(new)		-> Dialstring		Dialstring in app data
+
+- Link and Unlink events
+	- The "Link" and "Unlink" bridge events in channel.c are now renamed to "Bridge"
+	- The link state is in the bridgestate: header as "Link" or "Unlink"
+	- For channel.c bridges, "Bridgetype: core" is added. This opens up for
+	  bridge events in rtp.c 
+	- The RTP channel also reports Bridge: events with bridgetypes
+		- rtp-native	RTP native bridge
+		- rtp-direct	RTP peer-2-peer bridge (NAT support only)
+		- rtp-remote	Remote (re-invite) bridge. (Not reported yet)
+
+- The "Rename" manager event has a renamed header, to use the same
+	terminology for the current channel as other events
+	- Oldname	-> Channel		
+
+- The "NewCallerID" manager event has a renamed header
+	- CallerID	-> CallerIDnum
+	- The event does not send "<unknown>" for unknown caller IDs just an empty field
+	
+- Reload event
+	- The "Reload" event sent at manager reload now has a new header and is now implemented
+  	in more modules than manager to alert a reload. For channels, there's a CHANNELRELOAD 
+  	event to use.
+	(new)		-> Module: manager | CDR | DNSmgr | RTP | ENUM
+	(new)		-> Status: enabled | disabled
+	- To support reload events from other modules too
+		- cdr module added
+
+- Status action replies (Event: Status)
+	Header changes
+	- link		-> BridgedChannel
+	- Account	-> AccountCode
+	- (new)		-> BridgedUniqueid
+
+- StatusComplete Event
+	New header
+	- (new)		-> Items		Number of channels reported
+	
+
+- The ExtensionStatus manager command now has a "StatusDesc" field with text description of the state
+
+- The Registry and Peerstatus events in chan_sip and chan_iax now use "ChannelType" instead of "ChannelDriver"
+
+- The Response to Action: IAXpeers now have a Response: Success header
+
+- The MeetmeJoin now has caller ID name and Caller ID number fields (like MeetMeLeave)
+
+- Action ZapShowChannels
+	Header changes
+	- Channel:	-> ZapChannel
+	For active channels, the Channel: and Uniqueid: headers are added
+	You can now add a "ZapChannel: " argument to zapshowchannels actions
+	to only get information about one channel.
+
+- Event ZapShowChannelsComplete
+	New header
+	- (new)		-> Items: 	Reports number of channels reported
+
+- Action VoicemailUsersList
+	Added new headers for SayEnvelope, SayCID, AttachMessage, CanReview
+        and CallOperator voicemail configuration settings.
+
+* NEW ACTIONS
+-------------
+- Action: ModuleLoad
+	Modules: loader.c
+	Purpose:
+		To be able to unload, reload and unload modules from AMI.
+	Variables: 
+	  ActionID: <id>          Action ID for this transaction. Will be returned.
+  	  Module: <name>          Asterisk module name (including .so extension)
+				  or subsystem identifier:
+				cdr, enum, dnsmgr, extconfig, manager, rtp, http
+          LoadType: load | unload | reload
+                          The operation to be done on module
+	If no module is specified for a reload loadtype, all modules are reloaded
+
+- Action: ModuleCheck
+	Modules: loader.c
+	Purpose:
+		To check version of a module - if it's loaded
+	Variables:
+	  ActionID: <id>          Action ID for this transaction. Will be returned.
+  	  Module: <name>          Asterisk module name (not including extension)
+	Returns:
+		If module is loaded, returns version number of the module
+		
+		Note: This will have to change. I don't like sending Response: failure
+		on both command not found (trying this command in earlier versions of
+		Asterisk) and module not found.
+		Also, check if other manager actions behave that way.
+
+- Action: QueueSummary
+	Modules: app_queue
+	Purpose:
+		To request that the manager send a QueueSummary event (see the NEW EVENTS
+	    section for more details).
+	Variables:
+	  ActionID: <id>		Action ID for this transaction. Will be returned.
+	  Queue: <name>			Queue for which the summary is desired
+
+- Action: QueuePenalty
+	Modules: app_queue
+	Purpose:
+		To change the penalty of a queue member from AMI
+	Variables:
+	  Interface: <tech/name>	The interface of the member whose penalty you wish to change
+	  Penalty:  <number>		The new penalty for the member. Must be nonnegative.
+	  Queue:  <name>			If specified, only set the penalty for the member for this queue;
+	  								Otherwise, set the penalty for the member in all queues to which
+									he belongs.
+
+- Action: QueueRule
+	Modules: app_queue
+	Purpose:
+		To list queue rules defined in queuerules.conf
+	Variables:
+	  Rule: <name>			The name of the rule whose contents you wish to list. If this variable
+	  							is not present, all rules in queuerules.conf will be listed.
+		
+
+* NEW EVENTS
+------------
+
+- Event: Transfer
+	Modules: res_features, chan_sip
+	Purpose:
+		Inform about call transfer, linking transferer with transfer target
+		You should be able to trace the call flow with this missing piece
+		of information. If it works out well, the "Transfer" event should
+		be followed by a "Bridge" event
+		The transfermethod: header informs if this is a pbx core transfer
+		or something done on channel driver level. For SIP, check the example:
+	Example:
+		
+		Event: Transfer
+		Privilege: call,all
+		TransferMethod: SIP
+		TransferType: Blind
+		Channel: SIP/device1-01849800
+		SIP-Callid: 091386f505842c87016c4d93195ec67d@127.0.0.1
+		TargetChannel: SIP/device2-01841200
+		TransferExten: 100
+		TransferContext: default
+
+- Event: ChannelUpdate
+	Modules: chan_sip.c, chan_iax2.c
+	Purpose:
+		Updates channel information with ID of PVT in channel driver, to
+		be able to link events on channel driver level.
+		* Integrated in SVN trunk as of May 4th, 2007
+
+	Example:
+
+		Event: ChannelUpdate
+		Privilege: system,all
+		Uniqueid: 1177271625.27
+		Channel: SIP/olle-01843c00
+		Channeltype: SIP
+		SIPcallid: NTQzYWFiOWM4NmE0MWRkZjExMzU2YzQ3OWQwNzg3ZmI.
+		SIPfullcontact: sip:olle@127.0.0.1:49054
+
+- Action: CoreSettings
+	Modules: manager.c
+	Purpose: To report core settings, like AMI and Asterisk version,
+		maxcalls and maxload settings.
+		* Integrated in SVN trunk as of May 4th, 2007
+	Example:
+		Response: Success
+		ActionID: 1681692777
+		AMIversion: 1.1
+		AsteriskVersion: SVN-oej-moremanager-r61756M
+		SystemName: EDVINA-node-a
+		CoreMaxCalls: 120
+		CoreMaxLoadAvg: 0.000000
+		CoreRunUser: edvina
+		CoreRunGroup: edvina
+
+- Action: CoreStatus
+	Modules: manager.c
+	Purpose: To report current PBX core status flags, like
+		number of concurrent calls, startup and reload time.
+		* Integrated in SVN trunk as of May 4th, 2007
+	Example:
+		Response: Success
+		ActionID: 1649760492
+		CoreStartupTime: 22:35:17
+		CoreReloadTime: 22:35:17
+		CoreCurrentCalls: 20
+
+- Event: NewAccountCode
+	Modules: cdr.c
+	Purpose: To report a change in account code for a live channel
+	Example:
+		Event: NewAccountCode
+		Privilege: call,all
+		Channel: SIP/olle-01844600
+		Uniqueid: 1177530895.2
+		AccountCode: Stinas account 1234848484
+		OldAccountCode: OllesAccount 12345
+
+- Event: ModuleLoadReport
+	Modules: loader.c
+	Purpose: To report that module loading is complete. Some aggressive
+		clients connect very quickly to AMI and needs to know when
+		all manager events embedded in modules are loaded
+		Also, if this does not happen, something is seriously wrong.
+		This could happen to chan_sip and other modules using DNS.
+	Example:
+		Event: ModuleLoad
+		ModuleLoadStatus: Done
+		ModuleSelection: All
+		ModuleCount: 24
+
+- Event: QueueSummary
+	Modules: app_queue
+	Purpose: To report a summary of queue information. This event is generated by
+		issuing a QueueSummary AMI action.
+	Example:
+		Event: QueueSummary
+		Queue: Sales
+		LoggedIn: 12
+		Available: 5
+		Callers: 10
+		HoldTime: 47
+	If an actionID was specified for the QueueSummary action, it will be appended as the
+	last line of the QueueSummary event.
+		
+
+* TODO
+------
+

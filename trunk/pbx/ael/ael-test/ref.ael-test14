@@ -1,0 +1,11 @@
+
+(If you find progress and other non-error messages irritating, you can use -q to suppress them)
+
+(You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
+LOG: lev:2 file:pbx_ael.c  line:113 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:126 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:3 file:pval.c  line:2284 func: check_switch_expr  Warning: file ./extensions.ael, line 13-13: A default case was automatically added to the switch.
+LOG: lev:4 file:pval.c  line:1071 func: check_continue  Error: file ./extensions.ael, line 15-15: 'continue' not in 'for' or 'while' statement!
+LOG: lev:4 file:pval.c  line:1052 func: check_break  Error: file ./extensions.ael, line 17-17: 'break' not in switch, for, or while statement!
+LOG: lev:4 file:pbx_ael.c  line:139 func: pbx_load_module  Sorry, but 0 syntax errors and 2 semantic errors were detected. It doesn't make sense to compile.
+LOG: lev:4 file:ael2_parse  line:531 func: main  0 contexts, 0 extensions, 0 priorities

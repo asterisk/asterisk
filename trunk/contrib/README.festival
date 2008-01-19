@@ -1,0 +1,47 @@
+
+app_festival is an application that allows one to send text-to-speech commands
+to a background festival server, and to obtain the resulting waveform which
+gets sent down to the respective channel. app_festival also employs a waveform 
+cache, so invariant text-to-speech strings ("Please press 1 for instructions") 
+do not need to be dynamically generated all the time. 
+
+You need : 
+
+1) festival, patched to produce 8khz waveforms on output. Patch for Festival
+1.4.2 RELEASE are included. The patch adds a new command to festival 
+(asterisk_tts). 
+
+It is possible to run Festival without patches in the source-code. Just
+add this to your /etc/festival.scm or /usr/share/festival/festival/scm:
+
+    (define (tts_textasterisk string mode)
+    "(tts_textasterisk STRING MODE)
+    Apply tts to STRING. This function is specifically designed for
+    use in server mode so a single function call may synthesize the string.
+    This function name may be added to the server safe functions."
+    (let ((wholeutt (utt.synth (eval (list 'Utterance 'Text string)))))
+    (utt.wave.resample wholeutt 8000)
+    (utt.wave.rescale wholeutt 5)
+    (utt.send.wave.client wholeutt)))
+
+[See the comment with subject "Using Debian
+ festival >= 1.4.3-15 (no recompiling needed!)" on
+ http://www.voip-info.org/wiki-Asterisk+festival+installation for the
+ original mentioning of it]
+
+2) You may wish to obtain and install the asterisk-perl
+module by James Golovich <james@gnuinter.net>, from 
+either CPAN, or his site: http://asterisk.gnuinter.net,
+as this contains a good example of how variable text
+can be tts'd via asterisk, namely the examples/tts-*.agi
+files there. It has been noted that the current expression
+evaluation capabilities of asterisk are not best suited
+for the generation and manipulation of text. AGI scripting
+can be ideal for these sorts of needs. For simpler usage,
+fixed, pre-recorded messages may be more amenable for your
+purposes.
+
+3) Before running asterisk, you have to run festival-server with a command 
+like : 
+
+/usr/local/festival/bin/festival --server > /dev/null 2>&1 &

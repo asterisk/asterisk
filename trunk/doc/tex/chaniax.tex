@@ -1,0 +1,84 @@
+\subsection{Introduction}
+
+This section is intended as an introduction to the Inter-Asterisk 
+eXchange v2 (or simply IAX2) protocol.  It provides both a theoretical 
+background and practical information on its use.
+
+\subsection{Why IAX2?}
+
+The first question most people are thinking at this point is "Why do you 
+need another VoIP protocol?  Why didn't you just use SIP or H.323?"
+
+Well, the answer is a fairly complicated one, but in a nutshell it's like
+this...  Asterisk is intended as a very flexible and powerful
+communications tool.  As such, the primary feature we need from a VoIP
+protocol is the ability to meet our own goals with Asterisk, and one with
+enough flexibility that we could use it as a kind of laboratory for
+inventing and implementing new concepts in the field.  Neither H.323 or
+SIP fit the roles we needed, so we developed our own protocol, which,
+while not standards based, provides a number of advantages over both SIP
+and H.323, some of which are:
+
+\begin{itemize}
+	\item Interoperability with NAT/PAT/Masquerade firewalls
+	\begin{itemize}
+	     \item IAX seamlessly interoperates through all sorts of NAT and PAT
+             and other firewalls, including the ability to place and 
+             receive calls, and transfer calls to other stations.
+	\end{itemize}
+	\item High performance, low overhead protocol
+	\begin{itemize}
+	     \item When running on low-bandwidth connections, or when running 
+	     large numbers of calls, optimized bandwidth utilization is 
+	     imperative.  IAX uses only 4 bytes of overhead
+	\end{itemize}
+	\item Internationalization support
+	\begin{itemize}
+	     \item IAX transmits language information, so that remote PBX 
+	     content can be delivered in the native language of the
+	     calling party.
+	\end{itemize}
+	\item Remote dialplan polling
+	\begin{itemize}
+	     \item IAX allows a PBX or IP phone to poll the availability of a 
+	     number from a remote server.  This allows PBX dialplans to 
+	     be centralized.
+	\end{itemize}
+	\item Flexible authentication
+	\begin{itemize}
+	     \item IAX supports cleartext, md5, and RSA authentication, 
+	     providing flexible security models for outgoing calls and 
+	     registration services.
+	\end{itemize}	
+	\item Multimedia protocol
+	\begin{itemize}
+	     \item IAX supports the transmission of voice, video, images, text, 
+	     HTML, DTMF, and URL's.  Voice menus can be presented in both
+	     audibly and visually.
+	\end{itemize}
+	\item Call statistic gathering
+	\begin{itemize}
+	     \item IAX gathers statistics about network performance (including 
+	     latency and jitter, as well as providing end-to-end latency
+	     measurement.
+	\end{itemize}
+	\item Call parameter communication
+	\begin{itemize}
+	     \item Caller*ID, requested extension, requested context, etc are
+	     all communicated through the call.
+	\end{itemize}
+	\item Single socket design
+	\begin{itemize}
+	     \item IAX's single socket design allows up to 32768 calls to be 
+	     multiplexed.
+	\end{itemize}
+\end{itemize}
+
+While we value the importance of standards based (i.e. SIP) call handling, 
+hopefully this will provide a reasonable explanation of why we developed 
+IAX rather than starting with SIP.
+
+\subsection{Configuration}
+
+For examples of a configuration, please see the iax.conf.sample in
+your the /configs directory of you source code distribution.

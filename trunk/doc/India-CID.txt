@@ -1,0 +1,75 @@
+India finds itself in a unique situation (hopefully). It has several 
+telephone line providers, and they are not all using the same CID 
+signalling; and the CID signalling is not like other countries. 
+
+In order to help those in India quickly find to the CID signalling
+system that their carrier uses (or range of them), and get the
+configs right with a minimal amount of experimentation, this file
+is provided. Not all carriers are covered, and not all mentioned
+below are complete. Those with updates to this table should post
+the new information on bug 6683 of the asterisk bug tracker.
+
+
+---------------------------------------------------------
+Provider: Bharti (is this BSNL?)
+Config: cidstart=polarity_in
+        cidsignalling=dtmf
+Results: ? (this should work), but needs to be tested?
+tested by:
+--------------------------------------------------------
+
+Provider: VSNL
+Config:
+
+Results: ?
+tested by:
+--------------------------------------------------------
+
+Provider: BSNL
+Config: cid_start=ring
+         cid_signalling=dtmf
+
+Results: ?
+tested by: (abhi)
+--------------------------------------------------------
+
+Provider: MTNL, old BSNL
+Config: cidsignalling = v23
+        cidstart=ring
+
+Results: works
+tested by: (enterux)
+--------------------------------------------------------
+
+Provider: MTNL (Delhi)
+Config: cidsignalling = v23
+        cidstart = ring
+
+cidsignalling = dtmf
+cidstart = polarity_IN
+
+cidsignalling = dtmf
+cidstart = polarity
+
+Results: fails
+tested by: brealer
+--------------------------------------------------------
+
+Provider: TATA
+Config: cidsignalling = dtmf
+        cidstart=polarity_IN
+
+Results: works
+tested by: brealer
+---------------------------------------------------------
+
+Asterisk still doesn't work with some of the CID scenarios in India.
+If you are in India, and not able to make CID work with any of the
+permutations of cidsignalling and cidstart, it could be that this
+particular situation is not covered by Asterisk. A good course of 
+action would be to get in touch with the provider, and find out from
+them exactly how their CID signalling works. Describe this to us,
+and perhaps someone will be able to extend the code to cover their
+signalling.
+
+
