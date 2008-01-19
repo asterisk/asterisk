@@ -64,6 +64,7 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 			ast_translator_free_path(sf->trans);
 			sf->trans = NULL;
 		}
+
 		if (!sf->trans) {
 			if ((sf->trans = ast_translator_build_path(AST_FORMAT_SLINEAR, f->subclass)) == NULL) {
 				ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(f->subclass));
@@ -72,7 +73,15 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 				sf->format = f->subclass;
 			}
 		}
-		if (!(begin_frame = ast_translate(sf->trans, f, 0)) || !(duped_frame = ast_frdup(begin_frame)))
+
+		if (!(begin_frame = ast_translate(sf->trans, f, 0))) 
+			return 0;
+		
+		duped_frame = ast_frdup(begin_frame);
+
+		ast_frfree(begin_frame);
+
+		if (!duped_frame)
 			return 0;
 	} else {
 		if (!(duped_frame = ast_frdup(f)))
