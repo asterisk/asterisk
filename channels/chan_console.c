@@ -41,8 +41,6 @@
  * in at least one of the other console channel drivers that are not yet
  * implemented here are:
  *
- * - Multiple device support
- *   - with "active" CLI command
  * - Set Auto-answer from the dialplan
  * - transfer CLI command
  * - boost CLI command and .conf option
@@ -1129,6 +1127,87 @@ static char *cli_console_sendtext(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 
+static void set_active(struct console_pvt *pvt, const char *value)
+{
+	if (pvt == &globals) {
+		ast_log(LOG_ERROR, "active is only valid as a per-device setting\n");
+		return;
+	}
+
+	if (!ast_true(value))
+		return;
+
+	ast_rwlock_wrlock(&active_lock);
+	if (active_pvt)
+		unref_pvt(active_pvt);
+	active_pvt = ref_pvt(pvt);
+	ast_rwlock_unlock(&active_lock);
+}
+
+static char *cli_console_active(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct console_pvt *pvt;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "console active";
+		e->usage =
+			"Usage: console active [device]\n"
+			"       If no device is specified.  The active console device will be shown.\n"
+			"Otherwise, the specified device will become the console device active for\n"
+			"the Asterisk CLI.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == e->args) {
+			struct ao2_iterator i;
+			int x = 0;
+			char *res = NULL;
+			i = ao2_iterator_init(pvts, 0);
+			while ((pvt = ao2_iterator_next(&i))) {
+				if (++x > a->n && !strncasecmp(pvt->name, a->word, strlen(a->word)))
+					res = ast_strdup(pvt->name);
+				unref_pvt(pvt);
+				if (res)
+					return res;
+			}
+		}
+		return NULL;
+	}
+
+	if (a->argc < e->args)
+		return CLI_SHOWUSAGE;
+
+	if (a->argc == e->args) {
+		pvt = get_active_pvt();
+
+		if (!pvt)
+			ast_cli(a->fd, "No device is currently set as the active console device.\n");
+		else {
+			console_pvt_lock(pvt);
+			ast_cli(a->fd, "The active console device is '%s'.\n", pvt->name);
+			console_pvt_unlock(pvt);
+			pvt = unref_pvt(pvt);
+		}
+
+		return CLI_SUCCESS;
+	}
+
+	if (!(pvt = find_pvt(a->argv[e->args]))) {
+		ast_cli(a->fd, "Could not find a device called '%s'.\n", a->argv[e->args]);
+		return CLI_FAILURE;
+	}
+
+	set_active(pvt, "yes");
+
+	console_pvt_lock(pvt);
+	ast_cli(a->fd, "The active console device has been set to '%s'\n", pvt->name);
+	console_pvt_unlock(pvt);
+
+	unref_pvt(pvt);
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_console[] = {
 	AST_CLI_DEFINE(cli_console_dial,       "Dial an extension from the console"),
 	AST_CLI_DEFINE(cli_console_hangup,     "Hangup a call on the console"),
@@ -1139,6 +1218,7 @@ static struct ast_cli_entry cli_console[] = {
 	AST_CLI_DEFINE(cli_console_autoanswer, "Turn autoanswer on or off"),
 	AST_CLI_DEFINE(cli_list_available,     "List available devices"),
 	AST_CLI_DEFINE(cli_list_devices,       "List configured devices"),
+	AST_CLI_DEFINE(cli_console_active,     "View or Set the active console device"),
 };
 
 /*!
@@ -1185,23 +1265,6 @@ static void store_callerid(struct console_pvt *pvt, const char *value)
 
 	ast_string_field_set(pvt, cid_name, cid_name);
 	ast_string_field_set(pvt, cid_num, cid_num);
-}
-
-static void set_active(struct console_pvt *pvt, const char *value)
-{
-	if (pvt == &globals) {
-		ast_log(LOG_ERROR, "active is only valid as a per-device setting\n");
-		return;
-	}
-
-	if (!ast_true(value))
-		return;
-
-	ast_rwlock_wrlock(&active_lock);
-	if (active_pvt)
-		unref_pvt(active_pvt);
-	active_pvt = ref_pvt(pvt);
-	ast_rwlock_unlock(&active_lock);
 }
 
 /*!
