@@ -76,7 +76,7 @@
 [default]
 input_device = default       ; When configuring an input device and output device,
 output_device = default      ; use the name that you see when you run the "console
-                             ; list devices" CLI command.  If you say "default", the
+                             ; list available" CLI command.  If you say "default", the
                              ; system default input and output devices will be used.
 autoanswer = no
 context = default
