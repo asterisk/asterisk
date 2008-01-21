@@ -2170,7 +2170,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct server_instance 
 		}
 		res = ast_wait_for_input(ser->fd, -1);
 		if (res < 0) {
-			ast_log(LOG_DEBUG, "ast_wait_for_input returned %d\n", res);
+			ast_debug(1, "ast_wait_for_input returned %d\n", res);
 			goto cleanup;
 		}
 
@@ -2481,7 +2481,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 	int res = 0;
 	const struct sockaddr_in *dst = sip_real_dst(p);
 
-	ast_log(LOG_DEBUG, "Trying to put '%.10s' onto %s socket...\n", data, get_transport(p->socket.type));
+	ast_debug(1, "Trying to put '%.10s' onto %s socket...\n", data, get_transport(p->socket.type));
 
 	if (sip_prepare_socket(p) < 0)
 		return XMIT_ERROR;
@@ -2495,7 +2495,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 		if (p->socket.ser->f) 
 			res = server_write(p->socket.ser, data, len);
 		else
-			ast_log(LOG_DEBUG, "No p->socket.ser->f len=%d\n", len);
+			ast_debug(1, "No p->socket.ser->f len=%d\n", len);
 	} 
 
 	if (p->socket.lock)
@@ -5800,7 +5800,7 @@ static int sip_register(const char *value, int lineno)
 			ast_log(LOG_WARNING, "'%s' is not a valid transport value for registration '%s' at line '%d'\n", trans, value, lineno);
 	} else {
 		username = buf;
-		ast_log(LOG_DEBUG, "no trans\n");
+		ast_debug(1, "no trans\n");
 	}
 
 	/* First split around the last '@' then parse the two components. */
@@ -17920,7 +17920,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 	s->fd = ca.accept_fd;
 
 	if (ast_pthread_create_background(&ca.master, NULL, sip_tcp_helper_thread, p)) {
-		ast_log(LOG_DEBUG, "Unable to launch '%s'.", ca.name);
+		ast_debug(1, "Unable to launch '%s'.", ca.name);
 		close(ca.accept_fd);
 		s->fd = ca.accept_fd = -1;
 	}
