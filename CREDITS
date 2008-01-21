@@ -109,7 +109,9 @@ Simon Lockhart - Porting to Solaris (based on work of Logan ???)
 	simon(AT)slimey.org
 
 Olle E. Johansson - SIP RFC compliance, documentation and testing, testing,
-	testing; MiniVM - the small voicemail system, many documentation
+	SIP outbound proxy support, Manager 1.1 update, SIP transfer support,
+	SIP presence support, SIP call state updates (dialog-info), 
+	MiniVM - the small voicemail system, many documentation
 	updates/corrections, and many bug fixes.
 	oej(AT)edvina.net, http://edvina.net
 
