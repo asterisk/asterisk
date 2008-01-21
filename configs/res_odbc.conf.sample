@@ -23,6 +23,11 @@ dsn => MySQL-asterisk
 username => myuser
 password => mypass
 pre-connect => yes
+;
+; On some databases, the connection times out and a reconnection will be
+; necessary.  This setting configures the amount of time a connection
+; may sit idle (in seconds) before a reconnection will be attempted.
+;idlecheck => 3600
 
 ; Certain servers, such as MS SQL Server and Sybase use the TDS protocol, which
 ; limits the number of active queries per connection to 1.  By setting up pools

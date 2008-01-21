@@ -37,6 +37,7 @@ struct odbc_obj {
 	ast_mutex_t lock;
 	SQLHDBC  con;                   /* ODBC Connection Handle */
 	struct odbc_class *parent;      /* Information about the connection is protected */
+	struct timeval last_used;
 	unsigned int used:1;
 	unsigned int up:1;
 	AST_LIST_ENTRY(odbc_obj) list;
