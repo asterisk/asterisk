@@ -6858,14 +6858,14 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 	int start = 0;
 
 	for (;;) {
-		char new[256];
+		char new[512];
 		const char *oh = __get_header(orig, field, &start);
 
 		if (ast_strlen_zero(oh))
 			break;
 
 		if (!copied) {	/* Only check for empty rport in topmost via header */
-			char leftmost[256], *others, *rport;
+			char leftmost[512], *others, *rport;
 
 			/* Only work on leftmost value */
 			ast_copy_string(leftmost, oh, sizeof(leftmost));
@@ -10749,7 +10749,7 @@ static attribute_unused void check_via_response(struct sip_pvt *p, struct sip_re
 /*! \brief check Via: header for hostname, port and rport request/answer */
 static void check_via(struct sip_pvt *p, struct sip_request *req)
 {
-	char via[256];
+	char via[512];
 	char *c, *pt;
 	struct hostent *hp;
 	struct ast_hostent ahp;
