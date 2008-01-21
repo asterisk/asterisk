@@ -29,8 +29,6 @@
  * Configuration file \link Config_sip sip.conf \endlink
  *
  *
- * \todo SIP over TCP
- * \todo SIP over TLS
  * \todo Better support of forking
  * \todo VIA branch tag transaction checking
  * \todo Transaction support
