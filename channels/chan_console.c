@@ -1321,7 +1321,7 @@ static void build_device(struct ast_config *cfg, const char *name)
 {
 	struct ast_variable *v;
 	struct console_pvt *pvt;
-	int new;
+	int new = 0;
 
 	if ((pvt = find_pvt(name))) {
 		console_pvt_lock(pvt);
