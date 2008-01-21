@@ -570,8 +570,8 @@ static void set_queue_variables(struct queue_ent *qe)
 		sl = 100 * ((float) qe->parent->callscompletedinsl / (float) qe->parent->callscompleted);
 
 	snprintf(interfacevar,sizeof(interfacevar),
-		"QUEUEMAX=%d|QUEUESTRATEGY=%s|QUEUECALLS=%d|QUEUEHOLDTIME=%d|QUEUECOMPLETED=%d|QUEUEABANDONED=%d|QUEUESRVLEVEL=%d|QUEUESRVLEVELPERF=%2.1f",
-		qe->parent->maxlen, int2strat(qe->parent->strategy), qe->parent->count, qe->parent->holdtime, qe->parent->callscompleted,
+		"QUEUENAME=%s|QUEUEMAX=%d|QUEUESTRATEGY=%s|QUEUECALLS=%d|QUEUEHOLDTIME=%d|QUEUECOMPLETED=%d|QUEUEABANDONED=%d|QUEUESRVLEVEL=%d|QUEUESRVLEVELPERF=%2.1f",
+		qe->parent->name, qe->parent->maxlen, int2strat(qe->parent->strategy), qe->parent->count, qe->parent->holdtime, qe->parent->callscompleted,
 		qe->parent->callsabandoned,  qe->parent->servicelevel, sl);
 	
 	pbx_builtin_setvar(qe->chan, interfacevar); 
