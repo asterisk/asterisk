@@ -228,6 +228,7 @@ static int local_answer(struct ast_channel *ast)
 
 static void check_bridge(struct local_pvt *p, int isoutbound)
 {
+	struct ast_channel_monitor *tmp;
 	if (ast_test_flag(p, LOCAL_ALREADY_MASQED) || ast_test_flag(p, LOCAL_NO_OPTIMIZATION) || !p->chan || !p->owner || (p->chan->_bridge != ast_bridged_channel(p->chan)))
 		return;
 
@@ -245,6 +246,16 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 			if (!ast_check_hangup(p->chan->_bridge)) {
 				if (!ast_channel_trylock(p->owner)) {
 					if (!ast_check_hangup(p->owner)) {
+						if(p->owner->monitor && !p->chan->_bridge->monitor) {
+							/* If a local channel is being monitored, we don't want a masquerade
+							 * to cause the monitor to go away. Since the masquerade swaps the monitors,
+							 * pre-swapping the monitors before the masquerade will ensure that the monitor
+							 * ends up where it is expected.
+							 */
+							tmp = p->owner->monitor;
+							p->owner->monitor = p->chan->_bridge->monitor;
+							p->chan->_bridge->monitor = tmp;
+						}
 						ast_channel_masquerade(p->owner, p->chan->_bridge);
 						ast_set_flag(p, LOCAL_ALREADY_MASQED);
 					}
