@@ -32,6 +32,8 @@
  * \todo Better support of forking
  * \todo VIA branch tag transaction checking
  * \todo Transaction support
+ * \todo We need to test TCP sessions with SIP proxies and in regards
+ *       to the SIP outbound specs.
  *
  * \ingroup channel_drivers
  *
@@ -355,37 +357,37 @@ enum check_auth_result {
 
 /*! \brief States for outbound registrations (with register= lines in sip.conf */
 enum sipregistrystate {
-	REG_STATE_UNREGISTERED = 0,	/*!< We are not registred */
-		/* Initial state. We should have a timeout scheduled for the initial
+	REG_STATE_UNREGISTERED = 0,	/*!< We are not registred 
+		 *  \noteInitial state. We should have a timeout scheduled for the initial
 		 * (or next) registration transmission, calling sip_reregister
 		 */
 
-	REG_STATE_REGSENT,	/*!< Registration request sent */
-		/* sent initial request, waiting for an ack or a timeout to
+	REG_STATE_REGSENT,	/*!< Registration request sent 
+		 * \note sent initial request, waiting for an ack or a timeout to
 		 * retransmit the initial request.
 		*/
 
-	REG_STATE_AUTHSENT,	/*!< We have tried to authenticate */
-		/* entered after transmit_register with auth info,
+	REG_STATE_AUTHSENT,	/*!< We have tried to authenticate 
+		 * \note entered after transmit_register with auth info,
 		 * waiting for an ack.
 		 */
 
 	REG_STATE_REGISTERED,	/*!< Registered and done */
 
-	REG_STATE_REJECTED,	/*!< Registration rejected */
-		/* only used when the remote party has an expire larger than
+	REG_STATE_REJECTED,	/*!< Registration rejected *
+		 * \note only used when the remote party has an expire larger than
 		 * our max-expire. This is a final state from which we do not
 		 * recover (not sure how correctly).
 		 */
 
-	REG_STATE_TIMEOUT,	/*!< Registration timed out */
-		/* XXX unused */
+	REG_STATE_TIMEOUT,	/*!< Registration timed out *
+		* \note XXX unused */
 
-	REG_STATE_NOAUTH,	/*!< We have no accepted credentials */
-		/* fatal - no chance to proceed */
+	REG_STATE_NOAUTH,	/*!< We have no accepted credentials
+		 * \note fatal - no chance to proceed */
 
-	REG_STATE_FAILED,	/*!< Registration failed after several tries */
-		/* fatal - no chance to proceed */
+	REG_STATE_FAILED,	/*!< Registration failed after several tries
+		 * \note fatal - no chance to proceed */
 };
 
 /*! \brief Modes in which Asterisk can be configured to run SIP Session-Timers */
@@ -713,6 +715,11 @@ static int global_qualifyfreq; /*!< Qualify frequency */
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
+static enum st_mode global_st_mode;           /*!< Mode of operation for Session-Timers           */
+static enum st_refresher global_st_refresher; /*!< Session-Timer refresher                        */
+static int global_min_se;                     /*!< Lowest threshold for session refresh interval  */
+static int global_max_se;                     /*!< Highest threshold for session refresh interval */
+
 /*@}*/ 
 
 /* Object counters */
@@ -725,11 +732,6 @@ static int regobjs = 0;                  /*!< Registry objects */
 
 static struct ast_flags global_flags[2] = {{0}};        /*!< global SIP_ flags */
 static char used_context[AST_MAX_CONTEXT]; /*!< name of automatically created context for unloading */
-
-static enum st_mode global_st_mode;           /*!< Mode of operation for Session-Timers           */
-static enum st_refresher global_st_refresher; /*!< Session-Timer refresher                        */
-static int global_min_se;                     /*!< Lowest threshold for session refresh interval  */
-static int global_max_se;                     /*!< Highest threshold for session refresh interval */
 
 
 AST_MUTEX_DEFINE_STATIC(netlock);
@@ -764,6 +766,7 @@ enum sip_transport {
 	SIP_TRANSPORT_TLS = 1 << 2,
 };
 
+/*!< The SIP socket definition */
 struct sip_socket {
 	ast_mutex_t *lock;
 	enum sip_transport type;
@@ -811,7 +814,7 @@ struct sip_request {
 	char *header[SIP_MAX_HEADERS];
 	char *line[SIP_MAX_LINES];
 	char data[SIP_MAX_PACKET];
-	struct sip_socket socket;
+	struct sip_socket socket;	/*!< The socket used for this request */
 };
 
 /*! \brief structure used in transfers */
@@ -1192,7 +1195,7 @@ struct sip_pvt {
 		AST_STRING_FIELD(rpid_from);	/*!< Our RPID From header */
 		AST_STRING_FIELD(url);		/*!< URL to be sent with next message to peer */
 	);
-	struct sip_socket socket;
+	struct sip_socket socket;		/*!< The socket used for this dialog */
 	unsigned int ocseq;			/*!< Current outgoing seqno */
 	unsigned int icseq;			/*!< Current incoming seqno */
 	ast_group_t callgroup;			/*!< Call group */
@@ -1211,7 +1214,7 @@ struct sip_pvt {
 	char notext;				/*!< Text not supported  (?) */
 
 	int timer_t1;				/*!< SIP timer T1, ms rtt */
-	int timer_b;            /*!< SIP timer B, ms */
+	int timer_b;                            /*!< SIP timer B, ms */
 	unsigned int sipoptions;		/*!< Supported SIP options on the other end */
 	unsigned int reqsipoptions;		/*!< Required SIP options on the other end */
 	struct ast_codec_pref prefs;		/*!< codec prefs */
@@ -1415,7 +1418,7 @@ struct sip_mailbox {
 struct sip_peer {
 	ASTOBJ_COMPONENTS(struct sip_peer);	/*!< name, refcount, objflags,  object pointers */
 					/*!< peer->name is the unique name of this object */
-	struct sip_socket socket;
+	struct sip_socket socket;	/*!< Socket used for this peer */
 	char secret[80];		/*!< Password */
 	char md5secret[80];		/*!< Password in MD5 */
 	struct sip_auth *auth;		/*!< Realm authentication list */
@@ -17846,6 +17849,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 	return 1;
 }
 
+/*! \brief Returns the port to use for this socket */
 static int sip_standard_port(struct sip_socket s) 
 {
 	if (s.type & SIP_TRANSPORT_TLS)
@@ -17854,6 +17858,7 @@ static int sip_standard_port(struct sip_socket s)
 		return s.port == STANDARD_SIP_PORT;
 }
 
+/*! \todo document this function. */
 static struct server_instance *sip_tcp_locate(struct sockaddr_in *s)
 {
 	struct sip_threadinfo *th;
@@ -17869,6 +17874,7 @@ static struct server_instance *sip_tcp_locate(struct sockaddr_in *s)
 	return NULL;
 }
 
+/*! \todo document this function. */
 static int sip_prepare_socket(struct sip_pvt *p) 
 {
 	struct sip_socket *s = &p->socket;
@@ -18299,7 +18305,7 @@ static int proc_session_timer(const void *vp)
 }
 
 
-/* Session-Timers: Function for parsing Min-SE header */
+/*! \brief Session-Timers: Function for parsing Min-SE header */
 int parse_minse (const char *p_hdrval, int *const p_interval)
 {
 	if (ast_strlen_zero(p_hdrval)) {
@@ -18319,7 +18325,7 @@ int parse_minse (const char *p_hdrval, int *const p_interval)
 }
 
 
-/* Session-Timers: Function for parsing Session-Expires header */
+/*! \brief Session-Timers: Function for parsing Session-Expires header */
 int parse_session_expires(const char *p_hdrval, int *const p_interval, enum st_refresher *const p_ref)
 {
 	char *p_token;
@@ -18811,7 +18817,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	return tmpc;
 }
 
-/*! Parse insecure= setting in sip.conf and set flags according to setting */
+/*! \brief Parse insecure= setting in sip.conf and set flags according to setting */
 static void set_insecure_flags (struct ast_flags *flags, const char *value, int lineno)
 {
 	if (ast_strlen_zero(value))
@@ -19105,8 +19111,8 @@ static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, con
 	return a;
 }
 
-/*!
- * implement the servar config line
+/*! \brief
+ * implement the setvar config line
  */
 static struct ast_variable *add_var(const char *buf, struct ast_variable *list)
 {
@@ -19350,6 +19356,7 @@ static struct sip_peer *temp_peer(const char *name)
 	return peer;
 }
 
+/*! \todo document this function */
 static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
 {
 	char *next, *mbox, *context;
@@ -19804,6 +19811,7 @@ static int reload_config(enum channelreloadreason reason)
 		ASTOBJ_CONTAINER_MARKALL(&peerl);
 	}
 
+	/* Reset certificate handling for TLS sessions */
 	default_tls_cfg.certfile = ast_strdup(AST_CERTFILE); /*XXX Not sure if this is useful */
 	default_tls_cfg.cipher = ast_strdup("");
 	default_tls_cfg.cafile = ast_strdup("");
@@ -19823,6 +19831,7 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	memset(&stunaddr, 0, sizeof(stunaddr));
 	memset(&internip, 0, sizeof(internip));
+
 	/* Free memory for local network address mask */
 	ast_free_ha(localaddr);
 	memset(&localaddr, 0, sizeof(localaddr));
@@ -19884,7 +19893,8 @@ static int reload_config(enum channelreloadreason reason)
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP);		/* Default for peers, users: TRUE */
 	sip_cfg.peer_rtupdate = TRUE;
 
-	global_st_mode = SESSION_TIMER_MODE_ACCEPT;    /* Session-Timers */
+	/* Session-Timers */
+	global_st_mode = SESSION_TIMER_MODE_ACCEPT;    
 	global_st_refresher = SESSION_TIMER_REFRESHER_UAS;
 	global_min_se  = DEFAULT_MIN_SE;
 	global_max_se  = DEFAULT_MAX_SE;
