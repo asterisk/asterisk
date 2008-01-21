@@ -455,8 +455,6 @@ struct zt_pri;
 #define POLARITY_REV    1
 
 
-static struct zt_distRings drings;
-
 struct distRingData {
 	int ring[3];
 	int range;
@@ -8356,7 +8354,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 			tmp->permcallwaiting = 0;
 		/* Flag to destroy the channel must be cleared on new mkif.  Part of changes for reload to work */
 		tmp->destroy = 0;
-		tmp->drings = drings;
+		tmp->drings = conf.chan.drings;
 		tmp->usedistinctiveringdetection = usedistinctiveringdetection;
 		tmp->callwaitingcallerid = conf.chan.callwaitingcallerid;
 		tmp->threewaycalling = conf.chan.threewaycalling;
@@ -13149,7 +13147,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 		} else if (!strcasecmp(v->name, "dring3context")) {
 			ast_copy_string(confp->chan.drings.ringContext[2].contextData,v->value,sizeof(confp->chan.drings.ringContext[2].contextData));
 		} else if (!strcasecmp(v->name, "dring1range")) {
-			drings.ringnum[0].range = atoi(v->value);
+			confp->chan.drings.ringnum[0].range = atoi(v->value);
 			/* 10 is a nice default. */
 			if (confp->chan.drings.ringnum[0].range == 0)
 				confp->chan.drings.ringnum[0].range = 10;
