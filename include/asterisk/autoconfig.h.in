@@ -373,6 +373,12 @@
 /* Define to indicate the ${JACK_DESCRIP} library version */
 #undef HAVE_JACK_VERSION
 
+/* Define this to indicate the ${LDAP_DESCRIP} library */
+#undef HAVE_LDAP
+
+/* Define to indicate the ${LDAP_DESCRIP} library version */
+#undef HAVE_LDAP_VERSION
+
 /* Define to 1 if you have the <libintl.h> header file. */
 #undef HAVE_LIBINTL_H
 

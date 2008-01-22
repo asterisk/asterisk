@@ -216,6 +216,7 @@ AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber Library], [iksemel])
 AST_EXT_LIB_SETUP([IMAP_TK], [UW IMAP Toolkit], [imap])
 AST_EXT_LIB_SETUP([ISDNNET], [ISDN4Linux Library], [isdnnet])
 AST_EXT_LIB_SETUP([JACK], [Jack Audio Connection Kit], [jack])
+AST_EXT_LIB_SETUP([LDAP], [OpenLDAP], [ldap])
 AST_EXT_LIB_SETUP([LTDL], [libtool], [ltdl])
 AST_EXT_LIB_SETUP([LUA], [Lua], [lua])
 AST_EXT_LIB_SETUP([MISDN], [mISDN User Library], [misdn])
@@ -813,6 +814,8 @@ AST_EXT_LIB_CHECK([JACK], [jack], [jack_activate], [jack/jack.h])
 
 # Needed by unixodbc
 AST_EXT_LIB_CHECK([LTDL], [ltdl], [lt_dlinit], [ltdl.h], [])
+
+AST_EXT_LIB_CHECK([LDAP], [ldap], [ldap_first_attribute], [ldap.h])
 
 AST_EXT_LIB_CHECK([MISDN], [mISDN], [mISDN_open], [mISDNuser/mISDNlib.h])
 
