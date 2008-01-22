@@ -2683,36 +2683,23 @@ static void canary_exit(void)
 
 static void run_startup_commands(void)
 {
-	char filename[PATH_MAX];
-	char buf[256];
-	FILE *f;
 	int fd;
-	
+	struct ast_config *cfg;
+	struct ast_flags cfg_flags = { 0 };
+	struct ast_variable *v;
+
+	if (!(cfg = ast_config_load("cli.conf", cfg_flags)))
+		return;
+
 	fd = open("/dev/null", O_RDWR);
 	if (fd < 0)
 		return;
 
-	snprintf(filename, sizeof(filename), "%s/startup_commands", ast_config_AST_CONFIG_DIR);
+	for (v = ast_variable_browse(cfg, "startup_commands"); v; v = v->next)
+		ast_cli_command(fd, v->name);
 
-	if (!(f = fopen(filename, "r"))) {
-		close(fd);
-		return;
-	}
-
-	while (fgets(buf, sizeof(buf), f)) {
-		size_t res = strlen(buf);
-
-		if (!res)
-			continue;
-
-		if (buf[res - 1] == '\n')
-			buf[res - 1] = '\0';
-
-		ast_cli_command(fd, buf);
-	}
-
-	fclose(f);
 	close(fd);
+	ast_config_destroy(cfg);
 }
 
 int main(int argc, char *argv[])
