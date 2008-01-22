@@ -335,6 +335,9 @@ struct ast_channel_tech {
 	
 	/*! \brief Set base channel (agent and local) */
 	int (* set_base_channel)(struct ast_channel *chan, struct ast_channel *base);
+
+	/*! \brief Get the unique identifier for the PVT, i.e. SIP call-ID for SIP */
+	char * (* get_pvt_uniqueid)(struct ast_channel *chan);
 };
 
 struct ast_epoll_data;

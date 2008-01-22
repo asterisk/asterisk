@@ -1676,6 +1676,7 @@ static int sip_transfer(struct ast_channel *ast, const char *dest);
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int sip_senddigit_begin(struct ast_channel *ast, char digit);
 static int sip_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
+static char *sip_get_callid(struct ast_channel *chan);
 
 static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin);
 static int sip_standard_port(struct sip_socket s);
@@ -2036,6 +2037,7 @@ static const struct ast_channel_tech sip_tech = {
 	.early_bridge = ast_rtp_early_bridge,
 	.send_text = sip_sendtext,		/* called with chan locked */
 	.func_channel_read = acf_channel_read,
+	.get_pvt_uniqueid = sip_get_callid,
 };
 
 /*! \brief This version of the sip channel tech has no send_digit_begin
@@ -3236,6 +3238,15 @@ static int sip_sendhtml(struct ast_channel *chan, int subclass, const char *data
 	}
 
 	return 0;
+}
+
+/*! \brief Deliver SIP call ID for the call */
+static char *sip_get_callid(struct ast_channel *chan)
+{
+	struct sip_pvt *p = chan->tech_pvt;
+	if (!p)
+		return "";
+	return ((char *)p->callid);
 }
 
 /*! \brief Send SIP MESSAGE text within a call
@@ -14381,6 +14392,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 					manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
 						"Channel: %s\r\nChanneltype: %s\r\nUniqueid: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",
 						p->owner->name, p->owner->uniqueid, "SIP", p->callid, p->fullcontact, p->peername);
+				/* Set bridged channel variable */
+				bridgepeer = ast_bridged_channel(p->owner);
+				if (bridgepeer)
+					pbx_builtin_setvar_helper(bridgepeer, "SIP_BRIDGED_CALLID", p->callid);
 			} else {	/* RE-invite */
 				ast_queue_frame(p->owner, &ast_null_frame);
 			}

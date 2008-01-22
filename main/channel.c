@@ -4222,6 +4222,10 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			pbx_builtin_setvar_helper(c0, "BRIDGEPEER", c1->name);
 		if (!ast_strlen_zero(pbx_builtin_getvar_helper(c1, "BRIDGEPEER")))
 			pbx_builtin_setvar_helper(c1, "BRIDGEPEER", c0->name);
+		if (c0->tech->get_pvt_uniqueid)
+			pbx_builtin_setvar_helper(c1, "BRIDGEPVTCALLID", c0->tech->get_pvt_uniqueid(c0));
+		if (c1->tech->get_pvt_uniqueid)
+			pbx_builtin_setvar_helper(c0, "BRIDGEPVTCALLID", c1->tech->get_pvt_uniqueid(c1));
 		
 		if (c0->tech->bridge &&
 		    (config->timelimit == 0) &&
