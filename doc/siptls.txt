@@ -4,17 +4,17 @@ Asterisk SIP/TLS Transport
 When using TLS the client will typically check the validity of the
 certificate chain.  So that means you either need a certificate that is
 signed by one of the larger CAs, or if you use a self signed certificate
-you must install a copy of your CA on the client.
+you must install a copy of your CA certificate on the client.
 
 So far this code has been test with:
-Asterisk as client and server (TLS and TCP)
-Polycom Soundpoint IP Phones (TLS and TCP)
+- Asterisk as client and server (TLS and TCP)
+- Polycom Soundpoint IP Phones (TLS and TCP)
 	Polycom phones require that the host (ip or hostname) that is
 	configured match the 'common name' in the certificate
-Minisip Softphone (TLS and TCP)
-Cisco IOS Gateways (TCP only)
-SNOM 360 (TLS only)
-Zoiper Biz Softphone (TLS and TCP)
+- Minisip Softphone (TLS and TCP)
+- Cisco IOS Gateways (TCP only)
+- SNOM 360 (TLS only)
+- Zoiper Biz Softphone (TLS and TCP)
 
 
 sip.conf options
@@ -26,7 +26,7 @@ tlsbindaddr=<ip address>
 	Specify IP address to bind TLS server to, default is 0.0.0.0
 
 tlscertfile=</path/to/certificate>
-	The server's certificate file.  Should include the key and 
+	The server's certificate file. Should include the key and 
 	certificate.  This is mandatory if your going to run a TLS server.
 
 tlscafile=</path/to/certificate>
@@ -56,6 +56,7 @@ Here are the relevant bits of config for setting up TLS between 2
 asterisk servers.  With server_a registering to server_b
 
 On server_a:
+
 [general]
 tlsenable=yes
 tlscertfgile=/etc/asterisk/asterisk.pem
