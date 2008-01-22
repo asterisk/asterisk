@@ -18716,6 +18716,9 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	char tmp[256];
 	char *dest = data;
 	char *dnid;
+ 	char *secret = NULL;
+ 	char *md5secret = NULL;
+ 	char *authname = NULL;
 	int oldformat = format;
 
 	/* mask request with some set of allowed formats.
@@ -18764,6 +18767,17 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	if (host) {
 		*host++ = '\0';
 		ext = tmp;
+		secret = strchr(ext, ':');
+		if (secret) {
+			*secret++ = '\0';
+			md5secret = strchr(secret, ':');
+			if (md5secret) {
+				*md5secret++ = '\0';
+				authname = strchr(md5secret, ':');
+				if (authname)
+					*authname++ = '\0';
+			}
+		}
 	} else {
 		ext = strchr(tmp, '/');
 		if (ext) 
@@ -18798,6 +18812,14 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		ast_string_field_set(p, username, ext);
 		ast_string_field_set(p, fullcontact, NULL);
 	}
+	if (secret && !ast_strlen_zero(secret))
+		ast_string_field_set(p, peersecret, secret);
+
+	if (md5secret && !ast_strlen_zero(md5secret))
+		ast_string_field_set(p, peermd5secret, md5secret);
+
+	if (authname && !ast_strlen_zero(authname))
+		ast_string_field_set(p, authname, authname);
 #if 0
 	printf("Setting up to call extension '%s' at '%s'\n", ext ? ext : "<none>", host);
 #endif
