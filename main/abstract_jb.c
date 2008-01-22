@@ -25,6 +25,8 @@
  * \brief Common implementation-independent jitterbuffer stuff.
  * 
  * \author Slav Klenov <slav@securax.org>
+ *
+ *
  */
 
 #include "asterisk.h"
@@ -85,7 +87,7 @@ struct ast_jb_impl
 
 /* Implementation functions */
 /* fixed */
-static void * jb_create_fixed(struct ast_jb_conf *general_config, long resynch_threshold);
+static void *jb_create_fixed(struct ast_jb_conf *general_config, long resynch_threshold);
 static void jb_destroy_fixed(void *jb);
 static int jb_put_first_fixed(void *jb, struct ast_frame *fin, long now);
 static int jb_put_fixed(void *jb, struct ast_frame *fin, long now);
@@ -422,7 +424,7 @@ static void jb_get_and_deliver(struct ast_channel *chan)
 			break;
 		case JB_IMPL_NOFRAME:
 			ast_log(LOG_WARNING,
-				"JB_IMPL_NOFRAME is retuned from the %s jb when now=%ld >= next=%ld, jbnext=%ld!\n",
+				"JB_IMPL_NOFRAME is returned from the %s jb when now=%ld >= next=%ld, jbnext=%ld!\n",
 				jbimpl->name, now, jb->next, jbimpl->next(jbobj));
 			jb_framelog("\tJB_GET {now=%ld}: No frame for now!?\n", now);
 			return;
@@ -496,7 +498,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 		jb->logfile = fopen(logfile_pathname, "w+b");
 		
 		if (!jb->logfile)
-			ast_log(LOG_WARNING, "Failed to create frame log file with pathname '%s'\n", logfile_pathname);
+			ast_log(LOG_ERROR, "Failed to create frame log file with pathname '%s'\n", logfile_pathname);
 		
 		if (res == JB_IMPL_OK)
 			jb_framelog("JB_PUT_FIRST {now=%ld}: Queued frame with ts=%ld and len=%ld\n",

@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/manager.h"
 
-/*!
+/*! \brief
  * replacement read/write functions for SSL support.
  * We use wrappers rather than SSL_read/SSL_write directly so
  * we can put in some debugging.
@@ -161,7 +161,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	SSLeay_add_ssl_algorithms();
 
 	if (!(cfg->ssl_ctx = SSL_CTX_new( client ? SSLv23_client_method() : SSLv23_server_method() ))) {
-		ast_log(LOG_DEBUG, "Sorry, SSL_CTX_new call returned null...\n");
+		ast_debug(1, "Sorry, SSL_CTX_new call returned null...\n");
 		cfg->enabled = 0;
 		return 0;
 	}
@@ -171,7 +171,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 		    SSL_CTX_check_private_key(cfg->ssl_ctx) == 0 ) {
 			if (!client) {
 				/* Clients don't need a certificate, but if its setup we can use it */
-				ast_verbose("ssl cert error <%s>", cfg->certfile);
+				ast_verbose("SSL cert error <%s>", cfg->certfile);
 				sleep(2);
 				cfg->enabled = 0;
 				return 0;
@@ -181,7 +181,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	if (!ast_strlen_zero(cfg->cipher)) {
 		if (SSL_CTX_set_cipher_list(cfg->ssl_ctx, cfg->cipher) == 0 ) {
 			if (!client) {
-				ast_verbose("ssl cipher error <%s>", cfg->cipher);
+				ast_verbose("SSL cipher error <%s>", cfg->cipher);
 				sleep(2);
 				cfg->enabled = 0;
 				return 0;
@@ -190,10 +190,10 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	}
 	if (!ast_strlen_zero(cfg->cafile) || !ast_strlen_zero(cfg->capath)) {
 		if (SSL_CTX_load_verify_locations(cfg->ssl_ctx, S_OR(cfg->cafile, NULL), S_OR(cfg->capath,NULL)) == 0)
-			ast_verbose("ssl CA file(%s)/path(%s) error\n", cfg->cafile, cfg->capath);
+			ast_verbose("SSL CA file(%s)/path(%s) error\n", cfg->cafile, cfg->capath);
 	}
 
-	ast_verbose("ssl cert ok\n");
+	ast_verbose("SSL certificate ok\n");
 	return 1;
 #endif
 }
@@ -203,7 +203,7 @@ int ssl_setup(struct ast_tls_config *cfg)
 	return __ssl_setup(cfg, 0);
 }
 
-/*! A generic client routine for a TCP client
+/*! \brief A generic client routine for a TCP client
  *  and starts a thread for handling accept()
  */
 struct server_instance *client_start(struct server_args *desc)
@@ -213,8 +213,7 @@ struct server_instance *client_start(struct server_args *desc)
 
 	/* Do nothing if nothing has changed */
 	if(!memcmp(&desc->oldsin, &desc->sin, sizeof(desc->oldsin))) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Nothing changed in %s\n", desc->name);
+		ast_debug(1, "Nothing changed in %s\n", desc->name);
 		return NULL;
 	}
 
@@ -231,7 +230,7 @@ struct server_instance *client_start(struct server_args *desc)
 	}
 
 	if (connect(desc->accept_fd, (const struct sockaddr *)&desc->sin, sizeof(desc->sin))) {
-		ast_log(LOG_NOTICE, "Unable to connect %s to %s:%d: %s\n",
+		ast_log(LOG_ERROR, "Unable to connect %s to %s:%d: %s\n",
 			desc->name,
 			ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
 			strerror(errno));
@@ -269,12 +268,11 @@ error:
 	return NULL;
 }
 
-/*!
+/*! \brief
  * This is a generic (re)start routine for a TCP server,
  * which does the socket/bind/listen and starts a thread for handling
  * accept().
  */
-
 void server_start(struct server_args *desc)
 {
 	int flags;
@@ -282,8 +280,7 @@ void server_start(struct server_args *desc)
 	
 	/* Do nothing if nothing has changed */
 	if (!memcmp(&desc->oldsin, &desc->sin, sizeof(desc->oldsin))) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Nothing changed in %s\n", desc->name);
+		ast_debug(1, "Nothing changed in %s\n", desc->name);
 		return;
 	}
 	
@@ -305,27 +302,27 @@ void server_start(struct server_args *desc)
 
 	desc->accept_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (desc->accept_fd < 0) {
-		ast_log(LOG_WARNING, "Unable to allocate socket for %s: %s\n",
+		ast_log(LOG_ERROR, "Unable to allocate socket for %s: %s\n",
 			desc->name, strerror(errno));
 		return;
 	}
 	
 	setsockopt(desc->accept_fd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
 	if (bind(desc->accept_fd, (struct sockaddr *)&desc->sin, sizeof(desc->sin))) {
-		ast_log(LOG_NOTICE, "Unable to bind %s to %s:%d: %s\n",
+		ast_log(LOG_ERROR, "Unable to bind %s to %s:%d: %s\n",
 			desc->name,
 			ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
 			strerror(errno));
 		goto error;
 	}
 	if (listen(desc->accept_fd, 10)) {
-		ast_log(LOG_NOTICE, "Unable to listen for %s!\n", desc->name);
+		ast_log(LOG_ERROR, "Unable to listen for %s!\n", desc->name);
 		goto error;
 	}
 	flags = fcntl(desc->accept_fd, F_GETFL);
 	fcntl(desc->accept_fd, F_SETFL, flags | O_NONBLOCK);
 	if (ast_pthread_create_background(&desc->master, NULL, desc->accept_fn, desc)) {
-		ast_log(LOG_NOTICE, "Unable to launch %s on %s:%d: %s\n",
+		ast_log(LOG_ERROR, "Unable to launch thread for %s on %s:%d: %s\n",
 			desc->name,
 			ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
 			strerror(errno));
@@ -338,9 +335,9 @@ error:
 	desc->accept_fd = -1;
 }
 
+/*! \brief Shutdown a running server if there is one */
 void server_stop(struct server_args *desc)
 {
-	/* Shutdown a running server if there is one */
 	if (desc->master != AST_PTHREADT_NULL) {
 		pthread_cancel(desc->master);
 		pthread_kill(desc->master, SIGURG);
@@ -351,7 +348,7 @@ void server_stop(struct server_args *desc)
 	desc->accept_fd = -1;
 }
 
-/*!
+/*! \brief
 * creates a FILE * from the fd passed by the accept thread.
 * This operation is potentially expensive (certificate verification),
 * so we do it in the child thread context.
@@ -385,7 +382,7 @@ void *ast_make_file_from_fd(void *data)
 			ser->f = fopencookie(ser->ssl, "w+", cookie_funcs);
 #else
 			/* could add other methods here */
-			ast_log(LOG_WARNING, "no ser->f methods attempted!");
+			ast_debug(2, "no ser->f methods attempted!");
 #endif
 			if ((ser->client && !ast_test_flag(&ser->parent->tls_cfg->flags, AST_SSL_DONT_VERIFY_SERVER))
 				|| (!ser->client && ast_test_flag(&ser->parent->tls_cfg->flags, AST_SSL_VERIFY_CLIENT))) {
@@ -393,10 +390,10 @@ void *ast_make_file_from_fd(void *data)
 				long res;
 				peer = SSL_get_peer_certificate(ser->ssl);
 				if (!peer)
-					ast_log(LOG_WARNING, "No peer certificate\n");
+					ast_log(LOG_WARNING, "No peer SSL certificate\n");
 				res = SSL_get_verify_result(ser->ssl);
 				if (res != X509_V_OK)
-					ast_log(LOG_WARNING, "Certificate did not verify: %s\n", X509_verify_cert_error_string(res));
+					ast_log(LOG_ERROR, "Certificate did not verify: %s\n", X509_verify_cert_error_string(res));
 				if (!ast_test_flag(&ser->parent->tls_cfg->flags, AST_SSL_IGNORE_COMMON_NAME)) {
 					ASN1_STRING *str;
 					unsigned char *str2;
@@ -415,14 +412,14 @@ void *ast_make_file_from_fd(void *data)
 						if (str2) {
 							if (!strcasecmp(ser->parent->hostname, (char *) str2))
 								found = 1;
-							ast_log(LOG_DEBUG, "SSL Common Name compare s1='%s' s2='%s'\n", ser->parent->hostname, str2);
+							ast_debug(3, "SSL Common Name compare s1='%s' s2='%s'\n", ser->parent->hostname, str2);
 							OPENSSL_free(str2);
 						}
 						if (found)
 							break;
 					}
 					if (!found) {
-						ast_log(LOG_WARNING, "Certificate common name did not match (%s)\n", ser->parent->hostname);
+						ast_log(LOG_ERROR, "Certificate common name did not match (%s)\n", ser->parent->hostname);
 						if (peer)
 							X509_free(peer);
 						fclose(ser->f);

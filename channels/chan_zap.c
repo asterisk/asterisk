@@ -731,7 +731,7 @@ struct zt_chan_conf {
 	char smdi_port[SMDI_MAX_FILENAME_LEN];
 };
 
-/** returns a new zt_chan_conf with default values (by-value) */
+/*! returns a new zt_chan_conf with default values (by-value) */
 static struct zt_chan_conf zt_chan_conf_default(void) {
 	/* recall that if a field is not included here it is initialized
 	 * to 0 or equivalent

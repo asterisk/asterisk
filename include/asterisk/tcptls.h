@@ -17,25 +17,28 @@
  */
 
 /*!
- * \file server.h
+ * \file tcptls.h
  *
  * \brief Generic support for tcp/tls servers in Asterisk.
  * \note In order to have TLS/SSL support, we need the openssl libraries.
  * Still we can decide whether or not to use them by commenting
  * in or out the DO_SSL macro.
+ *
  * TLS/SSL support is basically implemented by reading from a config file
- * (currently http.conf) the names of the certificate and cipher to use,
+ * (currently http.conf and sip.conf) the names of the certificate and cipher to use,
  * and then run ssl_setup() to create an appropriate SSL_CTX (ssl_ctx)
  * If we support multiple domains, presumably we need to read multiple
  * certificates.
+ *
  * When we are requested to open a TLS socket, we run make_file_from_fd()
  * on the socket, to do the necessary setup. At the moment the context's name
  * is hardwired in the function, but we can certainly make it into an extra
  * parameter to the function.
+ *
  * We declare most of ssl support variables unconditionally,
  * because their number is small and this simplifies the code.
  *
- * \note: the ssl-support variables (ssl_ctx, do_ssl, certfile, cipher)
+ * \note The ssl-support variables (ssl_ctx, do_ssl, certfile, cipher)
  * and their setup should be moved to a more central place, e.g. asterisk.conf
  * and the source files that processes it. Similarly, ssl_setup() should
  * be run earlier in the startup process so modules have it available.
@@ -113,33 +116,33 @@ struct ast_tls_config {
  * server_start() and server_root().
  */
 
-/*!
+/*! \brief
  * describes a server instance
  */
 struct server_instance {
 	FILE *f;    /* fopen/funopen result */
 	int fd;     /* the socket returned by accept() */
 	SSL *ssl;   /* ssl state */
-//	iint (*ssl_setup)(SSL *);
+/*	iint (*ssl_setup)(SSL *); */
 	int client;
 	struct sockaddr_in requestor;
 	struct server_args *parent;
 };
 
-/*!
+/*! \brief
  * arguments for the accepting thread
  */
 struct server_args {
 	struct sockaddr_in sin;
 	struct sockaddr_in oldsin;
-	char hostname[MAXHOSTNAMELEN]; /* only necessary for SSL clients so we can compare to common name */
-	struct ast_tls_config *tls_cfg; /* points to the SSL configuration if any */
+	char hostname[MAXHOSTNAMELEN]; /*!< only necessary for SSL clients so we can compare to common name */
+	struct ast_tls_config *tls_cfg; /*!< points to the SSL configuration if any */
 	int accept_fd;
 	int poll_timeout;
 	pthread_t master;
-	void *(*accept_fn)(void *); /* the function in charge of doing the accept */
-	void (*periodic_fn)(void *);/* something we may want to run before after select on the accept socket */
-	void *(*worker_fn)(void *); /* the function in charge of doing the actual work */
+	void *(*accept_fn)(void *); /*!< the function in charge of doing the accept */
+	void (*periodic_fn)(void *);/*!< something we may want to run before after select on the accept socket */
+	void *(*worker_fn)(void *); /*!< the function in charge of doing the actual work */
 	const char *name;
 };
 
