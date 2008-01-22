@@ -2695,8 +2695,10 @@ static void run_startup_commands(void)
 	if (fd < 0)
 		return;
 
-	for (v = ast_variable_browse(cfg, "startup_commands"); v; v = v->next)
-		ast_cli_command(fd, v->name);
+	for (v = ast_variable_browse(cfg, "startup_commands"); v; v = v->next) {
+		if (ast_true(v->value))
+			ast_cli_command(fd, v->name);
+	}
 
 	close(fd);
 	ast_config_destroy(cfg);
