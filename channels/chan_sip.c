@@ -12274,17 +12274,18 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		}
 		break;
 	case 491: /* Pending */
-		/* we really should have to wait a while, then retransmit */
-			/* We should support the retry-after at some point */
-		/* At this point, we treat this as a congestion */
+		/* we really should have to wait a while, then retransmit
+		 * We should support the retry-after at some point 
+		 * At this point, we treat this as a congestion if the call is not in UP state 
+ 		 */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE)) {
 			if (p->owner->_state != AST_STATE_UP) {
 				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			} else {
-				/* This is a re-invite that failed. */
-				/* Reset the flag after a while 
+				/* This is a re-invite that failed.
+				 * Reset the flag after a while 
 				 */
 				int wait = 3 + ast_random() % 5;
 				p->waitid = ast_sched_add(sched, wait, sip_reinvite_retry, p); 
