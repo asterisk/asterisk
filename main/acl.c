@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <netinet/ip.h>
 #include <sys/ioctl.h>
 
-#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__Darwin__)
 #include <fcntl.h>
 #include <net/route.h>
 #endif
@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/sockio.h>
 #endif
 
-#if defined(__linux__)
+#if defined(__Darwin__) || defined(__linux__)
 #include <ifaddrs.h>
 #endif
 
@@ -149,23 +149,23 @@ static void score_address(const struct sockaddr_in *sin, struct in_addr *best_ad
 static int get_local_address(struct in_addr *ourip)
 {
 	int s, res = -1;
-#ifdef _SOLARIS
+#ifdef SOLARIS
 	struct lifreq *ifr = NULL;
 	struct lifnum ifn;
 	struct lifconf ifc;
 	struct sockaddr_in *sa;
 	char *buf = NULL;
 	int bufsz, x;
-#endif /* _SOLARIS */
-#if defined(_BSD) || defined(__linux__)
+#endif /* SOLARIS */
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__)
 	struct ifaddrs *ifap, *ifaphead;
 	int rtnerr;
 	const struct sockaddr_in *sin;
-#endif /* defined(_BSD) || defined(_LINUX) */
+#endif /* BSD_OR_LINUX */
 	struct in_addr best_addr = { 0, };
 	int best_score = -100;
 
-#if defined(_BSD) || defined(__linux__)
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__)
 	rtnerr = getifaddrs(&ifaphead);
 	if (rtnerr) {
 		perror(NULL);
@@ -176,7 +176,7 @@ static int get_local_address(struct in_addr *ourip)
 	s = socket(AF_INET, SOCK_STREAM, 0);
 
 	if (s > 0) {
-#if defined(_BSD) || defined(__linux__)
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__)
 		for (ifap = ifaphead; ifap; ifap = ifap->ifa_next) {
 
 			if (ifap->ifa_addr->sa_family == AF_INET) {
@@ -188,10 +188,10 @@ static int get_local_address(struct in_addr *ourip)
 					break;
 			}
 		}
-#endif /* _BSD */
+#endif /* BSD_OR_LINUX */
 
 		/* There is no reason whatsoever that this shouldn't work on Linux or BSD also. */
-#ifdef _SOLARIS
+#ifdef SOLARIS
 		/* Get a count of interfaces on the machine */
 		ifn.lifn_family = AF_INET;
 		ifn.lifn_flags = 0;
@@ -229,13 +229,13 @@ static int get_local_address(struct in_addr *ourip)
 		}
 
 		free(buf);
-#endif /* _SOLARIS */
+#endif /* SOLARIS */
 		
 		close(s);
 	}
-#if defined(_BSD) || defined(__linux__)
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__)
 	freeifaddrs(ifaphead);
-#endif
+#endif /* BSD_OR_LINUX */
 
 	if (res == 0 && ourip)
 		memcpy(ourip, &best_addr, sizeof(*ourip));
