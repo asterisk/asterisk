@@ -722,13 +722,16 @@ static int global_max_se;                     /*!< Highest threshold for session
 
 /*@}*/ 
 
-/* Object counters */
+/*! Object counters @{ 
+ * \bug These counters are not handled in a thread-safe way.  ast_atomic_fetchadd_int()
+ * should be used to modify these values. */
 static int suserobjs = 0;                /*!< Static users */
 static int ruserobjs = 0;                /*!< Realtime users */
 static int speerobjs = 0;                /*!< Statis peers */
 static int rpeerobjs = 0;                /*!< Realtime peers */
 static int apeerobjs = 0;                /*!< Autocreated peer objects */
 static int regobjs = 0;                  /*!< Registry objects */
+/* }@ */
 
 static struct ast_flags global_flags[2] = {{0}};        /*!< global SIP_ flags */
 static char used_context[AST_MAX_CONTEXT]; /*!< name of automatically created context for unloading */
