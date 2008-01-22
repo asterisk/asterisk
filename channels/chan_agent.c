@@ -30,6 +30,9 @@
  *
  * \ingroup channel_drivers
  */
+/*** MODULEINFO
+        <depend>chan_local</depend>
+ ***/
 
 #include "asterisk.h"
 
