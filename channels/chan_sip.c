@@ -185,6 +185,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define TRUE     1
 #endif
 
+#define	SIPBUFSIZE		512
+
 #define XMIT_ERROR		-2
 
 /* #define VOCAL_DATA_HACK */
@@ -1103,9 +1105,9 @@ struct sip_refer {
 	char referred_by[AST_MAX_EXTENSION];		/*!< Place to store REFERRED-BY extension */
 	char referred_by_name[AST_MAX_EXTENSION];	/*!< Place to store REFERRED-BY extension */
 	char refer_contact[AST_MAX_EXTENSION];		/*!< Place to store Contact info from a REFER extension */
-	char replaces_callid[BUFSIZ];			/*!< Replace info: callid */
-	char replaces_callid_totag[BUFSIZ/2];		/*!< Replace info: to-tag */
-	char replaces_callid_fromtag[BUFSIZ/2];		/*!< Replace info: from-tag */
+	char replaces_callid[SIPBUFSIZE];			/*!< Replace info: callid */
+	char replaces_callid_totag[SIPBUFSIZE/2];		/*!< Replace info: to-tag */
+	char replaces_callid_fromtag[SIPBUFSIZE/2];		/*!< Replace info: from-tag */
 	struct sip_pvt *refer_call;			/*!< Call we are referring. This is just a reference to a
 							 * dialog owned by someone else, so we should not destroy
 							 * it when the sip_refer object goes.
@@ -4037,7 +4039,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 
 	if (p->options->transfer) {
-		char buf[BUFSIZ/2];
+		char buf[SIPBUFSIZE/2];
 
 		if (referer) {
 			if (sipdebug)
@@ -5029,7 +5031,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	int text;
 	int needvideo = 0;
 	int needtext = 0;
-	char buf[BUFSIZ];
+	char buf[SIPBUFSIZE];
 	char *decoded_exten;
 
 	{
@@ -5073,12 +5075,12 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	/* Set the native formats for audio  and merge in video */
 	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1) | video | text;
-	ast_debug(3, "*** Our native formats are %s \n", ast_getformatname_multiple(buf, BUFSIZ, tmp->nativeformats));
-	ast_debug(3, "*** Joint capabilities are %s \n", ast_getformatname_multiple(buf, BUFSIZ, i->jointcapability));
-	ast_debug(3, "*** Our capabilities are %s \n", ast_getformatname_multiple(buf, BUFSIZ, i->capability));
-	ast_debug(3, "*** AST_CODEC_CHOOSE formats are %s \n", ast_getformatname_multiple(buf, BUFSIZ, ast_codec_choose(&i->prefs, what, 1)));
+	ast_debug(3, "*** Our native formats are %s \n", ast_getformatname_multiple(buf, SIPBUFSIZE, tmp->nativeformats));
+	ast_debug(3, "*** Joint capabilities are %s \n", ast_getformatname_multiple(buf, SIPBUFSIZE, i->jointcapability));
+	ast_debug(3, "*** Our capabilities are %s \n", ast_getformatname_multiple(buf, SIPBUFSIZE, i->capability));
+	ast_debug(3, "*** AST_CODEC_CHOOSE formats are %s \n", ast_getformatname_multiple(buf, SIPBUFSIZE, ast_codec_choose(&i->prefs, what, 1)));
 	if (i->prefcodec)
-		ast_debug(3, "*** Our preferred formats from the incoming channel are %s \n", ast_getformatname_multiple(buf, BUFSIZ, i->prefcodec));
+		ast_debug(3, "*** Our preferred formats from the incoming channel are %s \n", ast_getformatname_multiple(buf, SIPBUFSIZE, i->prefcodec));
 
 	/* XXX Why are we choosing a codec from the native formats?? */
 	fmt = ast_best_codec(tmp->nativeformats);
@@ -6123,7 +6125,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int found_rtpmap_codecs[32];
 	int last_rtpmap_codec=0;
 
-	char buf[BUFSIZ];
+	char buf[SIPBUFSIZE];
 	int rua_version;
 
 	if (!p->rtp) {
@@ -6625,19 +6627,19 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		
 	if (debug) {
 		/* shame on whoever coded this.... */
-		char s1[BUFSIZ], s2[BUFSIZ], s3[BUFSIZ], s4[BUFSIZ], s5[BUFSIZ];
+		char s1[SIPBUFSIZE], s2[SIPBUFSIZE], s3[SIPBUFSIZE], s4[SIPBUFSIZE], s5[SIPBUFSIZE];
 
 		ast_verbose("Capabilities: us - %s, peer - audio=%s/video=%s/text=%s, combined - %s\n",
-			    ast_getformatname_multiple(s1, BUFSIZ, p->capability),
-			    ast_getformatname_multiple(s2, BUFSIZ, peercapability),
-			    ast_getformatname_multiple(s3, BUFSIZ, vpeercapability),
-			    ast_getformatname_multiple(s4, BUFSIZ, tpeercapability),
-			    ast_getformatname_multiple(s5, BUFSIZ, newjointcapability));
+			    ast_getformatname_multiple(s1, SIPBUFSIZE, p->capability),
+			    ast_getformatname_multiple(s2, SIPBUFSIZE, peercapability),
+			    ast_getformatname_multiple(s3, SIPBUFSIZE, vpeercapability),
+			    ast_getformatname_multiple(s4, SIPBUFSIZE, tpeercapability),
+			    ast_getformatname_multiple(s5, SIPBUFSIZE, newjointcapability));
 
 		ast_verbose("Non-codec capabilities (dtmf): us - %s, peer - %s, combined - %s\n",
-			    ast_rtp_lookup_mime_multiple(s1, BUFSIZ, p->noncodeccapability, 0, 0),
-			    ast_rtp_lookup_mime_multiple(s2, BUFSIZ, peernoncodeccapability, 0, 0),
-			    ast_rtp_lookup_mime_multiple(s3, BUFSIZ, newnoncodeccapability, 0, 0));
+			    ast_rtp_lookup_mime_multiple(s1, SIPBUFSIZE, p->noncodeccapability, 0, 0),
+			    ast_rtp_lookup_mime_multiple(s2, SIPBUFSIZE, peernoncodeccapability, 0, 0),
+			    ast_rtp_lookup_mime_multiple(s3, SIPBUFSIZE, newnoncodeccapability, 0, 0));
 	}
 	if (!newjointcapability) {
 		/* If T.38 was not negotiated either, totally bail out... */
@@ -6698,7 +6700,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	/* Ok, we're going with this offer */
-	ast_debug(2, "We're settling with these formats: %s\n", ast_getformatname_multiple(buf, BUFSIZ, p->jointcapability));
+	ast_debug(2, "We're settling with these formats: %s\n", ast_getformatname_multiple(buf, SIPBUFSIZE, p->jointcapability));
 
 	if (!p->owner) 	/* There's no open channel owning us so we can return here. For a re-invite or so, we proceed */
 		return 0;
@@ -6707,10 +6709,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
 	if (!(p->owner->nativeformats & p->jointcapability) && (p->jointcapability & AST_FORMAT_AUDIO_MASK)) {
 		if (debug) {
-			char s1[BUFSIZ], s2[BUFSIZ];
+			char s1[SIPBUFSIZE], s2[SIPBUFSIZE];
 			ast_debug(1, "Oooh, we need to change our audio formats since our peer supports only %s and not %s\n", 
-				ast_getformatname_multiple(s1, BUFSIZ, p->jointcapability),
-				ast_getformatname_multiple(s2, BUFSIZ, p->owner->nativeformats));
+				ast_getformatname_multiple(s1, SIPBUFSIZE, p->jointcapability),
+				ast_getformatname_multiple(s2, SIPBUFSIZE, p->owner->nativeformats));
 		}
 		p->owner->nativeformats = ast_codec_choose(&p->prefs, p->jointcapability, 1) | (p->capability & vpeercapability) | (p->capability & tpeercapability);
 		ast_set_read_format(p->owner, p->owner->readformat);
@@ -6934,7 +6936,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 /*! \brief Add route header into request per learned route */
 static void add_route(struct sip_request *req, struct sip_route *route)
 {
-	char r[BUFSIZ*2], *p;
+	char r[SIPBUFSIZE*2], *p;
 	int n, rem = sizeof(r);
 
 	if (!route)
@@ -7098,7 +7100,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 		snprintf(tmp, sizeof(tmp), "%d", p->expiry);
 		add_header(resp, "Expires", tmp);
 		if (p->expiry) {	/* Only add contact if we have an expiry time */
-			char contact[BUFSIZ];
+			char contact[SIPBUFSIZE];
 			snprintf(contact, sizeof(contact), "%s;expires=%d", p->our_contact, p->expiry);
 			add_header(resp, "Contact", contact);	/* Not when we unregister */
 		}
@@ -7790,8 +7792,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	int min_video_packet_size = 0;
 	int min_text_packet_size = 0;
 
-	char codecbuf[BUFSIZ];
-	char buf[BUFSIZ];
+	char codecbuf[SIPBUFSIZE];
+	char buf[SIPBUFSIZE];
 
 	/* Set the SDP session name */
 	snprintf(subject, sizeof(subject), "s=%s\r\n", ast_strlen_zero(global_sdpsession) ? "-" : global_sdpsession);
@@ -8026,7 +8028,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	/* Update lastrtprx when we send our SDP */
 	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
 
-	ast_debug(3, "Done building SDP. Settling with this capability: %s\n", ast_getformatname_multiple(buf, BUFSIZ, capability));
+	ast_debug(3, "Done building SDP. Settling with this capability: %s\n", ast_getformatname_multiple(buf, SIPBUFSIZE, capability));
 
 	return AST_SUCCESS;
 }
@@ -8195,7 +8197,7 @@ static char *remove_uri_parameters(char *uri)
 /*! \brief Check Contact: URI of SIP message */
 static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 {
-	char stripped[BUFSIZ];
+	char stripped[SIPBUFSIZE];
 	char *c;
 
 	ast_copy_string(stripped, get_header(req, "Contact"), sizeof(stripped));
@@ -8305,8 +8307,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	struct ast_str *invite = ast_str_alloca(256);
 	char from[256];
 	char to[256];
-	char tmp_n[BUFSIZ/2];	/* build a local copy of 'n' if needed */
-	char tmp_l[BUFSIZ/2];	/* build a local copy of 'l' if needed */
+	char tmp_n[SIPBUFSIZE/2];	/* build a local copy of 'n' if needed */
+	char tmp_l[SIPBUFSIZE/2];	/* build a local copy of 'l' if needed */
 	const char *l = NULL;	/* XXX what is this, exactly ? */
 	const char *n = NULL;	/* XXX what is this, exactly ? */
 	const char *urioptions = "";
@@ -8473,7 +8475,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	append_date(&req);
 	if (sipmethod == SIP_REFER) {	/* Call transfer */
 		if (p->refer) {
-			char buf[BUFSIZ];
+			char buf[SIPBUFSIZE];
 			if (!ast_strlen_zero(p->refer->refer_to))
 				add_header(&req, "Refer-To", p->refer->refer_to);
 			if (!ast_strlen_zero(p->refer->referred_by)) {
@@ -8794,7 +8796,7 @@ static int transmit_sip_request(struct sip_pvt *p, struct sip_request *req)
 static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *message, int terminate)
 {
 	struct sip_request req;
-	char tmp[BUFSIZ/2];
+	char tmp[SIPBUFSIZE/2];
 
 	reqprep(&req, p, SIP_NOTIFY, 0, 1);
 	snprintf(tmp, sizeof(tmp), "refer;id=%d", cseq);
@@ -9422,7 +9424,7 @@ static void reg_source_db(struct sip_peer *peer)
 /*! \brief Save contact header for 200 OK on INVITE */
 static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 {
-	char contact[BUFSIZ]; 
+	char contact[SIPBUFSIZE]; 
 	char *c;
 
 	/* Look for brackets */
@@ -9495,8 +9497,8 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 /*! \brief Parse contact header and save registration (peer registration) */
 static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *peer, struct sip_request *req)
 {
-	char contact[BUFSIZ]; 
-	char data[BUFSIZ];
+	char contact[SIPBUFSIZE]; 
+	char data[SIPBUFSIZE];
 	const char *expires = get_header(req, "Expires");
 	int expiry = atoi(expires);
 	char *curi, *host, *pt, *curi2;
@@ -12636,7 +12638,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	int realtimepeers;
 	int realtimeusers;
 	int realtimeregs;
-	char codec_buf[BUFSIZ];
+	char codec_buf[SIPBUFSIZE];
 	const char *msg;	/* temporary msg pointer */
 
 	switch (cmd) {
@@ -12866,7 +12868,7 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 		if (cur->subscribed == NONE && !arg->subscriptions) {
 			/* set if SIP transfer in progress */
 			const char *referstatus = cur->refer ? referstatus2str(cur->refer->status) : "";
-			char formatbuf[BUFSIZ/2];
+			char formatbuf[SIPBUFSIZE/2];
 
 			ast_cli(arg->fd, FORMAT, ast_inet_ntoa(dst->sin_addr), 
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
@@ -13112,7 +13114,7 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	dialoglist_lock();
 	for (cur = dialoglist; cur; cur = cur->next) {
 		if (!strncasecmp(cur->callid, a->argv[3], len)) {
-			char formatbuf[BUFSIZ/2];
+			char formatbuf[SIPBUFSIZE/2];
 			ast_cli(a->fd,"\n");
 			if (cur->subscribed != NONE)
 				ast_cli(a->fd, "  * Subscription (type: %s)\n", subscription_type2str(cur->subscribed));
@@ -14126,7 +14128,7 @@ static struct ast_custom_function sipchaninfo_function = {
 /*! \brief Parse 302 Moved temporalily response */
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 {
-	char tmp[BUFSIZ];
+	char tmp[SIPBUFSIZE];
 	char *s, *e, *t;
 	char *domain;
 
@@ -16882,7 +16884,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	}
 	/* Generate a Replaces string to be used in the INVITE during attended transfer */
 	if (!ast_strlen_zero(p->refer->replaces_callid)) {
-		char tempheader[BUFSIZ];
+		char tempheader[SIPBUFSIZE];
 		snprintf(tempheader, sizeof(tempheader), "%s%s%s%s%s", p->refer->replaces_callid, 
 				p->refer->replaces_callid_totag ? ";to-tag=" : "", 
 				p->refer->replaces_callid_totag, 
