@@ -39,7 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/socket.h>
 #include <netdb.h>
 #include <net/if.h>
-#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/ioctl.h>
@@ -51,6 +50,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #if defined(SOLARIS)
 #include <sys/sockio.h>
+#endif
+
+#if defined(__linux__)
+#include <ifaddrs.h>
 #endif
 
 /* netinet/ip.h may not define the following (See RFCs 791 and 1349) */
@@ -86,6 +89,158 @@ struct my_ifreq {
 	struct sockaddr_in ifru_addr;
 };
 
+static void score_address(const struct sockaddr_in *sin, struct in_addr *best_addr, int *best_score)
+{
+	const char *address;
+	int score;
+
+	address = ast_inet_ntoa(sin->sin_addr);
+
+	/* RFC 1700 alias for the local network */
+	if (address[0] == '0')
+		score = -25;
+	/* RFC 1700 localnet */
+	else if (strncmp(address, "127", 3) == 0)
+		score = -20;
+	/* RFC 1918 non-public address space */
+	else if (strncmp(address, "10.", 3) == 0)
+		score = -5;
+	/* RFC 1918 non-public address space */
+	else if (strncmp(address, "172", 3) == 0) {
+		/* 172.16.0.0 - 172.19.255.255, but not 172.160.0.0 - 172.169.255.255 */
+		if (address[4] == '1' && address[5] >= '6' && address[6] == '.')
+			score = -5;
+		/* 172.20.0.0 - 172.29.255.255, but not 172.200.0.0 - 172.255.255.255 nor 172.2.0.0 - 172.2.255.255 */
+		else if (address[4] == '2' && address[6] == '.')
+			score = -5;
+		/* 172.30.0.0 - 172.31.255.255 */
+		else if (address[4] == '3' && address[5] <= '1')
+			score = -5;
+		/* All other 172 addresses are public */
+		else
+			score = 0;
+	/* RFC 2544 Benchmark test range */
+	} else if (strncmp(address, "198.1", 5) == 0 && address[5] >= '8' && address[6] == '.')
+		score = -10;
+	/* RFC 1918 non-public address space */
+	else if (strncmp(address, "192.168", 7) == 0)
+		score = -5;
+	/* RFC 3330 Zeroconf network */
+	else if (strncmp(address, "169.254", 7) == 0)
+		/*!\note Better score than a test network, but not quite as good as RFC 1918
+		 * address space.  The reason is that some Linux distributions automatically
+		 * configure a Zeroconf address before trying DHCP, so we want to prefer a
+		 * DHCP lease to a Zeroconf address.
+		 */
+		score = -10;
+	/* RFC 3330 Test network */
+	else if (strncmp(address, "192.0.2.", 8) == 0)
+		score = -15;
+	/* Every other address should be publically routable */
+	else
+		score = 0;
+
+	if (score > *best_score) {
+		*best_score = score;
+		memcpy(best_addr, &sin->sin_addr, sizeof(*best_addr));
+	}
+}
+
+static int get_local_address(struct in_addr *ourip)
+{
+	int s, res = -1;
+#ifdef _SOLARIS
+	struct lifreq *ifr = NULL;
+	struct lifnum ifn;
+	struct lifconf ifc;
+	struct sockaddr_in *sa;
+	char *buf = NULL;
+	int bufsz, x;
+#endif /* _SOLARIS */
+#if defined(_BSD) || defined(__linux__)
+	struct ifaddrs *ifap, *ifaphead;
+	int rtnerr;
+	const struct sockaddr_in *sin;
+#endif /* defined(_BSD) || defined(_LINUX) */
+	struct in_addr best_addr = { 0, };
+	int best_score = -100;
+
+#if defined(_BSD) || defined(__linux__)
+	rtnerr = getifaddrs(&ifaphead);
+	if (rtnerr) {
+		perror(NULL);
+		return -1;
+	}
+#endif /* BSD_OR_LINUX */
+
+	s = socket(AF_INET, SOCK_STREAM, 0);
+
+	if (s > 0) {
+#if defined(_BSD) || defined(__linux__)
+		for (ifap = ifaphead; ifap; ifap = ifap->ifa_next) {
+
+			if (ifap->ifa_addr->sa_family == AF_INET) {
+				sin = (const struct sockaddr_in *) ifap->ifa_addr;
+				score_address(sin, &best_addr, &best_score);
+				res = 0;
+
+				if (best_score == 0)
+					break;
+			}
+		}
+#endif /* _BSD */
+
+		/* There is no reason whatsoever that this shouldn't work on Linux or BSD also. */
+#ifdef _SOLARIS
+		/* Get a count of interfaces on the machine */
+		ifn.lifn_family = AF_INET;
+		ifn.lifn_flags = 0;
+		ifn.lifn_count = 0;
+		if (ioctl(s, SIOCGLIFNUM, &ifn) < 0) {
+			close(s);
+			return -1;
+		}
+
+		bufsz = ifn.lifn_count * sizeof(struct lifreq);
+		if (!(buf = malloc(bufsz))) {
+			close(s);
+			return -1;
+		}
+		memset(buf, 0, bufsz);
+
+		/* Get a list of interfaces on the machine */
+		ifc.lifc_len = bufsz;
+		ifc.lifc_buf = buf;
+		ifc.lifc_family = AF_INET;
+		ifc.lifc_flags = 0;
+		if (ioctl(s, SIOCGLIFCONF, &ifc) < 0) {
+			close(s);
+			free(buf);
+			return -1;
+		}
+
+		for (ifr = (struct lifreq *)buf, x = 0; x < ifn.lifn_count; ifr++, x++) {
+			sa = (struct sockaddr_in *)&(ifr->lifr_addr);
+			score_address(sin, &best_addr, &best_score);
+			res = 0;
+
+			if (best_score == 0)
+				break;
+		}
+
+		free(buf);
+#endif /* _SOLARIS */
+		
+		close(s);
+	}
+#if defined(_BSD) || defined(__linux__)
+	freeifaddrs(ifaphead);
+#endif
+
+	if (res == 0 && ourip)
+		memcpy(ourip, &best_addr, sizeof(*ourip));
+	return res;
+}
 /* Free HA structure */
 void ast_free_ha(struct ast_ha *ha)
 {
@@ -422,6 +577,6 @@ int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 	/* A.ROOT-SERVERS.NET. */
 	if (inet_aton("198.41.0.4", &saddr) && !ast_ouraddrfor(&saddr, ourip))
 		return 0;
-	return -1;
+	return get_local_address(ourip);
 }
 
