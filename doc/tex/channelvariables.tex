@@ -736,6 +736,7 @@ ignored.
 ${CDR(accountcode)}    * Account code (if specified)
 ${BLINDTRANSFER}         The name of the channel on the other side of a blind transfer
 ${BRIDGEPEER}            Bridged peer
+${BRIDGEPVTCALLID}       Bridged peer PVT call ID (SIP Call ID if a SIP call)
 ${CALLERID(ani)}       * Caller ANI (PRI channels)
 ${CALLERID(ani2)}      * ANI2 (Info digits) also called Originating line information or OLI
 ${CALLERID(all)}       * Caller ID
@@ -777,8 +778,9 @@ ${SYSTEMNAME}          * value of the systemname option of asterisk.conf
 
 \subsection{Application return values}
 
-In Asterisk 1.2, many applications return the result in a variable
-instead of, as in Asterisk 1.0, changing the dial plan priority (+101).
+Many applications return the result in a variable that you read to
+get the result of the application. These status fields are unique
+for each application.
 For the various status values, see each application's help text.
 \begin{verbatim}
 ${AGISTATUS}         * agi()
