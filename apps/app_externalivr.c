@@ -51,7 +51,7 @@ static const char *app = "ExternalIVR";
 static const char *synopsis = "Interfaces with an external IVR application";
 
 static const char *descrip = 
-"  ExternalIVR(command[,arg[,arg...]]): Forks an process to run the supplied command,\n"
+"  ExternalIVR(command[,arg[,arg...]]): Forks a process to run the supplied command,\n"
 "and starts a generator on the channel. The generator's play list is\n"
 "controlled by the external application, which can add and clear entries\n"
 "via simple commands issued over its stdout. The external application\n"
