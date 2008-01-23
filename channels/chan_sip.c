@@ -14290,7 +14290,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			}
 		}
 		if (find_sdp(req)) {
-			p->invitestate = INV_EARLY_MEDIA;
+			if (p->invitestate != INV_CANCELLED)
+				p->invitestate = INV_EARLY_MEDIA;
 			res = process_sdp(p, req);
 			if (!req->ignore && p->owner) {
 				/* Queue a progress frame only if we have SDP in 180 or 182 */
@@ -14305,7 +14306,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			sip_cancel_destroy(p);
 		/* Ignore 183 Session progress without SDP */
 		if (find_sdp(req)) {
-			p->invitestate = INV_EARLY_MEDIA;
+			if (p->invitestate != INV_CANCELLED)
+				p->invitestate = INV_EARLY_MEDIA;
 			res = process_sdp(p, req);
 			if (!req->ignore && p->owner) {
 				/* Queue a progress frame */
