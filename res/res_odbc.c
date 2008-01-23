@@ -473,7 +473,7 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 
 	if (obj && check) {
 		ast_odbc_sanity_check(obj);
-	} else if (obj->parent->idlecheck > 0 && ast_tvdiff_ms(ast_tvnow(), obj->last_used) / 1000 > obj->parent->idlecheck)
+	} else if (obj && obj->parent->idlecheck > 0 && ast_tvdiff_ms(ast_tvnow(), obj->last_used) / 1000 > obj->parent->idlecheck)
 		odbc_obj_connect(obj);
 
 	return obj;
