@@ -109,4 +109,7 @@ struct ast_call_feature *ast_find_call_feature(const char *name);
 void ast_rdlock_call_features(void);
 void ast_unlock_call_features(void);
 
+/*! \brief Reload call features from features.conf */
+int ast_features_reload(void);
+
 #endif /* _AST_FEATURES_H */

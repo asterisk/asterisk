@@ -32,6 +32,7 @@ void ast_event_init(void);		/*!< Provided by event.c */
 int ast_device_state_engine_init(void);	/*!< Provided by devicestate.c */
 int astobj2_init(void);			/*!< Provided by astobj2.c */
 int ast_file_init(void);		/*!< Provided by file.c */
+int ast_features_init(void);            /*!< Provided by features.c */
 
 /*!
  * \brief Reload asterisk modules.

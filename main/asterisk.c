@@ -96,6 +96,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/network.h"
 #include "asterisk/cli.h"
 #include "asterisk/channel.h"
+#include "asterisk/features.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"
 #include "asterisk/callerid.h"
@@ -3164,6 +3165,8 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+
+	ast_features_init();
 
 	if (init_framer()) {
 		printf(term_quit());

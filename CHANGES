@@ -409,6 +409,8 @@ Call Features (res_features) Changes
   * Updated the ParkedCall application to allow you to not specify a parking
      extension.  If you don't specify a parking space to pick up, it will grab
      the first one available.
+  * Added cli command 'features reload' to reload call features from features.conf
+  * Moved into core asterisk binary.
 
 Language Support Changes
 ------------------------
@@ -498,4 +500,3 @@ Miscellaneous
      specifying which socket to use to connect to the running Asterisk daemon
      (-s)
   * Added logging to 'make update' command.  See update.log
-

@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2008, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -30,6 +30,8 @@
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/_private.h"
 
 #include <pthread.h>
 #include <sys/time.h>
@@ -126,7 +128,7 @@ static unsigned int atxferdropcall;
 static unsigned int atxferloopdelay;
 static unsigned int atxfercallbackretries;
 
-static char *registrar = "res_features";		   /*!< Registrar for operations */
+static char *registrar = "features";		   /*!< Registrar for operations */
 
 /* module and CLI command definitions */
 static char *synopsis = "Answer a parked call";
@@ -599,9 +601,6 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 	struct ast_channel *parker;
         struct ast_channel *parkee;
 	int res = 0;
-	struct ast_module_user *u;
-
-	u = ast_module_user_add(chan);
 
 	set_peers(&parker, &parkee, peer, chan, sense);
 	/* Setup the exten/priority to be s/1 since we don't know
@@ -614,8 +613,6 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 		res = ast_safe_sleep(chan, 1000);
 	if (!res)
 		res = ast_park_call(parkee, parker, 0, NULL);
-
-	ast_module_user_remove(u);
 
 	if (!res) {
 		if (sense == FEATURE_SENSE_CHAN)
@@ -675,7 +672,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	
 	if (callee_chan->monitor) {
 		ast_verb(4, "User hit '%s' to stop recording call.\n", code);
-		ast_monitor_stop(callee_chan, 1);
+		callee_chan->monitor->stop(callee_chan, 1);
 		return FEATURE_RETURN_SUCCESS;
 	}
 
@@ -2511,425 +2508,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-/*!
- * \brief CLI command to list configured features
- * \param e
- * \param cmd
- * \param a
- *
- * \retval CLI_SUCCESS on success.
- * \retval NULL when tab completion is used.
- */
-static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a) {
-	int i;
-	struct ast_call_feature *feature;
-	char format[] = "%-25s %-7s %-7s\n";
-
-	switch (cmd) {
-	
-	case CLI_INIT:
-		e->command = "features show";
-		e->usage =
-			"Usage: features show\n"
-			"       Lists configured features\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-        }
-
-	ast_cli(a->fd, format, "Builtin Feature", "Default", "Current");
-	ast_cli(a->fd, format, "---------------", "-------", "-------");
-
-	ast_cli(a->fd, format, "Pickup", "*8", ast_pickup_ext());          /* default hardcoded above, so we'll hardcode it here */
-
-	ast_rwlock_rdlock(&features_lock);
-	for (i = 0; i < FEATURES_COUNT; i++)
-		ast_cli(a->fd, format, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
-	ast_rwlock_unlock(&features_lock);
-
-	ast_cli(a->fd, "\n");
-	ast_cli(a->fd, format, "Dynamic Feature", "Default", "Current");
-	ast_cli(a->fd, format, "---------------", "-------", "-------");
-	if (AST_LIST_EMPTY(&feature_list))
-		ast_cli(a->fd, "(none)\n");
-	else {
-		AST_LIST_LOCK(&feature_list);
-		AST_LIST_TRAVERSE(&feature_list, feature, feature_entry)
-			ast_cli(a->fd, format, feature->sname, "no def", feature->exten);
-		AST_LIST_UNLOCK(&feature_list);
-	}
-	ast_cli(a->fd, "\nCall parking\n");
-	ast_cli(a->fd, "------------\n");
-	ast_cli(a->fd,"%-20s:      %s\n", "Parking extension", parking_ext);
-	ast_cli(a->fd,"%-20s:      %s\n", "Parking context", parking_con);
-	ast_cli(a->fd,"%-20s:      %d-%d\n", "Parked call extensions", parking_start, parking_stop);
-	ast_cli(a->fd,"\n");
-
-	return CLI_SUCCESS;
-}
-
-static char mandescr_bridge[] =
-"Description: Bridge together two channels already in the PBX\n"
-"Variables: ( Headers marked with * are required )\n"
-"   *Channel1: Channel to Bridge to Channel2\n"
-"   *Channel2: Channel to Bridge to Channel1\n"
-"        Tone: (Yes|No) Play courtesy tone to Channel 2\n"
-"\n";
-
-/*!
- * \brief Actual bridge
- * \param chan
- * \param tmpchan
- * 
- * Stop hold music, lock both channels, masq channels,
- * after bridge return channel to next priority.
-*/
-static void do_bridge_masquerade(struct ast_channel *chan, struct ast_channel *tmpchan)
-{
-	ast_moh_stop(chan);
-	ast_channel_lock(chan);
-	ast_setstate(tmpchan, chan->_state);
-	tmpchan->readformat = chan->readformat;
-	tmpchan->writeformat = chan->writeformat;
-	ast_channel_masquerade(tmpchan, chan);
-	ast_channel_lock(tmpchan);
-	ast_do_masquerade(tmpchan);
-	/* when returning from bridge, the channel will continue at the next priority */
-	ast_explicit_goto(tmpchan, chan->context, chan->exten, chan->priority + 1);
-	ast_channel_unlock(tmpchan);
-	ast_channel_unlock(chan);
-}
-
-/*!
- * \brief Bridge channels together
- * \param s
- * \param m
- * 
- * Make sure valid channels were specified, 
- * send errors if any of the channels could not be found/locked, answer channels if needed,
- * create the placeholder channels and grab the other channels 
- * make the channels compatible, send error if we fail doing so 
- * setup the bridge thread object and start the bridge.
- * 
- * \retval 0 on success or on incorrect use.
- * \retval 1 on failure to bridge channels.
-*/
-static int action_bridge(struct mansession *s, const struct message *m)
-{
-	const char *channela = astman_get_header(m, "Channel1");
-	const char *channelb = astman_get_header(m, "Channel2");
-	const char *playtone = astman_get_header(m, "Tone");
-	struct ast_channel *chana = NULL, *chanb = NULL;
-	struct ast_channel *tmpchana = NULL, *tmpchanb = NULL;
-	struct ast_bridge_thread_obj *tobj = NULL;
-
-	/* make sure valid channels were specified */
-	if (!ast_strlen_zero(channela) && !ast_strlen_zero(channelb)) {
-		chana = ast_get_channel_by_name_prefix_locked(channela, strlen(channela));
-		chanb = ast_get_channel_by_name_prefix_locked(channelb, strlen(channelb));
-		if (chana)
-			ast_channel_unlock(chana);
-		if (chanb)
-			ast_channel_unlock(chanb);
-
-		/* send errors if any of the channels could not be found/locked */
-		if (!chana) {
-			char buf[256];
-			snprintf(buf, sizeof(buf), "Channel1 does not exists: %s", channela);
-			astman_send_error(s, m, buf);
-			return 0;
-		}
-		if (!chanb) {
-			char buf[256];
-			snprintf(buf, sizeof(buf), "Channel2 does not exists: %s", channelb);
-			astman_send_error(s, m, buf);
-			return 0;
-		}
-	} else {
-		astman_send_error(s, m, "Missing channel parameter in request");
-		return 0;
-	}
-
-	/* Answer the channels if needed */
-	if (chana->_state != AST_STATE_UP)
-		ast_answer(chana);
-	if (chanb->_state != AST_STATE_UP)
-		ast_answer(chanb);
-
-	/* create the placeholder channels and grab the other channels */
-	if (!(tmpchana = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
-		NULL, NULL, 0, "Bridge/%s", chana->name))) {
-		astman_send_error(s, m, "Unable to create temporary channel!");
-		return 1;
-	}
-
-	if (!(tmpchanb = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
-		NULL, NULL, 0, "Bridge/%s", chanb->name))) {
-		astman_send_error(s, m, "Unable to create temporary channels!");
-		ast_channel_free(tmpchana);
-		return 1;
-	}
-
-	do_bridge_masquerade(chana, tmpchana);
-	do_bridge_masquerade(chanb, tmpchanb);
-	
-	/* make the channels compatible, send error if we fail doing so */
-	if (ast_channel_make_compatible(tmpchana, tmpchanb)) {
-		ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for manager bridge\n", tmpchana->name, tmpchanb->name);
-		astman_send_error(s, m, "Could not make channels compatible for manager bridge");
-		ast_hangup(tmpchana);
-		ast_hangup(tmpchanb);
-		return 1;
-	}
-
-	/* setup the bridge thread object and start the bridge */
-	if (!(tobj = ast_calloc(1, sizeof(*tobj)))) {
-		ast_log(LOG_WARNING, "Unable to spawn a new bridge thread on %s and %s: %s\n", tmpchana->name, tmpchanb->name, strerror(errno));
-		astman_send_error(s, m, "Unable to spawn a new bridge thread");
-		ast_hangup(tmpchana);
-		ast_hangup(tmpchanb);
-		return 1;
-	}
-
-	tobj->chan = tmpchana;
-	tobj->peer = tmpchanb;
-	tobj->return_to_pbx = 1;
-	
-	if (ast_true(playtone)) {
-		if (!ast_strlen_zero(xfersound) && !ast_streamfile(tmpchanb, xfersound, tmpchanb->language)) {
-			if (ast_waitstream(tmpchanb, "") < 0)
-				ast_log(LOG_WARNING, "Failed to play a courtesy tone on chan %s\n", tmpchanb->name);
-		}
-	}
-
-	ast_bridge_call_thread_launch(tobj);
-
-	astman_send_ack(s, m, "Launched bridge thread with success");
-
-	return 0;
-}
-
-/*!
- * \brief CLI command to list parked calls
- * \param e 
- * \param cmd
- * \param a
- *  
- * Check right usage, lock parking lot, display parked calls, unlock parking lot list.
- * \retval CLI_SUCCESS on success.
- * \retval CLI_SHOWUSAGE on incorrect number of arguments.
- * \retval NULL when tab completion is used.
-*/
-static char *handle_parkedcalls(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	struct parkeduser *cur;
-	int numparked = 0;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "parkedcalls show";
-		e->usage =
-			"Usage: parkedcalls show\n"
-			"       List currently parked calls\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc > e->args)
-		return CLI_SHOWUSAGE;
-
-	ast_cli(a->fd, "%4s %25s (%-15s %-12s %-4s) %-6s \n", "Num", "Channel"
-		, "Context", "Extension", "Pri", "Timeout");
-
-	AST_LIST_LOCK(&parkinglot);
-	AST_LIST_TRAVERSE(&parkinglot, cur, list) {
-		ast_cli(a->fd, "%-10.10s %25s (%-15s %-12s %-4d) %6lds\n"
-			,cur->parkingexten, cur->chan->name, cur->context, cur->exten
-			,cur->priority, cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL));
-
-		numparked++;
-	}
-	AST_LIST_UNLOCK(&parkinglot);
-	ast_cli(a->fd, "%d parked call%s.\n", numparked, ESS(numparked));
-
-
-	return CLI_SUCCESS;
-}
-
-static char *handle_parkedcalls_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	char *res = handle_parkedcalls(e, cmd, a);
-	if (cmd == CLI_INIT)
-		e->command = "show parkedcalls";
-	return res;
-}
-
-static struct ast_cli_entry cli_show_parkedcalls_deprecated = AST_CLI_DEFINE(handle_parkedcalls_deprecated, "List currently parked calls.");
-
-static struct ast_cli_entry cli_features[] = {
-	AST_CLI_DEFINE(handle_feature_show, "Lists configured features"),
-	AST_CLI_DEFINE(handle_parkedcalls, "List currently parked calls", .deprecate_cmd = &cli_show_parkedcalls_deprecated),
-};
-
-/*! 
- * \brief Dump parking lot status
- * \param s
- * \param m
- * 
- * Lock parking lot, iterate list and append parked calls status, unlock parking lot.
- * \return Always RESULT_SUCCESS 
-*/
-static int manager_parking_status(struct mansession *s, const struct message *m)
-{
-	struct parkeduser *cur;
-	const char *id = astman_get_header(m, "ActionID");
-	char idText[256] = "";
-
-	if (!ast_strlen_zero(id))
-		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
-
-	astman_send_ack(s, m, "Parked calls will follow");
-
-	AST_LIST_LOCK(&parkinglot);
-
-	AST_LIST_TRAVERSE(&parkinglot, cur, list) {
-		astman_append(s, "Event: ParkedCall\r\n"
-			"Exten: %d\r\n"
-			"Channel: %s\r\n"
-			"From: %s\r\n"
-			"Timeout: %ld\r\n"
-			"CallerIDNum: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"%s"
-			"\r\n",
-			cur->parkingnum, cur->chan->name, cur->peername,
-			(long) cur->start.tv_sec + (long) (cur->parkingtime / 1000) - (long) time(NULL),
-			S_OR(cur->chan->cid.cid_num, ""),	/* XXX in other places it is <unknown> */
-			S_OR(cur->chan->cid.cid_name, ""),
-			idText);
-	}
-
-	astman_append(s,
-		"Event: ParkedCallsComplete\r\n"
-		"%s"
-		"\r\n",idText);
-
-	AST_LIST_UNLOCK(&parkinglot);
-
-	return RESULT_SUCCESS;
-}
-
-static char mandescr_park[] =
-"Description: Park a channel.\n"
-"Variables: (Names marked with * are required)\n"
-"	*Channel: Channel name to park\n"
-"	*Channel2: Channel to announce park info to (and return to if timeout)\n"
-"	Timeout: Number of milliseconds to wait before callback.\n";  
-
-/*!
- * \brief Create manager event for parked calls
- * \param s
- * \param m
- *
- * Get channels involved in park, create event.
- * \return Always 0
-*/
-static int manager_park(struct mansession *s, const struct message *m)
-{
-	const char *channel = astman_get_header(m, "Channel");
-	const char *channel2 = astman_get_header(m, "Channel2");
-	const char *timeout = astman_get_header(m, "Timeout");
-	char buf[BUFSIZ];
-	int to = 0;
-	int res = 0;
-	int parkExt = 0;
-	struct ast_channel *ch1, *ch2;
-
-	if (ast_strlen_zero(channel)) {
-		astman_send_error(s, m, "Channel not specified");
-		return 0;
-	}
-
-	if (ast_strlen_zero(channel2)) {
-		astman_send_error(s, m, "Channel2 not specified");
-		return 0;
-	}
-
-	ch1 = ast_get_channel_by_name_locked(channel);
-	if (!ch1) {
-		snprintf(buf, sizeof(buf), "Channel does not exist: %s", channel);
-		astman_send_error(s, m, buf);
-		return 0;
-	}
-
-	ch2 = ast_get_channel_by_name_locked(channel2);
-	if (!ch2) {
-		snprintf(buf, sizeof(buf), "Channel does not exist: %s", channel2);
-		astman_send_error(s, m, buf);
-		ast_channel_unlock(ch1);
-		return 0;
-	}
-
-	if (!ast_strlen_zero(timeout)) {
-		sscanf(timeout, "%d", &to);
-	}
-
-	res = ast_masq_park_call(ch1, ch2, to, &parkExt);
-	if (!res) {
-		ast_softhangup(ch2, AST_SOFTHANGUP_EXPLICIT);
-		astman_send_ack(s, m, "Park successful");
-	} else {
-		astman_send_error(s, m, "Park failure");
-	}
-
-	ast_channel_unlock(ch1);
-	ast_channel_unlock(ch2);
-
-	return 0;
-}
-
-/*!
- * \brief Pickup a call
- * \param chan channel that initiated pickup.
- *
- * Walk list of channels, checking it is not itself, channel is pbx one,
- * check that the callgroup for both channels are the same and the channel is ringing.
- * Answer calling channel, flag channel as answered on queue, masq channels together.
-*/
-int ast_pickup_call(struct ast_channel *chan)
-{
-	struct ast_channel *cur = NULL;
-	int res = -1;
-
-	while ((cur = ast_channel_walk_locked(cur)) != NULL) {
-		if (!cur->pbx && 
-			(cur != chan) &&
-			(chan->pickupgroup & cur->callgroup) &&
-			((cur->_state == AST_STATE_RINGING) ||
-			 (cur->_state == AST_STATE_RING))) {
-			 	break;
-		}
-		ast_channel_unlock(cur);
-	}
-	if (cur) {
-		ast_debug(1, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
-		res = ast_answer(chan);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
-		res = ast_queue_control(chan, AST_CONTROL_ANSWER);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
-		res = ast_channel_masquerade(cur, chan);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
-		ast_channel_unlock(cur);
-	} else	{
-		ast_debug(1, "No call pickup possible...\n");
-	}
-	return res;
-}
-
 /*! 
  * \brief Add parking hints for all defined parking lots 
  * \param context
@@ -2948,7 +2526,6 @@ static void park_add_hints(char *context, int start, int stop)
 		ast_add_extension(context, 1, exten, PRIORITY_HINT, NULL, NULL, device, NULL, NULL, registrar);
 	}
 }
-
 
 static int load_config(void) 
 {
@@ -3005,7 +2582,7 @@ static int load_config(void)
 	cfg = ast_config_load("features.conf", config_flags);
 	if (!cfg) {
 		ast_log(LOG_WARNING,"Could not load features.conf\n");
-		return AST_MODULE_LOAD_DECLINE;
+		return 0;
 	}
 	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
 		if (!strcasecmp(var->name, "parkext")) {
@@ -3240,6 +2817,451 @@ static int load_config(void)
 
 }
 
+/*!
+ * \brief CLI command to list configured features
+ * \param e
+ * \param cmd
+ * \param a
+ *
+ * \retval CLI_SUCCESS on success.
+ * \retval NULL when tab completion is used.
+ */
+static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int i;
+	struct ast_call_feature *feature;
+	char format[] = "%-25s %-7s %-7s\n";
+
+	switch (cmd) {
+	
+	case CLI_INIT:
+		e->command = "features show";
+		e->usage =
+			"Usage: features show\n"
+			"       Lists configured features\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+        }
+
+	ast_cli(a->fd, format, "Builtin Feature", "Default", "Current");
+	ast_cli(a->fd, format, "---------------", "-------", "-------");
+
+	ast_cli(a->fd, format, "Pickup", "*8", ast_pickup_ext());          /* default hardcoded above, so we'll hardcode it here */
+
+	ast_rwlock_rdlock(&features_lock);
+	for (i = 0; i < FEATURES_COUNT; i++)
+		ast_cli(a->fd, format, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
+	ast_rwlock_unlock(&features_lock);
+
+	ast_cli(a->fd, "\n");
+	ast_cli(a->fd, format, "Dynamic Feature", "Default", "Current");
+	ast_cli(a->fd, format, "---------------", "-------", "-------");
+	if (AST_LIST_EMPTY(&feature_list))
+		ast_cli(a->fd, "(none)\n");
+	else {
+		AST_LIST_LOCK(&feature_list);
+		AST_LIST_TRAVERSE(&feature_list, feature, feature_entry)
+			ast_cli(a->fd, format, feature->sname, "no def", feature->exten);
+		AST_LIST_UNLOCK(&feature_list);
+	}
+	ast_cli(a->fd, "\nCall parking\n");
+	ast_cli(a->fd, "------------\n");
+	ast_cli(a->fd,"%-20s:      %s\n", "Parking extension", parking_ext);
+	ast_cli(a->fd,"%-20s:      %s\n", "Parking context", parking_con);
+	ast_cli(a->fd,"%-20s:      %d-%d\n", "Parked call extensions", parking_start, parking_stop);
+	ast_cli(a->fd,"\n");
+
+	return CLI_SUCCESS;
+}
+
+int ast_features_reload(void)
+{
+	load_config();
+
+	return RESULT_SUCCESS;
+}
+
+static char *handle_features_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {	
+	case CLI_INIT:
+		e->command = "features reload";
+		e->usage =
+			"Usage: features reload\n"
+			"       Reloads configured call features from features.conf\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+        }
+	load_config();
+
+	return CLI_SUCCESS;
+}
+
+static char mandescr_bridge[] =
+"Description: Bridge together two channels already in the PBX\n"
+"Variables: ( Headers marked with * are required )\n"
+"   *Channel1: Channel to Bridge to Channel2\n"
+"   *Channel2: Channel to Bridge to Channel1\n"
+"        Tone: (Yes|No) Play courtesy tone to Channel 2\n"
+"\n";
+
+/*!
+ * \brief Actual bridge
+ * \param chan
+ * \param tmpchan
+ * 
+ * Stop hold music, lock both channels, masq channels,
+ * after bridge return channel to next priority.
+*/
+static void do_bridge_masquerade(struct ast_channel *chan, struct ast_channel *tmpchan)
+{
+	ast_moh_stop(chan);
+	ast_channel_lock(chan);
+	ast_setstate(tmpchan, chan->_state);
+	tmpchan->readformat = chan->readformat;
+	tmpchan->writeformat = chan->writeformat;
+	ast_channel_masquerade(tmpchan, chan);
+	ast_channel_lock(tmpchan);
+	ast_do_masquerade(tmpchan);
+	/* when returning from bridge, the channel will continue at the next priority */
+	ast_explicit_goto(tmpchan, chan->context, chan->exten, chan->priority + 1);
+	ast_channel_unlock(tmpchan);
+	ast_channel_unlock(chan);
+}
+
+/*!
+ * \brief Bridge channels together
+ * \param s
+ * \param m
+ * 
+ * Make sure valid channels were specified, 
+ * send errors if any of the channels could not be found/locked, answer channels if needed,
+ * create the placeholder channels and grab the other channels 
+ * make the channels compatible, send error if we fail doing so 
+ * setup the bridge thread object and start the bridge.
+ * 
+ * \retval 0 on success or on incorrect use.
+ * \retval 1 on failure to bridge channels.
+*/
+static int action_bridge(struct mansession *s, const struct message *m)
+{
+	const char *channela = astman_get_header(m, "Channel1");
+	const char *channelb = astman_get_header(m, "Channel2");
+	const char *playtone = astman_get_header(m, "Tone");
+	struct ast_channel *chana = NULL, *chanb = NULL;
+	struct ast_channel *tmpchana = NULL, *tmpchanb = NULL;
+	struct ast_bridge_thread_obj *tobj = NULL;
+
+	/* make sure valid channels were specified */
+	if (!ast_strlen_zero(channela) && !ast_strlen_zero(channelb)) {
+		chana = ast_get_channel_by_name_prefix_locked(channela, strlen(channela));
+		chanb = ast_get_channel_by_name_prefix_locked(channelb, strlen(channelb));
+		if (chana)
+			ast_channel_unlock(chana);
+		if (chanb)
+			ast_channel_unlock(chanb);
+
+		/* send errors if any of the channels could not be found/locked */
+		if (!chana) {
+			char buf[256];
+			snprintf(buf, sizeof(buf), "Channel1 does not exists: %s", channela);
+			astman_send_error(s, m, buf);
+			return 0;
+		}
+		if (!chanb) {
+			char buf[256];
+			snprintf(buf, sizeof(buf), "Channel2 does not exists: %s", channelb);
+			astman_send_error(s, m, buf);
+			return 0;
+		}
+	} else {
+		astman_send_error(s, m, "Missing channel parameter in request");
+		return 0;
+	}
+
+	/* Answer the channels if needed */
+	if (chana->_state != AST_STATE_UP)
+		ast_answer(chana);
+	if (chanb->_state != AST_STATE_UP)
+		ast_answer(chanb);
+
+	/* create the placeholder channels and grab the other channels */
+	if (!(tmpchana = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
+		NULL, NULL, 0, "Bridge/%s", chana->name))) {
+		astman_send_error(s, m, "Unable to create temporary channel!");
+		return 1;
+	}
+
+	if (!(tmpchanb = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
+		NULL, NULL, 0, "Bridge/%s", chanb->name))) {
+		astman_send_error(s, m, "Unable to create temporary channels!");
+		ast_channel_free(tmpchana);
+		return 1;
+	}
+
+	do_bridge_masquerade(chana, tmpchana);
+	do_bridge_masquerade(chanb, tmpchanb);
+	
+	/* make the channels compatible, send error if we fail doing so */
+	if (ast_channel_make_compatible(tmpchana, tmpchanb)) {
+		ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for manager bridge\n", tmpchana->name, tmpchanb->name);
+		astman_send_error(s, m, "Could not make channels compatible for manager bridge");
+		ast_hangup(tmpchana);
+		ast_hangup(tmpchanb);
+		return 1;
+	}
+
+	/* setup the bridge thread object and start the bridge */
+	if (!(tobj = ast_calloc(1, sizeof(*tobj)))) {
+		ast_log(LOG_WARNING, "Unable to spawn a new bridge thread on %s and %s: %s\n", tmpchana->name, tmpchanb->name, strerror(errno));
+		astman_send_error(s, m, "Unable to spawn a new bridge thread");
+		ast_hangup(tmpchana);
+		ast_hangup(tmpchanb);
+		return 1;
+	}
+
+	tobj->chan = tmpchana;
+	tobj->peer = tmpchanb;
+	tobj->return_to_pbx = 1;
+	
+	if (ast_true(playtone)) {
+		if (!ast_strlen_zero(xfersound) && !ast_streamfile(tmpchanb, xfersound, tmpchanb->language)) {
+			if (ast_waitstream(tmpchanb, "") < 0)
+				ast_log(LOG_WARNING, "Failed to play a courtesy tone on chan %s\n", tmpchanb->name);
+		}
+	}
+
+	ast_bridge_call_thread_launch(tobj);
+
+	astman_send_ack(s, m, "Launched bridge thread with success");
+
+	return 0;
+}
+
+/*!
+ * \brief CLI command to list parked calls
+ * \param e 
+ * \param cmd
+ * \param a
+ *  
+ * Check right usage, lock parking lot, display parked calls, unlock parking lot list.
+ * \retval CLI_SUCCESS on success.
+ * \retval CLI_SHOWUSAGE on incorrect number of arguments.
+ * \retval NULL when tab completion is used.
+*/
+static char *handle_parkedcalls(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct parkeduser *cur;
+	int numparked = 0;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "parkedcalls show";
+		e->usage =
+			"Usage: parkedcalls show\n"
+			"       List currently parked calls\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc > e->args)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "%4s %25s (%-15s %-12s %-4s) %-6s \n", "Num", "Channel"
+		, "Context", "Extension", "Pri", "Timeout");
+
+	AST_LIST_LOCK(&parkinglot);
+	AST_LIST_TRAVERSE(&parkinglot, cur, list) {
+		ast_cli(a->fd, "%-10.10s %25s (%-15s %-12s %-4d) %6lds\n"
+			,cur->parkingexten, cur->chan->name, cur->context, cur->exten
+			,cur->priority, cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL));
+
+		numparked++;
+	}
+	AST_LIST_UNLOCK(&parkinglot);
+	ast_cli(a->fd, "%d parked call%s.\n", numparked, ESS(numparked));
+
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_parkedcalls_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_parkedcalls(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "show parkedcalls";
+	return res;
+}
+
+static struct ast_cli_entry cli_show_parkedcalls_deprecated = AST_CLI_DEFINE(handle_parkedcalls_deprecated, "List currently parked calls.");
+
+static struct ast_cli_entry cli_features[] = {
+	AST_CLI_DEFINE(handle_feature_show, "Lists configured features"),
+	AST_CLI_DEFINE(handle_features_reload, "Reloads configured features"),
+	AST_CLI_DEFINE(handle_parkedcalls, "List currently parked calls", .deprecate_cmd = &cli_show_parkedcalls_deprecated),
+};
+
+/*! 
+ * \brief Dump parking lot status
+ * \param s
+ * \param m
+ * 
+ * Lock parking lot, iterate list and append parked calls status, unlock parking lot.
+ * \return Always RESULT_SUCCESS 
+*/
+static int manager_parking_status(struct mansession *s, const struct message *m)
+{
+	struct parkeduser *cur;
+	const char *id = astman_get_header(m, "ActionID");
+	char idText[256] = "";
+
+	if (!ast_strlen_zero(id))
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+
+	astman_send_ack(s, m, "Parked calls will follow");
+
+	AST_LIST_LOCK(&parkinglot);
+
+	AST_LIST_TRAVERSE(&parkinglot, cur, list) {
+		astman_append(s, "Event: ParkedCall\r\n"
+			"Exten: %d\r\n"
+			"Channel: %s\r\n"
+			"From: %s\r\n"
+			"Timeout: %ld\r\n"
+			"CallerIDNum: %s\r\n"
+			"CallerIDName: %s\r\n"
+			"%s"
+			"\r\n",
+			cur->parkingnum, cur->chan->name, cur->peername,
+			(long) cur->start.tv_sec + (long) (cur->parkingtime / 1000) - (long) time(NULL),
+			S_OR(cur->chan->cid.cid_num, ""),	/* XXX in other places it is <unknown> */
+			S_OR(cur->chan->cid.cid_name, ""),
+			idText);
+	}
+
+	astman_append(s,
+		"Event: ParkedCallsComplete\r\n"
+		"%s"
+		"\r\n",idText);
+
+	AST_LIST_UNLOCK(&parkinglot);
+
+	return RESULT_SUCCESS;
+}
+
+static char mandescr_park[] =
+"Description: Park a channel.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Channel: Channel name to park\n"
+"	*Channel2: Channel to announce park info to (and return to if timeout)\n"
+"	Timeout: Number of milliseconds to wait before callback.\n";  
+
+/*!
+ * \brief Create manager event for parked calls
+ * \param s
+ * \param m
+ *
+ * Get channels involved in park, create event.
+ * \return Always 0
+*/
+static int manager_park(struct mansession *s, const struct message *m)
+{
+	const char *channel = astman_get_header(m, "Channel");
+	const char *channel2 = astman_get_header(m, "Channel2");
+	const char *timeout = astman_get_header(m, "Timeout");
+	char buf[BUFSIZ];
+	int to = 0;
+	int res = 0;
+	int parkExt = 0;
+	struct ast_channel *ch1, *ch2;
+
+	if (ast_strlen_zero(channel)) {
+		astman_send_error(s, m, "Channel not specified");
+		return 0;
+	}
+
+	if (ast_strlen_zero(channel2)) {
+		astman_send_error(s, m, "Channel2 not specified");
+		return 0;
+	}
+
+	ch1 = ast_get_channel_by_name_locked(channel);
+	if (!ch1) {
+		snprintf(buf, sizeof(buf), "Channel does not exist: %s", channel);
+		astman_send_error(s, m, buf);
+		return 0;
+	}
+
+	ch2 = ast_get_channel_by_name_locked(channel2);
+	if (!ch2) {
+		snprintf(buf, sizeof(buf), "Channel does not exist: %s", channel2);
+		astman_send_error(s, m, buf);
+		ast_channel_unlock(ch1);
+		return 0;
+	}
+
+	if (!ast_strlen_zero(timeout)) {
+		sscanf(timeout, "%d", &to);
+	}
+
+	res = ast_masq_park_call(ch1, ch2, to, &parkExt);
+	if (!res) {
+		ast_softhangup(ch2, AST_SOFTHANGUP_EXPLICIT);
+		astman_send_ack(s, m, "Park successful");
+	} else {
+		astman_send_error(s, m, "Park failure");
+	}
+
+	ast_channel_unlock(ch1);
+	ast_channel_unlock(ch2);
+
+	return 0;
+}
+
+/*!
+ * \brief Pickup a call
+ * \param chan channel that initiated pickup.
+ *
+ * Walk list of channels, checking it is not itself, channel is pbx one,
+ * check that the callgroup for both channels are the same and the channel is ringing.
+ * Answer calling channel, flag channel as answered on queue, masq channels together.
+*/
+int ast_pickup_call(struct ast_channel *chan)
+{
+	struct ast_channel *cur = NULL;
+	int res = -1;
+
+	while ((cur = ast_channel_walk_locked(cur)) != NULL) {
+		if (!cur->pbx && 
+			(cur != chan) &&
+			(chan->pickupgroup & cur->callgroup) &&
+			((cur->_state == AST_STATE_RINGING) ||
+			 (cur->_state == AST_STATE_RING))) {
+			 	break;
+		}
+		ast_channel_unlock(cur);
+	}
+	if (cur) {
+		ast_debug(1, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
+		res = ast_answer(chan);
+		if (res)
+			ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
+		res = ast_queue_control(chan, AST_CONTROL_ANSWER);
+		if (res)
+			ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
+		res = ast_channel_masquerade(cur, chan);
+		if (res)
+			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
+		ast_channel_unlock(cur);
+	} else	{
+		ast_debug(1, "No call pickup possible...\n");
+	}
+	return res;
+}
+
 static char *app_bridge = "Bridge";
 static char *bridge_synopsis = "Bridge two channels";
 static char *bridge_descrip =
@@ -3388,16 +3410,11 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int reload(void)
-{
-	return load_config();
-}
-
-static int load_module(void)
+int ast_features_init(void)
 {
 	int res;
 
-	ast_register_application(app_bridge, bridge_exec, bridge_synopsis, bridge_descrip);	
+	ast_register_application2(app_bridge, bridge_exec, bridge_synopsis, bridge_descrip, NULL);
 
 	memset(parking_ext, 0, sizeof(parking_ext));
 	memset(parking_con, 0, sizeof(parking_con));
@@ -3406,9 +3423,9 @@ static int load_module(void)
 		return res;
 	ast_cli_register_multiple(cli_features, sizeof(cli_features) / sizeof(struct ast_cli_entry));
 	ast_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
-	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
+	res = ast_register_application2(parkedcall, park_exec, synopsis, descrip, NULL);
 	if (!res)
-		res = ast_register_application(parkcall, park_call_exec, synopsis2, descrip2);
+		res = ast_register_application2(parkcall, park_call_exec, synopsis2, descrip2, NULL);
 	if (!res) {
 		ast_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls");
 		ast_manager_register2("Park", EVENT_FLAG_CALL, manager_park,
@@ -3420,29 +3437,3 @@ static int load_module(void)
 
 	return res;
 }
-
-
-static int unload_module(void)
-{
-	struct ast_context *con;
-	ast_manager_unregister("ParkedCalls");
-	ast_manager_unregister("Bridge");
-	ast_manager_unregister("Park");
-	ast_cli_unregister_multiple(cli_features, sizeof(cli_features) / sizeof(struct ast_cli_entry));
-	ast_unregister_application(parkcall);
-	ast_unregister_application(app_bridge);
-	ast_devstate_prov_del("Park");
-	con = ast_context_find(parking_con);
-	if (con)
-		ast_context_destroy(con, registrar);
-	con = ast_context_find(parking_con_dial);
-	if (con)
-		ast_context_destroy(con, registrar); 	
-	return ast_unregister_application(parkedcall);
-}
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Call Features Resource",
-		.load = load_module,
-		.unload = unload_module,
-		.reload = reload,
-	      );

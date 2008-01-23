@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/rtp.h"
 #include "asterisk/http.h"
 #include "asterisk/lock.h"
+#include "asterisk/features.h"
 
 #ifdef DLFCNCOMPAT
 #include "asterisk/dlfcn-compat.h"
@@ -247,6 +248,7 @@ static struct reload_classes {
 	{ "rtp",	ast_rtp_reload },
 	{ "http",	ast_http_reload },
 	{ "logger",	logger_reload },
+	{ "features",	ast_features_reload },
 	{ NULL, 	NULL }
 };
 
