@@ -409,6 +409,7 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 	int res;
 	char *ptr;
 	int num;
+	int num_spyed_upon = 1;
 
 	if (ast_test_flag(flags, OPTION_EXIT)) {
 		const char *c;
@@ -428,7 +429,7 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 	waitms = 100;
 
 	for (;;) {
-		if (!ast_test_flag(flags, OPTION_QUIET)) {
+		if (!ast_test_flag(flags, OPTION_QUIET) && num_spyed_upon) {
 			res = ast_streamfile(chan, "beep", chan->language);
 			if (!res)
 				res = ast_waitstream(chan, "");
@@ -465,6 +466,7 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 		/* reset for the next loop around, unless overridden later */
 		waitms = 100;
 		peer = prev = next = NULL;
+		num_spyed_upon = 0;
 
 		for (peer = next_channel(peer, spec, exten, context);
 		     peer;
@@ -530,7 +532,8 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			
 			waitms = 5000;
 			res = channel_spy(chan, peer, &volfactor, fd, flags, exitcontext);
-			
+			num_spyed_upon++;	
+
 			if (res == -1) {
 				goto exit;
 			} else if (res == -2) {
