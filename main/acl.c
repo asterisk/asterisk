@@ -28,6 +28,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/network.h"
+#include <ifaddrs.h>
 
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__Darwin__)
 #include <fcntl.h>
@@ -36,10 +37,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #if defined(SOLARIS)
 #include <sys/sockio.h>
-#endif
-
-#if defined(__Darwin__) || defined(__linux__)
-#include <ifaddrs.h>
 #endif
 
 #include "asterisk/acl.h"
