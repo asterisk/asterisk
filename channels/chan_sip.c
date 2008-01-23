@@ -4609,6 +4609,7 @@ static int sip_hangup(struct ast_channel *ast)
 			if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 				/* stop retransmitting an INVITE that has not received a response */
 				__sip_pretend_ack(p);
+				p->invitestate = INV_CANCELLED;
 
 				/* if we can't send right now, mark it pending */
 				if (p->invitestate == INV_CALLING) {
@@ -4624,7 +4625,6 @@ static int sip_hangup(struct ast_channel *ast)
 					   INVITE, but do set an autodestruct just in case we never get it. */
 					needdestroy = 0;
 					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-					p->invitestate = INV_CANCELLED;
 				}
 				if ( p->initid != -1 ) {
 					/* channel still up - reverse dec of inUse counter
@@ -14274,14 +14274,14 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	switch (resp) {
 	case 100:	/* Trying */
 	case 101:	/* Dialog establishment */
-		if (!req->ignore)
+		if (!req->ignore && p->invitestate != INV_CANCELLED)
 			sip_cancel_destroy(p);
 		check_pendings(p);
 		break;
 
 	case 180:	/* 180 Ringing */
 	case 182:       /* 182 Queued */
-		if (!req->ignore)
+		if (!req->ignore && p->invitestate != INV_CANCELLED)
 			sip_cancel_destroy(p);
 		if (!req->ignore && p->owner) {
 			ast_queue_control(p->owner, AST_CONTROL_RINGING);
@@ -14301,7 +14301,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 
 	case 183:	/* Session progress */
-		if (!req->ignore)
+		if (!req->ignore && (p->invitestate != INV_CANCELLED))
 			sip_cancel_destroy(p);
 		/* Ignore 183 Session progress without SDP */
 		if (find_sdp(req)) {
@@ -14316,7 +14316,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 
 	case 200:	/* 200 OK on invite - someone's answering our call */
-		if (!req->ignore)
+		if (!req->ignore && (p->invitestate != INV_CANCELLED))
 			sip_cancel_destroy(p);
 		p->authtries = 0;
 		if (find_sdp(req)) {
