@@ -1031,6 +1031,8 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		ch->rawwriteformat = fmt;
 		ch->readformat = fmt;
 		ch->rawreadformat = fmt;
+		if (!pvt->rtp)
+			__oh323_rtp_create(pvt);
 #if 0
 		ast_channel_set_fd(ch, 0, ast_rtp_fd(pvt->rtp));
 		ast_channel_set_fd(ch, 1, ast_rtcp_fd(pvt->rtp));
