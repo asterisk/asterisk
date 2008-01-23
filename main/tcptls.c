@@ -83,22 +83,20 @@ static int ssl_close(void *cookie)
 
 HOOK_T server_read(struct server_instance *ser, void *buf, size_t count)
 {
-	if (!ser->ssl) 
-		return read(ser->fd, buf, count);
 #ifdef DO_SSL
-	else
+	if (ser->ssl)
 		return ssl_read(ser->ssl, buf, count);
 #endif
+	return read(ser->fd, buf, count);
 }
 
 HOOK_T server_write(struct server_instance *ser, void *buf, size_t count)
 {
-	if (!ser->ssl) 
-		return write(ser->fd, buf, count);
 #ifdef DO_SSL
-	else
+	if (ser->ssl)
 		return ssl_write(ser->ssl, buf, count);
 #endif
+	return write(ser->fd, buf, count);
 }
 
 void *server_root(void *data)
@@ -356,9 +354,11 @@ void server_stop(struct server_args *desc)
 void *ast_make_file_from_fd(void *data)
 {
 	struct server_instance *ser = data;
+#ifdef DO_SSL
 	int (*ssl_setup)(SSL *) = (ser->client) ? SSL_connect : SSL_accept;
 	int ret;
 	char err[256];
+#endif
 
 	/*
 	* open a FILE * as appropriate.
