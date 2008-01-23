@@ -3220,7 +3220,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 			if (ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
 				if (*inringing > 0)
 					(*inringing)--;
-				else if (!ast_test_flag(&fup->flags[0], SIP_REALTIME) || ast_test_flag(&fup->flags[1], SIP_PAGE2_RTCACHEFRIENDS))
+				else if (!ast_test_flag(&p->flags[0], SIP_REALTIME) || ast_test_flag(&p->flags[1], SIP_PAGE2_RTCACHEFRIENDS))
 					ast_log(LOG_WARNING, "Inringing for peer '%s' < 0?\n", fup->peername);
 				ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
 			}
@@ -3265,7 +3265,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 			if (ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
 				if (*inringing > 0)
 					(*inringing)--;
-				else if (!ast_test_flag(&fup->flags[0], SIP_REALTIME) || ast_test_flag(&fup->flags[1], SIP_PAGE2_RTCACHEFRIENDS))
+				else if (!ast_test_flag(&p->flags[0], SIP_REALTIME) || ast_test_flag(&p->flags[1], SIP_PAGE2_RTCACHEFRIENDS))
 					ast_log(LOG_WARNING, "Inringing for peer '%s' < 0?\n", p->name);
 				ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
 			}
