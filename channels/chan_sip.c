@@ -1587,7 +1587,8 @@ static struct sip_auth *authl = NULL;
 /* --- Sockets and networking --------------*/
 
 /*! \brief Main socket for SIP communication.
- * sipsock is shared between the manager thread (which handles reload
+ *
+ * sipsock is shared between the SIP manager thread (which handles reload
  * requests), the io handler (sipsock_read()) and the user routines that
  * issue writes (using __sip_xmit()).
  * The socket is -1 only when opening fails (this is a permanent condition),
@@ -2483,7 +2484,11 @@ static inline const char *get_transport(enum sip_transport t)
 	return "UNKNOWN";
 }
 
-/*! \brief Transmit SIP message */
+/*! \brief Transmit SIP message 
+	Sends a SIP request or response on a given socket (in the pvt)
+	Called by retrans_pkt, send_request, send_response and 
+	__sip_reliable_xmit
+*/
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
 	int res = 0;
@@ -2767,6 +2772,11 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	int siptimer_a = DEFAULT_RETRANS;
 	int xmitres = 0;
 
+	if (sipmethod == SIP_INVITE) {
+		/* Note this is a pending invite */
+		p->pendinginvite = seqno;
+	}
+
 	/* If the transport is something reliable (TCP or TLS) then don't really send this reliably */
 	/* I removed the code from retrans_pkt that does the same thing so it doesn't get loaded into the scheduler */
 	/* According to the RFC some packets need to be retransmitted even if its TCP, so this needs to get revisited */
@@ -2792,7 +2802,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	pkt->is_fatal = fatal;
 	pkt->owner = dialog_ref(p);
 	pkt->next = p->packets;
-	p->packets = pkt;
+	p->packets = pkt;	/* Add it to the queue */
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
 	if (pkt->timer_t1)
 		siptimer_a = pkt->timer_t1 * 2;
@@ -2802,10 +2812,6 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		siptimer_a, retrans_pkt, pkt, 1);
 	if (sipdebug)
 		ast_debug(4, "*** SIP TIMER: Initializing retransmit timer on packet: Id  #%d\n", pkt->retransid);
-	if (sipmethod == SIP_INVITE) {
-		/* Note this is a pending invite */
-		p->pendinginvite = seqno;
-	}
 
 	xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);	/* Send packet */
 
