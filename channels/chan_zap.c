@@ -13100,7 +13100,7 @@ static void process_echocancel(struct zt_chan_conf *confp, const char *data, uns
 		strcpy(confp->chan.echocancel.params[confp->chan.echocancel.head.param_count].name, param.name);
 
 		if (param.value) {
-			if (sscanf(param.value, "%ud", &confp->chan.echocancel.params[confp->chan.echocancel.head.param_count].value) != 1) {
+			if (sscanf(param.value, "%d", &confp->chan.echocancel.params[confp->chan.echocancel.head.param_count].value) != 1) {
 				ast_log(LOG_WARNING, "Invalid echocancel parameter value supplied at line %d: '%s'\n", line, param.value);
 				continue;
 			}
