@@ -1010,8 +1010,11 @@ static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
 {
 	char buf[255];
 	snprintf(buf,255,"%s %s %s %s",ext_pass_cmd,vmu->context,vmu->mailbox,newpassword);
-	if (!ast_safe_system(buf))
+	if (!ast_safe_system(buf)) {
 		ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
+		/* Reset the password in memory, too */
+		reset_user_pw(vmu->context, vmu->mailbox, newpassword);
+	}
 }
 
 static int make_dir(char *dest, int len, const char *context, const char *ext, const char *folder)
