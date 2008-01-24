@@ -906,20 +906,20 @@ struct sip_auth {
 #define SIP_CALL_LIMIT		(1 << 7)	/*!< D: Call limit enforced for this call */
 #define SIP_INC_COUNT		(1 << 8)	/*!< D: Did this dialog increment the counter of in-use calls? */
 #define SIP_INC_RINGING		(1 << 9)	/*!< D: Did this connection increment the counter of in-use calls? */
-#define SIP_DEFER_BYE_ON_TRANSFER	(1 << 11)	/*!< D: Do not hangup at first ast_hangup */
+#define SIP_DEFER_BYE_ON_TRANSFER	(1 << 10)	/*!< D: Do not hangup at first ast_hangup */
 
-#define SIP_PROMISCREDIR	(1 << 12)	/*!< DP: Promiscuous redirection */
-#define SIP_TRUSTRPID		(1 << 13)	/*!< DP: Trust RPID headers? */
-#define SIP_USEREQPHONE		(1 << 14)	/*!< DP: Add user=phone to numeric URI. Default off */
-#define SIP_USECLIENTCODE	(1 << 15)	/*!< DP: Trust X-ClientCode info message */
+#define SIP_PROMISCREDIR	(1 << 11)	/*!< DP: Promiscuous redirection */
+#define SIP_TRUSTRPID		(1 << 12)	/*!< DP: Trust RPID headers? */
+#define SIP_USEREQPHONE		(1 << 13)	/*!< DP: Add user=phone to numeric URI. Default off */
+#define SIP_USECLIENTCODE	(1 << 14)	/*!< DP: Trust X-ClientCode info message */
 
 /* DTMF flags - see str2dtmfmode() and dtmfmode2str() */
-#define SIP_DTMF		(3 << 16)	/*!< DP: DTMF Support: four settings, uses two bits */
-#define SIP_DTMF_RFC2833	(0 << 16)	/*!< DP: DTMF Support: RTP DTMF - "rfc2833" */
-#define SIP_DTMF_INBAND		(1 << 16)	/*!< DP: DTMF Support: Inband audio, only for ULAW/ALAW - "inband" */
-#define SIP_DTMF_INFO		(2 << 16)	/*!< DP: DTMF Support: SIP Info messages - "info" */
-#define SIP_DTMF_AUTO		(3 << 16)	/*!< DP: DTMF Support: AUTO switch between rfc2833 and in-band DTMF */
-#define SIP_DTMF_SHORTINFO      (4 << 16)       /*!< DP: DTMF Support: SIP Info messages - "info" - short variant */
+#define SIP_DTMF		(7 << 15)	/*!< DP: DTMF Support: five settings, uses three bits */
+#define SIP_DTMF_RFC2833	(0 << 15)	/*!< DP: DTMF Support: RTP DTMF - "rfc2833" */
+#define SIP_DTMF_INBAND		(1 << 15)	/*!< DP: DTMF Support: Inband audio, only for ULAW/ALAW - "inband" */
+#define SIP_DTMF_INFO		(2 << 15)	/*!< DP: DTMF Support: SIP Info messages - "info" */
+#define SIP_DTMF_AUTO		(3 << 15)	/*!< DP: DTMF Support: AUTO switch between rfc2833 and in-band DTMF */
+#define SIP_DTMF_SHORTINFO      (4 << 15)       /*!< DP: DTMF Support: SIP Info messages - "info" - short variant */
 
 /* NAT settings - see nat2str() */
 #define SIP_NAT			(3 << 18)	/*!< DP: four settings, uses two bits */
@@ -929,13 +929,15 @@ struct sip_auth {
 #define SIP_NAT_ALWAYS		(3 << 18)	/*!< DP: NAT Both ROUTE and RFC3581 */
 
 /* re-INVITE related settings */
-#define SIP_REINVITE		(7 << 20)	/*!< DP: three bits used */
+#define SIP_REINVITE		(7 << 20)	/*!< DP: four settings, uses three bits */
+#define SIP_REINVITE_NONE	(0 << 20)	/*!< DP: no reinvite allowed */
 #define SIP_CAN_REINVITE	(1 << 20)	/*!< DP: allow peers to be reinvited to send media directly p2p */
 #define SIP_CAN_REINVITE_NAT	(2 << 20)	/*!< DP: allow media reinvite when new peer is behind NAT */
 #define SIP_REINVITE_UPDATE	(4 << 20)	/*!< DP: use UPDATE (RFC3311) when reinviting this peer */
 
 /* "insecure" settings - see insecure2str() */
-#define SIP_INSECURE		(3 << 23)	/*!< DP: two bits used */
+#define SIP_INSECURE		(3 << 23)	/*!< DP: three settings, uses two bits */
+#define SIP_INSECURE_NONE	(0 << 23)	/*!< DP: secure mode */
 #define SIP_INSECURE_PORT	(1 << 23)	/*!< DP: don't require matching port for incoming requests */
 #define SIP_INSECURE_INVITE	(1 << 24)	/*!< DP: don't require authentication for incoming INVITEs */
 
