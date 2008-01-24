@@ -206,10 +206,12 @@ static char *handle_cli_core_show_channeltypes(struct ast_cli_entry *e, int cmd,
 
 	ast_cli(a->fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
 	ast_cli(a->fd, FORMAT, "----------", "-----------", "-----------", "-----------", "--------");
+
 	if (AST_RWLIST_RDLOCK(&channels)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return CLI_FAILURE;
 	}
+
 	AST_LIST_TRAVERSE(&backends, cl, list) {
 		ast_cli(a->fd, FORMAT, cl->tech->type, cl->tech->description,
 			(cl->tech->devicestate) ? "yes" : "no",
@@ -217,8 +219,11 @@ static char *handle_cli_core_show_channeltypes(struct ast_cli_entry *e, int cmd,
 			(cl->tech->transfer) ? "yes" : "no");
 		count_chan++;
 	}
+
 	AST_RWLIST_UNLOCK(&channels);
+
 	ast_cli(a->fd, "----------\n%d channel drivers registered.\n", count_chan);
+
 	return CLI_SUCCESS;
 
 #undef FORMAT
