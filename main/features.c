@@ -541,8 +541,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	set_c_e_p(chan, rchan->context, rchan->exten, rchan->priority);
 
 	/* Make the masq execute */
-	f = ast_read(chan);
-	if (f)
+	if ((f = ast_read(chan)))
 		ast_frfree(f);
 
 	ast_park_call(chan, peer, timeout, extout);
