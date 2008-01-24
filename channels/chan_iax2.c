@@ -31,7 +31,6 @@
 /*** MODULEINFO
 	<use>zaptel</use>
 	<use>crypto</use>
-        <depend>res_features</depend>
  ***/
 
 #include "asterisk.h"

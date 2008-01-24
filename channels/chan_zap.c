@@ -42,7 +42,6 @@
 	<depend>zaptel_vldtmf</depend>
 	<depend>zaptel</depend>
 	<depend>tonezone</depend>
-	<depend>res_features</depend>
 	<use>pri</use>
 	<use>ss7</use>
  ***/

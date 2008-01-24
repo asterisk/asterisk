@@ -27,9 +27,6 @@
  *
  * \ingroup channel_drivers
  */
-/*** MODULEINFO
-        <depend>res_features</depend>
- ***/
 
 #include "asterisk.h"
 
