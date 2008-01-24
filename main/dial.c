@@ -20,7 +20,7 @@
  *
  * \brief Dialing API
  *
- * \author Joshua Colp <jcolp@digium.com>
+ * \author Joshua 'file' Colp <jcolp@digium.com>
  */
 
 #include "asterisk.h"
