@@ -275,7 +275,7 @@ int ast_app_group_list_unlock(void);
   the argc argument counter field.
  */
 #define AST_STANDARD_APP_ARGS(args, parse) \
-	args.argc = ast_app_separate_args(parse, '|', args.argv, (sizeof(args) - sizeof(args.argc)) / sizeof(args.argv[0]))
+	args.argc = ast_app_separate_args(parse, '|', args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
 	
 /*!
   \brief Performs the 'nonstandard' argument separation process for an application.
@@ -288,7 +288,7 @@ int ast_app_group_list_unlock(void);
   the argc argument counter field.
  */
 #define AST_NONSTANDARD_APP_ARGS(args, parse, sep) \
-	args.argc = ast_app_separate_args(parse, sep, args.argv, (sizeof(args) - sizeof(args.argc)) / sizeof(args.argv[0]))
+	args.argc = ast_app_separate_args(parse, sep, args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
 	
 /*!
   \brief Separate a string into arguments in an array
