@@ -82,6 +82,10 @@
  * the sip_hangup() function
  */
 
+/*** MODULEINFO
+        <depend>chan_local</depend>
+ ***/
+
 /*!  \page sip_session_timers SIP Session Timers in Asterisk Chan_sip
 
 	The SIP Session-Timers is an extension of the SIP protocol that allows end-points and proxies to
