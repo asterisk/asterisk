@@ -20,3 +20,7 @@ rtpend=20000
 ;dtmftimeout=3000
 ; rtcpinterval = 5000 	; Milliseconds between rtcp reports 
 			;(min 500, max 60000, default 5000)
+;
+; Enable strict RTP protection. This will drop RTP packets that
+; do not come from the source of the RTP stream.
+; strictrtp=yes

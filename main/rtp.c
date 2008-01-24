@@ -78,6 +78,13 @@ static struct sockaddr_in rtcpdebugaddr;	/*!< Debug RTCP packets to/from this ho
 #ifdef SO_NO_CHECK
 static int nochecksums;
 #endif
+static int strictrtp;
+
+enum strict_rtp_state {
+	STRICT_RTP_OPEN = 0, /*! No RTP packets should be dropped, all sources accepted */
+	STRICT_RTP_LEARN,    /*! Accept next packet as source */
+	STRICT_RTP_CLOSED,   /*! Drop all RTP packets not coming from source that was learned */
+};
 
 /* Uncomment this to enable more intense native bridging, but note: this is currently buggy */
 /* #define P2P_INTENSE */
@@ -165,6 +172,9 @@ struct ast_rtp {
 	struct ast_rtcp *rtcp;
 	struct ast_codec_pref pref;
 	struct ast_rtp *bridged;        /*!< Who we are Packet bridged to */
+
+	enum strict_rtp_state strict_rtp_state; /*!< Current state that strict RTP protection is in */
+	struct sockaddr_in strict_rtp_address;  /*!< Remote address information for strict RTP purposes */
 };
 
 /* Forward declarations */
@@ -1391,6 +1401,21 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	res = recvfrom(rtp->s, rtp->rawdata + AST_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET,
 					0, (struct sockaddr *)&sin, &len);
 
+	/* If strict RTP protection is enabled see if we need to learn this address or if the packet should be dropped */
+	if (rtp->strict_rtp_state == STRICT_RTP_LEARN) {
+		/* Copy over address that this packet was received on */
+		memcpy(&rtp->strict_rtp_address, &sin, sizeof(rtp->strict_rtp_address));
+		/* Now move over to actually protecting the RTP port */
+		rtp->strict_rtp_state = STRICT_RTP_CLOSED;
+		ast_debug(1, "Learned remote address is %s:%d for strict RTP purposes, now protecting the port.\n", ast_inet_ntoa(rtp->strict_rtp_address.sin_addr), ntohs(rtp->strict_rtp_address.sin_port));
+	} else if (rtp->strict_rtp_state == STRICT_RTP_CLOSED) {
+		/* If the address we previously learned doesn't match the address this packet came in on simply drop it */
+		if ((rtp->strict_rtp_address.sin_addr.s_addr != sin.sin_addr.s_addr) || (rtp->strict_rtp_address.sin_port != sin.sin_port)) {
+			ast_debug(1, "Received RTP packet from %s:%d, dropping due to strict RTP protection. Expected it to be from %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), ast_inet_ntoa(rtp->strict_rtp_address.sin_addr), ntohs(rtp->strict_rtp_address.sin_port));
+			return &ast_null_frame;
+		}
+	}
+
 	rtpheader = (unsigned int *)(rtp->rawdata + AST_FRIENDLY_OFFSET);
 	if (res < 0) {
 		if (errno == EBADF)
@@ -2191,6 +2216,7 @@ void ast_rtp_new_init(struct ast_rtp *rtp)
 	rtp->ssrc = ast_random();
 	rtp->seqno = ast_random() & 0xffff;
 	ast_set_flag(rtp, FLAG_HAS_DTMF);
+	rtp->strict_rtp_state = (strictrtp ? STRICT_RTP_LEARN : STRICT_RTP_OPEN);
 
 	return;
 }
@@ -2312,6 +2338,9 @@ void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
 		rtp->rtcp->them.sin_addr = them->sin_addr;
 	}
 	rtp->rxseqno = 0;
+	/* If strict RTP protection is enabled switch back to the learn state so we don't drop packets from above */
+	if (strictrtp)
+		rtp->strict_rtp_state = STRICT_RTP_LEARN;
 }
 
 int ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
@@ -4025,6 +4054,7 @@ static int __ast_rtp_reload(int reload)
 	rtpstart = 5000;
 	rtpend = 31000;
 	dtmftimeout = DEFAULT_DTMF_TIMEOUT;
+	strictrtp = STRICT_RTP_OPEN;
 	if (cfg) {
 		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
 			rtpstart = atoi(s);
@@ -4067,6 +4097,9 @@ static int __ast_rtp_reload(int reload)
 					dtmftimeout, DEFAULT_DTMF_TIMEOUT);
 				dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 			};
+		}
+		if ((s = ast_variable_retrieve(cfg, "general", "strictrtp"))) {
+			strictrtp = ast_true(s);
 		}
 		ast_config_destroy(cfg);
 	}
