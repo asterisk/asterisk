@@ -31,7 +31,9 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
-
+#ifdef SOLARIS
+#include <sys/sockio.h>
+#endif
 ASTERISK_FILE_VERSION(__FILE__, "$Revision: 96773 $")
 
 #include "asterisk/file.h"

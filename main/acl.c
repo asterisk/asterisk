@@ -28,7 +28,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/network.h"
-#include <ifaddrs.h>
 
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__Darwin__)
 #include <fcntl.h>
@@ -37,6 +36,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #if defined(SOLARIS)
 #include <sys/sockio.h>
+#include <net/if.h>
+#else
+#include <ifaddrs.h>
 #endif
 
 #include "asterisk/acl.h"
@@ -118,8 +120,9 @@ static int get_local_address(struct in_addr *ourip)
 	int rtnerr;
 	const struct sockaddr_in *sin;
 #endif /* BSD_OR_LINUX */
-	struct in_addr best_addr = { 0, };
+	struct in_addr best_addr;
 	int best_score = -100;
+	memset(&best_addr, 0, sizeof(best_addr));
 
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__)
 	rtnerr = getifaddrs(&ifaphead);
@@ -177,7 +180,7 @@ static int get_local_address(struct in_addr *ourip)
 
 		for (ifr = (struct lifreq *)buf, x = 0; x < ifn.lifn_count; ifr++, x++) {
 			sa = (struct sockaddr_in *)&(ifr->lifr_addr);
-			score_address(sin, &best_addr, &best_score);
+			score_address(sa, &best_addr, &best_score);
 			res = 0;
 
 			if (best_score == 0)
