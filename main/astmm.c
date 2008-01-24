@@ -65,7 +65,7 @@ static FILE *mmlog;
 
 static struct ast_region {
 	struct ast_region *next;
-	char file[40];
+	char file[64];
 	char func[40];
 	unsigned int lineno;
 	enum func_type which;
