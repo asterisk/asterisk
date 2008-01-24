@@ -57,6 +57,7 @@ export MODULES_DIR
 export ASTSPOOLDIR
 export ASTVARLIBDIR
 export ASTDATADIR
+export ASTDBDIR
 export ASTLOGDIR
 export ASTLIBDIR
 export ASTMANDIR

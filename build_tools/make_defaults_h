@@ -17,7 +17,7 @@ cat << END
 #define DEFAULT_PID        "${INSTALL_PATH}${ASTVARRUNDIR}/asterisk.pid"
 
 #define DEFAULT_VAR_DIR    "${INSTALL_PATH}${ASTVARLIBDIR}"
-#define DEFAULT_DB         "${INSTALL_PATH}${ASTVARLIBDIR}/astdb"
+#define DEFAULT_DB         "${INSTALL_PATH}${ASTDBDIR}/astdb"
 
 #define DEFAULT_DATA_DIR   "${INSTALL_PATH}${ASTDATADIR}"
 #define DEFAULT_KEY_DIR    "${INSTALL_PATH}${ASTDATADIR}/keys"
