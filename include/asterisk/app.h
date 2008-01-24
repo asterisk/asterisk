@@ -267,11 +267,11 @@ int ast_app_group_list_unlock(void);
 #define AST_APP_ARG(name) char *name
 
 /*!
-  \brief Declare a structure to hold the application's arguments.
+  \brief Declare a structure to hold an application's arguments.
   \param name The name of the structure
   \param arglist The list of arguments, defined using AST_APP_ARG
 
-  This macro defines a structure intended to be used in a call
+  This macro declares a structure intended to be used in a call
   to ast_app_separate_args(). The structure includes all the
   arguments specified, plus an argv array that overlays them and an
   argc argument counter. The arguments must be declared using AST_APP_ARG,
@@ -281,12 +281,28 @@ int ast_app_group_list_unlock(void);
   ast_app_separate_args() will perform that function before parsing
   the arguments.
  */
-#define AST_DECLARE_APP_ARGS(name, arglist) \
+#define AST_DECLARE_APP_ARGS(name, arglist) AST_DEFINE_APP_ARGS_TYPE(, arglist) name
+
+/*!
+  \brief Define a structure type to hold an application's arguments.
+  \param type The name of the structure type
+  \param arglist The list of arguments, defined using AST_APP_ARG
+
+  This macro defines a structure type intended to be used in a call
+  to ast_app_separate_args(). The structure includes all the
+  arguments specified, plus an argv array that overlays them and an
+  argc argument counter. The arguments must be declared using AST_APP_ARG,
+  and they will all be character pointers (strings).
+
+  \note This defines a structure type, but does not declare an instance
+  of the structure. That must be done separately.
+ */
+#define AST_DEFINE_APP_ARGS_TYPE(type, arglist) \
 	struct { \
 		unsigned int argc; \
 		char *argv[0]; \
 		arglist \
-	} name
+	}
 
 /*!
   \brief Performs the 'standard' argument separation process for an application.
