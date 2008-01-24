@@ -610,10 +610,13 @@ int ast_best_codec(int fmts)
 	fmts &= AST_FORMAT_AUDIO_MASK;
 	
 	/* Find the first preferred codec in the format given */
-	for (x=0; x < (sizeof(prefs) / sizeof(prefs[0]) ); x++)
+	for (x = 0; x < (sizeof(prefs) / sizeof(prefs[0]) ); x++) {
 		if (fmts & prefs[x])
 			return prefs[x];
+	}
+
 	ast_log(LOG_WARNING, "Don't know any of 0x%x formats\n", fmts);
+
 	return 0;
 }
 
