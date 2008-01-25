@@ -1306,7 +1306,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 		if ((m = create_queue_member(interface, membername, penalty, paused, state_interface))) {
 			m->dead = 0;
 			m->realtime = 1;
-			add_to_interfaces(state_interface);
+			add_to_interfaces(m->state_interface);
 			ao2_link(q->members, m);
 			ao2_ref(m, -1);
 			m = NULL;
@@ -3708,7 +3708,7 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 	ao2_lock(q);
 	if ((old_member = interface_exists(q, interface)) == NULL) {
 		if ((new_member = create_queue_member(interface, membername, penalty, paused, state_interface))) {
-			add_to_interfaces(state_interface);
+			add_to_interfaces(new_member->state_interface);
 			new_member->dynamic = 1;
 			ao2_link(q->members, new_member);
 			q->membercount++;
