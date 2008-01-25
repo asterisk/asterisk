@@ -2863,6 +2863,12 @@ int load_module()
 	int bal2 = -1; 
 	int bal3 = -1;
 	char * callerid = NULL;
+	static int deprecation_warning = 1;
+
+	if (deprecation_warning) {
+		ast_log(LOG_NOTICE, "chan_vpb has been deprecated in favor of chan_zap in combination with Voicetronix's Zaptel drivers\n");
+		deprecation_warning = 0;
+	}
 
 	cfg = ast_config_load(config);
 
