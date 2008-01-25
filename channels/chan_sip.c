@@ -15330,11 +15330,10 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 			ast_log(LOG_WARNING, "Recv error: %s\n", strerror(errno));
 		return 1;
 	}
-	if (option_debug && res == sizeof(req.data)) {
+	if (option_debug && res == sizeof(req.data) - 1)
 		ast_log(LOG_DEBUG, "Received packet exceeds buffer. Data is possibly lost\n");
-		req.data[sizeof(req.data) - 1] = '\0';
-	} else
-		req.data[res] = '\0';
+
+	req.data[res] = '\0';
 	req.len = res;
 	if(sip_debug_test_addr(&sin))	/* Set the debug flag early on packet level */
 		ast_set_flag(&req, SIP_PKT_DEBUG);
