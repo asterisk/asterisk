@@ -248,7 +248,6 @@ AST_EXT_LIB_SETUP([TINFO], [Term Info], [tinfo])
 AST_EXT_LIB_SETUP([TONEZONE], [tonezone], [tonezone])
 AST_EXT_LIB_SETUP([USB], [usb], [usb])
 AST_EXT_LIB_SETUP([VORBIS], [Vorbis], [vorbis])
-AST_EXT_LIB_SETUP([VPB], [Voicetronix API], [vpb])
 AST_EXT_LIB_SETUP([X11], [X11 support], [x11])
 AST_EXT_LIB_SETUP([ZLIB], [zlib], [z])
 AST_EXT_LIB_SETUP([ZAPTEL], [Zaptel], [zaptel])
@@ -1001,50 +1000,6 @@ AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel/zaptel.h], [
 AST_EXT_LIB_CHECK([USB], [usb], [usb_init], [usb.h], [])
 
 AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm -lvorbisenc])
-
-AC_LANG_PUSH(C++)
-
-if test "${USE_VPB}" != "no"; then
-   AC_MSG_CHECKING(for vpb_open in -lvpb)
-   saved_libs="${LIBS}"
-   saved_cppflags="${CPPFLAGS}"
-   if test "x${VPB_DIR}" != "x"; then
-      if test -d ${VPB_DIR}/lib; then
-         vpblibdir=${VPB_DIR}/lib
-      else
-         vpblibdir=${VPB_DIR}
-      fi
-      LIBS="${LIBS} -L${vpblibdir}"
-      CPPFLAGS="${CPPFLAGS} -I${VPB_DIR}/include"
-   fi
-   LIBS="${LIBS} -lvpb -lpthread"
-   AC_LINK_IFELSE(
-	[
-	AC_LANG_PROGRAM(
-	[#include <vpbapi.h>],
-	[int q = vpb_open(0,0);])
-	],
-	[	AC_MSG_RESULT(yes) 
-		ac_cv_lib_vpb_vpb_open="yes" 
-	],
-	[	AC_MSG_RESULT(no) 
-		ac_cv_lib_vpb_vpb_open="no" 
-	]
-	)
-   LIBS="${saved_libs}"
-   CPPFLAGS="${saved_cppflags}"
-   if test "${ac_cv_lib_vpb_vpb_open}" = "yes"; then
-	VPB_LIB="-lvpb"
-	if test "${VPB_DIR}" != ""; then
-	   VPB_LIB="-L${vpblibdir}  ${VPB_LIB}"
-	   VPB_INCLUDE="-I${VPB_DIR}/include"
-	fi
-	PBX_VPB=1
-	AC_DEFINE([HAVE_VPB], 1, [Define if your system has the VoiceTronix API libraries.])
-   fi
-fi
-
-AC_LANG_POP
 
 AST_EXT_LIB_CHECK([ZLIB], [z], [compress], [zlib.h])
 
