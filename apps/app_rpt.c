@@ -2675,7 +2675,7 @@ static void *rpt_call(void *this)
 	ast_copy_string(mychannel->context, myrpt->patchcontext, sizeof(mychannel->context));
 	
 	if (myrpt->p.acctcode)
-		ast_copy_string((char *)mychannel->accountcode, myrpt->p.acctcode, sizeof(mychannel->accountcode));
+		ast_string_field_set(mychannel, accountcode, myrpt->p.acctcode);
 	mychannel->priority = 1;
 	ast_channel_undefer_dtmf(mychannel);
 	if (ast_pbx_start(mychannel) < 0) {
@@ -4637,7 +4637,7 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 {
 	char *s, *modestr;
 	const char *val;
-	int i, j, ht, k, l, ls2, res, offset, offsave, modesave, defmode;
+	int i, j, ht, k, l, ls2, res, offset, offsave, modesave, defmode = 0;
 	char multimode = 0;
 	char oc;
 	char tmp[20], freq[20] = "", savestr[20] = "";
