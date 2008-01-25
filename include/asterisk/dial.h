@@ -82,6 +82,12 @@ enum ast_dial_result ast_dial_run(struct ast_dial *dial, struct ast_channel *cha
  */
 struct ast_channel *ast_dial_answered(struct ast_dial *dial);
 
+/*! \brief Steal the channel that answered
+ * \note Returns the Asterisk channel that answered and removes it from the dialing structure
+ * \param dial Dialing structure
+ */
+struct ast_channel *ast_dial_answered_steal(struct ast_dial *dial);
+
 /*! \brief Return state of dial
  * \note Returns the state of the dial attempt
  * \param dial Dialing structure

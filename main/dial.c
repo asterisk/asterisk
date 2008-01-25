@@ -721,6 +721,25 @@ struct ast_channel *ast_dial_answered(struct ast_dial *dial)
 	return ((dial->state == AST_DIAL_RESULT_ANSWERED) ? AST_LIST_FIRST(&dial->channels)->owner : NULL);
 }
 
+/*! \brief Steal the channel that answered
+ * \note Returns the Asterisk channel that answered and removes it from the dialing structure
+ * \param dial Dialing structure
+ */
+struct ast_channel *ast_dial_answered_steal(struct ast_dial *dial)
+{
+	struct ast_channel *chan = NULL;
+
+	if (!dial)
+		return NULL;
+
+	if (dial->state == AST_DIAL_RESULT_ANSWERED) {
+		chan = AST_LIST_FIRST(&dial->channels)->owner;
+		AST_LIST_FIRST(&dial->channels)->owner = NULL;
+	}
+
+	return chan;
+}
+
 /*! \brief Return state of dial
  * \note Returns the state of the dial attempt
  * \param dial Dialing structure
