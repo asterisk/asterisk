@@ -17778,11 +17778,10 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 			ast_log(LOG_WARNING, "Recv error: %s\n", strerror(errno));
 		return 1;
 	}
-	if (res == sizeof(req.data)) {
+	if (res == sizeof(req.data) - 1)
 		ast_debug(1, "Received packet exceeds buffer. Data is possibly lost\n");
-		req.data[sizeof(req.data) - 1] = '\0';
-	} else
-		req.data[res] = '\0';
+
+	req.data[res] = '\0';
 	req.len = res;
 
 	req.socket.fd 	= sipsock;
