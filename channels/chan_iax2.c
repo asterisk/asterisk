@@ -1094,14 +1094,12 @@ static int __schedule_action(void (*func)(const void *data), const void *data, c
 #define schedule_action(func, data) __schedule_action(func, data, __PRETTY_FUNCTION__)
 #endif
 
-static int iax2_sched_replace(int old_id, struct sched_context *con, int when, ast_sched_cb callback, const void *data)
+static int iax2_sched_replace(int id, struct sched_context *con, int when, ast_sched_cb callback, const void *data)
 {
-	int res;
-
-	res = ast_sched_replace(old_id, con, when, callback, data);
+	AST_SCHED_REPLACE(id, con, when, callback, data);
 	signal_condition(&sched_lock, &sched_cond);
 
-	return res;
+	return id;
 }
 
 static int iax2_sched_add(struct sched_context *con, int when, ast_sched_cb callback, const void *data)

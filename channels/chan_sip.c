@@ -2810,8 +2810,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		siptimer_a = pkt->timer_t1 * 2;
 
 	/* Schedule retransmission */
-	pkt->retransid = ast_sched_replace_variable(pkt->retransid, sched, 
-		siptimer_a, retrans_pkt, pkt, 1);
+	AST_SCHED_REPLACE_VARIABLE(pkt->retransid, sched, siptimer_a, retrans_pkt, pkt, 1);
 	if (sipdebug)
 		ast_debug(4, "*** SIP TIMER: Initializing retransmit timer on packet: Id  #%d\n", pkt->retransid);
 
@@ -3627,8 +3626,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 		/* Cache peer */
 		ast_copy_flags(&peer->flags[1],&global_flags[1], SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
 		if (ast_test_flag(&global_flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
-			peer->expire = ast_sched_replace(peer->expire, sched, 
-				global_rtautoclear * 1000, expire_register, (void *) peer);
+			AST_SCHED_REPLACE(peer->expire, sched, global_rtautoclear * 1000, expire_register, (void *) peer);
 		}
 		ASTOBJ_CONTAINER_LINK(&peerl,peer);
 	} else {
@@ -4085,8 +4083,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		p->invitestate = INV_CALLING;
 	
 		/* Initialize auto-congest time */
-		p->initid = ast_sched_replace(p->initid, sched, p->timer_b, 
-			auto_congest, dialog_ref(p));
+		AST_SCHED_REPLACE(p->initid, sched, p->timer_b, auto_congest, dialog_ref(p));
 	}
 
 	return res;
@@ -8979,8 +8976,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			 * probably DNS.  We need to reschedule a registration try */
 			sip_destroy(p);
 			if (r->timeout > -1) {
-				r->timeout = ast_sched_replace(r->timeout, sched, 
-					global_reg_timeout * 1000, sip_reg_timeout, r);
+				AST_SCHED_REPLACE(r->timeout, sched, global_reg_timeout * 1000, sip_reg_timeout, r);
 				ast_log(LOG_WARNING, "Still have a registration timeout for %s@%s (create_addr() error), %d\n", r->username, r->hostname, r->timeout);
 			} else {
 				r->timeout = ast_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, r);
@@ -9035,7 +9031,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	if (auth == NULL)  {
 		if (r->timeout > -1)
 			ast_log(LOG_WARNING, "Still have a registration timeout, #%d - deleting it\n", r->timeout);
-		r->timeout = ast_sched_replace(r->timeout, sched, global_reg_timeout * 1000, sip_reg_timeout, r);
+		AST_SCHED_REPLACE(r->timeout, sched, global_reg_timeout * 1000, sip_reg_timeout, r);
 		ast_debug(1, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
 	}
 
@@ -9414,12 +9410,10 @@ static void reg_source_db(struct sip_peer *peer)
 	peer->addr.sin_port = htons(port);
 	if (sipsock < 0) {
 		/* SIP isn't up yet, so schedule a poke only, pretty soon */
-		peer->pokeexpire = ast_sched_replace(peer->pokeexpire, sched, 
-			ast_random() % 5000 + 1, sip_poke_peer_s, peer);
+		AST_SCHED_REPLACE(peer->pokeexpire, sched, ast_random() % 5000 + 1, sip_poke_peer_s, peer);
 	} else
 		sip_poke_peer(peer);
-	peer->expire = ast_sched_replace(peer->expire, sched, 
-		(expiry + 10) * 1000, expire_register, peer);
+	AST_SCHED_REPLACE(peer->expire, sched, (expiry + 10) * 1000, expire_register, peer);
 	register_peer_exten(peer, TRUE);
 }
 
@@ -14776,7 +14770,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		r->refresh= (int) expires_ms / 1000;
 
 		/* Schedule re-registration before we expire */
-		r->expire = ast_sched_replace(r->expire, sched, expires_ms, sip_reregister, r); 
+		AST_SCHED_REPLACE(r->expire, sched, expires_ms, sip_reregister, r); 
 		registry_unref(r);
 	}
 	return 1;
@@ -14824,7 +14818,7 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 	p->needdestroy = 1;
 
 	/* Try again eventually */
-	peer->pokeexpire = ast_sched_replace(peer->pokeexpire, sched,
+	AST_SCHED_REPLACE(peer->pokeexpire, sched,
 		is_reachable ? peer->qualifyfreq : DEFAULT_FREQ_NOTOK,
 		sip_poke_peer_s, peer);
 }
@@ -18545,7 +18539,7 @@ static int sip_poke_noanswer(const void *data)
 	peer->lastms = -1;
 	ast_device_state_changed("SIP/%s", peer->name);
 	/* Try again quickly */
-	peer->pokeexpire = ast_sched_replace(peer->pokeexpire, sched, 
+	AST_SCHED_REPLACE(peer->pokeexpire, sched, 
 		DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
 	return 0;
 }
@@ -18607,7 +18601,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (xmitres == XMIT_ERROR)
 		sip_poke_noanswer(peer);	/* Immediately unreachable, network problems */
 	else {
-		peer->pokeexpire = ast_sched_replace(peer->pokeexpire, sched, 
+		AST_SCHED_REPLACE(peer->pokeexpire, sched, 
 			peer->maxms * 2, sip_poke_noanswer, peer);
 	}
 
@@ -20964,8 +20958,7 @@ static void sip_poke_all_peers(void)
 	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
 		ASTOBJ_WRLOCK(iterator);
 		ms += 100;
-		iterator->pokeexpire = ast_sched_replace(iterator->pokeexpire, 
-			sched, ms, sip_poke_peer_s, iterator);
+		AST_SCHED_REPLACE(iterator->pokeexpire, sched, ms, sip_poke_peer_s, iterator);
 		ASTOBJ_UNLOCK(iterator);
 	} while (0)
 	);
@@ -20985,7 +20978,7 @@ static void sip_send_all_registers(void)
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_WRLOCK(iterator);
 		ms += regspacing;
-		iterator->expire = ast_sched_replace(iterator->expire, 
+		AST_SCHED_REPLACE(iterator->expire, 
 			sched, ms, sip_reregister, iterator);
 		ASTOBJ_UNLOCK(iterator);
 	} while (0)
