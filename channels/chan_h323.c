@@ -368,14 +368,12 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 		if (pvt->newdigit == ' ') {		/* signalUpdate message */
 			f.subclass = pvt->curDTMF;
 			if (pvt->DTMFsched >= 0) {
-				ast_sched_del(sched, pvt->DTMFsched);
-				pvt->DTMFsched = -1;
+				AST_SCHED_DEL(sched, pvt->DTMFsched);
 			}
 		} else {						/* Regular input or signal message */
 			if (pvt->newduration) {		/* This is a signal, signalUpdate follows */
 				f.frametype = AST_FRAME_DTMF_BEGIN;
-				if (pvt->DTMFsched >= 0)
-					ast_sched_del(sched, pvt->DTMFsched);
+				AST_SCHED_DEL(sched, pvt->DTMFsched);
 				pvt->DTMFsched = ast_sched_add(sched, pvt->newduration, oh323_simulate_dtmf_end, pvt);
 				if (h323debug)
 					ast_log(LOG_DTMF, "Scheduled DTMF END simulation for %d ms, id=%d\n", pvt->newduration, pvt->DTMFsched);
@@ -448,10 +446,7 @@ static void __oh323_destroy(struct oh323_pvt *pvt)
 {
 	struct oh323_pvt *cur, *prev = NULL;
 
-	if (pvt->DTMFsched >= 0) {
-		ast_sched_del(sched, pvt->DTMFsched);
-		pvt->DTMFsched = -1;
-	}
+	AST_SCHED_DEL(sched, pvt->DTMFsched);
 
 	if (pvt->rtp) {
 		ast_rtp_destroy(pvt->rtp);
@@ -1846,15 +1841,11 @@ static int receive_digit(unsigned call_reference, char digit, const char *token,
 			};
 			if (digit == ' ') {		/* signalUpdate message */
 				f.subclass = pvt->curDTMF;
-				if (pvt->DTMFsched >= 0) {
-					ast_sched_del(sched, pvt->DTMFsched);
-					pvt->DTMFsched = -1;
-				}
+				AST_SCHED_DEL(sched, pvt->DTMFsched);
 			} else {				/* Regular input or signal message */
 				if (pvt->DTMFsched >= 0) {
 					/* We still don't send DTMF END from previous event, send it now */
-					ast_sched_del(sched, pvt->DTMFsched);
-					pvt->DTMFsched = -1;
+					AST_SCHED_DEL(sched, pvt->DTMFsched);
 					f.subclass = pvt->curDTMF;
 					f.samples = f.len = 0;
 					ast_queue_frame(pvt->owner, &f);

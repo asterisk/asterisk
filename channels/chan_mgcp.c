@@ -3355,9 +3355,8 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 			}
 
 			/* stop retrans timer if the queue is empty */
-			if (!gw->msgs && (gw->retransid != -1)) {
-				ast_sched_del(sched, gw->retransid);
-				gw->retransid = -1;
+			if (!gw->msgs) {
+				AST_SCHED_DEL(sched, gw->retransid);
 			}
 
 			ast_mutex_unlock(&gw->msgs_lock);
@@ -3609,9 +3608,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					}
 				} else {
 					/* Non-dynamic.  Make sure we become that way if we're not */
-					if (gw->expire > -1)
-						ast_sched_del(sched, gw->expire);
-					gw->expire = -1;
+					AST_SCHED_DEL(sched, gw->expire);
 					gw->dynamic = 0;
 					if (ast_get_ip(&gw->addr, v->value)) {
 						if (!gw_reload) {

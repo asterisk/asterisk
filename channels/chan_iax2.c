@@ -1155,7 +1155,7 @@ static void __send_lagrq(const void *data)
 	int callno = (long)data;
 	/* Ping only if it's real not if it's bridged */
 	ast_mutex_lock(&iaxsl[callno]);
-	if (iaxs[callno] && iaxs[callno]->lagid != -1) {
+	if (iaxs[callno] && iaxs[callno]->lagid > -1) {
 		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
 		iaxs[callno]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, data);
 	}
@@ -1568,8 +1568,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 
 static void iax2_frame_free(struct iax_frame *fr)
 {
-	if (fr->retrans > -1)
-		ast_sched_del(sched, fr->retrans);
+	AST_SCHED_DEL(sched, fr->retrans);
 	iax_frame_free(fr);
 }
 
@@ -2040,24 +2039,12 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 		ast_clear_flag(pvt, IAX_MAXAUTHREQ);
 	}
 	/* No more pings or lagrq's */
-	if (pvt->pingid > -1)
-		ast_sched_del(sched, pvt->pingid);
-	pvt->pingid = -1;
-	if (pvt->lagid > -1)
-		ast_sched_del(sched, pvt->lagid);
-	pvt->lagid = -1;
-	if (pvt->autoid > -1)
-		ast_sched_del(sched, pvt->autoid);
-	pvt->autoid = -1;
-	if (pvt->authid > -1)
-		ast_sched_del(sched, pvt->authid);
-	pvt->authid = -1;
-	if (pvt->initid > -1)
-		ast_sched_del(sched, pvt->initid);
-	pvt->initid = -1;
-	if (pvt->jbid > -1)
-		ast_sched_del(sched, pvt->jbid);
-	pvt->jbid = -1;
+	AST_SCHED_DEL(sched, pvt->pingid);
+	AST_SCHED_DEL(sched, pvt->lagid);
+	AST_SCHED_DEL(sched, pvt->autoid);
+	AST_SCHED_DEL(sched, pvt->authid);
+	AST_SCHED_DEL(sched, pvt->initid);
+	AST_SCHED_DEL(sched, pvt->jbid);
 }
 
 /*!
@@ -2693,8 +2680,8 @@ static void update_jbsched(struct chan_iax2_pvt *pvt)
 	when = ast_tvdiff_ms(ast_tvnow(), pvt->rxcore);
 	
 	when = jb_next(pvt->jb) - when;
-	
-	if(when <= 0) {
+
+	if (when <= 0) {
 		/* XXX should really just empty until when > 0.. */
 		when = 1;
 	}
@@ -2847,10 +2834,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 
 		jb_reset(iaxs[fr->callno]->jb);
 
-		if (iaxs[fr->callno]->jbid > -1)
-			ast_sched_del(sched, iaxs[fr->callno]->jbid);
-
-		iaxs[fr->callno]->jbid = -1;
+		AST_SCHED_DEL(sched, iaxs[fr->callno]->jbid);
 
 		/* deliver this frame now */
 		if (tsout)
@@ -7988,11 +7972,7 @@ retryowner:
 			}
 		}
 		if (f.frametype == AST_FRAME_IAX) {
-			if (iaxs[fr->callno]->initid > -1) {
-				/* Don't auto congest anymore since we've gotten something usefulb ack */
-				ast_sched_del(sched, iaxs[fr->callno]->initid);
-				iaxs[fr->callno]->initid = -1;
-			}
+			AST_SCHED_DEL(sched, iaxs[fr->callno]->initid);
 			/* Handle the IAX pseudo frame itself */
 			if (iaxdebug)
 				ast_debug(1, "IAX subclass %d received\n", f.subclass);
@@ -9966,9 +9946,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 					}
 				} else {
 					/* Non-dynamic.  Make sure we become that way if we're not */
-					if (peer->expire > -1)
-						ast_sched_del(sched, peer->expire);
-					peer->expire = -1;
+					AST_SCHED_DEL(sched, peer->expire);
 					ast_clear_flag(peer, IAX_DYNAMIC);
 					if (ast_dnsmgr_lookup(v->value, &peer->addr.sin_addr, &peer->dnsmgr))
 						return peer_unref(peer);
@@ -10347,8 +10325,7 @@ static void delete_users(void)
 
 	AST_LIST_LOCK(&registrations);
 	while ((reg = AST_LIST_REMOVE_HEAD(&registrations, entry))) {
-		if (reg->expire > -1)
-			ast_sched_del(sched, reg->expire);
+		AST_SCHED_DEL(sched, reg->expire);
 		if (reg->callno) {
 			ast_mutex_lock(&iaxsl[reg->callno]);
 			if (iaxs[reg->callno]) {

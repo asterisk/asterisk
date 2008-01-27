@@ -747,17 +747,13 @@ int ast_closestream(struct ast_filestream *f)
 	if (f->owner) {
 		if (f->fmt->format & AST_FORMAT_AUDIO_MASK) {
 			f->owner->stream = NULL;
-			if (f->owner->streamid > -1)
-				ast_sched_del(f->owner->sched, f->owner->streamid);
-			f->owner->streamid = -1;
+			AST_SCHED_DEL(f->owner->sched, f->owner->streamid);
 #ifdef HAVE_ZAPTEL
 			ast_settimeout(f->owner, 0, NULL, NULL);
 #endif			
 		} else {
 			f->owner->vstream = NULL;
-			if (f->owner->vstreamid > -1)
-				ast_sched_del(f->owner->sched, f->owner->vstreamid);
-			f->owner->vstreamid = -1;
+			AST_SCHED_DEL(f->owner->sched, f->owner->vstreamid);
 		}
 	}
 	/* destroy the translator on exit */

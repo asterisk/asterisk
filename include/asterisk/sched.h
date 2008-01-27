@@ -35,6 +35,16 @@ extern "C" {
  */
 #define SCHED_MAX_CACHE 128
 
+#define AST_SCHED_DEL(sched, id) \
+	do { \
+		int _count = 0; \
+		while (id > -1 && ast_sched_del(sched, id) && _count++ < 10) \
+			usleep(1); \
+		if (_count == 10) \
+			ast_log(LOG_WARNING, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
+		id = -1; \
+	} while (0);
+
 struct sched_context;
 
 /*! \brief New schedule context

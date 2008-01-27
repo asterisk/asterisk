@@ -1139,8 +1139,7 @@ static int submit_scheduled_batch(const void *data)
 static void submit_unscheduled_batch(void)
 {
 	/* this is okay since we are not being called from within the scheduler */
-	if (cdr_sched > -1)
-		ast_sched_del(sched, cdr_sched);
+	AST_SCHED_DEL(sched, cdr_sched);
 	/* schedule the submission to occur ASAP (1 ms) */
 	cdr_sched = ast_sched_add(sched, 1, submit_scheduled_batch, NULL);
 	/* signal the do_cdr thread to wakeup early and do some work (that lazy thread ;) */
@@ -1332,8 +1331,7 @@ static int do_reload(int reload)
 	batchmode = 0;
 
 	/* don't run the next scheduled CDR posting while reloading */
-	if (cdr_sched > -1)
-		ast_sched_del(sched, cdr_sched);
+	AST_SCHED_DEL(sched, cdr_sched);
 
 	if (config) {
 		if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
@@ -1386,7 +1384,7 @@ static int do_reload(int reload)
 		ast_cond_init(&cdr_pending_cond, NULL);
 		if (ast_pthread_create_background(&cdr_thread, NULL, do_cdr, NULL) < 0) {
 			ast_log(LOG_ERROR, "Unable to start CDR thread.\n");
-			ast_sched_del(sched, cdr_sched);
+			AST_SCHED_DEL(sched, cdr_sched);
 		} else {
 			ast_cli_register(&cli_submit);
 			ast_register_atexit(ast_cdr_engine_term);

@@ -239,7 +239,7 @@ static int refresh_list(const void *data)
 void dnsmgr_start_refresh(void)
 {
 	if (refresh_sched > -1) {
-		ast_sched_del(sched, refresh_sched);
+		AST_SCHED_DEL(sched, refresh_sched);
 		refresh_sched = ast_sched_add_variable(sched, 100, refresh_list, &master_refresh_info, 1);
 	}
 }
@@ -371,8 +371,7 @@ static int do_reload(int loading)
 	was_enabled = enabled;
 	enabled = 0;
 
-	if (refresh_sched > -1)
-		ast_sched_del(sched, refresh_sched);
+	AST_SCHED_DEL(sched, refresh_sched);
 
 	if (config) {
 		if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
