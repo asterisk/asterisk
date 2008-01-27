@@ -1269,7 +1269,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 				 int useglobal_nat, const int intended_method);
 static int __sip_autodestruct(const void *data);
 static void sip_scheddestroy(struct sip_pvt *p, int ms);
-static void sip_cancel_destroy(struct sip_pvt *p);
+static int sip_cancel_destroy(struct sip_pvt *p);
 static void sip_destroy(struct sip_pvt *p);
 static void __sip_destroy(struct sip_pvt *p, int lockowner);
 static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
@@ -2037,10 +2037,9 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	if (pkt->timer_t1)
 		siptimer_a = pkt->timer_t1 * 2;
 
-	/* Schedule retransmission */
-	pkt->retransid = ast_sched_add_variable(sched, siptimer_a, retrans_pkt, pkt, 1);
 	if (option_debug > 3 && sipdebug)
 		ast_log(LOG_DEBUG, "*** SIP TIMER: Initializing retransmit timer on packet: Id  #%d\n", pkt->retransid);
+	pkt->retransid = -1;
 	pkt->next = p->packets;
 	p->packets = pkt;
 	if (sipmethod == SIP_INVITE) {
@@ -2052,11 +2051,12 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 
 	if (xmitres == XMIT_ERROR) {	/* Serious network trouble, no need to try again */
 		append_history(pkt->owner, "XmitErr", "%s", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
-		ast_sched_del(sched, pkt->retransid);	/* No more retransmission */
-		pkt->retransid = -1;
 		return AST_FAILURE;
-	} else
+	} else {
+		/* Schedule retransmission */
+		pkt->retransid = ast_sched_add_variable(sched, siptimer_a, retrans_pkt, pkt, 1);
 		return AST_SUCCESS;
+	}
 }
 
 /*! \brief Kill a SIP dialog (called by scheduler) */
@@ -2118,19 +2118,21 @@ static void sip_scheddestroy(struct sip_pvt *p, int ms)
 	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 		append_history(p, "SchedDestroy", "%d ms", ms);
 
-	if (p->autokillid > -1)
-		ast_sched_del(sched, p->autokillid);
+	AST_SCHED_DEL(sched, p->autokillid);
 	p->autokillid = ast_sched_add(sched, ms, __sip_autodestruct, p);
 }
 
 /*! \brief Cancel destruction of SIP dialog */
-static void sip_cancel_destroy(struct sip_pvt *p)
+static int sip_cancel_destroy(struct sip_pvt *p)
 {
+	int res = 0;
 	if (p->autokillid > -1) {
-		ast_sched_del(sched, p->autokillid);
-		append_history(p, "CancelDestroy", "");
-		p->autokillid = -1;
+		if (!(res = ast_sched_del(sched, p->autokillid))) {
+			append_history(p, "CancelDestroy", "");
+			p->autokillid = -1;
+		}
 	}
+	return res;
 }
 
 /*! \brief Acknowledges receipt of a packet and stops retransmission */
@@ -2160,9 +2162,8 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			if (cur->retransid > -1) {
 				if (sipdebug && option_debug > 3)
 					ast_log(LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
-				ast_sched_del(sched, cur->retransid);
-				cur->retransid = -1;
 			}
+			AST_SCHED_DEL(sched, cur->retransid);
 			free(cur);
 			break;
 		}
@@ -2203,9 +2204,8 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			if (cur->retransid > -1) {
 				if (option_debug > 3 && sipdebug)
 					ast_log(LOG_DEBUG, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, sip_methods[sipmethod].text);
-				ast_sched_del(sched, cur->retransid);
-				cur->retransid = -1;
 			}
+			AST_SCHED_DEL(sched, cur->retransid);
 			res = 0;
 			break;
 		}
@@ -2459,10 +2459,8 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	 *
 	 * NOTE: once peer is refcounted, this probably is no longer necessary.
 	 */
-	while (peer->expire > -1 && ast_sched_del(sched, peer->expire))
-		usleep(1);
-	while (peer->pokeexpire > -1 && ast_sched_del(sched, peer->pokeexpire))
-		usleep(1);
+	AST_SCHED_DEL(sched, peer->expire);
+	AST_SCHED_DEL(sched, peer->pokeexpire);
 
 	register_peer_exten(peer, FALSE);
 	ast_free_ha(peer->ha);
@@ -2616,9 +2614,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 		/* Cache peer */
 		ast_copy_flags(&peer->flags[1],&global_flags[1], SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
 		if (ast_test_flag(&global_flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
-			if (peer->expire > -1) {
-				ast_sched_del(sched, peer->expire);
-			}
+			AST_SCHED_DEL(sched, peer->expire);
 			peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_register, (void *)peer);
 		}
 		ASTOBJ_CONTAINER_LINK(&peerl,peer);
@@ -3020,8 +3016,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 			p->invitestate = INV_CALLING;
 
 			/* Initialize auto-congest time */
-			if (p->initid > -1)
-				ast_sched_del(sched, p->initid);
+			AST_SCHED_DEL(sched, p->initid);
 			p->initid = ast_sched_add(sched, p->maxtime ? (p->maxtime * 4) : SIP_TRANS_TIMEOUT, auto_congest, p);
 		}
 	}
@@ -3044,10 +3039,8 @@ static void sip_registry_destroy(struct sip_registry *reg)
 			ast_log(LOG_DEBUG, "Destroying active SIP dialog for registry %s@%s\n", reg->username, reg->hostname);
 		sip_destroy(reg->call);
 	}
-	if (reg->expire > -1)
-		ast_sched_del(sched, reg->expire);
-	if (reg->timeout > -1)
-		ast_sched_del(sched, reg->timeout);
+	AST_SCHED_DEL(sched, reg->expire);
+	AST_SCHED_DEL(sched, reg->timeout);
 	ast_string_field_free_memory(reg);
 	regobjs--;
 	free(reg);
@@ -3081,12 +3074,9 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 
 	if (p->stateid > -1)
 		ast_extension_state_del(p->stateid, NULL);
-	if (p->initid > -1)
-		ast_sched_del(sched, p->initid);
-	if (p->waitid > -1)
-		ast_sched_del(sched, p->waitid);
-	if (p->autokillid > -1)
-		ast_sched_del(sched, p->autokillid);
+	AST_SCHED_DEL(sched, p->initid);
+	AST_SCHED_DEL(sched, p->waitid);
+	AST_SCHED_DEL(sched, p->autokillid);
 
 	if (p->rtp)
 		ast_rtp_destroy(p->rtp);
@@ -3141,8 +3131,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	/* remove all current packets in this dialog */
 	while((cp = p->packets)) {
 		p->packets = p->packets->next;
-		if (cp->retransid > -1)
-			ast_sched_del(sched, cp->retransid);
+		AST_SCHED_DEL(sched, cp->retransid);
 		free(cp);
 	}
 	if (p->chanvars) {
@@ -3477,8 +3466,8 @@ static int sip_hangup(struct ast_channel *ast)
 		}
 		if (option_debug >3)
 			ast_log(LOG_DEBUG, "SIP Transfer: Not hanging up right now... Rescheduling hangup for %s.\n", p->callid);
-		if (p->autokillid > -1)
-			sip_cancel_destroy(p);
+		if (p->autokillid > -1 && sip_cancel_destroy(p))
+			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Really hang up next time */
 		ast_clear_flag(&p->flags[0], SIP_NEEDDESTROY);
@@ -3604,10 +3593,9 @@ static int sip_hangup(struct ast_channel *ast)
 				   but we can't send one while we have "INVITE" outstanding. */
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 				ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
-				if (p->waitid)
-					ast_sched_del(sched, p->waitid);
-				p->waitid = -1;
-				sip_cancel_destroy(p);
+				AST_SCHED_DEL(sched, p->waitid);
+				if (sip_cancel_destroy(p))
+					ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 			}
 		}
 	}
@@ -7503,14 +7491,14 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			/* we have what we hope is a temporary network error,
 			 * probably DNS.  We need to reschedule a registration try */
 			sip_destroy(p);
-			if (r->timeout > -1) {
-				ast_sched_del(sched, r->timeout);
-				r->timeout = ast_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
+
+			if (r->timeout > -1)
 				ast_log(LOG_WARNING, "Still have a registration timeout for %s@%s (create_addr() error), %d\n", r->username, r->hostname, r->timeout);
-			} else {
-				r->timeout = ast_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
+			else
 				ast_log(LOG_WARNING, "Probably a DNS error for registration to %s@%s, trying REGISTER again (after %d seconds)\n", r->username, r->hostname, global_reg_timeout);
-			}
+
+			AST_SCHED_DEL(sched, r->timeout);
+			r->timeout = ast_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, r);
 			r->regattempts++;
 			return 0;
 		}
@@ -7555,10 +7543,9 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 
 	/* set up a timeout */
 	if (auth == NULL)  {
-		if (r->timeout > -1) {
+		if (r->timeout > -1)
 			ast_log(LOG_WARNING, "Still have a registration timeout, #%d - deleting it\n", r->timeout);
-			ast_sched_del(sched, r->timeout);
-		}
+		AST_SCHED_DEL(sched, r->timeout);
 		r->timeout = ast_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, r);
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
@@ -7912,13 +7899,11 @@ static void reg_source_db(struct sip_peer *peer)
 	peer->addr.sin_port = htons(port);
 	if (sipsock < 0) {
 		/* SIP isn't up yet, so schedule a poke only, pretty soon */
-		if (peer->pokeexpire > -1)
-			ast_sched_del(sched, peer->pokeexpire);
+		AST_SCHED_DEL(sched, peer->pokeexpire);
 		peer->pokeexpire = ast_sched_add(sched, ast_random() % 5000 + 1, sip_poke_peer_s, peer);
 	} else
 		sip_poke_peer(peer);
-	if (peer->expire > -1)
-		ast_sched_del(sched, peer->expire);
+	AST_SCHED_DEL(sched, peer->expire);
 	peer->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
 	register_peer_exten(peer, TRUE);
 }
@@ -8054,9 +8039,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	} else if (!strcasecmp(curi, "*") || !expiry) {	/* Unregister this peer */
 		/* This means remove all registrations and return OK */
 		memset(&peer->addr, 0, sizeof(peer->addr));
-		if (peer->expire > -1)
-			ast_sched_del(sched, peer->expire);
-		peer->expire = -1;
+		AST_SCHED_DEL(sched, peer->expire);
 
 		destroy_association(peer);
 		
@@ -8121,10 +8104,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	if (curi && ast_strlen_zero(peer->username))
 		ast_copy_string(peer->username, curi, sizeof(peer->username));
 
-	if (peer->expire > -1) {
-		ast_sched_del(sched, peer->expire);
-		peer->expire = -1;
-	}
+	AST_SCHED_DEL(sched, peer->expire);
 	if (expiry > max_expiry)
 		expiry = max_expiry;
 	if (expiry < min_expiry)
@@ -8489,8 +8469,8 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 	switch(state) {
 	case AST_EXTENSION_DEACTIVATED:	/* Retry after a while */
 	case AST_EXTENSION_REMOVED:	/* Extension is gone */
-		if (p->autokillid > -1)
-			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
+		if (p->autokillid > -1 && sip_cancel_destroy(p))	/* Remove subscription expiry for renewals */
+			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);	/* Delete subscription in 32 secs */
 		ast_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
 		p->stateid = -1;
@@ -8595,7 +8575,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_NAT);
 			transmit_response(p, "100 Trying", req);
 			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, XMIT_UNRELIABLE, ast_test_flag(req, SIP_PKT_IGNORE)))) {
-				sip_cancel_destroy(p);
+				if (sip_cancel_destroy(p))
+					ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 
 				/* We have a succesful registration attemp with proper authentication,
 				   now, update the peer */
@@ -8628,7 +8609,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		peer = temp_peer(name);
 		if (peer) {
 			ASTOBJ_CONTAINER_LINK(&peerl, peer);
-			sip_cancel_destroy(p);
+			if (sip_cancel_destroy(p))
+				ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 			switch (parse_register_contact(p, peer, req)) {
 			case PARSE_REGISTER_FAILED:
 				ast_log(LOG_WARNING, "Failed to parse contact info\n");
@@ -9363,7 +9345,8 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT_ROUTE) );
 
 		if (!(res = check_auth(p, req, user->name, user->secret, user->md5secret, sipmethod, uri2, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
-			sip_cancel_destroy(p);
+			if (sip_cancel_destroy(p))
+				ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 			ast_copy_flags(&p->flags[0], &user->flags[0], SIP_FLAGS_TO_COPY);
 			ast_copy_flags(&p->flags[1], &user->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 			/* Copy SIP extensions profile from INVITE */
@@ -12002,11 +11985,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	}
 
 	/* Acknowledge sequence number - This only happens on INVITE from SIP-call */
-	if (p->initid > -1) {
-		/* Don't auto congest anymore since we've gotten something useful back */
-		ast_sched_del(sched, p->initid);
-		p->initid = -1;
-	}
+	/* Don't auto congest anymore since we've gotten something useful back */
+	AST_SCHED_DEL(sched, p->initid);
 
 	/* RFC3261 says we must treat every 1xx response (but not 100)
 	   that we don't recognize as if it was 183.
@@ -12026,15 +12006,15 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	switch (resp) {
 	case 100:	/* Trying */
 	case 101:	/* Dialog establishment */
-		if (!ast_test_flag(req, SIP_PKT_IGNORE) && (p->invitestate != INV_CANCELLED))
-			sip_cancel_destroy(p);
+		if (!ast_test_flag(req, SIP_PKT_IGNORE) && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p))
+			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		check_pendings(p);
 		break;
 
 	case 180:	/* 180 Ringing */
 	case 182:       /* 182 Queued */
-		if (!ast_test_flag(req, SIP_PKT_IGNORE) && (p->invitestate != INV_CANCELLED))
-			sip_cancel_destroy(p);
+		if (!ast_test_flag(req, SIP_PKT_IGNORE) && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p))
+			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
 			ast_queue_control(p->owner, AST_CONTROL_RINGING);
 			if (p->owner->_state != AST_STATE_UP) {
@@ -12054,8 +12034,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 
 	case 183:	/* Session progress */
-		if (!ast_test_flag(req, SIP_PKT_IGNORE) && (p->invitestate != INV_CANCELLED))
-			sip_cancel_destroy(p);
+		if (!ast_test_flag(req, SIP_PKT_IGNORE) && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p))
+			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		/* Ignore 183 Session progress without SDP */
 		if (find_sdp(req)) {
 			if (p->invitestate != INV_CANCELLED)
@@ -12070,8 +12050,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 
 	case 200:	/* 200 OK on invite - someone's answering our call */
-		if (!ast_test_flag(req, SIP_PKT_IGNORE) && (p->invitestate != INV_CANCELLED))
-			sip_cancel_destroy(p);
+		if (!ast_test_flag(req, SIP_PKT_IGNORE) && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p))
+			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		p->authtries = 0;
 		if (find_sdp(req)) {
 			if ((res = process_sdp(p, req)) && !ast_test_flag(req, SIP_PKT_IGNORE))
@@ -12394,8 +12374,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
 		if (global_regattempts_max)
 			p->registry->regattempts = global_regattempts_max+1;
-		ast_sched_del(sched, r->timeout);
-		r->timeout = -1;
+		AST_SCHED_DEL(sched, r->timeout);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		break;
 	case 404:	/* Not found */
@@ -12404,8 +12383,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 			p->registry->regattempts = global_regattempts_max+1;
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		r->call = NULL;
-		ast_sched_del(sched, r->timeout);
-		r->timeout = -1;
+		AST_SCHED_DEL(sched, r->timeout);
 		break;
 	case 407:	/* Proxy auth */
 		if ((p->authtries == MAX_AUTHTRIES) || do_register_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization")) {
@@ -12418,8 +12396,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 			p->registry->regattempts = global_regattempts_max+1;
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		r->call = NULL;
-		ast_sched_del(sched, r->timeout);
-		r->timeout = -1;
+		AST_SCHED_DEL(sched, r->timeout);
 		break;
 	case 479:	/* SER: Not able to process the URI - address is wrong in register*/
 		ast_log(LOG_WARNING, "Got error 479 on register to %s@%s, giving up (check config)\n", p->registry->username,p->registry->hostname);
@@ -12427,8 +12404,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 			p->registry->regattempts = global_regattempts_max+1;
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		r->call = NULL;
-		ast_sched_del(sched, r->timeout);
-		r->timeout = -1;
+		AST_SCHED_DEL(sched, r->timeout);
 		break;
 	case 200:	/* 200 OK */
 		if (!r) {
@@ -12446,9 +12422,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		if (r->timeout > -1) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
-			ast_sched_del(sched, r->timeout);
 		}
-		r->timeout=-1;
+		AST_SCHED_DEL(sched, r->timeout);
 		r->call = NULL;
 		p->registry = NULL;
 		/* Let this one hang around until we have all the responses */
@@ -12457,8 +12432,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 
 		/* set us up for re-registering */
 		/* figure out how long we got registered for */
-		if (r->expire > -1)
-			ast_sched_del(sched, r->expire);
+		AST_SCHED_DEL(sched, r->expire);
 		/* according to section 6.13 of RFC, contact headers override
 		   expires headers, so check those first */
 		expires = 0;
@@ -12502,8 +12476,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		r->refresh= (int) expires_ms / 1000;
 
 		/* Schedule re-registration before we expire */
-		if (r->expire > -1)
-			ast_sched_del(sched, r->expire);
+		AST_SCHED_DEL(sched, r->expire);
 		r->expire = ast_sched_add(sched, expires_ms, sip_reregister, r); 
 		ASTOBJ_UNREF(r, sip_registry_destroy);
 	}
@@ -12547,8 +12520,7 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 			peer->name, s, pingtime);
 	}
 
-	if (peer->pokeexpire > -1)
-		ast_sched_del(sched, peer->pokeexpire);
+	AST_SCHED_DEL(sched, peer->pokeexpire);
 	ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 
 	/* Try again eventually */
@@ -12845,8 +12817,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			} else if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) {
-					if (!ast_test_flag(req, SIP_PKT_IGNORE))
-						sip_cancel_destroy(p);
+					if (!ast_test_flag(req, SIP_PKT_IGNORE) && sip_cancel_destroy(p))
+						ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 					if (find_sdp(req))
 						process_sdp(p, req);
 					if (p->owner) {
@@ -12950,8 +12922,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		default:	/* Errors without handlers */
 			if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) { 	/* re-invite */
-					if (!ast_test_flag(req, SIP_PKT_IGNORE))
-						sip_cancel_destroy(p);
+					if (!ast_test_flag(req, SIP_PKT_IGNORE) && sip_cancel_destroy(p))
+						ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 				}
 			}
 			if ((resp >= 300) && (resp < 700)) {
@@ -12964,9 +12936,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 503: /* Service Unavailable */
 				case 504: /* Server timeout */
 
-					if (sipmethod == SIP_INVITE) {	/* re-invite failed */
-						sip_cancel_destroy(p);
-					}
+					/* re-invite failed */
+					if (sipmethod == SIP_INVITE && sip_cancel_destroy(p))
+						ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 					break;
 				}
 			}
@@ -13765,7 +13737,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
 		int newcall = (p->initreq.headers ? TRUE : FALSE);
 
-		sip_cancel_destroy(p);
+		if (sip_cancel_destroy(p))
+			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		/* This also counts as a pending invite */
 		p->pendinginvite = seqno;
 		check_via(p, req);
@@ -14974,8 +14947,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			else
 				ast_log(LOG_DEBUG, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
 		}
-		if (p->autokillid > -1)
-			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
+		if (p->autokillid > -1 && sip_cancel_destroy(p))	/* Remove subscription expiry for renewals */
+			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		if (p->expiry > 0)
 			sip_scheddestroy(p, (p->expiry + 10) * 1000);	/* Set timer for destruction of call at expiration */
 
@@ -15688,8 +15661,7 @@ static int sip_poke_noanswer(const void *data)
 	peer->lastms = -1;
 	ast_device_state_changed("SIP/%s", peer->name);
 	/* Try again quickly */
-	if (peer->pokeexpire > -1)
-		ast_sched_del(sched, peer->pokeexpire);
+	AST_SCHED_DEL(sched, peer->pokeexpire);
 	peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
 	return 0;
 }
@@ -15705,10 +15677,8 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (!peer->maxms || !peer->addr.sin_addr.s_addr) {
 		/* IF we have no IP, or this isn't to be monitored, return
 		  imeediately after clearing things out */
-		if (peer->pokeexpire > -1)
-			ast_sched_del(sched, peer->pokeexpire);
+		AST_SCHED_DEL(sched, peer->pokeexpire);
 		peer->lastms = 0;
-		peer->pokeexpire = -1;
 		peer->call = NULL;
 		return 0;
 	}
@@ -15740,8 +15710,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	build_via(p);
 	build_callid_pvt(p);
 
-	if (peer->pokeexpire > -1)
-		ast_sched_del(sched, peer->pokeexpire);
+	AST_SCHED_DEL(sched, peer->pokeexpire);
 	p->relatedpeer = peer;
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 #ifdef VOCAL_DATA_HACK
@@ -15754,8 +15723,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (xmitres == XMIT_ERROR)
 		sip_poke_noanswer(peer);	/* Immediately unreachable, network problems */
 	else {
-		if (peer->pokeexpire > -1)
-			ast_sched_del(sched, peer->pokeexpire);
+		AST_SCHED_DEL(sched, peer->pokeexpire);
 		peer->pokeexpire = ast_sched_add(sched, peer->maxms * 2, sip_poke_noanswer, peer);
 	}
 
@@ -16557,9 +16525,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				}
 			} else {
 				/* Non-dynamic.  Make sure we become that way if we're not */
-				if (peer->expire > -1)
-					ast_sched_del(sched, peer->expire);
-				peer->expire = -1;
+				AST_SCHED_DEL(sched, peer->expire);
 				ast_clear_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
 				if (!obproxyfound || !strcasecmp(v->name, "outboundproxy")) {
 					if (ast_get_ip_or_srv(&peer->addr, v->value, srvlookup ? "_sip._udp" : NULL)) {
@@ -17730,8 +17696,7 @@ static void sip_poke_all_peers(void)
 
 	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
 		ASTOBJ_WRLOCK(iterator);
-		if (iterator->pokeexpire > -1)
-			ast_sched_del(sched, iterator->pokeexpire);
+		AST_SCHED_DEL(sched, iterator->pokeexpire);
 		ms += 100;
 		iterator->pokeexpire = ast_sched_add(sched, ms, sip_poke_peer_s, iterator);
 		ASTOBJ_UNLOCK(iterator);
@@ -17752,8 +17717,7 @@ static void sip_send_all_registers(void)
 	ms = regspacing;
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_WRLOCK(iterator);
-		if (iterator->expire > -1)
-			ast_sched_del(sched, iterator->expire);
+		AST_SCHED_DEL(sched, iterator->expire);
 		ms += regspacing;
 		iterator->expire = ast_sched_add(sched, ms, sip_reregister, iterator);
 		ASTOBJ_UNLOCK(iterator);

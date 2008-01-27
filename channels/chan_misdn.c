@@ -639,7 +639,7 @@ static int misdn_tasks_add_variable (int timeout, ast_sched_cb callback, const v
 
 static void misdn_tasks_remove (int task_id)
 {
-	ast_sched_del(misdn_tasks, task_id);
+	AST_SCHED_DEL(misdn_tasks, task_id);
 }
 
 static int misdn_l1_task (const void *data)

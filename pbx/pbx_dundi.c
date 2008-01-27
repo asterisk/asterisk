@@ -1658,8 +1658,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 				int expire = default_expiration;
 				char data[256];
 				int needqual = 0;
-				if (peer->registerexpire > -1)
-					ast_sched_del(sched, peer->registerexpire);
+				AST_SCHED_DEL(sched, peer->registerexpire);
 				peer->registerexpire = ast_sched_add(sched, (expire + 10) * 1000, do_register_expire, peer);
 				snprintf(data, sizeof(data), "%s:%d:%d", ast_inet_ntoa(trans->addr.sin_addr), 
 					ntohs(trans->addr.sin_port), expire);
@@ -1945,8 +1944,7 @@ static void destroy_packets(struct packetlist *p)
 	struct dundi_packet *pack;
 	
 	while ((pack = AST_LIST_REMOVE_HEAD(p, list))) {
-		if (pack->retransid > -1)
-			ast_sched_del(sched, pack->retransid);
+		AST_SCHED_DEL(sched, pack->retransid);
 		free(pack);
 	}
 }
@@ -1965,9 +1963,7 @@ static int ack_trans(struct dundi_transaction *trans, int iseqno)
 				destroy_packets(&trans->lasttrans);
 			}
 			AST_LIST_INSERT_HEAD(&trans->lasttrans, pack, list);
-			if (trans->autokillid > -1)
-				ast_sched_del(sched, trans->autokillid);
-			trans->autokillid = -1;
+			AST_SCHED_DEL(sched, trans->autokillid);
 			return 1;
 		}
 	}
@@ -2861,12 +2857,9 @@ static void destroy_packet(struct dundi_packet *pack, int needfree)
 {
 	if (pack->parent)
 		AST_LIST_REMOVE(&pack->parent->packets, pack, list);
-	if (pack->retransid > -1)
-		ast_sched_del(sched, pack->retransid);
+	AST_SCHED_DEL(sched, pack->retransid);
 	if (needfree)
 		free(pack);
-	else
-		pack->retransid = -1;
 }
 
 static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
@@ -2942,9 +2935,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 	AST_LIST_REMOVE(&alltrans, trans, all);
 	destroy_packets(&trans->packets);
 	destroy_packets(&trans->lasttrans);
-	if (trans->autokillid > -1)
-		ast_sched_del(sched, trans->autokillid);
-	trans->autokillid = -1;
+	AST_SCHED_DEL(sched, trans->autokillid);
 	if (trans->thread) {
 		/* If used by a thread, mark as dead and be done */
 		ast_set_flag(trans, FLAG_DEAD);
@@ -3889,12 +3880,10 @@ static void destroy_permissions(struct permissionlist *permlist)
 
 static void destroy_peer(struct dundi_peer *peer)
 {
-	if (peer->registerid > -1)
-		ast_sched_del(sched, peer->registerid);
+	AST_SCHED_DEL(sched, peer->registerid);
 	if (peer->regtrans)
 		destroy_trans(peer->regtrans, 0);
-	if (peer->qualifyid > -1)
-		ast_sched_del(sched, peer->qualifyid);
+	AST_SCHED_DEL(sched, peer->qualifyid);
 	destroy_permissions(&peer->permit);
 	destroy_permissions(&peer->include);
 	free(peer);
@@ -4057,9 +4046,7 @@ static int do_qualify(const void *data)
 static void qualify_peer(struct dundi_peer *peer, int schedonly)
 {
 	int when;
-	if (peer->qualifyid > -1)
-		ast_sched_del(sched, peer->qualifyid);
-	peer->qualifyid = -1;
+	AST_SCHED_DEL(sched, peer->qualifyid);
 	if (peer->qualtrans)
 		destroy_trans(peer->qualtrans, 0);
 	peer->qualtrans = NULL;
@@ -4137,9 +4124,7 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 	peer->us_eid = global_eid;
 	destroy_permissions(&peer->permit);
 	destroy_permissions(&peer->include);
-	if (peer->registerid > -1)
-		ast_sched_del(sched, peer->registerid);
-	peer->registerid = -1;
+	AST_SCHED_DEL(sched, peer->registerid);
 	for (; v; v = v->next) {
 		if (!strcasecmp(v->name, "inkey")) {
 			ast_copy_string(peer->inkey, v->value, sizeof(peer->inkey));
