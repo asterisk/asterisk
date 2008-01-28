@@ -2062,36 +2062,57 @@ static int get_date(char *s, int len)
 	return strftime(s, len, "%a %b %e %r %Z %Y", &tm);
 }
 
-static int invent_message(struct ast_channel *chan, char *context, char *ext, int busy, char *ecodes)
+static int play_greeting(struct ast_channel *chan, struct ast_vm_user *vmu, char *filename, char *ecodes)
+{
+	int res = -2;
+
+#ifdef ODBC_STORAGE
+	int success = 
+#endif
+	RETRIEVE(filename, -1);
+	if (ast_fileexists(filename, NULL, NULL) > 0) {
+		res = ast_streamfile(chan, filename, chan->language);
+		if (res > -1) 
+			res = ast_waitstream(chan, ecodes);
+#ifdef ODBC_STORAGE
+		if (success == -1) {
+			/* We couldn't retrieve the file from the database, but we found it on the file system. Let's put it in the database. */
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Greeting not retrieved from database, but found in file storage. Inserting into database\n");
+			store_file(filename, vmu->mailbox, vmu->context, -1);
+		}
+#endif
+	}
+	DISPOSE(filename, -1);
+
+	return res;
+}
+
+static int invent_message(struct ast_channel *chan, struct ast_vm_user *vmu, char *ext, int busy, char *ecodes)
 {
 	int res;
 	char fn[PATH_MAX];
 	char dest[PATH_MAX];
 
-	snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, context, ext);
+	snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, vmu->context, ext);
 
-	if ((res = create_dirpath(dest, sizeof(dest), context, ext, "greet"))) {
+	if ((res = create_dirpath(dest, sizeof(dest), vmu->context, ext, "greet"))) {
 		ast_log(LOG_WARNING, "Failed to make directory(%s)\n", fn);
 		return -1;
 	}
 
-	RETRIEVE(fn, -1);
-	if (ast_fileexists(fn, NULL, NULL) > 0) {
-		res = ast_stream_and_wait(chan, fn, chan->language, ecodes);
-		if (res) {
-			DISPOSE(fn, -1);
-			return res;
-		}
-	} else {
-		/* Dispose just in case */
-		DISPOSE(fn, -1);
+	res = play_greeting(chan, vmu, fn, ecodes);
+	if (res == -2) {
+		/* File did not exist */
 		res = ast_stream_and_wait(chan, "vm-theperson", chan->language, ecodes);
 		if (res)
 			return res;
 		res = ast_say_digit_str(chan, ext, ecodes, chan->language);
-		if (res)
-			return res;
 	}
+
+	if (res)
+		return res;
+
 	res = ast_stream_and_wait(chan, busy ? "vm-isonphone" : "vm-isunavail", chan->language, ecodes);
 	return res;
 }
@@ -2886,27 +2907,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 	/* Play the beginning intro if desired */
 	if (!ast_strlen_zero(prefile)) {
-#ifdef ODBC_STORAGE
-		int success = 
-#endif
-			RETRIEVE(prefile, -1);
-		if (ast_fileexists(prefile, NULL, NULL) > 0) {
-			if (ast_streamfile(chan, prefile, chan->language) > -1) 
-				res = ast_waitstream(chan, ecodes);
-#ifdef ODBC_STORAGE
-			if (success == -1) {
-				/* We couldn't retrieve the file from the database, but we found it on the file system. Let's put it in the database. */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Greeting not retrieved from database, but found in file storage. Inserting into database\n");
-				store_file(prefile, vmu->mailbox, vmu->context, -1);
-			}
-#endif
-		} else {
+		res = play_greeting(chan, vmu, prefile, ecodes);
+		if (res == -2) {
+			/* The file did not exist */
 			if (option_debug)
 				ast_log(LOG_DEBUG, "%s doesn't exist, doing what we can\n", prefile);
-			res = invent_message(chan, vmu->context, ext, ast_test_flag(options, OPT_BUSY_GREETING), ecodes);
+			res = invent_message(chan, vmu, ext, ast_test_flag(options, OPT_BUSY_GREETING), ecodes);
 		}
-		DISPOSE(prefile, -1);
 		if (res < 0) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Hang up during prefile playback\n");
