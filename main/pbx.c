@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2008, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -856,42 +856,58 @@ static void update_scoreboard(struct scoreboard *board, int length, int spec, st
 
 void log_match_char_tree(struct match_char *node, char *prefix)
 {
-	char my_prefix[1024];
 	char extenstr[40];
-	
-	extenstr[0] = 0;
+	struct ast_str *my_prefix = ast_str_alloca(1024); 
+
+	extenstr[0] = '\0';
+
 	if (node && node->exten && node->exten)
-		sprintf(extenstr,"(%p)",node->exten);
+		snprintf(extenstr, sizeof(extenstr), "(%p)", node->exten);
 	
-	if (strlen(node->x) > 1 )
-		ast_log(LOG_DEBUG,"%s[%s]:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->deleted? 'D':'-', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "", extenstr);
-	else
-		ast_log(LOG_DEBUG,"%s%s:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->deleted? 'D':'-', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "", extenstr);
-	strcpy(my_prefix,prefix);
-	strcat(my_prefix,"+       ");
+	if (strlen(node->x) > 1) {
+		ast_debug(1, "%s[%s]:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', 
+			node->deleted? 'D':'-', node->specificity, node->exten? "EXTEN:":"", 
+			node->exten ? node->exten->exten : "", extenstr);
+	} else {
+		ast_debug(1, "%s%s:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', 
+			node->deleted? 'D':'-', node->specificity, node->exten? "EXTEN:":"", 
+			node->exten ? node->exten->exten : "", extenstr);
+	}
+
+	ast_str_set(&my_prefix, 0, "%s+       ", prefix);
+
 	if (node->next_char)
-		log_match_char_tree(node->next_char, my_prefix);
+		log_match_char_tree(node->next_char, my_prefix->str);
+
 	if (node->alt_char)
 		log_match_char_tree(node->alt_char, prefix);
 }
 
 static void cli_match_char_tree(struct match_char *node, char *prefix, int fd)
 {
-	char my_prefix[1024];
 	char extenstr[40];
+	struct ast_str *my_prefix = ast_str_alloca(1024);
 	
-	extenstr[0] = 0;
+	extenstr[0] = '\0';
+
 	if (node && node->exten && node->exten)
-		sprintf(extenstr,"(%p)",node->exten);
+		snprintf(extenstr, sizeof(extenstr), "(%p)", node->exten);
 	
-	if (strlen(node->x) > 1)
-		ast_cli(fd, "%s[%s]:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->deleted ? 'D' : '-', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "", extenstr);
-	else
-		ast_cli(fd, "%s%s:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->deleted ? 'D' : '-', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "", extenstr);
-	strcpy(my_prefix,prefix);
-	strcat(my_prefix,"+       ");
+	if (strlen(node->x) > 1) {
+		ast_cli(fd, "%s[%s]:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y' : 'N', 
+			node->deleted ? 'D' : '-', node->specificity, node->exten? "EXTEN:" : "", 
+			node->exten ? node->exten->exten : "", extenstr);
+	} else {
+		ast_cli(fd, "%s%s:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y' : 'N', 
+			node->deleted ? 'D' : '-', node->specificity, node->exten? "EXTEN:" : "", 
+			node->exten ? node->exten->exten : "", extenstr);
+	}
+
+	ast_str_set(&my_prefix, 0, "%s+       ", prefix);
+
 	if (node->next_char)
-		cli_match_char_tree(node->next_char, my_prefix, fd);
+		cli_match_char_tree(node->next_char, my_prefix->str, fd);
+
 	if (node->alt_char)
 		cli_match_char_tree(node->alt_char, prefix, fd);
 }
@@ -900,9 +916,12 @@ static struct ast_exten *get_canmatch_exten(struct match_char *node)
 {
 	/* find the exten at the end of the rope */
 	struct match_char *node2 = node;
-	for (node2 = node; node2; node2 = node2->next_char)
+
+	for (node2 = node; node2; node2 = node2->next_char) {
 		if (node2->exten)
 			return node2->exten;
+	}
+
 	return 0;
 }
 
