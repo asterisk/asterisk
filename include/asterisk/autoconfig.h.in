@@ -993,6 +993,9 @@
 /* Define to indicate the ${VORBIS_DESCRIP} library version */
 #undef HAVE_VORBIS_VERSION
 
+/* Define if your system has the VoiceTronix API libraries. */
+#undef HAVE_VPB
+
 /* Define to 1 if you have the `vprintf' function. */
 #undef HAVE_VPRINTF
 
@@ -1162,6 +1165,9 @@
 #endif
 #ifndef _POSIX_PTHREAD_SEMANTICS
 # undef _POSIX_PTHREAD_SEMANTICS
+#endif
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
 #endif
 
 /* Define like PROTOTYPES; this can be used by system headers. */
