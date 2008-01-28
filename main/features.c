@@ -525,6 +525,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 {
 	struct ast_channel *chan;
 	struct ast_frame *f;
+	char *orig_chan_name = NULL;
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
 	if (!(chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, rchan->accountcode, rchan->exten, rchan->context, rchan->amaflags, "Parked/%s",rchan->name))) {
@@ -544,7 +545,10 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	if ((f = ast_read(chan)))
 		ast_frfree(f);
 
-	ast_park_call(chan, peer, timeout, extout);
+	orig_chan_name = ast_strdupa(chan->name);
+
+	park_call_full(chan, peer, timeout, extout, orig_chan_name);
+
 	return 0;
 }
 
