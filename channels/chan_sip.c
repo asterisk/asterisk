@@ -17764,7 +17764,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	req.socket.fd 	= sipsock;
 	req.socket.type = SIP_TRANSPORT_UDP;
 	req.socket.ser	= NULL;
-	req.socket.port = htons(bindaddr.sin_port);
+	req.socket.port = bindaddr.sin_port;
 	req.socket.lock = NULL;
 
 	handle_request_do(&req, &sin);
