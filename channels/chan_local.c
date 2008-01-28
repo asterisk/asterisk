@@ -154,8 +154,6 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 {
 	struct ast_channel *other = NULL;
 
-retrylock:		
-
 	/* Recalculate outbound channel */
 	other = isoutbound ? p->owner : p->chan;
 
@@ -173,27 +171,28 @@ retrylock:
 		ast_clear_flag(p, LOCAL_GLARE_DETECT);
 		return 0;
 	}
-	if (ast_mutex_trylock(&other->lock)) {
-		/* Failed to lock.  Release main lock and try again */
-		ast_mutex_unlock(&p->lock);
-		if (us) {
-			if (ast_mutex_unlock(&us->lock)) {
-				ast_log(LOG_WARNING, "%s wasn't locked while sending %d/%d\n",
-					us->name, f->frametype, f->subclass);
-				us = NULL;
-			}
+
+	ast_mutex_unlock(&p->lock);
+
+	/* Ensure that we have both channels locked */
+	if (us) {
+		while (ast_channel_trylock(other)) {
+			ast_channel_unlock(us);
+			usleep(1);
+			ast_channel_lock(us);
 		}
-		/* Wait just a bit */
-		usleep(1);
-		/* Only we can destroy ourselves, so we can't disappear here */
-		if (us)
-			ast_mutex_lock(&us->lock);
-		ast_mutex_lock(&p->lock);
-		goto retrylock;
+	} else {
+		ast_channel_lock(other);
 	}
+
 	ast_queue_frame(other, f);
-	ast_mutex_unlock(&other->lock);
+
+	ast_channel_unlock(other);
+
+	ast_mutex_lock(&p->lock);
+
 	ast_clear_flag(p, LOCAL_GLARE_DETECT);
+
 	return 0;
 }
 

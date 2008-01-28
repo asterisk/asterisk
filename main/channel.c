@@ -1556,16 +1556,23 @@ static int generator_force(const void *data)
 	int res;
 	int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
 	struct ast_channel *chan = (struct ast_channel *)data;
+
+	ast_channel_lock(chan);
 	tmp = chan->generatordata;
 	chan->generatordata = NULL;
 	generate = chan->generator->generate;
+	ast_channel_unlock(chan);
+
 	res = generate(chan, tmp, 0, 160);
+
 	chan->generatordata = tmp;
+
 	if (res) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Auto-deactivating generator\n");
 		ast_deactivate_generator(chan);
 	}
+
 	return 0;
 }
 
@@ -1975,13 +1982,17 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		} else if (blah == ZT_EVENT_TIMER_EXPIRED) {
 			ioctl(chan->timingfd, ZT_TIMERACK, &blah);
 			if (chan->timingfunc) {
-				chan->timingfunc(chan->timingdata);
+				/* save a copy of func/data before unlocking the channel */
+				int (*func)(const void *) = chan->timingfunc;
+				void *data = chan->timingdata;
+				ast_channel_unlock(chan);
+				func(data);
 			} else {
 				blah = 0;
 				ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
 				chan->timingdata = NULL;
+				ast_channel_unlock(chan);
 			}
-			ast_channel_unlock(chan);
 			/* cannot 'goto done' because the channel is already unlocked */
 			return &ast_null_frame;
 		} else
