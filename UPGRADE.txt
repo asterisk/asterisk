@@ -384,11 +384,6 @@ The Agent channel:
   channel and module locks (which frequently caused deadlocks). An example of
   how to do this using AEL dialplan is in doc/queues-with-callback-members.txt.
 
-The VPB channel:
-
-* chan_vpb has been deprecated in favor of using chan_zap in combination with
-  the Zaptel drivers provided by Voicetronix
-
 The G726-32 codec:
 
 * It has been determined that previous versions of Asterisk used the wrong codeword
