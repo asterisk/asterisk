@@ -7936,8 +7936,8 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 	struct ast_hostent ahp;
 	int port;
 	char *c, *host, *pt;
+	char contact_buf[256];
 	char *contact;
-
 
 	if (ast_test_flag(&pvt->flags[0], SIP_NAT_ROUTE)) {
 		/* NAT: Don't trust the contact field.  Just use what they came to us
@@ -7946,9 +7946,9 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 		return 0;
 	}
 
-
 	/* Work on a copy */
-	contact = ast_strdupa(pvt->fullcontact);
+	ast_copy_string(contact_buf, pvt->fullcontact, sizeof(contact_buf));
+	contact = contact_buf;
 
 	/* Make sure it's a SIP URL */
 	if (strncasecmp(contact, "sip:", 4)) {
