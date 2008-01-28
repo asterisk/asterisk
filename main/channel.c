@@ -4561,14 +4561,14 @@ void ast_moh_cleanup(struct ast_channel *chan)
 
 void ast_channels_init(void)
 {
-	ast_cli_register_multiple(cli_channel, sizeof(cli_channel) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_channel, ARRAY_LEN(cli_channel));
 }
 
 /*! \brief Print call group and pickup group ---*/
 char *ast_print_group(char *buf, int buflen, ast_group_t group)
 {
 	unsigned int i;
-	int first=1;
+	int first = 1;
 	char num[3];
 
 	buf[0] = '\0';
@@ -4581,7 +4581,7 @@ char *ast_print_group(char *buf, int buflen, ast_group_t group)
 	   		if (!first) {
 				strncat(buf, ", ", buflen);
 			} else {
-				first=0;
+				first = 0;
 	  		}
 			snprintf(num, sizeof(num), "%u", i);
 			strncat(buf, num, buflen);
@@ -4619,9 +4619,12 @@ static int silence_generator_generate(struct ast_channel *chan, void *data, int 
 		.samples = samples,
 		.datalen = sizeof(buf),
 	};
+
 	memset(buf, 0, sizeof(buf));
+
 	if (ast_write(chan, &frame))
 		return -1;
+
 	return 0;
 }
 
