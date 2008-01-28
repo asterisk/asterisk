@@ -177,7 +177,10 @@ typedef unsigned long long ast_group_t;
 struct ast_generator {
 	void *(*alloc)(struct ast_channel *chan, void *params);
 	void (*release)(struct ast_channel *chan, void *data);
-	/*! This function gets called with the channel locked */
+	/*! This function gets called with the channel unlocked, but is called in
+	 *  the context of the channel thread so we know the channel is not going
+	 *  to disappear.  This callback is responsible for locking the channel as
+	 *  necessary. */
 	int (*generate)(struct ast_channel *chan, void *data, int len, int samples);
 	/*! This gets called when DTMF_END frames are read from the channel */
 	void (*digit)(struct ast_channel *chan, char digit);
