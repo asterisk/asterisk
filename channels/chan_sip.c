@@ -2820,8 +2820,6 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		append_history(pkt->owner, "XmitErr", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
 		return AST_FAILURE;
 	} else {
-		/* Schedule retransmission */
-		pkt->retransid = ast_sched_add_variable(sched, siptimer_a, retrans_pkt, pkt, 1);
 		return AST_SUCCESS;
 	}
 }
@@ -2946,6 +2944,7 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 				if (sipdebug)
 					ast_debug(4, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
 			}
+			AST_SCHED_DEL(sched, cur->retransid);
 			UNLINK(cur, p->packets, prev);
 			dialog_unref(cur->owner);
 			ast_free(cur);
