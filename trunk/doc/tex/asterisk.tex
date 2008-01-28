@@ -1,0 +1,162 @@
+% To generate a PDF from this, install the "rubber" tool, and the LaTeX
+% dependencies for it.  Then, run:
+%
+% rubber asterisk.tex
+%
+% http://www.pps.jussieu.fr/~beffara/soft/rubber/
+
+\documentclass[12pt,a4]{report}
+
+\usepackage{hyperref}
+
+\usepackage{url}
+\makeatletter
+\def\url@aststyle{%
+  \@ifundefined{selectfont}{\def\UrlFont{\sf}}{\def\UrlFont{\small\ttfamily}}}
+\makeatother
+\urlstyle{ast}
+
+\usepackage[titles]{tocloft}
+\renewcommand{\cftchapfont}{%
+  \fontsize{11}{13}\usefont{OT1}{phv}{bc}{n}\selectfont
+}
+
+\newenvironment{astlisting}
+{\begin{list}{}{\setlength{\leftmargin}{1em}}\item\scriptsize\bfseries}
+{\end{list}}
+
+\usepackage{sectsty}
+\allsectionsfont{\usefont{OT1}{phv}{bc}{n}\selectfont}
+
+\usepackage[Lenny]{fncychap}
+
+
+\author{Asterisk Development Team \\ Asterisk.org}
+\title{Asterisk Reference Information \\ Version }
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+
+\chapter{Introduction}
+
+This document contains various pieces of information that are useful for
+reference purposes.
+
+  \section{License Information}
+  \input{../../LICENSE}
+     \subsection{Hold Music}
+       Digium has licensed the music included with
+       the Asterisk distribution From FreePlayMusic
+       for use and distribution with Asterisk.  It
+       is licensed ONLY for use as hold music within
+       an Asterisk based PBX.
+  \section{Security}
+  \input{security.tex}
+  \section{Hardware}
+  \input{hardware.tex}
+
+\chapter{Configuration}
+  \section{General Configuration Information}
+    \subsection{Configuration Parser}
+    \input{configuration.tex}
+    \subsection{Asterisk.conf}
+    \input{asterisk-conf.tex}
+    \subsection{CLI Prompt}
+    \input{cliprompt.tex}
+    \subsection{Extensions}
+    \input{extensions.tex}
+    \subsection{IP Quality of Service}
+    \input{qos.tex}
+    \subsection{MP3 Support}
+    \input{mp3.tex}
+    \subsection{ICES}
+    \input{ices.tex}
+  \section{Database Support}
+    \subsection{Realtime Database Configuration}
+    \input{realtime.tex}
+    \subsection{FreeTDS}
+    \input{freetds.tex}
+  \section{Privacy}
+  \input{privacy.tex}
+
+\chapter{Channel Variables}
+\input{channelvariables.tex}
+
+\chapter{AEL: Asterisk Extension Language}
+\input{ael.tex}
+
+\chapter{SLA: Shared Line Appearances}
+\input{sla.tex}
+
+\chapter{Channel Drivers}
+  \section{IAX2}
+  \input{chaniax.tex}
+    \subsection{IAX2 Jitterbuffer}
+    \input{jitterbuffer.tex}
+  \section{mISDN}
+  \input{misdn.tex}
+  \section{Local}
+  \input{localchannel.tex}
+
+\chapter{Distributed Universal Number Discovery (DUNDi)}
+  \section{Introduction}
+  \input{dundi.tex}
+  \section{Peering Agreement}
+  \input{../PEERING}
+
+\chapter{ENUM}
+\input{enum.tex}
+
+\chapter{AMI: Asterisk Manager Interface}
+  \input{manager.tex}
+  \input{ajam.tex}
+
+\chapter{CDR: Call Detail Records}
+\input{billing.tex}
+\input{cdrdriver.tex}
+
+\chapter{Voicemail}
+  \section{ODBC Storage}
+  \label{odbcstorage}
+  \input{odbcstorage.tex}
+  \section{IMAP Storage}
+  \input{imapstorage.tex}
+
+\chapter{SMS}
+\input{app-sms.tex}
+
+\chapter{Queues}
+  \input{queues-with-callback-members.tex}
+  \section{Queue Logs}
+  \input{queuelog.tex}
+
+\chapter{Phone Provisioning}
+  \input{phoneprov.tex}
+
+\chapter{Development}
+  \section{Backtrace}
+  \input{backtrace.tex}
+
+
+
+% This is a list of files not yet integrated into this document:
+%
+%Misc
+%----
+%asterisk-mib.txt   SNMP mib for Asterisk (net-snmp)
+%digium-mib.txt     SNMP mib for Asterisk (net-snmp)
+%
+%For developers
+%--------------
+%See http://www.asterisk.org/developers for more information
+%
+%callfiles.txt      Asterisk callfiles using instruction
+%CODING-GUIDELINES  Guidelines for developers
+%externalivr.txt    Documentation of the protocol used in externalivr()
+%modules.txt        How Asterisk modules work
+%datastores.txt     About channel data stores
+%speechrec.txt      The Generic Speech Recognition API
+
+\end{document}

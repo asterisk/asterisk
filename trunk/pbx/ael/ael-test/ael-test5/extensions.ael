@@ -1,0 +1,838 @@
+///////////////////////////////////////////////////////////////////////////////
+// Helpdesk Queue
+
+context hd-queue {
+	s => {
+		NoOp(Add a background sound to tell the user their options);
+		Queue(helpdesk|t);
+		NoOp(Put in options to apologize and send user to voicemail);
+	};
+
+	0 => goto default|0|1;
+	1 => {
+		Dial(u41950@ixtlchochitl.zvbwu.edu);
+		Congestion(10);
+		Hangup;
+	};
+};
+
+
+context l903-calling {
+	_9903NXXXXXX => {
+		Realtime(l903_ext,exchange,${EXTEN:4:3},l903_);
+		if ("${l903_exchange}foo" = "foo") {
+			Playback(num-outside-area);
+			SayDigits(1);
+			Playback(and-area-code);
+			Playback(before-the-number);
+			Hangup;
+		};
+		&dialout(${EXTEN});
+		Congestion(10);
+		Hangup;
+	};
+};
+///////////////////////////////////////////////////////////////////////////////
+// Extensions pulled from houston.conf
+// Converted the extension list to the database
+
+context houston-calling {
+	_9713NXXXXXX => {
+		Realtime(hou_713_ext,exchange,${EXTEN:4:3},hou_713_);
+		if ("${hou_713_exchange}foo" = "foo") {
+			Playback(num-outside-area);
+			SayDigits(1);
+			Playback(and-area-code);
+			Playback(before-the-number);
+			Hangup;
+		};
+		&dialout(${EXTEN});
+		Congestion(10);
+		Hangup;
+	};
+
+	_9281NXXXXXX => {
+		Realtime(hou_281_ext,exchange,${EXTEN:4:3},hou_281_);
+		if ("${hou_281_exchange}foo" = "foo") {
+			Playback(num-outside-area);
+			SayDigits(1);
+			Playback(and-area-code);
+			Playback(before-the-number);
+			Hangup;
+		};
+		&dialout(${EXTEN});
+		Congestion(10);
+		Hangup;
+	};
+
+	_9832NXXXXXX => {
+		Realtime(hou_832_ext,exchange,${EXTEN:4:3},hou_832_);
+		if ("${hou_832_exchange}foo" = "foo") {
+			Playback(num-outside-area);
+			SayDigits(1);
+			Playback(and-area-code);
+			Playback(before-the-number);
+			Hangup;
+		};
+		&dialout(${EXTEN});
+		Congestion(10);
+		Hangup;
+	};
+};
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Extensions pulled from huntsville.conf
+// Converted the extension list to the database
+
+context huntsville-calling {
+	_9NXXXXXX => {
+		Realtime(hv_ext,exchange,${EXTEN:1:3},hv_);
+		if ("${hv_exchange}foo" = "foo") {
+			Playback(num-outside-area);
+			SayDigits(1);
+			Playback(and-area-code);
+			Playback(before-the-number);
+			Hangup;
+		};
+		&dialout(${EXTEN});
+		Congestion(10);
+		Hangup;
+	};
+
+	_NXXXXXX => {
+		NoOp(Stripping last four to see what extension we're dialing);
+		Set(LAST4=${EXTEN:3});
+		StripLSD(4);
+	};
+
+	i => Playback(pbx-invalid);
+	h => Hangup;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// Extensions pulled from macros.conf
+
+macro dialout( number ) {
+	Realtime(call_info,exten,${CALLERIDNUM:5},mon_);
+	if ("${mon_monitor}" = "YES") {
+		Dial(SIP/${number}@zgw1.zvbwu.edu,,wW);
+		Dial(SIP/${number}@zgw2.zvbwu.edu,,wW);
+	} else {
+		Dial(SIP/${number}@zgw1.zvbwu.edu);
+		Dial(SIP/${number}@zgw2.zvbwu.edu);
+	};
+	return;
+};
+
+// Standard extension macro:
+//  ${ext} - Extension
+macro stdexten( ext ) {
+	Realtime(sipusers,name,${ext},sip_user_);
+	Realtime(call_info,exten|${ext},info_);
+	if ("${sip_user_name}foo" = "foo") {
+		Wait(1);
+		&dialout(${ext});
+		Congestion(10);
+		Hangup;
+	};
+	NoOp(${CALLERIDNUM});
+	RealtimeUpdate(call_info,exten,${ext},calltrace,${CALLERIDNUM});
+	System(/usr/local/bin/db_update.sh call_info calltrace ${CALLERIDNUM} exten ${ext} &);
+	&checkdnd(${ext});
+	&checkcf(${ext});
+	Realtime(call_info,exten,${CALLERIDNUM:5},mon_);
+	if ("${mon_monitor}" = "YES") {
+		Dial(SIP/${info_forwardto},25,wW);
+	} else {
+		Dial(SIP/${info_forwardto},25);
+	};
+	switch ("${DIALSTATUS}") {
+		case "BUSY":
+			&checkcfb(${ext});
+			break;
+		case "CHANUNAVAIL":
+			Dial(IAX2/asterisk:password@ixtlchochitl.zvbwu.edu/${info_forwardto},25,wW);
+			MailboxExists(${ext});
+//			if ("${VMBOXEXISTSSTATUS}" = "FAILED") {
+//				Congestion(10);
+//				Hangup;
+//			};
+			&uvm(${ext});
+			Hangup;
+			break;
+		case "CONGESTION":
+			MailboxExists(${ext});
+			if ("${VMBOXEXISTSSTATUS}" = "FAILED") {
+				Congestion(10);
+				Hangup;
+			};
+			&bvm(${ext});
+			Hangup;
+			break;
+		default:
+			MailboxExists(${ext});
+			if ("${VMBOXEXISTSSTATUS}" = "FAILED") {
+				Congestion(10);
+				Hangup;
+			};
+			&uvm(${ext});
+			Hangup;
+	};
+	Hangup;
+};
+
+macro uvm( ext ) {
+	Dial(SIP/u${ext}@ixtlchochitl.zvbwu.edu);
+	Playback(im-sorry);
+	Playback(voice-mail-system);
+	Playback(down);
+	Congestion(10);
+	Hangup;
+};
+
+macro bvm( ext ) {
+	Dial(SIP/b${ext}@ixtlchochitl.zvbwu.edu);
+	Playback(im-sorry);
+	Playback(voice-mail-system);
+	Playback(down);
+	Congestion(10);
+	Hangup;
+};
+
+macro checkdnd( ext ) {
+	if ("${info_donotdisturb}foo" = "foo") {
+		NoOp(Do Not Disturb is not active);
+	} else
+		&uvm(${ext});
+	return;
+};
+
+macro checkcf( ext ) {
+	if ("${info_forwardto}foo" = "foo")
+		if ("${ext}" = "43974") {
+			Set(info_forwardto=${ext}&SCCP/${ext});
+		} else {
+			Set(info_forwardto=${ext}&SIP/${ext}w);
+		};
+	return;
+};
+
+macro checkcfb( ext ) {
+	if ("${info_forwardbusy}foo" = "foo") {
+		Wait(1);
+		MailboxExists(${ext});
+		if ("${VMBOXEXISTSSTATUS}" = "FAILED") {
+			&dialout(${ext});
+			Hangup;
+		};
+		&bvm(${ext});
+		Hangup;
+	};
+	&stdexten(${info_forwardbusy});
+	return;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// Extensions pulled from test.conf
+
+context test-include {
+	includes {
+		test-digium;
+		test-sounds;
+		test-phinfo;
+	};
+};
+
+context test-digium {
+	*500 => {
+		Dial(IAX2/guest@misery.digium.com/s@default);
+		Playback(demo-nogo);
+		Hangup;
+	};
+};
+
+context test-sounds {
+	*501 => {
+		Answer;
+		Musiconhold;
+		Wait(1);
+		Hangup;
+	};
+};
+
+context test-phinfo {
+	*505 => {
+		Answer;
+		NoOp(${CALLERIDNUM:5});
+		SayDigits(${CALLERIDNUM:5});
+		Hangup;
+	};
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// Extensions pulled from external.conf
+
+context long-distance {
+	includes {
+		local1;
+	};
+
+	_91XXXXXXXXXX => &dialout(${EXTEN});
+	_9011. => &dialout(${EXTEN});
+};
+
+context local1 {
+	includes {
+		default;
+	};
+
+	911 => &dialout(911);
+	9911 => &dialout(9911);
+
+	_9NXXXXXX => goto huntsville-calling|${EXTEN}|1;
+	_936NXXXXXX => {
+		goto 9${EXTEN:3}|1;
+		Congestion(10);
+		Hangup;
+	};
+
+	_832NXXXXXX => {
+		goto 9${EXTEN}|1;
+		Congestion(10);
+		Hangup;
+	};
+
+	_713NXXXXXX => {
+		goto 9${EXTEN}|1 ;
+		Congestion(10);
+		Hangup;
+	};
+
+	_281NXXXXXX => {
+		goto 9${EXTEN}|1;
+		Congestion(10);
+		Hangup;
+
+	};
+
+	_NXXNXXXXXX => {
+		goto 9${EXTEN}|1;
+		goto 91${EXTEN}|1;
+		Congestion(10);
+		Hangup;
+	};
+
+	_91800NXXXXXX => &dialout(${EXTEN});
+	_91866NXXXXXX => &dialout(${EXTEN});
+	_91877NXXXXXX => &dialout(${EXTEN});
+	_91888NXXXXXX => &dialout(${EXTEN});
+	_91900NXXXXXX => &dialout(${EXTEN});
+	_91976NXXXXXX => &dialout(${EXTEN});
+	_9713NXXXXXX => goto houston-calling|${EXTEN}|1;
+	_9281NXXXXXX => goto houston-calling|${EXTEN}|1;
+	_9832NXXXXXX => goto houston-calling|${EXTEN}|1;
+	_9903NXXXXXX => goto l903-calling|${EXTEN}|1;
+
+	_31NXXNXXXXXX => &dialout(${EXTEN});
+
+	h => Hangup;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// Extensions pulled from internal.conf
+
+context from-scm2 {
+	_4XXXX => {
+		NoOp(DIALING SIP EXTENSION ${EXTEN} - FROM ${CALLERIDNUM});
+		Dial(SIP/${EXTEN},20,wW);
+		Hangup;
+	};
+
+	_6XXXX => {
+		NoOp(DIALING SIP EXTENSION ${EXTEN} - FROM ${CALLERIDNUM});
+		Dial(SIP/${EXTEN},20,wW);
+		Hangup;
+	};
+};
+
+///////////////////////////////////////////////////////////
+// All internal extensions work through the default context
+// Phones that can only make internal calls should be in
+// this context.
+///////////////////////////////////////////////////////////
+
+context default {
+// Include the contexts in the files that allow us to make these phone calls
+	includes {
+		vm-include;
+		apps-include;
+		test-include;
+	};
+
+// ALWAYS have an 'h' extension
+	h => {
+		NoOp(Hangup cause was: ${HANGUPCAUSE});
+		Hangup;
+	};
+
+// We like to hear that we dialed an invalid extension
+	i => Playback(pbx-invalid);
+
+// Dial the operator
+	0 => &dialout(0);
+
+// Send voicemail calls to the vm-* contexts to be handled
+	voicemail => goto vm-direct|s|1;
+	5555 => goto vm-direct|s|1;
+	62100 => goto vm-extension|s|1;
+
+// These are our campus extensions, send them to the macro
+	_6XXXX => &stdexten(${EXTEN});
+	_4XXXX => &stdexten(${EXTEN});
+// These are campus extensions as well, might need to take this out though.
+	_9294XXXX => goto _4XXXX|1;
+	_9496XXXX => goto _6XXXX|1;
+
+// These allows us to dial from the directory in our phone without worrying about dialing 9
+	_936294XXXX => {
+		goto ${EXTEN:5}|1;
+		goto 9${EXTEN:3}|1;
+		Congestion(10);
+		Hangup;
+	};
+
+	_936496XXXX => {
+		goto ${EXTEN:5}|1;
+		goto 9${EXTEN:3}|1;
+		Congestion(10);
+		Hangup;
+	};
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// Extensions pulled from apps.conf
+
+context apps-include {
+	includes {
+		app-agents;
+		app-dnd;
+		app-callforward;
+		app-calltrace;
+		app-conferences;
+		app-ssd;
+		app-psd;
+		app-idblock;
+		app-helpdesk;
+		app-dictate;
+		app-set-monitor;
+	};
+};
+
+context app-agents {
+	*54 => {
+		Answer;
+		Wait(1);
+		Read(agent_no|agent-user);
+		AgentCallbackLogin(${agent_no}|s${CALLERIDNUM:5});
+		Playback(agent-loginok);
+		Hangup;
+	};
+
+	*55 => {
+		Answer;
+		Wait(1);
+		AgentCallbackLogin(${agent_no});
+		Hangup;
+	};
+};
+
+context app-calltrace {
+// caller dials this to find out the last call missed and possibly call back
+	*69 => goto app-calltrace-perform|s|1;
+};
+
+context app-calltrace-perform {
+	s => {
+		Answer;
+		Wait(1);
+		Background(info-about-last-call);
+		Background(telephone-number);
+		RealTime(call_info|exten|${CALLERIDNUM:5}|ct_);
+		if ("${ct_calltrace}foo" = "foo") {
+			Playback(loligo/from-unknown-caller);
+			Hangup;
+		} else {
+			SayDigits("${ct_calltrace}");
+			Set(TIMEOUT(digit)=3);
+			Set(TIMEOUT(response)=7);
+			Background(loligo/to-call-this-number);
+			Background(press-1);
+			Background(loligo/silence/5);
+		};
+	};
+
+	1 => goto local1|${ct_calltrace}|1;
+
+	i => {
+		Playback(vm-goodbye);
+		Hangup;
+	};
+
+	t => {
+		Playback(vm-goodbye);
+		Hangup;
+	};
+};
+
+context app-set-monitor {
+	*50 => {
+		Realtime(call_info,exten,${CALLERIDNUM:5},mon_set_);
+		if ("${mon_set_monitor}" = "YES") {
+			RealtimeUpdate(call_info,exten,${CALLERIDNUM:5},monitor|);
+			System(/usr/local/bin/db_update.sh call_info monitor '' exten ${CALLERIDNUM:5} &);
+		} else {
+			RealtimeUpdate(call_info,exten,${CALLERIDNUM:5},monitor,YES);
+			System(/usr/local/bin/db_update.sh call_info monitor YES exten ${CALLERIDNUM:5} &);
+		};
+		NoOp(${mon_set_monitor});
+		Hangup;
+	};
+};
+
+context app-dnd {
+	*78 => {
+		Answer;
+		Wait(1);
+		RealtimeUpdate(call_info,exten,${CALLERIDNUM:5},donotdisturb,YES);
+		System(/usr/local/bin/db_update.sh call_info donotdisturb YES exten ${CALLERIDNUM:5} &);
+		Playback(do-not-disturb);
+		Playback(loligo/activated);
+		Hangup;
+	};
+
+	*79 => {
+		Answer;
+		Wait(1);
+		RealtimeUpdate(call_info,exten,${CALLERIDNUM:5},donotdisturb|);
+		System(/usr/local/bin/db_update.sh call_info donotdisturb '' exten ${CALLERIDNUM:5} &);
+		Playback(do-not-disturb);
+		Playback(loligo/de-activated);
+		Hangup;
+	};
+};
+
+context app-callforward {
+	// forwards calling extension to input number *72{EXTEN}
+	_*72. => {
+		RealtimeUpdate(call_info,exten,${CALLERIDNUM:5},forwardto,${EXTEN:3});
+		System(/usr/local/bin/db_update.sh call_info forwardto ${EXTEN:3} exten ${CALLERIDNUM:5} &);
+		Answer;
+		Wait(1);
+		Playback(loligo/call-fwd-unconditional);
+		Playback(loligo/for);
+		Playback(loligo/extension);
+		SayDigits(${CALLERIDNUM:5});
+		Playback(loligo/is-set-to);
+		SayDigits(${EXTEN:3});
+		Hangup;
+	};
+
+	// prompts for extension to forward to
+	*72 => {
+		Answer;
+		Wait(1);
+		Playback(please-enter-your);
+		Playback(extension);
+		Background(then-press-pound);
+		VMAuthenticate(|s);
+		Background(loligo/ent-target-attendant);
+		Read(toext,loligo/then-press-pound);
+		Wait(1);
+		RealtimeUpdate(call_info,exten,${AUTH_MAILBOX},forwardto,${toext});
+		System(/usr/local/bin/db_update.sh call_info forwardto ${toext} exten ${AUTH_MAILBOX} &);
+		Playback(loligo/call-fwd-unconditional);
+		Playback(loligo/for);
+		Playback(loligo/extension);
+		SayDigits(${AUTH_MAILBOX});
+		Playback(loligo/is-set-to);
+		SayDigits(${toext});
+		Hangup;
+	};
+
+	// cancels dialed extension call forward
+	_*73. => {
+		Realtime(voicemail,mailbox,${EXTEN:3},auth_);
+		Answer;
+		Wait(1);
+		Authenticate(${auth_password});
+		RealtimeUpdate(call_info,exten,${EXTEN:3},forwardto,);
+		System(/usr/local/bin/db_update.sh call_info forwardto '' exten ${EXTEN:3} &);
+		Wait(1);
+		SayDigits(${EXTEN:3});
+		Playback(loligo/call-fwd-cancelled);
+		Hangup;
+	};
+
+	// cancels call forward for calling extension
+	*73 => {
+		RealtimeUpdate(call_info,exten,${CALLERIDNUM:5},forwardto,);
+		System(/usr/local/bin/db_update.sh call_info forwardto '' exten ${CALLERIDNUM:5} &);
+		Answer;
+		Wait(1);
+		Playback(loligo/call-fwd-cancelled);
+		Hangup;
+	};
+
+	// dialed call forward on busy
+	_*90. => {
+		RealtimeUpdate(call_info,exten,${CALLERIDNUM:5},forwardbusy,${EXTEN:3});
+		System(/usr/local/bin/db_update.sh call_info forwardbusy ${EXTEN:3} exten ${CALLERIDNUM:5} &);
+		Answer;
+		Wait(1);
+		Playback(loligo/call-fwd-on-busy);
+		Playback(loligo/for);
+		Playback(loligo/extension);
+		SayDigits(${CALLERIDNUM:5});
+		Playback(loligo/is-set-to);
+		SayDigits(${EXTEN:3});
+		Hangup;
+	};
+
+	// cancels call forward on busy for calling extension
+	*91 => {
+		RealtimeUpdate(call_info,exten,${CALLERIDNUM:5},forwardbusy|);
+		System(/usr/local/bin/db_update.sh call_info forwardbusy '' exten ${CALLERIDNUM:5} &);
+		Answer;
+		Wait(1);
+		Playback(loligo/call-fwd-on-busy);
+		Playback(loligo/de-activated);
+		Hangup;
+	};
+
+	h => Hangup;
+};
+
+context app-idblock {
+	_*67. => {
+		Set(CALLERID(name)=Anonymous);
+		&stdexten(${EXTEN:3});
+	};
+};
+
+context app-dictate {
+	*1 => {
+		Dictate();
+		Hangup;
+	};
+};
+
+context app-ssd {
+// *59 <xx> <y.> - Set system speed dial <xx> to digits <y.>
+// *59 <xx> 0    - Delete system speed dial <xx>
+// *59 <xx>      - Review system speed dial <xx>
+// *1xx          - Dial speed dial <xx>
+	_*59XXX. => {
+		Answer;
+		RealtimeUpdate(ssd,sd,${EXTEN:3:2},extension,${EXTEN:5});
+		System(/usr/local/bin/db_update.sh systemsd extension ${EXTEN:5} sd ${EXTEN:3:2} &);
+		Wait(1);
+		Playback(loligo/speed-dial);
+		SayDigits(${EXTEN:3:2});
+		Playback(loligo/has-been-set-to);
+		SayDigits(${EXTEN:5});
+		Hangup;
+	};
+
+	_*59XX0 => {
+		Answer;
+		RealtimeUpdate(ssd,sd,${EXTEN:3:2},extension,);
+		System(/usr/local/bin/db_update.sh systemsd extension '' sd ${EXTEN:3:2} &);
+		Wait(1);
+		Playback(loligo/speed-dial);
+		SayDigits(${EXTEN:3:2});
+		Playback(loligo/has-been-cleared);
+		Hangup;
+	};
+
+	_*59XX => {
+		Answer;
+		Realtime(ssd,sd,${EXTEN:3},ssd_);
+		if ("${ssd_extension}foo" = "foo") {
+			Playback(loligo/speed-dial);
+			SayDigits(${EXTEN:3:2});
+			Playback(loligo/is-not-set);
+			Hangup;
+		};
+		Wait(1);
+		Playback(loligo/speed-dial);
+		SayDigits(${EXTEN:3:2});
+		Playback(loligo/is-set-to);
+		SayDigits(${ssd_extension});
+		Hangup;
+	};
+
+	// NTC = number to call
+	_*1XX => {
+		Realtime(ssd,sd,${EXTEN:2},ssd_);
+		if ("${ssd_extension}foo" = "foo") {
+			Answer;
+			Wait(1);
+			Playback(loligo/speed-dial);
+			SayDigits(${EXTEN:2});
+			Playback(loligo/is-not-set);
+			Hangup;
+		};
+		&stdexten(${ssd_extension});
+		Congestion(10);
+		Hangup;
+	};
+};
+
+macro check-psd-exists ( ext ) {
+	Realtime(psd,extension,${ext},psd_);
+	if ("${psd_extension}foo" = "foo") {
+		System(/usr/local/bin/create_psd.sh ${ext});
+	} else
+		NoOp(PSD set for ${ext});
+	return;
+};
+
+context app-psd {
+// *89 <xx> <y.> - Set personal speed dial <xx> to digits <y.>
+// *89 <xx> 0    - Delete personal speed dial <xx>
+// *89 <xx>      - Review personal speed dial <xx>
+// *2xx          - Dial personal speed dial <xx>
+	_*89XXX. => {
+		&check-psd-exists(${CALLERIDNUM:5});
+		Answer;
+		RealtimeUpdate(psd,extension,${CALLERIDNUM:5},s${EXTEN:3:2},${EXTEN:5});
+		System(/usr/local/bin/db_update.sh personalsd s${EXTEN:3:2} ${EXTEN:5} extension ${CALLERIDNUM:5} &);
+		Wait(1);
+		Playback(loligo/speed-dial);
+		SayDigits(${EXTEN:3:2});
+		Playback(loligo/has-been-set-to);
+		SayDigits(${EXTEN:5});
+		Hangup;
+	};
+
+	_*89XX0 => {
+		&check-psd-exists(${CALLERIDNUM:5});
+		Answer;
+		RealtimeUpdate(psd|extension|${CALLERIDNUM:5}|s${EXTEN:3:2}|);
+		System(/usr/local/bin/db_update.sh personalsd s${EXTEN:3:2} '' extension ${CALLERIDNUM:5} &);
+		Wait(1);
+		Playback(loligo/speed-dial);
+		SayDigits(${EXTEN:3:2});
+		Playback(loligo/has-been-cleared);
+		Hangup;
+	};
+
+	_*89XX => {
+		&check-psd-exists(${CALLERIDNUM:5});
+		Answer;
+		Realtime(psd|extension|${CALLERIDNUM:5}|psd_);
+		Wait(1);
+		if ("${psd_s${EXTEN:3:2}}foo" = "foo") {
+			Playback(loligo/speed-dial);
+			SayDigits(${EXTEN:3:2});
+			Playback(loligo/is-not-set);
+			Hangup;
+		};
+		Playback(loligo/speed-dial);
+		SayDigits(${EXTEN:3:2});
+		Playback(loligo/is-set-to);
+		SayDigits(${psd_s${EXTEN:3:2}});
+		Hangup;
+	};
+
+	// NTC = number to call
+	_*2XX => {
+		&check-psd-exists(${CALLERIDNUM:5});
+		Realtime(psd|extension|${CALLERIDNUM:5}|psd_);
+		if ("${psd_s${EXTEN:2}}foo" = "foo") {
+			Answer;
+			Wait(1);
+			Playback(loligo/speed-dial);
+			SayDigits(${EXTEN:2});
+			Playback(loligo/is-not-set);
+			Hangup;
+		};
+		&stdexten(${psd_s${EXTEN:2}});
+		Congestion(10);
+		Hangup;
+	};
+};
+
+context app-helpdesk {
+	*4357 => {
+		&stdexten(41950);
+		Congestion;
+	};
+};
+
+context app-conferences {
+// waiting for room number announcement
+	*86 => goto app-conf-hidden|s|1;
+};
+
+context app-conf-hidden {
+	s => {
+		Wait(1);
+		Playback(loligo/please-enter-the);
+		Playback(loligo/extension);
+		read(roomtoenter,loligo/then-press-pound);
+		Meetme(${roomtoenter});
+		Waitexten(8);
+		Hangup;
+	};
+
+	_1. => Meetme(${EXTEN});
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// Extensions pulled from vm.conf:
+
+context vm-include {
+	includes {
+		vm-direct;
+		vm-extension;
+		vm-directory;
+	};
+};
+
+context vm-direct {
+	s => {
+		Dial(SIP/5555@ixtlchochitl.zvbwu.edu,20);
+		Playback(im-sorry);
+		Playback(voice-mail-system);
+		Playback(down);
+		Playback(extra/pls-try-call-later);
+		Congestion(10);
+		Hangup;
+	};
+};
+
+context vm-extension {
+	s => {
+		Dial(SIP/62100@ixtlchochitl.zvbwu.edu,20);
+		Playback(im-sorry);
+		Playback(voice-mail-system);
+		Playback(down);
+		Playback(extra/pls-try-call-later);
+		Congestion(10);
+		Hangup;
+	};
+};
+
+context vm-directory {
+	5556 => {
+		Dial(SIP/5556@ixtlchochitl.zvbwu.edu);
+		Playback(im-sorry);
+		Playback(voice-mail-system);
+		Playback(down);
+		Playback(extra/pls-try-call-later);
+		Congestion(10);
+		Hangup;
+	};
+};

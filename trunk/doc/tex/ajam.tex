@@ -1,0 +1,97 @@
+\section{Asynchronous Javascript Asterisk Manger (AJAM)}
+
+AJAM is a new technology which allows web browsers or other HTTP enabled
+applications and web pages to directly access the Asterisk Manger
+Interface (AMI) via HTTP.  Setting up your server to process AJAM
+involves a few steps:
+
+\subsection{Setup the Asterisk HTTP server}
+
+\begin{enumerate}
+\item Uncomment the line "enabled=yes" in \path{/etc/asterisk/http.conf} to enable
+   Asterisk's builtin micro HTTP server.
+
+\item If you want Asterisk to actually deliver simple HTML pages, CSS,
+   javascript, etc. you should uncomment "enablestatic=yes"
+
+\item Adjust your "bindaddr" and "bindport" settings as appropriate for
+   your desired accessibility
+
+\item Adjust your "prefix" if appropriate, which must be the beginning of
+   any URI on the server to match.  The default is "asterisk" and the
+   rest of these instructions assume that value.
+\end{enumerate}
+
+\subsection{Allow Manager Access via HTTP}
+
+\begin{enumerate}
+\item Make sure you have both "enabled = yes" and "webenabled = yes" setup
+   in \path{/etc/asterisk/manager.conf}
+
+\item You may also use "httptimeout" to set a default timeout for HTTP
+   connections.
+
+\item Make sure you have a manager username/secret
+\end{enumerate}
+
+Once those configurations are complete you can reload or restart
+Asterisk and you should be able to point your web browser to specific
+URI's which will allow you to access various web functions.  A complete
+list can be found by typing "http show status" at the Asterisk CLI.
+
+examples:
+\begin{astlisting}
+\begin{verbatim}
+http://localhost:8088/asterisk/manager?action=login&username=foo&secret=bar
+\end{verbatim}
+\end{astlisting}
+This logs you into the manager interface's "HTML" view.  Once you're
+logged in, Asterisk stores a cookie on your browser (valid for the
+length of httptimeout) which is used to connect to the same session.
+\begin{astlisting}
+\begin{verbatim}
+http://localhost:8088/asterisk/rawman?action=status
+\end{verbatim}
+\end{astlisting}
+Assuming you've already logged into manager, this URI will give you a
+"raw" manager output for the "status" command.
+\begin{astlisting}
+\begin{verbatim}
+http://localhost:8088/asterisk/mxml?action=status
+\end{verbatim}
+\end{astlisting}
+This will give you the same status view but represented as AJAX data,
+theoretically compatible with RICO (\url{http://www.openrico.org}).
+\begin{astlisting}
+\begin{verbatim}
+http://localhost:8088/asterisk/static/ajamdemo.html
+\end{verbatim}
+\end{astlisting}
+If you have enabled static content support and have done a make install,
+Asterisk will serve up a demo page which presents a live, but very
+basic, "astman" like interface.  You can login with your username/secret
+for manager and have a basic view of channels as well as transfer and
+hangup calls.  It's only tested in Firefox, but could probably be made
+to run in other browsers as well.
+
+A sample library (astman.js) is included to help ease the creation of
+manager HTML interfaces.
+
+Note that for the demo, there is no need for *any* external web server.
+
+\subsection{Integration with other web servers}
+
+Asterisk's micro HTTP server is *not* designed to replace a general
+purpose web server and it is intentionally created to provide only the
+minimal interfaces required.  Even without the addition of an external
+web server, one can use Asterisk's interfaces to implement screen pops
+and similar tools pulling data from other web servers using iframes,
+div's etc.  If you want to integrate CGI's, databases, PHP, etc.  you
+will likely need to use a more traditional web server like Apache and
+link in your Asterisk micro HTTP server with something like this:
+\begin{astlisting}
+\begin{verbatim}
+ProxyPass /asterisk http://localhost:8088/asterisk
+\end{verbatim}
+\end{astlisting}
+

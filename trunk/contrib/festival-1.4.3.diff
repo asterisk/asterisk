@@ -1,0 +1,93 @@
+diff -u -r festival-1.4.3/lib/tts.scm festival-1.4.3-asterisk/lib/tts.scm
+--- festival-1.4.3/lib/tts.scm	2003-01-09 07:39:22.000000000 -0800
++++ festival-1.4.3-asterisk/lib/tts.scm	2003-08-14 12:07:00.000000000 -0700
+@@ -234,6 +234,17 @@
+        (utt.synth
+ 	(eval (list 'Utterance 'Text string))))))
+ 
++;; begin tts_textasterisk
++(define (tts_textasterisk string mode)
++  "(tts_textasterisk STRING MODE)
++Apply tts to STRING.  This function is specifically designed for
++use in server mode so a single function call may synthesize the string.
++This function name may be added to the server safe functions."
++  (utt.send.wave.asterisk 
++   (utt.synth
++    (eval (list 'Utterance 'Text string)))))
++;; end tts_textasterisk
++
+ (define (tts_return_to_client)
+   "(tts_return_to_client)
+ This function is called by clients who wish to return waveforms of
+diff -u -r festival-1.4.3/src/arch/festival/wave.cc festival-1.4.3-asterisk/src/arch/festival/wave.cc
+--- festival-1.4.3/src/arch/festival/wave.cc	2003-01-13 11:09:55.000000000 -0800
++++ festival-1.4.3-asterisk/src/arch/festival/wave.cc	2003-08-14 12:10:53.000000000 -0700
+@@ -381,6 +381,7 @@
+ 	type = "nist";
+     else
+ 	type = get_c_string(ltype);
++
+     w->save(tmpfile,type);
+ #ifdef WIN32
+     send(ft_server_socket,"WV\n",3,0);
+@@ -393,6 +394,44 @@
+     return utt;
+ }
+ 
++// begin utt_send_wave_asterisk()
++static LISP utt_send_wave_asterisk(LISP utt)
++{
++    // Send the waveform to a client (must be acting as server)
++    EST_Utterance *u = utterance(utt);
++    EST_Wave *w;
++    EST_String tmpfile = make_tmp_filename();
++    LISP ltype;
++    EST_String type;
++
++    w = get_utt_wave(u);
++    if (ft_server_socket == -1)
++    {
++       cerr << "utt_send_wave_client: not in server mode" << endl;
++       festival_error();
++    }
++       
++    ltype = ft_get_param("Wavefiletype");
++    if (ltype == NIL)
++       type = "nist";
++    else
++       type = get_c_string(ltype);
++    w->resample(8000);
++    w->rescale(5);
++
++    w->save(tmpfile,type);
++#ifdef WIN32
++    send(ft_server_socket,"WV\n",3,0);
++#else
++    write(ft_server_socket,"WV\n",3);
++#endif
++    socket_send_file(ft_server_socket,tmpfile);
++    unlink(tmpfile);
++
++    return utt;
++}
++// end utt_send_wave_asterisk()
++
+ static LISP send_sexpr_to_client(LISP l)
+ {
+     EST_String tmpfile = make_tmp_filename();
+@@ -465,6 +504,15 @@
+  "(utt.send.wave.client UTT)\n\
+   Sends wave in UTT to client.  If not in server mode gives an error\n\
+   Note the client must be expecting to receive the waveform.");
++
++// begin asterisk mod
++    init_subr_1("utt.send.wave.asterisk",utt_send_wave_asterisk,
++ "(utt.send.wave.asterisk UTT)\n\
++  Sends wave in UTT to client.  If not in server mode gives an error\n\
++  Note the client must be expecting to receive the waveform. The waveform\n\
++  is rescaled and resampled according to what asterisk needs");
++// end asterisk mod
++
+     init_subr_1("send_sexpr_to_client", send_sexpr_to_client,
+  "(send_sexpr_to_client SEXPR)\n\
+ Sends given sexpression to currently connected client.");

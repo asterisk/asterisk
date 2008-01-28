@@ -1,0 +1,141 @@
+;
+; Configuration file for res_config_ldap
+;
+
+; Sample Asterisk config file for res_config_ldap
+; in extconfig.conf you can use it like this:
+; sipusers = ldap,"dc=myDomain,dc=myDomainExt",sip
+; sippeers = ldap,"dc=myDomain,dc=myDomainExt",sip
+; extensions = ldap,"dc=myDomain,dc=myDomainExt",extensions
+; sip.conf = ldap,"dc=myDomain,dc=myDomainExt",config
+
+
+[_general]
+;host=192.168.1.1,ldap.mydomain.com	; LDAP host(s)
+;protocol=3		; Version of the LDAP protocol to use default is 3.
+;basedn=MyRootDN	; Base DN
+;pass=MyPassword	; Bind password
+;user=MyDN		; Bind DN
+
+; Configuration Table
+[config]
+; addtional filter - This specifies an additional set of criteria to be used
+; when querying the LDAP server.
+additionalFilter=(objectClass=PBXConfig)
+; Attributes mapping (asterisk variable name = ldap attribute name)
+; When Asterisk requests the variable by the name of the value on the left,
+; this module will look up the attribute listed on the right.
+filename = PBXConfigFilename
+category = PBXConfigCategory
+variable_name = PBXConfigVariableName
+variable_value = PBXConfigVariableValue
+cat_metric = PBXConfigCategoryMetric
+commented = PBXConfigCommented
+
+; Extensions Table
+[extensions]
+context  =  PBXExtensionContext
+exten  =  PBXExtensionExten
+priority = PBXExtensionPriority
+app = PBXExtensionApplication
+appdata = PBXExtensionApplicationData
+additionalFilter=(objectClass=PBXExtension)
+
+; Sip Users Table
+[sip]
+name = uid
+amaflags = PBXAccountAMAFlags
+callgroup = PBXAccountCallGroup
+callerid = PBXAccountCallerID
+canreinvite = PBXAccountCanReinvite
+context = PBXAccountContext
+dtmfmode = PBXAccountDTMFMode
+fromuser = PBXAccountFromUser
+fromdomain = PBXAccountFromDomain
+fullcontact = PBXAccountFullContact
+fullcontact = gecos
+host = PBXAccountHost
+insecure = PBXAccountInsecure
+mailbox = PBXAccountMailbox
+md5secret = realmedPassword
+nat = PBXAccountNAT
+deny = PBXAccountDeny
+permit = PBXAccountPermit
+pickupgroup = PBXAccountPickupGroup
+port = PBXAccountPort
+qualify = PBXAccountQualify
+restrictcid = PBXAccountRestrictCID
+rtptimeout = PBXAccountRTPTimeout
+rtpholdtimeout = PBXAccountRTPHoldTimeout
+type = PBXAccountType
+disallow = PBXAccountDisallowedCodec
+allow = PBXAccountAllowedCodec
+MusicOnHold = PBXAccountMusicOnHold
+regseconds = PBXAccountExpirationTimestamp
+regcontext = PBXAccountRegistrationContext
+regexten = PBXAccountRegistrationExten
+CanCallForward = PBXAccountCanCallForward
+additionalFilter=(objectClass=PBXAccountSIP)
+
+; IAX Users Table
+[iax]
+amaflags = PBXAccountAMAFlags
+callerid = PBXAccountCallerID
+context = PBXAccountContext
+fullcontact = PBXAccountFullContact
+fullcontact = gecos
+host = PBXAccountHost
+mailbox = PBXAccountMailbox
+md5secret = realmedPassword
+deny = PBXAccountDeny
+permit = PBXAccountPermit
+port = PBXAccountPort
+qualify = PBXAccountQualify
+type = PBXAccountType
+disallow = PBXAccountDisallowedCodec
+allow = PBXAccountAllowedCodec
+regseconds = PBXAccountExpirationTimestamp
+regcontext = PBXAccountRegistrationContext
+regexten = PBXAccountRegistrationExten
+notransfer = PBXAccountNoTransfer
+additionalFilter=(objectClass=PBXAccountIAX)
+
+; A Test Family
+[testfamily]
+MyUSERID = uid
+additionalFilter=(objectClass=*)
+
+[accounts]
+amaflags = PBXAccountAMAFlags
+callgroup = PBXAccountCallGroup
+callerid = PBXAccountCallerID
+canreinvite = PBXAccountCanReinvite
+context = PBXAccountContext
+dtmfmode = PBXAccountDTMFMode
+fromuser = PBXAccountFromUser
+fromdomain = PBXAccountFromDomain
+fullcontact = PBXAccountFullContact
+fullcontact = gecos
+host = PBXAccountHost
+insecure = PBXAccountInsecure
+mailbox = PBXAccountMailbox
+md5secret = realmedPassword
+nat = PBXAccountNAT
+deny = PBXAccountDeny
+permit = PBXAccountPermit
+pickupgroup = PBXAccountPickupGroup
+port = PBXAccountPort
+qualify = PBXAccountQualify
+restrictcid = PBXAccountRestrictCID
+rtptimeout = PBXAccountRTPTimeout
+rtpholdtimeout = PBXAccountRTPHoldTimeout
+type = PBXAccountType
+disallow = PBXAccountDisallowedCodec
+allow = PBXAccountAllowedCodec
+MusicOnHold = PBXAccountMusicOnHold
+regseconds = PBXAccountExpirationTimestamp
+regcontext = PBXAccountRegistrationContext
+regexten = PBXAccountRegistrationExten
+CanCallForward = PBXAccountCanCallForward
+additionalFilter=(objectClass=PBXAccount)
+

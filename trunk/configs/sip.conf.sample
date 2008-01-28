@@ -1,0 +1,901 @@
+;
+; SIP Configuration example for Asterisk
+;
+; SIP dial strings
+;-----------------------------------------------------------
+; In the dialplan (extensions.conf) you can use several 
+; syntaxes for dialing SIP devices.
+;	SIP/devicename
+;	SIP/username@domain   (SIP uri)
+;	SIP/username@host:port
+;	SIP/devicename/extension
+;
+;
+; Devicename
+;      devicename is defined as a peer in a section below.
+;
+; username@domain
+; 	Call any SIP user on the Internet
+;	(Don't forget to enable DNS SRV records if you want to use this)
+; 
+; devicename/extension
+; 	If you define a SIP proxy as a peer below, you may call
+; 	SIP/proxyhostname/user or SIP/user@proxyhostname 
+; 	where the proxyhostname is defined in a section below 
+;	This syntax also works with ATA's with FXO ports
+;
+; All of these dial strings specify the SIP request URI.
+; In addition, you can specify a specific To: header by adding an
+; exclamation mark after the dial string, like
+;
+; 	SIP/sales@mysipproxy!sales@edvina.net
+;
+; CLI Commands
+; -------------------------------------------------------------
+; Useful CLI commands to check peers/users:
+;   sip show peers		Show all SIP peers (including friends)
+;   sip show users		Show all SIP users (including friends)
+;   sip show registry		Show status of hosts we register with
+;
+;   sip set debug		Show all SIP messages
+;
+;   sip reload			Reload configuration file
+;				Active SIP peers will not be reconfigured
+;
+
+; ** Deprecated configuration options **
+; The "call-limit" configuation option is deprecated. It still works in
+; this version of Asterisk, but will disappear in the next version.
+; You are encouraged to use the dialplan groupcount functionality
+; to enforce call limits instead of using this channel-specific method.
+;
+; You can still set limits per device in sip.conf or in a database by using 
+; "setvar" to set variables that can be used in the dialplan for various limits.
+
+[general]
+context=default			; Default context for incoming calls
+;allowguest=no			; Allow or reject guest calls (default is yes)
+;match_auth_username=yes	; if available, match user entry using the
+				; 'username' field from the authentication line
+				; instead of the From: field.
+				
+allowoverlap=no			; Disable overlap dialing support. (Default is yes)
+;allowtransfer=no		; Disable all transfers (unless enabled in peers or users)
+				; Default is enabled
+;realm=mydomain.tld		; Realm for digest authentication
+				; defaults to "asterisk". If you set a system name in
+				; asterisk.conf, it defaults to that system name
+				; Realms MUST be globally unique according to RFC 3261
+				; Set this to your host name or domain name
+bindport=5060			; UDP Port to bind to (SIP standard port is 5060)
+				; bindport is the local UDP port that Asterisk will listen on
+bindaddr=0.0.0.0		; IP address to bind to (0.0.0.0 binds to all)
+
+tcpenable=yes                   ; Enable server for incoming TCP connections (default is yes)
+tcpbindaddr=0.0.0.0	        ; IP address for TCP server to bind to (0.0.0.0 binds to all interfaces)
+                                ; Optionally add a port number, 192.168.1.1:5062 (default is port 5060)
+
+;tlsenable=no                   ; Enable server for incoming TLS (secure) connections (default is no)
+;tlsbindaddr=0.0.0.0            ; IP address for TLS server to bind to (0.0.0.0) binds to all interfaces)
+                                ; Optionally add a port number, 192.168.1.1:5063 (default is port 5061)
+				; Remember that the IP address must match the common name (hostname) in the
+				; certificate, so you don't want to bind a TLS socket to multiple IP addresses.
+
+;tlscertfile=asterisk.pem	; Certificate file (*.pem only) to use for TLS connections 
+			 	; default is to look for "asterisk.pem" in current directory
+
+srvlookup=yes			; Enable DNS SRV lookups on outbound calls
+				; Note: Asterisk only uses the first host 
+				; in SRV records
+				; Disabling DNS SRV lookups disables the 
+				; ability to place SIP calls based on domain 
+				; names to some other SIP users on the Internet
+				
+;domain=mydomain.tld		; Set default domain for this host
+				; If configured, Asterisk will only allow
+				; INVITE and REFER to non-local domains
+				; Use "sip show domains" to list local domains
+;pedantic=yes			; Enable checking of tags in headers, 
+				; international character conversions in URIs
+				; and multiline formatted headers for strict
+				; SIP compatibility (defaults to "no")
+
+; See qos.tex or Quality of Service section of asterisk.pdf for a description of these parameters.
+;tos_sip=cs3                    ; Sets TOS for SIP packets.
+;tos_audio=ef                   ; Sets TOS for RTP audio packets.
+;tos_video=af41                 ; Sets TOS for RTP video packets.
+;tos_text=af41                  ; Sets TOS for RTP text packets.
+
+;cos_sip=3                      ; Sets 802.1p priority for SIP packets.
+;cos_audio=5                    ; Sets 802.1p priority for RTP audio packets.
+;cos_video=4                    ; Sets 802.1p priority for RTP video packets.
+;cos_text=3                     ; Sets 802.1p priority for RTP text packets.
+
+;maxexpiry=3600			; Maximum allowed time of incoming registrations
+				; and subscriptions (seconds)
+;minexpiry=60			; Minimum length of registrations/subscriptions (default 60)
+;defaultexpiry=120		; Default length of incoming/outgoing registration
+;qualifyfreq=60                 ; Qualification: How often to check for the 
+                                ; host to be up in seconds
+                                ; Set to low value if you use low timeout for
+                                ; NAT of UDP sessions
+;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
+;buggymwi=no			; Cisco SIP firmware doesn't support the MWI RFC
+				; fully. Enable this option to not get error messages
+				; when sending MWI to phones with this bug.
+;vmexten=voicemail		; dialplan extension to reach mailbox sets the 
+				; Message-Account in the MWI notify message 
+				; defaults to "asterisk"
+;disallow=all			; First disallow all codecs
+;allow=ulaw			; Allow codecs in order of preference
+;allow=ilbc			; see doc/rtp-packetization for framing options
+;
+; This option specifies a preference for which music on hold class this channel
+; should listen to when put on hold if the music class has not been set on the
+; channel with Set(CHANNEL(musicclass)=whatever) in the dialplan, and the peer
+; channel putting this one on hold did not suggest a music class.
+;
+; This option may be specified globally, or on a per-user or per-peer basis.
+;
+;mohinterpret=default
+;
+; This option specifies which music on hold class to suggest to the peer channel
+; when this channel places the peer on hold. It may be specified globally or on
+; a per-user or per-peer basis.
+;
+;mohsuggest=default
+;
+;language=en			; Default language setting for all users/peers
+				; This may also be set for individual users/peers
+;relaxdtmf=yes			; Relax dtmf handling
+;trustrpid = no			; If Remote-Party-ID should be trusted
+;sendrpid = yes			; If Remote-Party-ID should be sent
+;progressinband=never		; If we should generate in-band ringing always
+				; use 'never' to never use in-band signalling, even in cases
+				; where some buggy devices might not render it
+				; Valid values: yes, no, never Default: never
+;useragent=Asterisk PBX		; Allows you to change the user agent string
+				; The default user agent string also contains the Asterisk
+				; version. If you don't want to expose this, change the
+				; useragent string.
+;sdpsession=Asterisk PBX	; Allows you to change the SDP session name string, (s=)
+				; Like the useragent parameter, the default user agent string
+				; also contains the Asterisk version.
+;sdpowner=root			; Allows you to change the username field in the SDP owner string, (o=)
+				; This field MUST NOT contain spaces
+;promiscredir = no      	; If yes, allows 302 or REDIR to non-local SIP address
+	                       	; Note that promiscredir when redirects are made to the
+       	                	; local system will cause loops since Asterisk is incapable
+       	                	; of performing a "hairpin" call.
+;usereqphone = no		; If yes, ";user=phone" is added to uri that contains
+				; a valid phone number
+;dtmfmode = rfc2833		; Set default dtmfmode for sending DTMF. Default: rfc2833
+				; Other options: 
+				; info : SIP INFO messages (application/dtmf-relay)
+				; shortinfo : SIP INFO messages (application/dtmf)
+				; inband : Inband audio (requires 64 kbit codec -alaw, ulaw)
+				; auto : Use rfc2833 if offered, inband otherwise
+
+;compactheaders = yes		; send compact sip headers.
+;
+;videosupport=yes		; Turn on support for SIP video. You need to turn this on
+				; in the this section to get any video support at all.
+				; You can turn it off on a per peer basis if the general
+				; video support is enabled, but you can't enable it for
+				; one peer only without enabling in the general section.
+;maxcallbitrate=384		; Maximum bitrate for video calls (default 384 kb/s)
+				; Videosupport and maxcallbitrate is settable
+				; for peers and users as well
+;callevents=no			; generate manager events when sip ua 
+				; performs events (e.g. hold)
+;alwaysauthreject = yes		; When an incoming INVITE or REGISTER is to be rejected,
+ 		    		; for any reason, always reject with '401 Unauthorized'
+ 				; instead of letting the requester know whether there was
+ 				; a matching user or peer for their request
+
+;g726nonstandard = yes		; If the peer negotiates G726-32 audio, use AAL2 packing
+				; order instead of RFC3551 packing order (this is required
+				; for Sipura and Grandstream ATAs, among others). This is
+				; contrary to the RFC3551 specification, the peer _should_
+				; be negotiating AAL2-G726-32 instead :-(
+;outboundproxy=proxy.provider.domain           ; send outbound signaling to this proxy, not directly to the devices
+;outboundproxy=proxy.provider.domain:8080       ; send outbound signaling to this proxy, not directly to the devices
+;outboundproxy=proxy.provider.domain,force      ; Send ALL outbound signalling to proxy, ignoring route: headers
+;matchexterniplocally = yes     ; Only substitute the externip or externhost setting if it matches
+                                ; your localnet setting. Unless you have some sort of strange network
+                                ; setup you will not need to enable this.
+
+;
+; If regcontext is specified, Asterisk will dynamically create and destroy a
+; NoOp priority 1 extension for a given peer who registers or unregisters with
+; us and have a "regexten=" configuration item.  
+; Multiple contexts may be specified by separating them with '&'. The 
+; actual extension is the 'regexten' parameter of the registering peer or its
+; name if 'regexten' is not provided.  If more than one context is provided,
+; the context must be specified within regexten by appending the desired
+; context after '@'.  More than one regexten may be supplied if they are 
+; separated by '&'.  Patterns may be used in regexten.
+;
+;regcontext=sipregistrations
+;regextenonqualify=yes		; Default "no"
+				; If you have qualify on and the peer becomes unreachable
+				; this setting will enforce inactivation of the regexten
+				; extension for the peer
+;
+;--------------------------- SIP timers ----------------------------------------------------
+; These timers are used primarily in INVITE transactions. 
+; The default for Timer T1 is 500 ms or the measured run-trip time between
+; Asterisk and the device if you have qualify=yes for the device.
+;
+;t1min=100			; Minimum roundtrip time for messages to monitored hosts
+				; Defaults to 100 ms
+;timert1=500		        ; Default T1 timer
+				; Defaults to 500 ms or the measured round-trip
+				; time to a peer (qualify=yes).
+;timerb=32000		        ; Call setup timer. If a provisional response is not received
+				; in this amount of time, the call will autocongest
+				; Defaults to 64*timert1
+
+;--------------------------- RTP timers ----------------------------------------------------
+; These timers are currently used for both audio and video streams. The RTP timeouts
+; are only applied to the audio channel.
+; The settings are settable in the global section as well as per device
+;
+;rtptimeout=60			; Terminate call if 60 seconds of no RTP or RTCP activity
+				; on the audio channel
+				; when we're not on hold. This is to be able to hangup
+				; a call in the case of a phone disappearing from the net,
+				; like a powerloss or grandma tripping over a cable.
+;rtpholdtimeout=300		; Terminate call if 300 seconds of no RTP or RTCP activity
+				; on the audio channel
+				; when we're on hold (must be > rtptimeout)
+;rtpkeepalive=<secs>		; Send keepalives in the RTP stream to keep NAT open
+				; (default is off - zero)
+
+;--------------------------- SIP Session-Timers (RFC 4028)------------------------------------
+; SIP Session-Timers provide an end-to-end keep-alive mechanism for active SIP sessions.
+; This mechanism can detect and reclaim SIP channels that do not terminate through normal
+; signaling procedures. Session-Timers can be configured globally or at a user/peer level.
+; The operation of Session-Timers is driven by the following configuration parameters:
+;
+; * session-timers    - Session-Timers feature operates in the following three modes:
+;                            originate : Request and run session-timers always
+;                            accept    : Run session-timers only when requested by other UA
+;                            refuse    : Do not run session timers in any case
+;                       The default mode of operation is 'accept'.
+; * session-expires   - Maximum session refresh interval in seconds. Defaults to 1800 secs.
+; * session-minse     - Minimum session refresh interval in seconds. Defualts to 90 secs.
+; * session-refresher - The session refresher (uac|uas). Defaults to 'uas'.
+;
+;session-timers=originate
+;session-expires=600
+;session-minse=90
+;session-refresher=uas
+
+
+;--------------------------- SIP DEBUGGING ---------------------------------------------------
+;sipdebug = yes			; Turn on SIP debugging by default, from
+				; the moment the channel loads this configuration
+;recordhistory=yes		; Record SIP history by default 
+				; (see sip history / sip no history)
+;dumphistory=yes		; Dump SIP history at end of SIP dialogue
+				; SIP history is output to the DEBUG logging channel
+
+
+;--------------------------- STATUS NOTIFICATIONS (SUBSCRIPTIONS) ----------------------------
+; You can subscribe to the status of extensions with a "hint" priority
+; (See extensions.conf.sample for examples)
+; chan_sip support two major formats for notifications: dialog-info and SIMPLE 
+;
+; You will get more detailed reports (busy etc) if you have a call counter enabled
+; for a device. 
+;
+; If you set the busylevel, we will indicate busy when we have a number of calls that 
+; matches the busylevel treshold.
+;
+; For queues, you will need this level of detail in status reporting, regardless
+; if you use SIP subscriptions. Queues and manager use the same internal interface
+; for reading status information.
+;
+; Note: Subscriptions does not work if you have a realtime dialplan and use the
+; realtime switch.
+;
+;allowsubscribe=no		; Disable support for subscriptions. (Default is yes)
+;subscribecontext = default	; Set a specific context for SUBSCRIBE requests
+				; Useful to limit subscriptions to local extensions
+				; Settable per peer/user also
+;notifyringing = yes		; Notify subscriptions on RINGING state (default: no)
+;notifyhold = yes		; Notify subscriptions on HOLD state (default: no)
+				; Turning on notifyringing and notifyhold will add a lot
+				; more database transactions if you are using realtime.
+;callcounter = yes		; Enable call counters on devices. This can be set per
+				; device too.
+;counteronpeer = yes		; Apply call counting on peers only. This will improve 
+				; status notification when you are using type=friend
+				; Inbound calls, that really apply to the user part
+				; of a friend will now be added to and compared with
+				; the peer counter instead of applying two call counters,
+				; one for the peer and one for the user.
+				; "sip show inuse" will only show active calls on 
+				; the peer side of a "type=friend" object if this
+				; setting is turned on.
+
+;----------------------------------------- T.38 FAX PASSTHROUGH SUPPORT -----------------------
+;
+; This setting is available in the [general] section as well as in device configurations.
+; Setting this to yes, enables T.38 fax (UDPTL) passthrough on SIP to SIP calls, provided
+; both parties have T38 support enabled in their Asterisk configuration 
+; This has to be enabled in the general section for all devices to work. You can then
+; disable it on a per device basis. 
+;
+; T.38 faxing only works in SIP to SIP calls, with no local or agent channel being used.
+;
+; t38pt_udptl = yes            ; Default false
+;
+;----------------------------------------- OUTBOUND SIP REGISTRATIONS  ------------------------
+; Asterisk can register as a SIP user agent to a SIP proxy (provider)
+; Format for the register statement is:
+;       register => [transport://]user[:secret[:authuser]]@host[:port][/extension]
+;
+; 
+;
+; If no extension is given, the 's' extension is used. The extension needs to
+; be defined in extensions.conf to be able to accept calls from this SIP proxy
+; (provider).
+;
+; host is either a host name defined in DNS or the name of a section defined
+; below.
+;
+; A similar effect can be achieved by adding a "callbackextension" option in a peer section.
+; this is equivalent to having the following line in the general section:
+;
+;	register => username:secret@host/callbackextension
+;
+; and more readable because you don't have to write the parameters in two places
+; (note that the "port" is ignored - this is a bug that should be fixed).
+;
+; Examples:
+;
+;register => 1234:password@mysipprovider.com	
+;
+;     This will pass incoming calls to the 's' extension
+;
+;
+;register => 2345:password@sip_proxy/1234
+;
+;    Register 2345 at sip provider 'sip_proxy'.  Calls from this provider
+;    connect to local extension 1234 in extensions.conf, default context,
+;    unless you configure a [sip_proxy] section below, and configure a
+;    context.
+;    Tip 1: Avoid assigning hostname to a sip.conf section like [provider.com]
+;    Tip 2: Use separate type=peer and type=user sections for SIP providers
+;           (instead of type=friend) if you have calls in both directions
+  
+;registertimeout=20		; retry registration calls every 20 seconds (default)
+;registerattempts=10		; Number of registration attempts before we give up
+				; 0 = continue forever, hammering the other server
+				; until it accepts the registration
+				; Default is 0 tries, continue forever
+
+;----------------------------------------- NAT SUPPORT ------------------------
+;
+; WARNING: SIP operation behind a NAT is tricky and you really need
+; to read and understand well the following section.
+;
+; When Asterisk is behind a NAT device, the "local" address (and port) that
+; a socket is bound to has different values when seen from the inside or
+; from the outside of the NATted network. Unfortunately this address must
+; be communicated to the outside (e.g. in SIP and SDP messages), and in
+; order to determine the correct value Asterisk needs to know:
+;
+; + whether it is talking to someone "inside" or "outside" of the NATted network.
+;   This is configured by assigning the "localnet" parameter with a list
+;   of network addresses that are considered "inside" of the NATted network.
+;   IF LOCALNET IS NOT SET, THE EXTERNAL ADDRESS WILL NOT BE SET CORRECTLY.
+;   Multiple entries are allowed, e.g. a reasonable set is the following:
+;
+;      localnet=192.168.0.0/255.255.0.0 ; RFC 1918 addresses
+;      localnet=10.0.0.0/255.0.0.0	; Also RFC1918
+;      localnet=172.16.0.0/12		; Another RFC1918 with CIDR notation
+;      localnet=169.254.0.0/255.255.0.0 ; Zero conf local network
+;
+; + the "externally visible" address and port number to be used when talking
+;   to a host outside the NAT. This information is derived by one of the
+;   following (mutually exclusive) config file parameters:
+;
+;   a. "externip = hostname[:port]" specifies a static address[:port] to
+;      be used in SIP and SDP messages.
+;      The hostname is looked up only once, when [re]loading sip.conf .
+;      If a port number is not present, use the "bindport" value (which is
+;      not guaranteed to work correctly, because a NAT box might remap the
+;      port number as well as the address).
+;      This approach can be useful if you have a NAT device where you can
+;      configure the mapping statically. Examples:
+;
+;	externip = 12.34.56.78		; use this address.
+;	externip = 12.34.56.78:9900	; use this address and port.
+;	externip = mynat.my.org:12600	; Public address of my nat box.
+;
+;   b. "externhost = hostname[:port]" is similar to "externip" except
+;      that the hostname is looked up every "externrefresh" seconds
+;      (default 10s). This can be useful when your NAT device lets you choose
+;      the port mapping, but the IP address is dynamic.
+;      Beware, you might suffer from service disruption when the name server
+;      resolution fails. Examples:
+;
+;	externhost=foo.dyndns.net	; refreshed periodically
+;	externrefresh=180		; change the refresh interval
+;
+;   c. "stunaddr = stun.server[:port]" queries the STUN server specified
+;      as an argument to obtain the external address/port.
+;      Queries are also sent periodically every "externrefresh" seconds
+;      (as a side effect, sending the query also acts as a keepalive for
+;      the state entry on the nat box):
+;
+;	stunaddr = foo.stun.com:3478
+;	externrefresh = 15
+;
+;   Note that at the moment all these mechanism work only for the SIP socket.
+;   The IP address discovered with externip/externhost/STUN is reused for
+;   media sessions as well, but the port numbers are not remapped so you
+;   may still experience problems.
+;
+; NOTE 1: in some cases, NAT boxes will use different port numbers in
+; the internal<->external mapping. In these cases, the "externip" and
+; "externhost" might not help you configure addresses properly, and you
+; really need to use STUN.
+;
+; NOTE 2: when using "externip" or "externhost", the address part is
+; also used as the external address for media sessions.
+; If you use "stunaddr", STUN queries will be sent to the same server
+; also from media sockets, and this should permit a correct mapping of
+; the port numbers as well.
+;
+; In addition to the above, Asterisk has an additional "nat" parameter to
+; address NAT-related issues in incoming SIP or media sessions.
+; In particular, depending on the 'nat= ' settings described below, Asterisk
+; may override the address/port information specified in the SIP/SDP messages,
+; and use the information (sender address) supplied by the network stack instead.
+; However, this is only useful if the external traffic can reach us.
+; The following settings are allowed (both globally and in individual sections):
+;
+;	nat = no		; default. Use NAT mode only according to RFC3581 (;rport)
+;	nat = yes		; Always ignore info and assume NAT
+;	nat = never		; Never attempt NAT mode or RFC3581 support
+;	nat = route		; route = Assume NAT, don't send rport 
+;				; (work around more UNIDEN bugs)
+
+;----------------------------------- MEDIA HANDLING --------------------------------
+; By default, Asterisk tries to re-invite the audio to an optimal path. If there's
+; no reason for Asterisk to stay in the media path, the media will be redirected.
+; This does not really work with in the case where Asterisk is outside and have
+; clients on the inside of a NAT. In that case, you want to set canreinvite=nonat
+;
+;canreinvite=yes		; Asterisk by default tries to redirect the
+				; RTP media stream (audio) to go directly from
+				; the caller to the callee.  Some devices do not
+				; support this (especially if one of them is behind a NAT).
+				; The default setting is YES. If you have all clients
+				; behind a NAT, or for some other reason wants Asterisk to
+				; stay in the audio path, you may want to turn this off.
+
+				; This setting also affect direct RTP
+				; at call setup (a new feature in 1.4 - setting up the
+				; call directly between the endpoints instead of sending
+				; a re-INVITE).
+
+;directrtpsetup=yes		; Enable the new experimental direct RTP setup. This sets up
+				; the call directly with media peer-2-peer without re-invites.
+				; Will not work for video and cases where the callee sends 
+				; RTP payloads and fmtp headers in the 200 OK that does not match the
+				; callers INVITE. This will also fail if canreinvite is enabled when
+				; the device is actually behind NAT.
+
+;canreinvite=nonat		; An additional option is to allow media path redirection
+				; (reinvite) but only when the peer where the media is being
+				; sent is known to not be behind a NAT (as the RTP core can
+				; determine it based on the apparent IP address the media
+				; arrives from).
+
+;canreinvite=update		; Yet a third option... use UPDATE for media path redirection,
+				; instead of INVITE. This can be combined with 'nonat', as
+				; 'canreinvite=update,nonat'. It implies 'yes'.
+
+;----------------------------------------- REALTIME SUPPORT ------------------------
+; For additional information on ARA, the Asterisk Realtime Architecture,
+; please read realtime.txt and extconfig.txt in the /doc directory of the
+; source code.
+;
+;rtcachefriends=yes		; Cache realtime friends by adding them to the internal list
+				; just like friends added from the config file only on a
+				; as-needed basis? (yes|no)
+
+;rtsavesysname=yes		; Save systemname in realtime database at registration
+				; Default= no
+
+;rtupdate=yes			; Send registry updates to database using realtime? (yes|no)
+				; If set to yes, when a SIP UA registers successfully, the ip address,
+				; the origination port, the registration period, and the username of
+				; the UA will be set to database via realtime. 
+				; If not present, defaults to 'yes'.
+;rtautoclear=yes		; Auto-Expire friends created on the fly on the same schedule
+				; as if it had just registered? (yes|no|<seconds>)
+				; If set to yes, when the registration expires, the friend will
+				; vanish from the configuration until requested again. If set
+				; to an integer, friends expire within this number of seconds
+				; instead of the registration interval.
+
+;ignoreregexpire=yes		; Enabling this setting has two functions:
+				;
+				; For non-realtime peers, when their registration expires, the
+				; information will _not_ be removed from memory or the Asterisk database
+				; if you attempt to place a call to the peer, the existing information
+				; will be used in spite of it having expired
+				;
+				; For realtime peers, when the peer is retrieved from realtime storage,
+				; the registration information will be used regardless of whether
+				; it has expired or not; if it expires while the realtime peer 
+				; is still in memory (due to caching or other reasons), the 
+				; information will not be removed from realtime storage
+
+;----------------------------------------- SIP DOMAIN SUPPORT ------------------------
+; Incoming INVITE and REFER messages can be matched against a list of 'allowed'
+; domains, each of which can direct the call to a specific context if desired.
+; By default, all domains are accepted and sent to the default context or the
+; context associated with the user/peer placing the call.
+; Domains can be specified using:
+; domain=<domain>[,<context>]
+; Examples:
+; domain=myasterisk.dom
+; domain=customer.com,customer-context
+;
+; In addition, all the 'default' domains associated with a server should be
+; added if incoming request filtering is desired.
+; autodomain=yes
+;
+; To disallow requests for domains not serviced by this server:
+; allowexternaldomains=no
+
+;domain=mydomain.tld,mydomain-incoming
+				; Add domain and configure incoming context
+				; for external calls to this domain
+;domain=1.2.3.4			; Add IP address as local domain
+				; You can have several "domain" settings
+;allowexternaldomains=no	; Disable INVITE and REFER to non-local domains
+				; Default is yes
+;autodomain=yes			; Turn this on to have Asterisk add local host
+				; name and local IP to domain list.
+
+; fromdomain=mydomain.tld 	; When making outbound SIP INVITEs to
+                          	; non-peers, use your primary domain "identity"
+                          	; for From: headers instead of just your IP
+                          	; address. This is to be polite and
+                          	; it may be a mandatory requirement for some
+                          	; destinations which do not have a prior
+                          	; account relationship with your server. 
+
+;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
+                              ; SIP channel. Defaults to "no". An enabled jitterbuffer will
+                              ; be used only if the sending side can create and the receiving
+                              ; side can not accept jitter. The SIP channel can accept jitter,
+                              ; thus a jitterbuffer on the receive SIP side will be used only
+                              ; if it is forced and enabled.
+
+; jbforce = no                ; Forces the use of a jitterbuffer on the receive side of a SIP
+                              ; channel. Defaults to "no".
+
+; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
+
+; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
+                              ; resynchronized. Useful to improve the quality of the voice, with
+                              ; big jumps in/broken timestamps, usually sent from exotic devices
+                              ; and programs. Defaults to 1000.
+
+; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a SIP
+                              ; channel. Two implementations are currently available - "fixed"
+                              ; (with size always equals to jbmaxsize) and "adaptive" (with
+                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
+
+; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
+;-----------------------------------------------------------------------------------
+
+[authentication]
+; Global credentials for outbound calls, i.e. when a proxy challenges your
+; Asterisk server for authentication. These credentials override
+; any credentials in peer/register definition if realm is matched.
+;
+; This way, Asterisk can authenticate for outbound calls to other
+; realms. We match realm on the proxy challenge and pick an set of 
+; credentials from this list
+; Syntax:
+;	auth = <user>:<secret>@<realm>
+;	auth = <user>#<md5secret>@<realm>
+; Example:
+;auth=mark:topsecret@digium.com
+; 
+; You may also add auth= statements to [peer] definitions 
+; Peer auth= override all other authentication settings if we match on realm
+
+;------------------------------------------------------------------------------
+; Users and peers have different settings available. Friends have all settings,
+; since a friend is both a peer and a user
+;
+; User config options:        Peer configuration:
+; --------------------        -------------------
+; context                     context
+; callingpres                 callingpres
+; permit                      permit
+; deny                        deny
+; secret                      secret
+; md5secret                   md5secret
+; dtmfmode                    dtmfmode
+; canreinvite                 canreinvite
+; nat                         nat
+; callgroup                   callgroup
+; pickupgroup                 pickupgroup
+; language                    language
+; allow                       allow
+; disallow                    disallow
+; insecure                    insecure
+; trustrpid                   trustrpid
+; progressinband              progressinband
+; promiscredir                promiscredir
+; useclientcode               useclientcode
+; accountcode                 accountcode
+; setvar                      setvar
+; callerid		      callerid
+; amaflags		      amaflags
+; call-limit		      call-limit	(deprecated)
+; callcounter                 callcounter
+; allowoverlap		      allowoverlap
+; allowsubscribe	      allowsubscribe
+; allowtransfer	      	      allowtransfer
+; subscribecontext	      subscribecontext
+; videosupport		      videosupport
+; maxcallbitrate	      maxcallbitrate
+; rfc2833compensate           mailbox
+; session-timers             busylevel
+; session-expires            
+; session-minse              template
+; session-refresher          fromdomain
+;                            regexten
+;                            fromuser
+;                            host
+;                            port
+;                             qualify
+;                             defaultip
+;                             defaultuser
+;                             rtptimeout
+;                             rtpholdtimeout
+;                             sendrpid
+;                             outboundproxy
+;                             rfc2833compensate
+;                             callbackextension
+;                             registertrying
+;                             session-timers
+;                             session-expires
+;                             session-minse
+;                             session-refresher
+;                             timert1
+;                             timerb
+;                             qualifyfreq
+
+
+;[sip_proxy]
+; For incoming calls only. Example: FWD (Free World Dialup)
+; We match on IP address of the proxy for incoming calls 
+; since we can not match on username (caller id)
+;type=peer
+;context=from-fwd
+;host=fwd.pulver.com
+
+;[sip_proxy-out]
+;type=peer          			; we only want to call out, not be called
+;secret=guessit
+;defaultuser=yourusername		; Authentication user for outbound proxies
+;fromuser=yourusername			; Many SIP providers require this!
+;fromdomain=provider.sip.domain	
+;host=box.provider.com
+;usereqphone=yes			; This provider requires ";user=phone" on URI
+;callcounter=yes			; Enable call counter
+;busylevel=2				; Signal busy at 2 or more calls
+;outboundproxy=proxy.provider.domain	; send outbound signaling to this proxy, not directly to the peer
+;port=80				; The port number we want to connect to on the remote side
+					; Also used as "defaultport" in combination with "defaultip" settings
+
+;--- sample definition for a provider
+;[provider1]
+;type=peer
+;host=sip.provider1.com
+;fromuser=4015552299		; how your provider knows you
+;secret=youwillneverguessit
+;callbackextension=123		; Register with this server and require calls coming back to this extension
+
+;------------------------------------------------------------------------------
+; Definitions of locally connected SIP devices
+;
+; type = user	a device that authenticates to us by "from" field to place calls
+; type = peer	a device we place calls to or that calls us and we match by host
+; type = friend two configurations (peer+user) in one
+;
+; For device names, we recommend using only a-z, numerics (0-9) and underscore
+; 
+; For local phones, type=friend works most of the time
+;
+; If you have one-way audio, you probably have NAT problems. 
+; If Asterisk is on a public IP, and the phone is inside of a NAT device
+; you will need to configure nat option for those phones.
+; Also, turn on qualify=yes to keep the nat session open
+;
+; Because you might have a large number of similar sections, it is generally
+; convenient to use templates for the common parameters, and add them
+; the the various sections. Examples are below, and we can even leave
+; the templates uncommented as they will not harm:
+
+[basic-options](!)		; a template
+	dtmfmode=rfc2833
+	context=from-office
+	type=friend
+
+[natted-phone](!,basic-options)	; another template inheriting basic-options
+	nat=yes
+	canreinvite=no
+	host=dynamic
+
+[public-phone](!,basic-options)	; another template inheriting basic-options
+	nat=no
+	canreinvite=yes
+
+[my-codecs](!)		; a template for my preferred codecs
+	disallow=all
+	allow=ilbc
+	allow=g729
+	allow=gsm
+	allow=g723
+	allow=ulaw
+
+[ulaw-phone](!)		; and another one for ulaw-only
+	disallow=all
+	allow=ulaw
+
+; and finally instantiate a few phones
+;
+; [2133](natted-phone,my-codecs)
+;	secret = peekaboo
+; [2134](natted-phone,ulaw-phone)
+;	secret = not_very_secret
+; [2136](public-phone,ulaw-phone)
+;	secret = not_very_secret_either
+; ...
+;
+
+; Standard configurations not using templates look like this:
+;
+;[grandstream1]
+;type=friend 			
+;context=from-sip		; Where to start in the dialplan when this phone calls
+;callerid=John Doe <1234>	; Full caller ID, to override the phones config
+				; on incoming calls to Asterisk
+;host=192.168.0.23		; we have a static but private IP address
+				; No registration allowed
+;nat=no				; there is not NAT between phone and Asterisk
+;canreinvite=yes		; allow RTP voice traffic to bypass Asterisk
+;dtmfmode=info			; either RFC2833 or INFO for the BudgeTone
+;call-limit=1			; permit only 1 outgoing call and 1 incoming call at a time
+				; from the phone to asterisk (deprecated)
+				; 1 for the explicit peer, 1 for the explicit user,
+				; remember that a friend equals 1 peer and 1 user in
+				; memory
+				; There is no combined call counter for a "friend"
+				; so there's currently no way in sip.conf to limit
+				; to one inbound or outbound call per phone. Use
+				; the group counters in the dial plan for that.
+				;
+;mailbox=1234@default		; mailbox 1234 in voicemail context "default"
+;disallow=all			; need to disallow=all before we can use allow=
+;allow=ulaw			; Note: In user sections the order of codecs
+				; listed with allow= does NOT matter!
+;allow=alaw
+;allow=g723.1			; Asterisk only supports g723.1 pass-thru!
+;allow=g729			; Pass-thru only unless g729 license obtained
+;callingpres=allowed_passed_screen	; Set caller ID presentation
+				; See README.callingpres for more information
+
+;[xlite1]
+; Turn off silence suppression in X-Lite ("Transmit Silence"=YES)!
+; Note that Xlite sends NAT keep-alive packets, so qualify=yes is not needed
+;type=friend
+;regexten=1234			; When they register, create extension 1234
+;callerid="Jane Smith" <5678>
+;host=dynamic			; This device needs to register
+;nat=yes			; X-Lite is behind a NAT router
+;canreinvite=no			; Typically set to NO if behind NAT
+;disallow=all
+;allow=gsm			; GSM consumes far less bandwidth than ulaw
+;allow=ulaw
+;allow=alaw
+;mailbox=1234@default,1233@default	; Subscribe to status of multiple mailboxes
+;registertrying=yes             ; Send a 100 Trying when the device registers.
+
+;[snom]
+;type=friend			; Friends place calls and receive calls
+;context=from-sip		; Context for incoming calls from this user
+;secret=blah
+;subscribecontext=localextensions	; Only allow SUBSCRIBE for local extensions
+;language=de			; Use German prompts for this user 
+;host=dynamic			; This peer register with us
+;dtmfmode=inband		; Choices are inband, rfc2833, or info
+;defaultip=192.168.0.59		; IP used until peer registers
+;mailbox=1234@context,2345      ; Mailbox(-es) for message waiting indicator
+;subscribemwi=yes		; Only send notifications if this phone 
+				; subscribes for mailbox notification
+;vmexten=voicemail		; dialplan extension to reach mailbox 
+				; sets the Message-Account in the MWI notify message
+				; defaults to global vmexten which defaults to "asterisk"
+;disallow=all
+;allow=ulaw			; dtmfmode=inband only works with ulaw or alaw!
+
+
+;[polycom]
+;type=friend			; Friends place calls and receive calls
+;context=from-sip		; Context for incoming calls from this user
+;secret=blahpoly
+;host=dynamic			; This peer register with us
+;dtmfmode=rfc2833		; Choices are inband, rfc2833, or info
+;defaultuser=polly		; Username to use in INVITE until peer registers
+;defaultip=192.168.40.123
+				; Normally you do NOT need to set this parameter
+;disallow=all
+;allow=ulaw                     ; dtmfmode=inband only works with ulaw or alaw!
+;progressinband=no		; Polycom phones don't work properly with "never"
+
+
+;[pingtel]
+;type=friend
+;secret=blah
+;host=dynamic
+;insecure=port			; Allow matching of peer by IP address without 
+				; matching port number
+;insecure=invite		; Do not require authentication of incoming INVITEs
+;insecure=port,invite		; (both)
+;qualify=1000			; Consider it down if it's 1 second to reply
+				; Helps with NAT session
+				; qualify=yes uses default value
+;qualifyfreq=60 ; Qualification: How often to check for the 
+				; host to be up in seconds
+				; Set to low value if you use low timeout for
+				; NAT of UDP sessions
+;
+; Call group and Pickup group should be in the range from 0 to 63
+;
+;callgroup=1,3-4		; We are in caller groups 1,3,4
+;pickupgroup=1,3-5		; We can do call pick-p for call group 1,3,4,5
+;defaultip=192.168.0.60		; IP address to use if peer has not registered
+;deny=0.0.0.0/0.0.0.0		; ACL: Control access to this account based on IP address
+;permit=192.168.0.60/255.255.255.0
+
+;[cisco1]
+;type=friend
+;secret=blah
+;qualify=200			; Qualify peer is no more than 200ms away
+;nat=yes			; This phone may be natted
+				; Send SIP and RTP to the IP address that packet is 
+				; received from instead of trusting SIP headers 
+;host=dynamic			; This device registers with us
+;canreinvite=no			; Asterisk by default tries to redirect the
+				; RTP media stream (audio) to go directly from
+				; the caller to the callee.  Some devices do not
+				; support this (especially if one of them is 
+				; behind a NAT).
+;defaultip=192.168.0.4		; IP address to use until registration
+;defaultuser=goran		; Username to use when calling this device before registration
+				; Normally you do NOT need to set this parameter
+;setvar=CUSTID=5678		; Channel variable to be set for all calls from this device
+
+;[pre14-asterisk]
+;type=friend
+;secret=digium
+;host=dynamic
+;rfc2833compensate=yes		; Compensate for pre-1.4 DTMF transmission from another Asterisk machine.
+				; You must have this turned on or DTMF reception will work improperly.

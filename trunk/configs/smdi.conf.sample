@@ -1,0 +1,43 @@
+; Asterisk SMDI configuration
+
+[interfaces]
+; Specify serial ports to listen for SMDI messages on below.  These will be
+; referenced later in zapata.conf.  If you do not specify any interfaces then
+; SMDI will be disabled.  Interfaces can have several different attributes
+; associated with them.
+
+; Set the number of stop bits to use per character here.  The default is no,
+; in which case one stop bit will be used.
+
+;twostopbits = no
+
+; Character size or bit length is the size of each character sent across the
+; link.  Character size can be 7 or 8.  The default is 7.
+
+;charsize = 7
+
+; If you need parity checking enabled you can turn it on here.  Acceptable
+; values are even, odd, and none.  The default is even.
+
+;paritybit = even
+
+; The baudrate to use for this port.  Acceptable values are 1200, 2400, 4800,
+; and 9600.  The default is 9600.
+
+;baudrate = 1200
+
+; Often the numbering scheme for a set of mailboxes or extensions will not be 7
+; or 10 digits (as SMDI requires).  Use the msdstrip option to strip unused
+; digits from the start of numbers.
+
+;msdstrip = 0
+
+; Occasionally Asterisk and the SMDI switch may become out of sync.  If this
+; happens, Asterisk will appear one or several calls behind as it processes
+; voicemail requests.  To prevent this from happening, adjust the msgexpirytime.
+; This will make Asterisk discard old SMDI messages that have not yet been
+; processed.  The default expiry time is 30000 milliseconds.
+
+;msgexpirytime = 30000
+
+;smdiport => /dev/ttyS0

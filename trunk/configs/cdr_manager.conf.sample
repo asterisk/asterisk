@@ -1,0 +1,15 @@
+;
+; Asterisk Call Management CDR
+;
+[general]
+enabled = no
+
+; The "mappings" category can be used to define additional "key: value" pairs
+; that will be included in the manager event. (after AccountCode, Source, etc).
+;
+; Each line like "varname => label" will include a "label: ${CDR(varname)}"
+; in the generated event where ${CDR(varname)} its replaced with its value
+;
+;[mappings]
+;rate => Rate
+;carrier => Carrier

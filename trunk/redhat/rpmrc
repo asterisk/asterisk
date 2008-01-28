@@ -1,0 +1,3 @@
+#############################################################
+macrofiles:     /usr/lib/rpm/macros:/usr/lib/rpm/%{_target}/macros:/etc/rpm/macros:/etc/rpm/%{_target}/macros:~/.rpmmacros:/tmp/asterisk/rpmmacros
+#############################################################

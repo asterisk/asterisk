@@ -1,0 +1,62 @@
+	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
+		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations by the Compiler">
+		</member>
+		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
+		</member>
+		<member name="STATIC_BUILD" displayname="Build static binaries">
+		</member>
+		<member name="LOADABLE_MODULES" displayname="Runtime module loading">
+			<defaultenabled>yes</defaultenabled>
+		</member>
+		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
+		</member>
+		<member name="LOTS_OF_SPANS" displayname="More than 32 Zaptel spans">
+		</member>
+		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters">
+		</member>
+		<member name="RADIO_RELAX" displayname="Relax DTMF for Radio Applications">
+		</member>
+		<member name="G711_NEW_ALGORITHM" displayname="Use the NEW ulaw/alaw codecs (slower, but cleaner)">
+			<defaultenabled>no</defaultenabled>
+		</member>
+		<member name="G711_REDUCED_BRANCHING" displayname="New ulaw/alaw codec, reduced branching (might help it run faster in some architectures)">
+			<defaultenabled>yes</defaultenabled>
+			<depend>G711_NEW_ALGORITHM</depend>
+		</member>
+		<member name="TEST_CODING_TABLES" displayname="New ulaw/alaw codec, turn on table tests on init">
+			<depend>G711_NEW_ALGORITHM</depend>
+		</member>
+		<member name="TEST_TANDEM_TRANSCODING" displayname="New ulaw/alaw codec, turn on transcoding tests on init">
+			<depend>G711_NEW_ALGORITHM</depend>
+		</member>
+		<member name="DEBUG_CHANNEL_LOCKS" displayname="Debug Channel Locking">
+		</member>
+		<member name="DEBUG_SCHEDULER" displayname="Enable Scheduler Debugging Output">
+		</member>
+		<member name="DEBUG_THREADLOCALS" displayname="Enable Thread-Local-Storage Debugging">
+		</member>
+		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks">
+			<depend>DEBUG_THREADS</depend>
+		</member>
+		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging">
+		</member>
+		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">
+		</member>
+		<member name="TRACE_FRAMES" displayname="Trace Frame Allocations">
+		</member>
+		<member name="DO_CRASH" displayname="Crash on fatal errors">
+		</member>
+		<member name="THREAD_CRASH" displayname="Crash on mutex errors">
+		</member>
+		<member name="BUSYDETECT_TONEONLY" displayname="Enable additional comparision of only the tone duration not the silence part">
+			<conflict>BUSYDETECT_COMPARE_TONE_AND_SILENCE</conflict>
+			<defaultenabled>no</defaultenabled>
+		</member>
+		<member name="BUSYDETECT_COMPARE_TONE_AND_SILENCE" displayname="Assume that tone and silence have the same duration">
+			<conflict>BUSYDETECT_TONEONLY</conflict>
+			<defaultenabled>no</defaultenabled>
+		</member>
+		<member name="BUSYDETECT_DEBUG" displayname="Enable additional busy detection debugging">
+			<defaultenabled>no</defaultenabled>
+		</member>
+	</category>

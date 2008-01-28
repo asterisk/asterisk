@@ -1,0 +1,8 @@
+context test1
+{
+	test2 => 
+	{
+		#include "apptest.ael2";
+	}
+}
+

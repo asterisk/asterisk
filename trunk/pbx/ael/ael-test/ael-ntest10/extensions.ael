@@ -1,0 +1,131 @@
+macro endsess()
+{
+	NoOp(hithere);
+}
+
+macro nullchk(type)
+{
+	NoOp(${type} is this);
+}
+
+macro endcall(type) {
+  switch(${type}) {
+    case out:
+      &nullchk(callid);
+      if(${testnotnull}) {
+        &endsess();
+        goto ptr1 ; // <-- goto call to valid label
+      }
+      else {
+ptr1: // <-- valid label
+        Softhangup(${CHANNEL});
+        break ;
+      }
+    Noop(esac) ;
+  }
+}
+
+macro endcall2(type) {
+  switch(${type}) {
+    case out:
+      &nullchk(callid);
+      if(${testnotnull}) {
+        &endsess();
+        goto ptr1 ; // <-- goto call to valid label
+      }
+	case out2:
+      {
+ptr1: // <-- valid label
+        Softhangup(${CHANNEL});
+        break ;
+      }
+    Noop(esac) ;
+  }
+}
+
+macro endcall3(type) {
+  switch(${type}) {
+    case out:
+      &nullchk(callid);
+      if(${testnotnull}) {
+        &endsess();
+        goto ptr1 ; // <-- goto call to valid label
+      }
+    Noop(esac) ;
+  }
+  if(${testnotnull}) {
+	goto ptr1;
+  }
+  switch(${type}) {
+	case out:
+      if(${testnotnull}) {
+ptr1: // <-- valid label
+        Softhangup(${CHANNEL});
+        break ;
+      }
+    Noop(esac) ;
+  }
+}
+
+macro endcall4(type) {
+  switch(${type}) {
+    case out:
+      &nullchk(callid);
+      if(${testnotnull}) {
+        &endsess();
+        goto ptr1 ; // <-- goto call to valid label
+      }
+    Noop(esac) ;
+  }
+  if(${testnotnull}) {
+	goto ptr1;
+  }
+  switch(${type}) {
+	case out:
+	  switch(${type})
+	  {
+		case in:
+      	 if(${testnotnull}) {
+ptr1: // <-- valid label
+             Softhangup(${CHANNEL});
+             break ;
+      	 }
+         Noop(esac) ;
+	  }
+   }
+}
+
+macro endcall5(type) {
+  switch(${type}) {
+    case out:
+      &nullchk(callid);
+      if(${testnotnull}) {
+        &endsess();
+        goto ptr1 ; // <-- goto call to valid label
+      }
+    case in:
+      &nullchk(callid);
+	ptr2:
+      if(${testnotnull}) {
+        &endsess();
+        goto ptr1 ; // <-- goto call to valid label
+      }
+    Noop(esac) ;
+  }
+  if(${testnotnull}) {
+	goto ptr1;
+  }
+  switch(${type}) {
+	case out:
+	  switch(${type})
+	  {
+		case in:
+      	 if(${testnotnull}) {
+ptr1: // <-- valid label
+             Softhangup(${CHANNEL});
+             break ;
+      	 }
+         Noop(esac) ;
+	  }
+   }
+}

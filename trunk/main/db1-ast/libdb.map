@@ -1,0 +1,11 @@
+GLIBC_2.0 {
+  global:
+    # the real DB entry point.
+    dbopen; __dbopen;
+
+    # The compatibility functions.
+    dbm_clearerr; dbm_close; dbm_delete; dbm_dirfno; dbm_error;
+    dbm_fetch; dbm_firstkey; dbm_nextkey; dbm_open; dbm_store;
+  local:
+    *;
+};

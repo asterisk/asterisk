@@ -1,0 +1,96 @@
+;
+; Logging Configuration
+;
+; In this file, you configure logging to files or to
+; the syslog system.
+;
+; "logger reload" at the CLI will reload configuration
+; of the logging system.
+
+[general]
+;
+; Customize the display of debug message time stamps
+; this example is the ISO 8601 date format (yyyy-mm-dd HH:MM:SS)
+;
+; see strftime(3) Linux manual for format specifiers.  Note that there is also
+; a fractional second parameter which may be used in this field.  Use %1q
+; for tenths, %2q for hundredths, etc.
+; 
+;dateformat=%F %T       ; ISO 8601 date format
+;dateformat=%F %T.%3q   ; with milliseconds
+;
+; This appends the hostname to the name of the log files.
+;appendhostname = yes
+;
+; This determines whether or not we log queue events to a file
+; (defaults to yes).
+;queue_log = no
+;
+; Set the queue_log filename
+; (defaults to queue_log)
+;queue_log_name = queue_log
+;
+; Log rotation strategy:
+; sequential:  Rename archived logs in order, such that the newest
+;              has the highest sequence number [default].
+; rotate:  Rotate all the old files, such that the oldest has the
+;          highest sequence number [this is the expected behavior
+;          for Unix administrators].
+; timestamp:  Rename the logfiles using a timestamp instead of a
+;             sequence number when "logger rotate" is executed.
+;rotatestrategy = rotate
+;
+; Run a system command after rotating the files.  This is mainly
+; useful for rotatestrategy=rotate. The example allows the last
+; two archive files to remain uncompressed, but after that point,
+; they are compressed on disk.
+;
+; exec_after_rotate=gzip -9 ${filename}.2
+;
+; This determines whether or not we log generic events to a file
+; (defaults to yes).
+;event_log = no
+;
+;
+; For each file, specify what to log.
+;
+; For console logging, you set options at start of
+; Asterisk with -v for verbose and -d for debug
+; See 'asterisk -h' for more information.
+;
+; Directory for log files is configures in asterisk.conf
+; option astlogdir
+;
+[logfiles]
+;
+; Format is "filename" and then "levels" of debugging to be included:
+;    debug
+;    notice
+;    warning
+;    error
+;    verbose
+;    dtmf
+;
+; Special filename "console" represents the system console
+;
+; We highly recommend that you DO NOT turn on debug mode if you are simply
+; running a production system.  Debug mode turns on a LOT of extra messages,
+; most of which you are unlikely to understand without an understanding of
+; the underlying code.  Do NOT report debug messages as code issues, unless
+; you have a specific issue that you are attempting to debug.  They are
+; messages for just that -- debugging -- and do not rise to the level of
+; something that merit your attention as an Asterisk administrator.  Debug
+; messages are also very verbose and can and do fill up logfiles quickly;
+; this is another reason not to have debug mode on a production system unless
+; you are in the process of debugging a specific issue.
+;
+;debug => debug
+console => notice,warning,error
+;console => notice,warning,error,debug
+messages => notice,warning,error
+;full => notice,warning,error,debug,verbose
+
+;syslog keyword : This special keyword logs to syslog facility 
+;
+;syslog.local0 => notice,warning,error
+;
