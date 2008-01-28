@@ -5866,8 +5866,8 @@ static void *ss_thread(void *data)
 				timeout = firstdigittimeout;
 					
 			} else if (!strcmp(exten,ast_pickup_ext())) {
-				/* Scan all channels and see if any there
-				 * ringing channqels with that have call groups
+				/* Scan all channels and see if there are any
+				 * ringing channels that have call groups
 				 * that equal this channels pickup group  
 				 */
 			  	if (index == SUB_REAL) {
