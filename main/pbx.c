@@ -5632,10 +5632,14 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1, chan->cid.cid_num)) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Timeout on %s, continuing...\n", chan->name);
+		} else if (chan->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Call timeout on %s, checking for 'T'\n", chan->name);
+			res = -1;
 		} else if (ast_exists_extension(chan, chan->context, "t", 1, chan->cid.cid_num)) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Timeout on %s, going to 't'\n", chan->name);
-			set_ext_pri(chan, "t", 0); /* XXX is the 0 correct ? */
+			set_ext_pri(chan, "t", 0); /* 0 will become 1, next time through the loop */
 		} else {
 			ast_log(LOG_WARNING, "Timeout but no rule 't' in context '%s'\n", chan->context);
 			res = -1;
