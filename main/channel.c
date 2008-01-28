@@ -481,7 +481,7 @@ const char *ast_cause2str(int cause)
 {
 	int x;
 
-	for (x=0; x < sizeof(causes) / sizeof(causes[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(causes); x++) {
 		if (causes[x].cause == cause)
 			return causes[x].desc;
 	}
@@ -494,8 +494,8 @@ int ast_str2cause(const char *name)
 {
 	int x;
 
-	for (x = 0; x < sizeof(causes) / sizeof(causes[0]); x++)
-		if (strncasecmp(causes[x].name, name, strlen(causes[x].name)) == 0)
+	for (x = 0; x < ARRAY_LEN(causes); x++)
+		if (!strncasecmp(causes[x].name, name, strlen(causes[x].name)))
 			return causes[x].cause;
 
 	return -1;
@@ -4806,44 +4806,45 @@ int ast_channel_trylock(struct ast_channel *chan)
 int ast_say_number(struct ast_channel *chan, int num,
 	const char *ints, const char *language, const char *options)
 {
-        return ast_say_number_full(chan, num, ints, language, options, -1, -1);
+	return ast_say_number_full(chan, num, ints, language, options, -1, -1);
 }
 
 int ast_say_enumeration(struct ast_channel *chan, int num,
 	const char *ints, const char *language, const char *options)
 {
-        return ast_say_enumeration_full(chan, num, ints, language, options, -1, -1);
+	return ast_say_enumeration_full(chan, num, ints, language, options, -1, -1);
 }
 
 int ast_say_digits(struct ast_channel *chan, int num,
 	const char *ints, const char *lang)
 {
-        return ast_say_digits_full(chan, num, ints, lang, -1, -1);
+	return ast_say_digits_full(chan, num, ints, lang, -1, -1);
 }
 
 int ast_say_digit_str(struct ast_channel *chan, const char *str,
 	const char *ints, const char *lang)
 {
-        return ast_say_digit_str_full(chan, str, ints, lang, -1, -1);
+	return ast_say_digit_str_full(chan, str, ints, lang, -1, -1);
 }
 
 int ast_say_character_str(struct ast_channel *chan, const char *str,
 	const char *ints, const char *lang)
 {
-        return ast_say_character_str_full(chan, str, ints, lang, -1, -1);
+	return ast_say_character_str_full(chan, str, ints, lang, -1, -1);
 }
 
 int ast_say_phonetic_str(struct ast_channel *chan, const char *str,
 	const char *ints, const char *lang)
 {
-        return ast_say_phonetic_str_full(chan, str, ints, lang, -1, -1);
+	return ast_say_phonetic_str_full(chan, str, ints, lang, -1, -1);
 }
 
 int ast_say_digits_full(struct ast_channel *chan, int num,
 	const char *ints, const char *lang, int audiofd, int ctrlfd)
 {
-        char buf[256];
+	char buf[256];
 
-        snprintf(buf, sizeof(buf), "%d", num);
-        return ast_say_digit_str_full(chan, buf, ints, lang, audiofd, ctrlfd);
+	snprintf(buf, sizeof(buf), "%d", num);
+
+	return ast_say_digit_str_full(chan, buf, ints, lang, audiofd, ctrlfd);
 }
