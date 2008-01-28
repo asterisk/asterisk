@@ -842,7 +842,10 @@ AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [])
 
 AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
 
+# Non-glibc platforms require libexecinfo for backtrace support
 AST_EXT_LIB_CHECK([BKTR], [execinfo], [backtrace], [execinfo.h])
+# Linux, however, has backtrace directly in glibc
+AST_EXT_LIB_CHECK([BKTR], [c], [backtrace], [execinfo.h])
 
 # possible places for oss definitions
 AST_EXT_LIB_CHECK([OSS], [ossaudio], [], [linux/soundcard.h])
