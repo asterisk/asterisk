@@ -1662,6 +1662,12 @@ static struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we
 		(head) = (element)->next;	\
 	} while (0)
 
+enum t38_action_flag {
+	SDP_T38_NONE = 0, /*!< Do not modify T38 information at all */
+	SDP_T38_INITIATE, /*!< Remote side has requested T38 with us */
+	SDP_T38_ACCEPT,   /*!< Remote side accepted our T38 request */
+};
+
 /*---------------------------- Forward declarations of functions in chan_sip.c */
 /*! \note This is added to help splitting up chan_sip.c into several files
 	in coming releases */
@@ -1753,7 +1759,7 @@ static void try_suggested_sip_codec(struct sip_pvt *p);
 static const char* get_sdp_iterate(int* start, struct sip_request *req, const char *name);
 static const char *get_sdp(struct sip_request *req, const char *name);
 static int find_sdp(struct sip_request *req);
-static int process_sdp(struct sip_pvt *p, struct sip_request *req);
+static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action);
 static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
 			     struct ast_str **m_buf, struct ast_str **a_buf,
 			     int debug, int *min_packet_size);
@@ -6075,7 +6081,7 @@ static int find_sdp(struct sip_request *req)
  	Return 0 on success, a negative value on errors.
 	Must be called after find_sdp().
 */
-static int process_sdp(struct sip_pvt *p, struct sip_request *req)
+static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action)
 {
 	const char *m;		/* SDP media offer */
 	const char *c;
@@ -6292,14 +6298,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				ast_verbose("Got T.38 offer in SDP in dialog %s\n", p->callid);
 			udptlportno = x;
 			numberofmediastreams++;
-			
-			if (p->owner && p->lastinvite) {
-				p->t38.state = T38_PEER_REINVITE; /* T38 Offered in re-invite from remote party */
-				ast_debug(2, "T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>" );
-			} else {
-				p->t38.state = T38_PEER_DIRECT; /* T38 Offered directly from peer in first invite */
-				ast_debug(2, "T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
-			}
 		} else 
 			ast_log(LOG_WARNING, "Unsupported SDP media type in offer: %s\n", m);
 		if (numberofports > 1)
@@ -6608,10 +6606,24 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				p->t38.capability,
 				p->t38.peercapability,
 				p->t38.jointcapability);
+
+
+		/* Remote party offers T38, we need to update state */
+		if (t38action == SDP_T38_ACCEPT) {
+			if (p->t38.state == T38_LOCAL_DIRECT || p->t38.state == T38_LOCAL_REINVITE)
+				p->t38.state = T38_ENABLED;
+		} else if (t38action == SDP_T38_INITIATE) {
+			if (p->owner && p->lastinvite) {
+				p->t38.state = T38_PEER_REINVITE; /* T38 Offered in re-invite from remote party */
+			} else {
+				p->t38.state = T38_PEER_DIRECT; /* T38 Offered directly from peer in first invite */
+			}
+		}
 	} else {
 		p->t38.state = T38_DISABLED;
-		ast_debug(3, "T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
 	}
+
+	ast_debug(3, "T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
 
 	/* Now gather all of the codecs that we are asked for: */
 	ast_rtp_get_current_formats(newaudiortp, &peercapability, &peernoncodeccapability);
@@ -14278,7 +14290,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (find_sdp(req)) {
 			if (p->invitestate != INV_CANCELLED)
 				p->invitestate = INV_EARLY_MEDIA;
-			res = process_sdp(p, req);
+			res = process_sdp(p, req, SDP_T38_NONE);
 			if (!req->ignore && p->owner) {
 				/* Queue a progress frame only if we have SDP in 180 or 182 */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
@@ -14294,7 +14306,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (find_sdp(req)) {
 			if (p->invitestate != INV_CANCELLED)
 				p->invitestate = INV_EARLY_MEDIA;
-			res = process_sdp(p, req);
+			res = process_sdp(p, req, SDP_T38_NONE);
 			if (!req->ignore && p->owner) {
 				/* Queue a progress frame */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
@@ -14308,7 +14320,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		p->authtries = 0;
 		if (find_sdp(req)) {
-			if ((res = process_sdp(p, req)) && !req->ignore)
+			if ((res = process_sdp(p, req, SDP_T38_ACCEPT)) && !req->ignore)
 				if (!reinvite)
 					/* This 200 OK's SDP is not acceptable, so we need to ack, then hangup */
 					/* For re-invites, we try to recover */
@@ -15114,7 +15126,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					if (!req->ignore && sip_cancel_destroy(p))
 						ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 					if (find_sdp(req))
-						process_sdp(p, req);
+						process_sdp(p, req, SDP_T38_NONE);
 					if (p->owner) {
 						/* Queue a progress frame */
 						ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
@@ -16045,7 +16057,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			ast_clear_flag(&p->flags[0], SIP_OUTGOING);	/* This is now an inbound dialog */
 			/* Handle SDP here if we already have an owner */
 			if (find_sdp(req)) {
-				if (process_sdp(p, req)) {
+				if (process_sdp(p, req, SDP_T38_INITIATE)) {
 					transmit_response(p, "488 Not acceptable here", req);
 					if (!p->lastinvite)
 						sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -16086,7 +16098,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 		/* We have a succesful authentication, process the SDP portion if there is one */
 		if (find_sdp(req)) {
-			if (process_sdp(p, req)) {
+			if (process_sdp(p, req, SDP_T38_INITIATE)) {
 				/* Unacceptable codecs */
 				transmit_response_reliable(p, "488 Not acceptable here", req);
 				p->invitestate = INV_COMPLETED;	
@@ -17712,7 +17724,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 			p->pendinginvite = 0;
 			__sip_ack(p, seqno, 1 /* response */, 0);
 			if (find_sdp(req)) {
-				if (process_sdp(p, req))
+				if (process_sdp(p, req, SDP_T38_NONE))
 					return -1;
 			} 
 			check_pendings(p);
