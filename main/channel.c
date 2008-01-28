@@ -207,10 +207,7 @@ static char *handle_cli_core_show_channeltypes(struct ast_cli_entry *e, int cmd,
 	ast_cli(a->fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
 	ast_cli(a->fd, FORMAT, "----------", "-----------", "-----------", "-----------", "--------");
 
-	if (AST_RWLIST_RDLOCK(&channels)) {
-		ast_log(LOG_WARNING, "Unable to lock channel list\n");
-		return CLI_FAILURE;
-	}
+	AST_RWLIST_RDLOCK(&channels);
 
 	AST_LIST_TRAVERSE(&backends, cl, list) {
 		ast_cli(a->fd, FORMAT, cl->tech->type, cl->tech->description,
@@ -270,10 +267,7 @@ static char *handle_cli_core_show_channeltype(struct ast_cli_entry *e, int cmd, 
 	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
 	
-	if (AST_RWLIST_RDLOCK(&channels)) {
-		ast_log(LOG_WARNING, "Unable to lock channel list\n");
-		return CLI_FAILURE;
-	}
+	AST_RWLIST_RDLOCK(&channels);
 
 	AST_LIST_TRAVERSE(&backends, cl, list) {
 		if (!strncasecmp(cl->tech->type, a->argv[3], strlen(cl->tech->type)))
@@ -468,10 +462,7 @@ const struct ast_channel_tech *ast_get_channel_tech(const char *name)
 	struct chanlist *chanls;
 	const struct ast_channel_tech *ret = NULL;
 
-	if (AST_RWLIST_RDLOCK(&channels)) {
-		ast_log(LOG_WARNING, "Unable to lock channel tech list\n");
-		return NULL;
-	}
+	AST_RWLIST_RDLOCK(&channels);
 
 	AST_LIST_TRAVERSE(&backends, chanls, list) {
 		if (!strcasecmp(name, chanls->tech->type)) {
