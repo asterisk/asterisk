@@ -14400,10 +14400,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 					manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
 						"Channel: %s\r\nChanneltype: %s\r\nUniqueid: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",
 						p->owner->name, p->owner->uniqueid, "SIP", p->callid, p->fullcontact, p->peername);
-				/* Set bridged channel variable */
-				bridgepeer = ast_bridged_channel(p->owner);
-				if (bridgepeer)
-					pbx_builtin_setvar_helper(bridgepeer, "SIP_BRIDGED_CALLID", p->callid);
 			} else {	/* RE-invite */
 				ast_queue_frame(p->owner, &ast_null_frame);
 			}
