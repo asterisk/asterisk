@@ -1555,8 +1555,7 @@ static void update_realtime_members(struct call_queue *q)
 	char *interface = NULL;
 	struct ao2_iterator mem_iter;
 
-	member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", q->name , NULL);
-	if (!member_config) {
+	if (!(member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", q->name , NULL))) {
 		/*This queue doesn't have realtime members*/
 		ast_debug(3, "Queue %s has no realtime members defined. No need for update\n", q->name);
 		return;
@@ -1591,6 +1590,7 @@ static void update_realtime_members(struct call_queue *q)
 		ao2_ref(m, -1);
 	}
 	ao2_unlock(q);
+	ast_config_destroy(member_config);
 }
 
 static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *reason)
