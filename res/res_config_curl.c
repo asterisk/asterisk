@@ -61,7 +61,7 @@ static struct ast_variable *realtime_curl(const char *url, const char *unused, v
 	char *stringp, *pair, *key;
 	int i;
 	struct ast_variable *var=NULL, *prev=NULL;
-	const int EncodeSpecialChars = 1;
+	const int EncodeSpecialChars = 1, bufsize = 64000;
 	char *buffer;
 
 	if (!ast_custom_function_find("CURL")) {
@@ -72,7 +72,7 @@ static struct ast_variable *realtime_curl(const char *url, const char *unused, v
 	if (!(query = ast_str_create(1000)))
 		return NULL;
 
-	if (!(buffer = ast_malloc(64000))) {
+	if (!(buffer = ast_malloc(bufsize))) {
 		ast_free(query);
 		return NULL;
 	}
@@ -88,7 +88,7 @@ static struct ast_variable *realtime_curl(const char *url, const char *unused, v
 	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
-	pbx_substitute_variables_helper(NULL, query->str, buffer, sizeof(buffer));
+	pbx_substitute_variables_helper(NULL, query->str, buffer, bufsize);
 
 	/* Remove any trailing newline characters */
 	if ((stringp = strchr(buffer, '\r')) || (stringp = strchr(buffer, '\n')))
@@ -131,7 +131,8 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
 	char buf1[200], buf2[200];
 	const char *newparam, *newval;
 	char *stringp, *line, *pair, *key, *initfield = NULL;
-	int i, EncodeSpecialChars = 1;
+	int i;
+	const int EncodeSpecialChars = 1, bufsize = 256000;
 	struct ast_variable *var=NULL;
 	struct ast_config *cfg=NULL;
 	struct ast_category *cat=NULL;
@@ -145,7 +146,7 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
 	if (!(query = ast_str_create(1000)))
 		return NULL;
 
-	if (!(buffer = ast_malloc(256000))) {
+	if (!(buffer = ast_malloc(bufsize))) {
 		ast_free(query);
 		return NULL;
 	}
@@ -165,7 +166,7 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
 	ast_str_append(&query, 0, ")}");
 
 	/* Do the CURL query */
-	pbx_substitute_variables_helper(NULL, query->str, buffer, sizeof(buffer));
+	pbx_substitute_variables_helper(NULL, query->str, buffer, bufsize);
 
 	if (!(cfg = ast_config_new()))
 		goto exit_multi;
@@ -224,7 +225,7 @@ static int update_curl(const char *url, const char *unused, const char *keyfield
 	const char *newparam, *newval;
 	char *stringp;
 	int i, rowcount = -1;
-	const int EncodeSpecialChars = 1;
+	const int EncodeSpecialChars = 1, bufsize = 100;
 	char *buffer;
 
 	if (!ast_custom_function_find("CURL")) {
@@ -235,7 +236,7 @@ static int update_curl(const char *url, const char *unused, const char *keyfield
 	if (!(query = ast_str_create(1000)))
 		return -1;
 
-	if (!(buffer = ast_malloc(100))) {
+	if (!(buffer = ast_malloc(bufsize))) {
 		ast_free(query);
 		return -1;
 	}
@@ -253,7 +254,7 @@ static int update_curl(const char *url, const char *unused, const char *keyfield
 	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
-	pbx_substitute_variables_helper(NULL, query->str, buffer, sizeof(buffer));
+	pbx_substitute_variables_helper(NULL, query->str, buffer, bufsize);
 
 	/* Line oriented output */
 	stringp = buffer;
@@ -290,7 +291,7 @@ static int store_curl(const char *url, const char *unused, va_list ap)
 	const char *newparam, *newval;
 	char *stringp;
 	int i, rowcount = -1;
-	const int EncodeSpecialChars = 1;
+	const int EncodeSpecialChars = 1, bufsize = 100;
 	char *buffer;
 
 	if (!ast_custom_function_find("CURL")) {
@@ -301,7 +302,7 @@ static int store_curl(const char *url, const char *unused, va_list ap)
 	if (!(query = ast_str_create(1000)))
 		return -1;
 
-	if (!(buffer = ast_malloc(100))) {
+	if (!(buffer = ast_malloc(bufsize))) {
 		ast_free(query);
 		return -1;
 	}
@@ -317,7 +318,7 @@ static int store_curl(const char *url, const char *unused, va_list ap)
 	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
-	pbx_substitute_variables_helper(NULL, query->str, buffer, sizeof(buffer));
+	pbx_substitute_variables_helper(NULL, query->str, buffer, bufsize);
 
 	stringp = buffer;
 	while (*stringp <= ' ')
@@ -355,7 +356,7 @@ static int destroy_curl(const char *url, const char *unused, const char *keyfiel
 	const char *newparam, *newval;
 	char *stringp;
 	int i, rowcount = -1;
-	const int EncodeSpecialChars = 1;
+	const int EncodeSpecialChars = 1, bufsize = 100;
 	char *buffer;
 
 	if (!ast_custom_function_find("CURL")) {
@@ -366,7 +367,7 @@ static int destroy_curl(const char *url, const char *unused, const char *keyfiel
 	if (!(query = ast_str_create(1000)))
 		return -1;
 
-	if (!(buffer = ast_malloc(100))) {
+	if (!(buffer = ast_malloc(bufsize))) {
 		ast_free(query);
 		return -1;
 	}
@@ -384,7 +385,7 @@ static int destroy_curl(const char *url, const char *unused, const char *keyfiel
 	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
-	pbx_substitute_variables_helper(NULL, query->str, buffer, sizeof(buffer));
+	pbx_substitute_variables_helper(NULL, query->str, buffer, bufsize);
 
 	/* Line oriented output */
 	stringp = buffer;
@@ -407,7 +408,8 @@ static struct ast_config *config_curl(const char *url, const char *unused, const
 	struct ast_str *query;
 	char buf1[200];
 	char *stringp, *line, *pair, *key;
-	int EncodeSpecialChars = 1, last_cat_metric = -1, cat_metric = -1;
+	const int EncodeSpecialChars = 1, bufsize = 256000;
+	int last_cat_metric = -1, cat_metric = -1;
 	struct ast_category *cat=NULL;
 	char *buffer, *cur_cat = "";
 	char *category = "", *var_name = "", *var_val = "";
@@ -421,7 +423,7 @@ static struct ast_config *config_curl(const char *url, const char *unused, const
 	if (!(query = ast_str_create(1000)))
 		return NULL;
 
-	if (!(buffer = ast_malloc(256000))) {
+	if (!(buffer = ast_malloc(bufsize))) {
 		ast_free(query);
 		return NULL;
 	}
@@ -430,7 +432,7 @@ static struct ast_config *config_curl(const char *url, const char *unused, const
 	ast_str_set(&query, 0, "${CURL(%s/static?file=%s)}", url, buf1);
 
 	/* Do the CURL query */
-	pbx_substitute_variables_helper(NULL, query->str, buffer, sizeof(buffer));
+	pbx_substitute_variables_helper(NULL, query->str, buffer, bufsize);
 
 	/* Line oriented output */
 	stringp = buffer;
