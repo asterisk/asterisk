@@ -163,7 +163,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define XMIT_ERROR		-2
 
-#define VIDEO_CODEC_MASK        0x1fc0000 /*!< Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
+#define VIDEO_CODEC_MASK        0x1fc0000       /*!< Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST           0x02
 #endif
@@ -771,6 +771,7 @@ struct sip_auth {
 #define SIP_PAGE2_RT_FROMCONTACT 	(1 << 4)
 #define SIP_PAGE2_RTSAVE_SYSNAME 	(1 << 5)
 /* Space for addition of other realtime flags in the future */
+#define SIP_PAGE2_STATECHANGEQUEUE	(1 << 9)	/*!< D: Unsent state pending change exists */
 #define SIP_PAGE2_IGNOREREGEXPIRE	(1 << 10)
 #define SIP_PAGE2_DEBUG			(3 << 11)
 #define SIP_PAGE2_DEBUG_CONFIG 		(1 << 11)
@@ -987,7 +988,7 @@ static struct sip_pvt {
 	int noncecount;				/*!< Nonce-count */
 	char lastmsg[256];			/*!< Last Message sent/received */
 	int amaflags;				/*!< AMA Flags */
-	int pendinginvite;			/*!< Any pending invite ? (seqno of this) */
+	int pendinginvite;			/*!< Any pending INVITE or state NOTIFY (in subscribe pvt's) ? (seqno of this) */
 	struct sip_request initreq;		/*!< Request that opened the latest transaction
 						     within this SIP dialog */
 	
@@ -7268,6 +7269,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 
 	add_header_contentLength(&req, strlen(tmp));
 	add_line(&req, tmp);
+	p->pendinginvite = p->ocseq;	/* Remember that we have a pending NOTIFY in order not to confuse the NOTIFY subsystem */
 
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
@@ -8481,11 +8483,19 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 		p->laststate = state;
 		break;
 	}
-	if (p->subscribed != NONE)	/* Only send state NOTIFY if we know the format */
-		transmit_state_notify(p, state, 1, FALSE);
-
+	if (p->subscribed != NONE) {	/* Only send state NOTIFY if we know the format */
+		if (!p->pendinginvite) {
+			transmit_state_notify(p, state, 1, FALSE);
+		} else {
+			/* We already have a NOTIFY sent that is not answered. Queue the state up.
+			   if many state changes happen meanwhile, we will only send a notification of the last one */
+			ast_set_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE);
+		}
+	}
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %s for Notify User %s\n", exten, ast_extension_state2str(state), p->username);
+		ast_verbose(VERBOSE_PREFIX_1 "Extension Changed %s[%s] new state %s for Notify User %s %s\n", exten, context, ast_extension_state2str(state), p->username,
+				ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE) ? "(queued)" : "");
+
 	
 	ast_mutex_unlock(&p->lock);
 
@@ -12567,6 +12577,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	else
 		__sip_ack(p, seqno, 0, sipmethod);
 
+	/* If this is a NOTIFY for a subscription clear the flag that indicates that we have a NOTIFY pending */
+	if (!p->owner && sipmethod == SIP_NOTIFY && p->pendinginvite) 
+		p->pendinginvite = 0;
+
 	/* Get their tag if we haven't already */
 	if (ast_strlen_zero(p->theirtag) || (resp >= 200)) {
 		char tag[128];
@@ -12618,6 +12632,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				} else {
 					if (p->subscribed == NONE) 
 						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
+					if (ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE)) {
+						/* Ready to send the next state we have on queue */
+						ast_clear_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE);
+						cb_extensionstate((char *)p->context, (char *)p->exten, p->laststate, (void *) p);
+					}
 				}
 			} else if (sipmethod == SIP_REGISTER) 
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
