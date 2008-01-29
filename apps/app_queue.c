@@ -3444,7 +3444,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 		}
 		ast_module_user_remove(lu);
 		pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
-		return -1;
+		return 0;
 	}
 
 	ast_module_user_remove(lu);
@@ -3497,7 +3497,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 		}
 		ast_module_user_remove(lu);
 		pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
-		return -1;
+		return 0;
 	}
 
 	ast_module_user_remove(lu);
