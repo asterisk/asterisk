@@ -1127,10 +1127,18 @@ static int misdn_show_cls (int fd, int argc, char *argv[])
 	struct chan_list *help=cl_te;
   
 	ast_cli(fd,"Chan List: %p\n",cl_te); 
-  
+
 	for (;help; help=help->next) {
 		struct misdn_bchannel *bc=help->bc;   
 		struct ast_channel *ast=help->ast;
+		if (!ast) {
+			if (!bc) {
+				ast_cli(fd, "chan_list obj. with l3id:%x has no bc and no ast Leg\n", help->l3id);
+				continue;
+			}
+			ast_cli(fd, "bc with pid:%d has no Ast Leg\n", bc->pid);
+			continue;
+		}
 		if (misdn_debug[0] > 2) ast_cli(fd, "Bc:%p Ast:%p\n", bc, ast);
 		if (bc) {
 			print_bc_info(fd, help, bc);
