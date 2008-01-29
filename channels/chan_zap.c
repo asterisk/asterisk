@@ -7572,7 +7572,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 	return tmp;
 }
 
-static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, int *busy, int *channelmatched, int *groupmatched)
+static inline int available(struct zt_pvt *p, int channelmatch, ast_group_t groupmatch, int *busy, int *channelmatched, int *groupmatched)
 {
 	int res;
 	ZT_PARAMS par;
@@ -7740,7 +7740,7 @@ static int pri_find_empty_chan(struct zt_pri *pri, int backwards)
 
 static struct ast_channel *zt_request(const char *type, int format, void *data, int *cause)
 {
-	int groupmatch = 0;
+	ast_group_t groupmatch = 0;
 	int channelmatch = -1;
 	int roundrobin = 0;
 	int callwait = 0;
@@ -7783,7 +7783,7 @@ static struct ast_channel *zt_request(const char *type, int format, void *data, 
 			ast_log(LOG_WARNING, "Unable to determine group for data %s\n", (char *)data);
 			return NULL;
 		}
-		groupmatch = 1 << x;
+		groupmatch = ((ast_group_t) 1 << x);
 		if (toupper(dest[0]) == 'G') {
 			if (dest[0] == 'G') {
 				backwards = 1;
