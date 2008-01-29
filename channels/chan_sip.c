@@ -19895,7 +19895,6 @@ static int reload_config(enum channelreloadreason reason)
 	ourport_tcp = STANDARD_SIP_PORT;
 	ourport_tls = STANDARD_TLS_PORT;
 	bindaddr.sin_port = htons(STANDARD_SIP_PORT);
-	externip.sin_port = htons(STANDARD_SIP_PORT);
 	global_srvlookup = DEFAULT_SRVLOOKUP;
 	global_tos_sip = DEFAULT_TOS_SIP;
 	global_tos_audio = DEFAULT_TOS_AUDIO;
@@ -20192,6 +20191,9 @@ static int reload_config(enum channelreloadreason reason)
 			if (ast_parse_arg(v->value, PARSE_INADDR, &externip))
 				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
 			externexpire = 0;
+			/* If no port was specified use the value of bindport */
+			if (!externip.sin_port)
+				externip.sin_port = bindaddr.sin_port;
 		} else if (!strcasecmp(v->name, "externhost")) {
 			ast_copy_string(externhost, v->value, sizeof(externhost));
 			if (ast_parse_arg(externhost, PARSE_INADDR, &externip))
