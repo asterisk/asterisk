@@ -108,7 +108,7 @@ ASTLDFLAGS+=$(LDOPTS)
 #Uncomment this to see all build commands instead of 'quiet' output
 #NOISY_BUILD=yes
 
-ASTTOPDIR:=$(CURDIR)
+ASTTOPDIR:=$(shell echo $(CURDIR) | sed -e 's/ /\\ /g')
 
 # Overwite config files on "make samples"
 OVERWRITE=y
