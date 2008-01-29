@@ -4007,7 +4007,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 	if (set_member_paused(args.queuename, args.interface, args.reason, 1)) {
 		ast_log(LOG_WARNING, "Attempt to pause interface %s, not found\n", args.interface);
 		pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
-		return -1;
+		return 0;
 	}
 
 	pbx_builtin_setvar_helper(chan, "PQMSTATUS", "PAUSED");
@@ -4042,7 +4042,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 	if (set_member_paused(args.queuename, args.interface, args.reason, 0)) {
 		ast_log(LOG_WARNING, "Attempt to unpause interface %s, not found\n", args.interface);
 		pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
-		return -1;
+		return 0;
 	}
 
 	pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "UNPAUSED");
