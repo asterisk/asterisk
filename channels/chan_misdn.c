@@ -4163,6 +4163,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			/*  sending INFOS as DTMF-Frames :) */
 			struct ast_frame fr;
 			int digits;
+			memset(&fr, 0, sizeof(fr));
 			fr.frametype = AST_FRAME_DTMF;
 			fr.subclass = bc->info_dad[0] ;
 			fr.src = NULL;
