@@ -537,7 +537,8 @@ void misdn_cfg_get(int port, enum misdn_cfg_elements elem, void *buf, int bufsiz
 						ast_copy_string(buf, port_cfg[port][place].str, bufsize);
 					} else if (port_cfg[0][place].str) {
 						ast_copy_string(buf, port_cfg[0][place].str, bufsize);
-					}
+					} else
+						memset(buf, 0, bufsize);
 					break;
 				default:
 					if (port_cfg[port][place].any)
