@@ -2666,8 +2666,9 @@ static int is_our_turn(struct queue_ent *qe)
 
 		ast_debug(1, "There are %d available members.\n", avl);
 	
-		while ((idx < avl) && (ch) &&  !ch->pending && (ch != qe)) {
-			idx++;
+		while ((idx < avl) && (ch) && (ch != qe)) {
+			if (!ch->pending)
+				idx++;
 			ch = ch->next;			
 		}
 	
