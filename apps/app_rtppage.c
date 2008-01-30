@@ -137,13 +137,6 @@ static int rtppage_exec(struct ast_channel *chan, void *data)
 	uint16_t rtpflags = 0;
 	int ttl = 0;
 	int pagetype = 0;
-	AST_LIST_HEAD(, mcast_group) activegroups;
-
-	/* init active groups */
-	activegroups.first = NULL;
-	activegroups.last = NULL;
-	activegroups.lock = AST_MUTEX_INIT_VALUE;
-
 	/* you can specify three arguments:
 	 * 1) pagetype (0 = direct, 1 = multicast)
 	 * 2) groups, e.g. NameOfGroup or Name1&Name2 etc) / or ip:port in case of direct
@@ -155,6 +148,9 @@ static int rtppage_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(groups);
 		AST_APP_ARG(codec);
 	);
+	AST_LIST_HEAD(, mcast_group) activegroups;
+
+	AST_LIST_HEAD_INIT(&activegroups);
 
 	/* make sure there is at least one parameter */
 	if (ast_strlen_zero(data)) {
