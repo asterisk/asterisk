@@ -1495,6 +1495,7 @@ struct sip_peer {
 	struct sip_st_cfg stimer;	/*!<  SIP Session-Timers */
 	int timer_t1;			/*!<  The maximum T1 value for the peer */
 	int timer_b;			/*!<  The maximum timer B (transaction timeouts) */
+	int deprecated_username; /*!< If it's a realtime peer, are they using the deprecated "username" instead of "defaultuser" */
 };
 
 
@@ -1896,7 +1897,7 @@ static void set_insecure_flags(struct ast_flags *flags, const char *value, int l
 static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v);
 
 /* Realtime device support */
-static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, int expirey);
+static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, int expirey, int deprecated_username);
 static struct sip_user *realtime_user(const char *username);
 static void update_peer(struct sip_peer *p, int expiry);
 static struct ast_variable *get_insecure_variable_from_config(struct ast_config *config);
@@ -3288,7 +3289,7 @@ static int sip_sendtext(struct ast_channel *ast, const char *text)
 	that name and store that in the "regserver" field in the sippeers
 	table to facilitate multi-server setups.
 */
-static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *defaultuser, const char *fullcontact, int expirey)
+static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *defaultuser, const char *fullcontact, int expirey, int deprecated_username)
 {
 	char port[10];
 	char ipaddr[INET_ADDRSTRLEN];
@@ -3317,11 +3318,11 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	if (fc)
 		ast_update_realtime(tablename, "name", peername, "ipaddr", ipaddr,
 			"port", port, "regseconds", regseconds,
-			"defaultuser", defaultuser, fc, fullcontact, syslabel, sysname, NULL); /* note fc and syslabel _can_ be NULL */
+			deprecated_username ? "username" : "defaultuser", defaultuser, fc, fullcontact, syslabel, sysname, NULL); /* note fc and syslabel _can_ be NULL */
 	else
 		ast_update_realtime(tablename, "name", peername, "ipaddr", ipaddr,
 			"port", port, "regseconds", regseconds,
-			"defaultuser", defaultuser, syslabel, sysname, NULL); /* note syslabel _can_ be NULL */
+			deprecated_username ? "username" : "defaultuser", defaultuser, syslabel, sysname, NULL); /* note syslabel _can_ be NULL */
 }
 
 /*! \brief Automatically add peer extension to dial plan */
@@ -3431,7 +3432,7 @@ static void update_peer(struct sip_peer *p, int expiry)
 	int rtcachefriends = ast_test_flag(&p->flags[1], SIP_PAGE2_RTCACHEFRIENDS);
 	if (sip_cfg.peer_rtupdate &&
 	    (p->is_realtime || rtcachefriends)) {
-		realtime_update_peer(p->name, &p->addr, p->username, rtcachefriends ? p->fullcontact : NULL, expiry);
+		realtime_update_peer(p->name, &p->addr, p->username, rtcachefriends ? p->fullcontact : NULL, expiry, p->deprecated_username);
 	}
 }
 
@@ -9325,7 +9326,7 @@ static void destroy_association(struct sip_peer *peer)
 
 	if (!sip_cfg.ignore_regexpire) {
 		if (peer->rt_fromcontact)
-			ast_update_realtime(tablename, "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "defaultuser", "", "regserver", "", NULL);
+			ast_update_realtime(tablename, "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", peer->deprecated_username ? "username" : "defaultuser", "", "regserver", "", NULL);
 		else 
 			ast_db_del("SIP/Registry", peer->name);
 	}
@@ -19447,6 +19448,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	struct ast_flags mask[2] = {{(0)}};
 	char callback[256] = "";
 	const char *srvlookup = NULL;
+	static int deprecation_warning = 1;
 
 	if (!realtime)
 		/* Note we do NOT use find_peer here, to avoid realtime recursion */
@@ -19589,8 +19591,15 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			peer->callingpres = ast_parse_caller_presentation(v->value);
 			if (peer->callingpres == -1)
 				peer->callingpres = atoi(v->value);
-		} else if (!strcasecmp(v->name, "username") | !strcmp(v->name, "defaultuser")) {	/* "username" is deprecated */
+		} else if (!strcasecmp(v->name, "username") || !strcmp(v->name, "defaultuser")) {	/* "username" is deprecated */
 			ast_copy_string(peer->username, v->value, sizeof(peer->username));
+			if (!strcasecmp(v->name, "username")) {
+				if (deprecation_warning) {
+					ast_log(LOG_NOTICE, "The 'username' field for sip peers has been deprecated in favor of the term 'defaultuser'\n");
+					deprecation_warning = 0;
+				}
+				peer->deprecated_username = 1;
+			}
 		} else if (!strcasecmp(v->name, "language")) {
 			ast_copy_string(peer->language, v->value, sizeof(peer->language));
 		} else if (!strcasecmp(v->name, "regexten")) {
