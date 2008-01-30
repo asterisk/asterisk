@@ -467,6 +467,8 @@ Miscellaneous New Modules
      backend functionality.
   * Added a new module, res_config_ldap, which permits the use of an LDAP
      server for realtime data access.
+  * Added support for writing and running your dialplan in lua using the pgx_lua
+     module.  See configs/extensions.lua.sample for examples of how to do this.
 
 Miscellaneous 
 -------------
@@ -486,8 +488,6 @@ Miscellaneous
      will now be available in the failed extension using the REASON dialplan variable.
   * Added support for reading the TOUCH_MONITOR_PREFIX channel variable.
      It allows you to configure a prefix for auto-monitor recordings.
-  * Added support for writing and running your dialplan in lua.  See
-     configs/extensions.lua.sample for examples of how to do this.
   * A new extension pattern matching algorithm, based on a trie, is introduced
      here, that could noticeably speed up mid-sized to large dialplans.
      It is NOT used by default, as duplicating the behaviour of the old pattern
@@ -502,3 +502,5 @@ Miscellaneous
   * Added logging to 'make update' command.  See update.log
   * Added strictrtp option to rtp.conf. If enabled this will drop RTP packets that
      do not come from the remote party.
+  * Added the 'n' option to the SpeechBackground application to tell it to not
+     answer the channel if it has not already been answered.

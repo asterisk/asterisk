@@ -56,15 +56,17 @@ static char *speechstart_descrip =
 "fed to it. This has no arguments.\n";
 
 static char *speechbackground_descrip =
-"  SpeechBackground(Sound File,Timeout):\n"
+"  SpeechBackground(<Sound File>[,Timeout[,options]]):\n"
 "This application plays a sound file and waits for the person to speak. Once they start speaking playback\n"
 "of the file stops, and silence is heard. Once they stop talking the processing sound is played to indicate\n"
 "the speech recognition engine is working. Once results are available the application returns and results \n"
 "(score and text) are available using dialplan functions.\n"
-"The first text and score are ${SPEECH_TEXT(0)} AND ${SPEECH_SCORE(0)} while the second are ${SPEECH_TEXT(1)}\n"
+"  The first text and score are ${SPEECH_TEXT(0)} AND ${SPEECH_SCORE(0)} while the second are ${SPEECH_TEXT(1)}\n"
 "and ${SPEECH_SCORE(1)}.\n"
-"The first argument is the sound file and the second is the timeout integer in seconds. Note the timeout will\n"
-"only start once the sound file has stopped playing.\n";
+"  The first argument is the sound file and the second is the timeout integer in seconds. Note the timeout will\n"
+"only start once the sound file has stopped playing. The third argument specifies options:\n"
+"  Valid Options:\n"
+"    n - Don't answer the channel if it has not already been answered.\n";
 
 static char *speechdeactivategrammar_descrip =
 "  SpeechDeactivateGrammar(Grammar Name):\n"
@@ -487,6 +489,14 @@ static int speech_streamfile(struct ast_channel *chan, const char *filename, con
 	return 0;
 }
 
+enum {
+	SB_OPT_NOANSWER = (1 << 0),
+};
+
+AST_APP_OPTIONS(speech_background_options, BEGIN_OPTIONS
+	AST_APP_OPTION('n', SB_OPT_NOANSWER),
+END_OPTIONS );
+
 /*! \brief SpeechBackground(Sound File,Timeout) Dialplan Application */
 static int speech_background(struct ast_channel *chan, void *data)
 {
@@ -500,9 +510,11 @@ static int speech_background(struct ast_channel *chan, void *data)
 	struct ast_datastore *datastore = NULL;
 	char *parse, *filename_tmp = NULL, *filename = NULL, tmp[2] = "", dtmf_terminator = '#';
 	const char *tmp2 = NULL;
+	struct ast_flags options = { 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(soundfile);
 		AST_APP_ARG(timeout);
+		AST_APP_ARG(options);
 	);
 
 	parse = ast_strdupa(data);
@@ -511,9 +523,16 @@ static int speech_background(struct ast_channel *chan, void *data)
 	if (speech == NULL)
 		return -1;
 
+	if (!ast_strlen_zero(args.options)) {
+		char *options_buf = ast_strdupa(args.options);
+		ast_app_parse_options(speech_background_options, &options, NULL, options_buf);
+	}
+
 	/* If channel is not already answered, then answer it */
-	if (chan->_state != AST_STATE_UP && ast_answer(chan))
-		return -1;
+	if (chan->_state != AST_STATE_UP && !ast_test_flag(&options, SB_OPT_NOANSWER)
+		&& ast_answer(chan)) {
+			return -1;
+	}
 
 	/* Record old read format */
 	oldreadformat = chan->readformat;
