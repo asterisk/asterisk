@@ -2610,10 +2610,10 @@ static int ast_rtp_senddigit_continuation(struct ast_rtp *rtp)
 
 	/* Setup packet to send */
 	rtpheader = (unsigned int *)data;
-        rtpheader[0] = htonl((2 << 30) | (1 << 23) | (rtp->send_payload << 16) | (rtp->seqno));
-        rtpheader[1] = htonl(rtp->lastdigitts);
-        rtpheader[2] = htonl(rtp->ssrc);
-        rtpheader[3] = htonl((rtp->send_digit << 24) | (0xa << 16) | (rtp->send_duration));
+	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (rtp->send_payload << 16) | (rtp->seqno));
+	rtpheader[1] = htonl(rtp->lastdigitts);
+	rtpheader[2] = htonl(rtp->ssrc);
+	rtpheader[3] = htonl((rtp->send_digit << 24) | (0xa << 16) | (rtp->send_duration));
 	rtpheader[0] = htonl((2 << 30) | (rtp->send_payload << 16) | (rtp->seqno));
 	
 	/* Transmit */
@@ -3059,7 +3059,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 
 	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
-		if (res <0) {
+		if (res < 0) {
 			if (!rtp->nat || (rtp->nat && (ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
 				ast_debug(1, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 			} else if (((ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(rtp, FLAG_NAT_INACTIVE_NOWARN)) {
@@ -3073,7 +3073,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			rtp->txoctetcount +=(res - hdrlen);
 			
 			if (rtp->rtcp && rtp->rtcp->schedid < 1) 
-			    rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, rtp);
+				rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, rtp);
 		}
 				
 		if (rtp_debug_test_addr(&rtp->them))
@@ -3179,7 +3179,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		while ((f = ast_smoother_read(rtp->smoother)) && (f->data))
 			ast_rtp_raw_write(rtp, f, codec);
 	} else {
-	        /* Don't buffer outgoing frames; send them one-per-packet: */
+		/* Don't buffer outgoing frames; send them one-per-packet: */
 		if (_f->offset < hdrlen) 
 			f = ast_frdup(_f);	/*! \bug XXX this might never be free'd. Why do we do this? */
 		else
@@ -3516,10 +3516,10 @@ static int p2p_callback_disable(struct ast_channel *chan, struct ast_rtp *rtp, i
 static void p2p_set_bridge(struct ast_rtp *rtp0, struct ast_rtp *rtp1)
 {
 	rtp_bridge_lock(rtp0);
-        rtp0->bridged = rtp1;
+	rtp0->bridged = rtp1;
 	rtp_bridge_unlock(rtp0);
 
-        return;
+	return;
 }
 
 /*! \brief Bridge loop for partial native bridge (packet2packet) 
