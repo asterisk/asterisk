@@ -8040,10 +8040,11 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 	if (AST_LIST_EMPTY(&users)) {
 		astman_send_ack(s, m, "There are no voicemail users currently defined.");
 		AST_LIST_UNLOCK(&users);
+		astman_append(s, "Event: VoicemailUserEntryComplete\r\n%s\r\n", actionid);
 		return RESULT_SUCCESS;
 	}
 	
-	astman_send_ack(s, m, "Voicemail user list will follow\r\n");
+	astman_send_ack(s, m, "Voicemail user list will follow");
 	
 	AST_LIST_TRAVERSE(&users, vmu, list) {
 		char dirname[256];
