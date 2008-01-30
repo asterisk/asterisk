@@ -78,6 +78,17 @@ static int is_on_phonepad(char key)
 	return key == 35 || key == 42 || (key >= 48 && key <= 57);
 }
 
+static int is_argument(const char *haystack, int needle)
+{
+	if (ast_strlen_zero(haystack))
+		return 0;
+
+	if (strchr(haystack, needle))
+		return -1;
+
+	return 0;
+}
+
 static int controlplayback_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
@@ -114,10 +125,21 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 
 	skipms = args.skip ? (atoi(args.skip) ? atoi(args.skip) : 3000) : 3000;
 
-	if (!args.fwd || !is_on_phonepad(*args.fwd))
-		args.fwd = "#";
-	if (!args.rev || !is_on_phonepad(*args.rev))
-		args.rev = "*";
+	if (!args.fwd || !is_on_phonepad(*args.fwd)) {
+		char *digit = "#";
+		if (!is_argument(args.rev, *digit) && !is_argument(args.stop, *digit) && !is_argument(args.pause, *digit) && !is_argument(args.restart, *digit))
+			args.fwd = digit;
+		else
+			args.fwd = NULL;
+	}
+	if (!args.rev || !is_on_phonepad(*args.rev)) {
+		char *digit = "*";
+		if (!is_argument(args.fwd, *digit) && !is_argument(args.stop, *digit) && !is_argument(args.pause, *digit) && !is_argument(args.restart, *digit))
+			args.rev = digit;
+		else
+			args.rev = NULL;
+	}
+	ast_log(LOG_WARNING, "args.fwd = %s, args.rew = %s\n", args.fwd, args.rev);
 	if (args.stop && !is_on_phonepad(*args.stop))
 		args.stop = NULL;
 	if (args.pause && !is_on_phonepad(*args.pause))
