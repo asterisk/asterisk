@@ -262,13 +262,13 @@ void ast_rtp_init(void);                                      /*! Initialize RTP
 int ast_rtp_reload(void);                                     /*! reload rtp configuration */
 void ast_rtp_new_init(struct ast_rtp *rtp);
 
-/*! Set codec preference */
-int ast_rtp_codec_setpref(struct ast_rtp *rtp, struct ast_codec_pref *prefs);
+/*! \brief Set codec preference */
+void ast_rtp_codec_setpref(struct ast_rtp *rtp, struct ast_codec_pref *prefs);
 
-/*! Get codec preference */
+/*! \brief Get codec preference */
 struct ast_codec_pref *ast_rtp_codec_getpref(struct ast_rtp *rtp);
 
-/*! get format from predefined dynamic payload format */
+/*! \brief get format from predefined dynamic payload format */
 int ast_rtp_codec_getformat(int pt);
 
 /*! \brief Set rtp timeout */

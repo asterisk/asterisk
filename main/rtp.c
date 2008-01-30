@@ -1798,7 +1798,6 @@ static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
 
 int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 {
-	// dest = c0, src = c1
 	struct ast_rtp *destp = NULL, *srcp = NULL;		/* Audio RTP Channels */
 	struct ast_rtp *vdestp = NULL, *vsrcp = NULL;		/* Video RTP channels */
 	struct ast_rtp *tdestp = NULL, *tsrcp = NULL;		/* Text RTP channels */
@@ -2034,8 +2033,6 @@ void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 	}
 
 	rtp_bridge_unlock(rtp);
-	
-	return;
 }
 
 struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt) 
@@ -2217,8 +2214,6 @@ void ast_rtp_new_init(struct ast_rtp *rtp)
 	rtp->seqno = ast_random() & 0xffff;
 	ast_set_flag(rtp, FLAG_HAS_DTMF);
 	rtp->strict_rtp_state = (strictrtp ? STRICT_RTP_LEARN : STRICT_RTP_OPEN);
-
-	return;
 }
 
 struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr addr)
@@ -3086,7 +3081,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	return 0;
 }
 
-int ast_rtp_codec_setpref(struct ast_rtp *rtp, struct ast_codec_pref *prefs)
+void ast_rtp_codec_setpref(struct ast_rtp *rtp, struct ast_codec_pref *prefs)
 {
 	int x;
 	for (x = 0; x < 32; x++) {  /* Ugly way */
@@ -3096,7 +3091,6 @@ int ast_rtp_codec_setpref(struct ast_rtp *rtp, struct ast_codec_pref *prefs)
 	if (rtp->smoother)
 		ast_smoother_free(rtp->smoother);
 	rtp->smoother = NULL;
-	return 0;
 }
 
 struct ast_codec_pref *ast_rtp_codec_getpref(struct ast_rtp *rtp)
@@ -3518,8 +3512,6 @@ static void p2p_set_bridge(struct ast_rtp *rtp0, struct ast_rtp *rtp1)
 	rtp_bridge_lock(rtp0);
 	rtp0->bridged = rtp1;
 	rtp_bridge_unlock(rtp0);
-
-	return;
 }
 
 /*! \brief Bridge loop for partial native bridge (packet2packet) 
