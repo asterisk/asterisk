@@ -87,9 +87,9 @@ CONSOLE=Console/dsp				; Console interface for demo
 ;CONSOLE=Phone/phone0
 IAXINFO=guest					; IAXtel username/password
 ;IAXINFO=myuser:mypass
-TRUNK=Zap/g2					; Trunk interface
+TRUNK=Zap/G2					; Trunk interface
 ;
-; Note the 'g2' in the TRUNK variable above. It specifies which group (defined
+; Note the 'G2' in the TRUNK variable above. It specifies which group (defined
 ; in zapata.conf) to dial, i.e. group 2, and how to choose a channel to use in
 ; the specified group. The four possible options are:
 ;
@@ -224,8 +224,8 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ;
 ; If you are freely delivering calls to the PSTN, list them here
 ;
-;exten => _1256428XXXX,1,Dial(Zap/g2/${EXTEN:7}) ; Expose all of 256-428 
-;exten => _1256325XXXX,1,Dial(Zap/g2/${EXTEN:7}) ; Ditto for 256-325
+;exten => _1256428XXXX,1,Dial(Zap/G2/${EXTEN:7}) ; Expose all of 256-428 
+;exten => _1256325XXXX,1,Dial(Zap/G2/${EXTEN:7}) ; Ditto for 256-325
 
 [dundi-e164-local]
 ;
