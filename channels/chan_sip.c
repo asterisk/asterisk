@@ -13145,7 +13145,9 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 static void ast_quiet_chan(struct ast_channel *chan) 
 {
 	if (chan && chan->_state == AST_STATE_UP) {
-		if (chan->generatordata)
+		if (ast_test_flag(chan, AST_FLAG_MOH))
+			ast_moh_stop(chan);
+		else if (chan->generatordata)
 			ast_deactivate_generator(chan);
 	}
 }

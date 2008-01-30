@@ -248,6 +248,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 
 	/* Copy over flags and channel name */
 	mixmonitor->flags = flags;
+	mixmonitor->chan = chan;
 	mixmonitor->name = (char *) mixmonitor + sizeof(*mixmonitor);
 	strcpy(mixmonitor->name, chan->name);
 	if (!ast_strlen_zero(postprocess2)) {

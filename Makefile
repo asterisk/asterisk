@@ -87,7 +87,9 @@ ASTLDFLAGS+=$(LDOPTS)
 # Create OPTIONS variable
 OPTIONS=
 
-ASTTOPDIR:=$(shell pwd)
+empty:=
+space:=$(empty) $(empty)
+ASTTOPDIR:=$(subst $(space),\$(space),$(CURDIR))
 
 # Overwite config files on "make samples"
 OVERWRITE=y
