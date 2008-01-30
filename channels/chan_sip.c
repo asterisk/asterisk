@@ -3261,10 +3261,7 @@ static int sip_sendhtml(struct ast_channel *chan, int subclass, const char *data
 /*! \brief Deliver SIP call ID for the call */
 static const char *sip_get_callid(struct ast_channel *chan)
 {
-	struct sip_pvt *p = chan->tech_pvt;
-	if (!p)
-		return "";
-	return ((char *)p->callid);
+	return chan->tech_pvt ? ((struct sip_pvt *) chan->tech_pvt)->callid : "";
 }
 
 /*! \brief Send SIP MESSAGE text within a call
