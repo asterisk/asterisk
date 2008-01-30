@@ -467,7 +467,7 @@ Miscellaneous New Modules
      backend functionality.
   * Added a new module, res_config_ldap, which permits the use of an LDAP
      server for realtime data access.
-  * Added support for writing and running your dialplan in lua using the pgx_lua
+  * Added support for writing and running your dialplan in lua using the pbx_lua
      module.  See configs/extensions.lua.sample for examples of how to do this.
 
 Miscellaneous 
