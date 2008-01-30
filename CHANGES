@@ -159,7 +159,7 @@ MGCP changes
   * Added separate settings for media QoS in mgcp.conf
 
 Console Channel Driver changes
--------------------
+------------------------------
   * Added experimental support for video send & receive to chan_oss.
     This requires SDL and ffmpeg/avcodec, plus Video4Linux or X11 to act as
     a video source.
@@ -356,6 +356,7 @@ Other Dialplan Application Changes
      direct options to the app.
   * AMD() has a new "maximum word length" option. "show application AMD" from the CLI
      for more details
+  * New application RTPpage() that pages SIP phones with unicast or multicast RTP streams
 
 Music On Hold Changes
 ---------------------
