@@ -355,6 +355,8 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 	delivery = f->delivery;
 	for ( ; out && p ; p = p->next) {
 		framein(p, out);
+		if (out != f)
+			ast_frfree(out);
 		out = p->t->frameout(p);
 	}
 	if (consume)
