@@ -1437,7 +1437,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		 * will allocate the members properly
 		 */
 		for (tmpvar = queue_vars; tmpvar; tmpvar = tmpvar->next) {
-			if (strcasecmp(tmpvar->name, "strategy")) {
+			if (!strcasecmp(tmpvar->name, "strategy")) {
 				q->strategy = strat2int(tmpvar->value);
 				if (q->strategy < 0) {
 					ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
