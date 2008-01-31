@@ -5879,7 +5879,8 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 		   at the new location */
 		struct ast_channel *tmpchan = ast_channel_alloc(0, chan->_state, 0, 0, chan->accountcode, chan->exten, chan->context, chan->amaflags, "AsyncGoto/%s", chan->name);
 		if (chan->cdr) {
-			tmpchan->cdr = ast_cdr_dup(chan->cdr);
+			ast_cdr_discard(tmpchan->cdr);
+			tmpchan->cdr = ast_cdr_dup(chan->cdr);  /* share the love */
 		}
 		if (!tmpchan)
 			res = -1;
