@@ -2242,6 +2242,9 @@ static int agent_devicestate(void *data)
 	return res;
 }
 
+/*!
+ * \note This function expects the agent list to be locked
+ */
 static struct agent_pvt *find_agent(char *agentid)
 {
 	struct agent_pvt *cur;
@@ -2277,7 +2280,10 @@ static int function_agent(struct ast_channel *chan, const char *cmd, char *data,
 	if (!args.item)
 		args.item = "status";
 
+	AST_LIST_LOCK(&agents);
+
 	if (!(agent = find_agent(args.agentid))) {
+		AST_LIST_UNLOCK(&agents);
 		ast_log(LOG_WARNING, "Agent '%s' not found!\n", args.agentid);
 		return -1;
 	}
@@ -2302,6 +2308,8 @@ static int function_agent(struct ast_channel *chan, const char *cmd, char *data,
 		} 
 	} else if (!strcasecmp(args.item, "exten"))
 		ast_copy_string(buf, agent->loginchan, len);	
+
+	AST_LIST_UNLOCK(&agents);
 
 	return 0;
 }
