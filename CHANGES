@@ -356,7 +356,6 @@ Other Dialplan Application Changes
      direct options to the app.
   * AMD() has a new "maximum word length" option. "show application AMD" from the CLI
      for more details
-  * New application RTPpage() that pages SIP phones with unicast or multicast RTP streams
 
 Music On Hold Changes
 ---------------------
