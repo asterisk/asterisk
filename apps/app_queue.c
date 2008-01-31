@@ -1316,7 +1316,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 		m->dead = 0;	/* Do not delete this one. */
 		if (paused_str)
 			m->paused = paused;
-		if (strcasecmp(ast_strlen_zero(state_interface) ? interface : state_interface, m->state_interface)) {
+		if (strcasecmp(state_interface, m->state_interface)) {
 			remove_from_interfaces(m->state_interface);
 			ast_copy_string(m->state_interface, state_interface, sizeof(m->state_interface));
 			add_to_interfaces(m->state_interface);
@@ -1427,13 +1427,32 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 
 	/* Create a new queue if an in-core entry does not exist yet. */
 	if (!q) {
+		struct ast_variable *tmpvar = NULL;
 		if (!(q = alloc_queue(queuename)))
 			return NULL;
 		ao2_lock(q);
 		clear_queue(q);
 		q->realtime = 1;
+		/*Before we initialize the queue, we need to set the strategy, so that linear strategy
+		 * will allocate the members properly
+		 */
+		for (tmpvar = queue_vars; tmpvar; tmpvar = tmpvar->next) {
+			if (strcasecmp(tmpvar->name, "strategy")) {
+				q->strategy = strat2int(tmpvar->value);
+				if (q->strategy < 0) {
+					ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
+					tmpvar->value, q->name);
+					q->strategy = QUEUE_STRATEGY_RINGALL;
+				}
+				break;
+			}
+		}
+		/* We traversed all variables and didn't find a strategy */
+		if (!tmpvar)
+			q->strategy = QUEUE_STRATEGY_RINGALL;
 		init_queue(q);		/* Ensure defaults for all parameters not set explicitly. */
 		ao2_link(queues, q);
+		ast_variables_destroy(tmpvar);
 	}
 
 	memset(tmpbuf, 0, sizeof(tmpbuf));
@@ -1462,10 +1481,10 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 
 	while ((interface = ast_category_browse(member_config, interface))) {
 		rt_handle_member_record(q, interface,
-			ast_variable_retrieve(member_config, interface, "membername"),
+			S_OR(ast_variable_retrieve(member_config, interface, "membername"),interface),
 			ast_variable_retrieve(member_config, interface, "penalty"),
 			ast_variable_retrieve(member_config, interface, "paused"),
-			ast_variable_retrieve(member_config, interface, "state_interface"));
+			S_OR(ast_variable_retrieve(member_config, interface, "state_interface"),interface));
 	}
 
 	/* Delete all realtime members that have been deleted in DB. */
@@ -1576,7 +1595,7 @@ static void update_realtime_members(struct call_queue *q)
 			S_OR(ast_variable_retrieve(member_config, interface, "membername"), interface),
 			ast_variable_retrieve(member_config, interface, "penalty"),
 			ast_variable_retrieve(member_config, interface, "paused"),
-			ast_variable_retrieve(member_config, interface, "state_interface"));
+			S_OR(ast_variable_retrieve(member_config, interface, "state_interface"), interface));
 	}
 
 	/* Delete all realtime members that have been deleted in DB. */
@@ -4983,7 +5002,7 @@ static int reload_queues(int reload)
 			} else
 				new = 0;
 			if (q) {
-				const char *tmpvar;
+				const char *tmpvar = NULL;
 				if (!new)
 					ao2_lock(q);
 				/* Check if a queue with this name already exists */
