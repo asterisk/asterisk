@@ -2956,8 +2956,9 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		if (var && sin) {
 			for (tmp = var; tmp; tmp = tmp->next) {
 				if (!strcasecmp(tmp->name, "host")) {
-					struct in_addr sin2 = { 0, };
+					struct in_addr sin2;
 					struct ast_dnsmgr_entry *dnsmgr = NULL;
+					memset(&sin2, 0, sizeof(sin2));
 					if ((ast_dnsmgr_lookup(tmp->value, &sin2, &dnsmgr) < 0) || (memcmp(&sin2, &sin->sin_addr, sizeof(sin2)) != 0)) {
 						/* No match */
 						ast_variables_destroy(var);
@@ -3068,8 +3069,9 @@ static struct iax2_user *realtime_user(const char *username, struct sockaddr_in 
 		if (var) {
 			for (tmp = var; tmp; tmp = tmp->next) {
 				if (!strcasecmp(tmp->name, "host")) {
-					struct in_addr sin2 = { 0, };
+					struct in_addr sin2;
 					struct ast_dnsmgr_entry *dnsmgr = NULL;
+					memset(&sin2, 0, sizeof(sin2));
 					if ((ast_dnsmgr_lookup(tmp->value, &sin2, &dnsmgr) < 0) || (memcmp(&sin2, &sin->sin_addr, sizeof(sin2)) != 0)) {
 						/* No match */
 						ast_variables_destroy(var);
