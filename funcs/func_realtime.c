@@ -68,10 +68,11 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 
 	head = ast_load_realtime_all(args.family, args.fieldmatch, args.value, NULL);
 
-	if (!head)
+	if (!head) {
 		if (chan)
 			ast_autoservice_stop(chan);
 		return -1;
+	}
 
 	resultslen = 0;
 	n = 0;
