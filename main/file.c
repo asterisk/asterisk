@@ -205,6 +205,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 			trf = ast_translate(fs->trans, f, 0);
 			if (trf) {
 				res = fs->fmt->write(fs, trf);
+				ast_frfree(trf);
 				if (res) 
 					ast_log(LOG_WARNING, "Translated frame write failed\n");
 			} else

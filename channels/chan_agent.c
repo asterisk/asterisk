@@ -1571,6 +1571,7 @@ static int agent_logoff(const char *agent, int soft)
 	long logintime;
 	int ret = -1; /* Return -1 if no agent if found */
 
+	AST_LIST_LOCK(&agents);
 	AST_LIST_TRAVERSE(&agents, p, list) {
 		if (!strcasecmp(p->agent, agent)) {
 			ret = 0;
@@ -1590,6 +1591,7 @@ static int agent_logoff(const char *agent, int soft)
 			break;
 		}
 	}
+	AST_LIST_UNLOCK(&agents);
 
 	return ret;
 }
@@ -1644,20 +1646,26 @@ static int action_agent_logoff(struct mansession *s, const struct message *m)
 
 static char *complete_agent_logoff_cmd(const char *line, const char *word, int pos, int state)
 {
+	char *ret = NULL;
+
 	if (pos == 2) {
 		struct agent_pvt *p;
 		char name[AST_MAX_AGENT];
 		int which = 0, len = strlen(word);
 
+		AST_LIST_LOCK(&agents);
 		AST_LIST_TRAVERSE(&agents, p, list) {
 			snprintf(name, sizeof(name), "Agent/%s", p->agent);
-			if (!strncasecmp(word, name, len) && ++which > state)
-				return ast_strdup(name);
+			if (!strncasecmp(word, name, len) && ++which > state) {
+				ret = ast_strdup(name);
+				break;
+			}
 		}
+		AST_LIST_UNLOCK(&agents);
 	} else if (pos == 3 && state == 0) 
 		return ast_strdup("soft");
 	
-	return NULL;
+	return ret;
 }
 
 /*!
@@ -2568,6 +2576,9 @@ static int agent_devicestate(void *data)
 	return res;
 }
 
+/*!
+ * \note This function expects the agent list to be locked
+ */
 static struct agent_pvt *find_agent(char *agentid)
 {
 	struct agent_pvt *cur;
@@ -2603,7 +2614,10 @@ static int function_agent(struct ast_channel *chan, char *cmd, char *data, char 
 	if (!args.item)
 		args.item = "status";
 
+	AST_LIST_LOCK(&agents);
+
 	if (!(agent = find_agent(args.agentid))) {
+		AST_LIST_UNLOCK(&agents);
 		ast_log(LOG_WARNING, "Agent '%s' not found!\n", args.agentid);
 		return -1;
 	}
@@ -2628,6 +2642,8 @@ static int function_agent(struct ast_channel *chan, char *cmd, char *data, char 
 		} 
 	} else if (!strcasecmp(args.item, "exten"))
 		ast_copy_string(buf, agent->loginchan, len);	
+
+	AST_LIST_UNLOCK(&agents);
 
 	return 0;
 }

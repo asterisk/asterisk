@@ -2521,8 +2521,9 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 			if (var) {
 				for (tmp = var; tmp; tmp = tmp->next) {
 					if (!strcasecmp(var->name, "host")) {
-						struct in_addr sin2 = { 0, };
+						struct in_addr sin2;
 						struct ast_dnsmgr_entry *dnsmgr = NULL;
+						memset(&sin2, 0, sizeof(sin2));
 						if ((ast_dnsmgr_lookup(tmp->value, &sin2, &dnsmgr) < 0) || (memcmp(&sin2, &sin->sin_addr, sizeof(sin2)) != 0)) {
 							/* No match */
 							ast_variables_destroy(var);
