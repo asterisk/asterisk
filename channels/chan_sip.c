@@ -17903,8 +17903,10 @@ static struct server_instance *sip_tcp_locate(struct sockaddr_in *s)
 	AST_LIST_TRAVERSE(&threadl, th, list) {
 		if ((s->sin_family == th->ser->requestor.sin_family) &&
 			(s->sin_addr.s_addr == th->ser->requestor.sin_addr.s_addr) &&
-			(s->sin_port == th->ser->requestor.sin_port)) 
+			(s->sin_port == th->ser->requestor.sin_port))  {
+				AST_LIST_UNLOCK(&threadl);
 				return th->ser;
+			}
 	}
 	AST_LIST_UNLOCK(&threadl);
 	return NULL;
