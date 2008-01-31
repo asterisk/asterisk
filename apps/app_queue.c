@@ -1316,7 +1316,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 		m->dead = 0;	/* Do not delete this one. */
 		if (paused_str)
 			m->paused = paused;
-		if (strcasecmp(state_interface, m->state_interface)) {
+		if (strcasecmp(ast_strlen_zero(state_interface) ? interface : state_interface, m->state_interface)) {
 			remove_from_interfaces(m->state_interface);
 			ast_copy_string(m->state_interface, state_interface, sizeof(m->state_interface));
 			add_to_interfaces(m->state_interface);
