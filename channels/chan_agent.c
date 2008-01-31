@@ -2572,10 +2572,12 @@ static struct agent_pvt *find_agent(char *agentid)
 {
 	struct agent_pvt *cur;
 
+	AST_LIST_LOCK(&agents);
 	AST_LIST_TRAVERSE(&agents, cur, list) {
 		if (!strcmp(cur->agent, agentid))
 			break;	
 	}
+	AST_LIST_UNLOCK(&agents);
 
 	return cur;	
 }
