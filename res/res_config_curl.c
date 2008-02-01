@@ -77,7 +77,7 @@ static struct ast_variable *realtime_curl(const char *url, const char *unused, v
 		return NULL;
 	}
 
-	ast_str_set(&query, 0, "${CURL(%s,", url);
+	ast_str_set(&query, 0, "${CURL(%s/single,", url);
 
 	for (i = 0; (newparam = va_arg(ap, const char *)); i++) {
 		newval = va_arg(ap, const char *);
@@ -155,8 +155,12 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
 
 	for (i = 0; (newparam = va_arg(ap, const char *)); i++) {
 		newval = va_arg(ap, const char *);
-		if (i == 0)
+		if (i == 0) {
+			char *op;
 			initfield = ast_strdupa(newparam);
+			if ((op = strchr(initfield, ' ')))
+				*op = '\0';
+		}
 		ast_uri_encode(newparam, buf1, sizeof(buf1), EncodeSpecialChars);
 		ast_uri_encode(newval, buf2, sizeof(buf2), EncodeSpecialChars);
 		ast_str_append(&query, 0, "%s%s=%s", i > 0 ? "&" : "", buf1, buf2);
