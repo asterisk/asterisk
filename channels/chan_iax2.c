@@ -3107,6 +3107,11 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	tmpstr = ast_strdupa(dest);
 	parse_dial_string(tmpstr, &pds);
 
+	if (ast_strlen_zero(pds.peer)) {
+		ast_log(LOG_WARNING, "No peer provided in the IAX2 dial string '%s'\n", dest);
+		return -1;
+	}
+
 	if (!pds.exten)
 		pds.exten = defaultrdest;
 
@@ -8695,16 +8700,15 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	tmpstr = ast_strdupa(data);
 	parse_dial_string(tmpstr, &pds);
 
+	if (ast_strlen_zero(pds.peer)) {
+		ast_log(LOG_WARNING, "No peer provided in the IAX2 dial string '%s'\n", (char *) data);
+		return NULL;
+	}
+	       
 	memset(&cai, 0, sizeof(cai));
 	cai.capability = iax2_capability;
 
 	ast_copy_flags(&cai, &globalflags, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
-
-	if (!pds.peer) {
-		ast_log(LOG_WARNING, "No peer given\n");
-		return NULL;
-	}
-	       
 	
 	/* Populate our address from the given */
 	if (create_addr(pds.peer, NULL, &sin, &cai)) {
@@ -10018,6 +10022,11 @@ static int cache_get_callno_locked(const char *data)
 	tmpstr = ast_strdupa(data);
 	parse_dial_string(tmpstr, &pds);
 
+	if (ast_strlen_zero(pds.peer)) {
+		ast_log(LOG_WARNING, "No peer provided in the IAX2 dial string '%s'\n", data);
+		return -1;
+	}
+
 	/* Populate our address from the given */
 	if (create_addr(pds.peer, NULL, &sin, &cai))
 		return -1;
@@ -10425,8 +10434,11 @@ static int iax2_devicestate(void *data)
 
 	memset(&pds, 0, sizeof(pds));
 	parse_dial_string(tmp, &pds);
-	if (ast_strlen_zero(pds.peer))
+
+	if (ast_strlen_zero(pds.peer)) {
+		ast_log(LOG_WARNING, "No peer provided in the IAX2 dial string '%s'\n", (char *) data);
 		return res;
+	}
 	
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Checking device state for device %s\n", pds.peer);
