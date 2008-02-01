@@ -150,10 +150,10 @@ static int auth_exec(struct ast_channel *chan, void *data)
 			for (;;) {
 				size_t len;
 
-				fgets(buf, sizeof(buf), f);
-
 				if (feof(f))
 					break;
+
+				fgets(buf, sizeof(buf), f);
 
 				if (ast_strlen_zero(buf))
 					continue;
