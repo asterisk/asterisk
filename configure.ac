@@ -572,6 +572,8 @@ AST_EXT_LIB_CHECK([STRTOD], [c], [strtod], [stdlib.h])
 AST_EXT_LIB_CHECK([FLOOR], [m], [floor])
 AST_EXT_LIB_CHECK([CEIL], [m], [ceil])
 
+AST_EXT_LIB_CHECK([GETIFADDRS], [c], [getifaddrs], [ifaddrs.h])
+
 GSM_INTERNAL="yes"
 AC_SUBST(GSM_INTERNAL)
 GSM_SYSTEM="yes"
