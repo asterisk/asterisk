@@ -63,19 +63,18 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 
 	if (ast_strlen_zero(args.channel) || ast_strlen_zero(args.label)) {
 		ast_log(LOG_WARNING, "%s requires an argument (channel,[[context,]exten,]priority)\n", app);
-		goto quit;
+		return -1;
 	}
 
 	chan2 = ast_get_channel_by_name_locked(args.channel);
 	if (!chan2) {
 		ast_log(LOG_WARNING, "No such channel: %s\n", args.channel);
-		goto quit;
+		return -1;
 	}
 
 	res = ast_parseable_goto(chan2, args.label);
 
 	ast_channel_unlock(chan2);
-quit:
 
 	return res;
 }
