@@ -51,7 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #if defined(SOLARIS)
 #include <sys/sockio.h>
 #include <net/if.h>
-#else
+#elif defined(HAVE_GETIFADDRS)
 #include <ifaddrs.h>
 #endif
 
@@ -88,6 +88,12 @@ struct my_ifreq {
 	struct sockaddr_in ifru_addr;
 };
 
+#if (!defined(SOLARIS) && !defined(HAVE_GETIFADDRS))
+static int get_local_address(struct in_addr *ourip)
+{
+	return -1;
+}
+#else
 static void score_address(const struct sockaddr_in *sin, struct in_addr *best_addr, int *best_score)
 {
 	const char *address;
@@ -241,6 +247,8 @@ static int get_local_address(struct in_addr *ourip)
 		memcpy(ourip, &best_addr, sizeof(*ourip));
 	return res;
 }
+#endif /* HAVE_GETIFADDRS */
+
 /* Free HA structure */
 void ast_free_ha(struct ast_ha *ha)
 {

@@ -404,6 +404,8 @@ if test "x${host_os}" = "xlinux-gnu" ; then
   AST_EXT_LIB_CHECK([CAP], [cap], [cap_from_text], [sys/capability.h])
 fi
 
+AST_EXT_LIB_CHECK([GETIFADDRS], [c], [getifaddrs], [ifaddrs.h])
+
 GSM_INTERNAL="yes"
 AC_SUBST(GSM_INTERNAL)
 GSM_SYSTEM="yes"
