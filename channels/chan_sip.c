@@ -7758,7 +7758,12 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo,
 
 }
 
-#define SDP_SAMPLE_RATE(x) (x == AST_FORMAT_G722) ? 16000 : 8000
+/*!
+ * \note G.722 actually is supposed to specified as 8 kHz, even though it is
+ * really 16 kHz.  Update this macro for other formats as they are added in
+ * the future.
+ */
+#define SDP_SAMPLE_RATE(x) 8000
 
 /*! \brief Add Session Description Protocol message 
 
