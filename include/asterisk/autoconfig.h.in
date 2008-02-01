@@ -297,10 +297,10 @@
 /* Define to 1 if you have the `gethostname' function. */
 #undef HAVE_GETHOSTNAME
 
-/* Define this to indicate the ${GETIFADDRS_DESCRIP} library */
+/* Define if your system has the GETIFADDRS headers. */
 #undef HAVE_GETIFADDRS
 
-/* Define to indicate the ${GETIFADDRS_DESCRIP} library version */
+/* Define GETIFADDRS headers version */
 #undef HAVE_GETIFADDRS_VERSION
 
 /* Define to 1 if you have the `getloadavg' function. */
