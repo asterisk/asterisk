@@ -159,7 +159,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 					continue;
 
 				len = strlen(buf) - 1;
-				if (buf[len - 1] = '\n')
+				if (buf[len - 1] == '\n')
 					buf[len - 1] = '\0';
 
 				if (ast_test_flag(&flags, OPT_MULTIPLE)) {
