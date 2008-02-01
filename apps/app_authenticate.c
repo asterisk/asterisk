@@ -169,7 +169,9 @@ static int auth_exec(struct ast_channel *chan, void *data)
 					while (!feof(f)) {
 						fgets(buf, sizeof(buf), f);
 						if (!feof(f) && !ast_strlen_zero(buf)) {
-							buf[strlen(buf) - 1] = '\0';
+							size_t len = strlen(buf);
+							if (buf[len] == '\n')
+								buf[len] = '\0';
 							if (ast_test_flag(&flags,OPT_MULTIPLE)) {
 								md5secret = strchr(buf, ':');
 								if (md5secret == NULL)
