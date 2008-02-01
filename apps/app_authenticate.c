@@ -147,27 +147,33 @@ static int auth_exec(struct ast_channel *chan, void *data)
 				continue;
 			}
 
-			while (!feof(f)) {
+			for (;;) {
 				fgets(buf, sizeof(buf), f);
-				if (!feof(f) && !ast_strlen_zero(buf)) {
-					buf[strlen(buf) - 1] = '\0';
-					if (ast_test_flag(&flags,OPT_MULTIPLE)) {
-						md5secret = strchr(buf, ':');
-						if (!md5secret)
-							continue;
-						*md5secret++ = '\0';
-						ast_md5_hash(md5passwd, passwd);
-						if (!strcmp(md5passwd, md5secret)) {
-							if (ast_test_flag(&flags,OPT_ACCOUNT))
-								ast_cdr_setaccount(chan, buf);
-							break;
-						}
-					} else {
-						if (!strcmp(passwd, buf)) {
-							if (ast_test_flag(&flags,OPT_ACCOUNT))
-								ast_cdr_setaccount(chan, buf);
-							break;
-						}
+
+				if (feof(f))
+					break;
+
+				if (ast_strlen_zero(buf))
+					continue;
+
+				buf[strlen(buf) - 1] = '\0';
+
+				if (ast_test_flag(&flags, OPT_MULTIPLE)) {
+					md5secret = buf;
+					strsep(&md5secret, ":");
+					if (!md5secret)
+						continue;
+					ast_md5_hash(md5passwd, passwd);
+					if (!strcmp(md5passwd, md5secret)) {
+						if (ast_test_flag(&flags,OPT_ACCOUNT))
+							ast_cdr_setaccount(chan, buf);
+						break;
+					}
+				} else {
+					if (!strcmp(passwd, buf)) {
+						if (ast_test_flag(&flags, OPT_ACCOUNT))
+							ast_cdr_setaccount(chan, buf);
+						break;
 					}
 				}
 			}
@@ -175,7 +181,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 			fclose(f);
 
 			if (!ast_strlen_zero(buf)) {
-				if (ast_test_flag(&flags,OPT_MULTIPLE)) {
+				if (ast_test_flag(&flags, OPT_MULTIPLE)) {
 					if (md5secret && !strcmp(md5passwd, md5secret))
 						break;
 				} else {
