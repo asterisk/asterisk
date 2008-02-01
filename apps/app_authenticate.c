@@ -119,70 +119,74 @@ static int auth_exec(struct ast_channel *chan, void *data)
 	for (retries = 0; retries < 3; retries++) {
 		if ((res = ast_app_getdata(chan, prompt, passwd, maxdigits, 0)) < 0)
 			break;
-		res = 0;
-		if (arglist.password[0] == '/') {
-			if (ast_test_flag(&flags,OPT_DATABASE)) {
-				char tmp[256];
-				/* Compare against a database key */
-				if (!ast_db_get(arglist.password + 1, passwd, tmp, sizeof(tmp))) {
-					/* It's a good password */
-					if (ast_test_flag(&flags,OPT_REMOVE))
-						ast_db_del(arglist.password + 1, passwd);
-					break;
-				}
-			} else {
-				/* Compare against a file */
-				FILE *f;
-				char buf[256] = "", md5passwd[33] = "", *md5secret = NULL;
-				
-				if (!(f = fopen(arglist.password, "r"))) {
-					ast_log(LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", arglist.password, strerror(errno));
-					continue;
-				}
 
-				while (!feof(f)) {
-					fgets(buf, sizeof(buf), f);
-					if (!feof(f) && !ast_strlen_zero(buf)) {
-						buf[strlen(buf) - 1] = '\0';
-						if (ast_test_flag(&flags,OPT_MULTIPLE)) {
-							md5secret = strchr(buf, ':');
-							if (md5secret == NULL)
-								continue;
-							*md5secret = '\0';
-							md5secret++;
-							ast_md5_hash(md5passwd, passwd);
-							if (!strcmp(md5passwd, md5secret)) {
-								if (ast_test_flag(&flags,OPT_ACCOUNT))
-									ast_cdr_setaccount(chan, buf);
-								break;
-							}
-						} else {
-							if (!strcmp(passwd, buf)) {
-								if (ast_test_flag(&flags,OPT_ACCOUNT))
-									ast_cdr_setaccount(chan, buf);
-								break;
-							}
-						}
-					}
-				}
-				fclose(f);
-				if (!ast_strlen_zero(buf)) {
-					if (ast_test_flag(&flags,OPT_MULTIPLE)) {
-						if (md5secret && !strcmp(md5passwd, md5secret))
-							break;
-					} else {
-						if (!strcmp(passwd, buf))
-							break;
-					}
-				}
-			}
-		} else {
+		res = 0;
+
+		if (arglist.password[0] != '/') {
 			/* Compare against a fixed password */
 			if (!strcmp(passwd, arglist.password)) 
 				break;
 		}
+
+		if (ast_test_flag(&flags,OPT_DATABASE)) {
+			char tmp[256];
+			/* Compare against a database key */
+			if (!ast_db_get(arglist.password + 1, passwd, tmp, sizeof(tmp))) {
+				/* It's a good password */
+				if (ast_test_flag(&flags,OPT_REMOVE))
+					ast_db_del(arglist.password + 1, passwd);
+				break;
+			}
+		} else {
+			/* Compare against a file */
+			FILE *f;
+			char buf[256] = "", md5passwd[33] = "", *md5secret = NULL;
+				
+			if (!(f = fopen(arglist.password, "r"))) {
+				ast_log(LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", arglist.password, strerror(errno));
+				continue;
+			}
+
+			while (!feof(f)) {
+				fgets(buf, sizeof(buf), f);
+				if (!feof(f) && !ast_strlen_zero(buf)) {
+					buf[strlen(buf) - 1] = '\0';
+					if (ast_test_flag(&flags,OPT_MULTIPLE)) {
+						md5secret = strchr(buf, ':');
+						if (!md5secret)
+							continue;
+						*md5secret++ = '\0';
+						ast_md5_hash(md5passwd, passwd);
+						if (!strcmp(md5passwd, md5secret)) {
+							if (ast_test_flag(&flags,OPT_ACCOUNT))
+								ast_cdr_setaccount(chan, buf);
+							break;
+						}
+					} else {
+						if (!strcmp(passwd, buf)) {
+							if (ast_test_flag(&flags,OPT_ACCOUNT))
+								ast_cdr_setaccount(chan, buf);
+							break;
+						}
+					}
+				}
+			}
+
+			fclose(f);
+
+			if (!ast_strlen_zero(buf)) {
+				if (ast_test_flag(&flags,OPT_MULTIPLE)) {
+					if (md5secret && !strcmp(md5passwd, md5secret))
+						break;
+				} else {
+					if (!strcmp(passwd, buf))
+						break;
+				}
+			}
+		}
 		prompt = "auth-incorrect";
 	}
+
 	if ((retries < 3) && !res) {
 		if (ast_test_flag(&flags,OPT_ACCOUNT) && !ast_test_flag(&flags,OPT_MULTIPLE)) 
 			ast_cdr_setaccount(chan, passwd);
