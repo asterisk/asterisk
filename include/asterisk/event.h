@@ -20,6 +20,9 @@
  * \file
  * \author Russell Bryant <russell@digium.com>
  * \ref AstGenericEvents
+ */
+
+/*!
  * \page AstGenericEvents Generic event system
  *
  * The purpose of this API is to provide a generic way to share events between
