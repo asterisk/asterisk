@@ -559,7 +559,7 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 		return CLI_SUCCESS;
 	}
 
-	ast_cli(a->fd,"\n");
+	ast_cli(a->fd, "\n");
 	ast_cli(a->fd,
 		"       username: %s\n"
 		"         secret: %s\n"
@@ -616,8 +616,8 @@ static char *handle_showmanagers(struct ast_cli_entry *e, int cmd, struct ast_cl
 
 	AST_RWLIST_UNLOCK(&users);
 
-	ast_cli(a->fd,"-------------------\n");
-	ast_cli(a->fd,"%d manager users configured.\n", count_amu);
+	ast_cli(a->fd, "-------------------\n");
+	ast_cli(a->fd, "%d manager users configured.\n", count_amu);
 
 	return CLI_SUCCESS;
 }
@@ -703,7 +703,7 @@ static char *handle_showmaneventq(struct ast_cli_entry *e, int cmd, struct ast_c
 	}
 	AST_LIST_LOCK(&all_events);
 	AST_LIST_TRAVERSE(&all_events, s, eq_next) {
-		ast_cli(a->fd, "Usecount: %d\n",s->usecount);
+		ast_cli(a->fd, "Usecount: %d\n", s->usecount);
 		ast_cli(a->fd, "Category: %d\n", s->category);
 		ast_cli(a->fd, "Event:\n%s", s->eventdata);
 	}
@@ -915,7 +915,7 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 #define MSG_MOREDATA	((char *)astman_send_response)
 static void astman_send_response_full(struct mansession *s, const struct message *m, char *resp, char *msg, char *listflag)
 {
-	const char *id = astman_get_header(m,"ActionID");
+	const char *id = astman_get_header(m, "ActionID");
 
 	astman_append(s, "Response: %s\r\n", resp);
 	if (!ast_strlen_zero(id))
@@ -1223,7 +1223,7 @@ static void handle_updates(struct mansession *s, const struct message *m, struct
 		} else if (!strcasecmp(action, "append")) {
 			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) &&
 				(category = ast_category_get(cfg, cat)) &&
-				(v = ast_variable_new(var, value, dfn))){
+				(v = ast_variable_new(var, value, dfn))) {
 				if (object || (match && !strcasecmp(match, "object")))
 					v->object = 1;
 				ast_variable_append(category, v);
@@ -1293,11 +1293,13 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 	int timeout = -1;
 	int x;
 	int needexit = 0;
-	const char *id = astman_get_header(m,"ActionID");
-	char idText[256] = "";
+	const char *id = astman_get_header(m, "ActionID");
+	char idText[256];
 
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+	else
+		idText[0] = '\0';
 
 	if (!ast_strlen_zero(timeouts)) {
 		sscanf(timeouts, "%i", &timeout);
@@ -1574,18 +1576,20 @@ static int action_getvar(struct mansession *s, const struct message *m)
 /* Needs documentation... */
 static int action_status(struct mansession *s, const struct message *m)
 {
-	const char *name = astman_get_header(m,"Channel");
+	const char *name = astman_get_header(m, "Channel");
 	struct ast_channel *c;
 	char bridge[256];
 	struct timeval now = ast_tvnow();
 	long elapsed_seconds = 0;
 	int channels = 0;
 	int all = ast_strlen_zero(name); /* set if we want all channels */
-	const char *id = astman_get_header(m,"ActionID");
-	char idText[256] = "";
+	const char *id = astman_get_header(m, "ActionID");
+	char idText[256];
 
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+	else
+		idText[0] = '\0';
 
 	if (all)
 		c = ast_channel_walk_locked(NULL);
@@ -1661,7 +1665,7 @@ static int action_status(struct mansession *s, const struct message *m)
 	"Event: StatusComplete\r\n"
 	"%s"
 	"Items: %d\r\n"
-	"\r\n",idText, channels);
+	"\r\n", idText, channels);
 	return 0;
 }
 
@@ -1997,10 +2001,10 @@ static int action_originate(struct mansession *s, const struct message *m)
 			}
 		}
 	} else if (!ast_strlen_zero(app)) {
-        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);
+		res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);
     	} else {
 		if (exten && context && pi)
-	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL);
+			res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL);
 		else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;
@@ -2203,10 +2207,12 @@ static char mandescr_coresettings[] =
 static int action_coresettings(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
-	char idText[150] = "";
+	char idText[150];
 
 	if (!ast_strlen_zero(actionid))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
+	else
+		idText[0] = '\0';
 
 	astman_append(s, "Response: Success\r\n"
 			"%s"
@@ -2221,8 +2227,8 @@ static int action_coresettings(struct mansession *s, const struct message *m)
 			"CoreRealTimeEnabled: %s\r\n"
 			"CoreCDRenabled: %s\r\n"
 			"CoreHTTPenabled: %s\r\n"
-			,
-		        idText,
+			"\r\n",
+			idText,
 			AMI_VERSION,
 			ast_get_version(), 
 			ast_config_AST_SYSTEM_NAME,
@@ -2254,6 +2260,8 @@ static int action_corestatus(struct mansession *s, const struct message *m)
 
 	if (!ast_strlen_zero(actionid))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
+	else
+		idText[0] = '\0';
 
 	ast_localtime(&ast_startuptime, &tm, NULL);
 	ast_strftime(startuptime, sizeof(startuptime), "%H:%M:%S", &tm);
@@ -2265,7 +2273,7 @@ static int action_corestatus(struct mansession *s, const struct message *m)
 			"CoreStartupTime: %s\r\n"
 			"CoreReloadTime: %s\r\n"
 			"CoreCurrentCalls: %d\r\n"
-			"",
+			"\r\n",
 			idText,
 			startuptime,
 			reloadtime,
@@ -2283,15 +2291,11 @@ static char mandescr_reload[] =
 /*! \brief Send a reload event */
 static int action_reload(struct mansession *s, const struct message *m)
 {
-	const char *actionid = astman_get_header(m, "ActionID");
 	const char *module = astman_get_header(m, "Module");
 	int res = ast_module_reload(S_OR(module, NULL));
-	char idText[80] = "";
 
-	if (!ast_strlen_zero(actionid))
-		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
 	if (res == 2)
-		astman_append(s, "Response: Success\r\n%s", idText);
+		astman_send_ack(s, m, "Module Reloaded");
 	else
 		astman_send_error(s, m, s == 0 ? "No such module" : "Module does not support reload");
 	return 0;
@@ -2308,13 +2312,15 @@ static char mandescr_coreshowchannels[] =
 static int action_coreshowchannels(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
-	char actionidtext[256] = "";
+	char actionidtext[256];
 	struct ast_channel *c = NULL;
 	int numchans = 0;
 	int duration, durh, durm, durs;
 
 	if (!ast_strlen_zero(actionid))
 		snprintf(actionidtext, sizeof(actionidtext), "ActionID: %s\r\n", actionid);
+	else
+		actionidtext[0] = '\0';
 
 	astman_send_listack(s, m, "Channels will follow", "start");	
 
@@ -2353,11 +2359,11 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	}
 
 	astman_append(s,
-                "Event: CoreShowChannelsComplete\r\n"
-                "EventList: Complete\r\n"
-                "ListItems: %d\r\n"
-                "%s"
-                "\r\n", numchans, actionidtext);
+		"Event: CoreShowChannelsComplete\r\n"
+		"EventList: Complete\r\n"
+		"ListItems: %d\r\n"
+		"%s"
+		"\r\n", numchans, actionidtext);
 
 	return 0;
 }
@@ -2376,7 +2382,7 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 {
 	int res;
 	const char *module = astman_get_header(m, "Module");
-	const char *id = astman_get_header(m,"ActionID");
+	const char *id = astman_get_header(m, "ActionID");
 	char idText[BUFSIZ];
 	const char *version;
 	char filename[BUFSIZ/2];
@@ -2401,6 +2407,8 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+	else
+		idText[0] = '\0';
 	astman_append(s, "Response: Success\r\n%s", idText);
 	astman_append(s, "Version: %s\r\n\r\n", version ? version : "");
 	return 0;
@@ -3428,24 +3436,24 @@ static void purge_old_stuff(void *data)
 
 struct ast_tls_config ami_tls_cfg;
 static struct server_args ami_desc = {
-        .accept_fd = -1,
-        .master = AST_PTHREADT_NULL,
-        .tls_cfg = NULL, 
-        .poll_timeout = 5000,	/* wake up every 5 seconds */
+	.accept_fd = -1,
+	.master = AST_PTHREADT_NULL,
+	.tls_cfg = NULL, 
+	.poll_timeout = 5000,	/* wake up every 5 seconds */
 	.periodic_fn = purge_old_stuff,
-        .name = "AMI server",
-        .accept_fn = server_root,	/* thread doing the accept() */
-        .worker_fn = session_do,	/* thread handling the session */
+	.name = "AMI server",
+	.accept_fn = server_root,	/* thread doing the accept() */
+	.worker_fn = session_do,	/* thread handling the session */
 };
 
 static struct server_args amis_desc = {
-        .accept_fd = -1,
-        .master = AST_PTHREADT_NULL,
-        .tls_cfg = &ami_tls_cfg, 
-        .poll_timeout = -1,	/* the other does the periodic cleanup */
-        .name = "AMI TLS server",
-        .accept_fn = server_root,	/* thread doing the accept() */
-        .worker_fn = session_do,	/* thread handling the session */
+	.accept_fd = -1,
+	.master = AST_PTHREADT_NULL,
+	.tls_cfg = &ami_tls_cfg, 
+	.poll_timeout = -1,	/* the other does the periodic cleanup */
+	.name = "AMI TLS server",
+	.accept_fn = server_root,	/* thread doing the accept() */
+	.worker_fn = session_do,	/* thread handling the session */
 };
 
 static int __init_manager(int reload)
