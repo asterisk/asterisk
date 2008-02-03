@@ -3549,7 +3549,7 @@ static int sip_hangup(struct ast_channel *ast)
 					append_history(p, "DELAY", "Not sending cancel, waiting for timeout");
 				} else {
 					/* Send a new request: CANCEL */
-					transmit_request(p, SIP_CANCEL, p->ocseq, XMIT_RELIABLE, FALSE);
+					transmit_request(p, SIP_CANCEL, p->lastinvite, XMIT_RELIABLE, FALSE);
 					/* Actually don't destroy us yet, wait for the 487 on our original 
 					   INVITE, but do set an autodestruct just in case we never get it. */
 					needdestroy = 0;
@@ -11935,7 +11935,7 @@ static void check_pendings(struct sip_pvt *p)
 	if (ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 		/* if we can't BYE, then this is really a pending CANCEL */
 		if (p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA)
-			transmit_request(p, SIP_CANCEL, p->ocseq, XMIT_RELIABLE, FALSE);
+			transmit_request(p, SIP_CANCEL, p->lastinvite, XMIT_RELIABLE, FALSE);
 			/* Actually don't destroy us yet, wait for the 487 on our original 
 			   INVITE, but do set an autodestruct just in case we never get it. */
 		else {
