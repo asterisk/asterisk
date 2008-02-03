@@ -17644,11 +17644,15 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 	p->method = req->method;	/* Find out which SIP method they are using */
 	ast_debug(4, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, sip_methods[p->method].id, cmd); 
 
-	if (p->icseq && (p->icseq > seqno)) {
-		ast_debug(1, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
-		if (req->method != SIP_ACK)
-			transmit_response(p, "503 Server error", req);	/* We must respond according to RFC 3261 sec 12.2 */
-		return -1;
+	if (p->icseq && (p->icseq > seqno) ) {
+		if (p->pendinginvite && seqno == p->pendinginvite && (req->method == SIP_ACK || req->method == SIP_CANCEL)) {
+			ast_debug(2, "Got CANCEL or ACK on INVITE with transactions in between.\n");
+		}  else {
+			ast_debug(1, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
+			if (req->method != SIP_ACK)
+				transmit_response(p, "503 Server error", req);	/* We must respond according to RFC 3261 sec 12.2 */
+			return -1;
+		}
 	} else if (p->icseq &&
 		   p->icseq == seqno &&
 		   req->method != SIP_ACK &&
