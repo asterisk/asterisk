@@ -679,6 +679,9 @@
 /* Define RTLD_NOLOAD headers version */
 #undef HAVE_RTLD_NOLOAD_VERSION
 
+/* Define to 1 if your system has /sbin/launchd. */
+#undef HAVE_SBIN_LAUNCHD
+
 /* Define if your system has the SDL libraries. */
 #undef HAVE_SDL
 
@@ -1171,9 +1174,6 @@
 #endif
 #ifndef _POSIX_PTHREAD_SEMANTICS
 # undef _POSIX_PTHREAD_SEMANTICS
-#endif
-#ifndef _TANDEM_SOURCE
-# undef _TANDEM_SOURCE
 #endif
 
 /* Define like PROTOTYPES; this can be used by system headers. */
