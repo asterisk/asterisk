@@ -3324,6 +3324,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				
 				if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
 					c->_softhangup = 0;
+					continue;
 				} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
 					/* atimeout, nothing bad */
 				} else {
@@ -5852,12 +5853,8 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
 		ast_copy_string(chan->context, context, sizeof(chan->context));
 	if (!ast_strlen_zero(exten))
 		ast_copy_string(chan->exten, exten, sizeof(chan->exten));
-	if (priority > -1) {
+	if (priority > -1)
 		chan->priority = priority;
-		/* see flag description in channel.h for explanation */
-		if (ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP))
-			chan->priority--;
-	}
 
 	ast_channel_unlock(chan);
 
