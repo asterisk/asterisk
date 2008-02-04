@@ -320,6 +320,9 @@
    */
 #undef HAVE_RTLD_NOLOAD
 
+/* Define to 1 if your system has /sbin/launchd. */
+#undef HAVE_SBIN_LAUNCHD
+
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 
@@ -637,9 +640,6 @@
 #endif
 #ifndef _POSIX_PTHREAD_SEMANTICS
 # undef _POSIX_PTHREAD_SEMANTICS
-#endif
-#ifndef _TANDEM_SOURCE
-# undef _TANDEM_SOURCE
 #endif
 
 /* Define like PROTOTYPES; this can be used by system headers. */

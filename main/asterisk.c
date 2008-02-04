@@ -2844,6 +2844,7 @@ int main(int argc, char *argv[])
 
 #if HAVE_WORKING_FORK
 	if (ast_opt_always_fork || !ast_opt_no_fork) {
+#ifndef HAVE_SBIN_LAUNCHD
 		daemon(1, 0);
 		ast_mainpid = getpid();
 		/* Blindly re-write pid file since we are forking */
@@ -2854,6 +2855,9 @@ int main(int argc, char *argv[])
 			fclose(f);
 		} else
 			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
+#else
+		ast_log(LOG_WARNING, "Mac OS X detected.  Use '/sbin/launchd -d' to launch with the nofork option.\n");
+#endif
 	}
 #endif
 
