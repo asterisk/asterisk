@@ -7,7 +7,7 @@ CONSOLE = "Console/dsp" -- Console interface for demo
 IAXINFO = "guest"       -- IAXtel username/password
 --IAXINFO = "myuser:mypass"
 
-TRUNK = "Zap/g2"
+TRUNK = "Zap/G2"
 TRUNKMSD = 1
 -- TRUNK = "IAX2/user:pass@provider"
 
