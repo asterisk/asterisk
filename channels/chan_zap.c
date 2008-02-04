@@ -12985,11 +12985,11 @@ static int build_channels(struct zt_chan_conf conf, int iscrv, const char *value
 	pri = NULL;
 	if (iscrv) {
 		if (sscanf(c, "%d:%n", &trunkgroup, &y) != 1) {
-			ast_log(LOG_WARNING, "CRV must begin with trunkgroup followed by a colon at line %d\n", lineno);
+			ast_log(LOG_WARNING, "CRV must begin with trunkgroup followed by a colon at line %d.\n", lineno);
 			return -1;
 		}
 		if (trunkgroup < 1) {
-			ast_log(LOG_WARNING, "CRV trunk group must be a positive number at line %d\n", lineno);
+			ast_log(LOG_WARNING, "CRV trunk group must be a positive number at line %d.\n", lineno);
 			return -1;
 		}
 		c += y;
@@ -13000,7 +13000,7 @@ static int build_channels(struct zt_chan_conf conf, int iscrv, const char *value
 			}
 		}
 		if (!pri) {
-			ast_log(LOG_WARNING, "No such trunk group %d at CRV declaration at line %d\n", trunkgroup, lineno);
+			ast_log(LOG_WARNING, "No such trunk group %d at CRV declaration at line %d.\n", trunkgroup, lineno);
 			return -1;
 		}
 	}
@@ -13222,7 +13222,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 			confp->chan.busycount = atoi(v->value);
 		} else if (!strcasecmp(v->name, "busypattern")) {
 			if (sscanf(v->value, "%d,%d", &confp->chan.busy_tonelength, &confp->chan.busy_quietlength) != 2) {
-				ast_log(LOG_ERROR, "busypattern= expects busypattern=tonelength,quietlength\n");
+				ast_log(LOG_ERROR, "busypattern= expects busypattern=tonelength,quietlength at line %d.\n", v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "callprogress")) {
 			confp->chan.callprogress &= ~CALLPROGRESS_PROGRESS;
@@ -13250,7 +13250,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 		} else if (!strcasecmp(v->name, "echotraining")) {
 			if (sscanf(v->value, "%d", &y) == 1) {
 				if ((y < 10) || (y > 4000)) {
-					ast_log(LOG_WARNING, "Echo training time must be within the range of 10 to 4000 ms at line %d\n", v->lineno);					
+					ast_log(LOG_WARNING, "Echo training time must be within the range of 10 to 4000 ms at line %d.\n", v->lineno);					
 				} else {
 					confp->chan.echotraining = y;
 				}
@@ -13315,19 +13315,19 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 			confp->chan.mwimonitor = ast_true(v->value) ? 1 : 0;
 		} else if (!strcasecmp(v->name, "cid_rxgain")) {
 			if (sscanf(v->value, "%f", &confp->chan.cid_rxgain) != 1) {
-				ast_log(LOG_WARNING, "Invalid cid_rxgain: %s\n", v->value);
+				ast_log(LOG_WARNING, "Invalid cid_rxgain: %s at line %d.\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "rxgain")) {
 			if (sscanf(v->value, "%f", &confp->chan.rxgain) != 1) {
-				ast_log(LOG_WARNING, "Invalid rxgain: %s\n", v->value);
+				ast_log(LOG_WARNING, "Invalid rxgain: %s at line %d.\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "txgain")) {
 			if (sscanf(v->value, "%f", &confp->chan.txgain) != 1) {
-				ast_log(LOG_WARNING, "Invalid txgain: %s\n", v->value);
+				ast_log(LOG_WARNING, "Invalid txgain: %s at line %d.\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "tonezone")) {
 			if (sscanf(v->value, "%d", &confp->chan.tonezone) != 1) {
-				ast_log(LOG_WARNING, "Invalid tonezone: %s\n", v->value);
+				ast_log(LOG_WARNING, "Invalid tonezone: %s at line %d.\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "callerid")) {
 			if (!strcasecmp(v->value, "asreceived")) {
@@ -13351,7 +13351,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 		} else if (!strcasecmp(v->name, "amaflags")) {
 			y = ast_cdr_amaflags2int(v->value);
 			if (y < 0) 
-				ast_log(LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value, v->lineno);
+				ast_log(LOG_WARNING, "Invalid AMA flags: %s at line %d.\n", v->value, v->lineno);
 			else
 				confp->chan.amaflags = y;
 		} else if (!strcasecmp(v->name, "polarityonanswerdelay")) {
@@ -13470,7 +13470,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 					confp->chan.sig = SIG_BRI_PTMP;
 					confp->pri.nodetype = PRI_CPE;
 				} else if (!strcasecmp(v->value, "bri_net_ptmp")) {
-					ast_log(LOG_WARNING, "How cool would it be if someone implemented this mode!  For now, sucks for you.\n");
+					ast_log(LOG_WARNING, "How cool would it be if someone implemented this mode!  For now, sucks for you. (line %d)\n", v->lineno);
 				} else if (!strcasecmp(v->value, "gr303fxoks_net")) {
 					confp->chan.sig = SIG_GR303FXOKS;
 					confp->pri.nodetype = PRI_NETWORK;
@@ -13488,7 +13488,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 					confp->chan.outsigmod = orig_outsigmod;
 					confp->chan.radio = orig_radio;
 					confp->is_sig_auto = orig_auto;
-					ast_log(LOG_ERROR, "Unknown signalling method '%s'\n", v->value);
+					ast_log(LOG_ERROR, "Unknown signalling method '%s' at line %d.\n", v->value, v->lineno);
 				}
 			 } else if (!strcasecmp(v->name, "outsignalling") || !strcasecmp(v->name, "outsignaling")) {
 				if (!strcasecmp(v->value, "em")) {
@@ -13524,7 +13524,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				} else if (!strcasecmp(v->value, "featb")) {
 					confp->chan.outsigmod = SIG_FEATB;
 				} else {
-					ast_log(LOG_ERROR, "Unknown signalling method '%s'\n", v->value);
+					ast_log(LOG_ERROR, "Unknown signalling method '%s' at line %d.\n", v->value, v->lineno);
 				}
 #ifdef HAVE_PRI
 			} else if (!strcasecmp(v->name, "pridialplan")) {
@@ -13579,7 +13579,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				else if (!strcasecmp(v->value, "qsig"))
 					confp->pri.switchtype = PRI_SWITCH_QSIG;
 				else {
-					ast_log(LOG_ERROR, "Unknown switchtype '%s'\n", v->value);
+					ast_log(LOG_ERROR, "Unknown switchtype '%s' at line %d.\n", v->value, v->lineno);
 					return -1;
 				}
 			} else if (!strcasecmp(v->name, "nsf")) {
@@ -13594,7 +13594,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				else if (!strcasecmp(v->value, "none"))
 					confp->pri.nsf = PRI_NSF_NONE;
 				else {
-					ast_log(LOG_WARNING, "Unknown network-specific facility '%s'\n", v->value);
+					ast_log(LOG_WARNING, "Unknown network-specific facility '%s' at line %d.\n", v->value, v->lineno);
 					confp->pri.nsf = PRI_NSF_NONE;
 				}
 			} else if (!strcasecmp(v->name, "priindication")) {
@@ -13603,7 +13603,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				else if (!strcasecmp(v->value, "inband"))
 					confp->chan.priindication_oob = 0;
 				else
-					ast_log(LOG_WARNING, "'%s' is not a valid pri indication value, should be 'inband' or 'outofband' at line %d\n",
+					ast_log(LOG_WARNING, "'%s' is not a valid pri indication value, should be 'inband' or 'outofband' at line %d.\n",
 						v->value, v->lineno);
 			} else if (!strcasecmp(v->name, "priexclusive")) {
 				confp->chan.priexclusive = ast_true(v->value);
@@ -13623,7 +13623,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				else if (atoi(v->value) >= 60)
 					confp->pri.resetinterval = atoi(v->value);
 				else
-					ast_log(LOG_WARNING, "'%s' is not a valid reset interval, should be >= 60 seconds or 'never' at line %d\n",
+					ast_log(LOG_WARNING, "'%s' is not a valid reset interval, should be >= 60 seconds or 'never' at line %d.\n",
 						v->value, v->lineno);
 			} else if (!strcasecmp(v->name, "minunused")) {
 				confp->pri.minunused = atoi(v->value);
@@ -13654,15 +13654,15 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				if (timerc) {
 					timer = atoi(c);
 					if (!timer)
-						ast_log(LOG_WARNING, "'%s' is not a valid value for an ISDN timer\n", timerc);
+						ast_log(LOG_WARNING, "'%s' is not a valid value for an ISDN timer at line %d.\n", timerc, v->lineno);
 					else {
 						if ((timeridx = pri_timer2idx(timerc)) >= 0)
 							pritimers[timeridx] = timer;
 						else
-							ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer\n", timerc);
+							ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer at line %d.\n", timerc, v->lineno);
 					}
 				} else
-					ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer configuration string\n", v->value);
+					ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer configuration string at line %d.\n", v->value, v->lineno);
 
 			} else if (!strcasecmp(v->name, "facilityenable")) {
 				confp->pri.facilityenable = ast_true(v->value);
@@ -13675,7 +13675,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				} else if (!strcasecmp(v->value, "ansi")) {
 					cur_ss7type = SS7_ANSI;
 				} else
-					ast_log(LOG_WARNING, "'%s' is an unknown ss7 switch type!\n", v->value);
+					ast_log(LOG_WARNING, "'%s' is an unknown ss7 switch type at line %d.!\n", v->value, v->lineno);
 			} else if (!strcasecmp(v->name, "linkset")) {
 				cur_linkset = atoi(v->value);
 			} else if (!strcasecmp(v->name, "pointcode")) {
@@ -13752,14 +13752,14 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 	
 				/* Cadence must be even (on/off) */
 				if (element_count % 2 == 1) {
-					ast_log(LOG_ERROR, "Must be a silence duration for each ring duration: %s\n",original_args);
+					ast_log(LOG_ERROR, "Must be a silence duration for each ring duration: %s at line %d.\n", original_args, v->lineno);
 					cadence_is_ok = 0;
 				}
 	
 				/* Ring cadences cannot be negative */
 				for (i = 0; i < element_count; i++) {
 					if (c[i] == 0) {
-						ast_log(LOG_ERROR, "Ring or silence duration cannot be zero: %s\n", original_args);
+						ast_log(LOG_ERROR, "Ring or silence duration cannot be zero: %s at line %d.\n", original_args, v->lineno);
 						cadence_is_ok = 0;
 						break;
 					} else if (c[i] < 0) {
@@ -13769,7 +13769,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 								cid_location = i;
 								c[i] *= -1;
 							} else {
-								ast_log(LOG_ERROR, "CID location specified twice: %s\n",original_args);
+								ast_log(LOG_ERROR, "CID location specified twice: %s at line %d.\n", original_args, v->lineno);
 								cadence_is_ok = 0;
 								break;
 							}
@@ -13778,7 +13778,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 								firstcadencepos = i; /* only recorded to avoid duplicate specification */
 											/* duration will be passed negative to the Zaptel driver */
 							} else {
-								 ast_log(LOG_ERROR, "First cadence position specified twice: %s\n",original_args);
+								 ast_log(LOG_ERROR, "First cadence position specified twice: %s at line %d.\n", original_args, v->lineno);
 								cadence_is_ok = 0;
 								break;
 							}
@@ -13794,7 +13794,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				if (cadence_is_ok) {
 					/* ---we scanned it without getting annoyed; now some sanity checks--- */
 					if (element_count < 2) {
-						ast_log(LOG_ERROR, "Minimum cadence is ring,pause: %s\n", original_args);
+						ast_log(LOG_ERROR, "Minimum cadence is ring,pause: %s at line %d.\n", original_args, v->lineno);
 					} else {
 						if (cid_location == -1) {
 							/* user didn't say; default to first pause */
@@ -13808,7 +13808,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 							/* this is the first user-defined cadence; clear the default user cadences */
 							num_cadence = 0;
 						if ((num_cadence+1) >= NUM_CADENCE_MAX)
-							ast_log(LOG_ERROR, "Already %d cadences; can't add another: %s\n", NUM_CADENCE_MAX, original_args);
+							ast_log(LOG_ERROR, "Already %d cadences; can't add another: %s at line %d.\n", NUM_CADENCE_MAX, original_args, v->lineno);
 						else {
 							cadences[num_cadence] = new_cadence;
 							cidrings[num_cadence++] = cid_location;
@@ -13842,7 +13842,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 
 				ctlfd = open("/dev/zap/ctl", O_RDWR);
 				if (ctlfd == -1) {
-					ast_log(LOG_ERROR, "Unable to open /dev/zap/ctl to set toneduration\n");
+					ast_log(LOG_ERROR, "Unable to open /dev/zap/ctl to set toneduration at line %d.\n", v->lineno);
 					return -1;
 				}
 
@@ -13851,7 +13851,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 					dps.dtmf_tonelen = dps.mfv1_tonelen = toneduration;
 					res = ioctl(ctlfd, ZT_SET_DIALPARAMS, &dps);
 					if (res < 0) {
-						ast_log(LOG_ERROR, "Invalid tone duration: %d ms\n", toneduration);
+						ast_log(LOG_ERROR, "Invalid tone duration: %d ms at line %d.\n", toneduration, v->lineno);
 						return -1;
 					}
 				}
@@ -13864,7 +13864,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				mwilevel = atoi(v->value);
 			}
 		} else if (!skipchannels)
-			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
+			ast_log(LOG_WARNING, "Ignoring %s at line %d.\n", v->name, v->lineno);
 	}
 	if (zapchan[0]) { 
 		/* The user has set 'zapchan' */
