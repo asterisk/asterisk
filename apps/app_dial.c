@@ -1770,13 +1770,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				peer->whentohangup = time(NULL) + calldurationlimit;
 			}
 			if (!ast_strlen_zero(dtmfcalled)) { 
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the called party.\n", dtmfcalled);
+				ast_verb(3, "Sending DTMF '%s' to the called party.\n", dtmfcalled);
 				res = ast_dtmf_stream(peer, chan, dtmfcalled, 250, 0);
 			}
 			if (!ast_strlen_zero(dtmfcalling)) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the calling party.\n", dtmfcalling);
+				ast_verb(3, "Sending DTMF '%s' to the calling party.\n", dtmfcalling);
 				res = ast_dtmf_stream(chan, peer, dtmfcalling, 250, 0);
 			}
 		}

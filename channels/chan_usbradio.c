@@ -880,8 +880,7 @@ static int setformat(struct chan_usbradio_pvt *o, int mode)
 			/* Check to see if duplex set (FreeBSD Bug) */
 			res = ioctl(fd, SNDCTL_DSP_GETCAPS, &fmt);
 			if (res == 0 && (fmt & DSP_CAP_DUPLEX)) {
-				if (option_verbose > 1)
-					ast_verbose(VERBOSE_PREFIX_2 "Console is full duplex\n");
+				ast_verb(2, "Console is full duplex\n");
 				o->duplex = M_FULL;
 			};
 			break;
@@ -947,7 +946,7 @@ static int usbradio_digit_begin(struct ast_channel *c, char digit)
 static int usbradio_digit_end(struct ast_channel *c, char digit, unsigned int duration)
 {
 	/* no better use for received digits than print them */
-	ast_verbose(" << Console Received digit %c of duration %u ms >> \n", 
+	ast_verb(0, " << Console Received digit %c of duration %u ms >> \n", 
 		digit, duration);
 	return 0;
 }
@@ -955,7 +954,7 @@ static int usbradio_digit_end(struct ast_channel *c, char digit, unsigned int du
 static int usbradio_text(struct ast_channel *c, const char *text)
 {
 	/* print received messages */
-	ast_verbose(" << Console Received text %s >> \n", text);
+	ast_verb(0, " << Console Received text %s >> \n", text);
 	return 0;
 }
 
@@ -1246,22 +1245,22 @@ static int usbradio_indicate(struct ast_channel *c, int cond, const void *data, 
 	case AST_CONTROL_VIDUPDATE:
 		break;
 	case AST_CONTROL_HOLD:
-		ast_verbose(" << Console Has Been Placed on Hold >> \n");
+		ast_verb(0, " << Console Has Been Placed on Hold >> \n");
 		ast_moh_start(c, data, o->mohinterpret);
 		break;
 	case AST_CONTROL_UNHOLD:
-		ast_verbose(" << Console Has Been Retrieved from Hold >> \n");
+		ast_verb(0, " << Console Has Been Retrieved from Hold >> \n");
 		ast_moh_stop(c);
 		break;
 	case AST_CONTROL_RADIO_KEY:
 		o->txkeyed = 1;
 		if (o->debuglevel)
-			ast_verbose(" << Radio Transmit On. >> \n");
+			ast_verb(0, " << Radio Transmit On. >> \n");
 		break;
 	case AST_CONTROL_RADIO_UNKEY:
 		o->txkeyed = 0;
 		if (o->debuglevel)
-			ast_verbose(" << Radio Transmit Off. >> \n");
+			ast_verb(0, " << Radio Transmit Off. >> \n");
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, c->name);

@@ -56,7 +56,7 @@ static HOOK_T ssl_read(void *cookie, char *buf, LEN_T len)
 #if 0
 	if (i >= 0)
 		buf[i] = '\0';
-	ast_verbose("ssl read size %d returns %d <%s>\n", (int)len, i, buf);
+	ast_verb(0, "ssl read size %d returns %d <%s>\n", (int)len, i, buf);
 #endif
 	return i;
 }
@@ -67,7 +67,7 @@ static HOOK_T ssl_write(void *cookie, const char *buf, LEN_T len)
 	char *s = alloca(len+1);
 	strncpy(s, buf, len);
 	s[len] = '\0';
-	ast_verbose("ssl write size %d <%s>\n", (int)len, s);
+	ast_verb(0, "ssl write size %d <%s>\n", (int)len, s);
 #endif
 	return SSL_write(cookie, buf, len);
 }
@@ -169,7 +169,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 		    SSL_CTX_check_private_key(cfg->ssl_ctx) == 0 ) {
 			if (!client) {
 				/* Clients don't need a certificate, but if its setup we can use it */
-				ast_verbose("SSL cert error <%s>", cfg->certfile);
+				ast_verb(0, "SSL cert error <%s>", cfg->certfile);
 				sleep(2);
 				cfg->enabled = 0;
 				return 0;
@@ -179,7 +179,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	if (!ast_strlen_zero(cfg->cipher)) {
 		if (SSL_CTX_set_cipher_list(cfg->ssl_ctx, cfg->cipher) == 0 ) {
 			if (!client) {
-				ast_verbose("SSL cipher error <%s>", cfg->cipher);
+				ast_verb(0, "SSL cipher error <%s>", cfg->cipher);
 				sleep(2);
 				cfg->enabled = 0;
 				return 0;
@@ -188,10 +188,10 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	}
 	if (!ast_strlen_zero(cfg->cafile) || !ast_strlen_zero(cfg->capath)) {
 		if (SSL_CTX_load_verify_locations(cfg->ssl_ctx, S_OR(cfg->cafile, NULL), S_OR(cfg->capath,NULL)) == 0)
-			ast_verbose("SSL CA file(%s)/path(%s) error\n", cfg->cafile, cfg->capath);
+			ast_verb(0, "SSL CA file(%s)/path(%s) error\n", cfg->cafile, cfg->capath);
 	}
 
-	ast_verbose("SSL certificate ok\n");
+	ast_verb(0, "SSL certificate ok\n");
 	return 1;
 #endif
 }
@@ -369,8 +369,7 @@ void *ast_make_file_from_fd(void *data)
 	else if ( (ser->ssl = SSL_new(ser->parent->tls_cfg->ssl_ctx)) ) {
 		SSL_set_fd(ser->ssl, ser->fd);
 		if ((ret = ssl_setup(ser->ssl)) <= 0) {
-			if(option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Problem setting up ssl connection: %s\n", ERR_error_string(ERR_get_error(), err));
+			ast_verb(2, "Problem setting up ssl connection: %s\n", ERR_error_string(ERR_get_error(), err));
 		} else {
 #if defined(HAVE_FUNOPEN)	/* the BSD interface */
 			ser->f = funopen(ser->ssl, ssl_read, ssl_write, NULL, ssl_close);

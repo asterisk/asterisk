@@ -1893,8 +1893,7 @@ static void *aji_recv_loop(void *data)
 	int res = IKS_HOOK;
 
 	while(res != IKS_OK) {
-		if(option_verbose > 3)
-			ast_verbose("JABBER: Connecting.\n");
+		ast_verb(4, "JABBER: Connecting.\n");
 		res = aji_reconnect(client);
 		sleep(4);
 	}

@@ -467,8 +467,7 @@ void __ast_mm_init(void)
 	
 	snprintf(filename, sizeof(filename), "%s/mmlog", ast_config_AST_LOG_DIR);
 	
-	if (option_verbose)
-		ast_verbose("Asterisk Malloc Debugger Started (see %s))\n", filename);
+	ast_verb(1, "Asterisk Malloc Debugger Started (see %s))\n", filename);
 	
 	if ((mmlog = fopen(filename, "a+"))) {
 		fprintf(mmlog, "%ld - New session\n", (long)time(NULL));

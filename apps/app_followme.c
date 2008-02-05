@@ -609,8 +609,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 				if (f->frametype == AST_FRAME_CONTROL) {
 					switch(f->subclass) {
 					case AST_CONTROL_HANGUP:
-						if (option_verbose > 2)
-							ast_verb(3, "%s received a hangup frame.\n", winner->name);
+						ast_verb(3, "%s received a hangup frame.\n", winner->name);
 						if (dg == 0) {
 							ast_verb(3, "The calling channel hungup. Need to drop everyone else.\n");
 							clear_calling_tree(findme_user_list);
@@ -618,8 +617,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						}
 						break;
 					case AST_CONTROL_ANSWER:
-						if (option_verbose > 2)
-							ast_verb(3, "%s answered %s\n", winner->name, caller->name);
+						ast_verb(3, "%s answered %s\n", winner->name, caller->name);
 						/* If call has been answered, then the eventual hangup is likely to be normal hangup */ 
 						winner->hangupcause = AST_CAUSE_NORMAL_CLEARING;
 						caller->hangupcause = AST_CAUSE_NORMAL_CLEARING;

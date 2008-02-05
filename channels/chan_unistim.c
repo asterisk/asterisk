@@ -760,12 +760,12 @@ static void send_raw_client(int size, unsigned char *data, struct sockaddr_in *a
 		int tmp;
 		char iabuf[INET_ADDRSTRLEN];
 		char iabuf2[INET_ADDRSTRLEN];
-		ast_verbose("\n**> From %s sending %d bytes to %s ***\n",
+		ast_verb(0, "\n**> From %s sending %d bytes to %s ***\n",
 					ast_inet_ntoa(addr_ourip->sin_addr), (int) size,
 					ast_inet_ntoa(addr_to->sin_addr));
 		for (tmp = 0; tmp < size; tmp++)
-			ast_verbose("%.2x ", (unsigned char) data[tmp]);
-		ast_verbose("\n******************************************\n");
+			ast_verb(0, "%.2x ", (unsigned char) data[tmp]);
+		ast_verb(0, "\n******************************************\n");
 
 	}
 #endif
@@ -801,10 +801,8 @@ static void send_client(int size, const unsigned char *data, struct unistimsessi
 	pte->timeout = tick + RETRANSMIT_TIMER;
 
 /*#ifdef DUMP_PACKET */
-	if ((unistimdebug) && (option_verbose > 5)) {
-		ast_verbose("Sending datas with seq #0x%.4x Using slot #%d :\n", pte->seq_server,
-					buf_pos);
-	}
+	if (unistimdebug)
+		ast_verb(6, "Sending datas with seq #0x%.4x Using slot #%d :\n", pte->seq_server, buf_pos);
 /*#endif */
 	send_raw_client(pte->wsabufsend[buf_pos].len, pte->wsabufsend[buf_pos].buf, &(pte->sin),
 				  &(pte->sout));
@@ -815,8 +813,8 @@ static void send_client(int size, const unsigned char *data, struct unistimsessi
 static void send_ping(struct unistimsession *pte)
 {
 	BUFFSEND;
-	if ((unistimdebug) && (option_verbose > 5))
-		ast_verbose("Sending ping\n");
+	if (unistimdebug)
+		ast_verb(6, "Sending ping\n");
 	pte->tick_next_ping = get_tick_count() + unistim_keepalive;
 	memcpy(buffsend + SIZE_HEADER, packet_send_ping, sizeof(packet_send_ping));
 	send_client(SIZE_HEADER + sizeof(packet_send_ping), buffsend, pte);
@@ -866,8 +864,7 @@ static struct unistimsession *create_client(const struct sockaddr_in *addr_from)
 	memcpy(&s->sin, addr_from, sizeof(struct sockaddr_in));
 	get_to_address(unistimsock, &s->sout);
 	if (unistimdebug) {
-		ast_verbose
-			("Creating a new entry for the phone from %s received via server ip %s\n",
+		ast_verb(0, "Creating a new entry for the phone from %s received via server ip %s\n",
 			 ast_inet_ntoa(addr_from->sin_addr), ast_inet_ntoa(s->sout.sin_addr));
 	}
 	ast_mutex_init(&s->lock);
@@ -895,7 +892,7 @@ static void send_end_call(struct unistimsession *pte)
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verbose("Sending end call\n");
+		ast_verb(0, "Sending end call\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_end_call, sizeof(packet_send_end_call));
 	send_client(SIZE_HEADER + sizeof(packet_send_end_call), buffsend, pte);
 }
@@ -915,22 +912,22 @@ static void check_send_queue(struct unistimsession *pte)
 {
 	/* Check if our send queue contained only one element */
 	if (pte->last_buf_available == 1) {
-		if ((unistimdebug) && (option_verbose > 5))
-			ast_verbose("Our single packet was ACKed.\n");
+		if (unistimdebug)
+			ast_verb(6, "Our single packet was ACKed.\n");
 		pte->last_buf_available--;
 		set_ping_timer(pte);
 		return;
 	}
 	/* Check if this ACK catch up our latest packet */
 	else if (pte->last_seq_ack + 1 == pte->seq_server + 1) {
-		if ((unistimdebug) && (option_verbose > 5))
-			ast_verbose("Our send queue is completely ACKed.\n");
+		if (unistimdebug)
+			ast_verb(6, "Our send queue is completely ACKed.\n");
 		pte->last_buf_available = 0;    /* Purge the send queue */
 		set_ping_timer(pte);
 		return;
 	}
-	if ((unistimdebug) && (option_verbose > 5))
-		ast_verbose("We still have packets in our send queue\n");
+	if (unistimdebug)
+		ast_verb(6, "We still have packets in our send queue\n");
 	return;
 }
 
@@ -938,7 +935,7 @@ static void send_start_timer(struct unistimsession *pte)
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verbose("Sending start timer\n");
+		ast_verb(0, "Sending start timer\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_StartTimer, sizeof(packet_send_StartTimer));
 	send_client(SIZE_HEADER + sizeof(packet_send_StartTimer), buffsend, pte);
 }
@@ -947,7 +944,7 @@ static void send_stop_timer(struct unistimsession *pte)
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verbose("Sending stop timer\n");
+		ast_verb(0, "Sending stop timer\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_stop_timer, sizeof(packet_send_stop_timer));
 	send_client(SIZE_HEADER + sizeof(packet_send_stop_timer), buffsend, pte);
 }
@@ -956,7 +953,7 @@ static void Sendicon(unsigned char pos, unsigned char status, struct unistimsess
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verbose("Sending icon pos %d with status 0x%.2x\n", pos, status);
+		ast_verb(0, "Sending icon pos %d with status 0x%.2x\n", pos, status);
 	memcpy(buffsend + SIZE_HEADER, packet_send_icon, sizeof(packet_send_icon));
 	buffsend[9] = pos;
 	buffsend[10] = status;
@@ -968,7 +965,7 @@ static void send_tone(struct unistimsession *pte, uint16_t tone1, uint16_t tone2
 	BUFFSEND;
 	if (!tone1) {
 		if (unistimdebug)
-			ast_verbose("Sending Stream Based Tone Off\n");
+			ast_verb(0, "Sending Stream Based Tone Off\n");
 		memcpy(buffsend + SIZE_HEADER, packet_send_stream_based_tone_off,
 			   sizeof(packet_send_stream_based_tone_off));
 		send_client(SIZE_HEADER + sizeof(packet_send_stream_based_tone_off), buffsend, pte);
@@ -976,12 +973,11 @@ static void send_tone(struct unistimsession *pte, uint16_t tone1, uint16_t tone2
 	}
 	/* Since most of the world use a continuous tone, it's useless
 	   if (unistimdebug)
-	   ast_verbose ("Sending Stream Based Tone Cadence Download\n");
+	   ast_verb(0, "Sending Stream Based Tone Cadence Download\n");
 	   memcpy (buffsend + SIZE_HEADER, packet_send_StreamBasedToneCad, sizeof (packet_send_StreamBasedToneCad));
 	   send_client (SIZE_HEADER + sizeof (packet_send_StreamBasedToneCad), buffsend, pte); */
 	if (unistimdebug)
-		ast_verbose("Sending Stream Based Tone Frequency Component List Download %d %d\n",
-					tone1, tone2);
+		ast_verb(0, "Sending Stream Based Tone Frequency Component List Download %d %d\n", tone1, tone2);
 	tone1 *= 8;
 	if (!tone2) {
 		memcpy(buffsend + SIZE_HEADER, packet_send_stream_based_tone_single_freq,
@@ -1003,7 +999,7 @@ static void send_tone(struct unistimsession *pte, uint16_t tone1, uint16_t tone2
 	}
 
 	if (unistimdebug)
-		ast_verbose("Sending Stream Based Tone On\n");
+		ast_verb(0, "Sending Stream Based Tone On\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_stream_based_tone_on,
 		   sizeof(packet_send_stream_based_tone_on));
 	send_client(SIZE_HEADER + sizeof(packet_send_stream_based_tone_on), buffsend, pte);
@@ -1025,7 +1021,7 @@ send_favorite(unsigned char pos, unsigned char status, struct unistimsession *pt
 	int i;
 
 	if (unistimdebug)
-		ast_verbose("Sending favorite pos %d with status 0x%.2x\n", pos, status);
+		ast_verb(0, "Sending favorite pos %d with status 0x%.2x\n", pos, status);
 	memcpy(buffsend + SIZE_HEADER, packet_send_favorite, sizeof(packet_send_favorite));
 	buffsend[10] = pos;
 	buffsend[24] = pos;
@@ -1042,7 +1038,7 @@ static void refresh_all_favorite(struct unistimsession *pte)
 	int i = 0;
 
 	if (unistimdebug)
-		ast_verbose("Refreshing all favorite\n");
+		ast_verb(0, "Refreshing all favorite\n");
 	for (i = 0; i < 6; i++) {
 		if ((pte->device->softkeyicon[i] <= FAV_ICON_HEADPHONES_ONHOLD) &&
 			(pte->device->softkeylinepos != i))
@@ -1083,7 +1079,7 @@ static void change_favorite_icon(struct unistimsession *pte, unsigned char statu
 static int RegisterExtension(const struct unistimsession *pte)
 {
 	if (unistimdebug)
-		ast_verbose("Trying to register extension '%s' into context '%s' to %s\n",
+		ast_verb(0, "Trying to register extension '%s' into context '%s' to %s\n",
 					pte->device->extension_number, pte->device->lines->context,
 					pte->device->lines->fullname);
 	return ast_add_extension(pte->device->lines->context, 0,
@@ -1094,7 +1090,7 @@ static int RegisterExtension(const struct unistimsession *pte)
 static int UnregisterExtension(const struct unistimsession *pte)
 {
 	if (unistimdebug)
-		ast_verbose("Trying to unregister extension '%s' context '%s'\n",
+		ast_verb(0, "Trying to unregister extension '%s' context '%s'\n",
 					pte->device->extension_number, pte->device->lines->context);
 	return ast_context_remove_extension(pte->device->lines->context,
 										pte->device->extension_number, 1, "Unistim");
@@ -1118,7 +1114,7 @@ static void close_client(struct unistimsession *s)
 		if (cur->device) {	      /* This session was registred ? */
 			s->state = STATE_CLEANING;
 			if (unistimdebug)
-				ast_verbose("close_client session %p device %p lines %p sub %p\n",
+				ast_verb(0, "close_client session %p device %p lines %p sub %p\n",
 							s, s->device, s->device->lines,
 							s->device->lines->subs[SUB_REAL]);
 			change_favorite_icon(s, FAV_ICON_NONE);
@@ -1126,7 +1122,7 @@ static void close_client(struct unistimsession *s)
 			if (sub) {
 				if (sub->owner) {       /* Call in progress ? */
 					if (unistimdebug)
-						ast_verbose("Aborting call\n");
+						ast_verb(0, "Aborting call\n");
 					ast_queue_hangup(sub->owner);
 				}
 			} else
@@ -1136,7 +1132,7 @@ static void close_client(struct unistimsession *s)
 			cur->device->session = NULL;
 		} else {
 			if (unistimdebug)
-				ast_verbose("Freeing an unregistered client\n");
+				ast_verb(0, "Freeing an unregistered client\n");
 		}
 		if (prev)
 			prev->next = cur->next;
@@ -1158,7 +1154,7 @@ static int send_retransmit(struct unistimsession *pte)
 	ast_mutex_lock(&pte->lock);
 	if (++pte->nb_retransmit >= NB_MAX_RETRANSMIT) {
 		if (unistimdebug)
-			ast_verbose("Too many retransmit - freeing client\n");
+			ast_verb(0, "Too many retransmit - freeing client\n");
 		ast_mutex_unlock(&pte->lock);
 		close_client(pte);
 		return 1;
@@ -1179,7 +1175,7 @@ static int send_retransmit(struct unistimsession *pte)
 			unsigned short seq;
 
 			seq = ntohs(sbuf[1]);
-			ast_verbose("Retransmit slot #%d (seq=#0x%.4x), last ack was #0x%.4x\n", i,
+			ast_verb(0, "Retransmit slot #%d (seq=#0x%.4x), last ack was #0x%.4x\n", i,
 						seq, pte->last_seq_ack);
 		}
 		send_raw_client(pte->wsabufsend[i].len, pte->wsabufsend[i].buf, &pte->sin,
@@ -1197,7 +1193,7 @@ send_text(unsigned char pos, unsigned char inverse, struct unistimsession *pte,
 	int i;
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verbose("Sending text at pos %d, inverse flag %d\n", pos, inverse);
+		ast_verb(0, "Sending text at pos %d, inverse flag %d\n", pos, inverse);
 	memcpy(buffsend + SIZE_HEADER, packet_send_text, sizeof(packet_send_text));
 	buffsend[10] = pos;
 	buffsend[11] = inverse;
@@ -1213,7 +1209,7 @@ static void send_text_status(struct unistimsession *pte, const char *text)
 	BUFFSEND;
 	int i;
 	if (unistimdebug)
-		ast_verbose("Sending status text\n");
+		ast_verb(0, "Sending status text\n");
 	if (pte->device) {
 		if (pte->device->status_method == 1) {  /* For new firmware and i2050 soft phone */
 			int n = strlen(text);
@@ -1250,7 +1246,7 @@ static void send_led_update(struct unistimsession *pte, unsigned char led)
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verbose("Sending led_update (%x)\n", led);
+		ast_verb(0, "Sending led_update (%x)\n", led);
 	memcpy(buffsend + SIZE_HEADER, packet_send_led_update, sizeof(packet_send_led_update));
 	buffsend[9] = led;
 	send_client(SIZE_HEADER + sizeof(packet_send_led_update), buffsend, pte);
@@ -1265,7 +1261,7 @@ send_select_output(struct unistimsession *pte, unsigned char output, unsigned ch
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verbose("Sending select output packet output=%x volume=%x mute=%x\n", output,
+		ast_verb(0, "Sending select output packet output=%x volume=%x mute=%x\n", output,
 					volume, mute);
 	memcpy(buffsend + SIZE_HEADER, packet_send_select_output,
 		   sizeof(packet_send_select_output));
@@ -1324,7 +1320,7 @@ static void send_ring(struct unistimsession *pte, char volume, char style)
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verbose("Sending ring packet\n");
+		ast_verb(0, "Sending ring packet\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_ring, sizeof(packet_send_ring));
 	buffsend[24] = style + 0x10;
 	buffsend[29] = volume * 0x10;
@@ -1335,7 +1331,7 @@ static void send_no_ring(struct unistimsession *pte)
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verbose("Sending no ring packet\n");
+		ast_verb(0, "Sending no ring packet\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_no_ring, sizeof(packet_send_no_ring));
 	send_client(SIZE_HEADER + sizeof(packet_send_no_ring), buffsend, pte);
 }
@@ -1345,7 +1341,7 @@ static void send_texttitle(struct unistimsession *pte, const char *text)
 	BUFFSEND;
 	int i;
 	if (unistimdebug)
-		ast_verbose("Sending title text\n");
+		ast_verb(0, "Sending title text\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_title, sizeof(packet_send_title));
 	i = strlen(text);
 	if (i > 12)
@@ -1362,7 +1358,7 @@ static void send_date_time(struct unistimsession *pte)
 	struct ast_tm atm = { 0, };
 
 	if (unistimdebug)
-		ast_verbose("Sending Time & Date\n");
+		ast_verb(0, "Sending Time & Date\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_date_time, sizeof(packet_send_date_time));
 	ast_localtime(&tv, &atm, NULL);
 	buffsend[10] = (unsigned char) atm.tm_mon + 1;
@@ -1379,7 +1375,7 @@ static void send_date_time2(struct unistimsession *pte)
 	struct ast_tm atm = { 0, };
 
 	if (unistimdebug)
-		ast_verbose("Sending Time & Date #2\n");
+		ast_verb(0, "Sending Time & Date #2\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_date_time2, sizeof(packet_send_date_time2));
 	ast_localtime(&tv, &atm, NULL);
 	if (pte->device)
@@ -1400,7 +1396,7 @@ static void send_date_time3(struct unistimsession *pte)
 	struct ast_tm atm = { 0, };
 
 	if (unistimdebug)
-		ast_verbose("Sending Time & Date #3\n");
+		ast_verb(0, "Sending Time & Date #3\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_date_time3, sizeof(packet_send_date_time3));
 	ast_localtime(&tv, &atm, NULL);
 	buffsend[10] = (unsigned char) atm.tm_mon + 1;
@@ -1414,7 +1410,7 @@ static void send_blink_cursor(struct unistimsession *pte)
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verbose("Sending set blink\n");
+		ast_verb(0, "Sending set blink\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_blink_cursor, sizeof(packet_send_blink_cursor));
 	send_client(SIZE_HEADER + sizeof(packet_send_blink_cursor), buffsend, pte);
 	return;
@@ -1425,7 +1421,7 @@ static void send_cursor_pos(struct unistimsession *pte, unsigned char pos)
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verbose("Sending set cursor position\n");
+		ast_verb(0, "Sending set cursor position\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_set_pos_cursor,
 		   sizeof(packet_send_set_pos_cursor));
 	buffsend[11] = pos;
@@ -1436,10 +1432,10 @@ static void send_cursor_pos(struct unistimsession *pte, unsigned char pos)
 static void rcv_resume_connection_with_server(struct unistimsession *pte)
 {
 	BUFFSEND;
-	if (unistimdebug)
-		ast_verbose("ResumeConnectionWithServer received\n");
-	if (unistimdebug)
-		ast_verbose("Sending packet_send_query_mac_address\n");
+	if (unistimdebug) {
+		ast_verb(0, "ResumeConnectionWithServer received\n");
+		ast_verb(0, "Sending packet_send_query_mac_address\n");
+	}
 	memcpy(buffsend + SIZE_HEADER, packet_send_query_mac_address,
 		   sizeof(packet_send_query_mac_address));
 	send_client(SIZE_HEADER + sizeof(packet_send_query_mac_address), buffsend, pte);
@@ -1480,9 +1476,7 @@ static int alloc_sub(struct unistim_line *l, int x)
 		return 0;
 
 	if (unistimdebug)
-		ast_verbose(VERBOSE_PREFIX_3
-					"Allocating UNISTIM subchannel #%d on %s@%s ptr=%p\n", x, l->name,
-					l->parent->name, sub);
+		ast_verb(3, "Allocating UNISTIM subchannel #%d on %s@%s ptr=%p\n", x, l->name, l->parent->name, sub);
 	sub->parent = l;
 	sub->subtype = x;
 	l->subs[x] = sub;
@@ -1513,13 +1507,13 @@ static void rcv_mac_addr(struct unistimsession *pte, const unsigned char *buf)
 	char addrmac[19];
 	int res = 0;
 	if (unistimdebug)
-		ast_verbose("Mac Address received : ");
+		ast_verb(0, "Mac Address received : ");
 	for (tmp = 15; tmp < 15 + SIZE_HEADER; tmp++) {
 		sprintf(&addrmac[i], "%.2x", (unsigned char) buf[tmp]);
 		i += 2;
 	}
 	if (unistimdebug)
-		ast_verbose("%s\n", addrmac);
+		ast_verb(0, "%s\n", addrmac);
 	strcpy(pte->macaddr, addrmac);
 	res = unistim_register(pte);
 	if (!res) {
@@ -1533,7 +1527,7 @@ static void rcv_mac_addr(struct unistimsession *pte, const unsigned char *buf)
 				struct unistim_device *d, *newd;
 				struct unistim_line *newl;
 				if (unistimdebug)
-					ast_verbose("New phone, autoprovisioning on\n");
+					ast_verb(0, "New phone, autoprovisioning on\n");
 				/* First : locate the [template] section */
 				ast_mutex_lock(&devicelock);
 				d = devices;
@@ -1606,9 +1600,7 @@ static void rcv_mac_addr(struct unistimsession *pte, const unsigned char *buf)
 		}
 	}
 	if (pte->state != STATE_AUTHDENY) {
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Device '%s' successfuly registered\n",
-						pte->device->name);
+		ast_verb(3, "Device '%s' successfuly registered\n", pte->device->name);
 		switch (pte->device->extension) {
 		case EXTENSION_NONE:
 			pte->state = STATE_MAINPAGE;
@@ -1650,18 +1642,18 @@ static void rcv_mac_addr(struct unistimsession *pte, const unsigned char *buf)
 		pte->device->extension_number[0] = '\0';
 	}
 	if (unistimdebug)
-		ast_verbose("\nSending S1\n");
+		ast_verb(0, "\nSending S1\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_S1, sizeof(packet_send_S1));
 	send_client(SIZE_HEADER + sizeof(packet_send_S1), buffsend, pte);
 
 	if (unistimdebug)
-		ast_verbose("Sending query_basic_manager_04\n");
+		ast_verb(0, "Sending query_basic_manager_04\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_query_basic_manager_04,
 		   sizeof(packet_send_query_basic_manager_04));
 	send_client(SIZE_HEADER + sizeof(packet_send_query_basic_manager_04), buffsend, pte);
 
 	if (unistimdebug)
-		ast_verbose("Sending query_basic_manager_10\n");
+		ast_verb(0, "Sending query_basic_manager_10\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_query_basic_manager_10,
 		   sizeof(packet_send_query_basic_manager_10));
 	send_client(SIZE_HEADER + sizeof(packet_send_query_basic_manager_10), buffsend, pte);
@@ -1860,7 +1852,7 @@ static void swap_subs(struct unistim_line *p, int a, int b)
 	int fds;
 
 	if (unistimdebug)
-		ast_verbose("Swapping %d and %d\n", a, b);
+		ast_verb(0, "Swapping %d and %d\n", a, b);
 
 	if ((!p->subs[a]->owner) || (!p->subs[b]->owner)) {
 		ast_log(LOG_WARNING,
@@ -1978,7 +1970,7 @@ static void close_call(struct unistimsession *pte)
 		if (l->subs[SUB_THREEWAY]) {
 			l->subs[SUB_THREEWAY]->alreadygone = 1;
 			if (attempt_transfer(sub, l->subs[SUB_THREEWAY]) < 0)
-				ast_verbose("attempt_transfer failed.\n");
+				ast_verb(0, "attempt_transfer failed.\n");
 		} else
 			ast_queue_hangup(sub->owner);
 	} else {
@@ -1988,7 +1980,7 @@ static void close_call(struct unistimsession *pte)
 			else
 				ast_log(LOG_WARNING, "threeway sub without owner\n");
 		} else
-			ast_verbose("USTM(%s@%s-%d) channel already destroyed\n", sub->parent->name,
+			ast_verb(0, "USTM(%s@%s-%d) channel already destroyed\n", sub->parent->name,
 						sub->parent->parent->name, sub->subtype);
 	}
 	change_callerid(pte, 0, pte->device->redial_number);
@@ -2013,9 +2005,7 @@ static void *unistim_ss(void *data)
 	struct unistimsession *s = l->parent->session;
 	int res;
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Starting switch on '%s@%s-%d' to %s\n",
-					l->name, l->parent->name, sub->subtype, s->device->phone_number);
+	ast_verb(3, "Starting switch on '%s@%s-%d' to %s\n", l->name, l->parent->name, sub->subtype, s->device->phone_number);
 	ast_copy_string(chan->exten, s->device->phone_number, sizeof(chan->exten));
 	ast_copy_string(s->device->redial_number, s->device->phone_number,
 					sizeof(s->device->redial_number));
@@ -2059,7 +2049,7 @@ static void start_rtp(struct unistim_subchannel *sub)
 	ast_mutex_lock(&sub->lock);
 	/* Allocate the RTP */
 	if (unistimdebug)
-		ast_verbose("Starting RTP. Bind on %s\n", ast_inet_ntoa(sout.sin_addr));
+		ast_verb(0, "Starting RTP. Bind on %s\n", ast_inet_ntoa(sout.sin_addr));
 	sub->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, sout.sin_addr);
 	if (!sub->rtp) {
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s binaddr=%s\n",
@@ -2102,18 +2092,17 @@ static void start_rtp(struct unistim_subchannel *sub)
 	else
 		memcpy(&public, &public_ip, sizeof(public));    /* override  */
 	if (unistimdebug) {
-		ast_verbose
-			("RTP started : Our IP/port is : %s:%hd with codec %s (%d)\n",
+		ast_verb(0, "RTP started : Our IP/port is : %s:%hd with codec %s (%d)\n",
 			 ast_inet_ntoa(us.sin_addr),
 			 htons(us.sin_port), ast_getformatname(sub->owner->readformat),
 			 sub->owner->readformat);
-		ast_verbose("Starting phone RTP stack. Our public IP is %s\n",
+		ast_verb(0, "Starting phone RTP stack. Our public IP is %s\n",
 					ast_inet_ntoa(public.sin_addr));
 	}
 	if ((sub->owner->readformat == AST_FORMAT_ULAW) ||
 		(sub->owner->readformat == AST_FORMAT_ALAW)) {
 		if (unistimdebug)
-			ast_verbose("Sending packet_send_rtp_packet_size for codec %d\n", codec);
+			ast_verb(0, "Sending packet_send_rtp_packet_size for codec %d\n", codec);
 		memcpy(buffsend + SIZE_HEADER, packet_send_rtp_packet_size,
 			   sizeof(packet_send_rtp_packet_size));
 		buffsend[10] = codec;
@@ -2121,7 +2110,7 @@ static void start_rtp(struct unistim_subchannel *sub)
 				   sub->parent->parent->session);
 	}
 	if (unistimdebug)
-		ast_verbose("Sending Jitter Buffer Parameters Configuration\n");
+		ast_verb(0, "Sending Jitter Buffer Parameters Configuration\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_jitter_buffer_conf,
 		   sizeof(packet_send_jitter_buffer_conf));
 	send_client(SIZE_HEADER + sizeof(packet_send_jitter_buffer_conf), buffsend,
@@ -2130,7 +2119,7 @@ static void start_rtp(struct unistim_subchannel *sub)
 		uint16_t rtcpsin_port = htons(us.sin_port) + 1; /* RTCP port is RTP + 1 */
 
 		if (unistimdebug)
-			ast_verbose("Sending OpenAudioStreamTX using method #%d\n",
+			ast_verb(0, "Sending OpenAudioStreamTX using method #%d\n",
 						sub->parent->parent->rtp_method);
 		if (sub->parent->parent->rtp_method == 3)
 			memcpy(buffsend + SIZE_HEADER, packet_send_open_audio_stream_tx3,
@@ -2161,7 +2150,7 @@ static void start_rtp(struct unistim_subchannel *sub)
 				   sub->parent->parent->session);
 
 		if (unistimdebug)
-			ast_verbose("Sending OpenAudioStreamRX\n");
+			ast_verb(0, "Sending OpenAudioStreamRX\n");
 		if (sub->parent->parent->rtp_method == 3)
 			memcpy(buffsend + SIZE_HEADER, packet_send_open_audio_stream_rx3,
 				   sizeof(packet_send_open_audio_stream_rx3));
@@ -2193,7 +2182,7 @@ static void start_rtp(struct unistim_subchannel *sub)
 		uint16_t rtcpsin_port = htons(us.sin_port) + 1; /* RTCP port is RTP + 1 */
 
 		if (unistimdebug)
-			ast_verbose("Sending packet_send_call default method\n");
+			ast_verb(0, "Sending packet_send_call default method\n");
 
 		memcpy(buffsend + SIZE_HEADER, packet_send_call, sizeof(packet_send_call));
 		memcpy(buffsend + 53, &public.sin_addr, sizeof(public.sin_addr));
@@ -2234,13 +2223,13 @@ static void SendDialTone(struct unistimsession *pte)
 	/* No country defined ? Using US tone */
 	if (ast_strlen_zero(pte->device->country)) {
 		if (unistimdebug)
-			ast_verbose("No country defined, using US tone\n");
+			ast_verb(0, "No country defined, using US tone\n");
 		send_tone(pte, 350, 440);
 		return;
 	}
 	if (strlen(pte->device->country) != 2) {
 		if (unistimdebug)
-			ast_verbose("Country code != 2 char, using US tone\n");
+			ast_verb(0, "Country code != 2 char, using US tone\n");
 		send_tone(pte, 350, 440);
 		return;
 	}
@@ -2249,7 +2238,7 @@ static void SendDialTone(struct unistimsession *pte)
 		if ((frequency[i].country[0] == pte->device->country[0]) &&
 			(frequency[i].country[1] == pte->device->country[1])) {
 			if (unistimdebug)
-				ast_verbose("Country code found (%s), freq1=%d freq2=%d\n",
+				ast_verb(0, "Country code found (%s), freq1=%d freq2=%d\n",
 							frequency[i].country, frequency[i].freq1, frequency[i].freq2);
 			send_tone(pte, frequency[i].freq1, frequency[i].freq2);
 		}
@@ -2319,7 +2308,7 @@ static void TransferCallStep1(struct unistimsession *pte)
 	}
 	if (p->subs[SUB_THREEWAY]) {
 		if (unistimdebug)
-			ast_verbose("Transfer canceled, hangup our threeway channel\n");
+			ast_verb(0, "Transfer canceled, hangup our threeway channel\n");
 		if (p->subs[SUB_THREEWAY]->owner)
 			ast_queue_hangup(p->subs[SUB_THREEWAY]->owner);
 		else
@@ -2346,7 +2335,7 @@ static void TransferCallStep1(struct unistimsession *pte)
 		if (pte->device->silence_generator == NULL)
 			ast_log(LOG_WARNING, "Unable to start a silence generator.\n");
 		else if (unistimdebug)
-			ast_verbose("Starting silence generator\n");
+			ast_verb(0, "Starting silence generator\n");
 	}
 	handle_dial_page(pte);
 }
@@ -2405,7 +2394,7 @@ static void HandleCallOutgoing(struct unistimsession *s)
 			/* Stop the silence generator */
 			if (s->device->silence_generator) {
 				if (unistimdebug)
-					ast_verbose("Stopping silence generator\n");
+					ast_verb(0, "Stopping silence generator\n");
 				ast_channel_stop_silence_generator(sub->owner,
 												   s->device->silence_generator);
 				s->device->silence_generator = NULL;
@@ -2431,8 +2420,7 @@ static void HandleCallOutgoing(struct unistimsession *s)
 				return;
 			}
 			if (unistimdebug)
-				ast_verbose
-					("Started three way call on channel %p (%s) subchan %d\n",
+				ast_verb(0, "Started three way call on channel %p (%s) subchan %d\n",
 					 p->subs[SUB_THREEWAY]->owner, p->subs[SUB_THREEWAY]->owner->name,
 					 p->subs[SUB_THREEWAY]->subtype);
 		} else
@@ -2453,7 +2441,7 @@ static void HandleCallIncoming(struct unistimsession *s)
 		ast_log(LOG_NOTICE, "No available lines on: %s\n", s->device->name);
 		return;
 	} else if (unistimdebug)
-		ast_verbose("Handle Call Incoming for %s@%s\n", sub->parent->name,
+		ast_verb(0, "Handle Call Incoming for %s@%s\n", sub->parent->name,
 					s->device->name);
 	start_rtp(sub);
 	if (!sub->rtp)
@@ -2485,7 +2473,7 @@ static int unistim_do_senddigit(struct unistimsession *pte, char digit)
 		return -1;
 	}
 	if (unistimdebug)
-		ast_verbose("Send Digit %c\n", digit);
+		ast_verb(0, "Send Digit %c\n", digit);
 	switch (digit) {
 	case '0':
 		send_tone(pte, 941, 1336);
@@ -2726,7 +2714,7 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 			/* Stop the silence generator */
 			if (pte->device->silence_generator) {
 				if (unistimdebug)
-					ast_verbose("Stopping silence generator\n");
+					ast_verb(0, "Stopping silence generator\n");
 				ast_channel_stop_silence_generator(pte->device->lines->subs[SUB_REAL]->
 												   owner, pte->device->silence_generator);
 				pte->device->silence_generator = NULL;
@@ -3291,30 +3279,30 @@ static void init_phone_step2(struct unistimsession *pte)
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verbose("Sending S4\n");
+		ast_verb(0, "Sending S4\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_s4, sizeof(packet_send_s4));
 	send_client(SIZE_HEADER + sizeof(packet_send_s4), buffsend, pte);
 	send_date_time2(pte);
 	send_date_time3(pte);
 	if (unistimdebug)
-		ast_verbose("Sending S7\n");
+		ast_verb(0, "Sending S7\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_S7, sizeof(packet_send_S7));
 	send_client(SIZE_HEADER + sizeof(packet_send_S7), buffsend, pte);
 	if (unistimdebug)
-		ast_verbose("Sending Contrast\n");
+		ast_verb(0, "Sending Contrast\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_Contrast, sizeof(packet_send_Contrast));
 	if (pte->device != NULL)
 		buffsend[9] = pte->device->contrast;
 	send_client(SIZE_HEADER + sizeof(packet_send_Contrast), buffsend, pte);
 
 	if (unistimdebug)
-		ast_verbose("Sending S9\n");
+		ast_verb(0, "Sending S9\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_s9, sizeof(packet_send_s9));
 	send_client(SIZE_HEADER + sizeof(packet_send_s9), buffsend, pte);
 	send_no_ring(pte);
 
 	if (unistimdebug)
-		ast_verbose("Sending S7\n");
+		ast_verb(0, "Sending S7\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_S7, sizeof(packet_send_S7));
 	send_client(SIZE_HEADER + sizeof(packet_send_S7), buffsend, pte);
 	send_led_update(pte, 0);
@@ -3342,7 +3330,7 @@ static void init_phone_step2(struct unistimsession *pte)
 	show_main_page(pte);
 	refresh_all_favorite(pte);
 	if (unistimdebug)
-		ast_verbose("Sending arrow\n");
+		ast_verb(0, "Sending arrow\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_arrow, sizeof(packet_send_arrow));
 	send_client(SIZE_HEADER + sizeof(packet_send_arrow), buffsend, pte);
 	return;
@@ -3361,7 +3349,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 		0) {
 		buf[size] = 0;
 		if (unistimdebug)
-			ast_verbose("Got the firmware version : '%s'\n", buf + 13);
+			ast_verb(0, "Got the firmware version : '%s'\n", buf + 13);
 		init_phone_step2(pte);
 		return;
 	}
@@ -3371,30 +3359,30 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 	}
 	if (memcmp(buf + SIZE_HEADER, packet_recv_r2, sizeof(packet_recv_r2)) == 0) {
 		if (unistimdebug)
-			ast_verbose("R2 received\n");
+			ast_verb(0, "R2 received\n");
 		return;
 	}
 
 	if (pte->state < STATE_MAINPAGE) {
 		if (unistimdebug)
-			ast_verbose("Request not authorized in this state\n");
+			ast_verb(0, "Request not authorized in this state\n");
 		return;
 	}
 	if (!memcmp(buf + SIZE_HEADER, packet_recv_pressed_key, sizeof(packet_recv_pressed_key))) {
 		char keycode = buf[13];
 
 		if (unistimdebug)
-			ast_verbose("Key pressed : keycode = 0x%.2x - current state : %d\n", keycode,
+			ast_verb(0, "Key pressed : keycode = 0x%.2x - current state : %d\n", keycode,
 						pte->state);
 
 		switch (pte->state) {
 		case STATE_INIT:
 			if (unistimdebug)
-				ast_verbose("No keys allowed in the init state\n");
+				ast_verb(0, "No keys allowed in the init state\n");
 			break;
 		case STATE_AUTHDENY:
 			if (unistimdebug)
-				ast_verbose("No keys allowed in authdeny state\n");
+				ast_verb(0, "No keys allowed in authdeny state\n");
 			break;
 		case STATE_MAINPAGE:
 			key_main_page(pte, keycode);
@@ -3424,7 +3412,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 	}
 	if (memcmp(buf + SIZE_HEADER, packet_recv_pick_up, sizeof(packet_recv_pick_up)) == 0) {
 		if (unistimdebug)
-			ast_verbose("Handset off hook\n");
+			ast_verb(0, "Handset off hook\n");
 		if (!pte->device)	       /* We are not yet registred (asking for a TN in AUTOPROVISIONING_TN) */
 			return;
 		pte->device->receiver_state = STATE_OFFHOOK;
@@ -3446,7 +3434,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 	}
 	if (memcmp(buf + SIZE_HEADER, packet_recv_hangup, sizeof(packet_recv_hangup)) == 0) {
 		if (unistimdebug)
-			ast_verbose("Handset on hook\n");
+			ast_verb(0, "Handset on hook\n");
 		if (!pte->device)
 			return;
 		pte->device->receiver_state = STATE_ONHOOK;
@@ -3490,11 +3478,11 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 		} else {
 			if (memcmp(buf, packet_rcv_discovery, sizeof(packet_rcv_discovery)) == 0) {
 				if (unistimdebug)
-					ast_verbose("Discovery packet received - Sending Discovery ACK\n");
+					ast_verb(0, "Discovery packet received - Sending Discovery ACK\n");
 				if (pte) {	      /* A session was already active for this IP ? */
 					if (pte->state == STATE_INIT) { /* Yes, but it's a dupe */
 						if (unistimdebug)
-							ast_verbose("Duplicated Discovery packet\n");
+							ast_verb(1, "Duplicated Discovery packet\n");
 						send_raw_client(sizeof(packet_send_discovery_ack),
 									  packet_send_discovery_ack, addr_from, &pte->sout);
 						pte->seq_phone = (short) 0x0000;	/* reset sequence number */
@@ -3518,7 +3506,7 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 	}
 	if (!pte) {
 		if (unistimdebug)
-			ast_verbose("%s Not a discovery packet from an unknown source : ignoring\n",
+			ast_verb(0, "%s Not a discovery packet from an unknown source : ignoring\n",
 						tmpbuf);
 		return;
 	}
@@ -3535,8 +3523,8 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 	seq = ntohs(sbuf[1]);
 	if (buf[4] == 1) {
 		ast_mutex_lock(&pte->lock);
-		if ((unistimdebug) && (option_verbose > 5))
-			ast_verbose("ACK received for packet #0x%.4x\n", seq);
+		if (unistimdebug)
+			ast_verb(6, "ACK received for packet #0x%.4x\n", seq);
 		pte->nb_retransmit = 0;
 
 		if ((pte->last_seq_ack) + 1 == seq) {
@@ -3547,7 +3535,7 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 		}
 		if (pte->last_seq_ack > seq) {
 			if (pte->last_seq_ack == 0xffff) {
-				ast_verbose("ACK at 0xffff, restarting counter.\n");
+				ast_verb(0, "ACK at 0xffff, restarting counter.\n");
 				pte->last_seq_ack = 0;
 			} else
 				ast_log(LOG_NOTICE,
@@ -3564,7 +3552,7 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 			return;
 		}
 		if (unistimdebug)
-			ast_verbose("%s ACK gap : Received ACK #0x%.4x, previous was #0x%.4x\n",
+			ast_verb(0, "%s ACK gap : Received ACK #0x%.4x, previous was #0x%.4x\n",
 						tmpbuf, seq, pte->last_seq_ack);
 		pte->last_seq_ack = seq;
 		check_send_queue(pte);
@@ -3573,7 +3561,7 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 	}
 	if (buf[4] == 2) {
 		if (unistimdebug)
-			ast_verbose("Request received\n");
+			ast_verb(0, "Request received\n");
 		if (pte->seq_phone == seq) {
 			/* Send ACK */
 			buf[4] = 1;
@@ -3672,7 +3660,7 @@ static int unistim_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 
 	if (unistimdebug)
-		ast_verbose(VERBOSE_PREFIX_3 "unistim_call(%s)\n", ast->name);
+		ast_verb(3, "unistim_call(%s)\n", ast->name);
 
 	session->state = STATE_RINGING;
 	Sendicon(TEXT_LINE0, FAV_ICON_NONE, session);
@@ -3729,7 +3717,7 @@ static int unistim_hangup(struct ast_channel *ast)
 		ast_mutex_unlock(&sub->lock);
 		if (sub->rtp) {
 			if (unistimdebug)
-				ast_verbose("Destroying RTP session\n");
+				ast_verb(0, "Destroying RTP session\n");
 			ast_rtp_destroy(sub->rtp);
 			sub->rtp = NULL;
 		}
@@ -3737,11 +3725,11 @@ static int unistim_hangup(struct ast_channel *ast)
 	}
 	l = sub->parent;
 	if (unistimdebug)
-		ast_verbose("unistim_hangup(%s) on %s@%s\n", ast->name, l->name, l->parent->name);
+		ast_verb(0, "unistim_hangup(%s) on %s@%s\n", ast->name, l->name, l->parent->name);
 
 	if ((l->subs[SUB_THREEWAY]) && (sub->subtype == SUB_REAL)) {
 		if (unistimdebug)
-			ast_verbose("Real call disconnected while talking to threeway\n");
+			ast_verb(0, "Real call disconnected while talking to threeway\n");
 		sub->owner = NULL;
 		ast->tech_pvt = NULL;
 		return 0;
@@ -3749,7 +3737,7 @@ static int unistim_hangup(struct ast_channel *ast)
 	if ((l->subs[SUB_REAL]->owner) && (sub->subtype == SUB_THREEWAY) &&
 		(sub->alreadygone == 0)) {
 		if (unistimdebug)
-			ast_verbose("threeway call disconnected, switching to real call\n");
+			ast_verb(0, "threeway call disconnected, switching to real call\n");
 		send_text(TEXT_LINE0, TEXT_NORMAL, s, "Three way call canceled,");
 		send_text(TEXT_LINE1, TEXT_NORMAL, s, "switching back to");
 		send_text(TEXT_LINE2, TEXT_NORMAL, s, "previous call.");
@@ -3771,10 +3759,10 @@ static int unistim_hangup(struct ast_channel *ast)
 	ast_mutex_unlock(&sub->lock);
 	if (!s) {
 		if (unistimdebug)
-			ast_verbose("Asked to hangup channel not connected (no session)\n");
+			ast_verb(0, "Asked to hangup channel not connected (no session)\n");
 		if (sub->rtp) {
 			if (unistimdebug)
-				ast_verbose("Destroying RTP session\n");
+				ast_verb(0, "Destroying RTP session\n");
 			ast_rtp_destroy(sub->rtp);
 			sub->rtp = NULL;
 		}
@@ -3784,7 +3772,7 @@ static int unistim_hangup(struct ast_channel *ast)
 		/* Stop the silence generator */
 		if (s->device->silence_generator) {
 			if (unistimdebug)
-				ast_verbose("Stopping silence generator\n");
+				ast_verb(0, "Stopping silence generator\n");
 			if (sub->owner)
 				ast_channel_stop_silence_generator(sub->owner,
 												   s->device->silence_generator);
@@ -3799,14 +3787,14 @@ static int unistim_hangup(struct ast_channel *ast)
 	send_end_call(s);
 	if (sub->rtp) {
 		if (unistimdebug)
-			ast_verbose("Destroying RTP session\n");
+			ast_verb(0, "Destroying RTP session\n");
 		ast_rtp_destroy(sub->rtp);
 		sub->rtp = NULL;
 	} else if (unistimdebug)
-		ast_verbose("No RTP session to destroy\n");
+		ast_verb(0, "No RTP session to destroy\n");
 	if (l->subs[SUB_THREEWAY]) {
 		if (unistimdebug)
-			ast_verbose("Cleaning other subchannels\n");
+			ast_verb(0, "Cleaning other subchannels\n");
 		unalloc_sub(l, SUB_THREEWAY);
 	}
 	if (s->state == STATE_RINGING)
@@ -3836,7 +3824,7 @@ static int unistim_answer(struct ast_channel *ast)
 	if ((!sub->rtp) && (!l->subs[SUB_THREEWAY]))
 		start_rtp(sub);
 	if (unistimdebug)
-		ast_verbose("unistim_answer(%s) on %s@%s-%d\n", ast->name, l->name,
+		ast_verb(0, "unistim_answer(%s) on %s@%s-%d\n", ast->name, l->name,
 					l->parent->name, sub->subtype);
 	send_text(TEXT_LINE2, TEXT_NORMAL, l->parent->session, "is now on-line");
 	if (l->subs[SUB_THREEWAY])
@@ -3889,17 +3877,17 @@ static int unistimsock_read(int *id, int fd, short events, void *ignore)
 
 #ifdef DUMP_PACKET
 	if (unistimdebug)
-		ast_verbose("\n*** Dump %d bytes from %s - phone_table[%d] ***\n",
+		ast_verb(0, "\n*** Dump %d bytes from %s - phone_table[%d] ***\n",
 					dw_num_bytes_rcvd, ast_inet_ntoa(addr_from.sin_addr), tmp);
 	for (dw_num_bytes_rcvdd = 0; dw_num_bytes_rcvdd < dw_num_bytes_rcvd;
 		 dw_num_bytes_rcvdd++)
-		ast_verbose("%.2x ", (unsigned char) buff[dw_num_bytes_rcvdd]);
-	ast_verbose("\n******************************************\n");
+		ast_verb(0, "%.2x ", (unsigned char) buff[dw_num_bytes_rcvdd]);
+	ast_verb(0, "\n******************************************\n");
 #endif
 
 	if (!found) {
 		if (unistimdebug)
-			ast_verbose("Received a packet from an unknown source\n");
+			ast_verb(0, "Received a packet from an unknown source\n");
 		parsing(dw_num_bytes_rcvd, buff, NULL, (struct sockaddr_in *) &addr_from);
 
 	} else
@@ -4084,7 +4072,7 @@ static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
 	struct unistimsession *s;
 
 	if (unistimdebug) {
-		ast_verbose(VERBOSE_PREFIX_3 "Asked to indicate '%s' condition on channel %s\n",
+		ast_verb(3, "Asked to indicate '%s' condition on channel %s\n",
 					control2str(ind), ast->name);
 	}
 
@@ -4169,7 +4157,7 @@ static struct unistim_subchannel *find_subchannel_by_name(const char *dest)
 	while (d) {
 		if (!strcasecmp(d->name, device)) {
 			if (unistimdebug)
-				ast_verbose("Found device: %s\n", d->name);
+				ast_verb(0, "Found device: %s\n", d->name);
 			/* Found the device */
 			l = d->lines;
 			while (l) {
@@ -4190,8 +4178,7 @@ static struct unistim_subchannel *find_subchannel_by_name(const char *dest)
 								if ((*at >= '0') && (*at <= '3'))       /* ring volume */
 									ring_volume = *at - '0';
 								if (unistimdebug)
-									ast_verbose
-										("Distinctive ring : style #%d volume %d\n",
+									ast_verb(0, "Distinctive ring : style #%d volume %d\n",
 										 ring_style, ring_volume);
 								l->subs[SUB_REAL]->ringvolume = ring_volume;
 								l->subs[SUB_REAL]->ringstyle = ring_style;
@@ -4236,7 +4223,7 @@ static int unistim_senddigit_end(struct ast_channel *ast, char digit, unsigned i
 	}
 
 	if (unistimdebug)
-		ast_verbose("Send Digit off %c\n", digit);
+		ast_verb(0, "Send Digit off %c\n", digit);
 
 	if (!pte)
 		return -1;
@@ -4259,7 +4246,7 @@ static int unistim_sendtext(struct ast_channel *ast, const char *text)
 	char tmp[TEXT_LENGTH_MAX + 1];
 
 	if (unistimdebug)
-		ast_verbose("unistim_sendtext called\n");
+		ast_verb(0, "unistim_sendtext called\n");
 
 	if (!text) {
 		ast_log(LOG_WARNING, "unistim_sendtext called with a null text\n");
@@ -4443,7 +4430,7 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	tmp = ast_channel_alloc(1, state, l->cid_num, NULL, l->accountcode, l->exten, 
 		l->context, l->amaflags, "%s-%08x", l->fullname, (int) (long) sub);
 	if (unistimdebug)
-		ast_verbose("unistim_new sub=%d (%p) chan=%p\n", sub->subtype, sub, tmp);
+		ast_verb(0, "unistim_new sub=%d (%p) chan=%p\n", sub->subtype, sub, tmp);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 		return NULL;
@@ -4454,14 +4441,13 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		tmp->nativeformats = CAPABILITY;
 	fmt = ast_best_codec(tmp->nativeformats);
 	if (unistimdebug)
-		ast_verbose
-			("Best codec = %d from nativeformats %d (line cap=%d global=%d)\n", fmt,
+		ast_verb(0, "Best codec = %d from nativeformats %d (line cap=%d global=%d)\n", fmt,
 			 tmp->nativeformats, l->capability, CAPABILITY);
 	ast_string_field_build(tmp, name, "USTM/%s@%s-%d", l->name, l->parent->name,
 						   sub->subtype);
 	if ((sub->rtp) && (sub->subtype == 0)) {
 		if (unistimdebug)
-			ast_verbose("New unistim channel with a previous rtp handle ?\n");
+			ast_verb(0, "New unistim channel with a previous rtp handle ?\n");
 		tmp->fds[0] = ast_rtp_fd(sub->rtp);
 		tmp->fds[1] = ast_rtcp_fd(sub->rtp);
 	}
@@ -4501,7 +4487,7 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	tmp->priority = 1;
 	if (state != AST_STATE_DOWN) {
 		if (unistimdebug)
-			ast_verbose("Starting pbx in unistim_new\n");
+			ast_verb(0, "Starting pbx in unistim_new\n");
 		if (ast_pbx_start(tmp)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 			ast_hangup(tmp);
@@ -4578,8 +4564,7 @@ static void *do_monitor(void *data)
 		unistim_reloading = 0;
 		ast_mutex_unlock(&unistim_reload_lock);
 		if (reloading) {
-			if (option_verbose > 0)
-				ast_verbose(VERBOSE_PREFIX_1 "Reloading unistim.conf...\n");
+			ast_verb(1, "Reloading unistim.conf...\n");
 			reload_config();
 		}
 		pthread_testcancel();
@@ -4657,12 +4642,11 @@ static struct ast_channel *unistim_request(const char *type, int format, void *d
 		return NULL;
 	}
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "unistim_request(%s)\n", tmp);
+	ast_verb(3, "unistim_request(%s)\n", tmp);
 	/* Busy ? */
 	if (sub->owner) {
 		if (unistimdebug)
-			ast_verbose("Can't create channel : Busy !\n");
+			ast_verb(0, "Can't create channel : Busy !\n");
 		*cause = AST_CAUSE_BUSY;
 		return NULL;
 	}
@@ -4671,7 +4655,7 @@ static struct ast_channel *unistim_request(const char *type, int format, void *d
 	if (!tmpc)
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
 	if (unistimdebug)
-		ast_verbose("unistim_request owner = %p\n", sub->owner);
+		ast_verb(0, "unistim_request owner = %p\n", sub->owner);
 	restart_monitor();
 
 	/* and finish */
@@ -4859,7 +4843,7 @@ static char *unistim_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 
 	if (unistimdebug)
-		ast_verbose("reload unistim\n");
+		ast_verb(0, "reload unistim\n");
 
 	ast_mutex_lock(&unistim_reload_lock);
 	if (!unistim_reloading)
@@ -4972,7 +4956,7 @@ static int ParseBookmark(const char *text, struct unistim_device *d)
 	ast_copy_string(d->softkeylabel[p], line, sizeof(d->softkeylabel[p]));
 	ast_copy_string(d->softkeynumber[p], number, sizeof(d->softkeynumber[p]));
 	if (unistimdebug)
-		ast_verbose("New bookmark at pos %d label='%s' number='%s' icon=%x\n",
+		ast_verb(0, "New bookmark at pos %d label='%s' number='%s' icon=%x\n",
 					p, d->softkeylabel[p], d->softkeynumber[p], d->softkeyicon[p]);
 	return 1;
 }
@@ -5194,8 +5178,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 			ast_copy_string(l->context, context, sizeof(l->context));
 			if (!ast_strlen_zero(l->mailbox)) {
 				if (unistimdebug)
-					ast_verbose(VERBOSE_PREFIX_3 "Setting mailbox '%s' on %s@%s\n",
-								l->mailbox, d->name, l->name);
+					ast_verb(3, "Setting mailbox '%s' on %s@%s\n", l->mailbox, d->name, l->name);
 			}
 
 			l->capability = CAPABILITY;
@@ -5283,11 +5266,9 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		d->next = devices;
 		devices = d;
 		ast_mutex_unlock(&devicelock);
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Added device '%s'\n", d->name);
+		ast_verb(3, "Added device '%s'\n", d->name);
 	} else {
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Device '%s' reloaded\n", d->name);
+		ast_verb(3, "Device '%s' reloaded\n", d->name);
 	}
 	return d;
 }
@@ -5403,7 +5384,7 @@ static int reload_config(void)
 			int i;
 
 			if (unistimdebug)
-				ast_verbose("Removing device '%s'\n", d->name);
+				ast_verb(0, "Removing device '%s'\n", d->name);
 			if (!d->lines) {
 				ast_log(LOG_ERROR, "Device '%s' without a line !, aborting\n", d->name);
 				ast_config_destroy(cfg);
@@ -5517,11 +5498,7 @@ static int reload_config(void)
 		close(unistimsock);
 		unistimsock = -1;
 	} else {
-		if (option_verbose > 1) {
-			ast_verbose(VERBOSE_PREFIX_2
-						"UNISTIM Listening on %s:%d\n",
-						ast_inet_ntoa(bindaddr.sin_addr), htons(bindaddr.sin_port));
-		}
+		ast_verb(2, "UNISTIM Listening on %s:%d\n", ast_inet_ntoa(bindaddr.sin_addr), htons(bindaddr.sin_port));
 		ast_netsock_set_qos(unistimsock, tos, cos, "UNISTIM");
 	}
 	return 0;
@@ -5540,7 +5517,7 @@ static enum ast_rtp_get_result unistim_get_rtp_peer(struct ast_channel *chan,
 	enum ast_rtp_get_result res = AST_RTP_GET_FAILED;
 
 	if (unistimdebug)
-		ast_verbose("unistim_get_rtp_peer called\n");
+		ast_verb(0, "unistim_get_rtp_peer called\n");
 		
 	sub = chan->tech_pvt;
 	if (sub && sub->rtp) {
@@ -5557,7 +5534,7 @@ static int unistim_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp,
 	struct unistim_subchannel *sub;
 
 	if (unistimdebug)
-		ast_verbose("unistim_set_rtp_peer called\n");
+		ast_verb(0, "unistim_set_rtp_peer called\n");
 
 	sub = chan->tech_pvt;
 

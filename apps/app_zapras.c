@@ -165,16 +165,13 @@ static void run_ras(struct ast_channel *chan, char *args)
 			if (res < 0) {
 				ast_log(LOG_WARNING, "wait4 returned %d: %s\n", res, strerror(errno));
 			}
-			if (option_verbose > 2) {
-				if (WIFEXITED(status)) {
-					ast_verbose(VERBOSE_PREFIX_3 "RAS on %s terminated with status %d\n", chan->name, WEXITSTATUS(status));
-				} else if (WIFSIGNALED(status)) {
-					ast_verbose(VERBOSE_PREFIX_3 "RAS on %s terminated with signal %d\n", 
-						 chan->name, WTERMSIG(status));
-				} else {
-					ast_verbose(VERBOSE_PREFIX_3 "RAS on %s terminated weirdly.\n", chan->name);
-				}
-			}
+			if (WIFEXITED(status))
+				ast_verb(3, "RAS on %s terminated with status %d\n", chan->name, WEXITSTATUS(status));
+			else if (WIFSIGNALED(status))
+				ast_verb(3, "RAS on %s terminated with signal %d\n", chan->name, WTERMSIG(status));
+			else
+				ast_verbose(VERBOSE_PREFIX_3 "RAS on %s terminated weirdly.\n", chan->name);
+
 			/* Throw back into audio mode */
 			x = 1;
 			ioctl(chan->fds[0], ZT_AUDIOMODE, &x);

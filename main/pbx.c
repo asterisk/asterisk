@@ -7035,8 +7035,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1, chan->cid.cid_num)) {
 			ast_verb(3, "Timeout on %s, continuing...\n", chan->name);
 		} else if (chan->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Call timeout on %s, checking for 'T'\n", chan->name);
+			ast_verb(3, "Call timeout on %s, checking for 'T'\n", chan->name);
 			res = -1;
 		} else if (ast_exists_extension(chan, chan->context, "t", 1, chan->cid.cid_num)) {
 			ast_verb(3, "Timeout on %s, going to 't'\n", chan->name);

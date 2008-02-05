@@ -121,15 +121,14 @@ static void database_increment( char *key )
 	sscanf(value, "%u", &v);
 	v++;
 	
-	if(option_verbose >= 4)
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: New value for %s: %u\n", key, v);
+	ast_verb(4, "AlarmReceiver: New value for %s: %u\n", key, v);
 		
 	snprintf(value, sizeof(value), "%u", v);
 	
 	res = ast_db_put(db_family, key, value);
 	
-	if((res)&&(option_verbose >= 4))
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: database_increment write error\n");
+	if (res)
+		ast_verb(4, "AlarmReceiver: database_increment write error\n");
 	
 	return;	
 }
@@ -240,8 +239,7 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 		  /* if outa time, leave */
 		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) >
 		    ((i > 0) ? sdto : fdto)){
-			if(option_verbose >= 4)
-				ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: DTMF Digit Timeout on %s\n", chan->name);
+			ast_verb(4, "AlarmReceiver: DTMF Digit Timeout on %s\n", chan->name);
 				
 			ast_debug(1,"AlarmReceiver: DTMF timeout on chan %s\n",chan->name);
 				
@@ -342,8 +340,7 @@ static int write_metadata( FILE *logfile, char *signalling_type, struct ast_chan
 		res = fprintf(logfile, "[events]\n\n");
 	
 	if(res < 0){
-		if (option_verbose >= 3 )
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: can't write metadata\n");	
+		ast_verb(3, "AlarmReceiver: can't write metadata\n");	
 		
 		ast_debug(1,"AlarmReceiver: can't write metadata\n");
 	}
@@ -394,8 +391,7 @@ static int log_events(struct ast_channel *chan,  char *signalling_type, event_no
 		fd = mkstemp(workstring);
 		
 		if(fd == -1) {
-			if (option_verbose >= 3)
-				ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: can't make temporary file\n");	
+			ast_verb(3, "AlarmReceiver: can't make temporary file\n");	
 			ast_debug(1,"AlarmReceiver: can't make temporary file\n");
 			res = -1;
 		}
@@ -451,8 +447,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 
 	/* Wait for first event */
 
-	if(option_verbose >= 4)
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Waiting for first event from panel\n");
+	ast_verb(4, "AlarmReceiver: Waiting for first event from panel\n");
 
 	while(res >= 0){
 
@@ -461,8 +456,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 	        	/* Send ACK tone sequence */
                         
 		                                                                                                                    
-        		if(option_verbose >= 4)
-                		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Sending 1400Hz 100ms burst (ACK)\n");
+                ast_verb(4, "AlarmReceiver: Sending 1400Hz 100ms burst (ACK)\n");
                                                                                                                                             
                                                                                                                                             
         		res = send_tone_burst(chan, 1400.0, 100, tldn);
@@ -471,8 +465,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
                 		res = ast_safe_sleep(chan, 100);
                                                                                                                                             
         		if(!res){
-                		if(option_verbose >= 4)
-                        		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Sending 2300Hz 100ms burst (ACK)\n");
+                       	ast_verb(4, "AlarmReceiver: Sending 2300Hz 100ms burst (ACK)\n");
                                                                                                                                             
                 		res = send_tone_burst(chan, 2300.0, 100, tldn);
         		}
@@ -489,22 +482,19 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 				database_increment("no-events-received");
 			else{
 				if(ack_retries){
-					if(option_verbose >= 4)
-						ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: ACK retries during this call: %d\n", ack_retries);
+					ast_verb(4, "AlarmReceiver: ACK retries during this call: %d\n", ack_retries);
 					
 					database_increment("ack-retries");
 				}
 			}
-			if(option_verbose >= 4)
-				ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: App exiting...\n");
+			ast_verb(4, "AlarmReceiver: App exiting...\n");
 			res = -1;
 			break;
 		}
 		
 		if(res != 0){
 			 /* Didn't get all of the digits */
-			if(option_verbose >= 2)
-				ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Incomplete string: %s, trying again...\n", event);
+			ast_verb(2, "AlarmReceiver: Incomplete string: %s, trying again...\n", event);
 
 			if(!got_some_digits){
 				got_some_digits = (!ast_strlen_zero(event)) ? 1 : 0;
@@ -716,8 +706,7 @@ static int load_config(void)
                                                                                                                                   
 	if(!cfg){
 	
-		if(option_verbose >= 4)
-			ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: No config file\n");
+		ast_verb(4, "AlarmReceiver: No config file\n");
 		return 0;
 	}
 	else{

@@ -849,8 +849,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 	if (filesize_reload_needed) {
 		reload_logger(-1);
 		ast_log(LOG_EVENT, "Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
-		if (option_verbose)
-			ast_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
+		ast_verb(1, "Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 	}
 
 	return;
@@ -936,8 +935,7 @@ int init_logger(void)
 		eventlog = fopen(tmp, "a");
 		if (eventlog) {
 			ast_log(LOG_EVENT, "Started Asterisk Event Logger\n");
-			if (option_verbose)
-				ast_verbose("Asterisk Event Logger Started %s\n", tmp);
+			ast_verb(1, "Asterisk Event Logger Started %s\n", tmp);
 		} else {
 			ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 			res = -1;

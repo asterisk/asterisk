@@ -1584,7 +1584,6 @@ static int handle_getvariablefull(struct ast_channel *chan, AGI *agi, int argc, 
 static int handle_verbose(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	int level = 0;
-	char *prefix;
 
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
@@ -1592,24 +1591,7 @@ static int handle_verbose(struct ast_channel *chan, AGI *agi, int argc, char **a
 	if (argv[2])
 		sscanf(argv[2], "%d", &level);
 
-	switch (level) {
-		case 4:
-			prefix = VERBOSE_PREFIX_4;
-			break;
-		case 3:
-			prefix = VERBOSE_PREFIX_3;
-			break;
-		case 2:
-			prefix = VERBOSE_PREFIX_2;
-			break;
-		case 1:
-		default:
-			prefix = VERBOSE_PREFIX_1;
-			break;
-	}
-
-	if (level <= option_verbose)
-		ast_verbose("%s %s: %s\n", prefix, chan->data, argv[1]);
+	ast_verb(level, "%s: %s\n", chan->data, argv[1]);
 	
 	ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
 	
