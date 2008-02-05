@@ -122,6 +122,8 @@ misdn_config.o: ASTCFLAGS+=-Imisdn
 
 misdn/isdn_lib.o: ASTCFLAGS+=-Wno-strict-aliasing
 
+misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o: ASTCFLAGS+=$(MENUSELECT_OPTS_chan_misdn:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_chan_misdn),$(value $(dep)_INCLUDE))
+
 $(if $(filter chan_misdn,$(EMBEDDED_MODS)),modules.link,chan_misdn.so): chan_misdn.o misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o
 
 chan_vpb.oo: ASTCFLAGS:=$(filter-out -Wdeclaration-after-statement,$(ASTCFLAGS))
