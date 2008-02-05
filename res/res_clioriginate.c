@@ -86,7 +86,7 @@ static int orig_app(int fd, const char *chan, const char *app, const char *appda
 		return RESULT_SHOWUSAGE;
 	}
 
-	ast_pbx_outgoing_app(chantech, AST_FORMAT_SLINEAR, chandata, TIMEOUT * 1000, app, appdata, &reason, 1, NULL, NULL, NULL, NULL, NULL);
+	ast_pbx_outgoing_app(chantech, AST_FORMAT_SLINEAR, chandata, TIMEOUT * 1000, app, appdata, &reason, 0, NULL, NULL, NULL, NULL, NULL);
 
 	return RESULT_SUCCESS;
 }
@@ -117,7 +117,7 @@ static int orig_exten(int fd, const char *chan, const char *data)
 	if (ast_strlen_zero(context))
 		context = "default";
 	
-	ast_pbx_outgoing_exten(chantech, AST_FORMAT_SLINEAR, chandata, TIMEOUT * 1000, context, exten, 1, &reason, 1, NULL, NULL, NULL, NULL, NULL);
+	ast_pbx_outgoing_exten(chantech, AST_FORMAT_SLINEAR, chandata, TIMEOUT * 1000, context, exten, 1, &reason, 0, NULL, NULL, NULL, NULL, NULL);
 
 	return RESULT_SUCCESS;
 }
