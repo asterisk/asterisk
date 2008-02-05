@@ -9918,16 +9918,22 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	good_response = keys[K_RESP].s &&
 			!strncasecmp(keys[K_RESP].s, resp_hash, strlen(resp_hash));
 	if (wrongnonce) {
-		ast_string_field_build(p, randdata, "%08lx", ast_random());
 		if (good_response) {
 			if (sipdebug)
 				ast_log(LOG_NOTICE, "Correct auth, but based on stale nonce received from '%s'\n", get_header(req, "To"));
 			/* We got working auth token, based on stale nonce . */
+			ast_string_field_build(p, randdata, "%08lx", ast_random());
 			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, TRUE);
 		} else {
 			/* Everything was wrong, so give the device one more try with a new challenge */
-			if (sipdebug)
-				ast_log(LOG_NOTICE, "Bad authentication received from '%s'\n", get_header(req, "To"));
+			if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
+				if (sipdebug)
+					ast_log(LOG_NOTICE, "Bad authentication received from '%s'\n", get_header(req, "To"));
+				ast_string_field_build(p, randdata, "%08lx", ast_random());
+			} else {
+				if (sipdebug)
+					ast_log(LOG_NOTICE, "Duplicate authentication received from '%s'\n", get_header(req, "To"));
+			}
 			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, FALSE);
 		}
 
