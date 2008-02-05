@@ -9926,7 +9926,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, TRUE);
 		} else {
 			/* Everything was wrong, so give the device one more try with a new challenge */
-			if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
+			if (!req->ignore) {
 				if (sipdebug)
 					ast_log(LOG_NOTICE, "Bad authentication received from '%s'\n", get_header(req, "To"));
 				ast_string_field_build(p, randdata, "%08lx", ast_random());
