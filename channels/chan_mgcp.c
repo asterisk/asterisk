@@ -981,6 +981,9 @@ static int mgcp_hangup(struct ast_channel *ast)
 	sub->outgoing = 0;
 	sub->cxmode = MGCP_CX_INACTIVE;
 	sub->callid[0] = '\0';
+	if (p) {
+		memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
+	}
 	/* Reset temporary destination */
 	memset(&sub->tmpdest, 0, sizeof(sub->tmpdest));
 	if (sub->rtp) {
