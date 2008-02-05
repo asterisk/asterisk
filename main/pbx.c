@@ -5853,8 +5853,12 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
 		ast_copy_string(chan->context, context, sizeof(chan->context));
 	if (!ast_strlen_zero(exten))
 		ast_copy_string(chan->exten, exten, sizeof(chan->exten));
-	if (priority > -1)
+	if (priority > -1) {
 		chan->priority = priority;
+		/* see flag description in channel.h for explanation */
+		if (ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP))
+			chan->priority--;
+	}
 
 	ast_channel_unlock(chan);
 
@@ -5868,7 +5872,7 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 	ast_channel_lock(chan);
 
 	if (chan->pbx) { /* This channel is currently in the PBX */
-		ast_explicit_goto(chan, context, exten, priority);
+		ast_explicit_goto(chan, context, exten, priority + 1);
 		ast_softhangup_nolock(chan, AST_SOFTHANGUP_ASYNCGOTO);
 	} else {
 		/* In order to do it when the channel doesn't really exist within
