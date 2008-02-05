@@ -3328,8 +3328,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		if (txt) {
 			if (duration < vmminsecs) {
 				fclose(txt);
-				if (option_verbose > 2) 
-					ast_verbose(VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminsecs);
+				ast_verb(3, "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminsecs);
 				ast_filedelete(tmptxtfile, NULL);
 				unlink(tmptxtfile);
 				if (ast_check_realtime("voicemail_data")) {
@@ -8902,16 +8901,14 @@ static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num,
 		}
 		
 	} else {
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Destination number is CID number '%s'\n", num);
+		ast_verb(3, "Destination number is CID number '%s'\n", num);
 		ast_copy_string(destination, num, sizeof(destination));
 	}
 
 	if (!ast_strlen_zero(destination)) {
 		if (destination[strlen(destination) -1 ] == '*')
 			return 0; 
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Placing outgoing call to extension '%s' in context '%s' from context '%s'\n", destination, outgoing_context, chan->context);
+		ast_verb(3, "Placing outgoing call to extension '%s' in context '%s' from context '%s'\n", destination, outgoing_context, chan->context);
 		ast_copy_string(chan->exten, destination, sizeof(chan->exten));
 		ast_copy_string(chan->context, outgoing_context, sizeof(chan->context));
 		chan->priority = 0;
