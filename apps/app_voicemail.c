@@ -1479,6 +1479,30 @@ static void rename_file(char *sfn, char *dfn)
 }
 #endif
 
+/*
+ * A negative return value indicates an error.
+ */
+#if (!defined(IMAP_STORAGE) && !defined(ODBC_STORAGE))
+static int last_message_index(struct ast_vm_user *vmu, char *dir)
+{
+	int x;
+	char fn[PATH_MAX];
+
+	if (vm_lock_path(dir))
+		return ERROR_LOCK_PATH;
+
+	for (x = 0; x < vmu->maxmsg; x++) {
+		make_file(fn, sizeof(fn), dir, x);
+		if (ast_fileexists(fn, NULL, NULL) < 1)
+			break;
+	}
+	ast_unlock_path(dir);
+
+	return x - 1;
+}
+#endif
+#endif
+
 static int copy(char *infile, char *outfile)
 {
 	int ifd;
@@ -1538,31 +1562,6 @@ static void copy_plain_file(char *frompath, char *topath)
 	copy(frompath2, topath2);
 }
 
-/*
- * A negative return value indicates an error.
- */
-#if (!defined(IMAP_STORAGE) && !defined(ODBC_STORAGE))
-static int last_message_index(struct ast_vm_user *vmu, char *dir)
-{
-	int x;
-	char fn[PATH_MAX];
-
-	if (vm_lock_path(dir))
-		return ERROR_LOCK_PATH;
-
-	for (x = 0; x < vmu->maxmsg; x++) {
-		make_file(fn, sizeof(fn), dir, x);
-		if (ast_fileexists(fn, NULL, NULL) < 1)
-			break;
-	}
-	ast_unlock_path(dir);
-
-	return x - 1;
-}
-#endif
-#endif
-
-#ifndef ODBC_STORAGE
 static int vm_delete(char *file)
 {
 	char *txt;
@@ -1577,7 +1576,6 @@ static int vm_delete(char *file)
 	unlink(txt);
 	return ast_filedelete(file, NULL);
 }
-#endif
 
 static int inbuf(struct baseio *bio, FILE *fi)
 {
@@ -4240,7 +4238,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		}
 
 		/* Remove surrogate file */
-		DELETE(tmpdir, curmsg, msgfile);
+		vm_delete(msgfile);
 	}
 
 	/* If anything failed above, we still have this list to free */
