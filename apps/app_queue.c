@@ -5100,7 +5100,6 @@ static int reload_queues(int reload)
 						ao2_ref(cur, -1);
 						continue;
 					}
-					ast_log(LOG_DEBUG, "%s in queue marked as delme, we should be deleting...\n", cur->interface);
 					q->membercount--;
 					ao2_unlink(q->members, cur);
 					remove_from_interfaces(cur->interface);
