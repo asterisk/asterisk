@@ -5416,7 +5416,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 	if (!newjointcapability) {
 		/* If T.38 was not negotiated either, totally bail out... */
-		if (!p->t38.jointcapability) {
+		if (!p->t38.jointcapability || !p->t38.peercapability) {
 			ast_log(LOG_NOTICE, "No compatible codecs, not accepting this offer!\n");
 			/* Do NOT Change current setting */
 			return -1;
