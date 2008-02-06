@@ -1626,6 +1626,41 @@ static void rename_file(char *sfn, char *dfn)
 }
 #endif
 
+#ifndef IMAP_STORAGE
+/*! \brief
+ * A negative return value indicates an error.
+ * \note Should always be called with a lock already set on dir.
+ */
+static int last_message_index(struct ast_vm_user *vmu, char *dir)
+{
+	int x;
+	unsigned char map[MAXMSGLIMIT] = "";
+	DIR *msgdir;
+	struct dirent *msgdirent;
+	int msgdirint;
+
+	/* Reading the entire directory into a file map scales better than
+	 * doing a stat repeatedly on a predicted sequence.  I suspect this
+	 * is partially due to stat(2) internally doing a readdir(2) itself to
+	 * find each file. */
+	msgdir = opendir(dir);
+	while ((msgdirent = readdir(msgdir))) {
+		if (sscanf(msgdirent->d_name, "msg%d", &msgdirint) == 1 && msgdirint < MAXMSGLIMIT)
+			map[msgdirint] = 1;
+	}
+	closedir(msgdir);
+
+	for (x = 0; x < vmu->maxmsg; x++) {
+		if (map[x] == 0)
+			break;
+	}
+
+	return x - 1;
+}
+
+#endif /*#ifndef IMAP_STORAGE*/
+#endif /*#else of #ifdef ODBC_STORAGE*/
+
 static int copy(char *infile, char *outfile)
 {
 	int ifd;
@@ -1718,41 +1753,6 @@ static void copy_plain_file(char *frompath, char *topath)
 	ast_variables_destroy(var);
 }
 
-#ifndef IMAP_STORAGE
-/*! \brief
- * A negative return value indicates an error.
- * \note Should always be called with a lock already set on dir.
- */
-static int last_message_index(struct ast_vm_user *vmu, char *dir)
-{
-	int x;
-	unsigned char map[MAXMSGLIMIT] = "";
-	DIR *msgdir;
-	struct dirent *msgdirent;
-	int msgdirint;
-
-	/* Reading the entire directory into a file map scales better than
-	 * doing a stat repeatedly on a predicted sequence.  I suspect this
-	 * is partially due to stat(2) internally doing a readdir(2) itself to
-	 * find each file. */
-	msgdir = opendir(dir);
-	while ((msgdirent = readdir(msgdir))) {
-		if (sscanf(msgdirent->d_name, "msg%d", &msgdirint) == 1 && msgdirint < MAXMSGLIMIT)
-			map[msgdirint] = 1;
-	}
-	closedir(msgdir);
-
-	for (x = 0; x < vmu->maxmsg; x++) {
-		if (map[x] == 0)
-			break;
-	}
-
-	return x - 1;
-}
-
-#endif /*#ifndef IMAP_STORAGE*/
-#endif /*#else of #ifdef ODBC_STORAGE*/
-#ifndef ODBC_STORAGE
 static int vm_delete(char *file)
 {
 	char *txt;
@@ -1770,7 +1770,6 @@ static int vm_delete(char *file)
 	unlink(txt);
 	return ast_filedelete(file, NULL);
 }
-#endif
 
 static int inbuf(struct baseio *bio, FILE *fi)
 {
@@ -4521,7 +4520,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		}
 
 		/* Remove surrogate file */
-		DELETE(tmpdir, curmsg, msgfile);
+		vm_delete(msgfile);
 	}
 
 	/* If anything failed above, we still have this list to free */
