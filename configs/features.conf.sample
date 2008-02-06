@@ -47,8 +47,11 @@ context => parkedcalls		; Which context parked calls are in
 ; defined here.  The value of DYNAMIC_FEATURES should be the names of the features
 ; to allow the channel to use separated by '#'.  For example:
 ;
-;    Set(DYNAMIC_FEATURES=myfeature1#myfeature2#myfeature3)
+;    Set(__DYNAMIC_FEATURES=myfeature1#myfeature2#myfeature3)
 ;
+; (Note: The two leading underscores allow these feature settings to be set on
+;  on the outbound channels, as well.  Otherwise, only the original channel
+;  will have access to these features.)
 ;
 ; The syntax for declaring a dynamic feature is the following:
 ;
