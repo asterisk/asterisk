@@ -2182,11 +2182,12 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 					"Context: %s\r\n"
 					"Extension: %s\r\n"
 					"Priority: %d\r\n"
+					"Uniqueid: %s\r\n"
 					"%s",
 					qe->parent->name, tmp->interface, tmp->member->membername, qe->chan->name, tmp->chan->name,
 					tmp->chan->cid.cid_num ? tmp->chan->cid.cid_num : "unknown",
 					tmp->chan->cid.cid_name ? tmp->chan->cid.cid_name : "unknown",
-					qe->chan->context, qe->chan->exten, qe->chan->priority,
+					qe->chan->context, qe->chan->exten, qe->chan->priority, qe->chan->uniqueid,
 					qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 		ast_verb(3, "Called %s\n", tmp->interface);
 	}
