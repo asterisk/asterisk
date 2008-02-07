@@ -88,6 +88,9 @@ static const char *desc_chan =
 "                    specified by the SPY_EXIT_CONTEXT channel variable. The\n"
 "                    name of the last channel that was spied on will be stored\n"
 "                    in the SPY_CHANNEL variable.\n"
+"    e(ext)        - Enable 'enforced' mode, so the spying channel can\n"
+"                    only monitor extensions whose name is in the 'ext' : \n"
+"                    delimited list.\n"
 ;
 
 static const char *app_ext = "ExtenSpy";
@@ -137,12 +140,14 @@ enum {
 	OPTION_PRIVATE   = (1 << 6),	/* Private Whisper mode */
 	OPTION_READONLY  = (1 << 7),	/* Don't mix the two channels */
 	OPTION_EXIT      = (1 << 8),	/* Exit to a valid single digit extension */
+	OPTION_ENFORCED  = (1 << 9),    /* Enforced mode */
 } chanspy_opt_flags;
 
 enum {
 	OPT_ARG_VOLUME = 0,
 	OPT_ARG_GROUP,
 	OPT_ARG_RECORD,
+	OPT_ARG_ENFORCED,
 	OPT_ARG_ARRAY_SIZE,
 } chanspy_opt_args;
 
@@ -154,6 +159,7 @@ AST_APP_OPTIONS(spy_opts, {
 	AST_APP_OPTION_ARG('v', OPTION_VOLUME, OPT_ARG_VOLUME),
 	AST_APP_OPTION_ARG('g', OPTION_GROUP, OPT_ARG_GROUP),
 	AST_APP_OPTION_ARG('r', OPTION_RECORD, OPT_ARG_RECORD),
+	AST_APP_OPTION_ARG('e', OPTION_ENFORCED, OPT_ARG_ENFORCED),
 	AST_APP_OPTION('o', OPTION_READONLY),
 	AST_APP_OPTION('X', OPTION_EXIT),
 });
@@ -378,11 +384,12 @@ static struct ast_channel *next_channel(const struct ast_channel *last, const ch
 					const char *exten, const char *context)
 {
 	struct ast_channel *this;
-
+	
 	redo:
-	if (spec)
+	if (!ast_strlen_zero(spec))
 		this = ast_walk_channel_by_name_prefix_locked(last, spec, strlen(spec));
-	else if (exten)
+
+	else if (!ast_strlen_zero(exten))
 		this = ast_walk_channel_by_exten_locked(last, exten, context);
 	else
 		this = ast_channel_walk_locked(last);
@@ -397,8 +404,8 @@ static struct ast_channel *next_channel(const struct ast_channel *last, const ch
 }
 
 static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
-		       int volfactor, const int fd, const char *mygroup, const char *spec,
-		       const char *exten, const char *context)
+		       int volfactor, const int fd, const char *mygroup, const char *myenforced,
+		       const char *spec, const char *exten, const char *context)
 {
 	struct ast_channel *peer, *prev, *next;
 	char nameprefix[AST_NAME_STRLEN];
@@ -478,7 +485,12 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			char *dup_group;
 			int x;
 			char *s;
-				
+			char *buffer;
+			char *end;
+			char *ext;
+			char *form_enforced;
+			int ienf = !myenforced;
+	
 			if (peer == prev)
 				break;
 
@@ -507,6 +519,37 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			}
 			
 			if (!igrp)
+				continue;
+
+			if (myenforced) {
+ 
+				/* We don't need to allocate more space than just the
+				length of (peer->name) for ext as we will cut the
+				channel name's ending before copying into ext */
+
+				ext = alloca(strlen(peer->name));
+
+ 				form_enforced = alloca(strlen(myenforced) + 3);
+			
+				strcpy(form_enforced, ":");
+				strcat(form_enforced, myenforced);
+				strcat(form_enforced, ":");
+				
+				buffer = ast_strdupa(peer->name);
+				
+				if ((end = strchr(buffer, '-'))) {
+				    *end++ = ':';
+				    *end = '\0';
+				}
+				
+				strcpy(ext, ":");
+				strcat(ext, buffer);				
+
+				if (strcasestr(form_enforced, ext))
+					ienf = 1;
+			}
+
+			if (!ienf)
 				continue;
 
 			strcpy(peer_name, "spy-");
@@ -562,6 +605,7 @@ exit:
 
 static int chanspy_exec(struct ast_channel *chan, void *data)
 {
+	char *myenforced = NULL;
 	char *mygroup = NULL;
 	char *recbase = NULL;
 	int fd = 0;
@@ -601,6 +645,10 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 
 		if (ast_test_flag(&flags, OPTION_PRIVATE))
 			ast_set_flag(&flags, OPTION_WHISPER);
+
+		if (ast_test_flag(&flags, OPTION_ENFORCED))
+			myenforced = opts[OPT_ARG_ENFORCED];
+
 	} else
 		ast_clear_flag(&flags, AST_FLAGS_ALL);
 
@@ -620,7 +668,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	res = common_exec(chan, &flags, volfactor, fd, mygroup, args.spec, NULL, NULL);
+	res = common_exec(chan, &flags, volfactor, fd, mygroup, myenforced, args.spec, NULL, NULL);
 
 	if (fd)
 		close(fd);
@@ -699,7 +747,8 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	res = common_exec(chan, &flags, volfactor, fd, mygroup, NULL, exten, args.context);
+
+	res = common_exec(chan, &flags, volfactor, fd, mygroup, NULL, NULL, exten, args.context);
 
 	if (fd)
 		close(fd);
