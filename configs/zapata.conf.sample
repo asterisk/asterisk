@@ -390,8 +390,12 @@ callwaitingcallerid=yes
 ;
 threewaycalling=yes
 ;
-; Support flash-hook call transfer (requires three way calling)
-; Also enables call parking (overrides the 'canpark' parameter)
+; For FXS ports (either direct analog or over T1/E1):
+;   Support flash-hook call transfer (requires three way calling)
+;   Also enables call parking (overrides the 'canpark' parameter)
+;
+; For digital ports using ISDN PRI protocols:
+;   Support switch-side transfer (called 2BCT, RLT or other names)
 ;
 transfer=yes
 ;
