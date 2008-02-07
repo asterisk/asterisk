@@ -1077,7 +1077,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		dynamic_features = pbx_builtin_getvar_helper(peer, "DYNAMIC_FEATURES");
 	}
 	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d dynamic=%s\n", chan->name, peer->name, sense, features.flags, dynamic_features);
+		ast_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, code=%s, sense=%d, features=%d dynamic=%s\n", chan->name, peer->name, code, sense, features.flags, dynamic_features);
 
 	ast_rwlock_rdlock(&features_lock);
 	for (x = 0; x < FEATURES_COUNT; x++) {
