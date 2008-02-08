@@ -4980,7 +4980,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 					user_unref(best);
 				best = user;
 				break;
-			} else if (ast_strlen_zero(user->secret) && ast_strlen_zero(user->inkeys)) {
+			} else if (ast_strlen_zero(user->secret) && ast_strlen_zero(user->dbsecret) && ast_strlen_zero(user->inkeys)) {
 				/* No required authentication */
 				if (user->ha) {
 					/* There was host authentication and we passed, bonus! */
