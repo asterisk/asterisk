@@ -93,6 +93,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/global_datastores.h"
 
+/* Please read before modifying this file.
+ * There are three locks which are regularly used
+ * throughout this file, the queue list lock, the lock
+ * for each individual queue, and the interface list lock.
+ * Please be extra careful to always lock in the following order
+ * 1) queue list lock
+ * 2) individual queue lock
+ * 3) interface list lock
+ * This order has sort of "evolved" over the lifetime of this
+ * application, but it is now in place this way, so please adhere
+ * to this order!
+ */
+
+
 enum {
 	QUEUE_STRATEGY_RINGALL = 0,
 	QUEUE_STRATEGY_LEASTRECENT,
@@ -1007,14 +1021,15 @@ static int remove_from_interfaces(const char *interface)
 {
 	struct member_interface *curint;
 
+	if (interface_exists_global(interface))
+		return 0;
+
 	AST_LIST_LOCK(&interfaces);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&interfaces, curint, list) {
 		if (!strcasecmp(curint->interface, interface)) {
-			if (!interface_exists_global(interface)) {
-				ast_debug(1, "Removing %s from the list of interfaces that make up all of our queue members.\n", interface);
-				AST_LIST_REMOVE_CURRENT(list);
-				ast_free(curint);
-			} 
+			ast_debug(1, "Removing %s from the list of interfaces that make up all of our queue members.\n", interface);
+			AST_LIST_REMOVE_CURRENT(&interfaces, list);
+			ast_free(curint);
 			break;
 		}
 	}
