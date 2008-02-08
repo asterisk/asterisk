@@ -3942,6 +3942,10 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 		int res = create_addr_from_peer(dialog, peer);
 		unref_peer(peer);
 		return res;
+	} else {
+		/* Setup default parameters for this dialog's socket. Currently we only support regular UDP SIP as the default */
+		dialog->socket.type = SIP_TRANSPORT_UDP;
+		dialog->socket.port = bindaddr.sin_port;
 	}
 
 	ast_string_field_set(dialog, tohost, peername);
@@ -17904,9 +17908,9 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 static int sip_standard_port(struct sip_socket s) 
 {
 	if (s.type & SIP_TRANSPORT_TLS)
-		return s.port == STANDARD_TLS_PORT;
+		return s.port == htons(STANDARD_TLS_PORT);
 	else
-		return s.port == STANDARD_SIP_PORT;
+		return s.port == htons(STANDARD_SIP_PORT);
 }
 
 /*! \todo document this function. */
