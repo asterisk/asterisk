@@ -7859,7 +7859,7 @@ static char *handle_voicemail_show_zones(struct ast_cli_entry *e, int cmd, struc
 		return NULL;
 	}
 
-	if (a->argc != 3)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 
 	AST_LIST_LOCK(&zones);
@@ -7891,7 +7891,7 @@ static char *handle_voicemail_reload(struct ast_cli_entry *e, int cmd, struct as
 		return NULL;
 	}
 
-	if (a->argc != 2)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 
 	ast_cli(a->fd, "Reloading voicemail configuration...\n");	

@@ -1853,8 +1853,8 @@ static char *sip_do_debug_ip(int fd, char *arg);
 static char *sip_do_debug_peer(int fd, char *arg);
 static char *sip_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
-static char *sip_do_history(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
-static char *sip_no_history(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *sip_do_history_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *sip_set_history(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int sip_dtmfmode(struct ast_channel *chan, void *data);
 static int sip_addheader(struct ast_channel *chan, void *data);
 static int sip_do_reload(enum channelreloadreason reason);
@@ -13243,7 +13243,7 @@ static char *sip_show_history(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
 	if (!recordhistory)
-		ast_cli(a->fd, "\n***Note: History recording is currently DISABLED.  Use 'sip history' to ENABLE.\n");
+		ast_cli(a->fd, "\n***Note: History recording is currently DISABLED.  Use 'sip set history on' to ENABLE.\n");
 	len = strlen(a->argv[3]);
 	dialoglist_lock();
 	for (cur = dialoglist; cur; cur = cur->next) {
@@ -13652,49 +13652,63 @@ static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 	return CLI_SUCCESS;
 }
 
-/*! \brief Enable SIP History logging (CLI) */
-static char *sip_do_history(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+/*! \brief Enable/Disable SIP History logging (CLI) - deprecated. use sip_set_history instead */
+static char *sip_do_history_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "sip history";
+		e->command = "sip history [off]";
 		e->usage =
-			"Usage: sip history\n"
-			"       Enables recording of SIP dialog history for debugging purposes.\n"
+			"Usage: sip history [off]\n"
+			"       Enables/Disables recording of SIP dialog history for debugging purposes.\n"
 			"       Use 'sip show history' to view the history of a call number.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != 2) {
+	if (a->argc < 2 || a->argc > 3) {
 		return CLI_SHOWUSAGE;
 	}
-	recordhistory = TRUE;
-	ast_cli(a->fd, "SIP History Recording Enabled (use 'sip show history')\n");
+	if (a->argc == 2) {
+		recordhistory = TRUE;
+		ast_cli(a->fd, "SIP History Recording Enabled (use 'sip show history')\n");
+	} else {
+		if (strncasecmp(a->argv[2], "off", 3))
+			return CLI_SHOWUSAGE;
+		recordhistory = FALSE;
+		ast_cli(a->fd, "SIP History Recording Disabled\n");
+	}
 	return CLI_SUCCESS;
 }
 
-/*! \brief Disable SIP History logging (CLI) */
-static char *sip_no_history(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+/*! \brief Enable/Disable SIP History logging (CLI) */
+static char *sip_set_history(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "sip history off";
+		e->command = "sip set history {on|off}";
 		e->usage =
-			"Usage: sip history off\n"
-			"       Disables recording of SIP dialog history for debugging purposes\n";	
+			"Usage: sip history {on|off}\n"
+			"       Enables/Disables recording of SIP dialog history for debugging purposes.\n"
+			"       Use 'sip show history' to view the history of a call number.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != 3) {
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+
+	if (!strncasecmp(a->argv[e->args - 1], "on", 2)) {
+		recordhistory = TRUE;
+		ast_cli(a->fd, "SIP History Recording Enabled (use 'sip show history')\n");
+	} else if (!strncasecmp(a->argv[e->args - 1], "off", 3)) {
+		recordhistory = FALSE;
+		ast_cli(a->fd, "SIP History Recording Disabled\n");
+	} else {
 		return CLI_SHOWUSAGE;
 	}
-	recordhistory = FALSE;
-	ast_cli(a->fd, "SIP History Recording Disabled\n");
 	return CLI_SUCCESS;
 }
 
@@ -21102,6 +21116,7 @@ static int reload(void)
 	return 1;
 }
 
+static struct ast_cli_entry cli_sip_do_history_deprecated = AST_CLI_DEFINE(sip_do_history_deprecated, "Enable/Disable SIP history");
 /*! \brief SIP Cli commands definition */
 static struct ast_cli_entry cli_sip[] = {
 	AST_CLI_DEFINE(sip_show_channels, "List active SIP channels/subscriptions"),
@@ -21120,8 +21135,7 @@ static struct ast_cli_entry cli_sip[] = {
 	AST_CLI_DEFINE(sip_show_user, "Show details on specific SIP user"),
 	AST_CLI_DEFINE(sip_prune_realtime, "Prune cached Realtime users/peers"),
 	AST_CLI_DEFINE(sip_do_debug, "Enable/Disable SIP debugging"),
-	AST_CLI_DEFINE(sip_do_history, "Enable SIP history"),
-	AST_CLI_DEFINE(sip_no_history, "Disable SIP history"),
+	AST_CLI_DEFINE(sip_set_history, "Enable/Disable SIP history", .deprecate_cmd = &cli_sip_do_history_deprecated),
 	AST_CLI_DEFINE(sip_reload, "Reload SIP configuration"),
 	AST_CLI_DEFINE(sip_show_tcp, "List TCP Connections")
 };

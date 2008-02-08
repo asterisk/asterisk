@@ -374,7 +374,7 @@ static char *__say_cli_init(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	if (a->argc == 2) {
 		ast_cli(a->fd, "say mode is [%s]\n", old_mode);
 		return CLI_SUCCESS;
-	} else if (a->argc != 3)
+	} else if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	mode = a->argv[2];
 	if (!strcmp(mode, old_mode))

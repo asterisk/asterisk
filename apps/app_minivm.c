@@ -2602,7 +2602,7 @@ static char *handle_minivm_show_zones(struct ast_cli_entry *e, int cmd, struct a
 		return NULL;
 	}
 
-	if (a->argc != 3)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 
 	AST_LIST_LOCK(&minivm_zones);

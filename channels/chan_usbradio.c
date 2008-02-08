@@ -1622,7 +1622,7 @@ static int set_txctcss_level(struct chan_usbradio_pvt *o)
 /*
 	CLI debugging on and off
 */
-static char *handle_cli_radio_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_cli_radio_set_debug_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chan_usbradio_pvt *o = NULL;
 
@@ -1652,11 +1652,43 @@ static char *handle_cli_radio_set_debug(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
+static char *handle_cli_radio_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct chan_usbradio_pvt *o = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "radio set debug {on|off}";
+		e->usage =
+			"Usage: radio set debug {on|off}\n"
+			"       Enable/Disable radio debugging.\n";
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+
+	o = find_desc(usbradio_active);
+
+	if (!strncasecmp(a->argv[e->args - 1], "on", 2))
+		o->debuglevel = 1;
+	else if (!strncasecmp(a->argv[e->args - 1], "off", 3))
+		o->debuglevel = 0;
+	else
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "USB Radio debugging %s.\n", o->debuglevel ? "enabled" : "disabled");
+
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry cli_radio_set_debug_deprecated = AST_CLI_DEFINE(handle_cli_radio_set_debug_deprecated, "Enable/Disable Radio Debugging");
 static struct ast_cli_entry cli_usbradio[] = {
 	AST_CLI_DEFINE(handle_cli_radio_key,       "Simulate Rx Signal Present"),
 	AST_CLI_DEFINE(handle_cli_radio_unkey,     "Simulate Rx Signal Lusb"),
 	AST_CLI_DEFINE(handle_cli_radio_tune,      "Radio Tune"),
-	AST_CLI_DEFINE(handle_cli_radio_set_debug, "Enable/Disable Radio Debugging"),
+	AST_CLI_DEFINE(handle_cli_radio_set_debug, "Enable/Disable Radio Debugging", .deprecate_cmd = &cli_radio_set_debug_deprecated),
 };
 
 /*

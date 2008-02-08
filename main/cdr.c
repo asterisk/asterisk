@@ -1236,16 +1236,16 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "cdr status";
+		e->command = "cdr show status";
 		e->usage = 
-			"Usage: cdr status\n"
+			"Usage: cdr show status\n"
 			"	Displays the Call Detail Record engine system status.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc > 2)
+	if (a->argc > 3)
 		return CLI_SHOWUSAGE;
 
 	ast_cli(a->fd, "CDR logging: %s\n", enabled ? "enabled" : "disabled");
@@ -1274,6 +1274,14 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	return CLI_SUCCESS;
 }
 
+static char *handle_cli_status_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_cli_status(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "cdr status";
+	return res;
+}
+
 static char *handle_cli_submit(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -1296,7 +1304,8 @@ static char *handle_cli_submit(struct ast_cli_entry *e, int cmd, struct ast_cli_
 }
 
 static struct ast_cli_entry cli_submit = AST_CLI_DEFINE(handle_cli_submit, "Posts all pending batched CDR data");
-static struct ast_cli_entry cli_status = AST_CLI_DEFINE(handle_cli_status, "Display the CDR status");
+static struct ast_cli_entry cli_status_deprecated = AST_CLI_DEFINE(handle_cli_status_deprecated, "Display the CDR status");
+static struct ast_cli_entry cli_status = AST_CLI_DEFINE(handle_cli_status, "Display the CDR status", .deprecate_cmd = &cli_status_deprecated);
 
 static int do_reload(int reload)
 {

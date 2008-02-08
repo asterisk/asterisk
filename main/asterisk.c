@@ -1535,28 +1535,36 @@ static char *handle_stop_now(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "stop now";
+		e->command = "core stop now";
 		e->usage = 
-			"Usage: stop now\n"
+			"Usage: core stop now\n"
 			"       Shuts down a running Asterisk immediately, hanging up all active calls .\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != 2)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	quit_handler(0, 0 /* Not nice */, 1 /* safely */, 0 /* not restart */);
 	return CLI_SUCCESS;
+}
+
+static char *handle_stop_now_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_stop_now(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "stop now";
+	return res;
 }
 
 static char *handle_stop_gracefully(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "stop gracefully";
+		e->command = "core stop gracefully";
 		e->usage = 
-			"Usage: stop gracefully\n"
+			"Usage: core stop gracefully\n"
 			"       Causes Asterisk to not accept new calls, and exit when all\n"
 			"       active calls have terminated normally.\n";
 		return NULL;
@@ -1564,39 +1572,55 @@ static char *handle_stop_gracefully(struct ast_cli_entry *e, int cmd, struct ast
 		return NULL;
 	}
 
-	if (a->argc != 2)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	quit_handler(0, 1 /* nicely */, 1 /* safely */, 0 /* no restart */);
 	return CLI_SUCCESS;
+}
+
+static char *handle_stop_gracefully_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_stop_gracefully(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "stop gracefully";
+	return res;
 }
 
 static char *handle_stop_when_convenient(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "stop when convenient";
+		e->command = "core stop when convenient";
 		e->usage = 
-			"Usage: stop when convenient\n"
+			"Usage: core stop when convenient\n"
 			"       Causes Asterisk to perform a shutdown when all active calls have ended.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != 3)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	ast_cli(a->fd, "Waiting for inactivity to perform halt\n");
 	quit_handler(0, 2 /* really nicely */, 1 /* safely */, 0 /* don't restart */);
 	return CLI_SUCCESS;
 }
 
+static char *handle_stop_when_convenient_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_stop_when_convenient(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "stop when convenient";
+	return res;
+}
+
 static char *handle_restart_now(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "restart now";
+		e->command = "core restart now";
 		e->usage = 
-			"Usage: restart now\n"
+			"Usage: core restart now\n"
 			"       Causes Asterisk to hangup all calls and exec() itself performing a cold\n"
 			"       restart.\n";
 		return NULL;
@@ -1604,19 +1628,27 @@ static char *handle_restart_now(struct ast_cli_entry *e, int cmd, struct ast_cli
 		return NULL;
 	}
 
-	if (a->argc != 2)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	quit_handler(0, 0 /* not nicely */, 1 /* safely */, 1 /* restart */);
 	return CLI_SUCCESS;
+}
+
+static char *handle_restart_now_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_restart_now(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "restart now";
+	return res;
 }
 
 static char *handle_restart_gracefully(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "restart gracefully";
+		e->command = "core restart gracefully";
 		e->usage = 
-			"Usage: restart gracefully\n"
+			"Usage: core restart gracefully\n"
 			"       Causes Asterisk to stop accepting new calls and exec() itself performing a cold\n"
 			"       restart when all active calls have ended.\n";
 		return NULL;
@@ -1624,39 +1656,55 @@ static char *handle_restart_gracefully(struct ast_cli_entry *e, int cmd, struct 
 		return NULL;
 	}
 
-	if (a->argc != 2)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	quit_handler(0, 1 /* nicely */, 1 /* safely */, 1 /* restart */);
 	return CLI_SUCCESS;
+}
+
+static char *handle_restart_gracefully_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_restart_gracefully(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "restart gracefully";
+	return res;
 }
 
 static char *handle_restart_when_convenient(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "restart when convenient";
+		e->command = "core restart when convenient";
 		e->usage = 
-			"Usage: restart when convenient\n"
+			"Usage: core restart when convenient\n"
 			"       Causes Asterisk to perform a cold restart when all active calls have ended.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != 3)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	ast_cli(a->fd, "Waiting for inactivity to perform restart\n");
 	quit_handler(0, 2 /* really nicely */, 1 /* safely */, 1 /* restart */);
 	return CLI_SUCCESS;
 }
 
+static char *handle_restart_when_convenient_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_restart_when_convenient(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "restart when convenient";
+	return res;
+}
+
 static char *handle_abort_shutdown(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "abort shutdown";
+		e->command = "core abort shutdown";
 		e->usage = 
-			"Usage: abort shutdown\n"
+			"Usage: core abort shutdown\n"
 			"       Causes Asterisk to abort an executing shutdown or restart, and resume normal\n"
 			"       call operations.\n";
 		return NULL;
@@ -1664,11 +1712,19 @@ static char *handle_abort_shutdown(struct ast_cli_entry *e, int cmd, struct ast_
 		return NULL;
 	}
 
-	if (a->argc != 2)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	ast_cancel_shutdown();
 	shuttingdown = 0;
 	return CLI_SUCCESS;
+}
+
+static char *handle_abort_shutdown_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_abort_shutdown(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "abort shutdown";
+	return res;
 }
 
 static char *handle_bang(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -1770,14 +1826,24 @@ static char *show_license(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 
 #define ASTERISK_PROMPT2 "%s*CLI> "
 
+/* deprecated cli entries */
+static struct ast_cli_entry cli_abort_shutdown_deprecated = AST_CLI_DEFINE(handle_abort_shutdown_deprecated, "Cancel a running shutdown.");
+static struct ast_cli_entry cli_stop_now_deprecated = AST_CLI_DEFINE(handle_stop_now_deprecated, "Shut down Asterisk immediately.");
+static struct ast_cli_entry cli_stop_gracefully_deprecated = AST_CLI_DEFINE(handle_stop_gracefully_deprecated, "Gracefully shut down Asterisk.");
+static struct ast_cli_entry cli_stop_when_convenient_deprecated = AST_CLI_DEFINE(handle_stop_when_convenient_deprecated, "Shut down Asterisk at empty call volume.");
+static struct ast_cli_entry cli_restart_now_deprecated = AST_CLI_DEFINE(handle_restart_now_deprecated, "Restart Asterisk immediately.");
+static struct ast_cli_entry cli_restart_gracefully_deprecated = AST_CLI_DEFINE(handle_restart_gracefully_deprecated, "Restart Asterisk gracefully.");
+static struct ast_cli_entry cli_restart_when_convenient_deprecated = AST_CLI_DEFINE(handle_restart_when_convenient_deprecated, "Restart Asterisk at empty call volume.");
+/* end deprecated cli entries */
+
 static struct ast_cli_entry cli_asterisk[] = {
-	AST_CLI_DEFINE(handle_abort_shutdown, "Cancel a running shutdown"),
-	AST_CLI_DEFINE(handle_stop_now, "Shut down Asterisk immediately"),
-	AST_CLI_DEFINE(handle_stop_gracefully, "Gracefully shut down Asterisk"),
-	AST_CLI_DEFINE(handle_stop_when_convenient, "Shut down Asterisk at empty call volume"),
-	AST_CLI_DEFINE(handle_restart_now, "Restart Asterisk immediately"), 
-	AST_CLI_DEFINE(handle_restart_gracefully, "Restart Asterisk gracefully"),
-	AST_CLI_DEFINE(handle_restart_when_convenient, "Restart Asterisk at empty call volume"),
+	AST_CLI_DEFINE(handle_abort_shutdown, "Cancel a running shutdown", .deprecate_cmd = &cli_abort_shutdown_deprecated),
+	AST_CLI_DEFINE(handle_stop_now, "Shut down Asterisk immediately", .deprecate_cmd = &cli_stop_now_deprecated),
+	AST_CLI_DEFINE(handle_stop_gracefully, "Gracefully shut down Asterisk", .deprecate_cmd = &cli_stop_gracefully_deprecated),
+	AST_CLI_DEFINE(handle_stop_when_convenient, "Shut down Asterisk at empty call volume", .deprecate_cmd = &cli_stop_when_convenient_deprecated),
+	AST_CLI_DEFINE(handle_restart_now, "Restart Asterisk immediately", .deprecate_cmd = &cli_restart_now_deprecated), 
+	AST_CLI_DEFINE(handle_restart_gracefully, "Restart Asterisk gracefully", .deprecate_cmd = &cli_restart_gracefully_deprecated),
+	AST_CLI_DEFINE(handle_restart_when_convenient, "Restart Asterisk at empty call volume", .deprecate_cmd = &cli_restart_when_convenient_deprecated),
 	AST_CLI_DEFINE(show_warranty, "Show the warranty (if any) for this copy of Asterisk"),
 	AST_CLI_DEFINE(show_license, "Show the license(s) for this copy of Asterisk"),
 	AST_CLI_DEFINE(handle_version, "Display version info"),

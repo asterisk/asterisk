@@ -1090,7 +1090,7 @@ static char *handle_cli_rpt_debug_level(struct ast_cli_entry *e, int cmd, struct
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc != 4)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	newlevel = myatoi(a->argv[3]);
 	if ((newlevel < 0) || (newlevel > 7))

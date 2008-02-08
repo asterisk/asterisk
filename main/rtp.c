@@ -3898,7 +3898,7 @@ static char *rtcp_do_debug_ip(struct ast_cli_args *a)
 	return CLI_SUCCESS;
 }
 
-static char *handle_cli_rtp_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_cli_rtp_debug_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
@@ -3933,7 +3933,40 @@ static char *handle_cli_rtp_debug(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 
-static char *handle_cli_rtcp_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_cli_rtp_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "rtp set debug {on|off|ip}";
+		e->usage =
+			"Usage: rtp set debug {on|off|ip host[:port]}\n"
+			"       Enable/Disable dumping of all RTP packets. If 'ip' is\n"
+			"       specified, limit the dumped packets to those to and from\n"
+			"       the specified 'host' with optional port.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc == e->args) { /* set on or off */
+		if (!strncasecmp(a->argv[e->args-1], "on", 2)) {
+			rtpdebug = 1;
+			memset(&rtpdebugaddr, 0, sizeof(rtpdebugaddr));
+			ast_cli(a->fd, "RTP Debugging Enabled\n");
+			return CLI_SUCCESS;
+		} else if (!strncasecmp(a->argv[e->args-1], "off", 3)) {
+			rtpdebug = 0;
+			ast_cli(a->fd, "RTP Debugging Disabled\n");
+			return CLI_SUCCESS;
+		}
+	} else if (a->argc == e->args +1) { /* ip */
+		return rtp_do_debug_ip(a);
+	}
+
+	return CLI_SHOWUSAGE;   /* default, failure */
+}
+
+static char *handle_cli_rtcp_debug_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
@@ -3968,7 +4001,40 @@ static char *handle_cli_rtcp_debug(struct ast_cli_entry *e, int cmd, struct ast_
 	return CLI_SUCCESS;
 }
 
-static char *handle_cli_rtcp_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_cli_rtcp_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "rtcp set debug {on|off|ip}";
+		e->usage =
+			"Usage: rtcp set debug {on|off|ip host[:port]}\n"
+			"       Enable/Disable dumping of all RTCP packets. If 'ip' is\n"
+			"       specified, limit the dumped packets to those to and from\n"
+			"       the specified 'host' with optional port.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc == e->args) { /* set on or off */
+		if (!strncasecmp(a->argv[e->args-1], "on", 2)) {
+			rtcpdebug = 1;
+			memset(&rtcpdebugaddr, 0, sizeof(rtcpdebugaddr));
+			ast_cli(a->fd, "RTCP Debugging Enabled\n");
+			return CLI_SUCCESS;
+		} else if (!strncasecmp(a->argv[e->args-1], "off", 3)) {
+			rtcpdebug = 0;
+			ast_cli(a->fd, "RTCP Debugging Disabled\n");
+			return CLI_SUCCESS;
+		}
+	} else if (a->argc == e->args +1) { /* ip */
+		return rtcp_do_debug_ip(a);
+	}
+
+	return CLI_SHOWUSAGE;   /* default, failure */
+}
+
+static char *handle_cli_rtcp_stats_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
@@ -3991,7 +4057,34 @@ static char *handle_cli_rtcp_stats(struct ast_cli_entry *e, int cmd, struct ast_
 	return CLI_SUCCESS;
 }
 
-static char *handle_cli_stun_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_cli_rtcp_set_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "rtcp set stats {on|off}";
+		e->usage =
+			"Usage: rtcp set stats {on|off}\n"
+			"       Enable/Disable dumping of RTCP stats.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+
+	if (!strncasecmp(a->argv[e->args-1], "on", 2))
+		rtcpstats = 1;
+	else if (!strncasecmp(a->argv[e->args-1], "off", 3))
+		rtcpstats = 0;
+	else
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "RTCP Stats %s\n", rtcpstats ? "Enabled" : "Disabled");
+	return CLI_SUCCESS;
+}
+
+static char *handle_cli_stun_debug_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
@@ -4015,11 +4108,44 @@ static char *handle_cli_stun_debug(struct ast_cli_entry *e, int cmd, struct ast_
 	return CLI_SUCCESS;
 }
 
+static char *handle_cli_stun_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "stun set debug {on|off}";
+		e->usage =
+			"Usage: stun set debug {on|off}\n"
+			"       Enable/Disable STUN (Simple Traversal of UDP through NATs)\n"
+			"       debugging\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+
+	if (!strncasecmp(a->argv[e->args-1], "on", 2))
+		stundebug = 1;
+	else if (!strncasecmp(a->argv[e->args-1], "off", 3))
+		stundebug = 0;
+	else
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "STUN Debugging %s\n", stundebug ? "Enabled" : "Disabled");
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry cli_rtp_debug_deprecated = AST_CLI_DEFINE(handle_cli_rtp_debug_deprecated,  "Enable/Disable RTP debugging");
+static struct ast_cli_entry cli_rtcp_debug_deprecated = AST_CLI_DEFINE(handle_cli_rtcp_debug_deprecated, "Enable/Disable RTCP debugging");
+static struct ast_cli_entry cli_rtcp_stats_deprecated = AST_CLI_DEFINE(handle_cli_rtcp_stats_deprecated, "Enable/Disable RTCP stats");
+static struct ast_cli_entry cli_stun_debug_deprecated = AST_CLI_DEFINE(handle_cli_stun_debug_deprecated, "Enable/Disable STUN debugging");
+
 static struct ast_cli_entry cli_rtp[] = {
-	AST_CLI_DEFINE(handle_cli_rtp_debug,  "Enable/Disable RTP debugging"),
-	AST_CLI_DEFINE(handle_cli_rtcp_debug, "Enable/Disable RTCP debugging"),
-	AST_CLI_DEFINE(handle_cli_rtcp_stats, "Enable/Disable RTCP stats"),
-	AST_CLI_DEFINE(handle_cli_stun_debug, "Enable/Disable STUN debugging"),
+	AST_CLI_DEFINE(handle_cli_rtp_set_debug,  "Enable/Disable RTP debugging", .deprecate_cmd = &cli_rtp_debug_deprecated),
+	AST_CLI_DEFINE(handle_cli_rtcp_set_debug, "Enable/Disable RTCP debugging", .deprecate_cmd = &cli_rtcp_debug_deprecated),
+	AST_CLI_DEFINE(handle_cli_rtcp_set_stats, "Enable/Disable RTCP stats", .deprecate_cmd = &cli_rtcp_stats_deprecated),
+	AST_CLI_DEFINE(handle_cli_stun_set_debug, "Enable/Disable STUN debugging", .deprecate_cmd = &cli_stun_debug_deprecated),
 };
 
 static int __ast_rtp_reload(int reload)

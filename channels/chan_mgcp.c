@@ -1139,51 +1139,64 @@ static char *handle_mgcp_audit_endpoint(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
+static char *handle_mgcp_set_debug_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mgcp set debug [off]";
+		e->usage =
+			"Usage: mgcp set debug [off]\n"
+			"       Enables/Disables dumping of MGCP packets for debugging purposes\n";	
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 3 || a->argc > 4)
+		return CLI_SHOWUSAGE;
+	if (a->argc == 3) {
+		mgcpdebug = 1;
+		ast_cli(a->fd, "MGCP Debugging Enabled\n");
+	} else if (!strncasecmp(a->argv[3], "off", 3)) {
+		mgcpdebug = 0;
+		ast_cli(a->fd, "MGCP Debugging Disabled\n");
+	}
+	return CLI_SUCCESS;
+}
+
 static char *handle_mgcp_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "mgcp set debug";
+		e->command = "mgcp set debug {on|off}";
 		e->usage =
-			"Usage: mgcp set debug\n"
-			"       Enables dumping of MGCP packets for debugging purposes\n";	
+			"Usage: mgcp set debug {on|off}\n"
+			"       Enables/Disables dumping of MGCP packets for debugging purposes\n";	
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != 3)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	mgcpdebug = 1;
-	ast_cli(a->fd, "MGCP Debugging Enabled\n");
-	return CLI_SUCCESS;
-}
 
-static char *handle_mgcp_set_debug_off(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "mgcp set debug off";
-		e->usage =
-			"Usage: mgcp set debug off\n"
-			"       Disables dumping of MGCP packets for debugging purposes\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
+	if (!strncasecmp(a->argv[e->args - 1], "on", 2)) {
+		mgcpdebug = 1;
+		ast_cli(a->fd, "MGCP Debugging Enabled\n");
+	} else if (!strncasecmp(a->argv[3], "off", 3)) {
+		mgcpdebug = 0;
+		ast_cli(a->fd, "MGCP Debugging Disabled\n");
+	} else {
+		return CLI_SHOWUSAGE;
 	}
-
-	if (a->argc != 4)
-		return CLI_SHOWUSAGE;
-	mgcpdebug = 0;
-	ast_cli(a->fd, "MGCP Debugging Disabled\n");
 	return CLI_SUCCESS;
 }
 
+static struct ast_cli_entry cli_mgcp_set_debug_deprecated = AST_CLI_DEFINE(handle_mgcp_set_debug_deprecated, "Enable/Disable MGCP debugging");
 static struct ast_cli_entry cli_mgcp[] = {
 	AST_CLI_DEFINE(handle_mgcp_audit_endpoint, "Audit specified MGCP endpoint"),
 	AST_CLI_DEFINE(handle_mgcp_show_endpoints, "List defined MGCP endpoints"),
-	AST_CLI_DEFINE(handle_mgcp_set_debug, "Enable MGCP debugging"),
-	AST_CLI_DEFINE(handle_mgcp_set_debug_off, "Disable MGCP debugging"),
+	AST_CLI_DEFINE(handle_mgcp_set_debug, "Enable/Disable MGCP debugging", .deprecate_cmd = &cli_mgcp_set_debug_deprecated),
 	AST_CLI_DEFINE(mgcp_reload, "Reload MGCP configuration"),
 };
 

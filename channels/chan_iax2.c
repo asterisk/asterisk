@@ -5262,41 +5262,80 @@ static char *handle_cli_iax2_show_netstats(struct ast_cli_entry *e, int cmd, str
 	return CLI_SUCCESS;
 }
 
-static char *handle_cli_iax2_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_cli_iax2_set_debug_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "iax2 set debug";
+		e->command = "iax2 set debug [off]";
 		e->usage =
-			"Usage: iax2 set debug\n"
-			"       Enables dumping of IAX packets for debugging purposes.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-	if (a->argc < 2 || a->argc > 3)
-		return CLI_SHOWUSAGE;
-	iaxdebug = 1;
-	ast_cli(a->fd, "IAX2 Debugging Enabled\n");
-	return CLI_SUCCESS;
-}
-
-static char *handle_cli_iax2_set_debug_off(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "iax2 set debug off";
-		e->usage =
-			"Usage: iax2 set debug off\n"
-			"       Disables dumping of IAX packets for debugging purposes.\n";
+			"Usage: iax2 set debug [off]\n"
+			"       Enables/Disables dumping of IAX packets for debugging purposes.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 	if (a->argc < 3 || a->argc > 4)
 		return CLI_SHOWUSAGE;
-	iaxdebug = 0;
-	ast_cli(a->fd, "IAX2 Debugging Disabled\n");
+	if (a->argc == 3) {
+		iaxdebug = 1;
+		ast_cli(a->fd, "IAX2 Debugging Enabled\n");
+	} else {
+		iaxdebug = 0;
+		ast_cli(a->fd, "IAX2 Debugging Disabled\n");
+	}
+	return CLI_SUCCESS;
+}
+
+static char *handle_cli_iax2_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 set debug {on|off}";
+		e->usage =
+			"Usage: iax2 set debug {on|off}\n"
+			"       Enables/Disables dumping of IAX packets for debugging purposes.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+
+	if (!strncasecmp(a->argv[e->args -1], "on", 2)) {
+		iaxdebug = 1;
+		ast_cli(a->fd, "IAX2 Debugging Enabled\n");
+	} else {
+		iaxdebug = 0;
+		ast_cli(a->fd, "IAX2 Debugging Disabled\n");
+	}
+	return CLI_SUCCESS;
+}
+
+
+static char *handle_cli_iax2_set_debug_trunk_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 set debug trunk [off]";
+		e->usage =
+			"Usage: iax2 set debug trunk [off]\n"
+			"       Enables/Disables debugging of IAX trunking\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 4 || a->argc > 5)
+		return CLI_SHOWUSAGE;
+
+	if (a->argc == 4) {
+		iaxtrunkdebug = 1;
+		ast_cli(a->fd, "IAX2 Trunk Debugging Enabled\n");
+	} else {
+		iaxtrunkdebug = 0;
+		ast_cli(a->fd, "IAX2 Trunk Debugging Disabled\n");
+	}
 	return CLI_SUCCESS;
 }
 
@@ -5304,37 +5343,51 @@ static char *handle_cli_iax2_set_debug_trunk(struct ast_cli_entry *e, int cmd, s
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "iax2 set debug trunk";
+		e->command = "iax2 set debug trunk {on|off}";
 		e->usage =
-			"Usage: iax2 set debug trunk\n"
-			"       Requests current status of IAX trunking\n";
+			"Usage: iax2 set debug trunk {on|off}\n"
+			"       Enables/Disables debugging of IAX trunking\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc < 3 || a->argc > 4)
+
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	iaxtrunkdebug = 1;
-	ast_cli(a->fd, "IAX2 Trunk Debugging Requested\n");
+
+	if (!strncasecmp(a->argv[e->args - 1], "on", 2)) {
+		iaxtrunkdebug = 1;
+		ast_cli(a->fd, "IAX2 Trunk Debugging Enabled\n");
+	} else {
+		iaxtrunkdebug = 0;
+		ast_cli(a->fd, "IAX2 Trunk Debugging Disabled\n");
+	}
 	return CLI_SUCCESS;
 }
 
-static char *handle_cli_iax2_set_debug_trunk_off(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_cli_iax2_set_debug_jb_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "iax2 set debug trunk off";
+		e->command = "iax2 set debug jb [off]";
 		e->usage =
-			"Usage: iax2 set debug trunk off\n"
-			"       Disables debugging of IAX trunking\n";
+			"Usage: iax2 set debug jb [off]\n"
+			"       Enables/Disables jitterbuffer debugging information\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
+
 	if (a->argc < 4 || a->argc > 5)
 		return CLI_SHOWUSAGE;
-	iaxtrunkdebug = 0;
-	ast_cli(a->fd, "IAX2 Trunk Debugging Disabled\n");
+	
+	if (a->argc == 4) {
+		jb_setoutput(jb_error_output, jb_warning_output, jb_debug_output);
+		ast_cli(a->fd, "IAX2 Jitterbuffer Debugging Enabled\n");
+	} else {
+		jb_setoutput(jb_error_output, jb_warning_output, NULL);
+		ast_cli(a->fd, "IAX2 Jitterbuffer Debugging Disabled\n");
+	}
 	return CLI_SUCCESS;
 }
 
@@ -5342,37 +5395,25 @@ static char *handle_cli_iax2_set_debug_jb(struct ast_cli_entry *e, int cmd, stru
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "iax2 set debug jb";
+		e->command = "iax2 set debug jb {on|off}";
 		e->usage =
-			"Usage: iax2 set debug jb\n"
-			"       Enables jitterbuffer debugging information\n";
+			"Usage: iax2 set debug jb {on|off}\n"
+			"       Enables/Disables jitterbuffer debugging information\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc < 3 || a->argc > 4)
-		return CLI_SHOWUSAGE;
-	jb_setoutput(jb_error_output, jb_warning_output, jb_debug_output);
-	ast_cli(a->fd, "IAX2 Jitterbuffer Debugging Enabled\n");
-	return CLI_SUCCESS;
-}
 
-static char *handle_cli_iax2_set_debug_jb_off(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "iax2 set debug jb off";
-		e->usage =
-			"Usage: iax2 set debug jb off\n"
-			"       Disables jitterbuffer debugging information\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-	if (a->argc < 4 || a->argc > 5)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	jb_setoutput(jb_error_output, jb_warning_output, NULL);
-	ast_cli(a->fd, "IAX2 Jitterbuffer Debugging Disabled\n");
+	
+	if (!strncasecmp(a->argv[e->args -1], "on", 2)) {
+		jb_setoutput(jb_error_output, jb_warning_output, jb_debug_output);
+		ast_cli(a->fd, "IAX2 Jitterbuffer Debugging Enabled\n");
+	} else {
+		jb_setoutput(jb_error_output, jb_warning_output, NULL);
+		ast_cli(a->fd, "IAX2 Jitterbuffer Debugging Disabled\n");
+	}
 	return CLI_SUCCESS;
 }
 
@@ -11474,17 +11515,18 @@ static struct ast_switch iax2_switch =
 #endif
 */
 
+static struct ast_cli_entry cli_iax2_set_debug_deprecated = AST_CLI_DEFINE(handle_cli_iax2_set_debug_deprecated, "Enable/Disable IAX debugging");
+static struct ast_cli_entry cli_iax2_set_debug_trunk_deprecated = AST_CLI_DEFINE(handle_cli_iax2_set_debug_trunk_deprecated, "Enable/Disable IAX debugging");
+static struct ast_cli_entry cli_iax2_set_debug_jb_deprecated = AST_CLI_DEFINE(handle_cli_iax2_set_debug_jb_deprecated, "Enable/Disable IAX debugging");
+
 static struct ast_cli_entry cli_iax2[] = {
 	AST_CLI_DEFINE(handle_cli_iax2_provision,           "Provision an IAX device"),
 	AST_CLI_DEFINE(handle_cli_iax2_prune_realtime,      "Prune a cached realtime lookup"),
 	AST_CLI_DEFINE(handle_cli_iax2_reload,              "Reload IAX configuration"),
 	AST_CLI_DEFINE(handle_cli_iax2_set_mtu,             "Set the IAX systemwide trunking MTU"),
-	AST_CLI_DEFINE(handle_cli_iax2_set_debug,           "Enable IAX debugging"),
-	AST_CLI_DEFINE(handle_cli_iax2_set_debug_trunk,     "Enable IAX trunk debugging"),
-	AST_CLI_DEFINE(handle_cli_iax2_set_debug_jb,        "Enable IAX jitterbuffer debugging"),
-	AST_CLI_DEFINE(handle_cli_iax2_set_debug_off,       "Disable IAX debugging"),
-	AST_CLI_DEFINE(handle_cli_iax2_set_debug_trunk_off, "Disable IAX trunk debugging"),
-	AST_CLI_DEFINE(handle_cli_iax2_set_debug_jb_off,    "Disable IAX jitterbuffer debugging"),
+	AST_CLI_DEFINE(handle_cli_iax2_set_debug,           "Enable/Disable IAX debugging", .deprecate_cmd = &cli_iax2_set_debug_deprecated),
+	AST_CLI_DEFINE(handle_cli_iax2_set_debug_trunk,     "Enable/Disable IAX trunk debugging", .deprecate_cmd = &cli_iax2_set_debug_trunk_deprecated),
+	AST_CLI_DEFINE(handle_cli_iax2_set_debug_jb,        "Enable/Disable IAX jitterbuffer debugging", .deprecate_cmd = &cli_iax2_set_debug_jb_deprecated),
 	AST_CLI_DEFINE(handle_cli_iax2_show_cache,          "Display IAX cached dialplan"),
 	AST_CLI_DEFINE(handle_cli_iax2_show_channels,       "List active IAX channels"),
 	AST_CLI_DEFINE(handle_cli_iax2_show_firmware,       "List available IAX firmware"),
