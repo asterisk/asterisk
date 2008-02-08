@@ -6980,9 +6980,11 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	if (events & AST_IO_PRI) {
 #ifdef ZT_TIMERACK
 		/* Great, this is a timing interface, just call the ioctl */
-		if (ioctl(fd, ZT_TIMERACK, &x)) 
-			ast_log(LOG_WARNING, "Unable to acknowledge zap timer\n");
-		res = 0;
+		if (ioctl(fd, ZT_TIMERACK, &x)) {
+			ast_log(LOG_WARNING, "Unable to acknowledge zap timer. IAX trunking will fail!\n");
+			usleep(1);
+			return -1;
+		}
 #endif		
 	} else {
 		/* Read and ignore from the pseudo channel for timing */
