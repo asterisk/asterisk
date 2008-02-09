@@ -4399,7 +4399,11 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	if (flag==1) {
 		struct leave_vm_options leave_options;
 		char mailbox[AST_MAX_EXTENSION * 2 + 2];
-		snprintf(mailbox, sizeof(mailbox), "%s@%s", username, context);
+		/* Make sure that context doesn't get set as a literal "(null)" (or else find_user won't find it) */
+		if (context)
+			snprintf(mailbox, sizeof(mailbox), "%s@%s", username, context);
+		else
+			ast_copy_string(mailbox, username, sizeof(mailbox));
 
 		/* Send VoiceMail */
 		memset(&leave_options, 0, sizeof(leave_options));
