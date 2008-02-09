@@ -59,9 +59,9 @@ static char *dt_synopsis = "Delete a family or keytree from the database";
 static int deltree_exec(struct ast_channel *chan, void *data)
 {
 	char *argv, *family, *keytree;
-	
+
 	argv = ast_strdupa(data);
-	
+
 	if (strchr(argv, '/')) {
 		family = strsep(&argv, "/");
 		keytree = strsep(&argv, "\0");
@@ -75,12 +75,12 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 		family = argv;
 		keytree = 0;
 	}
-	
+
 	if (keytree)
 		ast_verb(3, "DBdeltree: family=%s, keytree=%s\n", family, keytree);
 	else
 		ast_verb(3, "DBdeltree: family=%s\n", family);
-	
+
 	if (ast_db_deltree(family, keytree))
 		ast_verb(3, "DBdeltree: Error deleting key from database.\n");
 
@@ -91,14 +91,14 @@ static int del_exec(struct ast_channel *chan, void *data)
 {
 	char *argv, *family, *key;
 	static int deprecation_warning = 0;
-	
+
 	if (!deprecation_warning) {
 		deprecation_warning = 1;
 		ast_log(LOG_WARNING, "The DBdel application has been deprecated in favor of the DB_DELETE dialplan function!\n");
 	}
-	
+
 	argv = ast_strdupa(data);
-	
+
 	if (strchr(argv, '/')) {
 		family = strsep(&argv, "/");
 		key = strsep(&argv, "\0");
@@ -112,7 +112,7 @@ static int del_exec(struct ast_channel *chan, void *data)
 	} else {
 		ast_debug(1, "Ignoring, no parameters\n");
 	}
-	
+
 	return 0;
 }
 
@@ -132,7 +132,7 @@ static int load_module(void)
 
 	retval = ast_register_application(d_app, del_exec, d_synopsis, d_descrip);
 	retval |= ast_register_application(dt_app, deltree_exec, dt_synopsis, dt_descrip);
-	
+
 	return retval;
 }
 

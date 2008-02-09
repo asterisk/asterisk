@@ -50,7 +50,7 @@ static const char *app = "ExternalIVR";
 
 static const char *synopsis = "Interfaces with an external IVR application";
 
-static const char *descrip = 
+static const char *descrip =
 "  ExternalIVR(command[,arg[,arg...]]): Forks a process to run the supplied command,\n"
 "and starts a generator on the channel. The generator's play list is\n"
 "controlled by the external application, which can add and clear entries\n"
@@ -86,7 +86,7 @@ struct gen_state {
 };
 
 static void send_child_event(FILE *handle, const char event, const char *data,
-			     const struct ast_channel *chan)
+	const struct ast_channel *chan)
 {
 	char tmp[256];
 
@@ -105,7 +105,7 @@ static void *gen_alloc(struct ast_channel *chan, void *params)
 {
 	struct ivr_localuser *u = params;
 	struct gen_state *state;
-	
+
 	if (!(state = ast_calloc(1, sizeof(*state))))
 		return NULL;
 
@@ -137,7 +137,7 @@ static int gen_nextfile(struct gen_state *state)
 {
 	struct ivr_localuser *u = state->u;
 	char *file_to_stream;
-	
+
 	u->abort_current_sound = 0;
 	u->playing_silence = 0;
 	gen_closestream(state);
@@ -155,7 +155,7 @@ static int gen_nextfile(struct gen_state *state)
 			ast_chan_log(LOG_WARNING, u->chan, "File '%s' could not be opened: %s\n", file_to_stream, strerror(errno));
 			if (!u->playing_silence) {
 				continue;
-			} else { 
+			} else {
 				break;
 			}
 		}
@@ -168,9 +168,9 @@ static struct ast_frame *gen_readframe(struct gen_state *state)
 {
 	struct ast_frame *f = NULL;
 	struct ivr_localuser *u = state->u;
-	
+
 	if (u->abort_current_sound ||
-	    (u->playing_silence && AST_LIST_FIRST(&u->playlist))) {
+		(u->playing_silence && AST_LIST_FIRST(&u->playlist))) {
 		gen_closestream(state);
 		AST_LIST_LOCK(&u->playlist);
 		gen_nextfile(state);
@@ -225,7 +225,7 @@ static struct ast_generator gen =
 static struct playlist_entry *make_entry(const char *filename)
 {
 	struct playlist_entry *entry;
-	
+
 	if (!(entry = ast_calloc(1, sizeof(*entry) + strlen(filename) + 10))) /* XXX why 10 ? */
 		return NULL;
 
@@ -262,10 +262,10 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 	u->abort_current_sound = 0;
 	u->chan = chan;
-	
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ExternalIVR requires a command to execute\n");
-		return -1;	
+		return -1;
 	}
 
 	buf = ast_strdupa(data);
@@ -515,7 +515,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 					command = ast_strip(input);
 					ast_chan_log(LOG_NOTICE, chan, "stderr: %s\n", command);
 				}
-			} else if ((ready_fd < 0) && ms) { 
+			} else if ((ready_fd < 0) && ms) {
 				if (errno == 0 || errno == EINTR)
 					continue;
 

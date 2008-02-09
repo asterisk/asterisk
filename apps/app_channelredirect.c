@@ -37,7 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "ChannelRedirect";
 static char *synopsis = "Redirects given channel to a dialplan target.";
-static char *descrip = 
+static char *descrip =
 "ChannelRedirect(channel,[[context,]extension,]priority)\n"
 "  Sends the specified channel to the specified extension priority\n";
 

@@ -17,14 +17,14 @@
  */
 
 /*! \file
- * 
+ *
  * \brief Trivial application to control playback of a sound file
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -37,7 +37,7 @@ static const char *app = "ControlPlayback";
 
 static const char *synopsis = "Play a file with fast forward and rewind";
 
-static const char *descrip = 
+static const char *descrip =
 "  ControlPlayback(file[,skipms[,ff[,rew[,stop[,pause[,restart,options]]]]]]]):\n"
 "This application will play back the given filename. By default, the '*' key\n"
 "can be used to rewind, and the '#' key can be used to fast-forward.\n"
@@ -71,7 +71,8 @@ enum {
 
 AST_APP_OPTIONS(cpb_opts, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('o', OPT_OFFSET, OPT_ARG_OFFSET),
-END_OPTIONS );
+	END_OPTIONS
+);
 
 static int is_on_phonepad(char key)
 {
@@ -148,7 +149,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		args.restart = NULL;
 
 	if (args.options) {
-		ast_app_parse_options(cpb_opts, &opts, opt_args, args.options);		
+		ast_app_parse_options(cpb_opts, &opts, opt_args, args.options);
 		if (ast_test_flag(&opts, OPT_OFFSET))
 			offsetms = atol(opt_args[OPT_ARG_OFFSET]);
 	}

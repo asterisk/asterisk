@@ -93,8 +93,8 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 
 	while ((target = ast_channel_walk_locked(target))) {
 		if ((!strcasecmp(target->macroexten, exten) || !strcasecmp(target->exten, exten)) &&
-		    !strcasecmp(target->dialcontext, context) &&
-		    can_pickup(target)) {
+			!strcasecmp(target->dialcontext, context) &&
+			can_pickup(target)) {
 			res = pickup_do(chan, target);
 			ast_channel_unlock(target);
 			break;
@@ -114,8 +114,8 @@ static int pickup_by_mark(struct ast_channel *chan, const char *mark)
 
 	while ((target = ast_channel_walk_locked(target))) {
 		if ((tmp = pbx_builtin_getvar_helper(target, PICKUPMARK)) &&
-		    !strcasecmp(tmp, mark) &&
-		    can_pickup(target)) {
+			!strcasecmp(tmp, mark) &&
+			can_pickup(target)) {
 			res = pickup_do(chan, target);
 			ast_channel_unlock(target);
 			break;
@@ -160,7 +160,7 @@ static int unload_module(void)
 	int res;
 
 	res = ast_unregister_application(app);
-	
+
 	return res;
 }
 

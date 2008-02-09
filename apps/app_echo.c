@@ -21,7 +21,7 @@
  * \brief Echo application -- play back what you hear to evaluate latency
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
@@ -37,7 +37,7 @@ static char *app = "Echo";
 
 static char *synopsis = "Echo audio, video, or DTMF back to the calling party";
 
-static char *descrip = 
+static char *descrip =
 "  Echo(): This application will echo any audio, video, or DTMF frames read from\n"
 "the calling channel back to itself. If the DTMF digit '#' is received, the\n"
 "application will exit.\n";

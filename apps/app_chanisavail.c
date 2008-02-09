@@ -18,9 +18,9 @@
 */
 
 /*! \file
- * 
+ *
  * \brief Check if Channel is Available
- * 
+ *
  * \author Mark Spencer <markster@digium.com>
  * \author James Golovich <james@gnuinter.net>
 
@@ -45,7 +45,7 @@ static char *app = "ChanIsAvail";
 
 static char *synopsis = "Check channel availability";
 
-static char *descrip = 
+static char *descrip =
 "  ChanIsAvail(Technology/resource[&Technology2/resource2...][,options]): \n"
 "This application will check to see if any of the specified channels are\n"
 "available.\n"
@@ -75,7 +75,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	info = ast_strdupa(data); 
+	info = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, info);
 
@@ -105,16 +105,16 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 			number++;
 			
 			if (string_compare) {
-				/* ast_parse_device_state checks for "SIP/1234" as a channel name. 
+				/* ast_parse_device_state checks for "SIP/1234" as a channel name.
 				   ast_device_state will ask the SIP driver for the channel state. */
 
 				snprintf(trychan, sizeof(trychan), "%s/%s",cur,number);
 				status = inuse = ast_parse_device_state(trychan);
 			} else if (option_state) {
 				/* If the pbx says in use then don't bother trying further.
-				   This is to permit testing if someone's on a call, even if the 
-	 			   channel can permit more calls (ie callwaiting, sip calls, etc).  */
-                               
+				   This is to permit testing if someone's on a call, even if the
+				   channel can permit more calls (ie callwaiting, sip calls, etc).  */
+
 				snprintf(trychan, sizeof(trychan), "%s/%s",cur,number);
 				status = inuse = ast_device_state(trychan);
 			}

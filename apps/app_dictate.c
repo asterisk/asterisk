@@ -33,7 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/stat.h>
 
-#include "asterisk/paths.h"	/* use ast_config_AST_SPOOL_DIR */
+#include "asterisk/paths.h" /* use ast_config_AST_SPOOL_DIR */
 #include "asterisk/file.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
@@ -61,7 +61,7 @@ typedef enum {
 
 #define ast_toggle_flag(it,flag) if(ast_test_flag(it, flag)) ast_clear_flag(it, flag); else ast_set_flag(it, flag)
 
-static int play_and_wait(struct ast_channel *chan, char *file, char *digits) 
+static int play_and_wait(struct ast_channel *chan, char *file, char *digits)
 {
 	int res = -1;
 	if (!ast_streamfile(chan, file, chan->language)) {
@@ -94,14 +94,14 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 		len = 0,
 		maxlen = 0,
 		mode = 0;
-	
+
 	snprintf(dftbase, sizeof(dftbase), "%s/dictate", ast_config_AST_SPOOL_DIR);
 	if (!ast_strlen_zero(data)) {
 		parse = ast_strdupa(data);
 		AST_STANDARD_APP_ARGS(args, parse);
 	} else
 		args.argc = 0;
-	
+
 	if (args.argc && !ast_strlen_zero(args.base)) {
 		base = args.base;
 	} else {
@@ -109,7 +109,7 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	}
 	if (args.argc > 1 && args.filename) {
 		filename = args.filename;
-	} 
+	}
 	oldr = chan->readformat;
 	if ((res = ast_set_read_format(chan, AST_FORMAT_SLINEAR)) < 0) {
 		ast_log(LOG_WARNING, "Unable to set to linear mode.\n");
@@ -120,7 +120,7 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	ast_safe_sleep(chan, 200);
 	for (res = 0; !res;) {
 		if (ast_strlen_zero(filename)) {
-			if (ast_app_getdata(chan, "dictate/enter_filename", filein, sizeof(filein), 0) || 
+			if (ast_app_getdata(chan, "dictate/enter_filename", filein, sizeof(filein), 0) ||
 				ast_strlen_zero(filein)) {
 				res = -1;
 				break;
@@ -282,7 +282,7 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 				case DMODE_RECORD:
 					if (lastop != DMODE_RECORD) {
 						int oflags = O_CREAT | O_WRONLY;
-						if (ast_test_flag(&flags, DFLAG_PAUSE)) {						
+						if (ast_test_flag(&flags, DFLAG_PAUSE)) {
 							digit = play_and_wait(chan, "dictate/record_mode", AST_DIGIT_ANY);
 							if (digit == 0) {
 								digit = play_and_wait(chan, "dictate/paused", AST_DIGIT_ANY);

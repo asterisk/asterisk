@@ -37,7 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 
 /* Maximum length of any variable */
-#define MAXRESULT	1024
+#define MAXRESULT 1024
 
 /*! Note
  *
@@ -76,7 +76,7 @@ static char *tryexec_descrip =
 
 static char *app_execif = "ExecIf";
 static char *execif_synopsis = "Executes dialplan application, conditionally";
-static char *execif_descrip = 
+static char *execif_descrip =
 "  ExecIF (<expr>?<appiftrue>(<args>)[:<appiffalse>(<args>)])\n"
 "If <expr> is true, execute and return the result of <appiftrue>(<args>).\n"
 "If <expr> is true, but <appiftrue> is not found, then the application\n"
@@ -90,7 +90,7 @@ static int exec_exec(struct ast_channel *chan, void *data)
 
 	if (ast_strlen_zero(data))
 		return 0;
-	
+
 	s = ast_strdupa(data);
 	args[0] = 0;
 	appname = strsep(&s, "(");
@@ -180,7 +180,7 @@ static int execif_exec(struct ast_channel *chan, void *data)
 			*end = '\0';
 	}
 
-	if (pbx_checkcondition(expr.expr)) { 
+	if (pbx_checkcondition(expr.expr)) {
 		if (!ast_strlen_zero(apps.t) && (app = pbx_findapp(apps.t))) {
 			res = pbx_exec(chan, app, S_OR(truedata, ""));
 		} else {

@@ -33,7 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <ctype.h>
 
-#include "asterisk/paths.h"	/* use ast_config_AST_MONITOR_DIR */
+#include "asterisk/paths.h" /* use ast_config_AST_MONITOR_DIR */
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
 #include "asterisk/audiohook.h"
@@ -50,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static const char *tdesc = "Listen to a channel, and optionally whisper into it";
 static const char *app_chan = "ChanSpy";
-static const char *desc_chan = 
+static const char *desc_chan =
 "  ChanSpy([chanprefix][,options]): This application is used to listen to the\n"
 "audio from an Asterisk channel. This includes the audio coming in and\n"
 "out of the channel being spied on. If the 'chanprefix' parameter is specified,\n"
@@ -94,7 +94,7 @@ static const char *desc_chan =
 ;
 
 static const char *app_ext = "ExtenSpy";
-static const char *desc_ext = 
+static const char *desc_ext =
 "  ExtenSpy(exten[@context][,options]): This application is used to listen to the\n"
 "audio from an Asterisk channel. This includes the audio coming in and\n"
 "out of the channel being spied on. Only channels created by outgoing calls for the\n"
@@ -131,15 +131,15 @@ static const char *desc_ext =
 ;
 
 enum {
-	OPTION_QUIET	 = (1 << 0),	/* Quiet, no announcement */
-	OPTION_BRIDGED   = (1 << 1),	/* Only look at bridged calls */
-	OPTION_VOLUME    = (1 << 2),	/* Specify initial volume */
-	OPTION_GROUP     = (1 << 3),	/* Only look at channels in group */
+	OPTION_QUIET     = (1 << 0),    /* Quiet, no announcement */
+	OPTION_BRIDGED   = (1 << 1),    /* Only look at bridged calls */
+	OPTION_VOLUME    = (1 << 2),    /* Specify initial volume */
+	OPTION_GROUP     = (1 << 3),    /* Only look at channels in group */
 	OPTION_RECORD    = (1 << 4),
-	OPTION_WHISPER	 = (1 << 5),
-	OPTION_PRIVATE   = (1 << 6),	/* Private Whisper mode */
-	OPTION_READONLY  = (1 << 7),	/* Don't mix the two channels */
-	OPTION_EXIT      = (1 << 8),	/* Exit to a valid single digit extension */
+	OPTION_WHISPER   = (1 << 5),
+	OPTION_PRIVATE   = (1 << 6),    /* Private Whisper mode */
+	OPTION_READONLY  = (1 << 7),    /* Don't mix the two channels */
+	OPTION_EXIT      = (1 << 8),    /* Exit to a valid single digit extension */
 	OPTION_ENFORCED  = (1 << 9),    /* Enforced mode */
 } chanspy_opt_flags;
 
@@ -184,11 +184,11 @@ static void spy_release(struct ast_channel *chan, void *data)
 	/* nothing to do */
 }
 
-static int spy_generate(struct ast_channel *chan, void *data, int len, int samples) 
+static int spy_generate(struct ast_channel *chan, void *data, int len, int samples)
 {
 	struct chanspy_translation_helper *csth = data;
 	struct ast_frame *f = NULL;
-		
+
 	ast_audiohook_lock(&csth->spy_audiohook);
 	if (csth->spy_audiohook.status != AST_AUDIOHOOK_STATUS_RUNNING) {
 		/* Channel is already gone more than likely */
@@ -199,10 +199,10 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 	f = ast_audiohook_read_frame(&csth->spy_audiohook, samples, AST_AUDIOHOOK_DIRECTION_BOTH, AST_FORMAT_SLINEAR);
 
 	ast_audiohook_unlock(&csth->spy_audiohook);
-		
+
 	if (!f)
 		return 0;
-		
+
 	if (ast_write(chan, f)) {
 		ast_frfree(f);
 		return -1;
@@ -219,10 +219,10 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 static struct ast_generator spygen = {
 	.alloc = spy_alloc,
 	.release = spy_release,
-	.generate = spy_generate, 
+	.generate = spy_generate,
 };
 
-static int start_spying(struct ast_channel *chan, struct ast_channel *spychan, struct ast_audiohook *audiohook) 
+static int start_spying(struct ast_channel *chan, struct ast_channel *spychan, struct ast_audiohook *audiohook)
 {
 	int res = 0;
 	struct ast_channel *peer = NULL;
@@ -232,13 +232,13 @@ static int start_spying(struct ast_channel *chan, struct ast_channel *spychan, s
 	res = ast_audiohook_attach(chan, audiohook);
 
 	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan)))
-		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
+		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);
 
 	return res;
 }
 
 static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int *volfactor, int fd,
-		       const struct ast_flags *flags, char *exitcontext) 
+	const struct ast_flags *flags, char *exitcontext)
 {
 	struct chanspy_translation_helper csth;
 	int running = 0, res, x = 0;
@@ -256,7 +256,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	memset(&csth, 0, sizeof(csth));
 
 	ast_audiohook_init(&csth.spy_audiohook, AST_AUDIOHOOK_TYPE_SPY, "ChanSpy");
-	
+
 	if (start_spying(spyee, chan, &csth.spy_audiohook)) {
 		ast_audiohook_destroy(&csth.spy_audiohook);
 		return 0;
@@ -321,7 +321,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 			running = -1;
 			break;
 		}
-		
+
 		if (ast_test_flag(flags, OPTION_EXIT)) {
 			char tmp[2];
 			tmp[0] = res;
@@ -376,15 +376,15 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	ast_audiohook_destroy(&csth.spy_audiohook);
 	
 	ast_verb(2, "Done Spying on channel %s\n", name);
-	
+
 	return running;
 }
 
 static struct ast_channel *next_channel(const struct ast_channel *last, const char *spec,
-					const char *exten, const char *context)
+	const char *exten, const char *context)
 {
 	struct ast_channel *this;
-	
+
 	redo:
 	if (!ast_strlen_zero(spec))
 		this = ast_walk_channel_by_name_prefix_locked(last, spec, strlen(spec));
@@ -404,8 +404,8 @@ static struct ast_channel *next_channel(const struct ast_channel *last, const ch
 }
 
 static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
-		       int volfactor, const int fd, const char *mygroup, const char *myenforced,
-		       const char *spec, const char *exten, const char *context)
+	int volfactor, const int fd, const char *mygroup, const char *myenforced,
+	const char *spec, const char *exten, const char *context)
 {
 	struct ast_channel *peer, *prev, *next;
 	char nameprefix[AST_NAME_STRLEN];
@@ -420,9 +420,9 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 
 	if (ast_test_flag(flags, OPTION_EXIT)) {
 		const char *c;
-		if ((c = pbx_builtin_getvar_helper(chan, "SPY_EXIT_CONTEXT"))) 
+		if ((c = pbx_builtin_getvar_helper(chan, "SPY_EXIT_CONTEXT")))
 			ast_copy_string(exitcontext, c, sizeof(exitcontext));
-		else if (!ast_strlen_zero(chan->macrocontext)) 
+		else if (!ast_strlen_zero(chan->macrocontext))
 			ast_copy_string(exitcontext, chan->macrocontext, sizeof(exitcontext));
 		else
 			ast_copy_string(exitcontext, chan->context, sizeof(exitcontext));
@@ -469,15 +469,15 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			else
 				ast_debug(2, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
 		}
-				
+
 		/* reset for the next loop around, unless overridden later */
 		waitms = 100;
 		peer = prev = next = NULL;
 		num_spyed_upon = 0;
 
 		for (peer = next_channel(peer, spec, exten, context);
-		     peer;
-		     prev = peer, peer = next ? next : next_channel(peer, spec, exten, context), next = NULL) {
+			peer;
+			prev = peer, peer = next ? next : next_channel(peer, spec, exten, context), next = NULL) {
 			const char *group;
 			int igrp = !mygroup;
 			char *groups[25];
@@ -490,7 +490,7 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			char *ext;
 			char *form_enforced;
 			int ienf = !myenforced;
-	
+
 			if (peer == prev)
 				break;
 
@@ -507,9 +507,9 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 				if ((group = pbx_builtin_getvar_helper(peer, "SPYGROUP"))) {
 					dup_group = ast_strdupa(group);
 					num_groups = ast_app_separate_args(dup_group, ':', groups,
-									   sizeof(groups) / sizeof(groups[0]));
+						sizeof(groups) / sizeof(groups[0]));
 				}
-				
+
 				for (x = 0; x < num_groups; x++) {
 					if (!strcmp(mygroup, groups[x])) {
 						igrp = 1;
@@ -517,33 +517,33 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 					}
 				}
 			}
-			
+
 			if (!igrp)
 				continue;
 
 			if (myenforced) {
- 
+
 				/* We don't need to allocate more space than just the
 				length of (peer->name) for ext as we will cut the
 				channel name's ending before copying into ext */
 
 				ext = alloca(strlen(peer->name));
 
- 				form_enforced = alloca(strlen(myenforced) + 3);
-			
+				form_enforced = alloca(strlen(myenforced) + 3);
+
 				strcpy(form_enforced, ":");
 				strcat(form_enforced, myenforced);
 				strcat(form_enforced, ":");
-				
+
 				buffer = ast_strdupa(peer->name);
 				
 				if ((end = strchr(buffer, '-'))) {
-				    *end++ = ':';
-				    *end = '\0';
+					*end++ = ':';
+					*end = '\0';
 				}
-				
+
 				strcpy(ext, ":");
-				strcat(ext, buffer);				
+				strcat(ext, buffer);
 
 				if (strcasestr(form_enforced, ext))
 					ienf = 1;
@@ -556,10 +556,10 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			strncat(peer_name, peer->name, AST_NAME_STRLEN);
 			ptr = strchr(peer_name, '/');
 			*ptr++ = '\0';
-			
+
 			for (s = peer_name; s < ptr; s++)
 				*s = tolower(*s);
-			
+
 			if (!ast_test_flag(flags, OPTION_QUIET)) {
 				if (ast_fileexists(peer_name, NULL, NULL) != -1) {
 					res = ast_streamfile(chan, peer_name, chan->language);
@@ -569,13 +569,13 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 						break;
 				} else
 					res = ast_say_character_str(chan, peer_name, "", chan->language);
-				if ((num = atoi(ptr))) 
+				if ((num = atoi(ptr)))
 					ast_say_digits(chan, atoi(ptr), "", chan->language);
 			}
-			
+
 			waitms = 5000;
 			res = channel_spy(chan, peer, &volfactor, fd, flags, exitcontext);
-			num_spyed_upon++;	
+			num_spyed_upon++;
 
 			if (res == -1) {
 				goto exit;
@@ -631,7 +631,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 			mygroup = opts[OPT_ARG_GROUP];
 
 		if (ast_test_flag(&flags, OPTION_RECORD) &&
-		    !(recbase = opts[OPT_ARG_RECORD]))
+			!(recbase = opts[OPT_ARG_RECORD]))
 			recbase = "chanspy";
 
 		if (ast_test_flag(&flags, OPTION_VOLUME) && opts[OPT_ARG_VOLUME]) {
@@ -708,13 +708,13 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 
 	if (args.options) {
 		char *opts[OPT_ARG_ARRAY_SIZE];
-		
+
 		ast_app_parse_options(spy_opts, &flags, opts, args.options);
 		if (ast_test_flag(&flags, OPTION_GROUP))
 			mygroup = opts[OPT_ARG_GROUP];
 
 		if (ast_test_flag(&flags, OPTION_RECORD) &&
-		    !(recbase = opts[OPT_ARG_RECORD]))
+			!(recbase = opts[OPT_ARG_RECORD]))
 			recbase = "chanspy";
 
 		if (ast_test_flag(&flags, OPTION_VOLUME) && opts[OPT_ARG_VOLUME]) {

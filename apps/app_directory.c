@@ -21,17 +21,17 @@
  * \brief Provide a directory of extensions
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <ctype.h>
 
-#include "asterisk/paths.h"	/* use ast_config_AST_SPOOL_DIR */
+#include "asterisk/paths.h" /* use ast_config_AST_SPOOL_DIR */
 #include "asterisk/file.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
@@ -91,7 +91,7 @@ enum {
 struct directory_item {
 	char exten[AST_MAX_EXTENSION + 1];
 	char name[AST_MAX_EXTENSION + 1];
-	char key[50];				/* Text to order items. Either lastname+firstname or firstname+lastname */
+	char key[50]; /* Text to order items. Either lastname+firstname or firstname+lastname */
 
 	AST_LIST_ENTRY(directory_item) entry;
 };
@@ -300,7 +300,7 @@ static int compare(const char *text, const char *template)
  *           '*' for skipped entry from directory
  */
 static int play_mailbox_owner(struct ast_channel *chan, const char *context,
-		const char *ext, const char *name, struct ast_flags *flags)
+	const char *ext, const char *name, struct ast_flags *flags)
 {
 	int res = 0;
 	char fn[256];
@@ -337,7 +337,7 @@ static int play_mailbox_owner(struct ast_channel *chan, const char *context,
 		}
 	}
 #ifdef ODBC_STORAGE
-	ast_filedelete(fn, NULL);	
+	ast_filedelete(fn, NULL);
 #endif
 
 	return res;
@@ -378,7 +378,7 @@ static int select_item_seq(struct ast_channel *chan, struct directory_item **ite
 				res = ast_waitfordigit(chan, 3000);
 			ast_stopstream(chan);
 	
-			if (res == '1') {	/* Name selected */
+			if (res == '1') { /* Name selected */
 				return select_entry(chan, context, dialcontext, item, flags) ? -1 : 1;
 			} else if (res == '*') {
 				/* Skip to next match in list */
@@ -502,8 +502,8 @@ static struct ast_config *realtime_directory(char *context)
 		fullname = ast_variable_retrieve(rtdata, mailbox, "fullname");
 		hidefromdir = ast_variable_retrieve(rtdata, mailbox, "hidefromdir");
 		snprintf(tmp, sizeof(tmp), "no-password,%s,hidefromdir=%s",
-			 fullname ? fullname : "",
-			 hidefromdir ? hidefromdir : "no");
+			fullname ? fullname : "",
+			hidefromdir ? hidefromdir : "no");
 		var = ast_variable_new(mailbox, tmp, "");
 		if (var)
 			ast_variable_append(cat, var);
@@ -595,7 +595,7 @@ static int search_directory(const char *context, struct ast_config *vmcfg, struc
 				continue;
 			if (!ast_true(ast_config_option(ucfg, cat, "hasdirectory")))
 				continue;
-		
+
 			/* Find all candidate extensions */
 			pos = ast_variable_retrieve(ucfg, cat, "fullname");
 			if (!pos)
@@ -639,8 +639,8 @@ static void sort_items(struct directory_item **sorted, int count)
 static int goto_exten(struct ast_channel *chan, const char *dialcontext, char *ext)
 {
 	if (!ast_goto_if_exists(chan, dialcontext, ext, 1) ||
-	    (!ast_strlen_zero(chan->macrocontext) &&
-	     !ast_goto_if_exists(chan, chan->macrocontext, ext, 1))) {
+		(!ast_strlen_zero(chan->macrocontext) &&
+		!ast_goto_if_exists(chan, chan->macrocontext, ext, 1))) {
 		return 0;
 	} else {
 		ast_log(LOG_WARNING, "Can't find extension '%s' in current context.  "
@@ -667,11 +667,11 @@ static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, stru
 
 	if (digit == '0' && !goto_exten(chan, dialcontext, "o")) {
 		return 0;
-	}	
+	}
 
 	if (digit == '*' && !goto_exten(chan, dialcontext, "a")) {
 		return 0;
-	}	
+	}
 
 	ext[0] = digit;
 	if (ast_readstring(chan, ext + 1, NUMDIGITS - 1, 3000, 3000, "#") < 0)
@@ -759,7 +759,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	if (args.options && ast_app_parse_options(directory_app_options, &flags, opts, args.options))
 		return -1;
 
-	if (ast_strlen_zero(args.dialcontext))	
+	if (ast_strlen_zero(args.dialcontext))
 		args.dialcontext = args.vmcontext;
 
 	cfg = realtime_directory(args.vmcontext);
@@ -767,7 +767,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_ERROR, "Unable to read the configuration data!\n");
 		return -1;
 	}
-	
+
 	ucfg = ast_config_load("users.conf", config_flags);
 
 	dirintro = ast_variable_retrieve(cfg, args.vmcontext, "directoryintro");
@@ -776,7 +776,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	if (ast_strlen_zero(dirintro))
 		dirintro = ast_test_flag(&flags, OPT_LISTBYFIRSTNAME) ? "dir-intro-fn" : "dir-intro";
 
-	if (chan->_state != AST_STATE_UP) 
+	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 
 	for (;;) {

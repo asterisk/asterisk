@@ -22,10 +22,10 @@
  * \brief DISA -- Direct Inward System Access Application
  *
  * \author Jim Dixon <jim@lambdatel.com>
- * 
+ *
  * \ingroup applications
  */
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -49,7 +49,7 @@ static char *app = "DISA";
 
 static char *synopsis = "DISA (Direct Inward System Access)";
 
-static char *descrip = 
+static char *descrip =
 "DISA(<numeric passcode>[,<context>[,<cid>[,mailbox[,options]]]]) or\n"
 "DISA(<filename>[,,,,options])\n"
 "The DISA, Direct Inward System Access, application allows someone from \n"
@@ -138,7 +138,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "DISA requires an argument (passcode/passcode file)\n");
 		return -1;
 	}
-	
+
 	ast_debug(1, "Digittimeout: %d\n", digittimeout);
 	ast_debug(1, "Responsetimeout: %d\n", firstdigittimeout);
 
@@ -146,8 +146,8 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, tmp);
 
-	if (ast_strlen_zero(args.context)) 
-		args.context = "disa";	
+	if (ast_strlen_zero(args.context))
+		args.context = "disa";
 	if (ast_strlen_zero(args.mailbox))
 		args.mailbox = "";
 	if (!ast_strlen_zero(args.options))
@@ -180,10 +180,10 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		  /* if outa time, give em reorder */
 		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) > ((k&2) ? digittimeout : firstdigittimeout)) {
 			ast_debug(1,"DISA %s entry timeout on chan %s\n",
-				  ((k&1) ? "extension" : "password"),chan->name);
+				((k&1) ? "extension" : "password"),chan->name);
 			break;
 		}
-		
+
 		if ((res = ast_waitfor(chan, -1) < 0)) {
 			ast_debug(1, "Waitfor returned %d\n", res);
 			continue;
@@ -210,7 +210,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		ast_frfree(f);
 
 		if (!i) {
-			k |= 2; /* We have the first digit */ 
+			k |= 2; /* We have the first digit */
 			ast_playtones_stop(chan);
 		}
 
@@ -232,7 +232,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 						while(fgets(pwline,sizeof(pwline) - 1,fp)) {
 							if (!pwline[0])
 								continue;
-							if (pwline[strlen(pwline) - 1] == '\n') 
+							if (pwline[strlen(pwline) - 1] == '\n')
 								pwline[strlen(pwline) - 1] = 0;
 							if (!pwline[0])
 								continue;
@@ -243,7 +243,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 								continue;
 
 							AST_STANDARD_APP_ARGS(args, pwline);
-			
+
 							ast_debug(1, "Mailbox: %s\n",args.mailbox);
 
 							/* password must be in valid format (numeric) */

@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * 
+ *
  * \brief Applications connected with CDR engine
  *
  * \author Martin Pycko <martinp@digium.com>
@@ -32,7 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/module.h"
 
-static char *nocdr_descrip = 
+static char *nocdr_descrip =
 "  NoCDR(): This application will tell Asterisk not to maintain a CDR for the\n"
 "current call.\n";
 

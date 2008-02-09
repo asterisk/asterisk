@@ -38,7 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "DumpChan";
 static char *synopsis = "Dump Info About The Calling Channel";
-static char *desc = 
+static char *desc =
 	"   DumpChan([<min_verbose_level>])\n"
 	"Displays information on channel and listing of all channel\n"
 	"variables. If min_verbose_level is specified, output is only\n"
@@ -54,7 +54,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 	char cgrp[BUFSIZ/2];
 	char pgrp[BUFSIZ/2];
 	char formatbuf[BUFSIZ/2];
-	
+
 	now = ast_tvnow();
 	memset(buf, 0, size);
 	if (!c)
@@ -67,64 +67,64 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		sec = elapsed_seconds % 60;
 	}
 
-	snprintf(buf,size, 
-			 "Name=               %s\n"
-			 "Type=               %s\n"
-			 "UniqueID=           %s\n"
-			 "CallerIDNum=        %s\n"
-			 "CallerIDName=       %s\n"
-			 "DNIDDigits=         %s\n"
-			 "RDNIS=              %s\n"
- 			 "Language=           %s\n"
-			 "State=              %s (%d)\n"
-			 "Rings=              %d\n"
-			 "NativeFormat=       %s\n"
-			 "WriteFormat=        %s\n"
-			 "ReadFormat=         %s\n"
-			 "RawWriteFormat=     %s\n"
-			 "RawReadFormat=      %s\n"
-			 "1stFileDescriptor=  %d\n"
-			 "Framesin=           %d %s\n"
-			 "Framesout=          %d %s\n"
-			 "TimetoHangup=       %ld\n"
-			 "ElapsedTime=        %dh%dm%ds\n"
-			 "Context=            %s\n"
-			 "Extension=          %s\n"
-			 "Priority=           %d\n"
-			 "CallGroup=          %s\n"
-			 "PickupGroup=        %s\n"
-			 "Application=        %s\n"
-			 "Data=               %s\n"
-			 "Blocking_in=        %s\n",
-			 c->name,
-			 c->tech->type,
-			 c->uniqueid,
-			 S_OR(c->cid.cid_num, "(N/A)"),
-			 S_OR(c->cid.cid_name, "(N/A)"),
-			 S_OR(c->cid.cid_dnid, "(N/A)"),
-			 S_OR(c->cid.cid_rdnis, "(N/A)"),
-			 c->language,
-			 ast_state2str(c->_state),
-			 c->_state,
-			 c->rings,
-			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->nativeformats),
-			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->writeformat),
-			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->readformat),
-			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->rawwriteformat),
-			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->rawreadformat),
-			 c->fds[0], c->fin & ~DEBUGCHAN_FLAG, (c->fin & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
-			 c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "", (long)c->whentohangup,
-			 hour,
-			 min,
-			 sec,
-			 c->context,
-			 c->exten,
-			 c->priority,
-			 ast_print_group(cgrp, sizeof(cgrp), c->callgroup),
-			 ast_print_group(pgrp, sizeof(pgrp), c->pickupgroup),
-			 ( c->appl ? c->appl : "(N/A)" ),
-			 ( c-> data ? S_OR(c->data, "(Empty)") : "(None)"),
-			 (ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
+	snprintf(buf,size,
+			"Name=               %s\n"
+			"Type=               %s\n"
+			"UniqueID=           %s\n"
+			"CallerIDNum=        %s\n"
+			"CallerIDName=       %s\n"
+			"DNIDDigits=         %s\n"
+			"RDNIS=              %s\n"
+			"Language=           %s\n"
+			"State=              %s (%d)\n"
+			"Rings=              %d\n"
+			"NativeFormat=       %s\n"
+			"WriteFormat=        %s\n"
+			"ReadFormat=         %s\n"
+			"RawWriteFormat=     %s\n"
+			"RawReadFormat=      %s\n"
+			"1stFileDescriptor=  %d\n"
+			"Framesin=           %d %s\n"
+			"Framesout=          %d %s\n"
+			"TimetoHangup=       %ld\n"
+			"ElapsedTime=        %dh%dm%ds\n"
+			"Context=            %s\n"
+			"Extension=          %s\n"
+			"Priority=           %d\n"
+			"CallGroup=          %s\n"
+			"PickupGroup=        %s\n"
+			"Application=        %s\n"
+			"Data=               %s\n"
+			"Blocking_in=        %s\n",
+			c->name,
+			c->tech->type,
+			c->uniqueid,
+			S_OR(c->cid.cid_num, "(N/A)"),
+			S_OR(c->cid.cid_name, "(N/A)"),
+			S_OR(c->cid.cid_dnid, "(N/A)"),
+			S_OR(c->cid.cid_rdnis, "(N/A)"),
+			c->language,
+			ast_state2str(c->_state),
+			c->_state,
+			c->rings,
+			ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->nativeformats),
+			ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->writeformat),
+			ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->readformat),
+			ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->rawwriteformat),
+			ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->rawreadformat),
+			c->fds[0], c->fin & ~DEBUGCHAN_FLAG, (c->fin & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
+			c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "", (long)c->whentohangup,
+			hour,
+			min,
+			sec,
+			c->context,
+			c->exten,
+			c->priority,
+			ast_print_group(cgrp, sizeof(cgrp), c->callgroup),
+			ast_print_group(pgrp, sizeof(pgrp), c->pickupgroup),
+			( c->appl ? c->appl : "(N/A)" ),
+			( c-> data ? S_OR(c->data, "(Empty)") : "(None)"),
+			(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 
 	return 0;
 }
@@ -135,15 +135,15 @@ static int dumpchan_exec(struct ast_channel *chan, void *data)
 	char info[1024];
 	int level = 0;
 	static char *line = "================================================================================";
-	
-	if (!ast_strlen_zero(data)) 
+
+	if (!ast_strlen_zero(data))
 		level = atoi(data);
 
 	pbx_builtin_serialize_variables(chan, &vars);
 	serialize_showchan(chan, info, sizeof(info));
 	if (level > 0)
 		ast_verb(level, "\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n", chan->name, line, info, vars->str, line);
-	
+
 	return 0;
 }
 

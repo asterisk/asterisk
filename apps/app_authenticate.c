@@ -21,7 +21,7 @@
  * \brief Execute arbitrary authenticate commands
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
@@ -89,7 +89,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(options);
 		AST_APP_ARG(maxdigits);
 	);
-	
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Authenticate requires an argument(password)\n");
 		return -1;
@@ -99,11 +99,11 @@ static int auth_exec(struct ast_channel *chan, void *data)
 		if ((res = ast_answer(chan)))
 			return -1;
 	}
-	
+
 	argcopy = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(arglist, argcopy);
-	
+
 	if (!ast_strlen_zero(arglist.options))
 		ast_app_parse_options(auth_app_options, &flags, NULL, arglist.options);
 
@@ -124,7 +124,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 
 		if (arglist.password[0] != '/') {
 			/* Compare against a fixed password */
-			if (!strcmp(passwd, arglist.password)) 
+			if (!strcmp(passwd, arglist.password))
 				break;
 		}
 
@@ -141,7 +141,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 			/* Compare against a file */
 			FILE *f;
 			char buf[256] = "", md5passwd[33] = "", *md5secret = NULL;
-				
+
 			if (!(f = fopen(arglist.password, "r"))) {
 				ast_log(LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", arglist.password, strerror(errno));
 				continue;
@@ -198,7 +198,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 	}
 
 	if ((retries < 3) && !res) {
-		if (ast_test_flag(&flags,OPT_ACCOUNT) && !ast_test_flag(&flags,OPT_MULTIPLE)) 
+		if (ast_test_flag(&flags,OPT_ACCOUNT) && !ast_test_flag(&flags,OPT_MULTIPLE))
 			ast_cdr_setaccount(chan, passwd);
 		if (!(res = ast_streamfile(chan, "auth-thankyou", chan->language)))
 			res = ast_waitstream(chan, "");
