@@ -19381,6 +19381,8 @@ static void set_peer_defaults(struct sip_peer *peer)
 		peer->expire = -1;
 		peer->pokeexpire = -1;
 		peer->addr.sin_port = htons(STANDARD_SIP_PORT);
+		peer->socket.type = SIP_TRANSPORT_UDP;
+		peer->socket.fd = -1;
 	}
 	ast_copy_flags(&peer->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&peer->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
@@ -19413,8 +19415,6 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->pickupgroup = 0;
 	peer->maxms = default_qualify;
 	peer->prefs = default_prefs;
-	peer->socket.type = SIP_TRANSPORT_UDP;
-	peer->socket.fd = -1;
 	peer->stimer.st_mode_oper = global_st_mode;	/* Session-Timers */
 	peer->stimer.st_ref = global_st_refresher;
 	peer->stimer.st_min_se = global_min_se;
