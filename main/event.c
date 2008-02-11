@@ -388,7 +388,7 @@ int ast_event_iterator_next(struct ast_event_iterator *iterator)
 
 enum ast_event_ie_type ast_event_iterator_get_ie_type(struct ast_event_iterator *iterator)
 {
-	return iterator->ie->ie_type;
+	return ntohs(iterator->ie->ie_type);
 }
 
 uint32_t ast_event_iterator_get_ie_uint(struct ast_event_iterator *iterator)
@@ -429,8 +429,6 @@ const void *ast_event_get_ie_raw(const struct ast_event *event, enum ast_event_i
 {
 	struct ast_event_iterator iterator;
 	int res = 0;
-
-	ie_type = ntohs(ie_type);
 
 	for (ast_event_iterator_init(&iterator, event); !res; res = ast_event_iterator_next(&iterator)) {
 		if (ast_event_iterator_get_ie_type(&iterator) == ie_type)
