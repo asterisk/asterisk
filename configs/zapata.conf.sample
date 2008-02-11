@@ -396,6 +396,10 @@ threewaycalling=yes
 ;
 ; For digital ports using ISDN PRI protocols:
 ;   Support switch-side transfer (called 2BCT, RLT or other names)
+;   This setting must be enabled on both ports involved, and the
+;   'facilityenable' setting must also be enabled to allow sending
+;   the transfer to the ISDN switch, since it sent in a FACILITY
+;   message.
 ;
 transfer=yes
 ;
