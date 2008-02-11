@@ -4238,7 +4238,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			pbx_builtin_setvar_helper(c0, "BRIDGEPVTCALLID", c1->tech->get_pvt_uniqueid(c1));
 		
 		if (c0->tech->bridge &&
-		    (config->timelimit == 0) &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
 		    !nativefailed && !c0->monitor && !c1->monitor &&
 		    !c0->audiohooks && !c1->audiohooks && 

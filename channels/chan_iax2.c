@@ -3647,6 +3647,10 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 	unsigned short callno1 = PTR_TO_CALLNO(c1->tech_pvt);
 	struct timeval waittimer = {0, 0}, tv;
 
+	/* We currently do not support native bridging if a timeoutms value has been provided */
+	if (timeoutms)
+		return AST_BRIDGE_FAILED;
+
 	lock_both(callno0, callno1);
 	if (!iaxs[callno0] || !iaxs[callno1]) {
 		unlock_both(callno0, callno1);
