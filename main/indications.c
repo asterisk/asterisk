@@ -165,7 +165,7 @@ static int playtones_generator(struct ast_channel *chan, void *data, int len, in
 		ps->v3_2 = pi->init_v3_2;
 		ps->oldnpos = ps->npos;
 	}
-	for (x=0;x<len/2;x++) {
+	for (x = 0; x < len/2; x++) {
 		ps->v1_1 = ps->v2_1;
 		ps->v2_1 = ps->v3_1;
 		ps->v3_1 = (pi->fac1 * ps->v2_1 >> 15) - ps->v1_1;
@@ -233,7 +233,7 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 		separator = ",";
 	s = strsep(&stringp,separator);
 	while (s && *s) {
-		int freq1, freq2, time, modulate=0, midinote=0;
+		int freq1, freq2, time, modulate = 0, midinote = 0;
 
 		if (s[0]=='!')
 			s++;
@@ -533,7 +533,7 @@ int ast_register_indication(struct ind_tone_zone *zone, const char *indication, 
 
 	AST_RWLIST_WRLOCK(&tone_zones);
 	for (ps=NULL,ts=zone->tones; ts; ps=ts,ts=ts->next) {
-		if (strcasecmp(indication,ts->name)==0) {
+		if (!strcasecmp(indication,ts->name)) {
 			/* indication already there, replace */
 			ast_free((void*)ts->name);
 			ast_free((void*)ts->data);
@@ -573,7 +573,7 @@ int ast_unregister_indication(struct ind_tone_zone *zone, const char *indication
 	AST_RWLIST_WRLOCK(&tone_zones);
 	ts = zone->tones;
 	while (ts) {
-		if (strcasecmp(indication,ts->name)==0) {
+		if (!strcasecmp(indication,ts->name)) {
 			/* indication found */
 			tmp = ts->next;
 			if (ps)

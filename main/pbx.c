@@ -1127,7 +1127,7 @@ static struct match_char *add_pattern_node(struct ast_context *con, struct match
 
 static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1, int findonly)
 {
-	struct match_char *m1=0,*m2=0;
+	struct match_char *m1 = NULL, *m2 = NULL;
 	int specif;
 	int already;
 	int pattern = 0;
@@ -1453,7 +1453,7 @@ static int _extension_match_core(const char *pattern, const char *data, enum ext
 {
 	mode &= E_MATCH_MASK;	/* only consider the relevant bits */
 
-	if ( (mode == E_MATCH) && (pattern[0] == '_') && (strcasecmp(pattern,data)==0) ) /* note: if this test is left out, then _x. will not match _x. !!! */
+	if ( (mode == E_MATCH) && (pattern[0] == '_') && (!strcasecmp(pattern,data)) ) /* note: if this test is left out, then _x. will not match _x. !!! */
 		return 1;
 
 	if (pattern[0] != '_') { /* not a pattern, try exact or partial match */
@@ -1628,12 +1628,12 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	const char *label, const char *callerid, enum ext_match_t action)
 {
 	int x, res;
-	struct ast_context *tmp=0;
-	struct ast_exten *e=0, *eroot=0;
-	struct ast_include *i = 0;
-	struct ast_sw *sw = 0;
-	struct ast_exten pattern = {0};
-	struct scoreboard score = {0};
+	struct ast_context *tmp = NULL;
+	struct ast_exten *e = NULL, *eroot = NULL;
+	struct ast_include *i = NULL;
+	struct ast_sw *sw = NULL;
+	struct ast_exten pattern = {NULL, };
+	struct scoreboard score = {0, };
 
 	pattern.label = label;
 	pattern.priority = priority;
@@ -1870,7 +1870,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
  */
 static int parse_variable_name(char *var, int *offset, int *length, int *isfunc)
 {
-	int parens=0;
+	int parens = 0;
 
 	*offset = 0;
 	*length = INT_MAX;
@@ -2034,7 +2034,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		if (places[i] == &globals)
 			ast_rwlock_rdlock(&globalslock);
 		AST_LIST_TRAVERSE(places[i], variables, entries) {
-			if (strcasecmp(ast_var_name(variables), var)==0) {
+			if (!strcasecmp(ast_var_name(variables), var)) {
 				s = ast_var_value(variables);
 				break;
 			}
@@ -4568,9 +4568,9 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 				if (includecount >= AST_PBX_MAX_STACK) {
 					ast_log(LOG_NOTICE, "Maximum include depth exceeded!\n");
 				} else {
-					int dupe=0;
+					int dupe = 0;
 					int x;
-					for (x=0;x<includecount;x++) {
+					for (x = 0; x < includecount; x++) {
 						if (!strcasecmp(includes[x], ast_get_include_name(i))) {
 							dupe++;
 							break;
@@ -4719,7 +4719,7 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 					struct ast_include *rinclude)
 {
 	struct ast_context *c;
-	int res=0, old_total_exten = dpc->total_exten;
+	int res = 0, old_total_exten = dpc->total_exten;
 
 	if (ast_strlen_zero(exten))
 		exten = NULL;
@@ -5407,7 +5407,7 @@ static void get_timerange(struct ast_timing *i, char *times)
 	/* 2-minutes per bit, since the mask has only 32 bits :( */
 	/* Star is all times */
 	if (ast_strlen_zero(times) || !strcmp(times, "*")) {
-		for (x=0; x<24; x++)
+		for (x = 0; x < 24; x++)
 			i->minmask[x] = 0x3fffffff; /* 30 bits */
 		return;
 	}
@@ -5452,10 +5452,10 @@ static void get_timerange(struct ast_timing *i, char *times)
 	/* Do the last one */
 	i->minmask[x/30] |= (1 << (x % 30));
 #else
-	for (cth=0; cth<24; cth++) {
+	for (cth = 0; cth < 24; cth++) {
 		/* Initialize masks to blank */
 		i->minmask[cth] = 0;
-		for (ctm=0; ctm<30; ctm++) {
+		for (ctm = 0; ctm < 30; ctm++) {
 			if (
 			/* First hour with more than one hour */
 			      (((cth == s1) && (ctm >= s2)) &&
@@ -5931,7 +5931,7 @@ int ast_async_goto_by_name(const char *channame, const char *context, const char
 /*! \brief copy a string skipping whitespace */
 static int ext_strncpy(char *dst, const char *src, int len)
 {
-	int count=0;
+	int count = 0;
 
 	while (*src && (count < len - 1)) {
 		switch (*src) {
@@ -6903,7 +6903,7 @@ static int pbx_builtin_hangup(struct ast_channel *chan, void *data)
  */
 static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 {
-	int res=0;
+	int res = 0;
 	char *s, *ts;
 	struct ast_timing timing;
 
@@ -7527,7 +7527,7 @@ int load_pbx(void)
 	__ast_custom_function_register(&exception_function, NULL);
 
 	/* Register builtin applications */
-	for (x=0; x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {
+	for (x = 0; x < sizeof(builtins) / sizeof(struct pbx_builtin); x++) {
 		ast_verb(1, "[%s]\n", builtins[x].name);
 		if (ast_register_application2(builtins[x].name, builtins[x].execute, builtins[x].synopsis, builtins[x].description, NULL)) {
 			ast_log(LOG_ERROR, "Unable to register builtin application '%s'\n", builtins[x].name);

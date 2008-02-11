@@ -482,11 +482,11 @@ static void rebuild_matrix(int samples)
 	for (;;) {
 		int changed = 0;
 		for (x = 0; x < MAX_FORMAT; x++) {      /* source format */
-			for (y=0; y < MAX_FORMAT; y++) {    /* intermediate format */
+			for (y = 0; y < MAX_FORMAT; y++) {    /* intermediate format */
 				if (x == y)                     /* skip ourselves */
 					continue;
 
-				for (z=0; z<MAX_FORMAT; z++) {  /* dst format */
+				for (z = 0; z<MAX_FORMAT; z++) {  /* dst format */
 					int newcost;
 
 					if (z == x || z == y)       /* skip null conversions */

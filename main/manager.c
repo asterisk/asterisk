@@ -395,7 +395,7 @@ static int strings_to_mask(const char *string)
 		return 0;
 	if (ast_true(string)) {	/* all permissions */
 		int x, ret = 0;
-		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
+		for (x = 0; x<sizeof(perms) / sizeof(perms[0]); x++)
 			ret |= perms[x].num;
 		return ret;
 	}
@@ -1009,7 +1009,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 			MD5Update(&md5, (unsigned char *) s->challenge, strlen(s->challenge));
 			MD5Update(&md5, (unsigned char *) user->secret, strlen(user->secret));
 			MD5Final(digest, &md5);
-			for (x=0; x<16; x++)
+			for (x = 0; x < 16; x++)
 				len += sprintf(md5key + len, "%2.2x", digest[x]);
 			if (!strcmp(md5key, key))
 				error = 0;
@@ -1334,7 +1334,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 	s->waiting_thread = pthread_self();	/* let new events wake up this thread */
 	ast_debug(1, "Starting waiting for an event!\n");
 
-	for (x=0; x < timeout || timeout < 0; x++) {
+	for (x = 0; x < timeout || timeout < 0; x++) {
 		ast_mutex_lock(&s->__lock);
 		if (NEW_EVENT(s))
 			needexit = 1;

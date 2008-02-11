@@ -1458,7 +1458,7 @@ static int option_matchmore(struct ast_ivr_menu *menu, char *option)
 
 static int read_newoption(struct ast_channel *chan, struct ast_ivr_menu *menu, char *exten, int maxexten)
 {
-	int res=0;
+	int res = 0;
 	int ms;
 	while (option_matchmore(menu, exten)) {
 		ms = chan->pbx ? chan->pbx->dtimeout : 5000;
@@ -1476,7 +1476,7 @@ static int read_newoption(struct ast_channel *chan, struct ast_ivr_menu *menu, c
 static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_menu *menu, void *cbdata)
 {
 	/* Execute an IVR menu structure */
-	int res=0;
+	int res = 0;
 	int pos = 0;
 	int retries = 0;
 	char exten[AST_MAX_EXTENSION] = "s";

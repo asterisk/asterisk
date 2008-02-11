@@ -1542,7 +1542,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	rtp->lastrxseqno = seqno;
 	
-	if (rtp->themssrc==0)
+	if (!rtp->themssrc)
 		rtp->themssrc = ntohl(rtpheader[2]); /* Record their SSRC to put in future RR */
 	
 	if (rtp_debug_test_addr(&sin))
@@ -1767,7 +1767,7 @@ void ast_rtp_pt_copy(struct ast_rtp *dest, struct ast_rtp *src)
 	rtp_bridge_lock(dest);
 	rtp_bridge_lock(src);
 
-	for (i=0; i < MAX_RTP_PT; ++i) {
+	for (i = 0; i < MAX_RTP_PT; ++i) {
 		dest->current_RTP_PT[i].isAstFormat = 
 			src->current_RTP_PT[i].isAstFormat;
 		dest->current_RTP_PT[i].code = 

@@ -947,7 +947,7 @@ void ast_console_puts_mutable(const char *string)
 static void ast_network_puts(const char *string)
 {
 	int x;
-	for (x=0; x < AST_MAX_CONNECTS; x++) {
+	for (x = 0; x < AST_MAX_CONNECTS; x++) {
 		if (consoles[x].fd > -1) 
 			fdprint(consoles[x].p[1], string);
 	}
@@ -1905,7 +1905,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 					int tries;
 					int reconnects_per_second = 20;
 					fprintf(stderr, "Attempting to reconnect for 30 seconds\n");
-					for (tries=0; tries < 30 * reconnects_per_second; tries++) {
+					for (tries = 0; tries < 30 * reconnects_per_second; tries++) {
 						if (ast_tryconnect()) {
 							fprintf(stderr, "Reconnect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
 							printf(term_quit());
@@ -2152,7 +2152,7 @@ static int ast_cli_display_match_list(char **matches, int len, int max)
 
 	for (; count > 0; count--) {
 		numoutputline = 0;
-		for (i=0; i < limit && matches[idx]; i++, idx++) {
+		for (i = 0; i < limit && matches[idx]; i++, idx++) {
 
 			/* Don't print dupes */
 			if ( (matches[idx+1] != NULL && strcmp(matches[idx], matches[idx+1]) == 0 ) ) {
@@ -2264,7 +2264,7 @@ static char *cli_complete(EditLine *el, int ch)
 			retval = CC_REFRESH;
 		} else {
 			/* Must be more than one match */
-			for (i=1, maxlen=0; matches[i]; i++) {
+			for (i = 1, maxlen = 0; matches[i]; i++) {
 				match_len = strlen(matches[i]);
 				if (match_len > maxlen)
 					maxlen = match_len;
@@ -2792,7 +2792,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Truncating argument size to %d\n", (int)(sizeof(_argv) / sizeof(_argv[0])) - 1);
 		argc = sizeof(_argv) / sizeof(_argv[0]) - 1;
 	}
-	for (x=0; x<argc; x++)
+	for (x = 0; x < argc; x++)
 		_argv[x] = argv[x];
 	_argv[x] = NULL;
 

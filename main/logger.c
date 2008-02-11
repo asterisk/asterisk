@@ -1081,7 +1081,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 void ast_backtrace(void)
 {
 #ifdef HAVE_BKTR
-	int count=0, i=0;
+	int count = 0, i = 0;
 	void **addresses;
 	char **strings;
 
@@ -1089,7 +1089,7 @@ void ast_backtrace(void)
 		count = backtrace(addresses, MAX_BACKTRACE_FRAMES);
 		if ((strings = backtrace_symbols(addresses, count))) {
 			ast_debug(1, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
-			for (i=0; i < count ; i++) {
+			for (i = 0; i < count; i++) {
 #if __WORDSIZE == 32
 				ast_log(LOG_DEBUG, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
 #elif __WORDSIZE == 64

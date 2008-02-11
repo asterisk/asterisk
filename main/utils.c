@@ -92,8 +92,8 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 	} else {
 		char **p, **q;
 		char *pbuf;
-		int nbytes=0;
-		int naddr=0, naliases=0;
+		int nbytes = 0;
+		int naddr = 0, naliases = 0;
 		/* determine if we have enough space in buf */
 
 		/* count how many addresses */
@@ -180,7 +180,7 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 {
 	int res;
 	int herrno;
-	int dots=0;
+	int dots = 0;
 	const char *s;
 	struct hostent *result = NULL;
 	/* Although it is perfectly legitimate to lookup a pure integer, for
