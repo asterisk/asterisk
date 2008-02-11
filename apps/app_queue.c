@@ -1919,8 +1919,10 @@ static void leave_queue(struct queue_ent *qe)
 	if (q->dead) {	
 		/* It's dead and nobody is in it, so kill it */
 		ao2_unlink(queues, q);
+		/* unref the container's reference to the queue */
 		queue_unref(q);
 	}
+	/* unref the explicit ref earlier in the function */
 	queue_unref(q);
 }
 
