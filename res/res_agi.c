@@ -2866,7 +2866,6 @@ static char *handle_cli_agi_dump_html(struct ast_cli_entry *e, int cmd, struct a
 static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int dead)
 {
 	enum agi_result res;
-	struct ast_module_user *u;
 	char buf[AGI_BUF_LEN] = "", *tmp = buf;
 	int fds[2], efd = -1, pid;
 	AST_DECLARE_APP_ARGS(args,
@@ -2884,15 +2883,11 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 	memset(&agi, 0, sizeof(agi));
 	AST_STANDARD_APP_ARGS(args, tmp);
 	args.argv[args.argc] = NULL;
-
-	u = ast_module_user_add(chan);
 #if 0
 	 /* Answer if need be */
 	if (chan->_state != AST_STATE_UP) {
-		if (ast_answer(chan)) {
-			ast_module_user_remove(u);
+		if (ast_answer(chan))
 			return -1;
-		}
 	}
 #endif
 	res = launch_script(chan, args.argv[0], args.argv, fds, enhanced ? &efd : NULL, &pid);
@@ -2914,7 +2909,6 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 			close(efd);
 		ast_unreplace_sigchld();
 	} 
-	ast_module_user_remove(u);
 
 	switch (res) {
 	case AGI_RESULT_SUCCESS:
