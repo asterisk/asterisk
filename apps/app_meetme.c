@@ -1658,7 +1658,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		}
 	}
 
-	if (confflags & CONFFLAG_MONITOR)
+	if (confflags & CONFFLAG_WAITMARKED)
+		ztc.confmode = ZT_CONF_CONF;
+	else if (confflags & CONFFLAG_MONITOR)
 		ztc.confmode = ZT_CONF_CONFMON | ZT_CONF_LISTENER;
 	else if (confflags & CONFFLAG_TALKER)
 		ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER;
