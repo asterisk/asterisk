@@ -354,6 +354,28 @@ void ast_variable_append(struct ast_category *category, struct ast_variable *var
 		category->last = category->last->next;
 }
 
+void ast_variable_insert(struct ast_category *category, struct ast_variable *variable, const char *line)
+{
+	struct ast_variable *cur = category->root;
+	int lineno;
+	int insertline;
+
+	if (!variable || sscanf(line, "%d", &insertline) != 1)
+		return;
+	if (!insertline) {
+		variable->next = category->root;
+		category->root = variable;
+	} else {
+		for (lineno = 1; lineno < insertline; lineno++) {
+			cur = cur->next;
+			if (!cur->next)
+				break;
+		}
+		variable->next = cur->next;
+		cur->next = variable;
+	}
+}
+
 void ast_variables_destroy(struct ast_variable *v)
 {
 	struct ast_variable *vn;
@@ -479,6 +501,26 @@ void ast_category_append(struct ast_config *config, struct ast_category *categor
 	category->include_level = config->include_level;
 	config->last = category;
 	config->current = category;
+}
+
+void ast_category_insert(struct ast_config *config, struct ast_category *cat, const char *match)
+{
+	struct ast_category *cur_category;
+
+	if (!cat || !match)
+		return;
+	if (!strcasecmp(config->root->name, match)) {
+		cat->next = config->root;
+		config->root = cat;
+		return;
+	} 
+	for (cur_category = config->root; cur_category; cur_category = cur_category->next) {
+		if (!strcasecmp(cur_category->next->name, match)) {
+			cat->next = cur_category->next;
+			cur_category->next = cat;
+			break;
+		}
+	}
 }
 
 static void ast_destroy_comments(struct ast_category *cat)
@@ -629,10 +671,11 @@ struct ast_config *ast_config_new(void)
 	return config;
 }
 
-int ast_variable_delete(struct ast_category *category, const char *variable, const char *match)
+int ast_variable_delete(struct ast_category *category, const char *variable, const char *match, const char *line)
 {
 	struct ast_variable *cur, *prev=NULL, *curn;
 	int res = -1;
+	int lineno = 0;
 
 	cur = category->root;
 	while (cur) {
@@ -658,7 +701,7 @@ int ast_variable_delete(struct ast_category *category, const char *variable, con
 	cur = category->root;
 	while (cur) {
 		curn = cur->next;
-		if (!strcasecmp(cur->name, variable) && (ast_strlen_zero(match) || !strcasecmp(cur->value, match))) {
+		if ((!ast_strlen_zero(line) && lineno == atoi(line)) || (ast_strlen_zero(line) && !strcasecmp(cur->name, variable) && (ast_strlen_zero(match) || !strcasecmp(cur->value, match)))) {
 			if (prev) {
 				prev->next = cur->next;
 				if (cur == category->last)
@@ -675,6 +718,7 @@ int ast_variable_delete(struct ast_category *category, const char *variable, con
 			prev = cur;
 
 		cur = curn;
+		lineno++;
 	}
 	return res;
 }
@@ -757,6 +801,22 @@ int ast_category_delete(struct ast_config *cfg, const char *category)
 		prev = cat;
 		cat = cat->next;
 	}
+	return -1;
+}
+
+int ast_category_empty(struct ast_config *cfg, const char *category)
+{
+	struct ast_category *cat;
+
+	for (cat = cfg->root; cat; cat = cat->next) {
+		if (!strcasecmp(cat->name, category))
+			continue;
+		ast_variables_destroy(cat->root);
+		cat->root = NULL;
+		cat->last = NULL;
+		return 0;
+	}
+
 	return -1;
 }
 

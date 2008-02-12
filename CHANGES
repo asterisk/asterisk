@@ -39,6 +39,14 @@ AMI - The manager (TCP/TLS/HTTP)
      Reporting privilege, instead of only under Call or System.
   * The IAX* commands now require either System or Reporting privilege, to
      mirror the privileges of the SIP* commands.
+  * Added ability to retrieve list of categories in a config file.
+  * Added ability to retrieve the content of a particular category.
+  * Added ability to empty a context.
+  * Created new action to create a new file.
+  * Updated delete action to allow deletion by line number with respect to category.
+  * Added new action insert to add new variable to category at specified line.
+  * Updated action newcat to allow new category to be inserted in file above another
+    existing category.
 
 Dialplan functions
 ------------------

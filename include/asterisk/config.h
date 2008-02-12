@@ -254,7 +254,18 @@ const char *ast_config_option(struct ast_config *cfg, const char *cat, const cha
 
 struct ast_category *ast_category_new(const char *name, const char *in_file, int lineno);
 void ast_category_append(struct ast_config *config, struct ast_category *cat);
+
+/*! 
+ * \brief Inserts new category
+ * \param config which config to use
+ * \param cat newly created category to insert
+ * \param match which category to insert above
+ * This function is used to insert a new category above another category
+ * matching the match parameter.
+ */
+void ast_category_insert(struct ast_config *config, struct ast_category *cat, const char *match);
 int ast_category_delete(struct ast_config *cfg, const char *category);
+int ast_category_empty(struct ast_config *cfg, const char *category);
 void ast_category_destroy(struct ast_category *cat);
 struct ast_variable *ast_category_detach_variables(struct ast_category *cat);
 void ast_category_rename(struct ast_category *cat, const char *name);
@@ -264,7 +275,8 @@ struct ast_config_include *ast_include_new(struct ast_config *conf, const char *
 struct ast_config_include *ast_include_find(struct ast_config *conf, const char *included_file);
 void ast_include_rename(struct ast_config *conf, const char *from_file, const char *to_file);
 void ast_variable_append(struct ast_category *category, struct ast_variable *variable);
-int ast_variable_delete(struct ast_category *category, const char *variable, const char *match);
+void ast_variable_insert(struct ast_category *category, struct ast_variable *variable, const char *line);
+int ast_variable_delete(struct ast_category *category, const char *variable, const char *match, const char *line);
 int ast_variable_update(struct ast_category *category, const char *variable, 
 						const char *value, const char *match, unsigned int object);
 

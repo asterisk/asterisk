@@ -74,6 +74,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/term.h"
 #include "asterisk/astobj2.h"
 
+enum error_type {
+	UNKNOWN_ACTION = 1,
+	UNKNOWN_CATEGORY,
+	UNSPECIFIED_CATEGORY,
+	UNSPECIFIED_ARGUMENT,
+	FAILURE_ALLOCATION,
+	FAILURE_DELCAT,
+	FAILURE_EMPTYCAT,
+	FAILURE_UPDATE,
+	FAILURE_DELETE,
+	FAILURE_APPEND
+};
+
+
 /*!
  * Linked list of events.
  * Global events are appended to the list by append_event().
@@ -1053,17 +1067,19 @@ static int action_ping(struct mansession *s, const struct message *m)
 
 static char mandescr_getconfig[] =
 "Description: A 'GetConfig' action will dump the contents of a configuration\n"
-"file by category and contents.\n"
-"Variables:\n"
-"   Filename: Configuration filename (e.g. foo.conf)\n";
+"file by category and contents or optionally by specified category only.\n"
+"Variables: (Names marked with * are required)\n"
+"   *Filename: Configuration filename (e.g. foo.conf)\n"
+"   Category: Category in configuration file\n";
 
 static int action_getconfig(struct mansession *s, const struct message *m)
 {
 	struct ast_config *cfg;
 	const char *fn = astman_get_header(m, "Filename");
+	const char *category = astman_get_header(m, "Category");
 	int catcount = 0;
 	int lineno = 0;
-	char *category=NULL;
+	char *cur_category = NULL;
 	struct ast_variable *v;
 	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
 
@@ -1075,19 +1091,62 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Config file not found");
 		return 0;
 	}
+
 	astman_start_ack(s, m);
-	while ((category = ast_category_browse(cfg, category))) {
-		lineno = 0;
-		astman_append(s, "Category-%06d: %s\r\n", catcount, category);
-		for (v = ast_variable_browse(cfg, category); v; v = v->next)
-			astman_append(s, "Line-%06d-%06d: %s=%s\r\n", catcount, lineno++, v->name, v->value);
-		catcount++;
+	while ((cur_category = ast_category_browse(cfg, cur_category))) {
+		if (ast_strlen_zero(category) || (!ast_strlen_zero(category) && !strcmp(category, cur_category))) {
+			lineno = 0;
+			astman_append(s, "Category-%06d: %s\r\n", catcount, cur_category);
+			for (v = ast_variable_browse(cfg, cur_category); v; v = v->next)
+				astman_append(s, "Line-%06d-%06d: %s=%s\r\n", catcount, lineno++, v->name, v->value);
+			catcount++;
+		}
 	}
+	if (!ast_strlen_zero(category) && catcount == 0) /* TODO: actually, a config with no categories doesn't even get loaded */
+		astman_append(s, "No categories found");
 	ast_config_destroy(cfg);
 	astman_append(s, "\r\n");
 
 	return 0;
 }
+
+static char mandescr_listcategories[] =
+"Description: A 'ListCategories' action will dump the categories in\n"
+"a given file.\n"
+"Variables:\n"
+"   Filename: Configuration filename (e.g. foo.conf)\n";
+
+static int action_listcategories(struct mansession *s, const struct message *m)
+{
+	struct ast_config *cfg;
+	const char *fn = astman_get_header(m, "Filename");
+	char *category = NULL;
+	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
+	int catcount = 0;
+
+	if (ast_strlen_zero(fn)) {
+		astman_send_error(s, m, "Filename not specified");
+		return 0;
+	}
+	if (!(cfg = ast_config_load(fn, config_flags))) {
+		astman_send_error(s, m, "Config file not found or file has invalid syntax");
+		return 0;
+	}
+	astman_start_ack(s, m);
+	while ((category = ast_category_browse(cfg, category))) {
+		astman_append(s, "Category-%06d: %s\r\n", catcount, category);
+		catcount++;
+	}
+	if (catcount == 0) /* TODO: actually, a config with no categories doesn't even get loaded */
+		astman_append(s, "Error: no categories found");
+	ast_config_destroy(cfg);
+	astman_append(s, "\r\n");
+
+	return 0;
+}
+
+
+	
 
 /*! The amount of space in out must be at least ( 2 * strlen(in) + 1 ) */
 static void json_escape(char *out, const char *in)
@@ -1171,11 +1230,11 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 }
 
 /* helper function for action_updateconfig */
-static void handle_updates(struct mansession *s, const struct message *m, struct ast_config *cfg, const char *dfn)
+static enum error_type handle_updates(struct mansession *s, const struct message *m, struct ast_config *cfg, const char *dfn)
 {
 	int x;
 	char hdr[40];
-	const char *action, *cat, *var, *value, *match;
+	const char *action, *cat, *var, *value, *match, *line;
 	struct ast_category *category;
 	struct ast_variable *v;
 
@@ -1198,38 +1257,72 @@ static void handle_updates(struct mansession *s, const struct message *m, struct
 		}
 		snprintf(hdr, sizeof(hdr), "Match-%06d", x);
 		match = astman_get_header(m, hdr);
+		snprintf(hdr, sizeof(hdr), "Line-%06d", x);
+		line = astman_get_header(m, hdr);
 		if (!strcasecmp(action, "newcat")) {
-			if (!ast_strlen_zero(cat)) {
-				category = ast_category_new(cat, dfn, 99999);
-				if (category) {
-					ast_category_append(cfg, category);
-				}
-			}
+			if (ast_strlen_zero(cat))
+				return UNSPECIFIED_CATEGORY;
+			if (!(category = ast_category_new(cat, dfn, -1)))
+				return FAILURE_ALLOCATION;
+			if (ast_strlen_zero(match)) {
+				ast_category_append(cfg, category);
+			} else
+				ast_category_insert(cfg, category, match);
 		} else if (!strcasecmp(action, "renamecat")) {
-			if (!ast_strlen_zero(cat) && !ast_strlen_zero(value)) {
-				category = ast_category_get(cfg, cat);
-				if (category)
-					ast_category_rename(category, value);
-			}
+			if (ast_strlen_zero(cat) || ast_strlen_zero(value))
+				return UNSPECIFIED_ARGUMENT;
+			if (!(category = ast_category_get(cfg, cat)))
+				return UNKNOWN_CATEGORY;
+			ast_category_rename(category, value);
 		} else if (!strcasecmp(action, "delcat")) {
-			if (!ast_strlen_zero(cat))
-				ast_category_delete(cfg, cat);
+			if (ast_strlen_zero(cat))
+				return UNSPECIFIED_CATEGORY;
+			if (ast_category_delete(cfg, cat))
+				return FAILURE_DELCAT;
+		} else if (!strcasecmp(action, "emptycat")) {
+			if (ast_strlen_zero(cat))
+				return UNSPECIFIED_CATEGORY;
+			if (ast_category_empty(cfg, cat))
+				return FAILURE_EMPTYCAT;
 		} else if (!strcasecmp(action, "update")) {
-			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && (category = ast_category_get(cfg, cat)))
-				ast_variable_update(category, var, value, match, object);
+			if (ast_strlen_zero(cat) || ast_strlen_zero(var))
+				return UNSPECIFIED_ARGUMENT;
+			if (!(category = ast_category_get(cfg,cat)))
+				return UNKNOWN_CATEGORY;
+			if (ast_variable_update(category, var, value, match, object))
+				return FAILURE_UPDATE;
 		} else if (!strcasecmp(action, "delete")) {
-			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && (category = ast_category_get(cfg, cat)))
-				ast_variable_delete(category, var, match);
+			if (ast_strlen_zero(cat) || (ast_strlen_zero(var) && ast_strlen_zero(line)))
+				return UNSPECIFIED_ARGUMENT;
+			if (!(category = ast_category_get(cfg, cat)))
+				return UNKNOWN_CATEGORY;
+			if (ast_variable_delete(category, var, match, line))
+				return FAILURE_DELETE;
 		} else if (!strcasecmp(action, "append")) {
-			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) &&
-				(category = ast_category_get(cfg, cat)) &&
-				(v = ast_variable_new(var, value, dfn))) {
-				if (object || (match && !strcasecmp(match, "object")))
-					v->object = 1;
-				ast_variable_append(category, v);
-			}
+			if (ast_strlen_zero(cat) || ast_strlen_zero(var))
+				return UNSPECIFIED_ARGUMENT;
+			if (!(category = ast_category_get(cfg, cat)))
+				return UNKNOWN_CATEGORY;	
+			if (!(v = ast_variable_new(var, value, dfn)))
+				return FAILURE_ALLOCATION;
+			if (object || (match && !strcasecmp(match, "object")))
+				v->object = 1;
+			ast_variable_append(category, v);
+		} else if (!strcasecmp(action, "insert")) {
+			if (ast_strlen_zero(cat) || ast_strlen_zero(var) || ast_strlen_zero(line))
+				return UNSPECIFIED_ARGUMENT;
+			if (!(category = ast_category_get(cfg, cat)))
+				return UNKNOWN_CATEGORY;
+			if (!(v = ast_variable_new(var, value, dfn)))
+				return FAILURE_ALLOCATION;
+			ast_variable_insert(category, v, line);
+		}
+		else {
+			ast_log(LOG_WARNING, "Action-%06d: %s not handled\n", x, action);
+			return UNKNOWN_ACTION;
 		}
 	}
+	return 0;
 }
 
 static char mandescr_updateconfig[] =
@@ -1239,11 +1332,12 @@ static char mandescr_updateconfig[] =
 "   SrcFilename:   Configuration filename to read(e.g. foo.conf)\n"
 "   DstFilename:   Configuration filename to write(e.g. foo.conf)\n"
 "   Reload:        Whether or not a reload should take place (or name of specific module)\n"
-"   Action-XXXXXX: Action to Take (NewCat,RenameCat,DelCat,Update,Delete,Append)\n"
+"   Action-XXXXXX: Action to Take (NewCat,RenameCat,DelCat,EmptyCat,Update,Delete,Append,Insert)\n"
 "   Cat-XXXXXX:    Category to operate on\n"
 "   Var-XXXXXX:    Variable to work on\n"
 "   Value-XXXXXX:  Value to work on\n"
-"   Match-XXXXXX:  Extra match required to match line\n";
+"   Match-XXXXXX:  Extra match required to match line\n"
+"   Line-XXXXXX:   Line in category to operate on (used with delete and insert actions)\n";
 
 static int action_updateconfig(struct mansession *s, const struct message *m)
 {
@@ -1253,29 +1347,90 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 	int res;
 	const char *rld = astman_get_header(m, "Reload");
 	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
+	enum error_type result;
 
 	if (ast_strlen_zero(sfn) || ast_strlen_zero(dfn)) {
 		astman_send_error(s, m, "Filename not specified");
 		return 0;
 	}
-	if (!(cfg = ast_config_load(sfn, config_flags))) {
-		astman_send_error(s, m, "Config file not found");
-		return 0;
+ 	if (!(cfg = ast_config_load(sfn, config_flags))) {
+        astman_send_error(s, m, "Config file not found");
+        return 0;
+    }
+	result = handle_updates(s, m, cfg, dfn);
+	if (!result) {
+		ast_include_rename(cfg, sfn, dfn); /* change the include references from dfn to sfn, so things match up */
+		res = config_text_file_save(dfn, cfg, "Manager");
+		ast_config_destroy(cfg);
+		if (res) {
+			astman_send_error(s, m, "Save of config failed");
+			return 0;
+		}
+		astman_send_ack(s, m, NULL);
+		if (!ast_strlen_zero(rld)) {
+			if (ast_true(rld))
+				rld = NULL;
+			ast_module_reload(rld);
+		}
+	} else {
+		ast_config_destroy(cfg);
+		switch(result) {
+		case UNKNOWN_ACTION:
+			astman_send_error(s, m, "Unknown action command");
+			break;
+		case UNKNOWN_CATEGORY:
+			astman_send_error(s, m, "Given category does not exist");
+			break;
+		case UNSPECIFIED_CATEGORY:
+			astman_send_error(s, m, "Category not specified");
+			break;
+		case UNSPECIFIED_ARGUMENT:
+			astman_send_error(s, m, "Problem with category, value, or line (if required)");
+			break;
+		case FAILURE_ALLOCATION:
+			astman_send_error(s, m, "Memory allocation failure, this should not happen");
+			break;
+		case FAILURE_DELCAT:
+			astman_send_error(s, m, "Delete category did not complete successfully");
+			break;
+		case FAILURE_EMPTYCAT:
+			astman_send_error(s, m, "Empty category did not complete successfully");
+			break;
+		case FAILURE_UPDATE:
+			astman_send_error(s, m, "Update did not complete successfully");
+			break;
+		case FAILURE_DELETE:
+			astman_send_error(s, m, "Delete did not complete successfully");
+			break;
+		case FAILURE_APPEND:
+			astman_send_error(s, m, "Append did not complete successfully");
+			break;
+		}
 	}
-	handle_updates(s, m, cfg, dfn);
-	ast_include_rename(cfg, sfn, dfn); /* change the include references from dfn to sfn, so things match up */
-	res = config_text_file_save(dfn, cfg, "Manager");
-	ast_config_destroy(cfg);
-	if (res) {
-		astman_send_error(s, m, "Save of config failed");
-		return 0;
-	}
-	astman_send_ack(s, m, NULL);
-	if (!ast_strlen_zero(rld)) {
-		if (ast_true(rld))
-			rld = NULL;
-		ast_module_reload(rld);
-	}
+	return 0;
+}
+
+static char mandescr_createconfig[] =
+"Description: A 'CreateConfig' action will create an empty file in the\n"
+"configuration directory. This action is intended to be used before an\n"
+"UpdateConfig action.\n"
+"Variables\n"
+"   Filename:   The configuration filename to create (e.g. foo.conf)\n";
+
+static int action_createconfig(struct mansession *s, const struct message *m)
+{
+	int fd;
+	const char *fn = astman_get_header(m, "Filename");
+	struct ast_str *filepath = ast_str_alloca(PATH_MAX);
+	ast_str_set(&filepath, 0, "%s/", ast_config_AST_CONFIG_DIR);
+	ast_str_append(&filepath, 0, "%s", fn);
+
+	if ((fd = open(filepath->str, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH)) != -1) {
+		close(fd);
+		astman_send_ack(s, m, "New configuration file created successfully");
+	} else 
+		astman_send_error(s, m, strerror(errno));
+
 	return 0;
 }
 
@@ -3483,6 +3638,8 @@ static int __init_manager(int reload)
 		ast_manager_register2("GetConfig", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfig, "Retrieve configuration", mandescr_getconfig);
 		ast_manager_register2("GetConfigJSON", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfigjson, "Retrieve configuration (JSON format)", mandescr_getconfigjson);
 		ast_manager_register2("UpdateConfig", EVENT_FLAG_CONFIG, action_updateconfig, "Update basic configuration", mandescr_updateconfig);
+		ast_manager_register2("CreateConfig", EVENT_FLAG_CONFIG, action_createconfig, "Creates an empty file in the configuration directory", mandescr_createconfig);
+		ast_manager_register2("ListCategories", EVENT_FLAG_CONFIG, action_listcategories, "List categories in configuration file", mandescr_listcategories);
 		ast_manager_register2("Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect (transfer) a call", mandescr_redirect );
 		ast_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
 		ast_manager_register2("Command", EVENT_FLAG_COMMAND, action_command, "Execute Asterisk CLI Command", mandescr_command );
