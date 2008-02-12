@@ -1425,7 +1425,7 @@ static int action_createconfig(struct mansession *s, const struct message *m)
 	ast_str_set(&filepath, 0, "%s/", ast_config_AST_CONFIG_DIR);
 	ast_str_append(&filepath, 0, "%s", fn);
 
-	if ((fd = open(filepath->str, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH)) != -1) {
+	if ((fd = open(filepath->str, O_CREAT | O_EXCL, 0744)) != -1) {
 		close(fd);
 		astman_send_ack(s, m, "New configuration file created successfully");
 	} else 
