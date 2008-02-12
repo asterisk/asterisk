@@ -149,18 +149,13 @@ run_asterisk()
 				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
 			fi
 		else
-			if [ "${EXITSTATUS}" = "0" ]; then
-				echo "Asterisk ended normally.  Aborting."
-				exit 0
-			else
-				echo "Asterisk died with code $EXITSTATUS."
+			echo "Asterisk died with code $EXITSTATUS."
 
-				PID=`cat ${ASTPIDFILE}`
-				if [ -f /tmp/core.${PID} ]; then
-					mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
-				elif [ -f /tmp/core ]; then
-					mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
-				fi
+			PID=`cat ${ASTPIDFILE}`
+			if [ -f /tmp/core.${PID} ]; then
+				mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+			elif [ -f /tmp/core ]; then
+				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
 			fi
 		fi
 		echo "Automatically restarting Asterisk."
