@@ -11004,13 +11004,13 @@ static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
 			ast_set_flag(&p->flags[0], SIP_CALL_LIMIT);
 		if (!ast_strlen_zero(user->context))
 			ast_string_field_set(p, context, user->context);
-		if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num)) {
+		if (!ast_strlen_zero(user->cid_num)) {
 			char *tmp = ast_strdupa(user->cid_num);
 			if (ast_is_shrinkable_phonenumber(tmp))
 				ast_shrink_phone_number(tmp);
 			ast_string_field_set(p, cid_num, tmp);
 		}
-		if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_num))
+		if (!ast_strlen_zero(user->cid_name))
 			ast_string_field_set(p, cid_name, user->cid_name);
 		ast_string_field_set(p, username, user->name);
 		ast_string_field_set(p, peername, user->name);
@@ -11147,13 +11147,13 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 			/* XXX this takes the name from the caller... can we override ? */
 			ast_string_field_set(p, authname, peer->username);
 		}
-		if (!ast_strlen_zero(peer->cid_num) && !ast_strlen_zero(p->cid_num)) {
+		if (!ast_strlen_zero(peer->cid_num)) {
 			char *tmp = ast_strdupa(peer->cid_num);
 			if (ast_is_shrinkable_phonenumber(tmp))
 				ast_shrink_phone_number(tmp);
 			ast_string_field_set(p, cid_num, tmp);
 		}
-		if (!ast_strlen_zero(peer->cid_name) && !ast_strlen_zero(p->cid_name)) 
+		if (!ast_strlen_zero(peer->cid_name)) 
 			ast_string_field_set(p, cid_name, peer->cid_name);
 		ast_string_field_set(p, fullcontact, peer->fullcontact);
 		if (!ast_strlen_zero(peer->context))
