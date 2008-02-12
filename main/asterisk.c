@@ -1721,8 +1721,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 	struct pollfd fds[2];
 	int res;
 	int max;
-#define EL_BUF_SIZE 512
-	char buf[EL_BUF_SIZE];
+	char buf[512];
 
 	for (;;) {
 		max = 1;
@@ -1785,7 +1784,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 			if (!ast_opt_exec && !lastpos)
 				write(STDOUT_FILENO, "\r", 1);
 			write(STDOUT_FILENO, buf, res);
-			if ((res < EL_BUF_SIZE - 1) && ((buf[res-1] == '\n') || (buf[res-2] == '\n'))) {
+			if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
 				*cp = CC_REFRESH;
 				return(1);
 			} else {
