@@ -142,9 +142,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
                 "This is free software, with components licensed under the GNU General Public\n" \
                 "License version 2 and other licenses; you are welcome to redistribute it under\n" \
                 "certain conditions. Type 'core show license' for details.\n" \
-                "=========================================================================\n" \
-                "NOTE: This is a development version of Asterisk, and should not be used in\n" \
-                "production installations.\n", ast_get_version());
+                "=========================================================================\n", ast_get_version()) \
 
 /*! \defgroup main_options Main Configuration Options
  * \brief Main configuration options from asterisk.conf or OS command line on starting Asterisk.
