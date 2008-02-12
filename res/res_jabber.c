@@ -2062,7 +2062,7 @@ static void aji_pruneregister(struct aji_client *client)
 			ASTOBJ_RDLOCK(iterator);
 			/* For an aji_buddy, both AUTOPRUNE and AUTOREGISTER will never
 			 * be called at the same time */
-			if (ast_test_flag(iterator, AJI_AUTOPRUNE)) {
+			if (ast_test_flag(&iterator->flags, AJI_AUTOPRUNE)) {
 				res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBE, iterator->name,
 						"GoodBye your status is no longer needed by Asterisk the Open Source PBX"
 						" so I am no longer subscribing to your presence.\n"));
@@ -2075,10 +2075,10 @@ static void aji_pruneregister(struct aji_client *client)
 				iks_insert_attrib(removeitem, "jid", iterator->name);
 				iks_insert_attrib(removeitem, "subscription", "remove");
 				res = ast_aji_send(client, removeiq);
-			} else if (ast_test_flag(iterator, AJI_AUTOREGISTER)) {
+			} else if (ast_test_flag(&iterator->flags, AJI_AUTOREGISTER)) {
 				res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_SUBSCRIBE, iterator->name, 
 						"Greetings I am the Asterisk Open Source PBX and I want to subscribe to your presence\n"));
-				ast_clear_flag(iterator, AJI_AUTOREGISTER);
+				ast_clear_flag(&iterator->flags, AJI_AUTOREGISTER);
 			}
 			ASTOBJ_UNLOCK(iterator);
 		});
@@ -2117,13 +2117,13 @@ static int aji_filter_roster(void *data, ikspak *pak)
 			if (!iks_strcmp(iks_name(x), "item")) {
 				if (!strcasecmp(iterator->name, iks_find_attrib(x, "jid"))) {
 					flag = 1;
-					ast_clear_flag(iterator, AJI_AUTOPRUNE | AJI_AUTOREGISTER);
+					ast_clear_flag(&iterator->flags, AJI_AUTOPRUNE | AJI_AUTOREGISTER);
 				}
 			}
 			x = iks_next(x);
 		}
 		if (!flag)
-			ast_copy_flags(iterator, client, AJI_AUTOREGISTER);
+			ast_copy_flags(&iterator->flags, &client->flags, AJI_AUTOREGISTER);
 		if (x)
 			iks_delete(x);
 		ASTOBJ_UNLOCK(iterator);
@@ -2149,12 +2149,12 @@ static int aji_filter_roster(void *data, ikspak *pak)
 				ASTOBJ_INIT(buddy);
 				ASTOBJ_WRLOCK(buddy);
 				ast_copy_string(buddy->name, iks_find_attrib(x, "jid"), sizeof(buddy->name));
-				ast_clear_flag(buddy, AST_FLAGS_ALL);
-				if(ast_test_flag(client, AJI_AUTOPRUNE)) {
-					ast_set_flag(buddy, AJI_AUTOPRUNE);
-					buddy->objflags |= ASTOBJ_FLAG_MARKED;
+				ast_clear_flag(&buddy->flags, AST_FLAGS_ALL);
+				if(ast_test_flag(&client->flags, AJI_AUTOPRUNE)) {
+					ast_set_flag(&buddy->flags, AJI_AUTOPRUNE);
+					ASTOBJ_MARK(buddy);
 				} else
-					ast_set_flag(buddy, AJI_AUTOREGISTER);
+					ast_set_flag(&buddy->flags, AJI_AUTOREGISTER);
 				ASTOBJ_UNLOCK(buddy);
 				if (buddy) {
 					ASTOBJ_CONTAINER_LINK(&client->buddies, buddy);
@@ -2618,7 +2618,7 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 
 	/* Set default values for the client object */
 	client->debug = debug;
-	ast_copy_flags(client, &globalflags, AST_FLAGS_ALL);
+	ast_copy_flags(&client->flags, &globalflags, AST_FLAGS_ALL);
 	client->port = 5222;
 	client->usetls = 1;
 	client->usesasl = 1;
@@ -2663,9 +2663,9 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 		else if (!strcasecmp(var->name, "keepalive"))
 			client->keepalive = (ast_false(var->value)) ? 0 : 1;
 		else if (!strcasecmp(var->name, "autoprune"))
-			ast_set2_flag(client, ast_true(var->value), AJI_AUTOPRUNE);
+			ast_set2_flag(&client->flags, ast_true(var->value), AJI_AUTOPRUNE);
 		else if (!strcasecmp(var->name, "autoregister"))
-			ast_set2_flag(client, ast_true(var->value), AJI_AUTOREGISTER);
+			ast_set2_flag(&client->flags, ast_true(var->value), AJI_AUTOREGISTER);
 		else if (!strcasecmp(var->name, "buddy"))
 			aji_create_buddy((char *)var->value, client);
 		else if (!strcasecmp(var->name, "priority"))

@@ -126,7 +126,7 @@ struct aji_buddy {
 	char channel[160];
 	struct aji_resource *resources;
 	enum aji_btype btype;
-	unsigned int flags;
+	struct ast_flags flags;
 };
 
 struct aji_buddy_container {
@@ -167,7 +167,7 @@ struct aji_client {
 	int timeout;
 	int message_timeout;
 	int authorized;
-	unsigned int flags;
+	struct ast_flags flags;
 	int component; /* 0 client,  1 component */
 	struct aji_buddy_container buddies;
 	AST_LIST_HEAD(messages,aji_message) messages;
