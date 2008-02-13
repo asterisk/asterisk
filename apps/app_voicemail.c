@@ -7903,6 +7903,13 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res;
+	char *adsi_loaded = ast_module_helper("", "res_adsi.so", 0, 0, 0, 0);
+	free(adsi_loaded);
+	if (!adsi_loaded) {
+		ast_log(LOG_ERROR, "app_voicemail.so depends upon res_adsi.so");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	my_umask = umask(0);
 	umask(my_umask);
 	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
