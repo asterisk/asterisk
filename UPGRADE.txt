@@ -92,6 +92,11 @@ Applications:
   you need to do so explicitly in your dialplan.
 * Privacy() no longer uses privacy.conf, so any options must be specified
   directly in the application arguments.
+* MusicOnHold application now has duration parameter which allows specifying
+  timeout in seconds.
+* WaitMusicOnHold application is now deprecated in favor of extended MusicOnHold.
+* SetMusicOnHold is now deprecated. You should use Set(CHANNEL(musicclass)=...)
+  instead.
 
 Dialplan Functions:
 

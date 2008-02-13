@@ -52,6 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
+#include "asterisk/app.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
 #include "asterisk/say.h"
@@ -76,22 +77,33 @@ static char *set_moh_syn = "Set default Music On Hold class";
 static char *start_moh_syn = "Play Music On Hold";
 static char *stop_moh_syn = "Stop Playing Music On Hold";
 
-static char *play_moh_desc = "  MusicOnHold(class):\n"
+static char *play_moh_desc = "  MusicOnHold(class[,duration]):\n"
 "Plays hold music specified by class.  If omitted, the default\n"
-"music source for the channel will be used. Set the default \n"
-"class with the SetMusicOnHold() application.\n"
-"Returns -1 on hangup.\n"
-"Never returns otherwise.\n";
+"music source for the channel will be used. Change the default \n"
+"class with Set(CHANNEL(musicclass)=...).\n"
+"If duration is given, hold music will be played specified number\n"
+"of seconds. If duration is ommited, music plays indefinitely.\n"
+"Returns 0 when done, -1 on hangup.\n";
 
 static char *wait_moh_desc = "  WaitMusicOnHold(delay):\n"
+"\n"
+"  !!! DEPRECATED. Use MusicOnHold instead !!!\n"
+"\n"
 "Plays hold music specified number of seconds.  Returns 0 when\n"
 "done, or -1 on hangup.  If no hold music is available, the delay will\n"
-"still occur with no sound.\n";
+"still occur with no sound.\n"
+"\n"
+"  !!! DEPRECATED. Use MusicOnHold instead !!!\n";
 
 static char *set_moh_desc = "  SetMusicOnHold(class):\n"
+"\n"
+"  !!! DEPRECATED. USe Set(CHANNEL(musicclass)=...) instead !!!\n"
+"\n"
 "Sets the default class for music on hold for a given channel.  When\n"
 "music on hold is activated, this class will be used to select which\n"
-"music is played.\n";
+"music is played.\n"
+"\n"
+"  !!! DEPRECATED. USe Set(CHANNEL(musicclass)=...) instead !!!\n";
 
 static char *start_moh_desc = "  StartMusicOnHold(class):\n"
 "Starts playing music on hold, uses default music class for channel.\n"
@@ -610,18 +622,54 @@ static void *monmp3thread(void *data)
 
 static int play_moh_exec(struct ast_channel *chan, void *data)
 {
-	if (ast_moh_start(chan, data, NULL)) {
-		ast_log(LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", (char *)data, chan->name);
+	char *parse;
+	char *class;
+	int timeout = -1;
+	int res;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(class);
+		AST_APP_ARG(duration);
+	);
+
+	parse = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (!ast_strlen_zero(args.duration)) {
+		if (sscanf(args.duration, "%d", &timeout) == 1) {
+			timeout *= 1000;
+		} else {
+			ast_log(LOG_WARNING, "Invalid MusicOnHold duration '%s'. Will wait indefinitely.\n", args.duration);
+		}
+	}
+
+	class = S_OR(args.class, NULL);
+	if (ast_moh_start(chan, class, NULL)) {
+		ast_log(LOG_WARNING, "Unable to start music on hold class '%s' on channel %s\n", class, chan->name);
 		return 0;
 	}
-	while (!ast_safe_sleep(chan, 10000));
+
+	if (timeout > 0)
+		res = ast_safe_sleep(chan, timeout);
+	else {
+		while (!(res = ast_safe_sleep(chan, 10000)));
+	}
+
 	ast_moh_stop(chan);
-	return -1;
+
+	return res;
 }
 
 static int wait_moh_exec(struct ast_channel *chan, void *data)
 {
+	static int deprecation_warning = 0;
 	int res;
+
+	if (!deprecation_warning) {
+		deprecation_warning = 1;
+		ast_log(LOG_WARNING, "WaitMusicOnHold application is deprecated and will be removed. Use MusicOnHold with duration parameter instead\n");
+	}
+
 	if (!data || !atoi(data)) {
 		ast_log(LOG_WARNING, "WaitMusicOnHold requires an argument (number of seconds to wait)\n");
 		return -1;
@@ -637,6 +685,13 @@ static int wait_moh_exec(struct ast_channel *chan, void *data)
 
 static int set_moh_exec(struct ast_channel *chan, void *data)
 {
+	static int deprecation_warning = 0;
+
+	if (!deprecation_warning) {
+		deprecation_warning = 1;
+		ast_log(LOG_WARNING, "SetMusicOnHold application is deprecated and will be removed. Use Set(CHANNEL(musicclass)=...) instead\n");
+	}
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SetMusicOnHold requires an argument (class)\n");
 		return -1;
@@ -647,11 +702,19 @@ static int set_moh_exec(struct ast_channel *chan, void *data)
 
 static int start_moh_exec(struct ast_channel *chan, void *data)
 {
-	char *class = NULL;
-	if (data && strlen(data))
-		class = data;
+	char *parse;
+	char *class;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(class);
+	);
+
+	parse = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	class = S_OR(args.class, NULL);
 	if (ast_moh_start(chan, class, NULL)) 
-		ast_log(LOG_NOTICE, "Unable to start music on hold class '%s' on channel %s\n", class ? class : "default", chan->name);
+		ast_log(LOG_WARNING, "Unable to start music on hold class '%s' on channel %s\n", class, chan->name);
 
 	return 0;
 }
