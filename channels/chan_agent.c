@@ -1495,7 +1495,11 @@ static int action_agents(struct mansession *s, const struct message *m)
 		} else if (p->chan) {
 			loginChan = ast_strdupa(p->chan->name);
 			if (p->owner && p->owner->_bridge) {
-        			talkingtoChan = p->chan->cid.cid_num;
+				if (ast_bridged_channel(p->owner)) {
+					talkingtoChan = ast_strdupa(ast_bridged_channel(p->owner)->cid.cid_num);
+				} else {
+					talkingtoChan = "n/a";
+				}
         			status = "AGENT_ONCALL";
 			} else {
         			talkingtoChan = "n/a";
