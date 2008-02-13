@@ -85,7 +85,11 @@ struct gen_state {
 	int sample_queue;
 };
 
-static void send_child_event(FILE *handle, const char event, const char *data,
+static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u, 
+              int eivr_events_fd, int eivr_commands_fd, int eivr_errors_fd, 
+              const char *args);
+
+static void send_eivr_event(FILE *handle, const char event, const char *data,
 	const struct ast_channel *chan)
 {
 	char tmp[256];
@@ -222,6 +226,69 @@ static struct ast_generator gen =
 	generate: gen_generate,
 };
 
+static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *outbuf, int outbuflen)
+{
+	// original input data: "G,var1,var2,"
+	// data passed as "data":  "var1,var2"
+	char *inbuf, *variable;
+
+	const char *value;
+	char *saveptr;
+	int j;
+
+	outbuf[0] = 0;
+
+	for (j = 1, inbuf = data; ; j++, inbuf = NULL) {
+		variable = strtok_r(inbuf, ",", &saveptr);
+		if (variable == NULL) {
+			int outstrlen = strlen(outbuf);
+			if(outstrlen && outbuf[outstrlen - 1] == ',') {
+				outbuf[outstrlen - 1] = 0;
+			}
+			break;
+		}
+		
+		value = pbx_builtin_getvar_helper(chan, variable);
+		if(!value)
+			value = "";
+		strncat(outbuf,variable,outbuflen);
+		strncat(outbuf,"=",outbuflen);
+		strncat(outbuf,value,outbuflen);
+		strncat(outbuf,",",outbuflen);
+	}
+};
+
+static void ast_eivr_setvariable(struct ast_channel *chan, char *data)
+{
+	char buf[1024];
+	char *value;
+
+	char *inbuf, *variable;
+
+	char *saveptr;
+	int j;
+
+	for(j=1, inbuf=data; ; j++, inbuf=NULL) {
+		variable = strtok_r(inbuf, ",", &saveptr);
+		ast_chan_log(LOG_DEBUG, chan, "Setting up a variable: %s\n", variable);
+		if(variable) {
+			//variable contains "varname=value"
+			strncpy(buf, variable, sizeof(buf));
+			value = strchr(buf, '=');
+			if(!value) 
+				value="";
+			else {
+				value[0] = 0;
+				value++;
+			}
+			pbx_builtin_setvar_helper(chan, buf, value);
+		}
+		else break;
+
+	}
+
+};
+
 static struct playlist_entry *make_entry(const char *filename)
 {
 	struct playlist_entry *entry;
@@ -243,10 +310,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	int res = -1;
 	int gen_active = 0;
 	int pid;
-	char *buf, *command;
-	FILE *child_commands = NULL;
-	FILE *child_errors = NULL;
-	FILE *child_events = NULL;
+	char *buf, *pipe_delim_argbuf, *pdargbuf_ptr;
 	struct ivr_localuser foo = {
 		.playlist = AST_LIST_HEAD_INIT_VALUE,
 		.finishlist = AST_LIST_HEAD_INIT_VALUE,
@@ -271,25 +335,26 @@ static int app_exec(struct ast_channel *chan, void *data)
 	buf = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, buf);
 
+	//copy args and replace commas with pipes
+	pipe_delim_argbuf = ast_strdupa(data);
+	while((pdargbuf_ptr = strchr(pipe_delim_argbuf, ',')) != NULL)
+		pdargbuf_ptr[0] = '|';
+	
 	if (pipe(child_stdin)) {
 		ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child input: %s\n", strerror(errno));
 		goto exit;
 	}
-
 	if (pipe(child_stdout)) {
 		ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child output: %s\n", strerror(errno));
 		goto exit;
 	}
-
 	if (pipe(child_stderr)) {
 		ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child errors: %s\n", strerror(errno));
 		goto exit;
 	}
-
 	if (chan->_state != AST_STATE_UP) {
 		ast_answer(chan);
 	}
-
 	if (ast_activate_generator(chan, &gen, u) < 0) {
 		ast_chan_log(LOG_WARNING, chan, "Failed to activate generator\n");
 		goto exit;
@@ -322,17 +387,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 		_exit(1);
 	} else {
 		/* parent process */
-		int child_events_fd = child_stdin[1];
-		int child_commands_fd = child_stdout[0];
-		int child_errors_fd = child_stderr[0];
-		struct ast_frame *f;
-		int ms;
-		int exception;
-		int ready_fd;
-		int waitfds[2] = { child_errors_fd, child_commands_fd };
-		struct ast_channel *rchan;
-
-		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 
 		close(child_stdin[0]);
 		child_stdin[0] = 0;
@@ -340,227 +394,262 @@ static int app_exec(struct ast_channel *chan, void *data)
 		child_stdout[1] = 0;
 		close(child_stderr[1]);
 		child_stderr[1] = 0;
+		res = eivr_comm(chan, u, child_stdin[1], child_stdout[0], child_stderr[0], pipe_delim_argbuf);
 
-		if (!(child_events = fdopen(child_events_fd, "w"))) {
-			ast_chan_log(LOG_WARNING, chan, "Could not open stream for child events\n");
-			goto exit;
-		}
+		exit:
+		if (gen_active)
+			ast_deactivate_generator(chan);
 
-		if (!(child_commands = fdopen(child_commands_fd, "r"))) {
-			ast_chan_log(LOG_WARNING, chan, "Could not open stream for child commands\n");
-			goto exit;
-		}
+		if (child_stdin[0])
+			close(child_stdin[0]);
 
-		if (!(child_errors = fdopen(child_errors_fd, "r"))) {
-			ast_chan_log(LOG_WARNING, chan, "Could not open stream for child errors\n");
-			goto exit;
-		}
+		if (child_stdin[1])
+			close(child_stdin[1]);
 
-		setvbuf(child_events, NULL, _IONBF, 0);
-		setvbuf(child_commands, NULL, _IONBF, 0);
-		setvbuf(child_errors, NULL, _IONBF, 0);
+		if (child_stdout[0])
+			close(child_stdout[0]);
 
-		res = 0;
+		if (child_stdout[1])
+			close(child_stdout[1]);
 
-		while (1) {
-			if (ast_test_flag(chan, AST_FLAG_ZOMBIE)) {
-				ast_chan_log(LOG_NOTICE, chan, "Is a zombie\n");
-				res = -1;
-				break;
-			}
+		if (child_stderr[0])
+			close(child_stderr[0]);
 
-			if (ast_check_hangup(chan)) {
-				ast_chan_log(LOG_NOTICE, chan, "Got check_hangup\n");
-				send_child_event(child_events, 'H', NULL, chan);
-				res = -1;
-				break;
-			}
+		if (child_stderr[1])
+			close(child_stderr[1]);
 
-			ready_fd = 0;
-			ms = 100;
-			errno = 0;
-			exception = 0;
+		while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
+			ast_free(entry);
 
-			rchan = ast_waitfor_nandfds(&chan, 1, waitfds, 2, &exception, &ready_fd, &ms);
-
-			if (!AST_LIST_EMPTY(&u->finishlist)) {
-				AST_LIST_LOCK(&u->finishlist);
-				while ((entry = AST_LIST_REMOVE_HEAD(&u->finishlist, list))) {
-					send_child_event(child_events, 'F', entry->filename, chan);
-					ast_free(entry);
-				}
-				AST_LIST_UNLOCK(&u->finishlist);
-			}
-
-			if (rchan) {
-				/* the channel has something */
-				f = ast_read(chan);
-				if (!f) {
-					ast_chan_log(LOG_NOTICE, chan, "Returned no frame\n");
-					send_child_event(child_events, 'H', NULL, chan);
-					res = -1;
-					break;
-				}
-
-				if (f->frametype == AST_FRAME_DTMF) {
-					send_child_event(child_events, f->subclass, NULL, chan);
-					if (u->option_autoclear) {
-						if (!u->abort_current_sound && !u->playing_silence)
-							send_child_event(child_events, 'T', NULL, chan);
-						AST_LIST_LOCK(&u->playlist);
-						while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
-							send_child_event(child_events, 'D', entry->filename, chan);
-							ast_free(entry);
-						}
-						if (!u->playing_silence)
-							u->abort_current_sound = 1;
-						AST_LIST_UNLOCK(&u->playlist);
-					}
-				} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
-					ast_chan_log(LOG_NOTICE, chan, "Got AST_CONTROL_HANGUP\n");
-					send_child_event(child_events, 'H', NULL, chan);
-					ast_frfree(f);
-					res = -1;
-					break;
-				}
-				ast_frfree(f);
-			} else if (ready_fd == child_commands_fd) {
-				char input[1024];
-
-				if (exception || feof(child_commands)) {
-					ast_chan_log(LOG_WARNING, chan, "Child process went away\n");
-					res = -1;
-					break;
-				}
-
-				if (!fgets(input, sizeof(input), child_commands))
-					continue;
-
-				command = ast_strip(input);
-
-				if (option_debug)
-					ast_chan_log(LOG_DEBUG, chan, "got command '%s'\n", input);
-
-				if (strlen(input) < 4)
-					continue;
-
-				if (input[0] == 'S') {
-					if (ast_fileexists(&input[2], NULL, u->chan->language) == -1) {
-						ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
-						send_child_event(child_events, 'Z', NULL, chan);
-						strcpy(&input[2], "exception");
-					}
-					if (!u->abort_current_sound && !u->playing_silence)
-						send_child_event(child_events, 'T', NULL, chan);
-					AST_LIST_LOCK(&u->playlist);
-					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
-						send_child_event(child_events, 'D', entry->filename, chan);
-						ast_free(entry);
-					}
-					if (!u->playing_silence)
-						u->abort_current_sound = 1;
-					entry = make_entry(&input[2]);
-					if (entry)
-						AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
-					AST_LIST_UNLOCK(&u->playlist);
-				} else if (input[0] == 'A') {
-					if (ast_fileexists(&input[2], NULL, u->chan->language) == -1) {
-						ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
-						send_child_event(child_events, 'Z', NULL, chan);
-						strcpy(&input[2], "exception");
-					}
-					entry = make_entry(&input[2]);
-					if (entry) {
-						AST_LIST_LOCK(&u->playlist);
-						AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
-						AST_LIST_UNLOCK(&u->playlist);
-					}
-				} else if (input[0] == 'E') {
-					ast_chan_log(LOG_NOTICE, chan, "Exiting: %s\n", &input[2]);
-					send_child_event(child_events, 'E', NULL, chan);
-					res = 0;
-					break;
-				} else if (input[0] == 'H') {
-					ast_chan_log(LOG_NOTICE, chan, "Hanging up: %s\n", &input[2]);
-					send_child_event(child_events, 'H', NULL, chan);
-					res = -1;
-					break;
-				} else if (input[0] == 'O') {
-					if (!strcasecmp(&input[2], "autoclear"))
-						u->option_autoclear = 1;
-					else if (!strcasecmp(&input[2], "noautoclear"))
-						u->option_autoclear = 0;
-					else
-						ast_chan_log(LOG_WARNING, chan, "Unknown option requested '%s'\n", &input[2]);
-				} else if (input[0] == 'V') {
-					char *c;
-					c = strchr(&input[2], '=');
-					if (!c) {
-						send_child_event(child_events, 'Z', NULL, chan);
-					} else {
-						*c++ = '\0';
-						pbx_builtin_setvar_helper(chan, &input[2], c);
-					}
-				}
-			} else if (ready_fd == child_errors_fd) {
-				char input[1024];
-
-				if (exception || feof(child_errors)) {
-					ast_chan_log(LOG_WARNING, chan, "Child process went away\n");
-					res = -1;
-					break;
-				}
-
-				if (fgets(input, sizeof(input), child_errors)) {
-					command = ast_strip(input);
-					ast_chan_log(LOG_NOTICE, chan, "stderr: %s\n", command);
-				}
-			} else if ((ready_fd < 0) && ms) {
-				if (errno == 0 || errno == EINTR)
-					continue;
-
-				ast_chan_log(LOG_WARNING, chan, "Wait failed (%s)\n", strerror(errno));
-				break;
-			}
-		}
+		return res;
 	}
-
- exit:
-	if (gen_active)
-		ast_deactivate_generator(chan);
-
-	if (child_events)
-		fclose(child_events);
-
-	if (child_commands)
-		fclose(child_commands);
-
-	if (child_errors)
-		fclose(child_errors);
-
-	if (child_stdin[0])
-		close(child_stdin[0]);
-
-	if (child_stdin[1])
-		close(child_stdin[1]);
-
-	if (child_stdout[0])
-		close(child_stdout[0]);
-
-	if (child_stdout[1])
-		close(child_stdout[1]);
-
-	if (child_stderr[0])
-		close(child_stderr[0]);
-
-	if (child_stderr[1])
-		close(child_stderr[1]);
-
-	while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
-		ast_free(entry);
-
-	return res;
 }
+
+static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u, 
+ 				int eivr_events_fd, int eivr_commands_fd, int eivr_errors_fd, 
+ 				const char *args)
+{
+	struct playlist_entry *entry;
+	struct ast_frame *f;
+	int ms;
+ 	int exception;
+ 	int ready_fd;
+ 	int waitfds[2] = { eivr_commands_fd, eivr_errors_fd };
+ 	struct ast_channel *rchan;
+ 	char *command;
+ 	int res = -1;
+  
+ 	FILE *eivr_commands = NULL;
+ 	FILE *eivr_errors = NULL;
+ 	FILE *eivr_events = NULL;
+ 
+ 	if (!(eivr_events = fdopen(eivr_events_fd, "w"))) {
+ 		ast_chan_log(LOG_WARNING, chan, "Could not open stream to send events\n");
+ 		goto exit;
+ 	}
+ 	if (!(eivr_commands = fdopen(eivr_commands_fd, "r"))) {
+ 		ast_chan_log(LOG_WARNING, chan, "Could not open stream to receive commands\n");
+ 		goto exit;
+ 	}
+ 	if(eivr_errors_fd) {  /*if opening a socket connection, error stream will not be used*/
+ 		if (!(eivr_errors = fdopen(eivr_errors_fd, "r"))) {
+ 			ast_chan_log(LOG_WARNING, chan, "Could not open stream to receive errors\n");
+ 			goto exit;
+ 		}
+ 	}
+ 
+ 	setvbuf(eivr_events, NULL, _IONBF, 0);
+ 	setvbuf(eivr_commands, NULL, _IONBF, 0);
+ 	if(eivr_errors)
+		setvbuf(eivr_errors, NULL, _IONBF, 0);
+
+	res = 0;
+ 
+ 	while (1) {
+ 		if (ast_test_flag(chan, AST_FLAG_ZOMBIE)) {
+ 			ast_chan_log(LOG_NOTICE, chan, "Is a zombie\n");
+ 			res = -1;
+ 			break;
+ 		}
+ 		if (ast_check_hangup(chan)) {
+ 			ast_chan_log(LOG_NOTICE, chan, "Got check_hangup\n");
+ 			send_eivr_event(eivr_events, 'H', NULL, chan);
+ 			res = -1;
+ 			break;
+ 		}
+ 
+ 		ready_fd = 0;
+ 		ms = 100;
+ 		errno = 0;
+ 		exception = 0;
+ 
+ 		rchan = ast_waitfor_nandfds(&chan, 1, waitfds, 2, &exception, &ready_fd, &ms);
+ 
+ 		if (!AST_LIST_EMPTY(&u->finishlist)) {
+ 			AST_LIST_LOCK(&u->finishlist);
+ 			while ((entry = AST_LIST_REMOVE_HEAD(&u->finishlist, list))) {
+ 				send_eivr_event(eivr_events, 'F', entry->filename, chan);
+ 				ast_free(entry);
+ 			}
+ 			AST_LIST_UNLOCK(&u->finishlist);
+ 		}
+ 
+ 		if (rchan) {
+ 			/* the channel has something */
+ 			f = ast_read(chan);
+ 			if (!f) {
+ 				ast_chan_log(LOG_NOTICE, chan, "Returned no frame\n");
+ 				send_eivr_event(eivr_events, 'H', NULL, chan);
+ 				res = -1;
+ 				break;
+ 			}
+ 			if (f->frametype == AST_FRAME_DTMF) {
+ 				send_eivr_event(eivr_events, f->subclass, NULL, chan);
+ 				if (u->option_autoclear) {
+  					if (!u->abort_current_sound && !u->playing_silence)
+ 						send_eivr_event(eivr_events, 'T', NULL, chan);
+  					AST_LIST_LOCK(&u->playlist);
+  					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+ 						send_eivr_event(eivr_events, 'D', entry->filename, chan);
+  						ast_free(entry);
+  					}
+  					if (!u->playing_silence)
+  						u->abort_current_sound = 1;
+  					AST_LIST_UNLOCK(&u->playlist);
+  				}
+ 			} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
+ 				ast_chan_log(LOG_NOTICE, chan, "Got AST_CONTROL_HANGUP\n");
+ 				send_eivr_event(eivr_events, 'H', NULL, chan);
+ 				ast_frfree(f);
+ 				res = -1;
+ 				break;
+ 			}
+ 			ast_frfree(f);
+ 		} else if (ready_fd == eivr_commands_fd) {
+ 			char input[1024];
+ 
+ 			if (exception || feof(eivr_commands)) {
+ 				ast_chan_log(LOG_WARNING, chan, "Child process went away\n");
+ 				res = -1;
+  				break;
+  			}
+  
+ 			if (!fgets(input, sizeof(input), eivr_commands))
+ 				continue;
+ 
+ 			command = ast_strip(input);
+  
+ 			if (option_debug)
+ 				ast_chan_log(LOG_DEBUG, chan, "got command '%s'\n", input);
+  
+ 			if (strlen(input) < 4)
+ 				continue;
+  
+			if (input[0] == 'P') {
+ 				send_eivr_event(eivr_events, 'P', args, chan);
+ 
+ 			} else if (input[0] == 'S') {
+ 				if (ast_fileexists(&input[2], NULL, u->chan->language) == -1) {
+ 					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
+ 					send_eivr_event(eivr_events, 'Z', NULL, chan);
+ 					strcpy(&input[2], "exception");
+ 				}
+ 				if (!u->abort_current_sound && !u->playing_silence)
+ 					send_eivr_event(eivr_events, 'T', NULL, chan);
+ 				AST_LIST_LOCK(&u->playlist);
+ 				while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+ 					send_eivr_event(eivr_events, 'D', entry->filename, chan);
+ 					ast_free(entry);
+ 				}
+ 				if (!u->playing_silence)
+ 					u->abort_current_sound = 1;
+ 				entry = make_entry(&input[2]);
+ 				if (entry)
+ 					AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
+ 				AST_LIST_UNLOCK(&u->playlist);
+ 			} else if (input[0] == 'A') {
+ 				if (ast_fileexists(&input[2], NULL, u->chan->language) == -1) {
+ 					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
+ 					send_eivr_event(eivr_events, 'Z', NULL, chan);
+ 					strcpy(&input[2], "exception");
+ 				}
+ 				entry = make_entry(&input[2]);
+ 				if (entry) {
+ 					AST_LIST_LOCK(&u->playlist);
+ 					AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
+ 					AST_LIST_UNLOCK(&u->playlist);
+ 				}
+ 			} else if (input[0] == 'G') {
+ 				// A get variable message:  "G,variable1,variable2,..."
+ 				char response[2048];
+ 				ast_chan_log(LOG_NOTICE, chan, "Getting a Variable out of the channel: %s\n", &input[2]);
+ 				ast_eivr_getvariable(chan, &input[2], response, sizeof(response));
+ 				send_eivr_event(eivr_events, 'G', response, chan);
+ 			} else if (input[0] == 'V') {
+ 				// A set variable message:  "V,variablename=foo"
+ 				ast_chan_log(LOG_NOTICE, chan, "Setting a Variable up: %s\n", &input[2]);
+ 				ast_eivr_setvariable(chan, &input[2]);
+ 			} else if (input[0] == 'L') {
+ 				ast_chan_log(LOG_NOTICE, chan, "Log message from EIVR: %s\n", &input[2]);
+ 			} else if (input[0] == 'X') {
+ 				ast_chan_log(LOG_NOTICE, chan, "Exiting ExternalIVR: %s\n", &input[2]);
+ 				//TODO: add deprecation debug message for X command here
+ 				res = 0;
+ 				break;
+			} else if (input[0] == 'E') {
+ 				ast_chan_log(LOG_NOTICE, chan, "Exiting: %s\n", &input[2]);
+ 				send_eivr_event(eivr_events, 'E', NULL, chan);
+ 				res = 0;
+ 				break;
+ 			} else if (input[0] == 'H') {
+ 				ast_chan_log(LOG_NOTICE, chan, "Hanging up: %s\n", &input[2]);
+ 				send_eivr_event(eivr_events, 'H', NULL, chan);
+ 				res = -1;
+ 				break;
+ 			} else if (input[0] == 'O') {
+ 				if (!strcasecmp(&input[2], "autoclear"))
+ 					u->option_autoclear = 1;
+ 				else if (!strcasecmp(&input[2], "noautoclear"))
+ 					u->option_autoclear = 0;
+ 				else
+ 					ast_chan_log(LOG_WARNING, chan, "Unknown option requested '%s'\n", &input[2]);
+ 			}
+ 		} else if (eivr_errors_fd && ready_fd == eivr_errors_fd) {
+ 			char input[1024];
+  
+ 			if (exception || feof(eivr_errors)) {
+ 				ast_chan_log(LOG_WARNING, chan, "Child process went away\n");
+ 				res = -1;
+ 				break;
+ 			}
+ 			if (fgets(input, sizeof(input), eivr_errors)) {
+ 				command = ast_strip(input);
+ 				ast_chan_log(LOG_NOTICE, chan, "stderr: %s\n", command);
+ 			}
+ 		} else if ((ready_fd < 0) && ms) { 
+ 			if (errno == 0 || errno == EINTR)
+ 				continue;
+ 
+ 			ast_chan_log(LOG_WARNING, chan, "Wait failed (%s)\n", strerror(errno));
+ 			break;
+ 		}
+ 	}
+  
+ 
+exit:
+ 
+ 	if (eivr_events)
+ 		fclose(eivr_events);
+ 
+ 	if (eivr_commands)
+		fclose(eivr_commands);
+
+ 	if (eivr_errors)
+ 		fclose(eivr_errors);
+  
+  	return res;
+ 
+  }
 
 static int unload_module(void)
 {
