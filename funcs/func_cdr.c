@@ -124,9 +124,9 @@ static struct ast_custom_function cdr_function = {
 	.write = cdr_write,
 	.desc =
 "Options:\n"
+"  'l' uses the most recent CDR on a channel with multiple records\n"
 "  'r' searches the entire stack of CDRs on the channel\n"
 "  'u' retrieves the raw, unprocessed value\n"
-"  'l' uses the most recent CDR on a channel with multiple records\n"
 "  For example, 'start', 'answer', and 'end' will be retrieved as epoch\n"
 "  values, when the 'u' option is passed, but formatted as YYYY-MM-DD HH:MM:SS\n"
 "  otherwise.  Similarly, disposition and amaflags will return their raw\n"
