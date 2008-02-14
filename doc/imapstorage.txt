@@ -70,15 +70,25 @@ Compiling Asterisk
 ------------------
 
 Configure with ./configure --with-imap=/usr/src/imap
-or where ever you built thfe UWashington IMAP Toolkit. When you run
-'make menuselect', choose 'Voicemail Build Options' and the
-IMAP_STORAGE option should be available for selection.
+or where ever you built thfe UWashington IMAP Toolkit. 
 
-Note that the --with-imap option will NOT search your system for an
-installed copy of the IMAP Toolkit c-client library; the Asterisk
-Makefiles and configure script are designed to build against an
-unpacked and compiled source tree of the IMAP Toolkit, not a binary
-distribution.
+A second configure option is to not specify a directory (i.e.
+./configure --with-imap). This will assume that you have the
+imap-2004g source installed in the .. directory relative to the
+Asterisk source.
+
+A third option is to specify --with-imap=system. This will assume
+that you have installed a dynamically linked version of the c-client
+library (most likely via a package provided by your distro). This will
+attempt to link agains -lc-client and will search for c-client headers
+in your include path starting with the imap directory, and upon failure,
+in the c-client directory.
+
+Note that if you attempt one of the first two configuration options for
+IMAP and it fails, the "system" option will be automatically attempted.
+
+When you run 'make menuselect', choose 'Voicemail Build Options' and the
+IMAP_STORAGE option should be available for selection.
 
 After selecting it, use the 'x' key to exit menuselect and save
 your changes, and the build/install Asterisk normally.
