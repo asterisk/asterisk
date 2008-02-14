@@ -150,7 +150,6 @@ if test "x$with_gnu_ld" = "xyes" ; then
 fi
 AC_SUBST(GNU_LD)
 
-AC_PATH_PROG([AWK], [awk], :)
 AC_PATH_PROG([GREP], [grep], :)
 AC_PATH_PROG([FIND], [find], :)
 AC_PATH_PROG([COMPRESS], [compress], :)
@@ -817,7 +816,7 @@ AST_EXT_LIB_CHECK([JACK], [jack], [jack_activate], [jack/jack.h])
 # Needed by unixodbc
 AST_EXT_LIB_CHECK([LTDL], [ltdl], [lt_dlinit], [ltdl.h], [])
 
-AST_EXT_LIB_CHECK([LDAP], [ldap], [ldap_first_attribute], [ldap.h])
+AST_EXT_LIB_CHECK([LDAP], [ldap], [ldap_initialize], [ldap.h])
 
 AST_EXT_LIB_CHECK([MISDN], [mISDN], [mISDN_open], [mISDNuser/mISDNlib.h])
 

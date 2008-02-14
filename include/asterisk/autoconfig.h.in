@@ -1175,6 +1175,9 @@
 #ifndef _POSIX_PTHREAD_SEMANTICS
 # undef _POSIX_PTHREAD_SEMANTICS
 #endif
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
+#endif
 
 /* Define like PROTOTYPES; this can be used by system headers. */
 #undef __PROTOTYPES
