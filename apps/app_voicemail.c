@@ -3172,7 +3172,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					}
 					/* Notification and disposal needs to happen after the copy, though. */
 					if (ast_fileexists(fn, NULL, NULL)) {
+#ifdef IMAP_STORAGE
 						notify_new_message(chan, vmu, vms, msgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
+#else
+						notify_new_message(chan, vmu, NULL, msgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
+#endif
 						DISPOSE(dir, msgnum);
 					}
 				}
