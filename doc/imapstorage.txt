@@ -77,7 +77,7 @@ A second configure option is to not specify a directory (i.e.
 imap-2004g source installed in the .. directory relative to the
 Asterisk source.
 
-A third option is to specify --with-imap=system. This will assume
+A third option is ./configure --with-imap=system. This will assume
 that you have installed a dynamically linked version of the c-client
 library (most likely via a package provided by your distro). This will
 attempt to link agains -lc-client and will search for c-client headers
