@@ -230,16 +230,16 @@ static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *out
 {
 	/* original input data: "G,var1,var2," */
 	/* data passed as "data":  "var1,var2" */
+
 	char *inbuf, *variable;
-
 	const char *value;
-	char *saveptr;
 	int j;
+	struct ast_str *newstring = ast_str_alloca(outbuflen); 
 
-	outbuf[0] = 0;
+	outbuf[0] = '\0';
 
-	for (j = 1, inbuf = data; ; j++, inbuf = NULL) {
-		variable = strtok_r(inbuf, ",", &saveptr);
+	for (j = 1, inbuf = data; ; j++) {
+		variable = strsep(&inbuf, ",");
 		if (variable == NULL) {
 			int outstrlen = strlen(outbuf);
 			if(outstrlen && outbuf[outstrlen - 1] == ',') {
@@ -251,10 +251,8 @@ static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *out
 		value = pbx_builtin_getvar_helper(chan, variable);
 		if(!value)
 			value = "";
-		strncat(outbuf,variable,outbuflen);
-		strncat(outbuf,"=",outbuflen);
-		strncat(outbuf,value,outbuflen);
-		strncat(outbuf,",",outbuflen);
+		ast_str_append(&newstring, 0, "%s=%s,", variable, value);
+		ast_copy_string(outbuf, newstring->str, outbuflen);
 	}
 };
 
@@ -265,28 +263,24 @@ static void ast_eivr_setvariable(struct ast_channel *chan, char *data)
 
 	char *inbuf, *variable;
 
-	char *saveptr;
 	int j;
 
-	for(j=1, inbuf=data; ; j++, inbuf=NULL) {
-		variable = strtok_r(inbuf, ",", &saveptr);
+	for (j = 1, inbuf = data; ; j++, inbuf = NULL) {
+		variable = strsep(&inbuf, ",");
 		ast_chan_log(LOG_DEBUG, chan, "Setting up a variable: %s\n", variable);
 		if(variable) {
 			/* variable contains "varname=value" */
-			strncpy(buf, variable, sizeof(buf));
+			ast_copy_string(buf, variable, sizeof(buf));
 			value = strchr(buf, '=');
 			if(!value) 
 				value="";
-			else {
-				value[0] = 0;
-				value++;
-			}
+			else
+				*value++ = '\0';
 			pbx_builtin_setvar_helper(chan, buf, value);
 		}
-		else break;
-
+		else
+			break;
 	}
-
 };
 
 static struct playlist_entry *make_entry(const char *filename)
