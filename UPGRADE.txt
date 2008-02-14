@@ -160,6 +160,9 @@ Configuration:
   lowcost and other is not acceptable now. Look into qos.tex for description of 
   this parameter.
 
+* queues.conf: the queue-lessthan sound file option is no longer available, and the
+  queue-round-seconds option no longer takes '1' as a valid parameter.
+
 Manager:
 
 * Manager has been upgraded to version 1.1 with a lot of changes. 

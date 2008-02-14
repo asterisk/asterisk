@@ -212,8 +212,7 @@ shared_lastcall=no
 ;
 ; Should we include estimated hold time in position announcements?
 ; Either yes, no, or only once.
-; Hold time will be announced as the estimated time, 
-; or "less than 2 minutes" when appropriate.
+; Hold time will be announced as the estimated time.
 ;
 ;announce-holdtime = yes|no|once
 ;
@@ -226,7 +225,7 @@ shared_lastcall=no
 ; What's the rounding time for the seconds?
 ; If this is non-zero, then we announce the seconds as well as the minutes
 ; rounded to this value.
-; Valid values are 0, 1, 5, 10, 15, 20, and 30.
+; Valid values are 0, 5, 10, 15, 20, and 30.
 ;
 ; announce-round-seconds = 10
 ;
@@ -247,8 +246,6 @@ shared_lastcall=no
 ;queue-seconds = queue-seconds
 			;	("Thank you for your patience.")
 ;queue-thankyou = queue-thankyou
-			;       ("less than")
-;queue-lessthan = queue-less-than
 			;       ("Hold time")
 ;queue-reporthold = queue-reporthold
 			;       ("All reps busy / wait for next")

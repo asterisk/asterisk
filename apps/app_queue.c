@@ -431,8 +431,8 @@ struct call_queue {
 		AST_STRING_FIELD(sound_holdtime);
 		/*! Sound file: "minutes." (def. queue-minutes) */
 		AST_STRING_FIELD(sound_minutes);
-		/*! Sound file: "less-than" (def. queue-lessthan) */
-		AST_STRING_FIELD(sound_lessthan);
+		/*! Sound file: "minute." (def. queue-minute) */
+		AST_STRING_FIELD(sound_minute);
 		/*! Sound file: "seconds." (def. queue-seconds) */
 		AST_STRING_FIELD(sound_seconds);
 		/*! Sound file: "Thank you for your patience." (def. queue-thankyou) */
@@ -939,9 +939,9 @@ static void init_queue(struct call_queue *q)
 	ast_string_field_set(q, sound_calls, "queue-callswaiting");
 	ast_string_field_set(q, sound_holdtime, "queue-holdtime");
 	ast_string_field_set(q, sound_minutes, "queue-minutes");
+	ast_string_field_set(q, sound_minute, "queue-minute");
 	ast_string_field_set(q, sound_seconds, "queue-seconds");
 	ast_string_field_set(q, sound_thanks, "queue-thankyou");
-	ast_string_field_set(q, sound_lessthan, "queue-less-than");
 	ast_string_field_set(q, sound_reporthold, "queue-reporthold");
 
 	if ((q->sound_periodicannounce[0] = ast_str_create(32)))
@@ -1165,10 +1165,10 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		ast_string_field_set(q, sound_holdtime, val);
 	} else if (!strcasecmp(param, "queue-minutes")) {
 		ast_string_field_set(q, sound_minutes, val);
+	} else if (!strcasecmp(param, "queue-minute")) {
+		ast_string_field_set(q, sound_minute, val);
 	} else if (!strcasecmp(param, "queue-seconds")) {
 		ast_string_field_set(q, sound_seconds, val);
-	} else if (!strcasecmp(param, "queue-lessthan")) {
-		ast_string_field_set(q, sound_lessthan, val);
 	} else if (!strcasecmp(param, "queue-thankyou")) {
 		ast_string_field_set(q, sound_thanks, val);
 	} else if (!strcasecmp(param, "queue-callerannounce")) {
@@ -1183,7 +1183,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	} else if (!strcasecmp(param, "announce-round-seconds")) {
 		q->roundingseconds = atoi(val);
 		/* Rounding to any other values just doesn't make sense... */
-		if (!(q->roundingseconds == 0 || q->roundingseconds == 1 || q->roundingseconds == 5 || q->roundingseconds == 10
+		if (!(q->roundingseconds == 0 || q->roundingseconds == 5 || q->roundingseconds == 10
 			|| q->roundingseconds == 15 || q->roundingseconds == 20 || q->roundingseconds == 30)) {
 			if (linenum >= 0) {
 				ast_log(LOG_WARNING, "'%s' isn't a valid value for %s "
@@ -1791,7 +1791,7 @@ static int say_position(struct queue_ent *qe, int ringing)
 		avgholdsecs = 0;
 	}
 
-	ast_verb(3, "Hold time for %s is %d minutes %d seconds\n", qe->parent->name, avgholdmins, avgholdsecs);
+	ast_verb(3, "Hold time for %s is %d minute(s) %d seconds\n", qe->parent->name, avgholdmins, avgholdsecs);
 
 	/* If the hold time is >1 min, if it's enabled, and if it's not
 	   supposed to be only once and we have already said it, say it */
@@ -1801,27 +1801,23 @@ static int say_position(struct queue_ent *qe, int ringing)
 		if (res)
 			goto playout;
 
-		if (avgholdmins > 0) {
-			if (avgholdmins < 2) {
-				res = play_file(qe->chan, qe->parent->sound_lessthan);
-				if (res)
-					goto playout;
+		if (avgholdmins > 1) {
+			res = ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, qe->chan->language, NULL);
+			if (res)
+				goto playout;
 
-				res = ast_say_number(qe->chan, 2, AST_DIGIT_ANY, qe->chan->language, NULL);
+			if (avgholdmins == 1) {
+				res = play_file(qe->chan, qe->parent->sound_minute);
 				if (res)
 					goto playout;
 			} else {
-				res = ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, qe->chan->language, NULL);
+				res = play_file(qe->chan, qe->parent->sound_minutes);
 				if (res)
 					goto playout;
 			}
-			
-			res = play_file(qe->chan, qe->parent->sound_minutes);
-			if (res)
-				goto playout;
 		}
-		if (avgholdsecs>0) {
-			res = ast_say_number(qe->chan, avgholdsecs, AST_DIGIT_ANY, qe->chan->language, NULL);
+		if (avgholdsecs > 1) {
+			res = ast_say_number(qe->chan, avgholdmins > 1 ? avgholdsecs : avgholdmins * 60 + avgholdsecs, AST_DIGIT_ANY, qe->chan->language, NULL);
 			if (res)
 				goto playout;
 
@@ -3262,16 +3258,22 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				}
 				if (!res2 && qe->parent->reportholdtime) {
 					if (!play_file(peer, qe->parent->sound_reporthold)) {
-						int holdtime;
+						int holdtime, holdtimesecs;
 
 						time(&now);
 						holdtime = abs((now - qe->start) / 60);
-						if (holdtime < 2) {
-							play_file(peer, qe->parent->sound_lessthan);
-							ast_say_number(peer, 2, AST_DIGIT_ANY, peer->language, NULL);
-						} else
+						holdtimesecs = abs((now - qe->start));
+						if (holdtime == 1) {
 							ast_say_number(peer, holdtime, AST_DIGIT_ANY, peer->language, NULL);
-						play_file(peer, qe->parent->sound_minutes);
+							play_file(peer, qe->parent->sound_minute);
+						} else {
+							ast_say_number(peer, holdtime, AST_DIGIT_ANY, peer->language, NULL);
+							play_file(peer, qe->parent->sound_minutes);
+						}
+						if (holdtimesecs > 1) {
+							ast_say_number(peer, holdtimesecs, AST_DIGIT_ANY, peer->language, NULL);
+							play_file(peer, qe->parent->sound_seconds);
+						}
 					}
 				}
 			}
@@ -4275,7 +4277,7 @@ static void copy_rules(struct queue_ent *qe, const char *rulename)
  * 4. Attempt to call a queue member
  * 5. If 4. did not result in a bridged call, then check for between
  *    call options such as periodic announcements etc.
- * 6. Try 4 again uless some condition (such as an expiration time) causes us to 
+ * 6. Try 4 again unless some condition (such as an expiration time) causes us to 
  *    exit the queue.
  */
 static int queue_exec(struct ast_channel *chan, void *data)
