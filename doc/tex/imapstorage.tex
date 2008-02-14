@@ -25,7 +25,7 @@ source distribution (\url{http://www.washington.edu/imap/}) and compile it.
 Asterisk supports both the 2004 and 2006 versions of c-client, however
 mail\_expunge\_full is enabled in the 2006 version.
 
-Note that Asterisk only uses the 'client' portion of the UW IMAP toolkit,
+Note that Asterisk only uses the 'c-client' portion of the UW IMAP toolkit,
 but building it also builds an IMAP server and various other utilities.
 Because of this, the build instructions for the IMAP toolkit are somewhat
 complicated and can lead to confusion about what is needed.
@@ -54,13 +54,26 @@ need to run 'make install'.
 
 \subsubsection{Compiling Asterisk}
 
-To use the system c-client library, configure Asterisk with
-./configure --with-imap=system. If you downloaded the c-client source
-and compiled it according to the above instructions, configure
-Asterisk with with ./configure --with-imap=/usr/src/imap or where ever
-you built the UWashington IMAP Toolkit. When you run 'make
-menuselect', choose 'Voicemail Build Options' and the IMAP\_STORAGE
-option should be available for selection.
+Configure with ./configure --with-imap=/usr/src/imap
+or where ever you built thfe UWashington IMAP Toolkit. 
+
+A second configure option is to not specify a directory (i.e.
+./configure --with-imap). This will assume that you have the
+imap-2004g source installed in the .. directory relative to the
+Asterisk source.
+
+A third option is ./configure --with-imap=system. This will assume
+that you have installed a dynamically linked version of the c-client
+library (most likely via a package provided by your distro). This will
+attempt to link agains -lc-client and will search for c-client headers
+in your include path starting with the imap directory, and upon failure,
+in the c-client directory.
+
+Note that if you attempt one of the first two configuration options for
+IMAP and it fails, the "system" option will be automatically attempted.
+
+When you run 'make menuselect', choose 'Voicemail Build Options' and the
+IMAP\_STORAGE option should be available for selection.
 
 After selecting the IMAP\_STORAGE option, use the 'x' key to exit
 menuselect and save your changes, and the build/install Asterisk
