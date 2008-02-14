@@ -228,8 +228,8 @@ static struct ast_generator gen =
 
 static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *outbuf, int outbuflen)
 {
-	// original input data: "G,var1,var2,"
-	// data passed as "data":  "var1,var2"
+	/* original input data: "G,var1,var2," */
+	/* data passed as "data":  "var1,var2" */
 	char *inbuf, *variable;
 
 	const char *value;
@@ -272,7 +272,7 @@ static void ast_eivr_setvariable(struct ast_channel *chan, char *data)
 		variable = strtok_r(inbuf, ",", &saveptr);
 		ast_chan_log(LOG_DEBUG, chan, "Setting up a variable: %s\n", variable);
 		if(variable) {
-			//variable contains "varname=value"
+			/* variable contains "varname=value" */
 			strncpy(buf, variable, sizeof(buf));
 			value = strchr(buf, '=');
 			if(!value) 
@@ -335,7 +335,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	buf = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, buf);
 
-	//copy args and replace commas with pipes
+	/* copy args and replace commas with pipes */
 	pipe_delim_argbuf = ast_strdupa(data);
 	while((pdargbuf_ptr = strchr(pipe_delim_argbuf, ',')) != NULL)
 		pdargbuf_ptr[0] = '|';
@@ -580,20 +580,21 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  					AST_LIST_UNLOCK(&u->playlist);
  				}
  			} else if (input[0] == 'G') {
- 				// A get variable message:  "G,variable1,variable2,..."
+ 				/* A get variable message:  "G,variable1,variable2,..." */
  				char response[2048];
+
  				ast_chan_log(LOG_NOTICE, chan, "Getting a Variable out of the channel: %s\n", &input[2]);
  				ast_eivr_getvariable(chan, &input[2], response, sizeof(response));
  				send_eivr_event(eivr_events, 'G', response, chan);
  			} else if (input[0] == 'V') {
- 				// A set variable message:  "V,variablename=foo"
+ 				/* A set variable message:  "V,variablename=foo" */
  				ast_chan_log(LOG_NOTICE, chan, "Setting a Variable up: %s\n", &input[2]);
  				ast_eivr_setvariable(chan, &input[2]);
  			} else if (input[0] == 'L') {
  				ast_chan_log(LOG_NOTICE, chan, "Log message from EIVR: %s\n", &input[2]);
  			} else if (input[0] == 'X') {
  				ast_chan_log(LOG_NOTICE, chan, "Exiting ExternalIVR: %s\n", &input[2]);
- 				//TODO: add deprecation debug message for X command here
+ 				/*! \todo add deprecation debug message for X command here */
  				res = 0;
  				break;
 			} else if (input[0] == 'E') {

@@ -406,6 +406,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 		   the channel is hung up anyways */
 		return AGI_RESULT_FAILURE;
 	}
+
 	/* handlers will get the pipe write fd and we read the AGI responses 
 	   from the pipe read fd */
 	async_agi.fd = fds[1]; 
@@ -982,7 +983,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
-/* get option - really similar to the handle_streamfile, but with a timeout */
+/*! \brief get option - really similar to the handle_streamfile, but with a timeout */
 static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res, vres;
@@ -1050,7 +1051,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 
 
 
-/*--- handle_saynumber: Say number in various language syntaxes ---*/
+/*! \brief Say number in various language syntaxes */
 /* While waiting, we're sending a NULL.  */
 static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
