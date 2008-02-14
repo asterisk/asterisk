@@ -648,167 +648,407 @@ fi
 AST_EXT_LIB_CHECK([IKSEMEL], [iksemel], [iks_start_sasl], [iksemel.h])
 
 if test "${USE_IMAP_TK}" != "no"; then
-   if test "${IMAP_TK_DIR}" = "system" ; then
-      AC_MSG_NOTICE([Checking for system c-client library...])
-   elif test "${IMAP_TK_DIR}" = ""; then
-      IMAP_TK_DIR=`pwd`"/../imap-2004g"
-      if test  -n "${IMAP_TK_MANDATORY}"; then
-	 AC_MSG_NOTICE([The --with-imap option does not search your system for installed])
-	 AC_MSG_NOTICE([c-client library/header files. Since you did not provide a path])
-	 AC_MSG_NOTICE([the configure script will assume you have placed built the c-client])
-	 AC_MSG_NOTICE([files at ${IMAP_TK_DIR}, as outlined in the doc/imapstorage.txt file.])
-      fi
-   fi
-   if test "${IMAP_TK_DIR}" != "system" ; then
-      AC_MSG_CHECKING(for UW IMAP Toolkit c-client library)
-   fi
-   saved_cppflags="${CPPFLAGS}"
-   saved_libs="${LIBS}"
-   if test "${IMAP_TK_DIR}" = "system" ; then
-      imap_ldflags=""
-      imap_libs="-lc-client"
-      imap_include="-DUSE_SYSTEM_IMAP"
-   elif test -f ${IMAP_TK_DIR}/c-client/LDFLAGS ; then
-      imap_ldflags=`cat ${IMAP_TK_DIR}/c-client/LDFLAGS`
-      imap_libs="${IMAP_TK_DIR}/c-client/c-client.a"
-      imap_include="-I${IMAP_TK_DIR}/c-client"
-   fi
-   CPPFLAGS="${CPPFLAGS} ${imap_include}"
-   LIBS="${LIBS} ${imap_libs} "`echo ${imap_ldflags}`
-   AC_LINK_IFELSE(
-	AC_LANG_PROGRAM(
-		[#ifdef USE_SYSTEM_IMAP
-		#include <imap/c-client.h>
-		#else
-		#include "c-client.h"
-		#endif
-		void mm_searched (MAILSTREAM *stream,unsigned long number)
-		{
-		}
-		void mm_exists (MAILSTREAM *stream,unsigned long number)
-		{
-		}
-		void mm_expunged (MAILSTREAM *stream,unsigned long number)
-		{
-		}
-		void mm_flags (MAILSTREAM *stream,unsigned long number)
-		{
-		}
-		void mm_notify (MAILSTREAM *stream,char *string,long errflg)
-		{
-		}
-		void mm_list (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
-		{
-		}
-		void mm_lsub (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
-		{
-		}
-		void mm_status (MAILSTREAM *stream,char *mailbox,MAILSTATUS *status)
-		{
-		}
-		void mm_log (char *string,long errflg)
-		{
-		}
-		void mm_dlog (char *string)
-		{
-		}
-		void mm_login (NETMBX *mb,char *user,char *pwd,long trial)
-		{
-		}
-		void mm_critical (MAILSTREAM *stream)
-		{
-		}
-		void mm_nocritical (MAILSTREAM *stream)
-		{
-		}
-		long mm_diskerror (MAILSTREAM *stream,long errcode,long serious)
-		{
-		}
-		void mm_fatal (char *string)
-		{
-		}],
-		[
-		MAILSTREAM *foo = mail_open(NULL, "", 0);
-		]
-	),
-	[ac_cv_imap_tk="yes"],
-	[ac_cv_imap_tk="no"]
-   )
-   if test "${ac_cv_imap_tk}" = "yes"; then
-   AC_LINK_IFELSE(
-      AC_LANG_PROGRAM(
-         [#ifdef USE_SYSTEM_IMAP
-	 #include <imap/c-client.h>
-	 #else
-	 #include "c-client.h"
-	 #endif
-         void mm_searched (MAILSTREAM *stream,unsigned long number)
-         {
-         }
-         void mm_exists (MAILSTREAM *stream,unsigned long number)
-         {
-         }
-         void mm_expunged (MAILSTREAM *stream,unsigned long number)
-         {
-         }
-         void mm_flags (MAILSTREAM *stream,unsigned long number)
-         {
-         }
-         void mm_notify (MAILSTREAM *stream,char *string,long errflg)
-         {
-         }
-         void mm_list (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
-         {
-         }
-         void mm_lsub (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
-         {
-         }
-         void mm_status (MAILSTREAM *stream,char *mailbox,MAILSTATUS *status)
-         {
-         }
-         void mm_log (char *string,long errflg)
-         {
-         }
-         void mm_dlog (char *string)
-         {
-         }
-         void mm_login (NETMBX *mb,char *user,char *pwd,long trial)
-         {
-         }
-         void mm_critical (MAILSTREAM *stream)
-         {
-         }
-         void mm_nocritical (MAILSTREAM *stream)
-         {
-         }
-         long mm_diskerror (MAILSTREAM *stream,long errcode,long serious)
-         {
-         }
-         void mm_fatal (char *string)
-         {
-         }],
-         [
-         long check = mail_expunge_full(NULL, "", 0);
-         ]
-      ),
-      [ac_cv_imap_tk2006="yes"],
-      [ac_cv_imap_tk2006="no"]
-  )
-  fi
-   CPPFLAGS="${saved_cppflags}"
-   LIBS="${saved_libs}"
-   if test "${ac_cv_imap_tk}" = "yes"; then
-      AC_MSG_RESULT(yes) 
-      IMAP_TK_LIB="${imap_libs} "`echo ${imap_ldflags}`
-      IMAP_TK_INCLUDE="${imap_include}"
-      PBX_IMAP_TK=1
-      AC_DEFINE([HAVE_IMAP_TK], 1, [Define if your system has the UW IMAP Toolkit c-client library.])
-      if test "${ac_cv_imap_tk2006}" = "yes"; then
-         AC_DEFINE([HAVE_IMAP_TK2006], 1, [Define if your system has the UW IMAP Toolkit c-client library version 2006 or greater.])
-      fi
-   else
-      AC_MSG_RESULT(no) 
-   fi
+	if test "${IMAP_TK_DIR}" = ""; then
+		IMAP_TK_DIR=`pwd`"/../imap-2004g"
+	fi
+	saved_cppflags="${CPPFLAGS}"
+	saved_libs="${LIBS}"
+	if test "${IMAP_TK_DIR}" != "system"; then
+		AC_MSG_CHECKING(for UW IMAP Toolkit c-client library)
+		if test -f "${IMAP_TK_DIR}/c-client/LDFLAGS"; then
+      		imap_ldflags=`cat ${IMAP_TK_DIR}/c-client/LDFLAGS`
+		fi
+		imap_libs="${IMAP_TK_DIR}/c-client/c-client.a"
+	  	imap_include="-I${IMAP_TK_DIR}/c-client"
+      	CPPFLAGS="${CPPFLAGS} ${imap_include}"
+	  	LIBS="${LIBS} ${imap_libs} "`echo ${imap_ldflags}`
+	  	AC_LINK_IFELSE(
+	    	AC_LANG_PROGRAM(
+				[#include "c-client.h"
+				void mm_searched (MAILSTREAM *stream,unsigned long number)
+				{
+				}
+				void mm_exists (MAILSTREAM *stream,unsigned long number)
+				{
+				}
+				void mm_expunged (MAILSTREAM *stream,unsigned long number)
+				{
+				}
+				void mm_flags (MAILSTREAM *stream,unsigned long number)
+				{
+				}
+				void mm_notify (MAILSTREAM *stream,char *string,long errflg)
+				{
+				}
+				void mm_list (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+				{
+				}
+				void mm_lsub (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+				{
+				}
+				void mm_status (MAILSTREAM *stream,char *mailbox,MAILSTATUS *status)
+				{
+				}
+				void mm_log (char *string,long errflg)
+				{
+				}
+				void mm_dlog (char *string)
+				{
+				}
+				void mm_login (NETMBX *mb,char *user,char *pwd,long trial)
+				{
+				}
+				void mm_critical (MAILSTREAM *stream)
+				{
+				}
+				void mm_nocritical (MAILSTREAM *stream)
+				{
+				}
+				long mm_diskerror (MAILSTREAM *stream,long errcode,long serious)
+				{
+				}
+				void mm_fatal (char *string)
+				{
+				}],
+				[
+				MAILSTREAM *foo = mail_open(NULL, "", 0);
+				]
+			),
+			[ac_cv_imap_tk="yes"],
+			[ac_cv_imap_tk="no"]
+	   	)
+		if test "${ac_cv_imap_tk}" = "yes"; then
+			AC_LINK_IFELSE(
+				AC_LANG_PROGRAM(
+					[#include "c-client.h"
+					void mm_searched (MAILSTREAM *stream,unsigned long number)
+					{
+					}
+					void mm_exists (MAILSTREAM *stream,unsigned long number)
+					{
+					}
+					void mm_expunged (MAILSTREAM *stream,unsigned long number)
+					{
+					}
+					void mm_flags (MAILSTREAM *stream,unsigned long number)
+					{
+					}
+					void mm_notify (MAILSTREAM *stream,char *string,long errflg)
+					{
+					}
+					void mm_list (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+					{
+					}
+					void mm_lsub (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+					{
+					}
+					void mm_status (MAILSTREAM *stream,char *mailbox,MAILSTATUS *status)
+					{
+					}
+					void mm_log (char *string,long errflg)
+					{
+					}
+					void mm_dlog (char *string)
+					{
+					}
+					void mm_login (NETMBX *mb,char *user,char *pwd,long trial)
+					{
+					}
+					void mm_critical (MAILSTREAM *stream)
+					{
+					}
+					void mm_nocritical (MAILSTREAM *stream)
+					{
+					}
+					long mm_diskerror (MAILSTREAM *stream,long errcode,long serious)
+					{
+					}
+					void mm_fatal (char *string)
+					{
+					}],
+					[
+					long check = mail_expunge_full(NULL, "", 0);
+					]
+				),
+				[ac_cv_imap_tk2006="yes"],
+				[ac_cv_imap_tk2006="no"]
+			)
+		fi
+		CPPFLAGS="${saved_cppflags}"
+		LIBS="${saved_libs}"
+		if test "${ac_cv_imap_tk}" = "yes"; then
+			AC_MSG_RESULT(yes)
+      		IMAP_TK_LIB="${imap_libs} "`echo ${imap_ldflags}`
+      		IMAP_TK_INCLUDE="${imap_include}"
+      		PBX_IMAP_TK=1
+      		AC_DEFINE([HAVE_IMAP_TK], 1, [Define if your system has the UW IMAP Toolkit c-client library.])
+      		if test "${ac_cv_imap_tk2006}" = "yes"; then
+         		AC_DEFINE([HAVE_IMAP_TK2006], 1, [Define if your system has the UW IMAP Toolkit c-client library version 2006 or greater.])
+      		fi
+		else
+			AC_MSG_RESULT(no)
+			IMAP_TK_DIR="system"
+		fi
+	fi 
+	if test "${IMAP_TK_DIR}" = "system"; then
+		#We will enter here if user specified "system" or if any of above checks failed
+		AC_MSG_CHECKING([for system c-client library...])
+		imap_ldflags=""
+		imap_libs="-lc-client"
+		imap_include="-DUSE_SYSTEM_IMAP" #Try the imap directory first
+		CPPFLAGS="${CPPFLAGS} ${imap_include}"
+		LIBS="${LIBS} ${imap_libs} "`echo ${imap_ldflags}`
+		AC_LINK_IFELSE(
+	    	AC_LANG_PROGRAM(
+				[#include <stdio.h>
+				#include <imap/c-client.h>
+				void mm_searched (MAILSTREAM *stream,unsigned long number)
+				{
+				}
+				void mm_exists (MAILSTREAM *stream,unsigned long number)
+				{
+				}
+				void mm_expunged (MAILSTREAM *stream,unsigned long number)
+				{
+				}
+				void mm_flags (MAILSTREAM *stream,unsigned long number)
+				{
+				}
+				void mm_notify (MAILSTREAM *stream,char *string,long errflg)
+				{
+				}
+				void mm_list (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+				{
+				}
+				void mm_lsub (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+				{
+				}
+				void mm_status (MAILSTREAM *stream,char *mailbox,MAILSTATUS *status)
+				{
+				}
+				void mm_log (char *string,long errflg)
+				{
+				}
+				void mm_dlog (char *string)
+				{
+				}
+				void mm_login (NETMBX *mb,char *user,char *pwd,long trial)
+				{
+				}
+				void mm_critical (MAILSTREAM *stream)
+				{
+				}
+				void mm_nocritical (MAILSTREAM *stream)
+				{
+				}
+				long mm_diskerror (MAILSTREAM *stream,long errcode,long serious)
+				{
+				}
+				void mm_fatal (char *string)
+				{
+				}],
+				[
+				MAILSTREAM *foo = mail_open(NULL, "", 0);
+				]
+			),
+			[ac_cv_imap_tk="yes"],
+			[ac_cv_imap_tk="no"]
+	   	)
+		if test "${ac_cv_imap_tk}" = "yes"; then
+			AC_LINK_IFELSE(
+				AC_LANG_PROGRAM(
+					[#include <stdio.h>
+					#include <imap/c-client.h>
+					void mm_searched (MAILSTREAM *stream,unsigned long number)
+					{
+					}
+					void mm_exists (MAILSTREAM *stream,unsigned long number)
+					{
+					}
+					void mm_expunged (MAILSTREAM *stream,unsigned long number)
+					{
+					}
+					void mm_flags (MAILSTREAM *stream,unsigned long number)
+					{
+					}
+					void mm_notify (MAILSTREAM *stream,char *string,long errflg)
+					{
+					}
+					void mm_list (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+					{
+					}
+					void mm_lsub (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+					{
+					}
+					void mm_status (MAILSTREAM *stream,char *mailbox,MAILSTATUS *status)
+					{
+					}
+					void mm_log (char *string,long errflg)
+					{
+					}
+					void mm_dlog (char *string)
+					{
+					}
+					void mm_login (NETMBX *mb,char *user,char *pwd,long trial)
+					{
+					}
+					void mm_critical (MAILSTREAM *stream)
+					{
+					}
+					void mm_nocritical (MAILSTREAM *stream)
+					{
+					}
+					long mm_diskerror (MAILSTREAM *stream,long errcode,long serious)
+					{
+					}
+					void mm_fatal (char *string)
+					{
+					}],
+					[
+					long check = mail_expunge_full(NULL, "", 0);
+					]
+				),
+				[ac_cv_imap_tk2006="yes"],
+				[ac_cv_imap_tk2006="no"]
+			)
+		else #looking in imap directory didn't work, try c-client
+			imap_ldflags=""
+			imap_libs="-lc-client"
+			imap_include="-DUSE_SYSTEM_CCLIENT"
+			CPPFLAGS="${saved_cppflags}"
+			LIBS="${saved_libs}"
+			CPPFLAGS="${CPPFLAGS} ${imap_include}"
+			LIBS="${LIBS} ${imap_libs} "`echo ${imap_ldflags}`
+			AC_LINK_IFELSE(
+	    		AC_LANG_PROGRAM(
+					[#include <stdio.h>
+					#include <c-client/c-client.h>
+					void mm_searched (MAILSTREAM *stream,unsigned long number)
+					{
+					}
+					void mm_exists (MAILSTREAM *stream,unsigned long number)
+					{
+					}
+					void mm_expunged (MAILSTREAM *stream,unsigned long number)
+					{
+					}
+					void mm_flags (MAILSTREAM *stream,unsigned long number)
+					{
+					}
+					void mm_notify (MAILSTREAM *stream,char *string,long errflg)
+					{
+					}
+					void mm_list (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+					{
+					}
+					void mm_lsub (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+					{
+					}
+					void mm_status (MAILSTREAM *stream,char *mailbox,MAILSTATUS *status)
+					{
+					}
+					void mm_log (char *string,long errflg)
+					{
+					}
+					void mm_dlog (char *string)
+					{
+					}
+					void mm_login (NETMBX *mb,char *user,char *pwd,long trial)
+					{
+					}
+					void mm_critical (MAILSTREAM *stream)
+					{
+					}
+					void mm_nocritical (MAILSTREAM *stream)
+					{
+					}
+					long mm_diskerror (MAILSTREAM *stream,long errcode,long serious)
+					{
+					}
+					void mm_fatal (char *string)
+					{
+					}],
+					[
+					MAILSTREAM *foo = mail_open(NULL, "", 0);
+					]
+				),
+				[ac_cv_imap_tk="yes"],
+				[ac_cv_imap_tk="no"]
+	   		)
+			if test "${ac_cv_imap_tk}" = "yes"; then
+				AC_LINK_IFELSE(
+					AC_LANG_PROGRAM(
+						[#include <stdio.h>
+						#include <c-client/c-client.h>
+						void mm_searched (MAILSTREAM *stream,unsigned long number)
+						{
+						}
+						void mm_exists (MAILSTREAM *stream,unsigned long number)
+						{
+						}
+						void mm_expunged (MAILSTREAM *stream,unsigned long number)
+						{
+						}
+						void mm_flags (MAILSTREAM *stream,unsigned long number)
+						{
+						}
+						void mm_notify (MAILSTREAM *stream,char *string,long errflg)
+						{
+						}
+						void mm_list (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+						{
+						}
+						void mm_lsub (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+						{
+						}
+						void mm_status (MAILSTREAM *stream,char *mailbox,MAILSTATUS *status)
+						{
+						}
+						void mm_log (char *string,long errflg)
+						{
+						}
+						void mm_dlog (char *string)
+						{
+						}
+						void mm_login (NETMBX *mb,char *user,char *pwd,long trial)
+						{
+						}
+						void mm_critical (MAILSTREAM *stream)
+						{
+						}
+						void mm_nocritical (MAILSTREAM *stream)
+						{
+						}
+						long mm_diskerror (MAILSTREAM *stream,long errcode,long serious)
+						{
+						}
+						void mm_fatal (char *string)
+						{
+						}],
+						[
+						long check = mail_expunge_full(NULL, "", 0);
+						]
+					),
+					[ac_cv_imap_tk2006="yes"],
+					[ac_cv_imap_tk2006="no"]
+				)
+			fi
+		fi
+		if test "${ac_cv_imap_tk}" = "yes"; then
+			AC_MSG_RESULT(yes)
+			CPPFLAGS="${saved_cppflags}"
+			LIBS="${saved_libs}"
+			IMAP_TK_LIB="${imap_libs} "`echo ${imap_ldflags}`
+			IMAP_TK_INCLUDE="${imap_include}"
+			PBX_IMAP_TK=1
+			AC_DEFINE([HAVE_IMAP_TK], 1, [Define if your system has the UW IMAP Toolkit c-client library.])
+			if test "${ac_cv_imap_tk2006}" = "yes"; then
+				AC_DEFINE([HAVE_IMAP_TK2006], 1, [Define if your system has the UW IMAP Toolkit c-client library version 2006 or greater.])
+			fi
+		else
+			AC_MSG_RESULT(no) 
+		fi
+	fi
 fi
 
 AST_EXT_LIB_CHECK([JACK], [jack], [jack_activate], [jack/jack.h])
