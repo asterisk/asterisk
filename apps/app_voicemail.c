@@ -70,9 +70,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <ctype.h>
 #include <signal.h>
 #include <pwd.h>
+#ifdef USE_SYSTEM_IMAP
+#include <imap/c-client.h>
+#include <imap/imap4r1.h>
+#include <imap/linkage.h>
+#elif defined (USE_SYSTEM_CCLIENT)
+#include <c-client/c-client.h>
+#include <c-client/imap4r1.h>
+#include <c-client/linkage.h>
+#else
 #include "c-client.h"
 #include "imap4r1.h"
 #include "linkage.h"
+#endif
 #endif
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -379,7 +389,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			signed char record_gain, struct vm_state *vms);
 static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc, signed char record_gain);
 static int vm_play_folder_name(struct ast_channel *chan, char *mbox);
-static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msgnum, long duration, char *fmt, char *cidnum, char *cidname);
+static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname);
 static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap);
 #if !(defined(ODBC_STORAGE) || defined(IMAP_STORAGE))
 static int __has_voicemail(const char *context, const char *mailbox, const char *folder, int shortcircuit);
@@ -2643,7 +2653,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 		ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 	}
 	ast_unlock_path(todir);
-	notify_new_message(chan, recip, NULL, recipmsgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
+	notify_new_message(chan, recip, recipmsgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
 	
 	return 0;
 }
@@ -3172,11 +3182,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					}
 					/* Notification and disposal needs to happen after the copy, though. */
 					if (ast_fileexists(fn, NULL, NULL)) {
-#ifdef IMAP_STORAGE
-						notify_new_message(chan, vmu, vms, msgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
-#else
-						notify_new_message(chan, vmu, NULL, msgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
-#endif
+						notify_new_message(chan, vmu, msgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
 						DISPOSE(dir, msgnum);
 					}
 				}
@@ -3921,7 +3927,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	return cmd;
 }
 
-static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msgnum, long duration, char *fmt, char *cidnum, char *cidname)
+static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname)
 {
 	char todir[PATH_MAX], fn[PATH_MAX], ext_context[PATH_MAX], *stringp;
 	int newmsgs = 0, oldmsgs = 0;
@@ -3972,20 +3978,15 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 		DELETE(todir, msgnum, fn);
 	}
 
+#ifdef IMAP_STORAGE
+	DELETE(todir, msgnum, fn);
+#endif
 	/* Leave voicemail for someone */
 	if (ast_app_has_voicemail(ext_context, NULL)) {
 		ast_app_inboxcount(ext_context, &newmsgs, &oldmsgs);
 	}
 	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s@%s\r\nWaiting: %d\r\nNew: %d\r\nOld: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context, NULL), newmsgs, oldmsgs);
 	run_externnotify(vmu->context, vmu->mailbox);
-
-#ifdef IMAP_STORAGE
-	DELETE(todir, msgnum, fn);  /* Delete the file, but not the IMAP message */
-	if (ast_test_flag(vmu, VM_DELETE))  { /* Delete the IMAP message if delete = yes */
-		IMAP_DELETE(vms->curdir, vms->curmsg, vms->fn, vms);
-		vms->newmessages--;  /* Fix new message count */
-	}
-#endif
 	return 0;
 }
 
@@ -4768,7 +4769,13 @@ static int init_mailstream(struct vm_state *vms, int box)
 
 	if (delimiter == '\0') {		/* did not probe the server yet */
 		char *cp;
+#ifdef USE_SYSTEM_IMAP
+#include <imap/linkage.c>
+#elif defined(USE_SYSTEM_CCLIENT)
+#include <c-client/linkage.c>
+#else
 #include "linkage.c"
+#endif
 		/* Connect to INBOX first to get folders delimiter */
 		imap_mailbox_name(tmp, sizeof(tmp), vms, 0, 1);
 		stream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
