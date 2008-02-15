@@ -20,7 +20,7 @@
 
 /*! \file
  *
- * \Phone provisioning application for the asterisk internal http server
+ * \brief Phone provisioning application for the asterisk internal http server
  *
  * \author Matthew Brooks <mbrooks@digium.com>
  * \author Terry Wilson <twilson@digium.com>

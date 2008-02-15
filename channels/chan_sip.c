@@ -360,7 +360,7 @@ enum check_auth_result {
 /*! \brief States for outbound registrations (with register= lines in sip.conf */
 enum sipregistrystate {
 	REG_STATE_UNREGISTERED = 0,	/*!< We are not registred 
-		 *  \noteInitial state. We should have a timeout scheduled for the initial
+		 *  \note Initial state. We should have a timeout scheduled for the initial
 		 * (or next) registration transmission, calling sip_reregister
 		 */
 
@@ -580,7 +580,7 @@ static const struct cfsip_options {
 /*! \brief Standard SIP and TLS port from RFC 3261. DO NOT CHANGE THIS */
 #define STANDARD_SIP_PORT	5060
 #define STANDARD_TLS_PORT	5061
-/* Note: in many SIP headers, absence of a port number implies port 5060,
+/*! \note in many SIP headers, absence of a port number implies port 5060,
  * and this is why we cannot change the above constant.
  * There is a limited number of places in asterisk where we could,
  * in principle, use a different "default" port number, but
@@ -724,8 +724,8 @@ static int global_max_se;                     /*!< Highest threshold for session
 
 /*@}*/ 
 
-/*! Object counters @{ 
- * \bug These counters are not handled in a thread-safe way.  ast_atomic_fetchadd_int()
+/*! \name Object counters @{
+ * \bug These counters are not handled in a thread-safe way ast_atomic_fetchadd_int()
  * should be used to modify these values. */
 static int suserobjs = 0;                /*!< Static users */
 static int ruserobjs = 0;                /*!< Realtime users */
@@ -1671,8 +1671,8 @@ enum t38_action_flag {
 };
 
 /*---------------------------- Forward declarations of functions in chan_sip.c */
-/*! \note This is added to help splitting up chan_sip.c into several files
-	in coming releases */
+/* Note: This is added to help splitting up chan_sip.c into several files
+	in coming releases. */
 
 /*--- PBX interface functions */
 static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause);
@@ -18477,7 +18477,8 @@ static void proc_422_rsp(struct sip_pvt *p, struct sip_request *rsp)
 
 
 /*! \brief Get Max or Min SE (session timer expiry)
-	\param max if true, get max se, otherwise min se
+ * \param p pointer to the SIP dialog 
+ * \param max if true, get max se, otherwise min se
 */
 int st_get_se(struct sip_pvt *p, int max)
 {
@@ -18528,7 +18529,7 @@ int st_get_se(struct sip_pvt *p, int max)
 
 
 /*! \brief Get the entity (UAC or UAS) that's acting as the session-timer refresher 
-	\param sip_pvt pointer to the SIP dialog 
+ * \param p pointer to the SIP dialog 
 */
 enum st_refresher st_get_refresher(struct sip_pvt *p)
 {
@@ -18557,7 +18558,7 @@ enum st_refresher st_get_refresher(struct sip_pvt *p)
 
 
 /*! \brief Get the session-timer mode 
-	\param sip_pvt pointer to the SIP dialog 
+ * \param p pointer to the SIP dialog 
 */
 enum st_mode st_get_mode(struct sip_pvt *p)
 {
@@ -18769,12 +18770,14 @@ static int sip_devicestate(void *data)
 }
 
 /*! \brief PBX interface function -build SIP pvt structure 
-	SIP calls initiated by the PBX arrive here 
-
-	SIP Dial string syntax
-		SIP/exten@host!dnid
-	or	SIP/host/exten!dnid
-	or	SIP/host!dnid
+ *	SIP calls initiated by the PBX arrive here. 
+ *
+ * \verbatim	
+ * 	SIP Dial string syntax
+ *		SIP/exten@host!dnid
+ *	or	SIP/host/exten!dnid
+ *	or	SIP/host!dnid
+ * \endverbatim
 */
 static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause)
 {

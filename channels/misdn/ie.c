@@ -15,8 +15,8 @@
  * the GNU General Public License
  */
 
-/*! \file \brief
- * Interface to mISDN
+/*! \file 
+ * \brief Interface to mISDN
  * \author Christian Richter <crich@beronet.com>
  */
 

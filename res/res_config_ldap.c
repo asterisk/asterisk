@@ -652,7 +652,7 @@ static char *cleaned_basedn(struct ast_channel *channel, const char *basedn)
 	return cbasedn;
 }
 
-/*! \brief Replace <search> by <by> in string. No check is done on string allocated size ! */
+/*! \brief Replace \<search\> by \<by\> in string. No check is done on string allocated size ! */
 static int replace_string_in_string(char *string, const char *search, const char *by)
 {
 	int search_len = strlen(search);
@@ -967,10 +967,12 @@ static struct ast_config *realtime_multi_ldap(const char *basedn,
 
 /*! 
  * \brief Sorting alogrithm for qsort to find the order of the variables \a a and \a b
- * \param \a a pointer to category_and_metric struct
- * \param \a b pointer to category_and_metric struct
+ * \param a pointer to category_and_metric struct
+ * \param b pointer to category_and_metric struct
  *
- * \return the -1,0,1 (zero for equal, -1 for if b is greater, and 1 if a is greater)
+ * \retval -1 for if b is greater
+ * \retval 0 zero for equal
+ * \retval 1 if a is greater
  */
 static int compare_categories(const void *a, const void *b)
 {

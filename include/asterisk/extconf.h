@@ -15,8 +15,9 @@
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
-/*! \file External configuration handlers (realtime and static configuration)
- *  \author Steve Murphy <murf@digium.com>
+/*! \file 
+ * \brief External configuration handlers (realtime and static configuration)
+ * \author Steve Murphy <murf@digium.com>
  *
  */
 

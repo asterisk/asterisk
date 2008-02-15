@@ -907,9 +907,11 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 }
 
 /*! \brief parse one line in the configuration.
+ * \verbatim
  * We can have a category header	[foo](...)
  * a directive				#include / #exec
  * or a regular line			name = value
+ * \endverbatim
  */
 static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 	char *buf, int lineno, const char *configfile, struct ast_flags flags,

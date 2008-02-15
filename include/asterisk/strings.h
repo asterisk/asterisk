@@ -148,16 +148,15 @@ char *ast_strip(char *s),
 char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes);
 
 /*!
-  \brief Strip backslash for "escaped" semicolons.
-  \brief s The string to be stripped (will be modified).
+  \brief Strip backslash for "escaped" semicolons, 
+	the string to be stripped (will be modified).
   \return The stripped string.
  */
 char *ast_unescape_semicolon(char *s);
 
 /*!
-  \brief Convert some C escape sequences (\b\f\n\r\t) into the
-	equivalent characters.
-  \brief s The string to be converted (will be modified).
+  \brief Convert some C escape sequences  \verbatim (\b\f\n\r\t) \endverbatim into the
+	equivalent characters. The string to be converted (will be modified).
   \return The converted string.
  */
 char *ast_unescape_c(char *s);

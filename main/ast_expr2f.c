@@ -1301,12 +1301,13 @@ case YY_STATE_EOF(var):
 		} /* end of scanning one token */
 } /* end of ast_yylex */
 
-/* yy_get_next_buffer - try to read in a new buffer
+/*!
+ * \brief yy_get_next_buffer - try to read in a new buffer
  *
  * Returns a code representing an action:
- *	EOB_ACT_LAST_MATCH -
- *	EOB_ACT_CONTINUE_SCAN - continue scanning from current position
- *	EOB_ACT_END_OF_FILE - end of file
+ * \retval EOB_ACT_LAST_MATCH -
+ * \retval EOB_ACT_CONTINUE_SCAN - continue scanning from current position
+ * \retval EOB_ACT_END_OF_FILE - end of file
  */
 static int yy_get_next_buffer (yyscan_t yyscanner)
 {
@@ -1433,7 +1434,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	return ret_val;
 }
 
-/* yy_get_previous_state - get the state just before the EOB char was reached */
+/*! \brief yy_get_previous_state - get the state just before the EOB char was reached */
 
     static yy_state_type yy_get_previous_state (yyscan_t yyscanner)
 {
@@ -1463,7 +1464,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	return yy_current_state;
 }
 
-/* yy_try_NUL_trans - try to make a transition on the NUL character
+/*! \brief yy_try_NUL_trans - try to make a transition on the NUL character.
  *
  * synopsis
  *	next_state = yy_try_NUL_trans( current_state );
@@ -1605,10 +1606,11 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 }
 #endif	/* ifndef YY_NO_INPUT */
 
-/** Immediately switch to a different input stream.
- * @param input_file A readable stream.
- * @param yyscanner The scanner object.
- * @note This function does not reset the start condition to @c INITIAL .
+/*!
+ * \brief Immediately switch to a different input stream.
+ * \param input_file A readable stream.
+ * \param yyscanner The scanner object.
+ * \note This function does not reset the start condition to @c INITIAL .
  */
     void ast_yyrestart  (FILE * input_file , yyscan_t yyscanner)
 {
@@ -1624,9 +1626,10 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	ast_yy_load_buffer_state(yyscanner );
 }
 
-/** Switch to a different input buffer.
- * @param new_buffer The new input buffer.
- * @param yyscanner The scanner object.
+/*!
+ * \brief Switch to a different input buffer.
+ * \param new_buffer The new input buffer.
+ * \param yyscanner The scanner object.
  */
     void ast_yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer , yyscan_t yyscanner)
 {
@@ -1669,11 +1672,12 @@ static void ast_yy_load_buffer_state  (yyscan_t yyscanner)
 	yyg->yy_hold_char = *yyg->yy_c_buf_p;
 }
 
-/** Allocate and initialize an input buffer state.
- * @param file A readable stream.
- * @param size The character buffer size in bytes. When in doubt, use @c YY_BUF_SIZE.
- * @param yyscanner The scanner object.
- * @return the allocated buffer state.
+/*!
+ * \brief Allocate and initialize an input buffer state.
+ * \param file A readable stream.
+ * \param size The character buffer size in bytes. When in doubt, use @c YY_BUF_SIZE.
+ * \param yyscanner The scanner object.
+ * \return the allocated buffer state.
  */
     YY_BUFFER_STATE ast_yy_create_buffer  (FILE * file, int  size , yyscan_t yyscanner)
 {
@@ -1699,9 +1703,10 @@ static void ast_yy_load_buffer_state  (yyscan_t yyscanner)
 	return b;
 }
 
-/** Destroy the buffer.
- * @param b a buffer created with ast_yy_create_buffer()
- * @param yyscanner The scanner object.
+/*! 
+ * \brief Destroy the buffer.
+ * \param b a buffer created with ast_yy_create_buffer()
+ * \param yyscanner The scanner object.
  */
     void ast_yy_delete_buffer (YY_BUFFER_STATE  b , yyscan_t yyscanner)
 {
@@ -1723,8 +1728,9 @@ static void ast_yy_load_buffer_state  (yyscan_t yyscanner)
 extern int isatty (int );
 #endif /* __cplusplus */
     
-/* Initializes or reinitializes a buffer.
- * This function is sometimes called more than once on the same buffer,
+/*! 
+ * \brief Initializes or reinitializes a buffer.
+ * \note This function is sometimes called more than once on the same buffer,
  * such as during a ast_yyrestart() or at EOF.
  */
     static void ast_yy_init_buffer  (YY_BUFFER_STATE  b, FILE * file , yyscan_t yyscanner)
@@ -1752,9 +1758,10 @@ extern int isatty (int );
 	errno = oerrno;
 }
 
-/** Discard all buffered characters. On the next scan, YY_INPUT will be called.
- * @param b the buffer state to be flushed, usually @c YY_CURRENT_BUFFER.
- * @param yyscanner The scanner object.
+/*! 
+ * \brief Discard all buffered characters. On the next scan, YY_INPUT will be called.
+ * \param b the buffer state to be flushed, usually @c YY_CURRENT_BUFFER.
+ * \param yyscanner The scanner object.
  */
     void ast_yy_flush_buffer (YY_BUFFER_STATE  b , yyscan_t yyscanner)
 {
@@ -1780,11 +1787,12 @@ extern int isatty (int );
 		ast_yy_load_buffer_state(yyscanner );
 }
 
-/** Pushes the new state onto the stack. The new state becomes
+/*!
+ * \brief Pushes the new state onto the stack. The new state becomes
  *  the current state. This function will allocate the stack
  *  if necessary.
- *  @param new_buffer The new state.
- *  @param yyscanner The scanner object.
+ *  \param new_buffer The new state.
+ *  \param yyscanner The scanner object.
  */
 void ast_yypush_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
 {
@@ -1813,9 +1821,10 @@ void ast_yypush_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
 	yyg->yy_did_buffer_switch_on_eof = 1;
 }
 
-/** Removes and deletes the top of the stack, if present.
+/*! 
+ * \brief Removes and deletes the top of the stack, if present.
  *  The next element becomes the new top.
- *  @param yyscanner The scanner object.
+ *  \param yyscanner The scanner object.
  */
 void ast_yypop_buffer_state (yyscan_t yyscanner)
 {
@@ -1877,11 +1886,12 @@ static void ast_yyensure_buffer_stack (yyscan_t yyscanner)
 	}
 }
 
-/** Setup the input buffer state to scan directly from a user-specified character buffer.
- * @param base the character buffer
- * @param size the size in bytes of the character buffer
- * @param yyscanner The scanner object.
- * @return the newly allocated buffer state object. 
+/*!
+ * \brief Setup the input buffer state to scan directly from a user-specified character buffer.
+ * \param base the character buffer
+ * \param size the size in bytes of the character buffer
+ * \param yyscanner The scanner object.
+ * \return the newly allocated buffer state object. 
  */
 YY_BUFFER_STATE ast_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yyscanner)
 {
@@ -1912,12 +1922,13 @@ YY_BUFFER_STATE ast_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yys
 	return b;
 }
 
-/** Setup the input buffer state to scan a string. The next call to ast_yylex() will
- * scan from a @e copy of @a str.
- * @param str a NUL-terminated string to scan
- * @param yyscanner The scanner object.
- * @return the newly allocated buffer state object.
- * @note If you want to scan bytes that may contain NUL values, then use
+/*! 
+ * \brief Setup the input buffer state to scan a string. The next call to ast_yylex() will
+ * scan from a \e copy of \a str.
+ * \param yystr a NUL-terminated string to scan
+ * \param yyscanner The scanner object.
+ * \return the newly allocated buffer state object.
+ * \note If you want to scan bytes that may contain NUL values, then use
  *       ast_yy_scan_bytes() instead.
  */
 YY_BUFFER_STATE ast_yy_scan_string (yyconst char * yystr , yyscan_t yyscanner)
@@ -1926,12 +1937,13 @@ YY_BUFFER_STATE ast_yy_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 	return ast_yy_scan_bytes(yystr,strlen(yystr) ,yyscanner);
 }
 
-/** Setup the input buffer state to scan the given bytes. The next call to ast_yylex() will
- * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
- * @param yyscanner The scanner object.
- * @return the newly allocated buffer state object.
+/*! 
+ * \brief Setup the input buffer state to scan the given bytes. The next call to ast_yylex() will
+ * scan from a \e copy of \a bytes.
+ * \param yybytes the byte buffer to scan
+ * \param _yybytes_len the number of bytes in the buffer pointed to by \a bytes.
+ * \param yyscanner The scanner object.
+ * \return the newly allocated buffer state object.
  */
 YY_BUFFER_STATE ast_yy_scan_bytes  (yyconst char * yybytes, int  _yybytes_len , yyscan_t yyscanner)
 {
@@ -1992,8 +2004,9 @@ static void yy_fatal_error (yyconst char* msg , yyscan_t yyscanner)
 
 /* Accessor  methods (get/set functions) to struct members. */
 
-/** Get the user-defined data for this scanner.
- * @param yyscanner The scanner object.
+/*!
+ * \brief Get the user-defined data for this scanner.
+ * \param yyscanner The scanner object.
  */
 YY_EXTRA_TYPE ast_yyget_extra  (yyscan_t yyscanner)
 {
@@ -2001,8 +2014,9 @@ YY_EXTRA_TYPE ast_yyget_extra  (yyscan_t yyscanner)
     return yyextra;
 }
 
-/** Get the current line number.
- * @param yyscanner The scanner object.
+/*! 
+ * \brief Get the current line number.
+ * \param yyscanner The scanner object.
  */
 int ast_yyget_lineno  (yyscan_t yyscanner)
 {
@@ -2014,8 +2028,9 @@ int ast_yyget_lineno  (yyscan_t yyscanner)
     return yylineno;
 }
 
-/** Get the current column number.
- * @param yyscanner The scanner object.
+/*!
+ * \brief Get the current column number.
+ * \param yyscanner The scanner object.
  */
 int ast_yyget_column  (yyscan_t yyscanner)
 {
@@ -2027,8 +2042,9 @@ int ast_yyget_column  (yyscan_t yyscanner)
     return yycolumn;
 }
 
-/** Get the input stream.
- * @param yyscanner The scanner object.
+/*!
+ * \brief Get the input stream.
+ * \param yyscanner The scanner object.
  */
 FILE *ast_yyget_in  (yyscan_t yyscanner)
 {
@@ -2036,8 +2052,9 @@ FILE *ast_yyget_in  (yyscan_t yyscanner)
     return yyin;
 }
 
-/** Get the output stream.
- * @param yyscanner The scanner object.
+/*!
+ * \brief Get the output stream.
+ * \param yyscanner The scanner object.
  */
 FILE *ast_yyget_out  (yyscan_t yyscanner)
 {
@@ -2045,8 +2062,9 @@ FILE *ast_yyget_out  (yyscan_t yyscanner)
     return yyout;
 }
 
-/** Get the length of the current token.
- * @param yyscanner The scanner object.
+/*!
+ * \brief Get the length of the current token.
+ * \param yyscanner The scanner object.
  */
 int ast_yyget_leng  (yyscan_t yyscanner)
 {
@@ -2054,8 +2072,9 @@ int ast_yyget_leng  (yyscan_t yyscanner)
     return yyleng;
 }
 
-/** Get the current token.
- * @param yyscanner The scanner object.
+/*!
+ * \brief Get the current token.
+ * \param yyscanner The scanner object.
  */
 
 char *ast_yyget_text  (yyscan_t yyscanner)
@@ -2064,9 +2083,10 @@ char *ast_yyget_text  (yyscan_t yyscanner)
     return yytext;
 }
 
-/** Set the user-defined data. This data is never touched by the scanner.
- * @param user_defined The data to be associated with this scanner.
- * @param yyscanner The scanner object.
+/*!
+ * \brief Set the user-defined data. This data is never touched by the scanner.
+ * \param user_defined The data to be associated with this scanner.
+ * \param yyscanner The scanner object.
  */
 void ast_yyset_extra (YY_EXTRA_TYPE  user_defined , yyscan_t yyscanner)
 {
@@ -2074,9 +2094,10 @@ void ast_yyset_extra (YY_EXTRA_TYPE  user_defined , yyscan_t yyscanner)
     yyextra = user_defined ;
 }
 
-/** Set the current line number.
- * @param line_number
- * @param yyscanner The scanner object.
+/*!
+ * \brief Set the current line number.
+ * \param line_number
+ * \param yyscanner The scanner object.
  */
 void ast_yyset_lineno (int  line_number , yyscan_t yyscanner)
 {
@@ -2089,9 +2110,10 @@ void ast_yyset_lineno (int  line_number , yyscan_t yyscanner)
     yylineno = line_number;
 }
 
-/** Set the current column.
- * @param line_number
- * @param yyscanner The scanner object.
+/*!
+ * \brief Set the current column.
+ * \param column_no
+ * \param yyscanner The scanner object.
  */
 void ast_yyset_column (int  column_no , yyscan_t yyscanner)
 {
@@ -2104,11 +2126,12 @@ void ast_yyset_column (int  column_no , yyscan_t yyscanner)
     yycolumn = column_no;
 }
 
-/** Set the input stream. This does not discard the current
+/*!
+ * \brief Set the input stream. This does not discard the current
  * input buffer.
- * @param in_str A readable stream.
- * @param yyscanner The scanner object.
- * @see ast_yy_switch_to_buffer
+ * \param in_str A readable stream.
+ * \param yyscanner The scanner object.
+ * \see ast_yy_switch_to_buffer
  */
 void ast_yyset_in (FILE *  in_str , yyscan_t yyscanner)
 {
@@ -2162,9 +2185,10 @@ void ast_yyset_lloc (YYLTYPE *  yylloc_param , yyscan_t yyscanner)
     
 /* User-visible API */
 
-/* ast_yylex_init is special because it creates the scanner itself, so it is
- * the ONLY reentrant function that doesn't take the scanner as the last argument.
- * That's why we explicitly handle the declaration, instead of using our macros.
+/*! \brief ast_yylex_init is special because it creates the scanner itself.
+ * 
+ * It is the ONLY reentrant function that doesn't take the scanner as the last argument.
+ * \note That's why we explicitly handle the declaration, instead of using our macros.
  */
 
 int ast_yylex_init(yyscan_t* ptr_yy_globals)

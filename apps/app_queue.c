@@ -2975,6 +2975,7 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
  *
  * \param[in] qe the queue_ent structure which corresponds to the caller attempting to reach members
  * \param[in] options the options passed as the third parameter to the Queue() application
+ * \param[in] announceoverride filename to play to user when waiting 
  * \param[in] url the url passed as the fourth parameter to the Queue() application
  * \param[in,out] tries the number of times we have tried calling queue members
  * \param[out] noption set if the call to Queue() has the 'n' option set.

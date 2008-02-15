@@ -4059,7 +4059,10 @@ int ast_channel_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 }
 
 /*! \brief Send manager event for bridge link and unlink events.
-	\param type	1 for core, 2 for native
+ * \param onoff Link/Unlinked 
+ * \param type 1 for core, 2 for native
+ * \param c0 first channel in bridge
+ * \param c1 second channel in bridge
 */
 static void manager_bridge_event(int onoff, int type, struct ast_channel *c0, struct ast_channel *c1)
 {

@@ -6041,15 +6041,14 @@ static int zt_wink(struct zt_pvt *p, int index)
 	return 0;
 }
 
-/*! enable or disable the chan_zap Do-Not-Disturb mode for a Zaptel channel
- * @zapchan "Physical" Zaptel channel (e.g: Zap/5)
- * @on: 1 to enable, 0 to disable
+/*! \brief enable or disable the chan_zap Do-Not-Disturb mode for a Zaptel channel
+ * \param zapchan "Physical" Zaptel channel (e.g: Zap/5)
+ * \param on 1 to enable, 0 to disable
  *
  * chan_zap has a DND (Do Not Disturb) mode for each zapchan (physical 
  * zaptel channel). Use this to enable or disable it.
  *
- * \fixme the use of the word "channel" for those zapchans is really
- * confusing.
+ * \bug the use of the word "channel" for those zapchans is really confusing.
  */
 static void zap_dnd(struct zt_pvt *zapchan, int on)
 {

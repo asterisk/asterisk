@@ -277,8 +277,8 @@ static int update_curl(const char *url, const char *unused, const char *keyfield
 
 /*!
  * \brief Execute an INSERT query
- * \param database
- * \param table
+ * \param url
+ * \param unused
  * \param ap list containing one or more field/value set(s)
  *
  * Insert a new record into database table, prepare the sql statement.
