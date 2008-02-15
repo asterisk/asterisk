@@ -37,9 +37,9 @@
 typedef AES_KEY ast_aes_encrypt_key;
 typedef AES_KEY ast_aes_decrypt_key;
 
-#define ast_aes_encrypt_key(key, context) AES_set_encrypt_key(key, 1024, context)
+#define ast_aes_encrypt_key(key, context) AES_set_encrypt_key(key, 128, context)
 
-#define ast_aes_decrypt_key(key, context) AES_set_decrypt_key(key, 1024, context)
+#define ast_aes_decrypt_key(key, context) AES_set_decrypt_key(key, 128, context)
 
 #define ast_aes_encrypt(in, out, context) AES_encrypt(in, out, context)
 
