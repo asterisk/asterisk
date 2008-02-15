@@ -364,6 +364,7 @@ Other Dialplan Application Changes
      direct options to the app.
   * AMD() has a new "maximum word length" option. "show application AMD" from the CLI
      for more details
+  * GotoIfTime() now may branch based on a "false" condition, like other Goto-related applications
 
 Music On Hold Changes
 ---------------------
