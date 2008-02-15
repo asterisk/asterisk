@@ -4422,12 +4422,6 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		long duration = 0;
 		char origmsgfile[PATH_MAX], msgfile[PATH_MAX];
 		struct vm_state vmstmp;
-#ifdef IMAP_STORAGE
-		char *myserveremail = serveremail;
-		char buf[1024] = "";
-		int attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
-#endif
-
 		memcpy(&vmstmp, vms, sizeof(vmstmp));
 
 		make_file(origmsgfile, sizeof(origmsgfile), dir, curmsg);
@@ -4443,8 +4437,9 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		if (!cmd) {
 			AST_LIST_TRAVERSE_SAFE_BEGIN(&extensions, vmtmp, list) {
 #ifdef IMAP_STORAGE
-				char *myserveremail;
+				char *myserveremail = serveremail;
 				int attach_user_voicemail;
+				char buf[1024] = "";
 
  				/* Need to get message content */
 	 			ast_debug(3, "Before mail_fetchheaders, curmsg is: %d, imap messages is %lu\n", vms->curmsg, vms->msgArray[vms->curmsg]);
