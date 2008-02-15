@@ -55,7 +55,10 @@ need to run 'make install'.
 \subsubsection{Compiling Asterisk}
 
 Configure with ./configure --with-imap=/usr/src/imap
-or where ever you built thfe UWashington IMAP Toolkit. 
+or where ever you built thfe UWashington IMAP Toolkit. This directory
+will be searched for a source installation. If no source installation is
+found there, then a package installation of the IMAP c-client will be 
+searched for in this directory. If one is not found, then configure will fail.
 
 A second configure option is to not specify a directory (i.e.
 ./configure --with-imap). This will assume that you have the
