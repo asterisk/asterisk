@@ -358,8 +358,6 @@ int main(int argc, char **argv)
 	if (!localdir)
 		printf(" (You could use -d the use the extensions.conf in the current directory!)\n");
 
-	strcpy((char *)ast_config_AST_CONFIG_DIR,"/etc/asterisk");
-	
 	printf("Loading %s/%s...\n", ast_config_AST_CONFIG_DIR, config);
 
 	if (!localdir)
