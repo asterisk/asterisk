@@ -529,12 +529,17 @@ static struct pbx_builtin {
 
 	{ "GotoIfTime", pbx_builtin_gotoiftime,
 	"Conditional Goto based on the current time",
-	"  GotoIfTime(<times>,<weekdays>,<mdays>,<months>?[[context,]exten,]priority):\n"
+	"  GotoIfTime(<times>,<weekdays>,<mdays>,<months>?[labeliftrue]:[labeliffalse]):\n"
 	"This application will set the context, extension, and priority in the channel structure\n"
-	"if the current time matches the given time specification. Otherwise, nothing is done.\n"
+	"based on the evaluation of the given time specification. After this application completes,\n"
+	"the pbx engine will continue dialplan execution at the specified location in the dialplan.\n"
+	"If the current time is within the given time specification, the channel will continue at\n"
+	"'labeliftrue'. Otherwise the channel will continue at 'labeliffalse'. If the label chosen\n"
+	"by the condition is omitted, no jump is performed, and execution passes to the next\n"
+	"instruction. If the target jump location is bogus, the same actions would be taken as for\n"
+	"Goto.\n"
         "Further information on the time specification can be found in examples\n"
-        "illustrating how to do time-based context includes in the dialplan.\n" 
-	"If the target jump location is bogus, the same actions would be taken as for Goto.\n"
+        "illustrating how to do time-based context includes in the dialplan.\n"
 	},
 
 	{ "ImportVar", pbx_builtin_importvar,
@@ -6903,12 +6908,11 @@ static int pbx_builtin_hangup(struct ast_channel *chan, void *data)
  */
 static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 {
-	int res = 0;
-	char *s, *ts;
+	char *s, *ts, *branch1, *branch2, *branch;
 	struct ast_timing timing;
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?[[context,]extension,]priority\n");
+		ast_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?'labeliftrue':'labeliffalse'\n");
 		return -1;
 	}
 
@@ -6916,12 +6920,21 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 
 	/* Separate the Goto path */
 	strsep(&ts, "?");
+	branch1 = strsep(&ts,":");
+	branch2 = strsep(&ts,"");
 
 	/* struct ast_include include contained garbage here, fixed by zeroing it on get_timerange */
 	if (ast_build_timing(&timing, s) && ast_check_timing(&timing))
-		res = pbx_builtin_goto(chan, ts);
-	
-	return res;
+		branch = branch1;
+	else
+		branch = branch2;
+
+	if (ast_strlen_zero(branch)) {
+		ast_debug(1, "Not taking any branch\n");
+		return 0;
+	}
+
+	return pbx_builtin_goto(chan, branch);
 }
 
 /*!
