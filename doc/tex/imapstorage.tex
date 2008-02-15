@@ -60,7 +60,8 @@ or where ever you built thfe UWashington IMAP Toolkit.
 A second configure option is to not specify a directory (i.e.
 ./configure --with-imap). This will assume that you have the
 imap-2004g source installed in the .. directory relative to the
-Asterisk source.
+Asterisk source. If you do not have this source, then configure will
+default to the "system" option defined in the next paragraph
 
 A third option is ./configure --with-imap=system. This will assume
 that you have installed a dynamically linked version of the c-client
@@ -68,9 +69,6 @@ library (most likely via a package provided by your distro). This will
 attempt to link agains -lc-client and will search for c-client headers
 in your include path starting with the imap directory, and upon failure,
 in the c-client directory.
-
-Note that if you attempt one of the first two configuration options for
-IMAP and it fails, the "system" option will be automatically attempted.
 
 When you run 'make menuselect', choose 'Voicemail Build Options' and the
 IMAP\_STORAGE option should be available for selection.

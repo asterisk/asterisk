@@ -648,8 +648,10 @@ fi
 AST_EXT_LIB_CHECK([IKSEMEL], [iksemel], [iks_start_sasl], [iksemel.h])
 
 if test "${USE_IMAP_TK}" != "no"; then
+	switch_to_system_on_failure="no"
 	if test "${IMAP_TK_DIR}" = ""; then
 		IMAP_TK_DIR=`pwd`"/../imap-2004g"
+		switch_to_system_on_failure="yes"
 	fi
 	saved_cppflags="${CPPFLAGS}"
 	saved_libs="${LIBS}"
@@ -776,18 +778,11 @@ if test "${USE_IMAP_TK}" != "no"; then
 		fi
 		CPPFLAGS="${saved_cppflags}"
 		LIBS="${saved_libs}"
-		if test "${ac_cv_imap_tk}" = "yes"; then
-			AC_MSG_RESULT(yes)
-      		IMAP_TK_LIB="${imap_libs} "`echo ${imap_ldflags}`
-      		IMAP_TK_INCLUDE="${imap_include}"
-      		PBX_IMAP_TK=1
-      		AC_DEFINE([HAVE_IMAP_TK], 1, [Define if your system has the UW IMAP Toolkit c-client library.])
-      		if test "${ac_cv_imap_tk2006}" = "yes"; then
-         		AC_DEFINE([HAVE_IMAP_TK2006], 1, [Define if your system has the UW IMAP Toolkit c-client library version 2006 or greater.])
-      		fi
-		else
+		if test "${ac_cv_imap_tk}" = "no"; then
 			AC_MSG_RESULT(no)
-			IMAP_TK_DIR="system"
+			if test "${switch_to_system_on_failure}" = "yes"; then
+				IMAP_TK_DIR="system"
+			fi
 		fi
 	fi 
 	if test "${IMAP_TK_DIR}" = "system"; then
@@ -1034,20 +1029,20 @@ if test "${USE_IMAP_TK}" != "no"; then
 				)
 			fi
 		fi
-		if test "${ac_cv_imap_tk}" = "yes"; then
-			AC_MSG_RESULT(yes)
-			CPPFLAGS="${saved_cppflags}"
-			LIBS="${saved_libs}"
-			IMAP_TK_LIB="${imap_libs} "`echo ${imap_ldflags}`
-			IMAP_TK_INCLUDE="${imap_include}"
-			PBX_IMAP_TK=1
-			AC_DEFINE([HAVE_IMAP_TK], 1, [Define if your system has the UW IMAP Toolkit c-client library.])
-			if test "${ac_cv_imap_tk2006}" = "yes"; then
-				AC_DEFINE([HAVE_IMAP_TK2006], 1, [Define if your system has the UW IMAP Toolkit c-client library version 2006 or greater.])
-			fi
-		else
-			AC_MSG_RESULT(no) 
+	fi
+	if test "${ac_cv_imap_tk}" = "yes"; then
+		AC_MSG_RESULT(yes)
+		CPPFLAGS="${saved_cppflags}"
+		LIBS="${saved_libs}"
+		IMAP_TK_LIB="${imap_libs} "`echo ${imap_ldflags}`
+		IMAP_TK_INCLUDE="${imap_include}"
+		PBX_IMAP_TK=1
+		AC_DEFINE([HAVE_IMAP_TK], 1, [Define if your system has the UW IMAP Toolkit c-client library.])
+		if test "${ac_cv_imap_tk2006}" = "yes"; then
+			AC_DEFINE([HAVE_IMAP_TK2006], 1, [Define if your system has the UW IMAP Toolkit c-client library version 2006 or greater.])
 		fi
+	else
+		AC_MSG_RESULT(no) 
 	fi
 fi
 
