@@ -2515,7 +2515,9 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	int type, len;
 	int ret;
 	int needfree = 0;
-
+	struct ast_channel *owner = NULL;
+	struct ast_channel *bridge = NULL;
+	
 	/* Attempt to recover wrapped timestamps */
 	unwrap_timestamp(fr);
 
@@ -2547,11 +2549,12 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 		return -1;
 	}
 
+	if ((owner = iaxs[fr->callno]->owner))
+		bridge = ast_bridged_channel(owner);
+
 	/* if the user hasn't requested we force the use of the jitterbuffer, and we're bridged to
 	 * a channel that can accept jitter, then flush and suspend the jb, and send this frame straight through */
-	if( (!ast_test_flag(iaxs[fr->callno], IAX_FORCEJITTERBUF)) &&
-	    iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner) &&
-	    (ast_bridged_channel(iaxs[fr->callno]->owner)->tech->properties & AST_CHAN_TP_WANTSJITTER)) {
+	if ( (!ast_test_flag(iaxs[fr->callno], IAX_FORCEJITTERBUF)) && owner && bridge && (bridge->tech->properties & AST_CHAN_TP_WANTSJITTER) ) {
 		jb_frame frame;
 
 		/* deliver any frames in the jb */
