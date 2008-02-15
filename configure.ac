@@ -479,13 +479,13 @@ if test "${PBX_IKSEMEL}" = 1; then
 fi
 
 if test "${USE_IMAP_TK}" != "no"; then
+	saved_cppflags="${CPPFLAGS}"
+	saved_libs="${LIBS}"
 	switch_to_system_on_failure="no"
 	if test "${IMAP_TK_DIR}" = ""; then
 		IMAP_TK_DIR=`pwd`"/../imap-2004g"
 		switch_to_system_on_failure="yes"
 	fi
-	saved_cppflags="${CPPFLAGS}"
-	saved_libs="${LIBS}"
 	if test "${IMAP_TK_DIR}" != "system"; then
 		AC_MSG_CHECKING(for UW IMAP Toolkit c-client library)
 		if test -f "${IMAP_TK_DIR}/c-client/LDFLAGS"; then
@@ -863,8 +863,6 @@ if test "${USE_IMAP_TK}" != "no"; then
 	fi
 	if test "${ac_cv_imap_tk}" = "yes"; then
 		AC_MSG_RESULT(yes)
-		CPPFLAGS="${saved_cppflags}"
-		LIBS="${saved_libs}"
 		IMAP_TK_LIB="${imap_libs} "`echo ${imap_ldflags}`
 		IMAP_TK_INCLUDE="${imap_include}"
 		PBX_IMAP_TK=1
@@ -882,6 +880,8 @@ if test "${USE_IMAP_TK}" != "no"; then
 	else
 		AC_MSG_RESULT(no)
 	fi
+	CPPFLAGS="${saved_cppflags}"
+	LIBS="${saved_libs}"
 fi
 
 # Needed by unixodbc
