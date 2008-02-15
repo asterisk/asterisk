@@ -589,7 +589,7 @@ int ast_module_reload(const char *name)
 		if (name && resource_name_match(name, cur->resource))
 			continue;
 
-		if (!(cur->flags.running || cur->flags.declined))
+		if (!cur->flags.running || cur->flags.declined)
 			continue;
 
 		if (!info->reload) {	/* cannot be reloaded */
