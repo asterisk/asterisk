@@ -5509,7 +5509,7 @@ static int get_input(struct skinnysession *s)
 		
 		dlen = letohl(*(int *)s->inbuf);
 		if (dlen < 4) {
-			ast_log(LOG_WARNING, "Skinny Client sent invalid data.\n");
+			ast_debug(1, "Skinny Client sent invalid data.\n");
 			ast_mutex_unlock(&s->lock);
 			return -1;
 		}
@@ -5582,7 +5582,7 @@ static void *skinny_session(void *data)
 			}
 		}
 	}
-	ast_log(LOG_NOTICE, "Skinny Session returned: %s\n", strerror(errno));
+	ast_debug(3, "Skinny Session returned: %s\n", strerror(errno));
 
 	if (s) 
 		destroy_session(s);
