@@ -987,6 +987,9 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	char nf[256], wf[256], rf[256];
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
+#ifdef CHANNEL_TRACE
+	int trace_enabled;
+#endif
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1071,7 +1074,12 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_cli(a->fd,"      Variables:\n%s\n", out->str);
 	if (c->cdr && ast_cdr_serialize_variables(c->cdr, &out, '=', '\n', 1))
 		ast_cli(a->fd,"  CDR Variables:\n%s\n", out->str);
-	
+#ifdef CHANNEL_TRACE
+	trace_enabled = ast_channel_trace_is_enabled(c);
+	ast_cli(a->fd, "  Context Trace: %s\n", trace_enabled ? "Enabled" : "Disabled");
+	if (trace_enabled && ast_channel_trace_serialize(c, &out))
+		ast_cli(a->fd, "          Trace:\n%s\n", out->str);
+#endif
 	ast_channel_unlock(c);
 	return CLI_SUCCESS;
 }

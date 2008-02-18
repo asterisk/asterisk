@@ -71,6 +71,13 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		ast_copy_string(buf, ast_getformatname(chan->readformat), len);
 	else if (!strcasecmp(data, "audiowriteformat"))
 		ast_copy_string(buf, ast_getformatname(chan->writeformat), len);
+#ifdef CHANNEL_TRACE
+	else if (!strcasecmp(data, "trace")) {
+		ast_channel_lock(chan);
+		ast_copy_string(buf, ast_channel_trace_is_enabled(chan) ? "1" : "0", len);
+		ast_channel_unlock(chan);
+	}
+#endif
 	else if (!strcasecmp(data, "tonezone") && chan->zone)
 		locked_copy_string(chan, buf, chan->zone->country, len);
 	else if (!strcasecmp(data, "language"))
@@ -105,6 +112,20 @@ static int func_channel_write(struct ast_channel *chan, const char *function,
 		locked_string_field_set(chan, language, value);
 	else if (!strcasecmp(data, "musicclass"))
 		locked_string_field_set(chan, musicclass, value);
+#ifdef CHANNEL_TRACE
+	else if (!strcasecmp(data, "trace")) {
+		ast_channel_lock(chan);
+		if (ast_true(value)) 
+			ret = ast_channel_trace_enable(chan);
+		else if (ast_false(value)) 
+			ret = ast_channel_trace_disable(chan);
+		else {
+			ret = -1;
+			ast_log(LOG_WARNING, "Invalid value for CHANNEL(trace).");
+		}
+		ast_channel_unlock(chan);
+	}
+#endif
 	else if (!strcasecmp(data, "tonezone")) {
 		struct ind_tone_zone *new_zone;
 		if (!(new_zone = ast_get_indication_zone(value))) {
@@ -156,6 +177,9 @@ static struct ast_custom_function channel_function = {
 		"R/W	tonezone           zone for indications played\n"
 		"R/W	txgain             set txgain level on channel drivers that support it\n"
 		"R/O	videonativeformat  format used natively for video\n"
+#ifdef CHANNEL_TRACE
+		"R/W	trace              whether or not context tracing is enabled\n"
+#endif
 		"\n"
 		"chan_sip provides the following additional options:\n"
 		"R/O    rtpqos             Get QOS information about the RTP stream\n"

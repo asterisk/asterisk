@@ -59,4 +59,6 @@
 		<member name="BUSYDETECT_DEBUG" displayname="Enable additional busy detection debugging">
 			<defaultenabled>no</defaultenabled>
 		</member>
+		<member name="CHANNEL_TRACE" displayname="Enable CHANNEL(trace) function">
+		</member>
 	</category>

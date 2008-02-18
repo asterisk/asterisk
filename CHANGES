@@ -513,3 +513,6 @@ Miscellaneous
      do not come from the remote party.
   * Added the 'n' option to the SpeechBackground application to tell it to not
      answer the channel if it has not already been answered.
+  * Added a compiler flag, CHANNEL_TRACE, which permits channel tracing to be
+     turned on, via the CHANNEL(trace) dialplan function.  Could be useful for
+     dialplan debugging.

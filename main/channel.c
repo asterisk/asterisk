@@ -104,6 +104,22 @@ struct chanlist {
 	AST_LIST_ENTRY(chanlist) list;
 };
 
+#ifdef CHANNEL_TRACE
+/*! \brief Structure to hold channel context backtrace data */
+struct ast_chan_trace_data {
+	int enabled;
+	AST_LIST_HEAD_NOLOCK(, ast_chan_trace) trace;
+};
+
+/*! \brief Structure to save contexts where an ast_chan has been into */
+struct ast_chan_trace {
+	char context[AST_MAX_CONTEXT];
+	char exten[AST_MAX_EXTENSION];
+	int priority;
+	AST_LIST_ENTRY(ast_chan_trace) entry;
+};
+#endif
+
 /*! \brief the list of registered channel types */
 static AST_LIST_HEAD_NOLOCK_STATIC(backends, chanlist);
 
@@ -313,6 +329,133 @@ static struct ast_cli_entry cli_channel[] = {
 	AST_CLI_DEFINE(handle_cli_core_show_channeltypes, "List available channel types"),
 	AST_CLI_DEFINE(handle_cli_core_show_channeltype,  "Give more details on that channel type")
 };
+
+#ifdef CHANNEL_TRACE
+/*! \brief Destructor for the channel trace datastore */
+static void ast_chan_trace_destroy_cb(void *data)
+{
+	struct ast_chan_trace *trace;
+	struct ast_chan_trace_data *traced = data;
+	while ((trace = AST_LIST_REMOVE_HEAD(&traced->trace, entry))) {
+		ast_free(trace);
+	}
+	ast_free(traced);
+}
+
+/*! \brief Datastore to put the linked list of ast_chan_trace and trace status */
+const struct ast_datastore_info ast_chan_trace_datastore_info = {
+	.type = "ChanTrace",
+	.destroy = ast_chan_trace_destroy_cb
+};
+
+/*! \brief Put the channel backtrace in a string */
+int ast_channel_trace_serialize(struct ast_channel *chan, struct ast_str **buf)
+{
+	int total = 0;
+	struct ast_chan_trace *trace;
+	struct ast_chan_trace_data *traced;
+	struct ast_datastore *store;
+
+	ast_channel_lock(chan);
+	store = ast_channel_datastore_find(chan, &ast_chan_trace_datastore_info, NULL);
+	if (!store) {
+		ast_channel_unlock(chan);
+		return total;
+	}
+	traced = store->data;
+	(*buf)->used = 0;
+	(*buf)->str[0] = '\0';
+	AST_LIST_TRAVERSE(&traced->trace, trace, entry) {
+		if (ast_str_append(buf, 0, "[%d] => %s, %s, %d\n", total, trace->context, trace->exten, trace->priority) < 0) {
+			ast_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
+			total = -1;
+			break;
+		}
+		total++;
+	}
+	ast_channel_unlock(chan);
+	return total;
+}
+
+/* !\brief Whether or not context tracing is enabled */
+int ast_channel_trace_is_enabled(struct ast_channel *chan)
+{
+	struct ast_datastore *store = ast_channel_datastore_find(chan, &ast_chan_trace_datastore_info, NULL);
+	if (!store)
+		return 0;
+	return ((struct ast_chan_trace_data *)store->data)->enabled;
+}
+
+/*! \brief Update the context backtrace data if tracing is enabled */
+static int ast_channel_trace_data_update(struct ast_channel *chan, struct ast_chan_trace_data *traced)
+{
+	struct ast_chan_trace *trace;
+	if (!traced->enabled)
+		return 0;
+	/* If the last saved context does not match the current one
+	   OR we have not saved any context so far, then save the current context */
+	if ((!AST_LIST_EMPTY(&traced->trace) && strcasecmp(AST_LIST_FIRST(&traced->trace)->context, chan->context)) || 
+	    (AST_LIST_EMPTY(&traced->trace))) {
+		/* Just do some debug logging */
+		if (AST_LIST_EMPTY(&traced->trace))
+			ast_log(LOG_DEBUG, "Setting initial trace context to %s\n", chan->context);
+		else
+			ast_log(LOG_DEBUG, "Changing trace context from %s to %s\n", AST_LIST_FIRST(&traced->trace)->context, chan->context);
+		/* alloc or bail out */
+		trace = ast_malloc(sizeof(*trace));
+		if (!trace) 
+			return -1;
+		/* save the current location and store it in the trace list */
+		ast_copy_string(trace->context, chan->context, sizeof(trace->context));
+		ast_copy_string(trace->exten, chan->exten, sizeof(trace->exten));
+		trace->priority = chan->priority;
+		AST_LIST_INSERT_HEAD(&traced->trace, trace, entry);
+	}
+	return 0;
+}
+
+/*! \brief Update the context backtrace if tracing is enabled */
+int ast_channel_trace_update(struct ast_channel *chan)
+{
+	struct ast_datastore *store = ast_channel_datastore_find(chan, &ast_chan_trace_datastore_info, NULL);
+	if (!store)
+		return 0;
+	return ast_channel_trace_data_update(chan, store->data);
+}
+
+/*! \brief Enable context tracing in the channel */
+int ast_channel_trace_enable(struct ast_channel *chan)
+{
+	struct ast_datastore *store = ast_channel_datastore_find(chan, &ast_chan_trace_datastore_info, NULL);
+	struct ast_chan_trace_data *traced;
+	if (!store) {
+		store = ast_channel_datastore_alloc(&ast_chan_trace_datastore_info, "ChanTrace");
+		if (!store) 
+			return -1;
+		traced = ast_calloc(1, sizeof(*traced));
+		if (!traced) {
+			ast_channel_datastore_free(store);
+			return -1;
+		}	
+		store->data = traced;
+		AST_LIST_HEAD_INIT_NOLOCK(&traced->trace);
+		ast_channel_datastore_add(chan, store);
+	}	
+	((struct ast_chan_trace_data *)store->data)->enabled = 1;
+	ast_channel_trace_data_update(chan, store->data);
+	return 0;
+}
+
+/*! \brief Disable context tracing in the channel */
+int ast_channel_trace_disable(struct ast_channel *chan)
+{
+	struct ast_datastore *store = ast_channel_datastore_find(chan, &ast_chan_trace_datastore_info, NULL);
+	if (!store)
+		return 0;
+	((struct ast_chan_trace_data *)store->data)->enabled = 0;
+	return 0;
+}
+#endif /* CHANNEL_TRACE */
 
 /*! \brief Checks to see if a channel is needing hang up */
 int ast_check_hangup(struct ast_channel *chan)
