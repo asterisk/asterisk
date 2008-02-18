@@ -395,18 +395,18 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "-----------------\n");
 	ast_cli(a->fd, "  Version:                     %s\n", ast_get_version());
 	if (option_maxcalls)
-		ast_cli(a->fd, "  Max. calls:                  %d (Current %d)\n", option_maxcalls, ast_active_channels());
+		ast_cli(a->fd, "  Maximum calls:               %d (Current %d)\n", option_maxcalls, ast_active_channels());
 	else
-		ast_cli(a->fd, "  Max. calls:                  Not set\n");
+		ast_cli(a->fd, "  Maximum calls:               Not set\n");
 	if (option_maxfiles)
-		ast_cli(a->fd, "  Max. open file handles:      %d\n", option_maxfiles); 
+		ast_cli(a->fd, "  Maximum open file handles:   %d\n", option_maxfiles); 
 	else
-		ast_cli(a->fd, "  Max. open file handles:      Not set\n");
+		ast_cli(a->fd, "  Maximum open file handles:   Not set\n");
 	ast_cli(a->fd, "  Verbosity:                   %d\n", option_verbose);
 	ast_cli(a->fd, "  Debug level:                 %d\n", option_debug);
-	ast_cli(a->fd, "  Max load avg:                %lf\n", option_maxload);
+	ast_cli(a->fd, "  Maximum load average:        %lf\n", option_maxload);
 #if defined(HAVE_SYSINFO)
-	ast_cli(a->fd, "  Min Free Memory:             %ld MB\n", option_minmemfree);
+	ast_cli(a->fd, "  Minimum free memory:         %ld MB\n", option_minmemfree);
 #endif
 	if (ast_localtime(&ast_startuptime, &tm, NULL)) {
 		ast_strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
