@@ -684,6 +684,7 @@ static struct zt_pvt {
 	char charge_number[50];
 	char gen_add_number[50];
 	char gen_dig_number[50];
+	char orig_called_num[50];
 	unsigned char gen_add_num_plan;
 	unsigned char gen_add_nai;
 	unsigned char gen_add_pres_ind;
@@ -9105,6 +9106,11 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 		/* Clear this after we set it */
 		p->gen_dig_number[0] = 0;
 	}
+	if (!ast_strlen_zero(p->orig_called_num)) {
+		pbx_builtin_setvar_helper(c, "SS7_ORIG_CALLED_NUM", p->orig_called_num);
+		/* Clear this after we set it */
+		p->orig_called_num[0] = 0;
+	}
 
 	snprintf(tmp, sizeof(tmp), "%d", p->gen_dig_type);
 	pbx_builtin_setvar_helper(c, "SS7_GENERIC_DIGTYPE", tmp);
@@ -9414,6 +9420,7 @@ static void *ss7_linkset(void *data)
 				p->gen_dig_type = e->iam.gen_dig_type;
 				p->gen_dig_scheme = e->iam.gen_dig_scheme;
 				ast_copy_string(p->jip_number, e->iam.jip_number, sizeof(p->jip_number));
+				ast_copy_string(p->orig_called_num, e->iam.orig_called_num, sizeof(p->orig_called_num));
 					
 				/* Set DNID */
 				if (!ast_strlen_zero(e->iam.called_party_num))
