@@ -9990,7 +9990,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			ast_cli(fd, "Default law: %s\n", tmp->law == ZT_LAW_MULAW ? "ulaw" : tmp->law == ZT_LAW_ALAW ? "alaw" : "unknown");
 			ast_cli(fd, "Fax Handled: %s\n", tmp->faxhandled ? "yes" : "no");
 			ast_cli(fd, "Pulse phone: %s\n", tmp->pulsedial ? "yes" : "no");
-			ast_cli(fd, "Echo Cancellation: %d taps%s, currently %s\n", tmp->echocancel, tmp->echocanbridged ? "" : " unless TDM bridged", tmp->echocanon ? "ON" : "OFF");
+			ast_cli(fd, "Echo Cancellation: %d taps%s, currently %s\n", tmp->echocancel, (!tmp->echocancel || tmp->echocanbridged) ? "" : " unless TDM bridged", tmp->echocanon ? "ON" : "OFF");
 			if (tmp->master)
 				ast_cli(fd, "Master Channel: %d\n", tmp->master->channel);
 			for (x = 0; x < MAX_SLAVES; x++) {
