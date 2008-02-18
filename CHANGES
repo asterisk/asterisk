@@ -47,6 +47,7 @@ AMI - The manager (TCP/TLS/HTTP)
   * Added new action insert to add new variable to category at specified line.
   * Updated action newcat to allow new category to be inserted in file above another
     existing category.
+  * Added new event "JitterBufStats" in the IAX2 channel
 
 Dialplan functions
 ------------------
