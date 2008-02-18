@@ -3266,6 +3266,14 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		ast_channel_lock(c0);
 	}
 
+	/* Ensure neither channel got hungup during lock avoidance */
+	if (ast_check_hangup(c0) || ast_check_hangup(c1)) {
+		ast_log(LOG_WARNING, "Got hangup while attempting to bridge '%s' and '%s'\n", c0->name, c1->name);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
+		return AST_BRIDGE_FAILED;
+	}
+		
 	/* Find channel driver interfaces */
 	if (!(pr0 = get_proto(c0))) {
 		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
