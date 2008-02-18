@@ -8366,7 +8366,17 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 		tmp->echocancel = conf.chan.echocancel;
 		tmp->echotraining = conf.chan.echotraining;
 		tmp->pulse = conf.chan.pulse;
-		tmp->echocanbridged = conf.chan.echocanbridged;
+#if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
+		if (tmp->echocancel.head.tap_length) {
+#else
+		if (tmp->echocancel) {
+#endif
+			tmp->echocanbridged = conf.chan.echocanbridged;
+		} else {
+			if (conf.chan.echocanbridged)
+				ast_log(LOG_NOTICE, "echocancelwhenbridged requires echocancel to be enabled; ignoring\n");
+			tmp->echocanbridged = 0;
+		}
 		tmp->busydetect = conf.chan.busydetect;
 		tmp->busycount = conf.chan.busycount;
 		tmp->busy_tonelength = conf.chan.busy_tonelength;
@@ -11865,14 +11875,14 @@ static char *zap_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 				for (x = 0; x < tmp->echocancel.head.param_count; x++) {
 					ast_cli(a->fd, "\t\t%s: %ud\n", tmp->echocancel.params[x].name, tmp->echocancel.params[x].value);
 				}
-				ast_cli(a->fd, "\t%scurrently %s\n", (!tmp->echocanon || tmp->echocanbridged) ? "" : "(unless TDM bridged) ", tmp->echocanon ? "ON" : "OFF");
+				ast_cli(a->fd, "\t%scurrently %s\n", tmp->echocanbridged ? "" : "(unless TDM bridged) ", tmp->echocanon ? "ON" : "OFF");
 			} else {
 				ast_cli(a->fd, "\tnone\n");
 			}
 #else
 			if (tmp->echocancel) {
 				ast_cli(a->fd, "\t%d taps\n", tmp->echocancel);
-				ast_cli(a->fd, "\t%scurrently %s\n", (!tmp->echocanon || tmp->echocanbridged) ? "" : "(unless TDM bridged) ", tmp->echocanon ? "ON" : "OFF");
+				ast_cli(a->fd, "\t%scurrently %s\n", tmp->echocanbridged ? "" : "(unless TDM bridged) ", tmp->echocanon ? "ON" : "OFF");
 			}
 			else
 				ast_cli(a->fd, "\tnone\n");
