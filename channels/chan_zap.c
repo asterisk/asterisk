@@ -8678,7 +8678,10 @@ static struct zt_pvt *chandup(struct zt_pvt *src)
 	}
 	p->destroy = 1;
 	p->next = iflist;
+	p->prev = NULL;
 	iflist = p;
+	if (iflist->next)
+		iflist->next->prev = p;
 	return p;
 }
 	
