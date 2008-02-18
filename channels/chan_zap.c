@@ -11858,14 +11858,14 @@ static char *zap_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 				for (x = 0; x < tmp->echocancel.head.param_count; x++) {
 					ast_cli(a->fd, "\t\t%s: %ud\n", tmp->echocancel.params[x].name, tmp->echocancel.params[x].value);
 				}
-				ast_cli(a->fd, "\t%scurrently %s\n", tmp->echocanbridged ? "" : "(unless TDM bridged) ", tmp->echocanon ? "ON" : "OFF");
+				ast_cli(a->fd, "\t%scurrently %s\n", (!tmp->echocanon || tmp->echocanbridged) ? "" : "(unless TDM bridged) ", tmp->echocanon ? "ON" : "OFF");
 			} else {
 				ast_cli(a->fd, "\tnone\n");
 			}
 #else
 			if (tmp->echocancel) {
 				ast_cli(a->fd, "\t%d taps\n", tmp->echocancel);
-				ast_cli(a->fd, "\t%scurrently %s\n", tmp->echocanbridged ? "" : "(unless TDM bridged) ", tmp->echocanon ? "ON" : "OFF");
+				ast_cli(a->fd, "\t%scurrently %s\n", (!tmp->echocanon || tmp->echocanbridged) ? "" : "(unless TDM bridged) ", tmp->echocanon ? "ON" : "OFF");
 			}
 			else
 				ast_cli(a->fd, "\tnone\n");
