@@ -72,7 +72,7 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	res = ast_parseable_goto(chan2, args.label);
+	res = ast_async_parseable_goto(chan2, args.label);
 
 	ast_channel_unlock(chan2);
 

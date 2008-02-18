@@ -864,6 +864,11 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string);
 /*!
  * \note This function will handle locking the channel as needed.
  */
+int ast_async_parseable_goto(struct ast_channel *chan, const char *goto_string);
+
+/*!
+ * \note This function will handle locking the channel as needed.
+ */
 int ast_explicit_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
 
 /*!

@@ -7792,7 +7792,7 @@ int ast_async_goto_if_exists(struct ast_channel *chan, const char * context, con
 	return __ast_goto_if_exists(chan, context, exten, priority, 1);
 }
 
-int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
+static int pbx_parseable_goto(struct ast_channel *chan, const char *goto_string, int async)
 {
 	char *exten, *pri, *context;
 	char *stringp;
@@ -7836,8 +7836,22 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 	if (mode)
 		ipri = chan->priority + (ipri * mode);
 
-	ast_explicit_goto(chan, context, exten, ipri);
+	if (async)
+		ast_async_goto(chan, context, exten, ipri);
+	else
+		ast_explicit_goto(chan, context, exten, ipri);
+	
 	ast_cdr_update(chan);
 	return 0;
 
+}
+
+int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
+{
+	return pbx_parseable_goto(chan, goto_string, 0);
+}
+
+int ast_async_parseable_goto(struct ast_channel *chan, const char *goto_string)
+{
+	return pbx_parseable_goto(chan, goto_string, 1);
 }
