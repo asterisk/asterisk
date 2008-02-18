@@ -4134,6 +4134,21 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		ast_debug(2, "This call did not properly clean up call limits. Call ID %s\n", p->callid);
 	}
 
+	/* Unlink us from the owner if we have one */
+	if (p->owner) {
+		if (lockowner)
+			ast_channel_lock(p->owner);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Detaching from %s\n", p->owner->name);
+		p->owner->tech_pvt = NULL;
+		/* Make sure that the channel knows its backend is going away */
+		p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+		if (lockowner)
+			ast_channel_unlock(p->owner);
+		/* Give the channel a chance to react before deallocation */
+		usleep(1);
+	}
+
 	/* Remove link from peer to subscription of MWI */
 	if (p->relatedpeer && p->relatedpeer->mwipvt) 
 		p->relatedpeer->mwipvt = dialog_unref(p->relatedpeer->mwipvt);
@@ -4150,12 +4165,22 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	AST_SCHED_DEL(sched, p->waitid);
 	AST_SCHED_DEL(sched, p->autokillid);
 
-	if (p->rtp)
+	/* We absolutely cannot destroy the rtp struct while a bridge is active or we WILL crash */
+	if (p->rtp) {
+		while (ast_rtp_get_bridged(p->rtp))
+			usleep(1);
 		ast_rtp_destroy(p->rtp);
-	if (p->vrtp)
+	}
+	if (p->vrtp) {
+		while (ast_rtp_get_bridged(p->vrtp))
+			usleep(1);
 		ast_rtp_destroy(p->vrtp);
-	if (p->trtp)
+	}
+	if (p->trtp) {
+		while (ast_rtp_get_bridged(p->trtp))
+			usleep(1);
 		ast_rtp_destroy(p->trtp);
+	}
 	if (p->udptl)
 		ast_udptl_destroy(p->udptl);
 	if (p->refer)
@@ -4177,15 +4202,6 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		ast_free(p->stimer);
 	}
 
-	/* Unlink us from the owner if we have one */
-	if (p->owner) {
-		if (lockowner)
-			ast_channel_lock(p->owner);
-		ast_debug(1, "Detaching from %s\n", p->owner->name);
-		p->owner->tech_pvt = NULL;
-		if (lockowner)
-			ast_channel_unlock(p->owner);
-	}
 	/* Clear history */
 	if (p->history) {
 		struct sip_history *hist;
