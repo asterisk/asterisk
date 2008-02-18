@@ -780,6 +780,12 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 		case AST_CONTROL_RADIO_UNKEY:
 			strcpy(subclass, "Unkey Radio");
 			break;
+		case AST_CONTROL_HOLD:
+			strcpy(subclass, "Hold");
+			break;
+		case AST_CONTROL_UNHOLD:
+			strcpy(subclass, "Unhold");
+			break;
 		case -1:
 			strcpy(subclass, "Stop generators");
 			break;
