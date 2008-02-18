@@ -3094,6 +3094,9 @@ static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *fo
 {
 	int native;
 	int res;
+
+	if (!fmt || !native)	/* No audio requested */
+		return 0;	/* Let's try a call without any sounds (video, text) */
 	
 	/* Make sure we only consider audio */
 	fmt &= AST_FORMAT_AUDIO_MASK;
@@ -3337,12 +3340,17 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 
 		capabilities = chan->tech->capabilities;
 		fmt = format & AST_FORMAT_AUDIO_MASK;
-		res = ast_translator_best_choice(&fmt, &capabilities);
-		if (res < 0) {
-			ast_log(LOG_WARNING, "No translator path exists for channel type %s (native 0x%x) to 0x%x\n", type, chan->tech->capabilities, format);
-			*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
-			AST_RWLIST_UNLOCK(&channels);
-			return NULL;
+		if (fmt) {
+			/* We have audio - is it possible to connect the various calls to each other? 
+				(Avoid this check for calls without audio, like text+video calls)
+			*/
+			res = ast_translator_best_choice(&fmt, &capabilities);
+			if (res < 0) {
+				ast_log(LOG_WARNING, "No translator path exists for channel type %s (native 0x%x) to 0x%x\n", type, chan->tech->capabilities, format);
+				*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
+				AST_RWLIST_UNLOCK(&channels);
+				return NULL;
+			}
 		}
 		AST_RWLIST_UNLOCK(&channels);
 		if (!chan->tech->requester)
@@ -3483,6 +3491,11 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 	/* Set up translation from the 'from' channel to the 'to' channel */
 	src = from->nativeformats;
 	dst = to->nativeformats;
+
+	/* If there's no audio in this call, don't bother with trying to find a translation path */
+	if ((src & AST_FORMAT_AUDIO_MASK) == 0 || (dst & AST_FORMAT_AUDIO_MASK) == 0)
+		return 0;
+
 	if (ast_translator_best_choice(&dst, &src) < 0) {
 		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", from->name, src, to->name, dst);
 		return -1;

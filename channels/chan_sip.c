@@ -7804,6 +7804,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 
 	int x;
 	int capability;
+	int needaudio = FALSE;
 	int needvideo = FALSE;
 	int needtext = FALSE;
 	int debug = sip_debug_test_pvt(p);
@@ -7846,6 +7847,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		ast_str_append(&a_audio, 0, "a=rtpmap:%d %s/%d\r\n", 191, "t38", 8000);
 	}
 #endif
+
+	/* Check if we need audio */
+	if (capability & AST_FORMAT_AUDIO_MASK)
+		needaudio = TRUE;
 
 	/* Check if we need video in this call */
 	if ((capability & AST_FORMAT_VIDEO_MASK) && !p->novideo) {
@@ -7941,7 +7946,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		alreadysent |= codec;
 	}
 
-	/* Start by sending our preferred audio codecs */
+	/* Start by sending our preferred audio/video codecs */
 	for (x = 0; x < 32; x++) {
 		int codec;
 
@@ -8008,14 +8013,17 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			a_audio->len - a_audio->used < 2 || a_video->len - a_video->used < 2)
 		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
 
- 	ast_str_append(&m_audio, 0, "\r\n");
+	if (needaudio)
+ 		ast_str_append(&m_audio, 0, "\r\n");
  	if (needvideo)
  		ast_str_append(&m_video, 0, "\r\n");
  	if (needtext)
  		ast_str_append(&m_text, 0, "\r\n");
 
  	len = strlen(version) + strlen(subject) + strlen(owner) +
-		strlen(connection) + strlen(stime) + m_audio->used + a_audio->used + strlen(hold);
+		strlen(connection) + strlen(stime);
+	if (needaudio)
+		len += m_audio->used + a_audio->used + strlen(hold);
  	if (needvideo) /* only if video response is appropriate */
  		len += m_video->used + a_video->used + strlen(bandwidth) + strlen(hold);
  	if (needtext) /* only if text response is appropriate */
@@ -8030,9 +8038,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	if (needvideo)	 	/* only if video response is appropriate */
 		add_line(resp, bandwidth);
 	add_line(resp, stime);
-	add_line(resp, m_audio->str);
-	add_line(resp, a_audio->str);
-	add_line(resp, hold);
+	if (needaudio) {
+		add_line(resp, m_audio->str);
+		add_line(resp, a_audio->str);
+		add_line(resp, hold);
+	}
 	if (needvideo) { /* only if video response is appropriate */
 		add_line(resp, m_video->str);
 		add_line(resp, a_video->str);
