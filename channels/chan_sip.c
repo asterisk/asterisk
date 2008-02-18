@@ -17343,7 +17343,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	parse_ok_contact(p, req);
 
 	build_contact(p);
-	if (gotdest) {
+	if (strcmp(event, "message-summary") && gotdest) {
 		transmit_response(p, "404 Not Found", req);
 		p->needdestroy = 1;
 		if (authpeer)
