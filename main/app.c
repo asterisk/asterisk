@@ -760,7 +760,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	 * message, otherwise we could get a situation where this stream is never
 	 * closed (which would create a resource leak).
 	 */
-	*duration = ast_tellstream(others[0]) / 8000;
+	*duration = others[0] ? ast_tellstream(others[0]) / 8000 : 0;
 
 	if (!prepend) {
 		for (x = 0; x < fmtcnt; x++) {
