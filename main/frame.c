@@ -710,6 +710,7 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 	char cn[60];
 	char cp[40];
 	char cmn[40];
+	const char *message = "Unknown";
 
 	if (!name)
 		name = noname;
@@ -785,6 +786,24 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 			break;
 		case AST_CONTROL_UNHOLD:
 			strcpy(subclass, "Unhold");
+			break;
+		case AST_CONTROL_T38:
+			if (f->datalen != sizeof(enum ast_control_t38)) {
+				message = "Invalid";
+			} else {
+				enum ast_control_t38 state = *((enum ast_control_t38 *) f->data);
+				if (state == AST_T38_REQUEST_NEGOTIATE)
+					message = "Negotiation Requested";
+				else if (state == AST_T38_REQUEST_TERMINATE)
+					message = "Negotiation Request Terminated";
+				else if (state == AST_T38_NEGOTIATED)
+					message = "Negotiated";
+				else if (state == AST_T38_TERMINATED)
+					message = "Terminated";
+				else if (state == AST_T38_REFUSED)
+					message = "Refused";
+			}
+			snprintf(subclass, sizeof(subclass), "T38/%s", message);
 			break;
 		case -1:
 			strcpy(subclass, "Stop generators");

@@ -4481,23 +4481,28 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 /*! \brief Sets an option on a channel */
 int ast_channel_setoption(struct ast_channel *chan, int option, void *data, int datalen, int block)
 {
-	int res;
-
-	if (chan->tech->setoption) {
-		res = chan->tech->setoption(chan, option, data, datalen);
-		if (res < 0)
-			return res;
-	} else {
+	if (!chan->tech->setoption) {
 		errno = ENOSYS;
 		return -1;
 	}
-	if (block) {
-		/* XXX Implement blocking -- just wait for our option frame reply, discarding
-		   intermediate packets. XXX */
+
+	if (block)
 		ast_log(LOG_ERROR, "XXX Blocking not implemented yet XXX\n");
+
+	return chan->tech->setoption(chan, option, data, datalen);
+}
+
+int ast_channel_queryoption(struct ast_channel *chan, int option, void *data, int *datalen, int block)
+{
+	if (!chan->tech->queryoption) {
+		errno = ENOSYS;
 		return -1;
 	}
-	return 0;
+
+	if (block)
+		ast_log(LOG_ERROR, "XXX Blocking not implemented yet XXX\n");
+
+	return chan->tech->queryoption(chan, option, data, datalen);
 }
 
 struct tonepair_def {

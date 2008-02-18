@@ -292,6 +292,15 @@ enum ast_control_frame_type {
 	AST_CONTROL_HOLD = 16,		/*!< Indicate call is placed on hold */
 	AST_CONTROL_UNHOLD = 17,	/*!< Indicate call is left from hold */
 	AST_CONTROL_VIDUPDATE = 18,	/*!< Indicate video frame update */
+	AST_CONTROL_T38 = 19		/*!< T38 state change request/notification */
+};
+
+enum ast_control_t38 {
+	AST_T38_REQUEST_NEGOTIATE = 1,	/*!< Request T38 on a channel (voice to fax) */
+	AST_T38_REQUEST_TERMINATE,	/*!< Terminate T38 on a channel (fax to voice) */
+	AST_T38_NEGOTIATED,		/*!< T38 negotiated (fax mode) */
+	AST_T38_TERMINATED,		/*!< T38 terminated (back to voice) */
+	AST_T38_REFUSED			/*!< T38 refused for some reason (usually rejected by remote end) */
 };
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)
@@ -339,6 +348,12 @@ enum ast_control_frame_type {
 
 /*! Explicitly enable or disable echo cancelation for the given channel */
 #define	AST_OPTION_ECHOCAN		8
+
+/* !
+ * Read-only. Allows query current status of T38 on the channel.
+ * data: ast_t38state
+ */
+#define AST_OPTION_T38_STATE		10
 
 struct oprmode {
 	struct ast_channel *peer;
