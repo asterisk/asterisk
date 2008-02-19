@@ -77,6 +77,9 @@ Applications:
 * ChanIsAvail() now has a 't' option, which allows the specified device
   to be queried for state without consulting the channel drivers. This
   performs mostly a 'ChanExists' sort of function.
+* ChannelRedirect() will not terminate the channel that fails to do a
+  channelredirect as it has done previously. Instead CHANNELREDIRECT_STATUS
+  will reflect if the attempt was successful of not.
 * SetCallerPres() has been replaced with the CALLERPRES() dialplan function
   and is now deprecated.
 * DISA()'s fifth argument is now an options argument.  If you have previously

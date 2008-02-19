@@ -366,6 +366,9 @@ Other Dialplan Application Changes
   * AMD() has a new "maximum word length" option. "show application AMD" from the CLI
      for more details
   * GotoIfTime() now may branch based on a "false" condition, like other Goto-related applications
+  * The ChannelRedirect application no longer exits the dialplan if the given channel
+     does not exist. It will now set the CHANNELREDIRECT_STATUS variable to SUCCESS upon success
+     or NOCHANNEL if the given channel was not found.
 
 Music On Hold Changes
 ---------------------

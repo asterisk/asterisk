@@ -39,8 +39,10 @@ static char *app = "ChannelRedirect";
 static char *synopsis = "Redirects given channel to a dialplan target.";
 static char *descrip =
 "ChannelRedirect(channel,[[context,]extension,]priority)\n"
-"  Sends the specified channel to the specified extension priority\n";
-
+"  Sends the specified channel to the specified extension priority\n"
+"This application sets the following channel variables upon completion:\n"
+"  CHANNELREDIRECT_STATUS - Are set to the result of the redirection\n"
+"                           either NOCHANNEL or SUCCESS\n";
 
 static int asyncgoto_exec(struct ast_channel *chan, void *data)
 {
@@ -69,11 +71,12 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 	chan2 = ast_get_channel_by_name_locked(args.channel);
 	if (!chan2) {
 		ast_log(LOG_WARNING, "No such channel: %s\n", args.channel);
-		return -1;
+		pbx_builtin_setvar_helper(chan, "CHANNELREDIRECT_STATUS", "NOCHANNEL");
+		return 0;
 	}
 
 	res = ast_async_parseable_goto(chan2, args.label);
-
+	pbx_builtin_setvar_helper(chan, "CHANNELREDIRECT_STATUS", "SUCCESS");
 	ast_channel_unlock(chan2);
 
 	return res;
