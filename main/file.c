@@ -855,6 +855,7 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 	struct ast_format *f;
 	struct ast_filestream *fs = NULL;
 	char *fn;
+	int format_found = 0;	
 
 	AST_RWLIST_RDLOCK(&formats);
 
@@ -862,19 +863,21 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 		fs = NULL;
 		if (!exts_compare(f->exts, type))
 			continue;
+		else 
+			format_found = 1;
 
 		fn = build_filename(filename, type);
 		errno = 0;
 		bfile = fopen(fn, "r");
-		if (!bfile || (fs = get_filestream(f, bfile)) == NULL ||
-		    open_wrapper(fs) ) {
+
+		if (!bfile || (fs = get_filestream(f, bfile)) == NULL || open_wrapper(fs) ) {
 			ast_log(LOG_WARNING, "Unable to open %s\n", fn);
 			if (fs)
 				ast_free(fs);
 			if (bfile)
 				fclose(bfile);
 			ast_free(fn);
-			continue;
+			break;				
 		}
 		/* found it */
 		fs->trans = NULL;
@@ -887,7 +890,7 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 	}
 
 	AST_RWLIST_UNLOCK(&formats);
-	if (!fs) 
+	if (!format_found)
 		ast_log(LOG_WARNING, "No such format '%s'\n", type);
 
 	return fs;
