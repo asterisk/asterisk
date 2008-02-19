@@ -98,6 +98,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/smdi.h"
 #include "asterisk/astobj.h"
 #include "asterisk/event.h"
+#include "asterisk/devicestate.h"
 
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
 
@@ -5989,6 +5990,8 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	zt_confmute(i, 0);
 	/* Configure the new channel jb */
 	ast_jb_configure(tmp, &global_jbconf);
+
+	ast_device_state_changed_literal(tmp->name);
 
 	for (v = i->vars ; v ; v = v->next)
                 pbx_builtin_setvar_helper(tmp, v->name, v->value);
