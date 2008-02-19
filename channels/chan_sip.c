@@ -6026,6 +6026,7 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 		p->recv = *sin;
 		do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE);
 	}
+	check_via(p, req);
 
 	ast_string_field_set(p, fromdomain, default_fromdomain);
 	build_via(p);
