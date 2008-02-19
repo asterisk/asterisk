@@ -3095,13 +3095,13 @@ static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *fo
 	int native;
 	int res;
 
+	/* Make sure we only consider audio */
+	fmt &= AST_FORMAT_AUDIO_MASK;
+	
 	native = chan->nativeformats;
 
 	if (!fmt || !native)	/* No audio requested */
 		return 0;	/* Let's try a call without any sounds (video, text) */
-	
-	/* Make sure we only consider audio */
-	fmt &= AST_FORMAT_AUDIO_MASK;
 	
 	/* Find a translation path from the native format to one of the desired formats */
 	if (!direction)
