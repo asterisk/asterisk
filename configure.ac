@@ -1466,7 +1466,10 @@ AC_CHECK_HEADER([linux/ixjuser.h], [PBX_IXJUSER=1], [PBX_IXJUSER=0], [
 				   ])
 AC_SUBST(PBX_IXJUSER)
 
-AC_CHECK_FILE(/sbin/launchd, AC_DEFINE([HAVE_SBIN_LAUNCHD], 1, [Define to 1 if your system has /sbin/launchd.]))
+if test "${cross_compiling}" = "no";
+then
+  AC_CHECK_FILE(/sbin/launchd, AC_DEFINE([HAVE_SBIN_LAUNCHD], 1, [Define to 1 if your system has /sbin/launchd.]))
+fi
 
 PBX_GTK=0
 AC_CHECK_TOOL(GTKCONFIG, gtk-config, No)
