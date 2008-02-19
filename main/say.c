@@ -28,7 +28,7 @@
  * \note 2007-02-08 : Support for Georgian added by Alexander Shaduri <ashaduri@gmail.com>,
  *  						Next Generation Networks (NGN).
  * \note 2007-03-20 : Support for Thai added by Dome C. <dome@tel.co.th>,
- *  						IP Crossing Co.,Ltd.
+ *  						IP Crossing Co., Ltd.
  */
 
 #include "asterisk.h"
@@ -423,7 +423,7 @@ static int wait_file(struct ast_channel *chan, const char *ints, const char *fil
 /* Called from AGI */
 static int say_number_full(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
-	if (!strcasecmp(language,"en") ) {	/* English syntax */
+	if (!strcasecmp(language, "en") ) {	/* English syntax */
 	   return(ast_say_number_full_en(chan, num, ints, language, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "cz") ) {	/* Czech syntax */
 	   return(ast_say_number_full_cz(chan, num, ints, language, options, audiofd, ctrlfd));
@@ -477,7 +477,7 @@ static int ast_say_number_full_en(struct ast_channel *chan, int num, const char 
 	int playh = 0;
 	char fn[256] = "";
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
 	while (!res && (num || playh)) {
 		if (num < 0) {
@@ -579,7 +579,7 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, const char 
 		options = "w";
 	
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 	
 	while (!res && (num || playh)) {
 		if (num < 0) {
@@ -590,11 +590,11 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, const char 
 				num = 0;
 			}	
 		} else if (num < 3 ) {
-			snprintf(fn, sizeof(fn), "digits/%d%c",num,options[0]);
+			snprintf(fn, sizeof(fn), "digits/%d%c", num, options[0]);
 			playh = 0;
 			num = 0;
 		} else if (num < 20) {
-			snprintf(fn, sizeof(fn), "digits/%d",num);
+			snprintf(fn, sizeof(fn), "digits/%d", num);
 			playh = 0;
 			num = 0;
 		} else if (num < 100) {
@@ -607,7 +607,7 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, const char 
 			} else if ( hundered == 2 ) {
 				ast_copy_string(fn, "digits/2ste", sizeof(fn));
 			} else {
-					res = ast_say_number_full_cz(chan,hundered,ints,language,options,audiofd,ctrlfd);
+					res = ast_say_number_full_cz(chan, hundered, ints, language, options, audiofd, ctrlfd);
 				if (res)
 					return res;
 				if (hundered == 3 || hundered == 4) {	
@@ -631,16 +631,16 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, const char 
 				}
 			}
 			if ( left > 1 )	{ /* we dont say "one thousand" but only thousand */
-				res = ast_say_number_full_cz(chan,left,ints,language,options,audiofd,ctrlfd);
+				res = ast_say_number_full_cz(chan, left, ints, language, options, audiofd, ctrlfd);
 				if (res) 
 					return res;
 			}
 			if ( left >= 5 ) { /* >= 5 have the same declesion */
-				snprintf(fn, sizeof(fn), "digits/5_E%d",length-1);	
+				snprintf(fn, sizeof(fn), "digits/5_E%d", length - 1);	
 			} else if ( left >= 2 && left <= 4 ) {
-				snprintf(fn, sizeof(fn), "digits/2-4_E%d",length-1);
+				snprintf(fn, sizeof(fn), "digits/2-4_E%d", length - 1);
 			} else { /* left == 1 */
-				snprintf(fn, sizeof(fn), "digits/1_E%d",length-1);
+				snprintf(fn, sizeof(fn), "digits/1_E%d", length - 1);
 			}
 			num -= left * (exp10_int(length-1));
 		}
@@ -670,9 +670,9 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, const char 
 	int cn = 1;		/* +1 = commune; -1 = neuter */
 	char fn[256] = "";
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
-	if (options && !strncasecmp(options, "n",1)) cn = -1;
+	if (options && !strncasecmp(options, "n", 1)) cn = -1;
 
 	while (!res && (num || playh || playa )) {
 		/* The grammar for Danish numbers is the same as for English except
@@ -782,9 +782,9 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 	char fn[256] = "";
 	char fna[256] = "";
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
-	if (options && (!strncasecmp(options, "f",1)))
+	if (options && (!strncasecmp(options, "f", 1)))
 		mf = -1;
 
 	while (!res && num) {
@@ -917,7 +917,7 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 	int playa = 0;
 	char fn[256] = "";
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
 	while (!res && (num || playh || playa )) {
 		if (num < 0) {
@@ -995,10 +995,10 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, const char 
 	int mf = 0;                            /* +1 = male; -1 = female */
 	char fn[256] = "";
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
 	if (options) {
-		if (!strncasecmp(options, "f",1))
+		if (!strncasecmp(options, "f", 1))
 			mf = -1;
 		else if (!strncasecmp(options, "m", 1))
 			mf = 1;
@@ -1100,9 +1100,9 @@ static int ast_say_number_full_fr(struct ast_channel *chan, int num, const char 
 	int mf = 1;                            /* +1 = male; -1 = female */
 	char fn[256] = "";
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 	
-	if (options && !strncasecmp(options, "f",1))
+	if (options && !strncasecmp(options, "f", 1))
 		mf = -1;
 
 	while (!res && (num || playh || playa)) {
@@ -1233,14 +1233,14 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 	int state = 0; /* no need to save anything */
 	int mf = 1;    /* +1 = Masculin; -1 = Feminin */
 	char fn[SAY_NUM_BUF_SIZE] = "";
-	ast_verb(3, "ast_say_digits_full: started. "
+	ast_debug(3, "ast_say_digits_full: started. "
 		"num: %d, options=\"%s\"\n",
 		num, options
 	);
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 	
-	if (options && !strncasecmp(options, "f",1))
+	if (options && !strncasecmp(options, "f", 1))
 		mf = -1;
 
 	/* Do we have work to do? */
@@ -1252,40 +1252,40 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 		 * state==0 is the normal mode and it means that we continue
 		 * to check if the number num has yet anything left.
 		 */
-		ast_verb(3, "ast_say_digits_full: num: %d, "
+		ast_debug(3, "ast_say_digits_full: num: %d, "
 			"state=%d, options=\"%s\", mf=%d\n",
 			num, state, options, mf
 		);
-		if (state==1) {
+		if (state == 1) {
 			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			state = 0;
-		} else if (state==2) {
+		} else if (state == 2) {
 			ast_copy_string(fn, "digits/ve", sizeof(fn));
 			state = 0;
-		} else if (state==3) {
+		} else if (state == 3) {
 			ast_copy_string(fn, "digits/thousands", sizeof(fn));
 			state=0;
-		} else if (num <21) {
+		} else if (num < 21) {
 			if (mf < 0)
 				snprintf(fn, sizeof(fn), "digits/%dF", num);
 			else
 				snprintf(fn, sizeof(fn), "digits/%d", num);
 			num = 0;
 		} else if (num < 100) {
-			snprintf(fn, sizeof(fn), "digits/%d", (num/10)*10);
+			snprintf(fn, sizeof(fn), "digits/%d", (num / 10) * 10);
 			num = num % 10;
-			if (num>0) state=2;
+			if (num > 0) state = 2;
 		} else if (num < 200) {
 			ast_copy_string(fn, "digits/1hundred", sizeof(fn));
 			num = num - 100;
-			state=2;
+			state = 2;
 		} else if (num < 300) {
 			ast_copy_string(fn, "digits/2hundred", sizeof(fn));
 			num = num - 200;
-			state=2;
+			state = 2;
 		} else if (num < 1000) {
-			snprintf(fn, sizeof(fn), "digits/%d", (num/100));
-			state=1;
+			snprintf(fn, sizeof(fn), "digits/%d", (num / 100));
+			state = 1;
 			num = num % 100;
 		} else if (num < 2000) {
 			ast_copy_string(fn, "digits/thousand", sizeof(fn));
@@ -1293,11 +1293,12 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 		} else if (num < 3000) {
 			ast_copy_string(fn, "digits/2thousand", sizeof(fn));
 			num = num - 2000;
-                        if (num>0) state=2;
+			if (num > 0)
+				state = 2;
 		} else if (num < 20000) {
-			snprintf(fn, sizeof(fn), "digits/%ds",(num/1000));
+			snprintf(fn, sizeof(fn), "digits/%ds", (num / 1000));
 			num = num % 1000;
-			state=3;
+			state = 3;
 		} else if (num < 1000000) {
 			res = ast_say_number_full_he(chan, num / 1000, ints, language, options, audiofd, ctrlfd);
 			if (res)
@@ -1338,7 +1339,7 @@ static int ast_say_number_full_hu(struct ast_channel *chan, int num, const char 
 	int playh = 0;
 	char fn[256] = "";
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
 	/*
 	Hungarian support
@@ -1417,7 +1418,7 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 	char fn[256] = "";
 
 	if (!num)
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
 		/*
 		Italian support
@@ -1571,7 +1572,7 @@ static int ast_say_number_full_nl(struct ast_channel *chan, int num, const char 
 	int units = 0;
 	char fn[256] = "";
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 	while (!res && (num || playh )) {
 		if (num < 0) {
 			ast_copy_string(fn, "digits/minus", sizeof(fn));
@@ -1665,9 +1666,9 @@ static int ast_say_number_full_no(struct ast_channel *chan, int num, const char 
 	char fn[256] = "";
 	
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 	
-	if (options && !strncasecmp(options, "n",1)) cn = -1;
+	if (options && !strncasecmp(options, "n", 1)) cn = -1;
 
 	while (!res && (num || playh || playa )) {
 		/* The grammar for Norwegian numbers is the same as for English except
@@ -1951,13 +1952,13 @@ and combinations of eg.: 20_1, 30m_3m, etc...
 
 */
 {
-	char *zenski_cyfry[] = {"0","1z", "2z", "3", "4", "5", "6", "7", "8", "9"};
+	char *zenski_cyfry[] = {"0", "1z", "2z", "3", "4", "5", "6", "7", "8", "9"};
 
-	char *zenski_cyfry2[] = {"0","1", "2z", "3", "4", "5", "6", "7", "8", "9"};
+	char *zenski_cyfry2[] = {"0", "1", "2z", "3", "4", "5", "6", "7", "8", "9"};
 
-	char *meski_cyfry[] = {"0","1", "2-1m", "3-1m", "4-1m", "5m",  /*"2-1mdwaj"*/ "6m", "7m", "8m", "9m"};
+	char *meski_cyfry[] = {"0", "1", "2-1m", "3-1m", "4-1m", "5m",  /*"2-1mdwaj"*/ "6m", "7m", "8m", "9m"};
 
-	char *meski_cyfry2[] = {"0","1", "2-2m", "3-2m", "4-2m", "5m", "6m", "7m", "8m", "9m"};
+	char *meski_cyfry2[] = {"0", "1", "2-2m", "3-2m", "4-2m", "5m", "6m", "7m", "8m", "9m"};
 
 	char *meski_setki[] = {"", "100m", "200m", "300m", "400m", "500m", "600m", "700m", "800m", "900m"};
 
@@ -1965,9 +1966,9 @@ and combinations of eg.: 20_1, 30m_3m, etc...
 
 	char *meski_nastki[] = {"", "11m", "12m", "13m", "14m", "15m", "16m", "17m", "18m", "19m"};
 
-	char *nijaki_cyfry[] = {"0","1", "2", "3", "4", "5", "6", "7", "8", "9"};
+	char *nijaki_cyfry[] = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
 
-	char *nijaki_cyfry2[] = {"0","1", "2", "3", "4", "5", "6", "7", "8", "9"};
+	char *nijaki_cyfry2[] = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
 
 	char *nijaki_setki[] = {"", "100", "200", "300", "400", "500", "600", "700", "800", "900"};
 
@@ -2051,9 +2052,9 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, const char 
 	char fn[256] = "";
 
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
-	if (options && !strncasecmp(options, "f",1))
+	if (options && !strncasecmp(options, "f", 1))
 		mf = -1;
 
 	while (!res && num ) {
@@ -2146,8 +2147,8 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 	char fn[256] = "";
 	int cn = 1;		/* +1 = commune; -1 = neuter */
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
-	if (options && !strncasecmp(options, "n",1)) cn = -1;
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
+	if (options && !strncasecmp(options, "n", 1)) cn = -1;
 
 	while (!res && (num || playh)) {
 		if (num < 0) {
@@ -2217,7 +2218,7 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 	int playh = 0;
 	char fn[256] = "";
 	if (!num)
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
 	while (!res && (num || playh)) {
 			if (num < 0) {
@@ -2309,7 +2310,7 @@ static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char 
 	int lastdigits = 0;
 	char fn[256] = "";
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
 	while (!res && (num)) {
 		if (num < 0) {
@@ -2387,7 +2388,7 @@ static int ast_say_number_full_th(struct ast_channel *chan, int num, const char 
 	int playh = 0;
 	char fn[256] = "";
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
 	while(!res && (num || playh)) {
 		if (num < 0) {
@@ -2454,7 +2455,7 @@ static int ast_say_number_full_th(struct ast_channel *chan, int num, const char 
 /* Called from AGI */
 static int say_enumeration_full(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
-	if (!strcasecmp(language,"en") ) {	/* English syntax */
+	if (!strcasecmp(language, "en") ) {	/* English syntax */
 	   return(ast_say_enumeration_full_en(chan, num, ints, language, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "da") ) {	/* Danish syntax */
 	   return(ast_say_enumeration_full_da(chan, num, ints, language, options, audiofd, ctrlfd));
@@ -2573,16 +2574,16 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 	char fn[256] = "", fna[256] = "";
 	char *gender;
 
-	if (options && !strncasecmp(options, "f",1)) {
+	if (options && !strncasecmp(options, "f", 1)) {
 		gender = "F";
-	} else if (options && !strncasecmp(options, "n",1)) {
+	} else if (options && !strncasecmp(options, "n", 1)) {
 		gender = "N";
 	} else {
 		gender = "";
 	}
 
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
 	while (!res && num) {
 		if (num < 0) {
@@ -2736,16 +2737,16 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 	char fn[256] = "", fna[256] = "";
 	char *gender;
 
-	if (options && !strncasecmp(options, "f",1)) {
+	if (options && !strncasecmp(options, "f", 1)) {
 		gender = "F";
-	} else if (options && !strncasecmp(options, "n",1)) {
+	} else if (options && !strncasecmp(options, "n", 1)) {
 		gender = "N";
 	} else {
 		gender = "";
 	}
 
 	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
 	while (!res && num) {
 		if (num < 0) {
@@ -2983,10 +2984,10 @@ int ast_say_date_da(struct ast_channel *chan, time_t t, const char *ints, const 
 				/* We'll just be silent on the year, instead of bombing out. */
 			} else {
 			    /* year 1100 to 1999. will anybody need this?!? */
-				snprintf(fn,sizeof(fn), "digits/%d", (year / 100) );
+				snprintf(fn, sizeof(fn), "digits/%d", (year / 100));
 				res = wait_file(chan, ints, fn, lang);
 				if (!res) {
-					res = wait_file(chan,ints, "digits/hundred", lang);
+					res = wait_file(chan, ints, "digits/hundred", lang);
 					if (!res && year % 100 != 0) {
 						res = ast_say_number(chan, (year % 100), ints, lang, (char *) NULL);	
 					}
@@ -3033,10 +3034,10 @@ int ast_say_date_de(struct ast_channel *chan, time_t t, const char *ints, const 
 			} else {
 			    /* year 1100 to 1999. will anybody need this?!? */
 			    /* say 1967 as 'neunzehn hundert sieben und sechzig' */
-				snprintf(fn,sizeof(fn), "digits/%d", (year / 100) );
+				snprintf(fn, sizeof(fn), "digits/%d", (year / 100) );
 				res = wait_file(chan, ints, fn, lang);
 				if (!res) {
-					res = wait_file(chan,ints, "digits/hundred", lang);
+					res = wait_file(chan, ints, "digits/hundred", lang);
 					if (!res && year % 100 != 0) {
 						res = ast_say_number(chan, (year % 100), ints, lang, (char *) NULL);	
 					}
@@ -3257,20 +3258,20 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				res = wait_file(chan,ints,sndfile,lang);
+				res = wait_file(chan, ints, sndfile, lang);
 				break;
 			case 'A':
 			case 'a':
 				/* Sunday - Saturday */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'B':
 			case 'b':
 			case 'h':
 				/* January - December */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'm':
 				/* Month enumerated */
@@ -3293,7 +3294,7 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 					if (!res) {
 						if (tm.tm_year <= 9) {
 							/* 1901 - 1909 */
-							res = wait_file(chan,ints, "digits/oh", lang);
+							res = wait_file(chan, ints, "digits/oh", lang);
 						}
 
 						res |= ast_say_number(chan, tm.tm_year, ints, lang, (char *) NULL);
@@ -3306,10 +3307,10 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
-				res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'H':
 			case 'k':
@@ -3317,24 +3318,24 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 				if (format[offset] == 'H') {
 					/* e.g. oh-eight */
 					if (tm.tm_hour < 10) {
-						res = wait_file(chan,ints, "digits/oh",lang);
+						res = wait_file(chan, ints, "digits/oh", lang);
 					}
 				} else {
 					/* e.g. eight */
 					if (tm.tm_hour == 0) {
-						res = wait_file(chan,ints, "digits/oh",lang);
+						res = wait_file(chan, ints, "digits/oh", lang);
 					}
 				}
 				if (!res) {
 					if (tm.tm_hour != 0) {
 						int remainder = tm.tm_hour;
 						if (tm.tm_hour > 20) {
-							res = wait_file(chan,ints, "digits/20",lang);
+							res = wait_file(chan, ints, "digits/20", lang);
 							remainder -= 20;
 						}
 						if (!res) {
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", remainder);
-							res = wait_file(chan,ints,nextmsg,lang);
+							snprintf(nextmsg, sizeof(nextmsg), "digits/%d", remainder);
+							res = wait_file(chan, ints, nextmsg, lang);
 						}
 					}
 				}
@@ -3349,10 +3350,10 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan, ints, "digits/hundred", lang);
 					}
 				} else if (tm.tm_min < 10) {
-					res = wait_file(chan,ints, "digits/oh",lang);
+					res = wait_file(chan, ints, "digits/oh", lang);
 					if (!res) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_min);
-						res = wait_file(chan,ints,nextmsg,lang);
+						snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_min);
+						res = wait_file(chan, ints, nextmsg, lang);
 					}
 				} else {
 					res = ast_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
@@ -3365,7 +3366,7 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
 					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
-				res = wait_file(chan,ints,nextmsg,lang);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or ABdY */
@@ -3377,17 +3378,17 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 					struct ast_tm tmnow;
 					time_t beg_today;
 
-					gettimeofday(&now,NULL);
+					gettimeofday(&now, NULL);
 					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
-						res = wait_file(chan,ints, "digits/today",lang);
+						res = wait_file(chan, ints, "digits/today", lang);
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
 						res = ast_say_date_with_format_en(chan, time, ints, lang, "A", timezone);
@@ -3422,7 +3423,7 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
 						res = ast_say_date_with_format_en(chan, time, ints, lang, "A", timezone);
@@ -3444,13 +3445,13 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 			case 'S':
 				/* Seconds */
 				if (tm.tm_sec == 0) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+					res = wait_file(chan, ints, nextmsg, lang);
 				} else if (tm.tm_sec < 10) {
-					res = wait_file(chan,ints, "digits/oh",lang);
+					res = wait_file(chan, ints, "digits/oh", lang);
 					if (!res) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-						res = wait_file(chan,ints,nextmsg,lang);
+						snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+						res = wait_file(chan, ints, nextmsg, lang);
 					}
 				} else {
 					res = ast_say_number(chan, tm.tm_sec, ints, lang, (char *) NULL);
@@ -3498,20 +3499,20 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				res = wait_file(chan,ints,sndfile,lang);
+				res = wait_file(chan, ints, sndfile, lang);
 				break;
 			case 'A':
 			case 'a':
 				/* Sunday - Saturday */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'B':
 			case 'b':
 			case 'h':
 				/* January - December */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'm':
 				/* Month enumerated */
@@ -3535,10 +3536,10 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 						} else {
 						    /* year 1100 to 1999. will anybody need this?!? */
 						    /* say 1967 as 'nineteen hundred seven and sixty' */
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", (year / 100) );
-							res = wait_file(chan,ints,nextmsg,lang);
+							snprintf(nextmsg, sizeof(nextmsg), "digits/%d", (year / 100) );
+							res = wait_file(chan, ints, nextmsg, lang);
 							if (!res) {
-								res = wait_file(chan,ints, "digits/hundred",lang);
+								res = wait_file(chan, ints, "digits/hundred", lang);
 								if (!res && year % 100 != 0) {
 									res = ast_say_number(chan, (year % 100), ints, lang, (char *) NULL);	
 								}
@@ -3550,21 +3551,21 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 			case 'I':
 			case 'l':
 				/* 12-Hour */
-				res = wait_file(chan,ints,"digits/oclock",lang);
+				res = wait_file(chan, ints, "digits/oclock", lang);
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
 				if (!res) {
-					res = wait_file(chan,ints,nextmsg,lang);
+					res = wait_file(chan, ints, nextmsg, lang);
 				}
 				break;
 			case 'H':
 				/* 24-Hour, single digit hours preceeded by "oh" (0) */
 				if (tm.tm_hour < 10 && tm.tm_hour > 0) {
-					res = wait_file(chan,ints, "digits/0",lang);
+					res = wait_file(chan, ints, "digits/0", lang);
 				}
 				/* FALLTRHU */
 			case 'k':
@@ -3578,9 +3579,9 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				}
 				if ( !res && format[offset + 1] == 'S' ) { /* minutes only if seconds follow (kind of a hack) */
 					if (tm.tm_min == 1) {
-						res = wait_file(chan,ints,"digits/minute",lang);
+						res = wait_file(chan, ints, "digits/minute", lang);
 					} else {
-						res = wait_file(chan,ints,"digits/minutes",lang);
+						res = wait_file(chan, ints, "digits/minutes", lang);
 					}
 				}
 				break;
@@ -3591,7 +3592,7 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
 					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
-				res = wait_file(chan,ints,nextmsg,lang);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or AdBY */
@@ -3609,10 +3610,10 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
-						res = wait_file(chan,ints, "digits/today",lang);
+						res = wait_file(chan, ints, "digits/today", lang);
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else {
 						res = ast_say_date_with_format_da(chan, time, ints, lang, "AdBY", timezone);
 					}
@@ -3636,7 +3637,7 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
 						res = ast_say_date_with_format_da(chan, time, ints, lang, "A", timezone);
@@ -3650,11 +3651,11 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'S':
 				/* Seconds */
-				res = wait_file(chan,ints, "digits/and",lang);
+				res = wait_file(chan, ints, "digits/and", lang);
 				if (!res) {
 					res = ast_say_number(chan, tm.tm_sec, ints, lang, "f");	
 					if (!res) {
-						res = wait_file(chan,ints, "digits/seconds",lang);
+						res = wait_file(chan, ints, "digits/seconds", lang);
 					}
 				}
 				break;
@@ -3700,20 +3701,20 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				res = wait_file(chan,ints,sndfile,lang);
+				res = wait_file(chan, ints, sndfile, lang);
 				break;
 			case 'A':
 			case 'a':
 				/* Sunday - Saturday */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'B':
 			case 'b':
 			case 'h':
 				/* January - December */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'm':
 				/* Month enumerated */
@@ -3737,10 +3738,10 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 						} else {
 						    /* year 1100 to 1999. will anybody need this?!? */
 						    /* say 1967 as 'neunzehn hundert sieben und sechzig' */
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", (year / 100) );
-							res = wait_file(chan,ints,nextmsg,lang);
+							snprintf(nextmsg, sizeof(nextmsg), "digits/%d", (year / 100) );
+							res = wait_file(chan, ints, nextmsg, lang);
 							if (!res) {
-								res = wait_file(chan,ints, "digits/hundred",lang);
+								res = wait_file(chan, ints, "digits/hundred", lang);
 								if (!res && year % 100 != 0) {
 									res = ast_say_number(chan, (year % 100), ints, lang, (char *) NULL);	
 								}
@@ -3755,12 +3756,12 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
-				res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
+				res = wait_file(chan, ints, nextmsg, lang);
 				if (!res) {
-					res = wait_file(chan,ints,"digits/oclock",lang);
+					res = wait_file(chan, ints, "digits/oclock", lang);
 				}
 				break;
 			case 'H':
@@ -3768,7 +3769,7 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				/* 24-Hour */
 				res = ast_say_number(chan, tm.tm_hour, ints, lang, (char *) NULL);	
 				if (!res) {
-					res = wait_file(chan,ints,"digits/oclock",lang);
+					res = wait_file(chan, ints, "digits/oclock", lang);
 				}
 				break;
 			case 'M':
@@ -3778,9 +3779,9 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				}
 				if ( !res && format[offset + 1] == 'S' ) { /* minutes only if seconds follow (kind of a hack) */
 					if (tm.tm_min == 1) {
-						res = wait_file(chan,ints,"digits/minute",lang);
+						res = wait_file(chan, ints, "digits/minute", lang);
 					} else {
-						res = wait_file(chan,ints,"digits/minutes",lang);
+						res = wait_file(chan, ints, "digits/minutes", lang);
 					}
 				}
 				break;
@@ -3791,7 +3792,7 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
 					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
-				res = wait_file(chan,ints,nextmsg,lang);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or AdBY */
@@ -3809,10 +3810,10 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
-						res = wait_file(chan,ints, "digits/today",lang);
+						res = wait_file(chan, ints, "digits/today", lang);
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else {
 						res = ast_say_date_with_format_de(chan, time, ints, lang, "AdBY", timezone);
 					}
@@ -3836,7 +3837,7 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
 						res = ast_say_date_with_format_de(chan, time, ints, lang, "A", timezone);
@@ -3850,11 +3851,11 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'S':
 				/* Seconds */
-				res = wait_file(chan,ints, "digits/and",lang);
+				res = wait_file(chan, ints, "digits/and", lang);
 				if (!res) {
 					res = ast_say_number(chan, tm.tm_sec, ints, lang, "f");	
 					if (!res) {
-						res = wait_file(chan,ints, "digits/seconds",lang);
+						res = wait_file(chan, ints, "digits/seconds", lang);
 					}
 				}
 				break;
@@ -3900,20 +3901,20 @@ int ast_say_date_with_format_th(struct ast_channel *chan, time_t time, const cha
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				res = wait_file(chan,ints,sndfile,lang);
+				res = wait_file(chan, ints, sndfile, lang);
 				break;
 			case 'A':
 			case 'a':
 				/* Sunday - Saturday */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'B':
 			case 'b':
 			case 'h':
 				/* January - December */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'm':
 				/* Month enumerated */
@@ -3933,16 +3934,16 @@ int ast_say_date_with_format_th(struct ast_channel *chan, time_t time, const cha
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/24", sizeof(nextmsg));
-				snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'H':
 			case 'k':
 				/* 24-Hour */
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/24", sizeof(nextmsg));
-				snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'M':
 			case 'N':
@@ -3967,10 +3968,10 @@ int ast_say_date_with_format_th(struct ast_channel *chan, time_t time, const cha
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
-						res = wait_file(chan,ints, "digits/today",lang);
+						res = wait_file(chan, ints, "digits/today", lang);
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
 						res = ast_say_date_with_format_en(chan, time, ints, lang, "A", timezone);
@@ -4004,7 +4005,7 @@ int ast_say_date_with_format_th(struct ast_channel *chan, time_t time, const cha
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
 						res = ast_say_date_with_format_en(chan, time, ints, lang, "A", timezone);
@@ -4095,20 +4096,20 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				res = wait_file(chan,ints,sndfile,lang);
+				res = wait_file(chan, ints, sndfile, lang);
 				break;
 			case 'A':
 			case 'a':
 				/* Sunday - Saturday */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'B':
 			case 'b':
 			case 'h':
 				/* January - December */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'd':
 			case 'e': /* Day of the month */
@@ -4147,7 +4148,7 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 				if ((format[offset] == 'H') && 
 				    (tm.tm_hour <10)&&(tm.tm_hour>0)
 				) { /* e.g. oh-eight */
-					res = wait_file(chan,ints, "digits/oh",lang);
+					res = wait_file(chan, ints, "digits/oh", lang);
 				}
 				
 				res = ast_say_number_full_he(chan, tm.tm_hour,
@@ -4156,7 +4157,7 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 				break;
 			case 'M': /* Minute */
 				res = ast_say_number_full_he(chan, tm.tm_min, 
-					ints, lang,"f", -1, -1
+					ints, lang, "f", -1, -1
 				);
 				break;
 			case 'P':
@@ -4166,7 +4167,7 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
 					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
-				res = wait_file(chan,ints,nextmsg,lang);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or "date" */
@@ -4196,7 +4197,7 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 						}
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if ((todo != 'Q') &&
 						(beg_today - 86400 * 6 < time))
 					{
@@ -4276,26 +4277,26 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				snprintf(nextmsg,sizeof(nextmsg), "%s", sndfile);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "%s", sndfile);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'A':
 			case 'a':
 				/* Sunday - Saturday */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'B':
 			case 'b':
 			case 'h':
 				/* January - December */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'm':
 				/* First - Twelfth */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'd':
 			case 'e':
@@ -4312,10 +4313,10 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
-				res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'H':
 			case 'k':
@@ -4352,10 +4353,10 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
-						res = wait_file(chan,ints, "digits/today",lang);
+						res = wait_file(chan, ints, "digits/today", lang);
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else {
 						res = ast_say_date_with_format_es(chan, time, ints, lang, "'digits/es-el' Ad 'digits/es-de' B 'digits/es-de' Y", timezone);
 					}
@@ -4377,10 +4378,10 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
-						res = wait_file(chan,ints, "digits/today",lang);
+						res = wait_file(chan, ints, "digits/today", lang);
 					} else if ((beg_today - 86400) < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
 						res = ast_say_date_with_format_es(chan, time, ints, lang, "A", timezone);
@@ -4395,28 +4396,28 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 			case 'S':
 				/* Seconds */
 				if (tm.tm_sec == 0) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+					res = wait_file(chan, ints, nextmsg, lang);
 				} else if (tm.tm_sec < 10) {
-					res = wait_file(chan,ints, "digits/oh",lang);
+					res = wait_file(chan, ints, "digits/oh", lang);
 					if (!res) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-						res = wait_file(chan,ints,nextmsg,lang);
+						snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+						res = wait_file(chan, ints, nextmsg, lang);
 					}
 				} else if ((tm.tm_sec < 21) || (tm.tm_sec % 10 == 0)) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+					res = wait_file(chan, ints, nextmsg, lang);
 				} else {
 					int ten, one;
 					ten = (tm.tm_sec / 10) * 10;
 					one = (tm.tm_sec % 10);
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", ten);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", ten);
+					res = wait_file(chan, ints, nextmsg, lang);
 					if (!res) {
 						/* Fifty, not fifty-zero */
 						if (one != 0) {
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", one);
-							res = wait_file(chan,ints,nextmsg,lang);
+							snprintf(nextmsg, sizeof(nextmsg), "digits/%d", one);
+							res = wait_file(chan, ints, nextmsg, lang);
 						}
 					}
 				}
@@ -4465,32 +4466,32 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				res = wait_file(chan,ints,sndfile,lang);
+				res = wait_file(chan, ints, sndfile, lang);
 				break;
 			case 'A':
 			case 'a':
 				/* Sunday - Saturday */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'B':
 			case 'b':
 			case 'h':
 				/* January - December */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'm':
 				/* First - Twelfth */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'd':
 			case 'e':
 				/* First */
 				if (tm.tm_mday == 1) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mday);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/h-%d", tm.tm_mday);
+					res = wait_file(chan, ints, nextmsg, lang);
 				} else {
 					res = ast_say_number(chan, tm.tm_mday, ints, lang, (char * ) NULL);
 				}
@@ -4498,9 +4499,9 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 			case 'Y':
 				/* Year */
 				if (tm.tm_year > 99) {
-					res = wait_file(chan,ints, "digits/2",lang);
+					res = wait_file(chan, ints, "digits/2", lang);
 					if (!res) {
-						res = wait_file(chan,ints, "digits/thousand",lang);
+						res = wait_file(chan, ints, "digits/thousand", lang);
 					}
 					if (tm.tm_year > 100) {
 						if (!res) {
@@ -4512,10 +4513,10 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 						/* I'm not going to handle 1900 and prior */
 						/* We'll just be silent on the year, instead of bombing out. */
 					} else {
-						res = wait_file(chan,ints, "digits/thousand",lang);
+						res = wait_file(chan, ints, "digits/thousand", lang);
 						if (!res) {
-							wait_file(chan,ints, "digits/9",lang);
-							wait_file(chan,ints, "digits/hundred",lang);
+							wait_file(chan, ints, "digits/9", lang);
+							wait_file(chan, ints, "digits/hundred", lang);
 							res = ast_say_number(chan, tm.tm_year, ints, lang, (char * ) NULL);
 						}
 					}
@@ -4527,19 +4528,19 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
-				res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
+				res = wait_file(chan, ints, nextmsg, lang);
 				if (!res)
-					res = wait_file(chan,ints, "digits/oclock",lang);
+					res = wait_file(chan, ints, "digits/oclock", lang);
 				break;
 			case 'H':
 			case 'k':
 				/* 24-Hour */
 				res = ast_say_number(chan, tm.tm_hour, ints, lang, (char * ) NULL);
 				if (!res)
-					res = wait_file(chan,ints, "digits/oclock",lang);
+					res = wait_file(chan, ints, "digits/oclock", lang);
 				break;
 			case 'M':
 				/* Minute */
@@ -4555,7 +4556,7 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
 					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
-				res = wait_file(chan,ints,nextmsg,lang);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or AdBY */
@@ -4573,10 +4574,10 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
-						res = wait_file(chan,ints, "digits/today",lang);
+						res = wait_file(chan, ints, "digits/today", lang);
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else {
 						res = ast_say_date_with_format_fr(chan, time, ints, lang, "AdBY", timezone);
 					}
@@ -4600,7 +4601,7 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
 						res = ast_say_date_with_format_fr(chan, time, ints, lang, "A", timezone);
@@ -4616,7 +4617,7 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 				/* Seconds */
 				res = ast_say_number(chan, tm.tm_sec, ints, lang, (char * ) NULL);
 				if (!res) {
-					res = wait_file(chan,ints, "digits/second",lang);
+					res = wait_file(chan, ints, "digits/second", lang);
 				}
 				break;
 			case 'T':
@@ -4660,32 +4661,32 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				res = wait_file(chan,ints,sndfile,lang);
+				res = wait_file(chan, ints, sndfile, lang);
 				break;
 			case 'A':
 			case 'a':
 				/* Sunday - Saturday */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'B':
 			case 'b':
 			case 'h':
 				/* January - December */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'm':
 				/* First - Twelfth */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'd':
 			case 'e':
 				/* First day of the month is spelled as ordinal */
 				if (tm.tm_mday == 1) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mday);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/h-%d", tm.tm_mday);
+					res = wait_file(chan, ints, nextmsg, lang);
 				} else {
 					if (!res) {
 						res = ast_say_number(chan, tm.tm_mday, ints, lang, (char *) NULL);
@@ -4695,12 +4696,12 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 			case 'Y':
 				/* Year */
 				if (tm.tm_year > 99) {
-					res = wait_file(chan,ints, "digits/ore-2000",lang);
+					res = wait_file(chan, ints, "digits/ore-2000", lang);
 					if (tm.tm_year > 100) {
 						if (!res) {
 						/* This works until the end of 2021 */
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year - 100);
-						res = wait_file(chan,ints,nextmsg,lang);
+						snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_year - 100);
+						res = wait_file(chan, ints, nextmsg, lang);
 						}
 					}
 				} else {
@@ -4708,23 +4709,23 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 						/* I'm not going to handle 1900 and prior */
 						/* We'll just be silent on the year, instead of bombing out. */
 					} else {
-						res = wait_file(chan,ints, "digits/ore-1900",lang);
+						res = wait_file(chan, ints, "digits/ore-1900", lang);
 						if ((!res) && (tm.tm_year != 0)) {
 							if (tm.tm_year <= 21) {
 								/* 1910 - 1921 */
-								snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year);
-								res = wait_file(chan,ints,nextmsg,lang);
+								snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_year);
+								res = wait_file(chan, ints, nextmsg, lang);
 							} else {
 								/* 1922 - 1999, but sounds badly in 1928, 1931, 1938, etc... */
 								int ten, one;
 								ten = tm.tm_year / 10;
 								one = tm.tm_year % 10;
-								snprintf(nextmsg,sizeof(nextmsg), "digits/%d", ten * 10);
-								res = wait_file(chan,ints,nextmsg,lang);
+								snprintf(nextmsg, sizeof(nextmsg), "digits/%d", ten * 10);
+								res = wait_file(chan, ints, nextmsg, lang);
 								if (!res) {
 									if (one != 0) {
-										snprintf(nextmsg,sizeof(nextmsg), "digits/%d", one);
-										res = wait_file(chan,ints,nextmsg,lang);
+										snprintf(nextmsg, sizeof(nextmsg), "digits/%d", one);
+										res = wait_file(chan, ints, nextmsg, lang);
 									}
 								}
 							}
@@ -4738,18 +4739,18 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
+					res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'H':
 			case 'k':
 				/* 24-Hour */
 				if (tm.tm_hour == 0) {
-					res = wait_file(chan,ints, "digits/ore-mezzanotte",lang);
+					res = wait_file(chan, ints, "digits/ore-mezzanotte", lang);
 				} else if (tm.tm_hour == 1) {
-					res = wait_file(chan,ints, "digits/ore-una",lang);
+					res = wait_file(chan, ints, "digits/ore-una", lang);
 				} else {
 					res = ast_say_number(chan, tm.tm_hour, ints, lang, (char *) NULL);
 				}
@@ -4765,7 +4766,7 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
 					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
-					res = wait_file(chan,ints,nextmsg,lang);
+					res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or ABdY */
@@ -4783,10 +4784,10 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
-						res = wait_file(chan,ints, "digits/today",lang);
+						res = wait_file(chan, ints, "digits/today", lang);
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else {
 						res = ast_say_date_with_format_it(chan, time, ints, lang, "AdB", timezone);
 					}
@@ -4807,7 +4808,7 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
 						res = ast_say_date_with_format_it(chan, time, ints, lang, "A", timezone);
@@ -4822,28 +4823,28 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 			case 'S':
 				/* Seconds */
 				if (tm.tm_sec == 0) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+					res = wait_file(chan, ints, nextmsg, lang);
 				} else if (tm.tm_sec < 10) {
-					res = wait_file(chan,ints, "digits/oh",lang);
+					res = wait_file(chan, ints, "digits/oh", lang);
 					if (!res) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-						res = wait_file(chan,ints,nextmsg,lang);
+						snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+						res = wait_file(chan, ints, nextmsg, lang);
 					}
 				} else if ((tm.tm_sec < 21) || (tm.tm_sec % 10 == 0)) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+					res = wait_file(chan, ints, nextmsg, lang);
 				} else {
 					int ten, one;
 					ten = (tm.tm_sec / 10) * 10;
 					one = (tm.tm_sec % 10);
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", ten);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", ten);
+					res = wait_file(chan, ints, nextmsg, lang);
 					if (!res) {
 						/* Fifty, not fifty-zero */
 						if (one != 0) {
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", one);
-							res = wait_file(chan,ints,nextmsg,lang);
+							snprintf(nextmsg, sizeof(nextmsg), "digits/%d", one);
+							res = wait_file(chan, ints, nextmsg, lang);
 						}
 					}
 				}
@@ -4890,25 +4891,25 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				res = wait_file(chan,ints,sndfile,lang);
+				res = wait_file(chan, ints, sndfile, lang);
 				break;
 			case 'A':
 			case 'a':
 				/* Sunday - Saturday */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'B':
 			case 'b':
 			case 'h':
 				/* January - December */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'm':
 				/* First - Twelfth */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'd':
 			case 'e':
@@ -4918,15 +4919,15 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 			case 'Y':
 				/* Year */
 				if (tm.tm_year > 99) {
-					res = wait_file(chan,ints, "digits/2",lang);
+					res = wait_file(chan, ints, "digits/2", lang);
 					if (!res) {
-						res = wait_file(chan,ints, "digits/thousand",lang);
+						res = wait_file(chan, ints, "digits/thousand", lang);
 					}
 					if (tm.tm_year > 100) {
 						if (!res) {
 							/* This works until the end of 2020 */
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year - 100);
-							res = wait_file(chan,ints,nextmsg,lang);
+							snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_year - 100);
+							res = wait_file(chan, ints, nextmsg, lang);
 						}
 					}
 				} else {
@@ -4934,30 +4935,30 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 						/* I'm not going to handle 1900 and prior */
 						/* We'll just be silent on the year, instead of bombing out. */
 					} else {
-						res = wait_file(chan,ints, "digits/19",lang);
+						res = wait_file(chan, ints, "digits/19", lang);
 						if (!res) {
 							if (tm.tm_year <= 9) {
 								/* 1901 - 1909 */
-								res = wait_file(chan,ints, "digits/oh",lang);
+								res = wait_file(chan, ints, "digits/oh", lang);
 								if (!res) {
-									snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year);
-									res = wait_file(chan,ints,nextmsg,lang);
+									snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_year);
+									res = wait_file(chan, ints, nextmsg, lang);
 								}
 							} else if (tm.tm_year <= 20) {
 								/* 1910 - 1920 */
-								snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year);
-								res = wait_file(chan,ints,nextmsg,lang);
+								snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_year);
+								res = wait_file(chan, ints, nextmsg, lang);
 							} else {
 								/* 1921 - 1999 */
 								int ten, one;
 								ten = tm.tm_year / 10;
 								one = tm.tm_year % 10;
-								snprintf(nextmsg,sizeof(nextmsg), "digits/%d", ten * 10);
-								res = wait_file(chan,ints,nextmsg,lang);
+								snprintf(nextmsg, sizeof(nextmsg), "digits/%d", ten * 10);
+								res = wait_file(chan, ints, nextmsg, lang);
 								if (!res) {
 									if (one != 0) {
-										snprintf(nextmsg,sizeof(nextmsg), "digits/%d", one);
-										res = wait_file(chan,ints,nextmsg,lang);
+										snprintf(nextmsg, sizeof(nextmsg), "digits/%d", one);
+										res = wait_file(chan, ints, nextmsg, lang);
 									}
 								}
 							}
@@ -4971,17 +4972,17 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
-				res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'H':
 			case 'k':
 				/* 24-Hour */
 				res = ast_say_number(chan, tm.tm_hour, ints, lang, (char *) NULL);
 				if (!res) {
-					res = wait_file(chan,ints, "digits/nl-uur",lang);
+					res = wait_file(chan, ints, "digits/nl-uur", lang);
 				}
 				break;
 			case 'M':
@@ -4995,7 +4996,7 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
 					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
-				res = wait_file(chan,ints,nextmsg,lang);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or ABdY */
@@ -5013,10 +5014,10 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
-						res = wait_file(chan,ints, "digits/today",lang);
+						res = wait_file(chan, ints, "digits/today", lang);
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else {
 						res = ast_say_date_with_format_nl(chan, time, ints, lang, "ABdY", timezone);
 					}
@@ -5037,7 +5038,7 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
 						res = ast_say_date_with_format_nl(chan, time, ints, lang, "A", timezone);
@@ -5134,7 +5135,7 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const 
 				if (tm.tm_year > 100) {
 					res = wait_file(chan, ints, "digits/2", lang);
 					if (!res)
-						res = wait_file(chan, ints, "digits/1000.2",lang);
+						res = wait_file(chan, ints, "digits/1000.2", lang);
 					if (tm.tm_year > 100) {
 						if (!res)
 							res = ast_say_enumeration(chan, tm.tm_year - 100, ints, lang, NULL);
@@ -5264,9 +5265,9 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const 
 							one = tm.tm_sec % 10;
 							
 							if (one > 1 && one < 5 && ten != 1)
-								res = wait_file(chan,ints, "digits/seconds",lang);
+								res = wait_file(chan, ints, "digits/seconds", lang);
 							else
-								res = wait_file(chan,ints, "digits/second",lang);
+								res = wait_file(chan, ints, "digits/second", lang);
 						}
 					}
 				}
@@ -5312,29 +5313,29 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				snprintf(nextmsg,sizeof(nextmsg), "%s", sndfile);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "%s", sndfile);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'A':
 			case 'a':
 				/* Sunday - Saturday */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'B':
 			case 'b':
 			case 'h':
 				/* January - December */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'm':
 				/* First - Twelfth */
 				if (!strcasecmp(lang, "pt_BR")) {
 					res = ast_say_number(chan, tm.tm_mon+1, ints, lang, (char *) NULL);
 				} else {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
+					res = wait_file(chan, ints, nextmsg, lang);
 				}
 				break;
 			case 'd':
@@ -5402,9 +5403,9 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 					res = ast_say_number(chan, tm.tm_hour, ints, lang, "f");
 					if ((!res) && (format[offset] == 'H')) {
 						if (tm.tm_hour > 1) {
-							res = wait_file(chan,ints,"digits/hours",lang);
+							res = wait_file(chan, ints, "digits/hours", lang);
 						} else {
-							res = wait_file(chan,ints,"digits/hour",lang);
+							res = wait_file(chan, ints, "digits/hour", lang);
 						}
 					}
 				} else {
@@ -5413,12 +5414,12 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 						if (tm.tm_hour != 0) {
 							int remainder = tm.tm_hour;
 							if (tm.tm_hour > 20) {
-								res = wait_file(chan,ints, "digits/20",lang);
+								res = wait_file(chan, ints, "digits/20", lang);
 								remainder -= 20;
 							}
 							if (!res) {
-								snprintf(nextmsg,sizeof(nextmsg), "digits/%d", remainder);
-								res = wait_file(chan,ints,nextmsg,lang);
+								snprintf(nextmsg, sizeof(nextmsg), "digits/%d", remainder);
+								res = wait_file(chan, ints, nextmsg, lang);
 							}
 						}
 					}
@@ -5430,9 +5431,9 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 					res = ast_say_number(chan, tm.tm_min, ints, lang, NULL);
 					if (!res) {
 						if (tm.tm_min > 1) {
-							res = wait_file(chan,ints,"digits/minutes",lang);
+							res = wait_file(chan, ints, "digits/minutes", lang);
 						} else {
-							res = wait_file(chan,ints,"digits/minute",lang);
+							res = wait_file(chan, ints, "digits/minute", lang);
 						}
 					}
 				} else {
@@ -5483,10 +5484,10 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
-						res = wait_file(chan,ints, "digits/today",lang);
+						res = wait_file(chan, ints, "digits/today", lang);
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else {
 						res = ast_say_date_with_format_pt(chan, time, ints, lang, "Ad 'digits/pt-de' B 'digits/pt-de' Y", timezone);
 					}
@@ -5510,7 +5511,7 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
 						res = ast_say_date_with_format_pt(chan, time, ints, lang, "A", timezone);
@@ -5528,35 +5529,35 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 					res = ast_say_number(chan, tm.tm_sec, ints, lang, NULL);
 					if (!res) {
 						if (tm.tm_sec > 1) {
-							res = wait_file(chan,ints,"digits/seconds",lang);
+							res = wait_file(chan, ints, "digits/seconds", lang);
 						} else {
-							res = wait_file(chan,ints,"digits/second",lang);
+							res = wait_file(chan, ints, "digits/second", lang);
 						}
 					}
 				} else {
 					if (tm.tm_sec == 0) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-						res = wait_file(chan,ints,nextmsg,lang);
+						snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+						res = wait_file(chan, ints, nextmsg, lang);
 					} else if (tm.tm_sec < 10) {
-						res = wait_file(chan,ints, "digits/oh",lang);
+						res = wait_file(chan, ints, "digits/oh", lang);
 						if (!res) {
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-							res = wait_file(chan,ints,nextmsg,lang);
+							snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+							res = wait_file(chan, ints, nextmsg, lang);
 						}
 					} else if ((tm.tm_sec < 21) || (tm.tm_sec % 10 == 0)) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-						res = wait_file(chan,ints,nextmsg,lang);
+						snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+						res = wait_file(chan, ints, nextmsg, lang);
 					} else {
 						int ten, one;
 						ten = (tm.tm_sec / 10) * 10;
 						one = (tm.tm_sec % 10);
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", ten);
-						res = wait_file(chan,ints,nextmsg,lang);
+						snprintf(nextmsg, sizeof(nextmsg), "digits/%d", ten);
+						res = wait_file(chan, ints, nextmsg, lang);
 						if (!res) {
 							/* Fifty, not fifty-zero */
 							if (one != 0) {
-								snprintf(nextmsg,sizeof(nextmsg), "digits/%d", one);
-								res = wait_file(chan,ints,nextmsg,lang);
+								snprintf(nextmsg, sizeof(nextmsg), "digits/%d", one);
+								res = wait_file(chan, ints, nextmsg, lang);
 							}
 						}
 					}
@@ -5604,88 +5605,88 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				res = wait_file(chan,ints,sndfile,lang);
+				res = wait_file(chan, ints, sndfile, lang);
 				break;
 			case 'A':
 			case 'a':
 				/* Sunday - Saturday */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'B':
 			case 'b':
 			case 'h':
 			case 'm':
 				/* January - December */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-				res = wait_file(chan,ints,nextmsg,lang);
+				snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'd':
 			case 'e':
 				/* First - Thirtyfirst */
 				if (!(tm.tm_mday % 10) || (tm.tm_mday < 10)) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_mday);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_mday);
+					res = wait_file(chan, ints, nextmsg, lang);
 				} else {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_mday - (tm.tm_mday % 10));
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_mday - (tm.tm_mday % 10));
+					res = wait_file(chan, ints, nextmsg, lang);
 					if (!res) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_mday % 10);
-						res = wait_file(chan,ints,nextmsg,lang);
+						snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_mday % 10);
+						res = wait_file(chan, ints, nextmsg, lang);
 					}
 				}
-				if (!res) res = wait_file(chan,ints,"digits/day",lang);
+				if (!res) res = wait_file(chan, ints, "digits/day", lang);
 				break;
 			case 'Y':
 				/* Year */
 				if (tm.tm_year > 99) {
-					res = wait_file(chan,ints, "digits/2",lang);
+					res = wait_file(chan, ints, "digits/2", lang);
 					if (!res) {
-						res = wait_file(chan,ints, "digits/thousand",lang);
+						res = wait_file(chan, ints, "digits/thousand", lang);
 					}
 					if (tm.tm_year > 100) {
 						if (!res) {
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", (tm.tm_year - 100) / 10);
-							res = wait_file(chan,ints,nextmsg,lang);
+							snprintf(nextmsg, sizeof(nextmsg), "digits/%d", (tm.tm_year - 100) / 10);
+							res = wait_file(chan, ints, nextmsg, lang);
 							if (!res) {
-								snprintf(nextmsg,sizeof(nextmsg), "digits/%d", (tm.tm_year - 100) % 10);
-								res = wait_file(chan,ints,nextmsg,lang);
+								snprintf(nextmsg, sizeof(nextmsg), "digits/%d", (tm.tm_year - 100) % 10);
+								res = wait_file(chan, ints, nextmsg, lang);
 							}
 						}
 					}
 					if (!res) {
-						res = wait_file(chan,ints, "digits/year",lang);
+						res = wait_file(chan, ints, "digits/year", lang);
 					}
 				} else {
 					if (tm.tm_year < 1) {
 						/* I'm not going to handle 1900 and prior */
 						/* We'll just be silent on the year, instead of bombing out. */
 					} else {
-						res = wait_file(chan,ints, "digits/1",lang);
+						res = wait_file(chan, ints, "digits/1", lang);
 						if (!res) {
-							res = wait_file(chan,ints, "digits/9",lang);
+							res = wait_file(chan, ints, "digits/9", lang);
 						}
 						if (!res) {
 							if (tm.tm_year <= 9) {
 								/* 1901 - 1909 */
-								res = wait_file(chan,ints, "digits/0",lang);
+								res = wait_file(chan, ints, "digits/0", lang);
 								if (!res) {
-									snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year);
-									res = wait_file(chan,ints,nextmsg,lang);
+									snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_year);
+									res = wait_file(chan, ints, nextmsg, lang);
 								}
 							} else {
 								/* 1910 - 1999 */
-								snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year / 10);
-								res = wait_file(chan,ints,nextmsg,lang);
+								snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_year / 10);
+								res = wait_file(chan, ints, nextmsg, lang);
 								if (!res) {
-									snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year % 10);
-									res = wait_file(chan,ints,nextmsg,lang);
+									snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_year % 10);
+									res = wait_file(chan, ints, nextmsg, lang);
 								}
 							}
 						}
 					}
 					if (!res) {
-						res = wait_file(chan,ints, "digits/year",lang);
+						res = wait_file(chan, ints, "digits/year", lang);
 					}
 				}
 				break;
@@ -5695,12 +5696,12 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
-				res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
+				res = wait_file(chan, ints, nextmsg, lang);
 				if (!res) {
-					res = wait_file(chan,ints, "digits/oclock",lang);
+					res = wait_file(chan, ints, "digits/oclock", lang);
 				}
 				break;
 			case 'H':
@@ -5710,18 +5711,18 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 			case 'k':
 				/* 24-Hour */
 				if (!(tm.tm_hour % 10) || tm.tm_hour < 10) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
+					res = wait_file(chan, ints, nextmsg, lang);
 				} else {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - (tm.tm_hour % 10));
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - (tm.tm_hour % 10));
+					res = wait_file(chan, ints, nextmsg, lang);
 					if (!res) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour % 10);
-						res = wait_file(chan,ints,nextmsg,lang);
+						snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour % 10);
+						res = wait_file(chan, ints, nextmsg, lang);
 					}
 				}
 				if (!res) {
-					res = wait_file(chan,ints, "digits/oclock",lang);
+					res = wait_file(chan, ints, "digits/oclock", lang);
 				}
 				break;
 			case 'M':
@@ -5730,18 +5731,18 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 					if (tm.tm_min < 10) {
 						res = wait_file(chan, ints, "digits/0", lang);
 					}
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_min);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_min);
+					res = wait_file(chan, ints, nextmsg, lang);
 				} else {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_min - (tm.tm_min % 10));
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_min - (tm.tm_min % 10));
+					res = wait_file(chan, ints, nextmsg, lang);
 					if (!res) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_min % 10);
-						res = wait_file(chan,ints,nextmsg,lang);
+						snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_min % 10);
+						res = wait_file(chan, ints, nextmsg, lang);
 					}
 				}
 				if (!res) {
-					res = wait_file(chan,ints, "digits/minute",lang);
+					res = wait_file(chan, ints, "digits/minute", lang);
 				}
 				break;
 			case 'P':
@@ -5751,7 +5752,7 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
 					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
-				res = wait_file(chan,ints,nextmsg,lang);
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or ABdY */
@@ -5769,10 +5770,10 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
-						res = wait_file(chan,ints, "digits/today",lang);
+						res = wait_file(chan, ints, "digits/today", lang);
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else {
 						res = ast_say_date_with_format_tw(chan, time, ints, lang, "YBdA", timezone);
 					}
@@ -5796,7 +5797,7 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
 						/* Yesterday */
-						res = wait_file(chan,ints, "digits/yesterday",lang);
+						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
 						res = ast_say_date_with_format_tw(chan, time, ints, lang, "A", timezone);
@@ -5814,18 +5815,18 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 					if (tm.tm_sec < 10) {
 						res = wait_file(chan, ints, "digits/0", lang);
 					}
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec);
+					res = wait_file(chan, ints, nextmsg, lang);
 				} else {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec - (tm.tm_sec % 10));
-					res = wait_file(chan,ints,nextmsg,lang);
+					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec - (tm.tm_sec % 10));
+					res = wait_file(chan, ints, nextmsg, lang);
 					if (!res) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec % 10);
-						res = wait_file(chan,ints,nextmsg,lang);
+						snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_sec % 10);
+						res = wait_file(chan, ints, nextmsg, lang);
 					}
 				}
 				if (!res) {
-					res = wait_file(chan,ints, "digits/second",lang);
+					res = wait_file(chan, ints, "digits/second", lang);
 				}
 				break;
 			case 'T':
@@ -6653,7 +6654,7 @@ static int gr_say_number_female(int num, struct ast_channel *chan, const char *i
 	int res;
 	char fn[256] = "";
 
-	/* ast_debug(1, "\n\n Saying number female %s %d \n\n",lang, num); */
+	/* ast_debug(1, "\n\n Saying number female %s %d \n\n", lang, num); */
 	if (num < 5) {
 		snprintf(fn, sizeof(fn), "digits/female-%d", num);
 		res = wait_file(chan, ints, fn, lang);
@@ -6685,7 +6686,7 @@ static int gr_say_number_female(int num, struct ast_channel *chan, const char *i
  ->  	digits/millions = "ektatomyria"
  ->  	digits/[1..12]   :: A pronunciation of th digits form 1 to 12 e.g. "tria"
  ->  	digits/[10..100]  :: A pronunciation of the tens from 10 to 90 
-															 e,g 80 = "ogdonta" 
+															 e.g. 80 = "ogdonta" 
 						 Here we must note that we use digits/tens/100 to utter "ekato"
 						 and digits/hundred-100 to utter "ekaton"
  ->  	digits/hundred-[100...1000] :: A pronunciation of  hundreds from 100 to 1000 e.g 400 = 
@@ -6693,7 +6694,7 @@ static int gr_say_number_female(int num, struct ast_channel *chan, const char *i
 						 and digits/thousnds for "xiliades"
 */
 
-static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char *ints, const char *language,int audiofd, int ctrlfd)
+static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
 {
 	int res = 0;
 	char fn[256] = "";
@@ -6737,7 +6738,7 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 				snprintf(fn, sizeof(fn), "digits/thousands");
 			}  else {
 				if (num < 1000000000) { /* 1,000,000,000 */
-					res = ast_say_number_full_gr(chan, (num / 1000000), ints, chan->language ,audiofd, ctrlfd);
+					res = ast_say_number_full_gr(chan, (num / 1000000), ints, chan->language, audiofd, ctrlfd);
 					if (res)
 						return res;
 					num %= 1000000;
@@ -6919,20 +6920,20 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 			for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 				sndfile[sndoffset] = format[offset];
 			sndfile[sndoffset] = '\0';
-			res = wait_file(chan,ints,sndfile,lang);
+			res = wait_file(chan, ints, sndfile, lang);
 			break;
 		case 'A':
 		case 'a':
 			/* Sunday - Saturday */
-			snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
-			res = wait_file(chan,ints,nextmsg,lang);
+			snprintf(nextmsg, sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+			res = wait_file(chan, ints, nextmsg, lang);
 			break;
 		case 'B':
 		case 'b':
 		case 'h':
 			/* January - December */
-			snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-			res = wait_file(chan,ints,nextmsg,lang);
+			snprintf(nextmsg, sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+			res = wait_file(chan, ints, nextmsg, lang);
 			break;
 		case 'd':
 		case 'e':
@@ -6982,7 +6983,7 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 				ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 			else
 				ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
-			res = wait_file(chan,ints,nextmsg,lang);
+			res = wait_file(chan, ints, nextmsg, lang);
 			break;
 		case 'Q':
 			/* Shorthand for "Today", "Yesterday", or ABdY */
@@ -7000,10 +7001,10 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 				beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 				if (beg_today < time) {
 					/* Today */
-					res = wait_file(chan,ints, "digits/today",lang);
+					res = wait_file(chan, ints, "digits/today", lang);
 				} else if (beg_today - 86400 < time) {
 					/* Yesterday */
-					res = wait_file(chan,ints, "digits/yesterday",lang);
+					res = wait_file(chan, ints, "digits/yesterday", lang);
 				} else {
 					res = ast_say_date_with_format_gr(chan, time, ints, lang, "AdBY", timezone);
 				}
@@ -7027,7 +7028,7 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 					/* Today */
 				} else if ((beg_today - 86400) < time) {
 					/* Yesterday */
-					res = wait_file(chan,ints, "digits/yesterday",lang);
+					res = wait_file(chan, ints, "digits/yesterday", lang);
 				} else if (beg_today - 86400 * 6 < time) {
 					/* Within the last week */
 					res = ast_say_date_with_format_gr(chan, time, ints, lang, "A", timezone);
@@ -7042,12 +7043,12 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 		case 'S':
 			/* Seconds */
 			ast_copy_string(nextmsg, "digits/kai", sizeof(nextmsg));
-			res = wait_file(chan,ints,nextmsg,lang);
+			res = wait_file(chan, ints, nextmsg, lang);
 			if (!res)
 				res = ast_say_number_full_gr(chan, tm.tm_sec, ints, lang, -1, -1);
 			if (!res)
 				ast_copy_string(nextmsg, "digits/seconds", sizeof(nextmsg));
-			res = wait_file(chan,ints,nextmsg,lang);
+			res = wait_file(chan, ints, nextmsg, lang);
 			break;
 		case 'T':
 			res = ast_say_date_with_format_gr(chan, time, ints, lang, "HMS", timezone);
