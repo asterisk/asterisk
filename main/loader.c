@@ -478,6 +478,7 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 
 	if (!(mod = find_resource(resource_name, 0))) {
 		AST_LIST_UNLOCK(&module_list);
+		ast_log(LOG_WARNING, "Unload failed, '%s' could not be found\n", resource_name);
 		return 0;
 	}
 
