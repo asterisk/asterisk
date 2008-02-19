@@ -179,24 +179,22 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 		return 0;
 	}
 
-	ast_mutex_unlock(&p->lock);
-
 	/* Ensure that we have both channels locked */
-	if (us) {
-		while (ast_channel_trylock(other)) {
+	while (other && ast_channel_trylock(other)) {
+		ast_mutex_unlock(&p->lock);
+		if (us)
 			ast_channel_unlock(us);
-			usleep(1);
+		usleep(1);
+		if (us)
 			ast_channel_lock(us);
-		}
-	} else {
-		ast_channel_lock(other);
+		ast_mutex_lock(&p->lock);
+		other = isoutbound ? p->owner : p->chan;
 	}
 
-	ast_queue_frame(other, f);
-
-	ast_channel_unlock(other);
-
-	ast_mutex_lock(&p->lock);
+	if (other) {
+		ast_queue_frame(other, f);
+		ast_channel_unlock(other);
+	}
 
 	ast_clear_flag(p, LOCAL_GLARE_DETECT);
 
