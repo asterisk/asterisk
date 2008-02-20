@@ -512,7 +512,7 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 		   be pedantic. Reconstructing with checks for 'm' option does not
 		   work if we end up adding more options than 'm' in the future. */
 		delay = ast_strdupa(data);
-		options = strrchr(delay, '|');
+		options = strrchr(delay, ',');
 		if (options) {
 			arg = strchr(options, 'b');
 			if (arg) {
