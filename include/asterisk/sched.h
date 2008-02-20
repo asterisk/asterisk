@@ -96,6 +96,7 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, co
 
 /*!
  * \brief replace a scheduler entry
+ * \deprecated You should use the AST_SCHED_REPLACE() macro instead.
  *
  * This deletes the scheduler entry for old_id if it exists, and then
  * calls ast_sched_add to create a new entry.  A negative old_id will
@@ -123,6 +124,7 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
 
 /*!
  * \brief replace a scheduler entry
+ * \deprecated You should use the AST_SCHED_REPLACE_VARIABLE() macro instead.
  *
  * This deletes the scheduler entry for old_id if it exists, and then
  * calls ast_sched_add to create a new entry.  A negative old_id will
@@ -134,8 +136,10 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
 int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, ast_sched_cb callback, const void *data, int variable);
 
 /*! \brief Deletes a scheduled event
- * Remove this event from being run.  A procedure should not remove its
- * own event, but return 0 instead.
+ * Remove this event from being run.  A procedure should not remove its own
+ * event, but return 0 instead.  In most cases, you should not call this
+ * routine directly, but use the AST_SCHED_DEL() macro instead (especially if
+ * you don't intend to do something different when it returns failure).
  * \param con scheduling context to delete item from
  * \param id ID of the scheduled item to delete
  * \return Returns 0 on success, -1 on failure
