@@ -1128,7 +1128,9 @@ static struct ast_tm *localsub(const struct timeval *timep, const long offset, s
 	*/
 	result = timesub(&t, ttisp->tt_gmtoff, sp, tmp);
 	tmp->tm_isdst = ttisp->tt_isdst;
+#ifndef SOLARIS /* Solaris doesn't have this element */
 	tmp->tm_gmtoff = ttisp->tt_gmtoff;
+#endif
 #ifdef TM_ZONE
 	tmp->TM_ZONE = &sp->chars[ttisp->tt_abbrind];
 #endif /* defined TM_ZONE */
