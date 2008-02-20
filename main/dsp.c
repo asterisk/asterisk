@@ -167,6 +167,32 @@ enum gsamp_thresh {
 #error You cant use BUSYDETECT_TONEONLY together with BUSYDETECT_COMPARE_TONE_AND_SILENCE
 #endif
 
+/* The CNG signal consists of the transmission of 1100 Hz for 1/2 second,
+ * followed by a 3 second silent (2100 Hz OFF) period.
+ */
+#define FAX_TONE_CNG_FREQ	1100
+#define FAX_TONE_CNG_DURATION	500
+#define FAX_TONE_CNG_DB		16
+
+/* This signal may be sent by the Terminating FAX machine anywhere between
+ * 1.8 to 2.5 seconds AFTER answering the call.  The CED signal consists
+ * of a 2100 Hz tone that is from 2.6 to 4 seconds in duration.
+*/
+#define FAX_TONE_CED_FREQ	2100
+#define FAX_TONE_CED_DURATION	2600
+#define FAX_TONE_CED_DB		16
+
+#define SAMPLE_RATE		8000
+
+/* How many samples a frame has.  This constant is used when calculating
+ * Goertzel block size for tone_detect.  It is only important if we want to
+ * remove (squelch) the tone. In this case it is important to have block
+ * size not to exceed size of voice frame.  Otherwise by the moment the tone
+ * is detected it is too late to squelch it from previous frames.
+ */
+#define SAMPLES_IN_FRAME	160
+
+
 typedef struct {
 	int v2;
 	int v3;
@@ -182,36 +208,51 @@ typedef struct {
 
 typedef struct
 {
+	int freq;
+	int block_size;
+	int squelch;		/* Remove (squelch) tone */
+	goertzel_state_t tone;
+	float energy;		/* Accumulated energy of the current block */
+	int samples_pending;	/* Samples remain to complete the current block */
+
+	int hits_required;	/* How many successive blocks with tone we are looking for */
+	float threshold;	/* Energy of the tone relative to energy from all other signals to consider a hit */
+
+	int hit_count;		/* How many successive blocks we consider tone present */
+	int last_hit;		/* Indicates if the last processed block was a hit */
+
+} tone_detect_state_t;
+
+typedef struct
+{
 	goertzel_state_t row_out[4];
 	goertzel_state_t col_out[4];
-	goertzel_state_t fax_tone;
 	int lasthit;
-	int mhit;
+	int current_hit;
 	float energy;
 	int current_sample;
-
-	char digits[MAX_DTMF_DIGITS + 1];
-	
-	int current_digits;
-	int detected_digits;
-	int lost_digits;
-	int digit_hits[16];
-	int fax_hits;
 } dtmf_detect_state_t;
 
 typedef struct
 {
 	goertzel_state_t tone_out[6];
-	int mhit;
+	int current_hit;
 	int hits[5];
 	int current_sample;
-	
-	char digits[MAX_DTMF_DIGITS + 1];
+} mf_detect_state_t;
 
+typedef struct
+{
+	char digits[MAX_DTMF_DIGITS + 1];
 	int current_digits;
 	int detected_digits;
 	int lost_digits;
-} mf_detect_state_t;
+
+	union {
+		dtmf_detect_state_t dtmf;
+		mf_detect_state_t mf;
+	} td;
+} digit_detect_state_t;
 
 static float dtmf_row[] =
 {
@@ -226,8 +267,6 @@ static float mf_tones[] =
 {
 	700.0, 900.0, 1100.0, 1300.0, 1500.0, 1700.0
 };
-
-static float fax_freq = 1100.0;
 
 static char dtmf_positions[] = "123A" "456B" "789C" "*0#D";
 
@@ -271,7 +310,7 @@ static inline float goertzel_result(goertzel_state_t *s)
 static inline void goertzel_init(goertzel_state_t *s, float freq, int samples)
 {
 	s->v2 = s->v3 = s->chunky = 0.0;
-	s->fac = (int)(32768.0 * 2.0 * cos(2.0 * M_PI * (freq / 8000.0)));
+	s->fac = (int)(32768.0 * 2.0 * cos(2.0 * M_PI * freq / SAMPLE_RATE));
 	s->samples = samples;
 }
 
@@ -301,33 +340,92 @@ struct ast_dsp {
 	int tstate;
 	int tcount;
 	int digitmode;
+	int faxmode;
 	int thinkdigit;
 	float genergy;
-	union {
-		dtmf_detect_state_t dtmf;
-		mf_detect_state_t mf;
-	} td;
+	digit_detect_state_t digit_state;
+	tone_detect_state_t cng_tone_state;
+	tone_detect_state_t ced_tone_state;
 };
+
+static void ast_tone_detect_init(tone_detect_state_t *s, int freq, int duration, int amp)
+{
+	int duration_samples;
+	float x;
+	int periods_in_block;
+
+	s->freq = freq;
+
+	/* Desired tone duration in samples */
+	duration_samples = duration * SAMPLE_RATE / 1000;
+	/* We want to allow 10% deviation of tone duration */
+	duration_samples = duration_samples * 9 / 10;
+
+	/* If we want to remove tone, it is important to have block size not
+	   to exceed frame size. Otherwise by the moment tone is detected it is too late
+ 	   to squelch it from previous frames */
+	s->block_size = SAMPLES_IN_FRAME;
+
+	periods_in_block = s->block_size * freq / SAMPLE_RATE;
+
+	/* Make sure we will have at least 5 periods at target frequency for analisys.
+	   This may make block larger than expected packet and will make squelching impossible
+	   but at least we will be detecting the tone */
+	if (periods_in_block < 5)
+		periods_in_block = 5;
+
+	/* Now calculate final block size. It will contain integer number of periods */
+	s->block_size = periods_in_block * SAMPLE_RATE / freq;
+
+	/* tone_detect is currently only used to detect fax tones and we
+	   do not need suqlching the fax tones */
+	s->squelch = 0;
+
+	/* Account for the first and the last block to be incomplete
+	   and thus no tone will be detected in them */
+	s->hits_required = (duration_samples - (s->block_size - 1)) / s->block_size;
+
+	goertzel_init(&s->tone, freq, s->block_size);
+
+	s->samples_pending = s->block_size;
+	s->hit_count = 0;
+	s->last_hit = 0;
+	s->energy = 0.0;
+
+	/* We want tone energy to be amp decibels above the rest of the signal (the noise).
+	   According to Parseval's theorem the energy computed in time domain equals to energy
+	   computed in frequency domain. So subtracting energy in the frequency domain (Goertzel result)
+	   from the energy in the time domain we will get energy of the remaining signal (without the tone
+	   we are detecting). We will be checking that
+		10*log(Ew / (Et - Ew)) > amp
+	   Calculate threshold so that we will be actually checking
+		Ew > Et * threshold
+	*/
+
+	x = pow(10.0, amp / 10.0);
+	s->threshold = x / (x + 1);
+
+	ast_debug(1, "Setup tone %d Hz, %d ms, block_size=%d, hits_required=%d\n", freq, duration, s->block_size, s->hits_required);
+}
+
+static void ast_fax_detect_init(struct ast_dsp *s)
+{
+	ast_tone_detect_init(&s->cng_tone_state, FAX_TONE_CNG_FREQ, FAX_TONE_CNG_DURATION, FAX_TONE_CNG_DB);
+	ast_tone_detect_init(&s->ced_tone_state, FAX_TONE_CED_FREQ, FAX_TONE_CED_DURATION, FAX_TONE_CED_DB);
+}
 
 static void ast_dtmf_detect_init (dtmf_detect_state_t *s)
 {
 	int i;
 
 	s->lasthit = 0;
+	s->current_hit = 0;
 	for (i = 0;  i < 4;  i++) {
 		goertzel_init (&s->row_out[i], dtmf_row[i], 102);
 		goertzel_init (&s->col_out[i], dtmf_col[i], 102);
 		s->energy = 0.0;
 	}
-	/* Same for the fax dector */
-	goertzel_init (&s->fax_tone, fax_freq, 102);
-
 	s->current_sample = 0;
-	s->detected_digits = 0;
-	s->current_digits = 0;
-	memset(&s->digits, 0, sizeof(s->digits));
-	s->lost_digits = 0;
-	s->digits[0] = '\0';
 }
 
 static void ast_mf_detect_init (mf_detect_state_t *s)
@@ -337,21 +435,131 @@ static void ast_mf_detect_init (mf_detect_state_t *s)
 	for (i = 0;  i < 6;  i++) {
 		goertzel_init (&s->tone_out[i], mf_tones[i], 160);
 	}
-	s->current_digits = 0;
-	memset(&s->digits, 0, sizeof(s->digits));
 	s->current_sample = 0;
+	s->current_hit = 0;
+}
+
+static void ast_digit_detect_init(digit_detect_state_t *s, int mf)
+{
+	s->current_digits = 0;
 	s->detected_digits = 0;
 	s->lost_digits = 0;
 	s->digits[0] = '\0';
-	s->mhit = 0;
+
+	if (mf)
+		ast_mf_detect_init(&s->td.mf);
+	else
+		ast_dtmf_detect_init(&s->td.dtmf);
 }
 
-static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples, 
-		 int digitmode, int *writeback, int faxdetect)
+static int tone_detect(tone_detect_state_t *s, int16_t *amp, int samples, 
+		 int *writeback)
+{
+	float tone_energy;
+	int i;
+	int hit = 0;
+	int limit;
+	int res = 0;
+	int16_t *ptr;
+
+	while (1) {
+		/* Process in blocks. */
+		limit = (samples < s->samples_pending) ? samples : s->samples_pending;
+
+		for (i = limit, ptr = amp ; i > 0; i--, ptr++) {
+			/* signed 32 bit int should be enough to suqare any possible signed 16 bit value */
+			s->energy += (int32_t) *ptr * (int32_t) *ptr;
+
+			goertzel_sample(&s->tone, *ptr);
+		}
+
+		s->samples_pending -= limit;
+
+		if (s->samples_pending) {
+			/* Finished incomplete (last) block */
+			if (s->last_hit && s->squelch) {
+				/* If we had a hit last time, go ahead and clear this out since likely it
+				   will be another hit */
+				memset(amp, 0, sizeof(*amp) * limit);
+				if (writeback)
+					*writeback = 1;
+			}
+			break;
+		}
+
+
+		tone_energy = goertzel_result(&s->tone);
+
+		/* Scale to make comparable */
+		tone_energy *= 2.0;
+		s->energy *= s->block_size;
+
+		ast_debug(10, "tone %d, Ew=%f, Et=%f, s/n=%10.2f\n", s->freq, tone_energy, s->energy, tone_energy / (s->energy - tone_energy));
+		hit = 0;
+		if (tone_energy > s->energy * s->threshold) {
+
+			ast_debug(10, "Hit! count=%d\n", s->hit_count);
+			hit = 1;
+
+			if (s->squelch) {
+				/* Zero out frame data */
+				memset(amp, 0, sizeof(*amp) * limit);
+				if (writeback)
+					*writeback = 1;
+			}
+		}
+
+		if (s->hit_count)
+			s->hit_count++;
+
+		if (hit == s->last_hit) {
+			if (!hit) {
+				/* Two successive misses. Tone ended */
+				s->hit_count = 0;
+			} else if (!s->hit_count) {
+				s->hit_count++;
+			}
+
+		}
+
+		if (s->hit_count == s->hits_required) {
+			ast_debug(1, "%d Hz done detected\n", s->freq);
+			res = 1;
+		}
+
+		s->last_hit = hit;
+
+		/* Reset for the next block */
+		goertzel_reset(&s->tone);
+
+		/* Advance to the next block */
+		s->energy = 0.0;
+		s->samples_pending = s->block_size;
+
+		amp += limit;
+		samples -= limit;
+	}
+
+	return res;
+}
+
+static void store_digit(digit_detect_state_t *s, char digit)
+{
+	s->detected_digits++;
+	if (s->current_digits < MAX_DTMF_DIGITS) {
+		s->digits[s->current_digits++] = digit;
+		s->digits[s->current_digits] = '\0';
+	} else {
+		ast_log(LOG_WARNING, "Digit lost due to full buffer\n");
+		s->lost_digits++;
+	}
+}
+
+static int dtmf_detect(digit_detect_state_t *s, int16_t amp[], int samples, 
+		 int digitmode, int *writeback)
 {
 	float row_energy[4];
 	float col_energy[4];
-	float fax_energy = 0.0;
 	float famp;
 	int i;
 	int j;
@@ -364,32 +572,28 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 	hit = 0;
 	for (sample = 0;  sample < samples;  sample = limit) {
 		/* 102 is optimised to meet the DTMF specs. */
-		if ((samples - sample) >= (102 - s->current_sample))
-			limit = sample + (102 - s->current_sample);
+		if ((samples - sample) >= (102 - s->td.dtmf.current_sample))
+			limit = sample + (102 - s->td.dtmf.current_sample);
 		else
 			limit = samples;
 		/* The following unrolled loop takes only 35% (rough estimate) of the 
 		   time of a rolled loop on the machine on which it was developed */
 		for (j = sample; j < limit; j++) {
 			famp = amp[j];
-			s->energy += famp*famp;
+			s->td.dtmf.energy += famp*famp;
 			/* With GCC 2.95, the following unrolled code seems to take about 35%
 			   (rough estimate) as long as a neat little 0-3 loop */
-			goertzel_sample(s->row_out, amp[j]);
-			goertzel_sample(s->col_out, amp[j]);
-			goertzel_sample(s->row_out + 1, amp[j]);
-			goertzel_sample(s->col_out + 1, amp[j]);
-			goertzel_sample(s->row_out + 2, amp[j]);
-			goertzel_sample(s->col_out + 2, amp[j]);
-			goertzel_sample(s->row_out + 3, amp[j]);
-			goertzel_sample(s->col_out + 3, amp[j]);
-
-			/* Update fax tone */
-			if (faxdetect)
-				goertzel_sample(&s->fax_tone, amp[j]);
+			goertzel_sample(s->td.dtmf.row_out, amp[j]);
+			goertzel_sample(s->td.dtmf.col_out, amp[j]);
+			goertzel_sample(s->td.dtmf.row_out + 1, amp[j]);
+			goertzel_sample(s->td.dtmf.col_out + 1, amp[j]);
+			goertzel_sample(s->td.dtmf.row_out + 2, amp[j]);
+			goertzel_sample(s->td.dtmf.col_out + 2, amp[j]);
+			goertzel_sample(s->td.dtmf.row_out + 3, amp[j]);
+			goertzel_sample(s->td.dtmf.col_out + 3, amp[j]);
 		}
-		s->current_sample += (limit - sample);
-		if (s->current_sample < 102) {
+		s->td.dtmf.current_sample += (limit - sample);
+		if (s->td.dtmf.current_sample < 102) {
 			if (hit && !((digitmode & DSP_DIGITMODE_NOQUELCH))) {
 				/* If we had a hit last time, go ahead and clear this out since likely it
 				   will be another hit */
@@ -399,19 +603,16 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 			}
 			continue;
 		}
-		/* Detect the fax energy, too */
-		if (faxdetect)
-			fax_energy = goertzel_result(&s->fax_tone);
 		/* We are at the end of a DTMF detection block */
 		/* Find the peak row and the peak column */
-		row_energy[0] = goertzel_result (&s->row_out[0]);
-		col_energy[0] = goertzel_result (&s->col_out[0]);
+		row_energy[0] = goertzel_result (&s->td.dtmf.row_out[0]);
+		col_energy[0] = goertzel_result (&s->td.dtmf.col_out[0]);
 
 		for (best_row = best_col = 0, i = 1;  i < 4;  i++) {
-			row_energy[i] = goertzel_result (&s->row_out[i]);
+			row_energy[i] = goertzel_result (&s->td.dtmf.row_out[i]);
 			if (row_energy[i] > row_energy[best_row])
 				best_row = i;
-			col_energy[i] = goertzel_result (&s->col_out[i]);
+			col_energy[i] = goertzel_result (&s->td.dtmf.col_out[i]);
 			if (col_energy[i] > col_energy[best_col])
 				best_col = i;
 		}
@@ -432,7 +633,7 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 			}
 			/* ... and fraction of total energy test */
 			if (i >= 4 &&
-			    (row_energy[best_row] + col_energy[best_col]) > DTMF_TO_TOTAL_ENERGY*s->energy) {
+			    (row_energy[best_row] + col_energy[best_col]) > DTMF_TO_TOTAL_ENERGY*s->td.dtmf.energy) {
 				/* Got a hit */
 				hit = dtmf_positions[(best_row << 2) + best_col];
 				if (!(digitmode & DSP_DIGITMODE_NOQUELCH)) {
@@ -444,64 +645,37 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 			}
 		} 
 
-		/* Look for two successive similar results */
 		/* The logic in the next test is:
-		   We need two successive identical clean detects, with
+		   For digits we need two successive identical clean detects, with
 		   something different preceeding it. This can work with
 		   back to back differing digits. More importantly, it
 		   can work with nasty phones that give a very wobbly start
 		   to a digit */
-		if (hit == s->lasthit  &&  hit != s->mhit) {
-			if (hit) {
-				s->digit_hits[(best_row << 2) + best_col]++;
-				s->detected_digits++;
-				if (s->current_digits < MAX_DTMF_DIGITS) {
-					s->digits[s->current_digits++] = hit;
-					s->digits[s->current_digits] = '\0';
-				} else {
-					s->lost_digits++;
-				}
+		if (hit != s->td.dtmf.current_hit) {
+			if (hit && s->td.dtmf.lasthit == hit) {
+				s->td.dtmf.current_hit = hit;
+				store_digit(s, hit);
+			} else if (s->td.dtmf.lasthit != s->td.dtmf.current_hit) {
+				s->td.dtmf.current_hit = 0;
 			}
-			s->mhit = hit;
 		}
+		s->td.dtmf.lasthit = hit;
 
-		if (!hit && faxdetect && (fax_energy >= FAX_THRESHOLD) && 
-			(fax_energy >= DTMF_TO_TOTAL_ENERGY*s->energy)) {
-			/* XXX Probably need better checking than just this the energy XXX */
-			hit = 'f';
-			s->fax_hits++;
-		} else {
-			if (s->fax_hits > 5) {
-				hit = 'f';
-				s->mhit = 'f';
-				s->detected_digits++;
-				if (s->current_digits < MAX_DTMF_DIGITS) {
-					s->digits[s->current_digits++] = hit;
-					s->digits[s->current_digits] = '\0';
-				} else {
-					s->lost_digits++;
-				}
-			}
-			s->fax_hits = 0;
-		}
-		s->lasthit = hit;
 		/* Reinitialise the detector for the next block */
 		for (i = 0;  i < 4;  i++) {
-			goertzel_reset(&s->row_out[i]);
-			goertzel_reset(&s->col_out[i]);
+			goertzel_reset(&s->td.dtmf.row_out[i]);
+			goertzel_reset(&s->td.dtmf.col_out[i]);
 		}
-		if (faxdetect)
-			goertzel_reset (&s->fax_tone);
-		s->energy = 0.0;
-		s->current_sample = 0;
+		s->td.dtmf.energy = 0.0;
+		s->td.dtmf.current_sample = 0;
 	}
-	return (s->mhit);	/* return the debounced hit */
+	return (s->td.dtmf.current_hit);	/* return the debounced hit */
 }
 
 /* MF goertzel size */
 #define MF_GSIZE 120
 
-static int mf_detect (mf_detect_state_t *s, int16_t amp[],
+static int mf_detect(digit_detect_state_t *s, int16_t amp[],
                  int samples, int digitmode, int *writeback)
 {
 	float energy[6];
@@ -517,8 +691,8 @@ static int mf_detect (mf_detect_state_t *s, int16_t amp[],
 	hit = 0;
 	for (sample = 0;  sample < samples;  sample = limit) {
 		/* 80 is optimised to meet the MF specs. */
-		if ((samples - sample) >= (MF_GSIZE - s->current_sample))
-			limit = sample + (MF_GSIZE - s->current_sample);
+		if ((samples - sample) >= (MF_GSIZE - s->td.mf.current_sample))
+			limit = sample + (MF_GSIZE - s->td.mf.current_sample);
 		else
 			limit = samples;
 		/* The following unrolled loop takes only 35% (rough estimate) of the 
@@ -527,15 +701,15 @@ static int mf_detect (mf_detect_state_t *s, int16_t amp[],
 			famp = amp[j];
 			/* With GCC 2.95, the following unrolled code seems to take about 35%
 			   (rough estimate) as long as a neat little 0-3 loop */
-			goertzel_sample(s->tone_out, amp[j]);
-			goertzel_sample(s->tone_out + 1, amp[j]);
-			goertzel_sample(s->tone_out + 2, amp[j]);
-			goertzel_sample(s->tone_out + 3, amp[j]);
-			goertzel_sample(s->tone_out + 4, amp[j]);
-			goertzel_sample(s->tone_out + 5, amp[j]);
+			goertzel_sample(s->td.mf.tone_out, amp[j]);
+			goertzel_sample(s->td.mf.tone_out + 1, amp[j]);
+			goertzel_sample(s->td.mf.tone_out + 2, amp[j]);
+			goertzel_sample(s->td.mf.tone_out + 3, amp[j]);
+			goertzel_sample(s->td.mf.tone_out + 4, amp[j]);
+			goertzel_sample(s->td.mf.tone_out + 5, amp[j]);
 		}
-		s->current_sample += (limit - sample);
-		if (s->current_sample < MF_GSIZE) {
+		s->td.mf.current_sample += (limit - sample);
+		if (s->td.mf.current_sample < MF_GSIZE) {
 			if (hit && !((digitmode & DSP_DIGITMODE_NOQUELCH))) {
 				/* If we had a hit last time, go ahead and clear this out since likely it
 				   will be another hit */
@@ -552,8 +726,8 @@ static int mf_detect (mf_detect_state_t *s, int16_t amp[],
 		   well. The sinc function mess, due to rectangular windowing
 		   ensure that! Find the two highest energies and ensure they
 		   are considerably stronger than any of the others. */
-		energy[0] = goertzel_result(&s->tone_out[0]);
-		energy[1] = goertzel_result(&s->tone_out[1]);
+		energy[0] = goertzel_result(&s->td.mf.tone_out[0]);
+		energy[1] = goertzel_result(&s->td.mf.tone_out[1]);
 		if (energy[0] > energy[1]) {
 			best = 0;
 			second_best = 1;
@@ -563,7 +737,7 @@ static int mf_detect (mf_detect_state_t *s, int16_t amp[],
 		}
 		/*endif*/
 		for (i=2;i<6;i++) {
-			energy[i] = goertzel_result(&s->tone_out[i]);
+			energy[i] = goertzel_result(&s->td.mf.tone_out[i]);
 			if (energy[i] >= energy[best]) {
 				second_best = best;
 				best = i;
@@ -603,46 +777,57 @@ static int mf_detect (mf_detect_state_t *s, int16_t amp[],
 			   two blocks of something different preceeding it. For anything
 			   else we need two successive identical clean detects, with
 			   two blocks of something different preceeding it. */
-			if (hit == s->hits[4] && hit == s->hits[3] &&
-			   ((hit != '*' && hit != s->hits[2] && hit != s->hits[1])||
-			    (hit == '*' && hit == s->hits[2] && hit != s->hits[1] && 
-			    hit != s->hits[0]))) {
-				s->detected_digits++;
-				if (s->current_digits < MAX_DTMF_DIGITS) {
-					s->digits[s->current_digits++] = hit;
-					s->digits[s->current_digits] = '\0';
-				} else {
-					s->lost_digits++;
-				}
+			if (hit == s->td.mf.hits[4] && hit == s->td.mf.hits[3] &&
+			   ((hit != '*' && hit != s->td.mf.hits[2] && hit != s->td.mf.hits[1])||
+			    (hit == '*' && hit == s->td.mf.hits[2] && hit != s->td.mf.hits[1] && 
+			    hit != s->td.mf.hits[0]))) {
+				store_digit(s, hit);
 			}
-		} else {
-			hit = 0;
 		}
-		s->hits[0] = s->hits[1];
-		s->hits[1] = s->hits[2];
-		s->hits[2] = s->hits[3];
-		s->hits[3] = s->hits[4];
-		s->hits[4] = hit;
+
+
+		if (hit != s->td.mf.hits[4] && hit != s->td.mf.hits[3]) {
+			/* Two successive block without a hit terminate current digit */
+			s->td.mf.current_hit = 0;
+		}
+
+		s->td.mf.hits[0] = s->td.mf.hits[1];
+		s->td.mf.hits[1] = s->td.mf.hits[2];
+		s->td.mf.hits[2] = s->td.mf.hits[3];
+		s->td.mf.hits[3] = s->td.mf.hits[4];
+		s->td.mf.hits[4] = hit;
 		/* Reinitialise the detector for the next block */
 		for (i = 0;  i < 6;  i++)
-			goertzel_reset(&s->tone_out[i]);
-		s->current_sample = 0;
+			goertzel_reset(&s->td.mf.tone_out[i]);
+		s->td.mf.current_sample = 0;
 	}
-	if ((!s->mhit) || (s->mhit != hit)) {
-		s->mhit = 0;
-		return(0);
-	}
-	return (hit);
+
+	return (s->td.mf.current_hit); /* return the debounced hit */
 }
 
 static int __ast_dsp_digitdetect(struct ast_dsp *dsp, short *s, int len, int *writeback)
 {
-	int res;
+	int res = 0;
 	
-	if (dsp->digitmode & DSP_DIGITMODE_MF)
-		res = mf_detect(&dsp->td.mf, s, len, dsp->digitmode & DSP_DIGITMODE_RELAXDTMF, writeback);
-	else
-		res = dtmf_detect(&dsp->td.dtmf, s, len, dsp->digitmode & DSP_DIGITMODE_RELAXDTMF, writeback, dsp->features & DSP_FEATURE_FAX_DETECT);
+	if ((dsp->features & DSP_FEATURE_DTMF_DETECT) && (dsp->digitmode & DSP_DIGITMODE_MF))
+		res = mf_detect(&dsp->digit_state, s, len, dsp->digitmode & DSP_DIGITMODE_RELAXDTMF, writeback);
+	else if (dsp->features & DSP_FEATURE_DTMF_DETECT)
+		res = dtmf_detect(&dsp->digit_state, s, len, dsp->digitmode & DSP_DIGITMODE_RELAXDTMF, writeback);
+
+	if ((dsp->features & DSP_FEATURE_FAX_DETECT) && (dsp->faxmode & DSP_FAXMODE_DETECT_CNG)) {
+		if (tone_detect(&dsp->cng_tone_state, s, len, NULL)) {
+			store_digit(&dsp->digit_state, 'f');
+			res = 'f';
+		}
+	}
+
+	if ((dsp->features & DSP_FEATURE_FAX_DETECT) && (dsp->faxmode & DSP_FAXMODE_DETECT_CED)) {
+		if (tone_detect(&dsp->ced_tone_state, s, len, NULL)) {
+			store_digit(&dsp->digit_state, 'e');
+			res = 'e';
+		}
+	}
+
 	return res;
 }
 
@@ -685,29 +870,17 @@ static inline int pair_there(float p1, float p2, float i1, float i2, float e)
 	return 1;
 }
 
-int ast_dsp_getdigits (struct ast_dsp *dsp, char *buf, int max)
+int ast_dsp_getdigits(struct ast_dsp *dsp, char *buf, int max)
 {
-	if (dsp->digitmode & DSP_DIGITMODE_MF) {
-		if (max > dsp->td.mf.current_digits)
-			max = dsp->td.mf.current_digits;
-		if (max > 0) {
-			memcpy(buf, dsp->td.mf.digits, max);
-			memmove(dsp->td.mf.digits, dsp->td.mf.digits + max, dsp->td.mf.current_digits - max);
-			dsp->td.mf.current_digits -= max;
-		}
-		buf[max] = '\0';
-		return  max;
-	} else {
-		if (max > dsp->td.dtmf.current_digits)
-			max = dsp->td.dtmf.current_digits;
-		if (max > 0) {
-			memcpy (buf, dsp->td.dtmf.digits, max);
-			memmove (dsp->td.dtmf.digits, dsp->td.dtmf.digits + max, dsp->td.dtmf.current_digits - max);
-			dsp->td.dtmf.current_digits -= max;
-		}
-		buf[max] = '\0';
-		return  max;
+	if (max > dsp->digit_state.current_digits)
+		max = dsp->digit_state.current_digits;
+	if (max > 0) {
+		memcpy(buf, dsp->digit_state.digits, max);
+		memmove(dsp->digit_state.digits, dsp->digit_state.digits + max, dsp->digit_state.current_digits - max);
+		dsp->digit_state.current_digits -= max;
 	}
+	buf[max] = '\0';
+	return  max;
 }
 
 static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
@@ -1079,12 +1252,12 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		ast_debug(1, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
 		return &dsp->f;
 	}
-	if ((dsp->features & DSP_FEATURE_DTMF_DETECT)) {
+	if (((dsp->features & DSP_FEATURE_DTMF_DETECT) || (dsp->features & DSP_FEATURE_FAX_DETECT))) {
 		digit = __ast_dsp_digitdetect(dsp, shortdata, len, &writeback);
 #if 0
 		if (digit)
 			printf("Performing digit detection returned %d, digitmode is %d\n", digit, dsp->digitmode);
-#endif			
+#endif
 		if (dsp->digitmode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX)) {
 			if (!dsp->thinkdigit) {
 				if (digit) {
@@ -1144,35 +1317,21 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 					return &dsp->f;
 				}
 			}
-		} else if (!digit) {
-			/* Only check when there is *not* a hit... */
-			if (dsp->digitmode & DSP_DIGITMODE_MF) {
-				if (dsp->td.mf.current_digits) {
-					memset(&dsp->f, 0, sizeof(dsp->f));
-					dsp->f.frametype = AST_FRAME_DTMF;
-					dsp->f.subclass = dsp->td.mf.digits[0];
-					memmove(dsp->td.mf.digits, dsp->td.mf.digits + 1, dsp->td.mf.current_digits);
-					dsp->td.mf.current_digits--;
-					FIX_INF(af);
-					if (chan)
-						ast_queue_frame(chan, af);
-					ast_frfree(af);
-					return &dsp->f;
-				}
-			} else {
-				if (dsp->td.dtmf.current_digits) {
-					memset(&dsp->f, 0, sizeof(dsp->f));
-					dsp->f.frametype = AST_FRAME_DTMF_END;
-					dsp->f.subclass = dsp->td.dtmf.digits[0];
-					memmove(dsp->td.dtmf.digits, dsp->td.dtmf.digits + 1, dsp->td.dtmf.current_digits);
-					dsp->td.dtmf.current_digits--;
-					FIX_INF(af);
-					if (chan)
-						ast_queue_frame(chan, af);
-					ast_frfree(af);
-					return &dsp->f;
-				}
-			}
+		} else if (dsp->digit_state.current_digits > 1 ||
+			(dsp->digit_state.current_digits == 1 && digit != dsp->digit_state.digits[0])) {
+			/* Since we basically generate DTMF_END frames we do it only when a digit
+			   has finished. */
+
+			memset(&dsp->f, 0, sizeof(dsp->f));
+			dsp->f.frametype = AST_FRAME_DTMF;
+			dsp->f.subclass = dsp->digit_state.digits[0];
+			memmove(dsp->digit_state.digits, dsp->digit_state.digits + 1, dsp->digit_state.current_digits);
+			dsp->digit_state.current_digits--;
+			FIX_INF(af);
+			if (chan)
+				ast_queue_frame(chan, af);
+			ast_frfree(af);
+			return &dsp->f;
 		}
 	}
 	if ((dsp->features & DSP_FEATURE_CALL_PROGRESS)) {
@@ -1225,10 +1384,14 @@ struct ast_dsp *ast_dsp_new(void)
 		dsp->threshold = DEFAULT_THRESHOLD;
 		dsp->features = DSP_FEATURE_SILENCE_SUPPRESS;
 		dsp->busycount = DSP_HISTORY;
-		/* Initialize DTMF detector */
-		ast_dtmf_detect_init(&dsp->td.dtmf);
+		dsp->digitmode = DSP_DIGITMODE_DTMF;
+		dsp->faxmode = DSP_FAXMODE_DETECT_CNG;
+		/* Initialize digit detector */
+		ast_digit_detect_init(&dsp->digit_state, dsp->digitmode & DSP_DIGITMODE_MF);
 		/* Initialize initial DSP progress detect parameters */
 		ast_dsp_prog_reset(dsp);
+		/* Initialize fax detector */
+		ast_fax_detect_init(dsp);
 	}
 	return dsp;
 }
@@ -1270,27 +1433,27 @@ void ast_dsp_digitreset(struct ast_dsp *dsp)
 	
 	dsp->thinkdigit = 0;
 	if (dsp->digitmode & DSP_DIGITMODE_MF) {
-		memset(dsp->td.mf.digits, 0, sizeof(dsp->td.mf.digits));
-		dsp->td.mf.current_digits = 0;
+		mf_detect_state_t *s = &dsp->digit_state.td.mf;
 		/* Reinitialise the detector for the next block */
 		for (i = 0;  i < 6;  i++) {
-			goertzel_reset(&dsp->td.mf.tone_out[i]);
+			goertzel_reset(&s->tone_out[i]);
 		}
-		dsp->td.mf.hits[4] = dsp->td.mf.hits[3] = dsp->td.mf.hits[2] = dsp->td.mf.hits[1] = dsp->td.mf.hits[0] = dsp->td.mf.mhit = 0;
-		dsp->td.mf.current_sample = 0;
+		s->hits[4] = s->hits[3] = s->hits[2] = s->hits[1] = s->hits[0] = s->current_hit = 0;
+		s->current_sample = 0;
 	} else {
-		memset(dsp->td.dtmf.digits, 0, sizeof(dsp->td.dtmf.digits));
-		dsp->td.dtmf.current_digits = 0;
+		dtmf_detect_state_t *s = &dsp->digit_state.td.dtmf;
 		/* Reinitialise the detector for the next block */
 		for (i = 0;  i < 4;  i++) {
-			goertzel_reset(&dsp->td.dtmf.row_out[i]);
-			goertzel_reset(&dsp->td.dtmf.col_out[i]);
+			goertzel_reset(&s->row_out[i]);
+			goertzel_reset(&s->col_out[i]);
 		}
-		goertzel_reset (&dsp->td.dtmf.fax_tone);
-		dsp->td.dtmf.lasthit = dsp->td.dtmf.mhit = 0;
-		dsp->td.dtmf.energy = 0.0;
-		dsp->td.dtmf.current_sample = 0;
+		s->lasthit = s->current_hit = 0;
+		s->energy = 0.0;
+		s->current_sample = 0;
 	}
+
+	dsp->digit_state.digits[0] = '\0';
+	dsp->digit_state.current_digits = 0;
 }
 
 void ast_dsp_reset(struct ast_dsp *dsp)
@@ -1315,12 +1478,18 @@ int ast_dsp_digitmode(struct ast_dsp *dsp, int digitmode)
 	new = digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
 	if (old != new) {
 		/* Must initialize structures if switching from MF to DTMF or vice-versa */
-		if (new & DSP_DIGITMODE_MF)
-			ast_mf_detect_init(&dsp->td.mf);
-		else
-			ast_dtmf_detect_init(&dsp->td.dtmf);
+		ast_digit_detect_init(&dsp->digit_state, new & DSP_DIGITMODE_MF);
 	}
 	dsp->digitmode = digitmode;
+	return 0;
+}
+
+int ast_dsp_set_faxmode(struct ast_dsp *dsp, int faxmode)
+{
+	if (dsp->faxmode != faxmode) {
+		ast_fax_detect_init(dsp);
+	}
+	dsp->faxmode = faxmode;
 	return 0;
 }
 

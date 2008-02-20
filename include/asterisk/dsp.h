@@ -42,6 +42,10 @@
 #define DSP_PROGRESS_CONGESTION		(1 << 19)		/*!< Enable congestion tone detection */
 #define DSP_FEATURE_CALL_PROGRESS	(DSP_PROGRESS_TALK | DSP_PROGRESS_RINGING | DSP_PROGRESS_BUSY | DSP_PROGRESS_CONGESTION)
 
+#define DSP_FAXMODE_DETECT_CNG	(1 << 0)
+#define DSP_FAXMODE_DETECT_CED	(1 << 1)
+#define DSP_FAXMODE_DETECT_ALL	(DSP_FAXMODE_DETECT_CNG | DSP_FAXMODE_DETECT_CED)
+
 #define DSP_TONE_STATE_SILENCE  0
 #define DSP_TONE_STATE_RINGING  1 
 #define DSP_TONE_STATE_DIALTONE 2
@@ -101,6 +105,9 @@ int ast_dsp_getdigits(struct ast_dsp *dsp, char *buf, int max);
 
 /*! \brief Set digit mode */
 int ast_dsp_digitmode(struct ast_dsp *dsp, int digitmode);
+
+/*! \brief Set fax mode */
+int ast_dsp_set_faxmode(struct ast_dsp *dsp, int faxmode);
 
 /*! \brief Get tstate (Tone State) */
 int ast_dsp_get_tstate(struct ast_dsp *dsp);
