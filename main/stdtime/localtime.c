@@ -1133,7 +1133,9 @@ static struct tm *localsub(const time_t *timep, const long offset, struct tm *tm
 	*/
 	result = timesub(&t, ttisp->tt_gmtoff, sp, tmp);
 	tmp->tm_isdst = ttisp->tt_isdst;
+#ifndef SOLARIS /* Solaris doesn't have this element */
 	tmp->tm_gmtoff = ttisp->tt_gmtoff;
+#endif
 #ifdef TM_ZONE
 	tmp->TM_ZONE = &sp->chars[ttisp->tt_abbrind];
 #endif /* defined TM_ZONE */
