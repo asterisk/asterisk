@@ -4002,6 +4002,7 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, char *cmd,
 	int count = 0;
 	struct call_queue *q;
 	struct ast_module_user *lu;
+	struct ast_variable *var = NULL;
 
 	buf[0] = '\0';
 	
@@ -4024,6 +4025,13 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, char *cmd,
 	if (q) {
 		count = q->count;
 		ast_mutex_unlock(&q->lock);
+	} else if ((var = ast_load_realtime("queues", "name", data, NULL))) {
+		/* if the queue is realtime but was not found in memory, this
+		 * means that the queue had been deleted from memory since it was 
+		 * "dead." This means it has a 0 waiting count
+		 */
+		count = 0;
+		ast_variables_destroy(var);
 	} else
 		ast_log(LOG_WARNING, "queue %s was not found\n", data);
 
