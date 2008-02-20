@@ -503,13 +503,15 @@ static int local_hangup(struct ast_channel *ast)
 		const char *status = pbx_builtin_getvar_helper(p->chan, "DIALSTATUS");
 		if ((status) && (p->owner)) {
 			/* Deadlock avoidance */
-			while (ast_channel_trylock(p->owner)) {
+			while (p->owner && ast_channel_trylock(p->owner)) {
 				ast_mutex_unlock(&p->lock);
 				usleep(1);
 				ast_mutex_lock(&p->lock);
 			}
-			pbx_builtin_setvar_helper(p->owner, "CHANLOCALSTATUS", status);
-			ast_channel_unlock(p->owner);
+			if (p->owner) {
+				pbx_builtin_setvar_helper(p->owner, "CHANLOCALSTATUS", status);
+				ast_channel_unlock(p->owner);
+			}
 		}
 		p->chan = NULL;
 		ast_clear_flag(p, LOCAL_LAUNCHED_PBX);
