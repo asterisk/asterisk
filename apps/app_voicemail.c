@@ -2827,7 +2827,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 		ast_copy_string(fromdir, dir, sizeof(fromdir));
 
 	make_file(frompath, sizeof(frompath), fromdir, msgnum);
-	make_dir(todir, sizeof(todir), recip->context, recip->mailbox, frombox);
+	make_dir(todir, sizeof(todir), recip->context, recip->mailbox, "INBOX");
 
 	if (vm_lock_path(todir))
 		return ERROR_LOCK_PATH;
