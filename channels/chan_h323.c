@@ -3082,10 +3082,10 @@ static struct ast_cli_entry cli_h323_reload =
 static enum ast_rtp_get_result oh323_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
 {
 	struct oh323_pvt *pvt;
-	enum ast_rtp_get_result res = AST_RTP_GET_FAILED;
+	enum ast_rtp_get_result res = AST_RTP_TRY_PARTIAL;
 
 	if (!(pvt = (struct oh323_pvt *)chan->tech_pvt))
-		return res;
+		return AST_RTP_GET_FAILED;
 
 	ast_mutex_lock(&pvt->lock);
 	if (pvt->rtp && pvt->options.bridge) {
