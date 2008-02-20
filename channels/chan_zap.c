@@ -10534,7 +10534,7 @@ static void *pri_dchannel(void *vpri)
 						pri->pvts[chanpos]->callingpres = e->ring.callingpres;
 					
 						/* Start PBX */
-						if ((pri->overlapdial & ZAP_OVERLAPDIAL_INCOMING) && ast_matchmore_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) {
+						if (!e->ring.complete && (pri->overlapdial & ZAP_OVERLAPDIAL_INCOMING) && ast_matchmore_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) {
 							/* Release the PRI lock while we create the channel */
 							ast_mutex_unlock(&pri->lock);
 							if (crv) {
