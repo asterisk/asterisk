@@ -20,7 +20,7 @@
  *
  * \brief Audiohooks Architecture
  *
- * \author Joshua Colp <jcolp@digium.com>
+ * \author Joshua 'file' Colp <jcolp@digium.com>
  */
 
 #include "asterisk.h"
