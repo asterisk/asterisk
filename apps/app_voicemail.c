@@ -3474,11 +3474,20 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	/* simple. huh? */
 	long res;
 	char sequence[10];
+	char mailbox[256];
 
 	/* if save to Old folder, just leave in INBOX */
 	if (box == 1) return 10;
 	/* get the real IMAP message number for this message */
 	snprintf(sequence, sizeof(sequence), "%ld", vms->msgArray[msg]);
+	/* Create the folder if it don't exist */
+	imap_mailbox_name(mailbox, sizeof(mailbox), vms, box, 1); /* Get the full mailbox name */
+	ast_debug(5, "Checking if folder exists: %s\n",mailbox);
+	if (mail_create(vms->mailstream, mailbox) == NIL) 
+		ast_debug(5, "Folder exists.\n");
+	else
+		ast_log(LOG_NOTICE, "Folder %s created!\n",mbox(box));
+
 	ast_debug(3, "Copying sequence %s to mailbox %s\n", sequence, mbox(box));
 	res = mail_copy(vms->mailstream, sequence, (char *)mbox(box));
 	if (res == 1) return 0;
@@ -9454,6 +9463,7 @@ void mm_flags(MAILSTREAM * stream, unsigned long number)
 
 void mm_notify(MAILSTREAM * stream, char *string, long errflg)
 {
+	ast_debug(5, "Entering NOTIFY callback, errflag is %ld, string is %s\n", errflg, string);
 	mm_log (string, errflg);
 }
 
