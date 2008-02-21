@@ -2878,7 +2878,10 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		ast_log(LOG_WARNING, "AGI requires an argument (script)\n");
 		return -1;
 	}
-	if (dead)
+	if (dead && strcmp(chan->exten, "h"))
+		/*No need to print this message if called from the 'h' extension, since it
+		 * is well known that this is a hungup channel
+		 */
 		ast_log(LOG_NOTICE, "Hungup channel detected, running agi in dead mode.\n");
 	ast_copy_string(buf, data, sizeof(buf));
 	memset(&agi, 0, sizeof(agi));
