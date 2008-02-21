@@ -3427,7 +3427,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		ast_mutex_init(&s->__lock);
 		ast_mutex_lock(&s->__lock);
 		s->inuse = 1;
-		s->managerid = rand() | 1;	/* make sure it is non-zero */
+		s->managerid = (rand() ^ (unsigned long) s) | 1;	/* make sure it is non-zero */
 		s->last_ev = grab_last();
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
