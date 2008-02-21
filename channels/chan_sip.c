@@ -729,7 +729,7 @@ static int global_max_se;                     /*!< Highest threshold for session
  * should be used to modify these values. */
 static int suserobjs = 0;                /*!< Static users */
 static int ruserobjs = 0;                /*!< Realtime users */
-static int speerobjs = 0;                /*!< Statis peers */
+static int speerobjs = 0;                /*!< Static peers */
 static int rpeerobjs = 0;                /*!< Realtime peers */
 static int apeerobjs = 0;                /*!< Autocreated peer objects */
 static int regobjs = 0;                  /*!< Registry objects */
