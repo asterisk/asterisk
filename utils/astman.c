@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/md5.h"
 #include "asterisk/linkedlists.h"
 
+
 #undef gethostbyname
 
 #define MAX_HEADERS 80
@@ -234,7 +235,15 @@ static struct event {
 	{ "Dial", event_ignore },
 	{ "PeerStatus", event_ignore },
 	{ "MessageWaiting", event_ignore },
-	{ "Newcallerid", event_ignore }
+	{ "Newcallerid", event_ignore },
+	{ "AGIExec", event_ignore},
+	{ "VarSet", event_ignore},
+	{ "MeetmeTalking", event_ignore},
+	{ "MeetmeJoin", event_ignore},
+	{ "MeetmeLeave", event_ignore},
+	{ "MeetmeEnd", event_ignore},
+	{ "MeetmeMute", event_ignore},
+	{ "Masquerade", event_ignore},
 };
 
 static int process_message(struct ast_mansession *s, struct message *m)
