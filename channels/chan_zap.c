@@ -567,7 +567,8 @@ static struct zt_pvt {
 	unsigned int usedistinctiveringdetection:1;
 	unsigned int zaptrcallerid:1;			/*!< should we use the callerid from incoming call on zap transfer or not */
 	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
-	unsigned int mwimonitor:1;			/*!< monitor this FXO port for MWI indication from other end */
+	unsigned int mwimonitor_neon:1;			/*!< monitor this FXO port for neon type MWI indication from other end */
+	unsigned int mwimonitor_fsk:1;			/*!< monitor this FXO port for fsk MWI indication from other end */
 	unsigned int mwimonitoractive:1;		/*!< an MWI monitor thread is currently active */
 	/* Channel state or unavilability flags */
 	unsigned int inservice:1;
@@ -7306,30 +7307,56 @@ static void *mwi_thread(void *data)
 		if (i & ZT_IOMUX_SIGEVENT) {
 			struct ast_channel *chan;
 
-			/* If we get an event, cancel and go to the simple switch to let it deal with it */
+			/* If we get an event, screen out events that we do not act on.
+			 * Otherwise, cancel and go to the simple switch to let it deal with it.
+			 */
 			res = zt_get_event(mtd->pvt->subs[SUB_REAL].zfd);
-			ast_log(LOG_NOTICE, "Got event %d (%s)...  Passing along to ss_thread\n", res, event2str(res));
-			callerid_free(cs);
-			
-			restore_gains(mtd->pvt);
-			mtd->pvt->ringt = mtd->pvt->ringt_base;
 
-			if ((chan = zt_new(mtd->pvt, AST_STATE_RING, 0, SUB_REAL, 0, 0))) {
-				pthread_attr_init(&attr);
-				pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+			switch (res) {
+			case ZT_EVENT_NEONMWI_ACTIVE:
+			case ZT_EVENT_NEONMWI_INACTIVE:
+			case ZT_EVENT_NONE:
+			case ZT_EVENT_BITSCHANGED:
+				break;
+			case ZT_EVENT_NOALARM:
+				mtd->pvt->inalarm = 0;
+				ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", mtd->pvt->channel);
+				manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
+					"Channel: %d\r\n", mtd->pvt->channel);
+				break;
+			case ZT_EVENT_ALARM:
+				mtd->pvt->inalarm = 1;
+				res = get_alarms(mtd->pvt);
+				ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", mtd->pvt->channel, alarm2str(res));
+				manager_event(EVENT_FLAG_SYSTEM, "Alarm",
+					"Alarm: %s\r\n"
+					"Channel: %d\r\n",
+					alarm2str(res), mtd->pvt->channel);
+				break; /* What to do on channel alarm ???? -- fall thru intentionally?? */
+			default:
+				ast_log(LOG_NOTICE, "Got event %d (%s)...  Passing along to ss_thread\n", res, event2str(res));
+				callerid_free(cs);
+				
+				restore_gains(mtd->pvt);
+				mtd->pvt->ringt = mtd->pvt->ringt_base;
 
-				if (ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
-					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", mtd->pvt->channel);
-					res = tone_zone_play_tone(mtd->pvt->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
-					if (res < 0)
-						ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", mtd->pvt->channel);
-					ast_hangup(chan);
-					goto quit;
+				if ((chan = zt_new(mtd->pvt, AST_STATE_RING, 0, SUB_REAL, 0, 0))) {
+					pthread_attr_init(&attr);
+					pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+					if (ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
+						ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", mtd->pvt->channel);
+						res = tone_zone_play_tone(mtd->pvt->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
+						if (res < 0)
+							ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", mtd->pvt->channel);
+						ast_hangup(chan);
+						goto quit;
+					}
+					goto quit_no_clean;
+
+				} else {
+					ast_log(LOG_WARNING, "Could not create channel to handle call\n");
 				}
-				goto quit_no_clean;
-
-			} else {
-				ast_log(LOG_WARNING, "Could not create channel to handle call\n");
 			}
 		} else if (i & ZT_IOMUX_READ) {
 			if ((res = read(mtd->pvt->subs[SUB_REAL].zfd, mtd->buf, sizeof(mtd->buf))) < 0) {
@@ -7612,6 +7639,18 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				i->channel);
 		zap_destroy_channel_bynum(i->channel);
 		break;
+	case ZT_EVENT_NEONMWI_ACTIVE:
+		if (i->mwimonitor_neon) {
+			notify_message(i->mailbox, 1);
+			ast_log(LOG_NOTICE, "NEON MWI set for channel %d, mailbox %s \n", i->channel, i->mailbox);
+		}
+		break;
+	case ZT_EVENT_NEONMWI_INACTIVE:
+		if (i->mwimonitor_neon) {
+			notify_message(i->mailbox, 0);
+			ast_log(LOG_NOTICE, "NEON MWI cleared for channel %d, mailbox %s\n", i->channel, i->mailbox);
+		}
+		break;
 	}
 	return 0;
 }
@@ -7665,7 +7704,7 @@ static void *do_monitor(void *data)
 					pfds[count].revents = 0;
 					/* If we are monitoring for VMWI or sending CID, we need to
 					   read from the channel as well */
-					if (i->cidspill || i->mwimonitor)
+					if (i->cidspill || i->mwimonitor_fsk)
 						pfds[count].events |= POLLIN;
 					count++;
 				}
@@ -7754,14 +7793,14 @@ static void *do_monitor(void *data)
 						i = i->next;
 						continue;
 					}
-					if (!i->cidspill && !i->mwimonitor) {
+					if (!i->cidspill && !i->mwimonitor_fsk) {
 						ast_log(LOG_WARNING, "Whoa....  I'm reading but have no cidspill (%d)...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
 						continue;
 					}
 					res = read(i->subs[SUB_REAL].zfd, buf, sizeof(buf));
 					if (res > 0) {
-						if (i->mwimonitor) {
+						if (i->mwimonitor_fsk) {
 							if (calc_energy((unsigned char *) buf, res, AST_LAW(i)) > mwilevel) {
 								pthread_attr_t attr;
 								pthread_t threadid;
@@ -7803,11 +7842,6 @@ static void *do_monitor(void *data)
 					} else {
 						ast_log(LOG_WARNING, "Read failed with %d: %s\n", res, strerror(errno));
 					}
-					ast_debug(1, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
-					/* Don't hold iflock while handling init events -- race with chlock */
-					ast_mutex_unlock(&iflock);
-					handle_init_event(i, res);
-					ast_mutex_lock(&iflock);	
 				}
 				if (pollres & POLLPRI) {
 					if (i->owner || i->subs[SUB_REAL].owner) {
@@ -8345,8 +8379,10 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 #endif
 		tmp->immediate = conf.chan.immediate;
 		tmp->transfertobusy = conf.chan.transfertobusy;
-		if (conf.chan.sig & __ZT_SIG_FXS)
-			tmp->mwimonitor = conf.chan.mwimonitor;
+		if (conf.chan.sig & __ZT_SIG_FXS) {
+			tmp->mwimonitor_fsk = conf.chan.mwimonitor_fsk;
+			tmp->mwimonitor_neon = conf.chan.mwimonitor_neon;
+		}
 		tmp->sig = conf.chan.sig;
 		tmp->outsigmod = conf.chan.outsigmod;
 		tmp->radio = conf.chan.radio;
@@ -13337,7 +13373,16 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 		} else if (!strcasecmp(v->name, "transfertobusy")) {
 			confp->chan.transfertobusy = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "mwimonitor")) {
-			confp->chan.mwimonitor = ast_true(v->value) ? 1 : 0;
+			if (!strcasecmp(v->value, "neon")) {
+				confp->chan.mwimonitor_neon = 1;
+				confp->chan.mwimonitor_fsk = 0;
+			} else {
+				confp->chan.mwimonitor_neon = 0;
+				if (!strcasecmp(v->value, "fsk"))
+					confp->chan.mwimonitor_fsk = 1;
+				else 
+					confp->chan.mwimonitor_fsk = ast_true(v->value) ? 1 : 0;
+			}
 		} else if (!strcasecmp(v->name, "cid_rxgain")) {
 			if (sscanf(v->value, "%f", &confp->chan.cid_rxgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid cid_rxgain: %s at line %d.\n", v->value, v->lineno);
