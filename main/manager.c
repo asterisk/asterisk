@@ -2660,7 +2660,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 		ast_mutex_init(&s->__lock);
 		ast_mutex_lock(&s->__lock);
 		s->inuse = 1;
-		s->managerid = rand() | (unsigned long)s;
+		s->managerid = rand() ^ (unsigned long) s;
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
 		/* Hook into the last spot in the event queue */
