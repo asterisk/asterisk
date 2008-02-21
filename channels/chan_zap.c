@@ -6938,8 +6938,6 @@ static void *do_monitor(void *data)
 					} else {
 						ast_log(LOG_WARNING, "Read failed with %d: %s\n", res, strerror(errno));
 					}
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
 					/* Don't hold iflock while handling init events -- race with chlock */
 					ast_mutex_unlock(&iflock);
 					handle_init_event(i, res);
