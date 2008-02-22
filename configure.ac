@@ -254,6 +254,7 @@ AST_EXT_LIB_SETUP([ZAPTEL], [Zaptel], [zaptel])
 AST_EXT_LIB_SETUP([ZAPTEL_TRANSCODE], [Zaptel Transcoder Support], [zaptel_transcode])
 AST_EXT_LIB_SETUP([ZAPTEL_VLDTMF], [Zaptel VLDTMF Support], [zaptel_vldtmf])
 AST_EXT_LIB_SETUP([ZAPTEL_HWGAIN], [Zaptel Hardware Gain Support], [zaptel_hwgain])
+AST_EXT_LIB_SETUP([ZAPTEL_NEONMWI], [Zaptel Neon MWI Support], [zaptel_neonmwi])
 AST_EXT_LIB_SETUP([ZAPTEL_ECHOCANPARAMS], [Zaptel Echo Canceler Parameter Support], [zaptel_echocanparams])
 AST_EXT_LIB_SETUP([ZAPTEL_CHANALARMS], [Zaptel Channel Alarm Support], [zaptel_chanalarms])
 
@@ -1429,6 +1430,9 @@ AST_C_DEFINE_CHECK([ZAPTEL_TRANSCODE], [ZT_TCOP_ALLOCATE], [zaptel/zaptel.h])
 
 # Check for hwgain support
 AST_C_DEFINE_CHECK([ZAPTEL_HWGAIN], [ZT_SET_HWGAIN], [zaptel/zaptel.h])
+
+# Check for neon mwi support
+AST_C_DEFINE_CHECK([ZAPTEL_NEONMWI], [ZT_EVENT_NEONMWI_ACTIVE], [zaptel/zaptel.h])
 
 # Check for channel alarm support
 AST_C_COMPILE_CHECK([ZAPTEL_CHANALARMS], [size_t foo = sizeof(struct zt_params_v1)], [zaptel/zaptel.h])

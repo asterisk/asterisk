@@ -7313,8 +7313,10 @@ static void *mwi_thread(void *data)
 			res = zt_get_event(mtd->pvt->subs[SUB_REAL].zfd);
 
 			switch (res) {
+#ifdef HAVE_ZAPTEL_NEONMWI
 			case ZT_EVENT_NEONMWI_ACTIVE:
 			case ZT_EVENT_NEONMWI_INACTIVE:
+#endif
 			case ZT_EVENT_NONE:
 			case ZT_EVENT_BITSCHANGED:
 				break;
@@ -7639,6 +7641,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				i->channel);
 		zap_destroy_channel_bynum(i->channel);
 		break;
+#ifdef HAVE_ZAPTEL_NEONMWI
 	case ZT_EVENT_NEONMWI_ACTIVE:
 		if (i->mwimonitor_neon) {
 			notify_message(i->mailbox, 1);
@@ -7651,6 +7654,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 			ast_log(LOG_NOTICE, "NEON MWI cleared for channel %d, mailbox %s\n", i->channel, i->mailbox);
 		}
 		break;
+#endif
 	}
 	return 0;
 }
