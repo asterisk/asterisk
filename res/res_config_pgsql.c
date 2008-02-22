@@ -912,23 +912,21 @@ static int pgsql_reconnect(const char *database)
 		pgsqlConn = NULL;
 	}
 
-	if ((!pgsqlConn) && (!ast_strlen_zero(dbhost) || !ast_strlen_zero(dbsock)) && !ast_strlen_zero(dbuser) && !ast_strlen_zero(dbpass) && !ast_strlen_zero(my_database)) {
-		char *connInfo = NULL;
-		unsigned int size = 100 + strlen(dbhost)
-			+ strlen(dbuser)
-			+ strlen(dbpass)
-			+ strlen(my_database);
-		
-		if (!(connInfo = ast_malloc(size)))
-			return 0;
-		
-		sprintf(connInfo, "host=%s port=%d dbname=%s user=%s password=%s",
-					dbhost, dbport, my_database, dbuser, dbpass);
-		ast_debug(1, "%u connInfo=%s\n", size, connInfo);
-		pgsqlConn = PQconnectdb(connInfo);
-		ast_debug(1, "%u connInfo=%s\n", size, connInfo);
+	/* DB password can legitimately be 0-length */
+	if ((!pgsqlConn) && (!ast_strlen_zero(dbhost) || !ast_strlen_zero(dbsock)) && !ast_strlen_zero(dbuser) && dbpass && !ast_strlen_zero(my_database)) {
+		struct ast_str *connInfo = ast_str_create(32);
+
+		ast_str_set(&connInfo, 0, "host=%s port=%d dbname=%s user=%s",
+			dbhost, dbport, my_database, dbuser);
+		if (!ast_strlen_zero(dbpass))
+			ast_str_append(&connInfo, 0, " password=%s", dbpass);
+
+		ast_debug(1, "%u connInfo=%s\n", connInfo->len, connInfo->str);
+		pgsqlConn = PQconnectdb(connInfo->str);
+		ast_debug(1, "%u connInfo=%s\n", connInfo->len, connInfo->str);
 		ast_free(connInfo);
 		connInfo = NULL;
+
 		ast_debug(1, "pgsqlConn=%p\n", pgsqlConn);
 		if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
 			ast_debug(1, "PostgreSQL RealTime: Successfully connected to database.\n");
@@ -936,13 +934,12 @@ static int pgsql_reconnect(const char *database)
 			return 1;
 		} else {
 			ast_log(LOG_ERROR,
-					"PostgreSQL RealTime: Failed to connect database server %s on %s. Check debug for more info.\n",
-					dbname, dbhost);
-			ast_debug(1, "PostgreSQL RealTime: Cannot Connect: %s\n", PQresultErrorMessage(NULL));
+					"PostgreSQL RealTime: Failed to connect database %s on %s: %s\n",
+					dbname, dbhost, PQresultErrorMessage(NULL));
 			return 0;
 		}
 	} else {
-		ast_debug(1, "PostgreSQL RealTime: Everything is fine.\n");
+		ast_debug(1, "PostgreSQL RealTime: One or more of the parameters in the config does not pass our validity checks.\n");
 		return 1;
 	}
 }
