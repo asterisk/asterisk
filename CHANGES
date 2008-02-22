@@ -48,6 +48,9 @@ AMI - The manager (TCP/TLS/HTTP)
   * Updated action newcat to allow new category to be inserted in file above another
     existing category.
   * Added new event "JitterBufStats" in the IAX2 channel
+  * Originate now requires the Originate privilege and, if you want to call out
+    to a subshell, it requires the System privilege, as well.  This was done to
+    enhance manager security.
 
 Dialplan functions
 ------------------

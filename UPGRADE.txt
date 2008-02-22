@@ -178,3 +178,6 @@ Manager:
    change your manager.conf to add the level to existing AMI users, if they
    want to see the CDR events generated.
 
+* The Originate command now requires the Originate write permission.  For
+   Originate with the Application parameter, you need the additional System
+   privilege if you want to do anything that calls out to a subshell.

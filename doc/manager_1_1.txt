@@ -114,6 +114,11 @@ Changes to manager version 1.1:
 	Added new headers for SayEnvelope, SayCID, AttachMessage, CanReview
         and CallOperator voicemail configuration settings.
 
+- Action Originate
+	Now requires the new Originate privilege.
+	If you call out to a subshell in Originate with the Application parameter,
+		you now also need the System privilege.
+
 * NEW ACTIONS
 -------------
 - Action: ModuleLoad
