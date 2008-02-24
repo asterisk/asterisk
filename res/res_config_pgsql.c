@@ -921,9 +921,9 @@ static int pgsql_reconnect(const char *database)
 		if (!ast_strlen_zero(dbpass))
 			ast_str_append(&connInfo, 0, " password=%s", dbpass);
 
-		ast_debug(1, "%u connInfo=%s\n", connInfo->len, connInfo->str);
+		ast_debug(1, "%u connInfo=%s\n", (unsigned int)connInfo->len, connInfo->str);
 		pgsqlConn = PQconnectdb(connInfo->str);
-		ast_debug(1, "%u connInfo=%s\n", connInfo->len, connInfo->str);
+		ast_debug(1, "%u connInfo=%s\n", (unsigned int)connInfo->len, connInfo->str);
 		ast_free(connInfo);
 		connInfo = NULL;
 
