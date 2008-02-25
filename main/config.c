@@ -1963,7 +1963,8 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 	struct ast_config_engine *loader = &text_file_engine;
 	struct ast_config *result; 
 
-	if (cfg->include_level == cfg->max_include_level) {
+	/* The config file itself bumps include_level by 1 */
+	if (cfg->max_include_level > 0 && cfg->include_level == cfg->max_include_level + 1) {
 		ast_log(LOG_WARNING, "Maximum Include level (%d) exceeded\n", cfg->max_include_level);
 		return NULL;
 	}
