@@ -450,6 +450,29 @@ Logger changes
      and to ensure that the oldest log file gets deleted.
   * Added realtime support for the queue log
 
+Call Detail Records 
+-------------------
+  * The cdr_manager module has a [mappings] feature, like cdr_custom,
+    to add fields to the manager event from the CDR variables.
+  * Added cdr_adaptive_odbc, a new module that adapts to the structure of your
+     backend database CDR table.  Specifically, additional, non-standard
+     columns are supported, merely by setting the corresponding CDR variable in
+     your dialplan.  In addition, you may alias any column to another name (for
+     example, if you want the 'src' CDR variable to be column 'ANI' in the DB,
+     simply "alias src => ANI" in the configuration file).  Records may be
+     posted to more than one backend, simply by specifying multiple categories
+     in the configuration file.  And finally, you may filter which CDRs get
+     posted to each backend, by specifying a filter (which the record must
+     match) for the particular category.  Filters are additive (meaning all
+     rules must match to post that CDR).
+  * The Postgres CDR module now supports some features of the cdr_adaptive_odbc
+     module.  Specifically, you may add additional columns into the table and
+     they will be set, if you set the corresponding CDR variable name.  Also,
+     if you omit columns in your database table, they will be silently skipped
+     (but a record will still be inserted, based on what columns remain).  Note
+     that the other two features from cdr_adaptive_odbc (alias and filter) are
+     not currently supported.
+
 Miscellaneous New Modules
 -------------------------
   * Added a new CDR module, cdr_sqlite3_custom.
@@ -494,8 +517,6 @@ Miscellaneous
   * Added maxfiles option to options section of asterisk.conf which allows you to specify
      what Asterisk should set as the maximum number of open files when it loads.
   * Added the jittertargetextra configuration option.
-  * The cdr_manager module has a [mappings] feature, like cdr_custom,
-    to add fields to the manager event from the CDR variables.
   * Added support for setting the CoS for VLAN traffic (802.1p).  See the sample
      configuration files for the IP channel drivers.  The new option is "cos".
      This information is also documented in doc/qos.tex, or the IP Quality of Service
@@ -523,3 +544,4 @@ Miscellaneous
   * Added a compiler flag, CHANNEL_TRACE, which permits channel tracing to be
      turned on, via the CHANNEL(trace) dialplan function.  Could be useful for
      dialplan debugging.
+
