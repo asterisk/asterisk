@@ -7320,7 +7320,7 @@ static void log_jitterstats(unsigned short callno)
 			localooo = jbinfo.frames_ooo;
 			localpackets = jbinfo.frames_in;
 		}
-		ast_verb(3, "JB STATS:%s ping=%d ljitterms=%d ljbdelayms=%d ltotlost=%d lrecentlosspct=%d ldropped=%d looo=%d lrecvd=%d rjitterms=%d rjbdelayms=%d rtotlost=%d rrecentlosspct=%d rdropped=%d rooo=%d rrecvd=%d\n",
+		ast_debug(3, "JB STATS:%s ping=%d ljitterms=%d ljbdelayms=%d ltotlost=%d lrecentlosspct=%d ldropped=%d looo=%d lrecvd=%d rjitterms=%d rjbdelayms=%d rtotlost=%d rrecentlosspct=%d rdropped=%d rooo=%d rrecvd=%d\n",
 			iaxs[callno]->owner->name,
 			iaxs[callno]->pingtime,
 			localjitter,
