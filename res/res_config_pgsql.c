@@ -913,7 +913,7 @@ static int pgsql_reconnect(const char *database)
 	}
 
 	/* DB password can legitimately be 0-length */
-	if ((!pgsqlConn) && (!ast_strlen_zero(dbhost) || !ast_strlen_zero(dbsock)) && !ast_strlen_zero(dbuser) && dbpass && !ast_strlen_zero(my_database)) {
+	if ((!pgsqlConn) && (!ast_strlen_zero(dbhost) || !ast_strlen_zero(dbsock)) && !ast_strlen_zero(dbuser) && !ast_strlen_zero(my_database)) {
 		struct ast_str *connInfo = ast_str_create(32);
 
 		ast_str_set(&connInfo, 0, "host=%s port=%d dbname=%s user=%s",
