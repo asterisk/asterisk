@@ -197,23 +197,31 @@ static struct ast_generator spygen = {
 	.generate = spy_generate, 
 };
 
-static int start_spying(struct ast_channel *chan, struct ast_channel *spychan, struct ast_audiohook *audiohook) 
+static int start_spying(struct ast_channel *chan, const char *spychan_name, struct ast_audiohook *audiohook) 
 {
 	int res;
 	struct ast_channel *peer;
 
-	ast_log(LOG_NOTICE, "Attaching %s to %s\n", spychan->name, chan->name);
+	ast_log(LOG_NOTICE, "Attaching %s to %s\n", spychan_name, chan->name);
 
 	res = ast_audiohook_attach(chan, audiohook);
 
-	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan)))
+	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan))) {
+		ast_channel_unlock(chan);
 		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
+	} else
+		ast_channel_unlock(chan);
 
 	return res;
 }
 
-static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int *volfactor, int fd,
-		       const struct ast_flags *flags) 
+struct chanspy_ds {
+	struct ast_channel *chan;
+	ast_mutex_t lock;
+};
+
+static int channel_spy(struct ast_channel *chan, struct chanspy_ds *spyee_chanspy_ds, 
+	int *volfactor, int fd, const struct ast_flags *flags) 
 {
 	struct chanspy_translation_helper csth;
 	int running = 0, res, x = 0;
@@ -221,6 +229,24 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	char *name;
 	struct ast_frame *f;
 	struct ast_silence_generator *silgen = NULL;
+	struct ast_channel *spyee = NULL;
+	const char *spyer_name;
+
+	ast_channel_lock(chan);
+	spyer_name = ast_strdupa(chan->name);
+	ast_channel_unlock(chan);
+
+	ast_mutex_lock(&spyee_chanspy_ds->lock);
+	if (spyee_chanspy_ds->chan) {
+		spyee = spyee_chanspy_ds->chan;
+		ast_channel_lock(spyee);
+	}
+	ast_mutex_unlock(&spyee_chanspy_ds->lock);
+
+	if (!spyee)
+		return 0;
+
+	/* We now hold the channel lock on spyee */
 
 	if (ast_check_hangup(chan) || ast_check_hangup(spyee))
 		return 0;
@@ -232,17 +258,19 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	memset(&csth, 0, sizeof(csth));
 	
 	ast_audiohook_init(&csth.spy_audiohook, AST_AUDIOHOOK_TYPE_SPY, "ChanSpy");
-	
-	if (start_spying(spyee, chan, &csth.spy_audiohook)) {
+
+	if (start_spying(spyee, spyer_name, &csth.spy_audiohook)) { /* Unlocks spyee */
 		ast_audiohook_destroy(&csth.spy_audiohook);
 		return 0;
 	}
 	
 	if (ast_test_flag(flags, OPTION_WHISPER)) {
 		ast_audiohook_init(&csth.whisper_audiohook, AST_AUDIOHOOK_TYPE_WHISPER, "ChanSpy");
-		start_spying(spyee, chan, &csth.whisper_audiohook);
+		start_spying(spyee, spyer_name, &csth.whisper_audiohook); /* Unlocks spyee */
 	}
-	
+
+	spyee = NULL;
+
 	csth.volfactor = *volfactor;
 	
 	if (csth.volfactor) {
@@ -343,12 +371,82 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	return running;
 }
 
-static struct ast_channel *next_channel(const struct ast_channel *last, const char *spec,
-					const char *exten, const char *context)
+/*!
+ * \note This relies on the embedded lock to be recursive, as it may be called
+ * due to a call to chanspy_ds_free with the lock held there.
+ */
+static void chanspy_ds_destroy(void *data)
+{
+	struct chanspy_ds *chanspy_ds = data;
+
+	/* Setting chan to be NULL is an atomic operation, but we don't want this
+	 * value to change while this lock is held.  The lock is held elsewhere
+	 * while it performs non-atomic operations with this channel pointer */
+
+	ast_mutex_lock(&chanspy_ds->lock);
+	chanspy_ds->chan = NULL;
+	ast_mutex_unlock(&chanspy_ds->lock);
+}
+
+static const struct ast_datastore_info chanspy_ds_info = {
+	.type = "chanspy",
+	.destroy = chanspy_ds_destroy,
+};
+
+static struct chanspy_ds *chanspy_ds_free(struct chanspy_ds *chanspy_ds)
+{
+	if (!chanspy_ds)
+		return NULL;
+
+	ast_mutex_lock(&chanspy_ds->lock);
+	if (chanspy_ds->chan) {
+		struct ast_datastore *datastore;
+		struct ast_channel *chan;
+
+		chan = chanspy_ds->chan;
+
+		ast_channel_lock(chan);
+		if ((datastore = ast_channel_datastore_find(chan, &chanspy_ds_info, NULL))) {
+			ast_channel_datastore_remove(chan, datastore);
+			/* chanspy_ds->chan is NULL after this call */
+			ast_channel_datastore_free(datastore);
+		}
+		ast_channel_unlock(chan);
+	}
+	ast_mutex_unlock(&chanspy_ds->lock);
+
+	return NULL;
+}
+
+/*! \note Returns the channel in the chanspy_ds locked as well as the chanspy_ds locked */
+static struct chanspy_ds *setup_chanspy_ds(struct ast_channel *chan, struct chanspy_ds *chanspy_ds)
+{
+	struct ast_datastore *datastore = NULL;
+
+	ast_mutex_lock(&chanspy_ds->lock);
+
+	chanspy_ds->chan = chan;
+
+	if (!(datastore = ast_channel_datastore_alloc(&chanspy_ds_info, NULL))) {
+		chanspy_ds = chanspy_ds_free(chanspy_ds);
+		ast_channel_unlock(chan);
+		return NULL;
+	}
+
+	datastore->data = chanspy_ds;
+
+	ast_channel_datastore_add(chan, datastore);
+
+	return chanspy_ds;
+}
+
+static struct chanspy_ds *next_channel(struct ast_channel *chan,
+	const struct ast_channel *last, const char *spec,
+	const char *exten, const char *context, struct chanspy_ds *chanspy_ds)
 {
 	struct ast_channel *this;
 
-	redo:
+redo:
 	if (spec)
 		this = ast_walk_channel_by_name_prefix_locked(last, spec, strlen(spec));
 	else if (exten)
@@ -356,20 +454,21 @@ static struct ast_channel *next_channel(const struct ast_channel *last, const ch
 	else
 		this = ast_channel_walk_locked(last);
 
-	if (this) {
+	if (!this)
+		return NULL;
+
+	if (!strncmp(this->name, "Zap/pseudo", 10)) {
 		ast_channel_unlock(this);
-		if (!strncmp(this->name, "Zap/pseudo", 10))
-			goto redo;
+		goto redo;
 	}
 
-	return this;
+	return setup_chanspy_ds(this, chanspy_ds);
 }
 
 static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 		       int volfactor, const int fd, const char *mygroup, const char *spec,
 		       const char *exten, const char *context)
 {
-	struct ast_channel *peer, *prev, *next;
 	char nameprefix[AST_NAME_STRLEN];
 	char peer_name[AST_NAME_STRLEN + 5];
 	signed char zero_volume = 0;
@@ -378,6 +477,9 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 	char *ptr;
 	int num;
 	int num_spyed_upon = 1;
+	struct chanspy_ds chanspy_ds;
+
+	ast_mutex_init(&chanspy_ds.lock);
 
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
@@ -387,6 +489,9 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 	waitms = 100;
 
 	for (;;) {
+		struct chanspy_ds *peer_chanspy_ds = NULL, *next_chanspy_ds = NULL;
+		struct ast_channel *prev = NULL, *peer = NULL;
+
 		if (!ast_test_flag(flags, OPTION_QUIET) && num_spyed_upon) {
 			res = ast_streamfile(chan, "beep", chan->language);
 			if (!res)
@@ -405,12 +510,13 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 				
 		/* reset for the next loop around, unless overridden later */
 		waitms = 100;
-		peer = prev = next = NULL;
 		num_spyed_upon = 0;
 
-		for (peer = next_channel(peer, spec, exten, context);
-		     peer;
-		     prev = peer, peer = next ? next : next_channel(peer, spec, exten, context), next = NULL) {
+		for (peer_chanspy_ds = next_channel(chan, prev, spec, exten, context, &chanspy_ds);
+		     peer_chanspy_ds;
+			 chanspy_ds_free(peer_chanspy_ds), prev = peer,
+		     peer_chanspy_ds = next_chanspy_ds ? next_chanspy_ds : 
+			 	next_channel(chan, prev, spec, exten, context, &chanspy_ds), next_chanspy_ds = NULL) {
 			const char *group;
 			int igrp = !mygroup;
 			char *groups[25];
@@ -418,18 +524,32 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			char *dup_group;
 			int x;
 			char *s;
-				
-			if (peer == prev)
+			struct ast_channel *peer;
+
+			peer = peer_chanspy_ds->chan;
+
+			ast_mutex_unlock(&peer_chanspy_ds->lock);
+
+			if (peer == prev) {
+				ast_channel_unlock(peer);
+				chanspy_ds_free(peer_chanspy_ds);
 				break;
+			}
 
-			if (peer == chan)
+			if (peer == chan) {
+				ast_channel_unlock(peer);
 				continue;
+			}
 
-			if (ast_test_flag(flags, OPTION_BRIDGED) && !ast_bridged_channel(peer))
+			if (ast_test_flag(flags, OPTION_BRIDGED) && !ast_bridged_channel(peer)) {
+				ast_channel_unlock(peer);
 				continue;
+			}
 
-			if (ast_check_hangup(peer) || ast_test_flag(peer, AST_FLAG_SPYING))
+			if (ast_check_hangup(peer) || ast_test_flag(peer, AST_FLAG_SPYING)) {
+				ast_channel_unlock(peer);
 				continue;
+			}
 
 			if (mygroup) {
 				if ((group = pbx_builtin_getvar_helper(peer, "SPYGROUP"))) {
@@ -446,8 +566,10 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 				}
 			}
 			
-			if (!igrp)
+			if (!igrp) {
+				ast_channel_unlock(peer);
 				continue;
+			}
 
 			strcpy(peer_name, "spy-");
 			strncat(peer_name, peer->name, AST_NAME_STRLEN);
@@ -456,7 +578,14 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			
 			for (s = peer_name; s < ptr; s++)
 				*s = tolower(*s);
-			
+
+		
+			/* We have to unlock the peer channel here to avoid a deadlock.
+			 * So, when we need it again, we have to lock the datastore and get
+			 * the pointer from there to see if the channel is still valid. */
+			ast_channel_unlock(peer);
+			peer = NULL;
+
 			if (!ast_test_flag(flags, OPTION_QUIET)) {
 				if (ast_fileexists(peer_name, NULL, NULL) != -1) {
 					res = ast_streamfile(chan, peer_name, chan->language);
@@ -471,19 +600,34 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			}
 			
 			waitms = 5000;
-			res = channel_spy(chan, peer, &volfactor, fd, flags);
+			res = channel_spy(chan, peer_chanspy_ds, &volfactor, fd, flags);
 			num_spyed_upon++;	
 
 			if (res == -1) {
 				break;
 			} else if (res > 1 && spec) {
+				struct ast_channel *next;
+
 				snprintf(nameprefix, AST_NAME_STRLEN, "%s/%d", spec, res);
+
 				if ((next = ast_get_channel_by_name_prefix_locked(nameprefix, strlen(nameprefix)))) {
-					ast_channel_unlock(next);
+					peer_chanspy_ds = chanspy_ds_free(peer_chanspy_ds);
+					next_chanspy_ds = setup_chanspy_ds(next, &chanspy_ds);
 				} else {
-					/* stay on this channel */
-					next = peer;
+					/* stay on this channel, if it is still valid */
+
+					ast_mutex_lock(&peer_chanspy_ds->lock);
+					if (peer_chanspy_ds->chan) {
+						ast_channel_lock(peer_chanspy_ds->chan);
+						next_chanspy_ds = peer_chanspy_ds;
+						peer_chanspy_ds = NULL;
+					} else {
+						/* the channel is gone */
+						ast_mutex_unlock(&peer_chanspy_ds->lock);
+						next_chanspy_ds = NULL;
+					}
 				}
+
 				peer = NULL;
 			}
 		}
@@ -494,6 +638,8 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 	ast_clear_flag(chan, AST_FLAG_SPYING);
 
 	ast_channel_setoption(chan, AST_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
+
+	ast_mutex_destroy(&chanspy_ds.lock);
 
 	return res;
 }
