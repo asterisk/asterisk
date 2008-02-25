@@ -84,6 +84,27 @@ tcpbindaddr=0.0.0.0	        ; IP address for TCP server to bind to (0.0.0.0 bind
 ;tlscertfile=asterisk.pem	; Certificate file (*.pem only) to use for TLS connections 
 			 	; default is to look for "asterisk.pem" in current directory
 
+;tlscafile=</path/to/certificate>
+;	If the server your connecting to uses a self signed certificate
+;	you should have their certificate installed here so the code can 
+;	verify the authenticity of their certificate.
+
+;tlscadir=</path/to/ca/dir>
+;	A directory full of CA certificates.  The files must be named with 
+;	the CA subject name hash value. 
+;	(see man SSL_CTX_load_verify_locations for more info) 
+
+;tlsdontverifyserver=[yes|no]
+;	If set to yes, don't verify the servers certificate when acting as 
+;	a client.  If you don't have the server's CA certificate you can
+;	set this and it will connect without requiring tlscafile to be set.
+;	Default is no.
+
+;tlscipher=<SSL cipher string>
+;	A string specifying which SSL ciphers to use or not use
+;	A list of valid SSL cipher strings can be found at: 
+;		http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
+
 srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Note: Asterisk only uses the first host 
 				; in SRV records

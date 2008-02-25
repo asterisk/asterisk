@@ -47,6 +47,8 @@ tlsdontverifyserver=[yes|no]
 
 tlscipher=<SSL cipher string>
 	A string specifying which SSL ciphers to use or not use
+	A list of valid SSL cipher strings can be found at: 
+		http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
 
 
 Sample config
