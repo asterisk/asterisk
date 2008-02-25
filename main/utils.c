@@ -610,7 +610,16 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 		pthread_mutex_unlock(&lock_info->lock);
 		return;
 	}
-	
+
+	if (i && lock_info->locks[i].pending == -1) {
+		/* The last lock on the list was one that this thread tried to lock but
+		 * failed at doing so.  It has now moved on to something else, so remove
+		 * the old lock from the list. */
+		i--;
+		lock_info->num_locks--;
+		memset(&lock_info->locks[i], 0, sizeof(lock_info->locks[0]));
+	}
+
 	lock_info->locks[i].file = filename;
 	lock_info->locks[i].line_num = line_num;
 	lock_info->locks[i].func = func;
