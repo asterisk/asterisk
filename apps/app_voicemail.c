@@ -202,6 +202,7 @@ static struct vmstate *vmstates = NULL;
 #define VM_SEARCH        (1 << 14)
 #define VM_TEMPGREETWARN (1 << 15)  /*!< Remind user tempgreeting is set */
 #define ERROR_LOCK_PATH  -100
+#define ERROR_MAILBOX_FULL	-200
 
 
 enum {
@@ -3282,7 +3283,7 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	}
 	if (x >= vmu->maxmsg) {
 		ast_unlock_path(ddir);
-		return -1;
+		return ERROR_MAILBOX_FULL;
 	}
 	if (strcmp(sfn, dfn)) {
 		COPY(dir, msg, ddir, x, username, context, sfn, dfn);
@@ -4925,8 +4926,9 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 		} else if (!strcasecmp(vms->curbox, "INBOX") && vms->heard[x] && !vms->deleted[x]) { 
 			/* Move to old folder before deleting */ 
 			res = save_to_folder(vmu, vms, x, 1);
-			if (res == ERROR_LOCK_PATH) {
+			if (res == ERROR_LOCK_PATH || res == ERROR_MAILBOX_FULL) {
 				/* If save failed do not delete the message */
+				ast_log(LOG_WARNING, "Save failed.  Not moving message: %s.\n", res == ERROR_LOCK_PATH ? "unable to lock path" : "destination folder full");
 				vms->deleted[x] = 0;
 				vms->heard[x] = 0;
 				--x;
