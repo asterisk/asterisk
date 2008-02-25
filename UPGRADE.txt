@@ -157,6 +157,9 @@ Channel Drivers:
   to modify modules.conf to add another "noload" line to ensure that only one of
   these three modules gets loaded.
 
+* Zap: The "msdstrip" option has been deprecated, as it provides no value over
+  the method of stripping digits in the dialplan using variable substring syntax.
+
 Configuration:
 
 * pbx_dundi.c: tos parameter changed to use new values. Old values like lowdelay,
