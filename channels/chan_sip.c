@@ -5831,7 +5831,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 			found = (!strcmp(p->callid, callid));
 		else 
 			found = (!strcmp(p->callid, callid) && 
-			(!pedanticsipchecking || !tag || ast_strlen_zero(p->theirtag) || !strcmp(p->theirtag, tag))) ;
+			(!pedanticsipchecking || ast_strlen_zero(tag) || ast_strlen_zero(p->theirtag) || !strcmp(p->theirtag, tag))) ;
 
 		ast_debug(5, "= %s Their Call ID: %s Their Tag %s Our tag: %s\n", found ? "Found" : "No match", p->callid, p->theirtag, p->tag);
 
