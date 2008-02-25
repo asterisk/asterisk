@@ -14812,6 +14812,18 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	}
 
 	if (!ast_test_flag(req, SIP_PKT_IGNORE) && !resubscribe) {	/* Set up dialog, new subscription */
+		const char *to = get_header(req, "To");
+		char totag[128];
+
+		/* Check to see if a tag was provided, if so this is actually a resubscription of a dialog we no longer know about */
+		if (!ast_strlen_zero(to) && gettag(req, "To", totag, sizeof(totag))) {
+			if (ast_test_flag(req, SIP_PKT_DEBUG))
+				ast_verbose("Received resubscription for a dialog we no longer know about. Telling remote side to subscribe again.\n");
+			transmit_response(p, "481 Subscription does not exist", req);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+			return 0;
+		}
+
 		/* Use this as the basis */
 		if (ast_test_flag(req, SIP_PKT_DEBUG))
 			ast_verbose("Creating new subscription\n");
