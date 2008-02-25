@@ -1581,10 +1581,29 @@ static int agent_logoff(const char *agent, int soft)
 			ret = 0;
 			if (p->owner || p->chan) {
 				if (!soft) {
-					if (p->owner)
+					ast_mutex_lock(&p->lock);
+
+					while (p->owner && ast_channel_trylock(p->owner)) {
+						ast_mutex_unlock(&p->lock);
+						usleep(1);
+						ast_mutex_lock(&p->lock);
+					}
+					if (p->owner) {
 						ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
-					if (p->chan)
+						ast_channel_unlock(p->owner);
+					}
+
+					while (p->chan && ast_channel_trylock(p->chan)) {
+						ast_mutex_unlock(&p->lock);
+						usleep(1);
+						ast_mutex_lock(&p->lock);
+					}
+					if (p->chan) {
 						ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
+						ast_channel_unlock(p->chan);
+					}
+
+					ast_mutex_unlock(&p->lock);
 				} else
 					p->deferlogoff = 1;
 			} else {
