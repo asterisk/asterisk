@@ -1417,7 +1417,7 @@ static void sip_dump_history(struct sip_pvt *dialog);
 /*--- Device object handling */
 static struct sip_peer *temp_peer(const char *name);
 static struct sip_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int realtime);
-static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime);
+static struct sip_user *build_user(const char *name, struct ast_variable *v, struct ast_variable *alt, int realtime);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static void sip_destroy_peer(struct sip_peer *peer);
 static void sip_destroy_user(struct sip_user *user);
@@ -2697,7 +2697,7 @@ static struct sip_user *realtime_user(const char *username)
 		}
 	}
 
-	user = build_user(username, var, !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS));
+	user = build_user(username, var, NULL, !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS));
 	
 	if (!user) {	/* No user found */
 		ast_variables_destroy(var);
@@ -16296,7 +16296,7 @@ static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, con
 }
 
 /*! \brief Initiate a SIP user structure from configuration (configuration or realtime) */
-static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime)
+static struct sip_user *build_user(const char *name, struct ast_variable *v, struct ast_variable *alt, int realtime)
 {
 	struct sip_user *user;
 	int format;
@@ -16327,7 +16327,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	strcpy(user->language, default_language);
 	strcpy(user->mohinterpret, default_mohinterpret);
 	strcpy(user->mohsuggest, default_mohsuggest);
-	for (; v; v = v->next) {
+	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (handle_common_options(&userflags[0], &mask[0], v))
 			continue;
 
@@ -17147,6 +17147,12 @@ static int reload_config(enum channelreloadreason reason)
 				hassip = ast_variable_retrieve(ucfg, cat, "hassip");
 				registersip = ast_variable_retrieve(ucfg, cat, "registersip");
 				if (ast_true(hassip) || (!hassip && genhassip)) {
+					user = build_user(cat, gen, ast_variable_browse(ucfg, cat), 0);
+					if (user) {
+						ASTOBJ_CONTAINER_LINK(&userl,user);
+						ASTOBJ_UNREF(user, sip_destroy_user);
+						user_count++;
+					}
 					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0);
 					if (peer) {
 						ast_device_state_changed("SIP/%s", peer->name);
@@ -17208,7 +17214,7 @@ static int reload_config(enum channelreloadreason reason)
 				continue;
 			}
 			if (is_user) {
-				user = build_user(cat, ast_variable_browse(cfg, cat), 0);
+				user = build_user(cat, ast_variable_browse(cfg, cat), NULL, 0);
 				if (user) {
 					ASTOBJ_CONTAINER_LINK(&userl,user);
 					ASTOBJ_UNREF(user, sip_destroy_user);
