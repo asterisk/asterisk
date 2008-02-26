@@ -50,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision: 96773 $")
 #include "asterisk/config.h"
 #include "asterisk/acl.h"
 #include "asterisk/astobj2.h"
-#include "asterisk/version.h"
+#include "asterisk/ast_version.h"
 
 #ifdef LOW_MEMORY
 #define MAX_PROFILE_BUCKETS 1
