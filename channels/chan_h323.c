@@ -54,7 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <sys/param.h>
-#if defined(BSD)
+#if defined(BSD) || defined(SOLARIS)
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
 #endif
