@@ -307,8 +307,8 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	AST_LIST_UNLOCK(&queries);
 
 	for (dsn = 0; dsn < 5; dsn++) {
-		if (!ast_strlen_zero(query->writehandle[dsn])) {
-			obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
+		if (!ast_strlen_zero(query->readhandle[dsn])) {
+			obj = ast_odbc_request_obj(query->readhandle[dsn], 0);
 			if (obj)
 				stmt = ast_odbc_direct_execute(obj, generic_execute, sql);
 		}
