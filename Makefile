@@ -373,7 +373,7 @@ makeopts.embed_rules: menuselect.makeopts
 	@$(MAKE) $(PRINT_DIR) $(MOD_SUBDIRS_EMBED_LDFLAGS)
 	@$(MAKE) $(PRINT_DIR) $(MOD_SUBDIRS_EMBED_LIBS)
 
-$(SUBDIRS): main/version.c include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
+$(SUBDIRS): main/version.c include/asterisk/version.h include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
 
 ifeq ($(findstring $(OSARCH), mingw32 cygwin ),)
     # Non-windows:
@@ -409,6 +409,11 @@ main/version.c:
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
+include/asterisk/version.h:
+	@build_tools/make_version_h > $@.tmp
+	@cmp -s $@.tmp $@ || mv $@.tmp $@
+	@rm -f $@.tmp
+
 include/asterisk/buildopts.h: menuselect.makeopts
 	@build_tools/make_buildopts_h > $@.tmp
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
@@ -429,6 +434,7 @@ clean: $(SUBDIRS_CLEAN)
 	rm -f defaults.h
 	rm -f include/asterisk/build.h
 	rm -f main/version.c
+	rm -f include/asterisk/version.h
 	@$(MAKE) -C menuselect clean
 	cp -f .cleancount .lastclean
 
@@ -716,7 +722,7 @@ spec:
 
 rpm: __rpm
 
-__rpm: main/version.c include/asterisk/buildopts.h spec
+__rpm: main/version.c include/asterisk/version.h include/asterisk/buildopts.h spec
 	rm -rf /tmp/asterisk ; \
 	mkdir -p /tmp/asterisk/redhat/RPMS/i386 ; \
 	$(MAKE) DESTDIR=/tmp/asterisk install ; \
@@ -841,4 +847,4 @@ pdf: asterisk.pdf
 asterisk.pdf:
 	$(MAKE) -C doc/tex asterisk.pdf
 
-.PHONY: menuselect main sounds clean dist-clean distclean all prereqs cleantest uninstall _uninstall uninstall-all pdf dont-optimize $(SUBDIRS_INSTALL) $(SUBDIRS_DIST_CLEAN) $(SUBDIRS_CLEAN) $(SUBDIRS_UNINSTALL) $(SUBDIRS) $(MOD_SUBDIRS_EMBED_LDSCRIPT) $(MOD_SUBDIRS_EMBED_LDFLAGS) $(MOD_SUBDIRS_EMBED_LIBS) badshell main/version.c
+.PHONY: menuselect main sounds clean dist-clean distclean all prereqs cleantest uninstall _uninstall uninstall-all pdf dont-optimize $(SUBDIRS_INSTALL) $(SUBDIRS_DIST_CLEAN) $(SUBDIRS_CLEAN) $(SUBDIRS_UNINSTALL) $(SUBDIRS) $(MOD_SUBDIRS_EMBED_LDSCRIPT) $(MOD_SUBDIRS_EMBED_LDFLAGS) $(MOD_SUBDIRS_EMBED_LIBS) badshell main/version.c include/asterisk/version.h
