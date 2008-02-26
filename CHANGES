@@ -281,6 +281,12 @@ Voicemail Changes
      lockfile will not work, such as on SMB/CIFS mounts.
   * Added the ability to backup deleted messages, to ease recovery in the case
      that a user accidentally deletes a message, and discovers that they need it.
+  * Reworked the SMDI interface in Asterisk.  The new way to access SMDI information
+     is through the new functions, SMDI_MSG_RETRIEVE() and SMDI_MSG().  The file
+     smdi.conf can now be configured with options to map SMDI station IDs to Asterisk
+     voicemail boxes.  The SMDI interface can also poll for MWI changes when some
+     outside entity is modifying the state of the mailbox (such as IMAP storage or
+     a web interface of some kind).
 
 Queue changes
 -------------
