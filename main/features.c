@@ -694,7 +694,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 			args = alloca(len);
 			touch_filename = alloca(len);
 			snprintf(touch_filename, len, "%s-%ld-%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), touch_monitor);
-			snprintf(args, len, "%s|%s|m", S_OR(touch_format, "wav"), touch_filename);
+			snprintf(args, len, "%s,%s,m", S_OR(touch_format, "wav"), touch_filename);
 		} else {
 			caller_chan_id = ast_strdupa(S_OR(caller_chan->cid.cid_num, caller_chan->name));
 			callee_chan_id = ast_strdupa(S_OR(callee_chan->cid.cid_num, callee_chan->name));
@@ -702,7 +702,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 			args = alloca(len);
 			touch_filename = alloca(len);
 			snprintf(touch_filename, len, "%s-%ld-%s-%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), caller_chan_id, callee_chan_id);
-			snprintf(args, len, "%s|%s|m", S_OR(touch_format, "wav"), touch_filename);
+			snprintf(args, len, "%s,%s,m", S_OR(touch_format, "wav"), touch_filename);
 		}
 
 		for(x = 0; x < strlen(args); x++) {
