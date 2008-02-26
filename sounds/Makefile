@@ -15,8 +15,8 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/makeopts
 
-SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
-MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
+SOUNDS_DIR:=$(abspath $(DESTDIR)$(ASTDATADIR)/sounds)
+MOH_DIR:=$(abspath $(DESTDIR)$(ASTDATADIR)/moh)
 CORE_SOUNDS_VERSION:=1.4.8
 EXTRA_SOUNDS_VERSION:=1.4.7
 SOUNDS_URL:=http://downloads.digium.com/pub/telephony/sounds/releases
