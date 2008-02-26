@@ -56,7 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/indications.h"
-#include "asterisk/version.h"
+#include "asterisk/ast_version.h"
 #include "asterisk/pbx.h"
 
 /* Colission between Net-SNMP and Asterisk */
