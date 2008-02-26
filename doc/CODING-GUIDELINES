@@ -226,10 +226,14 @@ for (x = 0; x < 5; x++)
 instead do:
 for (x = 0; x < 5; x++) {
 	if (foo) {
-		if (bar)
+		if (bar) {
 			baz();
+		}
 	}
 }
+
+- Always use braces around the statements following an if/for/while construct,
+even if not strictly necessary, as it reduces future possible problems.
 
 - Don't build code like this:
 
@@ -376,15 +380,15 @@ you intend to parse the incoming data string.
 		mydata = ast_strdupa(data);
 
 
-- Separating arguments to dialplan applications and functions
-Use ast_app_separate_args() to separate the arguments to your application
-once you have made a local copy of the string.
+- Use the argument parsing macros to declare arguments and parse them, i.e.:
 
-- Parsing strings with strsep
-Use strsep() for parsing strings when possible; there is no worry about
-'re-entrancy' as with strtok(), and even though it modifies the original
-string (which the man page warns about), in many cases that is exactly
-what you want!
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(arg1);
+		AST_APP_ARG(arg2);
+		AST_APP_ARG(arg3);
+	);
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
 
 - Create generic code!
 If you do the same or a similar operation more than one time, make it a
@@ -463,7 +467,7 @@ in having code like this:
 	else
 		newstr = NULL;
 
-However, the ast_strdup and ast_strdup functions will happily accept a NULL
+However, the ast_strdup and ast_strdupa functions will happily accept a NULL
 argument without generating an error.  The same code can be written as:
 	
 	newstr = ast_strdup(str);
