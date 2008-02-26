@@ -498,7 +498,14 @@ oldmodcheck:
 		echo " WARNING WARNING WARNING" ;\
 	fi
 
-install: datafiles bininstall $(SUBDIRS_INSTALL)
+badshell:
+ifneq ($(findstring ~,$(DESTDIR)),)
+	@echo "Your shell doesn't do ~ expansion when expected (specifically, when doing \"make install DESTDIR=~/path\")."
+	@echo "Try replacing ~ with \$$HOME, as in \"make install DESTDIR=\$$HOME/path\"."
+	@exit 1
+endif
+
+install: badshell datafiles bininstall $(SUBDIRS_INSTALL)
 	@if [ -x /usr/sbin/asterisk-post-install ]; then \
 		/usr/sbin/asterisk-post-install $(DESTDIR) . ; \
 	fi
