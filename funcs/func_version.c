@@ -31,7 +31,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
-#include "asterisk/version.h"
+#include "asterisk/ast_version.h"
 #include "asterisk/build.h"
 
 static int acf_version_exec(struct ast_channel *chan, const char *cmd,
