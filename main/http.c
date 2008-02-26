@@ -49,7 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/config.h"
 #include "asterisk/stringfields.h"
-#include "asterisk/version.h"
+#include "asterisk/ast_version.h"
 #include "asterisk/manager.h"
 
 #define MAX_PREFIX 80

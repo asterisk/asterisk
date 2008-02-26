@@ -14,7 +14,7 @@ cat << END
 
 #include "asterisk.h"
 
-#include "asterisk/version.h"
+#include "asterisk/ast_version.h"
 
 static const char asterisk_version[] = "${ASTERISKVERSION}${EXTRA}";
 

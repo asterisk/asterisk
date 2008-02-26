@@ -173,7 +173,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/translate.h"
-#include "asterisk/version.h"
+#include "asterisk/ast_version.h"
 #include "asterisk/event.h"
 #include "asterisk/tcptls.h"
 

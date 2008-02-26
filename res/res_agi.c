@@ -53,7 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/agi.h"
 #include "asterisk/manager.h"
-#include "asterisk/version.h"
+#include "asterisk/ast_version.h"
 #include "asterisk/speech.h"
 #include "asterisk/manager.h"
 

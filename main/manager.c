@@ -67,7 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/tcptls.h"
 #include "asterisk/http.h"
-#include "asterisk/version.h"
+#include "asterisk/ast_version.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/version.h"
