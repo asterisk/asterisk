@@ -11488,7 +11488,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 	const char *content_type = get_header(req, "Content-Type");
 
 	if (strcmp(content_type, "text/plain")) { /* No text/plain attachment */
-		transmit_response(p, "415 Unsupported Media Type", req); /* Good enough, or? */
+		transmit_response(p, "415 Unsupported Media Type", req); 
 		if (!p->owner)
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
@@ -11515,7 +11515,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 		transmit_response(p, "202 Accepted", req); /* We respond 202 accepted, since we relay the message */
 	} else { /* Message outside of a call, we do not support that */
 		ast_log(LOG_WARNING, "Received message to %s from %s, dropped it...\n  Content-Type:%s\n  Message: %s\n", get_header(req, "To"), get_header(req, "From"), content_type, buf);
-		transmit_response(p, "405 Method Not Allowed", req); /* Good enough, or? */
+		transmit_response(p, "405 Method Not Allowed", req);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
 	return;
@@ -11880,7 +11880,7 @@ static char *sip_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	return _sip_show_peers(a->fd, NULL, NULL, NULL, a->argc, (const char **) a->argv);
 }
 
-/*! \brief  _sip_show_peers: Execute sip show peers command */
+/*! \brief Execute sip show peers command */
 static char *_sip_show_peers(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[])
 {
 	regex_t regexbuf;
@@ -12382,6 +12382,7 @@ static char *sip_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	return _sip_show_peer(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
 }
 
+/*! \brief list peer mailboxes to CLI */
 static void peer_mailboxes_to_str(struct ast_str **mailbox_str, struct sip_peer *peer)
 {
 	struct sip_mailbox *mailbox;
@@ -12614,7 +12615,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "%s\r\n", status);
  		astman_append(s, "SIP-Useragent: %s\r\n", peer->useragent);
  		astman_append(s, "Reg-Contact : %s\r\n", peer->fullcontact);
-		astman_append(s, "Qualify Freq : %d ms\n", peer->qualifyfreq);
+		astman_append(s, "QualifyFreq : %d ms\n", peer->qualifyfreq);
 		if (peer->chanvars) {
 			for (v = peer->chanvars ; v ; v = v->next) {
  				astman_append(s, "ChanVariable:\n");
@@ -12818,8 +12819,8 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Bindaddress:            %s\n", ast_inet_ntoa(bindaddr.sin_addr));
 	ast_cli(a->fd, "  Videosupport:           %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT)));
 	ast_cli(a->fd, "  Textsupport:            %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT)));
-	ast_cli(a->fd, "  AutoCreatePeer:         %s\n", cli_yesno(autocreatepeer));
-	ast_cli(a->fd, "  MatchAuthUsername:      %s\n", cli_yesno(global_match_auth_username));
+	ast_cli(a->fd, "  AutoCreate Peer:        %s\n", cli_yesno(autocreatepeer));
+	ast_cli(a->fd, "  Match Auth Username:    %s\n", cli_yesno(global_match_auth_username));
 	ast_cli(a->fd, "  Allow unknown access:   %s\n", cli_yesno(global_allowguest));
 	ast_cli(a->fd, "  Allow subscriptions:    %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
 	ast_cli(a->fd, "  Enable call counters:   %s\n", cli_yesno(global_callcounter));
@@ -12842,6 +12843,19 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  From: Domain:           %s\n", default_fromdomain);
 	ast_cli(a->fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
 	ast_cli(a->fd, "  Call Events:            %s\n", global_callevents ? "On" : "Off");
+
+	ast_cli(a->fd, "  T38 fax pt UDPTL:       %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_UDPTL)));
+#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
+	ast_cli(a->fd, "  T38 fax pt RTP:         %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_RTP)));
+	ast_cli(a->fd, "  T38 fax pt TCP:         %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_TCP)));
+#endif
+	if (!realtimepeers && !realtimeusers && !realtimeregs)
+		ast_cli(a->fd, "  SIP realtime:           Disabled\n" );
+	else
+		ast_cli(a->fd, "  SIP realtime:           Enabled\n" );
+	ast_cli(a->fd, "  Qualify Freq :          %d ms\n", global_qualifyfreq);
+	ast_cli(a->fd, "\nNetwork QoS Settings:\n");
+	ast_cli(a->fd, "---------------------------\n");
 	ast_cli(a->fd, "  IP ToS SIP:             %s\n", ast_tos2str(global_tos_sip));
 	ast_cli(a->fd, "  IP ToS RTP audio:       %s\n", ast_tos2str(global_tos_audio));
 	ast_cli(a->fd, "  IP ToS RTP video:       %s\n", ast_tos2str(global_tos_video));
@@ -12850,24 +12864,12 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  802.1p CoS RTP audio:   %d\n", global_cos_audio);
 	ast_cli(a->fd, "  802.1p CoS RTP video:   %d\n", global_cos_video);
 	ast_cli(a->fd, "  802.1p CoS RTP text:    %d\n", global_cos_text);
-
-	ast_cli(a->fd, "  T38 fax pt UDPTL:       %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_UDPTL)));
-#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
-	ast_cli(a->fd, "  T38 fax pt RTP:         %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_RTP)));
-	ast_cli(a->fd, "  T38 fax pt TCP:         %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_TCP)));
-#endif
-	ast_cli(a->fd, "  RFC2833 Compensation:   %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE)));
 	ast_cli(a->fd, "  Jitterbuffer enabled:   %s\n", cli_yesno(ast_test_flag(&global_jbconf, AST_JB_ENABLED)));
 	ast_cli(a->fd, "  Jitterbuffer forced:    %s\n", cli_yesno(ast_test_flag(&global_jbconf, AST_JB_FORCED)));
 	ast_cli(a->fd, "  Jitterbuffer max size:  %ld\n", global_jbconf.max_size);
 	ast_cli(a->fd, "  Jitterbuffer resync:    %ld\n", global_jbconf.resync_threshold);
 	ast_cli(a->fd, "  Jitterbuffer impl:      %s\n", global_jbconf.impl);
 	ast_cli(a->fd, "  Jitterbuffer log:       %s\n", cli_yesno(ast_test_flag(&global_jbconf, AST_JB_LOG)));
-	if (!realtimepeers && !realtimeusers && !realtimeregs)
-		ast_cli(a->fd, "  SIP realtime:           Disabled\n" );
-	else
-		ast_cli(a->fd, "  SIP realtime:           Enabled\n" );
-	ast_cli(a->fd, "  Qualify Freq :          %d ms\n", global_qualifyfreq);
 
 	ast_cli(a->fd, "\nNetwork Settings:\n");
 	ast_cli(a->fd, "---------------------------\n");
@@ -12909,6 +12911,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	print_codec_to_cli(a->fd, &default_prefs);
 	ast_cli(a->fd, "\n");
 	ast_cli(a->fd, "  Relax DTMF:             %s\n", cli_yesno(global_relaxdtmf));
+	ast_cli(a->fd, "  RFC2833 Compensation:   %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE)));
 	ast_cli(a->fd, "  Compact SIP headers:    %s\n", cli_yesno(compactheaders));
 	ast_cli(a->fd, "  RTP Keepalive:          %d %s\n", global_rtpkeepalive, global_rtpkeepalive ? "" : "(Disabled)" );
 	ast_cli(a->fd, "  RTP Timeout:            %d %s\n", global_rtptimeout, global_rtptimeout ? "" : "(Disabled)" );
@@ -13424,8 +13427,7 @@ static void sip_dump_history(struct sip_pvt *dialog)
 }
 
 
-/*! \brief  Receive SIP INFO Message
-\note    Doesn't read the duration of the DTMF signal */
+/*! \brief  Receive SIP INFO Message */
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 {
 	char buf[1024];
@@ -13499,6 +13501,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 		transmit_response(p, "200 OK", req);
 		return;
 	} else if (!strcasecmp(c, "application/dtmf")) {
+		/*! \todo Note: Doesn't read the duration of the DTMF. Should be fixed. */
 		unsigned int duration = 0;
 
 		if (!p->owner) {	/* not a PBX call */
@@ -13506,8 +13509,6 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return;
 		}
-
-
 
 		get_msg_text(buf, sizeof(buf), req);
 		duration = 100; /* 100 ms */
@@ -13638,7 +13639,7 @@ static char *sip_do_debug_ip(int fd, char *arg)
 	return CLI_SUCCESS;
 }
 
-/*! \brief  sip_do_debug_peer: Turn on SIP debugging for a given peer */
+/*! \brief  Turn on SIP debugging for a given peer */
 static char *sip_do_debug_peer(int fd, char *arg)
 {
 	struct sip_peer *peer = find_peer(arg, NULL, 1);
@@ -19833,16 +19834,16 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
 				peer->rtpkeepalive = global_rtpkeepalive;
 			}
-      } else if (!strcasecmp(v->name, "timert1")) {
-         if ((sscanf(v->value, "%d", &peer->timer_t1) != 1) || (peer->timer_t1 < 0)) {
-            ast_log(LOG_WARNING, "'%s' is not a valid T1 time at line %d.  Using default.\n", v->value, v->lineno);
-            peer->timer_t1 = global_t1;
-         }
-      } else if (!strcasecmp(v->name, "timerb")) {
-         if ((sscanf(v->value, "%d", &peer->timer_b) != 1) || (peer->timer_b < 0)) {
-            ast_log(LOG_WARNING, "'%s' is not a valid Timer B time at line %d.  Using default.\n", v->value, v->lineno);
-            peer->timer_b = global_timer_b;
-         }
+		} else if (!strcasecmp(v->name, "timert1")) {
+			if ((sscanf(v->value, "%d", &peer->timer_t1) != 1) || (peer->timer_t1 < 0)) {
+				ast_log(LOG_WARNING, "'%s' is not a valid T1 time at line %d.  Using default.\n", v->value, v->lineno);
+				peer->timer_t1 = global_t1;
+			}
+		} else if (!strcasecmp(v->name, "timerb")) {
+			if ((sscanf(v->value, "%d", &peer->timer_b) != 1) || (peer->timer_b < 0)) {
+				ast_log(LOG_WARNING, "'%s' is not a valid Timer B time at line %d.  Using default.\n", v->value, v->lineno);
+				peer->timer_b = global_timer_b;
+			}
 		} else if (!strcasecmp(v->name, "setvar")) {
 			peer->chanvars = add_var(v->value, peer->chanvars);
 		} else if (!strcasecmp(v->name, "qualify")) {
@@ -20657,10 +20658,11 @@ static int reload_config(enum channelreloadreason reason)
 	}
 	ast_mutex_unlock(&netlock);
 
-	/* Add default domains - host name, IP address and IP:port */
-	/* Only do this if user added any sip domain with "localdomains" */
-	/* In order to *not* break backwards compatibility */
-	/* 	Some phones address us at IP only, some with additional port number */
+	/* Add default domains - host name, IP address and IP:port
+	 * Only do this if user added any sip domain with "localdomains" 
+	 * In order to *not* break backwards compatibility 
+	 * 	Some phones address us at IP only, some with additional port number 
+	 */
 	if (auto_sip_domains) {
 		char temp[MAXHOSTNAMELEN];
 
