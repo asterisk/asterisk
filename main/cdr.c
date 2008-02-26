@@ -1025,6 +1025,12 @@ void ast_cdr_reset(struct ast_cdr *cdr, struct ast_flags *_flags)
 				ast_set_flag(cdr, AST_CDR_FLAG_POSTED);
 			}
 
+			/* enable CDR only */
+			if (ast_test_flag(&flags, AST_CDR_FLAG_POST_ENABLE)) {
+				ast_clear_flag(cdr, AST_CDR_FLAG_POST_DISABLED);
+				continue;
+			}
+
 			/* clear variables */
 			if (!ast_test_flag(&flags, AST_CDR_FLAG_KEEP_VARS)) {
 				ast_cdr_free_vars(cdr, 0);

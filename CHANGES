@@ -478,6 +478,8 @@ Call Detail Records
      (but a record will still be inserted, based on what columns remain).  Note
      that the other two features from cdr_adaptive_odbc (alias and filter) are
      not currently supported.
+  * The ResetCDR application now has an 'e' option that re-enables a CDR if it
+     has been disabled using the NoCDR application.
 
 Miscellaneous New Modules
 -------------------------

@@ -589,6 +589,7 @@ static struct pbx_builtin {
 	"    w -- Store the current CDR record before resetting it.\n"
 	"    a -- Store any stacked records.\n"
 	"    v -- Save CDR variables.\n"
+	"    e -- Enable CDR only (negate effects of NoCDR).\n"
 	},
 
 	{ "Ringing", pbx_builtin_ringing,
@@ -6846,6 +6847,7 @@ AST_APP_OPTIONS(resetcdr_opts, {
 	AST_APP_OPTION('w', AST_CDR_FLAG_POSTED),
 	AST_APP_OPTION('a', AST_CDR_FLAG_LOCKED),
 	AST_APP_OPTION('v', AST_CDR_FLAG_KEEP_VARS),
+	AST_APP_OPTION('e', AST_CDR_FLAG_POST_ENABLE),
 });
 
 /*!

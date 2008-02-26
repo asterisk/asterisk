@@ -29,6 +29,7 @@
 #define AST_CDR_FLAG_LOCKED			(1 << 2)
 #define AST_CDR_FLAG_CHILD			(1 << 3)
 #define AST_CDR_FLAG_POST_DISABLED		(1 << 4)
+#define AST_CDR_FLAG_POST_ENABLE                (1 << 5)
 
 /*! \name CDR Flags */
 /*@{ */
