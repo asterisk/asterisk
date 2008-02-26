@@ -2764,7 +2764,7 @@ static void destroy_zt_pvt(struct zt_pvt **pvt)
 	if (p->next)
 		p->next->prev = p->prev;
 	if (p->use_smdi)
-		ASTOBJ_UNREF(p->smdi_iface, ast_smdi_interface_destroy);
+		ast_smdi_interface_unref(p->smdi_iface);
 	if (p->mwi_event_sub)
 		ast_event_unsubscribe(p->mwi_event_sub);
 	if (p->vars)

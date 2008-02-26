@@ -1,9 +1,10 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Copyright (C) 2005-2006, Digium, Inc.
+ * Copyright (C) 2005-2008, Digium, Inc.
  *
  * Matthew A. Nicholson <mnicholson@digium.com>
+ * Russell Bryant <russell@digium.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -20,6 +21,7 @@
  * \file
  * \brief SMDI support for Asterisk.
  * \author Matthew A. Nicholson <mnicholson@digium.com>
+ * \author Russell Bryant <russell@digium.com>
  */
 
 
@@ -73,16 +75,6 @@ struct ast_smdi_md_message {
 	struct timeval timestamp;				/* a timestamp for the message */
 };
 
-/*! \brief SMDI message desk message queue. */
-struct ast_smdi_md_queue {
-	ASTOBJ_CONTAINER_COMPONENTS(struct ast_smdi_md_message);
-};
-
-/*! \brief SMDI message waiting indicator message queue. */
-struct ast_smdi_mwi_queue {
-	ASTOBJ_CONTAINER_COMPONENTS(struct ast_smdi_mwi_message);
-};
-
 /*! 
  * \brief SMDI interface structure.
  *
@@ -90,38 +82,114 @@ struct ast_smdi_mwi_queue {
  * should be monitored for SMDI activity.  The structure contains a message
  * queue of messages that have been received on the interface.
  */
-struct ast_smdi_interface {
-	ASTOBJ_COMPONENTS_FULL(struct ast_smdi_interface, SMDI_MAX_FILENAME_LEN, 1);
-	struct ast_smdi_md_queue md_q;
-	struct ast_smdi_mwi_queue mwi_q;
-	FILE *file;
-	int fd;
-	pthread_t thread;
-	struct termios mode;
-	int msdstrip;
-	long msg_expiry;
-};
+struct ast_smdi_interface;
 
+void ast_smdi_interface_unref(struct ast_smdi_interface *iface);
 
-/* MD message queue functions */
+/*! 
+ * \brief Get the next SMDI message from the queue.
+ * \param iface a pointer to the interface to use.
+ *
+ * This function pulls the first unexpired message from the SMDI message queue
+ * on the specified interface.  It will purge all expired SMDI messages before
+ * returning.
+ *
+ * \return the next SMDI message, or NULL if there were no pending messages.
+ */
 struct ast_smdi_md_message *ast_smdi_md_message_pop(struct ast_smdi_interface *iface);
+
+/*!
+ * \brief Get the next SMDI message from the queue.
+ * \param iface a pointer to the interface to use.
+ * \param timeout the time to wait before returning in milliseconds.
+ *
+ * This function pulls a message from the SMDI message queue on the specified
+ * interface.  If no message is available this function will wait the specified
+ * amount of time before returning.
+ *
+ * \return the next SMDI message, or NULL if there were no pending messages and
+ * the timeout has expired.
+ */
 struct ast_smdi_md_message *ast_smdi_md_message_wait(struct ast_smdi_interface *iface, int timeout);
+
+/*!
+ * \brief Put an SMDI message back in the front of the queue.
+ * \param iface a pointer to the interface to use.
+ * \param md_msg a pointer to the message to use.
+ *
+ * This function puts a message back in the front of the specified queue.  It
+ * should be used if a message was popped but is not going to be processed for
+ * some reason, and the message needs to be returned to the queue.
+ */
 void ast_smdi_md_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_md_message *msg);
 
-/* MWI message queue functions */
+/*!
+ * \brief Get the next SMDI message from the queue.
+ * \param iface a pointer to the interface to use.
+ *
+ * This function pulls the first unexpired message from the SMDI message queue
+ * on the specified interface.  It will purge all expired SMDI messages before
+ * returning.
+ *
+ * \return the next SMDI message, or NULL if there were no pending messages.
+ */
 struct ast_smdi_mwi_message *ast_smdi_mwi_message_pop(struct ast_smdi_interface *iface);
+
+/*!
+ * \brief Get the next SMDI message from the queue.
+ * \param iface a pointer to the interface to use.
+ * \param timeout the time to wait before returning in milliseconds.
+ *
+ * This function pulls a message from the SMDI message queue on the specified
+ * interface.  If no message is available this function will wait the specified
+ * amount of time before returning.
+ *
+ * \return the next SMDI message, or NULL if there were no pending messages and
+ * the timeout has expired.
+ */
 struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait(struct ast_smdi_interface *iface, int timeout);
+struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait_station(struct ast_smdi_interface *iface, 
+	int timeout, const char *station);
+
+/*!
+ * \brief Put an SMDI message back in the front of the queue.
+ * \param iface a pointer to the interface to use.
+ * \param mwi_msg a pointer to the message to use.
+ *
+ * This function puts a message back in the front of the specified queue.  It
+ * should be used if a message was popped but is not going to be processed for
+ * some reason, and the message needs to be returned to the queue.
+ */
 void ast_smdi_mwi_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_mwi_message *msg);
 
+/*!
+ * \brief Find an SMDI interface with the specified name.
+ * \param iface_name the name/port of the interface to search for.
+ *
+ * \return a pointer to the interface located or NULL if none was found.  This
+ * actually returns an ASTOBJ reference and should be released using
+ * #ASTOBJ_UNREF(iface, ast_smdi_interface_destroy).
+ */
 struct ast_smdi_interface *ast_smdi_interface_find(const char *iface_name);
 
-/* MWI functions */
+/*!
+ * \brief Set the MWI indicator for a mailbox.
+ * \param iface the interface to use.
+ * \param mailbox the mailbox to use.
+ */
 int ast_smdi_mwi_set(struct ast_smdi_interface *iface, const char *mailbox);
+
+/*! 
+ * \brief Unset the MWI indicator for a mailbox.
+ * \param iface the interface to use.
+ * \param mailbox the mailbox to use.
+ */
 int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mailbox);
 
+/*! \brief ast_smdi_md_message destructor. */
 void ast_smdi_md_message_destroy(struct ast_smdi_md_message *msg);
-void ast_smdi_mwi_message_destroy(struct ast_smdi_mwi_message *msg);
 
-void ast_smdi_interface_destroy(struct ast_smdi_interface *iface);
+/*! \brief ast_smdi_mwi_message destructor. */
+void ast_smdi_mwi_message_destroy(struct ast_smdi_mwi_message *msg);
 
 #endif /* !ASTERISK_SMDI_H */
