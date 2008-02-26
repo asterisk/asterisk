@@ -2779,8 +2779,8 @@ static void run_externnotify(char *context, char *extension)
 		else
 			ast_smdi_mwi_unset(smdi_iface, extension);
 
-		if ((mwi_msg = ast_smdi_mwi_message_wait(smdi_iface, SMDI_MWI_WAIT_TIMEOUT))) {
-			ast_log(LOG_ERROR, "Error executing SMDI MWI change for %s on %s\n", extension, smdi_iface->name);
+		if ((mwi_msg = ast_smdi_mwi_message_wait_station(smdi_iface, SMDI_MWI_WAIT_TIMEOUT, extension))) {
+			ast_log(LOG_ERROR, "Error executing SMDI MWI change for %s\n", extension);
 			if (!strncmp(mwi_msg->cause, "INV", 3))
 				ast_log(LOG_ERROR, "Invalid MWI extension: %s\n", mwi_msg->fwd_st);
 			else if (!strncmp(mwi_msg->cause, "BLK", 3))
@@ -2789,7 +2789,7 @@ static void run_externnotify(char *context, char *extension)
 			ASTOBJ_UNREF(mwi_msg, ast_smdi_mwi_message_destroy);
 		} else {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Successfully executed SMDI MWI change for %s on %s\n", extension, smdi_iface->name);
+				ast_log(LOG_DEBUG, "Successfully executed SMDI MWI change for %s\n", extension);
 		}
 	} else if (!ast_strlen_zero(externnotify)) {
 		if (inboxcount(ext_context, &newvoicemails, &oldvoicemails)) {
@@ -7539,9 +7539,6 @@ static int load_config(void)
 				if (!smdi_iface) {
 					ast_log(LOG_ERROR, "No valid SMDI interface specfied, disabling external voicemail notification\n");
 					externnotify[0] = '\0';
-				} else {
-					if (option_debug > 2)
-						ast_log(LOG_DEBUG, "Using SMDI port %s\n", smdi_iface->name);
 				}
 			}
 		} else {

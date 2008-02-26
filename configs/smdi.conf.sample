@@ -41,3 +41,35 @@
 ;msgexpirytime = 30000
 
 ;smdiport => /dev/ttyS0
+
+
+[mailboxes]
+; This section configures parameters related to MWI handling for the SMDI link.
+
+; This option configures the polling interval used to check to see if the
+; mailboxes have any new messages.  This option is specified in seconds.
+; The default value is 10 seconds.
+;
+;pollinginterval=10
+
+; Every other entry in this section of the configuration file is interpreted as
+; a mapping between the mailbox ID on the SMDI link, and the local Asterisk
+; mailbox name.  In many cases, they are the same thing, but they still must be
+; listed here so that this module knows which mailboxes it needs to pay
+; attention to.
+;
+; Syntax:
+;   <SMDI mailbox ID>=<Asterisk Mailbox Name>[@Asterisk Voicemail Context]
+;
+; If no Asterisk voicemail context is specified, "default" will be assumed.
+;
+; Before specifying mailboxes, you must specify an SMDI interface.  All mailbox
+; definitions that follow will correspond to that SMDI interface.  If you specify
+; another interface, then all definitions following that will correspond to the
+; new interface.
+;
+;smdiport=/dev/ttyS0
+;2565551234=1234@vmcontext1
+;2565555678=5678@vmcontext2
+;smdiport=/dev/ttyS1
+;2565559999=9999
