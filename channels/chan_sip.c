@@ -14521,12 +14521,12 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			if (IS_SIP_TECH(bridgepeer->tech)) {
 				bridgepvt = (struct sip_pvt*)(bridgepeer->tech_pvt);
 				if (bridgepvt->udptl) {
-					if (p->t38.state == T38_PEER_REINVITE) {
+					if (p->t38.state == T38_ENABLED && bridgepvt->t38.state == T38_PEER_REINVITE) {
 						sip_handle_t38_reinvite(bridgepeer, p, 0);
 						ast_rtp_set_rtptimers_onhold(p->rtp);
 						if (p->vrtp)
 							ast_rtp_set_rtptimers_onhold(p->vrtp);	/* Turn off RTP timers while we send fax */
-					} else if (p->t38.state == T38_DISABLED && bridgepeer && (bridgepvt->t38.state == T38_ENABLED)) {
+					} else if (p->t38.state == T38_DISABLED && bridgepvt->t38.state == T38_ENABLED) {
 						ast_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
 						/* Insted of this we should somehow re-invite the other side of the bridge to RTP */
 						/* XXXX Should we really destroy this session here, without any response at all??? */
@@ -14544,10 +14544,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				ast_debug(2, "Strange... The other side of the bridge is not a SIP channel\n");
 				change_t38_state(p, T38_DISABLED);
 			}
-		}
-		if ((p->t38.state == T38_LOCAL_REINVITE) || (p->t38.state == T38_LOCAL_DIRECT)) {
-			/* If there was T38 reinvite and we are supposed to answer with 200 OK than this should set us to T38 negotiated mode */
-			change_t38_state(p, T38_ENABLED);
 		}
 
 		if (!req->ignore && p->owner) {
@@ -20795,6 +20791,7 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 					ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
 				else
 					ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip.sin_addr));
+				change_t38_state(p, T38_LOCAL_REINVITE);
 				transmit_reinvite_with_sdp(p, TRUE, FALSE);
 			} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 				if (flag)
