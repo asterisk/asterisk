@@ -3841,6 +3841,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				if (!strcasecmp(alarm_str, "No Alarm") || !strcasecmp(alarm_str, "Unknown Alarm")) {
 					p->unknown_alarm = 1;
 					break;
+				} else {
+					p->unknown_alarm = 0;
 				}
 					
 				ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm_str);
@@ -6710,6 +6712,8 @@ static int handle_init_event(struct zt_pvt *i, int event)
 			if (!strcasecmp(alarm_str, "No Alarm") || !strcasecmp(alarm_str, "Unknown Alarm")) {
 				i->unknown_alarm = 1;
 				break;
+			} else {
+				i->unknown_alarm = 0;
 			}
 
 			ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", i->channel, alarm_str);
