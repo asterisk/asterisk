@@ -500,6 +500,10 @@ redo:
 	if (!strncmp(this->name, "Zap/pseudo", 10)) {
 		ast_channel_unlock(this);
 		goto redo;
+	} else if (this == chan) {
+		last = this;
+		ast_channel_unlock(this);
+		goto redo;
 	}
 
 	return setup_chanspy_ds(this, chanspy_ds);
@@ -616,11 +620,6 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 				break;
 			}
 
-			if (peer == chan) {
-				ast_channel_unlock(peer);
-				continue;
-			}
-
 			if (ast_test_flag(flags, OPTION_BRIDGED) && !ast_bridged_channel(peer)) {
 				ast_channel_unlock(peer);
 				continue;
@@ -714,6 +713,7 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			num_spyed_upon++;	
 
 			if (res == -1) {
+				chanspy_ds_free(peer_chanspy_ds);
 				goto exit;
 			} else if (res == -2) {
 				res = 0;
