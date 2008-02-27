@@ -446,6 +446,8 @@ static struct chanspy_ds *chanspy_ds_free(struct chanspy_ds *chanspy_ds)
 		if ((datastore = ast_channel_datastore_find(chan, &chanspy_ds_info, NULL))) {
 			ast_channel_datastore_remove(chan, datastore);
 			/* chanspy_ds->chan is NULL after this call */
+			chanspy_ds_destroy(datastore->data);
+			datastore->data = NULL;
 			ast_channel_datastore_free(datastore);
 		}
 		ast_channel_unlock(chan);
