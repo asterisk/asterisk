@@ -566,7 +566,7 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 	}
 	if (preflang == NULL)
 		preflang = "";
-	buflen = strlen(preflang) + strlen(filename) + 2;
+	buflen = strlen(preflang) + strlen(filename) + 4;
 	buf = alloca(buflen);
 	if (buf == NULL)
 		return NULL;
