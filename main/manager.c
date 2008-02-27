@@ -3443,7 +3443,12 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		ast_mutex_init(&s->__lock);
 		ast_mutex_lock(&s->__lock);
 		s->inuse = 1;
-		s->managerid = (rand() ^ (unsigned long) s) | 1;	/* make sure it is non-zero */
+		/*!\note There is approximately a 1 in 1.8E19 chance that the following
+		 * calculation will produce 0, which is an invalid ID, but due to the
+		 * properties of the rand() function (and the constantcy of s), that
+		 * won't happen twice in a row.
+		 */
+		while ((s->managerid = rand() ^ (unsigned long) s) == 0);
 		s->last_ev = grab_last();
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
