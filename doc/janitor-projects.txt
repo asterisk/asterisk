@@ -1,0 +1,15 @@
+ -- There are many places where large character buffers are allocated in structures.  There is a new system for string handling that uses dynamically allocatted memory pools which is documented in include/asterisk/stringfields.h.  Examples of where they are currently used are the ast_channel structure defined in include/asterisk/channel.h, some structures in chan_sip.c, and chan_zap.c.
+
+ -- There is a convenient set of macros defined in include/asterisk/linkedlists.h for handling linked lists.  However, there are some open-coded lists throughout the code.  Converting linked lists to use these macros will make list handling more consistent and reduce the possibility of coding errors.
+
+ -- Clean up and add Doxygen Documentation. When generating the documentation with make progdocs, a lot of warnings are generated.  All of these need to be fixed.  There is also plenty of code that still needs to be documented.  All public API functions should be documented.  That is pretty much anything in include/asterisk/*.h.
+
+ -- Check all ast_copy_string() usage to ensure that buffers are not being unnecessarily zeroed before or after calling it.
+
+ -- Find any remaining open-coded struct timeval manipulation and convert to use new time library functions.
+
+ -- Use the ast_str API in strings.h to replace multiple calls to strncat(), snprintf() with funky math, etc.
+
+ -- Audit all channel/res/app/etc. modules to ensure that they do not register any entrypoints with the Asterisk core until after they are ready to service requests; all config file reading/processing, structure allocation, etc. must be completed before Asterisk is made aware of any services the module offers.
+
+ -- Ensure that Realtime-enabled modules do not depend on the order of columns returned by the database lookup (example: outboundproxy and host settings in chan_sip).
