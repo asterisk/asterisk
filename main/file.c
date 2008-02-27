@@ -577,7 +577,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 
 	if (preflang == NULL)
 		preflang = "";
-	buflen = strlen(preflang) + strlen(filename) + 2;
+	buflen = strlen(preflang) + strlen(filename) + 4;
 	buf = alloca(buflen);
 	if (buf == NULL)
 		return NULL;
@@ -804,7 +804,7 @@ int ast_fileexists(const char *filename, const char *fmt, const char *preflang)
 
 	if (preflang == NULL)
 		preflang = "";
-	buflen = strlen(preflang) + strlen(filename) + 2;	/* room for everything */
+	buflen = strlen(preflang) + strlen(filename) + 4;	/* room for everything */
 	buf = alloca(buflen);
 	if (buf == NULL)
 		return 0;
