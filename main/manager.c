@@ -2660,7 +2660,12 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 		ast_mutex_init(&s->__lock);
 		ast_mutex_lock(&s->__lock);
 		s->inuse = 1;
-		s->managerid = rand() ^ (unsigned long) s;
+		/*!\note There is approximately a 1 in 1.8E19 chance that the following
+		 * calculation will produce 0, which is an invalid ID, but due to the
+		 * properties of the rand() function (and the constantcy of s), that
+		 * won't happen twice in a row.
+		 */
+		while ((s->managerid = rand() ^ (unsigned long) s) == 0);
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
 		/* Hook into the last spot in the event queue */
