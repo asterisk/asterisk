@@ -610,6 +610,12 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 				break;
 			}
 
+			if (ast_check_hangup(chan)) {
+				ast_channel_unlock(peer);
+				chanspy_ds_free(peer_chanspy_ds);
+				break;
+			}
+
 			if (peer == chan) {
 				ast_channel_unlock(peer);
 				continue;
@@ -738,6 +744,8 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 				peer = NULL;
 			}
 		}
+		if (res == -1 || ast_check_hangup(chan))
+			break;
 	}
 exit:
 
