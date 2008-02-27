@@ -254,7 +254,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 	}
 }
 
-static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, struct ast_channel *transferee, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, int igncallerstate);
+static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, struct ast_channel *transferee, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, int igncallerstate, const char *language);
 
 /*!
  * \brief bridge the call 
@@ -1058,7 +1058,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	l = strlen(xferto);
 	snprintf(xferto + l, sizeof(xferto) - l, "@%s/n", transferer_real_context);	/* append context */
 	newchan = ast_feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
-		xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1);
+		xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1, transferer->language);
 
 	if (!ast_check_hangup(transferer)) {
 		/* Transferer is up - old behaviour */
@@ -1159,14 +1159,14 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 			ast_log(LOG_NOTICE, "We're trying to call %s/%s\n", transferer_tech, transferer_name);
 			newchan = ast_feature_request_and_dial(transferee, NULL, transferer_tech, ast_best_codec(transferee->nativeformats),
-				transferer_name, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0);
+				transferer_name, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0, transferer->language);
 			while (!newchan && !atxferdropcall && tries < atxfercallbackretries) {
 				/* Trying to transfer again */
 				ast_autoservice_start(transferee);
 				ast_indicate(transferee, AST_CONTROL_HOLD);
 
 				newchan = ast_feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
-					xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1);
+					xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1, transferer->language);
 				if (ast_autoservice_stop(transferee) < 0) {
 					if (newchan)
 						ast_hangup(newchan);
@@ -1178,7 +1178,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					ast_safe_sleep(transferee, atxferloopdelay);
 					ast_debug(1, "Trying to callback...\n");
 					newchan = ast_feature_request_and_dial(transferee, NULL, transferer_tech, ast_best_codec(transferee->nativeformats),
-						transferer_name, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0);
+						transferer_name, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0, transferer->language);
 				}
 				tries++;
 			}
@@ -1685,7 +1685,7 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
  * \todo XXX Check - this is very similar to the code in channel.c 
  * \return always a channel
 */
-static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, struct ast_channel *transferee, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, int igncallerstate)
+static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, struct ast_channel *transferee, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, int igncallerstate, const char *language)
 {
 	int state = 0;
 	int cause = 0;
@@ -1694,9 +1694,10 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 	struct ast_channel *monitor_chans[2];
 	struct ast_channel *active_channel;
 	int res = 0, ready = 0;
-	
+
 	if ((chan = ast_request(type, format, data, &cause))) {
 		ast_set_callerid(chan, cid_num, cid_name, cid_num);
+		ast_string_field_set(chan, language, language);
 		ast_channel_inherit_variables(caller, chan);	
 		pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller->name);
 		if (!chan->cdr) {
