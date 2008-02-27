@@ -487,33 +487,37 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
  * which on success is filled with the matching filename.
  */
 static int fileexists_core(const char *filename, const char *fmt, const char *preflang,
-		char *buf, int buflen)
+			   char *buf, int buflen)
 {
 	int res = -1;
 	int langlen;	/* length of language string */
 	const char *c = strrchr(filename, '/');
 	int offset = c ? c - filename + 1 : 0;	/* points right after the last '/' */
 
-	if (preflang == NULL)
+	if (preflang == NULL) {
 		preflang = "";
+	}
 	langlen = strlen(preflang);
 	
-	if (buflen < langlen + strlen(filename) + 2) {
-		ast_log(LOG_WARNING, "buffer too small\n");
-		buf[0] = '\0'; /* set to empty */
-		buf = alloca(langlen + strlen(filename) + 2);	/* room for everything */
+	if (buflen < langlen + strlen(filename) + 4) {
+		ast_log(LOG_WARNING, "buffer too small, allocating larger buffer\n");
+		buf = alloca(langlen + strlen(filename) + 4);	/* room for everything */
 	}
-	if (buf == NULL)
+
+	if (buf == NULL) {
 		return 0;
-	buf[0] = '\0';
+	}
+
 	for (;;) {
 		if (ast_language_is_prefix) { /* new layout */
 			if (langlen) {
 				strcpy(buf, preflang);
 				buf[langlen] = '/';
 				strcpy(buf + langlen + 1, filename);
-			} else
-				strcpy(buf, filename);	/* first copy the full string */
+			} else {
+				strcpy(buf, "en/"); /* English - fallback if no file found in preferred language */
+				strcpy(buf + 3, filename);
+			}
 		} else { /* old layout */
 			strcpy(buf, filename);	/* first copy the full string */
 			if (langlen) {
@@ -523,15 +527,19 @@ static int fileexists_core(const char *filename, const char *fmt, const char *pr
 			}
 		}
 		res = ast_filehelper(buf, NULL, fmt, ACTION_EXISTS);
-		if (res > 0)		/* found format */
+		if (res > 0) {		/* found format */
 			break;
-		if (langlen == 0)	/* no more formats */
+		}
+		if (langlen == 0) {	/* no more formats */
 			break;
-		if (preflang[langlen] == '_') /* we are on the local suffix */
+		}
+		if (preflang[langlen] == '_') { /* we are on the local suffix */
 			langlen = 0;	/* try again with no language */
-		else
+		} else {
 			langlen = (c = strchr(preflang, '_')) ? c - preflang : 0;
+		}
 	}
+
 	return res;
 }
 
