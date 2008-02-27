@@ -1,4 +1,5 @@
  -- Convert all existing uses of astobj.h to astobj2.h
+    -- (chan_sip already in progress in a branch)
 
  -- There are many places where large character buffers are allocated in structures.  There is a new system for string handling that uses dynamically allocatted memory pools which is documented in include/asterisk/stringfields.h.  Examples of where they are currently used are the ast_channel structure defined in include/asterisk/channel.h, some structures in chan_sip.c, and chan_zap.c.
 
