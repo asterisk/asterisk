@@ -20527,7 +20527,7 @@ static int reload_config(enum channelreloadreason reason)
 					}
 					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0);
 					if (peer) {
-						ast_device_state_changed("SIP/%s", peer->name);
+						ast_devstate_changed(AST_DEVICE_NOT_INUSE, "SIP/%s", peer->name);
 						ASTOBJ_CONTAINER_LINK(&peerl, peer);
 						unref_peer(peer);
 						peer_count++;
@@ -20596,6 +20596,7 @@ static int reload_config(enum channelreloadreason reason)
 			if (is_peer) {
 				peer = build_peer(cat, ast_variable_browse(cfg, cat), NULL, 0);
 				if (peer) {
+					ast_devstate_changed(AST_DEVICE_NOT_INUSE, "SIP/%s", peer->name);
 					ASTOBJ_CONTAINER_LINK(&peerl, peer);
 					unref_peer(peer);
 					peer_count++;
