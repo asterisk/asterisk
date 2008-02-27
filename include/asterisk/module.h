@@ -242,9 +242,9 @@ void ast_module_unref(struct ast_module *);
 		load_func,				\
 		reload_func,				\
 		unload_func,				\
+		NULL,					\
+		NULL,					\
 		AST_MODULE,				\
-		NULL,					\
-		NULL,					\
 		desc,					\
 		keystr,					\
 		flags_to_set,				\
