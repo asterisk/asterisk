@@ -219,7 +219,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 	}
 }
 
-static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name);
+static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, const char *language);
 
 
 static void *ast_bridge_call_thread(void *data) 
@@ -818,7 +818,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	l = strlen(xferto);
 	snprintf(xferto + l, sizeof(xferto) - l, "@%s/n", transferer_real_context);	/* append context */
 	newchan = ast_feature_request_and_dial(transferer, "Local", ast_best_codec(transferer->nativeformats),
-		xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name);
+		xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, transferer->language);
 	ast_indicate(transferer, -1);
 	if (!newchan) {
 		finishup(transferee);
@@ -1169,7 +1169,7 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 }
 
 /*! \todo XXX Check - this is very similar to the code in channel.c */
-static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name)
+static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, const char *language)
 {
 	int state = 0;
 	int cause = 0;
@@ -1181,6 +1181,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 	
 	if ((chan = ast_request(type, format, data, &cause))) {
 		ast_set_callerid(chan, cid_num, cid_name, cid_num);
+		ast_string_field_set(chan, language, language);
 		ast_channel_inherit_variables(caller, chan);	
 		pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller->name);
 		if (!chan->cdr) {
