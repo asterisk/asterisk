@@ -1281,7 +1281,9 @@ static int unload_module(void)
 	ast_cond_signal(&mwi_monitor.cond);
 	ast_mutex_unlock(&mwi_monitor.lock);
 
-	pthread_join(mwi_monitor.thread, NULL);
+	if (mwi_monitor.thread != AST_PTHREADT_NULL) {
+		pthread_join(mwi_monitor.thread, NULL);
+	}
 
 	ast_custom_function_unregister(&smdi_msg_retrieve_function);
 	ast_custom_function_unregister(&smdi_msg_function);
