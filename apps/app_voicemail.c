@@ -8174,8 +8174,6 @@ static int load_config(int reload)
 	char *cat;
 	struct ast_variable *var;
 	const char *val;
-	const char *s;
-	const char *key;
 	char *q, *stringp;
 	int x;
 	int tmpadsi[4];
@@ -8387,7 +8385,7 @@ static int load_config(int reload)
 		}
 
 		/* SMDI voicemail notification */
-		if ((s = ast_variable_retrieve(cfg, "general", "smdienable")) && ast_true(s)) {
+		if ((val = ast_variable_retrieve(cfg, "general", "smdienable")) && ast_true(val)) {
 			ast_debug(1, "Enabled SMDI voicemail notification\n");
 			if ((val = ast_variable_retrieve(cfg, "general", "smdiport"))) {
 				smdi_iface = ast_smdi_interface_find(val);
@@ -8410,19 +8408,19 @@ static int load_config(int reload)
 		ast_copy_string(serveremail, val, sizeof(serveremail));
 		
 		vmmaxsecs = 0;
-		if ((s = ast_variable_retrieve(cfg, "general", "maxsecs"))) {
-			if (sscanf(s, "%d", &x) == 1) {
+		if ((val = ast_variable_retrieve(cfg, "general", "maxsecs"))) {
+			if (sscanf(val, "%d", &x) == 1) {
 				vmmaxsecs = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid max message time length\n");
 			}
-		} else if ((s = ast_variable_retrieve(cfg, "general", "maxmessage"))) {
+		} else if ((val = ast_variable_retrieve(cfg, "general", "maxmessage"))) {
 			static int maxmessage_deprecate = 0;
 			if (maxmessage_deprecate == 0) {
 				maxmessage_deprecate = 1;
 				ast_log(LOG_WARNING, "Setting 'maxmessage' has been deprecated in favor of 'maxsecs'.\n");
 			}
-			if (sscanf(s, "%d", &x) == 1) {
+			if (sscanf(val, "%d", &x) == 1) {
 				vmmaxsecs = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid max message time length\n");
@@ -8430,21 +8428,21 @@ static int load_config(int reload)
 		}
 
 		vmminsecs = 0;
-		if ((s = ast_variable_retrieve(cfg, "general", "minsecs"))) {
-			if (sscanf(s, "%d", &x) == 1) {
+		if ((val = ast_variable_retrieve(cfg, "general", "minsecs"))) {
+			if (sscanf(val, "%d", &x) == 1) {
 				vmminsecs = x;
 				if (maxsilence <= vmminsecs)
 					ast_log(LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
 			} else {
 				ast_log(LOG_WARNING, "Invalid min message time length\n");
 			}
-		} else if ((s = ast_variable_retrieve(cfg, "general", "minmessage"))) {
+		} else if ((val = ast_variable_retrieve(cfg, "general", "minmessage"))) {
 			static int maxmessage_deprecate = 0;
 			if (maxmessage_deprecate == 0) {
 				maxmessage_deprecate = 1;
 				ast_log(LOG_WARNING, "Setting 'minmessage' has been deprecated in favor of 'minsecs'.\n");
 			}
-			if (sscanf(s, "%d", &x) == 1) {
+			if (sscanf(val, "%d", &x) == 1) {
 				vmminsecs = x;
 				if (maxsilence <= vmminsecs)
 					ast_log(LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
@@ -8459,16 +8457,16 @@ static int load_config(int reload)
 		ast_copy_string(vmfmts, val, sizeof(vmfmts));
 
 		skipms = 3000;
-		if ((s = ast_variable_retrieve(cfg, "general", "maxgreet"))) {
-			if (sscanf(s, "%d", &x) == 1) {
+		if ((val = ast_variable_retrieve(cfg, "general", "maxgreet"))) {
+			if (sscanf(val, "%d", &x) == 1) {
 				maxgreet = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid max message greeting length\n");
 			}
 		}
 
-		if ((s = ast_variable_retrieve(cfg, "general", "skipms"))) {
-			if (sscanf(s, "%d", &x) == 1) {
+		if ((val = ast_variable_retrieve(cfg, "general", "skipms"))) {
+			if (sscanf(val, "%d", &x) == 1) {
 				skipms = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid skipms value\n");
@@ -8476,8 +8474,8 @@ static int load_config(int reload)
 		}
 
 		maxlogins = 3;
-		if ((s = ast_variable_retrieve(cfg, "general", "maxlogins"))) {
-			if (sscanf(s, "%d", &x) == 1) {
+		if ((val = ast_variable_retrieve(cfg, "general", "maxlogins"))) {
+			if (sscanf(val, "%d", &x) == 1) {
 				maxlogins = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid max failed login attempts\n");
@@ -8494,9 +8492,9 @@ static int load_config(int reload)
 			val = "no";
 		ast_set2_flag((&globalflags), ast_true(val), VM_FORCEGREET);
 
-		if ((s = ast_variable_retrieve(cfg, "general", "cidinternalcontexts"))) {
-			ast_debug(1, "VM_CID Internal context string: %s\n", s);
-			stringp = ast_strdupa(s);
+		if ((val = ast_variable_retrieve(cfg, "general", "cidinternalcontexts"))) {
+			ast_debug(1, "VM_CID Internal context string: %s\n", val);
+			stringp = ast_strdupa(val);
 			for (x = 0; x < MAX_NUM_CID_CONTEXTS; x++) {
 				if (!ast_strlen_zero(stringp)) {
 					q = strsep(&stringp, ",");
@@ -8608,16 +8606,16 @@ static int load_config(int reload)
 		if ((val = ast_variable_retrieve(cfg, "general", "vm-mismatch")))
 			ast_copy_string(vm_mismatch, val, sizeof(vm_mismatch));
 		/* load configurable audio prompts */
-		if ((key = ast_variable_retrieve(cfg, "general", "listen-control-forward-key")) && is_valid_dtmf(key))
-			ast_copy_string(listen_control_forward_key, key, sizeof(listen_control_forward_key));
-		if ((key = ast_variable_retrieve(cfg, "general", "listen-control-reverse-key")) && is_valid_dtmf(key))
-			ast_copy_string(listen_control_reverse_key, key, sizeof(listen_control_reverse_key));
-		if ((key = ast_variable_retrieve(cfg, "general", "listen-control-pause-key")) && is_valid_dtmf(key))
-			ast_copy_string(listen_control_pause_key, key, sizeof(listen_control_pause_key));
-		if ((key = ast_variable_retrieve(cfg, "general", "listen-control-restart-key")) && is_valid_dtmf(key))
-			ast_copy_string(listen_control_restart_key, key, sizeof(listen_control_restart_key));
-		if ((key = ast_variable_retrieve(cfg, "general", "listen-control-stop-key")) && is_valid_dtmf(key))
-			ast_copy_string(listen_control_stop_key, key, sizeof(listen_control_stop_key));
+		if ((val = ast_variable_retrieve(cfg, "general", "listen-control-forward-key")) && is_valid_dtmf(val))
+			ast_copy_string(listen_control_forward_key, val, sizeof(listen_control_forward_key));
+		if ((val = ast_variable_retrieve(cfg, "general", "listen-control-reverse-key")) && is_valid_dtmf(val))
+			ast_copy_string(listen_control_reverse_key, val, sizeof(listen_control_reverse_key));
+		if ((val = ast_variable_retrieve(cfg, "general", "listen-control-pause-key")) && is_valid_dtmf(val))
+			ast_copy_string(listen_control_pause_key, val, sizeof(listen_control_pause_key));
+		if ((val = ast_variable_retrieve(cfg, "general", "listen-control-restart-key")) && is_valid_dtmf(val))
+			ast_copy_string(listen_control_restart_key, val, sizeof(listen_control_restart_key));
+		if ((val = ast_variable_retrieve(cfg, "general", "listen-control-stop-key")) && is_valid_dtmf(val))
+			ast_copy_string(listen_control_stop_key, val, sizeof(listen_control_stop_key));
 
 		if (!(val = ast_variable_retrieve(cfg, "general", "usedirectory"))) 
 			val = "no";
@@ -8707,39 +8705,39 @@ static int load_config(int reload)
 			ast_free(pagersubject);
 			pagersubject = NULL;
 		}
-		if ((s = ast_variable_retrieve(cfg, "general", "pbxskip")))
-			ast_set2_flag((&globalflags), ast_true(s), VM_PBXSKIP);
-		if ((s = ast_variable_retrieve(cfg, "general", "fromstring")))
-			ast_copy_string(fromstring, s, sizeof(fromstring));
-		if ((s = ast_variable_retrieve(cfg, "general", "pagerfromstring")))
-			ast_copy_string(pagerfromstring, s, sizeof(pagerfromstring));
-		if ((s = ast_variable_retrieve(cfg, "general", "charset")))
-			ast_copy_string(charset, s, sizeof(charset));
-		if ((s = ast_variable_retrieve(cfg, "general", "adsifdn"))) {
-			sscanf(s, "%2x%2x%2x%2x", &tmpadsi[0], &tmpadsi[1], &tmpadsi[2], &tmpadsi[3]);
+		if ((val = ast_variable_retrieve(cfg, "general", "pbxskip")))
+			ast_set2_flag((&globalflags), ast_true(val), VM_PBXSKIP);
+		if ((val = ast_variable_retrieve(cfg, "general", "fromstring")))
+			ast_copy_string(fromstring, val, sizeof(fromstring));
+		if ((val = ast_variable_retrieve(cfg, "general", "pagerfromstring")))
+			ast_copy_string(pagerfromstring, val, sizeof(pagerfromstring));
+		if ((val = ast_variable_retrieve(cfg, "general", "charset")))
+			ast_copy_string(charset, val, sizeof(charset));
+		if ((val = ast_variable_retrieve(cfg, "general", "adsifdn"))) {
+			sscanf(val, "%2x%2x%2x%2x", &tmpadsi[0], &tmpadsi[1], &tmpadsi[2], &tmpadsi[3]);
 			for (x = 0; x < 4; x++) {
 				memcpy(&adsifdn[x], &tmpadsi[x], 1);
 			}
 		}
-		if ((s = ast_variable_retrieve(cfg, "general", "adsisec"))) {
-			sscanf(s, "%2x%2x%2x%2x", &tmpadsi[0], &tmpadsi[1], &tmpadsi[2], &tmpadsi[3]);
+		if ((val = ast_variable_retrieve(cfg, "general", "adsisec"))) {
+			sscanf(val, "%2x%2x%2x%2x", &tmpadsi[0], &tmpadsi[1], &tmpadsi[2], &tmpadsi[3]);
 			for (x = 0; x < 4; x++) {
 				memcpy(&adsisec[x], &tmpadsi[x], 1);
 			}
 		}
-		if ((s = ast_variable_retrieve(cfg, "general", "adsiver")))
-			if (atoi(s)) {
-				adsiver = atoi(s);
+		if ((val = ast_variable_retrieve(cfg, "general", "adsiver")))
+			if (atoi(val)) {
+				adsiver = atoi(val);
 			}
-		if ((s = ast_variable_retrieve(cfg, "general", "emailtitle"))) {
+		if ((val = ast_variable_retrieve(cfg, "general", "emailtitle"))) {
 			ast_log(LOG_NOTICE, "Keyword 'emailtitle' is DEPRECATED, please use 'emailsubject' instead.\n");
-			ast_copy_string(emailtitle, s, sizeof(emailtitle));
+			ast_copy_string(emailtitle, val, sizeof(emailtitle));
 		}
-		if ((s = ast_variable_retrieve(cfg, "general", "emailsubject")))
-			emailsubject = ast_strdup(s);
-		if ((s = ast_variable_retrieve(cfg, "general", "emailbody"))) {
+		if ((val = ast_variable_retrieve(cfg, "general", "emailsubject")))
+			emailsubject = ast_strdup(val);
+		if ((val = ast_variable_retrieve(cfg, "general", "emailbody"))) {
 			char *tmpread, *tmpwrite;
-			emailbody = ast_strdup(s);
+			emailbody = ast_strdup(val);
 
 			/* substitute strings \t and \n into the appropriate characters */
 			tmpread = tmpwrite = emailbody;
@@ -8763,11 +8761,11 @@ static int load_config(int reload)
 				tmpread = tmpwrite + 1;
 			}
 		}
-		if ((s = ast_variable_retrieve(cfg, "general", "pagersubject")))
-			pagersubject = ast_strdup(s);
-		if ((s = ast_variable_retrieve(cfg, "general", "pagerbody"))) {
+		if ((val = ast_variable_retrieve(cfg, "general", "pagersubject")))
+			pagersubject = ast_strdup(val);
+		if ((val = ast_variable_retrieve(cfg, "general", "pagerbody"))) {
 			char *tmpread, *tmpwrite;
-			pagerbody = ast_strdup(s);
+			pagerbody = ast_strdup(val);
 
 			/* substitute strings \t and \n into the appropriate characters */
 			tmpread = tmpwrite = pagerbody;
