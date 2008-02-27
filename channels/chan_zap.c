@@ -461,6 +461,7 @@ static struct zt_pvt {
 	unsigned int ignoredtmf:1;
 	unsigned int immediate:1;			/*!< Answer before getting digits? */
 	unsigned int inalarm:1;
+	unsigned int unknown_alarm:1;
 	unsigned int mate:1;				/*!< flag to say its in MATE mode */
 	unsigned int outgoing:1;
 	unsigned int overlapdial:1;
@@ -3832,11 +3833,22 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 #endif
 			p->inalarm = 1;
 			res = get_alarms(p);
-			ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm2str(res));
-			manager_event(EVENT_FLAG_SYSTEM, "Alarm",
-								"Alarm: %s\r\n"
-								"Channel: %d\r\n",
-								alarm2str(res), p->channel);
+			do {
+				const char *alarm_str = alarm2str(res);
+
+				/* hack alert!  Zaptel 1.4 now exposes FXO battery as an alarm, but asterisk 1.4
+				 * doesn't know what to do with it.  Don't confuse users with log messages. */
+				if (!strcasecmp(alarm_str, "No Alarm") || !strcasecmp(alarm_str, "Unknown Alarm")) {
+					p->unknown_alarm = 1;
+					break;
+				}
+					
+				ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm_str);
+				manager_event(EVENT_FLAG_SYSTEM, "Alarm",
+					"Alarm: %s\r\n"
+					"Channel: %d\r\n",
+					alarm_str, p->channel);
+			} while (0);
 #ifdef HAVE_LIBPRI
 			if (!p->pri || !p->pri->pri || pri_get_timer(p->pri->pri, PRI_TIMER_T309) < 0) {
 				/* fall through intentionally */
@@ -4167,9 +4179,13 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			if (p->bearer)
 				p->bearer->inalarm = 0;
 #endif				
-			ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
-			manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
-								"Channel: %d\r\n", p->channel);
+			if (!p->unknown_alarm) {
+				ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
+				manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
+					"Channel: %d\r\n", p->channel);
+			} else {
+				p->unknown_alarm = 0;
+			}
 			break;
 		case ZT_EVENT_WINKFLASH:
 			if (p->inalarm) break;
@@ -6675,18 +6691,33 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		break;
 	case ZT_EVENT_NOALARM:
 		i->inalarm = 0;
-		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", i->channel);
-		manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
-			"Channel: %d\r\n", i->channel);
+		if (!i->unknown_alarm) {
+			ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", i->channel);
+			manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
+				"Channel: %d\r\n", i->channel);
+		} else {
+			i->unknown_alarm = 0;
+		}
 		break;
 	case ZT_EVENT_ALARM:
 		i->inalarm = 1;
 		res = get_alarms(i);
-		ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", i->channel, alarm2str(res));
-		manager_event(EVENT_FLAG_SYSTEM, "Alarm",
-			"Alarm: %s\r\n"
-			"Channel: %d\r\n",
-			alarm2str(res), i->channel);
+		do {
+			const char *alarm_str = alarm2str(res);
+
+			/* hack alert!  Zaptel 1.4 now exposes FXO battery as an alarm, but asterisk 1.4
+			 * doesn't know what to do with it.  Don't confuse users with log messages. */
+			if (!strcasecmp(alarm_str, "No Alarm") || !strcasecmp(alarm_str, "Unknown Alarm")) {
+				i->unknown_alarm = 1;
+				break;
+			}
+
+			ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", i->channel, alarm_str);
+			manager_event(EVENT_FLAG_SYSTEM, "Alarm",
+				"Alarm: %s\r\n"
+				"Channel: %d\r\n",
+				alarm_str, i->channel);
+		} while (0);
 		/* fall thru intentionally */
 	case ZT_EVENT_ONHOOK:
 		if (i->radio)
