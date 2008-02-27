@@ -1149,33 +1149,36 @@ static int alloc_sub(struct zt_pvt *p, int x)
 	ZT_BUFFERINFO bi;
 	int res;
 	if (p->subs[x].zfd < 0) {
-		p->subs[x].zfd = zt_open("/dev/zap/pseudo");
-		if (p->subs[x].zfd > -1) {
-			res = ioctl(p->subs[x].zfd, ZT_GET_BUFINFO, &bi);
-			if (!res) {
-				bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
-				bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
-				bi.numbufs = numbufs;
-				res = ioctl(p->subs[x].zfd, ZT_SET_BUFINFO, &bi);
-				if (res < 0) {
-					ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d\n", x);
-				}
-			} else 
-				ast_log(LOG_WARNING, "Unable to check buffer policy on channel %d\n", x);
-			if (ioctl(p->subs[x].zfd, ZT_CHANNO, &p->subs[x].chan) == 1) {
-				ast_log(LOG_WARNING, "Unable to get channel number for pseudo channel on FD %d\n", p->subs[x].zfd);
-				zt_close(p->subs[x].zfd);
-				p->subs[x].zfd = -1;
-				return -1;
-			}
-			ast_debug(1, "Allocated %s subchannel on FD %d channel %d\n", subnames[x], p->subs[x].zfd, p->subs[x].chan);
-			return 0;
-		} else
-			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
+		ast_log(LOG_WARNING, "%s subchannel of %d already in use\n", subnames[x], p->channel);
 		return -1;
 	}
-	ast_log(LOG_WARNING, "%s subchannel of %d already in use\n", subnames[x], p->channel);
-	return -1;
+
+	p->subs[x].zfd = zt_open("/dev/zap/pseudo");
+	if (p->subs[x].zfd <= -1) {
+		ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
+		return -1;
+	}
+
+	res = ioctl(p->subs[x].zfd, ZT_GET_BUFINFO, &bi);
+	if (!res) {
+		bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
+		bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
+		bi.numbufs = numbufs;
+		res = ioctl(p->subs[x].zfd, ZT_SET_BUFINFO, &bi);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d\n", x);
+		}
+	} else 
+		ast_log(LOG_WARNING, "Unable to check buffer policy on channel %d\n", x);
+
+	if (ioctl(p->subs[x].zfd, ZT_CHANNO, &p->subs[x].chan) == 1) {
+		ast_log(LOG_WARNING, "Unable to get channel number for pseudo channel on FD %d\n", p->subs[x].zfd);
+		zt_close(p->subs[x].zfd);
+		p->subs[x].zfd = -1;
+		return -1;
+	}
+	ast_debug(1, "Allocated %s subchannel on FD %d channel %d\n", subnames[x], p->subs[x].zfd, p->subs[x].chan);
+	return 0;
 }
 
 static int unalloc_sub(struct zt_pvt *p, int x)
