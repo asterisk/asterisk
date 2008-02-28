@@ -163,7 +163,7 @@ ifneq ($(findstring chan_h323,$(MENUSELECT_CHANNELS)),)
 else
 	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(ASTLDFLAGS) $(H323LDFLAGS) $^ buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(H323LDLIBS)
 endif
-	@$(ASTTOPDIR)/build_tools/strip_nonapi $@
+	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/strip_nonapi $@ || rm $@
 
 clean::
 	rm -f asterisk
