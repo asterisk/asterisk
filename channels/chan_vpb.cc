@@ -2706,6 +2706,18 @@ static enum ast_module_load_result load_module()
 	int bal3 = -1;
 	char * callerid = NULL;
 
+	int num_cards = 0;
+	try {
+		num_cards = vpb_get_num_cards();
+	} catch (VpbException e) {
+		ast_log(LOG_ERROR, "No Voicetronix cards detected\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	int ports_per_card[num_cards];
+	for (int i = 0; i < num_cards; ++i)
+		ports_per_card[i] = vpb_get_ports_per_card(i);
+
 	cfg = ast_config_load(config, config_flags);
 
 	/* We *must* have a config file otherwise stop immediately */
@@ -2768,6 +2780,11 @@ static enum ast_module_load_result load_module()
 			UseNativeBridge = atoi(v->value);
 		} else if (strcasecmp(v->name, "channel") == 0) {
 			int channel = atoi(v->value);
+			if (board >= num_cards || board < 0 || channel < 0 || channel >= ports_per_card[board]) {
+				ast_log(LOG_ERROR, "Invalid board/channel (%d/%d) for channel '%s'\n", board, channel, v->value);
+				error = AST_MODULE_LOAD_FAILURE;
+				goto done;
+			}
 			tmp = mkif(board, channel, mode, got_gain, txgain, rxgain, txswgain, rxswgain, bal1, bal2, bal3, callerid, echo_cancel,group,callgroup,pickupgroup);
 			if (tmp) {
 				if (first_channel) {
