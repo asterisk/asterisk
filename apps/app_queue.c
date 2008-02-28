@@ -2687,6 +2687,10 @@ static int is_our_turn(struct queue_ent *qe)
 			struct ao2_iterator mem_iter = ao2_iterator_init(qe->parent->members, 0);
 			while ((cur = ao2_iterator_next(&mem_iter))) {
 				switch (cur->status) {
+				case AST_DEVICE_INUSE:
+					if (!qe->parent->ringinuse)
+						break;
+					/* else fall through */
 				case AST_DEVICE_NOT_INUSE:
 				case AST_DEVICE_UNKNOWN:
 					if (!cur->paused)
