@@ -780,12 +780,8 @@ void ast_cdr_setapp(struct ast_cdr *cdr, char *app, char *data)
 	for (; cdr; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			check_post(cdr);
-			if (!app)
-				app = "";
-			ast_copy_string(cdr->lastapp, app, sizeof(cdr->lastapp));
-			if (!data)
-				data = "";
-			ast_copy_string(cdr->lastdata, data, sizeof(cdr->lastdata));
+			ast_copy_string(cdr->lastapp, S_OR(app, ""), sizeof(cdr->lastapp));
+			ast_copy_string(cdr->lastdata, S_OR(data, ""), sizeof(cdr->lastdata));
 		}
 	}
 }
