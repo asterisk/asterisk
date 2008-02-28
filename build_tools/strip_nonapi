@@ -15,11 +15,20 @@
 #	astman_
 #	pbx_
 
+case "${PROC}" in
+	powerpc64)
+		TEXTSYM=" D "
+		;;
+	*)
+		TEXTSYM=" T "
+		;;
+esac
+
 FILTER="${GREP} -v -e ^ast_ -e ^_ast_ -e ^__ast_ -e ^astman_ -e ^pbx_"
 
 case "${OSARCH}" in
     linux-gnu)
-	nm ${1} | ${GREP} -e " T " | cut -d" " -f3 | ${FILTER} > striplist
+	nm ${1} | ${GREP} -e "$TEXTSYM" | cut -d" " -f3 | ${FILTER} > striplist
 	sed -e "s/^/-N /" striplist | xargs ${STRIP} ${1}
 	rm -f striplist
 	;;
