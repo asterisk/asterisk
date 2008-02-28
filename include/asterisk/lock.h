@@ -154,12 +154,12 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 /*!
  * \brief Mark the last lock as acquired
  */
-void ast_mark_lock_acquired(void);
+void ast_mark_lock_acquired(void *lock_addr);
 
 /*!
  * \brief Mark the last lock as failed (trylock)
  */
-void ast_mark_lock_failed(void);
+void ast_mark_lock_failed(void *lock_addr);
 
 /*!
  * \brief remove lock info for the current thread
@@ -378,7 +378,7 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 		}
 		ast_reentrancy_unlock(t);
 		if (t->track)
-			ast_mark_lock_acquired();
+			ast_mark_lock_acquired(&t->mutex);
 	} else {
 		if (t->track)
 			ast_remove_lock_info(&t->mutex);
@@ -428,9 +428,9 @@ static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, 
 		}
 		ast_reentrancy_unlock(t);
 		if (t->track)
-			ast_mark_lock_acquired();
+			ast_mark_lock_acquired(&t->mutex);
 	} else if (t->track) {
-		ast_mark_lock_failed();
+		ast_mark_lock_failed(&t->mutex);
 	}
 
 	return res;
@@ -917,7 +917,7 @@ static inline int _ast_rwlock_rdlock(ast_rwlock_t *lock, const char *name,
 	ast_store_lock_info(AST_RDLOCK, file, line, func, name, lock);
 	res = pthread_rwlock_rdlock(lock);
 	if (!res)
-		ast_mark_lock_acquired();
+		ast_mark_lock_acquired(lock);
 	else
 		ast_remove_lock_info(lock);
 	return res;
@@ -948,7 +948,7 @@ static inline int _ast_rwlock_wrlock(ast_rwlock_t *lock, const char *name,
 	ast_store_lock_info(AST_WRLOCK, file, line, func, name, lock);
 	res = pthread_rwlock_wrlock(lock);
 	if (!res)
-		ast_mark_lock_acquired();
+		ast_mark_lock_acquired(lock);
 	else
 		ast_remove_lock_info(lock);
 	return res;
@@ -979,7 +979,7 @@ static inline int _ast_rwlock_tryrdlock(ast_rwlock_t *lock, const char *name,
 	ast_store_lock_info(AST_RDLOCK, file, line, func, name, lock);
 	res = pthread_rwlock_tryrdlock(lock);
 	if (!res)
-		ast_mark_lock_acquired();
+		ast_mark_lock_acquired(lock);
 	else
 		ast_remove_lock_info(lock);
 	return res;
@@ -1010,7 +1010,7 @@ static inline int _ast_rwlock_trywrlock(ast_rwlock_t *lock, const char *name,
 	ast_store_lock_info(AST_WRLOCK, file, line, func, name, lock);
 	res = pthread_rwlock_trywrlock(lock);
 	if (!res)
-		ast_mark_lock_acquired();
+		ast_mark_lock_acquired(lock);
 	else
 		ast_remove_lock_info(lock);
 	return res;

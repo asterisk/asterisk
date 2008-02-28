@@ -93,8 +93,8 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
     /* not a lot to do in a standalone w/o threading! */
 }
 
-void ast_mark_lock_acquired(void);
-void ast_mark_lock_acquired(void)
+void ast_mark_lock_acquired(void *);
+void ast_mark_lock_acquired(void *foo)
 {
     /* not a lot to do in a standalone w/o threading! */
 }
