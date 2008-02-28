@@ -1176,9 +1176,12 @@ static void *get_button_template(struct skinnysession *s, struct button_definiti
 			(btn++)->buttonDefinition = BT_HOLD;
 			break;
 		case SKINNY_DEVICE_7920:
-		case SKINNY_DEVICE_7921:
 			/* XXX I don't know if this is right. */
 			for (i = 0; i < 4; i++)
+				(btn++)->buttonDefinition = BT_CUST_LINESPEEDDIAL;
+			break;
+		case SKINNY_DEVICE_7921:
+			for (i = 0; i < 6; i++)
 				(btn++)->buttonDefinition = BT_CUST_LINESPEEDDIAL;
 			break;
 		case SKINNY_DEVICE_7902:
