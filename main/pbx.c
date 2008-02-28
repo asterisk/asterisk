@@ -516,7 +516,7 @@ int pbx_exec(struct ast_channel *c, 		/*!< Channel */
 	const char *saved_c_appl;
 	const char *saved_c_data;
 
-	if (c->cdr &&  !ast_check_hangup(c))
+	if (c->cdr && !ast_check_hangup(c))
 		ast_cdr_setapp(c->cdr, app->name, data);
 
 	/* save channel values */
@@ -529,7 +529,7 @@ int pbx_exec(struct ast_channel *c, 		/*!< Channel */
 	if (app->module) {
 		/* XXX LOCAL_USER_ADD(app->module) */
 	}
-	res = app->execute(c, data);
+	res = app->execute(c, S_OR(data, ""));
 	if (app->module) {
 		/* XXX LOCAL_USER_REMOVE(app->module) */
 	}
