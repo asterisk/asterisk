@@ -335,7 +335,7 @@ struct ast_vm_user {
 	char zonetag[80];                /*!< Time zone */
 	char callback[80];
 	char dialout[80];
-	char uniqueid[20];               /*!< Unique integer identifier */
+	char uniqueid[80];               /*!< Unique integer identifier */
 	char exit[80];
 	char attachfmt[20];              /*!< Attachment format */
 	unsigned int flags;              /*!< VM_ flags */	
