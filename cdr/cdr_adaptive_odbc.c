@@ -293,11 +293,8 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 #define LENGTHEN_BUF1(size)														\
 			do {																\
 				/* Lengthen buffer, if necessary */								\
-				if ((newsize = lensql + (size) + 3) > sizesql) {	\
-					if ((tmp = ast_realloc(sql, (newsize / 512 + 1) * 512))) {	\
-						sql = tmp;												\
-						sizesql = (newsize / 512 + 1) * 512;					\
-					} else {													\
+				if (sql->used + size + 1 > sql->len) {                          \
+					if (ast_str_make_space(&sql, ((sql->len + size + 1) / 512 + 1) * 512) != 0) { \
 						ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CDR '%s:%s' failed.\n", tableptr->connection, tableptr->table); \
 						ast_free(sql);											\
 						ast_free(sql2);											\
@@ -309,12 +306,9 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 
 #define LENGTHEN_BUF2(size)														\
 			do {																\
-				if ((newsize = lensql2 + (size) + 3) > sizesql2) {				\
-					if ((tmp = ast_realloc(sql2, (newsize / 512 + 1) * 512))) {	\
-						sql2 = tmp;												\
-						sizesql2 = (newsize / 512 + 1) * 512;					\
-					} else {													\
-						ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CDR '%s:%s' failed.\n", tableptr->connection, tableptr->table);	\
+				if (sql2->used + size + 1 > sql2->len) {                        \
+					if (ast_str_make_space(&sql2, ((sql2->len + size + 3) / 512 + 1) * 512) != 0) { \
+						ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CDR '%s:%s' failed.\n", tableptr->connection, tableptr->table); \
 						ast_free(sql);											\
 						ast_free(sql2);											\
 						AST_RWLIST_UNLOCK(&odbc_tables);						\
@@ -328,9 +322,8 @@ static int odbc_log(struct ast_cdr *cdr)
 	struct tables *tableptr;
 	struct columns *entry;
 	struct odbc_obj *obj;
-	int lensql, lensql2, sizesql = maxsize, sizesql2 = maxsize2, newsize;
-	/* Allocated, so we can realloc() */
-	char *sql = ast_calloc(sizeof(char), sizesql), *sql2 = ast_calloc(sizeof(char), sizesql2), *tmp;
+	struct ast_str *sql = ast_str_create(maxsize), *sql2 = ast_str_create(maxsize2);
+	char *tmp;
 	char colbuf[1024], *colptr;
 	SQLHSTMT stmt = NULL;
 	SQLLEN rows = 0;
@@ -351,12 +344,12 @@ static int odbc_log(struct ast_cdr *cdr)
 	}
 
 	AST_LIST_TRAVERSE(&odbc_tables, tableptr, list) {
-		lensql = snprintf(sql, sizesql, "INSERT INTO %s (", tableptr->table);
-		lensql2 = snprintf(sql2, sizesql2, " VALUES (");
+		ast_str_set(&sql, 0, "INSERT INTO %s (", tableptr->table);
+		ast_str_set(&sql2, 0, " VALUES (");
 
 		/* No need to check the connection now; we'll handle any failure in prepare_and_execute */
 		if (!(obj = ast_odbc_request_obj(tableptr->connection, 0))) {
-			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Unable to retrieve database handle for '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, sql);
+			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Unable to retrieve database handle for '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, sql->str);
 			continue;
 		}
 
@@ -407,26 +400,21 @@ static int odbc_log(struct ast_cdr *cdr)
 							colptr[entry->octetlen] = '\0';
 					}
 
-					lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
+					ast_str_append(&sql, 0, "%s,", entry->name);
 					LENGTHEN_BUF2(strlen(colptr));
 
 					/* Encode value, with escaping */
-					strcpy(sql2 + lensql2, "'");
-					lensql2++;
+					ast_str_append(&sql2, 0, "'");
 					for (tmp = colptr; *tmp; tmp++) {
 						if (*tmp == '\'') {
-							strcpy(sql2 + lensql2, "''");
-							lensql2 += 2;
+							ast_str_append(&sql2, 0, "''");
 						} else if (*tmp == '\\' && ast_odbc_backslash_is_escape(obj)) {
-							strcpy(sql2 + lensql2, "\\\\");
-							lensql2 += 2;
+							ast_str_append(&sql2, 0, "\\\\");
 						} else {
-							sql2[lensql2++] = *tmp;
-							sql2[lensql2] = '\0';
+							ast_str_append(&sql2, 0, "%c", *tmp);
 						}
 					}
-					strcpy(sql2 + lensql2, "',");
-					lensql2 += 2;
+					ast_str_append(&sql2, 0, "',");
 					break;
 				case SQL_TYPE_DATE:
 					{
@@ -445,9 +433,9 @@ static int odbc_log(struct ast_cdr *cdr)
 						if (year > 0 && year < 100)
 							year += 2000;
 
-						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s,", entry->name);
 						LENGTHEN_BUF2(17);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "{ d '%04d-%02d-%02d' },", year, month, day);
+						ast_str_append(&sql2, 0, "{ d '%04d-%02d-%02d' },", year, month, day);
 					}
 					break;
 				case SQL_TYPE_TIME:
@@ -460,9 +448,9 @@ static int odbc_log(struct ast_cdr *cdr)
 							break;
 						}
 
-						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s,", entry->name);
 						LENGTHEN_BUF2(15);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "{ t '%02d:%02d:%02d' },", hour, minute, second);
+						ast_str_append(&sql2, 0, "{ t '%02d:%02d:%02d' },", hour, minute, second);
 					}
 					break;
 				case SQL_TYPE_TIMESTAMP:
@@ -486,9 +474,9 @@ static int odbc_log(struct ast_cdr *cdr)
 						if (year > 0 && year < 100)
 							year += 2000;
 
-						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s,", entry->name);
 						LENGTHEN_BUF2(26);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "{ ts '%04d-%02d-%02d %02d:%02d:%02d' },", year, month, day, hour, minute, second);
+						ast_str_append(&sql2, 0, "{ ts '%04d-%02d-%02d %02d:%02d:%02d' },", year, month, day, hour, minute, second);
 					}
 					break;
 				case SQL_INTEGER:
@@ -499,9 +487,9 @@ static int odbc_log(struct ast_cdr *cdr)
 							break;
 						}
 
-						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s,", entry->name);
 						LENGTHEN_BUF2(12);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%d,", integer);
+						ast_str_append(&sql2, 0, "%d,", integer);
 					}
 					break;
 				case SQL_BIGINT:
@@ -512,9 +500,9 @@ static int odbc_log(struct ast_cdr *cdr)
 							break;
 						}
 
-						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s,", entry->name);
 						LENGTHEN_BUF2(24);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%lld,", integer);
+						ast_str_append(&sql2, 0, "%lld,", integer);
 					}
 					break;
 				case SQL_SMALLINT:
@@ -525,9 +513,9 @@ static int odbc_log(struct ast_cdr *cdr)
 							break;
 						}
 
-						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s,", entry->name);
 						LENGTHEN_BUF2(6);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%d,", integer);
+						ast_str_append(&sql2, 0, "%d,", integer);
 					}
 					break;
 				case SQL_TINYINT:
@@ -538,9 +526,9 @@ static int odbc_log(struct ast_cdr *cdr)
 							break;
 						}
 
-						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s,", entry->name);
 						LENGTHEN_BUF2(4);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%d,", integer);
+						ast_str_append(&sql2, 0, "%d,", integer);
 					}
 					break;
 				case SQL_BIT:
@@ -553,9 +541,9 @@ static int odbc_log(struct ast_cdr *cdr)
 						if (integer != 0)
 							integer = 1;
 
-						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s,", entry->name);
 						LENGTHEN_BUF2(2);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%d,", integer);
+						ast_str_append(&sql2, 0, "%d,", integer);
 					}
 					break;
 				case SQL_NUMERIC:
@@ -567,9 +555,9 @@ static int odbc_log(struct ast_cdr *cdr)
 							break;
 						}
 
-						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s,", entry->name);
 						LENGTHEN_BUF2(entry->decimals);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%*.*lf,", entry->decimals, entry->radix, number);
+						ast_str_append(&sql2, 0, "%*.*lf,", entry->decimals, entry->radix, number);
 					}
 					break;
 				case SQL_FLOAT:
@@ -582,9 +570,9 @@ static int odbc_log(struct ast_cdr *cdr)
 							break;
 						}
 
-						lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s,", entry->name);
 						LENGTHEN_BUF2(entry->decimals);
-						lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%lf,", number);
+						ast_str_append(&sql2, 0, "%lf,", number);
 					}
 					break;
 				default:
@@ -594,20 +582,20 @@ static int odbc_log(struct ast_cdr *cdr)
 		}
 
 		/* Concatenate the two constructed buffers */
-		LENGTHEN_BUF1(lensql2);
-		sql[lensql - 1] = ')';
-		sql2[lensql2 - 1] = ')';
-		strcat(sql + lensql, sql2);
+		LENGTHEN_BUF1(sql2->used);
+		sql->str[sql->used - 1] = ')';
+		sql2->str[sql2->used - 1] = ')';
+		ast_str_append(&sql, 0, "%s", sql2->str);
 
-		ast_verb(11, "[%s]\n", sql);
+		ast_verb(11, "[%s]\n", sql->str);
 
-		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, sql);
+		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, sql->str);
 		if (stmt) {
 			SQLRowCount(stmt, &rows);
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		}
 		if (rows == 0) {
-			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Insert failed on '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, sql);
+			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Insert failed on '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, sql->str);
 		}
 early_release:
 		ast_odbc_release_obj(obj);
@@ -615,10 +603,10 @@ early_release:
 	AST_RWLIST_UNLOCK(&odbc_tables);
 
 	/* Next time, just allocate buffers that are that big to start with. */
-	if (sizesql > maxsize)
-		maxsize = sizesql;
-	if (sizesql2 > maxsize2)
-		maxsize2 = sizesql2;
+	if (sql->used > maxsize)
+		maxsize = sql->used;
+	if (sql2->used > maxsize2)
+		maxsize2 = sql2->used;
 
 	ast_free(sql);
 	ast_free(sql2);
