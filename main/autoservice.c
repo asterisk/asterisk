@@ -67,6 +67,8 @@ static AST_LIST_HEAD_STATIC(aslist, asent);
 
 static pthread_t asthread = AST_PTHREADT_NULL;
 
+static int as_chan_list_state;
+
 static void defer_frame(struct ast_channel *chan, struct ast_frame *f)
 {
 	struct ast_frame *dup_f;
@@ -91,6 +93,11 @@ static void *autoservice_run(void *ign)
 		int x = 0, ms = 500;
 
 		AST_LIST_LOCK(&aslist);
+
+		/* At this point, we know that no channels that have been removed are going
+		 * to get used again. */
+		as_chan_list_state++;
+
 		AST_LIST_TRAVERSE(&aslist, as, list) {
 			if (!as->chan->_softhangup) {
 				if (x < MAX_AUTOMONS)
@@ -215,10 +222,18 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	struct ast_frame *f;
 	int removed = 0;
 	int orig_end_dtmf_flag = 0;
+	int chan_list_state;
 
 	AST_LIST_HEAD_INIT_NOLOCK(&dtmf_frames);
 
 	AST_LIST_LOCK(&aslist);
+
+	/* Save the autoservice channel list state.  We _must_ verify that the channel
+	 * list has been rebuilt before we return.  Because, after we return, the channel
+	 * could get destroyed and we don't want our poor autoservice thread to step on
+	 * it after its gone! */
+	chan_list_state = as_chan_list_state;
+
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&aslist, as, list) {	
 		if (as->chan == chan) {
 			as->use_count--;
@@ -255,6 +270,9 @@ int ast_autoservice_stop(struct ast_channel *chan)
 		ast_queue_frame(chan, f);
 		ast_frfree(f);
 	}
+
+	while (chan_list_state == as_chan_list_state)
+		usleep(1000);
 
 	return res;
 }
