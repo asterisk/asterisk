@@ -1767,6 +1767,7 @@ int ast_aji_create_chat(struct aji_client *client, char *room, char *server, cha
 	int res = 0;
 	iks *iq = NULL;
 	iq = iks_new("iq");
+
 	if (iq && client) {
 		iks_insert_attrib(iq, "type", "get");
 		iks_insert_attrib(iq, "to", server);
@@ -1775,6 +1776,9 @@ int ast_aji_create_chat(struct aji_client *client, char *room, char *server, cha
 		ast_aji_send(client, iq);
 	} else 
 		ast_log(LOG_ERROR, "Out of memory.\n");
+
+	iks_delete(iq);
+
 	return res;
 }
 
