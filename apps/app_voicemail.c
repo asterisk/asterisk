@@ -3845,7 +3845,9 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	strncat(textfile, ".txt", sizeof(textfile) - 1);
 	strncat(backup, "-bak", sizeof(backup) - 1);
 
-	msg_cfg = ast_config_load(textfile);
+	if (!(msg_cfg = ast_config_load(textfile))) {
+		return -1;
+	}
 
 	*duration = 0;
 	if ((duration_str = ast_variable_retrieve(msg_cfg, "message", "duration")))
