@@ -1040,12 +1040,11 @@ static int aji_register_approve_handler(void *data, ikspak *pak)
 		ast_log(LOG_ERROR, "Out of memory.\n");
 	}
 
-	if (iq)
-		iks_delete(iq);
-	if(presence)
-		iks_delete(presence);
-	if (x)
-		iks_delete(x);
+
+	iks_delete(iq);
+	iks_delete(presence);
+	iks_delete(x);
+	
 	ASTOBJ_UNREF(client, aji_client_destroy);
 	return IKS_FILTER_EAT;
 }
@@ -1088,14 +1087,11 @@ static int aji_register_query_handler(void *data, ikspak *pak)
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
-		if (iq)
-			iks_delete(iq);
-		if (query)
-			iks_delete(query);
-		if (error)
-			iks_delete(error);
-		if (notacceptable)
-			iks_delete(notacceptable);
+
+		iks_delete(iq);
+		iks_delete(query);
+		iks_delete(error);
+		iks_delete(notacceptable);
 	} else 	if (!(node = iks_find_attrib(pak->query, "node"))) {
 		iks *iq = NULL, *query = NULL, *instructions = NULL;
 		char *explain = "Welcome to Asterisk - the Open Source PBX.\n";
@@ -1115,12 +1111,10 @@ static int aji_register_query_handler(void *data, ikspak *pak)
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
-		if (iq)
-			iks_delete(iq);
-		if (query)
-			iks_delete(query);
-		if (instructions)
-			iks_delete(instructions);
+
+		iks_delete(iq);
+		iks_delete(query);
+		iks_delete(instructions);
 	}
 	ASTOBJ_UNREF(client, aji_client_destroy);
 	return IKS_FILTER_EAT;
@@ -1159,12 +1153,10 @@ static int aji_ditems_handler(void *data, ikspak *pak)
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
-		if (iq)
-			iks_delete(iq);
-		if (query)
-			iks_delete(query);
-		if (item)
-			iks_delete(item);
+
+		iks_delete(iq);
+		iks_delete(query);
+		iks_delete(item);
 
 	} else if (!strcasecmp(node, "http://jabber.org/protocol/commands")) {
 		iks *iq, *query, *confirm;
@@ -1188,12 +1180,10 @@ static int aji_ditems_handler(void *data, ikspak *pak)
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
-		if (iq)
-			iks_delete(iq);
-		if (query)
-			iks_delete(query);
-		if (confirm)
-			iks_delete(confirm);
+
+		iks_delete(iq);
+		iks_delete(query);
+		iks_delete(confirm);
 
 	} else if (!strcasecmp(node, "confirmaccount")) {
 		iks *iq = NULL, *query = NULL, *feature = NULL;
@@ -1215,12 +1205,10 @@ static int aji_ditems_handler(void *data, ikspak *pak)
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
-		if (iq)
-			iks_delete(iq);
-		if (query)
-			iks_delete(query);
-		if (feature)
-			iks_delete(feature);
+
+		iks_delete(iq);
+		iks_delete(query);
+		iks_delete(feature);
 	}
 
 	ASTOBJ_UNREF(client, aji_client_destroy);
@@ -1275,16 +1263,12 @@ static int aji_client_info_handler(void *data, ikspak *pak)
 			ast_aji_send(client, iq);
 		} else
 			ast_log(LOG_ERROR, "Out of Memory.\n");
-		if (iq)
-			iks_delete(iq);
-		if (query)
-			iks_delete(query);
-		if (ident)
-			iks_delete(ident);
-		if (google)
-			iks_delete(google);
-		if (disco)
-			iks_delete(disco);
+
+		iks_delete(iq);
+		iks_delete(query);
+		iks_delete(ident);
+		iks_delete(google);
+		iks_delete(disco);
 	} else if (pak->subtype == IKS_TYPE_ERROR) {
 		ast_log(LOG_NOTICE, "User %s does not support discovery.\n", pak->from->full);
 	}
@@ -1364,26 +1348,16 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
 
-		if (iq)
-			iks_delete(iq);
-		if (query)
-			iks_delete(query);
-		if (identity)
-			iks_delete(identity);
-		if (disco)
-			iks_delete(disco);
-		if (reg)
-			iks_delete(reg);
-		if (commands)
-			iks_delete(commands);
-		if (gateway)
-			iks_delete(gateway);
-		if (version)
-			iks_delete(version);
-		if (vcard)
-			iks_delete(vcard);
-		if (search)
-			iks_delete(search);
+		iks_delete(iq);
+		iks_delete(query);
+		iks_delete(identity);
+		iks_delete(disco);
+		iks_delete(reg);
+		iks_delete(commands);
+		iks_delete(gateway);
+		iks_delete(version);
+		iks_delete(vcard);
+		iks_delete(search);
 
 	} else if (pak->subtype == IKS_TYPE_GET && !strcasecmp(node, "http://jabber.org/protocol/commands")) {
 		iks *iq, *query, *confirm;
@@ -1407,12 +1381,10 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
-		if (iq)
-			iks_delete(iq);
-		if (query)
-			iks_delete(query);
-		if (confirm)
-			iks_delete(confirm);
+
+		iks_delete(iq);
+		iks_delete(query);
+		iks_delete(confirm);
 
 	} else if (pak->subtype == IKS_TYPE_GET && !strcasecmp(node, "confirmaccount")) {
 		iks *iq, *query, *feature;
@@ -1434,12 +1406,10 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
-		if (iq)
-			iks_delete(iq);
-		if (query)
-			iks_delete(query);
-		if (feature)
-			iks_delete(feature);
+
+		iks_delete(iq);
+		iks_delete(query);
+		iks_delete(feature);
 	}
 
 	ASTOBJ_UNREF(client, aji_client_destroy);
@@ -1675,10 +1645,9 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 				
 			} else
 				ast_log(LOG_ERROR, "Out of memory.\n");
-			if(query)
-				iks_delete(query);
-			if(iq)
-				iks_delete(iq);
+			
+			iks_delete(query);
+			iks_delete(iq);
 		}
 	}
 	switch (pak->subtype) {
@@ -1741,10 +1710,10 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
 			ast_aji_send(client, presence);
 		} else
 			ast_log(LOG_ERROR, "Unable to allocate nodes\n");
-		if (presence)
-			iks_delete(presence);
-		if (status)
-			iks_delete(status);
+
+		iks_delete(presence);
+		iks_delete(status);
+
 		if (client->component)
 			aji_set_presence(client, pak->from->full, iks_find_attrib(pak->x, "to"), client->status, client->statusmessage);
 	case IKS_TYPE_SUBSCRIBED:
@@ -1778,8 +1747,8 @@ int ast_aji_send_chat(struct aji_client *client, const char *address, const char
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
-		if (message_packet)
-			iks_delete(message_packet);
+
+		iks_delete(message_packet);
 	} else
 		ast_log(LOG_WARNING, "JABBER: Not connected can't send\n");
 	return 1;
@@ -1831,10 +1800,10 @@ int ast_aji_join_chat(struct aji_client *client, char *room)
 		res = ast_aji_send(client, presence);
 	} else 
 		ast_log(LOG_ERROR, "Out of memory.\n");
-	if (presence)
-		iks_delete(presence);
-	if (priority)
-		iks_delete(priority);
+	
+	iks_delete(presence);
+	iks_delete(priority);
+	
 	return res;
 }
 
@@ -1866,12 +1835,11 @@ int ast_aji_invite_chat(struct aji_client *client, char *user, char *room, char 
 		res = ast_aji_send(client, invite);
 	} else 
 		ast_log(LOG_ERROR, "Out of memory.\n");
-	if (body)
-		iks_delete(body);
-	if (namespace)
-		iks_delete(namespace);
-	if (invite)
-		iks_delete(invite);
+
+	iks_delete(body);
+	iks_delete(namespace);
+	iks_delete(invite);
+	
 	return res;
 }
 
@@ -2078,14 +2046,12 @@ static void aji_pruneregister(struct aji_client *client)
 		});
 	} else
 		ast_log(LOG_ERROR, "Out of memory.\n");
-	if (removeiq)
-		iks_delete(removeiq);
-	if (removequery)
-		iks_delete(removequery);
-	if (removeitem)
-		iks_delete(removeitem);
-	if (send)
-		iks_delete(send);
+
+	iks_delete(removeiq);
+	iks_delete(removequery);
+	iks_delete(removeitem);
+	iks_delete(send);
+	
 	ASTOBJ_CONTAINER_PRUNE_MARKED(&client->buddies, aji_buddy_destroy);
 }
 
@@ -2118,8 +2084,8 @@ static int aji_filter_roster(void *data, ikspak *pak)
 		}
 		if (!flag)
 			ast_copy_flags(&iterator->flags, &client->flags, AJI_AUTOREGISTER);
-		if (x)
-			iks_delete(x);
+		iks_delete(x);
+		
 		ASTOBJ_UNLOCK(iterator);
 	});
 
@@ -2158,8 +2124,8 @@ static int aji_filter_roster(void *data, ikspak *pak)
 		}
 		x = iks_next(x);
 	}
-	if (x)
-		iks_delete(x);
+
+	iks_delete(x);
 	aji_pruneregister(client);
 
 	ASTOBJ_UNREF(client, aji_client_destroy);
@@ -2195,13 +2161,15 @@ static int aji_get_roster(struct aji_client *client)
 {
 	iks *roster = NULL;
 	roster = iks_make_iq(IKS_TYPE_GET, IKS_NS_ROSTER);
+
 	if(roster) {
 		iks_insert_attrib(roster, "id", "roster");
 		aji_set_presence(client, NULL, client->jid->full, client->status, client->statusmessage);
 		ast_aji_send(client, roster);
 	}
-	if (roster)
-		iks_delete(roster);
+
+	iks_delete(roster);
+	
 	return 1;
 }
 
@@ -2315,12 +2283,10 @@ static void aji_set_presence(struct aji_client *client, char *to, char *from, in
 		res = ast_aji_send(client, presence);
 	} else
 		ast_log(LOG_ERROR, "Out of memory.\n");
-	if (cnode)
-		iks_delete(cnode);
-	if (presence)
-		iks_delete(presence);
-	if (priority)
-		iks_delete(priority);
+
+	iks_delete(cnode);
+	iks_delete(presence);
+	iks_delete(priority);
 }
 
 /*!

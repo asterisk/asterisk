@@ -281,10 +281,8 @@ static int add_codec_to_answer(const struct gtalk_pvt *p, int codec, iks *dcodec
 		payload_eg711u = iks_new("payload-type");
 	
 		if(!payload_eg711u || !payload_pcmu) {
-			if(payload_pcmu)
-				iks_delete(payload_pcmu);
-			if(payload_eg711u)
-				iks_delete(payload_eg711u);
+			iks_delete(payload_pcmu);
+			iks_delete(payload_eg711u);
 			ast_log(LOG_WARNING,"Failed to allocate iks node");
 			return -1;
 		}
@@ -304,10 +302,8 @@ static int add_codec_to_answer(const struct gtalk_pvt *p, int codec, iks *dcodec
 		payload_pcma = iks_new("payload-type");
 		payload_eg711a = iks_new("payload-type");
 		if(!payload_eg711a || !payload_pcma) {
-			if(payload_eg711a)
-				iks_delete(payload_eg711a);
-			if(payload_pcma)
-				iks_delete(payload_pcma);
+			iks_delete(payload_eg711a);
+			iks_delete(payload_pcma);
 			ast_log(LOG_WARNING,"Failed to allocate iks node");
 			return -1;
 		}
@@ -378,17 +374,12 @@ static int gtalk_invite(struct gtalk_pvt *p, char *to, char *from, char *sid, in
 	transport = iks_new("transport");
 	payload_telephone = iks_new("payload-type");
 	if (!(iq && gtalk && dcodecs && transport && payload_telephone)){
-		if(iq)
-			iks_delete(iq);
-		if(gtalk)
-			iks_delete(gtalk);
-		if(dcodecs)
-			iks_delete(dcodecs);
-		if(transport)
-			iks_delete(transport);
-		if(payload_telephone)
-			iks_delete(payload_telephone);
-
+		iks_delete(iq);
+		iks_delete(gtalk);
+		iks_delete(dcodecs);
+		iks_delete(transport);
+		iks_delete(payload_telephone);
+		
 		ast_log(LOG_ERROR, "Could not allocate iksemel nodes\n");
 		return 0;
 	}
@@ -428,6 +419,7 @@ static int gtalk_invite(struct gtalk_pvt *p, char *to, char *from, char *sid, in
 	iks_insert_node(dcodecs, payload_telephone);
 
 	ast_aji_send(client->connection, iq);
+
 	iks_delete(payload_telephone);
 	iks_delete(transport);
 	iks_delete(dcodecs);
@@ -443,12 +435,9 @@ static int gtalk_invite_response(struct gtalk_pvt *p, char *to , char *from, cha
 	session = iks_new("session");
 	transport = iks_new("transport");
 	if(!(iq && session && transport)) {
-		if(iq)
-			iks_delete(iq);
-		if(session)
-			iks_delete(session);
-		if(transport)
-			iks_delete(transport);
+		iks_delete(iq);
+		iks_delete(session);
+		iks_delete(transport);
 		ast_log(LOG_ERROR, " Unable to allocate IKS node\n");
 		return -1;
 	}
@@ -465,6 +454,7 @@ static int gtalk_invite_response(struct gtalk_pvt *p, char *to , char *from, cha
 	iks_insert_node(iq,session);
 	iks_insert_node(session,transport);
 	ast_aji_send(p->parent->connection, iq);
+
 	iks_delete(transport);
 	iks_delete(session);
 	iks_delete(iq);
@@ -564,13 +554,13 @@ static int gtalk_response(struct gtalk *client, char *from, ikspak *pak, const c
 			}
 		}
 		ast_aji_send(client->connection, response);
-		if (reason)
-			iks_delete(reason);
-		if (error)
-			iks_delete(error);
-		iks_delete(response);
 		res = 0;
 	}
+
+	iks_delete(reason);
+	iks_delete(error);
+	iks_delete(response);
+
 	return res;
 }
 
@@ -832,14 +822,11 @@ safeout:
 		ast_free(ours1);
 	if (ours2)
 		ast_free(ours2);
-	if (iq)
-		iks_delete(iq);
-	if (gtalk)
-		iks_delete(gtalk);
-	if (candidate)
-		iks_delete(candidate);
-	if(transport)
-		iks_delete(transport);
+	iks_delete(iq);
+	iks_delete(gtalk);
+	iks_delete(candidate);
+	iks_delete(transport);
+
 	return 1;
 }
 
@@ -1022,11 +1009,13 @@ static int gtalk_action(struct gtalk *client, struct gtalk_pvt *p, const char *a
 			iks_insert_attrib(session, "xmlns", "http://www.google.com/session");
 			iks_insert_node(request, session);
 			ast_aji_send(client->connection, request);
-			iks_delete(session);
 			res = 0;
 		}
-		iks_delete(request);
 	}
+
+	iks_delete(session);
+	iks_delete(request);
+
 	return res;
 }
 
@@ -1260,6 +1249,7 @@ static int gtalk_add_candidate(struct gtalk *client, ikspak *pak)
 	iks_insert_attrib(receipt, "to", iks_find_attrib(pak->x, "from"));
 	iks_insert_attrib(receipt, "id", iks_find_attrib(pak->x, "id"));
 	ast_aji_send(c, receipt);
+
 	iks_delete(receipt);
 
 	return 1;
@@ -1402,12 +1392,9 @@ static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duratio
 	gtalk = iks_new("gtalk");
 	dtmf = iks_new("dtmf");
 	if(!iq || !gtalk || !dtmf) {
-		if(iq)
-			iks_delete(iq);
-		if(gtalk)
-			iks_delete(gtalk);
-		if(dtmf)
-			iks_delete(dtmf);
+		iks_delete(iq);
+		iks_delete(gtalk);
+		iks_delete(dtmf);
 		ast_log(LOG_ERROR, "Did not send dtmf do to memory issue\n");
 		return -1;
 	}
@@ -1433,6 +1420,7 @@ static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duratio
 		iks_insert_attrib(dtmf, "action", "button-up");
 	}
 	ast_aji_send(client->connection, iq);
+
 	iks_delete(iq);
 	iks_delete(gtalk);
 	iks_delete(dtmf);

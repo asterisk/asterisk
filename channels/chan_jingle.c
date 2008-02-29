@@ -362,6 +362,7 @@ static int jingle_accept_call(struct jingle *client, struct jingle_pvt *p)
 		iks_insert_node(dcodecs, payload_cn);
 
 		ast_aji_send(c, iq);
+
 		iks_delete(payload_red);
 		iks_delete(payload_audio);
 		iks_delete(payload_cn);
@@ -463,13 +464,13 @@ static int jingle_response(struct jingle *client, ikspak *pak, const char *reaso
 			}
 		}
 		ast_aji_send(client->connection, response);
-		if (reason)
-			iks_delete(reason);
-		if (error)
-			iks_delete(error);
-		iks_delete(response);
 		res = 0;
 	}
+	
+	iks_delete(reason);
+	iks_delete(error);
+	iks_delete(response);
+
 	return res;
 }
 
@@ -727,16 +728,12 @@ safeout:
 		ast_free(ours1);
 	if (ours2)
 		ast_free(ours2);
-	if (iq)
-		iks_delete(iq);
-	if (jingle)
-		iks_delete(jingle);
-	if (content)
-		iks_delete(content);
-	if (transport)
-		iks_delete(transport);
-	if (candidate)
-		iks_delete(candidate);
+	iks_delete(iq);
+	iks_delete(jingle);
+	iks_delete(content);
+	iks_delete(transport);
+	iks_delete(candidate);
+
 	return 1;
 }
 
@@ -905,11 +902,13 @@ static int jingle_action(struct jingle *client, struct jingle_pvt *p, const char
 			iks_insert_node(iq, jingle);
 
 			ast_aji_send(client->connection, iq);
-			iks_delete(jingle);
 			res = 0;
 		}
-		iks_delete(iq);
 	}
+	
+	iks_delete(jingle);
+	iks_delete(iq);
+	
 	return res;
 }
 
@@ -1114,6 +1113,7 @@ static int jingle_add_candidate(struct jingle *client, ikspak *pak)
 	iks_insert_attrib(receipt, "to", iks_find_attrib(pak->x, "from"));
 	iks_insert_attrib(receipt, "id", iks_find_attrib(pak->x, "id"));
 	ast_aji_send(c, receipt);
+
 	iks_delete(receipt);
 
 	return 1;
@@ -1246,12 +1246,9 @@ static int jingle_digit(struct ast_channel *ast, char digit, unsigned int durati
 	jingle = iks_new("jingle");
 	dtmf = iks_new("dtmf");
 	if(!iq || !jingle || !dtmf) {
-		if(iq)
-			iks_delete(iq);
-		if(jingle)
-			iks_delete(jingle);
-		if(dtmf)
-			iks_delete(dtmf);
+		iks_delete(iq);
+		iks_delete(jingle);
+		iks_delete(dtmf);
 		ast_log(LOG_ERROR, "Did not send dtmf do to memory issue\n");
 		return -1;
 	}
@@ -1277,6 +1274,7 @@ static int jingle_digit(struct ast_channel *ast, char digit, unsigned int durati
 		iks_insert_attrib(dtmf, "action", "button-up");
 	}
 	ast_aji_send(client->connection, iq);
+
 	iks_delete(iq);
 	iks_delete(jingle);
 	iks_delete(dtmf);
