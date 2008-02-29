@@ -7,7 +7,7 @@
 ; syntaxes for dialing SIP devices.
 ;	SIP/devicename
 ;	SIP/username@domain   (SIP uri)
-;	SIP/username@host:port
+;	SIP/username[:password[:md5secret[:authname]]]@host[:port]
 ;	SIP/devicename/extension
 ;
 ;
@@ -23,6 +23,15 @@
 ; 	SIP/proxyhostname/user or SIP/user@proxyhostname 
 ; 	where the proxyhostname is defined in a section below 
 ;	This syntax also works with ATA's with FXO ports
+;
+; SIP/username[:password[:md5secret[:authname]]]@host[:port]
+;	This form allows you to specify password or md5secret and authname
+;	without altering any authentication data in config.
+;	Examples:
+;
+;	SIP/*98@mysipproxy
+;	SIP/sales:topsecret::account02@domain.com:5062
+;	SIP/12345678::bc53f0ba8ceb1ded2b70e05c3f91de4f:myname@192.168.0.1
 ;
 ; All of these dial strings specify the SIP request URI.
 ; In addition, you can specify a specific To: header by adding an
