@@ -1723,8 +1723,11 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
  */
 static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
 {
-	if (pak->subtype == IKS_TYPE_SUBSCRIBE) { 
-		iks *presence = NULL, *status = NULL;
+	iks *presence = NULL, *status = NULL;
+	struct aji_buddy* buddy = NULL;
+
+	switch (pak->subtype) { 
+	case IKS_TYPE_SUBSCRIBE:
 		presence = iks_new("presence");
 		status = iks_new("status");
 		if (presence && status) {
@@ -1744,24 +1747,15 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
 			iks_delete(status);
 		if (client->component)
 			aji_set_presence(client, pak->from->full, iks_find_attrib(pak->x, "to"), client->status, client->statusmessage);
-	}
-
-	switch (pak->subtype) {
-	case IKS_TYPE_SUBSCRIBE:
-		ast_verb(5, "JABBER: Subscribe handled.\n");
-		break;
 	case IKS_TYPE_SUBSCRIBED:
-		ast_verb(5, "JABBER: Subscribed (%d) not handled.\n", pak->subtype);
-		break;
-	case IKS_TYPE_UNSUBSCRIBE:
-		ast_verb(5, "JABBER: Unsubscribe (%d) not handled.\n", pak->subtype);
-		break;
-	case IKS_TYPE_UNSUBSCRIBED:
-		ast_verb(5, "JABBER: Unsubscribed (%d) not handled.\n", pak->subtype);
-		break;
-	default:				/*IKS_TYPE_ERROR: */
-		ast_verb(5, "JABBER: Unknown pak subtype %d.\n", pak->subtype);
-		break;
+		buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
+		if (!buddy && pak->from->partial) {
+			aji_create_buddy(pak->from->partial, client);
+		}
+	default:
+		if (option_verbose > 4) {
+			ast_verbose(VERBOSE_PREFIX_3 "JABBER: This is a subcription of type %i\n", pak->subtype);
+		}
 	}
 }
 
