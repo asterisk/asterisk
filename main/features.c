@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/monitor.h"
 #include "asterisk/audiohook.h"
+#include "asterisk/global_datastores.h"
 
 #define DEFAULT_PARK_TIME 45000
 #define DEFAULT_TRANSFER_DIGIT_TIMEOUT 3000
@@ -2232,10 +2233,24 @@ static void *do_parking_thread(void *ignore)
 					}
 					if (con) {
 						char returnexten[AST_MAX_EXTENSION];
-						snprintf(returnexten, sizeof(returnexten), "%s,,t", peername);
+						struct ast_datastore *features_datastore;
+						struct ast_dial_features *dialfeatures = NULL;
+
+						ast_channel_lock(chan);
+
+						if ((features_datastore = ast_channel_datastore_find(chan, &dial_features_info, NULL)))
+							dialfeatures = features_datastore->data;
+
+						ast_channel_unlock(chan);
+
+						if (dialfeatures)
+							snprintf(returnexten, sizeof(returnexten), "%s,,%s", peername, dialfeatures->options);
+						else /* Existing default */
+							snprintf(returnexten, sizeof(returnexten), "%s,,t", peername);
+
 						ast_add_extension2(con, 1, peername_flat, 1, NULL, NULL, "Dial", ast_strdup(returnexten), ast_free_ptr, registrar);
 					}
-					if (comebacktoorigin) { 
+					if (comebacktoorigin) {
 						set_c_e_p(chan, parking_con_dial, peername_flat, 1);
 					} else {
 						ast_log(LOG_WARNING, "now going to parkedcallstimeout,s,1 | ps is %d\n",pu->parkingnum);

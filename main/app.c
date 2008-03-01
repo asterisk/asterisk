@@ -1670,6 +1670,17 @@ int ast_app_parse_options64(const struct ast_app_option *options, struct ast_fla
 	return res;
 }
 
+void ast_app_options2str64(const struct ast_app_option *options, struct ast_flags64 *flags, char *buf, size_t len)
+{
+	unsigned int i, found = 0;
+	for (i = 32; i < 128 && found < len; i++) {
+		if (ast_test_flag64(flags, options[i].flag)) {
+			buf[found++] = i;
+		}
+	}
+	buf[found] = '\0';
+}
+
 int ast_get_encoded_char(const char *stream, char *result, size_t *consumed)
 {
 	int i;

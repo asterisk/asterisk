@@ -461,8 +461,16 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
  */
 int ast_app_parse_options64(const struct ast_app_option *options, struct ast_flags64 *flags, char **args, char *optstr);
 
-/*! \brief Present a dialtone and collect a certain length extension. 
-    \return Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension. 
+/*! \brief Given a list of options array, return an option string based on passed flags
+	\param options The array of possible options declared with AST_APP_OPTIONS
+	\param flags The flags of the options that you wish to populate the buffer with
+	\param buf The buffer to fill with the string of options
+	\param len The maximum length of buf
+*/
+void ast_app_options2str64(const struct ast_app_option *options, struct ast_flags64 *flags, char *buf, size_t len);
+
+/*! \brief Present a dialtone and collect a certain length extension.
+    \return Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension.
 \note Note that if 'collect' holds digits already, new digits will be appended, so be sure it's initialized properly */
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);
 

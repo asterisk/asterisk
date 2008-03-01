@@ -26,11 +26,22 @@
 
 #include "asterisk/channel.h"
 
+#define MAX_DIAL_FEATURE_OPTIONS 30
+
 extern const struct ast_datastore_info dialed_interface_info;
+
+extern const struct ast_datastore_info dial_features_info;
 
 struct ast_dialed_interface {
 	AST_LIST_ENTRY(ast_dialed_interface) list;
 	char interface[1];
+};
+
+struct ast_dial_features {
+	struct ast_flags features_caller;
+	struct ast_flags features_callee;
+	char options[MAX_DIAL_FEATURE_OPTIONS];
+	int is_caller;
 };
 
 #endif
