@@ -97,6 +97,9 @@ CLI Changes
   * New CLI command: "core set chanvar" to set a channel variable from the CLI.
   * Added an easy way to execute Asterisk CLI commands at startup.  Any commands
     listed in the startup_commands section of cli.conf will get executed.
+  * Added a CLI command, "devstate change", which allows you to set custom device
+     states from the func_devstate module that provides the DEVICE_STATE() function
+     and handling of the "Custom:" devices.
 
 SIP changes
 -----------
@@ -166,7 +169,7 @@ Skinny changes
   * Proper codec support in chan_skinny.
   * Added settings for IP and Ethernet QoS requests
 
-MGCP changes
+
 ------------
   * Added separate settings for media QoS in mgcp.conf
 

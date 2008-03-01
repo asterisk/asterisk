@@ -54,6 +54,7 @@ static int devstate_read(struct ast_channel *chan, const char *cmd, char *data, 
 static int devstate_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
 	size_t len = strlen("Custom:");
+	enum ast_device_state state_val;
 
 	if (strncasecmp(data, "Custom:", len)) {
 		ast_log(LOG_WARNING, "The DEVICE_STATE function can only be used to set 'Custom:' device state!\n");
@@ -65,9 +66,16 @@ static int devstate_write(struct ast_channel *chan, const char *cmd, char *data,
 		return -1;
 	}
 
+	state_val = ast_devstate_val(value);
+
+	if (state_val == AST_DEVICE_UNKNOWN) {
+		ast_log(LOG_ERROR, "DEVICE_STATE function given invalid state value '%s'\n", value);
+		return -1;
+	}
+
 	ast_db_put(astdb_family, data, value);
 
-	ast_devstate_changed(ast_devstate_val(value), "Custom:%s", data);
+	ast_devstate_changed(state_val, "Custom:%s", data);
 
 	return 0;
 }
@@ -215,9 +223,73 @@ static char *handle_cli_devstate_list(struct ast_cli_entry *e, int cmd, struct a
 	return CLI_SUCCESS;
 }
 
+static char *handle_cli_devstate_change(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+    size_t len;
+	const char *dev, *state;
+	enum ast_device_state state_val;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "devstate change";
+		e->usage =
+			"Usage: devstate change <device> <state>\n"
+			"       Change a custom device to a new state.\n"
+			"       The possible values for the state are:\n"
+			"UNKNOWN | NOT_INUSE | INUSE | BUSY | INVALID | UNAVAILABLE | RINGING\n"
+			"RINGINUSE | ONHOLD\n",
+			"\n"
+			"Examples:\n"
+			"       devstate change Custom:mystate1 INUSE\n"
+			"       devstate change Custom:mystate1 NOT_INUSE\n"
+			"       \n";
+		return NULL;
+	case CLI_GENERATE:
+	{
+		static char * const cmds[] = { "UNKNOWN", "NOT_INUSE", "INUSE", "BUSY",
+			"UNAVAILALBE", "RINGING", "RINGINUSE", "ONHOLD", NULL };
+
+		if (a->pos == e->args + 1)
+			return ast_cli_complete(a->word, cmds, a->n);
+
+		return NULL;
+	}
+	}
+
+	if (a->argc != e->args + 2)
+		return CLI_SHOWUSAGE;
+
+	len = strlen("Custom:");
+	dev = a->argv[e->args];
+	state = a->argv[e->args + 1];
+
+	if (strncasecmp(dev, "Custom:", len)) {
+		ast_cli(a->fd, "The devstate command can only be used to set 'Custom:' device state!\n");
+		return CLI_FAILURE;
+	}
+
+	dev += len;
+	if (ast_strlen_zero(dev))
+		return CLI_SHOWUSAGE;
+
+	state_val = ast_devstate_val(state);
+
+	if (state_val == AST_DEVICE_UNKNOWN)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "Changing %s to %s\n", dev, state);
+
+	ast_db_put(astdb_family, dev, state);
+
+	ast_devstate_changed(state_val, "Custom:%s", dev);
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_funcdevstate_list_deprecated = AST_CLI_DEFINE(handle_cli_funcdevstate_list, "List currently known custom device states");
 static struct ast_cli_entry cli_funcdevstate[] = {
 	AST_CLI_DEFINE(handle_cli_devstate_list, "List currently known custom device states", .deprecate_cmd = &cli_funcdevstate_list_deprecated),
+	AST_CLI_DEFINE(handle_cli_devstate_change, "Change a custom device state"),
 };
 
 static struct ast_custom_function devstate_function = {
