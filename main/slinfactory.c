@@ -56,14 +56,14 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 	struct ast_frame *begin_frame = f, *duped_frame = NULL, *frame_ptr;
 	unsigned int x;
 
-	if (f->subclass != AST_FORMAT_SLINEAR) {
+	if (f->subclass != AST_FORMAT_SLINEAR && f->subclass != AST_FORMAT_SLINEAR16) {
 		if (sf->trans && f->subclass != sf->format) {
 			ast_translator_free_path(sf->trans);
 			sf->trans = NULL;
 		}
 
 		if (!sf->trans) {
-			if (!(sf->trans = ast_translator_build_path(AST_FORMAT_SLINEAR, f->subclass))) {
+			if (!(sf->trans = ast_translator_build_path((f->subclass == AST_FORMAT_G722 ? AST_FORMAT_SLINEAR16 : AST_FORMAT_SLINEAR), f->subclass))) {
 				ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(f->subclass));
 				return 0;
 			}
