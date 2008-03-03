@@ -64,6 +64,7 @@ struct asent {
 };
 
 static AST_LIST_HEAD_STATIC(aslist, asent);
+static ast_cond_t as_cond;
 
 static pthread_t asthread = AST_PTHREADT_NULL;
 
@@ -98,6 +99,9 @@ static void *autoservice_run(void *ign)
 		 * to get used again. */
 		as_chan_list_state++;
 
+		if (AST_LIST_EMPTY(&aslist))
+			ast_cond_wait(&as_cond, &aslist.lock);
+
 		AST_LIST_TRAVERSE(&aslist, as, list) {
 			if (!as->chan->_softhangup) {
 				if (x < MAX_AUTOMONS)
@@ -106,6 +110,7 @@ static void *autoservice_run(void *ign)
 					ast_log(LOG_WARNING, "Exceeded maximum number of automatic monitoring events.  Fix autoservice.c\n");
 			}
 		}
+
 		AST_LIST_UNLOCK(&aslist);
 
 		chan = ast_waitfor_n(mons, x, &ms);
@@ -194,6 +199,8 @@ int ast_autoservice_start(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 
 	AST_LIST_LOCK(&aslist);
+	if (AST_LIST_EMPTY(&aslist))
+		ast_cond_signal(&as_cond);
 	AST_LIST_INSERT_HEAD(&aslist, as, list);
 	AST_LIST_UNLOCK(&aslist);
 
@@ -275,4 +282,9 @@ int ast_autoservice_stop(struct ast_channel *chan)
 		usleep(1000);
 
 	return res;
+}
+
+void ast_autoservice_init(void)
+{
+	ast_cond_init(&as_cond, NULL);
 }

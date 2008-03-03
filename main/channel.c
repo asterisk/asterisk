@@ -1616,7 +1616,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	int *exception, int *outfd, int *ms)
 {
 	struct timeval start = { 0 , 0 };
-	struct pollfd *pfds;
+	struct pollfd *pfds = NULL;
 	int res;
 	long rms;
 	int x, y, max;
@@ -1627,11 +1627,12 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	struct fdmap {
 		int chan;
 		int fdno;
-	} *fdmap;
+	} *fdmap = NULL;
 
-	sz = n * AST_MAX_FDS + nfds;
-	pfds = alloca(sizeof(*pfds) * sz);
-	fdmap = alloca(sizeof(*fdmap) * sz);
+	if ((sz = n * AST_MAX_FDS + nfds)) {
+		pfds = alloca(sizeof(*pfds) * sz);
+		fdmap = alloca(sizeof(*fdmap) * sz);
+	}
 
 	if (outfd)
 		*outfd = -99999;
