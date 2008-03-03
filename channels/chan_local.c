@@ -150,6 +150,9 @@ static int local_devicestate(void *data)
 		return AST_DEVICE_UNKNOWN;
 }
 
+/*!
+ * \note Assumes the pvt is no longer in the pvts list
+ */
 static struct local_pvt *local_pvt_destroy(struct local_pvt *pvt)
 {
 	ast_mutex_destroy(&pvt->lock);
@@ -673,8 +676,12 @@ static struct ast_channel *local_request(const char *type, int format, void *dat
 
 	/* Allocate a new private structure and then Asterisk channel */
 	if ((p = local_alloc(data, format))) {
-		if (!(chan = local_new(p, AST_STATE_DOWN)))
+		if (!(chan = local_new(p, AST_STATE_DOWN))) {
+			AST_LIST_LOCK(&locals);
+			AST_LIST_REMOVE(&locals, p, list);
+			AST_LIST_UNLOCK(&locals);
 			p = local_pvt_destroy(p);
+		}
 	}
 
 	return chan;
