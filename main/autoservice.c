@@ -30,6 +30,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 #include <signal.h>
 
+#include "asterisk/_private.h" /* prototype for ast_autoservice_init() */
+
 #include "asterisk/pbx.h"
 #include "asterisk/frame.h"
 #include "asterisk/sched.h"
@@ -56,7 +58,8 @@ struct asent {
 	AST_LIST_ENTRY(asent) list;
 };
 
-static AST_RWLIST_HEAD_STATIC(aslist, asent);
+static AST_LIST_HEAD_STATIC(aslist, asent);
+static ast_cond_t as_cond;
 
 static pthread_t asthread = AST_PTHREADT_NULL;
 
@@ -67,14 +70,14 @@ static void defer_frame(struct ast_channel *chan, struct ast_frame *f)
 	struct ast_frame *dup_f;
 	struct asent *as;
 
-	AST_RWLIST_WRLOCK(&aslist);
-	AST_RWLIST_TRAVERSE(&aslist, as, list) {
+	AST_LIST_LOCK(&aslist);
+	AST_LIST_TRAVERSE(&aslist, as, list) {
 		if (as->chan != chan)
 			continue;
 		if ((dup_f = ast_frdup(f)))
 			AST_LIST_INSERT_TAIL(&as->dtmf_frames, dup_f, frame_list);
 	}
-	AST_RWLIST_UNLOCK(&aslist);
+	AST_LIST_UNLOCK(&aslist);
 }
 
 static void *autoservice_run(void *ign)
@@ -84,13 +87,16 @@ static void *autoservice_run(void *ign)
 		struct asent *as;
 		int x = 0, ms = 500;
 
-		AST_RWLIST_RDLOCK(&aslist);
+		AST_LIST_LOCK(&aslist);
 
 		/* At this point, we know that no channels that have been removed are going
 		 * to get used again. */
 		as_chan_list_state++;
 
-		AST_RWLIST_TRAVERSE(&aslist, as, list) {
+		if (AST_LIST_EMPTY(&aslist))
+			ast_cond_wait(&as_cond, &aslist.lock);
+
+		AST_LIST_TRAVERSE(&aslist, as, list) {
 			if (!ast_check_hangup(as->chan)) {
 				if (x < MAX_AUTOMONS)
 					mons[x++] = as->chan;
@@ -98,7 +104,8 @@ static void *autoservice_run(void *ign)
 					ast_log(LOG_WARNING, "Exceeded maximum number of automatic monitoring events.  Fix autoservice.c\n");
 			}
 		}
-		AST_RWLIST_UNLOCK(&aslist);
+
+		AST_LIST_UNLOCK(&aslist);
 
 		if ((chan = ast_waitfor_n(mons, x, &ms))) {
 			struct ast_frame *f = ast_read(chan);
@@ -158,14 +165,14 @@ int ast_autoservice_start(struct ast_channel *chan)
 	int res = 0;
 	struct asent *as;
 
-	AST_RWLIST_WRLOCK(&aslist);
-	AST_RWLIST_TRAVERSE(&aslist, as, list) {
+	AST_LIST_LOCK(&aslist);
+	AST_LIST_TRAVERSE(&aslist, as, list) {
 		if (as->chan == chan) {
 			as->use_count++;
 			break;
 		}
 	}
-	AST_RWLIST_UNLOCK(&aslist);
+	AST_LIST_UNLOCK(&aslist);
 
 	if (as) {
 		/* Entry exists, autoservice is already handling this channel */
@@ -185,18 +192,20 @@ int ast_autoservice_start(struct ast_channel *chan)
 		ast_set_flag(chan, AST_FLAG_END_DTMF_ONLY);
 	ast_channel_unlock(chan);
 
-	AST_RWLIST_WRLOCK(&aslist);
-	AST_RWLIST_INSERT_HEAD(&aslist, as, list);
-	AST_RWLIST_UNLOCK(&aslist);
+	AST_LIST_LOCK(&aslist);
+	if (AST_LIST_EMPTY(&aslist))
+		ast_cond_signal(&as_cond);
+	AST_LIST_INSERT_HEAD(&aslist, as, list);
+	AST_LIST_UNLOCK(&aslist);
 
 	if (asthread == AST_PTHREADT_NULL) { /* need start the thread */
 		if (ast_pthread_create_background(&asthread, NULL, autoservice_run, NULL)) {
 			ast_log(LOG_WARNING, "Unable to create autoservice thread :(\n");
 			/* There will only be a single member in the list at this point,
 			   the one we just added. */
-			AST_RWLIST_WRLOCK(&aslist);
-			AST_RWLIST_REMOVE(&aslist, as, list);
-			AST_RWLIST_UNLOCK(&aslist);
+			AST_LIST_LOCK(&aslist);
+			AST_LIST_REMOVE(&aslist, as, list);
+			AST_LIST_UNLOCK(&aslist);
 			free(as);
 			res = -1;
 		} else
@@ -218,7 +227,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 
 	AST_LIST_HEAD_INIT_NOLOCK(&dtmf_frames);
 
-	AST_RWLIST_WRLOCK(&aslist);
+	AST_LIST_LOCK(&aslist);
 
 	/* Save the autoservice channel list state.  We _must_ verify that the channel
 	 * list has been rebuilt before we return.  Because, after we return, the channel
@@ -226,9 +235,9 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	 * it after its gone! */
 	chan_list_state = as_chan_list_state;
 
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&aslist, as, list) {	
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&aslist, as, list) {	
 		if (as->chan == chan) {
-			AST_RWLIST_REMOVE_CURRENT(list);
+			AST_LIST_REMOVE_CURRENT(list);
 			as->use_count--;
 			if (as->use_count)
 				break;
@@ -241,12 +250,12 @@ int ast_autoservice_stop(struct ast_channel *chan)
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	if (removed && asthread != AST_PTHREADT_NULL) 
 		pthread_kill(asthread, SIGURG);
 	
-	AST_RWLIST_UNLOCK(&aslist);
+	AST_LIST_UNLOCK(&aslist);
 
 	if (!removed)
 		return 0;
@@ -267,4 +276,9 @@ int ast_autoservice_stop(struct ast_channel *chan)
 		usleep(1000);
 
 	return res;
+}
+
+void ast_autoservice_init(void)
+{
+	ast_cond_init(&as_cond, NULL);
 }

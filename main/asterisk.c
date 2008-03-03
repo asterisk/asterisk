@@ -3186,6 +3186,8 @@ int main(int argc, char *argv[])
 
 	astobj2_init();
 
+	ast_autoservice_init();
+
 	if (load_modules(1)) {		/* Load modules, pre-load only */
 		printf(term_quit());
 		exit(1);
