@@ -157,6 +157,13 @@ static int local_devicestate(void *data)
 	return res;
 }
 
+static struct local_pvt *local_pvt_destroy(struct local_pvt *pvt)
+{
+	ast_mutex_destroy(&pvt->lock);
+	ast_free(pvt);
+	return NULL;
+}
+
 static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_frame *f, struct ast_channel *us)
 {
 	struct ast_channel *other = NULL;
@@ -170,8 +177,7 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 		/* We had a glare on the hangup.  Forget all this business,
 		return and destroy p.  */
 		ast_mutex_unlock(&p->lock);
-		ast_mutex_destroy(&p->lock);
-		ast_free(p);
+		p = local_pvt_destroy(p);
 		return -1;
 	}
 	if (!other) {
@@ -548,8 +554,7 @@ static int local_hangup(struct ast_channel *ast)
 		ast_mutex_unlock(&p->lock);
 		/* And destroy */
 		if (!glaredetect) {
-			ast_mutex_destroy(&p->lock);
-			ast_free(p);
+			p = local_pvt_destroy(p);
 		}
 		return 0;
 	}
@@ -605,9 +610,7 @@ static struct local_pvt *local_alloc(const char *data, int format)
 
 	if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
 		ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->exten, tmp->context);
-		ast_mutex_destroy(&tmp->lock);
-		ast_free(tmp);
-		tmp = NULL;
+		tmp = local_pvt_destroy(tmp);
 	} else {
 		/* Add to list */
 		AST_LIST_LOCK(&locals);
@@ -682,7 +685,6 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 	return tmp;
 }
 
-
 /*! \brief Part of PBX interface */
 static struct ast_channel *local_request(const char *type, int format, void *data, int *cause)
 {
@@ -690,8 +692,10 @@ static struct ast_channel *local_request(const char *type, int format, void *dat
 	struct ast_channel *chan = NULL;
 
 	/* Allocate a new private structure and then Asterisk channel */
-	if ((p = local_alloc(data, format)))
-		chan = local_new(p, AST_STATE_DOWN);
+	if ((p = local_alloc(data, format))) {
+		if (!(chan = local_new(p, AST_STATE_DOWN)))
+			p = local_pvt_destroy(p);
+	}
 
 	return chan;
 }
