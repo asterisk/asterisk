@@ -751,7 +751,7 @@ static void init_asterisk_mib(void)
 		{ASTINDCOUNTRY,          ASN_OCTET_STR, RONLY, ast_var_indications_table,   4, {ASTINDICATIONS, ASTINDTABLE, 1, ASTINDCOUNTRY}},
 		{ASTINDALIAS,            ASN_OCTET_STR, RONLY, ast_var_indications_table,   4, {ASTINDICATIONS, ASTINDTABLE, 1, ASTINDALIAS}},
 		{ASTINDDESCRIPTION,      ASN_OCTET_STR, RONLY, ast_var_indications_table,   4, {ASTINDICATIONS, ASTINDTABLE, 1, ASTINDDESCRIPTION}},
-		{ASTCHANCOUNT,           ASN_INTEGER,   RONLY, ast_var_channels,            2, {ASTCHANNELS, ASTCHANCOUNT}},
+		{ASTCHANCOUNT,           ASN_GAUGE,     RONLY, ast_var_channels,            2, {ASTCHANNELS, ASTCHANCOUNT}},
 		{ASTCHANINDEX,           ASN_INTEGER,   RONLY, ast_var_channels_table,      4, {ASTCHANNELS, ASTCHANTABLE, 1, ASTCHANINDEX}},
 		{ASTCHANNAME,            ASN_OCTET_STR, RONLY, ast_var_channels_table,      4, {ASTCHANNELS, ASTCHANTABLE, 1, ASTCHANNAME}},
 		{ASTCHANLANGUAGE,        ASN_OCTET_STR, RONLY, ast_var_channels_table,      4, {ASTCHANNELS, ASTCHANTABLE, 1, ASTCHANLANGUAGE}},
