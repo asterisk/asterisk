@@ -19382,6 +19382,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, str
 	strcpy(user->language, default_language);
 	strcpy(user->mohinterpret, default_mohinterpret);
 	strcpy(user->mohsuggest, default_mohsuggest);
+	/* First we walk through the v parameters list and then the alt parameters list */
 	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (handle_common_options(&userflags[0], &mask[0], v))
 			continue;
