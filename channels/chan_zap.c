@@ -1148,7 +1148,7 @@ static int alloc_sub(struct zt_pvt *p, int x)
 {
 	ZT_BUFFERINFO bi;
 	int res;
-	if (p->subs[x].zfd < 0) {
+	if (p->subs[x].zfd >= 0) {
 		ast_log(LOG_WARNING, "%s subchannel of %d already in use\n", subnames[x], p->channel);
 		return -1;
 	}
