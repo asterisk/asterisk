@@ -170,6 +170,8 @@ int ast_rtp_sendcng(struct ast_rtp *rtp, int level);
 
 int ast_rtp_setqos(struct ast_rtp *rtp, int tos, int cos, char *desc);
 
+void ast_rtp_new_source(struct ast_rtp *rtp);
+
 /*! \brief  Setting RTP payload types from lines in a SDP description: */
 void ast_rtp_pt_clear(struct ast_rtp* rtp);
 /*! \brief Set payload types to defaults */

@@ -4824,8 +4824,10 @@ static int sip_answer(struct ast_channel *ast)
 		if (p->t38.state == T38_PEER_DIRECT) {
 			change_t38_state(p, T38_ENABLED);
 			res = transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
-		} else 
+		} else {
+			ast_rtp_new_source(p->rtp);
 			res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL, FALSE);
+		}
 	}
 	sip_pvt_unlock(p);
 	return res;
@@ -4858,6 +4860,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				if ((ast->_state != AST_STATE_UP) &&
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
+					ast_rtp_new_source(p->rtp);
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 				}
@@ -5095,9 +5098,11 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		res = -1;
 		break;
 	case AST_CONTROL_HOLD:
+		ast_rtp_new_source(p->rtp);
 		ast_moh_start(ast, data, p->mohinterpret);
 		break;
 	case AST_CONTROL_UNHOLD:
+		ast_rtp_new_source(p->rtp);
 		ast_moh_stop(ast);
 		break;
 	case AST_CONTROL_VIDUPDATE:	/* Request a video frame update */
