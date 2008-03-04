@@ -174,12 +174,13 @@ static const struct ast_option_types {
 };
 
 /*! \brief free the buffer if allocated, and set the pointer to the second arg */
-#define S_REPLACE(s, new_val)           \
-        do {                            \
-                if (s)                  \
-                        free(s);        \
-                s = (new_val);          \
-        } while (0)
+#define S_REPLACE(s, new_val) \
+	do {                      \
+		if (s) {              \
+			free(s);          \
+		}                     \
+		s = (new_val);        \
+	} while (0)
 
 /*! \brief Maximum number of channels we can watch at a time */
 #define AST_MAX_WATCHERS 256
@@ -871,7 +872,7 @@ int ast_dial_destroy(struct ast_dial *dial)
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&dial->channels);
-       
+ 
 	/* Disable any enabled options globally */
 	for (i = 0; i < AST_DIAL_OPTION_MAX; i++) {
 		if (!dial->options[i])
@@ -954,7 +955,7 @@ int ast_dial_option_enable(struct ast_dial *dial, int num, enum ast_dial_option 
 	if (channel->options[option])
 		return -1;
 
-        /* Execute enable callback if it exists, if not simply make sure the value is set */
+	/* Execute enable callback if it exists, if not simply make sure the value is set */
 	if (option_types[option].enable)
 		channel->options[option] = option_types[option].enable(data);
 	else
@@ -970,9 +971,10 @@ int ast_dial_option_enable(struct ast_dial *dial, int num, enum ast_dial_option 
  */
 int ast_dial_option_global_disable(struct ast_dial *dial, enum ast_dial_option option)
 {
-        /* If the option is not enabled, return failure */
-        if (!dial->options[option])
-                return -1;
+	/* If the option is not enabled, return failure */
+	if (!dial->options[option]) {
+		return -1;
+	}
 
 	/* Execute callback of option to disable if it exists */
 	if (option_types[option].disable)
@@ -981,7 +983,7 @@ int ast_dial_option_global_disable(struct ast_dial *dial, enum ast_dial_option o
 	/* Finally disable option on the structure */
 	dial->options[option] = NULL;
 
-        return 0;
+	return 0;
 }
 
 /*! \brief Disables an option per channel

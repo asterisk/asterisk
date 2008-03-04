@@ -124,7 +124,7 @@ struct ast_chan_trace {
 static AST_LIST_HEAD_NOLOCK_STATIC(backends, chanlist);
 
 /*! \brief the list of channels we have. Note that the lock for this list is used for
-    both the channels list and the backends list.  */
+	both the channels list and the backends list.  */
 static AST_RWLIST_HEAD_STATIC(channels, ast_channel);
 
 /*! \brief map AST_CAUSE's to readable string representations 
@@ -3400,8 +3400,8 @@ int ast_call(struct ast_channel *chan, char *addr, int timeout)
   \brief Transfer a call to dest, if the channel supports transfer
 
   Called by:
-    \arg app_transfer
-    \arg the manager interface
+	\arg app_transfer
+	\arg the manager interface
 */
 int ast_transfer(struct ast_channel *chan, char *dest)
 {

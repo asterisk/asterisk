@@ -150,7 +150,7 @@ static int hash_string(const void *obj, const int flags)
 		total += tmp; /* multiply by 3 */
 		total <<= 2; /* multiply by 12 */
 		total += tmp; /* multiply by 13 */
-        
+
 		total += ((unsigned int)(*str));
 	}
 	if (total < 0)
@@ -242,9 +242,9 @@ struct ast_variable *ast_variable_new(const char *name, const char *value, const
 struct ast_config_include *ast_include_new(struct ast_config *conf, const char *from_file, const char *included_file, int is_exec, const char *exec_file, int from_lineno, char *real_included_file_name, int real_included_file_name_size)
 {
 	/* a file should be included ONCE. Otherwise, if one of the instances is changed,
-       then all be changed. -- how do we know to include it? -- Handling modified 
-       instances is possible, I'd have
-       to create a new master for each instance. */
+	 * then all be changed. -- how do we know to include it? -- Handling modified 
+	 * instances is possible, I'd have
+	 * to create a new master for each instance. */
 	struct ast_config_include *inc;
 	struct stat statbuf;
 	
@@ -290,13 +290,13 @@ void ast_include_rename(struct ast_config *conf, const char *from_file, const ch
 		return;
 	
 	/* the manager code allows you to read in one config file, then
-       write it back out under a different name. But, the new arrangement
-	   ties output lines to the file name. So, before you try to write
-       the config file to disk, better riffle thru the data and make sure
-       the file names are changed.
-	*/
+	 * write it back out under a different name. But, the new arrangement
+	 * ties output lines to the file name. So, before you try to write
+	 * the config file to disk, better riffle thru the data and make sure
+	 * the file names are changed.
+	 */
 	/* file names are on categories, includes (of course), and on variables. So,
-	   traverse all this and swap names */
+	 * traverse all this and swap names */
 
 	for (incl = conf->includes; incl; incl=incl->next) {
 		if (strcmp(incl->include_location_file,from_file) == 0) {
@@ -2154,7 +2154,7 @@ int ast_destroy_realtime(const char *family, const char *keyfield, const char *l
  * See documentation in config.h
  */
 int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
-        void *p_result, ...)
+	void *p_result, ...)
 {
 	va_list ap;
 	int error = 0;

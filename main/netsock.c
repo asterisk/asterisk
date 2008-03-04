@@ -150,7 +150,7 @@ int ast_netsock_set_qos(int netsocket, int tos, int cos, const char *desc)
 	if ((res = setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))))
 		ast_log(LOG_WARNING, "Unable to set %s TOS to %d, may be you have no root privileges\n", desc, tos);
 	else if (tos)
-                ast_verb(2, "Using %s TOS bits %d\n", desc, tos);
+		ast_verb(2, "Using %s TOS bits %d\n", desc, tos);
 
 #if defined(linux)								
 	if (setsockopt(netsocket, SOL_SOCKET, SO_PRIORITY, &cos, sizeof(cos)))

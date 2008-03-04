@@ -102,8 +102,8 @@ struct tdd_state *tdd_new(void)
 		tdd->fskd.ispb = 176;        /* 45.5 baud */
 		/* Set up for 45.5 / 8000 freq *32 to allow ints */
 		tdd->fskd.pllispb  = (int)((8000 * 32 * 2) / 90);
-		tdd->fskd.pllids   = tdd->fskd.pllispb/32;
-                tdd->fskd.pllispb2 = tdd->fskd.pllispb/2;
+		tdd->fskd.pllids   = tdd->fskd.pllispb / 32;
+		tdd->fskd.pllispb2 = tdd->fskd.pllispb / 2;
 		tdd->fskd.hdlc = 0;         /* Async */
 		tdd->fskd.nbit = 5;         /* 5 bits */
 		tdd->fskd.instop = 1;       /* integer rep of 1.5 stop bits */
@@ -149,7 +149,7 @@ int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int len)
 		return -1;
 	}
 	memcpy(buf, tdd->oldstuff, tdd->oldlen);
-	mylen += tdd->oldlen/2;
+	mylen += tdd->oldlen / 2;
 	for (x = 0; x < len; x++) 
 		buf[x + tdd->oldlen / 2] = AST_MULAW(ubuf[x]);
 	c = res = 0;
@@ -171,7 +171,7 @@ int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int len)
 			/* Ignore invalid bytes */
 			if (b > 0x7f)
 				continue;
-			c = tdd_decode_baudot(tdd,b);
+			c = tdd_decode_baudot(tdd, b);
 			if ((c < 1) || (c > 126))
 				continue; /* if not valid */
 			break;
@@ -224,7 +224,7 @@ static inline float tdd_getcarrier(float *cr, float *ci, int bit)
 	
 #define PUT_TDD_MARKMS do { \
 	int x; \
-	for (x=0;x<8;x++) \
+	for (x = 0; x < 8; x++) \
 		PUT_AUDIO_SAMPLE(tdd_getcarrier(&cr, &ci, 1)); \
 } while(0)
 
@@ -259,9 +259,9 @@ static inline float tdd_getcarrier(float *cr, float *ci, int bit)
 /*! Generate TDD hold tone */
 int tdd_gen_holdtone(unsigned char *buf)
 {
-	int bytes=0;
-	float scont=0.0,cr=1.0,ci=0.0;
-	while(scont < tddsb*10.0) {
+	int bytes = 0;
+	float scont = 0.0, cr = 1.0, ci=0.0;
+	while (scont < tddsb * 10.0) {
 		PUT_AUDIO_SAMPLE(tdd_getcarrier(&cr, &ci, 1));
 		scont += 1.0;
 	}
@@ -270,9 +270,9 @@ int tdd_gen_holdtone(unsigned char *buf)
 
 int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *str)
 {
-	int bytes=0;
+	int bytes = 0;
 	int i,x;
-	char	c;
+	char c;
 	/*! Baudot letters */
 	static unsigned char lstr[31] = "\000E\nA SIU\rDRJNFCKTZLWHYPQOBG\000MXV";
 	/*! Baudot figures */

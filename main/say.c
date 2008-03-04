@@ -1226,8 +1226,8 @@ What about:
 */
 #define SAY_NUM_BUF_SIZE 256
 static int ast_say_number_full_he(struct ast_channel *chan, int num, 
-    const char *ints, const char *language, const char *options, 
-    int audiofd, int ctrlfd)
+	const char *ints, const char *language, const char *options, 
+	int audiofd, int ctrlfd)
 {
 	int res = 0;
 	int state = 0; /* no need to save anything */
@@ -2301,7 +2301,7 @@ static int get_lastdigits_ru(int num) {
 	millions.gsm
 	1f.gsm			(odna)
 	2f.gsm			(dve)
-    
+
 	where 'n' from 1 to 9
 */
 static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
@@ -2324,16 +2324,16 @@ static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char 
 			if (options && strlen(options) == 1 && num < 3) {
 			    snprintf(fn, sizeof(fn), "digits/%d%s", num, options);
 			} else {
-    			    snprintf(fn, sizeof(fn), "digits/%d", num);
+				snprintf(fn, sizeof(fn), "digits/%d", num);
 			}
 			num = 0;
-		} else	if (num < 100) {
+		} else if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/%d", num - (num % 10));
 			num %= 10;
-		} else 	if (num < 1000){
+		} else if (num < 1000){
 			snprintf(fn, sizeof(fn), "digits/%d", num - (num % 100));
 			num %= 100;
-		} else 	if (num < 1000000) { /* 1,000,000 */
+		} else if (num < 1000000) { /* 1,000,000 */
 			lastdigits = get_lastdigits_ru(num / 1000);
 			/* say thousands */
 			if (lastdigits < 3) {
@@ -4070,8 +4070,8 @@ int ast_say_date_with_format_th(struct ast_channel *chan, time_t time, const cha
 #define IL_TIME_STR "IMp"
 #define IL_DATE_STR_FULL IL_DATE_STR " 'digits/at' " IL_TIME_STR
 int ast_say_date_with_format_he(struct ast_channel *chan, time_t time, 
-    const char *ints, const char *lang, const char *format, 
-    const char *timezone)
+	const char *ints, const char *lang, const char *format, 
+	const char *timezone)
 {
 	/* TODO: This whole function is cut&paste from 
 	 * ast_say_date_with_format_en . Is that considered acceptable?
@@ -4113,52 +4113,34 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 				break;
 			case 'd':
 			case 'e': /* Day of the month */
-                                /* I'm not sure exactly what the parameters 
-                                 * audiofd and ctrlfd to 
-                                 * ast_say_number_full_he mean, but it seems
-                                 * safe to pass -1 there. 
-                                 *
-                                 * At least in one of the pathes :-( 
-                                 */
-				res = ast_say_number_full_he(chan, tm.tm_mday,
-					ints, lang, "m", -1, -1
-				);
+				res = ast_say_number_full_he(chan, tm.tm_mday, ints, lang, "m", -1, -1);
 				break;
 			case 'Y': /* Year */
-				res = ast_say_number_full_he(chan, tm.tm_year+1900,
-					ints, lang, "f", -1, -1
-				);
+				res = ast_say_number_full_he(chan, tm.tm_year + 1900, ints, lang, "f", -1, -1);
 				break;
 			case 'I':
 			case 'l': /* 12-Hour */
 				{
 					int hour = tm.tm_hour;
-					hour = hour%12;
-					if (hour == 0) hour=12;
+					hour = hour % 12;
+					if (hour == 0)
+						hour = 12;
 				
-					res = ast_say_number_full_he(chan, hour,
-						ints, lang, "f", -1, -1
-					);
+					res = ast_say_number_full_he(chan, hour, ints, lang, "f", -1, -1);
 				}
 				break;
 			case 'H':
 			case 'k': /* 24-Hour */
 				/* With 'H' there is an 'oh' after a single-
 				 * digit hour */
-				if ((format[offset] == 'H') && 
-				    (tm.tm_hour <10)&&(tm.tm_hour>0)
-				) { /* e.g. oh-eight */
+				if ((format[offset] == 'H') && (tm.tm_hour < 10) && (tm.tm_hour > 0)) { /* e.g. oh-eight */
 					res = wait_file(chan, ints, "digits/oh", lang);
 				}
 				
-				res = ast_say_number_full_he(chan, tm.tm_hour,
-					ints, lang, "f", -1, -1
-				);
+				res = ast_say_number_full_he(chan, tm.tm_hour, ints, lang, "f", -1, -1);
 				break;
 			case 'M': /* Minute */
-				res = ast_say_number_full_he(chan, tm.tm_min, 
-					ints, lang, "f", -1, -1
-				);
+				res = ast_say_number_full_he(chan, tm.tm_min, ints, lang, "f", -1, -1);
 				break;
 			case 'P':
 			case 'p':
@@ -4173,7 +4155,7 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 				/* Shorthand for "Today", "Yesterday", or "date" */
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A 
-                                 * (weekday), or "date" */
+				 * (weekday), or "date" */
 				/* XXX As emphasized elsewhere, this should the native way in your
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
@@ -4190,25 +4172,16 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 					if (beg_today < time) {
 						/* Today */
 						if (todo == 'Q') {
-							res = wait_file(chan,
-									ints, 
-									"digits/today",
-									lang);
+							res = wait_file(chan, ints, "digits/today", lang);
 						}
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
 						res = wait_file(chan, ints, "digits/yesterday", lang);
-					} else if ((todo != 'Q') &&
-						(beg_today - 86400 * 6 < time))
-					{
+					} else if ((todo != 'Q') && (beg_today - 86400 * 6 < time)) {
 						/* Within the last week */
-						res = ast_say_date_with_format_he(chan,
-										  time, ints, lang, 
-										  "A", timezone);
+						res = ast_say_date_with_format_he(chan, time, ints, lang, "A", timezone);
 					} else {
-						res = ast_say_date_with_format_he(chan,
-										  time, ints, lang, 
-										  IL_DATE_STR, timezone);
+						res = ast_say_date_with_format_he(chan, time, ints, lang, IL_DATE_STR, timezone);
 					}
 				}
 				break;
@@ -4224,18 +4197,15 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 				res = ast_say_date_with_format_he(chan, time, ints, lang, "HMS", timezone);
 				break;
 			/* c, x, and X seem useful for testing. Not sure
-                         * if thiey're good for the general public */
+			 * if they're good for the general public */
 			case 'c':
-				res = ast_say_date_with_format_he(chan, time, 
-                                    ints, lang, IL_DATE_STR_FULL, timezone);
+				res = ast_say_date_with_format_he(chan, time, ints, lang, IL_DATE_STR_FULL, timezone);
 				break;
 			case 'x':
-				res = ast_say_date_with_format_he(chan, time, 
-                                    ints, lang, IL_DATE_STR, timezone);
+				res = ast_say_date_with_format_he(chan, time, ints, lang, IL_DATE_STR, timezone);
 				break;
 			case 'X': /* Currently not locale-dependent...*/
-				res = ast_say_date_with_format_he(chan, time, 
-                                    ints, lang, IL_TIME_STR, timezone);
+				res = ast_say_date_with_format_he(chan, time, ints, lang, IL_TIME_STR, timezone);
 				break;
 			case ' ':
 			case '	':
@@ -5705,9 +5675,9 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'H':
-                if (tm.tm_hour < 10) {
-                    res = wait_file(chan, ints, "digits/0", lang);
-                }
+				if (tm.tm_hour < 10) {
+					res = wait_file(chan, ints, "digits/0", lang);
+				}
 			case 'k':
 				/* 24-Hour */
 				if (!(tm.tm_hour % 10) || tm.tm_hour < 10) {

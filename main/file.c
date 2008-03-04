@@ -81,7 +81,7 @@ int __ast_format_register(const struct ast_format *f, struct ast_module *mod)
 		 */
 		struct _test_align { void *a, *b; } p;
 		int align = (char *)&p.b - (char *)&p.a;
-		tmp->buf_size = ((f->buf_size + align - 1)/align)*align;
+		tmp->buf_size = ((f->buf_size + align - 1) / align) * align;
 	}
 	
 	memset(&tmp->list, 0, sizeof(tmp->list));
@@ -283,9 +283,9 @@ static struct ast_filestream *get_filestream(struct ast_format *fmt, FILE *bfile
 	s->f = bfile;
 
 	if (fmt->desc_size)
-		s->_private = ((char *)(s+1)) + fmt->buf_size;
+		s->_private = ((char *)(s + 1)) + fmt->buf_size;
 	if (fmt->buf_size)
-		s->buf = (char *)(s+1);
+		s->buf = (char *)(s + 1);
 	s->fr.src = fmt->name;
 	return s;
 }
@@ -302,22 +302,22 @@ static int fn_wrapper(struct ast_filestream *s, const char *comment, enum wrap_f
 	int ret = -1;
 
 	if (mode == WRAP_OPEN && f->open && f->open(s))
-                ast_log(LOG_WARNING, "Unable to open format %s\n", f->name);
+		ast_log(LOG_WARNING, "Unable to open format %s\n", f->name);
 	else if (mode == WRAP_REWRITE && f->rewrite && f->rewrite(s, comment))
-                ast_log(LOG_WARNING, "Unable to rewrite format %s\n", f->name);
+		ast_log(LOG_WARNING, "Unable to rewrite format %s\n", f->name);
 	else {
 		/* preliminary checks succeed. update usecount */
 		ast_module_ref(f->module);
 		ret = 0;
 	}
-        return ret;
+	return ret;
 }
 
 static int rewrite_wrapper(struct ast_filestream *s, const char *comment)
 {
 	return fn_wrapper(s, comment, WRAP_REWRITE);
 }
-                
+
 static int open_wrapper(struct ast_filestream *s)
 {
 	return fn_wrapper(s, NULL, WRAP_OPEN);
@@ -639,7 +639,7 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 			ast_settimeout(s->owner, whennext, ast_fsread_audio, s);
 		else
 #endif		
-			s->owner->streamid = ast_sched_add(s->owner->sched, whennext/8, ast_fsread_audio, s);
+			s->owner->streamid = ast_sched_add(s->owner->sched, whennext / 8, ast_fsread_audio, s);
 		s->lasttimeout = whennext;
 		return FSREAD_SUCCESS_NOSCHED;
 	}
@@ -772,8 +772,8 @@ int ast_closestream(struct ast_filestream *f)
 	if (f->realfilename && f->filename) {
 			size = strlen(f->filename) + strlen(f->realfilename) + 15;
 			cmd = alloca(size);
-			memset(cmd,0,size);
-			snprintf(cmd,size,"/bin/mv -f %s %s",f->filename,f->realfilename);
+			memset(cmd, 0, size);
+			snprintf(cmd, size, "/bin/mv -f %s %s", f->filename, f->realfilename);
 			ast_safe_system(cmd);
 	}
 
@@ -1114,9 +1114,9 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 					}
 				} else {
 					res = fr->subclass;
-					if (strchr(forward,res)) {
+					if (strchr(forward, res)) {
 						ast_stream_fastforward(c->stream, skip_ms);
-					} else if (strchr(rewind,res)) {
+					} else if (strchr(rewind, res)) {
 						ast_stream_rewind(c->stream, skip_ms);
 					} else if (strchr(breakon, res)) {
 						ast_frfree(fr);
@@ -1197,13 +1197,14 @@ int ast_waitstream_exten(struct ast_channel *c, const char *context)
  */
 int ast_stream_and_wait(struct ast_channel *chan, const char *file, const char *digits)
 {
-        int res = 0;
-        if (!ast_strlen_zero(file)) {
-                res = ast_streamfile(chan, file, chan->language);
-                if (!res)
-                        res = ast_waitstream(chan, digits);
-        }
-        return res;
+	int res = 0;
+	if (!ast_strlen_zero(file)) {
+		res = ast_streamfile(chan, file, chan->language);
+		if (!res) {
+			res = ast_waitstream(chan, digits);
+		}
+	}
+	return res;
 } 
 
 static char *handle_cli_core_show_file_formats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)

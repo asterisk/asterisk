@@ -509,7 +509,7 @@ static char * handle_showuptime(struct ast_cli_entry *e, int cmd, struct ast_cli
 	int printsec;
 
 	switch (cmd) {
-        case CLI_INIT:
+	case CLI_INIT:
 		e->command = "core show uptime [seconds]";
 		e->usage =
 			"Usage: core show uptime [seconds]\n"

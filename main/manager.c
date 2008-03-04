@@ -1354,10 +1354,10 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Filename not specified");
 		return 0;
 	}
- 	if (!(cfg = ast_config_load(sfn, config_flags))) {
-        astman_send_error(s, m, "Config file not found");
-        return 0;
-    }
+	if (!(cfg = ast_config_load(sfn, config_flags))) {
+		astman_send_error(s, m, "Config file not found");
+		return 0;
+	}
 	result = handle_updates(s, m, cfg, dfn);
 	if (!result) {
 		ast_include_rename(cfg, sfn, dfn); /* change the include references from dfn to sfn, so things match up */

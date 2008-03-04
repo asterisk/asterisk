@@ -39,22 +39,22 @@ static struct ast_key *stub_ast_key_get(const char *kname, int ktype)
 #define build_stub(func_name,...) \
 static int stub_ ## func_name(__VA_ARGS__) \
 { \
-        ast_log(LOG_NOTICE, "Crypto support not loaded!\n"); \
-        return -1; \
+	ast_log(LOG_NOTICE, "Crypto support not loaded!\n"); \
+	return -1; \
 } \
 \
 int (*func_name)(__VA_ARGS__) = \
-        stub_ ## func_name;
+	stub_ ## func_name;
 #endif
 #define build_stub(func_name,...) \
 static int stub_##func_name(__VA_ARGS__) \
 { \
-        ast_log(LOG_NOTICE, "Crypto support not loaded!\n"); \
-        return -1; \
+	ast_log(LOG_NOTICE, "Crypto support not loaded!\n"); \
+	return -1; \
 } \
 \
 int (*func_name)(__VA_ARGS__) = \
-        stub_##func_name;
+	stub_##func_name;
 
 struct ast_key *(*ast_key_get)(const char *key, int type) =
 stub_ast_key_get;

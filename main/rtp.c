@@ -584,7 +584,7 @@ static int stun_get_mapped(struct stun_attr *attr, void *arg)
  * \return 0 on success, other values on error.
  */
 int ast_stun_request(int s, struct sockaddr_in *dst,
-        const char *username, struct sockaddr_in *answer)
+	const char *username, struct sockaddr_in *answer)
 {
 	struct stun_header *req;
 	unsigned char reqdata[1024];
@@ -1108,7 +1108,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 		pt = (length & 0xff0000) >> 16;
 		rc = (length & 0x1f000000) >> 24;
 		length &= 0xffff;
-    
+ 
 		if ((i + length) > packetwords) {
 			if (option_debug || rtpdebug)
 				ast_log(LOG_DEBUG, "RTCP Read too short\n");
@@ -1121,7 +1121,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 		  	ast_verbose("Reception reports: %d\n", rc);
 		  	ast_verbose("SSRC of sender: %u\n", rtcpheader[i + 1]);
 		}
-    
+ 
 		i += 2; /* Advance past header and ssrc */
 		
 		switch (pt) {
@@ -1130,7 +1130,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 			rtp->rtcp->spc = ntohl(rtcpheader[i+3]);
 			rtp->rtcp->soc = ntohl(rtcpheader[i + 4]);
 			rtp->rtcp->themrxlsr = ((ntohl(rtcpheader[i]) & 0x0000ffff) << 16) | ((ntohl(rtcpheader[i + 1]) & 0xffff0000) >> 16); /* Going to LSR in RR*/
-    
+ 
 			if (rtcp_debug_test_addr(&sin)) {
 				ast_verbose("NTP timestamp: %lu.%010lu\n", (unsigned long) ntohl(rtcpheader[i]), (unsigned long) ntohl(rtcpheader[i + 1]) * 4096);
 				ast_verbose("RTP timestamp: %lu\n", (unsigned long) ntohl(rtcpheader[i + 2]));
@@ -1973,7 +1973,7 @@ void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt)
 } 
 
 /*! \brief remove setting from payload type list if the rtpmap header indicates
-    an unknown media type */
+	an unknown media type */
 void ast_rtp_unset_m_type(struct ast_rtp* rtp, int pt) 
 {
 	rtp_bridge_lock(rtp);

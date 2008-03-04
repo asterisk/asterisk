@@ -295,7 +295,7 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 	} else {
 		if (channel[0] == '/') {
 			if (!ast_strlen_zero(hostname)) { 
-				snprintf(chan->filename, sizeof(chan->filename) - 1,"%s.%s", channel, hostname);
+				snprintf(chan->filename, sizeof(chan->filename), "%s.%s", channel, hostname);
 			} else {
 				ast_copy_string(chan->filename, channel, sizeof(chan->filename));
 			}
@@ -694,13 +694,13 @@ static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struc
 	case CLI_GENERATE:
 		return NULL;	
 	}
-	ast_cli(a->fd,FORMATL, "Channel", "Type", "Status");
+	ast_cli(a->fd, FORMATL, "Channel", "Type", "Status");
 	ast_cli(a->fd, "Configuration\n");
-	ast_cli(a->fd,FORMATL, "-------", "----", "------");
+	ast_cli(a->fd, FORMATL, "-------", "----", "------");
 	ast_cli(a->fd, "-------------\n");
 	AST_RWLIST_RDLOCK(&logchannels);
 	AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
-		ast_cli(a->fd, FORMATL, chan->filename, chan->type==LOGTYPE_CONSOLE ? "Console" : (chan->type==LOGTYPE_SYSLOG ? "Syslog" : "File"),
+		ast_cli(a->fd, FORMATL, chan->filename, chan->type == LOGTYPE_CONSOLE ? "Console" : (chan->type == LOGTYPE_SYSLOG ? "Syslog" : "File"),
 			chan->disabled ? "Disabled" : "Enabled");
 		ast_cli(a->fd, " - ");
 		if (chan->logmask & (1 << __LOG_DEBUG)) 
@@ -764,10 +764,10 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
 	} else {
 		snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: %s",
 			 levels[level], (long)GETTID(), file, line, function, str);
-        }
+	}
 
-        term_strip(buf, buf, strlen(buf) + 1);
-        syslog(syslog_level_map[level], "%s", buf);
+	term_strip(buf, buf, strlen(buf) + 1);
+	syslog(syslog_level_map[level], "%s", buf);
 }
 
 /*! \brief Print a normal log message to the channels */
@@ -912,7 +912,7 @@ int init_logger(void)
 	int res = 0;
 
 	/* auto rotate if sig SIGXFSZ comes a-knockin */
-	(void) signal(SIGXFSZ,(void *) handle_SIGXFSZ);
+	(void) signal(SIGXFSZ, (void *) handle_SIGXFSZ);
 
 	/* start logger thread */
 	ast_cond_init(&logcond, NULL);
@@ -1117,19 +1117,19 @@ void ast_verbose(const char *fmt, ...)
 	if (!(buf = ast_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE)))
 		return;
 
-        if (ast_opt_timestamp) {
-                struct timeval tv;
-                struct ast_tm tm;
-                char date[40];
-                char *datefmt;
+	if (ast_opt_timestamp) {
+		struct timeval tv;
+		struct ast_tm tm;
+		char date[40];
+		char *datefmt;
 
 		tv = ast_tvnow();
-                ast_localtime(&tv, &tm, NULL);
-                ast_strftime(date, sizeof(date), dateformat, &tm);
-                datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
-                sprintf(datefmt, "[%s] %s", date, fmt);
-                fmt = datefmt;
-        }
+		ast_localtime(&tv, &tm, NULL);
+		ast_strftime(date, sizeof(date), dateformat, &tm);
+		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
+		sprintf(datefmt, "[%s] %s", date, fmt);
+		fmt = datefmt;
+	}
 
 	/* Build string */
 	va_start(ap, fmt);

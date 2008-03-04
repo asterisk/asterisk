@@ -202,7 +202,7 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	if (pvt->samples == samples)
 		ast_log(LOG_WARNING, "%s did not update samples %d\n",
 			pvt->t->name, pvt->samples);
-        return ret;
+	return ret;
 }
 
 /*! \brief generic frameout routine.
@@ -654,10 +654,10 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 	}
 
 	if (t->buf_size) {
-               /*
-		* Align buf_size properly, rounding up to the machine-specific
-		* alignment for pointers.
-		*/
+		/*
+		 * Align buf_size properly, rounding up to the machine-specific
+		 * alignment for pointers.
+		 */
 		struct _test_align { void *a, *b; } p;
 		int align = (char *)&p.b - (char *)&p.a;
 

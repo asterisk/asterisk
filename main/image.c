@@ -112,7 +112,7 @@ struct ast_frame *ast_read_image(char *filename, const char *preflang, int forma
 		if (i->format & format) {
 			char *stringp=NULL;
 			ast_copy_string(tmp, i->exts, sizeof(tmp));
-			stringp=tmp;
+			stringp = tmp;
 			e = strsep(&stringp, "|");
 			while (e) {
 				make_filename(buf, sizeof(buf), filename, preflang, e);
@@ -138,7 +138,7 @@ struct ast_frame *ast_read_image(char *filename, const char *preflang, int forma
 			if (!found->identify || found->identify(fd)) {
 				/* Reset file pointer */
 				lseek(fd, 0, SEEK_SET);
-				f = found->read_image(fd,len); 
+				f = found->read_image(fd, len); 
 			} else
 				ast_log(LOG_WARNING, "%s does not appear to be a %s file\n", buf, found->name);
 			close(fd);

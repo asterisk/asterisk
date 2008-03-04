@@ -174,7 +174,7 @@ static int history_put(jitterbuf *jb, long ts, long now, long ms)
 	/* if the new delay would go into min */
 	if (delay < jb->hist_minbuf[JB_HISTORY_MAXBUF_SZ-1])
 		goto invalidate;
-    
+
 	/* or max.. */
 	if (delay > jb->hist_maxbuf[JB_HISTORY_MAXBUF_SZ-1])
 		goto invalidate;
@@ -715,7 +715,7 @@ static enum jb_return_code _jb_get(jitterbuf *jb, jb_frame *frameout, long now, 
 		/* TODO: after we get the non-silent case down, we'll make the
 		 * silent case -- basically, we'll just grow and shrink faster
 		 * here, plus handle next_voice_ts a bit differently */
-      
+
 		/* to disable silent special case altogether, just uncomment this: */
 		/* jb->info.silence_begin_ts = 0; */
 

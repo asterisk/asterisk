@@ -599,7 +599,7 @@ static void set_peers(struct ast_channel **caller, struct ast_channel **callee,
 static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	struct ast_channel *parker;
-        struct ast_channel *parkee;
+	struct ast_channel *parkee;
 	int res = 0;
 
 	set_peers(&parker, &parkee, peer, chan, sense);
@@ -842,9 +842,9 @@ static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer
 
 static int finishup(struct ast_channel *chan)
 {
-        ast_indicate(chan, AST_CONTROL_UNHOLD);
-  
-        return ast_autoservice_stop(chan);
+	ast_indicate(chan, AST_CONTROL_UNHOLD);
+
+	return ast_autoservice_stop(chan);
 }
 
 /*!
@@ -857,14 +857,17 @@ static int finishup(struct ast_channel *chan)
 */
 static const char *real_ctx(struct ast_channel *transferer, struct ast_channel *transferee)
 {
-        const char *s = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT");
-        if (ast_strlen_zero(s))
-                s = pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT");
-        if (ast_strlen_zero(s)) /* Use the non-macro context to transfer the call XXX ? */
-                s = transferer->macrocontext;
-        if (ast_strlen_zero(s))
-                s = transferer->context;
-        return s;  
+	const char *s = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT");
+	if (ast_strlen_zero(s)) {
+		s = pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT");
+	}
+	if (ast_strlen_zero(s)) { /* Use the non-macro context to transfer the call XXX ? */
+		s = transferer->macrocontext;
+	}
+	if (ast_strlen_zero(s)) {
+		s = transferer->context;
+	}
+	return s;  
 }
 
 /*!
@@ -1019,7 +1022,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 	ast_debug(1, "Executing Attended Transfer %s, %s (sense=%d) \n", chan->name, peer->name, sense);
 	set_peers(&transferer, &transferee, peer, chan, sense);
-        transferer_real_context = real_ctx(transferer, transferee);
+	transferer_real_context = real_ctx(transferer, transferee);
 	/* Start autoservice on chan while we talk to the originator */
 	ast_autoservice_start(transferee);
 	ast_indicate(transferee, AST_CONTROL_HOLD);
@@ -1035,10 +1038,10 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 	/* this is specific of atxfer */
 	res = ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout);
-        if (res < 0) {  /* hangup, would be 0 for invalid and 1 for valid */
-                finishup(transferee);
-                return res;
-        }
+	if (res < 0) {  /* hangup, would be 0 for invalid and 1 for valid */
+		finishup(transferee);
+		return res;
+	}
 	if (res == 0) {
 		ast_log(LOG_WARNING, "Did not read data.\n");
 		finishup(transferee);
@@ -2473,7 +2476,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 					if (res < 0)
 						error = 1;
 				}
-                        }
+			}
 			if (error) {
 				ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
 				ast_hangup(peer);
@@ -2857,7 +2860,7 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
-        }
+	}
 
 	ast_cli(a->fd, format, "Builtin Feature", "Default", "Current");
 	ast_cli(a->fd, format, "---------------", "-------", "-------");
@@ -2908,7 +2911,7 @@ static char *handle_features_reload(struct ast_cli_entry *e, int cmd, struct ast
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
-        }
+	}
 	load_config();
 
 	return CLI_SUCCESS;
