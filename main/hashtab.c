@@ -45,12 +45,12 @@ static void *ast_hashtab_lookup_internal(struct ast_hashtab *tab, const void *ob
 
 int ast_hashtab_compare_strings(const void *a, const void *b)
 {
-	return strcmp((char*)a,(char*)b);
+	return strcmp(a, b);
 }
 
 int ast_hashtab_compare_strings_nocase(const void *a, const void *b)
 {
-	return strcasecmp((const char*)a,(const char*)b);
+	return strcasecmp(a, b);
 }
 
 int ast_hashtab_compare_ints(const void *a, const void *b)
