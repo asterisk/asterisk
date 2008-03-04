@@ -1901,7 +1901,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	/* XXX watch out, possible deadlock - we are trying to get two channels!!! */
 	chan = ast_get_channel_by_name_locked(name);
 	if (!chan) {
-		char buf[BUFSIZ];
+		char buf[256];
 		snprintf(buf, sizeof(buf), "Channel does not exist: %s", name);
 		astman_send_error(s, m, buf);
 		return 0;
@@ -2554,12 +2554,12 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 	int res;
 	const char *module = astman_get_header(m, "Module");
 	const char *id = astman_get_header(m, "ActionID");
-	char idText[BUFSIZ];
+	char idText[256];
 	const char *version;
-	char filename[BUFSIZ/2];
+	char filename[PATH_MAX];
 	char *cut;
 
-	snprintf(filename, sizeof(filename), module);
+	ast_copy_string(filename, module, sizeof(filename));
 	if ((cut = strchr(filename, '.'))) {
 		*cut = '\0';
 	} else {
@@ -2698,7 +2698,7 @@ static int process_message(struct mansession *s, const struct message *m)
 	AST_RWLIST_UNLOCK(&actions);
 
 	if (!tmp) {
-		char buf[BUFSIZ];
+		char buf[512];
 		snprintf(buf, sizeof(buf), "Invalid/unknown command: %s. Use Action: ListCommands to show available commands.", action);
 		ast_mutex_lock(&s->__lock);
 		astman_send_error(s, m, buf);
@@ -3031,7 +3031,7 @@ int ast_manager_unregister(char *action)
 static int manager_state_cb(char *context, char *exten, int state, void *data)
 {
 	/* Notify managers of change */
-	char hint[BUFSIZ];
+	char hint[512];
 	ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, context, exten);
 
 	manager_event(EVENT_FLAG_CALL, "ExtensionStatus", "Exten: %s\r\nContext: %s\r\nHint: %s\r\nStatus: %d\r\n", exten, context, hint, state);
