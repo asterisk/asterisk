@@ -81,7 +81,7 @@ static int ssl_close(void *cookie)
 }
 #endif	/* DO_SSL */
 
-HOOK_T server_read(struct server_instance *ser, void *buf, size_t count)
+HOOK_T server_read(struct ast_tcptls_server_instance *ser, void *buf, size_t count)
 {
 #ifdef DO_SSL
 	if (ser->ssl)
@@ -90,7 +90,7 @@ HOOK_T server_read(struct server_instance *ser, void *buf, size_t count)
 	return read(ser->fd, buf, count);
 }
 
-HOOK_T server_write(struct server_instance *ser, void *buf, size_t count)
+HOOK_T server_write(struct ast_tcptls_server_instance *ser, void *buf, size_t count)
 {
 #ifdef DO_SSL
 	if (ser->ssl)
@@ -105,7 +105,7 @@ void *server_root(void *data)
 	int fd;
 	struct sockaddr_in sin;
 	socklen_t sinlen;
-	struct server_instance *ser;
+	struct ast_tcptls_server_instance *ser;
 	pthread_t launched;
 	
 	for (;;) {
@@ -204,10 +204,10 @@ int ssl_setup(struct ast_tls_config *cfg)
 /*! \brief A generic client routine for a TCP client
  *  and starts a thread for handling accept()
  */
-struct server_instance *client_start(struct server_args *desc)
+struct ast_tcptls_server_instance *client_start(struct server_args *desc)
 {
 	int flags;
-	struct server_instance *ser = NULL;
+	struct ast_tcptls_server_instance *ser = NULL;
 
 	/* Do nothing if nothing has changed */
 	if(!memcmp(&desc->oldsin, &desc->sin, sizeof(desc->oldsin))) {
@@ -353,7 +353,7 @@ void server_stop(struct server_args *desc)
 */
 void *ast_make_file_from_fd(void *data)
 {
-	struct server_instance *ser = data;
+	struct ast_tcptls_server_instance *ser = data;
 #ifdef DO_SSL
 	int (*ssl_setup)(SSL *) = (ser->client) ? SSL_connect : SSL_accept;
 	int ret;
