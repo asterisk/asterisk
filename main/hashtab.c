@@ -165,7 +165,7 @@ unsigned int ast_hashtab_hash_string(const void *obj)
 
 unsigned int ast_hashtab_hash_string_sax(const void *obj) /* from Josh */
 {
-	unsigned char *str = (unsigned char *) obj;
+	const unsigned char *str = obj;
 	unsigned int total = 0, c = 0;
 
 	while ((c = *str++))
@@ -176,7 +176,7 @@ unsigned int ast_hashtab_hash_string_sax(const void *obj) /* from Josh */
 
 unsigned int ast_hashtab_hash_string_nocase(const void *obj)
 {
-	unsigned char *str = (unsigned char*)obj;
+	const unsigned char *str = obj;
 	unsigned int total;
 
 	for (total = 0; *str; str++) {
