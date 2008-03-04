@@ -1998,6 +1998,7 @@ int ast_rtp_settos(struct ast_rtp *rtp, int tos)
 void ast_rtp_new_source(struct ast_rtp *rtp)
 {
 	rtp->set_marker_bit = 1;
+	rtp->ssrc = ast_random();
 	return;
 }
 
