@@ -2329,6 +2329,7 @@ int ast_rtp_setqos(struct ast_rtp *rtp, int tos, int cos, char *desc)
 void ast_rtp_new_source(struct ast_rtp *rtp)
 {
 	rtp->set_marker_bit = 1;
+	rtp->ssrc = ast_random();
 	return;
 }
 
