@@ -172,6 +172,7 @@ struct ast_rtp {
 	struct ast_rtcp *rtcp;
 	struct ast_codec_pref pref;
 	struct ast_rtp *bridged;        /*!< Who we are Packet bridged to */
+	int set_marker_bit:1;           /*!< Whether to set the marker bit or not */
 };
 
 /* Forward declarations */
@@ -1994,6 +1995,12 @@ int ast_rtp_settos(struct ast_rtp *rtp, int tos)
 	return res;
 }
 
+void ast_rtp_new_source(struct ast_rtp *rtp)
+{
+	rtp->set_marker_bit = 1;
+	return;
+}
+
 void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
 {
 	rtp->them.sin_port = them->sin_port;
@@ -2641,6 +2648,13 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			}
 		}
 	}
+
+	/* If we have been explicitly told to set the marker bit do so */
+	if (rtp->set_marker_bit) {
+		mark = 1;
+		rtp->set_marker_bit = 0;
+	}
+
 	/* If the timestamp for non-digit packets has moved beyond the timestamp
 	   for digits, update the digit timestamp.
 	*/
