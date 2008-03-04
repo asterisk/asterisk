@@ -2238,7 +2238,7 @@ cleanup:
 	ast_free(me);
 cleanup2:
 	fclose(ser->f);
-	ast_free(ser);
+	ser = ast_tcptls_server_instance_destroy(ser);
 
 	if (req.socket.lock) {
 		ast_mutex_destroy(req.socket.lock);
