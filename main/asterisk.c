@@ -2201,7 +2201,7 @@ static char *cli_complete(EditLine *el, int ch)
 	len = lf->cursor - ptr;
 
 	if (ast_opt_remote) {
-		snprintf(buf, sizeof(buf),"_COMMAND NUMMATCHES \"%s\" \"%s\"", lf->buffer, ptr); 
+		snprintf(buf, sizeof(buf), "_COMMAND NUMMATCHES \"%s\" \"%s\"", lf->buffer, ptr); 
 		fdprint(ast_consock, buf);
 		res = read(ast_consock, buf, sizeof(buf));
 		buf[res] = '\0';
@@ -2213,7 +2213,7 @@ static char *cli_complete(EditLine *el, int ch)
 			/* Start with a 2048 byte buffer */			
 			if (!(mbuf = ast_malloc(maxmbuf)))
 				return (char *)(CC_ERROR);
-			snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr); 
+			snprintf(buf, sizeof(buf), "_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr); 
 			fdprint(ast_consock, buf);
 			res = 0;
 			mbuf[0] = '\0';
@@ -2516,7 +2516,7 @@ static void ast_readconfig(void)
 	ast_copy_string(cfg_paths.config_dir, DEFAULT_CONFIG_DIR, sizeof(cfg_paths.config_dir));
 	ast_copy_string(cfg_paths.spool_dir, DEFAULT_SPOOL_DIR, sizeof(cfg_paths.spool_dir));
 	ast_copy_string(cfg_paths.module_dir, DEFAULT_MODULE_DIR, sizeof(cfg_paths.module_dir));
- 	snprintf(cfg_paths.monitor_dir, sizeof(cfg_paths.monitor_dir) - 1, "%s/monitor", cfg_paths.spool_dir);
+ 	snprintf(cfg_paths.monitor_dir, sizeof(cfg_paths.monitor_dir), "%s/monitor", cfg_paths.spool_dir);
 	ast_copy_string(cfg_paths.var_dir, DEFAULT_VAR_DIR, sizeof(cfg_paths.var_dir));
 	ast_copy_string(cfg_paths.data_dir, DEFAULT_DATA_DIR, sizeof(cfg_paths.data_dir));
 	ast_copy_string(cfg_paths.log_dir, DEFAULT_LOG_DIR, sizeof(cfg_paths.log_dir));
@@ -2548,7 +2548,7 @@ static void ast_readconfig(void)
 			ast_copy_string(cfg_paths.config_dir, v->value, sizeof(cfg_paths.config_dir));
 		} else if (!strcasecmp(v->name, "astspooldir")) {
 			ast_copy_string(cfg_paths.spool_dir, v->value, sizeof(cfg_paths.spool_dir));
-			snprintf(cfg_paths.monitor_dir, sizeof(cfg_paths.monitor_dir) - 1, "%s/monitor", v->value);
+			snprintf(cfg_paths.monitor_dir, sizeof(cfg_paths.monitor_dir), "%s/monitor", v->value);
 		} else if (!strcasecmp(v->name, "astvarlibdir")) {
 			ast_copy_string(cfg_paths.var_dir, v->value, sizeof(cfg_paths.var_dir));
 			if (!found.dbdir)

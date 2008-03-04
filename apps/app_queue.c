@@ -583,7 +583,7 @@ static void set_queue_variables(struct queue_ent *qe)
 		if (qe->parent->callscompleted > 0) 
 			sl = 100 * ((float) qe->parent->callscompletedinsl / (float) qe->parent->callscompleted);
 
-		snprintf(interfacevar,sizeof(interfacevar),
+		snprintf(interfacevar, sizeof(interfacevar),
 			"QUEUENAME=%s|QUEUEMAX=%d|QUEUESTRATEGY=%s|QUEUECALLS=%d|QUEUEHOLDTIME=%d|QUEUECOMPLETED=%d|QUEUEABANDONED=%d|QUEUESRVLEVEL=%d|QUEUESRVLEVELPERF=%2.1f",
 			qe->parent->name, qe->parent->maxlen, int2strat(qe->parent->strategy), qe->parent->count, qe->parent->holdtime, qe->parent->callscompleted,
 			qe->parent->callsabandoned,  qe->parent->servicelevel, sl);
@@ -2735,8 +2735,8 @@ static void update_qe_rule(struct queue_ent *qe)
 		min_penalty = 0;
 	if (min_penalty > max_penalty)
 		min_penalty = max_penalty;
-	snprintf(max_penalty_str, sizeof(max_penalty_str) - 1, "%d", max_penalty);
-	snprintf(min_penalty_str, sizeof(min_penalty_str) - 1, "%d", min_penalty);
+	snprintf(max_penalty_str, sizeof(max_penalty_str), "%d", max_penalty);
+	snprintf(min_penalty_str, sizeof(min_penalty_str), "%d", min_penalty);
 	pbx_builtin_setvar_helper(qe->chan, "QUEUE_MAX_PENALTY", max_penalty_str);
 	pbx_builtin_setvar_helper(qe->chan, "QUEUE_MIN_PENALTY", min_penalty_str);
 	qe->max_penalty = max_penalty;
@@ -3340,7 +3340,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		/* if setinterfacevar is defined, make member variables available to the channel */
 		/* use  pbx_builtin_setvar to set a load of variables with one call */
 		if (qe->parent->setinterfacevar) {
-			snprintf(interfacevar,sizeof(interfacevar), "MEMBERINTERFACE=%s|MEMBERNAME=%s|MEMBERCALLS=%d|MEMBERLASTCALL=%ld|MEMBERPENALTY=%d|MEMBERDYNAMIC=%d|MEMBERREALTIME=%d",
+			snprintf(interfacevar, sizeof(interfacevar), "MEMBERINTERFACE=%s|MEMBERNAME=%s|MEMBERCALLS=%d|MEMBERLASTCALL=%ld|MEMBERPENALTY=%d|MEMBERDYNAMIC=%d|MEMBERREALTIME=%d",
 				member->interface, member->membername, member->calls, (long)member->lastcall, member->penalty, member->dynamic, member->realtime);
 		 	pbx_builtin_setvar(qe->chan, interfacevar);
 		}
@@ -3348,7 +3348,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		/* if setqueueentryvar is defined, make queue entry (i.e. the caller) variables available to the channel */
 		/* use  pbx_builtin_setvar to set a load of variables with one call */
 		if (qe->parent->setqueueentryvar) {
-			snprintf(interfacevar,sizeof(interfacevar), "QEHOLDTIME=%ld|QEORIGINALPOS=%d",
+			snprintf(interfacevar, sizeof(interfacevar), "QEHOLDTIME=%ld|QEORIGINALPOS=%d",
 				(long) time(NULL) - qe->start, qe->opos);
 			pbx_builtin_setvar(qe->chan, interfacevar);
 		}
@@ -4581,7 +4581,7 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 		        if (q->callscompleted > 0)
 		                sl = 100 * ((float) q->callscompletedinsl / (float) q->callscompleted);
 
-		        snprintf(interfacevar,sizeof(interfacevar),
+		        snprintf(interfacevar, sizeof(interfacevar),
                 		"QUEUEMAX=%d|QUEUESTRATEGY=%s|QUEUECALLS=%d|QUEUEHOLDTIME=%d|QUEUECOMPLETED=%d|QUEUEABANDONED=%d|QUEUESRVLEVEL=%d|QUEUESRVLEVELPERF=%2.1f",
 		                q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->callscompleted, q->callsabandoned,  q->servicelevel, sl);
 
