@@ -3623,8 +3623,11 @@ static struct ast_context *find_context_locked(const char *context)
 {
 	struct ast_context *c = NULL;
 	struct fake_context item;
-	strncpy(item.name, context, 256);
+
+	ast_copy_string(item.name, context, sizeof(item.name));
+
 	ast_rdlock_contexts();
+
 	c = ast_hashtab_lookup(contexts_tree,&item);
 
 #ifdef NOTNOW
