@@ -73,7 +73,7 @@ static struct server_args http_desc = {
 	.tls_cfg = NULL,
 	.poll_timeout = -1,
 	.name = "http server",
-	.accept_fn = server_root,
+	.accept_fn = ast_tcptls_server_root,
 	.worker_fn = httpd_helper_thread,
 };
 
@@ -83,7 +83,7 @@ static struct server_args https_desc = {
 	.tls_cfg = &http_tls_cfg,
 	.poll_timeout = -1,
 	.name = "https server",
-	.accept_fn = server_root,
+	.accept_fn = ast_tcptls_server_root,
 	.worker_fn = httpd_helper_thread,
 };
 
@@ -1028,9 +1028,9 @@ static int __ast_http_load(int reload)
 	if (strcmp(prefix, newprefix))
 		ast_copy_string(prefix, newprefix, sizeof(prefix));
 	enablestatic = newenablestatic;
-	server_start(&http_desc);
-	if (ssl_setup(https_desc.tls_cfg))
-		server_start(&https_desc);
+	ast_tcptls_server_start(&http_desc);
+	if (ast_ssl_setup(https_desc.tls_cfg))
+		ast_tcptls_server_start(&https_desc);
 
 	return 0;
 }
