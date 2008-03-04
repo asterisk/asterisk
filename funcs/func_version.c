@@ -63,7 +63,7 @@ static int acf_version_exec(struct ast_channel *chan, const char *cmd,
 
 	ast_debug(1, "VERSION returns %s result, given %s argument\n", response_char, args.info);
 
-	snprintf(buffer, buflen, "%s", response_char);
+	ast_copy_string(buffer, response_char, buflen);
 
 	return 0;
 }
