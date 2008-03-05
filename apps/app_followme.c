@@ -673,6 +673,10 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							if (option_verbose > 2)
 								ast_verbose ( VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", winner->name, caller->name);
 							break;
+						case AST_CONTROL_SRCUPDATE:
+							if (option_verbose > 2)
+								ast_verbose ( VERBOSE_PREFIX_3 "%s requested a source update, passing it to %s\n", winner->name, caller->name);
+							break;
 						case AST_CONTROL_PROCEEDING:
 							if (option_verbose > 2)
 								ast_verbose ( VERBOSE_PREFIX_3 "%s is proceeding passing it to %s\n", winner->name,caller->name);

@@ -743,32 +743,34 @@ static int alsa_indicate(struct ast_channel *chan, int cond, const void *data, s
 	ast_mutex_lock(&alsalock);
 
 	switch (cond) {
-		case AST_CONTROL_BUSY:
-			res = 1;
-			break;
-		case AST_CONTROL_CONGESTION:
-			res = 2;
-			break;
-		case AST_CONTROL_RINGING:
-		case AST_CONTROL_PROGRESS:
-			break;
-		case -1:
-			res = -1;
-			break;
-		case AST_CONTROL_VIDUPDATE:
-			res = -1;
-			break;
-		case AST_CONTROL_HOLD:
-			ast_verbose(" << Console Has Been Placed on Hold >> \n");
-			ast_moh_start(chan, data, mohinterpret);
-			break;
-		case AST_CONTROL_UNHOLD:
-			ast_verbose(" << Console Has Been Retrieved from Hold >> \n");
-			ast_moh_stop(chan);
-			break;
-		default:
-			ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, chan->name);
-			res = -1;
+	case AST_CONTROL_BUSY:
+		res = 1;
+		break;
+	case AST_CONTROL_CONGESTION:
+		res = 2;
+		break;
+	case AST_CONTROL_RINGING:
+	case AST_CONTROL_PROGRESS:
+		break;
+	case -1:
+		res = -1;
+		break;
+	case AST_CONTROL_VIDUPDATE:
+		res = -1;
+		break;
+	case AST_CONTROL_HOLD:
+		ast_verbose(" << Console Has Been Placed on Hold >> \n");
+		ast_moh_start(chan, data, mohinterpret);
+		break;
+	case AST_CONTROL_UNHOLD:
+		ast_verbose(" << Console Has Been Retrieved from Hold >> \n");
+		ast_moh_stop(chan);
+		break;
+	case AST_CONTROL_SRCUPDATE:
+		break;
+	default:
+		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, chan->name);
+		res = -1;
 	}
 
 	if (res > -1)

@@ -3663,7 +3663,6 @@ static int sip_answer(struct ast_channel *ast)
 				ast_log(LOG_DEBUG,"T38State change to %d on channel %s\n", p->t38.state, ast->name);
 			res = transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
 		} else {
-			ast_rtp_new_source(p->rtp);
 			res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
 		}
 	}
@@ -3937,6 +3936,9 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 			/* ast_rtcp_send_h261fur(p->vrtp); */
 		} else
 			res = -1;
+		break;
+	case AST_CONTROL_SRCUPDATE:
+		ast_rtp_new_source(p->rtp);
 		break;
 	case -1:
 		res = -1;

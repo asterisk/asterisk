@@ -951,32 +951,33 @@ static int oss_indicate(struct ast_channel *c, int cond, const void *data, size_
 	int res = -1;
 
 	switch (cond) {
-		case AST_CONTROL_BUSY:
-		case AST_CONTROL_CONGESTION:
-		case AST_CONTROL_RINGING:
+	case AST_CONTROL_BUSY:
+	case AST_CONTROL_CONGESTION:
+	case AST_CONTROL_RINGING:
 			res = cond;
 			break;
-
-		case -1:
-			o->cursound = -1;
-			o->nosound = 0;		/* when cursound is -1 nosound must be 0 */
-			return 0;
-
-		case AST_CONTROL_VIDUPDATE:
-			res = -1;
+			
+	case -1:
+		o->cursound = -1;
+		o->nosound = 0;		/* when cursound is -1 nosound must be 0 */
+		return 0;
+		
+	case AST_CONTROL_VIDUPDATE:
+		res = -1;
+		break;
+	case AST_CONTROL_HOLD:
+		ast_verbose(" << Console Has Been Placed on Hold >> \n");
+		ast_moh_start(c, data, o->mohinterpret);
 			break;
-		case AST_CONTROL_HOLD:
-			ast_verbose(" << Console Has Been Placed on Hold >> \n");
-			ast_moh_start(c, data, o->mohinterpret);
-			break;
-		case AST_CONTROL_UNHOLD:
-			ast_verbose(" << Console Has Been Retrieved from Hold >> \n");
-			ast_moh_stop(c);
-			break;
-
-		default:
-			ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, c->name);
-			return -1;
+	case AST_CONTROL_UNHOLD:
+		ast_verbose(" << Console Has Been Retrieved from Hold >> \n");
+		ast_moh_stop(c);
+		break;
+	case AST_CONTROL_SRCUPDATE:
+		break;
+	default:
+		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, c->name);
+		return -1;
 	}
 
 	if (res > -1)
