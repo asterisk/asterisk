@@ -177,6 +177,16 @@ Changes to manager version 1.1:
 	  Rule: <name>			The name of the rule whose contents you wish to list. If this variable
 	  							is not present, all rules in queuerules.conf will be listed.
 		
+- Action: Atxfer
+	Modules: none
+	Purpose:
+		Initiate an attended transfer
+	Variables:
+		Channel: The transferer channel's name
+		Exten: The extension to transfer to
+		Priority: The priority to transfer to
+		Context: The context to transfer to
+
 
 * NEW EVENTS
 ------------

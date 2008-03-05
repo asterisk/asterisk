@@ -57,6 +57,8 @@ AMI - The manager (TCP/TLS/HTTP)
   * Originate now requires the Originate privilege and, if you want to call out
     to a subshell, it requires the System privilege, as well.  This was done to
     enhance manager security.
+  * New command: Atxfer. See doc/manager_1_1.txt for more details or 
+    manager show command Atxfer from the CLI
 
 Dialplan functions
 ------------------

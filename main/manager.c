@@ -73,6 +73,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/version.h"
 #include "asterisk/term.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/features.h"
 
 enum error_type {
 	UNKNOWN_ACTION = 1,
@@ -1941,6 +1942,74 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static char mandescr_atxfer[] =
+"Description: Attended transfer.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Channel: Transferer's channel\n"
+"	*Exten: Extension to transfer to\n"
+"	*Context: Context to transfer to\n"
+"	*Priority: Priority to transfer to\n"
+"	ActionID: Optional Action id for message matching.\n";
+
+static int action_atxfer(struct mansession *s, const struct message *m)
+{
+	const char *name = astman_get_header(m, "Channel");
+	const char *exten = astman_get_header(m, "Exten");
+	const char *context = astman_get_header(m, "Context");
+	const char *priority = astman_get_header(m, "Priority");
+	struct ast_channel *chan = NULL;
+	struct ast_call_feature *atxfer_feature = NULL;
+	char *feature_code = NULL;
+	int priority_int = 0;
+
+	if (ast_strlen_zero(name)) { 
+		astman_send_error(s, m, "No channel specified\n");
+		return 0;
+	}
+	if (ast_strlen_zero(exten)) {
+		astman_send_error(s, m, "No extension specified\n");
+		return 0;
+	}
+	if (ast_strlen_zero(context)) {
+		astman_send_error(s, m, "No context specified\n");
+		return 0;
+	}
+	if (ast_strlen_zero(priority)) {
+		astman_send_error(s, m, "No priority specified\n");
+		return 0;
+	}
+
+	if (sscanf(priority, "%d", &priority_int) != 1 && (priority_int = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
+		astman_send_error(s, m, "Invalid Priority\n");
+		return 0;
+	}
+
+	if (!(atxfer_feature = ast_find_call_feature("atxfer"))) {
+		astman_send_error(s, m, "No attended transfer feature found\n");
+		return 0;
+	}
+
+	if (!(chan = ast_get_channel_by_name_locked(name))) {
+		astman_send_error(s, m, "Channel specified does not exist\n");
+		return 0;
+	}
+
+	for (feature_code = atxfer_feature->exten; feature_code && *feature_code; ++feature_code) {
+		struct ast_frame f = {AST_FRAME_DTMF, *feature_code};
+		ast_queue_frame(chan, &f);
+	}
+
+	for (feature_code = (char *)exten; feature_code && *feature_code; ++feature_code) {
+		struct ast_frame f = {AST_FRAME_DTMF, *feature_code};
+		ast_queue_frame(chan, &f);
+	}
+
+	astman_send_ack(s, m, "Atxfer successfully queued\n");
+	ast_channel_unlock(chan);
+
+	return 0;
+}
+
 static char mandescr_command[] =
 "Description: Run a CLI command.\n"
 "Variables: (Names marked with * are required)\n"
@@ -3662,6 +3731,7 @@ static int __init_manager(int reload)
 		ast_manager_register2("CreateConfig", EVENT_FLAG_CONFIG, action_createconfig, "Creates an empty file in the configuration directory", mandescr_createconfig);
 		ast_manager_register2("ListCategories", EVENT_FLAG_CONFIG, action_listcategories, "List categories in configuration file", mandescr_listcategories);
 		ast_manager_register2("Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect (transfer) a call", mandescr_redirect );
+		ast_manager_register2("Atxfer", EVENT_FLAG_CALL, action_atxfer, "Attended transfer", mandescr_atxfer);
 		ast_manager_register2("Originate", EVENT_FLAG_ORIGINATE, action_originate, "Originate Call", mandescr_originate);
 		ast_manager_register2("Command", EVENT_FLAG_COMMAND, action_command, "Execute Asterisk CLI Command", mandescr_command );
 		ast_manager_register2("ExtensionState", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_extensionstate, "Check Extension Status", mandescr_extensionstate );
