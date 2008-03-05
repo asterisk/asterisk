@@ -5140,6 +5140,9 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 			}
 		}
 		break;
+	case AST_CONTROL_SRCUPDATE:
+		ast_rtp_new_source(p->rtp);
+		break;
 	case -1:
 		res = -1;
 		break;

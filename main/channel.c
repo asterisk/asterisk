@@ -2745,6 +2745,8 @@ int ast_indicate_data(struct ast_channel *chan, int condition, const void *data,
 				/* Do nothing.... */
 			} else if (condition == AST_CONTROL_VIDUPDATE) {
 				/* Do nothing.... */
+			} else if (condition == AST_CONTROL_SRCUPDATE) {
+				/* Do nothing... */
 			} else {
 				/* not handled */
 				ast_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
@@ -3272,6 +3274,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 				case AST_CONTROL_HOLD:
 				case AST_CONTROL_UNHOLD:
 				case AST_CONTROL_VIDUPDATE:
+				case AST_CONTROL_SRCUPDATE:
 				case -1:			/* Ignore -- just stopping indications */
 					break;
 
@@ -4156,6 +4159,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			case AST_CONTROL_HOLD:
 			case AST_CONTROL_UNHOLD:
 			case AST_CONTROL_VIDUPDATE:
+			case AST_CONTROL_SRCUPDATE:
 				ast_indicate_data(other, f->subclass, f->data, f->datalen);
 				break;
 			default:
@@ -4318,6 +4322,10 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		ast_set_flag(c0, AST_FLAG_END_DTMF_ONLY);
 	manager_bridge_event(1, 1, c0, c1);
 
+	/* Before we enter in and bridge these two together tell them both the source of audio has changed */
+	ast_indicate(c0, AST_CONTROL_SRCUPDATE);
+	ast_indicate(c1, AST_CONTROL_SRCUPDATE);
+
 	for (/* ever */;;) {
 		struct timeval now = { 0, };
 		int to;
@@ -4469,6 +4477,10 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 
 	ast_clear_flag(c0, AST_FLAG_END_DTMF_ONLY);
 	ast_clear_flag(c1, AST_FLAG_END_DTMF_ONLY);
+
+	/* Now that we have broken the bridge the source will change yet again */
+	ast_indicate(c0, AST_CONTROL_SRCUPDATE);
+	ast_indicate(c1, AST_CONTROL_SRCUPDATE);
 
 	c0->_bridge = NULL;
 	c1->_bridge = NULL;

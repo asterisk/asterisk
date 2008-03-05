@@ -656,6 +656,9 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					case AST_CONTROL_VIDUPDATE:
 						ast_verb(3, "%s requested a video update, passing it to %s\n", winner->name, caller->name);
 						break;
+					case AST_CONTROL_SRCUPDATE:
+						ast_verb(3, "%s requested a source update, passing it to %s\n", winner->name, caller->name);
+						break;
 					case AST_CONTROL_PROCEEDING:
 						ast_verb(3, "%s is proceeding passing it to %s\n", winner->name,caller->name);
 						break;
