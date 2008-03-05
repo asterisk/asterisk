@@ -9811,29 +9811,36 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 		if (pri->pvts[x]->call == c) {
 			/* Found our call */
 			if (principle != x) {
+				struct zt_pvt *new = pri->pvts[principle], *old = pri->pvts[x];
+
 				ast_verb(3, "Moving call from channel %d to channel %d\n",
-						pri->pvts[x]->channel, pri->pvts[principle]->channel);
-				if (pri->pvts[principle]->owner) {
+					 old->channel, new->channel);
+				if (new->owner) {
 					ast_log(LOG_WARNING, "Can't fix up channel from %d to %d because %d is already in use\n",
-						pri->pvts[x]->channel, pri->pvts[principle]->channel, pri->pvts[principle]->channel);
+						old->channel, new->channel, new->channel);
 					return -1;
 				}
 				/* Fix it all up now */
-				pri->pvts[principle]->owner = pri->pvts[x]->owner;
-				if (pri->pvts[principle]->owner) {
-					ast_string_field_build(pri->pvts[principle]->owner, name, 
+				new->owner = old->owner;
+				old->owner = NULL;
+				if (new->owner) {
+					ast_string_field_build(new->owner, name, 
 							       "Zap/%d:%d-%d", pri->trunkgroup,
-							       pri->pvts[principle]->channel, 1);
-					pri->pvts[principle]->owner->tech_pvt = pri->pvts[principle];
-					ast_channel_set_fd(pri->pvts[principle]->owner, 0, pri->pvts[principle]->subs[SUB_REAL].zfd);
-					pri->pvts[principle]->subs[SUB_REAL].owner = pri->pvts[x]->subs[SUB_REAL].owner;
+							       new->channel, 1);
+					new->owner->tech_pvt = new;
+					ast_channel_set_fd(new->owner, 0, new->subs[SUB_REAL].zfd);
+					new->subs[SUB_REAL].owner = old->subs[SUB_REAL].owner;
+					old->subs[SUB_REAL].owner = NULL;
 				} else
-					ast_log(LOG_WARNING, "Whoa, there's no  owner, and we're having to fix up channel %d to channel %d\n", pri->pvts[x]->channel, pri->pvts[principle]->channel);
-				pri->pvts[principle]->call = pri->pvts[x]->call;
-				/* Free up the old channel, now not in use */
-				pri->pvts[x]->subs[SUB_REAL].owner = NULL;
-				pri->pvts[x]->owner = NULL;
-				pri->pvts[x]->call = NULL;
+					ast_log(LOG_WARNING, "Whoa, there's no  owner, and we're having to fix up channel %d to channel %d\n", old->channel, new->channel);
+				new->call = old->call;
+				old->call = NULL;
+
+				/* Copy any DSP that may be present */
+				new->dsp = old->dsp;
+				new->dsp_features = old->dsp_features;
+				old->dsp = NULL;
+				old->dsp_features = 0;
 			}
 			return principle;
 		}
