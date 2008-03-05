@@ -83,11 +83,11 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 	tmp = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, tmp);
 
-	if ((sscanf(args.silence, "%d", &x) == 1) && (x > 0))
+	if (!ast_strlen_zero(args.silence) && (sscanf(args.silence, "%d", &x) == 1) && (x > 0))
 		sil = x;
-	if ((sscanf(args.min, "%d", &x) == 1) && (x > 0))
+	if (!ast_strlen_zero(args.min) && (sscanf(args.min, "%d", &x) == 1) && (x > 0))
 		min = x;
-	if ((sscanf(args.max, "%d", &x) == 1) && (x > 0))
+	if (!ast_strlen_zero(args.max) && (sscanf(args.max, "%d", &x) == 1) && (x > 0))
 		max = x;
 
 	ast_debug(1, "Preparing detect of '%s', sil=%d, min=%d, max=%d\n", args.filename, sil, min, max);
