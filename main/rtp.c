@@ -1313,7 +1313,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		/* Add timing data to let ast_generic_bridge() put the frame into a jitterbuf */
 		ast_set_flag(&rtp->f, AST_FRFLAG_HAS_TIMING_INFO);
 		rtp->f.ts = timestamp / 8;
-		rtp->f.len = rtp->f.samples / 8;
+		rtp->f.len = rtp->f.samples / ( (ast_format_rate(rtp->f.subclass) == 16000) ? 16 : 8 );
 	} else {
 		/* Video -- samples is # of samples vs. 90000 */
 		if (!rtp->lastividtimestamp)
