@@ -117,9 +117,9 @@ enum {
 	QUEUE_STRATEGY_WRANDOM
 };
 
-static struct strategy {
+static const struct strategy {
 	int strategy;
-	char *name;
+	const char *name;
 } strategies[] = {
 	{ QUEUE_STRATEGY_RINGALL, "ringall" },
 	{ QUEUE_STRATEGY_LEASTRECENT, "leastrecent" },
@@ -516,7 +516,7 @@ static void set_queue_result(struct ast_channel *chan, enum queue_result res)
 {
 	int i;
 
-	for (i = 0; i < sizeof(queue_results) / sizeof(queue_results[0]); i++) {
+	for (i = 0; i < ARRAY_LEN(queue_results); i++) {
 		if (queue_results[i].id == res) {
 			pbx_builtin_setvar_helper(chan, "QUEUESTATUS", queue_results[i].text);
 			return;
@@ -524,11 +524,11 @@ static void set_queue_result(struct ast_channel *chan, enum queue_result res)
 	}
 }
 
-static char *int2strat(int strategy)
+static const char *int2strat(int strategy)
 {
 	int x;
 
-	for (x = 0; x < sizeof(strategies) / sizeof(strategies[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(strategies); x++) {
 		if (strategy == strategies[x].strategy)
 			return strategies[x].name;
 	}
@@ -540,7 +540,7 @@ static int strat2int(const char *strategy)
 {
 	int x;
 
-	for (x = 0; x < sizeof(strategies) / sizeof(strategies[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(strategies); x++) {
 		if (!strcasecmp(strategy, strategies[x].name))
 			return strategies[x].strategy;
 	}
@@ -574,7 +574,6 @@ static inline struct call_queue *queue_unref(struct call_queue *q)
 
 static void set_queue_variables(struct queue_ent *qe)
 {
-
 	char interfacevar[256]="";
 	float sl = 0;
         
