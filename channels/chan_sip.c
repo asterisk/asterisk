@@ -2033,6 +2033,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		ast_set_flag(pkt, FLAG_RESPONSE);
 	pkt->data[len] = '\0';
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
+	pkt->retransid = -1;
 	if (fatal)
 		ast_set_flag(pkt, FLAG_FATAL);
 	if (pkt->timer_t1)
