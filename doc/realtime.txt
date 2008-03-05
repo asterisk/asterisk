@@ -41,6 +41,20 @@ modules that read configurations, there's no difference between a static
 file in the file system, like extensions.conf, and a configuration loaded
 from a database.
 
+You just have to always make sure the var_metric values are properly set and
+ordered as you expect in your database server if you're using the static mode
+with ARA (either sequentially or with the same var_metric value for everybody).
+
+If you have an option that depends on another one in a given configuration
+file (i.e, 'musiconhold' depending on 'agent' from agents.conf) but their
+var_metric are not sequential you'll probably get default values being assigned for
+those options instead of the desired ones. You can still use the same
+var_metric for all entries in your DB, just make sure the entries
+are recorded in an order that does not break the option dependency.
+
+That doesn't happen when you use a static file in the file system. Although
+this might be interpreted as a bug or limitation, it is not.
+
 * Realtime SIP friends
 ----------------------
 The SIP realtime objects are users and peers that are loaded in memory 
