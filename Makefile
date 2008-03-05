@@ -813,11 +813,16 @@ menuconfig: menuselect
 
 gmenuconfig: gmenuselect
 
+nmenuconfig: nmenuselect
+
 menuselect: menuselect/menuselect menuselect-tree
 	-@menuselect/menuselect $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
 gmenuselect: menuselect/gmenuselect menuselect-tree
 	-@menuselect/gmenuselect $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
+
+nmenuselect: menuselect/nmenuselect menuselect-tree
+	-@menuselect/nmenuselect $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
 # options for make in menuselect/
 MAKE_MENUSELECT=CC="$(HOST_CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
@@ -827,6 +832,9 @@ menuselect/menuselect: menuselect/makeopts
 
 menuselect/gmenuselect: menuselect/makeopts
 	$(MAKE_MENUSELECT) gmenuselect
+
+menuselect/nmenuselect: menuselect/makeopts
+	$(MAKE_MENUSELECT) nmenuselect
 
 menuselect/makeopts:
 	$(MAKE_MENUSELECT) makeopts
