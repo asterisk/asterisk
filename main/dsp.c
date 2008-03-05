@@ -1547,7 +1547,6 @@ static int _dsp_init(int reload)
 {
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_config *cfg;
-	struct ast_variable *var;
 
 	cfg = ast_config_load(CONFIG_FILE_NAME, config_flags);
 
@@ -1556,7 +1555,7 @@ static int _dsp_init(int reload)
 
 		value = ast_variable_retrieve(cfg, "default", "silencethreshold");
 		if (value && sscanf(value, "%d", &thresholds[THRESHOLD_SILENCE]) != 1) {
-			ast_log(LOG_WARNING, "%s: '%s' is not a valid silencethreshold value\n", CONFIG_FILE_NAME, var->value);
+			ast_log(LOG_WARNING, "%s: '%s' is not a valid silencethreshold value\n", CONFIG_FILE_NAME, value);
 			thresholds[THRESHOLD_SILENCE] = 256;
 		} else if (!value)
 			thresholds[THRESHOLD_SILENCE] = 256;
