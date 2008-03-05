@@ -29,6 +29,12 @@
  *
  * \author David C. Troy <dave@popvox.com>
  *
+ * \brief Wait For Noise
+ * The same as Wait For Silence but listenes noise on the chennel that is above \n
+ * the pre-configured silence threshold from dsp.conf
+ *
+ * \author Philipp Skadorov <skadorov@yahoo.com>
+ *
  * \ingroup applications
  */
 
@@ -42,9 +48,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dsp.h"
 #include "asterisk/module.h"
 
-static char *app = "WaitForSilence";
-static char *synopsis = "Waits for a specified amount of silence";
-static char *descrip =
+static char *app_silence = "WaitForSilence";
+static char *synopsis_silence = "Waits for a specified amount of silence";
+static char *descrip_silence =
 "  WaitForSilence(silencerequired[,iterations][,timeout]):\n"
 "Wait for Silence: Waits for up to 'silencerequired' \n"
 "milliseconds of silence, 'iterations' times or once if omitted.\n"
@@ -68,14 +74,23 @@ static char *descrip =
 "SILENCE - if exited with silence detected\n"
 "TIMEOUT - if exited without silence detected after timeout\n";
 
-static int do_waiting(struct ast_channel *chan, int silencereqd, time_t waitstart, int timeout) {
+static char *app_noise = "WaitForNoise";
+static char *synopsis_noise = "Waits for a specified amount of noise";
+static char *descrip_noise =
+"WaitForNoise(noiserequired[,iterations][,timeout]) \n"
+"Wait for Noise: The same as Wait for Silance but waits for noise that is above the threshold specified\n";
+
+static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, int timeout, int wait_for_silence) {
 	struct ast_frame *f;
-	int dspsilence = 0;
-	static int silencethreshold = 128;
+	int dsptime = 0;
 	int rfmt = 0;
 	int res = 0;
 	struct ast_dsp *sildet;	 /* silence detector dsp */
  	time_t now;
+
+	/*Either silence or noise calc depending on wait_for_silence flag*/
+	int (*ast_dsp_func)(struct ast_dsp*, struct ast_frame*, int*) =
+				wait_for_silence ? ast_dsp_silence : ast_dsp_noise;
 
 	rfmt = chan->readformat; /* Set to linear mode */
 	res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
@@ -89,15 +104,15 @@ static int do_waiting(struct ast_channel *chan, int silencereqd, time_t waitstar
 		ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
 		return -1;
 	}
-	ast_dsp_set_threshold(sildet, silencethreshold);
+	ast_dsp_set_threshold(sildet, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE));
 
 	/* Await silence... */
 	f = NULL;
 	for(;;) {
 		/* Start with no silence received */
-		dspsilence = 0;
+		dsptime = 0;
 
-		res = ast_waitfor(chan, silencereqd);
+		res = ast_waitfor(chan, timereqd);
 
 		/* Must have gotten a hangup; let's exit */
 		if (res <= 0) {
@@ -107,30 +122,36 @@ static int do_waiting(struct ast_channel *chan, int silencereqd, time_t waitstar
 		
 		/* We waited and got no frame; sounds like digital silence or a muted digital channel */
 		if (!res) {
-			dspsilence = silencereqd;
+			dsptime = timereqd;
 		} else {
 			/* Looks like we did get a frame, so let's check it out */
 			f = ast_read(chan);
 			if (!f)
 				break;
 			if (f && f->frametype == AST_FRAME_VOICE) {
-				ast_dsp_silence(sildet, f, &dspsilence);
+				ast_dsp_func(sildet, f, &dsptime);
 				ast_frfree(f);
 			}
 		}
 
-		ast_verb(3, "Got %dms silence< %dms required\n", dspsilence, silencereqd);
+		if (wait_for_silence)
+			ast_verb(6, "Got %dms silence < %dms required\n", dsptime, timereqd);
+		else
+			ast_verb(6, "Got %dms noise < %dms required\n", dsptime, timereqd);
 
-		if (dspsilence >= silencereqd) {
-			ast_verb(3, "Exiting with %dms silence >= %dms required\n", dspsilence, silencereqd);
+		if (dsptime >= timereqd) {
+			if (wait_for_silence)
+				ast_verb(3, "Exiting with %dms silence >= %dms required\n", dsptime, timereqd);
+			else
+				ast_verb(3, "Exiting with %dms noise >= %dms required\n", dsptime, timereqd);
 			/* Ended happily with silence */
 			res = 1;
-			pbx_builtin_setvar_helper(chan, "WAITSTATUS", "SILENCE");
-			ast_debug(1, "WAITSTATUS was set to SILENCE\n");
+			pbx_builtin_setvar_helper(chan, "WAITSTATUS", wait_for_silence ? "SILENCE" : "NOISE");
+			ast_debug(1, "WAITSTATUS was set to %s\n", wait_for_silence ? "SILENCE" : "NOISE");
 			break;
 		}
 
-		if ( timeout && (difftime(time(&now),waitstart) >= timeout) ) {
+		if (timeout && (difftime(time(&now), waitstart) >= timeout)) {
 			pbx_builtin_setvar_helper(chan, "WAITSTATUS", "TIMEOUT");
 			ast_debug(1, "WAITSTATUS was set to TIMEOUT\n");
 			res = 0;
@@ -146,43 +167,60 @@ static int do_waiting(struct ast_channel *chan, int silencereqd, time_t waitstar
 	return res;
 }
 
-static int waitforsilence_exec(struct ast_channel *chan, void *data)
+static int waitfor_exec(struct ast_channel *chan, void *data, int wait_for_silence)
 {
 	int res = 1;
-	int silencereqd = 1000;
+	int timereqd = 1000;
 	int timeout = 0;
 	int iterations = 1, i;
 	time_t waitstart;
 
 	res = ast_answer(chan); /* Answer the channel */
 
-	if (!data || ( (sscanf(data, "%d,%d,%d", &silencereqd, &iterations, &timeout) != 3) &&
-		(sscanf(data, "%d|%d", &silencereqd, &iterations) != 2) &&
-		(sscanf(data, "%d", &silencereqd) != 1) ) ) {
+	if (!data || ( (sscanf(data, "%d,%d,%d", &timereqd, &iterations, &timeout) != 3) &&
+		(sscanf(data, "%d,%d", &timereqd, &iterations) != 2) &&
+		(sscanf(data, "%d", &timereqd) != 1) ) ) {
 		ast_log(LOG_WARNING, "Using default value of 1000ms, 1 iteration, no timeout\n");
 	}
 
-	ast_verb(3, "Waiting %d time(s) for %d ms silence with %d timeout\n", iterations, silencereqd, timeout);
+	ast_verb(3, "Waiting %d time(s) for %d ms silence with %d timeout\n", iterations, timereqd, timeout);
 
 	time(&waitstart);
 	res = 1;
 	for (i=0; (i<iterations) && (res == 1); i++) {
-		res = do_waiting(chan, silencereqd, waitstart, timeout);
+		res = do_waiting(chan, timereqd, waitstart, timeout, wait_for_silence);
 	}
 	if (res > 0)
 		res = 0;
 	return res;
 }
 
+static int waitforsilence_exec(struct ast_channel *chan, void *data)
+{
+	return waitfor_exec(chan, data, 1);
+}
+
+static int waitfornoise_exec(struct ast_channel *chan, void *data)
+{
+	return waitfor_exec(chan, data, 0);
+}
 
 static int unload_module(void)
 {
-	return ast_unregister_application(app);
+	int res;
+	res = ast_unregister_application(app_silence);
+	res |= ast_unregister_application(app_noise);
+
+	return res;
 }
 
 static int load_module(void)
 {
-	return ast_register_application(app, waitforsilence_exec, synopsis, descrip);
+	int res;
+
+	res = ast_register_application(app_silence, waitforsilence_exec, synopsis_silence, descrip_silence);
+	res |= ast_register_application(app_noise, waitfornoise_exec, synopsis_noise, descrip_noise);
+	return res;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Wait For Silence");

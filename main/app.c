@@ -1268,7 +1268,7 @@ int ast_unlock_path(const char *path)
 
 int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path) 
 {
-	int silencethreshold = 128; 
+	int silencethreshold; 
 	int maxsilence = 0;
 	int res = 0;
 	int cmd = 0;
@@ -1285,6 +1285,8 @@ int ast_record_review(struct ast_channel *chan, const char *playfile, const char
 	}
 
 	cmd = '3';	 /* Want to start by recording */
+
+	silencethreshold = ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE);
 
 	while ((cmd >= 0) && (cmd != 't')) {
 		switch (cmd) {

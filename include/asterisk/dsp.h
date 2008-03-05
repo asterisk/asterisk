@@ -58,6 +58,13 @@
 
 struct ast_dsp;
 
+enum threshold {
+	/* Array offsets */
+	THRESHOLD_SILENCE = 0,
+	/* Always the last */
+	THRESHOLD_MAX = 1,
+};
+
 struct ast_dsp *ast_dsp_new(void);
 void ast_dsp_free(struct ast_dsp *dsp);
 
@@ -83,6 +90,10 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 /*! \brief Return non-zero if this is silence.  Updates "totalsilence" with the total
    number of seconds of silence  */
 int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence);
+
+/*! \brief Return non-zero if this is noise.  Updates "totalnoise" with the total
+   number of seconds of noise  */
+int ast_dsp_noise(struct ast_dsp *dsp, struct ast_frame *f, int *totalnoise);
 
 /*! \brief Return non-zero if historically this should be a busy, request that
   ast_dsp_silence has already been called */
@@ -114,5 +125,13 @@ int ast_dsp_get_tstate(struct ast_dsp *dsp);
 
 /*! \brief Get tcount (Threshold counter) */
 int ast_dsp_get_tcount(struct ast_dsp *dsp);
+
+/*! \brief Get silence threshold from dsp.conf*/
+int ast_dsp_get_threshold_from_settings(enum threshold which);
+
+/* \brief Reloads dsp settings from dsp.conf*/
+int ast_dsp_reload(void);
+
+int ast_dsp_init(void);
 
 #endif /* _ASTERISK_DSP_H */

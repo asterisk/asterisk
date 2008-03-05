@@ -2360,7 +2360,6 @@ static int load_config(int reload)
 	/* First, set some default settings */
 	global_externnotify[0] = '\0';
 	global_logfile[0] = '\0';
-	global_silencethreshold = 256;
 	global_vmmaxmessage = 2000;
 	global_maxgreet = 2000;
 	global_vmminmessage = 0;
@@ -2374,6 +2373,8 @@ static int load_config(int reload)
 	/* Reset statistics */
 	memset(&global_stats, 0, sizeof(global_stats));
 	global_stats.reset = ast_tvnow();
+
+	global_silencethreshold = ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE);
 
 	/* Make sure we could load configuration file */
 	if (!cfg) {
@@ -2640,7 +2641,7 @@ static char *handle_minivm_show_settings(struct ast_cli_entry *e, int cmd, struc
 	ast_cli(a->fd, "\n");
 	ast_cli(a->fd, "  Mail command (shell):               %s\n", global_mailcmd);
 	ast_cli(a->fd, "  Max silence:                        %d\n", global_maxsilence);
-	ast_cli(a->fd, "  Silence treshold:                   %d\n", global_silencethreshold);
+	ast_cli(a->fd, "  Silence threshold:                  %d\n", global_silencethreshold);
 	ast_cli(a->fd, "  Max message length (secs):          %d\n", global_vmmaxmessage);
 	ast_cli(a->fd, "  Min message length (secs):          %d\n", global_vmminmessage);
 	ast_cli(a->fd, "  Default format:                     %s\n", default_vmformat);

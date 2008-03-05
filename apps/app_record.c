@@ -243,7 +243,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
 			return -1;
 		}
-		ast_dsp_set_threshold(sildet, 256);
+		ast_dsp_set_threshold(sildet, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE));
 	} 
 
 	/* Create the directory if it does not exist. */

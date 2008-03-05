@@ -8399,7 +8399,7 @@ static int load_config(int reload)
 		}
 
 		/* Silence treshold */
-		silencethreshold = 256;
+		silencethreshold = ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE);
 		if ((val = ast_variable_retrieve(cfg, "general", "silencethreshold")))
 			silencethreshold = atoi(val);
 		

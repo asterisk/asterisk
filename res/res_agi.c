@@ -1296,7 +1296,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 			ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
 			return -1;
 		}
-		ast_dsp_set_threshold(sildet, 256);
+		ast_dsp_set_threshold(sildet, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE));
 	}
 
 	/* backward compatibility, if no offset given, arg[6] would have been

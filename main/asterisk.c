@@ -121,6 +121,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/linkedlists.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/module.h"
+#include "asterisk/dsp.h"
 
 #include "asterisk/doxyref.h"		/* Doxygen documentation */
 
@@ -3218,7 +3219,7 @@ int main(int argc, char *argv[])
 	}
 
 	ast_rtp_init();
-
+	ast_dsp_init();
 	ast_udptl_init();
 
 	if (ast_image_init()) {

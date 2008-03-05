@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/alaw.h"
 #include "asterisk/utils.h"
 #include "asterisk/options.h"
+#include "asterisk/config.h"
 
 /*! Number of goertzels for progress detect */
 enum gsamp_size {
@@ -193,6 +194,8 @@ enum gsamp_thresh {
 #define SAMPLES_IN_FRAME	160
 
 
+#define CONFIG_FILE_NAME "dsp.conf"
+
 typedef struct {
 	int v2;
 	int v3;
@@ -271,6 +274,8 @@ static float mf_tones[] =
 static char dtmf_positions[] = "123A" "456B" "789C" "*0#D";
 
 static char bell_mf_positions[] = "1247C-358A--69*---0B----#";
+
+static int thresholds[THRESHOLD_MAX];
 
 static inline void goertzel_sample(goertzel_state_t *s, short sample)
 {
@@ -1021,7 +1026,7 @@ int ast_dsp_call_progress(struct ast_dsp *dsp, struct ast_frame *inf)
 	return __ast_dsp_call_progress(dsp, inf->data, inf->datalen / 2);
 }
 
-static int __ast_dsp_silence(struct ast_dsp *dsp, short *s, int len, int *totalsilence)
+static int __ast_dsp_silence_noise(struct ast_dsp *dsp, short *s, int len, int *totalsilence, int *totalnoise)
 {
 	int accum;
 	int x;
@@ -1073,6 +1078,8 @@ static int __ast_dsp_silence(struct ast_dsp *dsp, short *s, int len, int *totals
 	}
 	if (totalsilence)
 		*totalsilence = dsp->totalsilence;
+	if (totalnoise)
+		*totalnoise = dsp->totalnoise;
 	return res;
 }
 
@@ -1179,8 +1186,27 @@ int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence)
 	}
 	s = f->data;
 	len = f->datalen/2;
-	return __ast_dsp_silence(dsp, s, len, totalsilence);
+	return __ast_dsp_silence_noise(dsp, s, len, totalsilence, NULL);
 }
+
+int ast_dsp_noise(struct ast_dsp *dsp, struct ast_frame *f, int *totalnoise)
+{
+       short *s;
+       int len;
+
+       if (f->frametype != AST_FRAME_VOICE) {
+               ast_log(LOG_WARNING, "Can't calculate noise on a non-voice frame\n");
+               return 0;
+       }
+       if (f->subclass != AST_FORMAT_SLINEAR) {
+               ast_log(LOG_WARNING, "Can only calculate noise on signed-linear frames :(\n");
+               return 0;
+       }
+       s = f->data;
+       len = f->datalen/2;
+       return __ast_dsp_silence_noise(dsp, s, len, NULL, totalnoise);
+}
+
 
 struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp, struct ast_frame *af)
 {
@@ -1236,7 +1262,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(af->subclass));
 		return af;
 	}
-	silence = __ast_dsp_silence(dsp, shortdata, len, NULL);
+	res = __ast_dsp_silence_noise(dsp, shortdata, len, &silence, NULL);
 	if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS) && silence) {
 		memset(&dsp->f, 0, sizeof(dsp->f));
 		dsp->f.frametype = AST_FRAME_NULL;
@@ -1516,3 +1542,42 @@ int ast_dsp_get_tcount(struct ast_dsp *dsp)
 {
 	return dsp->tcount;
 }
+
+static int _dsp_init(int reload)
+{
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_config *cfg;
+	struct ast_variable *var;
+
+	cfg = ast_config_load(CONFIG_FILE_NAME, config_flags);
+
+	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED) {
+		const char *value;
+
+		value = ast_variable_retrieve(cfg, "default", "silencethreshold");
+		if (value && sscanf(value, "%d", &thresholds[THRESHOLD_SILENCE]) != 1) {
+			ast_log(LOG_WARNING, "%s: '%s' is not a valid silencethreshold value\n", CONFIG_FILE_NAME, var->value);
+			thresholds[THRESHOLD_SILENCE] = 256;
+		} else if (!value)
+			thresholds[THRESHOLD_SILENCE] = 256;
+
+		ast_config_destroy(cfg);
+	}
+	return 0;
+}
+
+int ast_dsp_get_threshold_from_settings(enum threshold which)
+{
+	return thresholds[which];
+}
+
+int ast_dsp_init(void)
+{
+	return _dsp_init(0);
+}
+
+int ast_dsp_reload(void)
+{
+	return _dsp_init(1);
+}
+

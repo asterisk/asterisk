@@ -371,6 +371,8 @@ static int load_config(int reload)
 	struct ast_variable *var = NULL;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
+	dfltSilenceThreshold = ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE);
+
 	if (!(cfg = ast_config_load("amd.conf", config_flags))) {
 		ast_log(LOG_ERROR, "Configuration file amd.conf missing.\n");
 		return -1;

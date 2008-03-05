@@ -60,6 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/privacy.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/global_datastores.h"
+#include "asterisk/dsp.h"
 
 static char *app = "Dial";
 
@@ -1115,6 +1116,7 @@ static int setup_privacy_args(struct privacy_args *pa,
 	char callerid[60];
 	int res;
 	char *l;
+	int silencethreshold;
 
 	if (!ast_strlen_zero(chan->cid.cid_num)) {
 		l = ast_strdupa(chan->cid.cid_num);
@@ -1188,8 +1190,9 @@ static int setup_privacy_args(struct privacy_args *pa,
 			   "At the tone, please say your name:"
 
 			*/
+			silencethreshold = ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE);
 			ast_answer(chan);
-			res = ast_play_and_record(chan, "priv-recordintro", pa->privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
+			res = ast_play_and_record(chan, "priv-recordintro", pa->privintro, 4, "gsm", &duration, silencethreshold, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
 									/* don't think we'll need a lock removed, we took care of
 									   conflicts by naming the pa.privintro file */
 			if (res == -1) {

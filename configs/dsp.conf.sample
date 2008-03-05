@@ -1,0 +1,7 @@
+[default]
+;
+; Length of sound (in milliseconds) before a period of silence is considered
+; to be a change from talking to silence or a period of noise converts silence
+; to talking.  [default=256]
+;
+;silencethreshold=256

@@ -56,6 +56,9 @@ Core:
 * The concise versions of various CLI commands are now deprecated. We recommend
   using the manager interface (AMI) for application integration with Asterisk.
 
+* The silencethreshold used for various applications is now settable via a
+  centralized config option in dsp.conf.
+
 Voicemail:
 
 * The voicemail configuration values 'maxmessage' and 'minmessage' have
