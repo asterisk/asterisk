@@ -298,14 +298,6 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 	return head;
 }
 
-static inline int format_rate(int format)
-{
-	if (format == AST_FORMAT_G722 || format == AST_FORMAT_SLINEAR16)
-		return 16000;
-
-	return 8000;
-}
-
 /*! \brief do the actual translation */
 struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f, int consume)
 {
@@ -342,7 +334,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			path->nextout = f->delivery;
 		}
 		/* Predict next incoming sample */
-		path->nextin = ast_tvadd(path->nextin, ast_samp2tv(f->samples, format_rate(f->subclass)));
+		path->nextin = ast_tvadd(path->nextin, ast_samp2tv(f->samples, ast_format_rate(f->subclass)));
 	}
 	delivery = f->delivery;
 	for ( ; out && p ; p = p->next) {
@@ -366,7 +358,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		
 		/* Predict next outgoing timestamp from samples in this
 		   frame. */
-		path->nextout = ast_tvadd(path->nextout, ast_samp2tv(out->samples, format_rate(out->subclass)));
+		path->nextout = ast_tvadd(path->nextout, ast_samp2tv(out->samples, ast_format_rate(out->subclass)));
 	} else {
 		out->delivery = ast_tv(0, 0);
 		ast_set2_flag(out, has_timing_info, AST_FRFLAG_HAS_TIMING_INFO);
@@ -390,7 +382,7 @@ static void calc_cost(struct ast_translator *t, int seconds)
 	struct rusage start;
 	struct rusage end;
 	int cost;
-	int out_rate = format_rate(t->dstfmt);
+	int out_rate = ast_format_rate(t->dstfmt);
 
 	if (!seconds)
 		seconds = 1;
