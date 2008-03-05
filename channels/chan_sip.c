@@ -2824,6 +2824,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	pkt->next = p->packets;
 	p->packets = pkt;	/* Add it to the queue */
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
+	pkt->retransid = -1;
 	if (pkt->timer_t1)
 		siptimer_a = pkt->timer_t1 * 2;
 
