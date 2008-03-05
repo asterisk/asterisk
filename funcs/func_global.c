@@ -109,8 +109,11 @@ static int shared_read(struct ast_channel *chan, const char *cmd, char *data, ch
 	} else
 		ast_channel_lock(chan);
 
-	if (!(varstore = ast_channel_datastore_find(chan, &shared_variable_info, NULL)))
+	if (!(varstore = ast_channel_datastore_find(chan, &shared_variable_info, NULL))) {
+		ast_channel_unlock(chan);
 		return -1;
+	}
+
 	varshead = varstore->data;
 	*buf = '\0';
 
@@ -121,6 +124,8 @@ static int shared_read(struct ast_channel *chan, const char *cmd, char *data, ch
 			break;
 		}
 	}
+
+	ast_channel_unlock(chan);
 
 	return 0;
 }
