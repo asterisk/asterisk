@@ -30,14 +30,14 @@
 /* Some routines from tone_detect.c by Steven Underwood as published under the zapata library */
 /*
 	tone_detect.c - General telephony tone detection, and specific
-                        detection of DTMF.
+					detection of DTMF.
 
-        Copyright (C) 2001  Steve Underwood <steveu@coppice.org>
+	Copyright (C) 2001  Steve Underwood <steveu@coppice.org>
 
-        Despite my general liking of the GPL, I place this code in the
-        public domain for the benefit of all mankind - even the slimy
-        ones who might try to proprietize my work and use it to my
-        detriment.
+	Despite my general liking of the GPL, I place this code in the
+	public domain for the benefit of all mankind - even the slimy
+	ones who might try to proprietize my work and use it to my
+	detriment.
 */
 
 #include "asterisk.h"
@@ -676,7 +676,7 @@ static int dtmf_detect(digit_detect_state_t *s, int16_t amp[], int samples,
 #define MF_GSIZE 120
 
 static int mf_detect(digit_detect_state_t *s, int16_t amp[],
-                 int samples, int digitmode, int *writeback)
+	int samples, int digitmode, int *writeback)
 {
 	float energy[6];
 	int best;

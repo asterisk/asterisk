@@ -81,18 +81,18 @@ void ao2_bt(void) {}
 
 void ao2_bt(void)
 {
-    int c, i;
+	int c, i;
 #define N1	20
-    void *addresses[N1];
-    char **strings;
+	void *addresses[N1];
+	char **strings;
 
-    c = backtrace(addresses, N1);
-    strings = backtrace_symbols(addresses,c);
-    ast_verbose("backtrace returned: %d\n", c);
-    for(i = 0; i < c; i++) {
-        ast_verbose("%d: %p %s\n", i, addresses[i], strings[i]);
-    }
-    free(strings);
+	c = backtrace(addresses, N1);
+	strings = backtrace_symbols(addresses,c);
+	ast_verbose("backtrace returned: %d\n", c);
+	for(i = 0; i < c; i++) {
+		ast_verbose("%d: %p %s\n", i, addresses[i], strings[i]);
+	}
+	free(strings);
 }
 #endif
 

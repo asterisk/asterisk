@@ -207,22 +207,22 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, unsigne
 
 	delim = regexp[0];
 	delim2 = strchr(regexp + 1, delim);
-	if ((delim2 == NULL) || (regexp[regexp_len-1] != delim)) {
-		ast_log(LOG_WARNING, "Regex delimiter error (on \"%s\").\n",regexp);
+	if ((delim2 == NULL) || (regexp[regexp_len - 1] != delim)) {
+		ast_log(LOG_WARNING, "Regex delimiter error (on \"%s\").\n", regexp);
 		return -1;
 	}
 
 	pattern = regexp + 1;
 	*delim2 = 0;
 	subst   = delim2 + 1;
-	regexp[regexp_len-1] = 0;
+	regexp[regexp_len - 1] = 0;
 
 /*
  * now do the regex wizardry.
  */
 
 	if (regcomp(&preg, pattern, REG_EXTENDED | REG_NEWLINE)) {
-		ast_log(LOG_WARNING, "NAPTR Regex compilation error (regex = \"%s\").\n",regexp);
+		ast_log(LOG_WARNING, "NAPTR Regex compilation error (regex = \"%s\").\n", regexp);
 		return -1;
 	}
 
@@ -314,7 +314,7 @@ static int txt_callback(void *context, unsigned char *answer, int len, unsigned 
 	ast_copy_string(c->txt, (const char *) answer, len < c->txtlen ? len : (c->txtlen));
 
 	/* just to be safe, let's make sure c->txt is null terminated */
-	c->txt[(c->txtlen)-1] = '\0';
+	c->txt[(c->txtlen) - 1] = '\0';
 
 	return 1;
 }
@@ -377,7 +377,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	if (!(context = ast_calloc(1, sizeof(*context))))
 		return -1;
 
-	ast_copy_string(naptrinput, number[0] == 'n' ? number+1 : number, sizeof(naptrinput));
+	ast_copy_string(naptrinput, number[0] == 'n' ? number + 1 : number, sizeof(naptrinput));
 
 	context->naptrinput = naptrinput;	/* The number */
 	context->dst = dst;			/* Return string */
@@ -411,7 +411,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	}
 
 	if (p1 != NULL) {
-		p2 = p1+1;
+		p2 = p1 + 1;
 		while (p1 > number){
 			p1--;
 			tmp[newpos++] = *p1;
@@ -501,7 +501,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 			}
 		}
 		for (k = 0; k < context->naptr_rrs_count; k++) {
-			if (context->naptr_rrs[k].sort_pos == context->position-1) {
+			if (context->naptr_rrs[k].sort_pos == context->position - 1) {
 				ast_copy_string(context->dst, context->naptr_rrs[k].result, dstlen);
 				ast_copy_string(context->tech, context->naptr_rrs[k].tech, techlen);
 				break;

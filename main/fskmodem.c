@@ -98,21 +98,21 @@ static inline int ibpdfilter(struct filter_struct * fs, int in)
 	
 	/* integer filter */
 	s =  in * fs->icoefs[0];
-	fs->ixv[(fs->ip+6)&7] = s;
+	fs->ixv[(fs->ip + 6) & 7] = s;
 	
-	s=     (fs->ixv[fs->ip]       + fs->ixv[(fs->ip+6)&7]) +
-		6  * (fs->ixv[(fs->ip+1)&7] + fs->ixv[(fs->ip+5)&7]) +
-		15 * (fs->ixv[(fs->ip+2)&7] + fs->ixv[(fs->ip+4)&7]) +
-		20 *  fs->ixv[(fs->ip+3)&7];
+	s =      (fs->ixv[fs->ip]           + fs->ixv[(fs->ip + 6) & 7]) +
+		6  * (fs->ixv[(fs->ip + 1) & 7] + fs->ixv[(fs->ip + 5) & 7]) +
+		15 * (fs->ixv[(fs->ip + 2) & 7] + fs->ixv[(fs->ip + 4) & 7]) +
+		20 *  fs->ixv[(fs->ip + 3) & 7];
 	
-	for (i=1, j=fs->ip; i < 7; i++,j++) {
+	for (i = 1, j = fs->ip; i < 7; i++, j++) {
 		/* Promote operation to 64 bit to prevent overflow that occurred in 32 bit) */
 		s_interim = (int64_t)(fs->iyv[j & 7]) * 
 				(int64_t)(fs->icoefs[i]) /
 				(int64_t)(1024);
 		s += (int) s_interim;
 	}
-	fs->iyv[ j & 7] = s;
+	fs->iyv[j & 7] = s;
 	fs->ip++;
 	fs->ip &= 7;
 	return s;
@@ -127,19 +127,20 @@ static inline int ibpfilter(struct filter_struct * fs, int in)
 	
 	/* integer filter */
 	s =  in * fs->icoefs[0] / 256;
-	fs->ixv[(fs->ip+6) & 7] = s;
+	fs->ixv[(fs->ip + 6) & 7] = s;
 	
-	s = (fs->ixv[(fs->ip+6) & 7] - fs->ixv[fs->ip])
-		+ 3 * (fs->ixv[(fs->ip+2) & 7] - fs->ixv[(fs->ip+4) & 7]);
+	s = (fs->ixv[(fs->ip + 6) & 7] - fs->ixv[fs->ip])
+		+ 3 * (fs->ixv[(fs->ip + 2) & 7] - fs->ixv[(fs->ip + 4) & 7]);
 	
-	for (i=1,j=fs->ip; i < 7; i++,j++) { 
-		s_interim = (int64_t)(fs->iyv[j&7]) * 
+	for (i = 1, j = fs->ip; i < 7; i++, j++) { 
+		s_interim = (int64_t)(fs->iyv[j & 7]) * 
 				(int64_t)(fs->icoefs[i]) / 
 				(int64_t)(256);
-		s+= (int) s_interim;
+		s += (int) s_interim;
 	}
-	fs->iyv[j&7]=s;
-	fs->ip++; fs->ip &= 7;
+	fs->iyv[j & 7] = s;
+	fs->ip++;
+	fs->ip &= 7;
 	return s;
 }
 
@@ -151,7 +152,7 @@ static inline int idemodulator(fsk_data *fskd, int *retval, int x)
 	is = ibpfilter(&fskd->space_filter, x);
 	im = ibpfilter(&fskd->mark_filter, x);
 	
-	ilin2 = ((im * im) - (is * is))/(256 * 256);
+	ilin2 = ((im * im) - (is * is)) / (256 * 256);
 	
 	id = ibpdfilter(&fskd->demod_filter, ilin2);
 	
@@ -166,25 +167,26 @@ static int get_bit_raw(fsk_data *fskd, short *buffer, int *len)
 
 	int ix;
 	/* PLL coeffs are set up in callerid_new */
-	for (f = 0;;){
+	for (f = 0;;) {
 		if (idemodulator(fskd, &ix, IGET_SAMPLE)) return(-1);
-		if ((ix * fskd->xi0)<0) {	/* Transicion */
+		if ((ix * fskd->xi0) < 0) { /* Transicion */
 			if (!f) {
-				if (fskd->icont<(fskd->pllispb2)) 
-					fskd->icont+=fskd->pllids; 
-				else 
-					fskd->icont-=fskd->pllids;
+				if (fskd->icont < (fskd->pllispb2)) {
+					fskd->icont += fskd->pllids; 
+				} else {
+					fskd->icont -= fskd->pllids;
+				}
 				f = 1;
 			}
 		}
-		fskd->xi0=ix;
-		fskd->icont+=32;
-		if (fskd->icont>fskd->pllispb) {
-			fskd->icont-=fskd->pllispb;
+		fskd->xi0 = ix;
+		fskd->icont += 32;
+		if (fskd->icont > fskd->pllispb) {
+			fskd->icont -= fskd->pllispb;
 			break;
 		}
 	}
-	f=(ix>0)?0x80:0;
+	f = (ix > 0) ? 0x80 : 0;
 	return f;
 }
 
@@ -253,7 +255,7 @@ int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 		beginning of a start bit in the TDD sceanario. It just looks for sufficient
 		level to maybe, perhaps, guess, maybe that its maybe the beginning of
 		a start bit, perhaps. This whole thing stinks! */
-		beginlenx=beginlen; /* just to avoid unused war warnings */
+		beginlenx = beginlen; /* just to avoid unused war warnings */
 		if (idemodulator(fskd, &fskd->xi1, IGET_SAMPLE))
 			return -1;
 		samples++;
@@ -264,33 +266,34 @@ search_startbit2:
 				return 0;
 			}
 			samples++;
-			if (idemodulator(fskd,&fskd->xi2,IGET_SAMPLE)) 
+			if (idemodulator(fskd, &fskd->xi2, IGET_SAMPLE)) 
 				return -1;
 #if 0
 			printf("xi2 = %d ", fskd->xi2);
 #endif			
-			if (fskd->xi2 < 512) 
-				break; 
+			if (fskd->xi2 < 512) {
+				break;
+			}
 		}
 search_startbit3:		   
 		/* We await for 0.5 bits before using DPLL */
-		i=fskd->ispb/2;
+		i = fskd->ispb / 2;
 		if (*len < i) {
 			fskd->state = STATE_SEARCH_STARTBIT3;
 			return 0;
 		}
-		for (; i>0; i--) {
+		for (; i > 0; i--) {
 			if (idemodulator(fskd, &fskd->xi1, IGET_SAMPLE))
 				return(-1); 
 #if 0
 			printf("xi1 = %d ", fskd->xi1);
-#endif			
+#endif
 			samples++; 
 		}
 
 		/* x1 must be negative (start bit confirmation) */
 
-	} while (fskd->xi1>0);
+	} while (fskd->xi1 > 0);
 	fskd->state = STATE_GET_BYTE;
 
 getbyte:
@@ -304,7 +307,7 @@ getbyte:
 		if (*len < 80)
 			return 0;
 	}
-	
+
 	/* Now we read the data bits */
 	j = fskd->nbit;
 	for (a = n1 = 0; j; j--) {

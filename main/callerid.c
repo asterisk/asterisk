@@ -412,7 +412,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 						/* length */
 						x++; 
 						/* number type */
-                       		   		switch (cid->rawdata[x]) { 
+						switch (cid->rawdata[x]) { 
 						case 0x00: /* unknown */
 						case 0x01: /* international number */
 						case 0x02: /* domestic number */
@@ -451,8 +451,8 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 						case 'O': /* service not available */
 						case 'C': /* pay phone */
 						case 'S': /* service congested */
-                   						cid->flags |= CID_UNKNOWN_NUMBER;
-							ast_debug(2, "no cid reason:%c\n",cid->rawdata[x]);
+							cid->flags |= CID_UNKNOWN_NUMBER;
+							ast_debug(2, "no cid reason:%c\n", cid->rawdata[x]);
 							break ;
 						}
 						x++; 
@@ -483,7 +483,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 						x++;
 						/* numbering plan octed 4 */
 						x++;
-                               			/* numbering plan octed 5 */
+						/* numbering plan octed 5 */
 						switch (cid->rawdata[x]) {
 						case 0x00: /* unknown */
 						case 0x01: /* recommendation E.164 ISDN */
@@ -772,7 +772,7 @@ static int callerid_genmsg(char *msg, int size, const char *number, const char *
 int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec)
 {
 	unsigned char msg[256];
-	int len=0;
+	int len = 0;
 	int sum;
 	int x;
 	int bytes = 0;
@@ -834,7 +834,7 @@ int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec)
 
 int callerid_generate(unsigned char *buf, const char *number, const char *name, int flags, int callwaiting, int codec)
 {
-	int bytes=0;
+	int bytes = 0;
 	int x, sum;
 	int len;
 
@@ -881,7 +881,7 @@ int callerid_generate(unsigned char *buf, const char *number, const char *name, 
  */
 void ast_shrink_phone_number(char *n)
 {
-	int x, y=0;
+	int x, y = 0;
 	int bracketed = 0;
 
 	for (x = 0; n[x]; x++) {

@@ -228,7 +228,7 @@ void __ast_module_user_hangup_all(struct ast_module *mod)
 	}
 	AST_LIST_UNLOCK(&mod->users);
 
-        ast_update_use_count();
+	ast_update_use_count();
 }
 
 /*! \note
@@ -722,11 +722,11 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 
 int ast_load_resource(const char *resource_name)
 {
-       AST_LIST_LOCK(&module_list);
-       load_resource(resource_name, 0);
-       AST_LIST_UNLOCK(&module_list);
+	AST_LIST_LOCK(&module_list);
+	load_resource(resource_name, 0);
+	AST_LIST_UNLOCK(&module_list);
 
-       return 0;
+	return 0;
 }
 
 struct load_order_entry {

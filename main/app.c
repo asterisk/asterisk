@@ -78,7 +78,7 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 	if ((ts = ast_get_indication_tone(chan->zone, "dial")) && ts->data[0])
 		res = ast_playtones_start(chan, 0, ts->data, 0);
 	else 
-		ast_log(LOG_NOTICE,"Huh....? no dial for indications?\n");
+		ast_log(LOG_NOTICE, "Huh....? no dial for indications?\n");
 	
 	for (x = strlen(collect); x < maxlen; ) {
 		res = ast_waitfordigit(chan, timeout);
@@ -118,7 +118,7 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
 		s[0] = '\0';
 
 	if (!prompt)
-		prompt="";
+		prompt = "";
 
 	filename = ast_strdupa(prompt);
 	while ((front = strsep(&filename, "&"))) {
@@ -274,7 +274,7 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 			if ((res = ast_safe_sleep(chan, between)))
 				break;
 		} else
-			ast_log(LOG_WARNING, "Illegal DTMF character '%c' in string. (0-9*#aAbBcCdD allowed)\n",*ptr);
+			ast_log(LOG_WARNING, "Illegal DTMF character '%c' in string. (0-9*#aAbBcCdD allowed)\n", *ptr);
 	}
 
 	if (peer) {
@@ -312,16 +312,16 @@ static int linear_generator(struct ast_channel *chan, void *data, int len, int s
 	short buf[2048 + AST_FRIENDLY_OFFSET / 2];
 	struct linear_state *ls = data;
 	struct ast_frame f = {
-                .frametype = AST_FRAME_VOICE,
-                .subclass = AST_FORMAT_SLINEAR,
-                .data = buf + AST_FRIENDLY_OFFSET / 2,
+		.frametype = AST_FRAME_VOICE,
+		.subclass = AST_FORMAT_SLINEAR,
+		.data = buf + AST_FRIENDLY_OFFSET / 2,
 		.offset = AST_FRIENDLY_OFFSET,
-        };
+	};
 	int res;
 
 	len = samples * 2;
 	if (len > sizeof(buf) - AST_FRIENDLY_OFFSET) {
-		ast_log(LOG_WARNING, "Can't generate %d bytes of data!\n" ,len);
+		ast_log(LOG_WARNING, "Can't generate %d bytes of data!\n" , len);
 		len = sizeof(buf) - AST_FRIENDLY_OFFSET;
 	}
 	res = read(ls->fd, buf + AST_FRIENDLY_OFFSET/2, len);
@@ -430,7 +430,7 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 		res = ast_answer(chan);
 
 	if (file) {
-		if ((end = strchr(file,':'))) {
+		if ((end = strchr(file, ':'))) {
 			if (!strcasecmp(end, ":end")) {
 				*end = '\0';
 				end++;
@@ -974,7 +974,7 @@ int ast_app_group_discard(struct ast_channel *chan)
 			ast_free(gi);
 		}
 	}
-        AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&groups);
 	
 	return 0;
@@ -1161,7 +1161,7 @@ static enum AST_LOCK_RESULT ast_lock_path_flock(const char *path)
 	time(&start);
 	while ((
 		#ifdef SOLARIS
-		(res = fcntl(pl->fd, F_SETLK, fcntl(pl->fd,F_GETFL)|O_NONBLOCK)) < 0) &&
+		(res = fcntl(pl->fd, F_SETLK, fcntl(pl->fd, F_GETFL) | O_NONBLOCK)) < 0) &&
 		#else
 		(res = flock(pl->fd, LOCK_EX | LOCK_NB)) < 0) &&
 		#endif

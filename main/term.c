@@ -53,7 +53,7 @@ static const char *termpath[] = {
 /* Ripped off from Ross Ridge, but it's public domain code (libmytinfo) */
 static short convshort(char *s)
 {
-	register int a,b;
+	register int a, b;
 
 	a = (int) s[0] & 0377;
 	b = (int) s[1] & 0377;
@@ -143,7 +143,7 @@ int ast_term_init(void)
 
 char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int maxout)
 {
-	int attr=0;
+	int attr = 0;
 	char tmp[40];
 	if (!vt100compat) {
 		ast_copy_string(outbuf, inbuf, maxout);

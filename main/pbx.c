@@ -497,7 +497,7 @@ static struct pbx_builtin {
 	"  At least a priority is required as an argument, or the goto will return a -1,\n"
 	"and the channel and call will be terminated.\n"
 	"  If the location that is put into the channel information is bogus, and asterisk cannot\n"
-        "find that location in the dialplan,\n"
+	"find that location in the dialplan,\n"
 	"then the execution engine will try to find and execute the code in the 'i' (invalid)\n"
 	"extension in the current context. If that does not exist, it will try to execute the\n"
 	"'h' extension. If either or neither the 'h' or 'i' extensions have been defined, the\n"
@@ -538,8 +538,8 @@ static struct pbx_builtin {
 	"by the condition is omitted, no jump is performed, and execution passes to the next\n"
 	"instruction. If the target jump location is bogus, the same actions would be taken as for\n"
 	"Goto.\n"
-        "Further information on the time specification can be found in examples\n"
-        "illustrating how to do time-based context includes in the dialplan.\n"
+	"Further information on the time specification can be found in examples\n"
+	"illustrating how to do time-based context includes in the dialplan.\n"
 	},
 
 	{ "ImportVar", pbx_builtin_importvar,
@@ -4257,7 +4257,7 @@ static char *complete_core_show_hint(const char *line, const char *word, int pos
 	}
 	AST_RWLIST_UNLOCK(&hints);
 
-        return ret;
+	return ret;
 }
 
 /*! \brief  handle_show_hint: CLI support for listing registered dial plan hint */
