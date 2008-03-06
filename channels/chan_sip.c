@@ -2200,8 +2200,10 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct server_instance 
 		while (req.len < 4 || strncmp((char *)&req.data + req.len - 4, "\r\n\r\n", 4)) {
 			if (req.socket.lock) 
 				ast_mutex_lock(req.socket.lock);
-			if (!fgets(buf, sizeof(buf), ser->f))
+			if (!fgets(buf, sizeof(buf), ser->f)) {
+				ast_mutex_unlock(req.socket.lock);
 				goto cleanup;
+			}
 			if (req.socket.lock) 
 				ast_mutex_unlock(req.socket.lock);
 			if (me->stop) 
@@ -2237,7 +2239,12 @@ cleanup:
 cleanup2:
 	fclose(ser->f);
 	ast_free(ser);
-	ast_free(req.socket.lock);
+
+	if (req.socket.lock) {
+		ast_mutex_destroy(req.socket.lock);
+		ast_free(req.socket.lock);
+		req.socket.lock = NULL;
+	}
 
 	return NULL;
 }
