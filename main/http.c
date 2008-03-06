@@ -137,7 +137,7 @@ static const char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
 	return wkspace;
 }
 
-static struct ast_str *static_callback(struct server_instance *ser, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
+static struct ast_str *static_callback(struct ast_tcptls_server_instance *ser, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
 	char *path;
 	char *ftype;
@@ -207,7 +207,7 @@ out403:
 }
 
 
-static struct ast_str *httpstatus_callback(struct server_instance *ser, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
+static struct ast_str *httpstatus_callback(struct ast_tcptls_server_instance *ser, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
 	struct ast_str *out = ast_str_create(512);
 	struct ast_variable *v;
@@ -392,7 +392,7 @@ static void post_raw(struct mm_mimepart *part, const char *post_dir, const char 
 	fclose(f);
 }
 
-static struct ast_str *handle_post(struct server_instance *ser, char *uri, 
+static struct ast_str *handle_post(struct ast_tcptls_server_instance *ser, char *uri, 
 	int *status, char **title, int *contentlength, struct ast_variable *headers,
 	struct ast_variable *cookies)
 {
@@ -535,7 +535,7 @@ static struct ast_str *handle_post(struct server_instance *ser, char *uri,
 	return ast_http_error(200, "OK", NULL, "File successfully uploaded.");
 }
 
-static struct ast_str *handle_uri(struct server_instance *ser, char *uri, int *status, 
+static struct ast_str *handle_uri(struct ast_tcptls_server_instance *ser, char *uri, int *status, 
 	char **title, int *contentlength, struct ast_variable **cookies, 
 	unsigned int *static_content)
 {
@@ -683,7 +683,7 @@ static void *httpd_helper_thread(void *data)
 {
 	char buf[4096];
 	char cookie[4096];
-	struct server_instance *ser = data;
+	struct ast_tcptls_server_instance *ser = data;
 	struct ast_variable *var, *prev=NULL, *vars=NULL, *headers = NULL;
 	char *uri, *title=NULL;
 	int status = 200, contentlength = 0;

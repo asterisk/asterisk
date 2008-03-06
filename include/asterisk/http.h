@@ -65,7 +65,7 @@
    content is specified) 
 \endverbatim
 */
-typedef struct ast_str *(*ast_http_callback)(struct server_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength);
+typedef struct ast_str *(*ast_http_callback)(struct ast_tcptls_server_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength);
 
 /*! \brief Definition of a URI reachable in the embedded HTTP server */
 struct ast_http_uri {
