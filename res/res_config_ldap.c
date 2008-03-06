@@ -687,7 +687,9 @@ static void append_var_and_value_to_filter(struct ast_str **filter,
 	ast_debug(2, "name='%s' value='%s'\n", name, value);
 
 	if (like_pos) {
-		name = new_name = ast_strdupa(like_pos + strlen(" LIKE"));
+		int len = like_pos - name;
+		name = new_name = ast_strdupa(name);
+		new_name[len] = '\0';
 		value = new_value = ast_strdupa(value);
 		replace_string_in_string(new_value, "\\_", "_");
 		replace_string_in_string(new_value, "%", "*");
@@ -725,9 +727,10 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 		return NULL;
 	} 
 
-	if (!(filter = ast_str_create(80)))
+	if (!(filter = ast_str_create(80))) {
 		ast_free(clean_basedn);
 		return NULL;
+	}
 
 	/* Get the first parameter and first value in our list of passed paramater/value pairs  */
 	newparam = va_arg(ap, const char *);
