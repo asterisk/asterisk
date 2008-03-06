@@ -3618,7 +3618,7 @@ static struct server_args ami_desc = {
 	.poll_timeout = 5000,	/* wake up every 5 seconds */
 	.periodic_fn = purge_old_stuff,
 	.name = "AMI server",
-	.accept_fn = server_root,	/* thread doing the accept() */
+	.accept_fn = ast_tcptls_server_root,	/* thread doing the accept() */
 	.worker_fn = session_do,	/* thread handling the session */
 };
 
@@ -3628,7 +3628,7 @@ static struct server_args amis_desc = {
 	.tls_cfg = &ami_tls_cfg, 
 	.poll_timeout = -1,	/* the other does the periodic cleanup */
 	.name = "AMI TLS server",
-	.accept_fn = server_root,	/* thread doing the accept() */
+	.accept_fn = ast_tcptls_server_root,	/* thread doing the accept() */
 	.worker_fn = session_do,	/* thread handling the session */
 };
 
@@ -3937,9 +3937,9 @@ static int __init_manager(int reload)
 
 	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Module: Manager\r\nStatus: %s\r\nMessage: Manager reload Requested\r\n", manager_enabled ? "Enabled" : "Disabled");
 
-	server_start(&ami_desc);
-	if (ssl_setup(amis_desc.tls_cfg))
-		server_start(&amis_desc);
+	ast_tcptls_server_start(&ami_desc);
+	if (ast_ssl_setup(amis_desc.tls_cfg))
+		ast_tcptls_server_start(&amis_desc);
 	return 0;
 }
 

@@ -154,16 +154,16 @@ struct server_args {
 #define LEN_T size_t
 #endif
 
-struct ast_tcptls_server_instance *client_start(struct server_args *desc);
+struct ast_tcptls_server_instance *ast_tcptls_client_start(struct server_args *desc);
 
-void *server_root(void *);
-void server_start(struct server_args *desc);
-void server_stop(struct server_args *desc);
-int ssl_setup(struct ast_tls_config *cfg);
+void *ast_tcptls_server_root(void *);
+void ast_tcptls_server_start(struct server_args *desc);
+void ast_tcptls_server_stop(struct server_args *desc);
+int ast_ssl_setup(struct ast_tls_config *cfg);
 
 void *ast_make_file_from_fd(void *data);
 
-HOOK_T server_read(struct ast_tcptls_server_instance *ser, void *buf, size_t count);
-HOOK_T server_write(struct ast_tcptls_server_instance *ser, void *buf, size_t count);
+HOOK_T ast_tcptls_server_read(struct ast_tcptls_server_instance *ser, void *buf, size_t count);
+HOOK_T ast_tcptls_server_write(struct ast_tcptls_server_instance *ser, void *buf, size_t count);
 
 #endif /* _ASTERISK_SERVER_H */

@@ -2075,7 +2075,7 @@ static struct server_args sip_tcp_desc = {
 	.tls_cfg = NULL,
 	.poll_timeout = -1,
 	.name = "sip tcp server",
-	.accept_fn = server_root,
+	.accept_fn = ast_tcptls_server_root,
 	.worker_fn = sip_tcp_worker_fn,
 };
 
@@ -2085,7 +2085,7 @@ static struct server_args sip_tls_desc = {
 	.tls_cfg = &sip_tls_cfg,
 	.poll_timeout = -1,
 	.name = "sip tls server",
-	.accept_fn = server_root,
+	.accept_fn = ast_tcptls_server_root,
 	.worker_fn = sip_tcp_worker_fn,
 };
 
@@ -2526,7 +2526,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 		res = sendto(p->socket.fd, data, len, 0, (const struct sockaddr *)dst, sizeof(struct sockaddr_in));
 	else {
 		if (p->socket.ser->f) 
-			res = server_write(p->socket.ser, data, len);
+			res = ast_tcptls_server_write(p->socket.ser, data, len);
 		else
 			ast_debug(1, "No p->socket.ser->f len=%d\n", len);
 	} 
@@ -18120,7 +18120,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 				ast_copy_string(ca.hostname, p->tohost, sizeof(ca.hostname));
 		}
 	}
-	s->ser = (!s->ser) ? client_start(&ca) : s->ser;
+	s->ser = (!s->ser) ? ast_tcptls_client_start(&ca) : s->ser;
 
 	if (!s->ser) {
 		if (ca.tls_cfg)
@@ -20703,10 +20703,10 @@ static int reload_config(enum channelreloadreason reason)
 	notify_types = ast_config_load(notify_config, config_flags);
 
 	memcpy(sip_tls_desc.tls_cfg, &default_tls_cfg, sizeof(default_tls_cfg));
-	server_start(&sip_tcp_desc);
+	ast_tcptls_server_start(&sip_tcp_desc);
 
-	if (ssl_setup(sip_tls_desc.tls_cfg))
-		server_start(&sip_tls_desc);
+	if (ast_ssl_setup(sip_tls_desc.tls_cfg))
+		ast_tcptls_server_start(&sip_tls_desc);
 	else if (sip_tls_desc.tls_cfg->enabled) {
 		sip_tls_desc.tls_cfg = NULL;
 		ast_log(LOG_WARNING, "SIP TLS server did not load because of errors.\n");
@@ -21395,9 +21395,9 @@ static int unload_module(void)
 
 	/* Kill TCP/TLS server threads */
 	if (sip_tcp_desc.master)
-		server_stop(&sip_tcp_desc);
+		ast_tcptls_server_stop(&sip_tcp_desc);
 	if (sip_tls_desc.master)
-		server_stop(&sip_tls_desc);
+		ast_tcptls_server_stop(&sip_tls_desc);
 
 	/* Kill all existing TCP/TLS threads */
 	AST_LIST_LOCK(&threadl);
