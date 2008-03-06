@@ -4117,6 +4117,7 @@ static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
 		ast_moh_stop(ast);
 		break;
 	case AST_CONTROL_PROGRESS:
+	case AST_CONTROL_SRCUPDATE:
 		break;
 	case -1:
 		ast_playtones_stop(ast);

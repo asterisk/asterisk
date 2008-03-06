@@ -422,6 +422,10 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			ast_verb(3, "%s requested a video update, passing it to %s\n", channel->owner->name, chan->name);
 			ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 			break;
+		case AST_CONTROL_SRCUPDATE:
+			if (option_verbose > 2)
+				ast_verbose (VERBOSE_PREFIX_3 "%s requested a source update, passing it to %s\n", channel->owner->name, chan->name);
+			ast_indicate(chan, AST_CONTROL_SRCUPDATE);
 		case AST_CONTROL_PROCEEDING:
 			ast_verb(3, "%s is proceeding, passing it to %s\n", channel->owner->name, chan->name);
 			ast_indicate(chan, AST_CONTROL_PROCEEDING);

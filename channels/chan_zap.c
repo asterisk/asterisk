@@ -5813,6 +5813,9 @@ static int zt_indicate(struct ast_channel *chan, int condition, const void *data
 			} else
 				res = 0;
 			break;
+		case AST_CONTROL_SRCUPDATE:
+			res = 0;
+			break;
 		case -1:
 			res = tone_zone_play_tone(p->subs[index].zfd, -1);
 			break;

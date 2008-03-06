@@ -610,6 +610,7 @@ static int console_indicate(struct ast_channel *chan, int cond, const void *data
 	case AST_CONTROL_PROGRESS:
 	case AST_CONTROL_PROCEEDING:
 	case AST_CONTROL_VIDUPDATE:
+	case AST_CONTROL_SRCUPDATE:
 		break;
 	case AST_CONTROL_HOLD:
 		ast_verb(1, V_BEGIN "Console Has Been Placed on Hold" V_END);

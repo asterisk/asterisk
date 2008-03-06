@@ -716,6 +716,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					ast_verb(3, "%s requested a video update, passing it to %s\n", c->name, in->name);
 					ast_indicate(in, AST_CONTROL_VIDUPDATE);
 					break;
+				case AST_CONTROL_SRCUPDATE:
+					ast_verb(3, "%s requested a source update, passing it to %s\n", c->name, in->name);
+					ast_indicate(in, AST_CONTROL_SRCUPDATE);
+					break;
 				case AST_CONTROL_PROCEEDING:
 					ast_verb(3, "%s is proceeding passing it to %s\n", c->name, in->name);
 					if (single && CAN_EARLY_BRIDGE(peerflags))
@@ -819,7 +823,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			if (single && (f->frametype == AST_FRAME_CONTROL) &&
 				((f->subclass == AST_CONTROL_HOLD) ||
 				(f->subclass == AST_CONTROL_UNHOLD) ||
-				(f->subclass == AST_CONTROL_VIDUPDATE))) {
+				(f->subclass == AST_CONTROL_VIDUPDATE) ||
+				 (f->subclass == AST_CONTROL_SRCUPDATE))) {
 				ast_verb(3, "%s requested special control %d, passing it to %s\n", in->name, f->subclass, outgoing->chan->name);
 				ast_indicate_data(outgoing->chan, f->subclass, f->data, f->datalen);
 			}
