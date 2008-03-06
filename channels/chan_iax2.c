@@ -7073,7 +7073,10 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		/* Once we have this lock, we're sure nobody else is using it or could use it once we release it, 
 		   because by the time they could get tpeerlock, we've already grabbed it */
 		ast_debug(1, "Dropping unused iax2 trunk peer '%s:%d'\n", ast_inet_ntoa(drop->addr.sin_addr), ntohs(drop->addr.sin_port));
-		ast_free(drop->trunkdata);
+		if (drop->trunkdata) {
+			ast_free(drop->trunkdata);
+			drop->trunkdata = NULL;
+		}
 		ast_mutex_unlock(&drop->lock);
 		ast_mutex_destroy(&drop->lock);
 		ast_free(drop);
@@ -8415,29 +8418,42 @@ retryowner:
 				iax2_destroy(fr->callno);
 				break;
 			case IAX_COMMAND_TRANSFER:
-				if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner) && ies.called_number) {
+			{
+				struct ast_channel *bridged_chan;
+
+				if (iaxs[fr->callno]->owner && (bridged_chan = ast_bridged_channel(iaxs[fr->callno]->owner)) && ies.called_number) {
 					/* Set BLINDTRANSFER channel variables */
-					pbx_builtin_setvar_helper(iaxs[fr->callno]->owner, "BLINDTRANSFER", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
-					pbx_builtin_setvar_helper(ast_bridged_channel(iaxs[fr->callno]->owner), "BLINDTRANSFER", iaxs[fr->callno]->owner->name);
+
+					ast_mutex_unlock(&iaxsl[fr->callno]);
+					pbx_builtin_setvar_helper(iaxs[fr->callno]->owner, "BLINDTRANSFER", bridged_chan->name);
+					ast_mutex_lock(&iaxsl[fr->callno]);
+					if (!iaxs[fr->callno]) {
+						ast_mutex_unlock(&iaxsl[fr->callno]);
+						return 1;
+					}
+
+					pbx_builtin_setvar_helper(bridged_chan, "BLINDTRANSFER", iaxs[fr->callno]->owner->name);
 					if (!strcmp(ies.called_number, ast_parking_ext())) {
-						if (iax_park(ast_bridged_channel(iaxs[fr->callno]->owner), iaxs[fr->callno]->owner)) {
-							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
-						} else if (ast_bridged_channel(iaxs[fr->callno]->owner)) {
+						if (iax_park(bridged_chan, iaxs[fr->callno]->owner)) {
+							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", bridged_chan->name);
+						} else {
 							ast_debug(1, "Parked call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
 						}
 					} else {
-						if (ast_async_goto(ast_bridged_channel(iaxs[fr->callno]->owner), iaxs[fr->callno]->context, ies.called_number, 1))
-							ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name, 
+						if (ast_async_goto(bridged_chan, iaxs[fr->callno]->context, ies.called_number, 1))
+							ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", bridged_chan->name, 
 								ies.called_number, iaxs[fr->callno]->context);
 						else {
-							ast_debug(1, "Async goto of '%s' to '%s@%s' started\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name, 
+							ast_debug(1, "Async goto of '%s' to '%s@%s' started\n", bridged_chan->name, 
 								ies.called_number, iaxs[fr->callno]->context);
 						}
 					}
 				} else {
 					ast_debug(1, "Async goto not applicable on call %d\n", fr->callno);
 				}
+
 				break;
+			}
 			case IAX_COMMAND_ACCEPT:
 				/* Ignore if call is already up or needs authentication or is a TBD */
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD | IAX_STATE_AUTHENTICATED))
