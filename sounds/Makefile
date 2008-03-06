@@ -17,7 +17,7 @@
 
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
-CORE_SOUNDS_VERSION:=1.4.8
+CORE_SOUNDS_VERSION:=1.4.9
 EXTRA_SOUNDS_VERSION:=1.4.7
 SOUNDS_URL:=http://downloads.digium.com/pub/telephony/sounds/releases
 MCS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))
@@ -29,6 +29,7 @@ MCS:=$(subst -ALAW,-alaw,$(MCS))
 MCS:=$(subst -GSM,-gsm,$(MCS))
 MCS:=$(subst -G729,-g729,$(MCS))
 MCS:=$(subst -G722,-g722,$(MCS))
+MCS:=$(subst -SLN16,-sln16,$(MCS))
 CORE_SOUNDS:=$(MCS:CORE-SOUNDS-%=asterisk-core-sounds-%-$(CORE_SOUNDS_VERSION).tar.gz)
 CORE_SOUND_TAGS:=$(MCS:CORE-SOUNDS-%=$(SOUNDS_DIR)/.asterisk-core-sounds-%-$(CORE_SOUNDS_VERSION))
 MES:=$(subst -EN-,-en-,$(MENUSELECT_EXTRA_SOUNDS))
