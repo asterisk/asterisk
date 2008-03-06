@@ -2944,7 +2944,7 @@ static int eagi_exec(struct ast_channel *chan, void *data)
 	int readformat, res;
 
 	if (ast_check_hangup(chan)) {
-		ast_log(LOG_ERROR, "If you want to run AGI on hungup channels you should use DeadAGI!\n");
+		ast_log(LOG_ERROR, "EAGI cannot be run on a dead/hungup channel, please use AGI.\n");
 		return 0;
 	}
 	readformat = chan->readformat;
