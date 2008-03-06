@@ -306,7 +306,7 @@ static void keypad_pick_up(struct video_desc *env)
 		char buf[160];
 		const char *who = ast_skip_blanks(read_message(gui->bd_msg));
 		buf[sizeof(buf) - 1] = '\0';
-		snprintf(buf, sizeof(buf) - 1, "console dial %s", who);
+		snprintf(buf, sizeof(buf), "console dial %s", who);
 		ast_log(LOG_WARNING, "doing <%s>\n", buf);
 		print_message(gui->bd_dialed, "\n");
 		print_message(gui->bd_dialed, who);

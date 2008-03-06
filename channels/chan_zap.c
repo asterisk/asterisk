@@ -10614,7 +10614,7 @@ static void *pri_dchannel(void *vpri)
 							}
 #endif
 
-							snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
+							snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
 							pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 							if (e->ring.redirectingreason >= 0)
 								pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
@@ -10659,7 +10659,7 @@ static void *pri_dchannel(void *vpri)
 								if (e->ring.redirectingreason >= 0)
 									pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
 							
-								snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
+								snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
 								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 
 								ast_mutex_lock(&pri->pvts[chanpos]->lock);
@@ -12529,7 +12529,7 @@ static int action_zapshowchannels(struct mansession *s, const struct message *m)
 
 	astman_send_ack(s, m, "Zapata channel status will follow");
 	if (!ast_strlen_zero(id))
-		snprintf(idText, sizeof(idText) - 1, "ActionID: %s\r\n", id);
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 
 	ast_mutex_lock(&iflock);
 	
