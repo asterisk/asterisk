@@ -12,6 +12,8 @@
 		</member>
 		<member name="CORE-SOUNDS-EN-G722" displayname="English, G.722 format">
 		</member>
+		<member name="CORE-SOUNDS-EN-SLN16" displayname="English, Signed-linear 16kHz format">
+		</member>
 		<member name="CORE-SOUNDS-ES-WAV" displayname="Spanish, WAV format">
 		</member>
 		<member name="CORE-SOUNDS-ES-ULAW" displayname="Spanish, mu-Law format">
@@ -24,6 +26,8 @@
 		</member>
 		<member name="CORE-SOUNDS-ES-G722" displayname="Spanish, G.722 format">
 		</member>
+		<member name="CORE-SOUNDS-ES-SLN16" displayname="Spanish, Signed-linear 16kHz format">
+		</member>
 		<member name="CORE-SOUNDS-FR-WAV" displayname="French, WAV format">
 		</member>
 		<member name="CORE-SOUNDS-FR-ULAW" displayname="French, mu-Law format">
@@ -35,6 +39,8 @@
 		<member name="CORE-SOUNDS-FR-G729" displayname="French, G.729 format">
 		</member>
 		<member name="CORE-SOUNDS-FR-G722" displayname="French, G.722 format">
+		</member>
+		<member name="CORE-SOUNDS-FR-SLN16" displayname="French, Signed-linear 16kHz format">
 		</member>
 	</category>
 	<category name="MENUSELECT_MOH" displayname="Music On Hold File Packages" positive_output="yes">
