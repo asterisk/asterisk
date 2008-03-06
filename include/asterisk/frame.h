@@ -611,6 +611,17 @@ int ast_frame_adjust_volume(struct ast_frame *f, int adjustment);
  */
 int ast_frame_slinear_sum(struct ast_frame *f1, struct ast_frame *f2);
 
+/*!
+ * \brief Get the sample rate for a given format.
+ */
+static force_inline int ast_format_rate(int format)
+{
+	if (format == AST_FORMAT_G722 || format == AST_FORMAT_SLINEAR16)
+		return 16000;
+
+	return 8000;
+}
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
