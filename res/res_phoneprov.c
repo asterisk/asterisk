@@ -705,7 +705,13 @@ static struct user *build_user(struct ast_config *cfg, const char *name, const c
 	for (i = 0; i < PP_VAR_LIST_LENGTH; i++) {
 		tmp = ast_variable_retrieve(cfg, name, pp_variable_list[i].user_var);
 
-		if (i == PP_TIMEZONE) {
+		/* If we didn't get a USERNAME variable, set it to the user->name */
+		if (i == PP_USERNAME && !tmp) {
+			if ((var = ast_var_assign(pp_variable_list[PP_USERNAME].template_var, user->name))) {
+				AST_LIST_INSERT_TAIL(user->headp, var, entries);
+			}
+			continue;
+		} else if (i == PP_TIMEZONE) {
 			/* perfectly ok if tmp is NULL, will set variables based on server's time zone */
 			set_timezone_variables(user->headp, tmp);
 		}
