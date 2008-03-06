@@ -6573,9 +6573,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 	if (sync) {
 		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
 		if (chan) {
-			if (chan->cdr) { /* check if the channel already has a cdr record, if not give it one */
-				ast_log(LOG_WARNING, "%s already has a call record??\n", chan->name);
-			} else {
+			if (!chan->cdr) { /* check if the channel already has a cdr record, if not give it one */
 				chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
 				if (!chan->cdr) {
 					/* allocation of the cdr failed */
