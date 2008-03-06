@@ -2882,7 +2882,7 @@ static void *session_do(void *data)
 	destroy_session(s);
 
 done:
-	ast_free(ser);
+	ser = ast_tcptls_server_instance_destroy(ser);
 	return NULL;
 }
 

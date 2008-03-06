@@ -166,4 +166,11 @@ void *ast_make_file_from_fd(void *data);
 HOOK_T ast_tcptls_server_read(struct ast_tcptls_server_instance *ser, void *buf, size_t count);
 HOOK_T ast_tcptls_server_write(struct ast_tcptls_server_instance *ser, void *buf, size_t count);
 
+/*!
+ * \brief Destroy a server instance
+ *
+ * \return NULL for convenience
+ */
+struct ast_tcptls_server_instance *ast_tcptls_server_instance_destroy(struct ast_tcptls_server_instance *i);
+
 #endif /* _ASTERISK_SERVER_H */

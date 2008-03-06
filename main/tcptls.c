@@ -446,3 +446,9 @@ void *ast_make_file_from_fd(void *data)
 	else
 		return ser;
 }
+
+struct ast_tcptls_server_instance *ast_tcptls_server_instance_destroy(struct ast_tcptls_server_instance *i)
+{
+	ast_free(i);
+	return NULL;
+}

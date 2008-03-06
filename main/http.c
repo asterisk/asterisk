@@ -827,7 +827,7 @@ static void *httpd_helper_thread(void *data)
 
 done:
 	fclose(ser->f);
-	ast_free(ser);
+	ser = ast_tcptls_server_instance_destroy(ser);
 	return NULL;
 }
 
