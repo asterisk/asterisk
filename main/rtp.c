@@ -3186,8 +3186,14 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 			ast_smoother_feed(rtp->smoother, _f);
 		}
 
-		while ((f = ast_smoother_read(rtp->smoother)) && (f->data))
+		while ((f = ast_smoother_read(rtp->smoother)) && (f->data)) {
+			if (f->subclass == AST_FORMAT_G722) {
+				/* G.722 is silllllllllllllly */
+				f->samples /= 2;
+			}
+
 			ast_rtp_raw_write(rtp, f, codec);
+		}
 	} else {
 		/* Don't buffer outgoing frames; send them one-per-packet: */
 		if (_f->offset < hdrlen) 
