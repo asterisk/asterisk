@@ -81,7 +81,9 @@ exten => _0XXX,n,(useunavil),Set(SMDI_VM_TYPE=u)
 exten => _0XXX,n(continue),NoOp( Process the rest of the call ... )
 
 
+===============================================================================
 ===== 2) Ensuring complete MWI information over SMDI ==========================
+===============================================================================
 
 Another change has been made to ensure that MWI state is properly propagated
 over the SMDI link.  This replaces the use of externnotify=smdi for
@@ -122,4 +124,6 @@ like this:
 ;smdiport=/dev/ttyS1
 ;2565559999=9999
 
+===============================================================================
+===============================================================================
 ===============================================================================
