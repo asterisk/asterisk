@@ -476,7 +476,7 @@ static void  CB_ADD_LEN(char *str, int len)
 			return;
 		comment_buffer_size += CB_INCR+len+1;
 	}
-	strncat(comment_buffer,str,len);
+	strncat(comment_buffer,str,len); /* safe */
 	comment_buffer[cbl+len-1] = 0;
 }
 

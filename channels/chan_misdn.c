@@ -2384,12 +2384,12 @@ static int misdn_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 	switch (p->state ) {
 	case MISDN_CALLING:
 		if (strlen(bc->infos_pending) < sizeof(bc->infos_pending) - 1)
-			strncat(bc->infos_pending, buf, sizeof(bc->infos_pending) - 1);
+			strncat(bc->infos_pending, buf, sizeof(bc->infos_pending) - strlen(bc->infos_pending) - 1);
 		break;
 	case MISDN_CALLING_ACKNOWLEDGE:
 		ast_copy_string(bc->info_dad, buf, sizeof(bc->info_dad));
 		if (strlen(bc->dad) < sizeof(bc->dad) - 1)
-			strncat(bc->dad, buf, sizeof(bc->dad) - 1);
+			strncat(bc->dad, buf, sizeof(bc->dad) - strlen(bc->dad) - 1);
 		ast_copy_string(p->ast->exten, bc->dad, sizeof(p->ast->exten));
 		misdn_lib_send_event( bc, EVENT_INFORMATION);
 		break;
@@ -4112,7 +4112,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				ast_copy_string(bc->info_dad, bc->keypad, sizeof(bc->info_dad));
 			}
 
-			strncat(bc->dad,bc->info_dad, sizeof(bc->dad) - 1);
+			strncat(bc->dad,bc->info_dad, sizeof(bc->dad) - strlen(bc->dad) - 1);
 			ast_copy_string(ch->ast->exten, bc->dad, sizeof(ch->ast->exten));
 
 			/* Check for Pickup Request first */
@@ -4186,7 +4186,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			misdn_cfg_get(0, MISDN_GEN_APPEND_DIGITS2EXTEN, &digits, sizeof(digits));
 			if (ch->state != MISDN_CONNECTED ) {
 				if (digits) {
-					strncat(bc->dad, bc->info_dad, sizeof(bc->dad) - 1);
+					strncat(bc->dad, bc->info_dad, sizeof(bc->dad) - strlen(bc->dad) - 1);
 					ast_copy_string(ch->ast->exten, bc->dad, sizeof(ch->ast->exten));
 					ast_cdr_update(ch->ast);
 				}

@@ -682,7 +682,7 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 				continue;
 
 			strcpy(peer_name, "spy-");
-			strncat(peer_name, peer->name, AST_NAME_STRLEN);
+			strncat(peer_name, peer->name, AST_NAME_STRLEN - 4 - 1);
 			ptr = strchr(peer_name, '/');
 			*ptr++ = '\0';
 

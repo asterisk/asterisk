@@ -322,7 +322,7 @@ static int hashkeys_read(struct ast_channel *chan, const char *cmd, char *data, 
 	AST_LIST_TRAVERSE(&chan->varshead, newvar, entries) {
 		if (strncasecmp(prefix, ast_var_name(newvar), plen) == 0) {
 			/* Copy everything after the prefix */
-			strncat(buf, ast_var_name(newvar) + plen, len);
+			strncat(buf, ast_var_name(newvar) + plen, len - strlen(buf) - 1);
 			/* Trim the trailing ~ */
 			buf[strlen(buf) - 1] = ',';
 		}
@@ -387,8 +387,8 @@ static int hash_read(struct ast_channel *chan, const char *cmd, char *data, char
 		for (i = 0; i < arg2.argc; i++) {
 			snprintf(varname, sizeof(varname), HASH_FORMAT, arg.hashname, arg2.col[i]);
 			varvalue = pbx_builtin_getvar_helper(chan, varname);
-			strncat(buf, varvalue, len);
-			strncat(buf, ",", len);
+			strncat(buf, varvalue, len - strlen(buf) - 1);
+			strncat(buf, ",", len - strlen(buf) - 1);
 		}
 
 		/* Strip trailing comma */
