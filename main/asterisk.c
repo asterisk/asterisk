@@ -1932,9 +1932,10 @@ static char *cli_prompt(EditLine *el)
 		if (color_used) {
 			/* Force colors back to normal at end */
 			term_color_code(term_code, COLOR_WHITE, COLOR_BLACK, sizeof(term_code));
-			if (strlen(term_code) > sizeof(prompt) - strlen(prompt)) {
-				strncat(prompt + sizeof(prompt) - strlen(term_code) - 1, term_code, strlen(term_code));
+			if (strlen(term_code) > sizeof(prompt) - strlen(prompt) - 1) {
+				ast_copy_string(prompt + sizeof(prompt) - strlen(term_code) - 1, term_code, strlen(term_code) + 1);
 			} else {
+				/* This looks wrong, but we've already checked the length of term_code to ensure it's safe */
 				strncat(p, term_code, sizeof(term_code));
 			}
 		}

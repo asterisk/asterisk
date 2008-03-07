@@ -735,7 +735,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 					}
 					time(&start);
 					snprintf(tmp, sizeof(tmp), "%c", f->subclass);
-					strncat(dtmf, tmp, sizeof(dtmf));
+					strncat(dtmf, tmp, sizeof(dtmf) - strlen(dtmf) - 1);
 					/* If the maximum length of the DTMF has been reached, stop now */
 					if (max_dtmf_len && strlen(dtmf) == max_dtmf_len)
 						done = 1;

@@ -206,10 +206,10 @@ static char *authority_to_str(int authority, char *res, int reslen)
 	for (i = 0; i < (sizeof(perms) / sizeof(perms[0])) - 1; i++) {
 		if (authority & perms[i].num) {
 			if (*res) {
-				strncat(res, ",", (reslen > running_total) ? reslen - running_total : 0);
+				strncat(res, ",", (reslen > running_total) ? reslen - running_total - 1 : 0);
 				running_total++;
 			}
-			strncat(res, perms[i].label, (reslen > running_total) ? reslen - running_total : 0);
+			strncat(res, perms[i].label, (reslen > running_total) ? reslen - running_total - 1 : 0);
 			running_total += strlen(perms[i].label);
 		}
 	}

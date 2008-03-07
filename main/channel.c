@@ -4373,12 +4373,12 @@ char *ast_print_group(char *buf, int buflen, ast_group_t group)
 	for (i = 0; i <= 63; i++) {	/* Max group is 63 */
 		if (group & ((ast_group_t) 1 << i)) {
 	   		if (!first) {
-				strncat(buf, ", ", buflen);
+				strncat(buf, ", ", buflen - strlen(buf) - 1);
 			} else {
 				first=0;
 	  		}
 			snprintf(num, sizeof(num), "%u", i);
-			strncat(buf, num, buflen);
+			strncat(buf, num, buflen - strlen(buf) - 1);
 		}
 	}
 	return buf;

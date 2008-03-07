@@ -1091,16 +1091,16 @@ int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size)
 			slen = strlen(formatname);
 			if(slen > total_len)
 				break;
-			strncat(buf,formatname,total_len);
+			strncat(buf, formatname, total_len - 1); /* safe */
 			total_len -= slen;
 		}
 		if(total_len && x < 31 && ast_codec_pref_index(pref , x + 1)) {
-			strncat(buf,"|",total_len);
+			strncat(buf, "|", total_len - 1); /* safe */
 			total_len--;
 		}
 	}
 	if(total_len) {
-		strncat(buf,")",total_len);
+		strncat(buf, ")", total_len - 1); /* safe */
 		total_len--;
 	}
 

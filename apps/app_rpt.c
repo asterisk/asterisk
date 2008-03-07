@@ -2427,7 +2427,7 @@ static int rpt_do_fun(int fd, int argc, char *argv[])
 			}
 			if(!busy){
 				myrpt->macrotimer = MACROTIME;
-				strncat(myrpt->macrobuf,argv[3],MAXMACRO - 1);
+				strncat(myrpt->macrobuf, argv[3], MAXMACRO - strlen(myrpt->macrobuf) - 1);
 			}
 			rpt_mutex_unlock(&myrpt->lock);
 		}
@@ -5090,7 +5090,7 @@ int	i;
 		return DC_ERROR;
 	}
 	myrpt->macrotimer = MACROTIME;
-	strncat(myrpt->macrobuf,val,MAXMACRO - 1);
+	strncat(myrpt->macrobuf, val, MAXMACRO - strlen(myrpt->macrobuf) - 1);
 	rpt_mutex_unlock(&myrpt->lock);
 	return DC_COMPLETE;	
 }
@@ -8749,7 +8749,7 @@ static void do_scheduler(struct rpt *myrpt)
 				return; /* Macro buffer full */
 			}
 			myrpt->macrotimer = MACROTIME;
-			strncat(myrpt->macrobuf,val,MAXMACRO - 1);
+			strncat(myrpt->macrobuf,val,MAXMACRO - strlen(myrpt->macrobuf) - 1);
 		}
 		else{
 			ast_log(LOG_WARNING,"Malformed scheduler entry in rpt.conf: %s = %s\n",
