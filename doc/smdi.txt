@@ -58,7 +58,7 @@ Here is an example of how to use these functions:
 
 ; Retrieve the SMDI message that is associated with the number that
 ; was called in Asterisk.
-exten => _0XXX,1,Set(SMDI_MSG_ID=${SMDI_MSG_RETRIEVE(${EXTEN})})
+exten => _0XXX,1,Set(SMDI_MSG_ID=${SMDI_MSG_RETRIEVE(/dev/tty0,${EXTEN})})
 
 ; Ensure that the message was retrieved.
 exten => _0XXX,n,GotoIf($["x${SMDI_MSG_ID}" != "x"]?processcall:hangup)
