@@ -6125,7 +6125,11 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			cmd = 't';
 			break;
 		default: 
-			cmd = ast_play_and_wait(chan,"vm-options");
+			snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
+			if (ast_fileexists(prefile, NULL, NULL))
+				cmd = ast_play_and_wait(chan, "vm-tmpexists");
+			if (!cmd)
+				cmd = ast_play_and_wait(chan, "vm-options");
 			if (!cmd)
 				cmd = ast_waitfordigit(chan,6000);
 			if (!cmd)
