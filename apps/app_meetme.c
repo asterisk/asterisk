@@ -5510,7 +5510,7 @@ static int sla_load_config(int reload)
 
 	ast_config_destroy(cfg);
 
-	if (!reload)
+	if (!reload && (!AST_LIST_EMPTY(&sla_stations) || !AST_LIST_EMPTY(&sla_stations)))
 		ast_pthread_create(&sla.thread, NULL, sla_thread, NULL);
 
 	return res;
