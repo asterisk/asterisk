@@ -669,7 +669,8 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 			ast_settimeout(s->owner, whennext, ast_fsread_audio, s);
 		else
 #endif		
-			s->owner->streamid = ast_sched_add(s->owner->sched, whennext / 8, ast_fsread_audio, s);
+			s->owner->streamid = ast_sched_add(s->owner->sched, 
+				whennext / (ast_format_rate(s->fmt->format) / 1000), ast_fsread_audio, s);
 		s->lasttimeout = whennext;
 		return FSREAD_SUCCESS_NOSCHED;
 	}
@@ -713,7 +714,8 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 	}
 
 	if (whennext != s->lasttimeout) {
-		s->owner->vstreamid = ast_sched_add(s->owner->sched, whennext / 8, 
+		s->owner->vstreamid = ast_sched_add(s->owner->sched, 
+			whennext / (ast_format_rate(s->fmt->format) / 1000), 
 			ast_fsread_video, s);
 		s->lasttimeout = whennext;
 		return FSREAD_SUCCESS_NOSCHED;
