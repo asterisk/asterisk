@@ -4085,8 +4085,8 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	make_file(msgfile, sizeof(msgfile), curdir, curmsg);
 	strcpy(textfile, msgfile);
 	strcpy(backup, msgfile);
-	strncat(textfile, ".txt", sizeof(textfile) - 1);
-	strncat(backup, "-bak", sizeof(backup) - 1);
+	strncat(textfile, ".txt", sizeof(textfile) - strlen(textfile) - 1);
+	strncat(backup, "-bak", sizeof(backup) - strlen(backup) - 1);
 
 	msg_cfg = ast_config_load(textfile, config_flags);
 

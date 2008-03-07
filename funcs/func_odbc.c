@@ -379,7 +379,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 				}
 
 				if (!ast_strlen_zero(colnames))
-					strncat(colnames, ",", sizeof(colnames) - 1);
+					strncat(colnames, ",", sizeof(colnames) - strlen(colnames) - 1);
 				namelen = strlen(colnames);
 
 				/* Copy data, encoding '\' and ',' for the argument parser */

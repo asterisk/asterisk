@@ -3321,7 +3321,7 @@ static int function_macro(struct rpt *myrpt, char *param, char *digitbuf, int co
 		return DC_ERROR;
 	}
 	myrpt->macrotimer = MACROTIME;
-	strncat(myrpt->macrobuf, val, sizeof(myrpt->macrobuf) - 1);
+	strncat(myrpt->macrobuf, val, sizeof(myrpt->macrobuf) - strlen(myrpt->macrobuf) - 1);
 	rpt_mutex_unlock(&myrpt->lock);
 	return DC_COMPLETE;	
 }
@@ -3369,7 +3369,7 @@ static int function_gosub(struct rpt *myrpt, char *param, char *digitbuf, int co
 		return DC_ERROR;
 	}
 	myrpt->gosubtimer = GOSUBTIME;
-	strncat(myrpt->gosubbuf, val, sizeof(myrpt->gosubbuf) - 1);
+	strncat(myrpt->gosubbuf, val, sizeof(myrpt->gosubbuf) - strlen(myrpt->gosubbuf) - 1);
 	rpt_mutex_unlock(&myrpt->lock);
 	return DC_COMPLETE;	
 }

@@ -2208,7 +2208,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_serve
 				ast_mutex_unlock(req.socket.lock);
 			if (me->stop) 
 				 goto cleanup;
-			strncat(req.data, buf, sizeof(req.data) - req.len);
+			strncat(req.data, buf, sizeof(req.data) - req.len - 1);
 			req.len = strlen(req.data);
 		}
 		parse_copy(&reqcpy, &req);
@@ -2223,7 +2223,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_serve
 				if (me->stop)
 					goto cleanup;
 				cl -= strlen(buf);
-				strncat(req.data, buf, sizeof(req.data) - req.len);
+				strncat(req.data, buf, sizeof(req.data) - req.len - 1);
 				req.len = strlen(req.data);
 			}
 		}
