@@ -1864,6 +1864,7 @@ static struct ast_rtcp *ast_rtcp_new(void)
 	rtcp->s = rtp_socket();
 	rtcp->us.sin_family = AF_INET;
 	rtcp->them.sin_family = AF_INET;
+	rtcp->schedid = -1;
 
 	if (rtcp->s < 0) {
 		free(rtcp);
