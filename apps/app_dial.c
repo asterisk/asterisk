@@ -2096,9 +2096,7 @@ static int load_module(void)
 	int res;
 	struct ast_context *con;
 
-	con = ast_context_find("app_dial_gosub_virtual_context");
-	if (!con)
-		con = ast_context_create(NULL, "app_dial_gosub_virtual_context", "app_dial");
+	con = ast_context_find_or_create(NULL, NULL, "app_dial_gosub_virtual_context", "app_dial");
 	if (!con)
 		ast_log(LOG_ERROR, "Dial virtual context 'app_dial_gosub_virtual_context' does not exist and unable to create\n");
 	else

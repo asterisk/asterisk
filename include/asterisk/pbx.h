@@ -25,6 +25,7 @@
 
 #include "asterisk/sched.h"
 #include "asterisk/chanvars.h"
+#include "asterisk/hashtab.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -167,26 +168,16 @@ struct ast_app *pbx_findapp(const char *app);
 int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data);
 
 /*!
- * \brief Register a new context
- *
- * \param extcontexts pointer to the ast_context structure pointer
- * \param name name of the new context
- * \param registrar registrar of the context
- *
- * This will first search for a context with your name.  If it exists already, it will not
- * create a new one.  If it does not exist, it will create a new one with the given name
- * and registrar.
- *
- * \return NULL on failure, and an ast_context structure on success
- */
-struct ast_context *ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar);
-
-/*!
  * \brief Register a new context or find an existing one
  *
  * \param extcontexts pointer to the ast_context structure pointer
+ * \param exttable pointer to the hashtable that contains all the elements in extcontexts
  * \param name name of the new context
  * \param registrar registrar of the context
+ *
+ * This function allows you to play in two environments: the global contexts (active dialplan)
+ * or an external context set of your choosing. To act on the external set, make sure extcontexts
+ * and exttable are set; for the globals, make sure both extcontexts and exttable are NULL.
  *
  * This will first search for a context with your name.  If it exists already, it will not
  * create a new one.  If it does not exist, it will create a new one with the given name
@@ -194,18 +185,19 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, const c
  *
  * \return NULL on failure, and an ast_context structure on success
  */
-struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, const char *name, const char *registrar);
+struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *name, const char *registrar);
 
 /*!
  * \brief Merge the temporary contexts into a global contexts list and delete from the 
  *        global list the ones that are being added
  *
- * \param extcontexts pointer to the ast_context structure pointer
+ * \param extcontexts pointer to the ast_context structure
+ * \param exttable pointer to the ast_hashtab structure that contains all the elements in extcontexts
  * \param registrar of the context; if it's set the routine will delete all contexts 
  *        that belong to that registrar; if NULL only the contexts that are specified 
  *        in extcontexts
  */
-void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char *registrar);
+void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *registrar);
 
 /*!
  * \brief Destroy a context (matches the specified context (or ANY context if NULL)
@@ -973,8 +965,18 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 									 struct ast_context *bypass, struct pbx_find_info *q,
 									 const char *context, const char *exten, int priority,
 									 const char *label, const char *callerid, enum ext_match_t action);
+
+
+/* every time a write lock is obtained for contexts,
+   a counter is incremented. You can check this via the
+   following func */
+
+int ast_wrlock_contexts_version(void);
 	
 
+/* hashtable functions for contexts */
+int ast_hashtab_compare_contexts(const void *ah_a, const void *ah_b);
+unsigned int ast_hashtab_hash_contexts(const void *obj);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/app.h"
 #include "asterisk/callerid.h"
+#include "asterisk/hashtab.h"
 #include "asterisk/ael_structs.h"
 #include "asterisk/pval.h"
 #ifdef AAL_ARGCHECK
@@ -88,7 +89,7 @@ void linkprio(struct ael_extension *exten, struct ael_priority *prio);
 void destroy_extensions(struct ael_extension *exten);
 void set_priorities(struct ael_extension *exten);
 void add_extensions(struct ael_extension *exten);
-void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root);
+void ast_compile_ael2(struct ast_context **local_contexts, struct ast_hashtab *local_table, struct pval *root);
 void destroy_pval(pval *item);
 void destroy_pval_item(pval *item);
 int is_float(char *arg );
@@ -108,6 +109,8 @@ static int pbx_load_module(void)
 	int errs=0, sem_err=0, sem_warn=0, sem_note=0;
 	char *rfilename;
 	struct ast_context *local_contexts=NULL, *con;
+	struct ast_hashtab *local_table=NULL;
+	
 	struct pval *parse_tree;
 
 	ast_log(LOG_NOTICE, "Starting AEL load process.\n");
@@ -127,10 +130,13 @@ static int pbx_load_module(void)
 	ael2_semantic_check(parse_tree, &sem_err, &sem_warn, &sem_note);
 	if (errs == 0 && sem_err == 0) {
 		ast_log(LOG_NOTICE, "AEL load process: checked config file name '%s'.\n", rfilename);
-		ast_compile_ael2(&local_contexts, parse_tree);
+		local_table = ast_hashtab_create(11, ast_hashtab_compare_contexts, ast_hashtab_resize_java, ast_hashtab_newsize_java, ast_hashtab_hash_contexts, 0);
+		ast_compile_ael2(&local_contexts, local_table, parse_tree);
 		ast_log(LOG_NOTICE, "AEL load process: compiled config file name '%s'.\n", rfilename);
 		
-		ast_merge_contexts_and_delete(&local_contexts, registrar);
+		ast_merge_contexts_and_delete(&local_contexts, local_table, registrar);
+		local_table = NULL; /* it's the dialplan global now */
+		local_contexts = NULL;
 		ast_log(LOG_NOTICE, "AEL load process: merged config file name '%s'.\n", rfilename);
 		for (con = ast_walk_contexts(NULL); con; con = ast_walk_contexts(con))
 			ast_context_verify_includes(con);

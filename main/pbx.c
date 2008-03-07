@@ -48,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cdr.h"
 #include "asterisk/config.h"
 #include "asterisk/term.h"
+#include "asterisk/time.h"
 #include "asterisk/manager.h"
 #include "asterisk/ast_expr.h"
 #include "asterisk/linkedlists.h"
@@ -140,8 +141,8 @@ struct ast_exten {
 	void *data;			/*!< Data to use (arguments) */
 	void (*datad)(void *);		/*!< Data destructor */
 	struct ast_exten *peer;		/*!< Next higher priority with our extension */
-	struct ast_hashtab *peer_tree;    /*!< Priorities list in tree form -- only on the head of the peer list */
-	struct ast_hashtab *peer_label_tree; /*!< labeled priorities in the peer list -- only on the head of the peer list */
+	struct ast_hashtab *peer_table;    /*!< Priorities list in hashtab form -- only on the head of the peer list */
+	struct ast_hashtab *peer_label_table; /*!< labeled priorities in the peers -- only on the head of the peer list */
 	const char *registrar;		/*!< Registrar */
 	struct ast_exten *next;		/*!< Extension with a greater ID */
 	char stuff[0];
@@ -203,12 +204,13 @@ struct scoreboard  /* make sure all fields are 0 before calling new_find_extensi
 struct ast_context {
 	ast_rwlock_t lock; 			/*!< A lock to prevent multiple threads from clobbering the context */
 	struct ast_exten *root;			/*!< The root of the list of extensions */
-	struct ast_hashtab *root_tree;            /*!< For exact matches on the extensions in the pattern tree, and for traversals of the pattern_tree  */
+	struct ast_hashtab *root_table;            /*!< For exact matches on the extensions in the pattern tree, and for traversals of the pattern_tree  */
  	struct match_char *pattern_tree;        /*!< A tree to speed up extension pattern matching */
 	struct ast_context *next;		/*!< Link them together */
 	struct ast_include *includes;		/*!< Include other contexts */
 	struct ast_ignorepat *ignorepats;	/*!< Patterns for which to continue playing dialtone */
 	const char *registrar;			/*!< Registrar */
+	int refcount;                   /*!< each module that would have created this context should inc/dec this as appropriate */
 	AST_LIST_HEAD_NOLOCK(, ast_sw) alts;	/*!< Alternative switches */
 	ast_mutex_t macrolock;			/*!< A lock to implement "exclusive" macros - held whilst a call is executing in the macro */
 	char name[0];				/*!< Name of the context */
@@ -327,17 +329,18 @@ static struct match_char *add_pattern_node(struct ast_context *con, struct match
 static void create_match_char_tree(struct ast_context *con);
 static struct ast_exten *get_canmatch_exten(struct match_char *node);
 static void destroy_pattern_tree(struct match_char *pattern_tree);
-static int hashtab_compare_contexts(const void *ah_a, const void *ah_b);
+int ast_hashtab_compare_contexts(const void *ah_a, const void *ah_b);
 static int hashtab_compare_extens(const void *ha_a, const void *ah_b);
 static int hashtab_compare_exten_numbers(const void *ah_a, const void *ah_b);
 static int hashtab_compare_exten_labels(const void *ah_a, const void *ah_b);
-static unsigned int hashtab_hash_contexts(const void *obj);
+unsigned int ast_hashtab_hash_contexts(const void *obj);
 static unsigned int hashtab_hash_extens(const void *obj);
 static unsigned int hashtab_hash_priority(const void *obj);
 static unsigned int hashtab_hash_labels(const void *obj);
+static void __ast_internal_context_destroy( struct ast_context *con);
 
 /* labels, contexts are case sensitive  priority numbers are ints */
-static int hashtab_compare_contexts(const void *ah_a, const void *ah_b)
+int ast_hashtab_compare_contexts(const void *ah_a, const void *ah_b)
 {
 	const struct ast_context *ac = ah_a;
 	const struct ast_context *bc = ah_b;
@@ -376,7 +379,7 @@ static int hashtab_compare_exten_labels(const void *ah_a, const void *ah_b)
 	return strcmp(ac->label, bc->label);
 }
 
-static unsigned int hashtab_hash_contexts(const void *obj)
+unsigned int ast_hashtab_hash_contexts(const void *obj)
 {
 	const struct ast_context *ac = obj;
 	return ast_hashtab_hash_string(ac->name);
@@ -684,7 +687,7 @@ static struct pbx_builtin {
 };
 
 static struct ast_context *contexts;
-static struct ast_hashtab *contexts_tree = NULL;
+static struct ast_hashtab *contexts_table = NULL;
 
 AST_RWLOCK_DEFINE_STATIC(conlock); 		/*!< Lock for the ast_context list */
 
@@ -1252,11 +1255,11 @@ static void create_match_char_tree(struct ast_context *con)
 	int biggest_bucket, resizes, numobjs, numbucks;
 	
 	ast_log(LOG_DEBUG,"Creating Extension Trie for context %s\n", con->name);
-	ast_hashtab_get_stats(con->root_tree, &biggest_bucket, &resizes, &numobjs, &numbucks);
+	ast_hashtab_get_stats(con->root_table, &biggest_bucket, &resizes, &numobjs, &numbucks);
 	ast_log(LOG_DEBUG,"This tree has %d objects in %d bucket lists, longest list=%d objects, and has resized %d times\n",
 			numobjs, numbucks, biggest_bucket, resizes);
 #endif
-	t1 = ast_hashtab_start_traversal(con->root_tree);
+	t1 = ast_hashtab_start_traversal(con->root_table);
 	while( (e1 = ast_hashtab_next(t1)) ) {
 		if (e1->exten)
 			add_exten_to_pattern_tree(con, e1, 0);
@@ -1582,12 +1585,13 @@ struct fake_context /* this struct is purely for matching in the hashtab */
 {
 	ast_rwlock_t lock; 			
 	struct ast_exten *root;		
-	struct ast_hashtab *root_tree;            
+	struct ast_hashtab *root_table;            
 	struct match_char *pattern_tree;       
 	struct ast_context *next;	
 	struct ast_include *includes;		
 	struct ast_ignorepat *ignorepats;	
-	const char *registrar;	
+	const char *registrar;
+	int refcount;
 	AST_LIST_HEAD_NOLOCK(, ast_sw) alts;	
 	ast_mutex_t macrolock;		
 	char name[256];		
@@ -1599,8 +1603,8 @@ struct ast_context *ast_context_find(const char *name)
 	struct fake_context item;
 	strncpy(item.name,name,256);
 	ast_rdlock_contexts();
-	if( contexts_tree ) {
-		tmp = ast_hashtab_lookup(contexts_tree,&item);
+	if( contexts_table ) {
+		tmp = ast_hashtab_lookup(contexts_table,&item);
 	} else {
 		while ( (tmp = ast_walk_contexts(tmp)) ) {
 			if (!name || !strcasecmp(name, tmp->name))
@@ -1668,7 +1672,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	else {	/* look in contexts */
 		struct fake_context item;
 		strncpy(item.name,context,256);
-		tmp = ast_hashtab_lookup(contexts_tree,&item);
+		tmp = ast_hashtab_lookup(contexts_table,&item);
 #ifdef NOTNOW
 		tmp = NULL;
 		while ((tmp = ast_walk_contexts(tmp)) ) {
@@ -1690,7 +1694,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	score.total_specificity = 0;
 	score.exten = 0;
 	score.total_length = 0;
-	if (!tmp->pattern_tree && tmp->root_tree)
+	if (!tmp->pattern_tree && tmp->root_table)
 	{
 		create_match_char_tree(tmp);
 #ifdef NEED_DEBUG
@@ -1750,9 +1754,9 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 			if (action == E_FINDLABEL && label ) {
 				if (q->status < STATUS_NO_LABEL)
 					q->status = STATUS_NO_LABEL;
-				e = ast_hashtab_lookup(eroot->peer_label_tree, &pattern);
+				e = ast_hashtab_lookup(eroot->peer_label_table, &pattern);
 			} else {
-				e = ast_hashtab_lookup(eroot->peer_tree, &pattern);
+				e = ast_hashtab_lookup(eroot->peer_table, &pattern);
 			}
 			if (e) {	/* found a valid match */
 				q->status = STATUS_SUCCESS;
@@ -1786,9 +1790,9 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 			if (action == E_FINDLABEL && label ) {
 				if (q->status < STATUS_NO_LABEL)
 					q->status = STATUS_NO_LABEL;
-				e = ast_hashtab_lookup(eroot->peer_label_tree, &pattern);
+				e = ast_hashtab_lookup(eroot->peer_label_table, &pattern);
 			} else {
-				e = ast_hashtab_lookup(eroot->peer_tree, &pattern);
+				e = ast_hashtab_lookup(eroot->peer_table, &pattern);
 			}
 #ifdef NOTNOW
 			while ( (e = ast_walk_extension_priorities(eroot, e)) ) {
@@ -2465,7 +2469,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				vare++;
 			}
 			if (brackets)
-				ast_log(LOG_NOTICE, "Error in extension logic (missing '}')\n");
+				ast_log(LOG_WARNING, "Error in extension logic (missing '}')\n");
 			len = vare - vars - 1;
 
 			/* Skip totally over variable string */
@@ -2552,7 +2556,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				vare++;
 			}
 			if (brackets)
-				ast_log(LOG_NOTICE, "Error in extension logic (missing ']')\n");
+				ast_log(LOG_WARNING, "Error in extension logic (missing ']')\n");
 			len = vare - vars - 1;
 
 			/* Skip totally over expression */
@@ -3479,14 +3483,14 @@ static int increase_call_count(const struct ast_channel *c)
 	ast_mutex_lock(&maxcalllock);
 	if (option_maxcalls) {
 		if (countcalls >= option_maxcalls) {
-			ast_log(LOG_NOTICE, "Maximum call limit of %d calls exceeded by '%s'!\n", option_maxcalls, c->name);
+			ast_log(LOG_WARNING, "Maximum call limit of %d calls exceeded by '%s'!\n", option_maxcalls, c->name);
 			failed = -1;
 		}
 	}
 	if (option_maxload) {
 		getloadavg(&curloadavg, 1);
 		if (curloadavg >= option_maxload) {
-			ast_log(LOG_NOTICE, "Maximum loadavg limit of %f load exceeded by '%s' (currently %f)!\n", option_maxload, c->name, curloadavg);
+			ast_log(LOG_WARNING, "Maximum loadavg limit of %f load exceeded by '%s' (currently %f)!\n", option_maxload, c->name, curloadavg);
 			failed = -1;
 		}
 	}
@@ -3527,10 +3531,10 @@ static void destroy_exten(struct ast_exten *e)
 	if (e->priority == PRIORITY_HINT)
 		ast_remove_hint(e);
 
-	if (e->peer_tree)
-		ast_hashtab_destroy(e->peer_tree,0);
-	if (e->peer_label_tree)
-		ast_hashtab_destroy(e->peer_label_tree, 0);
+	if (e->peer_table)
+		ast_hashtab_destroy(e->peer_table,0);
+	if (e->peer_label_table)
+		ast_hashtab_destroy(e->peer_label_table, 0);
 	if (e->datad)
 		e->datad(e->data);
 	ast_free(e);
@@ -3627,8 +3631,7 @@ static struct ast_context *find_context_locked(const char *context)
 	ast_copy_string(item.name, context, sizeof(item.name));
 
 	ast_rdlock_contexts();
-
-	c = ast_hashtab_lookup(contexts_tree,&item);
+	c = ast_hashtab_lookup(contexts_table,&item);
 
 #ifdef NOTNOW
 
@@ -3789,19 +3792,19 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 	/* Handle this is in the new world */
 
 #ifdef NEED_DEBUG
-	ast_log(LOG_NOTICE,"Removing %s/%s/%d from trees, registrar=%s\n", con->name, extension, priority, registrar);
+	ast_verb(3,"Removing %s/%s/%d from trees, registrar=%s\n", con->name, extension, priority, registrar);
 #endif
 	/* find this particular extension */
 	ex.exten = dummy_name;
 	ex.matchcid = 0;
 	ast_copy_string(dummy_name,extension, sizeof(dummy_name));
-	exten = ast_hashtab_lookup(con->root_tree, &ex);
+	exten = ast_hashtab_lookup(con->root_table, &ex);
 	if (exten) {
 		if (priority == 0)
 		{
-			exten2 = ast_hashtab_remove_this_object(con->root_tree, exten);
+			exten2 = ast_hashtab_remove_this_object(con->root_table, exten);
 			if (!exten2)
-				ast_log(LOG_ERROR,"Trying to delete the exten %s from context %s, but could not remove from the root_tree\n", extension, con->name);
+				ast_log(LOG_ERROR,"Trying to delete the exten %s from context %s, but could not remove from the root_table\n", extension, con->name);
 			if (con->pattern_tree) {
 				
 				struct match_char *x = add_exten_to_pattern_tree(con, exten, 1);
@@ -3815,24 +3818,28 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 			}
 		} else {
 			ex.priority = priority;
-			exten2 = ast_hashtab_lookup(exten->peer_tree, &ex);
+			exten2 = ast_hashtab_lookup(exten->peer_table, &ex);
 			if (exten2) {
 				
 				if (exten2->label) { /* if this exten has a label, remove that, too */
-					exten3 = ast_hashtab_remove_this_object(exten->peer_label_tree,exten2);
+					exten3 = ast_hashtab_remove_this_object(exten->peer_label_table,exten2);
 					if (!exten3)
-						ast_log(LOG_ERROR,"Did not remove this priority label (%d/%s) from the peer_label_tree of context %s, extension %s!\n", priority, exten2->label, con->name, exten2->exten);
+						ast_log(LOG_ERROR,"Did not remove this priority label (%d/%s) from the peer_label_table of context %s, extension %s!\n", priority, exten2->label, con->name, exten2->exten);
 				}
 				
-				exten3 = ast_hashtab_remove_this_object(exten->peer_tree, exten2);
+				exten3 = ast_hashtab_remove_this_object(exten->peer_table, exten2);
 				if (!exten3)
-					ast_log(LOG_ERROR,"Did not remove this priority (%d) from the peer_tree of context %s, extension %s!\n", priority, con->name, exten2->exten);
-				if (ast_hashtab_size(exten->peer_tree) == 0) {
+					ast_log(LOG_ERROR,"Did not remove this priority (%d) from the peer_table of context %s, extension %s!\n", priority, con->name, exten2->exten);
+				if (exten2 == exten && exten2->peer) {
+					exten2 = ast_hashtab_remove_this_object(con->root_table, exten);
+					ast_hashtab_insert_immediate(con->root_table, exten2->peer);
+				}
+				if (ast_hashtab_size(exten->peer_table) == 0) {
 					/* well, if the last priority of an exten is to be removed,
 					   then, the extension is removed, too! */
-					exten3 = ast_hashtab_remove_this_object(con->root_tree, exten);
+					exten3 = ast_hashtab_remove_this_object(con->root_table, exten);
 					if (!exten3)
-						ast_log(LOG_ERROR,"Did not remove this exten (%s) from the context root_tree (%s) (priority %d)\n", exten->exten, con->name, priority);
+						ast_log(LOG_ERROR,"Did not remove this exten (%s) from the context root_table (%s) (priority %d)\n", exten->exten, con->name, priority);
 					if (con->pattern_tree) {
 						struct match_char *x = add_exten_to_pattern_tree(con, exten, 1);
 						if (x->exten) { /* this test for safety purposes */
@@ -3848,7 +3855,7 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 		}
 	} else {
 		/* hmmm? this exten is not in this pattern tree? */
-		ast_log(LOG_WARNING,"Cannot find extension %s in root_tree in context %s\n",
+		ast_log(LOG_WARNING,"Cannot find extension %s in root_table in context %s\n",
 				extension, con->name);
 	}
 #ifdef NEED_DEBUG
@@ -3905,10 +3912,10 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 			 */
 			struct ast_exten *next_node = peer->peer ? peer->peer : peer->next;
 			if (next_node && next_node == peer->peer) {
-				next_node->peer_tree = exten->peer_tree; /* move the priority hash tabs over */
-				exten->peer_tree = 0;
-				next_node->peer_label_tree = exten->peer_label_tree;
-				exten->peer_label_tree = 0;
+				next_node->peer_table = exten->peer_table; /* move the priority hash tabs over */
+				exten->peer_table = 0;
+				next_node->peer_label_table = exten->peer_label_table;
+				exten->peer_label_table = 0;
 			}
 			if (!prev_exten) {	/* change the root... */
 				con->root = next_node;
@@ -3946,7 +3953,7 @@ int ast_context_lockmacro(const char *context)
 	ast_rdlock_contexts();
 
 	strncpy(item.name,context,256);
-	c = ast_hashtab_lookup(contexts_tree,&item);
+	c = ast_hashtab_lookup(contexts_table,&item);
 	if (c)
 		ret = 0;
 
@@ -3984,7 +3991,7 @@ int ast_context_unlockmacro(const char *context)
 	ast_rdlock_contexts();
 
 	strncpy(item.name, context, 256);
-	c = ast_hashtab_lookup(contexts_tree,&item);
+	c = ast_hashtab_lookup(contexts_table,&item);
 	if (c)
 		ret = 0;
 #ifdef NOTNOW
@@ -4578,7 +4585,7 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 			if (exten) {
 				/* Check all includes for the requested extension */
 				if (includecount >= AST_PBX_MAX_STACK) {
-					ast_log(LOG_NOTICE, "Maximum include depth exceeded!\n");
+					ast_log(LOG_WARNING, "Maximum include depth exceeded!\n");
 				} else {
 					int dupe = 0;
 					int x;
@@ -5127,42 +5134,37 @@ int ast_unregister_application(const char *app)
 	return tmp ? 0 : -1;
 }
 
-static struct ast_context *__ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar, int existsokay)
+struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *name, const char *registrar)
 {
 	struct ast_context *tmp, **local_contexts;
 	struct fake_context search;
 	int length = sizeof(struct ast_context) + strlen(name) + 1;
 
-	if (!contexts_tree) {
-		contexts_tree = ast_hashtab_create(17,
-										   hashtab_compare_contexts, 
+	if (!contexts_table) {
+		contexts_table = ast_hashtab_create(17,
+										   ast_hashtab_compare_contexts, 
 										   ast_hashtab_resize_java,
 										   ast_hashtab_newsize_java,
-										   hashtab_hash_contexts,
+										   ast_hashtab_hash_contexts,
 										   0);
 	}
 	
+	strncpy(search.name,name,sizeof(search.name));
 	if (!extcontexts) {
 		ast_rdlock_contexts();
 		local_contexts = &contexts;
-		strncpy(search.name,name,sizeof(search.name));
-		tmp = ast_hashtab_lookup(contexts_tree, &search);
-		if (!existsokay && tmp) {
-			ast_log(LOG_WARNING, "Tried to register context '%s', already in use\n", name);
-		}
+		tmp = ast_hashtab_lookup(contexts_table, &search);
 		ast_unlock_contexts();
-		if (tmp)
+		if (tmp) {
+			tmp->refcount++;
 			return tmp;
+		}
 	} else { /* local contexts just in a linked list; search there for the new context; slow, linear search, but not frequent */
 		local_contexts = extcontexts;
-		for (tmp = *local_contexts; tmp; tmp = tmp->next) {
-			if (!strcasecmp(tmp->name, name)) {
-				if (!existsokay) {
-					ast_log(LOG_WARNING, "Tried to register context '%s', already in use\n", name);
-					tmp = NULL;
-				}
-				return tmp;
-			}
+		tmp = ast_hashtab_lookup(exttable, &search);
+		if (tmp) {
+			tmp->refcount++;
+			return tmp;
 		}
 	}
 	
@@ -5171,19 +5173,26 @@ static struct ast_context *__ast_context_create(struct ast_context **extcontexts
 		ast_mutex_init(&tmp->macrolock);
 		strcpy(tmp->name, name);
 		tmp->root = NULL;
-		tmp->root_tree = NULL;
+		tmp->root_table = NULL;
 		tmp->registrar = registrar;
 		tmp->includes = NULL;
 		tmp->ignorepats = NULL;
+		tmp->refcount = 1;
+	} else {
+		ast_log(LOG_ERROR, "Danger! We failed to allocate a context for %s!\n", name);
+		return NULL;
 	}
+	
 	if (!extcontexts) {
 		ast_wrlock_contexts();
 		tmp->next = *local_contexts;
 		*local_contexts = tmp;
-		ast_hashtab_insert_safe(contexts_tree, tmp); /*put this context into the tree */
+		ast_hashtab_insert_safe(contexts_table, tmp); /*put this context into the tree */
 		ast_unlock_contexts();
 	} else {
 		tmp->next = *local_contexts;
+		if (exttable)
+			ast_hashtab_insert_immediate(exttable, tmp); /*put this context into the tree */
 		*local_contexts = tmp;
 	}
 	ast_debug(1, "Registered context '%s'\n", tmp->name);
@@ -5191,16 +5200,7 @@ static struct ast_context *__ast_context_create(struct ast_context **extcontexts
 	return tmp;
 }
 
-struct ast_context *ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar)
-{
-	return __ast_context_create(extcontexts, name, registrar, 0);
-}
-
-struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, const char *name, const char *registrar)
-{
-	return __ast_context_create(extcontexts, name, registrar, 1);
-}
-void __ast_context_destroy(struct ast_context *con, const char *registrar);
+void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *contexttab, struct ast_context *con, const char *registrar);
 
 struct store_hint {
 	char *context;
@@ -5213,17 +5213,89 @@ struct store_hint {
 
 AST_LIST_HEAD(store_hints, store_hint);
 
-/* XXX this does not check that multiple contexts are merged */
-void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char *registrar)
+/* the purpose of this routine is to duplicate a context, with all its substructure,
+   except for any extens that have a matching registrar */
+static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *exttable, struct ast_context *context, const char *registrar)
 {
-	struct ast_context *tmp, *lasttmp = NULL;
+	struct ast_context *new = ast_hashtab_lookup(exttable, context); /* is there a match in the new set? */
+	struct ast_exten *exten_item, *prio_item, *new_exten_item, *new_prio_item;
+	struct ast_hashtab_iter *exten_iter;
+	struct ast_hashtab_iter *prio_iter;
+	int insert_count = 0;
+	
+	/* We'll traverse all the extensions/prios, and see which are not registrar'd with
+	   the current registrar, and copy them to the new context. If the new context does not
+	   exist, we'll create it "on demand". If no items are in this context to copy, then we'll
+	   only create the empty matching context if the old one meets the criteria */
+	if (context->root_table) {
+		exten_iter = ast_hashtab_start_traversal(context->root_table);
+		while ((exten_item=ast_hashtab_next(exten_iter))) {
+			if (new) {
+				new_exten_item = ast_hashtab_lookup(new->root_table, exten_item);
+			} else {
+				new_exten_item = NULL;
+			}
+			prio_iter = ast_hashtab_start_traversal(exten_item->peer_table);
+			while ((prio_item=ast_hashtab_next(prio_iter))) {
+				int res1;
+				
+				if (new_exten_item) {
+					new_prio_item = ast_hashtab_lookup(new_exten_item->peer_table, prio_item);
+				} else {
+					new_prio_item = NULL;
+				}
+				if (strcmp(prio_item->registrar,registrar) == 0) {
+					continue;
+				}
+				/* make sure the new context exists, so we have somewhere to stick this exten/prio */
+				if (!new) {
+					new = ast_context_find_or_create(extcontexts, exttable, context->name, prio_item->registrar); /* a new context created via priority from a different context in the old dialplan, gets its registrar from the prio's registrar */
+				}
+				if (!new) {
+					ast_log(LOG_ERROR,"Could not allocate a new context for %s in merge_and_delete! Danger!\n", context->name);
+					return; /* no sense continuing. */
+				}
+				/* we will not replace existing entries in the new context with stuff from the old context.
+				   but, if this is because of some sort of registrar conflict, we ought to say something... */
+				res1 = ast_add_extension2(new, 0, prio_item->exten, prio_item->priority, prio_item->label, 
+										  prio_item->cidmatch, prio_item->app, prio_item->data, prio_item->datad, prio_item->registrar);
+				if (!res1 && new_exten_item && new_prio_item){
+					ast_verb(3,"Dropping old dialplan item %s/%s/%d [%s(%s)] (registrar=%s) due to conflict with new dialplan\n",
+							context->name, prio_item->exten, prio_item->priority, prio_item->app, (char*)prio_item->data, prio_item->registrar);
+				} else {
+					prio_item->data = NULL; /* we pass the priority data from the old to the new */
+					insert_count++;
+				}
+			}
+			ast_hashtab_end_traversal(prio_iter);
+		}
+		ast_hashtab_end_traversal(exten_iter);
+	}
+	
+	if (!insert_count && !new && (strcmp(context->registrar, registrar) != 0 ||
+		  (strcmp(context->registrar, registrar) == 0 && context->refcount > 1))) {
+		
+		/* we could have given it the registrar of the other module who incremented the refcount,
+		   but that's not available, so we give it the registrar we know about */
+		new = ast_context_find_or_create(extcontexts, exttable, context->name, context->registrar);
+	}
+}
+
+
+/* XXX this does not check that multiple contexts are merged */
+void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *registrar)
+{
+	double ft;
+	struct ast_context *tmp, *oldcontextslist;
+	struct ast_hashtab *oldtable;
 	struct store_hints store = AST_LIST_HEAD_INIT_VALUE;
 	struct store_hint *this;
 	struct ast_hint *hint;
 	struct ast_exten *exten;
 	int length;
 	struct ast_state_cb *thiscb, *prevcb;
-
+	struct ast_hashtab_iter *iter;
+	
 	/* it is very important that this function hold the hint list lock _and_ the conlock
 	   during its operation; not only do we need to ensure that the list of contexts
 	   and extensions does not change, but also that no hint callbacks (watchers) are
@@ -5232,8 +5304,29 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	   in addition, the locks _must_ be taken in this order, because there are already
 	   other code paths that use this order
 	*/
+	
+	struct timeval begintime, writelocktime, endlocktime, enddeltime;
+	int wrlock_ver;
+	
+	begintime = ast_tvnow();
+	ast_rdlock_contexts();
+	iter = ast_hashtab_start_traversal(contexts_table);
+	while ((tmp=ast_hashtab_next(iter))) {
+		context_merge(extcontexts, exttable, tmp, registrar);
+	}
+	ast_hashtab_end_traversal(iter);
+	wrlock_ver = ast_wrlock_contexts_version();
+
+	ast_unlock_contexts(); /* this feels real retarded, but you must do
+							  what you must do If this isn't done, the following 
+						      wrlock is a guraranteed deadlock */
 	ast_wrlock_contexts();
+	if (ast_wrlock_contexts_version() > wrlock_ver+1) {
+		ast_log(LOG_WARNING,"Something changed the contexts in the middle of merging contexts!\n");
+	}
+	
 	AST_RWLIST_WRLOCK(&hints);
+	writelocktime = ast_tvnow();
 
 	/* preserve all watchers for hints associated with this registrar */
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
@@ -5252,36 +5345,14 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 		}
 	}
 
-	tmp = *extcontexts;
-	if (registrar) {
-		/* XXX remove previous contexts from same registrar */
-		ast_debug(1, "must remove any reg %s\n", registrar);
-		__ast_context_destroy(NULL,registrar);
-		while (tmp) {
-			lasttmp = tmp;
-			tmp = tmp->next;
-		}
-	} else {
-		/* XXX remove contexts with the same name */
-		while (tmp) {
-			ast_log(LOG_WARNING, "must remove %s  reg %s\n", tmp->name, tmp->registrar);
-			__ast_context_destroy(tmp,tmp->registrar);
-			lasttmp = tmp;
-			tmp = tmp->next;
-		}
-	}
-	tmp = *extcontexts;
-	while (tmp) {
-		ast_hashtab_insert_safe(contexts_tree, tmp); /*put this context into the tree */
-		tmp = tmp->next;
-	}
-	if (lasttmp) {
-		lasttmp->next = contexts;
-		contexts = *extcontexts;
-		*extcontexts = NULL;
-	} else
-		ast_log(LOG_WARNING, "Requested contexts didn't get merged\n");
+	/* save the old table and list */
+	oldtable = contexts_table;
+	oldcontextslist = contexts;
 
+	/* move in the new table and list */
+	contexts_table = exttable;
+	contexts = *extcontexts;
+	
 	/* restore the watchers for hints that can be found; notify those that
 	   cannot be restored
 	*/
@@ -5316,7 +5387,36 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 
 	AST_RWLIST_UNLOCK(&hints);
 	ast_unlock_contexts();
+	endlocktime = ast_tvnow();
+	
+	/* the old list and hashtab no longer are relevant, delete them while the rest of asterisk
+	   is now freely using the new stuff instead */
+	
+	ast_hashtab_destroy(oldtable, NULL);
 
+	for (tmp = oldcontextslist; tmp; ) {
+		struct ast_context *next;	/* next starting point */
+		next = tmp->next;
+		__ast_internal_context_destroy(tmp);
+		tmp = next;
+	}
+	enddeltime = ast_tvnow();
+	
+	ft = ast_tvdiff_us(writelocktime, begintime);
+	ft /= 1000000.0;
+	ast_verb(3,"Time to scan old dialplan and merge leftovers back into the new: %8.6f sec\n", ft);
+	
+	ft = ast_tvdiff_us(endlocktime, writelocktime);
+	ft /= 1000000.0;
+	ast_verb(3,"Time to restore hints and swap in new dialplan: %8.6f sec\n", ft);
+
+	ft = ast_tvdiff_us(enddeltime, endlocktime);
+	ft /= 1000000.0;
+	ast_verb(3,"Time to delete the old dialplan: %8.6f sec\n", ft);
+
+	ft = ast_tvdiff_us(enddeltime, begintime);
+	ft /= 1000000.0;
+	ast_verb(3,"Total time merge_contexts_delete: %8.6f sec\n", ft);
 	return;
 }
 
@@ -5854,6 +5954,7 @@ int ast_add_extension(const char *context, int replace, const char *extension,
 			application, data, datad, registrar);
 		ast_unlock_contexts();
 	}
+	
 	return ret;
 }
 
@@ -5980,9 +6081,9 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 			break;
 	}
 	if (!e) {	/* go at the end, and ep is surely set because the list is not empty */
-		ast_hashtab_insert_safe(eh->peer_tree, tmp);
+		ast_hashtab_insert_safe(eh->peer_table, tmp);
 		if (tmp->label)
-			ast_hashtab_insert_safe(eh->peer_label_tree, tmp);
+			ast_hashtab_insert_safe(eh->peer_label_table, tmp);
 		ep->peer = tmp;
 		return 0;	/* success */
 	}
@@ -6002,25 +6103,25 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 		tmp->next = e->next;	/* not meaningful if we are not first in the peer list */
 		tmp->peer = e->peer;	/* always meaningful */
 		if (ep)	{		/* We're in the peer list, just insert ourselves */
-			ast_hashtab_remove_object_via_lookup(eh->peer_tree,e);
+			ast_hashtab_remove_object_via_lookup(eh->peer_table,e);
 			if (e->label)
-				ast_hashtab_remove_object_via_lookup(eh->peer_label_tree,e);
-			ast_hashtab_insert_safe(eh->peer_tree,tmp);
+				ast_hashtab_remove_object_via_lookup(eh->peer_label_table,e);
+			ast_hashtab_insert_safe(eh->peer_table,tmp);
 			if (tmp->label)
-				ast_hashtab_insert_safe(eh->peer_label_tree,tmp);
+				ast_hashtab_insert_safe(eh->peer_label_table,tmp);
 			ep->peer = tmp;
 		} else if (el) {		/* We're the first extension. Take over e's functions */
 			struct match_char *x = add_exten_to_pattern_tree(con, e, 1);
-			tmp->peer_tree = e->peer_tree;
-			tmp->peer_label_tree = e->peer_label_tree;
-			ast_hashtab_remove_object_via_lookup(tmp->peer_tree,e);
-			ast_hashtab_insert_safe(tmp->peer_tree,tmp);
+			tmp->peer_table = e->peer_table;
+			tmp->peer_label_table = e->peer_label_table;
+			ast_hashtab_remove_object_via_lookup(tmp->peer_table,e);
+			ast_hashtab_insert_safe(tmp->peer_table,tmp);
 			if (e->label)
-				ast_hashtab_remove_object_via_lookup(tmp->peer_label_tree,e);
+				ast_hashtab_remove_object_via_lookup(tmp->peer_label_table, e);
 			if (tmp->label)
-				ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
-			ast_hashtab_remove_object_via_lookup(con->root_tree, e);
-			ast_hashtab_insert_safe(con->root_tree, tmp);
+				ast_hashtab_insert_safe(tmp->peer_label_table, tmp);
+			ast_hashtab_remove_object_via_lookup(con->root_table, e);
+			ast_hashtab_insert_safe(con->root_table, tmp);
 			el->next = tmp;
 			/* The pattern trie points to this exten; replace the pointer,
 			   and all will be well */
@@ -6032,18 +6133,18 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 			}
 		} else {			/* We're the very first extension.  */
 			struct match_char *x = add_exten_to_pattern_tree(con, e, 1);
-			ast_hashtab_remove_object_via_lookup(con->root_tree,e);
-			ast_hashtab_insert_safe(con->root_tree,tmp);
-			tmp->peer_tree = e->peer_tree;
-			tmp->peer_label_tree = e->peer_label_tree;
-			ast_hashtab_remove_object_via_lookup(tmp->peer_tree,e);
-			ast_hashtab_insert_safe(tmp->peer_tree,tmp);
+			ast_hashtab_remove_object_via_lookup(con->root_table, e);
+			ast_hashtab_insert_safe(con->root_table, tmp);
+			tmp->peer_table = e->peer_table;
+			tmp->peer_label_table = e->peer_label_table;
+			ast_hashtab_remove_object_via_lookup(tmp->peer_table, e);
+			ast_hashtab_insert_safe(tmp->peer_table, tmp);
 			if (e->label)
-				ast_hashtab_remove_object_via_lookup(tmp->peer_label_tree,e);
+				ast_hashtab_remove_object_via_lookup(tmp->peer_label_table, e);
 			if (tmp->label)
-			ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
-			ast_hashtab_remove_object_via_lookup(con->root_tree, e);
-			ast_hashtab_insert_safe(con->root_tree, tmp);
+			ast_hashtab_insert_safe(tmp->peer_label_table, tmp);
+			ast_hashtab_remove_object_via_lookup(con->root_table, e);
+			ast_hashtab_insert_safe(con->root_table, tmp);
  			con->root = tmp;
 			/* The pattern trie points to this exten; replace the pointer,
 			   and all will be well */
@@ -6064,20 +6165,20 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 		tmp->next = e->next;	/* extension chain, or NULL if e is not the first extension */
 		if (ep) {			/* Easy enough, we're just in the peer list */
 			if (tmp->label)
-				ast_hashtab_insert_safe(eh->peer_label_tree, tmp);
-			ast_hashtab_insert_safe(eh->peer_tree, tmp);
+				ast_hashtab_insert_safe(eh->peer_label_table, tmp);
+			ast_hashtab_insert_safe(eh->peer_table, tmp);
 			ep->peer = tmp;
 		} else {			/* we are the first in some peer list, so link in the ext list */
-			tmp->peer_tree = e->peer_tree;
-			tmp->peer_label_tree = e ->peer_label_tree;
-			e->peer_tree = 0;
-			e->peer_label_tree = 0;
-			ast_hashtab_insert_safe(tmp->peer_tree,tmp);
+			tmp->peer_table = e->peer_table;
+			tmp->peer_label_table = e->peer_label_table;
+			e->peer_table = 0;
+			e->peer_label_table = 0;
+			ast_hashtab_insert_safe(tmp->peer_table, tmp);
 			if (tmp->label) {
-				ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
+				ast_hashtab_insert_safe(tmp->peer_label_table, tmp);
 			}
-			ast_hashtab_remove_object_via_lookup(con->root_tree,e);
-			ast_hashtab_insert_safe(con->root_tree,tmp);
+			ast_hashtab_remove_object_via_lookup(con->root_table, e);
+			ast_hashtab_insert_safe(con->root_table, tmp);
 			if (el)
 				el->next = tmp;	/* in the middle... */
 			else
@@ -6159,6 +6260,9 @@ int ast_add_extension2(struct ast_context *con,
 	if (!(tmp = ast_calloc(1, length)))
 		return -1;
 
+	if (ast_strlen_zero(label)) /* let's turn empty labels to a null ptr */
+		label = 0;
+
 	/* use p as dst in assignments, as the fields are const char * */
 	p = tmp->stuff;
 	if (label) {
@@ -6170,7 +6274,7 @@ int ast_add_extension2(struct ast_context *con,
 	p += ext_strncpy(p, extension, strlen(extension) + 1) + 1;
 	tmp->priority = priority;
 	tmp->cidmatch = p;	/* but use p for assignments below */
-	if (callerid) {
+	if (!ast_strlen_zero(callerid)) {
 		p += ext_strncpy(p, callerid, strlen(callerid) + 1) + 1;
 		tmp->matchcid = 1;
 	} else {
@@ -6192,11 +6296,11 @@ int ast_add_extension2(struct ast_context *con,
 		dummy_exten.exten = dummy_name;
 		dummy_exten.matchcid = 0;
 		dummy_exten.cidmatch = 0;
-		tmp2 = ast_hashtab_lookup(con->root_tree,&dummy_exten);
+		tmp2 = ast_hashtab_lookup(con->root_table, &dummy_exten);
 		if (!tmp2) {
 			/* hmmm, not in the trie; */
 			add_exten_to_pattern_tree(con, tmp, 0);
-			ast_hashtab_insert_safe(con->root_tree, tmp); /* for the sake of completeness */
+			ast_hashtab_insert_safe(con->root_table, tmp); /* for the sake of completeness */
 		}
 	}
 	res = 0; /* some compilers will think it is uninitialized otherwise */
@@ -6230,48 +6334,48 @@ int ast_add_extension2(struct ast_context *con,
 		tmp->next = e;
 		if (el) {  /* there is another exten already in this context */
 			el->next = tmp;
-			tmp->peer_tree = ast_hashtab_create(13,
+			tmp->peer_table = ast_hashtab_create(13,
 							hashtab_compare_exten_numbers,
 							ast_hashtab_resize_java,
 							ast_hashtab_newsize_java,
 							hashtab_hash_priority,
 							0);
-			tmp->peer_label_tree = ast_hashtab_create(7,
+			tmp->peer_label_table = ast_hashtab_create(7,
 								hashtab_compare_exten_labels,
 								ast_hashtab_resize_java,
 								ast_hashtab_newsize_java,
 								hashtab_hash_labels,
 								0);
 			if (label)
-				ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
-			ast_hashtab_insert_safe(tmp->peer_tree, tmp);
+				ast_hashtab_insert_safe(tmp->peer_label_table, tmp);
+			ast_hashtab_insert_safe(tmp->peer_table, tmp);
 
 		} else {  /* this is the first exten in this context */
-			if (!con->root_tree)
-				con->root_tree = ast_hashtab_create(27,
+			if (!con->root_table)
+				con->root_table = ast_hashtab_create(27,
 													hashtab_compare_extens,
 													ast_hashtab_resize_java,
 													ast_hashtab_newsize_java,
 													hashtab_hash_extens,
 													0);
 			con->root = tmp;
-			con->root->peer_tree = ast_hashtab_create(13,
+			con->root->peer_table = ast_hashtab_create(13,
 								hashtab_compare_exten_numbers,
 								ast_hashtab_resize_java,
 								ast_hashtab_newsize_java,
 								hashtab_hash_priority,
 								0);
-			con->root->peer_label_tree = ast_hashtab_create(7,
+			con->root->peer_label_table = ast_hashtab_create(7,
 									hashtab_compare_exten_labels,
 									ast_hashtab_resize_java,
 									ast_hashtab_newsize_java,
 									hashtab_hash_labels,
 									0);
 			if (label)
-				ast_hashtab_insert_safe(con->root->peer_label_tree,tmp);
-			ast_hashtab_insert_safe(con->root->peer_tree, tmp);
+				ast_hashtab_insert_safe(con->root->peer_label_table, tmp);
+			ast_hashtab_insert_safe(con->root->peer_table, tmp);
 		}
-		ast_hashtab_insert_safe(con->root_tree, tmp);
+		ast_hashtab_insert_safe(con->root_table, tmp);
 		ast_unlock_context(con);
 		if (tmp->priority == PRIORITY_HINT)
 			ast_add_hint(tmp);
@@ -6287,7 +6391,7 @@ int ast_add_extension2(struct ast_context *con,
 	}
 
 	if (tmp->matchcid) {
-		ast_verb(3, "Added extension '%s' priority %d (CID match '%s')to %s\n",
+		ast_verb(3, "Added extension '%s' priority %d (CID match '%s') to %s\n",
 			tmp->exten, tmp->priority, tmp->cidmatch, con->name);
 	} else {
 		ast_verb(3, "Added extension '%s' priority %d to %s\n",
@@ -6684,68 +6788,125 @@ outgoing_app_cleanup:
 	return res;
 }
 
-void __ast_context_destroy(struct ast_context *con, const char *registrar)
+/* this is the guts of destroying a context --
+   freeing up the structure, traversing and destroying the
+   extensions, switches, ignorepats, includes, etc. etc. */
+
+static void __ast_internal_context_destroy( struct ast_context *con)
 {
-	struct ast_context *tmp, *tmpl=NULL;
 	struct ast_include *tmpi;
 	struct ast_sw *sw;
 	struct ast_exten *e, *el, *en;
 	struct ast_ignorepat *ipi;
+	struct ast_context *tmp = con;
 
-	for (tmp = contexts; tmp; ) {
-		struct ast_context *next;	/* next starting point */
+	for (tmpi = tmp->includes; tmpi; ) { /* Free includes */
+		struct ast_include *tmpil = tmpi;
+		tmpi = tmpi->next;
+		ast_free(tmpil);
+	}
+	for (ipi = tmp->ignorepats; ipi; ) { /* Free ignorepats */
+		struct ast_ignorepat *ipl = ipi;
+		ipi = ipi->next;
+		ast_free(ipl);
+	}
+	/* destroy the hash tabs */
+	if (tmp->root_table) {
+		ast_hashtab_destroy(tmp->root_table, 0);
+	}
+	/* and destroy the pattern tree */
+	if (tmp->pattern_tree)
+		destroy_pattern_tree(tmp->pattern_tree);
+	
+	while ((sw = AST_LIST_REMOVE_HEAD(&tmp->alts, list)))
+		ast_free(sw);
+	for (e = tmp->root; e;) {
+		for (en = e->peer; en;) {
+			el = en;
+			en = en->peer;
+			destroy_exten(el);
+		}
+		el = e;
+		e = e->next;
+		destroy_exten(el);
+	}
+	tmp->root = NULL;
+	ast_rwlock_destroy(&tmp->lock);
+	ast_free(tmp);
+}
+
+
+void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *contexttab, struct ast_context *con, const char *registrar)
+{
+	struct ast_context *tmp, *tmpl=NULL;
+	struct ast_exten *exten_item, *prio_item;
+
+
+	for (tmp = list; tmp; ) {
+		struct ast_context *next = NULL;	/* next starting point */
 		for (; tmp; tmpl = tmp, tmp = tmp->next) {
 			ast_debug(1, "check ctx %s %s\n", tmp->name, tmp->registrar);
-			if ( (!registrar || !strcasecmp(registrar, tmp->registrar)) &&
-			     (!con || !strcasecmp(tmp->name, con->name)) )
+			if ( registrar || (con && strcasecmp(tmp->name, con->name)) )
 				break;	/* found it */
 		}
 		if (!tmp)	/* not found, we are done */
 			break;
 		ast_wrlock_context(tmp);
-		ast_debug(1, "delete ctx %s %s\n", tmp->name, tmp->registrar);
-		ast_hashtab_remove_this_object(contexts_tree,tmp);
-		
-		next = tmp->next;
-		if (tmpl)
-			tmpl->next = next;
-		else
-			contexts = next;
-		/* Okay, now we're safe to let it go -- in a sense, we were
-		   ready to let it go as soon as we locked it. */
-		ast_unlock_context(tmp);
-		for (tmpi = tmp->includes; tmpi; ) { /* Free includes */
-			struct ast_include *tmpil = tmpi;
-			tmpi = tmpi->next;
-			ast_free(tmpil);
-		}
-		for (ipi = tmp->ignorepats; ipi; ) { /* Free ignorepats */
-			struct ast_ignorepat *ipl = ipi;
-			ipi = ipi->next;
-			ast_free(ipl);
-		}
-		/* destroy the hash tabs */
-		if (tmp->root_tree) {
-			ast_hashtab_destroy(tmp->root_tree, 0);
-		}
-		/* and destroy the pattern tree */
-		if (tmp->pattern_tree)
-			destroy_pattern_tree(tmp->pattern_tree);
-		
-		while ((sw = AST_LIST_REMOVE_HEAD(&tmp->alts, list)))
-			ast_free(sw);
-		for (e = tmp->root; e;) {
-			for (en = e->peer; en;) {
-				el = en;
-				en = en->peer;
-				destroy_exten(el);
+
+		if (registrar) {
+			/* then search thru and remove any extens that match registrar. */
+			struct ast_hashtab_iter *exten_iter;
+			struct ast_hashtab_iter *prio_iter;
+
+			if (tmp->root_table) { /* it is entirely possible that the context is EMPTY */
+				exten_iter = ast_hashtab_start_traversal(tmp->root_table);
+				while ((exten_item=ast_hashtab_next(exten_iter))) {
+					prio_iter = ast_hashtab_start_traversal(exten_item->peer_table);
+					while ((prio_item=ast_hashtab_next(prio_iter))) {
+						if (strcmp(prio_item->registrar, registrar) != 0) {
+							continue;
+						}
+						ast_verb(3, "Remove %s/%s/%d, registrar=%s; con=%s(%p); con->root=%p\n",
+								tmp->name, prio_item->exten, prio_item->priority, registrar, con? con->name : "<nil>", con, con? con->root_table: NULL);
+						
+						ast_context_remove_extension2(tmp, prio_item->exten, prio_item->priority, registrar);
+					}
+					ast_hashtab_end_traversal(prio_iter);
+				}
+				ast_hashtab_end_traversal(exten_iter);
 			}
-			el = e;
-			e = e->next;
-			destroy_exten(el);
+	
+			/* delete the context if it's registrar matches, is empty, has refcount of 1, */
+			if (strcmp(tmp->registrar, registrar) == 0 && tmp->refcount < 2 && !tmp->root) {
+				ast_debug(1, "delete ctx %s %s\n", tmp->name, tmp->registrar);
+				ast_hashtab_remove_this_object(contexttab, tmp);
+				
+				next = tmp->next;
+				if (tmpl)
+					tmpl->next = next;
+				else
+					contexts = next;
+				/* Okay, now we're safe to let it go -- in a sense, we were
+				   ready to let it go as soon as we locked it. */
+				ast_unlock_context(tmp);
+				__ast_internal_context_destroy(tmp);
+			}
+		} else if (con) {
+			ast_verb(3, "Deleting context %s registrar=%s\n", tmp->name, tmp->registrar);
+			ast_debug(1, "delete ctx %s %s\n", tmp->name, tmp->registrar);
+			ast_hashtab_remove_this_object(contexttab, tmp);
+			
+			next = tmp->next;
+			if (tmpl)
+				tmpl->next = next;
+			else
+				contexts = next;
+			/* Okay, now we're safe to let it go -- in a sense, we were
+			   ready to let it go as soon as we locked it. */
+			ast_unlock_context(tmp);
+			__ast_internal_context_destroy(tmp);
 		}
-		ast_rwlock_destroy(&tmp->lock);
-		ast_free(tmp);
+
 		/* if we have a specific match, we are done, otherwise continue */
 		tmp = con ? NULL : next;
 	}
@@ -6754,7 +6915,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 void ast_context_destroy(struct ast_context *con, const char *registrar)
 {
 	ast_wrlock_contexts();
-	__ast_context_destroy(con,registrar);
+	__ast_context_destroy(contexts, contexts_table, con,registrar);
 	ast_unlock_contexts();
 }
 
@@ -6899,7 +7060,7 @@ static int pbx_builtin_hangup(struct ast_channel *chan, void *data)
 			return -1;
 		}
 			
-		ast_log(LOG_NOTICE, "Invalid cause given to Hangup(): \"%s\"\n", (char *) data);
+		ast_log(LOG_WARNING, "Invalid cause given to Hangup(): \"%s\"\n", (char *) data);
 	}
 
 	if (!chan->hangupcause) {
@@ -7568,12 +7729,21 @@ int load_pbx(void)
 
 	return 0;
 }
+static int conlock_wrlock_version = 0;
+
+int ast_wrlock_contexts_version(void)
+{
+	return conlock_wrlock_version;
+}
 
 /*
  * Lock context list functions ...
  */
 int ast_wrlock_contexts()
 {
+	int res = ast_rwlock_wrlock(&conlock);
+	if (!res)
+		ast_atomic_fetchadd_int(&conlock_wrlock_version, 1);
 	return ast_rwlock_wrlock(&conlock);
 }
 

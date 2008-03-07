@@ -1,6 +1,7 @@
 #ifndef _ASTERISK_PVAL_H
 #define _ASTERISK_PVAL_H
 
+/* whatever includes this, better include asterisk/lock.h and asterisk/hashtab.h */
 
 typedef enum 
 {
@@ -143,7 +144,7 @@ void destroy_extensions(struct ael_extension *exten);
    static void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct ael_extension *mother_exten, struct ast_context *context ); */
 void set_priorities(struct ael_extension *exten);
 void add_extensions(struct ael_extension *exten);
-void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root);
+void ast_compile_ael2(struct ast_context **local_contexts, struct ast_hashtab *local_table, struct pval *root);
 void destroy_pval(pval *item);
 void destroy_pval_item(pval *item);
 int is_float(char *arg );

@@ -488,9 +488,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 		ast_adsi_unload_session(peer);
 	}
 
-	con = ast_context_find(parking_con);
-	if (!con) 
-		con = ast_context_create(NULL, parking_con, registrar);
+	con = ast_context_find_or_create(NULL, NULL, parking_con, registrar);
 	if (!con)	/* Still no context? Bad */
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 	/* Tell the peer channel the number of the parking space */
@@ -2228,12 +2226,9 @@ static void *do_parking_thread(void *ignore)
 						if (peername_flat[i] == '/') 
 							peername_flat[i]= '0';
 					}
-					con = ast_context_find(parking_con_dial);
-					if (!con) {
-						con = ast_context_create(NULL, parking_con_dial, registrar);
-						if (!con)
-							ast_log(LOG_ERROR, "Parking dial context '%s' does not exist and unable to create\n", parking_con_dial);
-					}
+					con = ast_context_find_or_create(NULL, NULL, parking_con_dial, registrar);
+					if (!con)
+						ast_log(LOG_ERROR, "Parking dial context '%s' does not exist and unable to create\n", parking_con_dial);
 					if (con) {
 						char returnexten[AST_MAX_EXTENSION];
 						struct ast_datastore *features_datastore;
@@ -2822,7 +2817,7 @@ static int load_config(void)
 		ast_debug(1, "Removed old parking extension %s@%s\n", old_parking_ext, old_parking_con);
 	}
 	
-	if (!(con = ast_context_find(parking_con)) && !(con = ast_context_create(NULL, parking_con, registrar))) {
+	if (!(con = ast_context_find_or_create(NULL, NULL, parking_con, registrar))) {
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 		return -1;
 	}

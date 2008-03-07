@@ -31,6 +31,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <string.h>
 
 #include "asterisk/logger.h"
+#include "asterisk/lock.h"
+#include "asterisk/hashtab.h"
 #include "asterisk/ael_structs.h"
 
 pval * linku1(pval *head, pval *tail);
