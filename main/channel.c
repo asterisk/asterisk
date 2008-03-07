@@ -1848,6 +1848,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 					return -1;
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
+				case AST_CONTROL_SRCUPDATE:
 					/* Unimportant */
 					break;
 				default:
