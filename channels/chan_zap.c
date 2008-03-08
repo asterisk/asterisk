@@ -8555,8 +8555,20 @@ static void *pri_dchannel(void *vpri)
 		if (e) {
 			if (pri->debug)
 				pri_dump_event(pri->dchans[which], e);
-			if (e->e != PRI_EVENT_DCHAN_DOWN)
+
+			if (e->e != PRI_EVENT_DCHAN_DOWN) {
+				if (!(pri->dchanavail[which] & DCHAN_UP)) {
+					if (option_verbose > 1) 
+						ast_verbose(VERBOSE_PREFIX_2 "%s D-Channel on span %d up\n", pri_order(which), pri->span);
+				}
 				pri->dchanavail[which] |= DCHAN_UP;
+			} else {
+				if (pri->dchanavail[which] & DCHAN_UP) {
+					if (option_verbose > 1) 
+						ast_verbose(VERBOSE_PREFIX_2 "%s D-Channel on span %d down\n", pri_order(which), pri->span);
+				}
+				pri->dchanavail[which] &= ~DCHAN_UP;
+			}
 
 			if ((e->e != PRI_EVENT_DCHAN_UP) && (e->e != PRI_EVENT_DCHAN_DOWN) && (pri->pri != pri->dchans[which]))
 				/* Must be an NFAS group that has the secondary dchan active */
@@ -8564,9 +8576,6 @@ static void *pri_dchannel(void *vpri)
 
 			switch (e->e) {
 			case PRI_EVENT_DCHAN_UP:
-				if (option_verbose > 1) 
-					ast_verbose(VERBOSE_PREFIX_2 "%s D-Channel on span %d up\n", pri_order(which), pri->span);
-				pri->dchanavail[which] |= DCHAN_UP;
 				if (!pri->pri) pri_find_dchan(pri);
 
 				/* Note presense of D-channel */
@@ -8585,9 +8594,6 @@ static void *pri_dchannel(void *vpri)
 					}
 				break;
 			case PRI_EVENT_DCHAN_DOWN:
-				if (option_verbose > 1) 
-					ast_verbose(VERBOSE_PREFIX_2 "%s D-Channel on span %d down\n", pri_order(which), pri->span);
-				pri->dchanavail[which] &= ~DCHAN_UP;
 				pri_find_dchan(pri);
 				if (!pri_is_up(pri)) {
 					pri->resetting = 0;
