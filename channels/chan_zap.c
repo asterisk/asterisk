@@ -9506,9 +9506,11 @@ static void *ss7_linkset(void *data)
 				}
 				p = linkset->pvts[chanpos];
 
-				zt_loopback(p, 0);
-				
-				ss7_start_call(p, linkset);
+				if (p->loopedback) {
+					zt_loopback(p, 0);
+					ss7_start_call(p, linkset);
+				}
+
 				break;
 			case ISUP_EVENT_CCR:
 				ast_debug(1, "Got CCR request on CIC %d\n", e->ccr.cic);
