@@ -122,6 +122,8 @@ AST_APP_OPTIONS(waitexten_opts, {
 struct ast_context;
 struct ast_app;
 
+AST_THREADSTORAGE(switch_data);
+
 /*!
    \brief ast_exten: An extension
 	The dialplan is saved as a linked list with each context
@@ -165,7 +167,6 @@ struct ast_sw {
 	char *data;				/*!< Data load */
 	int eval;
 	AST_LIST_ENTRY(ast_sw) list;
-	char *tmpdata;
 	char stuff[0];
 };
 
@@ -1640,6 +1641,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	struct ast_sw *sw = NULL;
 	struct ast_exten pattern = {NULL, };
 	struct scoreboard score = {0, };
+	struct ast_str *tmpdata = NULL;
 
 	pattern.label = label;
 	pattern.priority = priority;
@@ -1824,8 +1826,13 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		}
 		/* Substitute variables now */
 		
-		if (sw->eval)
-			pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH - 1);
+		if (sw->eval) {
+			if (!(tmpdata = ast_str_thread_get(&switch_data, 512))) {
+				ast_log(LOG_WARNING, "Can't evaluate switch?!");
+				continue;
+			}
+			pbx_substitute_variables_helper(chan, sw->data, tmpdata->str, tmpdata->len);
+		}
 
 		/* equivalent of extension_match_core() at the switch level */
 		if (action == E_CANMATCH)
@@ -1834,7 +1841,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 			aswf = asw->matchmore;
 		else /* action == E_MATCH */
 			aswf = asw->exists;
-		datap = sw->eval ? sw->tmpdata : sw->data;
+		datap = sw->eval ? tmpdata->str : sw->data;
 		if (!aswf)
 			res = 0;
 		else {
@@ -5681,11 +5688,6 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	if (data)
 		length += strlen(data);
 	length++;
-	if (eval) {
-		/* Create buffer for evaluation of variables */
-		length += SWITCH_DATA_LENGTH;
-		length++;
-	}
 
 	/* allocate new sw structure ... */
 	if (!(new_sw = ast_calloc(1, length)))
@@ -5703,8 +5705,6 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 		strcpy(new_sw->data, "");
 		p++;
 	}
-	if (eval)
-		new_sw->tmpdata = p;
 	new_sw->eval	  = eval;
 	new_sw->registrar = registrar;
 
