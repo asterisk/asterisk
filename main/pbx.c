@@ -6545,9 +6545,9 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 							ast_channel_unlock(chan);
 						}
 						ast_hangup(chan);
-						chan = NULL;
 						res = -1;
 					}
+					chan = NULL;
 				}
 			} else {
 				ast_verb(4, "Channel %s was never answered.\n", chan->name);
