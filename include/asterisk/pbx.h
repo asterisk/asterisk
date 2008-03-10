@@ -839,6 +839,11 @@ int pbx_set_autofallthrough(int newval);
   the old linear-search algorithm.  Returns previous value. */
 int pbx_set_extenpatternmatchnew(int newval);
 
+/*! Set "overrideswitch" field.  If set and of nonzero length, all contexts
+ * will be tried directly through the named switch prior to any other
+ * matching within that context. */
+void pbx_set_overrideswitch(const char *newval);
+
 /*!
  * \note This function will handle locking the channel as needed.
  */

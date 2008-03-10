@@ -47,6 +47,7 @@ static int write_protect_config = 1;
 static int autofallthrough_config = 1;
 static int clearglobalvars_config = 0;
 static int extenpatternmatchnew_config = 0;
+static char *overrideswitch_config = NULL;
 
 AST_MUTEX_DEFINE_STATIC(save_dialplan_lock);
 
@@ -701,7 +702,7 @@ static char *complete_dialplan_add_include(struct ast_cli_args *a)
  */
 static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char filename[256];
+	char filename[256], overrideswitch[256] = "";
 	struct ast_context *c;
 	struct ast_config *cfg;
 	struct ast_variable *v;
@@ -781,11 +782,15 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 	}
 
 	/* fireout general info */
-	fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\nautofallthrough=%s\nclearglobalvars=%s\nextenpatternmatchnew=%s\n\n",
+	if (overrideswitch_config) {
+		snprintf(overrideswitch, sizeof(overrideswitch), "overrideswitch=%s\n", overrideswitch_config);
+	}
+	fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\nautofallthrough=%s\nclearglobalvars=%s\n%sextenpatternmatchnew=%s\n\n",
 		static_config ? "yes" : "no",
 		write_protect_config ? "yes" : "no",
                 autofallthrough_config ? "yes" : "no",
 				clearglobalvars_config ? "yes" : "no",
+				overrideswitch_config ? overrideswitch : "",
 				extenpatternmatchnew_config ? "yes" : "no");
 
 	if ((v = ast_variable_browse(cfg, "globals"))) {
@@ -1353,6 +1358,9 @@ static int unload_module(void)
 {
 	if (static_config && !write_protect_config)
 		ast_cli_unregister(&cli_dialplan_save);
+	if (overrideswitch_config) {
+		ast_free(overrideswitch_config);
+	}
 	ast_cli_unregister_multiple(cli_pbx_config, sizeof(cli_pbx_config) / sizeof(struct ast_cli_entry));
 	ast_context_destroy(NULL, registrar);
 	return 0;
@@ -1369,7 +1377,7 @@ static int pbx_load_config(const char *config_file)
 	struct ast_variable *v;
 	const char *cxt;
 	const char *aft;
-	const char *newpm;
+	const char *newpm, *ovsw;
 	struct ast_flags config_flags = { 0 };
 	cfg = ast_config_load(config_file, config_flags);
 	if (!cfg)
@@ -1383,7 +1391,16 @@ static int pbx_load_config(const char *config_file)
 	if ((newpm = ast_variable_retrieve(cfg, "general", "extenpatternmatchnew")))
 		extenpatternmatchnew_config = ast_true(newpm);
 	clearglobalvars_config = ast_true(ast_variable_retrieve(cfg, "general", "clearglobalvars"));
-	
+	if ((ovsw = ast_variable_retrieve(cfg, "general", "overrideswitch"))) {
+		if (overrideswitch_config) {
+			ast_free(overrideswitch_config);
+		}
+		if (!ast_strlen_zero(ovsw)) {
+			overrideswitch_config = ast_strdup(ovsw);
+		} else {
+			overrideswitch_config = NULL;
+		}
+	}
 
 	if ((cxt = ast_variable_retrieve(cfg, "general", "userscontext"))) 
 		ast_copy_string(userscontext, cxt, sizeof(userscontext));
@@ -1640,6 +1657,7 @@ static int pbx_load_module(void)
 	for (con = NULL; (con = ast_walk_contexts(con));)
 		ast_context_verify_includes(con);
 
+	pbx_set_overrideswitch(overrideswitch_config);
 	pbx_set_autofallthrough(autofallthrough_config);
 	pbx_set_extenpatternmatchnew(extenpatternmatchnew_config);
 

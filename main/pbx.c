@@ -123,6 +123,8 @@ AST_APP_OPTIONS(waitexten_opts, {
 struct ast_context;
 struct ast_app;
 
+AST_THREADSTORAGE(switch_data);
+
 /*!
    \brief ast_exten: An extension
 	The dialplan is saved as a linked list with each context
@@ -166,7 +168,6 @@ struct ast_sw {
 	char *data;				/*!< Data load */
 	int eval;
 	AST_LIST_ENTRY(ast_sw) list;
-	char *tmpdata;
 	char stuff[0];
 };
 
@@ -413,6 +414,7 @@ static struct varshead globals = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 
 static int autofallthrough = 1;
 static int extenpatternmatchnew = 0;
+static char *overrideswitch = NULL;
 
 /*! \brief Subscription for device state change events */
 static struct ast_event_sub *device_state_sub;
@@ -1644,6 +1646,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	struct ast_sw *sw = NULL;
 	struct ast_exten pattern = {NULL, };
 	struct scoreboard score = {0, };
+	struct ast_str *tmpdata = NULL;
 
 	pattern.label = label;
 	pattern.priority = priority;
@@ -1706,6 +1709,65 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	ast_log(LOG_NOTICE,"The Trie we are searching in:\n");
 	log_match_char_tree(tmp->pattern_tree, "::  ");
 #endif
+
+	do {
+		if (!ast_strlen_zero(overrideswitch)) {
+			char *osw = ast_strdupa(overrideswitch), *name;
+			struct ast_switch *asw;
+			ast_switch_f *aswf = NULL;
+			char *datap;
+			int eval = 0;
+
+			name = strsep(&osw, "/");
+			asw = pbx_findswitch(name);
+
+			if (!asw) {
+				ast_log(LOG_WARNING, "No such switch '%s'\n", name);
+				break;
+			}
+
+			if (osw && strchr(osw, '$')) {
+				eval = 1;
+			}
+
+			if (eval && !(tmpdata = ast_str_thread_get(&switch_data, 512))) {
+				ast_log(LOG_WARNING, "Can't evaluate overrideswitch?!");
+				break;
+			} else if (eval) {
+				/* Substitute variables now */
+				pbx_substitute_variables_helper(chan, osw, tmpdata->str, tmpdata->len);
+				datap = tmpdata->str;
+			} else {
+				datap = osw;
+			}
+
+			/* equivalent of extension_match_core() at the switch level */
+			if (action == E_CANMATCH)
+				aswf = asw->canmatch;
+			else if (action == E_MATCHMORE)
+				aswf = asw->matchmore;
+			else /* action == E_MATCH */
+				aswf = asw->exists;
+			if (!aswf) {
+				res = 0;
+			} else {
+				if (chan) {
+					ast_autoservice_start(chan);
+				}
+				res = aswf(chan, context, exten, priority, callerid, datap);
+				if (chan) {
+					ast_autoservice_stop(chan);
+				}
+			}
+			if (res) {	/* Got a match */
+				q->swo = asw;
+				q->data = datap;
+				q->foundcontext = context;
+				/* XXX keep status = STATUS_NO_CONTEXT ? */
+				return NULL;
+			}
+		}
+	} while (0);
 
 	if (extenpatternmatchnew) {
 		new_find_extension(exten, &score, tmp->pattern_tree, 0, 0, callerid);
@@ -1828,8 +1890,13 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		}
 		/* Substitute variables now */
 		
-		if (sw->eval)
-			pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH - 1);
+		if (sw->eval) {
+			if (!(tmpdata = ast_str_thread_get(&switch_data, 512))) {
+				ast_log(LOG_WARNING, "Can't evaluate switch?!");
+				continue;
+			}
+			pbx_substitute_variables_helper(chan, sw->data, tmpdata->str, tmpdata->len);
+		}
 
 		/* equivalent of extension_match_core() at the switch level */
 		if (action == E_CANMATCH)
@@ -1838,7 +1905,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 			aswf = asw->matchmore;
 		else /* action == E_MATCH */
 			aswf = asw->exists;
-		datap = sw->eval ? sw->tmpdata : sw->data;
+		datap = sw->eval ? tmpdata->str : sw->data;
 		if (!aswf)
 			res = 0;
 		else {
@@ -3616,6 +3683,18 @@ int pbx_set_extenpatternmatchnew(int newval)
 	int oldval = extenpatternmatchnew;
 	extenpatternmatchnew = newval;
 	return oldval;
+}
+
+void pbx_set_overrideswitch(const char *newval)
+{
+	if (overrideswitch) {
+		ast_free(overrideswitch);
+	}
+	if (!ast_strlen_zero(newval)) {
+		overrideswitch = ast_strdup(newval);
+	} else {
+		overrideswitch = NULL;
+	}
 }
 
 /*!
@@ -5781,11 +5860,6 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	if (data)
 		length += strlen(data);
 	length++;
-	if (eval) {
-		/* Create buffer for evaluation of variables */
-		length += SWITCH_DATA_LENGTH;
-		length++;
-	}
 
 	/* allocate new sw structure ... */
 	if (!(new_sw = ast_calloc(1, length)))
@@ -5803,8 +5877,6 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 		strcpy(new_sw->data, "");
 		p++;
 	}
-	if (eval)
-		new_sw->tmpdata = p;
 	new_sw->eval	  = eval;
 	new_sw->registrar = registrar;
 
