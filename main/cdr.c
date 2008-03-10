@@ -103,11 +103,6 @@ AST_MUTEX_DEFINE_STATIC(cdr_pending_lock);
 static ast_cond_t cdr_pending_cond;
 
 
-int ast_cdr_log_unanswered(void)
-{
-	return unanswered;
-}
-
 /*! Register a CDR driver. Each registered CDR driver generates a CDR 
 	\return 0 on success, -1 on failure 
 */
@@ -986,6 +981,12 @@ static void post_cdr(struct ast_cdr *cdr)
 	struct ast_cdr_beitem *i;
 
 	for ( ; cdr ; cdr = cdr->next) {
+		if (!unanswered && cdr->disposition < AST_CDR_ANSWERED && (ast_strlen_zero(cdr->channel) || ast_strlen_zero(cdr->dstchannel))) {
+			/* For people, who don't want to see unanswered single-channel events */
+			ast_set_flag(cdr, AST_CDR_FLAG_POST_DISABLED);
+			continue;
+		}
+
 		chan = S_OR(cdr->channel, "<unknown>");
 		check_post(cdr);
 		if (ast_tvzero(cdr->end))
