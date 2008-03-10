@@ -93,7 +93,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/global_datastores.h"
 
-/* Please read before modifying this file.
+/*!
+ * \par Please read before modifying this file.
  * There are three locks which are regularly used
  * throughout this file, the queue list lock, the lock
  * for each individual queue, and the interface list lock.
@@ -132,17 +133,17 @@ static struct strategy {
 
 #define DEFAULT_RETRY		5
 #define DEFAULT_TIMEOUT		15
-#define RECHECK			1		/* Recheck every second to see we we're at the top yet */
-#define MAX_PERIODIC_ANNOUNCEMENTS 10 /* The maximum periodic announcements we can have */
-#define DEFAULT_MIN_ANNOUNCE_FREQUENCY 15 /* The minimum number of seconds between position announcements
-                                             The default value of 15 provides backwards compatibility */
+#define RECHECK			1		/*!< Recheck every second to see we we're at the top yet */
+#define MAX_PERIODIC_ANNOUNCEMENTS 10           /*!< The maximum periodic announcements we can have */
+#define DEFAULT_MIN_ANNOUNCE_FREQUENCY 15       /*!< The minimum number of seconds between position announcements
+                                                     The default value of 15 provides backwards compatibility */
 #define MAX_QUEUE_BUCKETS 53
 
-#define	RES_OKAY	0		/* Action completed */
-#define	RES_EXISTS	(-1)		/* Entry already exists */
-#define	RES_OUTOFMEMORY	(-2)		/* Out of memory */
-#define	RES_NOSUCHQUEUE	(-3)		/* No such queue */
-#define RES_NOT_DYNAMIC (-4)		/* Member is not dynamic */
+#define	RES_OKAY	0		/*!< Action completed */
+#define	RES_EXISTS	(-1)		/*!< Entry already exists */
+#define	RES_OUTOFMEMORY	(-2)		/*!< Out of memory */
+#define	RES_NOSUCHQUEUE	(-3)		/*!< No such queue */
+#define RES_NOT_DYNAMIC (-4)		/*!< Member is not dynamic */
 
 static char *app = "Queue";
 
@@ -313,15 +314,16 @@ const struct {
 };
 
 /*! \brief We define a custom "local user" structure because we
-   use it not only for keeping track of what is in use but
-   also for keeping track of who we're dialing.
-
-   There are two "links" defined in this structure, q_next and call_next.
-   q_next links ALL defined callattempt structures into a linked list. call_next is
-   a link which allows for a subset of the callattempts to be traversed. This subset
-   is used in wait_for_answer so that irrelevant callattempts are not traversed. This
-   also is helpful so that queue logs are always accurate in the case where a call to 
-   a member times out, especially if using the ringall strategy. */
+ *  use it not only for keeping track of what is in use but
+ *  also for keeping track of who we're dialing.
+ *
+ *  There are two "links" defined in this structure, q_next and call_next.
+ *  q_next links ALL defined callattempt structures into a linked list. call_next is
+ *  a link which allows for a subset of the callattempts to be traversed. This subset
+ *  is used in wait_for_answer so that irrelevant callattempts are not traversed. This
+ *  also is helpful so that queue logs are always accurate in the case where a call to 
+ *  a member times out, especially if using the ringall strategy. 
+*/
 
 struct callattempt {
 	struct callattempt *q_next;
@@ -343,7 +345,7 @@ struct queue_ent {
 	char announce[80];                     /*!< Announcement to play for member when call is answered */
 	char context[AST_MAX_CONTEXT];         /*!< Context when user exits queue */
 	char digits[AST_MAX_EXTENSION];        /*!< Digits entered while in queue */
-	int valid_digits;		               /*!< Digits entered correspond to valid extension. Exited */
+	int valid_digits;                      /*!< Digits entered correspond to valid extension. Exited */
 	int pos;                               /*!< Where we are in the queue */
 	int prio;                              /*!< Our priority */
 	int last_pos_said;                     /*!< Last position we told the user */
@@ -355,8 +357,8 @@ struct queue_ent {
 	int pending;                           /*!< Non-zero if we are attempting to call a member */
 	int max_penalty;                       /*!< Limit the members that can take this call to this penalty or lower */
 	int min_penalty;                       /*!< Limit the members that can take this call to this penalty or higher */
-	int linpos;							   /*!< If using linear strategy, what position are we at? */
-	int linwrapped;						   /*!< Is the linpos wrapped? */
+	int linpos;                            /*!< If using linear strategy, what position are we at? */
+	int linwrapped;                        /*!< Is the linpos wrapped? */
 	time_t start;                          /*!< When we started holding */
 	time_t expire;                         /*!< When this entry should expire (time out of queue) */
 	struct ast_channel *chan;              /*!< Our channel */
@@ -572,6 +574,7 @@ static inline struct call_queue *queue_unref(struct call_queue *q)
 	return q;
 }
 
+/*! \brief Set variables of queue */
 static void set_queue_variables(struct queue_ent *qe)
 {
 
@@ -666,7 +669,12 @@ struct statechange {
 	int state;
 	char dev[0];
 };
-/*! \brief set a member's status based on device state of that member's state_interface*/
+
+/*! \brief set a member's status based on device state of that member's state_interface.
+ *  
+ * Lock interface list find sc, iterate through each queues queue_member list for member to
+ * update state inside queues
+*/
 static void *handle_statechange(struct statechange *sc)
 {
 	struct call_queue *q;
@@ -751,9 +759,7 @@ static void *handle_statechange(struct statechange *sc)
 	return NULL;
 }
 
-/*!
- * \brief Data used by the device state thread
- */
+/*! \brief Data used by the device state thread */
 static struct {
 	/*! Set to 1 to stop the thread */
 	unsigned int stop:1;
@@ -803,6 +809,7 @@ static void *device_state_thread(void *data)
 
 	return NULL;
 }
+
 /*! \brief Producer of the statechange queue */
 static int statechange_queue(const char *dev, enum ast_device_state state)
 {
@@ -821,6 +828,7 @@ static int statechange_queue(const char *dev, enum ast_device_state state)
 
 	return 0;
 }
+
 static void device_state_cb(const struct ast_event *event, void *unused)
 {
 	enum ast_device_state state;
@@ -891,6 +899,10 @@ static int member_cmp_fn(void *obj1, void *obj2, int flags)
 	return strcasecmp(mem1->interface, mem2->interface) ? 0 : CMP_MATCH;
 }
 
+/*! 
+ * \brief Initialize Queue default values.
+ * \note the queue's lock  must be held before executing this function
+*/
 static void init_queue(struct call_queue *q)
 {
 	int i;
@@ -1049,7 +1061,15 @@ static void clear_and_free_interfaces(void)
 	AST_LIST_UNLOCK(&interfaces);
 }
 
-/*Note: call this with the rule_lists locked */
+/*! 
+ * \brief Change queue penalty by adding rule.
+ *
+ * Check rule for errors with time or fomatting, see if rule is relative to rest 
+ * of queue, iterate list of rules to find correct insertion point, insert and return.
+ * \retval -1 on failure
+ * \retval 0 on success 
+ * \note Call this with the rule_lists locked 
+*/
 static int insert_penaltychange (const char *list_name, const char *content, const int linenum)
 {
 	char *timestr, *maxstr, *minstr, *contentdup;
@@ -1122,12 +1142,13 @@ static int insert_penaltychange (const char *list_name, const char *content, con
 }
 
 /*! \brief Configure a queue parameter.
-\par
-   For error reporting, line number is passed for .conf static configuration.
-   For Realtime queues, linenum is -1.
-   The failunknown flag is set for config files (and static realtime) to show
-   errors for unknown parameters. It is cleared for dynamic realtime to allow
-   extra fields in the tables. */
+ * 
+ * The failunknown flag is set for config files (and static realtime) to show
+ * errors for unknown parameters. It is cleared for dynamic realtime to allow
+ *  extra fields in the tables.
+ * \note For error reporting, line number is passed for .conf static configuration,
+ * for Realtime queues, linenum is -1.
+*/
 static void queue_set_param(struct call_queue *q, const char *param, const char *val, int linenum, int failunknown)
 {
 	if (!strcasecmp(param, "musicclass") || 
@@ -1294,6 +1315,12 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	}
 }
 
+/*!
+ * \brief Find rt member record to update otherwise create one.
+ *
+ * Search for member in queue, if found update penalty/paused state,
+ * if no memeber exists create one flag it as a RT member and add to queue member list. 
+*/
 static void rt_handle_member_record(struct call_queue *q, char *interface, const char *membername, const char *penalty_str, const char *paused_str, const char* state_interface)
 {
 	struct member *m, tmpmem;
@@ -1341,6 +1368,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 	}
 }
 
+/*! \brief Iterate through queue's member list and delete them */
 static void free_members(struct call_queue *q, int all)
 {
 	/* Free non-dynamic members */
@@ -1357,6 +1385,7 @@ static void free_members(struct call_queue *q, int all)
 	}
 }
 
+/*! \brief Free queue's member list then its string fields */
 static void destroy_queue(void *obj)
 {
 	struct call_queue *q = obj;
@@ -1387,9 +1416,16 @@ static struct call_queue *alloc_queue(const char *queuename)
 	return q;
 }
 
-/*!\brief Reload a single queue via realtime.
-   \return Return the queue, or NULL if it doesn't exist.
-   \note Should be called with the global qlock locked. */
+/*!
+ * \brief Reload a single queue via realtime.
+ *
+ * Check for statically defined queue first, check if deleted RT queue,
+ * check for new RT queue, if queue vars are not defined init them with defaults.
+ * reload RT queue vars, set RT queue members dead and reload them, return finished queue.
+ * \retval the queue, 
+ * \retval NULL if it doesn't exist.
+ * \note Should be called with the "queues" container locked. 
+*/
 static struct call_queue *find_queue_by_name_rt(const char *queuename, struct ast_variable *queue_vars, struct ast_config *member_config)
 {
 	struct ast_variable *v;
@@ -1530,7 +1566,7 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 	q = ao2_find(queues, &tmpq, OBJ_POINTER);
 
 	if (!q || q->realtime) {
-		/*! \note Load from realtime before taking the global qlock, to avoid blocking all
+		/*! \note Load from realtime before taking the "queues" container lock, to avoid blocking all
 		   queue operations while waiting for the DB.
 
 		   This will be two separate database transactions, so we might
@@ -1708,6 +1744,11 @@ static int play_file(struct ast_channel *chan, const char *filename)
 	return res;
 }
 
+/*!
+ * \brief Check for valid exit from queue via goto
+ * \retval 0 if failure
+ * \retval 1 if successful
+*/
 static int valid_exit(struct queue_ent *qe, char digit)
 {
 	int digitlen = strlen(qe->digits);
@@ -1867,7 +1908,11 @@ static void recalc_holdtime(struct queue_ent *qe, int newholdtime)
 	ao2_unlock(qe->parent);
 }
 
-
+/*! \brief Caller leaving queue.
+ * 
+ * Search the queue to find the leaving client, if found remove from queue
+ * create manager event, move others up the queue.
+*/
 static void leave_queue(struct queue_ent *qe)
 {
 	struct call_queue *q;
@@ -1922,7 +1967,7 @@ static void leave_queue(struct queue_ent *qe)
 	queue_unref(q);
 }
 
-/* Hang up a list of outgoing calls */
+/*! \brief Hang up a list of outgoing calls */
 static void hangupcalls(struct callattempt *outgoing, struct ast_channel *exception)
 {
 	struct callattempt *oo;
@@ -1988,8 +2033,11 @@ static int update_dial_status(struct call_queue *q, struct member *member, int s
 	return update_status(q, member, status);
 }
 
-/* traverse all defined queues which have calls waiting and contain this member
-   return 0 if no other queue has precedence (higher weight) or 1 if found  */
+/*! 
+ * \brief traverse all defined queues which have calls waiting and contain this member
+ * \retval 0 if no other queue has precedence (higher weight) 
+ * \retval 1 if found  
+*/
 static int compare_weight(struct call_queue *rq, struct member *member)
 {
 	struct call_queue *q;
@@ -1997,7 +2045,7 @@ static int compare_weight(struct call_queue *rq, struct member *member)
 	int found = 0;
 	struct ao2_iterator queue_iter;
 	
-	/* &qlock and &rq->lock already set by try_calling()
+	/* q's lock and rq's lock already set by try_calling()
 	 * to solve deadlock */
 	queue_iter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_iterator_next(&queue_iter))) {
@@ -2034,6 +2082,7 @@ static void do_hang(struct callattempt *o)
 	o->chan = NULL;
 }
 
+/*! \brief convert "\n" to "\nVariable: " ready for manager to use */
 static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 {
 	struct ast_str *buf = ast_str_alloca(len + 1);
@@ -2071,10 +2120,19 @@ static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 	return vars;
 }
 
-/*! \brief Part 2 of ring_one
+/*! 
+ * \brief Part 2 of ring_one
  *
- * Does error checking before attempting to request a channel and call a member. This
- * function is only called from ring_one
+ * Does error checking before attempting to request a channel and call a member. 
+ * This function is only called from ring_one(). 
+ * Failure can occur if:
+ * - Agent on call
+ * - Agent is paused
+ * - Wrapup time not expired
+ * - Priority by another queue
+ *
+ * \retval 1 on success to reach a free agent
+ * \retval 0 on failure to get agent.
  */
 static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies)
 {
@@ -2224,13 +2282,15 @@ static struct callattempt *find_best(struct callattempt *outgoing)
 	return best;
 }
 
-/*! \brief Place a call to a queue member
+/*! 
+ * \brief Place a call to a queue member.
  *
  * Once metrics have been calculated for each member, this function is used
  * to place a call to the appropriate member (or members). The low-level
  * channel-handling and error detection is handled in ring_entry
  *
- * Returns 1 if a member was called successfully, 0 otherwise
+ * \retval 1 if a member was called successfully
+ * \retval 0 otherwise
  */
 static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *busies)
 {
@@ -2261,6 +2321,7 @@ static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *bus
 	return ret;
 }
 
+/*! \brief Search for best metric and add to Round Robbin queue */
 static int store_next_rr(struct queue_ent *qe, struct callattempt *outgoing)
 {
 	struct callattempt *best = find_best(outgoing);
@@ -2284,6 +2345,7 @@ static int store_next_rr(struct queue_ent *qe, struct callattempt *outgoing)
 	return 0;
 }
 
+/*! \brief Search for best metric and add to Linear queue */
 static int store_next_lin(struct queue_ent *qe, struct callattempt *outgoing)
 {
 	struct callattempt *best = find_best(outgoing);
@@ -2307,6 +2369,7 @@ static int store_next_lin(struct queue_ent *qe, struct callattempt *outgoing)
 	return 0;
 }
 
+/*! \brief Playback announcement to queued members if peroid has elapsed */
 static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 {
 	int res = 0;
@@ -2357,6 +2420,7 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 	return res;
 }
 
+/*! \brief Record that a caller gave up on waiting in queue */
 static void record_abandoned(struct queue_ent *qe)
 {
 	ao2_lock(qe->parent);
@@ -2645,7 +2709,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 
 	return peer;
 }
-/*! \brief Check if we should start attempting to call queue members
+
+/*! 
+ * \brief Check if we should start attempting to call queue members.
  *
  * The behavior of this function is dependent first on whether autofill is enabled
  * and second on whether the ring strategy is ringall. If autofill is not enabled,
@@ -2723,6 +2789,13 @@ static int is_our_turn(struct queue_ent *qe)
 
 	return res;
 }
+
+/*!
+ * \brief update rules for queues
+ *
+ * Calculate min/max penalties making sure if relative they stay within bounds.
+ * Update queues penalty and set dialplan vars, goto next list entry.
+*/
 static void update_qe_rule(struct queue_ent *qe)
 {
 	int max_penalty = qe->pr->max_relative ? qe->max_penalty + qe->pr->max_value : qe->pr->max_value;
@@ -2823,6 +2896,10 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 	return res;
 }
 
+/*!
+ * \brief update the queue status
+ * \retval Always 0
+*/
 static int update_queue(struct call_queue *q, struct member *member, int callcompletedinsl)
 {
 	struct member *mem;
@@ -2862,6 +2939,8 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
  * A numeric metric is given to each member depending on the ring strategy used
  * by the queue. Members with lower metrics will be called before members with
  * higher metrics
+ * \retval -1 if penalties are exceeded
+ * \retval 0 otherwise
  */
 static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct callattempt *tmp)
 {
@@ -2926,6 +3005,7 @@ enum agent_complete_reason {
 	TRANSFER
 };
 
+/*! \brief Send out AMI message with member call completion status information */
 static void send_agent_complete(const struct queue_ent *qe, const char *queuename,
 	const struct ast_channel *peer, const struct member *member, time_t callstart,
 	char *vars, size_t vars_len, enum agent_complete_reason rsn)
@@ -2961,6 +3041,7 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
 		(long)(callstart - qe->start), (long)(time(NULL) - callstart), reason,
 		qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, vars_len) : "");
 }
+
 /*! \brief A large function which calls members, updates statistics, and bridges the caller and a member
  * 
  * Here is the process of this function
@@ -3649,10 +3730,9 @@ static struct member *interface_exists(struct call_queue *q, const char *interfa
 }
 
 
-/* Dump all members in a specific queue to the database
+/*! \brief Dump all members in a specific queue to the database
  *
  * <pm_family>/<queuename> = <interface>;<penalty>;<paused>[|...]
- *
  */
 static void dump_queue_members(struct call_queue *pm_queue)
 {
@@ -3694,6 +3774,12 @@ static void dump_queue_members(struct call_queue *pm_queue)
 		ast_db_del(pm_family, pm_queue->name);
 }
 
+/*! \brief Remove member from queue 
+ * \retval RES_NOT_DYNAMIC when they aren't a RT member
+ * \retval RES_NOSUCHQUEUE queue does not exist
+ * \retval RES_OKAY removed member from queue
+ * \retval RES_EXISTS queue exists but no members
+*/
 static int remove_from_queue(const char *queuename, const char *interface)
 {
 	struct call_queue *q, tmpq = {
@@ -3736,14 +3822,20 @@ static int remove_from_queue(const char *queuename, const char *interface)
 	return res;
 }
 
-
+/*! \brief Add member to queue 
+ * \retval RES_NOT_DYNAMIC when they aren't a RT member
+ * \retval RES_NOSUCHQUEUE queue does not exist
+ * \retval RES_OKAY added member from queue
+ * \retval RES_EXISTS queue exists but no members
+ * \retval RES_OUT_OF_MEMORY queue exists but not enough memory to create member
+*/
 static int add_to_queue(const char *queuename, const char *interface, const char *membername, int penalty, int paused, int dump, const char *state_interface)
 {
 	struct call_queue *q;
 	struct member *new_member, *old_member;
 	int res = RES_NOSUCHQUEUE;
 
-	/* \note Ensure the appropriate realtime queue is loaded.  Note that this
+	/*! \note Ensure the appropriate realtime queue is loaded.  Note that this
 	 * short-circuits if the queue is already in memory. */
 	if (!(q = load_realtime_queue(queuename)))
 		return res;
@@ -3896,8 +3988,8 @@ static int set_member_penalty(char *queuename, char *interface, int penalty)
 }
 
 /* \brief Gets members penalty. 
- * 
- * \return Return the members penalty or RESULT_FAILURE on error. */
+ * \return Return the members penalty or RESULT_FAILURE on error. 
+*/
 static int get_member_penalty(char *queuename, char *interface)
 {
 	int foundqueue = 0, penalty;
@@ -3928,7 +4020,7 @@ static int get_member_penalty(char *queuename, char *interface)
 	return RESULT_FAILURE;
 }
 
-/* Reload dynamic queue members persisted into the astdb */
+/*! \brief Reload dynamic queue members persisted into the astdb */
 static void reload_queue_members(void)
 {
 	char *cur_ptr;	
@@ -4025,6 +4117,7 @@ static void reload_queue_members(void)
 	}
 }
 
+/*! \brief PauseQueueMember application */
 static int pqm_exec(struct ast_channel *chan, void *data)
 {
 	char *parse;
@@ -4036,7 +4129,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "PauseQueueMember requires an argument ([queuename]|interface[|options][|reason])\n");
+		ast_log(LOG_WARNING, "PauseQueueMember requires an argument ([queuename],interface[,options][,reason])\n");
 		return -1;
 	}
 
@@ -4045,7 +4138,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (ast_strlen_zero(args.interface)) {
-		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options[|reason]])\n");
+		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename],interface[,options[,reason]])\n");
 		return -1;
 	}
 
@@ -4060,6 +4153,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+/*! \brief UnPauseQueueMember application */
 static int upqm_exec(struct ast_channel *chan, void *data)
 {
 	char *parse;
@@ -4071,7 +4165,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "UnpauseQueueMember requires an argument ([queuename]|interface[|options[|reason]])\n");
+		ast_log(LOG_WARNING, "UnpauseQueueMember requires an argument ([queuename],interface[,options[,reason]])\n");
 		return -1;
 	}
 
@@ -4080,7 +4174,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (ast_strlen_zero(args.interface)) {
-		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options[|reason]])\n");
+		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename],interface[,options[,reason]])\n");
 		return -1;
 	}
 
@@ -4095,6 +4189,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+/*! \brief RemoveQueueMember application */
 static int rqm_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
@@ -4107,7 +4202,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "RemoveQueueMember requires an argument (queuename[|interface[|options]])\n");
+		ast_log(LOG_WARNING, "RemoveQueueMember requires an argument (queuename[,interface[,options]])\n");
 		return -1;
 	}
 
@@ -4149,6 +4244,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+/*! \brief AddQueueMember application */
 static int aqm_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
@@ -4164,7 +4260,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 	int penalty = 0;
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "AddQueueMember requires an argument (queuename[|[interface]|[penalty][|options][|membername]])\n");
+		ast_log(LOG_WARNING, "AddQueueMember requires an argument (queuename[,[interface],[penalty][,options][,membername]])\n");
 		return -1;
 	}
 
@@ -4211,6 +4307,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+/*! \brief QueueLog application */
 static int ql_exec(struct ast_channel *chan, void *data)
 {
 	char *parse;
@@ -4224,7 +4321,7 @@ static int ql_exec(struct ast_channel *chan, void *data)
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "QueueLog requires arguments (queuename|uniqueid|membername|event[|additionalinfo]\n");
+		ast_log(LOG_WARNING, "QueueLog requires arguments (queuename,uniqueid,membername,event[,additionalinfo]\n");
 		return -1;
 	}
 
@@ -4234,7 +4331,7 @@ static int ql_exec(struct ast_channel *chan, void *data)
 
 	if (ast_strlen_zero(args.queuename) || ast_strlen_zero(args.uniqueid)
 	    || ast_strlen_zero(args.membername) || ast_strlen_zero(args.event)) {
-		ast_log(LOG_WARNING, "QueueLog requires arguments (queuename|uniqueid|membername|event[|additionalinfo])\n");
+		ast_log(LOG_WARNING, "QueueLog requires arguments (queuename,uniqueid,membername,event[,additionalinfo])\n");
 		return -1;
 	}
 
@@ -4244,6 +4341,7 @@ static int ql_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+/*! \brief Copy rule from global list into specified queue */
 static void copy_rules(struct queue_ent *qe, const char *rulename)
 {
 	struct penalty_rule *pr_iter;
@@ -4557,6 +4655,11 @@ stop:
 	return res;
 }
 
+/*!
+ * \brief create interface var with all queue details.
+ * \retval 0 on success
+ * \retval -1 on error
+*/
 static int queue_function_var(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int res = -1;
@@ -4598,6 +4701,11 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 	return 0;
 }
 
+/*! 
+ * \brief Get number either busy / free or total members of a specific queue
+ * \retval number of members (busy / free / total)
+ * \retval -1 on error
+*/
 static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
@@ -4647,6 +4755,11 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 	return 0;
 }
 
+/*! 
+ * \brief Get the total number of members in a specific queue (Deprecated)
+ * \retval number of members 
+ * \retval -1 on error 
+*/
 static int queue_function_qac_dep(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
@@ -4685,7 +4798,7 @@ static int queue_function_qac_dep(struct ast_channel *chan, const char *cmd, cha
 	return 0;
 }
 
-
+/*! \brief Dialplan function QUEUE_WAITING_COUNT() Get number callers waiting in a specific queue */
 static int queue_function_queuewaitingcount(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
@@ -4697,7 +4810,7 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, const char
 	buf[0] = '\0';
 	
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
+		ast_log(LOG_ERROR, "QUEUE_WAITING_COUNT requires an argument: queuename\n");
 		return -1;
 	}
 
@@ -4721,6 +4834,7 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, const char
 	return 0;
 }
 
+/*! \brief Dialplan function QUEUE_MEMBER_LIST() Get list of members in a specific queue */
 static int queue_function_queuememberlist(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct call_queue *q, tmpq = {
@@ -4768,8 +4882,7 @@ static int queue_function_queuememberlist(struct ast_channel *chan, const char *
 	return 0;
 }
 
-/*! \brief Dialplan function QUEUE_MEMBER_PENALTY() 
- * Gets the members penalty. */
+/*! \brief Dialplan function QUEUE_MEMBER_PENALTY() Gets the members penalty. */
 static int queue_function_memberpenalty_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int penalty;
@@ -4800,8 +4913,7 @@ static int queue_function_memberpenalty_read(struct ast_channel *chan, const cha
 	return 0;
 }
 
-/*! Dialplan function QUEUE_MEMBER_PENALTY() 
- * Sets the members penalty. */
+/*! \brief Dialplan function QUEUE_MEMBER_PENALTY() Sets the members penalty. */
 static int queue_function_memberpenalty_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
 	int penalty;
@@ -5178,6 +5290,12 @@ static void do_print(struct mansession *s, int fd, const char *str)
 		ast_cli(fd, "%s\n", str);
 }
 
+/*! 
+ * \brief Show queue(s) status and statistics 
+ * 
+ * List the queues strategy, calls processed, members logged in,
+ * other queue statistics such as avg hold time.
+*/
 static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 {
 	struct call_queue *q;
@@ -5355,7 +5473,7 @@ static int manager_queue_rule_show(struct mansession *s, const struct message *m
 	return RESULT_SUCCESS;
 }
 
-/* Dump summary of queue info */
+/*! \brief Summary of queue info via the AMI */
 static int manager_queues_summary(struct mansession *s, const struct message *m)
 {
 	time_t now;
@@ -5427,7 +5545,7 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 	return RESULT_SUCCESS;
 }
 
-/* Dump queue status */
+/*! \brief Queue status info via AMI */
 static int manager_queues_status(struct mansession *s, const struct message *m)
 {
 	time_t now;
