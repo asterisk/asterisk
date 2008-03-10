@@ -60,6 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/threadstorage.h"
 
 /*!
  * \note I M P O R T A N T :
@@ -105,6 +106,8 @@ AST_APP_OPTIONS(waitexten_opts, {
 
 struct ast_context;
 
+AST_THREADSTORAGE(switch_data, switch_data_init);
+
 /*!
    \brief ast_exten: An extension
 	The dialplan is saved as a linked list with each context
@@ -145,7 +148,6 @@ struct ast_sw {
 	char *data;				/*!< Data load */
 	int eval;
 	AST_LIST_ENTRY(ast_sw) list;
-	char *tmpdata;
 	char stuff[0];
 };
 
@@ -946,6 +948,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	struct ast_exten *e, *eroot;
 	struct ast_include *i;
 	struct ast_sw *sw;
+	char *tmpdata = NULL;
 
 	/* Initialize status if appropriate */
 	if (q->stacklen == 0) {
@@ -1024,8 +1027,13 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 			continue;
 		}
 		/* Substitute variables now */
-		if (sw->eval)
-			pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH - 1);
+		if (sw->eval) {
+			if (!(tmpdata = ast_threadstorage_get(&switch_data, 512))) {
+				ast_log(LOG_WARNING, "Can't evaluate switch?!");
+				continue;
+			}
+			pbx_substitute_variables_helper(chan, sw->data, tmpdata, 512);
+		}
 
 		/* equivalent of extension_match_core() at the switch level */
 		if (action == E_CANMATCH)
@@ -1034,7 +1042,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 			aswf = asw->matchmore;
 		else /* action == E_MATCH */
 			aswf = asw->exists;
-		datap = sw->eval ? sw->tmpdata : sw->data;
+		datap = sw->eval ? tmpdata : sw->data;
 		if (!aswf)
 			res = 0;
 		else {
@@ -4389,11 +4397,6 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	if (data)
 		length += strlen(data);
 	length++;
-	if (eval) {
-		/* Create buffer for evaluation of variables */
-		length += SWITCH_DATA_LENGTH;
-		length++;
-	}
 
 	/* allocate new sw structure ... */
 	if (!(new_sw = ast_calloc(1, length)))
@@ -4411,8 +4414,6 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 		strcpy(new_sw->data, "");
 		p++;
 	}
-	if (eval)
-		new_sw->tmpdata = p;
 	new_sw->eval	  = eval;
 	new_sw->registrar = registrar;
 
