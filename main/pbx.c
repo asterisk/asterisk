@@ -5016,6 +5016,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 						if (channel)
 							*channel = NULL;
 						ast_hangup(chan);
+						chan = NULL;
 						res = -1;
 					}
 				} else {
@@ -5026,6 +5027,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 							ast_channel_unlock(chan);
 						}
 						ast_hangup(chan);
+						chan = NULL;
 						res = -1;
 					}
 				}
@@ -5045,6 +5047,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 					ast_channel_unlock(chan);
 				}
 				ast_hangup(chan);
+				chan = NULL;
 			}
 		}
 
@@ -5072,7 +5075,11 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 					pbx_builtin_setvar_helper(chan, "REASON", failed_reason);
 					if (account)
 						ast_cdr_setaccount(chan, account);
-					ast_pbx_run(chan);
+					if (ast_pbx_run(chan)) {
+						ast_log(LOG_ERROR, "Unable to run PBX on %s\n", chan->name);
+						ast_hangup(chan);
+					}
+					chan = NULL;
 				}
 			}
 		}
