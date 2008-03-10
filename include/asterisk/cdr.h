@@ -106,7 +106,6 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 int ast_cdr_serialize_variables(struct ast_cdr *cdr, struct ast_str **buf, char delim, char sep, int recur);
 void ast_cdr_free_vars(struct ast_cdr *cdr, int recur);
 int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr);
-int ast_cdr_log_unanswered(void);
 
 typedef int (*ast_cdrbe)(struct ast_cdr *cdr);
 

@@ -836,23 +836,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 		if (!*to || ast_check_hangup(in))
 			ast_cdr_noanswer(in->cdr);
 	}
-	if (peer && !ast_cdr_log_unanswered()) {
-		/* suppress the CDR's that didn't win */
-		struct chanlist *o;
-		for (o = outgoing; o; o = o->next) {
-			struct ast_channel *c = o->chan;
-			if (c && c != peer && c->cdr)
-				ast_set_flag(c->cdr, AST_CDR_FLAG_POST_DISABLED);
-		}
-	} else if (!peer && !ast_cdr_log_unanswered()) {
-			/* suppress the CDR's that didn't win */
-		struct chanlist *o;
-		for (o = outgoing; o; o = o->next) {
-			struct ast_channel *c = o->chan;
-			if (c && c->cdr)
-				ast_set_flag(c->cdr, AST_CDR_FLAG_POST_DISABLED);
-		}
-	}
 
 #ifdef HAVE_EPOLL
 	for (epollo = outgoing; epollo; epollo = epollo->next) {
