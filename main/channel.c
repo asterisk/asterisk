@@ -1554,7 +1554,7 @@ static int generator_force(const void *data)
 	/* Called if generator doesn't have data */
 	void *tmp;
 	int res;
-	int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
+	int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples) = NULL;
 	struct ast_channel *chan = (struct ast_channel *)data;
 
 	ast_channel_lock(chan);
