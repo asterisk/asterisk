@@ -1711,8 +1711,12 @@ static int generator_force(const void *data)
 	ast_channel_lock(chan);
 	tmp = chan->generatordata;
 	chan->generatordata = NULL;
-	generate = chan->generator->generate;
+	if (chan->generator)
+		generate = chan->generator->generate;
 	ast_channel_unlock(chan);
+
+	if (!tmp || !generate)
+		return 0;
 
 	res = generate(chan, tmp, 0, 160);
 
