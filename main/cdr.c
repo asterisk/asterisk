@@ -200,11 +200,13 @@ static void cdr_get_tv(struct timeval tv, const char *fmt, char *buf, int bufsiz
 {
 	if (fmt == NULL) {	/* raw mode */
 		snprintf(buf, bufsize, "%ld.%06ld", (long)tv.tv_sec, (long)tv.tv_usec);
-	} else {  
-		struct ast_tm tm;
-
-		ast_localtime(&tv, &tm, NULL);
-		ast_strftime(buf, bufsize, fmt, &tm);
+	} else {
+		if (tv.tv_sec) {
+			struct ast_tm tm;
+			
+			ast_localtime(&tv, &tm, NULL);
+			ast_strftime(buf, bufsize, fmt, &tm);
+		}
 	}
 }
 
