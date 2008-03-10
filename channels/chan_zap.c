@@ -4571,6 +4571,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 			update_conf(p);
 			break;
 		case ZT_EVENT_RINGOFFHOOK:
+			zt_enable_ec(p);
 			zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
 			if (p->owner && (p->owner->_state == AST_STATE_RINGING)) {
 				p->subs[SUB_REAL].needanswer = 1;
