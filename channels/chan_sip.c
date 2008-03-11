@@ -3983,6 +3983,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	}
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate AST channel structure for SIP channel\n");
+		ast_mutex_lock(&i->lock);
 		return NULL;
 	}
 	ast_mutex_lock(&i->lock);
