@@ -2554,7 +2554,8 @@ static struct ast_channel *vpb_request(const char *type, int format, void *vdata
 	int oldformat;
 	struct vpb_pvt *p;
 	struct ast_channel *tmp = NULL;
-	char *s, *sepstr, *data = (char *)vdata, *name;
+	char *sepstr, *data = (char *)vdata, *name;
+	const char *s;
 	int group = -1;
 
 	oldformat = format;
