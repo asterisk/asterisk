@@ -59,7 +59,7 @@ enum {
 
 static struct ast_flags config = { 0 };
 
-static SQLHSTMT prepare_cb(struct odbc_obj *obj, void *data)
+static SQLHSTMT execute_cb(struct odbc_obj *obj, void *data)
 {
 	struct ast_cdr *cdr = data;
 	SQLRETURN ODBC_res;
@@ -90,14 +90,6 @@ static SQLHSTMT prepare_cb(struct odbc_obj *obj, void *data)
 		return NULL;
 	}
 
-	ODBC_res = SQLPrepare(stmt, (unsigned char *)sqlcmd, SQL_NTS);
-	
-	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-		ast_verb(11, "cdr_odbc: Error in PREPARE %d\n", ODBC_res);
-		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-		return NULL;
-	}
-
 	SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->clid), 0, cdr->clid, 0, NULL);
 	SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->src), 0, cdr->src, 0, NULL);
 	SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dst), 0, cdr->dst, 0, NULL);
@@ -120,6 +112,14 @@ static SQLHSTMT prepare_cb(struct odbc_obj *obj, void *data)
 		SQLBindParameter(stmt, 15, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->userfield), 0, cdr->userfield, 0, NULL);
 	}
 
+	ODBC_res = SQLExecDirect(stmt, (unsigned char *)sqlcmd, SQL_NTS);
+	
+	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
+		ast_verb(11, "cdr_odbc: Error in ExecDirect: %d\n", ODBC_res);
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+
 	return stmt;
 }
 
@@ -134,7 +134,7 @@ static int odbc_log(struct ast_cdr *cdr)
 		return -1;
 	}
 
-	stmt = ast_odbc_prepare_and_execute(obj, prepare_cb, cdr);
+	stmt = ast_odbc_direct_execute(obj, execute_cb, cdr);
 	if (stmt) {
 		SQLLEN rows = 0;
 
@@ -144,7 +144,7 @@ static int odbc_log(struct ast_cdr *cdr)
 		if (rows == 0)
 			ast_log(LOG_WARNING, "CDR successfully ran, but inserted 0 rows?\n");
 	} else
-		ast_log(LOG_ERROR, "CDR prepare or execute failed\n");
+		ast_log(LOG_ERROR, "CDR direct execute failed\n");
 	ast_odbc_release_obj(obj);
 	return 0;
 }
