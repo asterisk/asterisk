@@ -844,6 +844,7 @@ void ast_udptl_set_peer(struct ast_udptl *udptl, struct sockaddr_in *them)
 
 void ast_udptl_get_peer(struct ast_udptl *udptl, struct sockaddr_in *them)
 {
+	memset(them, 0, sizeof(*them));
 	them->sin_family = AF_INET;
 	them->sin_port = udptl->them.sin_port;
 	them->sin_addr = udptl->them.sin_addr;
@@ -1009,13 +1010,15 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	}
 	if (pr0->set_udptl_peer(c0, p1)) {
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
+		memset(&ac1, 0, sizeof(ac1));
 	} else {
 		/* Store UDPTL peer */
 		ast_udptl_get_peer(p1, &ac1);
 	}
-	if (pr1->set_udptl_peer(c1, p0))
+	if (pr1->set_udptl_peer(c1, p0)) {
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
-	else {
+		memset(&ac0, 0, sizeof(ac0));
+	} else {
 		/* Store UDPTL peer */
 		ast_udptl_get_peer(p0, &ac0);
 	}

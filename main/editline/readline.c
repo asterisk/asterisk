@@ -1203,7 +1203,6 @@ filename_completion_function(const char *text, int state)
 	struct dirent *entry;
 	char *temp;
 	size_t len;
-	int count = 0;
 
 	temp = strrchr(text, '/');
 	if (temp) {
