@@ -2,7 +2,10 @@
 --- Functionality changes from Asterisk 1.6.0 to Asterisk 1.6.1  -------------
 ------------------------------------------------------------------------------
 
-
+Dialplan Functions
+------------------
+ * Added a new dialplan function, AST_CONFIG(), which allows you to access
+   variables from an Asterisk configuration file.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------
