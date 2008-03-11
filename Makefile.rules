@@ -61,7 +61,7 @@ endif
 
 %.oo: %.cc
 	$(ECHO_PREFIX) echo "   [CXX] $< -> $@"
-	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(PTHREAD_CFLAGS) $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations,$(ASTCFLAGS)) $(MAKE_DEPS)
+	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(PTHREAD_CFLAGS) $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(AST_DECLARATION_AFTER_STATEMENT),$(ASTCFLAGS)) $(MAKE_DEPS)
 
 %.c: %.y
 	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"
