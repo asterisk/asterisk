@@ -2008,13 +2008,9 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	struct chan_list *ch=MISDN_ASTERISK_TECH_PVT(ast);
 	struct misdn_bchannel *newbc;
 	char *opts=NULL, *ext;
-	char dest_cp[256];
 
 	{
-		strncpy(dest_cp,dest,sizeof(dest_cp)-1);
-		dest_cp[sizeof(dest_cp)]=0;
-
-		ext=dest_cp;
+		ext = ast_strdupa(dest);
 		strsep(&ext,"/");
 		if (ext) {
 			opts=ext;
