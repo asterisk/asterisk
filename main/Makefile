@@ -123,7 +123,7 @@ testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 
 channel.o: ASTCFLAGS+=$(ZAPTEL_INCLUDE)
 
-stdtime/localtime.o: ASTCFLAGS+=-fno-strict-overflow
+stdtime/localtime.o: ASTCFLAGS+=$(AST_NO_STRICT_OVERFLOW)
 
 AST_EMBED_LDSCRIPTS:=$(sort $(EMBED_LDSCRIPTS))
 AST_EMBED_LDFLAGS:=$(foreach dep,$(EMBED_LDFLAGS),$(value $(dep)))
