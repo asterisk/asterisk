@@ -1878,6 +1878,13 @@ static int gtalk_load_config(void)
 /*! \brief Load module into PBX, register channel */
 static int load_module(void)
 {
+	char *jabber_loaded = ast_module_helper("", "res_jabber.so", 0, 0, 0, 0);
+	free(jabber_loaded);
+	if (!jabber_loaded) {
+		ast_log(LOG_ERROR, "chan_gtalk.so depends upon res_jabber.so\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 #ifdef HAVE_GNUTLS	
         gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
 #endif /* HAVE_GNUTLS */
