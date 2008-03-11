@@ -7927,7 +7927,7 @@ static int load_module(void)
 	char *adsi_loaded = ast_module_helper("", "res_adsi.so", 0, 0, 0, 0);
 	free(adsi_loaded);
 	if (!adsi_loaded) {
-		ast_log(LOG_ERROR, "app_voicemail.so depends upon res_adsi.so");
+		ast_log(LOG_ERROR, "app_voicemail.so depends upon res_adsi.so\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
