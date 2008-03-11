@@ -6340,13 +6340,27 @@ static int vm_instructions_en(struct ast_channel *chan, struct vm_state *vms, in
 	while (!res) {
 		if (vms->starting) {
 			if (vms->lastmsg > -1) {
-				res = ast_play_and_wait(chan, "vm-onefor");
+				if (skipadvanced)
+					res = ast_play_and_wait(chan, "vm-onefor-full");
+				else
+					res = ast_play_and_wait(chan, "vm-onefor");
 				if (!res)
 					res = vm_play_folder_name(chan, vms->vmbox);
 			}
-			if (!res)
-				res = ast_play_and_wait(chan, "vm-opts");
+			if (!res) {
+				if (skipadvanced)
+					res = ast_play_and_wait(chan, "vm-opts-full");
+				else
+					res = ast_play_and_wait(chan, "vm-opts");
+			}
 		} else {
+			/* Added for additional help */
+			if (skipadvanced)  {
+				res = ast_play_and_wait(chan, "vm-onefor-full");
+				if (!res)
+					res = vm_play_folder_name(chan, vms->vmbox);
+				res = ast_play_and_wait(chan, "vm-opts-full");
+                        }
 			if (vms->curmsg)
 				res = ast_play_and_wait(chan, "vm-prev");
 			if (!res && !skipadvanced)
@@ -6366,8 +6380,12 @@ static int vm_instructions_en(struct ast_channel *chan, struct vm_state *vms, in
 					res = ast_play_and_wait(chan, "vm-savemessage");
 			}
 		}
-		if (!res)
-			res = ast_play_and_wait(chan, "vm-helpexit");
+		if (!res) {
+			if (skipadvanced)
+				res = ast_play_and_wait(chan, "vm-helpexit-full");
+			else
+				res = ast_play_and_wait(chan, "vm-helpexit");
+		}
 		if (!res)
 			res = ast_waitfordigit(chan, 6000);
 		if (!res) {
