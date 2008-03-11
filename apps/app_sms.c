@@ -528,9 +528,10 @@ static void packdate(unsigned char *o, time_t w)
 }
 
 /*! \brief unpack a date and return */
-static time_t unpackdate(unsigned char *i)
+static struct timeval unpackdate(unsigned char *i)
 {
-	struct tm t;
+	struct ast_tm t;
+
 	t.tm_year = 100 + (i[0] & 0xF) * 10 + (i[0] >> 4);
 	t.tm_mon = (i[1] & 0xF) * 10 + (i[1] >> 4) - 1;
 	t.tm_mday = (i[2] & 0xF) * 10 + (i[2] >> 4);
@@ -542,6 +543,7 @@ static time_t unpackdate(unsigned char *i)
 		t.tm_min += 15 * ((i[6] & 0x7) * 10 + (i[6] >> 4));
 	else
 		t.tm_min -= 15 * ((i[6] & 0x7) * 10 + (i[6] >> 4));
+
 	return ast_mktime(&t, NULL);
 }
 
@@ -1058,7 +1060,7 @@ static unsigned char sms_handleincoming (sms_t * h)
 			p += unpackaddress(h->oa, h->imsg + p);
 			h->pid = h->imsg[p++];
 			h->dcs = h->imsg[p++];
-			h->scts.tv_sec = unpackdate(h->imsg + p);
+			h->scts = unpackdate(h->imsg + p);
 			p += 7;
 			p += unpacksms(h->dcs, h->imsg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
 			h->rx = 1;				 /* received message */
