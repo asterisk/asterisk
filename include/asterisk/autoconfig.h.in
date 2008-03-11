@@ -30,9 +30,6 @@
 /* Define to indicate the ${ACOS_DESCRIP} library version */
 #undef HAVE_ACOS_VERSION
 
-/* Define to 1 if you have the `alarm' function. */
-#undef HAVE_ALARM
-
 /* Define to 1 if you have `alloca', as a function or macro. */
 #undef HAVE_ALLOCA
 

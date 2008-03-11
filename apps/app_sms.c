@@ -542,7 +542,7 @@ static time_t unpackdate(unsigned char *i)
 		t.tm_min += 15 * ((i[6] & 0x7) * 10 + (i[6] >> 4));
 	else
 		t.tm_min -= 15 * ((i[6] & 0x7) * 10 + (i[6] >> 4));
-	return mktime(&t);
+	return ast_mktime(&t, NULL);
 }
 
 /*! \brief unpacks bytes (7 bit encoding) at i, len l septets, 
