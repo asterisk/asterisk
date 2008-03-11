@@ -751,19 +751,21 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					ast_debug(1, "Dunno what to do with control type %d\n", f->subclass);
 				}
 			} else if (single) {
-				/* XXX are we sure the logic is correct ? or we should just switch on f->frametype ? */
-				if (f->frametype == AST_FRAME_VOICE && !ast_test_flag64(outgoing, OPT_RINGBACK|OPT_MUSICBACK)) {
-					if (ast_write(in, f))
-						ast_log(LOG_WARNING, "Unable to forward voice frame\n");
-				} else if (f->frametype == AST_FRAME_IMAGE && !ast_test_flag64(outgoing, OPT_RINGBACK|OPT_MUSICBACK)) {
-					if (ast_write(in, f))
-						ast_log(LOG_WARNING, "Unable to forward image\n");
-				} else if (f->frametype == AST_FRAME_TEXT && !ast_test_flag64(outgoing, OPT_RINGBACK|OPT_MUSICBACK)) {
-					if (ast_write(in, f))
-						ast_log(LOG_WARNING, "Unable to send text\n");
-				} else if (f->frametype == AST_FRAME_HTML && !ast_test_flag64(outgoing, DIAL_NOFORWARDHTML)) {
-					if (ast_channel_sendhtml(in, f->subclass, f->data, f->datalen) == -1)
-						ast_log(LOG_WARNING, "Unable to send URL\n");
+				switch (f->frametype) {
+					case AST_FRAME_VOICE:
+					case AST_FRAME_IMAGE:
+					case AST_FRAME_TEXT:
+						if (ast_write(in, f)) {
+							ast_log(LOG_WARNING, "Unable to write frame\n");
+						}
+						break;
+					case AST_FRAME_HTML:
+						if (!ast_test_flag64(outgoing, DIAL_NOFORWARDHTML) && ast_channel_sendhtml(in, f->subclass, f->data, f->datalen) == -1) {
+							ast_log(LOG_WARNING, "Unable to send URL\n");
+						}
+						break;
+					default:
+						break;
 				}
 			}
 			ast_frfree(f);
