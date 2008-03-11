@@ -1869,6 +1869,13 @@ static int gtalk_load_config(void)
 /*! \brief Load module into PBX, register channel */
 static int load_module(void)
 {
+	char *jabber_loaded = ast_module_helper("", "res_jabber.so", 0, 0, 0, 0);
+	free(jabber_loaded);
+	if (!jabber_loaded) {
+		ast_log(LOG_ERROR, "chan_gtalk.so depends upon res_jabber.so\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	ASTOBJ_CONTAINER_INIT(&gtalk_list);
 	if (!gtalk_load_config()) {
 		ast_log(LOG_ERROR, "Unable to read config file %s. Not loading module.\n", GOOGLE_CONFIG);
