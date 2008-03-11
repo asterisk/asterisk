@@ -2419,12 +2419,12 @@ static int handle_bchan(msg_t *msg)
     
 	case PH_CONTROL|INDICATION:
 	{
-		unsigned int cont = *((unsigned int *)&frm->data.p);
+		unsigned int *cont = (unsigned int *) &frm->data.p;
 		
 		cb_log(4, stack->port, "PH_CONTROL: channel:%d oad%d:%s dad%d:%s \n", bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
 
-		if ((cont&~DTMF_TONE_MASK) == DTMF_TONE_VAL) {
-			int dtmf = cont & DTMF_TONE_MASK;
+		if ((*cont & ~DTMF_TONE_MASK) == DTMF_TONE_VAL) {
+			int dtmf = *cont & DTMF_TONE_MASK;
 			cb_log(4, stack->port, " --> DTMF TONE: %c\n",dtmf);
 			bc->dtmf=dtmf;
 			cb_event(EVENT_DTMF_TONE, bc, glob_mgr->user_data);
@@ -2432,12 +2432,12 @@ static int handle_bchan(msg_t *msg)
 			free_msg(msg);
 			return 1;
 		}
-		if (cont == BF_REJECT) {
+		if (*cont == BF_REJECT) {
 			cb_log(4, stack->port, " --> BF REJECT\n");
 			free_msg(msg);
 			return 1;
 		}
-		if (cont == BF_ACCEPT) {
+		if (*cont == BF_ACCEPT) {
 			cb_log(4, stack->port, " --> BF ACCEPT\n");
 			free_msg(msg);
 			return 1;
