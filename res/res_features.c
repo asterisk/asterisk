@@ -869,6 +869,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		return -1;
 	}
 	/* Make formats okay */
+	xferchan->visible_indication = transferer->visible_indication;
 	xferchan->readformat = transferee->readformat;
 	xferchan->writeformat = transferee->writeformat;
 	ast_channel_masquerade(xferchan, transferee);
