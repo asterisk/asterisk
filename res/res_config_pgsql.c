@@ -658,7 +658,7 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 
 static struct ast_config *config_pgsql(const char *database, const char *table,
 									   const char *file, struct ast_config *cfg,
-									   struct ast_flags flags, const char *suggested_incl)
+									   struct ast_flags flags, const char *suggested_incl, const char *who_asked)
 {
 	PGresult *result = NULL;
 	long num_rows;
@@ -723,7 +723,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 			char *field_var_val = PQgetvalue(result, rowIndex, 2);
 			char *field_cat_metric = PQgetvalue(result, rowIndex, 3);
 			if (!strcmp(field_var_name, "#include")) {
-				if (!ast_config_internal_load(field_var_val, cfg, flags, "")) {
+				if (!ast_config_internal_load(field_var_val, cfg, flags, "", who_asked)) {
 					PQclear(result);
 					ast_mutex_unlock(&pgsql_lock);
 					return NULL;

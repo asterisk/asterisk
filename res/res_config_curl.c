@@ -407,7 +407,7 @@ static int destroy_curl(const char *url, const char *unused, const char *keyfiel
 }
 
 
-static struct ast_config *config_curl(const char *url, const char *unused, const char *file, struct ast_config *cfg, struct ast_flags flags, const char *sugg_incl)
+static struct ast_config *config_curl(const char *url, const char *unused, const char *file, struct ast_config *cfg, struct ast_flags flags, const char *sugg_incl, const char *who_asked)
 {
 	struct ast_str *query;
 	char buf1[200];
@@ -463,7 +463,7 @@ static struct ast_config *config_curl(const char *url, const char *unused, const
 		}
 
 		if (!strcmp(var_name, "#include")) {
-			if (!ast_config_internal_load(var_val, cfg, loader_flags, ""))
+			if (!ast_config_internal_load(var_val, cfg, loader_flags, "", who_asked))
 				return NULL;
 		}
 

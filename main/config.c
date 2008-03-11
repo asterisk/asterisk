@@ -92,6 +92,7 @@ struct cache_file_mtime {
 	AST_LIST_HEAD(includes, cache_file_include) includes;
 	unsigned int has_exec:1;
 	time_t mtime;
+	char *who_asked;
 	char filename[0];
 };
 
@@ -854,7 +855,7 @@ enum config_cache_attribute_enum {
 	ATTRIBUTE_EXEC = 1,
 };
 
-static void config_cache_attribute(const char *configfile, enum config_cache_attribute_enum attrtype, const char *filename)
+static void config_cache_attribute(const char *configfile, enum config_cache_attribute_enum attrtype, const char *filename, const char *who_asked)
 {
 	struct cache_file_mtime *cfmtime;
 	struct cache_file_include *cfinclude;
@@ -867,13 +868,15 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 			break;
 	}
 	if (!cfmtime) {
-		cfmtime = ast_calloc(1, sizeof(*cfmtime) + strlen(configfile) + 1);
+		cfmtime = ast_calloc(1, sizeof(*cfmtime) + strlen(configfile) + 1 + strlen(who_asked) + 1);
 		if (!cfmtime) {
 			AST_LIST_UNLOCK(&cfmtime_head);
 			return;
 		}
 		AST_LIST_HEAD_INIT(&cfmtime->includes);
 		strcpy(cfmtime->filename, configfile);
+		cfmtime->who_asked = cfmtime->filename + strlen(configfile) + 1;
+		strcpy(cfmtime->who_asked, who_asked);
 		/* Note that the file mtime is initialized to 0, i.e. 1970 */
 		AST_LIST_INSERT_TAIL(&cfmtime_head, cfmtime, list);
 	}
@@ -918,7 +921,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 	struct ast_str *comment_buffer,
 	struct ast_str *lline_buffer,
 	const char *suggested_include_file,
-	struct ast_category **last_cat, struct ast_variable **last_var)
+	struct ast_category **last_cat, struct ast_variable **last_var, const char *who_asked)
 {
 	char *c;
 	char *cur = buf;
@@ -1054,21 +1057,21 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				   We create a tmp file, then we #include it, then we delete it. */
 				if (!do_include) {
 					if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
-						config_cache_attribute(configfile, ATTRIBUTE_EXEC, NULL);
+						config_cache_attribute(configfile, ATTRIBUTE_EXEC, NULL, who_asked);
 					snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%d.%ld", (int)time(NULL), (long)pthread_self());
 					snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file);
 					ast_safe_system(cmd);
 					cur = exec_file;
 				} else {
 					if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
-						config_cache_attribute(configfile, ATTRIBUTE_INCLUDE, cur);
+						config_cache_attribute(configfile, ATTRIBUTE_INCLUDE, cur, who_asked);
 					exec_file[0] = '\0';
 				}
 				/* A #include */
 				/* record this inclusion */
 				inclu = ast_include_new(cfg, configfile, cur, !do_include, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
 
-				do_include = ast_config_internal_load(cur, cfg, flags, real_inclusion_name) ? 1 : 0;
+				do_include = ast_config_internal_load(cur, cfg, flags, real_inclusion_name, who_asked) ? 1 : 0;
 				if (!ast_strlen_zero(exec_file))
 					unlink(exec_file);
 				if (!do_include) {
@@ -1121,7 +1124,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 	return 0;
 }
 
-static struct ast_config *config_text_file_load(const char *database, const char *table, const char *filename, struct ast_config *cfg, struct ast_flags flags, const char *suggested_include_file)
+static struct ast_config *config_text_file_load(const char *database, const char *table, const char *filename, struct ast_config *cfg, struct ast_flags flags, const char *suggested_include_file, const char *who_asked)
 {
 	char fn[256];
 	char buf[8192];
@@ -1196,15 +1199,17 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			/* Find our cached entry for this configuration file */
 			AST_LIST_LOCK(&cfmtime_head);
 			AST_LIST_TRAVERSE(&cfmtime_head, cfmtime, list) {
-				if (!strcmp(cfmtime->filename, fn))
+				if (!strcmp(cfmtime->filename, fn) && !strcmp(cfmtime->who_asked, who_asked))
 					break;
 			}
 			if (!cfmtime) {
-				cfmtime = ast_calloc(1, sizeof(*cfmtime) + strlen(fn) + 1);
+				cfmtime = ast_calloc(1, sizeof(*cfmtime) + strlen(fn) + 1 + strlen(who_asked) + 1);
 				if (!cfmtime)
 					continue;
 				AST_LIST_HEAD_INIT(&cfmtime->includes);
 				strcpy(cfmtime->filename, fn);
+				cfmtime->who_asked = cfmtime->filename + strlen(fn) + 1;
+				strcpy(cfmtime->who_asked, who_asked);
 				/* Note that the file mtime is initialized to 0, i.e. 1970 */
 				AST_LIST_INSERT_TAIL(&cfmtime_head, cfmtime, list);
 			}
@@ -1232,7 +1237,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 #else
 						ast_copy_string(fn2, cfinclude->include);
 #endif
-						if (config_text_file_load(NULL, NULL, fn2, NULL, flags, "") == NULL) { /* that last field needs to be looked at in this case... TODO */
+						if (config_text_file_load(NULL, NULL, fn2, NULL, flags, "", who_asked) == NULL) {
+							/* that second-to-last field needs to be looked at in this case... TODO */
 							unchanged = 0;
 							/* One change is enough to short-circuit and reload the whole shebang */
 							break;
@@ -1346,7 +1352,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				if (process_buf) {
 					char *buf = ast_strip(process_buf);
 					if (!ast_strlen_zero(buf)) {
-						if (process_text_line(cfg, &cat, buf, lineno, fn, flags, comment_buffer, lline_buffer, suggested_include_file, &last_cat, &last_var)) {
+						if (process_text_line(cfg, &cat, buf, lineno, fn, flags, comment_buffer, lline_buffer, suggested_include_file, &last_cat, &last_var, who_asked)) {
 							cfg = NULL;
 							break;
 						}
@@ -1815,7 +1821,7 @@ int read_config_maps(void)
 
 	configtmp = ast_config_new();
 	configtmp->max_include_level = 1;
-	config = ast_config_internal_load(extconfig_conf, configtmp, flags, "");
+	config = ast_config_internal_load(extconfig_conf, configtmp, flags, "", "config.c");
 	if (!config) {
 		ast_config_destroy(configtmp);
 		return 0;
@@ -1956,7 +1962,7 @@ static struct ast_config_engine text_file_engine = {
 	.load_func = config_text_file_load,
 };
 
-struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg, struct ast_flags flags, const char *suggested_include_file)
+struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg, struct ast_flags flags, const char *suggested_include_file, const char *who_asked)
 {
 	char db[256];
 	char table[256];
@@ -1986,7 +1992,7 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 		}
 	}
 
-	result = loader->load_func(db, table, filename, cfg, flags, suggested_include_file);
+	result = loader->load_func(db, table, filename, cfg, flags, suggested_include_file, who_asked);
 
 	if (result && result != CONFIG_STATUS_FILEUNCHANGED)
 		result->include_level--;
@@ -1996,7 +2002,7 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 	return result;
 }
 
-struct ast_config *ast_config_load(const char *filename, struct ast_flags flags)
+struct ast_config *ast_config_load2(const char *filename, const char *who_asked, struct ast_flags flags)
 {
 	struct ast_config *cfg;
 	struct ast_config *result;
@@ -2005,7 +2011,7 @@ struct ast_config *ast_config_load(const char *filename, struct ast_flags flags)
 	if (!cfg)
 		return NULL;
 
-	result = ast_config_internal_load(filename, cfg, flags, "");
+	result = ast_config_internal_load(filename, cfg, flags, "", who_asked);
 	if (!result || result == CONFIG_STATUS_FILEUNCHANGED)
 		ast_config_destroy(cfg);
 
