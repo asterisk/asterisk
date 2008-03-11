@@ -1,19 +1,44 @@
 GETTING ODBC STORAGE WITH POSTGRESQL WORKING WITH VOICEMAIL
 
-
 1) Install PostgreSQL, PostgreSQL-devel, unixODBC, and unixODBC-devel, and
-PostgreSQL-ODBC.  Make sure PostgreSQL is listening on a TCP socket, and that
+PostgreSQL-ODBC.  Make sure PostgreSQL is running and listening on a TCP socket.
+
+2) Log into your server as root, and then type:
+
+[root@localhost ~]# su - postgres
+
+This will log you into the system as the "postgres" user, so that you can
+create a new role and database within the PostgreSQL database system.  At the
+new prompt, type:
+
+$ createuser -s -D -R -l -P -e asterisk
+Enter password for new role: 
+Enter it again: 
+
+Obviously you should enter a password when prompted.  This creates the
+database role (or user).
+
+Next we need to create the asterisk database.  Type:
+
+$ createdb -O asterisk -e asterisk
+
+This creates the database and sets the owner of the database to the asterisk
+role.
+
+
+Next, make sure that
 you are using md5 authentication for the database user.  The line in my
-pg_hba.conf looks like:
+/var/lib/pgsql/data/pg_hba.conf looks like:
 
 # "local" is for Unix domain socket connections only
-local   jsmith2     jsmith2                           md5
+local   asterisk    asterisk                           md5
 local   all         all                               ident sameuser
 # IPv4 local connections:
 host    all         all         127.0.0.1/32          md5
 
+As soon as you're done editing that file, log out as the postgres user.
 
-2) Make sure you have the PostgreSQL odbc driver setup in /etc/odbcinst.ini.
+3) Make sure you have the PostgreSQL odbc driver setup in /etc/odbcinst.ini.
 Mine looks like:
 
 [PostgreSQL]
@@ -28,7 +53,7 @@ You can confirm that unixODBC is seeing the driver by typing:
 [PostgreSQL]
 
 
-3) Setup a DSN in /etc/odbc.ini, pointing at the PostgreSQL database and
+4) Setup a DSN in /etc/odbc.ini, pointing at the PostgreSQL database and
 driver.  Mine looks like:
 
 [testing]
@@ -36,9 +61,9 @@ Description           = ODBC Testing
 Driver                = PostgreSQL
 Trace                 = No
 TraceFile             = sql.log
-Database              = jsmith2
+Database              = asterisk
 Servername            = 127.0.0.1
-UserName              = jsmith2
+UserName              = asterisk
 Password              = supersecret
 Port                  = 5432
 ReadOnly              = No
@@ -54,7 +79,7 @@ You can confirm that unixODBC sees your DSN by typing:
 [testing]
 
 
-4) Test your database connectivity through ODBC.  If this doesn't work,
+5) Test your database connectivity through ODBC.  If this doesn't work,
 something is wrong with your ODBC setup.
 
 [jsmith2@localhost tmp]$ echo "select 1" | isql -v testing
@@ -83,7 +108,7 @@ Could not connect to remote socket.
 [ISQL]ERROR: Could not SQLConnect
 bash: echo: write error: Broken pipe
 
-5) Compile Asterisk with support for ODBC voicemail.  Go to your Asterisk
+6) Compile Asterisk with support for ODBC voicemail.  Go to your Asterisk
 source directory and run `make menuselect`.  Under "Voicemail Build Options",
 enable "ODBC_STORAGE".
 # See doc/README.odbcstorage for more information
@@ -91,7 +116,7 @@ enable "ODBC_STORAGE".
 Recompile Asterisk and install the new version.
 
 
-6) Once you've recompiled and re-installed Asterisk, check to make sure
+7) Once you've recompiled and re-installed Asterisk, check to make sure
 res_odbc.so has been compiled.
 
 localhost*CLI> show modules like res_odbc.so
@@ -100,7 +125,7 @@ res_odbc.so                    ODBC Resource                            0
 1 modules loaded
 
 
-7) Now it's time to get Asterisk configured.  First, we need to tell Asterisk
+8) Now it's time to get Asterisk configured.  First, we need to tell Asterisk
 about our ODBC setup.  Open /etc/asterisk/res_odbc.conf and add the following:
 
 [postgres]
@@ -108,7 +133,7 @@ enabled => yes
 dsn => testing
 pre-connect => yes
 
-8) At the Asterisk CLI, unload and then load the res_odbc.so module.  (You
+9) At the Asterisk CLI, unload and then load the res_odbc.so module.  (You
 could restart Asterisk as well, but this way makes it easier to tell what's
 happening.)  Notice how it says it's connected to "postgres", which is our ODBC
 connection as defined in res_odbc.conf, which points to the "testing" DSN in
@@ -135,7 +160,7 @@ Name: postgres
 DSN: testing
 Connected: yes
 
-9) Now we can setup our voicemail table in PostgreSQL.  Log into PostgreSQL and
+10) Now we can setup our voicemail table in PostgreSQL.  Log into PostgreSQL and
 type (or copy and paste) the following:
 
 --
@@ -224,7 +249,7 @@ CREATE TABLE voicemessages
 CREATE TRIGGER vm_cleanup AFTER DELETE OR UPDATE ON voicemessages FOR EACH ROW EXECUTE PROCEDURE vm_lo_cleanup();
 
 
-10) Just as a sanity check, make sure you check the voicemessages table via the
+11) Just as a sanity check, make sure you check the voicemessages table via the
 isql utility.
 
 [jsmith2@localhost ODBC]$ echo "SELECT id, msgnum, dir, duration FROM voicemessages WHERE msgnum = 1" | isql testing
@@ -243,7 +268,7 @@ SQL> +------------+------------+------------------------------------------------
 SQLRowCount returns 0
 
 
-11) Now we can finally configure voicemail in Asterisk to use our database.
+12) Now we can finally configure voicemail in Asterisk to use our database.
 Open /etc/asterisk/voicemail.conf, and look in the [general] section.  I've
 changed the format to gsm (as I can't seem to get WAV or wav working), and
 specify both the odbc connection and database table to use.
@@ -263,7 +288,7 @@ the very bottom of voicemail.conf:
 101 => 5555,Example Mailbox
 
 
-12) Once you've updated voicemail.conf, let's make the changes take effect:
+13) Once you've updated voicemail.conf, let's make the changes take effect:
 
 localhost*CLI> unload app_voicemail.so
   == Unregistered application 'VoiceMail'
@@ -285,7 +310,7 @@ Context    Mbox  User                      Zone       NewMsg
 odbctest   101   Example Mailbox                           0
 
 
-13) Now, let's add a new context called "odbc" to extensions.conf.  We'll use
+14) Now, let's add a new context called "odbc" to extensions.conf.  We'll use
 these extensions to do some testing:
 
 [odbc]
@@ -293,7 +318,7 @@ exten => 100,1,Voicemail(101@odbctest)
 exten => 200,1,VoicemailMain(101@odbctest)
 
 
-14) Next, we need to point a phone at the odbc context.  In my case, I've got a
+15) Next, we need to point a phone at the odbc context.  In my case, I've got a
 SIP phone called "linksys" that is registering to Asterisk, so I'm setting its
 context to the [odbc] context we created in the previous step.  The relevant
 section of my sip.conf file looks like:
@@ -316,7 +341,7 @@ linksys/linksys            192.168.0.103    D          5060     OK (9 ms)
 1 sip peers [1 online , 0 offline]
 
 
-15) At last, we're finally ready to leave a voicemail message and have it
+16) At last, we're finally ready to leave a voicemail message and have it
 stored in our database!  (Who'd have guessed it would be this much trouble?!?)
 Pick up the phone, dial extension 100, and leave yourself a voicemail message.
 In my case, this is what appeared on the Asterisk CLI:
@@ -344,7 +369,7 @@ Type:  \copyright for distribution terms
        \g or terminate with semicolon to execute query
        \q to quit
 
-jsmith2=# SELECT * FROM voicemessages;
+asterisk=# SELECT * FROM voicemessages;
  id | msgnum |                       dir                        | context | macrocontext |       callerid        |  origtime  | duration | mailboxuser | mailboxcontext | recording | label | read | sip_id | pabx_id | iax_id 
 ----+--------+--------------------------------------------------+---------+--------------+-----------------------+------------+----------+-------------+----------------+-----------+-------+------+--------+---------+--------
  26 |      0 | /var/spool/asterisk/voicemail/odbctest/101/INBOX | odbc    |              | "linksys" <linksys> | 1167794179 | 7        | 101         | odbctest       | 16599     |       | f    |        |         |       
@@ -356,7 +381,7 @@ voicemessages table.  It's stored in a system table called the large object
 table.  We can look in the large object table and verify that the object
 actually exists there:
 
-jsmith2=# \lo_list
+asterisk=# \lo_list
     Large objects
   ID   | Description 
 -------+-------------
@@ -371,7 +396,7 @@ our voicemessages table was designed to make sure this is always the case.)
 We can also pull a copy of the voicemail message back out of the database and
 write it to a file, to help us as we debug things:
 
-jsmith2=# \lo_export 16599 /tmp/odcb-16599.gsm
+asterisk=# \lo_export 16599 /tmp/odcb-16599.gsm
 lo_export
 
 We can even listen to the file from the Linux command line:
@@ -389,7 +414,7 @@ Time: 00:06.22 [00:00.00] of 00:00.00 (  0.0%) Output Buffer: 298.36K
 Done.
 
 
-16) Last but not least, we can pull the voicemail message back out of the
+17) Last but not least, we can pull the voicemail message back out of the
 database by dialing extension 200 and entering "5555" at the password prompt.
 You should see something like this on the Asterisk CLI:
 
@@ -425,3 +450,4 @@ That's it!
 
 Jared Smith
 2 Jan 2006
+(updated 11 Mar 2007)
