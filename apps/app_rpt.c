@@ -1646,12 +1646,8 @@ static char *cs_keywords[] = {"rptena","rptdis","apena","apdis","lnkena","lnkdis
  	memset(&rpt_vars[n].p,0,sizeof(rpt_vars[n].p));
 	if (init)
 	{
-		char *cp;
-		int savearea = (char *)&rpt_vars[n].p - (char *)&rpt_vars[n];
-
-		cp = (char *) &rpt_vars[n].p;
-		memset(cp + sizeof(rpt_vars[n].p),0,
-			sizeof(rpt_vars[n]) - (sizeof(rpt_vars[n].p) + savearea));
+		/* clear all the fields in the structure after 'p' */
+		memset(&rpt_vars[n].p + sizeof(rpt_vars[0].p), 0, sizeof(rpt_vars[0]) - sizeof(rpt_vars[0].p) - offsetof(typeof(rpt_vars[0]), p));
 		rpt_vars[n].tele.next = &rpt_vars[n].tele;
 		rpt_vars[n].tele.prev = &rpt_vars[n].tele;
 		rpt_vars[n].rpt_thread = AST_PTHREADT_NULL;
