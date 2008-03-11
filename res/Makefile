@@ -30,7 +30,7 @@ ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
 endif
 
 ael/ael_lex.o: ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h
-ael/ael_lex.o: ASTCFLAGS+=-I. -Iael 
+ael/ael_lex.o: ASTCFLAGS+=-I. -Iael -Wno-unused
 
 ael/ael.tab.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
 ael/ael.tab.o: ASTCFLAGS+=-I. -Iael -DYYENABLE_NLS=0

@@ -122,6 +122,8 @@ ast_expr2f.c:
 	sed 's@#if __STDC_VERSION__ >= 199901L@#if !defined __STDC_VERSION__ || __STDC_VERSION__ >= 199901L@' ast_expr2f.c > zz
 	mv zz ast_expr2f.c
 
+ast_expr2f.o: ASTCFLAGS+=-Wno-unused
+
 testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	$(CC) -g -c -Iinclude -DSTANDALONE ast_expr2f.c
 	$(CC) -g -c -Iinclude -DSTANDALONE ast_expr2.c
@@ -129,6 +131,8 @@ testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	rm ast_expr2.o ast_expr2f.o 
 
 channel.o: ASTCFLAGS+=$(ZAPTEL_INCLUDE)
+
+stdtime/localtime.o: ASTCFLAGS+=-fno-strict-overflow
 
 AST_EMBED_LDSCRIPTS:=$(sort $(EMBED_LDSCRIPTS))
 AST_EMBED_LDFLAGS:=$(foreach dep,$(EMBED_LDFLAGS),$(value $(dep)))
