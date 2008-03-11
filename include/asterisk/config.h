@@ -64,7 +64,7 @@ struct ast_variable {
 	char stuff[0];
 };
 
-typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config, struct ast_flags flags, const char *suggested_include_file);
+typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config, struct ast_flags flags, const char *suggested_include_file, const char *who_asked);
 typedef struct ast_variable *realtime_var_get(const char *database, const char *table, va_list ap);
 typedef struct ast_config *realtime_multi_get(const char *database, const char *table, va_list ap);
 typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
@@ -86,6 +86,7 @@ struct ast_config_engine {
 /*! \brief Load a config file 
  * \param filename path of file to open.  If no preceding '/' character, path is considered relative to AST_CONFIG_DIR
  * Create a config structure from a given configuration file.
+ * \param who_asked The module which is making this request.
  * \param flags Optional flags:
  * CONFIG_FLAG_WITHCOMMENTS - load the file with comments intact;
  * CONFIG_FLAG_FILEUNCHANGED - check the file mtime and return CONFIG_STATUS_FILEUNCHANGED if the mtime is the same; or
@@ -94,7 +95,9 @@ struct ast_config_engine {
  * \retval an ast_config data structure on success
  * \retval NULL on error
  */
-struct ast_config *ast_config_load(const char *filename, struct ast_flags flags);
+struct ast_config *ast_config_load2(const char *filename, const char *who_asked, struct ast_flags flags);
+
+#define ast_config_load(filename, flags)	ast_config_load2(filename, __FILE__, flags)
 
 /*! \brief Destroys a config 
  * \param config pointer to config data structure
@@ -282,7 +285,7 @@ int ast_variable_update(struct ast_category *category, const char *variable,
 
 int config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator);
 
-struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl_file);
+struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl_file, const char *who_asked);
 
 /*! \brief Support code to parse config file arguments
  *

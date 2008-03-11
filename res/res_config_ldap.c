@@ -1006,7 +1006,7 @@ static int compare_categories(const void *a, const void *b)
 *	called on a reload
 */
 static struct ast_config *config_ldap(const char *basedn, const char *table_name,
-	const char *file, struct ast_config *cfg, struct ast_flags config_flags, const char *sugg_incl)
+	const char *file, struct ast_config *cfg, struct ast_flags config_flags, const char *sugg_incl, const char *who_asked)
 {
 	unsigned int vars_count = 0;
 	struct ast_variable **vars;
@@ -1088,7 +1088,7 @@ static struct ast_config *config_ldap(const char *basedn, const char *table_name
 	for (i = 0; i < vars_count; i++) {
 		if (!strcmp(categories[i].variable_name, "#include")) {
 			struct ast_flags config_flags = { 0 };
-			if (!ast_config_internal_load(categories[i].variable_value, cfg, config_flags, ""))
+			if (!ast_config_internal_load(categories[i].variable_value, cfg, config_flags, "", who_asked))
 				break;
 			continue;
 		}

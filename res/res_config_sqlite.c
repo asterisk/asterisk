@@ -178,6 +178,7 @@ struct cfg_entry_args {
 	struct ast_category *cat;
 	char *cat_name;
 	struct ast_flags flags;
+	const char *who_asked;
 };
 
 /*!
@@ -277,7 +278,7 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames);
  * \see add_cfg_entry()
  */
 static struct ast_config * config_handler(const char *database, const char *table, const char *file,
-	struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl);
+	struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl, const char *who_asked);
 
 /*!
  * \brief Helper function to parse a va_list object into 2 dynamic arrays of
@@ -710,7 +711,7 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames)
 		char *val;
 
 		val = argv[RES_CONFIG_SQLITE_CONFIG_VAR_VAL];
-		cfg = ast_config_internal_load(val, args->cfg, args->flags, "");
+		cfg = ast_config_internal_load(val, args->cfg, args->flags, "", args->who_asked);
 
 		if (!cfg) {
 			ast_log(LOG_WARNING, "Unable to include %s\n", val);
@@ -753,7 +754,7 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames)
 }
 
 static struct ast_config *config_handler(const char *database,	const char *table, const char *file,
-	struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl)
+	struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl, const char *who_asked)
 {
 	struct cfg_entry_args args;
 	char *query, *errormsg;
@@ -779,6 +780,7 @@ static struct ast_config *config_handler(const char *database,	const char *table
 	args.cat = NULL;
 	args.cat_name = NULL;
 	args.flags = flags;
+	args.who_asked = who_asked;
 
 	ast_mutex_lock(&mutex);
 
