@@ -430,17 +430,18 @@ static int config_module(int reload)
 	}
 
 	if (option_debug) {
-	    	if (ast_strlen_zero(pghostname))
+		if (ast_strlen_zero(pghostname)) {
 			ast_debug(1, "cdr_pgsql: using default unix socket\n");
-		else
+		} else {
 			ast_debug(1, "cdr_pgsql: got hostname of %s\n", pghostname);
-			ast_debug(1, "cdr_pgsql: got port of %s\n", pgdbport);
-			ast_debug(1, "cdr_pgsql: got user of %s\n", pgdbuser);
-			ast_debug(1, "cdr_pgsql: got dbname of %s\n", pgdbname);
-			ast_debug(1, "cdr_pgsql: got password of %s\n", pgpassword);
-			ast_debug(1, "cdr_pgsql: got sql table name of %s\n", table);
+		}
+		ast_debug(1, "cdr_pgsql: got port of %s\n", pgdbport);
+		ast_debug(1, "cdr_pgsql: got user of %s\n", pgdbuser);
+		ast_debug(1, "cdr_pgsql: got dbname of %s\n", pgdbname);
+		ast_debug(1, "cdr_pgsql: got password of %s\n", pgpassword);
+		ast_debug(1, "cdr_pgsql: got sql table name of %s\n", table);
 	}
-	
+
 	conn = PQsetdbLogin(pghostname, pgdbport, NULL, NULL, pgdbname, pgdbuser, pgpassword);
 	if (PQstatus(conn) != CONNECTION_BAD) {
 		char sqlcmd[256];
