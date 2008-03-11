@@ -90,15 +90,10 @@ static int config_function_read(struct ast_channel *chan, const char *cmd, char 
 
 static struct ast_custom_function config_function = {
 	.name = "AST_CONFIG",
-	.syntax = "AST_CONFIG(config_file,category,variable_name[,index])",
+	.syntax = "AST_CONFIG(config_file,category,variable_name)",
 	.synopsis = "Retrieve a variable from a configuration file",
 	.desc = 
 	"   This function reads a variable from an Asterisk configuration file.\n"
-	"The optional index parameter would be used in the case that a variable\n"
-	"exists more than once in a category.  The index is zero-based, so an\n"
-	"index of 0 returns the first instance of the variable.  Also, if the\n"
-	"word \"count\" in the index field, the number of instances of that\n"
-	"variable will be returned.\n"
 	"",
 	.read = config_function_read,
 };
