@@ -4183,7 +4183,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	
 		/* Initialize auto-congest time */
 		ast_sched_del(sched, p->initid);
-		p->initid = ast_sched_add(sched, p->maxtime ? (p->maxtime * 4) : SIP_TRANS_TIMEOUT, auto_congest, p);
+		p->initid = ast_sched_add(sched, p->timer_b, auto_congest, dialog_ref(p));
 	}
 
 	return res;
