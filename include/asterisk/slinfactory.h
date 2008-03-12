@@ -29,33 +29,74 @@ extern "C" {
 #endif
 
 struct ast_slinfactory {
-	AST_LIST_HEAD_NOLOCK(, ast_frame) queue;
-	struct ast_trans_pvt *trans;
-	short hold[1280];
-	short *offset;
-	size_t holdlen;			/*!< in samples */
-	unsigned int size;		/*!< in samples */
-	unsigned int format;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) queue; /*!< A list of unaltered frames */
+	struct ast_trans_pvt *trans;             /*!< Translation path that converts fed frames into signed linear */
+	short hold[1280];                        /*!< Hold for audio that no longer belongs to a frame (ie: if only some samples were taken from a frame) */
+	short *offset;                           /*!< Offset into the hold where audio begins */
+	size_t holdlen;                          /*!< Number of samples currently in the hold */
+	unsigned int size;                       /*!< Number of samples currently in the factory */
+	unsigned int format;                     /*!< Current format the translation path is converting from */
 };
 
+/*!
+ * \brief Initialize an slinfactory
+ *
+ * \arg sf The slinfactory to initialize
+ *
+ * \return Nothing
+ */
 void ast_slinfactory_init(struct ast_slinfactory *sf);
 
 /*!
  * \brief Destroy the contents of a slinfactory
  *
- * \arg sf the slinfactory that is no longer needed
+ * \arg sf The slinfactory that is no longer needed
  *
  * This function will free any memory allocated for the contents of the
  * slinfactory.  It does not free the slinfactory itself.  If the sf is
  * malloc'd, then it must be explicitly free'd after calling this function.
  *
- * \return nothing
+ * \return Nothing
  */
 void ast_slinfactory_destroy(struct ast_slinfactory *sf);
 
+/*!
+ * \brief Feed audio into an slinfactory
+ *
+ * \arg sf The slinfactory to feed into
+ * \arg f Frame containing audio to feed in
+ *
+ * \return Number of frames currently in factory
+ */
 int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f);
+
+/*!
+ * \brief Read samples from an slinfactory
+ *
+ * \arg sf The slinfactory to read from
+ * \arg buf Buffer to put samples into
+ * \arg samples Number of samples wanted
+ *
+ * \return Number of samples read
+ */
 int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples);
+
+/*!
+ * \brief Retrieve number of samples currently in an slinfactory
+ *
+ * \arg sf The slinfactory to peek into
+ *
+ * \return Number of samples in slinfactory
+ */
 unsigned int ast_slinfactory_available(const struct ast_slinfactory *sf);
+
+/*!
+ * \brief Flush the contents of an slinfactory
+ *
+ * \arg sf The slinfactory to flush
+ *
+ * \return Nothing
+ */
 void ast_slinfactory_flush(struct ast_slinfactory *sf);
 
 #if defined(__cplusplus) || defined(c_plusplus)
