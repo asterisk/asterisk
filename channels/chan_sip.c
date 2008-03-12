@@ -5133,6 +5133,8 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 					transmit_reinvite_with_sdp(p, TRUE, FALSE);
 				}
 				break;
+			case AST_T38_TERMINATED:
+			case AST_T38_REFUSED:
 			case AST_T38_REQUEST_TERMINATE:		/* Shutdown T38 */
 				if (p->t38.state == T38_ENABLED)
 					transmit_reinvite_with_sdp(p, FALSE, FALSE);
@@ -14714,24 +14716,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 	case 488: /* Not acceptable here */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-		if (reinvite && p->udptl) {
-			/* If this is a T.38 call, we should go back to 
-			   audio. If this is an audio call - something went
-			   terribly wrong since we don't renegotiate codecs,
-			   only IP/port .
-			*/
+		if (p->udptl && p->t38.state == T38_LOCAL_REINVITE) {
 			change_t38_state(p, T38_DISABLED);
 			/* Try to reset RTP timers */
 			ast_rtp_set_rtptimers_onhold(p->rtp);
-			ast_log(LOG_ERROR, "Got error on T.38 re-invite. Bad configuration. Peer needs to have T.38 disabled.\n");
 
-			/*! \bug Is there any way we can go back to the audio call on both
-			   sides here? 
-			*/
-			/* While figuring that out, hangup the call */
-			if (p->owner && !req->ignore)
-				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-			p->needdestroy = 1;
+			/* Trigger a reinvite back to audio */
+			transmit_reinvite_with_sdp(p, FALSE, FALSE);
 		} else if (p->udptl && p->t38.state == T38_LOCAL_DIRECT) {
 			/* We tried to send T.38 out in an initial INVITE and the remote side rejected it,
 			   right now we can't fall back to audio so totally abort.
