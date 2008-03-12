@@ -57,6 +57,7 @@ enum ast_audiohook_flags {
 	AST_AUDIOHOOK_TRIGGER_READ = (1 << 0),  /*!< Audiohook wants to be triggered when reading audio in */
 	AST_AUDIOHOOK_TRIGGER_WRITE = (2 << 0), /*!< Audiohook wants to be triggered when writing audio out */
 	AST_AUDIOHOOK_WANTS_DTMF = (1 << 1),    /*!< Audiohook also wants to receive DTMF frames */
+	AST_AUDIOHOOK_TRIGGER_SYNC = (1 << 2),  /*!< Audiohook wants to be triggered when both sides have combined audio available */
 };
 
 struct ast_audiohook;
@@ -86,6 +87,8 @@ struct ast_audiohook {
 	unsigned int flags;                                    /*!< Flags on the audiohook */
 	struct ast_slinfactory read_factory;                   /*!< Factory where frames read from the channel, or read from the whisper source will go through */
 	struct ast_slinfactory write_factory;                  /*!< Factory where frames written to the channel will go through */
+	struct timeval read_time;                              /*!< Last time read factory was fed */
+	struct timeval write_time;                             /*!< Last time write factory was fed */
 	int format;                                            /*!< Format translation path is setup as */
 	struct ast_trans_pvt *trans_pvt;                       /*!< Translation path for reading frames */
 	ast_audiohook_manipulate_callback manipulate_callback; /*!< Manipulation callback */
