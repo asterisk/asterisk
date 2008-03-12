@@ -53,7 +53,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 
 #define MAX_PREFIX 80
-#define DEFAULT_PREFIX "/asterisk"
 
 /* See http.h for more information about the SSL implementation */
 #if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
@@ -937,7 +936,7 @@ static int __ast_http_load(int reload)
 	int newenablestatic=0;
 	struct hostent *hp;
 	struct ast_hostent ahp;
-	char newprefix[MAX_PREFIX];
+	char newprefix[MAX_PREFIX] = "";
 	int have_sslbindaddr = 0;
 	struct http_uri_redirect *redirect;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
@@ -951,8 +950,6 @@ static int __ast_http_load(int reload)
 
 	memset(&https_desc.sin, 0, sizeof(https_desc.sin));
 	https_desc.sin.sin_port = htons(8089);
-
-	strcpy(newprefix, DEFAULT_PREFIX);
 
 	http_tls_cfg.enabled = 0;
 	if (http_tls_cfg.certfile)
