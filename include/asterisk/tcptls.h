@@ -102,7 +102,7 @@ struct ast_tls_config {
  * or equivalent with a timeout of 'poll_timeout' milliseconds, and if the
  * following accept() is successful it creates a thread in charge of
  * running the session, whose body is desc->worker_fn(). The argument of
- * worker_fn() is a struct ast_tcptls_server_instance, which contains the address
+ * worker_fn() is a struct ast_tcptls_session_instance, which contains the address
  * of the other party, a pointer to desc, the file descriptors (fd) on which
  * we can do a select/poll (but NOT IO/, and a FILE *on which we can do I/O.
  * We have both because we want to support plain and SSL sockets, and
@@ -111,7 +111,7 @@ struct ast_tls_config {
  *
  * NOTE: in order to let other parts of asterisk use these services,
  * we need to do the following:
- * + move struct ast_tcptls_server_instance and struct server_args to
+ * + move struct ast_tcptls_session_instance and struct server_args to
  * a common header file, together with prototypes for
  * server_start() and server_root().
  */
@@ -119,7 +119,7 @@ struct ast_tls_config {
 /*! \brief
  * describes a server instance
  */
-struct ast_tcptls_server_instance {
+struct ast_tcptls_session_instance {
 	FILE *f;    /* fopen/funopen result */
 	int fd;     /* the socket returned by accept() */
 	SSL *ssl;   /* ssl state */
@@ -154,7 +154,7 @@ struct server_args {
 #define LEN_T size_t
 #endif
 
-struct ast_tcptls_server_instance *ast_tcptls_client_start(struct server_args *desc);
+struct ast_tcptls_session_instance *ast_tcptls_client_start(struct server_args *desc);
 
 void *ast_tcptls_server_root(void *);
 void ast_tcptls_server_start(struct server_args *desc);
@@ -163,14 +163,14 @@ int ast_ssl_setup(struct ast_tls_config *cfg);
 
 void *ast_make_file_from_fd(void *data);
 
-HOOK_T ast_tcptls_server_read(struct ast_tcptls_server_instance *ser, void *buf, size_t count);
-HOOK_T ast_tcptls_server_write(struct ast_tcptls_server_instance *ser, void *buf, size_t count);
+HOOK_T ast_tcptls_server_read(struct ast_tcptls_session_instance *ser, void *buf, size_t count);
+HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *ser, void *buf, size_t count);
 
 /*!
  * \brief Destroy a server instance
  *
  * \return NULL for convenience
  */
-struct ast_tcptls_server_instance *ast_tcptls_server_instance_destroy(struct ast_tcptls_server_instance *i);
+struct ast_tcptls_session_instance *ast_tcptls_session_instance_destroy(struct ast_tcptls_session_instance *i);
 
 #endif /* _ASTERISK_SERVER_H */

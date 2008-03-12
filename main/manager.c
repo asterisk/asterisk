@@ -2818,7 +2818,7 @@ static int do_message(struct mansession *s)
  */
 static void *session_do(void *data)
 {
-	struct ast_tcptls_server_instance *ser = data;
+	struct ast_tcptls_session_instance *ser = data;
 	struct mansession *s = ast_calloc(1, sizeof(*s));
 	int flags;
 	int res;
@@ -2882,7 +2882,7 @@ static void *session_do(void *data)
 	destroy_session(s);
 
 done:
-	ser = ast_tcptls_server_instance_destroy(ser);
+	ser = ast_tcptls_session_instance_destroy(ser);
 	return NULL;
 }
 
@@ -3562,17 +3562,17 @@ generic_callback_out:
 	return out;
 }
 
-static struct ast_str *manager_http_callback(struct ast_tcptls_server_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static struct ast_str *manager_http_callback(struct ast_tcptls_session_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
 	return generic_http_callback(FORMAT_HTML, &ser->requestor, uri, params, status, title, contentlength);
 }
 
-static struct ast_str *mxml_http_callback(struct ast_tcptls_server_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static struct ast_str *mxml_http_callback(struct ast_tcptls_session_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
 	return generic_http_callback(FORMAT_XML, &ser->requestor, uri, params, status, title, contentlength);
 }
 
-static struct ast_str *rawman_http_callback(struct ast_tcptls_server_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static struct ast_str *rawman_http_callback(struct ast_tcptls_session_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
 	return generic_http_callback(FORMAT_RAW, &ser->requestor, uri, params, status, title, contentlength);
 }
