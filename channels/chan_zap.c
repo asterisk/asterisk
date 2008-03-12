@@ -13196,7 +13196,12 @@ static void process_echocancel(struct zt_chan_conf *confp, const char *data, uns
 }
 #endif /* defined(HAVE_ZAPTEL_ECHOCANPARAMS) */
 
-static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int reload, int skipchannels)
+/*! process_zap() - ignore keyword 'channel' and similar */
+#define PROC_ZAP_OPT_NOCHAN  (1 << 0) 
+/*! process_zap() - No warnings on non-existing cofiguration keywords */
+#define PROC_ZAP_OPT_NOWARN  (1 << 1) 
+
+static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int reload, int options)
 {
 	struct zt_pvt *tmp;
 	const char *ringc; /* temporary string for parsing the dring number. */
@@ -13215,7 +13220,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 #endif			
 			) {
  			int iscrv;
- 			if (skipchannels)
+ 			if (options && PROC_ZAP_OPT_NOCHAN)
  				continue;
  			iscrv = !strcasecmp(v->name, "crv");
  			if (build_channels(*confp, iscrv, v->value, reload, v->lineno, &found_pseudo))
@@ -13960,7 +13965,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 			} else if (!strcasecmp(v->name, "mwilevel")) {
 				mwilevel = atoi(v->value);
 			}
-		} else if (!skipchannels)
+		} else if (!(options && PROC_ZAP_OPT_NOWARN) )
 			ast_log(LOG_WARNING, "Ignoring %s at line %d.\n", v->name, v->lineno);
 	}
 	if (zapchan[0]) { 
@@ -13998,6 +14003,7 @@ static int setup_zap(int reload)
  	struct zt_chan_conf base_conf = zt_chan_conf_default();
  	struct zt_chan_conf conf;
 	struct ast_flags config_flags = { reload == 1 ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	const char *cat;
 	int res;
 
 #ifdef HAVE_PRI
@@ -14090,35 +14096,74 @@ static int setup_zap(int reload)
 #endif
 	
 	/* Copy the default jb config over global_jbconf */
-	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
+	memcpy(&global_jbconf, &default_jbconf, sizeof(global_jbconf));
 
 	mwimonitornotify[0] = '\0';
 
 	v = ast_variable_browse(cfg, "channels");
-	res = process_zap(&base_conf, v, reload, 0);
-	ast_mutex_unlock(&iflock);
-	ast_config_destroy(cfg);
-	if (res)
+	if ((res = process_zap(&base_conf, v, reload, 0))) {
+		ast_mutex_unlock(&iflock);
+		ast_config_destroy(cfg);
+		if (ucfg) {
+			ast_config_destroy(cfg);
+		}
 		return res;
+	}
+
+	/* Now get configuration from all normal sections in zapata.conf: */
+	for (cat = ast_category_browse(cfg, NULL); cat ; cat = ast_category_browse(cfg, cat)) {
+		/* [channels] and [trunkgroups] are used. Let's also reserve
+		 * [globals] and [general] for future use
+		 */
+		if (!strcasecmp(cat, "general") || 
+		    !strcasecmp(cat, "trunkgroups") ||
+		    !strcasecmp(cat, "globals") ||
+		    !strcasecmp(cat, "channels")) {
+			continue;
+		}
+
+		memcpy(&conf, &base_conf, sizeof(conf));
+
+		if ((res = process_zap(&conf, ast_variable_browse(cfg, cat), reload, PROC_ZAP_OPT_NOCHAN))) {
+			ast_mutex_unlock(&iflock);
+			ast_config_destroy(cfg);
+			if (ucfg) {
+				ast_config_destroy(cfg);
+			}
+			return res;
+		}
+	}
+
+	ast_config_destroy(cfg);
+
 	if (ucfg) {
-		char *cat;
 		const char *chans;
-		process_zap(&base_conf, ast_variable_browse(ucfg, "general"), 1, 1);
+
+		process_zap(&base_conf, ast_variable_browse(ucfg, "general"), 1, 0);
+
 		for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
-			if (!strcasecmp(cat, "general"))
+			if (!strcasecmp(cat, "general")) {
 				continue;
+			}
+
 			chans = ast_variable_retrieve(ucfg, cat, "zapchan");
-			if (!ast_strlen_zero(chans)) {
-				if (memcpy(&conf, &base_conf, sizeof(conf)) == NULL) {
-					ast_log(LOG_ERROR, "Not enough memory for conf copy\n");
-					ast_config_destroy(ucfg);
-					return -1;
-				}
-				process_zap(&conf, ast_variable_browse(ucfg, cat), reload, 0);
+
+			if (ast_strlen_zero(chans)) {
+				continue;
+			}
+
+			memcpy(&conf, &base_conf, sizeof(conf));
+
+			if ((res = process_zap(&conf, ast_variable_browse(ucfg, cat), reload, PROC_ZAP_OPT_NOCHAN | PROC_ZAP_OPT_NOWARN))) {
+				ast_config_destroy(ucfg);
+				ast_mutex_unlock(&iflock);
+				return res;
 			}
 		}
 		ast_config_destroy(ucfg);
 	}
+	ast_mutex_unlock(&iflock);
+
 #ifdef HAVE_PRI
 	if (!reload) {
 		int x;

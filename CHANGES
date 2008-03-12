@@ -7,6 +7,11 @@ Dialplan Functions
  * Added a new dialplan function, AST_CONFIG(), which allows you to access
    variables from an Asterisk configuration file.
 
+Zaptel channel driver (chan_zap) Changes
+----------------------------------------
+ * Channels can now be configured using named sections in zapata.conf, just
+   like other channel drivers, including the use of templates.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------
 ------------------------------------------------------------------------------
