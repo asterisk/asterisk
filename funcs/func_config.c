@@ -4,6 +4,7 @@
  * Copyright (C) 2008, Digium, Inc.
  *
  * Russell Bryant <russell@digium.com>
+ * Tilghman Lesher <func_config__200803@the-tilghman.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -21,6 +22,7 @@
  * \brief A function to retrieve variables from an Asterisk configuration file
  *
  * \author Russell Bryant <russell@digium.com>
+ * \author Tilghman Lesher <func_config__200803@the-tilghman.com>
  * 
  * \ingroup functions
  */
@@ -170,20 +172,13 @@ static int unload_module(void)
 	struct config_item *cur;
 	int res = ast_custom_function_unregister(&config_function);
 
-	/* Allow anything already in the routine to exit */
-	usleep(1);
 	AST_RWLIST_WRLOCK(&configs);
-	usleep(1);
-	AST_RWLIST_UNLOCK(&configs);
-	/* Even if it needed to upgrade a lock */
-	usleep(1);
-	AST_RWLIST_WRLOCK(&configs);
-	/* At this point, no other thread should be queued inside this module */
 	while ((cur = AST_RWLIST_REMOVE_HEAD(&configs, entry))) {
 		ast_config_destroy(cur->cfg);
 		ast_free(cur);
 	}
 	AST_RWLIST_UNLOCK(&configs);
+
 	return res;
 }
 
