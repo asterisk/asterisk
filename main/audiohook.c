@@ -128,22 +128,21 @@ int ast_audiohook_destroy(struct ast_audiohook *audiohook)
 int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohook_direction direction, struct ast_frame *frame)
 {
 	struct ast_slinfactory *factory = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->read_factory : &audiohook->write_factory);
+	struct timeval *time = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->read_time : &audiohook->write_time);
 
 	/* Write frame out to respective factory */
 	ast_slinfactory_feed(factory, frame);
 
+	/* Update last fed time for the above factory */
+	*time = ast_tvnow();
+
 	/* If we need to notify the respective handler of this audiohook, do so */
-	switch (ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_MODE)) {
-	case AST_AUDIOHOOK_TRIGGER_READ:
-		if (direction == AST_AUDIOHOOK_DIRECTION_READ)
-			ast_cond_signal(&audiohook->trigger);
-		break;
-	case AST_AUDIOHOOK_TRIGGER_WRITE:
-		if (direction == AST_AUDIOHOOK_DIRECTION_WRITE)
-			ast_cond_signal(&audiohook->trigger);
-		break;
-	default:
-		break;
+	if ((ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_MODE) == AST_AUDIOHOOK_TRIGGER_READ) && (direction == AST_AUDIOHOOK_DIRECTION_READ)) {
+		ast_cond_signal(&audiohook->trigger);
+	} else if ((ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_MODE) == AST_AUDIOHOOK_TRIGGER_WRITE) && (direction == AST_AUDIOHOOK_DIRECTION_WRITE)) {
+		ast_cond_signal(&audiohook->trigger);
+	} else if (ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC)) {
+		ast_cond_signal(&audiohook->trigger);
 	}
 
 	return 0;
@@ -179,7 +178,7 @@ static struct ast_frame *audiohook_read_frame_single(struct ast_audiohook *audio
 
 static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audiohook, size_t samples)
 {
-	int i = 0;
+	int i = 0, usable_read, usable_write;
 	short buf1[samples], buf2[samples], *read_buf = NULL, *write_buf = NULL, *final_buf = NULL, *data1 = NULL, *data2 = NULL;
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_VOICE,
@@ -189,8 +188,33 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 		.samples = samples,
 	};
 
+	/* Make sure both factories have the required samples */
+	usable_read = (ast_slinfactory_available(&audiohook->read_factory) >= samples ? 1 : 0);
+	usable_write = (ast_slinfactory_available(&audiohook->write_factory) >= samples ? 1 : 0);
+
+	if (!usable_read && !usable_write) {
+		/* If both factories are unusable bail out */
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Read factory %p and write factory %p both fail to provide %zd samples\n", &audiohook->read_factory, &audiohook->write_factory, samples);
+		return NULL;
+	}
+
+	/* If we want to provide only a read factory make sure we aren't waiting for other audio */
+	if (usable_read && !usable_write && (ast_tvdiff_ms(ast_tvnow(), audiohook->write_time) < (samples/8)*2)) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Write factory %p was pretty quick last time, waiting for them.\n", &audiohook->write_factory);
+		return NULL;
+	}
+
+	/* If we want to provide only a write factory make sure we aren't waiting for other audio */
+	if (usable_write && !usable_read && (ast_tvdiff_ms(ast_tvnow(), audiohook->write_time) < (samples/8)*2)) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Read factory %p was pretty quick last time, waiting for them.\n", &audiohook->read_factory);
+		return NULL;
+	}
+
 	/* Start with the read factory... if there are enough samples, read them in */
-	if (ast_slinfactory_available(&audiohook->read_factory) >= samples) {
+	if (usable_read && ast_slinfactory_available(&audiohook->read_factory) >= samples) {
 		if (ast_slinfactory_read(&audiohook->read_factory, buf1, samples)) {
 			read_buf = buf1;
 			/* Adjust read volume if need be */
@@ -209,7 +233,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 		ast_log(LOG_DEBUG, "Failed to get %zd samples from read factory %p\n", samples, &audiohook->read_factory);
 
 	/* Move on to the write factory... if there are enough samples, read them in */
-	if (ast_slinfactory_available(&audiohook->write_factory) >= samples) {
+	if (usable_write && ast_slinfactory_available(&audiohook->write_factory) >= samples) {
 		if (ast_slinfactory_read(&audiohook->write_factory, buf2, samples)) {
 			write_buf = buf2;
 			/* Adjust write volume if need be */

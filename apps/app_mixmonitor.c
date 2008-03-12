@@ -265,7 +265,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 		return;
 	}
 	
-	ast_set_flag(&mixmonitor->audiohook, AST_AUDIOHOOK_TRIGGER_WRITE);
+	ast_set_flag(&mixmonitor->audiohook, AST_AUDIOHOOK_TRIGGER_SYNC);
 	
 	if (readvol)
 		mixmonitor->audiohook.options.read_volume = readvol;
