@@ -2,7 +2,7 @@
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2005 Anthony Minessale II (anthmct@yahoo.com)
- * Copyright (C) 2005 - 2006, Digium, Inc.
+ * Copyright (C) 2005 - 2008, Digium, Inc.
  *
  * A license has been granted to Digium (via disclaimer) for the use of
  * this code.
@@ -23,6 +23,8 @@
  * \brief ChanSpy: Listen in on any channel.
  *
  * \author Anthony Minessale II <anthmct@yahoo.com>
+ * \author Joshua Colp <jcolp@digium.com>
+ * \author Russell Bryant <russell@digium.com>
  *
  * \ingroup applications
  */
