@@ -699,8 +699,8 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 	case AST_MODULE_LOAD_SUCCESS:
 		if (!ast_fully_booted) {
 			ast_verb(1, "%s => (%s)\n", resource_name, term_color(tmp, mod->info->description, COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
-			if (ast_opt_console)
-				ast_verb(0, ".");
+			if (ast_opt_console && !option_verbose)
+				ast_verbose( ".");
 		} else {
 			ast_verb(1, "Loaded %s => (%s)\n", resource_name, mod->info->description);
 		}
