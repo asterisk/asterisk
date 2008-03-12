@@ -2250,6 +2250,7 @@ cleanup2:
 }
 
 #define sip_pvt_lock(x) ast_mutex_lock(&x->pvt_lock)
+#define sip_pvt_trylock(x) ast_mutex_trylock(&x->pvt_lock)
 #define sip_pvt_unlock(x) ast_mutex_unlock(&x->pvt_lock)
 
 /*!
@@ -5839,6 +5840,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	}
 
 	dialoglist_lock();
+restartsearch:
 	for (p = dialoglist; p; p = p->next) {
 		/* In pedantic, we do not want packets with bad syntax to be connected to a PVT */
 		int found = FALSE;
@@ -5869,7 +5871,12 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 
 		if (found) {
 			/* Found the call */
-			sip_pvt_lock(p);
+			if (sip_pvt_trylock(p)) {
+				dialoglist_unlock();
+				usleep(1);
+				dialoglist_lock();
+				goto restartsearch;
+			}
 			dialoglist_unlock();
 			return p;
 		}
@@ -18339,7 +18346,13 @@ restartsearch:
 		   get back to this point every millisecond or less)
 		*/
 		for (dialog = dialoglist; dialog; dialog = dialog->next) {
-			sip_pvt_lock(dialog);
+			if (sip_pvt_trylock(dialog)) {
+				dialoglist_unlock();
+				usleep(1);
+				dialoglist_lock();
+				goto restartsearch;
+			}
+
 			/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
 			check_rtp_timeout(dialog, t);
 			/* If we have sessions that needs to be destroyed, do it now */
