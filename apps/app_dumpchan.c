@@ -141,8 +141,8 @@ static int dumpchan_exec(struct ast_channel *chan, void *data)
 
 	pbx_builtin_serialize_variables(chan, &vars);
 	serialize_showchan(chan, info, sizeof(info));
-	if (level > 0)
-		ast_verb(level, "\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n", chan->name, line, info, vars->str, line);
+	if (option_verbose >= level)
+		ast_verbose("\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n", chan->name, line, info, vars->str, line);
 
 	return 0;
 }
