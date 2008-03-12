@@ -35,13 +35,31 @@ extern "C" {
  */
 #define SCHED_MAX_CACHE 128
 
+/*! \brief a loop construct to ensure that
+ * the scheduled task get deleted. The idea is that
+ * if we loop attempting to remove the scheduled task,
+ * then whatever callback had been running will complete
+ * and reinsert the task into the scheduler.
+ *
+ * Note that this is NOT always appropriate. This should 
+ * only be used for tasks whose callback may return non-zero 
+ * to indicate that the task needs to be rescheduled with the
+ * SAME id as previously.
+ *
+ * Some scheduler callbacks instead may reschedule the task themselves,
+ * thus removing the previous task id from the queue. If the task is rescheduled
+ * in this manner, then the id for the task will be different than before
+ * and so it makes no sense to use this macro. Note that if using the scheduler
+ * in this manner, it is perfectly acceptable for ast_sched_del to fail, and this
+ * macro should NOT be used.
+ */
 #define AST_SCHED_DEL(sched, id) \
 	do { \
 		int _count = 0; \
 		while (id > -1 && ast_sched_del(sched, id) && ++_count < 10) \
 			usleep(1); \
-		if (_count == 10) \
-			ast_log(LOG_DEBUG, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
+		if (_count == 10 && option_debug > 2) \
+			ast_log(LOG_DEBUG, "Unable to cancel schedule ID %d.\n", id); \
 		id = -1; \
 	} while (0);
 
