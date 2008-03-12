@@ -1223,7 +1223,6 @@ void ast_channel_free(struct ast_channel *chan)
 	if (chan->pbx)
 		ast_log(LOG_WARNING, "PBX may not have been terminated properly on '%s'\n", chan->name);
 	free_cid(&chan->cid);
-	ast_mutex_destroy(&chan->lock);
 	/* Close pipes if appropriate */
 	if ((fd = chan->alertpipe[0]) > -1)
 		close(fd);
@@ -1250,6 +1249,8 @@ void ast_channel_free(struct ast_channel *chan)
 
 	/* Destroy the jitterbuffer */
 	ast_jb_destroy(chan);
+	
+	ast_mutex_destroy(&chan->lock);
 
 	ast_string_field_free_memory(chan);
 	free(chan);
