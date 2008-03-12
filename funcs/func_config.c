@@ -34,13 +34,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
 
+struct config_item {
+	AST_RWLIST_ENTRY(config_item) entry;
+	struct ast_config *cfg;
+	char filename[0];
+};
+
+static AST_RWLIST_HEAD_STATIC(configs, config_item);
+
 static int config_function_read(struct ast_channel *chan, const char *cmd, char *data, 
 	char *buf, size_t len) 
 {
 	struct ast_config *cfg;
-	struct ast_flags cfg_flags = { 0 };
+	struct ast_flags cfg_flags = { CONFIG_FLAG_FILEUNCHANGED };
 	const char *val;
 	char *parse;
+	struct config_item *cur;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filename);
 		AST_APP_ARG(category);
@@ -75,6 +84,63 @@ static int config_function_read(struct ast_channel *chan, const char *cmd, char 
 		return -1;
 	}
 
+	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+		/* Retrieve cfg from list */
+		AST_RWLIST_RDLOCK(&configs);
+		AST_RWLIST_TRAVERSE(&configs, cur, entry) {
+			if (!strcmp(cur->filename, args.filename)) {
+				break;
+			}
+		}
+
+		if (!cur) {
+			/* At worst, we might leak an entry while upgrading locks */
+			AST_RWLIST_UNLOCK(&configs);
+			AST_RWLIST_WRLOCK(&configs);
+			if (!(cur = ast_malloc(sizeof(*cur) + strlen(args.filename) + 1))) {
+				AST_RWLIST_UNLOCK(&configs);
+				return -1;
+			}
+
+			strcpy(cur->filename, args.filename);
+
+			ast_clear_flag(&cfg_flags, CONFIG_FLAG_FILEUNCHANGED);
+			if (!(cfg = ast_config_load(args.filename, cfg_flags))) {
+				ast_free(cur);
+				AST_RWLIST_UNLOCK(&configs);
+				return -1;
+			}
+
+			cur->cfg = cfg;
+			AST_RWLIST_INSERT_TAIL(&configs, cur, entry);
+		}
+
+		cfg = cur->cfg;
+	} else {
+		/* Replace cfg in list */
+		AST_RWLIST_WRLOCK(&configs);
+		AST_RWLIST_TRAVERSE(&configs, cur, entry) {
+			if (!strcmp(cur->filename, args.filename)) {
+				break;
+			}
+		}
+
+		if (!cur) {
+			if (!(cur = ast_malloc(sizeof(*cur) + strlen(args.filename) + 1))) {
+				AST_RWLIST_UNLOCK(&configs);
+				return -1;
+			}
+
+			strcpy(cur->filename, args.filename);
+			cur->cfg = cfg;
+
+			AST_RWLIST_INSERT_TAIL(&configs, cur, entry);
+		} else {
+			ast_config_destroy(cur->cfg);
+			cur->cfg = cfg;
+		}
+	}
+
 	if (!(val = ast_variable_retrieve(cfg, args.category, args.variable))) {
 		ast_log(LOG_ERROR, "'%s' not found in [%s] of '%s'\n", args.variable, 
 			args.category, args.filename);
@@ -83,7 +149,8 @@ static int config_function_read(struct ast_channel *chan, const char *cmd, char 
 
 	ast_copy_string(buf, val, len);
 
-	ast_config_destroy(cfg);
+	/* Unlock down here, so there's no chance the struct goes away while we're using it. */
+	AST_RWLIST_UNLOCK(&configs);
 
 	return 0;
 }
@@ -100,7 +167,24 @@ static struct ast_custom_function config_function = {
 
 static int unload_module(void)
 {
-	return ast_custom_function_unregister(&config_function);
+	struct config_item *cur;
+	int res = ast_custom_function_unregister(&config_function);
+
+	/* Allow anything already in the routine to exit */
+	usleep(1);
+	AST_RWLIST_WRLOCK(&configs);
+	usleep(1);
+	AST_RWLIST_UNLOCK(&configs);
+	/* Even if it needed to upgrade a lock */
+	usleep(1);
+	AST_RWLIST_WRLOCK(&configs);
+	/* At this point, no other thread should be queued inside this module */
+	while ((cur = AST_RWLIST_REMOVE_HEAD(&configs, entry))) {
+		ast_config_destroy(cur->cfg);
+		ast_free(cur);
+	}
+	AST_RWLIST_UNLOCK(&configs);
+	return res;
 }
 
 static int load_module(void)
