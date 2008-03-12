@@ -495,7 +495,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 	/* Tell the peer channel the number of the parking space */
 	if (peer && ((pu->parkingnum != -1 && ast_strlen_zero(orig_chan_name)) || !strcasecmp(peer->name, orig_chan_name))) { /* Only say number if it's a number and the channel hasn't been masqueraded away */
-		/* Make sure we don't start saying digits to the channel being parked */
+		/* If a channel is masqueraded into peer while playing back the parking slot number do not continue playing it back. This is the case if an attended transfer occurs. */
 		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
 		ast_clear_flag(peer, AST_FLAG_MASQ_NOSTREAM);
