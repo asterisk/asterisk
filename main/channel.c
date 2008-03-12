@@ -1257,10 +1257,21 @@ void ast_channel_free(struct ast_channel *chan)
 		AST_RWLIST_UNLOCK(&channels);
 		ast_log(LOG_ERROR, "Unable to find channel in list to free. Assuming it has already been done.\n");
 	}
-	/* Lock and unlock the channel just to be sure nobody
-	   has it locked still */
+	/* Lock and unlock the channel just to be sure nobody has it locked still
+	   due to a reference retrieved from the channel list. */
 	ast_channel_lock(chan);
 	ast_channel_unlock(chan);
+
+	/* Get rid of each of the data stores on the channel */
+	while ((datastore = AST_LIST_REMOVE_HEAD(&chan->datastores, entry)))
+		/* Free the data store */
+		ast_channel_datastore_free(datastore);
+
+	/* Lock and unlock the channel just to be sure nobody has it locked still
+	   due to a reference that was stored in a datastore. (i.e. app_chanspy) */
+	ast_channel_lock(chan);
+	ast_channel_unlock(chan);
+
 	if (chan->tech_pvt) {
 		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
 		ast_free(chan->tech_pvt);
@@ -1304,12 +1315,6 @@ void ast_channel_free(struct ast_channel *chan)
 	while ((f = AST_LIST_REMOVE_HEAD(&chan->readq, frame_list)))
 		ast_frfree(f);
 	
-	/* Get rid of each of the data stores on the channel */
-	while ((datastore = AST_LIST_REMOVE_HEAD(&chan->datastores, entry)))
-		/* Free the data store */
-		ast_channel_datastore_free(datastore);
-	AST_LIST_HEAD_INIT_NOLOCK(&chan->datastores);
-
 	/* loop over the variables list, freeing all data and deleting list items */
 	/* no need to lock the list, as the channel is already locked */
 	
