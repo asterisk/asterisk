@@ -6150,12 +6150,27 @@ static void parse_request(struct sip_request *req)
 static int find_sdp(struct sip_request *req)
 {
 	const char *content_type;
+	const char *content_length;
 	const char *search;
 	char *boundary;
 	unsigned int x;
 	int boundaryisquoted = FALSE;
 	int found_application_sdp = FALSE;
 	int found_end_of_headers = FALSE;
+
+	content_length = get_header(req, "Content-Length");
+
+	if (!ast_strlen_zero(content_length)) {
+		if (sscanf(content_length, "%ud", &x) != 1) {
+			ast_log(LOG_WARNING, "Invalid Content-Length: %s\n", content_length);
+			return 0;
+		}
+
+		/* Content-Length of zero means there can't possibly be an
+		   SDP here, even if the Content-Type says there is */
+		if (x == 0)
+			return 0;
+	}
 
 	content_type = get_header(req, "Content-Type");
 
