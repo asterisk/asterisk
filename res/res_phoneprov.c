@@ -323,7 +323,7 @@ static int load_file(const char *filename, char **ret)
 }
 
 /*! \brief Callback that is executed everytime an http request is received by this module */
-static struct ast_str *phoneprov_callback(struct ast_tcptls_server_instance *ser, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
+static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *ser, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
 	struct http_route *route;
 	struct http_route search_route = {

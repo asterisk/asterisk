@@ -777,7 +777,7 @@ struct sip_socket {
 	enum sip_transport type;
 	int fd;
 	uint16_t port;
-	struct ast_tcptls_server_instance *ser;
+	struct ast_tcptls_session_instance *ser;
 };
 
 /*! \brief sip_request: The data grabbed from the UDP socket
@@ -1551,7 +1551,7 @@ struct sip_registry {
 struct sip_threadinfo {
 	int stop;
 	pthread_t threadid;
-	struct ast_tcptls_server_instance *ser;
+	struct ast_tcptls_session_instance *ser;
 	enum sip_transport type;	/* We keep a copy of the type here so we can display it in the connection list */
 	AST_LIST_ENTRY(sip_threadinfo) list;
 };
@@ -2129,25 +2129,25 @@ static struct ast_rtp_protocol sip_rtp = {
 	.get_codec = sip_get_codec,
 };
 
-static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_server_instance *ser);
+static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *ser);
 
 static void *sip_tcp_helper_thread(void *data)
 {
 	struct sip_pvt *pvt = data;
-	struct ast_tcptls_server_instance *ser = pvt->socket.ser;
+	struct ast_tcptls_session_instance *ser = pvt->socket.ser;
 
 	return _sip_tcp_helper_thread(pvt, ser);
 }
 
 static void *sip_tcp_worker_fn(void *data)
 {
-	struct ast_tcptls_server_instance *ser = data;
+	struct ast_tcptls_session_instance *ser = data;
 
 	return _sip_tcp_helper_thread(NULL, ser);
 }
 
 /*! \brief SIP TCP helper function */
-static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_server_instance *ser) 
+static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *ser) 
 {
 	int res, cl;
 	struct sip_request req = { 0, } , reqcpy = { 0, };
@@ -2238,7 +2238,7 @@ cleanup:
 	ast_free(me);
 cleanup2:
 	fclose(ser->f);
-	ser = ast_tcptls_server_instance_destroy(ser);
+	ser = ast_tcptls_session_instance_destroy(ser);
 
 	if (req.socket.lock) {
 		ast_mutex_destroy(req.socket.lock);
@@ -18084,7 +18084,7 @@ static int sip_standard_port(struct sip_socket s)
 }
 
 /*! \todo document this function. */
-static struct ast_tcptls_server_instance *sip_tcp_locate(struct sockaddr_in *s)
+static struct ast_tcptls_session_instance *sip_tcp_locate(struct sockaddr_in *s)
 {
 	struct sip_threadinfo *th;
 
@@ -18106,7 +18106,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 {
 	struct sip_socket *s = &p->socket;
 	static const char name[] = "SIP socket";
-	struct ast_tcptls_server_instance *ser;
+	struct ast_tcptls_session_instance *ser;
 	struct server_args ca = {
 		.name = name,
 		.accept_fd = -1,
