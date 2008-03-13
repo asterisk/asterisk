@@ -5013,7 +5013,7 @@ static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int 
 	if (box == NEW_FOLDER || box == OLD_FOLDER)
 		snprintf(spec, len, "%s%s", tmp, use_folder? imapfolder: "INBOX");
 	else if (box == GREETINGS_FOLDER)
-		sprintf(spec, "%s%s", tmp, greetingfolder);
+		snprintf(spec, len, "%s%s", tmp, greetingfolder);
 	else
 		snprintf(spec, len, "%s%s%c%s", tmp, imapfolder, delimiter, mbox(box));
 }
