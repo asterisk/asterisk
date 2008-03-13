@@ -782,9 +782,9 @@ static void findmeexec(struct fm_args *tpargs)
 			}
 
 			if (!strcmp(tpargs->context, ""))
-				sprintf(dialarg, "%s", number);
+				snprintf(dialarg, sizeof(dialarg), "%s", number);
 			else
-				sprintf(dialarg, "%s@%s", number, tpargs->context);
+				snprintf(dialarg, sizeof(dialarg), "%s@%s", number, tpargs->context);
 					
 			tmpuser = ast_calloc(1, sizeof(*tmpuser));
 			if (!tmpuser) {
