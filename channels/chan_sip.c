@@ -7185,7 +7185,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		break;
 	case AST_EXTENSION_ONHOLD:
 		statestring = "confirmed";
-		local_state = NOTIFY_INUSE;
+		local_state = NOTIFY_CLOSED;
 		pidfstate = "busy";
 		pidfnote = "On Hold";
 		break;
