@@ -191,6 +191,21 @@ struct ast_datastore_info {
 	const char *type;		/*!< Type of data store */
 	void *(*duplicate)(void *data);	/*!< Duplicate item data (used for inheritance) */
 	void (*destroy)(void *data);	/*!< Destroy function */
+	/*!
+	 * \brief Fix up channel references
+	 *
+	 * \arg data The datastore data
+	 * \arg old_chan The old channel owning the datastore
+	 * \arg new_chan The new channel owning the datastore
+	 *
+	 * This is exactly like the fixup callback of the channel technology interface.
+	 * It allows a datastore to fix any pointers it saved to the owning channel
+	 * in case that the owning channel has changed.  Generally, this would happen
+	 * when the datastore is set to be inherited, and a masquerade occurs.
+	 *
+	 * \return nothing.
+	 */
+	void (*chan_fixup)(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan);
 };
 
 /*! \brief Structure for a channel data store */
