@@ -237,6 +237,7 @@ static int expiry = DEFAULT_EXPIRY;
 #define SIP_MAX_HEADERS              64               /*!< Max amount of SIP headers to read */
 #define SIP_MAX_LINES                64               /*!< Max amount of lines in SIP attachment (like SDP) */
 #define SIP_MAX_PACKET               4096             /*!< Also from RFC 3261 (2543), should sub headers tho */
+#define SIP_MIN_PACKET               1024             /*!< Initialize size of memory to allocate for packets */
 
 #define INITIAL_CSEQ                 101              /*!< our initial sip sequence number */
 
@@ -818,7 +819,7 @@ struct sip_request {
 	char ignore;		/*!< if non-zero This is a re-transmit, ignore it */
 	char *header[SIP_MAX_HEADERS];
 	char *line[SIP_MAX_LINES];
-	char data[SIP_MAX_PACKET];
+	struct ast_str *data;	
 	struct sip_socket socket;	/*!< The socket used for this request */
 };
 
@@ -1367,7 +1368,7 @@ struct sip_pkt {
 	int timer_a;				/*!< SIP timer A, retransmission timer */
 	int timer_t1;				/*!< SIP Timer T1, estimated RTT or 500 ms */
 	int packetlen;				/*!< Length of packet */
-	char data[0];
+	struct ast_str *data;
 };	
 
 /*! \brief Structure for SIP user data. User's place calls to us */
@@ -1698,8 +1699,8 @@ static int sip_prepare_socket(struct sip_pvt *p);
 
 /*--- Transmitting responses and requests */
 static int sipsock_read(int *id, int fd, short events, void *ignore);
-static int __sip_xmit(struct sip_pvt *p, char *data, int len);
-static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, int sipmethod);
+static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len);
+static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, struct ast_str *data, int len, int fatal, int sipmethod);
 static int __transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
 static int retrans_pkt(const void *data);
 static int transmit_sip_request(struct sip_pvt *p, struct sip_request *req);
@@ -2176,9 +2177,14 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		goto cleanup;
 
 	ast_mutex_init(req.socket.lock);
+	if (!(req.data = ast_str_create(SIP_MIN_PACKET)))
+		goto cleanup;
+	if (!(reqcpy.data = ast_str_create(SIP_MIN_PACKET)))
+		goto cleanup;
 
 	for (;;) {
-		memset(req.data, 0, sizeof(req.data));
+		ast_str_reset(req.data);
+		ast_str_reset(reqcpy.data);
 		req.len = 0;
 		req.ignore = 0;
 
@@ -2197,7 +2203,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		}
 
 		/* Read in headers one line at a time */
-		while (req.len < 4 || strncmp((char *)&req.data + req.len - 4, "\r\n\r\n", 4)) {
+		while (req.len < 4 || strncmp((char *)&req.data->str + req.len - 4, "\r\n\r\n", 4)) {
 			if (req.socket.lock) 
 				ast_mutex_lock(req.socket.lock);
 			if (!fgets(buf, sizeof(buf), ser->f)) {
@@ -2208,10 +2214,11 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 				ast_mutex_unlock(req.socket.lock);
 			if (me->stop) 
 				 goto cleanup;
-			strncat(req.data, buf, sizeof(req.data) - req.len - 1);
-			req.len = strlen(req.data);
+			ast_str_append(&req.data, 0, "%s", buf);
+			req.len = req.data->used;
 		}
-		parse_copy(&reqcpy, &req);
+		copy_request(&reqcpy, &req);
+		parse_request(&reqcpy);
 		if (sscanf(get_header(&reqcpy, "Content-Length"), "%d", &cl)) {
 			while (cl > 0) {
 				if (req.socket.lock) 
@@ -2223,8 +2230,8 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 				if (me->stop)
 					goto cleanup;
 				cl -= strlen(buf);
-				strncat(req.data, buf, sizeof(req.data) - req.len - 1);
-				req.len = strlen(req.data);
+				ast_str_append(&req.data, 0, "%s", buf);
+				req.len = req.data->used;
 			}
 		}
 		req.socket.ser = ser;
@@ -2239,6 +2246,10 @@ cleanup:
 cleanup2:
 	fclose(ser->f);
 	ser = ast_tcptls_session_instance_destroy(ser);
+	if (reqcpy.data)
+		ast_free(reqcpy.data);
+	if (req.data)
+		ast_free(req.data);
 
 	if (req.socket.lock) {
 		ast_mutex_destroy(req.socket.lock);
@@ -2510,12 +2521,12 @@ static inline const char *get_transport(enum sip_transport t)
 	Called by retrans_pkt, send_request, send_response and 
 	__sip_reliable_xmit
 */
-static int __sip_xmit(struct sip_pvt *p, char *data, int len)
+static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 {
 	int res = 0;
 	const struct sockaddr_in *dst = sip_real_dst(p);
 
-	ast_debug(1, "Trying to put '%.10s' onto %s socket...\n", data, get_transport(p->socket.type));
+	ast_debug(1, "Trying to put '%.10s' onto %s socket...\n", data->str, get_transport(p->socket.type));
 
 	if (sip_prepare_socket(p) < 0)
 		return XMIT_ERROR;
@@ -2524,10 +2535,10 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 		ast_mutex_lock(p->socket.lock);
 
 	if (p->socket.type & SIP_TRANSPORT_UDP) 
-		res = sendto(p->socket.fd, data, len, 0, (const struct sockaddr *)dst, sizeof(struct sockaddr_in));
+		res = sendto(p->socket.fd, data->str, len, 0, (const struct sockaddr *)dst, sizeof(struct sockaddr_in));
 	else {
 		if (p->socket.ser->f) 
-			res = ast_tcptls_server_write(p->socket.ser, data, len);
+			res = ast_tcptls_server_write(p->socket.ser, data->str, len);
 		else
 			ast_debug(1, "No p->socket.ser->f len=%d\n", len);
 	} 
@@ -2705,10 +2716,10 @@ static int retrans_pkt(const void *data)
 			ast_verbose("Retransmitting #%d (%s) to %s:%d:\n%s\n---\n",
 				pkt->retrans, sip_nat_mode(pkt->owner),
 				ast_inet_ntoa(dst->sin_addr),
-				ntohs(dst->sin_port), pkt->data);
+				ntohs(dst->sin_port), pkt->data->str);
 		}
 
-		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data);
+		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data->str);
 		xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
 		sip_pvt_unlock(pkt->owner);
 		if (xmitres == XMIT_ERROR)
@@ -2774,6 +2785,8 @@ static int retrans_pkt(const void *data)
 		if (cur == pkt) {
 			UNLINK(cur, pkt->owner->packets, prev);
 			sip_pvt_unlock(pkt->owner);
+			if (pkt->data)
+				ast_free(pkt->data);
 			ast_free(pkt);
 			return 0;
 		}
@@ -2787,7 +2800,7 @@ static int retrans_pkt(const void *data)
 /*! \brief Transmit packet with retransmits 
 	\return 0 on success, -1 on failure to allocate packet 
 */
-static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, int sipmethod)
+static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, struct ast_str *data, int len, int fatal, int sipmethod)
 {
 	struct sip_pkt *pkt = NULL;
 	int siptimer_a = DEFAULT_RETRANS;
@@ -2813,8 +2826,11 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	if (!(pkt = ast_calloc(1, sizeof(*pkt) + len + 1)))
 		return AST_FAILURE;
 	/* copy data, add a terminator and save length */
-	memcpy(pkt->data, data, len);
-	pkt->data[len] = '\0';
+	if (!(pkt->data = ast_str_create(len))) {
+		ast_free(pkt);
+		return AST_FAILURE;
+	}
+	ast_str_set(&pkt->data, 0, "%s%s", data->str, "\0");
 	pkt->packetlen = len;
 	/* copy other parameters from the caller */
 	pkt->method = sipmethod;
@@ -2838,6 +2854,8 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 
 	if (xmitres == XMIT_ERROR) {	/* Serious network trouble, no need to try again */
 		append_history(pkt->owner, "XmitErr", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
+		if (pkt->data)
+			ast_free(pkt->data);
 		return AST_FAILURE;
 	} else {
 		return AST_SUCCESS;
@@ -2967,6 +2985,8 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			AST_SCHED_DEL(sched, cur->retransid);
 			UNLINK(cur, p->packets, prev);
 			dialog_unref(cur->owner);
+			if (cur->data)
+				ast_free(cur->data);
 			ast_free(cur);
 			break;
 		}
@@ -2989,7 +3009,7 @@ static void __sip_pretend_ack(struct sip_pvt *p)
 			return;
 		}
 		cur = p->packets;
-		method = (cur->method) ? cur->method : find_sip_method(cur->data);
+		method = (cur->method) ? cur->method : find_sip_method(cur->data->str);
 		__sip_ack(p, cur->seqno, cur->is_resp, method);
 	}
 }
@@ -3002,7 +3022,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 
 	for (cur = p->packets; cur; cur = cur->next) {
 		if (cur->seqno == seqno && cur->is_resp == resp &&
-			(cur->is_resp || method_match(sipmethod, cur->data))) {
+			(cur->is_resp || method_match(sipmethod, cur->data->str))) {
 			/* this is our baby */
 			if (cur->retransid > -1) {
 				if (sipdebug)
@@ -3021,9 +3041,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 /*! \brief Copy SIP request, parse it */
 static void parse_copy(struct sip_request *dst, const struct sip_request *src)
 {
-	memset(dst, 0, sizeof(*dst));
-	memcpy(dst->data, src->data, sizeof(dst->data));
-	dst->len = src->len;
+	copy_request(dst, src);
 	parse_request(dst);
 }
 
@@ -3032,8 +3050,8 @@ static void add_blank(struct sip_request *req)
 {
 	if (!req->lines) {
 		/* Add extra empty return. add_header() reserves 4 bytes so cannot be truncated */
-		ast_copy_string(req->data + req->len, "\r\n", sizeof(req->data) - req->len);
-		req->len += strlen(req->data + req->len);
+		ast_str_append(&req->data, 0, "\r\n");
+		req->len = req->data->used;
 	}
 }
 
@@ -3049,17 +3067,19 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 		ast_verbose("\n<--- %sTransmitting (%s) to %s:%d --->\n%s\n<------------>\n",
 			reliable ? "Reliably " : "", sip_nat_mode(p),
 			ast_inet_ntoa(dst->sin_addr),
-			ntohs(dst->sin_port), req->data);
+			ntohs(dst->sin_port), req->data->str);
 	}
 	if (p->do_history) {
 		struct sip_request tmp;
 		parse_copy(&tmp, req);
-		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), 
+		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", tmp.data->str, get_header(&tmp, "CSeq"), 
 			(tmp.method == SIP_RESPONSE || tmp.method == SIP_UNKNOWN) ? tmp.rlPart2 : sip_methods[tmp.method].text);
+		ast_free(tmp.data);
 	}
 	res = (reliable) ?
 		 __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
 		__sip_xmit(p, req->data, req->len);
+	ast_free(req->data);
 	if (res > 0)
 		return 0;
 	return res;
@@ -3080,18 +3100,21 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
 		if (ast_test_flag(&p->flags[0], SIP_NAT_ROUTE))
-			ast_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port), req->data);
+			ast_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port), req->data->str);
 		else
-			ast_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
+			ast_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port), req->data->str);
 	}
 	if (p->do_history) {
 		struct sip_request tmp;
 		parse_copy(&tmp, req);
-		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), sip_methods[tmp.method].text);
+		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s - %s", tmp.data->str, get_header(&tmp, "CSeq"), sip_methods[tmp.method].text);
+		ast_free(tmp.data);
 	}
 	res = (reliable) ?
 		__sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
 		__sip_xmit(p, req->data, req->len);
+	if (req->data)
+		ast_free(req->data);
 	return res;
 }
 
@@ -4287,6 +4310,8 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 			p->registry->call = NULL;
 		p->registry = registry_unref(p->registry);
 	}
+	if (p->initreq.data)
+		ast_free(p->initreq.data);
 
 	/* Destroy Session-Timers if allocated */
 	if (p->stimer) {
@@ -4327,6 +4352,8 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		p->packets = p->packets->next;
 		AST_SCHED_DEL(sched, cp->retransid);
 		dialog_unref(cp->owner);
+		if (cp->data)
+			ast_free(cp->data);
 		ast_free(cp);
 	}
 	if (p->chanvars) {
@@ -4716,7 +4743,7 @@ static int sip_hangup(struct ast_channel *ast)
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 
 	/* Start the process if it's not already started */
-	if (!p->alreadygone && !ast_strlen_zero(p->initreq.data)) {
+	if (!p->alreadygone && !ast_strlen_zero(p->initreq.data->str)) {
 		if (needcancel) {	/* Outgoing call, not up */
 			if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 				/* stop retransmitting an INVITE that has not received a response */
@@ -6089,7 +6116,7 @@ static int lws2sws(char *msgbuf, int len)
 */
 static void parse_request(struct sip_request *req)
 {
-	char *c = req->data, **dst = req->header;
+	char *c = req->data->str, **dst = req->header;
 	int i = 0, lim = SIP_MAX_HEADERS - 1;
 
 	req->header[0] = c;
@@ -6894,7 +6921,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		/* Activate a re-invite */
 		ast_queue_frame(p->owner, &ast_null_frame);
 		/* Queue Manager Unhold event */
-		append_history(p, "Unhold", "%s", req->data);
+		append_history(p, "Unhold", "%s", req->data->str);
 		if (global_callevents)
 			manager_event(EVENT_FLAG_CALL, "Hold",
 				      "Status: Off\r\n"
@@ -6916,7 +6943,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		/* Activate a re-invite */
 		ast_queue_frame(p->owner, &ast_null_frame);
 		/* Queue Manager Hold event */
-		append_history(p, "Hold", "%s", req->data);
+		append_history(p, "Hold", "%s", req->data->str);
 		if (global_callevents && !ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD)) {
 			manager_event(EVENT_FLAG_CALL, "Hold",
 				      "Status: On\r\n"
@@ -6942,8 +6969,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 /*! \brief Add header to SIP message */
 static int add_header(struct sip_request *req, const char *var, const char *value)
 {
-	int maxlen = sizeof(req->data) - 4 - req->len; /* 4 bytes are for two \r\n ? */
-
 	if (req->headers == SIP_MAX_HEADERS) {
 		ast_log(LOG_WARNING, "Out of SIP header space\n");
 		return -1;
@@ -6954,17 +6979,11 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 		return -1;
 	}
 
-	if (maxlen <= 0) {
-		ast_log(LOG_WARNING, "Out of space, can't add anymore (%s:%s)\n", var, value);
-		return -1;
-	}
-
-	req->header[req->headers] = req->data + req->len;
+	ast_str_append(&req->data, 0, "%s: %s\r\n", var, value);
+	req->header[req->headers] = req->data->str + req->len;
 
 	if (compactheaders)
 		var = find_alias(var, var);
-
-	snprintf(req->header[req->headers], maxlen, "%s: %s\r\n", var, value);
 	req->len += strlen(req->header[req->headers]);
 	req->headers++;
 
@@ -6987,17 +7006,15 @@ static int add_line(struct sip_request *req, const char *line)
 		ast_log(LOG_WARNING, "Out of SIP line space\n");
 		return -1;
 	}
-	if (!req->lines) {
+	if (!req->lines)
 		/* Add extra empty return */
-		ast_copy_string(req->data + req->len, "\r\n", sizeof(req->data) - req->len);
-		req->len += strlen(req->data + req->len);
-	}
-	if (req->len >= sizeof(req->data) - 4) {
+		req->len += ast_str_append(&req->data, 0, "\r\n");
+	if (req->len >= sizeof(req->data->str) - 4) {
 		ast_log(LOG_WARNING, "Out of space, can't add anymore\n");
 		return -1;
 	}
-	req->line[req->lines] = req->data + req->len;
-	snprintf(req->line[req->lines], sizeof(req->data) - req->len, "%s", line);
+	req->line[req->lines] = req->data->str + req->len;
+	ast_str_append(&req->data, 0, "%s", line);
 	req->len += strlen(req->line[req->lines]);
 	req->lines++;
 	return 0;	
@@ -7201,8 +7218,10 @@ static int init_resp(struct sip_request *resp, const char *msg)
 	/* Initialize a response */
 	memset(resp, 0, sizeof(*resp));
 	resp->method = SIP_RESPONSE;
-	resp->header[0] = resp->data;
-	snprintf(resp->header[0], sizeof(resp->data), "SIP/2.0 %s\r\n", msg);
+	if (!(resp->data = ast_str_create(SIP_MIN_PACKET)))
+		return -1;
+	resp->header[0] = resp->data->str;
+	ast_str_set(&resp->data, 0, "SIP/2.0 %s\r\n", msg);
 	resp->len = strlen(resp->header[0]);
 	resp->headers++;
 	return 0;
@@ -7213,9 +7232,11 @@ static int init_req(struct sip_request *req, int sipmethod, const char *recip)
 {
 	/* Initialize a request */
 	memset(req, 0, sizeof(*req));
-        req->method = sipmethod;
-	req->header[0] = req->data;
-	snprintf(req->header[0], sizeof(req->data), "%s %s SIP/2.0\r\n", sip_methods[sipmethod].text, recip);
+	if (!(req->data = ast_str_create(SIP_MIN_PACKET)))
+		return -1;
+	req->method = sipmethod;
+	req->header[0] = req->data->str;
+	ast_str_set(&req->data, 0, "%s %s SIP/2.0\r\n", sip_methods[sipmethod].text, recip);
 	req->len = strlen(req->header[0]);
 	req->headers++;
 	return 0;
@@ -8244,16 +8265,30 @@ static void copy_request(struct sip_request *dst, const struct sip_request *src)
 {
 	long offset;
 	int x;
-	offset = ((void *)dst) - ((void *)src);
+	struct ast_str *dup = dst->data;
+
 	/* First copy stuff */
 	memcpy(dst, src, sizeof(*dst));
+	dst->data = dup;
+
+	if (!dst->data && !(dst->data = ast_str_create(src->data->used)))
+		return;
+	else if (dst->data->len < src->data->used)
+		ast_str_make_space(&dst->data, src->data->used);
+		
+	memcpy(dst->data->str, src->data->str, src->data->used);
+	dst->data->used = src->data->used;
+	offset = ((void *)dst->data->str) - ((void *)src->data->str);
 	/* Now fix pointer arithmetic */
 	for (x=0; x < src->headers; x++)
 		dst->header[x] += offset;
 	for (x=0; x < src->lines; x++)
 		dst->line[x] += offset;
-	dst->rlPart1 += offset;
-	dst->rlPart2 += offset;
+	/* On some occasions this function is called without parse_request being called first so lets not create an invalid pointer */
+	if (src->rlPart1)
+		dst->rlPart1 += offset;
+	if (src->rlPart2)
+		dst->rlPart2 += offset;
 }
 
 /*! \brief Used for 200 OK and 183 early media 
@@ -15456,6 +15491,8 @@ static void *sip_park_thread(void *stuff)
 	transferee = d->chan1;
 	transferer = d->chan2;
 	copy_request(&req, &d->req);
+	if (d->req.data)
+		ast_free(d->req.data);
 	ast_free(d);
 
 	if (!transferee || !transferer) {
@@ -15592,6 +15629,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		d->seqno = seqno;
 		if (ast_pthread_create_detached_background(&th, NULL, sip_park_thread, d) < 0) {
 			/* Could not start thread */
+			if (d->req.data)
+				ast_free(d->req.data);
 			ast_free(d);	/* We don't need it anymore. If thread is created, d will be free'd
 					   by sip_park_thread() */
 			return 0;
@@ -17961,9 +18000,10 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	struct sockaddr_in sin = { 0, };
 	int res;
 	socklen_t len = sizeof(sin);
+	static char readbuf[65535];
 
 	memset(&req, 0, sizeof(req));
-	res = recvfrom(fd, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
+	res = recvfrom(fd, readbuf, sizeof(readbuf) - 1, 0, (struct sockaddr *)&sin, &len);
 	if (res < 0) {
 #if !defined(__FreeBSD__)
 		if (errno == EAGAIN)
@@ -17974,10 +18014,15 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 			ast_log(LOG_WARNING, "Recv error: %s\n", strerror(errno));
 		return 1;
 	}
-	if (res == sizeof(req.data) - 1)
+	readbuf[res] = '\0';
+	if (!(req.data = ast_str_create(SIP_MIN_PACKET)))
+		return 1;
+	ast_str_set(&req.data, 0, "%s", readbuf);
+	if (res == sizeof(req.data) - 1) {
 		ast_debug(1, "Received packet exceeds buffer. Data is possibly lost\n");
-
-	req.data[res] = '\0';
+		req.data->str[sizeof(req.data) - 1] = '\0';
+ 	} else
+		req.data->str[res] = '\0';
 	req.len = res;
 
 	req.socket.fd 	= sipsock;
@@ -17987,6 +18032,8 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	req.socket.lock = NULL;
 
 	handle_request_do(&req, &sin);
+	if (req.data)
+		ast_free(req.data);
 
 	return 1;
 }
@@ -18001,11 +18048,11 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 	if (sip_debug_test_addr(sin))	/* Set the debug flag early on packet level */
 		req->debug = 1;
 	if (pedanticsipchecking)
-		req->len = lws2sws(req->data, req->len);	/* Fix multiline headers */
+		req->len = lws2sws(req->data->str, req->len);	/* Fix multiline headers */
 	if (req->debug) {
 		ast_verbose("\n<--- SIP read from %s://%s:%d --->\n%s\n<------------->\n", 
 			get_transport(req->socket.type), ast_inet_ntoa(sin->sin_addr), 
-			ntohs(sin->sin_port), req->data);
+			ntohs(sin->sin_port), req->data->str);
 	}
 
 	parse_request(req);
@@ -18014,8 +18061,10 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 	if (req->debug)
 		ast_verbose("--- (%d headers %d lines)%s ---\n", req->headers, req->lines, (req->headers + req->lines == 0) ? " Nat keepalive" : "");
 
-	if (req->headers < 2)	/* Must have at least two headers */
+	if (req->headers < 2) {	/* Must have at least two headers */
+		ast_free(req->data);
 		return 1;
+	}
 
 	/* Process request, with netlock held, and with usual deadlock avoidance */
 	for (lockretry = 100; lockretry > 0; lockretry--) {
@@ -18044,7 +18093,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 	p->recv = *sin;
 
 	if (p->do_history) /* This is a request or response, note what it was for */
-		append_history(p, "Rx", "%s / %s / %s", req->data, get_header(req, "CSeq"), req->rlPart2);
+		append_history(p, "Rx", "%s / %s / %s", req->data->str, get_header(req, "CSeq"), req->rlPart2);
 
 	if (!lockretry) {
 		if (p->owner)
