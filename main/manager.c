@@ -2565,14 +2565,14 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 	} else {
 		cut = filename + strlen(filename);
 	}
-	snprintf(cut, sizeof(filename) - cut - 1, ".so");
+	snprintf(cut, (sizeof(filename) - strlen(filename)) - 1, ".so");
 	ast_log(LOG_DEBUG, "**** ModuleCheck .so file %s\n", filename);
 	res = ast_module_check(filename);
 	if (!res) {
 		astman_send_error(s, m, "Module not loaded");
 		return 0;
 	}
-	snprintf(cut, sizeof(filename) - cut - 1, ".c");
+	snprintf(cut, (sizeof(filename) - strlen(filename)) - 1, ".c");
 	ast_log(LOG_DEBUG, "**** ModuleCheck .c file %s\n", filename);
 	version = ast_file_version_find(filename);
 
