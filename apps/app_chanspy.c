@@ -390,9 +390,19 @@ static void chanspy_ds_destroy(void *data)
 	ast_mutex_unlock(&chanspy_ds->lock);
 }
 
+static void chanspy_ds_chan_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan)
+{
+	struct chanspy_ds *chanspy_ds = data;
+	
+	ast_mutex_lock(&chanspy_ds->lock);
+	chanspy_ds->chan = new_chan;
+	ast_mutex_unlock(&chanspy_ds->lock);
+}
+
 static const struct ast_datastore_info chanspy_ds_info = {
 	.type = "chanspy",
 	.destroy = chanspy_ds_destroy,
+	.chan_fixup = chanspy_ds_chan_fixup,
 };
 
 static struct chanspy_ds *chanspy_ds_free(struct chanspy_ds *chanspy_ds)
