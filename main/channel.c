@@ -3878,8 +3878,14 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_app_group_update(clone, original);
 
 	/* Move data stores over */
-	if (AST_LIST_FIRST(&clone->datastores))
+	if (AST_LIST_FIRST(&clone->datastores)) {
+		struct ast_datastore *ds;
 		AST_LIST_APPEND_LIST(&original->datastores, &clone->datastores, entry);
+		AST_LIST_TRAVERSE(&original->datastores, ds, entry) {
+			if (ds->info->chan_fixup)
+				ds->info->chan_fixup(ds->data, clone, original);
+		}
+	}
 
 	clone_variables(original, clone);
 	/* Presense of ADSI capable CPE follows clone */
