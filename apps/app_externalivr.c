@@ -312,7 +312,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	char hostname[1024];
 	char *port_str = NULL;
 	int port = 0;
-	struct ast_tcptls_session_instance *ser;
+	struct ast_tcptls_session_instance *ser = NULL;
 
 	struct ivr_localuser foo = {
 		.playlist = AST_LIST_HEAD_INIT_VALUE,
