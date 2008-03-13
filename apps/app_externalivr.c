@@ -52,13 +52,13 @@ static const char *app = "ExternalIVR";
 static const char *synopsis = "Interfaces with an external IVR application";
 
 static const char *descrip =
-"  ExternalIVR(command[,arg[,arg...]]): Forks a process to run the supplied command,\n"
-"and starts a generator on the channel. The generator's play list is\n"
-"controlled by the external application, which can add and clear entries\n"
-"via simple commands issued over its stdout. The external application\n"
-"will receive all DTMF events received on the channel, and notification\n"
-"if the channel is hung up. The application will not be forcibly terminated\n"
-"when the channel is hung up.\n"
+"  ExternalIVR(command|ivr://ivrhost[,arg[,arg...]]): Either forks a process\n"
+"to run given command or makes a socket to connect to given host and starts\n"
+"a generator on the channel. The generator's play list is controlled by the\n"
+"external application, which can add and clear entries via simple commands\n"
+"issued over its stdout. The external application will receive all DTMF events\n"
+"received on the channel, and notification if the channel is hung up. The\n"
+"application will not be forcibly terminated when the channel is hung up.\n"
 "See doc/externalivr.txt for a protocol specification.\n";
 
 /* XXX the parser in gcc 2.95 gets confused if you don't put a space between 'name' and the comma */

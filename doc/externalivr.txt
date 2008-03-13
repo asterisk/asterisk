@@ -10,13 +10,21 @@ blocking).
 
 The arguments to ExternalIVR() consist of the command to execute and
 any arguments to pass to it, the same as the System() application
-accepts. The external command will be executed in a child process,
+accepts. The external command can be executed in a child process,
 with its standard file handles connected to the Asterisk process as
 follows:
 
 stdin (0) - DTMF and hangup events will be received on this handle
 stdout (1) - Playback and hangup commands can be sent on this handle
 stderr (2) - Error messages can be sent on this handle
+
+The external command can also be executed on another host entirely
+(specified by the ivr:// prefix), with its standard file handles
+connected to the Asterisk process as follows:
+
+stdin (0) - DTMF and hangup events will be received on this handle
+stdout (1) - Playback and hangup commands can be sent on this handle
+There are no error messages available when using ExternalIVR over TCP.
 
 The application will also create an audio generator to play audio to
 the channel, and will start playing silence. When your application

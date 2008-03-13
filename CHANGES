@@ -399,6 +399,8 @@ Other Dialplan Application Changes
      or NOCHANNEL if the given channel was not found.
   * The silencethreshold setting that was previously configurable in multiple
      applications is now settable globally via dsp.conf.
+  * Added ability to communicate over a TCP socket instead of forking a child process for the 
+    ExternalIVR application.
 
 Music On Hold Changes
 ---------------------
