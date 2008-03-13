@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
+#include "asterisk/tcptls.h"
 
 static const char *app = "ExternalIVR";
 
@@ -88,6 +89,8 @@ struct gen_state {
 static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u, 
               int eivr_events_fd, int eivr_commands_fd, int eivr_errors_fd, 
               const char *args);
+
+int eivr_connect_socket(struct ast_channel *chan, const char *host, int port);
 
 static void send_eivr_event(FILE *handle, const char event, const char *data,
 	const struct ast_channel *chan)
@@ -305,6 +308,12 @@ static int app_exec(struct ast_channel *chan, void *data)
 	int gen_active = 0;
 	int pid;
 	char *buf, *pipe_delim_argbuf, *pdargbuf_ptr;
+
+	char hostname[1024];
+	char *port_str = NULL;
+	int port = 0;
+	struct ast_tcptls_session_instance *ser;
+
 	struct ivr_localuser foo = {
 		.playlist = AST_LIST_HEAD_INIT_VALUE,
 		.finishlist = AST_LIST_HEAD_INIT_VALUE,
@@ -333,90 +342,137 @@ static int app_exec(struct ast_channel *chan, void *data)
 	pipe_delim_argbuf = ast_strdupa(data);
 	while((pdargbuf_ptr = strchr(pipe_delim_argbuf, ',')) != NULL)
 		pdargbuf_ptr[0] = '|';
-	
-	if (pipe(child_stdin)) {
-		ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child input: %s\n", strerror(errno));
-		goto exit;
-	}
-	if (pipe(child_stdout)) {
-		ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child output: %s\n", strerror(errno));
-		goto exit;
-	}
-	if (pipe(child_stderr)) {
-		ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child errors: %s\n", strerror(errno));
-		goto exit;
-	}
-	if (chan->_state != AST_STATE_UP) {
-		ast_answer(chan);
-	}
-	if (ast_activate_generator(chan, &gen, u) < 0) {
-		ast_chan_log(LOG_WARNING, chan, "Failed to activate generator\n");
-		goto exit;
-	} else
-		gen_active = 1;
 
-	pid = fork();
-	if (pid < 0) {
-		ast_log(LOG_WARNING, "Failed to fork(): %s\n", strerror(errno));
-		goto exit;
-	}
+	if(!strncmp(args.cmd[0], "ivr://", 6)) {
+		struct server_args ivr_desc = {
+			.accept_fd = -1,
+			.name = "IVR",
+		};
+		struct ast_hostent hp;
 
-	if (!pid) {
-		/* child process */
-		int i;
+		/*communicate through socket to server*/
+		if (chan->_state != AST_STATE_UP) {
+			ast_answer(chan);
+		}
+		if (ast_activate_generator(chan, &gen, u) < 0) {
+			ast_chan_log(LOG_WARNING, chan, "Failed to activate generator\n");
+			goto exit;
+		} else {
+			gen_active = 1;
+		}
 
-		signal(SIGPIPE, SIG_DFL);
-		pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
+		ast_chan_log(LOG_DEBUG, chan, "Parsing hostname:port for socket connect from \"%s\"\n", args.cmd[0]);           
+		strncpy(hostname, args.cmd[0] + 6, sizeof(hostname));
+		if((port_str = strchr(hostname, ':')) != NULL) {
+			port_str[0] = 0;
+			port_str += 1;
+			port = atoi(port_str);
+		}
+		if(!port)
+			port = 2949;  /*default port, if one is not provided*/
 
-		if (ast_opt_high_priority)
-			ast_set_priority(0);
+		ast_gethostbyname(hostname, &hp);
+		ivr_desc.sin.sin_family = AF_INET;
+		ivr_desc.sin.sin_port = htons(port);
+		memmove(&ivr_desc.sin.sin_addr.s_addr, hp.hp.h_addr, hp.hp.h_length);
+		ser = ast_tcptls_client_start(&ivr_desc);
 
-		dup2(child_stdin[0], STDIN_FILENO);
-		dup2(child_stdout[1], STDOUT_FILENO);
-		dup2(child_stderr[1], STDERR_FILENO);
-		for (i = STDERR_FILENO + 1; i < 1024; i++)
-			close(i);
-		execv(args.cmd[0], args.cmd);
-		fprintf(stderr, "Failed to execute '%s': %s\n", args.cmd[0], strerror(errno));
-		_exit(1);
+		if (!ser) {
+			goto exit;
+		} 
+		res = eivr_comm(chan, u, ser->fd, ser->fd, 0, pipe_delim_argbuf);
 	} else {
-		/* parent process */
-
-		close(child_stdin[0]);
-		child_stdin[0] = 0;
-		close(child_stdout[1]);
-		child_stdout[1] = 0;
-		close(child_stderr[1]);
-		child_stderr[1] = 0;
-		res = eivr_comm(chan, u, child_stdin[1], child_stdout[0], child_stderr[0], pipe_delim_argbuf);
-
-		exit:
-		if (gen_active)
-			ast_deactivate_generator(chan);
-
-		if (child_stdin[0])
+	
+		if (pipe(child_stdin)) {
+			ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child input: %s\n", strerror(errno));
+			goto exit;
+		}
+		if (pipe(child_stdout)) {
+			ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child output: %s\n", strerror(errno));
+			goto exit;
+		}
+		if (pipe(child_stderr)) {
+			ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child errors: %s\n", strerror(errno));
+			goto exit;
+		}
+		if (chan->_state != AST_STATE_UP) {
+			ast_answer(chan);
+		}
+		if (ast_activate_generator(chan, &gen, u) < 0) {
+			ast_chan_log(LOG_WARNING, chan, "Failed to activate generator\n");
+			goto exit;
+		} else {
+			gen_active = 1;
+		}
+	
+		pid = fork();
+		if (pid < 0) {
+			ast_log(LOG_WARNING, "Failed to fork(): %s\n", strerror(errno));
+			goto exit;
+		}
+	
+		if (!pid) {
+			/* child process */
+			int i;
+	
+			signal(SIGPIPE, SIG_DFL);
+			pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
+	
+			if (ast_opt_high_priority)
+				ast_set_priority(0);
+	
+			dup2(child_stdin[0], STDIN_FILENO);
+			dup2(child_stdout[1], STDOUT_FILENO);
+			dup2(child_stderr[1], STDERR_FILENO);
+			for (i = STDERR_FILENO + 1; i < 1024; i++)
+				close(i);
+			execv(args.cmd[0], args.cmd);
+			fprintf(stderr, "Failed to execute '%s': %s\n", args.cmd[0], strerror(errno));
+			_exit(1);
+		} else {
+			/* parent process */
+	
 			close(child_stdin[0]);
-
-		if (child_stdin[1])
-			close(child_stdin[1]);
-
-		if (child_stdout[0])
-			close(child_stdout[0]);
-
-		if (child_stdout[1])
+			child_stdin[0] = 0;
 			close(child_stdout[1]);
-
-		if (child_stderr[0])
-			close(child_stderr[0]);
-
-		if (child_stderr[1])
+			child_stdout[1] = 0;
 			close(child_stderr[1]);
-
-		while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
-			ast_free(entry);
-
-		return res;
+			child_stderr[1] = 0;
+			res = eivr_comm(chan, u, child_stdin[1], child_stdout[0], child_stderr[0], pipe_delim_argbuf);
+		}
 	}
+
+	exit:
+	if (gen_active)
+		ast_deactivate_generator(chan);
+
+	if (child_stdin[0])
+		close(child_stdin[0]);
+
+	if (child_stdin[1])
+		close(child_stdin[1]);
+
+	if (child_stdout[0])
+		close(child_stdout[0]);
+
+	if (child_stdout[1])
+		close(child_stdout[1]);
+
+	if (child_stderr[0])
+		close(child_stderr[0]);
+
+	if (child_stderr[1])
+		close(child_stderr[1]);
+
+	if (ser) {
+		fclose(ser->f);
+		ast_tcptls_session_instance_destroy(ser);
+	}
+
+	while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
+		ast_free(entry);
+
+	return res;
 }
 
 static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u, 
@@ -436,21 +492,21 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  	FILE *eivr_commands = NULL;
  	FILE *eivr_errors = NULL;
  	FILE *eivr_events = NULL;
- 
- 	if (!(eivr_events = fdopen(eivr_events_fd, "w"))) {
- 		ast_chan_log(LOG_WARNING, chan, "Could not open stream to send events\n");
- 		goto exit;
- 	}
- 	if (!(eivr_commands = fdopen(eivr_commands_fd, "r"))) {
- 		ast_chan_log(LOG_WARNING, chan, "Could not open stream to receive commands\n");
- 		goto exit;
- 	}
- 	if(eivr_errors_fd) {  /*if opening a socket connection, error stream will not be used*/
+
+	if (!(eivr_events = fdopen(eivr_events_fd, "w"))) {
+		ast_chan_log(LOG_WARNING, chan, "Could not open stream to send events\n");
+		goto exit;
+	}
+	if (!(eivr_commands = fdopen(eivr_commands_fd, "r"))) {
+		ast_chan_log(LOG_WARNING, chan, "Could not open stream to receive commands\n");
+		goto exit;
+	}
+	if(eivr_errors_fd) {  /* if opening a socket connection, error stream will not be used */
  		if (!(eivr_errors = fdopen(eivr_errors_fd, "r"))) {
  			ast_chan_log(LOG_WARNING, chan, "Could not open stream to receive errors\n");
  			goto exit;
  		}
- 	}
+	}
  
  	setvbuf(eivr_events, NULL, _IONBF, 0);
  	setvbuf(eivr_commands, NULL, _IONBF, 0);
@@ -633,18 +689,18 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  
 exit:
  
- 	if (eivr_events)
+	if (eivr_events)
  		fclose(eivr_events);
  
- 	if (eivr_commands)
+	if (eivr_commands)
 		fclose(eivr_commands);
 
- 	if (eivr_errors)
- 		fclose(eivr_errors);
+	if (eivr_errors)
+		fclose(eivr_errors);
   
   	return res;
  
-  }
+}
 
 static int unload_module(void)
 {
