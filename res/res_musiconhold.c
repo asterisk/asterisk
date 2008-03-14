@@ -200,23 +200,26 @@ static void ast_moh_free_class(struct mohclass **mohclass)
 
 static void moh_files_release(struct ast_channel *chan, void *data)
 {
-	struct moh_files_state *state = chan->music_state;
+	struct moh_files_state *state;
 
-	if (chan && state) {
-		if (chan->stream) {
-                        ast_closestream(chan->stream);
-                        chan->stream = NULL;
-                }
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
+	if (chan) {
+		if ((state = chan->music_state)) {
+			if (chan->stream) {
+        	                ast_closestream(chan->stream);
+                	        chan->stream = NULL;
+	                }
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
+	
+			if (state->origwfmt && ast_set_write_format(chan, state->origwfmt)) {
+				ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, state->origwfmt);
+			}
+			state->save_pos = state->pos;
 
-		if (state->origwfmt && ast_set_write_format(chan, state->origwfmt)) {
-			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, state->origwfmt);
+			if (ast_atomic_dec_and_test(&state->class->inuse) && state->class->delete)
+				ast_moh_destroy_one(state->class);
 		}
-		state->save_pos = state->pos;
 	}
-	if (ast_atomic_dec_and_test(&state->class->inuse) && state->class->delete)
-		ast_moh_destroy_one(state->class);
 }
 
 
