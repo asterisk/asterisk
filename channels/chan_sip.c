@@ -2137,7 +2137,8 @@ static int sip_cancel_destroy(struct sip_pvt *p)
 	return res;
 }
 
-/*! \brief Acknowledges receipt of a packet and stops retransmission */
+/*! \brief Acknowledges receipt of a packet and stops retransmission 
+ * called with p locked*/
 static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 {
 	struct sip_pkt *cur, *prev = NULL;
@@ -2148,7 +2149,6 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 
 	msg = sip_methods[sipmethod].text;
 
-	ast_mutex_lock(&p->lock);
 	for (cur = p->packets; cur; prev = cur, cur = cur->next) {
 		if ((cur->seqno == seqno) && ((ast_test_flag(cur, FLAG_RESPONSE)) == resp) &&
 			((ast_test_flag(cur, FLAG_RESPONSE)) || 
@@ -2165,18 +2165,37 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 				if (sipdebug && option_debug > 3)
 					ast_log(LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
 			}
-			AST_SCHED_DEL(sched, cur->retransid);
+			/* This odd section is designed to thwart a 
+			 * race condition in the packet scheduler. There are
+			 * two conditions under which deleting the packet from the
+			 * scheduler can fail.
+			 *
+			 * 1. The packet has been removed from the scheduler because retransmission
+			 * is being attempted. The problem is that if the packet is currently attempting
+			 * retransmission and we are at this point in the code, then that MUST mean
+			 * that retrans_pkt is waiting on p's lock. Therefore we will relinquish the
+			 * lock temporarily to allow retransmission.
+			 *
+			 * 2. The packet has reached its maximum number of retransmissions and has
+			 * been permanently removed from the packet scheduler. If this is the case, then
+			 * the packet's retransid will be set to -1. The atomicity of the setting and checking
+			 * of the retransid to -1 is ensured since in both cases p's lock is held.
+			 */
+			while (cur->retransid > -1 && ast_sched_del(sched, cur->retransid)) {
+				ast_mutex_unlock(&p->lock);
+				usleep(1);
+				ast_mutex_lock(&p->lock);
+			}
 			free(cur);
 			break;
 		}
 	}
-	ast_mutex_unlock(&p->lock);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Stopping retransmission on '%s' of %s %d: Match %s\n", p->callid, resp ? "Response" : "Request", seqno, res == FALSE ? "Not Found" : "Found");
 }
 
 /*! \brief Pretend to ack all packets
- * maybe the lock on p is not strictly necessary but there might be a race */
+ * called with p locked */
 static void __sip_pretend_ack(struct sip_pvt *p)
 {
 	struct sip_pkt *cur = NULL;
@@ -7469,12 +7488,14 @@ static int sip_reg_timeout(const void *data)
 		/* Unlink us, destroy old call.  Locking is not relevant here because all this happens
 		   in the single SIP manager thread. */
 		p = r->call;
+		ast_mutex_lock(&p->lock);
 		if (p->registry)
 			ASTOBJ_UNREF(p->registry, sip_registry_destroy);
 		r->call = NULL;
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		/* Pretend to ACK anything just in case */
-		__sip_pretend_ack(p); /* XXX we need p locked, not sure we have */
+		__sip_pretend_ack(p);
+		ast_mutex_unlock(&p->lock);
 	}
 	/* If we have a limit, stop registration and give up */
 	if (global_regattempts_max && (r->regattempts > global_regattempts_max)) {
