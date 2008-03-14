@@ -29,12 +29,52 @@ extern "C" {
 
 #include "asterisk/network.h"
 
+/*!
+ * \brief A DNS manager entry
+ *
+ * This is an opaque type.
+ */
 struct ast_dnsmgr_entry;
 
+/*!
+ * \brief Allocate a new DNS manager entry
+ *
+ * \arg name the hostname
+ * \arg result where the DNS manager should store the IP address as it refreshes it.
+ *      it.
+ *
+ * This function allocates a new DNS manager entry object, and fills it with the
+ * provided hostname and IP address.  This function does not force an initial lookup
+ * of the IP address.  So, generally, this should be used when the initial address
+ * is already known.
+ *
+ * \return a DNS manager entry
+ */
 struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct in_addr *result);
 
+/*!
+ * \brief Free a DNS manager entry
+ *
+ * \arg entry the DNS manager entry to free
+ *
+ * \return nothing
+ */
 void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
 
+/*!
+ * \brief Allocate and initialize a DNS manager entry
+ *
+ * \arg name the hostname
+ * \arg result where to store the IP address as the DNS manager refreshes it
+ * \arg dnsmgr Where to store the allocate DNS manager entry
+ *
+ * This function allocates a new DNS manager entry object, and fills it with
+ * the provided hostname and IP address.  This function _does_ force an initial
+ * lookup, so it may block for some period of time.
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
 int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmgr_entry **dnsmgr);
 
 /*!
