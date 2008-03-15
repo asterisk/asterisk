@@ -7823,7 +7823,7 @@ int ast_wrlock_contexts()
 	int res = ast_rwlock_wrlock(&conlock);
 	if (!res)
 		ast_atomic_fetchadd_int(&conlock_wrlock_version, 1);
-	return ast_rwlock_wrlock(&conlock);
+	return res;
 }
 
 int ast_rdlock_contexts()
