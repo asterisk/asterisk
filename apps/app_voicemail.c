@@ -7999,6 +7999,7 @@ static void mwi_unsub_event_cb(const struct ast_event *event, void *userdata)
 static void mwi_sub_event_cb(const struct ast_event *event, void *userdata)
 {
 	const char *mailbox;
+	const char *context;
 	uint32_t uniqueid;
 	unsigned int len;
 	struct mwi_sub *mwi_sub;
@@ -8010,11 +8011,15 @@ static void mwi_sub_event_cb(const struct ast_event *event, void *userdata)
 		return;
 
 	mailbox = ast_event_get_ie_str(event, AST_EVENT_IE_MAILBOX);
+	context = ast_event_get_ie_str(event, AST_EVENT_IE_CONTEXT);
 	uniqueid = ast_event_get_ie_uint(event, AST_EVENT_IE_UNIQUEID);
 
 	len = sizeof(*mwi_sub);
 	if (!ast_strlen_zero(mailbox))
 		len += strlen(mailbox);
+
+	if (!ast_strlen_zero(context))
+		len += strlen(context) + 1; /* Allow for seperator */
 
 	if (!(mwi_sub = ast_calloc(1, len)))
 		return;
@@ -8022,6 +8027,11 @@ static void mwi_sub_event_cb(const struct ast_event *event, void *userdata)
 	mwi_sub->uniqueid = uniqueid;
 	if (!ast_strlen_zero(mailbox))
 		strcpy(mwi_sub->mailbox, mailbox);
+
+	if (!ast_strlen_zero(context)) {
+		strcat(mwi_sub->mailbox, "@");
+		strcat(mwi_sub->mailbox, context);
+	}
 
 	AST_RWLIST_WRLOCK(&mwi_subs);
 	AST_RWLIST_INSERT_TAIL(&mwi_subs, mwi_sub, entry);
