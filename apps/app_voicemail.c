@@ -8058,8 +8058,6 @@ static void mwi_sub_event_cb(const struct ast_event *event, void *userdata)
 
 static void start_poll_thread(void)
 {
-	pthread_attr_t attr;
-
 	mwi_sub_sub = ast_event_subscribe(AST_EVENT_SUB, mwi_sub_event_cb, NULL,
 		AST_EVENT_IE_EVENTTYPE, AST_EVENT_IE_PLTYPE_UINT, AST_EVENT_MWI,
 		AST_EVENT_IE_END);
@@ -8073,9 +8071,7 @@ static void start_poll_thread(void)
 
 	poll_thread_run = 1;
 
-	pthread_attr_init(&attr);
-	ast_pthread_create(&poll_thread, &attr, mb_poll_thread, NULL);
-	pthread_attr_destroy(&attr);
+	ast_pthread_create(&poll_thread, NULL, mb_poll_thread, NULL);
 }
 
 static void stop_poll_thread(void)
