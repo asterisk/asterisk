@@ -475,6 +475,37 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 	return res;
 }
 
+static int is_absolute_path(const char *filename)
+{
+	return filename[0] == '/';
+}
+
+static int fileexists_test(const char *filename, const char *fmt, const char *lang,
+			   char *buf, int buflen)
+{
+	if (buf == NULL) {
+		return -1;
+	}
+
+	if (ast_language_is_prefix) { /* new layout */
+		if (lang) {
+			snprintf(buf, buflen, "%s/%s", lang, filename);
+		} else {
+			snprintf(buf, buflen, "%s", filename);
+		}
+	} else { /* old layout */
+		strcpy(buf, filename);	/* first copy the full string */
+		if (lang) {
+			/* insert the language and suffix if needed */
+			const char *c = strrchr(filename, '/');
+			int offset = c ? c - filename + 1 : 0;	/* points right after the last '/' */
+			snprintf(buf + offset, buflen - offset, "%s/%s", lang, filename + offset);
+		}
+	}
+
+	return ast_filehelper(buf, NULL, fmt, ACTION_EXISTS);
+}
+
 /*!
  * \brief helper routine to locate a file with a given format
  * and language preference.
@@ -490,57 +521,56 @@ static int fileexists_core(const char *filename, const char *fmt, const char *pr
 			   char *buf, int buflen)
 {
 	int res = -1;
-	int langlen;	/* length of language string */
-	const char *c = strrchr(filename, '/');
-	int offset = c ? c - filename + 1 : 0;	/* points right after the last '/' */
-
-	if (preflang == NULL) {
-		preflang = "";
-	}
-	langlen = strlen(preflang);
-	
-	if (buflen < langlen + strlen(filename) + 4) {
-		ast_log(LOG_WARNING, "buffer too small, allocating larger buffer\n");
-		buf = alloca(langlen + strlen(filename) + 4);	/* room for everything */
-	}
+	char *lang = NULL;
 
 	if (buf == NULL) {
-		return 0;
+		return -1;
 	}
 
-	for (;;) {
-		if (ast_language_is_prefix) { /* new layout */
-			if (langlen) {
-				strcpy(buf, preflang);
-				buf[langlen] = '/';
-				strcpy(buf + langlen + 1, filename);
-			} else {
-				strcpy(buf, "en/"); /* English - fallback if no file found in preferred language */
-				strcpy(buf + 3, filename);
-			}
-		} else { /* old layout */
-			strcpy(buf, filename);	/* first copy the full string */
-			if (langlen) {
-				/* insert the language and suffix if needed */
-				strcpy(buf + offset, preflang);
-				sprintf(buf + offset + langlen, "/%s", filename + offset);
-			}
-		}
-		res = ast_filehelper(buf, NULL, fmt, ACTION_EXISTS);
-		if (res > 0) {		/* found format */
-			break;
-		}
-		if (langlen == 0) {	/* no more formats */
-			break;
-		}
-		if (preflang[langlen] == '_') { /* we are on the local suffix */
-			langlen = 0;	/* try again with no language */
+	if (is_absolute_path(filename)) {
+		ast_copy_string(buf, filename, buflen);
+		return ast_filehelper(buf, NULL, fmt, ACTION_EXISTS);
+	}
+
+	/* We try languages in the following order:
+	 *    preflang (may include dialect)
+	 *    lang (preflang without dialect - if any)
+	 *    <none>
+	 *    default (unless the same as preflang or lang without dialect)
+	 */
+
+	/* Try preferred language */
+	if (!ast_strlen_zero(preflang)) {
+		/* try the preflang exactly as it was requested */
+		if ((res = fileexists_test(filename, fmt, preflang, buf, buflen)) > 0) {
+			return res;
 		} else {
-			langlen = (c = strchr(preflang, '_')) ? c - preflang : 0;
+			/* try without a dialect */
+			char *postfix = NULL;
+			postfix = lang = ast_strdupa(preflang);
+
+			strsep(&postfix, "_");
+			if (postfix) {
+				if ((res = fileexists_test(filename, fmt, lang, buf, buflen)) > 0) {
+					return res;
+				}
+			}
 		}
 	}
 
-	return res;
+	/* Try without any language */
+	if ((res = fileexists_test(filename, fmt, NULL, buf, buflen)) > 0) {
+		return res;
+	}
+
+	/* Finally try the default language unless it was already tried before */
+	if ((ast_strlen_zero(preflang) || strcmp(preflang, DEFAULT_LANGUAGE)) && (ast_strlen_zero(lang) || strcmp(lang, DEFAULT_LANGUAGE))) {
+		if ((res = fileexists_test(filename, fmt, DEFAULT_LANGUAGE, buf, buflen)) > 0) {
+			return res;
+		}
+	}
+
+	return 0;
 }
 
 struct ast_filestream *ast_openstream(struct ast_channel *chan, const char *filename, const char *preflang)
