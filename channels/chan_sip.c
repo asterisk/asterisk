@@ -3088,7 +3088,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 			ntohs(dst->sin_port), req->data->str);
 	}
 	if (p->do_history) {
-		struct sip_request tmp;
+		struct sip_request tmp = { .rlPart1 = NULL, };
 		parse_copy(&tmp, req);
 		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", tmp.data->str, get_header(&tmp, "CSeq"), 
 			(tmp.method == SIP_RESPONSE || tmp.method == SIP_UNKNOWN) ? tmp.rlPart2 : sip_methods[tmp.method].text);
@@ -3123,7 +3123,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 			ast_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port), req->data->str);
 	}
 	if (p->do_history) {
-		struct sip_request tmp;
+		struct sip_request tmp = { .rlPart1 = NULL, };
 		parse_copy(&tmp, req);
 		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s - %s", tmp.data->str, get_header(&tmp, "CSeq"), sip_methods[tmp.method].text);
 		ast_free(tmp.data);
