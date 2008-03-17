@@ -1,6 +1,10 @@
 	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
 		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations by the Compiler">
 		</member>
+		<member name="ENABLE_UPLOADS" displayname="Enable HTTP uploads">
+			<defaultenabled>yes</defaultenabled>
+			<depend>gmime</depend>
+		</member>
 		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
 		</member>
 		<member name="STATIC_BUILD" displayname="Build static binaries">

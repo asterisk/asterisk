@@ -132,6 +132,11 @@ testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 
 channel.o: ASTCFLAGS+=$(ZAPTEL_INCLUDE)
 
+
+ifneq ($(findstring ENABLE_UPLOADS,$(MENUSELECT_CFLAGS)),)
+http.o: ASTCFLAGS+=$(GMIME_INCLUDE)
+endif
+
 stdtime/localtime.o: ASTCFLAGS+=$(AST_NO_STRICT_OVERFLOW)
 
 AST_EMBED_LDSCRIPTS:=$(sort $(EMBED_LDSCRIPTS))
@@ -146,9 +151,6 @@ else
   H323LDLIBS=
 endif
 
-minimime/libmmime.a: CHECK_SUBDIR
-	@cd minimime && $(MAKE) libmmime.a
-
 ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
 MAIN_TGT:=asterisk.dll
 asterisk: cygload
@@ -159,13 +161,17 @@ else
 MAIN_TGT:=asterisk
 endif
 
-$(MAIN_TGT): $(OBJS) editline/libedit.a db1-ast/libdb1.a minimime/libmmime.a $(AST_EMBED_LDSCRIPTS)
+ifneq ($(findstring ENABLE_UPLOADS,$(MENUSELECT_CFLAGS)),)
+GMIMELDFLAGS+=$(GMIME_LIB)
+endif
+
+$(MAIN_TGT): $(OBJS) editline/libedit.a db1-ast/libdb1.a $(AST_EMBED_LDSCRIPTS)
 	@$(CC) -c -o buildinfo.o $(ASTCFLAGS) buildinfo.c
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 ifneq ($(findstring chan_h323,$(MENUSELECT_CHANNELS)),)
-	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(ASTLDFLAGS) $^ buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS)
+	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(ASTLDFLAGS) $^ buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(GMIMELDFLAGS)
 else
-	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(ASTLDFLAGS) $(H323LDFLAGS) $^ buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(H323LDLIBS)
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(ASTLDFLAGS) $(H323LDFLAGS) $^ buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(H323LDLIBS) $(GMIMELDFLAGS)
 endif
 	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/strip_nonapi $@ || rm $@
 
@@ -175,5 +181,4 @@ clean::
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	@$(MAKE) -C db1-ast clean
 	@$(MAKE) -C stdtime clean
-	@$(MAKE) -C minimime clean
 	rm -f libresample/src/*.o

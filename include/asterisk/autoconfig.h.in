@@ -309,6 +309,9 @@
 /* Define to 1 if you have the `glob' function. */
 #undef HAVE_GLOB
 
+/* Define if your system has the GMIME libraries. */
+#undef HAVE_GMIME
+
 /* Define to indicate the GSM library */
 #undef HAVE_GSM
 
@@ -1174,9 +1177,6 @@
 #endif
 #ifndef _POSIX_PTHREAD_SEMANTICS
 # undef _POSIX_PTHREAD_SEMANTICS
-#endif
-#ifndef _TANDEM_SOURCE
-# undef _TANDEM_SOURCE
 #endif
 
 /* Define like PROTOTYPES; this can be used by system headers. */
