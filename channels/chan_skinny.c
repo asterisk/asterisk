@@ -2554,6 +2554,7 @@ static int skinny_answer(struct ast_channel *ast)
 	transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, exten, exten, l->instance, sub->callid, 2);
 	transmit_callstate(s, l->instance, SKINNY_CONNECTED, sub->callid);
 	transmit_selectsoftkeys(s, l->instance, sub->callid, KEYDEF_CONNECTED);
+	transmit_dialednumber(s, exten, l->instance, sub->callid);
 	transmit_displaypromptstatus(s, "Connected", 0, l->instance, sub->callid);
 	return res;
 }
