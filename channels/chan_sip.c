@@ -16692,7 +16692,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				/* Respond to normal re-invite */
 				if (sendok) {
 					/* If this is not a re-invite or something to ignore - it's critical */
-					transmit_response_with_sdp(p, "200 OK", req, (reinvite || req->ignore) ?  XMIT_UNRELIABLE : XMIT_CRITICAL, p->session_modify == TRUE ? FALSE:TRUE); 
+					transmit_response_with_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)), p->session_modify == TRUE ? FALSE:TRUE); 
 				}
 			}
 			p->invitestate = INV_TERMINATED;
