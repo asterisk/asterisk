@@ -20,3 +20,13 @@ Content-Length=>0
 [snom-check-cfg]
 Event=>check-sync\;reboot=false
 Content-Length=>0
+
+; Tested
+[aastra-check-cfg]
+Event=>check-sync
+Content-Length=>0
+
+; Tested
+[aastra-xml]
+Event=>aastra-xml
+Content-Length=>0
