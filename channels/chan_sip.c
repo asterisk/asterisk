@@ -14156,7 +14156,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				/* Respond to normal re-invite */
 				if (sendok)
 					/* If this is not a re-invite or something to ignore - it's critical */
-					transmit_response_with_sdp(p, "200 OK", req, (reinvite || ast_test_flag(req, SIP_PKT_IGNORE)) ?  XMIT_UNRELIABLE : XMIT_CRITICAL);
+					transmit_response_with_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (ast_test_flag(req, SIP_PKT_IGNORE) ? XMIT_UNRELIABLE : XMIT_CRITICAL)));
 			}
 			p->invitestate = INV_TERMINATED;
 			break;
