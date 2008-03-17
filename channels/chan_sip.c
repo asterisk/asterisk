@@ -1544,7 +1544,6 @@ struct sip_registry {
 	struct timeval regtime;		/*!< Last successful registration time */
 	int callid_valid;		/*!< 0 means we haven't chosen callid for this registry yet. */
 	unsigned int ocseq;		/*!< Sequence number we got to for REGISTERs for this registry */
-	struct sockaddr_in us;		/*!< Who the server thinks we are */
 	int noncecount;			/*!< Nonce-count */
 	char lastmsg[256];		/*!< Last Message sent/received */
 };
