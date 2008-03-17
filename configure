@@ -744,6 +744,10 @@ CRYPTO_LIB
 CRYPTO_INCLUDE
 CRYPTO_DIR
 PBX_CRYPTO
+FFMPEG_LIB
+FFMPEG_INCLUDE
+FFMPEG_DIR
+PBX_FFMPEG
 GSM_LIB
 GSM_INCLUDE
 GSM_DIR
@@ -856,6 +860,14 @@ RADIUS_LIB
 RADIUS_INCLUDE
 RADIUS_DIR
 PBX_RADIUS
+SDL_LIB
+SDL_INCLUDE
+SDL_DIR
+PBX_SDL
+SDL_IMAGE_LIB
+SDL_IMAGE_INCLUDE
+SDL_IMAGE_DIR
+PBX_SDL_IMAGE
 SPEEX_LIB
 SPEEX_INCLUDE
 SPEEX_DIR
@@ -920,42 +932,6 @@ ZAPTEL_LIB
 ZAPTEL_INCLUDE
 ZAPTEL_DIR
 PBX_ZAPTEL
-ZAPTEL_TRANSCODE_LIB
-ZAPTEL_TRANSCODE_INCLUDE
-ZAPTEL_TRANSCODE_DIR
-PBX_ZAPTEL_TRANSCODE
-ZAPTEL_VLDTMF_LIB
-ZAPTEL_VLDTMF_INCLUDE
-ZAPTEL_VLDTMF_DIR
-PBX_ZAPTEL_VLDTMF
-ZAPTEL_HWGAIN_LIB
-ZAPTEL_HWGAIN_INCLUDE
-ZAPTEL_HWGAIN_DIR
-PBX_ZAPTEL_HWGAIN
-ZAPTEL_NEONMWI_LIB
-ZAPTEL_NEONMWI_INCLUDE
-ZAPTEL_NEONMWI_DIR
-PBX_ZAPTEL_NEONMWI
-ZAPTEL_ECHOCANPARAMS_LIB
-ZAPTEL_ECHOCANPARAMS_INCLUDE
-ZAPTEL_ECHOCANPARAMS_DIR
-PBX_ZAPTEL_ECHOCANPARAMS
-ZAPTEL_CHANALARMS_LIB
-ZAPTEL_CHANALARMS_INCLUDE
-ZAPTEL_CHANALARMS_DIR
-PBX_ZAPTEL_CHANALARMS
-SDL_LIB
-SDL_INCLUDE
-SDL_DIR
-PBX_SDL
-SDL_IMAGE_LIB
-SDL_IMAGE_INCLUDE
-SDL_IMAGE_DIR
-PBX_SDL_IMAGE
-FFMPEG_LIB
-FFMPEG_INCLUDE
-FFMPEG_DIR
-PBX_FFMPEG
 ALLOCA
 LIBOBJS
 POW_LIB
@@ -1586,6 +1562,7 @@ Optional Packages:
   --with-curl=PATH        use cURL files in PATH
   --with-curses=PATH      use curses files in PATH
   --with-crypto=PATH      use OpenSSL Cryptography support files in PATH
+  --with-avcodec=PATH     use Ffmpeg and avcodec library files in PATH
   --with-gsm=PATH         use External GSM library files in PATH , use
                           'internal' GSM otherwise
   --with-gtk=PATH         use gtk libraries files in PATH
@@ -1615,6 +1592,8 @@ Optional Packages:
   --with-pwlib=PATH       use PWlib files in PATH
   --with-h323=PATH        use OpenH323 files in PATH
   --with-radius=PATH      use Radius Client files in PATH
+  --with-sdl=PATH         use Sdl files in PATH
+  --with-SDL_image=PATH   use Sdl Image library files in PATH
   --with-speex=PATH       use Speex files in PATH
   --with-speexdsp=PATH    use Speexdsp files in PATH
   --with-sqlite=PATH      use SQLite files in PATH
@@ -1632,22 +1611,6 @@ Optional Packages:
   --with-x11=PATH         use X11 support files in PATH
   --with-z=PATH           use zlib files in PATH
   --with-zaptel=PATH      use Zaptel files in PATH
-  --with-zaptel_transcode=PATH
-                          use Zaptel Transcoder Support files in PATH
-  --with-zaptel_vldtmf=PATH
-                          use Zaptel VLDTMF Support files in PATH
-  --with-zaptel_hwgain=PATH
-                          use Zaptel Hardware Gain Support files in PATH
-  --with-zaptel_neonmwi=PATH
-                          use Zaptel Neon MWI Support files in PATH
-  --with-zaptel_echocanparams=PATH
-                          use Zaptel Echo Canceler Parameter Support files in
-                          PATH
-  --with-zaptel_chanalarms=PATH
-                          use Zaptel Channel Alarm Support files in PATH
-  --with-sdl=PATH         use Sdl files in PATH
-  --with-SDL_image=PATH   use Sdl Image library files in PATH
-  --with-avcodec=PATH     use Ffmpeg and avcodec library files in PATH
 
 Some influential environment variables:
   CC          C compiler command
@@ -8072,6 +8035,34 @@ fi
 
 
 
+    FFMPEG_DESCRIP="Ffmpeg and avcodec library"
+    FFMPEG_OPTION="avcodec"
+
+# Check whether --with-avcodec was given.
+if test "${with_avcodec+set}" = set; then
+  withval=$with_avcodec;
+	case ${withval} in
+	n|no)
+	USE_FFMPEG=no
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} FFMPEG"
+	;;
+	*)
+	FFMPEG_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} FFMPEG"
+	;;
+	esac
+
+fi
+
+    PBX_FFMPEG=0
+
+
+
+
+
+
     GSM_DESCRIP="External GSM library"
     GSM_OPTION="gsm"
 
@@ -8854,6 +8845,62 @@ fi
 
 
 
+A
+
+    SDL_DESCRIP="Sdl"
+    SDL_OPTION="sdl"
+
+# Check whether --with-sdl was given.
+if test "${with_sdl+set}" = set; then
+  withval=$with_sdl;
+	case ${withval} in
+	n|no)
+	USE_SDL=no
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} SDL"
+	;;
+	*)
+	SDL_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} SDL"
+	;;
+	esac
+
+fi
+
+    PBX_SDL=0
+
+
+
+
+
+
+    SDL_IMAGE_DESCRIP="Sdl Image library"
+    SDL_IMAGE_OPTION="SDL_image"
+
+# Check whether --with-SDL_image was given.
+if test "${with_SDL_image+set}" = set; then
+  withval=$with_SDL_image;
+	case ${withval} in
+	n|no)
+	USE_SDL_IMAGE=no
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} SDL_IMAGE"
+	;;
+	*)
+	SDL_IMAGE_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} SDL_IMAGE"
+	;;
+	esac
+
+fi
+
+    PBX_SDL_IMAGE=0
+
+
+
+
 
 
     SPEEX_DESCRIP="Speex"
@@ -9298,259 +9345,6 @@ if test "${with_zaptel+set}" = set; then
 fi
 
     PBX_ZAPTEL=0
-
-
-
-
-
-
-    ZAPTEL_TRANSCODE_DESCRIP="Zaptel Transcoder Support"
-    ZAPTEL_TRANSCODE_OPTION="zaptel_transcode"
-
-# Check whether --with-zaptel_transcode was given.
-if test "${with_zaptel_transcode+set}" = set; then
-  withval=$with_zaptel_transcode;
-	case ${withval} in
-	n|no)
-	USE_ZAPTEL_TRANSCODE=no
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ZAPTEL_TRANSCODE"
-	;;
-	*)
-	ZAPTEL_TRANSCODE_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ZAPTEL_TRANSCODE"
-	;;
-	esac
-
-fi
-
-    PBX_ZAPTEL_TRANSCODE=0
-
-
-
-
-
-
-    ZAPTEL_VLDTMF_DESCRIP="Zaptel VLDTMF Support"
-    ZAPTEL_VLDTMF_OPTION="zaptel_vldtmf"
-
-# Check whether --with-zaptel_vldtmf was given.
-if test "${with_zaptel_vldtmf+set}" = set; then
-  withval=$with_zaptel_vldtmf;
-	case ${withval} in
-	n|no)
-	USE_ZAPTEL_VLDTMF=no
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ZAPTEL_VLDTMF"
-	;;
-	*)
-	ZAPTEL_VLDTMF_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ZAPTEL_VLDTMF"
-	;;
-	esac
-
-fi
-
-    PBX_ZAPTEL_VLDTMF=0
-
-
-
-
-
-
-    ZAPTEL_HWGAIN_DESCRIP="Zaptel Hardware Gain Support"
-    ZAPTEL_HWGAIN_OPTION="zaptel_hwgain"
-
-# Check whether --with-zaptel_hwgain was given.
-if test "${with_zaptel_hwgain+set}" = set; then
-  withval=$with_zaptel_hwgain;
-	case ${withval} in
-	n|no)
-	USE_ZAPTEL_HWGAIN=no
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ZAPTEL_HWGAIN"
-	;;
-	*)
-	ZAPTEL_HWGAIN_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ZAPTEL_HWGAIN"
-	;;
-	esac
-
-fi
-
-    PBX_ZAPTEL_HWGAIN=0
-
-
-
-
-
-
-    ZAPTEL_NEONMWI_DESCRIP="Zaptel Neon MWI Support"
-    ZAPTEL_NEONMWI_OPTION="zaptel_neonmwi"
-
-# Check whether --with-zaptel_neonmwi was given.
-if test "${with_zaptel_neonmwi+set}" = set; then
-  withval=$with_zaptel_neonmwi;
-	case ${withval} in
-	n|no)
-	USE_ZAPTEL_NEONMWI=no
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ZAPTEL_NEONMWI"
-	;;
-	*)
-	ZAPTEL_NEONMWI_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ZAPTEL_NEONMWI"
-	;;
-	esac
-
-fi
-
-    PBX_ZAPTEL_NEONMWI=0
-
-
-
-
-
-
-    ZAPTEL_ECHOCANPARAMS_DESCRIP="Zaptel Echo Canceler Parameter Support"
-    ZAPTEL_ECHOCANPARAMS_OPTION="zaptel_echocanparams"
-
-# Check whether --with-zaptel_echocanparams was given.
-if test "${with_zaptel_echocanparams+set}" = set; then
-  withval=$with_zaptel_echocanparams;
-	case ${withval} in
-	n|no)
-	USE_ZAPTEL_ECHOCANPARAMS=no
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ZAPTEL_ECHOCANPARAMS"
-	;;
-	*)
-	ZAPTEL_ECHOCANPARAMS_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ZAPTEL_ECHOCANPARAMS"
-	;;
-	esac
-
-fi
-
-    PBX_ZAPTEL_ECHOCANPARAMS=0
-
-
-
-
-
-
-    ZAPTEL_CHANALARMS_DESCRIP="Zaptel Channel Alarm Support"
-    ZAPTEL_CHANALARMS_OPTION="zaptel_chanalarms"
-
-# Check whether --with-zaptel_chanalarms was given.
-if test "${with_zaptel_chanalarms+set}" = set; then
-  withval=$with_zaptel_chanalarms;
-	case ${withval} in
-	n|no)
-	USE_ZAPTEL_CHANALARMS=no
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ZAPTEL_CHANALARMS"
-	;;
-	*)
-	ZAPTEL_CHANALARMS_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ZAPTEL_CHANALARMS"
-	;;
-	esac
-
-fi
-
-    PBX_ZAPTEL_CHANALARMS=0
-
-
-
-
-
-
-
-    SDL_DESCRIP="Sdl"
-    SDL_OPTION="sdl"
-
-# Check whether --with-sdl was given.
-if test "${with_sdl+set}" = set; then
-  withval=$with_sdl;
-	case ${withval} in
-	n|no)
-	USE_SDL=no
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SDL"
-	;;
-	*)
-	SDL_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SDL"
-	;;
-	esac
-
-fi
-
-    PBX_SDL=0
-
-
-
-
-
-
-    SDL_IMAGE_DESCRIP="Sdl Image library"
-    SDL_IMAGE_OPTION="SDL_image"
-
-# Check whether --with-SDL_image was given.
-if test "${with_SDL_image+set}" = set; then
-  withval=$with_SDL_image;
-	case ${withval} in
-	n|no)
-	USE_SDL_IMAGE=no
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SDL_IMAGE"
-	;;
-	*)
-	SDL_IMAGE_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SDL_IMAGE"
-	;;
-	esac
-
-fi
-
-    PBX_SDL_IMAGE=0
-
-
-
-
-
-
-    FFMPEG_DESCRIP="Ffmpeg and avcodec library"
-    FFMPEG_OPTION="avcodec"
-
-# Check whether --with-avcodec was given.
-if test "${with_avcodec+set}" = set; then
-  withval=$with_avcodec;
-	case ${withval} in
-	n|no)
-	USE_FFMPEG=no
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} FFMPEG"
-	;;
-	*)
-	FFMPEG_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} FFMPEG"
-	;;
-	esac
-
-fi
-
-    PBX_FFMPEG=0
 
 
 
@@ -16446,7 +16240,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -16630,7 +16424,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -17380,7 +17174,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -17456,7 +17250,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -34578,7 +34372,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -34653,7 +34447,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -45682,7 +45476,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -45757,7 +45551,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -45834,7 +45628,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -45911,7 +45705,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -45988,7 +45782,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -46065,7 +45859,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -46142,7 +45936,7 @@ else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	       { echo "$as_me:$LINENO: result: no" >&5
+	   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 
 fi
@@ -50305,6 +50099,10 @@ CRYPTO_LIB!$CRYPTO_LIB$ac_delim
 CRYPTO_INCLUDE!$CRYPTO_INCLUDE$ac_delim
 CRYPTO_DIR!$CRYPTO_DIR$ac_delim
 PBX_CRYPTO!$PBX_CRYPTO$ac_delim
+FFMPEG_LIB!$FFMPEG_LIB$ac_delim
+FFMPEG_INCLUDE!$FFMPEG_INCLUDE$ac_delim
+FFMPEG_DIR!$FFMPEG_DIR$ac_delim
+PBX_FFMPEG!$PBX_FFMPEG$ac_delim
 GSM_LIB!$GSM_LIB$ac_delim
 GSM_INCLUDE!$GSM_INCLUDE$ac_delim
 GSM_DIR!$GSM_DIR$ac_delim
@@ -50370,10 +50168,6 @@ NEWT_INCLUDE!$NEWT_INCLUDE$ac_delim
 NEWT_DIR!$NEWT_DIR$ac_delim
 PBX_NEWT!$PBX_NEWT$ac_delim
 UNIXODBC_LIB!$UNIXODBC_LIB$ac_delim
-UNIXODBC_INCLUDE!$UNIXODBC_INCLUDE$ac_delim
-UNIXODBC_DIR!$UNIXODBC_DIR$ac_delim
-PBX_UNIXODBC!$PBX_UNIXODBC$ac_delim
-OGG_LIB!$OGG_LIB$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -50415,6 +50209,10 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+UNIXODBC_INCLUDE!$UNIXODBC_INCLUDE$ac_delim
+UNIXODBC_DIR!$UNIXODBC_DIR$ac_delim
+PBX_UNIXODBC!$PBX_UNIXODBC$ac_delim
+OGG_LIB!$OGG_LIB$ac_delim
 OGG_INCLUDE!$OGG_INCLUDE$ac_delim
 OGG_DIR!$OGG_DIR$ac_delim
 PBX_OGG!$PBX_OGG$ac_delim
@@ -50458,6 +50256,14 @@ RADIUS_LIB!$RADIUS_LIB$ac_delim
 RADIUS_INCLUDE!$RADIUS_INCLUDE$ac_delim
 RADIUS_DIR!$RADIUS_DIR$ac_delim
 PBX_RADIUS!$PBX_RADIUS$ac_delim
+SDL_LIB!$SDL_LIB$ac_delim
+SDL_INCLUDE!$SDL_INCLUDE$ac_delim
+SDL_DIR!$SDL_DIR$ac_delim
+PBX_SDL!$PBX_SDL$ac_delim
+SDL_IMAGE_LIB!$SDL_IMAGE_LIB$ac_delim
+SDL_IMAGE_INCLUDE!$SDL_IMAGE_INCLUDE$ac_delim
+SDL_IMAGE_DIR!$SDL_IMAGE_DIR$ac_delim
+PBX_SDL_IMAGE!$PBX_SDL_IMAGE$ac_delim
 SPEEX_LIB!$SPEEX_LIB$ac_delim
 SPEEX_INCLUDE!$SPEEX_INCLUDE$ac_delim
 SPEEX_DIR!$SPEEX_DIR$ac_delim
@@ -50500,18 +50306,6 @@ TONEZONE_DIR!$TONEZONE_DIR$ac_delim
 PBX_TONEZONE!$PBX_TONEZONE$ac_delim
 USB_LIB!$USB_LIB$ac_delim
 USB_INCLUDE!$USB_INCLUDE$ac_delim
-USB_DIR!$USB_DIR$ac_delim
-PBX_USB!$PBX_USB$ac_delim
-VORBIS_LIB!$VORBIS_LIB$ac_delim
-VORBIS_INCLUDE!$VORBIS_INCLUDE$ac_delim
-VORBIS_DIR!$VORBIS_DIR$ac_delim
-PBX_VORBIS!$PBX_VORBIS$ac_delim
-VPB_LIB!$VPB_LIB$ac_delim
-VPB_INCLUDE!$VPB_INCLUDE$ac_delim
-VPB_DIR!$VPB_DIR$ac_delim
-PBX_VPB!$PBX_VPB$ac_delim
-X11_LIB!$X11_LIB$ac_delim
-X11_INCLUDE!$X11_INCLUDE$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -50553,6 +50347,18 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+USB_DIR!$USB_DIR$ac_delim
+PBX_USB!$PBX_USB$ac_delim
+VORBIS_LIB!$VORBIS_LIB$ac_delim
+VORBIS_INCLUDE!$VORBIS_INCLUDE$ac_delim
+VORBIS_DIR!$VORBIS_DIR$ac_delim
+PBX_VORBIS!$PBX_VORBIS$ac_delim
+VPB_LIB!$VPB_LIB$ac_delim
+VPB_INCLUDE!$VPB_INCLUDE$ac_delim
+VPB_DIR!$VPB_DIR$ac_delim
+PBX_VPB!$PBX_VPB$ac_delim
+X11_LIB!$X11_LIB$ac_delim
+X11_INCLUDE!$X11_INCLUDE$ac_delim
 X11_DIR!$X11_DIR$ac_delim
 PBX_X11!$PBX_X11$ac_delim
 ZLIB_LIB!$ZLIB_LIB$ac_delim
@@ -50563,42 +50369,6 @@ ZAPTEL_LIB!$ZAPTEL_LIB$ac_delim
 ZAPTEL_INCLUDE!$ZAPTEL_INCLUDE$ac_delim
 ZAPTEL_DIR!$ZAPTEL_DIR$ac_delim
 PBX_ZAPTEL!$PBX_ZAPTEL$ac_delim
-ZAPTEL_TRANSCODE_LIB!$ZAPTEL_TRANSCODE_LIB$ac_delim
-ZAPTEL_TRANSCODE_INCLUDE!$ZAPTEL_TRANSCODE_INCLUDE$ac_delim
-ZAPTEL_TRANSCODE_DIR!$ZAPTEL_TRANSCODE_DIR$ac_delim
-PBX_ZAPTEL_TRANSCODE!$PBX_ZAPTEL_TRANSCODE$ac_delim
-ZAPTEL_VLDTMF_LIB!$ZAPTEL_VLDTMF_LIB$ac_delim
-ZAPTEL_VLDTMF_INCLUDE!$ZAPTEL_VLDTMF_INCLUDE$ac_delim
-ZAPTEL_VLDTMF_DIR!$ZAPTEL_VLDTMF_DIR$ac_delim
-PBX_ZAPTEL_VLDTMF!$PBX_ZAPTEL_VLDTMF$ac_delim
-ZAPTEL_HWGAIN_LIB!$ZAPTEL_HWGAIN_LIB$ac_delim
-ZAPTEL_HWGAIN_INCLUDE!$ZAPTEL_HWGAIN_INCLUDE$ac_delim
-ZAPTEL_HWGAIN_DIR!$ZAPTEL_HWGAIN_DIR$ac_delim
-PBX_ZAPTEL_HWGAIN!$PBX_ZAPTEL_HWGAIN$ac_delim
-ZAPTEL_NEONMWI_LIB!$ZAPTEL_NEONMWI_LIB$ac_delim
-ZAPTEL_NEONMWI_INCLUDE!$ZAPTEL_NEONMWI_INCLUDE$ac_delim
-ZAPTEL_NEONMWI_DIR!$ZAPTEL_NEONMWI_DIR$ac_delim
-PBX_ZAPTEL_NEONMWI!$PBX_ZAPTEL_NEONMWI$ac_delim
-ZAPTEL_ECHOCANPARAMS_LIB!$ZAPTEL_ECHOCANPARAMS_LIB$ac_delim
-ZAPTEL_ECHOCANPARAMS_INCLUDE!$ZAPTEL_ECHOCANPARAMS_INCLUDE$ac_delim
-ZAPTEL_ECHOCANPARAMS_DIR!$ZAPTEL_ECHOCANPARAMS_DIR$ac_delim
-PBX_ZAPTEL_ECHOCANPARAMS!$PBX_ZAPTEL_ECHOCANPARAMS$ac_delim
-ZAPTEL_CHANALARMS_LIB!$ZAPTEL_CHANALARMS_LIB$ac_delim
-ZAPTEL_CHANALARMS_INCLUDE!$ZAPTEL_CHANALARMS_INCLUDE$ac_delim
-ZAPTEL_CHANALARMS_DIR!$ZAPTEL_CHANALARMS_DIR$ac_delim
-PBX_ZAPTEL_CHANALARMS!$PBX_ZAPTEL_CHANALARMS$ac_delim
-SDL_LIB!$SDL_LIB$ac_delim
-SDL_INCLUDE!$SDL_INCLUDE$ac_delim
-SDL_DIR!$SDL_DIR$ac_delim
-PBX_SDL!$PBX_SDL$ac_delim
-SDL_IMAGE_LIB!$SDL_IMAGE_LIB$ac_delim
-SDL_IMAGE_INCLUDE!$SDL_IMAGE_INCLUDE$ac_delim
-SDL_IMAGE_DIR!$SDL_IMAGE_DIR$ac_delim
-PBX_SDL_IMAGE!$PBX_SDL_IMAGE$ac_delim
-FFMPEG_LIB!$FFMPEG_LIB$ac_delim
-FFMPEG_INCLUDE!$FFMPEG_INCLUDE$ac_delim
-FFMPEG_DIR!$FFMPEG_DIR$ac_delim
-PBX_FFMPEG!$PBX_FFMPEG$ac_delim
 ALLOCA!$ALLOCA$ac_delim
 LIBOBJS!$LIBOBJS$ac_delim
 POW_LIB!$POW_LIB$ac_delim
@@ -50630,7 +50400,7 @@ CURL_CONFIG!$CURL_CONFIG$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 75; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 51; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

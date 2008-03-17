@@ -114,7 +114,7 @@ AC_DEFUN([AST_C_DEFINE_CHECK],
 		AC_DEFINE([HAVE_$1], 1, [Define if your system has the $1 headers.])
 		AC_DEFINE([HAVE_$1_VERSION], $4, [Define $1 headers version])
 	    ],
-	    [       AC_MSG_RESULT(no) ] 
+	    [   AC_MSG_RESULT(no) ] 
 	)
 	CPPFLAGS="${saved_cppflags}"
     fi
