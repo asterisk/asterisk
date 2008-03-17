@@ -7,11 +7,11 @@ cat << END
  */
 
 END
-TMP=`${GREP} MENUSELECT_CFLAGS menuselect.makeopts | sed 's/MENUSELECT_CFLAGS\=//g' | sed 's/-D//g'`
+TMP=`${GREP} -e ^MENUSELECT_CFLAGS menuselect.makeopts | sed 's/MENUSELECT_CFLAGS\=//g' | sed 's/-D//g'`
 for x in ${TMP}; do
 	echo "#define ${x} 1"
 done
-TMP=`${GREP} MENUSELECT_BUILD_DEPS menuselect.makeopts | sed 's/MENUSELECT_BUILD_DEPS\=//g'`
+TMP=`${GREP} -e ^MENUSELECT_BUILD_DEPS menuselect.makeopts | sed 's/MENUSELECT_BUILD_DEPS\=//g'`
 for x in ${TMP}; do
 	x2=`echo ${x} | tr a-z A-Z`
 	echo "#define AST_MODULE_${x2} 1"
