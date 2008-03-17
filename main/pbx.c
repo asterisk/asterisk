@@ -5292,6 +5292,36 @@ struct store_hint {
 
 AST_LIST_HEAD(store_hints, store_hint);
 
+static void context_merge_incls_swits_igps_other_registrars(struct ast_context *new, struct ast_context *old, const char *registrar)
+{
+	struct ast_include *i;
+	struct ast_ignorepat *ip;
+	struct ast_sw *sw;
+	
+	/* copy in the includes, switches, and ignorepats */
+	/* walk through includes */
+	for (i = NULL; (i = ast_walk_context_includes(old, i)) ; ) {
+		if (strcmp(ast_get_include_registrar(i), registrar) == 0)
+			continue; /* not mine */
+		ast_context_add_include2(new, ast_get_include_name(i), ast_get_include_registrar(i));
+	}
+	
+	/* walk through switches */
+	for (sw = NULL; (sw = ast_walk_context_switches(old, sw)) ; ) {
+		if (strcmp(ast_get_switch_registrar(sw), registrar) == 0)
+			continue; /* not mine */
+		ast_context_add_switch2(new, ast_get_switch_name(sw), ast_get_switch_data(sw), ast_get_switch_eval(sw), ast_get_switch_registrar(sw));
+	}
+	
+	/* walk thru ignorepats ... */
+	for (ip = NULL; (ip = ast_walk_context_ignorepats(old, ip)); ) {
+		if (strcmp(ast_get_ignorepat_registrar(ip), registrar) == 0)
+			continue; /* not mine */
+		ast_context_add_ignorepat2(new, ast_get_ignorepat_name(ip), ast_get_ignorepat_registrar(ip));
+	}
+}
+
+
 /* the purpose of this routine is to duplicate a context, with all its substructure,
    except for any extens that have a matching registrar */
 static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *exttable, struct ast_context *context, const char *registrar)
@@ -5329,6 +5359,9 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 				/* make sure the new context exists, so we have somewhere to stick this exten/prio */
 				if (!new) {
 					new = ast_context_find_or_create(extcontexts, exttable, context->name, prio_item->registrar); /* a new context created via priority from a different context in the old dialplan, gets its registrar from the prio's registrar */
+
+					/* copy in the includes, switches, and ignorepats */
+					context_merge_incls_swits_igps_other_registrars(new, context, registrar);
 				}
 				if (!new) {
 					ast_log(LOG_ERROR,"Could not allocate a new context for %s in merge_and_delete! Danger!\n", context->name);
@@ -5357,6 +5390,9 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 		/* we could have given it the registrar of the other module who incremented the refcount,
 		   but that's not available, so we give it the registrar we know about */
 		new = ast_context_find_or_create(extcontexts, exttable, context->name, context->registrar);
+		
+		/* copy in the includes, switches, and ignorepats */
+		context_merge_incls_swits_igps_other_registrars(new, context, registrar);
 	}
 }
 
@@ -7943,6 +7979,11 @@ const char *ast_get_switch_name(struct ast_sw *sw)
 const char *ast_get_switch_data(struct ast_sw *sw)
 {
 	return sw ? sw->data : NULL;
+}
+
+int ast_get_switch_eval(struct ast_sw *sw)
+{
+	return sw->eval;
 }
 
 const char *ast_get_switch_registrar(struct ast_sw *sw)

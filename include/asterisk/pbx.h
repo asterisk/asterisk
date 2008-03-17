@@ -758,6 +758,8 @@ const char *ast_get_include_name(struct ast_include *include);
 const char *ast_get_ignorepat_name(struct ast_ignorepat *ip);
 const char *ast_get_switch_name(struct ast_sw *sw);
 const char *ast_get_switch_data(struct ast_sw *sw);
+int ast_get_switch_eval(struct ast_sw *sw);
+	
 /*! @} */
 
 /*! @name Other Extension stuff */
