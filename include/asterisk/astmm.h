@@ -43,9 +43,10 @@ void __ast_free(void *ptr, const char *file, int lineno, const char *func);
 void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func);
 char *__ast_strdup(const char *s, const char *file, int lineno, const char *func);
 char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const char *func);
-int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, const char *format, ...);
-int __ast_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func);
-
+int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, const char *format, ...)
+	__attribute__ ((format (printf, 5, 6)));
+int __ast_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func)
+	__attribute__ ((format (printf, 2, 0)));
 void __ast_mm_init(void);
 
 
