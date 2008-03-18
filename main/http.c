@@ -32,8 +32,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/paths.h"	/* use ast_config_AST_DATA_DIR */
-#include "asterisk/network.h"
 #include <time.h>
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -44,6 +42,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <gmime/gmime.h>
 #endif /* ENABLE_UPLOADS */
 
+#include "asterisk/paths.h"	/* use ast_config_AST_DATA_DIR */
+#include "asterisk/network.h"
 #include "asterisk/cli.h"
 #include "asterisk/tcptls.h"
 #include "asterisk/http.h"
@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/ast_version.h"
 #include "asterisk/manager.h"
+#include "asterisk/_private.h"
 
 #define MAX_PREFIX 80
 
@@ -145,7 +146,8 @@ static const char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
 	return wkspace;
 }
 
-static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
+static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, const char *uri, enum ast_http_method method,
+				       struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
 	char *path;
 	char *ftype;
@@ -215,7 +217,8 @@ out403:
 }
 
 
-static struct ast_str *httpstatus_callback(struct ast_tcptls_session_instance *ser, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
+static struct ast_str *httpstatus_callback(struct ast_tcptls_session_instance *ser, const char *uri, enum ast_http_method method,
+					   struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
 	struct ast_str *out = ast_str_create(512);
 	struct ast_variable *v;
@@ -641,7 +644,7 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 	if (urih) {
 		if (urih->static_content)
 			*static_content = 1;
-		out = urih->callback(ser, uri, vars, status, title, contentlength);
+		out = urih->callback(ser, uri, AST_HTTP_GET, vars, status, title, contentlength);
 		AST_RWLIST_UNLOCK(&uris);
 	} else {
 		out = ast_http_error(404, "Not Found", NULL,

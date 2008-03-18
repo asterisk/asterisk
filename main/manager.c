@@ -3476,7 +3476,7 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *v
 }
 
 static struct ast_str *generic_http_callback(enum output_format format,
-					     struct sockaddr_in *requestor, const char *uri,
+					     struct sockaddr_in *requestor, const char *uri, enum ast_http_method method,
 					     struct ast_variable *params, int *status,
 					     char **title, int *contentlength)
 {
@@ -3631,19 +3631,19 @@ generic_callback_out:
 	return out;
 }
 
-static struct ast_str *manager_http_callback(struct ast_tcptls_session_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static struct ast_str *manager_http_callback(struct ast_tcptls_session_instance *ser, const char *uri, enum ast_http_method method, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
-	return generic_http_callback(FORMAT_HTML, &ser->requestor, uri, params, status, title, contentlength);
+	return generic_http_callback(FORMAT_HTML, &ser->requestor, uri, method, params, status, title, contentlength);
 }
 
-static struct ast_str *mxml_http_callback(struct ast_tcptls_session_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static struct ast_str *mxml_http_callback(struct ast_tcptls_session_instance *ser, const char *uri, enum ast_http_method method, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
-	return generic_http_callback(FORMAT_XML, &ser->requestor, uri, params, status, title, contentlength);
+	return generic_http_callback(FORMAT_XML, &ser->requestor, uri, method, params, status, title, contentlength);
 }
 
-static struct ast_str *rawman_http_callback(struct ast_tcptls_session_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static struct ast_str *rawman_http_callback(struct ast_tcptls_session_instance *ser, const char *uri, enum ast_http_method method, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
-	return generic_http_callback(FORMAT_RAW, &ser->requestor, uri, params, status, title, contentlength);
+	return generic_http_callback(FORMAT_RAW, &ser->requestor, uri, method, params, status, title, contentlength);
 }
 
 struct ast_http_uri rawmanuri = {

@@ -65,29 +65,37 @@
    content is specified) 
 \endverbatim
 */
-typedef struct ast_str *(*ast_http_callback)(struct ast_tcptls_session_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength);
 
-/*! \brief Definition of a URI reachable in the embedded HTTP server */
+enum ast_http_method {
+	AST_HTTP_GET = 0,
+	AST_HTTP_POST,
+};
+
+typedef struct ast_str *(*ast_http_callback)(struct ast_tcptls_session_instance *ser, const char *uri, enum ast_http_method method,
+					     struct ast_variable *params, int *status, char **title, int *contentlength);
+
+/*! \brief Definition of a URI handler */
 struct ast_http_uri {
 	AST_LIST_ENTRY(ast_http_uri) entry;
 	const char *description;
 	const char *uri;
-	unsigned int has_subtree:1;
-	/*! This URI mapping serves static content */
-	unsigned int static_content:1;
 	ast_http_callback callback;
+	unsigned int has_subtree:1;
+	/*! This handler serves static content */
+	unsigned int static_content:1;
+	/*! This handler accepts GET requests */
+	unsigned int supports_get:1;
+	/*! This handler accepts POST requests */
+	unsigned int supports_post:1;
 };
 
-/*! \brief Link into the Asterisk HTTP server */
+/*! \brief Register a URI handler */
 int ast_http_uri_link(struct ast_http_uri *urihandler);
+
+/*! \brief Unregister a URI handler */
+void ast_http_uri_unlink(struct ast_http_uri *urihandler);
 
 /*! \brief Return an ast_str malloc()'d string containing an HTTP error message */
 struct ast_str *ast_http_error(int status, const char *title, const char *extra_header, const char *text);
-
-/*! \brief Destroy an HTTP server */
-void ast_http_uri_unlink(struct ast_http_uri *urihandler);
-
-int ast_http_init(void);
-int ast_http_reload(void);
 
 #endif /* _ASTERISK_SRV_H */
