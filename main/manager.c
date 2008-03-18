@@ -2051,7 +2051,7 @@ static int action_command(struct mansession *s, const struct message *m)
 			term_strip(final_buf, buf, l);
 			final_buf[l] = '\0';
 		}
-		astman_append(s, S_OR(final_buf, buf));
+		astman_append(s, "%s", S_OR(final_buf, buf));
 		ast_free(buf);
 	}
 	close(fd);
