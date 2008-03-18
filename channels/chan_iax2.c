@@ -788,7 +788,7 @@ static void iax_error_output(const char *data)
 	ast_log(LOG_WARNING, "%s", data);
 }
 
-static void jb_error_output(const char *fmt, ...)
+static void __attribute__((format (printf, 1, 2))) jb_error_output(const char *fmt, ...)
 {
 	va_list args;
 	char buf[1024];
@@ -797,10 +797,10 @@ static void jb_error_output(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
-	ast_log(LOG_ERROR, buf);
+	ast_log(LOG_ERROR, "%s", buf);
 }
 
-static void jb_warning_output(const char *fmt, ...)
+static void __attribute__((format (printf, 1, 2))) jb_warning_output(const char *fmt, ...)
 {
 	va_list args;
 	char buf[1024];
@@ -809,10 +809,10 @@ static void jb_warning_output(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
-	ast_log(LOG_WARNING, buf);
+	ast_log(LOG_WARNING, "%s", buf);
 }
 
-static void jb_debug_output(const char *fmt, ...)
+static void __attribute__((format (printf, 1, 2))) jb_debug_output(const char *fmt, ...)
 {
 	va_list args;
 	char buf[1024];
@@ -821,7 +821,7 @@ static void jb_debug_output(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
-	ast_verbose(buf);
+	ast_verbose("%s", buf);
 }
 
 /*!
@@ -5173,11 +5173,12 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 {
 	int x;
 	int numchans = 0;
+#define ACN_FORMAT1 "%-25.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d\n"
+#define ACN_FORMAT2 "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n"
 	for (x=0;x<IAX_MAX_CALLS;x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
 			int localjitter, localdelay, locallost, locallosspct, localdropped, localooo;
-			char *fmt;
 			jb_info jbinfo;
 			
 			if(ast_test_flag(iaxs[x], IAX_USEJITTERBUF)) {
@@ -5196,13 +5197,9 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 				localdropped = 0;
 				localooo = -1;
 			}
-			if (limit_fmt)
-				fmt = "%-25.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d\n";
-			else
-				fmt = "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n";
 			if (s)
 				
-				astman_append(s, fmt,
+				astman_append(s, limit_fmt ? ACN_FORMAT1 : ACN_FORMAT2,
 					      iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
 					      iaxs[x]->pingtime,
 					      localjitter, 
@@ -5220,7 +5217,7 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 					      iaxs[x]->remote_rr.ooo,
 					      iaxs[x]->remote_rr.packets/1000);
 			else
-				ast_cli(fd, fmt,
+				ast_cli(fd, limit_fmt ? ACN_FORMAT1 : ACN_FORMAT2,
 					iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
 					iaxs[x]->pingtime,
 					localjitter, 

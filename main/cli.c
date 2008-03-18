@@ -878,7 +878,7 @@ static char *handle_commandcomplete(struct ast_cli_entry *e, int cmd, struct ast
 		return CLI_SHOWUSAGE;
 	buf = __ast_cli_generator(a->argv[2], a->argv[3], atoi(a->argv[4]), 0);
 	if (buf) {
-		ast_cli(a->fd, buf);
+		ast_cli(a->fd, "%s", buf);
 		ast_free(buf);
 	} else
 		ast_cli(a->fd, "NULL\n");

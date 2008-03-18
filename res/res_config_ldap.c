@@ -766,10 +766,10 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 	ast_str_append(&filter, 0, "(&");
 
 	if (table_config && table_config->additional_filter)
-		ast_str_append(&filter, 0, table_config->additional_filter);
+		ast_str_append(&filter, 0, "%s", table_config->additional_filter);
 	if (table_config != base_table_config && base_table_config && 
 		base_table_config->additional_filter) {
-		ast_str_append(&filter, 0, base_table_config->additional_filter);
+		ast_str_append(&filter, 0, "%s", base_table_config->additional_filter);
 	}
 
 	/* Create the first part of the query using the first parameter/value pairs we just extracted */
@@ -1171,11 +1171,11 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	/* Create the filter with the table additional filter and the parameter/value pairs we were given */
 	ast_str_append(&filter, 0, "(&");
 	if (table_config && table_config->additional_filter) {
-		ast_str_append(&filter, 0, table_config->additional_filter);
+		ast_str_append(&filter, 0, "%s", table_config->additional_filter);
 	}
 	if (table_config != base_table_config && base_table_config
 		&& base_table_config->additional_filter) {
-		ast_str_append(&filter, 0, base_table_config->additional_filter);
+		ast_str_append(&filter, 0, "%s", base_table_config->additional_filter);
 	}
 	append_var_and_value_to_filter(&filter, table_config, attribute, lookup);
 	ast_str_append(&filter, 0, ")");

@@ -327,11 +327,21 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	if (!(cachedir = ast_variable_retrieve(cfg, "general", "cachedir"))) {
 		cachedir = "/tmp/";
 	}
+
+	data = ast_strdupa(vdata);
+	AST_STANDARD_APP_ARGS(args, data);
+
 	if (!(festivalcommand = ast_variable_retrieve(cfg, "general", "festivalcommand"))) {
-		festivalcommand = "(tts_textasterisk \"%s\" 'file)(quit)\n";
+		const char *startcmd = "(tts_textasterisk \"";
+		const char *endcmd = "\" 'file)(quit)\n";
+
+		strln = strlen(startcmd) + strlen(args.text) + strlen(endcmd) + 1;
+		newfestivalcommand = alloca(strln);
+		snprintf(newfestivalcommand, strln, "%s%s%s", startcmd, args.text, endcmd);
+		festivalcommand = newfestivalcommand;
 	} else { /* This else parses the festivalcommand that we're sent from the config file for \n's, etc */
 		int i, j;
-		newfestivalcommand = alloca(strlen(festivalcommand) + 1);
+		newfestivalcommand = alloca(strlen(festivalcommand) + strlen(args.text) + 1);
 
 		for (i = 0, j = 0; i < strlen(festivalcommand); i++) {
 			if (festivalcommand[i] == '\\' && festivalcommand[i + 1] == 'n') {
@@ -340,6 +350,10 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 			} else if (festivalcommand[i] == '\\') {
 				newfestivalcommand[j++] = festivalcommand[i + 1];
 				i++;
+			} else if (festivalcommand[i] == '%' && festivalcommand[i + 1] == 's') {
+				sprintf(&newfestivalcommand[j], "%s", args.text); /* we know it is big enough */
+				j += strlen(args.text);
+				i++;
 			} else
 				newfestivalcommand[j++] = festivalcommand[i];
 		}
@@ -347,9 +361,6 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 		festivalcommand = newfestivalcommand;
 	}
 	
-	data = ast_strdupa(vdata);
-	AST_STANDARD_APP_ARGS(args, data);
-
 	if (args.interrupt && !strcasecmp(args.interrupt, "any"))
 		args.interrupt = AST_DIGIT_ANY;
 
@@ -440,7 +451,8 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	} else {
 		ast_debug(1, "Passing text to festival...\n");
 		fs = fdopen(dup(fd), "wb");
-		fprintf(fs, festivalcommand, args.text);
+
+		fprintf(fs, "%s", festivalcommand);
 		fflush(fs);
 		fclose(fs);
 	}

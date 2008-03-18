@@ -914,7 +914,7 @@ static int pp_each_user_exec(struct ast_channel *chan, const char *cmd, char *da
 		if (!ast_strlen_zero(args.exclude_mac) && !strcasecmp(user->macaddress, args.exclude_mac))
 			continue;
 		pbx_substitute_variables_varshead(user->headp, args.string, expand_buf, sizeof(expand_buf));
-		ast_build_string(&buf, &len, expand_buf);
+		ast_build_string(&buf, &len, "%s", expand_buf);
 	}
 	AST_RWLIST_UNLOCK(&users);
 

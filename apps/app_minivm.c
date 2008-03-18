@@ -1560,10 +1560,10 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 			duration < global_vmminmessage ? "IGNORED" : "OK",
 			vmu->accountcode
 		); 
-		fprintf(txt, logbuf);
+		fprintf(txt, "%s", logbuf);
 		if (minivmlogfile) {
 			ast_mutex_lock(&minivmloglock);
-			fprintf(minivmlogfile, logbuf);
+			fprintf(minivmlogfile, "%s", logbuf);
 			ast_mutex_unlock(&minivmloglock);
 		}
 
@@ -2474,7 +2474,7 @@ static int load_config(int reload)
 static char *handle_minivm_list_templates(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct minivm_template *this;
-	char *output_format = "%-15s %-10s %-10s %-15.15s %-50s\n";
+#define HVLT_OUTPUT_FORMAT "%-15s %-10s %-10s %-15.15s %-50s\n"
 	int count = 0;
 
 	switch (cmd) {
@@ -2497,10 +2497,10 @@ static char *handle_minivm_list_templates(struct ast_cli_entry *e, int cmd, stru
 		AST_LIST_UNLOCK(&message_templates);
 		return CLI_FAILURE;
 	}
-	ast_cli(a->fd, output_format, "Template name", "Charset", "Locale", "Attach media", "Subject");
-	ast_cli(a->fd, output_format, "-------------", "-------", "------", "------------", "-------");
+	ast_cli(a->fd, HVLT_OUTPUT_FORMAT, "Template name", "Charset", "Locale", "Attach media", "Subject");
+	ast_cli(a->fd, HVLT_OUTPUT_FORMAT, "-------------", "-------", "------", "------------", "-------");
 	AST_LIST_TRAVERSE(&message_templates, this, list) {
-		ast_cli(a->fd, output_format, this->name, 
+		ast_cli(a->fd, HVLT_OUTPUT_FORMAT, this->name, 
 			this->charset ? this->charset : "-", 
 			this->locale ? this->locale : "-",
 			this->attachment ? "Yes" : "No",
@@ -2540,7 +2540,7 @@ static char *complete_minivm_show_users(const char *line, const char *word, int 
 static char *handle_minivm_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct minivm_account *vmu;
-	char *output_format = "%-23s %-15s %-15s %-10s %-10s %-50s\n";
+#define HMSU_OUTPUT_FORMAT "%-23s %-15s %-15s %-10s %-10s %-50s\n"
 	int count = 0;
 
 	switch (cmd) {
@@ -2565,14 +2565,14 @@ static char *handle_minivm_show_users(struct ast_cli_entry *e, int cmd, struct a
 		AST_LIST_UNLOCK(&minivm_accounts);
 		return CLI_FAILURE;
 	}
-	ast_cli(a->fd, output_format, "User", "E-Template", "P-template", "Zone", "Format", "Full name");
-	ast_cli(a->fd, output_format, "----", "----------", "----------", "----", "------", "---------");
+	ast_cli(a->fd, HMSU_OUTPUT_FORMAT, "User", "E-Template", "P-template", "Zone", "Format", "Full name");
+	ast_cli(a->fd, HMSU_OUTPUT_FORMAT, "----", "----------", "----------", "----", "------", "---------");
 	AST_LIST_TRAVERSE(&minivm_accounts, vmu, list) {
 		char tmp[256] = "";
 		if ((a->argc == 3) || ((a->argc == 5) && !strcmp(a->argv[4], vmu->domain))) {
 			count++;
 			snprintf(tmp, sizeof(tmp), "%s@%s", vmu->username, vmu->domain);
-			ast_cli(a->fd, output_format, tmp, vmu->etemplate ? vmu->etemplate : "-", 
+			ast_cli(a->fd, HMSU_OUTPUT_FORMAT, tmp, vmu->etemplate ? vmu->etemplate : "-", 
 				vmu->ptemplate ? vmu->ptemplate : "-",
 				vmu->zonetag ? vmu->zonetag : "-", 
 				vmu->attachfmt ? vmu->attachfmt : "-",
@@ -2588,7 +2588,7 @@ static char *handle_minivm_show_users(struct ast_cli_entry *e, int cmd, struct a
 static char *handle_minivm_show_zones(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct minivm_zone *zone;
-	char *output_format = "%-15s %-20s %-45s\n";
+#define HMSZ_OUTPUT_FORMAT "%-15s %-20s %-45s\n"
 	char *res = CLI_SUCCESS;
 
 	switch (cmd) {
@@ -2607,10 +2607,10 @@ static char *handle_minivm_show_zones(struct ast_cli_entry *e, int cmd, struct a
 
 	AST_LIST_LOCK(&minivm_zones);
 	if (!AST_LIST_EMPTY(&minivm_zones)) {
-		ast_cli(a->fd, output_format, "Zone", "Timezone", "Message Format");
-		ast_cli(a->fd, output_format, "----", "--------", "--------------");
+		ast_cli(a->fd, HMSZ_OUTPUT_FORMAT, "Zone", "Timezone", "Message Format");
+		ast_cli(a->fd, HMSZ_OUTPUT_FORMAT, "----", "--------", "--------------");
 		AST_LIST_TRAVERSE(&minivm_zones, zone, list) {
-			ast_cli(a->fd, output_format, zone->name, zone->timezone, zone->msg_format);
+			ast_cli(a->fd, HMSZ_OUTPUT_FORMAT, zone->name, zone->timezone, zone->msg_format);
 		}
 	} else {
 		ast_cli(a->fd, "There are no voicemail zones currently defined\n");

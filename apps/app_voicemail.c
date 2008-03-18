@@ -645,7 +645,6 @@ static char *pagerbody = NULL;
 static char *pagersubject = NULL;
 static char fromstring[100];
 static char pagerfromstring[100];
-static char emailtitle[100];
 static char charset[32] = "ISO-8859-1";
 
 static unsigned char adsifdn[4] = "\x00\x00\x00\x0F";
@@ -2021,9 +2020,6 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			ast_channel_free(ast);
 		} else
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
-	} else	if (!ast_strlen_zero(emailtitle)) {
-		fprintf(p, emailtitle, msgnum + 1, mailbox) ;
-		fprintf(p, ENDL) ;
 	} else if (ast_test_flag((&globalflags), VM_PBXSKIP))
 		fprintf(p, "Subject: New message %d in mailbox %s" ENDL, msgnum + 1, mailbox);
 	else
@@ -7784,7 +7780,7 @@ static char *complete_voicemail_show_users(const char *line, const char *word, i
 static char *handle_voicemail_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_vm_user *vmu;
-	char *output_format = "%-10s %-5s %-25s %-10s %6s\n";
+#define HVSU_OUTPUT_FORMAT "%-10s %-5s %-25s %-10s %6s\n"
 	const char *context = NULL;
 	int users_counter = 0;
 
@@ -7822,7 +7818,7 @@ static char *handle_voicemail_show_users(struct ast_cli_entry *e, int cmd, struc
 		return CLI_FAILURE;
 	}
 	if (a->argc == 3)
-		ast_cli(a->fd, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
+		ast_cli(a->fd, HVSU_OUTPUT_FORMAT, "Context", "Mbox", "User", "Zone", "NewMsg");
 	else {
 		int count = 0;
 		AST_LIST_TRAVERSE(&users, vmu, list) {
@@ -7830,7 +7826,7 @@ static char *handle_voicemail_show_users(struct ast_cli_entry *e, int cmd, struc
 				count++;
 		}
 		if (count) {
-			ast_cli(a->fd, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
+			ast_cli(a->fd, HVSU_OUTPUT_FORMAT, "Context", "Mbox", "User", "Zone", "NewMsg");
 		} else {
 			ast_cli(a->fd, "No such voicemail context \"%s\"\n", context);
 			AST_LIST_UNLOCK(&users);
@@ -7845,7 +7841,7 @@ static char *handle_voicemail_show_users(struct ast_cli_entry *e, int cmd, struc
 			snprintf(tmp, sizeof(tmp), "%s@%s", vmu->mailbox, ast_strlen_zero(vmu->context) ? "default" : vmu->context);
 			inboxcount(tmp, &newmsgs, &oldmsgs);
 			snprintf(count, sizeof(count), "%d", newmsgs);
-			ast_cli(a->fd, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
+			ast_cli(a->fd, HVSU_OUTPUT_FORMAT, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
 			users_counter++;
 		}
 	}
@@ -7858,7 +7854,7 @@ static char *handle_voicemail_show_users(struct ast_cli_entry *e, int cmd, struc
 static char *handle_voicemail_show_zones(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct vm_zone *zone;
-	char *output_format = "%-15s %-20s %-45s\n";
+#define HVSZ_OUTPUT_FORMAT "%-15s %-20s %-45s\n"
 	char *res = CLI_SUCCESS;
 
 	switch (cmd) {
@@ -7877,9 +7873,9 @@ static char *handle_voicemail_show_zones(struct ast_cli_entry *e, int cmd, struc
 
 	AST_LIST_LOCK(&zones);
 	if (!AST_LIST_EMPTY(&zones)) {
-		ast_cli(a->fd, output_format, "Zone", "Timezone", "Message Format");
+		ast_cli(a->fd, HVSZ_OUTPUT_FORMAT, "Zone", "Timezone", "Message Format");
 		AST_LIST_TRAVERSE(&zones, zone, list) {
-			ast_cli(a->fd, output_format, zone->name, zone->timezone, zone->msg_format);
+			ast_cli(a->fd, HVSZ_OUTPUT_FORMAT, zone->name, zone->timezone, zone->msg_format);
 		}
 	} else {
 		ast_cli(a->fd, "There are no voicemail zones currently defined\n");
@@ -8706,7 +8702,6 @@ static int load_config(int reload)
 		}
 		memset(fromstring, 0, sizeof(fromstring));
 		memset(pagerfromstring, 0, sizeof(pagerfromstring));
-		memset(emailtitle, 0, sizeof(emailtitle));
 		strcpy(charset, "ISO-8859-1");
 		if (emailbody) {
 			ast_free(emailbody);
@@ -8744,13 +8739,10 @@ static int load_config(int reload)
 				memcpy(&adsisec[x], &tmpadsi[x], 1);
 			}
 		}
-		if ((val = ast_variable_retrieve(cfg, "general", "adsiver")))
+		if ((val = ast_variable_retrieve(cfg, "general", "adsiver"))) {
 			if (atoi(val)) {
 				adsiver = atoi(val);
 			}
-		if ((val = ast_variable_retrieve(cfg, "general", "emailtitle"))) {
-			ast_log(LOG_NOTICE, "Keyword 'emailtitle' is DEPRECATED, please use 'emailsubject' instead.\n");
-			ast_copy_string(emailtitle, val, sizeof(emailtitle));
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "emailsubject")))
 			emailsubject = ast_strdup(val);

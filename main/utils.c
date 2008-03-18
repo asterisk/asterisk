@@ -1349,6 +1349,7 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 	return result;
 }
 
+__attribute((format (printf, 4, 0)))
 void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 	struct ast_string_field_pool **pool_head,
 	const ast_string_field *ptr, const char *format, va_list ap1, va_list ap2)
@@ -1380,6 +1381,7 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 	mgr->used += needed;
 }
 
+__attribute((format (printf, 4, 5)))
 void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
 	struct ast_string_field_pool **pool_head,
 	const ast_string_field *ptr, const char *format, ...)
@@ -1470,6 +1472,8 @@ int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed)
  *	ast_str_set_va(...)
  *	ast_str_append_va(...)
  */
+
+__attribute__((format (printf, 4, 0)))
 int __ast_str_helper(struct ast_str **buf, size_t max_len,
 	int append, const char *fmt, va_list ap)
 {

@@ -42,7 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *cli_realtime_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a) 
 {
-	char *header_format = "%30s  %-30s\n";
+#define CRL_HEADER_FORMAT "%30s  %-30s\n"
 	struct ast_variable *var=NULL;
 
 	switch (cmd) {
@@ -64,10 +64,10 @@ static char *cli_realtime_load(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	var = ast_load_realtime_all(a->argv[2], a->argv[3], a->argv[4], NULL);
 
 	if (var) {
-		ast_cli(a->fd, header_format, "Column Name", "Column Value");
-		ast_cli(a->fd, header_format, "--------------------", "--------------------");
+		ast_cli(a->fd, CRL_HEADER_FORMAT, "Column Name", "Column Value");
+		ast_cli(a->fd, CRL_HEADER_FORMAT, "--------------------", "--------------------");
 		while (var) {
-			ast_cli(a->fd, header_format, var->name, var->value);
+			ast_cli(a->fd, CRL_HEADER_FORMAT, var->name, var->value);
 			var = var->next;
 		}
 	} else {

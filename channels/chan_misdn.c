@@ -5709,7 +5709,7 @@ void chan_misdn_log(int level, int port, char *tmpl, ...)
 	va_end(ap);
 
 	if (level == -1)
-		ast_log(LOG_WARNING, buf);
+		ast_log(LOG_WARNING, "%s", buf);
 
 	else if (misdn_debug_only[port] ? 
 			(level == 1 && misdn_debug[port]) || (level == misdn_debug[port]) 

@@ -955,9 +955,9 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 	int hr, min, sec;
 	int i = 0, total = 0;
 	time_t now;
-	char *header_format = "%-14s %-14s %-10s %-8s  %-8s  %-6s\n";
-	char *data_format = "%-12.12s   %4.4d	      %4.4s       %02d:%02d:%02d  %-8s  %-6s\n";
 	char cmdline[1024] = "";
+#define MC_HEADER_FORMAT "%-14s %-14s %-10s %-8s  %-8s  %-6s\n"
+#define MC_DATA_FORMAT "%-12.12s   %4.4d	      %4.4s       %02d:%02d:%02d  %-8s  %-6s\n"
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -989,7 +989,7 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 			return CLI_SUCCESS;
 		}
 		if (!concise)
-			ast_cli(a->fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation", "Locked");
+			ast_cli(a->fd, MC_HEADER_FORMAT, "Conf Num", "Parties", "Marked", "Activity", "Creation", "Locked");
 		AST_LIST_TRAVERSE(&confs, cnf, list) {
 			if (cnf->markedusers == 0)
 				strcpy(cmdline, "N/A ");
@@ -999,7 +999,7 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 			min = ((now - cnf->start) % 3600) / 60;
 			sec = (now - cnf->start) % 60;
 			if (!concise)
-				ast_cli(a->fd, data_format, cnf->confno, cnf->users, cmdline, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static", cnf->locked ? "Yes" : "No");
+				ast_cli(a->fd, MC_DATA_FORMAT, cnf->confno, cnf->users, cmdline, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static", cnf->locked ? "Yes" : "No");
 			else {
 				ast_cli(a->fd, "%s!%d!%d!%02d:%02d:%02d!%d!%d\n", 
 					cnf->confno, 
