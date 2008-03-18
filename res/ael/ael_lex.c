@@ -793,6 +793,7 @@ static yyconst flex_int16_t yy_chk[1035] =
  * bison-locations is probably not needed.
  */
 #line 63 "ael.flex"
+#include "asterisk.h"
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/types.h>
@@ -1745,8 +1746,6 @@ case YY_STATE_EOF(comment):
 {
 		char fnamebuf[2048];
 		if (include_stack_index > 0 && include_stack[include_stack_index-1].globbuf_pos < include_stack[include_stack_index-1].globbuf.gl_pathc-1) {
-			free(my_file);
-			my_file = 0;
 			ael_yy_delete_buffer(YY_CURRENT_BUFFER,yyscanner );
 			include_stack[include_stack_index-1].globbuf_pos++;
 			setup_filestack(fnamebuf, sizeof(fnamebuf), &include_stack[include_stack_index-1].globbuf, include_stack[include_stack_index-1].globbuf_pos, yyscanner, 0);
@@ -1757,13 +1756,13 @@ case YY_STATE_EOF(comment):
 				free(include_stack[include_stack_index].fname);
 				include_stack[include_stack_index].fname = 0;
 			}
+			if (my_file) {
+				free(my_file);
+				my_file = 0;
+			}
 			if ( --include_stack_index < 0 ) {
 				yyterminate();
 			} else {
-				if (my_file) {
-					free(my_file);
-					my_file = 0;
-				}
 				globfree(&include_stack[include_stack_index].globbuf);
 				include_stack[include_stack_index].globbuf_pos = -1;
 				
@@ -3102,12 +3101,16 @@ static void setup_filestack(char *fnamebuf2, int fnamebuf_siz, glob_t *globbuf, 
 			buffer[stats.st_size] = 0;
 			ast_log(LOG_NOTICE,"  --Read in included file %s, %d chars\n",fnamebuf2, (int)stats.st_size);
 			fclose(in1);
-			if (my_file)
-				free(my_file);
-			my_file = strdup(fnamebuf2);
+			if (include_stack[include_stack_index].fname) {
+			   	free(include_stack[include_stack_index].fname);
+				include_stack[include_stack_index].fname = 0;
+			}
 			include_stack[include_stack_index].fname = strdup(my_file);
 			include_stack[include_stack_index].lineno = my_lineno;
 			include_stack[include_stack_index].colno = my_col+yyleng;
+			if (my_file)
+				free(my_file);
+			my_file = strdup(fnamebuf2);
 			if (create)
 				include_stack[include_stack_index].globbuf = *globbuf;
 
