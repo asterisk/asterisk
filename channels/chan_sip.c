@@ -4763,7 +4763,7 @@ static int sip_hangup(struct ast_channel *ast)
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 
 	/* Start the process if it's not already started */
-	if (!p->alreadygone && !ast_strlen_zero(p->initreq.data->str)) {
+	if (!p->alreadygone && p->initreq.data && !ast_strlen_zero(p->initreq.data->str)) {
 		if (needcancel) {	/* Outgoing call, not up */
 			if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 				/* stop retransmitting an INVITE that has not received a response */
