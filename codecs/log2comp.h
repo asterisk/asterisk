@@ -43,7 +43,7 @@ static inline int ilog2(int val)
 		decl	%0			;\
 		bsrl	%1, %0		;\
 		"
-		: "=r" (a)
+		: "=&r" (a)
 		: "mr" (val)
 		: "cc"
 	);
