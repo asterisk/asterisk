@@ -9319,8 +9319,6 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			ast_shrink_phone_number(tmp);
 		ast_string_field_set(p, cid_num, tmp);
 	}
-	if (ast_strlen_zero(of))
-		return AUTH_SUCCESSFUL;
 
 	if (!authpeer)	/* If we are looking for a peer, don't check the user objects (or realtime) */
 		user = find_user(of, 1);
