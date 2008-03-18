@@ -610,7 +610,7 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 {
 	printf("find/Creating context %s, registrar=%s\n", name, registrar);
 	
-	return localized_context_create(extcontexts, name, registrar);
+	return localized_context_find_or_create(extcontexts, exttable, name, registrar);
 }
 
 void ast_cli_register_multiple(void);
@@ -657,7 +657,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 
 void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *registrar)
 {
-	localized_merge_contexts_and_delete(extcontexts, registrar);
+	localized_merge_contexts_and_delete(extcontexts, exttable, registrar);
 }
 
 struct ast_exten *pbx_find_extension(struct ast_channel *chan,

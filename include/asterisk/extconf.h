@@ -174,7 +174,7 @@ struct ast_sw *localized_walk_context_switches(struct ast_context *con,
 void localized_context_destroy(struct ast_context *con, const char *registrar);
 int localized_pbx_load_module(void);
 
-struct ast_context *localized_context_create(struct ast_context **extcontexts, const char *name, const char *registrar);
+struct ast_context *localized_context_find_or_create(struct ast_context **extcontexts, void *tab, const char *name, const char *registrar);
 int localized_pbx_builtin_setvar(struct ast_channel *chan, void *data);
 int localized_context_add_ignorepat2(struct ast_context *con, const char *value, const char *registrar);
 int localized_context_add_switch2(struct ast_context *con, const char *value,
@@ -185,7 +185,7 @@ int localized_add_extension2(struct ast_context *con,
 							 int replace, const char *extension, int priority, const char *label, const char *callerid,
 							 const char *application, void *data, void (*datad)(void *),
 							 const char *registrar);
-void localized_merge_contexts_and_delete(struct ast_context **extcontexts, const char *registrar);
+void localized_merge_contexts_and_delete(struct ast_context **extcontexts, void *tab, const char *registrar);
 int localized_context_verify_includes(struct ast_context *con);
 void localized_use_conf_dir(void);
 void localized_use_local_dir(void);

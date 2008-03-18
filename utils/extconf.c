@@ -5520,18 +5520,16 @@ static int ast_findlabel_extension2(struct ast_channel *c, struct ast_context *c
 	return pbx_extension_helper(c, con, NULL, exten, 0, label, callerid, E_FINDLABEL);
 }
 
-static struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, const char *name, const char *registrar)
+static struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, void *tab, const char *name, const char *registrar)
 {
 	return __ast_context_create(extcontexts, name, registrar, 1);
 }
 
-struct ast_context *localized_context_create(struct ast_context **extcontexts, const char *name, const char *registrar);
-
-struct ast_context *localized_context_create(struct ast_context **extcontexts, const char *name, const char *registrar)
+struct ast_context *localized_context_find_or_create(struct ast_context **extcontexts, void *tab, const char *name, const char *registrar);
+struct ast_context *localized_context_find_or_create(struct ast_context **extcontexts, void *tab, const char *name, const char *registrar)
 {
-	return __ast_context_create(extcontexts, name, registrar, 0);
+	return __ast_context_create(extcontexts, name, registrar, 1);
 }
-
 
 
 /* chopped this one off at the knees */
@@ -5916,7 +5914,7 @@ static int pbx_load_config(const char *config_file)
 		/* All categories but "general" or "globals" are considered contexts */
 		if (!strcasecmp(cxt, "general") || !strcasecmp(cxt, "globals"))
 			continue;
-		con=ast_context_find_or_create(&local_contexts,cxt, registrar);
+		con=ast_context_find_or_create(&local_contexts,NULL,cxt, registrar);
 		if (con == NULL)
 			continue;
 
