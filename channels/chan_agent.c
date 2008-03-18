@@ -595,7 +595,9 @@ static int agent_digit_begin(struct ast_channel *ast, char digit)
 {
 	struct agent_pvt *p = ast->tech_pvt;
 	ast_mutex_lock(&p->lock);
-	ast_senddigit_begin(p->chan, digit);
+	if (p->chan) {
+		ast_senddigit_begin(p->chan, digit);
+	}
 	ast_mutex_unlock(&p->lock);
 	return 0;
 }
@@ -604,7 +606,9 @@ static int agent_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 {
 	struct agent_pvt *p = ast->tech_pvt;
 	ast_mutex_lock(&p->lock);
-	ast_senddigit_end(p->chan, digit, duration);
+	if (p->chan) {
+		ast_senddigit_end(p->chan, digit, duration);
+	}
 	ast_mutex_unlock(&p->lock);
 	return 0;
 }
