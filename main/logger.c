@@ -1145,7 +1145,7 @@ void ast_verbose(const char *fmt, ...)
 
 	strcpy(logmsg->str, buf->str);
 
-	ast_log(LOG_VERBOSE, logmsg->str);
+	ast_log(LOG_VERBOSE, "%s", logmsg->str);
 
 	/* Set type */
 	logmsg->type = LOGMSG_VERBOSE;
