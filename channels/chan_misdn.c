@@ -285,7 +285,8 @@ static pthread_t misdn_tasks_thread;
 
 static int *misdn_ports;
 
-static void chan_misdn_log(int level, int port, char *tmpl, ...);
+static void chan_misdn_log(int level, int port, char *tmpl, ...)
+	__attribute__ ((format (printf, 3, 4)));
 
 static struct ast_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, int format, int port, int c);
 static void send_digit_to_chan(struct chan_list *cl, char digit );
@@ -464,11 +465,11 @@ static void print_facility(struct FacParm *fac, struct misdn_bchannel *bc)
 			else if (fac->u.AOCDcur.freeOfCharge)
 				chan_misdn_log(1,bc->port," --> AOCD currency: free of charge\n");
 			else if (fac->u.AOCDchu.billingId >= 0)
-				chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%d billingId:%d\n",
+				chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%s billingId:%d\n",
 						fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
 						(fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDcur.billingId);
 			else
-				chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%d\n",
+				chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%s\n",
 						fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
 						(fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total");
 			break;
@@ -4705,7 +4706,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		int res;
 		int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
 
-		chan_misdn_log(9, bc->port, "TONE_GEN: len:%d\n");
+		chan_misdn_log(9, bc->port, "TONE_GEN: len:%d\n", tone_len);
 
 		if (!ast)
 			break;
@@ -4960,7 +4961,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 #endif
 		break;
 		default:
-			chan_misdn_log(0, bc->port," --> not yet handled: facility type:%p\n", bc->fac_in.Function);
+			chan_misdn_log(0, bc->port," --> not yet handled: facility type:%d\n", bc->fac_in.Function);
 		}
 		
 		break;
@@ -5603,7 +5604,7 @@ int misdn_jb_fill(struct misdn_jb *jb, const char *data, int len)
 		jb->state_buffer = wp - rp;
 	else
 		jb->state_buffer = jb->size - rp + wp;
-	chan_misdn_log(9, 0, "misdn_jb_fill: written:%d | Bufferstatus:%d p:%x\n", len, jb->state_buffer, jb);
+	chan_misdn_log(9, 0, "misdn_jb_fill: written:%d | Bufferstatus:%d p:%p\n", len, jb->state_buffer, jb);
 
 	if (jb->state_full) {
 		jb->wp = wp;
@@ -5669,11 +5670,11 @@ int misdn_jb_empty(struct misdn_jb *jb, char *data, int len)
 			jb->state_buffer = wp - rp;
 		else
 			jb->state_buffer = jb->size - rp + wp;
-		chan_misdn_log(9, 0, "misdn_jb_empty: read:%d | Bufferstatus:%d p:%x\n", len, jb->state_buffer, jb);
+		chan_misdn_log(9, 0, "misdn_jb_empty: read:%d | Bufferstatus:%d p:%p\n", len, jb->state_buffer, jb);
 
 		jb->rp = rp;
 	} else
-		chan_misdn_log(9, 0, "misdn_jb_empty: Wait...requested:%d p:%x\n", len, jb);
+		chan_misdn_log(9, 0, "misdn_jb_empty: Wait...requested:%d p:%p\n", len, jb);
 
 	ast_mutex_unlock(&jb->mutexjb);
 
