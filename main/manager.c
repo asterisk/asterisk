@@ -644,7 +644,7 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 {
 	struct manager_action *cur;
 	struct ast_str *authority;
-	static const char *format = "  %-15.15s  %-15.15s  %-55.55s\n";
+#define HSMC_FORMAT "  %-15.15s  %-15.15s  %-55.55s\n"
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "manager show commands";
@@ -656,12 +656,12 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 		return NULL;	
 	}	
 	authority = ast_str_alloca(80);
-	ast_cli(a->fd, format, "Action", "Privilege", "Synopsis");
-	ast_cli(a->fd, format, "------", "---------", "--------");
+	ast_cli(a->fd, HSMC_FORMAT, "Action", "Privilege", "Synopsis");
+	ast_cli(a->fd, HSMC_FORMAT, "------", "---------", "--------");
 
 	AST_RWLIST_RDLOCK(&actions);
 	AST_RWLIST_TRAVERSE(&actions, cur, list)
-		ast_cli(a->fd, format, cur->action, authority_to_str(cur->authority, &authority), cur->synopsis);
+		ast_cli(a->fd, HSMC_FORMAT, cur->action, authority_to_str(cur->authority, &authority), cur->synopsis);
 	AST_RWLIST_UNLOCK(&actions);
 
 	return CLI_SUCCESS;
@@ -672,8 +672,8 @@ static char *handle_showmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli
 {
 	struct mansession *s;
 	time_t now = time(NULL);
-	static const char *format = "  %-15.15s  %-15.15s  %-10.10s  %-10.10s  %-8.8s  %-8.8s  %-5.5s  %-5.5s\n";
-	static const char *format2 = "  %-15.15s  %-15.15s  %-10d  %-10d  %-8d  %-8d  %-5.5d  %-5.5d\n";
+#define HSMCONN_FORMAT1 "  %-15.15s  %-15.15s  %-10.10s  %-10.10s  %-8.8s  %-8.8s  %-5.5s  %-5.5s\n"
+#define HSMCONN_FORMAT2 "  %-15.15s  %-15.15s  %-10d  %-10d  %-8d  %-8d  %-5.5d  %-5.5d\n"
 	int count = 0;
 	switch (cmd) {
 	case CLI_INIT:
@@ -687,11 +687,11 @@ static char *handle_showmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli
 		return NULL;	
 	}
 
-	ast_cli(a->fd, format, "Username", "IP Address", "Start", "Elapsed", "FileDes", "HttpCnt", "Read", "Write");
+	ast_cli(a->fd, HSMCONN_FORMAT1, "Username", "IP Address", "Start", "Elapsed", "FileDes", "HttpCnt", "Read", "Write");
 
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE(&sessions, s, list) {
-		ast_cli(a->fd, format2, s->username, ast_inet_ntoa(s->sin.sin_addr), (int)(s->sessionstart), (int)(now - s->sessionstart), s->fd, s->inuse, s->readperm, s->writeperm);
+		ast_cli(a->fd, HSMCONN_FORMAT2, s->username, ast_inet_ntoa(s->sin.sin_addr), (int)(s->sessionstart), (int)(now - s->sessionstart), s->fd, s->inuse, s->readperm, s->writeperm);
 		count++;
 	}
 	AST_LIST_UNLOCK(&sessions);
@@ -3589,7 +3589,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 				if (format == FORMAT_XML || format == FORMAT_HTML)
 					xml_translate(&out, buf, params, format);
 				else
-					ast_str_append(&out, 0, buf);
+					ast_str_append(&out, 0, "%s", buf);
 				munmap(buf, l);
 			}
 		} else if (format == FORMAT_XML || format == FORMAT_HTML) {

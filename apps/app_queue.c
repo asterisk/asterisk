@@ -1232,13 +1232,13 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 			while ((s = strsep(&buf, ",|"))) {
 				if (!q->sound_periodicannounce[i])
 					q->sound_periodicannounce[i] = ast_str_create(16);
-				ast_str_set(&q->sound_periodicannounce[i], 0, s);
+				ast_str_set(&q->sound_periodicannounce[i], 0, "%s", s);
 				i++;
 				if (i == MAX_PERIODIC_ANNOUNCEMENTS)
 					break;
 			}
 		} else {
-			ast_str_set(&q->sound_periodicannounce[0], 0, val);
+			ast_str_set(&q->sound_periodicannounce[0], 0, "%s", val);
 		}
 	} else if (!strcasecmp(param, "periodic-announce-frequency")) {
 		q->periodicannouncefrequency = atoi(val);

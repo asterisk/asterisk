@@ -2721,7 +2721,7 @@ static char *handle_cli_agi_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 	if (a->argc > e->args) {
 		command = find_command(a->argv + e->args, 1);
 		if (command) {
-			ast_cli(a->fd, command->usage);
+			ast_cli(a->fd, "%s", command->usage);
 			ast_cli(a->fd, " Runs Dead : %s\n", command->dead ? "Yes" : "No");
 		} else {
 			if (find_command(a->argv + e->args, -1)) {

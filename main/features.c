@@ -2845,7 +2845,7 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 {
 	int i;
 	struct ast_call_feature *feature;
-	char format[] = "%-25s %-7s %-7s\n";
+#define HFS_FORMAT "%-25s %-7s %-7s\n"
 
 	switch (cmd) {
 	
@@ -2859,25 +2859,25 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 		return NULL;
 	}
 
-	ast_cli(a->fd, format, "Builtin Feature", "Default", "Current");
-	ast_cli(a->fd, format, "---------------", "-------", "-------");
+	ast_cli(a->fd, HFS_FORMAT, "Builtin Feature", "Default", "Current");
+	ast_cli(a->fd, HFS_FORMAT, "---------------", "-------", "-------");
 
-	ast_cli(a->fd, format, "Pickup", "*8", ast_pickup_ext());          /* default hardcoded above, so we'll hardcode it here */
+	ast_cli(a->fd, HFS_FORMAT, "Pickup", "*8", ast_pickup_ext());          /* default hardcoded above, so we'll hardcode it here */
 
 	ast_rwlock_rdlock(&features_lock);
 	for (i = 0; i < FEATURES_COUNT; i++)
-		ast_cli(a->fd, format, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
+		ast_cli(a->fd, HFS_FORMAT, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
 	ast_rwlock_unlock(&features_lock);
 
 	ast_cli(a->fd, "\n");
-	ast_cli(a->fd, format, "Dynamic Feature", "Default", "Current");
-	ast_cli(a->fd, format, "---------------", "-------", "-------");
+	ast_cli(a->fd, HFS_FORMAT, "Dynamic Feature", "Default", "Current");
+	ast_cli(a->fd, HFS_FORMAT, "---------------", "-------", "-------");
 	if (AST_LIST_EMPTY(&feature_list))
 		ast_cli(a->fd, "(none)\n");
 	else {
 		AST_LIST_LOCK(&feature_list);
 		AST_LIST_TRAVERSE(&feature_list, feature, feature_entry)
-			ast_cli(a->fd, format, feature->sname, "no def", feature->exten);
+			ast_cli(a->fd, HFS_FORMAT, feature->sname, "no def", feature->exten);
 		AST_LIST_UNLOCK(&feature_list);
 	}
 	ast_cli(a->fd, "\nCall parking\n");

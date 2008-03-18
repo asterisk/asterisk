@@ -1374,7 +1374,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		close(ast_consock);
 	if (!ast_opt_remote)
 		unlink(ast_config_AST_PID);
-	printf(term_quit());
+	printf("%s", term_quit());
 	if (restart) {
 		if (option_verbose || ast_opt_console)
 			ast_verbose("Preparing for Asterisk restart...\n");
@@ -1459,7 +1459,7 @@ static int ast_all_zeros(char *s)
 
 static void consolehandler(char *s)
 {
-	printf(term_end());
+	printf("%s", term_end());
 	fflush(stdout);
 
 	/* Called when readline data is available */
@@ -1907,7 +1907,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 					for (tries = 0; tries < 30 * reconnects_per_second; tries++) {
 						if (ast_tryconnect()) {
 							fprintf(stderr, "Reconnect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
-							printf(term_quit());
+							printf("%s", term_quit());
 							WELCOME_MESSAGE;
 							if (!ast_opt_mute)
 								fdprint(ast_consock, "logger mute silent");
@@ -3087,7 +3087,7 @@ int main(int argc, char *argv[])
 #endif
 
 	ast_term_init();
-	printf(term_end());
+	printf("%s", term_end());
 	fflush(stdout);
 
 	if (ast_opt_console && !option_verbose) 
@@ -3112,18 +3112,18 @@ int main(int argc, char *argv[])
 				quit_handler(0, 0, 0, 0);
 				exit(0);
 			}
-			printf(term_quit());
+			printf("%s", term_quit());
 			ast_remotecontrol(NULL);
 			quit_handler(0, 0, 0, 0);
 			exit(0);
 		} else {
 			ast_log(LOG_ERROR, "Asterisk already running on %s.  Use 'asterisk -r' to connect.\n", ast_config_AST_SOCKET);
-			printf(term_quit());
+			printf("%s", term_quit());
 			exit(1);
 		}
 	} else if (ast_opt_remote || ast_opt_exec) {
 		ast_log(LOG_ERROR, "Unable to connect to remote asterisk (does %s exist?)\n", ast_config_AST_SOCKET);
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 	/* Blindly write pid file since we couldn't connect */
@@ -3181,7 +3181,7 @@ int main(int argc, char *argv[])
 	initstate((unsigned int) getpid() * 65536 + (unsigned int) time(NULL), randompool, sizeof(randompool));
 
 	if (init_logger()) {		/* Start logging subsystem */
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
@@ -3192,12 +3192,12 @@ int main(int argc, char *argv[])
 	ast_autoservice_init();
 
 	if (load_modules(1)) {		/* Load modules, pre-load only */
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (dnsmgr_init()) {		/* Initialize the DNS manager */
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
@@ -3206,17 +3206,17 @@ int main(int argc, char *argv[])
 	ast_channels_init();
 
 	if (init_manager()) {
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_cdr_engine_init()) {
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_device_state_engine_init()) {
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
@@ -3225,39 +3225,39 @@ int main(int argc, char *argv[])
 	ast_udptl_init();
 
 	if (ast_image_init()) {
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_file_init()) {
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (load_pbx()) {
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	ast_features_init();
 
 	if (init_framer()) {
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (astdb_init()) {
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_enum_init()) {
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (load_modules(0)) {
-		printf(term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
@@ -3268,7 +3268,7 @@ int main(int argc, char *argv[])
 	if (ast_opt_console && !option_verbose)
 		ast_verbose(" ]\n");
 	if (option_verbose || ast_opt_console)
-		ast_verbose(term_color(tmp, "Asterisk Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
+		ast_verbose("%s", term_color(tmp, "Asterisk Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
 	if (ast_opt_no_fork)
 		consolethread = pthread_self();
 

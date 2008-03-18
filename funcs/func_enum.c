@@ -67,14 +67,14 @@ static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 	buf[0] = '\0';
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, synopsis);
+		ast_log(LOG_WARNING, "%s", synopsis);
 		return -1;
 	}
 
 	AST_STANDARD_APP_ARGS(args, data);
 
 	if (args.argc < 1) {
-		ast_log(LOG_WARNING, synopsis);
+		ast_log(LOG_WARNING, "%s", synopsis);
 		return -1;
 	}
 

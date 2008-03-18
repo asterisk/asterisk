@@ -163,7 +163,7 @@ enum jb_return_code jb_getinfo(jitterbuf *jb, jb_info *stats);
 /*! \brief set jitterbuf conf */
 enum jb_return_code jb_setconf(jitterbuf *jb, jb_conf *conf);
 
-typedef	void (*jb_output_function_t)(const char *fmt, ...);
+typedef	void __attribute__((format (printf, 1, 2))) (*jb_output_function_t)(const char *fmt, ...);
 void jb_setoutput(jb_output_function_t err, jb_output_function_t warn, jb_output_function_t dbg);
 
 #ifdef __cplusplus

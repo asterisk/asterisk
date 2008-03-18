@@ -202,7 +202,7 @@ static char *handle_cli_indication_show(struct ast_cli_entry *e, int cmd, struct
 				if (tz->nrringcadence)
 					j--;
 				ast_copy_string(buf + j, "\n", sizeof(buf) - j);
-				ast_cli(a->fd, buf);
+				ast_cli(a->fd, "%s", buf);
 				for (ts = tz->tones; ts; ts = ts->next)
 					ast_cli(a->fd, "%-7.7s %-15.15s %s\n", tz->country, ts->name, ts->data);
 				break;

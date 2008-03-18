@@ -592,7 +592,7 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 			}
 		}
 		ast_str_append(&out, -1, "\n");
-		ast_cli(a->fd, out->str);			
+		ast_cli(a->fd, "%s", out->str);			
 	}
 	AST_RWLIST_UNLOCK(&translators);
 	return CLI_SUCCESS;

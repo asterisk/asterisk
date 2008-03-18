@@ -102,7 +102,7 @@ static int load_column_config(const char *tmp)
 			return -1;
 		}
 		if (!column_string->used)
-			ast_str_set(&column_string, 0, escaped);
+			ast_str_set(&column_string, 0, "%s", escaped);
 		else
 			ast_str_append(&column_string, 0, ",%s", escaped);
 		sqlite3_free(escaped);

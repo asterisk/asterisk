@@ -2634,7 +2634,7 @@ static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us)
 }
 
 /*! \brief Append to SIP dialog history with arg list  */
-static void append_history_va(struct sip_pvt *p, const char *fmt, va_list ap)
+static __attribute__((format (printf, 2, 0))) void append_history_va(struct sip_pvt *p, const char *fmt, va_list ap)
 {
 	char buf[80], *c = buf; /* max history length */
 	struct sip_history *hist;
