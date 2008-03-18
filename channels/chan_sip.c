@@ -7395,8 +7395,6 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		ast_copy_string(p->cid_num, of, sizeof(p->cid_num));
 		ast_shrink_phone_number(p->cid_num);
 	}
-	if (ast_strlen_zero(of))
-		return 0;
 
 	if (!mailbox)	/* If it's a mailbox SUBSCRIBE, don't check users */
 		user = find_user(of, 1);
