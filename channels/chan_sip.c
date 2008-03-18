@@ -243,6 +243,8 @@ static int expiry = DEFAULT_EXPIRY;
 #define DEFAULT_MAX_SE               1800             /*!< Session-Timer Default Session-Expires period (RFC 4028) */
 #define DEFAULT_MIN_SE               90               /*!< Session-Timer Default Min-SE period (RFC 4028) */
 
+#define SDP_MAX_RTPMAP_CODECS        32               /*!< Maximum number of codecs allowed in received SDP */
+
 /*! \brief Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
 {
@@ -6305,7 +6307,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	int numberofmediastreams = 0;
 	int debug = sip_debug_test_pvt(p);
 		
-	int found_rtpmap_codecs[32];
+	int found_rtpmap_codecs[SDP_MAX_RTPMAP_CODECS];
 	int last_rtpmap_codec=0;
 
 	char buf[SIPBUFSIZE];
@@ -6655,36 +6657,41 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		} else if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) == 2) {
 			/* We have a rtpmap to handle */
 
-			/* Note: should really look at the 'freq' and '#chans' params too */
-			/* Note: This should all be done in the context of the m= above */
-			if (!strncasecmp(mimeSubtype, "H26", 3) || !strncasecmp(mimeSubtype, "MP4", 3)) {         /* Video */
-				if(ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0) != -1) {
-					if (debug)
-						ast_verbose("Found video description format %s for ID %d\n", mimeSubtype, codec);
-					found_rtpmap_codecs[last_rtpmap_codec] = codec;
-					last_rtpmap_codec++;
-				} else {
-					ast_rtp_unset_m_type(newvideortp, codec);
-					if (debug) 
-						ast_verbose("Found unknown media description format %s for ID %d\n", mimeSubtype, codec);
+			if (last_rtpmap_codec < SDP_MAX_RTPMAP_CODECS) {
+				/* Note: should really look at the 'freq' and '#chans' params too */
+				/* Note: This should all be done in the context of the m= above */
+				if (!strncasecmp(mimeSubtype, "H26", 3) || !strncasecmp(mimeSubtype, "MP4", 3)) {         /* Video */
+					if(ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0) != -1) {
+						if (debug)
+							ast_verbose("Found video description format %s for ID %d\n", mimeSubtype, codec);
+						found_rtpmap_codecs[last_rtpmap_codec] = codec;
+						last_rtpmap_codec++;
+					} else {
+						ast_rtp_unset_m_type(newvideortp, codec);
+						if (debug) 
+							ast_verbose("Found unknown media description format %s for ID %d\n", mimeSubtype, codec);
+					}
+				} else if (!strncasecmp(mimeSubtype, "T140", 4)) { /* Text */
+					if (p->trtp) {
+						/* ast_verbose("Adding t140 mimeSubtype to textrtp struct\n"); */
+						ast_rtp_set_rtpmap_type(newtextrtp, codec, "text", mimeSubtype, 0);
+					}
+				} else {                                          /* Must be audio?? */
+					if(ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
+								   ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0) != -1) {
+						if (debug)
+							ast_verbose("Found audio description format %s for ID %d\n", mimeSubtype, codec);
+						found_rtpmap_codecs[last_rtpmap_codec] = codec;
+						last_rtpmap_codec++;
+					} else {
+						ast_rtp_unset_m_type(newaudiortp, codec);
+						if (debug) 
+							ast_verbose("Found unknown media description format %s for ID %d\n", mimeSubtype, codec);
+					}
 				}
-			} else if (!strncasecmp(mimeSubtype, "T140", 4)) { /* Text */
-				if (p->trtp) {
-					/* ast_verbose("Adding t140 mimeSubtype to textrtp struct\n"); */
-					ast_rtp_set_rtpmap_type(newtextrtp, codec, "text", mimeSubtype, 0);
-				}
-			} else {                                          /* Must be audio?? */
-				if(ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
-						ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0) != -1) {
-					if (debug)
-						ast_verbose("Found audio description format %s for ID %d\n", mimeSubtype, codec);
-					found_rtpmap_codecs[last_rtpmap_codec] = codec;
-					last_rtpmap_codec++;
-				} else {
-					ast_rtp_unset_m_type(newaudiortp, codec);
-					if (debug) 
-						ast_verbose("Found unknown media description format %s for ID %d\n", mimeSubtype, codec);
-				}
+			} else {
+				if (debug)
+					ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
 			}
 
 		}

@@ -1976,6 +1976,9 @@ void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt)
 	an unknown media type */
 void ast_rtp_unset_m_type(struct ast_rtp* rtp, int pt) 
 {
+	if (pt < 0 || pt > MAX_RTP_PT)
+		return; /* bogus payload type */
+
 	rtp_bridge_lock(rtp);
 	rtp->current_RTP_PT[pt].isAstFormat = 0;
 	rtp->current_RTP_PT[pt].code = 0;
