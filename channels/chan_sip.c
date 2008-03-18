@@ -216,6 +216,8 @@ static int expiry = DEFAULT_EXPIRY;
 #define SIP_MAX_LINES                64               /*!< Max amount of lines in SIP attachment (like SDP) */
 #define SIP_MAX_PACKET               4096             /*!< Also from RFC 3261 (2543), should sub headers tho */
 
+#define SDP_MAX_RTPMAP_CODECS        32               /*!< Maximum number of codecs allowed in received SDP */
+
 #define INITIAL_CSEQ                 101              /*!< our initial sip sequence number */
 
 /*! \brief Global jitterbuffer configuration - by default, jb is disabled */
@@ -4977,7 +4979,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int numberofmediastreams = 0;
 	int debug = sip_debug_test_pvt(p);
 		
-	int found_rtpmap_codecs[32];
+	int found_rtpmap_codecs[SDP_MAX_RTPMAP_CODECS];
 	int last_rtpmap_codec=0;
 
 	if (!p->rtp) {
@@ -5250,24 +5252,30 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			/* We should propably check if this is an audio or video codec
 				so we know where to look */
 
-			/* Note: should really look at the 'freq' and '#chans' params too */
-			if(ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
-					ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0) != -1) {
-				if (debug)
-					ast_verbose("Found audio description format %s for ID %d\n", mimeSubtype, codec);
-				found_rtpmap_codecs[last_rtpmap_codec] = codec;
-				last_rtpmap_codec++;
-				found = TRUE;
-
-			} else if (p->vrtp) {
-				if(ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0) != -1) {
+			if (last_rtpmap_codec < SDP_MAX_RTPMAP_CODECS) {
+				/* Note: should really look at the 'freq' and '#chans' params too */
+				if(ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
+							   ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0) != -1) {
 					if (debug)
-						ast_verbose("Found video description format %s for ID %d\n", mimeSubtype, codec);
+						ast_verbose("Found audio description format %s for ID %d\n", mimeSubtype, codec);
 					found_rtpmap_codecs[last_rtpmap_codec] = codec;
 					last_rtpmap_codec++;
 					found = TRUE;
+					
+				} else if (p->vrtp) {
+					if(ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0) != -1) {
+						if (debug)
+							ast_verbose("Found video description format %s for ID %d\n", mimeSubtype, codec);
+						found_rtpmap_codecs[last_rtpmap_codec] = codec;
+						last_rtpmap_codec++;
+						found = TRUE;
+					}
 				}
+			} else {
+				if (debug)
+					ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
 			}
+
 			if (!found) {
 				/* Remove this codec since it's an unknown media type for us */
 				/* XXX This is buggy since the media line for audio and video can have the
