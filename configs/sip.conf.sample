@@ -218,6 +218,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; for peers and users as well
 ;callevents=no			; generate manager events when sip ua 
 				; performs events (e.g. hold)
+;authfailureevents=no		; generate manager "peerstatus" events when peer can't
+				; authenticate with Asterisk. Peerstatus will be "rejected".
 ;alwaysauthreject = yes		; When an incoming INVITE or REGISTER is to be rejected,
  		    		; for any reason, always reject with '401 Unauthorized'
  				; instead of letting the requester know whether there was

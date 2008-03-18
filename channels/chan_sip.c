@@ -705,6 +705,7 @@ static char global_sdpsession[AST_MAX_EXTENSION];	/*!< SDP session name for the 
 static char global_sdpowner[AST_MAX_EXTENSION];	/*!< SDP owner name for the SIP channel */
 static int allow_external_domains;	/*!< Accept calls to external SIP domains? */
 static int global_callevents;		/*!< Whether we send manager events or not */
+static int global_authfailureevents;		/*!< Whether we send authentication failure manager events or not. Default no. */
 static int global_t1;			/*!< T1 time */
 static int global_t1min;		/*!< T1 roundtrip time minimum */
 static int global_timer_b;    /*!< Timer B - RFC 3261 Section 17.1.1.2 */
@@ -9853,7 +9854,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	/* Saving TCP connections is useless, we won't be able to reconnect */
 	if (!peer->rt_fromcontact && (peer->socket.type & SIP_TRANSPORT_UDP)) 
 		ast_db_put("SIP/Registry", peer->name, data);
-	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
+	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\nPort: %d\r\n", peer->name,  ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port));
 
 	/* Is this a new IP address for us? */
 	if (inaddrcmp(&peer->addr, &oldsin)) {
@@ -10405,7 +10406,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			case PARSE_REGISTER_UPDATE:
 				/* Say OK and ask subsystem to retransmit msg counter */
 				transmit_response_with_date(p, "200 OK", req);
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\nPort: %d\r\n", peer->name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 				peer->lastmsgssent = -1;
 				res = 0;
 				break;
@@ -10420,6 +10421,9 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		case AUTH_SECRET_FAILED:
 			/* Wrong password in authentication. Go away, don't try again until you fixed it */
 			transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
+			if (global_authfailureevents)
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Rejected\r\nCause: AUTH_SECRET_FAILED\r\nAddress: %s\r\nPort: %d\r\n", 
+					name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 			break;
 		case AUTH_USERNAME_MISMATCH:
 			/* Username and digest username does not match. 
@@ -10427,6 +10431,9 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			   users to use the same authentication user name until we support
 			   proper authentication by digest auth name */
 			transmit_response(p, "403 Authentication user name does not match account name", &p->initreq);
+			if (global_authfailureevents)
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Rejected\r\nCause: AUTH_USERNAME_MISMATCH\r\nAddress: %s\r\nPort: %d\r\n", 
+					name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 			break;
 		case AUTH_NOT_FOUND:
 		case AUTH_PEER_NOT_DYNAMIC:
@@ -10435,10 +10442,17 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 				transmit_fake_auth_response(p, &p->initreq, 1);
 			} else {
 				/* URI not found */
-				if (res == AUTH_PEER_NOT_DYNAMIC)
+				if (res == AUTH_PEER_NOT_DYNAMIC) {
 					transmit_response(p, "403 Forbidden", &p->initreq);
+					if (global_authfailureevents)
+						manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Rejected\r\nCause: AUTH_PEER_NOT_DYNAMIC\r\nAddress: %s\r\nPort: %d\r\n", 
+							name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+					}
 				else
 					transmit_response(p, "404 Not found", &p->initreq);
+					if (global_authfailureevents)
+						manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Rejected\r\nCause: URI_NOT_FOUND\r\nAddress: %s\r\nPort: %d\r\n", 
+							name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 			}
 			break;
 		default:
@@ -12941,6 +12955,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  From: Domain:           %s\n", default_fromdomain);
 	ast_cli(a->fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
 	ast_cli(a->fd, "  Call Events:            %s\n", global_callevents ? "On" : "Off");
+	ast_cli(a->fd, "  Auth. Failure Events:   %s\n", global_authfailureevents ? "On" : "Off");
 
 	ast_cli(a->fd, "  T38 fax pt UDPTL:       %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_UDPTL)));
 #ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
@@ -20250,6 +20265,7 @@ static int reload_config(enum channelreloadreason reason)
 	/* Misc settings for the channel */
 	global_relaxdtmf = FALSE;
 	global_callevents = FALSE;
+	global_authfailureevents = FALSE;
 	global_t1 = SIP_TIMER_T1;
 	global_timer_b = 64 * SIP_TIMER_T1;
 	global_t1min = DEFAULT_T1MIN;
@@ -20561,6 +20577,8 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		} else if (!strcasecmp(v->name, "callevents")) {
 			global_callevents = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "authfailureevents")) {
+			global_authfailureevents = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxcallbitrate")) {
 			default_maxcallbitrate = atoi(v->value);
 			if (default_maxcallbitrate < 0)

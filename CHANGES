@@ -167,6 +167,8 @@ SIP changes
      SIP session.
   * Added TCP and TLS support for SIP.  See doc/siptls.txt and configs/sip.conf.sample for
      more information on how it is used.
+  * Added a new configuration option "authfailureevents" that enables manager events when
+    a peer can't authenticate properly. 
 
 IAX2 changes
 ------------
