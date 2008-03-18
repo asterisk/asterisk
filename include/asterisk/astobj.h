@@ -743,7 +743,7 @@ extern "C" {
  * descriptor.
  */
 #define ASTOBJ_CONTAINER_DUMP(fd,s,slen,container) \
-	ASTOBJ_CONTAINER_TRAVERSE(container, 1, do { ASTOBJ_DUMP(s,slen,iterator); ast_cli(fd, s); } while(0))
+	ASTOBJ_CONTAINER_TRAVERSE(container, 1, do { ASTOBJ_DUMP(s,slen,iterator); ast_cli(fd, "%s", s); } while(0))
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
