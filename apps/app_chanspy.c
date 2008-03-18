@@ -612,8 +612,10 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 					res = ast_streamfile(chan, peer_name, chan->language);
 					if (!res)
 						res = ast_waitstream(chan, "");
-					if (res)
+					if (res) {
+						chanspy_ds_free(peer_chanspy_ds);
 						break;
+					}
 				} else
 					res = ast_say_character_str(chan, peer_name, "", chan->language);
 				if ((num = atoi(ptr))) 
