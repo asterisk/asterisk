@@ -92,7 +92,7 @@ AC_DEFUN([AST_CHECK_MANDATORY],
 # AST_C_DEFINE_CHECK([package], [macro name], [header file], [version])
 AC_DEFUN([AST_C_DEFINE_CHECK],
 [
-    if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
+    if test "x${PBX_$1}" != "x1"; then
 	AC_MSG_CHECKING([for $2 in $3])
 	saved_cppflags="${CPPFLAGS}"
 	if test "x${$1_DIR}" != "x"; then
@@ -118,6 +118,7 @@ AC_DEFUN([AST_C_DEFINE_CHECK],
 	)
 	CPPFLAGS="${saved_cppflags}"
     fi
+    AC_SUBST(PBX_$1)
 ])
 
 
