@@ -67,6 +67,7 @@ static char user[512];
 static char pass[50];
 static char basedn[512];
 static int port = 389;
+static int version = 3;
 static time_t connect_time;
 
 static int parse_config(void);
@@ -1409,7 +1410,7 @@ int parse_config(void)
 		host[0] = '\0';
 	} else {
 		ast_copy_string(host, "ldap://", 8 );
-		ast_copy_string(host + 7, s, sizeof(host));
+		ast_copy_string(host + 7, s, sizeof(host) - 7);
 	}
 
 	if (!(s = ast_variable_retrieve(config, "_general", "basedn"))) {
@@ -1418,14 +1419,17 @@ int parse_config(void)
 	} else 
 		ast_copy_string(basedn, s, sizeof(basedn));
 
-	if (!(s = ast_variable_retrieve(config, "_general", "port"))) {
+	if (!(s = ast_variable_retrieve(config, "_general", "port")) || sscanf(s, "%d", &port) != 1) {
 		ast_log(LOG_WARNING, "No directory port found, using 389 as default.\n");
 		port = 389;
-		ast_copy_string(host + strlen(host), ":389", sizeof(host));
-	} else { 
-		ast_copy_string(host + 1, ":", sizeof(s));
-		ast_copy_string(host + strlen(host), s, sizeof(s));
-		port = atoi(s);
+	}
+
+	if (!(s = ast_variable_retrieve(config, "_general", "version")) || !(s = ast_variable_retrieve(config, "_general", "protocol"))) {
+		ast_log(LOG_NOTICE, "No explicit LDAP version found, using 3 as default.\n");
+		version = 3;
+	} else if (sscanf(s, "%d", &version) != 1 || version < 1 || version > 6) {
+		ast_log(LOG_WARNING, "Invalid LDAP version '%s', using 3 as default.\n", s);
+		version = 3;
 	}
 
 	table_configs_free();
@@ -1476,13 +1480,17 @@ static int ldap_reconnect(void)
 		return 0;
 	}
 
-	if (LDAP_SUCCESS != ldap_initialize(&ldapConn, host)) {
-		ast_log(LOG_ERROR, "Failed to init ldap connection to %s. Check debug for more info.\n", host);
+	if (!(ldapConn = ldap_open(host, port))) {
+		ast_log(LOG_ERROR, "Failed to init ldap connection to %s, port %d. Check debug for more info.\n", host, port);
 		return 0;
-	} 
+	}
+
+	if (LDAP_OPT_SUCCESS != ldap_set_option(ldapConn, LDAP_OPT_PROTOCOL_VERSION, &version)) {
+		ast_log(LOG_WARNING, "Unable to set LDAP protocol version to %d, falling back to default.\n", version);
+	}
 
 	if (!ast_strlen_zero(user)) {
-		ast_debug(2, "bind to %s as %s\n", host, user);
+		ast_debug(2, "bind to %s:%d as %s\n", host, port, user);
 		cred.bv_val = (char *) pass;
 		cred.bv_len = strlen(pass);
 		bind_result = ldap_sasl_bind_s(ldapConn, user, LDAP_SASL_SIMPLE, &cred, NULL, NULL, NULL);
