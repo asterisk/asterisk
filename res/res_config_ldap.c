@@ -62,11 +62,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 AST_MUTEX_DEFINE_STATIC(ldap_lock);
 
 static LDAP *ldapConn;
-static char host[512];
+static char url[512];
 static char user[512];
 static char pass[50];
 static char basedn[512];
-static int port = 389;
 static int version = 3;
 static time_t connect_time;
 
@@ -1383,7 +1382,8 @@ int parse_config(void)
 {
 	struct ast_config *config;
 	struct ast_flags config_flags = {0};
-	const char *s;
+	const char *s, *host;
+	int port;
 	char *category_name = NULL;
 
 	config = ast_config_load(RES_CONFIG_LDAP_CONF, config_flags);
@@ -1405,12 +1405,20 @@ int parse_config(void)
 	} else
 		ast_copy_string(pass, s, sizeof(pass));
 
-	if (!(s = ast_variable_retrieve(config, "_general", "host"))) {
-		ast_log(LOG_ERROR, "No directory host found.\n");
-		host[0] = '\0';
+	/* URL is preferred, use host and port if not found */
+	if ((s = ast_variable_retrieve(config, "_general", "url"))) {
+		ast_copy_string(url, s, sizeof(url));
+	} else if ((host = ast_variable_retrieve(config, "_general", "host"))) {
+		if (!(s = ast_variable_retrieve(config, "_general", "port")) || sscanf(s, "%d", &port) != 1) {
+			ast_log(LOG_NOTICE, "No directory port found, using 389 as default.\n");
+			port = 389;
+		}
+
+		snprintf(url, sizeof(url), "ldap://%s:%d", host, port);
 	} else {
-		ast_copy_string(host, "ldap://", 8 );
-		ast_copy_string(host + 7, s, sizeof(host) - 7);
+		ast_log(LOG_ERROR, "No directory URL or host found.\n");
+		ast_config_destroy(config);
+		return -1;
 	}
 
 	if (!(s = ast_variable_retrieve(config, "_general", "basedn"))) {
@@ -1418,11 +1426,6 @@ int parse_config(void)
 		basedn[0] = '\0';
 	} else 
 		ast_copy_string(basedn, s, sizeof(basedn));
-
-	if (!(s = ast_variable_retrieve(config, "_general", "port")) || sscanf(s, "%d", &port) != 1) {
-		ast_log(LOG_WARNING, "No directory port found, using 389 as default.\n");
-		port = 389;
-	}
 
 	if (!(s = ast_variable_retrieve(config, "_general", "version")) || !(s = ast_variable_retrieve(config, "_general", "protocol"))) {
 		ast_log(LOG_NOTICE, "No explicit LDAP version found, using 3 as default.\n");
@@ -1475,13 +1478,13 @@ static int ldap_reconnect(void)
 		return 1;
 	}
 
-	if (ast_strlen_zero(host)) {
+	if (ast_strlen_zero(url)) {
 		ast_log(LOG_ERROR, "Not enough parameters to connect to ldap database\n");
 		return 0;
 	}
 
-	if (!(ldapConn = ldap_open(host, port))) {
-		ast_log(LOG_ERROR, "Failed to init ldap connection to %s, port %d. Check debug for more info.\n", host, port);
+	if (LDAP_SUCCESS != ldap_initialize(&ldapConn, url)) {
+		ast_log(LOG_ERROR, "Failed to init ldap connection to '%s'. Check debug for more info.\n", url);
 		return 0;
 	}
 
@@ -1490,12 +1493,12 @@ static int ldap_reconnect(void)
 	}
 
 	if (!ast_strlen_zero(user)) {
-		ast_debug(2, "bind to %s:%d as %s\n", host, port, user);
+		ast_debug(2, "bind to '%s' as user '%s'\n", url, user);
 		cred.bv_val = (char *) pass;
 		cred.bv_len = strlen(pass);
 		bind_result = ldap_sasl_bind_s(ldapConn, user, LDAP_SASL_SIMPLE, &cred, NULL, NULL, NULL);
 	} else {
-		ast_debug(2, "bind anonymously %s anonymously\n", host);
+		ast_debug(2, "bind %s anonymously\n", url);
 		bind_result = ldap_sasl_bind_s(ldapConn, NULL, LDAP_SASL_SIMPLE, NULL, NULL, NULL, NULL);
 	}
 	if (bind_result == LDAP_SUCCESS) {
@@ -1529,8 +1532,8 @@ static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_c
 	if (!ldapConn)
 		return CLI_FAILURE;
 
-	if (!ast_strlen_zero(host)) 
-		snprintf(status, sizeof(status), "Connected to %s, port %d baseDN %s", host, port, basedn);
+	if (!ast_strlen_zero(url)) 
+		snprintf(status, sizeof(status), "Connected to '%s', baseDN %s", url, basedn);
 
 	if (!ast_strlen_zero(user))
 		snprintf(status2, sizeof(status2), " with username %s", user);

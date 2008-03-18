@@ -3,7 +3,7 @@
 ;
 
 ; Sample Asterisk config file for res_config_ldap
-; in extconfig.conf you can use it like this:
+; in extconfig.conf; you can use it like this:
 ; sipusers = ldap,"dc=myDomain,dc=myDomainExt",sip
 ; sippeers = ldap,"dc=myDomain,dc=myDomainExt",sip
 ; extensions = ldap,"dc=myDomain,dc=myDomainExt",extensions
@@ -11,20 +11,29 @@
 
 
 [_general]
-;host=192.168.1.1,ldap.mydomain.com	; LDAP host(s)
-;protocol=3		; Version of the LDAP protocol to use default is 3.
-;basedn=MyRootDN	; Base DN
-;pass=MyPassword	; Bind password
-;user=MyDN		; Bind DN
+;
+; Specify one of either host and port OR url.  URL is preferred, as you can
+; use more options.
+;host=192.168.1.1                    ; LDAP host
+;port=389
+;url=ldap://ldap3.mydomain.com:3890
+;protocol=3                          ; Version of the LDAP protocol to use; default is 3.
+;basedn=MyRootDN                     ; Base DN
+;user=MyDN                           ; Bind DN
+;pass=MyPassword                     ; Bind password
 
 ; Configuration Table
 [config]
-; addtional filter - This specifies an additional set of criteria to be used
+;
+; additionalFilter - This specifies an additional set of criteria to be used
 ; when querying the LDAP server.
+;
 additionalFilter=(objectClass=PBXConfig)
+;
 ; Attributes mapping (asterisk variable name = ldap attribute name)
 ; When Asterisk requests the variable by the name of the value on the left,
 ; this module will look up the attribute listed on the right.
+;
 filename = PBXConfigFilename
 category = PBXConfigCategory
 variable_name = PBXConfigVariableName
@@ -32,7 +41,9 @@ variable_value = PBXConfigVariableValue
 cat_metric = PBXConfigCategoryMetric
 commented = PBXConfigCommented
 
+;
 ; Extensions Table
+;
 [extensions]
 context  =  PBXExtensionContext
 exten  =  PBXExtensionExten
@@ -41,7 +52,9 @@ app = PBXExtensionApplication
 appdata = PBXExtensionApplicationData
 additionalFilter=(objectClass=PBXExtension)
 
+;
 ; Sip Users Table
+;
 [sip]
 name = uid
 amaflags = PBXAccountAMAFlags
@@ -77,7 +90,9 @@ regexten = PBXAccountRegistrationExten
 CanCallForward = PBXAccountCanCallForward
 additionalFilter=(objectClass=PBXAccountSIP)
 
+;
 ; IAX Users Table
+;
 [iax]
 amaflags = PBXAccountAMAFlags
 callerid = PBXAccountCallerID
@@ -100,7 +115,9 @@ regexten = PBXAccountRegistrationExten
 notransfer = PBXAccountNoTransfer
 additionalFilter=(objectClass=PBXAccountIAX)
 
+;
 ; A Test Family
+;
 [testfamily]
 MyUSERID = uid
 additionalFilter=(objectClass=*)
