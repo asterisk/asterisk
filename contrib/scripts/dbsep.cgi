@@ -45,7 +45,7 @@ $cgi = new CGI;
 $ENV{PATH_INFO} =~ m/\/([^\/]*)\/([^\/]*)$/;
 ($table, $mode) = ($1, lc($2));
 
-print STDERR "PATH_INFO=$ENV{PATH_INFO}, table=$table, mode=$mode\n";
+#print STDERR "PATH_INFO=$ENV{PATH_INFO}, table=$table, mode=$mode\n";
 
 if ($mode eq 'single') {
 	# All parameters as POST
