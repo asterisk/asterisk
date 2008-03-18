@@ -3243,7 +3243,7 @@ void misdn_lib_log_ies(struct misdn_bchannel *bc)
 
 	cb_log(5, stack->port, " --> urate:%d rate:%d mode:%d user1:%d\n", bc->urate, bc->rate, bc->mode,bc->user1);
 	
-	cb_log(5, stack->port, " --> bc:%x h:%d sh:%d\n", bc, bc->holded, bc->stack_holder);
+	cb_log(5, stack->port, " --> bc:%p h:%d sh:%d\n", bc, bc->holded, bc->stack_holder);
 }
 
 void misdn_send_lock(struct misdn_bchannel *bc);
@@ -4336,7 +4336,7 @@ struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned lon
 {
 	struct misdn_bchannel *help;
 
-	cb_log(4,stack?stack->port:0, "*HOLDER: find %x\n",l3id);
+	cb_log(4,stack?stack->port:0, "*HOLDER: find %lx\n",l3id);
 	
 	if (!stack) return NULL;
 	

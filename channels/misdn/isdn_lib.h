@@ -377,12 +377,14 @@ struct misdn_bchannel {
 
 
 enum event_response_e (*cb_event) (enum event_e event, struct misdn_bchannel *bc, void *user_data);
-void (*cb_log) (int level, int port, char *tmpl, ...);
+void (*cb_log) (int level, int port, char *tmpl, ...)
+	__attribute__ ((format (printf, 3, 4)));
 int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
 
 struct misdn_lib_iface {
 	enum event_response_e (*cb_event)(enum event_e event, struct misdn_bchannel *bc, void *user_data);
-	void (*cb_log)(int level, int port, char *tmpl, ...);
+	void (*cb_log)(int level, int port, char *tmpl, ...)
+		__attribute__ ((format (printf, 3, 4)));
 	int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
 };
 
