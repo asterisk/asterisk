@@ -339,6 +339,9 @@ Queue changes
   * Added a new parameter for member definition, called state_interface. This may be
     used so that a member may be called via one interface but have a different interface's
     device state reported.
+  * New configuration option: randomperiodicannounce. If a list of periodic announcements is
+    specified by the periodic-announce option, then one will be chosen randomly when it is time
+	to play a periodic announcment
 
 MeetMe Changes
 --------------

@@ -466,6 +466,8 @@ struct call_queue {
 	int announcefrequency;              /*!< How often to announce their position */
 	int minannouncefrequency;           /*!< The minimum number of seconds between position announcements (def. 15) */
 	int periodicannouncefrequency;      /*!< How often to play periodic announcement */
+	int numperiodicannounce;            /*!< The number of periodic announcements configured */
+	int randomperiodicannounce;         /*!< Are periodic announcments randomly chosen */
 	int roundingseconds;                /*!< How many seconds do we round to? */
 	int holdtime;                       /*!< Current avg holdtime, based on recursive boxcar filter */
 	int callscompleted;                 /*!< Number of queue calls completed */
@@ -935,6 +937,8 @@ static void init_queue(struct call_queue *q)
 	q->weight = 0;
 	q->timeoutrestart = 0;
 	q->periodicannouncefrequency = 0;
+	q->randomperiodicannounce = 0;
+	q->numperiodicannounce = 0;
 	if (!q->members) {
 		if (q->strategy == QUEUE_STRATEGY_LINEAR)
 			/* linear strategy depends on order, so we have to place all members in a single bucket */
@@ -1237,11 +1241,15 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 				if (i == MAX_PERIODIC_ANNOUNCEMENTS)
 					break;
 			}
+			q->numperiodicannounce = i;
 		} else {
 			ast_str_set(&q->sound_periodicannounce[0], 0, "%s", val);
+			q->numperiodicannounce = 1;
 		}
 	} else if (!strcasecmp(param, "periodic-announce-frequency")) {
 		q->periodicannouncefrequency = atoi(val);
+	} else if (!strcasecmp(param, "random-periodic-announce")) {
+		q->randomperiodicannounce = ast_true(val);
 	} else if (!strcasecmp(param, "retry")) {
 		q->retry = atoi(val);
 		if (q->retry <= 0)
@@ -2388,10 +2396,10 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 		ast_moh_stop(qe->chan);
 
 	ast_verb(3, "Playing periodic announcement\n");
-
-	/* Check to make sure we have a sound file. If not, reset to the first sound file */
-	if (qe->last_periodic_announce_sound >= MAX_PERIODIC_ANNOUNCEMENTS || 
-		!qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound] ||
+	
+	if (qe->parent->randomperiodicannounce) {
+		qe->last_periodic_announce_sound = ((unsigned long) ast_random()) % qe->parent->numperiodicannounce;
+	} else if (qe->last_periodic_announce_sound >= qe->parent->numperiodicannounce || 
 		ast_strlen_zero(qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]->str)) {
 		qe->last_periodic_announce_sound = 0;
 	}
@@ -2414,7 +2422,9 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 	qe->last_periodic_announce_time = now;
 
 	/* Update the current periodic announcement to the next announcement */
-	qe->last_periodic_announce_sound++;
+	if (!qe->parent->randomperiodicannounce) {
+		qe->last_periodic_announce_sound++;
+	}
 	
 	return res;
 }

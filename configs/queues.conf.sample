@@ -210,6 +210,10 @@ shared_lastcall=no
 ;
 ;periodic-announce-frequency=60
 ;
+; Should the periodic announcements be played in a random order? Default is no.
+;
+;random-periodic-announce=no
+;
 ; Should we include estimated hold time in position announcements?
 ; Either yes, no, or only once.
 ; Hold time will be announced as the estimated time.
