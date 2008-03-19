@@ -12,6 +12,12 @@ Zaptel channel driver (chan_zap) Changes
  * Channels can now be configured using named sections in zapata.conf, just
    like other channel drivers, including the use of templates.
 
+PBX Changes
+-----------
+ * It is now possible to specify a pattern match as a hint. Once a phone subscribes
+   to something that matches the pattern a hint will be created using the contents
+   and variables evaluated.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------
 ------------------------------------------------------------------------------

@@ -2836,7 +2836,7 @@ static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *c
 /*! \brief Check state of extension by using hints */
 static int ast_extension_state2(struct ast_exten *e)
 {
-	char hint[AST_MAX_EXTENSION];
+	char hint[AST_MAX_EXTENSION] = "";
 	char *cur, *rest;
 	int allunavailable = 1, allbusy = 1, allfree = 1, allonhold = 1;
 	int busy = 0, inuse = 0, ring = 0;
@@ -3071,6 +3071,20 @@ int ast_extension_state_add(const char *context, const char *exten,
 	e = ast_hint_extension(NULL, context, exten);
 	if (!e) {
 		return -1;
+	}
+
+	/* If this is a pattern, dynamically create a new extension for this
+	 * particular match.  Note that this will only happen once for each
+	 * individual extension, because the pattern will no longer match first.
+	 */
+	if (e->exten[0] == '_') {
+		ast_add_extension(e->parent->name, 0, exten, e->priority, e->label,
+			e->cidmatch, e->app, strdup(e->data), free,
+			e->registrar);
+		e = ast_hint_extension(NULL, context, exten);
+		if (!e || e->exten[0] == '_') {
+			return -1;
+		}
 	}
 
 	/* Find the hint in the list of hints */
@@ -5498,6 +5512,16 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	while ((this = AST_LIST_REMOVE_HEAD(&store, list))) {
 		struct pbx_find_info q = { .stacklen = 0 };
 		exten = pbx_find_extension(NULL, NULL, &q, this->context, this->exten, PRIORITY_HINT, NULL, "", E_MATCH);
+		/* If this is a pattern, dynamically create a new extension for this
+		 * particular match.  Note that this will only happen once for each
+		 * individual extension, because the pattern will no longer match first.
+		 */
+		if (exten && exten->exten[0] == '_') {
+			ast_add_extension(exten->parent->name, 0, this->exten, PRIORITY_HINT, NULL,
+				0, exten->app, strdup(exten->data), free, registrar);
+			exten = ast_hint_extension(NULL, this->context, this->exten);
+		}
+
 		/* Find the hint in the list of hints */
 		AST_RWLIST_TRAVERSE(&hints, hint, list) {
 			if (hint->exten == exten)
@@ -6360,15 +6384,23 @@ int ast_add_extension2(struct ast_context *con,
 	struct ast_exten dummy_exten = {0};
 	char dummy_name[1024];
 
-	/* if we are adding a hint, and there are global variables, and the hint
-	   contains variable references, then expand them
-	*/
-	ast_rwlock_rdlock(&globalslock);
-	if (priority == PRIORITY_HINT && AST_LIST_FIRST(&globals) && strstr(application, "${")) {
-		pbx_substitute_variables_varshead(&globals, application, expand_buf, sizeof(expand_buf));
-		application = expand_buf;
+	/* If we are adding a hint evalulate in variables and global variables */
+	if (priority == PRIORITY_HINT && strstr(application, "${") && !strstr(extension, "_")) {
+		struct ast_channel c = {0, };
+
+		/* Start out with regular variables */
+		ast_copy_string(c.exten, extension, sizeof(c.exten));
+		ast_copy_string(c.context, con->name, sizeof(c.context));
+		pbx_substitute_variables_helper(&c, application, expand_buf, sizeof(expand_buf));
+
+		/* Move on to global variables if they exist */
+		ast_rwlock_rdlock(&globalslock);
+		if (AST_LIST_FIRST(&globals)) {
+			pbx_substitute_variables_varshead(&globals, application, expand_buf, sizeof(expand_buf));
+			application = expand_buf;
+		}
+		ast_rwlock_unlock(&globalslock);
 	}
-	ast_rwlock_unlock(&globalslock);
 
 	length = sizeof(struct ast_exten);
 	length += strlen(extension) + 1;
