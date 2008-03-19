@@ -2620,7 +2620,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 
 	ms = calc_txstamp(rtp, &f->delivery);
 	/* Default prediction */
-	if (f->subclass < AST_FORMAT_MAX_AUDIO) {
+	if (f->frametype == AST_FRAME_VOICE) {
 		pred = rtp->lastts + f->samples;
 
 		/* Re-calculate last TS */
@@ -2636,7 +2636,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 				mark = 1;
 			}
 		}
-	} else {
+	} else if (f->frametype == AST_FRAME_VIDEO) {
 		mark = f->subclass & 0x1;
 		pred = rtp->lastovidtimestamp + f->samples;
 		/* Re-calculate last TS */
