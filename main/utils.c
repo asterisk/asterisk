@@ -611,7 +611,7 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 		return;
 	}
 
-	if (i && lock_info->locks[i-1].pending == -1) {
+	if (i && lock_info->locks[i - 1].pending == -1) {
 		/* The last lock on the list was one that this thread tried to lock but
 		 * failed at doing so.  It has now moved on to something else, so remove
 		 * the old lock from the list. */
