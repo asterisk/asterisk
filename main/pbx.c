@@ -233,7 +233,7 @@ struct ast_state_cb {
 	int id;
 	void *data;
 	ast_state_cb_type callback;
-	struct ast_state_cb *next;
+	AST_LIST_ENTRY(ast_state_cb) entry;
 };
 
 /*! \brief Structure for dial plan hints
@@ -245,7 +245,7 @@ struct ast_state_cb {
 struct ast_hint {
 	struct ast_exten *exten;	/*!< Extension */
 	int laststate; 			/*!< Last known state */
-	struct ast_state_cb *callbacks;	/*!< Callback list for this extension */
+	AST_LIST_HEAD_NOLOCK(, ast_state_cb) callbacks; /*!< Callback list for this extension */
 	AST_RWLIST_ENTRY(ast_hint) list;/*!< Pointer to next hint in list */
 };
 
@@ -705,7 +705,8 @@ static int stateid = 1;
    paths that require both locks must also take them in that order.
 */
 static AST_RWLIST_HEAD_STATIC(hints, ast_hint);
-struct ast_state_cb *statecbs;
+
+static AST_LIST_HEAD_NOLOCK_STATIC(statecbs, ast_state_cb);
 
 /*
    \note This function is special. It saves the stack so that no matter
@@ -2971,12 +2972,14 @@ static void handle_statechange(const char *device)
 		/* Device state changed since last check - notify the watchers */
 
 		/* For general callbacks */
-		for (cblist = statecbs; cblist; cblist = cblist->next)
+		AST_LIST_TRAVERSE(&statecbs, cblist, entry) {
 			cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
+		}
 
 		/* For extension callbacks */
-		for (cblist = hint->callbacks; cblist; cblist = cblist->next)
+		AST_LIST_TRAVERSE(&hint->callbacks, cblist, entry) {
 			cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
+		}
 
 		hint->laststate = state;	/* record we saw the change */
 	}
@@ -3037,7 +3040,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 	if (!context && !exten) {
 		AST_RWLIST_WRLOCK(&hints);
 
-		for (cblist = statecbs; cblist; cblist = cblist->next) {
+		AST_LIST_TRAVERSE(&statecbs, cblist, entry) {
 			if (cblist->callback == callback) {
 				cblist->data = data;
 				AST_RWLIST_UNLOCK(&hints);
@@ -3054,10 +3057,10 @@ int ast_extension_state_add(const char *context, const char *exten,
 		cblist->callback = callback;
 		cblist->data = data;
 
-		cblist->next = statecbs;
-		statecbs = cblist;
+		AST_LIST_INSERT_HEAD(&statecbs, cblist, entry);
 
 		AST_RWLIST_UNLOCK(&hints);
+
 		return 0;
 	}
 
@@ -3089,21 +3092,22 @@ int ast_extension_state_add(const char *context, const char *exten,
 		AST_RWLIST_UNLOCK(&hints);
 		return -1;
 	}
+
 	cblist->id = stateid++;		/* Unique ID for this callback */
 	cblist->callback = callback;	/* Pointer to callback routine */
 	cblist->data = data;		/* Data for the callback */
 
-	cblist->next = hint->callbacks;
-	hint->callbacks = cblist;
+	AST_LIST_INSERT_HEAD(&hint->callbacks, cblist, entry);
 
 	AST_RWLIST_UNLOCK(&hints);
+
 	return cblist->id;
 }
 
 /*! \brief Remove a watcher from the callback list */
 int ast_extension_state_del(int id, ast_state_cb_type callback)
 {
-	struct ast_state_cb **p_cur = NULL;	/* address of pointer to us */
+	struct ast_state_cb *p_cur = NULL;
 	int ret = -1;
 
 	if (!id && !callback)
@@ -3112,28 +3116,35 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 	AST_RWLIST_WRLOCK(&hints);
 
 	if (!id) {	/* id == 0 is a callback without extension */
-		for (p_cur = &statecbs; *p_cur; p_cur = &(*p_cur)->next) {
-	 		if ((*p_cur)->callback == callback)
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&statecbs, p_cur, entry) {
+	 		if (p_cur->callback == callback) {
+				AST_LIST_REMOVE_CURRENT(entry);
 				break;
+			}
 		}
+		AST_LIST_TRAVERSE_SAFE_END
 	} else { /* callback with extension, find the callback based on ID */
 		struct ast_hint *hint;
 		AST_RWLIST_TRAVERSE(&hints, hint, list) {
-			for (p_cur = &hint->callbacks; *p_cur; p_cur = &(*p_cur)->next) {
-				if ((*p_cur)->id == id)
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&hint->callbacks, p_cur, entry) {
+				if (p_cur->id == id) {
+					AST_LIST_REMOVE_CURRENT(entry);
 					break;
+				}
 			}
-			if (*p_cur)	/* found in the inner loop */
+			AST_LIST_TRAVERSE_SAFE_END
+
+			if (p_cur)
 				break;
 		}
 	}
-	if (p_cur && *p_cur) {
-		struct ast_state_cb *cur = *p_cur;
-		*p_cur = cur->next;
-		ast_free(cur);
-		ret = 0;
+
+	if (p_cur) {
+		ast_free(p_cur);
 	}
+
 	AST_RWLIST_UNLOCK(&hints);
+
 	return ret;
 }
 
@@ -3202,22 +3213,22 @@ static int ast_remove_hint(struct ast_exten *e)
 		return -1;
 
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&hints, hint, list) {
-		if (hint->exten == e) {
-			cbprev = NULL;
-			cblist = hint->callbacks;
-			while (cblist) {
-				/* Notify with -1 and remove all callbacks */
-				cbprev = cblist;
-				cblist = cblist->next;
-				cbprev->callback(hint->exten->parent->name, hint->exten->exten, AST_EXTENSION_DEACTIVATED, cbprev->data);
-				ast_free(cbprev);
-	    		}
-	    		hint->callbacks = NULL;
-			AST_RWLIST_REMOVE_CURRENT(list);
-	    		ast_free(hint);
-	   		res = 0;
-			break;
+		if (hint->exten != e)
+			continue;
+
+		while ((cblist = AST_LIST_REMOVE_HEAD(&hint->callbacks, entry))) {
+			/* Notify with -1 and remove all callbacks */
+			cblist->callback(hint->exten->parent->name, hint->exten->exten, 
+				AST_EXTENSION_DEACTIVATED, cbprev->data);
+			ast_free(cblist);
 		}
+
+		AST_RWLIST_REMOVE_CURRENT(list);
+		ast_free(hint);
+
+	   	res = 0;
+
+		break;
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 
@@ -4317,8 +4328,9 @@ static char *handle_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "\n    -= Registered Asterisk Dial Plan Hints =-\n");
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		watchers = 0;
-		for (watcher = hint->callbacks; watcher; watcher = watcher->next)
+		AST_LIST_TRAVERSE(&hint->callbacks, watcher, entry) {
 			watchers++;
+		}
 		ast_cli(a->fd, "   %20s@%-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
 			ast_get_extension_name(hint->exten),
 			ast_get_context_name(ast_get_extension_context(hint->exten)),
@@ -4390,8 +4402,9 @@ static char *handle_show_hint(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		if (!strncasecmp(ast_get_extension_name(hint->exten), a->argv[3], extenlen)) {
 			watchers = 0;
-			for (watcher = hint->callbacks; watcher; watcher = watcher->next)
+			AST_LIST_TRAVERSE(&hint->callbacks, watcher, entry) {
 				watchers++;
+			}
 			ast_cli(a->fd, "   %20s@%-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
 				ast_get_extension_name(hint->exten),
 				ast_get_context_name(ast_get_extension_context(hint->exten)),
@@ -5296,7 +5309,7 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 struct store_hint {
 	char *context;
 	char *exten;
-	struct ast_state_cb *callbacks;
+	AST_LIST_HEAD_NOLOCK(, ast_state_cb) callbacks;
 	int laststate;
 	AST_LIST_ENTRY(store_hint) list;
 	char data[1];
@@ -5457,12 +5470,11 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 
 	/* preserve all watchers for hints associated with this registrar */
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
-		if (hint->callbacks && !strcmp(registrar, hint->exten->parent->registrar)) {
+		if (!AST_LIST_EMPTY(&hint->callbacks) && !strcmp(registrar, hint->exten->parent->registrar)) {
 			length = strlen(hint->exten->exten) + strlen(hint->exten->parent->name) + 2 + sizeof(*this);
 			if (!(this = ast_calloc(1, length)))
 				continue;
-			this->callbacks = hint->callbacks;
-			hint->callbacks = NULL;
+			AST_LIST_APPEND_LIST(&this->callbacks, &hint->callbacks, entry);
 			this->laststate = hint->laststate;
 			this->context = this->data;
 			strcpy(this->data, hint->exten->parent->name);
@@ -5493,20 +5505,12 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 		}
 		if (!exten || !hint) {
 			/* this hint has been removed, notify the watchers */
-			prevcb = NULL;
-			thiscb = this->callbacks;
-			while (thiscb) {
-				prevcb = thiscb;
-				thiscb = thiscb->next;
+			while ((thiscb = AST_LIST_REMOVE_HEAD(&this->callbacks, entry))) {
 				prevcb->callback(this->context, this->exten, AST_EXTENSION_REMOVED, prevcb->data);
 				ast_free(prevcb);
-	    		}
+			}
 		} else {
-			thiscb = this->callbacks;
-			while (thiscb->next)
-				thiscb = thiscb->next;
-			thiscb->next = hint->callbacks;
-			hint->callbacks = this->callbacks;
+			AST_LIST_INSERT_TAIL(&this->callbacks, thiscb, entry);
 			hint->laststate = this->laststate;
 		}
 		ast_free(this);
