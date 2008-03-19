@@ -986,6 +986,7 @@ static struct ast_http_uri phoneprovuri = {
 	.description = "Asterisk HTTP Phone Provisioning Tool",
 	.uri = "phoneprov",
 	.has_subtree = 1,
+	.supports_get = 1,
 };
 
 static int load_module(void)
