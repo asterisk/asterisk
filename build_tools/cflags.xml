@@ -1,30 +1,15 @@
 	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
-		<member name="DEBUG_CHANNEL_LOCKS" displayname="Debug Channel Locking">
-		</member>
-		<member name="DEBUG_SCHEDULER" displayname="Enable Scheduler Debugging Output">
-		</member>
-		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
-		</member>
-		<member name="DEBUG_THREADLOCALS" displayname="Enable Thread-Local-Storage Debugging">
-		</member>
-		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks">
-			<depend>DEBUG_THREADS</depend>
-		</member>
-		<member name="DO_CRASH" displayname="Crash on fatal errors">
-		</member>
 		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations by the Compiler">
 		</member>
-		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging">
+		<member name="DEBUG_CHANNEL_LOCKS" displayname="Debug Channel Locking">
+		</member>
+		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
 		</member>
 		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
 		</member>
 		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">
 		</member>
-		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters">
-		</member>
 		<member name="RADIO_RELAX" displayname="Relax DTMF for Radio Applications">
-		</member>
-		<member name="TRACE_FRAMES" displayname="Trace Frame Allocations">
 		</member>
 		<member name="STATIC_BUILD" displayname="Build static binaries">
 		</member>
