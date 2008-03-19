@@ -136,13 +136,16 @@ static AST_RWLIST_HEAD_STATIC(uri_redirects, http_uri_redirect);
 static const char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
 {
 	int x;
+
 	if (ftype) {
-		for (x=0;x<sizeof(mimetypes) / sizeof(mimetypes[0]); x++) {
+		for (x = 0; x < ARRAY_LEN(mimetypes); x++) {
 			if (!strcasecmp(ftype, mimetypes[x].ext))
 				return mimetypes[x].mtype;
 		}
 	}
-	snprintf(wkspace, wkspacelen, "text/%s", ftype ? ftype : "plain");
+
+	snprintf(wkspace, wkspacelen, "text/%s", S_OR(ftype, "plain"));
+
 	return wkspace;
 }
 
