@@ -3100,6 +3100,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 		 __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
 		__sip_xmit(p, req->data, req->len);
 	ast_free(req->data);
+	req->data = NULL;
 	if (res > 0)
 		return 0;
 	return res;
@@ -3133,8 +3134,10 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 	res = (reliable) ?
 		__sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
 		__sip_xmit(p, req->data, req->len);
-	if (req->data)
+	if (req->data) {
 		ast_free(req->data);
+		req->data = NULL;
+	}
 	return res;
 }
 
@@ -18102,6 +18105,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 
 	if (req->headers < 2) {	/* Must have at least two headers */
 		ast_free(req->data);
+		req->data = NULL;
 		return 1;
 	}
 
