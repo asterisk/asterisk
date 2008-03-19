@@ -3206,7 +3206,7 @@ static int ast_remove_hint(struct ast_exten *e)
 {
 	/* Cleanup the Notifys if hint is removed */
 	struct ast_hint *hint;
-	struct ast_state_cb *cblist, *cbprev;
+	struct ast_state_cb *cblist;
 	int res = -1;
 
 	if (!e)
@@ -3219,7 +3219,7 @@ static int ast_remove_hint(struct ast_exten *e)
 		while ((cblist = AST_LIST_REMOVE_HEAD(&hint->callbacks, entry))) {
 			/* Notify with -1 and remove all callbacks */
 			cblist->callback(hint->exten->parent->name, hint->exten->exten, 
-				AST_EXTENSION_DEACTIVATED, cbprev->data);
+				AST_EXTENSION_DEACTIVATED, cblist->data);
 			ast_free(cblist);
 		}
 
