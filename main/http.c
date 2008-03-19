@@ -223,16 +223,14 @@ static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, 
 	return NULL;
 
 out404:
-	*status = 404;
-	*title = ast_strdup("Not Found");
-
-	return ast_http_error(404, "Not Found", NULL, "Nothing to see here.  Move along.");
+	return ast_http_error((*status = 404),
+			      (*title = ast_strdup("Not Found")),
+			       NULL, "Nothing to see here.  Move along.");
 
 out403:
-	*status = 403;
-	*title = ast_strdup("Access Denied");
-
-	return ast_http_error(403, "Access Denied", NULL, "Sorry, I cannot let you do that, Dave.");
+	return ast_http_error((*status = 403),
+			      (*title = ast_strdup("Access Denied")),
+			      NULL, "Sorry, I cannot let you do that, Dave.");
 }
 
 
@@ -339,6 +337,11 @@ int ast_http_uri_link(struct ast_http_uri *urih)
 	struct ast_http_uri *uri;
 	int len = strlen(urih->uri);
 
+	if (!(urih->supports_get || urih->supports_post)) {
+		ast_log(LOG_WARNING, "URI handler does not provide either GET or POST method: %s (%s)\n", urih->uri, urih->description);
+		return -1;
+	}
+
 	AST_RWLIST_WRLOCK(&uris);
 
 	if (AST_RWLIST_EMPTY(&uris) || strlen(AST_RWLIST_FIRST(&uris)->uri) <= len) {
@@ -349,8 +352,8 @@ int ast_http_uri_link(struct ast_http_uri *urih)
 	}
 
 	AST_RWLIST_TRAVERSE(&uris, uri, entry) {
-		if (AST_RWLIST_NEXT(uri, entry) 
-		    && strlen(AST_RWLIST_NEXT(uri, entry)->uri) <= len) {
+		if (AST_RWLIST_NEXT(uri, entry) &&
+		    strlen(AST_RWLIST_NEXT(uri, entry)->uri) <= len) {
 			AST_RWLIST_INSERT_AFTER(&uris, uri, urih, entry);
 			AST_RWLIST_UNLOCK(&uris); 
 
@@ -514,26 +517,23 @@ static struct ast_str *handle_post(struct ast_tcptls_session_instance *ser, char
 		}
 
 		if (sscanf(var->value, "%lx", &ident) != 1) {
-			*status = 400;
-			*title = ast_strdup("Bad Request");
-
-			return ast_http_error(400, "Bad Request", NULL, "The was an error parsing the request.");
+			return ast_http_error((*status = 400),
+					      (*title = ast_strdup("Bad Request")),
+					      NULL, "The was an error parsing the request.");
 		}
 
 		if (!astman_verify_session_writepermissions(ident, EVENT_FLAG_CONFIG)) {
-			*status = 401;
-			*title = ast_strdup("Unauthorized");
-
-			return ast_http_error(401, "Unauthorized", NULL, "You are not authorized to make this request.");
+			return ast_http_error((*status = 401),
+					      (*title = ast_strdup("Unauthorized")),
+					      NULL, "You are not authorized to make this request.");
 		}
 
 		break;
 	}
 	if (!var) {
-		*status = 401;
-		*title = ast_strdup("Unauthorized");
-
-		return ast_http_error(401, "Unauthorized", NULL, "You are not authorized to make this request.");
+		return ast_http_error((*status = 401),
+				      (*title = ast_strdup("Unauthorized")),
+				      NULL, "You are not authorized to make this request.");
 	}
 
 	if (!(f = tmpfile())) {
@@ -573,10 +573,10 @@ static struct ast_str *handle_post(struct ast_tcptls_session_instance *ser, char
 	if (!(post_map = find_post_mapping(uri))) {
 		ast_debug(1, "%s is not a valid URI for POST\n", uri);
 		AST_RWLIST_UNLOCK(&post_mappings);
-		*status = 404;
-		*title = ast_strdup("Not Found");
 
-		return ast_http_error(404, "Not Found", NULL, "The requested URL was not found on this server.");
+		return ast_http_error((*status = 404),
+				      (*title = ast_strdup("Not Found")),
+				      NULL, "The requested URL was not found on this server.");
 	}
 
 	post_dir = ast_strdupa(post_map->to);
@@ -589,63 +589,67 @@ static struct ast_str *handle_post(struct ast_tcptls_session_instance *ser, char
 
 	if (!message) {
 		ast_log(LOG_ERROR, "Error parsing MIME data\n");
-		*status = 400;
-		*title = ast_strdup("Bad Request");
 
-		return ast_http_error(400, "Bad Request", NULL, "The was an error parsing the request.");
+		return ast_http_error((*status = 400),
+				      (*title = ast_strdup("Bad Request")),
+				      NULL, "The was an error parsing the request.");
 	}
 
 	if (!(message_count = process_message(message, post_dir))) {
 		ast_log(LOG_ERROR, "Invalid MIME data, found no parts!\n");
-		*status = 400;
-		*title = ast_strdup("Bad Request");
 
-		return ast_http_error(400, "Bad Request", NULL, "The was an error parsing the request.");
+		return ast_http_error((*status = 400),
+				      (*title = ast_strdup("Bad Request")),
+				      NULL, "The was an error parsing the request.");
 	}
 
-	*status = 200;
-	*title = ast_strdup("OK");
-
-	return ast_http_error(200, "OK", NULL, "File successfully uploaded.");
+	return ast_http_error((*status = 200),
+			      (*title = ast_strdup("OK")),
+			      NULL, "File successfully uploaded.");
 }
 #endif /* ENABLE_UPLOADS */
 
-static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char *uri, int *status, 
-				  char **title, int *contentlength, struct ast_variable **cookies, 
+static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char *uri, enum ast_http_method method,
+				  int *status, char **title, int *contentlength, struct ast_variable **cookies, 
 				  unsigned int *static_content)
 {
 	char *c;
 	struct ast_str *out = NULL;
 	char *params = uri;
-	struct ast_http_uri *urih=NULL;
+	struct ast_http_uri *urih = NULL;
 	int l;
-	struct ast_variable *vars=NULL, *v, *prev = NULL;
+	struct ast_variable *vars = NULL, *v, *prev = NULL;
 	struct http_uri_redirect *redirect;
+	int saw_method = 0;
 
-	strsep(&params, "?");
-
-	/* Extract arguments from the request and store them in variables. */
-	if (params) {
-		char *var, *val;
-
-		while ((val = strsep(&params, "&"))) {
-			var = strsep(&val, "=");
-			if (val) {
-				ast_uri_decode(val);
-			} else {
-				val = "";
-			}
-			ast_uri_decode(var);
-			if ((v = ast_variable_new(var, val, ""))) {
-				if (vars) {
-					prev->next = v;
+	/* preserve previous behavior of only support URI parameters on GET requests */
+	if (method == AST_HTTP_GET) {
+		strsep(&params, "?");
+		
+		/* Extract arguments from the request and store them in variables. */
+		if (params) {
+			char *var, *val;
+			
+			while ((val = strsep(&params, "&"))) {
+				var = strsep(&val, "=");
+				if (val) {
+					ast_uri_decode(val);
 				} else {
-					vars = v;
+					val = "";
 				}
-				prev = v;
+				ast_uri_decode(var);
+				if ((v = ast_variable_new(var, val, ""))) {
+					if (vars) {
+						prev->next = v;
+					} else {
+						vars = v;
+					}
+					prev = v;
+				}
 			}
 		}
 	}
+
 	/*
 	 * Append the cookies to the variables (the only reason to have them
 	 * at the end is to avoid another pass of the cookies list to find
@@ -666,10 +670,9 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 			char buf[512];
 
 			snprintf(buf, sizeof(buf), "Location: %s\r\n", redirect->dest);
-			out = ast_http_error(302, "Moved Temporarily", buf,
-					     "There is no spoon...");
-			*status = 302;
-			*title = ast_strdup("Moved Temporarily");
+			out = ast_http_error((*status = 302),
+					     (*title = ast_strdup("Moved Temporarily")),
+					     buf, "There is no spoon...");
 
 			break;
 		}
@@ -686,11 +689,26 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 		/* scan registered uris to see if we match one. */
 		AST_RWLIST_RDLOCK(&uris);
 		AST_RWLIST_TRAVERSE(&uris, urih, entry) {
+			if (!saw_method) {
+				switch (method) {
+				case AST_HTTP_GET:
+					if (urih->supports_get) {
+						saw_method = 1;
+					}
+					break;
+				case AST_HTTP_POST:
+					if (urih->supports_post) {
+						saw_method = 1;
+					}
+					break;
+				}
+			}
+
 			l = strlen(urih->uri);
 			c = uri + l;	/* candidate */
 
-			if (strncasecmp(urih->uri, uri, l) /* no match */
-			    || (*c && *c != '/')) { /* substring */
+			if (strncasecmp(urih->uri, uri, l) || /* no match */
+			    (*c && *c != '/')) { /* substring */
 				continue;
 			}
 
@@ -699,24 +717,32 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 			}
 
 			if (!*c || urih->has_subtree) {
-				uri = c;
+				if (((method == AST_HTTP_GET) && urih->supports_get) ||
+				    ((method == AST_HTTP_POST) && urih->supports_post)) {
+					uri = c;
 
-				break;
+					break;
+				}
 			}
 		}
+
 		if (!urih) {
 			AST_RWLIST_UNLOCK(&uris);
 		}
 	}
+
 	if (urih) {
 		*static_content = urih->static_content;
-		out = urih->callback(ser, uri, AST_HTTP_GET, vars, status, title, contentlength);
+		out = urih->callback(ser, uri, method, vars, status, title, contentlength);
 		AST_RWLIST_UNLOCK(&uris);
+	} else if (saw_method) {
+		out = ast_http_error((*status = 404),
+				     (*title = ast_strdup("Not Found")), NULL,
+				     "The requested URL was not found on this server.");
 	} else {
-		out = ast_http_error(404, "Not Found", NULL,
-			"The requested URL was not found on this server.");
-		*status = 404;
-		*title = ast_strdup("Not Found");
+		out = ast_http_error((*status = 501),
+				     (*title = ast_strdup("Not Implemented")), NULL,
+				     "Attempt to use unimplemented / unsupported method");
 	}
 
 cleanup:
@@ -878,18 +904,12 @@ static void *httpd_helper_thread(void *data)
 
 	if (!*uri) {
 		out = ast_http_error(400, "Bad Request", NULL, "Invalid Request");
-	} else if (!strcasecmp(buf, "post")) {
-#ifdef ENABLE_UPLOADS
-		out = handle_post(ser, uri, &status, &title, &contentlength, headers, vars);
-#else
+	} else if (strcasecmp(buf, "post") && strcasecmp(buf, "get")) {
 		out = ast_http_error(501, "Not Implemented", NULL,
-			"Attempt to use unimplemented / unsupported method");
-#endif /* ENABLE_UPLOADS */
-	} else if (strcasecmp(buf, "get")) {
-		out = ast_http_error(501, "Not Implemented", NULL,
-			"Attempt to use unimplemented / unsupported method");
+				     "Attempt to use unimplemented / unsupported method");
 	} else {	/* try to serve it */
-		out = handle_uri(ser, uri, &status, &title, &contentlength, &vars, &static_content);
+		out = handle_uri(ser, uri, (strcasecmp(buf, "get")) ? AST_HTTP_GET : AST_HTTP_POST,
+				 &status, &title, &contentlength, &vars, &static_content);
 	}
 
 	/* If they aren't mopped up already, clean up the cookies */

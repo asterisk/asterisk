@@ -3649,22 +3649,22 @@ static struct ast_str *rawman_http_callback(struct ast_tcptls_session_instance *
 struct ast_http_uri rawmanuri = {
 	.description = "Raw HTTP Manager Event Interface",
 	.uri = "rawman",
-	.has_subtree = 0,
 	.callback = rawman_http_callback,
+	.supports_get = 1,
 };
 
 struct ast_http_uri manageruri = {
 	.description = "HTML Manager Event Interface",
 	.uri = "manager",
-	.has_subtree = 0,
 	.callback = manager_http_callback,
+	.supports_get = 1,
 };
 
 struct ast_http_uri managerxmluri = {
 	.description = "XML Manager Event Interface",
 	.uri = "mxml",
-	.has_subtree = 0,
 	.callback = mxml_http_callback,
+	.supports_get = 1,
 };
 
 static int registered = 0;
