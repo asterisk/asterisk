@@ -1621,15 +1621,21 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 			if (!cat->precomments)
 				fprintf(f,"\n");
 			fprintf(f, "[%s]", cat->name);
-			if (cat->ignored)
-				fprintf(f, "(!)");
-			if (!AST_LIST_EMPTY(&cat->template_instances)) {
-				struct ast_category_template_instance *x;
+			if (cat->ignored || !AST_LIST_EMPTY(&cat->template_instances)) {
 				fprintf(f, "(");
-				AST_LIST_TRAVERSE(&cat->template_instances, x, next) {
-					fprintf(f,"%s",x->name);
-					if (x != AST_LIST_LAST(&cat->template_instances))
-						fprintf(f,",");
+				if (cat->ignored) {
+					fprintf(f, "!");
+				}
+				if (cat->ignored && !AST_LIST_EMPTY(&cat->template_instances)) {
+					fprintf(f, ",");
+				}
+				if (!AST_LIST_EMPTY(&cat->template_instances)) {
+					struct ast_category_template_instance *x;
+					AST_LIST_TRAVERSE(&cat->template_instances, x, next) {
+						fprintf(f,"%s",x->name);
+						if (x != AST_LIST_LAST(&cat->template_instances))
+							fprintf(f,",");
+					}
 				}
 				fprintf(f, ")");
 			}
