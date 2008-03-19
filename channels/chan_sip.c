@@ -5317,7 +5317,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	if (ast_test_flag(&i->flags[0], SIP_DTMF) ==  SIP_DTMF_INBAND) {
 		i->vad = ast_dsp_new();
-		ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
+		ast_dsp_set_features(i->vad, DSP_FEATURE_DIGIT_DETECT);
 		if (global_relaxdtmf)
 			ast_dsp_set_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
 	}
@@ -21187,7 +21187,7 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 	if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) {
 		if (!p->vad) {
 			p->vad = ast_dsp_new();
-			ast_dsp_set_features(p->vad, DSP_FEATURE_DTMF_DETECT);
+			ast_dsp_set_features(p->vad, DSP_FEATURE_DIGIT_DETECT);
 		}
 	} else {
 		if (p->vad) {

@@ -3703,7 +3703,7 @@ static void disable_dtmf_detect(struct zt_pvt *p)
 	ioctl(p->subs[SUB_REAL].zfd, ZT_TONEDETECT, &val);
 #endif		
 	if (!p->hardwaredtmf && p->dsp) {
-		p->dsp_features &= ~DSP_FEATURE_DTMF_DETECT;
+		p->dsp_features &= ~DSP_FEATURE_DIGIT_DETECT;
 		ast_dsp_set_features(p->dsp, p->dsp_features);
 	}
 }
@@ -3724,7 +3724,7 @@ static void enable_dtmf_detect(struct zt_pvt *p)
 	ioctl(p->subs[SUB_REAL].zfd, ZT_TONEDETECT, &val);
 #endif		
 	if (!p->hardwaredtmf && p->dsp) {
-		p->dsp_features |= DSP_FEATURE_DTMF_DETECT;
+		p->dsp_features |= DSP_FEATURE_DIGIT_DETECT;
 		ast_dsp_set_features(p->dsp, p->dsp_features);
 	}
 }
@@ -5903,11 +5903,11 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		if (ioctl(i->subs[index].zfd, ZT_TONEDETECT, &x)) {
 #endif		
 			i->hardwaredtmf = 0;
-			features |= DSP_FEATURE_DTMF_DETECT;
+			features |= DSP_FEATURE_DIGIT_DETECT;
 #ifdef ZT_TONEDETECT
 		} else if (NEED_MFDETECT(i)) {
 			i->hardwaredtmf = 1;
-			features |= DSP_FEATURE_DTMF_DETECT;
+			features |= DSP_FEATURE_DIGIT_DETECT;
 		}
 #endif
 	}

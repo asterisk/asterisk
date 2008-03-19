@@ -814,9 +814,9 @@ static int __ast_dsp_digitdetect(struct ast_dsp *dsp, short *s, int len, int *wr
 {
 	int res = 0;
 	
-	if ((dsp->features & DSP_FEATURE_DTMF_DETECT) && (dsp->digitmode & DSP_DIGITMODE_MF))
+	if ((dsp->features & DSP_FEATURE_DIGIT_DETECT) && (dsp->digitmode & DSP_DIGITMODE_MF))
 		res = mf_detect(&dsp->digit_state, s, len, dsp->digitmode & DSP_DIGITMODE_RELAXDTMF, writeback);
-	else if (dsp->features & DSP_FEATURE_DTMF_DETECT)
+	else if (dsp->features & DSP_FEATURE_DIGIT_DETECT)
 		res = dtmf_detect(&dsp->digit_state, s, len, dsp->digitmode & DSP_DIGITMODE_RELAXDTMF, writeback);
 
 	if ((dsp->features & DSP_FEATURE_FAX_DETECT) && (dsp->faxmode & DSP_FAXMODE_DETECT_CNG)) {
@@ -1278,7 +1278,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		ast_debug(1, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
 		return &dsp->f;
 	}
-	if (((dsp->features & DSP_FEATURE_DTMF_DETECT) || (dsp->features & DSP_FEATURE_FAX_DETECT))) {
+	if (((dsp->features & DSP_FEATURE_DIGIT_DETECT) || (dsp->features & DSP_FEATURE_FAX_DETECT))) {
 		digit = __ast_dsp_digitdetect(dsp, shortdata, len, &writeback);
 #if 0
 		if (digit)

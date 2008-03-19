@@ -1511,7 +1511,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 			ast_channel_set_fd(tmp, 0, ast_rtp_fd(sub->rtp));
 		if (i->dtmfmode & (MGCP_DTMF_INBAND | MGCP_DTMF_HYBRID)) {
 			i->dsp = ast_dsp_new();
-			ast_dsp_set_features(i->dsp,DSP_FEATURE_DTMF_DETECT);
+			ast_dsp_set_features(i->dsp, DSP_FEATURE_DIGIT_DETECT);
 			/* this is to prevent clipping of dtmf tones during dsp processing */
 			ast_dsp_set_digitmode(i->dsp, DSP_DIGITMODE_NOQUELCH);
 		} else {

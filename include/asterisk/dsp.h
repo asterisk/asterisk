@@ -25,7 +25,7 @@
 
 #define DSP_FEATURE_SILENCE_SUPPRESS	(1 << 0)
 #define DSP_FEATURE_BUSY_DETECT		(1 << 1)
-#define DSP_FEATURE_DTMF_DETECT		(1 << 3)
+#define DSP_FEATURE_DIGIT_DETECT	(1 << 3)
 #define DSP_FEATURE_FAX_DETECT		(1 << 4)
 
 #define	DSP_DIGITMODE_DTMF			0				/*!< Detect DTMF digits */

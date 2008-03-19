@@ -1053,7 +1053,7 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		/* Allocate dsp for in-band DTMF support */
 		if (pvt->options.dtmfmode & H323_DTMF_INBAND) {
 			pvt->vad = ast_dsp_new();
-			ast_dsp_set_features(pvt->vad, DSP_FEATURE_DTMF_DETECT);
+			ast_dsp_set_features(pvt->vad, DSP_FEATURE_DIGIT_DETECT);
 		}
 		/* Register channel functions. */
 		ch->tech_pvt = pvt;

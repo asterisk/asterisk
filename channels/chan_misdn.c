@@ -2154,9 +2154,9 @@ static int read_config(struct chan_list *ch, int orig)
 			ch->dsp = ast_dsp_new();
 		if (ch->dsp) {
 			if (ch->faxdetect) 
-				ast_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+				ast_dsp_set_features(ch->dsp, DSP_FEATURE_DIGIT_DETECT | DSP_FEATURE_FAX_DETECT);
 			else 
-				ast_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT );
+				ast_dsp_set_features(ch->dsp, DSP_FEATURE_DIGIT_DETECT );
 		}
 		if (!ch->trans)
 			ch->trans = ast_translator_build_path(AST_FORMAT_SLINEAR, AST_FORMAT_ALAW);
@@ -5492,7 +5492,7 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 		if (!ch->dsp)
 			ch->dsp = ast_dsp_new();
 		if (ch->dsp)
-			ast_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+			ast_dsp_set_features(ch->dsp, DSP_FEATURE_DIGIT_DETECT | DSP_FEATURE_FAX_DETECT);
 		if (!ch->trans)
 			ch->trans = ast_translator_build_path(AST_FORMAT_SLINEAR, AST_FORMAT_ALAW);
 	}
