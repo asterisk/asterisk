@@ -120,6 +120,7 @@ struct moh_files_state {
 	int sample_queue;
 	int pos;
 	int save_pos;
+	char *save_pos_filename;
 };
 
 #define MOH_QUIET		(1 << 0)
@@ -239,8 +240,8 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		return -1;
 	}
 
-	/* If a specific file has been saved, use it */
-	if (state->save_pos >= 0) {
+	/* If a specific file has been saved confirm it still exists and that it is still valid */
+	if (state->save_pos >= 0 && state->save_pos < state->class->total_files && state->class->filearray[state->save_pos] == state->save_pos_filename) {
 		state->pos = state->save_pos;
 		state->save_pos = -1;
 	} else if (ast_test_flag(state->class, MOH_RANDOMIZE)) {
@@ -250,11 +251,13 @@ static int ast_moh_files_next(struct ast_channel *chan)
 			if (ast_fileexists(state->class->filearray[state->pos], NULL, NULL) > 0)
 				break;
 		}
+		state->save_pos = -1;
 		state->samples = 0;
 	} else {
 		/* This is easy, just increment our position and make sure we don't exceed the total file count */
 		state->pos++;
 		state->pos %= state->class->total_files;
+		state->save_pos = -1;
 		state->samples = 0;
 	}
 
@@ -264,6 +267,9 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		state->pos %= state->class->total_files;
 		return -1;
 	}
+
+	/* Record the pointer to the filename for position resuming later */
+	state->save_pos_filename = state->class->filearray[state->pos];
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "%s Opened file %d '%s'\n", chan->name, state->pos, state->class->filearray[state->pos]);
