@@ -1495,7 +1495,7 @@ void ast_dsp_reset(struct ast_dsp *dsp)
 	dsp->ringtimeout= 0;
 }
 
-int ast_dsp_digitmode(struct ast_dsp *dsp, int digitmode)
+int ast_dsp_set_digitmode(struct ast_dsp *dsp, int digitmode)
 {
 	int new;
 	int old;

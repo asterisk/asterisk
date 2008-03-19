@@ -2285,7 +2285,7 @@ static struct chan_usbradio_pvt *store_config(struct ast_config *cfg, char *ctg)
 	o->dsp = ast_dsp_new();
 	if (o->dsp) {
 		ast_dsp_set_features(o->dsp, DSP_FEATURE_DTMF_DETECT);
-		ast_dsp_digitmode(o->dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_RELAXDTMF);
+		ast_dsp_set_digitmode(o->dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_RELAXDTMF);
 	}
 
 	if (o->rxctcssfreq != 0 && o->rxdemod == RX_AUDIO_SPEAKER)

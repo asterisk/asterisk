@@ -1634,9 +1634,9 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 	if (use_ast_dtmfdet) {
 		tmp->vad = ast_dsp_new();
 		ast_dsp_set_features(tmp->vad, DSP_FEATURE_DTMF_DETECT);
-		ast_dsp_digitmode(tmp->vad, DSP_DIGITMODE_DTMF);
+		ast_dsp_set_digitmode(tmp->vad, DSP_DIGITMODE_DTMF);
 		if (relaxdtmf)
-			ast_dsp_digitmode(tmp->vad, DSP_DIGITMODE_DTMF|DSP_DIGITMODE_RELAXDTMF);
+			ast_dsp_set_digitmode(tmp->vad, DSP_DIGITMODE_DTMF|DSP_DIGITMODE_RELAXDTMF);
 	} else {
 		tmp->vad = NULL;
 	}

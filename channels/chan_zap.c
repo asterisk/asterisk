@@ -3000,7 +3000,7 @@ static int zt_hangup(struct ast_channel *ast)
 		p->origcid_name = NULL;
 	}	
 	if (p->dsp)
-		ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
+		ast_dsp_set_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax);
 	if (p->exten)
 		p->exten[0] = '\0';
 
@@ -3452,15 +3452,15 @@ static int zt_setoption(struct ast_channel *chan, int option, void *data, int da
 		switch (*cp) {
 		case 1:
 			ast_debug(1, "Set option TONE VERIFY, mode: MUTECONF(1) on %s\n",chan->name);
-			ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MUTECONF | p->dtmfrelax);  /* set mute mode if desired */
+			ast_dsp_set_digitmode(p->dsp, DSP_DIGITMODE_MUTECONF | p->dtmfrelax);  /* set mute mode if desired */
 			break;
 		case 2:
 			ast_debug(1, "Set option TONE VERIFY, mode: MUTECONF/MAX(2) on %s\n",chan->name);
-			ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX | p->dtmfrelax);  /* set mute mode if desired */
+			ast_dsp_set_digitmode(p->dsp, DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX | p->dtmfrelax);  /* set mute mode if desired */
 			break;
 		default:
 			ast_debug(1, "Set option TONE VERIFY, mode: OFF(0) on %s\n",chan->name);
-			ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);  /* set mute mode if desired */
+			ast_dsp_set_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax);  /* set mute mode if desired */
 			break;
 		}
 		break;
@@ -3543,7 +3543,7 @@ static int zt_setoption(struct ast_channel *chan, int option, void *data, int da
 		cp = (char *) data;
 		ast_debug(1, "Set option RELAX DTMF, value: %s(%d) on %s\n",
 			*cp ? "ON" : "OFF", (int) *cp, chan->name);
-		ast_dsp_digitmode(p->dsp, ((*cp) ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF) | p->dtmfrelax);
+		ast_dsp_set_digitmode(p->dsp, ((*cp) ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF) | p->dtmfrelax);
 		break;
 	case AST_OPTION_AUDIO_MODE:  /* Set AUDIO mode (or not) */
 		cp = (char *) data;
@@ -5930,7 +5930,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 				}
 #endif
 				ast_dsp_set_features(i->dsp, features);
-				ast_dsp_digitmode(i->dsp, DSP_DIGITMODE_DTMF | i->dtmfrelax);
+				ast_dsp_set_digitmode(i->dsp, DSP_DIGITMODE_DTMF | i->dtmfrelax);
 				if (!ast_strlen_zero(progzone))
 					ast_dsp_set_call_progress_zone(i->dsp, progzone);
 				if (i->busydetect && CANBUSYDETECT(i)) {
@@ -6203,9 +6203,9 @@ static void *ss_thread(void *data)
 		/* set digit mode appropriately */
 		if (p->dsp) {
 			if (NEED_MFDETECT(p))
-				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MF | p->dtmfrelax); 
+				ast_dsp_set_digitmode(p->dsp, DSP_DIGITMODE_MF | p->dtmfrelax); 
 			else 
-				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
+				ast_dsp_set_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax);
 		}
 		memset(dtmfbuf, 0, sizeof(dtmfbuf));
 		/* Wait for the first digit only if immediate=no */
@@ -6319,14 +6319,14 @@ static void *ss_thread(void *data)
 	                        return NULL;
 			}
                         zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
-                        ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MF | p->dtmfrelax);
+                        ast_dsp_set_digitmode(p->dsp, DSP_DIGITMODE_MF | p->dtmfrelax);
                         res = my_getsigstr(chan, anibuf, "#", 10000);
                         if ((res > 0) && (strlen(anibuf) > 2)) {
 				if (anibuf[strlen(anibuf) - 1] == '#')
 					anibuf[strlen(anibuf) - 1] = 0;
 				ast_set_callerid(chan, anibuf + 2, NULL, anibuf + 2);
 			}
-                        ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
+                        ast_dsp_set_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax);
 		}
 
 		ast_copy_string(exten, dtmfbuf, sizeof(exten));
@@ -6411,7 +6411,7 @@ static void *ss_thread(void *data)
 		if (NEED_MFDETECT(p)) {
 			if (p->dsp) {
 				if (!p->hardwaredtmf)
-					ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax); 
+					ast_dsp_set_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax); 
 				else {
 					ast_dsp_free(p->dsp);
 					p->dsp = NULL;
@@ -8512,7 +8512,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 		if (tmp->subs[SUB_REAL].zfd > -1) {
 			set_actual_gain(tmp->subs[SUB_REAL].zfd, 0, tmp->rxgain, tmp->txgain, tmp->law);
 			if (tmp->dsp)
-				ast_dsp_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
+				ast_dsp_set_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
 			update_conf(tmp);
 			if (!here) {
 				if ((conf.chan.sig != SIG_BRI) && (conf.chan.sig != SIG_BRI_PTMP) && (conf.chan.sig != SIG_PRI) && (conf.chan.sig != SIG_SS7))

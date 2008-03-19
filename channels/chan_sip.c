@@ -5319,7 +5319,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		i->vad = ast_dsp_new();
 		ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
 		if (global_relaxdtmf)
-			ast_dsp_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+			ast_dsp_set_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
 	}
 
 	/* Set file descriptors for audio, video, realtime text and UDPTL as needed */

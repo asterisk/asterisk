@@ -115,7 +115,7 @@ void ast_dsp_set_features(struct ast_dsp *dsp, int features);
 int ast_dsp_getdigits(struct ast_dsp *dsp, char *buf, int max);
 
 /*! \brief Set digit mode */
-int ast_dsp_digitmode(struct ast_dsp *dsp, int digitmode);
+int ast_dsp_set_digitmode(struct ast_dsp *dsp, int digitmode);
 
 /*! \brief Set fax mode */
 int ast_dsp_set_faxmode(struct ast_dsp *dsp, int faxmode);
