@@ -1091,19 +1091,30 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 static struct match_char *already_in_tree(struct match_char *current, char *pat)
 {
 	struct match_char *t;
+
 	if (!current)
 		return 0;
-	for (t=current; t; t=t->alt_char) {
-		if (strcmp(pat,t->x) == 0) /* uh, we may want to sort exploded [] contents to make matching easy */
+
+	for (t = current; t; t = t->alt_char) {
+		if (!strcmp(pat, t->x)) /* uh, we may want to sort exploded [] contents to make matching easy */
 			return t;
 	}
+
 	return 0;
 }
 
 static struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity)
 {
-	struct match_char *m = ast_calloc(1,sizeof(struct match_char));
-	m->x = ast_strdup(pattern);
+	struct match_char *m;
+	
+	if (!(m = ast_calloc(1, sizeof(*m))))
+		return NULL;
+
+	if (!(m->x = ast_strdup(pattern))) {
+		ast_free(m);
+		return NULL;
+	}
+
 	m->is_pattern = is_pattern;
 	if (specificity == 1 && is_pattern && pattern[0] == 'N')
 		m->specificity = 98;
@@ -1133,6 +1144,7 @@ static struct match_char *add_pattern_node(struct ast_context *con, struct match
 			}
 		}
 	}
+
 	return m;
 }
 
