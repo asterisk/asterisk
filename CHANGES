@@ -175,6 +175,7 @@ SIP changes
      more information on how it is used.
   * Added a new configuration option "authfailureevents" that enables manager events when
     a peer can't authenticate properly. 
+  * Added DNS manager support to registrations not referencing a peer entry.
 
 IAX2 changes
 ------------

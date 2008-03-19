@@ -1303,7 +1303,6 @@ struct sip_pvt {
 	struct sip_st_dlg *stimer;		/*!< SIP Session-Timers */              
 };
 
-
 /*! Max entires in the history list for a sip_pvt */
 #define MAX_HISTORY_ENTRIES 50
 
@@ -1547,6 +1546,8 @@ struct sip_registry {
 	struct timeval regtime;		/*!< Last successful registration time */
 	int callid_valid;		/*!< 0 means we haven't chosen callid for this registry yet. */
 	unsigned int ocseq;		/*!< Sequence number we got to for REGISTERs for this registry */
+	struct ast_dnsmgr_entry *dnsmgr;	/*!<  DNS refresh manager for register */
+	struct sockaddr_in us;		/*!< Who the server thinks we are */
 	int noncecount;			/*!< Nonce-count */
 	char lastmsg[256];		/*!< Last Message sent/received */
 };
@@ -1959,7 +1960,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p);
 static void build_via(struct sip_pvt *p);
 static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer);
-static int create_addr(struct sip_pvt *dialog, const char *opeer);
+static int create_addr(struct sip_pvt *dialog, const char *opeer, struct in_addr *sin);
 static char *generate_random_string(char *buf, size_t size);
 static void build_callid_pvt(struct sip_pvt *pvt);
 static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip, const char *fromdomain);
@@ -2528,7 +2529,7 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 	int res = 0;
 	const struct sockaddr_in *dst = sip_real_dst(p);
 
-	ast_debug(1, "Trying to put '%.10s' onto %s socket...\n", data->str, get_transport(p->socket.type));
+	ast_debug(1, "Trying to put '%.10s' onto %s socket destined for %s\n", data->str, get_transport(p->socket.type), ast_inet_ntoa(dst->sin_addr));
 
 	if (sip_prepare_socket(p) < 0)
 		return XMIT_ERROR;
@@ -4057,7 +4058,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 /*! \brief create address structure from peer name
  *      Or, if peer not found, find it in the global DNS 
  *      returns TRUE (-1) on failure, FALSE on success */
-static int create_addr(struct sip_pvt *dialog, const char *opeer)
+static int create_addr(struct sip_pvt *dialog, const char *opeer, struct in_addr *sin)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -4066,6 +4067,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 	int portno;
 	char host[MAXHOSTNAMELEN], *hostn;
 	char peername[256];
+	int srv_ret = 0;
 
 	ast_copy_string(peername, opeer, sizeof(peername));
 	port = strchr(peername, ':');
@@ -4097,27 +4099,32 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 
 	/* Let's see if we can find the host in DNS. First try DNS SRV records,
    	   then hostname lookup */
-
 	hostn = peername;
 	portno = port ? atoi(port) : (dialog->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
 	if (global_srvlookup) {
 		char service[MAXHOSTNAMELEN];
 		int tportno;
-		int ret;
 
 		snprintf(service, sizeof(service), "_sip._%s.%s", get_transport(dialog->socket.type), peername);
-		ret = ast_get_srv(NULL, host, sizeof(host), &tportno, service);
-		if (ret > 0) {
+		srv_ret = ast_get_srv(NULL, host, sizeof(host), &tportno, service);
+		if (srv_ret > 0) {
 			hostn = host;
 			portno = tportno;
 		}
 	}
-	hp = ast_gethostbyname(hostn, &ahp);
-	if (!hp) {
-		ast_log(LOG_WARNING, "No such host: %s\n", peername);
-		return -1;
+
+	if (sin && srv_ret <= 0) {
+		memcpy(&dialog->sa.sin_addr, sin, sizeof(dialog->sa.sin_addr));
+		ast_log(LOG_DEBUG, "IP lookup for hostname=%s, using dnsmgr resolved to %s...\n", peername, ast_inet_ntoa(*sin));
+	} else {
+		hp = ast_gethostbyname(hostn, &ahp);
+		if (!hp) {
+			ast_log(LOG_WARNING, "No such host: %s\n", peername);
+			return -1;
+		}
+		memcpy(&dialog->sa.sin_addr, hp->h_addr, sizeof(dialog->sa.sin_addr));
 	}
-	memcpy(&dialog->sa.sin_addr, hp->h_addr, sizeof(dialog->sa.sin_addr));
+
 	dialog->sa.sin_port = htons(portno);
 	dialog->recv = dialog->sa;
 	return 0;
@@ -4255,6 +4262,7 @@ static void sip_registry_destroy(struct sip_registry *reg)
 	AST_SCHED_DEL(sched, reg->timeout);
 	ast_string_field_free_memory(reg);
 	regobjs--;
+	ast_dnsmgr_release(reg->dnsmgr);
 	ast_free(reg);
 	
 }
@@ -9141,6 +9149,11 @@ static int sip_reg_timeout(const void *data)
 	if (!r)
 		return 0;
 
+	if (r->dnsmgr) {
+		/* If the registration has timed out, maybe the IP changed.  Force a refresh. */
+		ast_dnsmgr_refresh(r->dnsmgr);
+	}
+
 	ast_log(LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts); 
 	/* If the initial tranmission failed, we may not have an existing dialog,
 	 * so it is possible that r->call == NULL.
@@ -9192,10 +9205,14 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	struct sip_pvt *p;
 
 	/* exit if we are already in process with this registrar ?*/
-	if ( r == NULL || ((auth==NULL) && (r->regstate==REG_STATE_REGSENT || r->regstate==REG_STATE_AUTHSENT))) {
+	if (r == NULL || ((auth == NULL) && (r->regstate == REG_STATE_REGSENT || r->regstate == REG_STATE_AUTHSENT))) {
 		ast_log(LOG_NOTICE, "Strange, trying to register %s@%s when registration already pending\n", r->username, r->hostname);
 		return 0;
 	}
+
+	if (r->dnsmgr == NULL) {
+		ast_dnsmgr_lookup(r->hostname, &r->us.sin_addr, &r->dnsmgr);
+	} 
 
 	if (r->call) {	/* We have a registration */
 		if (!auth) {
@@ -9224,7 +9241,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		p->outboundproxy = obproxy_get(p, NULL);
 
 		/* Find address to hostname */
-		if (create_addr(p, r->hostname)) {
+		if (create_addr(p, r->hostname, &r->us.sin_addr)) {
 			/* we have what we hope is a temporary network error,
 			 * probably DNS.  We need to reschedule a registration try */
 			sip_destroy(p);
@@ -13868,7 +13885,7 @@ static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 			return CLI_FAILURE;
 		}
 
-		if (create_addr(p, a->argv[i])) {
+		if (create_addr(p, a->argv[i], NULL)) {
 			/* Maybe they're not registered, etc. */
 			sip_destroy(p);
 			ast_cli(a->fd, "Could not create address for '%s'\n", a->argv[i]);
@@ -19115,7 +19132,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		ext = extension (user part of URI)
 		dnid = destination of the call (applies to the To: header)
 	*/
-	if (create_addr(p, host)) {
+	if (create_addr(p, host, NULL)) {
 		*cause = AST_CAUSE_UNREGISTERED;
 		ast_debug(3, "Cant create SIP call - target device not registred\n");
 		sip_destroy(p);
