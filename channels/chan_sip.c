@@ -3607,10 +3607,9 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 			if (var) {
 				for (tmp = var; tmp; tmp = tmp->next) {
 					if (!strcasecmp(var->name, "host")) {
-						struct in_addr sin2;
-						struct ast_dnsmgr_entry *dnsmgr = NULL;
-						memset(&sin2, 0, sizeof(sin2));
-						if ((ast_dnsmgr_lookup(tmp->value, &sin2, &dnsmgr) < 0) || (memcmp(&sin2, &sin->sin_addr, sizeof(sin2)) != 0)) {
+						struct hostent *hp;
+						struct ast_hostent ahp;
+						if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(&hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
 							/* No match */
 							ast_variables_destroy(var);
 							var = NULL;
