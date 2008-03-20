@@ -78,10 +78,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/file.h"
 #include "asterisk/astobj.h"
-#include "asterisk/dnsmgr.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/dnsmgr.h"
 
 #ifdef OSP_SUPPORT
 #include "asterisk/astosp.h"
@@ -797,7 +795,6 @@ struct sip_peer {
 	int rtpkeepalive;		/*!<  Send RTP packets for keepalive */
 	ast_group_t callgroup;		/*!<  Call group */
 	ast_group_t pickupgroup;	/*!<  Pickup group */
-	struct ast_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
 
 	/* Qualification */
@@ -1699,8 +1696,6 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		speerobjs--;
 	clear_realm_authentication(peer->auth);
 	peer->auth = (struct sip_auth *) NULL;
-	if (peer->dnsmgr)
-		ast_dnsmgr_release(peer->dnsmgr);
 	free(peer);
 }
 
@@ -1741,9 +1736,9 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 			if (var) {
 				for (tmp = var; tmp; tmp = tmp->next) {
 					if (!strcasecmp(var->name, "host")) {
-						struct in_addr sin2 = { 0, };
-						struct ast_dnsmgr_entry *dnsmgr = NULL;
-						if ((ast_dnsmgr_lookup(tmp->value, &sin2, &dnsmgr) < 0) || (memcmp(&sin2, &sin->sin_addr, sizeof(sin2)) != 0)) {
+						struct hostent *hp;
+						struct ast_hostent ahp;
+						if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(&hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
 							/* No match */
 							ast_variables_destroy(var);
 							var = NULL;
