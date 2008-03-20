@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/say.h"
 #include "asterisk/app.h"
+#include "asterisk/utils.h"
 
 #ifdef ODBC_STORAGE
 #include <sys/mman.h>
@@ -66,27 +67,53 @@ static char *descrip =
 "                   extension that the user has selected, or when jumping to the\n"
 "                   'o' or 'a' extension.\n\n"
 "  Options:\n"
-"    e - In addition to the name, also read the extension number to the\n"
-"        caller before presenting dialing options.\n"
-"    f - Allow the caller to enter the first name of a user in the directory\n"
-"        instead of using the last name.\n"
-"    m - Instead of reading each name sequentially and asking for confirmation,\n"
-"        create a menu of up to 8 names.\n";
+"    e           In addition to the name, also read the extension number to the\n"
+"              caller before presenting dialing options.\n"
+"    f[(<n>)]    Allow the caller to enter the first name of a user in the\n"
+"              directory instead of using the last name.  If specified, the\n"
+"              optional number argument will be used for the number of\n"
+"              characters the user should enter.\n"
+"    l[(<n>)]    Allow the caller to enter the last name of a user in the\n"
+"              directory.  This is the default.  If specified, the\n"
+"              optional number argument will be used for the number of\n"
+"              characters the user should enter.\n"
+"    b[(<n>)]    Allow the caller to enter either the first or the last name\n"
+"              of a user in the directory.  If specified, the optional number\n"
+"              argument will be used for the number of characters the user\n"
+"              should enter.\n"
+"    m           Instead of reading each name sequentially and asking for\n"
+"              confirmation, create a menu of up to 8 names.\n"
+"    p(<n>)      Pause for n milliseconds after the digits are typed.  This is\n"
+"              helpful for people with cellphones, who are not holding the\n"
+"              receiver to their ear while entering DTMF.\n"
+"\n"
+"    Only one of the f, l, or b options may be specified.  If more than one is\n"
+"    specified, then Directory will act as if 'b' was specified.  The number\n"
+"    of characters for the user to type defaults to 3.\n";
 
 /* For simplicity, I'm keeping the format compatible with the voicemail config,
    but i'm open to suggestions for isolating it */
 
 #define VOICEMAIL_CONFIG "voicemail.conf"
 
-/* How many digits to read in */
-#define NUMDIGITS 3
-
 enum {
 	OPT_LISTBYFIRSTNAME = (1 << 0),
 	OPT_SAYEXTENSION =    (1 << 1),
 	OPT_FROMVOICEMAIL =   (1 << 2),
 	OPT_SELECTFROMMENU =  (1 << 3),
+	OPT_LISTBYLASTNAME =  (1 << 4),
+	OPT_LISTBYEITHER =    OPT_LISTBYFIRSTNAME | OPT_LISTBYLASTNAME,
+	OPT_PAUSE =           (1 << 5),
 } directory_option_flags;
+
+enum {
+	OPT_ARG_FIRSTNAME =   0,
+	OPT_ARG_LASTNAME =    1,
+	OPT_ARG_EITHER =      2,
+	OPT_ARG_PAUSE =       3,
+	/* This *must* be the last value in this enum! */
+	OPT_ARG_ARRAY_SIZE =  4,
+};
 
 struct directory_item {
 	char exten[AST_MAX_EXTENSION + 1];
@@ -97,7 +124,10 @@ struct directory_item {
 };
 
 AST_APP_OPTIONS(directory_app_options, {
-	AST_APP_OPTION('f', OPT_LISTBYFIRSTNAME),
+	AST_APP_OPTION_ARG('f', OPT_LISTBYFIRSTNAME, OPT_ARG_FIRSTNAME),
+	AST_APP_OPTION_ARG('l', OPT_LISTBYLASTNAME, OPT_ARG_LASTNAME),
+	AST_APP_OPTION_ARG('b', OPT_LISTBYEITHER, OPT_ARG_EITHER),
+	AST_APP_OPTION_ARG('p', OPT_PAUSE, OPT_ARG_PAUSE),
 	AST_APP_OPTION('e', OPT_SAYEXTENSION),
 	AST_APP_OPTION('v', OPT_FROMVOICEMAIL),
 	AST_APP_OPTION('m', OPT_SELECTFROMMENU),
@@ -500,10 +530,11 @@ static struct ast_config *realtime_directory(char *context)
 	mailbox = NULL;
 	while ( (mailbox = ast_category_browse(rtdata, mailbox)) ) {
 		fullname = ast_variable_retrieve(rtdata, mailbox, "fullname");
-		hidefromdir = ast_variable_retrieve(rtdata, mailbox, "hidefromdir");
-		snprintf(tmp, sizeof(tmp), "no-password,%s,hidefromdir=%s",
-			fullname ? fullname : "",
-			hidefromdir ? hidefromdir : "no");
+		if (ast_true((hidefromdir = ast_variable_retrieve(rtdata, mailbox, "hidefromdir")))) {
+			/* Skip hidden */
+			continue;
+		}
+		snprintf(tmp, sizeof(tmp), "no-password,%s", S_OR(fullname, ""));
 		var = ast_variable_new(mailbox, tmp, "");
 		if (var)
 			ast_variable_append(cat, var);
@@ -556,7 +587,7 @@ static int check_match(struct directory_item **result, const char *item_fullname
 
 typedef AST_LIST_HEAD_NOLOCK(, directory_item) itemlist;
 
-static int search_directory(const char *context, struct ast_config *vmcfg, struct ast_config *ucfg, const char *ext, int use_first_name, itemlist *alist)
+static int search_directory(const char *context, struct ast_config *vmcfg, struct ast_config *ucfg, const char *ext, struct ast_flags flags, itemlist *alist)
 {
 	struct ast_variable *v;
 	char buf[AST_MAX_EXTENSION + 1], *pos, *bufptr, *cat;
@@ -578,7 +609,14 @@ static int search_directory(const char *context, struct ast_config *vmcfg, struc
 		strsep(&bufptr, ",");
 		pos = strsep(&bufptr, ",");
 
-		res = check_match(&item, pos, v->name, ext, use_first_name);
+		res = 0;
+		if (ast_test_flag(&flags, OPT_LISTBYLASTNAME)) {
+			res = check_match(&item, pos, v->name, ext, 0 /* use_first_name */);
+		}
+		if (!res && ast_test_flag(&flags, OPT_LISTBYFIRSTNAME)) {
+			res = check_match(&item, pos, v->name, ext, 1 /* use_first_name */);
+		}
+
 		if (!res)
 			continue;
 		else if (res < 0)
@@ -601,7 +639,14 @@ static int search_directory(const char *context, struct ast_config *vmcfg, struc
 			if (!pos)
 				continue;
 
-			res = check_match(&item, pos, cat, ext, use_first_name);
+			res = 0;
+			if (ast_test_flag(&flags, OPT_LISTBYLASTNAME)) {
+				res = check_match(&item, pos, v->name, ext, 0 /* use_first_name */);
+			}
+			if (!res && ast_test_flag(&flags, OPT_LISTBYFIRSTNAME)) {
+				res = check_match(&item, pos, v->name, ext, 1 /* use_first_name */);
+			}
+
 			if (!res)
 				continue;
 			else if (res < 0)
@@ -649,14 +694,14 @@ static int goto_exten(struct ast_channel *chan, const char *dialcontext, char *e
 	}
 }
 
-static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, struct ast_config *ucfg, char *context, char *dialcontext, char digit, struct ast_flags *flags)
+static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, struct ast_config *ucfg, char *context, char *dialcontext, char digit, int digits, struct ast_flags *flags)
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
 	int res = 0;
 	itemlist alist = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 	struct directory_item *item, **ptr, **sorted = NULL;
 	int count, i;
-	char ext[NUMDIGITS + 1] = "";
+	char ext[10] = "";
 
 	if (ast_strlen_zero(context)) {
 		ast_log(LOG_WARNING,
@@ -674,10 +719,10 @@ static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, stru
 	}
 
 	ext[0] = digit;
-	if (ast_readstring(chan, ext + 1, NUMDIGITS - 1, 3000, 3000, "#") < 0)
+	if (ast_readstring(chan, ext + 1, digits - 1, 3000, 3000, "#") < 0)
 		return -1;
 
-	res = search_directory(context, vmcfg, ucfg, ext, ast_test_flag(flags, OPT_LISTBYFIRSTNAME), &alist);
+	res = search_directory(context, vmcfg, ucfg, ext, *flags, &alist);
 	if (res)
 		goto exit;
 
@@ -735,12 +780,14 @@ exit:
 
 static int directory_exec(struct ast_channel *chan, void *data)
 {
-	int res = 0;
+	int res = 0, digit = 3;
 	struct ast_config *cfg, *ucfg;
 	const char *dirintro;
-	char *parse, *opts[0];
+	char *parse, *opts[OPT_ARG_ARRAY_SIZE];
 	struct ast_flags flags = { 0 };
 	struct ast_flags config_flags = { 0 };
+	enum { FIRST, LAST, BOTH } which = LAST;
+	char digits[9] = "digits/3";
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vmcontext);
 		AST_APP_ARG(dialcontext);
@@ -773,15 +820,53 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	dirintro = ast_variable_retrieve(cfg, args.vmcontext, "directoryintro");
 	if (ast_strlen_zero(dirintro))
 		dirintro = ast_variable_retrieve(cfg, "general", "directoryintro");
-	if (ast_strlen_zero(dirintro))
-		dirintro = ast_test_flag(&flags, OPT_LISTBYFIRSTNAME) ? "dir-intro-fn" : "dir-intro";
+
+	if (ast_test_flag(&flags, OPT_LISTBYFIRSTNAME) && ast_test_flag(&flags, OPT_LISTBYLASTNAME)) {
+		if (!ast_strlen_zero(opts[OPT_ARG_EITHER])) {
+			digit = atoi(opts[OPT_ARG_EITHER]);
+		}
+		which = BOTH;
+	} else if (ast_test_flag(&flags, OPT_LISTBYFIRSTNAME)) {
+		if (!ast_strlen_zero(opts[OPT_ARG_FIRSTNAME])) {
+			digit = atoi(opts[OPT_ARG_FIRSTNAME]);
+		}
+		which = FIRST;
+	} else {
+		if (!ast_strlen_zero(opts[OPT_ARG_LASTNAME])) {
+			digit = atoi(opts[OPT_ARG_LASTNAME]);
+		}
+		which = LAST;
+	}
+
+	/* If no options specified, search by last name */
+	if (!ast_test_flag(&flags, OPT_LISTBYFIRSTNAME) && !ast_test_flag(&flags, OPT_LISTBYLASTNAME)) {
+		ast_set_flag(&flags, OPT_LISTBYLASTNAME);
+		which = LAST;
+	}
+
+	if (digit > 9) {
+		digit = 9;
+	} else if (digit < 1) {
+		digit = 3;
+	}
+	digits[7] = digit + '0';
 
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 
 	for (;;) {
-		if (!res)
+		if (!ast_strlen_zero(dirintro) && !res) {
 			res = ast_stream_and_wait(chan, dirintro, AST_DIGIT_ANY);
+		} else if (!res) {
+			res = ast_stream_and_wait(chan, "dir-welcome", AST_DIGIT_ANY) ||
+				ast_stream_and_wait(chan, "dir-pls-enter", AST_DIGIT_ANY) ||
+				ast_stream_and_wait(chan, digits, AST_DIGIT_ANY) ||
+				ast_stream_and_wait(chan, 
+					which == FIRST ? "dir-first" :
+					which == LAST ? "dir-last" :
+					"dir-firstlast", AST_DIGIT_ANY) ||
+				ast_stream_and_wait(chan, "dir-usingkeypad", AST_DIGIT_ANY);
+		}
 		ast_stopstream(chan);
 		if (!res)
 			res = ast_waitfordigit(chan, 5000);
@@ -789,7 +874,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		if (res <= 0)
 			break;
 
-		res = do_directory(chan, cfg, ucfg, args.vmcontext, args.dialcontext, res, &flags);
+		res = do_directory(chan, cfg, ucfg, args.vmcontext, args.dialcontext, res, digit, &flags);
 		if (res)
 			break;
 
