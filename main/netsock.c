@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/netsock.h"
 #include "asterisk/utils.h"
+#include "asterisk/astobj.h"
 
 struct ast_netsock {
 	ASTOBJ_COMPONENTS(struct ast_netsock);

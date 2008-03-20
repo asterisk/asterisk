@@ -30,7 +30,6 @@ extern "C" {
 
 #include "asterisk/network.h"
 #include "asterisk/io.h"
-#include "asterisk/astobj.h"
 
 struct ast_netsock;
 
