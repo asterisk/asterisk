@@ -151,10 +151,10 @@ static struct ast_frame *g722tolin16_sample(void)
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_G722,
-		.datalen = sizeof(slin_g722_ex),
-		.samples = sizeof(slin_g722_ex) * 2,
+		.datalen = sizeof(g722_slin_ex),
+		.samples = sizeof(g722_slin_ex) * 2,
 		.src = __PRETTY_FUNCTION__,
-		.data = slin_g722_ex,
+		.data = g722_slin_ex,
 	};
 
 	return &f;
