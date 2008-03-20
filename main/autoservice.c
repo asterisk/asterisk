@@ -93,7 +93,7 @@ static void *autoservice_run(void *ign)
 		struct ast_channel *mons[MAX_AUTOMONS];
 		struct ast_channel *chan;
 		struct asent *as;
-		int x = 0, ms = 500;
+		int x = 0, ms = 50;
 
 		AST_LIST_LOCK(&aslist);
 
