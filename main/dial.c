@@ -317,6 +317,7 @@ static int begin_dial(struct ast_dial *dial, struct ast_channel *chan)
 	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
 		success += begin_dial_channel(channel, chan);
 	}
+	AST_LIST_UNLOCK(&dial->channels);
 
 	/* If number of failures matches the number of channels, then this truly failed */
 	return success;
