@@ -712,3 +712,187 @@ int ast_channel_audiohook_count_by_source_running(struct ast_channel *chan, cons
 	return count;
 }
 
+/*! \brief Audiohook volume adjustment structure */
+struct audiohook_volume {
+	struct ast_audiohook audiohook; /*!< Audiohook attached to the channel */
+	int read_adjustment;            /*!< Value to adjust frames read from the channel by */
+	int write_adjustment;           /*!< Value to adjust frames written to the channel by */
+};
+
+/*! \brief Callback used to destroy the audiohook volume datastore
+ * \param data Volume information structure
+ * \return Returns nothing
+ */
+static void audiohook_volume_destroy(void *data)
+{
+	struct audiohook_volume *audiohook_volume = data;
+
+	/* Destroy the audiohook as it is no longer in use */
+	ast_audiohook_destroy(&audiohook_volume->audiohook);
+
+	/* Finally free ourselves, we are of no more use */
+	ast_free(audiohook_volume);
+
+	return;
+}
+
+/*! \brief Datastore used to store audiohook volume information */
+static const struct ast_datastore_info audiohook_volume_datastore = {
+	.type = "Volume",
+	.destroy = audiohook_volume_destroy,
+};
+
+/*! \brief Helper function which actually gets called by audiohooks to perform the adjustment
+ * \param audiohook Audiohook attached to the channel
+ * \param chan Channel we are attached to
+ * \param frame Frame of audio we want to manipulate
+ * \param direction Direction the audio came in from
+ * \return Returns 0 on success, -1 on failure
+ */
+static int audiohook_volume_callback(struct ast_audiohook *audiohook, struct ast_channel *chan, struct ast_frame *frame, enum ast_audiohook_direction direction)
+{
+	struct ast_datastore *datastore = NULL;
+	struct audiohook_volume *audiohook_volume = NULL;
+	int *gain = NULL;
+
+	/* If the audiohook is shutting down don't even bother */
+	if (audiohook->status == AST_AUDIOHOOK_STATUS_DONE) {
+		return 0;
+	}
+
+	/* Try to find the datastore containg adjustment information, if we can't just bail out */
+	if (!(datastore = ast_channel_datastore_find(chan, &audiohook_volume_datastore, NULL))) {
+		return 0;
+	}
+
+	audiohook_volume = datastore->data;
+
+	/* Based on direction grab the appropriate adjustment value */
+	if (direction == AST_AUDIOHOOK_DIRECTION_READ) {
+		gain = &audiohook_volume->read_adjustment;
+	} else if (direction == AST_AUDIOHOOK_DIRECTION_WRITE) {
+		gain = &audiohook_volume->write_adjustment;
+	}
+
+	/* If an adjustment value is present modify the frame */
+	if (gain && *gain) {
+		ast_frame_adjust_volume(frame, *gain);
+	}
+
+	return 0;
+}
+
+/*! \brief Helper function which finds and optionally creates an audiohook_volume_datastore datastore on a channel
+ * \param chan Channel to look on
+ * \param create Whether to create the datastore if not found
+ * \return Returns audiohook_volume structure on success, NULL on failure
+ */
+static struct audiohook_volume *audiohook_volume_get(struct ast_channel *chan, int create)
+{
+	struct ast_datastore *datastore = NULL;
+	struct audiohook_volume *audiohook_volume = NULL;
+
+	/* If we are able to find the datastore return the contents (which is actually an audiohook_volume structure) */
+	if ((datastore = ast_channel_datastore_find(chan, &audiohook_volume_datastore, NULL))) {
+		return datastore->data;
+	}
+
+	/* If we are not allowed to create a datastore or if we fail to create a datastore, bail out now as we have nothing for them */
+	if (!create || !(datastore = ast_channel_datastore_alloc(&audiohook_volume_datastore, NULL))) {
+		return NULL;
+	}
+
+	/* Create a new audiohook_volume structure to contain our adjustments and audiohook */
+	if (!(audiohook_volume = ast_calloc(1, sizeof(*audiohook_volume)))) {
+		ast_channel_datastore_free(datastore);
+		return NULL;
+	}
+
+	/* Setup our audiohook structure so we can manipulate the audio */
+	ast_audiohook_init(&audiohook_volume->audiohook, AST_AUDIOHOOK_TYPE_MANIPULATE, "Volume");
+	audiohook_volume->audiohook.manipulate_callback = audiohook_volume_callback;
+
+	/* Attach the audiohook_volume blob to the datastore and attach to the channel */
+	datastore->data = audiohook_volume;
+	ast_channel_datastore_add(chan, datastore);
+
+	/* All is well... put the audiohook into motion */
+	ast_audiohook_attach(chan, &audiohook_volume->audiohook);
+
+	return audiohook_volume;
+}
+
+/*! \brief Adjust the volume on frames read from or written to a channel
+ * \param chan Channel to muck with
+ * \param direction Direction to set on
+ * \param volume Value to adjust the volume by
+ * \return Returns 0 on success, -1 on failure
+ */
+int ast_audiohook_volume_set(struct ast_channel *chan, enum ast_audiohook_direction direction, int volume)
+{
+	struct audiohook_volume *audiohook_volume = NULL;
+
+	/* Attempt to find the audiohook volume information, but only create it if we are not setting the adjustment value to zero */
+	if (!(audiohook_volume = audiohook_volume_get(chan, (volume ? 1 : 0)))) {
+		return -1;
+	}
+
+	/* Now based on the direction set the proper value */
+	if (direction == AST_AUDIOHOOK_DIRECTION_READ || direction == AST_AUDIOHOOK_DIRECTION_BOTH) {
+		audiohook_volume->read_adjustment = volume;
+	} else if (direction == AST_AUDIOHOOK_DIRECTION_WRITE || direction == AST_AUDIOHOOK_DIRECTION_BOTH) {
+		audiohook_volume->write_adjustment = volume;
+	}
+
+	return 0;
+}
+
+/*! \brief Retrieve the volume adjustment value on frames read from or written to a channel
+ * \param chan Channel to retrieve volume adjustment from
+ * \param direction Direction to retrieve
+ * \return Returns adjustment value
+ */
+int ast_audiohook_volume_get(struct ast_channel *chan, enum ast_audiohook_direction direction)
+{
+	struct audiohook_volume *audiohook_volume = NULL;
+	int adjustment = 0;
+
+	/* Attempt to find the audiohook volume information, but do not create it as we only want to look at the values */
+	if (!(audiohook_volume = audiohook_volume_get(chan, 0))) {
+		return 0;
+	}
+
+	/* Grab the adjustment value based on direction given */
+	if (direction == AST_AUDIOHOOK_DIRECTION_READ) {
+		adjustment = audiohook_volume->read_adjustment;
+	} else if (direction == AST_AUDIOHOOK_DIRECTION_WRITE) {
+		adjustment = audiohook_volume->write_adjustment;
+	}
+
+	return adjustment;
+}
+
+/*! \brief Adjust the volume on frames read from or written to a channel
+ * \param chan Channel to muck with
+ * \param direction Direction to increase
+ * \param volume Value to adjust the adjustment by
+ * \return Returns 0 on success, -1 on failure
+ */
+int ast_audiohook_volume_adjust(struct ast_channel *chan, enum ast_audiohook_direction direction, int volume)
+{
+	struct audiohook_volume *audiohook_volume = NULL;
+
+	/* Attempt to find the audiohook volume information, and create an audiohook if none exists */
+	if (!(audiohook_volume = audiohook_volume_get(chan, 1))) {
+		return -1;
+	}
+
+	/* Based on the direction change the specific adjustment value */
+	if (direction == AST_AUDIOHOOK_DIRECTION_READ || direction == AST_AUDIOHOOK_DIRECTION_BOTH) {
+		audiohook_volume->read_adjustment += volume;
+	} else if (direction == AST_AUDIOHOOK_DIRECTION_WRITE || direction == AST_AUDIOHOOK_DIRECTION_BOTH) {
+		audiohook_volume->write_adjustment += volume;
+	}
+
+	return 0;
+}

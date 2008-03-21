@@ -206,6 +206,29 @@ int ast_channel_audiohook_count_by_source_running(struct ast_channel *chan, cons
  */
 #define ast_audiohook_unlock(ah) ast_mutex_unlock(&(ah)->lock)
 
+/*! \brief Adjust the volume on frames read from or written to a channel
+ * \param chan Channel to muck with
+ * \param direction Direction to set on
+ * \param volume Value to adjust the volume by
+ * \return Returns 0 on success, -1 on failure
+ */
+int ast_audiohook_volume_set(struct ast_channel *chan, enum ast_audiohook_direction direction, int volume);
+
+/*! \brief Retrieve the volume adjustment value on frames read from or written to a channel
+ * \param chan Channel to retrieve volume adjustment from
+ * \param direction Direction to retrieve
+ * \return Returns adjustment value
+ */
+int ast_audiohook_volume_get(struct ast_channel *chan, enum ast_audiohook_direction direction);
+
+/*! \brief Adjust the volume on frames read from or written to a channel
+ * \param chan Channel to muck with
+ * \param direction Direction to increase
+ * \param volume Value to adjust the adjustment by
+ * \return Returns 0 on success, -1 on failure
+ */
+int ast_audiohook_volume_adjust(struct ast_channel *chan, enum ast_audiohook_direction direction, int volume);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
