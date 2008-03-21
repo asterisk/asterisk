@@ -149,8 +149,8 @@ SIP changes
   * Added SIP Session Timers support (RFC 4028).  This prevents stuck SIP sessions that
      were not properly torn down due to network or endpoint failures during an established
      SIP session.
-  * Added TCP and TLS support for SIP.  See doc/siptls.txt and configs/sip.conf.sample for
-     more information on how it is used.
+  * Added experimental TCP and TLS support for SIP.  See doc/siptls.txt and 
+     configs/sip.conf.sample for more information on how it is used.
 
 IAX2 changes
 ------------
