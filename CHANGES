@@ -18,6 +18,14 @@ PBX Changes
    to something that matches the pattern a hint will be created using the contents
    and variables evaluated.
 
+Application Changes
+-------------------
+ * Directory now permits both first and last names to be matched at the same
+   time.  In addition, the number of digits to enter of the name can be set in
+   the arguments to Directory; previously, you could enter only 3, regardless
+   of how many names are in your company.  For large companies, this should be
+   quite helpful.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------
 ------------------------------------------------------------------------------
