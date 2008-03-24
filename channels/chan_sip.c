@@ -9381,7 +9381,6 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	snprintf(tmp, sizeof(tmp), "%d", r->expiry);
 	add_header(&req, "Expires", tmp);
 	add_header(&req, "Contact", p->our_contact);
-	add_header(&req, "Event", "registration");
 	add_header_contentLength(&req, 0);
 
 	initialize_initreq(p, &req);
