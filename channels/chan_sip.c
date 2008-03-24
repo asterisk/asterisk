@@ -9688,7 +9688,9 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 		port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_SIP_PORT;
 	}
 
-	ast_verbose("--- set_address_from_contact host '%s'\n", host);
+	if (sip_debug_test_pvt(pvt)) {
+		ast_verbose("--- set_address_from_contact host '%s'\n", host);
+	}
 
 	/* XXX This could block for a long time XXX */
 	/* We should only do this if it's a name, not an IP */
