@@ -3038,7 +3038,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 			p->invitestate = INV_CALLING;
 
 			/* Initialize auto-congest time */
-			ast_sched_del(sched, p->initid);
+			AST_SCHED_DEL(sched, p->initid);
 			p->initid = ast_sched_add(sched, p->maxtime ? (p->maxtime * 4) : SIP_TRANS_TIMEOUT, auto_congest, p);
 		}
 	}
@@ -3111,7 +3111,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 
 	if (p->stateid > -1)
 		ast_extension_state_del(p->stateid, NULL);
-	ast_sched_del(sched, p->initid);
+	AST_SCHED_DEL(sched, p->initid);
 	AST_SCHED_DEL(sched, p->waitid);
 	AST_SCHED_DEL(sched, p->autokillid);
 
@@ -12070,7 +12070,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 
 	/* Acknowledge sequence number - This only happens on INVITE from SIP-call */
 	/* Don't auto congest anymore since we've gotten something useful back */
-	ast_sched_del(sched, p->initid);
+	AST_SCHED_DEL(sched, p->initid);
 
 	/* RFC3261 says we must treat every 1xx response (but not 100)
 	   that we don't recognize as if it was 183.
@@ -14656,9 +14656,6 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 
 	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
 
-	if (p->owner)
-		ast_queue_hangup(p->owner);
-	else
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	if (p->initreq.len > 0) {
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
