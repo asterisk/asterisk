@@ -1086,7 +1086,7 @@ static int __schedule_action(void (*func)(const void *data), const void *data, c
 	}
 	time(&t);
 	if (t != lasterror) 
-		ast_log(LOG_NOTICE, "Out of idle IAX2 threads for scheduling!\n");
+		ast_debug(1, "Out of idle IAX2 threads for scheduling!\n");
 	lasterror = t;
 
 	return -1;
@@ -7430,7 +7430,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	if (!(thread = find_idle_thread())) {
 		time(&t);
 		if (t != last_errtime)
-			ast_log(LOG_NOTICE, "Out of idle IAX2 threads for I/O, pausing!\n");
+			ast_debug(1, "Out of idle IAX2 threads for I/O, pausing!\n");
 		last_errtime = t;
 		usleep(1);
 		return 1;
