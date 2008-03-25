@@ -215,6 +215,7 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 {
 	const char *ptr;
 	int res = 0;
+	struct ast_silence_generator *silgen = NULL;
 
 	if (!between)
 		between = 100;
@@ -228,6 +229,10 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 	/* ast_waitfor will return the number of remaining ms on success */
 	if (res < 0)
 		return res;
+
+	if (ast_opt_transmit_silence) {
+		silgen = ast_channel_start_silence_generator(chan);
+	}
 
 	for (ptr = digits; *ptr; ptr++) {
 		if (*ptr == 'w') {
@@ -253,6 +258,10 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 		   that has occurred previously while acting on the primary channel */
 		if (ast_autoservice_stop(peer) && !res)
 			res = -1;
+	}
+
+	if (silgen) {
+		ast_channel_stop_silence_generator(chan, silgen);
 	}
 
 	return res;
