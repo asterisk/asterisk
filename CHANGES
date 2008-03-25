@@ -26,6 +26,11 @@ Application Changes
    of how many names are in your company.  For large companies, this should be
    quite helpful.
 
+SIP Changes
+-----------
+ * The ATTENDED_TRANSFER_COMPLETE_SOUND can now be set using setvar to cause a given
+   audio file to be played upon completion of an attended transfer.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------
 ------------------------------------------------------------------------------

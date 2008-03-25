@@ -930,6 +930,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;defaultuser=goran		; Username to use when calling this device before registration
 				; Normally you do NOT need to set this parameter
 ;setvar=CUSTID=5678		; Channel variable to be set for all calls from this device
+;setvar=ATTENDED_TRANSFER_COMPLETE_SOUND=beep ; This channel variable will cause the given audio file to be played
+                                              ; upon completion of an attended transfer
 
 ;[pre14-asterisk]
 ;type=friend

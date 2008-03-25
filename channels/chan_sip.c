@@ -16869,6 +16869,17 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 
 	ast_set_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
 
+	/* If we are performing an attended transfer and we have two channels involved then copy sound file information to play upon attended transfer completion */
+	if (target.chan2) {
+		const char *chan1_attended_sound = pbx_builtin_getvar_helper(target.chan1, "ATTENDED_TRANSFER_COMPLETE_SOUND"), *chan2_attended_sound = pbx_builtin_getvar_helper(target.chan2, "ATTENDED_TRANSFER_COMPLETE_SOUND");
+		if (!ast_strlen_zero(chan1_attended_sound)) {
+			pbx_builtin_setvar_helper(target.chan1, "BRIDGE_PLAY_SOUND", chan1_attended_sound);
+		}
+		if (!ast_strlen_zero(chan2_attended_sound)) {
+			pbx_builtin_setvar_helper(target.chan2, "BRIDGE_PLAY_SOUND", chan2_attended_sound);
+		}
+	}
+
 	/* Perform the transfer */
 	manager_event(EVENT_FLAG_CALL, "Transfer", "TransferMethod: SIP\r\nTransferType: Attended\r\nChannel: %s\r\nUniqueid: %s\r\nSIP-Callid: %s\r\nTargetChannel: %s\r\nTargetUniqueid: %s\r\n",
 		transferer->owner->name,

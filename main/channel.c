@@ -4355,6 +4355,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	for (/* ever */;;) {
 		struct timeval now = { 0, };
 		int to;
+		const char *bridge_play_sound = NULL;
 
 		to = -1;
 
@@ -4438,6 +4439,16 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			pbx_builtin_setvar_helper(c1, "BRIDGEPVTCALLID", c0->tech->get_pvt_uniqueid(c0));
 		if (c1->tech->get_pvt_uniqueid)
 			pbx_builtin_setvar_helper(c0, "BRIDGEPVTCALLID", c1->tech->get_pvt_uniqueid(c1));
+
+		/* See if we need to play an audio file to any side of the bridge */
+		if ((bridge_play_sound = pbx_builtin_getvar_helper(c0, "BRIDGE_PLAY_SOUND"))) {
+			bridge_playfile(c0, c1, bridge_play_sound, 0);
+			pbx_builtin_setvar_helper(c0, "BRIDGE_PLAY_SOUND", NULL);
+		}
+		if ((bridge_play_sound = pbx_builtin_getvar_helper(c1, "BRIDGE_PLAY_SOUND"))) {
+			bridge_playfile(c1, c0, bridge_play_sound, 0);
+			pbx_builtin_setvar_helper(c1, "BRIDGE_PLAY_SOUND", NULL);
+		}
 		
 		if (c0->tech->bridge &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
