@@ -7304,7 +7304,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	copy_header(resp, req, "Call-ID");
 	copy_header(resp, req, "CSeq");
 	if (!ast_strlen_zero(global_useragent))
-		add_header(resp, "User-Agent", global_useragent);
+		add_header(resp, "Server", global_useragent);
 	add_header(resp, "Allow", ALLOWED_METHODS);
 	add_header(resp, "Supported", SUPPORTED_EXTENSIONS);
 
