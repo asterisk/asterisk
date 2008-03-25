@@ -64,7 +64,7 @@ enum ast_option_flags {
 	AST_OPT_FLAG_OVERRIDE_CONFIG = (1 << 15),
 	/*! Reconnect */
 	AST_OPT_FLAG_RECONNECT = (1 << 16),
-	/*! Transmit Silence during Record() */
+	/*! Transmit Silence during Record() and DTMF Generation */
 	AST_OPT_FLAG_TRANSMIT_SILENCE = (1 << 17),
 	/*! Suppress some warnings */
 	AST_OPT_FLAG_DONT_WARN = (1 << 18),

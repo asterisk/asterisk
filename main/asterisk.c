@@ -2632,8 +2632,8 @@ static void ast_readconfig(void)
 		/* Build transcode paths via SLINEAR, instead of directly */
 		} else if (!strcasecmp(v->name, "transcode_via_sln")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TRANSCODE_VIA_SLIN);
-		/* Transmit SLINEAR silence while a channel is being recorded */
-		} else if (!strcasecmp(v->name, "transmit_silence_during_record")) {
+		/* Transmit SLINEAR silence while a channel is being recorded or DTMF is being generated on a channel */
+		} else if (!strcasecmp(v->name, "transmit_silence_during_record") || !strcasecmp(v->name, "transmit_silence")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TRANSMIT_SILENCE);
 		/* Enable internal timing */
 		} else if (!strcasecmp(v->name, "internal_timing")) {
