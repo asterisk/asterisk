@@ -14655,7 +14655,9 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 		update_call_counter(p, DEC_CALL_LIMIT);
 
 	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
-
+	if (p->owner)
+		ast_queue_hangup(p->owner);
+	else
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	if (p->initreq.len > 0) {
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
