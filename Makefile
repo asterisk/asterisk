@@ -674,6 +674,7 @@ samples: adsi
 		echo ";cache_record_files = yes ; Cache recorded sound files to another directory during recording" ; \
 		echo ";record_cache_dir = /tmp ; Specify cache directory (used in cnjunction with cache_record_files)" ; \
 		echo ";transmit_silence_during_record = yes ; Transmit SLINEAR silence while a channel is being recorded" ; \
+		echo ";transmit_silence = yes ; Transmit SLINEAR silence while a channel is being recorded or DTMF is being generated" ; \
 		echo ";transcode_via_sln = yes ; Build transcode paths via SLINEAR, instead of directly" ; \
 		echo ";runuser = asterisk ; The user to run as" ; \
 		echo ";rungroup = asterisk ; The group to run as" ; \
