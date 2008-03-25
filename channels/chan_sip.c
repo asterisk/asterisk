@@ -17206,9 +17206,6 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 	if (p->owner)
 		ast_queue_hangup(p->owner);
 	else
-	if (p->owner)
-		ast_queue_hangup(p->owner);
-	else
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	if (p->initreq.len > 0) {
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
