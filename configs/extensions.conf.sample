@@ -646,6 +646,56 @@ include => demo
 ;
 ;exten = 8700,1,Dial(${MARK},30,A(/path/to/my/announcemsg))
 ;
+
+; example of a compartmentalized company called "acme"
+;
+; this is the context that your incoming IAX/SIP trunk dumps you in...
+;[acme-incoming]
+;exten => s,1,Wait(1)
+;exten => s,n,Answer()
+;exten => s,n(menu),Playback(acme/vm-brief-menu)
+;exten => s,n(exten),Background(vm-enter-num-to-call)
+;exten => s,n,WaitExten(5)
+;exten => s,n(goodbye),Playback(vm-goodbye)
+;exten => s,n(end),Hangup()
+;
+;include  => acme-extens
+;
+;exten => i,1,Playback(vm-invalid)
+;exten => i,n,Goto(s,exten)			; optionally, transfer to operator
+;
+;exten => t,1,Goto(s,goodbye)
+;
+; this is the context our internal SIP hardphones use (see sip.conf)
+;
+;[acme-internal]
+;exten => s,1,Answer()
+;exten => s,n(exten),Background(vm-enter-num-to-call)
+;exten => s,n,WaitExten(5)
+;exten => s,n(goodbye),Playback(vm-goodbye)
+;exten => s,n(end),Hangup()
+;
+;include => trunkint
+;include => trunkld
+;include => trunklocal
+;
+;include => acme-extens
+;
+; you can test what your system sounds like to outside callers by dialing this
+;exten => 777,1,DISA(no-password,acme-incoming)
+;
+; grouping of acme's extensions... never used directly, always included.
+;
+;[acme-extens]
+;exten => 111,1,Gosub(stdexten,s,1(111,SIP/pete_1,acme))
+;exten => 111,n,Goto(s,exten)
+;
+;exten => 112,1,Gosub(stdexten,s,1(112,SIP/nancy_1,acme))
+;exten => 112,n,Goto(s,end)
+;
+; end of acme example
+
+
 ; For more information on applications, just type "core show applications" at your
 ; friendly Asterisk CLI prompt.
 ;
