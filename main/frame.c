@@ -85,7 +85,6 @@ struct ast_smoother {
 	int size;
 	int format;
 	int readdata;
-	int optimizablestream;
 	int flags;
 	float samplesperbyte;
 	struct ast_frame f;
@@ -182,23 +181,8 @@ int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap)
 				ast_swapcopy_samples(f->data, f->data, f->samples);
 			s->opt = f;
 			return 0;
-		} else {
-			s->optimizablestream++;
-			if (s->optimizablestream > 10) {
-				/* For the past 10 rounds, we have input and output
-				   frames of the correct size for this smoother, yet
-				   we were unable to optimize because there was still
-				   some cruft left over.  Lets just drop the cruft so
-				   we can move to a fully optimized path */
-				if (swap)
-					ast_swapcopy_samples(f->data, f->data, f->samples);
-				s->len = 0;
-				s->opt = f;
-				return 0;
-			}
 		}
-	} else 
-		s->optimizablestream = 0;
+	}
 	if (s->flags & AST_SMOOTHER_FLAG_G729) {
 		if (s->len % 10) {
 			ast_log(LOG_NOTICE, "Dropping extra frame of G.729 since we already have a VAD frame at the end\n");
