@@ -39,9 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/utils.h"
 
-#define AST_LOAD_CFG ast_config_load
-#define AST_DESTROY_CFG ast_config_destroy
-
 #define NO_DEFAULT "<>"
 #define NONE 0
 
@@ -1095,7 +1092,7 @@ int misdn_cfg_init(int this_max_ports, int reload)
 	struct ast_variable *v;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if (!(cfg = AST_LOAD_CFG(config, config_flags))) {
+	if (!(cfg = ast_config_load2(config, "chan_misdn", config_flags))) {
 		ast_log(LOG_WARNING, "missing file: misdn.conf\n");
 		return -1;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
@@ -1149,7 +1146,7 @@ int misdn_cfg_init(int this_max_ports, int reload)
 	_fill_defaults();
 
 	misdn_cfg_unlock();
-	AST_DESTROY_CFG(cfg);
+	ast_config_destroy(cfg);
 
 	return 0;
 }
