@@ -497,4 +497,6 @@ iLBC Codec:
   to extract the source code from the RFC file where it has been
   published; after you have done that, copy the resulting *.c and *.h
   files into the codecs/ilbc directory of the Asterisk source code
-  tree and follow your normal steps of building Asterisk.
+  tree and follow your normal steps of building Asterisk. You will
+  need to run 'menuselect' and enable the iLBC codec in the 'Codec
+  Translators' category.
