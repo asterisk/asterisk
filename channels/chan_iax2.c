@@ -488,6 +488,8 @@ struct chan_iax2_pvt {
 	unsigned int last;
 	/*! Last sent timestamp - never send the same timestamp twice in a single call */
 	unsigned int lastsent;
+	/*! Timestamp of the last video frame sent */
+	unsigned int lastvsent;
 	/*! Next outgoing timestamp if everything is good */
 	unsigned int nextpred;
 	/*! True if the last voice we transmitted was not silence/CNG */
@@ -4084,6 +4086,17 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 				p->nextpred = ms;
 				p->notsilenttx = 1;
 			}
+		} else if ( f->frametype == AST_FRAME_VIDEO ) {
+			/*
+			* IAX2 draft 03 says that timestamps MUST be in order.
+			* It does not say anything about several frames having the same timestamp
+			* When transporting video, we can have a frame that spans multiple iax packets
+			* (so called slices), so it would make sense to use the same timestamp for all of
+			* them
+			* We do want to make sure that frames don't go backwards though
+			*/
+			if ( (unsigned int)ms < p->lastsent )
+				ms = p->lastsent;
 		} else {
 			/* On a dataframe, use last value + 3 (to accomodate jitter buffer shrinking) if appropriate unless
 			   it's a genuine frame */
@@ -4467,11 +4480,22 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			/* Mark that mini-style frame is appropriate */
 			sendmini = 1;
 	}
-	if (((fts & 0xFFFF8000L) == (lastsent & 0xFFFF8000L)) && 
-		(f->frametype == AST_FRAME_VIDEO) &&
-		((f->subclass & ~0x1) == pvt->svideoformat)) {
+	if ( f->frametype == AST_FRAME_VIDEO ) {
+		/*
+		 * If the lower 15 bits of the timestamp roll over, or if
+		 * the video format changed then send a full frame.
+		 * Otherwise send a mini video frame
+		 */
+		if (((fts & 0xFFFF8000L) == (pvt->lastvsent & 0xFFFF8000L)) &&
+		    ((f->subclass & ~0x1) == pvt->svideoformat)
+		   ) {
 			now = 1;
 			sendmini = 1;
+		} else {
+			now = 0;
+			sendmini = 0;
+		}
+		pvt->lastvsent = fts;
 	}
 	/* Allocate an iax_frame */
 	if (now) {
