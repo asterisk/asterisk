@@ -13146,8 +13146,9 @@ struct __show_chan_arg {
 	int numchans;   /* return value */
 };
 
-#define FORMAT3 "%-15.15s  %-10.10s  %-15.15s  %-15.15s  %-13.13s  %-15.15s %-10.10s\n"
-#define FORMAT2 "%-15.15s  %-10.10s  %-15.15s  %-15.15s  %-7.7s  %-15.15s\n"
+#define FORMAT4 "%-15.15s  %-10.10s  %-15.15s  %-15.15s  %-13.13s  %-15.15s %-10.10s %-6.6d\n"
+#define FORMAT3 "%-15.15s  %-10.10s  %-15.15s  %-15.15s  %-13.13s  %-15.15s %-10.10s %-6.6s\n"
+#define FORMAT2 "%-15.15s  %-10.10s  %-15.15s  %-15.15s  %-7.7s  %-15.15s %-6.6s\n"
 #define FORMAT  "%-15.15s  %-10.10s  %-15.15s  %-15.15s  %-3.3s %-3.3s  %-15.15s %-10.10s\n"
 
 /*! \brief callback for show channel|subscription */
@@ -13178,14 +13179,15 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 			struct ast_str *mailbox_str = ast_str_alloca(512);
 			if (cur->subscribed == MWI_NOTIFICATION && cur->relatedpeer)
 				peer_mailboxes_to_str(&mailbox_str, cur->relatedpeer);
-			ast_cli(arg->fd, FORMAT3, ast_inet_ntoa(dst->sin_addr),
+			ast_cli(arg->fd, FORMAT4, ast_inet_ntoa(dst->sin_addr),
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")), 
 			   	cur->callid,
 				/* the 'complete' exten/context is hidden in the refer_to field for subscriptions */
 				cur->subscribed == MWI_NOTIFICATION ? "--" : cur->subscribeuri,
 				cur->subscribed == MWI_NOTIFICATION ? "<none>" : ast_extension_state2str(cur->laststate), 
 				subscription_type2str(cur->subscribed),
-				cur->subscribed == MWI_NOTIFICATION ? S_OR(mailbox_str->str, "<none>") : "<none>"
+				cur->subscribed == MWI_NOTIFICATION ? S_OR(mailbox_str->str, "<none>") : "<none>",
+				cur->expiry
 );
 			arg->numchans++;
 		}
@@ -13218,9 +13220,9 @@ static char *sip_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 	arg.subscriptions = !strcasecmp(a->argv[e->args - 1], "subscriptions");
 	if (!arg.subscriptions)
-		ast_cli(arg.fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Format", "Hold", "Last Message");
+		ast_cli(arg.fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Format", "Hold", "Last Message", "Expiry");
 	else
-		ast_cli(arg.fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type", "Mailbox");
+		ast_cli(arg.fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type", "Mailbox", "Expiry");
 
 	/* iterate on the container and invoke the callback on each item */
 	dialoglist_lock();
