@@ -12,12 +12,15 @@
 
 OUTPUT=$HOME/digiuminfo
 
-if [ $UID -ne  0 ]; then
+MYUID=$(id -u);
+
+if [ $MYUID -ne  0 ]; then
 
   echo "You must be root to run this."
- 
-exit 1
+  exit 1
 fi
+
+clear
 
 echo
 echo "This will gather information about your system such as:"
@@ -31,9 +34,16 @@ if [ "$ans" = "y" ]; then
   rm -f $OUTPUT
 
   echo "------------------" >> $OUTPUT;
-  echo "PCI LIST " >> $OUTPUT;
+  echo "PCI LIST" >> $OUTPUT;
   echo "------------------" >> $OUTPUT;
-  lspci -vb >> $OUTPUT;
+  lspci -vvvb >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "PCI LIST(no lookup)" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  lspci -vvvbn >> $OUTPUT;
   echo >> $OUTPUT;
   echo >> $OUTPUT;
 
@@ -41,13 +51,6 @@ if [ "$ans" = "y" ]; then
   echo "INTERRUPTS" >> $OUTPUT;
   echo "------------------" >> $OUTPUT;
   cat /proc/interrupts >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "DMESG OUTPUT" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  dmesg >> $OUTPUT;
   echo >> $OUTPUT;
   echo >> $OUTPUT;
 
@@ -73,10 +76,44 @@ if [ "$ans" = "y" ]; then
   echo >> $OUTPUT;
 
   echo "------------------" >> $OUTPUT;
-  echo "HDPARM STATUS" >> $OUTPUT;
+  echo "VERSION INFO" >> $OUTPUT;
   echo "------------------" >> $OUTPUT;
-  hdparm /dev/hda >> $OUTPUT;
-  hdparm -i /dev/hda >> $OUTPUT;
+  cat /proc/version >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "CMDLINE INFO" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  cat /proc/cmdline >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "LOADED MODULES" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  lsmod >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "ZTTEST" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  zttest -c 20 >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "DMESG OUTPUT" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  dmesg >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "DMIDECODE" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  dmidecode >> $OUTPUT;
   echo >> $OUTPUT;
   echo >> $OUTPUT;
 
@@ -101,22 +138,18 @@ if [ "$ans" = "y" ]; then
   echo >> $OUTPUT;
   echo >> $OUTPUT;
 
-  echo "------------------" >> $OUTPUT;
-  echo "ZTTEST" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  /usr/src/zaptel/zttest -c 20 >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
 else
   echo "terminated";
 exit
 fi
 
+clear
+
 echo
 echo "Digium may require root level access to the system to help debug";
 echo "the problem you are experiencing. Do you want to provide login";
-echo "information at this time?";
+echo "information at this time? Please note that if you do so, change";
+echo "your root password to a secure temporary password for Digium support";
 echo "Press 'y' for yes and any other key to exit and save the previous info collected"
 read login
 
@@ -146,15 +179,17 @@ if [ "$login" = "y" ]; then
 
   echo "Additional login info: "$adinfo >> $OUTPUT
 
+  clear
   echo 
   echo "All information has been stored in $OUTPUT,"
-  echo "Please attach this file to an email ticket you already"
+  echo "Please attach this file to an email case you already"
   echo "have open with Digium Tech Support."
 
 else
+  clear
   echo
   echo "All information except login info has been stored in $OUTPUT,"
-  echo "Please send this file to an email ticket you already"
+  echo "Please send this file to an email case you already"
   echo "have open with Digium Tech Support."
 exit
 fi
