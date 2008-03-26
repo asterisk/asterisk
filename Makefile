@@ -845,7 +845,7 @@ menuselect/gmenuselect: menuselect/makeopts
 menuselect/nmenuselect: menuselect/makeopts
 	$(MAKE_MENUSELECT) nmenuselect
 
-menuselect/makeopts: makeopts
+menuselect/makeopts:
 	$(MAKE_MENUSELECT) makeopts
 
 menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml build_tools/cflags-devmode.xml sounds/sounds.xml build_tools/embed_modules.xml configure
