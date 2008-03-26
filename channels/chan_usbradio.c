@@ -1210,8 +1210,6 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 	if (o->dsp) {
 		f1 = ast_dsp_process(c, o->dsp, f);
 		if ((f1->frametype == AST_FRAME_DTMF_END) || (f1->frametype == AST_FRAME_DTMF_BEGIN)) {
-			if ((f1->subclass == 'm') || (f1->subclass == 'u'))
-			    f1->frametype = AST_FRAME_DTMF_BEGIN;
 			if (f1->frametype == AST_FRAME_DTMF_END)
 			    ast_log(LOG_NOTICE,"Got DTMF char %c\n",f1->subclass);
 			return f1;

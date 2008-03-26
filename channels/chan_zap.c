@@ -706,6 +706,7 @@ static struct zt_pvt {
 	unsigned int loopedback:1;
 #endif
 	char begindigit;
+	int muting;
 } *iflist = NULL, *ifend = NULL;
 
 /*! \brief Channel configuration from zapata.conf .
@@ -2988,6 +2989,7 @@ static int zt_hangup(struct ast_channel *ast)
 
 	x = 0;
 	zt_confmute(p, 0);
+	p->muting = 0;
 	restore_gains(p);
 	if (p->origcid_num) {
 		ast_copy_string(p->cid_num, p->origcid_num, sizeof(p->cid_num));
@@ -4232,8 +4234,7 @@ static void zt_handle_dtmfup(struct ast_channel *ast, int index, struct ast_fram
 				ast_free(p->cidspill);
 			send_cwcidspill(p);
 		}
-		if ((f->subclass != 'm') && (f->subclass != 'u')) 
-			p->callwaitcas = 0;
+		p->callwaitcas = 0;
 		p->subs[index].f.frametype = AST_FRAME_NULL;
 		p->subs[index].f.subclass = 0;
 		*dest = &p->subs[index].f;
@@ -4260,20 +4261,7 @@ static void zt_handle_dtmfup(struct ast_channel *ast, int index, struct ast_fram
 		p->subs[index].f.frametype = AST_FRAME_NULL;
 		p->subs[index].f.subclass = 0;
 		*dest = &p->subs[index].f;
-	} else if (f->subclass == 'm') {
-		/* Confmute request */
-		zt_confmute(p, 1);
-		p->subs[index].f.frametype = AST_FRAME_NULL;
-		p->subs[index].f.subclass = 0;
-		*dest = &p->subs[index].f;		
-	} else if (f->subclass == 'u') {
-		/* Unmute */
-		zt_confmute(p, 0);
-		p->subs[index].f.frametype = AST_FRAME_NULL;
-		p->subs[index].f.subclass = 0;
-		*dest = &p->subs[index].f;		
-	} else
-		zt_confmute(p, 0);
+	}
 }
 			
 static struct ast_frame *zt_handle_event(struct ast_channel *ast)
@@ -5463,7 +5451,17 @@ static struct ast_frame  *zt_read(struct ast_channel *ast)
 	}
 	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect  || p->callprogress) && !index) {
 		/* Perform busy detection. etc on the zap line */
+		int mute;
+
 		f = ast_dsp_process(ast, p->dsp, &p->subs[index].f);
+
+		/* Check if DSP code thinks we should be muting this frame and mute the conference if so */
+		mute = ast_dsp_was_muted(p->dsp);
+		if (p->muting != mute) {
+			p->muting = mute;
+			zt_confmute(p, mute);
+		}
+
 		if (f) {
 			if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_BUSY)) {
 				if ((ast->_state == AST_STATE_UP) && !p->outgoing) {
@@ -5996,6 +5994,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	i->fake_event = 0;
 	/* Assure there is no confmute on this channel */
 	zt_confmute(i, 0);
+	i->muting = 0;
 	/* Configure the new channel jb */
 	ast_jb_configure(tmp, &global_jbconf);
 

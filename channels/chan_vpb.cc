@@ -2400,14 +2400,6 @@ static void *do_chanreads(void *pvt)
 				fr = ast_dsp_process(p->owner,p->vad,fr);
 				if (fr && (fr->frametype == AST_FRAME_DTMF))
 					ast_debug(1, "%s: chanreads: Detected DTMF '%c'\n", p->dev, fr->subclass);
-				if (fr->subclass == 'm') {
-					/* conf mute request */
-					fr->frametype = AST_FRAME_NULL;
-					fr->subclass = 0;
-				} else if (fr->subclass == 'u') {
-					/* Unmute */
-					fr->frametype = AST_FRAME_NULL;
-					fr->subclass = 0;
 				} else if (fr->subclass == 'f') {
 				}
 			}

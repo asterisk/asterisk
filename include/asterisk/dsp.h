@@ -120,6 +120,10 @@ int ast_dsp_set_digitmode(struct ast_dsp *dsp, int digitmode);
 /*! \brief Set fax mode */
 int ast_dsp_set_faxmode(struct ast_dsp *dsp, int faxmode);
 
+/*! \brief Returns true if DSP code was muting any fragment of the last processed frame.
+  Muting (squelching) happens when DSP code removes DTMF/MF/generic tones from the audio */
+int ast_dsp_was_muted(struct ast_dsp *dsp);
+
 /*! \brief Get tstate (Tone State) */
 int ast_dsp_get_tstate(struct ast_dsp *dsp);
 
