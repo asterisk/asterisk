@@ -9031,7 +9031,7 @@ static void vmstate_delete(struct vm_state *vms)
 	if (!vf) {
 		ast_log(LOG_ERROR, "No vmstate found for user:%s, mailbox %s\n",vms->imapuser,vms->username);
 	} else {
-		ast_mutex_destroy(&vms->lock);
+		ast_mutex_destroy(&vf->vms->lock);
 		free(vf);
 	}
 	ast_mutex_unlock(&vmstate_lock);
