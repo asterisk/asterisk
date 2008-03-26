@@ -339,3 +339,4 @@ Changes since Asterisk 1.2:
          1. aelparse -- compile .ael files outside of asterisk
     * New manager events:
          1. OriginateResponse event comes to replace OriginateSuccess and OriginateFailure
+    * iLBC source code no longer included (see UPGRADE.txt for details)
