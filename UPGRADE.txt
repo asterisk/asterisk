@@ -195,15 +195,8 @@ iLBC Codec:
   (http://www.gipscorp.com). This code is not licensed for
   distribution, and thus has been removed from the Asterisk source
   code distribution. If you wish to use codec_ilbc to support iLBC
-  channels in Asterisk, you must go to:
-
-  http://ilbcfreeware.org
-
-  and obtain the iLBC source code from that site, including agreeing
-  to the license agreement specified. The site has instructions on how
-  to extract the source code from the RFC file where it has been
-  published; after you have done that, copy the resulting *.c and *.h
-  files into the codecs/ilbc directory of the Asterisk source code
-  tree and follow your normal steps of building Asterisk. You will
-  need to run 'menuselect' and enable the iLBC codec in the 'Codec
-  Translators' category.
+  channels in Asterisk, you can run the contrib/scripts/get_ilbc_source.sh
+  script to download the source and put it in the proper place in
+  the Asterisk build tree. Once that is done you can follow your normal
+  steps of building Asterisk. You will need to run 'menuselect' and enable
+  the iLBC codec in the 'Codec  Translators' category.
