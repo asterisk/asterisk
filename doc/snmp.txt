@@ -6,10 +6,24 @@ this, one needs to have Net-SNMP development headers and libraries on
 the build system, including any libraries Net-SNMP depends on.
 
 Note that on some (many?) Linux-distributions the dependency list in
-the net-snmp-devel list is not complete, and additional RPMs will need
-to be installed.  This is typically seen as attempts to build res_snmp
-as net-snmp-devel is available, but then fails to find certain
-libraries.  The packages may include the following:
+the net-snmp-devel list is not complete, and additional packages will 
+need to be installed.  This is usually seen as configure failing to 
+detect net-snmp-devel as the configure script does a sanity check of 
+the net-snmp build environment, based on the output of 
+'net-snmp-config --agent-libs'.  
+
+To see what your distribution requires, run 'net-snmp-config --agent-libs'.
+
+You will receive a response similar to the following:
+-L/usr/lib -lnetsnmpmibs -lnetsnmpagent -lnetsnmphelpers -lnetsnmp -ldl 
+-lrpm -lrpmio -lpopt -lz -lcrypto -lm -lsensors -L/usr/lib/lib -lwrap 
+-Wl,-E -Wl,-rpath,/usr/lib/perl5/5.8.8/i386-linux-thread-multi/CORE 
+-L/usr/local/lib 
+/usr/lib/perl5/5.8.8/i386-linux-thread-multi/auto/DynaLoader/DynaLoader.a 
+-L/usr/lib/perl5/5.8.8/i386-linux-thread-multi/CORE -lperl -lresolv -lnsl 
+-ldl -lm -lcrypt -lutil -lpthread -lc
+
+The packages required may include the following:
 	* bzip2-devel
 	* lm_sensors-devel
 	* newt-devel
