@@ -184,3 +184,21 @@ Manager:
 * The Originate command now requires the Originate write permission.  For
    Originate with the Application parameter, you need the additional System
    privilege if you want to do anything that calls out to a subshell.
+
+iLBC Codec:
+
+* Previously, the Asterisk source code distribution included the iLBC
+  encoder/decoder source code, from Global IP Solutions
+  (http://www.gipscorp.com). This code is not licensed for
+  distribution, and thus has been removed from the Asterisk source
+  code distribution. If you wish to use codec_ilbc to support iLBC
+  channels in Asterisk, you must go to:
+
+  http://ilbcfreeware.org
+
+  and obtain the iLBC source code from that site, including agreeing
+  to the license agreement specified. The site has instructions on how
+  to extract the source code from the RFC file where it has been
+  published; after you have done that, copy the resulting *.c and *.h
+  files into the codecs/ilbc directory of the Asterisk source code
+  tree and follow your normal steps of building Asterisk.
