@@ -600,4 +600,4 @@ Miscellaneous
   * Added a compiler flag, CHANNEL_TRACE, which permits channel tracing to be
      turned on, via the CHANNEL(trace) dialplan function.  Could be useful for
      dialplan debugging.
-
+  * iLBC source code no longer included (see UPGRADE.txt for details)
