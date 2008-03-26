@@ -1330,7 +1330,7 @@ static int do_reload(int reload)
 	int res=0;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if ((config = ast_config_load("cdr.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+	if ((config = ast_config_load2("cdr.conf", "cdr", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 
 	ast_mutex_lock(&cdr_batch_lock);

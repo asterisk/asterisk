@@ -48,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/features.h"
 #include "asterisk/dsp.h"
+#include "asterisk/udptl.h"
 
 #ifdef DLFCNCOMPAT
 #include "asterisk/dlfcn-compat.h"
@@ -251,6 +252,7 @@ static struct reload_classes {
 	{ "logger",	logger_reload },
 	{ "features",	ast_features_reload },
 	{ "dsp",	ast_dsp_reload},
+	{ "udptl",	ast_udptl_reload },
 	{ NULL, 	NULL }
 };
 
@@ -786,7 +788,7 @@ int load_modules(unsigned int preload_only)
 		embedded_module_list.first = NULL;
 	}
 
-	if (!(cfg = ast_config_load(AST_MODULE_CONFIG, config_flags))) {
+	if (!(cfg = ast_config_load2(AST_MODULE_CONFIG, "" /* core, can't reload */, config_flags))) {
 		ast_log(LOG_WARNING, "No '%s' found, no modules will be loaded.\n", AST_MODULE_CONFIG);
 		goto done;
 	}

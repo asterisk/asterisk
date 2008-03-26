@@ -1087,7 +1087,7 @@ static int __ast_http_load(int reload)
 	struct http_uri_redirect *redirect;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if ((cfg = ast_config_load("http.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
+	if ((cfg = ast_config_load2("http.conf", "http", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
 	}
 

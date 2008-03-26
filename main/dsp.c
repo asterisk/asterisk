@@ -1548,7 +1548,7 @@ static int _dsp_init(int reload)
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_config *cfg;
 
-	cfg = ast_config_load(CONFIG_FILE_NAME, config_flags);
+	cfg = ast_config_load2(CONFIG_FILE_NAME, "dsp", config_flags);
 
 	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED) {
 		const char *value;

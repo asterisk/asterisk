@@ -118,7 +118,7 @@ void ast_udptl_stop(struct ast_udptl *udptl);
 
 void ast_udptl_init(void);
 
-void ast_udptl_reload(void);
+int ast_udptl_reload(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

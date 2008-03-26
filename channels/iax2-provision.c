@@ -497,7 +497,7 @@ int iax_provision_reload(int reload)
 		cur->dead = 1;
 		cur = cur->next;
 	}
-	cfg = ast_config_load("iaxprov.conf", config_flags);
+	cfg = ast_config_load2("iaxprov.conf", "chan_iax2", config_flags);
 	if (cfg != NULL && cfg != CONFIG_STATUS_FILEUNCHANGED) {
 		/* Load as appropriate */
 		cat = ast_category_browse(cfg, NULL);

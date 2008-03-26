@@ -1089,7 +1089,7 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Filename not specified");
 		return 0;
 	}
-	if (!(cfg = ast_config_load(fn, config_flags))) {
+	if (!(cfg = ast_config_load2(fn, "manager", config_flags))) {
 		astman_send_error(s, m, "Config file not found");
 		return 0;
 	}
@@ -1130,7 +1130,7 @@ static int action_listcategories(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Filename not specified");
 		return 0;
 	}
-	if (!(cfg = ast_config_load(fn, config_flags))) {
+	if (!(cfg = ast_config_load2(fn, "manager", config_flags))) {
 		astman_send_error(s, m, "Config file not found or file has invalid syntax");
 		return 0;
 	}
@@ -1184,7 +1184,7 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (!(cfg = ast_config_load(fn, config_flags))) {
+	if (!(cfg = ast_config_load2(fn, "manager", config_flags))) {
 		astman_send_error(s, m, "Config file not found");
 		return 0;
 	}
@@ -1355,7 +1355,7 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Filename not specified");
 		return 0;
 	}
-	if (!(cfg = ast_config_load(sfn, config_flags))) {
+	if (!(cfg = ast_config_load2(sfn, "manager", config_flags))) {
 		astman_send_error(s, m, "Config file not found");
 		return 0;
 	}
@@ -3757,7 +3757,7 @@ static int __init_manager(int reload)
 		/* Append placeholder event so master_eventq never runs dry */
 		append_event("Event: Placeholder\r\n\r\n", 0);
 	}
-	if ((cfg = ast_config_load("manager.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+	if ((cfg = ast_config_load2("manager.conf", "manager", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 
 	displayconnects = 1;
@@ -3839,7 +3839,7 @@ static int __init_manager(int reload)
 	AST_RWLIST_WRLOCK(&users);
 
 	/* First, get users from users.conf */
-	ucfg = ast_config_load("users.conf", config_flags);
+	ucfg = ast_config_load2("users.conf", "manager", config_flags);
 	if (ucfg && (ucfg != CONFIG_STATUS_FILEUNCHANGED)) {
 		const char *hasmanager;
 		int genhasmanager = ast_true(ast_variable_retrieve(ucfg, "general", "hasmanager"));

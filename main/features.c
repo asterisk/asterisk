@@ -2594,7 +2594,7 @@ static int load_config(void)
 	atxferdropcall = DEFAULT_ATXFER_DROP_CALL;
 	atxfercallbackretries = DEFAULT_ATXFER_CALLBACK_RETRIES;
 
-	cfg = ast_config_load("features.conf", config_flags);
+	cfg = ast_config_load2("features.conf", "features", config_flags);
 	if (!cfg) {
 		ast_log(LOG_WARNING,"Could not load features.conf\n");
 		return 0;

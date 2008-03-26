@@ -606,7 +606,7 @@ static int private_enum_init(int reload)
 	struct ast_variable *v;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if ((cfg = ast_config_load("enum.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+	if ((cfg = ast_config_load2("enum.conf", "enum", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 
 	/* Destroy existing list */

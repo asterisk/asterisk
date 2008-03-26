@@ -2509,11 +2509,11 @@ static void ast_readconfig(void)
 	} found = { 0, 0 };
 
 	if (ast_opt_override_config) {
-		cfg = ast_config_load(ast_config_AST_CONFIG_FILE, config_flags);
+		cfg = ast_config_load2(ast_config_AST_CONFIG_FILE, "" /* core, can't reload */, config_flags);
 		if (!cfg)
 			ast_log(LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", ast_config_AST_CONFIG_FILE);
 	} else 
-		cfg = ast_config_load(config, config_flags);
+		cfg = ast_config_load2(config, "" /* core, can't reload */, config_flags);
 
 	/* init with buildtime config */
 	ast_copy_string(cfg_paths.config_dir, DEFAULT_CONFIG_DIR, sizeof(cfg_paths.config_dir));
@@ -2756,7 +2756,7 @@ static void run_startup_commands(void)
 	struct ast_flags cfg_flags = { 0 };
 	struct ast_variable *v;
 
-	if (!(cfg = ast_config_load("cli.conf", cfg_flags)))
+	if (!(cfg = ast_config_load2("cli.conf", "" /* core, can't reload */, cfg_flags)))
 		return;
 
 	fd = open("/dev/null", O_RDWR);

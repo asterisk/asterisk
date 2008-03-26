@@ -97,7 +97,7 @@ struct ast_config_engine {
  */
 struct ast_config *ast_config_load2(const char *filename, const char *who_asked, struct ast_flags flags);
 
-#define ast_config_load(filename, flags)	ast_config_load2(filename, __FILE__, flags)
+#define ast_config_load(filename, flags)	ast_config_load2(filename, AST_MODULE, flags)
 
 /*! \brief Destroys a config 
  * \param config pointer to config data structure

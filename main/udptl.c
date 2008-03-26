@@ -1224,7 +1224,7 @@ static void __ast_udptl_reload(int reload)
 	const char *s;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if ((cfg = ast_config_load("udptl.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+	if ((cfg = ast_config_load2("udptl.conf", "udptl", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
 		return;
 
 	udptlstart = 4500;
@@ -1297,9 +1297,10 @@ static void __ast_udptl_reload(int reload)
 	ast_verb(2, "UDPTL allocating from port range %d -> %d\n", udptlstart, udptlend);
 }
 
-void ast_udptl_reload(void)
+int ast_udptl_reload(void)
 {
 	__ast_udptl_reload(1);
+	return 0;
 }
 
 void ast_udptl_init(void)

@@ -360,7 +360,7 @@ static int do_reload(int loading)
 	int was_enabled;
 	int res = -1;
 
-	if ((config = ast_config_load("dnsmgr.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+	if ((config = ast_config_load2("dnsmgr.conf", "dnsmgr", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 
 	/* ensure that no refresh cycles run while the reload is in progress */

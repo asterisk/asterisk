@@ -325,7 +325,7 @@ static void init_logger_chain(int reload, int locked)
 	const char *s;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if ((cfg = ast_config_load("logger.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+	if ((cfg = ast_config_load2("logger.conf", "logger", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
 		return;
 
 	/* delete our list of log channels */
