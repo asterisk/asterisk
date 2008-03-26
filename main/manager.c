@@ -3714,6 +3714,8 @@ static int __init_manager(int reload)
 	struct ast_variable *var;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
+	manager_enabled = 0;
+
 	if (!registered) {
 		/* Register default actions */
 		ast_manager_register2("Ping", 0, action_ping, "Keepalive command", mandescr_ping);
