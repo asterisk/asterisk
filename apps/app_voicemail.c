@@ -416,6 +416,7 @@ struct vm_state {
 	int starting;
 	int repeats;
 #ifdef IMAP_STORAGE
+	ast_mutex_t lock;
 	int updated;                         /*!< decremented on each mail check until 1 -allows delay */
 	long msgArray[256];
 	MAILSTREAM *mailstream;
@@ -5042,7 +5043,9 @@ static int init_mailstream(struct vm_state *vms, int box)
 #endif
 		/* Connect to mailbox to get mailstream so we can get delimiter */ 
 		imap_mailbox_name(tmp, sizeof(tmp), vms, 0, 1);
+		ast_mutex_lock(&vms->lock);
 		stream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
+		ast_mutex_unlock(&vms->lock);
 		if (stream == NIL) {
 			ast_log(LOG_ERROR, "Can't connect to imap server %s\n", tmp);
 			return -1;
@@ -5057,7 +5060,9 @@ static int init_mailstream(struct vm_state *vms, int box)
 	/* Now connect to the target folder */
 	imap_mailbox_name(tmp, sizeof(tmp), vms, box, 1);
 	ast_debug(3, "Before mail_open, server: %s, box:%d\n", tmp, box);
-	vms->mailstream = mail_open(stream, tmp, debug ? OP_DEBUG : NIL);
+	ast_mutex_lock(&vms->lock);
+	vms->mailstream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
+	ast_mutex_unlock(&vms->lock);
 	if (vms->mailstream == NIL) {
 		return -1;
 	} else {
@@ -9793,8 +9798,10 @@ static void vmstate_delete(struct vm_state *vms)
 	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&vmstates);
 	
-	if (vc)
+	if (vc) {
+		ast_mutex_destroy(&vms->lock);
 		ast_free(vc);
+	}
 	else
 		ast_log(LOG_ERROR, "No vmstate found for user:%s, mailbox %s\n", vms->imapuser, vms->username);
 }
@@ -9823,6 +9830,7 @@ static void init_vm_state(struct vm_state *vms)
 	for (x = 0; x < 256; x++) {
 		vms->msgArray[x] = 0;
 	}
+	ast_mutex_init(&vms->lock);
 }
 
 static void check_msgArray(struct vm_state *vms) 
