@@ -878,7 +878,7 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 		cfmtime->who_asked = cfmtime->filename + strlen(configfile) + 1;
 		strcpy(cfmtime->who_asked, who_asked);
 		/* Note that the file mtime is initialized to 0, i.e. 1970 */
-		AST_LIST_INSERT_TAIL(&cfmtime_head, cfmtime, list);
+		AST_LIST_INSERT_SORTALPHA(&cfmtime_head, cfmtime, list, filename);
 	}
 
 	if (!stat(configfile, &statbuf))
@@ -1211,7 +1211,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				cfmtime->who_asked = cfmtime->filename + strlen(fn) + 1;
 				strcpy(cfmtime->who_asked, who_asked);
 				/* Note that the file mtime is initialized to 0, i.e. 1970 */
-				AST_LIST_INSERT_TAIL(&cfmtime_head, cfmtime, list);
+				AST_LIST_INSERT_SORTALPHA(&cfmtime_head, cfmtime, list, filename);
 			}
 		}
 

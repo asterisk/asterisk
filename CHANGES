@@ -31,6 +31,12 @@ SIP Changes
  * The ATTENDED_TRANSFER_COMPLETE_SOUND can now be set using setvar to cause a given
    audio file to be played upon completion of an attended transfer.
 
+CLI Changes
+-----------
+  * New CLI command, "config reload <file.conf>" which reloads any module that
+     references that particular configuration file.  Also added "config list"
+     which shows which configuration files are in use.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------
 ------------------------------------------------------------------------------
@@ -135,9 +141,6 @@ CLI Changes
   * Added a CLI command, "devstate change", which allows you to set custom device
      states from the func_devstate module that provides the DEVICE_STATE() function
      and handling of the "Custom:" devices.
-  * New CLI command, "config reload <file.conf>" which reloads any module that
-     references that particular configuration file.  Also added "config list"
-     which shows which configuration files are in use.
 
 SIP changes
 -----------
