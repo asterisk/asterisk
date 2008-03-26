@@ -2348,12 +2348,7 @@ static char *handle_cli_core_show_config_mappings(struct ast_cli_entry *e, int c
 static char *handle_cli_config_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct cache_file_mtime *cfmtime;
-	struct seenlist {
-		AST_LIST_ENTRY(seenlist) list;
-		char filename[0];
-	} *seenlist;
-	AST_LIST_HEAD_NOLOCK(, seenlist) seenhead = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
-	char *completion_value = NULL;
+	char *prev = "", *completion_value = NULL;
 	int wordlen, which = 0;
 
 	switch (cmd) {
@@ -2372,15 +2367,13 @@ static char *handle_cli_config_reload(struct ast_cli_entry *e, int cmd, struct a
 
 		AST_LIST_LOCK(&cfmtime_head);
 		AST_LIST_TRAVERSE(&cfmtime_head, cfmtime, list) {
-			int seen = 0;
-			AST_LIST_TRAVERSE(&seenhead, seenlist, list) {
-				if (strcmp(seenlist->filename, cfmtime->filename) == 0) {
-					seen = 1;
-					break;
-				}
+			/* Skip duplicates - this only works because the list is sorted by filename */
+			if (strcmp(cfmtime->filename, prev) == 0) {
+				continue;
 			}
 
-			if (seen) {
+			/* Core configs cannot be reloaded */
+			if (ast_strlen_zero(cfmtime->who_asked)) {
 				continue;
 			}
 
@@ -2390,18 +2383,9 @@ static char *handle_cli_config_reload(struct ast_cli_entry *e, int cmd, struct a
 			}
 
 			/* Otherwise save that we've seen this filename */
-			if (!(seenlist = ast_malloc(sizeof(*seenlist) + strlen(cfmtime->filename) + 1))) {
-				break;
-			}
-			strcpy(seenlist->filename, cfmtime->filename);
-			AST_LIST_INSERT_HEAD(&seenhead, seenlist, list);
+			prev = cfmtime->filename;
 		}
 		AST_LIST_UNLOCK(&cfmtime_head);
-
-		/* Remove seenlist */
-		while ((seenlist = AST_LIST_REMOVE_HEAD(&seenhead, list))) {
-			ast_free(seenlist);
-		}
 
 		return completion_value;
 	}
@@ -2440,7 +2424,7 @@ static char *handle_cli_config_list(struct ast_cli_entry *e, int cmd, struct ast
 
 	AST_LIST_LOCK(&cfmtime_head);
 	AST_LIST_TRAVERSE(&cfmtime_head, cfmtime, list) {
-		ast_cli(a->fd, "%-20.20s %-50s\n", cfmtime->who_asked, cfmtime->filename);
+		ast_cli(a->fd, "%-20.20s %-50s\n", S_OR(cfmtime->who_asked, "core"), cfmtime->filename);
 	}
 	AST_LIST_UNLOCK(&cfmtime_head);
 

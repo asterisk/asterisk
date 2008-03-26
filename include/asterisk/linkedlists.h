@@ -712,15 +712,12 @@ struct {								\
 			prev = cur;                                             \
 			cur = cur->field.next;                                  \
 		}                                                           \
-		if (!prev) {       /* Same as INSERT_HEAD */                \
-			(elm)->field.next = (head)->first;                      \
-			(head)->first = (elm);                                  \
-		} else if (!cur) { /* Same as INSERT_TAIL */                \
-			(head)->last->field.next = (elm);                       \
-			(head)->last = (elm);                                   \
+		if (!prev) {                                                \
+			AST_LIST_INSERT_HEAD(head, elm, field);                 \
+		} else if (!cur) {                                          \
+			AST_LIST_INSERT_TAIL(head, elm, field);                 \
 		} else {                                                    \
-			(elm)->field.next = cur;                                \
-			(prev)->field.next = (elm);                             \
+			AST_LIST_INSERT_AFTER(head, prev, elm, field);          \
 		}                                                           \
 	}                                                               \
 } while (0)
