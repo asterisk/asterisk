@@ -8802,7 +8802,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		ast_channel_unlock(chan);
 	}
 	if (sdp) {
-		if (p->udptl && p->t38.state == T38_LOCAL_DIRECT) {
+		if (p->udptl && (p->t38.state == T38_LOCAL_DIRECT || p->t38.state == T38_LOCAL_REINVITE)) {
 			ast_udptl_offered_from_local(p->udptl, 1);
 			ast_debug(1, "T38 is in state %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
 			add_t38_sdp(&req, p);
