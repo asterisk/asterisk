@@ -9785,7 +9785,7 @@ static void vmstate_delete(struct vm_state *vms)
 	AST_LIST_UNLOCK(&vmstates);
 	
 	if (vc) {
-		ast_mutex_destroy(&vms->lock);
+		ast_mutex_destroy(&vc->vms->lock);
 		ast_free(vc);
 	}
 	else
