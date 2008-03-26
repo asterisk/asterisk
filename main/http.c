@@ -908,7 +908,7 @@ static void *httpd_helper_thread(void *data)
 		out = ast_http_error(501, "Not Implemented", NULL,
 				     "Attempt to use unimplemented / unsupported method");
 	} else {	/* try to serve it */
-		out = handle_uri(ser, uri, (strcasecmp(buf, "get")) ? AST_HTTP_GET : AST_HTTP_POST,
+		out = handle_uri(ser, uri, (!strcasecmp(buf, "get")) ? AST_HTTP_GET : AST_HTTP_POST,
 				 &status, &title, &contentlength, &vars, &static_content);
 	}
 
