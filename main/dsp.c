@@ -1301,7 +1301,11 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 	/* Initially we do not want to mute anything */
 	dsp->mute_fragments = 0;
 
-	res = __ast_dsp_silence_noise(dsp, shortdata, len, &silence, NULL);
+	/* Need to run the silence detection stuff for silence suppression and busy detection */
+	if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS) || (dsp->features & DSP_FEATURE_BUSY_DETECT)) {
+		res = __ast_dsp_silence_noise(dsp, shortdata, len, &silence, NULL);
+	}
+
 	if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS) && silence) {
 		memset(&dsp->f, 0, sizeof(dsp->f));
 		dsp->f.frametype = AST_FRAME_NULL;
