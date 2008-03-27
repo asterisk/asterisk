@@ -84,7 +84,6 @@ struct pval *find_context(char *name);
 struct pval *find_macro(char *name);
 struct ael_priority *new_prio(void);
 struct ael_extension *new_exten(void);
-void linkprio(struct ael_extension *exten, struct ael_priority *prio);
 void destroy_extensions(struct ael_extension *exten);
 void set_priorities(struct ael_extension *exten);
 void add_extensions(struct ael_extension *exten);
