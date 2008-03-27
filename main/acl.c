@@ -144,7 +144,7 @@ static int get_local_address(struct in_addr *ourip)
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__)
 		for (ifap = ifaphead; ifap; ifap = ifap->ifa_next) {
 
-			if (ifap->ifa_addr->sa_family == AF_INET) {
+			if (ifap->ifa_addr && ifap->ifa_addr->sa_family == AF_INET) {
 				sin = (const struct sockaddr_in *) ifap->ifa_addr;
 				score_address(sin, &best_addr, &best_score);
 				res = 0;
