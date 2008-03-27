@@ -288,6 +288,8 @@ static struct pbx_builtin {
 	"    n - Don't answer the channel before playing the files.\n"
 	"    m - Only break if a digit hit matches a one digit\n"
 	"          extension in the destination context.\n"
+	"See Also: Playback (application) -- Play sound file(s) to the channel,\n"
+    "                                    that cannot be interrupted\n"
 	},
 
 	{ "Busy", pbx_builtin_busy,
@@ -485,6 +487,7 @@ static struct pbx_builtin {
 	"  Options:\n"
 	"    m[(x)] - Provide music on hold to the caller while waiting for an extension.\n"
 	"               Optionally, specify the class for music on hold within parenthesis.\n"
+	"See Also: Playback(application), Background(application).\n"
 	},
 
 };
