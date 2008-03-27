@@ -107,6 +107,7 @@ struct ael_extension
 	char *hints;
 	int regexten;
 	int is_switch;
+	int has_switch;
 	
 	struct ast_context *context;
 	

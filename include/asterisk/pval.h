@@ -138,7 +138,7 @@ struct pval *find_context(char *name);
 struct pval *find_macro(char *name);
 struct ael_priority *new_prio(void);
 struct ael_extension *new_exten(void);
-void linkprio(struct ael_extension *exten, struct ael_priority *prio);
+void linkprio(struct ael_extension *exten, struct ael_priority *prio, struct ael_extension *mother_exten);
 void destroy_extensions(struct ael_extension *exten);
 /* static void linkexten(struct ael_extension *exten, struct ael_extension *add);
    static void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct ael_extension *mother_exten, struct ast_context *context ); */
