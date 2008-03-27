@@ -55,6 +55,8 @@ static char *descrip =
 "This application sets the following channel variable upon completion:\n"
 " PLAYBACKSTATUS    The status of the playback attempt as a text string, one of\n"
 "               SUCCESS | FAILED\n"
+"See Also: Background (application) -- for playing soundfiles that are interruptible\n"
+"          WaitExten (application) -- wait for digits from caller, optionally play music on hold\n"
 ;
 
 

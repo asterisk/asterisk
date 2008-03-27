@@ -463,6 +463,8 @@ static struct pbx_builtin {
 	"This application sets the following channel variable upon completion:\n"
 	" BACKGROUNDSTATUS    The status of the background attempt as a text string, one of\n"
 	"               SUCCESS | FAILED\n"
+	"See Also: Playback (application) -- Play sound file(s) to the channel,\n"
+	"                                    that cannot be interrupted\n"
 	},
 
 	{ "Busy", pbx_builtin_busy,
@@ -674,6 +676,7 @@ static struct pbx_builtin {
 	"  Options:\n"
 	"    m[(x)] - Provide music on hold to the caller while waiting for an extension.\n"
 	"               Optionally, specify the class for music on hold within parenthesis.\n"
+	"See Also: Playback(application), Background(application).\n"
 	},
 
 	{ "KeepAlive", pbx_builtin_keepalive,
