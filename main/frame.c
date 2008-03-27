@@ -85,6 +85,7 @@ struct ast_smoother {
 	int size;
 	int format;
 	int readdata;
+	int optimizablestream;
 	int flags;
 	float samplesperbyte;
 	struct ast_frame f;
