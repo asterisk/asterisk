@@ -74,14 +74,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  *
  * A new algorithm to do searching based on a 'compiled' pattern tree is introduced
  * here, and shows a fairly flat (constant) search time, even for over
- * 1000 patterns. Might Still needs some work-- there are some fine points of the matching
+ * 1000 patterns. Might Still need some work-- there are some fine points of the matching
  * spec about tie-breaking based on the characters in character sets, but this
  * should be do-able via the weight system currently being used.
  *
  * Also, using a hash table for context/priority name lookup can help prevent
- * the find_extension routines from absorbing exponential cpu cycles. I've tested
- * find_extension with red-black trees, which have O(log2(n)) speed. Right now,
- * I'm using hash tables, which do searches (ideally) in O(1) time.
+ * the find_extension routines from absorbing exponential cpu cycles as the number 
+ * of extensions grow. I've previously tested find_extension with red-black trees, 
+ * which have O(log2(n)) speed. Right now, I'm using hash tables, which do 
+ * searches (ideally) in O(1) time.
  *
  */
 
@@ -1025,10 +1026,11 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 			/* how many chars will the . match against? */
 			int i = 0;
 			const char *str2 = str;
-			while (*str2++) {
+			while (*str2 && *str2 != '/') {
+				str2++;
 				i++;
 			}
-			if (p->exten && !(*(str+1)))
+			if (p->exten && *str2 != '/')
 				update_scoreboard(score, length+i, spec+(i*p->specificity), p->exten, '.', callerid, p->deleted, p);
 			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
 				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid);
@@ -1038,10 +1040,11 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 			/* how many chars will the . match against? */
 			int i = 0;
 			const char *str2 = str;
-			while (*str2++) {
+			while (*str2 && *str2 != '/') {
+				str2++;
 				i++;
 			}
-			if (p->exten && !(*(str+1)))
+			if (p->exten && *str2 != '/')
 				update_scoreboard(score, length+1, spec+(p->specificity*i), p->exten, '!', callerid, p->deleted, p);
 			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
 				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid);
