@@ -186,7 +186,7 @@ static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, 
 	mtype = ftype2mtype(ftype, wkspace, sizeof(wkspace));
 	
 	/* Cap maximum length */
-	if ((len = strlen(uri) + strlen(ast_config_AST_DATA_DIR) + strlen("/static-http/") + 5)) {
+	if ((len = strlen(uri) + strlen(ast_config_AST_DATA_DIR) + strlen("/static-http/") + 5) > 1024) {
 		goto out403;
 	}
 		
