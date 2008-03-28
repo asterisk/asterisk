@@ -8308,15 +8308,15 @@ static void copy_request(struct sip_request *dst, const struct sip_request *src)
 	if (!dst->data && !(dst->data = ast_str_create(src->data->used)))
 		return;
 	else if (dst->data->len < src->data->used)
-		ast_str_make_space(&dst->data, src->data->used);
+		ast_str_make_space(&dst->data, src->data->used + 1); /* Account for null terminator needed */
 		
-	memcpy(dst->data->str, src->data->str, src->data->used);
+	ast_copy_string(dst->data->str, src->data->str, dst->data->len);
 	dst->data->used = src->data->used;
 	offset = ((void *)dst->data->str) - ((void *)src->data->str);
 	/* Now fix pointer arithmetic */
-	for (x=0; x < src->headers; x++)
+	for (x = 0; x < src->headers; x++)
 		dst->header[x] += offset;
-	for (x=0; x < src->lines; x++)
+	for (x = 0; x < src->lines; x++)
 		dst->line[x] += offset;
 	/* On some occasions this function is called without parse_request being called first so lets not create an invalid pointer */
 	if (src->rlPart1)
