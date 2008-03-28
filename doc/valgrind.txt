@@ -13,7 +13,14 @@ of information about the crash.
 3.  Run Asterisk as follows:
 	valgrind --log-file-exactly=valgrind.txt asterisk -vvvvcg 2>malloc_debug.txt
 
+	UPDATE:  The newest version of valgrind has eliminated the
+	--log-file-exactly option.  If you are running valgrind 3.3.0 or higher,
+	just use the --log-file option, keeping in mind that Valgrind will append
+	a trailing suffix onto valgrind.txt.
+
 4.  Reproduce the issue.  Following the manifestation of the issue (or when
 	the process crashes), upload the two files, valgrind.txt and
-	malloc_debug.txt to the issue tracker.
+	malloc_debug.txt to the issue tracker.  If you are using the --log-file
+	option, note that valgrind.txt will have a trailing suffix.  That's fine,
+	just upload that file.
 
