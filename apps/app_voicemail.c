@@ -1710,6 +1710,15 @@ static int copy(char *infile, char *outfile)
 #endif
 }
 
+/*!
+ * \brief Copies a voicemail information (envelope) file.
+ * \param frompath
+ * \param topath 
+ *
+ * Every voicemail has the data (.wav) file, and the information file.
+ * This function performs the file system copying of the information file for a voicemail, handling the internal fields and their values.
+ * This is used by the COPY macro when not using IMAP storage.
+ */
 static void copy_plain_file(char *frompath, char *topath)
 {
 	char frompath2[PATH_MAX], topath2[PATH_MAX];
@@ -2787,6 +2796,21 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	return messagecount(context, tmp, folder) ? 1 : 0;
 }
 
+/*!
+ * \brief Copies a message from one mailbox to another.
+ * \param chan
+ * \param vmu
+ * \param imbox
+ * \param msgnum
+ * \param duration
+ * \param recip
+ * \param fmt
+ * \param dir
+ *
+ * This works with IMAP storage based mailboxes.
+ *
+ * \return zero on success, -1 on error.
+ */
 static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt, char *dir)
 {
 	struct vm_state *sendvms = NULL, *destvms = NULL;
@@ -2808,7 +2832,21 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 
 #endif
 #ifndef IMAP_STORAGE
-/* copy message only used by file storage */
+/*! 
+ * \brief Copies a message from one mailbox to another.
+ * \param chan
+ * \param vmu
+ * \param imbox
+ * \param msgnum
+ * \param duration
+ * \param recip
+ * \param fmt
+ * \param dir
+ *
+ * This is only used by file storage based mailboxes.
+ *
+ * \return zero on success, -1 on error.
+ */
 static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt, char *dir)
 {
 	char fromdir[PATH_MAX], todir[PATH_MAX], frompath[PATH_MAX], topath[PATH_MAX];
@@ -4055,6 +4093,18 @@ static int get_folder(struct ast_channel *chan, int start)
 	return d;
 }
 
+/*!
+ * \brief plays a prompt and waits for a keypress.
+ * \param chan
+ * \param fn the name of the voice prompt file to be played. For example, 'vm-changeto', 'vm-savefolder'
+ * \param start Does not appear to be used at this time.
+ *
+ * This is used by the main menu option to move a message to a folder or to save a message into a folder.
+ * After playing the  message identified by the fn parameter value, it calls get_folder(), which plays the 
+ * prompting for the number inputs that correspond to the available folders.
+ * 
+ * \return zero on success, or -1 on error.
+ */
 static int get_folder2(struct ast_channel *chan, char *fn, int start)
 {
 	int res = 0;
@@ -4066,6 +4116,23 @@ static int get_folder2(struct ast_channel *chan, char *fn, int start)
 	return res;
 }
 
+/*!
+ * \brief presents the option to prepend to an existing message when forwarding it.
+ * \param chan
+ * \param vmu
+ * \param curdir
+ * \param curmsg
+ * \param vmfmts
+ * \param context
+ * \param record_gain
+ * \param duration
+ * \param vms
+ *
+ * Presents a prompt for 1 to prepend the current message, 2 to forward the message without prepending, or * to return to the main menu.
+ *
+ * This is invoked from forward_message() when performing a forward operation (option 8 from main menu).
+ * \return zero on success, -1 on error.
+ */
 static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, char *curdir, int curmsg, char *vmfmts,
 			char *context, signed char record_gain, long *duration, struct vm_state *vms)
 {
@@ -4192,6 +4259,19 @@ static void queue_mwi_event(const char *mbox, int new, int old)
 		AST_EVENT_IE_END);
 }
 
+/*!
+ * \brief Sends email notification that a user has a new voicemail waiting for them.
+ * \param chan
+ * \param vmu
+ * \param vms
+ * \param msgnum
+ * \param duration
+ * \param fmt
+ * \param cidnum The Caller ID phone number value.
+ * \param cidname The Caller ID name value.
+ *
+ * \return zero on success, -1 on error.
+ */
 static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msgnum, long duration, char *fmt, char *cidnum, char *cidname)
 {
 	char todir[PATH_MAX], fn[PATH_MAX], ext_context[PATH_MAX], *stringp;
@@ -4258,6 +4338,32 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	return 0;
 }
 
+/*!
+ * \brief Sends a voicemail message to a mailbox recipient.
+ * \param ast_channel
+ * \param context
+ * \param vms
+ * \param sender
+ * \param fmt
+ * \param flag Used to indicate the mode for which this method was invoked. 
+ *             Will be 0 when called to forward an existing message (option 8)
+ *             Will be 1 when called to leave a message (option 3->5)
+ * \param record_gain 
+ *
+ * Reads the destination mailbox(es) from keypad input for CID, or if use_directory feature is enabled, the Directory.
+ * 
+ * When in the leave message mode (flag == 1):
+ *   - allow the leaving of a message for ourselves. (Will not allow us to forward a message to ourselves, when flag == 0).
+ *   - attempt to determine the context and and mailbox, and then invoke leave_message() function to record and store the message.
+ *
+ * When in the forward message mode (flag == 0):
+ *   - retreives the current message to be forwarded
+ *   - copies the original message to a temporary file, so updates to the envelope can be done.
+ *   - determines the target mailbox and folders
+ *   - copies the message into the target mailbox, using copy_message() or by generating the message into an email attachment if using imap folders.
+ *
+ * \return zero on success, -1 on error.
+ */
 static int forward_message(struct ast_channel *chan, char *context, struct vm_state *vms, struct ast_vm_user *sender, char *fmt, int flag, signed char record_gain)
 {
 #ifdef IMAP_STORAGE
@@ -7186,10 +7292,10 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	while ((cmd > -1) && (cmd != 't') && (cmd != '#')) {
 		/* Run main menu */
 		switch (cmd) {
-		case '1':
+		case '1': /* First message */
 			vms.curmsg = 0;
 			/* Fall through */
-		case '5':
+		case '5': /* Play current message */
 			cmd = vm_browse_messages(chan, &vms, vmu);
 			break;
 		case '2': /* Change folders */
@@ -7320,7 +7426,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				vms.repeats = 0;
 			}
 			break;
-		case '4':
+		case '4': /* Go to the previous message */
 			if (vms.curmsg > 0) {
 				vms.curmsg--;
 				cmd = play_message(chan, vmu, &vms);
@@ -7328,7 +7434,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				cmd = ast_play_and_wait(chan, "vm-nomore");
 			}
 			break;
-		case '6':
+		case '6': /* Go to the next message */
 			if (vms.curmsg < vms.lastmsg) {
 				vms.curmsg++;
 				cmd = play_message(chan, vmu, &vms);
@@ -7336,7 +7442,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				cmd = ast_play_and_wait(chan, "vm-nomore");
 			}
 			break;
-		case '7':
+		case '7': /* Delete teh current message */
 			if (vms.curmsg >= 0 && vms.curmsg <= vms.lastmsg) {
 				vms.deleted[vms.curmsg] = !vms.deleted[vms.curmsg];
 				if (useadsi)
@@ -7369,7 +7475,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 #endif
 			break;
 	
-		case '8':
+		case '8': /* Forward the current messgae */
 			if (vms.lastmsg > -1) {
 				cmd = forward_message(chan, context, &vms, vmu, vmfmts, 0, record_gain);
 				if (cmd == ERROR_LOCK_PATH) {
@@ -7379,7 +7485,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			} else
 				cmd = ast_play_and_wait(chan, "vm-nomore");
 			break;
-		case '9':
+		case '9': /* Save message to folder */
 			if (vms.curmsg < 0 || vms.curmsg > vms.lastmsg) {
 				/* No message selected */
 				cmd = 0;
@@ -7433,7 +7539,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				}
 			}
 			break;
-		case '*':
+		case '*': /* Help */
 			if (!vms.starting) {
 				cmd = ast_play_and_wait(chan, "vm-onefor");
 				if (!cmd)
@@ -7445,7 +7551,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			} else
 				cmd = 0;
 			break;
-		case '0':
+		case '0': /* Mailbox options */
 			cmd = vm_options(chan, vmu, &vms, vmfmts, record_gain);
 			if (useadsi)
 				adsi_status(chan, &vms);
@@ -8946,6 +9052,19 @@ static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num,
 	return 0;
 }
 
+/*!
+ * \brief The advanced options within a message.
+ * \param chan
+ * \param vmu 
+ * \param vms
+ * \param msg
+ * \param option
+ * \param record_gain
+ *
+ * Provides handling for the play message envelope, call the person back, or reply to message. 
+ *
+ * \return zero on success, -1 on error.
+ */
 static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msg, int option, signed char record_gain)
 {
 	int res = 0;
@@ -9031,7 +9150,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 		context = ast_variable_retrieve(msg_cfg, "message", "macrocontext");
 #endif
 	switch (option) {
-	case 3:
+	case 3: /* Play message envelope */
 		if (!res)
 			res = play_message_datetime(chan, vmu, origtime, filename);
 		if (!res)
@@ -9843,6 +9962,13 @@ static void check_msgArray(struct vm_state *vms)
 	}
 }
 
+/*!
+ * \brief Copies the msgArray property from one vm_state to another.
+ * \param dst
+ * \param src
+ *
+ * Goes over each element in the msgArray array property and copies the value from the source to the destination vm_state.
+ */
 static void copy_msgArray(struct vm_state *dst, struct vm_state *src)
 {
 	int x;
@@ -9871,14 +9997,25 @@ static int save_body(BODY *body, struct vm_state *vms, char *section, char *form
 	return 0;
 }
 
-/* get delimiter via mm_list callback */
+/*! 
+ * \brief Get delimiter via mm_list callback 
+ * \param stream
+ *
+ * Determines the delimiter character that is used by the underlying IMAP based mail store.
+ */
 static void get_mailbox_delimiter(MAILSTREAM *stream) {
 	char tmp[50];
 	snprintf(tmp, sizeof(tmp), "{%s}", imapserver);
 	mail_list(stream, tmp, "*");
 }
 
-/* Check Quota for user */
+/*! 
+ * \brief Check Quota for user 
+ * \param vms a pointer to a vm_state struct, will use the mailstream property of this.
+ * \param mailbox the mailbox to check the quota for.
+ *
+ * Calls imap_getquotaroot, which will populate its results into the vm_state vms input structure.
+ */
 static void check_quota(struct vm_state *vms, char *mailbox) {
 	mail_parameters(NULL, SET_QUOTA, (void *) mm_parsequota);
 	ast_debug(3, "Mailbox name set to: %s, about to check quotas\n", mailbox);
