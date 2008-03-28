@@ -399,6 +399,8 @@ struct vm_zone {
 	char msg_format[512];
 };
 
+#define VMSTATE_MAX_MSG_ARRAY 256
+
 /*! Voicemail mailbox state */
 struct vm_state {
 	char curbox[80];
@@ -418,7 +420,7 @@ struct vm_state {
 #ifdef IMAP_STORAGE
 	ast_mutex_t lock;
 	int updated;                         /*!< decremented on each mail check until 1 -allows delay */
-	long msgArray[256];
+	long msgArray[VMSTATE_MAX_MSG_ARRAY];
 	MAILSTREAM *mailstream;
 	int vmArrayIndex;
 	char imapuser[80];                   /*!< IMAP server login */
@@ -9946,7 +9948,7 @@ static void init_vm_state(struct vm_state *vms)
 {
 	int x;
 	vms->vmArrayIndex = 0;
-	for (x = 0; x < 256; x++) {
+	for (x = 0; x < VMSTATE_MAX_MSG_ARRAY; x++) {
 		vms->msgArray[x] = 0;
 	}
 	ast_mutex_init(&vms->lock);
@@ -9955,7 +9957,7 @@ static void init_vm_state(struct vm_state *vms)
 static void check_msgArray(struct vm_state *vms) 
 {
 	int x;
-	for (x = 0; x < 256; x++) {
+	for (x = 0; x < VMSTATE_MAX_MSG_ARRAY; x++) {
 		if (vms->msgArray[x] != 0) {
 			ast_debug(1, "Item %d set to %ld\n", x, vms->msgArray[x]);
 		}
@@ -9972,7 +9974,7 @@ static void check_msgArray(struct vm_state *vms)
 static void copy_msgArray(struct vm_state *dst, struct vm_state *src)
 {
 	int x;
-	for (x = 0; x < 256; x++) {
+	for (x = 0; x < VMSTATE_MAX_MSG_ARRAY; x++) {
 		dst->msgArray[x] = src->msgArray[x];
 	}
 }
