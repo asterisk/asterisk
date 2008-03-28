@@ -105,7 +105,7 @@ static __inline__ int GSM_L_ADD(int a, int b)
 	__asm__ __volatile__(
 	
 			"addl %2,%0; jno 0f; movl $0x7fffffff,%0; adcl $0,%0; 0:"
-			: "=r" (a)
+			: "=&r" (a)
 			: "0" (a), "ir" (b)
 			: "cc"
 		);
@@ -116,7 +116,7 @@ static __inline__ short GSM_ADD(short a, short b)
 {
 	__asm__ __volatile__(
 			"addw %2,%0; jno 0f; movw $0x7fff,%0; adcw $0,%0; 0:"
-			: "=r" (a)
+			: "=&r" (a)
 			: "0" (a), "ir" (b)
 			: "cc"
 		);
@@ -127,7 +127,7 @@ static __inline__ short GSM_SUB(short a, short b)
 {
 	__asm__ __volatile__(
 			"subw %2,%0; jno 0f; movw $0x7fff,%0; adcw $0,%0; 0:"
-			: "=r" (a)
+			: "=&r" (a)
 			: "0" (a), "ir" (b)
 			: "cc"
 		);
