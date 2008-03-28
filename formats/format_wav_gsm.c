@@ -214,8 +214,8 @@ static int update_header(FILE *f)
 	/* in a gsm WAV, data starts 60 bytes in */
 	bytes = end - MSGSM_DATA_OFFSET;
 	samples = htoll(bytes / MSGSM_FRAME_SIZE * MSGSM_SAMPLES);
-	datalen = htoll((bytes + 1) & ~0x1);
-	filelen = htoll(MSGSM_DATA_OFFSET - 8 + ((bytes + 1) & ~0x1));
+	datalen = htoll(bytes);
+	filelen = htoll(MSGSM_DATA_OFFSET - 8 + bytes);
 	if (cur < 0) {
 		ast_log(LOG_WARNING, "Unable to find our position\n");
 		return -1;
@@ -389,15 +389,6 @@ static int wav_rewrite(struct ast_filestream *s, const char *comment)
 	return 0;
 }
 
-static void wav_close(struct ast_filestream *s)
-{
-	char zero = 0;
-	/* Pad to even length */
-	fseek(s->f, 0, SEEK_END);
-	if (ftello(s->f) & 0x1)
-		fwrite(&zero, 1, 1, s->f);
-}
-
 static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 {
 	/* Send a frame from the file to the appropriate channel */
@@ -539,7 +530,6 @@ static const struct ast_format wav49_f = {
 	.trunc = wav_trunc,
 	.tell = wav_tell,
 	.read = wav_read,
-	.close = wav_close,
 	.buf_size = 2*GSM_FRAME_SIZE + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct wavg_desc),
 };
