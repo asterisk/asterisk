@@ -326,7 +326,7 @@ int ast_get_timeval(const char *src, struct timeval *tv, struct timeval _default
  */
 struct ast_str {
 	size_t len;	/*!< The current maximum length of the string */
-	size_t used;	/*!< Amount of space used. Does not include string's null terminator */
+	size_t used;	/*!< Amount of space used */
 	struct ast_threadstorage *ts;	/*!< What kind of storage is this ? */
 #define DS_MALLOC	((struct ast_threadstorage *)1)
 #define DS_ALLOCA	((struct ast_threadstorage *)2)
