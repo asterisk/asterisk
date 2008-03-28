@@ -564,8 +564,8 @@ static const uint8_t soft_key_default_onhook[] = {
 	SOFTKEY_NEWCALL,
 	SOFTKEY_CFWDALL,
 	SOFTKEY_CFWDBUSY,
-	SOFTKEY_GPICKUP,
-	SOFTKEY_CONFRN,
+	/*SOFTKEY_GPICKUP,
+	SOFTKEY_CONFRN,*/
 };
 
 static const uint8_t soft_key_default_connected[] = {
@@ -595,7 +595,7 @@ static const uint8_t soft_key_default_offhook[] = {
 	SOFTKEY_ENDCALL,
 	SOFTKEY_CFWDALL,
 	SOFTKEY_CFWDBUSY,
-	SOFTKEY_GPICKUP,
+	/*SOFTKEY_GPICKUP,*/
 };
 
 static const uint8_t soft_key_default_connwithtrans[] = {
