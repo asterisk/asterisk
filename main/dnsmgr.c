@@ -21,6 +21,11 @@
  * \brief Background DNS update manager
  *
  * \author Kevin P. Fleming <kpfleming@digium.com> 
+ *
+ * \bug There is a minor race condition.  In the event that an IP address
+ * of a dnsmgr managed host changes, there is the potential for the consumer
+ * of that address to access the in_addr data at the same time that the dnsmgr
+ * thread is in the middle of updating it to the new address.
  */
 
 #include "asterisk.h"
