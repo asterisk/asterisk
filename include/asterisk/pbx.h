@@ -800,6 +800,20 @@ int pbx_builtin_serialize_variables(struct ast_channel *chan, struct ast_str **b
 
 /*!
  * \note Will lock the channel.
+ *
+ * \note This function will return a pointer to the buffer inside the channel
+ * variable.  This value should only be accessed with the channel locked.  If
+ * the value needs to be kept around, it should be done by using the following
+ * thread-safe code:
+ * \code
+ *		const char *var;
+ *
+ *		ast_channel_lock(chan);
+ *		if ((var = pbx_builtin_getvar_helper(chan, "MYVAR"))) {
+ *			var = ast_strdupa(var);
+ *		}
+ *		ast_channel_unlock(chan);
+ * \endcode
  */
 const char *pbx_builtin_getvar_helper(struct ast_channel *chan, const char *name);
 

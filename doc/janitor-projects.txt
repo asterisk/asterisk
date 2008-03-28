@@ -1,3 +1,15 @@
+ -- There a bunch of places where the result of pbx_builtin_getvar_helper()
+    gets stored and used.  This is not threadsafe.  This code should be replaced
+	with the following thread-safe version:
+
+	const char *var;
+
+	ast_channel_lock(chan);
+	if ((var = pbx_builtin_getvar_helper(chan, "MYVAR"))) {
+		var = ast_strdupa(var);
+	}
+	ast_channel_unlock(chan);
+
  -- Convert all existing uses of astobj.h to astobj2.h
     -- (chan_sip already in progress in a branch)
 
