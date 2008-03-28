@@ -1402,8 +1402,6 @@ static void destroy_queue(void *obj)
 	struct call_queue *q = obj;
 	int i;
 
-	ast_debug(0, "Queue destructor called for queue '%s'!\n", q->name);
-
 	free_members(q, 1);
 	ast_string_field_free_memory(q);
 	for (i = 0; i < MAX_PERIODIC_ANNOUNCEMENTS; i++) {
@@ -6169,6 +6167,8 @@ static int unload_module(void)
 {
 	int res;
 	struct ast_context *con;
+	struct ao2_iterator q_iter;
+	struct call_queue *q = NULL;
 
 	if (device_state.thread != AST_PTHREADT_NULL) {
 		device_state.stop = 1;
@@ -6211,6 +6211,11 @@ static int unload_module(void)
 
 	clear_and_free_interfaces();
 
+	q_iter = ao2_iterator_init(queues, 0);
+	while ((q = ao2_iterator_next(&q_iter))) {
+		ao2_unlink(queues, q);
+		queue_unref(q);
+	}
 	ao2_ref(queues, -1);
 
 	return res;
