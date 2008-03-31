@@ -1204,8 +1204,9 @@ static int realtime_update_handler(const char *database, const char *table,
 	return rows_num;
 }
 
-static int realtime_store_handler(const char *database, const char *table, va_list ap) {
-	char *errormsg, *tmp_str, *tmp_keys, *tmp_keys2, *tmp_vals, *tmp_vals2;
+static int realtime_store_handler(const char *database, const char *table, va_list ap)
+{
+	char *errormsg, *tmp_str, *tmp_keys = NULL, *tmp_keys2 = NULL, *tmp_vals = NULL, *tmp_vals2 = NULL;
 	const char **params, **vals;
 	size_t params_count;
 	int error, rows_id;
@@ -1224,8 +1225,6 @@ static int realtime_store_handler(const char *database, const char *table, va_li
 #define QUERY "INSERT into '%q' (%s) VALUES (%s);"
 /* \endcond */
 
-	tmp_keys2 = NULL;
-	tmp_vals2 = NULL;
 	for (i = 0; i < params_count; i++) {
 		if ( tmp_keys2 ) {
 			tmp_keys = sqlite_mprintf("%s, %q", tmp_keys2, params[i]);
