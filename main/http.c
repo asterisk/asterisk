@@ -616,9 +616,9 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 	if (redirect)
 		goto cleanup;
 
-	/* We want requests to start with the prefix and '/' */
+	/* We want requests to start with the (optional) prefix and '/' */
 	l = strlen(prefix);
-	if (l && !strncasecmp(uri, prefix, l) && uri[l] == '/') {
+	if (!strncasecmp(uri, prefix, l) && uri[l] == '/') {
 		uri += l + 1;
 		/* scan registered uris to see if we match one. */
 		AST_RWLIST_RDLOCK(&uris);
