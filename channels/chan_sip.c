@@ -8313,7 +8313,7 @@ static void copy_request(struct sip_request *dst, const struct sip_request *src)
 
 	if (!dst->data && !(dst->data = ast_str_create(src->data->used + 1)))
 		return;
-	else if (dst->data->len < src->data->used)
+	else if (dst->data->len < src->data->used + 1)
 		ast_str_make_space(&dst->data, src->data->used + 1);
 		
 	memcpy(dst->data->str, src->data->str, src->data->used + 1);
