@@ -2282,7 +2282,7 @@ static struct chan_usbradio_pvt *store_config(struct ast_config *cfg, char *ctg)
 	o->lastopen = ast_tvnow();	/* don't leave it 0 or tvdiff may wrap */
 	o->dsp = ast_dsp_new();
 	if (o->dsp) {
-		ast_dsp_set_features(o->dsp, DSP_FEATURE_DTMF_DETECT);
+		ast_dsp_set_features(o->dsp, DSP_FEATURE_DIGIT_DETECT);
 		ast_dsp_set_digitmode(o->dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_RELAXDTMF);
 	}
 
