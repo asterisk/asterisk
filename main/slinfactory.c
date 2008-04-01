@@ -137,6 +137,9 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples)
 				memcpy(offset, frame_data, ineed * sizeof(*offset));
 				sofar += ineed;
 				frame_data += ineed;
+				if (remain > (AST_SLINFACTORY_MAX_HOLD - sf->holdlen)) {
+					remain = AST_SLINFACTORY_MAX_HOLD - sf->holdlen;
+				}
 				memcpy(sf->hold, frame_data, remain * sizeof(*offset));
 				sf->holdlen = remain;
 			}
