@@ -1640,7 +1640,11 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 	char full_fn[PATH_MAX];
 	char fmt[80] = "";
 	char *c;
-	const char *context = "", *macrocontext = "", *callerid = "", *origtime = "", *duration = "";
+	const char *context = "";
+	const char *macrocontext = "";
+	const char *callerid = "";
+	const char *origtime = ""; 
+	const char *duration = "";
 	const char *category = "";
 	struct ast_config *cfg = NULL;
 	struct odbc_obj *obj;
@@ -3423,10 +3427,12 @@ struct leave_vm_options {
 static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_options *options)
 {
 #ifdef IMAP_STORAGE
-	int newmsgs, oldmsgs;
+	int newmsgs;
+	int oldmsgs;
 	struct vm_state *vms = NULL;
 #endif
-	char txtfile[PATH_MAX], tmptxtfile[PATH_MAX];
+	char txtfile[PATH_MAX];
+	char tmptxtfile[PATH_MAX];
 	char callerid[256];
 	FILE *txt;
 	char date[256];
@@ -3442,7 +3448,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	char tmpdur[16];
 	char priority[16];
 	char origtime[16];
-	char dir[PATH_MAX], tmpdir[PATH_MAX];
+	char dir[PATH_MAX];
+	char tmpdir[PATH_MAX];
 	char fn[PATH_MAX];
 	char prefile[PATH_MAX] = "";
 	char tempfile[PATH_MAX] = "";
@@ -3450,10 +3457,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	char fmt[80];
 	char *context;
 	char ecodes[17] = "#";
-	char tmp[1024] = "", *tmpptr;
+	char tmp[1024] = "";
+	char *tmpptr;
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
-	const char *category = NULL, *code, *alldtmf = "0123456789ABCD*#";
+	const char *category = NULL;
+	const char *code;
+	const char *alldtmf = "0123456789ABCD*#";
 
 	ast_copy_string(tmp, ext, sizeof(tmp));
 	ext = tmp;
