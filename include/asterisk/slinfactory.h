@@ -31,10 +31,12 @@
 extern "C" {
 #endif
 
+#define AST_SLINFACTORY_MAX_HOLD 1280
+
 struct ast_slinfactory {
 	AST_LIST_HEAD_NOLOCK(, ast_frame) queue;
 	struct ast_trans_pvt *trans;
-	short hold[1280];
+	short hold[AST_SLINFACTORY_MAX_HOLD];
 	short *offset;
 	size_t holdlen;			/*!< in samples */
 	unsigned int size;		/*!< in samples */
