@@ -1960,7 +1960,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p);
 static void build_via(struct sip_pvt *p);
 static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer);
-static int create_addr(struct sip_pvt *dialog, const char *opeer, struct in_addr *sin);
+static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockaddr_in *sin);
 static char *generate_random_string(char *buf, size_t size);
 static void build_callid_pvt(struct sip_pvt *pvt);
 static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip, const char *fromdomain);
@@ -2529,7 +2529,7 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 	int res = 0;
 	const struct sockaddr_in *dst = sip_real_dst(p);
 
-	ast_debug(1, "Trying to put '%.10s' onto %s socket destined for %s\n", data->str, get_transport(p->socket.type), ast_inet_ntoa(dst->sin_addr));
+	ast_debug(1, "Trying to put '%.10s' onto %s socket destined for %s:%d\n", data->str, get_transport(p->socket.type), ast_inet_ntoa(dst->sin_addr), htons(dst->sin_port));
 
 	if (sip_prepare_socket(p) < 0)
 		return XMIT_ERROR;
@@ -4053,11 +4053,10 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	
 	return 0;
 }
-
 /*! \brief create address structure from peer name
  *      Or, if peer not found, find it in the global DNS 
  *      returns TRUE (-1) on failure, FALSE on success */
-static int create_addr(struct sip_pvt *dialog, const char *opeer, struct in_addr *sin)
+static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockaddr_in *sin)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -4096,26 +4095,32 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct in_addr
 	if (dialog->outboundproxy)
 		return 0;
 
-	/* Let's see if we can find the host in DNS. First try DNS SRV records,
-   	   then hostname lookup */
-	hostn = peername;
-	portno = port ? atoi(port) : (dialog->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
-	if (global_srvlookup) {
-		char service[MAXHOSTNAMELEN];
-		int tportno;
-
-		snprintf(service, sizeof(service), "_sip._%s.%s", get_transport(dialog->socket.type), peername);
-		srv_ret = ast_get_srv(NULL, host, sizeof(host), &tportno, service);
-		if (srv_ret > 0) {
-			hostn = host;
-			portno = tportno;
+	/* This address should be updated using dnsmgr */
+	if (sin) {
+		memcpy(&dialog->sa.sin_addr, &sin->sin_addr, sizeof(dialog->sa.sin_addr));
+		if (!sin->sin_port) {
+			portno = port ? atoi(port) : (dialog->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+		} else {
+			portno = ntohs(sin->sin_port);
 		}
-	}
-
-	if (sin && srv_ret <= 0) {
-		memcpy(&dialog->sa.sin_addr, sin, sizeof(dialog->sa.sin_addr));
-		ast_log(LOG_DEBUG, "IP lookup for hostname=%s, using dnsmgr resolved to %s...\n", peername, ast_inet_ntoa(*sin));
 	} else {
+
+		/* Let's see if we can find the host in DNS. First try DNS SRV records,
+		   then hostname lookup */
+		hostn = peername;
+		portno = port ? atoi(port) : (dialog->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+		if (global_srvlookup) {
+			char service[MAXHOSTNAMELEN];
+			int tportno;
+	
+			snprintf(service, sizeof(service), "_sip._%s.%s", get_transport(dialog->socket.type), peername);
+			srv_ret = ast_get_srv(NULL, host, sizeof(host), &tportno, service);
+			if (srv_ret > 0) {
+				hostn = host;
+				portno = tportno;
+			}
+		}
+
 		hp = ast_gethostbyname(hostn, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "No such host: %s\n", peername);
@@ -9221,8 +9226,10 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	}
 
 	if (r->dnsmgr == NULL) {
-		ast_dnsmgr_lookup(r->hostname, &r->us.sin_addr, &r->dnsmgr);
-	} 
+		char transport[MAXHOSTNAMELEN];
+		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(r->transport)); /* have to use static get_transport function */
+		ast_dnsmgr_lookup(r->hostname, &r->us, &r->dnsmgr, global_srvlookup ? transport : NULL);
+	}
 
 	if (r->call) {	/* We have a registration */
 		if (!auth) {
@@ -9250,8 +9257,12 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 
 		p->outboundproxy = obproxy_get(p, NULL);
 
+		/* Use port number specified if no SRV record was found */
+		if (!r->us.sin_port && r->portno)
+			r->us.sin_port = htons(r->portno);
+
 		/* Find address to hostname */
-		if (create_addr(p, r->hostname, &r->us.sin_addr)) {
+		if (create_addr(p, r->hostname, &r->us)) {
 			/* we have what we hope is a temporary network error,
 			 * probably DNS.  We need to reschedule a registration try */
 			sip_destroy(p);
@@ -9265,13 +9276,15 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			r->regattempts++;
 			return 0;
 		}
+
 		/* Copy back Call-ID in case create_addr changed it */
 		ast_string_field_set(r, callid, p->callid);
-		if (r->portno) {
+		if (!r->dnsmgr && r->portno) {
 			p->sa.sin_port = htons(r->portno);
 			p->recv.sin_port = htons(r->portno);
-		} else 	/* Set registry port to the port set from the peer definition/srv or default */
+		} else {	/* Set registry port to the port set from the peer definition/srv or default */
 			r->portno = ntohs(p->sa.sin_port);
+		}
 		ast_set_flag(&p->flags[0], SIP_OUTGOING);	/* Registration is outgoing call */
 		r->call = dialog_ref(p);		/* Save pointer to SIP dialog */
 		p->registry = registry_addref(r);	/* Add pointer to registry in packet */
@@ -9298,6 +9311,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		/* Set transport and port so the correct contact is built */
 		p->socket.type = r->transport;
 		p->socket.port = htons(r->portno);
+
 		/*
 		  check which address we should use in our contact header 
 		  based on whether the remote host is on the external or
@@ -20068,13 +20082,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		}
 	}
 
-	if (srvlookup) {
-		if (ast_get_ip_or_srv(&peer->addr, srvlookup, 
-								global_srvlookup ?  
-									((peer->socket.type & SIP_TRANSPORT_UDP) ? "_sip._udp" :
-									 (peer->socket.type & SIP_TRANSPORT_TCP) ? "_sip._tcp" :
-									 "_sip._tls")
-									: NULL)) {
+	if (srvlookup && peer->dnsmgr == NULL) {
+		char transport[MAXHOSTNAMELEN];
+		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(peer->socket.type));
+
+		if (ast_dnsmgr_lookup(srvlookup, &peer->addr, &peer->dnsmgr, global_srvlookup ? transport : NULL)) {
 			unref_peer(peer);
 			return NULL;
 		}

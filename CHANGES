@@ -194,7 +194,8 @@ SIP changes
      configs/sip.conf.sample for more information on how it is used.
   * Added a new configuration option "authfailureevents" that enables manager events when
     a peer can't authenticate properly. 
-  * Added DNS manager support to registrations not referencing a peer entry.
+  * Added DNS manager support to registrations, both for peers referencing
+    and not referencing a peer entry.
 
 IAX2 changes
 ------------
@@ -534,6 +535,11 @@ Call Detail Records
      not currently supported.
   * The ResetCDR application now has an 'e' option that re-enables a CDR if it
      has been disabled using the NoCDR application.
+
+DNS manager changes
+-------------------
+  * Addresses managed by DNS manager now will check to see if there is a DNS
+    SRV record for a given domain and will use that hostname/port if present.
 
 Miscellaneous New Modules
 -------------------------

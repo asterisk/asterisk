@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 #include "asterisk/network.h"
+#include "asterisk/srv.h"
 
 /*!
  * \brief A DNS manager entry
@@ -50,7 +51,7 @@ struct ast_dnsmgr_entry;
  *
  * \return a DNS manager entry
  */
-struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct in_addr *result);
+struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct sockaddr_in *result, const char *service);
 
 /*!
  * \brief Free a DNS manager entry
@@ -75,7 +76,7 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
  * \retval 0 success
  * \retval non-zero failure
  */
-int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmgr_entry **dnsmgr);
+int ast_dnsmgr_lookup(const char *name, struct sockaddr_in *result, struct ast_dnsmgr_entry **dnsmgr, const char *service);
 
 /*!
  * \brief Force a refresh of a dnsmgr entry

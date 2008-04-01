@@ -14203,8 +14203,6 @@ static int load_module(void)
 	int y, i;
 #endif
 
-	ast_log(LOG_WARNING, "The use of PSTN interfaces with Asterisk has been deprecated.  Zaptel trunk has been removed.\n");
-
 #ifdef HAVE_PRI
 	memset(pris, 0, sizeof(pris));
 	for (y = 0; y < NUM_SPANS; y++) {

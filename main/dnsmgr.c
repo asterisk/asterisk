@@ -43,16 +43,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/cli.h"
 #include "asterisk/manager.h"
+#include "asterisk/acl.h"
 
 static struct sched_context *sched;
 static int refresh_sched = -1;
 static pthread_t refresh_thread = AST_PTHREADT_NULL;
 
 struct ast_dnsmgr_entry {
-	/*! where we will store the resulting address */
-	struct in_addr *result;
-	/*! the last result, used to check if address has changed */
-	struct in_addr last;
+	/*! where we will store the resulting IP address and port number */
+	struct sockaddr_in *result;
+	/*! the last result, used to check if address/port has changed */
+	struct sockaddr_in last;
+	/*! SRV record to lookup, if provided. Composed of service, protocol, and domain name: _Service._Proto.Name */
+	char *service;
 	/*! Set to 1 if the entry changes */
 	int changed:1;
 	ast_mutex_t lock;
@@ -82,17 +85,22 @@ static struct refresh_info master_refresh_info = {
 	.verbose = 0,
 };
 
-struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct in_addr *result)
+struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct sockaddr_in *result, const char *service)
 {
 	struct ast_dnsmgr_entry *entry;
+	int total_size = sizeof(*entry) + strlen(name) + (service ? strlen(service) + 1 : 0);
 
-	if (!result || ast_strlen_zero(name) || !(entry = ast_calloc(1, sizeof(*entry) + strlen(name))))
+	if (!result || ast_strlen_zero(name) || !(entry = ast_calloc(1, total_size)))
 		return NULL;
 
 	entry->result = result;
 	ast_mutex_init(&entry->lock);
 	strcpy(entry->name, name);
 	memcpy(&entry->last, result, sizeof(entry->last));
+	if (service) {
+		entry->service = ((char *) entry) + sizeof(*entry) + strlen(name);
+		strcpy(entry->service, service);
+	}
 
 	AST_RWLIST_WRLOCK(&entry_list);
 	AST_RWLIST_INSERT_HEAD(&entry_list, entry, list);
@@ -115,34 +123,30 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 	ast_free(entry);
 }
 
-int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmgr_entry **dnsmgr)
+int ast_dnsmgr_lookup(const char *name, struct sockaddr_in *result, struct ast_dnsmgr_entry **dnsmgr, const char *service)
 {
-	struct ast_hostent ahp;
-	struct hostent *hp;
-
 	if (ast_strlen_zero(name) || !result || !dnsmgr)
 		return -1;
 
 	if (*dnsmgr && !strcasecmp((*dnsmgr)->name, name))
 		return 0;
 
-	ast_verb(4, "doing dnsmgr_lookup for '%s'\n", name);
-
 	/* if it's actually an IP address and not a name,
 	   there's no need for a managed lookup */
-	if (inet_aton(name, result))
+	if (inet_aton(name, &result->sin_addr))
 		return 0;
 
+	ast_verb(4, "doing dnsmgr_lookup for '%s'\n", name);
+
 	/* do a lookup now but add a manager so it will automagically get updated in the background */
-	if ((hp = ast_gethostbyname(name, &ahp)))
-		memcpy(result, hp->h_addr, sizeof(result));
+	ast_get_ip_or_srv(result, name, service);
 	
 	/* if dnsmgr is not enable don't bother adding an entry */
 	if (!enabled)
 		return 0;
 	
 	ast_verb(3, "adding dns manager for '%s'\n", name);
-	*dnsmgr = ast_dnsmgr_get(name, result);
+	*dnsmgr = ast_dnsmgr_get(name, result, service);
 	return !*dnsmgr;
 }
 
@@ -151,31 +155,26 @@ int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmg
  */
 static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 {
-	struct ast_hostent ahp;
-	struct hostent *hp;
 	char iabuf[INET_ADDRSTRLEN];
 	char iabuf2[INET_ADDRSTRLEN];
-	struct in_addr tmp;
+	struct sockaddr_in tmp;
 	int changed = 0;
         
 	ast_mutex_lock(&entry->lock);
 	if (verbose)
 		ast_verb(3, "refreshing '%s'\n", entry->name);
 
-	if ((hp = ast_gethostbyname(entry->name, &ahp))) {
-		/* check to see if it has changed, do callback if requested (where de callback is defined ????) */
-		memcpy(&tmp, hp->h_addr, sizeof(tmp));
-		if (tmp.s_addr != entry->last.s_addr) {
-			ast_copy_string(iabuf, ast_inet_ntoa(entry->last), sizeof(iabuf));
-			ast_copy_string(iabuf2, ast_inet_ntoa(tmp), sizeof(iabuf2));
-			ast_log(LOG_NOTICE, "host '%s' changed from %s to %s\n", 
-				entry->name, iabuf, iabuf2);
-			memcpy(entry->result, hp->h_addr, sizeof(entry->result));
-			memcpy(&entry->last, hp->h_addr, sizeof(entry->last));
-			changed = entry->changed = 1;
-		} 
-		
+	ast_get_ip_or_srv(&tmp, entry->name, entry->service);
+	if (inaddrcmp(&tmp, &entry->last)) {
+		ast_copy_string(iabuf, ast_inet_ntoa(entry->last.sin_addr), sizeof(iabuf));
+		ast_copy_string(iabuf2, ast_inet_ntoa(tmp.sin_addr), sizeof(iabuf2));
+		ast_log(LOG_NOTICE, "dnssrv: host '%s' changed from %s:%d to %s:%d\n", 
+			entry->name, iabuf, ntohs(entry->last.sin_port), iabuf2, ntohs(tmp.sin_port));
+		*entry->result = tmp;
+		entry->last = tmp;
+		changed = entry->changed = 1;
 	}
+
 	ast_mutex_unlock(&entry->lock);
 	return changed;
 }

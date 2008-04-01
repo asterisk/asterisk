@@ -28,12 +28,10 @@
 extern "C" {
 #endif
 
-#define AST_SLINFACTORY_MAX_HOLD 1280
-
 struct ast_slinfactory {
 	AST_LIST_HEAD_NOLOCK(, ast_frame) queue; /*!< A list of unaltered frames */
 	struct ast_trans_pvt *trans;             /*!< Translation path that converts fed frames into signed linear */
-	short hold[AST_SLINFACTORY_MAX_HOLD];    /*!< Hold for audio that no longer belongs to a frame (ie: if only some samples were taken from a frame) */
+	short hold[1280];                        /*!< Hold for audio that no longer belongs to a frame (ie: if only some samples were taken from a frame) */
 	short *offset;                           /*!< Offset into the hold where audio begins */
 	size_t holdlen;                          /*!< Number of samples currently in the hold */
 	unsigned int size;                       /*!< Number of samples currently in the factory */
