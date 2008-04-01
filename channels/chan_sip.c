@@ -5647,7 +5647,13 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 		}
 	}
 
+	/* Only allow audio through if they sent progress with SDP, or if the channel is actually answered */
+	if (p->invitestate != INV_EARLY_MEDIA && ast->_state != AST_STATE_UP) {
+		fr = &ast_null_frame;
+	}
+
 	sip_pvt_unlock(p);
+
 	return fr;
 }
 
