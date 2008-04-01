@@ -263,6 +263,7 @@ int ast_search_dns(void *context,
 	int res, ret = -1;
 
 #ifdef HAVE_RES_NINIT
+	memset(&dnsstate, 0, sizeof(dnsstate));
 	res_ninit(&dnsstate);
 	res = res_nsearch(&dnsstate, dname, class, type, answer, sizeof(answer));
 #else
