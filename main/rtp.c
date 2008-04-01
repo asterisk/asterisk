@@ -3826,9 +3826,9 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		audio_p1_res = AST_RTP_TRY_PARTIAL;
 	}
 
-	/* If the core will need to compensate and the P2P bridge will need to feed up DTMF frames then we can not reliably do so yet, so do not P2P bridge */
-	if ((audio_p0_res == AST_RTP_TRY_PARTIAL && ast_test_flag(p0, FLAG_P2P_NEED_DTMF) && ast_test_flag(p0, FLAG_DTMF_COMPENSATE)) ||
-	    (audio_p1_res == AST_RTP_TRY_PARTIAL && ast_test_flag(p1, FLAG_P2P_NEED_DTMF) && ast_test_flag(p1, FLAG_DTMF_COMPENSATE))) {
+	/* If we need to feed frames into the core don't do a P2P bridge */
+	if ((audio_p0_res == AST_RTP_TRY_PARTIAL && ast_test_flag(p0, FLAG_P2P_NEED_DTMF)) ||
+	    (audio_p1_res == AST_RTP_TRY_PARTIAL && ast_test_flag(p1, FLAG_P2P_NEED_DTMF))) {
 		ast_channel_unlock(c0);
 		ast_channel_unlock(c1);
 		return AST_BRIDGE_FAILED_NOWARN;
