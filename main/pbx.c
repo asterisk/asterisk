@@ -1015,9 +1015,11 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 			if (p->x[1] == 0 && *str >= '2' && *str <= '9' ) {
 #define NEW_MATCHER_CHK_MATCH	       \
 				if (p->exten && !(*(str+1))) { /* if a shorter pattern matches along the way, might as well report it */ \
-					update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted, p);         \
-					if (!p->deleted)                                                                                     \
-						return; /* the first match, by definition, will be the best, because of the sorted tree */       \
+					if (action == E_MATCH) { /* if in CANMATCH/MATCHMORE, don't let matches get in the way */            \
+						update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted, p);     \
+						if (!p->deleted)								                                                 \
+							return; /* the first match, by definition, will be the best, because of the sorted tree */   \
+					}                                                                                                    \
 				}
 				
 #define NEW_MATCHER_RECURSE	           \
