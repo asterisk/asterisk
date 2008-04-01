@@ -75,15 +75,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  *
  * A new algorithm to do searching based on a 'compiled' pattern tree is introduced
  * here, and shows a fairly flat (constant) search time, even for over
- * 1000 patterns. Might Still need some work-- there are some fine points of the matching
- * spec about tie-breaking based on the characters in character sets, but this
- * should be do-able via the weight system currently being used.
+ * 10000 patterns. 
  *
  * Also, using a hash table for context/priority name lookup can help prevent
  * the find_extension routines from absorbing exponential cpu cycles as the number 
- * of extensions grow. I've previously tested find_extension with red-black trees, 
+ * of contexts/priorities grow. I've previously tested find_extension with red-black trees, 
  * which have O(log2(n)) speed. Right now, I'm using hash tables, which do 
- * searches (ideally) in O(1) time.
+ * searches (ideally) in O(1) time. While these techniques do not yield much 
+ * speed in small dialplans, they are worth the trouble in large dialplans.
  *
  */
 
@@ -324,10 +323,10 @@ void log_match_char_tree(struct match_char *node, char *prefix); /* for use anyw
 static int pbx_builtin_setvar_multiple(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
 static void set_ext_pri(struct ast_channel *c, const char *exten, int pri); 
-static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid);
+static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid, enum ext_match_t action);
 static struct match_char *already_in_tree(struct match_char *current, char *pat);
 static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1, int findonly);
-static struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity);
+static struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity, struct match_char **parent);
 static void create_match_char_tree(struct ast_context *con);
 static struct ast_exten *get_canmatch_exten(struct match_char *node);
 static void destroy_pattern_tree(struct match_char *pattern_tree);
@@ -340,6 +339,19 @@ static unsigned int hashtab_hash_extens(const void *obj);
 static unsigned int hashtab_hash_priority(const void *obj);
 static unsigned int hashtab_hash_labels(const void *obj);
 static void __ast_internal_context_destroy( struct ast_context *con);
+
+/* a func for qsort to use to sort a char array */
+static int compare_char(const void *a, const void *b)
+{
+	const char *ac = a;
+	const char *bc = b;
+	if ((*ac) < (*bc))
+		return -1;
+	else if ((*ac) == (*bc))
+		return 0;
+	else
+		return 1;
+}
 
 /* labels, contexts are case sensitive  priority numbers are ints */
 int ast_hashtab_compare_contexts(const void *ah_a, const void *ah_b)
@@ -792,14 +804,27 @@ static void pbx_destroy(struct ast_pbx *p)
 }
 
 /* form a tree that fully describes all the patterns in a context's extensions 
- * in this tree, a "node" consists of a series of match_char structs linked in a chain
+ * in this tree, a "node" represents an individual character or character set
+ * meant to match the corresponding character in a dial string. The tree 
+ * consists of a series of match_char structs linked in a chain
  * via the alt_char pointers. More than one pattern can share the same parts of the 
- * tree as other extensions with the same pattern to that point. The algorithm to
- * find which pattern best matches a string, would follow **all** matching paths. As
- * complete matches are found, a "max" match record would be updated if the match first involves 
- * a longer string, then, on a tie, a smaller total of specificity. This can be accomplished
- * by recursive calls affecting a shared scoreboard.
- * As and example, consider these 4 extensions:
+ * tree as other extensions with the same pattern to that point. 
+ * My first attempt to duplicate the finding of the 'best' pattern was flawed in that
+ * I misunderstood the general algorithm. I thought that the 'best' pattern
+ * was the one with lowest total score. This was not true. Thus, if you have
+ * patterns "1XXXXX" and "X11111", you would be tempted to say that "X11111" is
+ * the "best" match because it has fewer X's, and is therefore more specific, 
+ * but this is not how the old algorithm works. It sorts matching patterns
+ * in a similar collating sequence as sorting alphabetic strings, from left to 
+ * right. Thus, "1XXXXX" comes before "X11111", and would be the "better" match,
+ * because "1" is more specific than "X".
+ * So, to accomodate this philosophy, I sort the tree branches along the alt_char
+ * line so they are lowest to highest in specificity numbers. This way, as soon
+ * as we encounter our first complete match, we automatically have the "best" 
+ * match and can stop the traversal immediately. Same for CANMATCH/MATCHMORE.
+ * If anyone would like to resurrect the "wrong" pattern trie searching algorithm,
+ * they are welcome to revert pbx to before 1 Apr 2008.
+ * As an example, consider these 4 extensions:
  * (a) NXXNXXXXXX
  * (b) 307754XXXX 
  * (c) fax
@@ -808,66 +833,64 @@ static void pbx_destroy(struct ast_pbx *p)
  * In the above, between (a) and (d), (a) is a more specific pattern than (d), and would win over
  * most numbers. For all numbers beginning with 307754, (b) should always win.
  *
- * These pattern should form a tree that looks like this:
+ * These pattern should form a (sorted) tree that looks like this:
+ *   { "3" }  --next-->  { "0" }  --next--> { "7" } --next--> { "7" } --next--> { "5" } ... blah ... --> { "X" exten_match: (b) }
+ *      |
+ *      |alt
+ *      |
+ *   { "f" }  --next-->  { "a" }  --next--> { "x"  exten_match: (c) }
  *   { "N" }  --next-->  { "X" }  --next--> { "X" } --next--> { "N" } --next--> { "X" } ... blah ... --> { "X" exten_match: (a) }
  *      |                                                        |
  *      |                                                        |alt
  *      |alt                                                     |
  *      |                                                     { "X" } --next--> { "X" } ... blah ... --> { "X" exten_match: (d) }
  *      |
- *   { "3" }  --next-->  { "0" }  --next--> { "7" } --next--> { "7" } --next--> { "5" } ... blah ... --> { "X" exten_match: (b) }
- *      |
- *      |alt
- *      |
- *   { "f" }  --next-->  { "a" }  --next--> { "x"  exten_match: (c) }
+ *     NULL
  *
  *   In the above, I could easily turn "N" into "23456789", but I think that a quick "if( *z >= '2' && *z <= '9' )" might take
  *   fewer CPU cycles than a call to index("23456789",*z), where *z is the char to match...
  *
- *   traversal is pretty simple: one routine merely traverses the alt list, and for each match in the pattern,  it calls itself
+ *   traversal is pretty simple: one routine merely traverses the alt list, and for each matching char in the pattern,  it calls itself
  *   on the corresponding next pointer, incrementing also the pointer of the string to be matched, and passing the total specificity and length.
  *   We pass a pointer to a scoreboard down through, also.
- *   When an exten_match pointer is set, or a '.' or a '!' is encountered, we update the scoreboard only if the length is greater, or in case
- *   of equal length, if the specificity is lower, and return. Hope the limit on stack depth won't be a problem... this routine should 
+ *   The scoreboard isn't as necessary to the revised algorithm, but I kept it as a handy way to return the matched extension.
+ *   The first complete match ends the traversal, which should make this version of the pattern matcher faster
+ *   the previous. The same goes for "CANMATCH" or "MATCHMORE"; the first such match ends the traversal. In both
+ *   these cases, the reason we can stop immediately, is because the first pattern match found will be the "best"
+ *   according to the sort criteria.
+ *   Hope the limit on stack depth won't be a problem... this routine should 
  *   be pretty lean as far a stack usage goes. Any non-match terminates the recursion down a branch.
  *
- *   In the above example, with the number "3077549999" as the pattern, the traversor should match extensions a, b and d.  All are
- *   of length 10; but they have total specificities of  96, 46, and 98, respectively. (b) wins with its lower specificity number!
+ *   In the above example, with the number "3077549999" as the pattern, the traversor could match extensions a, b and d.  All are
+ *   of length 10; they have total specificities of  24580, 10246, and 25090, respectively, not that this matters
+ *   at all. (b) wins purely because the first character "3" is much more specific (lower specificity) than "N". I have
+ *   left the specificity totals in the code as an artifact; at some point, I will strip it out.
  *
- *   Just how much time this algorithm might save over a plain linear traversal over all possible patterns is unknown. But, it should
- *   be pretty close to optimal for this sort of overall algorithm.
+ *   Just how much time this algorithm might save over a plain linear traversal over all possible patterns is unknown,
+ *   because it's a function of how many extensions are stored in a context. With thousands of extensions, the speedup
+ *   can be very noticeable. The new matching algorithm can run several hundreds of times faster, if not a thousand or
+ *   more times faster in extreme cases.
+ *
+ *   MatchCID patterns are also supported, and stored in the tree just as the extension pattern is. Thus, you
+ *   can have patterns in your CID field as well.
  *
  * */
-
-/* you only really update the scoreboard, if the new score is BETTER than the 
- * one stored there. ignore it otherwise.
- */
 
 
 static void update_scoreboard(struct scoreboard *board, int length, int spec, struct ast_exten *exten, char last, const char *callerid, int deleted, struct match_char *node)
 {
-	/* doing a matchcid() check here would be easy and cheap, but...
-	   unfortunately, it only works if an extension can have only one 
-	   cid to match. That's not real life. CID patterns need to exist 
-	   in the tree for this sort of thing to work properly. */
-
 	/* if this extension is marked as deleted, then skip this -- if it never shows
-	   on the scoreboard, it will never be found */
+	   on the scoreboard, it will never be found, nor will halt the traversal. */
 	if (deleted)
 		return;
-	if (length > board->total_length) {
-		board->total_specificity = spec;
-		board->total_length = length;
-		board->exten = exten;
-		board->last_char = last;
-		board->node = node;
-	} else if (length == board->total_length && spec < board->total_specificity) {
-		board->total_specificity = spec;
-		board->total_length = length;
-		board->exten = exten;
-		board->last_char = last;
-		board->node = node;
-	}
+	board->total_specificity = spec;
+	board->total_length = length;
+	board->exten = exten;
+	board->last_char = last;
+	board->node = node;
+#ifdef NEED_DEBUG_HERE
+	ast_log(LOG_NOTICE,"Scoreboarding (LONGER) %s, len=%d, score=%d\n", exten->exten, length, spec);
+#endif
 }
 
 void log_match_char_tree(struct match_char *node, char *prefix)
@@ -934,10 +957,16 @@ static struct ast_exten *get_canmatch_exten(struct match_char *node)
 	struct match_char *node2 = node;
 
 	for (node2 = node; node2; node2 = node2->next_char) {
-		if (node2->exten)
+		if (node2->exten) {
+#ifdef NEED_DEBUG_HERE
+			ast_log(LOG_NOTICE,"CanMatch_exten returns exten %s(%p)\n", node2->exten->exten, node2->exten);
+#endif
 			return node2->exten;
+		}
 	}
-
+#ifdef NEED_DEBUG_HERE
+	ast_log(LOG_NOTICE,"CanMatch_exten returns NULL, match_char=%s\n", node->x);
+#endif
 	return 0;
 }
 
@@ -972,7 +1001,7 @@ static struct ast_exten *trie_find_next_match(struct match_char *node)
 	return NULL;
 }
 
-static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid)
+static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid, enum ext_match_t action)
 {
 	struct match_char *p; /* note minimal stack storage requirements */
 #ifdef DEBUG_THIS
@@ -982,50 +1011,46 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 		ast_log(LOG_NOTICE,"new_find_extension called with %s on (sub)tree NULL\n", str);
 #endif
 	for (p=tree; p; p=p->alt_char) {
-		if (p->x[0] == 'N' && p->x[1] == 0 && *str >= '2' && *str <= '9' ) {
-			if (p->exten && !(*(str+1))) /* if a shorter pattern matches along the way, might as well report it */
-				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted, p);
-
-			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
-				if (*(str+1))
-					new_find_extension(str+1, score, p->next_char, length+1, spec+p->specificity, callerid);
-				else
-					new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid);
-			} else if (p->next_char && !*(str+1)) {
-				score->canmatch = 1;
-				score->canmatch_exten = get_canmatch_exten(p);
-			} else {
-				return;
+		if (p->x[0] == 'N') {
+			if (p->x[1] == 0 && *str >= '2' && *str <= '9' ) {
+#define NEW_MATCHER_CHK_MATCH	       \
+				if (p->exten && !(*(str+1))) { /* if a shorter pattern matches along the way, might as well report it */ \
+					update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted, p);         \
+					if (!p->deleted)                                                                                     \
+						return; /* the first match, by definition, will be the best, because of the sorted tree */       \
+				}
+				
+#define NEW_MATCHER_RECURSE	           \
+				if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0)                 \
+                                               || p->next_char->x[0] == '!')) {                                          \
+					if (*(str+1) || p->next_char->x[0] == '!') {                                                         \
+						new_find_extension(str+1, score, p->next_char, length+1, spec+p->specificity, callerid, action); \
+						if (score->exten)                                                                                \
+							return; /* the first match is all we need */                                                 \
+					} else {                                                                                             \
+						new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid, action);	 \
+						if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch))        \
+							return; /* the first match is all we need */                                                 \
+					}                                                                                                    \
+				} else if (p->next_char && !*(str+1)) {                                                                  \
+					score->canmatch = 1;                                                                                 \
+					score->canmatch_exten = get_canmatch_exten(p);                                                       \
+					if (action == E_CANMATCH || action == E_MATCHMORE)                                                   \
+						return;                                                                                          \
+				}
+				
+				NEW_MATCHER_CHK_MATCH;
+				NEW_MATCHER_RECURSE;
 			}
-		} else if (p->x[0] == 'Z' && p->x[1] == 0 && *str >= '1' && *str <= '9' ) {
-			if (p->exten && !(*(str+1))) /* if a shorter pattern matches along the way, might as well report it */
-				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted,p);
-
-			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
-				if (*(str+1))
-					new_find_extension(str+1, score, p->next_char, length+1, spec+p->specificity, callerid);
-				else
-					new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid);
-			} else if (p->next_char && !*(str+1)) {
-				score->canmatch = 1;
-				score->canmatch_exten = get_canmatch_exten(p);
-			} else {
-				return;
+		} else if (p->x[0] == 'Z') {
+			if (p->x[1] == 0 && *str >= '1' && *str <= '9' ) {
+				NEW_MATCHER_CHK_MATCH;
+				NEW_MATCHER_RECURSE;
 			}
-		} else if (p->x[0] == 'X' && p->x[1] == 0 && *str >= '0' && *str <= '9' ) {
-			if (p->exten && !(*(str+1))) /* if a shorter pattern matches along the way, might as well report it */
-				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted,p);
-
-			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
-				if (*(str+1))
-					new_find_extension(str+1, score, p->next_char, length+1, spec+p->specificity, callerid);
-				else
-					new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid);
-			} else if (p->next_char && !*(str+1)) {
-				score->canmatch = 1;
-				score->canmatch_exten = get_canmatch_exten(p);
-			} else {
-				return;
+		} else if (p->x[0] == 'X') { 
+			if (p->x[1] == 0 && *str >= '0' && *str <= '9' ) {
+				NEW_MATCHER_CHK_MATCH;
+				NEW_MATCHER_RECURSE;
 			}
 		} else if (p->x[0] == '.' && p->x[1] == 0) {
 			/* how many chars will the . match against? */
@@ -1035,48 +1060,44 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 				str2++;
 				i++;
 			}
-			if (p->exten && *str2 != '/')
+			if (p->exten && *str2 != '/') {
 				update_scoreboard(score, length+i, spec+(i*p->specificity), p->exten, '.', callerid, p->deleted, p);
-			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
-				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid);
+				if (score->exten)										\
+					return; /* the first match is all we need */		\
 			}
-			return;
+			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
+				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid, action);
+				if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch))
+					return; /* the first match is all we need */
+			}
 		} else if (p->x[0] == '!' && p->x[1] == 0) {
 			/* how many chars will the . match against? */
-			int i = 0;
+			int i = 1;
 			const char *str2 = str;
 			while (*str2 && *str2 != '/') {
 				str2++;
 				i++;
 			}
-			if (p->exten && *str2 != '/')
+			if (p->exten && *str2 != '/') {
 				update_scoreboard(score, length+1, spec+(p->specificity*i), p->exten, '!', callerid, p->deleted, p);
-			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
-				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid);
+				if (score->exten)										\
+					return; /* the first match is all we need */		\
 			}
-			return;
+			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
+				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid, action);
+				if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch))
+					return; /* the first match is all we need */
+			}
 		} else if (p->x[0] == '/' && p->x[1] == 0) {
 			/* the pattern in the tree includes the cid match! */
 			if (p->next_char && callerid && *callerid) {
-				new_find_extension(callerid, score, p->next_char, length+1, spec, callerid);
+				new_find_extension(callerid, score, p->next_char, length+1, spec, callerid, action);
+				if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch))
+					return; /* the first match is all we need */
 			}
 		} else if (index(p->x, *str)) {
-			if (p->exten && !(*(str+1))) /* if a shorter pattern matches along the way, might as well report it */
-				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted, p);
-
-
-			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
-				if (*(str+1)) {
-					new_find_extension(str+1, score, p->next_char, length+1, spec+p->specificity, callerid);
-				} else {
-					new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid);
-				}
-			} else if (p->next_char && !*(str+1)) {
-				score->canmatch = 1;
-				score->canmatch_exten = get_canmatch_exten(p);
-			} else {
-				return;
-			}
+			NEW_MATCHER_CHK_MATCH;
+			NEW_MATCHER_RECURSE;
 		}
 	}
 }
@@ -1084,7 +1105,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 /* the algorithm for forming the extension pattern tree is also a bit simple; you 
  * traverse all the extensions in a context, and for each char of the extension,
  * you see if it exists in the tree; if it doesn't, you add it at the appropriate
- * spot. What more can I say? At the end of the list, you cap it off by adding the
+ * spot. What more can I say? At the end of each exten, you cap it off by adding the
  * address of the extension involved. Duplicate patterns will be complained about.
  *
  * Ideally, this would be done for each context after it is created and fully 
@@ -1092,7 +1113,9 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
  * loaded, or it could be done when the first search is encountered. It should only
  * have to be done once, until the next unload or reload.
  *
- * I guess forming this pattern tree would be analogous to compiling a regex.
+ * I guess forming this pattern tree would be analogous to compiling a regex. Except
+ * that a regex only handles 1 pattern, really. This trie holds any number
+ * of patterns.
  */
 
 static struct match_char *already_in_tree(struct match_char *current, char *pat)
@@ -1110,7 +1133,44 @@ static struct match_char *already_in_tree(struct match_char *current, char *pat)
 	return 0;
 }
 
-static struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity)
+/* The first arg is the location of the tree ptr, or the 
+   address of the next_char ptr in the node, so we can mess
+   with it, if we need to insert at the beginning of the list */
+
+static void insert_in_next_chars_alt_char_list(struct match_char **parent_ptr, struct match_char *node)
+{
+	struct match_char *curr, *lcurr;
+	
+	/* insert node into the tree at "current", so the alt_char list from current is
+	   sorted in increasing value as you go to the leaves */
+	if (!(*parent_ptr)) {
+		*parent_ptr = node;
+	} else {
+		if ((*parent_ptr)->specificity > node->specificity){
+			/* insert at head */
+			node->alt_char = (*parent_ptr);
+			*parent_ptr = node;
+		} else {
+			lcurr = *parent_ptr;
+			for (curr=(*parent_ptr)->alt_char; curr; curr = curr->alt_char) {
+				if (curr->specificity > node->specificity) {
+					node->alt_char = curr;
+					lcurr->alt_char = node;
+					break;
+				}
+				lcurr = curr;
+			}
+			if (!curr)
+			{
+				lcurr->alt_char = node;
+			}
+		}
+	}
+}
+
+
+
+static struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity, struct match_char **nextcharptr)
 {
 	struct match_char *m;
 	
@@ -1122,33 +1182,29 @@ static struct match_char *add_pattern_node(struct ast_context *con, struct match
 		return NULL;
 	}
 
+	/* the specificity scores are the same as used in the old
+	   pattern matcher. */
 	m->is_pattern = is_pattern;
 	if (specificity == 1 && is_pattern && pattern[0] == 'N')
-		m->specificity = 98;
+		m->specificity = 0x0802;
 	else if (specificity == 1 && is_pattern && pattern[0] == 'Z')
-		m->specificity = 99;
+		m->specificity = 0x0901;
 	else if (specificity == 1 && is_pattern && pattern[0] == 'X')
-		m->specificity = 100;
+		m->specificity = 0x0a00;
 	else if (specificity == 1 && is_pattern && pattern[0] == '.')
-		m->specificity = 200;
+		m->specificity = 0x10000;
 	else if (specificity == 1 && is_pattern && pattern[0] == '!')
-		m->specificity = 200;
+		m->specificity = 0x20000;
 	else
 		m->specificity = specificity;
 	
 	if (!con->pattern_tree) {
-		con->pattern_tree = m;
+		insert_in_next_chars_alt_char_list(&con->pattern_tree, m);
 	} else {
 		if (already) { /* switch to the new regime (traversing vs appending)*/
-			m->alt_char = current->alt_char;
-			current->alt_char = m;
+			insert_in_next_chars_alt_char_list(nextcharptr, m);
 		} else {
-			if (current->next_char) {
-				m->alt_char = current->next_char->alt_char;
-				current->next_char = m;
-			} else {
-				current->next_char = m;
-			}
+			insert_in_next_chars_alt_char_list(&current->next_char, m);
 		}
 	}
 
@@ -1157,7 +1213,7 @@ static struct match_char *add_pattern_node(struct ast_context *con, struct match
 
 static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1, int findonly)
 {
-	struct match_char *m1 = NULL, *m2 = NULL;
+	struct match_char *m1 = NULL, *m2 = NULL, **m0;
 	int specif;
 	int already;
 	int pattern = 0;
@@ -1179,6 +1235,7 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 	ast_log(LOG_DEBUG,"Adding exten %s%c%s to tree\n", s1, e1->matchcid? '/':' ', e1->matchcid? e1->cidmatch : "");
 #endif
 	m1 = con->pattern_tree; /* each pattern starts over at the root of the pattern tree */
+	m0 = &con->pattern_tree;
 	already = 1;
 
 	if ( *s1 == '_') {
@@ -1217,7 +1274,12 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 				}
 			}
 			*s2 = 0; /* null terminate the exploded range */
+			/* sort the characters */
+
 			specif = strlen(buf);
+			qsort(buf, specif, 1, compare_char);
+			specif <<= 8;
+			specif += buf[0];
 		} else {
 			
 			if (*s1 == '\\') {
@@ -1245,15 +1307,17 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 				m2->deleted = 0;
 			}
 			m1 = m2->next_char; /* m1 points to the node to compare against */
-		} else {
+			m0 = &m2->next_char; /* m0 points to the ptr that points to m1 */
+		} else { /* not already OR not m2 OR nor m2->next_char */
 			if (m2) {
 				if (findonly)
 					return m2;
-				m1 = m2;
+				m1 = m2; /* while m0 stays the same */
 			} else {
 				if (findonly)
 					return m1;
-				m1 = add_pattern_node(con, m1, buf, pattern, already,specif); /* m1 is the node just added */
+				m1 = add_pattern_node(con, m1, buf, pattern, already,specif, m0); /* m1 is the node just added */
+				m0 = &m1->next_char;
 			}
 			
 			if (!(*(s1+1))) {
@@ -1482,22 +1546,45 @@ int ast_extension_cmp(const char *a, const char *b)
 static int _extension_match_core(const char *pattern, const char *data, enum ext_match_t mode)
 {
 	mode &= E_MATCH_MASK;	/* only consider the relevant bits */
-
-	if ( (mode == E_MATCH) && (pattern[0] == '_') && (!strcasecmp(pattern,data)) ) /* note: if this test is left out, then _x. will not match _x. !!! */
+	
+#ifdef NEED_DEBUG_HERE
+	ast_log(LOG_NOTICE,"match core: pat: '%s', dat: '%s', mode=%d\n", pattern, data, (int)mode);
+#endif
+	
+	if ( (mode == E_MATCH) && (pattern[0] == '_') && (!strcasecmp(pattern,data)) ) { /* note: if this test is left out, then _x. will not match _x. !!! */
+#ifdef NEED_DEBUG_HERE
+		ast_log(LOG_NOTICE,"return (1) - pattern matches pattern\n");
+#endif
 		return 1;
+	}
 
 	if (pattern[0] != '_') { /* not a pattern, try exact or partial match */
 		int ld = strlen(data), lp = strlen(pattern);
-
-		if (lp < ld)		/* pattern too short, cannot match */
+		
+		if (lp < ld) {		/* pattern too short, cannot match */
+#ifdef NEED_DEBUG_HERE
+			ast_log(LOG_NOTICE,"return (0) - pattern too short, cannot match\n");
+#endif
 			return 0;
+		}
 		/* depending on the mode, accept full or partial match or both */
-		if (mode == E_MATCH)
+		if (mode == E_MATCH) {
+#ifdef NEED_DEBUG_HERE
+			ast_log(LOG_NOTICE,"return (!strcmp(%s,%s) when mode== E_MATCH)\n", pattern, data);
+#endif
 			return !strcmp(pattern, data); /* 1 on match, 0 on fail */
-		if (ld == 0 || !strncasecmp(pattern, data, ld)) /* partial or full match */
+		} 
+		if (ld == 0 || !strncasecmp(pattern, data, ld)) { /* partial or full match */
+#ifdef NEED_DEBUG_HERE
+			ast_log(LOG_NOTICE,"return (mode(%d) == E_MATCHMORE ? lp(%d) > ld(%d) : 1)\n", mode, lp, ld);
+#endif
 			return (mode == E_MATCHMORE) ? lp > ld : 1; /* XXX should consider '!' and '/' ? */
-		else
+		} else {
+#ifdef NEED_DEBUG_HERE
+			ast_log(LOG_NOTICE,"return (0) when ld(%d) > 0 && pattern(%s) != data(%s)\n", ld, pattern, data);
+#endif
 			return 0;
+		}
 	}
 	pattern++; /* skip leading _ */
 	/*
@@ -1529,49 +1616,91 @@ static int _extension_match_core(const char *pattern, const char *data, enum ext
 				} else if (*data == pattern[0])
 					break;	/* match found */
 			}
-			if (pattern == end)
+			if (pattern == end) {
+#ifdef NEED_DEBUG_HERE
+				ast_log(LOG_NOTICE,"return (0) when pattern==end\n");
+#endif
 				return 0;
+			}
 			pattern = end;	/* skip and continue */
 			break;
 		case 'N':
-			if (*data < '2' || *data > '9')
+			if (*data < '2' || *data > '9') {
+#ifdef NEED_DEBUG_HERE
+				ast_log(LOG_NOTICE,"return (0) N is matched\n");
+#endif
 				return 0;
+			}
 			break;
 		case 'X':
-			if (*data < '0' || *data > '9')
+			if (*data < '0' || *data > '9') {
+#ifdef NEED_DEBUG_HERE
+				ast_log(LOG_NOTICE,"return (0) X is matched\n");
+#endif
 				return 0;
+			}
 			break;
 		case 'Z':
-			if (*data < '1' || *data > '9')
+			if (*data < '1' || *data > '9') {
+#ifdef NEED_DEBUG_HERE
+				ast_log(LOG_NOTICE,"return (0) Z is matched\n");
+#endif
 				return 0;
+			}
 			break;
 		case '.':	/* Must match, even with more digits */
+#ifdef NEED_DEBUG_HERE
+			ast_log(LOG_NOTICE,"return (1) when '.' is matched\n");
+#endif
 			return 1;
 		case '!':	/* Early match */
+#ifdef NEED_DEBUG_HERE
+			ast_log(LOG_NOTICE,"return (2) when '!' is matched\n");
+#endif
 			return 2;
 		case ' ':
 		case '-':	/* Ignore these in patterns */
 			data--; /* compensate the final data++ */
 			break;
 		default:
-			if (*data != *pattern)
+			if (*data != *pattern) {
+#ifdef NEED_DEBUG_HERE
+				ast_log(LOG_NOTICE,"return (0) when *data(%c) != *pattern(%c)\n", *data, *pattern);
+#endif
 				return 0;
+			}
+			
 		}
 		data++;
 		pattern++;
 	}
-	if (*data)			/* data longer than pattern, no match */
+	if (*data)			/* data longer than pattern, no match */ {
+#ifdef NEED_DEBUG_HERE
+		ast_log(LOG_NOTICE,"return (0) when data longer than pattern\n");
+#endif
 		return 0;
+	}
+	
 	/*
 	 * match so far, but ran off the end of the data.
 	 * Depending on what is next, determine match or not.
 	 */
-	if (*pattern == '\0' || *pattern == '/')	/* exact match */
+	if (*pattern == '\0' || *pattern == '/') {	/* exact match */
+#ifdef NEED_DEBUG_HERE
+		ast_log(LOG_NOTICE,"at end, return (%d) in 'exact match'\n", (mode==E_MATCHMORE) ? 0 : 1);
+#endif
 		return (mode == E_MATCHMORE) ? 0 : 1;	/* this is a failure for E_MATCHMORE */
-	else if (*pattern == '!')			/* early match */
+	} else if (*pattern == '!')	{		/* early match */
+#ifdef NEED_DEBUG_HERE
+		ast_log(LOG_NOTICE,"at end, return (2) when '!' is matched\n");
+#endif
 		return 2;
-	else						/* partial match */
+	} else {						/* partial match */
+#ifdef NEED_DEBUG_HERE
+		ast_log(LOG_NOTICE,"at end, return (%d) which deps on E_MATCH\n", (mode == E_MATCH) ? 0 : 1);
+#endif
 		return (mode == E_MATCH) ? 0 : 1;	/* this is a failure for E_MATCH */
+	}
 }
 
 /*
@@ -1669,7 +1798,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 
 	pattern.label = label;
 	pattern.priority = priority;
-#ifdef NEED_DEBUG
+#ifdef NEED_DEBUG_HERE
 	ast_log(LOG_NOTICE,"Looking for cont/ext/prio/label/action = %s/%s/%d/%s/%d\n", context, exten, priority, label, (int)action);
 #endif
 	/* Initialize status if appropriate */
@@ -1789,14 +1918,14 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	} while (0);
 
 	if (extenpatternmatchnew) {
-		new_find_extension(exten, &score, tmp->pattern_tree, 0, 0, callerid);
+		new_find_extension(exten, &score, tmp->pattern_tree, 0, 0, callerid, action);
 		eroot = score.exten;
 		
 		if (score.last_char == '!' && action == E_MATCHMORE) {
 			/* We match an extension ending in '!'.
 			 * The decision in this case is final and is NULL (no match).
 			 */
-#ifdef NEED_DEBUG
+#ifdef NEED_DEBUG_HERE
 			ast_log(LOG_NOTICE,"Returning MATCHMORE NULL with exclamation point.\n");
 #endif
 			return NULL;
@@ -1804,7 +1933,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		
 		if (!eroot && (action == E_CANMATCH || action == E_MATCHMORE) && score.canmatch_exten) {
 			q->status = STATUS_SUCCESS;
-#ifdef NEED_DEBUG
+#ifdef NEED_DEBUG_HERE
 			ast_log(LOG_NOTICE,"Returning CANMATCH exten %s\n", score.canmatch_exten->exten);
 #endif
 			return score.canmatch_exten;
@@ -1813,15 +1942,25 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		if ((action == E_MATCHMORE || action == E_CANMATCH)  && eroot) {
 			if (score.node) {
 				struct ast_exten *z = trie_find_next_match(score.node);
-#ifdef NEED_DEBUG
-				if (z)
+				if (z) {
+#ifdef NEED_DEBUG_HERE
 					ast_log(LOG_NOTICE,"Returning CANMATCH/MATCHMORE next_match exten %s\n", z->exten);
-				else
-					ast_log(LOG_NOTICE,"Returning CANMATCH/MATCHMORE next_match exten NULL\n");
 #endif
+				} else {
+					if (score.canmatch_exten) {
+#ifdef NEED_DEBUG_HERE
+						ast_log(LOG_NOTICE,"Returning CANMATCH/MATCHMORE canmatchmatch exten %s(%p)\n", score.canmatch_exten->exten, score.canmatch_exten);
+#endif
+						return score.canmatch_exten;
+					} else {
+#ifdef NEED_DEBUG_HERE
+						ast_log(LOG_NOTICE,"Returning CANMATCH/MATCHMORE next_match exten NULL\n");
+#endif
+					}
+				}
 				return z;
 			}
-#ifdef NEED_DEBUG
+#ifdef NEED_DEBUG_HERE
 			ast_log(LOG_NOTICE,"Returning CANMATCH/MATCHMORE NULL (no next_match)\n");
 #endif
 			return NULL;  /* according to the code, complete matches are null matches in MATCHMORE mode */
@@ -1842,13 +1981,13 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 			if (e) {	/* found a valid match */
 				q->status = STATUS_SUCCESS;
 				q->foundcontext = context;
-#ifdef NEED_DEBUG
+#ifdef NEED_DEBUG_HERE
 				ast_log(LOG_NOTICE,"Returning complete match of exten %s\n", e->exten);
 #endif
 				return e;
 			}
 		}
-	} else {
+	} else {   /* the old/current default exten pattern match algorithm */
 		
 		/* scan the list trying to match extension and CID */
 		eroot = NULL;
@@ -1947,7 +2086,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	for (i = tmp->includes; i; i = i->next) {
 		if (include_valid(i)) {
 			if ((e = pbx_find_extension(chan, bypass, q, i->rname, exten, priority, label, callerid, action))) {
-#ifdef NEED_DEBUG
+#ifdef NEED_DEBUG_HERE
 				ast_log(LOG_NOTICE,"Returning recursive match of %s\n", e->exten);
 #endif
 				return e;
