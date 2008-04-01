@@ -674,7 +674,18 @@ static int __has_voicemail(const char *context, const char *mailbox, const char 
 #endif
 
 
-
+/*!
+ * \brief Sets default voicemail system options to a voicemail user.
+ *
+ * This applies select global settings to a newly created (dynamic) instance of a voicemail user.
+ * - all the globalflags
+ * - the saydurationminfo
+ * - the callcontext
+ * - the dialcontext
+ * - the exitcontext
+ * - vmmaxsecs, vmmaxmsg, maxdeletedmsg
+ * - volume gain.
+ */
 static void populate_defaults(struct ast_vm_user *vmu)
 {
 	ast_copy_flags(vmu, (&globalflags), AST_FLAGS_ALL);	
@@ -692,6 +703,14 @@ static void populate_defaults(struct ast_vm_user *vmu)
 	vmu->volgain = volgain;
 }
 
+/*!
+ * \brief Sets a a specific property value.
+ * \param vmu The voicemail user object to work with.
+ * \param var The name of the property to be set.
+ * \param value The value to be set to the property.
+ * 
+ * The property name must be one of the understood properties. See the source for details.
+ */
 static void apply_option(struct ast_vm_user *vmu, const char *var, const char *value)
 {
 	int x;
@@ -785,6 +804,16 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 	}
 }
 
+/*! 
+ * \brief Performs a change of the voicemail passowrd in the realtime engine.
+ * \param vmu The voicemail user to change the password for.
+ * \param password The new value to be set to the password for this user.
+ * 
+ * This only works if the voicemail user has a unique id, and if there is a realtime engine configured.
+ * This is called from the (top level) vm_change_password.
+ *
+ * \return zero on success, -1 on error.
+ */
 static int change_password_realtime(struct ast_vm_user *vmu, const char *password)
 {
 	int res;
@@ -801,8 +830,11 @@ static int change_password_realtime(struct ast_vm_user *vmu, const char *passwor
 	return -1;
 }
 
+/*!
+ * \brief Destructively Parse options and apply.
+ */
 static void apply_options(struct ast_vm_user *vmu, const char *options)
-{	/* Destructively Parse options and apply */
+{	
 	char *stringp;
 	char *s;
 	char *var, *value;
@@ -815,6 +847,11 @@ static void apply_options(struct ast_vm_user *vmu, const char *options)
 	}	
 }
 
+/*!
+ * \brief Loads the options specific to a voicemail user.
+ * 
+ * This is called when a vm_user structure is being set up, such as from load_options.
+ */
 static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *var)
 {
 	struct ast_variable *tmp;
@@ -847,6 +884,13 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 	} 
 }
 
+/*!
+ * \brief Determines if a DTMF key entered is valid.
+ * \param key The character to be compared. expects a single character. Though is capable of handling a string, this is internally copies using ast_strdupa.
+ *
+ * Tests the character entered against the set of valid DTMF characters. 
+ * \return 1 if the character entered is a valid DTMF digit, 0 if the character is invalid.
+ */
 static int is_valid_dtmf(const char *key)
 {
 	int i;
@@ -862,6 +906,16 @@ static int is_valid_dtmf(const char *key)
 	return 1;
 }
 
+/*!
+ * \brief Finds a voicemail user from the realtime engine.
+ * \param ivm
+ * \param context
+ * \param mailbox
+ *
+ * This is called as a fall through case when the normal find_user() was not able to find a user. That is, the default it so look in the usual voicemail users file first.
+ *
+ * \return The ast_vm_user structure for the user that was found.
+ */
 static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const char *context, const char *mailbox)
 {
 	struct ast_variable *var;
@@ -891,6 +945,14 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 	return retval;
 }
 
+/*!
+ * \brief Finds a voicemail user from the users file or the realtime engine.
+ * \param ivm
+ * \param context
+ * \param mailbox
+ * 
+ * \return The ast_vm_user structure for the user that was found.
+ */
 static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *context, const char *mailbox)
 {
 	/* This function could be made to generate one from a database, too */
@@ -919,6 +981,16 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 	return vmu;
 }
 
+/*!
+ * \brief Resets a user password to a specified password.
+ * \param context
+ * \param mailbox
+ * \param newpass
+ *
+ * This does the actual change password work, called by the vm_change_password() function.
+ *
+ * \return zero on success, -1 on error.
+ */
 static int reset_user_pw(const char *context, const char *mailbox, const char *newpass)
 {
 	/* This function could be made to generate one from a database, too */
@@ -938,6 +1010,13 @@ static int reset_user_pw(const char *context, const char *mailbox, const char *n
 	return res;
 }
 
+/*! 
+ * \brief The handler for the change password option.
+ * \param vmu The voicemail user to work with.
+ * \param newpassword The new password (that has been gathered from the appropriate prompting).
+ * This is called when a new user logs in for the first time and the option to force them to change their password is set.
+ * It is also called when the user wants to change their password from menu option '5' on the mailbox options menu.
+ */
 static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 {
 	struct ast_config *cfg = NULL;
@@ -1019,6 +1098,16 @@ static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
 	}
 }
 
+/*! 
+ * \brief Creates a file system path expression for a folder within the voicemail data folder and the appropriate context.
+ * \param dest The variable to hold the output generated path expression. This buffer should be of size PATH_MAX.
+ * \param len The length of the path string that was written out.
+ * 
+ * The path is constructed as 
+ * 	VM_SPOOL_DIRcontext/ext/folder
+ *
+ * \return zero on success, -1 on error.
+ */
 static int make_dir(char *dest, int len, const char *context, const char *ext, const char *folder)
 {
 	return snprintf(dest, len, "%s%s/%s/%s", VM_SPOOL_DIR, context, ext, folder);
@@ -1126,6 +1215,20 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 	return stmt;
 }
 
+/*!
+ * \brief Retrieves a file from an ODBC data store.
+ * \param dir the path to the file to be retreived.
+ * \param msgnum the message number, such as within a mailbox folder.
+ * 
+ * This method is used by the RETRIEVE macro when mailboxes are stored in an ODBC back end.
+ * The purpose is to get the message from the database store to the local file system, so that the message may be played, or the information file may be read.
+ *
+ * The file is looked up by invoking a SQL on the odbc_table (default 'voicemessages') using the dir and msgnum input parameters.
+ * The output is the message information file with the name msgnum and the extension .txt
+ * and the message file with the extension of its format, in the directory with base file name of the msgnum.
+ * 
+ * \return 0 on success, -1 on error.
+ */
 static int retrieve_file(char *dir, int msgnum)
 {
 	int x = 0;
@@ -1162,11 +1265,14 @@ static int retrieve_file(char *dir, int msgnum)
 			*c = '\0';
 		if (!strcasecmp(fmt, "wav49"))
 			strcpy(fmt, "WAV");
+
 		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
 		if (msgnum > -1)
 			make_file(fn, sizeof(fn), dir, msgnum);
 		else
 			ast_copy_string(fn, dir, sizeof(fn));
+
+		/* Create the information file */
 		snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
 		
 		if (!(f = fopen(full_fn, "w+"))) {
@@ -1277,6 +1383,17 @@ yuck:
 	return x - 1;
 }
 
+/*!
+ * \brief Removes a voicemail message file.
+ * \param dir the path to the message file.
+ * \param msgnum the unique number for the message within the mailbox.
+ *
+ * Removes the message content file and the information file.
+ * This method is used by the DISPOSE macro when mailboxes are stored in an ODBC back end.
+ * Typical use is to clean up after a RETRIEVE operation. 
+ * Note that this does not remove the message from the mailbox folders, to do that we would use delete_file().
+ * \return zero on success, -1 on error.
+ */
 static int remove_file(char *dir, int msgnum)
 {
 	char fn[PATH_MAX];
@@ -1297,6 +1414,16 @@ static int remove_file(char *dir, int msgnum)
 	return 0;
 }
 
+/*!
+ * \brief Determines the highest message number in use for a given user and mailbox folder.
+ * \param vmu 
+ * \param dir the folder the mailbox folder to look for messages. Used to construct the SQL where clause.
+ *
+ * This method is used when mailboxes are stored in an ODBC back end.
+ * Typical use to set the msgnum would be to take the value returned from this method and add one to it.
+ *
+ * \return the value of zero or greaterto indicate the last message index in use, -1 to indicate none.
+ */
 static int last_message_index(struct ast_vm_user *vmu, char *dir)
 {
 	int x = 0;
@@ -1341,6 +1468,15 @@ yuck:
 	return x - 1;
 }
 
+/*!
+ * \brief Determines if the specified message exists.
+ * \param dir the folder the mailbox folder to look for messages. 
+ * \param msgnum the message index to query for.
+ *
+ * This method is used when mailboxes are stored in an ODBC back end.
+ *
+ * \return greater than zero if the message exists, zero when the message does not exist or on error.
+ */
 static int message_exists(char *dir, int msgnum)
 {
 	int x = 0;
@@ -1387,11 +1523,33 @@ yuck:
 	return x;
 }
 
+/*!
+ * \brief returns the one-based count for messages.
+ * \param vmu
+ * \param dir the folder the mailbox folder to look for messages. Used to construct the SQL where clause.
+ *
+ * This method is used when mailboxes are stored in an ODBC back end.
+ * The message index is zero-based, the first message will be index 0. For convenient display it is good to have the
+ * one-based messages.
+ * This method just calls last_message_index and returns +1 of its value.
+ *
+ * \return the value greater than zero on success to indicate the one-based count of messages, less than zero on error.
+ */
 static int count_messages(struct ast_vm_user *vmu, char *dir)
 {
 	return last_message_index(vmu, dir) + 1;
 }
 
+/*!
+ * \brief Deletes a message from the mailbox folder.
+ * \param sdir The mailbox folder to work in.
+ * \param smsg The message index to be deleted.
+ *
+ * This method is used when mailboxes are stored in an ODBC back end.
+ * The specified message is directly deleted from the database 'voicemessages' table.
+ * 
+ * \return the value greater than zero on success to indicate the number of messages, less than zero on error.
+ */
 static void delete_file(char *sdir, int smsg)
 {
 	SQLHSTMT stmt;
@@ -1416,6 +1574,17 @@ static void delete_file(char *sdir, int smsg)
 	return;	
 }
 
+/*!
+ * \brief Copies a voicemail from one mailbox to another.
+ * \param sdir the folder for which to look for the message to be copied.
+ * \param smsg the index of the message to be copied.
+ * \param ddir the destination folder to copy the message into.
+ * \param dmsg the index to be used for the copied message.
+ * \param dmailboxuser The user who owns the mailbox tha contains the destination folder.
+ * \param dmailboxcontext The context for the destination user.
+ *
+ * This method is used for the COPY macro when mailboxes are stored in an ODBC back end.
+ */
 static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailboxuser, char *dmailboxcontext)
 {
 	SQLHSTMT stmt;
@@ -1443,6 +1612,19 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 	return;	
 }
 
+/*!
+ * \brief Stores a voicemail into the database.
+ * \param dir the folder the mailbox folder to store the message.
+ * \param mailboxuser the user owning the mailbox folder.
+ * \param mailboxcontext
+ * \param msgnum the message index for the message to be stored.
+ *
+ * This method is used when mailboxes are stored in an ODBC back end.
+ * The message sound file and information file is looked up on the file system. 
+ * A SQL query is invoked to store the message into the (MySQL) database.
+ *
+ * \return the zero on success -1 on error.
+ */
 static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum)
 {
 	int x = 0;
@@ -1561,6 +1743,19 @@ yuck:
 	return x;
 }
 
+/*!
+ * \brief Renames a message in a mailbox folder.
+ * \param sdir The folder of the message to be renamed.
+ * \param smsg The index of the message to be renamed.
+ * \param mailboxuser The user to become the owner of the message after it is renamed. Usually this will be the same as the original owner.
+ * \param mailboxcontext The context to be set for the message. Usually this will be the same as the original context.
+ * \param ddir The destination folder for the message to be renamed into
+ * \param dmsg The destination message for the message to be renamed.
+ *
+ * This method is used by the RENAME macro when mailboxes are stored in an ODBC back end.
+ * The is usually used to resequence the messages in the mailbox, such as to delete messag index 0, it would be called successively to slide all the other messages down one index.
+ * But in theory, because the SQL query performs an update on (dir, msgnum, mailboxuser, mailboxcontext) in the database, it should be possible to have the message relocated to another mailbox or context as well.
+ */
 static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxcontext, char *ddir, int dmsg)
 {
 	SQLHSTMT stmt;
@@ -1590,9 +1785,17 @@ static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxco
 
 #else
 #ifndef IMAP_STORAGE
+/*!
+ * \brief Find all .txt files - even if they are not in sequence from 0000.
+ * \param vmu
+ * \param dir
+ *
+ * This method is used when mailboxes are stored on the filesystem. (not ODBC and not IMAP).
+ *
+ * \return the count of messages, zero or more.
+ */
 static int count_messages(struct ast_vm_user *vmu, char *dir)
 {
-	/* Find all .txt files - even if they are not in sequence from 0000 */
 
 	int vmcount = 0;
 	DIR *vmdir = NULL;
@@ -1613,6 +1816,13 @@ static int count_messages(struct ast_vm_user *vmu, char *dir)
 	return vmcount;
 }
 
+/*!
+ * \brief Renames a message in a mailbox folder.
+ * \param sfn The path to the mailbox information and data file to be renamed.
+ * \param dfn The path for where the message data and information files will be renamed to.
+ *
+ * This method is used by the RENAME macro when mailboxes are stored on the filesystem. (not ODBC and not IMAP).
+ */
 static void rename_file(char *sfn, char *dfn)
 {
 	char stxt[PATH_MAX];
@@ -1628,9 +1838,16 @@ static void rename_file(char *sfn, char *dfn)
 #endif
 
 #ifndef IMAP_STORAGE
-/*! \brief
- * A negative return value indicates an error.
+/*! 
+ * \brief Determines the highest message number in use for a given user and mailbox folder.
+ * \param vmu 
+ * \param dir the folder the mailbox folder to look for messages. Used to construct the SQL where clause.
+ *
+ * This method is used when mailboxes are stored on the filesystem. (not ODBC and not IMAP).
+ * Typical use to set the msgnum would be to take the value returned from this method and add one to it.
+ *
  * \note Should always be called with a lock already set on dir.
+ * \return the value of zero or greaterto indicate the last message index in use, -1 to indicate none.
  */
 static int last_message_index(struct ast_vm_user *vmu, char *dir)
 {
@@ -1662,6 +1879,16 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 #endif /* #ifndef IMAP_STORAGE */
 #endif /* #else of #ifdef ODBC_STORAGE */
 
+/*!
+ * \brief Utility function to copy a file.
+ * \param infile The path to the file to be copied. The file must be readable, it is opened in read only mode.
+ * \param outfile The path for which to copy the file to. The directory permissions must allow the creation (or truncation) of the file, and allow for opening the file in write only mode.
+ *
+ * When the compiler option HARDLINK_WHEN_POSSIBLE is set, the copy operation will attempt to use the hard link facility instead of copy the file (to save disk space). If the link operation fails, it falls back to the copy operation.
+ * The copy operation copies up to 4096 bytes at once.
+ *
+ * \return zero on success, -1 on error.
+ */
 static int copy(char *infile, char *outfile)
 {
 	int ifd;
@@ -1763,6 +1990,14 @@ static void copy_plain_file(char *frompath, char *topath)
 	ast_variables_destroy(var);
 }
 
+/*! 
+ * \brief Removes the voicemail sound and information file.
+ * \param file The path to the sound file. This will be the the folder and message index, without the extension.
+ *
+ * This is used by the DELETE macro when voicemails are stored on the file system.
+ *
+ * \return zero on success, -1 on error.
+ */
 static int vm_delete(char *file)
 {
 	char *txt;
@@ -1781,6 +2016,9 @@ static int vm_delete(char *file)
 	return ast_filedelete(file, NULL);
 }
 
+/*!
+ * \brief utility used by inchar(), for base_encode()
+ */
 static int inbuf(struct baseio *bio, FILE *fi)
 {
 	int l;
@@ -1802,6 +2040,9 @@ static int inbuf(struct baseio *bio, FILE *fi)
 	return 1;
 }
 
+/*!
+ * \brief utility used by base_encode()
+ */
 static int inchar(struct baseio *bio, FILE *fi)
 {
 	if (bio->iocp >= bio->iolen) {
@@ -1812,6 +2053,9 @@ static int inchar(struct baseio *bio, FILE *fi)
 	return bio->iobuf[bio->iocp++];
 }
 
+/*!
+ * \brief utility used by base_encode()
+ */
 static int ochar(struct baseio *bio, int c, FILE *so)
 {
 	if (bio->linelength >= BASELINELEN) {
@@ -1829,6 +2073,15 @@ static int ochar(struct baseio *bio, int c, FILE *so)
 	return 1;
 }
 
+/*!
+ * \brief Performs a base 64 encode algorithm on the contents of a File
+ * \param filename The path to the file to be encoded. Must be readable, file is opened in read mode.
+ * \param so A FILE handle to the output file to receive the base 64 encoded contents of the input file, identified by filename.
+ *
+ * TODO: shouldn't this (and the above 3 support functions) be put into some kind of external utility location, such as funcs/func_base64.c ?
+ *
+ * \return zero on success, -1 on error.
+ */
 static int base_encode(char *filename, FILE *so)
 {
 	static const unsigned char dtable[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
@@ -1905,6 +2158,13 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 	pbx_builtin_setvar_helper(ast, "VM_CATEGORY", category ? ast_strdupa(category) : "no category");
 }
 
+/*!
+ * \brief Wraps a character sequence in double quotes, escaping occurences of quotes within the string.
+ * \param from The string to work with.
+ * \param to The string to write the modified quoted string. This buffer should be sufficiently larger than the from string, so as to allow it to be expanded by the surrounding quotes and escaping of internal quotes.
+ * 
+ * \return The destination string with quotes wrapped on it (the to field).
+ */
 static char *quote(const char *from, char *to, size_t len)
 {
 	char *ptr = to;
@@ -1961,6 +2221,26 @@ static FILE *vm_mkftemp(char *template)
 	return p;
 }
 
+/*!
+ * \brief Creates the email file to be sent to indicate a new voicemail exists for a user.
+ * \param p The output file to generate the email contents into.
+ * \param srcemail The email address to send the email to, presumably the email address for the owner of the mailbox.
+ * \param vmu The voicemail user who is sending the voicemail.
+ * \param msgnum The message index in the mailbox folder.
+ * \param context 
+ * \param mailbox The voicemail box to read the voicemail to be notified in this email.
+ * \param cidnum The caller ID number.
+ * \param cidname The caller ID name.
+ * \param attach the name of the sound file to be attached to the email, if attach_user_voicemail == 1.
+ * \param format The message sound file format. i.e. .wav
+ * \param duration The time of the message content, in seconds.
+ * \param attach_user_voicemail if 1, the sound file is attached to the email.
+ * \param chan
+ * \param category
+ * \param imap if == 1, indicates the target folder for the email notification to be sent to will be an IMAP mailstore. This causes additional mailbox headers to be set, which would facilitate searching for the email in the destination IMAP folder.
+ *
+ * The email body, and base 64 encoded attachement (if any) are stored to the file identified by *p. This method does not actually send the email.  That is done by invoking the configure 'mailcmd' and piping this generated file into it, or with the sendemail() function.
+ */
 static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap)
 {
 	char date[256];
@@ -2243,6 +2523,15 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	return 0;
 }
 
+/*!
+ * \brief Gets the current date and time, as formatted string.
+ * \param s The buffer to hold the output formatted date.
+ * \param len the length of the buffer. Used to prevent buffer overflow in ast_strftime.
+ * 
+ * The date format string used is "%a %b %e %r UTC %Y".
+ * 
+ * \return zero on success, -1 on error.
+ */
 static int get_date(char *s, int len)
 {
 	struct ast_tm tm;
@@ -2319,6 +2608,14 @@ static void free_zone(struct vm_zone *z)
 	ast_free(z);
 }
 
+/*!
+ * \brief Gets the name of the mailbox folder from the numeric index.
+ * \param id The numerical index for the folder name.
+ * 
+ * When an invalid number is entered, or one that exceeds the pre-configured list of folder names, the name "tmp" is returned.
+ *
+ * \return the String name that coresponds to this folder index.
+ */
 static const char *mbox(int id)
 {
 	static const char *msgs[] = {
@@ -2341,6 +2638,14 @@ static const char *mbox(int id)
 	return (id >= 0 && id < (sizeof(msgs) / sizeof(msgs[0]))) ? msgs[id] : "tmp";
 }
 #ifdef IMAP_STORAGE
+/*!
+ * \brief Converts a string folder name into the numerical identifier.
+ * \param folder the string folder name to be converted to an id.
+ *
+ * This is the opposite of the mbox() function.
+ *
+ * \return the id that coresponds to the folder name
+ */
 static int folder_int(const char *folder)
 {
 	/* assume a NULL folder means INBOX */
@@ -2467,6 +2772,15 @@ yuck:
 	return x;
 }
 
+/*!
+ * \brief Gets the number of messages that exist in a mailbox folder.
+ * \param context
+ * \param mailbox
+ * \param folder
+ * 
+ * This method is used when ODBC backend is used.
+ * \return The number of messages in this mailbox folder (zero or more).
+ */
 static int messagecount(const char *context, const char *mailbox, const char *folder)
 {
 	struct odbc_obj *obj = NULL;
@@ -2513,6 +2827,14 @@ yuck:
 	return nummsgs;
 }
 
+/** 
+ * \brief Determines if the given folder has messages.
+ * \param mailbox The @ delimited string for user@context. If no context is found, uses 'default' for the context.
+ * 
+ * This function is used when the mailbox is stored in an ODBC back end.
+ * This invokes the messagecount(). Here we are interested in the presence of messages (> 0) only, not the actual count.
+ * \return 1 if the folder has one or more messages. zero otherwise.
+ */
 static int has_voicemail(const char *mailbox, const char *folder)
 {
 	char tmp[256], *tmp2 = tmp, *mbox, *context;
@@ -2613,6 +2935,15 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 
 }
 
+/*!
+ * \brief Gets the number of messages that exist in a mailbox folder.
+ * \param context
+ * \param mailbox
+ * \param folder
+ * 
+ * This method is used when IMAP backend is used.
+ * \return The number of messages in this mailbox folder (zero or more).
+ */
 static int messagecount(const char *context, const char *mailbox, const char *folder)
 {
 	SEARCHPGM *pgm;
@@ -2721,6 +3052,18 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	}
 	return 0;
 }
+
+/*!
+ * \brief Gets the number of messages that exist in the inbox folder.
+ * \param mailbox_context
+ * \param newmsgs The variable that is updated with the count of new messages within this inbox.
+ * \param oldmsgs The variable that is updated with the count of old messages within this inbox.
+ * 
+ * This method is used when IMAP backend is used.
+ * Simultaneously determines the count of new and old messages. The total messages would then be the sum of these two.
+ *
+ * \return zero on success, -1 on error.
+ */
 static int inboxcount(const char *mailbox_context, int *newmsgs, int *oldmsgs)
 {
 	char tmp[PATH_MAX] = "";
@@ -2778,6 +3121,15 @@ static int inboxcount(const char *mailbox_context, int *newmsgs, int *oldmsgs)
 }
 	
 
+/** 
+ * \brief Determines if the given folder has messages.
+ * \param mailbox The @ delimited string for user@context. If no context is found, uses 'default' for the context.
+ * \param folder the folder to look in
+ *
+ * This function is used when the mailbox is stored in an IMAP back end.
+ * This invokes the messagecount(). Here we are interested in the presence of messages (> 0) only, not the actual count.
+ * \return 1 if the folder has one or more messages. zero otherwise.
+ */
 static int has_voicemail(const char *mailbox, const char *folder)
 {
 	char tmp[256], *tmp2, *mbox, *context;
@@ -2884,6 +3236,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 }
 #endif
 #if !(defined(IMAP_STORAGE) || defined(ODBC_STORAGE))
+
 static int messagecount(const char *context, const char *mailbox, const char *folder)
 {
 	return __has_voicemail(context, mailbox, folder, 0);
@@ -2927,6 +3280,15 @@ static int __has_voicemail(const char *context, const char *mailbox, const char 
 }
 
 
+/** 
+ * \brief Determines if the given folder has messages.
+ * \param mailbox The @ delimited string for user@context. If no context is found, uses 'default' for the context.
+ * \param folder the folder to look in
+ *
+ * This function is used when the mailbox is stored in a filesystem back end.
+ * This invokes the messagecount(). Here we are interested in the presence of messages (> 0) only, not the actual count.
+ * \return 1 if the folder has one or more messages. zero otherwise.
+ */
 static int has_voicemail(const char *mailbox, const char *folder)
 {
 	char tmp[256], *tmp2 = tmp, *mbox, *context;
@@ -3037,12 +3399,27 @@ static void run_externnotify(char *context, char *extension)
 	}
 }
 
+/*!
+ * \brief Variables used for saving a voicemail.
+ *
+ * This includes the record gain, mode flags, and the exit context of the chanel that was used for leaving the voicemail.
+ */
 struct leave_vm_options {
 	unsigned int flags;
 	signed char record_gain;
 	char *exitcontext;
 };
 
+/*!
+ * \brief Prompts the user and records a voicemail to a mailbox.
+ * \param chan
+ * \param ext
+ * \param options OPT_BUSY_GREETING, OPT_UNAVAIL_GREETING
+ * 
+ * 
+ * 
+ * \return zero on success, -1 on error.
+ */
 static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_options *options)
 {
 #ifdef IMAP_STORAGE
@@ -3103,19 +3480,32 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", ext, vmu->context);
 	else
 		ast_copy_string(ext_context, vmu->mailbox, sizeof(ext_context));
+
+	/* Set the path to the prefile. Will be one of 
+		VM_SPOOL_DIRcontext/ext/busy
+		VM_SPOOL_DIRcontext/ext/unavail
+	   Depending on the flag set in options.
+	*/
 	if (ast_test_flag(options, OPT_BUSY_GREETING)) {
 		snprintf(prefile, sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, ext);
 	} else if (ast_test_flag(options, OPT_UNAVAIL_GREETING)) {
 		snprintf(prefile, sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, ext);
 	}
+	/* Set the path to the tmpfile as
+		VM_SPOOL_DIR/context/ext/temp
+	   and attempt to create the folder structure.
+	*/
 	snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
 	if ((res = create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, ext, "tmp"))) {
 		ast_log(LOG_WARNING, "Failed to make directory (%s)\n", tempfile);
 		return -1;
 	}
+
 	RETRIEVE(tempfile, -1, ext, context);
+
 	if (ast_fileexists(tempfile, NULL, NULL) > 0)
 		ast_copy_string(prefile, tempfile, sizeof(prefile));
+
 	DISPOSE(tempfile, -1);
 	/* It's easier just to try to make it than to check for its existence */
 	create_dirpath(dir, sizeof(dir), vmu->context, ext, "INBOX");
@@ -6662,7 +7052,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		if (cmd)
 			retries = 0;
 		switch (cmd) {
-		case '1':
+		case '1': /* Record your unavailable message */
 			snprintf(prefile, sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, vms->username);
 #ifndef IMAP_STORAGE
 			cmd = play_record_review(chan, "vm-rec-unv", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL);
@@ -6670,7 +7060,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			cmd = play_record_review(chan, "vm-rec-unv", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, vms);
 #endif
 			break;
-		case '2': 
+		case '2':  /* Record your busy message */
 			snprintf(prefile, sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, vms->username);
 #ifndef IMAP_STORAGE
 			cmd = play_record_review(chan, "vm-rec-busy", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL);
@@ -6678,7 +7068,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			cmd = play_record_review(chan, "vm-rec-busy", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, vms);
 #endif
 			break;
-		case '3': 
+		case '3': /* Record greeting */
 			snprintf(prefile, sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, vmu->context, vms->username);
 #ifndef IMAP_STORAGE
 			cmd = play_record_review(chan, "vm-rec-name", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL);
@@ -6686,10 +7076,10 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			cmd = play_record_review(chan, "vm-rec-name", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, vms);
 #endif
 			break;
-		case '4': 
+		case '4':  /* manage the temporary greeting */
 			cmd = vm_tempgreeting(chan, vmu, vms, fmtc, record_gain);
 			break;
-		case '5':
+		case '5': /* change password */
 			if (vmu->password[0] == '-') {
 				cmd = ast_play_and_wait(chan, "vm-no");
 				break;
@@ -6758,6 +7148,22 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 	return cmd;
 }
 
+/*!
+ * \brief The handler for 'record a temporary greeting'. 
+ * \param chan
+ * \param vmu
+ * \param vms
+ * \param fmtc
+ * \param record_gain
+ *
+ * This is option 4 from the mailbox options menu.
+ * This function manages the following promptings:
+ * 1: play / record / review the temporary greeting. : invokes play_record_review().
+ * 2: remove (delete) the temporary greeting.
+ * *: return to the main menu.
+ *
+ * \return zero on success, -1 on error.
+ */
 static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc, signed char record_gain)
 {
 	int cmd = 0;
@@ -6824,8 +7230,14 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 	return cmd;
 }
 
-/* GREEK SYNTAX */
-	
+/*!
+ * \brief Greek syntax for 'You have N messages' greeting.
+ * \param chan
+ * \param vms
+ * \param vmu
+ *
+ * \return zero on success, -1 on error.
+ */	
 static int vm_browse_messages_gr(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int cmd = 0;
@@ -6853,7 +7265,14 @@ static int vm_browse_messages_gr(struct ast_channel *chan, struct vm_state *vms,
 	return cmd;
 }
 
-/* Default English syntax */
+/*! 
+ * \brief Default English syntax for 'You have N messages' greeting.
+ * \param chan
+ * \param vms
+ * \param vmu
+ *
+ * \return zero on success, -1 on error.
+ */
 static int vm_browse_messages_en(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int cmd = 0;
@@ -6874,7 +7293,14 @@ static int vm_browse_messages_en(struct ast_channel *chan, struct vm_state *vms,
 	return cmd;
 }
 
-/* ITALIAN syntax */
+/*! 
+ *\brief Italian syntax for 'You have N messages' greeting.
+ * \param chan
+ * \param vms
+ * \param vmu
+ *
+ * \return zero on success, -1 on error.
+ */
 static int vm_browse_messages_it(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int cmd = 0;
@@ -6893,7 +7319,14 @@ static int vm_browse_messages_it(struct ast_channel *chan, struct vm_state *vms,
 	return cmd;
 }
 
-/* SPANISH syntax */
+/*! 
+ * \brief Spanish syntax for 'You have N messages' greeting.
+ * \param chan
+ * \param vms
+ * \param vmu
+ *
+ * \return zero on success, -1 on error.
+ */
 static int vm_browse_messages_es(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int cmd = 0;
@@ -6912,7 +7345,14 @@ static int vm_browse_messages_es(struct ast_channel *chan, struct vm_state *vms,
 	return cmd;
 }
 
-/* PORTUGUESE syntax */
+/*! 
+ * \brief Portuguese syntax for 'You have N messages' greeting.
+ * \param chan
+ * \param vms
+ * \param vmu
+ *
+ * \return zero on success, -1 on error.
+ */
 static int vm_browse_messages_pt(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int cmd = 0;
@@ -6931,7 +7371,14 @@ static int vm_browse_messages_pt(struct ast_channel *chan, struct vm_state *vms,
 	return cmd;
 }
 
-/* Chinese (Taiwan)syntax */
+/*! 
+ * \brief Chinese (Taiwan)syntax for 'You have N messages' greeting.
+ * \param chan
+ * \param vms
+ * \param vmu
+ *
+ * \return zero on success, -1 on error.
+ */
 static int vm_browse_messages_tw(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int cmd = 0;
@@ -6952,6 +7399,17 @@ static int vm_browse_messages_tw(struct ast_channel *chan, struct vm_state *vms,
 	return cmd;
 }
 
+/*!
+ * \brief Top level method to invoke the language variant vm_browse_messages_XX function.
+ * \param chan The channel for the current user. We read the language property from this.
+ * \param vms passed into the language-specific vm_browse_messages function.
+ * \param vmu passed into the language-specific vm_browse_messages function.
+ * 
+ * The method to be invoked is determined by the value of language code property in the user's channel.
+ * The default (when unable to match) is to use english.
+ *
+ * \return zero on success, -1 on error.
+ */
 static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	if (!strcasecmp(chan->language, "es")) {	/* SPANISH */
