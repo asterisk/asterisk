@@ -12872,8 +12872,8 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 /*! \brief  Show SIP Registry (registrations with other SIP proxies */
 static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT2 "%-30.30s  %-12.12s  %8.8s %-20.20s %-25.25s\n"
-#define FORMAT  "%-30.30s  %-12.12s  %8d %-20.20s %-25.25s\n"
+#define FORMAT2 "%-30.30s %-6.6s %-12.12s  %8.8s %-20.20s %-25.25s\n"
+#define FORMAT  "%-30.30s %-6.6s %-12.12s  %8d %-20.20s %-25.25s\n"
 	char host[80];
 	char tmpdat[256];
 	struct ast_tm tm;
@@ -12892,7 +12892,7 @@ static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
-	ast_cli(a->fd, FORMAT2, "Host", "Username", "Refresh", "State", "Reg.Time");
+	ast_cli(a->fd, FORMAT2, "Host", "dnsmgr", "Username", "Refresh", "State", "Reg.Time");
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
 		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT);
@@ -12901,7 +12901,7 @@ static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			ast_strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T", &tm);
 		} else 
 			tmpdat[0] = '\0';
-		ast_cli(a->fd, FORMAT, host, iterator->username, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
+		ast_cli(a->fd, FORMAT, host, (iterator->dnsmgr) ? "Y" : "N", iterator->username, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
 		ASTOBJ_UNLOCK(iterator);
 		counter++;
 	} while(0));
