@@ -3424,6 +3424,7 @@ static void update_name(struct ast_channel *tmp, int port, int c)
 {
 	int chan_offset = 0;
 	int tmp_port = misdn_cfg_get_next_port(0);
+	char newname[255];
 	for (; tmp_port > 0; tmp_port = misdn_cfg_get_next_port(tmp_port)) {
 		if (tmp_port == port)
 			break;
@@ -3432,10 +3433,12 @@ static void update_name(struct ast_channel *tmp, int port, int c)
 	if (c < 0)
 		c = 0;
 
-	ast_string_field_build(tmp, name, "%s/%d-u%d",
-				 misdn_type, chan_offset+c, glob_channel++);
-
-	chan_misdn_log(3 , port, " --> updating channel name to [%s]\n", tmp->name);
+	snprintf(newname, sizeof(newname), "%s/%d-", misdn_type, chan_offset + c);
+	if (strncmp(tmp->name, newname, strlen(newname))) {
+		snprintf(newname, sizeof(newname), "%s/%d-u%d", misdn_type, chan_offset + c, glob_channel++);
+		ast_change_name(tmp, newname);
+		chan_misdn_log(3, port, " --> updating channel name to [%s]\n", tmp->name);
+	}
 }
 
 static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, int format, int port, int c)
@@ -3449,15 +3452,16 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 	for (; tmp_port > 0; tmp_port = misdn_cfg_get_next_port(tmp_port)) {
 		if (tmp_port == port)
 			break;
-		chan_offset += misdn_lib_port_is_pri(tmp_port) ? 30 : 2;	
+		chan_offset += misdn_lib_port_is_pri(tmp_port) ? 30 : 2;
 	}
 	if (c < 0)
 		c = 0;
 
-	if (callerid) 
+	if (callerid) {
 		ast_callerid_parse(callerid, &cid_name, &cid_num);
+	}
 
-	tmp = ast_channel_alloc(1, state, cid_num, cid_name, "", exten, "", 0, "%s/%d-u%d", misdn_type, chan_offset + c, glob_channel++);
+	tmp = ast_channel_alloc(1, state, cid_num, cid_name, "", exten, "", 0, "%s/%s%d-u%d", misdn_type, c ? "" : "tmp", chan_offset + c, glob_channel++);
 
 	if (tmp) {
 		chan_misdn_log(2, 0, " --> * NEW CHANNEL dad:%s oad:%s\n", exten, callerid);
@@ -3502,7 +3506,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		else
 			tmp->rings = 0;
 		
-	        ast_jb_configure(tmp, misdn_get_global_jbconf());
+		ast_jb_configure(tmp, misdn_get_global_jbconf());
 	} else {
 		chan_misdn_log(-1, 0, "Unable to allocate channel structure\n");
 	}
