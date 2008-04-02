@@ -167,6 +167,7 @@ struct mansession {
 	int send_events;	/*!<  XXX what ? */
 	struct eventqent *last_ev;	/*!< last event processed. */
 	int writetimeout;	/*!< Timeout for ast_carefulwrite() */
+	int pending_event;         /*!< Pending events indicator in case when waiting_thread is NULL */
 	AST_LIST_ENTRY(mansession) list;
 };
 
@@ -2753,6 +2754,11 @@ static int get_input(struct mansession *s, char *output)
 	while (res == 0) {
 		/* XXX do we really need this locking ? */
 		ast_mutex_lock(&s->__lock);
+		if (s->pending_event) {
+			s->pending_event = 0;
+			ast_mutex_unlock(&s->__lock);
+			return 0;
+		}
 		s->waiting_thread = pthread_self();
 		ast_mutex_unlock(&s->__lock);
 
@@ -2993,6 +2999,13 @@ int __manager_event(int category, const char *event,
 		ast_mutex_lock(&s->__lock);
 		if (s->waiting_thread != AST_PTHREADT_NULL)
 			pthread_kill(s->waiting_thread, SIGURG);
+		else
+			/* We have an event to process, but the mansession is
+			 * not waiting for it. We still need to indicate that there
+			 * is an event waiting so that get_input processes the pending
+			 * event instead of polling.
+			 */
+			s->pending_event = 1;
 		ast_mutex_unlock(&s->__lock);
 	}
 	AST_LIST_UNLOCK(&sessions);
