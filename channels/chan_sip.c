@@ -2190,6 +2190,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		ast_str_reset(reqcpy.data);
 		req.len = 0;
 		req.ignore = 0;
+		req.debug = 0;
 
 		req.socket.fd = ser->fd;
 		if (ser->ssl) {
