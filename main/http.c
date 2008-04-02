@@ -38,10 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/signal.h>
 #include <fcntl.h>
 
-#ifdef ENABLE_UPLOADS
-#include <gmime/gmime.h>
-#endif /* ENABLE_UPLOADS */
-
 #include "asterisk/paths.h"	/* use ast_config_AST_DATA_DIR */
 #include "asterisk/network.h"
 #include "asterisk/cli.h"
@@ -91,21 +87,6 @@ static struct server_args https_desc = {
 
 static AST_RWLIST_HEAD_STATIC(uris, ast_http_uri);	/*!< list of supported handlers */
 
-#ifdef ENABLE_UPLOADS
-struct ast_http_post_mapping {
-	AST_RWLIST_ENTRY(ast_http_post_mapping) entry;
-	char *from;
-	char *to;
-};
-
-static AST_RWLIST_HEAD_STATIC(post_mappings, ast_http_post_mapping);
-
-struct mime_cbinfo {
-	int count;
-	const char *post_dir;
-};
-#endif /* ENABLE_UPLOADS */
-
 /* all valid URIs must be prepended by the string in prefix. */
 static char prefix[MAX_PREFIX];
 static int enablestatic;
@@ -150,8 +131,7 @@ static const char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
 	return wkspace;
 }
 
-static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, const char *uri, enum ast_http_method method,
-				       struct ast_variable *vars, int *status, char **title, int *contentlength)
+static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *vars, struct ast_variable *headers, int *status, char **title, int *contentlength)
 {
 	char *path;
 	char *ftype;
@@ -234,8 +214,7 @@ out403:
 }
 
 
-static struct ast_str *httpstatus_callback(struct ast_tcptls_session_instance *ser, const char *uri, enum ast_http_method method,
-					   struct ast_variable *vars, int *status, char **title, int *contentlength)
+static struct ast_str *httpstatus_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *vars, struct ast_variable *headers, int *status, char **title, int *contentlength)
 {
 	struct ast_str *out = ast_str_create(512);
 	struct ast_variable *v;
@@ -286,6 +265,8 @@ static struct ast_http_uri statusuri = {
 	.description = "Asterisk HTTP General Status",
 	.uri = "httpstatus",
 	.supports_get = 1,
+	.data = NULL,
+	.key = __FILE__,
 };
 	
 static struct ast_http_uri staticuri = {
@@ -295,6 +276,8 @@ static struct ast_http_uri staticuri = {
 	.has_subtree = 1,
 	.static_content = 1,
 	.supports_get = 1,
+	.data = NULL,
+	.key= __FILE__,
 };
 	
 struct ast_str *ast_http_error(int status, const char *title, const char *extra_header, const char *text)
@@ -375,242 +358,20 @@ void ast_http_uri_unlink(struct ast_http_uri *urih)
 	AST_RWLIST_UNLOCK(&uris);
 }
 
-#ifdef ENABLE_UPLOADS
-/*! \note This assumes that the post_mappings list is locked */
-static struct ast_http_post_mapping *find_post_mapping(const char *uri)
+void ast_http_uri_unlink_all_with_key(const char *key)
 {
-	struct ast_http_post_mapping *post_map;
-
-	if (!ast_strlen_zero(prefix) && strncmp(prefix, uri, strlen(prefix))) {
-		ast_debug(1, "URI %s does not have prefix %s\n", uri, prefix);
-
-		return NULL;
-	}
-
-	uri += strlen(prefix);
-	if (*uri == '/') {
-		uri++;
-	}
-	
-	AST_RWLIST_TRAVERSE(&post_mappings, post_map, entry) {
-		if (!strcmp(uri, post_map->from)) {
-			return post_map;
+	struct ast_http_uri *urih;
+	AST_RWLIST_WRLOCK(&uris);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&uris, urih, entry) {
+		if (!strcmp(urih->key, key)) {
+			AST_RWLIST_REMOVE_CURRENT(entry);
 		}
 	}
-
-	return NULL;
+	AST_RWLIST_TRAVERSE_SAFE_END
 }
-
-static void post_raw(GMimePart *part, const char *post_dir, const char *fn)
-{
-	char filename[PATH_MAX];
-	GMimeDataWrapper *content;
-	GMimeStream *stream;
-	int fd;
-
-	snprintf(filename, sizeof(filename), "%s/%s", post_dir, fn);
-
-	ast_debug(1, "Posting raw data to %s\n", filename);
-
-	if ((fd = open(filename, O_CREAT | O_WRONLY, 0666)) == -1) {
-		ast_log(LOG_WARNING, "Unable to open %s for writing file from a POST!\n", filename);
-
-		return;
-	}
-
-	stream = g_mime_stream_fs_new(fd);
-
-	content = g_mime_part_get_content_object(part);
-	g_mime_data_wrapper_write_to_stream(content, stream);
-	g_mime_stream_flush(stream);
-
-	g_object_unref(content);
-	g_object_unref(stream);
-}
-
-static GMimeMessage *parse_message(FILE *f)
-{
-	GMimeMessage *message;
-	GMimeParser *parser;
-	GMimeStream *stream;
-
-	stream = g_mime_stream_file_new(f);
-
-	parser = g_mime_parser_new_with_stream(stream);
-	g_mime_parser_set_respect_content_length(parser, 1);
-	
-	g_object_unref(stream);
-
-	message = g_mime_parser_construct_message(parser);
-
-	g_object_unref(parser);
-
-	return message;
-}
-
-static void process_message_callback(GMimeObject *part, gpointer user_data)
-{
-	struct mime_cbinfo *cbinfo = user_data;
-
-	cbinfo->count++;
-
-	/* We strip off the headers before we get here, so should only see GMIME_IS_PART */
-	if (GMIME_IS_MESSAGE_PART(part)) {
-		ast_log(LOG_WARNING, "Got unexpected GMIME_IS_MESSAGE_PART\n");
-		return;
-	} else if (GMIME_IS_MESSAGE_PARTIAL(part)) {
-		ast_log(LOG_WARNING, "Got unexpected GMIME_IS_MESSAGE_PARTIAL\n");
-		return;
-	} else if (GMIME_IS_MULTIPART(part)) {
-		GList *l;
-		
-		ast_log(LOG_WARNING, "Got unexpected GMIME_IS_MULTIPART, trying to process subparts\n");
-		l = GMIME_MULTIPART(part)->subparts;
-		while (l) {
-			process_message_callback(l->data, cbinfo);
-			l = l->next;
-		}
-	} else if (GMIME_IS_PART(part)) {
-		const char *filename;
-
-		if (ast_strlen_zero(filename = g_mime_part_get_filename(GMIME_PART(part)))) {
-			ast_debug(1, "Skipping part with no filename\n");
-			return;
-		}
-
-		post_raw(GMIME_PART(part), cbinfo->post_dir, filename);
-	} else {
-		ast_log(LOG_ERROR, "Encountered unknown MIME part. This should never happen!\n");
-	}
-}
-
-static int process_message(GMimeMessage *message, const char *post_dir)
-{
-	struct mime_cbinfo cbinfo = {
-		.count = 0,
-		.post_dir = post_dir,
-	};
-
-	g_mime_message_foreach_part(message, process_message_callback, &cbinfo);
-
-	return cbinfo.count;
-}
-
-static struct ast_str *handle_post(struct ast_tcptls_session_instance *ser, char *uri, 
-				   int *status, char **title, int *contentlength, struct ast_variable *headers,
-				   struct ast_variable *cookies)
-{
-	char buf[4096];
-	FILE *f;
-	size_t res;
-	struct ast_variable *var;
-	int content_len = 0;
-	struct ast_http_post_mapping *post_map;
-	const char *post_dir;
-	unsigned long ident = 0;
-	GMimeMessage *message;
-	int message_count = 0;
-
-	for (var = cookies; var; var = var->next) {
-		if (strcasecmp(var->name, "mansession_id")) {
-			continue;
-		}
-
-		if (sscanf(var->value, "%lx", &ident) != 1) {
-			return ast_http_error((*status = 400),
-					      (*title = ast_strdup("Bad Request")),
-					      NULL, "The was an error parsing the request.");
-		}
-
-		if (!astman_verify_session_writepermissions(ident, EVENT_FLAG_CONFIG)) {
-			return ast_http_error((*status = 401),
-					      (*title = ast_strdup("Unauthorized")),
-					      NULL, "You are not authorized to make this request.");
-		}
-
-		break;
-	}
-	if (!var) {
-		return ast_http_error((*status = 401),
-				      (*title = ast_strdup("Unauthorized")),
-				      NULL, "You are not authorized to make this request.");
-	}
-
-	if (!(f = tmpfile())) {
-		return NULL;
-	}
-
-	for (var = headers; var; var = var->next) {
-		if (!strcasecmp(var->name, "Content-Length")) {
-			if ((sscanf(var->value, "%u", &content_len)) != 1) {
-				ast_log(LOG_ERROR, "Invalid Content-Length in POST request!\n");
-				fclose(f);
-
-				return NULL;
-			}
-			ast_debug(1, "Got a Content-Length of %d\n", content_len);
-		} else if (!strcasecmp(var->name, "Content-Type")) {
-			fprintf(f, "Content-Type: %s\r\n\r\n", var->value);
-		}
-	}
-
-	for (res = sizeof(buf); content_len; content_len -= res) {
-		if (content_len < res) {
-			res = content_len;
-		}
-		fread(buf, 1, res, ser->f);
-		fwrite(buf, 1, res, f);
-	}
-
-	if (fseek(f, SEEK_SET, 0)) {
-		ast_debug(1, "Failed to seek temp file back to beginning.\n");
-		fclose(f);
-
-		return NULL;
-	}
-
-	AST_RWLIST_RDLOCK(&post_mappings);
-	if (!(post_map = find_post_mapping(uri))) {
-		ast_debug(1, "%s is not a valid URI for POST\n", uri);
-		AST_RWLIST_UNLOCK(&post_mappings);
-
-		return ast_http_error((*status = 404),
-				      (*title = ast_strdup("Not Found")),
-				      NULL, "The requested URL was not found on this server.");
-	}
-
-	post_dir = ast_strdupa(post_map->to);
-	post_map = NULL;
-	AST_RWLIST_UNLOCK(&post_mappings);
-
-	ast_debug(1, "Going to post files to dir %s\n", post_dir);
-
-	message = parse_message(f); /* Takes ownership and will close f */
-
-	if (!message) {
-		ast_log(LOG_ERROR, "Error parsing MIME data\n");
-
-		return ast_http_error((*status = 400),
-				      (*title = ast_strdup("Bad Request")),
-				      NULL, "The was an error parsing the request.");
-	}
-
-	if (!(message_count = process_message(message, post_dir))) {
-		ast_log(LOG_ERROR, "Invalid MIME data, found no parts!\n");
-
-		return ast_http_error((*status = 400),
-				      (*title = ast_strdup("Bad Request")),
-				      NULL, "The was an error parsing the request.");
-	}
-
-	return ast_http_error((*status = 200),
-			      (*title = ast_strdup("OK")),
-			      NULL, "File successfully uploaded.");
-}
-#endif /* ENABLE_UPLOADS */
 
 static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char *uri, enum ast_http_method method,
-				  int *status, char **title, int *contentlength, struct ast_variable **cookies, 
+				  int *status, char **title, int *contentlength, struct ast_variable **cookies, struct ast_variable *headers, 
 				  unsigned int *static_content)
 {
 	char *c;
@@ -734,7 +495,7 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 
 	if (urih) {
 		*static_content = urih->static_content;
-		out = urih->callback(ser, uri, method, vars, status, title, contentlength);
+		out = urih->callback(ser, urih, uri, method, vars, headers, status, title, contentlength);
 		AST_RWLIST_UNLOCK(&uris);
 	} else if (saw_method) {
 		out = ast_http_error((*status = 404),
@@ -910,7 +671,7 @@ static void *httpd_helper_thread(void *data)
 				     "Attempt to use unimplemented / unsupported method");
 	} else {	/* try to serve it */
 		out = handle_uri(ser, uri, (!strcasecmp(buf, "get")) ? AST_HTTP_GET : AST_HTTP_POST,
-				 &status, &title, &contentlength, &vars, &static_content);
+				 &status, &title, &contentlength, &vars, headers, &static_content);
 	}
 
 	/* If they aren't mopped up already, clean up the cookies */
@@ -1026,55 +787,6 @@ static void add_redirect(const char *value)
 	AST_RWLIST_UNLOCK(&uri_redirects);
 }
 
-#ifdef ENABLE_UPLOADS
-static void destroy_post_mapping(struct ast_http_post_mapping *post_map)
-{
-	if (post_map->from) {
-		ast_free(post_map->from);
-	}
-	if (post_map->to) {
-		ast_free(post_map->to);
-	}
-	ast_free(post_map);
-}
-
-static void destroy_post_mappings(void)
-{
-	struct ast_http_post_mapping *post_map;
-
-	AST_RWLIST_WRLOCK(&post_mappings);
-	while ((post_map = AST_RWLIST_REMOVE_HEAD(&post_mappings, entry))) {
-		destroy_post_mapping(post_map);
-	}
-	AST_RWLIST_UNLOCK(&post_mappings);
-}
-
-static void add_post_mapping(const char *from, const char *to)
-{
-	struct ast_http_post_mapping *post_map;
-
-	if (!(post_map = ast_calloc(1, sizeof(*post_map)))) {
-		return;
-	}
-
-	if (!(post_map->from = ast_strdup(from))) {
-		destroy_post_mapping(post_map);
-
-		return;
-	}
-
-	if (!(post_map->to = ast_strdup(to))) {
-		destroy_post_mapping(post_map);
-
-		return;
-	}
-
-	AST_RWLIST_WRLOCK(&post_mappings);
-	AST_RWLIST_INSERT_TAIL(&post_mappings, post_map, entry);
-	AST_RWLIST_UNLOCK(&post_mappings);
-}
-#endif /* ENABLE_UPLOADS */
-
 static int __ast_http_load(int reload)
 {
 	struct ast_config *cfg;
@@ -1114,10 +826,6 @@ static int __ast_http_load(int reload)
 		ast_free(redirect);
 	}
 	AST_RWLIST_UNLOCK(&uri_redirects);
-
-#ifdef ENABLE_UPLOADS
-	destroy_post_mappings();
-#endif /* ENABLE_UPLOADS */
 
 	if (cfg) {
 		v = ast_variable_browse(cfg, "general");
@@ -1165,12 +873,6 @@ static int __ast_http_load(int reload)
 			}
 		}
 
-#ifdef ENABLE_UPLOADS
-		for (v = ast_variable_browse(cfg, "post_mappings"); v; v = v->next) {
-			add_post_mapping(v->name, v->value);
-		}
-#endif /* ENABLE_UPLOADS */
-
 		ast_config_destroy(cfg);
 	}
 
@@ -1196,10 +898,6 @@ static char *handle_show_http(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 {
 	struct ast_http_uri *urih;
 	struct http_uri_redirect *redirect;
-
-#ifdef ENABLE_UPLOADS
-	struct ast_http_post_mapping *post_map;
-#endif /* ENABLE_UPLOADS */
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1251,17 +949,6 @@ static char *handle_show_http(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	}
 	AST_RWLIST_UNLOCK(&uri_redirects);
 
-
-#ifdef ENABLE_UPLOADS
-	ast_cli(a->fd, "\nPOST mappings:\n");
-	AST_RWLIST_RDLOCK(&post_mappings);
-	AST_LIST_TRAVERSE(&post_mappings, post_map, entry) {
-		ast_cli(a->fd, "%s/%s => %s\n", prefix, post_map->from, post_map->to);
-	}
-	ast_cli(a->fd, "%s\n", AST_LIST_EMPTY(&post_mappings) ? "None.\n" : "");
-	AST_RWLIST_UNLOCK(&post_mappings);
-#endif /* ENABLE_UPLOADS */
-
 	return CLI_SUCCESS;
 }
 
@@ -1276,10 +963,6 @@ static struct ast_cli_entry cli_http[] = {
 
 int ast_http_init(void)
 {
-#ifdef ENABLE_UPLOADS
-	g_mime_init(0);
-#endif /* ENABLE_UPLOADS */
-
 	ast_http_uri_link(&statusuri);
 	ast_http_uri_link(&staticuri);
 	ast_cli_register_multiple(cli_http, sizeof(cli_http) / sizeof(struct ast_cli_entry));

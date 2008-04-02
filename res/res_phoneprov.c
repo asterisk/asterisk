@@ -323,8 +323,7 @@ static int load_file(const char *filename, char **ret)
 }
 
 /*! \brief Callback that is executed everytime an http request is received by this module */
-static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *ser, const char *uri, enum ast_http_method method, 
-					  struct ast_variable *vars, int *status, char **title, int *contentlength)
+static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *vars, struct ast_variable *headers, int *status, char **title, int *contentlength)
 {
 	struct http_route *route;
 	struct http_route search_route = {
@@ -987,6 +986,8 @@ static struct ast_http_uri phoneprovuri = {
 	.uri = "phoneprov",
 	.has_subtree = 1,
 	.supports_get = 1,
+	.data = NULL,
+	.key = __FILE__,
 };
 
 static int load_module(void)

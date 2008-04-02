@@ -70,9 +70,9 @@ enum ast_http_method {
 	AST_HTTP_GET = 0,
 	AST_HTTP_POST,
 };
+struct ast_http_uri;
 
-typedef struct ast_str *(*ast_http_callback)(struct ast_tcptls_session_instance *ser, const char *uri, enum ast_http_method method,
-					     struct ast_variable *params, int *status, char **title, int *contentlength);
+typedef struct ast_str *(*ast_http_callback)(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *params, struct ast_variable *headers, int *status, char **title, int *contentlength);
 
 /*! \brief Definition of a URI handler */
 struct ast_http_uri {
@@ -87,6 +87,10 @@ struct ast_http_uri {
 	unsigned int supports_get:1;
 	/*! This handler accepts POST requests */
 	unsigned int supports_post:1;
+	/*! Data to bind to the uri if needed */
+	void *data;
+	/*! Key to be used for unlinking if multipile URIs registerd */
+	const char *key;
 };
 
 /*! \brief Register a URI handler */
@@ -94,6 +98,9 @@ int ast_http_uri_link(struct ast_http_uri *urihandler);
 
 /*! \brief Unregister a URI handler */
 void ast_http_uri_unlink(struct ast_http_uri *urihandler);
+
+/*! \brief Unregister all handlers with matching key */
+void ast_http_uri_unlink_all_with_key(const char *key);
 
 /*! \brief Return an ast_str malloc()'d string containing an HTTP error message */
 struct ast_str *ast_http_error(int status, const char *title, const char *extra_header, const char *text);
