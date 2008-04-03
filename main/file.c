@@ -817,17 +817,22 @@ int ast_closestream(struct ast_filestream *f)
 			ast_safe_system(cmd);
 	}
 
+	if (f->fmt->close) {
+		f->fmt->close(f);
+	}
 	if (f->filename)
 		ast_free(f->filename);
 	if (f->realfilename)
 		ast_free(f->realfilename);
-	if (f->fmt->close)
-		f->fmt->close(f);
 	fclose(f->f);
 	if (f->vfs)
 		ast_closestream(f->vfs);
 	if (f->orig_chan_name)
 		free((void *) f->orig_chan_name);
+	if (f->write_buffer) {
+		ast_free(f->write_buffer);
+	}
+
 	ast_module_unref(f->fmt->module);
 	ast_free(f);
 	return 0;
@@ -1051,6 +1056,11 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 			}
 			fs->vfs = NULL;
 			/* If truncated, we'll be at the beginning; if not truncated, then append */
+
+			if ((fs->write_buffer = ast_malloc(32768))){
+				setvbuf(fs->f, fs->write_buffer, _IOFBF, 32768);
+			}
+
 			f->seek(fs, 0, SEEK_END);
 		} else if (errno != EEXIST) {
 			ast_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));

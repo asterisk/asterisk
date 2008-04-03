@@ -117,6 +117,7 @@ struct ast_filestream {
 	char *buf;		/*!< buffer pointed to by ast_frame; */
 	void *_private;	/*!< pointer to private buffer */
 	const char *orig_chan_name;
+	char *write_buffer;
 };
 
 /*! 

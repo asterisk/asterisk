@@ -328,6 +328,11 @@ static void wav_close(struct ast_filestream *s)
 {
 	char zero = 0;
 	struct wav_desc *fs = (struct wav_desc *)s->_private;
+
+	if (s->filename) {
+		update_header(s->f);
+	}
+
 	/* Pad to even length */
 	if (fs->bytes & 0x1)
 		fwrite(&zero, 1, 1, s->f);
@@ -416,7 +421,6 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 	}
 
 	s->bytes += f->datalen;
-	update_header(fs->f);
 		
 	return 0;
 
