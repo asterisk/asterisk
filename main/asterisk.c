@@ -3192,7 +3192,7 @@ int main(int argc, char *argv[])
 		fd = open("/dev/zap/timer", O_RDWR);
 		if (fd >= 0) {
 			if (ioctl(fd, ZT_TIMERCONFIG, &x)) {
-				ast_log(LOG_ERROR, "You have Zaptel built and drivers loaded, but the Zaptel timer test failed to set ZT_TIMERCONFIG to \'%d\'.\n", x);
+				ast_log(LOG_ERROR, "You have Zaptel built and drivers loaded, but the Zaptel timer test failed to set ZT_TIMERCONFIG to %d.\n", x);
 				exit(1);
 			}
 			if ((x = ast_wait_for_input(fd, 300)) < 0) {
