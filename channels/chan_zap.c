@@ -4413,14 +4413,15 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_SF_FEATDMF:
 			case SIG_SF_FEATB:
 				/* FGD MF *Must* wait for wink */
-				if (!ast_strlen_zero(p->dop.dialstr))
+				if (!ast_strlen_zero(p->dop.dialstr)) {
 					res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
-				else if (res < 0) {
-					ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
-					p->dop.dialstr[0] = '\0';
-					return NULL;
-				} else 
-					ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", p->dop.dialstr);
+					if (res < 0) {
+						ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
+						p->dop.dialstr[0] = '\0';
+						return NULL;
+					} else 
+						ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", p->dop.dialstr);
+				}
 				p->dop.dialstr[0] = '\0';
 				break;
 			default:
@@ -4441,14 +4442,15 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_SF:
 			case SIG_SFWINK:
 			case SIG_SF_FEATD:
-				if (!ast_strlen_zero(p->dop.dialstr)) 
+				if (!ast_strlen_zero(p->dop.dialstr)) {
 					res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
-				else if (res < 0) {
-					ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
-					p->dop.dialstr[0] = '\0';
-					return NULL;
-				} else 
-					ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", p->dop.dialstr);
+					if (res < 0) {
+						ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
+						p->dop.dialstr[0] = '\0';
+						return NULL;
+					} else 
+						ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", p->dop.dialstr);
+				}
 				p->dop.dialstr[0] = '\0';
 				p->dop.op = ZT_DIAL_OP_REPLACE;
 				break;
