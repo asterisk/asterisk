@@ -131,6 +131,7 @@ testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	rm ast_expr2.o ast_expr2f.o 
 
 channel.o: ASTCFLAGS+=$(ZAPTEL_INCLUDE)
+asterisk.o: ASTCFLAGS+=$(ZAPTEL_INCLUDE)
 
 
 ifneq ($(findstring ENABLE_UPLOADS,$(MENUSELECT_CFLAGS)),)
