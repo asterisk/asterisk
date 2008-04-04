@@ -1177,10 +1177,11 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 		ast_log(LOG_WARNING, "Capabilities don't match : us - %s, peer - %s, combined - %s \n", ast_getformatname_multiple(s1, BUFSIZ, p->capability),
 			ast_getformatname_multiple(s2, BUFSIZ, p->peercapability),
 			ast_getformatname_multiple(s3, BUFSIZ, p->jointcapability));
-			/* close session if capabilities don't match */
+		/* close session if capabilities don't match */
 		gtalk_action(client, p, "reject");
 		p->alreadygone = 1;
 		gtalk_hangup(chan);
+		ast_channel_free(chan);
 		return -1;
 	}	
 
