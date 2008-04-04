@@ -95,6 +95,11 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #endif
 #endif
 
+#ifdef HAVE_ZAPTEL
+#include <sys/ioctl.h>
+#include <zaptel/zaptel.h>
+#endif
+
 #include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/cli.h"
@@ -124,7 +129,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/linkedlists.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/module.h"
-#include "asterisk/zapata.h"
 
 #include "asterisk/doxyref.h"		/* Doxygen documentation */
 
