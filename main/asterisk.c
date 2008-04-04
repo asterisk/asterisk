@@ -3207,6 +3207,7 @@ int main(int argc, char *argv[])
 					"\n\t3. If you need Zaptel services, you must correctly configure Zaptel."
 				};
 				ast_log(LOG_ERROR, "%s\n", zaptel_timer_error);
+				usleep(100);
 				exit(1);
 			}
 			close(fd);
