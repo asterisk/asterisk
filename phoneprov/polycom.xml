@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <phone1>
-   <reg reg.1.displayName="${DISPLAY_NAME}" reg.1.address="${USERNAME}" reg.1.label="${LABEL}" reg.1.type="private" reg.1.thirdPartyName="" reg.1.auth.userId="${USERNAME}" reg.1.auth.password="${SECRET}" reg.1.server.1.address="${SERVER}" reg.1.server.1.port="${SERVER_PORT}" reg.1.server.1.transport="DNSnaptr" reg.1.server.1.expires="300" reg.1.server.1.register="1" reg.1.server.1.retryTimeOut="" reg.1.server.1.retryMaxCount="" reg.1.server.1.expires.lineSeize="" reg.1.acd-login-logout="0" reg.1.acd-agent-available="0" reg.1.ringType="2" reg.1.lineKeys="2" reg.1.callsPerLineKey="1"/>
+	<reg ${PP_EACH_EXTENSION(${MAC},polycom_line.xml)} />
    <call>
       <donotdisturb call.donotdisturb.perReg="1" />
       <autoOffHook call.autoOffHook.1.enabled="0" call.autoOffHook.1.contact="" call.autoOffHook.2.enabled="0" call.autoOffHook.2.contact="" call.autoOffHook.3.enabled="0" call.autoOffHook.3.contact="" call.autoOffHook.4.enabled="0" call.autoOffHook.4.contact="" call.autoOffHook.5.enabled="0" call.autoOffHook.5.contact="" call.autoOffHook.6.enabled="0" call.autoOffHook.6.contact=""/>

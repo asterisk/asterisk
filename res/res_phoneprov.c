@@ -36,6 +36,7 @@
 #endif
 ASTERISK_FILE_VERSION(__FILE__, "$Revision: 96773 $")
 
+#include "asterisk/channel.h"
 #include "asterisk/file.h"
 #include "asterisk/paths.h"
 #include "asterisk/pbx.h"
@@ -55,9 +56,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision: 96773 $")
 #ifdef LOW_MEMORY
 #define MAX_PROFILE_BUCKETS 1
 #define MAX_ROUTE_BUCKETS 1
+#define MAX_USER_BUCKETS 1
 #else
 #define MAX_PROFILE_BUCKETS 17
 #define MAX_ROUTE_BUCKETS 563
+#define MAX_USER_BUCKETS 563
 #endif /* LOW_MEMORY */
 
 #define VAR_BUF_SIZE 4096
@@ -75,6 +78,7 @@ enum pp_variables {
 	PP_LABEL,
 	PP_CALLERID,
 	PP_TIMEZONE,
+	PP_LINENUMBER,
 	PP_VAR_LIST_LENGTH,	/* This entry must always be the last in the list */
 };
 
@@ -92,6 +96,7 @@ static const struct pp_variable_lookup {
 	{ PP_LABEL, "label", "LABEL" },
 	{ PP_CALLERID, "cid_number", "CALLERID" },
 	{ PP_TIMEZONE, "timezone", "TIMEZONE" },
+	{ PP_LINENUMBER, "linenumber", "LINE" },
 };
 
 /*! \brief structure to hold file data */
@@ -116,15 +121,22 @@ struct phone_profile {
 	AST_LIST_HEAD_NOLOCK(, phoneprov_file) dynamic_files;	/*!< List of dynamic files */
 };
 
+struct extension {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(name);
+	);
+	int index;
+	struct varshead *headp;	/*!< List of variables to substitute into templates */
+	AST_LIST_ENTRY(extension) entry;
+};
+
 /*! \brief structure to hold users read from users.conf */
 struct user {
 	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(name);	/*!< Name of user */
 		AST_STRING_FIELD(macaddress);	/*!< Mac address of user's phone */
 	);
 	struct phone_profile *profile;	/*!< Profile the phone belongs to */
-	struct varshead *headp;	/*!< List of variables to substitute into templates */
-	AST_LIST_ENTRY(user) entry;
+	AST_LIST_HEAD_NOLOCK(, extension) extensions;
 };
 
 /*! \brief structure to hold http routes (valid URIs, and the files they link to) */
@@ -139,7 +151,7 @@ struct http_route {
 
 static struct ao2_container *profiles;
 static struct ao2_container *http_routes;
-static AST_RWLIST_HEAD_STATIC(users, user);
+static struct ao2_container *users;
 
 /*! \brief Extensions whose mime types we think we know */
 static struct {
@@ -322,6 +334,66 @@ static int load_file(const char *filename, char **ret)
 	return len;
 }
 
+/*! \brief Set all timezone-related variables based on a zone (i.e. America/New_York)
+	\param headp pointer to list of user variables
+	\param zone A time zone. NULL sets variables based on timezone of the machine
+*/
+static void set_timezone_variables(struct varshead *headp, const char *zone)
+{
+	time_t utc_time;
+	int dstenable;
+	time_t dststart;
+	time_t dstend;
+	struct ast_tm tm_info;
+	int tzoffset;
+	char buffer[21];
+	struct ast_var_t *var;
+	struct timeval tv;
+
+	time(&utc_time);
+	ast_get_dst_info(&utc_time, &dstenable, &dststart, &dstend, &tzoffset, zone);
+	snprintf(buffer, sizeof(buffer), "%d", tzoffset);
+	var = ast_var_assign("TZOFFSET", buffer);
+	if (var)
+		AST_LIST_INSERT_TAIL(headp, var, entries); 
+
+	if (!dstenable)
+		return;
+
+	if ((var = ast_var_assign("DST_ENABLE", "1")))
+		AST_LIST_INSERT_TAIL(headp, var, entries);
+
+	tv.tv_sec = dststart; 
+	ast_localtime(&tv, &tm_info, zone);
+
+	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_mon+1);
+	if ((var = ast_var_assign("DST_START_MONTH", buffer)))
+		AST_LIST_INSERT_TAIL(headp, var, entries);
+
+	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_mday);
+	if ((var = ast_var_assign("DST_START_MDAY", buffer)))
+		AST_LIST_INSERT_TAIL(headp, var, entries);
+
+	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_hour);
+	if ((var = ast_var_assign("DST_START_HOUR", buffer)))
+		AST_LIST_INSERT_TAIL(headp, var, entries);
+
+	tv.tv_sec = dstend;
+	ast_localtime(&tv, &tm_info, zone);
+
+	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_mon + 1);
+	if ((var = ast_var_assign("DST_END_MONTH", buffer)))
+		AST_LIST_INSERT_TAIL(headp, var, entries);
+
+	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_mday);
+	if ((var = ast_var_assign("DST_END_MDAY", buffer)))
+		AST_LIST_INSERT_TAIL(headp, var, entries);
+
+	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_hour);
+	if ((var = ast_var_assign("DST_END_HOUR", buffer)))
+		AST_LIST_INSERT_TAIL(headp, var, entries);
+}
+
 /*! \brief Callback that is executed everytime an http request is received by this module */
 static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *vars, struct ast_variable *headers, int *status, char **title, int *contentlength)
 {
@@ -338,16 +410,18 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 	struct timeval tv = ast_tvnow();
 	struct ast_tm tm;
 
-	if (!(route = ao2_find(http_routes, &search_route, OBJ_POINTER)))
+	if (!(route = ao2_find(http_routes, &search_route, OBJ_POINTER))) {
 		goto out404;
+	}
 
 	snprintf(path, sizeof(path), "%s/phoneprov/%s", ast_config_AST_DATA_DIR, route->file->template);
 
 	if (!route->user) { /* Static file */
 
 		fd = open(path, O_RDONLY);
-		if (fd < 0)
+		if (fd < 0) {
 			goto out500;
+		}
 
 		len = lseek(fd, 0, SEEK_END);
 		lseek(fd, 0, SEEK_SET);
@@ -367,8 +441,9 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 			"Content-Type: %s\r\n\r\n",
 			ast_get_version(), buf, len, route->file->mime_type);
 		
-		while ((len = read(fd, buf, sizeof(buf))) > 0)
+		while ((len = read(fd, buf, sizeof(buf))) > 0) {
 			fwrite(buf, 1, len, ser->f);
+		}
 
 		close(fd);
 		route = unref_route(route);
@@ -380,13 +455,16 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 		len = load_file(path, &file);
 		if (len < 0) {
 			ast_log(LOG_WARNING, "Could not load file: %s (%d)\n", path, len);
-			if (file)
+			if (file) {
 				ast_free(file);
+			}
+
 			goto out500;
 		}
 
-		if (!file)
+		if (!file) {
 			goto out500;
+		}
 
 		/* XXX This is a hack -- maybe sum length of all variables in route->user->headp and add that? */
  		bufsize = len + VAR_BUF_SIZE;
@@ -394,8 +472,10 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 		/* malloc() instead of alloca() here, just in case the file is bigger than
 		 * we have enough stack space for. */
 		if (!(tmp = ast_calloc(1, bufsize))) {
-			if (file)
+			if (file) {
 				ast_free(file);
+			}
+
 			goto out500;
 		}
 
@@ -406,20 +486,25 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 			socklen_t namelen = sizeof(name);
 			int res;
 
-			if ((res = getsockname(ser->fd, &name, &namelen)))
+			if ((res = getsockname(ser->fd, &name, &namelen))) {
 				ast_log(LOG_WARNING, "Could not get server IP, breakage likely.\n");
-			else {
+			} else {
 				struct ast_var_t *var;
+				struct extension *exten_iter;
 
-				if ((var = ast_var_assign("SERVER", ast_inet_ntoa(((struct sockaddr_in *)&name)->sin_addr))))
-					AST_LIST_INSERT_TAIL(route->user->headp, var, entries);
+				if ((var = ast_var_assign("SERVER", ast_inet_ntoa(((struct sockaddr_in *)&name)->sin_addr)))) {
+					AST_LIST_TRAVERSE(&route->user->extensions, exten_iter, entry) {
+						AST_LIST_INSERT_TAIL(exten_iter->headp, var, entries);
+					}
+				}
 			}
 		}
 
-		pbx_substitute_variables_varshead(route->user->headp, file, tmp, bufsize);
+		pbx_substitute_variables_varshead(AST_LIST_FIRST(&route->user->extensions)->headp, file, tmp, bufsize);
 	
-		if (file)
+		if (file) {
 			ast_free(file);
+		}
 
 		ast_str_append(&result, 0,
 			"Content-Type: %s\r\n"
@@ -427,8 +512,9 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 			"\r\n"
 			"%s", route->file->mime_type, (int) strlen(tmp), tmp);
 
-		if (tmp)
+		if (tmp) {
 			ast_free(tmp);
+		}
 
 		route = unref_route(route);
 
@@ -458,8 +544,9 @@ static void build_route(struct phoneprov_file *pp_file, struct user *user, char 
 {
 	struct http_route *route;
 	
-	if (!(route = ao2_alloc(sizeof(*route), route_destructor)))
+	if (!(route = ao2_alloc(sizeof(*route), route_destructor))) {
 		return;
+	}
 
 	if (ast_string_field_init(route, 32)) {
 		ast_log(LOG_ERROR, "Couldn't create string fields for %s\n", pp_file->format);
@@ -485,8 +572,9 @@ static void build_profile(const char *name, struct ast_variable *v)
 	struct phone_profile *profile;
 	struct ast_var_t *var;
 
-	if (!(profile = ao2_alloc(sizeof(*profile), profile_destructor)))
+	if (!(profile = ao2_alloc(sizeof(*profile), profile_destructor))) {
 		return;
+	}
 
 	if (ast_string_field_init(profile, 32)) {
 		profile = unref_profile(profile);
@@ -579,8 +667,9 @@ static void build_profile(const char *name, struct ast_variable *v)
 	 * variable list for use in substitution. */
 	AST_LIST_TRAVERSE(&global_variables, var, entries) {
 		struct ast_var_t *new_var;
-		if ((new_var = ast_var_assign(var->name, var->value)))
+		if ((new_var = ast_var_assign(var->name, var->value))) {
 			AST_LIST_INSERT_TAIL(profile->headp, new_var, entries);
+		}
 	}
 
 	ao2_link(profiles, profile);
@@ -588,147 +677,164 @@ static void build_profile(const char *name, struct ast_variable *v)
 	profile = unref_profile(profile);
 }
 
-/*! \brief Free all memory associated with a user */
-static void delete_user(struct user *user)
+static struct extension *delete_extension(struct extension *exten)
 {
 	struct ast_var_t *var;
-
-	while ((var = AST_LIST_REMOVE_HEAD(user->headp, entries)))
+	while ((var = AST_LIST_REMOVE_HEAD(exten->headp, entries))) {
 		ast_var_delete(var);
+	}
+	ast_free(exten->headp);
+	ast_string_field_free_memory(exten);
 
-	ast_free(user->headp);
-	ast_string_field_free_memory(user);
-	user->profile = unref_profile(user->profile);
-	free(user);
+	return NULL;
 }
 
-/*! \brief Destroy entire user list */
-static void delete_users(void)
+static struct extension *build_extension(struct ast_config *cfg, const char *name)
 {
-	struct user *user;
-
-	AST_RWLIST_WRLOCK(&users);
-	while ((user = AST_LIST_REMOVE_HEAD(&users, entry)))
-		delete_user(user);
-	AST_RWLIST_UNLOCK(&users);
-}
-
-/*! \brief Set all timezone-related variables based on a zone (i.e. America/New_York)
-	\param headp pointer to list of user variables
-	\param zone A time zone. NULL sets variables based on timezone of the machine
-*/
-static void set_timezone_variables(struct varshead *headp, const char *zone)
-{
-	time_t utc_time;
-	int dstenable;
-	time_t dststart;
-	time_t dstend;
-	struct ast_tm tm_info;
-	int tzoffset;
-	char buffer[21];
-	struct ast_var_t *var;
-	struct timeval tv;
-
-	time(&utc_time);
-	ast_get_dst_info(&utc_time, &dstenable, &dststart, &dstend, &tzoffset, zone);
-	snprintf(buffer, sizeof(buffer), "%d", tzoffset);
-	var = ast_var_assign("TZOFFSET", buffer);
-	if (var)
-		AST_LIST_INSERT_TAIL(headp, var, entries); 
-
-	if (!dstenable)
-		return;
-
-	if ((var = ast_var_assign("DST_ENABLE", "1")))
-		AST_LIST_INSERT_TAIL(headp, var, entries);
-
-	tv.tv_sec = dststart; 
-	ast_localtime(&tv, &tm_info, zone);
-
-	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_mon+1);
-	if ((var = ast_var_assign("DST_START_MONTH", buffer)))
-		AST_LIST_INSERT_TAIL(headp, var, entries);
-
-	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_mday);
-	if ((var = ast_var_assign("DST_START_MDAY", buffer)))
-		AST_LIST_INSERT_TAIL(headp, var, entries);
-
-	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_hour);
-	if ((var = ast_var_assign("DST_START_HOUR", buffer)))
-		AST_LIST_INSERT_TAIL(headp, var, entries);
-
-	tv.tv_sec = dstend;
-	ast_localtime(&tv, &tm_info, zone);
-
-	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_mon + 1);
-	if ((var = ast_var_assign("DST_END_MONTH", buffer)))
-		AST_LIST_INSERT_TAIL(headp, var, entries);
-
-	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_mday);
-	if ((var = ast_var_assign("DST_END_MDAY", buffer)))
-		AST_LIST_INSERT_TAIL(headp, var, entries);
-
-	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_hour);
-	if ((var = ast_var_assign("DST_END_HOUR", buffer)))
-		AST_LIST_INSERT_TAIL(headp, var, entries);
-}
-
-/*! \brief Build and return a user structure based on gathered config data */
-static struct user *build_user(struct ast_config *cfg, const char *name, const char *mac, struct phone_profile *profile)
-{
-	struct user *user;
+	struct extension *exten;
 	struct ast_var_t *var;
 	const char *tmp;
 	int i;
-	
-	if (!(user = ast_calloc(1, sizeof(*user)))) {
-		profile = unref_profile(profile);
-		return NULL;
-	}
-	
-	if (!(user->headp = ast_calloc(1, sizeof(*user->headp)))) {
-		profile = unref_profile(profile);
-		ast_free(user);
-		return NULL;
-	}
 
-	if (ast_string_field_init(user, 32)) {
-		profile = unref_profile(profile);
-		delete_user(user);
+	if (!(exten = ast_calloc(1, sizeof(*exten)))) {
 		return NULL;
 	}
-
-	ast_string_field_set(user, name, name);
-	ast_string_field_set(user, macaddress, mac);
-	user->profile = profile; /* already ref counted by find_profile */
+	
+	if (ast_string_field_init(exten, 32)) {
+		ast_free(exten);
+		exten = NULL;
+		return NULL;
+	}
+	
+	ast_string_field_set(exten, name, name);
+	
+	if (!(exten->headp = ast_calloc(1, sizeof(*exten->headp)))) {
+		ast_free(exten);
+		exten = NULL;
+		return NULL;
+	}
 
 	for (i = 0; i < PP_VAR_LIST_LENGTH; i++) {
 		tmp = ast_variable_retrieve(cfg, name, pp_variable_list[i].user_var);
 
 		/* If we didn't get a USERNAME variable, set it to the user->name */
 		if (i == PP_USERNAME && !tmp) {
-			if ((var = ast_var_assign(pp_variable_list[PP_USERNAME].template_var, user->name))) {
-				AST_LIST_INSERT_TAIL(user->headp, var, entries);
+			if ((var = ast_var_assign(pp_variable_list[PP_USERNAME].template_var, exten->name))) {
+				AST_LIST_INSERT_TAIL(exten->headp, var, entries);
 			}
 			continue;
 		} else if (i == PP_TIMEZONE) {
 			/* perfectly ok if tmp is NULL, will set variables based on server's time zone */
-			set_timezone_variables(user->headp, tmp);
+			set_timezone_variables(exten->headp, tmp);
+		} else if (i == PP_LINENUMBER) {
+			exten->index = atoi(tmp);
 		}
 
-		if (tmp && (var = ast_var_assign(pp_variable_list[i].template_var, tmp)))
-			AST_LIST_INSERT_TAIL(user->headp, var, entries);
+		if (tmp && (var = ast_var_assign(pp_variable_list[i].template_var, tmp))) {
+			AST_LIST_INSERT_TAIL(exten->headp, var, entries);
+		}
 	}
 
 	if (!ast_strlen_zero(global_server)) {
 		if ((var = ast_var_assign("SERVER", global_server)))
-			AST_LIST_INSERT_TAIL(user->headp, var, entries);
+			AST_LIST_INSERT_TAIL(exten->headp, var, entries);
 	}
 
 	if (!ast_strlen_zero(global_serverport)) {
 		if ((var = ast_var_assign("SERVER_PORT", global_serverport)))
-			AST_LIST_INSERT_TAIL(user->headp, var, entries);
+			AST_LIST_INSERT_TAIL(exten->headp, var, entries);
 	}
+
+	return exten;
+}
+
+static struct user *unref_user(struct user *user)
+{
+	ao2_ref(user, -1);
+
+	return NULL;
+}
+
+/*! \brief Return a user looked up by name */
+static struct user *find_user(const char *macaddress)
+{
+	struct user tmp = {
+		.macaddress = macaddress,
+	};
+
+	return ao2_find(users, &tmp, OBJ_POINTER);
+}
+
+static int users_hash_fn(const void *obj, const int flags)
+{
+	const struct user *user = obj;
+	
+	return ast_str_hash(user->macaddress);
+}
+
+static int users_cmp_fn(void *obj, void *arg, int flags)
+{
+	const struct user *user1 = obj, *user2 = arg;
+
+	return !strcasecmp(user1->macaddress, user2->macaddress) ? CMP_MATCH : 0;
+}
+
+/*! \brief Free all memory associated with a user */
+static void user_destructor(void *obj)
+{
+	struct user *user = obj;
+	struct extension *exten;
+
+	while ((exten = AST_LIST_REMOVE_HEAD(&user->extensions, entry))) {
+		exten = delete_extension(exten);
+	}
+
+	ast_string_field_free_memory(user);
+	if (user->profile) {
+		user->profile = unref_profile(user->profile);
+	}
+}
+
+/*! \brief Delete all users */
+static void delete_users(void)
+{
+	struct ao2_iterator i;
+	struct user *user;
+
+	i = ao2_iterator_init(users, 0);
+	while ((user = ao2_iterator_next(&i))) {
+		ao2_unlink(users, user);
+		user = unref_user(user);
+	}
+}
+
+/*! \brief Build and return a user structure based on gathered config data */
+static struct user *build_user(const char *mac, struct phone_profile *profile)
+{
+	struct user *user;
+
+		
+	if (!(user = ao2_alloc(sizeof(*user), user_destructor))) {
+		profile = unref_profile(profile);
+		return NULL;
+	}
+	
+	if (ast_string_field_init(user, 32)) {
+		profile = unref_profile(profile);
+		user = unref_user(user);
+		return NULL;
+	}
+
+	ast_string_field_set(user, macaddress, mac);
+	user->profile = profile; /* already ref counted by find_profile */
+
+	return user;
+}
+
+/*! \brief Add an extension to a user ordered by index/linenumber */
+static int add_user_extension(struct user *user, struct extension *exten)
+{
+	struct ast_var_t *var;
 
 	/* Append profile variables here, and substitute variables on profile
 	 * setvars, so that we can use user specific variables in them */
@@ -736,12 +842,31 @@ static struct user *build_user(struct ast_config *cfg, const char *name, const c
 		char expand_buf[VAR_BUF_SIZE] = {0,};
 		struct ast_var_t *var2;
 
-		pbx_substitute_variables_varshead(user->headp, var->value, expand_buf, sizeof(expand_buf));
+		pbx_substitute_variables_varshead(exten->headp, var->value, expand_buf, sizeof(expand_buf));
 		if ((var2 = ast_var_assign(var->name, expand_buf)))
-			AST_LIST_INSERT_TAIL(user->headp, var2, entries);
+			AST_LIST_INSERT_TAIL(exten->headp, var2, entries);
 	}
 
-	return user;
+	if (AST_LIST_EMPTY(&user->extensions)) {
+		AST_LIST_INSERT_HEAD(&user->extensions, exten, entry);
+	} else {
+		struct extension *exten_iter;
+
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&user->extensions, exten_iter, entry) {
+			if (exten->index < exten_iter->index) {
+				AST_LIST_INSERT_BEFORE_CURRENT(exten, entry);
+			} else if (exten->index == exten_iter->index) {
+				ast_log(LOG_WARNING, "Duplicate linenumber=%d for %s\n", exten->index, user->macaddress);
+				user = unref_user(user); /* Profile should be unreffed now that it is attached to the user */
+				return -1;
+			} else if (!AST_LIST_NEXT(exten, entry)) {
+				AST_LIST_INSERT_TAIL(&user->extensions, exten, entry);
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+	}
+
+	return 0;
 }
 
 /*! \brief Add an http route for dynamic files attached to the profile of the user */
@@ -752,7 +877,7 @@ static int build_user_routes(struct user *user)
 	AST_LIST_TRAVERSE(&user->profile->dynamic_files, pp_file, entry) {
 		char expand_buf[VAR_BUF_SIZE] = { 0, };
 
-		pbx_substitute_variables_varshead(user->headp, pp_file->format, expand_buf, sizeof(expand_buf));
+		pbx_substitute_variables_varshead(AST_LIST_FIRST(&user->extensions)->headp, pp_file->format, expand_buf, sizeof(expand_buf));
 		build_route(pp_file, user, expand_buf);
 	}
 
@@ -810,6 +935,7 @@ static int set_config(void)
 		const char *tmp, *mac;
 		struct user *user;
 		struct phone_profile *profile;
+		struct extension *exten;
 		struct ast_var_t *var;
 
 		if (!strcasecmp(cat, "general")) {
@@ -847,20 +973,33 @@ static int set_config(void)
 			continue;
 		}
 
-		if (!(user = build_user(cfg, cat, mac, profile))) {
-			ast_log(LOG_WARNING, "Could not create user %s - skipping.\n", cat);
+		if (!((user = find_user(mac)) || (user = build_user(mac, profile)))) {
+			ast_log(LOG_WARNING, "Could not create user for '%s' - skipping\n", user->macaddress);
 			continue;
 		}
 
-		if (build_user_routes(user)) {
-			ast_log(LOG_WARNING, "Could not create http routes for %s - skipping\n", user->name);
-			delete_user(user);
+		if (!(exten = build_extension(cfg, cat))) {
+			ast_log(LOG_WARNING, "Could not create extension for %s - skipping\n", user->macaddress);
+			user = unref_user(user);
 			continue;
 		}
 
-		AST_RWLIST_WRLOCK(&users);
-		AST_RWLIST_INSERT_TAIL(&users, user, entry);
-		AST_RWLIST_UNLOCK(&users);
+		if (add_user_extension(user, exten)) {
+			ast_log(LOG_WARNING, "Could not add extension '%s' to user '%s'\n", exten->name, user->macaddress);
+			user = unref_user(user);
+			exten = delete_extension(exten);
+			continue;
+		}
+
+		if (!find_user(mac)) {
+			if (build_user_routes(user)) {
+				ast_log(LOG_WARNING, "Could not create http routes for %s - skipping\n", user->macaddress);
+				user = unref_user(user);
+				continue;
+			}
+
+			ao2_link(users, user);
+		}
 	}
 
 	ast_config_destroy(cfg);
@@ -898,6 +1037,7 @@ static void delete_profiles(void)
 static int pp_each_user_exec(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char *tmp, expand_buf[VAR_BUF_SIZE] = {0,};
+	struct ao2_iterator i;
 	struct user *user;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(string);
@@ -909,14 +1049,15 @@ static int pp_each_user_exec(struct ast_channel *chan, const char *cmd, char *da
 	while ((tmp = strstr(args.string, "%{")))
 		*tmp = '$';
 
-	AST_RWLIST_RDLOCK(&users);
-	AST_RWLIST_TRAVERSE(&users, user, entry) {
-		if (!ast_strlen_zero(args.exclude_mac) && !strcasecmp(user->macaddress, args.exclude_mac))
+	i = ao2_iterator_init(users, 0);
+	while ((user = ao2_iterator_next(&i))) {
+		if (!ast_strlen_zero(args.exclude_mac) && !strcasecmp(user->macaddress, args.exclude_mac)) {
 			continue;
-		pbx_substitute_variables_varshead(user->headp, args.string, expand_buf, sizeof(expand_buf));
+		}
+		pbx_substitute_variables_varshead(AST_LIST_FIRST(&user->extensions)->headp, args.string, expand_buf, sizeof(expand_buf));
 		ast_build_string(&buf, &len, "%s", expand_buf);
+		user = unref_user(user);
 	}
-	AST_RWLIST_UNLOCK(&users);
 
 	return 0;
 }
@@ -932,6 +1073,66 @@ static struct ast_custom_function pp_each_user_function = {
 		"res_phoneprov.\n"
 		"\nExample: ${PP_EACH_USER(<item><fn>%{DISPLAY_NAME}</fn></item>|${MAC})",
 	.read = pp_each_user_exec,
+};
+
+/*! \brief A dialplan function that can be used to output a template for each extension attached to a user */
+static int pp_each_extension_exec(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	char expand_buf[VAR_BUF_SIZE] = {0,};
+	struct user *user;
+	struct extension *exten;
+	char path[PATH_MAX];
+	char *file;
+	int filelen;
+	AST_DECLARE_APP_ARGS(args, 
+		AST_APP_ARG(mac);
+		AST_APP_ARG(template);
+	);
+	
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (ast_strlen_zero(args.mac) || ast_strlen_zero(args.template)) {
+		ast_log(LOG_WARNING, "PP_EACH_EXTENSION requries both a macaddress and template filename.\n");
+		return 0;
+	}
+
+	if (!(user = find_user(args.mac))) {
+		ast_log(LOG_WARNING, "Could not find user with mac = '%s'\n", args.mac);
+		return 0;
+	}
+
+	snprintf(path, sizeof(path), "%s/phoneprov/%s", ast_config_AST_DATA_DIR, args.template);
+	filelen = load_file(path, &file);
+	if (filelen < 0) {
+		ast_log(LOG_WARNING, "Could not load file: %s (%d)\n", path, filelen);
+		if (file) {
+			ast_free(file);
+		}
+		return 0;
+	}
+
+	if (!file) {
+		return 0;
+	}
+
+	AST_LIST_TRAVERSE(&user->extensions, exten, entry) {
+		pbx_substitute_variables_varshead(exten->headp, file, expand_buf, sizeof(expand_buf));
+		ast_build_string(&buf, &len, "%s", expand_buf);
+	}
+
+	user = unref_user(user);
+
+	return 0;
+}
+
+static struct ast_custom_function pp_each_extension_function = {
+	.name = "PP_EACH_EXTENSION",
+	.synopsis = "Execute specified template for each extension",
+	.syntax = "PP_EACH_EXTENSION(<mac>|<template>)",
+	.desc =
+		"Output the specified template for each extension associated with the specified\n"
+		"MAC address.",
+	.read = pp_each_extension_exec,
 };
 
 /*! \brief CLI command to list static and dynamic routes */
@@ -996,9 +1197,12 @@ static int load_module(void)
 
 	http_routes = ao2_container_alloc(MAX_ROUTE_BUCKETS, routes_hash_fn, routes_cmp_fn);
 
+	users = ao2_container_alloc(MAX_USER_BUCKETS, users_hash_fn, users_cmp_fn);
+
 	AST_LIST_HEAD_INIT_NOLOCK(&global_variables);
 	
 	ast_custom_function_register(&pp_each_user_function);
+	ast_custom_function_register(&pp_each_extension_function);
 	ast_cli_register_multiple(pp_cli, ARRAY_LEN(pp_cli));
 
 	set_config();
@@ -1013,6 +1217,7 @@ static int unload_module(void)
 
 	ast_http_uri_unlink(&phoneprovuri);
 	ast_custom_function_unregister(&pp_each_user_function);
+	ast_custom_function_unregister(&pp_each_extension_function);
 	ast_cli_unregister_multiple(pp_cli, ARRAY_LEN(pp_cli));
 
 	delete_routes();
