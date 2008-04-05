@@ -2252,8 +2252,11 @@ cleanup2:
 	ser = ast_tcptls_session_instance_destroy(ser);
 	if (reqcpy.data)
 		ast_free(reqcpy.data);
-	if (req.data)
+	if (req.data) {
 		ast_free(req.data);
+		req.data = NULL;
+	}
+	
 
 	if (req.socket.lock) {
 		ast_mutex_destroy(req.socket.lock);
@@ -18129,8 +18132,10 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	req.socket.lock = NULL;
 
 	handle_request_do(&req, &sin);
-	if (req.data)
+	if (req.data) {
 		ast_free(req.data);
+		req.data = NULL;
+	}
 
 	return 1;
 }
@@ -18159,8 +18164,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 		ast_verbose("--- (%d headers %d lines)%s ---\n", req->headers, req->lines, (req->headers + req->lines == 0) ? " Nat keepalive" : "");
 
 	if (req->headers < 2) {	/* Must have at least two headers */
-		ast_free(req->data);
-		req->data = NULL;
+		ast_str_reset(req->data); /* nulling this out is NOT a good idea here. */
 		return 1;
 	}
 
