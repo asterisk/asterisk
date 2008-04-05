@@ -340,13 +340,13 @@ static int action_add_agi_cmd(struct mansession *s, const struct message *m)
 	if (!chan) {
 		snprintf(buf, sizeof(buf), "Channel %s does not exists or cannot get its lock", channel);
 		astman_send_error(s, m, buf);
-		return 1;
+		return 0;
 	}
 	if (add_agi_cmd(chan, cmdbuff, cmdid)) {
 		snprintf(buf, sizeof(buf), "Failed to add AGI command to channel %s queue", chan->name);
 		astman_send_error(s, m, buf);
 		ast_channel_unlock(chan);
-		return 1;
+		return 0;
 	}
 	astman_send_ack(s, m, "Added AGI command to queue");
 	ast_channel_unlock(chan);
