@@ -272,7 +272,7 @@ static void profile_destructor(void *obj)
 	while ((var = AST_LIST_REMOVE_HEAD(profile->headp, entries)))
 		ast_var_delete(var);
 
-	free(profile->headp);
+	ast_free(profile->headp);
 	ast_string_field_free_memory(profile);
 }
 
@@ -686,6 +686,8 @@ static struct extension *delete_extension(struct extension *exten)
 	ast_free(exten->headp);
 	ast_string_field_free_memory(exten);
 
+	ast_free(exten);
+
 	return NULL;
 }
 
@@ -789,10 +791,11 @@ static void user_destructor(void *obj)
 		exten = delete_extension(exten);
 	}
 
-	ast_string_field_free_memory(user);
 	if (user->profile) {
 		user->profile = unref_profile(user->profile);
 	}
+	
+	ast_string_field_free_memory(user);
 }
 
 /*! \brief Delete all users */
@@ -968,30 +971,31 @@ static int set_config(void)
 			continue;
 		}
 
-		if (!(profile = find_profile(tmp))) {
-			ast_log(LOG_WARNING, "Could not look up profile '%s' - skipping.\n", tmp);
-			continue;
-		}
 
-		if (!((user = find_user(mac)) || (user = build_user(mac, profile)))) {
-			ast_log(LOG_WARNING, "Could not create user for '%s' - skipping\n", user->macaddress);
-			continue;
-		}
+		if (!(user = find_user(mac))) {
+			if (!(profile = find_profile(tmp))) {
+				ast_log(LOG_WARNING, "Could not look up profile '%s' - skipping.\n", tmp);
+				continue;
+			}
 
-		if (!(exten = build_extension(cfg, cat))) {
-			ast_log(LOG_WARNING, "Could not create extension for %s - skipping\n", user->macaddress);
-			user = unref_user(user);
-			continue;
-		}
+			if (!(user = build_user(mac, profile))) {
+				ast_log(LOG_WARNING, "Could not create user for '%s' - skipping\n", user->macaddress);
+				continue;
+			}
 
-		if (add_user_extension(user, exten)) {
-			ast_log(LOG_WARNING, "Could not add extension '%s' to user '%s'\n", exten->name, user->macaddress);
-			user = unref_user(user);
-			exten = delete_extension(exten);
-			continue;
-		}
+			if (!(exten = build_extension(cfg, cat))) {
+				ast_log(LOG_WARNING, "Could not create extension for %s - skipping\n", user->macaddress);
+				user = unref_user(user);
+				continue;
+			}
 
-		if (!find_user(mac)) {
+			if (add_user_extension(user, exten)) {
+				ast_log(LOG_WARNING, "Could not add extension '%s' to user '%s'\n", exten->name, user->macaddress);
+				user = unref_user(user);
+				exten = delete_extension(exten);
+				continue;
+			}
+
 			if (build_user_routes(user)) {
 				ast_log(LOG_WARNING, "Could not create http routes for %s - skipping\n", user->macaddress);
 				user = unref_user(user);
@@ -999,6 +1003,22 @@ static int set_config(void)
 			}
 
 			ao2_link(users, user);
+			user = unref_user(user);
+		} else {
+			if (!(exten = build_extension(cfg, cat))) {
+				ast_log(LOG_WARNING, "Could not create extension for %s - skipping\n", user->macaddress);
+				user = unref_user(user);
+				continue;
+			}
+
+			if (add_user_extension(user, exten)) {
+				ast_log(LOG_WARNING, "Could not add extension '%s' to user '%s'\n", exten->name, user->macaddress);
+				user = unref_user(user);
+				exten = delete_extension(exten);
+				continue;
+			}
+
+			user = unref_user(user);
 		}
 	}
 
@@ -1225,6 +1245,7 @@ static int unload_module(void)
 	delete_profiles();
 	ao2_ref(profiles, -1);
 	ao2_ref(http_routes, -1);
+	ao2_ref(users, -1);
 
 	while ((var = AST_LIST_REMOVE_HEAD(&global_variables, entries)))
 		ast_var_delete(var);
