@@ -2539,9 +2539,9 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 			 * is because we only have the IP address and the host field might be
 			 * set as a name (and the reverse PTR might not match).
 			 */
-			if (var) {
+			if (var && sin) {
 				for (tmp = var; tmp; tmp = tmp->next) {
-					if (!strcasecmp(var->name, "host")) {
+					if (!strcasecmp(tmp->name, "host")) {
 						struct hostent *hp;
 						struct ast_hostent ahp;
 						if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(&hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
