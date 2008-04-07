@@ -1223,6 +1223,7 @@ static struct skinny_device {
 	int lastlineinstance;
 	int lastcallreference;
 	int capability;
+	int earlyrtp;
 	struct sockaddr_in addr;
 	struct in_addr ourip;
 	struct skinny_line *lines;
@@ -2902,6 +2903,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 		else
 			memset(device_vmexten, 0, sizeof(device_vmexten));
 
+		d->earlyrtp = 1;
 		while(v) {
 			if (!strcasecmp(v->name, "host")) {
 				if (ast_get_ip(&d->addr, v->value)) {
@@ -2928,6 +2930,8 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 				ast_copy_string(d->version_id, v->value, sizeof(d->version_id));
 			} else if (!strcasecmp(v->name, "canreinvite")) {
 				canreinvite = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "earlyrtp")) {
+				d->earlyrtp = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "nat")) {
 				nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
@@ -3148,6 +3152,9 @@ static void *skinny_newcall(void *data)
 		l->hidecallerid ? "" : l->cid_name,
 		c->cid.cid_ani ? NULL : l->cid_num);
 	ast_setstate(c, AST_STATE_RING);
+	if (!sub->rtp) {
+		start_rtp(sub);
+	}
 	res = ast_pbx_run(c);
 	if (res) {
 		ast_log(LOG_WARNING, "PBX exited non-zero\n");
@@ -3602,45 +3609,61 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	case AST_CONTROL_RINGING:
 		if (ast->_state != AST_STATE_UP) {
 			if (!sub->progress) {
-				transmit_tone(s, SKINNY_ALERT, l->instance, sub->callid);
+				if (!d->earlyrtp) {
+					transmit_tone(s, SKINNY_ALERT, l->instance, sub->callid);
+				}
 				transmit_callstate(s, l->instance, SKINNY_RINGOUT, sub->callid);
 				transmit_dialednumber(s, exten, l->instance, sub->callid);
 				transmit_displaypromptstatus(s, "Ring Out", 0, l->instance, sub->callid);
 				transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, exten, exten, l->instance, sub->callid, 2); /* 2 = outgoing from phone */
 				sub->ringing = 1;
-				break;
+				if (!d->earlyrtp) {
+					break;
+				}
 			}
 		}
-		return -1;
+		return -1; /* Tell asterisk to provide inband signalling */
 	case AST_CONTROL_BUSY:
 		if (ast->_state != AST_STATE_UP) {
-			transmit_tone(s, SKINNY_BUSYTONE, l->instance, sub->callid);
+			if (!d->earlyrtp) {
+				transmit_tone(s, SKINNY_BUSYTONE, l->instance, sub->callid);
+			}
 			transmit_callstate(s, l->instance, SKINNY_BUSY, sub->callid);
 			sub->alreadygone = 1;
 			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
-			break;
+			if (!d->earlyrtp) {
+				break;
+			}
 		}
-		return -1;
+		return -1; /* Tell asterisk to provide inband signalling */
 	case AST_CONTROL_CONGESTION:
 		if (ast->_state != AST_STATE_UP) {
-			transmit_tone(s, SKINNY_REORDER, l->instance, sub->callid);
+			if (!d->earlyrtp) {
+				transmit_tone(s, SKINNY_REORDER, l->instance, sub->callid);
+			}
 			transmit_callstate(s, l->instance, SKINNY_CONGESTION, sub->callid);
 			sub->alreadygone = 1;
 			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
-			break;
+			if (!d->earlyrtp) {
+				break;
+			}
 		}
-		return -1;
+		return -1; /* Tell asterisk to provide inband signalling */
 	case AST_CONTROL_PROGRESS:
 		if ((ast->_state != AST_STATE_UP) && !sub->progress && !sub->outgoing) {
-			transmit_tone(s, SKINNY_ALERT, l->instance, sub->callid);
+			if (!d->earlyrtp) {
+				transmit_tone(s, SKINNY_ALERT, l->instance, sub->callid);
+			}
 			transmit_callstate(s, l->instance, SKINNY_PROGRESS, sub->callid);
 			transmit_displaypromptstatus(s, "Call Progress", 0, l->instance, sub->callid);
 			transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, exten, exten, l->instance, sub->callid, 2); /* 2 = outgoing from phone */
 			sub->progress = 1;
-			break;
+			if (!d->earlyrtp) {
+				break;
+			}
 		}
-		return -1;
-	case -1:
+		return -1; /* Tell asterisk to provide inband signalling */
+	case -1:  /* STOP_TONE */
 		transmit_tone(s, SKINNY_SILENCE, l->instance, sub->callid);
 		break;
 	case AST_CONTROL_HOLD:
@@ -3656,7 +3679,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
-		return -1;
+		return -1; /* Tell asterisk to provide inband signalling */
 	}
 	return 0;
 }
