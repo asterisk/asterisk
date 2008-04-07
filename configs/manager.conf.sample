@@ -91,7 +91,8 @@ bindaddr = 0.0.0.0
 ; reporting - Ability to get information about the system.
 ; cdr       - Output of cdr_manager, if loaded.  Read-only.
 ; dialplan  - Receive NewExten and VarSet events.  Read-only.
+; originate - Permission to originate new calls.
 ;
 ;read = system,call,log,verbose,agent,user,config,dtmf,reporting,cdr,dialplan
-;write = system,call,agent,user,config,command,reporting
+;write = system,call,agent,user,config,command,reporting,originate
 
