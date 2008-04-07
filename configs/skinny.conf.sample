@@ -63,6 +63,11 @@ keepalive=120
 ;jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
 ;-----------------------------------------------------------------------------------
 
+;----------------------------------- DEVICE OPTIONS --------------------------------
+;earlyrtp=1                  ; whether audio signalling should be provided by asterisk
+                             ; (earlyrtp=1) or device generated (earlyrtp=0). 
+                             ; defaults to earlyrtp=1
+;-----------------------------------------------------------------------------------
 
 ; Typical config for 12SP+
 ;[florian]
