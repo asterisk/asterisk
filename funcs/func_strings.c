@@ -499,6 +499,8 @@ static int acf_strptime(struct ast_channel *chan, char *cmd, char *data,
 	if (!strptime(args.timestring, args.format, &time)) {
 		ast_log(LOG_WARNING, "C function strptime() output nothing?!!\n");
 	} else {
+		/* Since strptime(3) does not check DST, force ast_mktime() to calculate it. */
+		time.tm_isdst = -1;
 		snprintf(buf, len, "%d", (int) ast_mktime(&time, args.timezone));
 	}
 
