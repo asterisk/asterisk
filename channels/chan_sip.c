@@ -3578,7 +3578,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 			 */
 			if (var) {
 				for (tmp = var; tmp; tmp = tmp->next) {
-					if (!strcasecmp(tmp->name, "host")) {
+					if (!strcasecmp(var->name, "host")) {
 						struct hostent *hp;
 						struct ast_hostent ahp;
 						if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(&hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
