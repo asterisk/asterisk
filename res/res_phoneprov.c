@@ -166,12 +166,12 @@ static struct {
 	{ "mp3", "audio/mpeg" },
 };
 
-char global_server[80] = "";	/*!< Server to substitute into templates */
-char global_serverport[6] = "";	/*!< Server port to substitute into templates */
-char global_default_profile[80] = "";	/*!< Default profile to use if one isn't specified */	
+static char global_server[80] = "";	/*!< Server to substitute into templates */
+static char global_serverport[6] = "";	/*!< Server port to substitute into templates */
+static char global_default_profile[80] = "";	/*!< Default profile to use if one isn't specified */	
 
 /*! \brief List of global variables currently available: VOICEMAIL_EXTEN, EXTENSION_LENGTH */
-struct varshead global_variables;
+static struct varshead global_variables;
 
 /*! \brief Return mime type based on extension */
 static char *ftype2mtype(const char *ftype)
@@ -728,7 +728,7 @@ static struct extension *build_extension(struct ast_config *cfg, const char *nam
 		} else if (i == PP_TIMEZONE) {
 			/* perfectly ok if tmp is NULL, will set variables based on server's time zone */
 			set_timezone_variables(exten->headp, tmp);
-		} else if (i == PP_LINENUMBER) {
+		} else if (i == PP_LINENUMBER && tmp) {
 			exten->index = atoi(tmp);
 		}
 
