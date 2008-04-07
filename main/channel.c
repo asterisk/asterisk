@@ -2273,7 +2273,17 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 		} else {
 			samples = f->samples;
 		}
+		/* This unlock is here based on two assumptions that hold true at this point in the
+		 * code. 1) this function is only called from within __ast_read() and 2) all generators
+		 * call ast_write() in their generate callback.
+		 *
+		 * The reason this is added is so that when ast_write is called, the lock that occurs 
+		 * there will not recursively lock the channel. Doing this will cause intended deadlock 
+		 * avoidance not to work in deeper functions
+		 */
+		ast_channel_unlock(chan);
 		res = chan->generator->generate(chan, tmp, f->datalen, samples);
+		ast_channel_lock(chan);
 		chan->generatordata = tmp;
 		if (res) {
 			if (option_debug > 1)
