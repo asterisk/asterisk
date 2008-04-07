@@ -4747,18 +4747,18 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
  * \param vms
  * \param sender
  * \param fmt
- * \param flag Used to indicate the mode for which this method was invoked. 
+ * \param is_new_message Used to indicate the mode for which this method was invoked. 
  *             Will be 0 when called to forward an existing message (option 8)
  *             Will be 1 when called to leave a message (option 3->5)
  * \param record_gain 
  *
  * Reads the destination mailbox(es) from keypad input for CID, or if use_directory feature is enabled, the Directory.
  * 
- * When in the leave message mode (flag == 1):
- *   - allow the leaving of a message for ourselves. (Will not allow us to forward a message to ourselves, when flag == 0).
+ * When in the leave message mode (is_new_message == 1):
+ *   - allow the leaving of a message for ourselves. (Will not allow us to forward a message to ourselves, when is_new_message == 0).
  *   - attempt to determine the context and and mailbox, and then invoke leave_message() function to record and store the message.
  *
- * When in the forward message mode (flag == 0):
+ * When in the forward message mode (is_new_message == 0):
  *   - retreives the current message to be forwarded
  *   - copies the original message to a temporary file, so updates to the envelope can be done.
  *   - determines the target mailbox and folders
@@ -4766,7 +4766,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
  *
  * \return zero on success, -1 on error.
  */
-static int forward_message(struct ast_channel *chan, char *context, struct vm_state *vms, struct ast_vm_user *sender, char *fmt, int flag, signed char record_gain)
+static int forward_message(struct ast_channel *chan, char *context, struct vm_state *vms, struct ast_vm_user *sender, char *fmt, int is_new_message, signed char record_gain)
 {
 #ifdef IMAP_STORAGE
 	BODY *body;
@@ -4882,8 +4882,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		/* start optimistic */
 		valid_extensions = 1;
 		while (s) {
-			/* Don't forward to ourselves but allow leaving a message for ourselves (flag == 1).  find_user is going to malloc since we have a NULL as first argument */
-			if ((flag == 1 || strcmp(s, sender->mailbox)) && (receiver = find_user(NULL, context, s))) {
+			/* Don't forward to ourselves but allow leaving a message for ourselves (is_new_message == 1).  find_user is going to malloc since we have a NULL as first argument */
+			if ((is_new_message == 1 || strcmp(s, sender->mailbox)) && (receiver = find_user(NULL, context, s))) {
 				AST_LIST_INSERT_HEAD(&extensions, receiver, list);
 				found++;
 			} else {
@@ -4917,7 +4917,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	/* check if we're clear to proceed */
 	if (AST_LIST_EMPTY(&extensions) || !valid_extensions)
 		return res;
-	if (flag==1) {
+	if (is_new_message == 1) {
 		struct leave_vm_options leave_options;
 		char mailbox[AST_MAX_EXTENSION * 2 + 2];
 		/* Make sure that context doesn't get set as a literal "(null)" (or else find_user won't find it) */
