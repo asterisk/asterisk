@@ -704,7 +704,10 @@ static int acf_strptime(struct ast_channel *chan, const char *cmd, char *data,
 	if (!strptime(args.timestring, args.format, &t.time)) {
 		ast_log(LOG_WARNING, "C function strptime() output nothing?!!\n");
 	} else {
-		struct timeval tv = ast_mktime(&t.atm, args.timezone);
+		struct timeval tv;
+		/* Since strptime(3) does not check DST, force ast_mktime() to calculate it. */
+		t.atm.tm_isdst = -1;
+		tv = ast_mktime(&t.atm, args.timezone);
 		snprintf(buf, len, "%d", (int) tv.tv_sec);
 	}
 
