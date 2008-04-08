@@ -157,3 +157,21 @@ unsigned int ast_slinfactory_available(const struct ast_slinfactory *sf)
 {
 	return sf->size;
 }
+
+void ast_slinfactory_flush(struct ast_slinfactory *sf)
+{
+	struct ast_frame *fr = NULL;
+
+	if (sf->trans) {
+		ast_translator_free_path(sf->trans);
+		sf->trans = NULL;
+	}
+
+	while ((fr = AST_LIST_REMOVE_HEAD(&sf->queue, frame_list)))
+		ast_frfree(fr);
+
+	sf->size = sf->holdlen = 0;
+	sf->offset = sf->hold;
+
+	return;
+}

@@ -48,6 +48,7 @@ void ast_slinfactory_destroy(struct ast_slinfactory *sf);
 int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f);
 int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples);
 unsigned int ast_slinfactory_available(const struct ast_slinfactory *sf);
+void ast_slinfactory_flush(struct ast_slinfactory *sf);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
