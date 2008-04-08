@@ -211,7 +211,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	tpl_working = template;
 	tpl_current=strsep(&tpl_working, ":");
 
-	while(tpl_current && looptemp < sizeof(tmp)) {
+	while(tpl_current && looptemp < ARRAY_LEN(tmp)) {
 		tmp[looptemp]=tpl_current;
 		looptemp++;
 		tpl_current=strsep(&tpl_working,":");
