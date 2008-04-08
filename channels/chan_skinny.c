@@ -1211,6 +1211,9 @@ static void *get_button_template(struct skinnysession *s, struct button_definiti
 		case SKINNY_DEVICE_7937:
 			ast_log(LOG_WARNING, "Unsupported device type '%d (7937)' found.\n", d->type);
 			break;
+		case SKINNY_DEVICE_7914:
+			ast_log(LOG_WARNING, "Unsupported device type '%d (7914)' found.  Expansion module registered by itself?\n", d->type);
+			break;
 		case SKINNY_DEVICE_SCCPGATEWAY_AN:
 		case SKINNY_DEVICE_SCCPGATEWAY_BRI:
 			ast_log(LOG_WARNING, "Unsupported device type '%d (SCCP gateway)' found.\n", d->type);
@@ -1961,6 +1964,8 @@ static char *device2str(int type)
 		return "7941";
 	case SKINNY_DEVICE_7971:
 		return "7971";
+	case SKINNY_DEVICE_7914:
+		return "7914";
 	case SKINNY_DEVICE_7985:
 		return "7985";
 	case SKINNY_DEVICE_7911:
@@ -1969,8 +1974,24 @@ static char *device2str(int type)
 		return "7961GE";
 	case SKINNY_DEVICE_7941GE:
 		return "7941GE";
+	case SKINNY_DEVICE_7931:
+		return "7931";
 	case SKINNY_DEVICE_7921:
 		return "7921";
+	case SKINNY_DEVICE_7906:
+		return "7906";
+	case SKINNY_DEVICE_7962:
+		return "7962";
+	case SKINNY_DEVICE_7937:
+		return "7937";
+	case SKINNY_DEVICE_7942:
+		return "7942";
+	case SKINNY_DEVICE_7945:
+		return "7945";
+	case SKINNY_DEVICE_7965:
+		return "7965";
+	case SKINNY_DEVICE_7975:
+		return "7975";
 	case SKINNY_DEVICE_7905:
 		return "7905";
 	case SKINNY_DEVICE_7920:
