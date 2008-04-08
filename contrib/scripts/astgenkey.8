@@ -109,6 +109,21 @@ Run quietly.
 Don't encrypt the private key.
 .RE
 
+.SH SECURITY
+The keys are created, using the umask of the user running the command.
+To create the keys in a secure manner, you should check to ensure that
+your umask is first set to disallow the private key from being world-
+readable, such as with the following commands:
+
+.I umask 0066
+
+.I astgenkey yourkey
+
+And then make the key accessible to Asterisk (assuming you run it as
+user "asterisk").
+
+  chown asterisk /var/lib/asterisk/keys/yourname.*
+
 .SH FILES
 .I /var/lib/asterisk/keys
 .RS
