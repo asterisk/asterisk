@@ -79,18 +79,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #if defined(HAVE_SYSINFO)
 #include <sys/sysinfo.h>
 #endif
-#ifdef linux
-#include <sys/prctl.h>
-#ifdef HAVE_CAP
-#include <sys/capability.h>
-#endif /* HAVE_CAP */
-#endif /* linux */
 #include <regex.h>
 
 #if defined(SOLARIS)
 int daemon(int, int);  /* defined in libresolv of all places */
 #include <sys/loadavg.h>
 #endif
+
+#include "asterisk/zapata.h"
+
+#ifdef linux
+#include <sys/prctl.h>
+#ifdef HAVE_CAP
+#include <sys/capability.h>
+#endif /* HAVE_CAP */
+#endif /* linux */
 
 #include "asterisk/paths.h"	/* we define here the variables so better agree on the prototype */
 #include "asterisk/network.h"
@@ -122,7 +125,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/devicestate.h"
 #include "asterisk/module.h"
 #include "asterisk/dsp.h"
-#include "asterisk/zapata.h"
 
 #include "asterisk/doxyref.h"		/* Doxygen documentation */
 
