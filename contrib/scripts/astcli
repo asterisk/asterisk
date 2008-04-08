@@ -1,0 +1,67 @@
+#!/usr/bin/perl
+
+use strict;
+use Net::Telnet;
+use Getopt::Long;
+
+# Created by: David Van Ginneken
+# Bird's the Word Technologies
+# davevg@btwtech.com
+my ($user, $pw);
+GetOptions("username=s" => \$user, "password=s" => \$pw);
+if (undef ne $user) {
+	# Using CLI-specified options
+} elsif (-e "$ENV{HOME}/.astcli") {
+	process_credentials("$ENV{HOME}/.astcli");
+} elsif (-e '/etc/asterisk/.astcli') {
+	process_credentials('/etc/asterisk/.astcli');
+} else {
+	print "User Credentials File Not Found\n";
+}
+my $action = join(" ", @ARGV);
+
+&usage if (!defined $user || !defined $pw);
+
+my $tc = new Net::Telnet (Timeout => 10,
+    Errmode => "die",
+    Host    => "localhost",
+    Port    => 5038);
+# Login with our username and secret.
+$tc->open  ();
+$tc->print ("Action: Login");
+$tc->print ("Username: $user");
+$tc->print ("Secret: $pw");
+$tc->print ("Events: off");
+$tc->print (""); 
+# Check for login success.
+my ($pre, $match) = $tc->waitfor ("/Message: .*/");
+unless (($pre =~ m/Success/) && ($match =~ m/Authentication/)) {
+  print "Server Authentication failed.\n";
+  exit;
+}
+$tc->print ("Action: Command");
+$tc->print ("Command: $action");
+$tc->print ("");
+($pre, undef) = $tc->waitfor ("/--END COMMAND--.*/");
+$pre =~ s/^\n\n//g;
+$pre =~ s/Privilege: Command\n//;
+$pre =~ s/Response: Follows\n//;
+print $pre;
+
+
+sub process_credentials {
+	# Process the credentials found..
+	my $file = shift;
+	open (my $fh, "<$file") or die "Unable to open $file\n";
+	while (<$fh>) {
+		chomp;
+		(undef,$user) = split(/[,=]/, $_) if $_ =~ /user(name)?[,=]/i;
+		(undef,$pw) = split(/[,=]/, $_) if $_ =~ /(secret|passw(or)?d)[,=]/i;
+	}
+}
+
+sub usage {
+	print "astcli [-u <username> -p <passwd>] <cli-command>\n";
+	exit;
+}
+
