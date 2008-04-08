@@ -1739,7 +1739,7 @@ static int __sip_autodestruct(const void *data);
 static void sip_scheddestroy(struct sip_pvt *p, int ms);
 static int sip_cancel_destroy(struct sip_pvt *p);
 static struct sip_pvt *sip_destroy(struct sip_pvt *p);
-static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist);
+static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist);
 static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
 static void __sip_pretend_ack(struct sip_pvt *p);
 static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
@@ -4231,10 +4231,21 @@ static void sip_registry_destroy(struct sip_registry *reg)
 }
 
 /*! \brief Execute destruction of SIP dialog structure, release memory */
-static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
+static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 {
 	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
+
+	/* We absolutely cannot destroy the rtp struct while a bridge is active or we WILL crash */
+	if (p->rtp && ast_rtp_get_bridged(p->rtp)) {
+		ast_verbose("Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
+		return -1;
+	}
+
+	if (p->vrtp && ast_rtp_get_bridged(p->vrtp)) {
+		ast_verbose("Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
+		return -1;
+	}
 
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Really destroying SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
@@ -4275,15 +4286,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	AST_SCHED_DEL(sched, p->waitid);
 	AST_SCHED_DEL(sched, p->autokillid);
 
-	/* We absolutely cannot destroy the rtp struct while a bridge is active or we WILL crash */
 	if (p->rtp) {
-		while (ast_rtp_get_bridged(p->rtp))
-			usleep(1);
 		ast_rtp_destroy(p->rtp);
 	}
 	if (p->vrtp) {
-		while (ast_rtp_get_bridged(p->vrtp))
-			usleep(1);
 		ast_rtp_destroy(p->vrtp);
 	}
 	if (p->trtp) {
@@ -4336,7 +4342,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		dialoglist_unlock();
 	if (!cur) {
 		ast_log(LOG_WARNING, "Trying to destroy \"%s\", not found in dialog list?!?! \n", p->callid);
-		return;
+		return 0;
 	} 
 
 	/* remove all current packets in this dialog */
@@ -4355,6 +4361,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	ast_string_field_free_memory(p);
 
 	ast_free(p);
+	return 0;
 }
 
 /*! \brief  update_call_counter: Handle call_limit for SIP users 
@@ -18375,9 +18382,9 @@ static void *do_monitor(void *data)
 			}
 		}
 
+restartsearch:		
 		/* Check for dialogs needing to be killed */
 		dialoglist_lock();
-restartsearch:		
 		t = time(NULL);
 		/* don't scan the dialogs list if it hasn't been a reasonable period
 		   of time since the last time we did it (when MWI is being sent, we can
@@ -18387,7 +18394,6 @@ restartsearch:
 			if (sip_pvt_trylock(dialog)) {
 				dialoglist_unlock();
 				usleep(1);
-				dialoglist_lock();
 				goto restartsearch;
 			}
 
@@ -18399,6 +18405,8 @@ restartsearch:
 			if (dialog->needdestroy && !dialog->packets && !dialog->owner) {
 				sip_pvt_unlock(dialog);
 				__sip_destroy(dialog, TRUE, FALSE);
+				dialoglist_unlock();
+				usleep(1);
 				goto restartsearch;
 			}
 			sip_pvt_unlock(dialog);
@@ -21484,13 +21492,20 @@ static int unload_module(void)
 	monitor_thread = AST_PTHREADT_STOP;
 	ast_mutex_unlock(&monlock);
 
+restartdestroy:
 	dialoglist_lock();
 	/* Destroy all the dialogs and free their memory */
 	p = dialoglist;
 	while (p) {
 		pl = p;
 		p = p->next;
-		__sip_destroy(pl, TRUE, TRUE);
+		if (__sip_destroy(pl, TRUE, TRUE) < 0) {
+			/* Something is still bridged, let it react to getting a hangup */
+			dialoglist = p;
+			dialoglist_unlock();
+			usleep(1);
+			goto restartdestroy;
+		}
 	}
 	dialoglist = NULL;
 	dialoglist_unlock();
