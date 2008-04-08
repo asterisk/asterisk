@@ -1001,11 +1001,20 @@ static int canreinvite = 0;
 #define SKINNY_DEVICE_ATA186		12	/* Cisco ATA-186 */
 #define SKINNY_DEVICE_7941		115
 #define SKINNY_DEVICE_7971		119
+#define SKINNY_DEVICE_7914		124	/* Expansion module */
 #define SKINNY_DEVICE_7985		302
 #define SKINNY_DEVICE_7911		307
 #define SKINNY_DEVICE_7961GE		308
 #define SKINNY_DEVICE_7941GE		309
+#define SKINNY_DEVICE_7931		348
 #define SKINNY_DEVICE_7921		365
+#define SKINNY_DEVICE_7906		369
+#define SKINNY_DEVICE_7962		404	/* Not found */
+#define SKINNY_DEVICE_7937		431
+#define SKINNY_DEVICE_7942		434
+#define SKINNY_DEVICE_7945		435
+#define SKINNY_DEVICE_7965		436
+#define SKINNY_DEVICE_7975		437
 #define SKINNY_DEVICE_7905		20000
 #define SKINNY_DEVICE_7920		30002
 #define SKINNY_DEVICE_7970		30006
@@ -1340,12 +1349,16 @@ static void *get_button_template(struct skinnysession *s, struct button_definiti
 		case SKINNY_DEVICE_7960:
 		case SKINNY_DEVICE_7961:
 		case SKINNY_DEVICE_7961GE:
+		case SKINNY_DEVICE_7962:
+		case SKINNY_DEVICE_7965:
 			for (i = 0; i < 6; i++)
 				(btn++)->buttonDefinition = BT_CUST_LINESPEEDDIAL;
 			break;
 		case SKINNY_DEVICE_7940:
 		case SKINNY_DEVICE_7941:
 		case SKINNY_DEVICE_7941GE:
+		case SKINNY_DEVICE_7942:
+		case SKINNY_DEVICE_7945:
 			for (i = 0; i < 2; i++)
 				(btn++)->buttonDefinition = BT_CUST_LINESPEEDDIAL;
 			break;
@@ -1359,6 +1372,7 @@ static void *get_button_template(struct skinnysession *s, struct button_definiti
 			break;
 		case SKINNY_DEVICE_7970:
 		case SKINNY_DEVICE_7971:
+		case SKINNY_DEVICE_7975:
 		case SKINNY_DEVICE_CIPC:
 			for (i = 0; i < 8; i++)
 				(btn++)->buttonDefinition = BT_CUST_LINESPEEDDIAL;
@@ -1384,6 +1398,15 @@ static void *get_button_template(struct skinnysession *s, struct button_definiti
 			break;
 		case SKINNY_DEVICE_7902:
 			ast_log(LOG_WARNING, "Unsupported device type '%d (7902)' found.\n", d->type);
+			break;
+		case SKINNY_DEVICE_7906:
+			ast_log(LOG_WARNING, "Unsupported device type '%d (7906)' found.\n", d->type);
+			break;
+		case SKINNY_DEVICE_7931:
+			ast_log(LOG_WARNING, "Unsupported device type '%d (7931)' found.\n", d->type);
+			break;
+		case SKINNY_DEVICE_7937:
+			ast_log(LOG_WARNING, "Unsupported device type '%d (7937)' found.\n", d->type);
 			break;
 		case SKINNY_DEVICE_SCCPGATEWAY_AN:
 		case SKINNY_DEVICE_SCCPGATEWAY_BRI:
