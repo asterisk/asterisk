@@ -80,6 +80,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
+
+#ifdef HAVE_ZAPTEL
+#include <sys/ioctl.h>
+#include <zaptel/zaptel.h>
+#endif
+
 #ifdef linux
 #include <sys/prctl.h>
 #ifdef HAVE_CAP
@@ -93,11 +99,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #if defined(SOLARIS)
 int daemon(int, int);  /* defined in libresolv of all places */
 #endif
-#endif
-
-#ifdef HAVE_ZAPTEL
-#include <sys/ioctl.h>
-#include <zaptel/zaptel.h>
 #endif
 
 #include "asterisk/logger.h"
