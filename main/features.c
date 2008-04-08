@@ -65,15 +65,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define AST_MAX_WATCHERS 256
 
-enum {
-	AST_FEATURE_FLAG_NEEDSDTMF = (1 << 0),
-	AST_FEATURE_FLAG_ONPEER =    (1 << 1),
-	AST_FEATURE_FLAG_ONSELF =    (1 << 2),
-	AST_FEATURE_FLAG_BYCALLEE =  (1 << 3),
-	AST_FEATURE_FLAG_BYCALLER =  (1 << 4),
-	AST_FEATURE_FLAG_BYBOTH	 =   (3 << 3),
-};
-
 struct feature_group_exten {
 	AST_LIST_ENTRY(feature_group_exten) entry;
 	AST_DECLARE_STRING_FIELDS(
@@ -552,15 +543,6 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 }
 
 
-#define FEATURE_RETURN_HANGUP		-1
-#define FEATURE_RETURN_SUCCESSBREAK	 0
-#define FEATURE_RETURN_PBX_KEEPALIVE	AST_PBX_KEEPALIVE
-#define FEATURE_RETURN_NO_HANGUP_PEER	AST_PBX_NO_HANGUP_PEER
-#define FEATURE_RETURN_PASSDIGITS	 21
-#define FEATURE_RETURN_STOREDIGITS	 22
-#define FEATURE_RETURN_SUCCESS	 	 23
-#define FEATURE_RETURN_KEEPTRYING    24
-
 #define FEATURE_SENSE_CHAN	(1 << 0)
 #define FEATURE_SENSE_PEER	(1 << 1)
 
@@ -633,7 +615,7 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
  * \param data
  * Check monitor app enabled, setup channels, both caller/callee chans not null
  * get TOUCH_MONITOR variable for filename if exists, exec monitor app.
- * \retval FEATURE_RETURN_SUCCESS on success.
+ * \retval AST_FEATURE_RETURN_SUCCESS on success.
  * \retval -1 on error.
 */
 static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
@@ -671,7 +653,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	if (callee_chan->monitor) {
 		ast_verb(4, "User hit '%s' to stop recording call.\n", code);
 		callee_chan->monitor->stop(callee_chan, 1);
-		return FEATURE_RETURN_SUCCESS;
+		return AST_FEATURE_RETURN_SUCCESS;
 	}
 
 	if (caller_chan && callee_chan) {
@@ -715,7 +697,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 		pbx_builtin_setvar_helper(callee_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
 		pbx_builtin_setvar_helper(caller_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
 	
-		return FEATURE_RETURN_SUCCESS;
+		return AST_FEATURE_RETURN_SUCCESS;
 	}
 	
 	ast_log(LOG_NOTICE,"Cannot record the call. One or both channels have gone away.\n");	
@@ -780,7 +762,7 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 				return -1;
 			} else {
 				pbx_exec(callee_chan, stopmixmonitor_app, "");
-				return FEATURE_RETURN_SUCCESS;
+				return AST_FEATURE_RETURN_SUCCESS;
 			}
 		}
 		
@@ -823,7 +805,7 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 		pbx_exec(callee_chan, mixmonitor_app, args);
 		pbx_builtin_setvar_helper(callee_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
 		pbx_builtin_setvar_helper(caller_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
-		return FEATURE_RETURN_SUCCESS;
+		return AST_FEATURE_RETURN_SUCCESS;
 	
 	}
 
@@ -835,7 +817,7 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	ast_verb(4, "User hit '%s' to disconnect call.\n", code);
-	return FEATURE_RETURN_HANGUP;
+	return AST_FEATURE_RETURN_HANGUP;
 }
 
 static int finishup(struct ast_channel *chan)
@@ -879,7 +861,7 @@ static const char *real_ctx(struct ast_channel *transferer, struct ast_channel *
  * 
  * Place chan on hold, check if transferred to parkinglot extension,
  * otherwise check extension exists and transfer caller.
- * \retval FEATURE_RETURN_SUCCESS.
+ * \retval AST_FEATURE_RETURN_SUCCESS.
  * \retval -1 on failure.
 */
 static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
@@ -967,7 +949,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		ast_verb(2, "Hungup during autoservice stop on '%s'\n", transferee->name);
 		return res;
 	}
-	return FEATURE_RETURN_SUCCESS;
+	return AST_FEATURE_RETURN_SUCCESS;
 }
 
 /*!
@@ -1045,7 +1027,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		finishup(transferee);
 		if (ast_stream_and_wait(transferer, "beeperr", ""))
 			return -1;
-		return FEATURE_RETURN_SUCCESS;
+		return AST_FEATURE_RETURN_SUCCESS;
 	}
 
 	/* valid extension, res == 1 */
@@ -1054,7 +1036,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		finishup(transferee);
 		if (ast_stream_and_wait(transferer, "beeperr", ""))
 			return -1;
-		return FEATURE_RETURN_SUCCESS;
+		return AST_FEATURE_RETURN_SUCCESS;
 	}
 
 	l = strlen(xferto);
@@ -1073,7 +1055,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				return -1;
 			if (ast_stream_and_wait(transferer, xfersound, ""))
 				ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
-			return FEATURE_RETURN_SUCCESS;
+			return AST_FEATURE_RETURN_SUCCESS;
 		}
 
 		if (check_compat(transferer, newchan)) {
@@ -1091,7 +1073,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
 			finishup(transferee);
 			transferer->_softhangup = 0;
-			return FEATURE_RETURN_SUCCESS;
+			return AST_FEATURE_RETURN_SUCCESS;
 		}
 		if (check_compat(transferee, newchan)) {
 			finishup(transferee);
@@ -1157,7 +1139,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				ast_log(LOG_WARNING, "Transferer has invalid channel name: '%s'\n", transferer->name);
 				if (ast_stream_and_wait(transferee, "beeperr", ""))
 					return -1;
-				return FEATURE_RETURN_SUCCESS;
+				return AST_FEATURE_RETURN_SUCCESS;
 			}
 
 			ast_log(LOG_NOTICE, "We're trying to call %s/%s\n", transferer_tech, transferer_name);
@@ -1446,7 +1428,7 @@ struct ast_call_feature *ast_find_call_feature(const char *name)
  * \param chan,peer,config,code,sense,data
  *
  * Find a feature, determine which channel activated
- * \retval FEATURE_RETURN_PBX_KEEPALIVE,FEATURE_RETURN_NO_HANGUP_PEER
+ * \retval AST_FEATURE_RETURN_PBX_KEEPALIVE,AST_FEATURE_RETURN_NO_HANGUP_PEER
  * \retval -1 error.
  * \retval -2 when an application cannot be found.
 */
@@ -1464,7 +1446,7 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 
 	if (sense == FEATURE_SENSE_CHAN) {
 		if (!ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER))
-			return FEATURE_RETURN_KEEPTRYING;
+			return AST_FEATURE_RETURN_KEEPTRYING;
 		if (ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF)) {
 			work = chan;
 			idle = peer;
@@ -1474,7 +1456,7 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 		}
 	} else {
 		if (!ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE))
-			return FEATURE_RETURN_KEEPTRYING;
+			return AST_FEATURE_RETURN_KEEPTRYING;
 		if (ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF)) {
 			work = peer;
 			idle = chan;
@@ -1502,13 +1484,13 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 	ast_autoservice_stop(idle);
 
 	if (res == AST_PBX_KEEPALIVE)
-		return FEATURE_RETURN_PBX_KEEPALIVE;
+		return AST_FEATURE_RETURN_PBX_KEEPALIVE;
 	else if (res == AST_PBX_NO_HANGUP_PEER)
-		return FEATURE_RETURN_NO_HANGUP_PEER;
+		return AST_FEATURE_RETURN_NO_HANGUP_PEER;
 	else if (res)
-		return FEATURE_RETURN_SUCCESSBREAK;
+		return AST_FEATURE_RETURN_SUCCESSBREAK;
 	
-	return FEATURE_RETURN_SUCCESS;	/*! \todo XXX should probably return res */
+	return AST_FEATURE_RETURN_SUCCESS;	/*! \todo XXX should probably return res */
 }
 
 static void unmap_features(void)
@@ -1551,7 +1533,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 {
 	int x;
 	struct ast_flags features;
-	int res = FEATURE_RETURN_PASSDIGITS;
+	int res = AST_FEATURE_RETURN_PASSDIGITS;
 	struct ast_call_feature *feature;
 	struct feature_group *fg = NULL;
 	struct feature_group_exten *fge;
@@ -1577,8 +1559,8 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 				res = builtin_features[x].operation(chan, peer, config, code, sense, NULL);
 				break;
 			} else if (!strncmp(builtin_features[x].exten, code, strlen(code))) {
-				if (res == FEATURE_RETURN_PASSDIGITS)
-					res = FEATURE_RETURN_STOREDIGITS;
+				if (res == AST_FEATURE_RETURN_PASSDIGITS)
+					res = AST_FEATURE_RETURN_STOREDIGITS;
 			}
 		}
 	}
@@ -1600,11 +1582,11 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 					continue;
 
 				res = fge->feature->operation(chan, peer, config, code, sense, fge->feature);
-				if (res != FEATURE_RETURN_KEEPTRYING) {
+				if (res != AST_FEATURE_RETURN_KEEPTRYING) {
 					AST_RWLIST_UNLOCK(&feature_groups);
 					break;
 				}
-				res = FEATURE_RETURN_PASSDIGITS;
+				res = AST_FEATURE_RETURN_PASSDIGITS;
 			}
 			if (fge)
 				break;
@@ -1622,13 +1604,13 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		if (!strcmp(feature->exten, code)) {
 			ast_verb(3, " Feature Found: %s exten: %s\n",feature->sname, tok);
 			res = feature->operation(chan, peer, config, code, sense, feature);
-			if (res != FEATURE_RETURN_KEEPTRYING) {
+			if (res != AST_FEATURE_RETURN_KEEPTRYING) {
 				AST_LIST_UNLOCK(&feature_list);
 				break;
 			}
-			res = FEATURE_RETURN_PASSDIGITS;
+			res = AST_FEATURE_RETURN_PASSDIGITS;
 		} else if (!strncmp(feature->exten, code, strlen(code)))
-			res = FEATURE_RETURN_STOREDIGITS;
+			res = AST_FEATURE_RETURN_STOREDIGITS;
 
 		AST_LIST_UNLOCK(&feature_list);
 	}
@@ -2073,14 +2055,14 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			config->feature_timer = backup_config.feature_timer;
 			res = ast_feature_interpret(chan, peer, config, featurecode, sense);
 			switch(res) {
-			case FEATURE_RETURN_PASSDIGITS:
+			case AST_FEATURE_RETURN_PASSDIGITS:
 				ast_dtmf_stream(other, who, featurecode, 0, 0);
 				/* Fall through */
-			case FEATURE_RETURN_SUCCESS:
+			case AST_FEATURE_RETURN_SUCCESS:
 				memset(featurecode, 0, sizeof(chan_featurecode));
 				break;
 			}
-			if (res >= FEATURE_RETURN_PASSDIGITS) {
+			if (res >= AST_FEATURE_RETURN_PASSDIGITS) {
 				res = 0;
 			} else 
 				break;

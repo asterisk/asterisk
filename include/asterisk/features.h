@@ -24,6 +24,8 @@
 #ifndef _AST_FEATURES_H
 #define _AST_FEATURES_H
 
+#include "asterisk/pbx.h"
+
 #define FEATURE_MAX_LEN		11
 #define FEATURE_APP_LEN		64
 #define FEATURE_APP_ARGS_LEN	256
@@ -32,6 +34,16 @@
 #define FEATURE_MOH_LEN		80  /* same as MAX_MUSICCLASS from channel.h */
 
 /*! \brief main call feature structure */
+
+enum {
+	AST_FEATURE_FLAG_NEEDSDTMF = (1 << 0),
+	AST_FEATURE_FLAG_ONPEER =    (1 << 1),
+	AST_FEATURE_FLAG_ONSELF =    (1 << 2),
+	AST_FEATURE_FLAG_BYCALLEE =  (1 << 3),
+	AST_FEATURE_FLAG_BYCALLER =  (1 << 4),
+	AST_FEATURE_FLAG_BYBOTH	 =   (3 << 3),
+};
+
 struct ast_call_feature {
 	int feature_mask;
 	char *fname;
@@ -46,6 +58,15 @@ struct ast_call_feature {
 	AST_LIST_ENTRY(ast_call_feature) feature_entry;
 };
 
+
+#define AST_FEATURE_RETURN_HANGUP            -1
+#define AST_FEATURE_RETURN_SUCCESSBREAK      0
+#define AST_FEATURE_RETURN_PBX_KEEPALIVE     AST_PBX_KEEPALIVE
+#define AST_FEATURE_RETURN_NO_HANGUP_PEER    AST_PBX_NO_HANGUP_PEER
+#define AST_FEATURE_RETURN_PASSDIGITS        21
+#define AST_FEATURE_RETURN_STOREDIGITS       22
+#define AST_FEATURE_RETURN_SUCCESS           23
+#define AST_FEATURE_RETURN_KEEPTRYING        24
 
 
 /*!
