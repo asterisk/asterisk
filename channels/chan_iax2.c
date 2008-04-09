@@ -7787,9 +7787,13 @@ retryowner2:
 					break;
 				}
 				if (authenticate_reply(iaxs[fr->callno], &iaxs[fr->callno]->addr, &ies, iaxs[fr->callno]->secret, iaxs[fr->callno]->outkey)) {
+					struct ast_frame hangup_fr = { .frametype = AST_FRAME_CONTROL,
+								.subclass = AST_CONTROL_HANGUP,
+					};
 					ast_log(LOG_WARNING, 
 						"I don't know how to authenticate %s to %s\n", 
 						ies.username ? ies.username : "<unknown>", ast_inet_ntoa(iaxs[fr->callno]->addr.sin_addr));
+					iax2_queue_frame(fr->callno, &hangup_fr);
 				}
 				if (!iaxs[fr->callno]) {
 					ast_mutex_unlock(&iaxsl[fr->callno]);
