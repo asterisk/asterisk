@@ -116,6 +116,8 @@ static char *descrip =
 "           extension associated with the channel using a dialplan 'hint'.\n"
 "           For example, some PSTNs do not allow CallerID to be set to anything\n"
 "           other than the number assigned to the caller.\n"
+"    F(context^exten^pri) - When the caller hangs up, transfer the called party\n"
+"           to the specified context and extension and continue execution.\n"
 "    g    - Proceed with dialplan execution at the current extension if the\n"
 "           destination channel hangs up.\n"
 "    G(context^exten^pri) - If the call is answered, transfer the calling party to\n"
@@ -147,7 +149,7 @@ static char *descrip =
 "           specified.\n"
 "    M(x[^arg]) - Execute the Macro for the *called* channel before connecting\n"
 "           to the calling channel. Arguments can be specified to the Macro\n"
-"           using '^' as a delimeter. The Macro can set the variable\n"
+"           using '^' as a delimiter. The Macro can set the variable\n"
 "           MACRO_RESULT to specify the following actions after the Macro is\n"
 "           finished executing.\n"
 "           * ABORT        Hangup both legs of the call.\n"
@@ -194,7 +196,7 @@ static char *descrip =
 "           DTMF sequence defined in features.conf.\n"
 "    U(x[^arg]) - Execute via Gosub the routine 'x' for the *called* channel before connecting\n"
 "           to the calling channel. Arguments can be specified to the Gosub\n"
-"           using '^' as a delimeter. The Gosub routine can set the variable\n"
+"           using '^' as a delimiter. The Gosub routine can set the variable\n"
 "           GOSUB_RESULT to specify the following actions after the Gosub returns.\n"
 "           * ABORT        Hangup both legs of the call.\n"
 "           * CONGESTION   Behave as if line congestion was encountered.\n"
@@ -269,6 +271,7 @@ enum {
 #define DIAL_NOFORWARDHTML   ((uint64_t)1 << 32) /* flags are now 64 bits, so keep it up! */
 #define OPT_CANCEL_ELSEWHERE ((uint64_t)1 << 33)
 #define OPT_PEER_H           ((uint64_t)1 << 34)
+#define OPT_CALLEE_GO_ON     ((uint64_t)1 << 35)
 
 enum {
 	OPT_ARG_ANNOUNCE = 0,
@@ -278,6 +281,7 @@ enum {
 	OPT_ARG_MUSICBACK,
 	OPT_ARG_CALLEE_MACRO,
 	OPT_ARG_CALLEE_GOSUB,
+	OPT_ARG_CALLEE_GO_ON,
 	OPT_ARG_PRIVACY,
 	OPT_ARG_DURATION_STOP,
 	OPT_ARG_OPERMODE,
@@ -293,6 +297,7 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('D', OPT_SENDDTMF, OPT_ARG_SENDDTMF),
 	AST_APP_OPTION('e', OPT_PEER_H),
 	AST_APP_OPTION('f', OPT_FORCECLID),
+	AST_APP_OPTION_ARG('F', OPT_CALLEE_GO_ON, OPT_ARG_CALLEE_GO_ON),
 	AST_APP_OPTION('g', OPT_GO_ON),
 	AST_APP_OPTION_ARG('G', OPT_GOTO, OPT_ARG_GOTO),
 	AST_APP_OPTION('h', OPT_CALLEE_HANGUP),
@@ -1919,9 +1924,15 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_set2_flag(peer, autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
 		}
 		if (res != AST_PBX_NO_HANGUP_PEER) {
-			if (!ast_check_hangup(chan))
-				chan->hangupcause = peer->hangupcause;
-			ast_hangup(peer);
+			if (!ast_check_hangup(peer) && ast_test_flag64(&opts, OPT_CALLEE_GO_ON) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {		
+                        	replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
+                        	ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
+	                        ast_pbx_start(peer);
+			} else {
+				if (!ast_check_hangup(chan))
+					chan->hangupcause = peer->hangupcause;
+				ast_hangup(peer);
+			}
 		}
 	}
 out:
