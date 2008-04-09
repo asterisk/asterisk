@@ -80,6 +80,7 @@ sub process_credentials {
 		(undef,$host) = split(/[,=]/, $_) if $_ =~ /host(name)?[,=]/i;
 		(undef,$port) = split(/[,=]/, $_) if $_ =~ /port(num|no)?[,=]/i;
 	}
+	close ($fh);
 }
 
 sub usage {
