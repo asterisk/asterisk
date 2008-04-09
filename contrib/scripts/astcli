@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 use strict;
 use Net::Telnet;
@@ -7,25 +7,23 @@ use Getopt::Long;
 # Created by: David Van Ginneken
 # Bird's the Word Technologies
 # davevg@btwtech.com
-my ($user, $pw);
-GetOptions("username=s" => \$user, "password=s" => \$pw);
-if (undef ne $user) {
-	# Using CLI-specified options
-} elsif (-e "$ENV{HOME}/.astcli") {
-	process_credentials("$ENV{HOME}/.astcli");
-} elsif (-e '/etc/asterisk/.astcli') {
-	process_credentials('/etc/asterisk/.astcli');
-} else {
-	print "User Credentials File Not Found\n";
-}
+#
+# And distributed under the terms of the GPL
+#
+my ($user, $pw, $host, $port) = (undef, undef, 'localhost', 5038);
+
+process_credentials('/etc/astcli.conf');
+process_credentials("$ENV{HOME}/.astcli");
+GetOptions("username=s" => \$user, "secret=s" => \$pw, "host=s" => \$host, "port=s" => \$port);
+
 my $action = join(" ", @ARGV);
 
 &usage if (!defined $user || !defined $pw);
 
 my $tc = new Net::Telnet (Timeout => 10,
     Errmode => "die",
-    Host    => "localhost",
-    Port    => 5038);
+    Host    => $host,
+    Port    => $port);
 # Login with our username and secret.
 $tc->open  ();
 $tc->print ("Action: Login");
@@ -39,29 +37,54 @@ unless (($pre =~ m/Success/) && ($match =~ m/Authentication/)) {
   print "Server Authentication failed.\n";
   exit;
 }
-$tc->print ("Action: Command");
-$tc->print ("Command: $action");
-$tc->print ("");
-($pre, undef) = $tc->waitfor ("/--END COMMAND--.*/");
-$pre =~ s/^\n\n//g;
-$pre =~ s/Privilege: Command\n//;
-$pre =~ s/Response: Follows\n//;
-print $pre;
 
+# Send a single command to the manager connection handle (global $tc).
+# Assumes things always work well :-)
+sub send_command($) {
+	my $command = shift;
 
+	$tc->print ("Action: Command");
+	$tc->print ("Command: $command");
+	$tc->print ("");
+	my ($pre, undef) = $tc->waitfor ("/--END COMMAND--.*/");
+	$pre =~ s/^\n\n//g;
+	$pre =~ s/Privilege: Command\n//;
+	$pre =~ s/Response: Follows\n//;
+	print $pre;
+}
+
+# If the user asked to send commands from standard input:
+if ($action eq '-') {
+	while (<>) {
+		chomp;
+		send_command($_)
+	}
+	exit 0;
+}
+
+# Otherwise just send the command:
+send_command($action);
+
+# parses a configuration file into the global $user and $pw.
 sub process_credentials {
 	# Process the credentials found..
 	my $file = shift;
-	open (my $fh, "<$file") or die "Unable to open $file\n";
+
+	# silently fail if we can't read the file:
+	return unless (-r $file);
+	open (my $fh, "<$file") or return;
 	while (<$fh>) {
 		chomp;
 		(undef,$user) = split(/[,=]/, $_) if $_ =~ /user(name)?[,=]/i;
-		(undef,$pw) = split(/[,=]/, $_) if $_ =~ /(secret|passw(or)?d)[,=]/i;
+		(undef,$pw) = split(/[,=]/, $_) if $_ =~ /(secret|passw(or)?d|pwd?)[,=]/i;
+		(undef,$host) = split(/[,=]/, $_) if $_ =~ /host(name)?[,=]/i;
+		(undef,$port) = split(/[,=]/, $_) if $_ =~ /port(num|no)?[,=]/i;
 	}
 }
 
 sub usage {
-	print "astcli [-u <username> -p <passwd>] <cli-command>\n";
+	print STDERR "astcli [-u <username> -s <passwd>] [-h host] [-p port] <cli-command>\n";
+	print STDERR "       (command '-' - take commands from input)\n";
 	exit;
 }
 
