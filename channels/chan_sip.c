@@ -14781,6 +14781,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			if (p->owner && !req->ignore)
 				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 			p->needdestroy = 1;
+			/* If there's no dialog to end, then mark p as already gone */
+			if (!reinvite)
+				sip_alreadygone(p);
 		}
 		break;
 	case 491: /* Pending */
