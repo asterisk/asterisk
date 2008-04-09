@@ -204,23 +204,24 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define MAX_DATETIME_FORMAT	512
 #define MAX_NUM_CID_CONTEXTS 10
 
-#define VM_REVIEW        (1 << 0)
-#define VM_OPERATOR      (1 << 1)
-#define VM_SAYCID        (1 << 2)
-#define VM_SVMAIL        (1 << 3)
-#define VM_ENVELOPE      (1 << 4)
-#define VM_SAYDURATION   (1 << 5)
-#define VM_SKIPAFTERCMD  (1 << 6)
+#define VM_REVIEW        (1 << 0)   /*!< After recording, permit the caller to review the recording before saving */
+#define VM_OPERATOR      (1 << 1)   /*!< Allow 0 to be pressed to go to 'o' extension */
+#define VM_SAYCID        (1 << 2)   /*!< Repeat the CallerID info during envelope playback */
+#define VM_SVMAIL        (1 << 3)   /*!< Allow the user to compose a new VM from within VoicemailMain */
+#define VM_ENVELOPE      (1 << 4)   /*!< Play the envelope information (who-from, time received, etc.) */
+#define VM_SAYDURATION   (1 << 5)   /*!< Play the length of the message during envelope playback */
+#define VM_SKIPAFTERCMD  (1 << 6)   /*!< After deletion, assume caller wants to go to the next message */
 #define VM_FORCENAME     (1 << 7)   /*!< Have new users record their name */
 #define VM_FORCEGREET    (1 << 8)   /*!< Have new users record their greetings */
-#define VM_PBXSKIP       (1 << 9)
-#define VM_DIRECFORWARD  (1 << 10)  /*!< directory_forward */
-#define VM_ATTACH        (1 << 11)
-#define VM_DELETE        (1 << 12)
-#define VM_ALLOCED       (1 << 13)
-#define VM_SEARCH        (1 << 14)
+#define VM_PBXSKIP       (1 << 9)   /*!< Skip the [PBX] preamble in the Subject line of emails */
+#define VM_DIRECFORWARD  (1 << 10)  /*!< Permit caller to use the Directory app for selecting to which mailbox to forward a VM */
+#define VM_ATTACH        (1 << 11)  /*!< Attach message to voicemail notifications? */
+#define VM_DELETE        (1 << 12)  /*!< Delete message after sending notification */
+#define VM_ALLOCED       (1 << 13)  /*!< Structure was malloc'ed, instead of placed in a return (usually static) buffer */
+#define VM_SEARCH        (1 << 14)  /*!< Search all contexts for a matching mailbox */
 #define VM_TEMPGREETWARN (1 << 15)  /*!< Remind user tempgreeting is set */
 #define VM_MOVEHEARD     (1 << 16)  /*!< Move a "heard" message to Old after listening to it */
+#define VM_MESSAGEWRAP   (1 << 17)  /*!< Wrap around from the last message to the first, and vice-versa */
 #define ERROR_LOCK_PATH  -100
 #define ERROR_MAILBOX_FULL	-200
 
@@ -740,6 +741,8 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_set2_flag(vmu, ast_true(value), VM_REVIEW);
 	} else if (!strcasecmp(var, "tempgreetwarn")) {
 		ast_set2_flag(vmu, ast_true(value), VM_TEMPGREETWARN);	
+	} else if (!strcasecmp(var, "messagewrap")){
+		ast_set2_flag(vmu, ast_true(value), VM_MESSAGEWRAP);	
 	} else if (!strcasecmp(var, "operator")) {
 		ast_set2_flag(vmu, ast_true(value), VM_OPERATOR);	
 	} else if (!strcasecmp(var, "envelope")) {
@@ -6842,7 +6845,7 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 	}
 }
 
-static int vm_instructions_en(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
+static int vm_instructions_en(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int skipadvanced)
 {
 	int res = 0;
 	/* Play instructions and wait for new command */
@@ -6864,20 +6867,23 @@ static int vm_instructions_en(struct ast_channel *chan, struct vm_state *vms, in
 			}
 		} else {
 			/* Added for additional help */
-			if (skipadvanced)  {
+			if (skipadvanced) {
 				res = ast_play_and_wait(chan, "vm-onefor-full");
 				if (!res)
 					res = vm_play_folder_name(chan, vms->vmbox);
 				res = ast_play_and_wait(chan, "vm-opts-full");
-                        }
-			if (vms->curmsg)
+			}
+			if (vms->curmsg || (ast_test_flag(vmu, VM_MESSAGEWRAP) && vms->lastmsg > 0)) {
 				res = ast_play_and_wait(chan, "vm-prev");
+			}
 			if (!res && !skipadvanced)
 				res = ast_play_and_wait(chan, "vm-advopts");
 			if (!res)
 				res = ast_play_and_wait(chan, "vm-repeat");
-			if (!res && (vms->curmsg != vms->lastmsg))
+			if (!res && (vms->curmsg != vms->lastmsg || 
+				(ast_test_flag(vmu, VM_MESSAGEWRAP) && vms->lastmsg > 0) )) {
 				res = ast_play_and_wait(chan, "vm-next");
+			}
 			if (!res) {
 				if (!vms->deleted[vms->curmsg])
 					res = ast_play_and_wait(chan, "vm-delete");
@@ -6907,7 +6913,7 @@ static int vm_instructions_en(struct ast_channel *chan, struct vm_state *vms, in
 	return res;
 }
 
-static int vm_instructions_tw(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
+static int vm_instructions_tw(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms,  int skipadvanced)
 {
 	int res = 0;
 	/* Play instructions and wait for new command */
@@ -6925,18 +6931,18 @@ static int vm_instructions_tw(struct ast_channel *chan, struct vm_state *vms, in
 			res = ast_play_and_wait(chan, "vm-opts");
 		if (!res) {
 			vms->starting = 0;
-			return vm_instructions_en(chan, vms, skipadvanced);
+			return vm_instructions_en(chan, vmu, vms, skipadvanced);
 		}
 	}
 	return res;
 }
 
-static int vm_instructions(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
+static int vm_instructions(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int skipadvanced)
 {
 	if (vms->starting && !strcasecmp(chan->language, "tw")) { /* CHINESE (Taiwan) syntax */
-		return vm_instructions_tw(chan, vms, skipadvanced);
+		return vm_instructions_tw(chan, vmu, vms, skipadvanced);
 	} else {					/* Default to ENGLISH */
-		return vm_instructions_en(chan, vms, skipadvanced);
+		return vm_instructions_en(chan, vmu, vms, skipadvanced);
 	}
 }
 
@@ -7901,6 +7907,9 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			if (vms.curmsg > 0) {
 				vms.curmsg--;
 				cmd = play_message(chan, vmu, &vms);
+			} else if (ast_test_flag(vmu, VM_MESSAGEWRAP) && vms.lastmsg > 0) {
+				vms.curmsg = vms.lastmsg;
+				cmd = play_message(chan, vmu, &vms);
 			} else {
 				cmd = ast_play_and_wait(chan, "vm-nomore");
 			}
@@ -7908,6 +7917,9 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		case '6': /* Go to the next message */
 			if (vms.curmsg < vms.lastmsg) {
 				vms.curmsg++;
+				cmd = play_message(chan, vmu, &vms);
+			} else if (ast_test_flag(vmu, VM_MESSAGEWRAP) && vms.lastmsg > 0) {
+				vms.curmsg = 0;
 				cmd = play_message(chan, vmu, &vms);
 			} else {
 				cmd = ast_play_and_wait(chan, "vm-nomore");
@@ -7934,6 +7946,9 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				if (ast_test_flag((&globalflags), VM_SKIPAFTERCMD)) {
 					if (vms.curmsg < vms.lastmsg) {
 						vms.curmsg++;
+						cmd = play_message(chan, vmu, &vms);
+					} else if (ast_test_flag(vmu, VM_MESSAGEWRAP) && vms.lastmsg > 0) {
+						vms.curmsg = 0;
 						cmd = play_message(chan, vmu, &vms);
 					} else {
 						cmd = ast_play_and_wait(chan, "vm-nomore");
@@ -8005,6 +8020,9 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				if (vms.curmsg < vms.lastmsg) {
 					vms.curmsg++;
 					cmd = play_message(chan, vmu, &vms);
+				} else if (ast_test_flag(vmu, VM_MESSAGEWRAP) && vms.lastmsg > 0) {
+					vms.curmsg = 0;
+					cmd = play_message(chan, vmu, &vms);
 				} else {
 					cmd = ast_play_and_wait(chan, "vm-nomore");
 				}
@@ -8018,7 +8036,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				if (!cmd)
 					cmd = ast_play_and_wait(chan, "vm-opts");
 				if (!cmd)
-					cmd = vm_instructions(chan, &vms, 1);
+					cmd = vm_instructions(chan, vmu, &vms, 1);
 			} else
 				cmd = 0;
 			break;
@@ -8028,7 +8046,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				adsi_status(chan, &vms);
 			break;
 		default:	/* Nothing */
-			cmd = vm_instructions(chan, &vms, 0);
+			cmd = vm_instructions(chan, vmu, &vms, 0);
 			break;
 		}
 	}
@@ -9132,6 +9150,11 @@ static int load_config(int reload)
 			ast_debug(1, "VM Temporary Greeting Reminder Option enabled globally\n");
 		}
 		ast_set2_flag((&globalflags), ast_true(val), VM_TEMPGREETWARN);
+		if (!(val = ast_variable_retrieve(cfg, "general", "messagewrap"))){
+			ast_debug(1, "VM next message wrap disabled globally\n");
+			val = "no";
+		}
+		ast_set2_flag((&globalflags), ast_true(val), VM_MESSAGEWRAP);	
 
 		if (!(val = ast_variable_retrieve(cfg, "general", "operator"))) {
 			ast_debug(1, "VM Operator break disabled globally\n");

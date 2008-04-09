@@ -241,6 +241,11 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 ; hidefromdir=yes	; Hide this mailbox from the directory produced by app_directory
 			;     The default is "no".
 ; tempgreetwarn=yes	; Remind the user that their temporary greeting is set
+
+;messagewrap=no	; Enable next/last message to wrap around to
+			; first (from last) and last (from first) message
+			; The default is "no".
+
 ; vm-password=custom_sound
 			;     Customize which sound file is used instead of the default
 			;     prompt that says: "password"
