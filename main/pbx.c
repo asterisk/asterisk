@@ -3592,8 +3592,12 @@ static int __ast_pbx_run(struct ast_channel *c)
 				if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
 					c->_softhangup = 0;
 					continue;
-				} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
-					/* atimeout, nothing bad */
+				} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT && ast_exists_extension(c, c->context, "T", 1, c->cid.cid_num)) {
+					set_ext_pri(c, "T", 1); 
+					/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
+					c->whentohangup = 0;
+					c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
+					continue;
 				} else {
 					if (c->cdr)
 						ast_cdr_update(c);
