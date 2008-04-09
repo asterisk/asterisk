@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int usegmtime = 0;
 static int loguniqueid = 0;
 static int loguserfield = 0;
+static int loaded = 0;
 static char *config = "cdr.conf";
 
 /* #define CSV_LOGUNIQUEID 1 */
@@ -316,6 +317,7 @@ static int csv_log(struct ast_cdr *cdr)
 static int unload_module(void)
 {
 	ast_cdr_unregister(name);
+	loaded = 0;
 	return 0;
 }
 
@@ -326,15 +328,23 @@ static int load_module(void)
 	if(!load_config(0))
 		return AST_MODULE_LOAD_DECLINE;
 
-	if ((res = ast_cdr_register(name, ast_module_info->description, csv_log)))
+	if ((res = ast_cdr_register(name, ast_module_info->description, csv_log))) {
 		ast_log(LOG_ERROR, "Unable to register CSV CDR handling\n");
-
+	} else {
+		loaded = 1;
+	}
 	return res;
 }
 
 static int reload(void)
 {
-	load_config(1);
+	if (load_config(1)) {
+		loaded = 1;
+	} else {
+		loaded = 0;
+		ast_log(LOG_WARNING, "No [csv] section in cdr.conf.  Unregistering backend.\n");
+		ast_cdr_unregister(name);
+	}
 
 	return 0;
 }
