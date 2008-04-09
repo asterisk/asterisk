@@ -12350,7 +12350,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			/* We can't set up this call, so give up */
 			if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
 				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+			/* If there's no dialog to end, then mark p as already gone */
+			if (!reinvite)
+				sip_alreadygone(p);
 		}
 		break;
 	case 491: /* Pending */
