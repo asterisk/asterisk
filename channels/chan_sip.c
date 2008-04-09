@@ -9976,8 +9976,9 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		free_old_route(p->route);
 		p->route = NULL;
 	}
-	
-	p->route_persistant = backwards;
+
+	/* We only want to create the route set the first time this is called */
+	p->route_persistant = 1;
 	
 	/* Build a tailq, then assign it to p->route when done.
 	 * If backwards, we add entries from the head so they end up
