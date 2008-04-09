@@ -254,10 +254,7 @@ static const struct ast_channel_tech oh323_tech = {
 	.write = oh323_write,
 	.indicate = oh323_indicate,
 	.fixup = oh323_fixup,
-	/* disable, for now */
-#if 0
 	.bridge = ast_rtp_bridge,
-#endif
 };
 
 static const char* redirectingreason2str(int redirectingreason)
@@ -3092,10 +3089,12 @@ static enum ast_rtp_get_result oh323_get_rtp_peer(struct ast_channel *chan, stru
 		return AST_RTP_GET_FAILED;
 
 	ast_mutex_lock(&pvt->lock);
-	if (pvt->rtp && pvt->options.bridge) {
-		*rtp = pvt->rtp;
+	*rtp = pvt->rtp;
+#if 0
+	if (pvt->options.bridge) {
 		res = AST_RTP_TRY_NATIVE;
 	}
+#endif
 	ast_mutex_unlock(&pvt->lock);
 
 	return res;
