@@ -25,6 +25,10 @@ Application Changes
    the arguments to Directory; previously, you could enter only 3, regardless
    of how many names are in your company.  For large companies, this should be
    quite helpful.
+ * Voicemail now permits a mailbox setting to wrap around from first to last
+   messages, if the "messagewrap" option is set to a true value.
+ * Dial has a new option: F(context^extension^pri), which permits a callee to
+   continue in the dialplan, at the specified label, if the caller hangs up.
 
 SIP Changes
 -----------
