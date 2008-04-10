@@ -80,7 +80,7 @@ clean:
 
 md5.c: $(ASTTOPDIR)/main/md5.c
 	@cp $< $@
-
+astman.o: astman.i
 astman: astman.o md5.o
 astman: LIBS+=$(NEWT_LIB)
 

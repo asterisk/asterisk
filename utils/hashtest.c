@@ -43,11 +43,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 int testno = 1;
 
 /* stuff we need to make this work with the hashtab stuff */
-
+#if !defined(LOW_MEMORY)
 int64_t ast_mark(int prof_id, int x)
 {
 	return 0;
 }
+#endif
 
 struct ht_element 
 {
@@ -299,11 +300,12 @@ int main(int argc,char **argv)
 	
 	return 0;
 }
-
+#if !defined(LOW_MEMORY)
 int  ast_add_profile(const char *x, uint64_t scale)
 {
 	return 0;
 }
+#endif
 
 int ast_loader_register(int (*updater)(void))
 {
@@ -323,10 +325,12 @@ void ast_module_unregister(const struct ast_module_info *x)
 }
 
 
+void ast_register_file_version(const char *file, const char *version);
 void ast_register_file_version(const char *file, const char *version)
 {
 }
 
+void ast_unregister_file_version(const char *file);
 void ast_unregister_file_version(const char *file)
 {
 

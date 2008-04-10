@@ -2556,7 +2556,9 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 	const char *module = astman_get_header(m, "Module");
 	const char *id = astman_get_header(m, "ActionID");
 	char idText[256];
+#if !defined(LOW_MEMORY)
 	const char *version;
+#endif
 	char filename[PATH_MAX];
 	char *cut;
 
@@ -2575,14 +2577,18 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 	}
 	snprintf(cut, (sizeof(filename) - strlen(filename)) - 1, ".c");
 	ast_log(LOG_DEBUG, "**** ModuleCheck .c file %s\n", filename);
+#if !defined(LOW_MEMORY)
 	version = ast_file_version_find(filename);
+#endif
 
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	else
 		idText[0] = '\0';
 	astman_append(s, "Response: Success\r\n%s", idText);
+#if !defined(LOW_MEMORY)
 	astman_append(s, "Version: %s\r\n\r\n", version ? version : "");
+#endif
 	return 0;
 }
 
