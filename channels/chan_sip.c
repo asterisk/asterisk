@@ -8677,7 +8677,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 
 	/* If custom URI options have been provided, append them */
-	if (p->options && p->options->uri_options)
+	if (p->options && !ast_strlen_zero(p->options->uri_options))
 		ast_str_append(&invite, 0, ";%s", p->options->uri_options);
 	
  	/* This is the request URI, which is the next hop of the call
