@@ -1141,7 +1141,7 @@ static void close_client(struct unistimsession *s)
 		ast_mutex_destroy(&s->lock);
 		ast_free(s);
 	} else
-		ast_log(LOG_WARNING, "Trying to delete non-existant session %p?\n", s);
+		ast_log(LOG_WARNING, "Trying to delete non-existent session %p?\n", s);
 	ast_mutex_unlock(&sessionlock);
 	return;
 }
@@ -3546,7 +3546,7 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 		}
 		if (pte->seq_server < seq) {
 			ast_log(LOG_NOTICE,
-					"%s Error : ACK received for a non-existant packet : #0x%.4x\n",
+					"%s Error : ACK received for a non-existent packet : #0x%.4x\n",
 					tmpbuf, pte->seq_server);
 			ast_mutex_unlock(&pte->lock);
 			return;
@@ -3598,7 +3598,7 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 		}
 		if (pte->seq_server < seq) {
 			ast_log(LOG_NOTICE,
-					"%s Error : received a request for a non-existant packet : #0x%.4x\n",
+					"%s Error : received a request for a non-existent packet : #0x%.4x\n",
 					tmpbuf, pte->seq_server);
 			return;
 		}

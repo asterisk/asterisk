@@ -1824,7 +1824,7 @@ static int transmit_response(struct skinnysession *s, struct skinny_req *req)
 	int res = 0;
 
 	if (!s) {
-		ast_log(LOG_WARNING, "Asked to transmit to a non-existant session!\n");
+		ast_log(LOG_WARNING, "Asked to transmit to a non-existent session!\n");
 		return -1;
 	}
 

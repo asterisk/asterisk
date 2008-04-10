@@ -1870,7 +1870,7 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 			ast_channel_unlock(c1);
 		return 0;
 	}
-	/* Consider empty media as non-existant */
+	/* Consider empty media as non-existent */
 	if (audio_src_res == AST_RTP_TRY_NATIVE && !srcp->them.sin_addr.s_addr)
 		srcp = NULL;
 	if (srcp && (srcp->nat || ast_test_flag(srcp, FLAG_NAT_ACTIVE)))
