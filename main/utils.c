@@ -1568,7 +1568,9 @@ int ast_utils_init(void)
 #endif
 	base64_init();
 #ifdef DEBUG_THREADS
+#if !defined(LOW_MEMORY)
 	ast_cli_register_multiple(utils_cli, sizeof(utils_cli) / sizeof(utils_cli[0]));
+#endif
 #endif
 	return 0;
 }

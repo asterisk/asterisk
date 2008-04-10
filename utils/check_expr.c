@@ -85,6 +85,7 @@ enum ast_lock_type {
 	        AST_WRLOCK,
 };
 #endif
+#if !defined(LOW_MEMORY)
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 		        int line_num, const char *func, const char *lock_name, void *lock_addr);
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
@@ -104,6 +105,7 @@ void ast_remove_lock_info(void *lock_addr)
 {
     /* not a lot to do in a standalone w/o threading! */
 }
+#endif
 
 static int global_lineno = 1;
 static int global_expr_count=0;
@@ -145,9 +147,11 @@ unsigned int check_expr(char* buffer, char* error_report);
 int check_eval(char *buffer, char *error_report);
 void parse_file(const char *fname);
 
+void ast_register_file_version(const char *file, const char *version);  
 void ast_register_file_version(const char *file, const char *version) { }
+#if !defined(LOW_MEMORY)
 int ast_add_profile(const char *x, uint64_t scale) { return 0;} 
-
+#endif
 int ast_atomic_fetchadd_int_slow(volatile int *p, int v)
 {
         int ret;
@@ -156,6 +160,7 @@ int ast_atomic_fetchadd_int_slow(volatile int *p, int v)
         return ret;
 }
 
+void ast_unregister_file_version(const char *file);
 void ast_unregister_file_version(const char *file)
 {
 }
