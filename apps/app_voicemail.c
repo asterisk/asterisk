@@ -5719,7 +5719,7 @@ static int vm_intro_ru(struct ast_channel *chan,struct vm_state *vms)
 			res = say_and_wait(chan, dcnum, chan->language);
 		if (!res && lastnum) {
 			if (lastnum == 1) 
-				res = ast_play_and_wait(chan, "digits/ru/odno");
+				res = ast_play_and_wait(chan, "digits/odno");
 			else
 				res = say_and_wait(chan, lastnum, chan->language);
 		}
@@ -5738,7 +5738,7 @@ static int vm_intro_ru(struct ast_channel *chan,struct vm_state *vms)
 			res = say_and_wait(chan, dcnum, chan->language);
 		if (!res && lastnum) {
 			if (lastnum == 1) 
-				res = ast_play_and_wait(chan, "digits/ru/odno");
+				res = ast_play_and_wait(chan, "digits/odno");
 			else
 				res = say_and_wait(chan, lastnum, chan->language);
 		}
