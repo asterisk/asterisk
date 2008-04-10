@@ -487,7 +487,7 @@ static int fileexists_test(const char *filename, const char *fmt, const char *la
 		return -1;
 	}
 
-	if (ast_language_is_prefix) { /* new layout */
+	if (ast_language_is_prefix && !is_absolute_path(filename)) { /* new layout */
 		if (lang) {
 			snprintf(buf, buflen, "%s/%s", lang, filename);
 		} else {
@@ -525,11 +525,6 @@ static int fileexists_core(const char *filename, const char *fmt, const char *pr
 
 	if (buf == NULL) {
 		return -1;
-	}
-
-	if (is_absolute_path(filename)) {
-		ast_copy_string(buf, filename, buflen);
-		return ast_filehelper(buf, NULL, fmt, ACTION_EXISTS);
 	}
 
 	/* We try languages in the following order:
