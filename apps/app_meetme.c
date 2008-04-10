@@ -1694,8 +1694,17 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	ast_mutex_unlock(&conf->playlock);
 
 	if (!(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW))) {
+		char destdir[PATH_MAX];
+
+		snprintf(destdir, sizeof(destdir), "%s/meetme", ast_config_AST_SPOOL_DIR);
+
+		if (mkdir(destdir, 0777) && errno != EEXIST) {
+			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", destdir, strerror(errno));
+			goto outrun;
+		}
+
 		snprintf(user->namerecloc, sizeof(user->namerecloc),
-			 "%s/meetme/meetme-username-%s-%d", ast_config_AST_SPOOL_DIR,
+			 "%s/meetme-username-%s-%d", destdir,
 			 conf->confno, user->user_no);
 		if (confflags & CONFFLAG_INTROUSERNOREVIEW)
 			res = ast_play_and_record(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL);
