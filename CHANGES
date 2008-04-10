@@ -257,6 +257,9 @@ Local channel changes
      SIP call to Voicemail by putting a Local channel in the middle.  This
      feature is enabled by using the 'j' option in the Dial string to the Local
      channel in conjunction with the existing 'n' option for local channels.
+  * A 'b' option has been added which causes chan_local to return the actual channel
+     that is behind it when queried. This is useful for transfer scenarios as the
+     actual channel will be transferred, not the Local channel.
 
 Zaptel channel driver (chan_zap) Changes
 ----------------------------------------

@@ -74,6 +74,7 @@ static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static int local_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen);
 static int local_sendtext(struct ast_channel *ast, const char *text);
 static int local_devicestate(void *data);
+static struct ast_channel *local_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge);
 
 /* PBX interface structure for channel registration */
 static const struct ast_channel_tech local_tech = {
@@ -95,6 +96,7 @@ static const struct ast_channel_tech local_tech = {
 	.send_html = local_sendhtml,
 	.send_text = local_sendtext,
 	.devicestate = local_devicestate,
+	.bridged_channel = local_bridgedchannel,
 };
 
 struct local_pvt {
@@ -116,6 +118,7 @@ struct local_pvt {
 #define LOCAL_ALREADY_MASQED  (1 << 2) /*!< Already masqueraded */
 #define LOCAL_LAUNCHED_PBX    (1 << 3) /*!< PBX was launched */
 #define LOCAL_NO_OPTIMIZATION (1 << 4) /*!< Do not optimize using masquerading */
+#define LOCAL_BRIDGE          (1 << 5) /*!< Report back the "true" channel as being bridged to */
 
 static AST_LIST_HEAD_STATIC(locals, local_pvt);
 
@@ -165,6 +168,28 @@ static struct local_pvt *local_pvt_destroy(struct local_pvt *pvt)
 	ast_mutex_destroy(&pvt->lock);
 	ast_free(pvt);
 	return NULL;
+}
+
+/*! \brief Return the bridged channel of a Local channel */
+static struct ast_channel *local_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge)
+{
+	struct local_pvt *p = bridge->tech_pvt;
+	struct ast_channel *bridged = bridge;
+
+	ast_mutex_lock(&p->lock);
+
+	if (ast_test_flag(p, LOCAL_BRIDGE)) {
+		/* Find the opposite channel */
+		bridged = (bridge == p->owner ? p->chan : p->owner);
+		
+		/* Now see if the opposite channel is bridged to anything */
+		if (bridged->_bridge)
+			bridged = bridged->_bridge;
+	}
+
+	ast_mutex_unlock(&p->lock);
+
+	return bridged;
 }
 
 static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_frame *f, struct ast_channel *us)
@@ -600,6 +625,9 @@ static struct local_pvt *local_alloc(const char *data, int format)
 				ast_log(LOG_ERROR, "You must use the 'n' option for chan_local "
 					"to use the 'j' option to enable the jitterbuffer\n");
 			}
+		}
+		if (strchr(opts, 'b')) {
+			ast_set_flag(tmp, LOCAL_BRIDGE);
 		}
 	}
 
