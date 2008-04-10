@@ -7034,7 +7034,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 
 	/* If custom URI options have been provided, append them */
-	if (p->options && p->options->uri_options)
+	if (p->options && !ast_strlen_zero(p->options->uri_options))
 		ast_build_string(&invite, &invite_max, ";%s", p->options->uri_options);
 	
 	ast_string_field_set(p, uri, invite_buf);
