@@ -552,7 +552,7 @@ static struct ast_variable *ldap_loadentry(struct ldap_table_config *table_confi
 		do {
 			result = ldap_search_ext_s(ldapConn, dn, LDAP_SCOPE_BASE,
 					   "(objectclass=*)", NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &ldap_result);
-			if (result < 0 && is_ldap_connect_error(result)) {
+			if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
 				ast_log(LOG_WARNING,
 					"Failed to query database. Try %d/3\n",
 					tries + 1);
@@ -567,9 +567,9 @@ static struct ast_variable *ldap_loadentry(struct ldap_table_config *table_confi
 						break;
 				}
 			}
-		} while (result < 0 && tries < 3 && is_ldap_connect_error(result));
+		} while (result != LDAP_SUCCESS && tries < 3 && is_ldap_connect_error(result));
 
-		if (result < 0) {
+		if (result != LDAP_SUCCESS) {
 			ast_log(LOG_WARNING,
 					"Failed to query database. Check debug for more info.\n");
 			ast_debug(2, "dn=%s\n", dn);
@@ -787,7 +787,7 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 		result = ldap_search_ext_s(ldapConn, clean_basedn,
 				  LDAP_SCOPE_SUBTREE, filter->str, NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT,
 				  &ldap_result);
-		if (result < 0 && is_ldap_connect_error(result)) {
+		if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
 			ast_log(LOG_DEBUG, "Failed to query database. Try %d/10\n",
 				tries + 1);
 			if (++tries < 10) {
@@ -800,9 +800,9 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 					break;
 			}
 		}
-	} while (result < 0 && tries < 10 && is_ldap_connect_error(result));
+	} while (result != LDAP_SUCCESS && tries < 10 && is_ldap_connect_error(result));
 
-	if (result < 0) {
+	if (result != LDAP_SUCCESS) {
 		ast_log(LOG_WARNING, "Failed to query database. Check debug for more info.\n");
 		ast_log(LOG_WARNING, "Query: %s\n", filter->str);
 		ast_log(LOG_WARNING, "Query Failed because: %s\n", ldap_err2string(result));
@@ -1244,7 +1244,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 		result = ldap_search_ext_s(ldapConn, clean_basedn,
 				  LDAP_SCOPE_SUBTREE, filter->str, NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT,
 				  &ldap_result);
-		if (result < 0 && is_ldap_connect_error(result)) {
+		if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
 			ast_log(LOG_WARNING, "Failed to query database. Try %d/3\n",
 				tries + 1);
 			tries++;
@@ -1258,9 +1258,9 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 					break;
 			}
 		}
-	} while (result < 0 && tries < 3 && is_ldap_connect_error(result));
+	} while (result != LDAP_SUCCESS && tries < 3 && is_ldap_connect_error(result));
 
-	if (result < 0) {
+	if (result != LDAP_SUCCESS) {
 		ast_log(LOG_WARNING, "Failed to query directory. Check debug for more info.\n");
 		ast_log(LOG_WARNING, "Query: %s\n", filter->str);
 		ast_log(LOG_WARNING, "Query Failed because: %s\n",
