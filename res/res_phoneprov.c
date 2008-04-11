@@ -731,7 +731,10 @@ static struct extension *build_extension(struct ast_config *cfg, const char *nam
 		} else if (i == PP_TIMEZONE) {
 			/* perfectly ok if tmp is NULL, will set variables based on server's time zone */
 			set_timezone_variables(exten->headp, tmp);
-		} else if (i == PP_LINENUMBER && tmp) {
+		} else if (i == PP_LINENUMBER) {
+			if (!tmp) {
+				tmp = "1";
+			}
 			exten->index = atoi(tmp);
 		}
 
