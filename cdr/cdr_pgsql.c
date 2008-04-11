@@ -66,6 +66,8 @@ struct columns {
 	char *name;
 	char *type;
 	int len;
+	unsigned int notnull:1;
+	unsigned int hasdefault:1;
 	AST_RWLIST_ENTRY(columns) list;
 };
 
@@ -138,8 +140,17 @@ static int pgsql_log(struct ast_cdr *cdr)
 		AST_RWLIST_TRAVERSE(&psql_columns, cur, list) {
 			/* For fields not set, simply skip them */
 			ast_cdr_getvar(cdr, cur->name, &value, buf, sizeof(buf), 0, 0);
-			if (!value)
+			if (!value) {
+				if (cur->notnull && !cur->hasdefault) {
+					/* Field is NOT NULL (but no default), must include it anyway */
+					LENGTHEN_BUF1(strlen(cur->name));
+					lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", cur->name);
+					LENGTHEN_BUF2(3);
+					strcat(sql2, "'',");
+					lensql2 += 3;
+				}
 				continue;
+			}
 			
 			LENGTHEN_BUF1(strlen(cur->name));
 			lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", cur->name);
@@ -444,13 +455,13 @@ static int config_module(int reload)
 	conn = PQsetdbLogin(pghostname, pgdbport, NULL, NULL, pgdbname, pgdbuser, pgpassword);
 	if (PQstatus(conn) != CONNECTION_BAD) {
 		char sqlcmd[256];
-		char *fname, *ftype, *flen;
+		char *fname, *ftype, *flen, *fnotnull, *fdef;
 		int i, rows;
 		ast_debug(1, "Successfully connected to PostgreSQL database.\n");
 		connected = 1;
 
 		/* Query the columns */
-		snprintf(sqlcmd, sizeof(sqlcmd), "select a.attname, t.typname, a.attlen from pg_class c, pg_attribute a, pg_type t where c.oid = a.attrelid and a.atttypid = t.oid and (a.attnum > 0) and c.relname = '%s' order by c.relname, attnum", table);
+		snprintf(sqlcmd, sizeof(sqlcmd), "select a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc from pg_class c, pg_type t, pg_attribute a left outer join pg_attrdef d on a.atthasdef and d.adrelid = a.attrelid and d.adnum = a.attnum where c.oid = a.attrelid and a.atttypid = t.oid and (a.attnum > 0) and c.relname = '%s' order by c.relname, attnum", table);
 		result = PQexec(conn, sqlcmd);
 		if (PQresultStatus(result) != PGRES_TUPLES_OK) {
 			pgerror = PQresultErrorMessage(result);
@@ -465,6 +476,8 @@ static int config_module(int reload)
 			fname = PQgetvalue(result, i, 0);
 			ftype = PQgetvalue(result, i, 1);
 			flen = PQgetvalue(result, i, 2);
+			fnotnull = PQgetvalue(result, i, 3);
+			fdef = PQgetvalue(result, i, 4);
 			ast_verb(4, "Found column '%s' of type '%s'\n", fname, ftype);
 			cur = ast_calloc(1, sizeof(*cur) + strlen(fname) + strlen(ftype) + 2);
 			if (cur) {
@@ -473,6 +486,16 @@ static int config_module(int reload)
 				cur->type = (char *)cur + sizeof(*cur) + strlen(fname) + 1;
 				strcpy(cur->name, fname);
 				strcpy(cur->type, ftype);
+				if (*fnotnull == 't') {
+					cur->notnull = 1;
+				} else {
+					cur->notnull = 0;
+				}
+				if (!ast_strlen_zero(fdef)) {
+					cur->hasdefault = 1;
+				} else {
+					cur->hasdefault = 0;
+				}
 				AST_RWLIST_INSERT_TAIL(&psql_columns, cur, list);
 			}
 		}
