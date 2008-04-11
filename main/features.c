@@ -2118,6 +2118,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	bridge_cdr = ast_cdr_alloc();
 	if (bridge_cdr) {
 		if (chan->cdr && peer->cdr) { /* both of them? merge */
+			ast_channel_lock(chan); /* lock the channel before modifying cdrs */
 			ast_cdr_init(bridge_cdr,chan); /* seems more logicaller to use the  destination as a base, but, really, it's random */
 			ast_cdr_start(bridge_cdr); /* now is the time to start */
 			
@@ -2126,14 +2127,22 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			if (!ast_test_flag(chan->cdr, AST_CDR_FLAG_LOCKED))
 				ast_cdr_discard(chan->cdr); /* if locked cdrs are in chan, they are taken over in the merge */
 			
+			chan->cdr = NULL;
+			ast_channel_unlock(chan);
 			/* absorb the peer cdr */
+			ast_channel_lock(peer);
 			ast_cdr_merge(bridge_cdr, peer->cdr);
 			if (!ast_test_flag(peer->cdr, AST_CDR_FLAG_LOCKED))
 				ast_cdr_discard(peer->cdr); /* if locked cdrs are in peer, they are taken over in the merge */
 			
-			peer->cdr = NULL;
+			peer->cdr = NULL; /* remove pointer to freed memory before releasing the lock */
+			ast_channel_unlock(peer);
+
+			ast_channel_lock(chan);
 			chan->cdr = bridge_cdr; /* make this available to the rest of the world via the chan while the call is in progress */
+			ast_channel_unlock(chan);
 		} else if (chan->cdr) {
+			ast_channel_lock(chan); /* Lock before modifying CDR */
 			/* take the cdr from the channel - literally */
 			ast_cdr_init(bridge_cdr,chan);
 			/* absorb this data */
@@ -2141,7 +2150,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			if (!ast_test_flag(chan->cdr, AST_CDR_FLAG_LOCKED))
 				ast_cdr_discard(chan->cdr); /* if locked cdrs are in chan, they are taken over in the merge */
 			chan->cdr = bridge_cdr; /* make this available to the rest of the world via the chan while the call is in progress */
+			ast_channel_unlock(chan);
 		} else if (peer->cdr) {
+			ast_channel_lock(peer); /* Lock before modifying CDR */
 			/* take the cdr from the peer - literally */
 			ast_cdr_init(bridge_cdr,peer);
 			/* absorb this data */
@@ -2150,10 +2161,13 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				ast_cdr_discard(peer->cdr); /* if locked cdrs are in chan, they are taken over in the merge */
 			peer->cdr = NULL;
 			peer->cdr = bridge_cdr; /* make this available to the rest of the world via the chan while the call is in progress */
+			ast_channel_unlock(peer);
 		} else {
+			ast_channel_lock(chan); /* Lock before modifying CDR */
 			/* make up a new cdr */
 			ast_cdr_init(bridge_cdr,chan); /* eh, just pick one of them */
 			chan->cdr = bridge_cdr; /*  */
+			ast_channel_unlock(chan);
 		}
 		if (ast_strlen_zero(bridge_cdr->dstchannel)) {
 			if (strcmp(bridge_cdr->channel, peer->name) != 0)
