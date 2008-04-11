@@ -172,6 +172,7 @@ static char global_default_profile[80] = "";	/*!< Default profile to use if one 
 
 /*! \brief List of global variables currently available: VOICEMAIL_EXTEN, EXTENSION_LENGTH */
 static struct varshead global_variables;
+static ast_mutex_t globals_lock;
 
 /*! \brief Return mime type based on extension */
 static char *ftype2mtype(const char *ftype)
@@ -665,12 +666,14 @@ static void build_profile(const char *name, struct ast_variable *v)
 	/* Append the global variables to the variables list for this profile.
 	 * This is for convenience later, when we need to provide a single
 	 * variable list for use in substitution. */
+	ast_mutex_lock(&globals_lock);
 	AST_LIST_TRAVERSE(&global_variables, var, entries) {
 		struct ast_var_t *new_var;
 		if ((new_var = ast_var_assign(var->name, var->value))) {
 			AST_LIST_INSERT_TAIL(profile->headp, new_var, entries);
 		}
 	}
+	ast_mutex_unlock(&globals_lock);
 
 	ao2_link(profiles, profile);
 
@@ -890,10 +893,11 @@ static int build_user_routes(struct user *user)
 /* \brief Parse config files and create appropriate structures */
 static int set_config(void)
 {
-	struct ast_config *cfg;
+	struct ast_config *cfg, *phoneprov_cfg;
 	char *cat;
 	struct ast_variable *v;
 	struct ast_flags config_flags = { 0 };
+	struct ast_var_t *var;
 
 	/* Try to grab the port from sip.conf.  If we don't get it here, we'll set it
 	 * to whatever is set in phoneprov.conf or default to 5060 */
@@ -902,15 +906,37 @@ static int set_config(void)
 		ast_config_destroy(cfg);
 	}
 
-	if (!(cfg = ast_config_load("phoneprov.conf", config_flags))) {
+	if (!(cfg = ast_config_load("users.conf", config_flags))) {
+		ast_log(LOG_WARNING, "Unable to load users.cfg\n");
+		return 0;
+	}
+
+	/* Go ahead and load global variables from users.conf so we can append to profiles */
+	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
+		if (!strcasecmp(v->name, "vmexten")) {
+			if ((var = ast_var_assign("VOICEMAIL_EXTEN", v->value))) {
+				ast_mutex_lock(&globals_lock);
+				AST_LIST_INSERT_TAIL(&global_variables, var, entries);
+				ast_mutex_unlock(&globals_lock);
+			}
+		}
+		if (!strcasecmp(v->name, "localextenlength")) {
+			if ((var = ast_var_assign("EXTENSION_LENGTH", v->value)))
+				ast_mutex_lock(&globals_lock);
+				AST_LIST_INSERT_TAIL(&global_variables, var, entries);
+				ast_mutex_unlock(&globals_lock);
+		}
+	}
+
+	if (!(phoneprov_cfg = ast_config_load("phoneprov.conf", config_flags))) {
 		ast_log(LOG_ERROR, "Unable to load config phoneprov.conf\n");
 		return -1;
 	}
 
 	cat = NULL;
-	while ((cat = ast_category_browse(cfg, cat))) {
+	while ((cat = ast_category_browse(phoneprov_cfg, cat))) {
 		if (!strcasecmp(cat, "general")) {
-			for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
+			for (v = ast_variable_browse(phoneprov_cfg, cat); v; v = v->next) {
 				if (!strcasecmp(v->name, "serveraddr"))
 					ast_copy_string(global_server, v->value, sizeof(global_server));
 				else if (!strcasecmp(v->name, "serveriface")) {
@@ -923,15 +949,10 @@ static int set_config(void)
 					ast_copy_string(global_default_profile, v->value, sizeof(global_default_profile));
 			}
 		} else 
-			build_profile(cat, ast_variable_browse(cfg, cat));
+			build_profile(cat, ast_variable_browse(phoneprov_cfg, cat));
 	}
 
-	ast_config_destroy(cfg);
-
-	if (!(cfg = ast_config_load("users.conf", config_flags))) {
-		ast_log(LOG_WARNING, "Unable to load users.cfg\n");
-		return 0;
-	}
+	ast_config_destroy(phoneprov_cfg);
 
 	cat = NULL;
 	while ((cat = ast_category_browse(cfg, cat))) {
@@ -939,19 +960,9 @@ static int set_config(void)
 		struct user *user;
 		struct phone_profile *profile;
 		struct extension *exten;
-		struct ast_var_t *var;
 
 		if (!strcasecmp(cat, "general")) {
-			for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
-				if (!strcasecmp(v->name, "vmexten")) {
-					if ((var = ast_var_assign("VOICEMAIL_EXTEN", v->value)))
-						AST_LIST_INSERT_TAIL(&global_variables, var, entries);
-				}
-				if (!strcasecmp(v->name, "localextenlength")) {
-					if ((var = ast_var_assign("EXTENSION_LENGTH", v->value)))
-						AST_LIST_INSERT_TAIL(&global_variables, var, entries);
-				}
-			}
+			continue;
 		}
 			  
 		if (!strcasecmp(cat, "authentication"))
@@ -970,7 +981,6 @@ static int set_config(void)
 			ast_log(LOG_WARNING, "No profile for user [%s] with mac '%s' - skipping\n", cat, mac);
 			continue;
 		}
-
 
 		if (!(user = find_user(mac))) {
 			if (!(profile = find_profile(tmp))) {
@@ -1140,6 +1150,8 @@ static int pp_each_extension_exec(struct ast_channel *chan, const char *cmd, cha
 		ast_build_string(&buf, &len, "%s", expand_buf);
 	}
 
+	ast_free(file);
+
 	user = unref_user(user);
 
 	return 0;
@@ -1220,6 +1232,7 @@ static int load_module(void)
 	users = ao2_container_alloc(MAX_USER_BUCKETS, users_hash_fn, users_cmp_fn);
 
 	AST_LIST_HEAD_INIT_NOLOCK(&global_variables);
+	ast_mutex_init(&globals_lock);
 	
 	ast_custom_function_register(&pp_each_user_function);
 	ast_custom_function_register(&pp_each_extension_function);
@@ -1247,17 +1260,31 @@ static int unload_module(void)
 	ao2_ref(http_routes, -1);
 	ao2_ref(users, -1);
 
-	while ((var = AST_LIST_REMOVE_HEAD(&global_variables, entries)))
+	ast_mutex_lock(&globals_lock);
+	while ((var = AST_LIST_REMOVE_HEAD(&global_variables, entries))) {
 		ast_var_delete(var);
+	}
+	ast_mutex_unlock(&globals_lock);
+
+	ast_mutex_destroy(&globals_lock);
 
 	return 0;
 }
 
 static int reload(void) 
 {
+	struct ast_var_t *var;
+
 	delete_routes();
 	delete_users();
 	delete_profiles();
+
+	ast_mutex_lock(&globals_lock);
+	while ((var = AST_LIST_REMOVE_HEAD(&global_variables, entries))) {
+		ast_var_delete(var);
+	}
+	ast_mutex_unlock(&globals_lock);
+
 	set_config();
 
 	return 0;
