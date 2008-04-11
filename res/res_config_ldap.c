@@ -326,7 +326,7 @@ static struct ast_variable *realtime_ldap_entry_to_var(struct ldap_table_config 
 				}
 				v++;
 			}
-			ber_bvecfree(values);
+			ldap_value_free_len(values);
 		}
 		ldap_attribute_name = ldap_next_attribute(ldapConn, ldap_entry, ber);
 	}
@@ -492,7 +492,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 						}
 						v++;
 					} /*!< while(*v) */
-					ber_bvecfree(values);
+					ldap_value_free_len(values);
 				}/*!< if (values) */
 				ldap_attribute_name = ldap_next_attribute(ldapConn, ldap_entry, ber);
 			} /*!< while (ldap_attribute_name) */
