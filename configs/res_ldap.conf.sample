@@ -28,92 +28,92 @@
 ; additionalFilter - This specifies an additional set of criteria to be used
 ; when querying the LDAP server.
 ;
-additionalFilter=(objectClass=PBXConfig)
+additionalFilter=(objectClass=AstConfig)
 ;
 ; Attributes mapping (asterisk variable name = ldap attribute name)
 ; When Asterisk requests the variable by the name of the value on the left,
 ; this module will look up the attribute listed on the right.
 ;
-filename = PBXConfigFilename
-category = PBXConfigCategory
-variable_name = PBXConfigVariableName
-variable_value = PBXConfigVariableValue
-cat_metric = PBXConfigCategoryMetric
-commented = PBXConfigCommented
+filename = AstConfigFilename
+category = AstConfigCategory
+variable_name = AstConfigVariableName
+variable_value = AstConfigVariableValue
+cat_metric = AstConfigCategoryMetric
+commented = AstConfigCommented
 
 ;
 ; Extensions Table
 ;
 [extensions]
-context  =  PBXExtensionContext
-exten  =  PBXExtensionExten
-priority = PBXExtensionPriority
-app = PBXExtensionApplication
-appdata = PBXExtensionApplicationData
-additionalFilter=(objectClass=PBXExtension)
+context  =  AstExtensionContext
+exten  =  AstExtensionExten
+priority = AstExtensionPriority
+app = AstExtensionApplication
+appdata = AstExtensionApplicationData
+additionalFilter=(objectClass=AstExtension)
 
 ;
 ; Sip Users Table
 ;
 [sip]
 name = uid
-amaflags = PBXAccountAMAFlags
-callgroup = PBXAccountCallGroup
-callerid = PBXAccountCallerID
-canreinvite = PBXAccountCanReinvite
-context = PBXAccountContext
-dtmfmode = PBXAccountDTMFMode
-fromuser = PBXAccountFromUser
-fromdomain = PBXAccountFromDomain
-fullcontact = PBXAccountFullContact
+amaflags = AstAccountAMAFlags
+callgroup = AstAccountCallGroup
+callerid = AstAccountCallerID
+canreinvite = AstAccountCanReinvite
+context = AstAccountContext
+dtmfmode = AstAccountDTMFMode
+fromuser = AstAccountFromUser
+fromdomain = AstAccountFromDomain
+fullcontact = AstAccountFullContact
 fullcontact = gecos
-host = PBXAccountHost
-insecure = PBXAccountInsecure
-mailbox = PBXAccountMailbox
+host = AstAccountHost
+insecure = AstAccountInsecure
+mailbox = AstAccountMailbox
 md5secret = realmedPassword
-nat = PBXAccountNAT
-deny = PBXAccountDeny
-permit = PBXAccountPermit
-pickupgroup = PBXAccountPickupGroup
-port = PBXAccountPort
-qualify = PBXAccountQualify
-restrictcid = PBXAccountRestrictCID
-rtptimeout = PBXAccountRTPTimeout
-rtpholdtimeout = PBXAccountRTPHoldTimeout
-type = PBXAccountType
-disallow = PBXAccountDisallowedCodec
-allow = PBXAccountAllowedCodec
-MusicOnHold = PBXAccountMusicOnHold
-regseconds = PBXAccountExpirationTimestamp
-regcontext = PBXAccountRegistrationContext
-regexten = PBXAccountRegistrationExten
-CanCallForward = PBXAccountCanCallForward
-additionalFilter=(objectClass=PBXAccountSIP)
+nat = AstAccountNAT
+deny = AstAccountDeny
+permit = AstAccountPermit
+pickupgroup = AstAccountPickupGroup
+port = AstAccountPort
+qualify = AstAccountQualify
+restrictcid = AstAccountRestrictCID
+rtptimeout = AstAccountRTPTimeout
+rtpholdtimeout = AstAccountRTPHoldTimeout
+type = AstAccountType
+disallow = AstAccountDisallowedCodec
+allow = AstAccountAllowedCodec
+MusicOnHold = AstAccountMusicOnHold
+regseconds = AstAccountExpirationTimestamp
+regcontext = AstAccountRegistrationContext
+regexten = AstAccountRegistrationExten
+CanCallForward = AstAccountCanCallForward
+additionalFilter=(objectClass=AstAccountSIP)
 
 ;
 ; IAX Users Table
 ;
 [iax]
-amaflags = PBXAccountAMAFlags
-callerid = PBXAccountCallerID
-context = PBXAccountContext
-fullcontact = PBXAccountFullContact
+amaflags = AstAccountAMAFlags
+callerid = AstAccountCallerID
+context = AstAccountContext
+fullcontact = AstAccountFullContact
 fullcontact = gecos
-host = PBXAccountHost
-mailbox = PBXAccountMailbox
+host = AstAccountHost
+mailbox = AstAccountMailbox
 md5secret = realmedPassword
-deny = PBXAccountDeny
-permit = PBXAccountPermit
-port = PBXAccountPort
-qualify = PBXAccountQualify
-type = PBXAccountType
-disallow = PBXAccountDisallowedCodec
-allow = PBXAccountAllowedCodec
-regseconds = PBXAccountExpirationTimestamp
-regcontext = PBXAccountRegistrationContext
-regexten = PBXAccountRegistrationExten
-notransfer = PBXAccountNoTransfer
-additionalFilter=(objectClass=PBXAccountIAX)
+deny = AstAccountDeny
+permit = AstAccountPermit
+port = AstAccountPort
+qualify = AstAccountQualify
+type = AstAccountType
+disallow = AstAccountDisallowedCodec
+allow = AstAccountAllowedCodec
+regseconds = AstAccountExpirationTimestamp
+regcontext = AstAccountRegistrationContext
+regexten = AstAccountRegistrationExten
+notransfer = AstAccountNoTransfer
+additionalFilter=(objectClass=AstAccountIAX)
 
 ;
 ; A Test Family
@@ -123,36 +123,36 @@ MyUSERID = uid
 additionalFilter=(objectClass=*)
 
 [accounts]
-amaflags = PBXAccountAMAFlags
-callgroup = PBXAccountCallGroup
-callerid = PBXAccountCallerID
-canreinvite = PBXAccountCanReinvite
-context = PBXAccountContext
-dtmfmode = PBXAccountDTMFMode
-fromuser = PBXAccountFromUser
-fromdomain = PBXAccountFromDomain
-fullcontact = PBXAccountFullContact
+amaflags = AstAccountAMAFlags
+callgroup = AstAccountCallGroup
+callerid = AstAccountCallerID
+canreinvite = AstAccountCanReinvite
+context = AstAccountContext
+dtmfmode = AstAccountDTMFMode
+fromuser = AstAccountFromUser
+fromdomain = AstAccountFromDomain
+fullcontact = AstAccountFullContact
 fullcontact = gecos
-host = PBXAccountHost
-insecure = PBXAccountInsecure
-mailbox = PBXAccountMailbox
+host = AstAccountHost
+insecure = AstAccountInsecure
+mailbox = AstAccountMailbox
 md5secret = realmedPassword
-nat = PBXAccountNAT
-deny = PBXAccountDeny
-permit = PBXAccountPermit
-pickupgroup = PBXAccountPickupGroup
-port = PBXAccountPort
-qualify = PBXAccountQualify
-restrictcid = PBXAccountRestrictCID
-rtptimeout = PBXAccountRTPTimeout
-rtpholdtimeout = PBXAccountRTPHoldTimeout
-type = PBXAccountType
-disallow = PBXAccountDisallowedCodec
-allow = PBXAccountAllowedCodec
-MusicOnHold = PBXAccountMusicOnHold
-regseconds = PBXAccountExpirationTimestamp
-regcontext = PBXAccountRegistrationContext
-regexten = PBXAccountRegistrationExten
-CanCallForward = PBXAccountCanCallForward
-additionalFilter=(objectClass=PBXAccount)
+nat = AstAccountNAT
+deny = AstAccountDeny
+permit = AstAccountPermit
+pickupgroup = AstAccountPickupGroup
+port = AstAccountPort
+qualify = AstAccountQualify
+restrictcid = AstAccountRestrictCID
+rtptimeout = AstAccountRTPTimeout
+rtpholdtimeout = AstAccountRTPHoldTimeout
+type = AstAccountType
+disallow = AstAccountDisallowedCodec
+allow = AstAccountAllowedCodec
+MusicOnHold = AstAccountMusicOnHold
+regseconds = AstAccountExpirationTimestamp
+regcontext = AstAccountRegistrationContext
+regexten = AstAccountRegistrationExten
+CanCallForward = AstAccountCanCallForward
+additionalFilter=(objectClass=AstAccount)
 
