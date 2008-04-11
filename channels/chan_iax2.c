@@ -1336,7 +1336,7 @@ static int make_trunk(unsigned short callno, int locked)
 /*!
  * \note Calling this function while holding another pvt lock can cause a deadlock.
  */
-static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd)
+static int __find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd, int return_locked)
 {
 	int res = 0;
 	int x;
@@ -1413,10 +1413,21 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			ast_mutex_unlock(&iaxsl[x]);
 			return 0;
 		}
-		ast_mutex_unlock(&iaxsl[x]);
+		if (!return_locked)
+			ast_mutex_unlock(&iaxsl[x]);
 		res = x;
 	}
 	return res;
+}
+
+static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd) {
+
+	return __find_callno(callno, dcallno, sin, new, sockfd, 0);
+}
+
+static int find_callno_locked(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd) {
+
+	return __find_callno(callno, dcallno, sin, new, sockfd, 1);
 }
 
 static void iax2_frame_free(struct iax_frame *fr)
@@ -3592,6 +3603,14 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	ast_mutex_unlock(&iaxsl[callno]);
 	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, "IAX2/%s-%d", i->host, i->callno);
 	ast_mutex_lock(&iaxsl[callno]);
+	if (!iaxs[callno]) {
+		if (tmp) {
+			ast_channel_free(tmp);
+		}
+		ast_mutex_unlock(&iaxsl[callno]);
+		return NULL;
+	}
+
 	if (!tmp)
 		return NULL;
 	tmp->tech = &iax2_tech;
@@ -6906,9 +6925,8 @@ static int socket_process(struct iax2_thread *thread)
 				/* Stop if we don't have enough data */
 				if (len > res)
 					break;
-				fr->callno = find_callno(callno & ~IAX_FLAG_FULL, 0, &sin, NEW_PREVENT, fd);
+				fr->callno = find_callno_locked(callno & ~IAX_FLAG_FULL, 0, &sin, NEW_PREVENT, fd);
 				if (fr->callno) {
-					ast_mutex_lock(&iaxsl[fr->callno]);
 					/* If it's a valid call, deliver the contents.  If not, we
 					   drop it, since we don't have a scallno to use for an INVAL */
 					/* Process as a mini frame */
@@ -7159,7 +7177,9 @@ static int socket_process(struct iax2_thread *thread)
 					if (call_to_destroy) {
 						if (iaxdebug && option_debug)
 							ast_log(LOG_DEBUG, "Really destroying %d, having been acked on final message\n", call_to_destroy);
+						ast_mutex_lock(&iaxsl[call_to_destroy]);
 						iax2_destroy(call_to_destroy);
+						ast_mutex_unlock(&iaxsl[call_to_destroy]);
 					}
 				}
 				/* Note how much we've received acknowledgement for */
@@ -8486,13 +8506,14 @@ static int iax2_do_register(struct iax2_registry *reg)
 	if (!reg->callno) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Allocate call number\n");
-		reg->callno = find_callno(0, 0, &reg->addr, NEW_FORCE, defaultsockfd);
+		reg->callno = find_callno_locked(0, 0, &reg->addr, NEW_FORCE, defaultsockfd);
 		if (reg->callno < 1) {
 			ast_log(LOG_WARNING, "Unable to create call for registration\n");
 			return -1;
 		} else if (option_debug)
 			ast_log(LOG_DEBUG, "Registration created on call %d\n", reg->callno);
 		iaxs[reg->callno]->reg = reg;
+		ast_mutex_unlock(&iaxsl[reg->callno]);
 	}
 	/* Schedule the next registration attempt */
 	AST_SCHED_DEL(sched, reg->expire);
@@ -8546,11 +8567,10 @@ static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const
 	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_raw(&ied, IAX_IE_PROVISIONING, provdata.buf, provdata.pos);
 
-	callno = find_callno(0, 0, &sin, NEW_FORCE, cai.sockfd);
+	callno = find_callno_locked(0, 0, &sin, NEW_FORCE, cai.sockfd);
 	if (!callno)
 		return -1;
 
-	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
 		/* Schedule autodestruct in case they don't ever give us anything back */
 		AST_SCHED_DEL(sched, iaxs[callno]->autoid);
@@ -8768,14 +8788,12 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	if (pds.port)
 		sin.sin_port = htons(atoi(pds.port));
 
-	callno = find_callno(0, 0, &sin, NEW_FORCE, cai.sockfd);
+	callno = find_callno_locked(0, 0, &sin, NEW_FORCE, cai.sockfd);
 	if (callno < 1) {
 		ast_log(LOG_WARNING, "Unable to create call\n");
 		*cause = AST_CAUSE_CONGESTION;
 		return NULL;
 	}
-
-	ast_mutex_lock(&iaxsl[callno]);
 
 	/* If this is a trunk, update it now */
 	ast_copy_flags(iaxs[callno], &cai, IAX_TRUNK | IAX_SENDANI | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
@@ -10084,13 +10102,12 @@ static int cache_get_callno_locked(const char *data)
 		ast_log(LOG_DEBUG, "peer: %s, username: %s, password: %s, context: %s\n",
 			pds.peer, pds.username, pds.password, pds.context);
 
-	callno = find_callno(0, 0, &sin, NEW_FORCE, cai.sockfd);
+	callno = find_callno_locked(0, 0, &sin, NEW_FORCE, cai.sockfd);
 	if (callno < 1) {
 		ast_log(LOG_WARNING, "Unable to create call\n");
 		return -1;
 	}
 
-	ast_mutex_lock(&iaxsl[callno]);
 	ast_string_field_set(iaxs[callno], dproot, data);
 	iaxs[callno]->capability = IAX_CAPABILITY_FULLBANDWIDTH;
 
