@@ -9141,14 +9141,13 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 
 	ast_mutex_unlock(&linkset->lock);
 	c = zt_new(p, AST_STATE_RING, 1, SUB_REAL, law, 0);
+	ast_mutex_lock(&linkset->lock);
 
 	if (!c) {
 		ast_log(LOG_WARNING, "Unable to start PBX on CIC %d\n", p->cic);
 		return;
 	} else
 		ast_verb(3, "Accepting call to '%s' on CIC %d\n", p->exten, p->cic);
-
-	ast_mutex_lock(&linkset->lock);
 
 	zt_enable_ec(p);
 
