@@ -9114,6 +9114,7 @@ static void zt_loopback(struct zt_pvt *p, int enable)
 	}
 }
 
+/* XXX: This function is assumed to be called with the private channel lock and linkset lock held */
 static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 {
 	struct ss7 *ss7 = linkset->ss7;
@@ -9139,11 +9140,16 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 
 	ast_mutex_unlock(&linkset->lock);
 	c = zt_new(p, AST_STATE_RING, 1, SUB_REAL, law, 0);
-	ast_mutex_lock(&linkset->lock);
-	if (c)
-		ast_verb(3, "Accepting call to '%s' on CIC %d\n", p->exten, p->cic);
-	else
+
+	if (!c) {
 		ast_log(LOG_WARNING, "Unable to start PBX on CIC %d\n", p->cic);
+		return;
+	} else
+		ast_verb(3, "Accepting call to '%s' on CIC %d\n", p->exten, p->cic);
+
+	ast_mutex_lock(&linkset->lock);
+
+	zt_enable_ec(p);
 
 	if (!ast_strlen_zero(p->charge_number)) {
 		pbx_builtin_setvar_helper(c, "SS7_CHARGE_NUMBER", p->charge_number);
@@ -9506,10 +9512,14 @@ static void *ss7_linkset(void *data)
 				}
 				p = linkset->pvts[chanpos];
 
+				ast_mutex_lock(&p->lock);
+
 				if (p->loopedback) {
 					zt_loopback(p, 0);
 					ss7_start_call(p, linkset);
 				}
+
+				ast_mutex_unlock(&p->lock);
 
 				break;
 			case ISUP_EVENT_CCR:
