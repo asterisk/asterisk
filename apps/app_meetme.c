@@ -1698,7 +1698,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 		snprintf(destdir, sizeof(destdir), "%s/meetme", ast_config_AST_SPOOL_DIR);
 
-		if (mkdir(destdir, 0777) && errno != EEXIST) {
+		if (ast_mkdir(destdir, 0777) != 0) {
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", destdir, strerror(errno));
 			goto outrun;
 		}
