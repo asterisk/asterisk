@@ -152,10 +152,10 @@ sub tab_completion {
 	if ($word eq '') {
 		$buffer =~ m/(\S+)\s?$/;
 		$lastword = $1;
-		print STDERR "\n\nlastword=\"$lastword\"\n";
+		#print STDERR "\n\nlastword=\"$lastword\"\n";
 	}
 
-	my $res = send_command("_command matchesarray \"$buffer\" \"$word\"\n");
+	my $res = send_command("_command matchesarray \"$buffer\" \"$word\"");
 	foreach my $item (split /\s+/, $res) {
 		$items{$item}++ unless ($item eq '_EOF_' or $item eq '' or $item eq $lastword);
 	}
