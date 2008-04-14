@@ -183,8 +183,11 @@ static struct ast_channel *local_bridgedchannel(struct ast_channel *chan, struct
 		bridged = (bridge == p->owner ? p->chan : p->owner);
 		
 		/* Now see if the opposite channel is bridged to anything */
-		if (bridged->_bridge)
+		if (!bridged) {
+			bridged = bridge;
+		} else if (bridged->_bridge) {
 			bridged = bridged->_bridge;
+		}
 	}
 
 	ast_mutex_unlock(&p->lock);
