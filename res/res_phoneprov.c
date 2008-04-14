@@ -866,9 +866,8 @@ static int add_user_extension(struct user *user, struct extension *exten)
 				AST_LIST_INSERT_BEFORE_CURRENT(exten, entry);
 			} else if (exten->index == exten_iter->index) {
 				ast_log(LOG_WARNING, "Duplicate linenumber=%d for %s\n", exten->index, user->macaddress);
-				user = unref_user(user); /* Profile should be unreffed now that it is attached to the user */
 				return -1;
-			} else if (!AST_LIST_NEXT(exten, entry)) {
+			} else if (!AST_LIST_NEXT(exten_iter, entry)) {
 				AST_LIST_INSERT_TAIL(&user->extensions, exten, entry);
 			}
 		}
