@@ -1110,7 +1110,6 @@ static struct ast_custom_function pp_each_user_function = {
 /*! \brief A dialplan function that can be used to output a template for each extension attached to a user */
 static int pp_each_extension_exec(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	char expand_buf[VAR_BUF_SIZE] = {0,};
 	struct user *user;
 	struct extension *exten;
 	char path[PATH_MAX];
@@ -1148,6 +1147,7 @@ static int pp_each_extension_exec(struct ast_channel *chan, const char *cmd, cha
 	}
 
 	AST_LIST_TRAVERSE(&user->extensions, exten, entry) {
+		char expand_buf[VAR_BUF_SIZE] = {0,};
 		pbx_substitute_variables_varshead(exten->headp, file, expand_buf, sizeof(expand_buf));
 		ast_build_string(&buf, &len, "%s", expand_buf);
 	}
