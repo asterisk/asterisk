@@ -12,6 +12,7 @@ use Getopt::Long;
 #
 my ($user, $pw, $host, $port, $interactive, $save) = (undef, undef, 'localhost', 5038, 0, 0);
 my $EOL = "\r\n"; # Standard End of Line
+my @commands;
 process_credentials('/etc/astcli.conf');
 process_credentials("$ENV{HOME}/.astcli") if defined $ENV{HOME};
 GetOptions("username=s" => \$user, "secret=s" => \$pw, "host=s" => \$host, "port=s" => \$port, "readline" => \$interactive, "write" => \$save);
@@ -51,12 +52,16 @@ sub send_command($) {
 	$tc->send($EOL);
 	my $response = '';
 	while (<$tc>) {
-		last if $_ =~ /--END COMMAND--/;
+		if ($_ =~ /--END COMMAND--/) {
+			$_ =~ s/--END COMMAND--\s*//;
+			$response .= $_;
+			last;
+		}
 		$response .= $_;
 	}
 	$response =~ s/Privilege: Command$EOL//;
 	$response =~ s/Response: Follows$EOL//;
-	print $response;
+	return $response;
 }
 
 sub login {
@@ -93,27 +98,23 @@ if ($action eq '-' || !defined $action || $action eq '') {
 		my $term = new Term::ReadLine 'Command Line Interface';
 		my $prompt = "$host*CLI> ";
 		my $attribs = $term->Attribs;
-		$attribs->{completion_function} = sub {
-			my ($text, $line, $start) = @_;
-			# Stub function for tab auto completion for those feeling adventurous
-			return;
-		};
+		$attribs->{completion_function} = \&tab_completion;
 		while (defined($_ = $term->readline($prompt))) {
 			(logoff() and exit) if $_ =~ /exit|quit/; # Give them a way to exit the "terminal"
-			send_command($_);
+			print send_command($_);
 		}	
 	} else {
 		while (<>) {
 			chomp;
 			(logoff() and exit) if $_ =~ /exit|quit/; # If someone accidentally ends up here, let them exit
-			send_command($_);
+			print send_command($_);
 		}
 	}
 	exit 0;
 }
 
 # Otherwise just send the command:
-send_command($action);
+print send_command($action);
 
 # parses a configuration file into the global $user and $pw.
 sub process_credentials {
@@ -142,5 +143,25 @@ sub usage {
 	print STDERR "       -w        - Save connection options in a configuration file\n";
 	print STDERR "   You may specify the command as '-' to take commands from stdin.\n";
 	exit;
+}
+
+sub tab_completion {
+    my ($word, $buffer, $offset) = @_;
+	my %items;
+	my $lastword = '';
+	if ($word eq '') {
+		$buffer =~ m/(\S+)\s?$/;
+		$lastword = $1;
+		print STDERR "\n\nlastword=\"$lastword\"\n";
+	}
+
+	my $res = send_command("_command matchesarray \"$buffer\" \"$word\"\n");
+	foreach my $item (split /\s+/, $res) {
+		$items{$item}++ unless ($item eq '_EOF_' or $item eq '' or $item eq $lastword);
+	}
+		
+	#print STDERR "\nword=\"$word\" buffer=\"$buffer\" offset=\"$offset\" res=\"$res\"\n";
+
+	return sort keys %items;
 }
 
