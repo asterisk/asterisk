@@ -1086,7 +1086,7 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 	struct ast_channel *c;
 	const struct ast_channel *_prev = prev;
 
-	for (retries = 0; retries < 10; retries++) {
+	for (retries = 0; retries < 200; retries++) {
 		int done;
 		AST_RWLIST_RDLOCK(&channels);
 		AST_RWLIST_TRAVERSE(&channels, c, chan_list) {
@@ -1127,7 +1127,7 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 		done = c == NULL || ast_channel_trylock(c) == 0;
 		if (!done) {
 			ast_debug(1, "Avoiding %s for channel '%p'\n", msg, c);
-			if (retries == 9) {
+			if (retries == 199) {
 				/* We are about to fail due to a deadlock, so report this
 				 * while we still have the list lock.
 				 */
