@@ -1151,7 +1151,7 @@ static struct oh323_pvt *find_call_locked(int call_reference, const char *token)
 	while(pvt) {
 		if (!pvt->needdestroy && ((signed int)pvt->cd.call_reference == call_reference)) {
 			/* Found the call */
-			if ((token != NULL) && (!strcmp(pvt->cd.call_token, token))) {
+			if ((token != NULL) && (pvt->cd.call_token != NULL) && (!strcmp(pvt->cd.call_token, token))) {
 				ast_mutex_lock(&pvt->lock);
 				ast_mutex_unlock(&iflock);
 				return pvt;
