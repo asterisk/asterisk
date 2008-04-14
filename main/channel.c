@@ -1887,6 +1887,7 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 {
 	if (chan->generatordata &&  !ast_internal_timing_enabled(chan)) {
 		void *tmp = chan->generatordata;
+		int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples) = NULL;
 		int res;
 
 		if (chan->timingfunc) {
@@ -1896,6 +1897,9 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 		}
 
 		chan->generatordata = NULL;     /* reset, to let writes go through */
+		if (chan->generator->generate) {
+			generate = chan->generator->generate;
+		}
 		/* This unlock is here based on two assumptions that hold true at this point in the
 		 * code. 1) this function is only called from within __ast_read() and 2) all generators
 		 * call ast_write() in their generate callback.
@@ -1905,7 +1909,7 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 		 * avoidance not to work in deeper functions
 		 */
 		ast_channel_unlock(chan);
-		res = chan->generator->generate(chan, tmp, f->datalen, f->samples);
+		res = generate(chan, tmp, f->datalen, f->samples);
 		ast_channel_lock(chan);
 		chan->generatordata = tmp;
 		if (res) {
