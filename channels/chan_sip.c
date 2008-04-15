@@ -14353,6 +14353,14 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 		ast_copy_string(buf, peer->cid_num, len);
 	} else  if (!strcasecmp(colname, "codecs")) {
 		ast_getformatname_multiple(buf, len -1, peer->capability);
+	} else  if (!strncasecmp(colname, "chanvar[", 8)) {
+		char *chanvar=colname + 8;
+		struct ast_variable *v;
+	
+		chanvar = strsep(&chanvar, "]");
+		for (v = peer->chanvars ; v ; v = v->next)
+			if (strcasecmp(v->name, chanvar) == 0)
+				ast_copy_string(buf, v->value, sizeof(buf));
 	} else  if (!strncasecmp(colname, "codec[", 6)) {
 		char *codecnum;
 		int index = 0, codec = 0;
@@ -14397,6 +14405,7 @@ struct ast_custom_function sippeer_function = {
 	"- language              Default language for peer\n"
 	"- accountcode           Account code for this peer\n"
 	"- useragent             Current user agent id for peer\n"
+	"- chanvar[name]         A channel variable configured with setvar for this peer.\n"
 	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
 	"\n"
 };
