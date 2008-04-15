@@ -90,6 +90,38 @@ if [ "$ans" = "y" ]; then
   echo >> $OUTPUT;
 
   echo "------------------" >> $OUTPUT;
+  echo "KERNEL CONFIG" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  echo "/lib/modules/$(uname -r)/build/.config:" >> $OUTPUT;
+  cat /lib/modules/$(uname -r)/build/.config >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo "/usr/src/linux/.config:" >> $OUTPUT;
+  cat /usr/src/linux/.config >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "ZAPTEL MODULE INFO" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  modinfo /lib/modules/$(uname -r)/misc/*.ko >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+  
+  echo "------------------" >> $OUTPUT;
+  echo "OTHER INFO" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  echo "/etc/*issues*:" >> $OUTPUT;
+  cat /etc/*issues* >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo "/etc/*release*:" >> $OUTPUT;
+  cat /etc/*release* >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo "/etc/*motd*:" >> $OUTPUT;
+  cat /etc/*motd* >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
   echo "LOADED MODULES" >> $OUTPUT;
   echo "------------------" >> $OUTPUT;
   lsmod >> $OUTPUT;
