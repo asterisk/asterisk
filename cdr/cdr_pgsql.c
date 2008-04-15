@@ -454,7 +454,7 @@ static int config_module(int reload)
 	
 	conn = PQsetdbLogin(pghostname, pgdbport, NULL, NULL, pgdbname, pgdbuser, pgpassword);
 	if (PQstatus(conn) != CONNECTION_BAD) {
-		char sqlcmd[256];
+		char sqlcmd[512];
 		char *fname, *ftype, *flen, *fnotnull, *fdef;
 		int i, rows;
 		ast_debug(1, "Successfully connected to PostgreSQL database.\n");
