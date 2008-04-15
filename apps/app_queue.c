@@ -938,7 +938,6 @@ static void init_queue(struct call_queue *q)
 	q->monfmt[0] = '\0';
 	q->reportholdtime = 0;
 	q->wrapuptime = 0;
-	q->autofill = 0;
 	q->joinempty = 0;
 	q->leavewhenempty = 0;
 	q->memberdelay = 0;
@@ -1525,7 +1524,11 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 				*tmp++ = '-';
 		} else
 			tmp_name = v->name;
-		queue_set_param(q, tmp_name, v->value, -1, 0);
+
+		if (!ast_strlen_zero(v->value)) {
+			/* Don't want to try to set the option if the value is empty */
+			queue_set_param(q, tmp_name, v->value, -1, 0);
+		}
 	}
 
 	/* Temporarily set realtime members dead so we can detect deleted ones. 
