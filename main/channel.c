@@ -2260,8 +2260,7 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 		int samples;
 
 		if (chan->timingfunc) {
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "Generator got voice, switching to phase locked mode\n");
+			ast_debug(1, "Generator got voice, switching to phase locked mode\n");
 			ast_settimeout(chan, 0, NULL, NULL);
 		}
 
@@ -2291,15 +2290,13 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 		ast_channel_lock(chan);
 		chan->generatordata = tmp;
 		if (res) {
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "Auto-deactivating generator\n");
+			ast_debug(1, "Auto-deactivating generator\n");
 			ast_deactivate_generator(chan);
 		}
 
 	} else if (f->frametype == AST_FRAME_CNG) {
 		if (chan->generator && !chan->timingfunc && (chan->timingfd > -1)) {
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "Generator got CNG, switching to timed mode\n");
+			ast_debug(1, "Generator got CNG, switching to timed mode\n");
 			ast_settimeout(chan, 160, generator_force, chan);
 		}
 	}
