@@ -12973,7 +12973,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					/* ast_queue_hangup(p->owner); Disabled */
 				} else {
 					if (!p->subscribed && !p->refer)
-						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
+					if (ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE)) {
+						/* Ready to send the next state we have on queue */
+						ast_clear_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE);
+						cb_extensionstate((char *)p->context, (char *)p->exten, p->laststate, (void *) p);
+					}
 				}
 			} else if (sipmethod == SIP_BYE)
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
