@@ -858,14 +858,23 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		if (!ast_strlen_zero(dirintro) && !res) {
 			res = ast_stream_and_wait(chan, dirintro, AST_DIGIT_ANY);
 		} else if (!res) {
-			res = ast_stream_and_wait(chan, "dir-welcome", AST_DIGIT_ANY) ||
-				ast_stream_and_wait(chan, "dir-pls-enter", AST_DIGIT_ANY) ||
-				ast_stream_and_wait(chan, digits, AST_DIGIT_ANY) ||
-				ast_stream_and_wait(chan, 
+			/* Stop playing sounds as soon as we have a digit. */
+			res = ast_stream_and_wait(chan, "dir-welcome", AST_DIGIT_ANY);
+			if (!res) {
+				res = ast_stream_and_wait(chan, "dir-pls-enter", AST_DIGIT_ANY);
+			}
+			if (!res) {
+				res = ast_stream_and_wait(chan, digits, AST_DIGIT_ANY);
+			}
+			if (!res) {
+				res = ast_stream_and_wait(chan, 
 					which == FIRST ? "dir-first" :
 					which == LAST ? "dir-last" :
-					"dir-firstlast", AST_DIGIT_ANY) ||
+					"dir-firstlast", AST_DIGIT_ANY);
+			}
+			if (!res) {
 				ast_stream_and_wait(chan, "dir-usingkeypad", AST_DIGIT_ANY);
+			}
 		}
 		ast_stopstream(chan);
 		if (!res)
