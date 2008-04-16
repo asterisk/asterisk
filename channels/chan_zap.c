@@ -13954,6 +13954,8 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 
 				toneduration = atoi(v->value);
 				if (toneduration > -1) {
+					memset(&dps, 0, sizeof(dps));
+
 					dps.dtmf_tonelen = dps.mfv1_tonelen = toneduration;
 					res = ioctl(ctlfd, ZT_SET_DIALPARAMS, &dps);
 					if (res < 0) {
