@@ -30,6 +30,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/_private.h"
 #include "asterisk/event.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/dlinkedlists.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 #include "asterisk/unaligned.h"
@@ -109,14 +110,14 @@ struct ast_event_sub {
 	void *userdata;
 	uint32_t uniqueid;
 	AST_LIST_HEAD_NOLOCK(, ast_event_ie_val) ie_vals;
-	AST_RWLIST_ENTRY(ast_event_sub) entry;
+	AST_RWDLLIST_ENTRY(ast_event_sub) entry;
 };
 
 static uint32_t sub_uniqueid;
 
 /*! \brief Event subscriptions
  * The event subscribers are indexed by which event they are subscribed to */
-static AST_RWLIST_HEAD(ast_event_sub_list, ast_event_sub) ast_event_subs[AST_EVENT_TOTAL];
+static AST_RWDLLIST_HEAD(ast_event_sub_list, ast_event_sub) ast_event_subs[AST_EVENT_TOTAL];
 
 /*! \brief Cached events
  * The event cache is indexed on the event type.  The purpose of this is 
@@ -163,8 +164,8 @@ enum ast_event_subscriber_res ast_event_check_subscriber(enum ast_event_type typ
 	}
 	va_end(ap);
 
-	AST_RWLIST_RDLOCK(&ast_event_subs[type]);
-	AST_RWLIST_TRAVERSE(&ast_event_subs[type], sub, entry) {
+	AST_RWDLLIST_RDLOCK(&ast_event_subs[type]);
+	AST_RWDLLIST_TRAVERSE(&ast_event_subs[type], sub, entry) {
 		AST_LIST_TRAVERSE(&ie_vals, ie_val, entry) {
 			AST_LIST_TRAVERSE(&sub->ie_vals, sub_ie_val, entry) {
 				if (sub_ie_val->ie_type == ie_val->ie_type)
@@ -188,15 +189,15 @@ enum ast_event_subscriber_res ast_event_check_subscriber(enum ast_event_type typ
 		if (!ie_val)
 			break;
 	}
-	AST_RWLIST_UNLOCK(&ast_event_subs[type]);
+	AST_RWDLLIST_UNLOCK(&ast_event_subs[type]);
 
 	if (sub) /* All parameters were matched */
 		return AST_EVENT_SUB_EXISTS;
 
-	AST_RWLIST_RDLOCK(&ast_event_subs[AST_EVENT_ALL]);
-	if (!AST_LIST_EMPTY(&ast_event_subs[AST_EVENT_ALL]))
+	AST_RWDLLIST_RDLOCK(&ast_event_subs[AST_EVENT_ALL]);
+	if (!AST_DLLIST_EMPTY(&ast_event_subs[AST_EVENT_ALL]))
 		res = AST_EVENT_SUB_EXISTS;
-	AST_RWLIST_UNLOCK(&ast_event_subs[AST_EVENT_ALL]);
+	AST_RWDLLIST_UNLOCK(&ast_event_subs[AST_EVENT_ALL]);
 
 	return res;
 }
@@ -222,8 +223,8 @@ void ast_event_report_subs(const struct ast_event_sub *event_sub)
 	if (event_type == -1)
 		return;
 
-	AST_RWLIST_RDLOCK(&ast_event_subs[event_type]);
-	AST_RWLIST_TRAVERSE(&ast_event_subs[event_type], sub, entry) {
+	AST_RWDLLIST_RDLOCK(&ast_event_subs[event_type]);
+	AST_RWDLLIST_TRAVERSE(&ast_event_subs[event_type], sub, entry) {
 		if (event_sub == sub)
 			continue;
 
@@ -255,7 +256,7 @@ void ast_event_report_subs(const struct ast_event_sub *event_sub)
 
 		ast_event_destroy(event);
 	}
-	AST_RWLIST_UNLOCK(&ast_event_subs[event_type]);
+	AST_RWDLLIST_UNLOCK(&ast_event_subs[event_type]);
 }
 
 struct ast_event_sub *ast_event_subscribe(enum ast_event_type type, ast_event_cb_t cb, 
@@ -331,9 +332,9 @@ struct ast_event_sub *ast_event_subscribe(enum ast_event_type type, ast_event_cb
 			ast_event_queue(event);
 	}
 
-	AST_RWLIST_WRLOCK(&ast_event_subs[type]);
-	AST_RWLIST_INSERT_TAIL(&ast_event_subs[type], sub, entry);
-	AST_RWLIST_UNLOCK(&ast_event_subs[type]);
+	AST_RWDLLIST_WRLOCK(&ast_event_subs[type]);
+	AST_RWDLLIST_INSERT_TAIL(&ast_event_subs[type], sub, entry);
+	AST_RWDLLIST_UNLOCK(&ast_event_subs[type]);
 
 	return sub;
 }
@@ -352,9 +353,9 @@ void ast_event_unsubscribe(struct ast_event_sub *sub)
 {
 	struct ast_event *event;
 
-	AST_RWLIST_WRLOCK(&ast_event_subs[sub->type]);
-	AST_LIST_REMOVE(&ast_event_subs[sub->type], sub, entry);
-	AST_RWLIST_UNLOCK(&ast_event_subs[sub->type]);
+	AST_RWDLLIST_WRLOCK(&ast_event_subs[sub->type]);
+	AST_DLLIST_REMOVE(&ast_event_subs[sub->type], sub, entry);
+	AST_RWDLLIST_UNLOCK(&ast_event_subs[sub->type]);
 
 	if (ast_event_check_subscriber(AST_EVENT_UNSUB,
 		AST_EVENT_IE_EVENTTYPE, AST_EVENT_IE_PLTYPE_UINT, sub->type,
@@ -765,8 +766,8 @@ static void *ast_event_dispatcher(void *unused)
 		host_event_type = ntohs(event_ref->event->type);
 
 		/* Subscribers to this specific event first */
-		AST_RWLIST_RDLOCK(&ast_event_subs[host_event_type]);
-		AST_RWLIST_TRAVERSE(&ast_event_subs[host_event_type], sub, entry) {
+		AST_RWDLLIST_RDLOCK(&ast_event_subs[host_event_type]);
+		AST_RWDLLIST_TRAVERSE(&ast_event_subs[host_event_type], sub, entry) {
 			struct ast_event_ie_val *ie_val;
 			AST_LIST_TRAVERSE(&sub->ie_vals, ie_val, entry) {
 				if (ie_val->ie_pltype == AST_EVENT_IE_PLTYPE_EXISTS &&
@@ -787,13 +788,13 @@ static void *ast_event_dispatcher(void *unused)
 				continue;
 			sub->cb(event_ref->event, sub->userdata);
 		}
-		AST_RWLIST_UNLOCK(&ast_event_subs[host_event_type]);
+		AST_RWDLLIST_UNLOCK(&ast_event_subs[host_event_type]);
 
 		/* Now to subscribers to all event types */
-		AST_RWLIST_RDLOCK(&ast_event_subs[AST_EVENT_ALL]);
-		AST_RWLIST_TRAVERSE(&ast_event_subs[AST_EVENT_ALL], sub, entry)
+		AST_RWDLLIST_RDLOCK(&ast_event_subs[AST_EVENT_ALL]);
+		AST_RWDLLIST_TRAVERSE(&ast_event_subs[AST_EVENT_ALL], sub, entry)
 			sub->cb(event_ref->event, sub->userdata);
-		AST_RWLIST_UNLOCK(&ast_event_subs[AST_EVENT_ALL]);
+		AST_RWDLLIST_UNLOCK(&ast_event_subs[AST_EVENT_ALL]);
 
 		ast_event_ref_destroy(event_ref);
 	}
@@ -806,7 +807,7 @@ void ast_event_init(void)
 	int i;
 
 	for (i = 0; i < AST_EVENT_TOTAL; i++)
-		AST_RWLIST_HEAD_INIT(&ast_event_subs[i]);
+		AST_RWDLLIST_HEAD_INIT(&ast_event_subs[i]);
 
 	for (i = 0; i < AST_EVENT_TOTAL; i++)
 		AST_RWLIST_HEAD_INIT(&ast_event_cache[i]);
