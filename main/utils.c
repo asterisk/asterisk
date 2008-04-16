@@ -714,6 +714,54 @@ static const char *locktype2str(enum ast_lock_type type)
 	return "UNKNOWN";
 }
 
+void log_show_lock(void *this_lock_addr)
+{
+	struct thr_lock_info *lock_info;
+	struct ast_str *str;
+
+	pthread_mutex_lock(&lock_infos_lock.mutex);
+	AST_LIST_TRAVERSE(&lock_infos, lock_info, entry) {
+		int i;
+		pthread_mutex_lock(&lock_info->lock);
+		for (i = 0; str && i < lock_info->num_locks; i++) {
+			int j;
+			ast_mutex_t *lock;
+			if (lock_info->locks[i].lock_addr == this_lock_addr) {
+				
+				ast_log(LOG_NOTICE, "---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
+						lock_info->locks[i].pending > 0 ? "Waiting for " : lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", 
+						i,
+						lock_info->locks[i].file, 
+						locktype2str(lock_info->locks[i].type),
+						lock_info->locks[i].line_num,
+						lock_info->locks[i].func, 
+						lock_info->locks[i].lock_name,
+						lock_info->locks[i].lock_addr, 
+						lock_info->locks[i].times_locked);
+				
+				if (!lock_info->locks[i].pending || lock_info->locks[i].pending == -1)
+					continue;
+				
+				/* We only have further details for mutexes right now */
+				if (lock_info->locks[i].type != AST_MUTEX)
+					continue;
+				
+				lock = lock_info->locks[i].lock_addr;
+				
+				ast_reentrancy_lock(lock);
+				for (j = 0; str && j < lock->reentrancy; j++) {
+					ast_log(LOG_NOTICE, "--- ---> Locked Here: %s line %d (%s)\n",
+								   lock->file[j], lock->lineno[j], lock->func[j]);
+				}
+				ast_reentrancy_unlock(lock);	
+			}
+		}
+		pthread_mutex_unlock(&lock_info->lock);
+	}
+	pthread_mutex_unlock(&lock_infos_lock.mutex);
+}
+
+
 static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct thr_lock_info *lock_info;
@@ -740,7 +788,7 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	               "=== Currently Held Locks ==============================================\n"
 	               "=======================================================================\n"
 	               "===\n"
-	               "=== <file> <line num> <function> <lock name> <lock addr> (times locked)\n"
+	               "=== <pending> <lock#> (<file>): <lock type> <line num> <function> <lock name> <lock addr> (times locked)\n"
 	               "===\n");
 
 	if (!str)

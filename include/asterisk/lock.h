@@ -186,6 +186,18 @@ void ast_remove_lock_info(void *lock_addr);
 #define ast_remove_lock_info(ignore)
 #endif
 
+
+
+/*!
+ * \brief log info for the current lock with ast_log().
+ *
+ * this function would be mostly for debug. If you come across a lock
+ * that is unexpectedly but momentarily locked, and you wonder who
+ * are fighting with for the lock, this routine could be called, IF
+ * you have the thread debugging stuff turned on.
+ */
+void log_show_lock(void *this_lock_addr);
+
 static void __attribute__((constructor)) init_empty_mutex(void)
 {
 	memset(&empty_mutex, 0, sizeof(empty_mutex));
