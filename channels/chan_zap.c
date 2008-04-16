@@ -11367,11 +11367,10 @@ static int setup_zap(int reload)
 				continue;
 			chans = ast_variable_retrieve(cfg, cat, "zapchan");
 			if (!ast_strlen_zero(chans)) {
-				/** \todo At this point we should probably 
-				 * duplicate conf, and pass a copy, to prevent 
-				 * one section from affecting another
-				 */
-				process_zap(&conf, ast_variable_browse(cfg, cat), reload, 0);
+				struct zt_chan_conf sect_conf;
+				memcpy(&sect_conf, &conf, sizeof(sect_conf));
+
+				process_zap(&sect_conf, ast_variable_browse(cfg, cat), reload, 0);
 			}
 		}
 		ast_config_destroy(cfg);
