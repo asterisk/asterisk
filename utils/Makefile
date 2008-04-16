@@ -17,7 +17,7 @@ ASTTOPDIR?=..
 .PHONY: clean all uninstall
 
 # to get check_expr, add it to the ALL_UTILS list
-ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted check_expr conf2ael hashtest2 hashtest astcanary
+ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted check_expr conf2ael hashtest2 hashtest astcanary refcounter
 UTILS:=$(ALL_UTILS)
 
 LIBS += $(BKTR_LIB)	# astobj2 with devmode uses backtrace
@@ -76,7 +76,7 @@ clean:
 	rm -f *.s *.i
 	rm -f md5.c strcompat.c ast_expr2.c ast_expr2f.c pbx_ael.c pval.c hashtab.c
 	rm -f aelparse.c aelbison.c conf2ael
-	rm -f utils.c threadstorage.c sha1.c astobj2.c hashtest2 hashtest
+	rm -f utils.c threadstorage.c sha1.c astobj2.c hashtest2 hashtest refcounter
 
 md5.c: $(ASTTOPDIR)/main/md5.c
 	@cp $< $@
@@ -152,6 +152,10 @@ hashtest2: hashtest2.o md5.o utils.o astobj2.o sha1.o strcompat.o threadstorage.
 hashtest: hashtest.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o clicompat.o
 
 hashtest.o: ASTCFLAGS+=-O0
+
+refcounter: refcounter.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o clicompat.o
+
+refcounter.o: ASTCFLAGS+=-O0
 
 extconf.o: extconf.c
 

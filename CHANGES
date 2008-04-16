@@ -618,6 +618,11 @@ Miscellaneous
   * Added Doubly-linked lists after the fashion of linkedlists.h. They are in
     dlinkedlists.h. Doubly-linked lists feature fast deletion times.
     Added regression tests to the tests/ dir, also.
+  * Added a refcount trace feature to astobj2 for those trying to balance
+    object creation, deletion; work, play; space and time. See the
+    notes in astobj2.h. Also, see utils/refcounter as well, as a
+    quick way to find unbalanced refcounts in what could be a sea
+    of objects that were balanced.
   * Added logging to 'make update' command.  See update.log
   * Added strictrtp option to rtp.conf. If enabled this will drop RTP packets that
      do not come from the remote party.
