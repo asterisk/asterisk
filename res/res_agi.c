@@ -603,8 +603,7 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, in
 static enum agi_result launch_script(struct ast_channel *chan, char *script, char *argv[], int *fds, int *efd, int *opid)
 {
 	char tmp[256];
-	int pid, toast[2], fromast[2], audio[2], x, res;
-	sigset_t signal_set, old_set;
+	int pid, toast[2], fromast[2], audio[2], res;
 	struct stat st;
 
 	if (!strncasecmp(script, "agi://", 6))
@@ -657,12 +656,8 @@ static enum agi_result launch_script(struct ast_channel *chan, char *script, cha
 		}
 	}
 
-	/* Block SIGHUP during the fork - prevents a race */
-	sigfillset(&signal_set);
-	pthread_sigmask(SIG_BLOCK, &signal_set, &old_set);
-	if ((pid = fork()) < 0) {
+	if ((pid = ast_safe_fork(1)) < 0) {
 		ast_log(LOG_WARNING, "Failed to fork(): %s\n", strerror(errno));
-		pthread_sigmask(SIG_SETMASK, &old_set, NULL);
 		return AGI_RESULT_FAILURE;
 	}
 	if (!pid) {
@@ -690,34 +685,17 @@ static enum agi_result launch_script(struct ast_channel *chan, char *script, cha
 		else
 			close(STDERR_FILENO + 1);
 
-		/* Before we unblock our signals, return our trapped signals back to the defaults */
-		signal(SIGHUP, SIG_DFL);
-		signal(SIGCHLD, SIG_DFL);
-		signal(SIGINT, SIG_DFL);
-		signal(SIGURG, SIG_DFL);
-		signal(SIGTERM, SIG_DFL);
-		signal(SIGPIPE, SIG_DFL);
-		signal(SIGXFSZ, SIG_DFL);
-
-		/* unblock important signal handlers */
-		if (pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL)) {
-			ast_log(LOG_WARNING, "unable to unblock signals for AGI script: %s\n", strerror(errno));
-			_exit(1);
-		}
-
 		/* Close everything but stdin/out/error */
-		for (x = STDERR_FILENO + 2; x < 1024; x++) 
-			close(x);
+		ast_close_fds_above_n(STDERR_FILENO + 1);
 
 		/* Execute script */
 		/* XXX argv should be deprecated in favor of passing agi_argX paramaters */
 		execv(script, argv);
 		/* Can't use ast_log since FD's are closed */
-		fprintf(stdout, "verbose \"Failed to execute '%s': %s\" 2\n", script, strerror(errno));
+		ast_child_verbose(1, "Failed to execute '%s': %s", script, strerror(errno));
 		fflush(stdout);
 		_exit(1);
 	}
-	pthread_sigmask(SIG_SETMASK, &old_set, NULL);
 	ast_verb(3, "Launched AGI Script %s\n", script);
 	fds[0] = toast[0];
 	fds[1] = fromast[1];
@@ -2908,8 +2886,8 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 			close(fds[1]);
 		if (efd > -1)
 			close(efd);
-		ast_unreplace_sigchld();
 	} 
+	ast_safe_fork_cleanup();
 
 	switch (res) {
 	case AGI_RESULT_SUCCESS:

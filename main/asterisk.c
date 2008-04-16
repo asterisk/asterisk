@@ -848,9 +848,6 @@ void ast_unreplace_sigchld(void)
 int ast_safe_system(const char *s)
 {
 	pid_t pid;
-#ifdef HAVE_WORKING_FORK
-	int x;
-#endif
 	int res;
 	struct rusage rusage;
 	int status;
@@ -869,8 +866,7 @@ int ast_safe_system(const char *s)
 		if (ast_opt_high_priority)
 			ast_set_priority(0);
 		/* Close file descriptors and launch system command */
-		for (x = STDERR_FILENO + 1; x < 4096; x++)
-			close(x);
+		ast_close_fds_above_n(STDERR_FILENO);
 #endif
 		execl("/bin/sh", "/bin/sh", "-c", s, (char *) NULL);
 		_exit(1);

@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
+#include "asterisk/app.h"
 
 #define LOCAL_MPG_123 "/usr/local/bin/mpg123"
 #define MPG_123 "/usr/bin/mpg123"
@@ -56,29 +57,19 @@ static char *descrip =
 static int mp3play(char *filename, int fd)
 {
 	int res;
-	int x;
-	sigset_t fullset, oldset;
 
-	sigfillset(&fullset);
-	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
-
-	res = fork();
+	res = ast_safe_fork(0);
 	if (res < 0) 
 		ast_log(LOG_WARNING, "Fork failed\n");
 	if (res) {
-		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 		return res;
 	}
 	if (ast_opt_high_priority)
 		ast_set_priority(0);
-	signal(SIGPIPE, SIG_DFL);
-	pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
 
 	dup2(fd, STDOUT_FILENO);
-	for (x=STDERR_FILENO + 1;x<256;x++) {
-		if (x != STDOUT_FILENO)
-			close(x);
-	}
+	ast_close_fds_above_n(STDERR_FILENO);
+
 	/* Execute mpg123, but buffer if it's a net connection */
 	if (!strncasecmp(filename, "http://", 7)) {
 		/* Most commonly installed in /usr/local/bin */
@@ -96,7 +87,8 @@ static int mp3play(char *filename, int fd)
 		/* As a last-ditch effort, try to use PATH */
 	    execlp("mpg123", "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
 	}
-	ast_log(LOG_WARNING, "Execute of mpg123 failed\n");
+	/* Can't use ast_log since FD's are closed */
+	fprintf(stderr, "Execute of mpg123 failed\n");
 	_exit(0);
 }
 

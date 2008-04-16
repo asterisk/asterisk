@@ -117,30 +117,20 @@ static char *socket_receive_file_to_buff(int fd, int *size)
 static int send_waveform_to_fd(char *waveform, int length, int fd)
 {
 	int res;
-	int x;
 #ifdef __PPC__ 
 	char c;
 #endif
-	sigset_t fullset, oldset;
 
-	sigfillset(&fullset);
-	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
-
-	res = fork();
+	res = ast_safe_fork(0);
 	if (res < 0)
 		ast_log(LOG_WARNING, "Fork failed\n");
 	if (res) {
-		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 		return res;
 	}
-	for (x = 0; x < 256; x++) {
-		if (x != fd)
-			close(x);
-	}
+	dup2(fd, 0);
+	ast_close_fds_above_n(0);
 	if (ast_opt_high_priority)
 		ast_set_priority(0);
-	signal(SIGPIPE, SIG_DFL);
-	pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
 #ifdef __PPC__  
 	for (x = 0; x < length; x += 2) {
 		c = *(waveform + x + 1);

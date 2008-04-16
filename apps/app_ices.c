@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
+#include "asterisk/app.h"
 
 #define ICES "/usr/bin/ices"
 #define LOCAL_ICES "/usr/local/bin/ices"
@@ -60,31 +61,18 @@ static char *descrip =
 static int icesencode(char *filename, int fd)
 {
 	int res;
-	int x;
-	sigset_t fullset, oldset;
 
-	sigfillset(&fullset);
-	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
-
-	res = fork();
+	res = ast_safe_fork(0);
 	if (res < 0) 
 		ast_log(LOG_WARNING, "Fork failed\n");
 	if (res) {
-		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 		return res;
 	}
-
-	/* Stop ignoring PIPE */
-	signal(SIGPIPE, SIG_DFL);
-	pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
 
 	if (ast_opt_high_priority)
 		ast_set_priority(0);
 	dup2(fd, STDIN_FILENO);
-	for (x=STDERR_FILENO + 1;x<1024;x++) {
-		if ((x != STDIN_FILENO) && (x != STDOUT_FILENO))
-			close(x);
-	}
+	ast_close_fds_above_n(STDERR_FILENO);
 	/* Most commonly installed in /usr/local/bin */
 	execl(ICES, "ices", filename, (char *)NULL);
 	/* But many places has it in /usr/bin */
@@ -183,7 +171,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	close(fds[1]);
-	
+
 	if (pid > -1)
 		kill(pid, SIGKILL);
 	if (!res && oreadformat)

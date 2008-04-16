@@ -413,6 +413,55 @@ static void init_logger_chain(int reload, int locked)
 	ast_config_destroy(cfg);
 }
 
+void ast_child_verbose(int level, const char *fmt, ...)
+{
+	char *msg = NULL, *emsg = NULL, *sptr, *eptr;
+	va_list ap, aq;
+	int size;
+
+	/* Don't bother, if the level isn't that high */
+	if (option_verbose < level) {
+		return;
+	}
+
+	va_start(ap, fmt);
+	va_copy(aq, ap);
+	if ((size = vsnprintf(msg, 0, fmt, ap)) < 0) {
+		va_end(ap);
+		va_end(aq);
+		return;
+	}
+	va_end(ap);
+
+	if (!(msg = ast_malloc(size + 1))) {
+		va_end(aq);
+		return;
+	}
+
+	vsnprintf(msg, size + 1, fmt, aq);
+	va_end(aq);
+
+	if (!(emsg = ast_malloc(size * 2 + 1))) {
+		ast_free(msg);
+		return;
+	}
+
+	for (sptr = msg, eptr = emsg; ; sptr++) {
+		if (*sptr == '"') {
+			*eptr++ = '\\';
+		}
+		*eptr++ = *sptr;
+		if (*sptr == '\0') {
+			break;
+		}
+	}
+	ast_free(msg);
+
+	fprintf(stdout, "verbose \"%s\" %d\n", emsg, level);
+	fflush(stdout);
+	ast_free(emsg);
+}
+
 void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 {
 	va_list ap;

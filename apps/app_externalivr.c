@@ -319,13 +319,9 @@ static int app_exec(struct ast_channel *chan, void *data)
 		.finishlist = AST_LIST_HEAD_INIT_VALUE,
 	};
 	struct ivr_localuser *u = &foo;
-	sigset_t fullset, oldset;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(cmd)[32];
 	);
-
-	sigfillset(&fullset);
-	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
 
 	u->abort_current_sound = 0;
 	u->chan = chan;
@@ -405,7 +401,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 			gen_active = 1;
 		}
 	
-		pid = fork();
+		pid = ast_safe_fork(0);
 		if (pid < 0) {
 			ast_log(LOG_WARNING, "Failed to fork(): %s\n", strerror(errno));
 			goto exit;
@@ -413,19 +409,13 @@ static int app_exec(struct ast_channel *chan, void *data)
 	
 		if (!pid) {
 			/* child process */
-			int i;
-	
-			signal(SIGPIPE, SIG_DFL);
-			pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
-	
 			if (ast_opt_high_priority)
 				ast_set_priority(0);
 	
 			dup2(child_stdin[0], STDIN_FILENO);
 			dup2(child_stdout[1], STDOUT_FILENO);
 			dup2(child_stderr[1], STDERR_FILENO);
-			for (i = STDERR_FILENO + 1; i < 1024; i++)
-				close(i);
+			ast_close_fds_above_n(STDERR_FILENO);
 			execv(args.cmd[0], args.cmd);
 			fprintf(stderr, "Failed to execute '%s': %s\n", args.cmd[0], strerror(errno));
 			_exit(1);

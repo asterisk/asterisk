@@ -480,6 +480,15 @@ int ast_record_review(struct ast_channel *chan, const char *playfile, const char
 /*! \brief Decode an encoded control or extended ASCII character */
 int ast_get_encoded_char(const char *stream, char *result, size_t *consumed);
 
+/*! \brief Common routine for child processes, to close all fds prior to exec(2) */
+void ast_close_fds_above_n(int n);
+
+/*! \brief Common routine to safely fork without a chance of a signal handler firing badly in the child */
+int ast_safe_fork(int stop_reaper);
+
+/*! \brief Common routine to cleanup after fork'ed process is complete (if reaping was stopped) */
+void ast_safe_fork_cleanup(void);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

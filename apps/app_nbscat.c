@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
+#include "asterisk/app.h"
 
 #define LOCAL_NBSCAT "/usr/local/bin/nbscat8k"
 #define NBSCAT "/usr/bin/nbscat8k"
@@ -61,34 +62,25 @@ static char *descrip =
 static int NBScatplay(int fd)
 {
 	int res;
-	int x;
-	sigset_t fullset, oldset;
 
-	sigfillset(&fullset);
-	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
-
-	res = fork();
-	if (res < 0) 
+	res = ast_safe_fork(0);
+	if (res < 0) {
 		ast_log(LOG_WARNING, "Fork failed\n");
+	}
+
 	if (res) {
-		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 		return res;
 	}
-	signal(SIGPIPE, SIG_DFL);
-	pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
 
 	if (ast_opt_high_priority)
 		ast_set_priority(0);
 
 	dup2(fd, STDOUT_FILENO);
-	for (x = STDERR_FILENO + 1; x < 1024; x++) {
-		if (x != STDOUT_FILENO)
-			close(x);
-	}
+	ast_close_fds_above_n(STDERR_FILENO);
 	/* Most commonly installed in /usr/local/bin */
 	execl(NBSCAT, "nbscat8k", "-d", (char *)NULL);
 	execl(LOCAL_NBSCAT, "nbscat8k", "-d", (char *)NULL);
-	ast_log(LOG_WARNING, "Execute of nbscat8k failed\n");
+	fprintf(stderr, "Execute of nbscat8k failed\n");
 	_exit(0);
 }
 

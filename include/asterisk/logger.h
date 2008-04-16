@@ -78,6 +78,9 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
 void ast_verbose(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
+void ast_child_verbose(int level, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
+
 int ast_register_verbose(void (*verboser)(const char *string));
 int ast_unregister_verbose(void (*verboser)(const char *string));
 

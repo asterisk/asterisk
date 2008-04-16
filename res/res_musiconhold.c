@@ -404,7 +404,6 @@ static int spawn_mp3(struct mohclass *class)
 	int argc = 0;
 	DIR *dir = NULL;
 	struct dirent *de;
-	sigset_t signal_set, old_set;
 
 	
 	if (!strcasecmp(class->dir, "nodir")) {
@@ -490,12 +489,8 @@ static int spawn_mp3(struct mohclass *class)
 		sleep(respawn_time - (time(NULL) - class->start));
 	}
 
-	/* Block signals during the fork() */
-	sigfillset(&signal_set);
-	pthread_sigmask(SIG_BLOCK, &signal_set, &old_set);
-
 	time(&class->start);
-	class->pid = fork();
+	class->pid = ast_safe_fork(0);
 	if (class->pid < 0) {
 		close(fds[0]);
 		close(fds[1]);
@@ -503,24 +498,16 @@ static int spawn_mp3(struct mohclass *class)
 		return -1;
 	}
 	if (!class->pid) {
-		int x;
-
 		if (ast_opt_high_priority)
 			ast_set_priority(0);
-
-		/* Reset ignored signals back to default */
-		signal(SIGPIPE, SIG_DFL);
-		pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL);
 
 		close(fds[0]);
 		/* Stdout goes to pipe */
 		dup2(fds[1], STDOUT_FILENO);
-		/* Close unused file descriptors */
-		for (x=3;x<8192;x++) {
-			if (-1 != fcntl(x, F_GETFL)) {
-				close(x);
-			}
-		}
+
+		/* Close everything else */
+		ast_close_fds_above_n(STDERR_FILENO);
+
 		/* Child */
 		chdir(class->dir);
 		if (ast_test_flag(class, MOH_CUSTOM)) {
@@ -533,12 +520,12 @@ static int spawn_mp3(struct mohclass *class)
 			/* Check PATH as a last-ditch effort */
 			execvp("mpg123", argv);
 		}
-		ast_log(LOG_WARNING, "Exec failed: %s\n", strerror(errno));
+		/* Can't use logger, since log FDs are closed */
+		fprintf(stderr, "MOH: exec failed: %s\n", strerror(errno));
 		close(fds[1]);
 		_exit(1);
 	} else {
 		/* Parent */
-		pthread_sigmask(SIG_SETMASK, &old_set, NULL);
 		close(fds[1]);
 	}
 	return fds[0];

@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
+#include "asterisk/app.h"
 
 static char *app = "ZapRAS";
 
@@ -69,29 +70,17 @@ static char *descrip =
 static pid_t spawn_ras(struct ast_channel *chan, char *args)
 {
 	pid_t pid;
-	int x;	
 	char *c;
 
 	char *argv[PPP_MAX_ARGS];
 	int argc = 0;
 	char *stringp=NULL;
-	sigset_t fullset, oldset;
-
-	sigfillset(&fullset);
-	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
 
 	/* Start by forking */
-	pid = fork();
+	pid = ast_safe_fork(1);
 	if (pid) {
-		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 		return pid;
 	}
-
-	/* Restore original signal handlers */
-	for (x=0;x<NSIG;x++)
-		signal(x, SIG_DFL);
-
-	pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
 
 	/* Execute RAS on File handles */
 	dup2(chan->fds[0], STDIN_FILENO);
@@ -101,8 +90,7 @@ static pid_t spawn_ras(struct ast_channel *chan, char *args)
 		ast_set_priority(0);
 
 	/* Close other file descriptors */
-	for (x=STDERR_FILENO + 1;x<1024;x++) 
-		close(x);
+	ast_close_fds_above_n(STDERR_FILENO);
 
 	/* Reset all arguments */
 	memset(argv, 0, sizeof(argv));
@@ -185,6 +173,7 @@ static void run_ras(struct ast_channel *chan, char *args)
 			break;
 		}
 	}
+	ast_safe_fork_cleanup();
 }
 
 static int zapras_exec(struct ast_channel *chan, void *data)

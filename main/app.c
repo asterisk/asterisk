@@ -32,6 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 #include <regex.h>
 #include <sys/file.h> /* added this to allow to compile, sorry! */
+#include <signal.h>
 
 #include "asterisk/paths.h"	/* use ast_config_AST_DATA_DIR */
 #include "asterisk/channel.h"
@@ -1757,5 +1758,67 @@ int ast_get_encoded_char(const char *stream, char *result, size_t *consumed)
 		*consumed = 1;
 	}
 	return 0;
+}
+
+void ast_close_fds_above_n(int n)
+{
+	int x, null;
+	null = open("/dev/null", O_RDONLY);
+	for (x = n + 1; x <= (null >= 8192 ? null : 8192); x++) {
+		if (x != null) {
+			/* Side effect of dup2 is that it closes any existing fd without error.
+			 * This prevents valgrind and other debugging tools from sending up
+			 * false error reports. */
+			dup2(null, x);
+			close(x);
+		}
+	}
+	close(null);
+}
+
+int ast_safe_fork(int stop_reaper)
+{
+	sigset_t signal_set, old_set;
+	int pid;
+
+	/* Don't let the default signal handler for children reap our status */
+	if (stop_reaper) {
+		ast_replace_sigchld();
+	}
+
+	sigfillset(&signal_set);
+	pthread_sigmask(SIG_BLOCK, &signal_set, &old_set);
+
+	pid = fork();
+
+	if (pid != 0) {
+		/* Fork failed or parent */
+		pthread_sigmask(SIG_SETMASK, &old_set, NULL);
+		return pid;
+	} else {
+		/* Child */
+
+		/* Before we unblock our signals, return our trapped signals back to the defaults */
+		signal(SIGHUP, SIG_DFL);
+		signal(SIGCHLD, SIG_DFL);
+		signal(SIGINT, SIG_DFL);
+		signal(SIGURG, SIG_DFL);
+		signal(SIGTERM, SIG_DFL);
+		signal(SIGPIPE, SIG_DFL);
+		signal(SIGXFSZ, SIG_DFL);
+
+		/* unblock important signal handlers */
+		if (pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL)) {
+			ast_log(LOG_WARNING, "unable to unblock signals for AGI script: %s\n", strerror(errno));
+			_exit(1);
+		}
+
+		return pid;
+	}
+}
+
+void ast_safe_fork_cleanup(void)
+{
+	ast_unreplace_sigchld();
 }
 
