@@ -77,6 +77,8 @@ static const char *desc_chan =
 "    r[(basename)] - Record the session to the monitor spool directory. An\n"
 "                    optional base for the filename may be specified. The\n"
 "                    default is 'chanspy'.\n"
+"    s             - Skip the playback of the channel type (i.e. SIP, IAX, etc) when\n"
+"                    speaking the selected channel name.\n"
 "    v([value])    - Adjust the initial volume in the range from -4 to 4. A\n"
 "                    negative value refers to a quieter setting.\n"
 "    w             - Enable 'whisper' mode, so the spying channel can talk to\n"
@@ -117,6 +119,8 @@ static const char *desc_ext =
 "    r[(basename)] - Record the session to the monitor spool directory. An\n"
 "                    optional base for the filename may be specified. The\n"
 "                    default is 'chanspy'.\n"
+"    s             - Skip the playback of the channel type (i.e. SIP, IAX, etc) when\n"
+"                    speaking the selected channel name.\n"
 "    v([value])    - Adjust the initial volume in the range from -4 to 4. A\n"
 "                    negative value refers to a quieter setting.\n"
 "    w             - Enable 'whisper' mode, so the spying channel can talk to\n"
@@ -143,6 +147,7 @@ enum {
 	OPTION_READONLY  = (1 << 7),    /* Don't mix the two channels */
 	OPTION_EXIT      = (1 << 8),    /* Exit to a valid single digit extension */
 	OPTION_ENFORCED  = (1 << 9),    /* Enforced mode */
+	OPTION_NOTECH    = (1 << 10),   /* Skip technology name playback */
 } chanspy_opt_flags;
 
 enum {
@@ -164,6 +169,7 @@ AST_APP_OPTIONS(spy_opts, {
 	AST_APP_OPTION_ARG('e', OPTION_ENFORCED, OPT_ARG_ENFORCED),
 	AST_APP_OPTION('o', OPTION_READONLY),
 	AST_APP_OPTION('X', OPTION_EXIT),
+	AST_APP_OPTION('s', OPTION_NOTECH),
 });
 
 
@@ -708,16 +714,20 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			peer = NULL;
 
 			if (!ast_test_flag(flags, OPTION_QUIET)) {
-				if (ast_fileexists(peer_name, NULL, NULL) != -1) {
-					res = ast_streamfile(chan, peer_name, chan->language);
-					if (!res)
-						res = ast_waitstream(chan, "");
-					if (res) {
-						chanspy_ds_free(peer_chanspy_ds);
-						break;
+				if (!ast_test_flag(flags, OPTION_NOTECH)) {
+					if (ast_fileexists(peer_name, NULL, NULL) != -1) {
+						res = ast_streamfile(chan, peer_name, chan->language);
+						if (!res) {
+							res = ast_waitstream(chan, "");
+						}
+						if (res) {
+							chanspy_ds_free(peer_chanspy_ds);
+							break;
+						}
+					} else {
+						res = ast_say_character_str(chan, peer_name, "", chan->language);
 					}
-				} else
-					res = ast_say_character_str(chan, peer_name, "", chan->language);
+				}
 				if ((num = atoi(ptr)))
 					ast_say_digits(chan, atoi(ptr), "", chan->language);
 			}
