@@ -43,6 +43,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <unistd.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <zaptel/zaptel.h>
 
 #include "asterisk/lock.h"
