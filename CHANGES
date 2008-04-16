@@ -35,6 +35,13 @@ SIP Changes
  * The ATTENDED_TRANSFER_COMPLETE_SOUND can now be set using setvar to cause a given
    audio file to be played upon completion of an attended transfer.
  * Added DNS manager support to registrations for peers referencing peer entries.
+ * Performance improvements via using hash tables (astobj2) and doubly-linked lists to improve 
+   load/reload of large numbers of peers/users by ~40x (for large lists of peers.
+   Initially, we saw 4x improvement in call setup/destruction, but at the time
+   of merging, this gain has disappeared; further research will be done to try
+   and restore this performance improvement. Astobj2 refcounting is now used
+   for users, peers, and dialogs.  Users are encouraged to assist in regression
+   testing and problem reporting!
 
 IAX Changes
 -----------
