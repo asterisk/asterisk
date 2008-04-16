@@ -43,9 +43,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/dlinkedlists.h"
+#include "asterisk/hashtab.h"
 
 struct sched {
-	AST_LIST_ENTRY(sched) list;
+	AST_DLLIST_ENTRY(sched) list;
 	int id;                       /*!< ID number of event */
 	struct timeval when;          /*!< Absolute time event should take place */
 	int resched;                  /*!< When to reschedule */
@@ -58,13 +60,32 @@ struct sched_context {
 	ast_mutex_t lock;
 	unsigned int eventcnt;                  /*!< Number of events processed */
 	unsigned int schedcnt;                  /*!< Number of outstanding schedule events */
-	AST_LIST_HEAD_NOLOCK(, sched) schedq;   /*!< Schedule entry and main queue */
+	unsigned int highwater;					/*!< highest count so far */
+	AST_DLLIST_HEAD_NOLOCK(, sched) schedq;   /*!< Schedule entry and main queue */
+	struct ast_hashtab *schedq_ht;             /*!< hash table for fast searching */
 
 #ifdef SCHED_MAX_CACHE
 	AST_LIST_HEAD_NOLOCK(, sched) schedc;   /*!< Cache of unused schedule structures and how many */
 	unsigned int schedccnt;
 #endif
 };
+
+
+/* hash routines for sched */
+
+static int sched_cmp(const void *a, const void *b)
+{
+	const struct sched *as = a;
+	const struct sched *bs = b;
+	return as->id != bs->id; /* return 0 on a match like strcmp would */
+}
+
+static unsigned int sched_hash(const void *obj)
+{
+	const struct sched *s = obj;
+	unsigned int h = s->id;
+	return h;
+}
 
 struct sched_context *sched_context_create(void)
 {
@@ -75,6 +96,8 @@ struct sched_context *sched_context_create(void)
 
 	ast_mutex_init(&tmp->lock);
 	tmp->eventcnt = 1;
+	
+	tmp->schedq_ht = ast_hashtab_create(23, sched_cmp, ast_hashtab_resize_java, ast_hashtab_newsize_java, sched_hash, 1);
 	
 	return tmp;
 }
@@ -92,8 +115,11 @@ void sched_context_destroy(struct sched_context *con)
 #endif
 
 	/* And the queue */
-	while ((s = AST_LIST_REMOVE_HEAD(&con->schedq, list)))
+	while ((s = AST_DLLIST_REMOVE_HEAD(&con->schedq, list)))
 		ast_free(s);
+
+	ast_hashtab_destroy(con->schedq_ht, NULL);
+	con->schedq_ht = NULL;
 	
 	/* And the context */
 	ast_mutex_unlock(&con->lock);
@@ -146,10 +172,10 @@ int ast_sched_wait(struct sched_context *con)
 	DEBUG(ast_debug(1, "ast_sched_wait()\n"));
 
 	ast_mutex_lock(&con->lock);
-	if (AST_LIST_EMPTY(&con->schedq)) {
+	if (AST_DLLIST_EMPTY(&con->schedq)) {
 		ms = -1;
 	} else {
-		ms = ast_tvdiff_ms(AST_LIST_FIRST(&con->schedq)->when, ast_tvnow());
+		ms = ast_tvdiff_ms(AST_DLLIST_FIRST(&con->schedq)->when, ast_tvnow());
 		if (ms < 0)
 			ms = 0;
 	}
@@ -166,20 +192,42 @@ int ast_sched_wait(struct sched_context *con)
  */
 static void schedule(struct sched_context *con, struct sched *s)
 {
-	 
 	struct sched *cur = NULL;
-	
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&con->schedq, cur, list) {
-		if (ast_tvcmp(s->when, cur->when) == -1) {
-			AST_LIST_INSERT_BEFORE_CURRENT(s, list);
-			break;
+	int ret;
+	int df = 0;
+	int de = 0;
+	struct sched *first = AST_DLLIST_FIRST(&con->schedq);
+	struct sched *last = AST_DLLIST_LAST(&con->schedq);
+	if (first)
+		df = ast_tvdiff_us(s->when, first->when);
+	if (last)
+		de = ast_tvdiff_us(s->when, last->when);
+	if (df < 0)
+		df = -df;
+	if (de < 0)
+		de = -de;
+	if (df < de)
+		AST_DLLIST_TRAVERSE(&con->schedq, cur, list) {
+			if (ast_tvcmp(s->when, cur->when) == -1) {
+				AST_DLLIST_INSERT_BEFORE(&con->schedq, cur, s, list);
+				break;
+			}
 		}
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
+	else
+		AST_DLLIST_TRAVERSE_BACKWARDS(&con->schedq, cur, list) {
+			if (ast_tvcmp(s->when, cur->when) == 1) {
+				AST_DLLIST_INSERT_AFTER(&con->schedq, cur, s, list);
+				break;
+			}
+		}
 	if (!cur)
-		AST_LIST_INSERT_TAIL(&con->schedq, s, list);
-	
+		AST_DLLIST_INSERT_TAIL(&con->schedq, s, list);
+	ret = ast_hashtab_insert_safe(con->schedq_ht, s);
+	if (!ret)
+		ast_log(LOG_WARNING,"Schedule Queue entry %d is already in table!\n",s->id);
 	con->schedcnt++;
+	if (con->schedcnt > con->highwater)
+		con->highwater = con->schedcnt;
 }
 
 /*! \brief
@@ -257,6 +305,16 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, co
 	return ast_sched_add_variable(con, when, callback, data, 0);
 }
 
+const void *ast_sched_find_data(struct sched_context *con, int id)
+{
+	struct sched tmp,*res;
+	tmp.id = id;
+	res = ast_hashtab_lookup(con->schedq_ht, &tmp);
+	if (res)
+		return res->data;
+	return NULL;
+}
+	
 /*! \brief
  * Delete the schedule entry with number
  * "id".  It's nearly impossible that there
@@ -265,21 +323,34 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, co
  */
 int ast_sched_del(struct sched_context *con, int id)
 {
-	struct sched *s;
+	struct sched *s, tmp;
 
-	DEBUG(ast_debug(1, "ast_sched_del()\n"));
+	DEBUG(ast_debug(1, "ast_sched_del(%d)\n", id));
 	
 	ast_mutex_lock(&con->lock);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&con->schedq, s, list) {
-		if (s->id == id) {
-			AST_LIST_REMOVE_CURRENT(list);
-			con->schedcnt--;
-			sched_release(con, s);
-			break;
-		}
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
 
+	/* OK, this is the heart of the sched performance upgrade.
+	   If we have 4700 peers, we can have 4700+ entries in the
+	   schedq list. searching this would take time. So, I add a 
+	   hashtab to the context to keep track of each entry, by id.
+	   I also leave the linked list alone, almost, --  I implement
+       a doubly-linked list instead, because it would do little good
+	   to look up the id in a hashtab, and then have to run thru 
+	   a couple thousand entries to remove it from the schedq list! */
+	tmp.id = id;
+	s = ast_hashtab_lookup(con->schedq_ht, &tmp);
+	if (s) {
+		struct sched *x = AST_DLLIST_REMOVE(&con->schedq, s, list);
+		
+		if (!x)
+			ast_log(LOG_WARNING,"sched entry %d not in the schedq list?\n", s->id);
+
+		if (!ast_hashtab_remove_this_object(con->schedq_ht, s))
+			ast_log(LOG_WARNING,"Found sched entry %d, then couldn't remove it?\n", s->id);
+		con->schedcnt--;
+		sched_release(con, s);
+	}
+	
 #ifdef DUMP_SCHEDULER
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
 	if (option_debug)
@@ -298,21 +369,57 @@ int ast_sched_del(struct sched_context *con, int id)
 	return 0;
 }
 
+
+char *ast_sched_report(struct sched_context *con, char *buf, int bufsiz, struct ast_cb_names *cbnames)
+{
+	int *countlist,i;
+	struct sched *cur;
+	char buf2[1200];
+	ast_sched_cb xxx = NULL;
+	
+	buf[0] = 0;
+	sprintf(buf, " Highwater = %d\n schedcnt = %d\n", con->highwater, con->schedcnt);
+	countlist = ast_calloc(sizeof(int),cbnames->numassocs+1);
+	
+	AST_DLLIST_TRAVERSE(&con->schedq, cur, list) {
+		/* match the callback to the cblist */
+		for (i=0;i<cbnames->numassocs;i++) {
+			if (cur->callback == cbnames->cblist[i])
+				break;
+		}
+		if (i < cbnames->numassocs)
+			countlist[i]++;
+		else {
+			xxx = cur->callback;
+			countlist[cbnames->numassocs]++;
+		}
+	}
+	for (i=0;i<cbnames->numassocs;i++) {
+		sprintf(buf2,"    %s : %d\n", cbnames->list[i], countlist[i]);
+		strcat(buf, buf2);
+	}
+	sprintf(buf2,"   <unknown:%p> : %d\n", xxx, countlist[cbnames->numassocs]);
+	strcat( buf, buf2);
+	return buf;
+}
+
+
+	
 /*! \brief Dump the contents of the scheduler to LOG_DEBUG */
 void ast_sched_dump(const struct sched_context *con)
 {
 	struct sched *q;
 	struct timeval tv = ast_tvnow();
 #ifdef SCHED_MAX_CACHE
-	ast_debug(1, "Asterisk Schedule Dump (%d in Q, %d Total, %d Cache)\n", con->schedcnt, con->eventcnt - 1, con->schedccnt);
+	ast_debug(1, "Asterisk Schedule Dump (%d in Q, %d Total, %d Cache, %d high-water)\n", con->schedcnt, con->eventcnt - 1, con->schedccnt, con->highwater);
 #else
-	ast_debug(1, "Asterisk Schedule Dump (%d in Q, %d Total)\n", con->schedcnt, con->eventcnt - 1);
+	ast_debug(1, "Asterisk Schedule Dump (%d in Q, %d Total, %d high-water)\n", con->schedcnt, con->eventcnt - 1, con->highwater);
 #endif
 
 	ast_debug(1, "=============================================================\n");
 	ast_debug(1, "|ID    Callback          Data              Time  (sec:ms)   |\n");
 	ast_debug(1, "+-----+-----------------+-----------------+-----------------+\n");
-	AST_LIST_TRAVERSE(&con->schedq, q, list) {
+	AST_DLLIST_TRAVERSE(&con->schedq, q, list) {
 		struct timeval delta = ast_tvsub(q->when, tv);
 
 		ast_debug(1, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n", 
@@ -323,6 +430,7 @@ void ast_sched_dump(const struct sched_context *con)
 			(long int)delta.tv_usec);
 	}
 	ast_debug(1, "=============================================================\n");
+	
 }
 
 /*! \brief
@@ -339,17 +447,20 @@ int ast_sched_runq(struct sched_context *con)
 		
 	ast_mutex_lock(&con->lock);
 
-	for (numevents = 0; !AST_LIST_EMPTY(&con->schedq); numevents++) {
+	for (numevents = 0; !AST_DLLIST_EMPTY(&con->schedq); numevents++) {
 		/* schedule all events which are going to expire within 1ms.
 		 * We only care about millisecond accuracy anyway, so this will
 		 * help us get more than one event at one time if they are very
 		 * close together.
 		 */
 		tv = ast_tvadd(ast_tvnow(), ast_tv(0, 1000));
-		if (ast_tvcmp(AST_LIST_FIRST(&con->schedq)->when, tv) != -1)
+		if (ast_tvcmp(AST_DLLIST_FIRST(&con->schedq)->when, tv) != -1)
 			break;
 		
-		current = AST_LIST_REMOVE_HEAD(&con->schedq, list);
+		current = AST_DLLIST_REMOVE_HEAD(&con->schedq, list);
+		if (!ast_hashtab_remove_this_object(con->schedq_ht, current))
+			ast_log(LOG_ERROR,"Sched entry %d was in the schedq list but not in the hashtab???\n", current->id);
+
 		con->schedcnt--;
 
 		/*
@@ -387,15 +498,16 @@ int ast_sched_runq(struct sched_context *con)
 
 long ast_sched_when(struct sched_context *con,int id)
 {
-	struct sched *s;
+	struct sched *s, tmp;
 	long secs = -1;
 	DEBUG(ast_debug(1, "ast_sched_when()\n"));
 
 	ast_mutex_lock(&con->lock);
-	AST_LIST_TRAVERSE(&con->schedq, s, list) {
-		if (s->id == id)
-			break;
-	}
+	
+	/* these next 2 lines replace a lookup loop */
+	tmp.id = id;
+	s = ast_hashtab_lookup(con->schedq_ht, &tmp);
+	
 	if (s) {
 		struct timeval now = ast_tvnow();
 		secs = s->when.tv_sec - now.tv_sec;

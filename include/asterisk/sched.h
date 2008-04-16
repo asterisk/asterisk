@@ -27,6 +27,7 @@
 extern "C" {
 #endif
 
+
 /*! \brief Max num of schedule structs
  * \note The max number of schedule structs to keep around
  * for use.  Undefine to disable schedule structure
@@ -64,6 +65,19 @@ extern "C" {
 		id = -1; \
 	} while (0);
 
+#define AST_SCHED_DEL_UNREF(sched, id, refcall)			\
+	do { \
+		int _count = 0; \
+		while (id > -1 && ast_sched_del(sched, id) && ++_count < 10) { \
+			usleep(1); \
+		} \
+		if (_count == 10) \
+			ast_log(LOG_WARNING, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
+		if (id > -1) \
+			refcall; \
+		id = -1; \
+	} while (0);
+
 #define AST_SCHED_REPLACE_VARIABLE(id, sched, when, callback, data, variable) \
 	do { \
 		int _count = 0; \
@@ -77,6 +91,27 @@ extern "C" {
 
 #define AST_SCHED_REPLACE(id, sched, when, callback, data) \
 		AST_SCHED_REPLACE_VARIABLE(id, sched, when, callback, data, 0)
+
+#define AST_SCHED_REPLACE_VARIABLE_UNREF(id, sched, when, callback, data, variable, unrefcall, addfailcall, refcall) \
+	do { \
+		int _count = 0, _res=1;											 \
+		void *_data = (void *)ast_sched_find_data(sched, id);			\
+		while (id > -1 && (_res = ast_sched_del(sched, id) && _count++ < 10)) { \
+			usleep(1); \
+		} \
+		if (!_res && _data)							\
+			unrefcall;	/* should ref _data! */		\
+		if (_count == 10) \
+			ast_log(LOG_WARNING, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
+		id = ast_sched_add_variable(sched, when, callback, data, variable); \
+		if (id == -1)  \
+			addfailcall;	\
+		else \
+			refcall; \
+	} while (0);
+
+#define AST_SCHED_REPLACE_UNREF(id, sched, when, callback, data, unrefcall, addfailcall, refcall) \
+	AST_SCHED_REPLACE_VARIABLE_UNREF(id, sched, when, callback, data, 0, unrefcall, addfailcall, refcall)
 
 struct sched_context;
 
@@ -101,6 +136,14 @@ void sched_context_destroy(struct sched_context *c);
 typedef int (*ast_sched_cb)(const void *data);
 #define AST_SCHED_CB(a) ((ast_sched_cb)(a))
 
+struct ast_cb_names
+{
+	int numassocs;
+	char *list[10];
+	ast_sched_cb cblist[10];
+};
+char *ast_sched_report(struct sched_context *con, char *buf, int bufsiz, struct ast_cb_names *cbnames);
+		
 /*! \brief Adds a scheduled event
  * Schedule an event to take place at some point in the future.  callback
  * will be called with data as the argument, when milliseconds into the
@@ -155,6 +198,15 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
  */
 int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, ast_sched_cb callback, const void *data, int variable);
 
+	
+/*! \brief Find a sched structure and return the data field associated with it. 
+ * \param con scheduling context in which to search fro the matching id
+ * \param id ID of the scheduled item to find
+ * \return the data field from the matching sched struct if found; else return NULL if not found.
+ */
+
+const void *ast_sched_find_data(struct sched_context *con, int id);
+	
 /*! \brief Deletes a scheduled event
  * Remove this event from being run.  A procedure should not remove its own
  * event, but return 0 instead.  In most cases, you should not call this
@@ -164,6 +216,7 @@ int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, 
  * \param id ID of the scheduled item to delete
  * \return Returns 0 on success, -1 on failure
  */
+
 int ast_sched_del(struct sched_context *con, int id);
 
 /*! \brief Determines number of seconds until the next outstanding event to take place

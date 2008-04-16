@@ -615,6 +615,10 @@ Miscellaneous
   * A new option when starting a remote asterisk (rasterisk, asterisk -r) for
      specifying which socket to use to connect to the running Asterisk daemon
      (-s)
+  * Performance enhancements to the sched facility, which is used in
+    the channel drivers, etc. Added hashtabs and doubly-linked lists
+    to speed up deletion; start at the beginning or end of list to
+    speed up insertion.
   * Added Doubly-linked lists after the fashion of linkedlists.h. They are in
     dlinkedlists.h. Doubly-linked lists feature fast deletion times.
     Added regression tests to the tests/ dir, also.
