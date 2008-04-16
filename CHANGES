@@ -615,6 +615,9 @@ Miscellaneous
   * A new option when starting a remote asterisk (rasterisk, asterisk -r) for
      specifying which socket to use to connect to the running Asterisk daemon
      (-s)
+  * Added Doubly-linked lists after the fashion of linkedlists.h. They are in
+    dlinkedlists.h. Doubly-linked lists feature fast deletion times.
+    Added regression tests to the tests/ dir, also.
   * Added logging to 'make update' command.  See update.log
   * Added strictrtp option to rtp.conf. If enabled this will drop RTP packets that
      do not come from the remote party.
