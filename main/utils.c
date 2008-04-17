@@ -714,10 +714,11 @@ static const char *locktype2str(enum ast_lock_type type)
 	return "UNKNOWN";
 }
 
+/*! \todo this function is very broken and duplicates a lot of code ... */
 void log_show_lock(void *this_lock_addr)
 {
 	struct thr_lock_info *lock_info;
-	struct ast_str *str;
+	struct ast_str *str = NULL;
 
 	pthread_mutex_lock(&lock_infos_lock.mutex);
 	AST_LIST_TRAVERSE(&lock_infos, lock_info, entry) {
