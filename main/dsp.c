@@ -388,6 +388,7 @@ struct ast_dsp {
 	digit_detect_state_t digit_state;
 	tone_detect_state_t cng_tone_state;
 	tone_detect_state_t ced_tone_state;
+	int destroy;
 };
 
 static void mute_fragment(struct ast_dsp *dsp, fragment_t *fragment)
@@ -1310,6 +1311,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		memset(&dsp->f, 0, sizeof(dsp->f));
 		dsp->f.frametype = AST_FRAME_NULL;
 		ast_frfree(af);
+		ast_set_flag(&dsp->f, AST_FRFLAG_FROM_DSP);
 		return &dsp->f;
 	}
 	if ((dsp->features & DSP_FEATURE_BUSY_DETECT) && ast_dsp_busydetect(dsp)) {
@@ -1319,6 +1321,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		dsp->f.subclass = AST_CONTROL_BUSY;
 		ast_frfree(af);
 		ast_debug(1, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
+		ast_set_flag(&dsp->f, AST_FRFLAG_FROM_DSP);
 		return &dsp->f;
 	}
 
@@ -1424,6 +1427,7 @@ done:
 		if (chan) 
 			ast_queue_frame(chan, af);
 		ast_frfree(af);
+		ast_set_flag(outf, AST_FRFLAG_FROM_DSP);
 		return outf;
 	} else {
 		return af;
@@ -1474,6 +1478,16 @@ void ast_dsp_set_features(struct ast_dsp *dsp, int features)
 
 void ast_dsp_free(struct ast_dsp *dsp)
 {
+	if (ast_test_flag(&dsp->f, AST_FRFLAG_FROM_DSP)) {
+		/* If this flag is still set, that means that the dsp's destruction 
+		 * been torn down, while we still have a frame out there being used.
+		 * When ast_frfree() gets called on that frame, this ast_trans_pvt
+		 * will get destroyed, too. */
+
+		dsp->destroy = 1;
+
+		return;
+	}
 	ast_free(dsp);
 }
 
@@ -1632,3 +1646,16 @@ int ast_dsp_reload(void)
 	return _dsp_init(1);
 }
 
+void ast_dsp_frame_freed(struct ast_frame *fr)
+{
+	struct ast_dsp *dsp;
+
+	ast_clear_flag(fr, AST_FRFLAG_FROM_DSP);
+
+	dsp = (struct ast_dsp *) (((char *) fr) - offsetof(struct ast_dsp, f));
+
+	if (!dsp->destroy)
+		return;
+	
+	ast_dsp_free(dsp);
+}
