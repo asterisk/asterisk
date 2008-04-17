@@ -13075,6 +13075,7 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 				ao2_lock(pi);
 				if (name && regexec(&regexbuf, pi->name, 0, NULL, 0)) {
 					unref_peer(pi, "toss iterator peer ptr before continue");
+					ao2_unlock(pi);
 					continue;
 				};
 				if (ast_test_flag(&pi->flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
@@ -13098,6 +13099,7 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 				ao2_lock(ui);
 				if (name && regexec(&regexbuf, ui->name, 0, NULL, 0)) {
 					unref_user(ui, "toss iterator user ptr before continue");
+					ao2_unlock(ui);
 					continue;
 				};
 				if (ast_test_flag(&ui->flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
