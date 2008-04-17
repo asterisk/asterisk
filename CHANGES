@@ -29,6 +29,8 @@ Application Changes
    messages, if the "messagewrap" option is set to a true value.
  * Dial has a new option: F(context^extension^pri), which permits a callee to
    continue in the dialplan, at the specified label, if the caller hangs up.
+ * ChanSpy and ExtenSpy have a new option, 's' which suppresses speaking the
+   technology name (e.g. SIP, IAX, etc) of the channel being spied on.
 
 SIP Changes
 -----------
