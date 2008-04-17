@@ -693,6 +693,8 @@ static enum agi_result launch_script(struct ast_channel *chan, char *script, cha
 		execv(script, argv);
 		/* Can't use ast_log since FD's are closed */
 		ast_child_verbose(1, "Failed to execute '%s': %s", script, strerror(errno));
+		/* Special case to set status of AGI to failure */
+		fprintf(stdout, "failure\n");
 		fflush(stdout);
 		_exit(1);
 	}
@@ -2643,6 +2645,12 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 					waitpid(pid, status, 0);
 				/* No need to kill the pid anymore, since they closed us */
 				pid = -1;
+				break;
+			}
+
+			/* Special case for inability to execute child process */
+			if (*buf && strncasecmp(buf, "failure", 7) == 0) {
+				returnstatus = AGI_RESULT_FAILURE;
 				break;
 			}
 
