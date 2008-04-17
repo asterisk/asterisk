@@ -830,7 +830,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (recbase) {
-		char filename[512];
+		char filename[PATH_MAX];
 
 		snprintf(filename, sizeof(filename), "%s/%s.%d.raw", ast_config_AST_MONITOR_DIR, recbase, (int) time(NULL));
 		if ((fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, AST_FILE_MODE)) <= 0) {
@@ -909,7 +909,7 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (recbase) {
-		char filename[512];
+		char filename[PATH_MAX];
 
 		snprintf(filename, sizeof(filename), "%s/%s.%d.raw", ast_config_AST_MONITOR_DIR, recbase, (int) time(NULL));
 		if ((fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, AST_FILE_MODE)) <= 0) {
