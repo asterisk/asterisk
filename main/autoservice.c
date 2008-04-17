@@ -271,10 +271,6 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	if (!orig_end_dtmf_flag)
 		ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
 
-	/* Wait for it to un-block */
-	while (ast_test_flag(chan, AST_FLAG_BLOCKING))
-		usleep(1000);
-
 	while ((f = AST_LIST_REMOVE_HEAD(&dtmf_frames, frame_list))) {
 		ast_queue_frame(chan, f);
 		ast_frfree(f);
