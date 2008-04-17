@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/threadstorage.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/translate.h"
+#include "asterisk/dsp.h"
 
 #ifdef TRACE_FRAMES
 static int headers;
@@ -308,6 +309,8 @@ void ast_frame_free(struct ast_frame *fr, int cache)
 {
 	if (ast_test_flag(fr, AST_FRFLAG_FROM_TRANSLATOR))
 		ast_translate_frame_freed(fr);
+	else if (ast_test_flag(fr, AST_FRFLAG_FROM_DSP))
+		ast_dsp_frame_freed(fr);
 
 	if (!fr->mallocd)
 		return;
@@ -357,6 +360,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	void *newdata;
 
 	ast_clear_flag(fr, AST_FRFLAG_FROM_TRANSLATOR);
+	ast_clear_flag(fr, AST_FRFLAG_FROM_DSP);
 
 	if (!(fr->mallocd & AST_MALLOCD_HDR)) {
 		/* Allocate a new header if needed */
