@@ -15410,6 +15410,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				} else {
 					if (!p->subscribed && !p->refer)
 						p->needdestroy = 1;
+					if (ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE)) {
+						/* Ready to send the next state we have on queue */
+						ast_clear_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE);
+						cb_extensionstate((char *)p->context, (char *)p->exten, p->laststate, (void *) p);
+					}
 				}
 			} else if (sipmethod == SIP_BYE)
 				p->needdestroy = 1;
