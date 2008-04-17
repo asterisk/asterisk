@@ -543,7 +543,6 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			char *dup_group;
 			int x;
 			char *s;
-			struct ast_channel *peer;
 
 			peer = peer_chanspy_ds->chan;
 
