@@ -1565,7 +1565,7 @@ static void *aji_recv_loop(void *data)
 		else if (res == IKS_NET_TLSFAIL)
 			ast_log(LOG_WARNING, "JABBER:  Failure in TLS.\n");
 		else if (client->timeout == 0 && client->state == AJI_CONNECTED) {
-			res = iks_send_raw(client->p, " ");
+			res = client->keepalive ? iks_send_raw(client->p, " ") : IKS_OK;
 			if(res == IKS_OK)
 				client->timeout = 50;
 			else
