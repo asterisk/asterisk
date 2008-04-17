@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/threadstorage.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/translate.h"
+#include "asterisk/dsp.h"
 
 #ifdef TRACE_FRAMES
 static int headers;

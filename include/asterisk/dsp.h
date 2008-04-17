@@ -108,4 +108,17 @@ int ast_dsp_get_tstate(struct ast_dsp *dsp);
 /*! \brief Get tcount (Threshold counter) */
 int ast_dsp_get_tcount(struct ast_dsp *dsp);
 
+/*!
+ * \brief Hint that a frame from a dsp was freed
+ *
+ * This is called from ast_frame_free if AST_FRFLAG_FROM_DSP is set. This occurs
+ * because it is possible for the dsp to be freed while someone still holds a reference
+ * to the frame that is in that dsp. This has been known to happen when the dsp on a Zap
+ * channel detects a busy signal. The channel is hung up, and the application that read the
+ * frame to begin with still has a reference to the frame.
+ *
+ * \return nothing
+ */
+void ast_dsp_frame_freed(struct ast_frame *fr);
+
 #endif /* _ASTERISK_DSP_H */
