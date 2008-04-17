@@ -37,6 +37,9 @@ SIP Changes
  * The ATTENDED_TRANSFER_COMPLETE_SOUND can now be set using setvar to cause a given
    audio file to be played upon completion of an attended transfer.
  * Added DNS manager support to registrations for peers referencing peer entries.
+   DNS manager runs in the background which allows DNS lookups to be run asynchronously 
+   as well as periodically updating the IP address. These properties allow for
+   better performance as well as recovery in the event of an IP change.
  * Performance improvements via using hash tables (astobj2) and doubly-linked lists to improve 
    load/reload of large numbers of peers/users by ~40x (for large lists of peers.
    Initially, we saw 4x improvement in call setup/destruction, but at the time
