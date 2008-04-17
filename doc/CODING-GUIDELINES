@@ -85,7 +85,7 @@ of 'public' members of a class).  As an example:
         if you are implementing a module, this should be included in one
         of the files that are linked with the module.
 
-    asterisk/fileio.h
+    asterisk/io.h
         access to extra file I/O functions (stat, fstat, playing with
         directories etc)
 
