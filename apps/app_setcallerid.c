@@ -68,7 +68,11 @@ static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
 		deprecated = 1;
 		ast_log(LOG_WARNING, "SetCallerPres is deprecated.  Please use Set(CALLERPRES()=%s) instead.\n", (char *)data);
 	}
-	pres = ast_parse_caller_presentation(data);
+
+	/* For interface consistency, permit the argument to be specified as a number */
+	if (sscanf(data, "%d", &pres) != 1 || pres < 0 || pres > 255 || (pres & 0x9c)) {
+		pres = ast_parse_caller_presentation(data);
+	}
 
 	if (pres < 0) {
 		ast_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n",
