@@ -2778,7 +2778,7 @@ static int get_input(struct mansession *s, char *output)
 		/* If we get a signal from some other thread (typically because
 		 * there are new events queued), return 0 to notify the caller.
 		 */
-		if (errno == EINTR)
+		if (errno == EINTR || errno == EAGAIN)
 			return 0;
 		ast_log(LOG_WARNING, "poll() returned error: %s\n", strerror(errno));
 		return -1;
