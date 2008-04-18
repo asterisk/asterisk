@@ -4459,6 +4459,7 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	ast_setstate(tmp, state);
 	if (state == AST_STATE_RING)
 		tmp->rings = 1;
+	tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 	tmp->writeformat = fmt;
 	tmp->rawwriteformat = fmt;
 	tmp->readformat = fmt;
