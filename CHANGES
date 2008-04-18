@@ -426,6 +426,8 @@ MeetMe Changes
      for the "meetme" command.
   * Added the ability to specify the music on hold class used to play into the
      conference when there is only one member and the M option is used.
+  * Added MEETME_INFO dialplan function which provides a way to query
+     various properties of a Meetme conference.
 
 Other Dialplan Application Changes
 ----------------------------------
