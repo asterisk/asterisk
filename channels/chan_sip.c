@@ -14038,6 +14038,10 @@ static char *complete_sipch(const char *line, const char *word, int pos, int sta
 	int wordlen = strlen(word);
 	struct ao2_iterator i;
 
+	if (pos != 3) {
+		return NULL;
+	}
+
 	i = ao2_iterator_init(dialogs, 0);
 	
 	while ((cur = ao2_t_iterator_next(&i, "iterate thru dialogs"))) {
