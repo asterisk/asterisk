@@ -1364,6 +1364,7 @@ static int reload(void)
 
 	if (parse_config() < 0) {
 		ast_log(LOG_NOTICE, "Cannot reload LDAP RealTime driver.\n");
+		ast_mutex_unlock(&ldap_lock);
 		return 0;
 	}		
 
