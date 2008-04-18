@@ -70,8 +70,11 @@ static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
 	int pres = -1;
 
 	u = ast_module_user_add(chan);
-	
-	pres = ast_parse_caller_presentation(data);
+
+	/* For interface consistency, permit the argument to be specified as a number */
+	if (sscanf(data, "%d", &pres) != 1 || pres < 0 || pres > 255 || (pres & 0x9c)) {
+		pres = ast_parse_caller_presentation(data);
+	}
 
 	if (pres < 0) {
 		ast_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n",
