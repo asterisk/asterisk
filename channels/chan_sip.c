@@ -13196,6 +13196,10 @@ static char *complete_sipch(const char *line, const char *word, int pos, int sta
 	char *c = NULL;
 	int wordlen = strlen(word);
 
+	if (pos != 3) {
+		return NULL;
+	}
+
 	dialoglist_lock();
 	for (cur = dialoglist; cur; cur = cur->next) {
 		if (!strncasecmp(word, cur->callid, wordlen) && ++which > state) {
