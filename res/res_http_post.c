@@ -245,11 +245,13 @@ static struct ast_str *http_post_callback(struct ast_tcptls_session_instance *se
 
 	if (!(message_count = process_message(message, post_dir->str))) {
 		ast_log(LOG_ERROR, "Invalid MIME data, found no parts!\n");
-
+		g_object_unref(message);
 		return ast_http_error((*status = 400),
 				      (*title = ast_strdup("Bad Request")),
 				      NULL, "The was an error parsing the request.");
 	}
+
+	g_object_unref(message);
 
 	return ast_http_error((*status = 200),
 			      (*title = ast_strdup("OK")),
