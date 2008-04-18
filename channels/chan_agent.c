@@ -1500,7 +1500,7 @@ static int action_agents(struct mansession *s, const struct message *m)
 			loginChan = ast_strdupa(p->chan->name);
 			if (p->owner && p->owner->_bridge) {
 				if (ast_bridged_channel(p->owner)) {
-					talkingtoChan = ast_strdupa(ast_bridged_channel(p->owner)->cid.cid_num);
+					talkingtoChan = ast_strdupa(S_OR(ast_bridged_channel(p->owner)->cid.cid_num, ""));
 				} else {
 					talkingtoChan = "n/a";
 				}
