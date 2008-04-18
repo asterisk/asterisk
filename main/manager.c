@@ -2217,7 +2217,7 @@ static int get_input(struct mansession *s, char *output)
 		s->waiting_thread = AST_PTHREADT_NULL;
 		ast_mutex_unlock(&s->__lock);
 		if (res < 0) {
-			if (errno == EINTR) {
+			if (errno == EINTR || errno == EAGAIN) {
 				return 0;
 			}
 			ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
