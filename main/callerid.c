@@ -302,7 +302,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 		res = fsk_serial(&cid->fskd, buf, &mylen, &b);
 
 		if (mylen < 0) {
-			ast_log(LOG_ERROR, "fsk_serial made mylen < 0 (%d)\n", mylen);
+			ast_log(LOG_ERROR, "No start bit found in fsk data.\n");
 			return -1;
 		}
 
@@ -537,7 +537,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 		olen = mylen;
 		res = fsk_serial(&cid->fskd, buf, &mylen, &b);
 		if (mylen < 0) {
-			ast_log(LOG_ERROR, "fsk_serial made mylen < 0 (%d)\n", mylen);
+			ast_log(LOG_ERROR, "No start bit found in fsk data.\n");
 			return -1;
 		}
 		buf += (olen - mylen);
