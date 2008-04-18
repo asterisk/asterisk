@@ -6856,7 +6856,7 @@ static void *ss_thread(void *data)
 							}
 
 							if (res < 0) {
-								ast_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
+								ast_log(LOG_WARNING, "CallerID feed failed on channel '%s'\n", chan->name);
 								break;
 							} else if (res)
 								break;
@@ -6867,9 +6867,6 @@ static void *ss_thread(void *data)
 					if (res == 1) {
 						callerid_get(cs, &name, &number, &flags);
 						ast_log(LOG_NOTICE, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
-					}
-					if (res < 0) {
-						ast_log(LOG_WARNING, "CallerID returned with error on channel '%s'\n", chan->name);
 					}
 
 					if (p->cid_signalling == CID_SIG_V23_JP) {
