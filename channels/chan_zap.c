@@ -687,6 +687,8 @@ static struct zt_pvt {
 	char gen_add_number[50];
 	char gen_dig_number[50];
 	char orig_called_num[50];
+	char redirecting_num[50];
+	char generic_name[50];
 	unsigned char gen_add_num_plan;
 	unsigned char gen_add_nai;
 	unsigned char gen_add_pres_ind;
@@ -2384,6 +2386,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		const char *rlt_flag = NULL;
 		const char *call_ref_id = NULL;
 		const char *call_ref_pc = NULL;
+		const char *send_far = NULL;
 
 		c = strchr(dest, '/');
 		if (c)
@@ -2447,6 +2450,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		isup_set_oli(p->ss7call, ast->cid.cid_ani2);
 		isup_init_call(p->ss7->ss7, p->ss7call, p->cic, p->dpc);
 
+		ast_channel_lock(ast);
 		/* Set the charge number if it is set */
 		charge_str = pbx_builtin_getvar_helper(ast, "SS7_CHARGE_NUMBER");
 		if (charge_str)
@@ -2471,16 +2475,23 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			isup_set_lspi(p->ss7call, lspi_ident, 0x18, 0x7, 0x00); 
 		
 		rlt_flag = pbx_builtin_getvar_helper(ast, "SS7_RLT_ON");
-		if ((rlt_flag) && ((strncmp("NO", rlt_flag, strlen(rlt_flag))) != 0 ))
+		if ((rlt_flag) && ((strncmp("NO", rlt_flag, strlen(rlt_flag))) != 0 )) {
 			isup_set_lspi(p->ss7call, rlt_flag, 0x18, 0x7, 0x00); /* Setting for Nortel DMS-250/500 */
+		}
 		
 		call_ref_id = pbx_builtin_getvar_helper(ast, "SS7_CALLREF_IDENT");
 		call_ref_pc = pbx_builtin_getvar_helper(ast, "SS7_CALLREF_PC");
-		if (call_ref_id) {
+		if (call_ref_id && call_ref_pc) {
 			isup_set_callref(p->ss7call, atoi(call_ref_id),
 					 call_ref_pc ? atoi(call_ref_pc) : 0);
 		}
 		
+		send_far = pbx_builtin_getvar_helper(ast, "SS7_SEND_FAR");
+		if ((send_far) && ((strncmp("NO", send_far, strlen(send_far))) != 0 ))
+			(isup_far(p->ss7->ss7, p->ss7call));
+		
+		ast_channel_unlock(ast);
+
 		isup_iam(p->ss7->ss7, p->ss7call);
 		ast_setstate(ast, AST_STATE_DIALING);
 		ss7_rel(p->ss7);
@@ -9198,7 +9209,17 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 	pbx_builtin_setvar_helper(c, "SS7_CALLREF_PC", tmp);
 	/* Clear this after we set it */
 	p->call_ref_pc = 0;
-	
+
+	if (!ast_strlen_zero(p->redirecting_num)) {
+		pbx_builtin_setvar_helper(c, "SS7_REDIRECTING_NUMBER", p->redirecting_num);
+		/* Clear this after we set it */
+		p->redirecting_num[0] = 0;
+	}
+	if (!ast_strlen_zero(p->generic_name)) {
+		pbx_builtin_setvar_helper(c, "SS7_GENERIC_NAME", p->generic_name);
+		/* Clear this after we set it */
+		p->generic_name[0] = 0;
+	}
 }
 
 static void ss7_apply_plan_to_number(char *buf, size_t size, const struct zt_ss7 *ss7, const char *number, const unsigned nai)
@@ -9482,6 +9503,8 @@ static void *ss7_linkset(void *data)
 				p->gen_dig_scheme = e->iam.gen_dig_scheme;
 				ast_copy_string(p->jip_number, e->iam.jip_number, sizeof(p->jip_number));
 				ast_copy_string(p->orig_called_num, e->iam.orig_called_num, sizeof(p->orig_called_num));
+				ast_copy_string(p->redirecting_num, e->iam.redirecting_num, sizeof(p->redirecting_num));
+				ast_copy_string(p->generic_name, e->iam.generic_name, sizeof(p->generic_name));
 					
 				/* Set DNID */
 				if (!ast_strlen_zero(e->iam.called_party_num))
@@ -9533,6 +9556,22 @@ static void *ss7_linkset(void *data)
 				ast_mutex_unlock(&p->lock);
 
 				isup_lpa(linkset->ss7, e->ccr.cic, p->dpc);
+				break;
+			case ISUP_EVENT_CVT:
+				ast_debug(1, "Got CVT request on CIC %d\n", e->cvt.cic);
+				chanpos = ss7_find_cic(linkset, e->cvt.cic, e->cvt.opc);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "CVT on unconfigured CIC %d\n", e->cvt.cic);
+					break;
+				}
+				
+				p = linkset->pvts[chanpos];
+				
+				ast_mutex_lock(&p->lock);
+				zt_loopback(p, 1);
+				ast_mutex_unlock(&p->lock);
+				
+				isup_cvr(linkset->ss7, e->cvt.cic, p->dpc);
 				break;
 			case ISUP_EVENT_REL:
 				chanpos = ss7_find_cic(linkset, e->rel.cic, e->rel.opc);
