@@ -374,7 +374,7 @@ static int __say_init(int fd, int argc, char *argv[])
 static struct ast_cli_entry cli_playback[] = {
         { { "say", "load", NULL },
 	__say_init, "set/show the say mode",
-	"say load new|old" },
+	"Usage: say load [new|old]\n    Set/show the say mode\n" },
 };
 
 static int playback_exec(struct ast_channel *chan, void *data)
