@@ -1249,15 +1249,15 @@ static struct ast_cli_entry cli_moh_files_show_deprecated = {
 static struct ast_cli_entry cli_moh[] = {
 	{ { "moh", "reload"},
 	moh_cli, "Music On Hold",
-	"Music On Hold" },
+	"Usage: moh reload\n    Rereads configuration\n" },
 
 	{ { "moh", "show", "classes"},
 	moh_classes_show, "List MOH classes",
-	"Lists all MOH classes", NULL, &cli_moh_classes_show_deprecated },
+	"Usage: moh show classes\n    Lists all MOH classes\n", NULL, &cli_moh_classes_show_deprecated },
 
 	{ { "moh", "show", "files"},
 	cli_files_show, "List MOH file-based classes",
-	"Lists all loaded file-based MOH classes and their files", NULL, &cli_moh_files_show_deprecated },
+	"Usage: moh show files\n    Lists all loaded file-based MOH classes and their files\n", NULL, &cli_moh_files_show_deprecated },
 };
 
 static int init_classes(int reload) 
