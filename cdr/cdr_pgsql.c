@@ -120,8 +120,8 @@ static int pgsql_log(struct ast_cdr *cdr)
 			connected = 1;
 		} else {
 			pgerror = PQerrorMessage(conn);
-			ast_log(LOG_ERROR, "cdr_pgsql: Unable to connect to database server %s.  Calls will not be logged!\n", pghostname);
-			ast_log(LOG_ERROR, "cdr_pgsql: Reason: %s\n", pgerror);
+			ast_log(LOG_ERROR, "Unable to connect to database server %s.  Calls will not be logged!\n", pghostname);
+			ast_log(LOG_ERROR, "Reason: %s\n", pgerror);
 			PQfinish(conn);
 			conn = NULL;
 		}
@@ -264,7 +264,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 		strcat(sql + lensql, sql2);
 		ast_verb(11, "[%s]\n", sql);
 
-		ast_debug(2, "cdr_pgsql: inserting a CDR record.\n");
+		ast_debug(2, "inserting a CDR record.\n");
 
 		/* Test to be sure we're still connected... */
 		/* If we're connected, and connection is working, good. */
@@ -272,15 +272,15 @@ static int pgsql_log(struct ast_cdr *cdr)
 		if (PQstatus(conn) == CONNECTION_OK) {
 			connected = 1;
 		} else {
-			ast_log(LOG_ERROR, "cdr_pgsql: Connection was lost... attempting to reconnect.\n");
+			ast_log(LOG_ERROR, "Connection was lost... attempting to reconnect.\n");
 			PQreset(conn);
 			if (PQstatus(conn) == CONNECTION_OK) {
-				ast_log(LOG_ERROR, "cdr_pgsql: Connection reestablished.\n");
+				ast_log(LOG_ERROR, "Connection reestablished.\n");
 				connected = 1;
 			} else {
 				pgerror = PQerrorMessage(conn);
-				ast_log(LOG_ERROR, "cdr_pgsql: Unable to reconnect to database server %s. Calls will not be logged!\n", pghostname);
-				ast_log(LOG_ERROR, "cdr_pgsql: Reason: %s\n", pgerror);
+				ast_log(LOG_ERROR, "Unable to reconnect to database server %s. Calls will not be logged!\n", pghostname);
+				ast_log(LOG_ERROR, "Reason: %s\n", pgerror);
 				PQfinish(conn);
 				conn = NULL;
 				connected = 0;
@@ -291,19 +291,19 @@ static int pgsql_log(struct ast_cdr *cdr)
 		result = PQexec(conn, sql);
 		if (PQresultStatus(result) != PGRES_COMMAND_OK) {
 			pgerror = PQresultErrorMessage(result);
-			ast_log(LOG_ERROR,"cdr_pgsql: Failed to insert call detail record into database!\n");
-			ast_log(LOG_ERROR,"cdr_pgsql: Reason: %s\n", pgerror);
-			ast_log(LOG_ERROR,"cdr_pgsql: Connection may have been lost... attempting to reconnect.\n");
+			ast_log(LOG_ERROR, "Failed to insert call detail record into database!\n");
+			ast_log(LOG_ERROR, "Reason: %s\n", pgerror);
+			ast_log(LOG_ERROR, "Connection may have been lost... attempting to reconnect.\n");
 			PQreset(conn);
 			if (PQstatus(conn) == CONNECTION_OK) {
-				ast_log(LOG_ERROR, "cdr_pgsql: Connection reestablished.\n");
+				ast_log(LOG_ERROR, "Connection reestablished.\n");
 				connected = 1;
 				PQclear(result);
 				result = PQexec(conn, sql);
 				if (PQresultStatus(result) != PGRES_COMMAND_OK) {
 					pgerror = PQresultErrorMessage(result);
-					ast_log(LOG_ERROR,"cdr_pgsql: HARD ERROR!  Attempted reconnection failed.  DROPPING CALL RECORD!\n");
-					ast_log(LOG_ERROR,"cdr_pgsql: Reason: %s\n", pgerror);
+					ast_log(LOG_ERROR, "HARD ERROR!  Attempted reconnection failed.  DROPPING CALL RECORD!\n");
+					ast_log(LOG_ERROR, "Reason: %s\n", pgerror);
 				}
 			}
 			ast_mutex_unlock(&pgsql_lock);
@@ -381,7 +381,7 @@ static int config_module(int reload)
 	}
 
 	if (!(tmp = ast_variable_retrieve(cfg, "global", "dbname"))) {
-		ast_log(LOG_WARNING,"PostgreSQL database not specified.  Assuming asterisk\n");
+		ast_log(LOG_WARNING, "PostgreSQL database not specified.  Assuming asterisk\n");
 		tmp = "asteriskcdrdb";
 	}
 
@@ -393,7 +393,7 @@ static int config_module(int reload)
 	}
 
 	if (!(tmp = ast_variable_retrieve(cfg, "global", "user"))) {
-		ast_log(LOG_WARNING,"PostgreSQL database user not specified.  Assuming asterisk\n");
+		ast_log(LOG_WARNING, "PostgreSQL database user not specified.  Assuming asterisk\n");
 		tmp = "asterisk";
 	}
 
@@ -405,7 +405,7 @@ static int config_module(int reload)
 	}
 
 	if (!(tmp = ast_variable_retrieve(cfg, "global", "password"))) {
-		ast_log(LOG_WARNING,"PostgreSQL database password not specified.  Assuming blank\n");
+		ast_log(LOG_WARNING, "PostgreSQL database password not specified.  Assuming blank\n");
 		tmp = "";
 	}
 
@@ -416,8 +416,8 @@ static int config_module(int reload)
 		return -1;
 	}
 
-	if (!(tmp = ast_variable_retrieve(cfg,"global","port"))) {
-		ast_log(LOG_WARNING,"PostgreSQL database port not specified.  Using default 5432.\n");
+	if (!(tmp = ast_variable_retrieve(cfg, "global", "port"))) {
+		ast_log(LOG_WARNING, "PostgreSQL database port not specified.  Using default 5432.\n");
 		tmp = "5432";
 	}
 
@@ -429,7 +429,7 @@ static int config_module(int reload)
 	}
 
 	if (!(tmp = ast_variable_retrieve(cfg, "global", "table"))) {
-		ast_log(LOG_WARNING,"CDR table not specified.  Assuming cdr\n");
+		ast_log(LOG_WARNING, "CDR table not specified.  Assuming cdr\n");
 		tmp = "cdr";
 	}
 
@@ -442,15 +442,15 @@ static int config_module(int reload)
 
 	if (option_debug) {
 		if (ast_strlen_zero(pghostname)) {
-			ast_debug(1, "cdr_pgsql: using default unix socket\n");
+			ast_debug(1, "using default unix socket\n");
 		} else {
-			ast_debug(1, "cdr_pgsql: got hostname of %s\n", pghostname);
+			ast_debug(1, "got hostname of %s\n", pghostname);
 		}
-		ast_debug(1, "cdr_pgsql: got port of %s\n", pgdbport);
-		ast_debug(1, "cdr_pgsql: got user of %s\n", pgdbuser);
-		ast_debug(1, "cdr_pgsql: got dbname of %s\n", pgdbname);
-		ast_debug(1, "cdr_pgsql: got password of %s\n", pgpassword);
-		ast_debug(1, "cdr_pgsql: got sql table name of %s\n", table);
+		ast_debug(1, "got port of %s\n", pgdbport);
+		ast_debug(1, "got user of %s\n", pgdbuser);
+		ast_debug(1, "got dbname of %s\n", pgdbname);
+		ast_debug(1, "got password of %s\n", pgpassword);
+		ast_debug(1, "got sql table name of %s\n", table);
 	}
 
 	conn = PQsetdbLogin(pghostname, pgdbport, NULL, NULL, pgdbname, pgdbuser, pgpassword);
@@ -466,7 +466,7 @@ static int config_module(int reload)
 		result = PQexec(conn, sqlcmd);
 		if (PQresultStatus(result) != PGRES_TUPLES_OK) {
 			pgerror = PQresultErrorMessage(result);
-			ast_log(LOG_ERROR, "cdr_pgsql: Failed to query database columns: %s\n", pgerror);
+			ast_log(LOG_ERROR, "Failed to query database columns: %s\n", pgerror);
 			PQclear(result);
 			unload_module();
 			return AST_MODULE_LOAD_DECLINE;
@@ -503,8 +503,8 @@ static int config_module(int reload)
 		PQclear(result);
 	} else {
 		pgerror = PQerrorMessage(conn);
-		ast_log(LOG_ERROR, "cdr_pgsql: Unable to connect to database server %s.  CALLS WILL NOT BE LOGGED!!\n", pghostname);
-		ast_log(LOG_ERROR, "cdr_pgsql: Reason: %s\n", pgerror);
+		ast_log(LOG_ERROR, "Unable to connect to database server %s.  CALLS WILL NOT BE LOGGED!!\n", pghostname);
+		ast_log(LOG_ERROR, "Reason: %s\n", pgerror);
 		connected = 0;
 	}
 
