@@ -1,3 +1,7 @@
+ -- Audit uses of usleep() to ensure that the argument is never greater than 1 million.
+    On some systems, that is considered an error.  In any such cases, convert the usage
+	over to use nanosleep(), instead.
+
  -- There a bunch of places where the result of pbx_builtin_getvar_helper()
     gets stored and used.  This is not threadsafe.  This code should be replaced
 	with the following thread-safe version:
