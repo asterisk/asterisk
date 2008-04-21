@@ -2381,6 +2381,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		const char *gen_digits = NULL;
 		const char *gen_dig_type = NULL;
 		const char *gen_dig_scheme = NULL;
+		const char *gen_name = NULL;
 		const char *jip_digits = NULL;
 		const char *lspi_ident = NULL;
 		const char *rlt_flag = NULL;
@@ -2466,6 +2467,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		if (gen_digits)
 			isup_set_gen_digits(p->ss7call, gen_digits, atoi(gen_dig_type), atoi(gen_dig_scheme)); 
 		
+		gen_name = pbx_builtin_getvar_helper(ast, "SS7_GENERIC_NAME");
+		if (gen_name)
+			isup_set_generic_name(p->ss7call, gen_name, GEN_NAME_TYPE_CALLING_NAME, GEN_NAME_AVAIL_AVAILABLE, GEN_NAME_PRES_ALLOWED);
+
 		jip_digits = pbx_builtin_getvar_helper(ast, "SS7_JIP");
 		if (jip_digits)
 			isup_set_jip_digits(p->ss7call, jip_digits);
@@ -9468,12 +9473,10 @@ static void *ss7_linkset(void *data)
 				p->ss7call = e->iam.call;
 				isup_set_call_dpc(p->ss7call, dpc);
 
-				if ( (p->use_callerid) && (!ast_strlen_zero(e->iam.calling_party_num)) )
-				{
+				if ((p->use_callerid) && (!ast_strlen_zero(e->iam.calling_party_num))) {
 					ss7_apply_plan_to_number(p->cid_num, sizeof(p->cid_num), linkset, e->iam.calling_party_num, e->iam.calling_nai);
 					p->callingpres = ss7_pres_scr2cid_pres(e->iam.presentation_ind, e->iam.screening_ind);
-				}
-				else
+				} else
 					p->cid_num[0] = 0;
 
 				if (p->immediate) {
@@ -9489,7 +9492,11 @@ static void *ss7_linkset(void *data)
 						p->exten[0] = '\0';
 
 				p->cid_ani[0] = '\0';
-				p->cid_name[0] = '\0';
+				if ((p->use_callerid) && (!ast_strlen_zero(e->iam.generic_name)))
+					ast_copy_string(p->cid_name, e->iam.generic_name, sizeof(p->cid_name));
+				else
+					p->cid_name[0] = '\0';
+				
 				p->cid_ani2 = e->iam.oli_ani2;
 				p->cid_ton = 0;
 				ast_copy_string(p->charge_number, e->iam.charge_number, sizeof(p->charge_number));
