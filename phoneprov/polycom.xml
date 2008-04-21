@@ -28,7 +28,7 @@
    <nat nat.ip="" nat.signalPort="" nat.mediaPortStart=""/>
    <user_preferences up.oneTouchVoiceMail="1" up.welcomeSoundEnabled="0" />
    <volume voice.volume.persist.handset="1" voice.volume.persist.headset="1" />
-   <SNTP tcpIpApp.sntp.address="time" tcpIpApp.sntp.gmtOffset="-21600" />
+   <SNTP tcpIpApp.sntp.address="time" tcpIpApp.sntp.gmtOffset="${TZOFFSET}" tcpIpApp.sntp.daylightSavings.enable="${DST_ENABLE}" tcpIpApp.sntp.daylightSavings.fixedDayEnable="0" tcpIpApp.sntp.daylightSavings.start.month="${DST_START_MONTH}" tcpIpApp.sntp.daylightSavings.start.date="${DST_START_MDAY}" tcpIpApp.sntp.daylightSavings.start.hour="${DST_START_HOUR}" tcpIpApp.sntp.daylightSavings.stop.month="${DST_END_MONTH}" tcpIpApp.sntp.daylightSavings.stop.date="${DST_END_MDAY}" tcpIpApp.sntp.daylightSavings.stop.hour="${DST_END_HOUR}" />
    <HTTPD httpd.enabled="1" />
    <feature
         feature.1.name="presence" feature.1.enabled="1"
