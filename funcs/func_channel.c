@@ -84,6 +84,8 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		locked_copy_string(chan, buf, chan->language, len);
 	else if (!strcasecmp(data, "musicclass"))
 		locked_copy_string(chan, buf, chan->musicclass, len);
+	else if (!strcasecmp(data, "parkinglot"))
+		locked_copy_string(chan, buf, chan->parkinglot, len);
 	else if (!strcasecmp(data, "state"))
 		locked_copy_string(chan, buf, ast_state2str(chan->_state), len);
 	else if (!strcasecmp(data, "channeltype"))
@@ -110,6 +112,8 @@ static int func_channel_write(struct ast_channel *chan, const char *function,
 
 	if (!strcasecmp(data, "language"))
 		locked_string_field_set(chan, language, value);
+	else if (!strcasecmp(data, "parkinglot"))
+		locked_string_field_set(chan, parkinglot, value);
 	else if (!strcasecmp(data, "musicclass"))
 		locked_string_field_set(chan, musicclass, value);
 #ifdef CHANNEL_TRACE
@@ -172,6 +176,7 @@ static struct ast_custom_function channel_function = {
 		"R/O	channeltype        technology used for channel\n"
 		"R/W	language           language for sounds played\n"
 		"R/W	musicclass         class (from musiconhold.conf) for hold music\n"
+		"R/W	parkinglot         parkinglot for parking\n"
 		"R/W	rxgain             set rxgain level on channel drivers that support it\n"
 		"R/O	state              state for channel\n"
 		"R/W	tonezone           zone for indications played\n"

@@ -151,6 +151,7 @@ struct jingle {
 	int allowguest;
 	char language[MAX_LANGUAGE];	/*!<  Default language for prompts */
 	char musicclass[MAX_MUSICCLASS];	/*!<  Music on Hold class */
+	char parkinglot[AST_MAX_CONTEXT];   /*!< Parkinglot */
 };
 
 struct jingle_container {
@@ -1741,6 +1742,9 @@ static int jingle_load_config(void)
 					else if (!strcasecmp(var->name, "context"))
 						ast_copy_string(member->context, var->value,
 										sizeof(member->context));
+					else if (!strcasecmp(var->name, "parkinglot"))
+						ast_copy_string(member->parkinglot, var->value,
+										sizeof(member->parkinglot));
 /*  Idea to allow for custom candidates  */
 /*
 					else if (!strcasecmp(var->name, "candidate")) {

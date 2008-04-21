@@ -75,6 +75,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			"CallerIDName=       %s\n"
 			"DNIDDigits=         %s\n"
 			"RDNIS=              %s\n"
+			"Parkinglot=         %s\n"
 			"Language=           %s\n"
 			"State=              %s (%d)\n"
 			"Rings=              %d\n"
@@ -103,6 +104,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			S_OR(c->cid.cid_name, "(N/A)"),
 			S_OR(c->cid.cid_dnid, "(N/A)"),
 			S_OR(c->cid.cid_rdnis, "(N/A)"),
+			c->parkinglot,
 			c->language,
 			ast_state2str(c->_state),
 			c->_state,

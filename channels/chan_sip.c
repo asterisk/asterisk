@@ -663,6 +663,7 @@ static char default_vmexten[AST_MAX_EXTENSION];
 static char default_mohinterpret[MAX_MUSICCLASS];  /*!< Global setting for moh class to use when put on hold */
 static char default_mohsuggest[MAX_MUSICCLASS];	   /*!< Global setting for moh class to suggest when putting 
                                                     *   a bridged channel on hold */
+static char default_parkinglot[AST_MAX_CONTEXT]; /*!< Parkinglot */
 static int default_maxcallbitrate;	/*!< Maximum bitrate for call */
 static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
 
@@ -1219,6 +1220,7 @@ struct sip_pvt {
 		AST_STRING_FIELD(rpid);		/*!< Our RPID header */
 		AST_STRING_FIELD(rpid_from);	/*!< Our RPID From header */
 		AST_STRING_FIELD(url);		/*!< URL to be sent with next message to peer */
+		AST_STRING_FIELD(parkinglot);		/*!< Parkinglot */
 	);
 	struct sip_socket socket;		/*!< The socket used for this dialog */
 	unsigned int ocseq;			/*!< Current outgoing seqno */
@@ -1405,6 +1407,7 @@ struct sip_user {
 	char language[MAX_LANGUAGE];	/*!< Default language for this user */
 	char mohinterpret[MAX_MUSICCLASS];/*!< Music on Hold class */
 	char mohsuggest[MAX_MUSICCLASS];/*!< Music on Hold class */
+	char parkinglot[AST_MAX_CONTEXT];/*!< Parkinglot */
 	char useragent[256];		/*!< User agent in SIP request */
 	struct ast_codec_pref prefs;	/*!< codec prefs */
 	ast_group_t callgroup;		/*!< Call group */
@@ -1474,6 +1477,7 @@ struct sip_peer {
 	char language[MAX_LANGUAGE];	/*!<  Default language for prompts */
 	char mohinterpret[MAX_MUSICCLASS];/*!<  Music on Hold class */
 	char mohsuggest[MAX_MUSICCLASS];/*!<  Music on Hold class */
+	char parkinglot[AST_MAX_CONTEXT];/*!<  Parkinglot */
 	char useragent[256];		/*!<  User agent in SIP request (saved from registration) */
 	struct ast_codec_pref prefs;	/*!<  codec prefs */
 	int lastmsgssent;
@@ -4246,6 +4250,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	ast_string_field_set(dialog, tohost, peer->tohost);
 	ast_string_field_set(dialog, fullcontact, peer->fullcontact);
 	ast_string_field_set(dialog, context, peer->context);
+	ast_string_field_set(dialog, parkinglot, peer->parkinglot);
 	dialog->outboundproxy = obproxy_get(dialog, peer);
 	dialog->callgroup = peer->callgroup;
 	dialog->pickupgroup = peer->pickupgroup;
@@ -6076,6 +6081,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		p->t38.jointcapability = p->t38.capability;
 	}
 	ast_string_field_set(p, context, default_context);
+	ast_string_field_set(p, parkinglot, default_parkinglot);
 
 
 	/* Add to active dialog list */
@@ -11578,6 +11584,7 @@ static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
 		ast_string_field_set(p, language, user->language);
 		ast_string_field_set(p, mohsuggest, user->mohsuggest);
 		ast_string_field_set(p, mohinterpret, user->mohinterpret);
+		ast_string_field_set(p, parkinglot, user->parkinglot);
 		p->allowtransfer = user->allowtransfer;
 		p->amaflags = user->amaflags;
 		p->callgroup = user->callgroup;
@@ -11665,6 +11672,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	ast_string_field_set(p, subscribecontext, peer->subscribecontext);
 	ast_string_field_set(p, mohinterpret, peer->mohinterpret);
 	ast_string_field_set(p, mohsuggest, peer->mohsuggest);
+	ast_string_field_set(p, parkinglot, peer->parkinglot);
 	if (peer->callingpres)	/* Peer calling pres setting will override RPID */
 		p->callingpres = peer->callingpres;
 	if (peer->maxms && peer->lastms)
@@ -20484,6 +20492,8 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, str
 			user->callgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "pickupgroup")) {
 			user->pickupgroup = ast_get_group(v->value);
+		} else if (!strcasecmp(v->name, "parkinglot")) {
+			ast_copy_string(user->parkinglot, v->value, sizeof(user->parkinglot));
 		} else if (!strcasecmp(v->name, "language")) {
 			ast_copy_string(user->language, v->value, sizeof(user->language));
 		} else if (!strcasecmp(v->name, "mohinterpret")) {
@@ -20861,6 +20871,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			ast_copy_string(peer->mohinterpret, v->value, sizeof(peer->mohinterpret));
 		} else if (!strcasecmp(v->name, "mohsuggest")) {
 			ast_copy_string(peer->mohsuggest, v->value, sizeof(peer->mohsuggest));
+		} else if (!strcasecmp(v->name, "parkinglot")) {
+			ast_copy_string(peer->parkinglot, v->value, sizeof(peer->parkinglot));
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			add_peer_mailboxes(peer, v->value);
 		} else if (!strcasecmp(v->name, "subscribemwi")) {

@@ -404,6 +404,8 @@ struct unistim_line {
 	int amaflags;
 	/*! Codec supported */
 	int capability;
+	/*! Parkinglot */
+	char parkinglot[AST_MAX_CONTEXT];
 	struct unistim_line *next;
 	struct unistim_device *parent;
 };
@@ -5111,6 +5113,8 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 			l->pickupgroup = ast_get_group(v->value);
 		else if (!strcasecmp(v->name, "mailbox"))
 			ast_copy_string(l->mailbox, v->value, sizeof(l->mailbox));
+		else if (!strcasecmp(v->name, "parkinglot"))
+			ast_copy_string(l->parkinglot, v->value, sizeof(l->parkinglot));
 		else if (!strcasecmp(v->name, "linelabel"))
 			unquote(linelabel, v->value, sizeof(linelabel) - 1);
 		else if (!strcasecmp(v->name, "extension")) {

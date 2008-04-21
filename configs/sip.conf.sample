@@ -195,6 +195,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;
 ;mohsuggest=default
 ;
+;parkinglot=plaza		; Sets the default parking lot for call parking
+				; This may also be set for individual users/peers
+				; Parkinglots are configured in features.conf
 ;language=en			; Default language setting for all users/peers
 				; This may also be set for individual users/peers
 ;relaxdtmf=yes			; Relax dtmf handling

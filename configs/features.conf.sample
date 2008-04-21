@@ -3,10 +3,11 @@
 ;
 
 [general]
-parkext => 700			; What extension to dial to park
-parkpos => 701-720		; What extensions to park calls on. These needs to be
-				; numeric, as Asterisk starts from the start position
+parkext => 700			; What extension to dial to park	(all parking lots)
+parkpos => 701-720		; What extensions to park calls on. (defafult parking lot)
+				; These needs to be numeric, as Asterisk starts from the start position
 				; and increments with one for the next parked call.
+context => parkedcalls		; Which context parked calls are in (default parking lot)
 context => parkedcalls		; Which context parked calls are in
 ;parkingtime => 45		; Number of seconds a call can be parked for 
 				; (default is 45 seconds)
@@ -45,6 +46,7 @@ context => parkedcalls		; Which context parked calls are in
 ; Note that the DTMF features listed below only work when two channels have answered and are bridged together.
 ; They can not be used while the remote party is ringing or in progress. If you require this feature you can use
 ; chan_local in combination with Answer to accomplish it.
+
 
 [featuremap]
 ;blindxfer => #1		; Blind transfer  (default is #)
@@ -87,6 +89,7 @@ context => parkedcalls		; Which context parked calls are in
 ;                   channel waits for the feature to complete. If left blank,
 ;                   no music will be played.
 ;
+
 ;
 ; IMPORTANT NOTE: The applicationmap is not intended to be used for all Asterisk
 ;   applications. When applications are used in extensions.conf, they are executed
@@ -108,20 +111,21 @@ context => parkedcalls		; Which context parked calls are in
 ;unpauseMonitor => #3,self/callee,UnPauseMonitor   ;Allow the callee to unpause monitoring
 ;                                                  ;on their channel
 ;
+;*** Define another parking lot
+;
+; You can set parkinglot with the CHANNEL dialplan function
+; or configure it in the device configuration in the channel
+;
+;[parkinglot_edvina]
+;context => edvinapark
+;parkpos => 800-850
+;findslot => next
+
 ; GROUPS
 ;   Groups are groupings of features defined in [applicationmap]
 ;   that can have their own key mappings.
-;
-;   Groups are defined as a configuration section,
-;   and can be set as part of DYNAMIC_FEATURES in
-;   the same way that a normal feature can... 
-;	etc:	
-;
-;	  Set(DYNAMIC_FEATURES=myGroupName);
 ;
 ; example:
 ; [myGroupName]        ; defines the group named myGroupName
 ; testfeature => #9    ; associates testfeature with the group and the keycode #9
 ; pauseMonitor         ; associates pauseMonitor with the group and the keycode
-;                      ; defined in [applicationmap]
-

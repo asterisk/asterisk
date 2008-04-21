@@ -286,6 +286,10 @@ autokill=yes
 			; has expired based on its registration interval, used the stored
 			; address information regardless. (yes|no)
 
+;parkinglot=edvina		; Default parkinglot for IAX peers and users
+				; This can also be configured per device
+				; Parkinglots are defined in features.conf
+
 ; Guest sections for unauthenticated connection attempts.  Just specify an
 ; empty secret, or provide no secret section.
 ;

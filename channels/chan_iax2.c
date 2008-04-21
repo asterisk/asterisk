@@ -26,6 +26,8 @@
  * \arg \ref Config_iax
  *
  * \ingroup channel_drivers
+ * 
+ * \todo Implement musicclass settings for IAX2 devices
  */
 
 /*** MODULEINFO
@@ -140,6 +142,7 @@ static int trunk_timed, trunk_untimed, trunk_maxmtu, trunk_nmaxmtu ; 	/*!< Trunk
 
 
 static char context[80] = "default";
+static char default_parkinglot[AST_MAX_CONTEXT];
 
 static char language[MAX_LANGUAGE] = "";
 static char regcontext[AST_MAX_CONTEXT] = "";
@@ -298,6 +301,7 @@ struct iax2_user {
 		AST_STRING_FIELD(language);
 		AST_STRING_FIELD(cid_num);
 		AST_STRING_FIELD(cid_name);
+		AST_STRING_FIELD(parkinglot);           /*!< Default parkinglot for device */
 	);
 	
 	int authmethods;
@@ -333,6 +337,7 @@ struct iax2_peer {
 		AST_STRING_FIELD(cid_num);		/*!< Default context (for transfer really) */
 		AST_STRING_FIELD(cid_name);		/*!< Default context (for transfer really) */
 		AST_STRING_FIELD(zonetag);		/*!< Time Zone */
+		AST_STRING_FIELD(parkinglot);   /*!< Default parkinglot for device */
 	);
 	struct ast_codec_pref prefs;
 	struct ast_dnsmgr_entry *dnsmgr;		/*!< DNS refresh manager */
@@ -580,6 +585,8 @@ struct chan_iax2_pvt {
 		AST_STRING_FIELD(mohsuggest);
 		/*! received OSP token */
 		AST_STRING_FIELD(osptoken);
+		/*! Default parkinglot */
+		AST_STRING_FIELD(parkinglot);
 	);
 	
 	/*! permitted authentication methods */
@@ -1555,6 +1562,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			ast_string_field_set(iaxs[x], accountcode, accountcode);
 			ast_string_field_set(iaxs[x], mohinterpret, mohinterpret);
 			ast_string_field_set(iaxs[x], mohsuggest, mohsuggest);
+			ast_string_field_set(iaxs[x], parkinglot, default_parkinglot);
 		} else {
 			ast_log(LOG_WARNING, "Out of resources\n");
 			ast_mutex_unlock(&iaxsl[x]);
@@ -2437,6 +2445,7 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
 		ast_cli(a->fd, "  * Name       : %s\n", peer->name);
 		ast_cli(a->fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret) ? "<Not set>" : "<Set>");
 		ast_cli(a->fd, "  Context      : %s\n", peer->context);
+ 		ast_cli(a->fd, "  Parking lot  : %s\n", peer->parkinglot);
 		ast_cli(a->fd, "  Mailbox      : %s\n", peer->mailbox);
 		ast_cli(a->fd, "  Dynamic      : %s\n", ast_test_flag(peer, IAX_DYNAMIC) ? "Yes" : "No");
 		ast_cli(a->fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
@@ -3916,6 +3925,8 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	tmp->writeformat = ast_best_codec(capability);
 	tmp->tech_pvt = CALLNO_TO_PTR(i->callno);
 
+	if (!ast_strlen_zero(i->parkinglot))
+		ast_string_field_set(tmp, parkinglot, i->parkinglot);
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a NewCallerID event before the NewChannel event */
 	if (!ast_strlen_zero(i->ani))
@@ -5739,6 +5750,8 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			ast_string_field_set(iaxs[callno], mohinterpret, user->mohinterpret);
 		if (!ast_strlen_zero(user->mohsuggest))
 			ast_string_field_set(iaxs[callno], mohsuggest, user->mohsuggest);
+		if (!ast_strlen_zero(user->parkinglot))
+			ast_string_field_set(iaxs[callno], parkinglot, user->parkinglot);
 		if (user->amaflags)
 			iaxs[callno]->amaflags = user->amaflags;
 		if (!ast_strlen_zero(user->language))
@@ -10421,6 +10434,8 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 				ast_string_field_set(user, mohinterpret, v->value);
 			} else if (!strcasecmp(v->name, "mohsuggest")) {
 				ast_string_field_set(user, mohsuggest, v->value);
+			} else if (!strcasecmp(v->name, "parkinglot")) {
+				ast_string_field_set(user, parkinglot, v->value);
 			} else if (!strcasecmp(v->name, "language")) {
 				ast_string_field_set(user, language, v->value);
 			} else if (!strcasecmp(v->name, "amaflags")) {
@@ -10622,6 +10637,8 @@ static int set_config(char *config_file, int reload)
 #ifdef SO_NO_CHECK
 	nochecksums = 0;
 #endif
+	/* Reset default parking lot */
+	default_parkinglot[0] = '\0';
 
 	min_reg_expire = IAX_DEFAULT_REG_EXPIRE;
 	max_reg_expire = IAX_DEFAULT_REG_EXPIRE;
@@ -10818,6 +10835,8 @@ static int set_config(char *config_file, int reload)
 		} else if (!strcasecmp(v->name, "cos")) {
 			if (ast_str2cos(v->value, &cos))
 				ast_log(LOG_WARNING, "Invalid cos value at line %d, refer to QoS documentation\n", v->lineno);
+		} else if (!strcasecmp(v->name, "parkinglot")) {
+			ast_copy_string(default_parkinglot, v->value, sizeof(default_parkinglot));
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(accountcode, v->value, sizeof(accountcode));
 		} else if (!strcasecmp(v->name, "mohinterpret")) {

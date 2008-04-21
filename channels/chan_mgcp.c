@@ -143,6 +143,7 @@ static char context[AST_MAX_EXTENSION] = "default";
 
 static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_MUSICCLASS] = "";
+static char parkinglot[AST_MAX_CONTEXT];
 static char cid_num[AST_MAX_EXTENSION] = "";
 static char cid_name[AST_MAX_EXTENSION] = "";
 
@@ -317,6 +318,7 @@ struct mgcp_endpoint {
 	char musicclass[MAX_MUSICCLASS];
 	char curtone[80];			/*!< Current tone */
 	char mailbox[AST_MAX_EXTENSION];
+	char parkinglot[AST_MAX_CONTEXT];   /*!< Parkinglot */
 	struct ast_event_sub *mwi_event_sub;
 	ast_group_t callgroup;
 	ast_group_t pickupgroup;
@@ -3685,6 +3687,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				}
 			} else if (!strcasecmp(v->name, "musiconhold")) {
 				ast_copy_string(musicclass, v->value, sizeof(musicclass));
+			} else if (!strcasecmp(v->name, "parkinglot")) {
+				ast_copy_string(parkinglot, v->value, sizeof(parkinglot));
 			} else if (!strcasecmp(v->name, "callgroup")) {
 				cur_callergroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "pickupgroup")) {
@@ -3748,6 +3752,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					ast_copy_string(e->language, language, sizeof(e->language));
 					ast_copy_string(e->musicclass, musicclass, sizeof(e->musicclass));
 					ast_copy_string(e->mailbox, mailbox, sizeof(e->mailbox));
+					ast_copy_string(e->parkinglot, parkinglot, sizeof(e->parkinglot));
 					if (!ast_strlen_zero(e->mailbox)) {
 						char *mailbox, *context;
 						context = mailbox = ast_strdupa(e->mailbox);
@@ -3856,6 +3861,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					ast_copy_string(e->language, language, sizeof(e->language));
 					ast_copy_string(e->musicclass, musicclass, sizeof(e->musicclass));
 					ast_copy_string(e->mailbox, mailbox, sizeof(e->mailbox));
+					ast_copy_string(e->parkinglot, parkinglot, sizeof(e->parkinglot));
 					if (!ast_strlen_zero(mailbox)) {
 						ast_verb(3, "Setting mailbox '%s' on %s@%s\n", mailbox, gw->name, e->name);
 					}

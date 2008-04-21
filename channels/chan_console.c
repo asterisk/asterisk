@@ -141,6 +141,8 @@ static struct console_pvt {
 		AST_STRING_FIELD(mohinterpret);
 		/*! Default language */
 		AST_STRING_FIELD(language);
+		/*! Default parkinglot */
+		AST_STRING_FIELD(parkinglot);
 	);
 	/*! Current channel for this device */
 	struct ast_channel *owner;
@@ -1004,6 +1006,7 @@ static char *cli_list_devices(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		               "=== ---> CallerID Name:    %s\n"
 		               "=== ---> MOH Interpret:    %s\n"
 		               "=== ---> Language:         %s\n"
+		               "=== ---> Parkinglot:       %s\n"
 		               "=== ---> Muted:            %s\n"
 		               "=== ---> Auto-Answer:      %s\n"
 		               "=== ---> Override Context: %s\n"
@@ -1011,7 +1014,7 @@ static char *cli_list_devices(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			pvt->name, (pvt == active_pvt) ? "Yes" : "No",
 			pvt->input_device, pvt->output_device, pvt->context,
 			pvt->exten, pvt->cid_num, pvt->cid_name, pvt->mohinterpret,
-			pvt->language, pvt->muted ? "Yes" : "No", pvt->autoanswer ? "Yes" : "No",
+			pvt->language, pvt->parkinglot, pvt->muted ? "Yes" : "No", pvt->autoanswer ? "Yes" : "No",
 			pvt->overridecontext ? "Yes" : "No");
 
 		console_pvt_unlock(pvt);
@@ -1236,6 +1239,7 @@ static void set_pvt_defaults(struct console_pvt *pvt)
 		ast_string_field_set(pvt, language, "");
 		ast_string_field_set(pvt, cid_num, "");
 		ast_string_field_set(pvt, cid_name, "");
+		ast_string_field_set(pvt, parkinglot, "");
 	
 		pvt->overridecontext = 0;
 		pvt->autoanswer = 0;
@@ -1248,6 +1252,7 @@ static void set_pvt_defaults(struct console_pvt *pvt)
 		ast_string_field_set(pvt, language, globals.language);
 		ast_string_field_set(pvt, cid_num, globals.cid_num);
 		ast_string_field_set(pvt, cid_name, globals.cid_name);
+		ast_string_field_set(pvt, parkinglot, globals.parkinglot);
 
 		pvt->overridecontext = globals.overridecontext;
 		pvt->autoanswer = globals.autoanswer;
@@ -1287,6 +1292,7 @@ static void store_config_core(struct console_pvt *pvt, const char *var, const ch
 	CV_F("callerid", store_callerid(pvt, value));
 	CV_BOOL("overridecontext", pvt->overridecontext);
 	CV_BOOL("autoanswer", pvt->autoanswer);
+	CV_STRFIELD("parkinglot", pvt, parkinglot);
 
 	if (pvt != &globals) {
 		CV_F("active", set_active(pvt, value))

@@ -142,6 +142,7 @@ struct gtalk {
 	int amaflags;			/*!< AMA Flags */
 	char user[AJI_MAX_JIDLEN];
 	char context[AST_MAX_CONTEXT];
+	char parkinglot[AST_MAX_CONTEXT];	/*!<  Parkinglot */
 	char accountcode[AST_MAX_ACCOUNT_CODE];	/*!< Account code */
 	int capability;
 	ast_group_t callgroup;	/*!< Call group */
@@ -1024,6 +1025,8 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 		ast_string_field_set(tmp, language, client->language);
 	if (!ast_strlen_zero(client->musicclass))
 		ast_string_field_set(tmp, musicclass, client->musicclass);
+	if (!ast_strlen_zero(client->parkinglot))
+		ast_string_field_set(tmp, parkinglot, client->parkinglot);
 	i->owner = tmp;
 	ast_module_ref(ast_module_info->self);
 	ast_copy_string(tmp->context, client->context, sizeof(tmp->context));
@@ -1794,6 +1797,8 @@ static int gtalk_create_member(char *label, struct ast_variable *var, int allowg
 			ast_parse_allow_disallow(&member->prefs, &member->capability, var->value, 1);
 		else if (!strcasecmp(var->name, "context"))
 			ast_copy_string(member->context, var->value, sizeof(member->context));
+		else if (!strcasecmp(var->name, "parkinglot"))
+			ast_copy_string(member->parkinglot, var->value, sizeof(member->parkinglot));
 #if 0
 		else if (!strcasecmp(var->name, "candidate")) {
 			candidate = gtalk_create_candidate(var->value);
@@ -1832,6 +1837,7 @@ static int gtalk_load_config(void)
 	char *cat = NULL;
 	struct ast_config *cfg = NULL;
 	char context[AST_MAX_CONTEXT];
+	char parkinglot[AST_MAX_CONTEXT];
 	int allowguest = 1;
 	struct ast_variable *var;
 	struct gtalk *member;
@@ -1864,6 +1870,8 @@ static int gtalk_load_config(void)
 			ast_parse_allow_disallow(&prefs, &global_capability, var->value, 1);
 		else if (!strcasecmp(var->name, "context"))
 			ast_copy_string(context, var->value, sizeof(context));
+		else if (!strcasecmp(var->name, "parkinglot"))
+			ast_copy_string(parkinglot, var->value, sizeof(parkinglot));
 		else if (!strcasecmp(var->name, "bindaddr")) {
 			if (!(hp = ast_gethostbyname(var->value, &ahp))) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", var->value);
@@ -1892,6 +1900,7 @@ static int gtalk_load_config(void)
 				ast_copy_string(member->name, "guest", sizeof(member->name));
 				ast_copy_string(member->user, "guest", sizeof(member->user));
 				ast_copy_string(member->context, context, sizeof(member->context));
+				ast_copy_string(member->parkinglot, parkinglot, sizeof(member->parkinglot));
 				member->allowguest = allowguest;
 				member->prefs = prefs;
 				while (var) {
@@ -1904,6 +1913,9 @@ static int gtalk_load_config(void)
 					else if (!strcasecmp(var->name, "context"))
 						ast_copy_string(member->context, var->value,
 										sizeof(member->context));
+					else if (!strcasecmp(var->name, "parkinglot"))
+						ast_copy_string(member->parkinglot, var->value,
+										sizeof(member->parkinglot));
 /*  Idea to allow for custom candidates  */
 /*
 					else if (!strcasecmp(var->name, "candidate")) {

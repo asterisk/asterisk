@@ -237,6 +237,8 @@ static const char config[] = "zapata.conf";
 static char defaultcic[64] = "";
 static char defaultozz[64] = "";
 
+static char parkinglot[AST_MAX_EXTENSION] = "";		/*!< Default parking lot for this channel */
+
 /*! Run this script when the MWI state changes on an FXO line, if mwimonitor is enabled */
 static char mwimonitornotify[PATH_MAX] = "";
 
@@ -595,6 +597,7 @@ static struct zt_pvt {
 	char language[MAX_LANGUAGE];
 	char mohinterpret[MAX_MUSICCLASS];
 	char mohsuggest[MAX_MUSICCLASS];
+	char parkinglot[AST_MAX_EXTENSION]; /*!< Parking lot for this channel */
 #if defined(PRI_ANI) || defined(HAVE_SS7)
 	char cid_ani[AST_MAX_EXTENSION];
 #endif
@@ -777,6 +780,7 @@ static struct zt_chan_conf zt_chan_conf_default(void) {
 			.cid_name = "",
 			.mohinterpret = "default",
 			.mohsuggest = "",
+			.parkinglot = "",
 			.transfertobusy = 1,
 
 			.cid_signalling = CID_SIG_BELL,
@@ -5963,6 +5967,8 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
 	}
+	if (!ast_strlen_zero(i->parkinglot))
+		ast_string_field_set(tmp, parkinglot, i->parkinglot);
 	if (!ast_strlen_zero(i->language))
 		ast_string_field_set(tmp, language, i->language);
 	if (!i->owner)
@@ -8077,6 +8083,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 	struct zt_bufferinfo bi;
 #endif
 	struct zt_spaninfo si;
+
 	int res;
 	int span=0;
 	int here = 0;
@@ -8493,6 +8500,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 		ast_copy_string(tmp->mohsuggest, conf.chan.mohsuggest, sizeof(tmp->mohsuggest));
 		ast_copy_string(tmp->context, conf.chan.context, sizeof(tmp->context));
 		ast_copy_string(tmp->cid_num, conf.chan.cid_num, sizeof(tmp->cid_num));
+		ast_copy_string(tmp->parkinglot, conf.chan.parkinglot, sizeof(tmp->parkinglot));
 		tmp->cid_ton = 0;
 		ast_copy_string(tmp->cid_name, conf.chan.cid_name, sizeof(tmp->cid_name));
 		ast_copy_string(tmp->mailbox, conf.chan.mailbox, sizeof(tmp->mailbox));
@@ -13258,11 +13266,16 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 	const char *ringc; /* temporary string for parsing the dring number. */
 	int y;
 	int found_pseudo = 0;
-        char zapchan[MAX_CHANLIST_LEN] = {};
+	char zapchan[MAX_CHANLIST_LEN] = {};
 
 	for (; v; v = v->next) {
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
 			continue;
+
+		/* must have parkinglot in confp before build_channels is called */
+		if (!strcasecmp(v->name, "parkinglot")) {
+			ast_copy_string(confp->chan.parkinglot, v->value, sizeof(confp->chan.parkinglot));
+		}
 
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "channel")
@@ -13424,6 +13437,8 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 			ast_copy_string(confp->chan.mohinterpret, v->value, sizeof(confp->chan.mohinterpret));
 		} else if (!strcasecmp(v->name, "mohsuggest")) {
 			ast_copy_string(confp->chan.mohsuggest, v->value, sizeof(confp->chan.mohsuggest));
+		} else if (!strcasecmp(v->name, "parkinglot")) {
+			ast_copy_string(parkinglot, v->value, sizeof(parkinglot));
 		} else if (!strcasecmp(v->name, "stripmsd")) {
 			ast_log(LOG_NOTICE, "Configuration option \"%s\" has been deprecated. Please use dialplan instead\n", v->name);
 			confp->chan.stripmsd = atoi(v->value);
