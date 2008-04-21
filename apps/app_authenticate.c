@@ -126,9 +126,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 			/* Compare against a fixed password */
 			if (!strcmp(passwd, arglist.password))
 				break;
-		}
-
-		if (ast_test_flag(&flags,OPT_DATABASE)) {
+		} else if (ast_test_flag(&flags,OPT_DATABASE)) {
 			char tmp[256];
 			/* Compare against a database key */
 			if (!ast_db_get(arglist.password + 1, passwd, tmp, sizeof(tmp))) {
