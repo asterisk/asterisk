@@ -284,6 +284,7 @@ static struct val	*make_str __P((const char *));
 static struct val	*op_and __P((struct val *, struct val *));
 static struct val	*op_colon __P((struct val *, struct val *));
 static struct val	*op_eqtilde __P((struct val *, struct val *));
+static struct val	*op_tildetilde __P((struct val *, struct val *));
 static struct val	*op_div __P((struct val *, struct val *));
 static struct val	*op_eq __P((struct val *, struct val *));
 static struct val	*op_ge __P((struct val *, struct val *));
@@ -354,18 +355,16 @@ extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 %left <val> TOK_PLUS TOK_MINUS
 %left <val> TOK_MULT TOK_DIV TOK_MOD 
 %right <val> TOK_COMPL
-%left <val> TOK_COLON TOK_EQTILDE
+%left <val> TOK_COLON TOK_EQTILDE TOK_TILDETILDE
 %left <val> TOK_RP TOK_LP
-
 
 %token <val> TOKEN
 %type <arglist> arglist
 %type <val> start expr
 
-
 %destructor {  free_value($$); }  expr TOKEN TOK_COND TOK_COLONCOLON TOK_OR TOK_AND TOK_EQ 
                                  TOK_GT TOK_LT TOK_GE TOK_LE TOK_NE TOK_PLUS TOK_MINUS TOK_MULT TOK_DIV TOK_MOD TOK_COMPL TOK_COLON TOK_EQTILDE 
-                                 TOK_RP TOK_LP
+                                 TOK_RP TOK_LP TOK_TILDETILDE
 
 %%
 
@@ -476,6 +475,10 @@ expr:
 	| expr TOK_COND expr TOK_COLONCOLON expr  { $$ = op_cond ($1, $3, $5); 
 						DESTROY($2);	
 						DESTROY($4);	
+	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+							@$.first_line=0; @$.last_line=0;}
+	| expr TOK_TILDETILDE expr { $$ = op_tildetilde ($1, $3); 
+						DESTROY($2);	
 	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 							@$.first_line=0; @$.last_line=0;}
 	;
@@ -1614,6 +1617,32 @@ op_eqtilde (struct val *a, struct val *b)
 	free_value (a);
 	free_value (b);
 	regfree (&rp);
+
+	return v;
+}
+
+static struct val *  /* this is a string concat operator */
+op_tildetilde (struct val *a, struct val *b)
+{
+	struct val *v;
+	char *vs;
+
+	/* coerce to both arguments to strings */
+	to_string(a);
+	to_string(b);
+	/* strip double quotes from both -- */
+	strip_quotes(a);
+	strip_quotes(b);
+	
+	vs = malloc(strlen(a->u.s)+strlen(b->u.s)+1);
+	strcpy(vs,a->u.s);
+	strcat(vs,b->u.s);
+
+	v = make_str(vs);
+
+	/* free arguments */
+	free_value(a);
+	free_value(b);
 
 	return v;
 }

@@ -302,6 +302,27 @@ with equal precedence are grouped within \{ \} symbols.
        will be the result of the "evaluation" of this
        expression.  expr3 will be the result otherwise. This
        operator has the lowest precedence.
+
+   \item \verb!expr1 ~~ expr2!
+
+	Concatenation operator. The two exprs are evaluated and
+	turned into strings, stripped of surrounding double quotes,
+        and are turned into a single string with no invtervening spaces. 
+        This operator is new to trunk after 1.6.0; it is not needed 
+	in existing extensions.conf code. Because of the way asterisk
+	evaluates ${ } and $[ ] constructs (recursively, bottom-
+	up), no $[] or ${} is ever present when the contents
+	of a ${} or $[] is evaluated. Thus, tokens are usually
+	already merged at evaluation time. But, in AEL, various
+	exprs are evaluated raw, and ${} and $[] are gathered
+	and treated as tokens. And in AEL, no two tokens can
+	sit side by side without an intervening operator.
+	So, in AEL, concatenation must be explicitly specified
+	in expressions. This new operator will play well into
+	future plans, where expressions ($[] constructs, and
+	variable references (${} constructs) are merged into a 
+	single grammar. 
+
 \end{itemize}
 
 Parentheses are used for grouping in the usual manner.

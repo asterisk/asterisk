@@ -1,7 +1,9 @@
-/* A Bison parser, made by GNU Bison 2.1a.  */
+/* A Bison parser, made by GNU Bison 2.3.  */
 
-/* Skeleton parser for Yacc-like parsing with Bison,
-   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
+/* Skeleton interface for Bison's Yacc-like parsers in C
+
+   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +20,18 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor,
    Boston, MA 02110-1301, USA.  */
 
-/* As a special exception, when this file is copied by Bison into a
-   Bison output file, you may use that output file without restriction.
-   This special exception was added by the Free Software Foundation
-   in version 1.24 of Bison.  */
+/* As a special exception, you may create a larger work that contains
+   part or all of the Bison parser skeleton and distribute that work
+   under terms of your choice, so long as that work isn't itself a
+   parser generator using the skeleton or a modified version thereof
+   as a parser skeleton.  Alternatively, if you modify or redistribute
+   the parser skeleton itself, you may (at your option) remove this
+   special exception, which will cause the skeleton and the resulting
+   Bison output files to be licensed under the GNU General Public
+   License without this special exception.
+
+   This special exception was added by the Free Software Foundation in
+   version 2.2 of Bison.  */
 
 /* Tokens.  */
 #ifndef YYTOKENTYPE
@@ -46,11 +56,12 @@
      TOK_DIV = 272,
      TOK_MULT = 273,
      TOK_COMPL = 274,
-     TOK_EQTILDE = 275,
-     TOK_COLON = 276,
-     TOK_LP = 277,
-     TOK_RP = 278,
-     TOKEN = 279
+     TOK_TILDETILDE = 275,
+     TOK_EQTILDE = 276,
+     TOK_COLON = 277,
+     TOK_LP = 278,
+     TOK_RP = 279,
+     TOKEN = 280
    };
 #endif
 /* Tokens.  */
@@ -71,24 +82,25 @@
 #define TOK_DIV 272
 #define TOK_MULT 273
 #define TOK_COMPL 274
-#define TOK_EQTILDE 275
-#define TOK_COLON 276
-#define TOK_LP 277
-#define TOK_RP 278
-#define TOKEN 279
+#define TOK_TILDETILDE 275
+#define TOK_EQTILDE 276
+#define TOK_COLON 277
+#define TOK_LP 278
+#define TOK_RP 279
+#define TOKEN 280
 
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 341 "ast_expr2.y"
+#line 342 "ast_expr2.y"
 {
 	struct val *val;
 	struct expr_node *arglist;
 }
-/* Line 1536 of yacc.c.  */
-#line 92 "ast_expr2.h"
+/* Line 1489 of yacc.c.  */
+#line 104 "ast_expr2.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -109,7 +121,5 @@ typedef struct YYLTYPE
 # define YYLTYPE_IS_DECLARED 1
 # define YYLTYPE_IS_TRIVIAL 1
 #endif
-
-
 
 

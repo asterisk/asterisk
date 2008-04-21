@@ -167,6 +167,10 @@ CLI Changes
   * Added a CLI command, "devstate change", which allows you to set custom device
      states from the func_devstate module that provides the DEVICE_STATE() function
      and handling of the "Custom:" devices.
+  * New CLI command: "sip show sched" which shows all ast_sched entries for sip,
+    sorted into the different possible callbacks, with the number of entries
+    currently scheduled for each. Gives you a feel for how busy the sip channel
+    driver is.
 
 SIP changes
 -----------
@@ -500,6 +504,17 @@ AEL Changes
      first pass at conversion.
   * aelparse will now read extensions.conf to see if a referenced
      macro or context is there before issueing a warning.
+  * AEL parser sets a local channel variable ~~EXTEN~~, to 
+    preserve the value of ${EXTEN} thru switch statements.
+  * New operator in $[...] expressions: the ~~ operator serves
+    as a concatenation operator. AT THE MOMENT, it is really only
+    necessary and useful in AEL, especially in if() expressions.
+    Operation: ${a} ~~ ${b|  with force both a and b to strings, strip 
+    any enclosing double-quotes, and evaluate to the value of a
+    concatenated with the value of b.  For example if a is set to
+    "xyz"  and b has the value "abc", then ${a} ~~ ${b| would
+    evaluate to xyzabc .
+
 
 Call Features (res_features) Changes
 ------------------------------------
