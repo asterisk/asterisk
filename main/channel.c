@@ -1573,7 +1573,7 @@ static int generator_force(const void *data)
 	if (!tmp || !generate)
 		return 0;
 
-	res = generate(chan, tmp, 0, 160);
+	res = generate(chan, tmp, 0, ast_format_rate(chan->writeformat & AST_FORMAT_AUDIO_MASK) / 50);
 
 	chan->generatordata = tmp;
 
@@ -1889,6 +1889,7 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 		void *tmp = chan->generatordata;
 		int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples) = NULL;
 		int res;
+		int samples;
 
 		if (chan->timingfunc) {
 			if (option_debug > 1)
@@ -1897,6 +1898,15 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 		}
 
 		chan->generatordata = NULL;     /* reset, to let writes go through */
+
+		if (f->subclass != chan->writeformat) {
+			float factor;
+			factor = ((float) ast_format_rate(chan->writeformat)) / ((float) ast_format_rate(f->subclass));
+			samples = (int) ( ((float) f->samples) * factor );
+		} else {
+			samples = f->samples;
+		}
+
 		if (chan->generator->generate) {
 			generate = chan->generator->generate;
 		}
@@ -1909,7 +1919,7 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 		 * avoidance not to work in deeper functions
 		 */
 		ast_channel_unlock(chan);
-		res = generate(chan, tmp, f->datalen, f->samples);
+		res = generate(chan, tmp, f->datalen, samples);
 		ast_channel_lock(chan);
 		chan->generatordata = tmp;
 		if (res) {

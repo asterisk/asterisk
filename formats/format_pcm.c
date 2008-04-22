@@ -102,7 +102,10 @@ static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
 		return NULL;
 	}
 	s->fr.datalen = res;
-	*whennext = s->fr.samples = res;
+	if (s->fmt->format == AST_FORMAT_G722)
+		*whennext = s->fr.samples = res * 2;
+	else
+		*whennext = s->fr.samples = res;
 	return &s->fr;
 }
 
@@ -380,24 +383,31 @@ static int au_rewrite(struct ast_filestream *s, const char *comment)
 static int au_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	off_t min, max, cur;
-	long offset = 0, samples;
-	
-	samples = sample_offset;
+	long offset = 0, bytes;
+
+	if (fs->fmt->format == AST_FORMAT_G722)
+		bytes = sample_offset / 2;
+	else
+		bytes = sample_offset;
+
 	min = AU_HEADER_SIZE;
 	cur = ftello(fs->f);
 	fseek(fs->f, 0, SEEK_END);
 	max = ftello(fs->f);
+
 	if (whence == SEEK_SET)
-		offset = samples + min;
+		offset = bytes + min;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
-		offset = samples + cur;
+		offset = bytes + cur;
 	else if (whence == SEEK_END)
-		offset = max - samples;
+		offset = max - bytes;
         if (whence != SEEK_FORCECUR) {
 		offset = (offset > max) ? max : offset;
 	}
+
 	/* always protect the header space. */
 	offset = (offset < min) ? min : offset;
+
 	return fseeko(fs->f, offset, SEEK_SET);
 }
 

@@ -1313,7 +1313,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		/* Add timing data to let ast_generic_bridge() put the frame into a jitterbuf */
 		ast_set_flag(&rtp->f, AST_FRFLAG_HAS_TIMING_INFO);
 		rtp->f.ts = timestamp / 8;
-		rtp->f.len = rtp->f.samples / ( (ast_format_rate(rtp->f.subclass) == 16000) ? 16 : 8 );
+		rtp->f.len = rtp->f.samples / (ast_format_rate(rtp->f.subclass) / 1000);
 	} else {
 		/* Video -- samples is # of samples vs. 90000 */
 		if (!rtp->lastividtimestamp)
@@ -2795,17 +2795,28 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 			ast_smoother_feed(rtp->smoother, _f);
 		}
 
-		while((f = ast_smoother_read(rtp->smoother)) && (f->data))
+		while ((f = ast_smoother_read(rtp->smoother)) && (f->data)) {
+			if (f->subclass == AST_FORMAT_G722) {
+				/* G.722 is silllllllllllllly */
+				f->samples /= 2;
+			}
+
 			ast_rtp_raw_write(rtp, f, codec);
+		}
 	} else {
-	        /* Don't buffer outgoing frames; send them one-per-packet: */
+		/* Don't buffer outgoing frames; send them one-per-packet: */
 		if (_f->offset < hdrlen) {
 			f = ast_frdup(_f);
 		} else {
 			f = _f;
 		}
-		if (f->data)
+		if (f->data) {
+			if (f->subclass == AST_FORMAT_G722) {
+				/* G.722 is silllllllllllllly */
+				f->samples /= 2;
+			}
 			ast_rtp_raw_write(rtp, f, codec);
+		}
 		if (f != _f)
 			ast_frfree(f);
 	}
