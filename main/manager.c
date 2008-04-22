@@ -1063,7 +1063,8 @@ static char mandescr_ping[] =
 
 static int action_ping(struct mansession *s, const struct message *m)
 {
-	astman_send_response(s, m, "Success", "Ping: Pong\r\n");
+	astman_append(s, "Response: Success\r\n"
+			 "Ping: Pong\r\n");
 	return 0;
 }
 
@@ -1575,10 +1576,11 @@ static int action_events(struct mansession *s, const struct message *m)
 
 	res = set_eventmask(s, mask);
 	if (res > 0)
-		astman_send_response(s, m, "Success", "Events: On\r\n");
+		astman_append(s, "Response: Success\r\n"
+				 "Events: On\r\n");
 	else if (res == 0)
-		astman_send_response(s, m, "Success", "Events: Off\r\n");
-
+		astman_append(s, "Response: Success\r\n"
+				 "Events: Off\r\n");
 	return 0;
 }
 
@@ -3362,11 +3364,13 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *v
 				ast_str_append(out, 0, xml ? "'" : "</td></tr>\n");
 				in_data = 0;
 			}
-			ast_str_append(out, 0, xml ? " /></response>\n" :
-				"<tr><td colspan=\"2\"><hr></td></tr>\r\n");
-			inobj = 0;
-			ao2_ref(vco, -1);
-			vco = NULL;
+			if (inobj) {
+				ast_str_append(out, 0, xml ? " /></response>\n" :
+					"<tr><td colspan=\"2\"><hr></td></tr>\r\n");
+				inobj = 0;
+				ao2_ref(vco, -1);
+				vco = NULL;
+			}
 			continue;
 		}
 
