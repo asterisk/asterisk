@@ -6226,11 +6226,12 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 			el->next = tmp;
 			/* The pattern trie points to this exten; replace the pointer,
 			   and all will be well */
-			
-			if (x->exten) { /* this test for safety purposes */
-				x->exten = tmp; /* replace what would become a bad pointer */
-			} else {
-				ast_log(LOG_ERROR,"Trying to delete an exten from a context, but the pattern tree node returned isn't an extension\n");
+			if (x) { /* if the trie isn't formed yet, don't sweat this */
+				if (x->exten) { /* this test for safety purposes */
+					x->exten = tmp; /* replace what would become a bad pointer */
+				} else {
+					ast_log(LOG_ERROR,"Trying to delete an exten from a context, but the pattern tree node returned isn't an extension\n");
+				}
 			}
 		} else {			/* We're the very first extension.  */
 			struct match_char *x = add_exten_to_pattern_tree(con, e, 1);
@@ -6249,10 +6250,12 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
  			con->root = tmp;
 			/* The pattern trie points to this exten; replace the pointer,
 			   and all will be well */
-			if (x->exten) { /* this test for safety purposes */
-				x->exten = tmp; /* replace what would become a bad pointer */
-			} else {
-				ast_log(LOG_ERROR,"Trying to delete an exten from a context, but the pattern tree node returned isn't an extension\n");
+			if (x) { /* if the trie isn't formed yet; no problem */
+				if (x->exten) { /* this test for safety purposes */
+					x->exten = tmp; /* replace what would become a bad pointer */
+				} else {
+					ast_log(LOG_ERROR,"Trying to delete an exten from a context, but the pattern tree node returned isn't an extension\n");
+				}
 			}
 		}
 		if (tmp->priority == PRIORITY_HINT)
