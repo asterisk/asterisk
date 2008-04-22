@@ -15348,6 +15348,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						break;
 					}
 					/* Fall through */
+				case 502: /* Bad gateway */
 				case 503: /* Service Unavailable */
 				case 504: /* Server Timeout */
 					if (owner)
