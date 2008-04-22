@@ -318,7 +318,7 @@ static int pbx_builtin_sayphonetic(struct ast_channel *, void *);
 static int matchcid(const char *cidpattern, const char *callerid);
 int pbx_builtin_setvar(struct ast_channel *, void *);
 void log_match_char_tree(struct match_char *node, char *prefix); /* for use anywhere */
-static int pbx_builtin_setvar_multiple(struct ast_channel *, void *);
+int pbx_builtin_setvar_multiple(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
 static void set_ext_pri(struct ast_channel *c, const char *exten, int pri); 
 static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid, enum ext_match_t action);
@@ -7560,7 +7560,7 @@ int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 	return(0);
 }
 
-static int pbx_builtin_setvar_multiple(struct ast_channel *chan, void *vdata)
+int pbx_builtin_setvar_multiple(struct ast_channel *chan, void *vdata)
 {
 	char *data;
 	int x;

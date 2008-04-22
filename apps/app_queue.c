@@ -587,11 +587,11 @@ static void set_queue_variables(struct queue_ent *qe)
 			sl = 100 * ((float) qe->parent->callscompletedinsl / (float) qe->parent->callscompleted);
 
 		snprintf(interfacevar, sizeof(interfacevar),
-			"QUEUENAME=%s|QUEUEMAX=%d|QUEUESTRATEGY=%s|QUEUECALLS=%d|QUEUEHOLDTIME=%d|QUEUECOMPLETED=%d|QUEUEABANDONED=%d|QUEUESRVLEVEL=%d|QUEUESRVLEVELPERF=%2.1f",
+			"QUEUENAME=%s,QUEUEMAX=%d,QUEUESTRATEGY=%s,QUEUECALLS=%d,QUEUEHOLDTIME=%d,QUEUECOMPLETED=%d,QUEUEABANDONED=%d,QUEUESRVLEVEL=%d,QUEUESRVLEVELPERF=%2.1f",
 			qe->parent->name, qe->parent->maxlen, int2strat(qe->parent->strategy), qe->parent->count, qe->parent->holdtime, qe->parent->callscompleted,
 			qe->parent->callsabandoned,  qe->parent->servicelevel, sl);
 	
-		pbx_builtin_setvar(qe->chan, interfacevar); 
+		pbx_builtin_setvar_multiple(qe->chan, interfacevar); 
 	}
 }
 
@@ -3386,17 +3386,17 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		/* if setinterfacevar is defined, make member variables available to the channel */
 		/* use  pbx_builtin_setvar to set a load of variables with one call */
 		if (qe->parent->setinterfacevar) {
-			snprintf(interfacevar, sizeof(interfacevar), "MEMBERINTERFACE=%s|MEMBERNAME=%s|MEMBERCALLS=%d|MEMBERLASTCALL=%ld|MEMBERPENALTY=%d|MEMBERDYNAMIC=%d|MEMBERREALTIME=%d",
+			snprintf(interfacevar, sizeof(interfacevar), "MEMBERINTERFACE=%s,MEMBERNAME=%s,MEMBERCALLS=%d,MEMBERLASTCALL=%ld,MEMBERPENALTY=%d,MEMBERDYNAMIC=%d,MEMBERREALTIME=%d",
 				member->interface, member->membername, member->calls, (long)member->lastcall, member->penalty, member->dynamic, member->realtime);
-		 	pbx_builtin_setvar(qe->chan, interfacevar);
+		 	pbx_builtin_setvar_multiple(qe->chan, interfacevar);
 		}
 		
 		/* if setqueueentryvar is defined, make queue entry (i.e. the caller) variables available to the channel */
 		/* use  pbx_builtin_setvar to set a load of variables with one call */
 		if (qe->parent->setqueueentryvar) {
-			snprintf(interfacevar, sizeof(interfacevar), "QEHOLDTIME=%ld|QEORIGINALPOS=%d",
+			snprintf(interfacevar, sizeof(interfacevar), "QEHOLDTIME=%ld,QEORIGINALPOS=%d",
 				(long) time(NULL) - qe->start, qe->opos);
-			pbx_builtin_setvar(qe->chan, interfacevar);
+			pbx_builtin_setvar_multiple(qe->chan, interfacevar);
 		}
 	
 		/* try to set queue variables if configured to do so*/
@@ -4650,10 +4650,10 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 		                sl = 100 * ((float) q->callscompletedinsl / (float) q->callscompleted);
 
 		        snprintf(interfacevar, sizeof(interfacevar),
-                		"QUEUEMAX=%d|QUEUESTRATEGY=%s|QUEUECALLS=%d|QUEUEHOLDTIME=%d|QUEUECOMPLETED=%d|QUEUEABANDONED=%d|QUEUESRVLEVEL=%d|QUEUESRVLEVELPERF=%2.1f",
+                		"QUEUEMAX=%d,QUEUESTRATEGY=%s,QUEUECALLS=%d,QUEUEHOLDTIME=%d,QUEUECOMPLETED=%d,QUEUEABANDONED=%d,QUEUESRVLEVEL=%d,QUEUESRVLEVELPERF=%2.1f",
 		                q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->callscompleted, q->callsabandoned,  q->servicelevel, sl);
 
-		        pbx_builtin_setvar(chan, interfacevar);
+		        pbx_builtin_setvar_multiple(chan, interfacevar);
 	        }
 
 		ao2_unlock(q);

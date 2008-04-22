@@ -843,6 +843,7 @@ void pbx_builtin_clear_globals(void);
  * \note Will lock the channel.
  */
 int pbx_builtin_setvar(struct ast_channel *chan, void *data);
+int pbx_builtin_setvar_multiple(struct ast_channel *chan, void *data);
 
 int pbx_builtin_raise_exception(struct ast_channel *chan, void *data);
 
