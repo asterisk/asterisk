@@ -6,6 +6,7 @@ Dialplan Functions
 ------------------
  * Added a new dialplan function, AST_CONFIG(), which allows you to access
    variables from an Asterisk configuration file.
+ * The JACK_HOOK function now has a c() option to supply a custom client name.
 
 Zaptel channel driver (chan_zap) Changes
 ----------------------------------------
@@ -31,6 +32,7 @@ Application Changes
    continue in the dialplan, at the specified label, if the caller hangs up.
  * ChanSpy and ExtenSpy have a new option, 's' which suppresses speaking the
    technology name (e.g. SIP, IAX, etc) of the channel being spied on.
+ * The Jack application now has a c() option to supply a custom client name.
 
 SIP Changes
 -----------

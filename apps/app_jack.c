@@ -65,7 +65,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 "    o(<name>) - Connect the input port that gets created to the specified\n" \
 "                jack output port.\n" \
 "    n         - Do not automatically start the JACK server if it is not already\n" \
-"                running.\n"
+"                running.\n" \
+"    c(<name>) - By default, Asterisk will use the channel name for the jack client\n" \
+"                name.  Use this option to specify a custom client name.\n"
 
 static char *jack_app = "JACK";
 static char *jack_synopsis = 
@@ -82,6 +84,7 @@ COMMON_OPTIONS
 struct jack_data {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(server_name);
+		AST_STRING_FIELD(client_name);
 		AST_STRING_FIELD(connect_input_port);
 		AST_STRING_FIELD(connect_output_port);
 	);
@@ -350,13 +353,17 @@ static struct jack_data *destroy_jack_data(struct jack_data *jack_data)
 
 static int init_jack_data(struct ast_channel *chan, struct jack_data *jack_data)
 {
-	const char *chan_name;
+	const char *client_name;
 	jack_status_t status = 0;
 	jack_options_t jack_options = JackNullOption;
 
-	ast_channel_lock(chan);
-	chan_name = ast_strdupa(chan->name);
-	ast_channel_unlock(chan);
+	if (!ast_strlen_zero(jack_data->client_name)) {
+		client_name = jack_data->client_name;
+	} else {
+		ast_channel_lock(chan);
+		client_name = ast_strdupa(chan->name);
+		ast_channel_unlock(chan);
+	}
 
 	if (!(jack_data->output_rb = jack_ringbuffer_create(RINGBUFFER_SIZE)))
 		return -1;
@@ -369,10 +376,10 @@ static int init_jack_data(struct ast_channel *chan, struct jack_data *jack_data)
 
 	if (!ast_strlen_zero(jack_data->server_name)) {
 		jack_options |= JackServerName;
-		jack_data->client = jack_client_open(chan_name, jack_options, &status,
+		jack_data->client = jack_client_open(client_name, jack_options, &status,
 			jack_data->server_name);
 	} else {
-		jack_data->client = jack_client_open(chan_name, jack_options, &status);
+		jack_data->client = jack_client_open(client_name, jack_options, &status);
 	}
 
 	if (status)
@@ -610,12 +617,15 @@ enum {
 	OPT_INPUT_PORT =     (1 << 1),
 	OPT_OUTPUT_PORT =    (1 << 2),
 	OPT_NOSTART_SERVER = (1 << 3),
+	OPT_CLIENT_NAME =    (1 << 4),
 };
 
 enum {
 	OPT_ARG_SERVER_NAME,
 	OPT_ARG_INPUT_PORT,
 	OPT_ARG_OUTPUT_PORT,
+	OPT_ARG_CLIENT_NAME,
+
 	/* Must be the last element */
 	OPT_ARG_ARRAY_SIZE,
 };
@@ -625,6 +635,7 @@ AST_APP_OPTIONS(jack_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('i', OPT_INPUT_PORT, OPT_ARG_INPUT_PORT),
 	AST_APP_OPTION_ARG('o', OPT_OUTPUT_PORT, OPT_ARG_OUTPUT_PORT),
 	AST_APP_OPTION('n', OPT_NOSTART_SERVER),
+	AST_APP_OPTION_ARG('c', OPT_CLIENT_NAME, OPT_ARG_CLIENT_NAME),
 END_OPTIONS );
 
 static struct jack_data *jack_data_alloc(void)
@@ -660,6 +671,15 @@ static int handle_options(struct jack_data *jack_data, const char *__options_str
 			ast_string_field_set(jack_data, server_name, option_args[OPT_ARG_SERVER_NAME]);
 		else {
 			ast_log(LOG_ERROR, "A server name must be provided with the s() option\n");
+			return -1;
+		}
+	}
+
+	if (ast_test_flag(&options, OPT_CLIENT_NAME)) {
+		if (!ast_strlen_zero(option_args[OPT_ARG_CLIENT_NAME]))
+			ast_string_field_set(jack_data, client_name, option_args[OPT_ARG_CLIENT_NAME]);
+		else {
+			ast_log(LOG_ERROR, "A client name must be provided with the c() option\n");
 			return -1;
 		}
 	}
