@@ -54,14 +54,17 @@ extern "C" {
  * macro should NOT be used.
  */
 #define AST_SCHED_DEL(sched, id) \
-	do { \
+	({ \
 		int _count = 0; \
-		while (id > -1 && ast_sched_del(sched, id) && ++_count < 10) \
+		int _sched_res = -1; \
+		while (id > -1 && (_sched_res = ast_sched_del(sched, id)) && ++_count < 10) \
 			usleep(1); \
-		if (_count == 10 && option_debug > 2) \
+		if (_count == 10 && option_debug > 2) { \
 			ast_log(LOG_DEBUG, "Unable to cancel schedule ID %d.\n", id); \
+		} \
 		id = -1; \
-	} while (0);
+		(_sched_res); \
+	})
 
 struct sched_context;
 

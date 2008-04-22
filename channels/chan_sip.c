@@ -2475,15 +2475,6 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		peer->chanvars = NULL;
 	}
 
-	/* If the schedule delete fails, that means the schedule is currently
-	 * running, which means we should wait for that thread to complete.
-	 * Otherwise, there's a crashable race condition.
-	 *
-	 * NOTE: once peer is refcounted, this probably is no longer necessary.
-	 */
-	AST_SCHED_DEL(sched, peer->expire);
-	AST_SCHED_DEL(sched, peer->pokeexpire);
-
 	register_peer_exten(peer, FALSE);
 	ast_free_ha(peer->ha);
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT))
@@ -2636,8 +2627,15 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 		/* Cache peer */
 		ast_copy_flags(&peer->flags[1],&global_flags[1], SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
 		if (ast_test_flag(&global_flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
-			AST_SCHED_DEL(sched, peer->expire);
-			peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_register, (void *)peer);
+			if (!AST_SCHED_DEL(sched, peer->expire)) {
+				struct sip_peer *peer_ptr = peer;
+				ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+			}
+			peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_register, ASTOBJ_REF(peer));
+			if (peer->expire == -1) {
+				struct sip_peer *peer_ptr = peer;
+				ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+			}
 		}
 		ASTOBJ_CONTAINER_LINK(&peerl,peer);
 	} else {
@@ -7917,9 +7915,11 @@ static int expire_register(const void *data)
 	*/
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT) ||
 	    ast_test_flag(&peer->flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
-		peer = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);	/* Remove from peer list */
-		ASTOBJ_UNREF(peer, sip_destroy_peer);		/* Remove from memory */
+		peer = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);
+		ASTOBJ_UNREF(peer, sip_destroy_peer);
 	}
+
+	ASTOBJ_UNREF(peer, sip_destroy_peer);
 
 	return 0;
 }
@@ -7927,10 +7927,14 @@ static int expire_register(const void *data)
 /*! \brief Poke peer (send qualify to check if peer is alive and well) */
 static int sip_poke_peer_s(const void *data)
 {
-	struct sip_peer *peer = (struct sip_peer *)data;
+	struct sip_peer *peer = (struct sip_peer *) data;
 
 	peer->pokeexpire = -1;
+
 	sip_poke_peer(peer);
+
+	ASTOBJ_UNREF(peer, sip_destroy_peer);
+
 	return 0;
 }
 
@@ -7983,12 +7987,26 @@ static void reg_source_db(struct sip_peer *peer)
 	peer->addr.sin_port = htons(port);
 	if (sipsock < 0) {
 		/* SIP isn't up yet, so schedule a poke only, pretty soon */
-		AST_SCHED_DEL(sched, peer->pokeexpire);
-		peer->pokeexpire = ast_sched_add(sched, ast_random() % 5000 + 1, sip_poke_peer_s, peer);
+		if (!AST_SCHED_DEL(sched, peer->pokeexpire)) {
+			struct sip_peer *peer_ptr = peer;
+			ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+		}
+		peer->pokeexpire = ast_sched_add(sched, ast_random() % 5000 + 1, sip_poke_peer_s, ASTOBJ_REF(peer));
+		if (peer->pokeexpire == -1) {
+			struct sip_peer *peer_ptr = peer;
+			ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+		}
 	} else
 		sip_poke_peer(peer);
-	AST_SCHED_DEL(sched, peer->expire);
-	peer->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
+	if (!AST_SCHED_DEL(sched, peer->expire)) {
+		struct sip_peer *peer_ptr = peer;
+		ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+	}
+	peer->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, ASTOBJ_REF(peer));
+	if (peer->expire == -1) {
+		struct sip_peer *peer_ptr = peer;
+		ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+	}
 	register_peer_exten(peer, TRUE);
 }
 
@@ -8123,7 +8141,10 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	} else if (!strcasecmp(curi, "*") || !expiry) {	/* Unregister this peer */
 		/* This means remove all registrations and return OK */
 		memset(&peer->addr, 0, sizeof(peer->addr));
-		AST_SCHED_DEL(sched, peer->expire);
+		if (!AST_SCHED_DEL(sched, peer->expire)) {
+			struct sip_peer *peer_ptr = peer;
+			ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+		}
 
 		destroy_association(peer);
 		
@@ -8188,13 +8209,23 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	if (curi && ast_strlen_zero(peer->username))
 		ast_copy_string(peer->username, curi, sizeof(peer->username));
 
-	AST_SCHED_DEL(sched, peer->expire);
+	if (!AST_SCHED_DEL(sched, peer->expire)) {
+		struct sip_peer *peer_ptr = peer;
+		ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+	}
 	if (expiry > max_expiry)
 		expiry = max_expiry;
 	if (expiry < min_expiry)
 		expiry = min_expiry;
-	peer->expire = ast_test_flag(&peer->flags[0], SIP_REALTIME) ? -1 :
-		ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
+	if (ast_test_flag(&peer->flags[0], SIP_REALTIME)) {
+		peer->expire = -1;
+	} else {
+		peer->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, ASTOBJ_REF(peer));
+		if (peer->expire == -1) {
+			struct sip_peer *peer_ptr = peer;
+			ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+		}
+	}
 	pvt->expiry = expiry;
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry, peer->username, peer->fullcontact);
 	if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT)) 
@@ -12624,13 +12655,20 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 			peer->name, s, pingtime);
 	}
 
-	AST_SCHED_DEL(sched, peer->pokeexpire);
+	if (!AST_SCHED_DEL(sched, peer->pokeexpire)) {
+		struct sip_peer *peer_ptr = peer;
+		ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+	}
+
 	ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 
 	/* Try again eventually */
 	peer->pokeexpire = ast_sched_add(sched,
 		is_reachable ? DEFAULT_FREQ_OK : DEFAULT_FREQ_NOTOK,
-		sip_poke_peer_s, peer);
+		sip_poke_peer_s, ASTOBJ_REF(peer));
+	if (peer->pokeexpire == -1) {
+		ASTOBJ_UNREF(peer, sip_destroy_peer);
+	}
 }
 
 /*! \brief Immediately stop RTP, VRTP and UDPTL as applicable */
@@ -15798,9 +15836,20 @@ static int sip_poke_noanswer(const void *data)
 	peer->call = NULL;
 	peer->lastms = -1;
 	ast_device_state_changed("SIP/%s", peer->name);
-	/* Try again quickly */
-	AST_SCHED_DEL(sched, peer->pokeexpire);
+
+	/* This function gets called one place outside of the scheduler ... */
+	if (!AST_SCHED_DEL(sched, peer->pokeexpire)) {
+		struct sip_peer *peer_ptr = peer;
+		ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+	}
+
+	/* There is no need to ASTOBJ_REF() here.  Just let the scheduled callback
+	 * inherit the reference that the current callback already has. */
 	peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
+	if (peer->pokeexpire == -1) {
+		ASTOBJ_UNREF(peer, sip_destroy_peer);
+	}
+
 	return 0;
 }
 
@@ -15815,7 +15864,10 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (!peer->maxms || !peer->addr.sin_addr.s_addr) {
 		/* IF we have no IP, or this isn't to be monitored, return
 		  imeediately after clearing things out */
-		AST_SCHED_DEL(sched, peer->pokeexpire);
+		if (!AST_SCHED_DEL(sched, peer->pokeexpire)) {
+			struct sip_peer *peer_ptr = peer;
+			ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+		}
 		peer->lastms = 0;
 		peer->call = NULL;
 		return 0;
@@ -15848,7 +15900,11 @@ static int sip_poke_peer(struct sip_peer *peer)
 	build_via(p);
 	build_callid_pvt(p);
 
-	AST_SCHED_DEL(sched, peer->pokeexpire);
+	if (!AST_SCHED_DEL(sched, peer->pokeexpire)) {
+		struct sip_peer *peer_ptr = peer;
+		ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+	}
+
 	p->relatedpeer = peer;
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 #ifdef VOCAL_DATA_HACK
@@ -15858,11 +15914,18 @@ static int sip_poke_peer(struct sip_peer *peer)
 	xmitres = transmit_invite(p, SIP_OPTIONS, 0, 2);
 #endif
 	gettimeofday(&peer->ps, NULL);
-	if (xmitres == XMIT_ERROR)
-		sip_poke_noanswer(peer);	/* Immediately unreachable, network problems */
-	else {
-		AST_SCHED_DEL(sched, peer->pokeexpire);
-		peer->pokeexpire = ast_sched_add(sched, peer->maxms * 2, sip_poke_noanswer, peer);
+	if (xmitres == XMIT_ERROR) {
+		sip_poke_noanswer(ASTOBJ_REF(peer));	/* Immediately unreachable, network problems */
+	} else {
+		if (!AST_SCHED_DEL(sched, peer->pokeexpire)) {
+			struct sip_peer *peer_ptr = peer;
+			ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+		}
+		peer->pokeexpire = ast_sched_add(sched, peer->maxms * 2, sip_poke_noanswer, ASTOBJ_REF(peer));
+		if (peer->pokeexpire == -1) {
+			struct sip_peer *peer_ptr = peer;
+			ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+		}
 	}
 
 	return 0;
@@ -16664,7 +16727,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				}
 			} else {
 				/* Non-dynamic.  Make sure we become that way if we're not */
-				AST_SCHED_DEL(sched, peer->expire);
+				if (!AST_SCHED_DEL(sched, peer->expire)) {
+					struct sip_peer *peer_ptr = peer;
+					ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+				}
 				ast_clear_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
 				if (!obproxyfound || !strcasecmp(v->name, "outboundproxy")) {
 					if (ast_get_ip_or_srv(&peer->addr, v->value, srvlookup ? "_sip._udp" : NULL)) {
@@ -17841,9 +17907,16 @@ static void sip_poke_all_peers(void)
 
 	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
 		ASTOBJ_WRLOCK(iterator);
-		AST_SCHED_DEL(sched, iterator->pokeexpire);
+		if (!AST_SCHED_DEL(sched, iterator->pokeexpire)) {
+			struct sip_peer *peer_ptr = iterator;
+			ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+		}
 		ms += 100;
-		iterator->pokeexpire = ast_sched_add(sched, ms, sip_poke_peer_s, iterator);
+		iterator->pokeexpire = ast_sched_add(sched, ms, sip_poke_peer_s, ASTOBJ_REF(iterator));
+		if (iterator->pokeexpire == -1) {
+			struct sip_peer *peer_ptr = iterator;
+			ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+		}
 		ASTOBJ_UNLOCK(iterator);
 	} while (0)
 	);
