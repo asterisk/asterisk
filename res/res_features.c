@@ -1711,7 +1711,7 @@ static void *do_parking_thread(void *ignore)
 					}
 					if (con) {
 						char returnexten[AST_MAX_EXTENSION];
-						snprintf(returnexten, sizeof(returnexten), "%s||t", peername);
+						snprintf(returnexten, sizeof(returnexten), "%s|30|t", peername);
 						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), ast_free, registrar);
 					}
 					set_c_e_p(chan, parking_con_dial, peername, 1);
