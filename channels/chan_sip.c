@@ -1278,6 +1278,7 @@ struct sip_pvt {
 	struct ast_channel *owner;		/*!< Who owns us (if we have an owner) */
 	struct sip_route *route;		/*!< Head of linked list of routing steps (fm Record-Route) */
 	int route_persistant;			/*!< Is this the "real" route? */
+	struct ast_variable *notify_headers;    /*!< Custom notify type */	
 	struct sip_auth *peerauth;		/*!< Realm authentication */
 	int noncecount;				/*!< Nonce-count */
 	char lastmsg[256];			/*!< Last Message sent/received */
@@ -1832,7 +1833,6 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len);
 static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, struct ast_str *data, int len, int fatal, int sipmethod);
 static int __transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
 static int retrans_pkt(const void *data);
-static int transmit_sip_request(struct sip_pvt *p, struct sip_request *req);
 static int transmit_response_using_temp(ast_string_field callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, const struct sip_request *req, const char *msg);
 static int transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req);
 static int transmit_response_reliable(struct sip_pvt *p, const char *msg, const struct sip_request *req);
@@ -1852,6 +1852,7 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
 static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, char *vmexten);
 static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *message, int terminate);
+static int transmit_notify_custom(struct sip_pvt *p, struct ast_variable *vars);
 static int transmit_register(struct sip_registry *r, int sipmethod, const char *auth, const char *authheader);
 static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
 static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
@@ -1990,7 +1991,7 @@ static char *sip_show_history(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 static char *sip_do_debug_ip(int fd, char *arg);
 static char *sip_do_debug_peer(int fd, char *arg);
 static char *sip_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
-static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_do_history_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_set_history(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int sip_dtmfmode(struct ast_channel *chan, void *data);
@@ -2133,6 +2134,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 
 /*------Response handling functions */
 static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
+static void handle_response_notify(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
@@ -4575,6 +4577,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (p->options)
 		ast_free(p->options);
 
+	if (p->notify_headers) {
+		ast_variables_destroy(p->notify_headers);
+		p->notify_headers = NULL;
+	}
 	if (p->rtp) {
 		ast_rtp_destroy(p->rtp);
 	}
@@ -9002,6 +9008,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 {
 	struct sip_request req;
+	struct ast_variable *var;
 	
 	req.method = sipmethod;
 	if (init) {/* Bump branch even on initial requests */
@@ -9050,6 +9057,14 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
+
+	if(p->notify_headers) {
+		char buf[512];
+		for (var = p->notify_headers; var; var = var->next) {
+			ast_copy_string(buf, var->value, sizeof(buf));
+			add_header(&req, var->name, ast_unescape_semicolon(buf));
+		}
+	}
 	if (p->options && p->options->addsipheaders && p->owner) {
 		struct ast_channel *chan = p->owner; /* The owner channel */
 		struct varshead *headp;
@@ -9098,7 +9113,9 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		} else if (p->rtp) 
 			add_sdp(&req, p, FALSE);
 	} else {
-		add_header_contentLength(&req, 0);
+		if (!p->notify_headers) {
+			add_header_contentLength(&req, 0);
+		}
 	}
 
 	if (!p->initreq.headers)
@@ -9107,7 +9124,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	return send_request(p, &req, init ? XMIT_CRITICAL : XMIT_RELIABLE, p->ocseq);
 }
 
-/*! \brief Used in the SUBSCRIBE notification subsystem */
+/*! \brief Used in the SUBSCRIBE notification subsystem (RFC3265) */
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout)
 {
 	struct ast_str *tmp = ast_str_alloca(4000);
@@ -9290,7 +9307,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
-/*! \brief Notify user of messages waiting in voicemail
+/*! \brief Notify user of messages waiting in voicemail (RFC3842)
 \note	- Notification only works for registered peers with mailbox= definitions
 	in sip.conf
 	- We use the SIP Event package message-summary
@@ -9329,15 +9346,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
-/*! \brief Transmit SIP request unreliably (only used in sip_notify subsystem) */
-static int transmit_sip_request(struct sip_pvt *p, struct sip_request *req)
-{
-	if (!p->initreq.headers) 	/* Initialize first request before sending */
-		initialize_initreq(p, req);
-	return send_request(p, req, XMIT_UNRELIABLE, p->ocseq);
-}
-
-/*! \brief Notify a transferring party of the status of transfer */
+/*! \brief Notify a transferring party of the status of transfer (RFC3515) */
 static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *message, int terminate)
 {
 	struct sip_request req;
@@ -9361,6 +9370,32 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 	p->lastnoninvite = p->ocseq;
 
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
+}
+
+/*! \brief Notify device with custom headers from sip_notify.conf */
+static int transmit_notify_custom(struct sip_pvt *p, struct ast_variable *vars) {
+	struct sip_request req;
+	struct ast_variable *var, *newvar;
+
+	initreqprep(&req, p, SIP_NOTIFY);
+
+	/* Copy notify vars and add headers */
+	p->notify_headers = newvar = ast_variable_new("Subscription-State", "terminated", "");
+	add_header(&req, newvar->name, newvar->value);
+	for (var = vars; var; var = var->next) {
+		char buf[512];
+		ast_debug(2, "  Adding pair %s=%s\n", var->name, var->value);
+		ast_copy_string(buf, var->value, sizeof(buf));
+		add_header(&req, var->name, ast_unescape_semicolon(buf));
+		newvar->next = ast_variable_new(var->name, var->value, "");
+		newvar = newvar->next;
+	}
+
+	if (!p->initreq.headers) { /* Initialize first request before sending */
+		initialize_initreq(p, &req);
+	}
+
+	return send_request(p, &req, XMIT_UNRELIABLE, p->ocseq);
 }
 
 static const struct _map_x_s regstatestrings[] = {
@@ -14689,7 +14724,7 @@ static char *sip_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 }
 
 /*! \brief Cli command to send SIP notify to peer */
-static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_variable *varlist;
 	int i;
@@ -14705,7 +14740,6 @@ static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 	case CLI_GENERATE:
 		return complete_sipnotify(a->line, a->word, a->pos, a->n);
 	}
-
 
 	if (a->argc < 4)
 		return CLI_SHOWUSAGE;
@@ -14724,8 +14758,6 @@ static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 
 	for (i = 3; i < a->argc; i++) {
 		struct sip_pvt *p;
-		struct sip_request req;
-		struct ast_variable *var;
 
 		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY))) {
 			ast_log(LOG_WARNING, "Unable to build sip pvt data for notify (memory/socket error)\n");
@@ -14741,13 +14773,8 @@ static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 			continue;
 		}
 
-		initreqprep(&req, p, SIP_NOTIFY);
-
-		for (var = varlist; var; var = var->next) {
-			char buf[512];
-			ast_copy_string(buf, var->value, sizeof(buf));
-			add_header(&req, var->name, ast_unescape_semicolon(buf));
-		}
+		/* Notify is outgoing call */
+		ast_set_flag(&p->flags[0], SIP_OUTGOING);
 
 		/* Recalculate our side, and recalculate Call ID */
 		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
@@ -14757,9 +14784,8 @@ static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 		ao2_t_link(dialogs, p, "Linking in new name");
 		ast_cli(a->fd, "Sending NOTIFY of type '%s' to '%s'\n", a->argv[2], a->argv[i]);
 		dialog_ref(p, "bump the count of p, which transmit_sip_request will decrement.");
-		transmit_sip_request(p, &req);
-		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-		dialog_unref(p, "unref pvt at end of for loop in sip_notify");
+		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		transmit_notify_custom(p, varlist);
 	}
 
 	return CLI_SUCCESS;
@@ -15733,6 +15759,51 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_log(LOG_WARNING, "Could not transmit message in dialog %s\n", p->callid);
 }
 
+/* \brief Handle SIP response in NOTIFY transaction
+       We've sent a NOTIFY, now handle responses to it
+  */
+static void handle_response_notify(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
+{
+	switch (resp) {
+	case 200:   /* Notify accepted */
+		/* They got the notify, this is the end */
+		if (p->owner) {
+			if (!p->refer) {
+				ast_log(LOG_WARNING, "Notify answer on an owned channel? - %s\n", p->owner->name);
+				ast_queue_hangup(p->owner);
+			} else {
+				ast_debug(4, "Got OK on REFER Notify message\n");
+			}
+		} else {
+			if (p->subscribed == NONE) {
+				ast_debug(4, "Got 200 accepted on NOTIFY\n");
+				p->needdestroy = 1;
+			}
+			if (ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE)) {
+				/* Ready to send the next state we have on queue */
+				ast_clear_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE);
+				cb_extensionstate((char *)p->context, (char *)p->exten, p->laststate, (void *) p);
+			}
+		}
+		break;
+	case 401:   /* Not www-authorized on SIP method */
+	case 407:   /* Proxy auth */
+		if (!p->notify_headers) {
+			break; /* Only device notify can use NOTIFY auth */
+		}
+		ast_string_field_set(p, theirtag, NULL);
+		if (ast_strlen_zero(p->authname)) {
+			ast_log(LOG_WARNING, "Asked to authenticate NOTIFY to %s:%d but we have no matching peer or realm auth!\n", ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+			p->needdestroy = 1;
+		}
+		if (p->authtries > 1 || do_proxy_auth(p, req, resp, SIP_NOTIFY, 0)) {
+			ast_log(LOG_NOTICE, "Failed to authenticate on NOTYFY to '%s'\n", get_header(&p->initreq, "From"));
+			p->needdestroy = 1;
+		}
+		break;
+	}
+}
+
 /* \brief Handle SIP response in REFER transaction
 	We've sent a REFER, now handle responses to it 
   */
@@ -16082,22 +16153,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			} else if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_NOTIFY) {
-				/* They got the notify, this is the end */
-				if (p->owner) {
-					if (!p->refer) {
-						ast_log(LOG_WARNING, "Notify answer on an owned channel? - %s\n", p->owner->name);
-						ast_queue_hangup(p->owner);
-					} else
-						ast_debug(4, "Got OK on REFER Notify message\n");
-				} else {
-					if (p->subscribed == NONE) 
-						p->needdestroy = 1;
-					if (ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE)) {
-						/* Ready to send the next state we have on queue */
-						ast_clear_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE);
-						cb_extensionstate((char *)p->context, (char *)p->exten, p->laststate, (void *) p);
-					}
-				}
+				handle_response_notify(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_REGISTER) 
 				res = handle_response_register(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_BYE)		/* Ok, we're ready to go */
@@ -16111,6 +16167,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 407: /* Proxy auth required */
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
+			else if (sipmethod == SIP_NOTIFY)
+				handle_response_notify(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER)
@@ -22407,7 +22465,7 @@ static struct ast_cli_entry cli_sip[] = {
 	AST_CLI_DEFINE(sip_show_registry, "List SIP registration status"),
 	AST_CLI_DEFINE(sip_unregister, "Unregister (force expiration) a SIP peer from the registery\n"),
 	AST_CLI_DEFINE(sip_show_settings, "Show SIP global settings"),
-	AST_CLI_DEFINE(sip_notify, "Send a notify packet to a SIP peer"),
+	AST_CLI_DEFINE(sip_cli_notify, "Send a notify packet to a SIP peer"),
 	AST_CLI_DEFINE(sip_show_channel, "Show detailed SIP channel info"),
 	AST_CLI_DEFINE(sip_show_history, "Show SIP dialog history"),
 	AST_CLI_DEFINE(sip_show_peer, "Show details on specific SIP peer"),
