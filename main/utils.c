@@ -714,52 +714,86 @@ static const char *locktype2str(enum ast_lock_type type)
 	return "UNKNOWN";
 }
 
-/*! \todo this function is very broken and duplicates a lot of code ... */
+static void append_lock_information(struct ast_str **str, struct thr_lock_info *lock_info, int i)
+{
+	int j;
+	ast_mutex_t *lock;
+	
+	ast_str_append(str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
+				   lock_info->locks[i].pending > 0 ? "Waiting for " : 
+				   lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", i,
+				   lock_info->locks[i].file, 
+				   locktype2str(lock_info->locks[i].type),
+				   lock_info->locks[i].line_num,
+				   lock_info->locks[i].func, lock_info->locks[i].lock_name,
+				   lock_info->locks[i].lock_addr, 
+				   lock_info->locks[i].times_locked);
+	
+	if (!lock_info->locks[i].pending || lock_info->locks[i].pending == -1)
+		return;
+	
+	/* We only have further details for mutexes right now */
+	if (lock_info->locks[i].type != AST_MUTEX)
+		return;
+	
+	lock = lock_info->locks[i].lock_addr;
+	
+	ast_reentrancy_lock(lock);
+	for (j = 0; *str && j < lock->reentrancy; j++) {
+		ast_str_append(str, 0, "=== --- ---> Locked Here: %s line %d (%s)\n",
+					   lock->file[j], lock->lineno[j], lock->func[j]);
+	}
+	ast_reentrancy_unlock(lock);	
+}
+
+
+/*! This function can help you find highly temporal locks; locks that happen for a 
+    short time, but at unexpected times, usually at times that create a deadlock,
+	Why is this thing locked right then? Who is locking it? Who am I fighting
+    with for this lock? 
+
+	To answer such questions, just call this routine before you would normally try
+	to aquire a lock. It doesn't do anything if the lock is not acquired. If the
+	lock is taken, it will publish a line or two to the console via ast_log().
+
+	Sometimes, the lock message is pretty uninformative. For instance, you might
+	find that the lock is being aquired deep within the astobj2 code; this tells
+	you little about higher level routines that call the astobj2 routines.
+	But, using gdb, you can set a break at the ast_log below, and for that
+	breakpoint, you can set the commands:
+	  where
+	  cont
+	which will give a stack trace and continue. -- that aught to do the job!
+
+*/
 void log_show_lock(void *this_lock_addr)
 {
 	struct thr_lock_info *lock_info;
-	struct ast_str *str = NULL;
+	struct ast_str *str;
+
+	if (!(str = ast_str_create(4096))) {
+		ast_log(LOG_NOTICE,"Could not create str\n");
+		return;
+	}
+	
 
 	pthread_mutex_lock(&lock_infos_lock.mutex);
 	AST_LIST_TRAVERSE(&lock_infos, lock_info, entry) {
 		int i;
 		pthread_mutex_lock(&lock_info->lock);
 		for (i = 0; str && i < lock_info->num_locks; i++) {
-			int j;
-			ast_mutex_t *lock;
+			/* ONLY show info about this particular lock, if
+			   it's acquired... */
 			if (lock_info->locks[i].lock_addr == this_lock_addr) {
-				
-				ast_log(LOG_NOTICE, "---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
-						lock_info->locks[i].pending > 0 ? "Waiting for " : lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", 
-						i,
-						lock_info->locks[i].file, 
-						locktype2str(lock_info->locks[i].type),
-						lock_info->locks[i].line_num,
-						lock_info->locks[i].func, 
-						lock_info->locks[i].lock_name,
-						lock_info->locks[i].lock_addr, 
-						lock_info->locks[i].times_locked);
-				
-				if (!lock_info->locks[i].pending || lock_info->locks[i].pending == -1)
-					continue;
-				
-				/* We only have further details for mutexes right now */
-				if (lock_info->locks[i].type != AST_MUTEX)
-					continue;
-				
-				lock = lock_info->locks[i].lock_addr;
-				
-				ast_reentrancy_lock(lock);
-				for (j = 0; str && j < lock->reentrancy; j++) {
-					ast_log(LOG_NOTICE, "--- ---> Locked Here: %s line %d (%s)\n",
-								   lock->file[j], lock->lineno[j], lock->func[j]);
-				}
-				ast_reentrancy_unlock(lock);	
+				append_lock_information(&str, lock_info, i);
+				ast_log(LOG_NOTICE, "%s", str->str);
+				break;
 			}
 		}
 		pthread_mutex_unlock(&lock_info->lock);
 	}
 	pthread_mutex_unlock(&lock_infos_lock.mutex);
+	ast_free(str);
 }
 
 
@@ -802,34 +836,7 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			lock_info->thread_name);
 		pthread_mutex_lock(&lock_info->lock);
 		for (i = 0; str && i < lock_info->num_locks; i++) {
-			int j;
-			ast_mutex_t *lock;
-
-			ast_str_append(&str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
-				lock_info->locks[i].pending > 0 ? "Waiting for " : 
-					lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", i,
-				lock_info->locks[i].file, 
-				locktype2str(lock_info->locks[i].type),
-				lock_info->locks[i].line_num,
-				lock_info->locks[i].func, lock_info->locks[i].lock_name,
-				lock_info->locks[i].lock_addr, 
-				lock_info->locks[i].times_locked);
-
-			if (!lock_info->locks[i].pending || lock_info->locks[i].pending == -1)
-				continue;
-
-			/* We only have further details for mutexes right now */
-			if (lock_info->locks[i].type != AST_MUTEX)
-				continue;
-
-			lock = lock_info->locks[i].lock_addr;
-
-			ast_reentrancy_lock(lock);
-			for (j = 0; str && j < lock->reentrancy; j++) {
-				ast_str_append(&str, 0, "=== --- ---> Locked Here: %s line %d (%s)\n",
-					lock->file[j], lock->lineno[j], lock->func[j]);
-			}
-			ast_reentrancy_unlock(lock);	
+			append_lock_information(&str, lock_info, i);
 		}
 		pthread_mutex_unlock(&lock_info->lock);
 		if (!str)

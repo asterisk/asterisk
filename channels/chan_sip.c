@@ -12927,8 +12927,10 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 	struct sip_pvt *dialog = dialogobj;
 	time_t *t = arg;
 	
+	/* log_show_lock(ao2_object_get_lockaddr(dialog)); this is an example of how to use log_show_lock() */
 	if (sip_pvt_trylock(dialog)) {
-		/* this path gets executed fairly frequently (3% or so) even in low load
+		/* In very short-duration calls via sipp,
+		   this path gets executed fairly frequently (3% or so) even in low load
 		   situations; the routines we most commonly fight for a lock with:
 		   sip_answer (7 out of 9)
 		   sip_hangup (2 out of 9)
