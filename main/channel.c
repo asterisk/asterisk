@@ -2287,7 +2287,7 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 		 * avoidance not to work in deeper functions
 		 */
 		ast_channel_unlock(chan);
-		res = generate(chan, tmp, f->datalen, f->samples);
+		res = generate(chan, tmp, f->datalen, samples);
 		ast_channel_lock(chan);
 		chan->generatordata = tmp;
 		if (res) {
