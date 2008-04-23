@@ -111,7 +111,7 @@ int ast_manager_unregister( char *action );
  * \param perm permission mask to verify
  * \returns 1 if the session has the permission mask capabilities, otherwise 0
  */
-int astman_verify_session_readpermissions(unsigned long ident, int perm);
+int astman_verify_session_readpermissions(uint32_t ident, int perm);
 
 /*!
  * \brief Verify a session's write permissions against a permission mask.  
@@ -119,7 +119,7 @@ int astman_verify_session_readpermissions(unsigned long ident, int perm);
  * \param perm permission mask to verify
  * \returns 1 if the session has the permission mask capabilities, otherwise 0
  */
-int astman_verify_session_writepermissions(unsigned long ident, int perm);
+int astman_verify_session_writepermissions(uint32_t ident, int perm);
 
 /*! External routines may send asterisk manager events this way */
 /*! 	\param category	Event category, matches manager authorization
