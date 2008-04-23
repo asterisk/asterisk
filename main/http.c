@@ -699,12 +699,49 @@ static int ssl_close(void *cookie)
 }*/
 #endif	/* DO_SSL */
 
+static struct ast_variable *parse_cookies(char *cookies)
+{
+	char *cur;
+	struct ast_variable *vars = NULL, *var;
+
+	/* Skip Cookie: */
+	cookies += 8;
+
+	while ((cur = strsep(&cookies, ";"))) {
+		char *name, *val;
+		
+		name = val = cur;
+		strsep(&val, "=");
+
+		if (ast_strlen_zero(name) || ast_strlen_zero(val)) {
+			continue;
+		}
+
+		name = ast_strip(name);
+		val = ast_strip_quoted(val, "\"", "\"");
+
+		if (ast_strlen_zero(name) || ast_strlen_zero(val)) {
+			continue;
+		}
+
+		if (option_debug) {
+			ast_log(LOG_DEBUG, "mmm ... cookie!  Name: '%s'  Value: '%s'\n", name, val);
+		}
+
+		var = ast_variable_new(name, val, __FILE__);
+		var->next = vars;
+		vars = var;
+	}
+
+	return vars;
+}
+
 static void *httpd_helper_thread(void *data)
 {
 	char buf[4096];
 	char cookie[4096];
 	struct ast_tcptls_session_instance *ser = data;
-	struct ast_variable *var, *prev=NULL, *vars=NULL, *headers = NULL;
+	struct ast_variable *vars=NULL, *headers = NULL;
 	char *uri, *title=NULL;
 	int status = 200, contentlength = 0;
 	struct ast_str *out = NULL;
@@ -727,15 +764,13 @@ static void *httpd_helper_thread(void *data)
 
 	/* process "Cookie: " lines */
 	while (fgets(cookie, sizeof(cookie), ser->f)) {
-		char *vname, *vval;
-		int l;
-
 		/* Trim trailing characters */
 		ast_trim_blanks(cookie);
 		if (ast_strlen_zero(cookie))
 			break;
 		if (strncasecmp(cookie, "Cookie: ", 8)) {
 			char *name, *value;
+			struct ast_variable *var;
 
 			value = ast_strdupa(cookie);
 			name = strsep(&value, ":");
@@ -752,46 +787,10 @@ static void *httpd_helper_thread(void *data)
 			continue;
 		}
 
-		/* TODO - The cookie parsing code below seems to work   
-		   in IE6 and FireFox 1.5.  However, it is not entirely 
-		   correct, and therefore may not work in all           
-		   circumstances.		                        
-		      For more details see RFC 2109 and RFC 2965        */
-	
-		/* FireFox cookie strings look like:                    
-		     Cookie: mansession_id="********"                   
-		   InternetExplorer's look like:                        
-		     Cookie: $Version="1"; mansession_id="********"     */
-		
-		/* If we got a FireFox cookie string, the name's right  
-		    after "Cookie: "                                    */
-		vname = ast_skip_blanks(cookie + 8);
-			
-		/* If we got an IE cookie string, we need to skip to    
-		    past the version to get to the name                 */
-		if (*vname == '$') {
-			strsep(&vname, ";");
-			if (!vname)	/* no name ? */
-				continue;
-			vname = ast_skip_blanks(vname);
+		if (vars) {
+			ast_variables_destroy(vars);
 		}
-		vval = strchr(vname, '=');
-		if (!vval)
-			continue;
-		/* Ditch the = and the quotes */
-		*vval++ = '\0';
-		if (*vval)
-			vval++;
-		if ( (l = strlen(vval)) )
-			vval[l - 1] = '\0';	/* trim trailing quote */
-		var = ast_variable_new(vname, vval, "");
-		if (var) {
-			if (prev)
-				prev->next = var;
-			else
-				vars = var;
-			prev = var;
-		}
+		vars = parse_cookies(cookie);
 	}
 
 	if (!*uri) {
