@@ -379,15 +379,51 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status,
 	return c;
 }
 
+static struct ast_variable *parse_cookies(char *cookies)
+{
+	char *cur;
+	struct ast_variable *vars = NULL, *var;
+
+	/* Skip Cookie: */
+	cookies += 8;
+
+	while ((cur = strsep(&cookies, ";"))) {
+		char *name, *val;
+		
+		name = val = cur;
+		strsep(&val, "=");
+
+		if (ast_strlen_zero(name) || ast_strlen_zero(val)) {
+			continue;
+		}
+
+		name = ast_strip(name);
+		val = ast_strip_quoted(val, "\"", "\"");
+
+		if (ast_strlen_zero(name) || ast_strlen_zero(val)) {
+			continue;
+		}
+
+		if (option_debug) {
+			ast_log(LOG_DEBUG, "mmm ... cookie!  Name: '%s'  Value: '%s'\n", name, val);
+		}
+
+		var = ast_variable_new(name, val);
+		var->next = vars;
+		vars = var;
+	}
+
+	return vars;
+}
+
 static void *ast_httpd_helper_thread(void *data)
 {
 	char buf[4096];
 	char cookie[4096];
 	char timebuf[256];
 	struct ast_http_server_instance *ser = data;
-	struct ast_variable *var, *prev=NULL, *vars=NULL;
+	struct ast_variable *vars = NULL;
 	char *uri, *c, *title=NULL;
-	char *vname, *vval;
 	int status = 200, contentlength = 0;
 	time_t t;
 	unsigned int static_content = 0;
@@ -423,52 +459,7 @@ static void *ast_httpd_helper_thread(void *data)
 			if (ast_strlen_zero(cookie))
 				break;
 			if (!strncasecmp(cookie, "Cookie: ", 8)) {
-
-				/* TODO - The cookie parsing code below seems to work   
-				   in IE6 and FireFox 1.5.  However, it is not entirely 
-				   correct, and therefore may not work in all           
-				   circumstances.		                        
-				      For more details see RFC 2109 and RFC 2965        */
-			
-				/* FireFox cookie strings look like:                    
-				     Cookie: mansession_id="********"                   
-				   InternetExplorer's look like:                        
-				     Cookie: $Version="1"; mansession_id="********"     */
-				
-				/* If we got a FireFox cookie string, the name's right  
-				    after "Cookie: "                                    */
-				vname = cookie + 8;
-				
-				/* If we got an IE cookie string, we need to skip to    
-				    past the version to get to the name                 */
-				if (*vname == '$') {
-					vname = strchr(vname, ';');
-					if (vname) { 
-						vname++;
-						if (*vname == ' ')
-							vname++;
-					}
-				}
-				
-				if (vname) {
-					vval = strchr(vname, '=');
-					if (vval) {
-						/* Ditch the = and the quotes */
-						*vval++ = '\0';
-						if (*vval)
-							vval++;
-						if (strlen(vval))
-							vval[strlen(vval) - 1] = '\0';
-						var = ast_variable_new(vname, vval);
-						if (var) {
-							if (prev)
-								prev->next = var;
-							else
-								vars = var;
-							prev = var;
-						}
-					}
-				}
+				vars = parse_cookies(cookie);
 			}
 		}
 
