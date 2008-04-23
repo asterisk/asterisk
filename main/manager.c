@@ -153,7 +153,7 @@ struct mansession {
 	int inuse;		/*!< number of HTTP sessions using this entry */
 	int needdestroy;	/*!< Whether an HTTP session should be destroyed */
 	pthread_t waiting_thread;	/*!< Sleeping thread using this descriptor */
-	unsigned long managerid;	/*!< Unique manager identifier, 0 for AMI sessions */
+	uint32_t managerid;	/*!< Unique manager identifier, 0 for AMI sessions */
 	time_t sessionstart;    /*!< Session start time */
 	time_t sessiontimeout;	/*!< Session timeout if HTTP */
 	char username[80];	/*!< Logged in username */
@@ -3140,7 +3140,7 @@ static char *contenttype[] = {
  * the value of the mansession_id cookie (0 is not valid and means
  * a session on the AMI socket).
  */
-static struct mansession *find_session(unsigned long ident)
+static struct mansession *find_session(uint32_t ident)
 {
 	struct mansession *s;
 
@@ -3161,7 +3161,7 @@ static struct mansession *find_session(unsigned long ident)
 	return s;
 }
 
-int astman_verify_session_readpermissions(unsigned long ident, int perm)
+int astman_verify_session_readpermissions(uint32_t ident, int perm)
 {
 	int result = 0;
 	struct mansession *s;
@@ -3180,7 +3180,7 @@ int astman_verify_session_readpermissions(unsigned long ident, int perm)
 	return result;
 }
 
-int astman_verify_session_writepermissions(unsigned long ident, int perm)
+int astman_verify_session_writepermissions(uint32_t ident, int perm)
 {
 	int result = 0;
 	struct mansession *s;
@@ -3435,7 +3435,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 					     char **title, int *contentlength)
 {
 	struct mansession *s = NULL;
-	unsigned long ident = 0; /* invalid, so find_session will fail if not set through the cookie */
+	uint32_t ident = 0;
 	int blastaway = 0;
 	struct ast_variable *v;
 	char template[] = "/tmp/ast-http-XXXXXX";	/* template for temporary file */
@@ -3446,7 +3446,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 
 	for (v = params; v; v = v->next) {
 		if (!strcasecmp(v->name, "mansession_id")) {
-			sscanf(v->value, "%lx", &ident);
+			sscanf(v->value, "%x", &ident);
 			break;
 		}
 	}
@@ -3513,7 +3513,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 	ast_str_append(&out, 0,
 		       "Content-type: text/%s\r\n"
 		       "Cache-Control: no-cache;\r\n"
-		       "Set-Cookie: mansession_id=\"%08lx\"; Version=\"1\"; Max-Age=%d\r\n"
+		       "Set-Cookie: mansession_id=\"%08x\"; Version=\"1\"; Max-Age=%d\r\n"
 		       "\r\n",
 			contenttype[format],
 			s->managerid, httptimeout);
