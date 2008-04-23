@@ -7703,7 +7703,12 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
 			return -1;
 		}
 	}
-	return ast_say_number(chan, atoi(tmp), "", chan->language, options);
+
+	if (ast_say_number(chan, atoi(tmp), "", chan->language, options)) {
+		ast_log(LOG_WARNING, "We were unable to say the number %s, is it too large?\n", tmp);
+	}
+
+	return 0;
 }
 
 static int pbx_builtin_saydigits(struct ast_channel *chan, void *data)
