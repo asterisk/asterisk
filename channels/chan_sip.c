@@ -13090,6 +13090,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 488: /* Not acceptable here - codec error */
 				case 603: /* Decline */
 				case 500: /* Server error */
+				case 502: /* Bad gateway */
 				case 503: /* Service Unavailable */
 				case 504: /* Server timeout */
 
