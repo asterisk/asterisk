@@ -869,18 +869,16 @@ static int moh_register(struct mohclass *moh, int reload)
 	int x;
 #endif
 	struct mohclass *mohclass = NULL;
+	int res = 0;
 
 	AST_LIST_LOCK(&mohclasses);
 	if ((mohclass = get_mohbyname(moh->name, 0))) {
-		mohclass->delete = 0;
-		if (reload) {
-			ast_log(LOG_DEBUG, "Music on Hold class '%s' left alone from initial load.\n", moh->name);
-		} else {
-			ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
-		}
-		free(moh);	
-		AST_LIST_UNLOCK(&mohclasses);
-		return -1;
+		if (!mohclass->delete) {
+ 			ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
+			free(moh);
+			AST_LIST_UNLOCK(&mohclasses);
+			return -1;
+ 		}
 	}
 	AST_LIST_UNLOCK(&mohclasses);
 
@@ -888,7 +886,12 @@ static int moh_register(struct mohclass *moh, int reload)
 	moh->start -= respawn_time;
 	
 	if (!strcasecmp(moh->mode, "files")) {
-		if (!moh_scan_files(moh)) {
+		res = moh_scan_files(moh);
+		if (res <= 0) {
+			if (res == 0) {
+				 if (option_verbose > 2)
+		                        ast_verbose(VERBOSE_PREFIX_3 "Files not found in %s for moh class:%s\n", moh->dir, moh->name);
+			}
 			ast_moh_free_class(&moh);
 			return -1;
 		}
@@ -1273,14 +1276,6 @@ static int init_classes(int reload)
 			AST_LIST_REMOVE_CURRENT(&mohclasses, list);
 			if (!moh->inuse)
 				ast_moh_destroy_one(moh);
-		} else if (moh->total_files) {
-			if (moh_scan_files(moh) <= 0) {
-				ast_log(LOG_WARNING, "No files found for class '%s'\n", moh->name);
-				moh->delete = 1;
-				AST_LIST_REMOVE_CURRENT(&mohclasses, list);
-				if (!moh->inuse)
-					ast_moh_destroy_one(moh);
-			}
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END
@@ -1324,7 +1319,31 @@ static int reload(void)
 
 static int unload_module(void)
 {
-	return -1;
+	int res = 0;
+	struct mohclass *class = NULL;
+
+	AST_LIST_LOCK(&mohclasses);
+	AST_LIST_TRAVERSE(&mohclasses, class, list) {
+		if (class->inuse > 0) {
+			res = -1;
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(&mohclasses);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to unload res_musiconhold due to active MOH channels\n");
+		return res;
+	}
+
+	ast_uninstall_music_functions();
+	ast_moh_destroy();
+	res = ast_unregister_application(app0);
+	res |= ast_unregister_application(app1);
+	res |= ast_unregister_application(app2);
+	res |= ast_unregister_application(app3);
+	res |= ast_unregister_application(app4);
+	ast_cli_unregister_multiple(cli_moh, sizeof(cli_moh) / sizeof(struct ast_cli_entry));
+	return res;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Music On Hold Resource",
