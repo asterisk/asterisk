@@ -705,12 +705,11 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 
 			for (s = peer_name; s < ptr; s++)
 				*s = tolower(*s);
-		
 			/* We have to unlock the peer channel here to avoid a deadlock.
-			 * So, when we need it again, we have to lock the datastore and get
-			 * the pointer from there to see if the channel is still valid. */
+			 * So, when we need to dereference it again, we have to lock the 
+			 * datastore and get the pointer from there to see if the channel 
+			 * is still valid. */
 			ast_channel_unlock(peer);
-			peer = NULL;
 
 			if (!ast_test_flag(flags, OPTION_QUIET)) {
 				if (!ast_test_flag(flags, OPTION_NOTECH)) {
@@ -731,7 +730,6 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 					ast_say_digits(chan, atoi(ptr), "", chan->language);
 			}
 
-			waitms = 5000;
 			res = channel_spy(chan, peer_chanspy_ds, &volfactor, fd, flags, exitcontext);
 			num_spyed_upon++;	
 
