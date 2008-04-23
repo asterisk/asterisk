@@ -437,7 +437,7 @@ static void *ast_httpd_helper_thread(void *data)
 				
 				/* If we got a FireFox cookie string, the name's right  
 				    after "Cookie: "                                    */
-                                vname = cookie + 8;
+				vname = cookie + 8;
 				
 				/* If we got an IE cookie string, we need to skip to    
 				    past the version to get to the name                 */
