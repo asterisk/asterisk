@@ -75,6 +75,10 @@ c-client (http://www.washington.edu/imap/
 #include <imap/c-client.h>
 #include <imap/imap4r1.h>
 #include <imap/linkage.h>
+#elif defined (USE_SYSTEM_CCLIENT)
+#include <c-client/c-client.h>
+#include <c-client/imap4r1.h>
+#include <c-client/linkage.h>
 #else
 #include "c-client.h"
 #include "imap4r1.h"
@@ -5549,6 +5553,8 @@ static int init_mailstream(struct vm_state *vms, int box)
 		char *cp;
 #ifdef USE_SYSTEM_IMAP
 #include <imap/linkage.c>
+#elif defined(USE_SYSTEM_CCLIENT)
+#include <c-client/linkage.c>
 #else
 #include "linkage.c"
 #endif
