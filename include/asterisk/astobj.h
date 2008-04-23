@@ -220,7 +220,7 @@ extern "C" {
 		if (__builtin_expect((object)->refcount > 0, 1)) \
 			newcount = --((object)->refcount); \
 		else \
-			ast_log(LOG_WARNING, "Unreferencing unreferenced (object)!\n"); \
+			ast_log(AST_LOG_WARNING, "Unreferencing unreferenced (object)!\n"); \
 		ASTOBJ_UNLOCK(object); \
 		if (newcount == 0) { \
 			ast_mutex_destroy(&(object)->_lock); \

@@ -45,15 +45,15 @@ extern "C" {
 
 /*! \brief Used for sending a log message 
 	This is the standard logger function.  Probably the only way you will invoke it would be something like this:
-	ast_log(LOG_WHATEVER, "Problem with the %s Captain.  We should get some more.  Will %d be enough?\n", "flux capacitor", 10);
+	ast_log(AST_LOG_WHATEVER, "Problem with the %s Captain.  We should get some more.  Will %d be enough?\n", "flux capacitor", 10);
 	where WHATEVER is one of ERROR, DEBUG, EVENT, NOTICE, or WARNING depending
 	on which log you wish to output to. These are implemented as macros, that
 	will provide the function with the needed arguments.
 
  	\param level	Type of log event
-	\param file	Will be provided by the LOG_* macro
-	\param line	Will be provided by the LOG_* macro
-	\param function	Will be provided by the LOG_* macro
+	\param file	Will be provided by the AST_LOG_* macro
+	\param line	Will be provided by the AST_LOG_* macro
+	\param function	Will be provided by the AST_LOG_* macro
 	\param fmt	This is what is important.  The format is the same as your favorite breed of printf.  You know how that works, right? :-)
  */
 
@@ -89,6 +89,14 @@ void ast_console_puts(const char *string);
 void ast_console_puts_mutable(const char *string);
 void ast_console_toggle_mute(int fd, int silent);
 
+/* Note: The AST_LOG_* macros below are the same as
+ * the LOG_* macros and are intended to eventually replace
+ * the LOG_* macros to avoid name collisions as has been
+ * seen in app_voicemail. However, please do NOT remove
+ * the LOG_* macros from the source since these may be still
+ * needed for third-party modules
+ */
+
 #define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
 
 #ifdef LOG_DEBUG
@@ -97,11 +105,21 @@ void ast_console_toggle_mute(int fd, int silent);
 #define __LOG_DEBUG    0
 #define LOG_DEBUG      __LOG_DEBUG, _A_
 
+#ifdef AST_LOG_DEBUG
+#undef AST_LOG_DEBUG
+#endif
+#define AST_LOG_DEBUG      __LOG_DEBUG, _A_
+
 #ifdef LOG_EVENT
 #undef LOG_EVENT
 #endif
 #define __LOG_EVENT    1
 #define LOG_EVENT      __LOG_EVENT, _A_
+
+#ifdef AST_LOG_EVENT
+#undef AST_LOG_EVENT
+#endif
+#define AST_LOG_EVENT      __LOG_EVENT, _A_
 
 #ifdef LOG_NOTICE
 #undef LOG_NOTICE
@@ -109,11 +127,21 @@ void ast_console_toggle_mute(int fd, int silent);
 #define __LOG_NOTICE   2
 #define LOG_NOTICE     __LOG_NOTICE, _A_
 
+#ifdef AST_LOG_NOTICE
+#undef AST_LOG_NOTICE
+#endif
+#define AST_LOG_NOTICE     __LOG_NOTICE, _A_
+
 #ifdef LOG_WARNING
 #undef LOG_WARNING
 #endif
 #define __LOG_WARNING  3
 #define LOG_WARNING    __LOG_WARNING, _A_
+
+#ifdef AST_LOG_WARNING
+#undef AST_LOG_WARNING
+#endif
+#define AST_LOG_WARNING    __LOG_WARNING, _A_
 
 #ifdef LOG_ERROR
 #undef LOG_ERROR
@@ -121,10 +149,20 @@ void ast_console_toggle_mute(int fd, int silent);
 #define __LOG_ERROR    4
 #define LOG_ERROR      __LOG_ERROR, _A_
 
+#ifdef AST_LOG_ERROR
+#undef AST_LOG_ERROR
+#endif
+#define AST_LOG_ERROR      __LOG_ERROR, _A_
+
 #ifdef LOG_VERBOSE
 #undef LOG_VERBOSE
 #endif
 #define __LOG_VERBOSE  5
+#define LOG_VERBOSE    __LOG_VERBOSE, _A_
+
+#ifdef AST_LOG_VERBOSE
+#undef AST_LOG_VERBOSE
+#endif
 #define LOG_VERBOSE    __LOG_VERBOSE, _A_
 
 #ifdef LOG_DTMF
@@ -132,6 +170,11 @@ void ast_console_toggle_mute(int fd, int silent);
 #endif
 #define __LOG_DTMF  6
 #define LOG_DTMF    __LOG_DTMF, _A_
+
+#ifdef AST_LOG_DTMF
+#undef AST_LOG_DTMF
+#endif
+#define AST_LOG_DTMF    __LOG_DTMF, _A_
 
 /*!
  * \brief Get the debug level for a file
@@ -154,7 +197,7 @@ unsigned int ast_verbose_get_by_file(const char *file);
  */
 #define ast_debug(level, ...) do {       \
 	if (option_debug >= (level) || (ast_opt_dbg_file && ast_debug_get_by_file(__FILE__) >= (level)) ) \
-		ast_log(LOG_DEBUG, __VA_ARGS__); \
+		ast_log(AST_LOG_DEBUG, __VA_ARGS__); \
 } while (0)
 
 #define VERBOSITY_ATLEAST(level) (option_verbose >= (level) || (ast_opt_verb_file && ast_verbose_get_by_file(__FILE__) >= (level)))
