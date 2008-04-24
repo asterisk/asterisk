@@ -2077,10 +2077,10 @@ static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 				j += 9;
 			}
 		}
-		if (j > len - 1)
-			j = len - 1;
-		vars[j - 2] = '\r';
-		vars[j - 1] = '\n';
+		if (j > len - 3)
+			j = len - 3;
+		vars[j++] = '\r';
+		vars[j++] = '\n';
 		vars[j] = '\0';
 	} else {
 		/* there are no channel variables; leave it blank */
