@@ -4238,12 +4238,12 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 
 	/* We absolutely cannot destroy the rtp struct while a bridge is active or we WILL crash */
 	if (p->rtp && ast_rtp_get_bridged(p->rtp)) {
-		ast_verbose("Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
+		ast_debug(2, "Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
 		return -1;
 	}
 
 	if (p->vrtp && ast_rtp_get_bridged(p->vrtp)) {
-		ast_verbose("Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
+		ast_debug(2, "Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
 		return -1;
 	}
 
