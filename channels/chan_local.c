@@ -523,7 +523,13 @@ static int local_hangup(struct ast_channel *ast)
 			/* Deadlock avoidance */
 			while (p->owner && ast_channel_trylock(p->owner)) {
 				ast_mutex_unlock(&p->lock);
+				if (ast) {
+					ast_channel_unlock(ast);
+				}
 				usleep(1);
+				if (ast) {
+					ast_channel_lock(ast);
+				}
 				ast_mutex_lock(&p->lock);
 			}
 			if (p->owner) {
