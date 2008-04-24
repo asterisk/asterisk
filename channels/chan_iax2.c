@@ -1507,7 +1507,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 					res = x;
 				}
 			}
-			if (res && !return_locked)
+			if (!res || (res && !return_locked))
 				ast_mutex_unlock(&iaxsl[x]);
 		}
 		for (x=TRUNK_CALL_START;(res < 1) && (x<maxtrunkcall);x++) {
@@ -1518,7 +1518,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 					res = x;
 				}
 			}
-			if (res && !return_locked)
+			if (!res || (res && !return_locked))
 				ast_mutex_unlock(&iaxsl[x]);
 		}
 	}
