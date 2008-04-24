@@ -9426,7 +9426,6 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	p->refer->status = REFER_SENT;   /* Set refer status */
 
 	reqprep(&req, p, SIP_REFER, 0, 1);
-	add_header(&req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 
 	add_header(&req, "Refer-To", referto);
 	add_header(&req, "Allow", ALLOWED_METHODS);
