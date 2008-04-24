@@ -5266,6 +5266,13 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
 	else {
 		p->owner = newchan;
+		/* Re-invite RTP back to Asterisk. Needed if channel is masqueraded out of a native
+		   RTP bridge (i.e., RTP not going through Asterisk): RTP bridge code might not be
+		   able to do this if the masquerade happens before the bridge breaks (e.g., AMI
+		   redirect of both channels). Note that a channel can not be masqueraded *into*
+		   a native bridge. So there is no danger that this breaks a native bridge that
+		   should stay up. */
+		sip_set_rtp_peer(newchan, NULL, NULL, 0, 0);
 		ret = 0;
 	}
 	ast_debug(3, "SIP Fixup: New owner for dialogue %s: %s (Old parent: %s)\n", p->callid, p->owner->name, oldchan->name);
