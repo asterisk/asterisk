@@ -477,6 +477,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	p->chan->cid.cid_pres = p->owner->cid.cid_pres;
 	ast_string_field_set(p->chan, language, p->owner->language);
 	ast_string_field_set(p->chan, accountcode, p->owner->accountcode);
+	ast_cdr_update(p->chan);
 	p->chan->cdrflags = p->owner->cdrflags;
 
 	/* copy the channel variables from the incoming channel to the outgoing channel */
