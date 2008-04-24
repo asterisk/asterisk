@@ -2533,9 +2533,11 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 			start_bc_tones(p);
 		break;
 	case AST_CONTROL_HOLD:
+		ast_moh_start(ast,data,ast->musicclass); 
 		chan_misdn_log(1, p->bc->port, " --> *\tHOLD pid:%d\n", p->bc ? p->bc->pid : -1);
 		break;
 	case AST_CONTROL_UNHOLD:
+		ast_moh_stop(ast);
 		chan_misdn_log(1, p->bc->port, " --> *\tUNHOLD pid:%d\n", p->bc ? p->bc->pid : -1);
 		break;
 	default:
