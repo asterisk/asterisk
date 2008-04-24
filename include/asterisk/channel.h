@@ -731,7 +731,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
  *
  * \note The channel does not need to be locked before calling this function.
  */
-int ast_queue_hangup(struct ast_channel *chan);
+int ast_queue_hangup(struct ast_channel *chan, int cause);
 
 /*!
  * \brief Queue a control frame with payload

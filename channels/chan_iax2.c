@@ -1662,7 +1662,7 @@ static int iax2_queue_hangup(int callno)
 				usleep(1);
 				ast_mutex_lock(&iaxsl[callno]);
 			} else {
-				ast_queue_hangup(iaxs[callno]->owner);
+				ast_queue_hangup(iaxs[callno]->owner, -1);
 				ast_channel_unlock(iaxs[callno]->owner);
 				break;
 			}
@@ -2146,7 +2146,7 @@ retry:
 			/* If there's an owner, prod it to give up */
 			/* It is ok to use ast_queue_hangup() here instead of iax2_queue_hangup()
 			 * because we already hold the owner channel lock. */
-			ast_queue_hangup(owner);
+			ast_queue_hangup(owner, -1);
 		}
 
 		AST_LIST_LOCK(&frame_queue);
@@ -2220,10 +2220,8 @@ static void __attempt_transmit(const void *data)
 							ast_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", ast_inet_ntoa(iaxs[f->callno]->addr.sin_addr),iaxs[f->callno]->owner->name , f->af.frametype, f->af.subclass, f->ts, f->oseqno);
 						iaxs[callno]->error = ETIMEDOUT;
 						if (iaxs[callno]->owner) {
-							struct ast_frame fr = { 0, };
+							struct ast_frame fr = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP, .seqno = AST_CAUSE_DESTINATION_OUT_OF_ORDER };
 							/* Hangup the fd */
-							fr.frametype = AST_FRAME_CONTROL;
-							fr.subclass = AST_CONTROL_HANGUP;
 							iax2_queue_frame(callno, &fr); /* XXX */
 							/* Remember, owner could disappear */
 							if (iaxs[callno] && iaxs[callno]->owner)

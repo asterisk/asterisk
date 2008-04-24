@@ -534,7 +534,7 @@ static int local_hangup(struct ast_channel *ast)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int isoutbound;
-	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
+	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP, .seqno = ast->hangupcause };
 	struct ast_channel *ochan = NULL;
 	int glaredetect = 0, res = 0;
 

@@ -4513,7 +4513,7 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 		if ((res = attempt_transfer(p)) < 0) {
 			if (sub->next && sub->next->owner) {
 				sub->next->alreadygone = 1;
-				ast_queue_hangup(sub->next->owner,1);
+				ast_queue_hangup(sub->next->owner, -1);
 			}
 		} else if (res) {
 			ast_log(LOG_WARNING, "Transfer attempt failed\n");
@@ -4525,7 +4525,7 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 		/* If there is another active call, skinny_hangup will ring the phone with the other call */
 		if (sub->owner) {
 			sub->alreadygone = 1;
-			ast_queue_hangup(sub->owner);
+			ast_queue_hangup(sub->owner, -1);
 		} else {
 			ast_log(LOG_WARNING, "Skinny(%s@%s-%d) channel already destroyed\n",
 				l->name, d->name, sub->callid);
@@ -5222,7 +5222,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 				if ((res = attempt_transfer(p)) < 0) {
 					if (sub->next && sub->next->owner) {
 						sub->next->alreadygone = 1;
-						ast_queue_hangup(sub->next->owner, 1);
+						ast_queue_hangup(sub->next->owner, -1);
 					}
 				} else if (res) {
 					ast_log(LOG_WARNING, "Transfer attempt failed\n");
@@ -5234,7 +5234,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 				/* If there is another active call, skinny_hangup will ring the phone with the other call */
 				if (sub->owner) {
 					sub->alreadygone = 1;
-					ast_queue_hangup(sub->owner);
+					ast_queue_hangup(sub->owner, -1);
 				} else {
 					ast_log(LOG_WARNING, "Skinny(%s@%s-%d) channel already destroyed\n",
 						l->name, d->name, sub->callid);

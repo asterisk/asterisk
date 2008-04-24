@@ -620,7 +620,7 @@ static int gtalk_is_answered(struct gtalk *client, ikspak *pak)
 			ast_getformatname_multiple(s2, BUFSIZ, tmp->peercapability),
 			ast_getformatname_multiple(s3, BUFSIZ, tmp->jointcapability));
 		/* close session if capabilities don't match */
-		ast_queue_hangup(tmp->owner);
+		ast_queue_hangup(tmp->owner, -1);
 
 		return -1;
 
@@ -749,7 +749,7 @@ static int gtalk_hangup_farend(struct gtalk *client, ikspak *pak)
 	if (tmp) {
 		tmp->alreadygone = 1;
 		if (tmp->owner)
-			ast_queue_hangup(tmp->owner);
+			ast_queue_hangup(tmp->owner, -1);
 	} else
 		ast_log(LOG_NOTICE, "Whoa, didn't find call!\n");
 	gtalk_response(client, from, pak, NULL, NULL);

@@ -610,7 +610,7 @@ static void mgcp_queue_hangup(struct mgcp_subchannel *sub)
 	for(;;) {
 		if (sub->owner) {
 			if (!ast_channel_trylock(sub->owner)) {
-				ast_queue_hangup(sub->owner);
+				ast_queue_hangup(sub->owner, -1);
 				ast_channel_unlock(sub->owner);
 				break;
 			} else {

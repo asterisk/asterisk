@@ -342,7 +342,7 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 			ast_debug(1, "Process pending hangup for %s\n", c->name);
 		c->_softhangup |= AST_SOFTHANGUP_DEV;
 		c->hangupcause = pvt->hangupcause;
-		ast_queue_hangup(c);
+		ast_queue_hangup(c, pvt->hangupcause);
 		pvt->needhangup = 0;
 		pvt->newstate = pvt->newcontrol = pvt->newdigit = pvt->DTMFsched = -1;
 	}
@@ -2379,7 +2379,7 @@ static void cleanup_connection(unsigned call_reference, const char *call_token)
 	/* Send hangup */
 	if (pvt->owner) {
 		pvt->owner->_softhangup |= AST_SOFTHANGUP_DEV;
-		ast_queue_hangup(pvt->owner);
+		ast_queue_hangup(pvt->owner, -1);
 		ast_channel_unlock(pvt->owner);
 	}
 	ast_mutex_unlock(&pvt->lock);
@@ -2404,7 +2404,7 @@ static void hangup_connection(unsigned int call_reference, const char *token, in
 	if (pvt->owner && !ast_channel_trylock(pvt->owner)) {
 		pvt->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 		pvt->owner->hangupcause = pvt->hangupcause = cause;
-		ast_queue_hangup(pvt->owner);
+		ast_queue_hangup(pvt->owner, cause);
 		ast_channel_unlock(pvt->owner);
 	}
 	else {

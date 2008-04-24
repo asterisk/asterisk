@@ -1040,7 +1040,7 @@ static char *console_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	}
 	o->hookstate = 0;
 	if (o->owner)
-		ast_queue_hangup(o->owner);
+		ast_queue_hangup(o->owner, AST_CAUSE_NORMAL_CLEARING);
 	setformat(o, O_CLOSE);
 	return CLI_SUCCESS;
 }

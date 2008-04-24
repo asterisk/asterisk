@@ -2970,7 +2970,7 @@ static int retrans_pkt(const void *data)
 		if (pkt->owner->owner) {
 			sip_alreadygone(pkt->owner);
 			ast_log(LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", pkt->owner->callid);
-			ast_queue_hangup(pkt->owner->owner);
+			ast_queue_hangup(pkt->owner->owner, AST_CAUSE_PROTOCOL_ERROR);
 			ast_channel_unlock(pkt->owner->owner);
 		} else {
 			/* If no channel owner, destroy now */
@@ -3112,7 +3112,7 @@ static int __sip_autodestruct(const void *data)
 
 	if (p->owner) {
 		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s)\n", p->callid, sip_methods[p->method].text);
-		ast_queue_hangup(p->owner);
+		ast_queue_hangup(p->owner, AST_CAUSE_PROTOCOL_ERROR);
 	} else if (p->refer) {
 		ast_debug(3, "Finally hanging up channel after transfer: %s\n", p->callid);
 		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
@@ -15695,7 +15695,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		*/
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner && !req->ignore) {
-			ast_queue_hangup(p->owner);
+			ast_queue_hangup(p->owner, AST_CAUSE_NORMAL_CLEARING);
 			append_history(p, "Hangup", "Got 487 on CANCEL request from us. Queued AST hangup request");
  		} else if (!req->ignore) {
 			update_call_counter(p, DEC_CALL_LIMIT);
@@ -15776,7 +15776,7 @@ static void handle_response_notify(struct sip_pvt *p, int resp, char *rest, stru
 		if (p->owner) {
 			if (!p->refer) {
 				ast_log(LOG_WARNING, "Notify answer on an owned channel? - %s\n", p->owner->name);
-				ast_queue_hangup(p->owner);
+				ast_queue_hangup(p->owner, AST_CAUSE_NORMAL_UNSPECIFIED);
 			} else {
 				ast_debug(4, "Got OK on REFER Notify message\n");
 			}
@@ -16338,7 +16338,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				default:
 					/* Send hangup */	
 					if (owner && sipmethod != SIP_MESSAGE && sipmethod != SIP_INFO && sipmethod != SIP_BYE)
-						ast_queue_hangup(p->owner);
+						ast_queue_hangup(p->owner, AST_CAUSE_PROTOCOL_ERROR);
 					break;
 				}
 				/* ACK on invite */
@@ -16392,7 +16392,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						ast_debug(1, "Got 200 OK on NOTIFY for transfer\n");
 					} else
 						ast_log(LOG_WARNING, "Notify answer on an owned channel?\n");
-					/* ast_queue_hangup(p->owner); Disabled */
+					/* ast_queue_hangup(p->owner, -1); Disabled */
 				} else {
 					if (!p->subscribed && !p->refer)
 						p->needdestroy = 1;
@@ -18242,7 +18242,7 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 
 	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
 	if (p->owner)
-		ast_queue_hangup(p->owner);
+		ast_queue_hangup(p->owner, -1);
 	else
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	if (p->initreq.len > 0) {
@@ -18401,15 +18401,15 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 					ast_queue_control(c, AST_CONTROL_UNHOLD);
 					ast_async_goto(bridged_to, p->context, p->refer->refer_to, 1);
 				} else
-					ast_queue_hangup(p->owner);
+					ast_queue_hangup(p->owner, -1);
 			}
 		} else {
 			ast_log(LOG_WARNING, "Invalid transfer information from '%s'\n", ast_inet_ntoa(p->recv.sin_addr));
 			if (p->owner)
-				ast_queue_hangup(p->owner);
+				ast_queue_hangup(p->owner, AST_CAUSE_PROTOCOL_ERROR);
 		}
 	} else if (p->owner) {
-		ast_queue_hangup(p->owner);
+		ast_queue_hangup(p->owner, -1);
 		ast_debug(3, "Received bye, issuing owner hangup\n");
 	} else {
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);

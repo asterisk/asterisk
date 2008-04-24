@@ -252,6 +252,9 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 
 		/* If they hung up, leave */
 		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
+			if (f->seqno) {
+				chan->hangupcause = f->seqno;
+			}
 			ast_frfree(f);
 			res = -1;
 			break;

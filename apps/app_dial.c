@@ -788,8 +788,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				*to = -1;
 				strcpy(pa->status, "CANCEL");
 				ast_cdr_noanswer(in->cdr);
-				if (f)
+				if (f) {
+					if (f->seqno)
+						in->hangupcause = f->seqno;
 					ast_frfree(f);
+				}
 				return NULL;
 			}
 

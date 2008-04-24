@@ -766,7 +766,7 @@ static char *console_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		hookstate = 0;
 		grab_owner();
 		if (alsa.owner) {
-			ast_queue_hangup(alsa.owner);
+			ast_queue_hangup(alsa.owner, AST_CAUSE_NORMAL_CLEARING);
 			ast_channel_unlock(alsa.owner);
 		}
 	}

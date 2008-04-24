@@ -2644,6 +2644,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				/* Got hung up */
 				*to = -1;
 				if (f) {
+					if (f->seqno)
+						in->hangupcause = f->seqno;
 					ast_frfree(f);
 				}
 				return NULL;

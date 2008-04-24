@@ -4522,7 +4522,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							/* It hasn't been long enough since the last flashook.  This is probably a bounce on 
 							   hanging up.  Hangup both channels now */
 							if (p->subs[SUB_THREEWAY].owner)
-								ast_queue_hangup(p->subs[SUB_THREEWAY].owner);
+								ast_queue_hangup(p->subs[SUB_THREEWAY].owner, AST_CAUSE_NO_ANSWER);
 							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							ast_debug(1, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
 							ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
@@ -10096,7 +10096,7 @@ static int pri_hangup_all(struct zt_pvt *p, struct zt_pri *pri)
 				ast_mutex_lock(&p->lock);
 			}
 			if (p->subs[x].owner) {
-				ast_queue_hangup(p->subs[x].owner);
+				ast_queue_hangup(p->subs[x].owner, AST_CAUSE_PRE_EMPTED);
 				ast_channel_unlock(p->subs[x].owner);
 			}
 		}
