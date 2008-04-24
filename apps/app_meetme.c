@@ -2706,35 +2706,56 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		char useropts[32] = "";
 		char adminopts[32] = "";
 		struct ast_tm tm, etm;
-		struct timeval starttime = { .tv_sec = 0 }, endtime = { .tv_sec = 0 };
+		struct timeval endtime = { .tv_sec = 0 };
 
 		if (rt_schedule) {
 			now = ast_tvnow();
 
-			if (fuzzystart)
-				now.tv_sec += fuzzystart;
-
 			ast_localtime(&now, &tm, NULL);
 			ast_strftime(currenttime, sizeof(currenttime), DATE_FORMAT, &tm);
-
-			if (earlyalert) {
-				now.tv_sec += earlyalert;
-				ast_localtime(&now, &etm, NULL);
-				ast_strftime(eatime, sizeof(eatime), DATE_FORMAT, &etm);
-			} else {
-				ast_copy_string(eatime, currenttime, sizeof(eatime));
-			}
 
 			ast_debug(1, "Looking for conference %s that starts after %s\n", confno, eatime);
 
 			var = ast_load_realtime("meetme", "confno",
-				confno, "starttime <= ", eatime, "endtime >= ",
+				confno, "starttime <= ", currenttime, "endtime >= ",
 				currenttime, NULL);
+
+			if (!var && fuzzystart) {
+				now = ast_tvnow();
+				now.tv_sec += fuzzystart;
+
+				ast_localtime(&now, &tm, NULL);
+				ast_strftime(currenttime, sizeof(currenttime), DATE_FORMAT, &tm);
+				var = ast_load_realtime("meetme", "confno",
+					confno, "starttime <= ", currenttime, "endtime >= ",
+					currenttime, NULL);
+			}
+
+			if (!var && earlyalert) {
+				now = ast_tvnow();
+				now.tv_sec += earlyalert;
+				ast_localtime(&now, &etm, NULL);
+				ast_strftime(eatime, sizeof(eatime), DATE_FORMAT, &etm);
+				var = ast_load_realtime("meetme", "confno",
+					confno, "starttime <= ", eatime, "endtime >= ",
+					currenttime, NULL);
+				if (var)
+					*too_early = 1;
+			}
+
 		} else
 			 var = ast_load_realtime("meetme", "confno", confno, NULL);
 
 		if (!var)
 			return NULL;
+
+		if (rt_schedule && *too_early) {
+			/* Announce that the caller is early and exit */
+			if (!ast_streamfile(chan, "conf-has-not-started", chan->language))
+				ast_waitstream(chan, "");
+			ast_variables_destroy(var);
+			return NULL;
+		}
 
 		while (var) {
 			if (!strcasecmp(var->name, "pin")) {
@@ -2753,31 +2774,18 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 					struct tm tm;
 				} t = { { 0, }, };
 				strptime(var->value, "%Y-%m-%d %H:%M:%S", &t.tm);
+				/* strptime does not determine if a time is
+				 * in DST or not.  Set tm_isdst to -1 to 
+				 * allow ast_mktime to adjust for DST 
+				 * if needed */
+				t.tm.tm_isdst = -1; 
 				endtime = ast_mktime(&t.atm, NULL);
-			} else if (!strcasecmp(var->name, "starttime")) {
-				union {
-					struct ast_tm atm;
-					struct tm tm;
-				} t = { { 0, }, };
-				strptime(var->value, "%Y-%m-%d %H:%M:%S", &t.tm);
-				starttime = ast_mktime(&t.atm, NULL);
 			}
 
 			var = var->next;
 		}
+
 		ast_variables_destroy(var);
-
-		if (earlyalert) {
-			now = ast_tvnow();
-
-			if (now.tv_sec + fuzzystart < starttime.tv_sec) {
-				/* Announce that the caller is early and exit */
-				if (!ast_streamfile(chan, "conf-has-not-started", chan->language))
-					 ast_waitstream(chan, "");
-				*too_early = 1;
-				return NULL;
-			}
-		}
 
 		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic, refcount, chan);
 
