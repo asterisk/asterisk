@@ -874,7 +874,7 @@ static char *cli_console_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 	pvt->hookstate = 0;
 	if (pvt->owner)
-		ast_queue_hangup(pvt->owner);
+		ast_queue_hangup(pvt->owner, -1);
 
 	unref_pvt(pvt);
 
