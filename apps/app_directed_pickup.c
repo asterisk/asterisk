@@ -5,6 +5,9 @@
  *
  * Joshua Colp <jcolp@digium.com>
  *
+ * Portions merged from app_pickupchan, which was
+ * Copyright (C) 2008, Gary Cook
+ *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
  * any of the maintainers of this project for assistance;
@@ -21,6 +24,7 @@
  * \brief Directed Call Pickup Support
  *
  * \author Joshua Colp <jcolp@digium.com>
+ * \author Gary Cook
  *
  * \ingroup applications
  */
@@ -50,6 +54,13 @@ static const char *descrip =
 "channel variable with the same value as \"extension\" (in this example, \"10\").\n"
 "When no parameter is specified, the application will pickup a channel matching\n"
 "the pickup group of the active channel.";
+
+static const char *app2 = "PickupChan";
+static const char *synopsis2 = "Pickup a ringing channel";
+static const char *descrip2 =
+"  PickupChan(channel[&channel...]): This application can pickup any ringing channel\n";
+
+/*! \todo This application should return a result code, like PICKUPRESULT */
 
 /* Perform actual pickup between two channels */
 static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
@@ -83,6 +94,47 @@ static int can_pickup(struct ast_channel *chan)
 		return 1;
 	else
 		return 0;
+}
+
+/*! \brief Helper Function to walk through ALL channels checking NAME and STATE */
+static struct ast_channel *my_ast_get_channel_by_name_locked(char *channame)
+{
+	struct ast_channel *chan;
+	char *chkchan = alloca(strlen(channame) + 2);
+
+	/* need to append a '-' for the comparison so we check full channel name,
+	 * i.e SIP/hgc- , use a temporary variable so original stays the same for
+	 * debugging.
+	 */
+	strcpy(chkchan, channame);
+	strcat(chkchan, "-");
+
+	for (chan = ast_walk_channel_by_name_prefix_locked(NULL, channame, strlen(channame));
+		 chan;
+		 chan = ast_walk_channel_by_name_prefix_locked(chan, channame, strlen(channame))) {
+		if (!strncasecmp(chan->name, chkchan, strlen(chkchan)) && can_pickup(chan))
+			return chan;
+		ast_channel_unlock(chan);
+	}
+	return NULL;
+}
+
+/*! \brief Attempt to pick up specified channel named , does not use context */
+static int pickup_by_channel(struct ast_channel *chan, char *pickup)
+{
+	int res = 0;
+	struct ast_channel *target;
+
+	if (!(target = my_ast_get_channel_by_name_locked(pickup)))
+		return -1;
+
+	/* Just check that we are not picking up the SAME as target */
+	if (chan->name != target->name && chan != target) {
+		res = pickup_do(chan, target);
+		ast_channel_unlock(target);
+	}
+
+	return res;
 }
 
 /* Attempt to pick up specified extension with context */
@@ -126,7 +178,7 @@ static int pickup_by_mark(struct ast_channel *chan, const char *mark)
 	return res;
 }
 
-/* Main application entry point */
+/* application entry point for Pickup() */
 static int pickup_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
@@ -155,18 +207,51 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+/* application entry point for PickupChan() */
+static int pickupchan_exec(struct ast_channel *chan, void *data)
+{
+	int res = 0;
+	char *tmp = ast_strdupa(data);
+	char *pickup = NULL;
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "PickupChan requires an argument (channel)!\n");
+		return -1;	
+	}
+
+	/* Parse channel */
+	while (!ast_strlen_zero(tmp) && (pickup = strsep(&tmp, "&"))) {
+		if (!strncasecmp(chan->name, pickup, strlen(pickup))) {
+			ast_log(LOG_NOTICE, "Cannot pickup your own channel %s.\n", pickup);
+		} else {
+			if (!pickup_by_channel(chan, pickup)) {
+				break;
+			}
+			ast_log(LOG_NOTICE, "No target channel found for %s.\n", pickup);
+		}
+	}
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
+	res |= ast_unregister_application(app2);
 
 	return res;
 }
 
 static int load_module(void)
 {
-	return ast_register_application(app, pickup_exec, synopsis, descrip);
+	int res;
+
+	res = ast_register_application(app, pickup_exec, synopsis, descrip);
+	res |= ast_register_application(app2, pickupchan_exec, synopsis2, descrip2);
+
+	return res;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Directed Call Pickup Application");
