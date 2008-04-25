@@ -33,6 +33,9 @@ Application Changes
  * ChanSpy and ExtenSpy have a new option, 's' which suppresses speaking the
    technology name (e.g. SIP, IAX, etc) of the channel being spied on.
  * The Jack application now has a c() option to supply a custom client name.
+ * Chanspy has a new option, 'B', which can be used to "barge" on a call. This is
+   like the pre-existing whisper mode, except that the spy can also talk to the
+   participant on the bridged channel as well.
 
 SIP Changes
 -----------
