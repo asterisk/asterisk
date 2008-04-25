@@ -1809,7 +1809,7 @@ int ast_safe_fork(int stop_reaper)
 
 		/* unblock important signal handlers */
 		if (pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL)) {
-			ast_log(LOG_WARNING, "unable to unblock signals for AGI script: %s\n", strerror(errno));
+			ast_log(LOG_WARNING, "unable to unblock signals: %s\n", strerror(errno));
 			_exit(1);
 		}
 
