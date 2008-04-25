@@ -53,7 +53,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; and multiline formatted headers for strict
 				; SIP compatibility (defaults to "no")
 
-; See doc/README.tos for a description of these parameters.
+; See doc/ip-tos.txt for a description of these parameters.
 ;tos_sip=cs3                    ; Sets TOS for SIP packets.
 ;tos_audio=ef                   ; Sets TOS for RTP audio packets.
 ;tos_video=af41                 ; Sets TOS for RTP video packets.
@@ -567,7 +567,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;allow=g723.1			; Asterisk only supports g723.1 pass-thru!
 ;allow=g729			; Pass-thru only unless g729 license obtained
 ;callingpres=allowed_passed_screen	; Set caller ID presentation
-				; See README.callingpres for more information
+				; See doc/callingpres.txt for more information
 
 
 ;[xlite1]

@@ -198,7 +198,7 @@ forcejitterbuffer=no
 ;
 ;authdebug=no
 ;
-; See doc/README.tos for a description of the tos parameters.
+; See doc/ip-tos.txt for a description of the tos parameters.
 ;tos=ef
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy
