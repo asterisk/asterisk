@@ -239,12 +239,9 @@ static int start_spying(struct ast_channel *chan, const char *spychan_name, stru
 
 	res = ast_audiohook_attach(chan, audiohook);
 
-	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan))) {
-		ast_channel_unlock(chan);
+	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan))) { 
 		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);
-	} else
-		ast_channel_unlock(chan);
-
+	}
 	return res;
 }
 
@@ -293,16 +290,18 @@ static int channel_spy(struct ast_channel *chan, struct chanspy_ds *spyee_chansp
 
 	ast_audiohook_init(&csth.spy_audiohook, AST_AUDIOHOOK_TYPE_SPY, "ChanSpy");
 
-	if (start_spying(spyee, spyer_name, &csth.spy_audiohook)) { /* Unlocks spyee */
+	if (start_spying(spyee, spyer_name, &csth.spy_audiohook)) {
 		ast_audiohook_destroy(&csth.spy_audiohook);
+		ast_channel_unlock(spyee);
 		return 0;
 	}
 
 	if (ast_test_flag(flags, OPTION_WHISPER)) {
 		ast_audiohook_init(&csth.whisper_audiohook, AST_AUDIOHOOK_TYPE_WHISPER, "ChanSpy");
-		start_spying(spyee, spyer_name, &csth.whisper_audiohook); /* Unlocks spyee */
+		start_spying(spyee, spyer_name, &csth.whisper_audiohook);
 	}
 
+	ast_channel_unlock(spyee);
 	spyee = NULL;
 
 	csth.volfactor = *volfactor;
