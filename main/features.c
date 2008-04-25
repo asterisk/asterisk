@@ -163,7 +163,8 @@ static char *parkcall = "Park";
 
 static char *synopsis2 = "Park yourself";
 
-static char *descrip2 = "Park(): "
+static char *descrip2 = 
+"   Park([timeout,[return_context,[return_exten,[return_priority,[options]]]]]):"
 "Used to park yourself (typically in combination with a supervised\n"
 "transfer to know the parking space). This application is always\n"
 "registered internally and does not need to be explicitly added\n"
@@ -172,7 +173,16 @@ static char *descrip2 = "Park(): "
 "If you set the PARKINGEXTEN variable to an extension in your\n"
 "parking context, Park() will park the call on that extension, unless\n"
 "it already exists. In that case, execution will continue at next\n"
-"priority.\n" ;
+"priority.\n"
+"   This application can accept arguments as well.\n"
+" timeout - A custom parking timeout for this parked call.\n"
+" return_context - The context to return the call to after it times out.\n"
+" return_exten - The extension to return the call to after it times out.\n"
+" return_priority - The priority to return the call to after it times out.\n"
+" options - A list of options for this parked call.  Valid options are:\n"
+"    'r' - Send ringing instead of MOH to the parked call.\n"
+"    'R' - Randomize the selection of a parking space.\n"
+"";
 
 static struct ast_app *monitor_app = NULL;
 static int monitor_ok = 1;
@@ -423,10 +433,36 @@ static enum ast_device_state metermaidstate(const char *data)
 	return AST_DEVICE_INUSE;
 }
 
+/*! Options to pass to ast_park_call_full */
+enum ast_park_call_options {
+	/*! Provide ringing to the parked caller instead of music on hold */
+	AST_PARK_OPT_RINGING =   (1 << 0),
+	/*! Randomly choose a parking spot for the caller instead of choosing
+	 *  the first one that is available. */
+	AST_PARK_OPT_RANDOMIZE = (1 << 1),
+};
+
+struct ast_park_call_args {
+	/*! How long to wait in the parking lot before the call gets sent back
+	 *  to the specified return extension (or a best guess at where it came
+	 *  from if not explicitly specified). */
+	int timeout;
+	/*! An output parameter to store the parking space where the parked caller
+	 *  was placed. */
+	int *extout;
+	const char *orig_chan_name;
+	struct ast_parkinglot *parkinglot;
+	const char *return_con;
+	const char *return_ext;
+	int return_pri;
+	uint32_t flags;
+};
+
 /* Park a call */
-static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout, char *orig_chan_name, struct ast_parkinglot *parkinglot)
+static int ast_park_call_full(struct ast_channel *chan, struct ast_channel *peer, 
+	struct ast_park_call_args *args)
 {
-	struct parkeduser *pu, *cur;
+	struct parkeduser *pu;
 	int i, x = -1, parking_range;
 	struct ast_context *con;
 	const char *parkinglotname;
@@ -437,58 +473,75 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	if (parkinglotname) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Found chanvar Parkinglot: %s\n", parkinglotname);
-		parkinglot = find_parkinglot(parkinglotname);	
+		args->parkinglot = find_parkinglot(parkinglotname);	
 	}
-	if (!parkinglot)
-		parkinglot = default_parkinglot;
+	if (!args->parkinglot)
+		args->parkinglot = default_parkinglot;
 
-	parkinglot_addref(parkinglot);
+	parkinglot_addref(args->parkinglot);
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Parkinglot: %s\n", parkinglot->name);
+		ast_log(LOG_DEBUG, "Parkinglot: %s\n", args->parkinglot->name);
 
 	/* Allocate memory for parking data */
 	if (!(pu = ast_calloc(1, sizeof(*pu)))) {
-		parkinglot_unref(parkinglot);
+		parkinglot_unref(args->parkinglot);
 		return -1;
 	}
 
 	/* Lock parking list */
-	AST_LIST_LOCK(&parkinglot->parkings);
+	AST_LIST_LOCK(&args->parkinglot->parkings);
 	/* Check for channel variable PARKINGEXTEN */
 	parkingexten = pbx_builtin_getvar_helper(chan, "PARKINGEXTEN");
 	if (!ast_strlen_zero(parkingexten)) {
-		if (ast_exists_extension(NULL, parkinglot->parking_con, parkingexten, 1, NULL)) {
-			AST_LIST_UNLOCK(&parkinglot->parkings);
-			parkinglot_unref(parkinglot);
+		if (ast_exists_extension(NULL, args->parkinglot->parking_con, parkingexten, 1, NULL)) {
+			AST_LIST_UNLOCK(&args->parkinglot->parkings);
+			parkinglot_unref(args->parkinglot);
 			ast_free(pu);
-			ast_log(LOG_WARNING, "Requested parking extension already exists: %s@%s\n", parkingexten, parkinglot->parking_con);
+			ast_log(LOG_WARNING, "Requested parking extension already exists: %s@%s\n", parkingexten, args->parkinglot->parking_con);
 			return 1;	/* Continue execution if possible */
 		}
 		ast_copy_string(pu->parkingexten, parkingexten, sizeof(pu->parkingexten));
 		x = atoi(parkingexten);
 	} else {
+		int start;
+		struct parkeduser *cur = NULL;
+
 		/* Select parking space within range */
-		parking_range = parkinglot->parking_stop - parkinglot->parking_start+1;
-		for (i = 0; i < parking_range; i++) {
-			x = (i + parkinglot->parking_offset) % parking_range + parkinglot->parking_start;
-			AST_LIST_TRAVERSE(&parkinglot->parkings, cur, list) {
-				if (cur->parkingnum == x)
-					break;
-			}
-			if (!cur)
-				break;
+		parking_range = args->parkinglot->parking_stop - args->parkinglot->parking_start + 1;
+
+		if (ast_test_flag(args, AST_PARK_OPT_RANDOMIZE)) {
+			start = ast_random() % (args->parkinglot->parking_stop - args->parkinglot->parking_start + 1);
+		} else {
+			start = args->parkinglot->parking_start;
 		}
 
-		if (!(i < parking_range)) {
+		for (i = start; 1; i++) {
+			if (i == args->parkinglot->parking_stop + 1) {
+				i = args->parkinglot->parking_start - 1;
+				continue;
+			}
+
+			AST_LIST_TRAVERSE(&args->parkinglot->parkings, cur, list) {
+				if (cur->parkingnum == i) {
+					break;
+				}
+			}
+
+			if (!cur || i == start - 1) {
+				break;
+			}
+		}
+
+		if (i == start - 1 && cur) {
 			ast_log(LOG_WARNING, "No more parking spaces\n");
 			ast_free(pu);
-			AST_LIST_UNLOCK(&parkinglot->parkings);
-			parkinglot_unref(parkinglot);
+			AST_LIST_UNLOCK(&args->parkinglot->parkings);
+			parkinglot_unref(args->parkinglot);
 			return -1;
 		}
 		/* Set pointer for next parking */
-		if (parkinglot->parkfindnext) 
-			parkinglot->parking_offset = x - parkinglot->parking_start + 1;
+		if (args->parkinglot->parkfindnext) 
+			args->parkinglot->parking_offset = x - args->parkinglot->parking_start + 1;
 	}
 	
 	chan->appl = "Parked Call";
@@ -498,36 +551,46 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	
 	/* Put the parked channel on hold if we have two different channels */
 	if (chan != peer) {
-		ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
-			S_OR(parkinglot->mohclass, NULL),
-			!ast_strlen_zero(parkinglot->mohclass) ? strlen(parkinglot->mohclass) + 1 : 0);
+		if (ast_test_flag(args, AST_PARK_OPT_RINGING)) {
+			ast_indicate(pu->chan, AST_CONTROL_RINGING);
+		} else {
+			ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
+				S_OR(args->parkinglot->mohclass, NULL),
+				!ast_strlen_zero(args->parkinglot->mohclass) ? strlen(args->parkinglot->mohclass) + 1 : 0);
+		}
 	}
 	
 	pu->start = ast_tvnow();
 	pu->parkingnum = x;
-	pu->parkinglot = parkinglot;
-	pu->parkingtime = (timeout > 0) ? timeout : parkinglot->parkingtime;
-	if (extout)
-		*extout = x;
+	pu->parkinglot = args->parkinglot;
+	pu->parkingtime = (args->timeout > 0) ? args->timeout : args->parkinglot->parkingtime;
+	if (args->extout)
+		*(args->extout) = x;
 
 	if (peer) 
 		ast_copy_string(pu->peername, peer->name, sizeof(pu->peername));
 
 	/* Remember what had been dialed, so that if the parking
 	   expires, we try to come back to the same place */
-	ast_copy_string(pu->context, S_OR(chan->macrocontext, chan->context), sizeof(pu->context));
-	ast_copy_string(pu->exten, S_OR(chan->macroexten, chan->exten), sizeof(pu->exten));
-	pu->priority = chan->macropriority ? chan->macropriority : chan->priority;
-	AST_LIST_INSERT_TAIL(&parkinglot->parkings, pu, list);
+	ast_copy_string(pu->context, 
+		S_OR(args->return_con, S_OR(chan->macrocontext, chan->context)), 
+		sizeof(pu->context));
+	ast_copy_string(pu->exten, 
+		S_OR(args->return_ext, S_OR(chan->macroexten, chan->exten)), 
+		sizeof(pu->exten));
+	pu->priority = pu->priority ? pu->priority : 
+		(chan->macropriority ? chan->macropriority : chan->priority);
+
+	AST_LIST_INSERT_TAIL(&args->parkinglot->parkings, pu, list);
 
 	/* If parking a channel directly, don't quiet yet get parking running on it */
 	if (peer == chan) 
 		pu->notquiteyet = 1;
-	AST_LIST_UNLOCK(&parkinglot->parkings);
+	AST_LIST_UNLOCK(&args->parkinglot->parkings);
 
 	/* Wake up the (presumably select()ing) thread */
 	pthread_kill(parking_thread, SIGURG);
-	ast_verb(2, "Parked %s on %d (lot %s). Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, parkinglot->name, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
+	ast_verb(2, "Parked %s on %d (lot %s). Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, args->parkinglot->name, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
 
 	if (pu->parkingnum != -1)
 		snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", x);
@@ -550,11 +613,11 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 		ast_adsi_unload_session(peer);
 	}
 
-	con = ast_context_find_or_create(NULL, NULL, parkinglot->parking_con, registrar);
+	con = ast_context_find_or_create(NULL, NULL, args->parkinglot->parking_con, registrar);
 	if (!con)	/* Still no context? Bad */
-		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parkinglot->parking_con);
+		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", args->parkinglot->parking_con);
 	/* Tell the peer channel the number of the parking space */
-	if (peer && ((pu->parkingnum != -1 && ast_strlen_zero(orig_chan_name)) || !strcasecmp(peer->name, orig_chan_name))) { /* Only say number if it's a number and the channel hasn't been masqueraded away */
+	if (peer && ((pu->parkingnum != -1 && ast_strlen_zero(args->orig_chan_name)) || !strcasecmp(peer->name, args->orig_chan_name))) { /* Only say number if it's a number and the channel hasn't been masqueraded away */
 		/* If a channel is masqueraded into peer while playing back the parking slot number do not continue playing it back. This is the case if an attended transfer occurs. */
 		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
@@ -562,13 +625,13 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	}
 	if (con) {
 		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, ast_strdup(pu->parkingexten), ast_free_ptr, registrar))
-			notify_metermaids(pu->parkingexten, parkinglot->parking_con, AST_DEVICE_INUSE);
+			notify_metermaids(pu->parkingexten, args->parkinglot->parking_con, AST_DEVICE_INUSE);
 	}
 	if (pu->notquiteyet) {
 		/* Wake up parking thread if we're really done */
 		ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
-			S_OR(parkinglot->mohclass, NULL),
-			!ast_strlen_zero(parkinglot->mohclass) ? strlen(parkinglot->mohclass) + 1 : 0);
+			S_OR(args->parkinglot->mohclass, NULL),
+			!ast_strlen_zero(args->parkinglot->mohclass) ? strlen(args->parkinglot->mohclass) + 1 : 0);
 		pu->notquiteyet = 0;
 		pthread_kill(parking_thread, SIGURG);
 	}
@@ -578,7 +641,12 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 /*! \brief Park a call */
 int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout)
 {
-	return park_call_full(chan, peer, timeout, extout, NULL, NULL);
+	struct ast_park_call_args args = {
+		.timeout = timeout,
+		.extout = extout,
+	};
+
+	return ast_park_call_full(chan, peer, &args);
 }
 
 /* Park call via masquraded channel */
@@ -608,7 +676,15 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 
 	orig_chan_name = ast_strdupa(chan->name);
 
-	park_call_full(chan, peer, timeout, extout, orig_chan_name, NULL);
+	{
+		struct ast_park_call_args args = {
+			.timeout = timeout,
+			.extout = extout,
+			.orig_chan_name = orig_chan_name,
+		};
+
+		ast_park_call_full(chan, peer, &args);
+	}
 
 	return 0;
 }
@@ -2469,6 +2545,11 @@ struct ast_parkinglot *find_parkinglot(const char *name)
 	return parkinglot;
 }
 
+AST_APP_OPTIONS(park_call_options, BEGIN_OPTIONS
+	AST_APP_OPTION('r', AST_PARK_OPT_RINGING),
+	AST_APP_OPTION('R', AST_PARK_OPT_RANDOMIZE),
+END_OPTIONS );
+
 /*! \brief Park a call */
 static int park_call_exec(struct ast_channel *chan, void *data)
 {
@@ -2486,6 +2567,20 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 	   lot context eventually */
 	int res = 0;
 
+	char *parse;
+	AST_DECLARE_APP_ARGS(app_args,
+		AST_APP_ARG(timeout);
+		AST_APP_ARG(return_con);
+		AST_APP_ARG(return_ext);
+		AST_APP_ARG(return_pri);
+		AST_APP_ARG(options);
+	);
+
+	if (!ast_strlen_zero(data)) {
+		parse = ast_strdupa(data);
+		AST_STANDARD_APP_ARGS(app_args, parse);
+	}
+
 	ast_copy_string(orig_exten, chan->exten, sizeof(orig_exten));
 
 	/* Check if the channel has a parking lot */
@@ -2497,20 +2592,47 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 		parkinglot = find_parkinglot(parkinglotname);	
 	}
 
-
 	/* Setup the exten/priority to be s/1 since we don't know
 	   where this call should return */
 	strcpy(chan->exten, "s");
 	chan->priority = 1;
+
 	/* Answer if call is not up */
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
+
 	/* Sleep to allow VoIP streams to settle down */
 	if (!res)
 		res = ast_safe_sleep(chan, 1000);
+
 	/* Park the call */
 	if (!res) {
-		res = park_call_full(chan, chan, 0, NULL, orig_chan_name, parkinglot);
+		struct ast_park_call_args args = {
+			.orig_chan_name = orig_chan_name,
+			.parkinglot = parkinglot,
+		};
+		struct ast_flags flags = { 0 };
+
+		if (!ast_strlen_zero(app_args.timeout)) {
+			if (sscanf(app_args.timeout, "%d", &args.timeout) != 1) {
+				ast_log(LOG_WARNING, "Invalid timeout '%s' provided\n", app_args.timeout);
+				args.timeout = 0;
+			}
+		}
+
+		args.return_con = app_args.return_con;
+		args.return_ext = app_args.return_ext;
+		if (!ast_strlen_zero(app_args.return_pri)) {
+			if (sscanf(app_args.return_pri, "%d", &args.return_pri) != 1) {
+				ast_log(LOG_WARNING, "Invalid priority '%s' specified\n", app_args.return_pri);
+				args.return_pri = 0;
+			}
+		}
+
+		ast_app_parse_options(park_call_options, &flags, NULL, NULL);
+		args.flags = flags.flags;
+
+		res = ast_park_call_full(chan, chan, &args);
 		/* Continue on in the dialplan */
 		if (res == 1) {
 			ast_copy_string(chan->exten, orig_exten, sizeof(chan->exten));
