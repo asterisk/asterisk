@@ -1499,7 +1499,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 	char host[80];
 
 	if (new <= NEW_ALLOW) {
-		for (x=1;(res < 1) && (x<maxnontrunkcall);x++) {
+		for (x = 1; !res && x < maxnontrunkcall; x++) {
 			ast_mutex_lock(&iaxsl[x]);
 			if (iaxs[x]) {
 				/* Look for an exact match */
@@ -1507,10 +1507,10 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 					res = x;
 				}
 			}
-			if (!res || (res && !return_locked))
+			if (!res || !return_locked)
 				ast_mutex_unlock(&iaxsl[x]);
 		}
-		for (x=TRUNK_CALL_START;(res < 1) && (x<maxtrunkcall);x++) {
+		for (x = TRUNK_CALL_START; !res && x < maxtrunkcall; x++) {
 			ast_mutex_lock(&iaxsl[x]);
 			if (iaxs[x]) {
 				/* Look for an exact match */
@@ -1518,11 +1518,11 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 					res = x;
 				}
 			}
-			if (!res || (res && !return_locked))
+			if (!res || !return_locked)
 				ast_mutex_unlock(&iaxsl[x]);
 		}
 	}
-	if ((res < 1) && (new >= NEW_ALLOW)) {
+	if (!res && (new >= NEW_ALLOW)) {
 		int start, found = 0;
 
 		/* It may seem odd that we look through the peer list for a name for
