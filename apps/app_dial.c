@@ -26,7 +26,7 @@
  */
 
 /*** MODULEINFO
-        <depend>chan_local</depend>
+	<depend>chan_local</depend>
  ***/
 
 
@@ -1934,9 +1934,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 		if (res != AST_PBX_NO_HANGUP_PEER) {
 			if (!ast_check_hangup(peer) && ast_test_flag64(&opts, OPT_CALLEE_GO_ON) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {		
-                        	replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
-                        	ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
-	                        ast_pbx_start(peer);
+				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
+				ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
+				ast_pbx_start(peer);
 			} else {
 				if (!ast_check_hangup(chan))
 					chan->hangupcause = peer->hangupcause;

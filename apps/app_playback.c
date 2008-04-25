@@ -75,16 +75,16 @@ static void save_say_mode(const void *arg)
 	int i = 0;
 	say_api_buf[i++] = arg;
 
-        say_api_buf[i++] = ast_say_number_full;
-        say_api_buf[i++] = ast_say_enumeration_full;
-        say_api_buf[i++] = ast_say_digit_str_full;
-        say_api_buf[i++] = ast_say_character_str_full;
-        say_api_buf[i++] = ast_say_phonetic_str_full;
-        say_api_buf[i++] = ast_say_datetime;
-        say_api_buf[i++] = ast_say_time;
-        say_api_buf[i++] = ast_say_date;
-        say_api_buf[i++] = ast_say_datetime_from_now;
-        say_api_buf[i++] = ast_say_date_with_format;
+	say_api_buf[i++] = ast_say_number_full;
+	say_api_buf[i++] = ast_say_enumeration_full;
+	say_api_buf[i++] = ast_say_digit_str_full;
+	say_api_buf[i++] = ast_say_character_str_full;
+	say_api_buf[i++] = ast_say_phonetic_str_full;
+	say_api_buf[i++] = ast_say_datetime;
+	say_api_buf[i++] = ast_say_time;
+	say_api_buf[i++] = ast_say_date;
+	say_api_buf[i++] = ast_say_datetime_from_now;
+	say_api_buf[i++] = ast_say_date_with_format;
 }
 
 static void restore_say_mode(void *arg)
@@ -92,16 +92,16 @@ static void restore_say_mode(void *arg)
 	int i = 0;
 	say_api_buf[i++] = arg;
 
-        ast_say_number_full = say_api_buf[i++];
-        ast_say_enumeration_full = say_api_buf[i++];
-        ast_say_digit_str_full = say_api_buf[i++];
-        ast_say_character_str_full = say_api_buf[i++];
-        ast_say_phonetic_str_full = say_api_buf[i++];
-        ast_say_datetime = say_api_buf[i++];
-        ast_say_time = say_api_buf[i++];
-        ast_say_date = say_api_buf[i++];
-        ast_say_datetime_from_now = say_api_buf[i++];
-        ast_say_date_with_format = say_api_buf[i++];
+	ast_say_number_full = say_api_buf[i++];
+	ast_say_enumeration_full = say_api_buf[i++];
+	ast_say_digit_str_full = say_api_buf[i++];
+	ast_say_character_str_full = say_api_buf[i++];
+	ast_say_phonetic_str_full = say_api_buf[i++];
+	ast_say_datetime = say_api_buf[i++];
+	ast_say_time = say_api_buf[i++];
+	ast_say_date = say_api_buf[i++];
+	ast_say_datetime_from_now = say_api_buf[i++];
+	ast_say_date_with_format = say_api_buf[i++];
 }
 
 /* 
@@ -111,25 +111,25 @@ static void restore_say_mode(void *arg)
  * parameter.
  */
 typedef struct {
-        struct ast_channel *chan;
-        const char *ints;
-        const char *language;
-        int audiofd;
-        int ctrlfd;
+	struct ast_channel *chan;
+	const char *ints;
+	const char *language;
+	int audiofd;
+	int ctrlfd;
 } say_args_t;
 
 static int s_streamwait3(const say_args_t *a, const char *fn)
 {
-        int res = ast_streamfile(a->chan, fn, a->language);
-        if (res) {
-                ast_log(LOG_WARNING, "Unable to play message %s\n", fn);
-                return res;
-        }
-        res = (a->audiofd  > -1 && a->ctrlfd > -1) ?
-                ast_waitstream_full(a->chan, a->ints, a->audiofd, a->ctrlfd) :
-                ast_waitstream(a->chan, a->ints);
-        ast_stopstream(a->chan);
-        return res;  
+	int res = ast_streamfile(a->chan, fn, a->language);
+	if (res) {
+		ast_log(LOG_WARNING, "Unable to play message %s\n", fn);
+		return res;
+	}
+	res = (a->audiofd  > -1 && a->ctrlfd > -1) ?
+	ast_waitstream_full(a->chan, a->ints, a->audiofd, a->ctrlfd) :
+	ast_waitstream(a->chan, a->ints);
+	ast_stopstream(a->chan);
+	return res;  
 }
 
 /*
@@ -247,11 +247,11 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 }
 
 static int say_full(struct ast_channel *chan, const char *string,
-        const char *ints, const char *lang, const char *options,
-        int audiofd, int ctrlfd)
+	const char *ints, const char *lang, const char *options,
+	int audiofd, int ctrlfd)
 {
-        say_args_t a = { chan, ints, lang, audiofd, ctrlfd };
-        return do_say(&a, string, options, 0);
+	say_args_t a = { chan, ints, lang, audiofd, ctrlfd };
+	return do_say(&a, string, options, 0);
 }
 
 static int say_number_full(struct ast_channel *chan, int num,
@@ -259,9 +259,9 @@ static int say_number_full(struct ast_channel *chan, int num,
 	int audiofd, int ctrlfd)
 {
 	char buf[64];
-        say_args_t a = { chan, ints, lang, audiofd, ctrlfd };
+	say_args_t a = { chan, ints, lang, audiofd, ctrlfd };
 	snprintf(buf, sizeof(buf), "num:%d", num);
-        return do_say(&a, buf, options, 0);
+	return do_say(&a, buf, options, 0);
 }
 
 static int say_enumeration_full(struct ast_channel *chan, int num,
@@ -269,9 +269,9 @@ static int say_enumeration_full(struct ast_channel *chan, int num,
 	int audiofd, int ctrlfd)
 {
 	char buf[64];
-        say_args_t a = { chan, ints, lang, audiofd, ctrlfd };
+	say_args_t a = { chan, ints, lang, audiofd, ctrlfd };
 	snprintf(buf, sizeof(buf), "enum:%d", num);
-        return do_say(&a, buf, options, 0);
+	return do_say(&a, buf, options, 0);
 }
 
 static int say_date_generic(struct ast_channel *chan, time_t t,
@@ -280,7 +280,7 @@ static int say_date_generic(struct ast_channel *chan, time_t t,
 	char buf[128];
 	struct ast_tm tm;
 	struct timeval tv = { t, 0 };
-        say_args_t a = { chan, ints, lang, -1, -1 };
+	say_args_t a = { chan, ints, lang, -1, -1 };
 	if (format == NULL)
 		format = "";
 
@@ -296,7 +296,7 @@ static int say_date_generic(struct ast_channel *chan, time_t t,
 		tm.tm_sec,
 		tm.tm_wday,
 		tm.tm_yday);
-        return do_say(&a, buf, NULL, 0);
+	return do_say(&a, buf, NULL, 0);
 }
 
 static int say_date_with_format(struct ast_channel *chan, time_t t,
@@ -515,7 +515,7 @@ static int load_module(void)
 		}
 	}
 
-        ast_cli_register_multiple(cli_playback, sizeof(cli_playback) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_playback, sizeof(cli_playback) / sizeof(struct ast_cli_entry));
 	return ast_register_application(app, playback_exec, synopsis, descrip);
 }
 

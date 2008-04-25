@@ -53,12 +53,12 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 	int ms;
 
 	if (!data || (sscanf(data, "%lg", &s) != 1)) {
-                ast_log(LOG_WARNING, "WaitForRing requires an argument (minimum seconds)\n");
+		ast_log(LOG_WARNING, "WaitForRing requires an argument (minimum seconds)\n");
 		return 0;
 	}
 
-	ms = s*1000.0;
-	while(ms > 0) {
+	ms = s * 1000.0;
+	while (ms > 0) {
 		ms = ast_waitfor(chan, ms);
 		if (ms < 0) {
 			res = ms;

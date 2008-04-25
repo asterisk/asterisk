@@ -137,8 +137,9 @@ static struct ast_speech_result *find_result(struct ast_speech_result *results, 
 	char *tmp = NULL;
 	int nbest_num = 0, wanted_num = 0, i = 0;
 
-	if (!result)
+	if (!result) {
 		return NULL;
+	}
 
 	if ((tmp = strchr(result_num, '/'))) {
 		*tmp++ = '\0';
@@ -167,8 +168,9 @@ static int speech_score(struct ast_channel *chan, const char *cmd, char *data,
 	struct ast_speech *speech = find_speech(chan);
 	char tmp[128] = "";
 
-	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data)))
+	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data))) {
 		return -1;
+	}
 	
 	snprintf(tmp, sizeof(tmp), "%d", result->score);
 	
@@ -178,65 +180,69 @@ static int speech_score(struct ast_channel *chan, const char *cmd, char *data,
 }
 
 static struct ast_custom_function speech_score_function = {
-        .name = "SPEECH_SCORE",
-        .synopsis = "Gets the confidence score of a result.",
-        .syntax = "SPEECH_SCORE([nbest number/]result number)",
-        .desc =
-        "Gets the confidence score of a result.\n",
-        .read = speech_score,
-        .write = NULL,
+	.name = "SPEECH_SCORE",
+	.synopsis = "Gets the confidence score of a result.",
+	.syntax = "SPEECH_SCORE([nbest number/]result number)",
+	.desc =
+	"Gets the confidence score of a result.\n",
+	.read = speech_score,
+	.write = NULL,
 };
 
 /*! \brief SPEECH_TEXT() Dialplan Function */
 static int speech_text(struct ast_channel *chan, const char *cmd, char *data,
 			char *buf, size_t len)
 {
-        struct ast_speech_result *result = NULL;
-        struct ast_speech *speech = find_speech(chan);
+	struct ast_speech_result *result = NULL;
+	struct ast_speech *speech = find_speech(chan);
 
-	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data)))
-                return -1;
+	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data))) {
+		return -1;
+	}
 
-	if (result->text != NULL)
+	if (result->text != NULL) {
 		ast_copy_string(buf, result->text, len);
+	}
 
-        return 0;
+	return 0;
 }
 
 static struct ast_custom_function speech_text_function = {
-        .name = "SPEECH_TEXT",
-        .synopsis = "Gets the recognized text of a result.",
-        .syntax = "SPEECH_TEXT([nbest number/]result number)",
-        .desc =
-        "Gets the recognized text of a result.\n",
-        .read = speech_text,
-        .write = NULL,
+	.name = "SPEECH_TEXT",
+	.synopsis = "Gets the recognized text of a result.",
+	.syntax = "SPEECH_TEXT([nbest number/]result number)",
+	.desc =
+	"Gets the recognized text of a result.\n",
+	.read = speech_text,
+	.write = NULL,
 };
 
 /*! \brief SPEECH_GRAMMAR() Dialplan Function */
 static int speech_grammar(struct ast_channel *chan, const char *cmd, char *data,
 			char *buf, size_t len)
 {
-        struct ast_speech_result *result = NULL;
-        struct ast_speech *speech = find_speech(chan);
+	struct ast_speech_result *result = NULL;
+	struct ast_speech *speech = find_speech(chan);
 
-	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data)))
-                return -1;
+	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data))) {
+		return -1;
+	}
 
-	if (result->grammar != NULL)
+	if (result->grammar != NULL) {
 		ast_copy_string(buf, result->grammar, len);
+	}
 
-        return 0;
+	return 0;
 }
 
 static struct ast_custom_function speech_grammar_function = {
-        .name = "SPEECH_GRAMMAR",
-        .synopsis = "Gets the matched grammar of a result if available.",
-        .syntax = "SPEECH_GRAMMAR([nbest number/]result number)",
-        .desc =
-        "Gets the matched grammar of a result if available.\n",
-        .read = speech_grammar,
-        .write = NULL,
+	.name = "SPEECH_GRAMMAR",
+	.synopsis = "Gets the matched grammar of a result if available.",
+	.syntax = "SPEECH_GRAMMAR([nbest number/]result number)",
+	.desc =
+	"Gets the matched grammar of a result if available.\n",
+	.read = speech_grammar,
+	.write = NULL,
 };
 
 /*! \brief SPEECH_ENGINE() Dialplan Function */
@@ -244,8 +250,9 @@ static int speech_engine_write(struct ast_channel *chan, const char *cmd, char *
 {
 	struct ast_speech *speech = find_speech(chan);
 
-	if (data == NULL || speech == NULL)
+	if (data == NULL || speech == NULL) {
 		return -1;
+	}
 
 	ast_speech_change(speech, data, value);
 
@@ -329,16 +336,16 @@ static int speech_read(struct ast_channel *chan, const char *cmd, char *data,
 }
 
 static struct ast_custom_function speech_function = {
-        .name = "SPEECH",
-        .synopsis = "Gets information about speech recognition results.",
-        .syntax = "SPEECH(argument)",
-        .desc =
+	.name = "SPEECH",
+	.synopsis = "Gets information about speech recognition results.",
+	.syntax = "SPEECH(argument)",
+	.desc =
 	"Gets information about speech recognition results.\n"
 	"status:   Returns 1 upon speech object existing, or 0 if not\n"
 	"spoke:  Returns 1 if spoker spoke, or 0 if not\n"
 	"results:  Returns number of results that were recognized\n",
-        .read = speech_read,
-        .write = NULL,
+	.read = speech_read,
+	.write = NULL,
 };
 
 
@@ -645,14 +652,14 @@ static int speech_background(struct ast_channel *chan, void *data)
 			if (!strlen(dtmf)) {
 				if (chan->stream == NULL) {
 					if (speech->processing_sound != NULL) {
-						if (strlen(speech->processing_sound) > 0 && strcasecmp(speech->processing_sound,"none")) {
+						if (strlen(speech->processing_sound) > 0 && strcasecmp(speech->processing_sound, "none")) {
 							speech_streamfile(chan, speech->processing_sound, chan->language);
 						}
 					}
 				} else if (chan->streamid == -1 && chan->timingfunc == NULL) {
 					ast_stopstream(chan);
 					if (speech->processing_sound != NULL) {
-						if (strlen(speech->processing_sound) > 0 && strcasecmp(speech->processing_sound,"none")) {
+						if (strlen(speech->processing_sound) > 0 && strcasecmp(speech->processing_sound, "none")) {
 							speech_streamfile(chan, speech->processing_sound, chan->language);
 						}
 					}

@@ -66,21 +66,22 @@ static char *descrip =
 static struct ast_channel *get_zap_channel_locked(int num) {
 	char name[80];
 	
-	snprintf(name,sizeof(name),"Zap/%d-1",num);
+	snprintf(name, sizeof(name), "Zap/%d-1", num);
 	return ast_get_channel_by_name_locked(name);
 }
 
 static int careful_write(int fd, unsigned char *data, int len)
 {
 	int res;
-	while(len) {
+	while (len) {
 		res = write(fd, data, len);
 		if (res < 1) {
 			if (errno != EAGAIN) {
 				ast_log(LOG_WARNING, "Failed to write audio data to conference: %s\n", strerror(errno));
 				return -1;
-			} else
+			} else {
 				return 0;
+			}
 		}
 		len -= res;
 		data += res;
@@ -104,7 +105,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 	int origfd;
 	int ret = -1;
 	char input[4];
-	int ic=0;
+	int ic = 0;
 	
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
@@ -136,7 +137,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 		if (flags < 0) {
 			ast_log(LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
 			close(fd);
-                        goto outrun;
+			goto outrun;
 		}
 		if (fcntl(fd, F_SETFL, flags | O_NONBLOCK)) {
 			ast_log(LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
@@ -154,7 +155,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 			close(fd);
 			goto outrun;
 		}
-                nfds = 1;
+		nfds = 1;
 	} else {
 		/* XXX Make sure we're not running on a pseudo channel XXX */
 		fd = chan->fds[0];
@@ -162,118 +163,119 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 	}
 	memset(&ztc, 0, sizeof(ztc));
 	/* Check to see if we're in a conference... */
-        ztc.chan = 0;
-        if (ioctl(fd, ZT_GETCONF, &ztc)) {
-			ast_log(LOG_WARNING, "Error getting conference\n");
-			close(fd);
-			goto outrun;
-        }
-        if (ztc.confmode) {
-			/* Whoa, already in a conference...  Retry... */
-			if (!retryzap) {
-				ast_debug(1, "Zap channel is in a conference already, retrying with pseudo\n");
-				retryzap = 1;
+	ztc.chan = 0;
+	if (ioctl(fd, ZT_GETCONF, &ztc)) {
+		ast_log(LOG_WARNING, "Error getting conference\n");
+		close(fd);
+		goto outrun;
+	}
+	if (ztc.confmode) {
+		/* Whoa, already in a conference...  Retry... */
+		if (!retryzap) {
+			ast_debug(1, "Zap channel is in a conference already, retrying with pseudo\n");
+			retryzap = 1;
+			goto zapretry;
+		}
+	}
+	memset(&ztc, 0, sizeof(ztc));
+	/* Add us to the conference */
+	ztc.chan = 0;
+	ztc.confno = confno;
+	ztc.confmode = ZT_CONF_MONITORBOTH;
+
+	if (ioctl(fd, ZT_SETCONF, &ztc)) {
+		ast_log(LOG_WARNING, "Error setting conference\n");
+		close(fd);
+		goto outrun;
+	}
+	ast_debug(1, "Placed channel %s in ZAP channel %d monitor\n", chan->name, confno);
+
+	for (;;) {
+		outfd = -1;
+		ms = -1;
+		c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
+		if (c) {
+			if (c->fds[0] != origfd) {
+				if (retryzap) {
+					/* Kill old pseudo */
+					close(fd);
+				}
+				ast_debug(1, "Ooh, something swapped out under us, starting over\n");
+				retryzap = 0;
 				goto zapretry;
 			}
-        }
-        memset(&ztc, 0, sizeof(ztc));
-        /* Add us to the conference */
-        ztc.chan = 0;
-        ztc.confno = confno;
-        ztc.confmode = ZT_CONF_MONITORBOTH;
-		
-        if (ioctl(fd, ZT_SETCONF, &ztc)) {
-                ast_log(LOG_WARNING, "Error setting conference\n");
-                close(fd);
-                goto outrun;
-        }
-	ast_debug(1, "Placed channel %s in ZAP channel %d monitor\n", chan->name, confno);
-		
-        for(;;) {
-			outfd = -1;
-			ms = -1;
-			c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
-			if (c) {
-				if (c->fds[0] != origfd) {
-					if (retryzap) {
-						/* Kill old pseudo */
-						close(fd);
-					}
-					ast_debug(1, "Ooh, something swapped out under us, starting over\n");
-					retryzap = 0;
-                                goto zapretry;
-				}
-				f = ast_read(c);
-				if (!f)
-					break;
-				if(f->frametype == AST_FRAME_DTMF) {
-					if(f->subclass == '#') {
-						ret = 0;
-						break;
-					}
-					else if (f->subclass == '*') {
-						ret = -1;
-						break;
-						
-					}
-					else {
-						input[ic++] = f->subclass;
-					}
-					if(ic == 3) {
-						input[ic++] = '\0';
-						ic=0;
-						ret = atoi(input);
-						ast_verb(3, "Zapscan: change channel to %d\n",ret);
-						break;
-					}
-				}
-				
-				if (fd != chan->fds[0]) {
-					if (f->frametype == AST_FRAME_VOICE) {
-						if (f->subclass == AST_FORMAT_ULAW) {
-							/* Carefully write */
-                                                careful_write(fd, f->data, f->datalen);
-						} else
-							ast_log(LOG_WARNING, "Huh?  Got a non-ulaw (%d) frame in the conference\n", f->subclass);
-					}
-				}
-				ast_frfree(f);
-			} else if (outfd > -1) {
-				res = read(outfd, buf, CONF_SIZE);
-				if (res > 0) {
-					memset(&fr, 0, sizeof(fr));
-					fr.frametype = AST_FRAME_VOICE;
-					fr.subclass = AST_FORMAT_ULAW;
-					fr.datalen = res;
-					fr.samples = res;
-					fr.data = buf;
-					fr.offset = AST_FRIENDLY_OFFSET;
-					if (ast_write(chan, &fr) < 0) {
-						ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
-						/* break; */
-					}
-				} else
-					ast_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
+			f = ast_read(c);
+			if (!f) {
+				break;
 			}
-        }
-	if (f)
+			if (f->frametype == AST_FRAME_DTMF) {
+				if (f->subclass == '#') {
+					ret = 0;
+					break;
+				} else if (f->subclass == '*') {
+					ret = -1;
+					break;
+				} else {
+					input[ic++] = f->subclass;
+				}
+				if (ic == 3) {
+					input[ic++] = '\0';
+					ic = 0;
+					ret = atoi(input);
+					ast_verb(3, "Zapscan: change channel to %d\n", ret);
+					break;
+				}
+			}
+
+			if (fd != chan->fds[0]) {
+				if (f->frametype == AST_FRAME_VOICE) {
+					if (f->subclass == AST_FORMAT_ULAW) {
+						/* Carefully write */
+						careful_write(fd, f->data, f->datalen);
+					} else {
+						ast_log(LOG_WARNING, "Huh?  Got a non-ulaw (%d) frame in the conference\n", f->subclass);
+					}
+				}
+			}
+			ast_frfree(f);
+		} else if (outfd > -1) {
+			res = read(outfd, buf, CONF_SIZE);
+			if (res > 0) {
+				memset(&fr, 0, sizeof(fr));
+				fr.frametype = AST_FRAME_VOICE;
+				fr.subclass = AST_FORMAT_ULAW;
+				fr.datalen = res;
+				fr.samples = res;
+				fr.data = buf;
+				fr.offset = AST_FRIENDLY_OFFSET;
+				if (ast_write(chan, &fr) < 0) {
+					ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
+					/* break; */
+				}
+			} else {
+				ast_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
+			}
+		}
+	}
+	if (f) {
 		ast_frfree(f);
-        if (fd != chan->fds[0])
-			close(fd);
-        else {
-			/* Take out of conference */
-			/* Add us to the conference */
-			ztc.chan = 0;
-			ztc.confno = 0;
-			ztc.confmode = 0;
-			if (ioctl(fd, ZT_SETCONF, &ztc)) {
-				ast_log(LOG_WARNING, "Error setting conference\n");
-                }
-        }
-		
+	}
+	if (fd != chan->fds[0]) {
+		close(fd);
+	} else {
+		/* Take out of conference */
+		/* Add us to the conference */
+		ztc.chan = 0;
+		ztc.confno = 0;
+		ztc.confmode = 0;
+		if (ioctl(fd, ZT_SETCONF, &ztc)) {
+			ast_log(LOG_WARNING, "Error setting conference\n");
+		}
+	}
+
  outrun:
-		
-        return ret;
+
+	return ret;
 }
 
 static int conf_exec(struct ast_channel *chan, void *data)
@@ -282,16 +284,16 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int confflags = 0;
 	int confno = 0;
 	char confstr[80] = "", *tmp = NULL;
-	struct ast_channel *tempchan = NULL, *lastchan = NULL,*ichan = NULL;
+	struct ast_channel *tempchan = NULL, *lastchan = NULL, *ichan = NULL;
 	struct ast_frame *f;
 	char *desired_group;
-	int input=0,search_group=0;
-		
+	int input = 0, search_group = 0;
+
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
-	
+
 	desired_group = ast_strdupa(data);
-	if(!ast_strlen_zero(desired_group)) {
+	if (!ast_strlen_zero(desired_group)) {
 		ast_verb(3, "Scanning for group %s\n", desired_group);
 		search_group = 1;
 	}
@@ -299,7 +301,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	for (;;) {
 		if (ast_waitfor(chan, 100) < 0)
 			break;
-		
+
 		f = ast_read(chan);
 		if (!f)
 			break;
@@ -313,15 +315,16 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			ichan = get_zap_channel_locked(input);
 			input = 0;
 		}
-		
+
 		tempchan = ichan ? ichan : ast_channel_walk_locked(tempchan);
-		
-		if ( !tempchan && !lastchan )
+
+		if (!tempchan && !lastchan) {
 			break;
-		
+		}
+
 		if (tempchan && search_group) {
 			const char *mygroup;
-			if((mygroup = pbx_builtin_getvar_helper(tempchan, "GROUP")) && (!strcmp(mygroup, desired_group))) {
+			if ((mygroup = pbx_builtin_getvar_helper(tempchan, "GROUP")) && (!strcmp(mygroup, desired_group))) {
 				ast_verb(3, "Found Matching Channel %s in group %s\n", tempchan->name, desired_group);
 			} else {
 				ast_channel_unlock(tempchan);
@@ -329,21 +332,24 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				continue;
 			}
 		}
-		if (tempchan && (!strcmp(tempchan->tech->type, "Zap")) && (tempchan != chan) ) {
+		if (tempchan && (!strcmp(tempchan->tech->type, "Zap")) && (tempchan != chan)) {
 			ast_verb(3, "Zap channel %s is in-use, monitoring...\n", tempchan->name);
 			ast_copy_string(confstr, tempchan->name, sizeof(confstr));
 			ast_channel_unlock(tempchan);
-			if ((tmp = strchr(confstr,'-'))) {
+			if ((tmp = strchr(confstr, '-'))) {
 				*tmp = '\0';
 			}
-			confno = atoi(strchr(confstr,'/') + 1);
+			confno = atoi(strchr(confstr, '/') + 1);
 			ast_stopstream(chan);
 			ast_say_number(chan, confno, AST_DIGIT_ANY, chan->language, (char *) NULL);
 			res = conf_run(chan, confno, confflags);
-			if (res<0) break;
+			if (res < 0) {
+				break;
+			}
 			input = res;
-		} else if (tempchan)
+		} else if (tempchan) {
 			ast_channel_unlock(tempchan);
+		}
 		lastchan = tempchan;
 	}
 	return res;

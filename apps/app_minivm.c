@@ -736,8 +736,9 @@ static void prep_email_sub_vars(struct ast_channel *channel, const struct minivm
 		return;
 	}
 
-	for (var = vmu->chanvars ; var ; var = var->next)
-                pbx_builtin_setvar_helper(channel, var->name, var->value);
+	for (var = vmu->chanvars ; var ; var = var->next) {
+		pbx_builtin_setvar_helper(channel, var->name, var->value);
+	}
 
 	/* Prepare variables for substition in email body and subject */
 	pbx_builtin_setvar_helper(channel, "MVM_NAME", vmu->fullname);
@@ -2778,12 +2779,12 @@ static int minivm_account_func_read(struct ast_channel *chan, const char *cmd, c
 */
 static int vm_lock_path(const char *path)
 {
-        switch (ast_lock_path(path)) {
-        case AST_LOCK_TIMEOUT:
-                return -1;
-        default:
-                return 0;
-        }
+	switch (ast_lock_path(path)) {
+	case AST_LOCK_TIMEOUT:
+		return -1;
+	default:
+		return 0;
+	}
 }
 
 /*! \brief Access counter file, lock directory, read and possibly write it again changed 

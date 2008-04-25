@@ -260,8 +260,9 @@ static void numcpy(char *d, char *s)
 	if (*s == '+')
 		*d++ = *s++;
 	while (*s) {
-  		if (isdigit(*s))
-     			*d++ = *s;
+  		if (isdigit(*s)) {
+			*d++ = *s;
+		}
 		s++;
 	}
 	*d = 0;
@@ -600,8 +601,9 @@ static void unpacksms7(unsigned char *i, unsigned char l, unsigned char *udh, in
 }
 
 /*! \brief unpacks bytes (8 bit encoding) at i, len l septets, 
-      and places in udh and ud setting udhl and udl. udh not used 
-      if udhi not set */
+ *  and places in udh and ud setting udhl and udl. udh not used 
+ *  if udhi not set.
+ */
 static void unpacksms8(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
 	unsigned short *o = ud;

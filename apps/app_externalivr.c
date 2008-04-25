@@ -87,8 +87,8 @@ struct gen_state {
 };
 
 static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u, 
-              int eivr_events_fd, int eivr_commands_fd, int eivr_errors_fd, 
-              const char *args);
+	int eivr_events_fd, int eivr_commands_fd, int eivr_errors_fd, 
+	const char *args);
 
 int eivr_connect_socket(struct ast_channel *chan, const char *host, int port);
 

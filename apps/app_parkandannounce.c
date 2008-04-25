@@ -129,7 +129,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 			ast_verb(4, "Channel %s was answered.\n", dchan->name);
 		} else {
 			ast_verb(4, "Channel %s was never answered.\n", dchan->name);
-        			ast_log(LOG_WARNING, "PARK: Channel %s was never answered for the announce.\n", dchan->name);
+			ast_log(LOG_WARNING, "PARK: Channel %s was never answered for the announce.\n", dchan->name);
 			ast_hangup(dchan);
 			return -1;
 		}

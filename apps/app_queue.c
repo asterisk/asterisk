@@ -57,7 +57,7 @@
  */
 
 /*** MODULEINFO
-        <depend>res_monitor</depend>
+	<depend>res_monitor</depend>
  ***/
 
 #include "asterisk.h"
@@ -135,7 +135,7 @@ static const struct strategy {
 #define DEFAULT_TIMEOUT		15
 #define RECHECK			1		/*!< Recheck every second to see we we're at the top yet */
 #define MAX_PERIODIC_ANNOUNCEMENTS 10           /*!< The maximum periodic announcements we can have */
-#define DEFAULT_MIN_ANNOUNCE_FREQUENCY 15       /*!< The minimum number of seconds between position announcements
+#define DEFAULT_MIN_ANNOUNCE_FREQUENCY 15       /*!< The minimum number of seconds between position announcements \
                                                      The default value of 15 provides backwards compatibility */
 #define MAX_QUEUE_BUCKETS 53
 
@@ -581,7 +581,7 @@ static void set_queue_variables(struct queue_ent *qe)
 {
 	char interfacevar[256]="";
 	float sl = 0;
-        
+
 	if (qe->parent->setqueuevar) {
 		sl = 0;
 		if (qe->parent->callscompleted > 0) 
@@ -1904,10 +1904,11 @@ playout:
 
 	/* Don't restart music on hold if we're about to exit the caller from the queue */
 	if (!res) {
-                if (ringing)
-                        ast_indicate(qe->chan, AST_CONTROL_RINGING);
-                else
-                        ast_moh_start(qe->chan, qe->moh, NULL);
+		if (ringing) {
+			ast_indicate(qe->chan, AST_CONTROL_RINGING);
+		} else {
+			ast_moh_start(qe->chan, qe->moh, NULL);
+		}
 	}
 	return res;
 }
@@ -3113,12 +3114,12 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		case 'H':
 			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT);
 			break;
-                case 'k':
-                        ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_PARKCALL);
-                        break;
-                case 'K':
-                        ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_PARKCALL);
-                        break;
+		case 'k':
+			ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_PARKCALL);
+			break;
+		case 'K':
+			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_PARKCALL);
+			break;
 		case 'n':
 			if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_LINEAR)
 				(*tries)++;
@@ -4643,8 +4644,8 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 		.name = data,	
 	};
 
-	char interfacevar[256]="";
-        float sl = 0;
+	char interfacevar[256] = "";
+	float sl = 0;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
@@ -4653,24 +4654,26 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 
 	if ((q = ao2_find(queues, &tmpq, OBJ_POINTER))) {
 		ao2_lock(q);
-        	if (q->setqueuevar) {
-		        sl = 0;
+		if (q->setqueuevar) {
+			sl = 0;
 			res = 0;
 
-		        if (q->callscompleted > 0)
-		                sl = 100 * ((float) q->callscompletedinsl / (float) q->callscompleted);
+			if (q->callscompleted > 0) {
+				sl = 100 * ((float) q->callscompletedinsl / (float) q->callscompleted);
+			}
 
-		        snprintf(interfacevar, sizeof(interfacevar),
-                		"QUEUEMAX=%d,QUEUESTRATEGY=%s,QUEUECALLS=%d,QUEUEHOLDTIME=%d,QUEUECOMPLETED=%d,QUEUEABANDONED=%d,QUEUESRVLEVEL=%d,QUEUESRVLEVELPERF=%2.1f",
-		                q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->callscompleted, q->callsabandoned,  q->servicelevel, sl);
+			snprintf(interfacevar, sizeof(interfacevar),
+				"QUEUEMAX=%d,QUEUESTRATEGY=%s,QUEUECALLS=%d,QUEUEHOLDTIME=%d,QUEUECOMPLETED=%d,QUEUEABANDONED=%d,QUEUESRVLEVEL=%d,QUEUESRVLEVELPERF=%2.1f",
+				q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->callscompleted, q->callsabandoned,  q->servicelevel, sl);
 
-		        pbx_builtin_setvar_multiple(chan, interfacevar);
-	        }
+			pbx_builtin_setvar_multiple(chan, interfacevar);
+		}
 
 		ao2_unlock(q);
 		queue_unref(q);
-	} else
+	} else {
 		ast_log(LOG_WARNING, "queue %s was not found\n", data);
+	}
 
 	snprintf(buf, len, "%d", res);
 
@@ -4865,7 +4868,7 @@ static int queue_function_memberpenalty_read(struct ast_channel *chan, const cha
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
 		AST_APP_ARG(interface);
-        );
+	);
 	/* Make sure the returned value on error is NULL. */
 	buf[0] = '\0';
 
