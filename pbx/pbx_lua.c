@@ -982,7 +982,9 @@ static lua_State *lua_get_state(struct ast_channel *chan)
 		}
 		return L;
 	} else {
+		ast_channel_lock(chan);
 		datastore = ast_channel_datastore_find(chan, &lua_datastore, NULL);
+		ast_channel_unlock(chan);
 
 		if (!datastore) {
 			/* nothing found, allocate a new lua state */
