@@ -149,12 +149,12 @@ static void set_update(MAILSTREAM * stream);
 static void init_vm_state(struct vm_state *vms);
 static void check_msgArray(struct vm_state *vms);
 static void copy_msgArray(struct vm_state *dst, struct vm_state *src);
-static int save_body(BODY *body, struct vm_state *vms, char *section, char *format);
-static int make_gsm_file(char *dest, size_t len, char *imapuser, char *dir, int num);
+static int save_body(BODY *body, struct vm_state *vms, char *section, char *format, char *altfile);
+static int make_gsm_file(char *dest, size_t len, char *imapuser, char *dir, int num, char *prefix);
 static void get_mailbox_delimiter(MAILSTREAM *stream);
 static void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota);
 static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int box, int target);
-static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms);
+static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, char *introfile);
 static void update_messages_by_imapuser(const char *user, unsigned long number);
 
 static int imap_remove_file (char *dir, int msgnum);
@@ -414,6 +414,7 @@ struct vm_state {
 	char vmbox[PATH_MAX];
 	char fn[PATH_MAX];
 	char fn2[PATH_MAX];
+	char intro[PATH_MAX];
 	int *deleted;
 	int *heard;
 	int curmsg;
@@ -450,7 +451,7 @@ static char odbc_table[80];
 #ifdef IMAP_STORAGE
 #define RETRIEVE(a,b,c,d) (imap_retrieve_file(a,b,c,d ))
 #define DISPOSE(a,b) (imap_remove_file(a,b))
-#define STORE(a,b,c,d,e,f,g,h,i) (imap_store_file(a,b,c,d,e,f,g,h,i))
+#define STORE(a,b,c,d,e,f,g,h,i,j) (imap_store_file(a,b,c,d,e,f,g,h,i,j))
 #define EXISTS(a,b,c,d) (ast_fileexists(c, NULL, d) > 0)
 #define RENAME(a,b,c,d,e,f,g,h) (rename_file(g,h));
 #define COPY(a,b,c,d,e,f,g,h) (copy_file(g,h));
@@ -459,7 +460,7 @@ static char odbc_table[80];
 #else
 #define RETRIEVE(a,b,c,d)
 #define DISPOSE(a,b)
-#define STORE(a,b,c,d,e,f,g,h,i)
+#define STORE(a,b,c,d,e,f,g,h,i,j)
 #define EXISTS(a,b,c,d) (ast_fileexists(c, NULL, d) > 0)
 #define RENAME(a,b,c,d,e,f,g,h) (rename_file(g,h));
 #define COPY(a,b,c,d,e,f,g,h) (copy_plain_file(g,h));
@@ -670,8 +671,9 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc, signed char record_gain);
 static int vm_play_folder_name(struct ast_channel *chan, char *mbox);
 static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msgnum, long duration, char *fmt, char *cidnum, char *cidname);
-static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap);
+static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *attach2, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap);
 static void apply_options(struct ast_vm_user *vmu, const char *options);
+static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, char *attach, char *greeting_attachment, char *mailbox, char *bound, char *filename, int last, int msgnum);
 static int is_valid_dtmf(const char *key);
 
 #if !(defined(ODBC_STORAGE) || defined(IMAP_STORAGE))
@@ -1121,14 +1123,14 @@ static int make_dir(char *dest, int len, const char *context, const char *ext, c
 }
 
 #ifdef IMAP_STORAGE
-static int make_gsm_file(char *dest, size_t len, char *imapuser, char *dir, int num)
+static int make_gsm_file(char *dest, size_t len, char *imapuser, char *dir, int num, char *prefix)
 {
 	int res;
 	if ((res = ast_mkdir(dir, 01777))) {
 		ast_log(AST_LOG_WARNING, "ast_mkdir '%s' failed: %s\n", dir, strerror(res));
-		return snprintf(dest, len, "%s/msg%04d", dir, num);
+		return snprintf(dest, len, "%s/%smsg%04d", dir, prefix, num);
 	}
-	return snprintf(dest, len, "%s/msg%04d", dir, num);
+	return snprintf(dest, len, "%s/%smsg%04d", dir, prefix, num);
 }
 
 static void vm_imap_delete(int msgnum, struct vm_state *vms)
@@ -2252,19 +2254,18 @@ static FILE *vm_mkftemp(char *template)
  *
  * The email body, and base 64 encoded attachement (if any) are stored to the file identified by *p. This method does not actually send the email.  That is done by invoking the configure 'mailcmd' and piping this generated file into it, or with the sendemail() function.
  */
-static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap)
+static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *attach2, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap)
 {
 	char date[256];
 	char host[MAXHOSTNAMELEN] = "";
 	char who[256];
 	char bound[256];
-	char fname[256];
 	char dur[256];
-	char tmpcmd[256];
 	struct ast_tm tm;
 	char *passdata2;
 	size_t len_passdata;
-	char *greeting_attachment;
+	char *greeting_attachment; 
+	char filename[256];
 
 #ifdef IMAP_STORAGE
 #define ENDL "\r\n"
@@ -2383,49 +2384,71 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		fprintf(p, "This message is to let you know that your greeting was changed on %s." ENDL
 				"Please do not delete this message, lest your greeting vanish with it." ENDL ENDL, date);
 	}
+
 	if (attach_user_voicemail) {
-		/* Eww. We want formats to tell us their own MIME type */
-		char *ctype = (!strcasecmp(format, "ogg")) ? "application/" : "audio/x-";
-		char tmpdir[256], newtmp[256];
-		int tmpfd = -1;
-	
-		if (vmu->volgain < -.001 || vmu->volgain > .001) {
-			create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, vmu->mailbox, "tmp");
-			snprintf(newtmp, sizeof(newtmp), "%s/XXXXXX", tmpdir);
-			tmpfd = mkstemp(newtmp);
-			chmod(newtmp, VOICEMAIL_FILE_MODE & ~my_umask);
-			ast_debug(3, "newtmp: %s\n", newtmp);
-			if (tmpfd > -1) {
-				snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, attach, format, newtmp, format);
-				ast_safe_system(tmpcmd);
-				attach = newtmp;
-				ast_debug(3, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
-			}
-		}
-		fprintf(p, "--%s" ENDL, bound);
-		if (msgnum > -1)
-			fprintf(p, "Content-Type: %s%s; name=\"msg%04d.%s\"" ENDL, ctype, format, msgnum + 1, format);
-		else
-			fprintf(p, "Content-Type: %s%s; name=\"%s.%s\"" ENDL, ctype, format, greeting_attachment, format);
-		fprintf(p, "Content-Transfer-Encoding: base64" ENDL);
-		fprintf(p, "Content-Description: Voicemail sound attachment." ENDL);
-		if (msgnum > -1)
-			fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.%s\"" ENDL ENDL, msgnum + 1, format);
-		else
-			fprintf(p, "Content-Disposition: attachment; filename=\"%s.%s\"" ENDL ENDL, greeting_attachment, format);
-		snprintf(fname, sizeof(fname), "%s.%s", attach, format);
-		base_encode(fname, p);
-		fprintf(p, ENDL "--%s--" ENDL "." ENDL, bound);
-		if (tmpfd > -1) {
-			unlink(fname);
-			close(tmpfd);
-			unlink(newtmp);
+		if (!ast_strlen_zero(attach2)) {
+			snprintf(filename, sizeof(filename), "msgintro%04d.%s", msgnum, format);
+			ast_debug(5, "creating attachment filename %s\n", filename);
+			add_email_attachment(p, vmu, format, attach2, greeting_attachment, mailbox, bound, filename, 0, msgnum);
+			snprintf(filename, sizeof(filename), "msg%04d.%s", msgnum, format);
+			ast_debug(5, "creating second attachment filename %s\n", filename);
+			add_email_attachment(p, vmu, format, attach, greeting_attachment, mailbox, bound, filename, 1, msgnum);
+		} else {
+			snprintf(filename, sizeof(filename), "msg%04d.%s", msgnum, format);
+			ast_debug(5, "creating attachment filename %s, no second attachment.\n", filename);
+			add_email_attachment(p, vmu, format, attach, greeting_attachment, mailbox, bound, filename, 1, msgnum);
 		}
 	}
-#undef ENDL
 }
 
-static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category)
+static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, char *attach, char *greeting_attachment, char *mailbox, char *bound, char *filename, int last, int msgnum)
+{
+	char tmpdir[256], newtmp[256];
+	char fname[256];
+	char tmpcmd[256];
+	int tmpfd = -1;
+
+	/* Eww. We want formats to tell us their own MIME type */
+	char *ctype = (!strcasecmp(format, "ogg")) ? "application/" : "audio/x-";
+
+	if (vmu->volgain < -.001 || vmu->volgain > .001) {
+		create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, vmu->mailbox, "tmp");
+		snprintf(newtmp, sizeof(newtmp), "%s/XXXXXX", tmpdir);
+		tmpfd = mkstemp(newtmp);
+		chmod(newtmp, VOICEMAIL_FILE_MODE & ~my_umask);
+		ast_debug(3, "newtmp: %s\n", newtmp);
+		if (tmpfd > -1) {
+			snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, attach, format, newtmp, format);
+			ast_safe_system(tmpcmd);
+			attach = newtmp;
+			ast_debug(3, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
+		}
+	}
+	fprintf(p, "--%s" ENDL, bound);
+	if (msgnum > -1)
+		fprintf(p, "Content-Type: %s%s; name=\"%s\"" ENDL, ctype, format, filename);
+	else
+		fprintf(p, "Content-Type: %s%s; name=\"%s.%s\"" ENDL, ctype, format, attach, format);
+	fprintf(p, "Content-Transfer-Encoding: base64" ENDL);
+	fprintf(p, "Content-Description: Voicemail sound attachment." ENDL);
+	if (msgnum > -1)
+		fprintf(p, "Content-Disposition: attachment; filename=\"%s\"" ENDL ENDL, filename);
+	else
+		fprintf(p, "Content-Disposition: attachment; filename=\"%s.%s\"" ENDL ENDL, attach, format);
+	snprintf(fname, sizeof(fname), "%s.%s", attach, format);
+	base_encode(fname, p);
+	if (last)
+		fprintf(p, ENDL ENDL "--%s--" ENDL "." ENDL, bound);
+	if (tmpfd > -1) {
+		unlink(fname);
+		close(tmpfd);
+		unlink(newtmp);
+	}
+	return 0;
+}
+#undef ENDL
+
+static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *attach2, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category)
 {
 	FILE *p = NULL;
 	char tmp[80] = "/tmp/astmail-XXXXXX";
@@ -2444,7 +2467,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		ast_log(AST_LOG_WARNING, "Unable to launch '%s' (can't create temporary file)\n", mailcmd);
 		return -1;
 	} else {
-		make_email_file(p, srcemail, vmu, msgnum, context, mailbox, cidnum, cidname, attach, format, duration, attach_user_voicemail, chan, category, 0);
+		make_email_file(p, srcemail, vmu, msgnum, context, mailbox, cidnum, cidname, attach, attach2, format, duration, attach_user_voicemail, chan, category, 0);
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		ast_safe_system(tmp2);
@@ -2862,10 +2885,11 @@ static int has_voicemail(const char *mailbox, const char *folder)
 
 #elif defined(IMAP_STORAGE)
 
-static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms)
+static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, char *introfile)
 {
 	char *myserveremail = serveremail;
 	char fn[PATH_MAX];
+	char intro[PATH_MAX];
 	char mailbox[256];
 	char *stringp;
 	FILE *p = NULL;
@@ -2873,6 +2897,7 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	long len;
 	void *buf;
 	int tempcopy = 0;
+	int ret;
 	STRING str;
 	
 	/* Attach only the first format */
@@ -2898,6 +2923,12 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 		tempcopy = 1;
 	}
 
+	if (!ast_strlen_zero(introfile)) {
+		snprintf(intro, sizeof(intro), "%s/msgintro%04d", dir, msgnum);
+	} else {
+		intro[0] = '\0';
+	}
+
 	if (!strcmp(fmt, "wav49"))
 		fmt = "WAV";
 	ast_debug(3, "Storing file '%s', format '%s'\n", fn, fmt);
@@ -2912,11 +2943,14 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	}
 
 	if (msgnum < 0 && imapgreetings) {
-		init_mailstream(vms, GREETINGS_FOLDER);
+		if ((ret = init_mailstream(vms, GREETINGS_FOLDER))) {
+			ast_log(AST_LOG_WARNING, "Unable to open mailstream.\n");
+			return -1;
+		}
 		imap_delete_old_greeting(fn, vms);
 	}
 	
-	make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, fmt, duration, 1, chan, NULL, 1);
+	make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, intro, fmt, duration, 1, chan, NULL, 1);
 	/* read mail file to memory */		
 	len = ftell(p);
 	rewind(p);
@@ -2930,7 +2964,11 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	fread(buf, len, 1, p);
 	((char *)buf)[len] = '\0';
 	INIT(&str, mail_string, buf, len);
-	init_mailstream(vms, NEW_FOLDER);
+	if ((ret = init_mailstream(vms, NEW_FOLDER))) {
+		ast_log(AST_LOG_WARNING, "Unable to open mailstream.\n");
+		return -1;
+	}
+	
 	imap_mailbox_name(mailbox, sizeof(mailbox), vms, NEW_FOLDER, 1);
 	if (!mail_append(vms->mailstream, mailbox, &str))
 		ast_log(AST_LOG_ERROR, "Error while sending the message to %s\n", mailbox);
@@ -3827,7 +3865,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					 * ODBC storage does the entire copy with SQL.
 					 */
 					if (ast_fileexists(fn, NULL, NULL) > 0) {
-						STORE(dir, vmu->mailbox, vmu->context, msgnum, chan, vmu, fmt, duration, vms);
+						STORE(dir, vmu->mailbox, vmu->context, msgnum, chan, vmu, fmt, duration, vms, NULL);
 					}
 
 					/* Are there to be more recipients of this message? */
@@ -4543,16 +4581,21 @@ static int get_folder2(struct ast_channel *chan, char *fn, int start)
  * \return zero on success, -1 on error.
  */
 static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, char *curdir, int curmsg, char *vmfmts,
-			char *context, signed char record_gain, long *duration, struct vm_state *vms)
+			char *context, signed char record_gain, long *duration, struct vm_state *vms, char *introfile)
 {
+#ifdef IMAP_STORAGE
+	int res;
+#endif
 	int cmd = 0;
 	int retries = 0, prepend_duration = 0, already_recorded = 0;
-	signed char zero_gain = 0;
-	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
 	struct ast_config *msg_cfg;
-	const char *duration_str;
 	char msgfile[PATH_MAX], backup[PATH_MAX];
 	char textfile[PATH_MAX];
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
+#ifndef IMAP_STORAGE
+	signed char zero_gain = 0;
+#endif
+	const char *duration_str;
 
 	/* Must always populate duration correctly */
 	make_file(msgfile, sizeof(msgfile), curdir, curmsg);
@@ -4572,6 +4615,15 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			retries = 0;
 		switch (cmd) {
 		case '1': 
+
+#ifdef IMAP_STORAGE
+			/* Record new intro file */
+			res = ast_play_and_wait(chan, INTRO);
+			res = ast_play_and_wait(chan, "beep");
+			res = play_record_review(chan, NULL, introfile, vmu->maxsecs, vmfmts, 1, vmu, (int *)duration, NULL, record_gain, vms);
+			cmd = 't';
+#else
+
 			/* prepend a message to the current message, update the metadata and return */
 			prepend_duration = 0;
 
@@ -4605,12 +4657,15 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 				snprintf(duration_str, sizeof(duration_str), "%d", prepend_duration);
 				if (!ast_variable_update(msg_cat, "duration", duration_str, NULL, 0)) {
 					config_text_file_save(textfile, msg_cfg, "app_voicemail");
-					STORE(curdir, vmu->mailbox, context, curmsg, chan, vmu, vmfmts, prepend_duration, vms);
+					STORE(curdir, vmu->mailbox, context, curmsg, chan, vmu, vmfmts, prepend_duration, vms, NULL);
 				}
 			}
 
+#endif
 			break;
 		case '2': 
+			/* NULL out introfile so we know there is no intro! */
+			introfile[0] = '\0';
 			cmd = 't';
 			break;
 		case '*':
@@ -4717,7 +4772,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 			RETRIEVE(todir, msgnum, vmu->mailbox, vmu->context);
 
 		/* XXX possible imap issue, should category be NULL XXX */
-		sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail, chan, category);
+		sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, fn, NULL, fmt, duration, attach_user_voicemail, chan, category);
 
 		if (attach_user_voicemail)
 			DISPOSE(todir, msgnum);
@@ -4780,9 +4835,11 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	BODY *body;
 	char *header_content;
 	char *temp;
-	char todir[256];
-	int todircount = 0;
+	char todir[256], introtmp[256];
+	char tmpcmd[512];
+	int todircount = 0, two_part = -1;
 	struct vm_state *dstvms;
+	char tmpdir[PATH_MAX];
 #endif
 	char username[70] = "";
 	char fn[PATH_MAX]; /* for playback of name greeting */
@@ -4796,6 +4853,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	int valid_extensions = 0;
 	char *dir;
 	int curmsg;
+	char tmptxtfile[PATH_MAX];
 
 	if (vms == NULL) return -1;
 	dir = vms->curdir;
@@ -4943,6 +5001,14 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		long duration = 0;
 		char origmsgfile[PATH_MAX], msgfile[PATH_MAX];
 		struct vm_state vmstmp;
+#ifdef IMAP_STORAGE
+		char *myserveremail = serveremail;
+		char buf[1024] = "";
+		/* create tempfile for forwarding intro */
+		create_dirpath(tmpdir, sizeof(tmpdir), receiver->context, receiver->mailbox, "tmp");
+		snprintf(tmptxtfile, sizeof(tmptxtfile), "%s/msgintro%04d", tmpdir, curmsg);
+		ast_debug(5, "Creating temp file name %s...\n",tmptxtfile);
+#endif
 		memcpy(&vmstmp, vms, sizeof(vmstmp));
 
 		make_file(origmsgfile, sizeof(origmsgfile), dir, curmsg);
@@ -4954,13 +5020,11 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		/* Alter a surrogate file, only */
 		copy_plain_file(origmsgfile, msgfile);
 
-		cmd = vm_forwardoptions(chan, sender, vmstmp.curdir, curmsg, vmfmts, S_OR(context, "default"), record_gain, &duration, &vmstmp);
+		cmd = vm_forwardoptions(chan, sender, vmstmp.curdir, curmsg, vmfmts, S_OR(context, "default"), record_gain, &duration, &vmstmp, tmptxtfile);
 		if (!cmd) {
 			AST_LIST_TRAVERSE_SAFE_BEGIN(&extensions, vmtmp, list) {
 #ifdef IMAP_STORAGE
-				char *myserveremail = serveremail;
 				int attach_user_voicemail;
-				char buf[1024] = "";
 
 				/* Need to get message content */
 				ast_debug(3, "Before mail_fetchheaders, curmsg is: %d, imap messages is %lu\n", vms->curmsg, vms->msgArray[vms->curmsg]);
@@ -4994,22 +5058,35 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 					fmt = "WAV";
 				ast_debug(3, "**** format set to %s, vmfmts set to %s\n", fmt, vmfmts);
 				snprintf(todir, sizeof(todir), "%s%s/%s/tmp", VM_SPOOL_DIR, vmtmp->context, vmtmp->mailbox);
-				make_gsm_file(vms->fn, sizeof(vms->fn), vms->imapuser, todir, vms->curmsg);
+				make_gsm_file(vms->fn, sizeof(vms->fn), vms->imapuser, todir, vms->curmsg, "msg");
 
 				ast_debug(3, "Before mail_fetchstructure, message number is %ld, filename is:%s\n", vms->msgArray[vms->curmsg], vms->fn);
 				mail_fetchstructure(vms->mailstream, vms->msgArray[vms->curmsg], &body);
-				save_body(body, vms, "3", "gsm");
+				
 				/* should not assume "fmt" here! */
-				save_body(body, vms, "2", fmt);
+				save_body(body, vms, "2", fmt, vms->fn);
+				save_body(body, vms, "2", fmt, vms->fn);
+  
+				/* second attachment would be body if intro, otherwise null
+				 * two_part will be set to 0 if there are two parts, otherwise -1 */
+				snprintf(introtmp, sizeof(introtmp), "%stmp",vms->intro);
+				two_part = save_body(body,vms,"3",fmt, introtmp);
+
+				/* If there are two parts to the existing 
+				 * message, merge them together into one message before sending */
+				if (two_part == 0) {
+					snprintf(tmpcmd, sizeof(tmpcmd), "sox %s.%s %s.%s %smerge.%s ; mv -f %smerge.%s %s/msg%04d.%s", vms->fn, fmt, introtmp, fmt, vms->fn, fmt, vms->fn, fmt, tmpdir, curmsg, fmt);
+					ast_debug(5,"about to execute system command %s\n",tmpcmd);
+					ast_safe_system(tmpcmd);
+				} /* by now vms->fn should have merged audio */
 
 				/* get destination mailbox */
-				dstvms = get_vm_state_by_mailbox(vmtmp->mailbox, 0);
-				if (dstvms) {
+				if ((dstvms = get_vm_state_by_mailbox(vmtmp->mailbox, 0))) {
 					init_mailstream(dstvms, 0);
 					if (!dstvms->mailstream) {
 						ast_log(AST_LOG_ERROR, "IMAP mailstream for %s is NULL\n", vmtmp->mailbox);
 					} else {
-						STORE(todir, vmtmp->mailbox, vmtmp->context, dstvms->curmsg, chan, vmtmp, fmt, duration, dstvms);
+						STORE(todir, vmtmp->mailbox, vmtmp->context, dstvms->curmsg, chan, vmtmp, fmt, duration, dstvms, tmptxtfile);
 						run_externnotify(vmtmp->context, vmtmp->mailbox); 
 					}
 				} else {
@@ -5020,7 +5097,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 					myserveremail = vmtmp->serveremail;
 				attach_user_voicemail = ast_test_flag(vmtmp, VM_ATTACH);
 				/* NULL category for IMAP storage */
-				sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), vms->fn, fmt, duration, attach_user_voicemail, chan, NULL);
+				sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), vms->fn, tmptxtfile, fmt, duration, attach_user_voicemail, chan, NULL);
 
 #else
 				copy_message(chan, sender, -1, curmsg, duration, vmtmp, fmt, vmstmp.curdir);
@@ -5279,7 +5356,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	char duration[16];
 	char category[32];
 	char todir[PATH_MAX];
-	int res = 0;
+	int res = 0, two_part = -1;
 	char *attachedfilefmt;
 	char *temp;
 	char buf[1024];
@@ -5300,7 +5377,8 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		return -1;
 	}
 	snprintf(todir, sizeof(todir), "%s%s/%s/tmp", VM_SPOOL_DIR, vmu->context, vmu->mailbox);
-	make_gsm_file(vms->fn, sizeof(vms->fn), vms->imapuser, todir, vms->curmsg);
+	make_gsm_file(vms->fn, sizeof(vms->fn), vms->imapuser, todir, vms->curmsg, "msg");
+	make_gsm_file(vms->intro, sizeof(vms->intro), vms->imapuser, todir, vms->curmsg, "msgintro");
 
 	mail_fetchstructure (vms->mailstream, vms->msgArray[vms->curmsg], &body);
 	
@@ -5320,7 +5398,8 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		ast_log(AST_LOG_ERROR, "File format could not be obtained from IMAP message attachment\n");
 		return -1;
 	}
-	save_body(body, vms, "2", attachedfilefmt);
+	save_body(body, vms, "2", attachedfilefmt, vms->fn); /* save first attachment */
+	two_part = save_body(body, vms, "3", attachedfilefmt, vms->intro); /* save forwarded intro if present */
 
 	adsi_message(chan, vms);
 	if (!vms->curmsg)
@@ -5386,7 +5465,12 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 
 	if (!res) {
 		vms->heard[vms->curmsg] = 1;
-		res = wait_file(chan, vms, vms->fn);
+		if (two_part == 0) {   /* If there are two parts */
+			wait_file(chan, vms, vms->fn);
+			res = wait_file(chan, vms, vms->intro);
+		} else {
+			res = wait_file(chan, vms, vms->fn);
+		}
 	}
 	DISPOSE(vms->curdir, vms->curmsg);
 	DELETE(0, 0, vms->fn);
@@ -5720,7 +5804,7 @@ static int imap_retrieve_file (char *dir, int msgnum, const char *mailbox, char 
 		if (!strcmp(filename, file)) {
 			ast_copy_string(vms_p->fn, dir, sizeof(vms_p->fn));
 			vms_p->msgArray[vms_p->curmsg] = i + 1;
-			save_body(body, vms_p, "2", attachment);
+			save_body(body, vms_p, "2", attachment, vms_p->fn);
 			free_user(vmu);
 			return 0;
 		}
@@ -9848,8 +9932,11 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 					ast_filerename(tempfile, recordfile, NULL);
 				ast_stream_and_wait(chan, "vm-msgsaved", "");
 				if (!outsidecaller) {
-					STORE(recordfile, vmu->mailbox, vmu->context, -1, chan, vmu, fmt, *duration, vms);
+					/* Saves to IMAP server - but SHOULD save to filesystem ONLY if recording greetings! */
+#ifndef IMAP_STORAGE
+					STORE(recordfile, vmu->mailbox, vmu->context, -1, chan, vmu, fmt, *duration, vms, NULL);
 					DISPOSE(recordfile, -1);
+#endif
 				}
 				cmd = 't';
 				return res;
@@ -10478,22 +10565,31 @@ static void copy_msgArray(struct vm_state *dst, struct vm_state *src)
 	}
 }
 
-static int save_body(BODY *body, struct vm_state *vms, char *section, char *format) 
+static int save_body(BODY *body, struct vm_state *vms, char *section, char *format, char *altfile) 
 {
 	char *body_content;
 	char *body_decoded;
+	char *fn = S_OR(altfile, vms->fn);
 	unsigned long len;
 	unsigned long newlen;
 	char filename[256];
 	
 	if (!body || body == NIL)
 		return -1;
+
 	body_content = mail_fetchbody(vms->mailstream, vms->msgArray[vms->curmsg], section, &len);
 	if (body_content != NIL) {
-		snprintf(filename, sizeof(filename), "%s.%s", vms->fn, format);
+		snprintf(filename, sizeof(filename), "%s.%s", fn, format);
 		/* ast_debug(1, body_content); */
 		body_decoded = rfc822_base64((unsigned char *)body_content, len, &newlen);
+ 		/* If the body of the file is empty, return an error */
+		if (!newlen) {
+			return -1;
+		}
 		write_file(filename, (char *) body_decoded, newlen);
+	} else {
+		ast_debug(5, "Body of message is NULL.\n");
+		return -1;
 	}
 	return 0;
 }
