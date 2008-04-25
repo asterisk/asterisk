@@ -4089,11 +4089,11 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	strncat(textfile, ".txt", sizeof(textfile) - strlen(textfile) - 1);
 	strncat(backup, "-bak", sizeof(backup) - strlen(backup) - 1);
 
-	msg_cfg = ast_config_load(textfile, config_flags);
-
-	*duration = 0;
-	if ((duration_str = ast_variable_retrieve(msg_cfg, "message", "duration")))
+	if ((msg_cfg = ast_config_load(textfile, config_flags)) && (duration_str = ast_variable_retrieve(msg_cfg, "message", "duration"))) {
 		*duration = atoi(duration_str);
+	} else {
+		*duration = 0;
+	}
 
 	while ((cmd >= 0) && (cmd != 't') && (cmd != '*')) {
 		if (cmd)
@@ -4104,7 +4104,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			prepend_duration = 0;
 
 			/* if we can't read the message metadata, stop now */
-			if (!(msg_cfg = ast_config_load(textfile, config_flags))) {
+			if (!msg_cfg) {
 				cmd = 0;
 				break;
 			}
@@ -4159,7 +4159,8 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 		}
 	}
 
-	ast_config_destroy(msg_cfg);
+	if (msg_cfg)
+		ast_config_destroy(msg_cfg);
 	if (already_recorded)
 		ast_filedelete(backup, NULL);
 	if (prepend_duration)
