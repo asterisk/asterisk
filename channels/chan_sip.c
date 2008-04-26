@@ -1944,7 +1944,7 @@ static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target
 static int cb_extensionstate(char *context, char* exten, int state, void *data);
 static int sip_devicestate(void *data);
 static int sip_poke_noanswer(const void *data);
-static int sip_poke_peer(struct sip_peer *peer);
+static int sip_poke_peer(struct sip_peer *peer, int force);
 static void sip_poke_all_peers(void);
 static void sip_peer_hold(struct sip_pvt *p, int hold);
 static void mwi_event_cb(const struct ast_event *, void *);
@@ -1973,6 +1973,8 @@ static char *sip_show_domains(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[]);
 static char *sip_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[]);
+static char *sip_qualify_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
@@ -2024,7 +2026,6 @@ static void sip_destroy_peer(struct sip_peer *peer);
 static void sip_destroy_peer_fn(void *peer);
 static void sip_destroy_user(struct sip_user *user);
 static void sip_destroy_user_fn(void *user);
-static int sip_poke_peer(struct sip_peer *peer);
 static void set_peer_defaults(struct sip_peer *peer);
 static struct sip_peer *temp_peer(const char *name);
 static void register_peer_exten(struct sip_peer *peer, int onoff);
@@ -9977,7 +9978,7 @@ static int sip_poke_peer_s(const void *data)
 	struct sip_peer *peer = (struct sip_peer *)data;
 
 	peer->pokeexpire = -1;
-	sip_poke_peer(peer);
+	sip_poke_peer(peer, 0);
 	return 0;
 }
 
@@ -10030,8 +10031,9 @@ static void reg_source_db(struct sip_peer *peer)
 	if (sipsock < 0) {
 		/* SIP isn't up yet, so schedule a poke only, pretty soon */
 		AST_SCHED_REPLACE(peer->pokeexpire, sched, ast_random() % 5000 + 1, sip_poke_peer_s, peer);
-	} else
-		sip_poke_peer(peer);
+	} else {
+		sip_poke_peer(peer, 0);
+	}
 	AST_SCHED_REPLACE(peer->expire, sched, (expiry + 10) * 1000, expire_register, peer);
 	register_peer_exten(peer, TRUE);
 }
@@ -10236,7 +10238,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 
 	/* Is this a new IP address for us? */
 	if (inaddrcmp(&peer->addr, &oldsin)) {
-		sip_poke_peer(peer);
+		sip_poke_peer(peer, 0);
 		ast_verb(3, "Registered SIP '%s' at %s port %d expires %d\n", peer->name, ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry);
 		register_peer_exten(peer, TRUE);
 	}
@@ -13316,6 +13318,64 @@ static char *sip_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	return _sip_show_peer(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
 }
 
+/*! \brief Show one peer in detail (main function) */
+static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
+{
+	struct sip_peer *peer;
+	int load_realtime;
+
+	if (argc < 4)
+		return CLI_SHOWUSAGE;
+
+	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? TRUE : FALSE;
+	if ((peer = find_peer(argv[3], NULL, load_realtime))) {
+		sip_poke_peer(peer, 1);
+	} else if (type == 0) {
+		ast_cli(fd, "Peer '%s' not found\n", argv[3]);
+	} else {
+		astman_send_error(s, m, "Peer not found\n");
+	}
+	return CLI_SUCCESS;
+}
+
+/*! \brief Qualify SIP peers in the manager API  */
+static int manager_sip_qualify_peer(struct mansession *s, const struct message *m)
+{
+	const char *a[4];
+	const char *peer;
+
+	peer = astman_get_header(m, "Peer");
+	if (ast_strlen_zero(peer)) {
+		astman_send_error(s, m, "Peer: <name> missing.\n");
+		return 0;
+	}
+	a[0] = "sip";
+	a[1] = "qualify";
+	a[2] = "peer";
+	a[3] = peer;
+
+	_sip_qualify_peer(1, -1, s, m, 4, a);
+	astman_append(s, "\r\n\r\n" );
+	return 0;
+}
+
+/*! \brief Send an OPTIONS packet to a SIP peer */
+static char *sip_qualify_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sip qualify peer";
+		e->usage =
+			"Usage: sip qualify peer <name> [load]\n"
+			"       Requests a response from one SIP peer and the current status.\n"
+			"       Option \"load\" forces lookup of peer in realtime storage.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_sip_show_peer(a->line, a->word, a->pos, a->n);
+	}
+	return _sip_qualify_peer(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
+}
+
 /*! \brief list peer mailboxes to CLI */
 static void peer_mailboxes_to_str(struct ast_str **mailbox_str, struct sip_peer *peer)
 {
@@ -13604,7 +13664,6 @@ static char *sip_show_sched(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	ast_cli(a->fd, "%s", cbuf);
 	return CLI_SUCCESS;
 }
-
 
 /*! \brief Show one user in detail */
 static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -14169,8 +14228,9 @@ static char *complete_sip_show_history(const char *line, const char *word, int p
 /*! \brief Support routine for 'sip show peer' CLI */
 static char *complete_sip_show_peer(const char *line, const char *word, int pos, int state)
 {
-	if (pos == 3)
+	if (pos == 3) {
 		return complete_sip_peer(word, state, 0);
+	}
 
 	return NULL;
 }
@@ -19866,12 +19926,12 @@ static int sip_poke_noanswer(const void *data)
 /*! \brief Check availability of peer, also keep NAT open
 \note	This is done with the interval in qualify= configuration option
 	Default is 2 seconds */
-static int sip_poke_peer(struct sip_peer *peer)
+static int sip_poke_peer(struct sip_peer *peer, int force)
 {
 	struct sip_pvt *p;
 	int xmitres = 0;
 	
-	if (!peer->maxms || !peer->addr.sin_addr.s_addr) {
+	if ((!peer->maxms && !force) || !peer->addr.sin_addr.s_addr) {
 		/* IF we have no IP, or this isn't to be monitored, return
 		  immediately after clearing things out */
 		AST_SCHED_DEL(sched, peer->pokeexpire);
@@ -19927,9 +19987,9 @@ static int sip_poke_peer(struct sip_peer *peer)
 	xmitres = transmit_invite(p, SIP_OPTIONS, 0, 2); /* sinks the p refcount */
 #endif
 	peer->ps = ast_tvnow();
-	if (xmitres == XMIT_ERROR)
+	if (xmitres == XMIT_ERROR) {
 		sip_poke_noanswer(peer);	/* Immediately unreachable, network problems */
-	else {
+	} else if (!force) {
 		AST_SCHED_REPLACE(peer->pokeexpire, sched, 
 			peer->maxms * 2, sip_poke_noanswer, peer);
 	}
@@ -22477,6 +22537,7 @@ static struct ast_cli_entry cli_sip[] = {
 	AST_CLI_DEFINE(sip_show_channel, "Show detailed SIP channel info"),
 	AST_CLI_DEFINE(sip_show_history, "Show SIP dialog history"),
 	AST_CLI_DEFINE(sip_show_peer, "Show details on specific SIP peer"),
+	AST_CLI_DEFINE(sip_qualify_peer, "Send an OPTIONS packet to a peer"),
 	AST_CLI_DEFINE(sip_show_users, "List defined SIP users"),
 	AST_CLI_DEFINE(sip_show_user, "Show details on specific SIP user"),
 	AST_CLI_DEFINE(sip_show_sched, "Present a report on the status of the sched queue"),
@@ -22555,6 +22616,8 @@ static int load_module(void)
 			"List SIP peers (text format)", mandescr_show_peers);
 	ast_manager_register2("SIPshowpeer", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_show_peer,
 			"Show SIP peer (text format)", mandescr_show_peer);
+	ast_manager_register2("SIPqualifypeer", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_qualify_peer,
+			"Show SIP peer (text format)", mandescr_show_peer);
 	ast_manager_register2("SIPshowregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_show_registry,
 			"Show SIP registrations (text format)", mandescr_show_registry);
 	sip_poke_all_peers();	
@@ -22601,6 +22664,7 @@ static int unload_module(void)
 	/* Unregister AMI actions */
 	ast_manager_unregister("SIPpeers");
 	ast_manager_unregister("SIPshowpeer");
+	ast_manager_unregister("SIPqualifypeer");
 	ast_manager_unregister("SIPshowregistry");
 	
 	/* Kill TCP/TLS server threads */
