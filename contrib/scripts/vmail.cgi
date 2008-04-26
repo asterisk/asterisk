@@ -21,7 +21,7 @@ use DBI;
 use Fcntl qw ( O_WRONLY O_CREAT O_EXCL );
 use Time::HiRes qw ( usleep );
 
-$context=""; # Define here your by default context (so you dont need to put voicemail@context in the login
+$context=""; # Define here your by default context (so you dont need to put voicemail@context in the login)
 
 @validfolders = ( "INBOX", "Old", "Work", "Family", "Friends", "Cust1", "Cust2", "Cust3", "Cust4", "Cust5" );
 
@@ -46,10 +46,10 @@ $context=""; # Define here your by default context (so you dont need to put voic
 $astpath = "/_asterisk";
 
 $stdcontainerstart = "<table align=center width=600><tr><td>\n";
-$footer = "<hr><font size=-1><a href=\"http://www.asterisk.org\">The Asterisk Open Source PBX</a> Copyright 2004, <a href=\"http://www.digium.com\">Digium, Inc.</a></a>";
+$footer = "<hr><font size=-1><a href=\"http://www.asterisk.org\">The Asterisk Open Source PBX</a> Copyright 2004-2008, <a href=\"http://www.digium.com\">Digium, Inc.</a></a>";
 $stdcontainerend = "</td></tr><tr><td align=right>$footer</td></tr></table>\n";
 
-sub lock_path() {
+sub lock_path($) {
 
 	my($path) = @_;
 	my $rand;
@@ -80,14 +80,14 @@ sub lock_path() {
 	}
 }
 
-sub unlock_path() {
+sub unlock_path($) {
 
 	my($path) = @_;
 	
 	unlink("$path/.lock");
 }
 
-sub untaint() {
+sub untaint($) {
 
 	my($data) = @_;
 	
@@ -100,7 +100,7 @@ sub untaint() {
 	return $data;
 }
 
-sub login_screen() {
+sub login_screen($) {
 	print header;
 	my ($message) = @_;
 	print <<_EOH;
@@ -126,7 +126,7 @@ _EOH
 
 }
 
-sub check_login()
+sub check_login($$)
 {
 	local ($filename, $startcat) = @_;
 	local ($mbox, $context) = split(/\@/, param('mailbox'));
@@ -160,28 +160,28 @@ sub check_login()
 			}
 		} elsif (/\[(.*)\]/) {
 			$category = $1;
-                } elsif ($category eq "general") {
-                        if (/([^\s]+)\s*\=\s*(.*)/) {
-                                if ($1 eq "dbname") {
-                                        $dbname = $2;
-                                } elsif ($1 eq "dbpass") {
-                                        $dbpass = $2;
-                                } elsif ($1 eq "dbhost") {
-                                        $dbhost = $2;
-                                } elsif ($1 eq "dbuser") {
-                                        $dbuser = $2;
-                                }
-                        }
-                        if ($dbname and $dbpass and $dbhost and $dbuser) {
+		} elsif ($category eq "general") {
+			if (/([^\s]+)\s*\=\s*(.*)/) {
+				if ($1 eq "dbname") {
+					$dbname = $2;
+				} elsif ($1 eq "dbpass") {
+					$dbpass = $2;
+				} elsif ($1 eq "dbhost") {
+					$dbhost = $2;
+				} elsif ($1 eq "dbuser") {
+					$dbuser = $2;
+				}
+			}
+			if ($dbname and $dbpass and $dbhost and $dbuser) {
 
-                                # db variables are present.  Use db for authentication.
-                                my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
-                                my $sth = $dbh->prepare(qq{select fullname,context from voicemail where mailbox='$mbox' and password='$pass' and context='$context'});
-                                $sth->execute();
-                                if (($fullname, $category) = $sth->fetchrow_array()) {;
-                                        return ($fullname ? $fullname : "Extension $mbox in $context",$category);
-                                }
-                        }
+				# db variables are present.  Use db for authentication.
+				my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
+				my $sth = $dbh->prepare(qq{select fullname,context from voicemail where mailbox='$mbox' and password='$pass' and context='$context'});
+				$sth->execute();
+				if (($fullname, $category) = $sth->fetchrow_array()) {
+					return ($fullname ? $fullname : "Extension $mbox in $context",$category);
+				}
+			}
 		} elsif (($category ne "general") && ($category ne "zonemessages")) { 
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
@@ -196,7 +196,7 @@ sub check_login()
 	return ("", $category);
 }
 
-sub validmailbox()
+sub validmailbox($$$$)
 {
 	local ($context, $mbox, $filename, $startcat) = @_;
 	local $category = $startcat;
@@ -215,7 +215,7 @@ sub validmailbox()
 		$category = "general";
 	}
 	open(VMAIL, "<$filename") || die("Bleh, no $filename");
-	while(<VMAIL>) {
+	while (<VMAIL>) {
 		chomp;
 		if (/include\s\"([^\"]+)\"$/) {
 			($tmp, $category) = &validmailbox($mbox, $context, "/etc/asterisk/$1");
@@ -224,28 +224,28 @@ sub validmailbox()
 			}
 		} elsif (/\[(.*)\]/) {
 			$category = $1;
-                } elsif ($category eq "general") {
-                        if (/([^\s]+)\s*\=\s*(.*)/) {
-                                if ($1 eq "dbname") {
-                                        $dbname = $2;
-                                } elsif ($1 eq "dbpass") {
-                                        $dbpass = $2;
-                                } elsif ($1 eq "dbhost") {
-                                        $dbhost = $2;
-                                } elsif ($1 eq "dbuser") {
-                                        $dbuser = $2;
-                                }
-                        }
-                        if ($dbname and $dbpass and $dbhost and $dbuser) {
+		} elsif ($category eq "general") {
+			if (/([^\s]+)\s*\=\s*(.*)/) {
+				if ($1 eq "dbname") {
+					$dbname = $2;
+				} elsif ($1 eq "dbpass") {
+					$dbpass = $2;
+				} elsif ($1 eq "dbhost") {
+					$dbhost = $2;
+				} elsif ($1 eq "dbuser") {
+					$dbuser = $2;
+				}
+			}
+			if ($dbname and $dbpass and $dbhost and $dbuser) {
 
-                                # db variables are present.  Use db for authentication.
-                                my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
-                                my $sth = $dbh->prepare(qq{select fullname,context from voicemail where mailbox='$mbox' and password='$pass' and context='$context'});
-                                $sth->execute();
-				if (($fullname, $context) = $sth->fetchrow_array()) {;
-                                        return ($fullname ? $fullname : "unknown", $category);
-                                }
-                        }
+				# db variables are present.  Use db for authentication.
+				my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
+				my $sth = $dbh->prepare(qq{select fullname,context from voicemail where mailbox='$mbox' and password='$pass' and context='$context'});
+				$sth->execute();
+				if (($fullname, $context) = $sth->fetchrow_array()) {
+					return ($fullname ? $fullname : "unknown", $category);
+				}
+			}
 		} elsif (($category ne "general") && ($category ne "zonemessages") && ($category eq $context)) {
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
@@ -282,37 +282,37 @@ sub mailbox_options()
 			$tmp .= $tmp2;
 		} elsif (/\[(.*)\]/) {
 			$category = $1;
-                } elsif ($category eq "general") {
-                        if (/([^\s]+)\s*\=\s*(.*)/) {
-                                if ($1 eq "dbname") {
-                                        $dbname = $2;
-                                } elsif ($1 eq "dbpass") {
-                                        $dbpass = $2;
-                                } elsif ($1 eq "dbhost") {
-                                        $dbhost = $2;
-                                } elsif ($1 eq "dbuser") {
-                                        $dbuser = $2;
-                                }
-                        }
-                        if ($dbname and $dbpass and $dbhost and $dbuser) {
+		} elsif ($category eq "general") {
+			if (/([^\s]+)\s*\=\s*(.*)/) {
+				if ($1 eq "dbname") {
+					$dbname = $2;
+				} elsif ($1 eq "dbpass") {
+					$dbpass = $2;
+				} elsif ($1 eq "dbhost") {
+					$dbhost = $2;
+				} elsif ($1 eq "dbuser") {
+					$dbuser = $2;
+				}
+			}
+			if ($dbname and $dbpass and $dbhost and $dbuser) {
 
-                                # db variables are present.  Use db for authentication.
-                                my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
-                                my $sth = $dbh->prepare(qq{select mailbox,fullname,context from voicemail where context='$context' order by mailbox});
-                                $sth->execute();
-                                while (($mailbox, $fullname, $category) = $sth->fetchrow_array()) {
-                                        $text = $mailbox;
-                                        if ($fullname) {
-                                                $text .= " (".$fullname.")";
-                                        }
-                                        if ($mailbox eq $current) {
-                                                $tmp .= "<OPTION SELECTED>$text</OPTION>\n";
-                                        } else {
-                                                $tmp .= "<OPTION>$text</OPTION>\n";
-                                        }
-                                }
-                                return ($tmp, $category);
-                        }
+				# db variables are present.  Use db for authentication.
+				my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
+				my $sth = $dbh->prepare(qq{select mailbox,fullname,context from voicemail where context='$context' order by mailbox});
+				$sth->execute();
+				while (($mailbox, $fullname, $category) = $sth->fetchrow_array()) {
+					$text = $mailbox;
+					if ($fullname) {
+						$text .= " (".$fullname.")";
+					}
+					if ($mailbox eq $current) {
+						$tmp .= "<OPTION SELECTED>$text</OPTION>\n";
+					} else {
+						$tmp .= "<OPTION>$text</OPTION>\n";
+					}
+				}
+				return ($tmp, $category);
+			}
 		} elsif (($category ne "general") && ($category ne "zonemessages")) {
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
@@ -587,7 +587,7 @@ sub message_index()
 	my $message2;
 	my $msgcount;	
 	my $hasmsg;
-	my $newmessages, $oldmessages;
+	my ($newmessages, $oldmessages);
 	my $format = param('format');
 	if (!$format) {
 		$format = &getcookie('format');
@@ -737,14 +737,14 @@ sub folder_list()
 sub message_rename()
 {
 	my ($context, $mbox, $oldfolder, $old, $newfolder, $new) = @_;
-	my $oldfile, $newfile;
+	my ($oldfile, $newfile);
 	return if ($old eq $new) && ($oldfolder eq $newfolder);
 
-        if ($context =~ /^(\w+)$/) {
-                $context = $1;
-        } else {
-                die("Invalid Context<BR>\n");
-        }
+	if ($context =~ /^(\w+)$/) {
+		$context = $1;
+	} else {
+		die("Invalid Context<BR>\n");
+	}
 	
 	if ($mbox =~ /^(\w+)$/) {
 		$mbox = $1;
@@ -780,7 +780,7 @@ sub message_rename()
 	$path =~ /^(.*)$/;
 	$path = $1;
 	mkdir $path, 0770;
-	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$oldfolder";
+	$path = "/var/spool/asterisk/voicemail/$context/$mbox/$oldfolder";
 	opendir(DIR, $path) || die("Unable to open directory\n");
 	my @files = grep /^msg${old}\.\w+$/, readdir(DIR);
 	closedir(DIR);
@@ -818,7 +818,7 @@ sub file_copy()
 sub message_copy()
 {
 	my ($context, $mbox, $newmbox, $oldfolder, $old, $new) = @_;
-	my $oldfile, $newfile;
+	my ($oldfile, $newfile);
 	return if ($mbox eq $newmbox);
 	
 	if ($mbox =~ /^(\w+)$/) {
@@ -855,11 +855,11 @@ sub message_copy()
 	$path =~ /^(.*)$/;
 	$path = $1;
 	mkdir $path, 0770;
-	my $path = "/var/spool/asterisk/voicemail/$context/$newmbox/INBOX";
+	$path = "/var/spool/asterisk/voicemail/$context/$newmbox/INBOX";
 	$path =~ /^(.*)$/;
 	$path = $1;
 	mkdir $path, 0770;
-	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$oldfolder";
+	$path = "/var/spool/asterisk/voicemail/$context/$mbox/$oldfolder";
 	opendir(DIR, $path) || die("Unable to open directory\n");
 	my @files = grep /^msg${old}\.\w+$/, readdir(DIR);
 	closedir(DIR);
@@ -936,23 +936,27 @@ sub message_forward()
 	$context = &untaint($context);
 	$newmbox = &untaint($newmbox);
 	my $path = "/var/spool/asterisk/voicemail/$context/$newmbox/INBOX";
-	if (&lock_path($path) == 0) {
-		$msgcount = &msgcount($context, $newmbox, "INBOX");
-		
-		if ($newmbox ne $mbox) {
-#			print header;
-			foreach $msg (@msgs) {
-#				print "Forwarding $msg from $mbox to $newmbox<BR>\n";
-				&message_copy($context, $mbox, $newmbox, $folder, $msg, sprintf "%04d", $msgcount);
-				$msgcount++;
+	if ($msgs[0]) {
+		if (&lock_path($path) == 0) {
+			$msgcount = &msgcount($context, $newmbox, "INBOX");
+			
+			if ($newmbox ne $mbox) {
+	#			print header;
+				foreach $msg (@msgs) {
+	#				print "Forwarding $msg from $mbox to $newmbox<BR>\n";
+					&message_copy($context, $mbox, $newmbox, $folder, $msg, sprintf "%04d", $msgcount);
+					$msgcount++;
+				}
+				$txt = "Forwarded messages " . join(', ', @msgs) . "to $newmbox";
+			} else {
+				$txt = "Can't forward messages to yourself!\n";
 			}
-			$txt = "Forwarded messages " . join(', ', @msgs) . "to $newmbox";
+			&unlock_path($path); 
 		} else {
-			$txt = "Can't forward messages to yourself!\n";
+			$txt = "Cannot forward messages: Unable to lock path.\n";
 		}
-		&unlock_path($path); 
 	} else {
-		$txt = "Cannot forward messages: Unable to lock path.\n";
+		$txt = "Please Select Message(s) for this action.\n";
 	}
 	if ($toindex) {
 		&message_index($folder, $txt);
@@ -966,7 +970,7 @@ sub message_delete_or_move()
 	my ($toindex, $del, @msgs) = @_;
 	my $txt;
 	my $path;
-	my $y, $x;
+	my ($y, $x);
 	my $folder = param('folder');
 	my $newfolder = param('newfolder') unless $del;
 	$newfolder =~ s/^(\w+)\s+.*$/$1/;
@@ -981,39 +985,43 @@ sub message_delete_or_move()
 	$context = &untaint($context);
 	$mbox = &untaint($mbox);
 	$folder = &untaint($folder);
-	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$folder";
-	if (&lock_path($path) == 0) {
-		my $msgcount = &msgcount($context, $mbox, $folder);
-		my $omsgcount = &msgcount($context, $mbox, $newfolder) if $newfolder;
-	#	print header;
-		if ($newfolder ne $folder) {
-			$y = 0;
-			for ($x=0;$x<$msgcount;$x++) {
-				my $msg = sprintf "%04d", $x;
-				my $newmsg = sprintf "%04d", $y;
-				if (grep(/^$msg$/, @msgs)) {
-					if ($newfolder) {
-						&message_rename($context, $mbox, $folder, $msg, $newfolder, sprintf "%04d", $omsgcount);
-						$omsgcount++;
+	$path = "/var/spool/asterisk/voicemail/$context/$mbox/$folder";
+	if ($msgs[0]) {
+		if (&lock_path($path) == 0) {
+			my $msgcount = &msgcount($context, $mbox, $folder);
+			my $omsgcount = &msgcount($context, $mbox, $newfolder) if $newfolder;
+		#	print header;
+			if ($newfolder ne $folder) {
+				$y = 0;
+				for ($x=0;$x<$msgcount;$x++) {
+					my $msg = sprintf "%04d", $x;
+					my $newmsg = sprintf "%04d", $y;
+					if (grep(/^$msg$/, @msgs)) {
+						if ($newfolder) {
+							&message_rename($context, $mbox, $folder, $msg, $newfolder, sprintf "%04d", $omsgcount);
+							$omsgcount++;
+						} else {
+							&message_delete($context, $mbox, $folder, $msg);
+						}
 					} else {
-						&message_delete($context, $mbox, $folder, $msg);
+						&message_rename($context, $mbox, $folder, $msg, $folder, $newmsg);
+						$y++;
 					}
-				} else {
-					&message_rename($context, $mbox, $folder, $msg, $folder, $newmsg);
-					$y++;
 				}
-			}
-			if ($del) {
-				$txt = "Deleted messages "  . join (', ', @msgs);
+				if ($del) {
+					$txt = "Deleted messages "  . join (', ', @msgs);
+				} else {
+					$txt = "Moved messages "  . join (', ', @msgs) . " to $newfolder";
+				}
 			} else {
-				$txt = "Moved messages "  . join (', ', @msgs) . " to $newfolder";
+				$txt = "Can't move a message to the same folder they're in already";
 			}
+			&unlock_path($path);
 		} else {
-			$txt = "Can't move a message to the same folder they're in already";
+			$txt = "Cannot move/delete messages: Unable to lock path.\n";
 		}
-		&unlock_path($path);
 	} else {
-		$txt = "Cannot move/delete messages: Unable to lock path.\n";
+		$txt = "Please Select Message(s) for this action.\n";
 	}
 	# Not as many messages now
 	$msgcount--;
