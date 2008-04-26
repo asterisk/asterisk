@@ -13330,6 +13330,7 @@ static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const str
 	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? TRUE : FALSE;
 	if ((peer = find_peer(argv[3], NULL, load_realtime))) {
 		sip_poke_peer(peer, 1);
+		unref_peer(peer, "qualify: done with peer");
 	} else if (type == 0) {
 		ast_cli(fd, "Peer '%s' not found\n", argv[3]);
 	} else {
