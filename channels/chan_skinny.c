@@ -67,6 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/event.h"
 
 /*************************************
  * Skinny/Asterisk Protocol Settings *
@@ -1168,6 +1169,7 @@ struct skinny_line {
 	int curtone;					/* Current tone being played */
 	ast_group_t callgroup;
 	ast_group_t pickupgroup;
+	struct ast_event_sub *mwi_event_sub;		/* Event based MWI */
 	int callwaiting;
 	int transfer;
 	int threewaycalling;
@@ -2236,15 +2238,42 @@ static int skinny_extensionstate_cb(char *context, char *exten, int state, void 
 	return 0;
 }
 
+static void mwi_event_cb(const struct ast_event *event, void *userdata)
+{
+	/* This module does not handle MWI in an event-based manner.  However, it
+	 * subscribes to MWI for each mailbox that is configured so that the core
+	 * knows that we care about it.  Then, chan_zap will get the MWI from the
+	 * event cache instead of checking the mailbox directly. */
+}
+
 static int has_voicemail(struct skinny_line *l)
 {
-	return ast_app_has_voicemail(l->mailbox, NULL);
+	int new_msgs;
+	struct ast_event *event;
+	char *mailbox, *context;
+
+	context = mailbox = ast_strdupa(l->mailbox);
+	strsep(&context, "@");
+	if (ast_strlen_zero(context))
+		context = "default";
+
+	event = ast_event_get_cached(AST_EVENT_MWI,
+		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
+		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+		AST_EVENT_IE_END);
+
+	if (event) {
+		new_msgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+		ast_event_destroy(event);
+	} else
+		new_msgs = ast_app_has_voicemail(l->mailbox, NULL);
+
+	return new_msgs;
 }
 
 static void do_housekeeping(struct skinnysession *s)
 {
-	int new;
-	int old;
 	int device_lamp = 0;
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
@@ -2257,7 +2286,6 @@ static void do_housekeeping(struct skinnysession *s)
 		if (has_voicemail(l)) {
 			if (skinnydebug)
 				ast_debug(1, "Checking for voicemail Skinny %s@%s\n", l->name, d->name);
-			ast_app_inboxcount(l->mailbox, &new, &old);
 			if (skinnydebug)
 				ast_debug(1, "Skinny %s@%s has voicemail!\n", l->name, d->name);
 			transmit_lamp_indication(s, STIMULUS_VOICEMAIL, l->instance, l->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
@@ -3082,8 +3110,19 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 					ast_copy_string(l->mohsuggest, mohsuggest, sizeof(l->mohsuggest));
 					ast_copy_string(l->regexten, regexten, sizeof(l->regexten));
 					ast_copy_string(l->mailbox, mailbox, sizeof(l->mailbox));
-					if (!ast_strlen_zero(mailbox))
-						ast_verb(3, "Setting mailbox '%s' on %s@%s\n", mailbox, d->name, l->name);
+					if (!ast_strlen_zero(mailbox)) {
+						char *cfg_mailbox, *cfg_context;
+						cfg_context = cfg_mailbox = ast_strdupa(l->mailbox);
+						ast_verb(3, "Setting mailbox '%s' on %s@%s\n", cfg_mailbox, d->name, l->name);
+						strsep(&cfg_context, "@");
+						if (ast_strlen_zero(cfg_context))
+							 cfg_context = "default";
+						l->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, NULL,
+							AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, cfg_mailbox,
+							AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, cfg_context,
+							AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+							AST_EVENT_IE_END);
+					}
 					ast_copy_string(l->vmexten, device_vmexten, sizeof(vmexten));
 					l->chanvars = chanvars;
 					l->msgstate = -1;
@@ -6104,6 +6143,8 @@ static int unload_module(void)
 					}
 					ast_mutex_unlock(&sub->lock);
 				}
+				if (l->mwi_event_sub)
+					ast_event_unsubscribe(l->mwi_event_sub);
 				ast_mutex_unlock(&l->lock);
 			}
 		}
