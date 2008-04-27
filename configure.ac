@@ -1336,9 +1336,19 @@ AST_EXT_TOOL_CHECK([GMIME], [gmime])
 AST_EXT_LIB_CHECK([FREETDS], [tds], [tds_version], [tds.h])
 if test "${PBX_FREETDS}" != "0";
 then
-    case `grep TDS_VERSION_NO ${FREETDS_DIR:-/usr}/include/tdsver.h` in
-	*0.64*)
-		FREETDS_INCLUDE="${FREETDS_INCLUDE} -DFREETDS_0_64"
+    if test "${FREETDS_DIR}x" = "x";
+    then
+        for tds_dir in /usr /usr/local;
+        do
+            if test -f "${tds_dir}/include/tdsver.h";
+            then
+                FREETDS_DIR="${tds_dir}"
+            fi
+        done
+    fi
+    case `${GREP} TDS_VERSION_NO ${FREETDS_DIR:-/usr}/include/tdsver.h` in
+    *0.64*)
+        FREETDS_INCLUDE="${FREETDS_INCLUDE} -DFREETDS_0_64"
 	;;
     *0.63*)
         FREETDS_INCLUDE="${FREETDS_INCLUDE} -DFREETDS_0_63"
