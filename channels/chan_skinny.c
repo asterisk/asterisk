@@ -2244,7 +2244,7 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata)
 {
 	/* This module does not handle MWI in an event-based manner.  However, it
 	 * subscribes to MWI for each mailbox that is configured so that the core
-	 * knows that we care about it.  Then, chan_zap will get the MWI from the
+	 * knows that we care about it.  Then, chan_skinny will get the MWI from the
 	 * event cache instead of checking the mailbox directly. */
 }
 
