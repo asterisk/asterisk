@@ -1789,8 +1789,13 @@ static int load_module(void)
 	char *jabber_loaded = ast_module_helper("", "res_jabber.so", 0, 0, 0, 0);
 	free(jabber_loaded);
 	if (!jabber_loaded) {
-		ast_log(LOG_ERROR, "chan_jingle.so depends upon res_jabber.so\n");
-		return AST_MODULE_LOAD_DECLINE;
+		/* Dependency module has a different name, if embedded */
+		jabber_loaded = ast_module_helper("", "res_jabber", 0, 0, 0, 0);
+		free(jabber_loaded);
+		if (!jabber_loaded) {
+			ast_log(LOG_ERROR, "chan_jingle.so depends upon res_jabber.so\n");
+			return AST_MODULE_LOAD_DECLINE;
+		}
 	}
 
 	ASTOBJ_CONTAINER_INIT(&jingle_list);
