@@ -9161,15 +9161,22 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 
 	ast_mutex_unlock(&linkset->lock);
 	c = zt_new(p, AST_STATE_RING, 1, SUB_REAL, law, 0);
-	ast_mutex_lock(&linkset->lock);
 
 	if (!c) {
 		ast_log(LOG_WARNING, "Unable to start PBX on CIC %d\n", p->cic);
+		/* Holding this lock is assumed entering the function */
+		ast_mutex_lock(&linkset->lock);
 		return;
 	} else
 		ast_verb(3, "Accepting call to '%s' on CIC %d\n", p->exten, p->cic);
 
 	zt_enable_ec(p);
+
+	/* We only reference these variables in the context of the ss7_linkset function
+	 * when receiving either and IAM or a COT message.  Since they are only accessed
+	 * from this context, we should be safe to unlock around them */
+
+	ast_mutex_unlock(&p->lock);
 
 	if (!ast_strlen_zero(p->charge_number)) {
 		pbx_builtin_setvar_helper(c, "SS7_CHARGE_NUMBER", p->charge_number);
@@ -9233,6 +9240,9 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 		/* Clear this after we set it */
 		p->generic_name[0] = 0;
 	}
+
+	ast_mutex_lock(&p->lock);
+	ast_mutex_lock(&linkset->lock);
 }
 
 static void ss7_apply_plan_to_number(char *buf, size_t size, const struct zt_ss7 *ss7, const char *number, const unsigned nai)
