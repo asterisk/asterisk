@@ -1267,7 +1267,7 @@ AST_EXT_LIB_CHECK([PORTAUDIO], [portaudio], [Pa_GetDeviceCount], [portaudio.h])
 
 AST_EXT_LIB_CHECK([PRI], [pri], [pri_new_bri], [libpri.h])
 
-AST_EXT_LIB_CHECK([SS7], [ss7], [isup_cqr], [libss7.h])
+AST_EXT_LIB_CHECK([SS7], [ss7], [isup_set_generic_name], [libss7.h])
 
 if test "${USE_PWLIB}" != "no"; then
 	if test -n "${PWLIB_DIR}"; then
