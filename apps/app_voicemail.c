@@ -9528,6 +9528,23 @@ static int load_config(int reload)
 	}
 }
 
+static int sayname(struct ast_channel *chan, const char *mailbox, const char *context)
+{
+	int res = -1;
+	char dir[PATH_MAX];
+	snprintf(dir, sizeof(dir), "%s%s/%s/greet", VM_SPOOL_DIR, context, mailbox);
+	ast_debug(2, "About to try retrieving name file %s\n", dir);
+	RETRIEVE(dir, -1, mailbox, context);
+	if (ast_fileexists(dir, NULL, NULL)) {
+		res = ast_streamfile(chan, dir, chan->language);
+		if (!res) {
+			res = ast_waitstream(chan, "");
+		}
+	}
+	DISPOSE(dir, -1);
+	return res;
+}
+
 static int reload(void)
 {
 	return load_config(1);
@@ -9575,7 +9592,7 @@ static int load_module(void)
 
 	ast_cli_register_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 
-	ast_install_vm_functions(has_voicemail, inboxcount, messagecount);
+	ast_install_vm_functions(has_voicemail, inboxcount, messagecount, sayname);
 
 	return res;
 }

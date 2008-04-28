@@ -105,7 +105,8 @@ int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, int maxle
 
 void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
 			      int (*inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs),
-			      int (*messagecount_func)(const char *context, const char *mailbox, const char *folder));
+			      int (*messagecount_func)(const char *context, const char *mailbox, const char *folder),
+			      int (*sayname_func)(struct ast_channel *chan, const char *mailbox, const char *context));
   
 void ast_uninstall_vm_functions(void);
 
@@ -114,6 +115,9 @@ int ast_app_has_voicemail(const char *mailbox, const char *folder);
 
 /*! \brief Determine number of new/old messages in a mailbox */
 int ast_app_inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs);
+
+/*! Given a mailbox and context, play that mailbox owner's name to the channel specified */
+int ast_app_sayname(struct ast_channel *chan, const char *mailbox, const char *context);
 
 /*! \brief Determine number of messages in a given mailbox and folder */
 int ast_app_messagecount(const char *context, const char *mailbox, const char *folder);

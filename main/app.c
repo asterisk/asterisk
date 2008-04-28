@@ -177,15 +177,18 @@ int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, int maxle
 
 static int (*ast_has_voicemail_func)(const char *mailbox, const char *folder) = NULL;
 static int (*ast_inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs) = NULL;
+static int (*ast_sayname_func)(struct ast_channel *chan, const char *mailbox, const char *context) = NULL;
 static int (*ast_messagecount_func)(const char *context, const char *mailbox, const char *folder) = NULL;
 
 void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
 			      int (*inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs),
-			      int (*messagecount_func)(const char *context, const char *mailbox, const char *folder))
+			      int (*messagecount_func)(const char *context, const char *mailbox, const char *folder),
+			      int (*sayname_func)(struct ast_channel *chan, const char *mailbox, const char *context))
 {
 	ast_has_voicemail_func = has_voicemail_func;
 	ast_inboxcount_func = inboxcount_func;
 	ast_messagecount_func = messagecount_func;
+	ast_sayname_func = sayname_func;
 }
 
 void ast_uninstall_vm_functions(void)
@@ -193,6 +196,7 @@ void ast_uninstall_vm_functions(void)
 	ast_has_voicemail_func = NULL;
 	ast_inboxcount_func = NULL;
 	ast_messagecount_func = NULL;
+	ast_sayname_func = NULL;
 }
 
 int ast_app_has_voicemail(const char *mailbox, const char *folder)
@@ -225,6 +229,13 @@ int ast_app_inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	}
 
 	return 0;
+}
+
+int ast_app_sayname(struct ast_channel *chan, const char *mailbox, const char *context)
+{
+	if (ast_sayname_func)
+		return ast_sayname_func(chan, mailbox, context);
+	return -1;
 }
 
 int ast_app_messagecount(const char *context, const char *mailbox, const char *folder)

@@ -36,6 +36,10 @@ Application Changes
  * Chanspy has a new option, 'B', which can be used to "barge" on a call. This is
    like the pre-existing whisper mode, except that the spy can also talk to the
    participant on the bridged channel as well.
+ * Chanspy has a new option, 'n', which will allow for the spied-on party's name
+   to be spoken instead of the channel name or number. For more information on the
+   use of this option, issue the command "core show application ChanSpy" from the 
+   Asterisk CLI.
 
 SIP Changes
 -----------
