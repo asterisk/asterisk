@@ -1619,6 +1619,13 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		} else { /* Nobody answered, next please? */
 			res = 0;
 		}
+
+		/* SIP, in particular, sends back this error code to indicate an
+		 * overlap dialled number needs more digits. */
+		if (chan->hangupcause == AST_CAUSE_INVALID_NUMBER_FORMAT) {
+			res = AST_PBX_INCOMPLETE;
+		}
+
 		/* almost done, although the 'else' block is 400 lines */
 	} else {
 		const char *number;
@@ -1958,7 +1965,7 @@ out:
 	senddialendevent(chan, pa.status);
 	ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);
 
-	if ((ast_test_flag64(peerflags, OPT_GO_ON)) && !ast_check_hangup(chan) && (res != AST_PBX_KEEPALIVE)) {
+	if ((ast_test_flag64(peerflags, OPT_GO_ON)) && !ast_check_hangup(chan) && (res != AST_PBX_KEEPALIVE) && (res != AST_PBX_INCOMPLETE)) {
 		if (calldurationlimit)
 			chan->whentohangup = 0;
 		res = 0;
@@ -2059,9 +2066,9 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 			}
 		}
 
-		if (res < 0)
+		if (res < 0 || res == AST_PBX_INCOMPLETE) {
 			break;
-		else if (res > 0) { /* Trying to send the call elsewhere (1 digit ext) */
+		} else if (res > 0) { /* Trying to send the call elsewhere (1 digit ext) */
 			if (onedigit_goto(chan, context, (char) res, 1)) {
 				res = 0;
 				break;

@@ -302,6 +302,7 @@ static int pbx_builtin_hangup(struct ast_channel *, void *);
 static int pbx_builtin_background(struct ast_channel *, void *);
 static int pbx_builtin_wait(struct ast_channel *, void *);
 static int pbx_builtin_waitexten(struct ast_channel *, void *);
+static int pbx_builtin_incomplete(struct ast_channel *, void *);
 static int pbx_builtin_keepalive(struct ast_channel *, void *);
 static int pbx_builtin_resetcdr(struct ast_channel *, void *);
 static int pbx_builtin_setamaflags(struct ast_channel *, void *);
@@ -579,6 +580,23 @@ static struct pbx_builtin {
 	"value.\n"
 	},
 
+	{ "Incomplete", pbx_builtin_incomplete,
+	"returns AST_PBX_INCOMPLETE value",
+	"  Incomplete([n]): Signals the PBX routines that the previous matched extension\n"
+	"is incomplete and that further input should be allowed before matching can\n"
+	"be considered to be complete.  Can be used within a pattern match when\n"
+	"certain criteria warrants a longer match.\n"
+	"  If the 'n' option is specified, then Incomplete will not attempt to answer\n"
+	"the channel first.  Note that most channel types need to be in Answer state\n"
+	"in order to receive DTMF.\n"
+	},
+
+	{ "KeepAlive", pbx_builtin_keepalive,
+	"returns AST_PBX_KEEPALIVE value",
+	"  KeepAlive(): This application is chiefly meant for internal use with Gosubs.\n"
+	"Please do not run it alone from the dialplan!\n"
+	},
+
 	{ "NoOp", pbx_builtin_noop,
 	"Do Nothing (No Operation)",
 	"  NoOp(): This application does nothing. However, it is useful for debugging\n"
@@ -694,12 +712,6 @@ static struct pbx_builtin {
 	"    m[(x)] - Provide music on hold to the caller while waiting for an extension.\n"
 	"               Optionally, specify the class for music on hold within parenthesis.\n"
 	"See Also: Playback(application), Background(application).\n"
-	},
-
-	{ "KeepAlive", pbx_builtin_keepalive,
-	"returns AST_PBX_KEEPALIVE value",
-	"  KeepAlive(): This application is chiefly meant for internal use with Gosubs.\n"
-	"Please do not run it alone from the dialplan!\n"
 	},
 
 };
@@ -3582,6 +3594,8 @@ static int __ast_pbx_run(struct ast_channel *c)
 		char dst_exten[256];	/* buffer to accumulate digits */
 		int pos = 0;		/* XXX should check bounds */
 		int digit = 0;
+		int invalid = 0;
+		int timeout = 0;
 
 		/* loop on priorities in this context/exten */
 		while ( !(res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num, &found,1))) {
@@ -3617,6 +3631,18 @@ static int __ast_pbx_run(struct ast_channel *c)
 				ast_debug(1, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
 				ast_verb(2, "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
 				error = 1;
+			} else if (res == AST_PBX_INCOMPLETE) {
+				ast_debug(1, "Spawn extension (%s,%s,%d) exited INCOMPLETE on '%s'\n", c->context, c->exten, c->priority, c->name);
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited INCOMPLETE on '%s'\n", c->context, c->exten, c->priority, c->name);
+
+				/* Don't cycle on incomplete - this will happen if the only extension that matches is our "incomplete" extension */
+				if (!ast_matchmore_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
+					invalid = 1;
+				} else {
+					ast_copy_string(dst_exten, c->exten, sizeof(dst_exten));
+					digit = 1;
+					pos = strlen(dst_exten);
+				}
 			} else {
 				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
@@ -3657,7 +3683,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 		 * hangup.  We have options, here.  We can either catch the failure
 		 * and continue, or we can drop out entirely. */
 
-		if (!ast_exists_extension(c, c->context, c->exten, 1, c->cid.cid_num)) {
+		if (invalid || !ast_exists_extension(c, c->context, c->exten, 1, c->cid.cid_num)) {
 			/*!\note
 			 * If there is no match at priority 1, it is not a valid extension anymore.
 			 * Try to continue at "i" (for invalid) or "e" (for exception) or exit if
@@ -3701,11 +3727,13 @@ static int __ast_pbx_run(struct ast_channel *c)
 
 			if (collect_digits(c, waittime, dst_exten, sizeof(dst_exten), pos))
 				break;
-			if (ast_exists_extension(c, c->context, dst_exten, 1, c->cid.cid_num)) /* Prepare the next cycle */
+			if (res == AST_PBX_INCOMPLETE && ast_strlen_zero(&dst_exten[pos]))
+				timeout = 1;
+			if (!timeout && ast_exists_extension(c, c->context, dst_exten, 1, c->cid.cid_num)) /* Prepare the next cycle */
 				set_ext_pri(c, dst_exten, 1);
 			else {
 				/* No such extension */
-				if (!ast_strlen_zero(dst_exten)) {
+				if (!timeout && !ast_strlen_zero(dst_exten)) {
 					/* An invalid extension */
 					if (ast_exists_extension(c, c->context, "i", 1, c->cid.cid_num)) {
 						ast_verb(3, "Invalid extension '%s' in context '%s' on %s\n", dst_exten, c->context, c->name);
@@ -7363,6 +7391,26 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 static int pbx_builtin_keepalive(struct ast_channel *chan, void *data)
 {
 	return AST_PBX_KEEPALIVE;
+}
+
+static int pbx_builtin_incomplete(struct ast_channel *chan, void *data)
+{
+	char *options = data;
+	int answer = 1;
+
+	/* Some channels can receive DTMF in unanswered state; some cannot */
+	if (!ast_strlen_zero(options) && strchr(options, 'n')) {
+		answer = 0;
+	}
+
+	/* If the channel is hungup, stop waiting */
+	if (ast_check_hangup(chan)) {
+		return -1;
+	} else if (chan->_state != AST_STATE_UP && answer) {
+		__ast_answer(chan, 0);
+	}
+
+	return AST_PBX_INCOMPLETE;
 }
 
 AST_APP_OPTIONS(resetcdr_opts, {

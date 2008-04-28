@@ -42,6 +42,7 @@ extern "C" {
 #define AST_PBX_ERROR	        1	/*!< Jump to the 'e' exten */
 #define AST_PBX_KEEPALIVE	10	/*!< Destroy the thread, but don't hang up the channel */
 #define AST_PBX_NO_HANGUP_PEER	11
+#define AST_PBX_INCOMPLETE	12	/*!< Return to PBX matching, allowing more digits for the extension */
 /*! } */
 
 #define PRIORITY_HINT	-1	/*!< Special Priority for a hint */
