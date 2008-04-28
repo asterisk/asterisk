@@ -442,7 +442,7 @@ static char odbc_database[80];
 static char odbc_table[80];
 #define RETRIEVE(a,b,c,d) retrieve_file(a,b)
 #define DISPOSE(a,b) remove_file(a,b)
-#define STORE(a,b,c,d,e,f,g,h,i) store_file(a,b,c,d)
+#define STORE(a,b,c,d,e,f,g,h,i,j) store_file(a,b,c,d)
 #define EXISTS(a,b,c,d) (message_exists(a,b))
 #define RENAME(a,b,c,d,e,f,g,h) (rename_file(a,b,c,d,e,f))
 #define COPY(a,b,c,d,e,f,g,h) (copy_file(a,b,c,d,e,f))
