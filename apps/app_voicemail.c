@@ -7933,8 +7933,13 @@ static int load_module(void)
 	char *adsi_loaded = ast_module_helper("", "res_adsi.so", 0, 0, 0, 0);
 	free(adsi_loaded);
 	if (!adsi_loaded) {
-		ast_log(LOG_ERROR, "app_voicemail.so depends upon res_adsi.so\n");
-		return AST_MODULE_LOAD_DECLINE;
+		/* If embedded, res_adsi may be known as "res_adsi" not "res_adsi.so" */
+		adsi_loaded = ast_module_helper("", "res_adsi", 0, 0, 0, 0);
+		ast_free(adsi_loaded);
+		if (!adsi_loaded) {
+			ast_log(LOG_ERROR, "app_voicemail.so depends upon res_adsi.so\n");
+			return AST_MODULE_LOAD_DECLINE;
+		}
 	}
 
 	my_umask = umask(0);
