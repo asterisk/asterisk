@@ -1964,8 +1964,13 @@ static int load_module(void)
 	char *jabber_loaded = ast_module_helper("", "res_jabber.so", 0, 0, 0, 0);
 	free(jabber_loaded);
 	if (!jabber_loaded) {
-		ast_log(LOG_ERROR, "chan_gtalk.so depends upon res_jabber.so\n");
-		return AST_MODULE_LOAD_DECLINE;
+		/* If embedded, check for a different module name */
+		jabber_loaded = ast_module_helper("", "res_jabber", 0, 0, 0, 0);
+		free(jabber_loaded);
+		if (!jabber_loaded) {
+			ast_log(LOG_ERROR, "chan_gtalk.so depends upon res_jabber.so\n");
+			return AST_MODULE_LOAD_DECLINE;
+		}
 	}
 
 	ASTOBJ_CONTAINER_INIT(&gtalk_list);
