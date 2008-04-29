@@ -2421,7 +2421,7 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 			for (x = 0; x < AST_MAX_FDS; x++) {
 				struct ast_frame *f;
 
-				if ((chan->fds[x] == -1) && (!FD_ISSET(chan->fds[x], rfds) && !FD_ISSET(pu->chan->fds[x], efds))) 
+				if ((chan->fds[x] == -1) || (!FD_ISSET(chan->fds[x], rfds) && !FD_ISSET(pu->chan->fds[x], efds))) 
 					continue;
 				
 				if (FD_ISSET(chan->fds[x], efds))
