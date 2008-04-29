@@ -49,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 
 #define AST_NAME_STRLEN 256
+#define NUM_SPYGROUPS 128
 
 static const char *tdesc = "Listen to a channel, and optionally whisper into it";
 static const char *app_chan = "ChanSpy";
@@ -70,8 +71,12 @@ static const char *desc_chan =
 "        and a digit sequence.\n"
 "  Options:\n"
 "    b                      - Only spy on channels involved in a bridged call.\n"
-"    g(grp)                 - Match only channels where their SPYGROUP variable is set to\n"
-"                             contain 'grp' in an optional : delimited list.\n"
+"    g(grp)                 - Only spy on channels in which one or more of the groups \n"
+"                             listed in 'grp' matches one or more groups from the\n"
+"                             SPYGROUP variable set on the channel to be spied upon.\n"
+"                             Note that both 'grp' and SPYGROUP can contain either a\n"
+"                             single group or a colon-delimited list of groups, such\n"
+"                             as 'sales:support:accounting'.\n"
 "    n([mailbox][@context]) - Say the name of the person being spied on if that person has recorded\n"
 "                             his/her name. If a context is specified, then that voicemail context will\n"
 "                             be searched when retrieving the name, otherwise the \"default\" context\n"
@@ -119,8 +124,12 @@ static const char *desc_ext =
 "        exit to it.\n"
 "  Options:\n"
 "    b                      - Only spy on channels involved in a bridged call.\n"
-"    g(grp)                 - Match only channels where their ${SPYGROUP} variable is set to\n"
-"                             contain 'grp' in an optional : delimited list.\n"
+"    g(grp)                 - Only spy on channels in which one or more of the groups \n"
+"                             listed in 'grp' matches one or more groups from the\n"
+"                             SPYGROUP variable set on the channel to be spied upon.\n"
+"                             Note that both 'grp' and SPYGROUP can contain either a\n"
+"                             single group or a colon-delimited list of groups, such\n"
+"                             as 'sales:support:accounting'.\n"
 "    n([mailbox][@context]) - Say the name of the person being spied on if that person has recorded\n"
 "                             his/her name. If a context is specified, then that voicemail context will\n"
 "                             be searched when retrieving the name, otherwise the \"default\" context\n"
@@ -653,10 +662,14 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			 	next_channel(chan, prev, spec, exten, context, &chanspy_ds), next_chanspy_ds = NULL) {
 			const char *group;
 			int igrp = !mygroup;
-			char *groups[25];
+			char *groups[NUM_SPYGROUPS];
+			char *mygroups[NUM_SPYGROUPS];
 			int num_groups = 0;
 			char *dup_group;
+			int num_mygroups = 0;
+			char *dup_mygroup;
 			int x;
+			int y;
 			char *s;
 			char *buffer;
 			char *end;
@@ -691,16 +704,22 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			}
 
 			if (mygroup) {
+				dup_mygroup = ast_strdupa(mygroup);
+				num_mygroups = ast_app_separate_args(dup_mygroup, ':', mygroups,
+					sizeof(mygroups) / sizeof(mygroups[0]));
+
 				if ((group = pbx_builtin_getvar_helper(peer, "SPYGROUP"))) {
 					dup_group = ast_strdupa(group);
 					num_groups = ast_app_separate_args(dup_group, ':', groups,
 						sizeof(groups) / sizeof(groups[0]));
 				}
 
-				for (x = 0; x < num_groups; x++) {
-					if (!strcmp(mygroup, groups[x])) {
-						igrp = 1;
-						break;
+				for (y = 0; y < num_mygroups; y++) {
+					for (x = 0; x < num_groups; x++) {
+						if (!strcmp(mygroups[y], groups[x])) {
+							igrp = 1;
+							break;
+						}
 					}
 				}
 			}
