@@ -1,5 +1,14 @@
 #!/bin/sh -e
 
+if [ -f codecs/ilbc/iLBC_define.h ]; then
+    echo "***"
+    echo "The iLBC source code appears to already be present and does not"
+    echo "need to be downloaded."
+    echo "***"
+
+    exit 1
+fi
+
 echo "***"
 echo "This script will download the Global IP Solutions iLBC encoder/decoder"
 echo "source code from http://ilbcfreeware.org. Use of this code requires"
@@ -20,3 +29,5 @@ wget -P codecs/ilbc http://www.ilbcfreeware.org/documentation/extract-cfile.awk
 echo "***"
 echo "The iLBC source code download is complete."
 echo "***"
+
+exit 0
