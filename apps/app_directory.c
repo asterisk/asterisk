@@ -25,6 +25,9 @@
  * \ingroup applications
  */
 
+/*** MODULEINFO
+	<depend>app_voicemail</depend>
+ ***/
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")

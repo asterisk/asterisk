@@ -103,6 +103,8 @@ Applications:
 * WaitMusicOnHold application is now deprecated in favor of extended MusicOnHold.
 * SetMusicOnHold is now deprecated. You should use Set(CHANNEL(musicclass)=...)
   instead.
+* While app_directory has always relied on having a voicemail.conf or users.conf file
+  correctly set up, it now is dependent on app_voicemail being compiled as well.
 
 Dialplan Functions:
 
