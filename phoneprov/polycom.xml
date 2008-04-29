@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <phone1>
-	<reg ${PP_EACH_EXTENSION(${MAC},polycom_line.xml)} />
+   <reg ${PP_EACH_EXTENSION(${MAC},polycom_line.xml)} />
    <call>
       <donotdisturb call.donotdisturb.perReg="1" />
       <autoOffHook call.autoOffHook.1.enabled="0" call.autoOffHook.1.contact="" call.autoOffHook.2.enabled="0" call.autoOffHook.2.contact="" call.autoOffHook.3.enabled="0" call.autoOffHook.3.contact="" call.autoOffHook.4.enabled="0" call.autoOffHook.4.contact="" call.autoOffHook.5.enabled="0" call.autoOffHook.5.contact="" call.autoOffHook.6.enabled="0" call.autoOffHook.6.contact=""/>
