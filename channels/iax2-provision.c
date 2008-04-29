@@ -491,14 +491,16 @@ int iax_provision_reload(int reload)
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	if (!provinit)
 		iax_provision_init();
-	/* Mark all as dead.  No need for locking */
-	cur = templates;
-	while(cur) {
-		cur->dead = 1;
-		cur = cur->next;
-	}
+	
 	cfg = ast_config_load2("iaxprov.conf", "chan_iax2", config_flags);
 	if (cfg != NULL && cfg != CONFIG_STATUS_FILEUNCHANGED) {
+		/* Mark all as dead.  No need for locking */
+		cur = templates;
+		while(cur) {
+			cur->dead = 1;
+			cur = cur->next;
+		}
+
 		/* Load as appropriate */
 		cat = ast_category_browse(cfg, NULL);
 		while(cat) {
