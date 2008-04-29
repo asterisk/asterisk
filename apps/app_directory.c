@@ -39,15 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
 
-#ifdef ODBC_STORAGE
-#include <sys/mman.h>
-#include "asterisk/res_odbc.h"
-
-static char odbc_database[80] = "asterisk";
-static char odbc_table[80] = "voicemessages";
-static char vmfmts[80] = "wav";
-#endif
-
 static char *app = "Directory";
 
 static char *synopsis = "Provide directory of voicemail extensions";
@@ -132,121 +123,6 @@ AST_APP_OPTIONS(directory_app_options, {
 	AST_APP_OPTION('v', OPT_FROMVOICEMAIL),
 	AST_APP_OPTION('m', OPT_SELECTFROMMENU),
 });
-
-#ifdef ODBC_STORAGE
-struct generic_prepare_struct {
-	const char *sql;
-	const char *param;
-};
-
-static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
-{
-	struct generic_prepare_struct *gps = data;
-	SQLHSTMT stmt;
-	int res;
-
-	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
-		return NULL;
-	}
-
-	res = SQLPrepare(stmt, (unsigned char *)gps->sql, SQL_NTS);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", (char *)gps->sql);
-		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-		return NULL;
-	}
-
-	if (!ast_strlen_zero(gps->param))
-		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(gps->param), 0, (void *)gps->param, 0, NULL);
-
-	return stmt;
-}
-
-static void retrieve_file(char *dir)
-{
-	int x = 0;
-	int res;
-	int fd=-1;
-	size_t fdlen = 0;
-	void *fdm = MAP_FAILED;
-	SQLHSTMT stmt;
-	char sql[256];
-	char fmt[80]="", empty[10] = "";
-	char *c;
-	SQLLEN colsize;
-	char full_fn[256];
-	struct odbc_obj *obj;
-	struct generic_prepare_struct gps = { .sql = sql, .param = dir };
-
-	obj = ast_odbc_request_obj(odbc_database, 1);
-	if (obj) {
-		do {
-			ast_copy_string(fmt, vmfmts, sizeof(fmt));
-			c = strchr(fmt, '|');
-			if (c)
-				*c = '\0';
-			if (!strcasecmp(fmt, "wav49"))
-				strcpy(fmt, "WAV");
-			snprintf(full_fn, sizeof(full_fn), "%s.%s", dir, fmt);
-			snprintf(sql, sizeof(sql), "SELECT recording FROM %s WHERE dir=? AND msgnum=-1", odbc_table);
-			stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
-
-			if (!stmt) {
-				ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-				break;
-			}
-			res = SQLFetch(stmt);
-			if (res == SQL_NO_DATA) {
-				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-				break;
-			} else if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
-				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-				break;
-			}
-			fd = open(full_fn, O_RDWR | O_CREAT | O_TRUNC, AST_FILE_MODE);
-			if (fd < 0) {
-				ast_log(LOG_WARNING, "Failed to write '%s': %s\n", full_fn, strerror(errno));
-				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-				break;
-			}
-
-			res = SQLGetData(stmt, 1, SQL_BINARY, empty, 0, &colsize);
-			fdlen = colsize;
-			if (fd > -1) {
-				char tmp[1]="";
-				lseek(fd, fdlen - 1, SEEK_SET);
-				if (write(fd, tmp, 1) != 1) {
-					close(fd);
-					fd = -1;
-					break;
-				}
-				if (fd > -1)
-					fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-			}
-			if (fdm != MAP_FAILED) {
-				memset(fdm, 0, fdlen);
-				res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, fdlen, &colsize);
-				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-					ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
-					SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-					break;
-				}
-			}
-			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-		} while (0);
-		ast_odbc_release_obj(obj);
-	} else
-		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-	if (fdm != MAP_FAILED)
-		munmap(fdm, fdlen);
-	if (fd > -1)
-		close(fd);
-	return;
-}
-#endif
 
 static int compare(const char *text, const char *template)
 {
@@ -333,26 +209,7 @@ static int play_mailbox_owner(struct ast_channel *chan, const char *context,
 	const char *ext, const char *name, struct ast_flags *flags)
 {
 	int res = 0;
-	char fn[256];
-
-	/* Check for the VoiceMail2 greeting first */
-	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/greet",
-		ast_config_AST_SPOOL_DIR, context, ext);
-#ifdef ODBC_STORAGE
-	retrieve_file(fn);
-#endif
-
-	if (ast_fileexists(fn, NULL, chan->language) <= 0) {
-		/* no file, check for an old-style Voicemail greeting */
-		snprintf(fn, sizeof(fn), "%s/vm/%s/greet",
-			ast_config_AST_SPOOL_DIR, ext);
-	}
-#ifdef ODBC_STORAGE
-	retrieve_file(fn);
-#endif
-
-	if (ast_fileexists(fn, NULL, chan->language) > 0) {
-		res = ast_stream_and_wait(chan, fn, AST_DIGIT_ANY);
+	if ((res = ast_app_sayname(chan, ext, context)) >= 0) {
 		ast_stopstream(chan);
 		/* If Option 'e' was specified, also read the extension number with the name */
 		if (ast_test_flag(flags, OPT_SAYEXTENSION)) {
@@ -366,9 +223,6 @@ static int play_mailbox_owner(struct ast_channel *chan, const char *context,
 			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
 		}
 	}
-#ifdef ODBC_STORAGE
-	ast_filedelete(fn, NULL);
-#endif
 
 	return res;
 }
@@ -908,26 +762,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-#ifdef ODBC_STORAGE
-	struct ast_flags config_flags = { 0 };
-	struct ast_config *cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags);
-	const char *tmp;
-
-	if (cfg) {
-		if ((tmp = ast_variable_retrieve(cfg, "general", "odbcstorage"))) {
-			ast_copy_string(odbc_database, tmp, sizeof(odbc_database));
-		}
-		if ((tmp = ast_variable_retrieve(cfg, "general", "odbctable"))) {
-			ast_copy_string(odbc_table, tmp, sizeof(odbc_table));
-		}
-		if ((tmp = ast_variable_retrieve(cfg, "general", "format"))) {
-			ast_copy_string(vmfmts, tmp, sizeof(vmfmts));
-		}
-		ast_config_destroy(cfg);
-	} else
-		ast_log(LOG_WARNING, "Unable to load " VOICEMAIL_CONFIG " - ODBC defaults will be used\n");
-#endif
-
 	return ast_register_application(app, directory_exec, synopsis, descrip);
 }
 

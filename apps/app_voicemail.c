@@ -9536,10 +9536,7 @@ static int sayname(struct ast_channel *chan, const char *mailbox, const char *co
 	ast_debug(2, "About to try retrieving name file %s\n", dir);
 	RETRIEVE(dir, -1, mailbox, context);
 	if (ast_fileexists(dir, NULL, NULL)) {
-		res = ast_streamfile(chan, dir, chan->language);
-		if (!res) {
-			res = ast_waitstream(chan, "");
-		}
+		res = ast_stream_and_wait(chan, dir, AST_DIGIT_ANY);
 	}
 	DISPOSE(dir, -1);
 	return res;
