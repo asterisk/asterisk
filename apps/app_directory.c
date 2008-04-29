@@ -625,7 +625,6 @@ static int search_directory(const char *context, struct ast_config *vmcfg, struc
 		AST_LIST_INSERT_TAIL(alist, item, entry);
 	}
 
-
 	if (ucfg) {
 		for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
 			const char *pos;
@@ -641,10 +640,10 @@ static int search_directory(const char *context, struct ast_config *vmcfg, struc
 
 			res = 0;
 			if (ast_test_flag(&flags, OPT_LISTBYLASTNAME)) {
-				res = check_match(&item, pos, v->name, ext, 0 /* use_first_name */);
+				res = check_match(&item, pos, cat, ext, 0 /* use_first_name */);
 			}
 			if (!res && ast_test_flag(&flags, OPT_LISTBYFIRSTNAME)) {
-				res = check_match(&item, pos, v->name, ext, 1 /* use_first_name */);
+				res = check_match(&item, pos, cat, ext, 1 /* use_first_name */);
 			}
 
 			if (!res)
@@ -655,7 +654,6 @@ static int search_directory(const char *context, struct ast_config *vmcfg, struc
 			AST_LIST_INSERT_TAIL(alist, item, entry);
 		}
 	}
-
 	return 0;
 }
 
