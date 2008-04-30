@@ -417,6 +417,12 @@ Queue changes
   * New configuration option: randomperiodicannounce. If a list of periodic announcements is
     specified by the periodic-announce option, then one will be chosen randomly when it is time
 	to play a periodic announcment
+  * New configuration options: announce-position now takes two more values in addition to "yes" and
+    "no." Two new options, "limit" and "more," are allowed. These are tied to another option,
+	announce-position-limit. By setting announce-position to "limit" callers will only have their
+	position announced if their position is less than what is specified by announce-position-limit.
+	If announce-position is set to "more" then callers beyond the position specified by announce-position-limit
+	will be told that their are more than announce-position-limit callers waiting.
 
 MeetMe Changes
 --------------

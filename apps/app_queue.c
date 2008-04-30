@@ -407,6 +407,11 @@ struct penalty_rule {
 	AST_LIST_ENTRY(penalty_rule) list;  /*!< Next penalty_rule */
 };
 
+#define ANNOUNCEPOSITION_YES 1 /*!< We announce position */
+#define ANNOUNCEPOSITION_NO 2 /*!< We don't announce position */
+#define ANNOUNCEPOSITION_MORE_THAN 3 /*!< We say "Currently there are more than <limit>" */
+#define ANNOUNCEPOSITION_LIMIT 4 /*!< We not announce position more than <limit> */
+
 struct call_queue {
 	AST_DECLARE_STRING_FIELDS(
 		/*! Queue name */
@@ -429,6 +434,10 @@ struct call_queue {
 		AST_STRING_FIELD(sound_thereare);
 		/*! Sound file: "calls waiting to speak to a representative." (def. queue-callswaiting) */
 		AST_STRING_FIELD(sound_calls);
+		/*! Sound file: "Currently there are more than" (def. queue-quantity1) */
+		AST_STRING_FIELD(queue_quantity1);
+		/*! Sound file: "callers waiting to speak with a representative" (def. queue-quantity2) */
+		AST_STRING_FIELD(queue_quantity2);
 		/*! Sound file: "The current estimated total holdtime is" (def. queue-holdtime) */
 		AST_STRING_FIELD(sound_holdtime);
 		/*! Sound file: "minutes." (def. queue-minutes) */
@@ -458,11 +467,12 @@ struct call_queue {
 	unsigned int wrapped:1;
 	unsigned int timeoutrestart:1;
 	unsigned int announceholdtime:2;
-	unsigned int announceposition:1;
+	unsigned int announceposition:3;
 	int strategy:4;
 	unsigned int maskmemberstatus:1;
 	unsigned int realtime:1;
 	unsigned int found:1;
+	int announcepositionlimit;          /*!< How many positions we announce? */
 	int announcefrequency;              /*!< How often to announce their position */
 	int minannouncefrequency;           /*!< The minimum number of seconds between position announcements (def. 15) */
 	int periodicannouncefrequency;      /*!< How often to play periodic announcement */
@@ -926,8 +936,9 @@ static void init_queue(struct call_queue *q)
 	q->maxlen = 0;
 	q->announcefrequency = 0;
 	q->minannouncefrequency = DEFAULT_MIN_ANNOUNCE_FREQUENCY;
-	q->announceholdtime = 0;
 	q->announceholdtime = 1;
+	q->announcepositionlimit = 10; /* Default 10 positions */
+	q->announceposition = ANNOUNCEPOSITION_YES; /* Default yes */
 	q->roundingseconds = 0; /* Default - don't announce seconds */
 	q->servicelevel = 0;
 	q->ringinuse = 1;
@@ -962,6 +973,8 @@ static void init_queue(struct call_queue *q)
 	ast_string_field_set(q, sound_next, "queue-youarenext");
 	ast_string_field_set(q, sound_thereare, "queue-thereare");
 	ast_string_field_set(q, sound_calls, "queue-callswaiting");
+	ast_string_field_set(q, queue_quantity1, "queue-quantity1");
+	ast_string_field_set(q, queue_quantity2, "queue-quantity2");
 	ast_string_field_set(q, sound_holdtime, "queue-holdtime");
 	ast_string_field_set(q, sound_minutes, "queue-minutes");
 	ast_string_field_set(q, sound_minute, "queue-minute");
@@ -1195,6 +1208,10 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		ast_string_field_set(q, sound_thereare, val);
 	} else if (!strcasecmp(param, "queue-callswaiting")) {
 		ast_string_field_set(q, sound_calls, val);
+	} else if (!strcasecmp(param, "queue-quantity1")) {
+		ast_string_field_set(q, queue_quantity1, val);
+	} else if (!strcasecmp(param, "queue-quantity2")) {
+		ast_string_field_set(q, queue_quantity2, val);
 	} else if (!strcasecmp(param, "queue-holdtime")) {
 		ast_string_field_set(q, sound_holdtime, val);
 	} else if (!strcasecmp(param, "queue-minutes")) {
@@ -1237,7 +1254,16 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		else
 			q->announceholdtime = 0;
 	} else if (!strcasecmp(param, "announce-position")) {
-		q->announceposition = ast_true(val);
+		if (!strcasecmp(val, "limit"))
+			q->announceposition = ANNOUNCEPOSITION_LIMIT;
+		else if (!strcasecmp(val, "more"))
+			q->announceposition = ANNOUNCEPOSITION_MORE_THAN;
+		else if (ast_true(val))
+			q->announceposition = ANNOUNCEPOSITION_YES;
+		else
+			q->announceposition = ANNOUNCEPOSITION_NO;
+	} else if (!strcasecmp(param, "announce-position-limit")) {
+		q->announcepositionlimit = atoi(val);
 	} else if (!strcasecmp(param, "periodic-announce")) {
 		if (strchr(val, ',')) {
 			char *s, *buf = ast_strdupa(val);
@@ -1802,7 +1828,7 @@ static int valid_exit(struct queue_ent *qe, char digit)
 
 static int say_position(struct queue_ent *qe, int ringing)
 {
-	int res = 0, avgholdmins, avgholdsecs;
+	int res = 0, avgholdmins, avgholdsecs, announceposition = 0;
 	time_t now;
 
 	/* Let minannouncefrequency seconds pass between the start of each position announcement */
@@ -1819,7 +1845,15 @@ static int say_position(struct queue_ent *qe, int ringing)
 	} else {
 		ast_moh_stop(qe->chan);
 	}
-	if (qe->parent->announceposition) {
+
+	if (qe->parent->announceposition == ANNOUNCEPOSITION_YES ||
+		qe->parent->announceposition == ANNOUNCEPOSITION_MORE_THAN ||
+		(qe->parent->announceposition == ANNOUNCEPOSITION_LIMIT &&
+		qe->pos <= qe->parent->announcepositionlimit))
+			announceposition = 1;
+
+
+	if (announceposition == 1) {
 		/* Say we're next, if we are */
 		if (qe->pos == 1) {
 			res = play_file(qe->chan, qe->parent->sound_next);
@@ -1828,15 +1862,33 @@ static int say_position(struct queue_ent *qe, int ringing)
 			else
 				goto posout;
 		} else {
-			res = play_file(qe->chan, qe->parent->sound_thereare);
-			if (res)
-				goto playout;
-			res = ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language, NULL); /* Needs gender */
-			if (res)
-				goto playout;
-			res = play_file(qe->chan, qe->parent->sound_calls);
-			if (res)
-				goto playout;
+			if (qe->parent->announceposition == ANNOUNCEPOSITION_MORE_THAN && qe->pos > qe->parent->announcepositionlimit){
+				/* More than Case*/
+				res = play_file(qe->chan, qe->parent->queue_quantity1);
+				if (res)
+					goto playout;
+				res = ast_say_number(qe->chan, qe->parent->announcepositionlimit, AST_DIGIT_ANY, qe->chan->language, NULL); /* Needs gender */
+				if (res)
+					goto playout;
+			} else {
+				/* Normal Case */
+				res = play_file(qe->chan, qe->parent->sound_thereare);
+				if (res)
+					goto playout;
+				res = ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language, NULL); /* Needs gender */
+				if (res)
+					goto playout;
+			}
+			if (qe->parent->announceposition == ANNOUNCEPOSITION_MORE_THAN && qe->pos > qe->parent->announcepositionlimit){
+				/* More than Case*/
+				res = play_file(qe->chan, qe->parent->queue_quantity2);
+				if (res)
+					goto playout;
+			} else {
+				res = play_file(qe->chan, qe->parent->sound_calls);
+				if (res)
+					goto playout;
+			}
 		}
 	}
 	/* Round hold time to nearest minute */
@@ -1888,12 +1940,13 @@ static int say_position(struct queue_ent *qe, int ringing)
 	}
 
 posout:
-	if (qe->parent->announceposition) {
-		ast_verb(3, "Told %s in %s their queue position (which was %d)\n",
-			qe->chan->name, qe->parent->name, qe->pos);
+	if (announceposition == 1){
+		if (qe->parent->announceposition) {
+			ast_verb(3, "Told %s in %s their queue position (which was %d)\n",
+				qe->chan->name, qe->parent->name, qe->pos);
+		}
+		res = play_file(qe->chan, qe->parent->sound_thanks);
 	}
-	res = play_file(qe->chan, qe->parent->sound_thanks);
-
 playout:
 	if ((res > 0 && !valid_exit(qe, res)) || res < 0)
 		res = 0;

@@ -221,10 +221,22 @@ shared_lastcall=no
 ;announce-holdtime = yes|no|once
 ;
 ; Queue position announce?
-; Either yes or no. If turned off, only the holdtime will be announced (as
-; configured in announce-holdtime)
+; Valid values are "yes," "no," "limit," or "more." If set to "no," then the caller's position will
+; never be announced. If "yes," then the caller's position in the queue will be announced
+; to the caller. If set to "more," then if the number of callers is more than the number
+; specified by the announce-position-limit option, then the caller will hear that there
+; are more than that many callers waiting (i.e. if a caller number 6 is in a queue with the
+; announce-position-limit set to 5, then that caller will hear that there are more than 5
+; callers waiting). If set to "limit," then only callers within the limit specified by announce-position-limit
+; will have their position announced.
 ;
 ;announce-position = yes
+;
+; If you have specified "limit" or "more" for the announce-position option, then the following
+; value is what is used to determine what announcement to play to waiting callers. If you have
+; set the announce-position option to anything else, then this will have no bearing on queue operation
+;
+;announce-position-limit = 5
 ;
 ; What's the rounding time for the seconds?
 ; If this is non-zero, then we announce the seconds as well as the minutes
