@@ -6294,7 +6294,7 @@ static int sip_register(const char *value, int lineno)
 	enum sip_transport transport = SIP_TRANSPORT_UDP;
 	char buf[256] = "";
 	char *username = NULL;
-	char *hostname=NULL, *secret=NULL, *authuser=NULL;
+	char *hostname=NULL, *secret=NULL, *authuser=NULL, *expiry=NULL;
 	char *porta=NULL;
 	char *callback=NULL;
 	char *trans=NULL;
@@ -6330,7 +6330,7 @@ static int sip_register(const char *value, int lineno)
 	if (hostname)
 		*hostname++ = '\0';
 	if (ast_strlen_zero(username) || ast_strlen_zero(hostname)) {
-		ast_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port][/contact] at line %d\n", lineno);
+		ast_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port][/contact][~expiry] at line %d\n", lineno);
 		return -1;
 	}
 	/* split user[:secret[:authuser]] */
@@ -6342,6 +6342,9 @@ static int sip_register(const char *value, int lineno)
 			*authuser++ = '\0';
 	}
 	/* split host[:port][/contact] */
+	expiry = strchr(hostname, '~');
+	if (expiry)
+		*expiry++ = '\0';
 	callback = strchr(hostname, '/');
 	if (callback)
 		*callback++ = '\0';
@@ -6380,9 +6383,9 @@ static int sip_register(const char *value, int lineno)
 		ast_string_field_set(reg, secret, secret);
 	reg->transport = transport;
 	reg->expire = -1;
-	reg->expiry = default_expiry;
+	reg->expiry = (expiry ? atoi(expiry) : default_expiry);
 	reg->timeout =  -1;
-	reg->refresh = default_expiry;
+	reg->refresh = reg->expiry;
 	reg->portno = portnum;
 	reg->callid_valid = FALSE;
 	reg->ocseq = INITIAL_CSEQ;

@@ -63,6 +63,8 @@ SIP Changes
    and restore this performance improvement. Astobj2 refcounting is now used
    for users, peers, and dialogs.  Users are encouraged to assist in regression
    testing and problem reporting!
+ * Added ability to specify registration expiry time on a per registration basis in
+   the register line.
 
 IAX Changes
 -----------
