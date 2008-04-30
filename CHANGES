@@ -18,6 +18,13 @@ PBX Changes
  * It is now possible to specify a pattern match as a hint. Once a phone subscribes
    to something that matches the pattern a hint will be created using the contents
    and variables evaluated.
+ * Dialplan matching has been extended to allow an extension to return to the
+   PBX core to wait for more digits.  This is done by using the new dialplan
+   application called "Incomplete".  This will permit a whole new level of
+   extension control, by giving the administrator more control over early
+   matches employing one of the short-circuit pattern match operators.  Note
+   that custom applications can trigger this same behavior by returning the
+   special value AST_PBX_INCOMPLETE.
 
 Application Changes
 -------------------
