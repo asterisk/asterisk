@@ -26,7 +26,12 @@
 /* Max version of IAX protocol we support */
 #define IAX_PROTO_VERSION 2
 
+/* NOTE: IT IS CRITICAL THAT IAX_MAX_CALLS BE A POWER OF 2. */
+#if defined(LOW_MEMORY)
+#define IAX_MAX_CALLS 2048
+#else
 #define IAX_MAX_CALLS 32768
+#endif
 
 #define IAX_FLAG_FULL		0x8000
 
