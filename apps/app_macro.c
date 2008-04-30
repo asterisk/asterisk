@@ -165,20 +165,24 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	}
 
 	/* does the user want a deeper rabbit hole? */
-	s = pbx_builtin_getvar_helper(chan, "MACRO_RECURSION");
-	if (s)
+	ast_channel_lock(chan);
+	if ((s = pbx_builtin_getvar_helper(chan, "MACRO_RECURSION"))) {
 		sscanf(s, "%d", &maxdepth);
-
+	}
+	
 	/* Count how many levels deep the rabbit hole goes */
-	s = pbx_builtin_getvar_helper(chan, "MACRO_DEPTH");
-	if (s)
+	if ((s = pbx_builtin_getvar_helper(chan, "MACRO_DEPTH"))) {
 		sscanf(s, "%d", &depth);
+	}
+	
 	/* Used for detecting whether to return when a Macro is called from another Macro after hangup */
 	if (strcmp(chan->exten, "h") == 0)
 		pbx_builtin_setvar_helper(chan, "MACRO_IN_HANGUP", "1");
-	inhangupc = pbx_builtin_getvar_helper(chan, "MACRO_IN_HANGUP");
-	if (!ast_strlen_zero(inhangupc))
+	
+	if ((inhangupc = pbx_builtin_getvar_helper(chan, "MACRO_IN_HANGUP"))) {
 		sscanf(inhangupc, "%d", &inhangup);
+	}
+	ast_channel_unlock(chan);
 
 	if (depth >= maxdepth) {
 		ast_log(LOG_ERROR, "Macro():  possible infinite loop detected.  Returning early.\n");
@@ -247,17 +251,19 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	ast_copy_string(chan->context, fullmacro, sizeof(chan->context));
 	chan->priority = 1;
 
+	ast_channel_lock(chan);
 	while((cur = strsep(&rest, ",")) && (argc < MAX_ARGS)) {
 		const char *s;
   		/* Save copy of old arguments if we're overwriting some, otherwise
 	   	let them pass through to the other macro */
   		snprintf(varname, sizeof(varname), "ARG%d", argc);
-		s = pbx_builtin_getvar_helper(chan, varname);
-		if (s)
+		if ((s = pbx_builtin_getvar_helper(chan, varname))) {
 			oldargs[argc] = ast_strdup(s);
+		}
 		pbx_builtin_setvar_helper(chan, varname, cur);
 		argc++;
 	}
+	ast_channel_unlock(chan);
 	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	while(ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
@@ -431,6 +437,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			/* Copy the extension, so long as we're not in softhangup, where we could be given an asyncgoto */
 			const char *offsets;
 			ast_copy_string(chan->exten, oldexten, sizeof(chan->exten));
+			ast_channel_lock(chan);
 			if ((offsets = pbx_builtin_getvar_helper(chan, "MACRO_OFFSET"))) {
 				/* Handle macro offset if it's set by checking the availability of step n + offset + 1, otherwise continue
 			   	normally if there is any problem */
@@ -440,6 +447,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 					}
 				}
 			}
+			ast_channel_unlock(chan);
 		}
 	}
 

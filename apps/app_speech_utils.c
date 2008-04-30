@@ -559,9 +559,11 @@ static int speech_background(struct ast_channel *chan, void *data)
 	}
 
 	/* See if the maximum DTMF length variable is set... we use a variable in case they want to carry it through their entire dialplan */
-	if ((tmp2 = pbx_builtin_getvar_helper(chan, "SPEECH_DTMF_MAXLEN")) && !ast_strlen_zero(tmp2))
+	ast_channel_lock(chan);
+	if ((tmp2 = pbx_builtin_getvar_helper(chan, "SPEECH_DTMF_MAXLEN")) && !ast_strlen_zero(tmp2)) {
 		max_dtmf_len = atoi(tmp2);
-
+	}
+	
 	/* See if a terminator is specified */
 	if ((tmp2 = pbx_builtin_getvar_helper(chan, "SPEECH_DTMF_TERMINATOR"))) {
 		if (ast_strlen_zero(tmp2))
@@ -569,6 +571,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 		else
 			dtmf_terminator = tmp2[0];
 	}
+	ast_channel_unlock(chan);
 
 	/* Before we go into waiting for stuff... make sure the structure is ready, if not - start it again */
 	if (speech->state == AST_SPEECH_STATE_NOT_READY || speech->state == AST_SPEECH_STATE_DONE) {

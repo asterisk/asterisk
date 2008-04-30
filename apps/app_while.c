@@ -184,22 +184,19 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 	memset(my_name, 0, size);
 	snprintf(my_name, size, "%s_%s_%d", chan->context, chan->exten, chan->priority);
 	
-	if (ast_strlen_zero(label)) {
-		if (end) 
-			label = used_index;
-		else if (!(label = pbx_builtin_getvar_helper(chan, my_name))) {
-			label = new_index;
-			pbx_builtin_setvar_helper(chan, my_name, label);
-		}
-		
+	ast_channel_lock(chan);
+	if (end) {
+		label = used_index;
+	} else if (!(label = pbx_builtin_getvar_helper(chan, my_name))) {
+		label = new_index;
+		pbx_builtin_setvar_helper(chan, my_name, label);
 	}
-	
 	snprintf(varname, VAR_SIZE, "%s_%s", prefix, label);
-	while_pri = pbx_builtin_getvar_helper(chan, varname);
-	
 	if ((while_pri = pbx_builtin_getvar_helper(chan, varname)) && !end) {
+		while_pri = ast_strdupa(while_pri);
 		snprintf(end_varname,VAR_SIZE,"END_%s",varname);
 	}
+	ast_channel_unlock(chan);
 	
 
 	if ((!end && !pbx_checkcondition(condition)) || (end == 2)) {
@@ -208,7 +205,8 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 		pbx_builtin_setvar_helper(chan, varname, NULL);
 		pbx_builtin_setvar_helper(chan, my_name, NULL);
 		snprintf(end_varname,VAR_SIZE,"END_%s",varname);
-		if ((goto_str=pbx_builtin_getvar_helper(chan, end_varname))) {
+		ast_channel_lock(chan);
+		if ((goto_str = pbx_builtin_getvar_helper(chan, end_varname))) {
 			ast_parseable_goto(chan, goto_str);
 			pbx_builtin_setvar_helper(chan, end_varname, NULL);
 		} else {
@@ -220,6 +218,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 				ast_log(LOG_WARNING, "Couldn't find matching EndWhile? (While at %s@%s priority %d)\n", chan->context, chan->exten, chan->priority);
 			}
 		}
+		ast_channel_unlock(chan);
 		return res;
 	}
 
@@ -230,7 +229,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 		memset(goto_str, 0, size);
 		snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority);
 		pbx_builtin_setvar_helper(chan, varname, goto_str);
-	} 
+	}
 
 	else if (end && while_pri) {
 		/* END of loop */

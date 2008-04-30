@@ -3522,7 +3522,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	if (tmpptr)
 		*tmpptr++ = '\0';
 
-	category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY");
+	ast_channel_lock(chan);
+	if ((category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY"))) {
+		category = ast_strdupa(category);
+	}
+	ast_channel_unlock(chan);
 
 	ast_debug(3, "Before find_user\n");
 	if (!(vmu = find_user(&svm, context, ext))) {
@@ -4741,8 +4745,14 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 {
 	char todir[PATH_MAX], fn[PATH_MAX], ext_context[PATH_MAX], *stringp;
 	int newmsgs = 0, oldmsgs = 0;
-	const char *category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY");
+	const char *category;
 	char *myserveremail = serveremail;
+
+	ast_channel_lock(chan);
+	if ((category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY"))) {
+		category = ast_strdupa(category);
+	}
+	ast_channel_unlock(chan);
 
 	make_dir(todir, sizeof(todir), vmu->context, vmu->mailbox, "INBOX");
 	make_file(fn, sizeof(fn), todir, msgnum);

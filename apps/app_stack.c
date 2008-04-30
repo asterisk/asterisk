@@ -351,8 +351,11 @@ static int local_read(struct ast_channel *chan, const char *cmd, char *data, cha
 	frame = AST_LIST_FIRST(oldlist);
 	AST_LIST_TRAVERSE(&frame->varshead, variables, entries) {
 		if (!strcmp(data, ast_var_name(variables))) {
-			const char *tmp = pbx_builtin_getvar_helper(chan, data);
+			const char *tmp;
+			ast_channel_lock(chan);
+			tmp = pbx_builtin_getvar_helper(chan, data);
 			ast_copy_string(buf, S_OR(tmp, ""), len);
+			ast_channel_unlock(chan);
 			break;
 		}
 	}

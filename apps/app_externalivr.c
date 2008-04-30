@@ -251,10 +251,13 @@ static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *out
 			break;
 		}
 		
-		value = pbx_builtin_getvar_helper(chan, variable);
-		if(!value)
+		ast_channel_lock(chan);
+		if (!(value = pbx_builtin_getvar_helper(chan, variable))) {
 			value = "";
+		}
+
 		ast_str_append(&newstring, 0, "%s=%s,", variable, value);
+		ast_channel_unlock(chan);
 		ast_copy_string(outbuf, newstring->str, outbuflen);
 	}
 };

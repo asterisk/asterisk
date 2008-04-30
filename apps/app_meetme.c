@@ -374,8 +374,8 @@ struct ast_conference {
 	pthread_t recordthread;                 /*!< thread for recording */
 	ast_mutex_t recordthreadlock;           /*!< control threads trying to start recordthread */
 	pthread_attr_t attr;                    /*!< thread attribute */
-	const char *recordingfilename;          /*!< Filename to record the Conference into */
-	const char *recordingformat;            /*!< Format to record the Conference in */
+	char *recordingfilename;                /*!< Filename to record the Conference into */
+	char *recordingformat;                  /*!< Format to record the Conference in */
 	char pin[MAX_PIN];                      /*!< If protected by a PIN */
 	char pinadmin[MAX_PIN];                 /*!< If protected by a admin PIN */
 	char uniqueid[32];
@@ -1350,7 +1350,12 @@ static int conf_free(struct ast_conference *conf)
 		ast_hangup(conf->chan);
 	if (conf->fd >= 0)
 		close(conf->fd);
-
+	if (conf->recordingfilename) {
+		ast_free(conf->recordingfilename);
+	}
+	if (conf->recordingformat) {
+		ast_free(conf->recordingformat);
+	}
 	ast_mutex_destroy(&conf->playlock);
 	ast_mutex_destroy(&conf->listenlock);
 	ast_mutex_destroy(&conf->recordthreadlock);
@@ -1507,8 +1512,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	struct timeval now;
 	struct ast_dsp *dsp = NULL;
 	struct ast_app *app;
-	const char *agifile;
-	const char *agifiledefault = "conf-background.agi";
+	char *agifile;
+	const char *agifiledefault = "conf-background.agi", *tmp;
 	char meetmesecs[30] = "";
 	char exitcontext[AST_MAX_CONTEXT] = "";
 	char recordingtmp[AST_MAX_EXTENSION] = "";
@@ -1575,12 +1580,22 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
  					play_warning = warning_freq = 0;
  			}
  		}
- 			
- 		var = pbx_builtin_getvar_helper(chan, "CONF_LIMIT_WARNING_FILE");
+ 		
+		ast_channel_lock(chan);
+		if ((var = pbx_builtin_getvar_helper(chan, "CONF_LIMIT_WARNING_FILE"))) {
+			var = ast_strdupa(var);
+		}
+		ast_channel_unlock(chan);
+
  		warning_sound = var ? var : "timeleft";
  		
- 		var = pbx_builtin_getvar_helper(chan, "CONF_LIMIT_TIMEOUT_FILE");
- 		end_sound = var ? var : NULL;
+		ast_channel_lock(chan);
+		if ((var = pbx_builtin_getvar_helper(chan, "CONF_LIMIT_TIMEOUT_FILE"))) {
+			var = ast_strdupa(var);
+		}
+		ast_channel_unlock(chan);
+ 		
+		end_sound = var ? var : NULL;
  			
  		/* undo effect of S(x) in case they are both used */
  		calldurationlimit = 0;
@@ -1608,15 +1623,21 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	
 	if (confflags & CONFFLAG_RECORDCONF) {
 		if (!conf->recordingfilename) {
-			conf->recordingfilename = pbx_builtin_getvar_helper(chan, "MEETME_RECORDINGFILE");
+			const char *var;
+			ast_channel_lock(chan);
+			if ((var = pbx_builtin_getvar_helper(chan, "MEETME_RECORDINGFILE"))) {
+				conf->recordingfilename = ast_strdup(var);
+			}
+			if ((var = pbx_builtin_getvar_helper(chan, "MEETME_RECORDINGFORMAT"))) {
+				conf->recordingformat = ast_strdup(var);
+			}
+			ast_channel_unlock(chan);
 			if (!conf->recordingfilename) {
 				snprintf(recordingtmp, sizeof(recordingtmp), "meetme-conf-rec-%s-%s", conf->confno, chan->uniqueid);
-				conf->recordingfilename = ast_strdupa(recordingtmp);
+				conf->recordingfilename = ast_strdup(recordingtmp);
 			}
-			conf->recordingformat = pbx_builtin_getvar_helper(chan, "MEETME_RECORDINGFORMAT");
 			if (!conf->recordingformat) {
-				ast_copy_string(recordingtmp, "wav", sizeof(recordingtmp));
-				conf->recordingformat = ast_strdupa(recordingtmp);
+				conf->recordingformat = ast_strdup("wav");
 			}
 			ast_verb(4, "Starting recording of MeetMe Conference %s into file %s.%s.\n",
 				    conf->confno, conf->recordingfilename, conf->recordingformat);
@@ -1736,12 +1757,15 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	pbx_builtin_setvar_helper(chan, "MEETMEUNIQUEID", conf->uniqueid);
 
 	if (confflags & CONFFLAG_EXIT_CONTEXT) {
-		if ((agifile = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT"))) 
-			ast_copy_string(exitcontext, agifile, sizeof(exitcontext));
-		else if (!ast_strlen_zero(chan->macrocontext)) 
+		ast_channel_lock(chan);
+		if ((tmp = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT"))) {
+			ast_copy_string(exitcontext, tmp, sizeof(exitcontext));
+		} else if (!ast_strlen_zero(chan->macrocontext)) {
 			ast_copy_string(exitcontext, chan->macrocontext, sizeof(exitcontext));
-		else
+		} else {
 			ast_copy_string(exitcontext, chan->context, sizeof(exitcontext));
+		}
+		ast_channel_unlock(chan);
 	}
 
 	if (!(confflags & (CONFFLAG_QUIET | CONFFLAG_NOONLYPERSON))) {
@@ -1932,10 +1956,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		/* Get name of AGI file to run from $(MEETME_AGI_BACKGROUND)
 		   or use default filename of conf-background.agi */
 
-		agifile = pbx_builtin_getvar_helper(chan, "MEETME_AGI_BACKGROUND");
-		if (!agifile)
-			agifile = agifiledefault;
-
+		ast_channel_lock(chan);
+		if ((tmp = pbx_builtin_getvar_helper(chan, "MEETME_AGI_BACKGROUND"))) {
+			agifile = ast_strdupa(tmp);
+		} else {
+			agifile = ast_strdupa(agifiledefault);
+		}
+		ast_channel_unlock(chan);
+		
 		if (user->zapchannel) {
 			/*  Set CONFMUTE mode on Zap channel to mute DTMF tones */
 			x = 1;
@@ -1944,8 +1972,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		/* Find a pointer to the agi app and execute the script */
 		app = pbx_findapp("agi");
 		if (app) {
-			char *s = ast_strdupa(agifile);
-			ret = pbx_exec(chan, app, s);
+			ret = pbx_exec(chan, app, agifile);
 		} else {
 			ast_log(LOG_WARNING, "Could not find application (agi)\n");
 			ret = -2;

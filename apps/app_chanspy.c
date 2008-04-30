@@ -596,12 +596,15 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 
 	if (ast_test_flag(flags, OPTION_EXIT)) {
 		const char *c;
-		if ((c = pbx_builtin_getvar_helper(chan, "SPY_EXIT_CONTEXT")))
+		ast_channel_lock(chan);
+		if ((c = pbx_builtin_getvar_helper(chan, "SPY_EXIT_CONTEXT"))) {
 			ast_copy_string(exitcontext, c, sizeof(exitcontext));
-		else if (!ast_strlen_zero(chan->macrocontext))
+		} else if (!ast_strlen_zero(chan->macrocontext)) {
 			ast_copy_string(exitcontext, chan->macrocontext, sizeof(exitcontext));
-		else
+		} else {
 			ast_copy_string(exitcontext, chan->context, sizeof(exitcontext));
+		}
+		ast_channel_unlock(chan);
 	}
 
 	ast_mutex_init(&chanspy_ds.lock);
