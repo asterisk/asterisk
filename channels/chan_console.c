@@ -391,7 +391,7 @@ return_unlock:
 
 static int stop_stream(struct console_pvt *pvt)
 {
-	if (!pvt->streamstate)
+	if (!pvt->streamstate || pvt->thread == AST_PTHREADT_NULL)
 		return 0;
 
 	pthread_cancel(pvt->thread);
