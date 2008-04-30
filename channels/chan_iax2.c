@@ -117,9 +117,6 @@ static int nochecksums = 0;
 #define DEFAULT_RETRY_TIME 1000
 #define MEMORY_SIZE 100
 #define DEFAULT_DROP 3
-/* Flag to use with trunk calls, keeping these calls high up.  It halves our effective use
-   but keeps the division between trunked and non-trunked better. */
-#define TRUNK_CALL_START	0x4000
 
 #define DEBUG_SUPPORT
 
@@ -151,8 +148,6 @@ static int maxauthreq = 3;
 static int max_retries = 4;
 static int ping_time = 21;
 static int lagrq_time = 10;
-static int maxtrunkcall = TRUNK_CALL_START;
-static int maxnontrunkcall = 1;
 static int maxjitterbuffer=1000;
 static int resyncthreshold=1000;
 static int maxjitterinterps=10;
@@ -842,6 +837,7 @@ static void __attribute__((format (printf, 1, 2))) jb_debug_output(const char *f
  * index into the array where the associated pvt structure is stored.
  */
 static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS];
+
 /*!
  * \brief chan_iax2_pvt structure locks
  *
@@ -849,7 +845,7 @@ static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS];
  * The index used here is the same as used in the iaxs array.  It is the
  * local call number for the associated pvt struct.
  */
-static ast_mutex_t iaxsl[IAX_MAX_CALLS];
+static ast_mutex_t iaxsl[ARRAY_LEN(iaxs)];
 /*!
  * \brief The last time a call number was used
  *
@@ -869,7 +865,14 @@ static ast_mutex_t iaxsl[IAX_MAX_CALLS];
  * The specified time that we must wait before reusing a local call number is
  * defined as MIN_REUSE_TIME, with a default of 60 seconds.
  */
-static struct timeval lastused[IAX_MAX_CALLS];
+static struct timeval lastused[ARRAY_LEN(iaxs)];
+
+/* Flag to use with trunk calls, keeping these calls high up.  It halves our effective use
+   but keeps the division between trunked and non-trunked better. */
+#define TRUNK_CALL_START	ARRAY_LEN(iaxs) / 2
+
+static int maxtrunkcall = TRUNK_CALL_START;
+static int maxnontrunkcall = 1;
 
 static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 static int expire_registry(const void *data);
@@ -1407,11 +1410,14 @@ static void update_max_trunk(void)
 {
 	int max = TRUNK_CALL_START;
 	int x;
+
 	/* XXX Prolly don't need locks here XXX */
-	for (x=TRUNK_CALL_START;x<IAX_MAX_CALLS - 1; x++) {
-		if (iaxs[x])
+	for (x = TRUNK_CALL_START; x < ARRAY_LEN(iaxs) - 1; x++) {
+		if (iaxs[x]) {
 			max = x + 1;
+		}
 	}
+
 	maxtrunkcall = max;
 	if (iaxdebug)
 		ast_debug(1, "New max trunk callno is %d\n", max);
@@ -1444,7 +1450,7 @@ static int make_trunk(unsigned short callno, int locked)
 		ast_log(LOG_WARNING, "Call %d is already a trunk\n", callno);
 		return -1;
 	}
-	for (x=TRUNK_CALL_START;x<IAX_MAX_CALLS - 1; x++) {
+	for (x = TRUNK_CALL_START; x < ARRAY_LEN(iaxs) - 1; x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (!iaxs[x] && ((now.tv_sec - lastused[x].tv_sec) > MIN_REUSE_TIME)) {
 			iaxs[x] = iaxs[callno];
@@ -1464,7 +1470,7 @@ static int make_trunk(unsigned short callno, int locked)
 		}
 		ast_mutex_unlock(&iaxsl[x]);
 	}
-	if (x >= IAX_MAX_CALLS - 1) {
+	if (x >= ARRAY_LEN(iaxs) - 1) {
 		ast_log(LOG_WARNING, "Unable to trunk call: Insufficient space\n");
 		return -1;
 	}
@@ -5204,7 +5210,7 @@ static char *handle_cli_iax2_show_channels(struct ast_cli_entry *e, int cmd, str
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 	ast_cli(a->fd, FORMAT2, "Channel", "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "JitBuf", "Format");
-	for (x = 0; x < IAX_MAX_CALLS; x++) {
+	for (x = 0; x < ARRAY_LEN(iaxs); x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
 			int lag, jitter, localdelay;
@@ -5246,7 +5252,7 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 	int numchans = 0;
 #define ACN_FORMAT1 "%-25.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d\n"
 #define ACN_FORMAT2 "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n"
-	for (x=0;x<IAX_MAX_CALLS;x++) {
+	for (x = 0; x < ARRAY_LEN(iaxs); x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
 			int localjitter, localdelay, locallost, locallosspct, localdropped, localooo;
@@ -11068,7 +11074,7 @@ static int cache_get_callno_locked(const char *data)
 	struct parsed_dial_string pds;
 	char *tmpstr;
 
-	for (x=0; x<IAX_MAX_CALLS; x++) {
+	for (x = 0; x < ARRAY_LEN(iaxs); x++) {
 		/* Look for an *exact match* call.  Once a call is negotiated, it can only
 		   look up entries for a single context */
 		if (!ast_mutex_trylock(&iaxsl[x])) {
@@ -11753,9 +11759,10 @@ static int __unload_module(void)
 	
 	ast_netsock_release(netsock);
 	ast_netsock_release(outsock);
-	for (x = 0; x < IAX_MAX_CALLS; x++) {
-		if (iaxs[x])
+	for (x = 0; x < ARRAY_LEN(iaxs); x++) {
+		if (iaxs[x]) {
 			iax2_destroy(x);
+		}
 	}
 	ast_manager_unregister( "IAXpeers" );
 	ast_manager_unregister( "IAXpeerlist" );
@@ -11769,8 +11776,9 @@ static int __unload_module(void)
 	sched_context_destroy(sched);
 	reload_firmware(1);
 
-	for (x = 0; x < IAX_MAX_CALLS; x++)
+	for (x = 0; x < ARRAY_LEN(iaxsl); x++) {
 		ast_mutex_destroy(&iaxsl[x]);
+	}
 
 	ao2_ref(peers, -1);
 	ao2_ref(users, -1);
@@ -11834,8 +11842,9 @@ static int load_module(void)
 
 	memset(iaxs, 0, sizeof(iaxs));
 
-	for (x=0;x<IAX_MAX_CALLS;x++)
+	for (x = 0; x < ARRAY_LEN(iaxsl); x++) {
 		ast_mutex_init(&iaxsl[x]);
+	}
 
 	ast_cond_init(&sched_cond, NULL);
 
