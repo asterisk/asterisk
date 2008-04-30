@@ -2065,7 +2065,7 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 static const char *gettag(const struct sip_request *req, const char *header, char *tagbuf, int tagbufsize);
 static int find_sip_method(const char *msg);
 static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported);
-static void parse_request(struct sip_request *req);
+static int parse_request(struct sip_request *req);
 static const char *get_header(const struct sip_request *req, const char *name);
 static const char *referstatus2str(enum referstatus rstatus) attribute_pure;
 static int method_match(enum sipmethod id, const char *name);
@@ -6440,7 +6440,7 @@ static int lws2sws(char *msgbuf, int len)
 /*! \brief Parse a SIP message 
 	\note this function is used both on incoming and outgoing packets
 */
-static void parse_request(struct sip_request *req)
+static int parse_request(struct sip_request *req)
 {
 	char *c = req->data->str, **dst = req->header;
 	int i = 0, lim = SIP_MAX_HEADERS - 1;
@@ -6490,7 +6490,7 @@ static void parse_request(struct sip_request *req)
 	if (*c)
 		ast_log(LOG_WARNING, "Too many lines, skipping <%s>\n", c);
 	/* Split up the first line parts */
-	determine_firstline_parts(req);
+	return determine_firstline_parts(req);
 }
 
 /*!
@@ -19159,7 +19159,11 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 			ntohs(sin->sin_port), req->data->str);
 	}
 
-	parse_request(req);
+	if(parse_request(req) == -1) { /* Bad packet, can't parse */
+		ast_str_reset(req->data); /* nulling this out is NOT a good idea here. */
+		return 1;
+	}
+
 	req->method = find_sip_method(req->rlPart1);
 
 	if (req->debug)
