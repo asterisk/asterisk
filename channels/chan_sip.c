@@ -18074,8 +18074,8 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 			ntohs(sin->sin_port), req->data);
 	}
 
-	if(parse_request(req) == -1) { /* Bad packet, can't parse */
-		ast_str_reset(req->data); /* nulling this out is NOT a good idea here. */
+	if (parse_request(req) == -1) { /* Bad packet, can't parse */
+		req->data[0] = '\0'; /* nulling this out is NOT a good idea here. */
 		return 1;
 	}
 
