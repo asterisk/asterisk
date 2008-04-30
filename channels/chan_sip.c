@@ -1460,7 +1460,7 @@ static const char *gettag(const struct sip_request *req, const char *header, cha
 static void set_insecure_flags(struct ast_flags *flags, const char *value, int lineno);
 static int find_sip_method(const char *msg);
 static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported);
-static void parse_request(struct sip_request *req);
+static int parse_request(struct sip_request *req);
 static const char *get_header(const struct sip_request *req, const char *name);
 static char *referstatus2str(enum referstatus rstatus) attribute_pure;
 static int method_match(enum sipmethod id, const char *name);
@@ -4811,7 +4811,7 @@ static int lws2sws(char *msgbuf, int len)
 /*! \brief Parse a SIP message 
 	\note this function is used both on incoming and outgoing packets
 */
-static void parse_request(struct sip_request *req)
+static int parse_request(struct sip_request *req)
 {
 	/* Divide fields by NULL's */
 	char *c;
@@ -4878,7 +4878,7 @@ static void parse_request(struct sip_request *req)
 	if (*c) 
 		ast_log(LOG_WARNING, "Odd content, extra stuff left over ('%s')\n", c);
 	/* Split up the first line parts */
-	determine_firstline_parts(req);
+	return determine_firstline_parts(req);
 }
 
 /*!
@@ -15497,7 +15497,9 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	if (ast_test_flag(&req, SIP_PKT_DEBUG))
 		ast_verbose("\n<--- SIP read from %s:%d --->\n%s\n<------------->\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), req.data);
 
-	parse_request(&req);
+	if(parse_request(&req) == -1) /* Bad packet, can't parse */
+		return 1;
+
 	req.method = find_sip_method(req.rlPart1);
 
 	if (ast_test_flag(&req, SIP_PKT_DEBUG))
