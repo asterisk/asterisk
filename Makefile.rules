@@ -21,7 +21,7 @@
 .PHONY: dist-clean
 
 # extra cflags to build dependencies. Recursively expanded.
-MAKE_DEPS= -MMD -MT $@ -MF .$(subst /,_,$@).d -MP
+MAKE_DEPS= -MD -MT $@ -MF .$(subst /,_,$@).d -MP
 
 ifeq ($(NOISY_BUILD),)
     ECHO_PREFIX=@
