@@ -8380,7 +8380,15 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 			if (conf.timing.debouncetime >= 0)
 				p.debouncetime = conf.timing.debouncetime;
 		}
-		
+
+		/* 10 is a nice default. */
+		if (conf.chan.drings.ringnum[0].range == 0)
+			conf.chan.drings.ringnum[0].range = 10;
+		if (conf.chan.drings.ringnum[1].range == 0)
+			conf.chan.drings.ringnum[1].range = 10;
+		if (conf.chan.drings.ringnum[2].range == 0)
+			conf.chan.drings.ringnum[2].range = 10;
+
 		/* dont set parms on a pseudo-channel (or CRV) */
 		if (tmp->subs[SUB_REAL].zfd >= 0)
 		{
@@ -13313,19 +13321,10 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 			ast_copy_string(confp->chan.drings.ringContext[2].contextData,v->value,sizeof(confp->chan.drings.ringContext[2].contextData));
 		} else if (!strcasecmp(v->name, "dring1range")) {
 			confp->chan.drings.ringnum[0].range = atoi(v->value);
-			/* 10 is a nice default. */
-			if (confp->chan.drings.ringnum[0].range == 0)
-				confp->chan.drings.ringnum[0].range = 10;
 		} else if (!strcasecmp(v->name, "dring2range")) {
 			confp->chan.drings.ringnum[1].range = atoi(v->value);
-			/* 10 is a nice default. */
-			if (confp->chan.drings.ringnum[1].range == 0)
-				confp->chan.drings.ringnum[1].range = 10;
 		} else if (!strcasecmp(v->name, "dring3range")) {
 			confp->chan.drings.ringnum[2].range = atoi(v->value);
-			/* 10 is a nice default. */
-			if (confp->chan.drings.ringnum[2].range == 0)
-				confp->chan.drings.ringnum[2].range = 10;
 		} else if (!strcasecmp(v->name, "dring1")) {
 			ringc = v->value;
 			sscanf(ringc, "%d,%d,%d", &confp->chan.drings.ringnum[0].ring[0], &confp->chan.drings.ringnum[0].ring[1], &confp->chan.drings.ringnum[0].ring[2]);
