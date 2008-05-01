@@ -160,6 +160,18 @@ int ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list);
  */
 int ast_audiohook_detach_source(struct ast_channel *chan, const char *source);
 
+/*!
+ * \brief Remove an audiohook from a specified channel
+ *
+ * \param chan Channel to remove from
+ * \param audiohook Audiohook to remove
+ *
+ * \return Returns 0 on success, -1 on failure
+ *
+ * \note The channel does not need to be locked before calling this function
+ */
+int ast_audiohook_remove(struct ast_channel *chan, struct ast_audiohook *audiohook);
+
 /*! \brief Pass a frame off to be handled by the audiohook core
  * \param chan Channel that the list is coming off of
  * \param audiohook_list List of audiohooks

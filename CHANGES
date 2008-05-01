@@ -7,6 +7,9 @@ Dialplan Functions
  * Added a new dialplan function, AST_CONFIG(), which allows you to access
    variables from an Asterisk configuration file.
  * The JACK_HOOK function now has a c() option to supply a custom client name.
+ * Added two new dialplan functions from libspeex for audio gain control and 
+   denoise, AGC() and DENOISE(). Both functions can be applied to the tx and 
+   rx directions of a channel from the dialplan.
 
 Zaptel channel driver (chan_zap) Changes
 ----------------------------------------

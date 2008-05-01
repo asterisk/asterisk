@@ -455,6 +455,42 @@ int ast_audiohook_detach_source(struct ast_channel *chan, const char *source)
 	return (audiohook ? 0 : -1);
 }
 
+/*!
+ * \brief Remove an audiohook from a specified channel
+ *
+ * \param chan Channel to remove from
+ * \param audiohook Audiohook to remove
+ *
+ * \return Returns 0 on success, -1 on failure
+ *
+ * \note The channel does not need to be locked before calling this function
+ */
+int ast_audiohook_remove(struct ast_channel *chan, struct ast_audiohook *audiohook)
+{
+	ast_channel_lock(chan);
+
+	if (!chan->audiohooks) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	if (audiohook->type == AST_AUDIOHOOK_TYPE_SPY)
+		AST_LIST_REMOVE(&chan->audiohooks->spy_list, audiohook, list);
+	else if (audiohook->type == AST_AUDIOHOOK_TYPE_WHISPER)
+		AST_LIST_REMOVE(&chan->audiohooks->whisper_list, audiohook, list);
+	else if (audiohook->type == AST_AUDIOHOOK_TYPE_MANIPULATE)
+		AST_LIST_REMOVE(&chan->audiohooks->manipulate_list, audiohook, list);
+
+	ast_audiohook_lock(audiohook);
+	audiohook->status = AST_AUDIOHOOK_STATUS_DONE;
+	ast_cond_signal(&audiohook->trigger);
+	ast_audiohook_unlock(audiohook);
+
+	ast_channel_unlock(chan);
+
+	return 0;
+}
+
 /*! \brief Pass a DTMF frame off to be handled by the audiohook core
  * \param chan Channel that the list is coming off of
  * \param audiohook_list List of audiohooks
