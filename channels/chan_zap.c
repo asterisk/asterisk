@@ -11691,6 +11691,21 @@ static char *handle_pri_show_debug(struct ast_cli_entry *e, int cmd, struct ast_
 	return CLI_SUCCESS;
 }
 
+static char *handle_pri_version(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pri show version";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, "libpri version: %s\n", pri_get_version());
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry zap_pri_cli[] = {
 	AST_CLI_DEFINE(handle_pri_debug, "Enables PRI debugging on a span"),
 	AST_CLI_DEFINE(handle_pri_no_debug, "Disables PRI debugging on a span"),
@@ -11700,6 +11715,7 @@ static struct ast_cli_entry zap_pri_cli[] = {
 	AST_CLI_DEFINE(handle_pri_show_debug, "Displays current PRI debug settings"),
 	AST_CLI_DEFINE(handle_pri_set_debug_file, "Sends PRI debug output to the specified file"),
 	AST_CLI_DEFINE(handle_pri_unset_debug_file, "Ends PRI debug output to file"),
+	AST_CLI_DEFINE(handle_pri_version, "Displays libpri version"),
 };
 
 #endif /* HAVE_PRI */
@@ -13103,12 +13119,28 @@ static char *handle_ss7_show_linkset(struct ast_cli_entry *e, int cmd, struct as
 	return CLI_SUCCESS;
 }
 
+static char *handle_ss7_version(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 show version";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, "libss7 version: %s\n", ss7_get_version());
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry zap_ss7_cli[] = {
 	AST_CLI_DEFINE(handle_ss7_debug, "Enables SS7 debugging on a linkset"), 
 	AST_CLI_DEFINE(handle_ss7_no_debug, "Disables SS7 debugging on a linkset"), 
 	AST_CLI_DEFINE(handle_ss7_block_cic, "Disables SS7 debugging on a linkset"),
 	AST_CLI_DEFINE(handle_ss7_unblock_cic, "Disables SS7 debugging on a linkset"),
 	AST_CLI_DEFINE(handle_ss7_show_linkset, "Shows the status of a linkset"),
+	AST_CLI_DEFINE(handle_ss7_version, "Displays libss7 version"),
 };
 #endif /* HAVE_SS7 */
 

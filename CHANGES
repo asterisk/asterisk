@@ -82,6 +82,11 @@ CLI Changes
   * New CLI command, "config reload <file.conf>" which reloads any module that
      references that particular configuration file.  Also added "config list"
      which shows which configuration files are in use.
+  * New CLI commands, "pri show version" and "ss7 show version" that will
+     display which version of libpri and libss7 are being used, respectively.
+	 A new API call was added so trunk will now have to be compiled against
+	 a versions of libpri and libss7 that have them or it will not know that
+	 these libraries exist.
 
 DNS manager changes
 -------------------
