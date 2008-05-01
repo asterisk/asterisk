@@ -10,6 +10,10 @@ Dialplan Functions
  * Added two new dialplan functions from libspeex for audio gain control and 
    denoise, AGC() and DENOISE(). Both functions can be applied to the tx and 
    rx directions of a channel from the dialplan.
+ * The SMDI_MSG_RETRIEVE function now has the ability to search for SMDI messages
+   based on other parameters.  The default is still to search based on the
+   forwarding station ID.  However, there are new options that allow you to search
+   based on the message desk terminal ID, or the message desk number.
 
 Zaptel channel driver (chan_zap) Changes
 ----------------------------------------

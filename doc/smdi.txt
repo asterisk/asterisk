@@ -13,10 +13,10 @@ incoming SMDI messages.
 
 *CLI> core show function SMDI_MSG_RETRIEVE
 
-  -= Info about function 'SMDI_MSG_RETRIEVE' =-
+  -= Info about function 'SMDI_MSG_RETRIEVE' =- 
 
 [Syntax]
-SMDI_MSG_RETRIEVE(<smdi port>,<station>[,timeout])
+SMDI_MSG_RETRIEVE(<smdi port>,<search key>[,timeout[,options]])
 
 [Synopsis]
 Retrieve an SMDI message.
@@ -29,6 +29,14 @@ once an SMDI message is retrieved using this function, it is no longer in
 the global SMDI message queue, and can not be accessed by any other Asterisk
 channels.  The timeout for this function is optional, and the default is
 3 seconds.  When providing a timeout, it should be in milliseconds.
+   The default search is done on the forwarding station ID.  However, if
+you set one of the search key options in the options field, you can change
+this behavior.
+   Options:
+     t - Instead of searching on the forwarding station, search on the message
+         desk terminal.
+     n - Instead of searching on the forwarding station, search on the message
+         desk number.
 
 
 *CLI> core show function SMDI_MSG
