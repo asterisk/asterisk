@@ -209,7 +209,7 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 			}
 		}
 	} else if (!strcasecmp(cmd, "denoise")) {
-		(*sdi)->denoise = ast_true(value);
+		(*sdi)->denoise = (ast_true(value) != 0);
 
 		if ((*sdi)->state) {
 			speex_preprocess_ctl((*sdi)->state, SPEEX_PREPROCESS_SET_DENOISE, &(*sdi)->denoise);
@@ -249,6 +249,43 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 	return 0;
 }
 
+static int speex_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct ast_datastore *datastore = NULL;
+	struct speex_info *si = NULL;
+	struct speex_direction_info *sdi = NULL;
+
+	if (!chan) {
+		ast_log(LOG_ERROR, "%s cannot be used without a channel!\n", cmd);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	if (!(datastore = ast_channel_datastore_find(chan, &speex_datastore, NULL))) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
+	ast_channel_unlock(chan);
+
+	si = datastore->data;
+
+	if (!strcasecmp(data, "tx"))
+		sdi = si->tx;
+	else if (!strcasecmp(data, "rx"))
+		sdi = si->rx;
+	else {
+		ast_log(LOG_ERROR, "%s(%s) must either \"tx\" or \"rx\"\n", cmd, data);
+		return -1;
+	}
+
+	if (!strcasecmp(cmd, "agc"))
+		snprintf(buf, len, "%.01f", sdi ? sdi->agclevel : 0.0);
+	else
+		snprintf(buf, len, "%d", sdi ? sdi->denoise : 0);
+
+	return 0;
+}
+
 static struct ast_custom_function agc_function = {
 	.name = "AGC",
 	.synopsis = "Apply automatic gain control to audio on a channel",
@@ -266,6 +303,7 @@ static struct ast_custom_function agc_function = {
 	"    Set(AGC(tx)=off)\n"
 	"",
 	.write = speex_write,
+	.read = speex_read
 };
 
 static struct ast_custom_function denoise_function = {
@@ -284,6 +322,7 @@ static struct ast_custom_function denoise_function = {
 	"    Set(DENOISE(tx)=off)\n"
 	"",
 	.write = speex_write,
+	.read = speex_read
 };
 
 static int unload_module(void)
