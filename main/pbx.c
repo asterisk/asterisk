@@ -3534,7 +3534,7 @@ static int collect_digits(struct ast_channel *c, int waittime, char *buf, int bu
 				buf[pos++] = digit;
 				buf[pos] = '\0';
 			}
-			waittime = c->pbx->dtimeout;
+			waittime = c->pbx->dtimeoutms;
 		}
 	}
 	return 0;
@@ -3567,8 +3567,8 @@ static int __ast_pbx_run(struct ast_channel *c)
 		}
 	}
 	/* Set reasonable defaults */
-	c->pbx->rtimeout = 10;
-	c->pbx->dtimeout = 5;
+	c->pbx->rtimeoutms = 10000;
+	c->pbx->dtimeoutms = 5000;
 
 	autoloopflag = ast_test_flag(c, AST_FLAG_IN_AUTOLOOP);	/* save value to restore at the end */
 	ast_set_flag(c, AST_FLAG_IN_AUTOLOOP);
@@ -3602,12 +3602,12 @@ static int __ast_pbx_run(struct ast_channel *c)
 			if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT && ast_exists_extension(c, c->context, "T", 1, c->cid.cid_num)) {
 				set_ext_pri(c, "T", 0); /* 0 will become 1 with the c->priority++; at the end */
 				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
-				c->whentohangup = 0;
+				memset(&c->whentohangup, 0, sizeof(c->whentohangup));
 				c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
 			} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT && ast_exists_extension(c, c->context, "e", 1, c->cid.cid_num)) {
 				pbx_builtin_raise_exception(c, "ABSOLUTETIMEOUT");
 				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
-				c->whentohangup = 0;
+				memset(&c->whentohangup, 0, sizeof(c->whentohangup));
 				c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
 			} else if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
 				c->_softhangup = 0;
@@ -3664,7 +3664,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT && ast_exists_extension(c, c->context, "T", 1, c->cid.cid_num)) {
 					set_ext_pri(c, "T", 1); 
 					/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
-					c->whentohangup = 0;
+					memset(&c->whentohangup, 0, sizeof(c->whentohangup));
 					c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
 					continue;
 				} else {
@@ -3707,9 +3707,9 @@ static int __ast_pbx_run(struct ast_channel *c)
 		} else {	/* keypress received, get more digits for a full extension */
 			int waittime = 0;
 			if (digit)
-				waittime = c->pbx->dtimeout;
+				waittime = c->pbx->dtimeoutms;
 			else if (!autofallthrough)
-				waittime = c->pbx->rtimeout;
+				waittime = c->pbx->rtimeoutms;
 			if (!waittime) {
 				const char *status = pbx_builtin_getvar_helper(c, "DIALSTATUS");
 				if (!status)
@@ -7617,7 +7617,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 	if (args.timeout && (s = atof(args.timeout)) > 0)
 		 ms = s * 1000.0;
 	else if (chan->pbx)
-		ms = chan->pbx->rtimeout * 1000;
+		ms = chan->pbx->rtimeoutms;
 	else
 		ms = 10000;
 

@@ -72,7 +72,7 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 		maxlen = size;
 	
 	if (!timeout && chan->pbx)
-		timeout = chan->pbx->dtimeout;
+		timeout = chan->pbx->dtimeoutms / 1000.0;
 	else if (!timeout)
 		timeout = 5;
 
@@ -130,8 +130,8 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
 		}
 		if (ast_strlen_zero(filename)) {
 			/* set timeouts for the last prompt */
-			fto = c->pbx ? c->pbx->rtimeout * 1000 : 6000;
-			to = c->pbx ? c->pbx->dtimeout * 1000 : 2000;
+			fto = c->pbx ? c->pbx->rtimeoutms : 6000;
+			to = c->pbx ? c->pbx->dtimeoutms : 2000;
 
 			if (timeout > 0) 
 				fto = to = timeout;
@@ -142,7 +142,7 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
 			   get rid of the long timeout between 
 			   prompts, and make it 50ms */
 			fto = 50;
-			to = c->pbx ? c->pbx->dtimeout * 1000 : 2000;
+			to = c->pbx ? c->pbx->dtimeoutms : 2000;
 		}
 		res = ast_readstring(c, s, maxlen, to, fto, "#");
 		if (!ast_strlen_zero(s))
@@ -1431,7 +1431,7 @@ static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option,
 			res = 0;
 		return res;
 	case AST_ACTION_WAITOPTION:
-		res = ast_waitfordigit(chan, 1000 * (chan->pbx ? chan->pbx->rtimeout : 10));
+		res = ast_waitfordigit(chan, chan->pbx ? chan->pbx->rtimeoutms : 10000);
 		if (!res)
 			return 't';
 		return res;
@@ -1484,7 +1484,7 @@ static int read_newoption(struct ast_channel *chan, struct ast_ivr_menu *menu, c
 	int res = 0;
 	int ms;
 	while (option_matchmore(menu, exten)) {
-		ms = chan->pbx ? chan->pbx->dtimeout : 5000;
+		ms = chan->pbx ? chan->pbx->dtimeoutms : 5000;
 		if (strlen(exten) >= maxexten - 1) 
 			break;
 		res = ast_waitfordigit(chan, ms);

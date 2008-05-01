@@ -88,6 +88,10 @@ DNS manager changes
   * Addresses managed by DNS manager now can check to see if there is a DNS
     SRV record for a given domain and will use that hostname/port if present.
 
+Dialplan function changes
+-------------------------
+ * TIMEOUT() has been modified to be accurate down to the millisecond.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------
 ------------------------------------------------------------------------------

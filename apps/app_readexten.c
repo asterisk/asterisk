@@ -121,10 +121,10 @@ static int readexten_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (timeout <= 0)
-		timeout = chan->pbx ? chan->pbx->rtimeout * 1000 : 10000;
+		timeout = chan->pbx ? chan->pbx->rtimeoutms : 10000;
 
 	if (digit_timeout <= 0)
-		digit_timeout = chan->pbx ? chan->pbx->dtimeout * 1000 : 5000;
+		digit_timeout = chan->pbx ? chan->pbx->dtimeoutms : 5000;
 
 	if (ast_test_flag(&flags, OPT_INDICATION) && !ast_strlen_zero(arglist.filename))
 		ts = ast_get_indication_tone(chan->zone, arglist.filename);

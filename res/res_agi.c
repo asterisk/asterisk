@@ -980,9 +980,9 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 
 	if ( argc == 5 )
 		timeout = atoi(argv[4]);
-	else if (chan->pbx->dtimeout) {
+	else if (chan->pbx->dtimeoutms) {
 		/* by default dtimeout is set to 5sec */
-		timeout = chan->pbx->dtimeout * 1000; /* in msec */
+		timeout = chan->pbx->dtimeoutms; /* in msec */
 	}
 
 	if (!(fs = ast_openstream(chan, argv[2], chan->language))) {
@@ -1398,18 +1398,20 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 
 static int handle_autohangup(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int timeout;
+	double timeout;
+	struct timeval whentohangup = { 0, 0 };
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%d", &timeout) != 1)
+	if (sscanf(argv[2], "%lf", &timeout) != 1)
 		return RESULT_SHOWUSAGE;
 	if (timeout < 0)
 		timeout = 0;
-	if (timeout)
-		chan->whentohangup = time(NULL) + timeout;
-	else
-		chan->whentohangup = 0;
+	if (timeout) {
+		whentohangup.tv_sec = timeout;
+		whentohangup.tv_usec = (timeout - whentohangup.tv_sec) * 1000000.0;
+	}
+	ast_channel_setwhentohangup_tv(chan, whentohangup);
 	ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }

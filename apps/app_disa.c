@@ -116,8 +116,8 @@ static void play_dialtone(struct ast_channel *chan, char *mailbox)
 static int disa_exec(struct ast_channel *chan, void *data)
 {
 	int i = 0, j, k = 0, did_ignore = 0, special_noanswer = 0;
-	int firstdigittimeout = (chan->pbx ? chan->pbx->rtimeout * 1000 : 20000);
-	int digittimeout = (chan->pbx ? chan->pbx->dtimeout * 1000 : 10000);
+	int firstdigittimeout = (chan->pbx ? chan->pbx->rtimeoutms : 20000);
+	int digittimeout = (chan->pbx ? chan->pbx->dtimeoutms : 10000);
 	struct ast_flags flags;
 	char *tmp, exten[AST_MAX_EXTENSION] = "", acctcode[20]="";
 	char pwline[256];

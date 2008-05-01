@@ -266,7 +266,7 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 
 	channel->owner->appl = "AppDial2";
 	channel->owner->data = "(Outgoing Line)";
-	channel->owner->whentohangup = 0;
+	memset(&channel->owner->whentohangup, 0, sizeof(channel->owner->whentohangup));
 
 	/* Inherit everything from he who spawned this dial */
 	if (chan) {

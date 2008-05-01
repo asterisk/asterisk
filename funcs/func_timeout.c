@@ -37,7 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int timeout_read(struct ast_channel *chan, const char *cmd, char *data,
 			char *buf, size_t len)
 {
-	time_t myt;
+	struct timeval myt;
 
 	if (!chan)
 		return -1;
@@ -50,25 +50,25 @@ static int timeout_read(struct ast_channel *chan, const char *cmd, char *data,
 	switch (*data) {
 	case 'a':
 	case 'A':
-		if (chan->whentohangup == 0) {
+		if (ast_tvzero(chan->whentohangup)) {
 			ast_copy_string(buf, "0", len);
 		} else {
-			time(&myt);
-			snprintf(buf, len, "%d", (int) (chan->whentohangup - myt));
+			myt = ast_tvnow();
+			snprintf(buf, len, "%.3f", ast_tvdiff_ms(myt, chan->whentohangup) / 1000.0);
 		}
 		break;
 
 	case 'r':
 	case 'R':
 		if (chan->pbx) {
-			snprintf(buf, len, "%d", chan->pbx->rtimeout);
+			snprintf(buf, len, "%.3f", chan->pbx->rtimeoutms / 1000.0);
 		}
 		break;
 
 	case 'd':
 	case 'D':
 		if (chan->pbx) {
-			snprintf(buf, len, "%d", chan->pbx->dtimeout);
+			snprintf(buf, len, "%.3f", chan->pbx->dtimeoutms / 1000.0);
 		}
 		break;
 
@@ -83,9 +83,10 @@ static int timeout_read(struct ast_channel *chan, const char *cmd, char *data,
 static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 			 const char *value)
 {
-	int x;
+	double x;
 	char timestr[64];
 	struct ast_tm myt;
+	struct timeval tv;
 
 	if (!chan)
 		return -1;
@@ -98,17 +99,18 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 	if (!value)
 		return -1;
 
-	x = atoi(value);
-	if (x < 0)
-		x = 0;
+	if ((sscanf(value, "%ld%lf", (long *)&tv.tv_sec, &x) == 0) || tv.tv_sec < 0)
+		tv.tv_sec = 0;
+	else
+		tv.tv_usec = x * 1000000;
 
 	switch (*data) {
 	case 'a':
 	case 'A':
-		ast_channel_setwhentohangup(chan, x);
+		ast_channel_setwhentohangup_tv(chan, tv);
 		if (VERBOSITY_ATLEAST(3)) {
-			if (chan->whentohangup) {
-				struct timeval tv = { chan->whentohangup, 0 };
+			if (!ast_tvzero(chan->whentohangup)) {
+				tv = ast_tvadd(tv, ast_tvnow());
 				ast_strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S.%3q %Z",
 					ast_localtime(&tv, &myt, NULL));
 				ast_verbose("Channel will hangup at %s.\n", timestr);
@@ -121,16 +123,16 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 	case 'r':
 	case 'R':
 		if (chan->pbx) {
-			chan->pbx->rtimeout = x;
-			ast_verb(3, "Response timeout set to %d\n", chan->pbx->rtimeout);
+			chan->pbx->rtimeoutms = tv.tv_sec * 1000 + tv.tv_usec / 1000.0;
+			ast_verb(3, "Response timeout set to %.3f\n", chan->pbx->rtimeoutms / 1000.0);
 		}
 		break;
 
 	case 'd':
 	case 'D':
 		if (chan->pbx) {
-			chan->pbx->dtimeout = x;
-			ast_verb(3, "Digit timeout set to %d\n", chan->pbx->dtimeout);
+			chan->pbx->dtimeoutms = tv.tv_sec * 1000 + tv.tv_usec / 1000.0;
+			ast_verb(3, "Digit timeout set to %.3f\n", chan->pbx->dtimeoutms / 1000.0);
 		}
 		break;
 

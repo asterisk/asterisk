@@ -115,7 +115,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->rawwriteformat),
 			ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->rawreadformat),
 			c->fds[0], c->fin & ~DEBUGCHAN_FLAG, (c->fin & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
-			c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "", (long)c->whentohangup,
+			c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "", (long)c->whentohangup.tv_sec,
 			hour,
 			min,
 			sec,

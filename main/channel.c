@@ -464,9 +464,9 @@ int ast_check_hangup(struct ast_channel *chan)
 		return 1;
 	if (!chan->tech_pvt)		/* yes if no technology private data */
 		return 1;
-	if (!chan->whentohangup)	/* no if no hangup scheduled */
+	if (ast_tvzero(chan->whentohangup))	/* no if no hangup scheduled */
 		return 0;
-	if (chan->whentohangup > time(NULL)) 	/* no if hangup time has not come yet. */
+	if (ast_tvdiff_ms(chan->whentohangup, ast_tvnow()) > 0) 	/* no if hangup time has not come yet. */
 		return 0;
 	chan->_softhangup |= AST_SOFTHANGUP_TIMEOUT;	/* record event */
 	return 1;
@@ -519,32 +519,39 @@ int ast_shutting_down(void)
 }
 
 /*! \brief Set when to hangup channel */
-void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
+void ast_channel_setwhentohangup_tv(struct ast_channel *chan, struct timeval offset)
 {
-	chan->whentohangup = offset ? time(NULL) + offset : 0;
+	chan->whentohangup = ast_tvzero(offset) ? offset : ast_tvadd(offset, ast_tvnow());
 	ast_queue_frame(chan, &ast_null_frame);
 	return;
 }
 
+void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
+{
+	struct timeval tv = { offset, };
+	ast_channel_setwhentohangup_tv(chan, tv);
+}
+
 /*! \brief Compare a offset with when to hangup channel */
+int ast_channel_cmpwhentohangup_tv(struct ast_channel *chan, struct timeval offset)
+{
+	struct timeval whentohangup;
+
+	if (ast_tvzero(chan->whentohangup))
+		return ast_tvzero(offset) ? 0 : -1;
+
+	if (ast_tvzero(offset))
+		return 1;
+
+	whentohangup = ast_tvadd(offset, ast_tvnow());
+
+	return ast_tvdiff_ms(whentohangup, chan->whentohangup);
+}
+
 int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset)
 {
-	time_t whentohangup;
-
-	if (!chan->whentohangup)
-		return (offset == 0) ? 0 : -1;
-
-	if (!offset) /* XXX why is this special? */
-		return 1;
-
-	whentohangup = offset + time(NULL);
-
-	if (chan->whentohangup < whentohangup)
-		return 1;
-	else if (chan->whentohangup == whentohangup)
-		return 0;
-	else
-		return -1;
+	struct timeval tv = { offset, };
+	return ast_channel_cmpwhentohangup_tv(chan, tv);
 }
 
 /*! \brief Register a new telephony channel in Asterisk */
@@ -1793,8 +1800,8 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	long rms;
 	int x, y, max;
 	int sz;
-	time_t now = 0;
-	long whentohangup = 0, diff;
+	struct timeval now = { 0, 0 };
+	struct timeval whentohangup = { 0, 0 }, diff;
 	struct ast_channel *winner = NULL;
 	struct fdmap {
 		int chan;
@@ -1820,25 +1827,25 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 			ast_channel_unlock(c[x]);
 			return NULL;
 		}
-		if (c[x]->whentohangup) {
-			if (!whentohangup)
-				time(&now);
-			diff = c[x]->whentohangup - now;
-			if (diff < 1) {
+		if (!ast_tvzero(c[x]->whentohangup)) {
+			if (ast_tvzero(whentohangup))
+				now = ast_tvnow();
+			diff = ast_tvsub(c[x]->whentohangup, now);
+			if (diff.tv_sec < 0 || ast_tvzero(diff)) {
 				/* Should already be hungup */
 				c[x]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 				ast_channel_unlock(c[x]);
 				return c[x];
 			}
-			if (!whentohangup || (diff < whentohangup))
+			if (ast_tvzero(whentohangup) || ast_tvcmp(diff, whentohangup) < 0)
 				whentohangup = diff;
 		}
 		ast_channel_unlock(c[x]);
 	}
 	/* Wait full interval */
 	rms = *ms;
-	if (whentohangup) {
-		rms = whentohangup * 1000;              /* timeout in milliseconds */
+	if (!ast_tvzero(whentohangup)) {
+		rms = whentohangup.tv_sec * 1000 + whentohangup.tv_usec / 1000;              /* timeout in milliseconds */
 		if (*ms >= 0 && *ms < rms)		/* original *ms still smaller */
 			rms =  *ms;
 	}
@@ -1884,10 +1891,10 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 			*ms = -1;
 		return NULL;
 	}
-	if (whentohangup) {   /* if we have a timeout, check who expired */
-		time(&now);
+	if (!ast_tvzero(whentohangup)) {   /* if we have a timeout, check who expired */
+		now = ast_tvnow();
 		for (x = 0; x < n; x++) {
-			if (c[x]->whentohangup && now >= c[x]->whentohangup) {
+			if (!ast_tvzero(c[x]->whentohangup) && ast_tvcmp(c[x]->whentohangup, now) <= 0) {
 				c[x]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 				if (winner == NULL)
 					winner = c[x];
@@ -1936,8 +1943,7 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 	struct timeval start = { 0 , 0 };
 	int res = 0;
 	struct epoll_event ev[1];
-	long whentohangup = 0, rms = *ms;
-	time_t now;
+	long diff, rms = *ms;
 	struct ast_channel *winner = NULL;
 	struct ast_epoll_data *aed = NULL;
 
@@ -1952,18 +1958,16 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 	}
 
 	/* Figure out their timeout */
-	if (chan->whentohangup) {
-		time(&now);
-		if ((whentohangup = chan->whentohangup - now) < 1) {
+	if (!ast_tvzero(chan->whentohangup)) {
+		if ((diff = ast_tvdiff_ms(chan->whentohangup, ast_tvnow())) < 0) {
 			/* They should already be hungup! */
 			chan->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 			ast_channel_unlock(chan);
 			return NULL;
 		}
 		/* If this value is smaller then the current one... make it priority */
-		whentohangup *= 1000;
-		if (rms > whentohangup)
-			rms = whentohangup;
+		if (rms > diff)
+			rms = diff;
 	}
 
 	ast_channel_unlock(chan);
@@ -1988,9 +1992,8 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 	}
 
 	/* If this channel has a timeout see if it expired */
-	if (chan->whentohangup) {
-		time(&now);
-		if (now >= chan->whentohangup) {
+	if (!ast_tvzero(chan->whentohangup)) {
+		if (ast_tvdiff_ms(ast_tvnow(), chan->whentohangup) >= 0) {
 			chan->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 			winner = chan;
 		}
@@ -2024,8 +2027,8 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 	struct timeval start = { 0 , 0 };
 	int res = 0, i;
 	struct epoll_event ev[25] = { { 0, } };
-	long whentohangup = 0, diff, rms = *ms;
-	time_t now;
+	struct timeval now = { 0, 0 };
+	long whentohangup = 0, diff = 0, rms = *ms;
 	struct ast_channel *winner = NULL;
 
 	for (i = 0; i < n; i++) {
@@ -2036,15 +2039,15 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 			ast_channel_unlock(c[i]);
 			return NULL;
 		}
-		if (c[i]->whentohangup) {
-			if (!whentohangup)
-				time(&now);
-			if ((diff = c[i]->whentohangup - now) < 1) {
+		if (!ast_tvzero(c[i]->whentohangup)) {
+			if (whentohangup == 0)
+				now = ast_tvnow();
+			if ((diff = ast_tvdiff_ms(c[i]->whentohangup, now)) < 0) {
 				c[i]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 				ast_channel_unlock(c[i]);
 				return c[i];
 			}
-			if (!whentohangup || (diff < whentohangup))
+			if (!whentohangup || whentohangup > diff)
 				whentohangup = diff;
 		}
 		ast_channel_unlock(c[i]);
@@ -2053,7 +2056,7 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 
 	rms = *ms;
 	if (whentohangup) {
-		rms = whentohangup * 1000;
+		rms = whentohangup;
 		if (*ms >= 0 && *ms < rms)
 			rms = *ms;
 	}
@@ -2073,9 +2076,9 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 	}
 
 	if (whentohangup) {
-		time(&now);
+		now = ast_tvnow();
 		for (i = 0; i < n; i++) {
-			if (c[i]->whentohangup && now >= c[i]->whentohangup) {
+			if (!ast_tvzero(c[i]->whentohangup) && ast_tvdiff_ms(now, c[i]->whentohangup) >= 0) {
 				c[i]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 				if (!winner)
 					winner = c[i];

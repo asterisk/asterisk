@@ -1472,7 +1472,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 		tc->appl = "AppDial";
 		tc->data = "(Outgoing Line)";
-		tc->whentohangup = 0;
+		memset(&tc->whentohangup, 0, sizeof(tc->whentohangup));
 
 		S_REPLACE(tc->cid.cid_num, ast_strdup(chan->cid.cid_num));
 		S_REPLACE(tc->cid.cid_name, ast_strdup(chan->cid.cid_name));
@@ -1839,7 +1839,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 		if (!res) {
 			if (calldurationlimit > 0) {
-				peer->whentohangup = time(NULL) + calldurationlimit;
+				struct timeval whentohangup = { calldurationlimit, 0 };
+				peer->whentohangup = ast_tvadd(ast_tvnow(), whentohangup);
 			}
 			if (!ast_strlen_zero(dtmfcalled)) {
 				ast_verb(3, "Sending DTMF '%s' to the called party.\n", dtmfcalled);
@@ -1967,7 +1968,7 @@ out:
 
 	if ((ast_test_flag64(peerflags, OPT_GO_ON)) && !ast_check_hangup(chan) && (res != AST_PBX_KEEPALIVE) && (res != AST_PBX_INCOMPLETE)) {
 		if (calldurationlimit)
-			chan->whentohangup = 0;
+			memset(&chan->whentohangup, 0, sizeof(chan->whentohangup));
 		res = 0;
 	}
 

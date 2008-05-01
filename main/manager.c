@@ -2367,13 +2367,14 @@ static int action_timeout(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c;
 	const char *name = astman_get_header(m, "Channel");
-	int timeout = atoi(astman_get_header(m, "Timeout"));
+	double timeout = atof(astman_get_header(m, "Timeout"));
+	struct timeval tv = { timeout, 0 };
 
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	if (!timeout) {
+	if (!timeout || timeout < 0) {
 		astman_send_error(s, m, "No timeout specified");
 		return 0;
 	}
@@ -2382,7 +2383,9 @@ static int action_timeout(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	ast_channel_setwhentohangup(c, timeout);
+
+	tv.tv_usec = (timeout - tv.tv_sec) * 1000000.0;
+	ast_channel_setwhentohangup_tv(c, tv);
 	ast_channel_unlock(c);
 	astman_send_ack(s, m, "Timeout Set");
 	return 0;

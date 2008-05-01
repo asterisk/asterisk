@@ -455,7 +455,7 @@ struct ast_channel {
 
 	int _softhangup;				/*!< Whether or not we have been hung up...  Do not set this value
 	    							directly, use ast_softhangup() */
-	time_t	whentohangup;				/*!< Non-zero, set to actual time when channel is to be hung up */
+	struct timeval whentohangup;        /*!< Non-zero, set to actual time when channel is to be hung up */
 	pthread_t blocker;				/*!< If anyone is blocking, this is them */
 	ast_mutex_t lock_dont_use;			/*!< Lock a channel for some operations. See ast_channel_lock() */
 	const char *blockproc;				/*!< Procedure causing blocking */
@@ -920,19 +920,20 @@ int ast_check_hangup(struct ast_channel *chan);
 
 /*! \brief Compare a offset with the settings of when to hang a channel up 
  * \param chan channel on which to check for hang up
- * \param offset offset in seconds from current time
+ * \param offset offset in seconds and useconds from current time
  * \return 1, 0, or -1
  * This function compares a offset from current time with the absolute time 
  * out on a channel (when to hang up). If the absolute time out on a channel
  * is earlier than current time plus the offset, it returns 1, if the two
  * time values are equal, it return 0, otherwise, it return -1.
  */
-int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset);
+int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset) __attribute__ ((deprecated));
+int ast_channel_cmpwhentohangup_tv(struct ast_channel *chan, struct timeval offset);
 
 /*! \brief Set when to hang a channel up 
  *
  * \param chan channel on which to check for hang up
- * \param offset offset in seconds from current time of when to hang up
+ * \param offset offset in seconds and useconds relative to the current time of when to hang up
  *
  * This function sets the absolute time out on a channel (when to hang up).
  *
@@ -941,7 +942,8 @@ int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset);
  *
  * \return Nothing
  */
-void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset);
+void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset) __attribute__ ((deprecated));
+void ast_channel_setwhentohangup_tv(struct ast_channel *chan, struct timeval offset);
 
 /*! 
  * \brief Answer a channel

@@ -513,7 +513,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 	struct ast_frame *f = NULL;
 	int oldreadformat = AST_FORMAT_SLINEAR;
 	char dtmf[AST_MAX_EXTENSION] = "";
-	time_t start, current;
+	struct timeval start = { 0, 0 }, current;
 	struct ast_datastore *datastore = NULL;
 	char *parse, *filename_tmp = NULL, *filename = NULL, tmp[2] = "", dtmf_terminator = '#';
 	const char *tmp2 = NULL;
@@ -552,7 +552,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 		/* Yay sound file */
 		filename_tmp = ast_strdupa(args.soundfile);
 		if (!ast_strlen_zero(args.timeout)) {
-			if ((timeout = atoi(args.timeout)) == 0)
+			if ((timeout = atof(args.timeout) * 1000.0) == 0)
 				timeout = -1;
 		} else
 			timeout = 0;
@@ -612,8 +612,8 @@ static int speech_background(struct ast_channel *chan, void *data)
 
 		/* Do timeout check (shared between audio/dtmf) */
 		if ((!quieted || strlen(dtmf)) && started == 1) {
-			time(&current);
-			if ((current-start) >= timeout) {
+			current = ast_tvnow();
+			if ((ast_tvdiff_ms(start, current)) >= timeout) {
 				done = 1;
 				if (f)
 					ast_frfree(f);
@@ -642,7 +642,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 						ast_frfree(f);
 					break;
 				}
-				time(&start);
+				start = ast_tvnow();
 				started = 1;
 			}
 			/* Write audio frame out to speech engine if no DTMF has been received */
@@ -701,10 +701,10 @@ static int speech_background(struct ast_channel *chan, void *data)
 					}
 					if (!started) {
 						/* Change timeout to be 5 seconds for DTMF input */
-						timeout = (chan->pbx && chan->pbx->dtimeout) ? chan->pbx->dtimeout : 5;
+						timeout = (chan->pbx && chan->pbx->dtimeoutms) ? chan->pbx->dtimeoutms : 5000;
 						started = 1;
 					}
-					time(&start);
+					start = ast_tvnow();
 					snprintf(tmp, sizeof(tmp), "%c", f->subclass);
 					strncat(dtmf, tmp, sizeof(dtmf) - strlen(dtmf) - 1);
 					/* If the maximum length of the DTMF has been reached, stop now */

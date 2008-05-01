@@ -298,6 +298,8 @@ static char *remote_rig_rbi = "rbi";
 
 static  pthread_t rpt_master_thread;
 
+struct timeval cancel_atimeout = { 0, 0 };
+
 struct rpt;
 
 struct rpt_link
@@ -2930,7 +2932,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 		if (l->chan) {
 			ast_set_read_format(l->chan, AST_FORMAT_SLINEAR);
 			ast_set_write_format(l->chan, AST_FORMAT_SLINEAR);
-			l->chan->whentohangup = 0;
+			ast_channel_setwhentohangup_tv(l->chan, cancel_atimeout);
 			l->chan->appl = "Apprpt";
 			l->chan->data = "(Remote Rx)";
 			ast_verb(3, "rpt (remote) initiating call to %s/%s on %s\n",
@@ -3041,7 +3043,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 		if (l->chan) {
 			ast_set_read_format(l->chan, AST_FORMAT_SLINEAR);
 			ast_set_write_format(l->chan, AST_FORMAT_SLINEAR);
-			l->chan->whentohangup = 0;
+			ast_channel_setwhentohangup_tv(l->chan, cancel_atimeout);
 			l->chan->appl = "Apprpt";
 			l->chan->data = "(Remote Rx)";
 			ast_verb(3, "rpt (remote) initiating call to %s/%s on %s\n",
@@ -5462,7 +5464,7 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 	if (l->chan) {
 		ast_set_read_format(l->chan, AST_FORMAT_SLINEAR);
 		ast_set_write_format(l->chan, AST_FORMAT_SLINEAR);
-		l->chan->whentohangup = 0;
+		ast_channel_setwhentohangup_tv(l->chan, cancel_atimeout);
 		l->chan->appl = "Apprpt";
 		l->chan->data = "(Remote Rx)";
 		ast_verb(3, "rpt (attempt_reconnect) initiating call to %s/%s on %s\n",
@@ -5699,7 +5701,7 @@ static void *rpt(void *this)
 		}
 		ast_set_read_format(myrpt->rxchannel, AST_FORMAT_SLINEAR);
 		ast_set_write_format(myrpt->rxchannel, AST_FORMAT_SLINEAR);
-		myrpt->rxchannel->whentohangup = 0;
+		ast_channel_setwhentohangup_tv(myrpt->rxchannel, cancel_atimeout);
 		myrpt->rxchannel->appl = "Apprpt";
 		myrpt->rxchannel->data = "(Repeater Rx)";
 		ast_verb(3, "rpt (Rx) initiating call to %s/%s on %s\n",
@@ -5740,7 +5742,7 @@ static void *rpt(void *this)
 			}			
 			ast_set_read_format(myrpt->txchannel, AST_FORMAT_SLINEAR);
 			ast_set_write_format(myrpt->txchannel, AST_FORMAT_SLINEAR);
-			myrpt->txchannel->whentohangup = 0;
+			ast_channel_setwhentohangup_tv(myrpt->txchannel, cancel_atimeout);
 			myrpt->txchannel->appl = "Apprpt";
 			myrpt->txchannel->data = "(Repeater Tx)";
 			ast_verb(3, "rpt (Tx) initiating call to %s/%s on %s\n",
@@ -7109,7 +7111,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	if (myrpt->rxchannel) {
 		ast_set_read_format(myrpt->rxchannel, AST_FORMAT_SLINEAR);
 		ast_set_write_format(myrpt->rxchannel, AST_FORMAT_SLINEAR);
-		myrpt->rxchannel->whentohangup = 0;
+		ast_channel_setwhentohangup_tv(myrpt->rxchannel, cancel_atimeout);
 		myrpt->rxchannel->appl = "Apprpt";
 		myrpt->rxchannel->data = "(Link Rx)";
 		ast_verb(3, "rpt (Rx) initiating call to %s/%s on %s\n",
@@ -7136,7 +7138,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		if (myrpt->txchannel) {
 			ast_set_read_format(myrpt->txchannel, AST_FORMAT_SLINEAR);
 			ast_set_write_format(myrpt->txchannel, AST_FORMAT_SLINEAR);
-			myrpt->txchannel->whentohangup = 0;
+			ast_channel_setwhentohangup_tv(myrpt->txchannel, cancel_atimeout);
 			myrpt->txchannel->appl = "Apprpt";
 			myrpt->txchannel->data = "(Link Tx)";
 			ast_verb(3, "rpt (Tx) initiating call to %s/%s on %s\n",

@@ -162,7 +162,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 			ast_stopstream(chan);
 			if (ts && ts->data[0]) {
 				if (!to)
-					to = chan->pbx ? chan->pbx->rtimeout * 1000 : 6000;
+					to = chan->pbx ? chan->pbx->rtimeoutms : 6000;
 				res = ast_playtones_start(chan, 0, ts->data, 0);
 				for (x = 0; x < maxdigits; ) {
 					res = ast_waitfordigit(chan, to);

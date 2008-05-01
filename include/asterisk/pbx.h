@@ -112,8 +112,8 @@ int ast_build_timing(struct ast_timing *i, const char *info);
 int ast_check_timing(const struct ast_timing *i);
 
 struct ast_pbx {
-	int dtimeout;				/*!< Timeout between digits (seconds) */
-	int rtimeout;				/*!< Timeout for response (seconds) */
+	int dtimeoutms;				/*!< Timeout between digits (milliseconds) */
+	int rtimeoutms;				/*!< Timeout for response (milliseconds) */
 };
 
 

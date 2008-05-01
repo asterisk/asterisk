@@ -2228,7 +2228,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	
 	tmp->chan->appl = "AppQueue";
 	tmp->chan->data = "(Outgoing Line)";
-	tmp->chan->whentohangup = 0;
+	memset(&tmp->chan->whentohangup, 0, sizeof(tmp->chan->whentohangup));
 	if (tmp->chan->cid.cid_num)
 		ast_free(tmp->chan->cid.cid_num);
 	tmp->chan->cid.cid_num = ast_strdup(qe->chan->cid.cid_num);
