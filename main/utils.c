@@ -446,7 +446,7 @@ static void base64_init(void)
 */
 char *ast_uri_encode(const char *string, char *outbuf, int buflen, int doreserved) 
 {
-	char *reserved = ";/?:@&=+$, ";	/* Reserved chars */
+	char *reserved = ";/?:@&=+$,# ";	/* Reserved chars */
 
  	const char *ptr  = string;	/* Start with the string */
 	char *out = NULL;
