@@ -41,17 +41,11 @@ extern "C" {
  * then whatever callback had been running will complete
  * and reinsert the task into the scheduler.
  *
- * Note that this is NOT always appropriate. This should 
- * only be used for tasks whose callback may return non-zero 
- * to indicate that the task needs to be rescheduled with the
- * SAME id as previously.
- *
- * Some scheduler callbacks instead may reschedule the task themselves,
- * thus removing the previous task id from the queue. If the task is rescheduled
- * in this manner, then the id for the task will be different than before
- * and so it makes no sense to use this macro. Note that if using the scheduler
- * in this manner, it is perfectly acceptable for ast_sched_del to fail, and this
- * macro should NOT be used.
+ * Since macro expansion essentially works like pass-by-name
+ * parameter passing, this macro will still work correctly even
+ * if the id of the task to delete changes. This holds as long as 
+ * the name of the id which could change is passed to the macro 
+ * and not a copy of the value of the id.
  */
 #define AST_SCHED_DEL(sched, id) \
 	({ \
