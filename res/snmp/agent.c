@@ -301,9 +301,9 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		}
 		break;
 	case ASTCHANWHENHANGUP:
-		if (chan->whentohangup) {
+		if (!ast_tvzero(chan->whentohangup)) {
 			gettimeofday(&tval, NULL);
-			long_ret = difftime(chan->whentohangup, tval.tv_sec) * 100 - tval.tv_usec / 10000;
+			long_ret = difftime(chan->whentohangup.tv_sec, tval.tv_sec) * 100 - tval.tv_usec / 10000;
 			ret= (u_char *)&long_ret;
 		}
 		break;
