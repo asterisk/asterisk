@@ -277,6 +277,9 @@
 /* Define to indicate the ${PRI_DESCRIP} library */
 #undef HAVE_PRI
 
+/* Define to indicate the ${PRI_VERSION_DESCRIP} library */
+#undef HAVE_PRI_VERSION
+
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
 

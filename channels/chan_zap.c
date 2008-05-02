@@ -9609,6 +9609,13 @@ static int handle_pri_set_debug_file(int fd, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
+#ifdef HAVE_PRI_VERSION
+static int handle_pri_version(int fd, int agc, char *argv[]) {
+	ast_cli(fd, "libpri version: %s\n", pri_get_version());
+	return RESULT_SUCCESS;
+}
+#endif
+
 static int handle_pri_debug(int fd, int argc, char *argv[])
 {
 	int span;
@@ -9845,6 +9852,11 @@ static struct ast_cli_entry zap_pri_cli[] = {
 
 	{ { "pri", "unset", "debug", "file", NULL },
 	handle_pri_set_debug_file, "Ends PRI debug output to file" },
+
+#ifdef HAVE_PRI_VERSION
+	{ { "pri", "show", "version", NULL },
+	handle_pri_version, "Displays version of libpri" },
+#endif
 };
 
 #endif /* HAVE_PRI */
