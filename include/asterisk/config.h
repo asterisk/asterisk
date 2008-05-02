@@ -182,8 +182,8 @@ int ast_category_exist(const struct ast_config *config, const char *category_nam
  * that unlike the variables in ast_config, the resulting list of variables
  * MUST be freed with ast_variables_destroy() as there is no container.
  */
-struct ast_variable *ast_load_realtime(const char *family, ...);
-struct ast_variable *ast_load_realtime_all(const char *family, ...);
+struct ast_variable *ast_load_realtime(const char *family, ...) __attribute__((sentinel));
+struct ast_variable *ast_load_realtime_all(const char *family, ...) __attribute__((sentinel));
 
 /*! 
  * \brief Retrieve realtime configuration 
@@ -194,7 +194,7 @@ struct ast_variable *ast_load_realtime_all(const char *family, ...);
  * is thus stored inside a taditional ast_config structure rather than 
  * just returning a linked list of variables.
  */
-struct ast_config *ast_load_realtime_multientry(const char *family, ...);
+struct ast_config *ast_load_realtime_multientry(const char *family, ...) __attribute__((sentinel));
 
 /*! 
  * \brief Update realtime configuration 
@@ -204,7 +204,7 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...);
  * This function is used to update a parameter in realtime configuration space.
  *
  */
-int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
+int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...) __attribute__((sentinel));
 
 /*! 
  * \brief Create realtime configuration 
@@ -212,7 +212,7 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
  * This function is used to create a parameter in realtime configuration space.
  *
  */
-int ast_store_realtime(const char *family, ...);
+int ast_store_realtime(const char *family, ...) __attribute__((sentinel));
 
 /*! 
  * \brief Destroy realtime configuration 
@@ -223,7 +223,7 @@ int ast_store_realtime(const char *family, ...);
  * Additional params are used as keys.
  *
  */
-int ast_destroy_realtime(const char *family, const char *keyfield, const char *lookup, ...);
+int ast_destroy_realtime(const char *family, const char *keyfield, const char *lookup, ...) __attribute__((sentinel));
 
 /*! 
  * \brief Check if realtime engine is configured for family 

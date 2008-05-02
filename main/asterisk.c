@@ -1117,7 +1117,10 @@ static int ast_makesocket(void)
 		ast_socket = -1;
 		return -1;
 	}
-	ast_register_verbose(network_verboser);
+	if (ast_register_verbose(network_verboser)) {
+		ast_log(LOG_WARNING, "Unable to register network verboser?\n");
+	}
+
 	ast_pthread_create_background(&lthread, NULL, listener, NULL);
 
 	if (!ast_strlen_zero(ast_config_AST_CTL_OWNER)) {
@@ -2914,7 +2917,9 @@ int main(int argc, char *argv[])
 	}
 
 	if (ast_opt_console || option_verbose || (ast_opt_remote && !ast_opt_exec)) {
-		ast_register_verbose(console_verboser);
+		if (ast_register_verbose(console_verboser)) {
+			ast_log(LOG_WARNING, "Unable to register console verboser?\n");
+		}
 		WELCOME_MESSAGE;
 	}
 

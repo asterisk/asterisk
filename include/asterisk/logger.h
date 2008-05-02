@@ -81,8 +81,8 @@ void ast_verbose(const char *fmt, ...)
 void ast_child_verbose(int level, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
-int ast_register_verbose(void (*verboser)(const char *string));
-int ast_unregister_verbose(void (*verboser)(const char *string));
+int ast_register_verbose(void (*verboser)(const char *string)) __attribute__((warn_unused_result));
+int ast_unregister_verbose(void (*verboser)(const char *string)) __attribute__((warn_unused_result));
 
 void ast_console_puts(const char *string);
 

@@ -4607,7 +4607,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	/* Destroy Session-Timers if allocated */
 	if (p->stimer) {
 		if (p->stimer->st_active == TRUE && p->stimer->st_schedid > -1)
-			ast_sched_del(sched, p->stimer->st_schedid);
+			AST_SCHED_DEL(sched, p->stimer->st_schedid);
 		ast_free(p->stimer);
 		p->stimer = NULL;
 	}
@@ -15978,7 +15978,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 	case 423:	/* Interval too brief */
 		r->expiry = atoi(get_header(req, "Min-Expires"));
 		ast_log(LOG_WARNING, "Got 423 Interval too brief for service %s@%s, minimum is %d seconds\n", p->registry->username, p->registry->hostname, r->expiry);
-		ast_sched_del(sched, r->timeout);
+		AST_SCHED_DEL(sched, r->timeout);
 		r->timeout = -1;
 		if (r->call) {
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 423");

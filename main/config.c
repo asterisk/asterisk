@@ -2130,7 +2130,8 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
 	return res;
 }
 
-int ast_store_realtime(const char *family, ...) {
+int ast_store_realtime(const char *family, ...)
+{
 	struct ast_config_engine *eng;
 	int res = -1;
 	char db[256]="";
@@ -2146,7 +2147,8 @@ int ast_store_realtime(const char *family, ...) {
 	return res;
 }
 
-int ast_destroy_realtime(const char *family, const char *keyfield, const char *lookup, ...) {
+int ast_destroy_realtime(const char *family, const char *keyfield, const char *lookup, ...)
+{
 	struct ast_config_engine *eng;
 	int res = -1;
 	char db[256]="";
