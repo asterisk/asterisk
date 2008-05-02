@@ -53,4 +53,10 @@
 #define attribute_malloc
 #endif
 
+#if HAVE_ATTRIBUTE_sentinel
+#define attribute_sentinel __attribute__((sentinel))
+#else
+#define attribute_sentinel
+#endif
+
 #endif /* _ASTERISK_COMPILER_H */
