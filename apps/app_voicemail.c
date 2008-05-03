@@ -114,6 +114,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/smdi.h"
 #include "asterisk/event.h"
+#include "asterisk/taskprocessor.h"
 
 #ifdef ODBC_STORAGE
 #include "asterisk/res_odbc.h"
@@ -620,6 +621,14 @@ struct mwi_sub {
 	uint32_t uniqueid;
 	char mailbox[1];
 };
+
+struct mwi_sub_task {
+	const char *mailbox;
+	const char *context;
+	uint32_t uniqueid;
+};
+
+static struct ast_taskprocessor *mwi_subscription_tps;
 
 static AST_RWLIST_HEAD_STATIC(mwi_subs, mwi_sub);
 
@@ -8716,22 +8725,14 @@ static void mwi_sub_destroy(struct mwi_sub *mwi_sub)
 	ast_free(mwi_sub);
 }
 
-static void mwi_unsub_event_cb(const struct ast_event *event, void *userdata)
+static int handle_unsubscribe(void *datap)
 {
-	uint32_t uniqueid;
 	struct mwi_sub *mwi_sub;
-
-	if (ast_event_get_type(event) != AST_EVENT_UNSUB)
-		return;
-
-	if (ast_event_get_ie_uint(event, AST_EVENT_IE_EVENTTYPE) != AST_EVENT_MWI)
-		return;
-
-	uniqueid = ast_event_get_ie_uint(event, AST_EVENT_IE_UNIQUEID);
-
+	uint32_t *uniqueid = datap;
+	
 	AST_RWLIST_WRLOCK(&mwi_subs);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&mwi_subs, mwi_sub, entry) {
-		if (mwi_sub->uniqueid == uniqueid) {
+		if (mwi_sub->uniqueid == *uniqueid) {
 			AST_LIST_REMOVE_CURRENT(entry);
 			break;
 		}
@@ -8741,48 +8742,80 @@ static void mwi_unsub_event_cb(const struct ast_event *event, void *userdata)
 
 	if (mwi_sub)
 		mwi_sub_destroy(mwi_sub);
+
+	ast_free(uniqueid);	
+	return 0;
+}
+
+static int handle_subscribe(void *datap)
+{
+	unsigned int len;
+	struct mwi_sub *mwi_sub;
+	struct mwi_sub_task *p = datap;
+
+	len = sizeof(*mwi_sub);
+	if (!ast_strlen_zero(p->mailbox))
+		len += strlen(p->mailbox);
+
+	if (!ast_strlen_zero(p->context))
+		len += strlen(p->context) + 1; /* Allow for seperator */
+
+	if (!(mwi_sub = ast_calloc(1, len)))
+		return -1;
+
+	mwi_sub->uniqueid = p->uniqueid;
+	if (!ast_strlen_zero(p->mailbox))
+		strcpy(mwi_sub->mailbox, p->mailbox);
+
+	if (!ast_strlen_zero(p->context)) {
+		strcat(mwi_sub->mailbox, "@");
+		strcat(mwi_sub->mailbox, p->context);
+	}
+
+	AST_RWLIST_WRLOCK(&mwi_subs);
+	AST_RWLIST_INSERT_TAIL(&mwi_subs, mwi_sub, entry);
+	AST_RWLIST_UNLOCK(&mwi_subs);
+	ast_free(p);	
+	return 0;
+}
+
+static void mwi_unsub_event_cb(const struct ast_event *event, void *userdata)
+{
+	uint32_t u, *uniqueid = ast_calloc(1, sizeof(*uniqueid));
+	if (ast_event_get_type(event) != AST_EVENT_UNSUB)
+		return;
+
+	if (ast_event_get_ie_uint(event, AST_EVENT_IE_EVENTTYPE) != AST_EVENT_MWI)
+		return;
+
+	u = ast_event_get_ie_uint(event, AST_EVENT_IE_UNIQUEID);
+	*uniqueid = u;
+	if (ast_taskprocessor_push(mwi_subscription_tps, handle_unsubscribe, uniqueid) < 0) {
+		ast_free(uniqueid);
+	}
 }
 
 static void mwi_sub_event_cb(const struct ast_event *event, void *userdata)
 {
-	const char *mailbox;
-	const char *context;
-	uint32_t uniqueid;
-	unsigned int len;
-	struct mwi_sub *mwi_sub;
-
+	struct mwi_sub_task *mwist;
+	
 	if (ast_event_get_type(event) != AST_EVENT_SUB)
 		return;
 
 	if (ast_event_get_ie_uint(event, AST_EVENT_IE_EVENTTYPE) != AST_EVENT_MWI)
 		return;
 
-	mailbox = ast_event_get_ie_str(event, AST_EVENT_IE_MAILBOX);
-	context = ast_event_get_ie_str(event, AST_EVENT_IE_CONTEXT);
-	uniqueid = ast_event_get_ie_uint(event, AST_EVENT_IE_UNIQUEID);
-
-	len = sizeof(*mwi_sub);
-	if (!ast_strlen_zero(mailbox))
-		len += strlen(mailbox);
-
-	if (!ast_strlen_zero(context))
-		len += strlen(context) + 1; /* Allow for seperator */
-
-	if (!(mwi_sub = ast_calloc(1, len)))
+	if ((mwist = ast_calloc(1, (sizeof(*mwist)))) == NULL) {
+		ast_log(LOG_ERROR, "could not allocate a mwi_sub_task\n");
 		return;
-
-	mwi_sub->uniqueid = uniqueid;
-	if (!ast_strlen_zero(mailbox))
-		strcpy(mwi_sub->mailbox, mailbox);
-
-	if (!ast_strlen_zero(context)) {
-		strcat(mwi_sub->mailbox, "@");
-		strcat(mwi_sub->mailbox, context);
 	}
-
-	AST_RWLIST_WRLOCK(&mwi_subs);
-	AST_RWLIST_INSERT_TAIL(&mwi_subs, mwi_sub, entry);
-	AST_RWLIST_UNLOCK(&mwi_subs);
+	mwist->mailbox = ast_event_get_ie_str(event, AST_EVENT_IE_MAILBOX);
+	mwist->context = ast_event_get_ie_str(event, AST_EVENT_IE_CONTEXT);
+	mwist->uniqueid = ast_event_get_ie_uint(event, AST_EVENT_IE_UNIQUEID);
+	
+	if (ast_taskprocessor_push(mwi_subscription_tps, handle_subscribe, mwist) < 0) {
+		ast_free(mwist);
+	}
 }
 
 static void start_poll_thread(void)
@@ -9605,6 +9638,7 @@ static int unload_module(void)
 	if (poll_thread != AST_PTHREADT_NULL)
 		stop_poll_thread();
 
+	mwi_subscription_tps = ast_taskprocessor_unreference(mwi_subscription_tps);
 	return res;
 }
 
@@ -9616,6 +9650,10 @@ static int load_module(void)
 
 	/* compute the location of the voicemail spool directory */
 	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
+	
+	if (!(mwi_subscription_tps = ast_taskprocessor_get("app_voicemail", 0))) {
+		ast_log(LOG_WARNING, "failed to reference mwi subscription taskprocessor.  MWI will not work\n");
+	}
 
 	if ((res = load_config(0)))
 		return res;
