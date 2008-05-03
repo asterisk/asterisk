@@ -64,6 +64,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/hashtab.h"
 #include "asterisk/module.h"
 #include "asterisk/indications.h"
+#include "asterisk/taskprocessor.h"
 
 /*!
  * \note I M P O R T A N T :
@@ -122,6 +123,8 @@ AST_APP_OPTIONS(waitexten_opts, {
 
 struct ast_context;
 struct ast_app;
+
+static struct ast_taskprocessor *device_state_tps;
 
 AST_THREADSTORAGE(switch_data);
 
@@ -266,24 +269,6 @@ static const struct cfextension_states {
 struct statechange {
 	AST_LIST_ENTRY(statechange) entry;
 	char dev[0];
-};
-
-/*!
- * \brief Data used by the device state thread
- */
-static struct {
-	/*! Set to 1 to stop the thread */
-	unsigned int stop:1;
-	/*! The device state monitoring thread */
-	pthread_t thread;
-	/*! Lock for the state change queue */
-	ast_mutex_t lock;
-	/*! Condition for the state change queue */
-	ast_cond_t cond;
-	/*! Queue of state changes */
-	AST_LIST_HEAD_NOLOCK(, statechange) state_change_q;
-} device_state = {
-	.thread = AST_PTHREADT_NULL,
 };
 
 struct pbx_exception {
@@ -3144,10 +3129,10 @@ int ast_extension_state(struct ast_channel *c, const char *context, const char *
 	return ast_extension_state2(e);    		/* Check all devices in the hint */
 }
 
-static void handle_statechange(const char *device)
+static int handle_statechange(void *datap)
 {
 	struct ast_hint *hint;
-
+	struct statechange *sc = datap;
 	AST_RWLIST_RDLOCK(&hints);
 
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
@@ -3159,7 +3144,7 @@ static void handle_statechange(const char *device)
 
 		ast_copy_string(buf, ast_get_extension_app(hint->exten), sizeof(buf));
 		while ( (cur = strsep(&parse, "&")) ) {
-			if (!strcasecmp(cur, device))
+			if (!strcasecmp(cur, sc->dev))
 				break;
 		}
 		if (!cur)
@@ -3185,49 +3170,9 @@ static void handle_statechange(const char *device)
 
 		hint->laststate = state;	/* record we saw the change */
 	}
-
 	AST_RWLIST_UNLOCK(&hints);
-}
-
-static int statechange_queue(const char *dev)
-{
-	struct statechange *sc;
-
-	if (!(sc = ast_calloc(1, sizeof(*sc) + strlen(dev) + 1)))
-		return 0;
-
-	strcpy(sc->dev, dev);
-
-	ast_mutex_lock(&device_state.lock);
-	AST_LIST_INSERT_TAIL(&device_state.state_change_q, sc, entry);
-	ast_cond_signal(&device_state.cond);
-	ast_mutex_unlock(&device_state.lock);
-
+	ast_free(sc);
 	return 0;
-}
-
-static void *device_state_thread(void *data)
-{
-	struct statechange *sc;
-
-	while (!device_state.stop) {
-		ast_mutex_lock(&device_state.lock);
-		while (!(sc = AST_LIST_REMOVE_HEAD(&device_state.state_change_q, entry))) {
-			ast_cond_wait(&device_state.cond, &device_state.lock);
-			/* Check to see if we were woken up to see the request to stop */
-			if (device_state.stop) {
-				ast_mutex_unlock(&device_state.lock);
-				return NULL;
-			}
-		}
-		ast_mutex_unlock(&device_state.lock);
-
-		handle_statechange(sc->dev);
-
-		ast_free(sc);
-	}
-
-	return NULL;
 }
 
 /*! \brief  Add watcher for extension states */
@@ -8098,6 +8043,7 @@ static int pbx_builtin_sayphonetic(struct ast_channel *chan, void *data)
 static void device_state_cb(const struct ast_event *event, void *unused)
 {
 	const char *device;
+	struct statechange *sc;
 
 	device = ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE);
 	if (ast_strlen_zero(device)) {
@@ -8105,7 +8051,12 @@ static void device_state_cb(const struct ast_event *event, void *unused)
 		return;
 	}
 
-	statechange_queue(device);
+	if (!(sc = ast_calloc(1, sizeof(*sc) + strlen(device) + 1)))
+		return;
+	strcpy(sc->dev, device);
+	if (ast_taskprocessor_push(device_state_tps, handle_statechange, sc) < 0) {
+		ast_free(sc);
+	}
 }
 
 int load_pbx(void)
@@ -8114,8 +8065,11 @@ int load_pbx(void)
 
 	/* Initialize the PBX */
 	ast_verb(1, "Asterisk PBX Core Initializing\n");
+	if (!(device_state_tps = ast_taskprocessor_get("pbx-core", 0))) {
+		ast_log(LOG_WARNING, "failed to create pbx-core taskprocessor\n");
+	}
+
 	ast_verb(1, "Registering builtin applications:\n");
-	
 	ast_cli_register_multiple(pbx_cli, sizeof(pbx_cli) / sizeof(struct ast_cli_entry));
 	__ast_custom_function_register(&exception_function, NULL);
 
@@ -8130,10 +8084,6 @@ int load_pbx(void)
 	
 	/* Register manager application */
 	ast_manager_register2("ShowDialPlan", EVENT_FLAG_CONFIG | EVENT_FLAG_REPORTING, manager_show_dialplan, "List dialplan", mandescr_show_dialplan);
-
-	ast_mutex_init(&device_state.lock);
-	ast_cond_init(&device_state.cond, NULL);
-	ast_pthread_create(&device_state.thread, NULL, device_state_thread, NULL);
 
 	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL,
 			AST_EVENT_IE_END))) {
