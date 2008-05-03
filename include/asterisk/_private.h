@@ -36,6 +36,7 @@ int ast_features_init(void);            /*!< Provided by features.c */
 void ast_autoservice_init(void);	/*!< Provided by autoservice.c */
 int ast_http_init(void);		/*!< Provided by http.c */
 int ast_http_reload(void);		/*!< Provided by http.c */
+int ast_tps_init(void); 		/*!< Provided by taskprocessor.c */
 
 /*!
  * \brief Reload asterisk modules.

@@ -2815,6 +2815,7 @@ int main(int argc, char *argv[])
 	ast_builtins_init();
 	ast_utils_init();
 	tdd_init();
+	ast_tps_init();
 
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
