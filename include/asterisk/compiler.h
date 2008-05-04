@@ -23,37 +23,37 @@
 #ifndef _ASTERISK_COMPILER_H
 #define _ASTERISK_COMPILER_H
 
-#if HAVE_ATTRIBUTE_always_inline
+#ifdef HAVE_ATTRIBUTE_always_inline
 #define force_inline __attribute__((always_inline)) inline
 #else
 #define force_inline inline
 #endif
 
-#if HAVE_ATTRIBUTE_pure
+#ifdef HAVE_ATTRIBUTE_pure
 #define attribute_pure __attribute__((pure))
 #else
 #define attribute_pure
 #endif
 
-#if HAVE_ATTRIBUTE_const
+#ifdef HAVE_ATTRIBUTE_const
 #define attribute_const __attribute__((const))
 #else
 #define attribute_const
 #endif
 
-#if HAVE_ATTRIBUTE_unused
+#ifdef HAVE_ATTRIBUTE_unused
 #define attribute_unused __attribute__((unused))
 #else
 #define attribute_unused
 #endif
 
-#if HAVE_ATTRIBUTE_malloc
+#ifdef HAVE_ATTRIBUTE_malloc
 #define attribute_malloc __attribute__((malloc))
 #else
 #define attribute_malloc
 #endif
 
-#if HAVE_ATTRIBUTE_sentinel
+#ifdef HAVE_ATTRIBUTE_sentinel
 #define attribute_sentinel __attribute__((sentinel))
 #else
 #define attribute_sentinel
