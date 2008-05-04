@@ -16561,7 +16561,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static int __attribute__((pure)) test(void) {}
+static void __attribute__((pure)) *test(void *muffin, ...) {}
 int
 main ()
 {
@@ -16617,7 +16617,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static int __attribute__((malloc)) test(void) {}
+static void __attribute__((malloc)) *test(void *muffin, ...) {}
 int
 main ()
 {
@@ -16673,7 +16673,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static int __attribute__((const)) test(void) {}
+static void __attribute__((const)) *test(void *muffin, ...) {}
 int
 main ()
 {
@@ -16729,7 +16729,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static int __attribute__((unused)) test(void) {}
+static void __attribute__((unused)) *test(void *muffin, ...) {}
 int
 main ()
 {
@@ -16785,7 +16785,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static int __attribute__((always_inline)) test(void) {}
+static void __attribute__((always_inline)) *test(void *muffin, ...) {}
 int
 main ()
 {
@@ -16841,7 +16841,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static int __attribute__((deprecated)) test(void) {}
+static void __attribute__((deprecated)) *test(void *muffin, ...) {}
 int
 main ()
 {
