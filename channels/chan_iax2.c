@@ -1581,20 +1581,7 @@ static void remove_by_peercallno(struct chan_iax2_pvt *pvt)
 	ao2_unlink(iax_peercallno_pvts, pvt);
 }
 
-/*!
- * \todo XXX Note that this function contains a very expensive operation that
- * happens for *every* incoming media frame.  It iterates through every
- * possible call number, locking and unlocking each one, to try to match the
- * incoming frame to an active call.  Call numbers can be up to 2^15, 32768.
- * So, for a call with a local call number of 20000, every incoming audio
- * frame would require 20000 mutex lock and unlock operations.  Ouch.
- *
- * It's a shame that IAX2 media frames carry the source call number instead of
- * the destination call number.  If they did, this lookup wouldn't be needed.
- * However, it's too late to change that now.  Instead, we need to come up with
- * a better way of indexing active calls so that these frequent lookups are not
- * so expensive.
- *
+/*
  * \note Calling this function while holding another pvt lock can cause a deadlock.
  */
 static int __find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd, int return_locked, int full_frame)
