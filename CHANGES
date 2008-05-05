@@ -97,6 +97,11 @@ Dialplan function changes
 -------------------------
  * TIMEOUT() has been modified to be accurate down to the millisecond.
 
+AMI - The manager (TCP/TLS/HTTP)
+--------------------------------
+  * The Status command now takes an optional list of variables to display
+    along with channel status.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------
 ------------------------------------------------------------------------------

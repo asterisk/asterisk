@@ -1731,12 +1731,23 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static char mandescr_status[] = 
+"Description: Lists channel status along with requested channel vars.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Channel: Name of the channel to query for status\n"
+"	Variables: Comma ',' separated list of variables to include\n"
+"	ActionID: Optional ID for this transaction\n"
+"Will return the status information of each channel along with the\n"
+"value for the specified channel variables.\n";
+ 
 
 /*! \brief Manager "status" command to show channels */
 /* Needs documentation... */
 static int action_status(struct mansession *s, const struct message *m)
 {
 	const char *name = astman_get_header(m, "Channel");
+	const char *cvariables = astman_get_header(m, "Variables");
+	char *variables = ast_strdupa(S_OR(cvariables, ""));
 	struct ast_channel *c;
 	char bridge[256];
 	struct timeval now = ast_tvnow();
@@ -1745,6 +1756,10 @@ static int action_status(struct mansession *s, const struct message *m)
 	int all = ast_strlen_zero(name); /* set if we want all channels */
 	const char *id = astman_get_header(m, "ActionID");
 	char idText[256];
+	AST_DECLARE_APP_ARGS(vars,
+		AST_APP_ARG(name)[100];
+	);
+	struct ast_str *str = ast_str_create(1000);
 
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
@@ -1762,8 +1777,31 @@ static int action_status(struct mansession *s, const struct message *m)
 	}
 	astman_send_ack(s, m, "Channel status will follow");
 
+	if (!ast_strlen_zero(cvariables)) {
+		AST_STANDARD_APP_ARGS(vars, variables);
+	}
+
 	/* if we look by name, we break after the first iteration */
 	while (c) {
+		if (!ast_strlen_zero(cvariables)) {
+			int i;
+			ast_str_reset(str);
+			for (i = 0; i < vars.argc; i++) {
+				char valbuf[512], *ret = NULL;
+
+				if (vars.name[i][strlen(vars.name[i]) - 1] == ')') {
+					if (ast_func_read(c, vars.name[i], valbuf, sizeof(valbuf)) < 0) {
+						valbuf[0] = '\0';
+					}
+					ret = valbuf;
+				} else {
+					pbx_retrieve_variable(c, vars.name[i], &ret, valbuf, sizeof(valbuf), NULL);
+				}
+
+				ast_str_append(&str, 0, "Variable: %s=%s\r\n", vars.name[i], ret);
+			}
+		}
+
 		channels++;
 		if (c->_bridge)
 			snprintf(bridge, sizeof(bridge), "BridgedChannel: %s\r\nBridgedUniqueid: %s\r\n", c->_bridge->name, c->_bridge->uniqueid);
@@ -1789,6 +1827,7 @@ static int action_status(struct mansession *s, const struct message *m)
 			"%s"
 			"Uniqueid: %s\r\n"
 			"%s"
+			"%s"
 			"\r\n",
 			c->name,
 			S_OR(c->cid.cid_num, ""),
@@ -1796,7 +1835,7 @@ static int action_status(struct mansession *s, const struct message *m)
 			c->accountcode,
 			c->_state,
 			ast_state2str(c->_state), c->context,
-			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, idText);
+			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, str->str, idText);
 		} else {
 			astman_append(s,
 			"Event: Status\r\n"
@@ -1809,12 +1848,13 @@ static int action_status(struct mansession *s, const struct message *m)
 			"%s"
 			"Uniqueid: %s\r\n"
 			"%s"
+			"%s"
 			"\r\n",
 			c->name,
 			S_OR(c->cid.cid_num, "<unknown>"),
 			S_OR(c->cid.cid_name, "<unknown>"),
 			c->accountcode,
-			ast_state2str(c->_state), bridge, c->uniqueid, idText);
+			ast_state2str(c->_state), bridge, c->uniqueid, str->str, idText);
 		}
 		ast_channel_unlock(c);
 		if (!all)
@@ -1826,6 +1866,7 @@ static int action_status(struct mansession *s, const struct message *m)
 	"%s"
 	"Items: %d\r\n"
 	"\r\n", idText, channels);
+	ast_free(str);
 	return 0;
 }
 
@@ -3756,9 +3797,9 @@ static int __init_manager(int reload)
 		ast_manager_register2("Login", 0, action_login, "Login Manager", NULL);
 		ast_manager_register2("Challenge", 0, action_challenge, "Generate Challenge for MD5 Auth", NULL);
 		ast_manager_register2("Hangup", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, action_hangup, "Hangup Channel", mandescr_hangup);
-		ast_manager_register("Status", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_status, "Lists channel status" );
-		ast_manager_register2("Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar );
-		ast_manager_register2("Getvar", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_getvar, "Gets a Channel Variable", mandescr_getvar );
+		ast_manager_register2("Status", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_status, "Lists channel status", mandescr_status);
+		ast_manager_register2("Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar);
+		ast_manager_register2("Getvar", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_getvar, "Gets a Channel Variable", mandescr_getvar);
 		ast_manager_register2("GetConfig", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfig, "Retrieve configuration", mandescr_getconfig);
 		ast_manager_register2("GetConfigJSON", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfigjson, "Retrieve configuration (JSON format)", mandescr_getconfigjson);
 		ast_manager_register2("UpdateConfig", EVENT_FLAG_CONFIG, action_updateconfig, "Update basic configuration", mandescr_updateconfig);
