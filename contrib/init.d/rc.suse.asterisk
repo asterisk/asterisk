@@ -63,6 +63,15 @@ RETVAL=0
 
 start() {
 	# Start daemons.
+
+	# Check if Asterisk is already running.  If it is, then bug out, because
+	# starting Asterisk when Asterisk is already running is very bad.
+	VERSION=`/usr/sbin/asterisk -rx 'core show version'`
+	if [ "${VERSION:0:8}" = "Asterisk" ]; then # otherwise "Unable t"
+		echo "Asterisk is already running.  $0 will exit now."
+		exit 1
+	fi
+
 	echo -n $"Starting asterisk: "
         if [ -f $SAFE_ASTERISK ] ; then
 		DAEMON=$SAFE_ASTERISK

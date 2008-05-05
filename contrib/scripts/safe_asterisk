@@ -26,13 +26,21 @@ PRIORITY=0
 # set to the system's maximum files open devided by two, if not set here.
 # MAXFILES=32768
 
+# Check if Asterisk is already running.  If it is, then bug out, because
+# starting safe_asterisk when Asterisk is running is very bad.
+VERSION=`${ASTSBINDIR}/asterisk -rx 'core show version'`
+if [ "${VERSION:0:8}" = "Asterisk" ]; then # otherwise "Unable t"
+	echo "Asterisk is already running.  $0 will exit now."
+	exit 1
+fi
+
 # since we're going to change priority and open files limits, we need to be
 # root. if running asterisk as other users, pass that to asterisk on the command
 # line.
 # if we're not root, fall back to standard everything.
 if [ `id -u` != 0 ]
 then
-	echo "Ops. I'm not root. Falling back to standard prio and file max." >&2
+	echo "Oops. I'm not root. Falling back to standard prio and file max." >&2
 	echo "This is NOT suitable for large systems." >&2
 	PRIORITY=0
 else
