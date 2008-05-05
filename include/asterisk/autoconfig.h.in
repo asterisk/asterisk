@@ -724,6 +724,12 @@
 /* Define to indicate the ${SPEEXDSP_DESCRIP} library version */
 #undef HAVE_SPEEXDSP_VERSION
 
+/* Define this to indicate the ${SPEEX_PREPROCESS_DESCRIP} library */
+#undef HAVE_SPEEX_PREPROCESS
+
+/* Define to indicate the ${SPEEX_PREPROCESS_DESCRIP} library version */
+#undef HAVE_SPEEX_PREPROCESS_VERSION
+
 /* Define to indicate the ${SPEEX_DESCRIP} library version */
 #undef HAVE_SPEEX_VERSION
 

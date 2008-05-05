@@ -32,6 +32,7 @@
 
 /*** MODULEINFO
 	<depend>speex</depend>
+	<depend>speex_preprocess</depend>
 	<use>speexdsp</use>
  ***/
 

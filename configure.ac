@@ -1314,7 +1314,18 @@ AST_EXT_LIB_CHECK([RADIUS], [radiusclient-ng], [rc_read_config], [radiusclient-n
 
 AST_EXT_LIB_CHECK([SPEEX], [speex], [speex_encode], [speex/speex.h], [-lm])
 
+# See if the main speex library contains the preprocess functions
+AST_EXT_LIB_CHECK([SPEEX_PREPROCESS], [speex_preprocess_ctl], [speex/speex.h], [-lm])
+if test "${PBX_SPEEX_PREPROCESS}" = 1; then
+   PBX_SPEEX_PREPROCESS=1
+fi
+
 AST_EXT_LIB_CHECK([SPEEXDSP], [speexdsp], [speex_preprocess_ctl], [speex/speex.h], [-lm])
+if test "${PBX_SPEEXDSP}" = 1; then
+   PBX_SPEEX_PREPROCESS=1
+fi
+
+AC_SUBST(PBX_SPEEX_PREPROCESS)
 
 AST_EXT_LIB_CHECK([SQLITE], [sqlite], [sqlite_exec], [sqlite.h])
 
