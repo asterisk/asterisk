@@ -11600,6 +11600,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	char resp[256];
 	char resp_hash[256];
 	char uri[256];
+	char opaque[256] = "";
 	char cnonce[80];
 	const char *username;
 	const char *secret;
@@ -11648,11 +11649,17 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	else
 		snprintf(resp,sizeof(resp),"%s:%s:%s", a1_hash, p->nonce, a2_hash);
 	ast_md5_hash(resp_hash, resp);
+
+	/* only include the opaque string if it's set */
+	if (!ast_strlen_zero(p->opaque)) {
+	  snprintf(opaque, sizeof(opaque), ", opaque=\"%s\"", p->opaque);
+	}
+
 	/* XXX We hard code our qop to "auth" for now.  XXX */
 	if (!ast_strlen_zero(p->qop))
-		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=auth, cnonce=\"%s\", nc=%08x", username, p->realm, uri, p->nonce, resp_hash, p->opaque, cnonce, p->noncecount);
+		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\"%s, qop=auth, cnonce=\"%s\", nc=%08x", username, p->realm, uri, p->nonce, resp_hash, opaque, cnonce, p->noncecount);
 	else
-		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"", username, p->realm, uri, p->nonce, resp_hash, p->opaque);
+		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\"%s", username, p->realm, uri, p->nonce, resp_hash, opaque);
 
 	append_history(p, "AuthResp", "Auth response sent for %s in realm %s - nc %d", username, p->realm, p->noncecount);
 
