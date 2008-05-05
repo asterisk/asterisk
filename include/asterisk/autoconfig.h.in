@@ -341,6 +341,9 @@
 /* Define to indicate the ${SPEEXDSP_DESCRIP} library */
 #undef HAVE_SPEEXDSP
 
+/* Define to indicate the ${SPEEX_PREPROCESS_DESCRIP} library */
+#undef HAVE_SPEEX_PREPROCESS
+
 /* Define to indicate the ${SQLITE_DESCRIP} library */
 #undef HAVE_SQLITE
 
