@@ -89,6 +89,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dnsmgr.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/netsock.h"
+#include "asterisk/dlinkedlists.h"
+#include "asterisk/astobj2.h"
 
 #include "iax2.h"
 #include "iax2-parser.h"
@@ -611,6 +613,8 @@ struct chan_iax2_pvt {
 	int frames_dropped;
 	/*! received frame count: (just for stats) */
 	int frames_received;
+
+	AST_DLLIST_ENTRY(chan_iax2_pvt) entry;
 };
 
 static struct ast_iax2_queue {
@@ -736,6 +740,16 @@ static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS];
 static ast_mutex_t iaxsl[IAX_MAX_CALLS];
 static struct timeval lastused[IAX_MAX_CALLS];
 
+/*!
+ * \brief Another container of iax2_pvt structures
+ *
+ * Active IAX2 pvt structs are also stored in this container, if they are a part
+ * of an active call where we know the remote side's call number.  The reason
+ * for this is that incoming media frames do not contain our call number.  So,
+ * instead of having to iterate the entire iaxs array, we use this container to
+ * look up calls where the remote side is using a given call number.
+ */
+static struct ao2_container *iax_peercallno_pvts;
 
 static int send_command(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
 static int send_command_locked(unsigned short callno, char, int, unsigned int, const unsigned char *, int, int);
@@ -913,17 +927,188 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len, int loc
 	return res;
 }
 
+static void update_max_trunk(void)
+{
+	int max = TRUNK_CALL_START;
+	int x;
+	/* XXX Prolly don't need locks here XXX */
+	for (x=TRUNK_CALL_START;x<IAX_MAX_CALLS - 1; x++) {
+		if (iaxs[x])
+			max = x + 1;
+	}
+	maxtrunkcall = max;
+	if (option_debug && iaxdebug)
+		ast_log(LOG_DEBUG, "New max trunk callno is %d\n", max);
+}
+
+static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
+{
+	if (ast_test_flag(pvt, IAX_MAXAUTHREQ)) {
+		struct iax2_user *user;
+
+		ast_mutex_lock(&userl.lock);
+		user = userl.users;
+		while (user) {
+			if (!strcmp(user->name, pvt->username)) {
+				user->curauthreq--;
+				break;
+			}
+			user = user->next;
+		}
+		ast_mutex_unlock(&userl.lock);
+	}
+
+	/* No more pings or lagrq's */
+	if (pvt->pingid > -1)
+		ast_sched_del(sched, pvt->pingid);
+	if (pvt->lagid > -1)
+		ast_sched_del(sched, pvt->lagid);
+	if (pvt->autoid > -1)
+		ast_sched_del(sched, pvt->autoid);
+	if (pvt->authid > -1)
+		ast_sched_del(sched, pvt->authid);
+	if (pvt->initid > -1)
+		ast_sched_del(sched, pvt->initid);
+#ifdef NEWJB
+	if (pvt->jbid > -1)
+		ast_sched_del(sched, pvt->jbid);
+	pvt->jbid = -1;
+#endif
+	pvt->pingid = -1;
+	pvt->lagid = -1;
+	pvt->autoid = -1;
+	pvt->authid = -1;
+	pvt->initid = -1;
+}
+
+static void store_by_peercallno(struct chan_iax2_pvt *pvt)
+{
+	if (!pvt->peercallno) {
+		ast_log(LOG_ERROR, "This should not be called without a peer call number.\n");
+		return;
+	}
+
+	ao2_link(iax_peercallno_pvts, pvt);
+}
+
+static void remove_by_peercallno(struct chan_iax2_pvt *pvt)
+{
+	if (!pvt->peercallno) {
+		ast_log(LOG_ERROR, "This should not be called without a peer call number.\n");
+		return;
+	}
+
+	ao2_unlink(iax_peercallno_pvts, pvt);
+}
+
+
+
+static void iax2_destroy(int callno)
+{
+	struct chan_iax2_pvt *pvt;
+	struct ast_channel *owner;
+
+retry:
+	ast_mutex_lock(&iaxsl[callno]);
+	pvt = iaxs[callno];
+	gettimeofday(&lastused[callno], NULL);
+
+	if (pvt)
+		owner = pvt->owner;
+	else
+		owner = NULL;
+	if (owner) {
+		if (ast_mutex_trylock(&owner->lock)) {
+			ast_log(LOG_NOTICE, "Avoiding IAX destroy deadlock\n");
+			ast_mutex_unlock(&iaxsl[callno]);
+			usleep(1);
+			goto retry;
+		}
+	}
+	if (!owner)
+		iaxs[callno] = NULL;
+	if (pvt) {
+		if (owner) {
+			/* If there's an owner, prod it to give up */
+			owner->_softhangup |= AST_SOFTHANGUP_DEV;
+			ast_queue_hangup(owner);
+		} else {
+			pvt->owner = NULL;
+		}
+
+		if (pvt->peercallno) {
+			remove_by_peercallno(pvt);
+		}
+
+		if (!owner) {
+			ao2_ref(pvt, -1);
+			pvt = NULL;
+		}
+	}
+
+	if (owner) {
+		ast_mutex_unlock(&owner->lock);
+	}
+
+	ast_mutex_unlock(&iaxsl[callno]);
+
+	if (callno & 0x4000) {
+		update_max_trunk();
+	}
+}
+
+static void iax2_frame_free(struct iax_frame *fr)
+{
+	if (fr->retrans > -1)
+		ast_sched_del(sched, fr->retrans);
+	iax_frame_free(fr);
+}
+
+static void pvt_destructor(void *obj)
+{
+	struct chan_iax2_pvt *pvt = obj;
+	struct iax_frame *cur;
+
+	iax2_destroy_helper(pvt);
+
+	if (pvt->bridgetrans)
+		ast_translator_free_path(pvt->bridgetrans);
+	pvt->bridgetrans = NULL;
+
+	/* Already gone */
+	ast_set_flag(pvt, IAX_ALREADYGONE);	
+
+	for (cur = iaxq.head; cur ; cur = cur->next) {
+		/* Cancel any pending transmissions */
+		if (cur->callno == pvt->callno) 
+			cur->retries = -1;
+	}
+	if (pvt->reg) {
+		pvt->reg->callno = 0;
+	}
+	if (!pvt->owner) {
+		if (pvt->vars) {
+			ast_variables_destroy(pvt->vars);
+			pvt->vars = NULL;
+		}
+#ifdef NEWJB
+ 		{
+			jb_frame frame;
+			while (jb_getall(pvt->jb,&frame) == JB_OK)
+				iax2_frame_free(frame.data);
+			jb_destroy(pvt->jb);
+		}
+#endif
+	}
+}
+
 static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, const char *host)
 {
 	struct chan_iax2_pvt *tmp;
-	tmp = malloc(sizeof(struct chan_iax2_pvt));
+
+	tmp = ao2_alloc(sizeof(*tmp), pvt_destructor);
 	if (tmp) {
-		memset(tmp, 0, sizeof(struct chan_iax2_pvt));
 		tmp->prefs = prefs;
-		tmp->callno = 0;
-		tmp->peercallno = 0;
-		tmp->transfercallno = 0;
-		tmp->bridgecallno = 0;
 		tmp->pingid = -1;
 		tmp->lagid = -1;
 		tmp->autoid = -1;
@@ -985,20 +1170,6 @@ static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short 
 			return 1;
 	}
 	return 0;
-}
-
-static void update_max_trunk(void)
-{
-	int max = TRUNK_CALL_START;
-	int x;
-	/* XXX Prolly don't need locks here XXX */
-	for (x=TRUNK_CALL_START;x<IAX_MAX_CALLS - 1; x++) {
-		if (iaxs[x])
-			max = x + 1;
-	}
-	maxtrunkcall = max;
-	if (option_debug && iaxdebug)
-		ast_log(LOG_DEBUG, "New max trunk callno is %d\n", max);
 }
 
 static void update_max_nontrunk(void)
@@ -1070,6 +1241,25 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 	char iabuf[INET_ADDRSTRLEN];
 	char host[80];
 	if (new <= NEW_ALLOW) {
+ 		if (callno) {
+ 			struct chan_iax2_pvt *pvt;
+ 			struct chan_iax2_pvt tmp_pvt = {
+ 				.callno = dcallno,
+ 				.peercallno = callno,
+ 				/* hack!! */
+ 				.frames_received = full_frame,
+ 			};
+ 
+ 			memcpy(&tmp_pvt.addr, sin, sizeof(tmp_pvt.addr));
+ 
+ 			if ((pvt = ao2_find(iax_peercallno_pvts, &tmp_pvt, OBJ_POINTER))) {
+ 				res = pvt->callno;
+ 				ao2_ref(pvt, -1);
+ 				pvt = NULL;
+ 				return res;
+ 			}
+ 		}
+
 		/* Look for an existing connection first */
 		for (x=1;(res < 1) && (x<maxnontrunkcall);x++) {
 			ast_mutex_lock(&iaxsl[x]);
@@ -1148,6 +1338,9 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			iaxs[x]->amaflags = amaflags;
 			ast_copy_flags(iaxs[x], (&globalflags), IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
 			ast_copy_string(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode));
+ 			if (iaxs[x]->peercallno) {
+ 				store_by_peercallno(iaxs[x]);
+ 			}
 		} else {
 			ast_log(LOG_WARNING, "Out of resources\n");
 			ast_mutex_unlock(&iaxsl[x]);
@@ -1157,13 +1350,6 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 		res = x;
 	}
 	return res;
-}
-
-static void iax2_frame_free(struct iax_frame *fr)
-{
-	if (fr->retrans > -1)
-		ast_sched_del(sched, fr->retrans);
-	iax_frame_free(fr);
 }
 
 static int iax2_queue_frame(int callno, struct ast_frame *f)
@@ -1639,112 +1825,7 @@ static int iax2_predestroy_nolock(int callno)
 	return res;
 }
 
-static void iax2_destroy(int callno)
-{
-	struct chan_iax2_pvt *pvt;
-	struct iax_frame *cur;
-	struct ast_channel *owner;
-	struct iax2_user *user;
 
-retry:
-	ast_mutex_lock(&iaxsl[callno]);
-	pvt = iaxs[callno];
-	gettimeofday(&lastused[callno], NULL);
-
-	if (pvt)
-		owner = pvt->owner;
-	else
-		owner = NULL;
-	if (owner) {
-		if (ast_mutex_trylock(&owner->lock)) {
-			ast_log(LOG_NOTICE, "Avoiding IAX destroy deadlock\n");
-			ast_mutex_unlock(&iaxsl[callno]);
-			usleep(1);
-			goto retry;
-		}
-	}
-	if (!owner)
-		iaxs[callno] = NULL;
-	if (pvt) {
-		if (!owner)
-			pvt->owner = NULL;
-		if (ast_test_flag(pvt, IAX_MAXAUTHREQ)) {
-			ast_mutex_lock(&userl.lock);
-			user = userl.users;
-			while (user) {
-				if (!strcmp(user->name, pvt->username)) {
-					user->curauthreq--;
-					break;
-				}
-				user = user->next;
-			}
-			ast_mutex_unlock(&userl.lock);
-		}
-		/* No more pings or lagrq's */
-		if (pvt->pingid > -1)
-			ast_sched_del(sched, pvt->pingid);
-		if (pvt->lagid > -1)
-			ast_sched_del(sched, pvt->lagid);
-		if (pvt->autoid > -1)
-			ast_sched_del(sched, pvt->autoid);
-		if (pvt->authid > -1)
-			ast_sched_del(sched, pvt->authid);
-		if (pvt->initid > -1)
-			ast_sched_del(sched, pvt->initid);
-#ifdef NEWJB
-		if (pvt->jbid > -1)
-			ast_sched_del(sched, pvt->jbid);
-		pvt->jbid = -1;
-#endif
-		pvt->pingid = -1;
-		pvt->lagid = -1;
-		pvt->autoid = -1;
-		pvt->authid = -1;
-		pvt->initid = -1;
-		if (pvt->bridgetrans)
-			ast_translator_free_path(pvt->bridgetrans);
-		pvt->bridgetrans = NULL;
-
-		/* Already gone */
-		ast_set_flag(pvt, IAX_ALREADYGONE);	
-
-		if (owner) {
-			/* If there's an owner, prod it to give up */
-			owner->_softhangup |= AST_SOFTHANGUP_DEV;
-			ast_queue_hangup(owner);
-		}
-
-		for (cur = iaxq.head; cur ; cur = cur->next) {
-			/* Cancel any pending transmissions */
-			if (cur->callno == pvt->callno) 
-				cur->retries = -1;
-		}
-		if (pvt->reg) {
-			pvt->reg->callno = 0;
-		}
-		if (!owner) {
-			if (pvt->vars) {
-				ast_variables_destroy(pvt->vars);
-				pvt->vars = NULL;
-			}
-#ifdef NEWJB
- 			{
-                            jb_frame frame;
-                            while(jb_getall(pvt->jb,&frame) == JB_OK)
-				iax2_frame_free(frame.data);
-                            jb_destroy(pvt->jb);
-                        }
-#endif
-			free(pvt);
-		}
-	}
-	if (owner) {
-		ast_mutex_unlock(&owner->lock);
-	}
-	ast_mutex_unlock(&iaxsl[callno]);
-	if (callno & 0x4000)
-		update_max_trunk();
-}
 static void iax2_destroy_nolock(int callno)
 {	
 	/* Actually it's easier to unlock, kill it, and relock */
@@ -5578,7 +5659,13 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 	pvt->rseqno = 0;
 	pvt->iseqno = 0;
 	pvt->aseqno = 0;
+
+	if (pvt->peercallno) {
+		remove_by_peercallno(pvt);
+	}
 	pvt->peercallno = peercallno;
+	store_by_peercallno(pvt);
+
 	pvt->transferring = TRANSFER_NONE;
 	pvt->svoiceformat = -1;
 	pvt->voiceformat = 0;
@@ -6738,8 +6825,18 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 
 	if (!inaddrcmp(&sin, &iaxs[fr->callno]->addr) && !minivid &&
 		f.subclass != IAX_COMMAND_TXCNT &&		/* for attended transfer */
-		f.subclass != IAX_COMMAND_TXACC)		/* for attended transfer */
-		iaxs[fr->callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
+		f.subclass != IAX_COMMAND_TXACC) {		/* for attended transfer */
+		unsigned short new_peercallno;
+
+		new_peercallno = (unsigned short) (ntohs(mh->callno) & ~IAX_FLAG_FULL);
+		if (new_peercallno && new_peercallno != iaxs[fr->callno]->peercallno) {
+			if (iaxs[fr->callno]->peercallno) {
+				remove_by_peercallno(iaxs[fr->callno]);
+			}
+			iaxs[fr->callno]->peercallno = new_peercallno;
+			store_by_peercallno(iaxs[fr->callno]);
+		}
+	}
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
 		if (option_debug  && iaxdebug)
 			ast_log(LOG_DEBUG, "Received packet %d, (%d, %d)\n", fh->oseqno, f.frametype, f.subclass);
@@ -9858,6 +9955,8 @@ static int __unload_module(void)
 	for (x = 0; x < IAX_MAX_CALLS; x++)
 		ast_mutex_destroy(&iaxsl[x]);
 
+	ao2_ref(iax_peercallno_pvts, -1);
+
 	return 0;
 }
 
@@ -9867,6 +9966,23 @@ int unload_module()
 	return __unload_module();
 }
 
+static int pvt_hash_cb(const void *obj, const int flags)
+{
+	const struct chan_iax2_pvt *pvt = obj;
+
+	return pvt->peercallno;
+}
+ 
+static int pvt_cmp_cb(void *obj, void *arg, int flags)
+{
+	struct chan_iax2_pvt *pvt = obj, *pvt2 = arg;
+
+	/* The frames_received field is used to hold whether we're matching
+	 * against a full frame or not ... */
+
+	return match(&pvt2->addr, pvt2->peercallno, pvt2->callno, pvt, 
+		pvt2->frames_received) ? CMP_MATCH : 0;
+}
 
 /*--- load_module: Load IAX2 module, load configuraiton ---*/
 int load_module(void)
@@ -9953,6 +10069,11 @@ int load_module(void)
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
 		ast_netsock_release(netsock);
 		ast_netsock_release(outsock);
+	}
+
+	iax_peercallno_pvts = ao2_container_alloc(IAX_MAX_CALLS, pvt_hash_cb, pvt_cmp_cb);
+	if (!iax_peercallno_pvts) {
+		res = -1;
 	}
 
 	ast_mutex_lock(&reg_lock);
