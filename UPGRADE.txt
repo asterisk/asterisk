@@ -105,6 +105,8 @@ Applications:
 * WaitMusicOnHold application is now deprecated in favor of extended MusicOnHold.
 * SetMusicOnHold is now deprecated. You should use Set(CHANNEL(musicclass)=...)
   instead.
+* The arguments in ExecIf changed a bit, to be more like other applications.
+  The syntax is now ExecIf(<cond>?appiftrue(args):appiffalse(args)).
 
 Dialplan Functions:
 
