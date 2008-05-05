@@ -1176,8 +1176,12 @@ void ast_verbose(const char *fmt, ...)
 		ast_localtime(&tv, &tm, NULL);
 		ast_strftime(date, sizeof(date), dateformat, &tm);
 		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
-		sprintf(datefmt, "[%s] %s", date, fmt);
+		sprintf(datefmt, "%c[%s] %s", 127, date, fmt);
 		fmt = datefmt;
+	} else {
+		char *tmp = alloca(strlen(fmt) + 2);
+		sprintf(tmp, "%c%s", 127, fmt);
+		fmt = tmp;
 	}
 
 	/* Build string */
@@ -1194,7 +1198,7 @@ void ast_verbose(const char *fmt, ...)
 
 	strcpy(logmsg->str, buf->str);
 
-	ast_log(LOG_VERBOSE, "%s", logmsg->str);
+	ast_log(LOG_VERBOSE, "%s", logmsg->str + 1);
 
 	/* Set type */
 	logmsg->type = LOGMSG_VERBOSE;

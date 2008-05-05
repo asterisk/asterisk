@@ -1420,6 +1420,12 @@ static void __quit_handler(int num)
 static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp)
 {
 	const char *c;
+
+	/* Check for verboser preamble */
+	if (*s == 127) {
+		s++;
+	}
+
 	if (!strncmp(s, cmp, strlen(cmp))) {
 		c = s + strlen(cmp);
 		term_color(outbuf, cmp, COLOR_GRAY, 0, maxout);
@@ -1928,6 +1934,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 
 			buf[res] = '\0';
 
+			/* Write over the CLI prompt */
 			if (!ast_opt_exec && !lastpos)
 				write(STDOUT_FILENO, "\r", 1);
 			write(STDOUT_FILENO, buf, res);
@@ -2425,13 +2432,38 @@ static void ast_remotecontrol(char * data)
 		ast_el_read_history(filename);
 
 	if (ast_opt_exec && data) {  /* hack to print output then exit if asterisk -rx is used */
-		char tempchar;
 		struct pollfd fds;
 		fds.fd = ast_consock;
 		fds.events = POLLIN;
 		fds.revents = 0;
-		while (poll(&fds, 1, 100) > 0)
-			ast_el_read_char(el, &tempchar);
+		while (poll(&fds, 1, 500) > 0) {
+			char buf[512] = "", *curline = buf, *nextline;
+			int not_written = 1;
+
+			if (read(ast_consock, buf, sizeof(buf) - 1) < 0) {
+				break;
+			}
+
+			do {
+				if ((nextline = strchr(curline, '\n'))) {
+					nextline++;
+				} else {
+					nextline = strchr(curline, '\0');
+				}
+
+				/* Skip verbose lines */
+				if (*curline != 127) {
+					not_written = 0;
+					write(STDOUT_FILENO, curline, nextline - curline + (*nextline == '\0' ? 1 : 0));
+				}
+				curline = nextline;
+			} while (!ast_strlen_zero(curline));
+
+			/* No non-verbose output in 500ms */
+			if (not_written) {
+				break;
+			}
+		}
 		return;
 	}
 	for (;;) {
