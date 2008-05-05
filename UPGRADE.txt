@@ -94,8 +94,8 @@ Applications:
   these functions in any location where you desire to ensure that only one
   channel is executing that path at any one time.  The Macro() applications
   are deprecated for performance reasons.  However, since Macro() has been
-  around for a long time and so many dialplans depend heavily on it, it will
-  not be removed for the sake of backwards compatibility.  It is also worth
+  around for a long time and so many dialplans depend heavily on it, for the
+  sake of backwards compatibility it will not be removed .  It is also worth
   noting that using both Macro() and GoSub() at the same time is _heavily_
   discouraged.
 * Read() now sets a READSTATUS variable on exit.  It does NOT automatically
