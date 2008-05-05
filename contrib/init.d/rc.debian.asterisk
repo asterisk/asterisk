@@ -51,6 +51,14 @@ fi
 
 case "$1" in
   start)
+	# Check if Asterisk is already running.  If it is, then bug out, because
+	# starting up Asterisk when Asterisk is already running is very bad.
+	VERSION=`${ASTSBINDIR}/asterisk -rx 'core show version'`
+	if [ "${VERSION:0:8}" = "Asterisk" ]; then # otherwise "Unable t"
+		echo "Asterisk is already running.  $0 will exit now."
+		exit 1
+	fi
+
 	log_begin_msg "Starting $DESC: $NAME"
         if [ $AST_USER ] ; then
                 ASTARGS="-U $AST_USER"
