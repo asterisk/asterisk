@@ -71,6 +71,8 @@ static const char *desc_chan =
 "        and a digit sequence.\n"
 "  Options:\n"
 "    b                      - Only spy on channels involved in a bridged call.\n"
+"    B                      - Instead of whispering on a single channel barge in on both\n"
+"                             channels involved in the call.\n"
 "    g(grp)                 - Only spy on channels in which one or more of the groups \n"
 "                             listed in 'grp' matches one or more groups from the\n"
 "                             SPYGROUP variable set on the channel to be spied upon.\n"
