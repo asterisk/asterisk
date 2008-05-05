@@ -110,6 +110,8 @@ Applications:
   instead.
 * While app_directory has always relied on having a voicemail.conf or users.conf file
   correctly set up, it now is dependent on app_voicemail being compiled as well.
+* The arguments in ExecIf changed a bit, to be more like other applications.
+  The syntax is now ExecIf(<cond>?appiftrue(args):appiffalse(args)).
 
 Dialplan Functions:
 
