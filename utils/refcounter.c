@@ -197,10 +197,12 @@ int main(int argc,char **argv)
 
 /* stub routines to satisfy linking with asterisk subcomponents */
 
+#ifndef LOW_MEMORY
 int  ast_add_profile(const char *x, uint64_t scale)
 {
 	return 0;
 }
+#endif
 
 int ast_loader_register(int (*updater)(void))
 {
@@ -219,7 +221,7 @@ void ast_module_unregister(const struct ast_module_info *x)
 {
 }
 
-
+#ifndef LOW_MEMORY
 void ast_register_file_version(const char *file, const char *version)
 {
 }
@@ -235,6 +237,7 @@ int64_t ast_mark(int x, int start1_stop0)
 {
 	return 0;
 }
+#endif
 
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
