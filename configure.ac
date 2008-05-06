@@ -1315,7 +1315,7 @@ AST_EXT_LIB_CHECK([RADIUS], [radiusclient-ng], [rc_read_config], [radiusclient-n
 AST_EXT_LIB_CHECK([SPEEX], [speex], [speex_encode], [speex/speex.h], [-lm])
 
 # See if the main speex library contains the preprocess functions
-AST_EXT_LIB_CHECK([SPEEX_PREPROCESS], [speex_preprocess_ctl], [speex/speex.h], [-lm])
+AST_EXT_LIB_CHECK([SPEEX_PREPROCESS], [speex], [speex_preprocess_ctl], [speex/speex.h], [-lm])
 if test "${PBX_SPEEX_PREPROCESS}" = 1; then
    PBX_SPEEX_PREPROCESS=1
 fi
