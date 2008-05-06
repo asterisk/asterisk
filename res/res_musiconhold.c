@@ -256,7 +256,7 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	} else if (ast_test_flag(state->class, MOH_RANDOMIZE)) {
 		/* Get a random file and ensure we can open it */
 		for (tries = 0; tries < 20; tries++) {
-			state->pos = rand() % state->class->total_files;
+			state->pos = ast_random() % state->class->total_files;
 			if (ast_fileexists(state->class->filearray[state->pos], NULL, NULL) > 0)
 				break;
 		}
