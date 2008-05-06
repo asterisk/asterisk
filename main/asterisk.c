@@ -2321,7 +2321,7 @@ static void ast_remotecontrol(char * data)
 				/* Skip verbose lines */
 				if (*curline != 127) {
 					not_written = 0;
-					write(STDOUT_FILENO, curline, nextline - curline + (*nextline == '\0' ? 1 : 0));
+					write(STDOUT_FILENO, curline, nextline - curline);
 				}
 				curline = nextline;
 			} while (!ast_strlen_zero(curline));
