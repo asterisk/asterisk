@@ -21974,7 +21974,7 @@ static int reload_config(enum channelreloadreason reason)
 	/* Done, tell the manager */
 	manager_event(EVENT_FLAG_SYSTEM, "ChannelReload", "ChannelType: SIP\r\nReloadReason: %s\r\nRegistry_Count: %d\r\nPeer_Count: %d\r\nUser_Count: %d\r\n", channelreloadreason2txt(reason), registry_count, peer_count, user_count);
 	run_end = time(0);
-	ast_log(LOG_NOTICE, "reload_config done...Runtime= %d sec\n", (int)(run_end-run_start));
+	ast_debug(4, "reload_config done...Runtime= %d sec\n", (int)(run_end-run_start));
 
 	return 0;
 }
@@ -22493,7 +22493,7 @@ static int sip_do_reload(enum channelreloadreason reason)
 	sip_send_all_registers();
 	end_poke = time(0);
 	
-	ast_log(LOG_NOTICE, "do_reload finished. peer poke/prune reg contact time = %d sec.\n", (int)(end_poke-start_poke));
+	ast_debug(4, "do_reload finished. peer poke/prune reg contact time = %d sec.\n", (int)(end_poke-start_poke));
 
 	ast_debug(4, "--------------- SIP reload done\n");
 
