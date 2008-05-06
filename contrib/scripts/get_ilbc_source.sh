@@ -18,7 +18,7 @@ echo "This script assumes that you have already agreed to the license agreement.
 echo "If you have not done so, you can abort the script now."
 echo "***"
 
-read
+read tmp
 
 wget -P codecs/ilbc http://www.ietf.org/rfc/rfc3951.txt
 
