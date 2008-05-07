@@ -1,0 +1,295 @@
+The Asterisk Speech Recognition API
+===================================
+
+The generic speech recognition engine is implemented in the res_speech.so module.
+This module connects through the API to speech recognition software, that is
+not included in the module.
+
+To use the API, you must load the res_speech.so module before any connectors.
+For your convenience, there is a preload line commented out in the modules.conf 
+sample file.
+
+* Dialplan Applications:
+------------------------
+
+The dialplan API is based around a single speech utilities application file,
+which exports many applications to be used for speech recognition. These include an 
+application to prepare for speech recognition, activate a grammar, and play back a 
+sound file while waiting for the person to speak. Using a combination of these applications 
+you can easily make a dialplan use speech recognition without worrying about what 
+speech recognition engine is being used.
+
+- SpeechCreate(Engine Name):
+
+This application creates information to be used by all the other applications. 
+It must be called before doing any speech recognition activities such as activating a 
+grammar. It takes the engine name to use as the argument, if not specified the default 
+engine will be used.
+
+If an error occurs are you are not able to create an object, the variable ERROR will be 
+set to 1. You can then exit your speech recognition specific context and play back an 
+error message, or resort to a DTMF based IVR.
+
+- SpeechLoadGrammar(Grammar Name|Path):
+
+Loads grammar locally on a channel. Note that the grammar is only available as long as the 
+channel exists, and you must call SpeechUnloadGrammar before all is done or you may cause a 
+memory leak. First argument is the grammar name that it will be loaded as and second 
+argument is the path to the grammar.
+
+- SpeechUnloadGrammar(Grammar Name):
+
+Unloads a locally loaded grammar and frees any memory used by it. The only argument is the 
+name of the grammar to unload.
+
+- SpeechActivateGrammar(Grammar Name):
+
+This activates the specified grammar to be recognized by the engine. A grammar tells the 
+speech recognition engine what to recognize, and how to portray it back to you in the 
+dialplan. The grammar name is the only argument to this application.
+
+- SpeechStart():
+
+Tell the speech recognition engine that it should start trying to get results from audio 
+being fed to it. This has no arguments.
+
+- SpeechBackground(Sound File|Timeout):
+
+This application plays a sound file and waits for the person to speak. Once they start 
+speaking playback of the file stops, and silence is heard. Once they stop talking the 
+processing sound is played to indicate the speech recognition engine is working. Note it is 
+possible to have more then one result. The first argument is the sound file and the second is the 
+timeout. Note the timeout will only start once the sound file has stopped playing.
+
+- SpeechDeactivateGrammar(Grammar Name):
+
+This deactivates the specified grammar so that it is no longer recognized. The 
+only argument is the grammar name to deactivate.
+
+- SpeechProcessingSound(Sound File):
+
+This changes the processing sound that SpeechBackground plays back when the speech 
+recognition engine is processing and working to get results. It takes the sound file as the 
+only argument.
+
+- SpeechDestroy():
+
+This destroys the information used by all the other speech recognition applications. 
+If you call this application but end up wanting to recognize more speech, you must call 
+SpeechCreate again before calling any other application. It takes no arguments.
+
+* Getting Result Information:
+-----------------------------
+
+The speech recognition utilities module exports several dialplan functions that you can use to 
+examine results.
+
+- ${SPEECH(status)}:
+
+Returns 1 if SpeechCreate has been called. This uses the same check that applications do to see if a 
+speech object is setup. If it returns 0 then you know you can not use other speech applications.
+
+- ${SPEECH(spoke)}:
+
+Returns 1 if the speaker spoke something, or 0 if they were silent.
+
+- ${SPEECH(results)}:
+
+Returns the number of results that are available.
+
+- ${SPEECH_SCORE(result number)}:
+
+Returns the score of a result.
+
+- ${SPEECH_TEXT(result number)}:
+
+Returns the recognized text of a result.
+
+- ${SPEECH_GRAMMAR(result number)}:
+
+Returns the matched grammar of the result.
+
+- SPEECH_ENGINE(name)=value
+
+Sets a speech engine specific attribute.
+
+* Dialplan Flow:
+-----------------
+
+1. Create a speech recognition object using SpeechCreate()
+2. Activate your grammars using SpeechActivateGrammar(Grammar Name)
+3. Call SpeechStart() to indicate you are going to do speech recognition immediately
+4. Play back your audio and wait for recognition using SpeechBackground(Sound File|Timeout)
+5. Check the results and do things based on them
+6. Deactivate your grammars using SpeechDeactivateGrammar(Grammar Name)
+7. Destroy your speech recognition object using SpeechDestroy()
+
+* Dialplan Examples:
+
+This is pretty cheeky in that it does not confirmation of results. As well the way the 
+grammar is written it returns the person's extension instead of their name so we can 
+just do a Goto based on the result text.
+
+- Grammar: company-directory.gram
+
+#ABNF 1.0;
+language en-US;
+mode voice;
+tag-format <lumenvox/1.0>;
+root $company_directory;
+
+$josh = ((Joshua | Josh) [Colp]):"6066";
+$mark = (Mark [Spencer] | Markster):"4569";
+$kevin = (Kevin [Fleming]):"2567";
+
+$company_directory = ($josh | $mark | $kevin) { $ = $$ };
+
+- Dialplan logic
+
+	[dial-by-name]
+	exten => s,1,SpeechCreate()
+	exten => s,2,SpeechActivateGrammar(company-directory)
+	exten => s,3,SpeechStart()
+	exten => s,4,SpeechBackground(who-would-you-like-to-dial)
+	exten => s,5,SpeechDeactivateGrammar(company-directory)
+	exten => s,6,Goto(internal-extensions-${SPEECH_TEXT(0)})
+
+- Useful Dialplan Tidbits:
+
+A simple macro that can be used for confirm of a result. Requires some sound files. 
+ARG1 is equal to the file to play back after "I heard..." is played.
+
+	[macro-speech-confirm]
+	exten => s,1,SpeechActivateGrammar(yes_no)
+	exten => s,2,Set(OLDTEXT0=${SPEECH_TEXT(0)})
+	exten => s,3,Playback(heard)
+	exten => s,4,Playback(${ARG1})
+	exten => s,5,SpeechStart()
+	exten => s,6,SpeechBackground(correct)
+	exten => s,7,Set(CONFIRM=${SPEECH_TEXT(0)})
+	exten => s,8,GotoIf($["${SPEECH_TEXT(0)}" = "1"]?9:10)
+	exten => s,9,Set(CONFIRM=yes)
+	exten => s,10,Set(CONFIRMED=${OLDTEXT0})
+	exten => s,11,SpeechDeactivateGrammar(yes_no)
+
+* The Asterisk Speech Recognition C API
+---------------------------------------
+
+The module res_speech.so exports a C based API that any developer can use to speech 
+recognize enable their application. The API gives greater control, but requires the 
+developer to do more on their end in comparison to the dialplan speech utilities.
+
+For all API calls that return an integer value, a non-zero value indicates an error has occurred.
+
+- Creating a speech structure:
+
+	struct ast_speech *ast_speech_new(char *engine_name, int format)
+
+	struct ast_speech *speech = ast_speech_new(NULL, AST_FORMAT_SLINEAR);
+
+This will create a new speech structure that will be returned to you. The speech recognition 
+engine name is optional and if NULL the default one will be used. As well for now format should 
+always be AST_FORMAT_SLINEAR.
+
+- Activating a grammar:
+
+	int ast_speech_grammar_activate(struct ast_speech *speech, char *grammar_name)
+
+	res = ast_speech_grammar_activate(speech, "yes_no");
+
+This activates the specified grammar on the speech structure passed to it.
+
+- Start recognizing audio:
+
+	void ast_speech_start(struct ast_speech *speech)
+
+	ast_speech_start(speech);
+
+This essentially tells the speech recognition engine that you will be feeding audio to it from 
+then on. It MUST be called every time before you start feeding audio to the speech structure.
+
+- Send audio to be recognized:
+
+	int ast_speech_write(struct ast_speech *speech, void *data, int len)
+
+	res = ast_speech_write(speech, fr->data, fr->datalen);
+
+This writes audio to the speech structure that will then be recognized. It must be written 
+signed linear only at this time. In the future other formats may be supported.
+
+- Checking for results:
+
+The way the generic speech recognition API is written is that the speech structure will 
+undergo state changes to indicate progress of recognition. The states are outlined below:
+
+	AST_SPEECH_STATE_NOT_READY - The speech structure is not ready to accept audio
+	AST_SPEECH_STATE_READY - You may write audio to the speech structure
+	AST_SPEECH_STATE_WAIT - No more audio should be written, and results will be available soon.
+	AST_SPEECH_STATE_DONE - Results are available and the speech structure can only be used again by 
+				calling ast_speech_start
+
+It is up to you to monitor these states. Current state is available via a variable on the speech 
+structure. (state)
+
+- Knowing when to stop playback:
+
+If you are playing back a sound file to the user and you want to know when to stop play back because the 
+individual started talking use the following.
+
+	ast_test_flag(speech, AST_SPEECH_QUIET) - This will return a positive value when the person has started talking.
+
+- Getting results:
+
+	struct ast_speech_result *ast_speech_results_get(struct ast_speech *speech)
+
+	struct ast_speech_result *results = ast_speech_results_get(speech);
+
+This will return a linked list of result structures. A result structure looks like the following:
+
+	struct ast_speech_result {
+        	char *text;			/*!< Recognized text */
+        	int score;			/*!< Result score */
+        	char *grammar;			/*!< Matched grammar */
+        	struct ast_speech_result *next;	/*!< List information */
+	};
+
+- Freeing a set of results:
+
+	int ast_speech_results_free(struct ast_speech_result *result)
+
+	res = ast_speech_results_free(results);
+
+This will free all results on a linked list. Results MAY NOT be used as the memory will have been freed.
+
+- Deactivating a grammar:
+
+	int ast_speech_grammar_deactivate(struct ast_speech *speech, char *grammar_name)
+
+	res = ast_speech_grammar_deactivate(speech, "yes_no");
+
+This deactivates the specified grammar on the speech structure.
+
+- Destroying a speech structure:
+
+	int ast_speech_destroy(struct ast_speech *speech)
+
+	res = ast_speech_destroy(speech);
+
+This will free all associated memory with the speech structure and destroy it with the speech recognition engine.
+
+- Loading a grammar on a speech structure:
+
+	int ast_speech_grammar_load(struct ast_speech *speech, char *grammar_name, char *grammar)
+
+	res = ast_speech_grammar_load(speech, "builtin:yes_no", "yes_no");
+
+- Unloading a grammar on a speech structure:
+
+If you load a grammar on a speech structure it is preferred that you unload it as well, 
+or you may cause a memory leak. Don't say I didn't warn you.
+
+	int ast_speech_grammar_unload(struct ast_speech *speech, char *grammar_name)
+
+	res = ast_speech_grammar_unload(speech, "yes_no");
+
+This unloads the specified grammar from the speech structure.

@@ -1,0 +1,361 @@
+Title: Everything About The Privacy Options In The Dial Command That
+You Never Wanted To Know, And Even A Little More On Zapateller and
+PrivacyManager:
+
+by Steve Murphy
+
+
+So, you want to avoid talking to pesky telemarketers/charity
+seekers/poll takers/magazine renewers/etc?
+
+=============
+First of all:
+=============
+
+Try the FTC "Don't call" database, this alone will reduce your
+telemarketing call volume considerably.  (see:
+https://www.donotcall.gov/default.aspx ) But, this list won't protect
+from the Charities, previous business relationships, etc.
+
+
+=================================
+Next, Fight against autodialers!!
+=================================
+
+Zapateller detects if callerid is present, and if not, plays the
+da-da-da tones that immediately precede messages like, "I'm sorry,
+the number you have called is no longer in service."
+
+Most humans, even those with unlisted/callerid-blocked numbers, will
+not immediately slam the handset down on the hook the moment they hear
+the three tones. But autodialers seem pretty quick to do this.
+
+I just counted 40 hangups in Zapateller over the last year in my
+CDR's.  So, that is possibly 40 different telemarketers/charities that have
+hopefully slashed my back-waters, out-of-the-way, humble home phone
+number from their lists.
+
+I highly advise Zapateller for those seeking the nirvana of "privacy".
+
+
+=======================================
+Next, Fight against the empty CALLERID!
+=======================================
+
+A considerable percentage of the calls you don't want, come from
+sites that do not provide CallerID. 
+
+Null callerid's are a fact of life, and could be a friend with an
+unlisted number, or some charity looking for a handout. The
+PrivacyManager application can help here. It will ask the caller to
+enter a 10-digit phone number. They get 3 tries(configurable), and this is
+configurable, with control being passed to priority+101 if they won't
+supply one.
+
+PrivacyManager can't guarantee that the number they supply is any
+good, tho, as there is no way to find out, short of hanging up and
+calling them back. But some answers are obviously wrong. For instance,
+it seems a common practice for telemarketers to use your own number
+instead of giving you theirs. A simple test can detect this. More
+advanced tests would be to look for -555- numbers, numbers that count
+up or down, numbers of all the same digit, etc.
+
+My logs show that 39 have hung up in the PrivacyManager script over
+the last year.
+
+(Note: Demanding all unlisted incoming callers to enter their CID may
+not always be appropriate for all users. Another option might be to
+use call screening. See below.)
+
+==========================
+Next, use a WELCOME MENU !
+==========================
+
+Experience has shown that simply presenting incoming callers with
+a set of options, no matter how simple, will deter them from calling
+you. In the vast majority of situations, a telemarketer will simply
+hang up rather than make a choice and press a key.
+
+This will also immediately foil all autodialers that simply belch a
+message in your ear and hang up.
+
+
+----------------------------------------------
+Example usage of Zapateller and PrivacyManager:
+----------------------------------------------
+
+[homeline]
+exten => s,1,Answer
+exten => s,2,SetVar,repeatcount=0
+exten => s,3,Zapateller,nocallerid
+exten => s,4,PrivacyManager
+exten => s,105,Background(tt-allbusy)       ;; do this if they don't enter a number to Privacy Manager
+exten => s,106,Background(tt-somethingwrong)
+exten => s,107,Background(tt-monkeysintro)
+exten => s,108,Background(tt-monkeys)
+exten => s,109,Background(tt-weasels)
+exten => s,110,Hangup
+exten => s,5,GotoIf($[ "${CALLERIDNUM}"  = "7773334444" &  "${CALLERIDNAME}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
+
+I suggest using Zapateller at the beginning of the context, before
+anything else, on incoming calls.This can be followed by the
+PrivacyManager App.
+
+Make sure, if you do the PrivacyManager app, that you take care of the
+error condition! or their non-compliance will be rewarded with access
+to the system. In the above, if they can't enter a 10-digit number in
+3 tries, they get the humorous "I'm sorry, but all household members
+are currently helping other telemarketers...", "something is terribly
+wrong", "monkeys have carried them away...", various loud monkey
+screechings, "weasels have...", and a hangup. There are plenty of
+other paths to my torture scripts, I wanted to have some fun.
+
+In nearly all cases now, the telemarketers/charity-seekers that
+usually get thru to my main intro, hang up. I guess they can see it's
+pointless, or the average telemarketer/charity-seeker is instructed
+not to enter options when encountering such systems. Don't know. 
+
+===================
+Next: Torture Them!
+===================
+
+I have developed an elaborate script to torture Telemarketers, and
+entertain friends. (See
+http://www.voip-info.org/wiki-Asterisk+Telemarketer+Torture )
+
+While mostly those that call in and traverse my teletorture scripts
+are those we know, and are doing so out of curiosity, there have been
+these others from Jan 1st,2004 thru June 1st, 2004:
+(the numbers may or may not be correct.)
+
+603890zzzz     hung up telemarket options.
+"Integrated Sale"  called a couple times. hung up in telemarket options
+"UNITED STATES GOV"  (-- maybe a military recruiter, trying to lure one of my sons).
+800349zzzz -- hung up in charity intro
+800349zzzz -- hung up in charity choices, intro, about the only one who actually travelled to the bitter bottom of the scripts!
+216377zzzz -- hung up the magazine section
+626757zzzz = "LIR    " (pronounced "Liar"?) hung up in telemarket intro, then choices
+757821zzzz -- hung up in new magazine subscription options.
+
+That averages out to maybe 1 a month. That puts into question whether
+the ratio of the amount of labor it took to make the scripts versus
+the benefits of lower call volumes was worth it, but, well, I had fun,
+so what the heck.
+
+but, that's about it. Not a whole lot. But I haven't had to say "NO"
+or "GO AWAY" to any of these folks for about a year now ...!
+
+========================================
+      Using Call Screening
+=======================================
+
+Another option is to use call screening in the Dial command. It has
+two main privacy modes, one that remembers the CID of the caller, and
+how the callee wants the call handled, and the other, which does not
+have a "memory".
+
+Turning on these modes in the dial command results in this sequence of
+events, when someone calls you at an extension:
+
+1. The caller calls the Asterisk system, and at some point, selects an
+option or enters an extension number that would dial your extension.
+
+2. Before ringing your extension, the caller is asked to supply an
+introduction. The application asks them: "After the tone, say your
+name". They are allowed 4 seconds of introduction.
+
+3. After that, they are told "Hang on, we will attempt to connect you
+to your party. Depending on your dial options, they will hear ringing
+indications, or get music on hold. I suggest music on hold.
+
+4. Your extension is then dialed. When (and if) you pick up, you are
+told that a caller presenting themselves as <their recorded intro is
+played> is calling, and you have options, like being connected,
+sending them to voicemail, torture, etc.
+
+5. You make your selection, and the call is handled as you chose.
+
+
+There are some variations, and these will be explained in due course.
+
+
+To use these options, set your Dial to something like:
+
+exten => 3,3,Dial(Zap/5r3&Zap/6r3|35|tmPA(beep))
+
+or 
+
+exten => 3,3,Dial(Zap/5r3&Zap/6r3|35|tmP(something)A(beep))
+
+or 
+
+exten => 3,3,Dial(Zap/5r3&Zap/6r3|35|tmpA(beep))
+
+
+The 't' allows the dialed party to transfer the call using '#'. It's
+optional.
+
+The 'm' is for music on hold. I suggest it. Otherwise, the calling
+party gets to hear all the ringing, and lack thereof. It is generally
+better to use Music On Hold. Lots of folks hang up after the 3rd or
+4th ring, and you might lose the call before you can enter an option!
+
+The 'P' option alone will database everything using the extension as a
+default 'tree'. To get multiple extensions sharing the same database, use
+P(some-shared-key). Also, if the same person has multiple extensions,
+use P(unique-id) on all their dial commands.
+
+Use little 'p' for screening. Every incoming call will include a
+prompt for the callee's choice. 
+
+the A(beep), will generate a 'beep' that the callee will hear if they
+choose to talk to the caller. It's kind of a prompt to let the callee
+know that he has to say 'hi'. It's not required, but I find it
+helpful.
+
+When there is no CallerID, P and p options will always record an intro
+for the incoming caller. This intro will be stored temporarily in the
+/var/lib/asterisk/sounds/priv-callerintros dir, under the name
+NOCALLERID_<extension><channelname> and will be erased after the
+callee decides what to do with the call.
+
+Of course, NOCALLERID is not stored in the database. All those with no
+CALLERID will be considered "Unknown".
+
+========================
+ The 'N' and 'n' options
+========================
+
+Two other options exist, that act as modifiers to the privacy options
+'P' and 'p'. They are 'N' and 'n'. You can enter them as dialing
+options, but they only affect things if P or p are also in the
+options.
+
+'N' says, "Only screen the call if no CallerID is present". So, if a
+callerID were supplied, it will come straight thru to your extension.
+
+'n' says, "Don't save any introductions". Folks will be asked to
+supply an introduction ("At the tone, say your name") every time they
+call. Their introductions will be removed after the callee makes a
+choice on how to handle the call. Whether the P option or the p option
+is used, the incoming caller will have to supply their intro every
+time they call.
+
+=======================
+Recorded Introductions
+=======================
+
+[Philosophical Side Note:
+The 'P' option stores the CALLERID in the database, along with the
+callee's choice of actions, as a convenience to the CALLEE, whereas
+introductions are stored and re-used for the convenience of the CALLER.]
+
+Unless instructed to not save introductions (see the 'n' option above),
+the screening modes will save the recordings of the caller's names in
+the directory /var/lib/asterisk/sounds/priv-callerintros, if they have
+a CallerID.  Just the 10-digit callerid numbers are used as filenames,
+with a ".gsm" at the end.
+
+Having these recordings around can be very useful, however...
+
+First of all, if a callerid is supplied, and a recorded intro for that
+number is already present, the caller is spared the inconvenience of
+having to supply their name, which shortens their call a bit.
+
+Next of all, these intros can be used in voicemail, played over
+loudspeakers, and perhaps other nifty things. For instance:
+
+exten => s,7,System(/usr/bin/play /var/lib/asterisk/sounds/priv-callerintros/${CALLERIDNUM}.gsm&|0) 
+
+When a call comes in at the house, the above priority gets executed,
+and the callers intro is played over the phone systems speakers. This
+gives us a hint who is calling.
+
+(Note: the |0 option at the end of the System command above, is a
+local mod I made to the System command. It forces a 0 result code to
+be returned, whether the play command successfully completed or
+not. Therefore, I don't have to ensure that the file exists or
+not. While I've turned this mod into the developers, it hasn't been
+incorporated yet. You might want to write an AGI or shell script to
+handle it a little more intelligently)
+
+And one other thing. You can easily supply your callers with an option
+to listen to, and re-record their introductions. Here's what I did in
+the home system's extensions.conf. (assume that a
+Goto(home-introduction|s|1) exists somewhere in your main menu as an
+option):
+
+[home-introduction]
+exten => s,1,Background,intro-options   ;; Script: To hear your Introduction, dial 1.
+                                        ;;         to record a new introduction, dial 2.
+                                        ;;         to return to the main menu, dial 3.
+                                        ;;         to hear what this is all about, dial 4.
+exten => 1,1,Playback,priv-callerintros/${CALLERIDNUM}
+exten => 1,2,Goto(s,1)
+exten => 2,1,Goto(home-introduction-record,s,1)
+exten => 3,1,Goto(homeline,s,7)
+exten => 4,1,Playback,intro-intro     ;; Script:
+                                ;; This may seem a little strange, but it really is a neat
+                                ;; thing, both for you and for us. I've taped a short introduction
+                                ;; for many of the folks who normally call us. Using the Caller ID
+                                ;; from each incoming call, the system plays the introduction
+                                ;; for that phone number over a speaker, just as the call comes in.
+                                ;; This helps the folks
+                                ;; here in the house more quickly determine who is calling.
+                                ;; and gets the right ones to gravitate to the phone.
+                                ;; You can listen to, and record a new intro for your phone number
+                                ;; using this menu.
+exten => 4,2,Goto(s,1)
+exten => t,1,Goto(s,1)
+exten => i,1,Background,invalid
+exten => i,2,Goto(s,1)
+exten => o,1,Goto(s,1)
+
+[home-introduction-record]
+exten => s,1,Background,intro-record-choices    ;; Script:
+                                ;;      If you want some advice about recording your
+                                ;;      introduction, dial 1. 
+                                ;;      otherwise, dial 2, and introduce yourself after
+                                ;;      the beep.
+exten => 1,1,Playback,intro-record
+                                ;;      Your introduction should be short and sweet and crisp.
+                                ;;      Your introduction will be limited to 4 seconds.
+                                ;;      This is NOT meant to be a voice mail message, so
+                                ;;      please, don't say anything about why you are calling.
+                                ;;      After we are done making the recording, your introduction
+                                ;;      will be saved for playback. 
+                                ;;      If you are the only person that would call from this number, 
+                                ;;      please state your name.  Otherwise, state your business
+                                ;;      or residence name instead. For instance, if you are 
+                                ;;      friend of the family, say, Olie McPherson, and both
+                                ;;      you and your kids might call here a lot, you might
+                                ;;      say: "This is the distinguished Olie McPherson Residence!"
+                                ;;      If you are the only person calling, you might say this:
+                                ;;      "This is the illustrious Kermit McFrog! Pick up the Phone, someone!!"
+                                ;;      If you are calling from a business, you might pronounce a more sedate introduction,like,
+                                ;;      "Fritz from McDonalds calling.", or perhaps the more original introduction:
+                                ;;      "John, from the Park County Morgue. You stab 'em, we slab 'em!".
+                                ;;      Just one caution: the kids will hear what you record every time
+                                ;;      you call. So watch your language!
+                                ;;      I will begin recording after the tone. 
+                                ;;      When you are done, hit the # key. Gather your thoughts and get 
+                                ;;      ready. Remember, the # key will end the recording, and play back
+                                ;;      your intro. Good Luck, and Thank you!"
+exten => 1,2,Goto(2,1)
+exten => 2,1,Background,intro-start
+                                ;;  OK, here we go! After the beep, please give your introduction.
+exten => 2,2,Background,beep
+exten => 2,3,Record,priv-callerintros/${CALLERIDNUM}:gsm|4
+exten => 2,4,Background,priv-callerintros/${CALLERIDNUM}
+exten => 2,5,Goto(home-introduction,s,1)
+exten => t,1,Goto(s,1)
+exten => i,1,Background,invalid
+exten => i,2,Goto(s,1)
+exten => o,1,Goto(s,1)
+
+
+In the above, you'd most likely reword the messages to your liking,
+and maybe do more advanced things with the 'error' conditions (i,o,t priorities),
+but I hope it conveys the idea...
+
+

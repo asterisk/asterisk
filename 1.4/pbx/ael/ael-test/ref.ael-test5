@@ -1,0 +1,12 @@
+
+(If you find progress and other non-error messages irritating, you can use -q to suppress them)
+
+(You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
+LOG: lev:2 file:pbx_ael.c  line:4069 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:4076 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4084 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4087 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4089 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4092 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4095 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:527 func: main  38 contexts, 91 extensions, 485 priorities

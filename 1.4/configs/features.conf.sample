@@ -1,0 +1,98 @@
+;
+; Sample Call Features (parking, transfer, etc) configuration
+;
+
+[general]
+parkext => 700			; What extension to dial to park
+parkpos => 701-720		; What extensions to park calls on. These needs to be
+				; numeric, as Asterisk starts from the start position
+				; and increments with one for the next parked call.
+context => parkedcalls		; Which context parked calls are in
+;parkingtime => 45		; Number of seconds a call can be parked for 
+				; (default is 45 seconds)
+;courtesytone = beep		; Sound file to play to the parked caller 
+				; when someone dials a parked call
+				; or the Touch Monitor is activated/deactivated.
+;parkedplay = caller		; Who to play the courtesy tone to when picking up a parked call
+				; one of: parked, caller, both  (default is caller)
+;adsipark = yes			; if you want ADSI parking announcements
+;findslot => next		; Continue to the 'next' free parking space. 
+				; Defaults to 'first' available
+;parkedmusicclass=default	; This is the MOH class to use for the parked channel
+				; as long as the class is not set on the channel directly
+				; using Set(CHANNEL(musicclass)=whatever) in the dialplan
+
+;transferdigittimeout => 3	; Number of seconds to wait between digits when transferring a call
+				; (default is 3 seconds)
+;xfersound = beep		; to indicate an attended transfer is complete
+;xferfailsound = beeperr	; to indicate a failed transfer
+;pickupexten = *8		; Configure the pickup extension. (default is *8)
+;featuredigittimeout = 500	; Max time (ms) between digits for 
+				; feature activation  (default is 500 ms)
+;atxfernoanswertimeout = 15	; Timeout for answer on attended transfer default is 15 seconds.
+
+; Note that the DTMF features listed below only work when two channels have answered and are bridged together.
+; They can not be used while the remote party is ringing or in progress. If you require this feature you can use
+; chan_local in combination with Answer to accomplish it.
+
+[featuremap]
+;blindxfer => #1		; Blind transfer  (default is #)
+;disconnect => *0		; Disconnect  (default is *)
+;automon => *1			; One Touch Record a.k.a. Touch Monitor
+;atxfer => *2			; Attended transfer
+;parkcall => #72                ; Park call (one step parking)
+
+[applicationmap]
+; Note that the DYNAMIC_FEATURES channel variable must be set to use the features
+; defined here.  The value of DYNAMIC_FEATURES should be the names of the features
+; to allow the channel to use separated by '#'.  For example:
+;
+;    Set(__DYNAMIC_FEATURES=myfeature1#myfeature2#myfeature3)
+;
+; (Note: The two leading underscores allow these feature settings to be set on
+;  on the outbound channels, as well.  Otherwise, only the original channel
+;  will have access to these features.)
+;
+; The syntax for declaring a dynamic feature is the following:
+;
+;<FeatureName> => <DTMF_sequence>,<ActivateOn>[/<ActivatedBy>],<Application>[,<AppArguments>[,MOH_Class]]
+;
+;  FeatureName   -> This is the name of the feature used in when setting the
+;                   DYNAMIC_FEATURES variable to enable usage of this feature.
+;  DTMF_sequence -> This is the key sequence used to activate this feature.
+;  ActivateOn    -> This is the channel of the call that the application will be executed
+;                   on. Valid values are "self" and "peer". "self" means run the
+;                   application on the same channel that activated the feature. "peer"
+;                   means run the application on the opposite channel from the one that
+;                   has activated the feature.
+;  ActivatedBy   -> This is which channel is allowed to activate this feature. Valid
+;                   values are "caller", "callee", and "both". "both" is the default.
+;                   The "caller" is the channel that executed the Dial application, while
+;                   the "callee" is the channel called by the Dial application.
+;  Application   -> This is the application to execute.
+;  AppArguments  -> These are the arguments to be passed into the application.
+;  MOH_Class     -> This is the music on hold class to play while the idle
+;                   channel waits for the feature to complete. If left blank,
+;                   no music will be played.
+;
+;
+; IMPORTANT NOTE: The applicationmap is not intended to be used for all Asterisk
+;   applications. When applications are used in extensions.conf, they are executed
+;   by the PBX core. In this case, these applications are executed outside of the
+;   PBX core, so it does *not* make sense to use any application which has any
+;   concept of dialplan flow. Examples of this would be things like Macro, Goto,
+;   Background, WaitExten, and many more.
+;
+; Enabling these features means that the PBX needs to stay in the media flow and
+; media will not be re-directed if DTMF is sent in the media stream.
+;
+; Example Usage:
+;
+;testfeature => #9,peer,Playback,tt-monkeys  ;Allow both the caller and callee to play
+;                                            ;tt-monkeys to the opposite channel
+;
+;pauseMonitor   => #1,self/callee,Pausemonitor     ;Allow the callee to pause monitoring
+;                                                  ;on their channel
+;unpauseMonitor => #3,self/callee,UnPauseMonitor   ;Allow the callee to unpause monitoring
+;                                                  ;on their channel
+;

@@ -1,0 +1,31 @@
+#
+#       Digium's Asterisk specific radius attributes
+#	markster@digium.com
+#
+#
+
+VENDOR	  Digium	22736
+
+BEGIN-VENDOR	Digium
+
+ATTRIBUTE	Asterisk-Acc-Code		101	string	Digium
+ATTRIBUTE	Asterisk-Src			102	string  Digium
+ATTRIBUTE	Asterisk-Dst			103	string  Digium
+ATTRIBUTE	Asterisk-Dst-Ctx		104	string  Digium
+ATTRIBUTE	Asterisk-Clid			105	string  Digium
+ATTRIBUTE	Asterisk-Chan			106	string  Digium
+ATTRIBUTE	Asterisk-Dst-Chan		107	string  Digium
+ATTRIBUTE	Asterisk-Last-App		108	string  Digium
+ATTRIBUTE	Asterisk-Last-Data		109	string  Digium
+ATTRIBUTE	Asterisk-Start-Time		110	string	Digium
+ATTRIBUTE	Asterisk-Answer-Time		111	string	Digium
+ATTRIBUTE	Asterisk-End-Time		112	string	Digium
+ATTRIBUTE	Asterisk-Duration		113	integer	Digium
+ATTRIBUTE	Asterisk-Bill-Sec		114	integer	Digium
+ATTRIBUTE	Asterisk-Disposition		115	string	Digium
+ATTRIBUTE	Asterisk-AMA-Flags		116	string	Digium
+ATTRIBUTE	Asterisk-Unique-ID		117	string  Digium
+ATTRIBUTE	Asterisk-User-Field		118	string  Digium
+
+END-VENDOR	Digium
+

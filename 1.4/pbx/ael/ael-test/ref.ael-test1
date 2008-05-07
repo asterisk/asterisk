@@ -1,0 +1,15 @@
+
+(If you find progress and other non-error messages irritating, you can use -q to suppress them)
+
+(You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
+LOG: lev:2 file:pbx_ael.c  line:4069 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:4076 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4084 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:3 file:pbx_ael.c  line:2234 func: check_switch_expr  Warning: file ./extensions.ael, line 58-58: A default case was automatically added to the switch.
+LOG: lev:3 file:pbx_ael.c  line:937 func: check_dow  Warning: file ./extensions.ael, line 67-67: The day (m0n) must be one of 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', or 'sat'!
+LOG: lev:3 file:pbx_ael.c  line:895 func: check_timerange  Warning: file ./extensions.ael, line 78-78: The end time (25:00) is out of range!
+LOG: lev:2 file:pbx_ael.c  line:4087 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4089 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4092 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4095 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:527 func: main  5 contexts, 16 extensions, 159 priorities

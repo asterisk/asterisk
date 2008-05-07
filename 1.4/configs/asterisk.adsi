@@ -1,0 +1,159 @@
+;
+; Asterisk default ADSI script
+;
+;
+; Begin with the preamble requirements
+;
+DESCRIPTION "Asterisk PBX"		; Name of vendor
+VERSION 0x00						; Version of stuff
+;SECURITY "_AST"					; Security code
+SECURITY 0X9BDBF7AC				; Security code
+FDN 0x0000000F						; Descriptor number
+
+;
+; Flags
+;
+FLAG "nocallwaiting"
+
+;
+; Predefined strings
+;
+DISPLAY "titles" IS "** Asterisk PBX **"
+DISPLAY "talkingto" IS "Call active." JUSTIFY LEFT
+DISPLAY "callname" IS "$Call1p" JUSTIFY LEFT
+DISPLAY "callnum" IS "$Call1s" JUSTIFY LEFT
+DISPLAY "incoming" IS "Incoming call!" JUSTIFY LEFT
+DISPLAY "ringing" IS "Calling... " JUSTIFY LEFT
+DISPLAY "callended" IS "Call ended." JUSTIFY LEFT
+DISPLAY "missedcall" IS "Missed call." JUSTIFY LEFT
+DISPLAY "busy" IS "Busy." JUSTIFY LEFT
+DISPLAY "reorder" IS "Reorder." JUSTIFY LEFT
+DISPLAY "cwdisabled" IS "Callwait disabled"
+DISPLAY "empty" IS "asdf"
+
+;
+; Begin soft key definitions
+;
+KEY "callfwd" IS "CallFwd" OR "Call Forward"
+	OFFHOOK
+	VOICEMODE
+	WAITDIALTONE
+	SENDDTMF "*60"
+	GOTO "offHook"
+ENDKEY
+
+KEY "vmail_OH" IS "VMail" OR "Voicemail"
+	OFFHOOK
+	VOICEMODE
+	WAITDIALTONE
+	SENDDTMF "8500"
+ENDKEY
+
+KEY "vmail" IS "VMail" OR "Voicemail"
+	SENDDTMF "8500"
+ENDKEY
+
+KEY "backspace" IS "BackSpc" OR "Backspace"
+	BACKSPACE
+ENDKEY
+
+KEY "cwdisable" IS "CWDsble" OR "Disable Call Wait"
+	SENDDTMF "*70"
+	SETFLAG "nocallwaiting"
+	SHOWDISPLAY "cwdisabled" AT 4
+	TIMERCLEAR
+	TIMERSTART 1
+ENDKEY
+
+KEY "cidblock" IS "CIDBlk" OR "Block Callerid"
+	SENDDTMF "*67"
+	SETFLAG "nocallwaiting"
+ENDKEY
+
+;
+; Begin main subroutine
+;
+
+SUB "main" IS
+	IFEVENT NEARANSWER THEN
+		CLEAR
+		SHOWDISPLAY "titles" AT 1 NOUPDATE
+		SHOWDISPLAY "talkingto" AT 2 NOUPDATE
+		SHOWDISPLAY "callname" AT 3
+		SHOWDISPLAY "callnum" AT 4
+		GOTO "stableCall"
+	ENDIF
+	IFEVENT OFFHOOK THEN
+		CLEAR
+		CLEARFLAG "nocallwaiting"
+		CLEARDISPLAY 
+		SHOWDISPLAY "titles" AT 1
+		SHOWKEYS "vmail" 
+		SHOWKEYS "cidblock" 
+		SHOWKEYS "cwdisable" UNLESS "nocallwaiting"
+		GOTO "offHook"
+	ENDIF
+	IFEVENT IDLE THEN
+		CLEAR
+		SHOWDISPLAY "titles" AT 1
+		SHOWKEYS "vmail_OH"
+	ENDIF
+	IFEVENT CALLERID THEN
+		CLEAR
+;		SHOWDISPLAY "titles" AT 1 NOUPDATE
+;		SHOWDISPLAY "incoming" AT 2 NOUPDATE
+		SHOWDISPLAY "callname" AT 3 NOUPDATE
+		SHOWDISPLAY "callnum" AT 4
+	ENDIF
+	IFEVENT RING THEN
+		CLEAR
+		SHOWDISPLAY "titles" AT 1 NOUPDATE
+		SHOWDISPLAY "incoming" AT 2
+	ENDIF
+	IFEVENT ENDOFRING THEN
+		SHOWDISPLAY "missedcall" AT 2
+		CLEAR
+		SHOWDISPLAY "titles" AT 1
+		SHOWKEYS "vmail_OH"
+	ENDIF
+	IFEVENT TIMER THEN
+		CLEAR	
+		SHOWDISPLAY "empty" AT 4
+	ENDIF		
+ENDSUB
+
+SUB "offHook" IS
+	IFEVENT FARRING THEN
+		CLEAR
+		SHOWDISPLAY "titles" AT 1 NOUPDATE
+		SHOWDISPLAY "ringing" AT 2 NOUPDATE
+		SHOWDISPLAY "callname" at 3 NOUPDATE
+		SHOWDISPLAY "callnum" at 4
+	ENDIF
+	IFEVENT FARANSWER THEN
+		CLEAR
+		SHOWDISPLAY "talkingto" AT 2
+		GOTO "stableCall"
+	ENDIF
+	IFEVENT BUSY THEN
+		CLEAR
+		SHOWDISPLAY "titles" AT 1 NOUPDATE
+		SHOWDISPLAY "busy" AT 2 NOUPDATE
+		SHOWDISPLAY "callname" at 3 NOUPDATE
+		SHOWDISPLAY "callnum" at 4
+	ENDIF
+	IFEVENT REORDER THEN
+		CLEAR
+		SHOWDISPLAY "titles" AT 1 NOUPDATE
+		SHOWDISPLAY "reorder" AT 2 NOUPDATE
+		SHOWDISPLAY "callname" at 3 NOUPDATE
+		SHOWDISPLAY "callnum" at 4
+	ENDIF
+ENDSUB
+
+SUB "stableCall" IS
+	IFEVENT REORDER THEN
+		SHOWDISPLAY "callended" AT 2
+	ENDIF
+ENDSUB
+

@@ -1,0 +1,39 @@
+Asterisk SNMP Support
+---------------------
+
+Rudimentary support for SNMP access to Asterisk is available.  To build
+this, one needs to have Net-SNMP development headers and libraries on
+the build system, including any libraries Net-SNMP depends on.
+
+Note that on some (many?) Linux-distributions the dependency list in
+the net-snmp-devel list is not complete, and additional RPMs will need
+to be installed.  This is typically seen as attempts to build res_snmp
+as net-snmp-devel is available, but then fails to find certain
+libraries.  The packages may include the following:
+	* bzip2-devel
+	* lm_sensors-devel
+	* newt-devel
+
+SNMP support comes in two varieties -- as a sub-agent to a running SNMP
+daemon using the AgentX protocol, or as a full standalone agent.  If
+you wish to run a full standalone agent, Asterisk must run as root in
+order to bind to port 161.
+
+Configuring access when running as a full agent is something that is
+left as an exercise to the reader.
+
+To enable access to the Asterisk SNMP subagent from a master SNMP
+daemon, one will need to enable AgentX support, and also make sure that
+Asterisk will be able to access the Unix domain socket.  One way of
+doing this is to add the following to /etc/snmp/snmpd.conf:
+
+	# Enable AgentX support
+	master agentx
+
+	# Set permissions on AgentX socket and containing
+	# directory such that process in group 'asterisk'
+	# will be able to connect
+	agentXPerms  0660 0550 nobody asterisk
+
+This assumes that you run Asterisk under group 'asterisk' (and does
+not care what user you run as).

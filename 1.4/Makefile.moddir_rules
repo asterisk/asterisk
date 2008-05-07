@@ -1,0 +1,118 @@
+#
+# Asterisk -- A telephony toolkit for Linux.
+# 
+# Makefile rules for subdirectories containing modules
+#
+# Copyright (C) 2006, Digium, Inc.
+#
+# Kevin P. Fleming <kpfleming@digium.com>
+#
+# This program is free software, distributed under the terms of
+# the GNU General Public License
+#
+
+ifneq ($(findstring MALLOC_DEBUG,$(MENUSELECT_CFLAGS)),)
+ ifeq ($(findstring astmm.h,$(ASTCFLAGS)),)
+  ASTCFLAGS+=-include $(ASTTOPDIR)/include/asterisk/astmm.h
+ endif
+endif
+
+ifeq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
+  ASTCFLAGS+=${GC_CFLAGS}
+endif
+
+ifneq ($(findstring STATIC_BUILD,$(MENUSELECT_CFLAGS)),)
+  STATIC_BUILD=-static
+endif
+
+include $(ASTTOPDIR)/Makefile.rules
+
+comma:=,
+
+$(addsuffix .o,$(C_MODS)): ASTCFLAGS+=-DAST_MODULE=\"$*\" $(MENUSELECT_OPTS_$*:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_INCLUDE))
+$(addsuffix .oo,$(CC_MODS)): ASTCFLAGS+=-DAST_MODULE=\"$*\" $(MENUSELECT_OPTS_$*:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_INCLUDE))
+
+$(LOADABLE_MODS:%=%.so): ASTCFLAGS+=-fPIC
+$(LOADABLE_MODS:%=%.so): LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_LIB))
+$(LOADABLE_MODS:%=%.so): ASTLDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_LDFLAGS))
+
+$(addsuffix .so,$(filter $(LOADABLE_MODS),$(C_MODS))): %.so: %.o
+$(addsuffix .so,$(filter $(LOADABLE_MODS),$(CC_MODS))): %.so: %.oo
+
+modules.link: $(addsuffix .o,$(filter $(EMBEDDED_MODS),$(C_MODS)))
+modules.link: $(addsuffix .oo,$(filter $(EMBEDDED_MODS),$(CC_MODS)))
+
+.PHONY: clean uninstall _all moduleinfo makeopts
+
+ifneq ($(LOADABLE_MODS),)
+_all: $(LOADABLE_MODS:%=%.so)
+endif
+
+ifneq ($(EMBEDDED_MODS),)
+_all: modules.link
+__embed_ldscript:
+	@echo "../$(SUBDIR)/modules.link"
+__embed_ldflags:
+	@echo "$(foreach mod,$(filter $(EMBEDDED_MODS),$(C_MODS)),$(foreach dep,$(MENUSELECT_DEPENDS_$(mod)),$(dep)_LDFLAGS))"
+	@echo "$(foreach mod,$(filter $(EMBEDDED_MODS),$(CC_MODS)),$(foreach dep,$(MENUSELECT_DEPENDS_$(mod)),$(dep)_LDFLAGS))"
+__embed_libs:
+	@echo "$(foreach mod,$(filter $(EMBEDDED_MODS),$(C_MODS)),$(foreach dep,$(MENUSELECT_DEPENDS_$(mod)),$(dep)_LIB))"
+	@echo "$(foreach mod,$(filter $(EMBEDDED_MODS),$(CC_MODS)),$(foreach dep,$(MENUSELECT_DEPENDS_$(mod)),$(dep)_LIB))"
+else
+__embed_ldscript:
+__embed_ldflags:
+__embed_libs:
+endif
+
+modules.link:
+	@rm -f $@
+	@for file in $(patsubst %,$(SUBDIR)/%,$(filter %.o,$^)); do echo "INPUT (../$${file})" >> $@; done
+	@for file in $(patsubst %,$(SUBDIR)/%,$(filter-out %.o,$^)); do echo "INPUT (../$${file})" >> $@; done
+
+clean::
+	rm -f *.so *.o *.oo *.s *.i
+	rm -f .*.o.d .*.oo.d
+	rm -f modules.link
+
+install:: all
+	for x in $(LOADABLE_MODS:%=%.so); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
+
+uninstall::
+
+dist-clean::
+	rm -f .*.moduleinfo .moduleinfo
+	rm -f .*.makeopts .makeopts
+
+.%.moduleinfo: %.c
+	@echo "<member name=\"$*\" displayname=\"$(shell $(GREP) -e AST_MODULE_INFO $< | head -n 1 | cut -d '"' -f 2)\" remove_on_change=\"$(SUBDIR)/$*.o $(SUBDIR)/$*.so\">" > $@
+	$(AWK) -f $(ASTTOPDIR)/build_tools/get_moduleinfo $< >> $@
+	echo "</member>" >> $@
+
+.%.moduleinfo: %.cc
+	@echo "<member name=\"$*\" displayname=\"$(shell $(GREP) -e AST_MODULE_INFO $< | head -n 1 | cut -d '"' -f 2)\" remove_on_change=\"$(SUBDIR)/$*.oo $(SUBDIR)/$*.so\">" > $@
+	$(AWK) -f $(ASTTOPDIR)/build_tools/get_moduleinfo $< >> $@
+	echo "</member>" >> $@
+
+.moduleinfo:: $(addsuffix .moduleinfo,$(addprefix .,$(ALL_C_MODS) $(ALL_CC_MODS)))
+	@echo "<category name=\"MENUSELECT_$(MENUSELECT_CATEGORY)\" displayname=\"$(MENUSELECT_DESCRIPTION)\" remove_on_change=\"$(SUBDIR)/modules.link\">" > $@
+	@cat $^ >> $@
+	@echo "</category>" >> $@
+
+moduleinfo: .moduleinfo
+	@cat $<
+
+.%.makeopts: %.c
+	@$(AWK) -f $(ASTTOPDIR)/build_tools/get_makeopts $< > $@
+
+.%.makeopts: %.cc
+	@$(AWK) -f $(ASTTOPDIR)/build_tools/get_makeopts $< > $@
+
+.makeopts:: $(addsuffix .makeopts,$(addprefix .,$(ALL_C_MODS) $(ALL_CC_MODS)))
+	@cat $^ > $@
+
+makeopts: .makeopts
+	@cat $<
+
+ifneq ($(wildcard .*.d),)
+   include .*.d
+endif

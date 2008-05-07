@@ -1,0 +1,41 @@
+.TH AUTOSUPPORT 8 "Jul 5th, 2005" "Asterisk" "Linux Programmer's Manual"
+.SH NAME
+.B autosupport
+\(em interactive script to provide Digium[tm]'s support with information
+.SH SYNOPSIS
+.PP 
+.B autosupport
+
+.SH DESCRIPTION
+.B autoasupport
+is a script that is normally run by a user contacting Digium's support 
+to automate gathering support information.
+
+It will probe the system for some configuration and run-time information, 
+and will also prompt the user for some optional access information (IP 
+address, login and password).
+
+The information is written to /root/digiuminfo which the user is expected 
+to attach to a support ticket to Digium.
+
+The script must be run as root as it reads Asterisk's configuration and 
+the disk information using hdparm(8).
+
+.SH FILES
+.B /root/digiuminfo
+.RS
+The output of the script goes there
+.RE
+
+.SH SEE ALSO
+asterisk(8)
+
+.SH "AUTHOR" 
+autosupport was written by John Bigelow <support@digium.com>.
+This manual page was written by Tzafrir Cohen <tzafrir.cohen@xorcom.com> 
+Permission is granted to copy, distribute and/or modify this document under 
+the terms of the GNU General Public License, Version 2 any  
+later version published by the Free Software Foundation. 
+
+On Debian systems, the complete text of the GNU General Public 
+License can be found in /usr/share/common-licenses/GPL. 

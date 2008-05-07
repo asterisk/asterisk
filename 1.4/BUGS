@@ -1,0 +1,22 @@
+Asterisk Bug Tracking Information
+=================================
+
+To learn about and report Asterisk bugs, please visit 
+the official Asterisk Bug Tracker at:
+
+	http://bugs.digium.com
+
+For more information on using the bug tracker, or to 
+learn how you can contribute by acting as a bug marshal
+please see:
+
+	http://www.asterisk.org/developers/bug-guidelines
+
+If you would like to submit a feature request, please
+resist the temptation to post it to the bug tracker.
+Feature requests should be posted to the asterisk-dev
+mailing list, located at:
+
+	http://lists.digium.com 
+
+Thank you!

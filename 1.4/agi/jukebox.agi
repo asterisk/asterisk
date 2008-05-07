@@ -1,0 +1,488 @@
+#!/usr/bin/perl
+#
+# Jukebox 0.2
+#
+# A music manager for Asterisk.
+#
+# Copyright (C) 2005-2006, Justin Tunney
+#
+# Justin Tunney <jesuscyborg@gmail.com>
+#
+# This program is free software, distributed under the terms of the
+# GNU General Public License v2.
+#
+# Keep it open source pigs
+#
+# --------------------------------------------------------------------
+#
+# Uses festival to list off all your MP3 music files over a channel in
+# a hierarchical fashion.  Put this file in your agi-bin folder which
+# is located at: /var/lib/asterisk/agi-bin  Be sure to chmod +x it!
+#
+# Invocation Example:
+#   exten => 68742,1,Answer()
+#   exten => 68742,2,agi,jukebox.agi|/home/justin/Music
+#   exten => 68742,3,Hangup()
+#
+#   exten => 68742,1,Answer()
+#   exten => 68742,2,agi,jukebox.agi|/home/justin/Music|pm
+#   exten => 68742,3,Hangup()
+#
+# Options:
+#   p - Precache text2wave outputs for every possible filename.
+#       It is much better to set this option because if a caller
+#       presses a key during a cache operation, it will be ignored.
+#   m - Go back to menu after playing song
+#   g - Do not play the greeting message
+#
+# Usage Instructions:
+#   - Press '*' to go up a directory.  If you are in the root music
+#     folder you will be exitted from the script.
+#   - If you have a really long list of files, you can filter the list
+#     at any time by pressing '#' and spelling out a few letters you
+#     expect the files to start with.  For example, if you wanted to
+#     know what extension 'Requiem For A Dream' was, you'd type:
+#     '#737'.  Note, phone keypads don't include Q and Z.  Q is 7 and
+#     Z is 9.
+#
+# Notes:
+# - This AGI script uses the MP3Player command which uses the
+#   mpg123 Program.  Grab yourself a copy of this program by
+#   going to http://www.mpg123.de/cgi-bin/sitexplorer.cgi?/mpg123/
+#   Be sure to download mpg123-0.59r.tar.gz because it is known to
+#   work with Asterisk and hopefully isn't the release with that
+#   awful security problem.  If you're using Fedora Core 3 with
+#   Alsa like me, make linux-alsa isn't going to work.  Do make
+#   linux-devel and you're peachy keen.
+#
+# - You won't get nifty STDERR debug messages if you're using a
+#   remote asterisk shell.
+#
+# - For some reason, caching certain files will generate the
+#   error: 'using default diphone ax-ax for y-pau'.  Example:
+#   # echo "Depeche Mode - CUW - 05 - The Meaning of Love" | text2wave -o /var/jukeboxcache/jukeboxcache/Depeche_Mode/Depeche_Mode_-_CUW_-_05_-_The_Meaning_of_Love.mp3.ul -otype ulaw -
+#   The temporary work around is to just touch these files.
+#
+# - The background app doesn't like to get more than 2031 chars
+#   of input.
+#
+
+use strict;
+
+$|=1;
+
+# Setup some variables
+my %AGI; my $tests = 0; my $fail = 0; my $pass = 0;
+my @masterCacheList = ();
+my $maxNumber = 10;
+
+while (<STDIN>) {
+	chomp;
+	last unless length($_);
+	if (/^agi_(\w+)\:\s+(.*)$/) {
+		$AGI{$1} = $2;
+	}
+}
+
+# setup options
+my $SHOWGREET = 1;
+my $PRECACHE = 0;
+my $MENUAFTERSONG = 0;
+
+$PRECACHE = 1 if $ARGV[1] =~ /p/;
+$MENUAFTERSONG = 1 if $ARGV[1] =~ /m/;
+$SHOWGREET = 0 if $ARGV[1] =~ /g/;
+
+# setup folders
+my $MUSIC = $ARGV[0];
+$MUSIC = &rmts($MUSIC);
+my $FESTIVALCACHE = "/var/jukeboxcache";
+if (! -e $FESTIVALCACHE) {
+	`mkdir -p -m0776 $FESTIVALCACHE`;
+}
+
+# make sure we have some essential files
+if (! -e "$FESTIVALCACHE/jukebox_greet.ul") {
+	`echo "Welcome to the Asterisk Jukebox" | text2wave -o $FESTIVALCACHE/jukebox_greet.ul -otype ulaw -`;
+}
+if (! -e "$FESTIVALCACHE/jukebox_press.ul") {
+	`echo "Press" | text2wave -o $FESTIVALCACHE/jukebox_press.ul -otype ulaw -`;
+}
+if (! -e "$FESTIVALCACHE/jukebox_for.ul") {
+	`echo "For" | text2wave -o $FESTIVALCACHE/jukebox_for.ul -otype ulaw -`;
+}
+if (! -e "$FESTIVALCACHE/jukebox_toplay.ul") {
+	`echo "To play" | text2wave -o $FESTIVALCACHE/jukebox_toplay.ul -otype ulaw -`;
+}
+if (! -e "$FESTIVALCACHE/jukebox_nonefound.ul") {
+	`echo "There were no music files found in this folder" | text2wave -o $FESTIVALCACHE/jukebox_nonefound.ul -otype ulaw -`;
+}
+if (! -e "$FESTIVALCACHE/jukebox_percent.ul") {
+	`echo "Percent" | text2wave -o $FESTIVALCACHE/jukebox_percent.ul -otype ulaw -`;
+}
+if (! -e "$FESTIVALCACHE/jukebox_generate.ul") {
+	`echo "Please wait while Astrisk Jukebox cashes the files of your music collection" | text2wave -o $FESTIVALCACHE/jukebox_generate.ul -otype ulaw -`;
+}
+if (! -e "$FESTIVALCACHE/jukebox_invalid.ul") {
+	`echo "You have entered an invalid selection" | text2wave -o $FESTIVALCACHE/jukebox_invalid.ul -otype ulaw -`;
+}
+if (! -e "$FESTIVALCACHE/jukebox_thankyou.ul") {
+	`echo "Thank you for using Astrisk Jukebox, Goodbye" | text2wave -o $FESTIVALCACHE/jukebox_thankyou.ul -otype ulaw -`;
+}
+
+# greet the user
+if ($SHOWGREET) {
+	print "EXEC Playback \"$FESTIVALCACHE/jukebox_greet\"\n";
+	my $result = <STDIN>; &check_result($result);
+}
+
+# go through the directories
+music_dir_cache() if $PRECACHE;
+music_dir_menu('/');
+
+exit 0;
+
+##########################################################################
+
+sub music_dir_menu {
+	my $dir = shift;
+
+# generate a list of mp3's and directories and assign each one it's
+# own selection number.  Then make sure that we've got a sound clip
+# for the file name
+	if (!opendir(THEDIR, rmts($MUSIC.$dir))) {
+		print STDERR "Failed to open music directory: $dir\n";
+		exit 1;
+	}
+	my @files = sort readdir THEDIR;
+	my $cnt = 1;
+	my @masterBgList = ();
+
+	foreach my $file (@files) {
+		chomp($file);
+		if ($file ne '.' && $file ne '..' && $file ne 'festivalcache') { # ignore special files
+			my $real_version = &rmts($MUSIC.$dir).'/'.$file;
+			my $cache_version = &rmts($FESTIVALCACHE.$dir).'/'.$file.'.ul';
+			my $cache_version2 = &rmts($FESTIVALCACHE.$dir).'/'.$file;
+			my $cache_version_esc = &clean_file($cache_version);
+			my $cache_version2_esc = &clean_file($cache_version2);
+
+			if (-d $real_version) {
+#		                                     0:id    1:type 2:text2wav-file      3:for-filtering             4:the-directory 5:text2wav echo
+				push(@masterBgList, [$cnt++, 1,     $cache_version2_esc, &remove_special_chars($file), $file,          "for the $file folder"]);
+			} elsif ($real_version =~ /\.mp3$/) {
+#		                                     0:id    1:type 2:text2wav-file      3:for-filtering             4:the-mp3
+				push(@masterBgList, [$cnt++, 2,     $cache_version2_esc, &remove_special_chars($file), $real_version,  "to play $file"]);
+			}
+		}
+	}
+	close(THEDIR);
+
+	my @filterList = @masterBgList;
+
+	if (@filterList == 0) {
+		print "EXEC Playback \"$FESTIVALCACHE/jukebox_nonefound\"\n";
+		my $result = <STDIN>; &check_result($result);
+		return 0;
+	}
+
+	for (;;) {
+MYCONTINUE:
+
+# play bg selections and figure out their selection
+		my $digit = '';
+		my $digitstr = '';
+		for (my $n=0; $n<@filterList; $n++) {
+			&cache_speech(&remove_file_extension($filterList[$n][5]), "$filterList[$n][2].ul") if ! -e "$filterList[$n][2].ul";
+			&cache_speech("Press $filterList[$n][0]", "$FESTIVALCACHE/jukebox_$filterList[$n][0].ul") if ! -e "$FESTIVALCACHE/jukebox_$filterList[$n][0].ul";
+			print "EXEC Background \"$filterList[$n][2]&$FESTIVALCACHE/jukebox_$filterList[$n][0]\"\n";
+			my $result = <STDIN>;
+			$digit = &check_result($result);
+			if ($digit > 0) {
+				$digitstr .= chr($digit);
+				last;
+			}
+		}
+		for (;;) {
+			print "WAIT FOR DIGIT 3000\n";
+			my $result = <STDIN>;
+			$digit = &check_result($result);
+			last if $digit <= 0;
+			$digitstr .= chr($digit);
+		}
+
+# see if it's a valid selection
+		print STDERR "Digits Entered: '$digitstr'\n";
+		exit 0 if $digitstr eq '';
+		my $found = 0;
+		goto EXITSUB if $digitstr =~ /\*/;
+
+# filter the list
+		if ($digitstr =~ /^\#\d+/) {
+			my $regexp = '';
+			for (my $n=1; $n<length($digitstr); $n++) {
+				my $d = substr($digitstr, $n, 1);
+				if ($d == 2) {
+					$regexp .= '[abc]';
+				} elsif ($d == 3) {
+					$regexp .= '[def]';
+				} elsif ($d == 4) {
+					$regexp .= '[ghi]';
+				} elsif ($d == 5) {
+					$regexp .= '[jkl]';
+				} elsif ($d == 6) {
+					$regexp .= '[mno]';
+				} elsif ($d == 7) {
+					$regexp .= '[pqrs]';
+				} elsif ($d == 8) {
+					$regexp .= '[tuv]';
+				} elsif ($d == 9) {
+					$regexp .= '[wxyz]';
+				}
+			}
+			@filterList = ();
+			for (my $n=1; $n<@masterBgList; $n++) {
+				push(@filterList, $masterBgList[$n]) if $masterBgList[$n][3] =~ /^$regexp/i;
+			}
+			goto MYCONTINUE;
+		}
+
+		for (my $n=0; $n<@masterBgList; $n++) {
+			if ($digitstr == $masterBgList[$n][0]) {
+				if ($masterBgList[$n][1] == 1) { # a folder
+					&music_dir_menu(rmts($dir).'/'.$masterBgList[$n][4]);
+					@filterList = @masterBgList;
+					goto MYCONTINUE;
+				} elsif ($masterBgList[$n][1] == 2) { # a file
+# because *'s scripting language is crunk and won't allow us to escape
+# funny filenames, we need to create a temporary symlink to the mp3
+# file
+					my $mp3 = &escape_file($masterBgList[$n][4]);
+					my $link = `mktemp`;
+					chomp($link);
+					$link .= '.mp3';
+					print STDERR "ln -s $mp3 $link\n";
+					my $cmdr = `ln -s $mp3 $link`;
+					chomp($cmdr);
+					print "Failed to create symlink to mp3: $cmdr\n" if $cmdr ne '';
+					
+					print "EXEC MP3Player \"$link\"\n";
+					my $result = <STDIN>; &check_result($result);
+
+					`rm $link`;
+					
+					if (!$MENUAFTERSONG) {
+						print "EXEC Playback \"$FESTIVALCACHE/jukebox_thankyou\"\n";
+						my $result = <STDIN>; &check_result($result);
+						exit 0;
+					} else {
+						goto MYCONTINUE;
+					}
+				}
+			}
+		}
+		print "EXEC Playback \"$FESTIVALCACHE/jukebox_invalid\"\n";
+		my $result = <STDIN>; &check_result($result);
+	}
+      EXITSUB:
+}
+
+sub cache_speech {
+	my $speech = shift;
+	my $file = shift;
+
+	my $theDir = extract_file_dir($file);
+	`mkdir -p -m0776 $theDir`;
+
+	print STDERR "echo \"$speech\" | text2wave -o $file -otype ulaw -\n";
+	my $cmdr = `echo "$speech" | text2wave -o $file -otype ulaw -`;
+	chomp($cmdr);
+	if ($cmdr =~ /using default diphone/) {
+# temporary bug work around....
+		`touch $file`;
+	} elsif ($cmdr ne '') {
+		print STDERR "Command Failed\n";
+		exit 1;
+	}
+}
+
+sub music_dir_cache {
+# generate list of text2speech files to generate
+	if (!music_dir_cache_genlist('/')) {
+		print STDERR "Horrible Dreadful Error: No Music Found in $MUSIC!";
+		exit 1;
+	}
+
+# add to list how many 'number' files we have to generate.  We can't
+# use the SayNumber app in Asterisk because we want to chain all
+# talking in one Background command.  We also want a consistent
+# voice...
+	for (my $n=1; $n<=$maxNumber; $n++) {
+		push(@masterCacheList, [3, "Press $n", "$FESTIVALCACHE/jukebox_$n.ul"]) if ! -e "$FESTIVALCACHE/jukebox_$n.ul";
+	}
+
+# now generate all these darn text2speech files
+	if (@masterCacheList > 5) {
+		print "EXEC Playback \"$FESTIVALCACHE/jukebox_generate\"\n";
+		my $result = <STDIN>; &check_result($result);
+	}
+	my $theTime = time();
+	for (my $n=0; $n < @masterCacheList; $n++) {
+		my $cmdr = '';
+		if ($masterCacheList[$n][0] == 1) { # directory
+			&cache_speech("for folder $masterCacheList[$n][1]", $masterCacheList[$n][2]);
+		} elsif ($masterCacheList[$n][0] == 2) { # file
+			&cache_speech("to play $masterCacheList[$n][1]", $masterCacheList[$n][2]);
+		} elsif ($masterCacheList[$n][0] == 3) { # number
+			&cache_speech($masterCacheList[$n][1], $masterCacheList[$n][2]);
+		}
+		if (time() >= $theTime + 30) {
+			my $percent = int($n / @masterCacheList * 100);
+			print "SAY NUMBER $percent \"\"\n";
+			my $result = <STDIN>; &check_result($result);
+			print "EXEC Playback \"$FESTIVALCACHE/jukebox_percent\"\n";
+			my $result = <STDIN>; &check_result($result);
+			$theTime = time();
+		}
+	}
+}
+
+# this function will fill the @masterCacheList of all the files that
+# need to have text2speeced ulaw files of their names generated
+sub music_dir_cache_genlist {
+	my $dir = shift;
+	if (!opendir(THEDIR, rmts($MUSIC.$dir))) {
+		print STDERR "Failed to open music directory: $dir\n";
+		exit 1;
+	}
+	my @files = sort readdir THEDIR;
+	my $foundFiles = 0;
+	my $tmpMaxNum = 0;
+	foreach my $file (@files) {
+		chomp;
+		if ($file ne '.' && $file ne '..' && $file ne 'festivalcache') { # ignore special files
+			my $real_version = &rmts($MUSIC.$dir).'/'.$file;
+			my $cache_version = &rmts($FESTIVALCACHE.$dir).'/'.$file.'.ul';
+			my $cache_version2 = &rmts($FESTIVALCACHE.$dir).'/'.$file;
+			my $cache_version_esc = &clean_file($cache_version);
+			my $cache_version2_esc = &clean_file($cache_version2);
+
+			if (-d $real_version) {
+				if (music_dir_cache_genlist(rmts($dir).'/'.$file)) {
+					$tmpMaxNum++;
+					$maxNumber = $tmpMaxNum if $tmpMaxNum > $maxNumber;
+					push(@masterCacheList, [1, $file, $cache_version_esc]) if ! -e $cache_version_esc;
+					$foundFiles = 1;
+				}
+			} elsif ($real_version =~ /\.mp3$/) {
+				$tmpMaxNum++;
+				$maxNumber = $tmpMaxNum if $tmpMaxNum > $maxNumber;
+				push(@masterCacheList, [2, &remove_file_extension($file), $cache_version_esc]) if ! -e $cache_version_esc;
+				$foundFiles = 1;
+			}
+		}
+	}
+	close(THEDIR);
+	return $foundFiles;
+}
+
+sub rmts { # remove trailing slash
+	my $hog = shift;
+	$hog =~ s/\/$//;
+	return $hog;
+}
+
+sub extract_file_name {
+	my $hog = shift;
+	$hog =~ /\/?([^\/]+)$/;
+	return $1;
+}
+
+sub extract_file_dir {
+	my $hog = shift;
+	return $hog if ! ($hog =~ /\//);
+	$hog =~ /(.*)\/[^\/]*$/;
+	return $1;
+}
+
+sub remove_file_extension {
+	my $hog = shift;
+	return $hog if ! ($hog =~ /\./);
+	$hog =~ /(.*)\.[^.]*$/;
+	return $1;
+}
+
+sub clean_file {
+	my $hog = shift;
+	$hog =~ s/\\/_/g;
+	$hog =~ s/ /_/g;
+	$hog =~ s/\t/_/g;
+	$hog =~ s/\'/_/g;
+	$hog =~ s/\"/_/g;
+	$hog =~ s/\(/_/g;
+	$hog =~ s/\)/_/g;
+	$hog =~ s/&/_/g;
+	$hog =~ s/\[/_/g;
+	$hog =~ s/\]/_/g;
+	$hog =~ s/\$/_/g;
+	$hog =~ s/\|/_/g;
+	$hog =~ s/\^/_/g;
+	return $hog;
+}
+
+sub remove_special_chars {
+	my $hog = shift;
+	$hog =~ s/\\//g;
+	$hog =~ s/ //g;
+	$hog =~ s/\t//g;
+	$hog =~ s/\'//g;
+	$hog =~ s/\"//g;
+	$hog =~ s/\(//g;
+	$hog =~ s/\)//g;
+	$hog =~ s/&//g;
+	$hog =~ s/\[//g;
+	$hog =~ s/\]//g;
+	$hog =~ s/\$//g;
+	$hog =~ s/\|//g;
+	$hog =~ s/\^//g;
+	return $hog;
+}
+
+sub escape_file {
+	my $hog = shift;
+	$hog =~ s/\\/\\\\/g;
+	$hog =~ s/ /\\ /g;
+	$hog =~ s/\t/\\\t/g;
+	$hog =~ s/\'/\\\'/g;
+	$hog =~ s/\"/\\\"/g;
+	$hog =~ s/\(/\\\(/g;
+	$hog =~ s/\)/\\\)/g;
+	$hog =~ s/&/\\&/g;
+	$hog =~ s/\[/\\\[/g;
+	$hog =~ s/\]/\\\]/g;
+	$hog =~ s/\$/\\\$/g;
+	$hog =~ s/\|/\\\|/g;
+	$hog =~ s/\^/\\\^/g;
+	return $hog;
+}
+
+sub check_result {
+	my ($res) = @_;
+	my $retval;
+	$tests++;
+	chomp $res;
+	if ($res =~ /^200/) {
+		$res =~ /result=(-?\d+)/;
+		if (!length($1)) {
+			print STDERR "FAIL ($res)\n";
+			$fail++;
+			exit 1;
+		} else {
+			print STDERR "PASS ($1)\n";
+			return $1;
+		}
+	} else {
+		print STDERR "FAIL (unexpected result '$res')\n";
+		exit 1;
+	}
+}

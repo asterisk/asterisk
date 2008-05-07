@@ -1,0 +1,94 @@
+#! /bin/sh
+# $Id$
+#
+# Mon Jun 04 2007 Iñaki Baz Castillo <ibc@in.ilimit.es>
+# - Eliminated SAFE_ASTERISK since it doesn't work as LSB script (it could require a independent "safe_asterisk" init script).
+# - Load and use the standar "/lib/lsb/init-functions".
+# - Addded "--oknodo" to "start-stop-daemon" for compatibility with LSB:
+#   http://www.linux-foundation.org/spec/refspecs/LSB_3.0.0/LSB-Core-generic/LSB-Core-generic/iniscrptact.html
+#
+# Thu Nov 17 2005 Gregory Boehnlein <damin@nacs.net>
+# - Reversed behavior of LD_ASSUME_KERNEL=2.4.1
+# - Added detailed failure messages
+#
+# Sun Jul 18 2004 Gregory Boehnlein <damin@nacs.net>
+# - Added test for safe_asterisk
+# - Changed "stop gracefully" to "stop now"
+# - Added support for -U and -G command line options
+# - Modified "reload" to call asterisk -rx 'reload' 
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+NAME=asterisk
+DESC="Asterisk PBX"
+# Full path to asterisk binary
+DAEMON=/usr/sbin/asterisk
+
+# Uncomment this ONLY if you know what you are doing.
+# export LD_ASSUME_KERNEL=2.4.1
+
+# Uncomment the following and set them to the user/groups that you
+# want to run Asterisk as. NOTE: this requires substantial work to
+# be sure that Asterisk's environment has permission to write the
+# files required  for  its  operation, including logs, its comm
+# socket, the asterisk database, etc.
+#AST_USER="asterisk"
+#AST_GROUP="asterisk"
+
+set -e
+
+if ! [ -x $DAEMON ] ; then
+        echo "ERROR: $DAEMON not found"
+        exit 0
+fi
+
+if ! [ -d /etc/asterisk ] ; then
+        echo "ERROR: /etc/asterisk directory not found"
+        exit 0
+fi
+
+# Use the LSB standar functions for services management
+. /lib/lsb/init-functions
+
+case "$1" in
+  start)
+	# Check if Asterisk is already running.  If it is, then bug out, because
+	# starting up Asterisk when Asterisk is already running is very bad.
+	VERSION=`${ASTSBINDIR}/asterisk -rx 'core show version'`
+	if [ "${VERSION:0:8}" = "Asterisk" ]; then # otherwise "Unable t"
+		echo "Asterisk is already running.  $0 will exit now."
+		exit 1
+	fi
+
+	log_begin_msg "Starting $DESC: $NAME"
+        if [ $AST_USER ] ; then
+                ASTARGS="-U $AST_USER"
+        fi
+        if [ $AST_GROUP ] ; then
+                ASTARGS="$ASTARGS -G $AST_GROUP"
+        fi
+	# "start-stop-daemon --oknodo" returns 0 even if Asterisk was already running (as LSB expects):
+	start-stop-daemon --start --oknodo --exec $DAEMON -- $ASTARGS
+	log_end_msg $?
+	;;
+  stop)
+	log_begin_msg "Stopping $DESC: $NAME"
+	# "start-stop-daemon --oknodo" returns 0 even if Asterisk was already stopped (as LSB expects):
+	start-stop-daemon --stop --oknodo --exec $DAEMON
+	log_end_msg $?
+	;;
+  reload)
+	echo "Reloading $DESC configuration files."
+	$DAEMON -rx 'reload' > /dev/null 2> /dev/null
+	;;
+  restart|force-reload)
+	$0 stop
+	sleep 2  # It needs some time to really be stopped.
+	$0 start
+	# "restart|force-reload" starts Asterisk and returns 0 even if Asterisk was stopped (as LSB expects).
+	;;
+  *)
+	N=/etc/init.d/$NAME
+	echo "Usage: $N {start|stop|restart|reload|force-reload}" >&2
+	exit 1
+	;;
+esac

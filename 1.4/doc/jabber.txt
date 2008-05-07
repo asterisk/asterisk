@@ -1,0 +1,15 @@
+(res_jabber is very experimental!)
+
+Jabber(xmpp) is an xml based protocol primarily for presence and messaging.
+It is an open standard and there are several open server implementations,
+ejabberd, jabberd(2), wildfire, and many others, as well as several open source
+clients, Psi, gajim, gaim etc.  Jabber differs from other IM applications as it
+is immensly extendable.  This allows us to easily integrate Asterisk with 
+jabber.  The Asterisk Jabber Interface is provided by res_jabber.so.  res_jabber 
+allows for Asterisk to connect to any jabber server via the standard client
+protocol or also as a simple client.  Several simple functions are exposed to
+the dial plan, jabberstatus, jabbersend, and soon jabberrecv.  res_jabber is also used
+to provide the connection interface for chan_jingle.
+
+The maintainer of res_jabber is Matthew O'Gorman <mogorman@digium.com> or
+mog_work on irc or (preferred) mogorman@astjab.org over jabber.

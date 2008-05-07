@@ -1,0 +1,43 @@
+Build
+	-- Hold lock when creating new H.323 channel to sync the audio channels
+	-- Decrement usage counter when appropriate
+	-- Actually unregister everything in unload_module
+	-- Add IP based authentication using 'host'in type=user's
+0.1.0
+	-- Intergration into the mainline Asterisk codebase
+	-- Remove reduandant debug info
+	-- Add Caller*id support
+	-- Inband DTMF
+	-- Retool port usage (to avoid possible seg fault condition)
+0.0.6
+	-- Configurable support for user-input (DTMF)
+	-- Reworked Gatekeeper support
+	-- Native bridging (but is still broken, help!)
+	-- Locally implement a non-broken G.723.1 Capability
+	-- Utilize the cleaner RTP method implemented by Mark
+	-- AllowGkRouted, thanks to Panny from http://hotlinks.co.uk
+	-- Clened up inbound call flow
+	-- Prefix, E.164 and Gateway support
+	-- Multi-homed support
+	-- Killed more seg's 
+0.0.5
+	-- Added H.323 Alias support
+	-- Clened up inbound call flow
+	-- Fixed RTP port logic
+	-- Stomped on possible seg fault conditions thanks to Iain Stevenson 
+0.0.4
+        -- Fixed one-way audio on inbound calls. Found
+           race condition in monitor thread.
+
+0.0.3
+        -- Changed name to chan_h323
+        -- Also renamed file names to futher avoid confusion
+
+0.0.2
+        -- First public offering
+        -- removed most hardcoded values
+        -- lots of changes to alias/exension operation
+
+0.0.1
+        -- initial build, lots of hardcoded crap
+        -- Proof of concept for External RTP
