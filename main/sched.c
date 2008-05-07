@@ -198,34 +198,45 @@ static void schedule(struct sched_context *con, struct sched *s)
 	int de = 0;
 	struct sched *first = AST_DLLIST_FIRST(&con->schedq);
 	struct sched *last = AST_DLLIST_LAST(&con->schedq);
+
 	if (first)
 		df = ast_tvdiff_us(s->when, first->when);
 	if (last)
 		de = ast_tvdiff_us(s->when, last->when);
+
 	if (df < 0)
 		df = -df;
 	if (de < 0)
 		de = -de;
-	if (df < de)
+
+	if (df < de) {
 		AST_DLLIST_TRAVERSE(&con->schedq, cur, list) {
 			if (ast_tvcmp(s->when, cur->when) == -1) {
 				AST_DLLIST_INSERT_BEFORE(&con->schedq, cur, s, list);
 				break;
 			}
 		}
-	else
+		if (!cur) {
+			AST_DLLIST_INSERT_TAIL(&con->schedq, s, list);
+		}
+	} else {
 		AST_DLLIST_TRAVERSE_BACKWARDS(&con->schedq, cur, list) {
 			if (ast_tvcmp(s->when, cur->when) == 1) {
 				AST_DLLIST_INSERT_AFTER(&con->schedq, cur, s, list);
 				break;
 			}
 		}
-	if (!cur)
-		AST_DLLIST_INSERT_TAIL(&con->schedq, s, list);
+		if (!cur) {
+			AST_DLLIST_INSERT_HEAD(&con->schedq, s, list);
+		}
+	}
+
 	ret = ast_hashtab_insert_safe(con->schedq_ht, s);
 	if (!ret)
 		ast_log(LOG_WARNING,"Schedule Queue entry %d is already in table!\n",s->id);
+
 	con->schedcnt++;
+
 	if (con->schedcnt > con->highwater)
 		con->highwater = con->schedcnt;
 }
