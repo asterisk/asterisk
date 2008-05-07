@@ -1,5 +1,12 @@
 #
-# Copyright (c) 2007 Suretec Systems Ltd. - <http://www.suretecsystems.com/>
+# Copyright (c) 2007-2008 Suretec Systems Ltd. - <http://www.suretecsystems.com/>
+#
+# Version: 3.1.5
+#
+# Changes:
+# - Fixed wrong DESC - 07/05/2008
+#
+# Author: Gavin Henry - <ghenry@suretecsystems.com>
 #
 # Asterisk LDAP Schema
 #
@@ -224,28 +231,28 @@ attributetype ( AstAccountDisallowedCodec
 
 attributetype ( AstAccountExpirationTimestamp 
         NAME 'AstAccountExpirationTimestamp'
-        DESC 'Asterisk Account Allowed Codec'
+        DESC 'Asterisk Account Expiration Timestamp'
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
 
 attributetype ( AstAccountRegistrationContext 
         NAME 'AstAccountRegistrationContext'
-        DESC 'Asterisk Account AMA Flags'
+        DESC 'Asterisk Account Registration Context'
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
 
 attributetype ( AstAccountRegistrationExten 
         NAME 'AstAccountRegistrationExten'
-        DESC 'Asterisk Account AMA Flags'
+        DESC 'Asterisk Account Registration Extension'
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
 
 attributetype ( AstAccountNoTransfer 
         NAME 'AstAccountNoTransfer'
-        DESC 'Asterisk Account AMA Flags'
+        DESC 'Asterisk Account No Transfer'
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
@@ -327,28 +334,28 @@ attributetype ( AstAccountPort
       
 attributetype ( AstAccountRestrictCID 
         NAME 'AstAccountRestrictCID'
-        DESC 'Asterisk Restrict CallerID'
+        DESC 'Asterisk Account Restrict CallerID'
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
             
 attributetype ( AstAccountRTPTimeout 
         NAME 'AstAccountRTPTimeout'
-        DESC 'Asterisk RTP Timeout'
+        DESC 'Asterisk Account RTP Timeout'
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
       
 attributetype ( AstAccountRTPHoldTimeout 
         NAME 'AstAccountRTPHoldTimeout'
-        DESC 'Asterisk RTP Hold Timeout'
+        DESC 'Asterisk Account RTP Hold Timeout'
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
       
 attributetype ( AstAccountRealmedPassword 
         NAME 'AstAccountRealmedPassword'
-        DESC 'Asterisk RTP Hold Timeout'
+        DESC 'Asterisk Account Realmed Password'
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
@@ -362,21 +369,21 @@ attributetype ( AstAccountAllowedCodec
 
 attributetype ( AstAccountMusicOnHold 
         NAME 'AstAccountMusicOnHold'
-        DESC 'Asterisk Account Allowed Codec'
+        DESC 'Asterisk Account Music On Hold'
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
 
 attributetype ( AstAccountCanCallForward 
         NAME 'AstAccountCanCallForward'
-        DESC 'Asterisk Can CAll Forward' 
+        DESC 'Asterisk Account Can Call Forward' 
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
 
 attributetype ( AstAccountSecret 
         NAME 'AstAccountSecret'
-        DESC 'Asterisk Can CAll Forward' 
+        DESC 'Asterisk Account Secret' 
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
@@ -559,4 +566,3 @@ objectclass ( AsteriskConfig
         AstConfigCommented
     ) 
     )
-
