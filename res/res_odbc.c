@@ -100,7 +100,6 @@ static void odbc_obj_destructor(void *data)
 	odbc_obj_disconnect(obj);
 	ast_mutex_destroy(&obj->lock);
 	ao2_ref(obj->parent, -1);
-	ast_free(obj);
 }
 
 SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struct odbc_obj *obj, void *data), void *data)
