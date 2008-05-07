@@ -1,7 +1,0 @@
-#include "t1/*.ael"
-
-context z ()
-{
-	123 => NoOp(hi there, z);
-	124 => NoOp(hi there, z);
-}

@@ -1,6 +1,0 @@
-;
-; Asterisk Call Management CDR
-;
-[general]
-enabled = no
-

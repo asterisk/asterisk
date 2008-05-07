@@ -1,6 +1,0 @@
-
-
-context qq
-{
-	567 => NoOp(hi there, qq);
-}

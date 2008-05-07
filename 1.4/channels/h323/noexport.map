@@ -1,5 +1,0 @@
-{
-	global:
-		_Z11PAssertFuncPKc;
-	local:	*;
-};
