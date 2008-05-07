@@ -1401,11 +1401,14 @@ int parse_config(void)
 	} else 
 		ast_copy_string(user, s, sizeof(user));
 
-	if (!(s = ast_variable_retrieve(config, "_general", "pass"))) {
-		ast_log(LOG_WARNING, "No directory password found, using 'asterisk' as default.\n");
-		ast_copy_string(pass, "asterisk", sizeof(pass) - 1);
-	} else
-		ast_copy_string(pass, s, sizeof(pass));
+	if (!ast_strlen_zero(user)) {
+		if (!(s = ast_variable_retrieve(config, "_general", "pass"))) {
+			ast_log(LOG_WARNING, "No directory password found, using 'asterisk' as default.\n");
+			ast_copy_string(pass, "asterisk", sizeof(pass));
+		} else {
+			ast_copy_string(pass, s, sizeof(pass));
+		}
+	}
 
 	/* URL is preferred, use host and port if not found */
 	if ((s = ast_variable_retrieve(config, "_general", "url"))) {
