@@ -6171,11 +6171,6 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	const char *cseq = get_header(req, "Cseq");
 	struct sip_pvt *sip_pvt_ptr;
 
-	callid = get_header(req, "Call-ID");
-	from = get_header(req, "From");
-	to = get_header(req, "To");
-	cseq = get_header(req, "Cseq");
-
 	/* Call-ID, to, from and Cseq are required by RFC 3261. (Max-forwards and via too - ignored now) */
 	/* get_header always returns non-NULL so we must use ast_strlen_zero() */
 	if (ast_strlen_zero(callid) || ast_strlen_zero(to) ||
