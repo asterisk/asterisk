@@ -1551,11 +1551,11 @@ static struct oh323_peer *realtime_peer(const char *peername, struct sockaddr_in
 	struct oh323_peer *peer;
 	struct ast_variable *var;
 	struct ast_variable *tmp;
-	const char *addr;
+	const char *addr = NULL;
 
 	/* First check on peer name */
 	if (peername)
-		var = ast_load_realtime("h323", "name", peername, addr = NULL);
+		var = ast_load_realtime("h323", "name", peername, NULL);
 	else if (sin) /* Then check on IP address for dynamic peers */
 		var = ast_load_realtime("h323", "host", addr = ast_inet_ntoa(sin->sin_addr), NULL);
 	else
