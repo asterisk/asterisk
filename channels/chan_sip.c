@@ -3109,8 +3109,10 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner)
 	}
 
 	/* Remove link from peer to subscription of MWI */
-	if (p->relatedpeer && p->relatedpeer->mwipvt)
+	if (p->relatedpeer) {
 		p->relatedpeer->mwipvt = NULL;
+		ASTOBJ_UNREF(p->relatedpeer, sip_destroy_peer);
+	}
 
 	if (dumphistory)
 		sip_dump_history(p);
@@ -7921,8 +7923,11 @@ static int expire_register(const void *data)
 	*/
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT) ||
 	    ast_test_flag(&peer->flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
-		peer = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);
-		ASTOBJ_UNREF(peer, sip_destroy_peer);
+		struct sip_peer *peer_ptr = peer_ptr;
+		peer_ptr = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);
+		if (peer_ptr) {
+			ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+		}
 	}
 
 	ASTOBJ_UNREF(peer, sip_destroy_peer);
@@ -8693,7 +8698,6 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		/* Peer fails ACL check */
 		if (peer) {
 			ASTOBJ_UNREF(peer, sip_destroy_peer);
-			peer = NULL;
 			res = AUTH_ACL_FAILED;
 		} else
 			res = AUTH_NOT_FOUND;
@@ -12679,6 +12683,7 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 	peer->pokeexpire = ast_sched_add(sched,
 		is_reachable ? DEFAULT_FREQ_OK : DEFAULT_FREQ_NOTOK,
 		sip_poke_peer_s, ASTOBJ_REF(peer));
+
 	if (peer->pokeexpire == -1) {
 		ASTOBJ_UNREF(peer, sip_destroy_peer);
 	}
@@ -15097,7 +15102,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			/* We only allow one subscription per peer */
 			sip_destroy(authpeer->mwipvt);
 		authpeer->mwipvt = p;		/* Link from peer to pvt */
-		p->relatedpeer = authpeer;	/* Link from pvt to peer */
+		p->relatedpeer = ASTOBJ_REF(authpeer);	/* Link from pvt to peer */
 	} else { /* At this point, Asterisk does not understand the specified event */
 		transmit_response(p, "489 Bad Event", req);
 		if (option_debug > 1)
@@ -15922,7 +15927,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 		ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
 	}
 
-	p->relatedpeer = peer;
+	p->relatedpeer = ASTOBJ_REF(peer);
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 #ifdef VOCAL_DATA_HACK
 	ast_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
