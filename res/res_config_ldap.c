@@ -58,6 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 
 #define RES_CONFIG_LDAP_CONF "res_ldap.conf"
+#define RES_CONFIG_LDAP_DEFAULT_BASEDN "asterisk"
 
 AST_MUTEX_DEFINE_STATIC(ldap_lock);
 
@@ -1423,8 +1424,8 @@ int parse_config(void)
 	}
 
 	if (!(s = ast_variable_retrieve(config, "_general", "basedn"))) {
-		ast_log(LOG_ERROR, "No LDAP base dn found, using 'asterisk' as default.\n");
-		basedn[0] = '\0';
+		ast_log(LOG_ERROR, "No LDAP base dn found, using '%s' as default.\n", RES_CONFIG_LDAP_DEFAULT_BASEDN);
+		ast_copy_string(basedn, RES_CONFIG_LDAP_DEFAULT_BASEDN, sizeof(basedn));
 	} else 
 		ast_copy_string(basedn, s, sizeof(basedn));
 
