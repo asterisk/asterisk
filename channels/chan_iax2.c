@@ -85,7 +85,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/netsock.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/dlinkedlists.h"
 #include "asterisk/event.h"
 #include "asterisk/astobj2.h"
 
@@ -633,8 +632,6 @@ struct chan_iax2_pvt {
 	int frames_dropped;
 	/*! received frame count: (just for stats) */
 	int frames_received;
-
-	AST_DLLIST_ENTRY(chan_iax2_pvt) entry;
 };
 
 /*!
