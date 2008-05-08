@@ -3633,6 +3633,24 @@ static int iax2_indicate(struct ast_channel *c, int condition, const void *data,
 	ast_mutex_lock(&iaxsl[callno]);
 	pvt = iaxs[callno];
 
+	if (!pvt->peercallno) {
+		/* We don't know the remote side's call number, yet.  :( */
+		int count = 10;
+		while (count-- && pvt && !pvt->peercallno) {
+			ast_mutex_unlock(&iaxsl[callno]);
+			usleep(1);
+			ast_mutex_lock(&iaxsl[callno]);
+			pvt = iaxs[callno];
+		}
+		if (pvt->peercallno) {
+			ast_log(LOG_NOTICE, "Yay, we didn't know the peercallno, but we were patient and got it.\n");
+		} else {
+			ast_log(LOG_NOTICE, "Damnit!  We waited around and never got the peercallno ...\n");
+			res = -1;
+			goto done;
+		}
+	}
+
 	switch (condition) {
 	case AST_CONTROL_HOLD:
 		if (strcasecmp(pvt->mohinterpret, "passthrough")) {
