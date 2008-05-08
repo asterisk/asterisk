@@ -15970,8 +15970,6 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		}
 		break;
 	case 408:	/* Request timeout */
-		if (global_regattempts_max)
-			p->registry->regattempts = global_regattempts_max+1;
 		p->needdestroy = 1;
 		if (r->call)
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 408");
