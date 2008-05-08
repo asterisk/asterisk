@@ -22,6 +22,7 @@ NAME=asterisk
 DESC="Asterisk PBX"
 # Full path to asterisk binary
 DAEMON=/usr/sbin/asterisk
+TRUE=/bin/true
 
 # Uncomment this ONLY if you know what you are doing.
 # export LD_ASSUME_KERNEL=2.4.1
@@ -53,7 +54,7 @@ case "$1" in
   start)
 	# Check if Asterisk is already running.  If it is, then bug out, because
 	# starting up Asterisk when Asterisk is already running is very bad.
-	VERSION=`${DAEMON} -rx 'core show version'`
+	VERSION=`${DAEMON} -rx 'core show version' || ${TRUE}`
 	if [ "${VERSION:0:8}" = "Asterisk" ]; then # otherwise "Unable t"
 		echo "Asterisk is already running.  $0 will exit now."
 		exit 1
