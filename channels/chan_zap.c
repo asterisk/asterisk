@@ -9369,20 +9369,16 @@ static void *ss7_linkset(void *data)
 				res = ss7_read(ss7, pollers[i].fd);
 				ast_mutex_unlock(&linkset->lock);
 			}
+
 			if (pollers[i].revents & POLLOUT) {
 				ast_mutex_lock(&linkset->lock);
 				res = ss7_write(ss7, pollers[i].fd);
 				ast_mutex_unlock(&linkset->lock);
 				if (res < 0) {
-					ast_log(LOG_ERROR, "Error in write %s", strerror(errno));
+					ast_debug(1, "Error in write %s\n", strerror(errno));
 				}
 			}
 		}
-
-#if 0
-		if (res < 0)
-			exit(-1);
-#endif
 
 		while ((e = ss7_check_event(ss7))) {
 			switch (e->e) {
