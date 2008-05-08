@@ -6096,13 +6096,13 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 		   the PBX, we have to make a new channel, masquerade, and start the PBX
 		   at the new location */
 		struct ast_channel *tmpchan = ast_channel_alloc(0, chan->_state, 0, 0, chan->accountcode, chan->exten, chan->context, chan->amaflags, "AsyncGoto/%s", chan->name);
-		if (chan->cdr) {
-			ast_cdr_discard(tmpchan->cdr);
-			tmpchan->cdr = ast_cdr_dup(chan->cdr);  /* share the love */
-		}
-		if (!tmpchan)
+		if (!tmpchan) {
 			res = -1;
-		else {
+		} else {
+			if (chan->cdr) {
+				ast_cdr_discard(tmpchan->cdr);
+				tmpchan->cdr = ast_cdr_dup(chan->cdr);  /* share the love */
+			}
 			/* Make formats okay */
 			tmpchan->readformat = chan->readformat;
 			tmpchan->writeformat = chan->writeformat;
