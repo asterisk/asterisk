@@ -3929,10 +3929,7 @@ static int iax2_indicate(struct ast_channel *c, int condition, const void *data,
 			ast_mutex_lock(&iaxsl[callno]);
 			pvt = iaxs[callno];
 		}
-		if (pvt->peercallno) {
-			ast_log(LOG_NOTICE, "Yay, we didn't know the peercallno, but we were patient and got it.\n");
-		} else {
-			ast_log(LOG_NOTICE, "Damnit!  We waited around and never got the peercallno ...\n");
+		if (!pvt->peercallno) {
 			res = -1;
 			goto done;
 		}
