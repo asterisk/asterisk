@@ -42,6 +42,11 @@ Application Changes
    quite helpful.
  * Voicemail now permits a mailbox setting to wrap around from first to last
    messages, if the "messagewrap" option is set to a true value.
+ * Voicemail now permits an external script to be run, for password validation.
+   The script should output "VALID" or "INVALID" on stdout, depending upon the
+   wish to validate or invalidate the password given.  Arguments are:
+   "mailbox" "context" "oldpass" "newpass".  See the sample voicemail.conf for
+   more details
  * Dial has a new option: F(context^extension^pri), which permits a callee to
    continue in the dialplan, at the specified label, if the caller hangs up.
  * ChanSpy and ExtenSpy have a new option, 's' which suppresses speaking the

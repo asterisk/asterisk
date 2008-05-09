@@ -78,6 +78,13 @@ maxlogins=3
 ; the externpassnotify option below instead.
 ;externpass=/usr/bin/myapp
 ;externpassnotify=/usr/bin/myapp
+
+; If you need to have an external program, i.e. /usr/bin/myapp
+; called when a user changes her voicemail password, uncomment this:
+;externpasscheck=/usr/bin/myapp
+; Arguments for this script are:
+; mailbox context oldpass newpass
+
 ; For the directory, you can override the intro file if you want
 ;directoryintro=dir-intro
 ; The character set for voicemail messages can be specified here
@@ -245,6 +252,7 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 ;messagewrap=no	; Enable next/last message to wrap around to
 			; first (from last) and last (from first) message
 			; The default is "no".
+; minpassword=0 ; Enforce minimum password length
 
 ; vm-password=custom_sound
 			;     Customize which sound file is used instead of the default
@@ -264,6 +272,9 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 			;     Customize which sound file is used instead of the default
 			;     prompt that says: "The passwords you entered and re-entered
 			;     did not match.  Please try again."
+; vm-invalid-password=custom_sound
+			;     Customize which sound file is used instead of the default
+			;     prompt that says: ...
 ; listen-control-forward-key=#	; Customize the key that fast-forwards message playback
 ; listen-control-reverse-key=*	; Customize the key that rewinds message playback
 ; listen-control-pause-key=0	; Customize the key that pauses/unpauses message playback

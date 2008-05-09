@@ -202,6 +202,8 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define MAXMSG 100
 #define MAXMSGLIMIT 9999
 
+#define MINPASSWORD 0 /*!< Default minimum mailbox password length */
+
 #define BASELINELEN 72
 #define BASEMAXINLINE 256
 #define eol "\r\n"
@@ -472,6 +474,7 @@ static char odbc_table[80];
 static char VM_SPOOL_DIR[PATH_MAX];
 
 static char ext_pass_cmd[128];
+static char ext_pass_check_cmd[128];
 
 int my_umask;
 
@@ -587,6 +590,7 @@ static int vmmaxsecs;
 static int maxgreet;
 static int skipms;
 static int maxlogins;
+static int minpassword;
 
 /*! Poll mailboxes for changes since there is something external to
  *  app_voicemail that may change them. */
@@ -645,6 +649,7 @@ static char vm_newpassword[80] = "vm-newpassword";
 static char vm_passchanged[80] = "vm-passchanged";
 static char vm_reenterpassword[80] = "vm-reenterpassword";
 static char vm_mismatch[80] = "vm-mismatch";
+static char vm_invalid_password[80] = "vm-invalid-password";
 
 static struct ast_flags globalflags = {0};
 
@@ -820,6 +825,85 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 	} else if (!strcasecmp(var, "options")) {
 		apply_options(vmu, value);
 	}
+}
+
+static char *vm_check_password_shell(char *command, char *buf, size_t len) 
+{
+	int fds[2], pid = 0;
+
+	memset(buf, 0, len);
+
+	if (pipe(fds)) {
+		snprintf(buf, len, "FAILURE: Pipe failed: %s", strerror(errno));
+	} else {
+		/* good to go*/
+		pid = ast_safe_fork(0);
+
+		if (pid < 0) {
+			/* ok maybe not */
+			close(fds[0]);
+			close(fds[1]);
+			snprintf(buf, len, "FAILURE: Fork failed");
+		} else if (pid) {
+			/* parent */
+			close(fds[1]);
+			read(fds[0], buf, len);
+			close(fds[0]);
+		} else {
+			/*  child */
+			AST_DECLARE_APP_ARGS(arg,
+				AST_APP_ARG(v)[20];
+			);
+			char *mycmd = ast_strdupa(command);
+
+			close(fds[0]);
+			dup2(fds[1], STDOUT_FILENO);
+			close(fds[1]);
+			ast_close_fds_above_n(STDOUT_FILENO);
+
+			AST_NONSTANDARD_APP_ARGS(arg, mycmd, ' ');
+
+			execv(arg.v[0], arg.v); 
+			printf("FAILURE: %s", strerror(errno));
+			_exit(0);
+		}
+	}
+	return buf;
+}
+
+/*!
+ * \brief Check that password meets minimum required length
+ * \param vmu The voicemail user to change the password for.
+ * \param password The password string to check
+ *
+ * \return zero on ok, 1 on not ok.
+ */
+static int check_password(struct ast_vm_user *vmu, char *password)
+{
+	/* check minimum length */
+	if (strlen(password) < minpassword)
+		return 1;
+	if (!ast_strlen_zero(ext_pass_check_cmd)) {
+		char cmd[255], buf[255];
+
+		ast_log(LOG_DEBUG, "Verify password policies for %s\n", password);
+
+		snprintf(cmd, sizeof(cmd), "%s %s %s %s %s", ext_pass_check_cmd, vmu->mailbox, vmu->context, vmu->password, password);
+		if (vm_check_password_shell(cmd, buf, sizeof(buf))) {
+			ast_debug(5, "Result: %s\n", buf);
+			if (!strncasecmp(buf, "VALID", 5)) {
+				ast_debug(3, "Passed password check: '%s'\n", buf);
+				return 0;
+			} else if (!strncasecmp(buf, "FAILURE", 7)) {
+				ast_log(LOG_WARNING, "Unable to execute password validation script: '%s'.\n", buf);
+				return 0;
+			} else {
+				ast_log(LOG_NOTICE, "Password doesn't match policies for user %s %s\n", vmu->mailbox, password);
+				return 1;
+			}
+		}
+	}
+	return 0;
 }
 
 /*! 
@@ -7121,19 +7205,25 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		cmd = ast_readstring(chan, newpassword + strlen(newpassword), sizeof(newpassword) - 1, 2000, 10000, "#");
 		if (cmd < 0 || cmd == 't' || cmd == '#')
 			return cmd;
-		newpassword2[1] = '\0';
-		newpassword2[0] = cmd = ast_play_and_wait(chan, vm_reenterpassword);
-		if (cmd == '#')
-			newpassword2[0] = '\0';
-		if (cmd < 0 || cmd == 't' || cmd == '#')
-			return cmd;
-		cmd = ast_readstring(chan, newpassword2 + strlen(newpassword2), sizeof(newpassword2) - 1, 2000, 10000, "#");
-		if (cmd < 0 || cmd == 't' || cmd == '#')
-			return cmd;
-		if (!strcmp(newpassword, newpassword2))
-			break;
-		ast_log(AST_LOG_NOTICE, "Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
-		cmd = ast_play_and_wait(chan, vm_mismatch);
+		cmd = check_password(vmu, newpassword); /* perform password validation */
+		if (cmd != 0) {
+			ast_log(LOG_NOTICE, "Invalid password for user %s (%s)\n", vms->username, newpassword);
+			cmd = ast_play_and_wait(chan, vm_invalid_password);
+		} else {
+			newpassword2[1] = '\0';
+			newpassword2[0] = cmd = ast_play_and_wait(chan, vm_reenterpassword);
+			if (cmd == '#')
+				newpassword2[0] = '\0';
+			if (cmd < 0 || cmd == 't' || cmd == '#')
+				return cmd;
+			cmd = ast_readstring(chan, newpassword2 + strlen(newpassword2), sizeof(newpassword2) - 1, 2000, 10000, "#");
+			if (cmd < 0 || cmd == 't' || cmd == '#')
+				return cmd;
+			if (!strcmp(newpassword, newpassword2))
+				break;
+			ast_log(LOG_NOTICE, "Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
+			cmd = ast_play_and_wait(chan, vm_mismatch);
+		}
 		if (++tries == 3)
 			return -1;
 	}
@@ -7252,6 +7342,12 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 				if ((cmd = ast_readstring(chan, newpassword + strlen(newpassword), sizeof(newpassword) - 1, 2000, 10000, "#")) < 0) {
 					break;
 				}
+			}
+			cmd = check_password(vmu, newpassword); /* perform password validation */
+			if (cmd != 0) {
+				ast_log(LOG_NOTICE, "Invalid password for user %s (%s)\n", vms->username, newpassword);
+				cmd = ast_play_and_wait(chan, vm_invalid_password);
+				break;
 			}
 			newpassword2[1] = '\0';
 			newpassword2[0] = cmd = ast_play_and_wait(chan, vm_reenterpassword);
@@ -9003,6 +9099,7 @@ static int load_config(int reload)
 	AST_LIST_UNLOCK(&zones);
 
 	memset(ext_pass_cmd, 0, sizeof(ext_pass_cmd));
+	memset(ext_pass_check_cmd, 0, sizeof(ext_pass_check_cmd));
 
 	if (cfg) {
 		/* General settings */
@@ -9089,6 +9186,12 @@ static int load_config(int reload)
 		} else if ((val = ast_variable_retrieve(cfg, "general", "externpassnotify"))) {
 			ast_copy_string(ext_pass_cmd, val, sizeof(ext_pass_cmd));
 			pwdchange = PWDCHANGE_EXTERNAL | PWDCHANGE_INTERNAL;
+		}
+ 
+		/* External password validation command */
+		if ((val = ast_variable_retrieve(cfg, "general", "externpasscheck"))) {
+			ast_copy_string(ext_pass_check_cmd, val, sizeof(ext_pass_check_cmd));
+			ast_log(LOG_DEBUG, "found externpasscheck: %s\n", ext_pass_check_cmd);
 		}
 
 #ifdef IMAP_STORAGE
@@ -9277,6 +9380,15 @@ static int load_config(int reload)
 			}
 		}
 
+		minpassword = MINPASSWORD;
+		if ((val = ast_variable_retrieve(cfg, "general", "minpassword"))) {
+			if (sscanf(val, "%d", &x) == 1) {
+				minpassword = x;
+			} else {
+				ast_log(LOG_WARNING, "Invalid minimum password length.  Default to %d\n", minpassword);
+			}
+		}
+
 		/* Force new user to record name ? */
 		if (!(val = ast_variable_retrieve(cfg, "general", "forcename"))) 
 			val = "no";
@@ -9399,6 +9511,8 @@ static int load_config(int reload)
 			ast_copy_string(vm_password, val, sizeof(vm_password));
 		if ((val = ast_variable_retrieve(cfg, "general", "vm-newpassword")))
 			ast_copy_string(vm_newpassword, val, sizeof(vm_newpassword));
+		if ((val = ast_variable_retrieve(cfg, "general", "vm-invalid-password")))
+			ast_copy_string(vm_invalid_password, val, sizeof(vm_invalid_password));
 		if ((val = ast_variable_retrieve(cfg, "general", "vm-passchanged")))
 			ast_copy_string(vm_passchanged, val, sizeof(vm_passchanged));
 		if ((val = ast_variable_retrieve(cfg, "general", "vm-reenterpassword")))
