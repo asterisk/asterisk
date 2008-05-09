@@ -101,6 +101,12 @@ DNS manager changes
 Dialplan function changes
 -------------------------
  * TIMEOUT() has been modified to be accurate down to the millisecond.
+ * ENUM*() functions now include the following new options:
+     - 'u' returns the full URI and does not strip off the URI-scheme.
+	 - 's' triggers ISN specific rewriting
+	 - 'i' looks for branches into an Infrastructure ENUM tree
+	 - 'd' for a direct DNS lookup without any flipping of digits.
+ * TXCIDNAME() has a new zone-suffix parameter (which defaults to 'e164.arpa')
 
 AMI - The manager (TCP/TLS/HTTP)
 --------------------------------
