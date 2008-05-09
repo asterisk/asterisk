@@ -2336,29 +2336,31 @@ static char mandescr_mailboxcount[] =
 "Variables: (Names marked with * are required)\n"
 "	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
 "	ActionID: Optional ActionID for message matching.\n"
-"Returns number of new and old messages.\n"
+"Returns number of urgent, new and old messages.\n"
 "	Message: Mailbox Message Count\n"
 "	Mailbox: <mailboxid>\n"
+"	UrgentMessages: <count>\n"
 "	NewMessages: <count>\n"
 "	OldMessages: <count>\n"
 "\n";
 static int action_mailboxcount(struct mansession *s, const struct message *m)
 {
 	const char *mailbox = astman_get_header(m, "Mailbox");
-	int newmsgs = 0, oldmsgs = 0;
+	int newmsgs = 0, oldmsgs = 0, urgentmsgs = 0;;
 
 	if (ast_strlen_zero(mailbox)) {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
-	ast_app_inboxcount(mailbox, &newmsgs, &oldmsgs);
+	ast_app_inboxcount(mailbox, &urgentmsgs, &newmsgs, &oldmsgs);
 	astman_start_ack(s, m);
 	astman_append(s,   "Message: Mailbox Message Count\r\n"
 			   "Mailbox: %s\r\n"
+			   "UrgMessages: %d\r\n"
 			   "NewMessages: %d\r\n"
 			   "OldMessages: %d\r\n"
 			   "\r\n",
-			   mailbox, newmsgs, oldmsgs);
+			   mailbox, urgentmsgs, newmsgs, oldmsgs);
 	return 0;
 }
 

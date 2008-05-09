@@ -417,6 +417,12 @@ Voicemail Changes
      voicemail boxes.  The SMDI interface can also poll for MWI changes when some
      outside entity is modifying the state of the mailbox (such as IMAP storage or
      a web interface of some kind).
+  * Added the support for marking messages as "urgent." There are two methods to accomplish
+     this. One is to pass the 'U' option to VoiceMail(). Another way to mark a message as urgent
+	 is to specify "review=yes" in voicemail.conf. Doing this will cause allow the user to mark
+	 the message as urgent after he has recorded a voicemail by following the voice instructions.
+	When listening to voicemails using VoiceMailMain urgent messages will be presented before other
+	 messages
 
 Queue changes
 -------------

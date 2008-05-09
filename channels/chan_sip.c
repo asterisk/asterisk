@@ -19354,7 +19354,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 {
 	/* Called with peerl lock, but releases it */
 	struct sip_pvt *p;
-	int newmsgs = 0, oldmsgs = 0;
+	int newmsgs = 0, oldmsgs = 0, urgentmsgs = 0;
 
 	if (ast_test_flag((&peer->flags[1]), SIP_PAGE2_SUBSCRIBEMWIONLY) && !peer->mwipvt)
 		return 0;
@@ -19373,7 +19373,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 	} else { /* Fall back to manually checking the mailbox */
 		struct ast_str *mailbox_str = ast_str_alloca(512);
 		peer_mailboxes_to_str(&mailbox_str, peer);
-		ast_app_inboxcount(mailbox_str->str, &newmsgs, &oldmsgs);
+		ast_app_inboxcount(mailbox_str->str, &urgentmsgs, &newmsgs, &oldmsgs);
 	}
 	
 	if (peer->mwipvt) {

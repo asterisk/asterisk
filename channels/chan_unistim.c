@@ -4375,7 +4375,7 @@ static int unistim_sendtext(struct ast_channel *ast, const char *text)
 static int unistim_send_mwi_to_peer(struct unistimsession *s, unsigned int tick)
 {
 	struct ast_event *event;
-	int new, old;
+	int new, old, urgent;
 	char *mailbox, *context;
 	struct unistim_line *peer = s->device->lines;
 
@@ -4396,7 +4396,7 @@ static int unistim_send_mwi_to_peer(struct unistimsession *s, unsigned int tick)
 		old = ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
 		ast_event_destroy(event);
 	} else /* Fall back on checking the mailbox directly */
-		ast_app_inboxcount(peer->mailbox, &new, &old);
+		ast_app_inboxcount(peer->mailbox, &urgent, &new, &old);
 
 	peer->nextmsgcheck = tick + TIMER_MWI;
 

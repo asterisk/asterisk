@@ -74,6 +74,8 @@ Voicemail:
   checking mailboxes for changes so that they can send MWI information to users.
   Examples of situations that would require this option are web interfaces to
   voicemail or an email client in the case of using IMAP storage.
+* The externnotify script should accept an additional (last) parameter
+  containing the string "URGENT" if there are new urgent messages in the INBOX.
 
 Applications:
 

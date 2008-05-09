@@ -176,12 +176,12 @@ int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, int maxle
 }
 
 static int (*ast_has_voicemail_func)(const char *mailbox, const char *folder) = NULL;
-static int (*ast_inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs) = NULL;
+static int (*ast_inboxcount_func)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs) = NULL;
 static int (*ast_sayname_func)(struct ast_channel *chan, const char *mailbox, const char *context) = NULL;
 static int (*ast_messagecount_func)(const char *context, const char *mailbox, const char *folder) = NULL;
 
 void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
-			      int (*inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs),
+			      int (*inboxcount_func)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs),
 			      int (*messagecount_func)(const char *context, const char *mailbox, const char *folder),
 			      int (*sayname_func)(struct ast_channel *chan, const char *mailbox, const char *context))
 {
@@ -213,15 +213,17 @@ int ast_app_has_voicemail(const char *mailbox, const char *folder)
 }
 
 
-int ast_app_inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
+int ast_app_inboxcount(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs)
 {
 	static int warned = 0;
 	if (newmsgs)
 		*newmsgs = 0;
 	if (oldmsgs)
 		*oldmsgs = 0;
+	if (urgentmsgs)
+		*urgentmsgs = 0;
 	if (ast_inboxcount_func)
-		return ast_inboxcount_func(mailbox, newmsgs, oldmsgs);
+		return ast_inboxcount_func(mailbox, urgentmsgs, newmsgs, oldmsgs);
 
 	if (!warned) {
 		warned++;
