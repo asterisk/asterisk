@@ -78,16 +78,21 @@ static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 		return -1;
 	}
 
-	ast_copy_string(tech, args.tech ? args.tech : "sip", sizeof(tech));
+	if (args.tech && !ast_strlen_zero(args.tech)) {
+		ast_copy_string(tech,args.tech, sizeof(tech));
+	} else {
+		ast_copy_string(tech,"sip",sizeof(tech));
+	}
 
-	if (!args.zone)
+	if (!args.zone) {
 		args.zone = "e164.arpa";
-
-	if (!args.options)
+	}
+	if (!args.options) {
 		args.options = "";
-
-	if (args.record)
-		record = atoi(args.record);
+	}
+	if (args.record) {
+		record = atoi(args.record) ? atoi(args.record) : record;
+	}
 
 	/* strip any '-' signs from number */
 	for (s = p = args.number; *s; s++) {
@@ -97,15 +102,14 @@ static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 		}
 
 	}
-
-	res = ast_get_enum(chan, num, dest, sizeof(dest), tech, sizeof(tech), args.zone, args.options, 1, NULL);
+	res = ast_get_enum(chan, num, dest, sizeof(dest), tech, sizeof(tech), args.zone, args.options, record, NULL);
 
 	p = strchr(dest, ':');
-	if (p && strcasecmp(tech, "ALL"))
+	if (p && strcasecmp(tech, "ALL") && !strchr(args.options, 'u')) {
 		ast_copy_string(buf, p + 1, len);
-	else
+	} else {
 		ast_copy_string(buf, dest, len);
-
+	}
 	return 0;
 }
 
@@ -323,6 +327,10 @@ static struct ast_custom_function enum_function = {
 	.desc =
 		"Option 'c' returns an integer count of the number of NAPTRs of a certain RR type.\n"
 		"Combination of 'c' and Method-type of 'ALL' will return a count of all NAPTRs for the record.\n"
+		"Option 'u' returns the full URI and does not strip off the URI-scheme.\n"
+		"Option 's' triggers ISN specific rewriting\n"
+		"Option 'i' looks for branches into an Infrastructure ENUM tree\n"
+		"Option 'd' for a direct DNS lookup without any flipping of digits\n"
 		"Defaults are: Method-type=sip, no options, record=1, zone-suffix=e164.arpa\n\n"
 		"For more information, see doc/asterisk.pdf",
 	.read = function_enum,
@@ -332,23 +340,30 @@ static int function_txtcidname(struct ast_channel *chan, const char *cmd,
 			       char *data, char *buf, size_t len)
 {
 	int res;
-	char tech[80];
-	char txt[256] = "";
-	char dest[80];
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(number);
+		AST_APP_ARG(zone);
+	);
 
 	buf[0] = '\0';
 
-
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "TXTCIDNAME requires an argument (number)\n");
+		ast_log(LOG_WARNING, "Syntax: TXTCIDNAME(number[,zone-suffix])\n");
 		return -1;
 	}
 
-	res = ast_get_txt(chan, data, dest, sizeof(dest), tech, sizeof(tech), txt,
-			  sizeof(txt));
+	AST_STANDARD_APP_ARGS(args, data);
 
-	if (!ast_strlen_zero(txt))
-		ast_copy_string(buf, txt, len);
+	if (args.argc < 1) {
+		ast_log(LOG_WARNING, "Syntax: TXTCIDNAME(number[,zone-suffix])\n");
+		return -1;
+	}
+
+	if (!args.zone) {
+		args.zone = "e164.arpa";
+	}
+
+	res = ast_get_txt(chan, args.number, buf, len, args.zone);
 
 	return 0;
 }
@@ -356,11 +371,11 @@ static int function_txtcidname(struct ast_channel *chan, const char *cmd,
 static struct ast_custom_function txtcidname_function = {
 	.name = "TXTCIDNAME",
 	.synopsis = "TXTCIDNAME looks up a caller name via DNS",
-	.syntax = "TXTCIDNAME(<number>)",
+	.syntax = "TXTCIDNAME(<number>[,zone-suffix])",
 	.desc =
 		"This function looks up the given phone number in DNS to retrieve\n"
 		"the caller id name.  The result will either be blank or be the value\n"
-		"found in the TXT record in DNS.\n",
+		"found in the TXT record in DNS. The default zone-suffix is e164.arpa.\n",
 	.read = function_txtcidname,
 };
 
