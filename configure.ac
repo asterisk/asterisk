@@ -263,7 +263,7 @@ AC_FUNC_ALLOCA
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/file.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h termios.h unistd.h utime.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/file.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h termios.h unistd.h utime.h arpa/nameser.h])
 
 AC_CHECK_HEADERS([winsock.h winsock2.h])
 
@@ -490,16 +490,38 @@ AC_LINK_IFELSE(
         AC_MSG_RESULT(no)
 )
 
+AC_SEARCH_LIBS(res_9_ninit, resolv)
 AC_MSG_CHECKING(for res_ninit)
 AC_LINK_IFELSE(
-	AC_LANG_PROGRAM([#include <resolv.h>],
+	AC_LANG_PROGRAM([
+			#ifdef HAVE_SYS_SOCKET_H
+			#include <sys/socket.h>
+			#endif
+			#ifdef HAVE_NETINET_IN_H
+			#include <netinet/in.h>
+			#endif
+			#ifdef HAVE_ARPA_NAMESER_H
+			#include <arpa/nameser.h>
+			#endif
+			#include <resolv.h>],
 			[int foo = res_ninit(NULL);]),
 	AC_MSG_RESULT(yes)
 	AC_DEFINE([HAVE_RES_NINIT], 1, [Define to 1 if your system has the re-entrant resolver functions.])
+	AC_SEARCH_LIBS(res_9_ndestroy, resolv)
 	AC_MSG_CHECKING(for res_ndestroy)
 	AC_LINK_IFELSE(
-		AC_LANG_PROGRAM([#include <resolv.h>],
-				[int foo = res_ndestroy(NULL);]),
+		AC_LANG_PROGRAM([
+				#ifdef HAVE_SYS_SOCKET_H
+				#include <sys/socket.h>
+				#endif
+				#ifdef HAVE_NETINET_IN_H
+				#include <netinet/in.h>
+				#endif
+				#ifdef HAVE_ARPA_NAMESER_H
+				#include <arpa/nameser.h>
+				#endif
+				#include <resolv.h>],
+				[res_ndestroy(NULL);]),
 		AC_MSG_RESULT(yes)
 		AC_DEFINE([HAVE_RES_NDESTROY], 1, [Define to 1 if your system has the ndestroy resolver function.]),
 		AC_MSG_RESULT(no)
