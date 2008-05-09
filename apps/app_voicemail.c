@@ -8353,7 +8353,6 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			}
 			break;
 		case '6': /* Go to the next message */
-			ast_log(LOG_NOTICE, "Hey bitch, there are %d new messages, you cock and we are%s in urgent\n", vms.newmessages, in_urgent ? "" : " not");
 			if (vms.curmsg < vms.lastmsg) {
 				vms.curmsg++;
 				cmd = play_message(chan, vmu, &vms);
