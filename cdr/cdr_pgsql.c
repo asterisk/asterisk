@@ -140,6 +140,9 @@ static int pgsql_log(struct ast_cdr *cdr)
 		AST_RWLIST_TRAVERSE(&psql_columns, cur, list) {
 			/* For fields not set, simply skip them */
 			ast_cdr_getvar(cdr, cur->name, &value, buf, sizeof(buf), 0, 0);
+			if (strcmp(cur->name, "calldate") == 0 && !value) {
+				ast_cdr_getvar(cdr, "start", &value, buf, sizeof(buf), 0, 0);
+			}
 			if (!value) {
 				if (cur->notnull && !cur->hasdefault) {
 					/* Field is NOT NULL (but no default), must include it anyway */
