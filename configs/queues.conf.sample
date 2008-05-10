@@ -57,8 +57,8 @@ monitor-type = MixMonitor
 ;
 ; Note that a timeout to fail out of a queue may be passed as part of
 ; an application call from extensions.conf:
-; Queue(queuename|[options]|[optionalurl]|[announceoverride]|[timeout])
-; example: Queue(dave|t|||45)
+; Queue(queuename,[options],[optionalurl],[announceoverride],[timeout])
+; example: Queue(dave,t,,,45)
 
 ; shared_lastcall will make the lastcall and calls received be the same in
 ; members logged in more than one queue.
