@@ -336,16 +336,12 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (ast_custom_function_register(&agc_function)) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
+	int res = 0;
 
-	if (ast_custom_function_register(&denoise_function)) {
-		ast_custom_function_unregister(&denoise_function);
-		return AST_MODULE_LOAD_DECLINE;
-	}
+	res |= ast_custom_function_register(&agc_function);
+	res |= ast_custom_function_register(&denoise_function);
 
-	return AST_MODULE_LOAD_SUCCESS;
+	return res;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Noise reduction and Automatic Gain Control (AGC)");
