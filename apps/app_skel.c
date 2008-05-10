@@ -109,17 +109,12 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 static int unload_module(void)
 {
-	int res;
-	res = ast_unregister_application(app);
-	return res;	
+	return ast_unregister_application(app);
 }
 
 static int load_module(void)
 {
-	if (ast_register_application(app, app_exec, synopsis, descrip))
-		return AST_MODULE_LOAD_DECLINE;
-
-	return AST_MODULE_LOAD_SUCCESS;
+	return ast_register_application(app, app_exec, synopsis, descrip);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Skeleton (sample) Application");

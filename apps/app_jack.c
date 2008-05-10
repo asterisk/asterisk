@@ -977,15 +977,12 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (ast_register_application(jack_app, jack_exec, jack_synopsis, jack_desc))
-		return AST_MODULE_LOAD_DECLINE;
+	int res = 0;
 
-	if (ast_custom_function_register(&jack_hook_function)) {
-		ast_unregister_application(jack_app);
-		return AST_MODULE_LOAD_DECLINE;
-	}
+	res |= ast_register_application(jack_app, jack_exec, jack_synopsis, jack_desc);
+	res |= ast_custom_function_register(&jack_hook_function);
 
-	return AST_MODULE_LOAD_SUCCESS;
+	return res;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "JACK Interface");
