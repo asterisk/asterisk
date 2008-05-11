@@ -1062,6 +1062,12 @@
 /* Define ZAPTEL_NEONMWI headers version */
 #undef HAVE_ZAPTEL_NEONMWI_VERSION
 
+/* Define if your system has the ZAPTEL_SIG_MTP2 headers. */
+#undef HAVE_ZAPTEL_SIG_MTP2
+
+/* Define ZAPTEL_SIG_MTP2 headers version */
+#undef HAVE_ZAPTEL_SIG_MTP2_VERSION
+
 /* Define if your system has the ZAPTEL_TRANSCODE headers. */
 #undef HAVE_ZAPTEL_TRANSCODE
 
