@@ -9308,7 +9308,7 @@ static void *ss7_linkset(void *data)
 
 		for (i = 0; i < linkset->numsigchans; i++) {
 			pollers[i].fd = linkset->fds[i];
-			pollers[i].events = POLLIN | POLLOUT | POLLPRI;
+			pollers[i].events = ss7_pollflags(ss7, linkset->fds[i]);
 			pollers[i].revents = 0;
 		}
 
@@ -12826,7 +12826,11 @@ static int linkset_addsigchan(int sigchan)
 			ast_log(LOG_ERROR, "Unable to get parameters for sigchan %d (%s)\n", sigchan, strerror(errno));
 			return -1;
 		}
-		if ((p.sigtype != ZT_SIG_HDLCFCS) && (p.sigtype != ZT_SIG_HARDHDLC)) {
+		if ((p.sigtype != ZT_SIG_HDLCFCS) && (p.sigtype != ZT_SIG_HARDHDLC) 
+#if defined(HAVE_ZAPTEL_SIG_MTP2)
+				&& (p.sigtype != ZT_SIG_MTP2)
+#endif
+				) {
 			zt_close(link->fds[curfd]);
 			link->fds[curfd] = -1;
 			ast_log(LOG_ERROR, "sigchan %d is not in HDLC/FCS mode.  See /etc/zaptel.conf\n", sigchan);

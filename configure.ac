@@ -1289,7 +1289,7 @@ AST_EXT_LIB_CHECK([PORTAUDIO], [portaudio], [Pa_GetDeviceCount], [portaudio.h])
 
 AST_EXT_LIB_CHECK([PRI], [pri], [pri_new_bri], [libpri.h])
 
-AST_EXT_LIB_CHECK([SS7], [ss7], [isup_set_generic_name], [libss7.h])
+AST_EXT_LIB_CHECK([SS7], [ss7], [ss7_pollflags], [libss7.h])
 
 if test "${USE_PWLIB}" != "no"; then
 	if test -n "${PWLIB_DIR}"; then
@@ -1483,6 +1483,9 @@ AST_C_DEFINE_CHECK([ZAPTEL_NEONMWI], [ZT_EVENT_NEONMWI_ACTIVE], [zaptel/zaptel.h
 
 # Check for channel alarm support
 AST_C_COMPILE_CHECK([ZAPTEL_CHANALARMS], [size_t foo = sizeof(struct zt_params_v1)], [zaptel/zaptel.h])
+
+# Check for ZT_SIG_MTP2
+AST_C_DEFINE_CHECK([ZAPTEL_SIG_MTP2], [ZT_SIG_MTP2], [zaptel/zaptel.h])
 
 # On FreeBSD, try old zaptel (0.80 or so) and pretend we have vldtmf
 case "${host_os}" in
