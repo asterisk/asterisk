@@ -9632,6 +9632,7 @@ static void *ss7_linkset(void *data)
 					break;
 				} else {
 					struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROCEEDING, };
+					struct ast_frame g = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
 
 					p = linkset->pvts[chanpos];
 
@@ -9644,6 +9645,8 @@ static void *ss7_linkset(void *data)
 					ast_mutex_lock(&p->lock);
 					zap_queue_frame(p, &f, linkset);
 					p->proceeding = 1;
+					zap_queue_frame(p, &g, linkset);
+					p->progress = 1;
 
 					ast_mutex_unlock(&p->lock);
 				}
