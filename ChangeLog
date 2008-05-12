@@ -1,3 +1,69 @@
+2008-05-12  Russell Bryant <russell@digium.com>
+
+	* Asterisk 1.4.19.2 released.
+
+2008-05-08 19:19 +0000 [r115545-115568]  Russell Bryant <russell@digium.com>
+
+	* /, channels/chan_iax2.c: Merged revisions 115564 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.2
+	  ........ r115564 | russell | 2008-05-08 14:14:04 -0500 (Thu, 08
+	  May 2008) | 25 lines Fix a race condition that bbryant just found
+	  while doing some IAX2 testing. He was running Asterisk trunk
+	  running IAX2 calls through a few Asterisk boxes, however, the
+	  audio was extremely choppy. We looked at a packet trace and saw a
+	  storm of INVAL and VNAK frames being sent from one box to
+	  another. It turned out that what had happened was that one box
+	  tried to send a CONTROL frame before the 3 way handshake had
+	  completed. So, that frame did not include the destination call
+	  number, because it didn't have it yet. Part of our recent work
+	  for security issues included an additional check to ensure that
+	  frames that are supposed to include the destination call number
+	  have the correct one. This caused the frame to be rejected with
+	  an INVAL. The frame would get retransmitted for forever, rejected
+	  every time ... This race condition exists in all versions that
+	  got the security changes, in theory. However, it is really only
+	  likely that this would cause a problem in Asterisk trunk. There
+	  was a control frame being sent (SRCUPDATE) at the _very_
+	  beginning of the call, which does not exist in 1.2 or 1.4.
+	  However, I am fixing all versions that could potentially be
+	  affected by the introduced race condition. These changes are what
+	  bbryant and I came up with to fix the issue. Instead of simply
+	  dropping control frames that get sent before the handshake is
+	  complete, the code attempts to wait a little while, since in most
+	  cases, the handshake will complete very quickly. If it doesn't
+	  complete after yielding for a little while, then the frame gets
+	  dropped. ........
+
+2008-04-30 16:30 +0000 [r114891]  Russell Bryant <russell@digium.com>
+
+	* channels/chan_iax2.c:
+	  Merge changes from team/russell/iax2_find_callno and
+	  iax2_find_callno_1.4 These changes address a critical performance
+	  issue introduced in the latest release. The fix for the latest
+	  security issue included a change that made Asterisk randomly
+	  choose call numbers to make them more difficult to guess by
+	  attackers. However, due to some inefficient (this is by far, an
+	  understatement) code, when Asterisk chose high call numbers,
+	  chan_iax2 became unusable after just a small number of calls. On
+	  a small embedded platform, it would not be able to handle a
+	  single call. On my Intel Core 2 Duo @ 2.33 GHz, I couldn't run
+	  more than about 16 IAX2 channels. Ouch. These changes address
+	  some performance issues of the find_callno() function that have
+	  bothered me for a very long time. On every incoming media frame,
+	  it iterated through every possible call number trying to find a
+	  matching active call. This involved a mutex lock and unlock for
+	  each call number checked. So, if the random call number chosen
+	  was 20000, then every media frame would cause 20000 locks and
+	  unlocks. Previously, this problem was not as obvious since
+	  Asterisk always chose the lowest call number it could. A second
+	  container for IAX2 pvt structs has been added. It is an astobj2
+	  hash table. When we know the remote side's call number, the pvt
+	  goes into the hash table with a hash value of the remote side's
+	  call number. Then, lookups for incoming media frames are a very
+	  fast hash lookup instead of an absolutely insane array traversal.
+	  In a quick test, I was able to get more than 3600% more IAX2
+	  channels on my machine with these changes.
+
 2008-04-22  Russell Bryant <russell@digium.com>
 
 	* Asterisk 1.4.19.1 released.
