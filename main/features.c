@@ -751,6 +751,34 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 
 }
 
+/*! \brief Play message to both caller and callee in bridged call, plays synchronously, autoservicing the
+	other channel during the message, so please don't use this for very long messages
+ */
+static int play_message_in_bridged_call(struct ast_channel *caller_chan, struct ast_channel *callee_chan, const char *audiofile)
+{
+	/* First play for caller, put other channel on auto service */
+	if (ast_autoservice_start(callee_chan))
+		return -1;
+	if (ast_stream_and_wait(caller_chan, audiofile, "")) {
+		ast_log(LOG_WARNING, "Failed to play automon message!\n");
+		ast_autoservice_stop(callee_chan);
+		return -1;
+	}
+	if (ast_autoservice_stop(callee_chan))
+		return -1;
+	/* Then play for callee, put other channel on auto service */
+	if (ast_autoservice_start(caller_chan))
+		return -1;
+	if (ast_stream_and_wait(callee_chan, audiofile, "")) {
+		ast_log(LOG_WARNING, "Failed to play automon message !\n");
+		ast_autoservice_stop(caller_chan);
+		return -1;
+	}
+	if (ast_autoservice_stop(caller_chan))
+		return -1;
+	return(0);
+}
+
 /*!
  * \brief Monitor a channel by DTMF
  * \param chan channel requesting monitor
@@ -771,6 +799,8 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	int x = 0;
 	size_t len;
 	struct ast_channel *caller_chan, *callee_chan;
+	const char *automon_message_start = NULL;
+	const char *automon_message_stop = NULL;
 
 	if (!monitor_ok) {
 		ast_log(LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
@@ -784,21 +814,22 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	}
 
 	set_peers(&caller_chan, &callee_chan, peer, chan, sense);
+	if (caller_chan) {	/* Find extra messages */
+		automon_message_start = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_MESSAGE_START");
+		automon_message_stop = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_MESSAGE_STOP");
+	}
 
-	if (!ast_strlen_zero(courtesytone)) {
-		if (ast_autoservice_start(callee_chan))
-			return -1;
-		if (ast_stream_and_wait(caller_chan, courtesytone, "")) {
-			ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
-			ast_autoservice_stop(callee_chan);
+	if (!ast_strlen_zero(courtesytone)) {	/* Play courtesy tone if configured */
+		if(play_message_in_bridged_call(caller_chan, callee_chan, courtesytone) == -1) {
 			return -1;
 		}
-		if (ast_autoservice_stop(callee_chan))
-			return -1;
 	}
 	
 	if (callee_chan->monitor) {
 		ast_verb(4, "User hit '%s' to stop recording call.\n", code);
+		if (!ast_strlen_zero(automon_message_stop)) {
+			play_message_in_bridged_call(caller_chan, callee_chan, automon_message_stop);
+		}
 		callee_chan->monitor->stop(callee_chan, 1);
 		return AST_FEATURE_RETURN_SUCCESS;
 	}
@@ -843,6 +874,10 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 		pbx_exec(callee_chan, monitor_app, args);
 		pbx_builtin_setvar_helper(callee_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
 		pbx_builtin_setvar_helper(caller_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
+
+		if (!ast_strlen_zero(automon_message_start)) {	/* Play start message for both channels */
+			play_message_in_bridged_call(caller_chan, callee_chan, automon_message_start);
+		}
 	
 		return AST_FEATURE_RETURN_SUCCESS;
 	}
