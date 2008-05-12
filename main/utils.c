@@ -736,46 +736,48 @@ static int handle_show_locks(int fd, int argc, char *argv[])
 	pthread_mutex_lock(&lock_infos_lock.mutex);
 	AST_LIST_TRAVERSE(&lock_infos, lock_info, entry) {
 		int i;
-		ast_dynamic_str_append(&str, 0, "=== Thread ID: %u (%s)\n", (int) lock_info->thread_id,
-			lock_info->thread_name);
-		pthread_mutex_lock(&lock_info->lock);
-		for (i = 0; str && i < lock_info->num_locks; i++) {
-			int j;
-			ast_mutex_t *lock;
+		if (lock_info->num_locks) {
+			ast_dynamic_str_append(&str, 0, "=== Thread ID: %u (%s)\n", (int) lock_info->thread_id,
+				lock_info->thread_name);
+			pthread_mutex_lock(&lock_info->lock);
+			for (i = 0; str && i < lock_info->num_locks; i++) {
+				int j;
+				ast_mutex_t *lock;
 
-			ast_dynamic_str_append(&str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
-				lock_info->locks[i].pending > 0 ? "Waiting for " : 
-					lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", i,
-				lock_info->locks[i].file, 
-				locktype2str(lock_info->locks[i].type),
-				lock_info->locks[i].line_num,
-				lock_info->locks[i].func, lock_info->locks[i].lock_name,
-				lock_info->locks[i].lock_addr, 
-				lock_info->locks[i].times_locked);
+				ast_dynamic_str_append(&str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
+					lock_info->locks[i].pending > 0 ? "Waiting for " : 
+						lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", i,
+					lock_info->locks[i].file, 
+					locktype2str(lock_info->locks[i].type),
+					lock_info->locks[i].line_num,
+					lock_info->locks[i].func, lock_info->locks[i].lock_name,
+					lock_info->locks[i].lock_addr, 
+					lock_info->locks[i].times_locked);
 
-			if (!lock_info->locks[i].pending || lock_info->locks[i].pending == -1)
-				continue;
+				if (!lock_info->locks[i].pending || lock_info->locks[i].pending == -1)
+					continue;
 
-			/* We only have further details for mutexes right now */
-			if (lock_info->locks[i].type != AST_MUTEX)
-				continue;
+				/* We only have further details for mutexes right now */
+				if (lock_info->locks[i].type != AST_MUTEX)
+					continue;
 
-			lock = lock_info->locks[i].lock_addr;
+				lock = lock_info->locks[i].lock_addr;
 
-			ast_reentrancy_lock(lock);
-			for (j = 0; str && j < lock->reentrancy; j++) {
-				ast_dynamic_str_append(&str, 0, "=== --- ---> Locked Here: %s line %d (%s)\n",
-					lock->file[j], lock->lineno[j], lock->func[j]);
+				ast_reentrancy_lock(lock);
+				for (j = 0; str && j < lock->reentrancy; j++) {
+					ast_dynamic_str_append(&str, 0, "=== --- ---> Locked Here: %s line %d (%s)\n",
+						lock->file[j], lock->lineno[j], lock->func[j]);
+				}
+				ast_reentrancy_unlock(lock);	
 			}
-			ast_reentrancy_unlock(lock);	
+			pthread_mutex_unlock(&lock_info->lock);
+			if (!str)
+				break;
+			ast_dynamic_str_append(&str, 0, "=== -------------------------------------------------------------------\n"
+			            "===\n");
+			if (!str)
+				break;
 		}
-		pthread_mutex_unlock(&lock_info->lock);
-		if (!str)
-			break;
-		ast_dynamic_str_append(&str, 0, "=== -------------------------------------------------------------------\n"
-		            "===\n");
-		if (!str)
-			break;
 	}
 	pthread_mutex_unlock(&lock_infos_lock.mutex);
 
