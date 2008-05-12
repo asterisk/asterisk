@@ -89,7 +89,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dnsmgr.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/netsock.h"
-#include "asterisk/dlinkedlists.h"
 #include "asterisk/astobj2.h"
 
 #include "iax2.h"
@@ -613,8 +612,6 @@ struct chan_iax2_pvt {
 	int frames_dropped;
 	/*! received frame count: (just for stats) */
 	int frames_received;
-
-	AST_DLLIST_ENTRY(chan_iax2_pvt) entry;
 };
 
 static struct ast_iax2_queue {
@@ -3556,9 +3553,41 @@ static int iax2_answer(struct ast_channel *c)
 static int iax2_indicate(struct ast_channel *c, int condition)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
+	struct chan_iax2_pvt *pvt;
+	int res;
+
 	if (option_debug && iaxdebug)
 		ast_log(LOG_DEBUG, "Indicating condition %d\n", condition);
-	return send_command_locked(callno, AST_FRAME_CONTROL, condition, 0, NULL, 0, -1);
+
+	ast_mutex_lock(&iaxsl[callno]);
+
+	pvt = iaxs[callno];
+
+	if (!pvt->peercallno) {
+		/* We don't know the remote side's call number, yet.  :( */
+		int count = 10;
+		while (count-- && pvt && !pvt->peercallno) {
+			ast_mutex_unlock(&iaxsl[callno]);
+			usleep(1);
+			ast_mutex_lock(&iaxsl[callno]);
+			pvt = iaxs[callno];
+		}
+		
+		if (!pvt->peercallno) {
+			/* Even after waiting, we still haven't completed a handshake with
+			 * our peer, so we can't send this frame.  Bail out. */
+			res = -1;
+			goto done;
+		}
+	}
+
+
+	res = send_command(iaxs[callno], AST_FRAME_CONTROL, condition, 0, NULL, 0, -1);
+
+done:
+	ast_mutex_unlock(&iaxsl[callno]);
+
+	return res;
 }
 	
 static int iax2_transfer(struct ast_channel *c, const char *dest)
