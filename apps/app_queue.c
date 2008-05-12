@@ -196,7 +196,7 @@ static char *descrip =
 static char *app_aqm = "AddQueueMember" ;
 static char *app_aqm_synopsis = "Dynamically adds queue members" ;
 static char *app_aqm_descrip =
-"   AddQueueMember(queuename[,interface[,penalty[,options[,membername]]]]):\n"
+"   AddQueueMember(queuename[,interface[,penalty[,options[,membername[,stateinterface]]]]]):\n"
 "Dynamically adds interface to an existing queue.\n"
 "If the interface is already in the queue it will return an error.\n"
 "  This application sets the following channel variable upon completion:\n"
@@ -4229,7 +4229,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 	int penalty = 0;
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "AddQueueMember requires an argument (queuename[,[interface],[penalty][,options][,membername]])\n");
+		ast_log(LOG_WARNING, "AddQueueMember requires an argument (queuename[,interface[,penalty[,options[,membername[,stateinterface]]]]])\n");
 		return -1;
 	}
 
