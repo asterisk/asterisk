@@ -3766,8 +3766,11 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 	struct timeval waittimer = {0, 0}, tv;
 
 	/* We currently do not support native bridging if a timeoutms value has been provided */
-	if (timeoutms)
+	if (timeoutms > 0) {
 		return AST_BRIDGE_FAILED;
+	}
+
+	timeoutms = 0;
 
 	lock_both(callno0, callno1);
 	if (!iaxs[callno0] || !iaxs[callno1]) {
