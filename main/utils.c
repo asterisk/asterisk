@@ -832,19 +832,21 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	pthread_mutex_lock(&lock_infos_lock.mutex);
 	AST_LIST_TRAVERSE(&lock_infos, lock_info, entry) {
 		int i;
-		ast_str_append(&str, 0, "=== Thread ID: %d (%s)\n", (int) lock_info->thread_id,
-			lock_info->thread_name);
-		pthread_mutex_lock(&lock_info->lock);
-		for (i = 0; str && i < lock_info->num_locks; i++) {
-			append_lock_information(&str, lock_info, i);
+		if (lock_info->num_locks) {
+			ast_str_append(&str, 0, "=== Thread ID: %d (%s)\n", (int) lock_info->thread_id,
+				lock_info->thread_name);
+			pthread_mutex_lock(&lock_info->lock);
+			for (i = 0; str && i < lock_info->num_locks; i++) {
+				append_lock_information(&str, lock_info, i);
+			}
+			pthread_mutex_unlock(&lock_info->lock);
+			if (!str)
+				break;
+			ast_str_append(&str, 0, "=== -------------------------------------------------------------------\n"
+			               "===\n");
+			if (!str)
+				break;
 		}
-		pthread_mutex_unlock(&lock_info->lock);
-		if (!str)
-			break;
-		ast_str_append(&str, 0, "=== -------------------------------------------------------------------\n"
-		               "===\n");
-		if (!str)
-			break;
 	}
 	pthread_mutex_unlock(&lock_infos_lock.mutex);
 
