@@ -195,24 +195,28 @@ int ast_autoservice_start(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 
 	AST_LIST_LOCK(&aslist);
-	if (AST_LIST_EMPTY(&aslist))
+
+	if (AST_LIST_EMPTY(&aslist) && asthread != AST_PTHREADT_NULL) {
 		ast_cond_signal(&as_cond);
+	}
+
 	AST_LIST_INSERT_HEAD(&aslist, as, list);
-	AST_LIST_UNLOCK(&aslist);
 
 	if (asthread == AST_PTHREADT_NULL) { /* need start the thread */
 		if (ast_pthread_create_background(&asthread, NULL, autoservice_run, NULL)) {
 			ast_log(LOG_WARNING, "Unable to create autoservice thread :(\n");
 			/* There will only be a single member in the list at this point,
 			   the one we just added. */
-			AST_LIST_LOCK(&aslist);
 			AST_LIST_REMOVE(&aslist, as, list);
-			AST_LIST_UNLOCK(&aslist);
 			free(as);
+			asthread = AST_PTHREADT_NULL;
 			res = -1;
-		} else
+		} else {
 			pthread_kill(asthread, SIGURG);
+		}
 	}
+
+	AST_LIST_UNLOCK(&aslist);
 
 	return res;
 }
