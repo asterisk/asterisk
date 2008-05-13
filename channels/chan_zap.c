@@ -9235,7 +9235,7 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 	snprintf(tmp, sizeof(tmp), "%d", p->calling_party_cat);
 	pbx_builtin_setvar_helper(c, "SS7_CALLING_PARTY_CATEGORY", tmp);
 	/* Clear this after we set it */
-	p->call_ref_pc = 0;
+	p->calling_party_cat = 0;
 
 	if (!ast_strlen_zero(p->redirecting_num)) {
 		pbx_builtin_setvar_helper(c, "SS7_REDIRECTING_NUMBER", p->redirecting_num);
