@@ -1518,9 +1518,6 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
  			memcpy(&tmp_pvt.addr, sin, sizeof(tmp_pvt.addr));
  
  			if ((pvt = ao2_find(iax_peercallno_pvts, &tmp_pvt, OBJ_POINTER))) {
- 				if (return_locked) {
- 					ast_mutex_lock(&iaxsl[pvt->callno]);
- 				}
  				res = pvt->callno;
  				ao2_ref(pvt, -1);
  				pvt = NULL;
