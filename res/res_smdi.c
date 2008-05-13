@@ -390,6 +390,8 @@ static void *smdi_message_wait(struct ast_smdi_interface *iface, int timeout,
 	long diff = 0;
 	void *msg;
 
+	start = ast_tvnow();
+
 	while (diff < timeout) {
 		struct timespec ts = { 0, };
 		struct timeval tv;
