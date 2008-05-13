@@ -1205,18 +1205,21 @@ AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 #define ast_channel_trylock(x)		ast_mutex_trylock(&x->lock_dont_use)
 #else
 
+#define ast_channel_lock(a) __ast_channel_lock(a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 /*! \brief Lock AST channel (and print debugging output)
 \note You need to enable DEBUG_CHANNEL_LOCKS for this function */
-int ast_channel_lock(struct ast_channel *chan);
+int __ast_channel_lock(struct ast_channel *chan, const char *file, int lineno, const char *func);
 
+#define ast_channel_unlock(a) __ast_channel_unlock(a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 /*! \brief Unlock AST channel (and print debugging output)
 \note You need to enable DEBUG_CHANNEL_LOCKS for this function
 */
-int ast_channel_unlock(struct ast_channel *chan);
+int __ast_channel_unlock(struct ast_channel *chan, const char *file, int lineno, const char *func);
 
+#define ast_channel_trylock(a) __ast_channel_trylock(a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 /*! \brief Lock AST channel (and print debugging output)
 \note   You need to enable DEBUG_CHANNEL_LOCKS for this function */
-int ast_channel_trylock(struct ast_channel *chan);
+int __ast_channel_trylock(struct ast_channel *chan, const char *file, int lineno, const char *func);
 #endif
 
 #endif /* _ASTERISK_LOCK_H */
