@@ -2307,7 +2307,7 @@ static void ast_remotecontrol(char * data)
 			char buf[512] = "", *curline = buf, *nextline;
 			int not_written = 1;
 
-			if (read(ast_consock, buf, sizeof(buf) - 1) < 0) {
+			if (read(ast_consock, buf, sizeof(buf) - 1) <= 0) {
 				break;
 			}
 
