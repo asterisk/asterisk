@@ -61,45 +61,32 @@ static char qdonedir[255];
 
 struct outgoing {
 	char fn[256];
-	/*! Current number of retries */
-	int retries;
-	/*! Maximum number of retries permitted */
-	int maxretries;
-	/*! How long to wait between retries (in seconds) */
-	int retrytime;
-	/*! How long to wait for an answer */
-	int waittime;
-	/*! PID which is currently calling */
-	long callingpid;
+	int retries;                              /*!< Current number of retries */
+	int maxretries;                           /*!< Maximum number of retries permitted */
+	int retrytime;                            /*!< How long to wait between retries (in seconds) */
+	int waittime;                             /*!< How long to wait for an answer */
+	long callingpid;                          /*!< PID which is currently calling */
 	
-	/*! What to connect to outgoing */
-	char tech[256];
-	char dest[256];
+	char tech[256];                           /*!< Which channel driver to use for outgoing call */
+	char dest[256];                           /*!< Which device/line to use for outgoing call */
+
+	char app[256];                            /*!< If application: Application name */
+	char data[256];                           /*!< If applicatoin: Application data */
+
+	char exten[AST_MAX_EXTENSION];            /*!< If extension/context/priority: Extension in dialplan */
+	char context[AST_MAX_CONTEXT];            /*!< If extension/context/priority: Dialplan context */
+	int priority;                             /*!< If extension/context/priority: Dialplan priority */
+
+	char cid_num[256];                        /*!< CallerID Information: Number/extension */
+	char cid_name[256];                       /*!< CallerID Information: Name */
+
+	char account[AST_MAX_ACCOUNT_CODE];       /*!< account code */
+
+	struct ast_variable *vars;                /*!< Variables and Functions */
 	
-	/* If application */
-	char app[256];
-	char data[256];
+	int maxlen;                               /*!< Maximum length of call */
 
-	/* If extension/context/priority */
-	char exten[AST_MAX_EXTENSION];
-	char context[AST_MAX_CONTEXT];
-	int priority;
-
-	/* CallerID Information */
-	char cid_num[256];
-	char cid_name[256];
-
-	/*! account code */
-	char account[AST_MAX_ACCOUNT_CODE];
-
-	/*! Variables and Functions */
-	struct ast_variable *vars;
-	
-	/*! Maximum length of call */
-	int maxlen;
-
-	/*! options */
-	struct ast_flags options;
+	struct ast_flags options;                 /*!< options */
 };
 
 static void init_outgoing(struct outgoing *o)
