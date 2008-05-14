@@ -52,7 +52,7 @@ ifeq ($(wildcard /usr/include/dlfcn.h),)
   OBJS+=dlfcn.o
 endif
 
-ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc ),)
+ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc linux-gnueabi ),)
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
   AST_LIBS+=-ldl
   endif
