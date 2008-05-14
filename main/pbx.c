@@ -7227,6 +7227,8 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 				   ready to let it go as soon as we locked it. */
 				ast_unlock_context(tmp);
 				__ast_internal_context_destroy(tmp);
+			} else {
+				ast_unlock_context(tmp);
 			}
 		} else if (con) {
 			ast_verb(3, "Deleting context %s registrar=%s\n", tmp->name, tmp->registrar);
