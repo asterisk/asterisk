@@ -2699,9 +2699,13 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	if (pid > -1) {
 		const char *sighup = pbx_builtin_getvar_helper(chan, "AGISIGHUP");
 		if (ast_strlen_zero(sighup) || !ast_false(sighup)) {
-			if (kill(pid, SIGHUP))
+			if (kill(pid, SIGHUP)) {
 				ast_log(LOG_WARNING, "unable to send SIGHUP to AGI process %d: %s\n", pid, strerror(errno));
+			} else { /* Give the process a chance to die */
+				usleep(1);
+			}
 		}
+		waitpid(pid, status, WNOHANG);
 	}
 	fclose(readf);
 	return returnstatus;
