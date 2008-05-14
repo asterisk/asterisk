@@ -659,8 +659,7 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 	if (res < 0) {
 		if (errno != EAGAIN)
 			ast_log(LOG_WARNING, "UDPTL read error: %s\n", strerror(errno));
-		if (errno == EBADF)
-			CRASH;
+		ast_assert(errno != EBADF);
 		return &ast_null_frame;
 	}
 

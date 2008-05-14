@@ -1096,8 +1096,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	rtcpheader = (unsigned int *)(rtcpdata + AST_FRIENDLY_OFFSET);
 	
 	if (res < 0) {
-		if (errno == EBADF)
-			CRASH;
+		ast_assert(errno != EBADF);
 		if (errno != EAGAIN) {
 			ast_log(LOG_WARNING, "RTCP Read error: %s.  Hanging up.\n", strerror(errno));
 			return NULL;
@@ -1440,8 +1439,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	rtpheader = (unsigned int *)(rtp->rawdata + AST_FRIENDLY_OFFSET);
 	if (res < 0) {
-		if (errno == EBADF)
-			CRASH;
+		ast_assert(errno != EBADF);
 		if (errno != EAGAIN) {
 			ast_log(LOG_WARNING, "RTP Read error: %s.  Hanging up.\n", strerror(errno));
 			return NULL;
