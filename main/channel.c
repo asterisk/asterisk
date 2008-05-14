@@ -4936,7 +4936,7 @@ const char *channelreloadreason2txt(enum channelreloadreason reason)
 /*! \brief Unlock AST channel (and print debugging output) 
 \note You need to enable DEBUG_CHANNEL_LOCKS for this function
 */
-int ast_channel_unlock(struct ast_channel *chan)
+int __ast_channel_unlock(struct ast_channel *chan, const char *filename, int lineno, const char *func)
 {
 	int res = 0;
 	ast_debug(3, "::::==== Unlocking AST channel %s\n", chan->name);
@@ -4945,8 +4945,11 @@ int ast_channel_unlock(struct ast_channel *chan)
 		ast_debug(1, "::::==== Unlocking non-existing channel \n");
 		return 0;
 	}
-
+#ifdef DEBUG_THREADS
+	res = __ast_pthread_mutex_unlock(filename, lineno, func, "(channel lock)", &chan->lock_dont_use);
+#else
 	res = ast_mutex_unlock(&chan->lock_dont_use);
+#endif
 
 	if (option_debug > 2) {
 #ifdef DEBUG_THREADS
@@ -4970,13 +4973,17 @@ int ast_channel_unlock(struct ast_channel *chan)
 
 /*! \brief Lock AST channel (and print debugging output)
 \note You need to enable DEBUG_CHANNEL_LOCKS for this function */
-int ast_channel_lock(struct ast_channel *chan)
+int __ast_channel_lock(struct ast_channel *chan, const char *filename, int lineno, const char *func)
 {
 	int res;
 
 	ast_debug(4, "====:::: Locking AST channel %s\n", chan->name);
 
+#ifdef DEBUG_THREADS
+	res = __ast_pthread_mutex_lock(filename, lineno, func, "(channel lock)", &chan->lock_dont_use);
+#else
 	res = ast_mutex_lock(&chan->lock_dont_use);
+#endif
 
 	if (option_debug > 3) {
 #ifdef DEBUG_THREADS
@@ -4999,13 +5006,16 @@ int ast_channel_lock(struct ast_channel *chan)
 
 /*! \brief Lock AST channel (and print debugging output)
 \note	You need to enable DEBUG_CHANNEL_LOCKS for this function */
-int ast_channel_trylock(struct ast_channel *chan)
+int __ast_channel_trylock(struct ast_channel *chan, const char *filename, int lineno, const char *func)
 {
 	int res;
 
 	ast_debug(3, "====:::: Trying to lock AST channel %s\n", chan->name);
-
+#ifdef DEBUG_THREADS
+	res = __ast_pthread_mutex_trylock(filename, lineno, func, "(channel lock)", &chan->lock_dont_use);
+#else
 	res = ast_mutex_trylock(&chan->lock_dont_use);
+#endif
 
 	if (option_debug > 2) {
 #ifdef DEBUG_THREADS

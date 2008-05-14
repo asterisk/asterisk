@@ -702,6 +702,7 @@ static struct zt_pvt {
 	char lspi_ident[50];
 	unsigned int call_ref_ident;
 	unsigned int call_ref_pc;
+	unsigned char calling_party_cat;
 	int transcap;
 	int cic;							/*!< CIC associated with channel */
 	unsigned int dpc;						/*!< CIC's DPC */
@@ -9231,6 +9232,11 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 	/* Clear this after we set it */
 	p->call_ref_pc = 0;
 
+	snprintf(tmp, sizeof(tmp), "%d", p->calling_party_cat);
+	pbx_builtin_setvar_helper(c, "SS7_CALLING_PARTY_CATEGORY", tmp);
+	/* Clear this after we set it */
+	p->calling_party_cat = 0;
+
 	if (!ast_strlen_zero(p->redirecting_num)) {
 		pbx_builtin_setvar_helper(c, "SS7_REDIRECTING_NUMBER", p->redirecting_num);
 		/* Clear this after we set it */
@@ -9527,6 +9533,7 @@ static void *ss7_linkset(void *data)
 				ast_copy_string(p->orig_called_num, e->iam.orig_called_num, sizeof(p->orig_called_num));
 				ast_copy_string(p->redirecting_num, e->iam.redirecting_num, sizeof(p->redirecting_num));
 				ast_copy_string(p->generic_name, e->iam.generic_name, sizeof(p->generic_name));
+				p->calling_party_cat = e->iam.calling_party_cat;
 					
 				/* Set DNID */
 				if (!ast_strlen_zero(e->iam.called_party_num))
