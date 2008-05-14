@@ -481,6 +481,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  	struct ast_channel *rchan;
  	char *command;
  	int res = -1;
+	int test_available_fd = -1;
   
  	FILE *eivr_commands = NULL;
  	FILE *eivr_errors = NULL;
@@ -500,6 +501,8 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  			goto exit;
  		}
 	}
+
+	test_available_fd = open("/dev/null", O_RDONLY);
  
  	setvbuf(eivr_events, NULL, _IONBF, 0);
  	setvbuf(eivr_commands, NULL, _IONBF, 0);
@@ -574,7 +577,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  		} else if (ready_fd == eivr_commands_fd) {
  			char input[1024];
  
- 			if (exception || feof(eivr_commands)) {
+ 			if (exception || (dup2(eivr_commands_fd, test_available_fd) == -1) || feof(eivr_commands)) {
  				ast_chan_log(LOG_WARNING, chan, "Child process went away\n");
  				res = -1;
   				break;
@@ -685,6 +688,10 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  
 exit:
  
+	if (test_available_fd > -1) {
+		close(test_available_fd);
+	}
+
 	if (eivr_events)
  		fclose(eivr_events);
  
