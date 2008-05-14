@@ -225,6 +225,8 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 			; This option restores the old behavior [DEFAULT=no]
 ; callback=fromvm 	; Context to call back from  
 			;     if not listed, calling the sender back will not be permitted
+; exitcontext=fromvm    ; Context to go to on user exit such as * or 0
+                        ;     The default is the current context.
 ; review=yes 		; Allow sender to review/rerecord their message before saving it [OFF by default
 ; operator=yes 		; Allow sender to hit 0 before/after/during  leaving a voicemail to 
 			;     reach an operator  [OFF by default]
