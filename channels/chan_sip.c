@@ -6240,9 +6240,9 @@ restartsearch:
 			if (sip_pvt_trylock(p)) {
 				ao2_unlock(dialogs);
 				usleep(1);
-				ao2_lock(dialogs);
 				goto restartsearch;
 			}
+			ao2_unlock(dialogs);
 			return p;
 		}
 		ao2_unlock(dialogs);
