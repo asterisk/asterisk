@@ -2093,7 +2093,7 @@ static char *get_calleridname(const char *input, char *output, size_t outputsize
 static int get_rpid_num(const char *input, char *output, int maxlen);
 static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq);
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq);
-static int get_msg_text(char *buf, int len, struct sip_request *req);
+static int get_msg_text(char *buf, int len, struct sip_request *req, int addnewline);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout);
 
 /*--- Constructing requests and responses */
@@ -11997,7 +11997,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod,
 }
 
 /*! \brief  Get text out of a SIP MESSAGE packet */
-static int get_msg_text(char *buf, int len, struct sip_request *req)
+static int get_msg_text(char *buf, int len, struct sip_request *req, int addnewline)
 {
 	int x;
 	int y;
@@ -12006,12 +12006,12 @@ static int get_msg_text(char *buf, int len, struct sip_request *req)
 	y = len - strlen(buf) - 5;
 	if (y < 0)
 		y = 0;
-	for (x=0;x<req->lines;x++) {
+	for (x=0; x < req->lines; x++) {
 		strncat(buf, req->line[x], y); /* safe */
 		y -= strlen(req->line[x]) + 1;
 		if (y < 0)
 			y = 0;
-		if (y != 0)
+		if (y != 0 && addnewline)
 			strcat(buf, "\n"); /* safe */
 	}
 	return 0;
@@ -12034,7 +12034,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 		return;
 	}
 
-	if (get_msg_text(buf, sizeof(buf), req)) {
+	if (get_msg_text(buf, sizeof(buf), req, FALSE)) {
 		ast_log(LOG_WARNING, "Unable to retrieve text from %s\n", p->callid);
 		transmit_response(p, "202 Accepted", req);
 		if (!p->owner)
@@ -14654,7 +14654,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			return;
 		}
 
-		get_msg_text(buf, sizeof(buf), req);
+		get_msg_text(buf, sizeof(buf), req, TRUE);
 		duration = 100; /* 100 ms */
 
 		if (ast_strlen_zero(buf)) {
@@ -16936,7 +16936,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		}
 
 		/* Get the text of the attachment */
-		if (get_msg_text(buf, sizeof(buf), req)) {
+		if (get_msg_text(buf, sizeof(buf), req, TRUE)) {
 			ast_log(LOG_WARNING, "Unable to retrieve attachment from NOTIFY %s\n", p->callid);
 			transmit_response(p, "400 Bad request", req);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
