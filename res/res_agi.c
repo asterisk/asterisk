@@ -811,15 +811,13 @@ static int handle_recvchar(struct ast_channel *chan, AGI *agi, int argc, char *a
 	if (res == 0) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=%d (timeout)\n", res);
 		return RESULT_SUCCESS;
-	}
+	} 
 	if (res > 0) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=%d\n", res);
 		return RESULT_SUCCESS;
 	}
-	else {
-		ast_agi_fdprintf(chan, agi->fd, "200 result=%d (hangup)\n", res);
-		return RESULT_FAILURE;
-	}
+	ast_agi_fdprintf(chan, agi->fd, "200 result=%d (hangup)\n", res);
+	return RESULT_FAILURE;
 }
 
 static int handle_recvtext(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -829,7 +827,7 @@ static int handle_recvtext(struct ast_channel *chan, AGI *agi, int argc, char *a
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
-	buf = ast_recvtext(chan,atoi(argv[2]));
+	buf = ast_recvtext(chan, atoi(argv[2]));
 	if (buf) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=1 (%s)\n", buf);
 		ast_free(buf);
@@ -846,19 +844,23 @@ static int handle_tddmode(struct ast_channel *chan, AGI *agi, int argc, char *ar
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
-	if (!strncasecmp(argv[2],"on",2)) 
+	if (!strncasecmp(argv[2],"on",2)) {
 		x = 1; 
-	else 
+	} else  {
 		x = 0;
-	if (!strncasecmp(argv[2],"mate",4)) 
+	}
+	if (!strncasecmp(argv[2],"mate",4))  {
 		x = 2;
-	if (!strncasecmp(argv[2],"tdd",3))
+	}
+	if (!strncasecmp(argv[2],"tdd",3)) {
 		x = 1;
+	}
 	res = ast_channel_setoption(chan, AST_OPTION_TDD, &x, sizeof(char), 0);
-	if (res != RESULT_SUCCESS)
+	if (res != RESULT_SUCCESS) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
-	else
+	} else {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
+	}
 	return RESULT_SUCCESS;
 }
 
@@ -866,12 +868,14 @@ static int handle_sendimage(struct ast_channel *chan, AGI *agi, int argc, char *
 {
 	int res;
 
-	if (argc != 3)
+	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
+	}
 
 	res = ast_send_image(chan, argv[2]);
-	if (!ast_check_hangup(chan))
+	if (!ast_check_hangup(chan)) {
 		res = 0;
+	}
 	ast_agi_fdprintf(chan, agi->fd, "200 result=%d\n", res);
 	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
@@ -879,33 +883,31 @@ static int handle_sendimage(struct ast_channel *chan, AGI *agi, int argc, char *
 static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res = 0, skipms = 3000;
-	char *fwd = NULL, *rev = NULL, *pause = NULL, *stop = NULL;
+	char *fwd = "#", *rev = "*", *pause = NULL, *stop = NULL;	/* Default values */
 
-	if (argc < 5 || argc > 9)
+	if (argc < 5 || argc > 9) {
 		return RESULT_SHOWUSAGE;
+	}
 
-	if (!ast_strlen_zero(argv[4]))
+	if (!ast_strlen_zero(argv[4])) {
 		stop = argv[4];
-	else
-		stop = NULL;
+	}
 	
-	if ((argc > 5) && (sscanf(argv[5], "%d", &skipms) != 1))
+	if ((argc > 5) && (sscanf(argv[5], "%d", &skipms) != 1)) {
 		return RESULT_SHOWUSAGE;
+	}
 
-	if (argc > 6 && !ast_strlen_zero(argv[6]))
+	if (argc > 6 && !ast_strlen_zero(argv[6])) {
 		fwd = argv[6];
-	else
-		fwd = "#";
+	} 
 
-	if (argc > 7 && !ast_strlen_zero(argv[7]))
+	if (argc > 7 && !ast_strlen_zero(argv[7])) {
 		rev = argv[7];
-	else
-		rev = "*";
+	}
 	
-	if (argc > 8 && !ast_strlen_zero(argv[8]))
+	if (argc > 8 && !ast_strlen_zero(argv[8])) {
 		pause = argv[8];
-	else
-		pause = NULL;
+	} 
 	
 	res = ast_control_streamfile(chan, argv[3], fwd, rev, stop, pause, NULL, skipms, NULL);
 	
