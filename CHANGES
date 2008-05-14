@@ -59,6 +59,11 @@ Application Changes
    to be spoken instead of the channel name or number. For more information on the
    use of this option, issue the command "core show application ChanSpy" from the 
    Asterisk CLI.
+ * Chanspy has a new option, 'd', which allows the spy to use DTMF to swap between
+   spy modes. Use of this feature overrides the typical use of numeric DTMF. In other
+   words, if using the 'd' option, it is not possible to enter a number to append to
+   the first argument to Chanspy(). Pressing 4 will change to spy mode, pressing 5 will
+   change to whisper mode, and pressing 6 will change to barge mode.
 
 SIP Changes
 -----------
