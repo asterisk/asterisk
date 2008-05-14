@@ -430,7 +430,7 @@ static void jb_get_and_deliver(struct ast_channel *chan)
 			return;
 		default:
 			ast_log(LOG_ERROR, "This should never happen!\n");
-			CRASH;
+			ast_assert(0);
 			break;
 		}
 		
@@ -486,7 +486,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 		bridged = ast_bridged_channel(chan);
 		if (!bridged) {
 			/* We should always have bridged chan if a jitterbuffer is in use */
-			CRASH;
+			ast_assert(0);
 		}
 		snprintf(name1, sizeof(name1), "%s", bridged->name);
 		tmp = strchr(name1, '/');
