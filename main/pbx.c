@@ -1843,6 +1843,10 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 #ifdef NEED_DEBUG_HERE
 	ast_log(LOG_NOTICE,"Looking for cont/ext/prio/label/action = %s/%s/%d/%s/%d\n", context, exten, priority, label, (int)action);
 #endif
+
+	if (ast_strlen_zero(exten))
+		return NULL;
+
 	/* Initialize status if appropriate */
 	if (q->stacklen == 0) {
 		q->status = STATUS_NO_CONTEXT;
