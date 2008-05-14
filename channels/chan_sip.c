@@ -25,15 +25,21 @@
  * See Also:
  * \arg \ref AstCREDITS
  *
- * Implementation of RFC 3261 - without S/MIME, TCP and TLS support
+ * Implementation of RFC 3261 - without S/MIME, and experimental TCP and TLS support
  * Configuration file \link Config_sip sip.conf \endlink
  *
+ * ********** IMPORTANT *
+ * \note TCP/TLS support is EXPERIMENTAL and WILL CHANGE. This applies to configuration
+ *	settings, dialplan commands and dialplans apps/functions
+ * 
  *
+ * TODO:s
  * \todo Better support of forking
  * \todo VIA branch tag transaction checking
  * \todo Transaction support
  * \todo We need to test TCP sessions with SIP proxies and in regards
  *       to the SIP outbound specs.
+ * \todo Fix TCP/TLS handling in dialplan, SRV records, transfers and much more
  *
  * \ingroup channel_drivers
  *
