@@ -3865,7 +3865,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		ast_stopstream(chan);
 	/* Check for a '*' here in case the caller wants to escape from voicemail to something
 	 other than the operator -- an automated attendant or mailbox login for example */
-	if (!ast_strlen_zero(vmu->exit) && (res == '*')) {
+	if (res == '*') {
 		chan->exten[0] = 'a';
 		chan->exten[1] = '\0';
 		if (!ast_strlen_zero(vmu->exit)) {
