@@ -562,4 +562,31 @@ void ast_enable_packet_fragmentation(int sock);
 
 #define ARRAY_LEN(a) (sizeof(a) / sizeof(a[0]))
 
+#ifdef AST_DEVMODE
+#define ast_assert(a) _ast_assert(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+static void force_inline _ast_assert(int condition, const char *condition_str, 
+	const char *file, int line, const char *function)
+{
+	if (__builtin_expect(!condition, 1)) {
+		/* Attempt to put it into the logger, but hope that at least someone saw the
+		 * message on stderr ... */
+		ast_log(LOG_ERROR, "FRACK!, Failed assertion %s (%d) at line %d in %s of %s\n",
+			condition_str, condition, line, function, file);
+		fprintf(stderr, "FRACK!, Failed assertion %s (%d) at line %d in %s of %s\n",
+			condition_str, condition, line, function, file);
+		/* Give the logger a chance to get the message out, just in case we abort(), or
+		 * Asterisk crashes due to whatever problem just happened after we exit ast_assert(). */
+		usleep(1);
+#ifdef DO_CRASH
+		abort();
+		/* Just in case abort() doesn't work or something else super silly,
+		 * and for Qwell's amusement. */
+		*((int*)0)=0;
+#endif
+	}
+}
+#else
+#define ast_assert(a)
+#endif
+
 #endif /* _ASTERISK_UTILS_H */

@@ -282,9 +282,7 @@ int ast_sched_del(struct sched_context *con, int id)
 	if (!s) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Attempted to delete nonexistent schedule entry %d!\n", id);
-#ifdef DO_CRASH
-		CRASH;
-#endif
+		ast_assert(0);
 		return -1;
 	}
 	
