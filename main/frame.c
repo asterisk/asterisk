@@ -119,6 +119,7 @@ static struct ast_format_list AST_FORMAT_LIST[] = {
 	{ AST_FORMAT_H263_PLUS, "h263p", 0, "H.263+ Video" },                                                  /*!< H.263plus passthrough support See format_h263.c */
 	{ AST_FORMAT_H264, "h264", 0, "H.264 Video" },                                                         /*!< Passthrough support, see format_h263.c */
 	{ AST_FORMAT_MP4_VIDEO, "mpeg4", 0, "MPEG4 Video" },                                                   /*!< Passthrough support for MPEG4 */
+	{ AST_FORMAT_T140RED, "red", 1, "T.140 Realtime Text with redundancy"},                                 /*!< Redundant T.140 Realtime Text */
 	{ AST_FORMAT_T140, "t140", 0, "Passthrough T.140 Realtime Text" },                                     /*!< Passthrough support for T.140 Realtime Text */
 };
 
@@ -575,7 +576,7 @@ int ast_getformatbyname(const char *name)
 	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
 		if (all || 
 			  !strcasecmp(AST_FORMAT_LIST[x].name,name) ||
-			  !strcasecmp(AST_FORMAT_LIST[x].name,ast_expand_codec_alias(name))) {
+			  !strcasecmp(AST_FORMAT_LIST[x].name, ast_expand_codec_alias(name))) {
 			format |= AST_FORMAT_LIST[x].bits;
 			if (!all)
 				break;

@@ -51,6 +51,9 @@ extern "C" {
 /*! Maxmum number of payload defintions for a RTP session */
 #define MAX_RTP_PT			256
 
+/*! T.140 Redundancy Maxium number of generations */
+#define RED_MAX_GENERATION 5
+
 #define FLAG_3389_WARNING		(1 << 0)
 
 enum ast_rtp_options {
@@ -67,6 +70,8 @@ enum ast_rtp_get_result {
 };
 
 struct ast_rtp;
+/*! T.140 Redundancy structure*/
+struct rtp_red;
 
 /*! \brief This is the structure that binds a channel (SIP/Jingle/H.323) to the RTP subsystem 
 */
@@ -287,6 +292,22 @@ int ast_rtp_get_rtpholdtimeout(struct ast_rtp *rtp);
 int ast_rtp_get_rtptimeout(struct ast_rtp *rtp);
 /* \brief Put RTP timeout timers on hold during another transaction, like T.38 */
 void ast_rtp_set_rtptimers_onhold(struct ast_rtp *rtp);
+
+/*! \brief Initalize t.140 redudancy 
+ * \param ti time between each t140red frame is sent
+ * \param red_pt payloadtype for RTP packet
+ * \param pt payloadtype numbers for each generation including primary data
+ * \param num_gen number of redundant generations, primary data excluded
+ */
+int rtp_red_init(struct ast_rtp *rtp, int ti, int *pt, int num_gen);
+
+void red_init(struct rtp_red *red, const struct ast_frame *f);
+
+
+/*! \brief Buffer t.140 data */
+void red_buffer_t140(struct ast_rtp *rtp, struct ast_frame *f);
+
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -1323,6 +1323,8 @@ struct sip_pvt {
 							(A bit unsure of this, please correct if
 							you know more) */
 	struct sip_st_dlg *stimer;		/*!< SIP Session-Timers */              
+  
+	int red; 
 };
 
 /*! Max entires in the history list for a sip_pvt */
@@ -5208,16 +5210,20 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 	case AST_FRAME_TEXT:
 		if (p) {
 			sip_pvt_lock(p);
-			if (p->trtp) {
-				/* Activate text early media */
-				if ((ast->_state != AST_STATE_UP) &&
-				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
-				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
-					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE);
-					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
+			if (p->red) {
+				red_buffer_t140(p->trtp, frame);
+			} else {
+				if (p->trtp) {
+					/* Activate text early media */
+					if ((ast->_state != AST_STATE_UP) &&
+					    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
+					    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
+						transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE);
+						ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
+					}
+					p->lastrtptx = time(NULL);
+					res = ast_rtp_write(p->trtp, frame);
 				}
-				p->lastrtptx = time(NULL);
-				res = ast_rtp_write(p->trtp, frame);
 			}
 			sip_pvt_unlock(p);
 		}
@@ -6651,6 +6657,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	char buf[SIPBUFSIZE];
 	int rua_version;
+	
+	int red_data_pt[10];
+	int red_num_gen = 0;
+	int red_pt = 0;
+
+	char *red_cp; 				/* For T.140 red */
+	char red_fmtp[100] = "empty";		/* For T.140 red */
 
 	if (!p->rtp) {
 		ast_log(LOG_ERROR, "Got SDP but have no RTP session allocated.\n");
@@ -6993,6 +7006,20 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			memset(&found_rtpmap_codecs, 0, sizeof(found_rtpmap_codecs));
 			last_rtpmap_codec = 0;
 			continue;
+			
+		} else if (!strncmp(a, red_fmtp, strlen(red_fmtp))) {
+			/* count numbers of generations in fmtp */
+			red_cp = &red_fmtp[strlen(red_fmtp)];
+			strncpy(red_fmtp, a, 100);
+
+			sscanf(red_cp, "%u", &red_data_pt[red_num_gen]);
+			red_cp = strtok(red_cp, "/");
+			while (red_cp && red_num_gen++ < RED_MAX_GENERATION) {
+				sscanf(red_cp, "%u", &red_data_pt[red_num_gen]);
+				red_cp = strtok(NULL, "/");
+			}
+			red_cp = red_fmtp;
+
 		} else if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) == 2) {
 			/* We have a rtpmap to handle */
 
@@ -7014,6 +7041,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					if (p->trtp) {
 						/* ast_verbose("Adding t140 mimeSubtype to textrtp struct\n"); */
 						ast_rtp_set_rtpmap_type(newtextrtp, codec, "text", mimeSubtype, 0);
+					}
+				} else if (!strncasecmp(mimeSubtype, "RED", 3)) { /* Text with Redudancy */
+					if (p->trtp) {
+						ast_rtp_set_rtpmap_type(newtextrtp, codec, "text", mimeSubtype, 0);
+						red_pt = codec;
+						sprintf(red_fmtp, "fmtp:%d ", red_pt); 
+
+						if (debug)
+							ast_verbose("Red submimetype has payload type: %d\n", red_pt);
 					}
 				} else {                                          /* Must be audio?? */
 					if(ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
@@ -7190,6 +7226,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	p->jointcapability = newjointcapability;	        /* Our joint codec profile for this call */
 	p->peercapability = newpeercapability;		        /* The other sides capability in latest offer */
 	p->jointnoncodeccapability = newnoncodeccapability;	/* DTMF capabilities */
+
+	if (p->jointcapability & AST_FORMAT_T140RED) {
+		p->red = 1; 
+		rtp_red_init(p->trtp, 300, red_data_pt, 2);
+	} else {
+		p->red = 0; 
+	}
 
 	ast_rtp_pt_copy(p->rtp, newaudiortp);
 	if (p->vrtp)
@@ -8103,6 +8146,14 @@ static void add_tcodec_to_sdp(const struct sip_pvt *p, int codec, int sample_rat
 	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
 			 ast_rtp_lookup_mime_subtype(1, codec, 0), sample_rate);
 	/* Add fmtp code here */
+
+	if (codec == AST_FORMAT_T140RED) {
+		ast_str_append(a_buf, 0, "a=fmtp:%d %d/%d/%d\r\n", rtp_code, 
+			 ast_rtp_lookup_code(p->trtp, 1, AST_FORMAT_T140),
+			 ast_rtp_lookup_code(p->trtp, 1, AST_FORMAT_T140),
+			 ast_rtp_lookup_code(p->trtp, 1, AST_FORMAT_T140));
+
+	}
 }
 
 

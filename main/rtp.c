@@ -177,6 +177,25 @@ struct ast_rtp {
 	struct sockaddr_in strict_rtp_address;  /*!< Remote address information for strict RTP purposes */
 
 	int set_marker_bit:1;           /*!< Whether to set the marker bit or not */
+	struct rtp_red *red;
+};
+
+static struct ast_frame *red_t140_to_red(struct rtp_red *red);
+static int red_write(const void *data);
+ 
+struct rtp_red {
+	struct ast_frame t140;  /*!< Primary data  */
+	struct ast_frame t140red;   /*!< Redundant t140*/
+	unsigned char pt[RED_MAX_GENERATION];  /*!< Payload types for redundancy data */
+	unsigned char ts[RED_MAX_GENERATION]; /*!< Time stamps */
+	unsigned char len[RED_MAX_GENERATION]; /*!< length of each generation */
+	int num_gen; /*!< Number of generations */
+	int schedid; /*!< Timer id */
+	int ti; /*!< How long to buffer data before send */
+	unsigned char t140red_data[64000];  
+	unsigned char buf_data[64000]; /*!< buffered primary data */
+	int hdrlen; 
+	long int prev_ts;
 };
 
 /* Forward declarations */
@@ -1392,6 +1411,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	unsigned int *rtpheader;
 	struct rtpPayloadType rtpPT;
 	struct ast_rtp *bridged = NULL;
+	int prev_seqno;
 	
 	/* If time is up, kill it */
 	if (rtp->sending_digit)
@@ -1541,6 +1561,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	}
 	if ( (int)rtp->lastrxseqno - (int)seqno  > 100) /* if so it would indicate that the sender cycled; allow for misordering */
 		rtp->cycles += RTP_SEQ_MOD;
+	
+	prev_seqno = rtp->lastrxseqno;
 
 	rtp->lastrxseqno = seqno;
 	
@@ -1604,6 +1626,61 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	rtp->f.data = rtp->rawdata + hdrlen + AST_FRIENDLY_OFFSET;
 	rtp->f.offset = hdrlen + AST_FRIENDLY_OFFSET;
 	rtp->f.seqno = seqno;
+
+	if (rtp->f.subclass == AST_FORMAT_T140 && (int)seqno - (prev_seqno+1) > 0 && (int)seqno - (prev_seqno+1) < 10) {
+		  unsigned char *data = rtp->f.data;
+		  
+		  memmove(rtp->f.data+3, rtp->f.data, rtp->f.datalen);
+		  rtp->f.datalen +=3;
+		  *data++ = 0xEF;
+		  *data++ = 0xBF;
+		  *data = 0xBD;
+	}
+ 
+	if (rtp->f.subclass == AST_FORMAT_T140RED) {
+		unsigned char *data = rtp->f.data;
+		unsigned char *header_end;
+		int num_generations;
+		int header_length;
+		int len;
+		int diff =(int)seqno - (prev_seqno+1); /* if diff = 0, no drop*/
+		int x;
+
+		rtp->f.subclass = AST_FORMAT_T140;
+		header_end = memchr(data, ((*data) & 0x7f), rtp->f.datalen);
+		header_end++;
+		
+		header_length = header_end - data;
+		num_generations = header_length / 4;
+		len = header_length;
+
+		if (!diff) {
+			for (x = 0; x < num_generations; x++)
+				len += data[x * 4 + 3];
+			
+			if (!(rtp->f.datalen - len))
+				return &ast_null_frame;
+			
+			rtp->f.data += len;
+			rtp->f.datalen -= len;
+		} else if (diff > num_generations && diff < 10) {
+			len -= 3;
+			rtp->f.data += len;
+			rtp->f.datalen -= len;
+			
+			data = rtp->f.data;
+			*data++ = 0xEF;
+			*data++ = 0xBF;
+			*data = 0xBD;
+		} else 	{
+			for ( x = 0; x < num_generations - diff; x++) 
+				len += data[x * 4 + 3];
+			
+			rtp->f.data += len;
+			rtp->f.datalen -= len;
+		}
+	}
+
 	if (rtp->f.subclass & AST_FORMAT_AUDIO_MASK) {
 		rtp->f.samples = ast_codec_get_samples(&rtp->f);
 		if (rtp->f.subclass == AST_FORMAT_SLINEAR) 
@@ -1674,6 +1751,7 @@ static struct {
 	{{1, AST_FORMAT_H263_PLUS}, "video", "h263-1998"},
 	{{1, AST_FORMAT_H264}, "video", "H264"},
 	{{1, AST_FORMAT_MP4_VIDEO}, "video", "MP4V-ES"},
+	{{1, AST_FORMAT_T140RED}, "text", "RED"},
 	{{1, AST_FORMAT_T140}, "text", "T140"},
 };
 
@@ -1713,9 +1791,10 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 	[98] = {1, AST_FORMAT_H263_PLUS},
 	[99] = {1, AST_FORMAT_H264},
 	[101] = {0, AST_RTP_DTMF},
-	[102] = {1, AST_FORMAT_T140},	/* Real time text chat */
 	[103] = {1, AST_FORMAT_H263_PLUS},
 	[104] = {1, AST_FORMAT_MP4_VIDEO},
+	[105] = {1, AST_FORMAT_T140RED},	/* Real time text chat (with redundancy encoding) */
+	[106] = {1, AST_FORMAT_T140},	/* Real time text chat */
 	[110] = {1, AST_FORMAT_SPEEX},
 	[111] = {1, AST_FORMAT_G726},
 	[112] = {1, AST_FORMAT_G726_AAL2},
@@ -2382,6 +2461,11 @@ struct ast_rtp *ast_rtp_get_bridged(struct ast_rtp *rtp)
 void ast_rtp_stop(struct ast_rtp *rtp)
 {
 	AST_SCHED_DEL(rtp->sched, rtp->rtcp->schedid);
+	if (rtp->red) {
+		AST_SCHED_DEL(rtp->sched, rtp->red->schedid);
+		free(rtp->red);
+		rtp->red = NULL;
+	}
 
 	memset(&rtp->them.sin_addr, 0, sizeof(rtp->them.sin_addr));
 	memset(&rtp->them.sin_port, 0, sizeof(rtp->them.sin_port));
@@ -3141,13 +3225,20 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		return 0;
 
 	/* If there is no data length, return immediately */
-	if (!_f->datalen) 
+	if(!_f->datalen && !rtp->red)
 		return 0;
 	
 	/* Make sure we have enough space for RTP header */
 	if ((_f->frametype != AST_FRAME_VOICE) && (_f->frametype != AST_FRAME_VIDEO) && (_f->frametype != AST_FRAME_TEXT)) {
 		ast_log(LOG_WARNING, "RTP can only send voice, video and text\n");
 		return -1;
+	}
+
+	if (rtp->red) {
+		/* return 0; */
+		/* no primary data or generations to send */
+		if ((_f = red_t140_to_red(rtp->red)) == NULL) 
+			return 0;
 	}
 
 	/* The bottom bit of a video subclass contains the marker bit */
@@ -4265,5 +4356,113 @@ void ast_rtp_init(void)
 {
 	ast_cli_register_multiple(cli_rtp, sizeof(cli_rtp) / sizeof(struct ast_cli_entry));
 	__ast_rtp_reload(0);
+}
+
+/*! \brief Write t140 redundacy frame 
+ * \param data primary data to be buffered
+ */
+static int red_write(const void *data)
+{
+	struct ast_rtp *rtp = (struct ast_rtp*) data;
+	
+	ast_rtp_write(rtp, &rtp->red->t140); 
+
+	return 1;  	
+}
+
+/*! \brief Construct a redundant frame 
+ * \param red redundant data structure
+ */
+static struct ast_frame *red_t140_to_red(struct rtp_red *red) {
+	unsigned char *data = red->t140red.data;
+	int len = 0;
+	int i;
+
+	/* replace most aged generation */
+	if (red->len[0]) {
+		for (i = 1; i < red->num_gen+1; i++)
+			len += red->len[i];
+
+		memmove(&data[red->hdrlen], &data[red->hdrlen+red->len[0]], len); 
+	}
+	
+	/* Store length of each generation and primary data length*/
+	for (i = 0; i < red->num_gen; i++)
+		red->len[i] = red->len[i+1];
+	red->len[i] = red->t140.datalen;
+	
+	/* write each generation length in red header */
+	len = red->hdrlen;
+	for (i = 0; i < red->num_gen; i++)
+		len += data[i*4+3] = red->len[i];
+	
+	/* add primary data to buffer */
+	memcpy(&data[len], red->t140.data, red->t140.datalen); 
+	red->t140red.datalen = len + red->t140.datalen;
+	
+	/* no primary data and no generations to send */
+	if (len == red->hdrlen && !red->t140.datalen)
+		return NULL;
+
+	/* reset t.140 buffer */
+	red->t140.datalen = 0; 
+	
+	return &red->t140red;
+}
+
+/*! \brief Initialize t140 redundancy 
+ * \param rtp
+ * \param ti buffer t140 for ti (msecs) before sending redundant frame
+ * \param red_data_pt Payloadtypes for primary- and generation-data
+ * \param num_gen numbers of generations (primary generation not encounted)
+ *
+*/
+int rtp_red_init(struct ast_rtp *rtp, int ti, int *red_data_pt, int num_gen)
+{
+	struct rtp_red *r;
+	int x;
+	
+	if (!(r = ast_calloc(1, sizeof(struct rtp_red))))
+		return -1;
+
+	r->t140.frametype = AST_FRAME_TEXT;
+	r->t140.subclass = AST_FORMAT_T140RED;
+	r->t140.data = &r->buf_data; 
+
+	r->t140.ts = 0;
+	r->t140red = r->t140;
+	r->t140red.data = &r->t140red_data;
+	r->t140red.datalen = 0;
+	r->ti = ti;
+	r->num_gen = num_gen;
+	r->hdrlen = num_gen * 4 + 1;
+	r->prev_ts = 0;
+
+	for (x = 0; x < num_gen; x++) {
+		r->pt[x] = red_data_pt[x];
+		r->pt[x] |= 1 << 7; /* mark redundant generations pt */ 
+		r->t140red_data[x*4] = r->pt[x];
+	}
+	r->t140red_data[x*4] = r->pt[x] = red_data_pt[x]; /* primary pt */
+	r->schedid = ast_sched_add(rtp->sched, ti, red_write, rtp);
+	rtp->red = r;
+
+	r->t140.datalen = 0;
+	
+	return 0;
+}
+
+/*! \brief Buffer t140 from chan_sip
+ * \param rtp
+ * \param f frame
+ */
+void red_buffer_t140(struct ast_rtp *rtp, struct ast_frame *f)
+{
+	if( f->datalen > -1 ) {
+		struct rtp_red *red = rtp->red;
+		memcpy(&red->buf_data[red->t140.datalen], f->data, f->datalen); 
+		red->t140.datalen += f->datalen;
+		red->t140.ts = f->ts;
+	}
 }
 
