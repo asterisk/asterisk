@@ -11976,7 +11976,8 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 	struct ast_frame f;
 	const char *content_type = get_header(req, "Content-Type");
 
-	if (strcmp(content_type, "text/plain")) { /* No text/plain attachment */
+ 	if (strncmp(content_type, "text/plain", strlen("text/plain"))) { 
+	//if (strcmp(content_type, "text/plain")) { /* No text/plain attachment */
 		transmit_response(p, "415 Unsupported Media Type", req); 
 		if (!p->owner)
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
