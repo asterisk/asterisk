@@ -8002,7 +8002,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const
 static int add_text(struct sip_request *req, const char *text)
 {
 	/* XXX Convert \n's to \r\n's XXX */
-	add_header(req, "Content-Type", "text/plain");
+	add_header(req, "Content-Type", "text/plain;charset=UTF-8");
 	add_header_contentLength(req, strlen(text));
 	add_line(req, text);
 	return 0;
