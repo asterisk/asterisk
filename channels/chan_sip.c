@@ -11972,7 +11972,7 @@ static int get_msg_text(char *buf, int len, struct sip_request *req)
 	Reference: RFC 3428 */
 static void receive_message(struct sip_pvt *p, struct sip_request *req)
 {
-	char buf[1024];
+	char buf[1400];	
 	struct ast_frame f;
 	const char *content_type = get_header(req, "Content-Type");
 
@@ -11993,7 +11993,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 
 	if (p->owner) {
 		if (sip_debug_test_pvt(p))
-			ast_verbose("Message received: '%s'\n", buf);
+			ast_verbose("SIP Text message received: '%s'\n", buf);
 		memset(&f, 0, sizeof(f));
 		f.frametype = AST_FRAME_TEXT;
 		f.subclass = 0;
@@ -12002,11 +12002,13 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 		f.datalen = strlen(buf);
 		ast_queue_frame(p->owner, &f);
 		transmit_response(p, "202 Accepted", req); /* We respond 202 accepted, since we relay the message */
-	} else { /* Message outside of a call, we do not support that */
-		ast_log(LOG_WARNING, "Received message to %s from %s, dropped it...\n  Content-Type:%s\n  Message: %s\n", get_header(req, "To"), get_header(req, "From"), content_type, buf);
-		transmit_response(p, "405 Method Not Allowed", req);
-		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		return;
 	}
+
+	/* Message outside of a call, we do not support that */
+	ast_log(LOG_WARNING, "Received message to %s from %s, dropped it...\n  Content-Type:%s\n  Message: %s\n", get_header(req, "To"), get_header(req, "From"), content_type, buf);
+	transmit_response(p, "405 Method Not Allowed", req);
+	sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	return;
 }
 
