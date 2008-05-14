@@ -1432,7 +1432,7 @@ int parse_config(void)
 	} else 
 		ast_copy_string(basedn, s, sizeof(basedn));
 
-	if (!(s = ast_variable_retrieve(config, "_general", "version")) || !(s = ast_variable_retrieve(config, "_general", "protocol"))) {
+	if (!(s = ast_variable_retrieve(config, "_general", "version")) && !(s = ast_variable_retrieve(config, "_general", "protocol"))) {
 		ast_log(LOG_NOTICE, "No explicit LDAP version found, using 3 as default.\n");
 		version = 3;
 	} else if (sscanf(s, "%d", &version) != 1 || version < 1 || version > 6) {
