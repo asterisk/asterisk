@@ -104,7 +104,7 @@ static int load_config(int reload)
 		ast_log(LOG_WARNING, "unable to load config: %s\n", config);
 		return 0;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
-		return 0;
+		return 1;
 
 	if (!(var = ast_variable_browse(cfg, "csv"))) {
 		ast_config_destroy(cfg);
