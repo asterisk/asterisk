@@ -3450,7 +3450,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 
 	ast_log(AST_LOG_NOTICE, "Copying message from %s@%s to %s@%s\n", vmu->mailbox, vmu->context, recip->mailbox, recip->context);
 
-	if (!strcmp(flag, "Urgent")) { /* If urgent, copy to Urgent folder */
+	if (!ast_strlen_zero(flag) && !strcmp(flag, "Urgent")) { /* If urgent, copy to Urgent folder */
 		create_dirpath(todir, sizeof(todir), recip->context, recip->mailbox, "Urgent");
 	} else {
 		create_dirpath(todir, sizeof(todir), recip->context, recip->mailbox, "INBOX");
@@ -4121,7 +4121,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 						}
 					}
 #ifndef IMAP_STORAGE
-					if (!strcmp(flag, "Urgent")) { /* If this is an Urgent message */
+					if (!ast_strlen_zero(flag) && !strcmp(flag, "Urgent")) { /* If this is an Urgent message */
 						/* Move the message from INBOX to Urgent folder if this is urgent! */
 						char sfn[PATH_MAX];
 						char dfn[PATH_MAX];
@@ -10502,7 +10502,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 		case '4':
 			if (outsidecaller) {  /* only mark vm messages */
 				/* Mark Urgent */
-				if (strcmp(flag, "Urgent")) {
+				if (!ast_strlen_zero(flag) && strcmp(flag, "Urgent")) {
 					ast_verbose(VERBOSE_PREFIX_3 "marking message as Urgent\n");
 					ast_debug(1000, "This message is too urgent!\n");
 					res = ast_play_and_wait(chan, "vm-marked-urgent");
@@ -10573,7 +10573,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			if (message_exists) {
 				cmd = ast_play_and_wait(chan, "vm-review");
 				if (!cmd && outsidecaller) {
-					if (strcmp(flag, "Urgent")) {
+					if (!ast_strlen_zero(flag) && strcmp(flag, "Urgent")) {
 						cmd = ast_play_and_wait(chan, "vm-review-urgent");
 					} else {
 						cmd = ast_play_and_wait(chan, "vm-review-unurgent");
