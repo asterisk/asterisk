@@ -48,6 +48,7 @@ static int waituntil_exec(struct ast_channel *chan, void *data)
 {
 	int res;
 	double fraction;
+	long seconds;
 	struct timeval future = { 0, };
 	struct timeval tv = ast_tvnow();
 	int msec;
@@ -58,12 +59,13 @@ static int waituntil_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	if (sscanf(data, "%ld%lf", (long *)&future.tv_sec, &fraction) == 0) {
+	if (sscanf(data, "%ld%lf", &seconds, &fraction) == 0) {
 		ast_log(LOG_WARNING, "WaitUntil called with non-numeric argument\n");
 		pbx_builtin_setvar_helper(chan, "WAITUNTILSTATUS", "FAILURE");
 		return 0;
 	}
 
+	future.tv_sec = seconds;
 	future.tv_usec = fraction * 1000000;
 
 	if ((msec = ast_tvdiff_ms(future, tv)) < 0) {

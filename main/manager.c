@@ -3105,7 +3105,7 @@ int __manager_event(int category, const char *event,
 		now = ast_tvnow();
 		ast_str_append(&buf, 0,
 				"Timestamp: %ld.%06lu\r\n",
-				 now.tv_sec, (unsigned long) now.tv_usec);
+				 (long)now.tv_sec, (unsigned long) now.tv_usec);
 	}
 	if (manager_debug) {
 		static int seq;

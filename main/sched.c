@@ -437,7 +437,7 @@ void ast_sched_dump(const struct sched_context *con)
 			q->id,
 			q->callback,
 			q->data,
-			delta.tv_sec,
+			(long)delta.tv_sec,
 			(long int)delta.tv_usec);
 	}
 	ast_debug(1, "=============================================================\n");

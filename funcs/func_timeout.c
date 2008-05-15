@@ -84,6 +84,7 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 			 const char *value)
 {
 	double x;
+	long sec;
 	char timestr[64];
 	struct ast_tm myt;
 	struct timeval tv;
@@ -99,10 +100,12 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 	if (!value)
 		return -1;
 
-	if ((sscanf(value, "%ld%lf", (long *)&tv.tv_sec, &x) == 0) || tv.tv_sec < 0)
+	if ((sscanf(value, "%ld%lf", &sec, &x) == 0) || sec < 0)
 		tv.tv_sec = 0;
-	else
+	else {
+		tv.tv_sec = sec;
 		tv.tv_usec = x * 1000000;
+	}
 
 	switch (*data) {
 	case 'a':

@@ -220,7 +220,7 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	ast_mutex_unlock(&cli_ping_cond_lock);
 	end = ast_tvnow();
 	delta = ast_tvsub(end, begin);
-	ast_cli(a->fd, "\n\t%24s ping time: %.1ld.%.6ld sec\n\n", name, delta.tv_sec, (long int)delta.tv_usec);
+	ast_cli(a->fd, "\n\t%24s ping time: %.1ld.%.6ld sec\n\n", name, (long)delta.tv_sec, (long int)delta.tv_usec);
 	ao2_ref(tps, -1);
 	return CLI_SUCCESS;	
 }
