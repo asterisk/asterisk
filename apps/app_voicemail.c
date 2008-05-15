@@ -3177,6 +3177,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	struct vm_state *vms_p;
 	int ret = 0;
 	int fold = folder_int(folder);
+	int urgent = 0;
 	
 	if (ast_strlen_zero(mailbox))
 		return 0;
@@ -3225,6 +3226,12 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 		vms_p = get_vm_state_by_mailbox(mailbox,0);
 	}
 
+	/* If URGENT, then look at INBOX */
+	if (fold == 11) {
+		fold = NEW_FOLDER;
+		urgent = 1;
+	}
+
 	if (!vms_p) {
 		ast_debug(3,"Adding new vmstate for %s\n",vmu->imapuser);
 		if (!(vms_p = ast_calloc(1, sizeof(*vms_p)))) {
@@ -3235,7 +3242,6 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 		vms_p->mailstream = NIL; /* save for access from interactive entry point */
 		ast_debug(3, "Copied %s to %s\n",vmu->imapuser,vms_p->imapuser);
 		vms_p->updated = 1;
-		/* set mailbox to INBOX! */
 		ast_copy_string(vms_p->curbox, mbox(fold), sizeof(vms_p->curbox));
 		init_vm_state(vms_p);
 		vmstate_insert(vms_p);
@@ -3261,7 +3267,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 			pgm->seen = 1;
 		}
 		/* look for urgent messages */
-		if (fold == 11) {
+		if (urgent == 1) {
                 	pgm->flagged = 1;
                 	pgm->unflagged = 0;
 		}
@@ -3270,11 +3276,11 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 
 		vms_p->vmArrayIndex = 0;
 		mail_search_full (vms_p->mailstream, NULL, pgm, NIL);
-		if (fold == 0)
+		if (fold == 0 && urgent == 0)
 			vms_p->newmessages = vms_p->vmArrayIndex;
 		if (fold == 1)
 			vms_p->oldmessages = vms_p->vmArrayIndex;
-		if(fold == 11)
+		if (fold == 0 && urgent == 1)
 			vms_p->urgentmessages = vms_p->vmArrayIndex;
 		/*Freeing the searchpgm also frees the searchhdr*/
 		mail_free_searchpgm(&pgm);
