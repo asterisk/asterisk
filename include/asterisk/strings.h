@@ -29,10 +29,25 @@
 
 /* You may see casts in this header that may seem useless but they ensure this file is C++ clean */
 
+#ifdef AST_DEVMODE
+#define ast_strlen_zero(foo)	_ast_strlen_zero(foo, __FILE__, __PRETTY_FUNCTION__, __LINE__)
+static force_inline int _ast_strlen_zero(const char *s, const char *file, const char *function, int line)
+{
+	if (!s || (*s == '\0')) {
+		return 1;
+	}
+	if (!strcmp(s, "(null)")) {
+		ast_log(__LOG_WARNING, file, line, function, "Possible programming error: \"(null)\" is not NULL!\n");
+	}
+	return 0;
+}
+
+#else
 static force_inline int ast_strlen_zero(const char *s)
 {
 	return (!s || (*s == '\0'));
 }
+#endif
 
 /*! \brief returns the equivalent of logic or for strings:
  * first one if not empty, otherwise second one.
