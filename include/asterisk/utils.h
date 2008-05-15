@@ -662,8 +662,8 @@ static void force_inline _ast_assert(int condition, const char *condition_str,
 	if (__builtin_expect(!condition, 1)) {
 		/* Attempt to put it into the logger, but hope that at least someone saw the
 		 * message on stderr ... */
-		ast_log(LOG_ERROR, "FRACK!, Failed assertion %s (%d) at line %d in %s of %s\n",
-			condition_str, condition, line, function, file);
+		ast_log(__LOG_ERROR, file, line, function, "FRACK!, Failed assertion %s (%d)\n",
+			condition_str, condition);
 		fprintf(stderr, "FRACK!, Failed assertion %s (%d) at line %d in %s of %s\n",
 			condition_str, condition, line, function, file);
 		/* Give the logger a chance to get the message out, just in case we abort(), or
