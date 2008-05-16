@@ -4,16 +4,28 @@
  * All Rights Reserved. Copyright (C)2007, Xelatec, LLC
  * 
  * 20070808 1235 Steven Henke, W9SH, sph@xelatec.com
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ * 		 
+ * This version may be optionally licenced under the GNU LGPL licence.
  *
- * See http://www.asterisk.org for more information about
- * the Asterisk project. Please do not directly contact
- * any of the maintainers of this project for assistance;
- * the project provides a web site, mailing lists and IRC
- * channels for your use.
+ * A license has been granted to Digium (via disclaimer) for the use of
+ * this code.
  *
- * This program is free software, distributed under the terms of
- * the GNU General Public License Version 2. See the LICENSE file
- * at the top of the source tree.
+ * Some filter coeficients via 'WinFilter' http://www.winfilter.20m.com.
+ *
  */
 
 /*! \file
@@ -24,30 +36,25 @@
  */
 
 #ifndef XPMR_COEF_H
-#define XMPR_COEF_H 1
+#define XMPR_COEF_H 	1
 
 // frequencies in 0.1 Hz
-const u32 dtmf_row[] =
+static const u32 dtmf_row[] =
 {
 	6970,  7700,  8520,  9410
 };
-const u32 dtmf_col[] =
+static const u32 dtmf_col[] =
 {
 	12090, 13360, 14770, 16330
 };
 
-const i16 coef_dcs_rx  = 1488;	   		// dcs rx data divisor for oversampling 8000/134.4
-const i16 coef_dcs_tx  = 5952;	   		// dcs tx data divisor
-
-const i16 coef_lsd_div  = 672;	   		// low speed data divisor
-const u32 coef_lsd_sync = 0x158;        // 000101011000
-const u32 coef_lsd_sync_pattern[] = {0x0000000F, 0x0F0FF000};
 
 #define CTCSS_COEF_INT		120
 #define CTCSS_SAMPLE_RATE   8000
 #define TDIV(x) ((CTCSS_SAMPLE_RATE*1000/x)+5)/10
 
-i32 coef_ctcss[4][5]=
+#if 0
+static i32 coef_ctcss[4][5]=
 {
 	// freq, divisor, integrator, filter
 	{770,TDIV(770),CTCSS_COEF_INT,0,0},
@@ -55,9 +62,9 @@ i32 coef_ctcss[4][5]=
 	{1035,TDIV(1035),CTCSS_COEF_INT,0,0},
 	{0,0,0,0}
 };
+#endif
 
-
-i16 coef_ctcss_div[]=
+static i16 coef_ctcss_div[]=
 {
 2985,    // 00   067.0
 2782,    // 01   071.9
@@ -99,7 +106,7 @@ i16 coef_ctcss_div[]=
 799     // 37   250.3
 };
 
-float freq_ctcss[]=
+static float freq_ctcss[]=
 {
 067.0,    // 00   
 071.9,    // 01   
@@ -378,7 +385,8 @@ static const int16_t coef_int_lpf_300_1_2[]={
 // pre-emphasis differentiator 4000 Hz with 8KS/s
 // a0,a1,b0,
 static const int16_t taps_int_hpf_4000_1_2 = 2;
-static const int32_t gain_int_hpf_4000_1_2 = 16384;
+//static const int32_t gain_int_hpf_4000_1_2 = 16384;  // per calculations
+static const int32_t gain_int_hpf_4000_1_2 = 13404; // hand tweaked for unity gain at 1KHz
 static const int16_t coef_int_hpf_4000_1_2[]={
 17610,
 -17610,
@@ -386,298 +394,6 @@ static const int16_t coef_int_hpf_4000_1_2[]={
 };
 
 
-/*
-	ltr crc table
-	from http://www.radioreference.com/forums/showthread.php?t=24126
-*/
-
-static const u8	ltr_table[]=
-{
-0x38, // 00 Area 		0111000
-0x1c, // 01	Channel 4 	0011100
-0x0e, // 02 Channel 3 	0001110
-0x46, // 03 Channel 2 	1000110
-0x23, // 04 Channel 1 	0100011
-0x51, // 05 Channel 0 	1010001
-0x68, // 06 Home 4  	1101000
-0x75, // 07 Home 3 		1110101
-0x7a, // 08 Home 2 		1111010
-0x3d, // 09 Home 1 		0111101
-0x1f, // 10 Home 0 		0011111
-0x4f, // 11 Group 7 	1001111
-0x26, // 12 Group 6 	0100110
-0x52, // 13 Group 5 	1010010
-0x29, // 14 Group 4 	0101001
-0x15, // 15 Group 3 	0010101
-0x0d, // 16 Group 2 	0001101
-0x45, // 17 Group 1 	1000101
-0x62, // 18 Group 0 	1100010
-0x31, // 19 Free 4 		0110001
-0x19, // 20 Free 3 		0011001
-0x0d, // 21 Free 2 		0001101
-0x07, // 22 Free 1 		0000111
-0x43  // 23 Free 0 		1000011
-};
-
-static const i16 bitWeight[]=
-{
-0,   // 0
-1,   // 1
-1,   // 2
-2,   // 3
-1,   // 4
-2,   // 5
-2,   // 6
-3,   // 7
-1,   // 8
-2,   // 9
-2,   // 10
-3,   // 11
-2,   // 12
-3,   // 13
-3,   // 14
-4,   // 15
-1,   // 16
-2,   // 17
-2,   // 18
-3,   // 19
-2,   // 20
-3,   // 21
-3,   // 22
-4,   // 23
-2,   // 24
-3,   // 25
-3,   // 26
-4,   // 27
-3,   // 28
-4,   // 29
-4,   // 30
-5,   // 31
-1,   // 32
-2,   // 33
-2,   // 34
-3,   // 35
-2,   // 36
-3,   // 37
-3,   // 38
-4,   // 39
-2,   // 40
-3,   // 41
-3,   // 42
-4,   // 43
-3,   // 44
-4,   // 45
-4,   // 46
-5,   // 47
-2,   // 48
-3,   // 49
-3,   // 50
-4,   // 51
-3,   // 52
-4,   // 53
-4,   // 54
-5,   // 55
-3,   // 56
-4,   // 57
-4,   // 58
-5,   // 59
-4,   // 60
-5,   // 61
-5,   // 62
-6,   // 63
-1,   // 64
-2,   // 65
-2,   // 66
-3,   // 67
-2,   // 68
-3,   // 69
-3,   // 70
-4,   // 71
-2,   // 72
-3,   // 73
-3,   // 74
-4,   // 75
-3,   // 76
-4,   // 77
-4,   // 78
-5,   // 79
-2,   // 80
-3,   // 81
-3,   // 82
-4,   // 83
-3,   // 84
-4,   // 85
-4,   // 86
-5,   // 87
-3,   // 88
-4,   // 89
-4,   // 90
-5,   // 91
-4,   // 92
-5,   // 93
-5,   // 94
-6,   // 95
-2,   // 96
-3,   // 97
-3,   // 98
-4,   // 99
-3,   // 100
-4,   // 101
-4,   // 102
-5,   // 103
-3,   // 104
-4,   // 105
-4,   // 106
-5,   // 107
-4,   // 108
-5,   // 109
-5,   // 110
-6,   // 111
-3,   // 112
-4,   // 113
-4,   // 114
-5,   // 115
-4,   // 116
-5,   // 117
-5,   // 118
-6,   // 119
-4,   // 120
-5,   // 121
-5,   // 122
-6,   // 123
-5,   // 124
-6,   // 125
-6,   // 126
-7,   // 127
-1,   // 128
-2,   // 129
-2,   // 130
-3,   // 131
-2,   // 132
-3,   // 133
-3,   // 134
-4,   // 135
-2,   // 136
-3,   // 137
-3,   // 138
-4,   // 139
-3,   // 140
-4,   // 141
-4,   // 142
-5,   // 143
-2,   // 144
-3,   // 145
-3,   // 146
-4,   // 147
-3,   // 148
-4,   // 149
-4,   // 150
-5,   // 151
-3,   // 152
-4,   // 153
-4,   // 154
-5,   // 155
-4,   // 156
-5,   // 157
-5,   // 158
-6,   // 159
-2,   // 160
-3,   // 161
-3,   // 162
-4,   // 163
-3,   // 164
-4,   // 165
-4,   // 166
-5,   // 167
-3,   // 168
-4,   // 169
-4,   // 170
-5,   // 171
-4,   // 172
-5,   // 173
-5,   // 174
-6,   // 175
-3,   // 176
-4,   // 177
-4,   // 178
-5,   // 179
-4,   // 180
-5,   // 181
-5,   // 182
-6,   // 183
-4,   // 184
-5,   // 185
-5,   // 186
-6,   // 187
-5,   // 188
-6,   // 189
-6,   // 190
-7,   // 191
-2,   // 192
-3,   // 193
-3,   // 194
-4,   // 195
-3,   // 196
-4,   // 197
-4,   // 198
-5,   // 199
-3,   // 200
-4,   // 201
-4,   // 202
-5,   // 203
-4,   // 204
-5,   // 205
-5,   // 206
-6,   // 207
-3,   // 208
-4,   // 209
-4,   // 210
-5,   // 211
-4,   // 212
-5,   // 213
-5,   // 214
-6,   // 215
-4,   // 216
-5,   // 217
-5,   // 218
-6,   // 219
-5,   // 220
-6,   // 221
-6,   // 222
-7,   // 223
-3,   // 224
-4,   // 225
-4,   // 226
-5,   // 227
-4,   // 228
-5,   // 229
-5,   // 230
-6,   // 231
-4,   // 232
-5,   // 233
-5,   // 234
-6,   // 235
-5,   // 236
-6,   // 237
-6,   // 238
-7,   // 239
-4,   // 240
-5,   // 241
-5,   // 242
-6,   // 243
-5,   // 244
-6,   // 245
-6,   // 246
-7,   // 247
-5,   // 248
-6,   // 249
-6,   // 250
-7,   // 251
-6,   // 252
-7,   // 253
-7,   // 254
-8    // 255
-};
 
 
 /*

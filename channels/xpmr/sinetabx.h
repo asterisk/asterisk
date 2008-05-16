@@ -4,16 +4,26 @@
  * All Rights Reserved. Copyright (C)2007, Xelatec, LLC
  * 
  * 20070808 1235 Steven Henke, W9SH, sph@xelatec.com
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ * 		 
+ * This version may be optionally licenced under the GNU LGPL licence.
  *
- * See http://www.asterisk.org for more information about
- * the Asterisk project. Please do not directly contact
- * any of the maintainers of this project for assistance;
- * the project provides a web site, mailing lists and IRC
- * channels for your use.
+ * A license has been granted to Digium (via disclaimer) for the use of
+ * this code.
  *
- * This program is free software, distributed under the terms of
- * the GNU General Public License Version 2. See the LICENSE file
- * at the top of the source tree.
  */
 
 /*! \file
@@ -24,11 +34,11 @@
  */
 
 #ifndef XPMR_SINETABX_H
-#define XPMR_SINETABX_H 1
+#define XPMR_SINETABX_H 	1
 		
 #define SAMPLES_PER_SINE 256		
 		
-const i16 sinetablex[]={		
+static const i16 sinetablex[]={		
 0,			// 0
 804,		// 1
 1608,		// 2
