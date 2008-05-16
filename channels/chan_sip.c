@@ -11161,12 +11161,18 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 					  sip_pvt_ptr->theirtag, sip_pvt_ptr->tag);
 			return 0;
 		}
-		sip_pvt_unlock(sip_pvt_ptr);
 		
 		if (totag)
 			ast_debug(4, "Matched %s call - their tag is %s Our tag is %s\n",
 					  ast_test_flag(&sip_pvt_ptr->flags[0], SIP_OUTGOING) ? "OUTGOING": "INCOMING",
 					  sip_pvt_ptr->theirtag, sip_pvt_ptr->tag);
+
+		/* deadlock avoidance... */
+		while (sip_pvt_ptr->owner && ast_channel_trylock(sip_pvt_ptr->owner)) {
+			sip_pvt_unlock(sip_pvt_ptr);
+			usleep(1);
+			sip_pvt_lock(sip_pvt_ptr);
+		}
 	}
 	
 	return sip_pvt_ptr;
