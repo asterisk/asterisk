@@ -914,6 +914,9 @@ i16 CenterSlicer(t_pmr_sps *mySps)
 
 	for(i=0;i<npoints;i++)
 	{
+		#if XPMR_DEBUG0 == 1
+		static i32 tfx=0;
+		#endif
 		accum=input[i];
 
 		lhit=uhit=0;
@@ -975,7 +978,6 @@ i16 CenterSlicer(t_pmr_sps *mySps)
 		#if 0
 		mySps->parentChan->pRxLsdCen[i]=center;	  	// trace center ref
 		#else
-		static i32 tfx=0;
 		if((tfx++/8)&1)				  				// trace min/max levels
 			mySps->parentChan->pRxLsdCen[i]=amax;
 		else
@@ -2400,6 +2402,9 @@ t_pmr_chan	*createPmrChannel(t_pmr_chan *tChan, i16 numSamples)
 */
 i16 destroyPmrChannel(t_pmr_chan *pChan)
 {
+	#if XPMR_DEBUG0 == 1
+	i16 i;
+	#endif
 	t_pmr_sps  	*pmr_sps, *tmp_sps;
 
 	TRACEF(1,("destroyPmrChannel()\n"));
@@ -2442,7 +2447,6 @@ i16 destroyPmrChannel(t_pmr_chan *pChan)
 	free(pChan->rxCtcss->pDebug0);
 	free(pChan->rxCtcss->pDebug1);
 
-	i16 i;
 	for(i=0;i<CTCSS_NUM_CODES;i++)
 	{
 		free(pChan->rxCtcss->tdet[i].pDebug0);
@@ -3220,6 +3224,11 @@ void dedrift(t_pmr_chan *pChan)
 	}
 	else if(pChan->dd.initcnt==0)
 	{
+		const i32 a0 =  26231;
+		const i32 a1 =  26231;
+		const i32 b0 =  32768;
+		const i32 b1 = -32358;
+		const i32 dg =	128;
 		void *vptr;
 		i16 inputindex;
 		i16 indextweak;
@@ -3258,11 +3267,6 @@ void dedrift(t_pmr_chan *pChan)
 		pChan->dd.err = pChan->dd.lead - (pChan->dd.buffersize/2);
 
 		// WinFilter, IIR Fs=50, Fc=0.1
-		const i32 a0 =  26231;
-		const i32 a1 =  26231;
-		const i32 b0 =  32768;
-		const i32 b1 = -32358;
-		const i32 dg =	128;
 		pChan->dd.x1 = pChan->dd.x0;
 	    pChan->dd.y1 = pChan->dd.y0;
 		pChan->dd.x0 = pChan->dd.err;
