@@ -109,6 +109,8 @@ struct iax_frame {
 	unsigned int sentyet:1;
 	/* Non-zero if should be sent to transfer peer */
 	unsigned int transfer:1;
+	/* Non-zero if should be sent to media peer */
+	unsigned int media:1;
 	/* Non-zero if this is the final message */
 	unsigned int final:1;
 	/* Ingress or outgres */
