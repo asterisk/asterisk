@@ -24,6 +24,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 
 /*!\brief
  * At one time, canaries were carried along with coal miners down
@@ -58,6 +59,19 @@
  * Asterisk itself.
  */
 
+const char explanation[] =
+"This file is created when Asterisk is run with a realtime priority (-p).  It\n"
+"must continue to exist, and the astcanary process must be allowed to continue\n"
+"running, or else the Asterisk process will, within a short period of time,\n"
+"slow itself down to regular priority.\n\n"
+"The technical explanation for this file is to provide an assurance to Asterisk\n"
+"that there are no threads that have gone into runaway mode, thus hogging the\n"
+"CPU, and making the Asterisk machine seem to be unresponsive.  When that\n"
+"happens, the astcanary process will be unable to update the timestamp on this\n"
+"file, and Asterisk will notice within 120 seconds and react.  Slowing the\n"
+"Asterisk process down to regular priority will permit an administrator to\n"
+"intervene, thus avoiding a need to reboot the entire machine.\n";
+
 int main(int argc, char *argv[])
 {
 	int fd;
@@ -67,10 +81,12 @@ int main(int argc, char *argv[])
 		/* Update the modification times (checked from Asterisk) */
 		if (utime(argv[1], NULL)) {
 			/* Recreate the file if it doesn't exist */
-			if ((fd = open(argv[1], O_RDWR | O_TRUNC | O_CREAT, 0777)) > -1)
+			if ((fd = open(argv[1], O_RDWR | O_TRUNC | O_CREAT, 0777)) > -1) {
+				write(fd, explanation, strlen(explanation));
 				close(fd);
-			else
+			} else {
 				exit(1);
+			}
 			continue;
 		}
 
