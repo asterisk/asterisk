@@ -9925,7 +9925,7 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xm
 
 	reqprep(&resp, p, sipmethod, seqno, newbranch);
 	if (sipmethod == SIP_CANCEL && p->answered_elsewhere) 
-		add_header(&resp, "Reason:", "SIP;cause=200;text=\"Call completed elsewhere\"");
+		add_header(&resp, "Reason", "SIP;cause=200;text=\"Call completed elsewhere\"");
 
 	add_header_contentLength(&resp, 0);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
