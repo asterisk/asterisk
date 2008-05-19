@@ -317,15 +317,15 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 	return chan;
 }
 
-static void init_logger_chain(int reload, int locked)
+static void init_logger_chain(int locked)
 {
 	struct logchannel *chan;
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	const char *s;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { 0 };
 
-	if ((cfg = ast_config_load2("logger.conf", "logger", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+	if (!(cfg = ast_config_load2("logger.conf", "logger", config_flags)))
 		return;
 
 	/* delete our list of log channels */
@@ -641,7 +641,7 @@ static int reload_logger(int rotate)
 
 	filesize_reload_needed = 0;
 
-	init_logger_chain(rotate ? 0 : 1 /* reload */, 1 /* locked */);
+	init_logger_chain(1 /* locked */);
 
 	if (logfiles.event_log) {
 		snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, EVENTLOG);
@@ -976,7 +976,7 @@ int init_logger(void)
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
   
 	/* create log channels */
-	init_logger_chain(0 /* reload */, 0 /* locked */);
+	init_logger_chain(0 /* locked */);
 
 	/* create the eventlog */
 	if (logfiles.event_log) {
