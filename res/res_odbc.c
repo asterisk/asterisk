@@ -543,7 +543,6 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			obj->parent = class;
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
-				ast_mutex_destroy(&obj->lock);
 				ao2_ref(obj, -1);
 				obj = NULL;
 			} else {
@@ -631,10 +630,27 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 	return ODBC_SUCCESS;
 }
 
+static int class_is_delme(void *classobj, void *arg, int flags)
+{
+	struct odbc_class *class = classobj;
+
+	if (class->delme) {
+		struct odbc_obj *obj;
+		struct ao2_iterator aoi = ao2_iterator_init(class->obj_container, OBJ_UNLINK);
+		while ((obj = ao2_iterator_next(&aoi))) {
+			ao2_ref(obj, -2);
+		}
+		return CMP_MATCH;
+	}
+
+	return 0;
+}
+
+
+
 static int reload(void)
 {
 	struct odbc_class *class;
-	struct odbc_obj *current;
 	struct ao2_iterator aoi = ao2_iterator_init(class_container, 0);
 
 	/* First, mark all to be purged */
@@ -646,17 +662,7 @@ static int reload(void)
 	load_odbc_config();
 
 	/* Purge remaining classes */
-	aoi = ao2_iterator_init(class_container, OBJ_UNLINK);
-	while ((class = ao2_iterator_next(&aoi))) {
-		if (class->delme) {
-			struct ao2_iterator aoi2 = ao2_iterator_init(class->obj_container, OBJ_UNLINK);
-			while ((current = ao2_iterator_next(&aoi2))) {
-				ao2_ref(current, -2);
-			}
-			ao2_ref(class, -1);
-		}
-		ao2_ref(class, -1);
-	}
+	ao2_callback(class_container, OBJ_NODATA | OBJ_UNLINK, class_is_delme, 0);
 
 	return 0;
 }
