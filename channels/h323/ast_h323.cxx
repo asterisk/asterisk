@@ -63,6 +63,12 @@ extern "C" {
 #include "cisco-h225.h"
 #include "caps_h323.h"
 
+#include <ptbuildopts.h>
+
+#if PWLIB_MAJOR * 10000 + PWLIB_MINOR * 100 + PWLIB_BUILD >= 1 * 10000 + 12 * 100 + 0
+#define SKIP_PWLIB_PIPE_BUG_WORKAROUND 1
+#endif
+
 /* PWlib Required Components  */
 #define MAJOR_VERSION 1
 #define MINOR_VERSION 0
@@ -82,7 +88,9 @@ static MyH323EndPoint *endPoint = NULL;
 /** PWLib entry point */
 static MyProcess *localProcess = NULL;
 
+#ifndef SKIP_PWLIB_PIPE_BUG_WORKAROUND
 static int _timerChangePipe[2];
+#endif
 
 static unsigned traceOptions = PTrace::Timestamp | PTrace::Thread | PTrace::FileAndLine;
 
@@ -192,8 +200,10 @@ MyProcess::MyProcess(): PProcess("The NuFone Networks",
 
 MyProcess::~MyProcess()
 {
+#ifndef SKIP_PWLIB_PIPE_BUG_WORKAROUND
 	_timerChangePipe[0] = timerChangePipe[0];
 	_timerChangePipe[1] = timerChangePipe[1];
+#endif
 }
 
 void MyProcess::Main()
@@ -2623,8 +2633,10 @@ void h323_end_process(void)
 	if (localProcess) {
 		delete localProcess;
 		localProcess = NULL;
+#ifndef SKIP_PWLIB_PIPE_BUG_WORKAROUND
 		close(_timerChangePipe[0]);
 		close(_timerChangePipe[1]);
+#endif
 	}
 	if (logstream) {
 		PTrace::SetLevel(0);
