@@ -1020,6 +1020,7 @@ int console_video_config(struct video_desc **penv,
 	CV_F("remote_size", video_geom(&env->rem_dpy, val));
 	CV_STR("keypad", env->keypad_file);
 	CV_F("region", keypad_cfg_read(env->gui, val));
+	CV_F("startgui", console_video_start(env, NULL));	// support enabling gui at startup
 	CV_STR("keypad_font", env->keypad_font);
 	CV_STR("sdl_videodriver", env->sdl_videodriver);
 	CV_UINT("fps", env->out.fps);
