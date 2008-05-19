@@ -575,8 +575,6 @@ static void eventhandler(struct video_desc *env, const char *caption)
 				break;
 
 			case SDL_ACTIVEEVENT:
-				ast_log(LOG_WARNING, "------ active gain %d state 0x%x\n",
-					ev[i].active.gain,  ev[i].active.state);
 				if (ev[i].active.gain == 0 && ev[i].active.state & SDL_APPACTIVE) {
 					ast_log(LOG_WARNING, "/* somebody has killed us ? */");
 					ast_cli_command(gui->outfd, "stop now");
@@ -781,6 +779,21 @@ static void init_board(struct gui_info *gui, struct board **dst, SDL_Rect *r, in
 	}
 }
 
+#ifdef HAVE_X11
+/*
+ * SDL is not very robust on error handling, so we need to trap ourselves
+ * at least the most obvious failure conditions, e.g. a bad SDL_WINDOWID.
+ * As of sdl-1.2.13, SDL_SetVideoMode crashes with bad parameters, so
+ * we need to do the explicit X calls to make sure the window is correct.
+ * And around these calls, we must trap X errors.
+ */
+static int my_x_handler(Display *d, XErrorEvent *e)
+{
+	ast_log(LOG_WARNING, "%s error_code %d\n", __FUNCTION__, e->error_code);
+	return 0;
+}
+#endif /* HAVE_X11 */
+
 /*! \brief [re]set the main sdl window, useful in case of resize.
  * We can tell the first from subsequent calls from the value of
  * env->gui, which is NULL the first time.
@@ -793,6 +806,23 @@ static void sdl_setup(struct video_desc *env)
 	int kp_w = 0, kp_h = 0;	/* keypad width and height */
 	struct gui_info *gui = env->gui;
 
+#ifdef HAVE_X11
+	const char *e = getenv("SDL_WINDOWID");
+
+	if (!ast_strlen_zero(e)) {
+		XWindowAttributes a;
+		int (*old_x_handler)(Display *d, XErrorEvent *e) = XSetErrorHandler(my_x_handler);
+		Display *d = XOpenDisplay(getenv("DISPLAY"));
+		long w = atol(e);
+		int success = w ? XGetWindowAttributes(d, w, &a) : 0;
+
+		XSetErrorHandler(old_x_handler);
+		if (!success) {
+			ast_log(LOG_WARNING, "%s error in window\n", __FUNCTION__);
+			return;
+		}
+	}	
+#endif
 	/*
 	 * initialize the SDL environment. We have one large window
 	 * with local and remote video, and a keypad.
@@ -842,7 +872,7 @@ static void sdl_setup(struct video_desc *env)
 	maxh = MAX( MAX(env->rem_dpy.h, env->loc_dpy.h), kp_h);
 	maxw += 4 * BORDER;
 	maxh += 2 * BORDER;
-	/* XXX warning, here it might crash if SDL_WINDOWID is set badly */
+
 	gui->screen = SDL_SetVideoMode(maxw, maxh, depth, 0);
 	if (!gui->screen) {
 		ast_log(LOG_ERROR, "SDL: could not set video mode - exiting\n");
