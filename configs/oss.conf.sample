@@ -69,6 +69,10 @@
     ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
     ;-----------------------------------------------------------------------------------
 
+; below is an entry for a second console channel
+; [card1]
+    ; device = /dev/dsp1	; alternate device
+
 ; Below are the settings to support video. You can include them
 ; in your general configuration as [general](+,video)
 ; The parameters are all available through the CLI as "console name value"
@@ -130,9 +134,13 @@
     region = sendvideo circle  235 185 266 185 33
     region = autoanswer rect 228 212 275 212 50
 
-; uncomment this line to add video support
-; [default](+,my_video,my_skin)
+; another skin with entries for the keypad and a small font
+; to write to the message boards in the skin.
+[skin2](!)
+    keypad = /tmp/kpad2.jpg
+    keypad_font = /tmp/font.png
 
-[card1]
-    ; device = /dev/dsp1	; alternate device
+; to add video support, uncomment this and remember to install
+; the keypad and keypad_font files to the right place
+; [general](+,my_video,skin2)
 
