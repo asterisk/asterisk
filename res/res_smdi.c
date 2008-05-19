@@ -419,6 +419,19 @@ static void *smdi_message_wait(struct ast_smdi_interface *iface, int timeout,
 	struct timeval start;
 	long diff = 0;
 	void *msg;
+	ast_cond_t *cond = NULL;
+	ast_mutex_t *lock = NULL;
+
+	switch (type) {
+	case SMDI_MWI:
+		cond = &iface->mwi_q_cond;
+		lock = &iface->mwi_q_lock;
+		break;
+	case SMDI_MD:
+		cond = &iface->md_q_cond;
+		lock = &iface->md_q_lock;
+		break;
+	}
 
 	start = ast_tvnow();
 
@@ -440,7 +453,7 @@ static void *smdi_message_wait(struct ast_smdi_interface *iface, int timeout,
 		/* If there were no messages in the queue, then go to sleep until one
 		 * arrives. */
 
-		ast_cond_timedwait(&iface->md_q_cond, &iface->md_q_lock, &ts);
+		ast_cond_timedwait(cond, lock, &ts);
 
 		if ((msg = smdi_msg_find(iface, type, search_key, options))) {
 			unlock_msg_q(iface, type);
