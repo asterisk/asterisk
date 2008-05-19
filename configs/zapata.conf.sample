@@ -79,10 +79,20 @@
 ;
 ;nsf=none
 ;
-; PRI Dialplan:  Only RARELY used for PRI.
+; PRI Dialplan: The ISDN-level Type Of Number (TON) or numbering plan, used for
+; the dialed number.  For most installations, leaving this as 'unknown' (the
+; default) works in the most cases.  In some very unusual circumstances, you
+; may need to set this to 'dynamic' or 'redundant'.  Note that if you set one
+; of the others, you will be unable to dial another class of numbers.  For
+; example, if you set 'national', you will be unable to dial local or
+; international numbers.
+;
 ; PRI Local Dialplan:  Only RARELY used for PRI (sets the calling number's 
-; numbering plan)
-; pridialplan and prilocaldialplan cannot be changed on a reload.
+; numbering plan).  In North America, the typical use is sending the 10 digit
+; callerID number and setting the prilocaldialplan to 'national' (the default).
+; Only VERY rarely will you need to change this.
+;
+; Neither pridialplan nor prilocaldialplan can be changed on reload.
 ;
 ; unknown:        Unknown
 ; private:        Private ISDN
@@ -93,7 +103,7 @@
 ; redundant:      Same as dynamic, except that the underlying number is not 
 ;                 changed (not common)
 ;
-;pridialplan=national
+;pridialplan=unknown
 ;prilocaldialplan=national
 ; 
 ; pridialplan may be also set at dialtime, by prefixing the dialled number with

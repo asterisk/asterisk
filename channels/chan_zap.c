@@ -750,7 +750,7 @@ static struct zt_chan_conf zt_chan_conf_default(void) {
 		.pri = {
 			.nsf = PRI_NSF_NONE,
 			.switchtype = PRI_SWITCH_NI2,
-			.dialplan = PRI_NATIONAL_ISDN + 1,
+			.dialplan = PRI_UNKNOWN + 1,
 			.localdialplan = PRI_NATIONAL_ISDN + 1,
 			.nodetype = PRI_CPE,
 
