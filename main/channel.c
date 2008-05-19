@@ -488,8 +488,9 @@ void ast_begin_shutdown(int hangup)
 	shutting_down = 1;
 	if (hangup) {
 		AST_RWLIST_RDLOCK(&channels);
-		AST_RWLIST_TRAVERSE(&channels, c, chan_list)
+		AST_RWLIST_TRAVERSE(&channels, c, chan_list) {
 			ast_softhangup(c, AST_SOFTHANGUP_SHUTDOWN);
+		}
 		AST_RWLIST_UNLOCK(&channels);
 	}
 }
