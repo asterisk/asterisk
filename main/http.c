@@ -451,6 +451,7 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 		/* scan registered uris to see if we match one. */
 		AST_RWLIST_RDLOCK(&uris);
 		AST_RWLIST_TRAVERSE(&uris, urih, entry) {
+			ast_debug(2, "match request [%s] with handler [%s] len %d\n", uri, urih->uri, l);
 			if (!saw_method) {
 				switch (method) {
 				case AST_HTTP_GET:
@@ -632,33 +633,9 @@ static void *httpd_helper_thread(void *data)
 		if (ast_strlen_zero(cookie)) {
 			break;
 		}
-		if (strncasecmp(cookie, "Cookie: ", 8)) {
-			char *name, *value;
-			struct ast_variable *var;
-
-			value = ast_strdupa(cookie);
-			name = strsep(&value, ":");
-			if (!value) {
-				continue;
-			}
-			value = ast_skip_blanks(value);
-			if (ast_strlen_zero(value)) {
-				continue;
-			}
-			var = ast_variable_new(name, value, "");
-			if (!var) { 
-				continue;
-			}
-			var->next = headers;
-			headers = var;
-
-			continue;
+		if (!strncasecmp(cookie, "Cookie: ", 8)) {
+			vars = parse_cookies(cookie);
 		}
-
-		if (vars) {
-			ast_variables_destroy(vars);
-		}
-		vars = parse_cookies(cookie);
 	}
 
 	if (!*uri) {
