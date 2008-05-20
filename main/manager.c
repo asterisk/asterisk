@@ -799,18 +799,47 @@ static void destroy_session(struct mansession *s)
 	AST_LIST_UNLOCK(&sessions);
 }
 
-const char *astman_get_header(const struct message *m, char *var)
+/*
+ * Generic function to return either the first or the last matching header
+ * from a list of variables, possibly skipping empty strings.
+ * At the moment there is only one use of this function in this file,
+ * so we make it static.
+ */
+#define	GET_HEADER_FIRST_MATCH	0
+#define	GET_HEADER_LAST_MATCH	1
+#define	GET_HEADER_SKIP_EMPTY	2
+static const char *__astman_get_header(const struct message *m, char *var, int mode)
 {
 	int x, l = strlen(var);
+	const char *result = "";
 
 	for (x = 0; x < m->hdrcount; x++) {
 		const char *h = m->headers[x];
-		if (!strncasecmp(var, h, l) && h[l] == ':' && h[l+1] == ' ')
-			return h + l + 2;
+		if (!strncasecmp(var, h, l) && h[l] == ':' && h[l+1] == ' ') {
+			const char *x = h + l + 2;
+			/* found a potential candidate */
+			if (mode & GET_HEADER_SKIP_EMPTY && ast_strlen_zero(x))
+				continue;	/* not interesting */
+			if (mode & GET_HEADER_LAST_MATCH)
+				result = x;	/* record the last match so far */
+			else
+				return x;
+		}
 	}
 
 	return "";
 }
+
+/*
+ * Return the first matching variable from an array.
+ * This is the legacy function and is implemented in therms of
+ * __astman_get_header().
+ */
+const char *astman_get_header(const struct message *m, char *var)
+{
+	return __astman_get_header(m, var, GET_HEADER_FIRST_MATCH);
+}
+
 
 struct ast_variable *astman_get_variables(const struct message *m)
 {
@@ -2789,7 +2818,7 @@ static int process_message(struct mansession *s, const struct message *m)
 	struct manager_action *tmp;
 	const char *user = astman_get_header(m, "Username");
 
-	ast_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
+	ast_copy_string(action, __astman_get_header(m, "Action", GET_HEADER_SKIP_EMPTY), sizeof(action));
 	ast_debug(1, "Manager received command '%s'\n", action);
 
 	if (ast_strlen_zero(action)) {
@@ -3617,17 +3646,20 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		hdrlen = strlen(v->name) + strlen(v->value) + 3;
 		m.headers[m.hdrcount] = alloca(hdrlen);
 		snprintf((char *) m.headers[m.hdrcount], hdrlen, "%s: %s", v->name, v->value);
+		ast_verb(4, "HTTP Manager add header %s\n", m.headers[m.hdrcount]);
 		m.hdrcount = x + 1;
 	}
 
 	if (process_message(s, &m)) {
 		if (s->authenticated) {
-				if (manager_displayconnects(s))
+			if (manager_displayconnects(s)) {
 				ast_verb(2, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
+			}
 			ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 		} else {
-				if (displayconnects)
+			if (displayconnects) {
 				ast_verb(2, "HTTP Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
+			}
 			ast_log(LOG_EVENT, "HTTP Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 		}
 		s->needdestroy = 1;
@@ -3644,12 +3676,26 @@ static struct ast_str *generic_http_callback(enum output_format format,
 	if (format == FORMAT_XML) {
 		ast_str_append(&out, 0, "<ajax-response>\n");
 	} else if (format == FORMAT_HTML) {
+		/*
+		 * When handling AMI-over-HTTP in HTML format, we provide a simple form for
+		 * debugging purposes. This HTML code should not be here, we
+		 * should read from some config file...
+		 */
 
 #define ROW_FMT	"<tr><td colspan=\"2\" bgcolor=\"#f1f1ff\">%s</td></tr>\r\n"
 #define TEST_STRING \
-	"<form action=\"manager\">action: <input name=\"action\"> cmd <input name=\"command\"><br> \
-	user <input name=\"username\"> pass <input type=\"password\" name=\"secret\"><br> \
-	<input type=\"submit\"></form>"
+	"<form action=\"manager\">\n\
+	Action: <select name=\"action\">\n\
+		<option value=\"\">-----&gt;</option>\n\
+		<option value=\"login\">login</option>\n\
+		<option value=\"command\">Command</option>\n\
+		<option value=\"waitevent\">waitevent</option>\n\
+		<option value=\"listcommands\">listcommands</option>\n\
+	</select>\n\
+	or <input name=\"action\"><br/>\n\
+	CLI Command <input name=\"command\"><br>\n\
+	user <input name=\"username\"> pass <input type=\"password\" name=\"secret\"><br>\n\
+	<input type=\"submit\">\n</form>\n"
 
 		ast_str_append(&out, 0, "<title>Asterisk&trade; Manager Interface</title>");
 		ast_str_append(&out, 0, "<body bgcolor=\"#ffffff\"><table align=center bgcolor=\"#f1f1f1\" width=\"500\">\r\n");
