@@ -483,8 +483,9 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 	struct ao2_iterator aoi = ao2_iterator_init(class_container, 0);
 
 	while ((class = ao2_iterator_next(&aoi))) {
-		if (!strcmp(class->name, name))
+		if (!strcmp(class->name, name) && !class->delme) {
 			break;
+		}
 		ao2_ref(class, -1);
 	}
 
@@ -514,7 +515,6 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			obj->parent = class;
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
-				ast_mutex_destroy(&obj->lock);
 				ao2_ref(obj, -1);
 				obj = NULL;
 				class->count--;
@@ -630,27 +630,10 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 	return ODBC_SUCCESS;
 }
 
-static int class_is_delme(void *classobj, void *arg, int flags)
-{
-	struct odbc_class *class = classobj;
-
-	if (class->delme) {
-		struct odbc_obj *obj;
-		struct ao2_iterator aoi = ao2_iterator_init(class->obj_container, OBJ_UNLINK);
-		while ((obj = ao2_iterator_next(&aoi))) {
-			ao2_ref(obj, -2);
-		}
-		return CMP_MATCH;
-	}
-
-	return 0;
-}
-
-
-
 static int reload(void)
 {
 	struct odbc_class *class;
+	struct odbc_obj *current;
 	struct ao2_iterator aoi = ao2_iterator_init(class_container, 0);
 
 	/* First, mark all to be purged */
@@ -662,7 +645,50 @@ static int reload(void)
 	load_odbc_config();
 
 	/* Purge remaining classes */
-	ao2_callback(class_container, OBJ_NODATA | OBJ_UNLINK, class_is_delme, 0);
+
+	/* Note on how this works; this is a case of circular references, so we
+	 * explicitly do NOT want to use a callback here (or we wind up in
+	 * recursive hell).
+	 *
+	 * 1. Iterate through all the classes.  Note that the classes will currently
+	 * contain two classes of the same name, one of which is marked delme and
+	 * will be purged when all remaining objects of the class are released, and
+	 * the other, which was created above when we re-parsed the config file.
+	 * 2. On each class, there is a reference held by the master container and
+	 * a reference held by each connection object.  There are two cases for
+	 * destruction of the class, noted below.  However, in all cases, all O-refs
+	 * (references to objects) will first be freed, which will cause the C-refs
+	 * (references to classes) to be decremented (but never to 0, because the
+	 * class container still has a reference).
+	 *    a) If the class has outstanding objects, the C-ref by the class
+	 *    container will then be freed, which leaves only C-refs by any
+	 *    outstanding objects.  When the final outstanding object is released
+	 *    (O-refs held by applications and dialplan functions), it will in turn
+	 *    free the final C-ref, causing class destruction.
+	 *    b) If the class has no outstanding objects, when the class container
+	 *    removes the final C-ref, the class will be destroyed.
+	 */
+	aoi = ao2_iterator_init(class_container, 0);
+	while ((class = ao2_iterator_next(&aoi))) { /* C-ref++ (by iterator) */
+		if (class->delme) {
+			struct ao2_iterator aoi2 = ao2_iterator_init(class->obj_container, 0);
+			while ((current = ao2_iterator_next(&aoi2))) { /* O-ref++ (by iterator) */
+				ao2_unlink(class->obj_container, current); /* unlink O-ref from class (reference handled implicitly) */
+				ao2_ref(current, -1); /* O-ref-- (by iterator) */
+				/* At this point, either
+				 * a) there's an outstanding O-ref, or
+				 * b) the object has already been destroyed.
+				 */
+			}
+			ao2_unlink(class_container, class); /* unlink C-ref from container (reference handled implicitly) */
+			/* At this point, either
+			 * a) there's an outstanding O-ref, which holds an outstanding C-ref, or
+			 * b) the last remaining C-ref is held by the iterator, which will be
+			 * destroyed in the next step.
+			 */
+		}
+		ao2_ref(class, -1); /* C-ref-- (by iterator) */
+	}
 
 	return 0;
 }
