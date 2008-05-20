@@ -14,6 +14,13 @@ Dialplan Functions
    based on other parameters.  The default is still to search based on the
    forwarding station ID.  However, there are new options that allow you to search
    based on the message desk terminal ID, or the message desk number.
+ * TIMEOUT() has been modified to be accurate down to the millisecond.
+ * ENUM*() functions now include the following new options:
+     - 'u' returns the full URI and does not strip off the URI-scheme.
+	 - 's' triggers ISN specific rewriting
+	 - 'i' looks for branches into an Infrastructure ENUM tree
+	 - 'd' for a direct DNS lookup without any flipping of digits.
+ * TXCIDNAME() has a new zone-suffix parameter (which defaults to 'e164.arpa')
 
 Zaptel channel driver (chan_zap) Changes
 ----------------------------------------
@@ -106,20 +113,16 @@ DNS manager changes
   * Addresses managed by DNS manager now can check to see if there is a DNS
     SRV record for a given domain and will use that hostname/port if present.
 
-Dialplan function changes
--------------------------
- * TIMEOUT() has been modified to be accurate down to the millisecond.
- * ENUM*() functions now include the following new options:
-     - 'u' returns the full URI and does not strip off the URI-scheme.
-	 - 's' triggers ISN specific rewriting
-	 - 'i' looks for branches into an Infrastructure ENUM tree
-	 - 'd' for a direct DNS lookup without any flipping of digits.
- * TXCIDNAME() has a new zone-suffix parameter (which defaults to 'e164.arpa')
-
 AMI - The manager (TCP/TLS/HTTP)
 --------------------------------
   * The Status command now takes an optional list of variables to display
     along with channel status.
+
+ODBC Changes
+------------
+  * res_odbc no longer has a limit of 1023 total possible unshared connections,
+    as some people were running into this limit.  This limit has been increased
+    to 4.2 billion.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------

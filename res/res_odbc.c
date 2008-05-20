@@ -59,10 +59,10 @@ struct odbc_class
 	char *sanitysql;
 	SQLHENV env;
 	unsigned int haspool:1;              /* Boolean - TDS databases need this */
-	unsigned int limit:10;               /* Gives a limit of 1023 maximum */
-	unsigned int count:10;               /* Running count of pooled connections */
 	unsigned int delme:1;                /* Purge the class */
 	unsigned int backslash_is_escape:1;  /* On this database, the backslash is a native escape sequence */
+	unsigned int limit;                  /* 1023 wasn't enough for some people */
+	unsigned int count;                  /* Running count of pooled connections */
 	unsigned int idlecheck;              /* Recheck the connection if it is idle for this long */
 	struct ao2_container *obj_container;
 };
