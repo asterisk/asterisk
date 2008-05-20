@@ -105,7 +105,6 @@ static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16_BE;
 #endif
 
-/* static int block = O_NONBLOCK; */
 static char indevname[50] = ALSA_INDEV;
 static char outdevname[50] = ALSA_OUTDEV;
 
@@ -360,7 +359,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	/* unsigned int per_max = 8; */
 	snd_pcm_uframes_t start_threshold, stop_threshold;
 
-	err = snd_pcm_open(&handle, dev, stream, O_NONBLOCK);
+	err = snd_pcm_open(&handle, dev, stream, SND_PCM_NONBLOCK);
 	if (err < 0) {
 		ast_log(LOG_ERROR, "snd_pcm_open failed: %s\n", snd_strerror(err));
 		return NULL;

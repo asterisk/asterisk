@@ -1,6 +1,76 @@
-2008-05-12  Russell Bryant <russell@digium.com>
+2008-05-07  Russell Bryant <russell@digium.com>
 
-	* Asterisk 1.4.20 released.
+	* Asterisk 1.4.20-rc3 released.
+
+2008-05-14 12:51 +0000 [r116230]  Olle Johansson <oej@edvina.net>
+
+	* channels/chan_sip.c: Accept text messages even with Content-Type:
+	  text/plain;charset=Södermanländska
+
+2008-05-13 23:47 +0000 [r116088]  Mark Michelson <mmichelson@digium.com>
+
+	* main/channel.c, include/asterisk/lock.h: A change to the way
+	  channel locks are handled when DEBUG_CHANNEL_LOCKS is defined.
+	  After debugging a deadlock, it was noticed that when
+	  DEBUG_CHANNEL_LOCKS is enabled in menuselect, the actual origin
+	  of channel locks is obscured by the fact that all channel locks
+	  appear to happen in the function ast_channel_lock(). This code
+	  change redefines ast_channel_lock to be a macro which maps to
+	  __ast_channel_lock(), which then relays the proper file name,
+	  line number, and function name information to the core lock
+	  functions so that this information will be displayed in the case
+	  that there is some sort of locking error or core show locks is
+	  issued.
+
+2008-05-13 21:17 +0000 [r115990-116038]  Russell Bryant <russell@digium.com>
+
+	* channels/chan_local.c: Fix a deadlock involving channel
+	  autoservice and chan_local that was debugged and fixed by
+	  mmichelson and me. We observed a system that had a bunch of
+	  threads stuck in ast_autoservice_stop(). The reason these threads
+	  were waiting around is because this function waits to ensure that
+	  the channel list in the autoservice thread gets rebuilt before
+	  the stop() function returns. However, the autoservice thread was
+	  also locked, so the autoservice channel list was never getting
+	  rebuilt. The autoservice thread was stuck waiting for the channel
+	  lock on a local channel. However, the local channel was locked by
+	  a thread that was stuck in the autoservice stop function. It
+	  turned out that the issue came down to the local_queue_frame()
+	  function in chan_local. This function assumed that one of the
+	  channels passed in as an argument was locked when called.
+	  However, that was not always the case. There were multiple cases
+	  in which this channel was not locked when the function was
+	  called. We fixed up chan_local to indicate to this function
+	  whether this channel was locked or not. The previous assumption
+	  had caused local_queue_frame() to improperly return with the
+	  channel locked, where it would then never get unlocked. (closes
+	  issue #12584) (related to issue #12603)
+
+	* main/autoservice.c: Fix an issue that I noticed in autoservice
+	  while mmichelson and I were debugging a different problem. I
+	  noticed that it was theoretically possible for two threads to
+	  attempt to start the autoservice thread at the same time. This
+	  change makes the process of starting the autoservice thread,
+	  thread-safe.
+
+2008-05-13 20:28 +0000 [r115944]  Joshua Colp <jcolp@digium.com>
+
+	* channels/chan_alsa.c: Use the right flag to open the audio in
+	  non-blocking. (closes issue #12616) Reported by:
+	  nicklewisdigiumuser
+
+2008-05-13 18:36 +0000 [r115884]  Tilghman Lesher <tlesher@digium.com>
+
+	* main/asterisk.c: If the socket dies (read returns 0=EOF), return
+	  immediately. (Closes issue #12637)
+
+2008-05-12 17:51 +0000 [r115735]  Mark Michelson <mmichelson@digium.com>
+
+	* main/utils.c: If a thread holds no locks, do not print any
+	  information on the thread when issuing a core show locks command.
+	  This will help to de-clutter output somewhat. Russell said it
+	  would be fine to place this improvement in the 1.4 branch, so
+	  that's why it's going here too.
 
 2008-05-09 16:34 +0000 [r115579]  Joshua Colp <jcolp@digium.com>
 
