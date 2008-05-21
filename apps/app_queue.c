@@ -2423,6 +2423,20 @@ static void record_abandoned(struct queue_ent *qe)
 static void rna(int rnatime, struct queue_ent *qe, char *interface, char *membername)
 {
 	ast_verb(3, "Nobody picked up in %d ms\n", rnatime);
+	if (qe->parent->eventwhencalled)
+		manager_event(EVENT_FLAG_AGENT, "AgentRingNoAnswer",
+						"Queue: %s\r\n"
+						"Uniqueid: %s\r\n"
+						"Channel: %s\r\n"
+						"Member: %s\r\n"
+						"MemberName: %s\r\n"
+						"Ringtime: %d\r\n",
+						qe->parent->name,
+						qe->chan->uniqueid,
+						qe->chan->name,
+						interface,
+						membername,
+						rnatime);
 	ast_queue_log(qe->parent->name, qe->chan->uniqueid, membername, "RINGNOANSWER", "%d", rnatime);
 	if (qe->parent->autopause) {
 		if (!set_member_paused(qe->parent->name, interface, "Auto-Pause", 1)) {

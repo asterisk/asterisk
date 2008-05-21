@@ -294,7 +294,18 @@ Changes to manager version 1.1:
 		HoldTime: 47
 	If an actionID was specified for the QueueSummary action, it will be appended as the
 	last line of the QueueSummary event.
-		
+
+- Event: AgentRingNoAnswer
+	Modules: app_queue
+	Purpose: Reports when a queue member was rung but there was no answer.
+	Example:
+		Event: AgentRingNoAnswer
+		Queue: Support
+		Uniqueid: 1177530895.2
+		Channel: SIP/1000-53aee458
+		Member: SIP/1000
+		MemberName: Thaddeus McClintock
+		Ringtime: 10
 
 * TODO
 ------
