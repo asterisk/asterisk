@@ -1445,8 +1445,12 @@ static void console_verboser(const char *s)
 	    (c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_1))) {
 		fputs(tmp, stdout);
 		fputs(c, stdout);
-	} else
+	} else {
+		if (*s == 127) {
+			s++;
+		}
 		fputs(s, stdout);
+	}
 
 	fflush(stdout);
 	
