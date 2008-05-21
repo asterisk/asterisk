@@ -249,8 +249,6 @@ int ast_add_extension2(struct ast_context *con,
 
 	if( dump_extensions && dumpfile ) {
 		struct namelist *n;
-		char *data2,*data3=0;
-		int commacount = 0;
 
 		if( FIRST_TIME ) {
 			FIRST_TIME = 0;
@@ -284,43 +282,15 @@ int ast_add_extension2(struct ast_context *con,
 		if( data ) {
 			filter_newlines((char*)data);
 			filter_leading_space_from_exprs((char*)data);
+			/* in previous versions, commas were converted to '|' to separate
+			   args in app calls, but now, commas are used. There used to be
+			   code here to insert backslashes (escapes) before any commas
+			   that may have been embedded in the app args. This code is no more. */
 
-			/* compiling turns commas into vertical bars in the app data, and also removes the backslash from before escaped commas;
-			   we have to restore the escaping backslash in front of any commas; the vertical bars are OK to leave as-is */
-			for (data2 = data; *data2; data2++) {
-				if (*data2 == ',')
-					commacount++;  /* we need to know how much bigger the string will grow-- one backslash for each comma  */
-			}
-			if (commacount) 
-			{
-				char *d3,*d4;
-				
-				data2 = (char*)malloc(strlen(data)+commacount+1);
-				data3 = data;
-				d3 = data;
-				d4 = data2;
-				while (*d3) {
-					if (*d3 == ',') {
-						*d4++ = '\\'; /* put a backslash in front of each comma */
-						*d4++ = *d3++;
-					} else
-						*d4++ = *d3++;  /* or just copy the char */
-				}
-				*d4++ = 0;  /* cap off the new string */
-				data = data2;
-			} else
-				data2 = 0;
-			
 			if( strcmp(label,"(null)") != 0  )
 				fprintf(dumpfile,"exten => %s,%d(%s),%s(%s)\n", extension, priority, label, application, (char*)data);
 			else
 				fprintf(dumpfile,"exten => %s,%d,%s(%s)\n", extension, priority, application, (char*)data);
-
-			if (data2) {
-				free(data2);
-				data2 = 0;
-				data = data3; /* restore data to pre-messedup state */
-			}
 
 		} else {
 
