@@ -2480,6 +2480,14 @@ static void ast_remotecontrol(char * data)
 			if (ebuf[strlen(ebuf)-1] == '\n')
 				ebuf[strlen(ebuf)-1] = '\0';
 			if (!remoteconsolehandler(ebuf)) {
+				/* Strip preamble from output */
+				char *tmp;
+				for (tmp = ebuf; *tmp; tmp++) {
+					if (*tmp == 127) {
+						memmove(tmp, tmp + 1, strlen(tmp));
+						tmp--;
+					}
+				}
 				res = write(ast_consock, ebuf, strlen(ebuf) + 1);
 				if (res < 1) {
 					ast_log(LOG_WARNING, "Unable to write: %s\n", strerror(errno));
