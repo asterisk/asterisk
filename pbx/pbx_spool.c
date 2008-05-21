@@ -128,11 +128,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 	char buf[256];
 	char *c, *c2;
 	int lineno = 0;
-	struct ast_variable *var, *last = o->vars;
-
-	while (last && last->next) {
-		last = last->next;
-	}
+	struct ast_variable *var;
 
 	while(fgets(buf, sizeof(buf), f)) {
 		lineno++;
@@ -226,13 +222,8 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 					if (c2) {
 						var = ast_variable_new(c, c2);
 						if (var) {
-							/* Always insert at the end, because some people want to treat the spool file as a script */
-							if (last) {
-								last->next = var;
-							} else {
-								o->vars = var;
-							}
-							last = var;
+							var->next = o->vars;
+							o->vars = var;
 						}
 					} else
 						ast_log(LOG_WARNING, "Malformed \"%s\" argument.  Should be \"%s: variable=value\"\n", buf, buf);
