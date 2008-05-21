@@ -8075,7 +8075,7 @@ static int sigtype_to_signalling(int sigtype)
         return sigtype;
 }
 
-static struct zt_pvt *mkintf(int channel, struct zt_chan_conf *conf, struct zt_pri *pri, int reloading)
+static struct zt_pvt *mkintf(int channel, const struct zt_chan_conf *conf, struct zt_pri *pri, int reloading)
 {
 	/* Make a zt_pvt structure for this interface (or CRV if "pri" is specified) */
 	struct zt_pvt *tmp = NULL, *tmp2,  *prev = NULL;
@@ -8086,7 +8086,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf *conf, struct zt_p
 	struct zt_spaninfo si;
 
 	int res;
-	int span=0;
+	int span = 0;
 	int here = 0;
 	int x;
 	struct zt_pvt **wlist;
@@ -8134,6 +8134,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf *conf, struct zt_p
 	}
 
 	if (tmp) {
+		int chan_sig = conf->chan.sig;
 		if (!here) {
 			if ((channel != CHAN_PSEUDO) && !pri) {
 				snprintf(fn, sizeof(fn), "%d", channel);
@@ -8154,7 +8155,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf *conf, struct zt_p
 					return NULL;
 				}
 				if (conf->is_sig_auto)
-					conf->chan.sig = sigtype_to_signalling(p.sigtype);
+					chan_sig = sigtype_to_signalling(p.sigtype);
 				if (p.sigtype != (conf->chan.sig & 0x3ffff)) {
 					ast_log(LOG_ERROR, "Signalling requested on channel %d is %s but line is in %s signalling\n", channel, sig2str(conf->chan.sig), sig2str(p.sigtype));
 					destroy_zt_pvt(&tmp);
@@ -8165,8 +8166,8 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf *conf, struct zt_p
 				span = p.spanno - 1;
 			} else {
 				if (channel == CHAN_PSEUDO)
-					conf->chan.sig = 0;
-				else if ((conf->chan.sig != SIG_FXOKS) && (conf->chan.sig != SIG_FXSKS)) {
+					chan_sig = 0;
+				else if ((chan_sig != SIG_FXOKS) && (chan_sig != SIG_FXSKS)) {
 					ast_log(LOG_ERROR, "CRV's must use FXO/FXS Kewl Start (fxo_ks/fxs_ks) signalling only.\n");
 					return NULL;
 				}
@@ -8337,23 +8338,35 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf *conf, struct zt_p
 			}
 #endif
 		} else {
-			conf->chan.sig = tmp->sig;
-			conf->chan.radio = tmp->radio;
+			chan_sig = tmp->sig;
 			memset(&p, 0, sizeof(p));
 			if (tmp->subs[SUB_REAL].zfd > -1)
 				res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &p);
 		}
 		/* Adjust starttime on loopstart and kewlstart trunks to reasonable values */
-		if ((conf->chan.sig == SIG_FXSKS) || (conf->chan.sig == SIG_FXSLS) ||
-		    (conf->chan.sig == SIG_EM) || (conf->chan.sig == SIG_EM_E1) ||  (conf->chan.sig == SIG_EMWINK) ||
-			(conf->chan.sig == SIG_FEATD) || (conf->chan.sig == SIG_FEATDMF) || (conf->chan.sig == SIG_FEATDMF_TA) ||
-			  (conf->chan.sig == SIG_FEATB) || (conf->chan.sig == SIG_E911) ||
-		    (conf->chan.sig == SIG_SF) || (conf->chan.sig == SIG_SFWINK) || (conf->chan.sig == SIG_FGC_CAMA) || (conf->chan.sig == SIG_FGC_CAMAMF) ||
-			(conf->chan.sig == SIG_SF_FEATD) || (conf->chan.sig == SIG_SF_FEATDMF) ||
-			  (conf->chan.sig == SIG_SF_FEATB)) {
+		switch (chan_sig) {
+		case SIG_FXSKS:
+		case SIG_FXSLS:
+		case SIG_EM:
+		case SIG_EM_E1:
+		case SIG_EMWINK:
+		case SIG_FEATD:
+		case SIG_FEATDMF:
+		case SIG_FEATDMF_TA:
+		case SIG_FEATB:
+		case SIG_E911:
+		case SIG_SF:
+		case SIG_SFWINK:
+		case SIG_FGC_CAMA:
+		case SIG_FGC_CAMAMF:
+		case SIG_SF_FEATD:
+		case SIG_SF_FEATDMF:
+		case SIG_SF_FEATB:
 			p.starttime = 250;
+			break;
 		}
-		if (conf->chan.radio) {
+
+		if (tmp->radio) {
 			/* XXX Waiting to hear back from Jim if these should be adjustable XXX */
 			p.channo = channel;
 			p.rxwinktime = 1;
@@ -8361,7 +8374,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf *conf, struct zt_p
 			p.starttime = 1;
 			p.debouncetime = 5;
 		}
-		if (!conf->chan.radio) {
+		if (!tmp->radio) {
 			p.channo = channel;
 			/* Override timing settings based on config file */
 			if (conf->timing.prewinktime >= 0)
@@ -8381,14 +8394,6 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf *conf, struct zt_p
 			if (conf->timing.debouncetime >= 0)
 				p.debouncetime = conf->timing.debouncetime;
 		}
-
-		/* 10 is a nice default. */
-		if (conf->chan.drings.ringnum[0].range == 0)
-			conf->chan.drings.ringnum[0].range = 10;
-		if (conf->chan.drings.ringnum[1].range == 0)
-			conf->chan.drings.ringnum[1].range = 10;
-		if (conf->chan.drings.ringnum[2].range == 0)
-			conf->chan.drings.ringnum[2].range = 10;
 
 		/* dont set parms on a pseudo-channel (or CRV) */
 		if (tmp->subs[SUB_REAL].zfd >= 0)
@@ -8422,18 +8427,26 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf *conf, struct zt_p
 			tmp->mwimonitor_fsk = conf->chan.mwimonitor_fsk;
 			tmp->mwimonitor_neon = conf->chan.mwimonitor_neon;
 		}
-		tmp->sig = conf->chan.sig;
+		tmp->sig = chan_sig;
 		tmp->outsigmod = conf->chan.outsigmod;
-		tmp->radio = conf->chan.radio;
 		tmp->ringt_base = ringt_base;
 		tmp->firstradio = 0;
-		if ((conf->chan.sig == SIG_FXOKS) || (conf->chan.sig == SIG_FXOLS) || (conf->chan.sig == SIG_FXOGS))
+		if ((chan_sig == SIG_FXOKS) || (chan_sig == SIG_FXOLS) || (chan_sig == SIG_FXOGS))
 			tmp->permcallwaiting = conf->chan.callwaiting;
 		else
 			tmp->permcallwaiting = 0;
 		/* Flag to destroy the channel must be cleared on new mkif.  Part of changes for reload to work */
 		tmp->destroy = 0;
 		tmp->drings = conf->chan.drings;
+
+		/* 10 is a nice default. */
+		if (tmp->drings.ringnum[0].range == 0)
+			tmp->drings.ringnum[0].range = 10;
+		if (tmp->drings.ringnum[1].range == 0)
+			tmp->drings.ringnum[1].range = 10;
+		if (tmp->drings.ringnum[2].range == 0)
+			tmp->drings.ringnum[2].range = 10;
+
 		tmp->usedistinctiveringdetection = usedistinctiveringdetection;
 		tmp->callwaitingcallerid = conf->chan.callwaitingcallerid;
 		tmp->threewaycalling = conf->chan.threewaycalling;
@@ -8531,7 +8544,6 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf *conf, struct zt_p
 		tmp->pickupgroup= conf->chan.pickupgroup;
 		if (conf->chan.vars) {
 			tmp->vars = conf->chan.vars;
-			conf->chan.vars = NULL;
 		}
 		tmp->cid_rxgain = conf->chan.cid_rxgain;
 		tmp->rxgain = conf->chan.rxgain;
@@ -8544,7 +8556,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf *conf, struct zt_p
 				ast_dsp_set_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
 			update_conf(tmp);
 			if (!here) {
-				if ((conf->chan.sig != SIG_BRI) && (conf->chan.sig != SIG_BRI_PTMP) && (conf->chan.sig != SIG_PRI) && (conf->chan.sig != SIG_SS7))
+				if ((chan_sig != SIG_BRI) && (chan_sig != SIG_BRI_PTMP) && (chan_sig != SIG_PRI) && (chan_sig != SIG_SS7))
 					/* Hang it up to be sure it's good */
 					zt_set_hook(tmp->subs[SUB_REAL].zfd, ZT_ONHOOK);
 			}
