@@ -384,6 +384,7 @@ struct member {
 	struct call_queue *lastqueue;	    /*!< Last queue we received a call */
 	unsigned int dead:1;                /*!< Used to detect members deleted in realtime */
 	unsigned int delme:1;               /*!< Flag to delete entry on reload */
+	char rt_uniqueid[80];               /*!< Unique id of realtime member entry */
 };
 
 struct member_interface {
@@ -1309,11 +1310,13 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
  * Search for member in queue, if found update penalty/paused state,
  * if no memeber exists create one flag it as a RT member and add to queue member list. 
 */
-static void rt_handle_member_record(struct call_queue *q, char *interface, const char *membername, const char *penalty_str, const char *paused_str, const char* state_interface)
+static void rt_handle_member_record(struct call_queue *q, char *interface, const char *rt_uniqueid, const char *membername, const char *penalty_str, const char *paused_str, const char* state_interface)
 {
-	struct member *m, tmpmem;
+	struct member *m;
+	struct ao2_iterator mem_iter;
 	int penalty = 0;
 	int paused  = 0;
+	int found = 0;
 
 	if (penalty_str) {
 		penalty = atoi(penalty_str);
@@ -1327,32 +1330,39 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 			paused = 0;
 	}
 
-	/* Find the member, or the place to put a new one. */
-	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
-	m = ao2_find(q->members, &tmpmem, OBJ_POINTER);
+ 	/* Find member by realtime uniqueid and update */
+ 	mem_iter = ao2_iterator_init(q->members, 0);
+ 	while ((m = ao2_iterator_next(&mem_iter))) {
+ 		if (!strcasecmp(m->rt_uniqueid, rt_uniqueid)) {
+ 			m->dead = 0;	/* Do not delete this one. */
+ 			ast_copy_string(m->rt_uniqueid, rt_uniqueid, sizeof(m->rt_uniqueid));
+ 			if (paused_str)
+ 				m->paused = paused;
+ 			if (strcasecmp(state_interface, m->state_interface)) {
+ 				remove_from_interfaces(m->state_interface);
+ 				ast_copy_string(m->state_interface, state_interface, sizeof(m->state_interface));
+ 				add_to_interfaces(m->state_interface);
+ 			}	   
+ 			m->penalty = penalty;
+ 			found = 1;
+ 			ao2_ref(m, -1);
+ 			break;
+ 		}
+ 		ao2_ref(m, -1);
+ 	}
 
-	/* Create a new one if not found, else update penalty */
-	if (!m) {
+ 	/* Create a new member */
+ 	if (!found) {
 		if ((m = create_queue_member(interface, membername, penalty, paused, state_interface))) {
 			m->dead = 0;
 			m->realtime = 1;
+			ast_copy_string(m->rt_uniqueid, rt_uniqueid, sizeof(m->rt_uniqueid));
 			add_to_interfaces(m->state_interface);
 			ao2_link(q->members, m);
 			ao2_ref(m, -1);
 			m = NULL;
 			q->membercount++;
 		}
-	} else {
-		m->dead = 0;	/* Do not delete this one. */
-		if (paused_str)
-			m->paused = paused;
-		if (strcasecmp(state_interface, m->state_interface)) {
-			remove_from_interfaces(m->state_interface);
-			ast_copy_string(m->state_interface, state_interface, sizeof(m->state_interface));
-			add_to_interfaces(m->state_interface);
-		}
-		m->penalty = penalty;
-		ao2_ref(m, -1);
 	}
 }
 
@@ -1521,6 +1531,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 
 	while ((interface = ast_category_browse(member_config, interface))) {
 		rt_handle_member_record(q, interface,
+			ast_variable_retrieve(member_config, interface, "uniqueid"),
 			S_OR(ast_variable_retrieve(member_config, interface, "membername"),interface),
 			ast_variable_retrieve(member_config, interface, "penalty"),
 			ast_variable_retrieve(member_config, interface, "paused"),
@@ -1590,22 +1601,17 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 
 static int update_realtime_member_field(struct member *mem, const char *queue_name, const char *field, const char *value)
 {
-	struct ast_variable *var;
 	int ret = -1;
 
-	if (!(var = ast_load_realtime("queue_members", "interface", mem->interface, "queue_name", queue_name, NULL))) 
-		return ret;
-	while (var) {
-		if (!strcmp(var->name, "uniqueid"))
-			break;
-		var = var->next;
-	}
-	if (var && !ast_strlen_zero(var->value)) {
-		if ((ast_update_realtime("queue_members", "uniqueid", var->value, field, value, NULL)) > -1)
-			ret = 0;
-	}
+	if (ast_strlen_zero(mem->rt_uniqueid))
+ 		return ret;
+
+	if ((ast_update_realtime("queue_members", "uniqueid", mem->rt_uniqueid, field, value, NULL)) > 0)
+		ret = 0;
+
 	return ret;
 }
+
 
 static void update_realtime_members(struct call_queue *q)
 {
@@ -1632,6 +1638,7 @@ static void update_realtime_members(struct call_queue *q)
 
 	while ((interface = ast_category_browse(member_config, interface))) {
 		rt_handle_member_record(q, interface,
+			ast_variable_retrieve(member_config, interface, "uniqueid"),
 			S_OR(ast_variable_retrieve(member_config, interface, "membername"), interface),
 			ast_variable_retrieve(member_config, interface, "penalty"),
 			ast_variable_retrieve(member_config, interface, "paused"),
@@ -3869,6 +3876,7 @@ static int set_member_paused(const char *queuename, const char *interface, const
 	struct call_queue *q;
 	struct member *mem;
 	struct ao2_iterator queue_iter;
+	int failed;
 
 	/* Special event for when all queues are paused - individual events still generated */
 	/* XXX In all other cases, we use the membername, but since this affects all queues, we cannot */
@@ -3880,17 +3888,25 @@ static int set_member_paused(const char *queuename, const char *interface, const
 		ao2_lock(q);
 		if (ast_strlen_zero(queuename) || !strcasecmp(q->name, queuename)) {
 			if ((mem = interface_exists(q, interface))) {
-				found++;
 				if (mem->paused == paused) {
 					ast_debug(1, "%spausing already-%spaused queue member %s:%s\n", (paused ? "" : "un"), (paused ? "" : "un"), q->name, interface);
 				}
+
+				failed = 0;
+				if (mem->realtime) {
+					failed = update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0");
+				}
+			
+				if (failed) {
+					ast_log(LOG_WARNING, "Failed %spausing realtime queue member %s:%s\n", (paused ? "" : "un"), q->name, interface);
+					ao2_ref(mem, -1);
+					continue;
+				}	
+				found++;
 				mem->paused = paused;
 
 				if (queue_persistent_members)
 					dump_queue_members(q);
-
-				if (mem->realtime)
-					update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0");
 
 				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", S_OR(reason, ""));
 				
@@ -3915,6 +3931,10 @@ static int set_member_paused(const char *queuename, const char *interface, const
 		}
 		ao2_unlock(q);
 		queue_unref(q);
+		
+		if (!ast_strlen_zero(queuename) && found) {
+			break;
+		}
 	}
 
 	return found ? RESULT_SUCCESS : RESULT_FAILURE;
