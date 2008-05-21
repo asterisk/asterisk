@@ -379,7 +379,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		if (!ser) {
 			goto exit;
 		} 
-		res = eivr_comm(chan, u, ser->fd, ser->fd, 0, pipe_delim_argbuf);
+		res = eivr_comm(chan, u, ser->fd, ser->fd, -1, pipe_delim_argbuf);
 	} else {
 	
 		if (pipe(child_stdin)) {
@@ -495,7 +495,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 		ast_chan_log(LOG_WARNING, chan, "Could not open stream to receive commands\n");
 		goto exit;
 	}
-	if(eivr_errors_fd) {  /* if opening a socket connection, error stream will not be used */
+	if (eivr_errors_fd > -1) {  /* if opening a socket connection, error stream will not be used */
  		if (!(eivr_errors = fdopen(eivr_errors_fd, "r"))) {
  			ast_chan_log(LOG_WARNING, chan, "Could not open stream to receive errors\n");
  			goto exit;
@@ -529,7 +529,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  		errno = 0;
  		exception = 0;
  
- 		rchan = ast_waitfor_nandfds(&chan, 1, waitfds, 2, &exception, &ready_fd, &ms);
+ 		rchan = ast_waitfor_nandfds(&chan, 1, waitfds, (eivr_errors_fd < 0) ? 1 : 2, &exception, &ready_fd, &ms);
  
  		if (!AST_LIST_EMPTY(&u->finishlist)) {
  			AST_LIST_LOCK(&u->finishlist);
