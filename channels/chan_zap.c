@@ -8070,7 +8070,7 @@ static int sigtype_to_signalling(int sigtype)
         return sigtype;
 }
 
-static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pri *pri, int reloading)
+static struct zt_pvt *mkintf(int channel, struct zt_chan_conf *conf, struct zt_pri *pri, int reloading)
 {
 	/* Make a zt_pvt structure for this interface (or CRV if "pri" is specified) */
 	struct zt_pvt *tmp = NULL, *tmp2,  *prev = NULL;
@@ -8147,10 +8147,10 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 					destroy_zt_pvt(&tmp);
 					return NULL;
 				}
-				if (conf.is_sig_auto)
-					conf.chan.sig = sigtype_to_signalling(p.sigtype);
-				if (p.sigtype != (conf.chan.sig & 0x3ffff)) {
-					ast_log(LOG_ERROR, "Signalling requested on channel %d is %s but line is in %s signalling\n", channel, sig2str(conf.chan.sig), sig2str(p.sigtype));
+				if (conf->is_sig_auto)
+					conf->chan.sig = sigtype_to_signalling(p.sigtype);
+				if (p.sigtype != (conf->chan.sig & 0x3ffff)) {
+					ast_log(LOG_ERROR, "Signalling requested on channel %d is %s but line is in %s signalling\n", channel, sig2str(conf->chan.sig), sig2str(p.sigtype));
 					destroy_zt_pvt(&tmp);
 					return NULL;
 				}
@@ -8159,14 +8159,14 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 				span = p.spanno - 1;
 			} else {
 				if (channel == CHAN_PSEUDO)
-					conf.chan.sig = 0;
-				else if ((conf.chan.sig != SIG_FXOKS) && (conf.chan.sig != SIG_FXSKS)) {
+					conf->chan.sig = 0;
+				else if ((conf->chan.sig != SIG_FXOKS) && (conf->chan.sig != SIG_FXSKS)) {
 					ast_log(LOG_ERROR, "CRV's must use FXO/FXS Kewl Start (fxo_ks/fxs_ks) signalling only.\n");
 					return NULL;
 				}
 			}
 #ifdef HAVE_SS7
-			if (conf.chan.sig == SIG_SS7) {
+			if (conf->chan.sig == SIG_SS7) {
 				struct zt_ss7 *ss7;
 				int clear = 0;
 				if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &clear)) {
@@ -8196,23 +8196,23 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 				tmp->ss7call = NULL;
 				ss7->pvts[ss7->numchans++] = tmp;
 
-				ast_copy_string(linksets[span].internationalprefix, conf.ss7.internationalprefix, sizeof(linksets[span].internationalprefix));
-				ast_copy_string(linksets[span].nationalprefix, conf.ss7.nationalprefix, sizeof(linksets[span].nationalprefix));
-				ast_copy_string(linksets[span].subscriberprefix, conf.ss7.subscriberprefix, sizeof(linksets[span].subscriberprefix));
-				ast_copy_string(linksets[span].unknownprefix, conf.ss7.unknownprefix, sizeof(linksets[span].unknownprefix));
+				ast_copy_string(linksets[span].internationalprefix, conf->ss7.internationalprefix, sizeof(linksets[span].internationalprefix));
+				ast_copy_string(linksets[span].nationalprefix, conf->ss7.nationalprefix, sizeof(linksets[span].nationalprefix));
+				ast_copy_string(linksets[span].subscriberprefix, conf->ss7.subscriberprefix, sizeof(linksets[span].subscriberprefix));
+				ast_copy_string(linksets[span].unknownprefix, conf->ss7.unknownprefix, sizeof(linksets[span].unknownprefix));
 
-				linksets[span].called_nai = conf.ss7.called_nai;
-				linksets[span].calling_nai = conf.ss7.calling_nai;
+				linksets[span].called_nai = conf->ss7.called_nai;
+				linksets[span].calling_nai = conf->ss7.calling_nai;
 			}
 #endif
 #ifdef HAVE_PRI
-			if ((conf.chan.sig == SIG_PRI) || (conf.chan.sig == SIG_BRI) || (conf.chan.sig == SIG_BRI_PTMP) || (conf.chan.sig == SIG_GR303FXOKS) || (conf.chan.sig == SIG_GR303FXSKS)) {
+			if ((conf->chan.sig == SIG_PRI) || (conf->chan.sig == SIG_BRI) || (conf->chan.sig == SIG_BRI_PTMP) || (conf->chan.sig == SIG_GR303FXOKS) || (conf->chan.sig == SIG_GR303FXSKS)) {
 				int offset;
 				int myswitchtype;
 				int matchesdchan;
 				int x,y;
 				offset = 0;
-				if (((conf.chan.sig == SIG_PRI) || (conf.chan.sig == SIG_BRI) || (conf.chan.sig == SIG_BRI_PTMP)) 
+				if (((conf->chan.sig == SIG_PRI) || (conf->chan.sig == SIG_BRI) || (conf->chan.sig == SIG_BRI_PTMP)) 
 						&& ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
 					ast_log(LOG_ERROR, "Unable to set clear mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
 					destroy_zt_pvt(&tmp);
@@ -8237,10 +8237,10 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 						destroy_zt_pvt(&tmp);
 						return NULL;
 					}
-					if ((conf.chan.sig == SIG_PRI) ||
-							(conf.chan.sig == SIG_BRI) ||
-							(conf.chan.sig == SIG_BRI_PTMP))
-						myswitchtype = conf.pri.switchtype;
+					if ((conf->chan.sig == SIG_PRI) ||
+							(conf->chan.sig == SIG_BRI) ||
+							(conf->chan.sig == SIG_BRI_PTMP))
+						myswitchtype = conf->pri.switchtype;
 					else
 						myswitchtype = PRI_SWITCH_GR303_TMC;
 					/* Make sure this isn't a d-channel */
@@ -8255,7 +8255,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 					}
 					offset = p.chanpos;
 					if (!matchesdchan) {
-						if (pris[span].nodetype && (pris[span].nodetype != conf.pri.nodetype)) {
+						if (pris[span].nodetype && (pris[span].nodetype != conf->pri.nodetype)) {
 							ast_log(LOG_ERROR, "Span %d is already a %s node\n", span + 1, pri_node2str(pris[span].nodetype));
 							destroy_zt_pvt(&tmp);
 							return NULL;
@@ -8265,28 +8265,28 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 							destroy_zt_pvt(&tmp);
 							return NULL;
 						}
-						if ((pris[span].dialplan) && (pris[span].dialplan != conf.pri.dialplan)) {
+						if ((pris[span].dialplan) && (pris[span].dialplan != conf->pri.dialplan)) {
 							ast_log(LOG_ERROR, "Span %d is already a %s dialing plan\n", span + 1, dialplan2str(pris[span].dialplan));
 							destroy_zt_pvt(&tmp);
 							return NULL;
 						}
-						if (!ast_strlen_zero(pris[span].idledial) && strcmp(pris[span].idledial, conf.pri.idledial)) {
-							ast_log(LOG_ERROR, "Span %d already has idledial '%s'.\n", span + 1, conf.pri.idledial);
+						if (!ast_strlen_zero(pris[span].idledial) && strcmp(pris[span].idledial, conf->pri.idledial)) {
+							ast_log(LOG_ERROR, "Span %d already has idledial '%s'.\n", span + 1, conf->pri.idledial);
 							destroy_zt_pvt(&tmp);
 							return NULL;
 						}
-						if (!ast_strlen_zero(pris[span].idleext) && strcmp(pris[span].idleext, conf.pri.idleext)) {
-							ast_log(LOG_ERROR, "Span %d already has idleext '%s'.\n", span + 1, conf.pri.idleext);
+						if (!ast_strlen_zero(pris[span].idleext) && strcmp(pris[span].idleext, conf->pri.idleext)) {
+							ast_log(LOG_ERROR, "Span %d already has idleext '%s'.\n", span + 1, conf->pri.idleext);
 							destroy_zt_pvt(&tmp);
 							return NULL;
 						}
-						if (pris[span].minunused && (pris[span].minunused != conf.pri.minunused)) {
-							ast_log(LOG_ERROR, "Span %d already has minunused of %d.\n", span + 1, conf.pri.minunused);
+						if (pris[span].minunused && (pris[span].minunused != conf->pri.minunused)) {
+							ast_log(LOG_ERROR, "Span %d already has minunused of %d.\n", span + 1, conf->pri.minunused);
 							destroy_zt_pvt(&tmp);
 							return NULL;
 						}
-						if (pris[span].minidle && (pris[span].minidle != conf.pri.minidle)) {
-							ast_log(LOG_ERROR, "Span %d already has minidle of %d.\n", span + 1, conf.pri.minidle);
+						if (pris[span].minidle && (pris[span].minidle != conf->pri.minidle)) {
+							ast_log(LOG_ERROR, "Span %d already has minidle of %d.\n", span + 1, conf->pri.minidle);
 							destroy_zt_pvt(&tmp);
 							return NULL;
 						}
@@ -8297,25 +8297,25 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 							return NULL;
 						}
 
-						pris[span].sig = conf.chan.sig;
-						pris[span].nodetype = conf.pri.nodetype;
+						pris[span].sig = conf->chan.sig;
+						pris[span].nodetype = conf->pri.nodetype;
 						pris[span].switchtype = myswitchtype;
-						pris[span].nsf = conf.pri.nsf;
-						pris[span].dialplan = conf.pri.dialplan;
-						pris[span].localdialplan = conf.pri.localdialplan;
+						pris[span].nsf = conf->pri.nsf;
+						pris[span].dialplan = conf->pri.dialplan;
+						pris[span].localdialplan = conf->pri.localdialplan;
 						pris[span].pvts[pris[span].numchans++] = tmp;
-						pris[span].minunused = conf.pri.minunused;
-						pris[span].minidle = conf.pri.minidle;
-						pris[span].overlapdial = conf.pri.overlapdial;
-						pris[span].facilityenable = conf.pri.facilityenable;
-						ast_copy_string(pris[span].idledial, conf.pri.idledial, sizeof(pris[span].idledial));
-						ast_copy_string(pris[span].idleext, conf.pri.idleext, sizeof(pris[span].idleext));
-						ast_copy_string(pris[span].internationalprefix, conf.pri.internationalprefix, sizeof(pris[span].internationalprefix));
-						ast_copy_string(pris[span].nationalprefix, conf.pri.nationalprefix, sizeof(pris[span].nationalprefix));
-						ast_copy_string(pris[span].localprefix, conf.pri.localprefix, sizeof(pris[span].localprefix));
-						ast_copy_string(pris[span].privateprefix, conf.pri.privateprefix, sizeof(pris[span].privateprefix));
-						ast_copy_string(pris[span].unknownprefix, conf.pri.unknownprefix, sizeof(pris[span].unknownprefix));
-						pris[span].resetinterval = conf.pri.resetinterval;
+						pris[span].minunused = conf->pri.minunused;
+						pris[span].minidle = conf->pri.minidle;
+						pris[span].overlapdial = conf->pri.overlapdial;
+						pris[span].facilityenable = conf->pri.facilityenable;
+						ast_copy_string(pris[span].idledial, conf->pri.idledial, sizeof(pris[span].idledial));
+						ast_copy_string(pris[span].idleext, conf->pri.idleext, sizeof(pris[span].idleext));
+						ast_copy_string(pris[span].internationalprefix, conf->pri.internationalprefix, sizeof(pris[span].internationalprefix));
+						ast_copy_string(pris[span].nationalprefix, conf->pri.nationalprefix, sizeof(pris[span].nationalprefix));
+						ast_copy_string(pris[span].localprefix, conf->pri.localprefix, sizeof(pris[span].localprefix));
+						ast_copy_string(pris[span].privateprefix, conf->pri.privateprefix, sizeof(pris[span].privateprefix));
+						ast_copy_string(pris[span].unknownprefix, conf->pri.unknownprefix, sizeof(pris[span].unknownprefix));
+						pris[span].resetinterval = conf->pri.resetinterval;
 						
 						tmp->pri = &pris[span];
 						tmp->prioffset = offset;
@@ -8331,23 +8331,23 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 			}
 #endif
 		} else {
-			conf.chan.sig = tmp->sig;
-			conf.chan.radio = tmp->radio;
+			conf->chan.sig = tmp->sig;
+			conf->chan.radio = tmp->radio;
 			memset(&p, 0, sizeof(p));
 			if (tmp->subs[SUB_REAL].zfd > -1)
 				res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &p);
 		}
 		/* Adjust starttime on loopstart and kewlstart trunks to reasonable values */
-		if ((conf.chan.sig == SIG_FXSKS) || (conf.chan.sig == SIG_FXSLS) ||
-		    (conf.chan.sig == SIG_EM) || (conf.chan.sig == SIG_EM_E1) ||  (conf.chan.sig == SIG_EMWINK) ||
-			(conf.chan.sig == SIG_FEATD) || (conf.chan.sig == SIG_FEATDMF) || (conf.chan.sig == SIG_FEATDMF_TA) ||
-			  (conf.chan.sig == SIG_FEATB) || (conf.chan.sig == SIG_E911) ||
-		    (conf.chan.sig == SIG_SF) || (conf.chan.sig == SIG_SFWINK) || (conf.chan.sig == SIG_FGC_CAMA) || (conf.chan.sig == SIG_FGC_CAMAMF) ||
-			(conf.chan.sig == SIG_SF_FEATD) || (conf.chan.sig == SIG_SF_FEATDMF) ||
-			  (conf.chan.sig == SIG_SF_FEATB)) {
+		if ((conf->chan.sig == SIG_FXSKS) || (conf->chan.sig == SIG_FXSLS) ||
+		    (conf->chan.sig == SIG_EM) || (conf->chan.sig == SIG_EM_E1) ||  (conf->chan.sig == SIG_EMWINK) ||
+			(conf->chan.sig == SIG_FEATD) || (conf->chan.sig == SIG_FEATDMF) || (conf->chan.sig == SIG_FEATDMF_TA) ||
+			  (conf->chan.sig == SIG_FEATB) || (conf->chan.sig == SIG_E911) ||
+		    (conf->chan.sig == SIG_SF) || (conf->chan.sig == SIG_SFWINK) || (conf->chan.sig == SIG_FGC_CAMA) || (conf->chan.sig == SIG_FGC_CAMAMF) ||
+			(conf->chan.sig == SIG_SF_FEATD) || (conf->chan.sig == SIG_SF_FEATDMF) ||
+			  (conf->chan.sig == SIG_SF_FEATB)) {
 			p.starttime = 250;
 		}
-		if (conf.chan.radio) {
+		if (conf->chan.radio) {
 			/* XXX Waiting to hear back from Jim if these should be adjustable XXX */
 			p.channo = channel;
 			p.rxwinktime = 1;
@@ -8355,34 +8355,34 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 			p.starttime = 1;
 			p.debouncetime = 5;
 		}
-		if (!conf.chan.radio) {
+		if (!conf->chan.radio) {
 			p.channo = channel;
 			/* Override timing settings based on config file */
-			if (conf.timing.prewinktime >= 0)
-				p.prewinktime = conf.timing.prewinktime;
-			if (conf.timing.preflashtime >= 0)
-				p.preflashtime = conf.timing.preflashtime;
-			if (conf.timing.winktime >= 0)
-				p.winktime = conf.timing.winktime;
-			if (conf.timing.flashtime >= 0)
-				p.flashtime = conf.timing.flashtime;
-			if (conf.timing.starttime >= 0)
-				p.starttime = conf.timing.starttime;
-			if (conf.timing.rxwinktime >= 0)
-				p.rxwinktime = conf.timing.rxwinktime;
-			if (conf.timing.rxflashtime >= 0)
-				p.rxflashtime = conf.timing.rxflashtime;
-			if (conf.timing.debouncetime >= 0)
-				p.debouncetime = conf.timing.debouncetime;
+			if (conf->timing.prewinktime >= 0)
+				p.prewinktime = conf->timing.prewinktime;
+			if (conf->timing.preflashtime >= 0)
+				p.preflashtime = conf->timing.preflashtime;
+			if (conf->timing.winktime >= 0)
+				p.winktime = conf->timing.winktime;
+			if (conf->timing.flashtime >= 0)
+				p.flashtime = conf->timing.flashtime;
+			if (conf->timing.starttime >= 0)
+				p.starttime = conf->timing.starttime;
+			if (conf->timing.rxwinktime >= 0)
+				p.rxwinktime = conf->timing.rxwinktime;
+			if (conf->timing.rxflashtime >= 0)
+				p.rxflashtime = conf->timing.rxflashtime;
+			if (conf->timing.debouncetime >= 0)
+				p.debouncetime = conf->timing.debouncetime;
 		}
 
 		/* 10 is a nice default. */
-		if (conf.chan.drings.ringnum[0].range == 0)
-			conf.chan.drings.ringnum[0].range = 10;
-		if (conf.chan.drings.ringnum[1].range == 0)
-			conf.chan.drings.ringnum[1].range = 10;
-		if (conf.chan.drings.ringnum[2].range == 0)
-			conf.chan.drings.ringnum[2].range = 10;
+		if (conf->chan.drings.ringnum[0].range == 0)
+			conf->chan.drings.ringnum[0].range = 10;
+		if (conf->chan.drings.ringnum[1].range == 0)
+			conf->chan.drings.ringnum[1].range = 10;
+		if (conf->chan.drings.ringnum[2].range == 0)
+			conf->chan.drings.ringnum[2].range = 10;
 
 		/* dont set parms on a pseudo-channel (or CRV) */
 		if (tmp->subs[SUB_REAL].zfd >= 0)
@@ -8410,64 +8410,64 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 				ast_log(LOG_WARNING, "Unable to check buffer policy on channel %d\n", channel);
 		}
 #endif
-		tmp->immediate = conf.chan.immediate;
-		tmp->transfertobusy = conf.chan.transfertobusy;
-		if (conf.chan.sig & __ZT_SIG_FXS) {
-			tmp->mwimonitor_fsk = conf.chan.mwimonitor_fsk;
-			tmp->mwimonitor_neon = conf.chan.mwimonitor_neon;
+		tmp->immediate = conf->chan.immediate;
+		tmp->transfertobusy = conf->chan.transfertobusy;
+		if (conf->chan.sig & __ZT_SIG_FXS) {
+			tmp->mwimonitor_fsk = conf->chan.mwimonitor_fsk;
+			tmp->mwimonitor_neon = conf->chan.mwimonitor_neon;
 		}
-		tmp->sig = conf.chan.sig;
-		tmp->outsigmod = conf.chan.outsigmod;
-		tmp->radio = conf.chan.radio;
+		tmp->sig = conf->chan.sig;
+		tmp->outsigmod = conf->chan.outsigmod;
+		tmp->radio = conf->chan.radio;
 		tmp->ringt_base = ringt_base;
 		tmp->firstradio = 0;
-		if ((conf.chan.sig == SIG_FXOKS) || (conf.chan.sig == SIG_FXOLS) || (conf.chan.sig == SIG_FXOGS))
-			tmp->permcallwaiting = conf.chan.callwaiting;
+		if ((conf->chan.sig == SIG_FXOKS) || (conf->chan.sig == SIG_FXOLS) || (conf->chan.sig == SIG_FXOGS))
+			tmp->permcallwaiting = conf->chan.callwaiting;
 		else
 			tmp->permcallwaiting = 0;
 		/* Flag to destroy the channel must be cleared on new mkif.  Part of changes for reload to work */
 		tmp->destroy = 0;
-		tmp->drings = conf.chan.drings;
+		tmp->drings = conf->chan.drings;
 		tmp->usedistinctiveringdetection = usedistinctiveringdetection;
-		tmp->callwaitingcallerid = conf.chan.callwaitingcallerid;
-		tmp->threewaycalling = conf.chan.threewaycalling;
-		tmp->adsi = conf.chan.adsi;
-		tmp->use_smdi = conf.chan.use_smdi;
-		tmp->permhidecallerid = conf.chan.hidecallerid;
-		tmp->callreturn = conf.chan.callreturn;
-		tmp->echocancel = conf.chan.echocancel;
-		tmp->echotraining = conf.chan.echotraining;
-		tmp->pulse = conf.chan.pulse;
+		tmp->callwaitingcallerid = conf->chan.callwaitingcallerid;
+		tmp->threewaycalling = conf->chan.threewaycalling;
+		tmp->adsi = conf->chan.adsi;
+		tmp->use_smdi = conf->chan.use_smdi;
+		tmp->permhidecallerid = conf->chan.hidecallerid;
+		tmp->callreturn = conf->chan.callreturn;
+		tmp->echocancel = conf->chan.echocancel;
+		tmp->echotraining = conf->chan.echotraining;
+		tmp->pulse = conf->chan.pulse;
 #if defined(HAVE_ZAPTEL_ECHOCANPARAMS)
 		if (tmp->echocancel.head.tap_length) {
 #else
 		if (tmp->echocancel) {
 #endif
-			tmp->echocanbridged = conf.chan.echocanbridged;
+			tmp->echocanbridged = conf->chan.echocanbridged;
 		} else {
-			if (conf.chan.echocanbridged)
+			if (conf->chan.echocanbridged)
 				ast_log(LOG_NOTICE, "echocancelwhenbridged requires echocancel to be enabled; ignoring\n");
 			tmp->echocanbridged = 0;
 		}
-		tmp->busydetect = conf.chan.busydetect;
-		tmp->busycount = conf.chan.busycount;
-		tmp->busy_tonelength = conf.chan.busy_tonelength;
-		tmp->busy_quietlength = conf.chan.busy_quietlength;
-		tmp->callprogress = conf.chan.callprogress;
-		tmp->cancallforward = conf.chan.cancallforward;
-		tmp->dtmfrelax = conf.chan.dtmfrelax;
+		tmp->busydetect = conf->chan.busydetect;
+		tmp->busycount = conf->chan.busycount;
+		tmp->busy_tonelength = conf->chan.busy_tonelength;
+		tmp->busy_quietlength = conf->chan.busy_quietlength;
+		tmp->callprogress = conf->chan.callprogress;
+		tmp->cancallforward = conf->chan.cancallforward;
+		tmp->dtmfrelax = conf->chan.dtmfrelax;
 		tmp->callwaiting = tmp->permcallwaiting;
 		tmp->hidecallerid = tmp->permhidecallerid;
 		tmp->channel = channel;
-		tmp->stripmsd = conf.chan.stripmsd;
-		tmp->use_callerid = conf.chan.use_callerid;
-		tmp->cid_signalling = conf.chan.cid_signalling;
-		tmp->cid_start = conf.chan.cid_start;
-		tmp->zaptrcallerid = conf.chan.zaptrcallerid;
-		tmp->restrictcid = conf.chan.restrictcid;
-		tmp->use_callingpres = conf.chan.use_callingpres;
-		tmp->priindication_oob = conf.chan.priindication_oob;
-		tmp->priexclusive = conf.chan.priexclusive;
+		tmp->stripmsd = conf->chan.stripmsd;
+		tmp->use_callerid = conf->chan.use_callerid;
+		tmp->cid_signalling = conf->chan.cid_signalling;
+		tmp->cid_start = conf->chan.cid_start;
+		tmp->zaptrcallerid = conf->chan.zaptrcallerid;
+		tmp->restrictcid = conf->chan.restrictcid;
+		tmp->use_callingpres = conf->chan.use_callingpres;
+		tmp->priindication_oob = conf->chan.priindication_oob;
+		tmp->priexclusive = conf->chan.priexclusive;
 		if (tmp->usedistinctiveringdetection) {
 			if (!tmp->use_callerid) {
 				ast_log(LOG_NOTICE, "Distinctive Ring detect requires 'usecallerid' be on\n");
@@ -8482,30 +8482,30 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 			}
 		}
 		if (tmp->use_smdi) {
-			tmp->smdi_iface = ast_smdi_interface_find(conf.smdi_port);
+			tmp->smdi_iface = ast_smdi_interface_find(conf->smdi_port);
 			if (!(tmp->smdi_iface)) {
 				ast_log(LOG_ERROR, "Invalid SMDI port specfied, disabling SMDI support\n");
 				tmp->use_smdi = 0;
 			}
 		}
 
-		ast_copy_string(tmp->accountcode, conf.chan.accountcode, sizeof(tmp->accountcode));
-		tmp->amaflags = conf.chan.amaflags;
+		ast_copy_string(tmp->accountcode, conf->chan.accountcode, sizeof(tmp->accountcode));
+		tmp->amaflags = conf->chan.amaflags;
 		if (!here) {
 			tmp->confno = -1;
 			tmp->propconfno = -1;
 		}
-		tmp->canpark = conf.chan.canpark;
-		tmp->transfer = conf.chan.transfer;
-		ast_copy_string(tmp->defcontext,conf.chan.context,sizeof(tmp->defcontext));
-		ast_copy_string(tmp->language, conf.chan.language, sizeof(tmp->language));
-		ast_copy_string(tmp->mohinterpret, conf.chan.mohinterpret, sizeof(tmp->mohinterpret));
-		ast_copy_string(tmp->mohsuggest, conf.chan.mohsuggest, sizeof(tmp->mohsuggest));
-		ast_copy_string(tmp->context, conf.chan.context, sizeof(tmp->context));
-		ast_copy_string(tmp->cid_num, conf.chan.cid_num, sizeof(tmp->cid_num));
+		tmp->canpark = conf->chan.canpark;
+		tmp->transfer = conf->chan.transfer;
+		ast_copy_string(tmp->defcontext,conf->chan.context,sizeof(tmp->defcontext));
+		ast_copy_string(tmp->language, conf->chan.language, sizeof(tmp->language));
+		ast_copy_string(tmp->mohinterpret, conf->chan.mohinterpret, sizeof(tmp->mohinterpret));
+		ast_copy_string(tmp->mohsuggest, conf->chan.mohsuggest, sizeof(tmp->mohsuggest));
+		ast_copy_string(tmp->context, conf->chan.context, sizeof(tmp->context));
+		ast_copy_string(tmp->cid_num, conf->chan.cid_num, sizeof(tmp->cid_num));
 		tmp->cid_ton = 0;
-		ast_copy_string(tmp->cid_name, conf.chan.cid_name, sizeof(tmp->cid_name));
-		ast_copy_string(tmp->mailbox, conf.chan.mailbox, sizeof(tmp->mailbox));
+		ast_copy_string(tmp->cid_name, conf->chan.cid_name, sizeof(tmp->cid_name));
+		ast_copy_string(tmp->mailbox, conf->chan.mailbox, sizeof(tmp->mailbox));
 		if (!ast_strlen_zero(tmp->mailbox)) {
 			char *mailbox, *context;
 			mailbox = context = ast_strdupa(tmp->mailbox);
@@ -8519,17 +8519,17 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 				AST_EVENT_IE_END);
 		}
 		tmp->msgstate = -1;
-		tmp->group = conf.chan.group;
-		tmp->callgroup = conf.chan.callgroup;
-		tmp->pickupgroup= conf.chan.pickupgroup;
-		if (conf.chan.vars) {
-			tmp->vars = conf.chan.vars;
-			conf.chan.vars = NULL;
+		tmp->group = conf->chan.group;
+		tmp->callgroup = conf->chan.callgroup;
+		tmp->pickupgroup= conf->chan.pickupgroup;
+		if (conf->chan.vars) {
+			tmp->vars = conf->chan.vars;
+			conf->chan.vars = NULL;
 		}
-		tmp->cid_rxgain = conf.chan.cid_rxgain;
-		tmp->rxgain = conf.chan.rxgain;
-		tmp->txgain = conf.chan.txgain;
-		tmp->tonezone = conf.chan.tonezone;
+		tmp->cid_rxgain = conf->chan.cid_rxgain;
+		tmp->rxgain = conf->chan.rxgain;
+		tmp->txgain = conf->chan.txgain;
+		tmp->tonezone = conf->chan.tonezone;
 		tmp->onhooktime = time(NULL);
 		if (tmp->subs[SUB_REAL].zfd > -1) {
 			set_actual_gain(tmp->subs[SUB_REAL].zfd, 0, tmp->rxgain, tmp->txgain, tmp->law);
@@ -8537,7 +8537,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 				ast_dsp_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
 			update_conf(tmp);
 			if (!here) {
-				if ((conf.chan.sig != SIG_BRI) && (conf.chan.sig != SIG_BRI_PTMP) && (conf.chan.sig != SIG_PRI) && (conf.chan.sig != SIG_SS7))
+				if ((conf->chan.sig != SIG_BRI) && (conf->chan.sig != SIG_BRI_PTMP) && (conf->chan.sig != SIG_PRI) && (conf->chan.sig != SIG_SS7))
 					/* Hang it up to be sure it's good */
 					zt_set_hook(tmp->subs[SUB_REAL].zfd, ZT_ONHOOK);
 			}
@@ -8558,13 +8558,13 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 			if (si.alarms) tmp->inalarm = 1;
 		}
 
-		tmp->polarityonanswerdelay = conf.chan.polarityonanswerdelay;
-		tmp->answeronpolarityswitch = conf.chan.answeronpolarityswitch;
-		tmp->hanguponpolarityswitch = conf.chan.hanguponpolarityswitch;
-		tmp->sendcalleridafter = conf.chan.sendcalleridafter;
+		tmp->polarityonanswerdelay = conf->chan.polarityonanswerdelay;
+		tmp->answeronpolarityswitch = conf->chan.answeronpolarityswitch;
+		tmp->hanguponpolarityswitch = conf->chan.hanguponpolarityswitch;
+		tmp->sendcalleridafter = conf->chan.sendcalleridafter;
 		if (!here) {
 			tmp->locallyblocked = tmp->remotelyblocked = 0;
-			if ((conf.chan.sig == SIG_PRI) || (conf.chan.sig == SIG_BRI) || (conf.chan.sig == SIG_BRI_PTMP) || (conf.chan.sig == SIG_SS7))
+			if ((conf->chan.sig == SIG_PRI) || (conf->chan.sig == SIG_BRI) || (conf->chan.sig == SIG_BRI_PTMP) || (conf->chan.sig == SIG_SS7))
 				tmp->inservice = 0;
 			else /* We default to in service on protocols that don't have a reset */
 				tmp->inservice = 1;
@@ -13132,7 +13132,7 @@ static int unload_module(void)
 	return __unload_module();
 }
 
-static int build_channels(struct zt_chan_conf conf, int iscrv, const char *value, int reload, int lineno, int *found_pseudo)
+static int build_channels(struct zt_chan_conf *conf, int iscrv, const char *value, int reload, int lineno, int *found_pseudo)
 {
 	char *c, *chan;
 	int x, start, finish;
@@ -13142,7 +13142,7 @@ static int build_channels(struct zt_chan_conf conf, int iscrv, const char *value
 	int trunkgroup, y;
 #endif
 	
-	if ((reload == 0) && (conf.chan.sig < 0) && !conf.is_sig_auto) {
+	if ((reload == 0) && (conf->chan.sig < 0) && !conf->is_sig_auto) {
 		ast_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
 		return -1;
 	}
@@ -13299,7 +13299,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
  			if (skipchannels)
  				continue;
  			iscrv = !strcasecmp(v->name, "crv");
- 			if (build_channels(*confp, iscrv, v->value, reload, v->lineno, &found_pseudo))
+ 			if (build_channels(confp, iscrv, v->value, reload, v->lineno, &found_pseudo))
  					return -1;
  		} else if (!strcasecmp(v->name, "zapchan")) {
  			ast_copy_string(zapchan, v->value, sizeof(zapchan));
@@ -14040,7 +14040,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 	if (zapchan[0]) { 
 		/* The user has set 'zapchan' */
 		/*< \todo pass proper line number instead of 0 */
-		if (build_channels(*confp, 0, zapchan, reload, 0, &found_pseudo)) {
+		if (build_channels(confp, 0, zapchan, reload, 0, &found_pseudo)) {
 			return -1;
 		}
 	}
@@ -14054,7 +14054,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 		confp->chan.callgroup = 0;
 		confp->chan.pickupgroup = 0;
 
-		tmp = mkintf(CHAN_PSEUDO, *confp, NULL, reload);
+		tmp = mkintf(CHAN_PSEUDO, confp, NULL, reload);
 
 		if (tmp) {
 			ast_verb(3, "Automatically generated pseudo channel\n");
