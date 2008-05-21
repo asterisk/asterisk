@@ -864,7 +864,7 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 	/* Find our cached entry for this configuration file */
 	AST_LIST_LOCK(&cfmtime_head);
 	AST_LIST_TRAVERSE(&cfmtime_head, cfmtime, list) {
-		if (!strcmp(cfmtime->filename, configfile))
+		if (!strcmp(cfmtime->filename, configfile) && !strcmp(cfmtime->who_asked, who_asked))
 			break;
 	}
 	if (!cfmtime) {
