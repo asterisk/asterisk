@@ -967,6 +967,9 @@ void ast_console_puts(const char *string)
 
 static void network_verboser(const char *s)
 {
+	if (*s == 127) {
+		s++;
+	}
 	ast_network_puts_mutable(s);
 }
 
