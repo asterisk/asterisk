@@ -75,8 +75,10 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
  	Note the abscence of a comma after the VERBOSE_PREFIX_3.  This is important.
  	VERBOSE_PREFIX_1 through VERBOSE_PREFIX_3 are defined.
  */
-void ast_verbose(const char *fmt, ...)
-	__attribute__ ((format (printf, 1, 2)));
+void __ast_verbose(const char *file, int line, const char *func, const char *fmt, ...)
+	__attribute__ ((format (printf, 4, 5)));
+
+#define ast_verbose(...) __ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__,  __VA_ARGS__)
 
 void ast_child_verbose(int level, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));

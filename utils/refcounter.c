@@ -250,7 +250,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	va_end(vars);
 }
 
-void ast_verbose(const char *fmt, ...)
+void __ast_verbose(const char *file, int line, const char *func, const char *fmt, ...)
 {
         va_list vars;
         va_start(vars,fmt);

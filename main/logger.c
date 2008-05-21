@@ -1156,7 +1156,7 @@ void ast_backtrace(void)
 #endif
 }
 
-void ast_verbose(const char *fmt, ...)
+void __ast_verbose(const char *file, int line, const char *func, const char *fmt, ...)
 {
 	struct logmsg *logmsg = NULL;
 	struct ast_str *buf = NULL;
@@ -1198,7 +1198,7 @@ void ast_verbose(const char *fmt, ...)
 
 	strcpy(logmsg->str, buf->str);
 
-	ast_log(LOG_VERBOSE, "%s", logmsg->str + 1);
+	ast_log(__LOG_VERBOSE, file, line, func, "%s", logmsg->str + 1);
 
 	/* Set type */
 	logmsg->type = LOGMSG_VERBOSE;

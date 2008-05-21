@@ -108,7 +108,7 @@ void ast_cli_unregister_multiple(void);
 void ast_context_destroy(void);
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...);
 char *ast_process_quotes_and_slashes(char *start, char find, char replace_with);
-void ast_verbose(const char *fmt, ...);
+void __ast_verbose(const char *file, int line, const char *func, const char *fmt, ...);
 struct ast_app *pbx_findapp(const char *app);
 void filter_leading_space_from_exprs(char *str);
 void filter_newlines(char *str);
