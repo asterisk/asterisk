@@ -4521,6 +4521,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		if (p->udptl)
 			ast_udptl_settos(p->udptl, global_tos_audio);
 		p->maxcallbitrate = default_maxcallbitrate;
+		p->autoframing = global_autoframing;
 	}
 
 	if (useglobal_nat && sin) {
