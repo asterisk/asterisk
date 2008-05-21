@@ -575,10 +575,12 @@ static void eventhandler(struct video_desc *env, const char *caption)
 				break;
 
 			case SDL_ACTIVEEVENT:
+#if 0 /* do not react, we don't want to die because the window is minimized */
 				if (ev[i].active.gain == 0 && ev[i].active.state & SDL_APPACTIVE) {
 					ast_log(LOG_WARNING, "/* somebody has killed us ? */");
 					ast_cli_command(gui->outfd, "stop now");
 				}
+#endif
 				break;
 
 			case SDL_KEYUP:	/* ignore, for the time being */
