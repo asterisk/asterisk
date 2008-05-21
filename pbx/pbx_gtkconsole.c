@@ -132,6 +132,10 @@ static void __verboser(const char *_stuff)
 
 static void verboser(const char *stuff) 
 {
+	if (*stuff == 127) {
+		stuff++;
+	}
+
 	ast_mutex_lock(&verb_lock);
 	/* Lock appropriately if we're really being called in verbose mode */
 	__verboser(stuff);
