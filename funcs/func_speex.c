@@ -135,7 +135,7 @@ static int speex_callback(struct ast_audiohook *audiohook, struct ast_channel *c
 		speex_preprocess_ctl(sdi->state, SPEEX_PREPROCESS_SET_DENOISE, &sdi->denoise);
 	}
 
-	speex_preprocess(sdi->state, frame->data, NULL);
+	speex_preprocess(sdi->state, frame->data.ptr, NULL);
 
 	return 0;
 }

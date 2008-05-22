@@ -165,7 +165,7 @@ static struct ast_frame *lintospeex_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = slin_speex_ex;
+	f.data.ptr = slin_speex_ex;
 	return &f;
 }
 
@@ -180,7 +180,7 @@ static struct ast_frame *speextolin_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = speex_slin_ex;
+	f.data.ptr = speex_slin_ex;
 	return &f;
 }
 
@@ -220,7 +220,7 @@ static int speextolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	}
 
 	/* Read in bits */
-	speex_bits_read_from(&tmp->bits, f->data, f->datalen);
+	speex_bits_read_from(&tmp->bits, f->data.ptr, f->datalen);
 	for (;;) {
 #ifdef _SPEEX_TYPES_H
 		res = speex_decode_int(tmp->speex, &tmp->bits, fout);
@@ -249,7 +249,7 @@ static int lintospeex_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	/* XXX We should look at how old the rest of our stream is, and if it
 	   is too old, then we should overwrite it entirely, otherwise we can
 	   get artifacts of earlier talk that do not belong */
-	memcpy(tmp->buf + pvt->samples, f->data, f->datalen);
+	memcpy(tmp->buf + pvt->samples, f->data.ptr, f->datalen);
 	pvt->samples += f->samples;
 	return 0;
 }

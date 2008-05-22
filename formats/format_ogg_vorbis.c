@@ -291,7 +291,7 @@ static int ogg_vorbis_write(struct ast_filestream *fs, struct ast_frame *f)
 	if (!f->datalen)
 		return -1;
 
-	data = (short *) f->data;
+	data = (short *) f->data.ptr;
 
 	buffer = vorbis_analysis_buffer(&s->vd, f->samples);
 
@@ -433,7 +433,7 @@ static struct ast_frame *ogg_vorbis_read(struct ast_filestream *fs,
 	fs->fr.subclass = AST_FORMAT_SLINEAR;
 	fs->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&fs->fr, fs->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
-	buf = (short *)(fs->fr.data);	/* SLIN data buffer */
+	buf = (short *)(fs->fr.data.ptr);	/* SLIN data buffer */
 
 	while (samples_out != SAMPLES_MAX) {
 		float **pcm;

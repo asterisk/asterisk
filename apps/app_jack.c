@@ -484,7 +484,7 @@ static int queue_voice_frame(struct jack_data *jack_data, struct ast_frame *f)
 	float f_buf[f->samples * 8];
 	size_t f_buf_used = 0;
 	int i;
-	int16_t *s_buf = f->data;
+	int16_t *s_buf = f->data.ptr;
 	size_t res;
 
 	memset(f_buf, 0, sizeof(f_buf));
@@ -572,7 +572,7 @@ static void handle_jack_audio(struct ast_channel *chan, struct jack_data *jack_d
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_SLINEAR,
 		.src = "JACK",
-		.data = buf,
+		.data.ptr = buf,
 		.datalen = sizeof(buf),
 		.samples = ARRAY_LEN(buf),
 	};
@@ -582,7 +582,7 @@ static void handle_jack_audio(struct ast_channel *chan, struct jack_data *jack_d
 		char *read_buf;
 
 		read_len = out_frame ? out_frame->datalen : sizeof(buf);
-		read_buf = out_frame ? out_frame->data : buf;
+		read_buf = out_frame ? out_frame->data.ptr : buf;
 
 		res = jack_ringbuffer_read_space(jack_data->input_rb);
 
@@ -590,7 +590,7 @@ static void handle_jack_audio(struct ast_channel *chan, struct jack_data *jack_d
 			/* Not enough data ready for another frame, move on ... */
 			if (out_frame) {
 				ast_debug(1, "Sending an empty frame for the JACK_HOOK\n");
-				memset(out_frame->data, 0, out_frame->datalen);
+				memset(out_frame->data.ptr, 0, out_frame->datalen);
 			}
 			break;
 		}
