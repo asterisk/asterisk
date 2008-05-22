@@ -75,7 +75,7 @@ static struct ast_frame *h264_read(struct ast_filestream *s, int *whennext)
 	s->fr.subclass = AST_FORMAT_H264;
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, len);
-	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
+	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d of %d) (%s)!\n", res, len, strerror(errno));
 		return NULL;
@@ -119,7 +119,7 @@ static int h264_write(struct ast_filestream *s, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Bad write (%d/2): %s\n", res, strerror(errno));
 		return -1;
 	}
-	if ((res = fwrite(f->data, 1, f->datalen, s->f)) != f->datalen) {
+	if ((res = fwrite(f->data.ptr, 1, f->datalen, s->f)) != f->datalen) {
 		ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 		return -1;
 	}

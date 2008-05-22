@@ -1783,7 +1783,7 @@ static int iax2_queue_hangup(int callno)
 				usleep(1);
 				ast_mutex_lock(&iaxsl[callno]);
 			} else {
-				ast_queue_hangup(iaxs[callno]->owner, -1);
+				ast_queue_hangup(iaxs[callno]->owner);
 				ast_channel_unlock(iaxs[callno]->owner);
 				break;
 			}
@@ -2244,7 +2244,7 @@ retry:
 			/* If there's an owner, prod it to give up */
 			/* It is ok to use ast_queue_hangup() here instead of iax2_queue_hangup()
 			 * because we already hold the owner channel lock. */
-			ast_queue_hangup(owner, -1);
+			ast_queue_hangup(owner);
 		}
 
 		if (pvt->peercallno) {
@@ -2312,7 +2312,7 @@ static void __attempt_transmit(const void *data)
 							ast_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", ast_inet_ntoa(iaxs[f->callno]->addr.sin_addr),iaxs[f->callno]->owner->name , f->af.frametype, f->af.subclass, f->ts, f->oseqno);
 						iaxs[callno]->error = ETIMEDOUT;
 						if (iaxs[callno]->owner) {
-							struct ast_frame fr = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP, .seqno = AST_CAUSE_DESTINATION_OUT_OF_ORDER };
+							struct ast_frame fr = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP, .data.uint32 = AST_CAUSE_DESTINATION_OUT_OF_ORDER };
 							/* Hangup the fd */
 							iax2_queue_frame(callno, &fr); /* XXX */
 							/* Remember, owner could disappear */
@@ -3030,7 +3030,7 @@ static int iax2_sendtext(struct ast_channel *c, const char *text)
 
 static int iax2_sendimage(struct ast_channel *c, struct ast_frame *img)
 {
-	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_IMAGE, img->subclass, 0, img->data, img->datalen, -1);
+	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_IMAGE, img->subclass, 0, img->data.ptr, img->datalen, -1);
 }
 
 static int iax2_sendhtml(struct ast_channel *c, int subclass, const char *data, int datalen)
@@ -4418,7 +4418,7 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 			tpeer->trunkdatalen += sizeof(struct ast_iax2_meta_trunk_entry);
 		}
 		/* Copy actual trunk data */
-		memcpy(ptr, f->data, f->datalen);
+		memcpy(ptr, f->data.ptr, f->datalen);
 		tpeer->trunkdatalen += f->datalen;
 
 		tpeer->calls++;
@@ -4698,7 +4698,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		else
 			fr->oseqno = pvt->oseqno++;
 		fr->iseqno = pvt->iseqno;
-		fh = (struct ast_iax2_full_hdr *)(fr->af.data - sizeof(struct ast_iax2_full_hdr));
+		fh = (struct ast_iax2_full_hdr *)(fr->af.data.ptr - sizeof(struct ast_iax2_full_hdr));
 		fh->scallno = htons(fr->callno | IAX_FLAG_FULL);
 		fh->ts = htonl(fr->ts);
 		fh->oseqno = fr->oseqno;
@@ -4763,7 +4763,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			/* Video frame have no sequence number */
 			fr->oseqno = -1;
 			fr->iseqno = -1;
-			vh = (struct ast_iax2_video_hdr *)(fr->af.data - sizeof(struct ast_iax2_video_hdr));
+			vh = (struct ast_iax2_video_hdr *)(fr->af.data.ptr - sizeof(struct ast_iax2_video_hdr));
 			vh->zeros = 0;
 			vh->callno = htons(0x8000 | fr->callno);
 			vh->ts = htons((fr->ts & 0x7FFF) | (fr->af.subclass & 0x1 ? 0x8000 : 0));
@@ -4779,7 +4779,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			fr->oseqno = -1;
 			fr->iseqno = -1;
 			/* Mini frame will do */
-			mh = (struct ast_iax2_mini_hdr *)(fr->af.data - sizeof(struct ast_iax2_mini_hdr));
+			mh = (struct ast_iax2_mini_hdr *)(fr->af.data.ptr - sizeof(struct ast_iax2_mini_hdr));
 			mh->callno = htons(fr->callno);
 			mh->ts = htons(fr->ts & 0xFFFF);
 			fr->datalen = fr->af.datalen + sizeof(struct ast_iax2_mini_hdr);
@@ -5666,7 +5666,7 @@ static int __send_command(struct chan_iax2_pvt *i, char type, int command, unsig
 	f.subclass = command;
 	f.datalen = datalen;
 	f.src = __FUNCTION__;
-	f.data = (void *) data;
+	f.data.ptr = (void *) data;
 
 	return iax2_send(i, &f, ts, seqno, now, transfer, final, media);
 }
@@ -7810,9 +7810,9 @@ static int socket_process_meta(int packet_len, struct ast_iax2_meta_hdr *meta, s
 			f.datalen = len;
 			if (f.datalen >= 0) {
 				if (f.datalen)
-					f.data = ptr;
+					f.data.ptr = ptr;
 				else
-					f.data = NULL;
+					f.data.ptr = NULL;
 				if (trunked_ts)
 					fr->ts = (iaxs[fr->callno]->last & 0xFFFF0000L) | (trunked_ts & 0xffff);
 				else
@@ -8217,15 +8217,15 @@ static int socket_process(struct iax2_thread *thread)
 					ast_mutex_unlock(&iaxsl[fr->callno]);
 					return 1;
 				}
-				f.data = NULL;
+				f.data.ptr = NULL;
 				f.datalen = 0;
 			} else
-				f.data = thread->buf + sizeof(*fh);
+				f.data.ptr = thread->buf + sizeof(*fh);
 		} else {
 			if (f.frametype == AST_FRAME_IAX)
-				f.data = NULL;
+				f.data.ptr = NULL;
 			else
-				f.data = empty;
+				f.data.ptr = empty;
 			memset(&ies, 0, sizeof(ies));
 		}
 
@@ -9421,9 +9421,9 @@ retryowner2:
 		}
 		f.datalen = res - sizeof(*vh);
 		if (f.datalen)
-			f.data = thread->buf + sizeof(*vh);
+			f.data.ptr = thread->buf + sizeof(*vh);
 		else
-			f.data = NULL;
+			f.data.ptr = NULL;
 #ifdef IAXTESTS
 		if (test_resync) {
 			fr->ts = (iaxs[fr->callno]->last & 0xFFFF8000L) | ((ntohs(vh->ts) + test_resync) & 0x7fff);
@@ -9448,9 +9448,9 @@ retryowner2:
 			return 1;
 		}
 		if (f.datalen)
-			f.data = thread->buf + sizeof(*mh);
+			f.data.ptr = thread->buf + sizeof(*mh);
 		else
-			f.data = NULL;
+			f.data.ptr = NULL;
 #ifdef IAXTESTS
 		if (test_resync) {
 			fr->ts = (iaxs[fr->callno]->last & 0xFFFF0000L) | ((ntohs(mh->ts) + test_resync) & 0xffff);

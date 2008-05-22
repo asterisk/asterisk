@@ -167,7 +167,7 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 					myf.f.src = __PRETTY_FUNCTION__;
 					myf.f.delivery.tv_sec = 0;
 					myf.f.delivery.tv_usec = 0;
-					myf.f.data = myf.frdata;
+					myf.f.data.ptr = myf.frdata;
 					if (ast_write(chan, &myf.f) < 0) {
 						res = -1;
 						break;

@@ -84,7 +84,7 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 			break;
 		}
 		if ((f->frametype == AST_FRAME_VOICE) && (f->subclass == AST_FORMAT_SLINEAR)) {
-			foo = (short *)f->data;
+			foo = (short *)f->data.ptr;
 			for (x=0;x<f->samples;x++) {
 				noise += abs(foo[x]);
 				samples++;

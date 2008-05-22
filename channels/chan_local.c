@@ -396,7 +396,7 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 		ast_mutex_lock(&p->lock);
 		isoutbound = IS_OUTBOUND(ast, p);
 		f.subclass = condition;
-		f.data = (void*)data;
+		f.data.ptr = (void*)data;
 		f.datalen = datalen;
 		if (!(res = local_queue_frame(p, isoutbound, &f, ast, 1)))
 			ast_mutex_unlock(&p->lock);
@@ -456,7 +456,7 @@ static int local_sendtext(struct ast_channel *ast, const char *text)
 
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
-	f.data = (char *) text;
+	f.data.ptr = (char *) text;
 	f.datalen = strlen(text) + 1;
 	if (!(res = local_queue_frame(p, isoutbound, &f, ast, 0)))
 		ast_mutex_unlock(&p->lock);
@@ -476,7 +476,7 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = subclass;
-	f.data = (char *)data;
+	f.data.ptr = (char *)data;
 	f.datalen = datalen;
 	if (!(res = local_queue_frame(p, isoutbound, &f, ast, 0)))
 		ast_mutex_unlock(&p->lock);
@@ -537,7 +537,7 @@ static int local_hangup(struct ast_channel *ast)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int isoutbound;
-	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP, .seqno = ast->hangupcause };
+	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP, .data.uint32 = ast->hangupcause };
 	struct ast_channel *ochan = NULL;
 	int glaredetect = 0, res = 0;
 

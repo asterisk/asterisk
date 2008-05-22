@@ -61,9 +61,9 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_ULAW,
 		.offset = AST_FRIENDLY_OFFSET,
-		.data = buf + AST_FRIENDLY_OFFSET,
 		.src = __FUNCTION__,
 	};
+	wf.data.ptr = buf + AST_FRIENDLY_OFFSET;
 
 	/* Instead of len, use samples, because channel.c generator_force
 	* generate(chan, tmp, 0, 160) ignores len. In any case, len is

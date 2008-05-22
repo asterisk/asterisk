@@ -46,7 +46,7 @@ static unsigned char a2mu[256];
 static int alawtoulaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int x = f->samples;
-	unsigned char *src = f->data;
+	unsigned char *src = f->data.ptr;
 	unsigned char *dst = (unsigned char *)pvt->outbuf + pvt->samples;
 
 	pvt->samples += x;
@@ -62,7 +62,7 @@ static int alawtoulaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 static int ulawtoalaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int x = f->samples;
-	unsigned char *src = f->data;
+	unsigned char *src = f->data.ptr;
 	unsigned char *dst = (unsigned char *)pvt->outbuf + pvt->samples;
 
 	pvt->samples += x;
@@ -87,7 +87,7 @@ static struct ast_frame *alawtoulaw_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = ulaw_slin_ex; /* XXX what ? */
+	f.data.ptr = ulaw_slin_ex; /* XXX what ? */
 	return &f;
 }
 
@@ -101,7 +101,7 @@ static struct ast_frame *ulawtoalaw_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = ulaw_slin_ex;
+	f.data.ptr = ulaw_slin_ex;
 	return &f;
 }
 

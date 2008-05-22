@@ -180,7 +180,7 @@ int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap)
 			   on the next read, thus eliminating the douple
 			   copy */
 			if (swap)
-				ast_swapcopy_samples(f->data, f->data, f->samples);
+				ast_swapcopy_samples(f->data.ptr, f->data.ptr, f->samples);
 			s->opt = f;
 			return 0;
 		}
@@ -192,9 +192,9 @@ int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap)
 		}
 	}
 	if (swap)
-		ast_swapcopy_samples(s->data+s->len, f->data, f->samples);
+		ast_swapcopy_samples(s->data+s->len, f->data.ptr, f->samples);
 	else
-		memcpy(s->data + s->len, f->data, f->datalen);
+		memcpy(s->data + s->len, f->data.ptr, f->datalen);
 	/* If either side is empty, reset the delivery time */
 	if (!s->len || ast_tvzero(f->delivery) || ast_tvzero(s->delivery))	/* XXX really ? */
 		s->delivery = f->delivery;
@@ -229,14 +229,14 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 	/* Make frame */
 	s->f.frametype = AST_FRAME_VOICE;
 	s->f.subclass = s->format;
-	s->f.data = s->framedata + AST_FRIENDLY_OFFSET;
+	s->f.data.ptr = s->framedata + AST_FRIENDLY_OFFSET;
 	s->f.offset = AST_FRIENDLY_OFFSET;
 	s->f.datalen = len;
 	/* Samples will be improper given VAD, but with VAD the concept really doesn't even exist */
 	s->f.samples = len * s->samplesperbyte;	/* XXX rounding */
 	s->f.delivery = s->delivery;
 	/* Fill Data */
-	memcpy(s->f.data, s->data, len);
+	memcpy(s->f.data.ptr, s->data, len);
 	s->len -= len;
 	/* Move remaining data to the front if applicable */
 	if (s->len) {
@@ -331,8 +331,8 @@ void ast_frame_free(struct ast_frame *fr, int cache)
 #endif
 	
 	if (fr->mallocd & AST_MALLOCD_DATA) {
-		if (fr->data) 
-			ast_free(fr->data - fr->offset);
+		if (fr->data.ptr) 
+			ast_free(fr->data.ptr - fr->offset);
 	}
 	if (fr->mallocd & AST_MALLOCD_SRC) {
 		if (fr->src)
@@ -404,8 +404,8 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 		newdata += AST_FRIENDLY_OFFSET;
 		out->offset = AST_FRIENDLY_OFFSET;
 		out->datalen = fr->datalen;
-		memcpy(newdata, fr->data, fr->datalen);
-		out->data = newdata;
+		memcpy(newdata, fr->data.ptr, fr->datalen);
+		out->data.ptr = newdata;
 	}
 
 	out->mallocd = AST_MALLOCD_HDR | AST_MALLOCD_SRC | AST_MALLOCD_DATA;
@@ -470,8 +470,8 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 	out->mallocd = AST_MALLOCD_HDR;
 	out->offset = AST_FRIENDLY_OFFSET;
 	if (out->datalen) {
-		out->data = buf + sizeof(*out) + AST_FRIENDLY_OFFSET;
-		memcpy(out->data, f->data, out->datalen);	
+		out->data.ptr = buf + sizeof(*out) + AST_FRIENDLY_OFFSET;
+		memcpy(out->data.ptr, f->data.ptr, out->datalen);	
 	}
 	if (srclen > 0) {
 		out->src = buf + sizeof(*out) + AST_FRIENDLY_OFFSET + f->datalen;
@@ -780,7 +780,7 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 			if (f->datalen != sizeof(enum ast_control_t38)) {
 				message = "Invalid";
 			} else {
-				enum ast_control_t38 state = *((enum ast_control_t38 *) f->data);
+				enum ast_control_t38 state = *((enum ast_control_t38 *) f->data.ptr);
 				if (state == AST_T38_REQUEST_NEGOTIATE)
 					message = "Negotiation Requested";
 				else if (state == AST_T38_REQUEST_TERMINATE)
@@ -813,7 +813,7 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 	case AST_FRAME_TEXT:
 		strcpy(ftype, "Text");
 		strcpy(subclass, "N/A");
-		ast_copy_string(moreinfo, f->data, sizeof(moreinfo));
+		ast_copy_string(moreinfo, f->data.ptr, sizeof(moreinfo));
 		break;
 	case AST_FRAME_IMAGE:
 		strcpy(ftype, "Image");
@@ -824,7 +824,7 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 		switch(f->subclass) {
 		case AST_HTML_URL:
 			strcpy(subclass, "URL");
-			ast_copy_string(moreinfo, f->data, sizeof(moreinfo));
+			ast_copy_string(moreinfo, f->data.ptr, sizeof(moreinfo));
 			break;
 		case AST_HTML_DATA:
 			strcpy(subclass, "Data");
@@ -843,7 +843,7 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 			break;
 		case AST_HTML_LINKURL:
 			strcpy(subclass, "Link URL");
-			ast_copy_string(moreinfo, f->data, sizeof(moreinfo));
+			ast_copy_string(moreinfo, f->data.ptr, sizeof(moreinfo));
 			break;
 		case AST_HTML_UNLINK:
 			strcpy(subclass, "Unlink");
@@ -1403,10 +1403,10 @@ int ast_codec_get_samples(struct ast_frame *f)
 	int samples=0;
 	switch(f->subclass) {
 	case AST_FORMAT_SPEEX:
-		samples = speex_samples(f->data, f->datalen);
+		samples = speex_samples(f->data.ptr, f->datalen);
 		break;
 	case AST_FORMAT_G723_1:
-		samples = g723_samples(f->data, f->datalen);
+		samples = g723_samples(f->data.ptr, f->datalen);
 		break;
 	case AST_FORMAT_ILBC:
 		samples = 240 * (f->datalen / 50);
@@ -1424,7 +1424,7 @@ int ast_codec_get_samples(struct ast_frame *f)
 	case AST_FORMAT_LPC10:
 		/* assumes that the RTP packet contains one LPC10 frame */
 		samples = 22 * 8;
-		samples += (((char *)(f->data))[7] & 0x1) * 8;
+		samples += (((char *)(f->data.ptr))[7] & 0x1) * 8;
 		break;
 	case AST_FORMAT_ULAW:
 	case AST_FORMAT_ALAW:
@@ -1484,7 +1484,7 @@ int ast_codec_get_len(int format, int samples)
 int ast_frame_adjust_volume(struct ast_frame *f, int adjustment)
 {
 	int count;
-	short *fdata = f->data;
+	short *fdata = f->data.ptr;
 	short adjust_value = abs(adjustment);
 
 	if ((f->frametype != AST_FRAME_VOICE) || (f->subclass != AST_FORMAT_SLINEAR))
@@ -1518,7 +1518,7 @@ int ast_frame_slinear_sum(struct ast_frame *f1, struct ast_frame *f2)
 	if (f1->samples != f2->samples)
 		return -1;
 
-	for (count = 0, data1 = f1->data, data2 = f2->data;
+	for (count = 0, data1 = f1->data.ptr, data2 = f2->data.ptr;
 	     count < f1->samples;
 	     count++, data1++, data2++)
 		ast_slinear_saturated_add(data1, data2);

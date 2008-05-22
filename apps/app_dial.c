@@ -765,7 +765,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						}
 						break;
 					case AST_FRAME_HTML:
-						if (!ast_test_flag64(outgoing, DIAL_NOFORWARDHTML) && ast_channel_sendhtml(in, f->subclass, f->data, f->datalen) == -1) {
+						if (!ast_test_flag64(outgoing, DIAL_NOFORWARDHTML) && ast_channel_sendhtml(in, f->subclass, f->data.ptr, f->datalen) == -1) {
 							ast_log(LOG_WARNING, "Unable to send URL\n");
 						}
 						break;
@@ -789,8 +789,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				strcpy(pa->status, "CANCEL");
 				ast_cdr_noanswer(in->cdr);
 				if (f) {
-					if (f->seqno)
-						in->hangupcause = f->seqno;
+					if (f->data.uint32) {
+						in->hangupcause = f->data.uint32;
+					}
 					ast_frfree(f);
 				}
 				return NULL;
@@ -824,7 +825,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 
 			/* Forward HTML stuff */
 			if (single && (f->frametype == AST_FRAME_HTML) && !ast_test_flag64(outgoing, DIAL_NOFORWARDHTML))
-				if (ast_channel_sendhtml(outgoing->chan, f->subclass, f->data, f->datalen) == -1)
+				if (ast_channel_sendhtml(outgoing->chan, f->subclass, f->data.ptr, f->datalen) == -1)
 					ast_log(LOG_WARNING, "Unable to send URL\n");
 
 			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF_BEGIN) || (f->frametype == AST_FRAME_DTMF_END)))  {
@@ -837,7 +838,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				(f->subclass == AST_CONTROL_VIDUPDATE) ||
 				 (f->subclass == AST_CONTROL_SRCUPDATE))) {
 				ast_verb(3, "%s requested special control %d, passing it to %s\n", in->name, f->subclass, outgoing->chan->name);
-				ast_indicate_data(outgoing->chan, f->subclass, f->data, f->datalen);
+				ast_indicate_data(outgoing->chan, f->subclass, f->data.ptr, f->datalen);
 			}
 			ast_frfree(f);
 		}

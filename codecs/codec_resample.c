@@ -102,7 +102,7 @@ static int resample_frame(struct ast_trans_pvt *pvt,
 {
 	int total_in_buf_used = 0;
 	int total_out_buf_used = 0;
-	int16_t *in_buf = (int16_t *) f->data;
+	int16_t *in_buf = (int16_t *) f->data.ptr;
 	int16_t *out_buf = (int16_t *) pvt->outbuf + pvt->samples;
 	float in_buf_f[f->samples];
 	float out_buf_f[2048];
@@ -168,7 +168,7 @@ static struct ast_frame *slin16_to_slin8_sample(void)
 		.datalen = sizeof(slin16_slin8_ex),
 		.samples = sizeof(slin16_slin8_ex) / sizeof(slin16_slin8_ex[0]),
 		.src = __PRETTY_FUNCTION__,
-		.data = slin16_slin8_ex,
+		.data.ptr = slin16_slin8_ex,
 	};
 
 	return &f;
@@ -182,7 +182,7 @@ static struct ast_frame *slin8_to_slin16_sample(void)
 		.datalen = sizeof(slin8_slin16_ex),
 		.samples = sizeof(slin8_slin16_ex) / sizeof(slin8_slin16_ex[0]),
 		.src = __PRETTY_FUNCTION__,
-		.data = slin8_slin16_ex,
+		.data.ptr = slin8_slin16_ex,
 	};
 
 	return &f;

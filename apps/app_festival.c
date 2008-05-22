@@ -218,7 +218,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 					myf.f.samples = res / 2;
 					myf.f.offset = AST_FRIENDLY_OFFSET;
 					myf.f.src = __PRETTY_FUNCTION__;
-					myf.f.data = myf.frdata;
+					myf.f.data.ptr = myf.frdata;
 					if (ast_write(chan, &myf.f) < 0) {
 						res = -1;
 						ast_frfree(f);

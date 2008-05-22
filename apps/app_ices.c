@@ -157,7 +157,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 				break;
 			}
 			if (f->frametype == AST_FRAME_VOICE) {
-				res = write(fds[1], f->data, f->datalen);
+				res = write(fds[1], f->data.ptr, f->datalen);
 				if (res < 0) {
 					if (errno != EAGAIN) {
 						ast_log(LOG_WARNING, "Write failed to pipe: %s\n", strerror(errno));

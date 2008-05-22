@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int ulawtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int i = f->samples;
-	unsigned char *src = f->data;
+	unsigned char *src = f->data.ptr;
 	int16_t *dst = (int16_t *)pvt->outbuf + pvt->samples;
 
 	pvt->samples += i;
@@ -62,7 +62,7 @@ static int lintoulaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int i = f->samples;
 	char *dst = pvt->outbuf + pvt->samples;
-	int16_t *src = f->data;
+	int16_t *src = f->data.ptr;
 
 	pvt->samples += i;
 	pvt->datalen += i;	/* 1 byte/sample */
@@ -84,7 +84,7 @@ static struct ast_frame *ulawtolin_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = ulaw_slin_ex;
+	f.data.ptr = ulaw_slin_ex;
 	return &f;
 }
 
@@ -103,7 +103,7 @@ static struct ast_frame *lintoulaw_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = slin_ulaw_ex;
+	f.data.ptr = slin_ulaw_ex;
 	return &f;
 }
 

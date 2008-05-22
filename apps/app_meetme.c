@@ -2342,7 +2342,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						   to write out all the samples.
 						 */
 						if (user->talking)
-							careful_write(fd, f->data, f->datalen, 0);
+							careful_write(fd, f->data.ptr, f->datalen, 0);
 					}
 				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT)) {
 					char tmp[2];
@@ -2566,7 +2566,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					fr.subclass = AST_FORMAT_SLINEAR;
 					fr.datalen = res;
 					fr.samples = res / 2;
-					fr.data = buf;
+					fr.data.ptr = buf;
 					fr.offset = AST_FRIENDLY_OFFSET;
 					if (!user->listen.actual && 
 						((confflags & CONFFLAG_MONITOR) || 

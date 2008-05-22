@@ -49,7 +49,7 @@ static struct ast_frame *jpeg_read_image(int fd, int len)
 	memset(&fr, 0, sizeof(fr));
 	fr.frametype = AST_FRAME_IMAGE;
 	fr.subclass = AST_FORMAT_JPEG;
-	fr.data = buf;
+	fr.data.ptr = buf;
 	fr.src = "JPEG Read";
 	fr.datalen = len;
 	return ast_frisolate(&fr);
@@ -79,7 +79,7 @@ static int jpeg_write_image(int fd, struct ast_frame *fr)
 		return -1;
 	}
 	if (fr->datalen) {
-		res = write(fd, fr->data, fr->datalen);
+		res = write(fd, fr->data.ptr, fr->datalen);
 		if (res != fr->datalen) {
 			ast_log(LOG_WARNING, "Only wrote %d of %d bytes: %s\n", res, fr->datalen, strerror(errno));
 			return -1;

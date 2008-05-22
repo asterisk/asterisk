@@ -692,7 +692,7 @@ static int lintog726_new(struct ast_trans_pvt *pvt)
 static int g726aal2tolin_framein (struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct g726_coder_pvt *tmp = pvt->pvt;
-	unsigned char *src = f->data;
+	unsigned char *src = f->data.ptr;
 	int16_t *dst = (int16_t *) pvt->outbuf + pvt->samples;
 	unsigned int i;
 
@@ -711,7 +711,7 @@ static int g726aal2tolin_framein (struct ast_trans_pvt *pvt, struct ast_frame *f
 static int lintog726aal2_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct g726_coder_pvt *tmp = pvt->pvt;
-	int16_t *src = f->data;
+	int16_t *src = f->data.ptr;
 	unsigned int i;
 
 	for (i = 0; i < f->samples; i++) {
@@ -733,7 +733,7 @@ static int lintog726aal2_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 static int g726tolin_framein (struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct g726_coder_pvt *tmp = pvt->pvt;
-	unsigned char *src = f->data;
+	unsigned char *src = f->data.ptr;
 	int16_t *dst = (int16_t *) pvt->outbuf + pvt->samples;
 	unsigned int i;
 
@@ -752,7 +752,7 @@ static int g726tolin_framein (struct ast_trans_pvt *pvt, struct ast_frame *f)
 static int lintog726_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct g726_coder_pvt *tmp = pvt->pvt;
-	int16_t *src = f->data;
+	int16_t *src = f->data.ptr;
 	unsigned int i;
 
 	for (i = 0; i < f->samples; i++) {
@@ -773,7 +773,7 @@ static int lintog726_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 /*! \brief convert G726-32 RFC3551 packed data into AAL2 packed data (or vice-versa) */
 static int g726tog726aal2_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	unsigned char *src = f->data;
+	unsigned char *src = f->data.ptr;
 	unsigned char *dst = (unsigned char *) pvt->outbuf + pvt->samples;
 	unsigned int i;
 
@@ -794,7 +794,7 @@ static struct ast_frame *g726tolin_sample(void)
 		.datalen = sizeof(g726_slin_ex),
 		.samples = sizeof(g726_slin_ex) * 2,	/* 2 samples per byte */
 		.src = __PRETTY_FUNCTION__,
-		.data = g726_slin_ex,
+		.data.ptr = g726_slin_ex,
 	};
 
 	return &f;
@@ -808,7 +808,7 @@ static struct ast_frame *lintog726_sample (void)
 		.datalen = sizeof(slin_g726_ex),
 		.samples = sizeof(slin_g726_ex) / 2,	/* 1 sample per 2 bytes */
 		.src = __PRETTY_FUNCTION__,
-		.data = slin_g726_ex,
+		.data.ptr = slin_g726_ex,
 	};
 
 	return &f;

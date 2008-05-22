@@ -188,7 +188,7 @@ static int playtones_generator(struct ast_channel *chan, void *data, int len, in
 	ps->f.datalen = len;
 	ps->f.samples = samples;
 	ps->f.offset = AST_FRIENDLY_OFFSET;
-	ps->f.data = ps->data;
+	ps->f.data.ptr = ps->data;
 	ps->f.delivery.tv_sec = 0;
 	ps->f.delivery.tv_usec = 0;
 	ast_write(chan, &ps->f);

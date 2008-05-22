@@ -158,7 +158,7 @@ static struct ast_frame *audiohook_read_frame_single(struct ast_audiohook *audio
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_SLINEAR,
-		.data = buf,
+		.data.ptr = buf,
 		.datalen = sizeof(buf),
 		.samples = samples,
 	};
@@ -185,7 +185,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_SLINEAR,
-		.data = NULL,
+		.data.ptr = NULL,
 		.datalen = sizeof(buf1),
 		.samples = samples,
 	};
@@ -263,7 +263,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 		final_buf = buf2;
 
 	/* Make the final buffer part of the frame, so it gets duplicated fine */
-	frame.data = final_buf;
+	frame.data.ptr = final_buf;
 
 	/* Yahoo, a combined copy of the audio! */
 	return ast_frdup(&frame);
@@ -586,7 +586,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 		}
 		AST_LIST_TRAVERSE_SAFE_END
 		/* We take all of the combined whisper sources and combine them into the audio being written out */
-		for (i = 0, data1 = middle_frame->data, data2 = combine_buf; i < samples; i++, data1++, data2++)
+		for (i = 0, data1 = middle_frame->data.ptr, data2 = combine_buf; i < samples; i++, data1++, data2++)
 			ast_slinear_saturated_add(data1, data2);
 		end_frame = middle_frame;
 	}

@@ -337,7 +337,7 @@ static int linear_generator(struct ast_channel *chan, void *data, int len, int s
 	struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_SLINEAR,
-		.data = buf + AST_FRIENDLY_OFFSET / 2,
+		.data.ptr = buf + AST_FRIENDLY_OFFSET / 2,
 		.offset = AST_FRIENDLY_OFFSET,
 	};
 	int res;

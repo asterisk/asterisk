@@ -573,7 +573,7 @@ static int jingle_hangup_farend(struct jingle *client, ikspak *pak)
 	if (tmp) {
 		tmp->alreadygone = 1;
 		if (tmp->owner)
-			ast_queue_hangup(tmp->owner, -1);
+			ast_queue_hangup(tmp->owner);
 	} else
 		ast_log(LOG_NOTICE, "Whoa, didn't find call!\n");
 	jingle_response(client, pak, NULL, NULL);

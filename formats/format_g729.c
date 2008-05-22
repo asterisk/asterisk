@@ -50,7 +50,7 @@ static struct ast_frame *g729_read(struct ast_filestream *s, int *whennext)
 	s->fr.mallocd = 0;
 	s->fr.samples = G729A_SAMPLES;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
-	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
+	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res && (res != 10))	/* XXX what for ? */
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -74,7 +74,7 @@ static int g729_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 10\n", f->datalen);
 		return -1;
 	}
-	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
+	if ((res = fwrite(f->data.ptr, 1, f->datalen, fs->f)) != f->datalen) {
 			ast_log(LOG_WARNING, "Bad write (%d/10): %s\n", res, strerror(errno));
 			return -1;
 	}

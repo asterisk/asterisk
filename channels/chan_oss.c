@@ -679,13 +679,13 @@ static int oss_write(struct ast_channel *c, struct ast_frame *f)
 		int l = sizeof(o->oss_write_buf) - o->oss_write_dst;
 
 		if (f->datalen - src >= l) {	/* enough to fill a frame */
-			memcpy(o->oss_write_buf + o->oss_write_dst, f->data + src, l);
+			memcpy(o->oss_write_buf + o->oss_write_dst, f->data.ptr + src, l);
 			soundcard_writeframe(o, (short *) o->oss_write_buf);
 			src += l;
 			o->oss_write_dst = 0;
 		} else {				/* copy residue */
 			l = f->datalen - src;
-			memcpy(o->oss_write_buf + o->oss_write_dst, f->data + src, l);
+			memcpy(o->oss_write_buf + o->oss_write_dst, f->data.ptr + src, l);
 			src += l;			/* but really, we are done */
 			o->oss_write_dst += l;
 		}
@@ -724,10 +724,10 @@ static struct ast_frame *oss_read(struct ast_channel *c)
 	f->subclass = AST_FORMAT_SLINEAR;
 	f->samples = FRAME_SIZE;
 	f->datalen = FRAME_SIZE * 2;
-	f->data = o->oss_read_buf + AST_FRIENDLY_OFFSET;
+	f->data.ptr = o->oss_read_buf + AST_FRIENDLY_OFFSET;
 	if (o->boost != BOOST_SCALE) {	/* scale and clip values */
 		int i, x;
-		int16_t *p = (int16_t *) f->data;
+		int16_t *p = (int16_t *) f->data.ptr;
 		for (i = 0; i < f->samples; i++) {
 			x = (p[i] * o->boost) / BOOST_SCALE;
 			if (x > 32767)
@@ -1012,7 +1012,7 @@ static char *console_sendtext(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		buf[i] = '\n';
 		f.frametype = AST_FRAME_TEXT;
 		f.subclass = 0;
-		f.data = buf;
+		f.data.ptr = buf;
 		f.datalen = i + 1;
 		ast_queue_frame(o->owner, &f);
 	}
@@ -1040,7 +1040,7 @@ static char *console_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	}
 	o->hookstate = 0;
 	if (o->owner)
-		ast_queue_hangup(o->owner, AST_CAUSE_NORMAL_CLEARING);
+		ast_queue_hangup_with_cause(o->owner, AST_CAUSE_NORMAL_CLEARING);
 	setformat(o, O_CLOSE);
 	return CLI_SUCCESS;
 }

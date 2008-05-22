@@ -630,8 +630,8 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  			} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
  				ast_chan_log(LOG_NOTICE, chan, "Got AST_CONTROL_HANGUP\n");
  				send_eivr_event(eivr_events, 'H', NULL, chan);
-				if (f->seqno) {
-					chan->hangupcause = f->seqno;
+				if (f->data.uint32) {
+					chan->hangupcause = f->data.uint32;
 				}
  				ast_frfree(f);
  				res = -1;

@@ -2202,10 +2202,10 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				break;
 			case AST_CONTROL_HOLD:
 			case AST_CONTROL_UNHOLD:
-				ast_indicate_data(other, f->subclass, f->data, f->datalen);
+				ast_indicate_data(other, f->subclass, f->data.ptr, f->datalen);
 				break;
 			case AST_CONTROL_OPTION:
-				aoh = f->data;
+				aoh = f->data.ptr;
 				/* Forward option Requests */
 				if (aoh && aoh->flag == AST_OPTION_FLAG_REQUEST) {
 					ast_channel_setoption(other, ntohs(aoh->option), aoh->data, 

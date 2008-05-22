@@ -494,7 +494,7 @@ static struct ast_frame  *phone_exception(struct ast_channel *ast)
 	/* Some nice norms */
 	p->fr.datalen = 0;
 	p->fr.samples = 0;
-	p->fr.data =  NULL;
+	p->fr.data.ptr =  NULL;
 	p->fr.src = "Phone";
 	p->fr.offset = 0;
 	p->fr.mallocd=0;
@@ -553,7 +553,7 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 	/* Some nice norms */
 	p->fr.datalen = 0;
 	p->fr.samples = 0;
-	p->fr.data =  NULL;
+	p->fr.data.ptr =  NULL;
 	p->fr.src = "Phone";
 	p->fr.offset = 0;
 	p->fr.mallocd=0;
@@ -575,7 +575,7 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 		ast_log(LOG_WARNING, "Error reading: %s\n", strerror(errno));
 		return NULL;
 	}
-	p->fr.data = p->buf;
+	p->fr.data.ptr = p->buf;
 	if (p->mode != MODE_FXS)
 	switch(p->buf[0] & 0x3) {
 	case '0':
@@ -797,7 +797,7 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 	/* If we get here, we have a frame of Appropriate data */
 	sofar = 0;
-	pos = frame->data;
+	pos = frame->data.ptr;
 	while(sofar < frame->datalen) {
 		/* Write in no more than maxfr sized frames */
 		expected = frame->datalen - sofar;
@@ -808,7 +808,7 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (frame->datalen == 4) {
 			if (p->silencesupression) {
 				memset(tmpbuf + 4, 0, sizeof(tmpbuf) - 4);
-				memcpy(tmpbuf, frame->data, 4);
+				memcpy(tmpbuf, frame->data.ptr, 4);
 				expected = 24;
 				res = phone_write_buf(p, tmpbuf, expected, maxfr, 0);
 			}

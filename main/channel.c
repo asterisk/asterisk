@@ -1008,18 +1008,30 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 }
 
 /*! \brief Queue a hangup frame for channel */
-int ast_queue_hangup(struct ast_channel *chan, int cause)
+int ast_queue_hangup(struct ast_channel *chan)
+{
+	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
+	/* Yeah, let's not change a lock-critical value without locking */
+	if (!ast_channel_trylock(chan)) {
+		chan->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_unlock(chan);
+	}
+	return ast_queue_frame(chan, &f);
+}
+
+/*! \brief Queue a hangup frame for channel */
+int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
 
 	if (cause >= 0)
-		f.seqno = cause;
+		f.data.uint32 = cause;
 
 	/* Yeah, let's not change a lock-critical value without locking */
 	if (!ast_channel_trylock(chan)) {
 		chan->_softhangup |= AST_SOFTHANGUP_DEV;
 		if (cause < 0)
-			f.seqno = chan->hangupcause;
+			f.data.uint32 = chan->hangupcause;
 
 		ast_channel_unlock(chan);
 	}
@@ -1043,7 +1055,7 @@ int ast_queue_control_data(struct ast_channel *chan, enum ast_control_frame_type
 	struct ast_frame f = { AST_FRAME_CONTROL, };
 
 	f.subclass = control;
-	f.data = (void *) data;
+	f.data.ptr = (void *) data;
 	f.datalen = datalen;
 
 	return ast_queue_frame(chan, &f);
@@ -2235,7 +2247,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 			case AST_FRAME_VOICE:
 				/* Write audio if appropriate */
 				if (audiofd > -1)
-					write(audiofd, f->data, f->datalen);
+					write(audiofd, f->data.ptr, f->datalen);
 			default:
 				/* Ignore */
 				break;
@@ -2429,7 +2441,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		/* Interpret hangup and return NULL */
 		/* XXX why not the same for frames from the channel ? */
 		if (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP) {
-			cause = f->seqno;
+			cause = f->data.uint32;
 			ast_frfree(f);
 			f = NULL;
 		}
@@ -2835,7 +2847,7 @@ char *ast_recvtext(struct ast_channel *chan, int timeout)
 		if (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP)
 			done = 1;	/* force a break */
 		else if (f->frametype == AST_FRAME_TEXT) {		/* what we want */
-			buf = ast_strndup((char *) f->data, f->datalen);	/* dup and break */
+			buf = ast_strndup((char *) f->data.ptr, f->datalen);	/* dup and break */
 			done = 1;
 		}
 		ast_frfree(f);
@@ -2933,7 +2945,7 @@ int ast_prod(struct ast_channel *chan)
 	if (chan->_state != AST_STATE_UP) {
 		ast_debug(1, "Prodding channel '%s'\n", chan->name);
 		a.subclass = chan->rawwriteformat;
-		a.data = nothing + AST_FRIENDLY_OFFSET;
+		a.data.ptr = nothing + AST_FRIENDLY_OFFSET;
 		a.src = "ast_prod";
 		if (ast_write(chan, &a))
 			ast_log(LOG_WARNING, "Prodding channel '%s' failed\n", chan->name);
@@ -2996,7 +3008,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			} else if (fr->frametype == AST_FRAME_CONTROL && fr->subclass == AST_CONTROL_UNHOLD) {
 				/* This is a side case where Echo is basically being called and the person put themselves on hold and took themselves off hold */
 				res = (chan->tech->indicate == NULL) ? 0 :
-					chan->tech->indicate(chan, fr->subclass, fr->data, fr->datalen);
+					chan->tech->indicate(chan, fr->subclass, fr->data.ptr, fr->datalen);
 			}
 			res = 0;	/* XXX explain, why 0 ? */
 			goto done;
@@ -3009,7 +3021,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	switch (fr->frametype) {
 	case AST_FRAME_CONTROL:
 		res = (chan->tech->indicate == NULL) ? 0 :
-			chan->tech->indicate(chan, fr->subclass, fr->data, fr->datalen);
+			chan->tech->indicate(chan, fr->subclass, fr->data.ptr, fr->datalen);
 		break;
 	case AST_FRAME_DTMF_BEGIN:
 		if (chan->audiohooks) {
@@ -3045,12 +3057,12 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				chan->tech->write_text(chan, fr);
 		} else {
 			res = (chan->tech->send_text == NULL) ? 0 :
-				chan->tech->send_text(chan, (char *) fr->data);
+				chan->tech->send_text(chan, (char *) fr->data.ptr);
 		}
 		break;
 	case AST_FRAME_HTML:
 		res = (chan->tech->send_html == NULL) ? 0 :
-			chan->tech->send_html(chan, fr->subclass, (char *) fr->data, fr->datalen);
+			chan->tech->send_html(chan, fr->subclass, (char *) fr->data.ptr, fr->datalen);
 		break;
 	case AST_FRAME_VIDEO:
 		/* XXX Handle translation of video codecs one day XXX */
@@ -4212,7 +4224,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			case AST_CONTROL_UNHOLD:
 			case AST_CONTROL_VIDUPDATE:
 			case AST_CONTROL_SRCUPDATE:
-				ast_indicate_data(other, f->subclass, f->data, f->datalen);
+				ast_indicate_data(other, f->subclass, f->data.ptr, f->datalen);
 				break;
 			default:
 				*fo = f;
@@ -4689,7 +4701,7 @@ static int tonepair_generator(struct ast_channel *chan, void *data, int len, int
 	ts->f.datalen = len;
 	ts->f.samples = samples;
 	ts->f.offset = AST_FRIENDLY_OFFSET;
-	ts->f.data = ts->data;
+	ts->f.data.ptr = ts->data;
 	ast_write(chan, &ts->f);
 	ts->pos += x;
 	if (ts->duration > 0) {
@@ -4873,7 +4885,7 @@ static int silence_generator_generate(struct ast_channel *chan, void *data, int 
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_SLINEAR,
-		.data = buf,
+		.data.ptr = buf,
 		.samples = samples,
 		.datalen = sizeof(buf),
 	};

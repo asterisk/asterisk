@@ -647,7 +647,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 			}
 			/* Write audio frame out to speech engine if no DTMF has been received */
 			if (!strlen(dtmf) && f != NULL && f->frametype == AST_FRAME_VOICE) {
-				ast_speech_write(speech, f->data, f->datalen);
+				ast_speech_write(speech, f->data.ptr, f->datalen);
 			}
 			break;
 		case AST_SPEECH_STATE_WAIT:

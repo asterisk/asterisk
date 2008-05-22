@@ -1501,7 +1501,7 @@ static int sms_generate(struct ast_channel *chan, void *data, int len, int sampl
 	f.datalen = samples * sizeof(*buf);
 	f.offset = AST_FRIENDLY_OFFSET;
 	f.mallocd = 0;
-	f.data = buf;
+	f.data.ptr = buf;
 	f.samples = samples;
 	f.src = "app_sms";
 	/* create a buffer containing the digital sms pattern */
@@ -1905,7 +1905,7 @@ static int sms_exec(struct ast_channel *chan, void *data)
 			break;
 		}
 		if (f->frametype == AST_FRAME_VOICE) {
-			sms_process(&h, f->samples, f->data);
+			sms_process(&h, f->samples, f->data.ptr);
 		}
 
 		ast_frfree(f);

@@ -144,7 +144,7 @@ static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		hdr->srcoffset = 0;
 	}
 
-	memcpy(hdr->srcdata + hdr->srcoffset + hdr->srclen, f->data, f->datalen);
+	memcpy(hdr->srcdata + hdr->srcoffset + hdr->srclen, f->data.ptr, f->datalen);
 	hdr->srclen += f->datalen;
 	pvt->samples += f->samples;
 
@@ -162,7 +162,7 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 		pvt->f.frametype = AST_FRAME_VOICE;
 		pvt->f.subclass = 0;
 		pvt->f.samples = 160;
-		pvt->f.data = NULL;
+		pvt->f.data.ptr = NULL;
 		pvt->f.offset = 0;
 		pvt->f.datalen = 0;
 		pvt->f.mallocd = 0;
@@ -182,7 +182,7 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 			pvt->f.frametype = AST_FRAME_VOICE;
 			pvt->f.subclass = hdr->dstfmt;
 			pvt->f.samples = hdr->dstsamples;
-			pvt->f.data = hdr->dstdata + hdr->dstoffset;
+			pvt->f.data.ptr = hdr->dstdata + hdr->dstoffset;
 			pvt->f.offset = hdr->dstoffset;
 			pvt->f.datalen = hdr->dstlen;
 			pvt->f.mallocd = 0;

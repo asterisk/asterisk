@@ -231,7 +231,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 				if (f->frametype == AST_FRAME_VOICE) {
 					if (f->subclass == AST_FORMAT_ULAW) {
 						/* Carefully write */
-						careful_write(fd, f->data, f->datalen);
+						careful_write(fd, f->data.ptr, f->datalen);
 					} else {
 						ast_log(LOG_WARNING, "Huh?  Got a non-ulaw (%d) frame in the conference\n", f->subclass);
 					}
@@ -246,7 +246,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 				fr.subclass = AST_FORMAT_ULAW;
 				fr.datalen = res;
 				fr.samples = res;
-				fr.data = buf;
+				fr.data.ptr = buf;
 				fr.offset = AST_FRIENDLY_OFFSET;
 				if (ast_write(chan, &fr) < 0) {
 					ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));

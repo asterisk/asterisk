@@ -42,7 +42,7 @@ static struct ast_frame *slinear_read(struct ast_filestream *s, int *whennext)
 	s->fr.subclass = AST_FORMAT_SLINEAR;
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
-	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) < 1) {
+	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) < 1) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -63,7 +63,7 @@ static int slinear_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-slinear frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
+	if ((res = fwrite(f->data.ptr, 1, f->datalen, fs->f)) != f->datalen) {
 			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
 	}

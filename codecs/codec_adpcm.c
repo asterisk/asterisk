@@ -229,7 +229,7 @@ static int adpcmtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct adpcm_decoder_pvt *tmp = pvt->pvt;
 	int x = f->datalen;
-	unsigned char *src = f->data;
+	unsigned char *src = f->data.ptr;
 	int16_t *dst = (int16_t *)pvt->outbuf + pvt->samples;
 
 	while (x--) {
@@ -246,7 +246,7 @@ static int lintoadpcm_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct adpcm_encoder_pvt *tmp = pvt->pvt;
 
-	memcpy(&tmp->inbuf[pvt->samples], f->data, f->datalen);
+	memcpy(&tmp->inbuf[pvt->samples], f->data.ptr, f->datalen);
 	pvt->samples += f->samples;
 	return 0;
 }
@@ -296,7 +296,7 @@ static struct ast_frame *adpcmtolin_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = adpcm_slin_ex;
+	f.data.ptr = adpcm_slin_ex;
 	return &f;
 }
 
@@ -312,7 +312,7 @@ static struct ast_frame *lintoadpcm_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = slin_adpcm_ex;
+	f.data.ptr = slin_adpcm_ex;
 	return &f;
 }
 

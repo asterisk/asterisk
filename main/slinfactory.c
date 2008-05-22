@@ -161,7 +161,7 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples)
 		}
 		
 		if ((frame_ptr = AST_LIST_REMOVE_HEAD(&sf->queue, frame_list))) {
-			frame_data = frame_ptr->data;
+			frame_data = frame_ptr->data.ptr;
 			
 			if (frame_ptr->samples <= ineed) {
 				memcpy(offset, frame_data, frame_ptr->samples * sizeof(*offset));

@@ -4306,7 +4306,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	p->subs[index].f.mallocd = 0;
 	p->subs[index].f.offset = 0;
 	p->subs[index].f.src = "zt_handle_event";
-	p->subs[index].f.data = NULL;
+	p->subs[index].f.data.ptr = NULL;
 	f = &p->subs[index].f;
 
 	if (index < 0)
@@ -4523,7 +4523,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							/* It hasn't been long enough since the last flashook.  This is probably a bounce on 
 							   hanging up.  Hangup both channels now */
 							if (p->subs[SUB_THREEWAY].owner)
-								ast_queue_hangup(p->subs[SUB_THREEWAY].owner, AST_CAUSE_NO_ANSWER);
+								ast_queue_hangup_with_cause(p->subs[SUB_THREEWAY].owner, AST_CAUSE_NO_ANSWER);
 							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							ast_debug(1, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
 							ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
@@ -5123,7 +5123,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 	p->subs[index].f.subclass = 0;
 	p->subs[index].f.delivery = ast_tv(0,0);
 	p->subs[index].f.src = "zt_exception";
-	p->subs[index].f.data = NULL;
+	p->subs[index].f.data.ptr = NULL;
 	
 	
 	if ((!p->owner) && (!(p->radio || (p->oprmode < 0)))) {
@@ -5250,7 +5250,7 @@ static struct ast_frame  *zt_read(struct ast_channel *ast)
 	p->subs[index].f.subclass = 0;
 	p->subs[index].f.delivery = ast_tv(0,0);
 	p->subs[index].f.src = "zt_read";
-	p->subs[index].f.data = NULL;
+	p->subs[index].f.data.ptr = NULL;
 	
 	/* make sure it sends initial key state as first frame */
 	if ((p->radio || (p->oprmode < 0)) && (!p->firstradio))
@@ -5416,9 +5416,9 @@ static struct ast_frame  *zt_read(struct ast_channel *ast)
 			p->subs[index].f.frametype = AST_FRAME_TEXT;
 			p->subs[index].f.mallocd = 0;
 			p->subs[index].f.offset = AST_FRIENDLY_OFFSET;
-			p->subs[index].f.data = p->subs[index].buffer + AST_FRIENDLY_OFFSET;
+			p->subs[index].f.data.ptr = p->subs[index].buffer + AST_FRIENDLY_OFFSET;
 			p->subs[index].f.datalen = 1;
-			*((char *) p->subs[index].f.data) = c;
+			*((char *) p->subs[index].f.data.ptr) = c;
 			ast_mutex_unlock(&p->lock);
 			return &p->subs[index].f;
 		}
@@ -5452,7 +5452,7 @@ static struct ast_frame  *zt_read(struct ast_channel *ast)
 	p->subs[index].f.samples = READ_SIZE;
 	p->subs[index].f.mallocd = 0;
 	p->subs[index].f.offset = AST_FRIENDLY_OFFSET;
-	p->subs[index].f.data = p->subs[index].buffer + AST_FRIENDLY_OFFSET / sizeof(p->subs[index].buffer[0]);
+	p->subs[index].f.data.ptr = p->subs[index].buffer + AST_FRIENDLY_OFFSET / sizeof(p->subs[index].buffer[0]);
 #if 0
 	ast_debug(1, "Read %d of voice on %s\n", p->subs[index].f.datalen, ast->name);
 #endif	
@@ -5467,7 +5467,7 @@ static struct ast_frame  *zt_read(struct ast_channel *ast)
 		p->subs[index].f.samples = 0;
 		p->subs[index].f.mallocd = 0;
 		p->subs[index].f.offset = 0;
-		p->subs[index].f.data = NULL;
+		p->subs[index].f.data.ptr = NULL;
 		p->subs[index].f.datalen= 0;
 	}
 	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect  || p->callprogress) && !index) {
@@ -5592,7 +5592,7 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 		return 0;
 	}
 	/* Return if it's not valid data */
-	if (!frame->data || !frame->datalen)
+	if (!frame->data.ptr || !frame->datalen)
 		return 0;
 
 	if (frame->subclass == AST_FORMAT_SLINEAR) {
@@ -5602,7 +5602,7 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 			if (res)
 				ast_log(LOG_WARNING, "Unable to set linear mode on channel %d\n", p->channel);
 		}
-		res = my_zt_write(p, (unsigned char *)frame->data, frame->datalen, index, 1);
+		res = my_zt_write(p, (unsigned char *)frame->data.ptr, frame->datalen, index, 1);
 	} else {
 		/* x-law already */
 		if (p->subs[index].linear) {
@@ -5611,7 +5611,7 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 			if (res)
 				ast_log(LOG_WARNING, "Unable to set companded mode on channel %d\n", p->channel);
 		}
-		res = my_zt_write(p, (unsigned char *)frame->data, frame->datalen, index, 0);
+		res = my_zt_write(p, (unsigned char *)frame->data.ptr, frame->datalen, index, 0);
 	}
 	if (res < 0) {
 		ast_log(LOG_WARNING, "write failed: %s\n", strerror(errno));
@@ -10133,7 +10133,7 @@ static int pri_hangup_all(struct zt_pvt *p, struct zt_pri *pri)
 				ast_mutex_lock(&p->lock);
 			}
 			if (p->subs[x].owner) {
-				ast_queue_hangup(p->subs[x].owner, AST_CAUSE_PRE_EMPTED);
+				ast_queue_hangup_with_cause(p->subs[x].owner, AST_CAUSE_PRE_EMPTED);
 				ast_channel_unlock(p->subs[x].owner);
 			}
 		}

@@ -235,7 +235,7 @@ struct ast_frame *ast_trans_frameout(struct ast_trans_pvt *pvt,
 	f->mallocd = 0;
 	f->offset = AST_FRIENDLY_OFFSET;
 	f->src = pvt->t->name;
-	f->data = pvt->outbuf;
+	f->data.ptr = pvt->outbuf;
 
 	ast_set_flag(f, AST_FRFLAG_FROM_TRANSLATOR);
 

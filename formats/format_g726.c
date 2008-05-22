@@ -123,7 +123,7 @@ static struct ast_frame *g726_read(struct ast_filestream *s, int *whennext)
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, frame_size[fs->rate]);
 	s->fr.samples = 8 * FRAME_TIME;
-	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
+	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -151,7 +151,7 @@ static int g726_write(struct ast_filestream *s, struct ast_frame *f)
 						f->datalen, frame_size[fs->rate]);
 		return -1;
 	}
-	if ((res = fwrite(f->data, 1, f->datalen, s->f)) != f->datalen) {
+	if ((res = fwrite(f->data.ptr, 1, f->datalen, s->f)) != f->datalen) {
 		ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", 
 				res, frame_size[fs->rate], strerror(errno));
 			return -1;

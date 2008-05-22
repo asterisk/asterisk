@@ -86,7 +86,7 @@ static struct ast_frame *lintolpc10_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = slin_lpc10_ex;
+	f.data.ptr = slin_lpc10_ex;
 	return &f;
 }
 
@@ -102,7 +102,7 @@ static struct ast_frame *lpc10tolin_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = lpc10_slin_ex;
+	f.data.ptr = lpc10_slin_ex;
 	return &f;
 }
 
@@ -151,7 +151,7 @@ static int lpc10tolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 			ast_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}
-		extract_bits(bits, f->data + len);
+		extract_bits(bits, f->data.ptr + len);
 		if (lpc10_decode(bits, tmpbuf, tmp->lpc10.dec)) {
 			ast_log(LOG_WARNING, "Invalid lpc10 data\n");
 			return -1;
@@ -179,7 +179,7 @@ static int lintolpc10_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Out of buffer space\n");
 		return -1;
 	}
-	memcpy(tmp->buf + pvt->samples, f->data, f->datalen);
+	memcpy(tmp->buf + pvt->samples, f->data.ptr, f->datalen);
 	pvt->samples += f->samples;
 	return 0;
 }

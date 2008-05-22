@@ -195,8 +195,8 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		}
 
 		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
-			if (f->seqno)
-				chan->hangupcause = f->seqno;
+			if (f->data.uint32)
+				chan->hangupcause = f->data.uint32;
 			ast_frfree(f);
 			ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
 			return -1;

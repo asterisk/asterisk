@@ -263,7 +263,7 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 	}
 
 	if (csth->fd)
-		write(csth->fd, f->data, f->datalen);
+		write(csth->fd, f->data.ptr, f->datalen);
 
 	ast_frfree(f);
 

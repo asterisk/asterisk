@@ -415,7 +415,7 @@ static void jb_get_and_deliver(struct ast_channel *chan)
 			f->samples  = interpolation_len * 8;
 			f->mallocd  = 0;
 			f->src  = "JB interpolation";
-			f->data  = NULL;
+			f->data.ptr  = NULL;
 			f->delivery = ast_tvadd(jb->timebase, ast_samp2tv(jb->next, 1000));
 			f->offset = AST_FRIENDLY_OFFSET;
 			/* deliver the interpolated frame */

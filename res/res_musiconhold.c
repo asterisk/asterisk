@@ -847,7 +847,7 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 		return 0;
 
 	moh->f.datalen = res;
-	moh->f.data = buf + AST_FRIENDLY_OFFSET / 2;
+	moh->f.data.ptr = buf + AST_FRIENDLY_OFFSET / 2;
 	moh->f.samples = ast_codec_get_samples(&moh->f);
 
 	if (ast_write(chan, &moh->f) < 0) {

@@ -1910,7 +1910,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 			}
 			/* Write audio frame data into speech engine if possible */
 			if (fr && fr->frametype == AST_FRAME_VOICE)
-				ast_speech_write(speech, fr->data, fr->datalen);
+				ast_speech_write(speech, fr->data.ptr, fr->datalen);
 			break;
 		case AST_SPEECH_STATE_WAIT:
 			/* Cue waiting sound if not already playing */
@@ -2613,7 +2613,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				/* If it's voice, write it to the audio pipe */
 				if ((agi->audio > -1) && (f->frametype == AST_FRAME_VOICE)) {
 					/* Write, ignoring errors */
-					write(agi->audio, f->data, f->datalen);
+					write(agi->audio, f->data.ptr, f->datalen);
 				}
 				ast_frfree(f);
 			}

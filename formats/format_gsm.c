@@ -56,7 +56,7 @@ static struct ast_frame *gsm_read(struct ast_filestream *s, int *whennext)
 	s->fr.subclass = AST_FORMAT_GSM;
 	AST_FRAME_SET_BUFFER(&(s->fr), s->buf, AST_FRIENDLY_OFFSET, GSM_FRAME_SIZE)
 	s->fr.mallocd = 0;
-	if ((res = fread(s->fr.data, 1, GSM_FRAME_SIZE, s->f)) != GSM_FRAME_SIZE) {
+	if ((res = fread(s->fr.data.ptr, 1, GSM_FRAME_SIZE, s->f)) != GSM_FRAME_SIZE) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -82,7 +82,7 @@ static int gsm_write(struct ast_filestream *fs, struct ast_frame *f)
 		/* This is in MSGSM format, need to be converted */
 		int len=0;
 		while(len < f->datalen) {
-			conv65(f->data + len, gsm);
+			conv65(f->data.ptr + len, gsm);
 			if ((res = fwrite(gsm, 1, 2*GSM_FRAME_SIZE, fs->f)) != 2*GSM_FRAME_SIZE) {
 				ast_log(LOG_WARNING, "Bad write (%d/66): %s\n", res, strerror(errno));
 				return -1;
@@ -94,7 +94,7 @@ static int gsm_write(struct ast_filestream *fs, struct ast_frame *f)
 			ast_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 33\n", f->datalen);
 			return -1;
 		}
-		if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
+		if ((res = fwrite(f->data.ptr, 1, f->datalen, fs->f)) != f->datalen) {
 				ast_log(LOG_WARNING, "Bad write (%d/33): %s\n", res, strerror(errno));
 				return -1;
 		}

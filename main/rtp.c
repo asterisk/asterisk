@@ -1035,12 +1035,12 @@ static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *dat
 	if (!len)
 		return NULL;
 	if (len < 24) {
-		rtp->f.data = rtp->rawdata + AST_FRIENDLY_OFFSET;
+		rtp->f.data.ptr = rtp->rawdata + AST_FRIENDLY_OFFSET;
 		rtp->f.datalen = len - 1;
 		rtp->f.offset = AST_FRIENDLY_OFFSET;
-		memcpy(rtp->f.data, data + 1, len - 1);
+		memcpy(rtp->f.data.ptr, data + 1, len - 1);
 	} else {
-		rtp->f.data = NULL;
+		rtp->f.data.ptr = NULL;
 		rtp->f.offset = 0;
 		rtp->f.datalen = 0;
 	}
@@ -1621,14 +1621,14 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	rtp->f.mallocd = 0;
 	rtp->f.datalen = res - hdrlen;
-	rtp->f.data = rtp->rawdata + hdrlen + AST_FRIENDLY_OFFSET;
+	rtp->f.data.ptr = rtp->rawdata + hdrlen + AST_FRIENDLY_OFFSET;
 	rtp->f.offset = hdrlen + AST_FRIENDLY_OFFSET;
 	rtp->f.seqno = seqno;
 
 	if (rtp->f.subclass == AST_FORMAT_T140 && (int)seqno - (prev_seqno+1) > 0 && (int)seqno - (prev_seqno+1) < 10) {
-		  unsigned char *data = rtp->f.data;
+		  unsigned char *data = rtp->f.data.ptr;
 		  
-		  memmove(rtp->f.data+3, rtp->f.data, rtp->f.datalen);
+		  memmove(rtp->f.data.ptr+3, rtp->f.data.ptr, rtp->f.datalen);
 		  rtp->f.datalen +=3;
 		  *data++ = 0xEF;
 		  *data++ = 0xBF;
@@ -1636,7 +1636,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	}
  
 	if (rtp->f.subclass == AST_FORMAT_T140RED) {
-		unsigned char *data = rtp->f.data;
+		unsigned char *data = rtp->f.data.ptr;
 		unsigned char *header_end;
 		int num_generations;
 		int header_length;
@@ -1659,14 +1659,14 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			if (!(rtp->f.datalen - len))
 				return &ast_null_frame;
 			
-			rtp->f.data += len;
+			rtp->f.data.ptr += len;
 			rtp->f.datalen -= len;
 		} else if (diff > num_generations && diff < 10) {
 			len -= 3;
-			rtp->f.data += len;
+			rtp->f.data.ptr += len;
 			rtp->f.datalen -= len;
 			
-			data = rtp->f.data;
+			data = rtp->f.data.ptr;
 			*data++ = 0xEF;
 			*data++ = 0xBF;
 			*data = 0xBD;
@@ -1674,7 +1674,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			for ( x = 0; x < num_generations - diff; x++) 
 				len += data[x * 4 + 3];
 			
-			rtp->f.data += len;
+			rtp->f.data.ptr += len;
 			rtp->f.datalen -= len;
 		}
 	}
@@ -3147,7 +3147,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		rtp->lastts = f->ts * 8;
 
 	/* Get a pointer to the header */
-	rtpheader = (unsigned char *)(f->data - hdrlen);
+	rtpheader = (unsigned char *)(f->data.ptr - hdrlen);
 
 	put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (rtp->seqno) | (mark << 23)));
 	put_unaligned_uint32(rtpheader + 4, htonl(rtp->lastts));
@@ -3278,7 +3278,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 			ast_smoother_feed(rtp->smoother, _f);
 		}
 
-		while ((f = ast_smoother_read(rtp->smoother)) && (f->data)) {
+		while ((f = ast_smoother_read(rtp->smoother)) && (f->data.ptr)) {
 			if (f->subclass == AST_FORMAT_G722) {
 				/* G.722 is silllllllllllllly */
 				f->samples /= 2;
@@ -3292,7 +3292,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 			f = ast_frdup(_f);	/*! \bug XXX this might never be free'd. Why do we do this? */
 		else
 			f = _f;
-		if (f->data)
+		if (f->data.ptr)
 			ast_rtp_raw_write(rtp, f, codec);
 		if (f != _f)
 			ast_frfree(f);
@@ -3499,7 +3499,7 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 					oldcodec0 = codec0 = pr0->get_codec(c0);
 				if (pr1->get_codec && c1->tech_pvt)
 					oldcodec1 = codec1 = pr1->get_codec(c1);
-				ast_indicate_data(other, fr->subclass, fr->data, fr->datalen);
+				ast_indicate_data(other, fr->subclass, fr->data.ptr, fr->datalen);
 				ast_frfree(fr);
 			} else {
 				*fo = fr;
@@ -3733,7 +3733,7 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 					p0_callback = p2p_callback_enable(c0, p0, &p0_iod[0]);
 					p1_callback = p2p_callback_enable(c1, p1, &p1_iod[0]);
 				}
-				ast_indicate_data(other, fr->subclass, fr->data, fr->datalen);
+				ast_indicate_data(other, fr->subclass, fr->data.ptr, fr->datalen);
 				ast_frfree(fr);
 			} else {
 				*fo = fr;
@@ -4372,7 +4372,7 @@ static int red_write(const void *data)
  * \param red redundant data structure
  */
 static struct ast_frame *red_t140_to_red(struct rtp_red *red) {
-	unsigned char *data = red->t140red.data;
+	unsigned char *data = red->t140red.data.ptr;
 	int len = 0;
 	int i;
 
@@ -4395,7 +4395,7 @@ static struct ast_frame *red_t140_to_red(struct rtp_red *red) {
 		len += data[i*4+3] = red->len[i];
 	
 	/* add primary data to buffer */
-	memcpy(&data[len], red->t140.data, red->t140.datalen); 
+	memcpy(&data[len], red->t140.data.ptr, red->t140.datalen); 
 	red->t140red.datalen = len + red->t140.datalen;
 	
 	/* no primary data and no generations to send */
@@ -4425,11 +4425,11 @@ int rtp_red_init(struct ast_rtp *rtp, int ti, int *red_data_pt, int num_gen)
 
 	r->t140.frametype = AST_FRAME_TEXT;
 	r->t140.subclass = AST_FORMAT_T140RED;
-	r->t140.data = &r->buf_data; 
+	r->t140.data.ptr = &r->buf_data; 
 
 	r->t140.ts = 0;
 	r->t140red = r->t140;
-	r->t140red.data = &r->t140red_data;
+	r->t140red.data.ptr = &r->t140red_data;
 	r->t140red.datalen = 0;
 	r->ti = ti;
 	r->num_gen = num_gen;
@@ -4458,7 +4458,7 @@ void red_buffer_t140(struct ast_rtp *rtp, struct ast_frame *f)
 {
 	if( f->datalen > -1 ) {
 		struct rtp_red *red = rtp->red;
-		memcpy(&red->buf_data[red->t140.datalen], f->data, f->datalen); 
+		memcpy(&red->buf_data[red->t140.datalen], f->data.ptr, f->datalen); 
 		red->t140.datalen += f->datalen;
 		red->t140.ts = f->ts;
 	}

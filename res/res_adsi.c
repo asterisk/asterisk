@@ -134,7 +134,7 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 			*remainder = *remainder - amt;
 		outf.frametype = AST_FRAME_VOICE;
 		outf.subclass = AST_FORMAT_ULAW;
-		outf.data = buf;
+		outf.data.ptr = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
 		if (ast_write(chan, &outf)) {
@@ -174,7 +174,7 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 			*remainder = inf->datalen - amt;
 		outf.frametype = AST_FRAME_VOICE;
 		outf.subclass = AST_FORMAT_ULAW;
-		outf.data = buf;
+		outf.data.ptr = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
 		if (ast_write(chan, &outf)) {

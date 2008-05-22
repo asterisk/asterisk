@@ -362,7 +362,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, bytes);
 	
-	if ( (res = fread(s->fr.data, 1, s->fr.datalen, s->f)) <= 0 ) {
+	if ( (res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) <= 0 ) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -370,7 +370,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	s->fr.datalen = res;
 	s->fr.samples = samples = res / 2;
 
-	tmp = (short *)(s->fr.data);
+	tmp = (short *)(s->fr.data.ptr);
 #if __BYTE_ORDER == __BIG_ENDIAN
 	/* file format is little endian so we need to swap */
 	for( x = 0; x < samples; x++)
@@ -407,14 +407,14 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Data length is too long\n");
 		return -1;
 	}
-	tmpi = f->data;
+	tmpi = f->data.ptr;
 	for (x=0; x < f->datalen/2; x++) 
 		tmp[x] = (tmpi[x] << 8) | ((tmpi[x] & 0xff00) >> 8);
 
 	if ((res = fwrite(tmp, 1, f->datalen, fs->f)) != f->datalen ) {
 #else
 	/* just write */
-	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen ) {
+	if ((res = fwrite(f->data.ptr, 1, f->datalen, fs->f)) != f->datalen ) {
 #endif
 		ast_log(LOG_WARNING, "Bad write (%d): %s\n", res, strerror(errno));
 		return -1;

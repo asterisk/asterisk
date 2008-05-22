@@ -377,7 +377,7 @@ static int alsa_write(struct ast_channel *chan, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Frame too large\n");
 		res = -1;
 	} else {
-		memcpy(sizbuf + sizpos, f->data, f->datalen);
+		memcpy(sizbuf + sizpos, f->data.ptr, f->datalen);
 		len += f->datalen;
 		pos = 0;
 		state = snd_pcm_state(alsa.ocard);
@@ -426,7 +426,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 	f.subclass = 0;
 	f.samples = 0;
 	f.datalen = 0;
-	f.data = NULL;
+	f.data.ptr = NULL;
 	f.offset = 0;
 	f.src = "Console";
 	f.mallocd = 0;
@@ -471,7 +471,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		f.subclass = AST_FORMAT_SLINEAR;
 		f.samples = FRAME_SIZE;
 		f.datalen = FRAME_SIZE * 2;
-		f.data = buf;
+		f.data.ptr = buf;
 		f.offset = AST_FRIENDLY_OFFSET;
 		f.src = "Console";
 		f.mallocd = 0;
@@ -718,14 +718,14 @@ static char *console_sendtext(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		}
 
 		text2send[strlen(text2send) - 1] = '\n';
-		f.data = text2send;
+		f.data.ptr = text2send;
 		f.datalen = strlen(text2send) + 1;
 		grab_owner();
 		if (alsa.owner) {
 			ast_queue_frame(alsa.owner, &f);
 			f.frametype = AST_FRAME_CONTROL;
 			f.subclass = AST_CONTROL_ANSWER;
-			f.data = NULL;
+			f.data.ptr = NULL;
 			f.datalen = 0;
 			ast_queue_frame(alsa.owner, &f);
 			ast_channel_unlock(alsa.owner);
@@ -765,7 +765,7 @@ static char *console_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		hookstate = 0;
 		grab_owner();
 		if (alsa.owner) {
-			ast_queue_hangup(alsa.owner, AST_CAUSE_NORMAL_CLEARING);
+			ast_queue_hangup_with_cause(alsa.owner, AST_CAUSE_NORMAL_CLEARING);
 			ast_channel_unlock(alsa.owner);
 		}
 	}

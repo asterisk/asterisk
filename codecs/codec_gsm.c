@@ -79,7 +79,7 @@ static struct ast_frame *lintogsm_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = slin_gsm_ex;
+	f.data.ptr = slin_gsm_ex;
 	return &f;
 }
 
@@ -94,7 +94,7 @@ static struct ast_frame *gsmtolin_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = gsm_slin_ex;
+	f.data.ptr = gsm_slin_ex;
 	return &f;
 }
 
@@ -119,10 +119,10 @@ static int gsmtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 			/* XXX what's the point here! we should just work
 			 * on the full format.
 			 */
-			conv65(f->data + x, data);
+			conv65(f->data.ptr + x, data);
 		} else {
 			len = GSM_SAMPLES;
-			src = f->data + x;
+			src = f->data.ptr + x;
 		}
 		/* XXX maybe we don't need to check */
 		if (pvt->samples + len > BUFFER_SAMPLES) {	
@@ -159,7 +159,7 @@ static int lintogsm_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Out of buffer space\n");
 		return -1;
 	}
-	memcpy(tmp->buf + pvt->samples, f->data, f->datalen);
+	memcpy(tmp->buf + pvt->samples, f->data.ptr, f->datalen);
 	pvt->samples += f->samples;
 	return 0;
 }

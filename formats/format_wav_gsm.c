@@ -402,7 +402,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, GSM_FRAME_SIZE);
 	if (fs->secondhalf) {
 		/* Just return a frame based on the second GSM frame */
-		s->fr.data = (char *)s->fr.data + GSM_FRAME_SIZE;
+		s->fr.data.ptr = (char *)s->fr.data.ptr + GSM_FRAME_SIZE;
 		s->fr.offset += GSM_FRAME_SIZE;
 	} else {
 		/* read and convert */
@@ -415,7 +415,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 			return NULL;
 		}
 		/* Convert from MS format to two real GSM frames */
-		conv65(msdata, s->fr.data);
+		conv65(msdata, s->fr.data.ptr);
 	}
 	fs->secondhalf = !fs->secondhalf;
 	*whennext = GSM_SAMPLES;
@@ -449,16 +449,16 @@ static int wav_write(struct ast_filestream *s, struct ast_frame *f)
 		int res;
 		unsigned char *src, msdata[MSGSM_FRAME_SIZE];
 		if (fs->secondhalf) {	/* second half of raw gsm to be converted */
-			memcpy(s->buf + GSM_FRAME_SIZE, f->data + len, GSM_FRAME_SIZE);
+			memcpy(s->buf + GSM_FRAME_SIZE, f->data.ptr + len, GSM_FRAME_SIZE);
 			conv66((unsigned char *) s->buf, msdata);
 			src = msdata;
 			fs->secondhalf = 0;
 		} else if (size == GSM_FRAME_SIZE) {	/* first half of raw gsm */
-			memcpy(s->buf, f->data + len, GSM_FRAME_SIZE);
+			memcpy(s->buf, f->data.ptr + len, GSM_FRAME_SIZE);
 			src = NULL;	/* nothing to write */
 			fs->secondhalf = 1;
 		} else {	/* raw msgsm data */
-			src = f->data + len;
+			src = f->data.ptr + len;
 		}
 		if (src && (res = fwrite(src, 1, MSGSM_FRAME_SIZE, s->f)) != MSGSM_FRAME_SIZE) {
 			ast_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));

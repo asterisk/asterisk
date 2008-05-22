@@ -1125,7 +1125,7 @@ static void close_client(struct unistimsession *s)
 				if (sub->owner) {       /* Call in progress ? */
 					if (unistimdebug)
 						ast_verb(0, "Aborting call\n");
-					ast_queue_hangup(sub->owner, AST_CAUSE_NETWORK_OUT_OF_ORDER);
+					ast_queue_hangup_with_cause(sub->owner, AST_CAUSE_NETWORK_OUT_OF_ORDER);
 				}
 			} else
 				ast_log(LOG_WARNING, "Freeing a client with no subchannel !\n");
@@ -1974,11 +1974,11 @@ static void close_call(struct unistimsession *pte)
 			if (attempt_transfer(sub, l->subs[SUB_THREEWAY]) < 0)
 				ast_verb(0, "attempt_transfer failed.\n");
 		} else
-			ast_queue_hangup(sub->owner, -1);
+			ast_queue_hangup(sub->owner);
 	} else {
 		if (l->subs[SUB_THREEWAY]) {
 			if (l->subs[SUB_THREEWAY]->owner)
-				ast_queue_hangup(l->subs[SUB_THREEWAY]->owner, AST_CAUSE_NORMAL_CLEARING);
+				ast_queue_hangup_with_cause(l->subs[SUB_THREEWAY]->owner, AST_CAUSE_NORMAL_CLEARING);
 			else
 				ast_log(LOG_WARNING, "threeway sub without owner\n");
 		} else
@@ -2312,7 +2312,7 @@ static void TransferCallStep1(struct unistimsession *pte)
 		if (unistimdebug)
 			ast_verb(0, "Transfer canceled, hangup our threeway channel\n");
 		if (p->subs[SUB_THREEWAY]->owner)
-			ast_queue_hangup(p->subs[SUB_THREEWAY]->owner, AST_CAUSE_NORMAL_CLEARING);
+			ast_queue_hangup_with_cause(p->subs[SUB_THREEWAY]->owner, AST_CAUSE_NORMAL_CLEARING);
 		else
 			ast_log(LOG_WARNING, "Canceling a threeway channel without owner\n");
 		return;
@@ -2368,7 +2368,7 @@ static void HandleCallOutgoing(struct unistimsession *s)
 			/* start switch */
 			if (ast_pthread_create(&t, NULL, unistim_ss, c)) {
 				display_last_error("Unable to create switch thread");
-				ast_queue_hangup(c, AST_CAUSE_SWITCH_CONGESTION);
+				ast_queue_hangup_with_cause(c, AST_CAUSE_SWITCH_CONGESTION);
 			}
 		} else
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n",

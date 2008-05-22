@@ -966,7 +966,7 @@ void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 	fr->af.src = f->src;
 	fr->af.delivery.tv_sec = 0;
 	fr->af.delivery.tv_usec = 0;
-	fr->af.data = fr->afdata;
+	fr->af.data.ptr = fr->afdata;
 	fr->af.len = f->len;
 	if (fr->af.datalen) {
 		size_t copy_len = fr->af.datalen;
@@ -979,10 +979,10 @@ void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 		/* We need to byte-swap slinear samples from network byte order */
 		if ((fr->af.frametype == AST_FRAME_VOICE) && (fr->af.subclass == AST_FORMAT_SLINEAR)) {
 			/* 2 bytes / sample for SLINEAR */
-			ast_swapcopy_samples(fr->af.data, f->data, copy_len / 2);
+			ast_swapcopy_samples(fr->af.data.ptr, f->data.ptr, copy_len / 2);
 		} else
 #endif
-			memcpy(fr->af.data, f->data, copy_len);
+			memcpy(fr->af.data.ptr, f->data.ptr, copy_len);
 	}
 }
 
