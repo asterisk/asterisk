@@ -184,7 +184,7 @@ static struct ast_frame  *nbs_xread(struct ast_channel *ast)
 	/* Some nice norms */
 	p->fr.datalen = 0;
 	p->fr.samples = 0;
-	p->fr.data =  NULL;
+	p->fr.data.ptr =  NULL;
 	p->fr.src = type;
 	p->fr.offset = 0;
 	p->fr.mallocd=0;
@@ -214,7 +214,7 @@ static int nbs_xwrite(struct ast_channel *ast, struct ast_frame *frame)
 		/* Don't try tos end audio on-hook */
 		return 0;
 	}
-	if (nbs_write(p->nbs, frame->data, frame->datalen / 2) < 0) 
+	if (nbs_write(p->nbs, frame->data.ptr, frame->datalen / 2) < 0) 
 		return -1;
 	return 0;
 }
