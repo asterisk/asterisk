@@ -1876,7 +1876,7 @@ static int send_usb_txt(struct rpt *myrpt, char *txt)
 	wf.offset = 0;
 	wf.mallocd = 0;
 	wf.datalen = strlen(txt) + 1;
-	wf.data = txt;
+	wf.data.ptr = txt;
 	wf.samples = 0;
 	ast_write(myrpt->txchannel,&wf); 
 	return 0;
@@ -5613,7 +5613,7 @@ struct	rpt_link *l;
 		/* if we found it, write it and were done */
 		if (!strcmp(l->name,myrpt->cmdnode))
 		{
-			wf.data = str;
+			wf.data.ptr = str;
 			if (l->chan) ast_write(l->chan,&wf);
 			return;
 		}
@@ -5623,7 +5623,7 @@ struct	rpt_link *l;
 	/* if not, give it to everyone */
 	while(l != &myrpt->links)
 	{
-		wf.data = str;
+		wf.data.ptr = str;
 		if (l->chan) ast_write(l->chan,&wf);
 		l = l->next;
 	}
@@ -5652,7 +5652,7 @@ struct	rpt_link *l;
 	/* give it to everyone */
 	while(l != &myrpt->links)
 	{
-		wf.data = str;
+		wf.data.ptr = str;
 		if (l->chan) ast_write(l->chan,&wf);
 		l = l->next;
 	}
@@ -5954,7 +5954,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				wf.mallocd = 0;
 				wf.datalen = strlen(discstr) + 1;
 				wf.samples = 0;
-				wf.data = discstr;
+				wf.data.ptr = discstr;
 				if (l->chan)
 				{
 					ast_write(l->chan,&wf);
@@ -6069,7 +6069,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
                                 wf.mallocd = 0;
                                 wf.datalen = strlen(discstr) + 1;
                                 wf.samples = 0;
-                                wf.data = discstr;
+                                wf.data.ptr = discstr;
                                 if (l->chan)
                                 {
                                         ast_write(l->chan,&wf);
@@ -6751,7 +6751,7 @@ struct	ast_frame wf;
 				{
 					/* send, but not to src */
 					if (strcmp(l->name,src)) {
-						wf.data = str;
+						wf.data.ptr = str;
 						if (l->chan) ast_write(l->chan,&wf);
 					}
 					return;
@@ -6779,7 +6779,7 @@ struct	ast_frame wf;
 				}
 				/* send, but not to src */
 				if (strcmp(l->name,src)) {
-					wf.data = str;
+					wf.data.ptr = str;
 					if (l->chan) ast_write(l->chan,&wf); 
 				}
 				l = l->next;
@@ -6798,7 +6798,7 @@ struct	ast_frame wf;
 				n = (int)(now - myrpt->lastkeyedtime);
 			}
 			sprintf(tmp1,"K %s %s %d %d",src,myrpt->name,myrpt->keyed,n);
-			wf.data = tmp1;
+			wf.data.ptr = tmp1;
 			wf.datalen = strlen(tmp1) + 1;
 			if (mylink->chan) ast_write(mylink->chan,&wf); 
 			return;
@@ -6876,7 +6876,7 @@ struct	ast_frame wf;
 			{
 				/* send, but not to src */
 				if (strcmp(l->name,src)) {
-					wf.data = str;
+					wf.data.ptr = str;
 					if (l->chan) ast_write(l->chan,&wf);
 				}
 				return;
@@ -6900,7 +6900,7 @@ struct	ast_frame wf;
 			}
 			/* send, but not to src */
 			if (strcmp(l->name,src)) {
-				wf.data = str;
+				wf.data.ptr = str;
 				if (l->chan) ast_write(l->chan,&wf); 
 			}
 			l = l->next;
@@ -11693,7 +11693,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 				if (l->chan)
 				{
 					lf.datalen = strlen(lstr) + 1;
-					lf.data = lstr;
+					lf.data.ptr = lstr;
 					ast_write(l->chan,&lf);
 					if (debug > 6) ast_log(LOG_NOTICE,
 						"@@@@ node %s sent node string %s to node %s\n",
@@ -12040,7 +12040,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 #endif
 
 				if ((!myrpt->localtx) && (!myrpt->p.linktolink)) {
-					memset(f->data,0,f->datalen);
+					memset(f->data.ptr,0,f->datalen);
 				}
 
 #ifdef	_MDC_DECODE_H_
@@ -12096,11 +12096,11 @@ char tmpstr[300],lstr[MAXLINKLIST];
 				dtmfed = 0;
 				if (ismuted)
 				{
-					memset(f->data,0,f->datalen);
+					memset(f->data.ptr,0,f->datalen);
 					if (myrpt->lastf1)
-						memset(myrpt->lastf1->data,0,myrpt->lastf1->datalen);
+						memset(myrpt->lastf1->data.ptr,0,myrpt->lastf1->datalen);
 					if (myrpt->lastf2)
-						memset(myrpt->lastf2->data,0,myrpt->lastf2->datalen);
+						memset(myrpt->lastf2->data.ptr,0,myrpt->lastf2->datalen);
 				} 
 				if (f) f2 = ast_frdup(f);
 				else f2 = NULL;
@@ -12110,9 +12110,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 				if (ismuted)
 				{
 					if (myrpt->lastf1)
-						memset(myrpt->lastf1->data,0,myrpt->lastf1->datalen);
+						memset(myrpt->lastf1->data.ptr,0,myrpt->lastf1->datalen);
 					if (myrpt->lastf2)
-						memset(myrpt->lastf2->data,0,myrpt->lastf2->datalen);
+						memset(myrpt->lastf2->data.ptr,0,myrpt->lastf2->datalen);
 				}
 				if (f1)
 				{
@@ -12124,9 +12124,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			else if (f->frametype == AST_FRAME_DTMF_BEGIN)
 			{
 				if (myrpt->lastf1)
-					memset(myrpt->lastf1->data,0,myrpt->lastf1->datalen);
+					memset(myrpt->lastf1->data.ptr,0,myrpt->lastf1->datalen);
 				if (myrpt->lastf2)
-					memset(myrpt->lastf2->data,0,myrpt->lastf2->datalen);
+					memset(myrpt->lastf2->data.ptr,0,myrpt->lastf2->datalen);
 				dtmfed = 1;
 			}
 #endif
@@ -12135,9 +12135,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 				c = (char) f->subclass; /* get DTMF char */
 				ast_frfree(f);
 				if (myrpt->lastf1)
-					memset(myrpt->lastf1->data,0,myrpt->lastf1->datalen);
+					memset(myrpt->lastf1->data.ptr,0,myrpt->lastf1->datalen);
 				if (myrpt->lastf2)
-					memset(myrpt->lastf2->data,0,myrpt->lastf2->datalen);
+					memset(myrpt->lastf2->data.ptr,0,myrpt->lastf2->datalen);
 				dtmfed = 1;
 				if (!myrpt->keyed) continue;
 				c = func_xlat(myrpt,c,&myrpt->p.inxlat);
@@ -12166,13 +12166,13 @@ char tmpstr[300],lstr[MAXLINKLIST];
 					{
 						donodelog(myrpt,"RXKEY,MAIN");
 					}
-					if (f->datalen && f->data)
+					if (f->datalen && f->data.ptr)
 					{
 						char *val, busy = 0;
 
-						if (debug) ast_log(LOG_NOTICE,"Got PL %s on node %s\n",(char *)f->data,myrpt->name);
+						if (debug) ast_log(LOG_NOTICE,"Got PL %s on node %s\n",(char *)f->data.ptr,myrpt->name);
 						// ctcss code autopatch initiate
-						if (strstr((char *)f->data,"/M/")&& !myrpt->macropatch)
+						if (strstr((char *)f->data.ptr,"/M/")&& !myrpt->macropatch)
 						{
 						    char val[16];
 							strcat(val,"*6");
@@ -12185,16 +12185,16 @@ char tmpstr[300],lstr[MAXLINKLIST];
 							if(!busy){
 								myrpt->macrotimer = MACROTIME;
 								strncat(myrpt->macrobuf,val,MAXMACRO - 1);
-								if (!busy) strcpy(myrpt->lasttone,(char*)f->data);
+								if (!busy) strcpy(myrpt->lasttone,(char*)f->data.ptr);
 							}
 							rpt_mutex_unlock(&myrpt->lock);
 						}
-						else if (strcmp((char *)f->data,myrpt->lasttone))
+						else if (strcmp((char *)f->data.ptr,myrpt->lasttone))
 						{
-							val = (char *) ast_variable_retrieve(myrpt->cfg, myrpt->p.tonemacro, (char *)f->data);
+							val = (char *) ast_variable_retrieve(myrpt->cfg, myrpt->p.tonemacro, (char *)f->data.ptr);
 							if (val) 
 							{
-								if (debug) ast_log(LOG_NOTICE,"Tone %s doing %s on node %s\n",(char *) f->data,val,myrpt->name);
+								if (debug) ast_log(LOG_NOTICE,"Tone %s doing %s on node %s\n",(char *) f->data.ptr,val,myrpt->name);
 								rpt_mutex_lock(&myrpt->lock);
 								if ((MAXMACRO - strlen(myrpt->macrobuf)) < strlen(val)){
 									rpt_mutex_unlock(&myrpt->lock);
@@ -12206,7 +12206,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 								}
 								rpt_mutex_unlock(&myrpt->lock);
 							}
-						 	if (!busy) strcpy(myrpt->lasttone,(char*)f->data);
+						 	if (!busy) strcpy(myrpt->lasttone,(char*)f->data.ptr);
 						}
 					} else myrpt->lasttone[0] = 0;
 				}
@@ -12300,7 +12300,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 						    for(;x < myrpt->p.simplexpatchdelay; x++)
 						    {
 								f1 = ast_frdup(f);
-								memset(f1->data,0,f1->datalen);
+								memset(f1->data.ptr,0,f1->datalen);
 								AST_LIST_INSERT_TAIL(&myrpt->txq,f1,frame_list);
 						    }
 						    myfirst = 1;
@@ -12314,7 +12314,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 						frame_list) x++;
 					if (!x)
 					{
-						memset(f->data,0,f->datalen);
+						memset(f->data.ptr,0,f->datalen);
 					}
 					else
 					{
@@ -12478,7 +12478,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 					if ((l->phonemode) && (l->phonevox))
 					{
 						n1 = dovox(&l->vox,
-							f->data,f->datalen / 2);
+							f->data.ptr,f->datalen / 2);
 						if (n1 != l->wasvox)
 						{
 							if (debug)ast_log(LOG_DEBUG,"Link Node %s, vox %d\n",l->name,n1);
@@ -12497,7 +12497,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 							    for(;x < myrpt->p.simplexphonedelay; x++)
 								{
 									f1 = ast_frdup(f);
-									memset(f1->data,0,f1->datalen);
+									memset(f1->data.ptr,0,f1->datalen);
 									AST_LIST_INSERT_TAIL(&l->rxq,
 										f1,frame_list);
 							    }
@@ -12510,7 +12510,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 						AST_LIST_TRAVERSE(&l->rxq, f1,frame_list) x++;
 						if (!x)
 						{
-							memset(f->data,0,f->datalen);
+							memset(f->data.ptr,0,f->datalen);
 						}
 						else
 						{
@@ -12527,11 +12527,11 @@ char tmpstr[300],lstr[MAXLINKLIST];
 						l->dtmfed = 0;
 						if (ismuted)
 						{
-							memset(f->data,0,f->datalen);
+							memset(f->data.ptr,0,f->datalen);
 							if (l->lastf1)
-								memset(l->lastf1->data,0,l->lastf1->datalen);
+								memset(l->lastf1->data.ptr,0,l->lastf1->datalen);
 							if (l->lastf2)
-								memset(l->lastf2->data,0,l->lastf2->datalen);
+								memset(l->lastf2->data.ptr,0,l->lastf2->datalen);
 						} 
 						if (f) f2 = ast_frdup(f);
 						else f2 = NULL;
@@ -12541,9 +12541,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 						if (ismuted)
 						{
 							if (l->lastf1)
-								memset(l->lastf1->data,0,l->lastf1->datalen);
+								memset(l->lastf1->data.ptr,0,l->lastf1->datalen);
 							if (l->lastf2)
-								memset(l->lastf2->data,0,l->lastf2->datalen);
+								memset(l->lastf2->data.ptr,0,l->lastf2->datalen);
 						}
 						if (f1)
 						{
@@ -12554,7 +12554,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 					else
 					{
 						if (!l->lastrx)
-							memset(f->data,0,f->datalen);
+							memset(f->data.ptr,0,f->datalen);
 						ast_write(l->pchan,f);
 					}
 				}
@@ -12562,22 +12562,22 @@ char tmpstr[300],lstr[MAXLINKLIST];
 				else if (f->frametype == AST_FRAME_DTMF_BEGIN)
 				{
 					if (l->lastf1)
-						memset(l->lastf1->data,0,l->lastf1->datalen);
+						memset(l->lastf1->data.ptr,0,l->lastf1->datalen);
 					if (l->lastf2)
-						memset(l->lastf2->data,0,l->lastf2->datalen);
+						memset(l->lastf2->data.ptr,0,l->lastf2->datalen);
 					l->dtmfed = 1;
 				}
 #endif
 				if (f->frametype == AST_FRAME_TEXT)
 				{
-					handle_link_data(myrpt,l,f->data);
+					handle_link_data(myrpt,l,f->data.ptr);
 				}
 				if (f->frametype == AST_FRAME_DTMF)
 				{
 					if (l->lastf1)
-						memset(l->lastf1->data,0,l->lastf1->datalen);
+						memset(l->lastf1->data.ptr,0,l->lastf1->datalen);
 					if (l->lastf2)
-						memset(l->lastf2->data,0,l->lastf2->datalen);
+						memset(l->lastf2->data.ptr,0,l->lastf2->datalen);
 					l->dtmfed = 1;
 					handle_link_phone_dtmf(myrpt,l,f->subclass);
 				}
@@ -12827,7 +12827,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			}
 			if (f->frametype == AST_FRAME_VOICE)
 			{
-				n = dovox(&myrpt->vox,f->data,f->datalen / 2);
+				n = dovox(&myrpt->vox,f->data.ptr,f->datalen / 2);
 				if (n != myrpt->wasvox)
 				{
 					if (debug) ast_log(LOG_DEBUG,"Node %s, vox %d\n",myrpt->name,n);
@@ -14343,11 +14343,11 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 				dtmfed = 0;
 				if (ismuted)
 				{
-					memset(f->data,0,f->datalen);
+					memset(f->data.ptr,0,f->datalen);
 					if (myrpt->lastf1)
-						memset(myrpt->lastf1->data,0,myrpt->lastf1->datalen);
+						memset(myrpt->lastf1->data.ptr,0,myrpt->lastf1->datalen);
 					if (myrpt->lastf2)
-						memset(myrpt->lastf2->data,0,myrpt->lastf2->datalen);
+						memset(myrpt->lastf2->data.ptr,0,myrpt->lastf2->datalen);
 				} 
 				if (f) f2 = ast_frdup(f);
 				else f2 = NULL;
@@ -14357,9 +14357,9 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 				if (ismuted)
 				{
 					if (myrpt->lastf1)
-						memset(myrpt->lastf1->data,0,myrpt->lastf1->datalen);
+						memset(myrpt->lastf1->data.ptr,0,myrpt->lastf1->datalen);
 					if (myrpt->lastf2)
-						memset(myrpt->lastf2->data,0,myrpt->lastf2->datalen);
+						memset(myrpt->lastf2->data.ptr,0,myrpt->lastf2->datalen);
 				}
 				if (f1)
 				{
@@ -14374,18 +14374,18 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			else if (f->frametype == AST_FRAME_DTMF_BEGIN)
 			{
 				if (myrpt->lastf1)
-					memset(myrpt->lastf1->data,0,myrpt->lastf1->datalen);
+					memset(myrpt->lastf1->data.ptr,0,myrpt->lastf1->datalen);
 				if (myrpt->lastf2)
-					memset(myrpt->lastf2->data,0,myrpt->lastf2->datalen);
+					memset(myrpt->lastf2->data.ptr,0,myrpt->lastf2->datalen);
 				dtmfed = 1;
 			}
 #endif
 			if (f->frametype == AST_FRAME_DTMF)
 			{
 				if (myrpt->lastf1)
-					memset(myrpt->lastf1->data,0,myrpt->lastf1->datalen);
+					memset(myrpt->lastf1->data.ptr,0,myrpt->lastf1->datalen);
 				if (myrpt->lastf2)
-					memset(myrpt->lastf2->data,0,myrpt->lastf2->datalen);
+					memset(myrpt->lastf2->data.ptr,0,myrpt->lastf2->datalen);
 				dtmfed = 1;
 				if (handle_remote_phone_dtmf(myrpt,f->subclass,&keyed,phone_mode) == -1)
 				{
@@ -14396,7 +14396,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			}
 			if (f->frametype == AST_FRAME_TEXT)
 			{
-				if (handle_remote_data(myrpt,f->data) == -1)
+				if (handle_remote_data(myrpt,f->data.ptr) == -1)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
@@ -14448,7 +14448,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 				((myrpt->remote) && (myrpt->remotetx)) ||
 				  ((myrpt->remmode != REM_MODE_FM) &&
 				    notremming))
-					memset(f->data,0,f->datalen); 
+					memset(f->data.ptr,0,f->datalen); 
 				 ast_write(myrpt->pchannel,f);
 			}
 			else if (f->frametype == AST_FRAME_CONTROL)

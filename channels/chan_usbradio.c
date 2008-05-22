@@ -1769,7 +1769,7 @@ static int usbradio_write(struct ast_channel *c, struct ast_frame *f)
 		i16 i, tbuff[f->datalen];
 		for(i=0;i<f->datalen;i+=2)
 		{
-			tbuff[i]= ((i16*)(f->data))[i/2];
+			tbuff[i]= ((i16*)(f->data.ptr))[i/2];
 			tbuff[i+1]= o->txkeyed*M_Q13;
 		}
 		fwrite(tbuff,2,f->datalen,ftxcapraw);
@@ -1779,7 +1779,7 @@ static int usbradio_write(struct ast_channel *c, struct ast_frame *f)
 
 	// maw just take the data from the network and save it for PmrRx processing
 
-	PmrTx(o->pmrChan,(i16*)f->data);
+	PmrTx(o->pmrChan,(i16*)f->data.ptr);
 	
 	return 0;
 }
@@ -2047,7 +2047,7 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 		wf.subclass = AST_CONTROL_RADIO_KEY;
 		if(o->rxctcssdecode)  	
         {
-	        wf.data = o->rxctcssfreq;
+	        wf.data.ptr = o->rxctcssfreq;
 	        wf.datalen = strlen(o->rxctcssfreq) + 1;
 			TRACEO(1,("AST_CONTROL_RADIO_KEY text=%s\n",o->rxctcssfreq));
         }
@@ -2062,10 +2062,10 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 	f->subclass = AST_FORMAT_SLINEAR;
 	f->samples = FRAME_SIZE;
 	f->datalen = FRAME_SIZE * 2;
-	f->data = o->usbradio_read_buf_8k + AST_FRIENDLY_OFFSET;
+	f->data.ptr = o->usbradio_read_buf_8k + AST_FRIENDLY_OFFSET;
 	if (o->boost != BOOST_SCALE) {	/* scale and clip values */
 		int i, x;
-		int16_t *p = (int16_t *) f->data;
+		int16_t *p = (int16_t *) f->data.ptr;
 		for (i = 0; i < f->samples; i++) {
 			x = (p[i] * o->boost) / BOOST_SCALE;
 			if (x > 32767)
