@@ -50,19 +50,37 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char *app = "ExternalIVR";
 
 static const char *synopsis = "Interfaces with an external IVR application";
-
 static const char *descrip =
-"  ExternalIVR(command|ivr://ivrhost[,arg[,arg...]]): Either forks a process\n"
+"  ExternalIVR(command|ivr://ivrhosti([,arg[,arg...]])[,options]): Either forks a process\n"
 "to run given command or makes a socket to connect to given host and starts\n"
 "a generator on the channel. The generator's play list is controlled by the\n"
 "external application, which can add and clear entries via simple commands\n"
 "issued over its stdout. The external application will receive all DTMF events\n"
 "received on the channel, and notification if the channel is hung up. The\n"
 "application will not be forcibly terminated when the channel is hung up.\n"
-"See doc/externalivr.txt for a protocol specification.\n";
+"See doc/externalivr.txt for a protocol specification.\n"
+"The 'n' option tells ExternalIVR() not to answer the channel. \n"
+"The 'i' option tells ExternalIVR() not to send a hangup and exit when the\n"
+"  channel receives a hangup, instead it sends an 'I' informative message\n"
+"  meaning that the external application MUST hang up the call with an H command\n"
+"The 'd' option tells ExternalIVR() to run on a channel that has been hung up\n"
+"  and will not look for hangups.  The external application must exit with\n"
+"  an 'E' command.\n";
 
 /* XXX the parser in gcc 2.95 gets confused if you don't put a space between 'name' and the comma */
 #define ast_chan_log(level, channel, format, ...) ast_log(level, "%s: " format, channel->name , ## __VA_ARGS__)
+
+enum {
+	noanswer = (1 << 0),
+	ignore_hangup = (1 << 1),
+	run_dead = (1 << 2),
+} options_flags;
+
+AST_APP_OPTIONS(app_opts, {
+	AST_APP_OPTION('n', noanswer),
+	AST_APP_OPTION('i', ignore_hangup),
+	AST_APP_OPTION('d', run_dead),
+});
 
 struct playlist_entry {
 	AST_LIST_ENTRY(playlist_entry) list;
@@ -76,6 +94,7 @@ struct ivr_localuser {
 	int abort_current_sound;
 	int playing_silence;
 	int option_autoclear;
+	int gen_active;
 };
 
 
@@ -88,24 +107,22 @@ struct gen_state {
 
 static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u, 
 	int eivr_events_fd, int eivr_commands_fd, int eivr_errors_fd, 
-	const char *args);
+	const struct ast_str *args, const struct ast_flags flags);
 
 int eivr_connect_socket(struct ast_channel *chan, const char *host, int port);
 
 static void send_eivr_event(FILE *handle, const char event, const char *data,
 	const struct ast_channel *chan)
 {
-	char tmp[256];
+	struct ast_str *tmp = ast_str_create(12);
 
-	if (!data) {
-		snprintf(tmp, sizeof(tmp), "%c,%10d", event, (int)time(NULL));
-	} else {
-		snprintf(tmp, sizeof(tmp), "%c,%10d,%s", event, (int)time(NULL), data);
+	ast_str_append(&tmp, 0, "%c,%10d", event, (int)time(NULL));
+	if (data) {
+		ast_str_append(&tmp, 0, "%s", data);
 	}
 
-	fprintf(handle, "%s\n", tmp);
-	if (option_debug)
-		ast_chan_log(LOG_DEBUG, chan, "sent '%s'\n", tmp);
+	fprintf(handle, "%s\n", tmp->str);
+	ast_debug(1, "sent '%s'\n", tmp->str);
 }
 
 static void *gen_alloc(struct ast_channel *chan, void *params)
@@ -245,7 +262,7 @@ static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *out
 		variable = strsep(&inbuf, ",");
 		if (variable == NULL) {
 			int outstrlen = strlen(outbuf);
-			if(outstrlen && outbuf[outstrlen - 1] == ',') {
+			if (outstrlen && outbuf[outstrlen - 1] == ',') {
 				outbuf[outstrlen - 1] = 0;
 			}
 			break;
@@ -260,7 +277,7 @@ static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *out
 		ast_channel_unlock(chan);
 		ast_copy_string(outbuf, newstring->str, outbuflen);
 	}
-};
+}
 
 static void ast_eivr_setvariable(struct ast_channel *chan, char *data)
 {
@@ -273,21 +290,22 @@ static void ast_eivr_setvariable(struct ast_channel *chan, char *data)
 
 	for (j = 1, inbuf = data; ; j++, inbuf = NULL) {
 		variable = strsep(&inbuf, ",");
-		ast_chan_log(LOG_DEBUG, chan, "Setting up a variable: %s\n", variable);
-		if(variable) {
+		ast_debug(1, "Setting up a variable: %s\n", variable);
+		if (variable) {
 			/* variable contains "varname=value" */
 			ast_copy_string(buf, variable, sizeof(buf));
 			value = strchr(buf, '=');
-			if(!value) 
-				value="";
-			else
+			if (!value) {
+				value = "";
+			} else {
 				*value++ = '\0';
+			}
 			pbx_builtin_setvar_helper(chan, buf, value);
-		}
-		else
+		} else {
 			break;
+		}
 	}
-};
+}
 
 static struct playlist_entry *make_entry(const char *filename)
 {
@@ -303,14 +321,14 @@ static struct playlist_entry *make_entry(const char *filename)
 
 static int app_exec(struct ast_channel *chan, void *data)
 {
+	struct ast_flags flags;
+	char *opts[0];
 	struct playlist_entry *entry;
-	int child_stdin[2] = { 0,0 };
-	int child_stdout[2] = { 0,0 };
-	int child_stderr[2] = { 0,0 };
+	int child_stdin[2] = { 0, 0 };
+	int child_stdout[2] = { 0, 0 };
+	int child_stderr[2] = { 0, 0 };
 	int res = -1;
-	int gen_active = 0;
 	int pid;
-	char *buf, *pipe_delim_argbuf, *pdargbuf_ptr;
 
 	char hostname[1024];
 	char *port_str = NULL;
@@ -320,29 +338,87 @@ static int app_exec(struct ast_channel *chan, void *data)
 	struct ivr_localuser foo = {
 		.playlist = AST_LIST_HEAD_INIT_VALUE,
 		.finishlist = AST_LIST_HEAD_INIT_VALUE,
+		.gen_active = 0,
 	};
 	struct ivr_localuser *u = &foo;
-	AST_DECLARE_APP_ARGS(args,
+
+	char *buf;
+	int j;
+	char *s, **app_args, *e; 
+	struct ast_str *pipe_delim_args = ast_str_create(100);
+
+	AST_DECLARE_APP_ARGS(eivr_args,
+		AST_APP_ARG(cmd)[32];
+	);
+	AST_DECLARE_APP_ARGS(application_args,
 		AST_APP_ARG(cmd)[32];
 	);
 
 	u->abort_current_sound = 0;
 	u->chan = chan;
 
+	buf = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(eivr_args, buf);
+
+	if ((s = strchr(eivr_args.cmd[0], '('))) {
+		s[0] = ',';
+		if (( e = strrchr(s, ')')) ) {
+			*e = '\0';
+		} else {
+			ast_log(LOG_ERROR, "Parse error, no closing paren?\n");
+		}
+		AST_STANDARD_APP_ARGS(application_args, eivr_args.cmd[0]);
+		app_args = application_args.argv;
+
+		/* Put the application + the arguments in a | delimited list */
+		ast_str_reset(pipe_delim_args);
+		for (j = 0; application_args.cmd[j] != NULL; j++) {
+			ast_str_append(&pipe_delim_args, 0, "%s%s", j == 0 ? "" : "|", application_args.cmd[j]);
+		}
+
+		/* Parse the ExternalIVR() arguments */
+		if (option_debug)
+			ast_debug(1, "Parsing options from: [%s]\n", eivr_args.cmd[1]);
+		ast_app_parse_options(app_opts, &flags, opts, eivr_args.cmd[1]);
+		if (option_debug) {
+			if (ast_test_flag(&flags, noanswer))
+				ast_debug(1, "noanswer is set\n");
+			if (ast_test_flag(&flags, ignore_hangup))
+				ast_debug(1, "ignore_hangup is set\n");
+			if (ast_test_flag(&flags, run_dead))
+				ast_debug(1, "run_dead is set\n");
+		}
+
+	} else {
+		app_args = eivr_args.argv;
+		for (j = 0; eivr_args.cmd[j] != NULL; j++) {
+			ast_str_append(&pipe_delim_args, 0, "%s%s", j == 0 ? "" : "|", eivr_args.cmd[j]);
+		}
+	}
+	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ExternalIVR requires a command to execute\n");
 		return -1;
 	}
 
-	buf = ast_strdupa(data);
-	AST_STANDARD_APP_ARGS(args, buf);
+	if (!(ast_test_flag(&flags, noanswer))) {
+		ast_chan_log(LOG_WARNING, chan, "Answering channel and starting generator\n");
+		if (chan->_state != AST_STATE_UP) {
+			if (ast_test_flag(&flags, run_dead)) {
+				ast_chan_log(LOG_WARNING, chan, "Running ExternalIVR with 'd'ead flag on non-hungup channel isn't supported\n");
+				goto exit;
+			}
+			ast_answer(chan);
+		}
+		if (ast_activate_generator(chan, &gen, u) < 0) {
+			ast_chan_log(LOG_WARNING, chan, "Failed to activate generator\n");
+			goto exit;
+		} else {
+			u->gen_active = 1;
+		}
+	}
 
-	/* copy args and replace commas with pipes */
-	pipe_delim_argbuf = ast_strdupa(data);
-	while((pdargbuf_ptr = strchr(pipe_delim_argbuf, ',')) != NULL)
-		pdargbuf_ptr[0] = '|';
-
-	if(!strncmp(args.cmd[0], "ivr://", 6)) {
+	if (!strncmp(app_args[0], "ivr://", 6)) {
 		struct server_args ivr_desc = {
 			.accept_fd = -1,
 			.name = "IVR",
@@ -350,25 +426,16 @@ static int app_exec(struct ast_channel *chan, void *data)
 		struct ast_hostent hp;
 
 		/*communicate through socket to server*/
-		if (chan->_state != AST_STATE_UP) {
-			ast_answer(chan);
-		}
-		if (ast_activate_generator(chan, &gen, u) < 0) {
-			ast_chan_log(LOG_WARNING, chan, "Failed to activate generator\n");
-			goto exit;
-		} else {
-			gen_active = 1;
-		}
-
-		ast_chan_log(LOG_DEBUG, chan, "Parsing hostname:port for socket connect from \"%s\"\n", args.cmd[0]);           
-		strncpy(hostname, args.cmd[0] + 6, sizeof(hostname));
-		if((port_str = strchr(hostname, ':')) != NULL) {
+		ast_debug(1, "Parsing hostname:port for socket connect from \"%s\"\n", app_args[0]);
+		ast_copy_string(hostname, app_args[0] + 6, sizeof(hostname));
+		if ((port_str = strchr(hostname, ':')) != NULL) {
 			port_str[0] = 0;
 			port_str += 1;
 			port = atoi(port_str);
 		}
-		if(!port)
-			port = 2949;  /*default port, if one is not provided*/
+		if (!port) {
+			port = 2949;  /* default port, if one is not provided */
+		}
 
 		ast_gethostbyname(hostname, &hp);
 		ivr_desc.sin.sin_family = AF_INET;
@@ -378,8 +445,9 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 		if (!ser) {
 			goto exit;
-		} 
-		res = eivr_comm(chan, u, ser->fd, ser->fd, -1, pipe_delim_argbuf);
+		}
+		res = eivr_comm(chan, u, ser->fd, ser->fd, -1, pipe_delim_args, flags);
+
 	} else {
 	
 		if (pipe(child_stdin)) {
@@ -393,15 +461,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 		if (pipe(child_stderr)) {
 			ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child errors: %s\n", strerror(errno));
 			goto exit;
-		}
-		if (chan->_state != AST_STATE_UP) {
-			ast_answer(chan);
-		}
-		if (ast_activate_generator(chan, &gen, u) < 0) {
-			ast_chan_log(LOG_WARNING, chan, "Failed to activate generator\n");
-			goto exit;
-		} else {
-			gen_active = 1;
 		}
 	
 		pid = ast_safe_fork(0);
@@ -419,24 +478,23 @@ static int app_exec(struct ast_channel *chan, void *data)
 			dup2(child_stdout[1], STDOUT_FILENO);
 			dup2(child_stderr[1], STDERR_FILENO);
 			ast_close_fds_above_n(STDERR_FILENO);
-			execv(args.cmd[0], args.cmd);
-			fprintf(stderr, "Failed to execute '%s': %s\n", args.cmd[0], strerror(errno));
+			execv(app_args[0], app_args);
+			fprintf(stderr, "Failed to execute '%s': %s\n", app_args[0], strerror(errno));
 			_exit(1);
 		} else {
 			/* parent process */
-	
 			close(child_stdin[0]);
 			child_stdin[0] = 0;
 			close(child_stdout[1]);
 			child_stdout[1] = 0;
 			close(child_stderr[1]);
 			child_stderr[1] = 0;
-			res = eivr_comm(chan, u, child_stdin[1], child_stdout[0], child_stderr[0], pipe_delim_argbuf);
+			res = eivr_comm(chan, u, child_stdin[1], child_stdout[0], child_stderr[0], pipe_delim_args, flags);
 		}
 	}
 
 	exit:
-	if (gen_active)
+	if (u->gen_active)
 		ast_deactivate_generator(chan);
 
 	if (child_stdin[0])
@@ -456,12 +514,10 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 	if (child_stderr[1])
 		close(child_stderr[1]);
-
 	if (ser) {
 		fclose(ser->f);
 		ast_tcptls_session_instance_destroy(ser);
 	}
-
 	while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
 		ast_free(entry);
 
@@ -470,7 +526,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u, 
  				int eivr_events_fd, int eivr_commands_fd, int eivr_errors_fd, 
- 				const char *args)
+ 				const struct ast_str *args, const struct ast_flags flags)
 {
 	struct playlist_entry *entry;
 	struct ast_frame *f;
@@ -482,6 +538,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  	char *command;
  	int res = -1;
 	int test_available_fd = -1;
+	int hangup_info_sent = 0;
   
  	FILE *eivr_commands = NULL;
  	FILE *eivr_errors = NULL;
@@ -506,8 +563,9 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  
  	setvbuf(eivr_events, NULL, _IONBF, 0);
  	setvbuf(eivr_commands, NULL, _IONBF, 0);
- 	if(eivr_errors)
+ 	if (eivr_errors) {
 		setvbuf(eivr_errors, NULL, _IONBF, 0);
+	}
 
 	res = 0;
  
@@ -517,11 +575,17 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  			res = -1;
  			break;
  		}
- 		if (ast_check_hangup(chan)) {
- 			ast_chan_log(LOG_NOTICE, chan, "Got check_hangup\n");
- 			send_eivr_event(eivr_events, 'H', NULL, chan);
- 			res = -1;
- 			break;
+ 		if (!hangup_info_sent && !(ast_test_flag(&flags, run_dead)) && ast_check_hangup(chan)) {
+			if (ast_test_flag(&flags, ignore_hangup)) {
+				ast_chan_log(LOG_NOTICE, chan, "Got check_hangup, but ignore_hangup set so sending 'I' command\n");
+				send_eivr_event(eivr_events, 'I', "HANGUP", chan);
+				hangup_info_sent = 1;
+			} else {
+ 				ast_chan_log(LOG_NOTICE, chan, "Got check_hangup\n");
+ 				send_eivr_event(eivr_events, 'H', NULL, chan);
+ 				res = -1;
+	 			break;
+			}
  		}
  
  		ready_fd = 0;
@@ -531,7 +595,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  
  		rchan = ast_waitfor_nandfds(&chan, 1, waitfds, (eivr_errors_fd < 0) ? 1 : 2, &exception, &ready_fd, &ms);
  
- 		if (!AST_LIST_EMPTY(&u->finishlist)) {
+ 		if (chan->_state == AST_STATE_UP && !AST_LIST_EMPTY(&u->finishlist)) {
  			AST_LIST_LOCK(&u->finishlist);
  			while ((entry = AST_LIST_REMOVE_HEAD(&u->finishlist, list))) {
  				send_eivr_event(eivr_events, 'F', entry->filename, chan);
@@ -540,7 +604,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  			AST_LIST_UNLOCK(&u->finishlist);
  		}
  
- 		if (rchan) {
+ 		if (chan->_state == AST_STATE_UP && !(ast_check_hangup(chan)) && rchan) {
  			/* the channel has something */
  			f = ast_read(chan);
  			if (!f) {
@@ -589,15 +653,37 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  			command = ast_strip(input);
   
  			if (option_debug)
- 				ast_chan_log(LOG_DEBUG, chan, "got command '%s'\n", input);
+ 				ast_debug(1, "got command '%s'\n", input);
   
  			if (strlen(input) < 4)
  				continue;
   
 			if (input[0] == 'P') {
- 				send_eivr_event(eivr_events, 'P', args, chan);
- 
+ 				send_eivr_event(eivr_events, 'P', args->str, chan);
+			} else if ( input[0] == 'T' ) {
+				ast_chan_log(LOG_WARNING, chan, "Answering channel if needed and starting generator\n");
+				if (chan->_state != AST_STATE_UP) {
+					if (ast_test_flag(&flags, run_dead)) {
+						ast_chan_log(LOG_WARNING, chan, "Running ExternalIVR with 'd'ead flag on non-hungup channel isn't supported\n");
+						send_eivr_event(eivr_events, 'Z', "ANSWER_FAILURE", chan);
+						continue;
+					}
+					ast_answer(chan);
+				}
+				if (!(u->gen_active)) {
+					if (ast_activate_generator(chan, &gen, u) < 0) {
+						ast_chan_log(LOG_WARNING, chan, "Failed to activate generator\n");
+						send_eivr_event(eivr_events, 'Z', "GENERATOR_FAILURE", chan);
+					} else {
+						u->gen_active = 1;
+					}
+				}
  			} else if (input[0] == 'S') {
+				if (chan->_state != AST_STATE_UP || ast_check_hangup(chan)) {
+					ast_chan_log(LOG_WARNING, chan, "Queue 'S'et called on unanswered channel\n");
+					send_eivr_event(eivr_events, 'Z', NULL, chan);
+					continue;
+				}
  				if (ast_fileexists(&input[2], NULL, u->chan->language) == -1) {
  					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
  					send_eivr_event(eivr_events, 'Z', NULL, chan);
@@ -617,6 +703,11 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  					AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
  				AST_LIST_UNLOCK(&u->playlist);
  			} else if (input[0] == 'A') {
+				if (chan->_state != AST_STATE_UP || ast_check_hangup(chan)) {
+					ast_chan_log(LOG_WARNING, chan, "Queue 'A'ppend called on unanswered channel\n");
+					send_eivr_event(eivr_events, 'Z', NULL, chan);
+					continue;
+				}
  				if (ast_fileexists(&input[2], NULL, u->chan->language) == -1) {
  					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
  					send_eivr_event(eivr_events, 'Z', NULL, chan);
@@ -657,6 +748,11 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  				res = -1;
  				break;
  			} else if (input[0] == 'O') {
+				if (chan->_state != AST_STATE_UP || ast_check_hangup(chan)) {
+					ast_chan_log(LOG_WARNING, chan, "Option called on unanswered channel\n");
+					send_eivr_event(eivr_events, 'Z', NULL, chan);
+					continue;
+				}
  				if (!strcasecmp(&input[2], "autoclear"))
  					u->option_autoclear = 1;
  				else if (!strcasecmp(&input[2], "noautoclear"))

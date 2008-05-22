@@ -24,7 +24,8 @@ connected to the Asterisk process as follows:
 
 stdin (0) - DTMF and hangup events will be received on this handle
 stdout (1) - Playback and hangup commands can be sent on this handle
-There are no error messages available when using ExternalIVR over TCP.
+There are no error messages available when using ExternalIVR over TCP,
+use the 'L' command as a replacement for this.
 
 The application will also create an audio generator to play audio to
 the channel, and will start playing silence. When your application
@@ -46,6 +47,15 @@ or you could cause the channel to become non-responsive.
 
 If the child process dies, ExternalIVR() will notice this and hang up
 the channel immediately (and also send a message to the log).
+
+ExternalIVR() Options
+----------------------
+n: 'n'oanswer, don't answer an otherwise unanswered channel.
+i: 'i'gnore_hangup, instead of sending an 'H' event and exiting
+ExternalIVR() upon channel hangup, it instead sends an 'I' event
+and expects the external application to exit the process.
+d: 'd'ead, allows the operation of ExternalIVR() on channels that
+have already been hung up.
 
 DTMF (and other) events
 -----------------------
@@ -71,6 +81,10 @@ D: a file was dropped from the play list due to interruption (the
 data element will be the dropped file name)
 F: a file has finished playing (the data element will be the file
 name)
+P: a response to the 'P' command (see below)
+G: a response to the 'G' command (see below)
+I: a Inform message, meant to "inform" the client that something
+has occured.  (see Inform Messages below)
 
 The timestamp will be 10 digits long, and will be a decimal
 representation of a standard Unix epoch-based timestamp.
@@ -87,7 +101,11 @@ A,filename
 H,message
 E,message
 O,option
-V,name=value
+V,name=value[,name=value[,name=value]]
+G,name[,name[,name]]
+L,log_message
+P,TIMESTAMP
+T,TIMESTAMP
 
 The 'S' command checks to see if there is a playable audio file with
 the specified name, and if so, clear's the generator's playlist and
@@ -116,7 +134,25 @@ ExternalIVR() application. The supported options are:
 	Automatically interrupt and clear the playlist upon reception
 	of DTMF input.
 
-The 'V' command sets the specified channel variable to the specified value.
+The 'T' command will answer and unanswered channel.  If it fails either
+answering the channel or starting the generator it sends a Z response
+of "Z,TIMESTAMP,ANSWER_FAILED" or "Z,TIMESTAMP,GENERATOR_FAILED"
+respectively.
+
+The 'V' command sets the specified channel variable(s) to the specified
+value(s).
+
+The 'G' command gets the specified channel variable(s).  Multiple
+variables are separated by commas.  Response is in name=value format.
+
+The 'P' command gets the parameters passed into ExternalIVR() minus
+the options to ExternalIVR() itself:
+	If ExternalIVR() is executed as:
+		ExternalIVR(/usr/bin/foo(arg1,arg2),n)
+	The response to the 'P' command would be:
+		P,TIMESTAMP,/usr/bin/foo|arg1|arg2
+
+The 'L' command puts a message into the Asterisk log.
 
 Errors
 ------

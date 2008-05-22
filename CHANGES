@@ -72,6 +72,9 @@ Application Changes
    words, if using the 'd' option, it is not possible to enter a number to append to
    the first argument to Chanspy(). Pressing 4 will change to spy mode, pressing 5 will
    change to whisper mode, and pressing 6 will change to barge mode.
+ * ExternalIVR now takes several options that affect the way it performs, as
+   well as having several new commands.  Please see doc/externalivr.txt for the
+   complete documentation.
 
 SIP Changes
 -----------
