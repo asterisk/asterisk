@@ -7,7 +7,7 @@
 ;type=client				;;Client or Component connection
 ;serverhost=astjab.org			;;Route to server for example,
 					;;	talk.google.com
-;username=asterisk@astjab.org/asterisk	;;Username with optional roster.
+;username=asterisk@astjab.org/asterisk	;;Username with optional resource.
 ;secret=blah				;;Password
 ;priority=1				;;Resource priority
 ;port=5222				;;Port to use defaults to 5222
