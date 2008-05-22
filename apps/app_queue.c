@@ -3943,12 +3943,15 @@ static int set_member_paused(const char *queuename, const char *interface, const
 				ao2_ref(mem, -1);
 			}
 		}
-		ao2_unlock(q);
-		queue_unref(q);
 		
-		if (!ast_strlen_zero(queuename) && found) {
+		if (!ast_strlen_zero(queuename) && !strcasecmp(queuename, q->name)) {
+			ao2_unlock(q);
+			queue_unref(q);
 			break;
 		}
+		
+		ao2_unlock(q);
+		queue_unref(q);
 	}
 
 	return found ? RESULT_SUCCESS : RESULT_FAILURE;
