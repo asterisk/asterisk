@@ -35,14 +35,21 @@
 
 /*** MODULEINFO
 	<depend>ossaudio</depend>
-        <depend>usb</depend> 	 
+	<depend>usb</depend>
 	<defaultenabled>no</defaultenabled>
-        <member name="RADIO_RTX" displayname="Build RTX/DTX Radio Programming"> 	 
-        <defaultenabled>no</defaultenabled> 	 
-        </member> 	 
-        <member name="RADIO_XPMRX" displayname="Build Experimental Radio Protocols"> 	 
-        <defaultenabled>no</defaultenabled> 	 
-        </member>
+ ***/
+
+/*** MAKEOPTS
+<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
+	<member name="RADIO_RTX" displayname="Build RTX/DTX Radio Programming">
+		<defaultenabled>no</defaultenabled>
+		<depend>chan_usbradio</depend>
+	</member>
+	<member name="RADIO_XPMRX" displayname="Build Experimental Radio Protocols">
+		<defaultenabled>no</defaultenabled>
+		<depend>chan_usbradio</depend>
+	</member>
+</category>
  ***/
 
 // 20070918 1600 EDT sph@xelatec.com changing to rx driven streams
