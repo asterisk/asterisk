@@ -2226,7 +2226,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 
 	/* Apply extra gain ! */
 	if( p->txswgain > MAX_VPB_GAIN )
-		a_gain_vector(p->txswgain - MAX_VPB_GAIN , (short*)frame->data, frame->datalen / sizeof(short));
+		a_gain_vector(p->txswgain - MAX_VPB_GAIN , (short*)frame->data.ptr, frame->datalen / sizeof(short));
 
 /*	ast_debug(1, "%s: vpb_write: Applied gain..\n", p->dev); */
 /*	ast_debug(1, "%s: vpb_write: play_buf_time %d\n", p->dev, p->play_buf_time); */
@@ -2234,9 +2234,9 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	if ((p->read_state == 1) && (p->play_buf_time < 5)){
 		play_buf_time_start = ast_tvnow();
 /*		res = vpb_play_buf_sync(p->handle, (char *)frame->data, tdiff * 8 * 2); */
-		res = vpb_play_buf_sync(p->handle, (char *)frame->data, frame->datalen);
+		res = vpb_play_buf_sync(p->handle, (char *)frame->data.ptr, frame->datalen);
 		if(res == VPB_OK) {
-			short * data = (short*)frame->data;
+			short * data = (short*)frame->data.ptr;
 			ast_verb(6, "%s: vpb_write: Wrote chan (codec=%d) %d %d\n", p->dev, fmt, data[0], data[1]);
 		}
 		p->play_buf_time = ast_tvdiff_ms(ast_tvnow(), play_buf_time_start);
@@ -2392,7 +2392,7 @@ static void *do_chanreads(void *pvt)
 			ast_verb(6, "%s: chanreads: applied gain\n", p->dev);
 
 			fr->subclass = afmt;
-			fr->data = readbuf;
+			fr->data.ptr = readbuf;
 			fr->datalen = readlen;
 			fr->frametype = AST_FRAME_VOICE;
 
