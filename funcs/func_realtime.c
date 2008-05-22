@@ -86,7 +86,7 @@ static int function_realtime_read(struct ast_channel *chan, char *cmd, char *dat
 		return -1;
 	}
 	for (var = head; var; var = var->next)
-		resultslen += strlen(var->name) + strlen(var->value) + 2;
+		resultslen += strlen(var->name) + strlen(var->value) + strlen(args.delim1) + strlen(args.delim2);
 
 	result_begin = results = alloca(resultslen);
 	for (var = head; var; var = var->next)
