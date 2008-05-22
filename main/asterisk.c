@@ -1765,6 +1765,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 				return (num_read);
 		}
 		if (fds[0].revents) {
+			char *tmp;
 			res = read(ast_consock, buf, sizeof(buf) - 1);
 			/* if the remote side disappears exit */
 			if (res < 1) {
@@ -1797,6 +1798,14 @@ static int ast_el_read_char(EditLine *el, char *cp)
 			}
 
 			buf[res] = '\0';
+
+			/* Strip preamble from asynchronous events, too */
+			for (tmp = buf; *tmp; tmp++) {
+				if (*tmp == 127) {
+					memmove(tmp, tmp + 1, strlen(tmp));
+					tmp--;
+				}
+			}
 
 			/* Write over the CLI prompt */
 			if (!ast_opt_exec && !lastpos)
