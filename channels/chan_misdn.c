@@ -3120,7 +3120,7 @@ static int dialtone_indicate(struct chan_list *cl)
 		cl->notxtone = 0;
 		cl->norxtone = 0;
 		/* This prods us in misdn_write */
-		ast_playtones_start(ast, 0, ts->data.ptr, 0);
+		ast_playtones_start(ast, 0, ts->data, 0);
 	}
 
 	return 0;
