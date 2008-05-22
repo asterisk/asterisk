@@ -273,7 +273,7 @@ static void *stream_monitor(void *data)
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_SLINEAR16,
 		.src = "console_stream_monitor",
-		.data = buf,
+		.data.ptr = buf,
 		.datalen = sizeof(buf),
 		.samples = sizeof(buf) / sizeof(int16_t),
 	};
@@ -592,7 +592,7 @@ static int console_write(struct ast_channel *chan, struct ast_frame *f)
 {
 	struct console_pvt *pvt = chan->tech_pvt;
 
-	Pa_WriteStream(pvt->stream, f->data, f->samples);
+	Pa_WriteStream(pvt->stream, f->data.ptr, f->samples);
 
 	return 0;
 }
@@ -1084,7 +1084,7 @@ static char *cli_console_sendtext(struct ast_cli_entry *e, int cmd, struct ast_c
 	struct console_pvt *pvt = get_active_pvt();
 	struct ast_frame f = {
 		.frametype = AST_FRAME_TEXT,
-		.data = buf,
+		.data.ptr = buf,
 		.src = "console_send_text",
 	};
 	int len;
