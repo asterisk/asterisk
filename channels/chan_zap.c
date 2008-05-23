@@ -7244,13 +7244,13 @@ static struct zt_pvt *mkintf(int channel, const struct zt_chan_conf *conf, struc
 				}
 			}
 #ifdef HAVE_PRI
-			if ((conf->chan.sig == SIG_PRI) || (conf->chan.sig == SIG_GR303FXOKS) || (conf->chan.sig == SIG_GR303FXSKS)) {
+			if ((chan_sig == SIG_PRI) || (chan_sig == SIG_GR303FXOKS) || (chan_sig == SIG_GR303FXSKS)) {
 				int offset;
 				int myswitchtype;
 				int matchesdchan;
 				int x,y;
 				offset = 0;
-				if ((conf->chan.sig == SIG_PRI) && ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
+				if ((chan_sig == SIG_PRI) && ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
 					ast_log(LOG_ERROR, "Unable to set clear mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
 					destroy_zt_pvt(&tmp);
 					return NULL;
@@ -7274,7 +7274,7 @@ static struct zt_pvt *mkintf(int channel, const struct zt_chan_conf *conf, struc
 						destroy_zt_pvt(&tmp);
 						return NULL;
 					}
-					if (conf->chan.sig == SIG_PRI)
+					if (chan_sig == SIG_PRI)
 						myswitchtype = conf->pri.switchtype;
 					else
 						myswitchtype = PRI_SWITCH_GR303_TMC;
