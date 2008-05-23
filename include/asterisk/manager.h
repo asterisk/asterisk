@@ -203,6 +203,9 @@ void astman_send_listack(struct mansession *s, const struct message *m, char *ms
 
 void __attribute__ ((format (printf, 2, 3))) astman_append(struct mansession *s, const char *fmt, ...);
 
+/*! \brief Determinie if a manager session ident is authenticated */
+int astman_is_authed(uint32_t ident);
+
 /*! \brief Called by Asterisk initialization */
 int init_manager(void);
 

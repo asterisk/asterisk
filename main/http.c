@@ -145,6 +145,18 @@ static const char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
 	return wkspace;
 }
 
+static uint32_t manid_from_vars(struct ast_variable *sid) {
+	uint32_t mngid;
+
+	while (sid && strcmp(sid->name, "mansession_id"))
+		sid = sid->next;
+	
+	if (!sid || sscanf(sid->value, "%x", &mngid) != 1)
+		return 0;
+	
+	return mngid;
+}
+
 static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
 	char *path;
@@ -186,6 +198,10 @@ static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, 
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
 		goto out403;
+
+	if (strstr(path, "/private/") && !astman_is_authed(manid_from_vars(vars))) {
+		goto out403;
+	}
 
 	ast_strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S %Z", ast_localtime(&tv, &tm, "GMT"));
 	fprintf(ser->f, "HTTP/1.1 200 OK\r\n"

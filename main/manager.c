@@ -3140,7 +3140,7 @@ static char *contenttype[] = {
  * the value of the mansession_id cookie (0 is not valid and means
  * a session on the AMI socket).
  */
-static struct mansession *find_session(uint32_t ident)
+static struct mansession *find_session(uint32_t ident, int incinuse)
 {
 	struct mansession *s;
 
@@ -3151,7 +3151,7 @@ static struct mansession *find_session(uint32_t ident)
 	AST_LIST_TRAVERSE(&sessions, s, list) {
 		ast_mutex_lock(&s->__lock);
 		if (s->managerid == ident && !s->needdestroy) {
-			ast_atomic_fetchadd_int(&s->inuse, 1);
+			ast_atomic_fetchadd_int(&s->inuse, incinuse ? 1 : 0);
 			break;
 		}
 		ast_mutex_unlock(&s->__lock);
@@ -3159,6 +3159,21 @@ static struct mansession *find_session(uint32_t ident)
 	AST_LIST_UNLOCK(&sessions);
 
 	return s;
+}
+
+int astman_is_authed(uint32_t ident) 
+{
+	int authed;
+	struct mansession *s;
+
+	if (!(s = find_session(ident, 0)))
+		return 0;
+
+	authed = (s->authenticated != 0);
+
+	ast_mutex_unlock(&s->__lock);
+
+	return authed;
 }
 
 int astman_verify_session_readpermissions(uint32_t ident, int perm)
@@ -3451,7 +3466,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		}
 	}
 
-	if (!(s = find_session(ident))) {
+	if (!(s = find_session(ident, 1))) {
 		/* Create new session.
 		 * While it is not in the list we don't need any locking
 		 */
