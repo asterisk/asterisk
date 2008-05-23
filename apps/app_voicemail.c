@@ -9166,8 +9166,8 @@ static int handle_subscribe(void *datap)
 	AST_RWLIST_WRLOCK(&mwi_subs);
 	AST_RWLIST_INSERT_TAIL(&mwi_subs, mwi_sub, entry);
 	AST_RWLIST_UNLOCK(&mwi_subs);
-	ast_free(p->mailbox);
-	ast_free(p->context);
+	ast_free((void *) p->mailbox);
+	ast_free((void *) p->context);
 	ast_free(p);	
 	return 0;
 }
