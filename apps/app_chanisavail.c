@@ -50,6 +50,7 @@ static char *descrip =
 "This application will check to see if any of the specified channels are\n"
 "available.\n"
 "  Options:\n"
+"    a - Check for all available channels, not only the first one.\n"
 "    s - Consider the channel unavailable if the channel is in use at all.\n"
 "    t - Simply checks if specified channels exist in the channel list\n"
 "        (implies option s).\n"
@@ -61,9 +62,12 @@ static char *descrip =
 
 static int chanavail_exec(struct ast_channel *chan, void *data)
 {
-	int res=-1, inuse=-1, option_state=0, string_compare=0;
+	int inuse=-1, option_state=0, string_compare=0, option_all_avail=0;
 	int status;
 	char *info, tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur;
+	struct ast_str *tmp_availchan = ast_str_alloca(2048);
+	struct ast_str *tmp_availorig = ast_str_alloca(2048);
+	struct ast_str *tmp_availstat = ast_str_alloca(2048);
 	struct ast_channel *tempchan;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(reqchans);
@@ -80,10 +84,15 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, info);
 
 	if (args.options) {
-		if (strchr(args.options, 's'))
+		if (strchr(args.options, 'a')) {
+			option_all_avail = 1;
+		}
+		if (strchr(args.options, 's')) {
 			option_state = 1;
-		if (strchr(args.options, 't'))
+		}
+		if (strchr(args.options, 't')) {
 			string_compare = 1;
+		}
 	}
 	peers = args.reqchans;
 	if (peers) {
@@ -119,27 +128,32 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 				status = inuse = ast_device_state(trychan);
 			}
 			if ((inuse <= 1) && (tempchan = ast_request(tech, chan->nativeformats, number, &status))) {
-					pbx_builtin_setvar_helper(chan, "AVAILCHAN", tempchan->name);
-					/* Store the originally used channel too */
+					ast_str_append(&tmp_availchan, 0, "%s%s", tmp_availchan->used ? "&" : "", tempchan->name);
+					
 					snprintf(tmp, sizeof(tmp), "%s/%s", tech, number);
-					pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", tmp);
+					ast_str_append(&tmp_availorig, 0, "%s%s", tmp_availorig->used ? "&" : "", tmp);
+
 					snprintf(tmp, sizeof(tmp), "%d", status);
-					pbx_builtin_setvar_helper(chan, "AVAILSTATUS", tmp);
+					ast_str_append(&tmp_availstat, 0, "%s%s", tmp_availstat->used ? "&" : "", tmp);
+
 					ast_hangup(tempchan);
 					tempchan = NULL;
-					res = 1;
-					break;
+
+					if (!option_all_avail) {
+						break;
+					}
 			} else {
 				snprintf(tmp, sizeof(tmp), "%d", status);
-				pbx_builtin_setvar_helper(chan, "AVAILSTATUS", tmp);
+				ast_str_append(&tmp_availstat, 0, "%s%s", tmp_availstat->used ? "&" : "", tmp);
 			}
 			cur = rest;
 		} while (cur);
 	}
-	if (res < 1) {
-		pbx_builtin_setvar_helper(chan, "AVAILCHAN", "");
-		pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", "");
-	}
+
+	pbx_builtin_setvar_helper(chan, "AVAILCHAN", tmp_availchan->str);
+	/* Store the originally used channel too */
+	pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", tmp_availorig->str);
+	pbx_builtin_setvar_helper(chan, "AVAILSTATUS", tmp_availstat->str);
 
 	return 0;
 }

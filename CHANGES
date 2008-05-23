@@ -75,6 +75,8 @@ Application Changes
  * ExternalIVR now takes several options that affect the way it performs, as
    well as having several new commands.  Please see doc/externalivr.txt for the
    complete documentation.
+ * ChanIsAvail has a new option, 'a', which will return all available channels instead
+   of just the first one if you give the function more then one channel to check.
 
 SIP Changes
 -----------
