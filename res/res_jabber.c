@@ -35,6 +35,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <ctype.h>
 #include <iksemel.h>
 
 #include "asterisk/channel.h"
@@ -638,23 +639,53 @@ static int aji_recv (struct aji_client *client, int timeout)
 {
 	int len, ret;
 	char buf[NET_IO_BUF_SIZE -1];
+	char newbuf[NET_IO_BUF_SIZE -1];
+	int pos = 0;
+	int newbufpos = 0;
+	unsigned char c;
 
 	memset(buf, 0, sizeof(buf));
+	memset(newbuf, 0, sizeof(newbuf));
 
 	while (1) {
 		len = aji_io_recv(client, buf, NET_IO_BUF_SIZE - 1, timeout);
 		if (len < 0) return IKS_NET_RWERR;
 		if (len == 0) return IKS_NET_EXPIRED;
 		buf[len] = '\0';
-		
+
+		/* our iksemel parser won't work as expected if we feed
+		   it with XML packets that contain multiple whitespace 
+		   characters between tags */
+		while (pos < len) {
+			c = buf[pos];
+			/* if we stumble on the ending tag character,
+			   we skip any whitespace that follows it*/
+			if (c == '>') {
+				while (isspace(buf[pos+1])) {
+					pos++;
+				}
+			}
+			newbuf[newbufpos] = c;
+			newbufpos ++;
+			pos++;
+		}
+		pos = 0;
+		newbufpos = 0;
+
 		/* Log the message here, because iksemel's logHook is 
 		   unaccessible */
 		aji_log_hook(client, buf, len, 1);
-		
-		ret = iks_parse(client->p, buf, len, 0);
+
+		/* let iksemel deal with the string length, 
+		   and reset our buffer */
+		ret = iks_parse(client->p, newbuf, 0, 0);
+		memset(newbuf, 0, sizeof(newbuf));
+
 		if (ret != IKS_OK) {
+			ast_log(LOG_WARNING, "XML parsing failed\n");
 			return ret;
 		}
+		ast_debug(3, "XML parsing successful\n");	
 	}
 	return IKS_OK;
 }
