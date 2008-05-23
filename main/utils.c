@@ -1363,4 +1363,18 @@ int ast_utils_init(void)
 	return 0;
 }
 
+#ifndef __AST_DEBUG_MALLOC
+int _ast_asprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, ...)
+{
+	int res;
+	va_list ap;
 
+	va_start(ap, fmt);
+	if ((res = vasprintf(ret, fmt, ap)) == -1) {
+		MALLOC_FAILURE_MSG;
+	}
+	va_end(ap);
+
+	return res;
+}
+#endif
