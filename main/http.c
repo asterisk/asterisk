@@ -131,6 +131,18 @@ static const char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
 	return wkspace;
 }
 
+static uint32_t manid_from_vars(struct ast_variable *sid) {
+	uint32_t mngid;
+
+	while (sid && strcmp(sid->name, "mansession_id"))
+		sid = sid->next;
+	
+	if (!sid || sscanf(sid->value, "%x", &mngid) != 1)
+		return 0;
+	
+	return mngid;
+}
+
 static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *vars, struct ast_variable *headers, int *status, char **title, int *contentlength)
 {
 	char *path;
@@ -178,9 +190,13 @@ static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, 
 
 	if (S_ISDIR(st.st_mode)) {
 		goto out404;
-	}
+	}	
 
 	if ((fd = open(path, O_RDONLY)) < 0) {
+		goto out403;
+	}
+
+	if (strstr(path, "/private/") && !astman_is_authed(manid_from_vars(vars))) {
 		goto out403;
 	}
 
@@ -514,7 +530,11 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 		}
 	}
 
-	if (urih) {
+	if (method == AST_HTTP_POST && !astman_is_authed(manid_from_vars(vars))) {
+		out = ast_http_error((*status = 403),
+			      (*title = ast_strdup("Access Denied")),
+			      NULL, "Sorry, I cannot let you do that, Dave.");
+	} else if (urih) {
 		*static_content = urih->static_content;
 		out = urih->callback(ser, urih, uri, method, vars, headers, status, title, contentlength);
 		AST_RWLIST_UNLOCK(&uris);
