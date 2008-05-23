@@ -1702,7 +1702,10 @@ static int gtalk_parser(void *data, ikspak *pak)
 {
 	struct gtalk *client = ASTOBJ_REF((struct gtalk *) data);
 
-	if (iks_find_with_attrib(pak->x, "session", "type", "initiate")) {
+	if (iks_find_attrib(pak->x, "type") && !strcmp(iks_find_attrib (pak->x, "type"),"error")) {
+		ast_log(LOG_NOTICE, "Remote peer reported an error, trying to establish the call anyway\n");
+	}
+	else if (iks_find_with_attrib(pak->x, "session", "type", "initiate")) {
 		/* New call */
 		gtalk_newcall(client, pak);
 	} else if (iks_find_with_attrib(pak->x, "session", "type", "candidates") || iks_find_with_attrib(pak->x, "session", "type", "transport-info")) {
