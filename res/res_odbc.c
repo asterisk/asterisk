@@ -417,9 +417,11 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 				ast_cli(a->fd, "  Pooled: Yes\n  Limit:  %d\n  Connections in use: %d\n", class->limit, class->count);
 
 				while ((current = ao2_iterator_next(&aoi2))) {
+					ast_mutex_lock(&current->lock);
 					ast_cli(a->fd, "    - Connection %d: %s\n", ++count,
 						current->used ? "in use" :
 						current->up && ast_odbc_sanity_check(current) ? "connected" : "disconnected");
+					ast_mutex_unlock(&current->lock);
 					ao2_ref(current, -1);
 				}
 			} else {
@@ -497,7 +499,9 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 		aoi = ao2_iterator_init(class->obj_container, 0);
 		while ((obj = ao2_iterator_next(&aoi))) {
 			if (! obj->used) {
+				ast_mutex_lock(&obj->lock);
 				obj->used = 1;
+				ast_mutex_unlock(&obj->lock);
 				break;
 			}
 			ao2_ref(obj, -1);
