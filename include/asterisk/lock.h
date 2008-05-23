@@ -50,9 +50,9 @@
 
 #include <pthread.h>
 #include <sys/param.h>
-
+#ifdef HAVE_BKTR
 #include <execinfo.h>
-
+#endif
 #include "asterisk/logger.h"
 
 /* internal macro to profile mutexes. Only computes the delay on
