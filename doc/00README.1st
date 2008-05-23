@@ -8,6 +8,7 @@ Start here
 ----------
 security.txt		IMPORTANT INFORMATION ABOUT ASTERISK SECURITY
 hardware.txt		Hardware supported by Asterisk
+cli.txt			Information on using the Asterisk console
 
 Configuration
 -------------
