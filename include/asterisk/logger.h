@@ -219,6 +219,50 @@ unsigned int ast_verbose_get_by_file(const char *file);
 	} \
 } while (0)
 
+#ifndef _LOGGER_BACKTRACE_H
+#define _LOGGER_BACKTRACE_H
+#ifdef HAVE_BKTR
+#define AST_MAX_BT_FRAMES 32
+/* \brief
+ *
+ * A structure to hold backtrace information. This structure provides an easy means to 
+ * store backtrace information or pass backtraces to other functions.
+ */
+struct ast_bt {
+	/*! The addresses of the stack frames. This is filled in by calling the glibc backtrace() function */
+	void *addresses[AST_MAX_BT_FRAMES];
+	/*! The number of stack frames in the backtrace */
+	int num_frames;
+	/*! Tells if the ast_bt structure was dynamically allocated */
+	unsigned int alloced:1;
+};
+
+/* \brief
+ * Allocates memory for an ast_bt and stores addresses and symbols.
+ *
+ * \return Returns NULL on failure, or the allocated ast_bt on success
+ */
+struct ast_bt *ast_bt_create(void);
+
+/* \brief
+ * Fill an allocated ast_bt with addresses
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_bt_get_addresses(struct ast_bt *bt);
+
+/* \brief
+ * 
+ * Free dynamically allocated portions of an ast_bt
+ *
+ * \retval NULL.
+ */
+void *ast_bt_destroy(struct ast_bt *bt);
+
+#endif /* HAVE_BKTR */
+#endif /* _LOGGER_BACKTRACE_H */
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

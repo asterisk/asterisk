@@ -378,3 +378,20 @@ void ast_register_thread(char *name)
 void ast_unregister_thread(void *id)
 {
 }
+
+#ifdef HAVE_BKTR
+struct ast_bt* ast_bt_create(void)
+{
+	return NULL;
+}
+
+int ast_bt_get_addresses(struct ast_bt *bt)
+{
+	return -1;
+}
+
+void *ast_bt_destroy(struct ast_bt *bt)
+{
+	return NULL;
+}
+#endif

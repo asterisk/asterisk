@@ -1127,30 +1127,67 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	return;
 }
 
+#ifdef HAVE_BKTR
+
+struct ast_bt *ast_bt_create(void) 
+{
+	struct ast_bt *bt = ast_calloc(1, sizeof(*bt));
+	if (!bt) {
+		ast_log(LOG_ERROR, "Unable to allocate memory for backtrace structure!\n");
+		return NULL;
+	}
+
+	bt->alloced = 1;
+
+	ast_bt_get_addresses(bt);
+
+	return bt;
+}
+
+int ast_bt_get_addresses(struct ast_bt *bt)
+{
+	bt->num_frames = backtrace(bt->addresses, AST_MAX_BT_FRAMES);
+
+	return 0;
+}
+
+void *ast_bt_destroy(struct ast_bt *bt)
+{
+	if (bt->alloced) {
+		ast_free(bt);
+	}
+
+	return NULL;
+}
+
+#endif /* HAVE_BKTR */
+
 void ast_backtrace(void)
 {
 #ifdef HAVE_BKTR
-	int count = 0, i = 0;
-	void **addresses;
+	struct ast_bt *backtrace;
+	int i = 0;
 	char **strings;
 
-	if ((addresses = ast_calloc(MAX_BACKTRACE_FRAMES, sizeof(*addresses)))) {
-		count = backtrace(addresses, MAX_BACKTRACE_FRAMES);
-		if ((strings = backtrace_symbols(addresses, count))) {
-			ast_debug(1, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
-			for (i = 0; i < count; i++) {
-#if __WORDSIZE == 32
-				ast_log(LOG_DEBUG, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
-#elif __WORDSIZE == 64
-				ast_log(LOG_DEBUG, "#%d: [%016lX] %s\n", i, (unsigned long)addresses[i], strings[i]);
-#endif
-			}
-			free(strings);
-		} else {
-			ast_debug(1, "Could not allocate memory for backtrace\n");
-		}
-		ast_free(addresses);
+	if (!(backtrace = ast_bt_create())) {
+		ast_log(LOG_WARNING, "Unable to allocate space for backtrace structure\n");
+		return;
 	}
+
+	if ((strings = backtrace_symbols(backtrace->addresses, backtrace->num_frames))) {
+		ast_debug(1, "Got %d backtrace record%c\n", backtrace->num_frames, backtrace->num_frames != 1 ? 's' : ' ');
+		for (i = 0; i < backtrace->num_frames; i++) {
+#if __WORDSIZE == 32
+			ast_log(LOG_DEBUG, "#%d: [%08X] %s\n", i, (unsigned int)backtrace->addresses[i], strings[i]);
+#elif __WORDSIZE == 64
+			ast_log(LOG_DEBUG, "#%d: [%016lX] %s\n", i, (unsigned long)backtrace->addresses[i], strings[i]);
+#endif
+		}
+		free(strings);
+	} else {
+		ast_debug(1, "Could not allocate memory for backtrace\n");
+	}
+	ast_bt_destroy(backtrace);
 #else
 	ast_log(LOG_WARNING, "Must run configure with '--with-execinfo' for stack backtraces.\n");
 #endif

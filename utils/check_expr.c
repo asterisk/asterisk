@@ -86,6 +86,21 @@ enum ast_lock_type {
 };
 #endif
 #if !defined(LOW_MEMORY)
+#ifdef HAVE_BKTR
+void ast_store_lock_info(enum ast_lock_type type, const char *filename,
+		        int line_num, const char *func, const char *lock_name, void *lock_addr, struct ast_bt *bt);
+void ast_store_lock_info(enum ast_lock_type type, const char *filename,
+		        int line_num, const char *func, const char *lock_name, void *lock_addr, struct ast_bt *bt)
+{
+    /* not a lot to do in a standalone w/o threading! */
+}
+
+void ast_remove_lock_info(void *lock_addr, struct ast_bt *bt);
+void ast_remove_lock_info(void *lock_addr, struct ast_bt *bt)
+{
+    /* not a lot to do in a standalone w/o threading! */
+}
+#else
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 		        int line_num, const char *func, const char *lock_name, void *lock_addr);
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
@@ -94,14 +109,15 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
     /* not a lot to do in a standalone w/o threading! */
 }
 
-void ast_mark_lock_acquired(void *);
-void ast_mark_lock_acquired(void *foo)
+void ast_remove_lock_info(void *lock_addr);
+void ast_remove_lock_info(void *lock_addr)
 {
     /* not a lot to do in a standalone w/o threading! */
 }
+#endif /* HAVE_BKTR */
 
-void ast_remove_lock_info(void *lock_addr);
-void ast_remove_lock_info(void *lock_addr)
+void ast_mark_lock_acquired(void *);
+void ast_mark_lock_acquired(void *foo)
 {
     /* not a lot to do in a standalone w/o threading! */
 }

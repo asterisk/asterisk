@@ -744,3 +744,9 @@ Miscellaneous
      turned on, via the CHANNEL(trace) dialplan function.  Could be useful for
      dialplan debugging.
   * iLBC source code no longer included (see UPGRADE.txt for details)
+  * If compiled with DETECT_DEADLOCKS enabled and if you have glibc, then if 
+     deadlock is detected, a backtrace of the stack which led to the lock calls
+	 will be output to the CLI.
+  * If compiled with DEBUG_THREADS enabled and if you have glibc, then issuing
+     the "core show locks" CLI command will give lock information output as well
+	 as a backtrace of the stack which led to the lock calls.
