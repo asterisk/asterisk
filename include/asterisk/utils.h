@@ -554,21 +554,8 @@ char * attribute_malloc _ast_strndup(const char *str, size_t len, const char *fi
 #define ast_asprintf(ret, fmt, ...) \
 	_ast_asprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, __VA_ARGS__)
 
-AST_INLINE_API(
-__attribute__((format (printf, 5, 6)))
-int _ast_asprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, ...),
-{
-	int res;
-	va_list ap;
-
-	va_start(ap, fmt);
-	if ((res = vasprintf(ret, fmt, ap)) == -1)
-		MALLOC_FAILURE_MSG;
-	va_end(ap);
-
-	return res;
-}
-)
+int __attribute__((format (printf, 5, 6)))
+	_ast_asprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, ...);
 
 /*!
  * \brief A wrapper for vasprintf()
