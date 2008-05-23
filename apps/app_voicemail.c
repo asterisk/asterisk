@@ -9166,6 +9166,8 @@ static int handle_subscribe(void *datap)
 	AST_RWLIST_WRLOCK(&mwi_subs);
 	AST_RWLIST_INSERT_TAIL(&mwi_subs, mwi_sub, entry);
 	AST_RWLIST_UNLOCK(&mwi_subs);
+	ast_free(p->mailbox);
+	ast_free(p->context);
 	ast_free(p);	
 	return 0;
 }
@@ -9200,8 +9202,8 @@ static void mwi_sub_event_cb(const struct ast_event *event, void *userdata)
 		ast_log(LOG_ERROR, "could not allocate a mwi_sub_task\n");
 		return;
 	}
-	mwist->mailbox = ast_event_get_ie_str(event, AST_EVENT_IE_MAILBOX);
-	mwist->context = ast_event_get_ie_str(event, AST_EVENT_IE_CONTEXT);
+	mwist->mailbox = ast_strdup(ast_event_get_ie_str(event, AST_EVENT_IE_MAILBOX));
+	mwist->context = ast_strdup(ast_event_get_ie_str(event, AST_EVENT_IE_CONTEXT));
 	mwist->uniqueid = ast_event_get_ie_uint(event, AST_EVENT_IE_UNIQUEID);
 	
 	if (ast_taskprocessor_push(mwi_subscription_tps, handle_subscribe, mwist) < 0) {
