@@ -2601,7 +2601,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 	   lot context eventually */
 	int res = 0;
 
-	char *parse;
+	char *parse = NULL;
 	AST_DECLARE_APP_ARGS(app_args,
 		AST_APP_ARG(timeout);
 		AST_APP_ARG(return_con);
@@ -2637,7 +2637,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 		};
 		struct ast_flags flags = { 0 };
 
-		if (!ast_strlen_zero(app_args.timeout)) {
+		if (parse && !ast_strlen_zero(app_args.timeout)) {
 			if (sscanf(app_args.timeout, "%d", &args.timeout) != 1) {
 				ast_log(LOG_WARNING, "Invalid timeout '%s' provided\n", app_args.timeout);
 				args.timeout = 0;
@@ -2646,7 +2646,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 
 		args.return_con = app_args.return_con;
 		args.return_ext = app_args.return_ext;
-		if (!ast_strlen_zero(app_args.return_pri)) {
+		if (parse && !ast_strlen_zero(app_args.return_pri)) {
 			if (sscanf(app_args.return_pri, "%d", &args.return_pri) != 1) {
 				ast_log(LOG_WARNING, "Invalid priority '%s' specified\n", app_args.return_pri);
 				args.return_pri = 0;
