@@ -7959,12 +7959,14 @@ void pbx_builtin_clear_globals(void)
 
 int pbx_checkcondition(const char *condition)
 {
-	if (ast_strlen_zero(condition))	/* NULL or empty strings are false */
+	int res;
+	if (ast_strlen_zero(condition)) {                /* NULL or empty strings are false */
 		return 0;
-	else if (*condition >= '0' && *condition <= '9')	/* Numbers are evaluated for truth */
-		return atoi(condition);
-	else	/* Strings are true */
+	} else if (sscanf(condition, "%d", &res) == 1) { /* Numbers are evaluated for truth */
+		return res;
+	} else {                                         /* Strings are true */
 		return 1;
+	}
 }
 
 static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)

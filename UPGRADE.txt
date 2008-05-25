@@ -59,6 +59,12 @@ Core:
 * The silencethreshold used for various applications is now settable via a
   centralized config option in dsp.conf.
 
+* The logical value of spaces immediately preceding a standalone 0 previously
+  evaluated to true.  It now evaluates to false.  This has confused a good
+  many people in the past (typically because they failed to realize the space
+  had any significance).  Since this violates the Principle of Least Surprise,
+  it has been changed.
+
 Voicemail:
 
 * The voicemail configuration values 'maxmessage' and 'minmessage' have
