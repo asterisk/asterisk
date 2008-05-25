@@ -2614,7 +2614,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	}
 
 	/* Peer found in realtime, now build it in memory */
-	peer = build_peer(newpeername, var, NULL, !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS));
+	peer = build_peer(newpeername, var, NULL, 1);
 	if (!peer) {
 		if(peerlist)
 			ast_config_destroy(peerlist);
@@ -16648,9 +16648,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	struct ast_variable *tmpvar = NULL;
 	struct ast_flags peerflags[2] = {{(0)}};
 	struct ast_flags mask[2] = {{(0)}};
+	char fullcontact[sizeof(peer->fullcontact)] = "";
 
-
-	if (!realtime)
+	if (!realtime || ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS))
 		/* Note we do NOT use find_peer here, to avoid realtime recursion */
 		/* We also use a case-sensitive comparison (unlike find_peer) so
 		   that case changes made to the peer name will be properly handled
@@ -16667,7 +16667,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		if (!(peer = ast_calloc(1, sizeof(*peer))))
 			return NULL;
 
-		if (realtime)
+		if (realtime && !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS))
 			rpeerobjs++;
 		else
 			speerobjs++;
@@ -16704,8 +16704,14 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		} else if (realtime && !strcasecmp(v->name, "name"))
 			ast_copy_string(peer->name, v->value, sizeof(peer->name));
 		else if (realtime && !strcasecmp(v->name, "fullcontact")) {
-			ast_copy_string(peer->fullcontact, v->value, sizeof(peer->fullcontact));
-			ast_set_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT);
+			/* Reconstruct field, because realtime separates our value at the ';' */
+			if (!ast_strlen_zero(fullcontact)) {
+				strncat(fullcontact, ";", sizeof(fullcontact) - strlen(fullcontact) - 1);
+				strncat(fullcontact, v->value, sizeof(fullcontact) - strlen(fullcontact) - 1);
+			} else {
+				ast_copy_string(fullcontact, v->value, sizeof(fullcontact));
+				ast_set_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT);
+			}
 		} else if (!strcasecmp(v->name, "secret")) 
 			ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
 		else if (!strcasecmp(v->name, "md5secret")) 
@@ -16865,6 +16871,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->maxcallbitrate = default_maxcallbitrate;
 		}
 	}
+	if (!ast_strlen_zero(fullcontact)) {
+		ast_copy_string(peer->fullcontact, fullcontact, sizeof(peer->fullcontact));
+	}
+
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && realtime) {
 		time_t nowtime = time(NULL);
 
