@@ -2010,7 +2010,7 @@ int ast_cli_command(int fd, const char *s)
 				break;
 			}
 		} else 
-			ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
+			ast_cli(fd, "No such command '%s' (type 'help %s' for other possible commands)\n", s, find_best(argv));
 		if (e)
 			ast_atomic_fetchadd_int(&e->inuse, -1);
 	}
