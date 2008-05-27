@@ -74,7 +74,7 @@
 #endif
 
 #if !defined(HAVE_ASPRINTF) && !defined(__AST_DEBUG_MALLOC)
-int asprintf(char **str, const char *fmt, ...);
+int __attribute__ ((format (printf, 2, 3))) asprintf(char **str, const char *fmt, ...);
 #endif
 
 #ifndef HAVE_GETLOADAVG
