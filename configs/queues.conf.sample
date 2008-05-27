@@ -288,7 +288,10 @@ monitor-type = MixMonitor
 ;
 ; It is important to ensure that channel drivers used for members are loaded
 ; before app_queue.so itself or they may be marked invalid until reload. This
-; can be accomplished by explicitly listing them in modules.conf before app_queue.so
+; can be accomplished by explicitly listing them in modules.conf before
+; app_queue.so.  Additionally, if you use Local channels as queue members, you
+; must also preload pbx_config.so (or pbx_ael.so, pbx_lua.so, or
+; pbx_realtime.so, depending on how your dialplan is configured).
 ;
 ;member => Zap/1
 ;member => Zap/2,10
