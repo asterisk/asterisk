@@ -4522,6 +4522,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			ast_udptl_settos(p->udptl, global_tos_audio);
 		p->maxcallbitrate = default_maxcallbitrate;
 		p->autoframing = global_autoframing;
+		ast_rtp_codec_setpref(p->rtp, &p->prefs);
 	}
 
 	if (useglobal_nat && sin) {
@@ -5300,24 +5301,20 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 						ast_log(LOG_DEBUG, "Can't read framing from SDP: %s\n", a);
 				}
 			}
-			if (framing && last_rtpmap_codec) {
-				if (p->autoframing) {
-					struct ast_codec_pref *pref = ast_rtp_codec_getpref(p->rtp);
-					int codec_n;
-					int format = 0;
-					for (codec_n = 0; codec_n < last_rtpmap_codec; codec_n++) {
-						format = ast_rtp_codec_getformat(found_rtpmap_codecs[codec_n]);
-						if (!format)	/* non-codec or not found */
-							continue;
-						if (option_debug)
-							ast_log(LOG_DEBUG, "Setting framing for %d to %ld\n", format, framing);
-						ast_codec_pref_setsize(pref, format, framing);
-					}
-					ast_rtp_codec_setpref(p->rtp, pref);
+			if (framing && p->autoframing) {
+				struct ast_codec_pref *pref = ast_rtp_codec_getpref(p->rtp);
+				int codec_n;
+				int format = 0;
+				for (codec_n = 0; codec_n < MAX_RTP_PT; codec_n++) {
+					format = ast_rtp_codec_getformat(codec_n);
+					if (!format)	/* non-codec or not found */
+						continue;
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Setting framing for %d to %ld\n", format, framing);
+					ast_codec_pref_setsize(pref, format, framing);
 				}
+				ast_rtp_codec_setpref(p->rtp, pref);
 			}
-			memset(&found_rtpmap_codecs, 0, sizeof(found_rtpmap_codecs));
-			last_rtpmap_codec = 0;
 			continue;
 		} else if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) == 2) {
 			/* We have a rtpmap to handle */
