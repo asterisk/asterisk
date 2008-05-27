@@ -452,11 +452,13 @@ static struct chanspy_ds *chanspy_ds_free(struct chanspy_ds *chanspy_ds)
 	if (chanspy_ds->chan) {
 		struct ast_datastore *datastore;
 		struct ast_channel *chan;
+		char uid[20];
 
 		chan = chanspy_ds->chan;
 
 		ast_channel_lock(chan);
-		if ((datastore = ast_channel_datastore_find(chan, &chanspy_ds_info, NULL))) {
+		snprintf(uid, sizeof(uid), "%p", chanspy_ds);
+		if ((datastore = ast_channel_datastore_find(chan, &chanspy_ds_info, uid))) {
 			ast_channel_datastore_remove(chan, datastore);
 			/* chanspy_ds->chan is NULL after this call */
 			chanspy_ds_destroy(datastore->data);
@@ -474,10 +476,13 @@ static struct chanspy_ds *chanspy_ds_free(struct chanspy_ds *chanspy_ds)
 static struct chanspy_ds *setup_chanspy_ds(struct ast_channel *chan, struct chanspy_ds *chanspy_ds)
 {
 	struct ast_datastore *datastore = NULL;
+	char uid[20];
 
 	ast_mutex_lock(&chanspy_ds->lock);
 
-	if (!(datastore = ast_channel_datastore_alloc(&chanspy_ds_info, NULL))) {
+	snprintf(uid, sizeof(uid), "%p", chanspy_ds);
+
+	if (!(datastore = ast_channel_datastore_alloc(&chanspy_ds_info, uid))) {
 		ast_mutex_unlock(&chanspy_ds->lock);
 		chanspy_ds = chanspy_ds_free(chanspy_ds);
 		ast_channel_unlock(chan);
