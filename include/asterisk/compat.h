@@ -110,7 +110,7 @@ int unsetenv(const char *name);
 #endif
 
 #if !defined(HAVE_VASPRINTF) && !defined(__AST_DEBUG_MALLOC)
-int vasprintf(char **strp, const char *fmt, va_list ap);
+int __attribute__ ((format (printf, 2, 0))) vasprintf(char **strp, const char *fmt, va_list ap);
 #endif
 
 #ifndef HAVE_STRLCAT
