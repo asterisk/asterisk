@@ -181,17 +181,26 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 			else if (!strcasecmp(v->name, "appdata")) {
 				if (!compat16) {
 					char *ptr;
+					int in = 0;
 					tmp = alloca(strlen(v->value) * 2 + 1);
 					for (ptr = tmp; *v->value; v->value++) {
 						if (*v->value == ',') {
 							*ptr++ = '\\';
 							*ptr++ = ',';
-						} else if (*v->value == '|') {
+						} else if (*v->value == '|' && !in) {
 							*ptr++ = ',';
 						} else {
 							*ptr++ = *v->value;
 						}
+
+						/* Don't escape '|', meaning 'or', inside expressions ($[ ]) */
+						if (v->value[0] == '[' && v->value[-1] == '$') {
+							in++;
+						} else if (v->value[0] == ']' && in) {
+							in--;
+						}
 					}
+					*ptr = '\0';
 				} else {
 					tmp = ast_strdupa(v->value);
 				}
