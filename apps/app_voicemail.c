@@ -468,6 +468,7 @@ static char *descrip_vm =
 "    b    - Play the 'busy' greeting to the calling party.\n"
 "    g(#) - Use the specified amount of gain when recording the voicemail\n"
 "           message. The units are whole-number decibels (dB).\n"
+"           Only works on supported technologies, which is Zap only.\n"
 "    s    - Skip the playback of instructions for leaving a message to the\n"
 "           calling party.\n"
 "    u    - Play the 'unavailable' greeting.\n"
