@@ -1504,7 +1504,9 @@ static int ldap_reconnect(void)
 		bind_result = ldap_sasl_bind_s(ldapConn, user, LDAP_SASL_SIMPLE, &cred, NULL, NULL, NULL);
 	} else {
 		ast_debug(2, "bind %s anonymously\n", url);
-		bind_result = ldap_sasl_bind_s(ldapConn, NULL, LDAP_SASL_SIMPLE, NULL, NULL, NULL, NULL);
+		cred.bv_val = NULL;
+		cred.bv_len = 0;
+		bind_result = ldap_sasl_bind_s(ldapConn, NULL, LDAP_SASL_SIMPLE, &cred, NULL, NULL, NULL);
 	}
 	if (bind_result == LDAP_SUCCESS) {
 		ast_debug(2, "Successfully connected to database.\n");
