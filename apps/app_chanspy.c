@@ -142,6 +142,7 @@ AST_APP_OPTIONS(spy_opts, {
 	AST_APP_OPTION_ARG('r', OPTION_RECORD, OPT_ARG_RECORD),
 });
 
+int next_unique_id_to_use = 0;
 
 struct chanspy_translation_helper {
 	/* spy data */
@@ -216,6 +217,7 @@ static int start_spying(struct ast_channel *chan, const char *spychan_name, stru
 
 struct chanspy_ds {
 	struct ast_channel *chan;
+	char unique_id[20];
 	ast_mutex_t lock;
 };
 
@@ -415,13 +417,11 @@ static struct chanspy_ds *chanspy_ds_free(struct chanspy_ds *chanspy_ds)
 	if (chanspy_ds->chan) {
 		struct ast_datastore *datastore;
 		struct ast_channel *chan;
-		char uid[20];
 
 		chan = chanspy_ds->chan;
 
 		ast_channel_lock(chan);
-		snprintf(uid, sizeof(uid), "%p", chanspy_ds);
-		if ((datastore = ast_channel_datastore_find(chan, &chanspy_ds_info, uid))) {
+		if ((datastore = ast_channel_datastore_find(chan, &chanspy_ds_info, chanspy_ds->unique_id))) {
 			ast_channel_datastore_remove(chan, datastore);
 			/* chanspy_ds->chan is NULL after this call */
 			chanspy_ds_destroy(datastore->data);
@@ -439,13 +439,10 @@ static struct chanspy_ds *chanspy_ds_free(struct chanspy_ds *chanspy_ds)
 static struct chanspy_ds *setup_chanspy_ds(struct ast_channel *chan, struct chanspy_ds *chanspy_ds)
 {
 	struct ast_datastore *datastore = NULL;
-	char uid[20];
 
 	ast_mutex_lock(&chanspy_ds->lock);
 
-	snprintf(uid, sizeof(uid), "%p", chanspy_ds);
-
-	if (!(datastore = ast_channel_datastore_alloc(&chanspy_ds_info, uid))) {
+	if (!(datastore = ast_channel_datastore_alloc(&chanspy_ds_info, chanspy_ds->unique_id))) {
 		ast_mutex_unlock(&chanspy_ds->lock);
 		chanspy_ds = chanspy_ds_free(chanspy_ds);
 		ast_channel_unlock(chan);
@@ -503,6 +500,8 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 	struct chanspy_ds chanspy_ds;
 
 	ast_mutex_init(&chanspy_ds.lock);
+
+	snprintf(chanspy_ds.unique_id, sizeof(chanspy_ds.unique_id), "%d", ast_atomic_fetchadd_int(&next_unique_id_to_use, +1));
 
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
