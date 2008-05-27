@@ -1875,7 +1875,7 @@ int ast_cli_command(int fd, const char *s)
 		ast_atomic_fetchadd_int(&e->inuse, 1);
 	AST_RWLIST_UNLOCK(&helpers);
 	if (e == NULL) {
-		ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(args + 1));
+		ast_cli(fd, "No such command '%s' (type 'help %s' for other possible commands)\n", s, find_best(args + 1));
 		goto done;
 	}
 	/*
