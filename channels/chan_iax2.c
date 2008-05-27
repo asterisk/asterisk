@@ -8156,12 +8156,11 @@ static int socket_process(struct iax2_thread *thread)
 		     (f.frametype != AST_FRAME_IAX))) {
 			unsigned char x;
 			int call_to_destroy;
-			/* XXX This code is not very efficient.  Surely there is a better way which still
-			       properly handles boundary conditions? XXX */
 			/* First we have to qualify that the ACKed value is within our window */
-			for (x=iaxs[fr->callno]->rseqno; x != iaxs[fr->callno]->oseqno; x++)
-				if (fr->iseqno == x)
-					break;
+			if (iaxs[fr->callno]->rseqno >= iaxs[fr->callno]->oseqno || (fr->iseqno >= iaxs[fr->callno]->rseqno && fr->iseqno < iaxs[fr->callno]->oseqno))
+				x = fr->iseqno;
+			else 
+				x = iaxs[fr->callno]->oseqno;
 			if ((x != iaxs[fr->callno]->oseqno) || (iaxs[fr->callno]->oseqno == fr->iseqno)) {
 				/* The acknowledgement is within our window.  Time to acknowledge everything
 				   that it says to */
