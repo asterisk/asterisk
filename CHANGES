@@ -151,6 +151,7 @@ SIP changes
      SIP session.
   * Added experimental TCP and TLS support for SIP.  See doc/siptls.txt and 
      configs/sip.conf.sample for more information on how it is used.
+  * Added t38pt_usertpsource option. See sip.conf.sample for details.
 
 IAX2 changes
 ------------
