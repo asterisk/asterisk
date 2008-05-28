@@ -63,7 +63,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/dsp.h"
 #include "asterisk/stringfields.h"
-#include "asterisk/astobj.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/devicestate.h"
