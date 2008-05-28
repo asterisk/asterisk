@@ -37,11 +37,12 @@
 #define JINGLE_NODE "jingle"
 #define GOOGLE_NODE "session"
 
-#define JINGLE_NS "http://www.xmpp.org/extensions/xep-0166.html#ns"
-#define JINGLE_AUDIO_RTP_NS "http://www.xmpp.org/extensions/xep-0167.html#ns"
-#define JINGLE_ICE_UDP_NS "http://www.xmpp.org/extensions/xep-0176.html#ns-udp"
-#define JINGLE_DTMF_NS "http://www.xmpp.org/extensions/xep-0181.html#ns"
-#define JINGLE_DTMF_NS_ERRORS "http://www.xmpp.org/extensions/xep-0181.html#ns-errors"
+#define JINGLE_NS "urn:xmpp:tmp:jingle"
+#define JINGLE_AUDIO_RTP_NS "urn:xmpp:tmp:jingle:apps:audio-rtp"
+#define JINGLE_VIDEO_RTP_NS "urn:xmpp:tmp:jingle:apps:video"
+#define JINGLE_ICE_UDP_NS "urn:xmpp:tmp:jingle:transports:ice-udp"
+#define JINGLE_DTMF_NS "urn:xmpp:tmp:jingle:dtmf"
+
 #define GOOGLE_NS "http://www.google.com/session"
 
 #define JINGLE_SID "sid"
