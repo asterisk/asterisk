@@ -306,6 +306,7 @@ Changes since Asterisk 1.2:
                       o canreinvite variable can also now be set to 'nonat'
                       o rtsavesysname variable added
                       o JitterBuffer support added
+                      o t38pt_usertpsource variable added
               23. skinny.conf
                       o port variable renamed to bindport
                       o JitterBuffer support added

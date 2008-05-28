@@ -484,7 +484,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; videosupport		      videosupport
 ; maxcallbitrate	      maxcallbitrate
 ; rfc2833compensate           mailbox
-;                             username
+; t38pt_usertpsource          username
 ;                             template
 ;                             fromdomain
 ;                             regexten
@@ -498,6 +498,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             sendrpid
 ;                             outboundproxy
 ;                             rfc2833compensate
+;                             t38pt_usertpsource
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)
@@ -662,3 +663,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;host=dynamic
 ;rfc2833compensate=yes		; Compensate for pre-1.4 DTMF transmission from another Asterisk machine.
 				; You must have this turned on or DTMF reception will work improperly.
+;t38pt_usertpsource=yes         ; Use the source IP address of RTP as the destination IP address for UDPTL packets
+                                ; if the nat option is enabled. If a single RTP packet is received Asterisk will know the
+                                ; external IP address of the remote device. If port forwarding is done at the client side
+                                ; then UDPTL will flow to the remote device.
