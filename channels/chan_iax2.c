@@ -9908,7 +9908,11 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
  		peer_unref(peer);
 
 	/* And send the poke */
-	send_command(iaxs[peer->callno], AST_FRAME_IAX, IAX_COMMAND_POKE, 0, NULL, 0, -1);
+	ast_mutex_lock(&iaxsl[peer->callno]);
+	if (iaxs[peer->callno]) {
+		send_command(iaxs[peer->callno], AST_FRAME_IAX, IAX_COMMAND_POKE, 0, NULL, 0, -1);
+	}
+	ast_mutex_unlock(&iaxsl[peer->callno]);
 
 	return 0;
 }
