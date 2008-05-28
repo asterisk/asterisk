@@ -3438,11 +3438,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		set_queue_variables(qe);
 		ao2_unlock(qe->parent);
 		
+		ast_channel_lock(qe->chan);
+		if ((monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME"))) {
+				monitorfilename = ast_strdupa(monitorfilename);
+		}
+		ast_channel_unlock(qe->chan);
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
 			if (!qe->parent->montype) {
 				ast_debug(1, "Starting Monitor as requested.\n");
-				monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
 				if (pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC") || pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS"))
 					which = qe->chan;
 				else
@@ -3457,75 +3461,79 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					ast_monitor_start(which, qe->parent->monfmt, tmpid, 1, X_REC_IN | X_REC_OUT);
 				}
 			} else {
-				ast_debug(1, "Starting MixMonitor as requested.\n");
-				monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
-				if (!monitorfilename) {
-					if (qe->chan->cdr)
-						ast_copy_string(tmpid, qe->chan->cdr->uniqueid, sizeof(tmpid));
-					else
-						snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
-				} else {
-					const char *m = monitorfilename;
-					for (p = tmpid2; p < tmpid2 + sizeof(tmpid2) - 1; p++, m++) {
-						switch (*m) {
-						case '^':
-							if (*(m + 1) == '{')
-								*p = '$';
-							break;
-						case ',':
-							*p++ = '\\';
-							/* Fall through */
-						default:
-							*p = *m;
-						}
-						if (*m == '\0')
-							break;
-					}
-					if (p == tmpid2 + sizeof(tmpid2))
-						tmpid2[sizeof(tmpid2) - 1] = '\0';
-
-					pbx_substitute_variables_helper(qe->chan, tmpid2, tmpid, sizeof(tmpid) - 1);
-				}
-
-				monitor_exec = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC");
-				monitor_options = pbx_builtin_getvar_helper(qe->chan, "MONITOR_OPTIONS");
-
-				if (monitor_exec) {
-					const char *m = monitor_exec;
-					for (p = meid2; p < meid2 + sizeof(meid2) - 1; p++, m++) {
-						switch (*m) {
-						case '^':
-							if (*(m + 1) == '{')
-								*p = '$';
-							break;
-						case ',':
-							*p++ = '\\';
-							/* Fall through */
-						default:
-							*p = *m;
-						}
-						if (*m == '\0')
-							break;
-					}
-					if (p == meid2 + sizeof(meid2))
-						meid2[sizeof(meid2) - 1] = '\0';
-
-					pbx_substitute_variables_helper(qe->chan, meid2, meid, sizeof(meid) - 1);
-				}
-	
-				snprintf(tmpid2, sizeof(tmpid2), "%s.%s", tmpid, qe->parent->monfmt);
-
 				mixmonapp = pbx_findapp("MixMonitor");
-
-				if (!monitor_options)
-					monitor_options = "";
 				
 				if (mixmonapp) {
+					ast_debug(1, "Starting MixMonitor as requested.\n");
+					if (!monitorfilename) {
+						if (qe->chan->cdr)
+							ast_copy_string(tmpid, qe->chan->cdr->uniqueid, sizeof(tmpid));
+						else
+							snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
+					} else {
+						const char *m = monitorfilename;
+						for (p = tmpid2; p < tmpid2 + sizeof(tmpid2) - 1; p++, m++) {
+							switch (*m) {
+							case '^':
+								if (*(m + 1) == '{')
+									*p = '$';
+								break;
+							case ',':
+								*p++ = '\\';
+								/* Fall through */
+							default:
+								*p = *m;
+							}
+							if (*m == '\0')
+								break;
+						}
+						if (p == tmpid2 + sizeof(tmpid2))
+							tmpid2[sizeof(tmpid2) - 1] = '\0';
+
+						pbx_substitute_variables_helper(qe->chan, tmpid2, tmpid, sizeof(tmpid) - 1);
+					}
+
+					ast_channel_lock(qe->chan);
+					if ((monitor_exec = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC"))) {
+							monitor_exec = ast_strdupa(monitor_exec);
+					}
+					if ((monitor_options = pbx_builtin_getvar_helper(qe->chan, "MONITOR_OPTIONS"))) {
+							monitor_options = ast_strdupa(monitor_options);
+					} else {
+						monitor_options = "";
+					}
+					ast_channel_unlock(qe->chan);
+
+					if (monitor_exec) {
+						const char *m = monitor_exec;
+						for (p = meid2; p < meid2 + sizeof(meid2) - 1; p++, m++) {
+							switch (*m) {
+							case '^':
+								if (*(m + 1) == '{')
+									*p = '$';
+								break;
+							case ',':
+								*p++ = '\\';
+								/* Fall through */
+							default:
+								*p = *m;
+							}
+							if (*m == '\0')
+								break;
+						}
+						if (p == meid2 + sizeof(meid2))
+							meid2[sizeof(meid2) - 1] = '\0';
+
+						pbx_substitute_variables_helper(qe->chan, meid2, meid, sizeof(meid) - 1);
+					}
+	
+					snprintf(tmpid2, sizeof(tmpid2), "%s.%s", tmpid, qe->parent->monfmt);
+
 					if (!ast_strlen_zero(monitor_exec))
 						snprintf(mixmonargs, sizeof(mixmonargs), "%s,b%s,%s", tmpid2, monitor_options, monitor_exec);
 					else
 						snprintf(mixmonargs, sizeof(mixmonargs), "%s,b%s", tmpid2, monitor_options);
-
+					
 					ast_debug(1, "Arguments being passed to MixMonitor: %s\n", mixmonargs);
 					/* We purposely lock the CDR so that pbx_exec does not update the application data */
 					if (qe->chan->cdr)
@@ -3534,9 +3542,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					if (qe->chan->cdr)
 						ast_clear_flag(qe->chan->cdr, AST_CDR_FLAG_LOCKED);
 
-				} else
+				} else {
 					ast_log(LOG_WARNING, "Asked to run MixMonitor on this call, but cannot find the MixMonitor app!\n");
-
+				}
 			}
 		}
 		/* Drop out of the queue at this point, to prepare for next caller */
@@ -4449,6 +4457,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		qe.expire = 0;
 
 	/* Get the priority from the variable ${QUEUE_PRIO} */
+	ast_channel_lock(chan);
 	user_priority = pbx_builtin_getvar_helper(chan, "QUEUE_PRIO");
 	if (user_priority) {
 		if (sscanf(user_priority, "%d", &prio) == 1) {
@@ -4488,6 +4497,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	} else {
 		min_penalty = 0;
 	}
+	ast_channel_unlock(chan);
 
 	if (args.options && (strchr(args.options, 'r')))
 		ringing = 1;
