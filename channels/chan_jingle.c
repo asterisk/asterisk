@@ -956,7 +956,7 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 	struct jingle_pvt *p, *tmp = client->p;
 	struct ast_channel *chan;
 	int res;
-	iks *payload_type;
+	iks *codec;
 
 	/* Make sure our new call doesn't exist yet */
 	while (tmp) {
@@ -974,45 +974,47 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 		return -1;
 	}
 	chan = jingle_new(client, p, AST_STATE_DOWN, pak->from->user);
-	if (chan) {
-		ast_mutex_lock(&p->lock);
-		ast_copy_string(p->them, pak->from->full, sizeof(p->them));
-		if (iks_find_attrib(pak->query, JINGLE_SID)) {
-			ast_copy_string(p->sid, iks_find_attrib(pak->query, JINGLE_SID),
-							sizeof(p->sid));
-		}
-
-		payload_type = iks_child(iks_child(iks_child(iks_child(pak->x))));
-		while (payload_type) {
-			ast_rtp_set_m_type(p->rtp, atoi(iks_find_attrib(payload_type, "id")));
-			ast_rtp_set_rtpmap_type(p->rtp, atoi(iks_find_attrib(payload_type, "id")), "audio", iks_find_attrib(payload_type, "name"), 0);
-			payload_type = iks_next(payload_type);
-		}
-
-		ast_mutex_unlock(&p->lock);
-		ast_setstate(chan, AST_STATE_RING);
-		res = ast_pbx_start(chan);
-
-		switch (res) {
-		case AST_PBX_FAILED:
-			ast_log(LOG_WARNING, "Failed to start PBX :(\n");
-			jingle_response(client, pak, "service-unavailable", NULL);
-			break;
-		case AST_PBX_CALL_LIMIT:
-			ast_log(LOG_WARNING, "Failed to start PBX (call limit reached) \n");
-			jingle_response(client, pak, "service-unavailable", NULL);
-			break;
-		case AST_PBX_SUCCESS:
-			jingle_response(client, pak, NULL, NULL);
-			jingle_create_candidates(client, p,
-						 iks_find_attrib(pak->query, JINGLE_SID),
-						 iks_find_attrib(pak->x, "from"));
-			/* nothing to do */
-			break;
-		}
-	} else {
+	if (!chan) {
 		jingle_free_pvt(client, p);
+		return -1;
 	}
+	ast_mutex_lock(&p->lock);
+	ast_copy_string(p->them, pak->from->full, sizeof(p->them));
+	if (iks_find_attrib(pak->query, JINGLE_SID)) {
+		ast_copy_string(p->sid, iks_find_attrib(pak->query, JINGLE_SID),
+				sizeof(p->sid));
+	}
+	
+	/* codec points to the first <payload-type/> tag */	
+	codec = iks_child(iks_child(iks_child(iks_child(pak->x))));
+	while (codec) {
+		ast_rtp_set_m_type(p->rtp, atoi(iks_find_attrib(codec, "id")));
+		ast_rtp_set_rtpmap_type(p->rtp, atoi(iks_find_attrib(codec, "id")), "audio", iks_find_attrib(codec, "name"), 0);
+		codec = iks_next(codec);
+	}
+	
+	ast_mutex_unlock(&p->lock);
+	ast_setstate(chan, AST_STATE_RING);
+	res = ast_pbx_start(chan);
+	
+	switch (res) {
+	case AST_PBX_FAILED:
+		ast_log(LOG_WARNING, "Failed to start PBX :(\n");
+		jingle_response(client, pak, "service-unavailable", NULL);
+		break;
+	case AST_PBX_CALL_LIMIT:
+		ast_log(LOG_WARNING, "Failed to start PBX (call limit reached) \n");
+		jingle_response(client, pak, "service-unavailable", NULL);
+		break;
+	case AST_PBX_SUCCESS:
+		jingle_response(client, pak, NULL, NULL);
+		jingle_create_candidates(client, p,
+					 iks_find_attrib(pak->query, JINGLE_SID),
+					 iks_find_attrib(pak->x, "from"));
+		/* nothing to do */
+		break;
+	}
+
 	return 1;
 }
 
