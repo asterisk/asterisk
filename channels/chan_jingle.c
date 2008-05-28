@@ -111,7 +111,9 @@ struct jingle_pvt {
 	char cid_name[80];               /*!< Caller ID name */
 	char exten[80];                  /*!< Called extension */
 	struct ast_channel *owner;       /*!< Master Channel */
+	char audio_content_name[100];    /*!< name attribute of content tag */
 	struct ast_rtp *rtp;             /*!< RTP audio session */
+	char video_content_name[100];    /*!< name attribute of content tag */
 	struct ast_rtp *vrtp;            /*!< RTP video session */
 	int jointcapability;             /*!< Supported capability at both ends (codecs ) */
 	int peercapability;
@@ -956,7 +958,7 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 	struct jingle_pvt *p, *tmp = client->p;
 	struct ast_channel *chan;
 	int res;
-	iks *codec;
+	iks *codec, *content, *description;
 
 	/* Make sure our new call doesn't exist yet */
 	while (tmp) {
@@ -985,14 +987,41 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 				sizeof(p->sid));
 	}
 	
-	/* codec points to the first <payload-type/> tag */	
-	codec = iks_child(iks_child(iks_child(iks_child(pak->x))));
-	while (codec) {
-		ast_rtp_set_m_type(p->rtp, atoi(iks_find_attrib(codec, "id")));
-		ast_rtp_set_rtpmap_type(p->rtp, atoi(iks_find_attrib(codec, "id")), "audio", iks_find_attrib(codec, "name"), 0);
-		codec = iks_next(codec);
+	/* content points to the first <content/> tag */	
+	content = iks_child(iks_child(pak->x));
+	while (content) {
+		description = iks_find_with_attrib(content, "description", "xmlns", JINGLE_AUDIO_RTP_NS);
+		if (description) {
+			/* audio content found */
+			codec = iks_child(iks_child(content));
+		        ast_copy_string(p->audio_content_name, iks_find_attrib(content, "name"), sizeof(p->audio_content_name));
+
+			while (codec) {
+				ast_rtp_set_m_type(p->rtp, atoi(iks_find_attrib(codec, "id")));
+				ast_rtp_set_rtpmap_type(p->rtp, atoi(iks_find_attrib(codec, "id")), "audio", iks_find_attrib(codec, "name"), 0);
+				codec = iks_next(codec);
+			}
+		}
+		
+		description = NULL;
+		codec = NULL;
+
+		description = iks_find_with_attrib(content, "description", "xmlns", JINGLE_VIDEO_RTP_NS);
+		if (description) {
+			/* video content found */
+			codec = iks_child(iks_child(content));
+		        ast_copy_string(p->video_content_name, iks_find_attrib(content, "name"), sizeof(p->video_content_name));
+
+			while (codec) {
+				ast_rtp_set_m_type(p->rtp, atoi(iks_find_attrib(codec, "id")));
+				ast_rtp_set_rtpmap_type(p->rtp, atoi(iks_find_attrib(codec, "id")), "audio", iks_find_attrib(codec, "name"), 0);
+				codec = iks_next(codec);
+			}
+		}
+		
+		content = iks_next(content);
 	}
-	
+
 	ast_mutex_unlock(&p->lock);
 	ast_setstate(chan, AST_STATE_RING);
 	res = ast_pbx_start(chan);
@@ -1318,6 +1347,8 @@ static int jingle_transmit_invite(struct jingle_pvt *p)
 	payload_pcmu = iks_new("payload-type");
 	payload_eg711u = iks_new("payload-type");
 
+	ast_copy_string(p->audio_content_name, "asterisk-audio-content", sizeof(p->audio_content_name));
+
 	iks_insert_attrib(iq, "type", "set");
 	iks_insert_attrib(iq, "to", p->them);
 	iks_insert_attrib(iq, "from", client->jid->full);
@@ -1327,8 +1358,10 @@ static int jingle_transmit_invite(struct jingle_pvt *p)
 	iks_insert_attrib(jingle, JINGLE_SID, p->sid);
 	iks_insert_attrib(jingle, "initiator", client->jid->full);
 	iks_insert_attrib(jingle, "xmlns", JINGLE_NS);
+
+	/* For now, we only send one audio based content */
 	iks_insert_attrib(content, "creator", "initiator");
-	iks_insert_attrib(content, "name", "asterisk-audio-content");
+	iks_insert_attrib(content, "name", p->audio_content_name);
 	iks_insert_attrib(content, "profile", "RTP/AVP");
 	iks_insert_attrib(description, "xmlns", JINGLE_AUDIO_RTP_NS);
 	iks_insert_attrib(transport, "xmlns", JINGLE_ICE_UDP_NS);
@@ -1336,7 +1369,6 @@ static int jingle_transmit_invite(struct jingle_pvt *p)
 	iks_insert_attrib(payload_pcmu, "name", "PCMU");
 	iks_insert_attrib(payload_eg711u, "id", "100");
 	iks_insert_attrib(payload_eg711u, "name", "EG711U");
-
 	iks_insert_node(description, payload_pcmu);
 	iks_insert_node(description, payload_eg711u);
 	iks_insert_node(content, description);
