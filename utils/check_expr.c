@@ -123,6 +123,13 @@ void ast_mark_lock_acquired(void *foo)
 }
 #endif
 
+int ast_bt_get_addresses(struct ast_bt *bt);
+int ast_bt_get_addresses(struct ast_bt *bt)
+{
+	/* Suck it, you stupid utils directory! */
+	return 0;
+}
+
 static int global_lineno = 1;
 static int global_expr_count=0;
 static int global_expr_max_size=0;
