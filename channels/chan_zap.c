@@ -329,10 +329,10 @@ static inline int zt_wait_event(int fd)
 #define MASK_INUSE		(1 << 1)	/*!< Channel currently in use */
 
 #define CALLWAITING_SILENT_SAMPLES	( (300 * 8) / READ_SIZE) /*!< 300 ms */
-#define CALLWAITING_REPEAT_SAMPLES	( (10000 * 8) / READ_SIZE) /*!< 300 ms */
+#define CALLWAITING_REPEAT_SAMPLES	( (10000 * 8) / READ_SIZE) /*!< 10,000 ms */
 #define CIDCW_EXPIRE_SAMPLES		( (500 * 8) / READ_SIZE) /*!< 500 ms */
 #define MIN_MS_SINCE_FLASH			( (2000) )	/*!< 2000 ms */
-#define DEFAULT_RINGT 				( (8000 * 8) / READ_SIZE)
+#define DEFAULT_RINGT 				( (8000 * 8) / READ_SIZE) /*!< 8,000 ms */
 
 struct zt_pvt;
 
@@ -5414,8 +5414,10 @@ static struct ast_frame  *zt_read(struct ast_channel *ast)
 			return &p->subs[index].f;
 		}
 	}
-	if (p->callwaitingrepeat)
+	/* Ensure the CW timer decrements only on a single subchannel */
+	if (p->callwaitingrepeat && zt_get_index(ast, p, 1) == SUB_REAL) {
 		p->callwaitingrepeat--;
+	}
 	if (p->cidcwexpire)
 		p->cidcwexpire--;
 	/* Repeat callwaiting */
