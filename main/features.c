@@ -2535,8 +2535,8 @@ static void *do_parking_thread(void *ignore)
 {
 	fd_set rfds, efds;	/* results from previous select, to be preserved across loops. */
 	fd_set nrfds, nefds;	/* args for the next select */
-	FD_ZERO(&nrfds);
-	FD_ZERO(&nefds);
+	FD_ZERO(&rfds);
+	FD_ZERO(&efds);
 
 	for (;;) {
 		int res = 0;
@@ -2544,6 +2544,8 @@ static void *do_parking_thread(void *ignore)
 		int max = -1;	/* max fd, none there yet */
 		struct ao2_iterator iter;
 		struct ast_parkinglot *curlot;
+		FD_ZERO(&nrfds);
+		FD_ZERO(&nefds);
 		iter = ao2_iterator_init(parkinglots, 0);
 
 		while ((curlot = ao2_iterator_next(&iter))) {
