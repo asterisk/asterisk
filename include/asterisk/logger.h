@@ -88,8 +88,9 @@ int ast_unregister_verbose(void (*verboser)(const char *string)) __attribute__((
 
 void ast_console_puts(const char *string);
 
-void ast_console_puts_mutable(const char *string);
+void ast_console_puts_mutable(const char *string, int level);
 void ast_console_toggle_mute(int fd, int silent);
+void ast_console_toggle_loglevel(int fd, int leve, int state);
 
 /* Note: The AST_LOG_* macros below are the same as
  * the LOG_* macros and are intended to eventually replace
@@ -177,6 +178,8 @@ void ast_console_toggle_mute(int fd, int silent);
 #undef AST_LOG_DTMF
 #endif
 #define AST_LOG_DTMF    __LOG_DTMF, _A_
+
+#define NUMLOGLEVELS 6
 
 /*!
  * \brief Get the debug level for a file

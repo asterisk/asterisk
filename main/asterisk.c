@@ -179,6 +179,7 @@ struct console {
 	int p[2];			/*!< Pipe */
 	pthread_t t;			/*!< Thread of handler */
 	int mute;			/*!< Is the console muted for logs */
+	int levels[NUMLOGLEVELS];	/*!< Which log levels are enabled for the console */
 };
 
 struct ast_atexit {
@@ -900,6 +901,17 @@ int ast_safe_system(const char *s)
 	return res;
 }
 
+void ast_console_toggle_loglevel(int fd, int level, int state)
+{
+	int x;
+	for (x = 0;x < AST_MAX_CONNECTS; x++) {
+		if (fd == consoles[x].fd) {
+			consoles[x].levels[level] = state;
+			return;
+		}
+	}
+}
+
 /*!
  * \brief mute or unmute a console from logging
  */
@@ -925,14 +937,16 @@ void ast_console_toggle_mute(int fd, int silent) {
 /*!
  * \brief log the string to all attached console clients
  */
-static void ast_network_puts_mutable(const char *string)
+static void ast_network_puts_mutable(const char *string, int level)
 {
 	int x;
 	for (x = 0;x < AST_MAX_CONNECTS; x++) {
 		if (consoles[x].mute)
 			continue;
-		if (consoles[x].fd > -1) 
-			fdprint(consoles[x].p[1], string);
+		if (consoles[x].fd > -1) {
+			if (!consoles[x].levels[level]) 
+				fdprint(consoles[x].p[1], string);
+		}
 	}
 }
 
@@ -940,11 +954,11 @@ static void ast_network_puts_mutable(const char *string)
  * \brief log the string to the console, and all attached
  * console clients
  */
-void ast_console_puts_mutable(const char *string)
+void ast_console_puts_mutable(const char *string, int level)
 {
 	fputs(string, stdout);
 	fflush(stdout);
-	ast_network_puts_mutable(string);
+	ast_network_puts_mutable(string, level);
 }
 
 /*!
@@ -972,7 +986,7 @@ void ast_console_puts(const char *string)
 
 static void network_verboser(const char *s)
 {
-	ast_network_puts_mutable(s);
+	ast_network_puts_mutable(s, __LOG_VERBOSE);
 }
 
 static pthread_t lthread;

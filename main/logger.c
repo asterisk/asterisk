@@ -728,6 +728,44 @@ static char *handle_logger_rotate(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 
+static char *handle_logger_set_level(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int x;
+	int state;
+	int level = -1;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "logger set level";
+		e->usage = 
+			"Usage: logger set level\n"
+			"       Set a specific log level to enabled/disabled for this console.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 5)
+		return CLI_SHOWUSAGE;
+
+	for (x = 0; x <= NUMLOGLEVELS; x++) {
+		if (!strcasecmp(a->argv[3], levels[x])) {
+			level = x;
+			break;
+		}
+	}
+
+	state = ast_true(a->argv[4]) ? 1 : 0;
+
+	if (level != -1) {
+		ast_console_toggle_loglevel(a->fd, level, state);
+		ast_cli(a->fd, "Logger status for '%s' has been set to '%s'.\n", levels[level], state ? "on" : "off");
+	} else
+		return CLI_SHOWUSAGE;
+
+	return CLI_SUCCESS;
+}
+
 /*! \brief CLI command to show logging system configuration */
 static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -784,7 +822,8 @@ static AST_RWLIST_HEAD_STATIC(verbosers, verb);
 static struct ast_cli_entry cli_logger[] = {
 	AST_CLI_DEFINE(handle_logger_show_channels, "List configured log channels"),
 	AST_CLI_DEFINE(handle_logger_reload, "Reopens the log files"),
-	AST_CLI_DEFINE(handle_logger_rotate, "Rotates and reopens the log files")
+	AST_CLI_DEFINE(handle_logger_rotate, "Rotates and reopens the log files"),
+	AST_CLI_DEFINE(handle_logger_set_level, "Enables/Disables a specific logging level for this console")
 };
 
 static int handle_SIGXFSZ(int sig) 
@@ -863,7 +902,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 					 term_color(tmp4, logmsg->function, COLOR_BRWHITE, 0, sizeof(tmp4)),
 					 logmsg->str);
 				/* Print out */
-				ast_console_puts_mutable(buf);
+				ast_console_puts_mutable(buf, logmsg->level);
 			/* File channels */
 			} else if (chan->type == LOGTYPE_FILE && (chan->logmask & (1 << logmsg->level))) {
 				int res = 0;
