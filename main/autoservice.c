@@ -61,7 +61,7 @@ struct asent {
 	 *  it gets stopped for the last time. */
 	unsigned int use_count;
 	unsigned int orig_end_dtmf_flag:1;
-	AST_LIST_HEAD_NOLOCK(, ast_frame) dtmf_frames;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) deferred_frames;
 	AST_LIST_ENTRY(asent) list;
 };
 
@@ -72,28 +72,16 @@ static pthread_t asthread = AST_PTHREADT_NULL;
 
 static int as_chan_list_state;
 
-static void defer_frame(struct ast_channel *chan, struct ast_frame *f)
-{
-	struct ast_frame *dup_f;
-	struct asent *as;
-
-	AST_LIST_LOCK(&aslist);
-	AST_LIST_TRAVERSE(&aslist, as, list) {
-		if (as->chan != chan)
-			continue;
-		if ((dup_f = ast_frdup(f)))
-			AST_LIST_INSERT_TAIL(&as->dtmf_frames, dup_f, frame_list);
-	}
-	AST_LIST_UNLOCK(&aslist);
-}
-
 static void *autoservice_run(void *ign)
 {
 	for (;;) {
 		struct ast_channel *mons[MAX_AUTOMONS];
+		struct asent *ents[MAX_AUTOMONS];
 		struct ast_channel *chan;
 		struct asent *as;
-		int x = 0, ms = 50;
+		int i, x = 0, ms = 50;
+		struct ast_frame *f = NULL;
+		struct ast_frame *defer_frame = NULL;
 
 		AST_LIST_LOCK(&aslist);
 
@@ -101,43 +89,48 @@ static void *autoservice_run(void *ign)
 		 * to get used again. */
 		as_chan_list_state++;
 
-		if (AST_LIST_EMPTY(&aslist))
+		if (AST_LIST_EMPTY(&aslist)) {
 			ast_cond_wait(&as_cond, &aslist.lock);
+		}
 
 		AST_LIST_TRAVERSE(&aslist, as, list) {
 			if (!as->chan->_softhangup) {
-				if (x < MAX_AUTOMONS)
+				if (x < MAX_AUTOMONS) {
+					ents[x] = as;
 					mons[x++] = as->chan;
-				else
+				} else {
 					ast_log(LOG_WARNING, "Exceeded maximum number of automatic monitoring events.  Fix autoservice.c\n");
+				}
 			}
 		}
 
 		AST_LIST_UNLOCK(&aslist);
 
 		chan = ast_waitfor_n(mons, x, &ms);
-		if (chan) {
-			struct ast_frame *f = ast_read(chan);
+		if (!chan) {
+			continue;
+		}
+
+		f = ast_read(chan);
 	
-			if (!f) {
-				struct ast_frame hangup_frame = { 0, };
-				/* No frame means the channel has been hung up.
-				 * A hangup frame needs to be queued here as ast_waitfor() may
-				 * never return again for the condition to be detected outside
-				 * of autoservice.  So, we'll leave a HANGUP queued up so the
-				 * thread in charge of this channel will know. */
+		if (!f) {
+			struct ast_frame hangup_frame = { 0, };
+			/* No frame means the channel has been hung up.
+			 * A hangup frame needs to be queued here as ast_waitfor() may
+			 * never return again for the condition to be detected outside
+			 * of autoservice.  So, we'll leave a HANGUP queued up so the
+			 * thread in charge of this channel will know. */
 
-				hangup_frame.frametype = AST_FRAME_CONTROL;
-				hangup_frame.subclass = AST_CONTROL_HANGUP;
+			hangup_frame.frametype = AST_FRAME_CONTROL;
+			hangup_frame.subclass = AST_CONTROL_HANGUP;
 
-				defer_frame(chan, &hangup_frame);
+			defer_frame = &hangup_frame;
+		} else {
 
-				continue;
-			}
-			
 			/* Do not add a default entry in this switch statement.  Each new
 			 * frame type should be addressed directly as to whether it should
 			 * be queued up or not. */
+
 			switch (f->frametype) {
 			/* Save these frames */
 			case AST_FRAME_DTMF_END:
@@ -145,7 +138,7 @@ static void *autoservice_run(void *ign)
 			case AST_FRAME_TEXT:
 			case AST_FRAME_IMAGE:
 			case AST_FRAME_HTML:
-				defer_frame(chan, f);
+				defer_frame = f;
 				break;
 
 			/* Throw these frames away */
@@ -158,12 +151,36 @@ static void *autoservice_run(void *ign)
 			case AST_FRAME_MODEM:
 				break;
 			}
+		}
 
-			if (f)
+		if (!defer_frame) {
+			if (f) {
 				ast_frfree(f);
+			}
+			continue;
+		}
+
+		for (i = 0; i < x; i++) {
+			struct ast_frame *dup_f;
+
+			if (mons[i] != chan) {
+				continue;
+			}
+
+			if ((dup_f = ast_frdup(f))) {
+				AST_LIST_INSERT_TAIL(&ents[i]->deferred_frames, dup_f, frame_list);
+			}
+			
+			break;
+		}
+
+		if (f) {
+			ast_frfree(f);
 		}
 	}
+
 	asthread = AST_PTHREADT_NULL;
+
 	return NULL;
 }
 
@@ -230,14 +247,9 @@ int ast_autoservice_start(struct ast_channel *chan)
 int ast_autoservice_stop(struct ast_channel *chan)
 {
 	int res = -1;
-	struct asent *as;
-	AST_LIST_HEAD_NOLOCK(, ast_frame) dtmf_frames;
+	struct asent *as, *removed = NULL;
 	struct ast_frame *f;
-	int removed = 0;
-	int orig_end_dtmf_flag = 0;
 	int chan_list_state;
-
-	AST_LIST_HEAD_INIT_NOLOCK(&dtmf_frames);
 
 	AST_LIST_LOCK(&aslist);
 
@@ -247,41 +259,52 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	 * it after its gone! */
 	chan_list_state = as_chan_list_state;
 
+	/* Find the entry, but do not free it because it still can be in the
+	   autoservice thread array */
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&aslist, as, list) {	
 		if (as->chan == chan) {
 			as->use_count--;
-			if (as->use_count)
-				break;
-			AST_LIST_REMOVE_CURRENT(&aslist, list);
-			AST_LIST_APPEND_LIST(&dtmf_frames, &as->dtmf_frames, frame_list);
-			orig_end_dtmf_flag = as->orig_end_dtmf_flag;
-			free(as);
-			removed = 1;
-			if (!chan->_softhangup)
-				res = 0;
+			if (as->use_count < 1) {
+				AST_LIST_REMOVE_CURRENT(&aslist, list);
+				removed = as;
+			}
 			break;
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END
 
-	if (removed && asthread != AST_PTHREADT_NULL) 
+	if (removed && asthread != AST_PTHREADT_NULL) {
 		pthread_kill(asthread, SIGURG);
+	}
 
 	AST_LIST_UNLOCK(&aslist);
 
-	if (!removed)
+	if (!removed) {
 		return 0;
+	}
 
-	if (!orig_end_dtmf_flag)
+	/* Wait while autoservice thread rebuilds its list. */
+	while (chan_list_state == as_chan_list_state) {
+		usleep(1000);
+	}
+
+	/* Now autoservice thread should have no references to our entry
+	   and we can safely destroy it */
+
+	if (!chan->_softhangup) {
+		res = 0;
+	}
+
+	if (!as->orig_end_dtmf_flag) {
 		ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
+	}
 
-	while ((f = AST_LIST_REMOVE_HEAD(&dtmf_frames, frame_list))) {
+	while ((f = AST_LIST_REMOVE_HEAD(&as->deferred_frames, frame_list))) {
 		ast_queue_frame(chan, f);
 		ast_frfree(f);
 	}
 
-	while (chan_list_state == as_chan_list_state)
-		usleep(1000);
+	free(as);
 
 	return res;
 }
