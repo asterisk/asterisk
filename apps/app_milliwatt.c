@@ -133,7 +133,7 @@ static int old_milliwatt_exec(struct ast_channel *chan)
 static int milliwatt_exec(struct ast_channel *chan, void *data)
 {
 	const char *options = data;
-	struct ast_app *playtones_app, *wait_app;
+	struct ast_app *playtones_app;
 	int res = -1;
 
 	if (!ast_strlen_zero(options) && strchr(options, 'o')) {
@@ -145,15 +145,10 @@ static int milliwatt_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if (!(wait_app = pbx_findapp("Wait"))) {
-		ast_log(LOG_ERROR, "The Wait application is required to run Milliwatt()\n");
-		return -1;
-	}
-
-	res = pbx_exec(chan, playtones_app, "1004,1000");
+	res = pbx_exec(chan, playtones_app, "1004/1000");
 
 	while (!res) {
-		res = pbx_exec(chan, wait_app, "3600");
+		res = ast_safe_sleep(chan, 10000);
 	}
 
 	return res;
