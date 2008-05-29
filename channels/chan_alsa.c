@@ -506,9 +506,7 @@ static int alsa_text(struct ast_channel *c, const char *text)
 static void grab_owner(void)
 {
 	while (alsa.owner && ast_mutex_trylock(&alsa.owner->lock)) {
-		ast_mutex_unlock(&alsalock);
-		usleep(1);
-		ast_mutex_lock(&alsalock);
+		DEADLOCK_AVOIDANCE(&alsalock);
 	}
 }
 

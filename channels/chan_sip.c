@@ -1960,9 +1960,7 @@ static int retrans_pkt(const void *data)
 
 	if (ast_test_flag(pkt, FLAG_FATAL)) {
 		while(pkt->owner->owner && ast_channel_trylock(pkt->owner->owner)) {
-			ast_mutex_unlock(&pkt->owner->lock);	/* SIP_PVT, not channel */
-			usleep(1);
-			ast_mutex_lock(&pkt->owner->lock);
+			DEADLOCK_AVOIDANCE(&pkt->owner->lock);	/* SIP_PVT, not channel */
 		}
 
 		if (pkt->owner->owner && !pkt->owner->owner->hangupcause) 
@@ -2184,9 +2182,7 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			 * of the retransid to -1 is ensured since in both cases p's lock is held.
 			 */
 			while (cur->retransid > -1 && ast_sched_del(sched, cur->retransid)) {
-				ast_mutex_unlock(&p->lock);
-				usleep(1);
-				ast_mutex_lock(&p->lock);
+				DEADLOCK_AVOIDANCE(&p->lock);
 			}
 			free(cur);
 			break;
@@ -9015,9 +9011,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 
 			/* deadlock avoidance... */
 			while (sip_pvt_ptr->owner && ast_channel_trylock(sip_pvt_ptr->owner)) {
-				ast_mutex_unlock(&sip_pvt_ptr->lock);
-				usleep(1);
-				ast_mutex_lock(&sip_pvt_ptr->lock);
+				DEADLOCK_AVOIDANCE(&sip_pvt_ptr->lock);
 			}
 			break;
 		}
@@ -13248,9 +13242,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	 * that hold the channel lock and want the pvt lock.  */
 	while (ast_channel_trylock(chan2)) {
 		struct sip_pvt *pvt = chan2->tech_pvt;
-		ast_mutex_unlock(&pvt->lock);
-		usleep(1);
-		ast_mutex_lock(&pvt->lock);
+		DEADLOCK_AVOIDANCE(&pvt->lock);
 	}
 	ast_channel_masquerade(transferer, chan2);
 	ast_channel_unlock(chan2);
@@ -15733,9 +15725,7 @@ restartsearch:
 						/* Needs a hangup */
 						if (ast_rtp_get_rtptimeout(sip->rtp)) {
 							while (sip->owner && ast_channel_trylock(sip->owner)) {
-								ast_mutex_unlock(&sip->lock);
-								usleep(1);
-								ast_mutex_lock(&sip->lock);
+								DEADLOCK_AVOIDANCE(&sip->lock);
 							}
 							if (sip->owner) {
 								ast_log(LOG_NOTICE,

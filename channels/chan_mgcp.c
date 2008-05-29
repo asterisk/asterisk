@@ -574,9 +574,7 @@ static void mgcp_queue_frame(struct mgcp_subchannel *sub, struct ast_frame *f)
 				ast_mutex_unlock(&sub->owner->lock);
 				break;
 			} else {
-				ast_mutex_unlock(&sub->lock);
-				usleep(1);
-				ast_mutex_lock(&sub->lock);
+				DEADLOCK_AVOIDANCE(&sub->lock);
 			}
 		} else
 			break;
@@ -592,9 +590,7 @@ static void mgcp_queue_hangup(struct mgcp_subchannel *sub)
 				ast_mutex_unlock(&sub->owner->lock);
 				break;
 			} else {
-				ast_mutex_unlock(&sub->lock);
-				usleep(1);
-				ast_mutex_lock(&sub->lock);
+				DEADLOCK_AVOIDANCE(&sub->lock);
 			}
 		} else
 			break;
