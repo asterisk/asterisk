@@ -1149,13 +1149,13 @@ static struct iax_frame *iaxfrdup2(struct iax_frame *fr)
 #define NEW_ALLOW 	1
 #define NEW_FORCE 	2
 
-static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short dcallno, struct chan_iax2_pvt *cur, int full_frame)
+static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short dcallno, struct chan_iax2_pvt *cur, int check_dcallno)
 {
 	if ((cur->addr.sin_addr.s_addr == sin->sin_addr.s_addr) &&
 		(cur->addr.sin_port == sin->sin_port)) {
 		/* This is the main host */
 		if ( (cur->peercallno == 0 || cur->peercallno == callno) &&
-			 (full_frame ? dcallno == cur->callno : 1) ) {
+			 (check_dcallno ? dcallno == cur->callno : 1) ) {
 			/* That's us.  Be sure we keep track of the peer call number */
 			return 1;
 		}
@@ -1230,7 +1230,7 @@ static int make_trunk(unsigned short callno, int locked)
 	return res;
 }
 
-static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int lockpeer, int sockfd, int full_frame)
+static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int lockpeer, int sockfd, int check_dcallno)
 {
 	int res = 0;
 	int x;
@@ -1244,7 +1244,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
  				.callno = dcallno,
  				.peercallno = callno,
  				/* hack!! */
- 				.frames_received = full_frame,
+ 				.frames_received = check_dcallno,
  			};
  
  			memcpy(&tmp_pvt.addr, sin, sizeof(tmp_pvt.addr));
@@ -1262,7 +1262,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			ast_mutex_lock(&iaxsl[x]);
 			if (iaxs[x]) {
 				/* Look for an exact match */
-				if (match(sin, callno, dcallno, iaxs[x], full_frame)) {
+				if (match(sin, callno, dcallno, iaxs[x], check_dcallno)) {
 					res = x;
 				}
 			}
@@ -1272,7 +1272,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			ast_mutex_lock(&iaxsl[x]);
 			if (iaxs[x]) {
 				/* Look for an exact match */
-				if (match(sin, callno, dcallno, iaxs[x], full_frame)) {
+				if (match(sin, callno, dcallno, iaxs[x], check_dcallno)) {
 					res = x;
 				}
 			}
@@ -6815,7 +6815,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	}
 
 	if (!fr->callno)
-		fr->callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, 1, fd, ntohs(mh->callno) & IAX_FLAG_FULL);
+		fr->callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, 1, fd, 
+			(ntohs(mh->callno) & IAX_FLAG_FULL) && f.frametype == AST_FRAME_IAX && f.subclass == IAX_COMMAND_ACK);
 
 	if (fr->callno > 0) 
 		ast_mutex_lock(&iaxsl[fr->callno]);
