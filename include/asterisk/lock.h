@@ -711,6 +711,11 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 
 #else /* !DEBUG_THREADS */
 
+#define	DEADLOCK_AVOIDANCE(lock) \
+	ast_mutex_lock(lock); \
+	usleep(1); \
+	ast_mutex_unlock(lock);
+
 
 typedef pthread_mutex_t ast_mutex_t;
 
