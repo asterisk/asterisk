@@ -25,6 +25,10 @@
  * \ingroup applications
  */
 
+/*** MODULEINFO
+	<depend>res_indications</depend>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -158,7 +162,7 @@ static int milliwatt_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (!(wait_app = pbx_findapp("Wait"))) {
-		ast_log(LOG_ERROR, "The Playtones application is required to run Milliwatt()\n");
+		ast_log(LOG_ERROR, "The Wait application is required to run Milliwatt()\n");
 		goto exit_app;
 	}
 
