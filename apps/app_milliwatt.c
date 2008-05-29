@@ -31,13 +31,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
+#include "asterisk/pbx.h"
 
 static char *app = "Milliwatt";
 
-static char *synopsis = "Generate a Constant 1000Hz tone at 0dbm (mu-law)";
+static char *synopsis = "Generate a Constant 1004Hz tone at 0dbm (mu-law)";
 
 static char *descrip = 
-"Milliwatt(): Generate a Constant 1000Hz tone at 0dbm (mu-law)\n";
+"   Milliwatt([options]): Generate a Constant 1004Hz tone at 0dbm.\n"
+"Previous versions of this application generated the tone at 1000Hz.  If for\n"
+"some reason you would prefer that behavior, supply the 'o' option to get the\n"
+"old behavior.\n"
+"";
 
 static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
 
@@ -74,6 +79,7 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 		ast_log(LOG_WARNING, "Only doing %d samples (%d requested)\n", maxsamples, samples);
 		samples = maxsamples;
 	}
+
 	len = samples * sizeof (buf[0]);
 	wf.datalen = len;
 	wf.samples = samples;
@@ -92,33 +98,61 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 	return 0;
 }
 
-static struct ast_generator milliwattgen = 
-{
+static struct ast_generator milliwattgen = {
 	alloc: milliwatt_alloc,
 	release: milliwatt_release,
 	generate: milliwatt_generate,
 };
 
-static int milliwatt_exec(struct ast_channel *chan, void *data)
+static int old_milliwatt_exec(struct ast_channel *chan)
 {
-
 	ast_set_write_format(chan, AST_FORMAT_ULAW);
 	ast_set_read_format(chan, AST_FORMAT_ULAW);
 
-
-	if (chan->_state != AST_STATE_UP)
+	if (chan->_state != AST_STATE_UP) {
 		ast_answer(chan);
+	}
 
 	if (ast_activate_generator(chan,&milliwattgen,"milliwatt") < 0) {
 		ast_log(LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
 		return -1;
 	}
 
-	while(!ast_safe_sleep(chan, 10000));
+	while (!ast_safe_sleep(chan, 10000))
+		;
 
 	ast_deactivate_generator(chan);
 
 	return -1;
+}
+
+static int milliwatt_exec(struct ast_channel *chan, void *data)
+{
+	const char *options = data;
+	struct ast_app *playtones_app, *wait_app;
+	int res = -1;
+
+	if (!ast_strlen_zero(options) && strchr(options, 'o')) {
+		return old_milliwatt_exec(chan);
+	}
+
+	if (!(playtones_app = pbx_findapp("Playtones"))) {
+		ast_log(LOG_ERROR, "The Playtones application is required to run Milliwatt()\n");
+		return -1;
+	}
+
+	if (!(wait_app = pbx_findapp("Wait"))) {
+		ast_log(LOG_ERROR, "The Playtones application is required to run Milliwatt()\n");
+		return -1;
+	}
+
+	res = pbx_exec(chan, playtones_app, "1004,1000");
+
+	while (!res) {
+		res = pbx_exec(chan, wait_app, "3600");
+	}
+
+	return res;
 }
 
 static int unload_module(void)
