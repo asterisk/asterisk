@@ -1520,9 +1520,7 @@ static int agent_logoff(const char *agent, int soft)
 					ast_mutex_lock(&p->lock);
 
 					while (p->owner && ast_channel_trylock(p->owner)) {
-						ast_mutex_unlock(&p->lock);
-						usleep(1);
-						ast_mutex_lock(&p->lock);
+						DEADLOCK_AVOIDANCE(&p->lock);
 					}
 					if (p->owner) {
 						ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
@@ -1530,9 +1528,7 @@ static int agent_logoff(const char *agent, int soft)
 					}
 
 					while (p->chan && ast_channel_trylock(p->chan)) {
-						ast_mutex_unlock(&p->lock);
-						usleep(1);
-						ast_mutex_lock(&p->lock);
+						DEADLOCK_AVOIDANCE(&p->lock);
 					}
 					if (p->chan) {
 						ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);

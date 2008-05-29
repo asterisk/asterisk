@@ -220,7 +220,7 @@ static inline void __dump_backtrace(struct ast_bt *bt, int canlog)
 {
 	char **strings;
 
-	size_t i;
+	ssize_t i;
 
 	strings = backtrace_symbols(bt->addresses, bt->num_frames);
 
@@ -240,6 +240,38 @@ static inline void __dump_backtrace(struct ast_bt *bt, int canlog)
  * you have the thread debugging stuff turned on.
  */
 void log_show_lock(void *this_lock_addr);
+
+/*!
+ * \brief retrieve lock info for the specified mutex
+ *
+ * this gets called during deadlock avoidance, so that the information may
+ * be preserved as to what location originally acquired the lock.
+ */
+#if !defined(LOW_MEMORY)
+int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, const char **func, const char **mutex_name);
+#else
+#define ast_find_lock_info(a,b,c,d,e) -1
+#endif
+
+/*!
+ * \brief Unlock a lock briefly
+ *
+ * used during deadlock avoidance, to preserve the original location where
+ * a lock was originally acquired.
+ */
+#define DEADLOCK_AVOIDANCE(lock) \
+	do { \
+		const char *__filename, *__func, *__mutex_name; \
+		int __lineno; \
+		int __res = ast_find_lock_info(lock, &__filename, &__lineno, &__func, &__mutex_name); \
+		ast_mutex_unlock(lock); \
+		usleep(1); \
+		if (__res < 0) { /* Shouldn't ever happen, but just in case... */ \
+			ast_mutex_lock(lock); \
+		} else { \
+			__ast_pthread_mutex_lock(__filename, __lineno, __func, __mutex_name, lock); \
+		} \
+	} while (0)
 
 static void __attribute__((constructor)) init_empty_mutex(void)
 {
