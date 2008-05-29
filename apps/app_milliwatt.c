@@ -45,10 +45,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "Milliwatt";
 
-static char *synopsis = "Generate a Constant 1000Hz tone at 0dbm (mu-law)";
+static char *synopsis = "Generate a Constant 1004Hz tone at 0dbm (mu-law)";
 
 static char *descrip = 
-"Milliwatt(): Generate a Constant 1000Hz tone at 0dbm (mu-law)\n";
+"   Milliwatt([options]): Generate a Constant 1004Hz tone at 0dbm.\n"
+"Previous versions of this application generated the tone at 1000Hz.  If for\n"
+"some reason you would prefer that behavior, supply the 'o' option to get the\n"
+"old behavior.\n"
+"";
 
 
 static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
@@ -87,51 +91,89 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 		ast_log(LOG_WARNING, "Only doing %d samples (%d requested)\n", maxsamples, samples);
 		samples = maxsamples;
 	}
+
 	len = samples * sizeof (buf[0]);
 	wf.datalen = len;
 	wf.samples = samples;
+
 	/* create a buffer containing the digital milliwatt pattern */
-	for(i = 0; i < len; i++)
-	{
+	for (i = 0; i < len; i++) {
 		buf[AST_FRIENDLY_OFFSET + i] = digital_milliwatt[(*indexp)++];
 		*indexp &= 7;
 	}
-	if (ast_write(chan,&wf) < 0)
-	{
+
+	if (ast_write(chan,&wf) < 0) {
 		ast_log(LOG_WARNING,"Failed to write frame to '%s': %s\n",chan->name,strerror(errno));
 		return -1;
 	}
+
 	return 0;
 }
 
-static struct ast_generator milliwattgen = 
-{
+static struct ast_generator milliwattgen = {
 	alloc: milliwatt_alloc,
 	release: milliwatt_release,
 	generate: milliwatt_generate,
-} ;
+};
+
+static int old_milliwatt_exec(struct ast_channel *chan)
+{
+	ast_set_write_format(chan, AST_FORMAT_ULAW);
+	ast_set_read_format(chan, AST_FORMAT_ULAW);
+
+	if (chan->_state != AST_STATE_UP) {
+		ast_answer(chan);
+	}
+
+	if (ast_activate_generator(chan,&milliwattgen,"milliwatt") < 0) {
+		ast_log(LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
+		return -1;
+	}
+
+	while (!ast_safe_sleep(chan, 10000))
+		;
+
+	ast_deactivate_generator(chan);
+
+	return -1;
+}
 
 static int milliwatt_exec(struct ast_channel *chan, void *data)
 {
-
+	const char *options = data;
+	struct ast_app *playtones_app, *wait_app;
 	struct ast_module_user *u;
+	int res = -1;
+
 	u = ast_module_user_add(chan);
-	ast_set_write_format(chan, AST_FORMAT_ULAW);
-	ast_set_read_format(chan, AST_FORMAT_ULAW);
-	if (chan->_state != AST_STATE_UP)
-	{
-		ast_answer(chan);
+
+	if (!ast_strlen_zero(options) && strchr(options, 'o')) {
+		res = old_milliwatt_exec(chan);
+		goto exit_app;
 	}
-	if (ast_activate_generator(chan,&milliwattgen,"milliwatt") < 0)
-	{
-		ast_log(LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
-		ast_module_user_remove(u);
-		return -1;
+
+	if (!(playtones_app = pbx_findapp("Playtones"))) {
+		ast_log(LOG_ERROR, "The Playtones application is required to run Milliwatt()\n");
+		goto exit_app;
 	}
-	while(!ast_safe_sleep(chan, 10000));
-	ast_deactivate_generator(chan);
+
+	if (!(wait_app = pbx_findapp("Wait"))) {
+		ast_log(LOG_ERROR, "The Playtones application is required to run Milliwatt()\n");
+		goto exit_app;
+	}
+
+	res = pbx_exec(chan, playtones_app, "1004,1000");
+
+	while (!res) {
+		res = pbx_exec(chan, wait_app, "3600");
+	}
+
+	res = 0;
+
+exit_app:
 	ast_module_user_remove(u);
-	return -1;
+
+	return res;
 }
 
 static int unload_module(void)
