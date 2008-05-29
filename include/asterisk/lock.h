@@ -1148,6 +1148,11 @@ static inline int _ast_rwlock_trywrlock(ast_rwlock_t *lock, const char *name,
 
 #else /* !DEBUG_THREADS */
 
+#define	DEADLOCK_AVOIDANCE(lock) \
+	ast_mutex_lock(lock); \
+	usleep(1); \
+	ast_mutex_unlock(lock);
+
 typedef pthread_mutex_t ast_mutex_t;
 
 #define AST_MUTEX_INIT_VALUE			((ast_mutex_t) PTHREAD_MUTEX_INIT_VALUE)
