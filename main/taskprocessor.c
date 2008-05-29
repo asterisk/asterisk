@@ -23,6 +23,8 @@
  */
 
 #include "asterisk.h"
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/_private.h"
 #include "asterisk/module.h"
 #include "asterisk/time.h"
@@ -32,7 +34,6 @@
 #include "signal.h"
 #include "sys/time.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! \brief tps_task structure is queued to a taskprocessor
  *
