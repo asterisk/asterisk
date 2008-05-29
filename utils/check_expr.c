@@ -100,6 +100,13 @@ void ast_remove_lock_info(void *lock_addr, struct ast_bt *bt)
 {
     /* not a lot to do in a standalone w/o threading! */
 }
+
+int ast_bt_get_addresses(struct ast_bt *bt);
+int ast_bt_get_addresses(struct ast_bt *bt)
+{
+	/* Suck it, you stupid utils directory! */
+	return 0;
+}
 #else
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 		        int line_num, const char *func, const char *lock_name, void *lock_addr);
@@ -122,13 +129,6 @@ void ast_mark_lock_acquired(void *foo)
     /* not a lot to do in a standalone w/o threading! */
 }
 #endif
-
-int ast_bt_get_addresses(struct ast_bt *bt);
-int ast_bt_get_addresses(struct ast_bt *bt)
-{
-	/* Suck it, you stupid utils directory! */
-	return 0;
-}
 
 static int global_lineno = 1;
 static int global_expr_count=0;
