@@ -312,22 +312,20 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 	}
 
 	for (; cdr; cdr = recur ? cdr->next : NULL) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			headp = &cdr->varshead;
-			AST_LIST_TRAVERSE_SAFE_BEGIN(headp, newvariable, entries) {
-				if (!strcasecmp(ast_var_name(newvariable), name)) {
-					/* there is already such a variable, delete it */
-					AST_LIST_REMOVE_CURRENT(headp, entries);
-					ast_var_delete(newvariable);
-					break;
-				}
+		headp = &cdr->varshead;
+		AST_LIST_TRAVERSE_SAFE_BEGIN(headp, newvariable, entries) {
+			if (!strcasecmp(ast_var_name(newvariable), name)) {
+				/* there is already such a variable, delete it */
+				AST_LIST_REMOVE_CURRENT(headp, entries);
+				ast_var_delete(newvariable);
+				break;
 			}
-			AST_LIST_TRAVERSE_SAFE_END;
-
-			if (value) {
-				newvariable = ast_var_assign(name, value);
-				AST_LIST_INSERT_HEAD(headp, newvariable, entries);
-			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+		
+		if (value) {
+			newvariable = ast_var_assign(name, value);
+			AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 		}
 	}
 
@@ -388,6 +386,7 @@ int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, cha
 		}
 
 		for (i = 0; cdr_readonly_vars[i]; i++) {
+			workspace[0] = 0; /* null out the workspace, because the cdr_get_tv() won't write anything if time is NULL, so you get old vals */
 			ast_cdr_getvar(cdr, cdr_readonly_vars[i], &tmp, workspace, sizeof(workspace), 0, 0);
 			if (!tmp)
 				continue;
@@ -696,13 +695,11 @@ void ast_cdr_answer(struct ast_cdr *cdr)
 {
 
 	for (; cdr; cdr = cdr->next) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			check_post(cdr);
-			if (cdr->disposition < AST_CDR_ANSWERED)
-				cdr->disposition = AST_CDR_ANSWERED;
-			if (ast_tvzero(cdr->answer))
-				cdr->answer = ast_tvnow();
-		}
+		check_post(cdr);
+		if (cdr->disposition < AST_CDR_ANSWERED)
+			cdr->disposition = AST_CDR_ANSWERED;
+		if (ast_tvzero(cdr->answer))
+			cdr->answer = ast_tvnow();
 	}
 }
 
@@ -840,20 +837,30 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 	return 0;
 }
 
+/* Three routines were "fixed" via 10668, and later shown that 
+   users were depending on this behavior. ast_cdr_end,
+   ast_cdr_setvar and ast_cdr_answer are the three routines.
+   While most of the other routines would not touch 
+   LOCKED cdr's, these three routines were designed to
+   operate on locked CDR's as a matter of course.
+   I now appreciate how this plays with the ForkCDR app,
+   which forms these cdr chains in the first place. 
+   cdr_end is pretty key: all cdrs created are closed
+   together. They only vary by start time. Arithmetically,
+   users can calculate the subintervals they wish to track. */
+
 void ast_cdr_end(struct ast_cdr *cdr)
 {
 	for ( ; cdr ; cdr = cdr->next) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			check_post(cdr);
-			if (ast_tvzero(cdr->end))
-				cdr->end = ast_tvnow();
-			if (ast_tvzero(cdr->start)) {
-				ast_log(LOG_WARNING, "CDR on channel '%s' has not started\n", S_OR(cdr->channel, "<unknown>"));
-				cdr->disposition = AST_CDR_FAILED;
-			} else
-				cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec;
-			cdr->billsec = ast_tvzero(cdr->answer) ? 0 : cdr->end.tv_sec - cdr->answer.tv_sec;
-		}
+		check_post(cdr);
+		if (ast_tvzero(cdr->end))
+			cdr->end = ast_tvnow();
+		if (ast_tvzero(cdr->start)) {
+			ast_log(LOG_WARNING, "CDR on channel '%s' has not started\n", S_OR(cdr->channel, "<unknown>"));
+			cdr->disposition = AST_CDR_FAILED;
+		} else
+			cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec;
+		cdr->billsec = ast_tvzero(cdr->answer) ? 0 : cdr->end.tv_sec - cdr->answer.tv_sec;
 	}
 }
 
