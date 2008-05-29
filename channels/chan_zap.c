@@ -877,10 +877,7 @@ static inline int pri_grab(struct zt_pvt *pvt, struct zt_pri *pri)
 	do {
 		res = ast_mutex_trylock(&pri->lock);
 		if (res) {
-			ast_mutex_unlock(&pvt->lock);
-			/* Release the lock and try again */
-			usleep(1);
-			ast_mutex_lock(&pvt->lock);
+			DEADLOCK_AVOIDANCE(&pvt->lock);
 		}
 	} while (res);
 	/* Then break the poll */
@@ -971,9 +968,7 @@ static void wakeup_sub(struct zt_pvt *p, int a, void *pri)
 	for (;;) {
 		if (p->subs[a].owner) {
 			if (ast_channel_trylock(p->subs[a].owner)) {
-				ast_mutex_unlock(&p->lock);
-				usleep(1);
-				ast_mutex_lock(&p->lock);
+				DEADLOCK_AVOIDANCE(&p->lock);
 			} else {
 				ast_queue_frame(p->subs[a].owner, &ast_null_frame);
 				ast_channel_unlock(p->subs[a].owner);
@@ -1020,9 +1015,7 @@ static void zap_queue_frame(struct zt_pvt *p, struct ast_frame *f, void *data)
 	for (;;) {
 		if (p->owner) {
 			if (ast_channel_trylock(p->owner)) {
-				ast_mutex_unlock(&p->lock);
-				usleep(1);
-				ast_mutex_lock(&p->lock);
+				DEADLOCK_AVOIDANCE(&p->lock);
 			} else {
 				ast_queue_frame(p->owner, f);
 				ast_channel_unlock(p->owner);
@@ -3637,9 +3630,7 @@ static void zt_unlink(struct zt_pvt *slave, struct zt_pvt *master, int needlock)
 		ast_mutex_lock(&master->lock);
 		if (slave) {
 			while (ast_mutex_trylock(&slave->lock)) {
-				ast_mutex_unlock(&master->lock);
-				usleep(1);
-				ast_mutex_lock(&master->lock);
+				DEADLOCK_AVOIDANCE(&master->lock);
 			}
 		}
 	}
@@ -10121,9 +10112,7 @@ static int pri_hangup_all(struct zt_pvt *p, struct zt_pri *pri)
 		for (x = 0; x < 3; x++) {
 			while (p->subs[x].owner && ast_channel_trylock(p->subs[x].owner)) {
 				redo++;
-				ast_mutex_unlock(&p->lock);
-				usleep(1);
-				ast_mutex_lock(&p->lock);
+				DEADLOCK_AVOIDANCE(&p->lock);
 			}
 			if (p->subs[x].owner) {
 				ast_queue_hangup(p->subs[x].owner);

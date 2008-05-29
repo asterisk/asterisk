@@ -1734,9 +1734,7 @@ static int iax2_queue_frame(int callno, struct ast_frame *f)
 		if (iaxs[callno] && iaxs[callno]->owner) {
 			if (ast_channel_trylock(iaxs[callno]->owner)) {
 				/* Avoid deadlock by pausing and trying again */
-				ast_mutex_unlock(&iaxsl[callno]);
-				usleep(1);
-				ast_mutex_lock(&iaxsl[callno]);
+				DEADLOCK_AVOIDANCE(&iaxsl[callno]);
 			} else {
 				ast_queue_frame(iaxs[callno]->owner, f);
 				ast_channel_unlock(iaxs[callno]->owner);
@@ -1767,9 +1765,7 @@ static int iax2_queue_hangup(int callno)
 		if (iaxs[callno] && iaxs[callno]->owner) {
 			if (ast_channel_trylock(iaxs[callno]->owner)) {
 				/* Avoid deadlock by pausing and trying again */
-				ast_mutex_unlock(&iaxsl[callno]);
-				usleep(1);
-				ast_mutex_lock(&iaxsl[callno]);
+				DEADLOCK_AVOIDANCE(&iaxsl[callno]);
 			} else {
 				ast_queue_hangup(iaxs[callno]->owner);
 				ast_channel_unlock(iaxs[callno]->owner);
@@ -1801,9 +1797,7 @@ static int iax2_queue_control_data(int callno,
 		if (iaxs[callno] && iaxs[callno]->owner) {
 			if (ast_channel_trylock(iaxs[callno]->owner)) {
 				/* Avoid deadlock by pausing and trying again */
-				ast_mutex_unlock(&iaxsl[callno]);
-				usleep(1);
-				ast_mutex_lock(&iaxsl[callno]);
+				DEADLOCK_AVOIDANCE(&iaxsl[callno]);
 			} else {
 				ast_queue_control_data(iaxs[callno]->owner, control, data, datalen);
 				ast_channel_unlock(iaxs[callno]->owner);
@@ -3734,9 +3728,7 @@ static void lock_both(unsigned short callno0, unsigned short callno1)
 {
 	ast_mutex_lock(&iaxsl[callno0]);
 	while (ast_mutex_trylock(&iaxsl[callno1])) {
-		ast_mutex_unlock(&iaxsl[callno0]);
-		usleep(10);
-		ast_mutex_lock(&iaxsl[callno0]);
+		DEADLOCK_AVOIDANCE(&iaxsl[callno0]);
 	}
 }
 
@@ -3927,9 +3919,7 @@ static int iax2_indicate(struct ast_channel *c, int condition, const void *data,
 		/* We don't know the remote side's call number, yet.  :( */
 		int count = 10;
 		while (count-- && pvt && !pvt->peercallno) {
-			ast_mutex_unlock(&iaxsl[callno]);
-			usleep(1);
-			ast_mutex_lock(&iaxsl[callno]);
+			DEADLOCK_AVOIDANCE(&iaxsl[callno]);
 			pvt = iaxs[callno];
 		}
 		if (!pvt->peercallno) {
@@ -8220,9 +8210,7 @@ static int socket_process(struct iax2_thread *thread)
 						int orignative;
 retryowner:
 						if (ast_channel_trylock(iaxs[fr->callno]->owner)) {
-							ast_mutex_unlock(&iaxsl[fr->callno]);
-							usleep(1);
-							ast_mutex_lock(&iaxsl[fr->callno]);
+							DEADLOCK_AVOIDANCE(&iaxsl[fr->callno]);
 							if (iaxs[fr->callno] && iaxs[fr->callno]->owner) goto retryowner;
 						}
 						if (iaxs[fr->callno]) {
@@ -8659,9 +8647,7 @@ retryowner:
 						ast_verb(3, "Format for call is %s\n", ast_getformatname(iaxs[fr->callno]->owner->nativeformats));
 retryowner2:
 						if (ast_channel_trylock(iaxs[fr->callno]->owner)) {
-							ast_mutex_unlock(&iaxsl[fr->callno]);
-							usleep(1);
-							ast_mutex_lock(&iaxsl[fr->callno]);
+							DEADLOCK_AVOIDANCE(&iaxsl[fr->callno]);
 							if (iaxs[fr->callno] && iaxs[fr->callno]->owner) goto retryowner2;
 						}
 						

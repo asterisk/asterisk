@@ -186,6 +186,38 @@ void ast_remove_lock_info(void *lock_addr);
 #define ast_remove_lock_info(ignore)
 #endif
 
+/*!
+ * \brief retrieve lock info for the specified mutex
+ *
+ * this gets called during deadlock avoidance, so that the information may
+ * be preserved as to what location originally acquired the lock.
+ */
+#if !defined(LOW_MEMORY)
+int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, const char **func, const char **mutex_name);
+#else
+#define ast_find_lock_info(a,b,c,d,e) -1
+#endif
+
+/*!
+ * \brief Unlock a lock briefly
+ *
+ * used during deadlock avoidance, to preserve the original location where
+ * a lock was originally acquired.
+ */
+#define DEADLOCK_AVOIDANCE(lock) \
+	do { \
+		const char *__filename, *__func, *__mutex_name; \
+		int __lineno; \
+		int __res = ast_find_lock_info(lock, &__filename, &__lineno, &__func, &__mutex_name); \
+		ast_mutex_unlock(lock); \
+		usleep(1); \
+		if (__res < 0) { /* Shouldn't ever happen, but just in case... */ \
+			ast_mutex_lock(lock); \
+		} else { \
+			__ast_pthread_mutex_lock(__filename, __lineno, __func, __mutex_name, lock); \
+		} \
+	} while (0)
+
 static void __attribute__((constructor)) init_empty_mutex(void)
 {
 	memset(&empty_mutex, 0, sizeof(empty_mutex));
@@ -1034,6 +1066,11 @@ static inline int _ast_rwlock_trywrlock(ast_rwlock_t *lock, const char *name,
 }
 
 #else /* !DEBUG_THREADS */
+
+#define	DEADLOCK_AVOIDANCE(lock) \
+	ast_mutex_lock(lock); \
+	usleep(1); \
+	ast_mutex_unlock(lock);
 
 static inline int ast_rwlock_init(ast_rwlock_t *prwlock)
 {
