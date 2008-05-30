@@ -806,15 +806,27 @@ static const struct ast_channel_tech iax2_tech = {
 static int send_ping(void *data)
 {
 	int callno = (long)data;
+	int res = 0;
+
 	/* Ping only if it's real, not if it's bridged */
-	if (iaxs[callno]) {
+
+	ast_mutex_lock(&iaxsl[callno]);
+
+	while (iaxs[callno]) {
+		res = 1;
+		if (!iaxs[callno]->peercallno) {
+			break;
+		}
 #ifdef BRIDGE_OPTIMIZATION
 		if (!iaxs[callno]->bridgecallno)
 #endif
 			send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PING, 0, NULL, 0, -1);
-		return 1;
-	} else
-		return 0;
+		break;
+	}
+
+	ast_mutex_unlock(&iaxsl[callno]);
+
+	return res;
 }
 
 static int get_encrypt_methods(const char *s)
@@ -832,15 +844,27 @@ static int get_encrypt_methods(const char *s)
 static int send_lagrq(void *data)
 {
 	int callno = (long)data;
+	int res = 0;
+
 	/* Ping only if it's real not if it's bridged */
-	if (iaxs[callno]) {
+
+	ast_mutex_lock(&iaxsl[callno]);
+
+	while (iaxs[callno]) {
+		res = 1;
+		if (!iaxs[callno]->peercallno) {
+			break;
+		}
 #ifdef BRIDGE_OPTIMIZATION
 		if (!iaxs[callno]->bridgecallno)
 #endif		
 			send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
-		return 1;
-	} else
-		return 0;
+		break;
+	}
+
+	ast_mutex_unlock(&iaxsl[callno]);
+
+	return res;
 }
 
 static unsigned char compress_subclass(int subclass)
@@ -6814,9 +6838,27 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		f.subclass = 0;
 	}
 
-	if (!fr->callno)
-		fr->callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, 1, fd, 
-			(ntohs(mh->callno) & IAX_FLAG_FULL) && f.frametype == AST_FRAME_IAX && f.subclass == IAX_COMMAND_ACK);
+	if (!fr->callno) {
+		int check_dcallno = 0;
+
+		/*
+		 * We enforce accurate destination call numbers for all full frames except
+		 * LAGRQ and PING commands.  This is because older versions of Asterisk
+		 * schedule these commands to get sent very quickly, and they will sometimes
+		 * be sent before they receive the first frame from the other side.  When
+		 * that happens, it doesn't contain the destination call number.  However,
+		 * not checking it for these frames is safe.
+		 * 
+		 * Discussed in the following thread:
+		 *    http://lists.digium.com/pipermail/asterisk-dev/2008-May/033217.html 
+		 */
+
+		if (ntohs(mh->callno) & IAX_FLAG_FULL) {
+			check_dcallno = f.frametype == AST_FRAME_IAX ? (f.subclass != IAX_COMMAND_PING && f.subclass != IAX_COMMAND_LAGRQ) : 1;
+		}
+
+		fr->callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, 1, fd, check_dcallno);
+	}
 
 	if (fr->callno > 0) 
 		ast_mutex_lock(&iaxsl[fr->callno]);
