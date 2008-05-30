@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+#include "asterisk/cli.h"
+
 typedef struct agi_state {
 	int fd;		        /*!< FD for general output */
 	int audio;	        /*!< FD for audio output */

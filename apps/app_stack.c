@@ -34,6 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/manager.h"
 #include "asterisk/channel.h"
+#include "asterisk/agi.h"
 
 static const char *app_gosub = "Gosub";
 static const char *app_gosubif = "GosubIf";
@@ -60,7 +61,6 @@ static const char *return_descrip =
 static const char *pop_descrip =
 "  StackPop():\n"
 "Removes last label on the stack, discarding it.\n";
-
 
 static void gosub_free(void *data);
 
@@ -234,7 +234,7 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_ERROR, "%s requires an argument: %s([[context|]exten|]priority[(arg1[|...][|argN])])\n", app_gosub, app_gosub);
+		ast_log(LOG_ERROR, "%s requires an argument: %s([[context,]exten,]priority[(arg1[,...][,argN])])\n", app_gosub, app_gosub);
 		return -1;
 	}
 
@@ -391,8 +391,101 @@ static struct ast_custom_function local_function = {
 	.read = local_read,
 };
 
+static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, char **argv)
+{
+	int old_priority, priority;
+	char old_context[AST_MAX_CONTEXT], old_extension[AST_MAX_EXTENSION];
+	struct ast_app *theapp;
+	char *gosub_args;
+
+	if (argc < 4 || argc > 5) {
+		return RESULT_SHOWUSAGE;
+	}
+
+	ast_debug(1, "Gosub called with %d arguments: 0:%s 1:%s 2:%s 3:%s 4:%s\n", argc, argv[0], argv[1], argv[2], argv[3], argc == 5 ? argv[4] : "");
+
+	if (sscanf(argv[3], "%d", &priority) != 1 || priority < 1) {
+		/* Lookup the priority label */
+		if ((priority = ast_findlabel_extension(chan, argv[1], argv[2], argv[3], chan->cid.cid_num)) < 0) {
+			ast_log(LOG_ERROR, "Priority '%s' not found in '%s@%s'\n", argv[3], argv[2], argv[1]);
+			ast_agi_fdprintf(chan, agi->fd, "200 result=-1 Gosub label not found\n");
+			return RESULT_FAILURE;
+		}
+	} else if (!ast_exists_extension(chan, argv[1], argv[2], priority, chan->cid.cid_num)) {
+		ast_agi_fdprintf(chan, agi->fd, "200 result=-1 Gosub label not found\n");
+		return RESULT_FAILURE;
+	}
+
+	/* Save previous location, since we're going to change it */
+	ast_copy_string(old_context, chan->context, sizeof(old_context));
+	ast_copy_string(old_extension, chan->exten, sizeof(old_extension));
+	old_priority = chan->priority;
+
+	if (!(theapp = pbx_findapp("Gosub"))) {
+		ast_log(LOG_ERROR, "Gosub() cannot be found in the list of loaded applications\n");
+		ast_agi_fdprintf(chan, agi->fd, "503 result=-2 Gosub is not loaded\n");
+		return RESULT_FAILURE;
+	}
+
+	/* Apparently, if you run ast_pbx_run on a channel that already has a pbx
+	 * structure, you need to add 1 to the priority to get it to go to the
+	 * right place.  But if it doesn't have a pbx structure, then leaving off
+	 * the 1 is the right thing to do.  See how this code differs when we
+	 * call a Gosub for the CALLEE channel in Dial or Queue.
+	 */
+	if (argc == 5) {
+		asprintf(&gosub_args, "%s,%s,%d(%s)", argv[1], argv[2], priority + 1, argv[4]);
+	} else {
+		asprintf(&gosub_args, "%s,%s,%d", argv[1], argv[2], priority + 1);
+	}
+
+	if (gosub_args) {
+		int res;
+
+		ast_debug(1, "Trying gosub with arguments '%s'\n", gosub_args);
+		ast_copy_string(chan->context, "app_stack_gosub_virtual_context", sizeof(chan->context));
+		ast_copy_string(chan->exten, "s", sizeof(chan->exten));
+		chan->priority = 0;
+
+		if ((res = pbx_exec(chan, theapp, gosub_args)) == 0) {
+			ast_agi_fdprintf(chan, agi->fd, "100 result=0 Trying...\n");
+			ast_pbx_run(chan);
+			ast_agi_fdprintf(chan, agi->fd, "200 result=0 Gosub complete\n");
+		} else {
+			ast_agi_fdprintf(chan, agi->fd, "200 result=%d Gosub failed\n", res);
+		}
+		ast_free(gosub_args);
+	} else {
+		ast_agi_fdprintf(chan, agi->fd, "503 result=-2 Memory allocation failure\n");
+		return RESULT_FAILURE;
+	}
+
+	/* Restore previous location */
+	ast_copy_string(chan->context, old_context, sizeof(chan->context));
+	ast_copy_string(chan->exten, old_extension, sizeof(chan->exten));
+	chan->priority = old_priority;
+
+	return RESULT_SUCCESS;
+}
+
+static char usage_gosub[] =
+" Usage: GOSUB <context> <extension> <priority> [<optional-argument>]\n"
+"   Cause the channel to execute the specified dialplan subroutine, returning\n"
+" to the dialplan with execution of a Return()\n";
+
+struct agi_command gosub_agi_command =
+	{ { "gosub", NULL }, handle_gosub, "Execute a dialplan subroutine", usage_gosub , 0 };
+
 static int unload_module(void)
 {
+	struct ast_context *con;
+
+	if ((con = ast_context_find("app_stack_gosub_virtual_context"))) {
+		ast_context_remove_extension2(con, "s", 1, NULL);
+		ast_context_destroy(con, "app_stack"); /* leave nothing behind */
+	}
+
+	ast_agi_unregister(ast_module_info->self, &gosub_agi_command);
 	ast_unregister_application(app_return);
 	ast_unregister_application(app_pop);
 	ast_unregister_application(app_gosubif);
@@ -404,10 +497,20 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	struct ast_context *con;
+	con = ast_context_find_or_create(NULL, NULL, "app_stack_gosub_virtual_context", "app_stack");
+	if (!con) {
+		ast_log(LOG_ERROR, "Virtual context 'app_stack_gosub_virtual_context' does not exist and unable to create\n");
+		return AST_MODULE_LOAD_DECLINE;
+	} else {
+		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free_ptr, "app_stack");
+	}
+
 	ast_register_application(app_pop, pop_exec, pop_synopsis, pop_descrip);
 	ast_register_application(app_return, return_exec, return_synopsis, return_descrip);
 	ast_register_application(app_gosubif, gosubif_exec, gosubif_synopsis, gosubif_descrip);
 	ast_register_application(app_gosub, gosub_exec, gosub_synopsis, gosub_descrip);
+	ast_agi_register(ast_module_info->self, &gosub_agi_command);
 	ast_custom_function_register(&local_function);
 
 	return 0;
