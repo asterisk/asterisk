@@ -505,7 +505,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	struct ast_context *con;
-	con = ast_context_find_or_create(NULL, NULL, "app_stack_gosub_virtual_context", "app_stack");
+	con = ast_context_find_or_create(NULL, "app_stack_gosub_virtual_context", "app_stack");
 	if (!con) {
 		ast_log(LOG_ERROR, "Virtual context 'app_stack_gosub_virtual_context' does not exist and unable to create\n");
 		return AST_MODULE_LOAD_DECLINE;
