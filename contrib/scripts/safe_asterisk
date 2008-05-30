@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # vim:textwidth=80:tabstop=4:shiftwidth=4:smartindent:autoindent
 
 CLIARGS="$*"				# Grab any args passed to safe_asterisk
@@ -29,7 +29,7 @@ PRIORITY=0
 # Check if Asterisk is already running.  If it is, then bug out, because
 # starting safe_asterisk when Asterisk is running is very bad.
 VERSION=`${ASTSBINDIR}/asterisk -rx 'core show version'`
-if [ "${VERSION:0:8}" = "Asterisk" ]; then # otherwise "Unable t"
+if [ "`echo $VERSION | cut -c 1-8`" = "Asterisk" ]; then
 	echo "Asterisk is already running.  $0 will exit now."
 	exit 1
 fi
