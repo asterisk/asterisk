@@ -451,9 +451,16 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, char **arg
 		chan->priority = 0;
 
 		if ((res = pbx_exec(chan, theapp, gosub_args)) == 0) {
+			struct ast_pbx *pbx = chan->pbx;
+			/* Suppress warning about PBX already existing */
+			chan->pbx = NULL;
 			ast_agi_fdprintf(chan, agi->fd, "100 result=0 Trying...\n");
 			ast_pbx_run(chan);
 			ast_agi_fdprintf(chan, agi->fd, "200 result=0 Gosub complete\n");
+			if (chan->pbx) {
+				ast_free(chan->pbx);
+			}
+			chan->pbx = pbx;
 		} else {
 			ast_agi_fdprintf(chan, agi->fd, "200 result=%d Gosub failed\n", res);
 		}
