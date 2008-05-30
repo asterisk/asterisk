@@ -274,10 +274,10 @@ extern struct ast_frame ast_null_frame;
 /*! MPEG4 Video */
 #define AST_FORMAT_MP4_VIDEO	(1 << 22)
 #define AST_FORMAT_VIDEO_MASK   (((1 << 25)-1) & ~(AST_FORMAT_AUDIO_MASK))
-/*! T.140 Text format - ITU T.140, RFC 4103 */
-#define AST_FORMAT_T140		(1 << 26)
 /*! T.140 RED Text format RFC 4103 */
-#define AST_FORMAT_T140RED      (1 << 27)
+#define AST_FORMAT_T140RED      (1 << 26)
+/*! T.140 Text format - ITU T.140, RFC 4103 */
+#define AST_FORMAT_T140		(1 << 27)
 /*! Maximum text mask */
 #define AST_FORMAT_MAX_TEXT	(1 << 28))
 #define AST_FORMAT_TEXT_MASK   (((1 << 30)-1) & ~(AST_FORMAT_AUDIO_MASK) & ~(AST_FORMAT_VIDEO_MASK))
