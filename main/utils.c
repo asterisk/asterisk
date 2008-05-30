@@ -674,9 +674,7 @@ void ast_mark_lock_failed(void *lock_addr)
 	}
 	pthread_mutex_unlock(&lock_info->lock);
 }
-#ifdef HAVE_BKTR
-void ast_remove_lock_info(void *lock_addr, struct ast_bt *bt)
-#else
+
 int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, const char **func, const char **mutex_name)
 {
 	struct thr_lock_info *lock_info;
@@ -705,6 +703,9 @@ int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, cons
 	return 0;
 }
 
+#ifdef HAVE_BKTR
+void ast_remove_lock_info(void *lock_addr, struct ast_bt *bt)
+#else
 void ast_remove_lock_info(void *lock_addr)
 #endif
 {
