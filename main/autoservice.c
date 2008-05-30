@@ -155,21 +155,20 @@ static void *autoservice_run(void *ign)
 			continue;
 		}
 
-		for (i = 0; i < x; i++) {
-			struct ast_frame *dup_f;
-
-			if (mons[i] != chan) {
-				continue;
-			}
-
-			if ((dup_f = ast_frdup(f))) {
-				AST_LIST_INSERT_TAIL(&ents[i]->deferred_frames, dup_f, frame_list);
-			}
-			
-			break;
-		}
-
 		if (f) {
+			for (i = 0; i < x; i++) {
+				struct ast_frame *dup_f;
+				
+				if (mons[i] != chan) {
+					continue;
+				}
+				
+				if ((dup_f = ast_frdup(f))) {
+					AST_LIST_INSERT_TAIL(&ents[i]->deferred_frames, dup_f, frame_list);
+				}
+				
+				break;
+			}
 			ast_frfree(f);
 		}
 	}
