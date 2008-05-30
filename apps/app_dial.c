@@ -1776,13 +1776,13 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_copy_string(peer->exten, "s", sizeof(peer->exten));
 				peer->priority = 0;
 
-				gosub_argstart = strchr(opt_args[OPT_ARG_CALLEE_GOSUB], '|');
+				gosub_argstart = strchr(opt_args[OPT_ARG_CALLEE_GOSUB], ',');
 				if (gosub_argstart) {
 					*gosub_argstart = 0;
-					asprintf(&gosub_args, "%s|s|1(%s)", opt_args[OPT_ARG_CALLEE_GOSUB], gosub_argstart + 1);
-					*gosub_argstart = '|';
+					asprintf(&gosub_args, "%s,s,1(%s)", opt_args[OPT_ARG_CALLEE_GOSUB], gosub_argstart + 1);
+					*gosub_argstart = ',';
 				} else {
-					asprintf(&gosub_args, "%s|s|1", opt_args[OPT_ARG_CALLEE_GOSUB]);
+					asprintf(&gosub_args, "%s,s,1", opt_args[OPT_ARG_CALLEE_GOSUB]);
 				}
 
 				if (gosub_args) {
