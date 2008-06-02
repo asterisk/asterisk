@@ -718,10 +718,10 @@
 /* Define to 1 if your system has soxmix application. */
 #undef HAVE_SOXMIX
 
-/* Define if your system has the SPANDSP headers. */
+/* Define this to indicate the ${SPANDSP_DESCRIP} library */
 #undef HAVE_SPANDSP
 
-/* Define SPANDSP headers version */
+/* Define to indicate the ${SPANDSP_DESCRIP} library version */
 #undef HAVE_SPANDSP_VERSION
 
 /* Define this to indicate the ${SPEEX_DESCRIP} library */
