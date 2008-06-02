@@ -19,6 +19,7 @@
 
 
 #include <syslog.h>
+#include <sys/time.h>
 #include <mISDNuser/isdn_debug.h>
 
 #include "isdn_lib_intern.h"
@@ -719,6 +720,8 @@ static void empty_bc(struct misdn_bchannel *bc)
 	
 	bc->te_choose_channel = 0;
 	bc->channel_found= 0;
+
+	gettimeofday(&bc->last_used, NULL);
 }
 
 
@@ -1578,7 +1581,17 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 					break;
 				}
 
-				cb_log(0, stack->port, "Any Channel Requested, but we have no more!!\n");
+				if (!bc->channel)
+					cb_log(0, stack->port, "Any Channel Requested, but we have no more!!\n");
+				else 
+					cb_log(0, stack->port, "Requested Channel Already in Use releasing this call with cause 34!!!!\n");
+
+				/* when the channel is already in use, we can't
+				 * simply clear it, we need to make sure that 
+				 * it will still be marked as in_use in the 
+				 * available channels list.*/
+				bc->channel=0;
+
 				misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
 				return -1;
 			}
@@ -3103,6 +3116,20 @@ struct misdn_bchannel *manager_find_bc_holded(struct misdn_bchannel* bc)
 
 
 
+int test_inuse(struct misdn_bchannel *bc)
+{
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	if (!bc->in_use) {
+		if (bc->last_used.tv_sec < now.tv_sec) {
+			cb_log(0,bc->port, "channel with stid:%x for one second still in use!\n", bc->b_stid);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
 static void prepare_bc(struct misdn_bchannel*bc, int channel)
 {
 	bc->channel = channel;
@@ -3133,6 +3160,8 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 		return NULL;
 	}
 
+	usleep(1000);
+
 	for (stack=glob_mgr->stack_list; stack; stack=stack->next) {
     
 		if (stack->port == port) {
@@ -3146,7 +3175,7 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 			if (channel > 0) {
 				if (channel <= stack->b_num) {
 					for (i = 0; i < stack->b_num; i++) {
-						if (stack->bc[i].in_use && stack->bc[i].channel == channel) {
+						if ( test_inuse(&stack->bc[i]) && stack->bc[i].channel == channel) {
 							cb_log(0,port,"Requested channel:%d on port:%d is already in use\n",channel, port);
 							return NULL;
 						}
@@ -3161,7 +3190,7 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 
 			if (dec) {
 				for (i = maxnum-1; i>=0; i--) {
-					if (!stack->bc[i].in_use) {
+					if (test_inuse(&stack->bc[i])) {
 						/* 3. channel on bri means CW*/
 						if (!stack->pri && i==stack->b_num)
 							stack->bc[i].cw=1;
@@ -3173,7 +3202,7 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 				}
 			} else {
 				for (i = 0; i <maxnum; i++) {
-					if (!stack->bc[i].in_use) {
+					if (test_inuse(&stack->bc[i])) {
 						/* 3. channel on bri means CW*/
 						if (!stack->pri && i==stack->b_num)
 							stack->bc[i].cw=1;
@@ -3595,9 +3624,19 @@ int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 	}
 
 	if ( ((frm->addr | ISDN_PID_BCHANNEL_BIT )>> 28 ) == 0x5) {
+		static int unhandled_bmsg_count=1000;
 		if (handle_bchan(msg)) {
 			return 0 ;
 		}
+			
+		if (unhandled_bmsg_count==1000) {
+			cb_log(0, 0, "received 1k Unhandled Bchannel Messages: prim %x len %d from addr %x, dinfo %x on this port.\n",frm->prim, frm->len, frm->addr, frm->dinfo);		
+			unhandled_bmsg_count=0;
+		}
+
+		unhandled_bmsg_count++;
+		free_msg(msg);
+		return 0;
 	}	
 
 #ifdef RECV_FRM_SYSLOG_DEBUG
