@@ -1138,10 +1138,9 @@ static void __send_ping(const void *data)
 	ast_mutex_lock(&iaxsl[callno]);
 
 	while (iaxs[callno] && iaxs[callno]->pingid != -1) {
-		if (!iaxs[callno]->peercallno) {
-			break;
+		if (iaxs[callno]->peercallno) {
+			send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PING, 0, NULL, 0, -1);
 		}
-		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PING, 0, NULL, 0, -1);
 		iaxs[callno]->pingid = iax2_sched_add(sched, ping_time * 1000, send_ping, data);
 		break;
 	}
@@ -1179,10 +1178,9 @@ static void __send_lagrq(const void *data)
 	ast_mutex_lock(&iaxsl[callno]);
 
 	while (iaxs[callno] && iaxs[callno]->lagid > -1) {
-		if (!iaxs[callno]->peercallno) {
-			break;
+		if (iaxs[callno]->peercallno) {
+			send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
 		}
-		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
 		iaxs[callno]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, data);
 		break;
 	}
