@@ -3105,7 +3105,7 @@ struct misdn_bchannel *manager_find_bc_holded(struct misdn_bchannel* bc)
 
 
 
-int test_inuse(struct misdn_bchannel *bc)
+static int test_inuse(struct misdn_bchannel *bc)
 {
 	struct timeval now;
 	gettimeofday(&now, NULL);
