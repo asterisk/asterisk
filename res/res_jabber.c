@@ -2359,17 +2359,30 @@ static int aji_load_config(void)
 }
 
 /*!
- * \brief grab a aji_client structure by label name.
- * \param void. 
- * \return 1.
+  * \brief grab a aji_client structure by label name or JID 
+  * (without the resource string)
+  * \param name label or JID 
+  * \return aji_client.
  */
 struct aji_client *ast_aji_get_client(const char *name)
 {
 	struct aji_client *client = NULL;
+	char *aux = NULL;
 
 	client = ASTOBJ_CONTAINER_FIND(&clients, name);
-	if (!client && !strchr(name, '@'))
-		client = ASTOBJ_CONTAINER_FIND_FULL(&clients, name, user,,, strcasecmp);
+ 	if (!client && strchr(name, '@')) {
+ 		ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
+ 			aux = ast_strdupa(iterator->user);
+ 			if (strchr(aux, '/')) {
+ 				/* strip resource for comparison */
+ 				aux = strsep(&aux, "/");
+ 			}
+ 			if (!strcasecmp(aux, name)) {
+ 				client = iterator;
+ 			}				
+ 		});
+ 	}
+ 
 	return client;
 }
 
