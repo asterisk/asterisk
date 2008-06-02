@@ -222,7 +222,7 @@ static char *rdescrip =
 "  RetryDial(announce,sleep,retries,dialargs): This application will attempt to\n"
 "place a call using the normal Dial application. If no channel can be reached,\n"
 "the 'announce' file will be played. Then, it will wait 'sleep' number of\n"
-"seconds before retying the call. After 'retries' number of attempts, the\n"
+"seconds before retrying the call. After 'retries' number of attempts, the\n"
 "calling channel will continue at the next priority in the dialplan. If the\n"
 "'retries' setting is set to 0, this application will retry endlessly.\n"
 "  While waiting to retry a call, a 1 digit extension may be dialed. If that\n"
