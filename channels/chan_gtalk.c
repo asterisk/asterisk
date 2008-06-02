@@ -251,17 +251,12 @@ static struct gtalk *find_gtalk(char *name, char *connection)
 	if (!gtalk && strchr(name, '@'))
 		gtalk = ASTOBJ_CONTAINER_FIND_FULL(&gtalk_list, name, user,,, strcasecmp);
 
-	if (!gtalk) {				/* guest call */
+	if (!gtalk) {				
+		/* guest call */
 		ASTOBJ_CONTAINER_TRAVERSE(&gtalk_list, 1, {
 			ASTOBJ_RDLOCK(iterator);
 			if (!strcasecmp(iterator->name, "guest")) {
-				if (!strcasecmp(iterator->connection->jid->partial, connection)) {
-					gtalk = iterator;
-				} else if (!strcasecmp(iterator->connection->name, connection)) {
-					gtalk = iterator;
-				} else if (iterator->connection->component && !strcasecmp(iterator->connection->user,domain)) {
-					gtalk = iterator;
-				}
+				gtalk = iterator;
 			}
 			ASTOBJ_UNLOCK(iterator);
 
@@ -1142,6 +1137,16 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 		tmp = tmp->next;
 	}
 
+ 	if (!strcasecmp(client->name, "guest")){
+ 		/* the guest account is not tied to any configured XMPP client,
+ 		   let's set it now */
+ 		client->connection = ast_aji_get_client(from);
+ 		if (!client->connection) {
+ 			ast_log(LOG_ERROR, "No XMPP client to talk to, us (partial JID) : %s\n", from);
+ 			return -1;
+ 		}
+ 	}
+
 	p = gtalk_alloc(client, from, pak->from->full, iks_find_attrib(pak->query, "id"));
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to allocate gtalk structure!\n");
@@ -1602,11 +1607,22 @@ static struct ast_channel *gtalk_request(const char *type, int format, void *dat
 			}
 		}
 	}
+
 	client = find_gtalk(to, sender);
 	if (!client) {
 		ast_log(LOG_WARNING, "Could not find recipient.\n");
 		return NULL;
 	}
+	if (!strcasecmp(client->name, "guest")){
+		/* the guest account is not tied to any configured XMPP client,
+		   let's set it now */
+		client->connection = ast_aji_get_client(sender);
+		if (!client->connection) {
+			ast_log(LOG_ERROR, "No XMPP client to talk to, us (partial JID) : %s\n", sender);
+			return NULL;
+		}
+	}
+       
 	ASTOBJ_WRLOCK(client);
 	p = gtalk_alloc(client, strchr(sender, '@') ? sender : client->connection->jid->full, strchr(to, '@') ? to : client->user, NULL);
 	if (p)
@@ -1937,13 +1953,13 @@ static int gtalk_load_config(void)
 					ASTOBJ_CONTAINER_TRAVERSE(clients, 1, {
 						ASTOBJ_WRLOCK(iterator);
 						ASTOBJ_WRLOCK(member);
-						member->connection = iterator;
+						member->connection = NULL;
 						iks_filter_add_rule(iterator->f, gtalk_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS, "http://www.google.com/session", IKS_RULE_DONE);
 						iks_filter_add_rule(iterator->f, gtalk_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS, "http://jabber.org/protocol/gtalk", IKS_RULE_DONE);
 						ASTOBJ_UNLOCK(member);
-						ASTOBJ_CONTAINER_LINK(&gtalk_list, member);
 						ASTOBJ_UNLOCK(iterator);
 					});
+					ASTOBJ_CONTAINER_LINK(&gtalk_list, member);
 				} else {
 					ASTOBJ_UNLOCK(member);
 					ASTOBJ_UNREF(member, gtalk_member_destroy);

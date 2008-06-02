@@ -248,15 +248,12 @@ static struct jingle *find_jingle(char *name, char *connection)
 	if (!jingle && strchr(name, '@'))
 		jingle = ASTOBJ_CONTAINER_FIND_FULL(&jingle_list, name, user,,, strcasecmp);
 
-	if (!jingle) {				/* guest call */
+	if (!jingle) {				
+		/* guest call */
 		ASTOBJ_CONTAINER_TRAVERSE(&jingle_list, 1, {
 			ASTOBJ_RDLOCK(iterator);
 			if (!strcasecmp(iterator->name, "guest")) {
-				if (!strcasecmp(iterator->connection->jid->partial, connection)) {
-					jingle = iterator;
-				} else if (!strcasecmp(iterator->connection->name, connection)) {
-					jingle = iterator;
-				}
+				jingle = iterator;
 			}
 			ASTOBJ_UNLOCK(iterator);
 
@@ -959,8 +956,13 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 	struct ast_channel *chan;
 	int res;
 	iks *codec, *content, *description;
+	char *from = NULL;
 
 	/* Make sure our new call doesn't exist yet */
+	from = iks_find_attrib(pak->x,"to");
+	if(!from)
+		from = client->connection->jid->full;
+
 	while (tmp) {
 		if (iks_find_with_attrib(pak->x, JINGLE_NODE, JINGLE_SID, tmp->sid)) {
 			ast_log(LOG_NOTICE, "Ignoring duplicate call setup on SID %s\n", tmp->sid);
@@ -969,6 +971,16 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 		}
 		tmp = tmp->next;
 	}
+
+ 	if (!strcasecmp(client->name, "guest")){
+ 		/* the guest account is not tied to any configured XMPP client,
+ 		   let's set it now */
+ 		client->connection = ast_aji_get_client(from);
+ 		if (!client->connection) {
+ 			ast_log(LOG_ERROR, "No XMPP client to talk to, us (partial JID) : %s\n", from);
+ 			return -1;
+ 		}
+ 	}
 
 	p = jingle_alloc(client, pak->from->partial, iks_find_attrib(pak->query, JINGLE_SID));
 	if (!p) {
@@ -1471,11 +1483,22 @@ static struct ast_channel *jingle_request(const char *type, int format, void *da
 			}
 		}
 	}
+
 	client = find_jingle(to, sender);
 	if (!client) {
 		ast_log(LOG_WARNING, "Could not find recipient.\n");
 		return NULL;
 	}
+	if (!strcasecmp(client->name, "guest")){
+		/* the guest account is not tied to any configured XMPP client,
+		   let's set it now */
+		client->connection = ast_aji_get_client(sender);
+		if (!client->connection) {
+			ast_log(LOG_ERROR, "No XMPP client to talk to, us (partial JID) : %s\n", sender);
+			return NULL;
+		}
+	}
+       
 	ASTOBJ_WRLOCK(client);
 	p = jingle_alloc(client, to, NULL);
 	if (p)
@@ -1797,13 +1820,13 @@ static int jingle_load_config(void)
 					ASTOBJ_CONTAINER_TRAVERSE(clients, 1, {
 						ASTOBJ_WRLOCK(iterator);
 						ASTOBJ_WRLOCK(member);
-						member->connection = iterator;
+						member->connection = NULL;
 						iks_filter_add_rule(iterator->f, jingle_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS,	JINGLE_NS, IKS_RULE_DONE);
 						iks_filter_add_rule(iterator->f, jingle_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS,	JINGLE_DTMF_NS, IKS_RULE_DONE);
 						ASTOBJ_UNLOCK(member);
-						ASTOBJ_CONTAINER_LINK(&jingle_list, member);
 						ASTOBJ_UNLOCK(iterator);
 					});
+					ASTOBJ_CONTAINER_LINK(&jingle_list, member);
 				} else {
 					ASTOBJ_UNLOCK(member);
 					ASTOBJ_UNREF(member, jingle_member_destroy);
