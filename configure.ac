@@ -1296,6 +1296,13 @@ AST_C_COMPILE_CHECK([SPANDSP], [
 		#endif
 	], [spandsp/version.h])
 
+if test "x${PBX_SPANDSP}" = "x1" ; then
+	# We found the correct version in the header, now let's make sure it links
+	# properly, and that libtiff is available
+	PBX_SPANDSP=0
+	AST_EXT_LIB_CHECK([SPANDSP], [spandsp], [span_set_message_handler], [spandsp.h], [-ltiff])
+fi
+
 AST_EXT_LIB_CHECK([SS7], [ss7], [ss7_pollflags], [libss7.h])
 
 if test "${USE_PWLIB}" != "no"; then
