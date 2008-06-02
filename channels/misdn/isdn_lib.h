@@ -236,6 +236,7 @@ struct misdn_bchannel {
 	int channel_preselected;
 	
 	int in_use;
+	struct timeval last_used;
 	int cw;
 	int addr;
 
