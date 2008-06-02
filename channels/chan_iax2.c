@@ -1290,7 +1290,8 @@ retry:
 
 	if (owner) {
 		if (ast_mutex_trylock(&owner->lock)) {
-			ast_log(LOG_NOTICE, "Avoiding IAX destroy deadlock\n");
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "Avoiding IAX destroy deadlock\n");
 			DEADLOCK_AVOIDANCE(&iaxsl[callno]);
 			goto retry;
 		}
