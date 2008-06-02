@@ -130,9 +130,12 @@ static struct permalias {
 	{ 0, "none" },
 };
 
-static const char *command_blacklist[] = {
-	"module load",
-	"module unload",
+#define MAX_BLACKLIST_CMD_LEN 2
+static struct {
+	char *words[AST_MAX_CMD_LEN];
+} command_blacklist[] = {
+	{{ "module", "load", NULL }},
+	{{ "module", "unload", NULL }},
 };
 
 struct mansession {
@@ -1681,6 +1684,41 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int check_blacklist(const char *cmd)
+{
+	char *cmd_copy, *cur_cmd;
+	char *cmd_words[MAX_BLACKLIST_CMD_LEN] = { NULL, };
+	int i;
+
+	cmd_copy = ast_strdupa(cmd);
+	for (i = 0; i < MAX_BLACKLIST_CMD_LEN && (cur_cmd = strsep(&cmd_copy, " ")); i++) {
+		cur_cmd = ast_strip(cur_cmd);
+		if (ast_strlen_zero(cur_cmd)) {
+			i--;
+			continue;
+		}
+
+		cmd_words[i] = cur_cmd;
+	}
+
+	for (i = 0; i < ARRAY_LEN(command_blacklist); i++) {
+		int j, match = 1;
+
+		for (j = 0; command_blacklist[i].words[j]; j++) {
+			if (ast_strlen_zero(cmd_words[j]) || strcasecmp(cmd_words[j], command_blacklist[i].words[j])) {
+				match = 0;
+				break;
+			}
+		}
+
+		if (match) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 static char mandescr_command[] = 
 "Description: Run a CLI command.\n"
 "Variables: (Names marked with * are required)\n"
@@ -1694,14 +1732,17 @@ static int action_command(struct mansession *s, const struct message *m)
 	const char *id = astman_get_header(m, "ActionID");
 	char *buf, *final_buf;
 	char template[] = "/tmp/ast-ami-XXXXXX";	/* template for temporary file */
-	int fd = mkstemp(template), i = 0;
+	int fd = mkstemp(template);
 	off_t l;
 
-	for (i = 0; i < sizeof(command_blacklist) / sizeof(command_blacklist[0]); i++) {
-		if (!strncmp(cmd, command_blacklist[i], strlen(command_blacklist[i]))) {
-			astman_send_error(s, m, "Command blacklisted");
-			return 0;
-		}
+	if (ast_strlen_zero(cmd)) {
+		astman_send_error(s, m, "No command provided");
+		return 0;
+	}
+
+	if (check_blacklist(cmd)) {
+		astman_send_error(s, m, "Command blacklisted");
+		return 0;
 	}
 
 	astman_append(s, "Response: Follows\r\nPrivilege: Command\r\n");
