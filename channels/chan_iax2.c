@@ -3487,10 +3487,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	}
 
 	if (!pds.exten) {
-		if (!ast_strlen_zero(c->exten))
-			pds.exten = c->exten;
-		else
-			pds.exten = defaultrdest;
+		pds.exten = defaultrdest;
 	}
 
 	if (create_addr(pds.peer, c, &sin, &cai)) {
