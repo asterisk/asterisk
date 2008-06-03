@@ -89,7 +89,8 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, asyncgoto_exec, synopsis, descrip);
+	return ast_register_application(app, asyncgoto_exec, synopsis, descrip) ?
+		AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Redirects a given channel to a dialplan target");
