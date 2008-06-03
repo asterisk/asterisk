@@ -1128,7 +1128,11 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 static struct ast_config *config_text_file_load(const char *database, const char *table, const char *filename, struct ast_config *cfg, struct ast_flags flags, const char *suggested_include_file, const char *who_asked)
 {
 	char fn[256];
+#if defined(LOW_MEMORY)
+	char buf[512];
+#else
 	char buf[8192];
+#endif
 	char *new_buf, *comment_p, *process_buf;
 	FILE *f;
 	int lineno=0;
