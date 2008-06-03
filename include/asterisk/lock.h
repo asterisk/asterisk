@@ -1493,6 +1493,8 @@ typedef pthread_rwlock_t ast_rwlock_t;
 #define AST_RWLOCK_INIT_VALUE { 0 }
 #endif
 
+#define ast_rwlock_init_notracking(a) ast_rwlock_init(a)
+
 static inline int ast_rwlock_init(ast_rwlock_t *prwlock)
 {
 	int res;
