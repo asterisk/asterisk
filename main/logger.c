@@ -133,9 +133,9 @@ struct logmsg {
 	enum logmsgtypes type;
 	char date[256];
 	int level;
-	const char *file;
+	char file[80];
 	int line;
-	const char *function;
+	char function[80];
 	AST_LIST_ENTRY(logmsg) list;
 	char str[0];
 };
@@ -1047,7 +1047,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	/* Create a new logging message */
 	if (!(logmsg = ast_calloc(1, sizeof(*logmsg) + res + 1)))
 		return;
-	
+
 	/* Copy string over */
 	strcpy(logmsg->str, buf->str);
 
@@ -1060,9 +1060,9 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 	/* Copy over data */
 	logmsg->level = level;
-	logmsg->file = file;
 	logmsg->line = line;
-	logmsg->function = function;
+	ast_copy_string(logmsg->file, file, sizeof(logmsg->file));
+	ast_copy_string(logmsg->function, function, sizeof(logmsg->function));
 
 	/* If the logger thread is active, append it to the tail end of the list - otherwise skip that step */
 	if (logthread != AST_PTHREADT_NULL) {
