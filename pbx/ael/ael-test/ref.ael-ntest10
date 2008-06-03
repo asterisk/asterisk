@@ -175,4 +175,4 @@ Executed ast_merge_contexts_and_delete();
 LOG: lev:2 file:pbx_ael.c  line:139 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
 Executed ast_walk_contexts();
 LOG: lev:2 file:pbx_ael.c  line:142 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
-LOG: lev:4 file:ael2_parse  line:548 func: main  7 contexts, 37 extensions, 138 priorities
+LOG: lev:4 file:ael2_parse  line:518 func: main  7 contexts, 37 extensions, 138 priorities
