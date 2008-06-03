@@ -2877,7 +2877,7 @@ static int webregged = 0;
 
 int init_manager(void)
 {
-	struct ast_config *cfg = NULL;
+	struct ast_config *cfg = NULL, *ucfg = NULL;
 	const char *val;
 	char *cat = NULL;
 	int oldportno = portno;
@@ -2974,6 +2974,71 @@ int init_manager(void)
 	}
 
 	AST_LIST_LOCK(&users);
+
+	if ((ucfg = ast_config_load("users.conf"))) {
+		while ((cat = ast_category_browse(ucfg, cat))) {
+			int hasmanager = 0;
+			struct ast_variable *var = NULL;
+
+			if (!strcasecmp(cat, "general")) {
+				continue;
+			}
+
+			if (!(hasmanager = ast_true(ast_variable_retrieve(ucfg, cat, "hasmanager")))) {
+				continue;
+			}
+
+			/* Look for an existing entry, if none found - create one and add it to the list */
+			if (!(user = ast_get_manager_by_name_locked(cat))) {
+				if (!(user = ast_calloc(1, sizeof(*user)))) {
+					break;
+				}
+				/* Copy name over */
+				ast_copy_string(user->username, cat, sizeof(user->username));
+				/* Insert into list */
+				AST_LIST_INSERT_TAIL(&users, user, list);
+			}
+
+			/* Make sure we keep this user and don't destroy it during cleanup */
+			user->keep = 1;
+
+			for (var = ast_variable_browse(ucfg, cat); var; var = var->next) {
+				if (!strcasecmp(var->name, "secret")) {
+					if (user->secret) {
+						free(user->secret);
+					}
+					user->secret = ast_strdup(var->value);
+				} else if (!strcasecmp(var->name, "deny") ) {
+					if (user->deny) {
+						free(user->deny);
+					}
+					user->deny = ast_strdup(var->value);
+				} else if (!strcasecmp(var->name, "permit") ) {
+					if (user->permit) {
+						free(user->permit);
+					}
+					user->permit = ast_strdup(var->value);
+				} else if (!strcasecmp(var->name, "read") ) {
+					if (user->read) {
+						free(user->read);
+					}
+					user->read = ast_strdup(var->value);
+				} else if (!strcasecmp(var->name, "write") ) {
+					if (user->write) {
+						free(user->write);
+					}
+					user->write = ast_strdup(var->value);
+				} else if (!strcasecmp(var->name, "displayconnects") ) {
+					user->displayconnects = ast_true(var->value);
+				} else if (!strcasecmp(var->name, "hasmanager")) {
+					/* already handled */
+				} else {
+					ast_log(LOG_DEBUG, "%s is an unknown option (to the manager module).\n", var->name);
+				}
+			}
+		}
+		ast_config_destroy(ucfg);
+	}
 
 	while ((cat = ast_category_browse(cfg, cat))) {
 		struct ast_variable *var = NULL;
