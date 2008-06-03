@@ -155,6 +155,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 /*! @{ */
 
 struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
+struct ast_flags ast_compat = { 7 };
 
 int option_verbose;				/*!< Verbosity level */
 int option_debug;				/*!< Debug level */
@@ -2758,6 +2759,20 @@ static void ast_readconfig(void)
 				option_minmemfree = 0;
 			}
 #endif
+		}
+	}
+	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {
+		float version;
+		if (sscanf(v->value, "%f", &version) != 1) {
+			ast_log(LOG_WARNING, "Compatibility version for option '%s' is not a number: '%s'\n", v->name, v->value);
+			continue;
+		}
+		if (!strcasecmp(v->name, "app_set")) {
+			ast_set2_flag(&ast_compat, version < 1.5 ? 1 : 0, AST_COMPAT_APP_SET);
+		} else if (!strcasecmp(v->name, "res_agi")) {
+			ast_set2_flag(&ast_compat, version < 1.5 ? 1 : 0, AST_COMPAT_DELIM_RES_AGI);
+		} else if (!strcasecmp(v->name, "pbx_realtime")) {
+			ast_set2_flag(&ast_compat, version < 1.5 ? 1 : 0, AST_COMPAT_DELIM_PBX_REALTIME);
 		}
 	}
 	ast_config_destroy(cfg);

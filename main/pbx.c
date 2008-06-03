@@ -7548,6 +7548,10 @@ int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 {
 	char *name, *value, *mydata;
 
+	if (ast_compat_app_set) {
+		return pbx_builtin_setvar_multiple(chan, data);
+	}
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Set requires one variable name/value pair.\n");
 		return 0;

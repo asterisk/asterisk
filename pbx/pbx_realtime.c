@@ -53,9 +53,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define EXT_DATA_SIZE 256
 
-/* If set to 0, translate commas to "\," and pipes to "," */
-static int compat16 = 1;
-
 /* Realtime switch looks up extensions in the supplied realtime table.
 
 	[context@][realtimetable][/options]
@@ -179,7 +176,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 			if (!strcasecmp(v->name, "app"))
 				app = ast_strdupa(v->value);
 			else if (!strcasecmp(v->name, "appdata")) {
-				if (!compat16) {
+				if (ast_compat_pbx_realtime) {
 					char *ptr;
 					int in = 0;
 					tmp = alloca(strlen(v->value) * 2 + 1);
@@ -270,18 +267,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	struct ast_flags flags = { 0 };
-	struct ast_config *cfg = ast_config_load("pbx_realtime.conf", flags);
-	if (cfg) {
-		const char *tmp = ast_variable_retrieve(cfg, "general", "compat");
-		if (tmp && strncmp(tmp, "1.6", 3)) {
-			compat16 = 0;
-		} else {
-			compat16 = 1;
-		}
-		ast_config_destroy(cfg);
-	}
-
 	if (ast_register_switch(&realtime_switch))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;

@@ -687,6 +687,11 @@ samples: adsi
 		echo ";astctlowner = root" ; \
 		echo ";astctlgroup = apache" ; \
 		echo ";astctl = asterisk.ctl" ; \
+		echo "" ; \
+		echo "[compat]" ; \
+		echo "pbx_realtime=1.6" ; \
+		echo "res_agi=1.6" ; \
+		echo "app_set=1.6" ; \
 		) > $(DESTDIR)$(ASTCONFPATH) ; \
 	else \
 		echo "Skipping asterisk.conf creation"; \

@@ -112,6 +112,18 @@ enum ast_option_flags {
 
 extern struct ast_flags ast_options;
 
+enum ast_compat_flags {
+	AST_COMPAT_DELIM_PBX_REALTIME = (1 << 0),
+	AST_COMPAT_DELIM_RES_AGI = (1 << 1),
+	AST_COMPAT_APP_SET = (1 << 2),
+};
+
+#define	ast_compat_pbx_realtime	ast_test_flag(&ast_compat, AST_COMPAT_DELIM_PBX_REALTIME)
+#define ast_compat_res_agi	ast_test_flag(&ast_compat, AST_COMPAT_DELIM_RES_AGI)
+#define	ast_compat_app_set	ast_test_flag(&ast_compat, AST_COMPAT_APP_SET)
+
+extern struct ast_flags ast_compat;
+
 extern int option_verbose;
 extern int option_maxfiles;		/*!< Max number of open file handles (files, sockets) */
 extern int option_debug;		/*!< Debugging */
