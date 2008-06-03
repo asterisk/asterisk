@@ -4035,12 +4035,6 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 						exten-> return_target = np2;
 					}
 					/* is the last priority in the extension a label? Then add a trailing no-op */
-					if( !exten->plist_last )
-					{
-						ast_log(LOG_WARNING, "Warning: file %s, line %d-%d: Empty Extension!\n",
-								p2->filename, p2->startline, p2->endline);
-					}
-					
 					if ( exten->plist_last && exten->plist_last->type == AEL_LABEL ) {
 						struct ael_priority *np2 = new_prio();
 						np2->type = AEL_APPCALL;
