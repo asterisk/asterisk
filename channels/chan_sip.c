@@ -6831,12 +6831,14 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 			return -1;
 		}
 		from += 4;
+		if (pedanticsipchecking) {
+			ast_uri_decode(from);
+		}
 	} else
 		from = NULL;
 
 	if (pedanticsipchecking) {
 		ast_uri_decode(uri);
-		ast_uri_decode(from);
 	}
 
 	/* Get the target domain first and user */
@@ -7261,11 +7263,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	while(*t && (*t > 32) && (*t != ';'))
 		t++;
 	*t = '\0';
-	of = get_header(req, "From");
-	if (pedanticsipchecking)
-		ast_uri_decode(of);
 
-	ast_copy_string(from, of, sizeof(from));
+	ast_copy_string(from, get_header(req, "From"), sizeof(from));
+	if (pedanticsipchecking)
+		ast_uri_decode(from);
 	
 	memset(calleridname,0,sizeof(calleridname));
 	get_calleridname(from, calleridname, sizeof(calleridname));
