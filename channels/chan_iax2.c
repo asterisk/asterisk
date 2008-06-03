@@ -9740,6 +9740,7 @@ static int iax2_poke_peer_cb(void *obj, void *arg, int flags)
 
 static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 {
+	int callno;
 	if (!peer->maxms || (!peer->addr.sin_addr.s_addr && !peer->dnsmgr)) {
 		/* IF we have no IP without dnsmgr, or this isn't to be monitored, return
 		  immediately after clearing things out */
@@ -9749,11 +9750,13 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 		peer->callno = 0;
 		return 0;
 	}
-	if (peer->callno > 0) {
+
+	/* The peer could change the callno inside iax2_destroy, since we do deadlock avoidance */
+	if ((callno = peer->callno) > 0) {
 		ast_log(LOG_NOTICE, "Still have a callno...\n");
-		ast_mutex_lock(&iaxsl[peer->callno]);
-		iax2_destroy(peer->callno);
-		ast_mutex_unlock(&iaxsl[peer->callno]);
+		ast_mutex_lock(&iaxsl[callno]);
+		iax2_destroy(callno);
+		ast_mutex_unlock(&iaxsl[callno]);
 	}
 	if (heldcall)
 		ast_mutex_unlock(&iaxsl[heldcall]);
