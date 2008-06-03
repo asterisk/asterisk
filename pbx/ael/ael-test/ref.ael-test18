@@ -2,11 +2,11 @@
 (If you find progress and other non-error messages irritating, you can use -q to suppress them)
 
 (You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
-LOG: lev:2 file:pbx_ael.c  line:4069 func: pbx_load_module  Starting AEL load process.
-LOG: lev:2 file:pbx_ael.c  line:4076 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:4084 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:4087 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:4089 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:4092 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:4095 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
-LOG: lev:4 file:ael2_parse  line:527 func: main  1 contexts, 7 extensions, 27 priorities
+LOG: lev:2 file:pbx_ael.c  line:4131 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:4138 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4146 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4149 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4151 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4154 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4157 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:543 func: main  1 contexts, 7 extensions, 29 priorities
