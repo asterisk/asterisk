@@ -4988,7 +4988,7 @@ int __ast_channel_unlock(struct ast_channel *chan, const char *filename, int lin
 	if (option_debug > 2) {
 #ifdef DEBUG_THREADS
 		int count = 0;
-		if ((count = chan->lock_dont_use.reentrancy))
+		if ((count = chan->lock_dont_use.track.reentrancy))
 			ast_debug(3, ":::=== Still have %d locks (recursive)\n", count);
 #endif
 		if (!res)
@@ -5022,7 +5022,7 @@ int __ast_channel_lock(struct ast_channel *chan, const char *filename, int linen
 	if (option_debug > 3) {
 #ifdef DEBUG_THREADS
 		int count = 0;
-		if ((count = chan->lock_dont_use.reentrancy))
+		if ((count = chan->lock_dont_use.track.reentrancy))
 			ast_debug(4, ":::=== Now have %d locks (recursive)\n", count);
 #endif
 		if (!res)
@@ -5054,7 +5054,7 @@ int __ast_channel_trylock(struct ast_channel *chan, const char *filename, int li
 	if (option_debug > 2) {
 #ifdef DEBUG_THREADS
 		int count = 0;
-		if ((count = chan->lock_dont_use.reentrancy))
+		if ((count = chan->lock_dont_use.track.reentrancy))
 			ast_debug(3, ":::=== Now have %d locks (recursive)\n", count);
 #endif
 		if (!res)

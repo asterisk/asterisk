@@ -790,6 +790,7 @@ static void append_lock_information(struct ast_str **str, struct thr_lock_info *
 {
 	int j;
 	ast_mutex_t *lock;
+	struct ast_lock_track *lt;
 	
 	ast_str_append(str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
 				   lock_info->locks[i].pending > 0 ? "Waiting for " : 
@@ -812,13 +813,13 @@ static void append_lock_information(struct ast_str **str, struct thr_lock_info *
 		return;
 	
 	lock = lock_info->locks[i].lock_addr;
-	
-	ast_reentrancy_lock(lock);
-	for (j = 0; *str && j < lock->reentrancy; j++) {
+	lt = &lock->track;
+	ast_reentrancy_lock(lt);
+	for (j = 0; *str && j < lt->reentrancy; j++) {
 		ast_str_append(str, 0, "=== --- ---> Locked Here: %s line %d (%s)\n",
-					   lock->file[j], lock->lineno[j], lock->func[j]);
+					   lt->file[j], lt->lineno[j], lt->func[j]);
 	}
-	ast_reentrancy_unlock(lock);	
+	ast_reentrancy_unlock(lt);	
 }
 
 

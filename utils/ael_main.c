@@ -587,6 +587,12 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 	int line_num, const char *func, const char *lock_name, void *lock_addr, struct ast_bt *bt)
 {
 }
+
+int ast_bt_get_addresses(struct ast_bt *bt)
+{
+	return 0;
+}
+
 #else
 void ast_remove_lock_info(void *lock_addr)
 {
