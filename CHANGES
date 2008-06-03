@@ -481,6 +481,11 @@ Queue changes
 	position announced if their position is less than what is specified by announce-position-limit.
 	If announce-position is set to "more" then callers beyond the position specified by announce-position-limit
 	will be told that their are more than announce-position-limit callers waiting.
+  * Two new queue log events have been added. An ADDMEMBER event will be logged
+    when a realtime queue member is added and a REMOVEMEMBER event will be logged
+	when a realtime queue member is removed. Since there is no calling channel associated
+	with these events, the string "REALTIME" is placed where the channel's unique id
+	is typically placed.
 
 MeetMe Changes
 --------------

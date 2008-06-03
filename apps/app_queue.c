@@ -1358,6 +1358,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 			m->realtime = 1;
 			ast_copy_string(m->rt_uniqueid, rt_uniqueid, sizeof(m->rt_uniqueid));
 			add_to_interfaces(m->state_interface);
+			ast_queue_log(q->name, "REALTIME", m->interface, "ADDMEMBER", "%s", "");
 			ao2_link(q->members, m);
 			ao2_ref(m, -1);
 			m = NULL;
@@ -1542,6 +1543,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	mem_iter = ao2_iterator_init(q->members, 0);
 	while ((m = ao2_iterator_next(&mem_iter))) {
 		if (m->dead) {
+			ast_queue_log(q->name, "REALTIME", m->interface, "REMOVEMEMBER", "%s", "");
 			ao2_unlink(q->members, m);
 			remove_from_interfaces(m->state_interface);
 			q->membercount--;
@@ -1649,6 +1651,7 @@ static void update_realtime_members(struct call_queue *q)
 	mem_iter = ao2_iterator_init(q->members, 0);
 	while ((m = ao2_iterator_next(&mem_iter))) {
 		if (m->dead) {
+			ast_queue_log(q->name, "REALTIME", m->interface, "REMOVEMEMBER", "%s", "");
 			ao2_unlink(q->members, m);
 			remove_from_interfaces(m->state_interface);
 			q->membercount--;
