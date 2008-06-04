@@ -7579,7 +7579,7 @@ int pbx_builtin_setvar_multiple(struct ast_channel *chan, void *vdata)
 		AST_APP_ARG(value);
 	);
 
-	if (ast_strlen_zero(vdata) || !chan) {
+	if (ast_strlen_zero(vdata)) {
 		ast_log(LOG_WARNING, "MSet requires at least one variable name/value pair.\n");
 		return 0;
 	}
@@ -7593,6 +7593,8 @@ int pbx_builtin_setvar_multiple(struct ast_channel *chan, void *vdata)
 			pbx_builtin_setvar_helper(chan, pair.name, pair.value);
 			if (strchr(pair.name, ' '))
 				ast_log(LOG_WARNING, "Please avoid unnecessary spaces on variables as it may lead to unexpected results ('%s' set to '%s').\n", pair.name, pair.value);
+		} else if (chan) {
+			ast_log(LOG_WARNING, "MSet: ignoring entry '%s' with no '='\n", pair.name);
 		} else {
 			ast_log(LOG_WARNING, "MSet: ignoring entry '%s' with no '=' (in %s@%s:%d\n", pair.name, chan->exten, chan->context, chan->priority);
 		}
