@@ -5957,10 +5957,10 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 			if (!strncasecmp(word, m->membername, wordlen) && ++which > state) {
 				char *tmp;
 				ao2_unlock(q);
-				tmp = m->interface;
+				tmp = ast_strdup(m->interface);
 				ao2_ref(m, -1);
 				queue_unref(q);
-				return ast_strdup(tmp);
+				return tmp;
 			}
 			ao2_ref(m, -1);
 		}
