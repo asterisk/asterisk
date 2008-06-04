@@ -1331,7 +1331,7 @@ static char *handle_cli_dialplan_reload(struct ast_cli_entry *e, int cmd, struct
 		pbx_builtin_clear_globals();
 
 	pbx_load_module();
-        ast_cli(a->fd, "Dialplan reloaded.\n");
+	ast_cli(a->fd, "Dialplan reloaded.\n");
 	return CLI_SUCCESS;
 }
 
