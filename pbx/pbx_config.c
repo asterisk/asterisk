@@ -2081,6 +2081,7 @@ static int handle_reload_extensions(int fd, int argc, char *argv[])
 	if (clearglobalvars_config)
 		pbx_builtin_clear_globals();
 	pbx_load_module();
+	ast_cli(fd, "Dialplan reloaded.\n");
 	return RESULT_SUCCESS;
 }
 
