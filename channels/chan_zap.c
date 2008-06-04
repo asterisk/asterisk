@@ -2561,8 +2561,11 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		}
 		if (!(sr = pri_sr_new())) {
 			ast_log(LOG_WARNING, "Failed to allocate setup request channel %d\n", p->channel);
+			pri_destroycall(p->pri->pri, p->call);
+			p->call = NULL;
 			pri_rel(p->pri);
 			ast_mutex_unlock(&p->lock);
+			return -1;
 		}
 		if (p->bearer || (mysig == SIG_FXSKS)) {
 			if (p->bearer) {
