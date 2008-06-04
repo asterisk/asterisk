@@ -4815,7 +4815,7 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 				if (++which > state) {
 					char *tmp;
 					ast_mutex_unlock(&q->lock);
-					tmp = m->membername;
+					tmp = m->interface;
 					ao2_ref(m, -1);
 					return ast_strdup(tmp);
 				}
