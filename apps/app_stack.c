@@ -36,6 +36,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/agi.h"
 
+static int agi_loaded = 0;
+
 static const char *app_gosub = "Gosub";
 static const char *app_gosubif = "GosubIf";
 static const char *app_return = "Return";
@@ -490,12 +492,15 @@ static int unload_module(void)
 {
 	struct ast_context *con;
 
-	if ((con = ast_context_find("app_stack_gosub_virtual_context"))) {
-		ast_context_remove_extension2(con, "s", 1, NULL);
-		ast_context_destroy(con, "app_stack"); /* leave nothing behind */
+	if (agi_loaded) {
+		ast_agi_unregister(ast_module_info->self, &gosub_agi_command);
+
+		if ((con = ast_context_find("app_stack_gosub_virtual_context"))) {
+			ast_context_remove_extension2(con, "s", 1, NULL);
+			ast_context_destroy(con, "app_stack"); /* leave nothing behind */
+		}
 	}
 
-	ast_agi_unregister(ast_module_info->self, &gosub_agi_command);
 	ast_unregister_application(app_return);
 	ast_unregister_application(app_pop);
 	ast_unregister_application(app_gosubif);
@@ -508,19 +513,31 @@ static int unload_module(void)
 static int load_module(void)
 {
 	struct ast_context *con;
-	con = ast_context_find_or_create(NULL, NULL, "app_stack_gosub_virtual_context", "app_stack");
-	if (!con) {
-		ast_log(LOG_ERROR, "Virtual context 'app_stack_gosub_virtual_context' does not exist and unable to create\n");
-		return AST_MODULE_LOAD_DECLINE;
+
+	if (!ast_module_check("res_agi.so")) {
+		if (ast_load_resource("res_agi.so") == AST_MODULE_LOAD_SUCCESS) {
+			agi_loaded = 1;
+		}
 	} else {
-		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free_ptr, "app_stack");
+		agi_loaded = 1;
+	}
+
+	if (agi_loaded) {
+		con = ast_context_find_or_create(NULL, NULL, "app_stack_gosub_virtual_context", "app_stack");
+		if (!con) {
+			ast_log(LOG_ERROR, "Virtual context 'app_stack_gosub_virtual_context' does not exist and unable to create\n");
+			return AST_MODULE_LOAD_DECLINE;
+		} else {
+			ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free_ptr, "app_stack");
+		}
+
+		ast_agi_register(ast_module_info->self, &gosub_agi_command);
 	}
 
 	ast_register_application(app_pop, pop_exec, pop_synopsis, pop_descrip);
 	ast_register_application(app_return, return_exec, return_synopsis, return_descrip);
 	ast_register_application(app_gosubif, gosubif_exec, gosubif_synopsis, gosubif_descrip);
 	ast_register_application(app_gosub, gosub_exec, gosub_synopsis, gosub_descrip);
-	ast_agi_register(ast_module_info->self, &gosub_agi_command);
 	ast_custom_function_register(&local_function);
 
 	return 0;
