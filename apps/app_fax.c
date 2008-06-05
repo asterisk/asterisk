@@ -403,7 +403,7 @@ static int transmit_audio(fax_session *s)
 		   to slinear so it will still be received by ast_read */
 		if (inf->frametype == AST_FRAME_VOICE && inf->subclass == AST_FORMAT_SLINEAR) {
 
-			if (fax_rx(&fax, inf->data.ptr, inf->samples) < 0) {
+			if (fax_rx(&fax, inf->data, inf->samples) < 0) {
 				/* I know fax_rx never returns errors. The check here is for good style only */
 				ast_log(LOG_WARNING, "fax_rx returned error\n");
 				res = -1;
@@ -417,7 +417,7 @@ static int transmit_audio(fax_session *s)
 			}
 		} else if (inf->frametype == AST_FRAME_CONTROL && inf->subclass == AST_CONTROL_T38 &&
 				inf->datalen == sizeof(enum ast_control_t38)) {
-			t38control =*((enum ast_control_t38 *) inf->data.ptr);
+			t38control =*((enum ast_control_t38 *) inf->data);
 			if (t38control == AST_T38_NEGOTIATED) {
 				/* T38 switchover completed */
 				ast_debug(1, "T38 negotiated, finishing audio loop\n");
@@ -522,7 +522,7 @@ static int transmit_t38(fax_session *s)
 		ast_debug(10, "frame %d/%d, len=%d\n", inf->frametype, inf->subclass, inf->datalen);
 
 		if (inf->frametype == AST_FRAME_MODEM && inf->subclass == AST_MODEM_T38) {
-			t38_core_rx_ifp_packet(&t38.t38, inf->data.ptr, inf->datalen, inf->seqno);
+			t38_core_rx_ifp_packet(&t38.t38, inf->data, inf->datalen, inf->seqno);
 
 			/* Watchdog */
 			if (last_state != t38.t30_state.state) {
@@ -532,7 +532,7 @@ static int transmit_t38(fax_session *s)
 		} else if (inf->frametype == AST_FRAME_CONTROL && inf->subclass == AST_CONTROL_T38 &&
 				inf->datalen == sizeof(enum ast_control_t38)) {
 
-			t38control = *((enum ast_control_t38 *) inf->data.ptr);
+			t38control = *((enum ast_control_t38 *) inf->data);
 
 			if (t38control == AST_T38_TERMINATED || t38control == AST_T38_REFUSED) {
 				ast_debug(1, "T38 down, terminating\n");
