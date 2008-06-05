@@ -11284,6 +11284,7 @@ static int reload_config(void)
 	
 	reload_firmware(0);
 	iax_provision_reload(1);
+	ast_unload_realtime("iaxpeers");
 
 	return 0;
 }
@@ -12034,7 +12035,7 @@ static int __unload_module(void)
 	con = ast_context_find(regcontext);
 	if (con)
 		ast_context_destroy(con, "IAX2");
-	
+	ast_unload_realtime("iaxpeers");
 	return 0;
 }
 
@@ -12186,6 +12187,8 @@ static int load_module(void)
 
 	reload_firmware(0);
 	iax_provision_reload(0);
+
+	ast_realtime_require_field("iaxpeers", "name", RQ_CHAR, 10, "ipaddr", RQ_CHAR, 15, "port", RQ_INTEGER, 5, "regseconds", RQ_INTEGER, 6, NULL);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

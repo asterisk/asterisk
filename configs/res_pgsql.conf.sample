@@ -12,3 +12,11 @@ dbport=5432
 dbname=asterisk
 dbuser=asterisk
 dbpass=password
+;
+; requirements - At startup, each realtime family will make requirements
+; on the backend.  There are several strategies for handling requirements:
+; warn        - Warn if the required column does not exist.
+; createclose - Create columns as close to the requirements as possible.
+; createchar  - Create char columns only
+;
+requirements=warn

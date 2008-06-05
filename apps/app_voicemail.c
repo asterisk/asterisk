@@ -928,6 +928,9 @@ static int change_password_realtime(struct ast_vm_user *vmu, const char *passwor
 {
 	int res;
 	if (!ast_strlen_zero(vmu->uniqueid)) {
+		if (strlen(password) > 10) {
+			ast_realtime_require_field("voicemail", "password", RQ_CHAR, strlen(password), NULL);
+		}
 		res = ast_update_realtime("voicemail", "uniqueid", vmu->uniqueid, "password", password, NULL);
 		if (res > 0) {
 			ast_copy_string(vmu->password, password, sizeof(vmu->password));
@@ -9367,6 +9370,9 @@ static int load_config(int reload)
 	int tmpadsi[4];
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
+	ast_unload_realtime("voicemail");
+	ast_unload_realtime("voicemail_data");
+
 	if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
 		if ((ucfg = ast_config_load("users.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
 			return 0;
@@ -10050,6 +10056,8 @@ static int unload_module(void)
 		stop_poll_thread();
 
 	mwi_subscription_tps = ast_taskprocessor_unreference(mwi_subscription_tps);
+	ast_unload_realtime("voicemail");
+	ast_unload_realtime("voicemail_data");
 	return res;
 }
 
@@ -10081,6 +10089,8 @@ static int load_module(void)
 	ast_cli_register_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 
 	ast_install_vm_functions(has_voicemail, inboxcount, messagecount, sayname);
+	ast_realtime_require_field("voicemail", "uniqueid", RQ_INTEGER, 11, "password", RQ_CHAR, 10, NULL);
+	ast_realtime_require_field("voicemail_data", "filename", RQ_CHAR, 30, "duration", RQ_INTEGER, 5, NULL);
 
 	return res;
 }

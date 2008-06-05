@@ -51,11 +51,159 @@ struct custom_prepare_struct {
 	const char *sql;
 	const char *extra;
 	va_list ap;
+	unsigned long long skip;
 };
+
+/*!\brief The structures referenced are in include/asterisk/res_odbc.h */
+static AST_RWLIST_HEAD_STATIC(odbc_tables, odbc_cache_tables);
+
+static void destroy_table_cache(struct odbc_cache_tables *table) {
+	struct odbc_cache_columns *col;
+	ast_debug(1, "Destroying table cache for %s\n", table->table);
+	AST_RWLIST_WRLOCK(&table->columns);
+	while ((col = AST_RWLIST_REMOVE_HEAD(&table->columns, list))) {
+		ast_free(col);
+	}
+	AST_RWLIST_UNLOCK(&table->columns);
+	AST_RWLIST_HEAD_DESTROY(&table->columns);
+	ast_free(table);
+}
+
+#define release_table(ptr) if (ptr) { AST_RWLIST_UNLOCK(&(ptr)->columns); }
+
+/*!
+ * \brief Find or create an entry describing the table specified.
+ * \param obj An active ODBC handle on which to query the table
+ * \param table Tablename to describe
+ * \retval A structure describing the table layout, or NULL, if the table is not found or another error occurs.
+ * When a structure is returned, the contained columns list will be
+ * rdlock'ed, to ensure that it will be retained in memory.
+ */
+static struct odbc_cache_tables *find_table(const char *database, const char *tablename)
+{
+	struct odbc_cache_tables *tableptr;
+	struct odbc_cache_columns *entry;
+	char columnname[80];
+	SQLLEN sqlptr;
+	SQLHSTMT stmt = NULL;
+	int res = 0, error = 0, try = 0;
+	struct odbc_obj *obj = ast_odbc_request_obj(database, 0);
+
+	AST_RWLIST_RDLOCK(&odbc_tables);
+	AST_RWLIST_TRAVERSE(&odbc_tables, tableptr, list) {
+		if (strcmp(tableptr->connection, database) == 0 && strcmp(tableptr->table, tablename) == 0) {
+			break;
+		}
+	}
+	if (tableptr) {
+		AST_RWLIST_RDLOCK(&tableptr->columns);
+		AST_RWLIST_UNLOCK(&odbc_tables);
+		return tableptr;
+	}
+
+	if (!obj) {
+		ast_log(LOG_WARNING, "Unable to retrieve database handle for table description '%s@%s'\n", tablename, database);
+		return NULL;
+	}
+
+	/* Table structure not already cached; build it now. */
+	do {
+retry:
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			if (try == 0) {
+				try = 1;
+				ast_odbc_sanity_check(obj);
+				goto retry;
+			}
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed on connection '%s'!\n", database);
+			break;
+		}
+
+		res = SQLColumns(stmt, NULL, 0, NULL, 0, (unsigned char *)tablename, SQL_NTS, (unsigned char *)"%", SQL_NTS);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			if (try == 0) {
+				try = 1;
+				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+				ast_odbc_sanity_check(obj);
+				goto retry;
+			}
+			ast_log(LOG_ERROR, "Unable to query database columns on connection '%s'.\n", database);
+			break;
+		}
+
+		if (!(tableptr = ast_calloc(sizeof(char), sizeof(*tableptr) + strlen(database) + 1 + strlen(tablename) + 1))) {
+			ast_log(LOG_ERROR, "Out of memory creating entry for table '%s' on connection '%s'\n", tablename, database);
+			break;
+		}
+
+		tableptr->connection = (char *)tableptr + sizeof(*tableptr);
+		tableptr->table = (char *)tableptr + sizeof(*tableptr) + strlen(database) + 1;
+		strcpy(tableptr->connection, database); /* SAFE */
+		strcpy(tableptr->table, tablename); /* SAFE */
+		AST_RWLIST_HEAD_INIT(&(tableptr->columns));
+
+		while ((res = SQLFetch(stmt)) != SQL_NO_DATA && res != SQL_ERROR) {
+			SQLGetData(stmt,  4, SQL_C_CHAR, columnname, sizeof(columnname), &sqlptr);
+
+			if (!(entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(columnname) + 1))) {
+				ast_log(LOG_ERROR, "Out of memory creating entry for column '%s' in table '%s' on connection '%s'\n", columnname, tablename, database);
+				error = 1;
+				break;
+			}
+			entry->name = (char *)entry + sizeof(*entry);
+			strcpy(entry->name, columnname);
+
+			SQLGetData(stmt,  5, SQL_C_SHORT, &entry->type, sizeof(entry->type), NULL);
+			SQLGetData(stmt,  7, SQL_C_LONG, &entry->size, sizeof(entry->size), NULL);
+			SQLGetData(stmt,  9, SQL_C_SHORT, &entry->decimals, sizeof(entry->decimals), NULL);
+			SQLGetData(stmt, 10, SQL_C_SHORT, &entry->radix, sizeof(entry->radix), NULL);
+			SQLGetData(stmt, 11, SQL_C_SHORT, &entry->nullable, sizeof(entry->nullable), NULL);
+			SQLGetData(stmt, 16, SQL_C_LONG, &entry->octetlen, sizeof(entry->octetlen), NULL);
+
+			/* Specification states that the octenlen should be the maximum number of bytes
+			 * returned in a char or binary column, but it seems that some drivers just set
+			 * it to NULL. (Bad Postgres! No biscuit!) */
+			if (entry->octetlen == 0) {
+				entry->octetlen = entry->size;
+			}
+
+			ast_verb(10, "Found %s column with type %hd with len %ld, octetlen %ld, and numlen (%hd,%hd)\n", entry->name, entry->type, (long) entry->size, (long) entry->octetlen, entry->decimals, entry->radix);
+			/* Insert column info into column list */
+			AST_LIST_INSERT_TAIL(&(tableptr->columns), entry, list);
+		}
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+
+		AST_RWLIST_INSERT_TAIL(&odbc_tables, tableptr, list);
+		AST_RWLIST_RDLOCK(&(tableptr->columns));
+	} while (0);
+
+	AST_RWLIST_UNLOCK(&odbc_tables);
+
+	if (error) {
+		destroy_table_cache(tableptr);
+		tableptr = NULL;
+	}
+	if (obj) {
+		ast_odbc_release_obj(obj);
+	}
+	return tableptr;
+}
+
+static struct odbc_cache_columns *find_column(struct odbc_cache_tables *table, const char *colname)
+{
+	struct odbc_cache_columns *col;
+	AST_RWLIST_TRAVERSE(&table->columns, col, list) {
+		if (strcasecmp(col->name, colname) == 0) {
+			return col;
+		}
+	}
+	return NULL;
+}
 
 static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 {
-	int res, x = 1;
+	int res, x = 1, count = 0;
 	struct custom_prepare_struct *cps = data;
 	const char *newparam, *newval;
 	SQLHSTMT stmt;
@@ -78,6 +226,9 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 
 	while ((newparam = va_arg(ap, const char *))) {
 		newval = va_arg(ap, const char *);
+		if ((1 << count) & cps->skip) {
+			continue;
+		}
 		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
 	}
 	va_end(ap);
@@ -398,33 +549,51 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	char sql[256];
 	SQLLEN rowcount=0;
 	const char *newparam, *newval;
-	int res;
+	int res, count = 0;
 	va_list aq;
 	struct custom_prepare_struct cps = { .sql = sql, .extra = lookup };
+	struct odbc_cache_tables *tableptr = find_table(database, table);
+	struct odbc_cache_columns *column;
 
 	va_copy(cps.ap, ap);
 	va_copy(aq, ap);
 	
-	if (!table)
+	if (!table) {
+		release_table(tableptr);
 		return -1;
+	}
 
 	obj = ast_odbc_request_obj(database, 0);
-	if (!obj)
+	if (!obj) {
+		release_table(tableptr);
 		return -1;
+	}
 
 	newparam = va_arg(aq, const char *);
 	if (!newparam)  {
 		ast_odbc_release_obj(obj);
+		release_table(tableptr);
 		return -1;
 	}
 	newval = va_arg(aq, const char *);
+
+	if (tableptr && !(column = find_column(tableptr, newparam))) {
+		ast_log(LOG_WARNING, "Key field '%s' does not exist in table '%s@%s'.  Update will fail\n", newparam, table, database);
+	}
+
 	snprintf(sql, sizeof(sql), "UPDATE %s SET %s=?", table, newparam);
 	while((newparam = va_arg(aq, const char *))) {
-		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=?", newparam);
-		newval = va_arg(aq, const char *);
+		if ((tableptr && (column = find_column(tableptr, newparam))) || count > 63) {
+			snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=?", newparam);
+			newval = va_arg(aq, const char *);
+		} else { /* the column does not exist in the table OR we've exceeded the space in our flag field */
+			cps.skip |= (((long long)1) << count);
+		}
+		count++;
 	}
 	va_end(aq);
 	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " WHERE %s=?", keyfield);
+	release_table(tableptr);
 
 	stmt = ast_odbc_prepare_and_execute(obj, custom_prepare, &cps);
 
@@ -709,6 +878,112 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 	return cfg;
 }
 
+#define warn_length(col, size)	ast_log(LOG_WARNING, "Column %s is not long enough to contain realtime data (needs %d)\n", col->name, size)
+#define warn_type(col, type)	ast_log(LOG_WARNING, "Column %s is of the incorrect type to contain realtime data\n", col->name)
+
+static int require_odbc(const char *database, const char *table, va_list ap)
+{
+	struct odbc_cache_tables *tableptr = find_table(database, table);
+	struct odbc_cache_columns *col;
+	char *elm;
+	int type, size;
+
+	if (!tableptr) {
+		return -1;
+	}
+
+	while ((elm = va_arg(ap, char *))) {
+		type = va_arg(ap, require_type);
+		size = va_arg(ap, int);
+		/* Check if the field matches the criteria */
+		AST_RWLIST_TRAVERSE(&tableptr->columns, col, list) {
+			if (strcmp(col->name, elm) == 0) {
+				/* Type check, first.  Some fields are more particular than others */
+				switch (col->type) {
+				case SQL_CHAR:
+				case SQL_VARCHAR:
+				case SQL_LONGVARCHAR:
+				case SQL_BINARY:
+				case SQL_VARBINARY:
+				case SQL_LONGVARBINARY:
+				case SQL_GUID:
+					if ((type == RQ_INTEGER && size > 10) || (type == RQ_CHAR && col->size < size)) {
+						warn_length(col, size);
+					} else if (type == RQ_DATE && col->size < 10) {
+						warn_length(col, 10);
+					} else if (type == RQ_DATETIME && col->size < 19) {
+						warn_length(col, 19);
+					} else if (type == RQ_FLOAT && col->size < 10) {
+						warn_length(col, 10);
+					}
+					break;
+				case SQL_TYPE_DATE:
+					if (type != RQ_DATE) {
+						warn_type(col, type);
+					}
+					break;
+				case SQL_TYPE_TIMESTAMP:
+				case SQL_TIMESTAMP:
+					if (type != RQ_DATE && type != RQ_DATETIME) {
+						warn_type(col, type);
+					}
+					break;
+				case SQL_INTEGER:
+				case SQL_BIGINT:
+				case SQL_SMALLINT:
+				case SQL_TINYINT:
+				case SQL_BIT:
+					if (type != RQ_INTEGER) {
+						warn_type(col, type);
+					}
+					if ((col->type == SQL_BIT && size > 1) ||
+						(col->type == SQL_TINYINT && size > 2) ||
+						(col->type == SQL_SMALLINT && size > 4) ||
+						(col->type == SQL_INTEGER && size > 10)) {
+						warn_length(col, size);
+					}
+					break;
+				case SQL_NUMERIC:
+				case SQL_DECIMAL:
+				case SQL_FLOAT:
+				case SQL_REAL:
+				case SQL_DOUBLE:
+					if (type != RQ_INTEGER && type != RQ_FLOAT) {
+						warn_type(col, type);
+					}
+					break;
+				default:
+					ast_log(LOG_WARNING, "Column type (%d) unrecognized for field '%s' in %s@%s\n", col->type, elm, table, database);
+				}
+				break;
+			}
+		}
+		if (!col) {
+			ast_log(LOG_WARNING, "Table %s@%s requires column '%s', but that column does not exist!\n", table, database, elm);
+		}
+	}
+	va_end(ap);
+	AST_RWLIST_UNLOCK(&tableptr->columns);
+	return 0;
+}
+
+static int unload_odbc(const char *database, const char *tablename)
+{
+	struct odbc_cache_tables *tableptr;
+
+	AST_RWLIST_RDLOCK(&odbc_tables);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&odbc_tables, tableptr, list) {
+		if (strcmp(tableptr->connection, database) == 0 && strcmp(tableptr->table, tablename) == 0) {
+			AST_LIST_REMOVE_CURRENT(list);
+			destroy_table_cache(tableptr);
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&odbc_tables);
+	return tableptr ? 0 : -1;
+}
+
 static struct ast_config_engine odbc_engine = {
 	.name = "odbc",
 	.load_func = config_odbc,
@@ -716,12 +991,24 @@ static struct ast_config_engine odbc_engine = {
 	.realtime_multi_func = realtime_multi_odbc,
 	.store_func = store_odbc,
 	.destroy_func = destroy_odbc,
-	.update_func = update_odbc
+	.update_func = update_odbc,
+	.require_func = require_odbc,
+	.unload_func = unload_odbc,
 };
 
 static int unload_module (void)
 {
+	struct odbc_cache_tables *table;
+
 	ast_config_engine_deregister(&odbc_engine);
+
+	/* Empty the cache */
+	AST_RWLIST_WRLOCK(&odbc_tables);
+	while ((table = AST_RWLIST_REMOVE_HEAD(&odbc_tables, list))) {
+		destroy_table_cache(table);
+	}
+	AST_RWLIST_UNLOCK(&odbc_tables);
+
 	ast_verb(1, "res_config_odbc unloaded.\n");
 	return 0;
 }
@@ -733,7 +1020,22 @@ static int load_module (void)
 	return 0;
 }
 
+static int reload_module(void)
+{
+	struct odbc_cache_tables *table;
+
+	/* Empty the cache; it will get rebuilt the next time the tables are needed. */
+	AST_RWLIST_WRLOCK(&odbc_tables);
+	while ((table = AST_RWLIST_REMOVE_HEAD(&odbc_tables, list))) {
+		destroy_table_cache(table);
+	}
+	AST_RWLIST_UNLOCK(&odbc_tables);
+
+	return 0;
+}
+
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Realtime ODBC configuration",
 		.load = load_module,
 		.unload = unload_module,
+		.reload = reload_module,
 		);

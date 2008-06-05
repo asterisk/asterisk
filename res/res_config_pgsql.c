@@ -49,6 +49,24 @@ PGconn *pgsqlConn = NULL;
 
 #define MAX_DB_OPTION_SIZE 64
 
+struct columns {
+	char *name;
+	char *type;
+	int len;
+	unsigned int notnull:1;
+	unsigned int hasdefault:1;
+	AST_LIST_ENTRY(columns) list;
+};
+
+struct tables {
+	ast_mutex_t lock;
+	AST_LIST_HEAD_NOLOCK(psql_columns, columns) columns;
+	AST_LIST_ENTRY(tables) list;
+	char name[0];
+};
+
+static AST_LIST_HEAD_STATIC(psql_tables, tables);
+
 static char dbhost[MAX_DB_OPTION_SIZE] = "";
 static char dbuser[MAX_DB_OPTION_SIZE] = "";
 static char dbpass[MAX_DB_OPTION_SIZE] = "";
@@ -60,10 +78,111 @@ static time_t connect_time = 0;
 static int parse_config(int reload);
 static int pgsql_reconnect(const char *database);
 static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *handle_cli_realtime_pgsql_cache(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+
+enum { RQ_WARN, RQ_CREATECLOSE, RQ_CREATECHAR } requirements;
 
 static struct ast_cli_entry cli_realtime[] = {
 	AST_CLI_DEFINE(handle_cli_realtime_pgsql_status, "Shows connection information for the PostgreSQL RealTime driver"),
+	AST_CLI_DEFINE(handle_cli_realtime_pgsql_cache, "Shows cached tables within the PostgreSQL realtime driver"),
 };
+
+static void destroy_table(struct tables *table)
+{
+	struct columns *column;
+	ast_mutex_lock(&table->lock);
+	while ((column = AST_LIST_REMOVE_HEAD(&table->columns, list))) {
+		ast_free(column);
+	}
+	ast_mutex_unlock(&table->lock);
+	ast_mutex_destroy(&table->lock);
+	ast_free(table);
+}
+
+static struct tables *find_table(const char *tablename)
+{
+	struct columns *column;
+	struct tables *table;
+	struct ast_str *sql = ast_str_create(330);
+	char *pgerror;
+	PGresult *result;
+	char *fname, *ftype, *flen, *fnotnull, *fdef;
+	int i, rows;
+
+	AST_LIST_LOCK(&psql_tables);
+	AST_LIST_TRAVERSE(&psql_tables, table, list) {
+		if (!strcasecmp(table->name, tablename)) {
+			ast_debug(1, "Found table in cache; now locking\n");
+			ast_mutex_lock(&table->lock);
+			ast_debug(1, "Lock cached table; now returning\n");
+			AST_LIST_UNLOCK(&psql_tables);
+			return table;
+		}
+	}
+
+	ast_debug(1, "Table '%s' not found in cache, querying now\n", tablename);
+
+	/* Not found, scan the table */
+	ast_str_set(&sql, 0, "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc FROM pg_class c, pg_type t, pg_attribute a LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum WHERE c.oid = a.attrelid AND a.atttypid = t.oid AND (a.attnum > 0) AND c.relname = '%s' ORDER BY c.relname, attnum", tablename);
+	result = PQexec(pgsqlConn, sql->str);
+	ast_debug(1, "Query of table structure complete.  Now retrieving results.\n");
+	if (PQresultStatus(result) != PGRES_TUPLES_OK) {
+		pgerror = PQresultErrorMessage(result);
+		ast_log(LOG_ERROR, "Failed to query database columns: %s\n", pgerror);
+		PQclear(result);
+		AST_LIST_UNLOCK(&psql_tables);
+		return NULL;
+	}
+
+	if (!(table = ast_calloc(1, sizeof(*table) + strlen(tablename) + 1))) {
+		ast_log(LOG_ERROR, "Unable to allocate memory for new table structure\n");
+		AST_LIST_UNLOCK(&psql_tables);
+		return NULL;
+	}
+	strcpy(table->name, tablename); /* SAFE */
+	ast_mutex_init(&table->lock);
+	AST_LIST_HEAD_INIT_NOLOCK(&table->columns);
+	
+	rows = PQntuples(result);
+	for (i = 0; i < rows; i++) {
+		fname = PQgetvalue(result, i, 0);
+		ftype = PQgetvalue(result, i, 1);
+		flen = PQgetvalue(result, i, 2);
+		fnotnull = PQgetvalue(result, i, 3);
+		fdef = PQgetvalue(result, i, 4);
+		ast_verb(4, "Found column '%s' of type '%s'\n", fname, ftype);
+
+		if (!(column = ast_calloc(1, sizeof(*column) + strlen(fname) + strlen(ftype) + 2))) {
+			ast_log(LOG_ERROR, "Unable to allocate column element for %s, %s\n", tablename, fname);
+			destroy_table(table);
+			AST_LIST_UNLOCK(&psql_tables);
+			return NULL;
+		}
+
+		sscanf(flen, "%d", &column->len);
+		column->name = (char *)column + sizeof(*column);
+		column->type = (char *)column + sizeof(*column) + strlen(fname) + 1;
+		strcpy(column->name, fname);
+		strcpy(column->type, ftype);
+		if (*fnotnull == 't') {
+			column->notnull = 1;
+		} else {
+			column->notnull = 0;
+		}
+		if (!ast_strlen_zero(fdef)) {
+			column->hasdefault = 1;
+		} else {
+			column->hasdefault = 0;
+		}
+		AST_LIST_INSERT_TAIL(&table->columns, column, list);
+	}
+	PQclear(result);
+
+	AST_LIST_INSERT_TAIL(&psql_tables, table, list);
+	ast_mutex_lock(&table->lock);
+	AST_LIST_UNLOCK(&psql_tables);
+	return table;
+}
 
 static struct ast_variable *realtime_pgsql(const char *database, const char *table, va_list ap)
 {
@@ -360,16 +479,26 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	return cfg;
 }
 
-static int update_pgsql(const char *database, const char *table, const char *keyfield,
+static int update_pgsql(const char *database, const char *tablename, const char *keyfield,
 						const char *lookup, va_list ap)
 {
 	PGresult *result = NULL;
 	int numrows = 0, pgerror;
-	char sql[256], escapebuf[513];
+	char escapebuf[513];
 	const char *newparam, *newval;
+	struct ast_str *sql = ast_str_create(100);
+	struct tables *table;
+	struct columns *column = NULL;
 
-	if (!table) {
+	if (!tablename) {
 		ast_log(LOG_WARNING, "PostgreSQL RealTime: No table specified.\n");
+		ast_free(sql);
+		return -1;
+	}
+
+	if (!(table = find_table(tablename))) {
+		ast_log(LOG_ERROR, "Table '%s' does not exist!!\n", tablename);
+		ast_free(sql);
 		return -1;
 	}
 
@@ -383,6 +512,22 @@ static int update_pgsql(const char *database, const char *table, const char *key
 			PQfinish(pgsqlConn);
 			pgsqlConn = NULL;
 		};
+		ast_mutex_unlock(&table->lock);
+		ast_free(sql);
+		return -1;
+	}
+
+	/* Check that the column exists in the table */
+	AST_LIST_TRAVERSE(&table->columns, column, list) {
+		if (strcmp(column->name, newparam) == 0) {
+			break;
+		}
+	}
+
+	if (!column) {
+		ast_log(LOG_ERROR, "PostgreSQL RealTime: Updating on column '%s', but that column does not exist within the table '%s'!\n", newparam, tablename);
+		ast_mutex_unlock(&table->lock);
+		ast_free(sql);
 		return -1;
 	}
 
@@ -393,50 +538,68 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	if (pgerror) {
 		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
 		va_end(ap);
+		ast_mutex_unlock(&table->lock);
+		ast_free(sql);
 		return -1;
 	}
-	snprintf(sql, sizeof(sql), "UPDATE %s SET %s = '%s'", table, newparam, escapebuf);
+	ast_str_set(&sql, 0, "UPDATE %s SET %s = '%s'", tablename, newparam, escapebuf);
 
 	while ((newparam = va_arg(ap, const char *))) {
 		newval = va_arg(ap, const char *);
+
+		/* If the column is not within the table, then skip it */
+		AST_LIST_TRAVERSE(&table->columns, column, list) {
+			if (strcmp(column->name, newparam) == 0) {
+				break;
+			}
+		}
+
+		if (!column) {
+			ast_log(LOG_WARNING, "Attempted to update column '%s' in table '%s', but column does not exist!\n", newparam, tablename);
+			continue;
+		}
 
 		PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
 		if (pgerror) {
 			ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
 			va_end(ap);
+			ast_mutex_unlock(&table->lock);
+			ast_free(sql);
 			return -1;
 		}
 
-		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s = '%s'", newparam,
-				 escapebuf);
+		ast_str_append(&sql, 0, ", %s = '%s'", newparam, escapebuf);
 	}
 	va_end(ap);
+	ast_mutex_unlock(&table->lock);
 
 	PQescapeStringConn(pgsqlConn, escapebuf, lookup, (sizeof(escapebuf) - 1) / 2, &pgerror);
 	if (pgerror) {
 		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", lookup);
 		va_end(ap);
+		ast_free(sql);
 		return -1;
 	}
 
-	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " WHERE %s = '%s'", keyfield,
-			 escapebuf);
+	ast_str_append(&sql, 0, " WHERE %s = '%s'", keyfield, escapebuf);
 
-	ast_debug(1, "PostgreSQL RealTime: Update SQL: %s\n", sql);
+	ast_debug(1, "PostgreSQL RealTime: Update SQL: %s\n", sql->str);
 
 	/* We now have our complete statement; Lets connect to the server and execute it. */
 	ast_mutex_lock(&pgsql_lock);
 	if (!pgsql_reconnect(database)) {
 		ast_mutex_unlock(&pgsql_lock);
+		ast_free(sql);
 		return -1;
 	}
 
-	if (!(result = PQexec(pgsqlConn, sql))) {
+	if (!(result = PQexec(pgsqlConn, sql->str))) {
 		ast_log(LOG_WARNING,
 				"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
-		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql->str);
 		ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
 		ast_mutex_unlock(&pgsql_lock);
+		ast_free(sql);
 		return -1;
 	} else {
 		ExecStatusType result_status = PQresultStatus(result);
@@ -445,18 +608,20 @@ static int update_pgsql(const char *database, const char *table, const char *key
 			&& result_status != PGRES_NONFATAL_ERROR) {
 			ast_log(LOG_WARNING,
 					"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
-			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql->str);
 			ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s (%s)\n",
 						PQresultErrorMessage(result), PQresStatus(result_status));
 			ast_mutex_unlock(&pgsql_lock);
+			ast_free(sql);
 			return -1;
 		}
 	}
 
 	numrows = atoi(PQcmdTuples(result));
 	ast_mutex_unlock(&pgsql_lock);
+	ast_free(sql);
 
-	ast_debug(1, "PostgreSQL RealTime: Updated %d rows on table: %s\n", numrows, table);
+	ast_debug(1, "PostgreSQL RealTime: Updated %d rows on table: %s\n", numrows, tablename);
 
 	/* From http://dev.pgsql.com/doc/pgsql/en/pgsql-affected-rows.html
 	 * An integer greater than zero indicates the number of rows affected
@@ -752,6 +917,124 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 	return cfg;
 }
 
+static int require_pgsql(const char *database, const char *tablename, va_list ap)
+{
+	struct columns *column;
+	struct tables *table = find_table(tablename);
+	char *elm;
+	int type, size, res = 0;
+
+	if (!table) {
+		ast_log(LOG_WARNING, "Table %s not found in database.  This table should exist if you're using realtime.\n", tablename);
+		return -1;
+	}
+
+	while ((elm = va_arg(ap, char *))) {
+		type = va_arg(ap, require_type);
+		size = va_arg(ap, int);
+		AST_LIST_TRAVERSE(&table->columns, column, list) {
+			if (strcmp(column->name, elm) == 0) {
+				/* Char can hold anything, as long as it is large enough */
+				if ((strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0 || strcmp(column->type, "bpchar") == 0)) {
+					if ((size > column->len) && column->len != -1) {
+						ast_log(LOG_WARNING, "Column '%s' should be at least %d long, but is only %d long.\n", column->name, size, column->len);
+						res = -1;
+					}
+				} else if (strncmp(column->type, "int", 3) == 0) {
+					int typesize = atoi(column->type + 3);
+					/* Integers can hold only other integers */
+					if (type == RQ_INTEGER && ((typesize == 2 && size > 4) || (typesize == 4 && size > 10))) {
+						ast_log(LOG_WARNING, "Column '%s' may not be large enough for the required data length: %d\n", column->name, size);
+						res = -1;
+					} else if (type != RQ_INTEGER) {
+						ast_log(LOG_WARNING, "Column '%s' is of the incorrect type: (need %s(%d) but saw %s)\n", column->name, type == RQ_CHAR ? "char" : "something else ", size, column->type);
+						res = -1;
+					}
+				} else if (strncmp(column->type, "float", 5) == 0 && type != RQ_INTEGER && type != RQ_FLOAT) {
+					ast_log(LOG_WARNING, "Column %s cannot be a %s\n", column->name, column->type);
+					res = -1;
+				} else { /* There are other types that no module implements yet */
+					ast_log(LOG_WARNING, "Possibly unsupported column type '%s' on column '%s'\n", column->type, column->name);
+					res = -1;
+				}
+				break;
+			}
+		}
+
+		if (!column) {
+			if (requirements == RQ_WARN) {
+				ast_log(LOG_WARNING, "Table %s requires a column '%s' of size '%d', but no such column exists.\n", tablename, elm, size);
+			} else {
+				struct ast_str *sql = ast_str_create(100), *fieldtype = ast_str_create(16);
+				PGresult *res;
+
+				if (requirements == RQ_CREATECHAR || type == RQ_CHAR) {
+					ast_str_set(&fieldtype, 0, "CHAR(%d)", size);
+				} else if (type == RQ_INTEGER) {
+					ast_str_set(&fieldtype, 0, "INT%d", size < 5 ? 2 : (size < 11 ? 4 : 8));
+				} else if (type == RQ_FLOAT) {
+					ast_str_set(&fieldtype, 0, "FLOAT8");
+				} else if (type == RQ_DATE) {
+					ast_str_set(&fieldtype, 0, "DATE");
+				} else if (type == RQ_DATETIME) {
+					ast_str_set(&fieldtype, 0, "TIMESTAMP");
+				} else {
+					ast_free(sql);
+					ast_free(fieldtype);
+					continue;
+				}
+				ast_str_set(&sql, 0, "ALTER TABLE %s ADD COLUMN %s %s", tablename, elm, fieldtype->str);
+				ast_debug(1, "About to lock pgsql_lock (running alter on table '%s' to add column '%s')\n", tablename, elm);
+
+				ast_mutex_lock(&pgsql_lock);
+				if (!pgsql_reconnect(database)) {
+					ast_mutex_unlock(&pgsql_lock);
+					ast_log(LOG_ERROR, "Unable to add column: %s\n", sql->str);
+					ast_free(sql);
+					ast_free(fieldtype);
+					continue;
+				}
+
+				ast_debug(1, "About to run ALTER query on table '%s' to add column '%s'\n", tablename, elm);
+				res = PQexec(pgsqlConn, sql->str);
+				ast_debug(1, "Finished running ALTER query on table '%s'\n", tablename);
+				if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+					ast_log(LOG_ERROR, "Unable to add column: %s\n", sql->str);
+				}
+				PQclear(res);
+				ast_mutex_unlock(&pgsql_lock);
+
+				ast_free(sql);
+				ast_free(fieldtype);
+			}
+		}
+	}
+	ast_mutex_unlock(&table->lock);
+	return res;
+}
+
+static int unload_pgsql(const char *database, const char *tablename)
+{
+	struct tables *cur;
+	ast_debug(1, "About to lock table cache list\n");
+	AST_LIST_LOCK(&psql_tables);
+	ast_debug(1, "About to traverse table cache list\n");
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&psql_tables, cur, list) {
+		if (strcmp(cur->name, tablename) == 0) {
+			ast_debug(1, "About to remove matching cache entry\n");
+			AST_LIST_REMOVE_CURRENT(list);
+			ast_debug(1, "About to destroy matching cache entry\n");
+			destroy_table(cur);
+			ast_debug(1, "Cache entry destroyed\n");
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&psql_tables);
+	ast_debug(1, "About to return\n");
+	return cur ? 0 : -1;
+}
+
 static struct ast_config_engine pgsql_engine = {
 	.name = "pgsql",
 	.load_func = config_pgsql,
@@ -759,7 +1042,9 @@ static struct ast_config_engine pgsql_engine = {
 	.realtime_multi_func = realtime_multi_pgsql,
 	.store_func = store_pgsql,
 	.destroy_func = destroy_pgsql,
-	.update_func = update_pgsql
+	.update_func = update_pgsql,
+	.require_func = require_pgsql,
+	.unload_func = unload_pgsql,
 };
 
 static int load_module(void)
@@ -776,6 +1061,7 @@ static int load_module(void)
 
 static int unload_module(void)
 {
+	struct tables *table;
 	/* Acquire control before doing anything to the module itself. */
 	ast_mutex_lock(&pgsql_lock);
 
@@ -786,6 +1072,13 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
 	ast_config_engine_deregister(&pgsql_engine);
 	ast_verb(1, "PostgreSQL RealTime unloaded.\n");
+
+	/* Destroy cached table info */
+	AST_LIST_LOCK(&psql_tables);
+	while ((table = AST_LIST_REMOVE_HEAD(&psql_tables, list))) {
+		destroy_table(table);
+	}
+	AST_LIST_UNLOCK(&psql_tables);
 
 	/* Unlock so something else can destroy the lock. */
 	ast_mutex_unlock(&pgsql_lock);
@@ -870,6 +1163,17 @@ static int parse_config(int reload)
 	} else {
 		ast_copy_string(dbsock, s, sizeof(dbsock));
 	}
+
+	if (!(s = ast_variable_retrieve(config, "general", "requirements"))) {
+		ast_log(LOG_WARNING,
+				"PostgreSQL RealTime: no requirements setting found, using 'warn' as default.\n");
+		requirements = RQ_WARN;
+	} else if (!strcasecmp(s, "createclose")) {
+		requirements = RQ_CREATECLOSE;
+	} else if (!strcasecmp(s, "createchar")) {
+		requirements = RQ_CREATECHAR;
+	}
+
 	ast_config_destroy(config);
 
 	if (option_debug) {
@@ -941,6 +1245,60 @@ static int pgsql_reconnect(const char *database)
 		ast_debug(1, "PostgreSQL RealTime: One or more of the parameters in the config does not pass our validity checks.\n");
 		return 1;
 	}
+}
+
+static char *handle_cli_realtime_pgsql_cache(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct tables *cur;
+	int l, which;
+	char *ret = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "realtime pgsql cache";
+		e->usage =
+			"Usage: realtime pgsql cache [<table>]\n"
+			"       Shows table cache for the PostgreSQL RealTime driver\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->argc != 3) {
+			return NULL;
+		}
+		l = strlen(a->word);
+		which = 0;
+		AST_LIST_LOCK(&psql_tables);
+		AST_LIST_TRAVERSE(&psql_tables, cur, list) {
+			if (!strncasecmp(a->word, cur->name, l) && ++which > a->n) {
+				ret = ast_strdup(cur->name);
+				break;
+			}
+		}
+		AST_LIST_UNLOCK(&psql_tables);
+		return ret;
+	}
+
+	if (a->argc == 3) {
+		/* List of tables */
+		AST_LIST_LOCK(&psql_tables);
+		AST_LIST_TRAVERSE(&psql_tables, cur, list) {
+			ast_cli(a->fd, "%s\n", cur->name);
+		}
+		AST_LIST_UNLOCK(&psql_tables);
+	} else if (a->argc == 4) {
+		/* List of columns */
+		if ((cur = find_table(a->argv[3]))) {
+			struct columns *col;
+			ast_cli(a->fd, "Columns for Table Cache '%s':\n", a->argv[3]);
+			ast_cli(a->fd, "%-20.20s %-20.20s %-3.3s %-8.8s\n", "Name", "Type", "Len", "Nullable");
+			AST_LIST_TRAVERSE(&cur->columns, col, list) {
+				ast_cli(a->fd, "%-20.20s %-20.20s %3d %-8.8s\n", col->name, col->type, col->len, col->notnull ? "NOT NULL" : "");
+			}
+			ast_mutex_unlock(&cur->lock);
+		} else {
+			ast_cli(a->fd, "No such table '%s'\n", a->argv[3]);
+		}
+	}
+	return 0;
 }
 
 static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)

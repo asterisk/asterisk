@@ -6284,6 +6284,7 @@ static int unload_module(void)
 	}
 	ao2_ref(queues, -1);
 	devicestate_tps = ast_taskprocessor_unreference(devicestate_tps);
+	ast_unload_realtime("queue_members");
 	return res;
 }
 
@@ -6335,12 +6336,14 @@ static int load_module(void)
 
 	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL, AST_EVENT_IE_END)))
 		res = -1;
+	ast_realtime_require_field("queue_members", "paused", RQ_INTEGER, 1, "uniqueid", RQ_INTEGER, 5, NULL);
 
 	return res ? AST_MODULE_LOAD_DECLINE : 0;
 }
 
 static int reload(void)
 {
+	ast_unload_realtime("queue_members");
 	reload_queues(1);
 	return 0;
 }

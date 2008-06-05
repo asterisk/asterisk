@@ -2101,6 +2101,38 @@ int ast_realtime_enabled()
 	return config_maps ? 1 : 0;
 }
 
+int ast_realtime_require_field(const char *family, ...)
+{
+	struct ast_config_engine *eng;
+	char db[256] = "";
+	char table[256] = "";
+	va_list ap;
+	int res = -1;
+
+	va_start(ap, family);
+	eng = find_engine(family, db, sizeof(db), table, sizeof(table));
+	if (eng && eng->require_func) {
+		res = eng->require_func(db, table, ap);
+	}
+	va_end(ap);
+
+	return res;
+}
+
+int ast_unload_realtime(const char *family)
+{
+	struct ast_config_engine *eng;
+	char db[256] = "";
+	char table[256] = "";
+	int res = -1;
+
+	eng = find_engine(family, db, sizeof(db), table, sizeof(table));
+	if (eng && eng->unload_func) {
+		res = eng->unload_func(db, table);
+	}
+	return res;
+}
+
 struct ast_config *ast_load_realtime_multientry(const char *family, ...)
 {
 	struct ast_config_engine *eng;

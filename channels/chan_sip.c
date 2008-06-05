@@ -21334,7 +21334,8 @@ static int reload_config(enum channelreloadreason reason)
 	time_t run_start, run_end;
 	
 	run_start = time(0);
-	
+	ast_unload_realtime("sipregs");
+	ast_unload_realtime("sippeers");
 	cfg = ast_config_load(config, config_flags);
 
 	/* We *must* have a config file otherwise stop immediately */
@@ -22766,6 +22767,16 @@ static int load_module(void)
 	/* And start the monitor for the first time */
 	restart_monitor();
 
+	ast_realtime_require_field(ast_check_realtime("sipregs") ? "sipregs" : "sippeers",
+		"name", RQ_CHAR, 10,
+		"ipaddr", RQ_CHAR, 15,
+		"port", RQ_INTEGER, 5,
+		"regseconds", RQ_INTEGER, 5,
+		"defaultuser", RQ_CHAR, 10,
+		"fullcontact", RQ_CHAR, 20,
+		"regserver", RQ_CHAR, 20,
+		NULL);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -22879,6 +22890,8 @@ static int unload_module(void)
 	con = ast_context_find(used_context);
 	if (con)
 		ast_context_destroy(con, "SIP");
+	ast_unload_realtime("sipregs");
+	ast_unload_realtime("sippeers");
 
 	return 0;
 }

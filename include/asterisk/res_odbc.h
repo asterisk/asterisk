@@ -30,6 +30,7 @@
 #include <sql.h>
 #include <sqlext.h>
 #include <sqltypes.h>
+#include "asterisk/linkedlists.h"
 
 typedef enum { ODBC_SUCCESS=0, ODBC_FAIL=-1} odbc_status;
 
@@ -42,6 +43,27 @@ struct odbc_obj {
 	unsigned int used:1;
 	unsigned int up:1;
 	AST_LIST_ENTRY(odbc_obj) list;
+};
+
+/*!\brief These aren't used in any API calls, but they are kept in a common
+ * location, simply for convenience and to avoid duplication.
+ */
+struct odbc_cache_columns {
+	char *name;
+	SQLSMALLINT type;
+	SQLINTEGER size;
+	SQLSMALLINT decimals;
+	SQLSMALLINT radix;
+	SQLSMALLINT nullable;
+	SQLINTEGER octetlen;
+	AST_RWLIST_ENTRY(odbc_cache_columns) list;
+};
+
+struct odbc_cache_tables {
+	char *connection;
+	char *table;
+	AST_RWLIST_HEAD(_columns, odbc_cache_columns) columns;
+	AST_RWLIST_ENTRY(odbc_cache_tables) list;
 };
 
 /* functions */

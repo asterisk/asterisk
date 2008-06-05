@@ -28,6 +28,7 @@ my ($cgi, $dbh, %cfg, $table, $mode);
 # dsn=<some valid dsn>
 # dbuser=<user>
 # dbpass=<passwd>
+# dbschema=<dbname>
 # backslash_is_escape={yes|no}
 #
 open CFG, "</etc/asterisk/dbsep.conf";
@@ -120,6 +121,43 @@ if ($mode eq 'single') {
 	$affected = $dbh->do($sql);
 	$dbh->disconnect();
 	print "Content-type: text/html\n\n$affected\n";
+} elsif ($ENV{PATH_INFO} =~ m/require$/) {
+	my $result = 0;
+	my $dbh = DBI->connect($cfg{dsn}, $cfg{dbuser}, $cfg{dbpass});
+	my $sql = "SELECT data_type, character_maximum_length FROM information_schema.tables AS t " .
+			"JOIN information_schema.columns AS c " .
+			"ON t.table_catalog=c.table_catalog AND " .
+			"t.table_schema=c.table_schema AND " .
+			"t.table_name=c.table_name " .
+			"WHERE c.table_schema='$cfg{dbschema}' AND " .
+			"c.table_name=? AND c.column_name=?";
+	my $sth = $dbh->prepare($sql);
+	foreach my $param (cgi_to_where_clause($cgi, \%cfg)) {
+		my ($colname, $value) = split /=/, $param;
+		my ($type, $size) = split /:/, $value;
+		$sth->execute($table, $colname);
+		my ($dbtype, $dblen) = $sth->fetchrow_array();
+		$sth->finish();
+		if ($type eq 'char') {
+			if ($dbtype !~ m#char#i) {
+				print STDERR "REQUIRE: $table: Type of column $colname requires char($size), but column is of type $dbtype instead!\n";
+				$result = -1;
+			} elsif ($dblen < $size) {
+				print STDERR "REQUIRE: $table: Size of column $colname requires $size, but column is only $dblen long!\n";
+				$result = -1;
+			}
+		} elsif ($type eq 'integer') {
+			if ($dbtype =~ m#char#i and $dblen < $size) {
+				print STDERR "REQUIRE: $table: Size of column $colname requires $size, but column is only $dblen long!\n";
+				$result = -1;
+			} elsif ($dbtype !~ m#int|float|double|dec|num#i) {
+				print STDERR "REQUIRE: $table: Type of column $colname requires integer($size), but column is of type $dbtype instead!\n";
+				$result = -1;
+			}
+		} # TODO More type checks
+	}
+	$dbh->disconnect();
+	print "Content-type: text/html\n\n$result\n";
 } elsif ($ENV{PATH_INFO} =~ m/static$/) {
 	# file parameter in GET, no POST
 	my (@get, $filename, $sql, $sth);

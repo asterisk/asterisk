@@ -46,6 +46,17 @@ enum {
 
 #define	CONFIG_STATUS_FILEUNCHANGED	(void *)-1
 
+/*!
+ * \brief Types used in ast_realtime_require_field
+ */
+typedef enum {
+	RQ_INTEGER,
+	RQ_CHAR,
+	RQ_FLOAT,
+	RQ_DATE,
+	RQ_DATETIME,
+} require_type;
+
 /*! \brief Structure for variables, used for configurations and for channel variables 
 */
 struct ast_variable {
@@ -70,6 +81,8 @@ typedef struct ast_config *realtime_multi_get(const char *database, const char *
 typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
 typedef int realtime_store(const char *database, const char *table, va_list ap);
 typedef int realtime_destroy(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
+typedef int realtime_require(const char *database, const char *table, va_list ap);
+typedef int realtime_unload(const char *database, const char *table);
 
 /*! \brief Configuration engine structure, used to define realtime drivers */
 struct ast_config_engine {
@@ -80,6 +93,8 @@ struct ast_config_engine {
 	realtime_update *update_func;
 	realtime_store *store_func;
 	realtime_destroy *destroy_func;
+	realtime_require *require_func;
+	realtime_unload *unload_func;
 	struct ast_config_engine *next;
 };
 
@@ -185,6 +200,26 @@ int ast_category_exist(const struct ast_config *config, const char *category_nam
 struct ast_variable *ast_load_realtime(const char *family, ...) attribute_sentinel;
 struct ast_variable *ast_load_realtime_all(const char *family, ...) attribute_sentinel;
 
+/*!
+ * \brief Release any resources cached for a realtime family
+ * \param family which family/config to destroy
+ * Various backends may cache attributes about a realtime data storage
+ * facility; on reload, a front end resource may request to purge that cache.
+ */
+int ast_unload_realtime(const char *family);
+
+/*!
+ * \brief Inform realtime what fields that may be stored
+ * \param family which family/config is referenced
+ * This will inform builtin configuration backends that particular fields
+ * may be updated during the use of that configuration section.  This is
+ * mainly to be used during startup routines, to ensure that various fields
+ * exist in the backend.  The backends may take various actions, such as
+ * creating new fields in the data store or warning the administrator that
+ * new fields may need to be created, in order to ensure proper function.
+ */
+int ast_require_realtime_fields(const char *family, ...) attribute_sentinel;
+
 /*! 
  * \brief Retrieve realtime configuration 
  * \param family which family/config to lookup
@@ -231,6 +266,8 @@ int ast_destroy_realtime(const char *family, const char *keyfield, const char *l
  * \return 1 if family is configured in realtime and engine exists
 */
 int ast_check_realtime(const char *family);
+
+int ast_realtime_require_field(const char *family, ...) attribute_sentinel;
 
 /*! \brief Check if there's any realtime engines loaded */
 int ast_realtime_enabled(void);
