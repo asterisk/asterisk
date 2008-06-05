@@ -89,6 +89,13 @@ struct ast_rtp_protocol {
 	AST_LIST_ENTRY(ast_rtp_protocol) list;
 };
 
+enum ast_rtp_quality_type {
+	RTPQOS_SUMMARY = 0,
+	RTPQOS_JITTER,
+	RTPQOS_LOSS,
+	RTPQOS_RTT
+};
+
 /*! \brief RTCP quality report storage */
 struct ast_rtp_quality {
 	unsigned int local_ssrc;          /*!< Our SSRC */
@@ -259,9 +266,32 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
            having to send a re-invite later */
 int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1);
 
-/*! \brief Return RTCP quality string */
-char *ast_rtp_get_quality(struct ast_rtp *rtp, struct ast_rtp_quality *qual);
+/*! \brief Get QOS stats on a RTP channel */
+int ast_rtp_get_qos(struct ast_rtp *rtp, const char *qos, char *buf, unsigned int buflen);
+/*! \brief Set RTPAUDIOQOS(...) variables on a channel when it is being hung up */
+void ast_rtp_set_vars(struct ast_channel *chan, struct ast_rtp *rtp);
 
+/*! \brief Return RTCP quality string 
+ *
+ *  \param rtp An rtp structure to get qos information about.
+ *
+ *  \param qual An (optional) rtp quality structure that will be 
+ *              filled with the quality information described in 
+ *              the ast_rtp_quality structure. This structure is
+ *              not dependent on any qtype, so a call for any
+ *              type of information would yield the same results
+ *              because ast_rtp_quality is not a data type 
+ *              specific to any qos type.
+ *
+ *  \param qtype The quality type you'd like, default should be
+ *               RTPQOS_SUMMARY which returns basic information
+ *               about the call. The return from RTPQOS_SUMMARY
+ *               is basically ast_rtp_quality in a string. The
+ *               other types are RTPQOS_JITTER, RTPQOS_LOSS and
+ *               RTPQOS_RTT which will return more specific 
+ *               statistics.
+ */
+char *ast_rtp_get_quality(struct ast_rtp *rtp, struct ast_rtp_quality *qual, enum ast_rtp_quality_type qtype);
 /*! \brief Send an H.261 fast update request. Some devices need this rather than the XML message  in SIP */
 int ast_rtcp_send_h261fur(void *data);
 

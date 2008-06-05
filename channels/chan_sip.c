@@ -5063,15 +5063,25 @@ static int sip_hangup(struct ast_channel *ast)
 			}
 		} else {	/* Call is in UP state, send BYE */
 			if (!p->pendinginvite) {
+				struct ast_channel *bridge = ast_bridged_channel(oldowner);
 				char *audioqos = "";
 				char *videoqos = "";
 				char *textqos = "";
+
 				if (p->rtp)
-					audioqos = ast_rtp_get_quality(p->rtp, NULL);
+					ast_rtp_set_vars(oldowner, p->rtp);
+
+				if (bridge) {
+					struct sip_pvt *q = bridge->tech_pvt;
+
+					if (IS_SIP_TECH(bridge->tech) && q->rtp)
+						ast_rtp_set_vars(bridge, q->rtp);
+				}
+
 				if (p->vrtp)
-					videoqos = ast_rtp_get_quality(p->vrtp, NULL);
+					videoqos = ast_rtp_get_quality(p->vrtp, NULL, RTPQOS_SUMMARY);
 				if (p->trtp)
-					textqos = ast_rtp_get_quality(p->trtp, NULL);
+					textqos = ast_rtp_get_quality(p->trtp, NULL, RTPQOS_SUMMARY);
 				/* Send a hangup */
 				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 
@@ -18429,10 +18439,13 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 			ast_rtp_get_peer(p->vrtp, &sin);
 		else if (!strcasecmp(args.type, "text"))
 			ast_rtp_get_peer(p->trtp, &sin);
+		else
+			return -1;
 
 		snprintf(buf, buflen, "%s:%d", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 	} else if (!strcasecmp(args.param, "rtpqos")) {
 		struct ast_rtp_quality qos;
+		struct ast_rtp *rtp = p->rtp;
 		
 		memset(&qos, 0, sizeof(qos));
 
@@ -18442,11 +18455,13 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 			args.field = "all";
 		
 		if (strcasecmp(args.type, "AUDIO") == 0) {
-			all = ast_rtp_get_quality(p->rtp, &qos);
+			all = ast_rtp_get_quality(rtp = p->rtp, &qos, RTPQOS_SUMMARY);
 		} else if (strcasecmp(args.type, "VIDEO") == 0) {
-			all = ast_rtp_get_quality(p->vrtp, &qos);
+			all = ast_rtp_get_quality(rtp = p->vrtp, &qos, RTPQOS_SUMMARY);
 		} else if (strcasecmp(args.type, "TEXT") == 0) {
-			all = ast_rtp_get_quality(p->trtp, &qos);
+			all = ast_rtp_get_quality(rtp = p->trtp, &qos, RTPQOS_SUMMARY);
+		} else {
+			return -1;
 		}
 		
 		if (strcasecmp(args.field, "local_ssrc") == 0)
@@ -18469,6 +18484,8 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 			snprintf(buf, buflen, "%.0f", qos.rtt * 1000.0);
 		else if (strcasecmp(args.field, "all") == 0)
 			ast_copy_string(buf, all, buflen);
+		else if (!ast_rtp_get_qos(rtp, args.field, buf, buflen))
+			 ;
 		else {
 			ast_log(LOG_WARNING, "Unrecognized argument '%s' to %s\n", preparse, funcname);
 			return -1;
@@ -18501,23 +18518,47 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 
 	/* Get RTCP quality before end of call */
 	if (p->do_history || p->owner) {
-		char *audioqos, *videoqos, *textqos;
-		if (p->rtp) {
-			audioqos = ast_rtp_get_quality(p->rtp, NULL);
-			if (p->do_history)
+		struct ast_channel *bridge = ast_bridged_channel(p->owner);
+		char *videoqos, *textqos;
+
+		if (p->rtp) {	
+			if (p->do_history) {
+				char *audioqos,
+				     *audioqos_jitter,
+				     *audioqos_loss,
+				     *audioqos_rtt;
+
+				audioqos        = ast_rtp_get_quality(p->rtp, NULL, RTPQOS_SUMMARY);
+				audioqos_jitter = ast_rtp_get_quality(p->rtp, NULL, RTPQOS_JITTER);
+				audioqos_loss   = ast_rtp_get_quality(p->rtp, NULL, RTPQOS_LOSS);
+				audioqos_rtt    = ast_rtp_get_quality(p->rtp, NULL, RTPQOS_RTT);
+
 				append_history(p, "RTCPaudio", "Quality:%s", audioqos);
-			if (p->owner)
-				pbx_builtin_setvar_helper(p->owner, "RTPAUDIOQOS", audioqos);
+				append_history(p, "RTCPaudioJitter", "Quality:%s", audioqos_jitter);
+				append_history(p, "RTCPaudioLoss", "Quality:%s", audioqos_loss);
+				append_history(p, "RTCPaudioRTT", "Quality:%s", audioqos_rtt);
+			}
+			
+			ast_rtp_set_vars(p->owner, p->rtp);
 		}
+
+		if (bridge) {
+			struct sip_pvt *q = bridge->tech_pvt;
+
+			if (IS_SIP_TECH(bridge->tech) && q->rtp)
+				ast_rtp_set_vars(bridge, q->rtp);
+		}
+
 		if (p->vrtp) {
-			videoqos = ast_rtp_get_quality(p->vrtp, NULL);
+			videoqos = ast_rtp_get_quality(p->vrtp, NULL, RTPQOS_SUMMARY);
 			if (p->do_history)
 				append_history(p, "RTCPvideo", "Quality:%s", videoqos);
 			if (p->owner)
 				pbx_builtin_setvar_helper(p->owner, "RTPVIDEOQOS", videoqos);
 		}
+
 		if (p->trtp) {
-			textqos = ast_rtp_get_quality(p->trtp, NULL);
+			textqos = ast_rtp_get_quality(p->trtp, NULL, RTPQOS_SUMMARY);
 			if (p->do_history)
 				append_history(p, "RTCPtext", "Quality:%s", textqos);
 			if (p->owner)
