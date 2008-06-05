@@ -1,4 +1,9 @@
-Information for Upgrading From Previous Asterisk Releases
+=========================================================
+=== Information for upgrading from Asterisk 1.2 to 1.4
+===
+===
+=== UPGRADE-1.2.txt -- Upgrade info for 1.0 to 1.2
+=== UPGRADE.txt     -- Upgrade info for 1.2 to 1.4
 =========================================================
 
 Build Process (configure script):
