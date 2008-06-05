@@ -722,11 +722,12 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 
 int ast_load_resource(const char *resource_name)
 {
+	int res;
 	AST_LIST_LOCK(&module_list);
-	load_resource(resource_name, 0);
+	res = load_resource(resource_name, 0);
 	AST_LIST_UNLOCK(&module_list);
 
-	return 0;
+	return res;
 }
 
 struct load_order_entry {
