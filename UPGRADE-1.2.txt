@@ -3,8 +3,7 @@
 ===
 ===
 === UPGRADE-1.2.txt -- Upgrade info for 1.0 to 1.2
-=== UPGRADE-1.4.txt -- Upgrade info for 1.2 to 1.4
-=== UPGRADE.txt     -- Upgrade info for 1.4 to 1.6
+=== UPGRADE.txt     -- Upgrade info for 1.2 to 1.4
 =========================================================
 
 Compiling:
