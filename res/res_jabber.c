@@ -2902,7 +2902,7 @@ struct aji_client *ast_aji_get_client(const char *name)
 				/* strip resource for comparison */
 				aux = strsep(&aux, "/");
 			}
-			if (!strcasecmp(aux, name)) {
+			if (!strncasecmp(aux, name, strlen(aux))) {
 				client = iterator;
 			}				
 		});
