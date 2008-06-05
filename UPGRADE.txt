@@ -47,7 +47,14 @@ Core:
   remove the obscene level of backslashing that was necessary for the dialplan
   to work correctly in 1.4 and previous versions.  This should make writing
   dialplans less painful in the future, albeit with the pain of a one-time
-  conversion.
+  conversion.  If you would like to avoid this conversion immediately, set
+  pbx_realtime=1.4 in the [compat] section of asterisk.conf.  After
+  transitioning, set pbx_realtime=1.6 in the same section.
+
+* For the same purpose as above, you may set res_agi=1.4 in the [compat]
+  section of asterisk.conf to continue to use the '|' delimiter in the EXEC
+  arguments of AGI applications.  After converting to use the ',' delimiter,
+  change this option to res_agi=1.6.
 
 * The logger.conf option 'rotatetimestamp' has been deprecated in favor of
   'rotatestrategy'.  This new option supports a 'rotate' strategy that more
@@ -107,6 +114,13 @@ Applications:
   instead.
 * The arguments in ExecIf changed a bit, to be more like other applications.
   The syntax is now ExecIf(<cond>?appiftrue(args):appiffalse(args)).
+* The behavior of the Set application now depends upon a compatibility option,
+  set in asterisk.conf.  To use the old 1.4 behavior, which allowed Set to take
+  multiple key/value pairs, set app_set=1.4 in [compat] in asterisk.conf.  To
+  use the new behavior, which permits variables to be set with embedded commas,
+  set app_set=1.6 in [compat] in asterisk.conf.  Note that you can have both
+  behaviors at the same time, if you switch to using MSet if you want the old
+  behavior.
 
 Dialplan Functions:
 
