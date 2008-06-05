@@ -21,6 +21,8 @@ Dialplan Functions
 	 - 'i' looks for branches into an Infrastructure ENUM tree
 	 - 'd' for a direct DNS lookup without any flipping of digits.
  * TXCIDNAME() has a new zone-suffix parameter (which defaults to 'e164.arpa')
+ * CHANNEL() now has options for the maximum, minimum, and standard or normal
+   deviation of jitter, rtt, and loss for a call using chan_sip.
 
 Zaptel channel driver (chan_zap) Changes
 ----------------------------------------
