@@ -7011,11 +7011,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	return 0;
 }
 
+#ifdef LOW_MEMORY
 static void ts_ast_rtp_destroy(void *data)
 {
     struct ast_rtp *tmp = data;
     ast_rtp_destroy(tmp);
 }
+#endif
 
 /*! \brief Add header to SIP message */
 static int add_header(struct sip_request *req, const char *var, const char *value)
