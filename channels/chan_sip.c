@@ -1723,6 +1723,12 @@ static void temp_pvt_cleanup(void *);
 /*! \brief A per-thread temporary pvt structure */
 AST_THREADSTORAGE_CUSTOM(ts_temp_pvt, temp_pvt_init, temp_pvt_cleanup);
 
+static void ts_ast_rtp_destroy(void *);
+
+AST_THREADSTORAGE_CUSTOM(ts_audio_rtp, NULL, ts_ast_rtp_destroy);
+AST_THREADSTORAGE_CUSTOM(ts_video_rtp, NULL, ts_ast_rtp_destroy);
+AST_THREADSTORAGE_CUSTOM(ts_text_rtp, NULL, ts_ast_rtp_destroy);
+
 /*! \brief Authentication list for realm authentication 
  * \todo Move the sip_auth list to AST_LIST */
 static struct sip_auth *authl = NULL;
@@ -6685,17 +6691,29 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	}
 
 	/* Initialize the temporary RTP structures we use to evaluate the offer from the peer */
+#ifdef LOW_MEMORY
+	newaudiortp = ast_threadstorage_get(&ts_audio_rtp, ast_rtp_alloc_size());
+#else
 	newaudiortp = alloca(ast_rtp_alloc_size());
+#endif
 	memset(newaudiortp, 0, ast_rtp_alloc_size());
 	ast_rtp_new_init(newaudiortp);
 	ast_rtp_pt_clear(newaudiortp);
 
+#ifdef LOW_MEMORY
+	newvideortp = ast_threadstorage_get(&ts_video_rtp, ast_rtp_alloc_size());
+#else
 	newvideortp = alloca(ast_rtp_alloc_size());
+#endif
 	memset(newvideortp, 0, ast_rtp_alloc_size());
 	ast_rtp_new_init(newvideortp);
 	ast_rtp_pt_clear(newvideortp);
 
+#ifdef LOW_MEMORY
+	newtextrtp = ast_threadstorage_get(&ts_text_rtp, ast_rtp_alloc_size());
+#else
 	newtextrtp = alloca(ast_rtp_alloc_size());
+#endif
 	memset(newtextrtp, 0, ast_rtp_alloc_size());
 	ast_rtp_new_init(newtextrtp);
 	ast_rtp_pt_clear(newtextrtp);
@@ -7364,6 +7382,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	return 0;
 }
 
+static void ts_ast_rtp_destroy(void *data)
+{
+    struct ast_rtp *tmp = data;
+    ast_rtp_destroy(tmp);
+}
 
 /*! \brief Add header to SIP message */
 static int add_header(struct sip_request *req, const char *var, const char *value)

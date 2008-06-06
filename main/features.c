@@ -464,11 +464,12 @@ static int ast_park_call_full(struct ast_channel *chan, struct ast_channel *peer
 	struct parkeduser *pu;
 	int i, x = -1, parking_range;
 	struct ast_context *con;
-	const char *parkinglotname;
+	const char *parkinglotname = NULL;
 	const char *parkingexten;
 	struct ast_parkinglot *parkinglot = NULL;
 	
-	parkinglotname = findparkinglotname(peer);
+	if (peer)
+		parkinglotname = findparkinglotname(peer);
 
 	if (parkinglotname) {
 		if (option_debug)
