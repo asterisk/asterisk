@@ -100,6 +100,7 @@ SIP Changes
  * Added support for T140 RED - redundancy in T.140 to prevent text loss due to
    lost packets.
  * Added t38pt_usertpsource option. See sip.conf.sample for details.
+ * Added SIPnotify AMI command, for sending arbitrary SIP notify commands.
 
 IAX Changes
 -----------

@@ -9509,6 +9509,65 @@ static int transmit_notify_custom(struct sip_pvt *p, struct ast_variable *vars) 
 	return send_request(p, &req, XMIT_UNRELIABLE, p->ocseq);
 }
 
+static int manager_sipnotify(struct mansession *s, const struct message *m)
+{
+	const char *channame = astman_get_header(m, "Channel");
+	struct ast_variable *vars = astman_get_variables(m);
+	struct sip_pvt *p;
+
+	if (!channame) {
+		astman_send_error(s, m, "SIPNotify requires a channel name");
+		return -1;
+	}
+
+	if (strncasecmp(channame, "sip/", 4) == 0) {
+		channame += 4;
+	}
+
+	if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY))) {
+		astman_send_error(s, m, "Unable to build sip pvt data for notify (memory/socket error)");
+		return -1;
+	}
+
+	if (create_addr(p, channame, NULL)) {
+		/* Maybe they're not registered, etc. */
+		dialog_unlink_all(p, TRUE, TRUE);
+		dialog_unref(p, "unref dialog inside for loop" );
+		/* sip_destroy(p); */
+		astman_send_error(s, m, "Could not create address");
+		return -1;
+	}
+
+	/* Notify is outgoing call */
+	ast_set_flag(&p->flags[0], SIP_OUTGOING);
+
+	/* Recalculate our side, and recalculate Call ID */
+	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
+	build_via(p);
+	ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
+	build_callid_pvt(p);
+	ao2_t_link(dialogs, p, "Linking in new name");
+	dialog_ref(p, "bump the count of p, which transmit_sip_request will decrement.");
+	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+
+	if (!transmit_notify_custom(p, vars)) {
+		astman_send_ack(s, m, "Notify Sent");
+	} else {
+		astman_send_error(s, m, "Unable to send notify");
+	}
+	ast_variables_destroy(vars);
+	return 0;
+}
+
+static char mandescr_sipnotify[] =
+"Description: Sends a SIP Notify event\n"
+"All parameters for this event must be specified in the body of this request\n"
+"via multiple Variable: name=value sequences.\n"
+"Variables: \n"
+"  *Channel: <peername>       Peer to receive the notify. Required.\n"
+"  *Variable: <name>=<value>  At least one variable pair must be specified.\n"
+"  ActionID: <id>             Action ID for this transaction. Will be returned.\n";
+
 static const struct _map_x_s regstatestrings[] = {
 	{ REG_STATE_FAILED,     "Failed" },
 	{ REG_STATE_UNREGISTERED, "Unregistered"},
@@ -22788,6 +22847,8 @@ static int load_module(void)
 			"Show SIP peer (text format)", mandescr_show_peer);
 	ast_manager_register2("SIPshowregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_show_registry,
 			"Show SIP registrations (text format)", mandescr_show_registry);
+	ast_manager_register2("SIPnotify", EVENT_FLAG_SYSTEM, manager_sipnotify,
+			"Send a SIP notify", mandescr_sipnotify);
 	sip_poke_all_peers();	
 	sip_send_all_registers();
 	
@@ -22844,6 +22905,7 @@ static int unload_module(void)
 	ast_manager_unregister("SIPshowpeer");
 	ast_manager_unregister("SIPqualifypeer");
 	ast_manager_unregister("SIPshowregistry");
+	ast_manager_unregister("SIPnotify");
 	
 	/* Kill TCP/TLS server threads */
 	if (sip_tcp_desc.master)
