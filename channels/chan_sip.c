@@ -1194,10 +1194,12 @@ static void temp_pvt_cleanup(void *);
 /*! \brief A per-thread temporary pvt structure */
 AST_THREADSTORAGE_CUSTOM(ts_temp_pvt, temp_pvt_init, temp_pvt_cleanup);
 
+#ifdef LOW_MEMORY
 static void ts_ast_rtp_destroy(void *);
 
 AST_THREADSTORAGE_CUSTOM(ts_audio_rtp, ts_audio_rtp_init, ts_ast_rtp_destroy);
 AST_THREADSTORAGE_CUSTOM(ts_video_rtp, ts_video_rtp_init, ts_ast_rtp_destroy);
+#endif
 
 /*! \todo Move the sip_auth list to AST_LIST */
 static struct sip_auth *authl = NULL;		/*!< Authentication list for realm authentication */
