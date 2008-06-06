@@ -148,7 +148,7 @@ static int tryexec_exec(struct ast_channel *chan, void *data)
 static int execif_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	char *truedata = NULL, *falsedata = NULL, *end;
+	char *truedata = NULL, *falsedata = NULL, *end, *firstcomma, *firstquestion;
 	struct ast_app *app = NULL;
 	AST_DECLARE_APP_ARGS(expr,
 		AST_APP_ARG(expr);
@@ -160,24 +160,49 @@ static int execif_exec(struct ast_channel *chan, void *data)
 	);
 	char *parse = ast_strdupa(data);
 
-	AST_NONSTANDARD_APP_ARGS(expr, parse, '?');
-	if (ast_strlen_zero(expr.remainder)) {
-		ast_log(LOG_ERROR, "Usage: ExecIf(<expr>?<appiftrue>(<args>)[:<appiffalse>(<args)])\n");
-		return -1;
-	}
+	firstcomma = strchr(parse, ',');
+	firstquestion = strchr(parse, '?');
 
-	AST_NONSTANDARD_APP_ARGS(apps, expr.remainder, ':');
+	if ((firstcomma != NULL && firstquestion != NULL && firstcomma < firstquestion) || (firstquestion == NULL)) {
+		/* Deprecated syntax */
+		AST_DECLARE_APP_ARGS(depr,
+			AST_APP_ARG(expr);
+			AST_APP_ARG(appname);
+			AST_APP_ARG(appargs);
+		);
+		AST_STANDARD_APP_ARGS(depr, parse);
 
-	if (apps.t && (truedata = strchr(apps.t, '('))) {
-		*truedata++ = '\0';
-		if ((end = strrchr(truedata, ')')))
-			*end = '\0';
-	}
+		ast_log(LOG_WARNING, "Deprecated syntax found.  Please upgrade to using ExecIf(<expr>?%s(%s))\n", depr.appname, depr.appargs);
 
-	if (apps.f && (falsedata = strchr(apps.f, '('))) {
-		*falsedata++ = '\0';
-		if ((end = strrchr(falsedata, ')')))
-			*end = '\0';
+		/* Make the two syntaxes look the same */
+		expr.expr = depr.expr;
+		apps.t = depr.appname;
+		apps.f = NULL;
+		truedata = depr.appargs;
+	} else {
+		/* Preferred syntax */
+
+		AST_NONSTANDARD_APP_ARGS(expr, parse, '?');
+		if (ast_strlen_zero(expr.remainder)) {
+			ast_log(LOG_ERROR, "Usage: ExecIf(<expr>?<appiftrue>(<args>)[:<appiffalse>(<args)])\n");
+			return -1;
+		}
+
+		AST_NONSTANDARD_APP_ARGS(apps, expr.remainder, ':');
+
+		if (apps.t && (truedata = strchr(apps.t, '('))) {
+			*truedata++ = '\0';
+			if ((end = strrchr(truedata, ')'))) {
+				*end = '\0';
+			}
+		}
+
+		if (apps.f && (falsedata = strchr(apps.f, '('))) {
+			*falsedata++ = '\0';
+			if ((end = strrchr(falsedata, ')'))) {
+				*end = '\0';
+			}
+		}
 	}
 
 	if (pbx_checkcondition(expr.expr)) {
