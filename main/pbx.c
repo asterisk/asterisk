@@ -1483,7 +1483,7 @@ static int ext_cmp1(const char **p)
 		;	/* ignore some characters */
 
 	/* always return unless we have a set of chars */
-	switch (c) {
+	switch (toupper(c)) {
 	default:	/* ordinary character */
 		return 0x0000 | (c & 0xff);
 
