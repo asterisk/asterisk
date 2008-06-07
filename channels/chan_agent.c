@@ -2759,7 +2759,6 @@ static int unload_module(void)
 		free(p);
 	}
 	AST_LIST_UNLOCK(&agents);
-	AST_LIST_HEAD_DESTROY(&agents);
 	return 0;
 }
 

@@ -756,7 +756,6 @@ static int unload_module(void)
 				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
 		}
 		AST_LIST_UNLOCK(&locals);
-		AST_LIST_HEAD_DESTROY(&locals);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
