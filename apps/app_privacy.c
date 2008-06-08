@@ -46,13 +46,14 @@ static char *app = "PrivacyManager";
 static char *synopsis = "Require phone number to be entered, if no CallerID sent";
 
 static char *descrip =
-  "  PrivacyManager([maxretries][,minlength]): If no Caller*ID \n"
+  "  PrivacyManager([maxretries][,minlength][,context]): If no Caller*ID \n"
   "is sent, PrivacyManager answers the channel and asks the caller to\n"
   "enter their phone number. The caller is given 'maxretries' attempts to do so.\n"
   "The application does nothing if Caller*ID was received on the channel.\n"
   "   maxretries  default 3  -maximum number of attempts the caller is allowed \n"
   "               to input a callerid.\n"
   "   minlength   default 10 -minimum allowable digits in the input callerid number.\n"
+  "   context     context to check the given Caller*ID against patterns.\n"
   "The application sets the following channel variable upon completion: \n"
   "PRIVACYMGRSTATUS  The status of the privacy manager's attempt to collect \n"
   "                  a phone number from the user. A text string that is either:\n" 
@@ -73,6 +74,7 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 		AST_APP_ARG(maxretries);
 		AST_APP_ARG(minlength);
 		AST_APP_ARG(options);
+		AST_APP_ARG(checkcontext);
 	);
 
 	if (!ast_strlen_zero(chan->cid.cid_num)) {
@@ -101,7 +103,6 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 				else
 					ast_log(LOG_WARNING, "Invalid min length argument\n");
 			}
-
 		}		
 
 		/* Play unidentified call */
@@ -125,9 +126,21 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 				break;
 
 			/* Make sure we get at least digits */
-			if (strlen(phone) >= minlength ) 
-				break;
-			else {
+			if (strlen(phone) >= minlength ) {
+				/* if we have a checkcontext argument, do pattern matching */
+				if (!ast_strlen_zero(args.checkcontext)) {
+					if (!ast_exists_extension(NULL, args.checkcontext, phone, 1, NULL)) {
+						res = ast_streamfile(chan, "privacy-incorrect", chan->language);
+						if (!res) {
+							res = ast_waitstream(chan, "");
+						}
+					} else {
+						break;
+					}
+				} else {
+					break;
+				}
+			} else {
 				res = ast_streamfile(chan, "privacy-incorrect", chan->language);
 				if (!res)
 					res = ast_waitstream(chan, "");

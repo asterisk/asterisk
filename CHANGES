@@ -79,6 +79,9 @@ Application Changes
    complete documentation.
  * ChanIsAvail has a new option, 'a', which will return all available channels instead
    of just the first one if you give the function more then one channel to check.
+ * PrivacyManager now takes an option where you can specify a context where the 
+   given number will be matched. This way you have more control over who is allowed
+   and it stops the people who blindly enter 10 digits.
 
 SIP Changes
 -----------
