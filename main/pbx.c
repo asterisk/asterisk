@@ -309,7 +309,7 @@ void log_match_char_tree(struct match_char *node, char *prefix); /* for use anyw
 int pbx_builtin_setvar_multiple(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
 static void set_ext_pri(struct ast_channel *c, const char *exten, int pri); 
-static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid, enum ext_match_t action);
+static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid, const char *label, enum ext_match_t action);
 static struct match_char *already_in_tree(struct match_char *current, char *pat);
 static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1, int findonly);
 static struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity, struct match_char **parent);
@@ -1020,9 +1020,10 @@ static char *action2str(enum ext_match_t action)
 
 #endif
 
-static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid, enum ext_match_t action)
+static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *label, const char *callerid, enum ext_match_t action)
 {
 	struct match_char *p; /* note minimal stack storage requirements */
+	struct ast_exten pattern = { .label = label };
 #ifdef DEBUG_THIS
 	if (tree)
 		ast_log(LOG_NOTICE,"new_find_extension called with %s on (sub)tree %s action=%s\n", str, tree->x, action2str(action));
@@ -1034,11 +1035,18 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 			if (p->x[1] == 0 && *str >= '2' && *str <= '9' ) {
 #define NEW_MATCHER_CHK_MATCH	       \
 				if (p->exten && !(*(str+1))) { /* if a shorter pattern matches along the way, might as well report it */             \
-					if (action == E_MATCH || action == E_SPAWN) { /* if in CANMATCH/MATCHMORE, don't let matches get in the way */   \
+					if (action == E_MATCH || action == E_SPAWN || action == E_FINDLABEL) { /* if in CANMATCH/MATCHMORE, don't let matches get in the way */   \
 						update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted, p);                 \
 						if (!p->deleted) {                                                                                           \
-							ast_debug(4,"returning an exact match-- first found-- %s\n", p->exten->exten);                           \
-							return; /* the first match, by definition, will be the best, because of the sorted tree */               \
+							if (action == E_FINDLABEL) {                                                                             \
+								if (ast_hashtab_lookup(score->exten->peer_label_table, &pattern)) {                                  \
+									ast_debug(4, "Found label in preferred extension\n");                                            \
+									return;                                                                                          \
+								}                                                                                                    \
+							} else {                                                                                                 \
+								ast_debug(4,"returning an exact match-- first found-- %s\n", p->exten->exten);                       \
+								return; /* the first match, by definition, will be the best, because of the sorted tree */           \
+							}                                                                                                        \
 						}                                                                                                            \
 					}                                                                                                                \
 				}
@@ -1047,13 +1055,13 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 				if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0)                 \
                                                || p->next_char->x[0] == '!')) {                                          \
 					if (*(str+1) || p->next_char->x[0] == '!') {                                                         \
-						new_find_extension(str+1, score, p->next_char, length+1, spec+p->specificity, callerid, action); \
+						new_find_extension(str+1, score, p->next_char, length+1, spec+p->specificity, callerid, label, action); \
 						if (score->exten)  {                                                                             \
 					        ast_debug(4,"returning an exact match-- %s\n", score->exten->exten);                         \
 							return; /* the first match is all we need */                                                 \
 						}												                                                 \
 					} else {                                                                                             \
-						new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid, action);	 \
+						new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid, label, action);	 \
 						if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch)) {      \
 					        ast_debug(4,"returning a (can/more) match--- %s\n", score->exten ? score->exten->exten :     \
                                        "NULL");                                                                        \
@@ -1098,7 +1106,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 				}
 			}
 			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
-				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid, action);
+				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid, label, action);
 				if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch)) {
 					ast_debug(4,"return because scoreboard has exact match OR CANMATCH/MATCHMORE & canmatch set--- %s\n", score->exten ? score->exten->exten : "NULL");
 					return; /* the first match is all we need */
@@ -1120,7 +1128,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 				}
 			}
 			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
-				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid, action);
+				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid, label, action);
 				if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch)) {
 					ast_debug(4,"return because scoreboard has exact match OR CANMATCH/MATCHMORE & canmatch set with '/' and '!'--- %s\n", score->exten ? score->exten->exten : "NULL");
 					return; /* the first match is all we need */
@@ -1129,13 +1137,14 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 		} else if (p->x[0] == '/' && p->x[1] == 0) {
 			/* the pattern in the tree includes the cid match! */
 			if (p->next_char && callerid && *callerid) {
-				new_find_extension(callerid, score, p->next_char, length+1, spec, callerid, action);
+				new_find_extension(callerid, score, p->next_char, length+1, spec, callerid, label, action);
 				if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch)) {
 					ast_debug(4,"return because scoreboard has exact match OR CANMATCH/MATCHMORE & canmatch set with '/'--- %s\n", score->exten ? score->exten->exten : "NULL");
 					return; /* the first match is all we need */
 				}
 			}
 		} else if (index(p->x, *str)) {
+			ast_debug(4, "Nothing strange about this match\n");
 			NEW_MATCHER_CHK_MATCH;
 			NEW_MATCHER_RECURSE;
 		}
@@ -1964,7 +1973,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	} while (0);
 
 	if (extenpatternmatchnew) {
-		new_find_extension(exten, &score, tmp->pattern_tree, 0, 0, callerid, action);
+		new_find_extension(exten, &score, tmp->pattern_tree, 0, 0, callerid, label, action);
 		eroot = score.exten;
 		
 		if (score.last_char == '!' && action == E_MATCHMORE) {
