@@ -434,7 +434,17 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			if (!ast_strlen_zero(p->loginchan)) {
 				if (p->chan)
 					ast_debug(1, "Bridge on '%s' being cleared (2)\n", p->chan->name);
-
+				if (p->owner->_state != AST_STATE_UP) {
+					int howlong = time(NULL) - p->start;
+					if (p->autologoff && howlong > p->autologoff) {
+						long logintime = time(NULL) - p->loginstart;
+						p->loginstart = 0;
+							ast_log(LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
+						agent_logoff_maintenance(p, p->loginchan, logintime, ast->uniqueid, "Autologoff");
+						if (persistent_agents)
+							dump_agents();
+					}
+				}
 				status = pbx_builtin_getvar_helper(p->chan, "CHANLOCALSTATUS");
 				if (autologoffunavail && status && !strcasecmp(status, "CHANUNAVAIL")) {
 					long logintime = time(NULL) - p->loginstart;
