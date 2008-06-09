@@ -1556,9 +1556,11 @@ int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 int ast_softhangup(struct ast_channel *chan, int cause)
 {
 	int res;
+
 	ast_channel_lock(chan);
 	res = ast_softhangup_nolock(chan, cause);
 	ast_channel_unlock(chan);
+
 	return res;
 }
 
