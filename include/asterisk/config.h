@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 #include "asterisk/utils.h"
+#include "asterisk/inline_api.h"
 
 struct ast_config;
 
@@ -50,7 +51,16 @@ enum {
  * \brief Types used in ast_realtime_require_field
  */
 typedef enum {
-	RQ_INTEGER,
+	RQ_INTEGER1,
+	RQ_UINTEGER1,
+	RQ_INTEGER2,
+	RQ_UINTEGER2,
+	RQ_INTEGER3,
+	RQ_UINTEGER3,
+	RQ_INTEGER4,
+	RQ_UINTEGER4,
+	RQ_INTEGER8,
+	RQ_UINTEGER8,
 	RQ_CHAR,
 	RQ_FLOAT,
 	RQ_DATE,
@@ -450,6 +460,27 @@ int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
 #define CV_STR(__x, __dst)	CV_F(__x, ast_copy_string(__dst, __val, sizeof(__dst)))
 #define CV_DSTR(__x, __dst)	CV_F(__x, if (__dst) ast_free(__dst); __dst = ast_strdup(__val))
 #define CV_STRFIELD(__x, __obj, __field) CV_F(__x, ast_string_field_set(__obj, __field, __val))
+
+AST_INLINE_API(
+int ast_rq_is_int(require_type type),
+{
+	switch (type) {
+	case RQ_INTEGER1:
+	case RQ_UINTEGER1:
+	case RQ_INTEGER2:
+	case RQ_UINTEGER2:
+	case RQ_INTEGER3:
+	case RQ_UINTEGER3:
+	case RQ_INTEGER4:
+	case RQ_UINTEGER4:
+	case RQ_INTEGER8:
+	case RQ_UINTEGER8:
+		return 1;
+	default:
+		return 0;
+	}
+}
+)
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

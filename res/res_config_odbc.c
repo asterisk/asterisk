@@ -878,8 +878,8 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 	return cfg;
 }
 
-#define warn_length(col, size)	ast_log(LOG_WARNING, "Column %s is not long enough to contain realtime data (needs %d)\n", col->name, size)
-#define warn_type(col, type)	ast_log(LOG_WARNING, "Column %s is of the incorrect type to contain realtime data\n", col->name)
+#define warn_length(col, size)	ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' is not long enough to contain realtime data (needs %d)\n", table, database, col->name, size)
+#define warn_type(col, type)	ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' is of the incorrect type (%d) to contain the required realtime data\n", table, database, col->name, col->type)
 
 static int require_odbc(const char *database, const char *table, va_list ap)
 {
@@ -907,15 +907,28 @@ static int require_odbc(const char *database, const char *table, va_list ap)
 				case SQL_VARBINARY:
 				case SQL_LONGVARBINARY:
 				case SQL_GUID:
-					if ((type == RQ_INTEGER && size > 10) || (type == RQ_CHAR && col->size < size)) {
-						warn_length(col, size);
-					} else if (type == RQ_DATE && col->size < 10) {
-						warn_length(col, 10);
-					} else if (type == RQ_DATETIME && col->size < 19) {
-						warn_length(col, 19);
-					} else if (type == RQ_FLOAT && col->size < 10) {
-						warn_length(col, 10);
+#define CHECK_SIZE(n) \
+						if (col->size < n) {      \
+							warn_length(col, n);  \
+						}                         \
+						break;
+					switch (type) {
+					case RQ_UINTEGER1: CHECK_SIZE(3)  /*         255 */
+					case RQ_INTEGER1:  CHECK_SIZE(4)  /*        -128 */
+					case RQ_UINTEGER2: CHECK_SIZE(5)  /*       65535 */
+					case RQ_INTEGER2:  CHECK_SIZE(6)  /*      -32768 */
+					case RQ_UINTEGER3:                /*    16777215 */
+					case RQ_INTEGER3:  CHECK_SIZE(8)  /*    -8388608 */
+					case RQ_DATE:                     /*  2008-06-09 */
+					case RQ_UINTEGER4: CHECK_SIZE(10) /*  4200000000 */
+					case RQ_INTEGER4:  CHECK_SIZE(11) /* -2100000000 */
+					case RQ_DATETIME:                 /* 2008-06-09 16:03:47 */
+					case RQ_UINTEGER8: CHECK_SIZE(19) /* trust me    */
+					case RQ_INTEGER8:  CHECK_SIZE(20) /* ditto       */
+					case RQ_FLOAT:
+					case RQ_CHAR:      CHECK_SIZE(size)
 					}
+#undef CHECK_SIZE
 					break;
 				case SQL_TYPE_DATE:
 					if (type != RQ_DATE) {
@@ -928,44 +941,98 @@ static int require_odbc(const char *database, const char *table, va_list ap)
 						warn_type(col, type);
 					}
 					break;
-				case SQL_INTEGER:
-				case SQL_BIGINT:
-				case SQL_SMALLINT:
-				case SQL_TINYINT:
 				case SQL_BIT:
-					if (type != RQ_INTEGER) {
-						warn_type(col, type);
-					}
-					if ((col->type == SQL_BIT && size > 1) ||
-						(col->type == SQL_TINYINT && size > 2) ||
-						(col->type == SQL_SMALLINT && size > 4) ||
-						(col->type == SQL_INTEGER && size > 10)) {
-						warn_length(col, size);
+					warn_length(col, size);
+					break;
+#define WARN_TYPE_OR_LENGTH(n)	\
+						if (!ast_rq_is_int(type)) {  \
+							warn_type(col, type);    \
+						} else {                     \
+							warn_length(col, n);  \
+						}
+				case SQL_TINYINT:
+					if (type != RQ_UINTEGER1) {
+						WARN_TYPE_OR_LENGTH(size)
 					}
 					break;
+				case SQL_C_STINYINT:
+					if (type != RQ_INTEGER1) {
+						WARN_TYPE_OR_LENGTH(size)
+					}
+					break;
+				case SQL_C_USHORT:
+					if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 && type != RQ_UINTEGER2) {
+						WARN_TYPE_OR_LENGTH(size)
+					}
+					break;
+				case SQL_SMALLINT:
+				case SQL_C_SSHORT:
+					if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 && type != RQ_INTEGER2) {
+						WARN_TYPE_OR_LENGTH(size)
+					}
+					break;
+				case SQL_C_ULONG:
+					if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 &&
+						type != RQ_UINTEGER2 && type != RQ_INTEGER2 &&
+						type != RQ_UINTEGER3 && type != RQ_INTEGER3 &&
+						type != RQ_INTEGER4) {
+						WARN_TYPE_OR_LENGTH(size)
+					}
+					break;
+				case SQL_INTEGER:
+				case SQL_C_SLONG:
+					if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 &&
+						type != RQ_UINTEGER2 && type != RQ_INTEGER2 &&
+						type != RQ_UINTEGER3 && type != RQ_INTEGER3 &&
+						type != RQ_UINTEGER4) {
+						WARN_TYPE_OR_LENGTH(size)
+					}
+					break;
+				case SQL_C_UBIGINT:
+					if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 &&
+						type != RQ_UINTEGER2 && type != RQ_INTEGER2 &&
+						type != RQ_UINTEGER3 && type != RQ_INTEGER3 &&
+						type != RQ_UINTEGER4 && type != RQ_INTEGER4 &&
+						type != RQ_INTEGER8) {
+						WARN_TYPE_OR_LENGTH(size)
+					}
+					break;
+				case SQL_BIGINT:
+				case SQL_C_SBIGINT:
+					if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 &&
+						type != RQ_UINTEGER2 && type != RQ_INTEGER2 &&
+						type != RQ_UINTEGER3 && type != RQ_INTEGER3 &&
+						type != RQ_UINTEGER4 && type != RQ_INTEGER4 &&
+						type != RQ_UINTEGER8) {
+						WARN_TYPE_OR_LENGTH(size)
+					}
+					break;
+#undef WARN_TYPE_OR_LENGTH
 				case SQL_NUMERIC:
 				case SQL_DECIMAL:
 				case SQL_FLOAT:
 				case SQL_REAL:
 				case SQL_DOUBLE:
-					if (type != RQ_INTEGER && type != RQ_FLOAT) {
+					if (!ast_rq_is_int(type) && type != RQ_FLOAT) {
 						warn_type(col, type);
 					}
 					break;
 				default:
-					ast_log(LOG_WARNING, "Column type (%d) unrecognized for field '%s' in %s@%s\n", col->type, elm, table, database);
+					ast_log(LOG_WARNING, "Realtime table %s@%s: column type (%d) unrecognized for column '%s'\n", table, database, col->type, elm);
 				}
 				break;
 			}
 		}
 		if (!col) {
-			ast_log(LOG_WARNING, "Table %s@%s requires column '%s', but that column does not exist!\n", table, database, elm);
+			ast_log(LOG_WARNING, "Realtime table %s@%s requires column '%s', but that column does not exist!\n", table, database, elm);
 		}
 	}
 	va_end(ap);
 	AST_RWLIST_UNLOCK(&tableptr->columns);
 	return 0;
 }
+#undef warn_length
+#undef warn_type
 
 static int unload_odbc(const char *database, const char *tablename)
 {

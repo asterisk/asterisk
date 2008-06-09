@@ -12188,7 +12188,7 @@ static int load_module(void)
 	reload_firmware(0);
 	iax_provision_reload(0);
 
-	ast_realtime_require_field("iaxpeers", "name", RQ_CHAR, 10, "ipaddr", RQ_CHAR, 15, "port", RQ_INTEGER, 5, "regseconds", RQ_INTEGER, 6, NULL);
+	ast_realtime_require_field("iaxpeers", "name", RQ_CHAR, 10, "ipaddr", RQ_CHAR, 15, "port", RQ_UINTEGER2, 5, "regseconds", RQ_UINTEGER2, 6, NULL);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

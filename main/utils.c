@@ -59,6 +59,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define AST_API_MODULE
 #include "asterisk/threadstorage.h"
 
+#define AST_API_MODULE
+#include "asterisk/config.h"
+
 static char base64[64];
 static char b2a[256];
 

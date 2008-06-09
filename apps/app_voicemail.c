@@ -10089,8 +10089,8 @@ static int load_module(void)
 	ast_cli_register_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 
 	ast_install_vm_functions(has_voicemail, inboxcount, messagecount, sayname);
-	ast_realtime_require_field("voicemail", "uniqueid", RQ_INTEGER, 11, "password", RQ_CHAR, 10, NULL);
-	ast_realtime_require_field("voicemail_data", "filename", RQ_CHAR, 30, "duration", RQ_INTEGER, 5, NULL);
+	ast_realtime_require_field("voicemail", "uniqueid", RQ_UINTEGER3, 11, "password", RQ_CHAR, 10, NULL);
+	ast_realtime_require_field("voicemail_data", "filename", RQ_CHAR, 30, "duration", RQ_UINTEGER3, 5, NULL);
 
 	return res;
 }

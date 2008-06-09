@@ -430,7 +430,16 @@ static int require_curl(const char *url, const char *unused, va_list ap)
 		ast_uri_encode(elm, field, sizeof(field), EncodeSpecialChars);
 		ast_str_append(&query, 0, "%s=%s%%3A%d", field,
 			type == RQ_CHAR ? "char" :
-			type == RQ_INTEGER ? "integer" :
+			type == RQ_INTEGER1 ? "integer1" :
+			type == RQ_UINTEGER1 ? "uinteger1" :
+			type == RQ_INTEGER2 ? "integer2" :
+			type == RQ_UINTEGER2 ? "uinteger2" :
+			type == RQ_INTEGER3 ? "integer3" :
+			type == RQ_UINTEGER3 ? "uinteger3" :
+			type == RQ_INTEGER4 ? "integer4" :
+			type == RQ_UINTEGER4 ? "uinteger4" :
+			type == RQ_INTEGER8 ? "integer8" :
+			type == RQ_UINTEGER8 ? "uinteger8" :
 			type == RQ_DATE ? "date" :
 			type == RQ_DATETIME ? "datetime" :
 			type == RQ_FLOAT ? "float" :

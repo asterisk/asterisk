@@ -22863,8 +22863,8 @@ static int load_module(void)
 	ast_realtime_require_field(ast_check_realtime("sipregs") ? "sipregs" : "sippeers",
 		"name", RQ_CHAR, 10,
 		"ipaddr", RQ_CHAR, 15,
-		"port", RQ_INTEGER, 5,
-		"regseconds", RQ_INTEGER, 5,
+		"port", RQ_UINTEGER2, 5,
+		"regseconds", RQ_UINTEGER2, 5,   /* Max of 18 hours */
 		"defaultuser", RQ_CHAR, 10,
 		"fullcontact", RQ_CHAR, 20,
 		"regserver", RQ_CHAR, 20,

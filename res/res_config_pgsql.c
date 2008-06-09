@@ -943,14 +943,21 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 				} else if (strncmp(column->type, "int", 3) == 0) {
 					int typesize = atoi(column->type + 3);
 					/* Integers can hold only other integers */
-					if (type == RQ_INTEGER && ((typesize == 2 && size > 4) || (typesize == 4 && size > 10))) {
+					if ((type == RQ_INTEGER8 || type == RQ_UINTEGER8 ||
+						type == RQ_INTEGER4 || type == RQ_UINTEGER4 ||
+						type == RQ_INTEGER3 || type == RQ_UINTEGER3 ||
+						type == RQ_UINTEGER2) && typesize == 2) {
 						ast_log(LOG_WARNING, "Column '%s' may not be large enough for the required data length: %d\n", column->name, size);
 						res = -1;
-					} else if (type != RQ_INTEGER) {
-						ast_log(LOG_WARNING, "Column '%s' is of the incorrect type: (need %s(%d) but saw %s)\n", column->name, type == RQ_CHAR ? "char" : "something else ", size, column->type);
+					} else if ((type == RQ_INTEGER8 || type == RQ_UINTEGER8 ||
+						type == RQ_UINTEGER4) && typesize == 4) {
+						ast_log(LOG_WARNING, "Column '%s' may not be large enough for the required data length: %d\n", column->name, size);
+						res = -1;
+					} else if (type == RQ_CHAR || type == RQ_DATETIME || type == RQ_FLOAT || type == RQ_DATE) {
+						ast_log(LOG_WARNING, "Column '%s' is of the incorrect type: (need %s(%d) but saw %s)\n", column->name, type == RQ_CHAR ? "char" : type == RQ_DATETIME ? "datetime" : type == RQ_DATE ? "date" : type == RQ_FLOAT ? "float" : "a rather stiff drink ", size, column->type);
 						res = -1;
 					}
-				} else if (strncmp(column->type, "float", 5) == 0 && type != RQ_INTEGER && type != RQ_FLOAT) {
+				} else if (strncmp(column->type, "float", 5) == 0 && !ast_rq_is_int(type) && type != RQ_FLOAT) {
 					ast_log(LOG_WARNING, "Column %s cannot be a %s\n", column->name, column->type);
 					res = -1;
 				} else { /* There are other types that no module implements yet */
@@ -965,25 +972,32 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 			if (requirements == RQ_WARN) {
 				ast_log(LOG_WARNING, "Table %s requires a column '%s' of size '%d', but no such column exists.\n", tablename, elm, size);
 			} else {
-				struct ast_str *sql = ast_str_create(100), *fieldtype = ast_str_create(16);
+				struct ast_str *sql = ast_str_create(100);
+				char fieldtype[15];
 				PGresult *res;
 
 				if (requirements == RQ_CREATECHAR || type == RQ_CHAR) {
-					ast_str_set(&fieldtype, 0, "CHAR(%d)", size);
-				} else if (type == RQ_INTEGER) {
-					ast_str_set(&fieldtype, 0, "INT%d", size < 5 ? 2 : (size < 11 ? 4 : 8));
+					snprintf(fieldtype, sizeof(fieldtype), "CHAR(%d)", size);
+				} else if (type == RQ_INTEGER1 || type == RQ_UINTEGER1 || type == RQ_INTEGER2) {
+					snprintf(fieldtype, sizeof(fieldtype), "INT2");
+				} else if (type == RQ_UINTEGER2 || type == RQ_INTEGER3 || type == RQ_UINTEGER3 || type == RQ_INTEGER4) {
+					snprintf(fieldtype, sizeof(fieldtype), "INT4");
+				} else if (type == RQ_UINTEGER4 || type == RQ_INTEGER8) {
+					snprintf(fieldtype, sizeof(fieldtype), "INT8");
+				} else if (type == RQ_UINTEGER8) {
+					/* No such type on PostgreSQL */
+					snprintf(fieldtype, sizeof(fieldtype), "CHAR(20)");
 				} else if (type == RQ_FLOAT) {
-					ast_str_set(&fieldtype, 0, "FLOAT8");
+					snprintf(fieldtype, sizeof(fieldtype), "FLOAT8");
 				} else if (type == RQ_DATE) {
-					ast_str_set(&fieldtype, 0, "DATE");
+					snprintf(fieldtype, sizeof(fieldtype), "DATE");
 				} else if (type == RQ_DATETIME) {
-					ast_str_set(&fieldtype, 0, "TIMESTAMP");
+					snprintf(fieldtype, sizeof(fieldtype), "TIMESTAMP");
 				} else {
 					ast_free(sql);
-					ast_free(fieldtype);
 					continue;
 				}
-				ast_str_set(&sql, 0, "ALTER TABLE %s ADD COLUMN %s %s", tablename, elm, fieldtype->str);
+				ast_str_set(&sql, 0, "ALTER TABLE %s ADD COLUMN %s %s", tablename, elm, fieldtype);
 				ast_debug(1, "About to lock pgsql_lock (running alter on table '%s' to add column '%s')\n", tablename, elm);
 
 				ast_mutex_lock(&pgsql_lock);
@@ -991,7 +1005,6 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 					ast_mutex_unlock(&pgsql_lock);
 					ast_log(LOG_ERROR, "Unable to add column: %s\n", sql->str);
 					ast_free(sql);
-					ast_free(fieldtype);
 					continue;
 				}
 
@@ -1005,7 +1018,6 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 				ast_mutex_unlock(&pgsql_lock);
 
 				ast_free(sql);
-				ast_free(fieldtype);
 			}
 		}
 	}

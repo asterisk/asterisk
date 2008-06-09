@@ -1743,7 +1743,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	if (rt_log_members) {
 		/* Update table */
 		snprintf(members, sizeof(members), "%d", conf->users);
-		ast_realtime_require_field("meetme", "confno", RQ_INTEGER, strlen(conf->confno), "members", RQ_INTEGER, strlen(members), NULL);
+		ast_realtime_require_field("meetme",
+			"confno", strlen(conf->confno) > 7 ? RQ_UINTEGER4 : strlen(conf->confno) > 4 ? RQ_UINTEGER3 : RQ_UINTEGER2, strlen(conf->confno),
+			"members", RQ_UINTEGER1, strlen(members),
+			NULL);
 		ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
 	}
 	setusercount = 1;
@@ -2683,7 +2686,10 @@ bailoutandtrynormal:
 			if (rt_log_members) {
 				/* Update table */
 				snprintf(members, sizeof(members), "%d", conf->users);
-				ast_realtime_require_field("meetme", "confno", RQ_INTEGER, strlen(conf->confno), "members", RQ_INTEGER, strlen(members), NULL);
+				ast_realtime_require_field("meetme",
+					"confno", strlen(conf->confno) > 7 ? RQ_UINTEGER4 : strlen(conf->confno) > 4 ? RQ_UINTEGER3 : RQ_UINTEGER2, strlen(conf->confno),
+					"members", RQ_UINTEGER1, strlen(members),
+					NULL);
 				ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
 			}
 			if (confflags & CONFFLAG_MARKEDUSER) 
@@ -5710,7 +5716,7 @@ static int load_module(void)
 	res |= ast_devstate_prov_add("SLA", sla_state);
 
 	res |= ast_custom_function_register(&meetme_info_acf);
-	ast_realtime_require_field("meetme", "confno", RQ_INTEGER, 3, "members", RQ_INTEGER, 3, NULL);
+	ast_realtime_require_field("meetme", "confno", RQ_UINTEGER2, 3, "members", RQ_UINTEGER1, 3, NULL);
 
 	return res;
 }
