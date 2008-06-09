@@ -1035,6 +1035,7 @@ int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 
 		ast_channel_unlock(chan);
 	}
+
 	return ast_queue_frame(chan, &f);
 }
 
