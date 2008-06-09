@@ -556,7 +556,6 @@ static int tone_detect(struct ast_dsp *dsp, tone_detect_state_t *s, int16_t *amp
 		ast_debug(10, "tone %d, Ew=%.2E, Et=%.2E, s/n=%10.2f\n", s->freq, tone_energy, s->energy, tone_energy / (s->energy - tone_energy));
 		hit = 0;
 		if (tone_energy > s->energy * s->threshold) {
-
 			ast_debug(10, "Hit! count=%d\n", s->hit_count);
 			hit = 1;
 		}
