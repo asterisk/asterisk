@@ -354,6 +354,8 @@ static void tps_taskprocessor_destroy(void *tps)
 	ast_mutex_unlock(&t->taskprocessor_lock);
 	pthread_join(t->poll_thread, NULL);
 	t->poll_thread = AST_PTHREADT_NULL;
+	ast_mutex_destroy(&t->taskprocessor_lock);
+	ast_cond_destroy(&t->poll_cond);
 	/* free it */
 	if (t->stats) {
 		ast_free(t->stats);
@@ -424,6 +426,10 @@ struct ast_taskprocessor *ast_taskprocessor_get(char *name, enum ast_tps_options
 		ast_log(LOG_WARNING, "failed to create taskprocessor '%s'\n", name);
 		return NULL;
 	}
+
+	ast_cond_init(&p->poll_cond, NULL);
+	ast_mutex_init(&p->taskprocessor_lock);
+
 	if (!(p->stats = ast_calloc(1, sizeof(*p->stats)))) {
 		ao2_unlock(tps_singletons);
 		ast_log(LOG_WARNING, "failed to create taskprocessor stats for '%s'\n", name);
@@ -436,7 +442,6 @@ struct ast_taskprocessor *ast_taskprocessor_get(char *name, enum ast_tps_options
 		return NULL;
 	}
 	p->poll_thread_run = 1;
-	ast_cond_init(&p->poll_cond, NULL);
 	p->poll_thread = AST_PTHREADT_NULL;
 	if (ast_pthread_create(&p->poll_thread, NULL, tps_processing_function, p) < 0) {
 		ao2_unlock(tps_singletons);
