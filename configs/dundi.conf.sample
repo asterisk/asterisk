@@ -33,7 +33,8 @@
 ; Our entity identifier (Should generally be the MAC address of the
 ; machine it's running on.  Defaults to the first eth address, but you
 ; can override it here, as long as you set it to the MAC of *something*
-; you own!)
+; you own!)  The EID can be overridden by a setting in asterisk.conf,
+; or by setting this option.
 ;
 ;entityid=00:07:E9:3B:76:60
 ;
