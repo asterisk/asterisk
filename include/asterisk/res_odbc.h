@@ -142,4 +142,35 @@ SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struc
  */
 SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data);
 
+/*!
+ * \brief Find or create an entry describing the table specified.
+ * \param database Name of an ODBC class on which to query the table
+ * \param table Tablename to describe
+ * \retval A structure describing the table layout, or NULL, if the table is not found or another error occurs.
+ * When a structure is returned, the contained columns list will be
+ * rdlock'ed, to ensure that it will be retained in memory.
+ */
+struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *tablename);
+
+/*!
+ * \brief Find a column entry within a cached table structure
+ * \param table Cached table structure, as returned from ast_odbc_find_table()
+ * \param colname The column name requested
+ * \retval A structure describing the column type, or NULL, if the column is not found.
+ */
+struct odbc_cache_columns *ast_odbc_find_column(struct odbc_cache_tables *table, const char *colname);
+
+/*!
+ * \brief Remove a cache entry from memory
+ * \param database Name of an ODBC class (used to ensure like-named tables in different databases are not confused)
+ * \param table Tablename for which a cached record should be removed
+ * \retval 0 if the cache entry was removed, or -1 if no matching entry was found.
+ */
+int ast_odbc_clear_cache(const char *database, const char *tablename);
+
+/*!
+ * \brief Release a table returned from ast_odbc_find_table
+ */
+#define ast_odbc_release_table(ptr) if (ptr) { AST_RWLIST_UNLOCK(&(ptr)->columns); }
+
 #endif /* _ASTERISK_RES_ODBC_H */
