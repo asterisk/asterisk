@@ -186,6 +186,11 @@ const char *ast_event_get_ie_type_name(enum ast_event_ie_type ie_type)
 		return "";
 	}
 
+	if (ie_maps[ie_type].ie_type != ie_type) {
+		ast_log(LOG_ERROR, "The ie type passed in does not match the ie type defined in the ie table.\n");
+		return "";
+	}
+
 	return ie_maps[ie_type].name;
 }
 
@@ -193,6 +198,11 @@ enum ast_event_ie_pltype ast_event_get_ie_pltype(enum ast_event_ie_type ie_type)
 {
 	if (ie_type <= 0 || ie_type > AST_EVENT_IE_MAX) {
 		ast_log(LOG_ERROR, "Invalid IE type - '%d'\n", ie_type);
+		return AST_EVENT_IE_PLTYPE_UNKNOWN;
+	}
+
+	if (ie_maps[ie_type].ie_type != ie_type) {
+		ast_log(LOG_ERROR, "The ie type passed in does not match the ie type defined in the ie table.\n");
 		return AST_EVENT_IE_PLTYPE_UNKNOWN;
 	}
 
