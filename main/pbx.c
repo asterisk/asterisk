@@ -2798,7 +2798,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 					} else
 						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
 				}
-				ast_debug(1, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
+				ast_debug(2, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
 			} else {
 				/* Retrieve variable value */
 				pbx_retrieve_variable(c, vars, &cp4, workspace, VAR_BUF_SIZE, headp);
@@ -3041,82 +3041,41 @@ static int ast_extension_state2(struct ast_exten *e)
 {
 	char hint[AST_MAX_EXTENSION] = "";
 	char *cur, *rest;
-	int allunavailable = 1, allbusy = 1, allfree = 1, allonhold = 1;
-	int busy = 0, inuse = 0, ring = 0;
+	struct ast_devstate_aggregate agg;
+	enum ast_device_state state;
 
 	if (!e)
 		return -1;
 
+	ast_devstate_aggregate_init(&agg);
+
 	ast_copy_string(hint, ast_get_extension_app(e), sizeof(hint));
 
 	rest = hint;	/* One or more devices separated with a & character */
-	while ( (cur = strsep(&rest, "&")) ) {
-		int res = ast_device_state(cur);
-		switch (res) {
-		case AST_DEVICE_NOT_INUSE:
-			allunavailable = 0;
-			allbusy = 0;
-			allonhold = 0;
-			break;
-		case AST_DEVICE_INUSE:
-			inuse = 1;
-			allunavailable = 0;
-			allfree = 0;
-			allonhold = 0;
-			break;
-		case AST_DEVICE_RINGING:
-			ring = 1;
-			allunavailable = 0;
-			allfree = 0;
-			allonhold = 0;
-			break;
-		case AST_DEVICE_RINGINUSE:
-			inuse = 1;
-			ring = 1;
-			allunavailable = 0;
-			allfree = 0;
-			allonhold = 0;
-			break;
-		case AST_DEVICE_ONHOLD:
-			allunavailable = 0;
-			allfree = 0;
-			break;
-		case AST_DEVICE_BUSY:
-			allunavailable = 0;
-			allfree = 0;
-			allonhold = 0;
-			busy = 1;
-			break;
-		case AST_DEVICE_UNAVAILABLE:
-		case AST_DEVICE_INVALID:
-			allbusy = 0;
-			allfree = 0;
-			allonhold = 0;
-			break;
-		default:
-			allunavailable = 0;
-			allbusy = 0;
-			allfree = 0;
-			allonhold = 0;
-		}
-	}
 
-	if (!inuse && ring)
-		return AST_EXTENSION_RINGING;
-	if (inuse && ring)
-		return (AST_EXTENSION_INUSE | AST_EXTENSION_RINGING);
-	if (inuse)
-		return AST_EXTENSION_INUSE;
-	if (allfree)
-		return AST_EXTENSION_NOT_INUSE;
-	if (allonhold)
+	while ( (cur = strsep(&rest, "&")) )
+		ast_devstate_aggregate_add(&agg, ast_device_state(cur));
+
+	state = ast_devstate_aggregate_result(&agg);
+
+	switch (state) {
+	case AST_DEVICE_ONHOLD:
 		return AST_EXTENSION_ONHOLD;
-	if (allbusy)
+	case AST_DEVICE_BUSY:
 		return AST_EXTENSION_BUSY;
-	if (allunavailable)
+	case AST_DEVICE_UNAVAILABLE:
 		return AST_EXTENSION_UNAVAILABLE;
-	if (busy)
+	case AST_DEVICE_RINGINUSE:
+		return (AST_EXTENSION_INUSE | AST_EXTENSION_RINGING);
+	case AST_DEVICE_RINGING:
+		return AST_EXTENSION_RINGING;
+	case AST_DEVICE_INUSE:
 		return AST_EXTENSION_INUSE;
+	case AST_DEVICE_UNKNOWN:
+	case AST_DEVICE_INVALID:
+	case AST_DEVICE_NOT_INUSE:
+		return AST_EXTENSION_NOT_INUSE;
+	}
 
 	return AST_EXTENSION_NOT_INUSE;
 }
