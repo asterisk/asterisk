@@ -9549,13 +9549,13 @@ static int iax2_do_register(struct iax2_registry *reg)
 	}
 
 	if (!reg->callno) {
-		ast_debug(1, "Allocate call number\n");
+		ast_debug(3, "Allocate call number\n");
 		reg->callno = find_callno_locked(0, 0, &reg->addr, NEW_FORCE, defaultsockfd, 0);
 		if (reg->callno < 1) {
 			ast_log(LOG_WARNING, "Unable to create call for registration\n");
 			return -1;
 		} else
-			ast_debug(1, "Registration created on call %d\n", reg->callno);
+			ast_debug(3, "Registration created on call %d\n", reg->callno);
 		iaxs[reg->callno]->reg = reg;
 		ast_mutex_unlock(&iaxsl[reg->callno]);
 	}
