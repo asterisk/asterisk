@@ -4514,6 +4514,12 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			o0nativeformats = c0->nativeformats;
 			o1nativeformats = c1->nativeformats;
 		}
+
+		if (!ast_strlen_zero(pbx_builtin_getvar_helper(c0, "BRIDGEPEER")))
+			pbx_builtin_setvar_helper(c0, "BRIDGEPEER", c1->name);
+		if (!ast_strlen_zero(pbx_builtin_getvar_helper(c1, "BRIDGEPEER")))
+			pbx_builtin_setvar_helper(c1, "BRIDGEPEER", c0->name);
+
 		res = ast_generic_bridge(c0, c1, config, fo, rc, nexteventts);
 		if (res != AST_BRIDGE_RETRY)
 			break;
