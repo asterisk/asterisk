@@ -134,7 +134,7 @@ after OpenAIS gets installed.  That way, it will find the AIS header files and
 will let you build the res_ais module.  Check menuselect to make sure that
 res_ais is going to get compiled and installed.
 
-$ cd asterisk-events
+$ cd asterisk-source
 $ ./configure
 
 $ make menuselect
@@ -182,7 +182,7 @@ subscribe_event=device_state
 For more information on the contents and available options in this configuration
 file, please see the sample configuration file:
 
-$ cd asterisk-events
+$ cd asterisk-source
 $ less configs/ais.conf.sample
 
 -------------------------------------------------------------------------------
