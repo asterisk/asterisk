@@ -4281,7 +4281,7 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	}
 
 	/* Remove link from peer to subscription of MWI */
-	if (p->relatedpeer && p->relatedpeer->mwipvt) 
+	if (p->relatedpeer && p->relatedpeer->mwipvt == p) 
 		p->relatedpeer->mwipvt = dialog_unref(p->relatedpeer->mwipvt);
 
 	if (dumphistory)
