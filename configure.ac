@@ -240,6 +240,8 @@ AST_EXT_LIB_SETUP([OPENH323], [OpenH323], [h323])
 AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
 AST_EXT_LIB_SETUP([SDL], [Sdl], [sdl])
 AST_EXT_LIB_SETUP([SDL_IMAGE], [Sdl Image library], [SDL_image])
+AST_EXT_LIB_SETUP([SACLM], [SAForum AIS CLM], [SaClm])
+AST_EXT_LIB_SETUP([SAEVT], [SAForum AIS EVT], [SaEvt])
 AST_EXT_LIB_SETUP([SPEEX], [Speex], [speex])
 AST_EXT_LIB_SETUP([SPEEXDSP], [Speexdsp], [speexdsp])
 AST_EXT_LIB_SETUP([SQLITE], [SQLite], [sqlite])
@@ -1347,6 +1349,9 @@ LUA_LIB="-llua5.1"
 AST_EXT_LIB_CHECK([LUA], [lua5.1], [luaL_newstate], [lua5.1/lua.h]) 
 
 AST_EXT_LIB_CHECK([RADIUS], [radiusclient-ng], [rc_read_config], [radiusclient-ng.h])
+
+AST_EXT_LIB_CHECK([SACLM], [SaClm], [saClmInitialize], [openais/saClm.h])
+AST_EXT_LIB_CHECK([SAEVT], [SaEvt], [saEvtInitialize], [openais/saEvt.h])
 
 AST_EXT_LIB_CHECK([SPEEX], [speex], [speex_encode], [speex/speex.h], [-lm])
 
