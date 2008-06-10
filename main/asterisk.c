@@ -169,6 +169,8 @@ long option_minmemfree;				/*!< Minimum amount of free system memory - stop acce
 
 /*! @} */
 
+struct ast_eid g_eid;
+
 /* XXX tmpdir is a subdir of the spool directory, and no way to remap it */
 char record_cache_dir[AST_CACHE_DIR_LEN] = DEFAULT_TMP_DIR;
 
@@ -386,6 +388,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 {
 	char buf[BUFSIZ];
 	struct ast_tm tm;
+	char eid_str[128];
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -396,6 +399,8 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	case CLI_GENERATE:
 		return NULL;
 	}
+
+	ast_eid_to_str(eid_str, sizeof(eid_str), &g_eid);
 
 	ast_cli(a->fd, "\nPBX Core settings\n");
 	ast_cli(a->fd, "-----------------\n");
@@ -425,6 +430,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	}
 	ast_cli(a->fd, "  System:                      %s/%s built by %s on %s %s\n", ast_build_os, ast_build_kernel, ast_build_user, ast_build_machine, ast_build_date);
 	ast_cli(a->fd, "  System name:                 %s\n", ast_config_AST_SYSTEM_NAME);
+	ast_cli(a->fd, "  Entity ID:                   %s\n", eid_str);
 	ast_cli(a->fd, "  Default language:            %s\n", defaultlanguage);
 	ast_cli(a->fd, "  Language prefix:             %s\n", ast_language_is_prefix ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  User name and group:         %s/%s\n", ast_config_AST_RUN_USER, ast_config_AST_RUN_GROUP);
@@ -2608,6 +2614,8 @@ static void ast_readconfig(void)
 	ast_copy_string(cfg_paths.socket_path, DEFAULT_SOCKET, sizeof(cfg_paths.socket_path));
 	ast_copy_string(cfg_paths.run_dir, DEFAULT_RUN_DIR, sizeof(cfg_paths.run_dir));
 
+	ast_set_default_eid(&g_eid);
+
 	/* no asterisk.conf? no problem, use buildtime config! */
 	if (!cfg) {
 		return;
@@ -2773,6 +2781,13 @@ static void ast_readconfig(void)
 				option_minmemfree = 0;
 			}
 #endif
+		} else if (!strcasecmp(v->name, "entityid")) {
+			struct ast_eid tmp_eid;
+			if (!ast_str_to_eid(&tmp_eid, v->value)) {
+				ast_verbose("Successfully set global EID to '%s'\n", v->value);
+				g_eid = tmp_eid;
+			} else
+				ast_verbose("Invalid Entity ID '%s' provided\n", v->value);
 		}
 	}
 	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {

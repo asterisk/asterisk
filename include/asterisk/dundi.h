@@ -25,15 +25,11 @@
 #define _ASTERISK_DUNDI_H
 
 #include "asterisk/channel.h"
+#include "asterisk/utils.h"
 
 #define DUNDI_PORT 4520
 
-/*!\brief A DUNDi Entity ID is essentially a MAC address, brief and unique */
-struct _dundi_eid {
-	unsigned char eid[6];
-} __attribute__ ((__packed__));
-
-typedef struct _dundi_eid dundi_eid;
+typedef struct ast_eid dundi_eid;
 
 struct dundi_hdr {
 	unsigned short strans;			/*!< Source transaction */
@@ -54,26 +50,49 @@ struct dundi_ie_hdr {
 #define DUNDI_FLAG_RETRANS		(1 << 16)	/*!< Applies to dtrans */
 #define DUNDI_FLAG_RESERVED		(1 << 16)	/*!< Applies to strans */
 
-#define DUNDI_PROTO_NONE		0		/*!< No answer yet */
-#define DUNDI_PROTO_IAX			1		/*!< IAX version 2 */
-#define DUNDI_PROTO_SIP			2		/*!< Session Initiation Protocol */
-#define DUNDI_PROTO_H323		3		/*!< ITU H.323 */
+enum {
+	/*! No answer yet */
+	DUNDI_PROTO_NONE = 0,
+	/*! IAX, version 2 */
+	DUNDI_PROTO_IAX  = 1,
+	/*! SIP - Session Initiation Protocol, RFC 3261 */
+	DUNDI_PROTO_SIP  = 2,
+	/*! ITU H.323 */
+	DUNDI_PROTO_H323 = 3,
+};
 
-#define DUNDI_FLAG_NONEXISTENT		(0)		/*!< Isn't and can't be a valid number */
-#define DUNDI_FLAG_EXISTS		(1 << 0)	/*!< Is a valid number */
-#define DUNDI_FLAG_MATCHMORE		(1 << 1)	/*!< Might be valid if you add more digits */
-#define DUNDI_FLAG_CANMATCH		(1 << 2)	/*!< Might be a match */
-#define DUNDI_FLAG_IGNOREPAT		(1 << 3)	/*!< Keep dialtone */
-#define DUNDI_FLAG_RESIDENTIAL		(1 << 4)	/*!< Destination known to be residential */
-#define DUNDI_FLAG_COMMERCIAL		(1 << 5)	/*!< Destination known to be commercial */
-#define DUNDI_FLAG_MOBILE		(1 << 6)	/*!< Destination known to be cellular/mobile */
-#define DUNDI_FLAG_NOUNSOLICITED	(1 << 7)	/*!< No unsolicited calls of any kind through this route */
-#define DUNDI_FLAG_NOCOMUNSOLICIT	(1 << 8)	/*!< No commercial unsolicited calls through this route */
+enum {
+	/*! Isn't and can't be a valid number */
+	DUNDI_FLAG_NONEXISTENT =    (0),
+	/*! Is a valid number */
+	DUNDI_FLAG_EXISTS =         (1 << 0),
+	/*! Might be valid if you add more digits */
+	DUNDI_FLAG_MATCHMORE =      (1 << 1),
+	/*! Might be a match */
+	DUNDI_FLAG_CANMATCH =       (1 << 2),
+	/*! Keep dialtone */
+	DUNDI_FLAG_IGNOREPAT =      (1 << 3),
+	/*! Destination known to be residential */
+	DUNDI_FLAG_RESIDENTIAL =    (1 << 4),
+	/*! Destination known to be commercial */
+	DUNDI_FLAG_COMMERCIAL =     (1 << 5),
+	/*! Destination known to be cellular/mobile */
+	DUNDI_FLAG_MOBILE =         (1 << 6),
+	/*! No unsolicited calls of any kind through this route */
+	DUNDI_FLAG_NOUNSOLICITED =  (1 << 7),
+	/*! No commercial unsolicited calls through this route */
+	DUNDI_FLAG_NOCOMUNSOLICIT = (1 << 8),
+};
 
-#define DUNDI_HINT_NONE			(0)
-#define DUNDI_HINT_TTL_EXPIRED		(1 << 0)	/*!< TTL Expired */
-#define DUNDI_HINT_DONT_ASK		(1 << 1)	/*!< Don't ask for anything beginning with data */
-#define DUNDI_HINT_UNAFFECTED		(1 << 2)	/*!< Answer not affected by entity list */
+enum {
+	DUNDI_HINT_NONE =        (0),
+	/*! TTL Expired */
+	DUNDI_HINT_TTL_EXPIRED = (1 << 0),
+	/*! Don't ask for anything beginning with data */
+	DUNDI_HINT_DONT_ASK =    (1 << 1),
+	/*! Answer not affected by entity list */
+	DUNDI_HINT_UNAFFECTED =  (1 << 2),
+};
 
 struct dundi_encblock {				/*!< AES-128 encrypted block */
 	unsigned char iv[16];			/*!< Initialization vector of random data */
@@ -93,14 +112,24 @@ struct dundi_hint {
 	unsigned char data[0];			/*!< For data for hint */
 } __attribute__ ((__packed__));
 
-#define DUNDI_CAUSE_SUCCESS		0	/*!< Success */
-#define DUNDI_CAUSE_GENERAL		1	/*!< General unspecified failure */
-#define DUNDI_CAUSE_DYNAMIC		2	/*!< Requested entity is dynamic */
-#define DUNDI_CAUSE_NOAUTH		3	/*!< No or improper authorization */
-#define DUNDI_CAUSE_DUPLICATE		4	/*!< Duplicate request */
-#define DUNDI_CAUSE_TTL_EXPIRED		5	/*!< Expired TTL */
-#define DUNDI_CAUSE_NEEDKEY		6	/*!< Need new session key to decode */
-#define DUNDI_CAUSE_BADENCRYPT		7	/*!< Badly encrypted data */
+enum {
+	/*! Success */
+	DUNDI_CAUSE_SUCCESS =     0,
+	/*! General unspecified failure */
+	DUNDI_CAUSE_GENERAL =     1,
+	/*! Requested entity is dynamic */
+	DUNDI_CAUSE_DYNAMIC =     2,
+	/*! No or improper authorization */
+	DUNDI_CAUSE_NOAUTH =      3,
+	/*! Duplicate request */
+	DUNDI_CAUSE_DUPLICATE =   4,
+	/*! Expired TTL */
+	DUNDI_CAUSE_TTL_EXPIRED = 5,
+	/*! Need new session key to decode */
+	DUNDI_CAUSE_NEEDKEY =     6,
+	/*! Badly encrypted data */
+	DUNDI_CAUSE_BADENCRYPT =  7,
+};
 
 struct dundi_cause {			
 	unsigned char causecode;		/*!< Numerical cause (DUNDI_CAUSE_*) */
@@ -114,14 +143,16 @@ struct dundi_peer_status {
 	dundi_eid peereid;
 } __attribute__ ((__packed__));
 
-#define DUNDI_PEER_PRIMARY		(1 << 0)
-#define DUNDI_PEER_SECONDARY		(1 << 1)
-#define DUNDI_PEER_UNAVAILABLE		(1 << 2)
-#define DUNDI_PEER_REGISTERED		(1 << 3)
-#define DUNDI_PEER_MOD_OUTBOUND		(1 << 4)
-#define DUNDI_PEER_MOD_INBOUND		(1 << 5)
-#define DUNDI_PEER_PCMOD_OUTBOUND	(1 << 6)
-#define DUNDI_PEER_PCMOD_INBOUND	(1 << 7)
+enum {
+	DUNDI_PEER_PRIMARY =        (1 << 0),
+	DUNDI_PEER_SECONDARY =      (1 << 1),
+	DUNDI_PEER_UNAVAILABLE =    (1 << 2),
+	DUNDI_PEER_REGISTERED =     (1 << 3),
+	DUNDI_PEER_MOD_OUTBOUND =   (1 << 4),
+	DUNDI_PEER_MOD_INBOUND =    (1 << 5),
+	DUNDI_PEER_PCMOD_OUTBOUND = (1 << 6),
+	DUNDI_PEER_PCMOD_INBOUND =  (1 << 7),
+};
 
 #define DUNDI_COMMAND_FINAL		(0x80)		/*!< Or'd with other flags */
 
@@ -163,7 +194,7 @@ struct dundi_peer_status {
 #define DUNDI_IE_SHAREDKEY		17	/*!< RSA encrypted AES-128 key */
 #define DUNDI_IE_SIGNATURE		18	/*!< RSA Signature of encrypted shared key */
 #define DUNDI_IE_KEYCRC32		19	/*!< CRC32 of encrypted key (int) */
-#define DUNDI_IE_HINT			20	/*!< Answer hints (struct ast_hint) */
+#define DUNDI_IE_HINT			20	/*!< Answer hints */
 
 #define DUNDI_IE_DEPARTMENT		21	/*!< Department, for EIDQUERY (string) */
 #define DUNDI_IE_ORGANIZATION		22	/*!< Organization, for EIDQUERY (string) */

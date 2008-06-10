@@ -671,4 +671,46 @@ static void force_inline _ast_assert(int condition, const char *condition_str,
 
 #include "asterisk/strings.h"
 
+/*!
+ * \brief An Entity ID is essentially a MAC address, brief and unique 
+ */
+struct ast_eid {
+	unsigned char eid[6];
+} __attribute__ ((__packed__));
+
+/*!
+ * \brief Global EID
+ *
+ * This is set in asterisk.conf, or determined automatically by taking the mac
+ * address of an Ethernet interface on the system.
+ */
+extern struct ast_eid g_eid;
+
+/*!
+ * \brief Fill in an ast_eid with the default eid of this machine
+ */
+void ast_set_default_eid(struct ast_eid *eid);
+
+/*!
+ * /brief Convert an EID to a string
+ */
+char *ast_eid_to_str(char *s, int maxlen, struct ast_eid *eid);
+
+/*!
+ * \brief Convert a string into an EID
+ *
+ * This function expects an EID in the format:
+ *    00:11:22:33:44:55
+ *
+ * \return 0 success, non-zero failure
+ */
+int ast_str_to_eid(struct ast_eid *eid, const char *s);
+
+/*!
+ * \brief Compare two EIDs
+ *
+ * \return 0 if the two are the same, non-zero otherwise
+ */
+int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2);
+
 #endif /* _ASTERISK_UTILS_H */

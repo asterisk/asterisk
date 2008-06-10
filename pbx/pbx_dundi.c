@@ -388,50 +388,6 @@ static void dundi_reject(struct dundi_hdr *h, struct sockaddr_in *sin)
 	dundi_xmit(&tmp.pack);
 }
 
-static void reset_global_eid(void)
-{
-#if defined(SIOCGIFHWADDR)
-	int s, x = 0;
-	char eid_str[20];
-	struct ifreq ifr;
-
-	s = socket(AF_INET, SOCK_STREAM, 0);
-	if (s < 0)
-		return;
-	for (x = 0; x < 10; x++) {
-		memset(&ifr, 0, sizeof(ifr));
-		snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth%d", x);
-		if (ioctl(s, SIOCGIFHWADDR, &ifr))
-			continue;
-		memcpy(&global_eid, ((unsigned char *)&ifr.ifr_hwaddr) + 2, sizeof(global_eid));
-		ast_debug(1, "Seeding global EID '%s' from '%s' using 'siocgifhwaddr'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifr.ifr_name);
-		close(s);
-		return;
-	}
-	close(s);
-#else
-#if defined(ifa_broadaddr) && !defined(SOLARIS)
-	char eid_str[20];
-	struct ifaddrs *ifap;
-	
-	if (getifaddrs(&ifap) == 0) {
-		struct ifaddrs *p;
-		for (p = ifap; p; p = p->ifa_next) {
-			if ((p->ifa_addr->sa_family == AF_LINK) && !(p->ifa_flags & IFF_LOOPBACK) && (p->ifa_flags & IFF_RUNNING)) {
-				struct sockaddr_dl* sdp = (struct sockaddr_dl*) p->ifa_addr;
-				memcpy(&(global_eid.eid), sdp->sdl_data + sdp->sdl_nlen, 6);
-				ast_debug(1, "Seeding global EID '%s' from '%s' using 'getifaddrs'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), p->ifa_name);
-				freeifaddrs(ifap);
-				return;
-			}
-		}
-		freeifaddrs(ifap);
-	}
-#endif
-#endif
-	ast_log(LOG_NOTICE, "No ethernet interface found for seeding global EID. You will have to set it manually.\n");
-}
-
 static int get_trans_id(void)
 {
 	struct dundi_transaction *t;
@@ -475,7 +431,7 @@ static struct dundi_peer *find_peer(dundi_eid *eid)
 		eid = &empty_eid;
 	
 	AST_LIST_TRAVERSE(&peers, cur, list) {
-		if (!dundi_eid_cmp(&cur->eid,eid))
+		if (!ast_eid_cmp(&cur->eid,eid))
 			break;
 	}
 
@@ -557,7 +513,7 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			dr[anscnt].expiration = dundi_cache_time;
 			ast_copy_string(dr[anscnt].tech, tech2str(map->tech), sizeof(dr[anscnt].tech));
 			dr[anscnt].eid = *us_eid;
-			dundi_eid_to_str(dr[anscnt].eid_str, sizeof(dr[anscnt].eid_str), &dr[anscnt].eid);
+			ast_eid_to_str(dr[anscnt].eid_str, sizeof(dr[anscnt].eid_str), &dr[anscnt].eid);
 			if (ast_test_flag(&flags, DUNDI_FLAG_EXISTS)) {
 				AST_LIST_HEAD_INIT_NOLOCK(&headp);
 				newvariable = ast_var_assign("NUMBER", called_number);
@@ -611,7 +567,7 @@ static void *dundi_lookup_thread(void *data)
 	int expiration = dundi_cache_time;
 
 	ast_debug(1, "Whee, looking up '%s@%s' for '%s'\n", st->called_number, st->called_context, 
-			st->eids[0] ? dundi_eid_to_str(eid_str, sizeof(eid_str), st->eids[0]) :  "ourselves");
+			st->eids[0] ? ast_eid_to_str(eid_str, sizeof(eid_str), st->eids[0]) :  "ourselves");
 	memset(&ied, 0, sizeof(ied));
 	memset(&dr, 0, sizeof(dr));
 	memset(&hmd, 0, sizeof(hmd));
@@ -670,7 +626,7 @@ static void *dundi_precache_thread(void *data)
 	char eid_str[20];
 
 	ast_debug(1, "Whee, precaching '%s@%s' for '%s'\n", st->called_number, st->called_context, 
-		st->eids[0] ? dundi_eid_to_str(eid_str, sizeof(eid_str), st->eids[0]) :  "ourselves");
+		st->eids[0] ? ast_eid_to_str(eid_str, sizeof(eid_str), st->eids[0]) :  "ourselves");
 	memset(&ied, 0, sizeof(ied));
 
 	/* Now produce precache */
@@ -705,11 +661,11 @@ static void *dundi_query_thread(void *data)
 	int res;
 
 	ast_debug(1, "Whee, looking up '%s@%s' for '%s'\n", st->called_number, st->called_context, 
-		st->eids[0] ? dundi_eid_to_str(eid_str, sizeof(eid_str), st->eids[0]) :  "ourselves");
+		st->eids[0] ? ast_eid_to_str(eid_str, sizeof(eid_str), st->eids[0]) :  "ourselves");
 	memset(&ied, 0, sizeof(ied));
 	memset(&dei, 0, sizeof(dei));
 	memset(&hmd, 0, sizeof(hmd));
-	if (!dundi_eid_cmp(&st->trans->us_eid, &st->reqeid)) {
+	if (!ast_eid_cmp(&st->trans->us_eid, &st->reqeid)) {
 		/* Ooh, it's us! */
 		ast_debug(1, "Neat, someone look for us!\n");
 		ast_copy_string(dei.orgunit, dept, sizeof(dei.orgunit));
@@ -765,7 +721,7 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 		   and the last EID is the root, it is permissible that the first and last EID
 		   could be the same.  In that case, we should go ahead copy only the "root" section
 		   since we will not need it for authentication. */
-		if (!dundi_eid_cmp(ies->eids[0], ies->eids[ies->eidcount - 1]))
+		if (!ast_eid_cmp(ies->eids[0], ies->eids[ies->eidcount - 1]))
 			skipfirst = 1;
 	}
 	totallen = sizeof(struct dundi_query_state);
@@ -784,7 +740,7 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 			*st->eids[x-skipfirst] = *ies->eids[x];
 			s += sizeof(dundi_eid);
 		}
-		ast_debug(1, "Answering EID query for '%s@%s'!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), ies->reqeid), ies->called_context);
+		ast_debug(1, "Answering EID query for '%s@%s'!\n", ast_eid_to_str(eid_str, sizeof(eid_str), ies->reqeid), ies->called_context);
 
 		trans->thread = 1;
 		if (ast_pthread_create_detached(&lookupthread, NULL, dundi_query_thread, st)) {
@@ -931,7 +887,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 					trans->parent->dr[trans->parent->respcount].expiration = ies->expiration;
 				else
 					trans->parent->dr[trans->parent->respcount].expiration = dundi_cache_time;
-				dundi_eid_to_str(trans->parent->dr[trans->parent->respcount].eid_str, 
+				ast_eid_to_str(trans->parent->dr[trans->parent->respcount].eid_str, 
 					sizeof(trans->parent->dr[trans->parent->respcount].eid_str),
 					&ies->answers[x]->eid);
 				ast_copy_string(trans->parent->dr[trans->parent->respcount].dest, (char *)ies->answers[x]->data,
@@ -971,7 +927,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 		   and the last EID is the root, it is permissible that the first and last EID
 		   could be the same.  In that case, we should go ahead copy only the "root" section
 		   since we will not need it for authentication. */
-		if (!dundi_eid_cmp(ies->eids[0], ies->eids[ies->eidcount - 1]))
+		if (!ast_eid_cmp(ies->eids[0], ies->eids[ies->eidcount - 1]))
 			skipfirst = 1;
 	}
 
@@ -1055,7 +1011,7 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 		   and the last EID is the root, it is permissible that the first and last EID
 		   could be the same.  In that case, we should go ahead copy only the "root" section
 		   since we will not need it for authentication. */
-		if (!dundi_eid_cmp(ies->eids[0], ies->eids[ies->eidcount - 1]))
+		if (!ast_eid_cmp(ies->eids[0], ies->eids[ies->eidcount - 1]))
 			skipfirst = 1;
 	}
 
@@ -1157,7 +1113,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 							req->dr[req->respcount].techint = tech;
 							req->dr[req->respcount].expiration = expiration;
 							dundi_str_short_to_eid(&req->dr[req->respcount].eid, src);
-							dundi_eid_to_str(req->dr[req->respcount].eid_str, 
+							ast_eid_to_str(req->dr[req->respcount].eid_str, 
 								sizeof(req->dr[req->respcount].eid_str), &req->dr[req->respcount].eid);
 							ast_copy_string(req->dr[req->respcount].dest, ptr,
 								sizeof(req->dr[req->respcount].dest));
@@ -1198,7 +1154,7 @@ static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned
 	time(&now);
 	dundi_eid_to_str_short(eid_str, sizeof(eid_str), peer_eid);
 	dundi_eid_to_str_short(eidroot_str, sizeof(eidroot_str), &req->root_eid);
-	dundi_eid_to_str(eid_str_full, sizeof(eid_str_full), peer_eid);
+	ast_eid_to_str(eid_str_full, sizeof(eid_str_full), peer_eid);
 	snprintf(key, sizeof(key), "%s/%s/%s/e%08lx", eid_str, req->number, req->dcontext, crc32);
 	res |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
 	snprintf(key, sizeof(key), "%s/%s/%s/e%08lx", eid_str, req->number, req->dcontext, 0L);
@@ -1264,7 +1220,7 @@ static int do_register_expire(const void *data)
 {
 	struct dundi_peer *peer = (struct dundi_peer *)data;
 	char eid_str[20];
-	ast_debug(1, "Register expired for '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+	ast_debug(1, "Register expired for '%s'\n", ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 	peer->registerexpire = -1;
 	peer->lastms = 0;
 	memset(&peer->addr, 0, sizeof(peer->addr));
@@ -1284,13 +1240,13 @@ static int update_key(struct dundi_peer *peer)
 		ekey = ast_key_get(peer->inkey, AST_KEY_PUBLIC);
 		if (!ekey) {
 			ast_log(LOG_NOTICE, "No such key '%s' for creating RSA encrypted shared key for '%s'!\n",
-				peer->inkey, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+				peer->inkey, ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 			return -1;
 		}
 		skey = ast_key_get(peer->outkey, AST_KEY_PRIVATE);
 		if (!skey) {
 			ast_log(LOG_NOTICE, "No such key '%s' for signing RSA encrypted shared key for '%s'!\n",
-				peer->outkey, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+				peer->outkey, ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 			return -1;
 		}
 		if ((res = ast_encrypt_bin(peer->txenckey, key, sizeof(key), ekey)) != 128) {
@@ -1455,14 +1411,14 @@ static int check_key(struct dundi_peer *peer, unsigned char *newkey, unsigned ch
 	key = ast_key_get(peer->outkey, AST_KEY_PRIVATE);
 	if (!key) {
 		ast_log(LOG_NOTICE, "Unable to find key '%s' to decode shared key from '%s'\n",
-			peer->outkey, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+			peer->outkey, ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		return -1;
 	}
 
 	skey = ast_key_get(peer->inkey, AST_KEY_PUBLIC);
 	if (!skey) {
 		ast_log(LOG_NOTICE, "Unable to find key '%s' to verify shared key from '%s'\n",
-			peer->inkey, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+			peer->inkey, ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		return -1;
 	}
 
@@ -1651,7 +1607,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 				ast_db_put("dundi/dpeers", dundi_eid_to_str_short(eid_str, sizeof(eid_str), &peer->eid), data);
 				if (inaddrcmp(&peer->addr, &trans->addr)) {
 					ast_verb(3, "Registered DUNDi peer '%s' at '%s:%d'\n",
-							dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
+							ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
 							ast_inet_ntoa(trans->addr.sin_addr), ntohs(trans->addr.sin_port));
 					needqual = 1;
 				}
@@ -1695,7 +1651,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 									trans->parent->dr[trans->parent->respcount].expiration = ies.expiration;
 								else
 									trans->parent->dr[trans->parent->respcount].expiration = dundi_cache_time;
-								dundi_eid_to_str(trans->parent->dr[trans->parent->respcount].eid_str, 
+								ast_eid_to_str(trans->parent->dr[trans->parent->respcount].eid_str, 
 									sizeof(trans->parent->dr[trans->parent->respcount].eid_str),
 									&ies.answers[x]->eid);
 								ast_copy_string(trans->parent->dr[trans->parent->respcount].dest, (char *)ies.answers[x]->data,
@@ -1778,7 +1734,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 							ast_copy_string(trans->parent->dei->phone, ies.q_phone, sizeof(trans->parent->dei->phone));
 						if (ies.q_ipaddr)
 							ast_copy_string(trans->parent->dei->ipaddr, ies.q_ipaddr, sizeof(trans->parent->dei->ipaddr));
-						if (!dundi_eid_cmp(&trans->them_eid, &trans->parent->query_eid)) {
+						if (!ast_eid_cmp(&trans->them_eid, &trans->parent->query_eid)) {
 							/* If it's them, update our address */
 							ast_copy_string(trans->parent->dei->ipaddr, ast_inet_ntoa(trans->addr.sin_addr), sizeof(trans->parent->dei->ipaddr));
 						}
@@ -1818,8 +1774,8 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 					dundi_send(trans, DUNDI_COMMAND_CANCEL, 0, 1, &ied);
 				}
 			} else {
-				ast_debug(1, "Yay, we've registered as '%s' to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->us_eid),
-						dundi_eid_to_str(eid_str2, sizeof(eid_str2), &trans->them_eid));
+				ast_debug(1, "Yay, we've registered as '%s' to '%s'\n", ast_eid_to_str(eid_str, sizeof(eid_str), &trans->us_eid),
+						ast_eid_to_str(eid_str2, sizeof(eid_str2), &trans->them_eid));
 				/* Close connection if not final */
 				if (!final) 
 					dundi_send(trans, DUNDI_COMMAND_CANCEL, 0, 1, NULL);
@@ -2353,7 +2309,7 @@ static char *complete_peer_helper(const char *line, const char *word, int pos, i
 	AST_LIST_LOCK(&peers);
 	len = strlen(word);
 	AST_LIST_TRAVERSE(&peers, p, list) {
-		const char *s = dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid);
+		const char *s = ast_eid_to_str(eid_str, sizeof(eid_str), &p->eid);
 		if (!strncasecmp(word, s, len) && ++which > state) {
 			ret = ast_strdup(s);
 			break;
@@ -2492,7 +2448,7 @@ static char *dundi_do_query(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	}
 	if ((a->argc < 3) || (a->argc > 3))
 		return CLI_SHOWUSAGE;
-	if (dundi_str_to_eid(&eid, a->argv[2])) {
+	if (ast_str_to_eid(&eid, a->argv[2])) {
 		ast_cli(a->fd, "'%s' is not a valid EID!\n", a->argv[2]);
 		return CLI_SHOWUSAGE;
 	}
@@ -2542,7 +2498,7 @@ static char *dundi_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		return CLI_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE(&peers, peer, list) {
-		if (!strcasecmp(dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), a->argv[3]))
+		if (!strcasecmp(ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), a->argv[3]))
 			break;
 	}
 	if (peer) {
@@ -2562,7 +2518,7 @@ static char *dundi_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		default:
 			order = "Unknown";
 		}
-		ast_cli(a->fd, "Peer:    %s\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+		ast_cli(a->fd, "Peer:    %s\n", ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		ast_cli(a->fd, "Model:   %s\n", model2str(peer->model));
 		ast_cli(a->fd, "Host:    %s\n", peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "<Unspecified>");
 		ast_cli(a->fd, "Dynamic: %s\n", peer->dynamic ? "yes" : "no");
@@ -2660,7 +2616,7 @@ static char *dundi_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			snprintf(avgms, sizeof(avgms), "%d ms", peer->avgms);
 		else
 			strcpy(avgms, "Unavail");
-		snprintf(srch, sizeof(srch), FORMAT, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
+		snprintf(srch, sizeof(srch), FORMAT, ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
 					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
 					peer->dynamic ? "(D)" : "(S)", model2str(peer->model), avgms, status);
 
@@ -2677,7 +2633,7 @@ static char *dundi_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_a
                 }
 		
         if (print_line) {
-			ast_cli(a->fd, FORMAT, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
+			ast_cli(a->fd, FORMAT, ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
 					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
 					peer->dynamic ? "(D)" : "(S)", model2str(peer->model), avgms, status);
 		}
@@ -2734,7 +2690,7 @@ static char *dundi_show_entityid(struct ast_cli_entry *e, int cmd, struct ast_cl
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
-	dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid);
+	ast_eid_to_str(eid_str, sizeof(eid_str), &global_eid);
 	AST_LIST_UNLOCK(&peers);
 	ast_cli(a->fd, "Global EID for this system is '%s'\n", eid_str);
 	return CLI_SUCCESS;
@@ -2762,7 +2718,7 @@ static char *dundi_show_requests(struct ast_cli_entry *e, int cmd, struct ast_cl
 	ast_cli(a->fd, FORMAT2, "Number", "Context", "Root", "Max", "Rsp");
 	AST_LIST_TRAVERSE(&requests, req, list) {
 		ast_cli(a->fd, FORMAT, req->number, req->dcontext,
-			dundi_eid_zero(&req->root_eid) ? "<unspecified>" : dundi_eid_to_str(eidstr, sizeof(eidstr), &req->root_eid), req->maxcount, req->respcount);
+			dundi_eid_zero(&req->root_eid) ? "<unspecified>" : ast_eid_to_str(eidstr, sizeof(eidstr), &req->root_eid), req->maxcount, req->respcount);
 	}
 	AST_LIST_UNLOCK(&peers);
 	return CLI_SUCCESS;
@@ -2930,7 +2886,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 			if (peer->qualtrans == trans) {
 				if (fromtimeout) {
 					if (peer->lastms > -1)
-						ast_log(LOG_NOTICE, "Peer '%s' has become UNREACHABLE!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+						ast_log(LOG_NOTICE, "Peer '%s' has become UNREACHABLE!\n", ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 					peer->lastms = -1;
 				} else {
 					ms = ast_tvdiff_ms(ast_tvnow(), peer->qualtx);
@@ -2938,9 +2894,9 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 						ms = 1;
 					if (ms < peer->maxms) {
 						if ((peer->lastms >= peer->maxms) || (peer->lastms < 0))
-							ast_log(LOG_NOTICE, "Peer '%s' has become REACHABLE!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+							ast_log(LOG_NOTICE, "Peer '%s' has become REACHABLE!\n", ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 					} else if (peer->lastms < peer->maxms) {
-						ast_log(LOG_NOTICE, "Peer '%s' has become TOO LAGGED (%d ms)\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), ms);
+						ast_log(LOG_NOTICE, "Peer '%s' has become TOO LAGGED (%d ms)\n", ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), ms);
 					}
 					peer->lastms = ms;
 				}
@@ -2948,7 +2904,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 			}
 			if (ast_test_flag(trans, FLAG_STOREHIST)) {
 				if (trans->parent && !ast_strlen_zero(trans->parent->number)) {
-					if (!dundi_eid_cmp(&trans->them_eid, &peer->eid)) {
+					if (!ast_eid_cmp(&trans->them_eid, &peer->eid)) {
 						peer->avgms = 0;
 						cnt = 0;
 						if (peer->lookups[DUNDI_TIMING_HISTORY-1])
@@ -3082,7 +3038,7 @@ static int dundi_send(struct dundi_transaction *trans, int cmdresp, int flags, i
 		if (!res) 
 			res = dundi_xmit(pack);
 		if (res)
-			ast_log(LOG_NOTICE, "Failed to send packet to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->them_eid));
+			ast_log(LOG_NOTICE, "Failed to send packet to '%s'\n", ast_eid_to_str(eid_str, sizeof(eid_str), &trans->them_eid));
 				
 		if (cmdresp == DUNDI_COMMAND_ACK)
 			ast_free(pack);
@@ -3096,7 +3052,7 @@ static int do_autokill(const void *data)
 	struct dundi_transaction *trans = (struct dundi_transaction *)data;
 	char eid_str[20];
 	ast_log(LOG_NOTICE, "Transaction to '%s' took too long to ACK, destroying\n", 
-		dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->them_eid));
+		ast_eid_to_str(eid_str, sizeof(eid_str), &trans->them_eid));
 	trans->autokillid = -1;
 	destroy_trans(trans, 0); /* We could actually set it to 1 instead of 0, but we won't ;-) */
 	return 0;
@@ -3105,13 +3061,13 @@ static int do_autokill(const void *data)
 static void dundi_ie_append_eid_appropriately(struct dundi_ie_data *ied, char *context, dundi_eid *eid, dundi_eid *us)
 {
 	struct dundi_peer *p;
-	if (!dundi_eid_cmp(eid, us)) {
+	if (!ast_eid_cmp(eid, us)) {
 		dundi_ie_append_eid(ied, DUNDI_IE_EID_DIRECT, eid);
 		return;
 	}
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE(&peers, p, list) {
-		if (!dundi_eid_cmp(&p->eid, eid)) {
+		if (!ast_eid_cmp(&p->eid, eid)) {
 			if (has_permission(&p->include, context))
 				dundi_ie_append_eid(ied, DUNDI_IE_EID_DIRECT, eid);
 			else
@@ -3318,16 +3274,16 @@ static int optimize_transactions(struct dundi_request *dr, int order)
 
 		AST_LIST_TRAVERSE(&peers, peer, list) {
 			if (has_permission(&peer->include, dr->dcontext) && 
-			    dundi_eid_cmp(&peer->eid, &trans->them_eid) &&
+			    ast_eid_cmp(&peer->eid, &trans->them_eid) &&
 				(peer->order <= order)) {
 				/* For each other transaction, make sure we don't
 				   ask this EID about the others if they're not
 				   already in the list */
-				if (!dundi_eid_cmp(&tmp, &peer->eid)) 
+				if (!ast_eid_cmp(&tmp, &peer->eid)) 
 					x = -1;
 				else {
 					for (x=0;x<trans->eidcount;x++) {
-						if (!dundi_eid_cmp(&trans->eids[x], &peer->eid))
+						if (!ast_eid_cmp(&trans->eids[x], &peer->eid))
 							break;
 					}
 				}
@@ -3365,9 +3321,9 @@ static int append_transaction(struct dundi_request *dr, struct dundi_peer *p, in
 		return 0;
 
 	if (ast_strlen_zero(dr->number))
-		ast_debug(1, "Will query peer '%s' for '%s' (context '%s')\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid), dundi_eid_to_str(eid_str2, sizeof(eid_str2), &dr->query_eid), dr->dcontext);
+		ast_debug(1, "Will query peer '%s' for '%s' (context '%s')\n", ast_eid_to_str(eid_str, sizeof(eid_str), &p->eid), ast_eid_to_str(eid_str2, sizeof(eid_str2), &dr->query_eid), dr->dcontext);
 	else
-		ast_debug(1, "Will query peer '%s' for '%s@%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid), dr->number, dr->dcontext);
+		ast_debug(1, "Will query peer '%s' for '%s@%s'\n", ast_eid_to_str(eid_str, sizeof(eid_str), &p->eid), dr->number, dr->dcontext);
 
 	trans = create_transaction(p);
 	if (!trans)
@@ -3428,7 +3384,7 @@ static void build_transactions(struct dundi_request *dr, int ttl, int order, int
 			allowconnect = p->model & DUNDI_MODEL_OUTBOUND;
 		}
 		if (skip) {
-			if (!dundi_eid_cmp(skip, &p->eid))
+			if (!ast_eid_cmp(skip, &p->eid))
 				pass = 0;
 		}
 		if (pass) {
@@ -3441,7 +3397,7 @@ static void build_transactions(struct dundi_request *dr, int ttl, int order, int
 					/* Make sure we haven't already seen it and that it won't
 					   affect our answer */
 					for (x=0;avoid[x];x++) {
-						if (!dundi_eid_cmp(avoid[x], &p->eid) || !dundi_eid_cmp(avoid[x], &p->us_eid)) {
+						if (!ast_eid_cmp(avoid[x], &p->eid) || !ast_eid_cmp(avoid[x], &p->us_eid)) {
 							/* If not a direct connection, it affects our answer */
 							if (directs && !directs[x]) 
 								ast_clear_flag_nonstd(dr->hmd, DUNDI_HINT_UNAFFECTED);
@@ -3454,7 +3410,7 @@ static void build_transactions(struct dundi_request *dr, int ttl, int order, int
 							/* Check for a matching or 0 cache entry */
 							append_transaction(dr, p, ttl, avoid);
 						} else {
-							ast_debug(1, "Avoiding '%s' in transaction\n", dundi_eid_to_str(eid_str, sizeof(eid_str), avoid[x]));
+							ast_debug(1, "Avoiding '%s' in transaction\n", ast_eid_to_str(eid_str, sizeof(eid_str), avoid[x]));
 						}
 					}
 				}
@@ -3477,9 +3433,9 @@ static int register_request(struct dundi_request *dr, struct dundi_request **pen
 			dr->dcontext, dr->number);
 		if (!strcasecmp(cur->dcontext, dr->dcontext) &&
 		    !strcasecmp(cur->number, dr->number) &&
-		    (!dundi_eid_cmp(&cur->root_eid, &dr->root_eid) || (cur->crc32 == dr->crc32))) {
+		    (!ast_eid_cmp(&cur->root_eid, &dr->root_eid) || (cur->crc32 == dr->crc32))) {
 			ast_debug(1, "Found existing query for '%s@%s' for '%s' crc '%08lx'\n", 
-				cur->dcontext, cur->number, dundi_eid_to_str(eid_str, sizeof(eid_str), &cur->root_eid), cur->crc32);
+				cur->dcontext, cur->number, ast_eid_to_str(eid_str, sizeof(eid_str), &cur->root_eid), cur->crc32);
 			*pending = cur;
 			res = 1;
 			break;
@@ -3487,7 +3443,7 @@ static int register_request(struct dundi_request *dr, struct dundi_request **pen
 	}
 	if (!res) {
 		ast_debug(1, "Registering request for '%s@%s' on behalf of '%s' crc '%08lx'\n", 
-				dr->number, dr->dcontext, dundi_eid_to_str(eid_str, sizeof(eid_str), &dr->root_eid), dr->crc32);
+				dr->number, dr->dcontext, ast_eid_to_str(eid_str, sizeof(eid_str), &dr->root_eid), dr->crc32);
 		/* Go ahead and link us in since nobody else is searching for this */
 		AST_LIST_INSERT_HEAD(&requests, dr, list);
 		*pending = NULL;
@@ -3573,18 +3529,18 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 	res = register_request(&dr, &pending);
 	if (res) {
 		/* Already a request */
-		if (rooteid && !dundi_eid_cmp(&dr.root_eid, &pending->root_eid)) {
+		if (rooteid && !ast_eid_cmp(&dr.root_eid, &pending->root_eid)) {
 			/* This is on behalf of someone else.  Go ahead and close this out since
 			   they'll get their answer anyway. */
 			ast_debug(1, "Oooh, duplicate request for '%s@%s' for '%s'\n",
-				dr.number,dr.dcontext,dundi_eid_to_str(eid_str, sizeof(eid_str), &dr.root_eid));
+				dr.number,dr.dcontext,ast_eid_to_str(eid_str, sizeof(eid_str), &dr.root_eid));
 			close(dr.pfds[0]);
 			close(dr.pfds[1]);
 			return -2;
 		} else {
 			/* Wait for the cache to populate */
 			ast_debug(1, "Waiting for similar request for '%s@%s' for '%s'\n",
-				dr.number,dr.dcontext,dundi_eid_to_str(eid_str, sizeof(eid_str), &pending->root_eid));
+				dr.number,dr.dcontext,ast_eid_to_str(eid_str, sizeof(eid_str), &pending->root_eid));
 			start = ast_tvnow();
 			while(check_request(pending) && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms) && (!chan || !ast_check_hangup(chan))) {
 				/* XXX Would be nice to have a way to poll/select here XXX */
@@ -4273,7 +4229,7 @@ static int do_register(const void *data)
 	struct dundi_peer *peer = (struct dundi_peer *)data;
 	char eid_str[20];
 	char eid_str2[20];
-	ast_debug(1, "Register us as '%s' to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->us_eid), dundi_eid_to_str(eid_str2, sizeof(eid_str2), &peer->eid));
+	ast_debug(1, "Register us as '%s' to '%s'\n", ast_eid_to_str(eid_str, sizeof(eid_str), &peer->us_eid), ast_eid_to_str(eid_str2, sizeof(eid_str2), &peer->eid));
 	peer->registerid = ast_sched_add(sched, default_expiration * 1000, do_register, data);
 	/* Destroy old transaction if there is one */
 	if (peer->regtrans)
@@ -4288,7 +4244,7 @@ static int do_register(const void *data)
 		dundi_send(peer->regtrans, DUNDI_COMMAND_REGREQ, 0, 0, &ied);
 		
 	} else
-		ast_log(LOG_NOTICE, "Unable to create new transaction for registering to '%s'!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+		ast_log(LOG_NOTICE, "Unable to create new transaction for registering to '%s'!\n", ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 
 	return 0;
 }
@@ -4330,7 +4286,7 @@ static void populate_addr(struct dundi_peer *peer, dundi_eid *eid)
 	char *c;
 	int port, expire;
 	char eid_str[20];
-	dundi_eid_to_str(eid_str, sizeof(eid_str), eid);
+	ast_eid_to_str(eid_str, sizeof(eid_str), eid);
 	if (!ast_db_get("dundi/dpeers", eid_str, data, sizeof(data))) {
 		c = strchr(data, ':');
 		if (c) {
@@ -4359,7 +4315,7 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE(&peers, peer, list) {
-		if (!dundi_eid_cmp(&peer->eid, eid)) {	
+		if (!ast_eid_cmp(&peer->eid, eid)) {	
 			break;
 		}
 	}
@@ -4402,7 +4358,7 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 				}
 			}
 		} else if (!strcasecmp(v->name, "ustothem")) {
-			if (!dundi_str_to_eid(&testeid, v->value))
+			if (!ast_str_to_eid(&testeid, v->value))
 				peer->us_eid = testeid;
 			else
 				ast_log(LOG_WARNING, "'%s' is not a valid DUNDi Entity Identifier at line %d\n", v->value, v->lineno);
@@ -4435,7 +4391,7 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 				peer->maxms = DEFAULT_MAXMS;
 			} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
 				ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of dundi.conf\n", 
-					dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), v->lineno);
+					ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), v->lineno);
 				peer->maxms = 0;
 			}
 		} else if (!strcasecmp(v->name, "model")) {
@@ -4469,22 +4425,22 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 	(*globalpcmode) |= peer->pcmodel;
 	if (!peer->model && !peer->pcmodel) {
 		ast_log(LOG_WARNING, "Peer '%s' lacks a model or pcmodel, discarding!\n", 
-			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+			ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		peer->dead = 1;
 	} else if ((peer->model & DUNDI_MODEL_INBOUND) && (peer->pcmodel & DUNDI_MODEL_OUTBOUND)) {
 		ast_log(LOG_WARNING, "Peer '%s' may not be both inbound/symmetric model and outbound/symmetric precache model, discarding!\n", 
-			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+			ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		peer->dead = 1;
 	} else if ((peer->model & DUNDI_MODEL_OUTBOUND) && (peer->pcmodel & DUNDI_MODEL_INBOUND)) {
 		ast_log(LOG_WARNING, "Peer '%s' may not be both outbound/symmetric model and inbound/symmetric precache model, discarding!\n", 
-			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+			ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		peer->dead = 1;
 	} else if (!AST_LIST_EMPTY(&peer->include) && !(peer->model & DUNDI_MODEL_OUTBOUND) && !(peer->pcmodel & DUNDI_MODEL_INBOUND)) {
 		ast_log(LOG_WARNING, "Peer '%s' is supposed to be included in outbound searches but isn't an outbound peer or inbound precache!\n", 
-			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+			ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 	} else if (!AST_LIST_EMPTY(&peer->permit) && !(peer->model & DUNDI_MODEL_INBOUND) && !(peer->pcmodel & DUNDI_MODEL_OUTBOUND)) {
 		ast_log(LOG_WARNING, "Peer '%s' is supposed to have permission for some inbound searches but isn't an inbound peer or outbound precache!\n", 
-			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+			ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 	} else { 
 		if (needregister) {
 			peer->registerid = ast_sched_add(sched, 2000, do_register, peer);
@@ -4649,7 +4605,9 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 	} else
 		ast_log(LOG_WARNING, "Unable to get host name!\n");
 	AST_LIST_LOCK(&peers);
-	reset_global_eid();
+
+	memcpy(&global_eid, &g_eid, sizeof(global_eid));
+
 	global_storehistory = 0;
 	ast_copy_string(secretpath, "dundi", sizeof(secretpath));
 	v = ast_variable_browse(cfg, "general");
@@ -4689,7 +4647,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 				global_autokilltimeout = 0;
 			}
 		} else if (!strcasecmp(v->name, "entityid")) {
-			if (!dundi_str_to_eid(&testeid, v->value))
+			if (!ast_str_to_eid(&testeid, v->value))
 				global_eid = testeid;
 			else
 				ast_log(LOG_WARNING, "Invalid global endpoint identifier '%s' at line %d\n", v->value, v->lineno);
@@ -4735,7 +4693,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 	while(cat) {
 		if (strcasecmp(cat, "general") && strcasecmp(cat, "mappings")) {
 			/* Entries */
-			if (!dundi_str_to_eid(&testeid, cat))
+			if (!ast_str_to_eid(&testeid, cat))
 				build_peer(&testeid, ast_variable_browse(cfg, cat), &globalpcmodel);
 			else if (!strcasecmp(cat, "*")) {
 				build_peer(&empty_eid, ast_variable_browse(cfg, cat), &globalpcmodel);

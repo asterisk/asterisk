@@ -77,12 +77,9 @@ extern int dundi_ie_append_encdata(struct dundi_ie_data *ied, unsigned char ie, 
 extern int dundi_ie_append_byte(struct dundi_ie_data *ied, unsigned char ie, unsigned char dat);
 extern int dundi_ie_append(struct dundi_ie_data *ied, unsigned char ie);
 extern int dundi_parse_ies(struct dundi_ies *ies, unsigned char *data, int datalen);
-extern char *dundi_eid_to_str(char *s, int maxlen, dundi_eid *eid);
 extern char *dundi_eid_to_str_short(char *s, int maxlen, dundi_eid *eid);
-extern int dundi_str_to_eid(dundi_eid *eid, const char *s);
 extern int dundi_str_short_to_eid(dundi_eid *eid, const char *s);
 extern int dundi_eid_zero(dundi_eid *eid);
-extern int dundi_eid_cmp(dundi_eid *eid1, dundi_eid *eid2);
 extern char *dundi_flags2str(char *s, int maxlen, int flags);
 extern char *dundi_hint2str(char *s, int maxlen, int flags);
 #endif

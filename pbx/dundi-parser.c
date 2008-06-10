@@ -48,23 +48,6 @@ static void internalerror(const char *str)
 static void (*outputf)(const char *str) = internaloutput;
 static void (*errorf)(const char *str) = internalerror;
 
-char *dundi_eid_to_str(char *s, int maxlen, dundi_eid *eid)
-{
-	int x;
-	char *os = s;
-	if (maxlen < 18) {
-		if (s && (maxlen > 0))
-			*s = '\0';
-	} else {
-		for (x=0;x<5;x++) {
-			sprintf(s, "%02x:", eid->eid[x]);
-			s += 3;
-		}
-		sprintf(s, "%02x", eid->eid[5]);
-	}
-	return os;
-}
-
 char *dundi_eid_to_str_short(char *s, int maxlen, dundi_eid *eid)
 {
 	int x;
@@ -79,18 +62,6 @@ char *dundi_eid_to_str_short(char *s, int maxlen, dundi_eid *eid)
 		}
 	}
 	return os;
-}
-
-int dundi_str_to_eid(dundi_eid *eid, const char *s)
-{
-	unsigned int eid_int[6];
-	int x;
-	if (sscanf(s, "%x:%x:%x:%x:%x:%x", &eid_int[0], &eid_int[1], &eid_int[2],
-		 &eid_int[3], &eid_int[4], &eid_int[5]) != 6)
-		 	return -1;
-	for (x=0;x<6;x++)
-		eid->eid[x] = eid_int[x];
-	return 0;
 }
 
 int dundi_str_short_to_eid(dundi_eid *eid, const char *s)
@@ -113,11 +84,6 @@ int dundi_eid_zero(dundi_eid *eid)
 	return 1;
 }
 
-int dundi_eid_cmp(dundi_eid *eid1, dundi_eid *eid2)
-{
-	return memcmp(eid1, eid2, sizeof(dundi_eid));
-}
-
 static void dump_string(char *output, int maxlen, void *value, int len)
 {
 	if (maxlen > len + 1)
@@ -134,7 +100,7 @@ static void dump_cbypass(char *output, int maxlen, void *value, int len)
 static void dump_eid(char *output, int maxlen, void *value, int len)
 {
 	if (len == 6)
-		dundi_eid_to_str(output, maxlen, (dundi_eid *)value);
+		ast_eid_to_str(output, maxlen, (dundi_eid *)value);
 	else
 		snprintf(output, maxlen, "Invalid EID len %d", len);
 }
@@ -335,7 +301,7 @@ static void dump_answer(char *output, int maxlen, void *value, int len)
 	memcpy(tmp, answer->data, datalen);
 	tmp[datalen] = '\0';
 
-	dundi_eid_to_str(eid_str, sizeof(eid_str), &answer->eid);
+	ast_eid_to_str(eid_str, sizeof(eid_str), &answer->eid);
 	snprintf(output, maxlen, "[%s] %d <%s/%s> from [%s]", 
 		dundi_flags2str(flags, sizeof(flags), ntohs(answer->flags)), 
 		ntohs(answer->weight),

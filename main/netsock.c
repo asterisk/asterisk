@@ -207,3 +207,84 @@ void ast_netsock_unref(struct ast_netsock *ns)
 {
 	ASTOBJ_UNREF(ns, ast_netsock_destroy);
 }
+
+char *ast_eid_to_str(char *s, int maxlen, struct ast_eid *eid)
+{
+	int x;
+	char *os = s;
+	if (maxlen < 18) {
+		if (s && (maxlen > 0))
+			*s = '\0';
+	} else {
+		for (x = 0; x < 5; x++) {
+			sprintf(s, "%02x:", eid->eid[x]);
+			s += 3;
+		}
+		sprintf(s, "%02x", eid->eid[5]);
+	}
+	return os;
+}
+
+void ast_set_default_eid(struct ast_eid *eid)
+{
+#if defined(SIOCGIFHWADDR)
+	int s, x = 0;
+	char eid_str[20];
+	struct ifreq ifr;
+
+	s = socket(AF_INET, SOCK_STREAM, 0);
+	if (s < 0)
+		return;
+	for (x = 0; x < 10; x++) {
+		memset(&ifr, 0, sizeof(ifr));
+		snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth%d", x);
+		if (ioctl(s, SIOCGIFHWADDR, &ifr))
+			continue;
+		memcpy(eid, ((unsigned char *)&ifr.ifr_hwaddr) + 2, sizeof(*eid));
+		ast_debug(1, "Seeding global EID '%s' from '%s' using 'siocgifhwaddr'\n", ast_eid_to_str(eid_str, sizeof(eid_str), eid), ifr.ifr_name);
+		close(s);
+		return;
+	}
+	close(s);
+#else
+#if defined(ifa_broadaddr) && !defined(SOLARIS)
+	char eid_str[20];
+	struct ifaddrs *ifap;
+	
+	if (getifaddrs(&ifap) == 0) {
+		struct ifaddrs *p;
+		for (p = ifap; p; p = p->ifa_next) {
+			if ((p->ifa_addr->sa_family == AF_LINK) && !(p->ifa_flags & IFF_LOOPBACK) && (p->ifa_flags & IFF_RUNNING)) {
+				struct sockaddr_dl* sdp = (struct sockaddr_dl*) p->ifa_addr;
+				memcpy(&(eid->eid), sdp->sdl_data + sdp->sdl_nlen, 6);
+				ast_debug(1, "Seeding global EID '%s' from '%s' using 'getifaddrs'\n", ast_eid_to_str(eid_str, sizeof(eid_str), eid), p->ifa_name);
+				freeifaddrs(ifap);
+				return;
+			}
+		}
+		freeifaddrs(ifap);
+	}
+#endif
+#endif
+	ast_log(LOG_NOTICE, "No ethernet interface found for seeding global EID. You will have to set it manually.\n");
+}
+
+int ast_str_to_eid(struct ast_eid *eid, const char *s)
+{
+	unsigned int eid_int[6];
+	int x;
+
+	if (sscanf(s, "%x:%x:%x:%x:%x:%x", &eid_int[0], &eid_int[1], &eid_int[2],
+		 &eid_int[3], &eid_int[4], &eid_int[5]) != 6)
+		 	return -1;
+	
+	for (x = 0; x < 6; x++)
+		eid->eid[x] = eid_int[x];
+
+	return 0;
+}
+
+int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2)
+{
+	return memcmp(eid1, eid2, sizeof(*eid1));
+}

@@ -124,6 +124,11 @@ languageprefix = yes | no
 ;           eh. on SMB/CIFS mounts
 lockmode = lockfile | flock
   
+; Entity ID.  This is in the form of a MAC address.  It should be universally
+; unique.  It must be unique between servers communicating with a protocol
+; that uses this value.  The only thing that uses this currently is DUNDi,
+; but other things will use it in the future.
+; entityid=00:11:22:33:44:55
 
 [files]
 ; Changing the following lines may compromise your security
