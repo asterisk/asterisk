@@ -2485,7 +2485,7 @@ static void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdi
 		dialog->stateid = -1; /* shouldn't we 'zero' this out? */
 	}
 	/* Remove link from peer to subscription of MWI */
-	if (dialog->relatedpeer && dialog->relatedpeer->mwipvt)
+	if (dialog->relatedpeer && dialog->relatedpeer->mwipvt == dialog)
 		dialog->relatedpeer->mwipvt = dialog_unref(dialog->relatedpeer->mwipvt, "delete ->relatedpeer->mwipvt");
 	if (dialog->relatedpeer && dialog->relatedpeer->call == dialog)
 		dialog->relatedpeer->call = dialog_unref(dialog->relatedpeer->call, "unset the relatedpeer->call field in tandem with relatedpeer field itself");
