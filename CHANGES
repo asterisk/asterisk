@@ -2,6 +2,17 @@
 --- Functionality changes from Asterisk 1.6.0 to Asterisk 1.6.1  -------------
 ------------------------------------------------------------------------------
 
+Device State Handling
+---------------------
+ * The event infrastructure in Asterisk got another big update to help support
+    distributed events.  It currently supports distributed device state and
+    distributed Voicemail MWI (Message Waiting Indication).  A new module has
+    been merged, res_ais, which facilitates communicating events between servers.
+    It uses the SAForum AIS (Service Availability Forum Application Interface
+    Specification) CLM (Cluster Management) and EVT (Event) services to maintain
+    a cluster of Asterisk servers, and to share events between them.  For more
+    information on setting this up, see doc/distributed_devstate.txt.
+
 Dialplan Functions
 ------------------
  * Added a new dialplan function, AST_CONFIG(), which allows you to access
@@ -17,9 +28,9 @@ Dialplan Functions
  * TIMEOUT() has been modified to be accurate down to the millisecond.
  * ENUM*() functions now include the following new options:
      - 'u' returns the full URI and does not strip off the URI-scheme.
-	 - 's' triggers ISN specific rewriting
-	 - 'i' looks for branches into an Infrastructure ENUM tree
-	 - 'd' for a direct DNS lookup without any flipping of digits.
+     - 's' triggers ISN specific rewriting
+     - 'i' looks for branches into an Infrastructure ENUM tree
+     - 'd' for a direct DNS lookup without any flipping of digits.
  * TXCIDNAME() has a new zone-suffix parameter (which defaults to 'e164.arpa')
  * CHANNEL() now has options for the maximum, minimum, and standard or normal
    deviation of jitter, rtt, and loss for a call using chan_sip.
@@ -116,9 +127,9 @@ CLI Changes
      which shows which configuration files are in use.
   * New CLI commands, "pri show version" and "ss7 show version" that will
      display which version of libpri and libss7 are being used, respectively.
-	 A new API call was added so trunk will now have to be compiled against
-	 a versions of libpri and libss7 that have them or it will not know that
-	 these libraries exist.
+     A new API call was added so trunk will now have to be compiled against
+     a versions of libpri and libss7 that have them or it will not know that
+     these libraries exist.
 
 DNS manager changes
 -------------------
@@ -443,10 +454,10 @@ Voicemail Changes
      a web interface of some kind).
   * Added the support for marking messages as "urgent." There are two methods to accomplish
      this. One is to pass the 'U' option to VoiceMail(). Another way to mark a message as urgent
-	 is to specify "review=yes" in voicemail.conf. Doing this will cause allow the user to mark
-	 the message as urgent after he has recorded a voicemail by following the voice instructions.
-	When listening to voicemails using VoiceMailMain urgent messages will be presented before other
-	 messages
+     is to specify "review=yes" in voicemail.conf. Doing this will cause allow the user to mark
+     the message as urgent after he has recorded a voicemail by following the voice instructions.
+    When listening to voicemails using VoiceMailMain urgent messages will be presented before other
+     messages
 
 Queue changes
 -------------
@@ -480,18 +491,18 @@ Queue changes
     device state reported.
   * New configuration option: randomperiodicannounce. If a list of periodic announcements is
     specified by the periodic-announce option, then one will be chosen randomly when it is time
-	to play a periodic announcment
+    to play a periodic announcment
   * New configuration options: announce-position now takes two more values in addition to "yes" and
     "no." Two new options, "limit" and "more," are allowed. These are tied to another option,
-	announce-position-limit. By setting announce-position to "limit" callers will only have their
-	position announced if their position is less than what is specified by announce-position-limit.
-	If announce-position is set to "more" then callers beyond the position specified by announce-position-limit
-	will be told that their are more than announce-position-limit callers waiting.
+    announce-position-limit. By setting announce-position to "limit" callers will only have their
+    position announced if their position is less than what is specified by announce-position-limit.
+    If announce-position is set to "more" then callers beyond the position specified by announce-position-limit
+    will be told that their are more than announce-position-limit callers waiting.
   * Two new queue log events have been added. An ADDMEMBER event will be logged
     when a realtime queue member is added and a REMOVEMEMBER event will be logged
-	when a realtime queue member is removed. Since there is no calling channel associated
-	with these events, the string "REALTIME" is placed where the channel's unique id
-	is typically placed.
+    when a realtime queue member is removed. Since there is no calling channel associated
+    with these events, the string "REALTIME" is placed where the channel's unique id
+    is typically placed.
 
 MeetMe Changes
 --------------
@@ -761,7 +772,7 @@ Miscellaneous
   * iLBC source code no longer included (see UPGRADE.txt for details)
   * If compiled with DETECT_DEADLOCKS enabled and if you have glibc, then if 
      deadlock is detected, a backtrace of the stack which led to the lock calls
-	 will be output to the CLI.
+     will be output to the CLI.
   * If compiled with DEBUG_THREADS enabled and if you have glibc, then issuing
      the "core show locks" CLI command will give lock information output as well
-	 as a backtrace of the stack which led to the lock calls.
+     as a backtrace of the stack which led to the lock calls.

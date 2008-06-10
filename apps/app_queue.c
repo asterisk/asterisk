@@ -6334,8 +6334,10 @@ static int load_module(void)
 		ast_log(LOG_WARNING, "devicestate taskprocessor reference failed - devicestate notifications will not occur\n");
 	}
 
-	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL, AST_EVENT_IE_END)))
+	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE, device_state_cb, NULL, AST_EVENT_IE_END))) {
 		res = -1;
+	}
+
 	ast_realtime_require_field("queue_members", "paused", RQ_INTEGER1, 1, "uniqueid", RQ_UINTEGER2, 5, NULL);
 
 	return res ? AST_MODULE_LOAD_DECLINE : 0;

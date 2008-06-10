@@ -35,6 +35,8 @@ ael/ael_lex.o: ASTCFLAGS+=-I. -Iael -Wno-unused
 ael/ael.tab.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
 ael/ael.tab.o: ASTCFLAGS+=-I. -Iael -DYYENABLE_NLS=0
 
+$(if $(filter res_ais,$(EMBEDDED_MODS)),modules.link,res_ais.so): ais/clm.o ais/evt.o
+
 $(if $(filter res_snmp,$(EMBEDDED_MODS)),modules.link,res_snmp.so): snmp/agent.o
 
 $(if $(filter res_ael_share,$(EMBEDDED_MODS)),modules.link,res_ael_share.so): ael/ael_lex.o ael/ael.tab.o ael/pval.o
@@ -49,5 +51,4 @@ ael/ael.tab.c ael/ael.tab.h:
 ael/pval.o: ael/pval.c
 
 clean::
-	rm -f snmp/*.o
-	rm -f ael/*.o
+	rm -f snmp/*.o ael/*.o ais/*.o

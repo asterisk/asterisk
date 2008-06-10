@@ -8070,7 +8070,7 @@ int load_pbx(void)
 	/* Register manager application */
 	ast_manager_register2("ShowDialPlan", EVENT_FLAG_CONFIG | EVENT_FLAG_REPORTING, manager_show_dialplan, "List dialplan", mandescr_show_dialplan);
 
-	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL,
+	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE, device_state_cb, NULL,
 			AST_EVENT_IE_END))) {
 		return -1;
 	}
