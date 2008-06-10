@@ -87,7 +87,7 @@ static struct ast_frame *lintoilbc_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = slin_ilbc_ex;
+	f.data.ptr = slin_ilbc_ex;
 	return &f;
 }
 
@@ -102,7 +102,7 @@ static struct ast_frame *ilbctolin_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = ilbc_slin_ex;
+	f.data.ptr = ilbc_slin_ex;
 	return &f;
 }
 
@@ -134,7 +134,7 @@ static int ilbctolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 			ast_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}		
-		iLBC_decode(tmpf, plc_mode ? f->data + x : NULL, &tmp->dec, plc_mode);
+		iLBC_decode(tmpf, plc_mode ? f->data.ptr + x : NULL, &tmp->dec, plc_mode);
 		for ( i=0; i < ILBC_SAMPLES; i++)
 			dst[pvt->samples + i] = tmpf[i];
 		pvt->samples += ILBC_SAMPLES;
@@ -152,7 +152,7 @@ static int lintoilbc_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	/* XXX We should look at how old the rest of our stream is, and if it
 	   is too old, then we should overwrite it entirely, otherwise we can
 	   get artifacts of earlier talk that do not belong */
-	memcpy(tmp->buf + pvt->samples, f->data, f->datalen);
+	memcpy(tmp->buf + pvt->samples, f->data.ptr, f->datalen);
 	pvt->samples += f->samples;
 	return 0;
 }
