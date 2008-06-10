@@ -3115,7 +3115,9 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner)
 
 	/* Remove link from peer to subscription of MWI */
 	if (p->relatedpeer) {
-		p->relatedpeer->mwipvt = NULL;
+		if (p->relatedpeer->mwipvt == p) {
+			p->relatedpeer->mwipvt = NULL;
+		}
 		ASTOBJ_UNREF(p->relatedpeer, sip_destroy_peer);
 	}
 
