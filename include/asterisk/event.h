@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2007, Digium, Inc.
+ * Copyright (C) 2007 - 2008, Digium, Inc.
  *
  * Russell Bryant <russell@digium.com>
  *
@@ -114,14 +114,110 @@ struct ast_event_sub *ast_event_subscribe(enum ast_event_type event_type,
 	ast_event_cb_t cb, void *userdata, ...);
 
 /*!
+ * \brief Allocate a subscription, but do not activate it
+ *
+ * \arg type the event type to subscribe to
+ * \arg cb the function to call when an event matches this subscription
+ * \arg userdata data to pass to the provided callback
+ *
+ * This function should be used when you want to dynamically build a
+ * subscription.
+ *
+ * \return the allocated subscription, or NULL on failure
+ */
+struct ast_event_sub *ast_event_subscribe_new(enum ast_event_type type, 
+	ast_event_cb_t cb, void *userdata);
+
+/*!
+ * \brief Destroy an allocated subscription
+ *
+ * \arg sub the subscription to destroy
+ *
+ * This function should be used when a subscription is allocated with
+ * ast_event_subscribe_new(), but for some reason, you want to destroy it
+ * instead of activating it.  This could be because of an error when
+ * reading in the configuration for the dynamically built subscription.
+ */
+void ast_event_sub_destroy(struct ast_event_sub *sub);
+
+/*!
+ * \brief Append a uint parameter to a subscription
+ *
+ * \arg sub the dynamic subscription allocated with ast_event_subscribe_new()
+ * \arg ie_type the information element type for the parameter
+ * \arg uint the value that must be present in the event to match this subscription
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int ast_event_sub_append_ie_uint(struct ast_event_sub *sub,
+	enum ast_event_ie_type ie_type, uint32_t uint);
+
+/*!
+ * \brief Append a string parameter to a subscription
+ *
+ * \arg sub the dynamic subscription allocated with ast_event_subscribe_new()
+ * \arg ie_type the information element type for the parameter
+ * \arg str the string that must be present in the event to match this subscription
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int ast_event_sub_append_ie_str(struct ast_event_sub *sub, 	
+	enum ast_event_ie_type ie_type, const char *str);
+
+/*!
+ * \brief Append a raw parameter to a subscription
+ *
+ * \arg sub the dynamic subscription allocated with ast_event_subscribe_new()
+ * \arg ie_type the information element type for the parameter
+ * \arg raw the data that must be present in the event to match this subscription
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int ast_event_sub_append_ie_raw(struct ast_event_sub *sub, 	
+	enum ast_event_ie_type ie_type, void *data, size_t raw_datalen);
+
+/*!
+ * \brief Append an 'exists' parameter to a subscription
+ *
+ * \arg sub the dynamic subscription allocated with ast_event_subscribe_new()
+ * \arg ie_type the information element type that must be present in the event
+ *      for it to match this subscription.
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int ast_event_sub_append_ie_exists(struct ast_event_sub *sub, 	
+	enum ast_event_ie_type ie_type);
+
+/*!
+ * \brief Activate a dynamically built subscription
+ *
+ * \arg sub the subscription to activate that was allocated using
+ *      ast_event_subscribe_new()
+ *
+ * Once a dynamically built subscription has had all of the parameters added 
+ * to it, it should be activated using this function.
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int ast_event_sub_activate(struct ast_event_sub *sub);
+
+/*!
  * \brief Un-subscribe from events
  *
  * \param event_sub This is the reference to the subscription returned by
  *        ast_event_subscribe.
- * 
- * \return Nothing
+ *
+ * This function will remove a subscription and free the associated data
+ * structures.
+ *
+ * \return NULL for convenience.
  */
-void ast_event_unsubscribe(struct ast_event_sub *event_sub);
+struct ast_event_sub *ast_event_unsubscribe(struct ast_event_sub *event_sub);
 
 /*!
  * \brief Check if subscribers exist
@@ -177,6 +273,9 @@ enum ast_event_subscriber_res ast_event_check_subscriber(enum ast_event_type eve
  * all of the subscriptions to that event type that already exist.
  */
 void ast_event_report_subs(const struct ast_event_sub *sub);
+
+/*! \brief Dump the event cache for the subscriber */
+void ast_event_dump_cache(const struct ast_event_sub *event_sub);
 
 /*!
  * \brief Create a new event
@@ -412,6 +511,24 @@ const char *ast_event_get_ie_str(const struct ast_event *event, enum ast_event_i
 const void *ast_event_get_ie_raw(const struct ast_event *event, enum ast_event_ie_type ie_type);
 
 /*!
+ * \brief Get the string representation of an information element type
+ *
+ * \arg ie_type the information element type to get the string representation of
+ *
+ * \return the string representation of the information element type
+ */
+const char *ast_event_get_ie_type_name(enum ast_event_ie_type ie_type);
+
+/*!
+ * \brief Get the payload type for a given information element type
+ *
+ * \arg ie_type the information element type to get the payload type of
+ *
+ * \return the payload type for the provided IE type
+ */
+enum ast_event_ie_pltype ast_event_get_ie_pltype(enum ast_event_ie_type ie_type);
+
+/*!
  * \brief Get the type for an event
  *
  * \param event the event to get the type for
@@ -420,6 +537,46 @@ const void *ast_event_get_ie_raw(const struct ast_event *event, enum ast_event_i
  *         ast_event_type enum
  */
 enum ast_event_type ast_event_get_type(const struct ast_event *event);
+
+/*!
+ * \brief Get the string representation of the type of the given event
+ *
+ * \arg event the event to get the type of
+ *
+ * \return the string representation of the event type of the provided event
+ */
+const char *ast_event_get_type_name(const struct ast_event *event);
+
+/*!
+ * \brief Convert a string into an event type
+ *
+ * \arg str the string to convert
+ * \arg event_type an output parameter for the event type
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int ast_event_str_to_event_type(const char *str, enum ast_event_type *event_type);
+
+/*!
+ * \brief Convert a string to an IE type
+ *
+ * \arg str the string to convert
+ * \arg ie_type an output parameter for the IE type
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int ast_event_str_to_ie_type(const char *str, enum ast_event_ie_type *ie_type);
+
+/*!
+ * \brief Get the size of an event
+ *
+ * \param event the event to get the size of
+ *
+ * \return the number of bytes contained in the event
+ */
+size_t ast_event_get_size(const struct ast_event *event);
 
 /*!
  * \brief Initialize an event iterator instance

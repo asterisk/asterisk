@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2007, Digium, Inc.
+ * Copyright (C) 2007 - 2008, Digium, Inc.
  *
  * Russell Bryant <russell@digium.com>
  *
@@ -29,23 +29,27 @@
  * \note These values can *never* change. */
 enum ast_event_type {
 	/*! Reserved to provide the ability to subscribe to all events.  A specific
-	    event should never have a payload of 0. */
-	AST_EVENT_ALL    = 0x00,
+	 *  event should never have a payload of 0. */
+	AST_EVENT_ALL                 = 0x00,
 	/*! This event type is reserved for use by third-party modules to create
-	    custom events without having to modify this file. 
-	    \note There are no "custom" IE types, because IEs only have to be
-	    unique to the event itself, not necessarily across all events. */
-	AST_EVENT_CUSTOM = 0x01,
+	 *  custom events without having to modify this file. 
+	 *  \note There are no "custom" IE types, because IEs only have to be
+	 *  unique to the event itself, not necessarily across all events. */
+	AST_EVENT_CUSTOM              = 0x01,
 	/*! Voicemail message waiting indication */
-	AST_EVENT_MWI          = 0x02,
+	AST_EVENT_MWI                 = 0x02,
 	/*! Someone has subscribed to events */
-	AST_EVENT_SUB          = 0x03,
+	AST_EVENT_SUB                 = 0x03,
 	/*! Someone has unsubscribed from events */
-	AST_EVENT_UNSUB        = 0x04,
-	/*! The state of a device has changed */
-	AST_EVENT_DEVICE_STATE = 0x05,
+	AST_EVENT_UNSUB               = 0x04,
+	/*! The aggregate state of a device across all servers configured to be
+	 *  a part of a device state cluster has changed. */
+	AST_EVENT_DEVICE_STATE        = 0x05,
+	/*! The state of a device has changed on _one_ server.  This should not be used
+	 *  directly, in general.  Use AST_EVENT_DEVICE_STATE instead. */
+	AST_EVENT_DEVICE_STATE_CHANGE = 0x06,
 	/*! Number of event types.  This should be the last event type + 1 */
-	AST_EVENT_TOTAL        = 0x06,
+	AST_EVENT_TOTAL               = 0x07,
 };
 
 /*! \brief Event Information Element types */
@@ -91,13 +95,13 @@ enum ast_event_ie_type {
 	AST_EVENT_IE_EXISTS    = 0x06,
 	/*!
 	 * \brief Device Name
-	 * Used by AST_EVENT_DEVICE_STATE
+	 * Used by AST_EVENT_DEVICE_STATE_CHANGE
 	 * Payload type: STR
 	 */
 	AST_EVENT_IE_DEVICE    = 0x07,
 	/*!
 	 * \brief Generic State IE
-	 * Used by AST_EVENT_DEVICE_STATE
+	 * Used by AST_EVENT_DEVICE_STATE_CHANGE
 	 * Payload type: UINT
 	 * The actual state values depend on the event which
 	 * this IE is a part of.
@@ -109,18 +113,30 @@ enum ast_event_ie_type {
 	  * Payload type: str
 	  */
 	 AST_EVENT_IE_CONTEXT  = 0x09,
+	 /*!
+	  * \brief Entity ID
+	  * Used by All events
+	  * Payload type: RAW
+	  * This IE indicates which server the event originated from
+	  */
+	 AST_EVENT_IE_EID      = 0x0A,
 };
+
+#define AST_EVENT_IE_MAX AST_EVENT_IE_EID
 
 /*!
  * \brief Payload types for event information elements
  */
 enum ast_event_ie_pltype {
+	AST_EVENT_IE_PLTYPE_UNKNOWN = -1,
 	/*! Just check if it exists, not the value */
 	AST_EVENT_IE_PLTYPE_EXISTS,
 	/*! Unsigned Integer (Can be used for signed, too ...) */
 	AST_EVENT_IE_PLTYPE_UINT,
 	/*! String */
 	AST_EVENT_IE_PLTYPE_STR,
+	/*! Raw data, compared with memcmp */
+	AST_EVENT_IE_PLTYPE_RAW,
 };
 
 /*!
@@ -139,5 +155,16 @@ struct ast_event;
 struct ast_event_ie;
 struct ast_event_sub;
 struct ast_event_iterator;
+
+/*!
+ * \brief supposed to be an opaque type
+ *
+ * This is only here so that it can be declared on the stack.
+ */
+struct ast_event_iterator {
+	uint16_t event_len;
+	const struct ast_event *event;
+	struct ast_event_ie *ie;
+};
 
 #endif /* AST_EVENT_DEFS_H */
