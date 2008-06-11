@@ -90,8 +90,9 @@ struct ast_cdr {
 	char accountcode[AST_MAX_ACCOUNT_CODE];			
 	/*! flags */
 	unsigned int flags;				
-	/*! Unique Channel Identifier */
-	char uniqueid[32];
+	/*! Unique Channel Identifier
+	 * 150 = 127 (max systemname) + "-" + 10 (epoch timestamp) + "." + 10 (monotonically incrementing integer) + NULL */
+	char uniqueid[150];
 	/*! User field */
 	char userfield[AST_MAX_USER_FIELD];
 
