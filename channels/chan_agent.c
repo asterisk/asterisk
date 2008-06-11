@@ -1061,7 +1061,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 	if (p->chan) {
 		if (ast_test_flag(p->chan, AST_FLAG_BLOCKING)) {
 			ast_log( LOG_ERROR, "A blocker exists after agent channel ownership acquired\n" );
-			ast_assert(0);
+			ast_assert(ast_test_flag(p->chan, AST_FLAG_BLOCKING) == 0);
 		}
 	}
 	return tmp;
