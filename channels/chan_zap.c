@@ -8160,7 +8160,7 @@ static struct zt_pvt *mkintf(int channel, const struct zt_chan_conf *conf, struc
 				}
 			}
 #ifdef HAVE_SS7
-			if (conf->chan.sig == SIG_SS7) {
+			if (chan_sig == SIG_SS7) {
 				struct zt_ss7 *ss7;
 				int clear = 0;
 				if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &clear)) {
