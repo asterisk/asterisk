@@ -9456,11 +9456,18 @@ static void *ss7_linkset(void *data)
 				}
 				p = linkset->pvts[chanpos];
 				ast_mutex_lock(&p->lock);
+
 				p->inservice = 1;
 				p->remotelyblocked = 0;
 				dpc = p->dpc;
 				isup_set_call_dpc(e->rsc.call, dpc);
+				if (p->ss7call)
+					p->ss7call = NULL;
+				if (p->owner)
+					p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+
 				ast_mutex_unlock(&p->lock);
+
 				isup_rlc(ss7, e->rsc.call);
 				break;
 			case ISUP_EVENT_GRS:
