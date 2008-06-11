@@ -137,6 +137,11 @@ CDR:
   username and password parameters in cdr_odbc.conf, therefore, are no
   longer used.  The dsn parameter now points to an entry in res_odbc.conf.
 
+* The uniqueid field in the core Asterisk structure has been changed from a
+  maximum 31 character field to a 149 character field, to account for all
+  possible values the systemname prefix could be.  In the past, if the
+  systemname was too long, the uniqueid would have been truncated.
+
 Formats:
 
 * format_wav: The GAIN preprocessor definition and source code that used it

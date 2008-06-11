@@ -25,7 +25,7 @@ billsec bigint DEFAULT 0::bigint NOT NULL,
 disposition character varying(45) DEFAULT '' NOT NULL,
 amaflags bigint DEFAULT 0::bigint NOT NULL,
 accountcode character varying(20) DEFAULT '' NOT NULL,
-uniqueid character varying(32) DEFAULT '' NOT NULL,
+uniqueid character varying(150) DEFAULT '' NOT NULL,
 userfield character varying(255) DEFAULT '' NOT NULL
 );
 
