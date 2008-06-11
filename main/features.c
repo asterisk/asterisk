@@ -3001,7 +3001,7 @@ static int load_config(void)
 			default_parkinglot->parking_stop = 750;
 			default_parkinglot->parking_offset = 0;
 			default_parkinglot->parkfindnext = 0;
-			default_parkinglot->parkingtime = 0;
+			default_parkinglot->parkingtime = DEFAULT_PARK_TIME;
 			ao2_unlock(default_parkinglot);
 		}
 	}
