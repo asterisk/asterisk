@@ -3121,12 +3121,18 @@ static int test_inuse(struct misdn_bchannel *bc)
 	struct timeval now;
 	gettimeofday(&now, NULL);
 	if (!bc->in_use) {
-		if (bc->last_used.tv_sec < now.tv_sec) {
-			cb_log(0,bc->port, "channel with stid:%x for one second still in use!\n", bc->b_stid);
+		if ( bc->last_used.tv_sec == now.tv_sec ) {
+			cb_log(2,bc->port, "channel with stid:%x for one second still in use! (n:%d lu:%d)\n", bc->b_stid, now.tv_sec, bc->last_used.tv_sec);
 			return 1;
 		}
+		
+
+		cb_log(3,bc->port, "channel with stid:%x not in use!\n", bc->b_stid);
+		return 0;
 	}
-	return 0;
+	
+	cb_log(2,bc->port, "channel with stid:%x in use!\n", bc->b_stid);
+	return 1;
 }
 
 
@@ -3175,9 +3181,15 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 			if (channel > 0) {
 				if (channel <= stack->b_num) {
 					for (i = 0; i < stack->b_num; i++) {
-						if ( test_inuse(&stack->bc[i]) && stack->bc[i].channel == channel) {
-							cb_log(0,port,"Requested channel:%d on port:%d is already in use\n",channel, port);
-							return NULL;
+						if ( stack->bc[i].channel == channel) {
+							if (test_inuse(&stack->bc[i])) { 
+								cb_log(0,port,"Requested channel:%d on port:%d is already in use\n",channel, port);
+								return NULL;
+
+							} else {
+								prepare_bc(&stack->bc[i], channel);
+								return &stack->bc[i];
+							}
 						}
 					}
 				} else {
@@ -3190,7 +3202,7 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 
 			if (dec) {
 				for (i = maxnum-1; i>=0; i--) {
-					if (test_inuse(&stack->bc[i])) {
+					if (!test_inuse(&stack->bc[i])) {
 						/* 3. channel on bri means CW*/
 						if (!stack->pri && i==stack->b_num)
 							stack->bc[i].cw=1;
@@ -3202,7 +3214,7 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 				}
 			} else {
 				for (i = 0; i <maxnum; i++) {
-					if (test_inuse(&stack->bc[i])) {
+					if (!test_inuse(&stack->bc[i])) {
 						/* 3. channel on bri means CW*/
 						if (!stack->pri && i==stack->b_num)
 							stack->bc[i].cw=1;
