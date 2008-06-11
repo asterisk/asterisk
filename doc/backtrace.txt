@@ -76,6 +76,11 @@ Loaded symbols for /usr/lib/asterisk/modules/app_externalivr.so
 #0  0x29b45d7e in ?? ()
 (gdb)
 
+In order to make extracting the gdb output easier, you may wish to
+turn on logging using "set logging on". This command will save all
+output to the default file of gdb.txt, which in the end can be 
+uploaded as an attachment to the bug tracker.
+
 Now at the gdb prompt, type: bt
 You would see output similar to:
 (gdb) bt
@@ -178,8 +183,9 @@ Thread 1 (process 26252):
 
 That output tells us crucial information about each thread.
 
-Now, just create an output.txt file and dump your "bt full"
-(and/or "bt") ALONG WITH "thread apply all bt" into it.
+Now, if you turned on logging upload your gdb.txt file. Otherwise,
+create an output.txt file and dump your "bt full" (and/or "bt")
+ALONG WITH "thread apply all bt" into it.
 
 Note: Please ATTACH your output, DO NOT paste it as a note.
 
