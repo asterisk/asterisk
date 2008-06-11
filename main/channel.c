@@ -983,7 +983,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 	if (((fin->frametype == AST_FRAME_VOICE) && (qlen > 96)) || (qlen  > 128)) {
 		if (fin->frametype != AST_FRAME_VOICE) {
 			ast_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
-			ast_assert(0);
+			ast_assert(fin->frametype == AST_FRAME_VOICE);
 		} else {
 			ast_debug(1, "Dropping voice to exceptionally long queue on %s\n", chan->name);
 			ast_frfree(f);
@@ -1641,7 +1641,7 @@ int ast_hangup(struct ast_channel *chan)
 		ast_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
 					"is blocked by thread %ld in procedure %s!  Expect a failure\n",
 					(long)pthread_self(), chan->name, (long)chan->blocker, chan->blockproc);
-		ast_assert(0);
+		ast_assert(ast_test_flag(chan, AST_FLAG_BLOCKING) == 0);
 	}
 	if (!ast_test_flag(chan, AST_FLAG_ZOMBIE)) {
 		ast_debug(1, "Hanging up channel '%s'\n", chan->name);
