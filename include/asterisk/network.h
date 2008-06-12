@@ -45,6 +45,8 @@ extern "C" {
 #include <netinet/tcp.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
 #elif defined(HAVE_WINSOCK_H)
 #include <winsock.h>
 typedef int socklen_t;
