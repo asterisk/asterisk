@@ -1161,10 +1161,19 @@ static void __send_ping(const void *data)
 
 static int send_ping(const void *data)
 {
+	int callno = (long) data;
+
+	ast_mutex_lock(&iaxsl[callno]);
+	if (iaxs[callno]) {
+		iaxs[callno]->pingid = -1;
+	}
+	ast_mutex_unlock(&iaxsl[callno]);
+
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__send_ping, data))
 #endif		
 		__send_ping(data);
+
 	return 0;
 }
 
@@ -1201,10 +1210,19 @@ static void __send_lagrq(const void *data)
 
 static int send_lagrq(const void *data)
 {
+	int callno = (long) data;
+
+	ast_mutex_lock(&iaxsl[callno]);
+	if (iaxs[callno]) {
+		iaxs[callno]->lagid = -1;
+	}
+	ast_mutex_unlock(&iaxsl[callno]);
+
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__send_lagrq, data))
 #endif		
 		__send_lagrq(data);
+	
 	return 0;
 }
 
