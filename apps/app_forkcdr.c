@@ -89,7 +89,7 @@ static char *descrip =
 "cdr record is set to the current time. Future hang-up or ending events\n"
 "will not override this time stamp.\n"
 "Next, If the 'A' option is specified, the original cdr record will have\n"
-"it ANS_LOCKED flag set, which prevent future call dispostion events\n"
+"it ANS_LOCKED flag set, which prevent future answer events\n"
 "from updating the original cdr record's disposition. Normally, an\n"
 "'ANSWERED' event would mark all cdr records in the chain as 'ANSWERED'.\n"
 "Next, if the 'T' option is specified, the original cdr record will have\n"
