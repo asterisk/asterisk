@@ -1565,8 +1565,9 @@ static int say_position(struct queue_ent *qe)
 
 	/* If the hold time is >1 min, if it's enabled, and if it's not
 	   supposed to be only once and we have already said it, say it */
-	if ((avgholdmins+avgholdsecs) > 0 && (qe->parent->announceholdtime) &&
-		(!(qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE) && qe->last_pos)) {
+    if ((avgholdmins+avgholdsecs) > 0 && qe->parent->announceholdtime &&
+        ((qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE && !qe->last_pos) ||
+        !(qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE))) {
 		res = play_file(qe->chan, qe->parent->sound_holdtime);
 		if (res)
 			goto playout;
