@@ -2281,6 +2281,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				break;
 
 			if (c) {
+				char dtmfstr[2] = "";
+
 				if (c->fds[0] != origfd || (user->zapchannel && (c->audiohooks || c->monitor))) {
 					if (using_pseudo) {
 						/* Kill old pseudo */
@@ -2298,6 +2300,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					f = ast_read(c);
 				if (!f)
 					break;
+				if (f->frametype == AST_FRAME_DTMF) {
+					dtmfstr[0] = f->subclass;
+					dtmfstr[1] = '\0';
+				}
+
 				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass == AST_FORMAT_SLINEAR)) {
 					if (user->talk.actual)
 						ast_frame_adjust_volume(f, user->talk.actual);
@@ -2348,35 +2355,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						if (user->talking)
 							careful_write(fd, f->data.ptr, f->datalen, 0);
 					}
-				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT)) {
-					char tmp[2];
-
-					if (confflags & CONFFLAG_PASS_DTMF)
-						conf_queue_dtmf(conf, user, f);
-
-					tmp[0] = f->subclass;
-					tmp[1] = '\0';
-					if (!ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
-						ast_debug(1, "Got DTMF %c, goto context %s\n", tmp[0], exitcontext);
-						ret = 0;
-						ast_frfree(f);
-						break;
-					} else {
-						ast_debug(2, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", tmp, exitcontext);
-					}
-				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_KEYEXIT) && (strchr(exitkeys, f->subclass))) {
-					char exitkey[2];
-
-					exitkey[0] = f->subclass;
-					exitkey[1] = '\0';
-					
-					pbx_builtin_setvar_helper(chan, "MEETME_EXIT_KEY", exitkey);
-						
-					if (confflags & CONFFLAG_PASS_DTMF)
-						conf_queue_dtmf(conf, user, f);
-					ret = 0;
-					ast_frfree(f);
-					break;
 				} else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
 					if (confflags & CONFFLAG_PASS_DTMF)
 						conf_queue_dtmf(conf, user, f);
@@ -2543,6 +2521,27 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					}
 
 					conf_flush(fd, chan);
+				/* Since this option could absorb dtmf meant for the previous (menu), we have to check this one last */
+				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT) && ast_exists_extension(chan, exitcontext, dtmfstr, 1, "")) {
+					if (confflags & CONFFLAG_PASS_DTMF)
+						conf_queue_dtmf(conf, user, f);
+
+					if (!ast_goto_if_exists(chan, exitcontext, dtmfstr, 1)) {
+						ast_debug(1, "Got DTMF %c, goto context %s\n", dtmfstr[0], exitcontext);
+						ret = 0;
+						ast_frfree(f);
+						break;
+					} else {
+						ast_debug(2, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", dtmfstr, exitcontext);
+					}
+				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_KEYEXIT) && (strchr(exitkeys, f->subclass))) {
+					pbx_builtin_setvar_helper(chan, "MEETME_EXIT_KEY", dtmfstr);
+						
+					if (confflags & CONFFLAG_PASS_DTMF)
+						conf_queue_dtmf(conf, user, f);
+					ret = 0;
+					ast_frfree(f);
+					break;
 				} else if ((f->frametype == AST_FRAME_DTMF_BEGIN || f->frametype == AST_FRAME_DTMF_END)
 					&& confflags & CONFFLAG_PASS_DTMF) {
 					conf_queue_dtmf(conf, user, f);
