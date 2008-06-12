@@ -31,8 +31,8 @@
   The timing source used by Asterisk must provide the following
   features:
 
-  1) Periodic triggers, with a configurable interval (specified in
-     millisconds).
+  1) Periodic triggers, with a configurable interval (specified as
+     number of triggers per second).
 
   2) Multiple outstanding triggers, each of which must be 'acked'
      to clear it. Triggers must also be 'ackable' in quantity.
