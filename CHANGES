@@ -387,8 +387,7 @@ Other Dialplan Application Changes
     from the orig CDR to the new CDR after reset; 'e' sets the 'end' time on the
     original CDR; 'R' prevents the new CDR from being reset; 's(var=val)' adds/changes
     the 'var' variable on the original CDR; 'T' forces ast_cdr_end(), ast_cdr_answer(),
-    _busy(), failed(), etc, to all obey the LOCKED flag on cdr's in the chain, and
-    also the ast_cdr_setvar() func.
+    to obey the LOCKED flag on cdr's in the chain, and also the ast_cdr_setvar() func.
 
 Music On Hold Changes
 ---------------------
