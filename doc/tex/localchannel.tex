@@ -61,10 +61,10 @@ exten => s,4,Hangup
 exten => 200,1,Dial(sip/blah)
 exten => 200,102,VoiceMail(${EXTEN}@default)
 
-exten => 201,1,Dial(zap/1)
+exten => 201,1,Dial(DAHDI/1)
 exten => 201,102,VoiceMail(${EXTEN}@default)
 
-exten => _0.,1,Dial(Zap/g1/${EXTEN:1}) ; outgoing calls with 0+number
+exten => _0.,1,Dial(DAHDI/g1/${EXTEN:1}) ; outgoing calls with 0+number
 \end{verbatim}
 \end{astlisting}
 

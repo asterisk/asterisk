@@ -286,7 +286,7 @@ ENUMLOOKUP function calls.
 ;
 exten => _011.,1,Set(enumresult=${ENUMLOOKUP(+${EXTEN:3})})
 exten => _011.,n,Dial(SIP/${enumresult})
-exten => _011.,n,Dial(Zap/g1/${EXTEN})
+exten => _011.,n,Dial(DAHDI/g1/${EXTEN})
 ;
 ; end example 1
 
@@ -302,7 +302,7 @@ exten => _011.,n,While($["${counter}"<"${sipcount}"])
 exten => _011.,n,Set(counter=$[${counter}+1])
 exten => _011.,n,Dial(SIP/${ENUMLOOKUP(+${EXTEN:3},sip,,${counter})})
 exten => _011.,n,EndWhile
-exten => _011.,n,Dial(Zap/g1/${EXTEN})
+exten => _011.,n,Dial(DAHDI/g1/${EXTEN})
 ;
 ; end example 2
 
@@ -312,7 +312,7 @@ exten => _011.,n,Dial(Zap/g1/${EXTEN})
 ;  14102241145 or 437203001721)
 ; Search through e164.arpa and then also search through e164.org
 ;  to see if there are any valid SIP or IAX termination capabilities.
-;  If none, send call out via Zap channel 1.
+;  If none, send call out via DAHDI channel 1.
 ;
 ; Start first with e164.arpa zone...
 ;
@@ -346,8 +346,8 @@ exten => _X.,21,GotoIf($["${counter}"<"${iaxcount}"]?19:22)
 ;
 ; ...then send out PRI.
 ;
-exten => _X.,22,NoOp("No valid entries in e164.org for ${EXTEN} - sending out via Zap")
-exten => _X.,23,Dial(Zap/g1/${EXTEN})
+exten => _X.,22,NoOp("No valid entries in e164.org for ${EXTEN} - sending out via DAHDI")
+exten => _X.,23,Dial(DAHDI/g1/${EXTEN})
 ;
 ; end example 3
 

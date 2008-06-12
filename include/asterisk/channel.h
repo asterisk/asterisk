@@ -28,7 +28,7 @@
 	A phone call through Asterisk consists of an incoming
 	connection and an outbound connection. Each call comes
 	in through a channel driver that supports one technology,
-	like SIP, ZAP, IAX2 etc. 
+	like SIP, DAHDI, IAX2 etc. 
 	\par
 	Each channel driver, technology, has it's own private
 	channel or dialog structure, that is technology-dependent.
@@ -92,7 +92,7 @@
 	them together.
 	
 	The conference bridge (meetme) handles several channels simultaneously
-	with the support of an external timer (zaptel timer). This is used
+	with the support of an external timer (DAHDI timer). This is used
 	not only by the Conference application (meetme) but also by the
 	page application and the SLA system introduced in 1.4.
 	The conference bridge does not handle video.
@@ -224,10 +224,10 @@ struct ast_datastore {
  * 
  * SIP and IAX2 has utf8 encoded Unicode caller ID names.
  * In some cases, we also have an alternative (RPID) E.164 number that can be used
- * as caller ID on numeric E.164 phone networks (zaptel or SIP/IAX2 to pstn gateway).
+ * as caller ID on numeric E.164 phone networks (DAHDI or SIP/IAX2 to pstn gateway).
  *
  * \todo Implement settings for transliteration between UTF8 caller ID names in
- *       to Ascii Caller ID's (Zaptel). Östen Åsklund might be transliterated into
+ *       to Ascii Caller ID's (DAHDI). Östen Åsklund might be transliterated into
  *	 Osten Asklund or Oesten Aasklund depending upon language and person...
  *	 We need automatic routines for incoming calls and static settings for
  * 	 our own accounts.
@@ -249,7 +249,7 @@ struct ast_callerid {
 	See for examples:
 	\arg chan_iax2.c - The Inter-Asterisk exchange protocol
 	\arg chan_sip.c - The SIP channel driver
-	\arg chan_zap.c - PSTN connectivity (TDM, PRI, T1/E1, FXO, FXS)
+	\arg chan_dahdi.c - PSTN connectivity (TDM, PRI, T1/E1, FXO, FXS)
 
 	If you develop your own channel driver, this is where you
 	tell the PBX at registration of your driver what properties
@@ -1423,7 +1423,7 @@ int ast_autoservice_start(struct ast_channel *chan);
  */
 int ast_autoservice_stop(struct ast_channel *chan);
 
-/* If built with zaptel optimizations, force a scheduled expiration on the
+/* If built with dahdi optimizations, force a scheduled expiration on the
    timer fd, at which point we call the callback function / data */
 int ast_settimeout(struct ast_channel *c, int samples, int (*func)(const void *data), void *data);
 

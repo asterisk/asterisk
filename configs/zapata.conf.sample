@@ -1,10 +1,10 @@
 ;
-; Zapata telephony interface
+; DAHDI telephony
 ;
 ; Configuration file
 ;
-; You need to restart Asterisk to re-configure the Zap channel
-; CLI> reload chan_zap.so 
+; You need to restart Asterisk to re-configure the DAHDI channel
+; CLI> reload chan_dahdi.so 
 ;		will reload the configuration file,
 ;		but not all configuration options are 
 ; 		re-configured during a reload (signalling, as well as
@@ -30,7 +30,7 @@
 ;        trunkgroup => <trunkgroup>,<dchannel>[,<backup1>...]
 ;
 ;        trunkgroup  is the numerical trunk group to create
-;        dchannel    is the zap channel which will have the 
+;        dchannel    is the DAHDI channel which will have the 
 ;                    d-channel for the trunk.
 ;        backup1     is an optional list of backup d-channels.
 ;
@@ -38,9 +38,9 @@
 ;trunkgroup => 1,24
 ;
 ; Spanmap: Associates a span with a trunk group
-;        spanmap => <zapspan>,<trunkgroup>[,<logicalspan>]
+;        spanmap => <dahdispan>,<trunkgroup>[,<logicalspan>]
 ;
-;        zapspan     is the zap span number to associate
+;        dahdispan     is the DAHDI span number to associate
 ;        trunkgroup  is the trunkgroup (specified above) for the mapping
 ;        logicalspan is the logical span number within the trunk group to use.
 ;                    if unspecified, no logical span number is used.
@@ -208,7 +208,7 @@
 ; pritimer cannot be changed on a reload.
 ;
 ; Signalling method. The default is "auto". Valid values:
-; auto:           Use the current value from Zaptel.
+; auto:           Use the current value from DAHDI.
 ; em:             E & M
 ; em_e1:          E & M E1
 ; em_w:           E & M Wink
@@ -286,8 +286,8 @@
 ;
 ; A variety of timing parameters can be specified as well
 ; The default values for those are "-1", which is to use the
-; compile-time defaults of the Zaptel kernel modules. The timing
-; parameters, (with the standard default from Zaptel):
+; compile-time defaults of the DAHDI kernel modules. The timing
+; parameters, (with the standard default from DAHDI):
 ;
 ;    prewink:     Pre-wink time (default 50ms)
 ;    preflash:    Pre-flash time (default 50ms)
@@ -364,7 +364,7 @@ usecallerid=yes
 ; first is the corresponding mailbox, and the second is 1 or 0, indicating if
 ; there are messages waiting or not.
 ;
-;mwimonitornotify=/usr/local/bin/zapnotify.sh
+;mwimonitornotify=/usr/local/bin/dahdinotify.sh
 ;
 ; Whether or not to enable call waiting on internal extensions
 ; With this set to 'yes', busy extensions will hear the call-waiting
@@ -450,23 +450,23 @@ callreturn=yes
 ; Note that when setting the number of taps, the number 256 does not translate
 ; to 256 ms of echo cancellation.  echocancel=256 means 256 / 8 = 32 ms.
 ;
-; Note that if any of your Zaptel cards have hardware echo cancellers,
+; Note that if any of your DAHDI cards have hardware echo cancellers,
 ; then this setting only turns them on and off; numeric settings will
 ; be treated as "yes". There are no special settings required for
 ; hardware echo cancellers; when present and enabled in their kernel
 ; modules, they take precedence over the software echo canceller compiled
-; into Zaptel automatically.
+; into DAHDI automatically.
 ;
 ;
 echocancel=yes
 ;
-; As of Zaptel 1.4.8, some Zaptel echo cancellers (software and hardware)
+; As of Zaptel 1.4.8, some DAHDI echo cancellers (software and hardware)
 ; support adjustable parameters; these parameters can be supplied as
 ; additional options to the 'echocancel' setting. Note that Asterisk
 ; does not attempt to validate the parameters or their values, so if you
 ; supply an invalid parameter you will not know the specific reason it
 ; failed without checking the kernel message log for the error(s)
-; put there by Zaptel.
+; put there by DAHDI.
 ;
 ;echocancel=128,param1=32,param2=0,param3=14
 ;
@@ -478,7 +478,7 @@ echocancelwhenbridged=yes
 ;
 ; In some cases, the echo canceller doesn't train quickly enough and there
 ; is echo at the beginning of the call.  Enabling echo training will cause
-; Zaptel to briefly mute the channel, send an impulse, and use the impulse
+; DAHDI to briefly mute the channel, send an impulse, and use the impulse
 ; response to pre-train the echo canceller so it can start out with a much
 ; closer idea of the actual echo.  Value may be "yes", "no", or a number of
 ; milliseconds to delay before training (default = 400)
@@ -566,9 +566,9 @@ pickupgroup=1
 ;
 ;callerid = asreceived
 ;
-; should we use the caller ID from incoming call on zap transfer?
+; should we use the caller ID from incoming call on DAHDI transfer?
 ;
-;useincomingcalleridonzaptransfer = yes
+;useincomingcalleridondahditransfer = yes
 ;
 ; AMA flags affects the recording of Call Detail Records.  If specified
 ; it may be 'default', 'omit', 'billing', or 'documentation'.
@@ -665,14 +665,14 @@ pickupgroup=1
 ;progzone=uk
 ;
 ; Set the tonezone. Equivalent of the defaultzone settings in
-; /etc/zaptel.conf . This sets the tone zone by number.
-; Note that you'd still need to load tonezones (loadzone in zaptel.conf).
+; /etc/dahdi.conf . This sets the tone zone by number.
+; Note that you'd still need to load tonezones (loadzone in dahdi.conf).
 ; The default is -1: not to set anything.
 ;tonezone = 0 ; 0 is US
 ;
 ; FXO (FXS signalled) devices must have a timeout to determine if there was a
 ; hangup before the line was answered.  This value can be tweaked to shorten
-; how long it takes before Zap considers a non-ringing line to have hungup.
+; how long it takes before DAHDI considers a non-ringing line to have hungup.
 ;
 ; ringtimeout will not update on a reload.
 ;
@@ -708,7 +708,7 @@ pickupgroup=1
 ;mohsuggest=default
 ;
 ; PRI channels can have an idle extension and a minunused number.  So long as
-; at least "minunused" channels are idle, chan_zap will try to call "idledial"
+; at least "minunused" channels are idle, chan_dahdi will try to call "idledial"
 ; on them, and then dump them into the PBX in the "idleext" extension (which
 ; is of the form exten@context).  When channels are needed the "idle" calls
 ; are disconnected (so long as there are at least "minidle" calls still
@@ -724,17 +724,17 @@ pickupgroup=1
 ;minunused=2
 ;minidle=1
 ;
-; Configure jitter buffers in Zapata (each one is 20ms, default is 4)
+; Configure jitter buffers in DAHDI (each one is 20ms, default is 4)
 ; This is set globally, rather than per-channel.
 ;
 ;jitterbuffers=4
 ;
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
-                              ; ZAP channel. Defaults to "no". An enabled jitterbuffer will
+                              ; DAHDI channel. Defaults to "no". An enabled jitterbuffer will
                               ; be used only if the sending side can create and the receiving
-                              ; side can not accept jitter. The ZAP channel can't accept jitter,
-                              ; thus an enabled jitterbuffer on the receive ZAP side will always
+                              ; side can not accept jitter. The DAHDI channel can't accept jitter,
+                              ; thus an enabled jitterbuffer on the receive DAHDI side will always
                               ; be used if the sending side can create jitter.
 
 ; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
@@ -744,7 +744,7 @@ pickupgroup=1
                               ; big jumps in/broken timestamps, usually sent from exotic devices
                               ; and programs. Defaults to 1000.
 
-; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a ZAP
+; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a DAHDI
                               ; channel. Two implementations are currently available - "fixed"
                               ; (with size always equals to jbmax-size) and "adaptive" (with
                               ; variable size, actually the new jb of IAX2). Defaults to fixed.
@@ -928,15 +928,15 @@ pickupgroup=1
 
 ; Configuration Sections
 ; ~~~~~~~~~~~~~~~~~~~~~~
-; You can also configure channels in a separate zapata.conf section. In
+; You can also configure channels in a separate dahdi.conf section. In
 ; this case the keyword 'channel' is not used. Instead the keyword
-; 'zapchan' is used (as in users.conf) - configuration is only processed
-; in a section where the keyword zapchan is used. It will only be
+; 'dahdichan' is used (as in users.conf) - configuration is only processed
+; in a section where the keyword dahdichan is used. It will only be
 ; processed in the end of the section. Thus the following section:
 ;
 ;[phones]
 ;echocancel = 64
-;zapchan = 1-8
+;dahdichan = 1-8
 ;group = 1
 ;
 ; Is somewhat equivalent to the following snippet in the section
@@ -948,7 +948,7 @@ pickupgroup=1
 ;
 ; When starting a new section almost all of the configuration values are
 ; copied from their values at the end of the section [channels] in
-; zapata.conf and [general] in users.conf - one section's configuration
+; dahdi.conf and [general] in users.conf - one section's configuration
 ; does not affect another one's.
 ;
 ; Instead of letting common configuration values "slide through" you can 
@@ -966,16 +966,16 @@ pickupgroup=1
 ;faxdetect = incoming
 ;
 ;[phone-1](phones)
-;zapchan = 1
+;dahdichan = 1
 ;callerid = My Name <501>
 ;mailbox = 501@mailboxes
 ;
 ;
 ;[fax](phones)
-;zapchan = 2
+;dahdichan = 2
 ;faxdetect = no
 ;context = fax
 ;
 ;[phone-3](phones)
-;zapchan = 3
+;dahdichan = 3
 ;pickupgroup = 3,4

@@ -1,13 +1,13 @@
 
 
 CONSOLE = "Console/dsp" -- Console interface for demo
---CONSOLE = "Zap/1"
+--CONSOLE = "DAHDI/1"
 --CONSOLE = "Phone/phone0"
 
 IAXINFO = "guest"       -- IAXtel username/password
 --IAXINFO = "myuser:mypass"
 
-TRUNK = "Zap/G2"
+TRUNK = "DAHDI/G2"
 TRUNKMSD = 1
 -- TRUNK = "IAX2/user:pass@provider"
 
@@ -92,8 +92,8 @@ TRUNKMSD = 1
 --
 -- Dialplan applications can be accessed through the global 'app' table.
 --
---    app.Dial("Zap/1")
---    app.dial("Zap/1")
+--    app.Dial("DAHDI/1")
+--    app.dial("DAHDI/1")
 --
 -- More examples can be found below.
 --
@@ -106,7 +106,7 @@ TRUNKMSD = 1
 --
 
 function outgoing_local(c, e)
-	app.dial("zap/1/" .. e, "", "")
+	app.dial("DAHDI/1/" .. e, "", "")
 end
 
 function demo_instruct()

@@ -27,7 +27,7 @@
 
 /*** MODULEINFO
 	<conflict>win32</conflict>
-	<use>zaptel</use>
+	<use>dahdi</use>
  ***/
 
 #include "asterisk.h"
@@ -46,7 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <thread.h>
 #endif
 
-#include "asterisk/zapata.h"
+#include "asterisk/dahdi.h"
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -984,7 +984,7 @@ static int moh_diff(struct mohclass *old, struct mohclass *new)
 
 static int moh_register(struct mohclass *moh, int reload)
 {
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 	int x;
 #endif
 	struct mohclass *mohclass = NULL;
@@ -1028,15 +1028,15 @@ static int moh_register(struct mohclass *moh, int reload)
 			ast_set_flag(moh, MOH_QUIET);
 		
 		moh->srcfd = -1;
-#ifdef HAVE_ZAPTEL
-		/* Open /dev/zap/pseudo for timing...  Is
+#ifdef HAVE_DAHDI
+		/* Open /dev/dahdi/pseudo for timing...  Is
 		   there a better, yet reliable way to do this? */
-		moh->pseudofd = open("/dev/zap/pseudo", O_RDONLY);
+		moh->pseudofd = open("/dev/dahdi/pseudo", O_RDONLY);
 		if (moh->pseudofd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo channel for timing...  Sound may be choppy.\n");
 		} else {
 			x = 320;
-			ioctl(moh->pseudofd, ZT_SET_BLOCKSIZE, &x);
+			ioctl(moh->pseudofd, DAHDI_SET_BLOCKSIZE, &x);
 		}
 #else
 		moh->pseudofd = -1;
@@ -1105,7 +1105,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	struct ast_variable *var = NULL;
 	struct ast_variable *tmp = NULL;
 	struct moh_files_state *state = chan->music_state;
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 	int x;
 #endif
 
@@ -1228,15 +1228,15 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 						ast_set_flag(mohclass, MOH_QUIET);
 			
 					mohclass->srcfd = -1;
-#ifdef HAVE_ZAPTEL
-					/* Open /dev/zap/pseudo for timing...  Is
+#ifdef HAVE_DAHDI
+					/* Open /dev/dahdi/pseudo for timing...  Is
 					   there a better, yet reliable way to do this? */
-					mohclass->pseudofd = open("/dev/zap/pseudo", O_RDONLY);
+					mohclass->pseudofd = open("/dev/dahdi/pseudo", O_RDONLY);
 					if (mohclass->pseudofd < 0) {
 						ast_log(LOG_WARNING, "Unable to open pseudo channel for timing...  Sound may be choppy.\n");
 					} else {
 						x = 320;
-						ioctl(mohclass->pseudofd, ZT_SET_BLOCKSIZE, &x);
+						ioctl(mohclass->pseudofd, DAHDI_SET_BLOCKSIZE, &x);
 					}
 #else
 					mohclass->pseudofd = -1;

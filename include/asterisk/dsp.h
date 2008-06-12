@@ -143,7 +143,7 @@ int ast_dsp_init(void);
  *
  * This is called from ast_frame_free if AST_FRFLAG_FROM_DSP is set. This occurs
  * because it is possible for the dsp to be freed while someone still holds a reference
- * to the frame that is in that dsp. This has been known to happen when the dsp on a Zap
+ * to the frame that is in that dsp. This has been known to happen when the dsp on a DAHDI
  * channel detects a busy signal. The channel is hung up, and the application that read the
  * frame to begin with still has a reference to the frame.
  *

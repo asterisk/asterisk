@@ -44,10 +44,10 @@ as well as the Expression syntax, and the Variable syntax.
 
 \section{Asterisk in a Nutshell}
 
-Asterisk acts as a server. Devices involved in telephony, like Zapata
+Asterisk acts as a server. Devices involved in telephony, like DAHDI
 cards, or Voip phones, all indicate some context that should be
 activated in their behalf. See the config file formats for IAX, SIP,
-zapata.conf, etc. They all help describe a device, and they all
+dahdi.conf, etc. They all help describe a device, and they all
 specify a context to activate when somebody picks up a phone, or a
 call comes in from the phone company, or a voip phone, etc.
 
@@ -707,7 +707,7 @@ Global variables are set in their own block.
 \begin{verbatim}
 globals {
     CONSOLE=Console/dsp;
-    TRUNK=Zap/g2;
+    TRUNK=DAHDI/g2;
 }
 \end{verbatim}
 \end{astlisting}

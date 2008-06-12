@@ -871,7 +871,7 @@ ${MEETME_RECORDINGFILE}      Name of file for recording a conference with
                              the "r" option
 ${MEETME_RECORDINGFORMAT}    Format of file to be recorded
 ${MEETME_EXIT_CONTEXT}       Context for exit out of meetme meeting
-${MEETME_AGI_BACKGROUND}     AGI script for Meetme (zap only)
+${MEETME_AGI_BACKGROUND}     AGI script for Meetme (DAHDI only)
 ${MEETMESECS}              * Number of seconds a user participated in a MeetMe conference
 ${CONF_LIMIT_TIMEOUT_FILE}   File to play when time is up.  Used with the L() option.
 ${CONF_LIMIT_WARNING_FILE}   File to play as warning if 'y' is defined.
@@ -903,7 +903,7 @@ ${DUNDTECH}       * The Technology of the result from a call to DUNDiLookup()
 ${DUNDDEST}       * The Destination of the result from a call to DUNDiLookup()
 \end{verbatim}
 
-\subsection{chan\_zap}
+\subsection{chan\_dahdi}
 \begin{verbatim}
 ${ANI2}               * The ANI2 Code provided by the network on the incoming call.
                         (ie, Code 29 identifies call as a Prison/Inmate Call)

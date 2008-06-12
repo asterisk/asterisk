@@ -401,9 +401,9 @@ shared_lastcall=no
 ; must also preload pbx_config.so (or pbx_ael.so, pbx_lua.so, or
 ; pbx_realtime.so, depending on how your dialplan is configured).
 ;
-;member => Zap/1
-;member => Zap/2,10
-;member => Zap/3,10,Bob Johnson
+;member => DAHDI/1
+;member => DAHDI/2,10
+;member => DAHDI/3,10,Bob Johnson
 ;member => Agent/1001
 ;member => Agent/1002
 ;member => Local/1000@default,0,John Smith,SIP/1000

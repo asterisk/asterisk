@@ -17,7 +17,7 @@
  -- Convert all existing uses of astobj.h to astobj2.h
     -- (chan_sip already in progress in a branch)
 
- -- There are many places where large character buffers are allocated in structures.  There is a new system for string handling that uses dynamically allocatted memory pools which is documented in include/asterisk/stringfields.h.  Examples of where they are currently used are the ast_channel structure defined in include/asterisk/channel.h, some structures in chan_sip.c, and chan_zap.c.
+ -- There are many places where large character buffers are allocated in structures.  There is a new system for string handling that uses dynamically allocatted memory pools which is documented in include/asterisk/stringfields.h.  Examples of where they are currently used are the ast_channel structure defined in include/asterisk/channel.h, some structures in chan_sip.c, and chan_dahdi.c.
 
  -- There is a convenient set of macros defined in include/asterisk/linkedlists.h for handling linked lists.  However, there are some open-coded lists throughout the code.  Converting linked lists to use these macros will make list handling more consistent and reduce the possibility of coding errors.
 

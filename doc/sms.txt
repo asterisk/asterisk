@@ -5,7 +5,7 @@ message centres using ETSI ES 201 912 protocol 1 FSK messaging over analog calls
 
 Basically it allows sending and receiving of text messages over the PSTN. It is 
 compatible with BT Text service in the UK and works on ISDN and PSTN lines. It is 
-designed to connect to an ISDN or zap interface directly and uses FSK so would 
+designed to connect to an ISDN or DAHDI interface directly and uses FSK so would 
 probably not work over any sort of compressed link (like a VoIP call using GSM codec).
 
 Typical applications include:-

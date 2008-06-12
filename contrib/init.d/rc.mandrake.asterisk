@@ -168,12 +168,12 @@ case "$1" in
 		;;
 	fullrestart)
 		$0 stop
-		service zaptel restart
+		service dahdi restart
 		$0 start
 		;;
 	fullrestartnow)
 		$0 stopnow
-		service zaptel restart
+		service dahdi restart
 		$0 start
 		;;
 	status)

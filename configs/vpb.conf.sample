@@ -97,7 +97,7 @@ echocancel=off
 ;
 ; NOTE that other caller ID standards are supported in Asterisk, but are
 ; not yet active in chan_vpb.  It should be reasonably trivial to add
-; support for the other standards (see the default zapata.conf for a list
+; support for the other standards (see the default dahdi.conf for a list
 ; of them) that Asterisk already handles.
 ;
 callerid=bell

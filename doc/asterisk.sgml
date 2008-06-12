@@ -157,10 +157,10 @@
 		<term>-I</term>
 		<listitem>
 			<para>
-			Enable internal timing if Zaptel timing is available.
+			Enable internal timing if DAHDI timing is available.
 			The default behaviour is that outbound packets are phase locked
 			to inbound packets. Enabling this switch causes them to be
-			locked to the internal Zaptel timer instead.
+			locked to the internal DAHDI timer instead.
 			</para>
 		</listitem>
 	</varlistentry>

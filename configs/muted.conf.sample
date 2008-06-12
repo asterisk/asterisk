@@ -25,8 +25,8 @@ pass pass
 #
 # List each channel we're supposed to watch
 #
-channel Zap/1
-channel Zap/2
+channel DAHDI/1
+channel DAHDI/2
 channel SIP/mark
 #
 # Mute level is the percentage of the current volume we should

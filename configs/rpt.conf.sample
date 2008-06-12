@@ -4,10 +4,10 @@
 
 ;[000]					; Node ID of first repeater
 
-;rxchannel = Zap/1			; Rx audio/signalling channel
+;rxchannel = DAHDI/1			; Rx audio/signalling channel
 ; Note: if you use a unified interface (tx/rx on one channel), only
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
-;txchannel = Zap/2			; Tx audio/signalling channel
+;txchannel = DAHDI/2			; Tx audio/signalling channel
 ;duplex = 2				; (Optional) set duplex operating mode
 ;; 0 = half duplex (telemetry and courtesy tones do not transmit)
 ;; 1 = semi-half duplex (telemetry and courtesy tones transmit, but not
@@ -51,10 +51,10 @@
 
 ;[001]					; Node ID of first repeater
 
-;rxchannel = Zap/3			; Rx audio/signalling channel
+;rxchannel = DAHDI/3			; Rx audio/signalling channel
 ; Note: if you use a unified interface (tx/rx on one channel), only
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
-;txchannel = Zap/4			; Tx audio/signalling channel
+;txchannel = DAHDI/4			; Tx audio/signalling channel
 ;functions = functions-repeater		; DTMF function list
 ;; specify this for a different function list then local when on link
 ;;link_functions = functions-different	; DTMF function list for link
@@ -81,10 +81,10 @@
 
 ;[002]					; Node ID of remote base
 
-;rxchannel = Zap/5			; Rx audio/signalling channel
+;rxchannel = DAHDI/5			; Rx audio/signalling channel
 ; Note: if you use a unified interface (tx/rx on one channel), only
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
-;txchannel = Zap/6			; Tx audio/signalling channel
+;txchannel = DAHDI/6			; Tx audio/signalling channel
 ;functions = functions-remote
 ;remote = ft897				; Set remote=y for dumb remote or 
 					; remote=ft897 for Yaesu FT-897 or

@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
+#include "asterisk/options.h"
 
 #define AST_NAME_STRLEN 256
 #define NUM_SPYGROUPS 128
@@ -587,6 +588,7 @@ static struct chanspy_ds *next_channel(struct ast_channel *chan,
 	const char *exten, const char *context, struct chanspy_ds *chanspy_ds)
 {
 	struct ast_channel *next;
+	char channel_name[AST_CHANNEL_NAME];
 
 redo:
 	if (!ast_strlen_zero(spec))
@@ -599,7 +601,8 @@ redo:
 	if (!next)
 		return NULL;
 
-	if (!strncmp(next->name, "Zap/pseudo", 10)) {
+	snprintf(channel_name, AST_CHANNEL_NAME, "%s/pseudo", dahdi_chan_name);
+	if (!strncmp(next->name, channel_name, 10)) {
 		ast_channel_unlock(next);
 		goto redo;
 	} else if (next == chan) {

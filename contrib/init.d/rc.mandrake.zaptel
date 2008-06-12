@@ -1,11 +1,11 @@
 #!/bin/sh
 #
-# zaptel:       Loads Asterisk modules
+# DAHDI:       Loads Asterisk modules
 #
-# Version:      @(#) /etc/rc.d/init.d/zaptel 1.0
+# Version:      @(#) /etc/rc.d/init.d/dahdi 1.0
 #
 # chkconfig: 2345 90 10
-# description: Loads and unloads zaptel modules at boot time and shutdown.
+# description: Loads and unloads DAHDI modules at boot time and shutdown.
 #
 # hide: true
 
@@ -14,12 +14,12 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-# Default modules - override in /etc/sysconfig/zaptel
+# Default modules - override in /etc/sysconfig/dahdi
 ######################################
-MODULES="usb-uhci zaptel wcfxo wcusb"
+MODULES="usb-uhci dahdi wcfxo wcusb"
 ######################################
 
-# Resolve back to the basename (i.e. zaptel, not S90zaptel)
+# Resolve back to the basename (i.e. dahdi, not S90dahdi)
 if [ 0`readlink $0` = "0" ]; then
 	CONFIGFILE=/etc/sysconfig/`basename $0`
 else
