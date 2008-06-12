@@ -76,14 +76,13 @@ static char *descrip =
 
 static int parkandannounce_exec(struct ast_channel *chan, void *data)
 {
-	int res=0;
 	char *return_context;
 	int lot, timeout = 0, dres;
 	char *working, *context, *exten, *priority, *dial, *dialtech, *dialstr;
 	char *template, *tpl_working, *tpl_current;
 	char *tmp[100];
 	char buf[13];
-	int looptemp=0,i=0;
+	int looptemp = 0,i = 0, res = 0;
 	char *s;
 
 	struct ast_channel *dchan;
@@ -101,7 +100,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 
 	s = ast_strdupa(data);
 
-	template=strsep(&s,"|");
+	template = strsep(&s,"|");
 	if(! template) {
 		ast_log(LOG_WARNING, "PARK: An announce template must be defined\n");
 		ast_module_user_remove(u);
@@ -112,14 +111,14 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 		timeout = atoi(strsep(&s, "|"));
 		timeout *= 1000;
 	}
-	dial=strsep(&s, "|");
+	dial = strsep(&s, "|");
 	if(!dial) {
 		ast_log(LOG_WARNING, "PARK: A dial resource must be specified i.e: Console/dsp or Zap/g1/5551212\n");
 		ast_module_user_remove(u);
 		return -1;
 	} else {
-		dialtech=strsep(&dial, "/");
-		dialstr=dial;
+		dialtech = strsep(&dial, "/");
+		dialstr = dial;
 		ast_verbose( VERBOSE_PREFIX_3 "Dial Tech,String: (%s,%s)\n", dialtech,dialstr);
 	}
 
@@ -170,9 +169,10 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	/* we are using masq_park here to protect * from touching the channel once we park it.  If the channel comes out of timeout
 	before we are done announcing and the channel is messed with, Kablooeee.  So we use Masq to prevent this.  */
 
-	ast_masq_park_call(chan, NULL, timeout, &lot);
-
-	res=-1; 
+	res = ast_masq_park_call(chan, NULL, timeout, &lot);
+	if (res == -1) {
+		goto finish;
+	}
 
 	ast_verbose( VERBOSE_PREFIX_3 "Call Parking Called, lot: %d, timeout: %d, context: %s\n", lot, timeout, return_context);
 
@@ -209,15 +209,15 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	ast_verbose(VERBOSE_PREFIX_4 "Announce Template:%s\n", template);
 
 	tpl_working = template;
-	tpl_current=strsep(&tpl_working, ":");
+	tpl_current = strsep(&tpl_working, ":");
 
 	while(tpl_current && looptemp < ARRAY_LEN(tmp)) {
 		tmp[looptemp]=tpl_current;
 		looptemp++;
-		tpl_current=strsep(&tpl_working,":");
+		tpl_current = strsep(&tpl_working,":");
 	}
 
-	for(i=0; i<looptemp; i++) {
+	for(i = 0; i < looptemp; i++) {
 		ast_verbose(VERBOSE_PREFIX_4 "Announce:%s\n", tmp[i]);
 		if(!strcmp(tmp[i], "PARKED")) {
 			ast_say_digits(dchan, lot, "", dchan->language);
@@ -234,9 +234,9 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 
 	ast_stopstream(dchan);  
 	ast_hangup(dchan);
-	
+
+finish:
 	ast_module_user_remove(u);
-	
 	return res;
 }
 
