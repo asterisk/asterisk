@@ -816,6 +816,7 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 	if (needqueue) {
 		if (pipe(tmp->alertpipe)) {
 			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
+alertpipe_failed:
 #ifdef HAVE_ZAPTEL
 			if (tmp->timingfd > -1)
 				close(tmp->timingfd);
@@ -826,9 +827,19 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 			return NULL;
 		} else {
 			flags = fcntl(tmp->alertpipe[0], F_GETFL);
-			fcntl(tmp->alertpipe[0], F_SETFL, flags | O_NONBLOCK);
+			if (fcntl(tmp->alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
+				ast_log(LOG_WARNING, "Channel allocation failed: Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
+				close(tmp->alertpipe[0]);
+				close(tmp->alertpipe[1]);
+				goto alertpipe_failed;
+			}
 			flags = fcntl(tmp->alertpipe[1], F_GETFL);
-			fcntl(tmp->alertpipe[1], F_SETFL, flags | O_NONBLOCK);
+			if (fcntl(tmp->alertpipe[1], F_SETFL, flags | O_NONBLOCK) < 0) {
+				ast_log(LOG_WARNING, "Channel allocation failed: Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
+				close(tmp->alertpipe[0]);
+				close(tmp->alertpipe[1]);
+				goto alertpipe_failed;
+			}
 		}
 	} else	/* Make sure we've got it done right if they don't */
 		tmp->alertpipe[0] = tmp->alertpipe[1] = -1;
@@ -2362,8 +2373,20 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	
 	/* Read and ignore anything on the alertpipe, but read only
 	   one sizeof(blah) per frame that we send from it */
-	if (chan->alertpipe[0] > -1)
+	if (chan->alertpipe[0] > -1) {
+		int flags = fcntl(chan->alertpipe[0], F_GETFL);
+		/* For some odd reason, the alertpipe occasionally loses nonblocking status,
+		 * which immediately causes a deadlock scenario.  Detect and prevent this. */
+		if ((flags & O_NONBLOCK) == 0) {
+			ast_log(LOG_ERROR, "Alertpipe on channel %s lost O_NONBLOCK?!!\n", chan->name);
+			if (fcntl(chan->alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
+				ast_log(LOG_WARNING, "Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
+				f = &ast_null_frame;
+				goto done;
+			}
+		}
 		read(chan->alertpipe[0], &blah, sizeof(blah));
+	}
 
 #ifdef HAVE_ZAPTEL
 	if (chan->timingfd > -1 && chan->fdno == AST_TIMING_FD && ast_test_flag(chan, AST_FLAG_EXCEPTION)) {
