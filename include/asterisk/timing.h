@@ -57,6 +57,13 @@ enum ast_timing_event {
 	AST_TIMING_EVENT_CONTINUOUS = 2,
 };
 
+/*!
+ * \brief Timing module interface
+ *
+ * The public API calls for the timing API directly map to this interface.
+ * So, the behavior of these calls should match the documentation of the
+ * public API calls.
+ */
 struct ast_timing_functions {
 	int (*timer_open)(unsigned int rate);
 	void (*timer_close)(int handle);
@@ -67,42 +74,91 @@ struct ast_timing_functions {
 };
 
 /*!
-  \brief Install a set of timing functions.
-  \param funcs An instance of the \c ast_timing_functions structure with pointers
-  to the functions provided by the timing implementation.
-  \retval NULL on failure, or a handle to be passed to
-  ast_uninstall_timing_functions() on success
+ * \brief Install a set of timing functions.
+ *
+ * \param funcs An instance of the \c ast_timing_functions structure with pointers
+ *        to the functions provided by the timing implementation.
+ *
+ * \retval NULL failure 
+ * \retval non-Null handle to be passed to ast_uninstall_timing_functions() on success
  */
 void *ast_install_timing_functions(struct ast_timing_functions *funcs);
 
 /*!
-  \brief Uninstall a previously-installed set of timing functions.
-  \param handle The handle returned from a prior successful call to
-  ast_install_timing_functions().
-  \retval none
+ * \brief Uninstall a previously-installed set of timing functions.
+ *
+ * \param handle The handle returned from a prior successful call to
+ *        ast_install_timing_functions().
+ *
+ * \return nothing
  */
 void ast_uninstall_timing_functions(void *handle);
 
 /*!
-  \brief Open a timer handle.
-  \param rate The rate at which the timer should trigger.
-  \retval -1 on failure, or a positive integer on success
+ * \brief Open a timing fd
+ *
+ * \arg rate number of timer ticks per second
+ *
+ * \retval -1 error, with errno set
+ * \retval >=0 success
  */
 int ast_timer_open(unsigned int rate);
 
 /*!
-  \brief Close a previously-opened timer handle.
-  \param handle The timer handle to close.
-  \retval none
+ * \brief Close an opened timing handle
+ *
+ * \arg handle timing fd returned from timer_open()
+ *
+ * \return nothing
  */
 void ast_timer_close(int handle);
 
+/*!
+ * \brief Acknowledge a timer event
+ *
+ * \arg handle timing fd returned from timer_open()
+ * \arg quantity number of timer events to acknowledge
+ *
+ * \note This function should only be called if timer_get_event()
+ *       returned AST_TIMING_EVENT_EXPIRED.
+ *
+ * \return nothing
+ */
 void ast_timer_ack(int handle, unsigned int quantity);
 
+/*!
+ * \brief Enable continuous mode
+ *
+ * \arg handle timing fd returned from timer_open()
+ *
+ * Continuous mode causes poll() on the timing fd to immediately return
+ * always until continuous mode is disabled.
+ *
+ * \retval -1 failure, with errno set
+ * \retval 0 success
+ */
 int ast_timer_enable_continuous(int handle);
 
+/*!
+ * \brief Disable continuous mode
+ *
+ * \arg handle timing fd returned from timer_close()
+ *
+ * \retval -1 failure, with errno set
+ * \retval 0 success
+ */
 int ast_timer_disable_continous(int handle);
 
+/*!
+ * \brief Determine timing event
+ *
+ * \arg handle timing fd returned by timer_open()
+ *
+ * After poll() indicates that there is input on the timing fd, this will
+ * be called to find out what triggered it.
+ *
+ * \return which event triggered the timing fd
+ */
 enum ast_timing_event ast_timer_get_event(int handle);
 
 #if defined(__cplusplus) || defined(c_plusplus)
