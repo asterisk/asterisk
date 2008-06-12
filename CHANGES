@@ -131,12 +131,22 @@ Changes since Asterisk 1.2:
                 o New Option: K/k parking via dtmf tones
          5. Dictate() -- optional filename argument added.
          6. Directory() -- new option: e - In addition to the name, also read the extension number...
-         7. Meetme() -- new options:
+         7. ForkCDR() -- new options: 
+                o 'a' -- update answer time on new cdr
+                o 'A' -- Lock the orig CDR answer time against changes.
+                o 'D' -- Copy the disposition from the orig to the new CDR.
+                o 'd' -- clear the dstcannel field in the new CDR.
+                o 'e' -- set the end time of the original CDR.
+                o 'R' -- do NOT reset the new CDR.
+                o 's' -- Add/change var in orig CDR.
+                o 'T' -- Force ast_cdr_end, answer to obey LOCKED flag for the orig. CDR.
+                      -- ast_cdr_setvar will be forced also (used by the CDR() func in write mode)
+         8. Meetme() -- new options:
                 o 'I' -- announce user join/leave without review
                 o 'l' -- set listen only mode (Listen only, no talking)
                 o 'o' -- set talker optimization - treats talkers who aren't speaking as...
                 o '1' -- do not play message when first person enters
-         8. MeetmeAdmin() -- new options:
+         9. MeetmeAdmin() -- new options:
                 o 'r' -- Reset one user's volume settings
                 o 'R' -- Reset all users volume settings
                 o 's' -- Lower entire conference speaking volume
@@ -147,21 +157,21 @@ Changes since Asterisk 1.2:
                 o 'U' -- Lower all users listen volume
                 o 'v' -- Lower entire conference listening volume
                 o 'V' -- Raise entire conference listening volume
-         9. OSPFinish() : now also can return ERROR result.
-        10. OSPLookup() : Sets more variables, also now returns ERROR result.
-        11. Page() -- New option: r - record the page into a file (see 'r' for app_meetme)
-        12. Pickup() -- multiple extensions, PICKUPMARK; read the description!
-        13. Queue()
+        10. OSPFinish() : now also can return ERROR result.
+        11. OSPLookup() : Sets more variables, also now returns ERROR result.
+        12. Page() -- New option: r - record the page into a file (see 'r' for app_meetme)
+        13. Pickup() -- multiple extensions, PICKUPMARK; read the description!
+        14. Queue()
                 o New Argument: AGI
                 o New option: i
-        14. Random() -- is now deprecated in 1.4
-        15. Read() -- replace 'skip' and 'noanswer' options with 's', 'n', add 'i' option.
-        16. Record() -- New option: 'x' : ignore all terminator keys (DTMF) and keep recording until hangup
-        17. UserEvent() -- slight change in behavior. Read the description.
-        18. VoiceMailMain() -- new a(#) option, goes to folder # directly.
-        19. WaitForSilence() -- new optional 3rd arg, time delay before returning.
+        15. Random() -- is now deprecated in 1.4
+        16. Read() -- replace 'skip' and 'noanswer' options with 's', 'n', add 'i' option.
+        17. Record() -- New option: 'x' : ignore all terminator keys (DTMF) and keep recording until hangup
+        18. UserEvent() -- slight change in behavior. Read the description.
+        19. VoiceMailMain() -- new a(#) option, goes to folder # directly.
+        20. WaitForSilence() -- new optional 3rd arg, time delay before returning.
     * Functions that have changes to their interfaces:
-         1. CDR -- new option: u
+         1. CDR -- new options: u and s
          2. LANGUAGE -- Deprecated. Use CHANNEL(language) instead.
          3. MUSICCLASS -- Deprecated. Use CHANNEL(musicclass) instead.
     * Configuration File Changes:

@@ -44,11 +44,13 @@ enum {
 	OPT_RECURSIVE = (1 << 0),
 	OPT_UNPARSED = (1 << 1),
 	OPT_LAST = (1 << 2),
+	OPT_SKIPLOCKED = (1 << 3),
 } cdr_option_flags;
 
 AST_APP_OPTIONS(cdr_func_options, {
 	AST_APP_OPTION('l', OPT_LAST),
 	AST_APP_OPTION('r', OPT_RECURSIVE),
+	AST_APP_OPTION('s', OPT_SKIPLOCKED),
 	AST_APP_OPTION('u', OPT_UNPARSED),
 });
 
@@ -78,6 +80,10 @@ static int cdr_read(struct ast_channel *chan, char *cmd, char *parse,
 		while (cdr->next)
 			cdr = cdr->next;
 
+	if (ast_test_flag(&flags, OPT_SKIPLOCKED))
+		while (ast_test_flag(cdr, AST_CDR_FLAG_LOCKED) && cdr->next)
+			cdr = cdr->next;
+
 	ast_cdr_getvar(cdr, args.variable, &ret, buf, len,
 		       ast_test_flag(&flags, OPT_RECURSIVE),
 			   ast_test_flag(&flags, OPT_UNPARSED));
@@ -88,6 +94,7 @@ static int cdr_read(struct ast_channel *chan, char *cmd, char *parse,
 static int cdr_write(struct ast_channel *chan, char *cmd, char *parse,
 		     const char *value)
 {
+	struct ast_cdr *cdr = chan ? chan->cdr : NULL;
 	struct ast_flags flags = { 0 };
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(variable);
@@ -97,19 +104,26 @@ static int cdr_write(struct ast_channel *chan, char *cmd, char *parse,
 	if (ast_strlen_zero(parse) || !value || !chan)
 		return -1;
 
+	if (!cdr)
+		return -1;
+
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!ast_strlen_zero(args.options))
 		ast_app_parse_options(cdr_func_options, &flags, NULL, args.options);
 
-	if (!strcasecmp(args.variable, "accountcode"))
+	if (ast_test_flag(&flags, OPT_LAST))
+		while (cdr->next)
+			cdr = cdr->next;
+
+	if (!strcasecmp(args.variable, "accountcode"))  /* the 'l' flag doesn't apply to setting the accountcode, userfield, or amaflags */
 		ast_cdr_setaccount(chan, value);
 	else if (!strcasecmp(args.variable, "userfield"))
 		ast_cdr_setuserfield(chan, value);
 	else if (!strcasecmp(args.variable, "amaflags"))
 		ast_cdr_setamaflags(chan, value);
-	else if (chan->cdr)
-		ast_cdr_setvar(chan->cdr, args.variable, value, ast_test_flag(&flags, OPT_RECURSIVE));
+	else
+		ast_cdr_setvar(cdr, args.variable, value, ast_test_flag(&flags, OPT_RECURSIVE));
 		/* No need to worry about the u flag, as all fields for which setting
 		 * 'u' would do anything are marked as readonly. */
 
@@ -126,6 +140,8 @@ static struct ast_custom_function cdr_function = {
 "Options:\n"
 "  'l' uses the most recent CDR on a channel with multiple records\n"
 "  'r' searches the entire stack of CDRs on the channel\n"
+"  's' skips any CDR's that are marked 'LOCKED' due to forkCDR() calls.\n"
+"      (on setting/writing CDR vars only)\n"
 "  'u' retrieves the raw, unprocessed value\n"
 "  For example, 'start', 'answer', and 'end' will be retrieved as epoch\n"
 "  values, when the 'u' option is passed, but formatted as YYYY-MM-DD HH:MM:SS\n"
@@ -143,11 +159,13 @@ static struct ast_custom_function cdr_function = {
 "  a name not on the above list, and create your own\n"
 "  variable, whose value can be changed with this function,\n"
 "  and this variable will be stored on the cdr.\n"
+"  For setting CDR values, the 'l' flag does not apply to\n"
+"  setting the accountcode, userfield, or amaflags.\n"
 "   raw values for disposition:\n"
 "       1 = NO ANSWER\n"
-"	2 = BUSY\n"
-"	3 = FAILED\n"
-"	4 = ANSWERED\n"
+"       2 = BUSY\n"
+"       3 = FAILED\n"
+"       4 = ANSWERED\n"
 "    raw values for amaflags:\n"
 "       1 = OMIT\n"
 "       2 = BILLING\n"
