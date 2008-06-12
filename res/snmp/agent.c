@@ -621,7 +621,7 @@ static u_char *ast_var_indications(struct variable *vp, oid *name, size_t *lengt
 								  int exact, size_t *var_len, WriteMethod **write_method)
 {
     static unsigned long long_ret;
-    struct tone_zone *tz = NULL;
+    struct ind_tone_zone *tz = NULL;
 
     if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
@@ -651,7 +651,7 @@ static u_char *ast_var_indications_table(struct variable *vp, oid *name, size_t 
 									   int exact, size_t *var_len, WriteMethod **write_method)
 {
     static unsigned long long_ret;
-    struct tone_zone *tz = NULL;
+    struct ind_tone_zone *tz = NULL;
     int i;
 
     if (header_simple_table(vp, name, length, exact, var_len, write_method, -1))

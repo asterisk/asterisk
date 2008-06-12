@@ -27,8 +27,8 @@
  */
 
 /*** MODULEINFO
-	<depend>zaptel_transcode</depend>
-	<depend>zaptel</depend>
+	<depend>dahdi_transcode</depend>
+	<depend>dahdi</depend>
  ***/
 
 #include "asterisk.h"
@@ -44,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <sys/mman.h>
-#include <zaptel/zaptel.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/translate.h"
@@ -56,6 +55,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
+
+#include "asterisk/dahdi_compat.h"
 
 #define BUFFER_SAMPLES	8000
 
@@ -113,7 +114,7 @@ struct pvt {
 	int totalms;
 	int lasttotalms;
 #endif
-	struct zt_transcode_header *hdr;
+	DAHDI_TRANSCODE_HEADER *hdr;
 };
 
 static int transcoder_show(int fd, int argc, char **argv)
@@ -133,7 +134,7 @@ static int transcoder_show(int fd, int argc, char **argv)
 static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct pvt *ztp = pvt->pvt;
-	struct zt_transcode_header *hdr = ztp->hdr;
+	DAHDI_TRANSCODE_HEADER *hdr = ztp->hdr;
 
 	if (!f->subclass) {
 		/* Fake a return frame for calculation purposes */
@@ -180,7 +181,7 @@ static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 {
 	struct pvt *ztp = pvt->pvt;
-	struct zt_transcode_header *hdr = ztp->hdr;
+	DAHDI_TRANSCODE_HEADER *hdr = ztp->hdr;
 	unsigned int x;
 
 	if (ztp->fake == 2) {
@@ -219,8 +220,8 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 		} else {
 			if (hdr->srclen) {
 				hdr->dstoffset = AST_FRIENDLY_OFFSET;
-				x = ZT_TCOP_TRANSCODE;
-				if (ioctl(ztp->fd, ZT_TRANSCODE_OP, &x))
+				x = DAHDI_TCOP_TRANSCODE;
+				if (ioctl(ztp->fd, DAHDI_TRANSCODE_OP, &x))
 					ast_log(LOG_WARNING, "Failed to transcode: %s\n", strerror(errno));
 			}
 			return NULL;
@@ -235,8 +236,8 @@ static void zap_destroy(struct ast_trans_pvt *pvt)
 	struct pvt *ztp = pvt->pvt;
 	unsigned int x;
 
-	x = ZT_TCOP_RELEASE;
-	if (ioctl(ztp->fd, ZT_TRANSCODE_OP, &x))
+	x = DAHDI_TCOP_RELEASE;
+	if (ioctl(ztp->fd, DAHDI_TRANSCODE_OP, &x))
 		ast_log(LOG_WARNING, "Failed to release transcoder channel: %s\n", strerror(errno));
 
 	switch (ztp->hdr->dstfmt) {
@@ -257,9 +258,9 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 {
 	/* Request translation through zap if possible */
 	int fd;
-	unsigned int x = ZT_TCOP_ALLOCATE;
+	unsigned int x = DAHDI_TCOP_ALLOCATE;
 	struct pvt *ztp = pvt->pvt;
-	struct zt_transcode_header *hdr;
+	DAHDI_TRANSCODE_HEADER *hdr;
 	int flags;
 	
 	if ((fd = open("/dev/zap/transcode", O_RDWR)) < 0)
@@ -278,7 +279,7 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 		return -1;
 	}
 
-	if (hdr->magic != ZT_TRANSCODE_MAGIC) {
+	if (hdr->magic != DAHDI_TRANSCODE_MAGIC) {
 		ast_log(LOG_ERROR, "Transcoder header (%08x) wasn't magic.  Abandoning\n", hdr->magic);
 		munmap(hdr, sizeof(*hdr));
 		close(fd);
@@ -288,7 +289,7 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 	
 	hdr->srcfmt = (1 << source);
 	hdr->dstfmt = (1 << dest);
-	if (ioctl(fd, ZT_TRANSCODE_OP, &x)) {
+	if (ioctl(fd, DAHDI_TRANSCODE_OP, &x)) {
 		ast_log(LOG_ERROR, "Unable to attach transcoder: %s\n", strerror(errno));
 		munmap(hdr, sizeof(*hdr));
 		close(fd);
@@ -441,7 +442,7 @@ static void build_translators(struct format_map *map, unsigned int dstfmts, unsi
 
 static int find_transcoders(void)
 {
-	struct zt_transcode_info info = { 0, };
+	DAHDI_TRANSCODE_INFO info = { 0, };
 	struct format_map map = { { { 0 } } };
 	int fd, res;
 	unsigned int x, y;
@@ -451,8 +452,8 @@ static int find_transcoders(void)
 		return 0;
 	}
 
-	info.op = ZT_TCOP_GETINFO;
-	for (info.tcnum = 0; !(res = ioctl(fd, ZT_TRANSCODE_OP, &info)); info.tcnum++) {
+	info.op = DAHDI_TCOP_GETINFO;
+	for (info.tcnum = 0; !(res = ioctl(fd, DAHDI_TRANSCODE_OP, &info)); info.tcnum++) {
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Found transcoder '%s'.\n", info.name);
 		build_translators(&map, info.dstfmts, info.srcfmts);

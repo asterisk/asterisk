@@ -29,7 +29,7 @@
  */
 
 /*** MODULEINFO
-	<use>zaptel</use>
+	<use>dahdi</use>
         <depend>res_features</depend>
  ***/
 
@@ -59,9 +59,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #include <regex.h>
 
-#ifdef HAVE_ZAPTEL
+#if defined(HAVE_ZAPTEL) || defined (HAVE_DAHDI)
 #include <sys/ioctl.h>
-#include <zaptel/zaptel.h>
+#include "asterisk/dahdi_compat.h"
 #endif
 
 #include "asterisk/lock.h"
@@ -6538,7 +6538,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	struct iax2_trunk_peer *tpeer, *prev = NULL, *drop=NULL;
 	int processed = 0;
 	int totalcalls = 0;
-#ifdef ZT_TIMERACK
+#ifdef DAHDI_TIMERACK
 	int x = 1;
 #endif
 	struct timeval now;
@@ -6546,9 +6546,9 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		ast_verbose("Beginning trunk processing. Trunk queue ceiling is %d bytes per host\n", MAX_TRUNKDATA);
 	gettimeofday(&now, NULL);
 	if (events & AST_IO_PRI) {
-#ifdef ZT_TIMERACK
+#ifdef DAHDI_TIMERACK
 		/* Great, this is a timing interface, just call the ioctl */
-		if (ioctl(fd, ZT_TIMERACK, &x)) {
+		if (ioctl(fd, DAHDI_TIMERACK, &x)) {
 			ast_log(LOG_WARNING, "Unable to acknowledge zap timer. IAX trunking will fail!\n");
 			usleep(1);
 			return -1;
@@ -9810,14 +9810,14 @@ static void prune_peers(void)
 
 static void set_timing(void)
 {
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 	int bs = trunkfreq * 8;
 	if (timingfd > -1) {
 		if (
-#ifdef ZT_TIMERACK
-			ioctl(timingfd, ZT_TIMERCONFIG, &bs) &&
+#ifdef DAHDI_TIMERACK
+			ioctl(timingfd, DAHDI_TIMERCONFIG, &bs) &&
 #endif			
-			ioctl(timingfd, ZT_SET_BLOCKSIZE, &bs))
+			ioctl(timingfd, DAHDI_SET_BLOCKSIZE, &bs))
 			ast_log(LOG_WARNING, "Unable to set blocksize on timing source\n");
 	}
 #endif
@@ -11093,14 +11093,22 @@ static int load_module(void)
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
 	
 #ifdef HAVE_ZAPTEL
-#ifdef ZT_TIMERACK
+#ifdef ZAPTEL_TIMERACK
 	timingfd = open("/dev/zap/timer", O_RDWR);
 	if (timingfd < 0)
 #endif
 		timingfd = open("/dev/zap/pseudo", O_RDWR);
 	if (timingfd < 0) 
 		ast_log(LOG_WARNING, "Unable to open IAX timing interface: %s\n", strerror(errno));
-#endif		
+#elif defined(HAVE_DAHDI)
+#ifdef DAHDI_TIMERACK
+	timingfd = open("/dev/dahdi/timer", O_RDWR);
+	if (timingfd < 0)
+#endif
+		timingfd = open("/dev/dahdi/pseudo", O_RDWR);
+	if (timingfd < 0) 
+		ast_log(LOG_WARNING, "Unable to open IAX timing interface: %s\n", strerror(errno));
+#endif
 
 	memset(iaxs, 0, sizeof(iaxs));
 

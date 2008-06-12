@@ -26,7 +26,7 @@
  */
 
 /*** MODULEINFO
-	<depend>zaptel</depend>
+	<depend>dahdi</depend>
  ***/
 
 #include "asterisk.h"
@@ -48,7 +48,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
-#include <zaptel/zaptel.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -58,7 +57,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/options.h"
 
-static char *app = "ZapRAS";
+#include "asterisk/dahdi_compat.h"
+
+static char *app = "DAHDIRAS";
+static char *deprecated_app = "ZapRAS";
 
 static char *synopsis = "Executes Zaptel ISDN RAS application";
 
@@ -143,10 +145,10 @@ static void run_ras(struct ast_channel *chan, char *args)
 	int status;
 	int res;
 	int signalled = 0;
-	struct zt_bufferinfo savebi;
+	DAHDI_BUFFERINFO savebi;
 	int x;
 	
-	res = ioctl(chan->fds[0], ZT_GET_BUFINFO, &savebi);
+	res = ioctl(chan->fds[0], DAHDI_GET_BUFINFO, &savebi);
 	if(res) {
 		ast_log(LOG_WARNING, "Unable to check buffer policy on channel %s\n", chan->name);
 		return;
@@ -184,10 +186,10 @@ static void run_ras(struct ast_channel *chan, char *args)
 			}
 			/* Throw back into audio mode */
 			x = 1;
-			ioctl(chan->fds[0], ZT_AUDIOMODE, &x);
+			ioctl(chan->fds[0], DAHDI_AUDIOMODE, &x);
 
 			/* Restore saved values */
-			res = ioctl(chan->fds[0], ZT_SET_BUFINFO, &savebi);
+			res = ioctl(chan->fds[0], DAHDI_SET_BUFINFO, &savebi);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Unable to set buffer policy on channel %s\n", chan->name);
 			}
@@ -201,7 +203,7 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 	int res=-1;
 	char *args;
 	struct ast_module_user *u;
-	ZT_PARAMS ztp;
+	DAHDI_PARAMS ztp;
 
 	if (!data) 
 		data = "";
@@ -221,9 +223,9 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 		sleep(2);
 	} else {
 		memset(&ztp, 0, sizeof(ztp));
-		if (ioctl(chan->fds[0], ZT_GET_PARAMS, &ztp)) {
+		if (ioctl(chan->fds[0], DAHDI_GET_PARAMS, &ztp)) {
 			ast_log(LOG_WARNING, "Unable to get zaptel parameters\n");
-		} else if (ztp.sigtype != ZT_SIG_CLEAR) {
+		} else if (ztp.sigtype != DAHDI_SIG_CLEAR) {
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Channel %s is not a clear channel\n", chan->name);
 		} else {
@@ -238,6 +240,13 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static int zapras_exec_warn(struct ast_channel *chan, void *data)
+{
+    ast_log(LOG_WARNING, "Use of the command %s is deprecated, please use %s instead.\n", deprecated_app, app);
+    return zapras_exec(chan, data);
+}
+
+
 static int unload_module(void) 
 {
 	int res;
@@ -251,6 +260,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	ast_register_application(deprecated_app, zapras_exec_warn, synopsis, descrip);
 	return ast_register_application(app, zapras_exec, synopsis, descrip);
 }
 

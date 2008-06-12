@@ -414,7 +414,7 @@ struct ast_channel {
 	struct ast_cdr *cdr;				/*!< Call Detail Record */
 	enum ast_channel_adsicpe adsicpe;		/*!< Whether or not ADSI is detected on CPE */
 
-	struct tone_zone *zone;				/*!< Tone zone as set in indications.conf or
+	struct ind_tone_zone *zone;				/*!< Tone zone as set in indications.conf or
 								in the CHANNEL dialplan function */
 
 	struct ast_channel_monitor *monitor;		/*!< Channel monitoring */

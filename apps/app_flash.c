@@ -26,7 +26,7 @@
  */
  
 /*** MODULEINFO
-	<depend>zaptel</depend>
+	<depend>dahdi</depend>
  ***/
 
 #include "asterisk.h"
@@ -38,7 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <string.h>
 #include <errno.h>
 #include <sys/ioctl.h>
-#include <zaptel/zaptel.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -49,6 +48,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/image.h"
 #include "asterisk/options.h"
+
+#include "asterisk/dahdi_compat.h"
 
 static char *app = "Flash";
 
@@ -65,9 +66,9 @@ static inline int zt_wait_event(int fd)
 {
 	/* Avoid the silly zt_waitevent which ignores a bunch of events */
 	int i,j=0;
-	i = ZT_IOMUX_SIGEVENT;
-	if (ioctl(fd, ZT_IOMUX, &i) == -1) return -1;
-	if (ioctl(fd, ZT_GETEVENT, &j) == -1) return -1;
+	i = DAHDI_IOMUX_SIGEVENT;
+	if (ioctl(fd, DAHDI_IOMUX, &i) == -1) return -1;
+	if (ioctl(fd, DAHDI_GETEVENT, &j) == -1) return -1;
 	return j;
 }
 
@@ -76,15 +77,15 @@ static int flash_exec(struct ast_channel *chan, void *data)
 	int res = -1;
 	int x;
 	struct ast_module_user *u;
-	struct zt_params ztp;
+	DAHDI_PARAMS ztp;
 	u = ast_module_user_add(chan);
 	if (!strcasecmp(chan->tech->type, "Zap")) {
 		memset(&ztp, 0, sizeof(ztp));
-		res = ioctl(chan->fds[0], ZT_GET_PARAMS, &ztp);
+		res = ioctl(chan->fds[0], DAHDI_GET_PARAMS, &ztp);
 		if (!res) {
-			if (ztp.sigtype & __ZT_SIG_FXS) {
-				x = ZT_FLASH;
-				res = ioctl(chan->fds[0], ZT_HOOK, &x);
+			if (ztp.sigtype & __DAHDI_SIG_FXS) {
+				x = DAHDI_FLASH;
+				res = ioctl(chan->fds[0], DAHDI_HOOK, &x);
 				if (!res || (errno == EINPROGRESS)) {
 					if (res) {
 						/* Wait for the event to finish */

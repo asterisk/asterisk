@@ -52,10 +52,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <thread.h>
 #endif
 
-#ifdef HAVE_ZAPTEL
-#include <zaptel/zaptel.h>
-#endif
-
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -71,6 +67,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/linkedlists.h"
+
+#include "asterisk/dahdi_compat.h"
 
 #define INITIAL_NUM_FILES   8
 
@@ -865,7 +863,7 @@ static int moh_scan_files(struct mohclass *class) {
 
 static int moh_register(struct mohclass *moh, int reload)
 {
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 	int x;
 #endif
 	struct mohclass *mohclass = NULL;
@@ -909,15 +907,19 @@ static int moh_register(struct mohclass *moh, int reload)
 			ast_set_flag(moh, MOH_QUIET);
 		
 		moh->srcfd = -1;
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 		/* Open /dev/zap/pseudo for timing...  Is
 		   there a better, yet reliable way to do this? */
+#ifdef HAVE_ZAPTEL
 		moh->pseudofd = open("/dev/zap/pseudo", O_RDONLY);
+#else
+		moh->pseudofd = open("/dev/dahdi/pseudo", O_RDONLY);
+#endif
 		if (moh->pseudofd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo channel for timing...  Sound may be choppy.\n");
 		} else {
 			x = 320;
-			ioctl(moh->pseudofd, ZT_SET_BLOCKSIZE, &x);
+			ioctl(moh->pseudofd, DAHDI_SET_BLOCKSIZE, &x);
 		}
 #else
 		moh->pseudofd = -1;

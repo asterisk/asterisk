@@ -81,9 +81,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <pwd.h>
 #include <sys/stat.h>
 
-#ifdef HAVE_ZAPTEL
+#if defined(HAVE_ZAPTEL) || defined (HAVE_DAHDI)
 #include <sys/ioctl.h>
-#include <zaptel/zaptel.h>
+#include "asterisk/dahdi_compat.h"
 #endif
 
 #ifdef linux
@@ -172,6 +172,7 @@ int option_maxcalls;				/*!< Max number of active calls */
 
 char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
 char debug_filename[AST_FILENAME_MAX] = "";
+char dahdi_chan_name[AST_CHANNEL_NAME] = "ZAP";
 
 static int ast_socket = -1;		/*!< UNIX Socket for allowing remote control */
 static int ast_consock = -1;		/*!< UNIX Socket for controlling another asterisk */
@@ -2578,6 +2579,10 @@ static void ast_readconfig(void)
 			ast_copy_string(ast_config_AST_SYSTEM_NAME, v->value, sizeof(ast_config_AST_SYSTEM_NAME));
 		} else if (!strcasecmp(v->name, "languageprefix")) {
 			ast_language_is_prefix = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "dahdichanname")) {
+			if (!strcasecmp(v->value, "yes")) {
+				ast_copy_string(dahdi_chan_name, "DAHDI", sizeof(dahdi_chan_name));
+			}
 		}
 	}
 	ast_config_destroy(cfg);
@@ -2964,7 +2969,7 @@ int main(int argc, char *argv[])
 		int x = 160;
 		fd = open("/dev/zap/timer", O_RDWR);
 		if (fd >= 0) {
-			if (ioctl(fd, ZT_TIMERCONFIG, &x)) {
+			if (ioctl(fd, DAHDI_TIMERCONFIG, &x)) {
 				ast_log(LOG_ERROR, "You have Zaptel built and drivers loaded, but the Zaptel timer test failed to set ZT_TIMERCONFIG to %d.\n", x);
 				exit(1);
 			}
@@ -2985,6 +2990,34 @@ int main(int argc, char *argv[])
 			close(fd);
 		}
 	}
+#elif defined(HAVE_DAHDI)
+{
+		int fd;
+		int x = 160;
+		fd = open("/dev/dahdi/timer", O_RDWR);
+		if (fd >= 0) {
+			if (ioctl(fd, DAHDI_TIMERCONFIG, &x)) {
+				ast_log(LOG_ERROR, "You have DAHDI built and drivers loaded, but the DAHDI timer test failed to set DAHDI_TIMERCONFIG to %d.\n", x);
+				exit(1);
+			}
+			if ((x = ast_wait_for_input(fd, 300)) < 0) {
+				ast_log(LOG_ERROR, "You have DAHDI built and drivers loaded, but the DAHDI timer could not be polled during the DAHDI timer test.\n");
+				exit(1);
+			}
+			if (!x) {
+				const char dahdi_timer_error[] = {
+					"Asterisk has detected a problem with your DAHDI configuration and will shutdown for your protection.  You have options:"
+					"\n\t1. You only have to compile DAHDI support into Asterisk if you need it.  One option is to recompile without DAHDI support."
+					"\n\t2. You only have to load DAHDI drivers if you want to take advantage of DAHDI services.  One option is to unload DAHDI modules if you don't need them."
+					"\n\t3. If you need DAHDI services, you must correctly configure DAHDI."
+				};
+				ast_log(LOG_ERROR, "%s\n", dahdi_timer_error);
+				exit(1);
+			}
+			close(fd);
+		}
+	}
+
 #endif
 	threadstorage_init();
 

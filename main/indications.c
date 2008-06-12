@@ -329,21 +329,21 @@ void ast_playtones_stop(struct ast_channel *chan)
 
 /*--------------------------------------------*/
 
-static struct tone_zone *tone_zones;
-static struct tone_zone *current_tonezone;
+static struct ind_tone_zone *ind_tone_zones;
+static struct ind_tone_zone *current_tonezone;
 
-/* Protect the tone_zones list (highly unlikely that two things would change
+/* Protect the ind_tone_zones list (highly unlikely that two things would change
  * it at the same time, but still! */
 AST_MUTEX_DEFINE_STATIC(tzlock);
 
-struct tone_zone *ast_walk_indications(const struct tone_zone *cur)
+struct ind_tone_zone *ast_walk_indications(const struct ind_tone_zone *cur)
 {
-	struct tone_zone *tz;
+	struct ind_tone_zone *tz;
 
 	if (cur == NULL)
-		return tone_zones;
+		return ind_tone_zones;
 	ast_mutex_lock(&tzlock);
-	for (tz = tone_zones; tz; tz = tz->next)
+	for (tz = ind_tone_zones; tz; tz = tz->next)
 		if (tz == cur)
 			break;
 	if (tz)
@@ -356,7 +356,7 @@ struct tone_zone *ast_walk_indications(const struct tone_zone *cur)
 int ast_set_indication_country(const char *country)
 {
 	if (country) {
-		struct tone_zone *z = ast_get_indication_zone(country);
+		struct ind_tone_zone *z = ast_get_indication_zone(country);
 		if (z) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Setting default indication country to '%s'\n",country);
@@ -367,25 +367,25 @@ int ast_set_indication_country(const char *country)
 	return 1; /* not found */
 }
 
-/* locate tone_zone, given the country. if country == NULL, use the default country */
-struct tone_zone *ast_get_indication_zone(const char *country)
+/* locate ind_tone_zone, given the country. if country == NULL, use the default country */
+struct ind_tone_zone *ast_get_indication_zone(const char *country)
 {
-	struct tone_zone *tz;
+	struct ind_tone_zone *tz;
 	int alias_loop = 0;
 
 	/* we need some tonezone, pick the first */
 	if (country == NULL && current_tonezone)
 		return current_tonezone;	/* default country? */
-	if (country == NULL && tone_zones)
-		return tone_zones;		/* any country? */
+	if (country == NULL && ind_tone_zones)
+		return ind_tone_zones;		/* any country? */
 	if (country == NULL)
 		return 0;	/* not a single country insight */
 
 	ast_mutex_lock(&tzlock);
 	do {
-		for (tz=tone_zones; tz; tz=tz->next) {
+		for (tz=ind_tone_zones; tz; tz=tz->next) {
 			if (strcasecmp(country,tz->country)==0) {
-				/* tone_zone found */
+				/* ind_tone_zone found */
 				if (tz->alias && tz->alias[0]) {
 					country = tz->alias;
 					break;
@@ -402,16 +402,16 @@ struct tone_zone *ast_get_indication_zone(const char *country)
 	return 0;
 }
 
-/* locate a tone_zone_sound, given the tone_zone. if tone_zone == NULL, use the default tone_zone */
-struct tone_zone_sound *ast_get_indication_tone(const struct tone_zone *zone, const char *indication)
+/* locate a ind_tone_zone_sound, given the ind_tone_zone. if ind_tone_zone == NULL, use the default ind_tone_zone */
+struct ind_tone_zone_sound *ast_get_indication_tone(const struct ind_tone_zone *zone, const char *indication)
 {
-	struct tone_zone_sound *ts;
+	struct ind_tone_zone_sound *ts;
 
 	/* we need some tonezone, pick the first */
 	if (zone == NULL && current_tonezone)
 		zone = current_tonezone;	/* default country? */
-	if (zone == NULL && tone_zones)
-		zone = tone_zones;		/* any country? */
+	if (zone == NULL && ind_tone_zones)
+		zone = ind_tone_zones;		/* any country? */
 	if (zone == NULL)
 		return 0;	/* not a single country insight */
 
@@ -428,11 +428,11 @@ struct tone_zone_sound *ast_get_indication_tone(const struct tone_zone *zone, co
 	return 0;
 }
 
-/* helper function to delete a tone_zone in its entirety */
-static inline void free_zone(struct tone_zone* zone)
+/* helper function to delete a ind_tone_zone in its entirety */
+static inline void free_zone(struct ind_tone_zone* zone)
 {
 	while (zone->tones) {
-		struct tone_zone_sound *tmp = zone->tones->next;
+		struct ind_tone_zone_sound *tmp = zone->tones->next;
 		free((void*)zone->tones->name);
 		free((void*)zone->tones->data);
 		free(zone->tones);
@@ -446,19 +446,19 @@ static inline void free_zone(struct tone_zone* zone)
 /*--------------------------------------------*/
 
 /* add a new country, if country exists, it will be replaced. */
-int ast_register_indication_country(struct tone_zone *zone)
+int ast_register_indication_country(struct ind_tone_zone *zone)
 {
-	struct tone_zone *tz,*pz;
+	struct ind_tone_zone *tz,*pz;
 
 	ast_mutex_lock(&tzlock);
-	for (pz=NULL,tz=tone_zones; tz; pz=tz,tz=tz->next) {
+	for (pz=NULL,tz=ind_tone_zones; tz; pz=tz,tz=tz->next) {
 		if (strcasecmp(zone->country,tz->country)==0) {
-			/* tone_zone already there, replace */
+			/* ind_tone_zone already there, replace */
 			zone->next = tz->next;
 			if (pz)
 				pz->next = zone;
 			else
-				tone_zones = zone;
+				ind_tone_zones = zone;
 			/* if we are replacing the default zone, re-point it */
 			if (tz == current_tonezone)
 				current_tonezone = zone;
@@ -473,7 +473,7 @@ int ast_register_indication_country(struct tone_zone *zone)
 	if (pz)
 		pz->next = zone;
 	else
-		tone_zones = zone;
+		ind_tone_zones = zone;
 	ast_mutex_unlock(&tzlock);
 
 	if (option_verbose > 2)
@@ -485,21 +485,21 @@ int ast_register_indication_country(struct tone_zone *zone)
  * Also, all countries which are an alias for the specified country are removed. */
 int ast_unregister_indication_country(const char *country)
 {
-	struct tone_zone *tz, *pz = NULL, *tmp;
+	struct ind_tone_zone *tz, *pz = NULL, *tmp;
 	int res = -1;
 
 	ast_mutex_lock(&tzlock);
-	tz = tone_zones;
+	tz = ind_tone_zones;
 	while (tz) {
 		if (country==NULL ||
 		    (strcasecmp(country, tz->country)==0 ||
 		     strcasecmp(country, tz->alias)==0)) {
-			/* tone_zone found, remove */
+			/* ind_tone_zone found, remove */
 			tmp = tz->next;
 			if (pz)
 				pz->next = tmp;
 			else
-				tone_zones = tmp;
+				ind_tone_zones = tmp;
 			/* if we are unregistering the default country, w'll notice */
 			if (tz == current_tonezone) {
 				ast_log(LOG_NOTICE,"Removed default indication country '%s'\n",tz->country);
@@ -508,8 +508,8 @@ int ast_unregister_indication_country(const char *country)
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Unregistered indication country '%s'\n",tz->country);
 			free_zone(tz);
-			if (tone_zones == tz)
-				tone_zones = tmp;
+			if (ind_tone_zones == tz)
+				ind_tone_zones = tmp;
 			tz = tmp;
 			res = 0;
 		}
@@ -523,11 +523,11 @@ int ast_unregister_indication_country(const char *country)
 	return res;
 }
 
-/* add a new indication to a tone_zone. tone_zone must exist. if the indication already
+/* add a new indication to a ind_tone_zone. ind_tone_zone must exist. if the indication already
  * exists, it will be replaced. */
-int ast_register_indication(struct tone_zone *zone, const char *indication, const char *tonelist)
+int ast_register_indication(struct ind_tone_zone *zone, const char *indication, const char *tonelist)
 {
-	struct tone_zone_sound *ts,*ps;
+	struct ind_tone_zone_sound *ts,*ps;
 
 	/* is it an alias? stop */
 	if (zone->alias[0])
@@ -563,9 +563,9 @@ int ast_register_indication(struct tone_zone *zone, const char *indication, cons
 }
 
 /* remove an existing country's indication. Both country and indication must exist */
-int ast_unregister_indication(struct tone_zone *zone, const char *indication)
+int ast_unregister_indication(struct ind_tone_zone *zone, const char *indication)
 {
-	struct tone_zone_sound *ts,*ps = NULL, *tmp;
+	struct ind_tone_zone_sound *ts,*ps = NULL, *tmp;
 	int res = -1;
 
 	/* is it an alias? stop */

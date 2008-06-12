@@ -74,6 +74,12 @@
 /* Define to indicate the ${CURSES_DESCRIP} library */
 #undef HAVE_CURSES
 
+/* Define if your system has the DAHDI headers. */
+#undef HAVE_DAHDI
+
+/* Define DAHDI headers version */
+#undef HAVE_DAHDI_VERSION
+
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
 #undef HAVE_DIRENT_H

@@ -2677,7 +2677,7 @@ static void *mgcp_ss(void *data)
 			ast_indicate(chan, -1);
 		} else {
 			/* XXX Redundant?  We should already be playing dialtone */
-			/*tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);*/
+			/*tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALTONE);*/
 			transmit_notify_request(sub, "L/dl");
 		}
 		if (ast_exists_extension(chan, chan->context, p->dtmf_buf, 1, p->cid_num)) {
@@ -2689,7 +2689,7 @@ static void *mgcp_ss(void *data)
 						ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %s\n", 
 							p->call_forward, chan->name);
 					}
-					/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+					/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 					transmit_notify_request(sub, "L/sl");
 					if (res)
 						break;
@@ -2698,7 +2698,7 @@ static void *mgcp_ss(void *data)
 					ast_indicate(chan, -1);
 					sleep(1);
 					memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
-					/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);*/
+					/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALTONE);*/
 					transmit_notify_request(sub, "L/dl");
 					len = 0;
 					getforward = 0;
@@ -2720,7 +2720,7 @@ static void *mgcp_ss(void *data)
 					res = ast_pbx_run(chan);
 					if (res) {
 						ast_log(LOG_WARNING, "PBX exited non-zero\n");
-						/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);*/
+						/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);*/
 						/*transmit_notify_request(p, "nbz", 1);*/
 						transmit_notify_request(sub, "G/cg");
 					}
@@ -2733,7 +2733,7 @@ static void *mgcp_ss(void *data)
 			}
 		} else if (res == 0) {
 			ast_log(LOG_DEBUG, "not enough digits (and no ambiguous match)...\n");
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);*/
 			transmit_notify_request(sub, "G/cg");
 			/*zt_wait_event(p->subs[index].zfd);*/
 			ast_hangup(chan);
@@ -2745,7 +2745,7 @@ static void *mgcp_ss(void *data)
 			}
 			/* Disable call waiting if enabled */
 			p->callwaiting = 0;
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			len = 0;
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
@@ -2757,7 +2757,7 @@ static void *mgcp_ss(void *data)
 			 */
 			if (ast_pickup_call(chan)) {
 				ast_log(LOG_WARNING, "No call pickup possible...\n");
-				/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);*/
+				/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);*/
 				transmit_notify_request(sub, "G/cg");
 			}
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
@@ -2770,7 +2770,7 @@ static void *mgcp_ss(void *data)
 			/* Disable Caller*ID if enabled */
 			p->hidecallerid = 1;
 			ast_set_callerid(chan, "", "", NULL);
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			len = 0;
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
@@ -2781,7 +2781,7 @@ static void *mgcp_ss(void *data)
 				res = ast_say_digit_str(chan, p->lastcallerid, "", chan->language);
 			}
 			if (!res)
-				/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+				/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 				transmit_notify_request(sub, "L/sl");
 			break;
 		} else if (!strcmp(p->dtmf_buf, "*78")) {
@@ -2789,7 +2789,7 @@ static void *mgcp_ss(void *data)
 			if (option_verbose > 2) {
 				ast_verbose(VERBOSE_PREFIX_3 "Enabled DND on channel %s\n", chan->name);
 			}
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			p->dnd = 1;
 			getforward = 0;
@@ -2800,14 +2800,14 @@ static void *mgcp_ss(void *data)
 			if (option_verbose > 2) {
 				ast_verbose(VERBOSE_PREFIX_3 "Disabled DND on channel %s\n", chan->name);
 			}
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			p->dnd = 0;
 			getforward = 0;
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			len = 0;
 		} else if (p->cancallforward && !strcmp(p->dtmf_buf, "*72")) {
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			getforward = 1;
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
@@ -2816,7 +2816,7 @@ static void *mgcp_ss(void *data)
 			if (option_verbose > 2) {
 				ast_verbose(VERBOSE_PREFIX_3 "Cancelling call forwarding on channel %s\n", chan->name);
 			}
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			memset(p->call_forward, 0, sizeof(p->call_forward));
 			getforward = 0;
@@ -2837,7 +2837,7 @@ static void *mgcp_ss(void *data)
 			}
 			res = ast_db_put("blacklist", p->lastcallerid, "1");
 			if (!res) {
-				/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+				/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 				transmit_notify_request(sub, "L/sl");
 				memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 				len = 0;
@@ -2849,7 +2849,7 @@ static void *mgcp_ss(void *data)
 			/* Enable Caller*ID if enabled */
 			p->hidecallerid = 0;
 			ast_set_callerid(chan, p->cid_num, p->cid_name, NULL);
-			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
+			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			len = 0;
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));

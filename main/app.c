@@ -64,7 +64,7 @@ of 'maxlen' or 'size' minus the original strlen() of collect digits.
 */
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout) 
 {
-	struct tone_zone_sound *ts;
+	struct ind_tone_zone_sound *ts;
 	int res=0, x=0;
 
 	if (maxlen > size)

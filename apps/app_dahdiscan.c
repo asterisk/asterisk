@@ -31,7 +31,7 @@
  */
 
 /*** MODULEINFO
-	<depend>zaptel</depend>
+	<depend>dahdi</depend>
  ***/
 
 #include "asterisk.h"
@@ -44,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <unistd.h>
 #include <errno.h>
 #include <sys/ioctl.h>
-#include <zaptel/zaptel.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -59,7 +58,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/say.h"
 
-static char *app = "ZapScan";
+#include "asterisk/dahdi_compat.h"
+
+static char *app = "DAHDIScan";
+static char *deprecated_app = "ZapScan";
 
 static char *synopsis = "Scan Zap channels to monitor calls";
 
@@ -74,7 +76,7 @@ static char *descrip =
 static struct ast_channel *get_zap_channel_locked(int num) {
 	char name[80];
 	
-	snprintf(name,sizeof(name),"Zap/%d-1",num);
+	snprintf(name,sizeof(name),"%s/%d-1", dahdi_chan_name, num);
 	return ast_get_channel_by_name_locked(name);
 }
 
@@ -99,7 +101,7 @@ static int careful_write(int fd, unsigned char *data, int len)
 static int conf_run(struct ast_channel *chan, int confno, int confflags)
 {
 	int fd;
-	struct zt_confinfo ztc;
+	DAHDI_CONFINFO ztc;
 	struct ast_frame *f;
 	struct ast_channel *c;
 	struct ast_frame fr;
@@ -114,7 +116,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 	char input[4];
 	int ic=0;
 	
-	ZT_BUFFERINFO bi;
+	DAHDI_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 	
@@ -154,10 +156,10 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 		/* Setup buffering information */
 		memset(&bi, 0, sizeof(bi));
 		bi.bufsize = CONF_SIZE;
-		bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
-		bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
+		bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
+		bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
 		bi.numbufs = 4;
-		if (ioctl(fd, ZT_SET_BUFINFO, &bi)) {
+		if (ioctl(fd, DAHDI_SET_BUFINFO, &bi)) {
 			ast_log(LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
 			close(fd);
 			goto outrun;
@@ -171,7 +173,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 	memset(&ztc, 0, sizeof(ztc));
 	/* Check to see if we're in a conference... */
         ztc.chan = 0;
-        if (ioctl(fd, ZT_GETCONF, &ztc)) {
+        if (ioctl(fd, DAHDI_GETCONF, &ztc)) {
 			ast_log(LOG_WARNING, "Error getting conference\n");
 			close(fd);
 			goto outrun;
@@ -188,9 +190,9 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
         /* Add us to the conference */
         ztc.chan = 0;
         ztc.confno = confno;
-        ztc.confmode = ZT_CONF_MONITORBOTH;
+        ztc.confmode = DAHDI_CONF_MONITORBOTH;
 		
-        if (ioctl(fd, ZT_SETCONF, &ztc)) {
+        if (ioctl(fd, DAHDI_SETCONF, &ztc)) {
                 ast_log(LOG_WARNING, "Error setting conference\n");
                 close(fd);
                 goto outrun;
@@ -274,7 +276,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 			ztc.chan = 0;
 			ztc.confno = 0;
 			ztc.confmode = 0;
-			if (ioctl(fd, ZT_SETCONF, &ztc)) {
+			if (ioctl(fd, DAHDI_SETCONF, &ztc)) {
 				ast_log(LOG_WARNING, "Error setting conference\n");
                 }
         }
@@ -361,6 +363,12 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static int conf_exec_warn(struct ast_channel *chan, void *data)
+{
+    ast_log(LOG_WARNING, "Use of the command %s is deprecated, please use %s instead.\n", deprecated_app, app);
+    return conf_exec(chan, data);
+}
+
 static int unload_module(void)
 {
 	int res;
@@ -374,6 +382,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	ast_register_application(deprecated_app, conf_exec_warn, synopsis, descrip);
 	return ast_register_application(app, conf_exec, synopsis, descrip);
 }
 

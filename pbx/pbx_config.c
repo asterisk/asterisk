@@ -2361,7 +2361,7 @@ static void pbx_load_users(void)
 {
 	struct ast_config *cfg;
 	char *cat, *chan;
-	const char *zapchan;
+	const char *dahdichan;
 	const char *hasexten;
 	char tmp[256];
 	char iface[256];
@@ -2397,11 +2397,21 @@ static void pbx_load_users(void)
 		if (hasexten && !ast_true(hasexten))
 			continue;
 		hasvoicemail = ast_true(ast_config_option(cfg, cat, "hasvoicemail"));
-		zapchan = ast_variable_retrieve(cfg, cat, "zapchan");
-		if (!zapchan)
-			zapchan = ast_variable_retrieve(cfg, "general", "zapchan");
-		if (!ast_strlen_zero(zapchan)) {
-			ast_copy_string(zapcopy, zapchan, sizeof(zapcopy));
+		dahdichan = ast_variable_retrieve(cfg, cat, "dahdichan");
+		if (!dahdichan)
+			dahdichan = ast_variable_retrieve(cfg, "general", "dahdichan");
+		if (!dahdichan) {
+		/* no dahdichan, but look for zapchan too */
+			dahdichan = ast_variable_retrieve(cfg, cat, "zapchan");
+			if (!dahdichan) {
+				dahdichan = ast_variable_retrieve(cfg, "general", "zapchan");
+			}
+			if (!ast_strlen_zero(dahdichan)) {
+				ast_log(LOG_WARNING, "Use of zapchan in users.conf is deprecated. Please update configuration to use dahdichan instead.\n");
+			}
+		}
+		if (!ast_strlen_zero(dahdichan)) {
+			ast_copy_string(zapcopy, dahdichan, sizeof(zapcopy));
 			c = zapcopy;
 			chan = strsep(&c, ",");
 			while (chan) {

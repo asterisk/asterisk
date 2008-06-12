@@ -26,7 +26,7 @@
  */
 
 /*** MODULEINFO
-	<depend>zaptel</depend>
+	<depend>dahdi</depend>
 	<depend>app_meetme</depend>
  ***/
 

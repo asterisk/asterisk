@@ -98,7 +98,7 @@ static char *descrip =
 
 static void play_dialtone(struct ast_channel *chan, char *mailbox)
 {
-	const struct tone_zone_sound *ts = NULL;
+	const struct ind_tone_zone_sound *ts = NULL;
 	if(ast_app_has_voicemail(mailbox, NULL))
 		ts = ast_get_indication_tone(chan->zone, "dialrecall");
 	else

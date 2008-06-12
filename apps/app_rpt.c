@@ -2609,9 +2609,9 @@ static struct morse_bits mbits[] = {
 	*/
 
 	for(i = 0; i < 20 ; i++){
-		flags =  ZT_IOMUX_WRITEEMPTY | ZT_IOMUX_NOWAIT; 
-		res = ioctl(chan->fds[0], ZT_IOMUX, &flags);
-		if(flags & ZT_IOMUX_WRITEEMPTY)
+		flags =  DAHDI_IOMUX_WRITEEMPTY | ZT_IOMUX_NOWAIT; 
+		res = ioctl(chan->fds[0], DAHDI_IOMUX, &flags);
+		if(flags & DAHDI_IOMUX_WRITEEMPTY)
 			break;
 		if( ast_safe_sleep(chan, 50)){
 			res = -1;
@@ -2660,9 +2660,9 @@ static int send_tone_telemetry(struct ast_channel *chan, char *tonestring)
 	*/
 
 	for(i = 0; i < 20 ; i++){
-		flags =  ZT_IOMUX_WRITEEMPTY | ZT_IOMUX_NOWAIT; 
-		res = ioctl(chan->fds[0], ZT_IOMUX, &flags);
-		if(flags & ZT_IOMUX_WRITEEMPTY)
+		flags =  DAHDI_IOMUX_WRITEEMPTY | ZT_IOMUX_NOWAIT; 
+		res = ioctl(chan->fds[0], DAHDI_IOMUX, &flags);
+		if(flags & DAHDI_IOMUX_WRITEEMPTY)
 			break;
 		if( ast_safe_sleep(chan, 50)){
 			res = -1;
@@ -2905,7 +2905,7 @@ static int split_freq(char *mhz, char *decimals, char *freq);
 
 static void *rpt_tele_thread(void *this)
 {
-ZT_CONFINFO ci;  /* conference info */
+DAHDI_CONFINFO ci;  /* conference info */
 int	res = 0,haslink,hastx,hasremote,imdone = 0, unkeys_queued, x;
 struct	rpt_tele *mytele = (struct rpt_tele *)this;
 struct  rpt_tele *tlist;
@@ -2959,9 +2959,9 @@ struct zt_params par;
 	ci.confno = (((mytele->mode == ID) || (mytele->mode == IDTALKOVER) || (mytele->mode == UNKEY) || 
 		(mytele->mode == TAILMSG) || (mytele->mode == LINKUNKEY)) || (mytele->mode == TIMEOUT) ?
 		 	myrpt->txconf : myrpt->conf);
-	ci.confmode = ZT_CONF_CONFANN;
+	ci.confmode = DAHDI_CONF_CONFANN;
 	/* first put the channel on the conference in announce mode */
-	if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
+	if (ioctl(mychannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		rpt_mutex_lock(&myrpt->lock);
@@ -3144,9 +3144,9 @@ struct zt_params par;
 			/* set for all to hear */
 			ci.chan = 0;
 			ci.confno = myrpt->conf;
-			ci.confmode = ZT_CONF_CONFANN;
+			ci.confmode = DAHDI_CONF_CONFANN;
 			/* first put the channel on the conference in announce mode */
-			if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
+			if (ioctl(mychannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 			{
 				ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 				rpt_mutex_lock(&myrpt->lock);
@@ -3174,9 +3174,9 @@ struct zt_params par;
 			/* set for all to hear */
 			ci.chan = 0;
 			ci.confno = myrpt->txconf;
-			ci.confmode = ZT_CONF_CONFANN;
+			ci.confmode = DAHDI_CONF_CONFANN;
 			/* first put the channel on the conference in announce mode */
-			if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
+			if (ioctl(mychannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 			{
 				ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 				rpt_mutex_lock(&myrpt->lock);
@@ -3385,15 +3385,15 @@ struct zt_params par;
 				res = -1;
 				break;
 			}
-			i = ZT_FLUSH_EVENT;
-			if (ioctl(myrpt->zaptxchannel->fds[0],ZT_FLUSH,&i) == -1)
+			i = DAHDI_FLUSH_EVENT;
+			if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_FLUSH,&i) == -1)
 			{
 				ast_mutex_unlock(&myrpt->remlock);
 				ast_log(LOG_ERROR,"Cant flush events");
 				res = -1;
 				break;
 			}
-			if (ioctl(myrpt->zaprxchannel->fds[0],ZT_GET_PARAMS,&par) == -1)
+			if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_GET_PARAMS,&par) == -1)
 			{
 				ast_mutex_unlock(&myrpt->remlock);
 				ast_log(LOG_ERROR,"Cant get params");
@@ -4161,7 +4161,7 @@ pthread_attr_t attr;
 
 static void *rpt_call(void *this)
 {
-ZT_CONFINFO ci;  /* conference info */
+DAHDI_CONFINFO ci;  /* conference info */
 struct	rpt *myrpt = (struct rpt *)this;
 int	res;
 int stopped,congstarted,dialtimer,lastcidx,aborted;
@@ -4181,10 +4181,10 @@ struct ast_channel *mychannel,*genchannel;
 #endif
 	ci.chan = 0;
 	ci.confno = myrpt->conf; /* use the pseudo conference */
-	ci.confmode = ZT_CONF_REALANDPSEUDO | ZT_CONF_TALKER | ZT_CONF_LISTENER
-		| ZT_CONF_PSEUDO_TALKER | ZT_CONF_PSEUDO_LISTENER; 
+	ci.confmode = DAHDI_CONF_REALANDPSEUDO | ZT_CONF_TALKER | ZT_CONF_LISTENER
+		| DAHDI_CONF_PSEUDO_TALKER | ZT_CONF_PSEUDO_LISTENER; 
 	/* first put the channel on the conference */
-	if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
+	if (ioctl(mychannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		ast_hangup(mychannel);
@@ -4204,10 +4204,10 @@ struct ast_channel *mychannel,*genchannel;
 #endif
 	ci.chan = 0;
 	ci.confno = myrpt->conf;
-	ci.confmode = ZT_CONF_REALANDPSEUDO | ZT_CONF_TALKER | ZT_CONF_LISTENER
-		| ZT_CONF_PSEUDO_TALKER | ZT_CONF_PSEUDO_LISTENER; 
+	ci.confmode = DAHDI_CONF_REALANDPSEUDO | ZT_CONF_TALKER | ZT_CONF_LISTENER
+		| DAHDI_CONF_PSEUDO_TALKER | ZT_CONF_PSEUDO_LISTENER; 
 	/* first put the channel on the conference */
-	if (ioctl(genchannel->fds[0],ZT_SETCONF,&ci) == -1)
+	if (ioctl(genchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		ast_hangup(mychannel);
@@ -4232,7 +4232,7 @@ struct ast_channel *mychannel,*genchannel;
 		pthread_exit(NULL);
 	}
 	/* start dialtone if patchquiet is 0. Special patch modes don't send dial tone */
-	if ((!myrpt->patchquiet) && (tone_zone_play_tone(mychannel->fds[0],ZT_TONE_DIALTONE) < 0))
+	if ((!myrpt->patchquiet) && (tone_zone_play_tone(mychannel->fds[0],DAHDI_TONE_DIALTONE) < 0))
 	{
 		ast_log(LOG_WARNING, "Cannot start dialtone\n");
 		ast_hangup(mychannel);
@@ -4274,7 +4274,7 @@ struct ast_channel *mychannel,*genchannel;
 			if(!congstarted){
 				congstarted = 1;
 				/* start congestion tone */
-				tone_zone_play_tone(mychannel->fds[0],ZT_TONE_CONGESTION);
+				tone_zone_play_tone(mychannel->fds[0],DAHDI_TONE_CONGESTION);
 			}
 		}
 		res = ast_safe_sleep(mychannel, MSWAIT);
@@ -4346,10 +4346,10 @@ struct ast_channel *mychannel,*genchannel;
 	/* set appropriate conference for the pseudo */
 	ci.chan = 0;
 	ci.confno = myrpt->conf;
-	ci.confmode = (myrpt->p.duplex == 2) ? ZT_CONF_CONFANNMON :
-		(ZT_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER);
+	ci.confmode = (myrpt->p.duplex == 2) ? DAHDI_CONF_CONFANNMON :
+		(DAHDI_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER);
 	/* first put the channel on the conference in announce mode */
-	if (ioctl(myrpt->pchannel->fds[0],ZT_SETCONF,&ci) == -1)
+	if (ioctl(myrpt->pchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		ast_hangup(mychannel);
@@ -4373,7 +4373,7 @@ struct ast_channel *mychannel,*genchannel;
 				myrpt->callmode = 4;
 				rpt_mutex_unlock(&myrpt->lock);
 				/* start congestion tone */
-				tone_zone_play_tone(genchannel->fds[0],ZT_TONE_CONGESTION);
+				tone_zone_play_tone(genchannel->fds[0],DAHDI_TONE_CONGESTION);
 				rpt_mutex_lock(&myrpt->lock);
 			}
 		}
@@ -4401,10 +4401,10 @@ struct ast_channel *mychannel,*genchannel;
 	/* set appropriate conference for the pseudo */
 	ci.chan = 0;
 	ci.confno = myrpt->conf;
-	ci.confmode = ((myrpt->p.duplex == 2) || (myrpt->p.duplex == 4)) ? ZT_CONF_CONFANNMON :
-		(ZT_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER);
+	ci.confmode = ((myrpt->p.duplex == 2) || (myrpt->p.duplex == 4)) ? DAHDI_CONF_CONFANNMON :
+		(DAHDI_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER);
 	/* first put the channel on the conference in announce mode */
-	if (ioctl(myrpt->pchannel->fds[0],ZT_SETCONF,&ci) == -1)
+	if (ioctl(myrpt->pchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 	}
@@ -4471,7 +4471,7 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 	struct rpt_link *l;
 	int reconnects = 0;
 	int i,n;
-	ZT_CONFINFO ci;  /* conference info */
+	DAHDI_CONFINFO ci;  /* conference info */
 
 	val = node_lookup(myrpt,node);
 	if (!val){
@@ -4610,9 +4610,9 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 	/* make a conference for the tx */
 	ci.chan = 0;
 	ci.confno = myrpt->conf;
-	ci.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER;
+	ci.confmode = DAHDI_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER;
 	/* first put the channel on the conference in proper mode */
-	if (ioctl(l->pchan->fds[0], ZT_SETCONF, &ci) == -1)
+	if (ioctl(l->pchan->fds[0], DAHDI_SETCONF, &ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		ast_hangup(l->chan);
@@ -5850,17 +5850,17 @@ static void rbi_out(struct rpt *myrpt,unsigned char *data)
 struct zt_radio_param r;
 
 	memset(&r,0,sizeof(struct zt_radio_param));
-	r.radpar = ZT_RADPAR_REMMODE;
-	r.data = ZT_RADPAR_REM_RBI1;
+	r.radpar = DAHDI_RADPAR_REMMODE;
+	r.data = DAHDI_RADPAR_REM_RBI1;
 	/* if setparam ioctl fails, its probably not a pciradio card */
-	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&r) == -1)
+	if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_RADIO_SETPARAM,&r) == -1)
 	{
 		rbi_out_parallel(myrpt,data);
 		return;
 	}
-	r.radpar = ZT_RADPAR_REMCOMMAND;
+	r.radpar = DAHDI_RADPAR_REMCOMMAND;
 	memcpy(&r.data,data,5);
-	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&r) == -1)
+	if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_RADIO_SETPARAM,&r) == -1)
 	{
 		ast_log(LOG_WARNING,"Cannot send RBI command for channel %s\n",myrpt->zaprxchannel->name);
 		return;
@@ -5909,47 +5909,47 @@ static int serial_remote_io(struct rpt *myrpt, unsigned char *txbuf, int txbytes
 	/* if not a zap channel, cant use pciradio stuff */
 	if (myrpt->rxchannel != myrpt->zaprxchannel) return -1;	
 
-	prm.radpar = ZT_RADPAR_UIOMODE;
-	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_GETPARAM,&prm) == -1) return -1;
+	prm.radpar = DAHDI_RADPAR_UIOMODE;
+	if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_RADIO_GETPARAM,&prm) == -1) return -1;
 	oldmode = prm.data;
-	prm.radpar = ZT_RADPAR_UIODATA;
-	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_GETPARAM,&prm) == -1) return -1;
+	prm.radpar = DAHDI_RADPAR_UIODATA;
+	if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_RADIO_GETPARAM,&prm) == -1) return -1;
 	olddata = prm.data;
-        prm.radpar = ZT_RADPAR_REMMODE;
-        if (asciiflag & 1)  prm.data = ZT_RADPAR_REM_SERIAL_ASCII;
-        else prm.data = ZT_RADPAR_REM_SERIAL;
-	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
+        prm.radpar = DAHDI_RADPAR_REMMODE;
+        if (asciiflag & 1)  prm.data = DAHDI_RADPAR_REM_SERIAL_ASCII;
+        else prm.data = DAHDI_RADPAR_REM_SERIAL;
+	if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_RADIO_SETPARAM,&prm) == -1) return -1;
 	if (asciiflag & 2)
 	{
-		i = ZT_ONHOOK;
-		if (ioctl(myrpt->zaprxchannel->fds[0],ZT_HOOK,&i) == -1) return -1;
+		i = DAHDI_ONHOOK;
+		if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_HOOK,&i) == -1) return -1;
 		usleep(100000);
 	}
-        prm.radpar = ZT_RADPAR_REMCOMMAND;
+        prm.radpar = DAHDI_RADPAR_REMCOMMAND;
         prm.data = rxmaxbytes;
         memcpy(prm.buf,txbuf,txbytes);
         prm.index = txbytes;
-	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
+	if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_RADIO_SETPARAM,&prm) == -1) return -1;
         if (rxbuf)
         {
                 *rxbuf = 0;
                 memcpy(rxbuf,prm.buf,prm.index);
         }
 	index = prm.index;
-        prm.radpar = ZT_RADPAR_REMMODE;
-        prm.data = ZT_RADPAR_REM_NONE;
-	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
+        prm.radpar = DAHDI_RADPAR_REMMODE;
+        prm.data = DAHDI_RADPAR_REM_NONE;
+	if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_RADIO_SETPARAM,&prm) == -1) return -1;
 	if (asciiflag & 2)
 	{
-		i = ZT_OFFHOOK;
-		if (ioctl(myrpt->zaprxchannel->fds[0],ZT_HOOK,&i) == -1) return -1;
+		i = DAHDI_OFFHOOK;
+		if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_HOOK,&i) == -1) return -1;
 	}
-	prm.radpar = ZT_RADPAR_UIOMODE;
+	prm.radpar = DAHDI_RADPAR_UIOMODE;
 	prm.data = oldmode;
-	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
-	prm.radpar = ZT_RADPAR_UIODATA;
+	if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_RADIO_SETPARAM,&prm) == -1) return -1;
+	prm.radpar = DAHDI_RADPAR_UIODATA;
 	prm.data = olddata;
-	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
+	if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_RADIO_SETPARAM,&prm) == -1) return -1;
         return(index);
 }
 
@@ -8763,7 +8763,7 @@ char *tele,*idtalkover,c;
 int ms = MSWAIT,i,lasttx=0,val,remrx=0,identqueued,othertelemqueued;
 int tailmessagequeued,ctqueued,dtmfed;
 struct ast_channel *who;
-ZT_CONFINFO ci;  /* conference info */
+DAHDI_CONFINFO ci;  /* conference info */
 time_t	t;
 struct rpt_link *l,*m;
 struct rpt_tele *telem;
@@ -8963,9 +8963,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	/* make a conference for the tx */
 	ci.chan = 0;
 	ci.confno = -1; /* make a new conf */
-	ci.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
+	ci.confmode = DAHDI_CONF_CONF | ZT_CONF_LISTENER;
 	/* first put the channel on the conference in proper mode */
-	if (ioctl(myrpt->zaptxchannel->fds[0],ZT_SETCONF,&ci) == -1)
+	if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		rpt_mutex_unlock(&myrpt->lock);
@@ -8982,10 +8982,10 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	/* make a conference for the pseudo */
 	ci.chan = 0;
 	ci.confno = -1; /* make a new conf */
-	ci.confmode = ((myrpt->p.duplex == 2) || (myrpt->p.duplex == 4)) ? ZT_CONF_CONFANNMON :
-		(ZT_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER);
+	ci.confmode = ((myrpt->p.duplex == 2) || (myrpt->p.duplex == 4)) ? DAHDI_CONF_CONFANNMON :
+		(DAHDI_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER);
 	/* first put the channel on the conference in announce mode */
-	if (ioctl(myrpt->pchannel->fds[0],ZT_SETCONF,&ci) == -1)
+	if (ioctl(myrpt->pchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		rpt_mutex_unlock(&myrpt->lock);
@@ -9005,7 +9005,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		(myrpt->zaptxchannel == myrpt->txchannel))
 	{
 		/* get tx channel's port number */
-		if (ioctl(myrpt->txchannel->fds[0],ZT_CHANNO,&ci.confno) == -1)
+		if (ioctl(myrpt->txchannel->fds[0],DAHDI_CHANNO,&ci.confno) == -1)
 		{
 			ast_log(LOG_WARNING, "Unable to set tx channel's chan number\n");
 			rpt_mutex_unlock(&myrpt->lock);
@@ -9017,15 +9017,15 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			myrpt->rpt_thread = AST_PTHREADT_STOP;
 			pthread_exit(NULL);
 		}
-		ci.confmode = ZT_CONF_MONITORTX;
+		ci.confmode = DAHDI_CONF_MONITORTX;
 	}
 	else
 	{
 		ci.confno = myrpt->txconf;
-		ci.confmode = ZT_CONF_CONFANNMON;
+		ci.confmode = DAHDI_CONF_CONFANNMON;
 	}
 	/* first put the channel on the conference in announce mode */
-	if (ioctl(myrpt->monchannel->fds[0],ZT_SETCONF,&ci) == -1)
+	if (ioctl(myrpt->monchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode for monitor\n");
 		rpt_mutex_unlock(&myrpt->lock);
@@ -9057,9 +9057,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	/* make a conference for the tx */
 	ci.chan = 0;
 	ci.confno = myrpt->txconf;
-	ci.confmode = ZT_CONF_CONF | ZT_CONF_TALKER ;
+	ci.confmode = DAHDI_CONF_CONF | ZT_CONF_TALKER ;
  	/* first put the channel on the conference in proper mode */
-	if (ioctl(myrpt->txpchannel->fds[0],ZT_SETCONF,&ci) == -1)
+	if (ioctl(myrpt->txpchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		rpt_mutex_unlock(&myrpt->lock);
@@ -9786,7 +9786,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 				/* apply inbound filters, if any */
 				rpt_filter(myrpt,f->data,f->datalen / 2);
 #endif
-				if (ioctl(myrpt->zaprxchannel->fds[0], ZT_GETCONFMUTE, &ismuted) == -1)
+				if (ioctl(myrpt->zaprxchannel->fds[0], DAHDI_GETCONFMUTE, &ismuted) == -1)
 				{
 					ismuted = 0;
 				}
@@ -10076,7 +10076,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 
 					if (l->phonemode)
 					{
-						if (ioctl(l->chan->fds[0], ZT_GETCONFMUTE, &ismuted) == -1)
+						if (ioctl(l->chan->fds[0], DAHDI_GETCONFMUTE, &ismuted) == -1)
 						{
 							ismuted = 0;
 						}
@@ -10568,8 +10568,8 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	struct ast_channel *who;
 	struct ast_channel *cs[20];
 	struct	rpt_link *l;
-	ZT_CONFINFO ci;  /* conference info */
-	ZT_PARAMS par;
+	DAHDI_CONFINFO ci;  /* conference info */
+	DAHDI_PARAMS par;
 	int ms,elap,nullfd;
 	time_t t,last_timeout_warning;
 	struct	zt_radio_param z;
@@ -10948,9 +10948,9 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		/* make a conference for the tx */
 		ci.chan = 0;
 		ci.confno = myrpt->conf;
-		ci.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER;
+		ci.confmode = DAHDI_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER;
 		/* first put the channel on the conference in proper mode */
-		if (ioctl(l->pchan->fds[0],ZT_SETCONF,&ci) == -1)
+		if (ioctl(l->pchan->fds[0],DAHDI_SETCONF,&ci) == -1)
 		{
 			ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 			pthread_exit(NULL);
@@ -11115,9 +11115,9 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	/* make a conference for the pseudo */
 	ci.chan = 0;
 	ci.confno = -1; /* make a new conf */
-	ci.confmode = ZT_CONF_CONFANNMON ;
+	ci.confmode = DAHDI_CONF_CONFANNMON ;
 	/* first put the channel on the conference in announce/monitor mode */
-	if (ioctl(myrpt->pchannel->fds[0],ZT_SETCONF,&ci) == -1)
+	if (ioctl(myrpt->pchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		rpt_mutex_unlock(&myrpt->lock);
@@ -11144,28 +11144,28 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	memset(&z,0,sizeof(z));
 	if ((myrpt->iofd < 1) && (myrpt->txchannel == myrpt->zaptxchannel))
 	{
-		z.radpar = ZT_RADPAR_REMMODE;
-		z.data = ZT_RADPAR_REM_NONE;
-		res = ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z);
+		z.radpar = DAHDI_RADPAR_REMMODE;
+		z.data = DAHDI_RADPAR_REM_NONE;
+		res = ioctl(myrpt->zaptxchannel->fds[0],DAHDI_RADIO_SETPARAM,&z);
 		/* if PCIRADIO and kenwood selected */
 		if ((!res) && (!strcmp(myrpt->remote,remote_rig_kenwood)))
 		{
-			z.radpar = ZT_RADPAR_UIOMODE;
+			z.radpar = DAHDI_RADPAR_UIOMODE;
 			z.data = 1;
-			if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+			if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_RADIO_SETPARAM,&z) == -1)
 			{
 				ast_log(LOG_ERROR,"Cannot set UIOMODE\n");
 				return -1;
 			}
-			z.radpar = ZT_RADPAR_UIODATA;
+			z.radpar = DAHDI_RADPAR_UIODATA;
 			z.data = 3;
-			if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+			if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_RADIO_SETPARAM,&z) == -1)
 			{
 				ast_log(LOG_ERROR,"Cannot set UIODATA\n");
 				return -1;
 			}
-			i = ZT_OFFHOOK;
-			if (ioctl(myrpt->zaptxchannel->fds[0],ZT_HOOK,&i) == -1)
+			i = DAHDI_OFFHOOK;
+			if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_HOOK,&i) == -1)
 			{
 				ast_log(LOG_ERROR,"Cannot set hook\n");
 				return -1;
@@ -11175,23 +11175,23 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	}
 	if (myrpt->txchannel == myrpt->zaptxchannel)
 	{
-		i = ZT_ONHOOK;
-		ioctl(myrpt->zaptxchannel->fds[0],ZT_HOOK,&i);
+		i = DAHDI_ONHOOK;
+		ioctl(myrpt->zaptxchannel->fds[0],DAHDI_HOOK,&i);
 		/* if PCIRADIO and Yaesu ft897/ICOM IC-706 selected */
 		if ((myrpt->iofd < 1) && (!res) &&
 		   (!strcmp(myrpt->remote,remote_rig_ft897) ||
 		      (!strcmp(myrpt->remote,remote_rig_ic706))))
 		{
-			z.radpar = ZT_RADPAR_UIOMODE;
+			z.radpar = DAHDI_RADPAR_UIOMODE;
 			z.data = 1;
-			if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+			if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_RADIO_SETPARAM,&z) == -1)
 			{
 				ast_log(LOG_ERROR,"Cannot set UIOMODE\n");
 				return -1;
 			}
-			z.radpar = ZT_RADPAR_UIODATA;
+			z.radpar = DAHDI_RADPAR_UIODATA;
 			z.data = 3;
-			if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+			if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_RADIO_SETPARAM,&z) == -1)
 			{
 				ast_log(LOG_ERROR,"Cannot set UIODATA\n");
 				return -1;
@@ -11227,7 +11227,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	if (myrpt->remote && (myrpt->rxchannel == myrpt->txchannel))
 	{
 		i = 128;
-		ioctl(myrpt->zaprxchannel->fds[0],ZT_ECHOCANCEL,&i);
+		ioctl(myrpt->zaprxchannel->fds[0],DAHDI_ECHOCANCEL,&i);
 	}
 	if (chan->_state != AST_STATE_UP) {
 		ast_answer(chan);
@@ -11235,7 +11235,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 
 	if (myrpt->rxchannel == myrpt->zaprxchannel)
 	{
-		if (ioctl(myrpt->zaprxchannel->fds[0],ZT_GET_PARAMS,&par) != -1)
+		if (ioctl(myrpt->zaprxchannel->fds[0],DAHDI_GET_PARAMS,&par) != -1)
 		{
 			if (par.rxisoffhook)
 			{
@@ -11500,9 +11500,9 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 					time(&myrpt->last_activity_time);
 					if ((iskenwood_pci4) && (myrpt->txchannel == myrpt->zaptxchannel))
 					{
-						z.radpar = ZT_RADPAR_UIODATA;
+						z.radpar = DAHDI_RADPAR_UIODATA;
 						z.data = 1;
-						if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+						if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_RADIO_SETPARAM,&z) == -1)
 						{
 							ast_log(LOG_ERROR,"Cannot set UIODATA\n");
 							return -1;
@@ -11524,9 +11524,9 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			}
 			if ((iskenwood_pci4) && (myrpt->txchannel == myrpt->zaptxchannel))
 			{
-				z.radpar = ZT_RADPAR_UIODATA;
+				z.radpar = DAHDI_RADPAR_UIODATA;
 				z.data = 3;
-				if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+				if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_RADIO_SETPARAM,&z) == -1)
 				{
 					ast_log(LOG_ERROR,"Cannot set UIODATA\n");
 					return -1;
@@ -11576,7 +11576,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			}
 			if (f->frametype == AST_FRAME_VOICE)
 			{
-				if (ioctl(chan->fds[0], ZT_GETCONFMUTE, &ismuted) == -1)
+				if (ioctl(chan->fds[0], DAHDI_GETCONFMUTE, &ismuted) == -1)
 				{
 					ismuted = 0;
 				}
@@ -11801,22 +11801,22 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	myrpt->lastf2 = NULL;
 	if ((iskenwood_pci4) && (myrpt->txchannel == myrpt->zaptxchannel))
 	{
-		z.radpar = ZT_RADPAR_UIOMODE;
+		z.radpar = DAHDI_RADPAR_UIOMODE;
 		z.data = 3;
-		if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+		if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_RADIO_SETPARAM,&z) == -1)
 		{
 			ast_log(LOG_ERROR,"Cannot set UIOMODE\n");
 			return -1;
 		}
-		z.radpar = ZT_RADPAR_UIODATA;
+		z.radpar = DAHDI_RADPAR_UIODATA;
 		z.data = 3;
-		if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+		if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_RADIO_SETPARAM,&z) == -1)
 		{
 			ast_log(LOG_ERROR,"Cannot set UIODATA\n");
 			return -1;
 		}
-		i = ZT_OFFHOOK;
-		if (ioctl(myrpt->zaptxchannel->fds[0],ZT_HOOK,&i) == -1)
+		i = DAHDI_OFFHOOK;
+		if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_HOOK,&i) == -1)
 		{
 			ast_log(LOG_ERROR,"Cannot set hook\n");
 			return -1;

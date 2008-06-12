@@ -176,6 +176,7 @@ AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
 AST_EXT_LIB_SETUP([CURL], [cURL], [curl])
 AST_EXT_LIB_SETUP([CAP], [POSIX 1.e capabilities], [cap])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
+AST_EXT_LIB_SETUP([DAHDI], [DAHDI], [dahdi])
 AST_EXT_LIB_SETUP([GNUTLS], [GNU TLS support (used for iksemel only)], [gnutls])
 AST_EXT_LIB_SETUP([GSM], [GSM], [gsm], [, or 'internal'])
 AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber Library], [iksemel])
@@ -433,6 +434,14 @@ AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
 
 if test "x${host_os}" = "xlinux-gnu" ; then
   AST_EXT_LIB_CHECK([CAP], [cap], [cap_from_text], [sys/capability.h])
+fi
+
+if test "${USE_DAHDI}" != "no" ; then
+	AST_C_DEFINE_CHECK([DAHDI], [DAHDI_CODE], [dahdi/user.h])
+	if test "x${PBX_DAHDI}" = "x1" ; then
+		PBX_ZAPTEL_TRANSCODE=1
+		AC_SUBST(PBX_ZAPTEL_TRANSCODE)
+	fi
 fi
 
 AST_C_COMPILE_CHECK([GETIFADDRS], [struct ifaddrs *p; getifaddrs(&p)], [ifaddrs.h])
@@ -1349,7 +1358,13 @@ if test "${host_os}" != "linux-gnu" ; then
   tonezone_extra="-lm"
 fi
 
-AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel/tonezone.h], [${tonezone_extra}])
+if test "${USE_DAHDI}" != "no" ; then
+  tonezone_dir="dahdi"
+else
+  tonezone_dir="zaptel"
+fi
+
+AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [${tonezone_dir}/tonezone.h], [${tonezone_extra}])
 
 AST_EXT_LIB_CHECK([USB], [usb], [usb_init], [usb.h], [])
 
@@ -1407,7 +1422,7 @@ AC_LANG_POP
 
 AST_EXT_LIB_CHECK([ZLIB], [z], [compress], [zlib.h])
 
-if test "${USE_ZAPTEL}" != "no"; then
+if test "${USE_ZAPTEL}" != "no" && test "x${PBX_DAHDI}" != "x1"; then
    AC_MSG_CHECKING(for ZT_DIAL_OP_CANCEL in zaptel/zaptel.h)
    saved_cppflags="${CPPFLAGS}"
    if test "x${ZAPTEL_DIR}" != "x"; then
@@ -1443,7 +1458,7 @@ if test "${USE_ZAPTEL}" != "no"; then
    fi
 fi
 
-if test "${PBX_ZAPTEL}" = 1; then
+if test "${PBX_ZAPTEL}" = 1 && test "x${PBX_DAHDI}" != "x1"; then
    AC_MSG_CHECKING(for ZT_EVENT_REMOVED in zaptel/zaptel.h)
    saved_cppflags="${CPPFLAGS}"
    if test "x${ZAPTEL_DIR}" != "x"; then
@@ -1491,6 +1506,11 @@ if test "${PBX_ZAPTEL}" = 1; then
 fi
 AC_SUBST(PBX_ZAPTEL_VLDTMF)
 AC_SUBST(PBX_ZAPTEL_TRANSCODE)
+
+if test "x${PBX_ZAPTEL}" = "x1" ; then
+	PBX_DAHDI=1
+	AC_SUBST(PBX_DAHDI)
+fi
 
 EDITLINE_LIB=""
 if test "x$TERMCAP_LIB" != "x" ; then

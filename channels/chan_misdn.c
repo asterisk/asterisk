@@ -211,7 +211,7 @@ struct chan_list {
 	int other_pid;
 	struct chan_list *other_ch;
 
-	const struct tone_zone_sound *ts;
+	const struct ind_tone_zone_sound *ts;
 	
 	int overlap_dial;
 	int overlap_dial_task;
@@ -2989,7 +2989,7 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 
 static int dialtone_indicate(struct chan_list *cl)
 {
-	const struct tone_zone_sound *ts= NULL;
+	const struct ind_tone_zone_sound *ts= NULL;
 	struct ast_channel *ast=cl->ast;
 	int nd=0;
 

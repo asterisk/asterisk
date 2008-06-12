@@ -461,6 +461,7 @@ static struct chanspy_ds *next_channel(struct ast_channel *chan,
 	const char *exten, const char *context, struct chanspy_ds *chanspy_ds)
 {
 	struct ast_channel *this;
+	char channel_name[AST_CHANNEL_NAME];
 
 redo:
 	if (spec)
@@ -473,7 +474,8 @@ redo:
 	if (!this)
 		return NULL;
 
-	if (!strncmp(this->name, "Zap/pseudo", 10)) {
+	snprintf(channel_name, AST_CHANNEL_NAME, "%s/pseudo", dahdi_chan_name);
+	if (!strncmp(this->name, channel_name, 10)) {
 		ast_channel_unlock(this);
 		goto redo;
 	} else if (this == chan) {

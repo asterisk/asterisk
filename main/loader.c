@@ -742,6 +742,23 @@ static struct load_order_entry *add_to_load_order(const char *resource, struct l
 	return order;
 }
 
+static int translate_module_name(char *oldname, char *newname)
+{
+	if (!strcasecmp(oldname, "app_zapbarge.so"))
+		ast_copy_string(newname, "app_dahdibarge.so", 18);
+	else if(!strcasecmp(oldname, "app_zapras.so"))
+		ast_copy_string(newname, "app_dahdiras.so", 16);
+	else if(!strcasecmp(oldname, "app_zapscan.so"))
+		ast_copy_string(newname, "app_dahdiscan.so", 17);
+	else if(!strcasecmp(oldname, "codec_zap.so"))
+		ast_copy_string(newname, "codec_dahdi.so", 16);
+	else
+		return -1; /* no use for newname, oldname is fine */
+
+	return 0;
+}
+		
+
 int load_modules(unsigned int preload_only)
 {
 	struct ast_config *cfg;
@@ -751,6 +768,9 @@ int load_modules(unsigned int preload_only)
 	unsigned int load_count;
 	struct load_order load_order;
 	int res = 0;
+
+	int translate_status;
+	char newname[18]; /* although this would normally be 80, max length in translate_module_name is 18 */
 #ifdef LOADABLE_MODULES
 	struct dirent *dirent;
 	DIR *dir;
@@ -773,8 +793,12 @@ int load_modules(unsigned int preload_only)
 
 	/* first, find all the modules we have been explicitly requested to load */
 	for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
-		if (!strcasecmp(v->name, preload_only ? "preload" : "load"))
-			add_to_load_order(v->value, &load_order);
+		if (!strcasecmp(v->name, preload_only ? "preload" : "load")) {
+			translate_status = translate_module_name(v->value, newname);
+				if (!translate_status)
+					ast_log(LOG_WARNING, "Use of old module name %s is deprecated, please use %s instead.\n", v->value, newname);
+			add_to_load_order(translate_status ? v->value : newname, &load_order);
+		}
 	}
 
 	/* check if 'autoload' is on */
@@ -830,7 +854,10 @@ int load_modules(unsigned int preload_only)
 			continue;
 
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&load_order, order, entry) {
-			if (!resource_name_match(order->resource, v->value)) {
+			translate_status = translate_module_name(v->value, newname);
+			if (!resource_name_match(order->resource, translate_status ? v->value : newname)) {
+					if (!translate_status)
+						ast_log(LOG_WARNING, "Use of old module name %s is deprecated, please use %s instead.\n", v->value, newname);
 				AST_LIST_REMOVE_CURRENT(&load_order, entry);
 				free(order->resource);
 				free(order);

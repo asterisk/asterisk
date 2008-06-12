@@ -679,7 +679,7 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 		}
 	}
 	if (whennext != s->lasttimeout) {
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 		if (s->owner->timingfd > -1) {
 			int zap_timer_samples = whennext;
 			int rate;
@@ -702,7 +702,7 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 
 return_failure:
 	s->owner->streamid = -1;
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 	ast_settimeout(s->owner, 0, NULL, NULL);
 #endif			
 	return FSREAD_FAILURE;
@@ -813,7 +813,7 @@ int ast_closestream(struct ast_filestream *f)
 		if (f->fmt->format < AST_FORMAT_MAX_AUDIO) {
 			f->owner->stream = NULL;
 			AST_SCHED_DEL(f->owner->sched, f->owner->streamid);
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 			ast_settimeout(f->owner, 0, NULL, NULL);
 #endif			
 		} else {
