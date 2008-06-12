@@ -3122,7 +3122,7 @@ static int test_inuse(struct misdn_bchannel *bc)
 	gettimeofday(&now, NULL);
 	if (!bc->in_use) {
 		if ( bc->last_used.tv_sec == now.tv_sec ) {
-			cb_log(2,bc->port, "channel with stid:%x for one second still in use! (n:%d lu:%d)\n", bc->b_stid, now.tv_sec, bc->last_used.tv_sec);
+			cb_log(2,bc->port, "channel with stid:%x for one second still in use! (n:%d lu:%d)\n", bc->b_stid, (int) now.tv_sec, (int) bc->last_used.tv_sec);
 			return 1;
 		}
 		
