@@ -382,6 +382,13 @@ Other Dialplan Application Changes
   * The ChannelRedirect application no longer exits the dialplan if the given channel
      does not exist. It will now set the CHANNELREDIRECT_STATUS variable to SUCCESS upon success
      or NOCHANNEL if the given channel was not found.
+  * ForkCDR has new options: 'a' updates the answer time on the new CDR; 'A' locks
+    answer times, disposition, on orig CDR against updates; 'D' Copies the disposition
+    from the orig CDR to the new CDR after reset; 'e' sets the 'end' time on the
+    original CDR; 'R' prevents the new CDR from being reset; 's(var=val)' adds/changes
+    the 'var' variable on the original CDR; 'T' forces ast_cdr_end(), ast_cdr_answer(),
+    _busy(), failed(), etc, to all obey the LOCKED flag on cdr's in the chain, and
+    also the ast_cdr_setvar() func.
 
 Music On Hold Changes
 ---------------------
