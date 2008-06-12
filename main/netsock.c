@@ -266,7 +266,7 @@ void ast_set_default_eid(struct ast_eid *eid)
 	}
 #endif
 #endif
-	ast_log(LOG_NOTICE, "No ethernet interface found for seeding global EID. You will have to set it manually.\n");
+	ast_debug(1, "No ethernet interface found for seeding global EID. You will have to set it manually.\n");
 }
 
 int ast_str_to_eid(struct ast_eid *eid, const char *s)
