@@ -24,11 +24,13 @@
 #define _ASTERISK_CDR_H
 
 #include <sys/time.h>
-#define AST_CDR_FLAG_KEEP_VARS			(1 << 0)
+#define AST_CDR_FLAG_KEEP_VARS		(1 << 0)
 #define AST_CDR_FLAG_POSTED			(1 << 1)
 #define AST_CDR_FLAG_LOCKED			(1 << 2)
 #define AST_CDR_FLAG_CHILD			(1 << 3)
-#define AST_CDR_FLAG_POST_DISABLED		(1 << 4)
+#define AST_CDR_FLAG_POST_DISABLED	(1 << 4)
+#define AST_CDR_FLAG_ANSLOCKED      (1 << 5)
+#define AST_CDR_FLAG_DONT_TOUCH     (1 << 6)
 #define AST_CDR_FLAG_POST_ENABLE                (1 << 5)
 
 /*! \name CDR Flags */
@@ -44,11 +46,11 @@
 /*@{ */
 #define AST_CDR_OMIT				(1)
 #define AST_CDR_BILLING				(2)
-#define AST_CDR_DOCUMENTATION			(3)
+#define AST_CDR_DOCUMENTATION		(3)
 /*@} */
 
 #define AST_MAX_USER_FIELD			256
-#define AST_MAX_ACCOUNT_CODE			20
+#define AST_MAX_ACCOUNT_CODE		20
 
 /* Include channel.h after relevant declarations it will need */
 #include "asterisk/channel.h"
@@ -196,12 +198,17 @@ void ast_cdr_answer(struct ast_cdr *cdr);
  * \brief A call wasn't answered 
  * \param cdr the cdr you wish to associate with the call
  * Marks the channel disposition as "NO ANSWER"
+ * Will skip CDR's in chain with ANS_LOCK bit set. (see
+ * forkCDR() application.
  */
 extern void ast_cdr_noanswer(struct ast_cdr *cdr);
 
 /*! 
  * \brief Busy a call 
  * \param cdr the cdr you wish to associate with the call
+ * Marks the channel disposition as "BUSY"
+ * Will skip CDR's in chain with ANS_LOCK bit set. (see
+ * forkCDR() application.
  * Returns nothing
  */
 void ast_cdr_busy(struct ast_cdr *cdr);
@@ -209,6 +216,9 @@ void ast_cdr_busy(struct ast_cdr *cdr);
 /*! 
  * \brief Fail a call 
  * \param cdr the cdr you wish to associate with the call
+ * Marks the channel disposition as "FAILED"
+ * Will skip CDR's in chain with ANS_LOCK bit set. (see
+ * forkCDR() application.
  * Returns nothing
  */
 void ast_cdr_failed(struct ast_cdr *cdr);

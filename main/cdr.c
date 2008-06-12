@@ -306,6 +306,8 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 	}
 
 	for (; cdr; cdr = recur ? cdr->next : NULL) {
+		if (ast_test_flag(cdr, AST_CDR_FLAG_DONT_TOUCH) && ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+			continue;
 		headp = &cdr->varshead;
 		AST_LIST_TRAVERSE_SAFE_BEGIN(headp, newvariable, entries) {
 			if (!strcasecmp(ast_var_name(newvariable), name)) {
@@ -689,6 +691,10 @@ void ast_cdr_answer(struct ast_cdr *cdr)
 {
 
 	for (; cdr; cdr = cdr->next) {
+		if (ast_test_flag(cdr, AST_CDR_FLAG_ANSLOCKED)) 
+			continue;
+		if (ast_test_flag(cdr, AST_CDR_FLAG_DONT_TOUCH) && ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+			continue;
 		check_post(cdr);
 		if (cdr->disposition < AST_CDR_ANSWERED)
 			cdr->disposition = AST_CDR_ANSWERED;
@@ -701,6 +707,10 @@ void ast_cdr_busy(struct ast_cdr *cdr)
 {
 
 	for (; cdr; cdr = cdr->next) {
+		if (ast_test_flag(cdr, AST_CDR_FLAG_ANSLOCKED)) 
+			continue;
+		if (ast_test_flag(cdr, AST_CDR_FLAG_DONT_TOUCH) && ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+			continue;
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			check_post(cdr);
 			if (cdr->disposition < AST_CDR_BUSY)
@@ -712,6 +722,11 @@ void ast_cdr_busy(struct ast_cdr *cdr)
 void ast_cdr_failed(struct ast_cdr *cdr)
 {
 	for (; cdr; cdr = cdr->next) {
+		if (ast_test_flag(cdr, AST_CDR_FLAG_ANSLOCKED)) 
+			continue;
+		if (ast_test_flag(cdr, AST_CDR_FLAG_DONT_TOUCH) && ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+			continue;
+		check_post(cdr);
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			check_post(cdr);
 			if (cdr->disposition < AST_CDR_FAILED)
@@ -725,6 +740,10 @@ void ast_cdr_noanswer(struct ast_cdr *cdr)
 	char *chan; 
 
 	while (cdr) {
+		if (ast_test_flag(cdr, AST_CDR_FLAG_ANSLOCKED)) 
+			continue;
+		if (ast_test_flag(cdr, AST_CDR_FLAG_DONT_TOUCH) && ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+			continue;
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 			if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
@@ -847,6 +866,8 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 void ast_cdr_end(struct ast_cdr *cdr)
 {
 	for ( ; cdr ; cdr = cdr->next) {
+		if (ast_test_flag(cdr, AST_CDR_FLAG_DONT_TOUCH) && ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+			continue;
 		check_post(cdr);
 		if (ast_tvzero(cdr->end))
 			cdr->end = ast_tvnow();

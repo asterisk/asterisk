@@ -93,6 +93,13 @@ Application Changes
  * PrivacyManager now takes an option where you can specify a context where the 
    given number will be matched. This way you have more control over who is allowed
    and it stops the people who blindly enter 10 digits.
+ * ForkCDR has new options: 'a' updates the answer time on the new CDR; 'A' locks
+   answer times, disposition, on orig CDR against updates; 'D' Copies the disposition
+   from the orig CDR to the new CDR after reset; 'e' sets the 'end' time on the
+   original CDR; 'R' prevents the new CDR from being reset; 's(var=val)' adds/changes
+   the 'var' variable on the original CDR; 'T' forces ast_cdr_end(), ast_cdr_answer(),
+   _busy(), failed(), etc, to all obey the LOCKED flag on cdr's in the chain, and
+   also the ast_cdr_setvar() func.
 
 SIP Changes
 -----------
