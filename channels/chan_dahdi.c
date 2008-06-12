@@ -8138,7 +8138,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				}
 			}
 #ifdef HAVE_SS7
-			if (conf->chan.sig == SIG_SS7) {
+			if (chan_sig == SIG_SS7) {
 				struct dahdi_ss7 *ss7;
 				int clear = 0;
 				if (ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_AUDIOMODE, &clear)) {
