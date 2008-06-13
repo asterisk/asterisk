@@ -4297,9 +4297,25 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		}
 		break;
 	case STIMULUS_CALLPARK:
+		{
+		int extout;
+		char message[32];
+
 		if (skinnydebug)
 			ast_verb(1, "Received Stimulus: Park Call(%d/%d)\n", instance, callreference);
-		/* XXX Park the call */
+
+		if ((sub && sub->owner) && (sub->owner->_state ==  AST_STATE_UP)){
+			c = sub->owner;
+			if (!ast_masq_park_call(ast_bridged_channel(c) , c, 0, &extout)) {
+				snprintf(message, sizeof(message), "Call Parked at: %d", extout);
+				transmit_displaynotify(s, message, 10);
+			} else {
+				transmit_displaynotify(s, "Call Park failed", 10);
+			}
+		} else {
+			transmit_displaynotify(s, "Call Park not available", 10);
+		}
+		}
 		break;
 	case STIMULUS_DND:
 		if (skinnydebug)
@@ -5319,9 +5335,25 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		/* XXX determine the best way to pull off a conference.  Meetme? */
 		break;
 	case SOFTKEY_PARK:
+		{
+		int extout;
+		char message[32];
+
 		if (skinnydebug)
 			ast_verb(1, "Received Softkey Event: Park Call(%d/%d)\n", instance, callreference);
-		/* XXX Park the call */
+
+		if ((sub && sub->owner) && (sub->owner->_state ==  AST_STATE_UP)){
+			c = sub->owner;
+			if (!ast_masq_park_call(ast_bridged_channel(c) , c, 0, &extout)) {
+				snprintf(message, sizeof(message), "Call Parked at: %d", extout);
+				transmit_displaynotify(s, message, 10);
+			} else {
+				transmit_displaynotify(s, "Call Park failed", 10);
+			}
+		} else {
+			transmit_displaynotify(s, "Call Park not available", 10);
+		}
+		}
 		break;
 	case SOFTKEY_JOIN:
 		if (skinnydebug)
