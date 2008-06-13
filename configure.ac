@@ -1358,7 +1358,7 @@ if test "${host_os}" != "linux-gnu" ; then
   tonezone_extra="-lm"
 fi
 
-if test "${USE_DAHDI}" != "no" ; then
+if test "${PBX_DAHDI}" = "1" || test "${USE_ZAPTEL}" = "no"; then
   tonezone_dir="dahdi"
 else
   tonezone_dir="zaptel"
