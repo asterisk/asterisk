@@ -106,6 +106,10 @@ static void *autoservice_run(void *ign)
 
 		AST_LIST_UNLOCK(&aslist);
 
+		if (!x) {
+			continue;
+		}
+
 		chan = ast_waitfor_n(mons, x, &ms);
 		if (!chan) {
 			continue;
