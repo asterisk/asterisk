@@ -789,7 +789,7 @@ static int valid_priv_reply(struct ast_flags *opts, int res)
 	return 0;
 }
 
-static void set_dial_features(struct ast_flags *opts, struct ast_dial_features *features)
+static void set_dial_features(struct ast_flags *opts, struct ast_dial_features *features, struct ast_channel *chan)
 {
 	struct ast_flags perm_opts = {.flags = 0};
 
@@ -800,6 +800,22 @@ static void set_dial_features(struct ast_flags *opts, struct ast_dial_features *
 	memset(features->options, 0, sizeof(features->options));
 
 	ast_app_options2str(dial_exec_options, &perm_opts, features->options, sizeof(features->options));
+	if (ast_test_flag(&perm_opts, OPT_CALLEE_TRANSFER))
+		ast_set_flag(&(features->features_callee), AST_FEATURE_REDIRECT);
+	if (ast_test_flag(&perm_opts, OPT_CALLER_TRANSFER))
+		ast_set_flag(&(features->features_caller), AST_FEATURE_REDIRECT);
+	if (ast_test_flag(&perm_opts, OPT_CALLEE_HANGUP))
+		ast_set_flag(&(features->features_callee), AST_FEATURE_DISCONNECT);
+	if (ast_test_flag(&perm_opts, OPT_CALLER_HANGUP))
+		ast_set_flag(&(features->features_caller), AST_FEATURE_DISCONNECT);
+	if (ast_test_flag(&perm_opts, OPT_CALLEE_MONITOR))
+		ast_set_flag(&(features->features_callee), AST_FEATURE_AUTOMON);
+	if (ast_test_flag(&perm_opts, OPT_CALLER_MONITOR))
+		ast_set_flag(&(features->features_caller), AST_FEATURE_AUTOMON);
+	if (ast_test_flag(&perm_opts, OPT_CALLEE_PARK))
+		ast_set_flag(&(features->features_callee), AST_FEATURE_PARKCALL);
+	if (ast_test_flag(&perm_opts, OPT_CALLER_PARK))
+		ast_set_flag(&(features->features_caller), AST_FEATURE_PARKCALL);
 }
 
 static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags *peerflags, int *continue_exec)
@@ -1109,18 +1125,16 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		goto out;
 	}
 
-	if (!(caller_features = ast_malloc(sizeof(*caller_features)))) {
+	if (!(caller_features = ast_calloc(1, sizeof(*caller_features)))) {
 		ast_log(LOG_WARNING, "Unable to allocate memory for feature flags. Aborting!\n");
 		goto out;
 	}
 
-	caller_features->is_caller = 1;
-	set_dial_features(&opts, caller_features);
-
-	ds_caller_features->inheritance = DATASTORE_INHERIT_FOREVER;
-	ds_caller_features->data = caller_features;
-
 	ast_channel_lock(chan);
+	caller_features->is_caller = 1;
+	set_dial_features(&opts, caller_features, chan);
+	ds_caller_features->inheritance = -1;
+	ds_caller_features->data = caller_features;
 	ast_channel_datastore_add(chan, ds_caller_features);
 	ast_channel_unlock(chan);
 
@@ -1291,22 +1305,19 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			goto out;
 		}
 
-		if (!(callee_features = ast_malloc(sizeof(*callee_features)))) {
+		if (!(callee_features = ast_calloc(1, sizeof(*callee_features)))) {
 			ast_log(LOG_WARNING, "Unable to allocate memory for feature flags. Aborting!\n");
 			ast_free(tmp);
 			goto out;
 		}
 
-		callee_features->is_caller = 0;
-		set_dial_features(&opts, callee_features);
-
-		ds_callee_features->inheritance = DATASTORE_INHERIT_FOREVER;
-		ds_callee_features->data = callee_features;
-
 		ast_channel_lock(tmp->chan);
+		callee_features->is_caller = 0;
+		set_dial_features(&opts, callee_features, tmp->chan);
+		ds_callee_features->inheritance = -1;
+		ds_callee_features->data = callee_features;
 		ast_channel_datastore_add(tmp->chan, ds_callee_features);
 		ast_channel_unlock(tmp->chan);
-
 
 		/* Place the call, but don't wait on the answer */
 		res = ast_call(tmp->chan, numsubst, 0);

@@ -391,8 +391,30 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	if (extout)
 		*extout = x;
 
-	if (peer) 
-		ast_copy_string(pu->peername, peer->name, sizeof(pu->peername));
+	if (peer) { 
+		/* This is so ugly that it hurts, but implementing get_base_channel() on local channels
+			could have ugly side effects.  We could have transferer<->local,1<->local,2<->parking
+			and we need the callback name to be that of transferer.  Since local,1/2 have the same
+			name we can be tricky and just grab the bridged channel from the other side of the local
+		*/
+		if (!strcasecmp(peer->tech->type, "Local")) {
+			struct ast_channel *tmpchan, *base_peer;
+			char other_side[AST_CHANNEL_NAME];
+			char *c;
+			ast_copy_string(other_side, peer->name, sizeof(other_side));
+			if ((c = strrchr(other_side, ','))) {
+				*++c = '1';
+			}
+			if ((tmpchan = ast_get_channel_by_name_locked(other_side))) {
+				if ((base_peer = ast_bridged_channel(tmpchan))) {
+					ast_copy_string(pu->peername, base_peer->name, sizeof(pu->peername));
+				}
+				ast_channel_unlock(tmpchan);
+			}
+		} else {
+			ast_copy_string(pu->peername, peer->name, sizeof(pu->peername));
+		}
+	}
 
 	/* Remember what had been dialed, so that if the parking
 	   expires, we try to come back to the same place */
@@ -792,6 +814,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_bridge_config bconfig;
 	struct ast_frame *f;
 	int l;
+	struct ast_datastore *features_datastore;
+	struct ast_dial_features *dialfeatures = NULL;
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Executing Attended Transfer %s, %s (sense=%d) \n", chan->name, peer->name, sense);
@@ -834,9 +858,22 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	}
 
 	l = strlen(xferto);
-	snprintf(xferto + l, sizeof(xferto) - l, "@%s/n", transferer_real_context);	/* append context */
+	snprintf(xferto + l, sizeof(xferto) - l, "@%s", transferer_real_context);	/* append context */
 	newchan = ast_feature_request_and_dial(transferer, "Local", ast_best_codec(transferer->nativeformats),
 		xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, transferer->language);
+
+	/* If we are the callee and we are being transferred, after the masquerade
+	* caller features will really be the original callee features */
+	ast_channel_lock(transferee);
+	if ((features_datastore = ast_channel_datastore_find(transferee, &dial_features_info, NULL))) {
+		dialfeatures = features_datastore->data;
+	}
+	ast_channel_unlock(transferee);
+
+	if (dialfeatures && !dialfeatures->is_caller) {
+		ast_copy_flags(&(config->features_caller), &(dialfeatures->features_callee), AST_FLAGS_ALL);
+	}
+
 	ast_indicate(transferer, -1);
 	if (!newchan) {
 		finishup(transferee);
@@ -909,6 +946,19 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		ast_hangup(newchan);
 		return -1;
 	}
+    
+	/* For the case where the transfer target is being connected with the original
+		caller store the target's original features, and apply to the bridge */
+	ast_channel_lock(newchan);
+	if ((features_datastore = ast_channel_datastore_find(newchan, &dial_features_info, NULL))) {
+		dialfeatures = features_datastore->data;
+	}
+	ast_channel_unlock(newchan);
+
+	if (dialfeatures) {
+		ast_copy_flags(&(config->features_callee), &(dialfeatures->features_callee), AST_FLAGS_ALL);
+	}
+
 	tobj->chan = newchan;
 	tobj->peer = xferchan;
 	tobj->bconfig = *config;
