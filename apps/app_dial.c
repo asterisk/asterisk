@@ -789,7 +789,7 @@ static int valid_priv_reply(struct ast_flags *opts, int res)
 	return 0;
 }
 
-static void set_dial_features(struct ast_flags *opts, struct ast_dial_features *features, struct ast_channel *chan)
+static void set_dial_features(struct ast_flags *opts, struct ast_dial_features *features)
 {
 	struct ast_flags perm_opts = {.flags = 0};
 
@@ -1132,7 +1132,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 	ast_channel_lock(chan);
 	caller_features->is_caller = 1;
-	set_dial_features(&opts, caller_features, chan);
+	set_dial_features(&opts, caller_features);
 	ds_caller_features->inheritance = -1;
 	ds_caller_features->data = caller_features;
 	ast_channel_datastore_add(chan, ds_caller_features);
@@ -1313,7 +1313,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 		ast_channel_lock(tmp->chan);
 		callee_features->is_caller = 0;
-		set_dial_features(&opts, callee_features, tmp->chan);
+		set_dial_features(&opts, callee_features);
 		ds_callee_features->inheritance = -1;
 		ds_callee_features->data = callee_features;
 		ast_channel_datastore_add(tmp->chan, ds_callee_features);
