@@ -91,7 +91,7 @@ static void *answer_exec_enable(void *data)
 		return NULL;
 	
 	/* Parse out application and arguments */
-	if ((args = strchr(app, '|'))) {
+	if ((args = strchr(app, ','))) {
 		*args++ = '\0';
 		answer_exec->args = ast_strdup(args);
 	}
