@@ -227,8 +227,22 @@ int ast_unload_realtime(const char *family);
  * exist in the backend.  The backends may take various actions, such as
  * creating new fields in the data store or warning the administrator that
  * new fields may need to be created, in order to ensure proper function.
+ *
+ * The arguments are specified in groups of 3:  column name, column type,
+ * and column size.  The column types are specified as integer constants,
+ * defined by the enum require_type.  Note that the size is specified as
+ * the number of equivalent character fields that a field may take up, even
+ * if a field is otherwise specified as an integer type.  This is due to
+ * the fact that some fields have historically been specified as character
+ * types, even if they contained integer values.
+ *
+ * A family should always specify its fields to the minimum necessary
+ * requirements to fulfill all possible values (within reason; for example,
+ * a timeout value may reasonably be specified as an INTEGER2, with size 5.
+ * Even though values above 32767 seconds are possible, they are unlikely
+ * to be useful, and we should not complain about that size).
  */
-int ast_require_realtime_fields(const char *family, ...) attribute_sentinel;
+int ast_realtime_require_field(const char *family, ...) attribute_sentinel;
 
 /*! 
  * \brief Retrieve realtime configuration 
@@ -276,8 +290,6 @@ int ast_destroy_realtime(const char *family, const char *keyfield, const char *l
  * \return 1 if family is configured in realtime and engine exists
 */
 int ast_check_realtime(const char *family);
-
-int ast_realtime_require_field(const char *family, ...) attribute_sentinel;
 
 /*! \brief Check if there's any realtime engines loaded */
 int ast_realtime_enabled(void);
