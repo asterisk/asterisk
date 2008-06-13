@@ -123,7 +123,7 @@ static struct tables *find_table(const char *tablename)
 	ast_debug(1, "Table '%s' not found in cache, querying now\n", tablename);
 
 	/* Not found, scan the table */
-	ast_str_set(&sql, 0, "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc FROM pg_class c, pg_type t, pg_attribute a LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum WHERE c.oid = a.attrelid AND a.atttypid = t.oid AND (a.attnum > 0) AND c.relname = '%s' ORDER BY c.relname, attnum", tablename);
+	ast_str_set(&sql, 0, "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod FROM pg_class c, pg_type t, pg_attribute a LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum WHERE c.oid = a.attrelid AND a.atttypid = t.oid AND (a.attnum > 0) AND c.relname = '%s' ORDER BY c.relname, attnum", tablename);
 	result = PQexec(pgsqlConn, sql->str);
 	ast_debug(1, "Query of table structure complete.  Now retrieving results.\n");
 	if (PQresultStatus(result) != PGRES_TUPLES_OK) {
@@ -159,7 +159,14 @@ static struct tables *find_table(const char *tablename)
 			return NULL;
 		}
 
-		sscanf(flen, "%d", &column->len);
+		if (strcmp(flen, "-1") == 0) {
+			/* Some types, like chars, have the length stored in a different field */
+			flen = PQgetvalue(result, i, 5);
+			sscanf(flen, "%d", &column->len);
+			column->len -= 4;
+		} else {
+			sscanf(flen, "%d", &column->len);
+		}
 		column->name = (char *)column + sizeof(*column);
 		column->type = (char *)column + sizeof(*column) + strlen(fname) + 1;
 		strcpy(column->name, fname);
@@ -954,7 +961,14 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 						ast_log(LOG_WARNING, "Column '%s' may not be large enough for the required data length: %d\n", column->name, size);
 						res = -1;
 					} else if (type == RQ_CHAR || type == RQ_DATETIME || type == RQ_FLOAT || type == RQ_DATE) {
-						ast_log(LOG_WARNING, "Column '%s' is of the incorrect type: (need %s(%d) but saw %s)\n", column->name, type == RQ_CHAR ? "char" : type == RQ_DATETIME ? "datetime" : type == RQ_DATE ? "date" : type == RQ_FLOAT ? "float" : "a rather stiff drink ", size, column->type);
+						ast_log(LOG_WARNING, "Column '%s' is of the incorrect type: (need %s(%d) but saw %s)\n",
+							column->name,
+								type == RQ_CHAR ? "char" :
+								type == RQ_DATETIME ? "datetime" :
+								type == RQ_DATE ? "date" :
+								type == RQ_FLOAT ? "float" :
+								"a rather stiff drink ",
+							size, column->type);
 						res = -1;
 					}
 				} else if (strncmp(column->type, "float", 5) == 0 && !ast_rq_is_int(type) && type != RQ_FLOAT) {
