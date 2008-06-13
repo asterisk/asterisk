@@ -180,9 +180,11 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ast_uninstall_timing_functions(timing_funcs_handle);
+	/* ast_uninstall_timing_functions(timing_funcs_handle); */
 
-	return 0;
+	/* This module can not currently be unloaded.  No use count handling is being done. */
+
+	return -1;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "DAHDI Timing Interface");
