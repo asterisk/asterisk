@@ -27,7 +27,7 @@
 
 /*** MODULEINFO
 	<conflict>win32</conflict>
-	<use>zaptel</use>
+	<use>dahdi</use>
  ***/
 
 #include "asterisk.h"
