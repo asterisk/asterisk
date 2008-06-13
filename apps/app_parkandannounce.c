@@ -113,7 +113,9 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	/* we are using masq_park here to protect * from touching the channel once we park it.  If the channel comes out of timeout
 	before we are done announcing and the channel is messed with, Kablooeee.  So we use Masq to prevent this.  */
 
-	ast_masq_park_call(chan, NULL, timeout, &lot);
+	res = ast_masq_park_call(chan, NULL, timeout, &lot);
+	if (res == -1)
+		return res;
 
 	ast_verb(3, "Call Parking Called, lot: %d, timeout: %d, context: %s\n", lot, timeout, args.return_context);
 

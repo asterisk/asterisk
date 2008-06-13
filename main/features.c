@@ -400,14 +400,26 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	/* Check for channel variable PARKINGEXTEN */
 	parkingexten = pbx_builtin_getvar_helper(chan, "PARKINGEXTEN");
 	if (!ast_strlen_zero(parkingexten)) {
-		if (ast_exists_extension(NULL, parking_con, parkingexten, 1, NULL)) {
+		/*!\note The API forces us to specify a numeric parking slot, even
+		 * though the architecture would tend to support non-numeric extensions
+		 * (as are possible with SIP, for example).  Hence, we enforce that
+		 * limitation here.  If extout was not numeric, we could permit
+		 * arbitrary non-numeric extensions.
+		 */
+        if (sscanf(parkingexten, "%d", &x) != 1 || x < 0) {
+			AST_LIST_UNLOCK(&parkinglot);
+            ast_free(pu);
+            ast_log(LOG_WARNING, "PARKINGEXTEN does not indicate a valid parking slot: '%s'.\n", parkingexten);
+            return 1;   /* Continue execution if possible */
+        }
+        snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", x);
+
+		if (ast_exists_extension(NULL, parking_con, pu->parkingexten, 1, NULL)) {
 			AST_LIST_UNLOCK(&parkinglot);
 			ast_free(pu);
 			ast_log(LOG_WARNING, "Requested parking extension already exists: %s@%s\n", parkingexten, parking_con);
 			return 1;	/* Continue execution if possible */
 		}
-		ast_copy_string(pu->parkingexten, parkingexten, sizeof(pu->parkingexten));
-		x = atoi(parkingexten);
 	} else {
 		/* Select parking space within range */
 		parking_range = parking_stop - parking_start+1;
@@ -430,6 +442,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 		/* Set pointer for next parking */
 		if (parkfindnext) 
 			parking_offset = x - parking_start + 1;
+		snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", x);
 	}
 	
 	chan->appl = "Parked Call";
@@ -468,8 +481,6 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	pthread_kill(parking_thread, SIGURG);
 	ast_verb(2, "Parked %s on %d@%s. Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, parking_con, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
 
-	if (pu->parkingnum != -1)
-		snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", x);
 	manager_event(EVENT_FLAG_CALL, "ParkedCall",
 		"Exten: %s\r\n"
 		"Channel: %s\r\n"
@@ -494,7 +505,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	if (!con)	/* Still no context? Bad */
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 	/* Tell the peer channel the number of the parking space */
-	if (peer && ((pu->parkingnum != -1 && ast_strlen_zero(orig_chan_name)) || !strcasecmp(peer->name, orig_chan_name))) { /* Only say number if it's a number and the channel hasn't been masqueraded away */
+	if (peer && (ast_strlen_zero(orig_chan_name) || !strcasecmp(peer->name, orig_chan_name))) { /* Only say number if it's a number and the channel hasn't been masqueraded away */
 		/* If a channel is masqueraded into peer while playing back the parking slot number do not continue playing it back. This is the case if an attended transfer occurs. */
 		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
@@ -527,6 +538,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	struct ast_channel *chan;
 	struct ast_frame *f;
 	char *orig_chan_name = NULL;
+	int park_status;
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
 	if (!(chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, rchan->accountcode, rchan->exten, rchan->context, rchan->amaflags, "Parked/%s",rchan->name))) {
@@ -548,8 +560,13 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 
 	orig_chan_name = ast_strdupa(chan->name);
 
-	park_call_full(chan, peer, timeout, extout, orig_chan_name);
+	park_status = park_call_full(chan, peer, timeout, extout, orig_chan_name);
 
+	if (park_status == 1) {
+	/* would be nice to play "invalid parking extension" */
+		ast_hangup(chan);
+		return -1;
+	}
 	return 0;
 }
 
