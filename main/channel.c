@@ -61,6 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/threadstorage.h"
 #include "asterisk/slinfactory.h"
 #include "asterisk/audiohook.h"
+#include "asterisk/timing.h"
 
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
@@ -808,27 +809,19 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 #endif
 	}
 
-#ifdef HAVE_DAHDI
-	tmp->timingfd = open("/dev/dahdi/timer", O_RDWR);
+	tmp->timingfd = ast_timer_open();
 	if (tmp->timingfd > -1) {
-		/* Check if timing interface supports new
-		   ping/pong scheme */
-		flags = 1;
-		if (!ioctl(tmp->timingfd, DAHDI_TIMERPONG, &flags))
-			needqueue = 0;
+		needqueue = 0;
 	}
-#else
-	tmp->timingfd = -1;					
-#endif					
 
 	if (needqueue) {
 		if (pipe(tmp->alertpipe)) {
 			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
 alertpipe_failed:
-#ifdef HAVE_DAHDI
-			if (tmp->timingfd > -1)
-				close(tmp->timingfd);
-#endif
+			if (tmp->timingfd > -1) {
+				ast_timer_close(tmp->timingfd);
+			}
+
 			sched_context_destroy(tmp->sched);
 			ast_string_field_free_memory(tmp);
 			ast_free(tmp);
@@ -1007,10 +1000,8 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
 			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
 				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
-#ifdef HAVE_DAHDI
 	} else if (chan->timingfd > -1) {
-		ioctl(chan->timingfd, DAHDI_TIMERPING, &blah);
-#endif				
+		ast_timer_enable_continuous(chan->timingfd);
 	} else if (ast_test_flag(chan, AST_FLAG_BLOCKING)) {
 		pthread_kill(chan->blocker, SIGURG);
 	}
@@ -1343,7 +1334,7 @@ void ast_channel_free(struct ast_channel *chan)
 	if ((fd = chan->alertpipe[1]) > -1)
 		close(fd);
 	if ((fd = chan->timingfd) > -1)
-		close(fd);
+		ast_timer_close(fd);
 #ifdef HAVE_EPOLL
 	for (i = 0; i < AST_MAX_FDS; i++) {
 		if (chan->epfd_data[i])
@@ -1795,7 +1786,7 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 	}
 	
 	if (!res) {
-		ast_settimeout(chan, 160, generator_force, chan);
+		ast_settimeout(chan, 50, generator_force, chan);
 		chan->generator = gen;
 	}
 
@@ -2181,21 +2172,26 @@ int ast_waitfordigit(struct ast_channel *c, int ms)
 	return ast_waitfordigit_full(c, ms, -1, -1);
 }
 
-int ast_settimeout(struct ast_channel *c, int samples, int (*func)(const void *data), void *data)
+int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const void *data), void *data)
 {
-	int res = -1;
-#ifdef HAVE_DAHDI
-	if (c->timingfd > -1) {
-		if (!func) {
-			samples = 0;
-			data = 0;
-		}
-		ast_debug(1, "Scheduling timer at %d sample intervals\n", samples);
-		res = ioctl(c->timingfd, DAHDI_TIMERCONFIG, &samples);
-		c->timingfunc = func;
-		c->timingdata = data;
+	int res;
+
+	if (c->timingfd == -1) {
+		return -1;
 	}
-#endif	
+
+	if (!func) {
+		rate = 0;
+		data = NULL;
+	}
+
+	ast_debug(1, "Scheduling timer at %u timer ticks per second\n", rate);
+
+	res = ast_timer_set_rate(c->timingfd, rate);
+
+	c->timingfunc = func;
+	c->timingdata = data;
+
 	return res;
 }
 
@@ -2334,7 +2330,7 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 	} else if (f->frametype == AST_FRAME_CNG) {
 		if (chan->generator && !chan->timingfunc && (chan->timingfd > -1)) {
 			ast_debug(1, "Generator got CNG, switching to timed mode\n");
-			ast_settimeout(chan, 160, generator_force, chan);
+			ast_settimeout(chan, 50, generator_force, chan);
 		}
 	}
 }

@@ -31,7 +31,6 @@
  */
 
 /*** MODULEINFO
-	<use>dahdi</use>
 	<use>crypto</use>
  ***/
 
@@ -55,7 +54,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #include <regex.h>
 
-#include "asterisk/dahdi.h"
 #include "asterisk/paths.h"	/* need ast_config_AST_DATA_DIR for firmware */
 
 #include "asterisk/lock.h"
@@ -89,6 +87,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/event.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/timing.h"
 
 #include "iax2.h"
 #include "iax2-parser.h"
@@ -7253,32 +7252,17 @@ static inline int iax2_trunk_expired(struct iax2_trunk_peer *tpeer, struct timev
 
 static int timing_read(int *id, int fd, short events, void *cbdata)
 {
-	char buf[1024];
 	int res, processed = 0, totalcalls = 0;
 	struct iax2_trunk_peer *tpeer = NULL, *drop = NULL;
-#ifdef DAHDI_TIMERACK
-	int x = 1;
-#endif
 	struct timeval now = ast_tvnow();
+
 	if (iaxtrunkdebug)
 		ast_verbose("Beginning trunk processing. Trunk queue ceiling is %d bytes per host\n", trunkmaxsize);
-	if (events & AST_IO_PRI) {
-#ifdef DAHDI_TIMERACK
-		/* Great, this is a timing interface, just call the ioctl */
-		if (ioctl(fd, DAHDI_TIMERACK, &x)) {
-			ast_log(LOG_WARNING, "Unable to acknowledge DAHDI timer. IAX trunking will fail!\n");
-			usleep(1);
-			return -1;
-		}
-#endif		
-	} else {
-		/* Read and ignore from the pseudo channel for timing */
-		res = read(fd, buf, sizeof(buf));
-		if (res < 1) {
-			ast_log(LOG_WARNING, "Unable to read from timing fd\n");
-			return 1;
-		}
+
+	if (timingfd > -1) { 
+		ast_timer_ack(timingfd, 1);
 	}
+
 	/* For each peer that supports trunking... */
 	AST_LIST_LOCK(&tpeers);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&tpeers, tpeer, list) {
@@ -10844,21 +10828,6 @@ static void prune_peers(void)
 	}
 }
 
-static void set_timing(void)
-{
-#ifdef HAVE_DAHDI
-	int bs = trunkfreq * 8;
-	if (timingfd > -1) {
-		if (
-#ifdef DAHDI_TIMERACK
-			ioctl(timingfd, DAHDI_TIMERCONFIG, &bs) &&
-#endif			
-			ioctl(timingfd, DAHDI_SET_BLOCKSIZE, &bs))
-			ast_log(LOG_WARNING, "Unable to set blocksize on timing source\n");
-	}
-#endif
-}
-
 static void set_config_destroy(void)
 {
 	strcpy(accountcode, "");
@@ -11265,7 +11234,6 @@ static int set_config(char *config_file, int reload)
 		cat = ast_category_browse(cfg, cat);
 	}
 	ast_config_destroy(cfg);
-	set_timing();
 	return 1;
 }
 
@@ -12049,7 +12017,11 @@ static int __unload_module(void)
 	ao2_ref(peers, -1);
 	ao2_ref(users, -1);
 	ao2_ref(iax_peercallno_pvts, -1);
-	
+
+	if (timingfd > -1) {
+		ast_timer_close(timingfd);
+	}
+
 	con = ast_context_find(regcontext);
 	if (con)
 		ast_context_destroy(con, "IAX2");
@@ -12120,16 +12092,6 @@ static int load_module(void)
 	iax_set_output(iax_debug_output);
 	iax_set_error(iax_error_output);
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
-	
-#ifdef HAVE_DAHDI
-#ifdef DAHDI_TIMERACK
-	timingfd = open("/dev/dahdi/timer", O_RDWR);
-	if (timingfd < 0)
-#endif
-		timingfd = open("/dev/dahdi/pseudo", O_RDWR);
-	if (timingfd < 0) 
-		ast_log(LOG_WARNING, "Unable to open IAX timing interface: %s\n", strerror(errno));
-#endif		
 
 	memset(iaxs, 0, sizeof(iaxs));
 
@@ -12177,6 +12139,11 @@ static int load_module(void)
 
 	if(set_config(config, 0) == -1)
 		return AST_MODULE_LOAD_DECLINE;
+
+	timingfd = ast_timer_open();
+	if (timingfd > -1) {
+		ast_timer_set_rate(timingfd, trunkfreq);
+	}
 
  	if (ast_channel_register(&iax2_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", "IAX2");

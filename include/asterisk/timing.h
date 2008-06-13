@@ -65,8 +65,9 @@ enum ast_timing_event {
  * public API calls.
  */
 struct ast_timing_functions {
-	int (*timer_open)(unsigned int rate);
+	int (*timer_open)(void);
 	void (*timer_close)(int handle);
+	int (*timer_set_rate)(int handle, unsigned int rate);
 	void (*timer_ack)(int handle, unsigned int quantity);
 	int (*timer_enable_continuous)(int handle);
 	int (*timer_disable_continuous)(int handle);
@@ -97,12 +98,10 @@ void ast_uninstall_timing_functions(void *handle);
 /*!
  * \brief Open a timing fd
  *
- * \arg rate number of timer ticks per second
- *
  * \retval -1 error, with errno set
  * \retval >=0 success
  */
-int ast_timer_open(unsigned int rate);
+int ast_timer_open(void);
 
 /*!
  * \brief Close an opened timing handle
@@ -112,6 +111,21 @@ int ast_timer_open(unsigned int rate);
  * \return nothing
  */
 void ast_timer_close(int handle);
+
+/*!
+ * \brief Set the timing tick rate
+ *
+ * \arg handle timing fd returned from timer_open()
+ * \arg rate ticks per second, 0 turns the ticks off if needed
+ *
+ * Use this function if you want the timing fd to show input at a certain
+ * rate.  The other alternative use of a timing fd, is using the continuous
+ * mode.
+ *
+ * \retval -1 error, with errno set
+ * \retval 0 success
+ */
+int ast_timer_set_rate(int handle, unsigned int rate);
 
 /*!
  * \brief Acknowledge a timer event

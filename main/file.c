@@ -29,6 +29,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <dirent.h>
 #include <sys/stat.h>
+#include <math.h>
 
 #include "asterisk/_private.h"	/* declare ast_file_init() */
 #include "asterisk/paths.h"	/* use ast_config_AST_DATA_DIR */
@@ -659,21 +660,17 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 		}
 	}
 	if (whennext != s->lasttimeout) {
-#ifdef HAVE_DAHDI
 		if (s->owner->timingfd > -1) {
-			int zap_timer_samples = whennext;
-			int rate;
-			/* whennext is in samples, but DAHDI timers operate in 8 kHz samples. */
-			if ((rate = ast_format_rate(s->fmt->format)) != 8000) {
-				float factor;
-				factor = ((float) rate) / ((float) 8000.0); 
-				zap_timer_samples = (int) ( ((float) zap_timer_samples) / factor );
-			}
-			ast_settimeout(s->owner, zap_timer_samples, ast_fsread_audio, s);
-		} else
-#endif		
+			float samp_rate = (float) ast_format_rate(s->fmt->format);
+			unsigned int rate;
+
+			rate = (unsigned int) roundf(samp_rate / ((float) whennext));
+
+			ast_settimeout(s->owner, rate, ast_fsread_audio, s);
+		} else {
 			s->owner->streamid = ast_sched_add(s->owner->sched, 
 				whennext / (ast_format_rate(s->fmt->format) / 1000), ast_fsread_audio, s);
+		}
 		s->lasttimeout = whennext;
 		return FSREAD_SUCCESS_NOSCHED;
 	}
@@ -681,9 +678,7 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 
 return_failure:
 	s->owner->streamid = -1;
-#ifdef HAVE_DAHDI
 	ast_settimeout(s->owner, 0, NULL, NULL);
-#endif			
 	return FSREAD_FAILURE;
 }
 
@@ -792,9 +787,7 @@ int ast_closestream(struct ast_filestream *f)
 		if (f->fmt->format & AST_FORMAT_AUDIO_MASK) {
 			f->owner->stream = NULL;
 			AST_SCHED_DEL(f->owner->sched, f->owner->streamid);
-#ifdef HAVE_DAHDI
 			ast_settimeout(f->owner, 0, NULL, NULL);
-#endif			
 		} else {
 			f->owner->vstream = NULL;
 			AST_SCHED_DEL(f->owner->sched, f->owner->vstreamid);

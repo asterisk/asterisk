@@ -1423,9 +1423,17 @@ int ast_autoservice_start(struct ast_channel *chan);
  */
 int ast_autoservice_stop(struct ast_channel *chan);
 
-/* If built with dahdi optimizations, force a scheduled expiration on the
-   timer fd, at which point we call the callback function / data */
-int ast_settimeout(struct ast_channel *c, int samples, int (*func)(const void *data), void *data);
+/*!
+ * \brief Enable or disable timer ticks for a channel
+ *
+ * \arg rate number of timer ticks per second
+ *
+ * If timers are supported, force a scheduled expiration on the
+ * timer fd, at which point we call the callback function / data 
+ *
+ * Call this function with a rate of 0 to turn off the timer ticks
+ */
+int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const void *data), void *data);
 
 /*!	\brief Transfer a channel (if supported).  Returns -1 on error, 0 if not supported
    and 1 if supported and requested 
