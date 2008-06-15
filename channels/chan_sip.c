@@ -15510,6 +15510,7 @@ struct ast_custom_function sippeer_function = {
 static int function_sipchaninfo_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct sip_pvt *p;
+	static int deprecated = 0;
 
 	*buf = 0;
 	
@@ -15523,6 +15524,11 @@ static int function_sipchaninfo_read(struct ast_channel *chan, const char *cmd, 
 		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
 		ast_channel_unlock(chan);
 		return -1;
+	}
+
+	if (deprecated++ % 20 == 0) {
+		/* Deprecated in 1.6.1 */
+		ast_log(LOG_WARNING, "SIPCHANINFO() is deprecated.  Please transition to using CHANNEL().\n");
 	}
 
 	p = chan->tech_pvt;
@@ -18524,7 +18530,25 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 
 	memset(buf, 0, buflen);
 
-	if (!strcasecmp(args.param, "rtpdest")) {
+	if (!strcasecmp(args.param, "peerip")) {
+		ast_copy_string(buf, p->sa.sin_addr.s_addr ? ast_inet_ntoa(p->sa.sin_addr) : "", buflen);
+	} else if (!strcasecmp(args.param, "recvip")) {
+		ast_copy_string(buf, p->recv.sin_addr.s_addr ? ast_inet_ntoa(p->recv.sin_addr) : "", buflen);
+	} else if (!strcasecmp(args.param, "from")) {
+		ast_copy_string(buf, p->from, buflen);
+	} else if (!strcasecmp(args.param, "uri")) {
+		ast_copy_string(buf, p->uri, buflen);
+	} else if (!strcasecmp(args.param, "useragent")) {
+		ast_copy_string(buf, p->useragent, buflen);
+	} else if (!strcasecmp(args.param, "peername")) {
+		ast_copy_string(buf, p->peername, buflen);
+	} else if (!strcasecmp(args.param, "t38passthrough")) {
+		if (p->t38.state == T38_DISABLED) {
+			ast_copy_string(buf, "0", sizeof("0"));
+		} else {  /* T38 is offered or enabled in this call */
+			ast_copy_string(buf, "1", sizeof("1"));
+		}
+	} else if (!strcasecmp(args.param, "rtpdest")) {
 		struct sockaddr_in sin;
 
 		if (ast_strlen_zero(args.type))

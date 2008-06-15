@@ -181,6 +181,9 @@ Channel Drivers:
 	sip:defaultuser@defaultip
   The "username" setting still work, but is deprecated and will not work in 
   the next version of Asterisk.
+* SIP: All of the functionality in SIPCHANINFO() has been implemented in CHANNEL(),
+  and you should start using that function instead for retrieving information about
+  the channel in a technology-agnostic way.
 
 * chan_local.c: the comma delimiter inside the channel name has been changed to a
   semicolon, in order to make the Local channel driver compatible with the comma

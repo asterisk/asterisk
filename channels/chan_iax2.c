@@ -11749,10 +11749,15 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 		return -1;
 	}
 
-	if (!strcasecmp(args, "osptoken"))
+	if (!strcasecmp(args, "osptoken")) {
 		ast_copy_string(buf, pvt->osptoken, buflen);
-	else
+	} else if (!strcasecmp(args, "peerip")) {
+		ast_copy_string(buf, pvt->addr.sin_addr.s_addr ? ast_inet_ntoa(pvt->addr.sin_addr) : "", buflen);
+	} else if (!strcasecmp(args, "peername")) {
+		ast_copy_string(buf, pvt->username, buflen);
+	} else {
 		res = -1;
+	}
 
 	ast_mutex_unlock(&iaxsl[callno]);
 
