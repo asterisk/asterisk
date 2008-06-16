@@ -239,30 +239,26 @@ static char *anti_injection(const char *str, int len)
 	char *known_bad[] = {"select", "insert", "update", "delete", "drop", ";", "--", "\0"};
 	int idx;
 
-	if ((buf = ast_malloc(len + 1)) == NULL)
-	{
+	if (!(buf = ast_calloc(1, len + 1))) {
 		ast_log(LOG_ERROR, "cdr_tds:  Out of memory error\n");
 		return NULL;
 	}
-	memset(buf, 0, len);
 
 	buf_ptr = buf;
 
 	/* Escape single quotes */
-	for (; *str && strlen(buf) < len; str++)
-	{
-		if (*str == '\'')
+	for (; *str && strlen(buf) < len; str++) {
+		if (*str == '\'') {
 			*buf_ptr++ = '\'';
+		}
 		*buf_ptr++ = *str;
 	}
 	*buf_ptr = '\0';
 
 	/* Erase known bad input */
-	for (idx=0; *known_bad[idx]; idx++)
-	{
-		while((srh_ptr = strcasestr(buf, known_bad[idx])))
-		{
-			memmove(srh_ptr, srh_ptr+strlen(known_bad[idx]), strlen(srh_ptr+strlen(known_bad[idx]))+1);
+	for (idx = 0; *known_bad[idx]; idx++) {
+		while ((srh_ptr = strcasestr(buf, known_bad[idx]))) {
+			memmove(srh_ptr, srh_ptr + strlen(known_bad[idx]), strlen(srh_ptr + strlen(known_bad[idx])) + 1);
 		}
 	}
 
@@ -275,14 +271,11 @@ static void get_date(char *dateField, struct timeval tv)
 	char buf[80];
 
 	/* To make sure we have date variable if not insert null to SQL */
-	if (!ast_tvzero(tv))
-	{
+	if (!ast_tvzero(tv)) {
 		ast_localtime(&tv, &tm, NULL);
 		ast_strftime(buf, 80, DATE_FORMAT, &tm);
 		sprintf(dateField, "'%s'", buf);
-	}
-	else
-	{
+	} else {
 		strcpy(dateField, "null");
 	}
 }
@@ -319,12 +312,11 @@ static int mssql_connect(void)
 	char query[128];
 
 	/* Connect to M$SQL Server */
-	if (!(login = tds_alloc_login()))
-	{
+	if (!(login = tds_alloc_login())) {
 		ast_log(LOG_ERROR, "tds_alloc_login() failed.\n");
 		return -1;
 	}
-	
+
 	tds_set_server(login, hostname);
 	tds_set_user(login, dbuser);
 	tds_set_passwd(login, password);
@@ -354,14 +346,12 @@ static int mssql_connect(void)
 
 	tds_set_parent(tds, NULL);
 	connection = tds_read_config_info(tds, login, context->locale);
-	if (!connection)
-	{
+	if (!connection) {
 		ast_log(LOG_ERROR, "tds_read_config() failed.\n");
 		goto connect_fail;
 	}
 
-	if (tds_connect(tds, connection) == TDS_FAIL)
-	{
+	if (tds_connect(tds, connection) == TDS_FAIL) {
 		ast_log(LOG_ERROR, "Failed to connect to MSSQL server.\n");
 		tds = NULL;	/* freed by tds_connect() on error */
 #if (defined(FREETDS_0_63) || defined(FREETDS_0_64))
@@ -438,7 +428,7 @@ static int tds_load_module(int reload)
 		ast_config_destroy(cfg);
 		return 0;
 	}
-	
+
 	ptr = ast_variable_retrieve(cfg, "global", "hostname");
 	if (ptr) {
 		if (hostname)
