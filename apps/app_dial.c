@@ -2098,7 +2098,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(rapp);
 
 	if ((con = ast_context_find("app_dial_gosub_virtual_context"))) {
-		ast_context_remove_extension2(con, "s", 1, NULL);
+		ast_context_remove_extension2(con, "s", 1, NULL, 0);
 		ast_context_destroy(con, "app_dial"); /* leave nothing behind */
 	}
 

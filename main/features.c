@@ -2465,7 +2465,7 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 			/* And take them out of the parking lot */
 			con = ast_context_find(pu->parkinglot->parking_con);
 			if (con) {
-				if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
+				if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL, 0))
 					ast_log(LOG_WARNING, "Whoa, failed to remove the parking extension!\n");
 				else
 					notify_metermaids(pu->parkingexten, curlot->parking_con, AST_DEVICE_NOT_INUSE);
@@ -2500,7 +2500,7 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 					/* And take them out of the parking lot */
 					con = ast_context_find(curlot->parking_con);
 					if (con) {
-						if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
+						if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL, 0))
 							ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 						else
 							notify_metermaids(pu->parkingexten, curlot->parking_con, AST_DEVICE_NOT_INUSE);
@@ -2721,7 +2721,7 @@ static int park_exec_full(struct ast_channel *chan, void *data, struct ast_parki
 		peer = pu->chan;
 		con = ast_context_find(parkinglot->parking_con);
 		if (con) {
-			if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
+			if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL, 0))
 				ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 			else
 				notify_metermaids(pu->parkingexten, parkinglot->parking_con, AST_DEVICE_NOT_INUSE);
@@ -3284,7 +3284,7 @@ static int load_config(void)
 
 	/* Remove the old parking extension */
 	if (!ast_strlen_zero(old_parking_con) && (con = ast_context_find(old_parking_con)))	{
-		if(ast_context_remove_extension2(con, old_parking_ext, 1, registrar))
+		if(ast_context_remove_extension2(con, old_parking_ext, 1, registrar, 0))
 				notify_metermaids(old_parking_ext, old_parking_con, AST_DEVICE_NOT_INUSE);
 		ast_debug(1, "Removed old parking extension %s@%s\n", old_parking_ext, old_parking_con);
 	}
