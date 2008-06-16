@@ -64,6 +64,13 @@
 #define CID_START_POLARITY 2
 #define CID_START_POLARITY_IN 3
 
+/* defines dealing with message waiting indication generation */
+/*! MWI SDMF format */
+#define CID_MWI_TYPE_SDMF		0x00 
+/*! MWI MDMF format -- generate only MWI field */
+#define CID_MWI_TYPE_MDMF		0x01 
+/*! MWI MDMF format -- generate name, callerid, date and MWI fields */
+#define CID_MWI_TYPE_MDMF_FULL	0x02
 
 #define AST_LIN2X(a) ((codec == AST_FORMAT_ALAW) ? (AST_LIN2A(a)) : (AST_LIN2MU(a)))
 #define AST_XLAW(a) ((codec == AST_FORMAT_ALAW) ? (AST_ALAW(a)) : (AST_MULAW(a)))
@@ -162,8 +169,14 @@ void callerid_free(struct callerid_state *cid);
  */
 int ast_callerid_generate(unsigned char *buf, const char *name, const char *number, int codec);
 
-/*! \brief Generate message waiting indicator  (stutter tone) */
-int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec);
+/*! \brief Generate message waiting indicator 
+ * \param active The message indicator state
+ *  -- either 0 no messages in mailbox or 1 messages in mailbox
+ * \param type Format of message (any of CID_MWI_TYPE_*)
+ * \see callerid_generate() for more info as it use the same encoding  
+*/
+int vmwi_generate(unsigned char *buf, int active, int type, int codec, const char *name,
+	const char *number, int flags);
 
 /*! \brief Generate Caller-ID spill but in a format suitable for Call Waiting(tm)'s Caller*ID(tm)
  * See ast_callerid_generate() for other details

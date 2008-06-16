@@ -769,9 +769,10 @@ static int callerid_genmsg(char *msg, int size, const char *number, const char *
 	
 }
 
-int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec)
+int vmwi_generate(unsigned char *buf, int active, int type, int codec,
+				  const char* name, const char* number, int flags)
 {
-	unsigned char msg[256];
+	char msg[256];
 	int len = 0;
 	int sum;
 	int x;
@@ -779,14 +780,38 @@ int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec)
 	float cr = 1.0;
 	float ci = 0.0;
 	float scont = 0.0;
+	
+	if (type == CID_MWI_TYPE_MDMF_FULL) {
+		/* MDMF Message waiting with date, number, name and MWI parameter */
+		msg[0] = 0x82;
 
-	if (mdmf) {
-		/* MDMF Message waiting */
+		/* put date, number info at the right place */
+		len = callerid_genmsg(msg+2, sizeof(msg)-2, number, name, flags); 
+		
+		/* length of MDMF CLI plus Message Waiting Structure */
+		msg[1] = len+3;
+		
+		/* Go to the position to write to */
+		len = len+2;
+		
+		/* "Message Waiting Parameter" */
+		msg[len++] = 0x0b;
+		/* Length of IE is one */
+		msg[len++] = 1;
+		/* Active or not */
+		if (active)
+			msg[len++] = 0xff;
+		else
+			msg[len++] = 0x00;
+		
+	} else if (type == CID_MWI_TYPE_MDMF) {
+		/* MDMF Message waiting only */
+		/* same as above except that the we only put MWI parameter */
 		msg[len++] = 0x82;
 		/* Length is 3 */
 		msg[len++] = 3;
 		/* IE is "Message Waiting Parameter" */
-		msg[len++] = 0xb;
+		msg[len++] = 0x0b;
 		/* Length of IE is one */
 		msg[len++] = 1;
 		/* Active or not */
