@@ -10241,6 +10241,10 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				ast_string_field_set(peer, secret, v->value);
 			} else if (!strcasecmp(v->name, "mailbox")) {
 				ast_string_field_set(peer, mailbox, v->value);
+			} else if (!strcasecmp(v->name, "hasvoicemail")) {
+				if (ast_true(v->value) && ast_strlen_zero(peer->mailbox)) {
+					ast_string_field_set(peer, mailbox, name);
+				}
 			} else if (!strcasecmp(v->name, "mohinterpret")) {
 				ast_string_field_set(peer, mohinterpret, v->value);
 			} else if (!strcasecmp(v->name, "mohsuggest")) {
