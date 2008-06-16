@@ -14382,7 +14382,7 @@ static int setup_dahdi(int reload)
 	mwimonitornotify[0] = '\0';
 
 	v = ast_variable_browse(cfg, "channels");
-	if ((res = process_dahdi(&base_conf, v, reload, 0))) {
+	if ((res = process_dahdi(&base_conf, "", v, reload, 0))) {
 		ast_mutex_unlock(&iflock);
 		ast_config_destroy(cfg);
 		if (ucfg) {
@@ -14405,7 +14405,7 @@ static int setup_dahdi(int reload)
 
 		memcpy(&conf, &base_conf, sizeof(conf));
 
-		if ((res = process_dahdi(&conf, ast_variable_browse(cfg, cat), reload, PROC_DAHDI_OPT_NOCHAN))) {
+		if ((res = process_dahdi(&conf, cat, ast_variable_browse(cfg, cat), reload, PROC_DAHDI_OPT_NOCHAN))) {
 			ast_mutex_unlock(&iflock);
 			ast_config_destroy(cfg);
 			if (ucfg) {
