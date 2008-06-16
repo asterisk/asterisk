@@ -3728,6 +3728,10 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				canreinvite = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "mailbox")) {
 				ast_copy_string(mailbox, v->value, sizeof(mailbox));
+			} else if (!strcasecmp(v->name, "hasvoicemail")) {
+				if (ast_true(v->value) && ast_strlen_zero(mailbox)) {
+					ast_copy_string(mailbox, gw->name, sizeof(mailbox));
+				}
 			} else if (!strcasecmp(v->name, "adsi")) {
 				adsi = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callreturn")) {

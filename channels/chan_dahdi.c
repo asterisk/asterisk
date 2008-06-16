@@ -10656,7 +10656,7 @@ static int build_channels(struct dahdi_chan_conf *conf, int iscrv, const char *v
 /** The length of the parameters list of 'dahdichan'. 
  * \todo Move definition of MAX_CHANLIST_LEN to a proper place. */
 #define MAX_CHANLIST_LEN 80
-static int process_dahdi(struct dahdi_chan_conf *confp, struct ast_variable *v, int reload, int skipchannels)
+static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct ast_variable *v, int reload, int skipchannels)
 {
 	struct dahdi_pvt *tmp;
 	char *ringc; /* temporary string for parsing the dring number. */
@@ -10736,6 +10736,10 @@ static int process_dahdi(struct dahdi_chan_conf *confp, struct ast_variable *v, 
 				confp->chan.dtmfrelax = 0;
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			ast_copy_string(confp->chan.mailbox, v->value, sizeof(confp->chan.mailbox));
+		} else if (!strcasecmp(v->name, "hasvoicemail")) {
+			if (ast_true(v->value) && ast_strlen_zero(confp->chan.mailbox)) {
+				ast_copy_string(confp->chan.mailbox, cat, sizeof(confp->chan.mailbox));
+			}
 		} else if (!strcasecmp(v->name, "adsi")) {
 			confp->chan.adsi = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "usesmdi")) {
@@ -11425,7 +11429,7 @@ static int setup_dahdi(int reload)
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
 	v = ast_variable_browse(cfg, "channels");
-	res = process_dahdi(&conf, v, reload, 0);
+	res = process_dahdi(&conf, "", v, reload, 0);
 	ast_mutex_unlock(&iflock);
 	ast_config_destroy(cfg);
 	if (res)
@@ -11434,7 +11438,7 @@ static int setup_dahdi(int reload)
 	if (cfg) {
 		char *cat;
 		const char *chans;
-		process_dahdi(&conf, ast_variable_browse(cfg, "general"), 1, 1);
+		process_dahdi(&conf, "", ast_variable_browse(cfg, "general"), 1, 1);
 		for (cat = ast_category_browse(cfg, NULL); cat ; cat = ast_category_browse(cfg, cat)) {
 			if (!strcasecmp(cat, "general"))
 				continue;
@@ -11443,7 +11447,7 @@ static int setup_dahdi(int reload)
 				struct dahdi_chan_conf sect_conf;
 				memcpy(&sect_conf, &conf, sizeof(sect_conf));
 
-				process_dahdi(&sect_conf, ast_variable_browse(cfg, cat), reload, 0);
+				process_dahdi(&sect_conf, cat, ast_variable_browse(cfg, cat), reload, 0);
 			}
 		}
 		ast_config_destroy(cfg);

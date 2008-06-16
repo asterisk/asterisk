@@ -1489,6 +1489,10 @@ static struct oh323_peer *build_peer(const char *name, struct ast_variable *v, s
 			peer->ha = ast_append_ha(v->name, v->value, peer->ha);
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			ast_copy_string(peer->mailbox, v->value, sizeof(peer->mailbox));
+		} else if (!strcasecmp(v->name, "hasvoicemail")) {
+			if (ast_true(v->value) && ast_strlen_zero(peer->mailbox)) {
+				ast_copy_string(peer->mailbox, name, sizeof(peer->mailbox));
+			}
 		}
 	}
 	ASTOBJ_UNMARK(peer);
