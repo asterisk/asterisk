@@ -8143,8 +8143,8 @@ static struct zt_pvt *mkintf(int channel, const struct zt_chan_conf *conf, struc
 				}
 				if (conf->is_sig_auto)
 					chan_sig = sigtype_to_signalling(p.sigtype);
-				if (p.sigtype != (conf->chan.sig & 0x3ffff)) {
-					ast_log(LOG_ERROR, "Signalling requested on channel %d is %s but line is in %s signalling\n", channel, sig2str(conf->chan.sig), sig2str(p.sigtype));
+				if (p.sigtype != (chan_sig & 0x3ffff)) {
+					ast_log(LOG_ERROR, "Signalling requested on channel %d is %s but line is in %s signalling\n", channel, sig2str(chan_sig), sig2str(p.sigtype));
 					destroy_zt_pvt(&tmp);
 					return NULL;
 				}
