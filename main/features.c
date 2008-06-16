@@ -2312,7 +2312,7 @@ static void *do_parking_thread(void *ignore)
 				AST_LIST_REMOVE_CURRENT(list);
 				con = ast_context_find(parking_con);
 				if (con) {
-					if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
+					if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL, 0))
 						ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 					else
 						notify_metermaids(pu->parkingexten, parking_con, AST_DEVICE_NOT_INUSE);
@@ -2346,7 +2346,7 @@ static void *do_parking_thread(void *ignore)
 						AST_LIST_REMOVE_CURRENT(list);
 						con = ast_context_find(parking_con);
 						if (con) {
-							if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
+							if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL, 0))
 								ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 							else
 								notify_metermaids(pu->parkingexten, parking_con, AST_DEVICE_NOT_INUSE);
@@ -2465,7 +2465,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		peer = pu->chan;
 		con = ast_context_find(parking_con);
 		if (con) {
-			if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
+			if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL, 0))
 				ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 			else
 				notify_metermaids(pu->parkingexten, parking_con, AST_DEVICE_NOT_INUSE);
@@ -2850,7 +2850,7 @@ static int load_config(void)
 
 	/* Remove the old parking extension */
 	if (!ast_strlen_zero(old_parking_con) && (con = ast_context_find(old_parking_con)))	{
-		if(ast_context_remove_extension2(con, old_parking_ext, 1, registrar))
+		if(ast_context_remove_extension2(con, old_parking_ext, 1, registrar, 0))
 				notify_metermaids(old_parking_ext, old_parking_con, AST_DEVICE_NOT_INUSE);
 		ast_debug(1, "Removed old parking extension %s@%s\n", old_parking_ext, old_parking_con);
 	}

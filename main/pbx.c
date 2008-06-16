@@ -3979,7 +3979,7 @@ int ast_context_remove_extension(const char *context, const char *extension, int
 	struct ast_context *c = find_context_locked(context);
 
 	if (c) { /* ... remove extension ... */
-		ret = ast_context_remove_extension2(c, extension, priority, registrar);
+		ret = ast_context_remove_extension2(c, extension, priority, registrar, 1);
 		ast_unlock_contexts();
 	}
 	return ret;
@@ -3995,14 +3995,15 @@ int ast_context_remove_extension(const char *context, const char *extension, int
  * it.
  *
  */
-int ast_context_remove_extension2(struct ast_context *con, const char *extension, int priority, const char *registrar)
+int ast_context_remove_extension2(struct ast_context *con, const char *extension, int priority, const char *registrar, int already_locked)
 {
 	struct ast_exten *exten, *prev_exten = NULL;
 	struct ast_exten *peer;
 	struct ast_exten ex, *exten2, *exten3;
 	char dummy_name[1024];
 
-	ast_wrlock_context(con);
+	if (!already_locked)
+		ast_wrlock_context(con);
 
 	/* Handle this is in the new world */
 
@@ -4085,7 +4086,8 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 	}
 	if (!exten) {
 		/* we can't find right extension */
-		ast_unlock_context(con);
+		if (!already_locked)
+			ast_unlock_context(con);
 		return -1;
 	}
 
@@ -4112,7 +4114,8 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 				break; /* found our priority */
 		}
 		if (!peer) { /* not found */
-			ast_unlock_context(con);
+			if (!already_locked)
+				ast_unlock_context(con);
 			return -1;
 		}
 		/* we are first priority extension? */
@@ -4145,7 +4148,8 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 		destroy_exten(peer);
 		/* XXX should we return -1 ? */
 	}
-	ast_unlock_context(con);
+	if (!already_locked)
+		ast_unlock_context(con);
 	return 0;
 }
 

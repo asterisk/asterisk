@@ -493,7 +493,7 @@ static int unload_module(void)
 		ast_agi_unregister(ast_module_info->self, &gosub_agi_command);
 
 		if ((con = ast_context_find("app_stack_gosub_virtual_context"))) {
-			ast_context_remove_extension2(con, "s", 1, NULL);
+			ast_context_remove_extension2(con, "s", 1, NULL, 0);
 			ast_context_destroy(con, "app_stack"); /* leave nothing behind */
 		}
 	}

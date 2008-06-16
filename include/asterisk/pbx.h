@@ -607,7 +607,7 @@ int ast_context_remove_extension(const char *context, const char *extension, int
 	const char *registrar);
 
 int ast_context_remove_extension2(struct ast_context *con, const char *extension,
-	int priority, const char *registrar);
+	int priority, const char *registrar, int already_locked);
 
 /*! 
  * \brief Add an ignorepat
