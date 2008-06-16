@@ -4928,7 +4928,7 @@ static int find_sdp(struct sip_request *req)
 	content_type = get_header(req, "Content-Type");
 
 	/* if the body contains only SDP, this is easy */
-	if (!strcasecmp(content_type, "application/sdp")) {
+	if (!strncasecmp(content_type, "application/sdp", 15)) {
 		req->sdp_start = 0;
 		req->sdp_end = req->lines;
 		return req->lines ? 1 : 0;
