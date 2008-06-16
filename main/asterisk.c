@@ -3306,6 +3306,11 @@ int main(int argc, char *argv[])
 
 	ast_autoservice_init();
 
+	if (ast_timing_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	if (load_modules(1)) {		/* Load modules, pre-load only */
 		printf("%s", term_quit());
 		exit(1);
