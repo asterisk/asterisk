@@ -304,7 +304,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	int res = -1;
 	int gen_active = 0;
 	int pid;
-	char *buf, *pipe_delim_argbuf, *pdargbuf_ptr;
+	char *buf, *comma_delim_argbuf;
 	struct ivr_localuser foo = {
 		.playlist = AST_LIST_HEAD_INIT_VALUE,
 		.finishlist = AST_LIST_HEAD_INIT_VALUE,
@@ -330,9 +330,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, buf);
 
 	/* copy args and replace commas with pipes */
-	pipe_delim_argbuf = ast_strdupa(data);
-	while((pdargbuf_ptr = strchr(pipe_delim_argbuf, ',')) != NULL)
-		pdargbuf_ptr[0] = '|';
+	comma_delim_argbuf = ast_strdupa(data);
 	
 	if (pipe(child_stdin)) {
 		ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child input: %s\n", strerror(errno));
@@ -388,7 +386,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		child_stdout[1] = 0;
 		close(child_stderr[1]);
 		child_stderr[1] = 0;
-		res = eivr_comm(chan, u, child_stdin[1], child_stdout[0], child_stderr[0], pipe_delim_argbuf);
+		res = eivr_comm(chan, u, child_stdin[1], child_stdout[0], child_stderr[0], comma_delim_argbuf);
 
 		exit:
 		if (gen_active)
@@ -480,7 +478,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  		errno = 0;
  		exception = 0;
  
- 		rchan = ast_waitfor_nandfds(&chan, 1, waitfds, 2, &exception, &ready_fd, &ms);
+ 		rchan = ast_waitfor_nandfds(&chan, 1, waitfds, (eivr_errors_fd == 0) ? 1 : 2, &exception, &ready_fd, &ms);
  
  		if (!AST_LIST_EMPTY(&u->finishlist)) {
  			AST_LIST_LOCK(&u->finishlist);
