@@ -109,6 +109,8 @@ static void get_date(char *, struct timeval);
 static int mssql_connect(void);
 static int mssql_disconnect(void);
 
+static void cdr_tds_config_destroy(void);
+
 static int tds_log(struct ast_cdr *cdr)
 {
 	char sqlcmd[2048], start[80], answer[80], end[80];
@@ -395,15 +397,20 @@ connect_fail:
 	return -1;
 }
 
+static void cdr_tds_config_destroy(void)
+{
+	ast_mutex_destroy(&settings->lock);
+	ast_string_field_free_memory(settings);
+	ast_free(settings);	
+}
+
 static int tds_unload_module(void)
 {
 	mssql_disconnect();
 
 	ast_cdr_unregister(name);
 
-	ast_mutex_destroy(&settings->lock);
-	ast_string_field_free_memory(settings);
-	ast_free(settings);
+	cdr_tds_config_destroy();
 
 	return 0;
 }
@@ -417,7 +424,7 @@ static int tds_load_module(int reload)
 
 	cfg = ast_config_load(config, config_flags);
 	if (!cfg) {
-		ast_log(LOG_NOTICE, "Unable to load config for MSSQL CDR's: %s\n", config);
+		ast_log(LOG_NOTICE, "Unable to load config for MSSQL CDRs: %s\n", config);
 		return 0;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
@@ -441,9 +448,9 @@ static int tds_load_module(int reload)
 			ast_config_destroy(cfg);
 			return 0;
 		}
-	}
 
-	ast_mutex_init(&settings->lock);
+		ast_mutex_init(&settings->lock);
+	}
 
 	ptr = ast_variable_retrieve(cfg, "global", "hostname");
 	if (ptr) {
@@ -470,7 +477,7 @@ static int tds_load_module(int reload)
 	if (ptr) {
 		ast_string_field_set(settings, password, ptr);
 	} else {
-		ast_log(LOG_ERROR,"Database password not specified.\n");
+		ast_log(LOG_ERROR, "Database password not specified.\n");
 	}
 
 	ptr = ast_variable_retrieve(cfg, "global", "charset");
