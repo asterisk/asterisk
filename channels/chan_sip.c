@@ -21259,6 +21259,12 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			ast_copy_string(peer->parkinglot, v->value, sizeof(peer->parkinglot));
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			add_peer_mailboxes(peer, v->value);
+		} else if (!strcasecmp(v->name, "hasvoicemail")) {
+			/* People expect that if 'hasvoicemail' is set, that the mailbox will
+			 * be also set, even if not explicitly specified. */
+			if (ast_true(v->value) && ast_strlen_zero(peer->mailbox)) {
+				ast_copy_string(peer->mailbox, name, sizeof(peer->mailbox));
+			}
 		} else if (!strcasecmp(v->name, "subscribemwi")) {
 			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_SUBSCRIBEMWIONLY);
 		} else if (!strcasecmp(v->name, "vmexten")) {
