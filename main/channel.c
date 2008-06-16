@@ -2407,26 +2407,17 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		read(chan->alertpipe[0], &blah, sizeof(blah));
 	}
 
-#ifdef HAVE_DAHDI
-	if (chan->timingfd > -1 && chan->fdno == AST_TIMING_FD && ast_test_flag(chan, AST_FLAG_EXCEPTION)) {
-		int res;
+	if (chan->timingfd > -1 && chan->fdno == AST_TIMING_FD) {
+		enum ast_timing_event res;
 
 		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
-		blah = -1;
-		/* IF we can't get event, assume it's an expired as-per the old interface */
-		res = ioctl(chan->timingfd, DAHDI_GETEVENT, &blah);
-		if (res)
-			blah = DAHDI_EVENT_TIMER_EXPIRED;
 
-		if (blah == DAHDI_EVENT_TIMER_PING) {
-			if (AST_LIST_EMPTY(&chan->readq) || !AST_LIST_NEXT(AST_LIST_FIRST(&chan->readq), frame_list)) {
-				/* Acknowledge PONG unless we need it again */
-				if (ioctl(chan->timingfd, DAHDI_TIMERPONG, &blah)) {
-					ast_log(LOG_WARNING, "Failed to pong timer on '%s': %s\n", chan->name, strerror(errno));
-				}
-			}
-		} else if (blah == DAHDI_EVENT_TIMER_EXPIRED) {
-			ioctl(chan->timingfd, DAHDI_TIMERACK, &blah);
+		res = ast_timer_get_event(chan->timingfd);
+
+		switch (res) {
+		case AST_TIMING_EVENT_EXPIRED:
+			ast_timer_ack(chan->timingfd, 1);
+
 			if (chan->timingfunc) {
 				/* save a copy of func/data before unlocking the channel */
 				int (*func)(const void *) = chan->timingfunc;
@@ -2434,18 +2425,22 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				ast_channel_unlock(chan);
 				func(data);
 			} else {
-				blah = 0;
-				ioctl(chan->timingfd, DAHDI_TIMERCONFIG, &blah);
-				chan->timingdata = NULL;
+				ast_timer_set_rate(chan->timingfd, 0);
 				ast_channel_unlock(chan);
 			}
+
 			/* cannot 'goto done' because the channel is already unlocked */
 			return &ast_null_frame;
-		} else
-			ast_log(LOG_NOTICE, "No/unknown event '%d' on timer for '%s'?\n", blah, chan->name);
-	} else
-#endif
-	if (chan->fds[AST_GENERATOR_FD] > -1 && chan->fdno == AST_GENERATOR_FD) {
+
+		case AST_TIMING_EVENT_CONTINUOUS:
+			if (AST_LIST_EMPTY(&chan->readq) || 
+				!AST_LIST_NEXT(AST_LIST_FIRST(&chan->readq), frame_list)) {
+				ast_timer_disable_continuous(chan->timingfd);
+			}
+			break;
+		}
+
+	} else if (chan->fds[AST_GENERATOR_FD] > -1 && chan->fdno == AST_GENERATOR_FD) {
 		/* if the AST_GENERATOR_FD is set, call the generator with args
 		 * set to -1 so it can do whatever it needs to.
 		 */

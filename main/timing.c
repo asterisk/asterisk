@@ -157,7 +157,7 @@ int ast_timer_enable_continuous(int handle)
 	return result;
 }
 
-int ast_timer_disable_continous(int handle)
+int ast_timer_disable_continuous(int handle)
 {
 	int result;
 

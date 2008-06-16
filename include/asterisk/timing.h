@@ -161,7 +161,7 @@ int ast_timer_enable_continuous(int handle);
  * \retval -1 failure, with errno set
  * \retval 0 success
  */
-int ast_timer_disable_continous(int handle);
+int ast_timer_disable_continuous(int handle);
 
 /*!
  * \brief Determine timing event
