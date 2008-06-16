@@ -407,14 +407,10 @@ static int tds_unload_module(void)
 
 static int tds_load_module(int reload)
 {
-	int res = 0;
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	const char *ptr = NULL;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
-#ifdef FREETDS_PRE_0_62
-	TDS_INT result_type;
-#endif
 
 	cfg = ast_config_load(config, config_flags);
 	if (!cfg) {
@@ -493,7 +489,7 @@ static int tds_load_module(int reload)
 	mssql_connect();
 	ast_mutex_unlock(&tds_lock);
 
-	return res;
+	return 1;
 }
 
 static int reload(void)
