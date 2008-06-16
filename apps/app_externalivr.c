@@ -373,7 +373,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		/* Put the application + the arguments in a | delimited list */
 		ast_str_reset(pipe_delim_args);
 		for (j = 0; application_args.cmd[j] != NULL; j++) {
-			ast_str_append(&pipe_delim_args, 0, "%s%s", j == 0 ? "" : "|", application_args.cmd[j]);
+			ast_str_append(&pipe_delim_args, 0, "%s%s", j == 0 ? "" : ",", application_args.cmd[j]);
 		}
 
 		/* Parse the ExternalIVR() arguments */
