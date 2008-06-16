@@ -13487,7 +13487,7 @@ static void process_echocancel(struct dahdi_chan_conf *confp, const char *data, 
 /*! process_dahdi() - No warnings on non-existing cofiguration keywords */
 #define PROC_DAHDI_OPT_NOWARN  (1 << 1) 
 
-static int process_dahdi(struct dahdi_chan_conf *confp, struct ast_variable *v, int reload, int options)
+static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct ast_variable *v, int reload, int options)
 {
 	struct dahdi_pvt *tmp;
 	const char *ringc; /* temporary string for parsing the dring number. */
@@ -13578,6 +13578,10 @@ static int process_dahdi(struct dahdi_chan_conf *confp, struct ast_variable *v, 
 				confp->chan.dtmfrelax = 0;
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			ast_copy_string(confp->chan.mailbox, v->value, sizeof(confp->chan.mailbox));
+		} else if (!strcasecmp(v->name, "hasvoicemail")) {
+			if (ast_true(v->value) && ast_strlen_zero(confp->chan.mailbox)) {
+				ast_copy_string(confp->chan.mailbox, cat, sizeof(confp->chan.mailbox));
+			}
 		} else if (!strcasecmp(v->name, "adsi")) {
 			confp->chan.adsi = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "usesmdi")) {
@@ -14416,7 +14420,7 @@ static int setup_dahdi(int reload)
 	if (ucfg) {
 		const char *chans;
 
-		process_dahdi(&base_conf, ast_variable_browse(ucfg, "general"), 1, 0);
+		process_dahdi(&base_conf, "", ast_variable_browse(ucfg, "general"), 1, 0);
 
 		for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
 			if (!strcasecmp(cat, "general")) {
@@ -14431,7 +14435,7 @@ static int setup_dahdi(int reload)
 
 			memcpy(&conf, &base_conf, sizeof(conf));
 
-			if ((res = process_dahdi(&conf, ast_variable_browse(ucfg, cat), reload, PROC_DAHDI_OPT_NOCHAN | PROC_DAHDI_OPT_NOWARN))) {
+			if ((res = process_dahdi(&conf, cat, ast_variable_browse(ucfg, cat), reload, PROC_DAHDI_OPT_NOCHAN | PROC_DAHDI_OPT_NOWARN))) {
 				ast_config_destroy(ucfg);
 				ast_mutex_unlock(&iflock);
 				return res;
