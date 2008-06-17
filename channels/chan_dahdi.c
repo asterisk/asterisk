@@ -8273,7 +8273,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 							return NULL;
 						}
 
-						pris[span].sig = conf->chan.sig;
+						pris[span].sig = chan_sig;
 						pris[span].nodetype = conf->pri.nodetype;
 						pris[span].switchtype = myswitchtype;
 						pris[span].nsf = conf->pri.nsf;
@@ -8392,7 +8392,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 #endif
 		tmp->immediate = conf->chan.immediate;
 		tmp->transfertobusy = conf->chan.transfertobusy;
-		if (conf->chan.sig & __DAHDI_SIG_FXS) {
+		if (chan_sig & __DAHDI_SIG_FXS) {
 			tmp->mwimonitor_fsk = conf->chan.mwimonitor_fsk;
 			tmp->mwimonitor_neon = conf->chan.mwimonitor_neon;
 		}
@@ -8547,7 +8547,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->sendcalleridafter = conf->chan.sendcalleridafter;
 		if (!here) {
 			tmp->locallyblocked = tmp->remotelyblocked = 0;
-			if ((conf->chan.sig == SIG_PRI) || (conf->chan.sig == SIG_BRI) || (conf->chan.sig == SIG_BRI_PTMP) || (conf->chan.sig == SIG_SS7))
+			if ((chan_sig == SIG_PRI) || (chan_sig == SIG_BRI) || (chan_sig == SIG_BRI_PTMP) || (chan_sig == SIG_SS7))
 				tmp->inservice = 0;
 			else /* We default to in service on protocols that don't have a reset */
 				tmp->inservice = 1;
