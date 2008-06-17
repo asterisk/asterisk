@@ -868,7 +868,8 @@ static void *httpd_helper_thread(void *data)
 
 done:
 	fclose(ser->f);
-	ser = ast_tcptls_session_instance_destroy(ser);
+	ao2_ref(ser, -1);
+	ser = NULL;
 	return NULL;
 }
 

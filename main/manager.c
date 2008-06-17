@@ -2937,7 +2937,8 @@ static void *session_do(void *data)
 	destroy_session(s);
 
 done:
-	ser = ast_tcptls_session_instance_destroy(ser);
+	ao2_ref(ser, -1);
+	ser = NULL;
 	return NULL;
 }
 

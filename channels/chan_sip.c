@@ -775,7 +775,6 @@ enum sip_transport {
 
 /*!< The SIP socket definition */
 struct sip_socket {
-	ast_mutex_t *lock;
 	enum sip_transport type;
 	int fd;
 	uint16_t port;
@@ -821,6 +820,7 @@ struct sip_request {
 	char *header[SIP_MAX_HEADERS];
 	char *line[SIP_MAX_LINES];
 	char data[SIP_MAX_PACKET];
+	/* XXX Do we need to unref socket.ser when the request goes away? */
 	struct sip_socket socket;	/*!< The socket used for this request */
 };
 
@@ -2142,14 +2142,6 @@ static struct ast_rtp_protocol sip_rtp = {
 
 static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *ser);
 
-static void *sip_tcp_helper_thread(void *data)
-{
-	struct sip_pvt *pvt = data;
-	struct ast_tcptls_session_instance *ser = pvt->socket.ser;
-
-	return _sip_tcp_helper_thread(pvt, ser);
-}
-
 static void *sip_tcp_worker_fn(void *data)
 {
 	struct ast_tcptls_session_instance *ser = data;
@@ -2163,7 +2155,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 	int res, cl;
 	struct sip_request req = { 0, } , reqcpy = { 0, };
 	struct sip_threadinfo *me;
-	char buf[1024];
+	char buf[1024] = "";
 
 	me = ast_calloc(1, sizeof(*me));
 
@@ -2181,12 +2173,6 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 	AST_LIST_INSERT_TAIL(&threadl, me, list);
 	AST_LIST_UNLOCK(&threadl);
 
-	req.socket.lock = ast_calloc(1, sizeof(*req.socket.lock));
-
-	if (!req.socket.lock)
-		goto cleanup;
-
-	ast_mutex_init(req.socket.lock);
 
 	for (;;) {
 		memset(req.data, 0, sizeof(req.data));
@@ -2210,14 +2196,12 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 
 		/* Read in headers one line at a time */
 		while (req.len < 4 || strncmp((char *)&req.data + req.len - 4, "\r\n\r\n", 4)) {
-			if (req.socket.lock) 
-				ast_mutex_lock(req.socket.lock);
+			ast_mutex_lock(&ser->lock);
 			if (!fgets(buf, sizeof(buf), ser->f)) {
-				ast_mutex_unlock(req.socket.lock);
+				ast_mutex_unlock(&ser->lock);
 				goto cleanup;
 			}
-			if (req.socket.lock) 
-				ast_mutex_unlock(req.socket.lock);
+			ast_mutex_unlock(&ser->lock);
 			if (me->stop) 
 				 goto cleanup;
 			strncat(req.data, buf, sizeof(req.data) - req.len - 1);
@@ -2226,12 +2210,12 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		parse_copy(&reqcpy, &req);
 		if (sscanf(get_header(&reqcpy, "Content-Length"), "%d", &cl)) {
 			while (cl > 0) {
-				if (req.socket.lock) 
-					ast_mutex_lock(req.socket.lock);
-				if (!fread(buf, (cl < sizeof(buf)) ? cl : sizeof(buf), 1, ser->f))
+				ast_mutex_lock(&ser->lock);
+				if (!fread(buf, (cl < sizeof(buf)) ? cl : sizeof(buf), 1, ser->f)) {
+					ast_mutex_unlock(&ser->lock);
 					goto cleanup;
-				if (req.socket.lock) 
-					ast_mutex_unlock(req.socket.lock);
+				}
+				ast_mutex_unlock(&ser->lock);
 				if (me->stop)
 					goto cleanup;
 				cl -= strlen(buf);
@@ -2250,13 +2234,11 @@ cleanup:
 	ast_free(me);
 cleanup2:
 	fclose(ser->f);
-	ser = ast_tcptls_session_instance_destroy(ser);
+	ser->f = NULL;
+	ser->fd = -1;
 
-	if (req.socket.lock) {
-		ast_mutex_destroy(req.socket.lock);
-		ast_free(req.socket.lock);
-		req.socket.lock = NULL;
-	}
+	ao2_ref(ser, -1);
+	ser = NULL;
 
 	return NULL;
 }
@@ -2532,8 +2514,8 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 	if (sip_prepare_socket(p) < 0)
 		return XMIT_ERROR;
 
-	if (p->socket.lock)
-		ast_mutex_lock(p->socket.lock);
+	if (p->socket.ser)
+		ast_mutex_lock(&p->socket.ser->lock);
 
 	if (p->socket.type & SIP_TRANSPORT_UDP) 
 		res = sendto(p->socket.fd, data, len, 0, (const struct sockaddr *)dst, sizeof(struct sockaddr_in));
@@ -2544,8 +2526,8 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 			ast_debug(1, "No p->socket.ser->f len=%d\n", len);
 	} 
 
-	if (p->socket.lock)
-		ast_mutex_unlock(p->socket.lock);
+	if (p->socket.ser)
+		ast_mutex_unlock(&p->socket.ser->lock);
 
 	if (res == -1) {
 		switch (errno) {
@@ -3513,7 +3495,11 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
 	clear_peer_mailboxes(peer);
-	ast_free(peer);
+
+	if (peer->socket.ser) {
+		ao2_ref(peer->socket.ser, -1);
+		peer->socket.ser = NULL;
+	}
 }
 
 /*! \brief Update peer data in database (if used) */
@@ -3908,6 +3894,20 @@ static void set_t38_capabilities(struct sip_pvt *p)
 	}
 }
 
+static void copy_socket_data(struct sip_socket *to_sock, const struct sip_socket *from_sock)
+{
+	if (to_sock->ser) {
+		ao2_ref(to_sock->ser, -1);
+		to_sock->ser = NULL;
+	}
+
+	if (from_sock->ser) {
+		ao2_ref(from_sock->ser, +1);
+	}
+
+	*to_sock = *from_sock;
+}
+
 /*! \brief Create address structure from peer reference.
  *	This function copies data from peer to the dialog, so we don't have to look up the peer
  *	again from memory or database during the life time of the dialog.
@@ -3916,7 +3916,7 @@ static void set_t38_capabilities(struct sip_pvt *p)
  */
 static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 {
-	dialog->socket = peer->socket;
+	copy_socket_data(&dialog->socket, &peer->socket);
 
 	if ((peer->addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr) &&
 	    (!peer->maxms || ((peer->lastms >= 0)  && (peer->lastms <= peer->maxms)))) {
@@ -4369,6 +4369,11 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	ast_mutex_destroy(&p->pvt_lock);
 
 	ast_string_field_free_memory(p);
+
+	if (p->socket.ser) {
+		ao2_ref(p->socket.ser, -1);
+		p->socket.ser = NULL;
+	}
 
 	ast_free(p);
 	return 0;
@@ -7574,11 +7579,7 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 	build_via(p);
 	ast_string_field_set(p, callid, callid);
 
-	p->socket.lock = req->socket.lock;
-	p->socket.type = req->socket.type;
-	p->socket.fd = req->socket.fd;
-	p->socket.port = req->socket.port;
-	p->socket.ser = req->socket.ser;
+	copy_socket_data(&p->socket, &req->socket);
 
 	/* Use this temporary pvt structure to send the message */
 	__transmit_response(p, msg, req, XMIT_UNRELIABLE);
@@ -9798,7 +9799,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		}
 	}
 
-	pvt->socket = peer->socket = req->socket;
+	copy_socket_data(&peer->socket, &req->socket);
+	copy_socket_data(&pvt->socket, &peer->socket);
 
 	/* Look for brackets */
 	curi = contact;
@@ -18101,7 +18103,6 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	req.socket.type = SIP_TRANSPORT_UDP;
 	req.socket.ser	= NULL;
 	req.socket.port = bindaddr.sin_port;
-	req.socket.lock = NULL;
 
 	handle_request_do(&req, &sin);
 
@@ -18150,7 +18151,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 			return 1;
 		}
 
-		p->socket = req->socket;
+		copy_socket_data(&p->socket, &req->socket);
 
 		/* Go ahead and lock the owner if it has one -- we may need it */
 		/* becaues this is deadlock-prone, we need to try and unlock if failed */
@@ -18245,13 +18246,18 @@ static int sip_prepare_socket(struct sip_pvt *p)
 
 	if ((ser = sip_tcp_locate(&ca.sin))) {
 		s->fd = ser->fd;
+		if (s->ser) {
+			ao2_ref(s->ser, -1);
+			s->ser = NULL;
+		}
+		ao2_ref(ser, +1);
 		s->ser = ser;
 		return s->fd;
 	}
 
-	if (s->ser && s->ser->parent->tls_cfg) 
+	if (s->ser && s->ser->parent->tls_cfg) {
 		ca.tls_cfg = s->ser->parent->tls_cfg;
-	else {
+	} else {
 		if (s->type & SIP_TRANSPORT_TLS) {
 			ca.tls_cfg = ast_calloc(1, sizeof(*ca.tls_cfg));
 			if (!ca.tls_cfg)
@@ -18261,7 +18267,12 @@ static int sip_prepare_socket(struct sip_pvt *p)
 				ast_copy_string(ca.hostname, p->tohost, sizeof(ca.hostname));
 		}
 	}
-	s->ser = (!s->ser) ? ast_tcptls_client_start(&ca) : s->ser;
+	
+	if (s->ser) {
+		/* the pvt socket already has a server instance ... */
+	} else {
+		s->ser = ast_tcptls_client_start(&ca);
+	}
 
 	if (!s->ser) {
 		if (ca.tls_cfg)
@@ -18271,8 +18282,12 @@ static int sip_prepare_socket(struct sip_pvt *p)
 
 	s->fd = ca.accept_fd;
 
-	if (ast_pthread_create_background(&ca.master, NULL, sip_tcp_helper_thread, p)) {
+	/* Give the new thread a reference */
+	ao2_ref(s->ser, +1);
+
+	if (ast_pthread_create_background(&ca.master, NULL, sip_tcp_worker_fn, s->ser)) {
 		ast_debug(1, "Unable to launch '%s'.", ca.name);
+		ao2_ref(s->ser, -1);
 		close(ca.accept_fd);
 		s->fd = ca.accept_fd = -1;
 	}
