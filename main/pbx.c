@@ -7153,13 +7153,13 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 	struct ast_context *tmp, *tmpl=NULL;
 	struct ast_exten *exten_item, *prio_item;
 
-
 	for (tmp = list; tmp; ) {
 		struct ast_context *next = NULL;	/* next starting point */
 		for (; tmp; tmpl = tmp, tmp = tmp->next) {
 			ast_debug(1, "check ctx %s %s\n", tmp->name, tmp->registrar);
-			if ( registrar || (con && strcasecmp(tmp->name, con->name)) )
+			if ( (registrar && !strcasecmp(tmp->registrar, registrar)) || (con && !strcasecmp(tmp->name, con->name)) ) {
 				break;	/* found it */
+			}
 		}
 		if (!tmp)	/* not found, we are done */
 			break;
