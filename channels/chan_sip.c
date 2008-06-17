@@ -16404,8 +16404,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	int sipmethod;
 	int res = 1;
 	const char *c = get_header(req, "Cseq");
+	/* GCC 4.2 complains if I try to cast c as a char * when passing it to ast_skip_nonblanks, so make a copy of it */
+	char *c_copy = ast_strdupa(c);
 	/* Skip the Cseq and its subsequent spaces */
-	const char *msg = ast_skip_blanks(ast_skip_nonblanks((char *)c));
+	const char *msg = ast_skip_blanks(ast_skip_nonblanks(c_copy));
 
 	if (!msg)
 		msg = "";
