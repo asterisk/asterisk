@@ -121,6 +121,9 @@ SIP Changes
    lost packets.
  * Added t38pt_usertpsource option. See sip.conf.sample for details.
  * Added SIPnotify AMI command, for sending arbitrary SIP notify commands.
+ * 'sip show peers' and 'sip show users' display their entries sorted in
+    alphabetical order, as opposed to the order they were in, in the config 
+    file or database. 
 
 IAX Changes
 -----------

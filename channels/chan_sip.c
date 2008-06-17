@@ -12408,15 +12408,31 @@ static char *sip_show_tcp(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 #undef FORMAT2
 }
 
+int usercomparefunc(const void *a, const void *b);
+
+int usercomparefunc(const void *a, const void *b)
+{
+	struct sip_user **ap = (struct sip_user **)a;
+	struct sip_user **bp = (struct sip_user **)b;
+	return strcmp((*ap)->name, (*bp)->name);
+}
+
+
 /*! \brief  CLI Command 'SIP Show Users' */
 static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	regex_t regexbuf;
 	int havepattern = FALSE;
 	int count = 0;
+	int totcount = 0;
 	struct sip_user *user;
 	struct ao2_iterator i;
+	int objcount = ao2_container_count(users);
+	struct sip_user **userarray;
+	int k;
 	
+	userarray = ast_calloc(sizeof(struct sip_user *), objcount);
+
 #define FORMAT  "%-25.25s  %-15.15s  %-15.15s  %-15.15s  %-5.5s%-10.10s\n"
 
 	switch (cmd) {
@@ -12451,13 +12467,22 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	while ((user = ao2_t_iterator_next(&i, "iterate thru user table"))) {
 		ao2_lock(user);
-		count++;
+		totcount++;
 		if (havepattern && regexec(&regexbuf, user->name, 0, NULL, 0)) {
 			ao2_unlock(user);
 			unref_user(user, "toss iterator pointer via a continue in iterator loop");
 			continue;
 		}
+		userarray[count++] = user;
+		ao2_unlock(user);
+	}
 
+	qsort(userarray, count, sizeof(struct sip_user *), usercomparefunc);
+
+	for(k=0; k < count; k++) {
+		user = userarray[k];
+
+		ao2_lock(user);
 		ast_cli(a->fd, FORMAT, user->name, 
 			user->secret, 
 			user->accountcode,
@@ -12470,8 +12495,12 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	if (havepattern)
 		regfree(&regexbuf);
-	ast_cli(a->fd, "Total of %d user entries\n", count);
-	
+	if (havepattern)
+		ast_cli(a->fd, "Total %d of %d user entries\n", count, totcount);
+	else
+		ast_cli(a->fd, "Total of %d user entries\n", totcount);
+
+	ast_free(userarray);
 	return CLI_SUCCESS;
 #undef FORMAT
 }
@@ -12864,6 +12893,16 @@ static char *_sip_dbdump(int fd, int *total, struct mansession *s, const struct 
 	return CLI_SUCCESS;
 }
 
+int peercomparefunc(const void *a, const void *b);
+
+int peercomparefunc(const void *a, const void *b)
+{
+	struct sip_peer **ap = (struct sip_peer **)a;
+	struct sip_peer **bp = (struct sip_peer **)b;
+	return strcmp((*ap)->name, (*bp)->name);
+}
+
+
 /*! \brief Execute sip show peers command */
 static char *_sip_show_peers(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[])
 {
@@ -12885,8 +12924,13 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	const char *id;
 	char idtext[256] = "";
 	int realtimepeers;
-
+	int objcount = ao2_container_count(peers);
+	struct sip_peer **peerarray;
+	int k;
+	
+	
 	realtimepeers = ast_check_realtime("sippeers");
+	peerarray = ast_calloc(sizeof(struct sip_peer *), objcount);
 
 	if (s) {	/* Manager - get ActionID */
 		id = astman_get_header(m, "ActionID");
@@ -12911,11 +12955,28 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	if (!s) /* Normal list */
 		ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status", (realtimepeers ? "Realtime" : ""));
 	
+
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {	
+		ao2_lock(peer);
+		if (havepattern && regexec(&regexbuf, peer->name, 0, NULL, 0)) {
+			objcount--;
+			ao2_unlock(peer);
+			unref_peer(peer, "toss iterator peer ptr before continue");
+			continue;
+		}
+
+		peerarray[total_peers++] = peer;
+		ao2_unlock(peer);
+	}
+	
+	qsort(peerarray, total_peers, sizeof(struct sip_peer *), peercomparefunc);
+
+	for(k=0; k < total_peers; k++) {
 		char status[20] = "";
 		char srch[2000];
 		char pstatus;
+		peer = peerarray[k];
 		
 		ao2_lock(peer);
 		if (havepattern && regexec(&regexbuf, peer->name, 0, NULL, 0)) {
@@ -12986,8 +13047,6 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			status,
 			realtimepeers ? (peer->is_realtime ? "yes":"no") : "no");
 		}
-
-		total_peers++;
 		ao2_unlock(peer);
 		unref_peer(peer, "toss iterator peer ptr");
 	}
@@ -13002,7 +13061,8 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	if (total)
 		*total = total_peers;
 	
-
+	ast_free(peerarray);
+	
 	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
