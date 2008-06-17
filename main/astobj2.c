@@ -599,8 +599,17 @@ static int cd_cb(void *obj, void *arg, int flag)
 static void container_destruct(void *_c)
 {
 	struct ao2_container *c = _c;
+	int i;
 
 	ao2_callback(c, OBJ_UNLINK, cd_cb, NULL);
+
+	for (i = 0; i < c->n_buckets; i++) {
+		struct bucket_list *cur;
+
+		while ((cur = AST_LIST_REMOVE_HEAD(&c->buckets[i], entry))) {
+			ast_free(cur);
+		}
+	}
 
 #ifdef AO2_DEBUG
 	ast_atomic_fetchadd_int(&ao2.total_containers, -1);
