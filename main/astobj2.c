@@ -935,7 +935,7 @@ static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cl
 		 * right here so that when the container is unreffed later, the
 		 * objects will be freed
 		 */
-		ao2_t_ref(obj, -1, test);
+		ao2_t_ref(obj, -1, "test");
 	}
 	ast_cli(a->fd, "testing callbacks\n");
 	ao2_t_callback(c1, 0, print_cb, &a->fd,"test callback");
