@@ -44,15 +44,15 @@ static char *app = "BackgroundDetect";
 static char *synopsis = "Background a file with talk detect";
 
 static char *descrip = 
-"  BackgroundDetect(filename[,sil[,min,[max]]]):  Plays  back  a  given\n"
-"filename, waiting for interruption from a given digit (the digit must\n"
-"start the beginning of a valid extension, or it will be ignored).\n"
-"During the playback of the file, audio is monitored in the receive\n"
-"direction, and if a period of non-silence which is greater than 'min' ms\n"
-"yet less than 'max' ms is followed by silence for at least 'sil' ms then\n"
-"the audio playback is aborted and processing jumps to the 'talk' extension\n"
-"if available.  If unspecified, sil, min, and max default to 1000, 100, and\n"
-"infinity respectively.\n";
+"  BackgroundDetect(<filename>[,<sil>[,<min>[,<max>[,<analysistime>]]]]):\n"
+"Plays back <filename>, waiting for interruption from a given digit (the digit\n"
+"must start the beginning of a valid extension, or it will be ignored).  During\n"
+"the playback of the file, audio is monitored in the receive direction, and if\n"
+"a period of non-silence which is greater than <min> ms yet less than <max> ms\n"
+"is followed by silence for at least <sil> ms, which occurs during the first\n"
+"<analysistime> ms, then the audio playback is aborted and processing jumps to\n"
+"the <talk> extension, if available.  If unspecified, <sil>, <min>, <max>, and\n"
+"<analysistime> default to 1000, 100, infinity, and infinity respectively.\n";
 
 
 static int background_detect_exec(struct ast_channel *chan, void *data)
@@ -61,18 +61,22 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 	char *tmp;
 	struct ast_frame *fr;
 	int notsilent = 0;
-	struct timeval start = { 0, 0};
+	struct timeval start = { 0, 0 };
+	struct timeval detection_start = { 0, 0 };
 	int sil = 1000;
 	int min = 100;
 	int max = -1;
+	int analysistime = -1;
+	int continue_analysis = 1;
 	int x;
-	int origrformat=0;
+	int origrformat = 0;
 	struct ast_dsp *dsp = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filename);
 		AST_APP_ARG(silence);
 		AST_APP_ARG(min);
 		AST_APP_ARG(max);
+		AST_APP_ARG(analysistime);
 	);
 	
 	if (ast_strlen_zero(data)) {
@@ -83,18 +87,25 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 	tmp = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, tmp);
 
-	if (!ast_strlen_zero(args.silence) && (sscanf(args.silence, "%d", &x) == 1) && (x > 0))
+	if (!ast_strlen_zero(args.silence) && (sscanf(args.silence, "%d", &x) == 1) && (x > 0)) {
 		sil = x;
-	if (!ast_strlen_zero(args.min) && (sscanf(args.min, "%d", &x) == 1) && (x > 0))
+	}
+	if (!ast_strlen_zero(args.min) && (sscanf(args.min, "%d", &x) == 1) && (x > 0)) {
 		min = x;
-	if (!ast_strlen_zero(args.max) && (sscanf(args.max, "%d", &x) == 1) && (x > 0))
+	}
+	if (!ast_strlen_zero(args.max) && (sscanf(args.max, "%d", &x) == 1) && (x > 0)) {
 		max = x;
+	}
+	if (!ast_strlen_zero(args.analysistime) && (sscanf(args.analysistime, "%d", &x) == 1) && (x > 0)) {
+		analysistime = x;
+	}
 
-	ast_debug(1, "Preparing detect of '%s', sil=%d, min=%d, max=%d\n", args.filename, sil, min, max);
+	ast_debug(1, "Preparing detect of '%s', sil=%d, min=%d, max=%d, analysistime=%d\n", args.filename, sil, min, max, analysistime);
 	do {
 		if (chan->_state != AST_STATE_UP) {
-			if ((res = ast_answer(chan)))
+			if ((res = ast_answer(chan))) {
 				break;
+			}
 		}
 
 		origrformat = chan->readformat;
@@ -114,21 +125,31 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char *)data);
 			break;
 		}
-
+		detection_start = ast_tvnow();
 		while (chan->stream) {
 			res = ast_sched_wait(chan->sched);
 			if ((res < 0) && !chan->timingfunc) {
 				res = 0;
 				break;
 			}
-			if (res < 0)
+			if (res < 0) {
 				res = 1000;
+			}
 			res = ast_waitfor(chan, res);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Waitfor failed on %s\n", chan->name);
 				break;
 			} else if (res > 0) {
 				fr = ast_read(chan);
+				if (continue_analysis && analysistime >= 0) {
+					/* If we have a limit for the time to analyze voice
+					 * frames and the time has not expired */
+					if (ast_tvdiff_ms(ast_tvnow(), detection_start) >= analysistime) {
+						continue_analysis = 0;
+						ast_verb(3, "BackgroundDetect: Talk analysis time complete on %s.\n", chan->name);
+					}
+				}
+				
 				if (!fr) {
 					res = -1;
 					break;
@@ -142,7 +163,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 						ast_frfree(fr);
 						break;
 					}
-				} else if ((fr->frametype == AST_FRAME_VOICE) && (fr->subclass == AST_FORMAT_SLINEAR)) {
+				} else if ((fr->frametype == AST_FRAME_VOICE) && (fr->subclass == AST_FORMAT_SLINEAR) && continue_analysis) {
 					int totalsilence;
 					int ms;
 					res = ast_dsp_silence(dsp, fr, &totalsilence);
@@ -155,11 +176,11 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 							if (ms < 0)
 								ms = 0;
 							if ((ms > min) && ((max < 0) || (ms < max))) {
-								char ms_str[10];
+								char ms_str[12];
 								ast_debug(1, "Found qualified token of %d ms\n", ms);
 
 								/* Save detected talk time (in milliseconds) */ 
-								sprintf(ms_str, "%d", ms );	
+								snprintf(ms_str, sizeof(ms_str), "%d", ms);	
 								pbx_builtin_setvar_helper(chan, "TALK_DETECTED", ms_str);
 
 								ast_goto_if_exists(chan, chan->context, "talk", 1);
@@ -193,8 +214,9 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 				chan->name, ast_getformatname(origrformat));
 		}
 	}
-	if (dsp)
+	if (dsp) {
 		ast_dsp_free(dsp);
+	}
 	return res;
 }
 
