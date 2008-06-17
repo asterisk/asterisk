@@ -483,7 +483,7 @@ struct call_queue {
 	int numperiodicannounce;            /*!< The number of periodic announcements configured */
 	int randomperiodicannounce;         /*!< Are periodic announcments randomly chosen */
 	int roundingseconds;                /*!< How many seconds do we round to? */
-	int holdtime;                       /*!< Current avg holdtime, based on recursive boxcar filter */
+	int holdtime;                       /*!< Current avg holdtime, based on an exponential average */
 	int callscompleted;                 /*!< Number of queue calls completed */
 	int callsabandoned;                 /*!< Number of queue calls abandoned */
 	int servicelevel;                   /*!< seconds setting for servicelevel*/
@@ -1927,7 +1927,7 @@ static void recalc_holdtime(struct queue_ent *qe, int newholdtime)
 {
 	int oldvalue;
 
-	/* Calculate holdtime using a recursive boxcar filter */
+	/* Calculate holdtime using an exponential average */
 	/* Thanks to SRT for this contribution */
 	/* 2^2 (4) is the filter coefficient; a higher exponent would give old entries more weight */
 
