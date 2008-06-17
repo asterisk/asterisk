@@ -9552,9 +9552,10 @@ static int iax2_do_register(struct iax2_registry *reg)
 	 * call has the pointer to IP and must be updated to the new one
 	 */
 	if (reg->dnsmgr && ast_dnsmgr_changed(reg->dnsmgr) && (reg->callno > 0)) {
-		ast_mutex_lock(&iaxsl[reg->callno]);
-		iax2_destroy(reg->callno);
-		ast_mutex_unlock(&iaxsl[reg->callno]);
+		int callno = reg->callno;
+		ast_mutex_lock(&iaxsl[callno]);
+		iax2_destroy(callno);
+		ast_mutex_unlock(&iaxsl[callno]);
 		reg->callno = 0;
 	}
 	if (!reg->addr.sin_addr.s_addr) {
@@ -10156,13 +10157,14 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 static void peer_destructor(void *obj)
 {
 	struct iax2_peer *peer = obj;
+	int callno = peer->callno;
 
 	ast_free_ha(peer->ha);
 
-	if (peer->callno > 0) {
-		ast_mutex_lock(&iaxsl[peer->callno]);
-		iax2_destroy(peer->callno);
-		ast_mutex_unlock(&iaxsl[peer->callno]);
+	if (callno > 0) {
+		ast_mutex_lock(&iaxsl[callno]);
+		iax2_destroy(callno);
+		ast_mutex_unlock(&iaxsl[callno]);
 	}
 
 	register_peer_exten(peer, 0);
@@ -10669,12 +10671,13 @@ static void delete_users(void)
 	while ((reg = AST_LIST_REMOVE_HEAD(&registrations, entry))) {
 		AST_SCHED_DEL(sched, reg->expire);
 		if (reg->callno) {
-			ast_mutex_lock(&iaxsl[reg->callno]);
-			if (iaxs[reg->callno]) {
-				iaxs[reg->callno]->reg = NULL;
-				iax2_destroy(reg->callno);
+			int callno = reg->callno;
+			ast_mutex_lock(&iaxsl[callno]);
+			if (iaxs[callno]) {
+				iaxs[callno]->reg = NULL;
+				iax2_destroy(callno);
 			}
-			ast_mutex_unlock(&iaxsl[reg->callno]);
+			ast_mutex_unlock(&iaxsl[callno]);
 		}
 		if (reg->dnsmgr)
 			ast_dnsmgr_release(reg->dnsmgr);
