@@ -515,8 +515,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	if (child_stderr[1])
 		close(child_stderr[1]);
 	if (ser) {
-		fclose(ser->f);
-		ast_tcptls_session_instance_destroy(ser);
+		ao2_ref(ser, -1);
 	}
 	while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
 		ast_free(entry);

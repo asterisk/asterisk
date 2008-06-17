@@ -50,6 +50,7 @@
 #define _ASTERISK_SERVER_H
 
 #include "asterisk/utils.h"
+#include "asterisk/astobj2.h"
 
 #if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
 #define DO_SSL  /* comment in/out if you want to support ssl */
@@ -127,6 +128,7 @@ struct ast_tcptls_session_instance {
 	int client;
 	struct sockaddr_in requestor;
 	struct server_args *parent;
+	ast_mutex_t lock;
 };
 
 /*! \brief
@@ -165,12 +167,5 @@ void *ast_make_file_from_fd(void *data);
 
 HOOK_T ast_tcptls_server_read(struct ast_tcptls_session_instance *ser, void *buf, size_t count);
 HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *ser, void *buf, size_t count);
-
-/*!
- * \brief Destroy a server instance
- *
- * \return NULL for convenience
- */
-struct ast_tcptls_session_instance *ast_tcptls_session_instance_destroy(struct ast_tcptls_session_instance *i);
 
 #endif /* _ASTERISK_SERVER_H */

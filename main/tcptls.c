@@ -83,6 +83,12 @@ static int ssl_close(void *cookie)
 
 HOOK_T ast_tcptls_server_read(struct ast_tcptls_session_instance *ser, void *buf, size_t count)
 {
+	if (ser->fd == -1) {
+		ast_log(LOG_ERROR, "server_read called with an fd of -1\n");
+		errno = EIO;
+		return -1;
+	}
+
 #ifdef DO_SSL
 	if (ser->ssl)
 		return ssl_read(ser->ssl, buf, count);
@@ -92,11 +98,23 @@ HOOK_T ast_tcptls_server_read(struct ast_tcptls_session_instance *ser, void *buf
 
 HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *ser, void *buf, size_t count)
 {
+	if (ser->fd == -1) {
+		ast_log(LOG_ERROR, "server_write called with an fd of -1\n");
+		errno = EIO;
+		return -1;
+	}
+
 #ifdef DO_SSL
 	if (ser->ssl)
 		return ssl_write(ser->ssl, buf, count);
 #endif
 	return write(ser->fd, buf, count);
+}
+
+static void session_instance_destructor(void *obj)
+{
+	struct ast_tcptls_session_instance *i = obj;
+	ast_mutex_destroy(&i->lock);
 }
 
 void *ast_tcptls_server_root(void *data)
@@ -123,12 +141,15 @@ void *ast_tcptls_server_root(void *data)
 				ast_log(LOG_WARNING, "Accept failed: %s\n", strerror(errno));
 			continue;
 		}
-		ser = ast_calloc(1, sizeof(*ser));
+		ser = ao2_alloc(sizeof(*ser), session_instance_destructor);
 		if (!ser) {
 			ast_log(LOG_WARNING, "No memory for new session: %s\n", strerror(errno));
 			close(fd);
 			continue;
 		}
+
+		ast_mutex_init(&ser->lock);
+
 		flags = fcntl(fd, F_GETFL);
 		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 		ser->fd = fd;
@@ -140,7 +161,7 @@ void *ast_tcptls_server_root(void *data)
 		if (ast_pthread_create_detached_background(&launched, NULL, ast_make_file_from_fd, ser)) {
 			ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 			close(ser->fd);
-			ast_free(ser);
+			ao2_ref(ser, -1);
 		}
 	}
 	return NULL;
@@ -235,8 +256,10 @@ struct ast_tcptls_session_instance *ast_tcptls_client_start(struct server_args *
 		goto error;
 	}
 
-	if (!(ser = ast_calloc(1, sizeof(*ser))))
+	if (!(ser = ao2_alloc(sizeof(*ser), session_instance_destructor)))
 		goto error;
+
+	ast_mutex_init(&ser->lock);
 
 	flags = fcntl(desc->accept_fd, F_GETFL);
 	fcntl(desc->accept_fd, F_SETFL, flags & ~O_NONBLOCK);
@@ -262,7 +285,7 @@ error:
 	close(desc->accept_fd);
 	desc->accept_fd = -1;
 	if (ser)
-		ast_free(ser);
+		ao2_ref(ser, -1);
 	return NULL;
 }
 
@@ -447,8 +470,3 @@ void *ast_make_file_from_fd(void *data)
 		return ser;
 }
 
-struct ast_tcptls_session_instance *ast_tcptls_session_instance_destroy(struct ast_tcptls_session_instance *i)
-{
-	ast_free(i);
-	return NULL;
-}

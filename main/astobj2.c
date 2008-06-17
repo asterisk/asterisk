@@ -930,12 +930,6 @@ static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cl
 		ast_cli(a->fd, "object %d allocated as %p\n", i, obj);
 		sprintf(obj, "-- this is obj %d --", i);
 		ao2_link(c1, obj);
-		/* At this point, the refcount on obj is 2 due to the allocation
-		 * and linking. We can go ahead and reduce the refcount by 1
-		 * right here so that when the container is unreffed later, the
-		 * objects will be freed
-		 */
-		ao2_t_ref(obj, -1, "test");
 	}
 	ast_cli(a->fd, "testing callbacks\n");
 	ao2_t_callback(c1, 0, print_cb, &a->fd,"test callback");
