@@ -828,8 +828,17 @@ static void container_destruct(void *_c)
 static void container_destruct_debug(void *_c)
 {
 	struct ao2_container *c = _c;
+	int i;
 
 	_ao2_callback_debug(c, OBJ_UNLINK, cd_cb_debug, NULL, "container_destruct_debug called", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+
+	for (i = 0; i < c->n_buckets; i++) {
+		struct bucket_list *cur;
+
+		while ((cur = AST_LIST_REMOVE_HEAD(&c->buckets[i], entry))) {
+			ast_free(cur);
+		}
+	}
 
 #ifdef AO2_DEBUG
 	ast_atomic_fetchadd_int(&ao2.total_containers, -1);
