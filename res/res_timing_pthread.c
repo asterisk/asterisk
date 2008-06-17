@@ -149,7 +149,7 @@ static int pthread_timer_set_rate(int handle, unsigned int rate)
 		return -1;
 	}
 
-	if (rate > 0 && rate < MAX_RATE) {
+	if (rate > MAX_RATE) {
 		ast_log(LOG_ERROR, "res_timing_pthread only supports timers at a max rate of %d / sec\n",
 			MAX_RATE);
 		errno = EINVAL;
