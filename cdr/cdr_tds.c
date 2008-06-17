@@ -291,6 +291,9 @@ static void get_date(char *dateField, struct timeval tv)
 
 static int mssql_disconnect(void)
 {
+	if (!settings)
+		return 0;
+	
 	if (settings->tds) {
 		tds_free_socket(settings->tds);
 		settings->tds = NULL;
@@ -399,9 +402,12 @@ connect_fail:
 
 static void cdr_tds_config_destroy(void)
 {
-	ast_mutex_destroy(&settings->lock);
-	ast_string_field_free_memory(settings);
-	ast_free(settings);	
+	if (settings)
+	{
+		ast_mutex_destroy(&settings->lock);
+		ast_string_field_free_memory(settings);
+		ast_free(settings);	
+	}
 }
 
 static int tds_unload_module(void)
