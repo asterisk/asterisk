@@ -16344,12 +16344,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	int sipmethod;
 	int res = 1;
 	const char *c = get_header(req, "Cseq");
-	const char *msg = strchr(c, ' ');
+	/* Skip the Cseq and its subsequent spaces */
+	const char *msg = ast_skip_blanks(ast_skip_nonblanks((char *)c));
 
 	if (!msg)
 		msg = "";
-	else
-		msg++;
+
 	sipmethod = find_sip_method(msg);
 
 	owner = p->owner;
