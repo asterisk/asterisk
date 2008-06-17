@@ -30,7 +30,7 @@
 void print_tone_zone_sound(struct ind_tone_zone *zone_data, const char* name, 
     int toneid) {
   int i;
-  for (i=0; i<ZT_TONE_MAX; i++) {
+  for (i=0; i<DAHDI_TONE_MAX; i++) {
     if (zone_data->tones[i].toneid == toneid){
       printf("%s = %s\n", name, zone_data->tones[i].data);
       break;
@@ -61,15 +61,15 @@ void print_indications(struct ind_tone_zone *zone_data) {
   }
   putchar('\n');
   
-  print_tone_zone_sound(zone_data, "dial",        ZT_TONE_DIALTONE);
-  print_tone_zone_sound(zone_data, "busy",        ZT_TONE_BUSY);
-  print_tone_zone_sound(zone_data, "ring",        ZT_TONE_RINGTONE);
-  print_tone_zone_sound(zone_data, "congestion",  ZT_TONE_CONGESTION);
-  print_tone_zone_sound(zone_data, "callwaiting", ZT_TONE_CALLWAIT);
-  print_tone_zone_sound(zone_data, "dialrecall",  ZT_TONE_DIALRECALL);
-  print_tone_zone_sound(zone_data, "record",      ZT_TONE_RECORDTONE);
-  print_tone_zone_sound(zone_data, "info",        ZT_TONE_INFO);
-  print_tone_zone_sound(zone_data, "stutter",     ZT_TONE_STUTTER);
+  print_tone_zone_sound(zone_data, "dial",        DAHDI_TONE_DIALTONE);
+  print_tone_zone_sound(zone_data, "busy",        DAHDI_TONE_BUSY);
+  print_tone_zone_sound(zone_data, "ring",        DAHDI_TONE_RINGTONE);
+  print_tone_zone_sound(zone_data, "congestion",  DAHDI_TONE_CONGESTION);
+  print_tone_zone_sound(zone_data, "callwaiting", DAHDI_TONE_CALLWAIT);
+  print_tone_zone_sound(zone_data, "dialrecall",  DAHDI_TONE_DIALRECALL);
+  print_tone_zone_sound(zone_data, "record",      DAHDI_TONE_RECORDTONE);
+  print_tone_zone_sound(zone_data, "info",        DAHDI_TONE_INFO);
+  print_tone_zone_sound(zone_data, "stutter",     DAHDI_TONE_STUTTER);
   printf("\n\n");
 }
 

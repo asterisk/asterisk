@@ -225,7 +225,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg \link Config_sip SIP configuration  \endlink
  * \arg \link Config_mgcp MGCP configuration  \endlink
  * \arg \link Config_rtp RTP configuration  \endlink
- * \arg \link Config_zap Zaptel configuration  \endlink
+ * \arg \link Config_dahdi DAHDI configuration  \endlink
  * \arg \link Config_oss OSS (sound card) configuration  \endlink
  * \arg \link Config_alsa ALSA (sound card) configuration  \endlink
  * \arg \link Config_agent Agent (proxy channel) configuration  \endlink
@@ -339,10 +339,10 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \verbinclude voicemail.conf.sample
  */
 
-/*! \page Config_zap Zaptel configuration
- * \section zapconf zapata.conf
- * \arg Implemented in \ref chan_zap.c
- * \verbinclude zapata.conf.sample
+/*! \page Config_dahdi DAHDI configuration
+ * \section dahdiconf dahdi.conf
+ * \arg Implemented in \ref chan_dahdi.c
+ * \verbinclude dahdi.conf.sample
  */
 
 /*! \page Config_h323 H.323 channel driver information

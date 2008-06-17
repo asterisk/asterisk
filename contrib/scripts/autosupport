@@ -101,9 +101,9 @@ if [ "$ans" = "y" ]; then
   echo >> $OUTPUT;
 
   echo "------------------" >> $OUTPUT;
-  echo "ZAPTEL MODULE INFO" >> $OUTPUT;
+  echo "DAHDI MODULE INFO" >> $OUTPUT;
   echo "------------------" >> $OUTPUT;
-  modinfo /lib/modules/$(uname -r)/misc/*.ko >> $OUTPUT;
+  modinfo /lib/modules/$(uname -r)/dahdi/*.ko >> $OUTPUT;
   echo >> $OUTPUT;
   echo >> $OUTPUT;
   
@@ -149,17 +149,18 @@ if [ "$ans" = "y" ]; then
   echo >> $OUTPUT;
   echo >> $OUTPUT;
 
+  #jpeeler: REVISIT
   echo "------------------" >> $OUTPUT;
   echo "ZAPTEL CONFIG" >> $OUTPUT;
   echo "------------------" >> $OUTPUT;
-  grep -v '^#' /etc/zaptel.conf >> $OUTPUT;
+  grep -v '^#' /etc/dahdi.conf >> $OUTPUT;
   echo >> $OUTPUT;
   echo >> $OUTPUT;
 
   echo "------------------" >> $OUTPUT;
   echo "ZAPATA CONFIG" >> $OUTPUT;
   echo "------------------" >> $OUTPUT;
-  grep -v '^;' /etc/asterisk/zapata.conf >> $OUTPUT;
+  grep -v '^;' /etc/asterisk/chan_dahdi.conf >> $OUTPUT;
   echo >> $OUTPUT;
   echo >> $OUTPUT;
 

@@ -3285,9 +3285,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the
 		   conversation.  */
-		if (!strcmp(qe->chan->tech->type, "Zap"))
+		if (!strcmp(qe->chan->tech->type, "DAHDI"))
 			ast_channel_setoption(qe->chan, AST_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
-		if (!strcmp(peer->tech->type, "Zap"))
+		if (!strcmp(peer->tech->type, "DAHDI"))
 			ast_channel_setoption(peer, AST_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
 		/* Update parameters for the queue */
 		time(&now);

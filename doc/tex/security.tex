@@ -57,15 +57,15 @@ in the appropriate section.  A well designed PBX might look like this:
 \begin{astlisting}
 \begin{verbatim}
 [longdistance]
-exten => _91NXXNXXXXXX,1,Dial(Zap/g2/${EXTEN:1})
+exten => _91NXXNXXXXXX,1,Dial(DAHDI/g2/${EXTEN:1})
 include => local
 
 [local]
-exten => _9NXXNXXX,1,Dial(Zap/g2/${EXTEN:1})
+exten => _9NXXNXXX,1,Dial(DAHDI/g2/${EXTEN:1})
 include => default
 
 [default]
-exten => 6123,Dial(Zap/1)
+exten => 6123,Dial(DAHDI/1)
 \end{verbatim}
 \end{astlisting}
 

@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief App to flash a zap trunk
+ * \brief App to flash a DAHDI trunk
  *
  * \author Mark Spencer <markster@digium.com>
  * 
@@ -26,14 +26,14 @@
  */
  
 /*** MODULEINFO
-	<depend>zaptel</depend>
+	<depend>dahdi</depend>
  ***/
 
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/zapata.h"
+#include "asterisk/dahdi.h"
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -45,22 +45,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "Flash";
 
-static char *synopsis = "Flashes a Zap Trunk";
+static char *synopsis = "Flashes a DAHDI Trunk";
 
 static char *descrip = 
-"Performs a flash on a zap trunk.  This can be used\n"
+"Performs a flash on a DAHDI trunk.  This can be used\n"
 "to access features provided on an incoming analogue circuit\n"
 "such as conference and call waiting. Use with SendDTMF() to\n"
 "perform external transfers\n";
 
 
-static inline int zt_wait_event(int fd)
+static inline int dahdi_wait_event(int fd)
 {
-	/* Avoid the silly zt_waitevent which ignores a bunch of events */
+	/* Avoid the silly dahdi_waitevent which ignores a bunch of events */
 	int i,j=0;
-	i = ZT_IOMUX_SIGEVENT;
-	if (ioctl(fd, ZT_IOMUX, &i) == -1) return -1;
-	if (ioctl(fd, ZT_GETEVENT, &j) == -1) return -1;
+	i = DAHDI_IOMUX_SIGEVENT;
+	if (ioctl(fd, DAHDI_IOMUX, &i) == -1) return -1;
+	if (ioctl(fd, DAHDI_GETEVENT, &j) == -1) return -1;
 	return j;
 }
 
@@ -68,23 +68,23 @@ static int flash_exec(struct ast_channel *chan, void *data)
 {
 	int res = -1;
 	int x;
-	struct zt_params ztp;
+	struct dahdi_params dahdip;
 
-	if (strcasecmp(chan->tech->type, "Zap")) {
-		ast_log(LOG_WARNING, "%s is not a Zap channel\n", chan->name);
+	if (strcasecmp(chan->tech->type, "DAHDI")) {
+		ast_log(LOG_WARNING, "%s is not a DAHDI channel\n", chan->name);
 		return -1;
 	}
 	
-	memset(&ztp, 0, sizeof(ztp));
-	res = ioctl(chan->fds[0], ZT_GET_PARAMS, &ztp);
+	memset(&dahdip, 0, sizeof(dahdip));
+	res = ioctl(chan->fds[0], DAHDI_GET_PARAMS, &dahdip);
 	if (!res) {
-		if (ztp.sigtype & __ZT_SIG_FXS) {
-			x = ZT_FLASH;
-			res = ioctl(chan->fds[0], ZT_HOOK, &x);
+		if (dahdip.sigtype & __DAHDI_SIG_FXS) {
+			x = DAHDI_FLASH;
+			res = ioctl(chan->fds[0], DAHDI_HOOK, &x);
 			if (!res || (errno == EINPROGRESS)) {
 				if (res) {
 					/* Wait for the event to finish */
-					zt_wait_event(chan->fds[0]);
+					dahdi_wait_event(chan->fds[0]);
 				}
 				res = ast_safe_sleep(chan, 1000);
 				ast_verb(3, "Flashed channel %s\n", chan->name);

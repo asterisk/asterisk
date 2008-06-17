@@ -34,7 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <math.h>
 
 #include "asterisk/paths.h"	/* use ast_config_AST_SYSTEM_NAME */
-#include "asterisk/zapata.h"
+#include "asterisk/dahdi.h"
 
 #include "asterisk/pbx.h"
 #include "asterisk/frame.h"
@@ -800,13 +800,13 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 #endif
 	}
 
-#ifdef HAVE_ZAPTEL
-	tmp->timingfd = open("/dev/zap/timer", O_RDWR);
+#ifdef HAVE_DAHDI
+	tmp->timingfd = open("/dev/dahdi/timer", O_RDWR);
 	if (tmp->timingfd > -1) {
 		/* Check if timing interface supports new
 		   ping/pong scheme */
 		flags = 1;
-		if (!ioctl(tmp->timingfd, ZT_TIMERPONG, &flags))
+		if (!ioctl(tmp->timingfd, DAHDI_TIMERPONG, &flags))
 			needqueue = 0;
 	}
 #else
@@ -817,7 +817,7 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 		if (pipe(tmp->alertpipe)) {
 			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
 alertpipe_failed:
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 			if (tmp->timingfd > -1)
 				close(tmp->timingfd);
 #endif
@@ -999,9 +999,9 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
 			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
 				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 	} else if (chan->timingfd > -1) {
-		ioctl(chan->timingfd, ZT_TIMERPING, &blah);
+		ioctl(chan->timingfd, DAHDI_TIMERPING, &blah);
 #endif				
 	} else if (ast_test_flag(chan, AST_FLAG_BLOCKING)) {
 		pthread_kill(chan->blocker, SIGURG);
@@ -2158,14 +2158,14 @@ int ast_waitfordigit(struct ast_channel *c, int ms)
 int ast_settimeout(struct ast_channel *c, int samples, int (*func)(const void *data), void *data)
 {
 	int res = -1;
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 	if (c->timingfd > -1) {
 		if (!func) {
 			samples = 0;
 			data = 0;
 		}
 		ast_debug(1, "Scheduling timer at %d sample intervals\n", samples);
-		res = ioctl(c->timingfd, ZT_TIMERCONFIG, &samples);
+		res = ioctl(c->timingfd, DAHDI_TIMERCONFIG, &samples);
 		c->timingfunc = func;
 		c->timingdata = data;
 	}
@@ -2388,26 +2388,26 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		read(chan->alertpipe[0], &blah, sizeof(blah));
 	}
 
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 	if (chan->timingfd > -1 && chan->fdno == AST_TIMING_FD && ast_test_flag(chan, AST_FLAG_EXCEPTION)) {
 		int res;
 
 		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
 		blah = -1;
 		/* IF we can't get event, assume it's an expired as-per the old interface */
-		res = ioctl(chan->timingfd, ZT_GETEVENT, &blah);
+		res = ioctl(chan->timingfd, DAHDI_GETEVENT, &blah);
 		if (res)
-			blah = ZT_EVENT_TIMER_EXPIRED;
+			blah = DAHDI_EVENT_TIMER_EXPIRED;
 
-		if (blah == ZT_EVENT_TIMER_PING) {
+		if (blah == DAHDI_EVENT_TIMER_PING) {
 			if (AST_LIST_EMPTY(&chan->readq) || !AST_LIST_NEXT(AST_LIST_FIRST(&chan->readq), frame_list)) {
 				/* Acknowledge PONG unless we need it again */
-				if (ioctl(chan->timingfd, ZT_TIMERPONG, &blah)) {
+				if (ioctl(chan->timingfd, DAHDI_TIMERPONG, &blah)) {
 					ast_log(LOG_WARNING, "Failed to pong timer on '%s': %s\n", chan->name, strerror(errno));
 				}
 			}
-		} else if (blah == ZT_EVENT_TIMER_EXPIRED) {
-			ioctl(chan->timingfd, ZT_TIMERACK, &blah);
+		} else if (blah == DAHDI_EVENT_TIMER_EXPIRED) {
+			ioctl(chan->timingfd, DAHDI_TIMERACK, &blah);
 			if (chan->timingfunc) {
 				/* save a copy of func/data before unlocking the channel */
 				int (*func)(const void *) = chan->timingfunc;
@@ -2416,7 +2416,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				func(data);
 			} else {
 				blah = 0;
-				ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
+				ioctl(chan->timingfd, DAHDI_TIMERCONFIG, &blah);
 				chan->timingdata = NULL;
 				ast_channel_unlock(chan);
 			}
@@ -3405,6 +3405,11 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 	if (AST_RWLIST_RDLOCK(&channels)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return NULL;
+	}
+
+	if (!strcasecmp(type, "Zap")) {
+		type = "DAHDI";
+		ast_log(LOG_NOTICE, "Zap interface translated to DAHDI.\n");
 	}
 
 	AST_LIST_TRAVERSE(&backends, chan, list) {

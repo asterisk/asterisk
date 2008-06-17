@@ -8,7 +8,7 @@
 #
 # Create a (huge) bunch of call files to dial via pbx_spool.
 # Defaults are selected with 'Enter' and, if all defaults
-# are selected, you'll dial Zap/1/s into default|s|1
+# are selected, you'll dial DAHDI/1/s into default|s|1
 #
 
 
@@ -98,8 +98,8 @@ Account: $::account
 }
 
 # prompt the user for some info
-get technology "Zap" "\nEnter technology type
-Zap, IAX, SIP, etc."
+get technology "DAHDI" "\nEnter technology type
+DAHDI, IAX, SIP, etc."
 get chans "1" "\nEnter channel(s) or group to test in formats like
 2\n1-4\n3 5 7 9\n1-23,25-47,49-71,73-95\ng4\ng2,g1"
 set channels [splitchans $chans]

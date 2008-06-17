@@ -18,31 +18,25 @@
  */
 
 /*! \file
- * \brief Stub to find zaptel headers
+ * \brief Stub to find DAHDI headers
 *
- * Stub to find the zaptel headers. The configure script will
- * define HAVE_ZAPTEL_VERSION according to what it has found.
- * Applications should include "zapata.h" and not (directly)
- * <foo/zaptel.h> or <foo/tonezone.h>.
+ * Stub to find the DAHDI headers. The configure script will
+ * define HAVE_DAHDI_VERSION according to what it has found.
+ * Applications should include "user.h" and not (directly)
+ * <foo/user.h>
  * For the mapping of version numbers to location see below.
  *
  */
-#ifndef _AST_ZAPATA_H
-#define	_AST_ZAPATA_H
+#ifndef _AST_DAHDI_H
+#define	_AST_DAHDI_H
 
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 #include <sys/ioctl.h>
 
-#if defined(HAVE_ZAPTEL_VERSION) && HAVE_ZAPTEL_VERSION < 100
-/* Very old versions of zaptel drivers on FreeBSD install in ${PREFIX} */
-#include <zaptel.h>
-#include <tonezone.h>
-#else
-/* newer versions install in ${PREFIX}/zaptel */
-#include <zaptel/zaptel.h>
-#include <zaptel/tonezone.h>
-#endif	/* HAVE_ZAPTEL_VERSION < 100 */
+/* newer versions install in ${PREFIX}/dahdi */
+#include <dahdi/user.h>
+#include <dahdi/tonezone.h>
 
-#endif	/* HAVE_ZAPTEL */
+#endif	/* HAVE_DAHDI */
 
-#endif	/* _AST_ZAPATA_H */
+#endif	/* _AST_DAHDI_H */

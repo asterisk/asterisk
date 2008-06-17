@@ -29,7 +29,7 @@
  */
 
 /*** MODULEINFO
-	<use>zaptel</use>
+	<use>dahdi</use>
 	<use>crypto</use>
  ***/
 
@@ -53,7 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #include <regex.h>
 
-#include "asterisk/zapata.h"
+#include "asterisk/dahdi.h"
 #include "asterisk/paths.h"	/* need ast_config_AST_DATA_DIR for firmware */
 
 #include "asterisk/lock.h"
@@ -7193,17 +7193,17 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	char buf[1024];
 	int res, processed = 0, totalcalls = 0;
 	struct iax2_trunk_peer *tpeer = NULL, *drop = NULL;
-#ifdef ZT_TIMERACK
+#ifdef DAHDI_TIMERACK
 	int x = 1;
 #endif
 	struct timeval now = ast_tvnow();
 	if (iaxtrunkdebug)
 		ast_verbose("Beginning trunk processing. Trunk queue ceiling is %d bytes per host\n", trunkmaxsize);
 	if (events & AST_IO_PRI) {
-#ifdef ZT_TIMERACK
+#ifdef DAHDI_TIMERACK
 		/* Great, this is a timing interface, just call the ioctl */
-		if (ioctl(fd, ZT_TIMERACK, &x)) {
-			ast_log(LOG_WARNING, "Unable to acknowledge zap timer. IAX trunking will fail!\n");
+		if (ioctl(fd, DAHDI_TIMERACK, &x)) {
+			ast_log(LOG_WARNING, "Unable to acknowledge DAHDI timer. IAX trunking will fail!\n");
 			usleep(1);
 			return -1;
 		}
@@ -10254,7 +10254,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "trunk")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_TRUNK);	
 				if (ast_test_flag(peer, IAX_TRUNK) && (timingfd < 0)) {
-					ast_log(LOG_WARNING, "Unable to support trunking on peer '%s' without zaptel timing\n", peer->name);
+					ast_log(LOG_WARNING, "Unable to support trunking on peer '%s' without DAHDI timing\n", peer->name);
 					ast_clear_flag(peer, IAX_TRUNK);
 				}
 			} else if (!strcasecmp(v->name, "auth")) {
@@ -10522,7 +10522,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "trunk")) {
 				ast_set2_flag(user, ast_true(v->value), IAX_TRUNK);	
 				if (ast_test_flag(user, IAX_TRUNK) && (timingfd < 0)) {
-					ast_log(LOG_WARNING, "Unable to support trunking on user '%s' without zaptel timing\n", user->name);
+					ast_log(LOG_WARNING, "Unable to support trunking on user '%s' without DAHDI timing\n", user->name);
 					ast_clear_flag(user, IAX_TRUNK);
 				}
 			} else if (!strcasecmp(v->name, "auth")) {
@@ -10714,14 +10714,14 @@ static void prune_peers(void)
 
 static void set_timing(void)
 {
-#ifdef HAVE_ZAPTEL
+#ifdef HAVE_DAHDI
 	int bs = trunkfreq * 8;
 	if (timingfd > -1) {
 		if (
-#ifdef ZT_TIMERACK
-			ioctl(timingfd, ZT_TIMERCONFIG, &bs) &&
+#ifdef DAHDI_TIMERACK
+			ioctl(timingfd, DAHDI_TIMERCONFIG, &bs) &&
 #endif			
-			ioctl(timingfd, ZT_SET_BLOCKSIZE, &bs))
+			ioctl(timingfd, DAHDI_SET_BLOCKSIZE, &bs))
 			ast_log(LOG_WARNING, "Unable to set blocksize on timing source\n");
 	}
 #endif
@@ -11985,12 +11985,12 @@ static int load_module(void)
 	iax_set_error(iax_error_output);
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
 	
-#ifdef HAVE_ZAPTEL
-#ifdef ZT_TIMERACK
-	timingfd = open("/dev/zap/timer", O_RDWR);
+#ifdef HAVE_DAHDI
+#ifdef DAHDI_TIMERACK
+	timingfd = open("/dev/dahdi/timer", O_RDWR);
 	if (timingfd < 0)
 #endif
-		timingfd = open("/dev/zap/pseudo", O_RDWR);
+		timingfd = open("/dev/dahdi/pseudo", O_RDWR);
 	if (timingfd < 0) 
 		ast_log(LOG_WARNING, "Unable to open IAX timing interface: %s\n", strerror(errno));
 #endif		

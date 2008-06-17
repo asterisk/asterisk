@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
+#include "asterisk/options.h"
 
 #define AST_NAME_STRLEN 256
 
@@ -497,30 +498,32 @@ static struct chanspy_ds *next_channel(struct ast_channel *chan,
 	const struct ast_channel *last, const char *spec,
 	const char *exten, const char *context, struct chanspy_ds *chanspy_ds)
 {
-	struct ast_channel *this;
+	struct ast_channel *next;
+	char channel_name[AST_CHANNEL_NAME];
 
 redo:
 	if (!ast_strlen_zero(spec))
-		this = ast_walk_channel_by_name_prefix_locked(last, spec, strlen(spec));
+		next = ast_walk_channel_by_name_prefix_locked(last, spec, strlen(spec));
 
 	else if (!ast_strlen_zero(exten))
-		this = ast_walk_channel_by_exten_locked(last, exten, context);
+		next = ast_walk_channel_by_exten_locked(last, exten, context);
 	else
-		this = ast_channel_walk_locked(last);
+		next = ast_channel_walk_locked(last);
 
-	if (!this)
+	if (!next)
 		return NULL;
 
-	if (!strncmp(this->name, "Zap/pseudo", 10)) {
-		ast_channel_unlock(this);
+	snprintf(channel_name, AST_CHANNEL_NAME, "%s/pseudo", dahdi_chan_name);
+	if (!strncmp(next->name, channel_name, 10)) {
+		ast_channel_unlock(next);
 		goto redo;
-	} else if (this == chan) {
-		last = this;
-		ast_channel_unlock(this);
+	} else if (next == chan) {
+		last = next;
+		ast_channel_unlock(next);
 		goto redo;
 	}
 
-	return setup_chanspy_ds(this, chanspy_ds);
+	return setup_chanspy_ds(next, chanspy_ds);
 }
 
 static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,

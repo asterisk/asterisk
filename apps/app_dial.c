@@ -168,8 +168,8 @@ static char *descrip =
 "    o    - Specify that the CallerID that was present on the *calling* channel\n"
 "           be set as the CallerID on the *called* channel. This was the\n"
 "           behavior of Asterisk 1.0 and earlier.\n"
-"    O([x]) - \"Operator Services\" mode (Zaptel channel to Zaptel channel\n"
-"             only, if specified on non-Zaptel interface, it will be ignored).\n"
+"    O([x]) - \"Operator Services\" mode (DAHDI channel to DAHDI channel\n"
+"             only, if specified on non-DAHDI interface, it will be ignored).\n"
 "             When the destination answers (presumably an operator services\n"
 "             station), the originator no longer has control of their line.\n"
 "             They may hang up, but the switch will not release their line\n"
@@ -1873,9 +1873,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				res = -1;
 				goto done;
 			}
-			if (opermode && !strncmp(chan->name, "Zap", 3) && !strncmp(peer->name, "Zap", 3)) {
-				/* what's this special handling for Zap <-> Zap ?
-				 * A: Zap to Zap calls are natively bridged at the kernel driver
+			if (opermode && !strncmp(chan->tech->type, "DAHDI", 3) && !strncmp(peer->name, "DAHDI", 3)) {
+				/* what's this special handling for dahdi <-> dahdi ?
+				 * A: dahdi to dahdi calls are natively bridged at the kernel driver
 				 * level, so we need to ensure that this mode gets propagated
 				 * all the way down. */
 				struct oprmode oprmode;

@@ -99,14 +99,14 @@ Changes to manager version 1.1:
 
 - The MeetmeJoin now has caller ID name and Caller ID number fields (like MeetMeLeave)
 
-- Action ZapShowChannels
+- Action DAHDIShowChannels
 	Header changes
-	- Channel:	-> ZapChannel
+	- Channel:	-> DAHDIChannel
 	For active channels, the Channel: and Uniqueid: headers are added
-	You can now add a "ZapChannel: " argument to zapshowchannels actions
+	You can now add a "DAHDIChannel: " argument to DAHDIshowchannels actions
 	to only get information about one channel.
 
-- Event ZapShowChannelsComplete
+- Event DAHDIShowChannelsComplete
 	New header
 	- (new)		-> Items: 	Reports number of channels reported
 

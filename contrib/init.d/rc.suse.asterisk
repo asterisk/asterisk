@@ -22,11 +22,11 @@
 
 ### BEGIN INIT INFO
 # Provides:                    asterisk
-# Required-Start:      +zaptel $network $named
+# Required-Start:      +dahdi $network $named
 # Required-Stop:
 # Default-Start:     3 5
 # Default-Stop:      0 1 2 4 6
-# Description: zaptel - zaptel modules for Asterisk
+# Description: dahdi - dahdi modules for Asterisk
 ### END INIT INFO
 
 # Source function library.

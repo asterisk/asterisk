@@ -151,7 +151,7 @@ exten = _X./_80058752[0-8]0,1,Goto(smsmtrx,${EXTEN}-${CALLERID(num):8:1},1)
 \end{astlisting}
 
    Alternatively, if you have the correct national prefix on incoming
-   CLI, e.g. using zaphfc, you might use:
+   CLI, e.g. using dahdi_hfc, you might use:
 \begin{astlisting}
 \begin{verbatim}
 exten = _X./08005875290,1,Goto(smsmtrx,${EXTEN},1)

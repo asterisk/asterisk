@@ -30,14 +30,14 @@
  */
 
 /*** MODULEINFO
-	<depend>zaptel</depend>
+	<depend>dahdi</depend>
  ***/
 
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/zapata.h"
+#include "asterisk/dahdi.h"
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -229,15 +229,15 @@ static const char *descrip =
 "conference.  If the conference number is omitted, the user will be prompted\n"
 "to enter one.  User can exit the conference by hangup, or if the 'p' option\n"
 "is specified, by pressing '#'.\n"
-"Please note: The Zaptel kernel modules and at least one hardware driver (or ztdummy)\n"
-"             must be present for conferencing to operate properly. In addition, the chan_zap\n"
+"Please note: The DAHDI kernel modules and at least one hardware driver (or dahdi_dummy)\n"
+"             must be present for conferencing to operate properly. In addition, the chan_dahdi\n"
 "             channel driver must be loaded for the 'i' and 'r' options to operate at all.\n\n"
 "The option string may contain zero or more of the following characters:\n"
 "      'a' -- set admin mode\n"
 "      'A' -- set marked mode\n"
 "      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND}\n"
 "             Default: conf-background.agi  (Note: This does not work with\n"
-"             non-Zap channels in the same conference)\n"
+"             non-DAHDI channels in the same conference)\n"
 "      'c' -- announce user(s) count on joining a conference\n"
 "      'C' -- continue in dialplan when kicked out of conference\n"
 "      'd' -- dynamically add conference\n"
@@ -362,7 +362,7 @@ struct ast_conference {
 	struct ast_channel *chan;               /*!< Announcements channel */
 	struct ast_channel *lchan;              /*!< Listen/Record channel */
 	int fd;                                 /*!< Announcements fd */
-	int zapconf;                            /*!< Zaptel Conf # */
+	int dahdiconf;                            /*!< DAHDI Conf # */
 	int users;                              /*!< Number of active users */
 	int markedusers;                        /*!< Number of marked users */
 	int maxusers;                           /*!< Participant limit if scheduled */
@@ -404,7 +404,7 @@ struct ast_conf_user {
 	int adminflags;                         /*!< Flags set by the Admin */
 	struct ast_channel *chan;               /*!< Connected channel */
 	int talking;                            /*!< Is user talking */
-	int zapchannel;                         /*!< Is a Zaptel channel */
+	int dahdichannel;                         /*!< Is a DAHDI channel */
 	char usrvalue[50];                      /*!< Custom User Value */
 	char namerecloc[PATH_MAX];				/*!< Name Recorded file Location */
 	time_t jointime;                        /*!< Time the user joined the conference */
@@ -640,8 +640,8 @@ static int careful_write(int fd, unsigned char *data, int len, int block)
 
 	while (len) {
 		if (block) {
-			x = ZT_IOMUX_WRITE | ZT_IOMUX_SIGEVENT;
-			res = ioctl(fd, ZT_IOMUX, &x);
+			x = DAHDI_IOMUX_WRITE | DAHDI_IOMUX_SIGEVENT;
+			res = ioctl(fd, DAHDI_IOMUX, &x);
 		} else
 			res = 0;
 		if (res >= 0)
@@ -802,7 +802,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
 static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic, int refcount, const struct ast_channel *chan)
 {
 	struct ast_conference *cnf;
-	struct zt_confinfo ztc = { 0, };
+	struct dahdi_confinfo dahdic = { 0, };
 	int confno_int = 0;
 
 	AST_LIST_LOCK(&confs);
@@ -828,11 +828,11 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	ast_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
 	ast_copy_string(cnf->uniqueid, chan->uniqueid, sizeof(cnf->uniqueid));
 
-	/* Setup a new zap conference */
-	ztc.confno = -1;
-	ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
-	cnf->fd = open("/dev/zap/pseudo", O_RDWR);
-	if (cnf->fd < 0 || ioctl(cnf->fd, ZT_SETCONF, &ztc)) {
+	/* Setup a new dahdi conference */
+	dahdic.confno = -1;
+	dahdic.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
+	cnf->fd = open("/dev/dahdi/pseudo", O_RDWR);
+	if (cnf->fd < 0 || ioctl(cnf->fd, DAHDI_SETCONF, &dahdic)) {
 		ast_log(LOG_WARNING, "Unable to open pseudo device\n");
 		if (cnf->fd >= 0)
 			close(cnf->fd);
@@ -841,17 +841,17 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 		goto cnfout;
 	}
 
-	cnf->zapconf = ztc.confno;
+	cnf->dahdiconf = dahdic.confno;
 
 	/* Setup a new channel for playback of audio files */
-	cnf->chan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
+	cnf->chan = ast_request("DAHDI", AST_FORMAT_SLINEAR, "pseudo", NULL);
 	if (cnf->chan) {
 		ast_set_read_format(cnf->chan, AST_FORMAT_SLINEAR);
 		ast_set_write_format(cnf->chan, AST_FORMAT_SLINEAR);
-		ztc.chan = 0;
-		ztc.confno = cnf->zapconf;
-		ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
-		if (ioctl(cnf->chan->fds[0], ZT_SETCONF, &ztc)) {
+		dahdic.chan = 0;
+		dahdic.confno = cnf->dahdiconf;
+		dahdic.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
+		if (ioctl(cnf->chan->fds[0], DAHDI_SETCONF, &dahdic)) {
 			ast_log(LOG_WARNING, "Error setting conference\n");
 			if (cnf->chan)
 				ast_hangup(cnf->chan);
@@ -868,7 +868,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	cnf->start = time(NULL);
 	cnf->maxusers = 0x7fffffff;
 	cnf->isdynamic = dynamic ? 1 : 0;
-	ast_verb(3, "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
+	ast_verb(3, "Created MeetMe conference %d for conference '%s'\n", cnf->dahdiconf, cnf->confno);
 	AST_LIST_INSERT_HEAD(&confs, cnf, list);
 
 	/* Reserve conference number in map */
@@ -1310,8 +1310,8 @@ static void conf_flush(int fd, struct ast_channel *chan)
 	}
 
 	/* flush any data sitting in the pseudo channel */
-	x = ZT_FLUSH_ALL;
-	if (ioctl(fd, ZT_FLUSH, &x))
+	x = DAHDI_FLUSH_ALL;
+	if (ioctl(fd, DAHDI_FLUSH, &x))
 		ast_log(LOG_WARNING, "Error flushing channel\n");
 
 }
@@ -1480,7 +1480,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	struct ast_conf_user *user = NULL;
 	struct ast_conf_user *usr = NULL;
 	int fd;
-	struct zt_confinfo ztc, ztc_empty;
+	struct dahdi_confinfo dahdic, dahdic_empty;
 	struct ast_frame *f;
 	struct ast_channel *c;
 	struct ast_frame fr;
@@ -1489,7 +1489,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int nfds;
 	int res;
 	int flags;
-	int retryzap;
+	int retrydahdi;
 	int origfd;
 	int musiconhold = 0;
 	int firstpass = 0;
@@ -1516,7 +1516,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	char members[10] = "";
 	int dtmf, opt_waitmarked_timeout = 0;
 	time_t timeout = 0;
-	ZT_BUFFERINFO bi;
+	DAHDI_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 	char *exitkeys = NULL;
@@ -1625,13 +1625,13 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	}
 
 	ast_mutex_lock(&conf->recordthreadlock);
-	if ((conf->recordthread == AST_PTHREADT_NULL) && (confflags & CONFFLAG_RECORDCONF) && ((conf->lchan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL)))) {
+	if ((conf->recordthread == AST_PTHREADT_NULL) && (confflags & CONFFLAG_RECORDCONF) && ((conf->lchan = ast_request("DAHDI", AST_FORMAT_SLINEAR, "pseudo", NULL)))) {
 		ast_set_read_format(conf->lchan, AST_FORMAT_SLINEAR);
 		ast_set_write_format(conf->lchan, AST_FORMAT_SLINEAR);
-		ztc.chan = 0;
-		ztc.confno = conf->zapconf;
-		ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
-		if (ioctl(conf->lchan->fds[0], ZT_SETCONF, &ztc)) {
+		dahdic.chan = 0;
+		dahdic.confno = conf->dahdiconf;
+		dahdic.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
+		if (ioctl(conf->lchan->fds[0], DAHDI_SETCONF, &dahdic)) {
 			ast_log(LOG_WARNING, "Error starting listen channel\n");
 			ast_hangup(conf->lchan);
 			conf->lchan = NULL;
@@ -1805,13 +1805,13 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		goto outrun;
 	}
 
-	retryzap = (strcasecmp(chan->tech->type, "Zap") || (chan->audiohooks || chan->monitor) ? 1 : 0);
-	user->zapchannel = !retryzap;
+	retrydahdi = (strcasecmp(chan->tech->type, "DAHDI") || (chan->audiohooks || chan->monitor) ? 1 : 0);
+	user->dahdichannel = !retrydahdi;
 
- zapretry:
+ dahdiretry:
 	origfd = chan->fds[0];
-	if (retryzap) {
-		fd = open("/dev/zap/pseudo", O_RDWR);
+	if (retrydahdi) {
+		fd = open("/dev/dahdi/pseudo", O_RDWR);
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
 			goto outrun;
@@ -1832,16 +1832,16 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		/* Setup buffering information */
 		memset(&bi, 0, sizeof(bi));
 		bi.bufsize = CONF_SIZE / 2;
-		bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
-		bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
+		bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
+		bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
 		bi.numbufs = audio_buffers;
-		if (ioctl(fd, ZT_SET_BUFINFO, &bi)) {
+		if (ioctl(fd, DAHDI_SET_BUFINFO, &bi)) {
 			ast_log(LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
 			close(fd);
 			goto outrun;
 		}
 		x = 1;
-		if (ioctl(fd, ZT_SETLINEAR, &x)) {
+		if (ioctl(fd, DAHDI_SETLINEAR, &x)) {
 			ast_log(LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
 			close(fd);
 			goto outrun;
@@ -1852,27 +1852,27 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		fd = chan->fds[0];
 		nfds = 0;
 	}
-	memset(&ztc, 0, sizeof(ztc));
-	memset(&ztc_empty, 0, sizeof(ztc_empty));
+	memset(&dahdic, 0, sizeof(dahdic));
+	memset(&dahdic_empty, 0, sizeof(dahdic_empty));
 	/* Check to see if we're in a conference... */
-	ztc.chan = 0;	
-	if (ioctl(fd, ZT_GETCONF, &ztc)) {
+	dahdic.chan = 0;	
+	if (ioctl(fd, DAHDI_GETCONF, &dahdic)) {
 		ast_log(LOG_WARNING, "Error getting conference\n");
 		close(fd);
 		goto outrun;
 	}
-	if (ztc.confmode) {
+	if (dahdic.confmode) {
 		/* Whoa, already in a conference...  Retry... */
-		if (!retryzap) {
-			ast_debug(1, "Zap channel is in a conference already, retrying with pseudo\n");
-			retryzap = 1;
-			goto zapretry;
+		if (!retrydahdi) {
+			ast_debug(1, "DAHDI channel is in a conference already, retrying with pseudo\n");
+			retrydahdi = 1;
+			goto dahdiretry;
 		}
 	}
-	memset(&ztc, 0, sizeof(ztc));
+	memset(&dahdic, 0, sizeof(dahdic));
 	/* Add us to the conference */
-	ztc.chan = 0;	
-	ztc.confno = conf->zapconf;
+	dahdic.chan = 0;	
+	dahdic.confno = conf->dahdiconf;
 
 	ast_mutex_lock(&conf->playlock);
 
@@ -1886,21 +1886,21 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	}
 
 	if (confflags & CONFFLAG_WAITMARKED && !conf->markedusers)
-		ztc.confmode = ZT_CONF_CONF;
+		dahdic.confmode = DAHDI_CONF_CONF;
 	else if (confflags & CONFFLAG_MONITOR)
-		ztc.confmode = ZT_CONF_CONFMON | ZT_CONF_LISTENER;
+		dahdic.confmode = DAHDI_CONF_CONFMON | DAHDI_CONF_LISTENER;
 	else if (confflags & CONFFLAG_TALKER)
-		ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER;
+		dahdic.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER;
 	else 
-		ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+		dahdic.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER;
 
-	if (ioctl(fd, ZT_SETCONF, &ztc)) {
+	if (ioctl(fd, DAHDI_SETCONF, &dahdic)) {
 		ast_log(LOG_WARNING, "Error setting conference\n");
 		close(fd);
 		ast_mutex_unlock(&conf->playlock);
 		goto outrun;
 	}
-	ast_debug(1, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
+	ast_debug(1, "Placed channel %s in ZAP conf %d\n", chan->name, conf->dahdiconf);
 
 	if (!sent_event) {
 		manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 
@@ -1937,8 +1937,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		if (!agifile)
 			agifile = agifiledefault;
 
-		if (user->zapchannel) {
-			/*  Set CONFMUTE mode on Zap channel to mute DTMF tones */
+		if (user->dahdichannel) {
+			/*  Set CONFMUTE mode on DAHDI channel to mute DTMF tones */
 			x = 1;
 			ast_channel_setoption(chan, AST_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
 		}
@@ -1951,14 +1951,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			ast_log(LOG_WARNING, "Could not find application (agi)\n");
 			ret = -2;
 		}
-		if (user->zapchannel) {
-			/*  Remove CONFMUTE mode on Zap channel */
+		if (user->dahdichannel) {
+			/*  Remove CONFMUTE mode on DAHDI channel */
 			x = 0;
 			ast_channel_setoption(chan, AST_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
 		}
 	} else {
-		if (user->zapchannel && (confflags & CONFFLAG_STARMENU)) {
-			/*  Set CONFMUTE mode on Zap channel to mute DTMF tones when the menu is enabled */
+		if (user->dahdichannel && (confflags & CONFFLAG_STARMENU)) {
+			/*  Set CONFMUTE mode on DAHDI channel to mute DTMF tones when the menu is enabled */
 			x = 1;
 			ast_channel_setoption(chan, AST_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
 		}	
@@ -2109,8 +2109,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 								ret = 0;
 							break;
 						} else {
-							ztc.confmode = ZT_CONF_CONF;
-							if (ioctl(fd, ZT_SETCONF, &ztc)) {
+							dahdic.confmode = DAHDI_CONF_CONF;
+							if (ioctl(fd, DAHDI_SETCONF, &dahdic)) {
 								ast_log(LOG_WARNING, "Error setting conference\n");
 								close(fd);
 								goto outrun;
@@ -2125,12 +2125,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					/* Marked user entered, so cancel timeout */
 					timeout = 0;
 					if (confflags & CONFFLAG_MONITOR)
-						ztc.confmode = ZT_CONF_CONFMON | ZT_CONF_LISTENER;
+						dahdic.confmode = DAHDI_CONF_CONFMON | DAHDI_CONF_LISTENER;
 					else if (confflags & CONFFLAG_TALKER)
-						ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER;
+						dahdic.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER;
 					else
-						ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
-					if (ioctl(fd, ZT_SETCONF, &ztc)) {
+						dahdic.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER;
+					if (ioctl(fd, DAHDI_SETCONF, &dahdic)) {
 						ast_log(LOG_WARNING, "Error setting conference\n");
 						close(fd);
 						goto outrun;
@@ -2174,9 +2174,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			/* Check if my modes have changed */
 
 			/* If I should be muted but am still talker, mute me */
-			if ((user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) && (ztc.confmode & ZT_CONF_TALKER)) {
-				ztc.confmode ^= ZT_CONF_TALKER;
-				if (ioctl(fd, ZT_SETCONF, &ztc)) {
+			if ((user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) && (dahdic.confmode & DAHDI_CONF_TALKER)) {
+				dahdic.confmode ^= DAHDI_CONF_TALKER;
+				if (ioctl(fd, DAHDI_SETCONF, &dahdic)) {
 					ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
 					ret = -1;
 					break;
@@ -2192,9 +2192,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			}
 
 			/* If I should be un-muted but am not talker, un-mute me */
-			if (!(user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) && !(confflags & CONFFLAG_MONITOR) && !(ztc.confmode & ZT_CONF_TALKER)) {
-				ztc.confmode |= ZT_CONF_TALKER;
-				if (ioctl(fd, ZT_SETCONF, &ztc)) {
+			if (!(user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) && !(confflags & CONFFLAG_MONITOR) && !(dahdic.confmode & DAHDI_CONF_TALKER)) {
+				dahdic.confmode |= DAHDI_CONF_TALKER;
+				if (ioctl(fd, DAHDI_SETCONF, &dahdic)) {
 					ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
 					ret = -1;
 					break;
@@ -2253,16 +2253,16 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			if (c) {
 				char dtmfstr[2] = "";
 
-				if (c->fds[0] != origfd || (user->zapchannel && (c->audiohooks || c->monitor))) {
+				if (c->fds[0] != origfd || (user->dahdichannel && (c->audiohooks || c->monitor))) {
 					if (using_pseudo) {
 						/* Kill old pseudo */
 						close(fd);
 						using_pseudo = 0;
 					}
 					ast_debug(1, "Ooh, something swapped out under us, starting over\n");
-					retryzap = (strcasecmp(c->tech->type, "Zap") || (c->audiohooks || c->monitor) ? 1 : 0);
-					user->zapchannel = !retryzap;
-					goto zapretry;
+					retrydahdi = (strcasecmp(c->tech->type, "DAHDI") || (c->audiohooks || c->monitor) ? 1 : 0);
+					user->dahdichannel = !retrydahdi;
+					goto dahdiretry;
 				}
 				if ((confflags & CONFFLAG_MONITOR) || (user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)))
 					f = ast_read_noaudio(c);
@@ -2328,7 +2328,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				} else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
 					if (confflags & CONFFLAG_PASS_DTMF)
 						conf_queue_dtmf(conf, user, f);
-					if (ioctl(fd, ZT_SETCONF, &ztc_empty)) {
+					if (ioctl(fd, DAHDI_SETCONF, &dahdic_empty)) {
 						ast_log(LOG_WARNING, "Error setting conference\n");
 						close(fd);
 						ast_frfree(f);
@@ -2483,7 +2483,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					if (musiconhold)
 						conf_start_moh(chan, optargs[OPT_ARG_MOH_CLASS]);
 
-					if (ioctl(fd, ZT_SETCONF, &ztc)) {
+					if (ioctl(fd, DAHDI_SETCONF, &dahdic)) {
 						ast_log(LOG_WARNING, "Error setting conference\n");
 						close(fd);
 						ast_frfree(f);
@@ -2595,10 +2595,10 @@ bailoutandtrynormal:
 		close(fd);
 	else {
 		/* Take out of conference */
-		ztc.chan = 0;	
-		ztc.confno = 0;
-		ztc.confmode = 0;
-		if (ioctl(fd, ZT_SETCONF, &ztc)) {
+		dahdic.chan = 0;	
+		dahdic.confno = 0;
+		dahdic.confmode = 0;
+		if (ioctl(fd, DAHDI_SETCONF, &dahdic)) {
 			ast_log(LOG_WARNING, "Error setting conference\n");
 		}
 	}
@@ -2800,13 +2800,13 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		if (confflags && !cnf->chan &&
 		    !ast_test_flag(confflags, CONFFLAG_QUIET) &&
 		    ast_test_flag(confflags, CONFFLAG_INTROUSER)) {
-			ast_log(LOG_WARNING, "No Zap channel available for conference, user introduction disabled (is chan_zap loaded?)\n");
+			ast_log(LOG_WARNING, "No DAHDI channel available for conference, user introduction disabled (is chan_dahdi loaded?)\n");
 			ast_clear_flag(confflags, CONFFLAG_INTROUSER);
 		}
 		
 		if (confflags && !cnf->chan &&
 		    ast_test_flag(confflags, CONFFLAG_RECORDCONF)) {
-			ast_log(LOG_WARNING, "No Zap channel available for conference, conference recording disabled (is chan_zap loaded?)\n");
+			ast_log(LOG_WARNING, "No DAHDI channel available for conference, conference recording disabled (is chan_dahdi loaded?)\n");
 			ast_clear_flag(confflags, CONFFLAG_RECORDCONF);
 		}
 	}
@@ -2898,13 +2898,13 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 		if (confflags && !cnf->chan &&
 		    !ast_test_flag(confflags, CONFFLAG_QUIET) &&
 		    ast_test_flag(confflags, CONFFLAG_INTROUSER)) {
-			ast_log(LOG_WARNING, "No Zap channel available for conference, user introduction disabled (is chan_zap loaded?)\n");
+			ast_log(LOG_WARNING, "No DAHDI channel available for conference, user introduction disabled (is chan_dahdi loaded?)\n");
 			ast_clear_flag(confflags, CONFFLAG_INTROUSER);
 		}
 		
 		if (confflags && !cnf->chan &&
 		    ast_test_flag(confflags, CONFFLAG_RECORDCONF)) {
-			ast_log(LOG_WARNING, "No Zap channel available for conference, conference recording disabled (is chan_zap loaded?)\n");
+			ast_log(LOG_WARNING, "No DAHDI channel available for conference, conference recording disabled (is chan_dahdi loaded?)\n");
 			ast_clear_flag(confflags, CONFFLAG_RECORDCONF);
 		}
 	}
@@ -3688,9 +3688,9 @@ static void load_config_meetme(void)
 		if ((sscanf(val, "%d", &audio_buffers) != 1)) {
 			ast_log(LOG_WARNING, "audiobuffers setting must be a number, not '%s'\n", val);
 			audio_buffers = DEFAULT_AUDIO_BUFFERS;
-		} else if ((audio_buffers < ZT_DEFAULT_NUM_BUFS) || (audio_buffers > ZT_MAX_NUM_BUFS)) {
+		} else if ((audio_buffers < DAHDI_DEFAULT_NUM_BUFS) || (audio_buffers > DAHDI_MAX_NUM_BUFS)) {
 			ast_log(LOG_WARNING, "audiobuffers setting must be between %d and %d\n",
-				ZT_DEFAULT_NUM_BUFS, ZT_MAX_NUM_BUFS);
+				DAHDI_DEFAULT_NUM_BUFS, DAHDI_MAX_NUM_BUFS);
 			audio_buffers = DEFAULT_AUDIO_BUFFERS;
 		}
 		if (audio_buffers != DEFAULT_AUDIO_BUFFERS)

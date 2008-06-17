@@ -31,6 +31,7 @@ is how to check them out from the public subversion server.
 
 These are the commands you would type to install them:
 
+#jpeeler: REVISIT
 `svn co http://svn.digium.com/svn/zaptel/branches/1.4 zaptel-1.4`
 `cd zaptel-1.4`
 `make; make install`

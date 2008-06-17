@@ -170,6 +170,12 @@
 /* Define to indicate the ${CURSES_DESCRIP} library version */
 #undef HAVE_CURSES_VERSION
 
+/* Define if your system has the DAHDI headers. */
+#undef HAVE_DAHDI
+
+/* Define DAHDI headers version */
+#undef HAVE_DAHDI_VERSION
+
 /* Define to 1 if your system has /dev/urandom. */
 #undef HAVE_DEV_URANDOM
 
@@ -1037,54 +1043,6 @@
 
 /* Define to indicate the ${X11_DESCRIP} library version */
 #undef HAVE_X11_VERSION
-
-/* Define this to indicate the ${ZAPTEL_DESCRIP} library */
-#undef HAVE_ZAPTEL
-
-/* Define if your system has the ZAPTEL_CHANALARMS headers. */
-#undef HAVE_ZAPTEL_CHANALARMS
-
-/* Define ZAPTEL_CHANALARMS headers version */
-#undef HAVE_ZAPTEL_CHANALARMS_VERSION
-
-/* Define if your system has the ZAPTEL_ECHOCANPARAMS headers. */
-#undef HAVE_ZAPTEL_ECHOCANPARAMS
-
-/* Define ZAPTEL_ECHOCANPARAMS headers version */
-#undef HAVE_ZAPTEL_ECHOCANPARAMS_VERSION
-
-/* Define if your system has the ZAPTEL_HWGAIN headers. */
-#undef HAVE_ZAPTEL_HWGAIN
-
-/* Define ZAPTEL_HWGAIN headers version */
-#undef HAVE_ZAPTEL_HWGAIN_VERSION
-
-/* Define if your system has the ZAPTEL_NEONMWI headers. */
-#undef HAVE_ZAPTEL_NEONMWI
-
-/* Define ZAPTEL_NEONMWI headers version */
-#undef HAVE_ZAPTEL_NEONMWI_VERSION
-
-/* Define if your system has the ZAPTEL_SIG_MTP2 headers. */
-#undef HAVE_ZAPTEL_SIG_MTP2
-
-/* Define ZAPTEL_SIG_MTP2 headers version */
-#undef HAVE_ZAPTEL_SIG_MTP2_VERSION
-
-/* Define if your system has the ZAPTEL_TRANSCODE headers. */
-#undef HAVE_ZAPTEL_TRANSCODE
-
-/* Define ZAPTEL_TRANSCODE headers version */
-#undef HAVE_ZAPTEL_TRANSCODE_VERSION
-
-/* Define to indicate the ${ZAPTEL_DESCRIP} library version */
-#undef HAVE_ZAPTEL_VERSION
-
-/* Define this to indicate the ${ZAPTEL_VLDTMF_DESCRIP} library */
-#undef HAVE_ZAPTEL_VLDTMF
-
-/* Define to indicate the ${ZAPTEL_VLDTMF_DESCRIP} library version */
-#undef HAVE_ZAPTEL_VLDTMF_VERSION
 
 /* Define this to indicate the ${ZLIB_DESCRIP} library */
 #undef HAVE_ZLIB
