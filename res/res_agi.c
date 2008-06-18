@@ -20,7 +20,7 @@
  *
  * \brief AGI - the Asterisk Gateway Interface
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include "asterisk.h"
@@ -162,9 +162,9 @@ static void agi_destroy_commands_cb(void *data)
 	struct agi_cmd *cmd;
 	AST_LIST_HEAD(, agi_cmd) *chan_cmds = data;
 	AST_LIST_LOCK(chan_cmds);
-	while ( (cmd = AST_LIST_REMOVE_HEAD(chan_cmds, entry)) ) { 
+	while ( (cmd = AST_LIST_REMOVE_HEAD(chan_cmds, entry)) ) {
 		free_agi_cmd(cmd);
-	} 
+	}
 	AST_LIST_UNLOCK(chan_cmds);
 	AST_LIST_HEAD_DESTROY(chan_cmds);
 	ast_free(chan_cmds);
@@ -248,7 +248,7 @@ static int add_to_agi(struct ast_channel *chan)
 	datastore = ast_channel_datastore_find(chan, &agi_commands_datastore_info, NULL);
 	ast_channel_unlock(chan);
 	if (datastore) {
-		/* we already have an AGI datastore, let's just 
+		/* we already have an AGI datastore, let's just
 		   return success */
 		return 0;
 	}
@@ -274,9 +274,9 @@ static int add_to_agi(struct ast_channel *chan)
 }
 
 /*!
- * \brief CLI command to add applications to execute in Async AGI 
+ * \brief CLI command to add applications to execute in Async AGI
  * \param e
- * \param cmd 
+ * \param cmd
  * \param a
  *
  * \retval CLI_SUCCESS on success
@@ -322,7 +322,7 @@ static char *handle_cli_agi_add_cmd(struct ast_cli_entry *e, int cmd, struct ast
  * It will append the application to the specified channel's queue
  * if the channel is not inside Async AGI application it will return an error
  * \retval 0 on success or incorrect use
- * \retval 1 on failure to add the command ( most likely because the channel 
+ * \retval 1 on failure to add the command ( most likely because the channel
  * is not in Async AGI loop )
 */
 static int action_add_agi_cmd(struct mansession *s, const struct message *m)
@@ -358,20 +358,20 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], int *efd)
 {
 /* This buffer sizes might cause truncation if the AGI command writes more data
-   than AGI_BUF_SIZE as result. But let's be serious, is there an AGI command 
-   that writes a response larger than 1024 bytes?, I don't think so, most of 
-   them are just result=blah stuff. However probably if GET VARIABLE is called 
-   and the variable has large amount of data, that could be a problem. We could 
+   than AGI_BUF_SIZE as result. But let's be serious, is there an AGI command
+   that writes a response larger than 1024 bytes?, I don't think so, most of
+   them are just result=blah stuff. However probably if GET VARIABLE is called
+   and the variable has large amount of data, that could be a problem. We could
    make this buffers dynamic, but let's leave that as a second step.
 
-   AMI_BUF_SIZE is twice AGI_BUF_SIZE just for the sake of choosing a safe 
-   number. Some characters of AGI buf will be url encoded to be sent to manager 
-   clients.  An URL encoded character will take 3 bytes, but again, to cause 
-   truncation more than about 70% of the AGI buffer should be URL encoded for 
-   that to happen.  Not likely at all. 
+   AMI_BUF_SIZE is twice AGI_BUF_SIZE just for the sake of choosing a safe
+   number. Some characters of AGI buf will be url encoded to be sent to manager
+   clients.  An URL encoded character will take 3 bytes, but again, to cause
+   truncation more than about 70% of the AGI buffer should be URL encoded for
+   that to happen.  Not likely at all.
 
-   On the other hand. I wonder if read() could eventually return less data than 
-   the amount already available in the pipe? If so, how to deal with that?  
+   On the other hand. I wonder if read() could eventually return less data than
+   the amount already available in the pipe? If so, how to deal with that?
    So far, my tests on Linux have not had any problems.
  */
 #define AGI_BUF_SIZE 1024
@@ -379,7 +379,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 	struct ast_frame *f;
 	struct agi_cmd *cmd;
 	int res, fds[2];
-	int timeout = 100; 
+	int timeout = 100;
 	char agi_buffer[AGI_BUF_SIZE + 1];
 	char ami_buffer[AMI_BUF_SIZE];
 	enum agi_result returnstatus = AGI_RESULT_SUCCESS_ASYNC;
@@ -394,28 +394,28 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 	if (add_to_agi(chan)) {
 		ast_log(LOG_ERROR, "failed to start Async AGI on channel %s\n", chan->name);
 		return AGI_RESULT_FAILURE;
-	}	
+	}
 
-	/* this pipe allows us to create a "fake" AGI struct to use 
+	/* this pipe allows us to create a "fake" AGI struct to use
 	   the AGI commands */
 	res = pipe(fds);
 	if (res) {
 		ast_log(LOG_ERROR, "failed to create Async AGI pipe\n");
-		/* intentionally do not remove datastore, added with 
-		   add_to_agi(), from channel. It will be removed when 
+		/* intentionally do not remove datastore, added with
+		   add_to_agi(), from channel. It will be removed when
 		   the channel is hung up anyways */
 		return AGI_RESULT_FAILURE;
 	}
 
-	/* handlers will get the pipe write fd and we read the AGI responses 
+	/* handlers will get the pipe write fd and we read the AGI responses
 	   from the pipe read fd */
-	async_agi.fd = fds[1]; 
+	async_agi.fd = fds[1];
 	async_agi.ctrl = fds[1];
 	async_agi.audio = -1; /* no audio support */
 	async_agi.fast = 0;
 
-	/* notify possible manager users of a new channel ready to 
-	   receive commands */	
+	/* notify possible manager users of a new channel ready to
+	   receive commands */
 	setup_env(chan, "async", fds[1], 0, 0, NULL);
 	/* read the environment */
 	res = read(fds[0], agi_buffer, AGI_BUF_SIZE);
@@ -425,29 +425,29 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 		goto quit;
 	}
 	agi_buffer[res] = '\0';
-	/* encode it and send it thru the manager so whoever is going to take 
-	   care of AGI commands on this channel can decide which AGI commands 
+	/* encode it and send it thru the manager so whoever is going to take
+	   care of AGI commands on this channel can decide which AGI commands
 	   to execute based on the setup info */
 	ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, 1);
-	manager_event(EVENT_FLAG_CALL, "AsyncAGI", "SubEvent: Start\r\nChannel: %s\r\nEnv: %s\r\n", chan->name, ami_buffer); 
+	manager_event(EVENT_FLAG_CALL, "AsyncAGI", "SubEvent: Start\r\nChannel: %s\r\nEnv: %s\r\n", chan->name, ami_buffer);
 	while (1) {
 		/* bail out if we need to hangup */
 		if (ast_check_hangup(chan)) {
 			ast_log(LOG_DEBUG, "ast_check_hangup returned true on chan %s\n", chan->name);
 			break;
 		}
-		/* retrieve a command 
+		/* retrieve a command
 		   (commands are added via the manager or the cli threads) */
 		cmd = get_agi_cmd(chan);
 		if (cmd) {
-			/* OK, we have a command, let's call the 
+			/* OK, we have a command, let's call the
 			   command handler. */
 			res = agi_handle_command(chan, &async_agi, cmd->cmd_buffer, 0);
 			if ((res < 0) || (res == AST_PBX_KEEPALIVE)) {
 				free_agi_cmd(cmd);
 				break;
 			}
-			/* the command handler must have written to our fake 
+			/* the command handler must have written to our fake
 			   AGI struct fd (the pipe), let's read the response */
 			res = read(fds[0], agi_buffer, AGI_BUF_SIZE);
 			if (!res) {
@@ -457,7 +457,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 				break;
 			}
 			/* we have a response, let's send the response thru the
-			   manager. Include the CommandID if it was specified 
+			   manager. Include the CommandID if it was specified
 			   when the command was added */
 			agi_buffer[res] = '\0';
 			ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, 1);
@@ -481,7 +481,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 				returnstatus = AGI_RESULT_HANGUP;
 				break;
 			}
-			/* is there any other frame we should care about 
+			/* is there any other frame we should care about
 			   besides AST_CONTROL_HANGUP? */
 			if (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP) {
 				ast_log(LOG_DEBUG, "Got HANGUP frame on channel %s, going out ...\n", chan->name);
@@ -492,7 +492,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 		}
 	}
 quit:
-	/* notify manager users this channel cannot be 
+	/* notify manager users this channel cannot be
 	   controlled anymore by Async AGI */
 	manager_event(EVENT_FLAG_CALL, "AsyncAGI", "SubEvent: End\r\nChannel: %s\r\n", chan->name);
 
@@ -500,14 +500,14 @@ quit:
 	close(fds[0]);
 	close(fds[1]);
 
-	/* intentionally don't get rid of the datastore. So commands can be 
+	/* intentionally don't get rid of the datastore. So commands can be
 	   still in the queue in case AsyncAGI gets called again.
 	   Datastore destructor will be called on channel destroy anyway  */
 
 	return returnstatus;
 
-#undef AGI_BUF_SIZE 
-#undef AMI_BUF_SIZE 
+#undef AGI_BUF_SIZE
+#undef AMI_BUF_SIZE
 }
 
 /* launch_netscript: The fastagi handler.
@@ -610,7 +610,7 @@ static enum agi_result launch_script(struct ast_channel *chan, char *script, cha
 		return launch_netscript(script, argv, fds, efd, opid);
 	if (!strncasecmp(script, "agi:async", sizeof("agi:async")-1))
 		return launch_asyncagi(chan, argv, efd);
-	
+
 	if (script[0] != '/') {
 		snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_AGI_DIR, script);
 		script = tmp;
@@ -642,7 +642,7 @@ static enum agi_result launch_script(struct ast_channel *chan, char *script, cha
 			return AGI_RESULT_FAILURE;
 		}
 		res = fcntl(audio[1], F_GETFL);
-		if (res > -1) 
+		if (res > -1)
 			res = fcntl(audio[1], F_SETFL, res | O_NONBLOCK);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "unable to set audio pipe parameters: %s\n", strerror(errno));
@@ -811,7 +811,7 @@ static int handle_recvchar(struct ast_channel *chan, AGI *agi, int argc, char *a
 	if (res == 0) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=%d (timeout)\n", res);
 		return RESULT_SUCCESS;
-	} 
+	}
 	if (res > 0) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=%d\n", res);
 		return RESULT_SUCCESS;
@@ -823,7 +823,7 @@ static int handle_recvchar(struct ast_channel *chan, AGI *agi, int argc, char *a
 static int handle_recvtext(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	char *buf;
-	
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
@@ -831,7 +831,7 @@ static int handle_recvtext(struct ast_channel *chan, AGI *agi, int argc, char *a
 	if (buf) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=1 (%s)\n", buf);
 		ast_free(buf);
-	} else {	
+	} else {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=-1\n");
 	}
 	return RESULT_SUCCESS;
@@ -845,7 +845,7 @@ static int handle_tddmode(struct ast_channel *chan, AGI *agi, int argc, char *ar
 		return RESULT_SHOWUSAGE;
 
 	if (!strncasecmp(argv[2],"on",2)) {
-		x = 1; 
+		x = 1;
 	} else  {
 		x = 0;
 	}
@@ -892,25 +892,25 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 	if (!ast_strlen_zero(argv[4])) {
 		stop = argv[4];
 	}
-	
+
 	if ((argc > 5) && (sscanf(argv[5], "%d", &skipms) != 1)) {
 		return RESULT_SHOWUSAGE;
 	}
 
 	if (argc > 6 && !ast_strlen_zero(argv[6])) {
 		fwd = argv[6];
-	} 
+	}
 
 	if (argc > 7 && !ast_strlen_zero(argv[7])) {
 		rev = argv[7];
 	}
-	
+
 	if (argc > 8 && !ast_strlen_zero(argv[8])) {
 		pause = argv[8];
-	} 
-	
+	}
+
 	res = ast_control_streamfile(chan, argv[3], fwd, rev, stop, pause, NULL, skipms, NULL);
-	
+
 	ast_agi_fdprintf(chan, agi->fd, "200 result=%d\n", res);
 
 	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
@@ -926,7 +926,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	if (argc < 4 || argc > 5)
 		return RESULT_SHOWUSAGE;
 
-	if (argv[3]) 
+	if (argv[3])
 		edigits = argv[3];
 
 	if ((argc > 4) && (sscanf(argv[4], "%ld", &sample_offset) != 1))
@@ -939,7 +939,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 
 	if ((vfs = ast_openvstream(chan, argv[2], chan->language)))
 		ast_debug(1, "Ooh, found a video stream, too\n");
-		
+
 	ast_verb(3, "Playing '%s' (escape_digits=%s) (sample_offset %ld)\n", argv[2], edigits, sample_offset);
 
 	ast_seekstream(fs, 0, SEEK_END);
@@ -951,7 +951,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	ast_playstream(fs);
 	if (vfs)
 		ast_playstream(vfs);
-	
+
 	res = ast_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
 	/* this is to check for if ast_waitstream closed the stream, we probably are at
 	 * the end of the stream, return that amount, else check for the amount */
@@ -977,7 +977,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 	if ( argc < 4 || argc > 5 )
 		return RESULT_SHOWUSAGE;
 
-	if ( argv[3] ) 
+	if ( argv[3] )
 		edigits = argv[3];
 
 	if ( argc == 5 )
@@ -995,7 +995,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 
 	if ((vfs = ast_openvstream(chan, argv[2], chan->language)))
 		ast_debug(1, "Ooh, found a video stream, too\n");
-	
+
 	ast_verb(3, "Playing '%s' (escape_digits=%s) (timeout %d)\n", argv[2], edigits, timeout);
 
 	ast_seekstream(fs, 0, SEEK_END);
@@ -1115,7 +1115,7 @@ static int handle_saydatetime(struct ast_channel *chan, AGI *agi, int argc, char
 	int res = 0;
 	time_t unixtime;
 	char *format, *zone = NULL;
-	
+
 	if (argc < 4)
 		return RESULT_SHOWUSAGE;
 
@@ -1126,7 +1126,7 @@ static int handle_saydatetime(struct ast_channel *chan, AGI *agi, int argc, char
 		if (!strcasecmp(chan->language, "de")) {
 			format = "A dBY HMS";
 		} else {
-			format = "ABdY 'digits/at' IMp"; 
+			format = "ABdY 'digits/at' IMp";
 		}
 	}
 
@@ -1166,11 +1166,11 @@ static int handle_getdata(struct ast_channel *chan, AGI *agi, int argc, char *ar
 	if (argc < 3)
 		return RESULT_SHOWUSAGE;
 	if (argc >= 4)
-		timeout = atoi(argv[3]); 
+		timeout = atoi(argv[3]);
 	else
 		timeout = 0;
-	if (argc >= 5) 
-		max = atoi(argv[4]); 
+	if (argc >= 5)
+		max = atoi(argv[4]);
 	else
 		max = 1024;
 	res = ast_app_getdata_full(chan, argv[2], data, max, timeout, agi->audio, agi->ctrl);
@@ -1194,7 +1194,7 @@ static int handle_setcontext(struct ast_channel *chan, AGI *agi, int argc, char 
 	ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
-	
+
 static int handle_setextension(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	if (argc != 3)
@@ -1209,7 +1209,7 @@ static int handle_setpriority(struct ast_channel *chan, AGI *agi, int argc, char
 	int pri;
 
 	if (argc != 3)
-		return RESULT_SHOWUSAGE;	
+		return RESULT_SHOWUSAGE;
 
 	if (sscanf(argv[2], "%d", &pri) != 1) {
 		if ((pri = ast_findlabel_extension(chan, chan->context, chan->exten, argv[2], chan->cid.cid_num)) < 1)
@@ -1220,7 +1220,7 @@ static int handle_setpriority(struct ast_channel *chan, AGI *agi, int argc, char
 	ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
-		
+
 static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	struct ast_filestream *fs;
@@ -1235,9 +1235,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	int dspsilence = 0;
 	int silence = 0;                /* amount of silence to allow */
 	int gotsilence = 0;             /* did we timeout for silence? */
-	char *silencestr=NULL;
-	int rfmt=0;
-
+	char *silencestr = NULL;
+	int rfmt = 0;
 
 	/* XXX EAGI FIXME XXX */
 
@@ -1280,7 +1279,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		}
 		ast_dsp_set_threshold(sildet, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE));
 	}
-
+	
 	/* backward compatibility, if no offset given, arg[6] would have been
 	 * caught below and taken to be a beep, else if it is a digit then it is a
 	 * offset */
@@ -1303,16 +1302,16 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 				ast_dsp_free(sildet);
 			return RESULT_FAILURE;
 		}
-		
+
 		/* Request a video update */
 		ast_indicate(chan, AST_CONTROL_VIDUPDATE);
-	
+
 		chan->stream = fs;
 		ast_applystream(chan,fs);
 		/* really should have checks */
 		ast_seekstream(fs, sample_offset, SEEK_SET);
 		ast_truncstream(fs);
-		
+
 		start = ast_tvnow();
 		while ((ms < 0) || ast_tvdiff_ms(ast_tvnow(), start) < ms) {
 			res = ast_waitfor(chan, -1);
@@ -1380,11 +1379,11 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 				break;
 		}
 
-			if (gotsilence) {
-				ast_stream_rewind(fs, silence-1000);
-				ast_truncstream(fs);
-				sample_offset = ast_tellstream(fs);
-		}		
+		if (gotsilence) {
+			ast_stream_rewind(fs, silence-1000);
+			ast_truncstream(fs);
+			sample_offset = ast_tellstream(fs);
+		}
 		ast_agi_fdprintf(chan, agi->fd, "200 result=%d (timeout) endpos=%ld\n", res, sample_offset);
 		ast_closestream(fs);
 	}
@@ -1393,8 +1392,9 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		res = ast_set_read_format(chan, rfmt);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
-			ast_dsp_free(sildet);
+		ast_dsp_free(sildet);
 	}
+
 	return RESULT_SUCCESS;
 }
 
@@ -1593,9 +1593,9 @@ static int handle_verbose(struct ast_channel *chan, AGI *agi, int argc, char **a
 		sscanf(argv[2], "%d", &level);
 
 	ast_verb(level, "%s: %s\n", chan->data, argv[1]);
-	
+
 	ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
-	
+
 	return RESULT_SUCCESS;
 }
 
@@ -1607,7 +1607,7 @@ static int handle_dbget(struct ast_channel *chan, AGI *agi, int argc, char **arg
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	res = ast_db_get(argv[2], argv[3], tmp, sizeof(tmp));
-	if (res) 
+	if (res)
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 	else
 		ast_agi_fdprintf(chan, agi->fd, "200 result=1 (%s)\n", tmp);
@@ -1704,12 +1704,12 @@ static int handle_speechcreate(struct ast_channel *chan, AGI *agi, int argc, cha
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 		return RESULT_SUCCESS;
 	}
-	
+
 	if ((agi->speech = ast_speech_new(argv[2], AST_FORMAT_SLINEAR)))
 		ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
 	else
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
-	
+
 	return RESULT_SUCCESS;
 }
 
@@ -1718,16 +1718,16 @@ static int handle_speechset(struct ast_channel *chan, AGI *agi, int argc, char *
 	/* Check for minimum arguments */
         if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	
+
 	/* Check to make sure speech structure exists */
 	if (!agi->speech) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 		return RESULT_SUCCESS;
 	}
-	
+
 	ast_speech_change(agi->speech, argv[2], argv[3]);
 	ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
-	
+
 	return RESULT_SUCCESS;
 }
 
@@ -1740,7 +1740,7 @@ static int handle_speechdestroy(struct ast_channel *chan, AGI *agi, int argc, ch
 	} else {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 	}
-	
+
 	return RESULT_SUCCESS;
 }
 
@@ -1748,17 +1748,17 @@ static int handle_speechloadgrammar(struct ast_channel *chan, AGI *agi, int argc
 {
 	if (argc != 5)
 		return RESULT_SHOWUSAGE;
-	
+
 	if (!agi->speech) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 		return RESULT_SUCCESS;
 	}
-	
+
 	if (ast_speech_grammar_load(agi->speech, argv[3], argv[4]))
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 	else
 		ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
-	
+
 	return RESULT_SUCCESS;
 }
 
@@ -1766,17 +1766,17 @@ static int handle_speechunloadgrammar(struct ast_channel *chan, AGI *agi, int ar
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	
+
 	if (!agi->speech) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 		return RESULT_SUCCESS;
 	}
-	
+
 	if (ast_speech_grammar_unload(agi->speech, argv[3]))
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 	else
 		ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
-	
+
 	return RESULT_SUCCESS;
 }
 
@@ -1784,17 +1784,17 @@ static int handle_speechactivategrammar(struct ast_channel *chan, AGI *agi, int 
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	
+
 	if (!agi->speech) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 		return RESULT_SUCCESS;
 	}
-	
+
 	if (ast_speech_grammar_activate(agi->speech, argv[3]))
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 	else
 		ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
-	
+
 	return RESULT_SUCCESS;
 }
 
@@ -1802,36 +1802,36 @@ static int handle_speechdeactivategrammar(struct ast_channel *chan, AGI *agi, in
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	
+
 	if (!agi->speech) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 		return RESULT_SUCCESS;
 	}
-	
+
 	if (ast_speech_grammar_deactivate(agi->speech, argv[3]))
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 	else
 		ast_agi_fdprintf(chan, agi->fd, "200 result=1\n");
-	
+
 	return RESULT_SUCCESS;
 }
 
 static int speech_streamfile(struct ast_channel *chan, const char *filename, const char *preflang, int offset)
 {
 	struct ast_filestream *fs = NULL;
-	
+
 	if (!(fs = ast_openstream(chan, filename, preflang)))
 		return -1;
-	
+
 	if (offset)
 		ast_seekstream(fs, offset, SEEK_SET);
-	
+
 	if (ast_applystream(chan, fs))
 		return -1;
-	
+
 	if (ast_playstream(fs))
 		return -1;
-	
+
 	return 0;
 }
 
@@ -1846,47 +1846,47 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 	struct ast_speech_result *result = NULL;
 	size_t left = sizeof(tmp);
 	time_t start = 0, current;
-	
+
 	if (argc < 4)
 		return RESULT_SHOWUSAGE;
-	
+
 	if (!speech) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 		return RESULT_SUCCESS;
 	}
-	
+
 	prompt = argv[2];
 	timeout = atoi(argv[3]);
-	
+
 	/* If offset is specified then convert from text to integer */
 	if (argc == 5)
 		offset = atoi(argv[4]);
-	
+
 	/* We want frames coming in signed linear */
 	old_read_format = chan->readformat;
 	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR)) {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0\n");
 		return RESULT_SUCCESS;
 	}
-	
+
 	/* Setup speech structure */
 	if (speech->state == AST_SPEECH_STATE_NOT_READY || speech->state == AST_SPEECH_STATE_DONE) {
 		ast_speech_change_state(speech, AST_SPEECH_STATE_NOT_READY);
 		ast_speech_start(speech);
 	}
-	
+
 	/* Start playing prompt */
 	speech_streamfile(chan, prompt, chan->language, offset);
-	
+
 	/* Go into loop reading in frames, passing to speech thingy, checking for hangup, all that jazz */
 	while (ast_strlen_zero(reason)) {
 		/* Run scheduled items */
                 ast_sched_runq(chan->sched);
-		
+
 		/* See maximum time of waiting */
 		if ((res = ast_sched_wait(chan->sched)) < 0)
 			res = 1000;
-		
+
 		/* Wait for frame */
 		if (ast_waitfor(chan, res) > 0) {
 			if (!(fr = ast_read(chan))) {
@@ -1894,7 +1894,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 				break;
 			}
 		}
-		
+
 		/* Perform timeout check */
 		if ((timeout > 0) && (start > 0)) {
 			time(&current);
@@ -1905,17 +1905,17 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 				break;
 			}
 		}
-		
+
 		/* Check the speech structure for any changes */
 		ast_mutex_lock(&speech->lock);
-		
+
 		/* See if we need to quiet the audio stream playback */
 		if (ast_test_flag(speech, AST_SPEECH_QUIET) && chan->stream) {
 			current_offset = ast_tellstream(chan->stream);
 			ast_stopstream(chan);
 			ast_clear_flag(speech, AST_SPEECH_QUIET);
 		}
-		
+
 		/* Check each state */
 		switch (speech->state) {
 		case AST_SPEECH_STATE_READY:
@@ -1948,7 +1948,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 			break;
 		}
 		ast_mutex_unlock(&speech->lock);
-		
+
 		/* Check frame for DTMF or hangup */
 		if (fr) {
 			if (fr->frametype == AST_FRAME_DTMF) {
@@ -1960,7 +1960,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 			ast_frfree(fr);
 		}
 	}
-	
+
 	if (!strcasecmp(reason, "speech")) {
 		/* Build string containing speech results */
                 for (result = speech->results; result; result = AST_LIST_NEXT(result, list)) {
@@ -1978,7 +1978,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 	} else {
 		ast_agi_fdprintf(chan, agi->fd, "200 result=0 endpos=%ld\n", current_offset);
 	}
-	
+
 	return RESULT_SUCCESS;
 }
 
@@ -2044,7 +2044,7 @@ static char usage_setvariable[] =
 
 static char usage_channelstatus[] =
 " Usage: CHANNEL STATUS [<channelname>]\n"
-"	Returns the status of the specified channel.\n" 
+"	Returns the status of the specified channel.\n"
 " If no channel name is given the returns the status of the\n"
 " current channel.  Return values:\n"
 "  0 Channel is down and available\n"
@@ -2070,12 +2070,12 @@ static char usage_hangup[] =
 "	Hangs up the specified channel.\n"
 " If no channel name is given, hangs up the current channel\n";
 
-static char usage_answer[] = 
+static char usage_answer[] =
 " Usage: ANSWER\n"
 "	Answers channel if not already in answer state. Returns -1 on\n"
 " channel failure, or 0 if successful.\n";
 
-static char usage_waitfordigit[] = 
+static char usage_waitfordigit[] =
 " Usage: WAIT FOR DIGIT <timeout>\n"
 "	Waits up to 'timeout' milliseconds for channel to receive a DTMF digit.\n"
 " Returns -1 on channel failure, 0 if no digit is received in the timeout, or\n"
@@ -2136,7 +2136,7 @@ static char usage_controlstreamfile[] =
 " extension must not be included in the filename.\n\n"
 " Note: ffchar and rewchar default to * and # respectively.\n";
 
-static char usage_getoption[] = 
+static char usage_getoption[] =
 " Usage: GET OPTION <filename> <escape_digits> [timeout]\n"
 "	Behaves similar to STREAM FILE but used with a timeout option.\n";
 
@@ -2377,7 +2377,7 @@ int ast_agi_unregister(struct ast_module *mod, agi_command *cmd)
 	struct agi_command *e;
 	int unregistered = 0;
 	char fullcmd[80];
-	
+
 	ast_join(fullcmd, sizeof(fullcmd), cmd->cmda);
 
 	AST_RWLIST_WRLOCK(&agi_commands);
@@ -2460,9 +2460,9 @@ static int parse_args(char *s, int *max, char *argv[])
 		switch(*s) {
 		case '"':
 			/* If it's escaped, put a literal quote */
-			if (escaped) 
+			if (escaped)
 				goto normal;
-			else 
+			else
 				quoted = !quoted;
 			if (quoted && whitespace) {
 				/* If we're starting a quote, coming off white space start a new word, too */
@@ -2479,7 +2479,7 @@ static int parse_args(char *s, int *max, char *argv[])
 				whitespace = 1;
 				*(cur++) = '\0';
 			} else
-				/* Otherwise, just treat it as anything else */ 
+				/* Otherwise, just treat it as anything else */
 				goto normal;
 			break;
 		case '\\':
@@ -2522,7 +2522,7 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int
 	char *ami_cmd = ast_strdupa(buf);
 	int command_id = ast_random(), resultcode = 200;
 
-	manager_event(EVENT_FLAG_CALL, "AGIExec", 
+	manager_event(EVENT_FLAG_CALL, "AGIExec",
 			"SubEvent: Start\r\n"
 			"Channel: %s\r\n"
 			"CommandId: %d\r\n"
@@ -2594,7 +2594,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	char buf[AGI_BUF_LEN];
 	char *res = NULL;
 	FILE *readf;
-	/* how many times we'll retry if ast_waitfor_nandfs will return without either 
+	/* how many times we'll retry if ast_waitfor_nandfs will return without either
 	  channel or file descriptor in case select is interrupted by a system call (EINTR) */
 	int retry = AGI_NANDFS_RETRY;
 
@@ -2642,9 +2642,9 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 
 			while (buflen < (len - 1)) {
 				res = fgets(buf + buflen, len, readf);
-				if (feof(readf)) 
+				if (feof(readf))
 					break;
-				if (ferror(readf) && ((errno != EINTR) && (errno != EAGAIN))) 
+				if (ferror(readf) && ((errno != EINTR) && (errno != EAGAIN)))
 					break;
 				if (res != NULL && !agi->fast)
 					break;
@@ -2793,7 +2793,7 @@ static int write_htmldump(char *filename)
 	AST_RWLIST_RDLOCK(&agi_commands);
 	AST_RWLIST_TRAVERSE(&agi_commands, command, list) {
 		char *stringp, *tempstr;
- 
+
 		if (!command->cmda[0])	/* end ? */
 			break;
 		/* Hide commands that start with '_' */
@@ -2917,7 +2917,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 			close(fds[1]);
 		if (efd > -1)
 			close(efd);
-	} 
+	}
 	ast_safe_fork_cleanup();
 
 	switch (res) {
