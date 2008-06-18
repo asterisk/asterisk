@@ -4752,8 +4752,11 @@ stop:
 				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON",
 					"%d|%d|%ld", qe.pos, qe.opos,
 					(long) time(NULL) - qe.start);
+				res = -1;
+			} else if (qcontinue) {
+				reason = QUEUE_CONTINUE;
+				res = 0;
 			}
-			res = -1;
 		} else if (qe.valid_digits) {
 			ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY",
 				"%s|%d", qe.digits, qe.pos);
