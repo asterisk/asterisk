@@ -276,6 +276,7 @@ struct ast_tcptls_session_instance *ast_tcptls_client_start(struct server_args *
 		__ssl_setup(desc->tls_cfg, 1);
 	}
 
+	ao2_ref(ser, +1);
 	if (!ast_make_file_from_fd(ser))
 		goto error;
 
@@ -460,7 +461,7 @@ void *ast_make_file_from_fd(void *data)
 	if (!ser->f) {
 		close(ser->fd);
 		ast_log(LOG_WARNING, "FILE * open failed!\n");
-		ast_free(ser);
+		ao2_ref(ser, -1);
 		return NULL;
 	}
 
