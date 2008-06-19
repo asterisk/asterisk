@@ -282,33 +282,36 @@ static struct ast_variable *realtime_ldap_entry_to_var(struct ldap_table_config 
 
 		values = ldap_get_values_len(ldapConn, ldap_entry, ldap_attribute_name); /* these are freed at the end */
 		if (values) {
-			struct berval **v = values;
+			struct berval **v;
+			char *valptr;
 
-			while (*v) {
+			for (v = values; *v; v++) {
 				value = *v;
-				ast_debug(2, "LINE(%d) attribute_name: %s LDAP value: %s\n", __LINE__, attribute_name, value->bv_val);
+				valptr = value->bv_val;
+				ast_debug(2, "LINE(%d) attribute_name: %s LDAP value: %s\n", __LINE__, attribute_name, valptr);
 				if (is_realmed_password_attribute) {
-					if (!strncasecmp(value->bv_val, "{md5}", 5))
-						value->bv_val += 5;
-					else
-						value->bv_val = NULL;
-					ast_debug(2, "md5: %s\n", value->bv_val);
+					if (!strncasecmp(valptr, "{md5}", 5)) {
+						valptr += 5;
+					} else {
+						valptr = NULL;
+					}
+					ast_debug(2, "md5: %s\n", valptr);
 				}
-				if (value->bv_val) {
+				if (valptr) {
 					/* ok, so looping through all delimited values except the last one (not, last character is not delimited...) */
 					if (is_delimited) {
 						i = 0;
 						pos = 0;
-						while (!ast_strlen_zero(value->bv_val + i)) {
-							if (value->bv_val[i] == ';'){
-								value->bv_val[i] = '\0';
+						while (!ast_strlen_zero(valptr + i)) {
+							if (valptr[i] == ';'){
+								valptr[i] = '\0';
 								if (prev) {
-									prev->next = ast_variable_new(attribute_name, &value->bv_val[pos], table_config->table_name);
+									prev->next = ast_variable_new(attribute_name, &valptr[pos], table_config->table_name);
 									if (prev->next) {
 										prev = prev->next;
 									}
 								} else {
-									prev = var = ast_variable_new(attribute_name, &value->bv_val[pos], table_config->table_name);
+									prev = var = ast_variable_new(attribute_name, &valptr[pos], table_config->table_name);
 								}
 								pos = i + 1;
 							}
@@ -317,15 +320,14 @@ static struct ast_variable *realtime_ldap_entry_to_var(struct ldap_table_config 
 					}
 					/* for the last delimited value or if the value is not delimited: */
 					if (prev) {
-						prev->next = ast_variable_new(attribute_name, &value->bv_val[pos], table_config->table_name);
+						prev->next = ast_variable_new(attribute_name, &valptr[pos], table_config->table_name);
 						if (prev->next) {
 							prev = prev->next;
 						}
 					} else {
-						prev = var = ast_variable_new(attribute_name, &value->bv_val[pos], table_config->table_name);
+						prev = var = ast_variable_new(attribute_name, &valptr[pos], table_config->table_name);
 					}
 				}
-				v++;
 			}
 			ldap_value_free_len(values);
 		}
@@ -400,23 +402,26 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 
 				values = ldap_get_values_len(ldapConn, ldap_entry, ldap_attribute_name);
 				if (values) {
-					struct berval **v = values;
+					struct berval **v;
+					char *valptr;
 
-					while (*v) {
+					for (v = values; *v; v++) {
 						value = *v;
+						valptr = value->bv_val;
 						if (is_realmed_password_attribute) {
-							if (strncasecmp(value->bv_val, "{md5}", 5) == 0)
-								value->bv_val += 5;
-							else
-								value->bv_val = NULL;
-							ast_debug(2, "md5: %s\n", value->bv_val);
+							if (strncasecmp(valptr, "{md5}", 5) == 0) {
+								valptr += 5;
+							} else {
+								valptr = NULL;
+							}
+							ast_debug(2, "md5: %s\n", valptr);
 						}
-						if (value->bv_val) {
+						if (valptr) {
 							if (delim_value == NULL 
 								&& !is_realmed_password_attribute 
 								&& (static_table_config != table_config || strcmp(attribute_name, "variable_value") == 0)) {
 
-								delim_value = ast_strdup(value->bv_val);
+								delim_value = ast_strdup(valptr);
 
 								if ((delim_tot_count = semicolon_count_str(delim_value)) > 0) {
 									ast_debug(4, "LINE(%d) is delimited %d times: %s\n", __LINE__, delim_tot_count, delim_value);
@@ -426,11 +431,10 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 
 							if (is_delimited != 0 
 								&& !is_realmed_password_attribute 
-								&& (static_table_config != table_config || strcmp(attribute_name, "variable_value") == 0) ){
+								&& (static_table_config != table_config || strcmp(attribute_name, "variable_value") == 0) ) {
 								/* for non-Static RealTime, first */
 
-								i = pos;
-								while (!ast_strlen_zero(value->bv_val + i)) {
+								for (i = pos; !ast_strlen_zero(valptr + i); i++) {
 									ast_debug(4, "LINE(%d) DELIM pos: %d i: %d\n", __LINE__, pos, i);
 									if (delim_value[i] == ';') {
 										delim_value[i] = '\0';
@@ -451,9 +455,8 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 											break;
 										}
 									}
-									i++;
 								}
-								if (ast_strlen_zero(value->bv_val + i)) {
+								if (ast_strlen_zero(valptr + i)) {
 									ast_debug(4, "LINE(%d) DELIM pos: %d i: %d delim_count: %d\n", __LINE__, pos, i, delim_count);
 									/* Last delimited value */
 									ast_debug(4, "LINE(%d) DELIM - attribute_name: %s value: %s pos: %d\n", __LINE__, attribute_name, &delim_value[pos], pos);
@@ -468,9 +471,9 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 									/* Remembering to free memory */
 									is_delimited = 0;
 									pos = 0;
-									free(delim_value);
-									delim_value = NULL;
 								}
+								free(delim_value);
+								delim_value = NULL;
 								
 								ast_debug(4, "LINE(%d) DELIM pos: %d i: %d\n", __LINE__, pos, i);
 							} else {
@@ -479,20 +482,19 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 									free(delim_value);
 									delim_value = NULL;
 								}
-								ast_debug(2, "LINE(%d) attribute_name: %s value: %s\n", __LINE__, attribute_name, value->bv_val);
+								ast_debug(2, "LINE(%d) attribute_name: %s value: %s\n", __LINE__, attribute_name, valptr);
 
 								if (prev) {
-									prev->next = ast_variable_new(attribute_name, value->bv_val, table_config->table_name);
+									prev->next = ast_variable_new(attribute_name, valptr, table_config->table_name);
 									if (prev->next) {
 										prev = prev->next;
 									}
 								} else {
-									prev = var = ast_variable_new(attribute_name, value->bv_val, table_config->table_name);
+									prev = var = ast_variable_new(attribute_name, valptr, table_config->table_name);
 								}
 							}
 						}
-						v++;
-					} /*!< while(*v) */
+					} /*!< for (v = values; *v; v++) */
 					ldap_value_free_len(values);
 				}/*!< if (values) */
 				ldap_attribute_name = ldap_next_attribute(ldapConn, ldap_entry, ber);
@@ -1459,10 +1461,11 @@ int parse_config(void)
 					static_table_config = table_config;
 			}
 			for (; var; var = var->next) {
-				if (!strcasecmp(var->name, "additionalFilter"))
-					table_config->additional_filter = strdup(var->value);
-				else
+				if (!strcasecmp(var->name, "additionalFilter")) {
+					table_config->additional_filter = ast_strdup(var->value);
+				} else {
 					ldap_table_config_add_attribute(table_config, var->name, var->value);
+				}
 			}
 		}
 	}
