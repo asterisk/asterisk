@@ -569,7 +569,10 @@ int64_t ast_profile(int i, int64_t delta)
 	return prof_data->e[i].value;
 }
 
-#if defined ( __i386__) && (defined(__FreeBSD__) || defined(linux))
+/* The RDTSC instruction was introduced on the Pentium processor and is not
+ * implemented on certain clones, like the Cyrix 586. Hence, the previous
+ * expectation of __i386__ was in error. */
+#if defined ( __i686__) && (defined(__FreeBSD__) || defined(linux))
 #if defined(__FreeBSD__)
 #include <machine/cpufunc.h>
 #elif defined(linux)
