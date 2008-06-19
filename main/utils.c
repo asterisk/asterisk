@@ -569,10 +569,24 @@ static AST_LIST_HEAD_NOLOCK_STATIC(lock_infos, thr_lock_info);
 static void lock_info_destroy(void *data)
 {
 	struct thr_lock_info *lock_info = data;
+	int i;
 
 	pthread_mutex_lock(&lock_infos_lock.mutex);
 	AST_LIST_REMOVE(&lock_infos, lock_info, entry);
 	pthread_mutex_unlock(&lock_infos_lock.mutex);
+
+
+	for (i = 0; i < lock_info->num_locks; i++) {
+		ast_log(LOG_ERROR, 
+			"Thread '%s' still has a lock! - '%s' (%p) from '%s' in %s:%d!\n", 
+			lock_info->thread_name,
+			lock_info->locks[i].lock_name,
+			lock_info->locks[i].lock_addr,
+			lock_info->locks[i].func,
+			lock_info->locks[i].file,
+			lock_info->locks[i].line_num
+		);
+	}
 
 	pthread_mutex_destroy(&lock_info->lock);
 	free((void *) lock_info->thread_name);
