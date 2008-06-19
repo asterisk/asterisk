@@ -29,8 +29,14 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__Darwin__)
+#include <net/if_dl.h>
+#endif
+
 #if defined (SOLARIS)
 #include <sys/sockio.h>
+#elif defined(HAVE_GETIFADDRS)
+#include <ifaddrs.h>
 #endif
 
 #include "asterisk/netsock.h"
