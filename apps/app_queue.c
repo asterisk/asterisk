@@ -3081,9 +3081,9 @@ static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struc
 	int callstart = qtds->starttime;
 	struct ast_datastore *datastore;
 	
-	ast_queue_log(qe->parent->name, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld",
+	ast_queue_log(qe->parent->name, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld|%d",
 				new_chan->exten, new_chan->context, (long) (callstart - qe->start),
-				(long) (time(NULL) - callstart));
+				(long) (time(NULL) - callstart), qe->opos);
 	
 	if (!(datastore = ast_channel_datastore_find(new_chan, &queue_transfer_info, NULL))) {
 		ast_log(LOG_WARNING, "Can't find the queue_transfer datastore.\n");
@@ -3779,9 +3779,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		 */
 		if (!attended_transfer_occurred(qe->chan)) {
 			if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
-				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld",
+				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld|%d",
 					qe->chan->exten, qe->chan->context, (long) (callstart - qe->start),
-					(long) (time(NULL) - callstart));
+					(long) (time(NULL) - callstart), qe->opos);
 				send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), TRANSFER);
 			} else if (ast_check_hangup(qe->chan)) {
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETECALLER", "%ld|%ld|%d",
