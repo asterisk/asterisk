@@ -1578,9 +1578,9 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 		   Thus we might see an empty member list when a queue is
 		   deleted. In practise, this is unlikely to cause a problem. */
 
-		queue_vars = ast_load_realtime("queues", "name", queuename, NULL);
+		queue_vars = ast_load_realtime("queues", "name", queuename, SENTINEL);
 		if (queue_vars) {
-			member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", queuename, NULL);
+			member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", queuename, SENTINEL);
 			if (!member_config) {
 				ast_log(LOG_ERROR, "no queue_members defined in your config (extconfig.conf).\n");
 				ast_variables_destroy(queue_vars);
@@ -1609,7 +1609,7 @@ static int update_realtime_member_field(struct member *mem, const char *queue_na
 	if (ast_strlen_zero(mem->rt_uniqueid))
  		return ret;
 
-	if ((ast_update_realtime("queue_members", "uniqueid", mem->rt_uniqueid, field, value, NULL)) > 0)
+	if ((ast_update_realtime("queue_members", "uniqueid", mem->rt_uniqueid, field, value, SENTINEL)) > 0)
 		ret = 0;
 
 	return ret;
@@ -1623,7 +1623,7 @@ static void update_realtime_members(struct call_queue *q)
 	char *interface = NULL;
 	struct ao2_iterator mem_iter;
 
-	if (!(member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", q->name , NULL))) {
+	if (!(member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", q->name , SENTINEL))) {
 		/*This queue doesn't have realtime members*/
 		ast_debug(3, "Queue %s has no realtime members defined. No need for update\n", q->name);
 		return;
@@ -1982,7 +1982,7 @@ static void leave_queue(struct queue_ent *qe)
 
 	/*If the queue is a realtime queue, check to see if it's still defined in real time*/
 	if (q->realtime) {
-		if (!ast_load_realtime("queues", "name", q->name, NULL))
+		if (!ast_load_realtime("queues", "name", q->name, SENTINEL))
 			q->dead = 1;
 	}
 
@@ -4949,7 +4949,7 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, const char
 		count = q->count;
 		ao2_unlock(q);
 		queue_unref(q);
-	} else if ((var = ast_load_realtime("queues", "name", data, NULL))) {
+	} else if ((var = ast_load_realtime("queues", "name", data, SENTINEL))) {
 		/* if the queue is realtime but was not found in memory, this
 		 * means that the queue had been deleted from memory since it was 
 		 * "dead." This means it has a 0 waiting count
@@ -6436,7 +6436,7 @@ static int load_module(void)
 		res = -1;
 	}
 
-	ast_realtime_require_field("queue_members", "paused", RQ_INTEGER1, 1, "uniqueid", RQ_UINTEGER2, 5, NULL);
+	ast_realtime_require_field("queue_members", "paused", RQ_INTEGER1, 1, "uniqueid", RQ_UINTEGER2, 5, SENTINEL);
 
 	return res ? AST_MODULE_LOAD_DECLINE : 0;
 }

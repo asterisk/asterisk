@@ -3643,13 +3643,13 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 			"port", port, "regseconds", regseconds,
 			deprecated_username ? "username" : "defaultuser", defaultuser,
 			"useragent", useragent,
-			fc, fullcontact, syslabel, sysname, NULL); /* note fc and syslabel _can_ be NULL */
+			fc, fullcontact, syslabel, sysname, SENTINEL); /* note fc and syslabel _can_ be NULL */
 	} else {
 		ast_update_realtime(tablename, "name", peername, "ipaddr", ipaddr,
 			"port", port, "regseconds", regseconds,
 			"useragent", useragent,
 			deprecated_username ? "username" : "defaultuser", defaultuser,
-			syslabel, sysname, NULL); /* note syslabel _can_ be NULL */
+			syslabel, sysname, SENTINEL); /* note syslabel _can_ be NULL */
 	}
 }
 
@@ -3828,13 +3828,13 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	/* First check on peer name */
 	if (newpeername) {
 		if (realtimeregs)
-			varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
+			varregs = ast_load_realtime("sipregs", "name", newpeername, SENTINEL);
 
-		var = ast_load_realtime("sippeers", "name", newpeername, "host", "dynamic", NULL);
+		var = ast_load_realtime("sippeers", "name", newpeername, "host", "dynamic", SENTINEL);
 		if (!var && sin)
-			var = ast_load_realtime("sippeers", "name", newpeername, "host", ast_inet_ntoa(sin->sin_addr), NULL);
+			var = ast_load_realtime("sippeers", "name", newpeername, "host", ast_inet_ntoa(sin->sin_addr), SENTINEL);
 		if (!var) {
-			var = ast_load_realtime("sippeers", "name", newpeername, NULL);
+			var = ast_load_realtime("sippeers", "name", newpeername, SENTINEL);
 			/*!\note
 			 * If this one loaded something, then we need to ensure that the host
 			 * field matched.  The only reason why we can't have this as a criteria
@@ -3862,62 +3862,62 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 		ast_copy_string(ipaddr, ast_inet_ntoa(sin->sin_addr), sizeof(ipaddr));
 		portnum = ntohs(sin->sin_port);
 		sprintf(portstring, "%u", portnum);
-		var = ast_load_realtime("sippeers", "host", ipaddr, "port", portstring, NULL);	/* First check for fixed IP hosts */
+		var = ast_load_realtime("sippeers", "host", ipaddr, "port", portstring, SENTINEL);	/* First check for fixed IP hosts */
 		if (var) {
 			if (realtimeregs) {
 				newpeername = get_name_from_variable(var, newpeername);
-				varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
+				varregs = ast_load_realtime("sipregs", "name", newpeername, SENTINEL);
 			}
 		} else {
 			if (realtimeregs)
-				varregs = ast_load_realtime("sipregs", "ipaddr", ipaddr, "port", portstring, NULL); /* Then check for registered hosts */
+				varregs = ast_load_realtime("sipregs", "ipaddr", ipaddr, "port", portstring, SENTINEL); /* Then check for registered hosts */
 			else
-				var = ast_load_realtime("sippeers", "ipaddr", ipaddr, "port", portstring, NULL); /* Then check for registered hosts */
+				var = ast_load_realtime("sippeers", "ipaddr", ipaddr, "port", portstring, SENTINEL); /* Then check for registered hosts */
 			if (varregs) {
 				newpeername = get_name_from_variable(varregs, newpeername);
-				var = ast_load_realtime("sippeers", "name", newpeername, NULL);
+				var = ast_load_realtime("sippeers", "name", newpeername, SENTINEL);
 			}
 		}
 		if (!var) { /*We couldn't match on ipaddress and port, so we need to check if port is insecure*/
-			peerlist = ast_load_realtime_multientry("sippeers", "host", ipaddr, NULL);
+			peerlist = ast_load_realtime_multientry("sippeers", "host", ipaddr, SENTINEL);
 			if (peerlist) {
 				var = get_insecure_variable_from_config(peerlist);
 				if(var) {
 					if (realtimeregs) {
 						newpeername = get_name_from_variable(var, newpeername);
-						varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
+						varregs = ast_load_realtime("sipregs", "name", newpeername, SENTINEL);
 					}
 				} else { /*var wasn't found in the list of "hosts", so try "ipaddr"*/
 					peerlist = NULL;
 					cat = NULL;
-					peerlist = ast_load_realtime_multientry("sippeers", "ipaddr", ipaddr, NULL);
+					peerlist = ast_load_realtime_multientry("sippeers", "ipaddr", ipaddr, SENTINEL);
 					if(peerlist) {
 						var = get_insecure_variable_from_config(peerlist);
 						if(var) {
 							if (realtimeregs) {
 								newpeername = get_name_from_variable(var, newpeername);
-								varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
+								varregs = ast_load_realtime("sipregs", "name", newpeername, SENTINEL);
 							}
 						}
 					}
 				}
 			} else {
 				if (realtimeregs) {
-					peerlist = ast_load_realtime_multientry("sipregs", "ipaddr", ipaddr, NULL);
+					peerlist = ast_load_realtime_multientry("sipregs", "ipaddr", ipaddr, SENTINEL);
 					if (peerlist) {
 						varregs = get_insecure_variable_from_config(peerlist);
 						if (varregs) {
 							newpeername = get_name_from_variable(varregs, newpeername);
-							var = ast_load_realtime("sippeers", "name", newpeername, NULL);
+							var = ast_load_realtime("sippeers", "name", newpeername, SENTINEL);
 						}
 					}
 				} else {
-					peerlist = ast_load_realtime_multientry("sippeers", "ipaddr", ipaddr, NULL);
+					peerlist = ast_load_realtime_multientry("sippeers", "ipaddr", ipaddr, SENTINEL);
 					if (peerlist) {
 						var = get_insecure_variable_from_config(peerlist);
 						if (var) {
 							newpeername = get_name_from_variable(var, newpeername);
-							varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
+							varregs = ast_load_realtime("sipregs", "name", newpeername, SENTINEL);
 						}
 					}
 				}
@@ -4063,7 +4063,7 @@ static struct sip_user *realtime_user(const char *username)
 	struct ast_variable *tmp;
 	struct sip_user *user = NULL;
 
-	var = ast_load_realtime("sipusers", "name", username, NULL);
+	var = ast_load_realtime("sipusers", "name", username, SENTINEL);
 
 	if (!var)
 		return NULL;
@@ -10108,7 +10108,7 @@ static void destroy_association(struct sip_peer *peer)
 
 	if (!sip_cfg.ignore_regexpire) {
 		if (peer->rt_fromcontact)
-			ast_update_realtime(tablename, "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", peer->deprecated_username ? "username" : "defaultuser", "", "regserver", "", "useragent", "", NULL);
+			ast_update_realtime(tablename, "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", peer->deprecated_username ? "username" : "defaultuser", "", "regserver", "", "useragent", "", SENTINEL);
 		else 
 			ast_db_del("SIP/Registry", peer->name);
 	}
@@ -22985,7 +22985,7 @@ static int load_module(void)
 		"fullcontact", RQ_CHAR, 20,
 		"regserver", RQ_CHAR, 20,
 		"useragent", RQ_CHAR, 20,
-		NULL);
+		SENTINEL);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

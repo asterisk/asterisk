@@ -90,9 +90,9 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 		ematch = "exten";
 		ast_copy_string(rexten, exten, sizeof(rexten));
 	}
-	var = ast_load_realtime(table, ematch, rexten, "context", context, "priority", pri, NULL);
+	var = ast_load_realtime(table, ematch, rexten, "context", context, "priority", pri, SENTINEL);
 	if (!var) {
-		cfg = ast_load_realtime_multientry(table, "exten LIKE", "\\_%", "context", context, "priority", pri, NULL);	
+		cfg = ast_load_realtime_multientry(table, "exten LIKE", "\\_%", "context", context, "priority", pri, SENTINEL);	
 		if (cfg) {
 			char *cat = ast_category_browse(cfg, NULL);
 

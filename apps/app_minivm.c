@@ -863,7 +863,7 @@ static struct minivm_account *find_user_realtime(const char *domain, const char 
 		ast_copy_string(retval->username, username, sizeof(retval->username));
 
 	populate_defaults(retval);
-	var = ast_load_realtime("minivm", "username", username, "domain", domain, NULL);
+	var = ast_load_realtime("minivm", "username", username, "domain", domain, SENTINEL);
 
 	if (!var) {
 		ast_free(retval);

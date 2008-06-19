@@ -930,9 +930,9 @@ static int change_password_realtime(struct ast_vm_user *vmu, const char *passwor
 	int res;
 	if (!ast_strlen_zero(vmu->uniqueid)) {
 		if (strlen(password) > 10) {
-			ast_realtime_require_field("voicemail", "password", RQ_CHAR, strlen(password), NULL);
+			ast_realtime_require_field("voicemail", "password", RQ_CHAR, strlen(password), SENTINEL);
 		}
-		res = ast_update_realtime("voicemail", "uniqueid", vmu->uniqueid, "password", password, NULL);
+		res = ast_update_realtime("voicemail", "uniqueid", vmu->uniqueid, "password", password, SENTINEL);
 		if (res > 0) {
 			ast_copy_string(vmu->password, password, sizeof(vmu->password));
 			res = 0;
@@ -1044,9 +1044,9 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 			ast_copy_string(retval->mailbox, mailbox, sizeof(retval->mailbox));
 		populate_defaults(retval);
 		if (!context && ast_test_flag((&globalflags), VM_SEARCH))
-			var = ast_load_realtime("voicemail", "mailbox", mailbox, NULL);
+			var = ast_load_realtime("voicemail", "mailbox", mailbox, SENTINEL);
 		else
-			var = ast_load_realtime("voicemail", "mailbox", mailbox, "context", context, NULL);
+			var = ast_load_realtime("voicemail", "mailbox", mailbox, "context", context, SENTINEL);
 		if (var) {
 			apply_options_full(retval, var);
 			ast_variables_destroy(var);
@@ -1520,7 +1520,7 @@ static int remove_file(char *dir, int msgnum)
 		ast_copy_string(fn, dir, sizeof(fn));
 	ast_filedelete(fn, NULL);	
 	if (ast_check_realtime("voicemail_data")) {
-		ast_destroy_realtime("voicemail_data", "filename", fn, NULL);
+		ast_destroy_realtime("voicemail_data", "filename", fn, SENTINEL);
 	}
 	snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
 	unlink(full_fn);
@@ -1986,7 +1986,7 @@ static void rename_file(char *sfn, char *dfn)
 	snprintf(stxt, sizeof(stxt), "%s.txt", sfn);
 	snprintf(dtxt, sizeof(dtxt), "%s.txt", dfn);
 	if (ast_check_realtime("voicemail_data")) {
-		ast_update_realtime("voicemail_data", "filename", sfn, "filename", dfn, NULL);
+		ast_update_realtime("voicemail_data", "filename", sfn, "filename", dfn, SENTINEL);
 	}
 	rename(stxt, dtxt);
 }
@@ -2108,7 +2108,7 @@ static void copy_plain_file(char *frompath, char *topath)
 	snprintf(frompath2, sizeof(frompath2), "%s.txt", frompath);
 	snprintf(topath2, sizeof(topath2), "%s.txt", topath);
 	if (ast_check_realtime("voicemail_data")) {
-		var = ast_load_realtime("voicemail_data", "filename", frompath, NULL);
+		var = ast_load_realtime("voicemail_data", "filename", frompath, SENTINEL);
 		/* This cycle converts ast_variable linked list, to va_list list of arguments, may be there is a better way to do it? */
 		for (tmp = var; tmp; tmp = tmp->next) {
 			if (!strcasecmp(tmp->name, "origmailbox")) {
@@ -2135,7 +2135,7 @@ static void copy_plain_file(char *frompath, char *topath)
 				duration = tmp->value;
 			}
 		}
-		ast_store_realtime("voicemail_data", "filename", topath, "origmailbox", origmailbox, "context", context, "macrocontext", macrocontext, "exten", exten, "priority", priority, "callerchan", callerchan, "callerid", callerid, "origdate", origdate, "origtime", origtime, "category", category, "duration", duration, NULL);
+		ast_store_realtime("voicemail_data", "filename", topath, "origmailbox", origmailbox, "context", context, "macrocontext", macrocontext, "exten", exten, "priority", priority, "callerchan", callerchan, "callerid", callerid, "origdate", origdate, "origtime", origtime, "category", category, "duration", duration, SENTINEL);
 	}
 	copy(frompath2, topath2);
 	ast_variables_destroy(var);
@@ -2163,7 +2163,7 @@ static int vm_delete(char *file)
 	 * but trying to eliminate all sprintf's anyhow
 	 */
 	if (ast_check_realtime("voicemail_data")) {
-		ast_destroy_realtime("voicemail_data", "filename", file, NULL);
+		ast_destroy_realtime("voicemail_data", "filename", file, SENTINEL);
 	}
 	snprintf(txt, txtsize, "%s.txt", file);
 	unlink(txt);
@@ -4013,7 +4013,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			snprintf(priority, sizeof(priority), "%d", chan->priority);
 			snprintf(origtime, sizeof(origtime), "%ld", (long)time(NULL));
 			get_date(date, sizeof(date));
-			rtmsgid = ast_store_realtime("voicemail_data", "origmailbox", ext, "context", chan->context, "macrocontext", chan->macrocontext, "exten", chan->exten, "priority", priority, "callerchan", chan->name, "callerid", ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"), "origdate", date, "origtime", origtime, "category", S_OR(category,""), NULL);
+			rtmsgid = ast_store_realtime("voicemail_data", "origmailbox", ext, "context", chan->context, "macrocontext", chan->macrocontext, "exten", chan->exten, "priority", priority, "callerchan", chan->name, "callerid", ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"), "origdate", date, "origtime", origtime, "category", S_OR(category,""), SENTINEL);
 		}
 
 		/* Store information */
@@ -4062,7 +4062,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				unlink(tmptxtfile);
 				if (ast_check_realtime("voicemail_data")) {
 					snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
-					ast_destroy_realtime("voicemail_data", "id", tmpid, NULL);
+					ast_destroy_realtime("voicemail_data", "id", tmpid, SENTINEL);
 				}
 			} else {
 				fprintf(txt, "duration=%d\n", duration);
@@ -4078,7 +4078,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					ast_unlock_path(dir);
 					if (ast_check_realtime("voicemail_data")) {
 						snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
-						ast_destroy_realtime("voicemail_data", "id", tmpid, NULL);
+						ast_destroy_realtime("voicemail_data", "id", tmpid, SENTINEL);
 					}
 				} else {
 #ifndef IMAP_STORAGE
@@ -4106,7 +4106,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					if (ast_check_realtime("voicemail_data")) {
 						snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
 						snprintf(tmpdur, sizeof(tmpdur), "%d", duration);
-						ast_update_realtime("voicemail_data", "id", tmpid, "filename", fn, "duration", tmpdur, NULL);
+						ast_update_realtime("voicemail_data", "id", tmpid, "filename", fn, "duration", tmpdur, SENTINEL);
 					}
 					/* We must store the file first, before copying the message, because
 					 * ODBC storage does the entire copy with SQL.
@@ -8884,7 +8884,7 @@ static char *show_users_realtime(int fd, const char *context)
 	const char *cat = NULL;
 
 	if (!(cfg = ast_load_realtime_multientry("voicemail", 
-		"context", context, NULL))) {
+		"context", context, SENTINEL))) {
 		return CLI_FAILURE;
 	}
 
@@ -10098,8 +10098,8 @@ static int load_module(void)
 	ast_cli_register_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 
 	ast_install_vm_functions(has_voicemail, inboxcount, messagecount, sayname);
-	ast_realtime_require_field("voicemail", "uniqueid", RQ_UINTEGER3, 11, "password", RQ_CHAR, 10, NULL);
-	ast_realtime_require_field("voicemail_data", "filename", RQ_CHAR, 30, "duration", RQ_UINTEGER3, 5, NULL);
+	ast_realtime_require_field("voicemail", "uniqueid", RQ_UINTEGER3, 11, "password", RQ_CHAR, 10, SENTINEL);
+	ast_realtime_require_field("voicemail_data", "filename", RQ_CHAR, 30, "duration", RQ_UINTEGER3, 5, SENTINEL);
 
 	return res;
 }
@@ -10691,7 +10691,7 @@ static struct ast_vm_user *find_user_realtime_imapuser(const char *imapuser)
 	ast_set_flag(vmu, VM_ALLOCED);
 	populate_defaults(vmu);
 
-	var = ast_load_realtime("voicemail", "imapuser", imapuser, NULL);
+	var = ast_load_realtime("voicemail", "imapuser", imapuser, SENTINEL);
 	if (var) {
 		apply_options_full(vmu, var);
 		ast_variables_destroy(var);

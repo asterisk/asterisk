@@ -65,4 +65,7 @@
 #define attribute_warn_unused_result
 #endif
 
+/* Some older version of GNU gcc (3.3.5 on OpenBSD 4.3 for example) dont like 'NULL' as sentinel */
+#define SENTINEL ((char *)NULL)
+
 #endif /* _ASTERISK_COMPILER_H */

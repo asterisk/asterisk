@@ -366,7 +366,7 @@ static struct ast_config *realtime_directory(char *context)
 
 	/* Get realtime entries, categorized by their mailbox number
 	   and present in the requested context */
-	rtdata = ast_load_realtime_multientry("voicemail", "mailbox LIKE", "%", "context", context, NULL);
+	rtdata = ast_load_realtime_multientry("voicemail", "mailbox LIKE", "%", "context", context, SENTINEL);
 
 	/* if there are no results, just return the entries from the config file */
 	if (!rtdata)

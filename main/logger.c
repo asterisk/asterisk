@@ -480,7 +480,7 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
 						"agent", agent, 
 						"event", event,
 						"data", qlog_msg,
-						NULL);
+						SENTINEL);
 	} else {
 		if (qlog) {
 			va_start(ap, fmt);

@@ -296,6 +296,15 @@ in other files. You will have to remove the "static" declaration and define a
 prototype in an appropriate header file (usually in include/asterisk). A more
 specific name should be given, such as "ast_find_call_feature".
 
+* Variable function argument parsing
+------------------------------------
+
+Functions with a variable amount of argumenst need a 'sentinel' when called.
+Newer GNU C compilers are fine if you use NULL for this. Older versions (pre 4)
+don't like this.
+You should use the constant SENTINEL.
+This one is defined in include/asterisk/compiler.h
+
 * Variable naming
 -----------------
 

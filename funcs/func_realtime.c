@@ -66,7 +66,7 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 	if (chan)
 		ast_autoservice_start(chan);
 
-	head = ast_load_realtime_all(args.family, args.fieldmatch, args.value, NULL);
+	head = ast_load_realtime_all(args.family, args.fieldmatch, args.value, SENTINEL);
 
 	if (!head) {
 		if (chan)
@@ -112,7 +112,7 @@ static int function_realtime_write(struct ast_channel *chan, const char *cmd, ch
 
 	AST_STANDARD_APP_ARGS(args, data);
 
-	res = ast_update_realtime(args.family, args.fieldmatch, args.value, args.field, (char *)value, NULL);
+	res = ast_update_realtime(args.family, args.fieldmatch, args.value, args.field, (char *)value, SENTINEL);
 
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Failed to update. Check the debug log for possible data repository related entries.\n");
@@ -156,7 +156,7 @@ static int function_realtime_store(struct ast_channel *chan, const char *cmd, ch
 		a.f[10], v.v[10], a.f[11], v.v[11], a.f[12], v.v[12], a.f[13], v.v[13], a.f[14], v.v[14],
 		a.f[15], v.v[15], a.f[16], v.v[16], a.f[17], v.v[17], a.f[18], v.v[18], a.f[19], v.v[19],
 		a.f[20], v.v[20], a.f[21], v.v[21], a.f[22], v.v[22], a.f[23], v.v[23], a.f[24], v.v[24],
-		a.f[25], v.v[25], a.f[26], v.v[26], a.f[27], v.v[27], a.f[28], v.v[28], a.f[29], v.v[29], NULL
+		a.f[25], v.v[25], a.f[26], v.v[26], a.f[27], v.v[27], a.f[28], v.v[28], a.f[29], v.v[29], SENTINEL
 	);
 
 	if (res < 0) {
@@ -201,7 +201,7 @@ static int function_realtime_readdestroy(struct ast_channel *chan, const char *c
 	if (chan)
 		ast_autoservice_start(chan);
 
-	head = ast_load_realtime_all(args.family, args.fieldmatch, args.value, NULL);
+	head = ast_load_realtime_all(args.family, args.fieldmatch, args.value, SENTINEL);
 
 	if (!head) {
 		if (chan)
@@ -222,7 +222,7 @@ static int function_realtime_readdestroy(struct ast_channel *chan, const char *c
 	}
 	ast_copy_string(buf, out->str, len);
 
-	ast_destroy_realtime(args.family, args.fieldmatch, args.value, NULL);
+	ast_destroy_realtime(args.family, args.fieldmatch, args.value, SENTINEL);
 
 	if (chan)
 		ast_autoservice_stop(chan);

@@ -1134,14 +1134,14 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	/* If no moh class found in memory, then check RT */
 	if (!mohclass && ast_check_realtime("musiconhold")) {
 		if (!ast_strlen_zero(chan->musicclass)) {
-			var = ast_load_realtime("musiconhold", "name", chan->musicclass, NULL);
+			var = ast_load_realtime("musiconhold", "name", chan->musicclass, SENTINEL);
 		}
 		if (!var && !ast_strlen_zero(mclass))
-			var = ast_load_realtime("musiconhold", "name", mclass, NULL);
+			var = ast_load_realtime("musiconhold", "name", mclass, SENTINEL);
 		if (!var && !ast_strlen_zero(interpclass))
-			var = ast_load_realtime("musiconhold", "name", interpclass, NULL);
+			var = ast_load_realtime("musiconhold", "name", interpclass, SENTINEL);
 		if (!var)
-			var = ast_load_realtime("musiconhold", "name", "default", NULL);
+			var = ast_load_realtime("musiconhold", "name", "default", SENTINEL);
 		if (var && (mohclass = moh_class_malloc())) {
 			mohclass->realtime = 1;
 			for (tmp = var; tmp; tmp = tmp->next) {

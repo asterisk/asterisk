@@ -61,7 +61,7 @@ static char *cli_realtime_load(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	if (a->argc < 5) 
 		return CLI_SHOWUSAGE;
 
-	var = ast_load_realtime_all(a->argv[2], a->argv[3], a->argv[4], NULL);
+	var = ast_load_realtime_all(a->argv[2], a->argv[3], a->argv[4], SENTINEL);
 
 	if (var) {
 		ast_cli(a->fd, CRL_HEADER_FORMAT, "Column Name", "Column Value");
@@ -97,7 +97,7 @@ static char *cli_realtime_update(struct ast_cli_entry *e, int cmd, struct ast_cl
 	if (a->argc < 7) 
 		return CLI_SHOWUSAGE;
 
-	res = ast_update_realtime(a->argv[2], a->argv[3], a->argv[4], a->argv[5], a->argv[6], NULL);
+	res = ast_update_realtime(a->argv[2], a->argv[3], a->argv[4], a->argv[5], a->argv[6], SENTINEL);
 
 	if(res < 0) {
 		ast_cli(a->fd, "Failed to update. Check the debug log for possible SQL related entries.\n");

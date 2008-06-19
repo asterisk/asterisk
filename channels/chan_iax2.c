@@ -3085,13 +3085,13 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 	int dynamic=0;
 
 	if (peername) {
-		var = ast_load_realtime("iaxpeers", "name", peername, "host", "dynamic", NULL);
+		var = ast_load_realtime("iaxpeers", "name", peername, "host", "dynamic", SENTINEL);
 		if (!var && sin)
-			var = ast_load_realtime("iaxpeers", "name", peername, "host", ast_inet_ntoa(sin->sin_addr), NULL);
+			var = ast_load_realtime("iaxpeers", "name", peername, "host", ast_inet_ntoa(sin->sin_addr), SENTINEL);
 	} else if (sin) {
 		char porta[25];
 		sprintf(porta, "%d", ntohs(sin->sin_port));
-		var = ast_load_realtime("iaxpeers", "ipaddr", ast_inet_ntoa(sin->sin_addr), "port", porta, NULL);
+		var = ast_load_realtime("iaxpeers", "ipaddr", ast_inet_ntoa(sin->sin_addr), "port", porta, SENTINEL);
 		if (var) {
 			/* We'll need the peer name in order to build the structure! */
 			for (tmp = var; tmp; tmp = tmp->next) {
@@ -3101,7 +3101,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		}
 	}
 	if (!var && peername) { /* Last ditch effort */
-		var = ast_load_realtime("iaxpeers", "name", peername, NULL);
+		var = ast_load_realtime("iaxpeers", "name", peername, SENTINEL);
 		/*!\note
 		 * If this one loaded something, then we need to ensure that the host
 		 * field matched.  The only reason why we can't have this as a criteria
@@ -3202,18 +3202,18 @@ static struct iax2_user *realtime_user(const char *username, struct sockaddr_in 
 	struct ast_variable *tmp;
 	struct iax2_user *user=NULL;
 
-	var = ast_load_realtime("iaxusers", "name", username, "host", "dynamic", NULL);
+	var = ast_load_realtime("iaxusers", "name", username, "host", "dynamic", SENTINEL);
 	if (!var)
-		var = ast_load_realtime("iaxusers", "name", username, "host", ast_inet_ntoa(sin->sin_addr), NULL);
+		var = ast_load_realtime("iaxusers", "name", username, "host", ast_inet_ntoa(sin->sin_addr), SENTINEL);
 	if (!var && sin) {
 		char porta[6];
 		snprintf(porta, sizeof(porta), "%d", ntohs(sin->sin_port));
-		var = ast_load_realtime("iaxusers", "name", username, "ipaddr", ast_inet_ntoa(sin->sin_addr), "port", porta, NULL);
+		var = ast_load_realtime("iaxusers", "name", username, "ipaddr", ast_inet_ntoa(sin->sin_addr), "port", porta, SENTINEL);
 		if (!var)
-			var = ast_load_realtime("iaxusers", "ipaddr", ast_inet_ntoa(sin->sin_addr), "port", porta, NULL);
+			var = ast_load_realtime("iaxusers", "ipaddr", ast_inet_ntoa(sin->sin_addr), "port", porta, SENTINEL);
 	}
 	if (!var) { /* Last ditch effort */
-		var = ast_load_realtime("iaxusers", "name", username, NULL);
+		var = ast_load_realtime("iaxusers", "name", username, SENTINEL);
 		/*!\note
 		 * If this one loaded something, then we need to ensure that the host
 		 * field matched.  The only reason why we can't have this as a criteria
@@ -3276,7 +3276,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
 	ast_update_realtime("iaxpeers", "name", peername, 
 		"ipaddr", ast_inet_ntoa(sin->sin_addr), "port", port, 
-		"regseconds", regseconds, NULL);
+		"regseconds", regseconds, SENTINEL);
 }
 
 struct create_addr_info {
@@ -12185,7 +12185,7 @@ static int load_module(void)
 	reload_firmware(0);
 	iax_provision_reload(0);
 
-	ast_realtime_require_field("iaxpeers", "name", RQ_CHAR, 10, "ipaddr", RQ_CHAR, 15, "port", RQ_UINTEGER2, 5, "regseconds", RQ_UINTEGER2, 6, NULL);
+	ast_realtime_require_field("iaxpeers", "name", RQ_CHAR, 10, "ipaddr", RQ_CHAR, 15, "port", RQ_UINTEGER2, 5, "regseconds", RQ_UINTEGER2, 6, SENTINEL);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
