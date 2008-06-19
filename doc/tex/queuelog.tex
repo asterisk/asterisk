@@ -106,13 +106,13 @@ member!
 A call was answered by an agent, but the call was dropped because the
 channels were not compatible.
 
-\textbf{TRANSFER(extension$|$context$|$holdtime$|$calltime)}
+\textbf{TRANSFER(extension$|$context$|$holdtime$|$calltime$|$origposition$)}
 
 Caller was transferred to a different extension.  Context and extension
 are recorded. The caller's hold time and the length of the call are both
-recorded. PLEASE remember that transfers performed by SIP UA's by way
-of a reinvite may not always be caught by Asterisk and trigger off this
-event. The only way to be 100\% sure that you will get this event when
-a transfer is performed by a queue member is to use the built-in transfer
-functionality of Asterisk.
-
+recorded, as is the caller's entry position at the time of the transfer.
+PLEASE remember that transfers performed by SIP UA's by way of a reinvite
+may not always be caught by Asterisk and trigger off this event. The only
+way to be 100\% sure that you will get this event when a transfer is
+performed by a queue member is to use the built-in transfer functionality
+of Asterisk.
