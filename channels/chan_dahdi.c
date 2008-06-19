@@ -6880,7 +6880,11 @@ static void *ss_thread(void *data)
 							ast_hangup(chan);
 							return NULL;
 						} 
-						f = ast_read(chan);
+						if (!(f = ast_read(chan))) {
+							ast_log(LOG_WARNING, "Hangup received waiting for ring. Exiting simple switch\n");
+							ast_hangup(chan);
+							return NULL;
+						}
 						ast_frfree(f);
 						if (chan->_state == AST_STATE_RING ||
 						    chan->_state == AST_STATE_RINGING) 
