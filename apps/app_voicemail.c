@@ -143,6 +143,7 @@ static void vm_imap_delete(int msgnum, struct vm_state *vms);
 static char *get_user_by_mailbox(char *mailbox, char *buf, size_t len);
 static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive);
 static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interactive);
+static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu, char *mailbox);
 static void vmstate_insert(struct vm_state *vms);
 static void vmstate_delete(struct vm_state *vms);
 static void set_update(MAILSTREAM * stream);
@@ -4494,6 +4495,9 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 
 				/* get destination mailbox */
 				dstvms = get_vm_state_by_mailbox(vmtmp->mailbox, 0);
+				if (!dstvms) {
+					dstvms = create_vm_state_from_user(vmtmp, vmtmp->mailbox);
+				}
 				if (dstvms) {
 					init_mailstream(dstvms, 0);
 					if (!dstvms->mailstream) {
@@ -9664,6 +9668,27 @@ static char *get_user_by_mailbox(char *mailbox, char *buf, size_t len)
 		*eol_pnt = '\0';
 		return buf + 1;
 	}
+}
+
+static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu, char *mailbox)
+{
+	struct vm_state *vms_p;
+
+	if (option_debug > 4)
+		ast_log(LOG_DEBUG,"Adding new vmstate for %s\n",vmu->imapuser);
+	if (!(vms_p = ast_calloc(1, sizeof(*vms_p))))
+		return NULL;
+	ast_copy_string(vms_p->imapuser,vmu->imapuser, sizeof(vms_p->imapuser));
+	ast_copy_string(vms_p->username, mailbox, sizeof(vms_p->username)); /* save for access from interactive entry point */
+	vms_p->mailstream = NIL; /* save for access from interactive entry point */
+	if (option_debug > 4)
+		ast_log(LOG_DEBUG,"Copied %s to %s\n",vmu->imapuser,vms_p->imapuser);
+	vms_p->updated = 1;
+	/* set mailbox to INBOX! */
+	ast_copy_string(vms_p->curbox, mbox(0), sizeof(vms_p->curbox));
+	init_vm_state(vms_p);
+	vmstate_insert(vms_p);
+	return vms_p;
 }
 
 static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
