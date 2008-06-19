@@ -1233,9 +1233,9 @@ static int make_gsm_file(char *dest, size_t len, char *imapuser, char *dir, int 
 	int res;
 	if ((res = ast_mkdir(dir, 01777))) {
 		ast_log(AST_LOG_WARNING, "ast_mkdir '%s' failed: %s\n", dir, strerror(res));
-		return snprintf(dest, len, "%s/%smsg%04d", dir, prefix, num);
+		return snprintf(dest, len, "%s/%s%04d", dir, prefix, num);
 	}
-	return snprintf(dest, len, "%s/%smsg%04d", dir, prefix, num);
+	return snprintf(dest, len, "%s/%s%04d", dir, prefix, num);
 }
 
 static void vm_imap_delete(int msgnum, struct vm_state *vms)
@@ -2539,7 +2539,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 				"Please do not delete this message, lest your greeting vanish with it." ENDL ENDL, date);
 	}
 
-	if (attach_user_voicemail) {
+	if (imap || attach_user_voicemail) {
 		if (!ast_strlen_zero(attach2)) {
 			snprintf(filename, sizeof(filename), "msgintro%04d.%s", msgnum, format);
 			ast_debug(5, "creating attachment filename %s\n", filename);
@@ -5312,7 +5312,6 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				ast_debug(3, "Before mail_fetchstructure, message number is %ld, filename is:%s\n", vms->msgArray[vms->curmsg], vms->fn);
 				mail_fetchstructure(vms->mailstream, vms->msgArray[vms->curmsg], &body);
 				/* should not assume "fmt" here! */
-				save_body(body, vms, "2", fmt, vms->fn);
 				save_body(body, vms, "2", fmt, vms->fn);
   
 				/* second attachment would be body if intro, otherwise null
