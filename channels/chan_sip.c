@@ -6056,6 +6056,9 @@ static int sip_register(const char *value, int lineno)
 			ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
 			return -1;
 		}
+	} else {
+		portnum = (transport == SIP_TRANSPORT_TLS) ?
+			STANDARD_TLS_PORT : STANDARD_SIP_PORT;
 	}
 	if (!(reg = ast_calloc(1, sizeof(*reg)))) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
