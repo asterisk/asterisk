@@ -57,9 +57,8 @@ static struct ast_timing_functions pthread_timing_functions = {
 	.timer_get_event = pthread_timer_get_event,
 };
 
-/* 1 tick / 20 ms */
-#define TIMING_INTERVAL 20
-#define MAX_RATE 50
+/* 1 tick / 10 ms */
+#define MAX_RATE 100
 
 static struct ao2_container *pthread_timers;
 #define PTHREAD_TIMER_BUCKETS 563
@@ -412,9 +411,9 @@ static void *do_timing(void *arg)
 	while (!timing_thread.stop) {
 		struct timespec ts = { 0, };
 
-		ao2_callback(pthread_timers, 0, run_timer, NULL);
+		ao2_callback(pthread_timers, OBJ_NODATA, run_timer, NULL);
 
-		next_wakeup = ast_tvadd(next_wakeup, ast_tv(0, 10000));
+		next_wakeup = ast_tvadd(next_wakeup, ast_tv(0, 5000));
 
 		ts.tv_sec = next_wakeup.tv_sec;
 		ts.tv_nsec = next_wakeup.tv_usec * 1000;

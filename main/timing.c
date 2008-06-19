@@ -202,17 +202,33 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 {
 	int fd, count = 0;
 	struct timeval start, end;
+	unsigned int test_rate = 50;
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "timing test";
-		e->usage = "Usage: timing test\n";
+		e->usage = "Usage: timing test <rate>\n"
+		           "   Test a timer with a specified rate, 100/sec by default.\n"
+		           "";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	ast_cli(a->fd, "Attempting to test a timer with 50 ticks per second ...\n");
+	if (a->argc != 2 && a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (a->argc == 3) {
+		unsigned int rate;
+		if (sscanf(a->argv[2], "%u", &rate) == 1) {
+			test_rate = rate;
+		} else {
+			ast_cli(a->fd, "Invalid rate '%s', using default of %u\n", a->argv[2], test_rate);	
+		}
+	}
+
+	ast_cli(a->fd, "Attempting to test a timer with %u ticks per second ...\n", test_rate);
 
 	if ((fd = ast_timer_open()) == -1) {
 		ast_cli(a->fd, "Failed to open timing fd\n");
@@ -221,7 +237,7 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 	start = ast_tvnow();
 
-	ast_timer_set_rate(fd, 50);
+	ast_timer_set_rate(fd, test_rate);
 
 	while (ast_tvdiff_ms((end = ast_tvnow()), start) < 1000) {
 		int res;
