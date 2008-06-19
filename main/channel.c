@@ -2677,10 +2677,10 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					f = &ast_null_frame;
 				}
 			} else if ((f->frametype == AST_FRAME_VOICE) && !(f->subclass & chan->nativeformats)) {
-				/* This frame can't be from the current native formats -- drop it on the
-				   floor */
+				/* This frame is not one of the current native formats -- drop it on the floor */
+				char to[200];
 				ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n",
-					chan->name, ast_getformatname(f->subclass), ast_getformatname(chan->nativeformats));
+					chan->name, ast_getformatname(f->subclass), ast_getformatname_multiple(to, sizeof(to), chan->nativeformats));
 				ast_frfree(f);
 				f = &ast_null_frame;
 			} else if ((f->frametype == AST_FRAME_VOICE)) {
@@ -3182,7 +3182,8 @@ static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *fo
 {
 	int native;
 	int res;
-
+	char from[200], to[200];
+	
 	/* Make sure we only consider audio */
 	fmt &= AST_FORMAT_AUDIO_MASK;
 	
@@ -3201,7 +3202,8 @@ static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *fo
 
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to find a codec translation path from %s to %s\n",
-			ast_getformatname(native), ast_getformatname(fmt));
+			ast_getformatname_multiple(from, sizeof(from), native),
+			ast_getformatname_multiple(to, sizeof(to), fmt));
 		return -1;
 	}
 	
