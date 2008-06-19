@@ -4816,7 +4816,7 @@ static int get_folder2(struct ast_channel *chan, char *fn, int start)
  * \return zero on success, -1 on error.
  */
 static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, char *curdir, int curmsg, char *vmfmts,
-			char *context, signed char record_gain, long *duration, struct vm_state *vms, char *introfile)
+			char *context, signed char record_gain, long *duration, struct vm_state *vms, char *introfile, char *flag)
 {
 #ifdef IMAP_STORAGE
 	int res;
@@ -4855,7 +4855,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			/* Record new intro file */
 			res = ast_play_and_wait(chan, INTRO);
 			res = ast_play_and_wait(chan, "beep");
-			res = play_record_review(chan, NULL, introfile, vmu->maxsecs, vmfmts, 1, vmu, (int *)duration, NULL, record_gain, vms, NULL);
+			res = play_record_review(chan, NULL, introfile, vmu->maxsecs, vmfmts, 1, vmu, (int *)duration, NULL, record_gain, vms, flag);
 			cmd = 't';
 #else
 
@@ -5102,13 +5102,13 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	int valid_extensions = 0;
 	char *dir;
 	int curmsg;
-	const char *urgent_str = urgent ? "Urgent" : "";
+	char *urgent_str = urgent ? "Urgent" : "";
 	char tmptxtfile[PATH_MAX];
 
 	if (vms == NULL) return -1;
 	dir = vms->curdir;
 	curmsg = vms->curmsg;
-	
+
 	while (!res && !valid_extensions) {
 		int use_directory = 0;
 		if (ast_test_flag((&globalflags), VM_DIRECFORWARD)) {
@@ -5267,7 +5267,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		create_dirpath(vmstmp.curdir, sizeof(vmstmp.curdir), sender->context, vmstmp.username, "tmp");
 		make_file(msgfile, sizeof(msgfile), vmstmp.curdir, curmsg);
 
-		cmd = vm_forwardoptions(chan, sender, vmstmp.curdir, curmsg, vmfmts, S_OR(context, "default"), record_gain, &duration, &vmstmp, tmptxtfile);
+		cmd = vm_forwardoptions(chan, sender, vmstmp.curdir, curmsg, vmfmts, S_OR(context, "default"), record_gain, &duration, &vmstmp, tmptxtfile, urgent_str);
 		if (!cmd) {
 			AST_LIST_TRAVERSE_SAFE_BEGIN(&extensions, vmtmp, list) {
 #ifdef IMAP_STORAGE
@@ -8135,6 +8135,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 
 		/* If there are no new messages, inform the user and hangup */
 		if (vms.lastmsg == -1) {
+			in_urgent = 0;
 			cmd = vm_browse_messages(chan, &vms, vmu);
 			res = 0;
 			goto out;
@@ -8143,6 +8144,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		if (!vms.newmessages && !vms.urgentmessages && vms.oldmessages) {
 			/* If we only have old messages start here */
 			res = open_mailbox(&vms, vmu, OLD_FOLDER); /* Count all messages, even Urgent */
+			in_urgent = 0;
 			play_folder = 1;
 			if (res == ERROR_LOCK_PATH)
 				goto out;
@@ -8215,6 +8217,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				res = close_mailbox(&vms, vmu);
 				if (res == ERROR_LOCK_PATH)
 					goto out;
+				/* If folder is not urgent, set in_urgent to zero! */
+				if (cmd != 11) in_urgent = 0;
 				res = open_mailbox(&vms, vmu, cmd);
 				if (res == ERROR_LOCK_PATH)
 					goto out;
