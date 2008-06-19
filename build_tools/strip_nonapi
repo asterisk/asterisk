@@ -30,7 +30,7 @@ esac
 case "${OSARCH}" in
     linux-gnu|FreeBSD)
 	nm ${1} | ${GREP} -e "$TEXTSYM" | cut -d" " -f3 | ${FILTER} > striplist
-	sed -e "s/^/-N /" striplist | xargs ${STRIP} ${1}
+	sed -e "s/^/-N /" striplist | xargs -n 40 ${STRIP} ${1}
 	rm -f striplist
 	;;
     *)
