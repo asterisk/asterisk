@@ -1549,10 +1549,11 @@ static void pbx_load_users(void)
 	struct ast_config *cfg;
 	char *cat, *chan;
 	const char *dahdichan;
-	const char *hasexten;
+	const char *hasexten, *altexts;
 	char tmp[256];
 	char iface[256];
 	char dahdicopy[256];
+	char *ext, altcopy[256];
 	char *c;
 	int len;
 	int hasvoicemail;
@@ -1642,6 +1643,17 @@ static void pbx_load_users(void)
 				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Macro", strdup(tmp), ast_free_ptr, registrar);
 			} else {
 				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Dial", strdup("${HINT}"), ast_free_ptr, registrar);
+			}
+			altexts = ast_variable_retrieve(cfg, cat, "alternateexts");
+			if (!ast_strlen_zero(altexts)) {
+				snprintf(tmp, sizeof(tmp), "%s,1", cat);
+				ast_copy_string(altcopy, altexts, sizeof(altcopy));
+				c = altcopy;
+				ext = strsep(&c, ",");
+				while (ext) {
+					ast_add_extension2(con, 0, ext, 1, NULL, NULL, "Goto", strdup(tmp), ast_free, registrar);
+					ext = strsep(&c, ",");
+				}
 			}
 		}
 	}

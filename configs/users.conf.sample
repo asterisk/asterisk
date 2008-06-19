@@ -77,3 +77,9 @@ pickupgroup = 1
 ;hasmanager = no
 ;callwaiting = no
 ;context = international
+;
+; Some administrators choose alphanumeric extensions, but still want their
+; users to be reachable by traditional numeric extensions, specified by the
+; alternateexts entry.
+;
+;alternateexts = 7057,3249

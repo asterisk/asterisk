@@ -785,3 +785,5 @@ Miscellaneous
   * If compiled with DEBUG_THREADS enabled and if you have glibc, then issuing
      the "core show locks" CLI command will give lock information output as well
      as a backtrace of the stack which led to the lock calls.
+  * users.conf now sports an optional alternativeexts property, which permits
+    allocation of additional extensions which will reach the specified user.
