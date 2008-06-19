@@ -113,6 +113,10 @@
 /* Define to 1 if your GCC C compiler supports the 'unused' attribute. */
 #undef HAVE_ATTRIBUTE_unused
 
+/* Define to 1 if your GCC C compiler supports the 'warn_unused_result'
+   attribute. */
+#undef HAVE_ATTRIBUTE_warn_unused_result
+
 /* Define this to indicate the ${BKTR_DESCRIP} library */
 #undef HAVE_BKTR
 

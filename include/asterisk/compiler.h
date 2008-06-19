@@ -59,4 +59,10 @@
 #define attribute_sentinel
 #endif
 
+#ifdef HAVE_ATTRIBUTE_warn_unused_result
+#define attribute_warn_unused_result __attribute__((warn_unused_result))
+#else
+#define attribute_warn_unused_result
+#endif
+
 #endif /* _ASTERISK_COMPILER_H */

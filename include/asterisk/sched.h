@@ -149,7 +149,7 @@ char *ast_sched_report(struct sched_context *con, char *buf, int bufsiz, struct 
  * \param data data to pass to the callback
  * \return Returns a schedule item ID on success, -1 on failure
  */
-int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, const void *data) __attribute__((warn_unused_result));
+int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, const void *data) attribute_warn_unused_result;
 
 /*!
  * \brief replace a scheduler entry
@@ -162,7 +162,7 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, co
  * \retval -1 failure
  * \retval otherwise, returns scheduled item ID
  */
-int ast_sched_replace(int old_id, struct sched_context *con, int when, ast_sched_cb callback, const void *data) __attribute__((warn_unused_result));
+int ast_sched_replace(int old_id, struct sched_context *con, int when, ast_sched_cb callback, const void *data) attribute_warn_unused_result;
 
 /*!Adds a scheduled event with rescheduling support
  * \param con Scheduler context to add
@@ -177,7 +177,7 @@ int ast_sched_replace(int old_id, struct sched_context *con, int when, ast_sched
  * If callback returns 0, no further events will be re-scheduled
  * \return Returns a schedule item ID on success, -1 on failure
  */
-int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, const void *data, int variable) __attribute__((warn_unused_result));
+int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, const void *data, int variable) attribute_warn_unused_result;
 
 /*!
  * \brief replace a scheduler entry
@@ -190,7 +190,7 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
  * \retval -1 failure
  * \retval otherwise, returns scheduled item ID
  */
-int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, ast_sched_cb callback, const void *data, int variable) __attribute__((warn_unused_result));
+int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, ast_sched_cb callback, const void *data, int variable) attribute_warn_unused_result;
 
 	
 /*! \brief Find a sched structure and return the data field associated with it. 
@@ -210,7 +210,7 @@ const void *ast_sched_find_data(struct sched_context *con, int id);
  * \param id ID of the scheduled item to delete
  * \return Returns 0 on success, -1 on failure
  */
-int ast_sched_del(struct sched_context *con, int id) __attribute__((warn_unused_result));
+int ast_sched_del(struct sched_context *con, int id) attribute_warn_unused_result;
 
 /*! \brief Determines number of seconds until the next outstanding event to take place
  * Determine the number of seconds until the next outstanding event
@@ -221,7 +221,7 @@ int ast_sched_del(struct sched_context *con, int id) __attribute__((warn_unused_
  * \return Returns "-1" if there is nothing there are no scheduled events
  * (and thus the poll should not timeout)
  */
-int ast_sched_wait(struct sched_context *con) __attribute__((warn_unused_result));
+int ast_sched_wait(struct sched_context *con) attribute_warn_unused_result;
 
 /*! \brief Runs the queue
  * \param con Scheduling context to run
