@@ -13103,7 +13103,7 @@ char *this,*val;
 			close(fd);
 			ast_free(nodep);
 		}
-		usleep(2000000);
+		sleep(2);
 	}
 	ast_config_destroy(cfg);
 	pthread_exit(NULL);
