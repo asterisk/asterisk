@@ -538,6 +538,9 @@ static int local_hangup(struct ast_channel *ast)
 	} else {
 		p->owner = NULL;
 		ast_module_user_remove(p->u_owner);
+		if (p->chan) {
+			ast_queue_hangup(p->chan);
+		}
 	}
 	
 	ast->tech_pvt = NULL;
