@@ -1,7 +1,8 @@
 ASTERISK-MIB DEFINITIONS ::= BEGIN
 
 IMPORTS
-	OBJECT-TYPE, MODULE-IDENTITY, Integer32, Counter32, TimeTicks
+	OBJECT-TYPE, MODULE-IDENTITY, Integer32, Counter32, TimeTicks,
+	Unsigned32, Gauge32
 		FROM SNMPv2-SMI
 
 	TEXTUAL-CONVENTION, DisplayString, TruthValue
@@ -11,7 +12,7 @@ IMPORTS
 		FROM DIGIUM-MIB;
 
 asterisk MODULE-IDENTITY
-	LAST-UPDATED	"200708211450Z"
+	LAST-UPDATED	"200806202025Z"
 	ORGANIZATION	"Digium, Inc."
 	CONTACT-INFO
 		"Mark A. Spencer
@@ -30,11 +31,19 @@ asterisk MODULE-IDENTITY
 		   Tel: +47 5598 7200
 		 Email: tholo@voop.no"
 	DESCRIPTION
-		"Add total and current call counter statistics."
-	REVISION	"200708211450Z"
-	DESCRIPTION
 		"Asterisk is an Open Source PBX.  This MIB defined
 		objects for managing Asterisk instances."
+	REVISION	"200806202025Z"
+	DESCRIPTION
+		"smilint police --
+		 Add missing imports; fix initial capitalization
+		 of enumeration elements; add missing range
+		 restrictions for Integer32 indices, correct
+		 spelling of astChanCidANI in its definition.
+		 Addresses bug 12905. - jeffg@opennms.org"
+	REVISION	"200708211450Z"
+	DESCRIPTION
+		"Add total and current call counter statistics."
 	REVISION	"200603061840Z"
 	DESCRIPTION
 		"Change audio codec identification from 3kAudio to
@@ -178,7 +187,7 @@ AstIndicationsEntry ::= SEQUENCE {
 }
 
 astIndIndex OBJECT-TYPE
-	SYNTAX		Integer32
+	SYNTAX		Integer32 (1 .. 2147483647)
 	MAX-ACCESS	read-only
 	STATUS		current
 	DESCRIPTION
@@ -284,7 +293,7 @@ AstChanEntry ::= SEQUENCE {
 }
 
 astChanIndex OBJECT-TYPE
-	SYNTAX		Integer32
+	SYNTAX		Integer32 (1 .. 2147483647)
 	MAX-ACCESS	read-only
 	STATUS		current
 	DESCRIPTION
@@ -522,7 +531,7 @@ astChanCidName OBJECT-TYPE
 		"Caller Name."
 	::= { astChanEntry 28 }
 
-astCanCidANI OBJECT-TYPE
+astChanCidANI OBJECT-TYPE
 	SYNTAX		DisplayString
 	MAX-ACCESS	read-only
 	STATUS		current
@@ -572,10 +581,10 @@ astChanCidTNS OBJECT-TYPE
 
 astChanAMAFlags OBJECT-TYPE
 	SYNTAX		INTEGER {
-		Default(0),
-		Omit(1),
-		Billing(2),
-		Documentation(3)
+		default(0),
+		omit(1),
+		billing(2),
+		documentation(3)
 	}
 	MAX-ACCESS	read-only
 	STATUS		current
@@ -585,10 +594,10 @@ astChanAMAFlags OBJECT-TYPE
 
 astChanADSI OBJECT-TYPE
 	SYNTAX		INTEGER {
-		Unknown(0),
-		Available(1),
-		Unavailable(2),
-		OffHookOnly(3)
+		unknown(0),
+		available(1),
+		unavailable(2),
+		offHookOnly(3)
 	}
 	MAX-ACCESS	read-only
 	STATUS		current
@@ -606,14 +615,14 @@ astChanToneZone OBJECT-TYPE
 
 astChanHangupCause OBJECT-TYPE
 	SYNTAX		INTEGER {
-		NotDefined(0),
-		Unregistered(3),
-		Normal(16),
-		Busy(17),
-		NoAnswer(19),
-		Congestion(34),
-		Failure(38),
-		NoSuchDriver(66)
+		notDefined(0),
+		unregistered(3),
+		normal(16),
+		busy(17),
+		noAnswer(19),
+		congestion(34),
+		failure(38),
+		noSuchDriver(66)
 	}
 	MAX-ACCESS	read-only
 	STATUS		current
@@ -631,16 +640,16 @@ astChanVariables OBJECT-TYPE
 
 astChanFlags OBJECT-TYPE
 	SYNTAX		BITS {
-		WantsJitter(0),
-		DeferDTMF(1),
-		WriteInterrupt(2),
-		Blocking(3),
-		Zombie(4),
-		Exception(5),
-		MusicOnHold(6),
-		Spying(7),
-		NativeBridge(8),
-		AutoIncrementingLoop(9)
+		wantsJitter(0),
+		deferDTMF(1),
+		writeInterrupt(2),
+		blocking(3),
+		zombie(4),
+		exception(5),
+		musicOnHold(6),
+		spying(7),
+		nativeBridge(8),
+		autoIncrementingLoop(9)
 	}
 	MAX-ACCESS	read-only
 	STATUS		current
@@ -650,12 +659,12 @@ astChanFlags OBJECT-TYPE
 
 astChanTransferCap OBJECT-TYPE
 	SYNTAX		INTEGER {
-		Speech(0),
-		Digital(8),
-		RestrictedDigital(9),
-		Audio3k(16),
-		DigitalWithTones(17),
-		Video(24)
+		speech(0),
+		digital(8),
+		restrictedDigital(9),
+		audio3k(16),
+		digitalWithTones(17),
+		video(24)
 	}
 	MAX-ACCESS	read-only
 	STATUS		current
@@ -700,7 +709,7 @@ AstChanTypeEntry ::= SEQUENCE {
 }
 
 astChanTypeIndex OBJECT-TYPE
-	SYNTAX		Integer32
+	SYNTAX		Integer32 (1 .. 2147483647)
 	MAX-ACCESS	read-only
 	STATUS		current
 	DESCRIPTION
