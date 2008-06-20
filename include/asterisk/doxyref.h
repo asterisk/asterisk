@@ -153,7 +153,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * - \ref pbx_retrieve_variable()
  * - \ref AstChanVar
  *
- *  \verbinclude channelvariables.txt
+ *  \verbinclude channelvariables.tex
 
  */
 
