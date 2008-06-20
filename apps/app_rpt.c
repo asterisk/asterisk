@@ -6800,7 +6800,7 @@ static void *rpt_master(void *config)
 			}
 
 		}
-		usleep(2000000);
+		sleep(2);
 	}
 	ast_config_destroy(cfg);
 	pthread_exit(NULL);
