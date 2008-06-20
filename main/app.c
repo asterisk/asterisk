@@ -1026,7 +1026,7 @@ int ast_app_group_list_unlock(void)
 unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arraylen)
 {
 	int argc;
-	char *scan;
+	char *scan, *wasdelim = NULL;
 	int paren = 0, quote = 0;
 
 	if (!buf || !array || !arraylen)
@@ -1053,14 +1053,18 @@ unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arra
 				/* Literal character, don't parse */
 				memmove(scan, scan + 1, strlen(scan));
 			} else if ((*scan == delim) && !paren && !quote) {
+				wasdelim = scan;
 				*scan++ = '\0';
 				break;
 			}
 		}
 	}
 
-	if (*scan)
+	/* If the last character in the original string was the delimiter, then
+	 * there is one additional argument. */
+	if (*scan || (scan > buf && (scan - 1) == wasdelim)) {
 		array[argc++] = scan;
+	}
 
 	return argc;
 }
