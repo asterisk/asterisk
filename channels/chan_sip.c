@@ -9835,7 +9835,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		peer->lastms = 0;
 
 		ast_verb(3, "Unregistered SIP '%s'\n", peer->name);
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\n", peer->name);
+			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\n", peer->name);
 		return PARSE_REGISTER_UPDATE;
 	}
 
