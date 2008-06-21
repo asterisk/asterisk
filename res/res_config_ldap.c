@@ -588,9 +588,9 @@ static struct ast_variable *ldap_loadentry(struct ldap_table_config *table_confi
 
 				vars = realtime_ldap_result_to_vars(table_config, ldap_result, entries_count_ptr);
 				if (num_entry > 1)
-					ast_log(LOG_WARNING, "More than one entry for dn=%s. Take only 1st one\n", dn);
+					ast_log(LOG_NOTICE, "More than one entry for dn=%s. Take only 1st one\n", dn);
 			} else {
-				ast_log(LOG_WARNING, "Could not find any entry dn=%s.\n", dn);
+				ast_debug(2, "Could not find any entry dn=%s.\n", dn);
 			}
 		}
 		ldap_msgfree(ldap_result);
@@ -816,7 +816,7 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 			/* is this a static var or some other? they are handled different for delimited values */
 			vars = realtime_ldap_result_to_vars(table_config, ldap_result, entries_count_ptr);
 		} else {
-			ast_log(LOG_WARNING, "Could not find any entry matching %s in base dn %s.\n",
+			ast_debug(1, "Could not find any entry matching %s in base dn %s.\n",
 				filter->str, clean_basedn);
 		}
 
@@ -942,7 +942,7 @@ static struct ast_config *realtime_multi_ldap(const char *basedn,
 	if (vars) {
 		cfg = ast_config_new();
 		if (!cfg) {
-			ast_log(LOG_WARNING, "Out of memory!\n");
+			ast_log(LOG_ERROR, "Unable to create a config!\n");
 		} else {
 			struct ast_variable **p = vars;
 
@@ -950,7 +950,7 @@ static struct ast_config *realtime_multi_ldap(const char *basedn,
 				struct ast_category *cat = NULL;
 				cat = ast_category_new("", table_name, -1);
 				if (!cat) {
-					ast_log(LOG_WARNING, "Out of memory!\n");
+					ast_log(LOG_ERROR, "Unable to create a new category!\n");
 					break;
 				} else {
 					struct ast_variable *var = *p;
@@ -1022,7 +1022,7 @@ static struct ast_config *config_ldap(const char *basedn, const char *table_name
 	struct ast_variable **p;
 
 	if (ast_strlen_zero(file) || !strcasecmp(file, RES_CONFIG_LDAP_CONF)) {
-		ast_log(LOG_WARNING, "Cannot configure myself.\n");
+		ast_log(LOG_ERROR, "Cannot configure myself.\n");
 		return NULL;
 	}
 
@@ -1191,7 +1191,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	newval = va_arg(ap, const char *);
 	if (!newparam || !newval) {
 		ast_log(LOG_WARNING,
-				"LINE(%d): need at least one paramter to modify.\n", __LINE__);
+				"LINE(%d): need at least one parameter to modify.\n", __LINE__);
 		return -1;
 	}
 
