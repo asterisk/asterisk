@@ -234,10 +234,10 @@ static int forkcdr_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(arglist, argcopy);
 
-	if (!ast_strlen_zero(arglist.options)) {
+	opts[OPT_ARG_VARSET] = 0;
+
+	if (!ast_strlen_zero(arglist.options))
 		ast_app_parse_options(forkcdr_exec_options, &flags, opts, arglist.options);
-	} else
-		opts[OPT_ARG_VARSET] = 0;
 	
 	if (!ast_strlen_zero(data))
 		ast_set2_flag(chan->cdr, ast_test_flag(&flags, OPT_KEEPVARS), AST_CDR_FLAG_KEEP_VARS);
