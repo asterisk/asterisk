@@ -1,8 +1,7 @@
 ;
 ; Configuration file for MeetMe simple conference rooms for Asterisk of course.
 ;
-; This configuration file is read every time you call the MeetMe application
-; unless a dynamic conference is referenced.
+; This configuration file is read every time you call app meetme()
 
 [general]
 ;audiobuffers=32	; The number of 20ms audio buffers to be used
