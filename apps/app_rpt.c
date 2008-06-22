@@ -338,8 +338,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <linux/zaptel.h>
 #include <tonezone.h>
 #else
-#include <zaptel/zaptel.h>
-#include <zaptel/tonezone.h>
+#include "asterisk/dahdi.h"
 #endif
 #include <netinet/in.h>
 #include <arpa/inet.h>
