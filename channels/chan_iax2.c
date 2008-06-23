@@ -1556,7 +1556,17 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
  			}
  		}
 
-		/* Look for an existing connection first */
+		/* If we get here, we SHOULD NOT find a call structure for this
+		   callno; if we do, it means that there is a call structure that
+		   has a peer callno but did NOT get entered into the hash table,
+		   which is bad.
+
+		   If we find a call structure using this old, slow method, output a log
+		   message so we'll know about it. After a few months of leaving this in
+		   place, if we don't hear about people seeing these messages, we can
+		   remove this code for good.
+		*/
+
 		for (x = 1; !res && x < maxnontrunkcall; x++) {
 			ast_mutex_lock(&iaxsl[x]);
 			if (iaxs[x]) {
@@ -1568,6 +1578,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			if (!res || !return_locked)
 				ast_mutex_unlock(&iaxsl[x]);
 		}
+
 		for (x = TRUNK_CALL_START; !res && x < maxtrunkcall; x++) {
 			ast_mutex_lock(&iaxsl[x]);
 			if (iaxs[x]) {
@@ -1578,6 +1589,10 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			}
 			if (!res || !return_locked)
 				ast_mutex_unlock(&iaxsl[x]);
+		}
+
+		if (res) {
+			ast_log(LOG_WARNING, "Old call search code found call number %d that was not in hash table!\n", res);
 		}
 	}
 	if (!res && (new >= NEW_ALLOW)) {
