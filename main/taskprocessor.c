@@ -74,9 +74,9 @@ struct ast_taskprocessor {
 	/*! \brief Taskprocessor statistics */
 	struct tps_taskprocessor_stats *stats;
 	/*! \brief Taskprocessor current queue size */
-	long queue_size;
+	long tps_queue_size;
 	/*! \brief Taskprocessor queue */
-	AST_LIST_HEAD_NOLOCK(queue, tps_task) queue;
+	AST_LIST_HEAD_NOLOCK(tps_queue, tps_task) tps_queue;
 	/*! \brief Taskprocessor singleton list entry */
 	AST_LIST_ENTRY(ast_taskprocessor) list;
 };
@@ -261,7 +261,7 @@ static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	i = ao2_iterator_init(tps_singletons, 0);
 	while ((p = ao2_iterator_next(&i))) {
 		ast_copy_string(name, p->name, sizeof(name));
-		qsize = p->queue_size;
+		qsize = p->tps_queue_size;
 		maxqsize = p->stats->max_qsize;
 		processed = p->stats->_tasks_processed_count;
 		ast_cli(a->fd, "\n%24s   %17ld %12ld %12ld", name, processed, qsize, maxqsize);
@@ -380,8 +380,8 @@ static struct tps_task *tps_taskprocessor_pop(struct ast_taskprocessor *tps)
 		return NULL;
 	}
 	ast_mutex_lock(&tps->taskprocessor_lock);
-	if ((task = AST_LIST_REMOVE_HEAD(&tps->queue, list))) {
-		tps->queue_size--;
+	if ((task = AST_LIST_REMOVE_HEAD(&tps->tps_queue, list))) {
+		tps->tps_queue_size--;
 	}
 	ast_mutex_unlock(&tps->taskprocessor_lock);
 	return task;
@@ -389,7 +389,7 @@ static struct tps_task *tps_taskprocessor_pop(struct ast_taskprocessor *tps)
 
 static int tps_taskprocessor_depth(struct ast_taskprocessor *tps)
 {
-	return (tps) ? tps->queue_size : -1;
+	return (tps) ? tps->tps_queue_size : -1;
 }
 
 /* taskprocessor name accessor */
@@ -493,8 +493,8 @@ int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *
 		return -1;
 	}
 	ast_mutex_lock(&tps->taskprocessor_lock);
-	AST_LIST_INSERT_TAIL(&tps->queue, t, list);
-	tps->queue_size++;
+	AST_LIST_INSERT_TAIL(&tps->tps_queue, t, list);
+	tps->tps_queue_size++;
 	ast_cond_signal(&tps->poll_cond);
 	ast_mutex_unlock(&tps->taskprocessor_lock);
 	return 0;
