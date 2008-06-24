@@ -15559,15 +15559,22 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 			return 1;
 		}
 		/* Go ahead and lock the owner if it has one -- we may need it */
-		/* becaues this is deadlock-prone, we need to try and unlock if failed */
+		/* because this is deadlock-prone, we need to try and unlock if failed */
 		if (!p->owner || !ast_channel_trylock(p->owner))
 			break;	/* locking succeeded */
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Failed to grab owner channel lock, trying again. (SIP call %s)\n", p->callid);
-		ast_mutex_unlock(&p->lock);
-		ast_mutex_unlock(&netlock);
-		/* Sleep for a very short amount of time */
-		usleep(1);
+		if (lockretry == 1) {
+			if (option_debug) {
+				ast_log(LOG_DEBUG, "Failed to grab owner channel lock. (SIP call %s)\n", p->callid);
+			}
+		} else {
+			if (option_debug) {
+				ast_log(LOG_DEBUG, "Failed to grab owner channel lock, trying again. (SIP call %s)\n", p->callid);
+			}
+			ast_mutex_unlock(&p->lock);
+			ast_mutex_unlock(&netlock);
+			/* Sleep for a very short amount of time */
+			usleep(1);
+		}
 	}
 	p->recv = sin;
 
@@ -15575,6 +15582,8 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 		append_history(p, "Rx", "%s / %s / %s", req.data, get_header(&req, "CSeq"), req.rlPart2);
 
 	if (!lockretry) {
+		/* XXX Wouldn't p->owner always exist here? */
+		/* This is unsafe, since p->owner wouldn't be locked. */
 		if (p->owner)
 			ast_log(LOG_ERROR, "We could NOT get the channel lock for %s! \n", S_OR(p->owner->name, "- no channel name ??? - "));
 		ast_log(LOG_ERROR, "SIP transaction failed: %s \n", p->callid);
@@ -15582,6 +15591,8 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 			transmit_response(p, "503 Server error", &req);	/* We must respond according to RFC 3261 sec 12.2 */
 		/* XXX We could add retry-after to make sure they come back */
 		append_history(p, "LockFail", "Owner lock failed, transaction failed.");
+		ast_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&netlock);
 		return 1;
 	}
 	nounlock = 0;
