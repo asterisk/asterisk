@@ -2137,26 +2137,33 @@ static int aji_filter_roster(void *data, ikspak *pak)
 				ASTOBJ_UNLOCK(iterator);
 			});
 
-			if (!flag) {
-				buddy = ast_calloc(1, sizeof(*buddy));
-				if (!buddy) {
-					ast_log(LOG_WARNING, "Out of memory\n");
-					return 0;
-				}
-				ASTOBJ_INIT(buddy);
-				ASTOBJ_WRLOCK(buddy);
-				ast_copy_string(buddy->name, iks_find_attrib(x, "jid"), sizeof(buddy->name));
-				ast_clear_flag(&buddy->flags, AST_FLAGS_ALL);
-				if(ast_test_flag(&client->flags, AJI_AUTOPRUNE)) {
-					ast_set_flag(&buddy->flags, AJI_AUTOPRUNE);
-					ASTOBJ_MARK(buddy);
-				} else
-					ast_set_flag(&buddy->flags, AJI_AUTOREGISTER);
-				ASTOBJ_UNLOCK(buddy);
-				if (buddy) {
-					ASTOBJ_CONTAINER_LINK(&client->buddies, buddy);
-					ASTOBJ_UNREF(buddy, aji_buddy_destroy);
-				}
+			if (flag) {
+				/* found buddy, don't create a new one */
+				x = iks_next(x);
+				continue;
+			}
+			
+			buddy = ast_calloc(1, sizeof(*buddy));
+			if (!buddy) {
+				ast_log(LOG_WARNING, "Out of memory\n");
+				return 0;
+			}
+			ASTOBJ_INIT(buddy);
+			ASTOBJ_WRLOCK(buddy);
+			ast_copy_string(buddy->name, iks_find_attrib(x, "jid"), sizeof(buddy->name));
+			ast_clear_flag(&buddy->flags, AST_FLAGS_ALL);
+			if(ast_test_flag(&client->flags, AJI_AUTOPRUNE)) {
+				ast_set_flag(&buddy->flags, AJI_AUTOPRUNE);
+				ASTOBJ_MARK(buddy);
+			} else if (!iks_strcmp(iks_find_attrib(x, "subscription"), "none") || !iks_strcmp(iks_find_attrib(x, "subscription"), "from")) {
+				/* subscribe to buddy's presence only 
+				   if we really need to */
+				ast_set_flag(&buddy->flags, AJI_AUTOREGISTER);
+			}
+			ASTOBJ_UNLOCK(buddy);
+			if (buddy) {
+				ASTOBJ_CONTAINER_LINK(&client->buddies, buddy);
+				ASTOBJ_UNREF(buddy, aji_buddy_destroy);
 			}
 		}
 		x = iks_next(x);
