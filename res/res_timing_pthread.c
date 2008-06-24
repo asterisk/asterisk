@@ -102,6 +102,7 @@ static struct {
 static int pthread_timer_open(void)
 {
 	struct pthread_timer *timer;
+	int fd;
 
 	if (!(timer = ao2_alloc(sizeof(*timer), pthread_timer_destructor))) {
 		errno = ENOMEM;
@@ -125,7 +126,11 @@ static int pthread_timer_open(void)
 	ao2_link(pthread_timers, timer);
 	ao2_unlock(pthread_timers);
 
-	return timer->pipe[PIPE_READ];
+	fd = timer->pipe[PIPE_READ];
+
+	ao2_ref(timer, -1);
+
+	return fd;
 }
 
 static void pthread_timer_close(int handle)
@@ -326,7 +331,6 @@ static int check_timer(struct pthread_timer *timer)
 
 static void read_pipe(int rd_fd, unsigned int quantity, int clear)
 {
-
 	ast_assert(quantity || clear);
 
 	if (!quantity && clear) {
