@@ -2051,37 +2051,39 @@ static void aji_pruneregister(struct aji_client *client)
 	iks *removequery = iks_new("query");
 	iks *removeitem = iks_new("item");
 	iks *send = iks_make_iq(IKS_TYPE_GET, "http://jabber.org/protocol/disco#items");
-
-	if (client && removeiq && removequery && removeitem && send) {
-		iks_insert_node(removeiq, removequery);
-		iks_insert_node(removequery, removeitem);
-		ASTOBJ_CONTAINER_TRAVERSE(&client->buddies, 1, {
-			ASTOBJ_RDLOCK(iterator);
-			/* For an aji_buddy, both AUTOPRUNE and AUTOREGISTER will never
-			 * be called at the same time */
-			if (ast_test_flag(&iterator->flags, AJI_AUTOPRUNE)) {
-				res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBE, iterator->name,
-						"GoodBye your status is no longer needed by Asterisk the Open Source PBX"
-						" so I am no longer subscribing to your presence.\n"));
-				res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBED, iterator->name,
-						"GoodBye you are no longer in the asterisk config file so I am removing"
-						" your access to my presence.\n"));
-				iks_insert_attrib(removeiq, "from", client->jid->full); 
-				iks_insert_attrib(removeiq, "type", "set"); 
-				iks_insert_attrib(removequery, "xmlns", "jabber:iq:roster");
-				iks_insert_attrib(removeitem, "jid", iterator->name);
-				iks_insert_attrib(removeitem, "subscription", "remove");
-				res = ast_aji_send(client, removeiq);
-			} else if (ast_test_flag(&iterator->flags, AJI_AUTOREGISTER)) {
-				res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_SUBSCRIBE, iterator->name, 
-						"Greetings I am the Asterisk Open Source PBX and I want to subscribe to your presence\n"));
-				ast_clear_flag(&iterator->flags, AJI_AUTOREGISTER);
-			}
-			ASTOBJ_UNLOCK(iterator);
-		});
-	} else
+	if (!client || !removeiq || !removequery || !removeitem || !send) {
 		ast_log(LOG_ERROR, "Out of memory.\n");
+		goto safeout;
+	}
 
+	iks_insert_node(removeiq, removequery);
+	iks_insert_node(removequery, removeitem);
+	ASTOBJ_CONTAINER_TRAVERSE(&client->buddies, 1, {
+		ASTOBJ_RDLOCK(iterator);
+		/* For an aji_buddy, both AUTOPRUNE and AUTOREGISTER will never
+		 * be called at the same time */
+		if (ast_test_flag(&iterator->flags, AJI_AUTOPRUNE)) {
+			res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBE, iterator->name,
+								 "GoodBye your status is no longer needed by Asterisk the Open Source PBX"
+								 " so I am no longer subscribing to your presence.\n"));
+			res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBED, iterator->name,
+								 "GoodBye you are no longer in the asterisk config file so I am removing"
+								 " your access to my presence.\n"));
+			iks_insert_attrib(removeiq, "from", client->jid->full); 
+			iks_insert_attrib(removeiq, "type", "set"); 
+			iks_insert_attrib(removequery, "xmlns", "jabber:iq:roster");
+			iks_insert_attrib(removeitem, "jid", iterator->name);
+			iks_insert_attrib(removeitem, "subscription", "remove");
+			res = ast_aji_send(client, removeiq);
+		} else if (ast_test_flag(&iterator->flags, AJI_AUTOREGISTER)) {
+			res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_SUBSCRIBE, iterator->name, 
+								 "Greetings I am the Asterisk Open Source PBX and I want to subscribe to your presence\n"));
+			ast_clear_flag(&iterator->flags, AJI_AUTOREGISTER);
+		}
+		ASTOBJ_UNLOCK(iterator);
+	});
+
+ safeout:
 	iks_delete(removeiq);
 	iks_delete(removequery);
 	iks_delete(removeitem);
