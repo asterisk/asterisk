@@ -573,6 +573,22 @@ static int adsiver = 1;
 static char emaildateformat[32] = "%A, %B %d, %Y at %r";
 
 
+static char *strip_control(const char *input, char *buf, size_t buflen)
+{
+	char *bufptr = buf;
+	for (; *input; input++) {
+		if (*input < 32) {
+			continue;
+		}
+		*bufptr++ = *input;
+		if (bufptr == buf + buflen - 1) {
+			break;
+		}
+	}
+	*bufptr = '\0';
+	return buf;
+}
+
 static void populate_defaults(struct ast_vm_user *vmu)
 {
 	ast_copy_flags(vmu, (&globalflags), AST_FLAGS_ALL);	
@@ -1792,6 +1808,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	char fname[256];
 	char dur[256];
 	char tmpcmd[256];
+	char enc_cidnum[256], enc_cidname[256];
 	struct tm tm;
 	char *passdata2;
 	size_t len_passdata;
@@ -1801,6 +1818,8 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 #define ENDL "\n"
 #endif
 
+	strip_control(cidnum, enc_cidnum, sizeof(enc_cidnum));
+	strip_control(cidname, enc_cidname, sizeof(enc_cidname));
 	gethostname(host, sizeof(host) - 1);
 	if (strchr(srcemail, '@'))
 		ast_copy_string(who, srcemail, sizeof(who));
@@ -1821,7 +1840,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			int vmlen = strlen(fromstring)*3 + 200;
 			if ((passdata = alloca(vmlen))) {
 				memset(passdata, 0, vmlen);
-				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, enc_cidnum, enc_cidname, dur, date, passdata, vmlen, category);
 				pbx_substitute_variables_helper(ast, fromstring, passdata, vmlen);
 				len_passdata = strlen(passdata) * 2 + 3;
 				passdata2 = alloca(len_passdata);
@@ -1846,18 +1865,21 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
 				pbx_substitute_variables_helper(ast, emailsubject, passdata, vmlen);
 				fprintf(p, "Subject: %s" ENDL, passdata);
-			} else
+			} else {
 				ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+			}
 			ast_channel_free(ast);
-		} else
+		} else {
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+		}
 	} else	if (*emailtitle) {
 		fprintf(p, emailtitle, msgnum + 1, mailbox) ;
 		fprintf(p, ENDL) ;
-	} else if (ast_test_flag((&globalflags), VM_PBXSKIP))
+	} else if (ast_test_flag((&globalflags), VM_PBXSKIP)) {
 		fprintf(p, "Subject: New message %d in mailbox %s" ENDL, msgnum + 1, mailbox);
-	else
+	} else {
 		fprintf(p, "Subject: [PBX]: New message %d in mailbox %s" ENDL, msgnum + 1, mailbox);
+	}
 	fprintf(p, "Message-ID: <Asterisk-%d-%d-%s-%d@%s>" ENDL, msgnum + 1, (unsigned int)ast_random(), mailbox, (int)getpid(), host);
 	if (imap) {
 		/* additional information needed for IMAP searching */
@@ -1868,18 +1890,21 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		fprintf(p, "X-Asterisk-VM-Extension: %s" ENDL, mailbox);
 		fprintf(p, "X-Asterisk-VM-Priority: %d" ENDL, chan->priority);
 		fprintf(p, "X-Asterisk-VM-Caller-channel: %s" ENDL, chan->name);
-		fprintf(p, "X-Asterisk-VM-Caller-ID-Num: %s" ENDL, cidnum);
-		fprintf(p, "X-Asterisk-VM-Caller-ID-Name: %s" ENDL, cidname);
+		fprintf(p, "X-Asterisk-VM-Caller-ID-Num: %s" ENDL, enc_cidnum);
+		fprintf(p, "X-Asterisk-VM-Caller-ID-Name: %s" ENDL, enc_cidname);
 		fprintf(p, "X-Asterisk-VM-Duration: %d" ENDL, duration);
-		if (!ast_strlen_zero(category))
+		if (!ast_strlen_zero(category)) {
 			fprintf(p, "X-Asterisk-VM-Category: %s" ENDL, category);
+		}
 		fprintf(p, "X-Asterisk-VM-Orig-date: %s" ENDL, date);
 		fprintf(p, "X-Asterisk-VM-Orig-time: %ld" ENDL, (long)time(NULL));
 	}
-	if (!ast_strlen_zero(cidnum))
-		fprintf(p, "X-Asterisk-CallerID: %s" ENDL, cidnum);
-	if (!ast_strlen_zero(cidname))
-		fprintf(p, "X-Asterisk-CallerIDName: %s" ENDL, cidname);
+	if (!ast_strlen_zero(cidnum)) {
+		fprintf(p, "X-Asterisk-CallerID: %s" ENDL, enc_cidnum);
+	}
+	if (!ast_strlen_zero(cidname)) {
+		fprintf(p, "X-Asterisk-CallerIDName: %s" ENDL, enc_cidname);
+	}
 	fprintf(p, "MIME-Version: 1.0" ENDL);
 	if (attach_user_voicemail) {
 		/* Something unique. */
