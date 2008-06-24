@@ -156,6 +156,11 @@ ODBC Changes
     as some people were running into this limit.  This limit has been increased
     to 4.2 billion.
 
+Queue changes
+-------------
+  * The TRANSFER queue log entry now includes the the caller's original
+    position in the transferred-from queue.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------
 ------------------------------------------------------------------------------

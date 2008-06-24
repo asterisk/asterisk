@@ -220,12 +220,18 @@ Manager:
   output of the SIPpeers command.
 
 * cdr_manager now reports at the "cdr" level, not at "call"  You may need to
-   change your manager.conf to add the level to existing AMI users, if they
-   want to see the CDR events generated.
+  change your manager.conf to add the level to existing AMI users, if they
+  want to see the CDR events generated.
 
 * The Originate command now requires the Originate write permission.  For
-   Originate with the Application parameter, you need the additional System
-   privilege if you want to do anything that calls out to a subshell.
+  Originate with the Application parameter, you need the additional System
+  privilege if you want to do anything that calls out to a subshell.
+
+Queues:
+
+* New queue log events ADDMEMBER and REMOVEMEMBER have been added.  Also, a
+  new value has been added to the TRANSFER event that indicates the caller's
+  original position in the queue they are being transfered from.
 
 iLBC Codec:
 
