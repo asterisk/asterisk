@@ -86,8 +86,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include <sys/loadavg.h>
 #endif
 
-#include "asterisk/dahdi.h"
-
 #ifdef linux
 #include <sys/prctl.h>
 #ifdef HAVE_CAP

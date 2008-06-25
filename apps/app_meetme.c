@@ -37,7 +37,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/dahdi.h"
+#include <dahdi/user.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -292,7 +292,7 @@ static const char *descrip2 =
 "will be returned in the variable. Upon app completion, MeetMeCount will hangup\n"
 "the channel, unless priority n+1 exists, in which case priority progress will\n"
 "continue.\n"
-"A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
+"";
 
 static const char *descrip3 = 
 "  MeetMeAdmin(confno,command[,user]): Run admin command for conference\n"

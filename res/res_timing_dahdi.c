@@ -36,9 +36,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include <fcntl.h>
 #include <math.h>
 
+#include <dahdi/user.h>
+
 #include "asterisk/module.h"
 #include "asterisk/timing.h"
-#include "asterisk/dahdi.h"
 #include "asterisk/utils.h"
 
 static void *timing_funcs_handle;

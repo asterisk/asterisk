@@ -39,7 +39,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#include "asterisk/dahdi.h"
+#include <dahdi/user.h>
+
 #include "asterisk/lock.h"
 #include "asterisk/translate.h"
 #include "asterisk/config.h"

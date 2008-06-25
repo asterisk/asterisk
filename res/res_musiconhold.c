@@ -46,7 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <thread.h>
 #endif
 
-#include "asterisk/dahdi.h"
+#include <dahdi/user.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
