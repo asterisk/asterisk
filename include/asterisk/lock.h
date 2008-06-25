@@ -1048,28 +1048,37 @@ static inline int _ast_rwlock_unlock(ast_rwlock_t *t, const char *name,
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 	
 	ast_reentrancy_lock(lt);
-	if (lt->reentrancy && (lt->thread[lt->reentrancy-1] != pthread_self())) {
-		__ast_mutex_logger("%s line %d (%s): attempted unlock rwlock '%s' without owning it!\n",
-					filename, line, func, name);
-		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-				lt->file[lt->reentrancy-1], lt->lineno[lt->reentrancy-1], lt->func[lt->reentrancy-1], name);
+	if (lt->reentrancy) {
+		int lock_found = 0;
+		int i;
+		for (i = lt->reentrancy-1; i >= 0; --i) {
+			if (lt->thread[i] == pthread_self()) {
+				lock_found = 1;
+				if (i != lt->reentrancy-1) {
+					lt->file[i] = lt->file[lt->reentrancy-1];
+					lt->lineno[i] = lt->lineno[lt->reentrancy-1];
+					lt->func[i] = lt->func[lt->reentrancy-1];
+					lt->thread[i] = lt->thread[lt->reentrancy-1];
+				}
+				break;
+			}
+		}
+		if (!lock_found) {
+			__ast_mutex_logger("%s line %d (%s): attempted unlock rwlock '%s' without owning it!\n",
+						filename, line, func, name);
+			__ast_mutex_logger("%s line %d (%s): '%s' was last locked here.\n",
+					lt->file[lt->reentrancy-1], lt->lineno[lt->reentrancy-1], lt->func[lt->reentrancy-1], name);
 #ifdef HAVE_BKTR
 		__dump_backtrace(&lt->backtrace[lt->reentrancy-1], canlog);
 #endif
 		DO_THREAD_CRASH;
+		}
 	}
 
 	if (--lt->reentrancy < 0) {
 		__ast_mutex_logger("%s line %d (%s): rwlock '%s' freed more times than we've locked!\n",
 				filename, line, func, name);
 		lt->reentrancy = 0;
-	}
-
-	if (lt->reentrancy < AST_MAX_REENTRANCY) {
-		lt->file[lt->reentrancy] = NULL;
-		lt->lineno[lt->reentrancy] = 0;
-		lt->func[lt->reentrancy] = NULL;
-		lt->thread[lt->reentrancy] = 0;
 	}
 
 #ifdef HAVE_BKTR
