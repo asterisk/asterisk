@@ -261,6 +261,20 @@ int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, cons
  * used during deadlock avoidance, to preserve the original location where
  * a lock was originally acquired.
  */
+#define CHANNEL_DEADLOCK_AVOIDANCE(chan) \
+	do { \
+		const char *__filename, *__func, *__mutex_name; \
+		int __lineno; \
+		int __res = ast_find_lock_info(&chan->lock_dont_use, &__filename, &__lineno, &__func, &__mutex_name); \
+		ast_channel_unlock(chan); \
+		usleep(1); \
+		if (__res < 0) { /* Shouldn't ever happen, but just in case... */ \
+			ast_channel_lock(chan); \
+		} else { \
+			__ast_pthread_mutex_lock(__filename, __lineno, __func, __mutex_name, &chan->lock_dont_use); \
+		} \
+	} while (0)
+
 #define DEADLOCK_AVOIDANCE(lock) \
 	do { \
 		const char *__filename, *__func, *__mutex_name; \
@@ -1404,6 +1418,11 @@ static inline int _ast_rwlock_trywrlock(ast_rwlock_t *t, const char *name,
 }
 
 #else /* !DEBUG_THREADS */
+
+#define	CHANNEL_DEADLOCK_AVOIDANCE(chan) \
+	ast_channel_lock(chan); \
+	usleep(1); \
+	ast_channel_unlock(chan);
 
 #define	DEADLOCK_AVOIDANCE(lock) \
 	ast_mutex_lock(lock); \
