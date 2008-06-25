@@ -1069,9 +1069,9 @@ static inline int _ast_rwlock_unlock(ast_rwlock_t *t, const char *name,
 			__ast_mutex_logger("%s line %d (%s): '%s' was last locked here.\n",
 					lt->file[lt->reentrancy-1], lt->lineno[lt->reentrancy-1], lt->func[lt->reentrancy-1], name);
 #ifdef HAVE_BKTR
-		__dump_backtrace(&lt->backtrace[lt->reentrancy-1], canlog);
+			__dump_backtrace(&lt->backtrace[lt->reentrancy-1], canlog);
 #endif
-		DO_THREAD_CRASH;
+			DO_THREAD_CRASH;
 		}
 	}
 
