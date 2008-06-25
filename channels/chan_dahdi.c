@@ -5208,10 +5208,11 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 	int index;
 	void *readbuf;
 	struct ast_frame *f;
-	
 
-	ast_mutex_lock(&p->lock);
-	
+	while (ast_mutex_trylock(&p->lock)) {
+		CHANNEL_DEADLOCK_AVOIDANCE(ast);
+	}
+
 	index = dahdi_get_index(ast, p, 0);
 	
 	/* Hang up if we don't really exist */
