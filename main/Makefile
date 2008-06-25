@@ -130,8 +130,8 @@ testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	$(CC) -g -o testexpr2 ast_expr2f.o ast_expr2.o -lm
 	rm ast_expr2.o ast_expr2f.o 
 
-channel.o: ASTCFLAGS+=$(ZAPTEL_INCLUDE)
-asterisk.o: ASTCFLAGS+=$(ZAPTEL_INCLUDE)
+channel.o: ASTCFLAGS+=$(DAHDI_INCLUDE)
+asterisk.o: ASTCFLAGS+=$(DAHDI_INCLUDE)
 
 
 ifneq ($(findstring ENABLE_UPLOADS,$(MENUSELECT_CFLAGS)),)

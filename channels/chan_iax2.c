@@ -52,8 +52,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <regex.h>
+#include <sys/ioctl.h>
+#include <dahdi/user.h>
 
-#include "asterisk/dahdi.h"
 #include "asterisk/paths.h"	/* need ast_config_AST_DATA_DIR for firmware */
 
 #include "asterisk/lock.h"

@@ -86,7 +86,8 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include <sys/loadavg.h>
 #endif
 
-#include "asterisk/dahdi.h"
+#include <sys/ioctl.h>
+#include <dahdi/user.h>
 
 #ifdef linux
 #include <sys/prctl.h>

@@ -33,7 +33,8 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/dahdi.h"
+#include <sys/ioctl.h>
+#include <dahdi/user.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"

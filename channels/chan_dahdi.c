@@ -58,7 +58,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 #include <math.h>
 #include <ctype.h>
-#include "asterisk/dahdi.h"
+
+#include <dahdi/user.h>
+#include <dahdi/tonezone.h>
 
 #ifdef HAVE_PRI
 #include <libpri.h>
@@ -123,16 +125,6 @@ static struct ast_jb_conf default_jbconf =
 	.impl = ""
 };
 static struct ast_jb_conf global_jbconf;
-
-#if !defined(DAHDI_SIG_EM_E1) || (defined(HAVE_PRI) && !defined(DAHDI_SIG_HARDHDLC))
-#error "Your DAHDI is too old.  Please update"
-#endif
-
-#ifndef DAHDI_TONEDETECT
-/* Work around older code with no tone detect */
-#define DAHDI_EVENT_DTMFDOWN 0
-#define DAHDI_EVENT_DTMFUP 0
-#endif
 
 /* define this to send PRI user-user information elements */
 #undef SUPPORT_USERUSER
