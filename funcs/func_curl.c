@@ -50,28 +50,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
 
-struct MemoryStruct {
-	char *memory;
-	size_t size;
-};
-
-/* There might be a realloc() out there that doesn't like reallocing
- * NULL pointers, so we take care of it here
- */
-static void *myrealloc(void *ptr, size_t size)
-{
-	return (ptr ? ast_realloc(ptr, size) : ast_malloc(size));
-}
-
 static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *data)
 {
 	register int realsize = size * nmemb;
-	struct MemoryStruct *mem = (struct MemoryStruct *)data;
+	struct ast_str **str = (struct ast_str **)data;
 
-	if ((mem->memory = (char *)myrealloc(mem->memory, mem->size + realsize + 1))) {
-		memcpy(&(mem->memory[mem->size]), ptr, realsize);
-		mem->size += realsize;
-		mem->memory[mem->size] = 0;
+	if (ast_str_make_space(str, (*str)->used + realsize + 1) == 0) {
+		memcpy(&(*str)->str[(*str)->used], ptr, realsize);
+		(*str)->used += realsize;
 	}
 
 	return realsize;
@@ -103,7 +89,7 @@ static void curl_instance_cleanup(void *data)
 
 AST_THREADSTORAGE_CUSTOM(curl_instance, curl_instance_init, curl_instance_cleanup);
 
-static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
+static int curl_internal(struct ast_str **chunk, char *url, char *post)
 {
 	CURL **curl;
 
@@ -128,7 +114,7 @@ static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
 
 static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, char *buf, size_t len)
 {
-	struct MemoryStruct chunk = { NULL, 0 };
+	struct ast_str *str = ast_str_create(16);
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(url);
 		AST_APP_ARG(postdata);
@@ -138,6 +124,7 @@ static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, 
 	
 	if (ast_strlen_zero(info)) {
 		ast_log(LOG_WARNING, "CURL requires an argument (URL)\n");
+		ast_free(str);
 		return -1;
 	}
 
@@ -146,18 +133,19 @@ static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, 
 	if (chan)
 		ast_autoservice_start(chan);
 
-	if (!curl_internal(&chunk, args.url, args.postdata)) {
-		if (chunk.memory) {
-			chunk.memory[chunk.size] = '\0';
-			if (chunk.memory[chunk.size - 1] == 10)
-				chunk.memory[chunk.size - 1] = '\0';
+	if (!curl_internal(&str, args.url, args.postdata)) {
+		if (str->used) {
+			str->str[str->used] = '\0';
+			if (str->str[str->used - 1] == '\n') {
+				str->str[str->used - 1] = '\0';
+			}
 
-			ast_copy_string(buf, chunk.memory, len);
-			ast_free(chunk.memory);
+			ast_copy_string(buf, str->str, len);
 		}
 	} else {
 		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
 	}
+	ast_free(str);
 
 	if (chan)
 		ast_autoservice_stop(chan);
@@ -181,8 +169,6 @@ static int unload_module(void)
 
 	res = ast_custom_function_unregister(&acf_curl);
 
-	curl_global_cleanup();
-	
 	return res;
 }
 
@@ -190,10 +176,12 @@ static int load_module(void)
 {
 	int res;
 
-	if (curl_global_init(CURL_GLOBAL_ALL)) {
-		ast_log(LOG_ERROR, "Unable to initialize the CURL library. Cannot load func_curl\n");
-		return AST_MODULE_LOAD_DECLINE;
-	}	
+	if (!ast_module_check("res_curl.so")) {
+		if (ast_load_resource("res_curl.so") != AST_MODULE_LOAD_SUCCESS) {
+			ast_log(LOG_ERROR, "Cannot load res_curl, so func_curl cannot be loaded\n");
+			return AST_MODULE_LOAD_DECLINE;
+		}
+	}
 
 	res = ast_custom_function_register(&acf_curl);
 

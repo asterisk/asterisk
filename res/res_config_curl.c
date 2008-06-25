@@ -538,15 +538,22 @@ static struct ast_config_engine curl_engine = {
 	.require_func = require_curl,
 };
 
-static int unload_module (void)
+static int unload_module(void)
 {
 	ast_config_engine_deregister(&curl_engine);
 	ast_verb(1, "res_config_curl unloaded.\n");
 	return 0;
 }
 
-static int load_module (void)
+static int load_module(void)
 {
+	if (!ast_module_check("res_curl.so")) {
+		if (ast_load_resource("res_curl.so") != AST_MODULE_LOAD_SUCCESS) {
+			ast_log(LOG_ERROR, "Cannot load res_curl, so res_config_curl cannot be loaded\n");
+			return AST_MODULE_LOAD_DECLINE;
+		}
+	}
+
 	ast_config_engine_register(&curl_engine);
 	ast_verb(1, "res_config_curl loaded.\n");
 	return 0;
