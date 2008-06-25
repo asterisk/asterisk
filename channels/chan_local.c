@@ -219,15 +219,13 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 
 	/* Ensure that we have both channels locked */
 	while (other && ast_channel_trylock(other)) {
-		ast_mutex_unlock(&p->lock);
+		DLA_UNLOCK(&p->lock);
 		if (us && us_locked) {
-			ast_channel_unlock(us);
+			CHANNEL_DEADLOCK_AVOIDANCE(us);
+		} else {
+			usleep(1);
 		}
-		usleep(1);
-		if (us && us_locked) {
-			ast_channel_lock(us);
-		}
-		ast_mutex_lock(&p->lock);
+		DLA_LOCK(&p->lock);
 		other = isoutbound ? p->owner : p->chan;
 	}
 

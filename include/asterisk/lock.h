@@ -289,6 +289,21 @@ int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, cons
 		} \
 	} while (0)
 
+#define DLA_UNLOCK(lock) \
+	do { \
+		const char *__filename, *__func, *__mutex_name; \
+		int __lineno; \
+		int __res = ast_find_lock_info(lock, &__filename, &__lineno, &__func, &__mutex_name); \
+		ast_mutex_unlock(lock);
+
+#define DLA_LOCK(lock) \
+		if (__res < 0) { /* Shouldn't ever happen, but just in case... */ \
+			ast_mutex_lock(lock); \
+		} else { \
+			__ast_pthread_mutex_lock(__filename, __lineno, __func, __mutex_name, lock); \
+		} \
+	} while (0)
+
 static inline void ast_reentrancy_lock(struct ast_lock_track *lt)
 {
 	pthread_mutex_lock(&lt->reentr_mutex);
@@ -1428,6 +1443,10 @@ static inline int _ast_rwlock_trywrlock(ast_rwlock_t *t, const char *name,
 	ast_mutex_lock(lock); \
 	usleep(1); \
 	ast_mutex_unlock(lock);
+
+#define DLA_UNLOCK(lock)	ast_mutex_unlock(lock)
+
+#define DLA_LOCK(lock)	ast_mutex_lock(lock)
 
 typedef pthread_mutex_t ast_mutex_t;
 

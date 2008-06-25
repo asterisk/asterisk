@@ -304,9 +304,7 @@ static int oh323_simulate_dtmf_end(const void *data)
 		ast_mutex_lock(&pvt->lock);
 		/* Don't hold pvt lock while trying to lock the channel */
 		while(pvt->owner && ast_channel_trylock(pvt->owner)) {
-			ast_mutex_unlock(&pvt->lock);
-			usleep(1);
-			ast_mutex_lock(&pvt->lock);
+			DEADLOCK_AVOIDANCE(&pvt->lock);
 		}
 
 		if (pvt->owner) {

@@ -2248,9 +2248,7 @@ retry:
 	if (owner) {
 		if (ast_channel_trylock(owner)) {
 			ast_debug(3, "Avoiding IAX destroy deadlock\n");
-			ast_mutex_unlock(&iaxsl[callno]);
-			usleep(1);
-			ast_mutex_lock(&iaxsl[callno]);
+			DEADLOCK_AVOIDANCE(&iaxsl[callno]);
 			goto retry;
 		}
 	}

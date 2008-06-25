@@ -139,9 +139,7 @@ static void wakeup_sub(struct feature_pvt *p, int a)
 	for (;;) {
 		if (p->subs[a].owner) {
 			if (ast_mutex_trylock(&p->subs[a].owner->lock)) {
-				ast_mutex_unlock(&p->lock);
-				usleep(1);
-				ast_mutex_lock(&p->lock);
+				DEADLOCK_AVOIDANCE(&p->lock);
 			} else {
 				ast_queue_frame(p->subs[a].owner, &null);
 				ast_mutex_unlock(&p->subs[a].owner->lock);

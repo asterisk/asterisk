@@ -898,10 +898,7 @@ static inline int ss7_grab(struct dahdi_pvt *pvt, struct dahdi_ss7 *pri)
 	do {
 		res = ast_mutex_trylock(&pri->lock);
 		if (res) {
-			ast_mutex_unlock(&pvt->lock);
-			/* Release the lock and try again */
-			usleep(1);
-			ast_mutex_lock(&pvt->lock);
+			DEADLOCK_AVOIDANCE(&pvt->lock);
 		}
 	} while (res);
 	/* Then break the poll */
@@ -3755,9 +3752,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 
 	ast_channel_lock(c0);
 	while (ast_channel_trylock(c1)) {
-		ast_channel_unlock(c0);
-		usleep(1);
-		ast_channel_lock(c0);
+		CHANNEL_DEADLOCK_AVOIDANCE(c0);
 	}
 
 	p0 = c0->tech_pvt;
@@ -3927,9 +3922,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		
 		ast_channel_lock(c0);
 		while (ast_channel_trylock(c1)) {
-			ast_channel_unlock(c0);
-			usleep(1);
-			ast_channel_lock(c0);
+			CHANNEL_DEADLOCK_AVOIDANCE(c0);
 		}
 
 		p0 = c0->tech_pvt;
@@ -4469,14 +4462,12 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						   the private structure -- not especially easy or clean */
 						while (p->subs[SUB_THREEWAY].owner && ast_channel_trylock(p->subs[SUB_THREEWAY].owner)) {
 							/* Yuck, didn't get the lock on the 3-way, gotta release everything and re-grab! */
-							ast_mutex_unlock(&p->lock);
-							ast_channel_unlock(ast);
-							usleep(1);
+							DLA_UNLOCK(&p->lock);
+							CHANNEL_DEADLOCK_AVOIDANCE(ast);
 							/* We can grab ast and p in that order, without worry.  We should make sure
 							   nothing seriously bad has happened though like some sort of bizarre double
 							   masquerade! */
-							ast_channel_lock(ast);
-							ast_mutex_lock(&p->lock);
+							DLA_LOCK(&p->lock);
 							if (p->owner != ast) {
 								ast_log(LOG_WARNING, "This isn't good...\n");
 								return NULL;
