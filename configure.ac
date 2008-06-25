@@ -1360,8 +1360,14 @@ fi
 
 if test "${PBX_DAHDI}" = "1" || test "${USE_ZAPTEL}" = "no"; then
   tonezone_dir="dahdi"
+   if test "x${DAHDI_DIR}" != "x"; then
+      tonezone_extra="${tonezone_extra} -I${DAHDI_DIR}/include"
+   fi
 else
   tonezone_dir="zaptel"
+   if test "x${ZAPTEL_DIR}" != "x"; then
+      tonezone_extra="${tonezone_extra} -I${ZAPTEL_DIR}/include"
+   fi
 fi
 
 AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [${tonezone_dir}/tonezone.h], [${tonezone_extra}])

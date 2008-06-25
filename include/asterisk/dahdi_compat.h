@@ -22,15 +22,13 @@
 #ifndef DAHDI_COMPAT_H
 #define DAHDI_COMPAT_H
 
-#ifdef HAVE_DAHDI
+#if defined(HAVE_DAHDI)
 
 #include <dahdi/user.h>
-#include <dahdi/tonezone.h>
 
 #elif defined(HAVE_ZAPTEL)
 
 #include <zaptel/zaptel.h>
-#include <zaptel/tonezone.h>
 
 /* Compiling against Zaptel instead of DAHDI */
 

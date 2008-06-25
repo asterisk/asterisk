@@ -104,6 +104,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
 
 #include "asterisk/dahdi_compat.h"
+#include "asterisk/tonezone_compat.h"
 
 /*! Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =

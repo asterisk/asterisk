@@ -137,7 +137,7 @@
 */
 
 /*** MODULEINFO
-	<depend>zaptel</depend>
+	<depend>dahdi</depend>
 	<depend>tonezone</depend>
 	<defaultenabled>no</defaultenabled>
  ***/
@@ -276,15 +276,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/io.h>
 #include <sys/vfs.h>
 #include <math.h>
-#ifdef OLD_ASTERISK
-#include <linux/zaptel.h>
-#include <tonezone.h>
-#else
-#include <zaptel/zaptel.h>
-#include <zaptel/tonezone.h>
-#endif
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <termios.h>
 
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
@@ -303,7 +297,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/localtime.h"
 #include "asterisk/cdr.h"
 #include "asterisk/options.h"
-#include <termios.h>
+
+#include "asterisk/dahdi_compat.h"
+#include "asterisk/tonezone_compat.h"
 
 /* Start a tone-list going */
 int ast_playtones_start(struct ast_channel *chan, int vol, const char* tonelist, int interruptible);
@@ -2609,7 +2605,7 @@ static struct morse_bits mbits[] = {
 	*/
 
 	for(i = 0; i < 20 ; i++){
-		flags =  DAHDI_IOMUX_WRITEEMPTY | ZT_IOMUX_NOWAIT; 
+		flags =  DAHDI_IOMUX_WRITEEMPTY | DAHDI_IOMUX_NOWAIT; 
 		res = ioctl(chan->fds[0], DAHDI_IOMUX, &flags);
 		if(flags & DAHDI_IOMUX_WRITEEMPTY)
 			break;
@@ -2660,7 +2656,7 @@ static int send_tone_telemetry(struct ast_channel *chan, char *tonestring)
 	*/
 
 	for(i = 0; i < 20 ; i++){
-		flags =  DAHDI_IOMUX_WRITEEMPTY | ZT_IOMUX_NOWAIT; 
+		flags =  DAHDI_IOMUX_WRITEEMPTY | DAHDI_IOMUX_NOWAIT; 
 		res = ioctl(chan->fds[0], DAHDI_IOMUX, &flags);
 		if(flags & DAHDI_IOMUX_WRITEEMPTY)
 			break;
@@ -2920,7 +2916,7 @@ char lbuf[MAXLINKLIST],*strs[MAXLINKLIST];
 int	i,ns,rbimode;
 char mhz[MAXREMSTR];
 char decimals[MAXREMSTR];
-struct zt_params par;
+struct dahdi_params par;
 
 
 	/* get a pointer to myrpt */
@@ -4181,8 +4177,8 @@ struct ast_channel *mychannel,*genchannel;
 #endif
 	ci.chan = 0;
 	ci.confno = myrpt->conf; /* use the pseudo conference */
-	ci.confmode = DAHDI_CONF_REALANDPSEUDO | ZT_CONF_TALKER | ZT_CONF_LISTENER
-		| DAHDI_CONF_PSEUDO_TALKER | ZT_CONF_PSEUDO_LISTENER; 
+	ci.confmode = DAHDI_CONF_REALANDPSEUDO | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER
+		| DAHDI_CONF_PSEUDO_TALKER | DAHDI_CONF_PSEUDO_LISTENER; 
 	/* first put the channel on the conference */
 	if (ioctl(mychannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
@@ -4204,8 +4200,8 @@ struct ast_channel *mychannel,*genchannel;
 #endif
 	ci.chan = 0;
 	ci.confno = myrpt->conf;
-	ci.confmode = DAHDI_CONF_REALANDPSEUDO | ZT_CONF_TALKER | ZT_CONF_LISTENER
-		| DAHDI_CONF_PSEUDO_TALKER | ZT_CONF_PSEUDO_LISTENER; 
+	ci.confmode = DAHDI_CONF_REALANDPSEUDO | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER
+		| DAHDI_CONF_PSEUDO_TALKER | DAHDI_CONF_PSEUDO_LISTENER; 
 	/* first put the channel on the conference */
 	if (ioctl(genchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
@@ -4347,7 +4343,7 @@ struct ast_channel *mychannel,*genchannel;
 	ci.chan = 0;
 	ci.confno = myrpt->conf;
 	ci.confmode = (myrpt->p.duplex == 2) ? DAHDI_CONF_CONFANNMON :
-		(DAHDI_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER);
+		(DAHDI_CONF_CONF | DAHDI_CONF_LISTENER | DAHDI_CONF_TALKER);
 	/* first put the channel on the conference in announce mode */
 	if (ioctl(myrpt->pchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
@@ -4402,7 +4398,7 @@ struct ast_channel *mychannel,*genchannel;
 	ci.chan = 0;
 	ci.confno = myrpt->conf;
 	ci.confmode = ((myrpt->p.duplex == 2) || (myrpt->p.duplex == 4)) ? DAHDI_CONF_CONFANNMON :
-		(DAHDI_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER);
+		(DAHDI_CONF_CONF | DAHDI_CONF_LISTENER | DAHDI_CONF_TALKER);
 	/* first put the channel on the conference in announce mode */
 	if (ioctl(myrpt->pchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
@@ -4610,7 +4606,7 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 	/* make a conference for the tx */
 	ci.chan = 0;
 	ci.confno = myrpt->conf;
-	ci.confmode = DAHDI_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER;
+	ci.confmode = DAHDI_CONF_CONF | DAHDI_CONF_LISTENER | DAHDI_CONF_TALKER;
 	/* first put the channel on the conference in proper mode */
 	if (ioctl(l->pchan->fds[0], DAHDI_SETCONF, &ci) == -1)
 	{
@@ -5847,9 +5843,9 @@ static void rbi_out_parallel(struct rpt *myrpt,unsigned char *data)
 
 static void rbi_out(struct rpt *myrpt,unsigned char *data)
 {
-struct zt_radio_param r;
+struct dahdi_radio_param r;
 
-	memset(&r,0,sizeof(struct zt_radio_param));
+	memset(&r,0,sizeof(struct dahdi_radio_param));
 	r.radpar = DAHDI_RADPAR_REMMODE;
 	r.data = DAHDI_RADPAR_REM_RBI1;
 	/* if setparam ioctl fails, its probably not a pciradio card */
@@ -5871,7 +5867,7 @@ static int serial_remote_io(struct rpt *myrpt, unsigned char *txbuf, int txbytes
 	unsigned char *rxbuf, int rxmaxbytes, int asciiflag)
 {
 	int i,j,index,oldmode,olddata;
-	struct zt_radio_param prm;
+	struct dahdi_radio_param prm;
 	char c;
 
 	if(debug){
@@ -8963,7 +8959,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	/* make a conference for the tx */
 	ci.chan = 0;
 	ci.confno = -1; /* make a new conf */
-	ci.confmode = DAHDI_CONF_CONF | ZT_CONF_LISTENER;
+	ci.confmode = DAHDI_CONF_CONF | DAHDI_CONF_LISTENER;
 	/* first put the channel on the conference in proper mode */
 	if (ioctl(myrpt->zaptxchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
@@ -8983,7 +8979,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	ci.chan = 0;
 	ci.confno = -1; /* make a new conf */
 	ci.confmode = ((myrpt->p.duplex == 2) || (myrpt->p.duplex == 4)) ? DAHDI_CONF_CONFANNMON :
-		(DAHDI_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER);
+		(DAHDI_CONF_CONF | DAHDI_CONF_LISTENER | DAHDI_CONF_TALKER);
 	/* first put the channel on the conference in announce mode */
 	if (ioctl(myrpt->pchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
@@ -9057,7 +9053,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	/* make a conference for the tx */
 	ci.chan = 0;
 	ci.confno = myrpt->txconf;
-	ci.confmode = DAHDI_CONF_CONF | ZT_CONF_TALKER ;
+	ci.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER ;
  	/* first put the channel on the conference in proper mode */
 	if (ioctl(myrpt->txpchannel->fds[0],DAHDI_SETCONF,&ci) == -1)
 	{
@@ -10572,7 +10568,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	DAHDI_PARAMS par;
 	int ms,elap,nullfd;
 	time_t t,last_timeout_warning;
-	struct	zt_radio_param z;
+	struct	dahdi_radio_param z;
 	struct rpt_tele *telem;
 
 	nullfd = open("/dev/null",O_RDWR);
@@ -10948,7 +10944,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		/* make a conference for the tx */
 		ci.chan = 0;
 		ci.confno = myrpt->conf;
-		ci.confmode = DAHDI_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER;
+		ci.confmode = DAHDI_CONF_CONF | DAHDI_CONF_LISTENER | DAHDI_CONF_TALKER;
 		/* first put the channel on the conference in proper mode */
 		if (ioctl(l->pchan->fds[0],DAHDI_SETCONF,&ci) == -1)
 		{
