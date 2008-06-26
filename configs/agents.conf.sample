@@ -38,6 +38,8 @@ persistentagents=yes
 ;
 ; Define ackcall to require an acknowledgement by '#' when
 ; an agent logs in using agentcallbacklogin.  Default is "no".
+; Can also be set to "always", which will also require AgentLogin
+; agents to acknowledge calls by pressing '#'.
 ;
 ;ackcall=no
 ;
