@@ -2863,6 +2863,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->maxtime = peer->maxms;
 	dialog->callgroup = peer->callgroup;
 	dialog->pickupgroup = peer->pickupgroup;
+	dialog->peerauth = peer->auth;
 	dialog->allowtransfer = peer->allowtransfer;
 	/* Set timer T1 to RTT for this peer (if known by qualify=) */
 	/* Minimum is settable or default to 100 ms */
@@ -11649,9 +11650,11 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	snprintf(cnonce, sizeof(cnonce), "%08lx", ast_random());
 
  	/* Check if we have separate auth credentials */
- 	if ((auth = find_realm_authentication(authl, p->realm))) {
-		ast_log(LOG_WARNING, "use realm [%s] from peer [%s][%s]\n",
-			auth->username, p->peername, p->username);
+ 	if(!(auth = find_realm_authentication(p->peerauth, p->realm)))	/* Start with peer list */
+ 		auth = find_realm_authentication(authl, p->realm);	/* If not, global list */
+
+ 	if (auth) {
+		ast_log(LOG_DEBUG, "use realm [%s] from peer [%s][%s]\n", auth->username, p->peername, p->username);
  		username = auth->username;
  		secret = auth->secret;
  		md5secret = auth->md5secret;
