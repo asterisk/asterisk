@@ -193,7 +193,7 @@ static int speextolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	   the tail location.  Read in as many frames as there are */
 	int x;
 	int res;
-	int16_t *dst = (int16_t *)pvt->outbuf;
+	int16_t *dst = pvt->outbuf.i16;
 	/* XXX fout is a temporary buffer, may have different types */
 #ifdef _SPEEX_TYPES_H
 	spx_int16_t fout[1024];
@@ -316,7 +316,7 @@ static struct ast_frame *lintospeex_frameout(struct ast_trans_pvt *pvt)
 
 	/* Terminate bit stream */
 	speex_bits_pack(&tmp->bits, 15, 5);
-	datalen = speex_bits_write(&tmp->bits, pvt->outbuf, pvt->t->buf_size);
+	datalen = speex_bits_write(&tmp->bits, pvt->outbuf.c, pvt->t->buf_size);
 	return ast_trans_frameout(pvt, datalen, samples);
 }
 

@@ -140,7 +140,7 @@ static void build_bits(unsigned char *c, INT32 *bits)
 static int lpc10tolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct lpc10_coder_pvt *tmp = pvt->pvt;
-	int16_t *dst = (int16_t *)pvt->outbuf;
+	int16_t *dst = pvt->outbuf.i16;
 	int len = 0;
 
 	while (len + LPC10_BYTES_IN_COMPRESSED_FRAME <= f->datalen) {
@@ -200,7 +200,7 @@ static struct ast_frame *lintolpc10_frameout(struct ast_trans_pvt *pvt)
 		for (x=0;x<LPC10_SAMPLES_PER_FRAME;x++)
 			tmpbuf[x] = (float)tmp->buf[x + samples] / 32768.0;
 		lpc10_encode(tmpbuf, bits, tmp->lpc10.enc);
-		build_bits((unsigned char *) pvt->outbuf + datalen, bits);
+		build_bits(pvt->outbuf.uc + datalen, bits);
 		datalen += LPC10_BYTES_IN_COMPRESSED_FRAME;
 		samples += LPC10_SAMPLES_PER_FRAME;
 		pvt->samples -= LPC10_SAMPLES_PER_FRAME;

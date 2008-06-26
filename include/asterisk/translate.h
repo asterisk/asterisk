@@ -136,14 +136,19 @@ struct ast_translator {
  */
 struct ast_trans_pvt {
 	struct ast_translator *t;
-	struct ast_frame f;	/*!< used in frameout */
-	int samples;		/*!< samples available in outbuf */
+	struct ast_frame f;         /*!< used in frameout */
+	int samples;                /*!< samples available in outbuf */
 	/*! \brief actual space used in outbuf */
 	int datalen;
-	void *pvt;		/*!< more private data, if any */
-	char *outbuf;		/*!< the useful portion of the buffer */
-	plc_state_t *plc;	/*!< optional plc pointer */
-	struct ast_trans_pvt *next;	/*!< next in translator chain */
+	void *pvt;                  /*!< more private data, if any */
+	union {
+		char *c;                /*!< the useful portion of the buffer */
+		unsigned char *uc;      /*!< the useful portion of the buffer */
+		int16_t *i16;
+		uint8_t *ui8;
+	} outbuf; 
+	plc_state_t *plc;           /*!< optional plc pointer */
+	struct ast_trans_pvt *next; /*!< next in translator chain */
 	struct timeval nextin;
 	struct timeval nextout;
 	unsigned int destroy:1;

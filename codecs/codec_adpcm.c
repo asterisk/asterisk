@@ -230,7 +230,7 @@ static int adpcmtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	struct adpcm_decoder_pvt *tmp = pvt->pvt;
 	int x = f->datalen;
 	unsigned char *src = f->data.ptr;
-	int16_t *dst = (int16_t *)pvt->outbuf + pvt->samples;
+	int16_t *dst = pvt->outbuf.i16 + pvt->samples;
 
 	while (x--) {
 		*dst++ = decode((*src >> 4) & 0xf, &tmp->state);
@@ -265,7 +265,7 @@ static struct ast_frame *lintoadpcm_frameout(struct ast_trans_pvt *pvt)
 	pvt->samples &= ~1; /* atomic size is 2 samples */
 
 	for (i = 0; i < pvt->samples; i += 2) {
-		pvt->outbuf[i/2] =
+		pvt->outbuf.c[i/2] =
 			(adpcm(tmp->inbuf[i  ], &tmp->state) << 4) |
 			(adpcm(tmp->inbuf[i+1], &tmp->state)     );
 	};

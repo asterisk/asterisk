@@ -693,7 +693,7 @@ static int g726aal2tolin_framein (struct ast_trans_pvt *pvt, struct ast_frame *f
 {
 	struct g726_coder_pvt *tmp = pvt->pvt;
 	unsigned char *src = f->data.ptr;
-	int16_t *dst = (int16_t *) pvt->outbuf + pvt->samples;
+	int16_t *dst = pvt->outbuf.i16 + pvt->samples;
 	unsigned int i;
 
 	for (i = 0; i < f->datalen; i++) {
@@ -718,7 +718,7 @@ static int lintog726aal2_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		unsigned char d = g726_encode(src[i], &tmp->g726); /* this sample */
 
 		if (tmp->next_flag & 0x80) {	/* merge with leftover sample */
-			pvt->outbuf[pvt->datalen++] = ((tmp->next_flag & 0xf)<< 4) | d;
+			pvt->outbuf.c[pvt->datalen++] = ((tmp->next_flag & 0xf)<< 4) | d;
 			pvt->samples += 2;	/* 2 samples per byte */
 			tmp->next_flag = 0;
 		} else {
@@ -734,7 +734,7 @@ static int g726tolin_framein (struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct g726_coder_pvt *tmp = pvt->pvt;
 	unsigned char *src = f->data.ptr;
-	int16_t *dst = (int16_t *) pvt->outbuf + pvt->samples;
+	int16_t *dst = pvt->outbuf.i16 + pvt->samples;
 	unsigned int i;
 
 	for (i = 0; i < f->datalen; i++) {
@@ -759,7 +759,7 @@ static int lintog726_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		unsigned char d = g726_encode(src[i], &tmp->g726); /* this sample */
 
 		if (tmp->next_flag & 0x80) {	/* merge with leftover sample */
-			pvt->outbuf[pvt->datalen++] = (d << 4) | (tmp->next_flag & 0xf);
+			pvt->outbuf.c[pvt->datalen++] = (d << 4) | (tmp->next_flag & 0xf);
 			pvt->samples += 2;	/* 2 samples per byte */
 			tmp->next_flag = 0;
 		} else {
@@ -774,7 +774,7 @@ static int lintog726_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 static int g726tog726aal2_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	unsigned char *src = f->data.ptr;
-	unsigned char *dst = (unsigned char *) pvt->outbuf + pvt->samples;
+	unsigned char *dst = pvt->outbuf.uc + pvt->samples;
 	unsigned int i;
 
 	for (i = 0; i < f->datalen; i++)

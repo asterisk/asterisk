@@ -119,7 +119,7 @@ static void *newpvt(struct ast_translator *t)
 		ofs += sizeof(plc_state_t);
 	}
 	if (t->buf_size)		/* finally buffer and header */
-		pvt->outbuf = ofs + AST_FRIENDLY_OFFSET;
+		pvt->outbuf.c = ofs + AST_FRIENDLY_OFFSET;
 	/* call local init routine, if present */
 	if (t->newpvt && t->newpvt(pvt)) {
 		ast_free(pvt);
@@ -153,7 +153,7 @@ static void destroy(struct ast_trans_pvt *pvt)
 /*! \brief framein wrapper, deals with plc and bound checks.  */
 static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	int16_t *dst = (int16_t *)pvt->outbuf;
+	int16_t *dst = pvt->outbuf.i16;
 	int ret;
 	int samples = pvt->samples;	/* initial value */
 	
@@ -235,7 +235,7 @@ struct ast_frame *ast_trans_frameout(struct ast_trans_pvt *pvt,
 	f->mallocd = 0;
 	f->offset = AST_FRIENDLY_OFFSET;
 	f->src = pvt->t->name;
-	f->data.ptr = pvt->outbuf;
+	f->data.ptr = pvt->outbuf.c;
 
 	ast_set_flag(f, AST_FRFLAG_FROM_TRANSLATOR);
 

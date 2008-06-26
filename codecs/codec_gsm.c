@@ -103,7 +103,7 @@ static int gsmtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct gsm_translator_pvt *tmp = pvt->pvt;
 	int x;
-	int16_t *dst = (int16_t *)pvt->outbuf;
+	int16_t *dst = pvt->outbuf.i16;
 	/* guess format from frame len. 65 for MSGSM, 33 for regular GSM */
 	int flen = (f->datalen % MSGSM_FRAME_LEN == 0) ?
 		MSGSM_FRAME_LEN : GSM_FRAME_LEN;
@@ -176,7 +176,7 @@ static struct ast_frame *lintogsm_frameout(struct ast_trans_pvt *pvt)
 		return NULL;
 	while (pvt->samples >= GSM_SAMPLES) {
 		/* Encode a frame of data */
-		gsm_encode(tmp->gsm, tmp->buf + samples, (gsm_byte *) pvt->outbuf + datalen);
+		gsm_encode(tmp->gsm, tmp->buf + samples, (gsm_byte *) pvt->outbuf.c + datalen);
 		datalen += GSM_FRAME_LEN;
 		samples += GSM_SAMPLES;
 		pvt->samples -= GSM_SAMPLES;

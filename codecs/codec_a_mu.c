@@ -47,7 +47,7 @@ static int alawtoulaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int x = f->samples;
 	unsigned char *src = f->data.ptr;
-	unsigned char *dst = (unsigned char *)pvt->outbuf + pvt->samples;
+	unsigned char *dst = pvt->outbuf.uc + pvt->samples;
 
 	pvt->samples += x;
 	pvt->datalen += x;
@@ -63,7 +63,7 @@ static int ulawtoalaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int x = f->samples;
 	unsigned char *src = f->data.ptr;
-	unsigned char *dst = (unsigned char *)pvt->outbuf + pvt->samples;
+	unsigned char *dst = pvt->outbuf.uc + pvt->samples;
 
 	pvt->samples += x;
 	pvt->datalen += x;

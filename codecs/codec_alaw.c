@@ -45,7 +45,7 @@ static int alawtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int i = f->samples;
 	unsigned char *src = f->data.ptr;
-	int16_t *dst = (int16_t *)pvt->outbuf + pvt->samples;
+	int16_t *dst = pvt->outbuf.i16 + pvt->samples;
 
 	pvt->samples += i;
 	pvt->datalen += i * 2;	/* 2 bytes/sample */
@@ -60,7 +60,7 @@ static int alawtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 static int lintoalaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int i = f->samples;
-	char *dst = pvt->outbuf + pvt->samples;
+	char *dst = pvt->outbuf.c + pvt->samples;
 	int16_t *src = f->data.ptr;
 
 	pvt->samples += i;

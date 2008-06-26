@@ -114,7 +114,7 @@ static int ilbctolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	/* Assuming there's space left, decode into the current buffer at
 	   the tail location.  Read in as many frames as there are */
 	int x,i;
-	int16_t *dst = (int16_t *)pvt->outbuf;
+	int16_t *dst = pvt->outbuf.i16;
 	float tmpf[ILBC_SAMPLES];
 
 	if (f->datalen == 0) { /* native PLC, set fake f->datalen and clear plc_mode */
@@ -174,7 +174,7 @@ static struct ast_frame *lintoilbc_frameout(struct ast_trans_pvt *pvt)
 		/* Encode a frame of data */
 		for (i = 0 ; i < ILBC_SAMPLES ; i++)
 			tmpf[i] = tmp->buf[samples + i];
-		iLBC_encode((unsigned char *) pvt->outbuf + datalen, tmpf, &tmp->enc);
+		iLBC_encode( pvt->outbuf.uc + datalen, tmpf, &tmp->enc);
 
 		datalen += ILBC_FRAME_LEN;
 		samples += ILBC_SAMPLES;

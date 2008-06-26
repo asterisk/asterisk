@@ -103,7 +103,7 @@ static int resample_frame(struct ast_trans_pvt *pvt,
 	int total_in_buf_used = 0;
 	int total_out_buf_used = 0;
 	int16_t *in_buf = (int16_t *) f->data.ptr;
-	int16_t *out_buf = (int16_t *) pvt->outbuf + pvt->samples;
+	int16_t *out_buf = pvt->outbuf.i16 + pvt->samples;
 	float in_buf_f[f->samples];
 	float out_buf_f[2048];
 	int res = 0;
