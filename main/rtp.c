@@ -2585,7 +2585,9 @@ struct ast_rtp *ast_rtp_get_bridged(struct ast_rtp *rtp)
 
 void ast_rtp_stop(struct ast_rtp *rtp)
 {
-	AST_SCHED_DEL(rtp->sched, rtp->rtcp->schedid);
+	if (rtp->rtcp) {
+		AST_SCHED_DEL(rtp->sched, rtp->rtcp->schedid);
+	}
 	if (rtp->red) {
 		AST_SCHED_DEL(rtp->sched, rtp->red->schedid);
 		free(rtp->red);
