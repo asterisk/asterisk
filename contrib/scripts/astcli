@@ -101,7 +101,7 @@ if ($action eq '-' || !defined $action || $action eq '') {
 		$attribs->{completion_function} = \&tab_completion;
 		while (defined($_ = $term->readline($prompt))) {
 			(logoff() and exit) if $_ =~ /exit|quit/; # Give them a way to exit the "terminal"
-			print send_command($_);
+			print send_command($_) if $_ !~ m/^\s*$/;
 		}	
 	} else {
 		while (<>) {
