@@ -5438,9 +5438,19 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 	if (argc != 2 && argc != 3)
 		return CLI_SHOWUSAGE;
 
-	/* We only want to load realtime queues when a specific queue is asked for. */
-	if (argc == 3)	/* specific queue */
+	if (argc == 3)	{ /* specific queue */
 		load_realtime_queue(argv[2]);
+	}
+	else if (ast_check_realtime("queues")) {
+		struct ast_config *cfg = ast_load_realtime_multientry("queues", "name LIKE", "%", SENTINEL);
+		char *queuename;
+		if (cfg) {
+			for (queuename = ast_category_browse(cfg, NULL); !ast_strlen_zero(queuename); queuename = ast_category_browse(cfg, queuename)) {
+				load_realtime_queue(queuename);
+			}
+			ast_config_destroy(cfg);
+		}
+	}
 
 	queue_iter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_iterator_next(&queue_iter))) {
@@ -5506,11 +5516,15 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 		}
 		do_print(s, fd, "");	/* blank line between entries */
 		ao2_unlock(q);
-		if (argc == 3)	{ /* print a specific entry */
+		if (q->realtime || argc == 3) {
+			/* If a queue is realtime, then that means we used load_realtime_queue() above
+			 * to get its information. This means we have an extra reference we need to
+			 * remove at this point. If a specific queue was requested, then it also needs
+			 * to be unreffed here even if it is not a realtime queue.
+			 */
 			queue_unref(q);
-			break;
 		}
-		queue_unref(q);
+		queue_unref(q); /* Unref the iterator's reference */
 	}
 	if (!found) {
 		if (argc == 3)
