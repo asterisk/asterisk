@@ -2379,7 +2379,9 @@ struct ast_rtp *ast_rtp_get_bridged(struct ast_rtp *rtp)
 
 void ast_rtp_stop(struct ast_rtp *rtp)
 {
-	AST_SCHED_DEL(rtp->sched, rtp->rtcp->schedid);
+	if (rtp->rtcp) {
+		AST_SCHED_DEL(rtp->sched, rtp->rtcp->schedid);
+	}
 
 	memset(&rtp->them.sin_addr, 0, sizeof(rtp->them.sin_addr));
 	memset(&rtp->them.sin_port, 0, sizeof(rtp->them.sin_port));
