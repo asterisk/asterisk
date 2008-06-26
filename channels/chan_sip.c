@@ -4284,6 +4284,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->allowtransfer = peer->allowtransfer;
 	dialog->jointnoncodeccapability = dialog->noncodeccapability;
 	dialog->rtptimeout = peer->rtptimeout;
+	dialog->peerauth = peer->auth;
 	dialog->maxcallbitrate = peer->maxcallbitrate;
 	if (ast_strlen_zero(dialog->tohost))
 		ast_string_field_set(dialog, tohost, ast_inet_ntoa(dialog->sa.sin_addr));
@@ -4306,7 +4307,6 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_string_field_set(dialog, fromuser, peer->fromuser);
 	if (!ast_strlen_zero(peer->language))
 		ast_string_field_set(dialog, language, peer->language);
-
 	/* Set timer T1 to RTT for this peer (if known by qualify=) */
 	/* Minimum is settable or default to 100 ms */
 	/* If there is a maxms and lastms from a qualify use that over a manual T1
@@ -15317,9 +15317,11 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	snprintf(cnonce, sizeof(cnonce), "%08lx", ast_random());
 
  	/* Check if we have separate auth credentials */
- 	if ((auth = find_realm_authentication(authl, p->realm))) {
-		ast_log(LOG_WARNING, "use realm [%s] from peer [%s][%s]\n",
-			auth->username, p->peername, p->username);
+ 	if(!(auth = find_realm_authentication(p->peerauth, p->realm)))	/* Start with peer list */
+ 		auth = find_realm_authentication(authl, p->realm);	/* If not, global list */
+
+ 	if (auth) {
+		ast_log(LOG_DEBUG, "use realm [%s] from peer [%s][%s]\n", auth->username, p->peername, p->username);
  		username = auth->username;
  		secret = auth->secret;
  		md5secret = auth->md5secret;
