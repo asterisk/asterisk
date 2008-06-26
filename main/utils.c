@@ -717,6 +717,9 @@ int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, cons
 	*lineno = lock_info->locks[i].line_num;
 	*func = lock_info->locks[i].func;
 	*mutex_name = lock_info->locks[i].lock_name;
+
+	pthread_mutex_unlock(&lock_info->lock);
+
 	return 0;
 }
 
