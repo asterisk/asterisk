@@ -4311,8 +4311,18 @@ static int __queues_show(struct mansession *s, int manager, int fd, int argc, ch
 		return RESULT_SHOWUSAGE;
 
 	/* We only want to load realtime queues when a specific queue is asked for. */
-	if (queue_show)
+	if (queue_show) {
 		load_realtime_queue(argv[2]);
+	} else if (ast_check_realtime("queues")) {
+		struct ast_config *cfg = ast_load_realtime_multientry("queues", "name LIKE", "%", (char *) NULL);
+		char *queuename;
+		if (cfg) {
+			for (queuename = ast_category_browse(cfg, NULL); !ast_strlen_zero(queuename); queuename = ast_category_browse(cfg, queuename)) {
+				load_realtime_queue(queuename);
+			}
+			ast_config_destroy(cfg);
+		}
+	}
 
 	AST_LIST_LOCK(&queues);
 	if (AST_LIST_EMPTY(&queues)) {
