@@ -9,7 +9,7 @@
 ;   HTTP server is enabled in this file by setting the "enabled", "bindaddr",
 ;   and "bindport" options, then you should be able to view the documentation
 ;   remotely by browsing to:
-;       http://<server_ip>:<bindport/asterisk/static/docs/index.html
+;       http://<server_ip>:<bindport>/static/docs/index.html
 ;
 [general]
 ;
@@ -27,8 +27,8 @@ bindaddr=127.0.0.1
 ;bindport=8088
 ;
 ; Prefix allows you to specify a prefix for all requests
-; to the server.  The default is "asterisk" so that all
-; requests must begin with /asterisk
+; to the server.  The default is blank.  If uncommented
+; all requests must begin with /asterisk
 ;
 ;prefix=asterisk
 ;
@@ -43,7 +43,7 @@ bindaddr=127.0.0.1
 ; For example, if you are using the Asterisk-gui,
 ; it is convenient to enable the following redirect:
 ;
-;redirect = / /asterisk/static/config/cfgbasic.html
+;redirect = / /static/config/cfgbasic.html
 ;
 ; HTTPS support. In addition to enabled=yes, you need to
 ; explicitly enable ssl, define the port to use,
