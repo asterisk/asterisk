@@ -5394,7 +5394,11 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 					res = ast_play_and_wait(chan, "vm-messages");
 				if (!res)
 					res = ast_play_and_wait(chan, "vm-saved"); */
-				res = ast_play_and_wait(chan, "vm-msgsaved");
+
+				/* If forwarded with intro, DON'T PLAY THIS MESSAGE AGAIN! */
+				if (ast_strlen_zero(tmptxtfile)) { /* not a forwarded message with intro */
+					res = ast_play_and_wait(chan, "vm-msgsaved");
+				}
 			}	
 		}
 	}
