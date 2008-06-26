@@ -2174,6 +2174,7 @@ int ast_waitfordigit(struct ast_channel *c, int ms)
 int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const void *data), void *data)
 {
 	int res;
+	unsigned int real_rate = rate, max_rate;
 
 	if (c->timingfd == -1) {
 		return -1;
@@ -2184,9 +2185,13 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
 		data = NULL;
 	}
 
-	ast_debug(1, "Scheduling timer at %u timer ticks per second\n", rate);
+	if (rate && rate > (max_rate = ast_timer_get_max_rate(c->timingfd))) {
+		real_rate = max_rate;
+	}
 
-	res = ast_timer_set_rate(c->timingfd, rate);
+	ast_debug(1, "Scheduling timer at (%u requested / %u actual) timer ticks per second\n", rate, real_rate);
+
+	res = ast_timer_set_rate(c->timingfd, real_rate);
 
 	c->timingfunc = func;
 	c->timingdata = data;

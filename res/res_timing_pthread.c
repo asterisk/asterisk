@@ -46,6 +46,7 @@ static void pthread_timer_ack(int handle, unsigned int quantity);
 static int pthread_timer_enable_continuous(int handle);
 static int pthread_timer_disable_continuous(int handle);
 static enum ast_timing_event pthread_timer_get_event(int handle);
+static unsigned int pthread_timer_get_max_rate(int handle);
 
 static struct ast_timing_functions pthread_timing_functions = {
 	.timer_open = pthread_timer_open,
@@ -55,6 +56,7 @@ static struct ast_timing_functions pthread_timing_functions = {
 	.timer_enable_continuous = pthread_timer_enable_continuous,
 	.timer_disable_continuous = pthread_timer_disable_continuous,
 	.timer_get_event = pthread_timer_get_event,
+	.timer_get_max_rate = pthread_timer_get_max_rate,
 };
 
 /* 1 tick / 10 ms */
@@ -247,6 +249,11 @@ static enum ast_timing_event pthread_timer_get_event(int handle)
 	ao2_ref(timer, -1);
 
 	return res;
+}
+
+static unsigned int pthread_timer_get_max_rate(int handle)
+{
+	return MAX_RATE;
 }
 
 static struct pthread_timer *find_timer(int handle, int unlink)

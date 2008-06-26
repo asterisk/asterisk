@@ -72,6 +72,7 @@ struct ast_timing_functions {
 	int (*timer_enable_continuous)(int handle);
 	int (*timer_disable_continuous)(int handle);
 	enum ast_timing_event (*timer_get_event)(int handle);
+	unsigned int (*timer_get_max_rate)(int handle);
 };
 
 /*!
@@ -174,6 +175,15 @@ int ast_timer_disable_continuous(int handle);
  * \return which event triggered the timing fd
  */
 enum ast_timing_event ast_timer_get_event(int handle);
+
+/*!
+ * \brief Get maximum rate supported for a timing handle
+ *
+ * \arg handle timing fd returned by timer_open()
+ *
+ * \return maximum rate supported for timing handle
+ */
+unsigned int ast_timer_get_max_rate(int handle);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

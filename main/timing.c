@@ -46,6 +46,7 @@ void *ast_install_timing_functions(struct ast_timing_functions *funcs)
 		!funcs->timer_set_rate ||
 	    !funcs->timer_ack ||
 	    !funcs->timer_get_event ||
+		!funcs->timer_get_max_rate ||
 	    !funcs->timer_enable_continuous ||
 	    !funcs->timer_disable_continuous) {
 		return NULL;
@@ -196,6 +197,19 @@ enum ast_timing_event ast_timer_get_event(int handle)
 	ast_rwlock_unlock(&lock);
 
 	return result;
+}
+
+unsigned int ast_timer_get_max_rate(int handle)
+{
+	unsigned int res;
+
+	ast_rwlock_rdlock(&lock);
+
+	res = timer_funcs.timer_get_max_rate(handle);
+
+	ast_rwlock_unlock(&lock);
+
+	return res;
 }
 
 static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
