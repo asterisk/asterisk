@@ -948,12 +948,12 @@ static int alloc_sub(struct dahdi_pvt *p, int x)
 				bi.numbufs = numbufs;
 				res = ioctl(p->subs[x].dfd, DAHDI_SET_BUFINFO, &bi);
 				if (res < 0) {
-					ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d\n", x);
+					ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d: %s\n", x, strerror(errno));
 				}
 			} else 
-				ast_log(LOG_WARNING, "Unable to check buffer policy on channel %d\n", x);
+				ast_log(LOG_WARNING, "Unable to check buffer policy on channel %d: %s\n", x, strerror(errno));
 			if (ioctl(p->subs[x].dfd, DAHDI_CHANNO, &p->subs[x].chan) == 1) {
-				ast_log(LOG_WARNING, "Unable to get channel number for pseudo channel on FD %d\n", p->subs[x].dfd);
+				ast_log(LOG_WARNING, "Unable to get channel number for pseudo channel on FD %d: %s\n", p->subs[x].dfd, strerror(errno));
 				dahdi_close(p->subs[x].dfd);
 				p->subs[x].dfd = -1;
 				return -1;
@@ -1050,7 +1050,7 @@ static int dahdi_digit_begin(struct ast_channel *chan, char digit)
 			.dialstr[2] = 0,
 		};
 		if ((res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_DIAL, &zo)))
-			ast_log(LOG_WARNING, "Couldn't dial digit %c\n", digit);
+			ast_log(LOG_WARNING, "Couldn't dial digit %c: %s\n", digit, strerror(errno));
 		else
 			pvt->dialing = 1;
 	} else {
@@ -1254,7 +1254,7 @@ static int conf_add(struct dahdi_pvt *p, struct dahdi_subchannel *c, int index, 
 	if (c->dfd < 0)
 		return 0;
 	if (ioctl(c->dfd, DAHDI_SETCONF, &zi)) {
-		ast_log(LOG_WARNING, "Failed to add %d to conference %d/%d\n", c->dfd, zi.confmode, zi.confno);
+		ast_log(LOG_WARNING, "Failed to add %d to conference %d/%d: %s\n", c->dfd, zi.confmode, zi.confno, strerror(errno));
 		return -1;
 	}
 	if (slavechannel < 1) {
@@ -1290,7 +1290,7 @@ static int conf_del(struct dahdi_pvt *p, struct dahdi_subchannel *c, int index)
 	zi.confno = 0;
 	zi.confmode = 0;
 	if (ioctl(c->dfd, DAHDI_SETCONF, &zi)) {
-		ast_log(LOG_WARNING, "Failed to drop %d from conference %d/%d\n", c->dfd, c->curconf.confmode, c->curconf.confno);
+		ast_log(LOG_WARNING, "Failed to drop %d from conference %d/%d: %s\n", c->dfd, c->curconf.confmode, c->curconf.confno, strerror(errno));
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "Removed %d from conference %d/%d\n", c->dfd, c->curconf.confmode, c->curconf.confno);
@@ -1350,7 +1350,7 @@ static int reset_conf(struct dahdi_pvt *p)
 	memset(&p->subs[SUB_REAL].curconf, 0, sizeof(p->subs[SUB_REAL].curconf));
 	if (p->subs[SUB_REAL].dfd > -1) {
 		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCONF, &zi))
-			ast_log(LOG_WARNING, "Failed to reset conferencing on channel %d!\n", p->channel);
+			ast_log(LOG_WARNING, "Failed to reset conferencing on channel %d: %s\n", p->channel, strerror(errno));
 	}
 	return 0;
 }
@@ -1454,7 +1454,7 @@ static void dahdi_train_ec(struct dahdi_pvt *p)
 		x = p->echotraining;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_ECHOTRAIN, &x);
 		if (res)
-			ast_log(LOG_WARNING, "Unable to request echo training on channel %d\n", p->channel);
+			ast_log(LOG_WARNING, "Unable to request echo training on channel %d: %s\n", p->channel, strerror(errno));
 		else {
 			ast_log(LOG_DEBUG, "Engaged echo training on channel %d\n", p->channel);
 		}
@@ -1470,7 +1470,7 @@ static void dahdi_disable_ec(struct dahdi_pvt *p)
 		x = 0;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_ECHOCANCEL, &x);
 		if (res)
-			ast_log(LOG_WARNING, "Unable to disable echo cancellation on channel %d\n", p->channel);
+			ast_log(LOG_WARNING, "Unable to disable echo cancellation on channel %d: %s\n", p->channel, strerror(errno));
 		else if (option_debug)
 			ast_log(LOG_DEBUG, "disabled echo cancellation on channel %d\n", p->channel);
 	}
@@ -1638,7 +1638,7 @@ static inline int dahdi_confmute(struct dahdi_pvt *p, int muted)
 		y = 1;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &y);
 		if (res)
-			ast_log(LOG_WARNING, "Unable to set audio mode on '%d'\n", p->channel);
+			ast_log(LOG_WARNING, "Unable to set audio mode on %d: %s\n", p->channel, strerror(errno));
 	}
 	res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_CONFMUTE, &x);
 	if (res < 0)
@@ -1808,7 +1808,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 	x = DAHDI_FLUSH_READ | DAHDI_FLUSH_WRITE;
 	res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_FLUSH, &x);
 	if (res)
-		ast_log(LOG_WARNING, "Unable to flush input on channel %d\n", p->channel);
+		ast_log(LOG_WARNING, "Unable to flush input on channel %d: %s\n", p->channel, strerror(errno));
 	p->outgoing = 1;
 
 	set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain, p->txgain, p->law);
@@ -1842,11 +1842,11 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 			/* Choose proper cadence */
 			if ((p->distinctivering > 0) && (p->distinctivering <= num_cadence)) {
 				if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, &cadences[p->distinctivering - 1]))
-					ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s'\n", p->distinctivering, ast->name);
+					ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s': %s\n", p->distinctivering, ast->name, strerror(errno));
 				p->cidrings = cidrings[p->distinctivering - 1];
 			} else {
 				if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, NULL))
-					ast_log(LOG_WARNING, "Unable to reset default ring on '%s'\n", ast->name);
+					ast_log(LOG_WARNING, "Unable to reset default ring on '%s': %s\n", ast->name, strerror(errno));
 				p->cidrings = p->sendcalleridafter;
 			}
 
@@ -2022,9 +2022,11 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 			p->echobreak = 0;
 		if (!res) {
 			if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop)) {
+				int saveerr = errno;
+
 				x = DAHDI_ONHOOK;
 				ioctl(p->subs[SUB_REAL].dfd, DAHDI_HOOK, &x);
-				ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(errno));
+				ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(saveerr));
 				ast_mutex_unlock(&p->lock);
 				return -1;
 			}
@@ -2588,7 +2590,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 		law = DAHDI_LAW_DEFAULT;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
 		if (res < 0) 
-			ast_log(LOG_WARNING, "Unable to set law on channel %d to default\n", p->channel);
+			ast_log(LOG_WARNING, "Unable to set law on channel %d to default: %s\n", p->channel, strerror(errno));
 		/* Perform low level hangup if no owner left */
 #ifdef HAVE_PRI
 		if (p->pri) {
@@ -2978,7 +2980,7 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 			x = 1;
 		}
 		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &x) == -1)
-			ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", p->channel, x);
+			ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d: %s\n", p->channel, x, strerror(errno));
 		break;
 	case AST_OPTION_OPRMODE:  /* Operator services mode */
 		oprmode = (struct oprmode *) data;
@@ -3580,7 +3582,7 @@ static int check_for_conference(struct dahdi_pvt *p)
 		return 0;
 	memset(&ci, 0, sizeof(ci));
 	if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_GETCONF, &ci)) {
-		ast_log(LOG_WARNING, "Failed to get conference info on channel %d\n", p->channel);
+		ast_log(LOG_WARNING, "Failed to get conference info on channel %d: %s\n", p->channel, strerror(errno));
 		return 0;
 	}
 	/* If we have no master and don't have a confno, then 
@@ -3602,7 +3604,7 @@ static int get_alarms(struct dahdi_pvt *p)
 	zi.spanno = p->span;
 	res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SPANSTAT, &zi);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to determine alarm on channel %d\n", p->channel);
+		ast_log(LOG_WARNING, "Unable to determine alarm on channel %d: %s\n", p->channel, strerror(errno));
 		return 0;
 	}
 	return zi.alarms;
@@ -3762,7 +3764,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			if (p->inalarm) break;
 			if ((p->radio || (p->oprmode < 0))) break;
 			if (ioctl(p->subs[index].dfd,DAHDI_DIALING,&x) == -1) {
-				ast_log(LOG_DEBUG, "DAHDI_DIALING ioctl failed on %s\n",ast->name);
+				ast_log(LOG_DEBUG, "DAHDI_DIALING ioctl failed on %s: %s\n",ast->name, strerror(errno));
 				return NULL;
 			}
 			if (!x) { /* if not still dialing in driver */
@@ -4018,9 +4020,11 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				} else
 					p->echobreak = 0;
 				if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop)) {
+					int saveerr = errno;
+
 					x = DAHDI_ONHOOK;
 					ioctl(p->subs[SUB_REAL].dfd, DAHDI_HOOK, &x);
-					ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(errno));
+					ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(saveerr));
 					return NULL;
 					}
 				p->dialing = 1;
@@ -4054,7 +4058,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						/* nick@dccinc.com 4/3/03 - fxo should be able to do deferred dialing */
 						res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop);
 						if (res < 0) {
-							ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
+							ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d: %s\n", p->channel, strerror(errno));
 							p->dop.dialstr[0] = '\0';
 							return NULL;
 						} else {
@@ -4412,7 +4416,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				if (!ast_strlen_zero(p->dop.dialstr)) {
 					res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop);
 					if (res < 0) {
-						ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
+						ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d: %s\n", p->channel, strerror(errno));
 						p->dop.dialstr[0] = '\0';
 						return NULL;
 					} else 
@@ -4441,7 +4445,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				if (!ast_strlen_zero(p->dop.dialstr)) {
 					res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop);
 					if (res < 0) {
-						ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
+						ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d: %s\n", p->channel, strerror(errno));
 						p->dop.dialstr[0] = '\0';
 						return NULL;
 					} else 
@@ -5242,7 +5246,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	ps.channo = i->channel;
 	res = ioctl(i->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps);
 	if (res) {
-		ast_log(LOG_WARNING, "Unable to get parameters, assuming MULAW\n");
+		ast_log(LOG_WARNING, "Unable to get parameters, assuming MULAW: %s\n", strerror(errno));
 		ps.curlaw = DAHDI_LAW_MULAW;
 	}
 	if (ps.curlaw == DAHDI_LAW_ALAW)
@@ -6910,7 +6914,7 @@ static void *do_monitor(void *data)
 								x = DAHDI_FLUSH_BOTH;
 								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_FLUSH, &x);
 								if (res2)
-									ast_log(LOG_WARNING, "Unable to flush input on channel %d\n", last->channel);
+									ast_log(LOG_WARNING, "Unable to flush input on channel %d: %s\n", last->channel, strerror(errno));
 								if ((last->cidspill = ast_calloc(1, MAX_CALLERID_SIZE))) {
 									/* Turn on on hook transfer for 4 seconds */
 									x = 4000;
@@ -7115,7 +7119,7 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 			return -1;
 		}
 		if (ioctl(fd, DAHDI_SPANSTAT, &si)) {
-			ast_log(LOG_WARNING, "Failed go get span information on channel %d (span %d)\n", channels[y], p.spanno);
+			ast_log(LOG_WARNING, "Failed go get span information on channel %d (span %d): %s\n", channels[y], p.spanno, strerror(errno));
 			dahdi_close(fd);
 			return -1;
 		}
@@ -7230,7 +7234,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				memset(&p, 0, sizeof(p));
 				res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &p);
 				if (res < 0) {
-					ast_log(LOG_ERROR, "Unable to get parameters\n");
+					ast_log(LOG_ERROR, "Unable to get parameters: %s\n", strerror(errno));
 					destroy_dahdi_pvt(&tmp);
 					return NULL;
 				}
@@ -7433,7 +7437,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		{
 			res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_SET_PARAMS, &p);
 			if (res < 0) {
-				ast_log(LOG_ERROR, "Unable to set parameters\n");
+				ast_log(LOG_ERROR, "Unable to set parameters: %s\n", strerror(errno));
 				destroy_dahdi_pvt(&tmp);
 				return NULL;
 			}
@@ -7448,10 +7452,10 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				bi.numbufs = numbufs;
 				res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_SET_BUFINFO, &bi);
 				if (res < 0) {
-					ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d\n", channel);
+					ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d: %s\n", channel, strerror(errno));
 				}
 			} else
-				ast_log(LOG_WARNING, "Unable to check buffer policy on channel %d\n", channel);
+				ast_log(LOG_WARNING, "Unable to check buffer policy on channel %d: %s\n", channel, strerror(errno));
 		}
 #endif
 		tmp->immediate = conf->chan.immediate;
@@ -7682,7 +7686,7 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 				par.rxisoffhook = 0;
 			}
 			if (res) {
-				ast_log(LOG_WARNING, "Unable to check hook state on channel %d\n", p->channel);
+				ast_log(LOG_WARNING, "Unable to check hook state on channel %d: %s\n", p->channel, strerror(errno));
 			} else if ((p->sig == SIG_FXSKS) || (p->sig == SIG_FXSGS)) {
 				/* When "onhook" that means no battery on the line, and thus
 				  it is out of service..., if it's on a TDM card... If it's a channel
@@ -7760,10 +7764,10 @@ static struct dahdi_pvt *chandup(struct dahdi_pvt *src)
 			bi.numbufs = numbufs;
 			res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SET_BUFINFO, &bi);
 			if (res < 0) {
-				ast_log(LOG_WARNING, "Unable to set buffer policy on dup channel\n");
+				ast_log(LOG_WARNING, "Unable to set buffer policy on dup channel: %s\n", strerror(errno));
 			}
 		} else
-			ast_log(LOG_WARNING, "Unable to check buffer policy on dup channel\n");
+			ast_log(LOG_WARNING, "Unable to check buffer policy on dup channel: %s\n", strerror(errno));
 	}
 	p->destroy = 1;
 	p->next = iflist;
@@ -8850,7 +8854,7 @@ static void *pri_dchannel(void *vpri)
 							/* Set to audio mode at this point */
 							law = 1;
 							if (ioctl(pri->pvts[chanpos]->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &law) == -1)
-								ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", pri->pvts[chanpos]->channel, law);
+								ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d: %s\n", pri->pvts[chanpos]->channel, law, strerror(errno));
 						}
 						if (e->ring.layer1 == PRI_LAYER_1_ALAW)
 							law = DAHDI_LAW_ALAW;
@@ -9170,7 +9174,7 @@ static void *pri_dchannel(void *vpri)
 							/* Send any "w" waited stuff */
 							res = ioctl(pri->pvts[chanpos]->subs[SUB_REAL].dfd, DAHDI_DIAL, &pri->pvts[chanpos]->dop);
 							if (res < 0) {
-								ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", pri->pvts[chanpos]->channel);
+								ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d: %s\n", pri->pvts[chanpos]->channel, strerror(errno));
 								pri->pvts[chanpos]->dop.dialstr[0] = '\0';
 							} else 
 								ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", pri->pvts[chanpos]->dop.dialstr);
@@ -9523,7 +9527,7 @@ static int start_pri(struct dahdi_pri *pri)
 		bi.numbufs = 32;
 		bi.bufsize = 1024;
 		if (ioctl(pri->fds[i], DAHDI_SET_BUFINFO, &bi)) {
-			ast_log(LOG_ERROR, "Unable to set appropriate buffering on channel %d\n", x);
+			ast_log(LOG_ERROR, "Unable to set appropriate buffering on channel %d: %s\n", x, strerror(errno));
 			dahdi_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			return -1;
@@ -10114,7 +10118,7 @@ static int dahdi_show_channel(int fd, int argc, char **argv)
 				}
 #endif
 				if (ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps) < 0) {
-					ast_log(LOG_WARNING, "Failed to get parameters on channel %d\n", tmp->channel);
+					ast_log(LOG_WARNING, "Failed to get parameters on channel %d: %s\n", tmp->channel, strerror(errno));
 				} else {
 					ast_cli(fd, "Hookstate (FXS only): %s\n", ps.rxisoffhook ? "Offhook" : "Onhook");
 				}
@@ -11298,7 +11302,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					dps.dtmf_tonelen = dps.mfv1_tonelen = toneduration;
 					res = ioctl(ctlfd, DAHDI_SET_DIALPARAMS, &dps);
 					if (res < 0) {
-						ast_log(LOG_ERROR, "Invalid tone duration: %d ms\n", toneduration);
+						ast_log(LOG_ERROR, "Invalid tone duration: %d ms: %s\n", toneduration, strerror(errno));
 						return -1;
 					}
 				}
