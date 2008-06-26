@@ -4389,7 +4389,7 @@ static int __queues_show(struct mansession *s, int manager, int fd, int argc, ch
 	struct member *mem;
 	int pos, queue_show;
 	time_t now;
-	char max_buf[80];
+	char max_buf[150];
 	char *max;
 	size_t max_left;
 	float sl = 0;
@@ -4473,6 +4473,9 @@ static int __queues_show(struct mansession *s, int manager, int fd, int argc, ch
 				max_buf[0] = '\0';
 				max = max_buf;
 				max_left = sizeof(max_buf);
+				if (strcasecmp(mem->membername, mem->interface)) {
+					ast_build_string(&max, &max_left, " (%s)", mem->interface);
+				}
 				if (mem->penalty)
 					ast_build_string(&max, &max_left, " with penalty %d", mem->penalty);
 				if (mem->dynamic)
