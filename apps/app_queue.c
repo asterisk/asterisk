@@ -441,6 +441,8 @@ static AST_LIST_HEAD_STATIC(queues, call_queue);
 
 static int set_member_paused(const char *queuename, const char *interface, int paused);
 
+static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan); 
+
 static void rr_dep_warning(void)
 {
 	static unsigned int warned = 0;
@@ -2539,6 +2541,96 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 	}
 	return 0;
 }
+
+struct queue_transfer_ds {
+	struct queue_ent *qe;
+	struct member *member;
+	int starttime;
+};
+
+static void queue_transfer_destroy(void *data)
+{
+	struct queue_transfer_ds *qtds = data;
+	ast_free(qtds);
+}
+
+/*! \brief a datastore used to help correctly log attended transfers of queue callers
+ */
+static const struct ast_datastore_info queue_transfer_info = {
+	.type = "queue_transfer",
+	.chan_fixup = queue_transfer_fixup,
+	.destroy = queue_transfer_destroy,
+};
+
+/*! \brief Log an attended transfer when a queue caller channel is masqueraded
+ *
+ * When a caller is masqueraded, we want to log a transfer. Fixup time is the closest we can come to when
+ * the actual transfer occurs. This happens during the masquerade after datastores are moved from old_chan
+ * to new_chan. This is why new_chan is referenced for exten, context, and datastore information.
+ *
+ * At the end of this, we want to remove the datastore so that this fixup function is not called on any
+ * future masquerades of the caller during the current call.
+ */
+static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan) 
+{
+	struct queue_transfer_ds *qtds = data;
+	struct queue_ent *qe = qtds->qe;
+	struct member *member = qtds->member;
+	int callstart = qtds->starttime;
+	struct ast_datastore *datastore;
+	
+	ast_queue_log(qe->parent->name, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld",
+				new_chan->exten, new_chan->context, (long) (callstart - qe->start),
+				(long) (time(NULL) - callstart));
+	
+	if (!(datastore = ast_channel_datastore_find(new_chan, &queue_transfer_info, NULL))) {
+		ast_log(LOG_WARNING, "Can't find the queue_transfer datastore.\n");
+		return;
+	}
+
+	ast_channel_datastore_remove(new_chan, datastore);
+}
+
+/*! \brief mechanism to tell if a queue caller was atxferred by a queue member.
+ *
+ * When a caller is atxferred, then the queue_transfer_info datastore
+ * is removed from the channel. If it's still there after the bridge is
+ * broken, then the caller was not atxferred.
+ */
+static int attended_transfer_occurred(struct ast_channel *chan)
+{
+	return ast_channel_datastore_find(chan, &queue_transfer_info, NULL) ? 0 : 1;
+}
+
+/*! \brief create a datastore for storing relevant info to log attended transfers in the queue_log
+ */
+static void setup_transfer_datastore(struct queue_ent *qe, struct member *member, int starttime)
+{
+	struct ast_datastore *ds;
+	struct queue_transfer_ds *qtds = ast_calloc(1, sizeof(*qtds));
+
+	if (!qtds) {
+		ast_log(LOG_WARNING, "Memory allocation error!\n");
+		return;
+	}
+
+	ast_channel_lock(qe->chan);
+	if (!(ds = ast_channel_datastore_alloc(&queue_transfer_info, NULL))) {
+		ast_channel_unlock(qe->chan);
+		ast_log(LOG_WARNING, "Unable to create transfer datastore. queue_log will not show attended transfer\n");
+		return;
+	}
+
+	qtds->qe = qe;
+	/* This member is refcounted in try_calling, so no need to add it here, too */
+	qtds->member = member;
+	qtds->starttime = starttime;
+	ds->data = qtds;
+	ast_channel_datastore_add(qe->chan, ds);
+	ast_channel_unlock(qe->chan);
+}
+
+
 /*! \brief A large function which calls members, updates statistics, and bridges the caller and a member
  * 
  * Here is the process of this function
@@ -3013,46 +3105,48 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (member->status == AST_DEVICE_NOT_INUSE)
 			ast_log(LOG_WARNING, "The device state of this queue member, %s, is still 'Not in Use' when it probably should not be! Please check UPGRADE.txt for correct configuration settings.\n", member->membername);
 			
-
+		setup_transfer_datastore(qe, member, callstart);
 		bridge = ast_bridge_call(qe->chan,peer, &bridge_config);
 
-		if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
-			ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld",
-				qe->chan->exten, qe->chan->context, (long) (callstart - qe->start),
-				(long) (time(NULL) - callstart));
-		} else if (qe->chan->_softhangup) {
-			ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETECALLER", "%ld|%ld|%d",
-				(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
-			if (qe->parent->eventwhencalled)
-				manager_event(EVENT_FLAG_AGENT, "AgentComplete",
-						"Queue: %s\r\n"
-						"Uniqueid: %s\r\n"
-						"Channel: %s\r\n"
-						"Member: %s\r\n"
-						"MemberName: %s\r\n"
-						"HoldTime: %ld\r\n"
-						"TalkTime: %ld\r\n"
-						"Reason: caller\r\n"
-						"%s",
-						queuename, qe->chan->uniqueid, peer->name, member->interface, member->membername,
-						(long)(callstart - qe->start), (long)(time(NULL) - callstart),
-						qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
-		} else {
-			ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETEAGENT", "%ld|%ld|%d",
-				(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
-			if (qe->parent->eventwhencalled)
-				manager_event(EVENT_FLAG_AGENT, "AgentComplete",
-						"Queue: %s\r\n"
-						"Uniqueid: %s\r\n"
-						"Channel: %s\r\n"
-						"MemberName: %s\r\n"
-						"HoldTime: %ld\r\n"
-						"TalkTime: %ld\r\n"
-						"Reason: agent\r\n"
-						"%s",
-						queuename, qe->chan->uniqueid, peer->name, member->membername, (long)(callstart - qe->start),
-						(long)(time(NULL) - callstart),
-						qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
+		if (!attended_transfer_occurred(qe->chan)) {
+			if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
+				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld",
+					qe->chan->exten, qe->chan->context, (long) (callstart - qe->start),
+					(long) (time(NULL) - callstart));
+			} else if (qe->chan->_softhangup) {
+				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETECALLER", "%ld|%ld|%d",
+					(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
+				if (qe->parent->eventwhencalled)
+					manager_event(EVENT_FLAG_AGENT, "AgentComplete",
+							"Queue: %s\r\n"
+							"Uniqueid: %s\r\n"
+							"Channel: %s\r\n"
+							"Member: %s\r\n"
+							"MemberName: %s\r\n"
+							"HoldTime: %ld\r\n"
+							"TalkTime: %ld\r\n"
+							"Reason: caller\r\n"
+							"%s",
+							queuename, qe->chan->uniqueid, peer->name, member->interface, member->membername,
+							(long)(callstart - qe->start), (long)(time(NULL) - callstart),
+							qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
+			} else {
+				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETEAGENT", "%ld|%ld|%d",
+					(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
+				if (qe->parent->eventwhencalled)
+					manager_event(EVENT_FLAG_AGENT, "AgentComplete",
+							"Queue: %s\r\n"
+							"Uniqueid: %s\r\n"
+							"Channel: %s\r\n"
+							"MemberName: %s\r\n"
+							"HoldTime: %ld\r\n"
+							"TalkTime: %ld\r\n"
+							"Reason: agent\r\n"
+							"%s",
+							queuename, qe->chan->uniqueid, peer->name, member->membername, (long)(callstart - qe->start),
+							(long)(time(NULL) - callstart),
+							qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
+			}
 		}
 
 		if (bridge != AST_PBX_NO_HANGUP_PEER)
