@@ -3219,17 +3219,6 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 		if (/*d->addr.sin_addr.s_addr && */!ntohs(d->addr.sin_port)) {
 			d->addr.sin_port = htons(DEFAULT_SKINNY_PORT);
 		}
-#if 0
-		/* I don't think we need this anymore at all, since d->ourip is set in skinny_register now */
-		if (d->addr.sin_addr.s_addr) {
-			/* XXX See note above, in 'host' option. */
-			if (ast_ouraddrfor(&d->addr.sin_addr, &d->ourip)) {
-				d->ourip = __ourip;
-			}
-		} else {
-			d->ourip = __ourip;
-		}
-#endif
 	}
 	return d;
 }
