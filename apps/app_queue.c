@@ -5409,6 +5409,9 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 			mem_iter = ao2_iterator_init(q->members, 0);
 			while ((mem = ao2_iterator_next(&mem_iter))) {
 				ast_str_set(&out, 0, "      %s", mem->membername);
+				if (strcasecmp(mem->membername, mem->interface)) {
+					ast_build_string(&max, &max_left, " (%s)", mem->interface);
+				}
 				if (mem->penalty)
 					ast_str_append(&out, 0, " with penalty %d", mem->penalty);
 				ast_str_append(&out, 0, "%s%s%s (%s)",
