@@ -99,6 +99,9 @@ Application Changes
    original CDR; 'R' prevents the new CDR from being reset; 's(var=val)' adds/changes
    the 'var' variable on the original CDR; 'T' forces ast_cdr_end(), ast_cdr_answer(),
    obey the LOCKED flag on cdr's in the chain, and also the ast_cdr_setvar() func.
+ * The Dial() application no longer copies the language used by the caller to the callee's
+   channel. If you desire for the caller's channel's language to be used for file playback
+   to the callee, then the file specified may be prepended with "${CHANNEL(language)}/" .
 
 SIP Changes
 -----------

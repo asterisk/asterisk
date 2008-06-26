@@ -1496,8 +1496,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		S_REPLACE(tc->cid.cid_ani, ast_strdup(chan->cid.cid_ani));
 		S_REPLACE(tc->cid.cid_rdnis, ast_strdup(chan->cid.cid_rdnis));
 		
-		/* Copy language from incoming to outgoing */
-		ast_string_field_set(tc, language, chan->language);
 		ast_string_field_set(tc, accountcode, chan->accountcode);
 		tc->cdrflags = chan->cdrflags;
 		if (ast_strlen_zero(tc->musicclass))
