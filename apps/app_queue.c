@@ -5371,7 +5371,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 		load_realtime_queue(argv[2]);
 	}
 	else if (ast_check_realtime("queues")) {
-		struct ast_config *cfg = ast_load_realtime_multientry("queues", "name LIKE", "%", SENTINEL);
+		struct ast_config *cfg = ast_load_realtime_multientry("queues", "name LIKE", "%", (char *) NULL);
 		char *queuename;
 		if (cfg) {
 			for (queuename = ast_category_browse(cfg, NULL); !ast_strlen_zero(queuename); queuename = ast_category_browse(cfg, queuename)) {
