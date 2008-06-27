@@ -12575,9 +12575,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		}
 		break;
 	case 408:	/* Request timeout */
-		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-		r->call = NULL;
-		AST_SCHED_DEL(sched, r->timeout);
+		/* Got a timeout response, so reset the counter of failed responses */
+		r->regattempts = 0;
 		break;
 	case 479:	/* SER: Not able to process the URI - address is wrong in register*/
 		ast_log(LOG_WARNING, "Got error 479 on register to %s@%s, giving up (check config)\n", p->registry->username,p->registry->hostname);
