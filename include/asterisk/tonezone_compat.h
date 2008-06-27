@@ -22,13 +22,13 @@
 #ifndef TONEZONE_COMPAT_H
 #define TONEZONE_COMPAT_H
 
-#if defined(HAVE_DAHDI)
-
-#include <dahdi/tonezone.h>
-
-#elif defined(HAVE_ZAPTEL)
+#if defined(HAVE_ZAPTEL)
 
 #include <zaptel/tonezone.h>
+
+#elif defined(HAVE_DAHDI)
+
+#include <dahdi/tonezone.h>
 
 #endif
 
