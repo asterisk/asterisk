@@ -676,7 +676,7 @@ void ast_mark_lock_failed(void *lock_addr)
 	pthread_mutex_unlock(&lock_info->lock);
 }
 
-int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, const char **func, const char **mutex_name)
+int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, int *lineno, char *func, size_t func_size, char *mutex_name, size_t mutex_name_size)
 {
 	struct thr_lock_info *lock_info;
 	int i = 0;
@@ -697,10 +697,10 @@ int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, cons
 		return -1;
 	}
 
-	*filename = lock_info->locks[i].file;
+	ast_copy_string(filename, lock_info->locks[i].file, filename_size);
 	*lineno = lock_info->locks[i].line_num;
-	*func = lock_info->locks[i].func;
-	*mutex_name = lock_info->locks[i].lock_name;
+	ast_copy_string(func, lock_info->locks[i].func, func_size);
+	ast_copy_string(mutex_name, lock_info->locks[i].lock_name, mutex_name_size);
 
 	pthread_mutex_unlock(&lock_info->lock);
 
