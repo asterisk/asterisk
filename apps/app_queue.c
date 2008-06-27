@@ -3548,7 +3548,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				}
 				else
 					which = peer;
-				ast_log(LOG_NOTICE, "poop\n");
 				ast_channel_unlock(qe->chan);
 				if (monitorfilename)
 					ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1, X_REC_IN | X_REC_OUT);
