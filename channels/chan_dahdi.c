@@ -13042,7 +13042,7 @@ static int linkset_addsigchan(int sigchan)
 			return -1;
 		}
 
-		ss7_add_link(link->ss7, SS7_TRANSPORT_ZAP, link->fds[curfd]);
+		ss7_add_link(link->ss7, SS7_TRANSPORT_DAHDI, link->fds[curfd]);
 		link->numsigchans++;
 
 		memset(&si, 0, sizeof(si));
