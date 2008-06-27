@@ -3015,11 +3015,18 @@ struct queue_transfer_ds {
 	int starttime;
 };
 
+static void queue_transfer_destroy(void *data)
+{
+	struct queue_transfer_ds *qtds = data;
+	ast_free(qtds);
+}
+
 /*! \brief a datastore used to help correctly log attended transfers of queue callers
  */
 static const struct ast_datastore_info queue_transfer_info = {
 	.type = "queue_transfer",
 	.chan_fixup = queue_transfer_fixup,
+	.destroy = queue_transfer_destroy,
 };
 
 /*! \brief Log an attended transfer when a queue caller channel is masqueraded
@@ -3067,7 +3074,12 @@ static int attended_transfer_occurred(struct ast_channel *chan)
 static void setup_transfer_datastore(struct queue_ent *qe, struct member *member, int starttime)
 {
 	struct ast_datastore *ds;
-	struct queue_transfer_ds qtds;
+	struct queue_transfer_ds *qtds = ast_calloc(1, sizeof(*qtds));
+
+	if (!qtds) {
+		ast_log(LOG_WARNING, "Memory allocation error!\n");
+		return;
+	}
 
 	ast_channel_lock(qe->chan);
 	if (!(ds = ast_channel_datastore_alloc(&queue_transfer_info, NULL))) {
@@ -3076,11 +3088,11 @@ static void setup_transfer_datastore(struct queue_ent *qe, struct member *member
 		return;
 	}
 
-	qtds.qe = qe;
+	qtds->qe = qe;
 	/* This member is refcounted in try_calling, so no need to add it here, too */
-	qtds.member = member;
-	qtds.starttime = starttime;
-	ds->data = &qtds;
+	qtds->member = member;
+	qtds->starttime = starttime;
+	ds->data = qtds;
 	ast_channel_datastore_add(qe->chan, ds);
 	ast_channel_unlock(qe->chan);
 }
