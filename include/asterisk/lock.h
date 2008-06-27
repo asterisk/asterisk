@@ -1051,8 +1051,9 @@ static inline int _ast_rwlock_unlock(ast_rwlock_t *t, const char *name,
 	if (lt->reentrancy) {
 		int lock_found = 0;
 		int i;
+		pthread_t self = pthread_self();
 		for (i = lt->reentrancy-1; i >= 0; --i) {
-			if (lt->thread[i] == pthread_self()) {
+			if (lt->thread[i] == self) {
 				lock_found = 1;
 				if (i != lt->reentrancy-1) {
 					lt->file[i] = lt->file[lt->reentrancy-1];
