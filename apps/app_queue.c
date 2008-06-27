@@ -3541,10 +3541,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			if (!qe->parent->montype) {
 				const char *monexec, *monargs;
 				ast_debug(1, "Starting Monitor as requested.\n");
-				if ((monexec = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC")) || (monargs = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS")))
+				ast_channel_lock(qe->chan);
+				if ((monexec = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC")) || (monargs = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS"))) {
 					which = qe->chan;
+					monexec = monexec ? ast_strdupa(monexec) : NULL;
+				}
 				else
 					which = peer;
+				ast_log(LOG_NOTICE, "poop\n");
+				ast_channel_unlock(qe->chan);
 				if (monitorfilename)
 					ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1, X_REC_IN | X_REC_OUT);
 				else if (qe->chan->cdr)
