@@ -71,8 +71,10 @@ static void aji_client_destroy(struct aji_client *obj);
 static int aji_send_exec(struct ast_channel *chan, void *data);
 static int aji_status_exec(struct ast_channel *chan, void *data);
 static int aji_is_secure(struct aji_client *client);
+#ifdef HAVE_OPENSSL
 static int aji_start_tls(struct aji_client *client);
 static int aji_tls_handshake(struct aji_client *client);
+#endif
 static int aji_io_recv(struct aji_client *client, char *buffer, size_t buf_len, int timeout);
 static int aji_recv(struct aji_client *client, int timeout);
 static int aji_send_header(struct aji_client *client, const char *to);
@@ -497,7 +499,7 @@ static int aji_is_secure(struct aji_client *client)
 #endif
 }
 
-
+#ifdef HAVE_OPENSSL
 /*!
  * \brief Starts the TLS procedure
  * \param client the configured XMPP client we use to connect to a XMPP server
@@ -507,15 +509,13 @@ static int aji_is_secure(struct aji_client *client)
 static int aji_start_tls(struct aji_client *client)
 {
 	int ret;
-#ifndef HAVE_OPENSSL
-	return IKS_NET_TLSFAIL;
-#endif	
+
 	/* This is sent not encrypted */
 	ret = iks_send_raw(client->p, "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>");
 	if (ret)
 		return ret;
-	client->stream_flags |= TRY_SECURE;
 
+	client->stream_flags |= TRY_SECURE;
 	return IKS_OK;
 }
 
@@ -528,10 +528,6 @@ static int aji_tls_handshake(struct aji_client *client)
 {
 	int ret;
 	int sock;
-
-#ifndef HAVE_OPENSSL
-	return IKS_NET_TLSFAIL;
-#endif
 	
 	ast_debug(1, "Starting TLS handshake\n"); 
 
@@ -573,6 +569,7 @@ static int aji_tls_handshake(struct aji_client *client)
 
 	return IKS_OK;
 }
+#endif /* HAVE_OPENSSL */
 
 /*! 
  * \brief Secured or unsecured IO socket receiving function
@@ -871,12 +868,17 @@ static int aji_act_hook(void *data, int type, iks *node)
 		switch (type) {
 		case IKS_NODE_START:
 			if (client->usetls && !aji_is_secure(client)) {
+#ifndef HAVE_OPENSSL
+				ast_log(LOG_ERROR, "OpenSSL not installed. You need to install OpenSSL on this system, or disable the TLS option in your configuration file\n");
+				ASTOBJ_UNREF(client, aji_client_destroy);
+				return IKS_HOOK;
+#else
 				if (aji_start_tls(client) == IKS_NET_TLSFAIL) {
-					ast_log(LOG_ERROR, "OpenSSL not installed. You need to install OpenSSL on this system\n");
+					ast_log(LOG_ERROR, "Could not start TLS\n");
 					ASTOBJ_UNREF(client, aji_client_destroy);
 					return IKS_HOOK;		
 				}
-
+#endif
 				break;
 			}
 			if (!client->usesasl) {
@@ -894,12 +896,13 @@ static int aji_act_hook(void *data, int type, iks *node)
 			break;
 
 		case IKS_NODE_NORMAL:
+#ifdef HAVE_OPENSSL
 			if (client->stream_flags & TRY_SECURE) {
 				if (!strcmp("proceed", iks_name(node))) {
 					return aji_tls_handshake(client);
 				}
 			}
-
+#endif
 			if (!strcmp("stream:features", iks_name(node))) {
 				features = iks_stream_features(node);
 				if (client->usesasl) {
@@ -2252,10 +2255,11 @@ static int aji_client_connect(void *data, ikspak *pak)
 static int aji_initialize(struct aji_client *client)
 {
 	int connected = IKS_NET_NOCONN;
-	
+
+#ifdef HAVE_OPENSSL	
 	/* reset stream flags */
 	client->stream_flags = 0;
-
+#endif
 	/* If it's a component, connect to user, otherwise, connect to server */
 	connected = iks_connect_via(client->p, S_OR(client->serverhost, client->jid->server), client->port, client->component ? client->user : client->jid->server);
 
