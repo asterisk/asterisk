@@ -3539,7 +3539,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
 			if (!qe->parent->montype) {
-				char *monexec, *monargs;
+				const char *monexec, *monargs;
 				ast_debug(1, "Starting Monitor as requested.\n");
 				if ((monexec = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC")) || (monargs = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS")))
 					which = qe->chan;
