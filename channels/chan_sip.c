@@ -357,6 +357,7 @@ enum check_auth_result {
 	AUTH_UNKNOWN_DOMAIN = -5,
 	AUTH_PEER_NOT_DYNAMIC = -6,
 	AUTH_ACL_FAILED = -7,
+	AUTH_BAD_TRANSPORT = -8,
 };
 
 /*! \brief States for outbound registrations (with register= lines in sip.conf */
@@ -1430,6 +1431,7 @@ struct sip_peer {
 	ASTOBJ_COMPONENTS(struct sip_peer);	/*!< name, refcount, objflags,  object pointers */
 					/*!< peer->name is the unique name of this object */
 	struct sip_socket socket;	/*!< Socket used for this peer */
+	unsigned int transports:3; /*!< Transports (enum sip_transport) that are acceptable for this peer */
 	char secret[80];		/*!< Password */
 	char md5secret[80];		/*!< Password in MD5 */
 	struct sip_auth *auth;		/*!< Realm authentication list */
@@ -2483,6 +2485,27 @@ static inline int sip_debug_test_pvt(struct sip_pvt *p)
 	if (!sipdebug)
 		return 0;
 	return sip_debug_test_addr(sip_real_dst(p));
+}
+
+static inline const char *get_transport_list(struct sip_peer *peer) {
+	switch (peer->transports) {
+		case SIP_TRANSPORT_UDP:
+			return "UDP";
+		case SIP_TRANSPORT_TCP:
+			return "TCP";
+		case SIP_TRANSPORT_TLS:
+			return "TLS";
+	}
+
+	if (peer->transports & (SIP_TRANSPORT_TLS | SIP_TRANSPORT_TCP))
+		return "TLS,TCP";
+	if (peer->transports & (SIP_TRANSPORT_TLS | SIP_TRANSPORT_UDP))
+		return "TLS,UDP";
+	if (peer->transports & (SIP_TRANSPORT_UDP | SIP_TRANSPORT_TCP))
+		return "TCP,UDP";
+
+	return peer->transports ? 
+		"TLS,TCP,UDP" : "UNKNOWN";
 }
 
 static inline const char *get_transport(enum sip_transport t)
@@ -9802,8 +9825,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		}
 	}
 
-	copy_socket_data(&peer->socket, &req->socket);
-	copy_socket_data(&pvt->socket, &peer->socket);
+	if (peer->socket.type == req->socket.type)
+		copy_socket_data(&peer->socket, &req->socket);
+	copy_socket_data(&pvt->socket, &req->socket);
 
 	/* Look for brackets */
 	curi = contact;
@@ -10421,6 +10445,29 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 					res = 0;
 					break;
 				}
+
+				if (peer->socket.type != req->socket.type ) {
+					if (!(peer->transports & req->socket.type)) {
+						ast_log(LOG_ERROR,
+							"peer '%s' has contacted us over %s, but we only accept '%s' for this peer! ending call.\n",
+							peer->name, get_transport(req->socket.type), get_transport_list(peer)
+						);
+
+						ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
+						transmit_response_with_date(p, "403 Forbidden", req);
+						res = AUTH_BAD_TRANSPORT;
+					} else if (peer->socket.type & SIP_TRANSPORT_TLS) {
+						ast_log(LOG_WARNING,
+							"peer '%s' HAS STOPPED USING TLS in favor of '%s' (but this was allowed in sip.conf)!\n",
+							peer->name, get_transport(req->socket.type)
+						);
+					} else {
+						ast_log(LOG_DEBUG,
+							"peer '%s' has contacted us over %s even though we prefer %s.\n", 
+							peer->name, get_transport(req->socket.type), get_transport(peer->socket.type)
+						);
+					}
+				}
 			} 
 		}
 	}
@@ -10482,6 +10529,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 					transmit_response(p, "404 Not found", &p->initreq);
 			}
 			break;
+		case AUTH_BAD_TRANSPORT:
 		default:
 			break;
 		}
@@ -17836,6 +17884,9 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 		case AUTH_ACL_FAILED:
 			reason = "Device does not match ACL";
 			break;
+		case AUTH_BAD_TRANSPORT:
+			reason = "Device not configured to use this transport type";
+			break;
 		default:
 			reason = "Unknown failure";
 			break;
@@ -19843,17 +19894,21 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	/* If we have realm authentication information, remove them (reload) */
 	clear_realm_authentication(peer->auth);
 	peer->auth = NULL;
+	peer->transports = 0;
+	peer->socket.type = 0;
 
 	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (handle_common_options(&peerflags[0], &mask[0], v))
 			continue;
 		if (!strcasecmp(v->name, "transport")) {
 			if (!strcasecmp(v->value, "udp")) 
-				peer->socket.type = SIP_TRANSPORT_UDP;
+				peer->transports &= SIP_TRANSPORT_UDP;
 			else if (!strcasecmp(v->value, "tcp"))
-				peer->socket.type = SIP_TRANSPORT_TCP;
+				peer->transports &= SIP_TRANSPORT_TCP;
 			else if (!strcasecmp(v->value, "tls"))
-				peer->socket.type = SIP_TRANSPORT_TLS;
+				peer->transports &= SIP_TRANSPORT_TLS;
+			if (!peer->socket.type) /*!< The first transport listed should be used for outgoing */
+				peer->socket.type = peer->transports;
 		} else if (realtime && !strcasecmp(v->name, "regseconds")) {
 			ast_get_time_t(v->value, &regseconds, 0, NULL);
 		} else if (realtime && !strcasecmp(v->name, "ipaddr") && !ast_strlen_zero(v->value) ) {
@@ -20091,6 +20146,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->stimer.st_ref = i;
 			}
 		}
+	}
+
+	if (!peer->socket.type) {
+		peer->transports  = SIP_TRANSPORT_UDP;
+		peer->socket.type = SIP_TRANSPORT_UDP;
 	}
 
 	if (fullcontact->used > 0) {

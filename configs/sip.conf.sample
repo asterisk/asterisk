@@ -666,6 +666,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; deny                        deny
 ; secret                      secret
 ; md5secret                   md5secret
+; transport                   transport
 ; dtmfmode                    dtmfmode
 ; canreinvite                 canreinvite
 ; nat                         nat
@@ -734,6 +735,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;fromuser=yourusername			; Many SIP providers require this!
 ;fromdomain=provider.sip.domain	
 ;host=box.provider.com
+;transport=udp,tcp		    ; This sets the transport type to udp for outgoing, and will
+;                           ;   accept both tcp and udp. Default is udp. The first transport
+;                           ;   listed will always be used for outgoing connections.
 ;usereqphone=yes			; This provider requires ";user=phone" on URI
 ;callcounter=yes			; Enable call counter
 ;busylevel=2				; Signal busy at 2 or more calls
@@ -748,6 +752,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;fromuser=4015552299		; how your provider knows you
 ;secret=youwillneverguessit
 ;callbackextension=123		; Register with this server and require calls coming back to this extension
+;transport=udp,tcp		    ; This sets the transport type to udp for outgoing, and will
+;                           ;   accept both tcp and udp. Default is udp. The first transport
+;                           ;   listed will always be used for outgoing connections.
 
 ;------------------------------------------------------------------------------
 ; Definitions of locally connected SIP devices
