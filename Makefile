@@ -862,8 +862,8 @@ menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(di
 	@echo >> $@
 	@echo "<menu name=\"Asterisk Module and Build Option Selection\">" >> $@
 	@for dir in $(sort $(filter-out main,$(MOD_SUBDIRS))); do $(SUBMAKE) -C $${dir} SUBDIR=$${dir} moduleinfo >> $@; done
-	@for dir in $(sort $(filter-out main,$(MOD_SUBDIRS))); do $(SUBMAKE) -C $${dir} SUBDIR=$${dir} makeopts >> $@; done
 	@cat build_tools/cflags.xml >> $@
+	@for dir in $(sort $(filter-out main,$(MOD_SUBDIRS))); do $(SUBMAKE) -C $${dir} SUBDIR=$${dir} makeopts >> $@; done
 	@if [ "${AST_DEVMODE}" = "yes" ]; then \
 		cat build_tools/cflags-devmode.xml >> $@; \
 	fi
