@@ -16275,10 +16275,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		}
 		break;
 	case 408:	/* Request timeout */
-		p->needdestroy = 1;
-		if (r->call)
-			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 408");
-		AST_SCHED_DEL(sched, r->timeout);
+		/* Got a timeout response, so reset the counter of failed responses */
+		r->regattempts = 0;
 		break;
 	case 423:	/* Interval too brief */
 		r->expiry = atoi(get_header(req, "Min-Expires"));
