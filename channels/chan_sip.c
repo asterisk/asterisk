@@ -2495,17 +2495,16 @@ static inline const char *get_transport_list(struct sip_peer *peer) {
 			return "TCP";
 		case SIP_TRANSPORT_TLS:
 			return "TLS";
+		case SIP_TRANSPORT_UDP | SIP_TRANSPORT_TCP:
+			return "TCP,UDP";
+		case SIP_TRANSPORT_UDP | SIP_TRANSPORT_TLS:
+			return "TLS,UDP";
+		case SIP_TRANSPORT_TCP | SIP_TRANSPORT_TLS:
+			return "TLS,TCP";
+		default:
+			return peer->transports ? 
+				"TLS,TCP,UDP" : "UNKNOWN";	
 	}
-
-	if (peer->transports & (SIP_TRANSPORT_TLS | SIP_TRANSPORT_TCP))
-		return "TLS,TCP";
-	if (peer->transports & (SIP_TRANSPORT_TLS | SIP_TRANSPORT_UDP))
-		return "TLS,UDP";
-	if (peer->transports & (SIP_TRANSPORT_UDP | SIP_TRANSPORT_TCP))
-		return "TCP,UDP";
-
-	return peer->transports ? 
-		"TLS,TCP,UDP" : "UNKNOWN";
 }
 
 static inline const char *get_transport(enum sip_transport t)
