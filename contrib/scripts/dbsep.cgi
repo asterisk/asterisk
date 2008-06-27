@@ -57,7 +57,9 @@ if ($mode eq 'single') {
 	$sth->execute() || throw_error("Invalid query: $sql");
 	$row = $sth->fetchrow_hashref();
 	foreach (keys %$row) {
-		push @answer, encode($_) . "=" . encode($row->{$_});
+		foreach my $item (split /\;/, $row->{$_}) {
+			push @answer, encode($_) . "=" . encode($item);
+		}
 	}
 	$sth->finish();
 	$dbh->disconnect();
@@ -74,7 +76,9 @@ if ($mode eq 'single') {
 	while (my $row = $sth->fetchrow_hashref()) {
 		@answer = ();
 		foreach (keys %$row) {
-			push @answer, encode($_) . "=" . encode($row->{$_});
+			foreach my $item (split /\;/, $row->{$_}) {
+				push @answer, encode($_) . "=" . encode($item);
+			}
 		}
 		print join("&", @answer) . "\n";
 	}
