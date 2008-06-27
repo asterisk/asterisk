@@ -49,12 +49,12 @@
 #include <openssl/err.h>
 #define TRY_SECURE 2
 #define SECURE 4
+
+#endif /* HAVE_OPENSSL */
 /* file is read by blocks with this size */
 #define NET_IO_BUF_SIZE 4096
 /* Return value for timeout connection expiration */
 #define IKS_NET_EXPIRED 12
-
-#endif /* HAVE_OPENSSL */
 
 #include <iksemel.h>
 #include "asterisk/astobj.h"
