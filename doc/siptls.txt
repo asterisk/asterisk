@@ -61,7 +61,7 @@ On server_a:
 
 [general]
 tlsenable=yes
-tlscertfgile=/etc/asterisk/asterisk.pem
+tlscertfile=/etc/asterisk/asterisk.pem
 tlscafile=/etc/ssl/ca.pem  ; This is the CA file used to generate both certificates
 register => tls://100:test@192.168.0.100:5061
 
@@ -80,7 +80,7 @@ port=5061
 On server_b:
 [general]
 tlsenable=yes
-tlscertfgile=/etc/asterisk/asterisk.pem
+tlscertfile=/etc/asterisk/asterisk.pem
 
 [100]
 type=friend
