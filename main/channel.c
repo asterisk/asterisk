@@ -33,7 +33,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <signal.h>
 #include <math.h>
 #include <sys/ioctl.h>
+#if defined(HAVE_DAHDI)
 #include <dahdi/user.h>
+#endif
 
 #include "asterisk/paths.h"	/* use ast_config_AST_SYSTEM_NAME */
 

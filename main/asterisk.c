@@ -87,7 +87,9 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #endif
 
 #include <sys/ioctl.h>
+#if defined(HAVE_DAHDI)
 #include <dahdi/user.h>
+#endif
 
 #ifdef linux
 #include <sys/prctl.h>
