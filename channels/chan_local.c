@@ -544,11 +544,7 @@ static int local_hangup(struct ast_channel *ast)
 	if (!p)
 		return -1;
 
-	while (ast_mutex_trylock(&p->lock)) {
-		ast_channel_unlock(ast);
-		usleep(1);
-		ast_channel_lock(ast);
-	}
+	ast_mutex_lock(&p->lock);
 
 	if (p->chan && ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE)) 
 		ast_set_flag(p->chan, AST_FLAG_ANSWERED_ELSEWHERE);
