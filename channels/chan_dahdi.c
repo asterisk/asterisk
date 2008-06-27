@@ -9135,7 +9135,7 @@ static void ss7_start_call(struct dahdi_pvt *p, struct dahdi_ss7 *linkset)
 	char tmp[256];
 
 	if (ioctl(p->subs[SUB_REAL].zfd, DAHDI_AUDIOMODE, &law) == -1)
-		ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d: %s\n", p->channel, law, strrerror(errno));
+		ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d: %s\n", p->channel, law, strerror(errno));
 	
 	if (linkset->type == SS7_ITU)
 		law = DAHDI_LAW_ALAW;
@@ -13042,7 +13042,7 @@ static int linkset_addsigchan(int sigchan)
 			return -1;
 		}
 
-		ss7_add_link(link->ss7, SS7_TRANSPORT_DAHDI, link->fds[curfd]);
+		ss7_add_link(link->ss7, SS7_TRANSPORT_ZAP, link->fds[curfd]);
 		link->numsigchans++;
 
 		memset(&si, 0, sizeof(si));
