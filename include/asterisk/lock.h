@@ -289,6 +289,18 @@ int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, in
 		} \
 	} while (0)
 
+/*!
+ * \brief Deadlock avoidance unlock
+ *
+ * In certain deadlock avoidance scenarios, there is more than one lock to be
+ * unlocked and relocked.  Therefore, this pair of macros is provided for that
+ * purpose.  Note that every DLA_UNLOCK _MUST_ be paired with a matching
+ * DLA_LOCK.  The intent of this pair of macros is to be used around another
+ * set of deadlock avoidance code, mainly CHANNEL_DEADLOCK_AVOIDANCE, as the
+ * locking order specifies that we may safely lock a channel, followed by its
+ * pvt, with no worries about a deadlock.  In any other scenario, this macro
+ * may not be safe to use.
+ */
 #define DLA_UNLOCK(lock) \
 	do { \
 		char __filename[80], __func[80], __mutex_name[80]; \
@@ -296,6 +308,18 @@ int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, in
 		int __res = ast_find_lock_info(lock, __filename, sizeof(__filename), &__lineno, __func, sizeof(__func), __mutex_name, sizeof(__mutex_name)); \
 		ast_mutex_unlock(lock);
 
+/*!
+ * \brief Deadlock avoidance lock
+ *
+ * In certain deadlock avoidance scenarios, there is more than one lock to be
+ * unlocked and relocked.  Therefore, this pair of macros is provided for that
+ * purpose.  Note that every DLA_UNLOCK _MUST_ be paired with a matching
+ * DLA_LOCK.  The intent of this pair of macros is to be used around another
+ * set of deadlock avoidance code, mainly CHANNEL_DEADLOCK_AVOIDANCE, as the
+ * locking order specifies that we may safely lock a channel, followed by its
+ * pvt, with no worries about a deadlock.  In any other scenario, this macro
+ * may not be safe to use.
+ */
 #define DLA_LOCK(lock) \
 		if (__res < 0) { /* Shouldn't ever happen, but just in case... */ \
 			ast_mutex_lock(lock); \
