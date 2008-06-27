@@ -250,9 +250,9 @@ void log_show_lock(void *this_lock_addr);
  * be preserved as to what location originally acquired the lock.
  */
 #if !defined(LOW_MEMORY)
-int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, const char **func, const char **mutex_name);
+int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, int *lineno, char *func, size_t func_size, char *mutex_name, size_t mutex_name_size);
 #else
-#define ast_find_lock_info(a,b,c,d,e) -1
+#define ast_find_lock_info(a,b,c,d,e,f,g,h) -1
 #endif
 
 /*!
@@ -263,9 +263,9 @@ int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, cons
  */
 #define CHANNEL_DEADLOCK_AVOIDANCE(chan) \
 	do { \
-		const char *__filename, *__func, *__mutex_name; \
+		char __filename[80], __func[80], __mutex_name[80]; \
 		int __lineno; \
-		int __res = ast_find_lock_info(&chan->lock_dont_use, &__filename, &__lineno, &__func, &__mutex_name); \
+		int __res = ast_find_lock_info(&chan->lock_dont_use, __filename, sizeof(__filename), &__lineno, __func, sizeof(__func), __mutex_name, sizeof(__mutex_name)); \
 		ast_channel_unlock(chan); \
 		usleep(1); \
 		if (__res < 0) { /* Shouldn't ever happen, but just in case... */ \
@@ -277,9 +277,9 @@ int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, cons
 
 #define DEADLOCK_AVOIDANCE(lock) \
 	do { \
-		const char *__filename, *__func, *__mutex_name; \
+		char __filename[80], __func[80], __mutex_name[80]; \
 		int __lineno; \
-		int __res = ast_find_lock_info(lock, &__filename, &__lineno, &__func, &__mutex_name); \
+		int __res = ast_find_lock_info(lock, __filename, sizeof(__filename), &__lineno, __func, sizeof(__func), __mutex_name, sizeof(__mutex_name)); \
 		ast_mutex_unlock(lock); \
 		usleep(1); \
 		if (__res < 0) { /* Shouldn't ever happen, but just in case... */ \
@@ -291,9 +291,9 @@ int ast_find_lock_info(void *lock_addr, const char **filename, int *lineno, cons
 
 #define DLA_UNLOCK(lock) \
 	do { \
-		const char *__filename, *__func, *__mutex_name; \
+		char __filename[80], __func[80], __mutex_name[80]; \
 		int __lineno; \
-		int __res = ast_find_lock_info(lock, &__filename, &__lineno, &__func, &__mutex_name); \
+		int __res = ast_find_lock_info(lock, __filename, sizeof(__filename), &__lineno, __func, sizeof(__func), __mutex_name, sizeof(__mutex_name)); \
 		ast_mutex_unlock(lock);
 
 #define DLA_LOCK(lock) \
