@@ -13205,6 +13205,45 @@ static char *handle_ss7_block_cic(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 
+static char *handle_ss7_block_linkset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int linkset;
+	int i;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 block linkset";
+		e->usage = 
+			"Usage: ss7 block linkset <linkset number>\n"
+			"       Sends a remote blocking request for all CICs on the given linkset\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc == 4)
+		linkset = atoi(a->argv[3]);
+	else
+		return CLI_SHOWUSAGE;
+
+	if ((linkset < 1) || (linkset > NUM_SPANS)) {
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
+		return CLI_SUCCESS;
+	}
+
+	if (!linksets[linkset-1].ss7) {
+		ast_cli(a->fd, "No SS7 running on linkset %d\n", linkset);
+		return CLI_SUCCESS;
+	}
+
+	for (i = 0; i < linksets[linkset-1].numchans; i++) {
+		ast_cli(a->fd, "Sending remote blocking request on CIC %d\n", linksets[linkset-1].pvts[i]->cic);
+		ast_mutex_lock(&linksets[linkset-1].lock);
+		isup_blo(linksets[linkset-1].ss7, linksets[linkset-1].pvts[i]->cic, linksets[linkset-1].pvts[i]->dpc);
+		ast_mutex_unlock(&linksets[linkset-1].lock);
+	}
+
+	return CLI_SUCCESS;
+}
+
 static char *handle_ss7_unblock_cic(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset, cic;
@@ -13258,6 +13297,46 @@ static char *handle_ss7_unblock_cic(struct ast_cli_entry *e, int cmd, struct ast
 	return CLI_SUCCESS;
 }
 
+static char *handle_ss7_unblock_linkset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int linkset;
+	int i;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 unblock linkset";
+		e->usage = 
+			"Usage: ss7 unblock linkset <linkset number>\n"
+			"       Sends a remote unblocking request for all CICs on the specified linkset\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc == 4)
+		linkset = atoi(a->argv[3]);
+	else
+		return CLI_SHOWUSAGE;
+
+	if ((linkset < 1) || (linkset > NUM_SPANS)) {
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
+		return CLI_SUCCESS;
+	}
+
+	if (!linksets[linkset-1].ss7) {
+		ast_cli(a->fd, "No SS7 running on linkset %d\n", linkset);
+		return CLI_SUCCESS;
+	}
+
+	for (i = 0; i < linksets[linkset-1].numchans; i++) {
+		ast_cli(a->fd, "Sending remote unblock request on CIC %d\n", linksets[linkset-1].pvts[i]->cic);
+		ast_mutex_lock(&linksets[linkset-1].lock);
+		isup_ubl(linksets[linkset-1].ss7, linksets[linkset-1].pvts[i]->cic, linksets[linkset-1].pvts[i]->dpc);
+		ast_mutex_unlock(&linksets[linkset-1].lock);
+	}
+
+	return CLI_SUCCESS;
+}
+
 static char *handle_ss7_show_linkset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset;
@@ -13295,8 +13374,10 @@ static char *handle_ss7_show_linkset(struct ast_cli_entry *e, int cmd, struct as
 static struct ast_cli_entry dahdi_ss7_cli[] = {
 	AST_CLI_DEFINE(handle_ss7_debug, "Enables SS7 debugging on a linkset"), 
 	AST_CLI_DEFINE(handle_ss7_no_debug, "Disables SS7 debugging on a linkset"), 
-	AST_CLI_DEFINE(handle_ss7_block_cic, "Disables SS7 debugging on a linkset"),
-	AST_CLI_DEFINE(handle_ss7_unblock_cic, "Disables SS7 debugging on a linkset"),
+	AST_CLI_DEFINE(handle_ss7_block_cic, "Blocks the given CIC"),
+	AST_CLI_DEFINE(handle_ss7_unblock_cic, "Unblocks the given CIC"),
+	AST_CLI_DEFINE(handle_ss7_block_linkset, "Blocks all CICs on a linkset"),
+	AST_CLI_DEFINE(handle_ss7_unblock_linkset, "Unblocks all CICs on a linkset"),
 	AST_CLI_DEFINE(handle_ss7_show_linkset, "Shows the status of a linkset"),
 };
 #endif /* HAVE_SS7 */
