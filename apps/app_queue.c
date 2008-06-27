@@ -3487,9 +3487,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
 			if (!qe->parent->montype) {
+				char *monexec, *monargs;
 				ast_debug(1, "Starting Monitor as requested.\n");
 				monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
-				if (pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC") || pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS"))
+				if ((monexec = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC")) || (monargs = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS")))
 					which = qe->chan;
 				else
 					which = peer;
@@ -3501,6 +3502,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					/* Last ditch effort -- no CDR, make up something */
 					snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
 					ast_monitor_start(which, qe->parent->monfmt, tmpid, 1, X_REC_IN | X_REC_OUT);
+				}
+				if (!ast_strlen_zero(monexec)) {
+					ast_monitor_setjoinfiles(which, 1);
 				}
 			} else {
 				ast_debug(1, "Starting MixMonitor as requested.\n");
