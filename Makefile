@@ -820,22 +820,48 @@ uninstall-all: _uninstall
 
 menuconfig: menuselect
 
+cmenuconfig: cmenuselect
+
 gmenuconfig: gmenuselect
 
-menuselect: menuselect/menuselect menuselect-tree
-	-@menuselect/menuselect $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
+nmenuconfig: nmenuselect
+
+menuselect: menuselect/cmenuselect menuselect/nmenuselect menuselect/gmenuselect
+	@if [ -x menuselect/nmenuselect ]; then \
+		$(MAKE) nmenuselect; \
+	elif [ -x menuselect/cmenuselect ]; then \
+		$(MAKE) cmenuselect; \
+	elif [ -x menuselect/gmenuselect ]; then \
+		$(MAKE) gmenuselect; \
+	else \
+		echo "No menuselect user interface found. Install ncurses,"; \
+		echo "newt or GTK libraries to build one and re-rerun"; \
+		echo "'make menuselect'."; \
+	fi
+
+cmenuselect: menuselect/cmenuselect menuselect-tree
+	-@menuselect/cmenuselect menuselect.makeopts $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
 gmenuselect: menuselect/gmenuselect menuselect-tree
-	-@menuselect/gmenuselect $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
+	-@menuselect/gmenuselect menuselect.makeopts $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
+
+nmenuselect: menuselect/nmenuselect menuselect-tree
+	-@menuselect/nmenuselect menuselect.makeopts $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
 # options for make in menuselect/
 MAKE_MENUSELECT=CC="$(HOST_CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
 
 menuselect/menuselect: menuselect/makeopts
-	$(MAKE_MENUSELECT)
+	$(MAKE_MENUSELECT) menuselect
+
+menuselect/cmenuselect: menuselect/makeopts
+	$(MAKE_MENUSELECT) cmenuselect
 
 menuselect/gmenuselect: menuselect/makeopts
 	$(MAKE_MENUSELECT) gmenuselect
+
+menuselect/nmenuselect: menuselect/makeopts
+	$(MAKE_MENUSELECT) nmenuselect
 
 menuselect/makeopts: makeopts
 	$(MAKE_MENUSELECT) makeopts
