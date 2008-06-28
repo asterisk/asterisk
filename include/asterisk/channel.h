@@ -420,12 +420,46 @@ enum ast_t38_state {
  *
  * \note XXX It is important to remember to increment .cleancount each time
  *       this structure is changed. XXX
+ *
+ * \note When adding fields to this structure, it is important to add the field
+ *       'in position' with like-aligned fields, so as to keep the compiler from
+ *       having to add padding to align fields. The structure's fields are sorted
+ *       in this order: pointers, structures, long, int/enum, short, char. This
+ *       is especially important on 64-bit architectures, where mixing 4-byte
+ *       and 8-byte fields causes 4 bytes of padding to be added before many
+ *       8-byte fields.
  */
 
 struct ast_channel {
 	const struct ast_channel_tech *tech;		/*!< Technology (point to channel driver) */
-
 	void *tech_pvt;					/*!< Private data used by the technology driver */
+	void *music_state;				/*!< Music State*/
+	void *generatordata;				/*!< Current generator data if there is any */
+	struct ast_generator *generator;		/*!< Current active data generator */
+	struct ast_channel *_bridge;			/*!< Who are we bridged to, if we're bridged.
+							     Who is proxying for us, if we are proxied (i.e. chan_agent).
+							     Do not access directly, use ast_bridged_channel(chan) */
+	struct ast_channel *masq;			/*!< Channel that will masquerade as us */
+	struct ast_channel *masqr;			/*!< Who we are masquerading as */
+	const char *blockproc;				/*!< Procedure causing blocking */
+	const char *appl;				/*!< Current application */
+	const char *data;				/*!< Data passed to current application */
+	struct sched_context *sched;			/*!< Schedule context */
+	struct ast_filestream *stream;			/*!< Stream itself. */
+	struct ast_filestream *vstream;			/*!< Video Stream itself. */
+	int (*timingfunc)(const void *data);
+	void *timingdata;
+	struct ast_pbx *pbx;				/*!< PBX private structure for this channel */
+	struct ast_trans_pvt *writetrans;		/*!< Write translation path */
+	struct ast_trans_pvt *readtrans;		/*!< Read translation path */
+	struct ast_audiohook_list *audiohooks;
+	struct ast_cdr *cdr;				/*!< Call Detail Record */
+	struct ind_tone_zone *zone;			/*!< Tone zone as set in indications.conf or
+							     in the CHANNEL dialplan function */
+	struct ast_channel_monitor *monitor;		/*!< Channel monitoring */
+#ifdef HAVE_EPOLL
+	struct ast_epoll_data *epfd_data[AST_MAX_FDS];
+#endif
 
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(name);			/*!< ASCII unique channel name */
@@ -437,108 +471,67 @@ struct ast_channel {
 		AST_STRING_FIELD(parkinglot);		/*! Default parking lot, if empty, default parking lot  */
 	);
 	
-	int fds[AST_MAX_FDS];				/*!< File descriptors for channel -- Drivers will poll on
-								these file descriptors, so at least one must be non -1.
-								 See \arg \ref AstFileDesc */
-
-	void *music_state;				/*!< Music State*/
-	void *generatordata;				/*!< Current generator data if there is any */
-	struct ast_generator *generator;		/*!< Current active data generator */
-
-	struct ast_channel *_bridge;			/*!< Who are we bridged to, if we're bridged.
-								Who is proxying for us, if we are proxied (i.e. chan_agent).
-								Do not access directly, use ast_bridged_channel(chan) */
-
-	struct ast_channel *masq;			/*!< Channel that will masquerade as us */
-	struct ast_channel *masqr;			/*!< Who we are masquerading as */
-	int cdrflags;					/*!< Call Detail Record Flags */
-
-	int _softhangup;				/*!< Whether or not we have been hung up...  Do not set this value
-	    							directly, use ast_softhangup() */
-	struct timeval whentohangup;        /*!< Non-zero, set to actual time when channel is to be hung up */
+	struct timeval whentohangup;        		/*!< Non-zero, set to actual time when channel is to be hung up */
 	pthread_t blocker;				/*!< If anyone is blocking, this is them */
 	ast_mutex_t lock_dont_use;			/*!< Lock a channel for some operations. See ast_channel_lock() */
-	const char *blockproc;				/*!< Procedure causing blocking */
-
-	const char *appl;				/*!< Current application */
-	const char *data;				/*!< Data passed to current application */
-	int fdno;					/*!< Which fd had an event detected on */
-	struct sched_context *sched;			/*!< Schedule context */
-	int streamid;					/*!< For streaming playback, the schedule ID */
-	struct ast_filestream *stream;			/*!< Stream itself. */
-	int vstreamid;					/*!< For streaming video playback, the schedule ID */
-	struct ast_filestream *vstream;			/*!< Video Stream itself. */
-	int oldwriteformat;				/*!< Original writer format */
-	
-	int timingfd;					/*!< Timing fd */
-	int (*timingfunc)(const void *data);
-	void *timingdata;
-
-	enum ast_channel_state _state;			/*!< State of line -- Don't write directly, use ast_setstate() */
-	int rings;					/*!< Number of rings so far */
 	struct ast_callerid cid;			/*!< Caller ID, name, presentation etc */
-	char dtmfq[AST_MAX_EXTENSION];			/*!< Any/all queued DTMF characters */
 	struct ast_frame dtmff;				/*!< DTMF frame */
-
-	char context[AST_MAX_CONTEXT];			/*!< Dialplan: Current extension context */
-	char exten[AST_MAX_EXTENSION];			/*!< Dialplan: Current extension number */
-	int priority;					/*!< Dialplan: Current extension priority */
-	char macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
-	char macroexten[AST_MAX_EXTENSION];		/*!< Macro: Current non-macro extension. See app_macro.c */
-	int macropriority;				/*!< Macro: Current non-macro priority. See app_macro.c */
-	char dialcontext[AST_MAX_CONTEXT];              /*!< Dial: Extension context that we were called from */
-
-	struct ast_pbx *pbx;				/*!< PBX private structure for this channel */
-	int amaflags;					/*!< Set BEFORE PBX is started to determine AMA flags */
-	struct ast_cdr *cdr;				/*!< Call Detail Record */
-	enum ast_channel_adsicpe adsicpe;		/*!< Whether or not ADSI is detected on CPE */
-
-	struct ind_tone_zone *zone;			/*!< Tone zone as set in indications.conf or
-								in the CHANNEL dialplan function */
-
-	struct ast_channel_monitor *monitor;		/*!< Channel monitoring */
+	struct varshead varshead;			/*!< A linked list for channel variables. See \ref AstChanVar */
+	ast_group_t callgroup;				/*!< Call group for call pickups */
+	ast_group_t pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
+	AST_LIST_HEAD_NOLOCK(, ast_frame) readq;
+	AST_LIST_ENTRY(ast_channel) chan_list;		/*!< For easy linking */
+	struct ast_jb jb;				/*!< The jitterbuffer state */
+	struct timeval dtmf_tv;				/*!< The time that an in process digit began, or the last digit ended */
+	AST_LIST_HEAD_NOLOCK(datastores, ast_datastore) datastores; /*!< Data stores on the channel */
 
 	unsigned long insmpl;				/*!< Track the read/written samples for monitor use */
 	unsigned long outsmpl;				/*!< Track the read/written samples for monitor use */
 
+	int fds[AST_MAX_FDS];				/*!< File descriptors for channel -- Drivers will poll on
+							     these file descriptors, so at least one must be non -1.
+							     See \arg \ref AstFileDesc */
+	int cdrflags;					/*!< Call Detail Record Flags */
+	int _softhangup;				/*!< Whether or not we have been hung up...  Do not set this value
+							     directly, use ast_softhangup() */
+	int fdno;					/*!< Which fd had an event detected on */
+	int streamid;					/*!< For streaming playback, the schedule ID */
+	int vstreamid;					/*!< For streaming video playback, the schedule ID */
+	int oldwriteformat;				/*!< Original writer format */
+	int timingfd;					/*!< Timing fd */
+	enum ast_channel_state _state;			/*!< State of line -- Don't write directly, use ast_setstate() */
+	int rings;					/*!< Number of rings so far */
+	int priority;					/*!< Dialplan: Current extension priority */
+	int macropriority;				/*!< Macro: Current non-macro priority. See app_macro.c */
+	int amaflags;					/*!< Set BEFORE PBX is started to determine AMA flags */
+	enum ast_channel_adsicpe adsicpe;		/*!< Whether or not ADSI is detected on CPE */
 	unsigned int fin;				/*!< Frames in counters. The high bit is a debug mask, so
-								the counter is only in the remaining bits */
+							     the counter is only in the remaining bits */
 	unsigned int fout;				/*!< Frames out counters. The high bit is a debug mask, so
-								the counter is only in the remaining bits */
+							     the counter is only in the remaining bits */
 	int hangupcause;				/*!< Why is the channel hanged up. See causes.h */
-	struct varshead varshead;			/*!< A linked list for channel variables. See \ref AstChanVar */
-	ast_group_t callgroup;				/*!< Call group for call pickups */
-	ast_group_t pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
 	unsigned int flags;				/*!< channel flags of AST_FLAG_ type */
-	unsigned short transfercapability;		/*!< ISDN Transfer Capbility - AST_FLAG_DIGITAL is not enough */
-	AST_LIST_HEAD_NOLOCK(, ast_frame) readq;
 	int alertpipe[2];
-
 	int nativeformats;				/*!< Kinds of data this channel can natively handle */
 	int readformat;					/*!< Requested read format */
 	int writeformat;				/*!< Requested write format */
-	struct ast_trans_pvt *writetrans;		/*!< Write translation path */
-	struct ast_trans_pvt *readtrans;		/*!< Read translation path */
 	int rawreadformat;				/*!< Raw read format */
 	int rawwriteformat;				/*!< Raw write format */
-
-	struct ast_audiohook_list *audiohooks;
-
-	AST_LIST_ENTRY(ast_channel) chan_list;		/*!< For easy linking */
-	
-	struct ast_jb jb;				/*!< The jitterbuffer state  */
-
-	char emulate_dtmf_digit;			/*!< Digit being emulated */
 	unsigned int emulate_dtmf_duration;		/*!< Number of ms left to emulate DTMF for */
-	struct timeval dtmf_tv;				/*!< The time that an in process digit began, or the last digit ended */
-
-	AST_LIST_HEAD_NOLOCK(datastores, ast_datastore) datastores; /*!< Data stores on the channel */
-
 #ifdef HAVE_EPOLL
 	int epfd;
-	struct ast_epoll_data *epfd_data[AST_MAX_FDS];
 #endif
 	int visible_indication;                         /*!< Indication currently playing on the channel */
+
+	unsigned short transfercapability;		/*!< ISDN Transfer Capbility - AST_FLAG_DIGITAL is not enough */
+
+	char dtmfq[AST_MAX_EXTENSION];			/*!< Any/all queued DTMF characters */
+	char context[AST_MAX_CONTEXT];			/*!< Dialplan: Current extension context */
+	char exten[AST_MAX_EXTENSION];			/*!< Dialplan: Current extension number */
+	char macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
+	char macroexten[AST_MAX_EXTENSION];		/*!< Macro: Current non-macro extension. See app_macro.c */
+	char dialcontext[AST_MAX_CONTEXT];              /*!< Dial: Extension context that we were called from */
+	char emulate_dtmf_digit;			/*!< Digit being emulated */
 };
 
 /*! \brief ast_channel_tech Properties */
