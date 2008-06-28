@@ -73,12 +73,12 @@ export PROC			# Processor type
 export NOISY_BUILD		# Used in Makefile.rules
 export MENUSELECT_CFLAGS	# Options selected in menuselect.
 export AST_DEVMODE		# Set to "yes" for additional compiler
-				# and runtime checks
+                                # and runtime checks
 
 export SOLINK			# linker flags for shared objects
 export STATIC_BUILD		# Additional cflags, set to -static
-				# for static builds. Probably
-				# should go directly to ASTLDFLAGS
+                                # for static builds. Probably
+                                # should go directly to ASTLDFLAGS
 
 #--- paths to various commands
 export CC
@@ -826,8 +826,14 @@ gmenuconfig: gmenuselect
 
 nmenuconfig: nmenuselect
 
-menuselect: menuselect/menuselect menuselect-tree
-	-@menuselect/menuselect menuselect.makeopts $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
+menuselect: menuselect/cmenuselect menuselect/nmenuselect menuselect/gmenuselect
+	@if [ -x menuselect/nmenuselect ]; then \
+		$(MAKE) nmenuselect; \
+	elif [ -x menuselect/cmenuselect ]; then \
+		$(MAKE) cmenuselect; \
+	elif [ -x menuselect/gmenuselect ]; then \
+		$(MAKE) gmenuselect; \
+	fi
 
 cmenuselect: menuselect/cmenuselect menuselect-tree
 	-@menuselect/cmenuselect menuselect.makeopts $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
@@ -842,7 +848,7 @@ nmenuselect: menuselect/nmenuselect menuselect-tree
 MAKE_MENUSELECT=CC="$(HOST_CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
 
 menuselect/menuselect: menuselect/makeopts
-	$(MAKE_MENUSELECT)
+	$(MAKE_MENUSELECT) menuselect
 
 menuselect/cmenuselect: menuselect/makeopts
 	$(MAKE_MENUSELECT) cmenuselect
