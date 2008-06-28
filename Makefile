@@ -834,9 +834,9 @@ menuselect: menuselect/cmenuselect menuselect/nmenuselect menuselect/gmenuselect
 	elif [ -x menuselect/gmenuselect ]; then \
 		$(MAKE) gmenuselect; \
 	else \
-		echo "No menuselect user interface found. Install ncurses," \
-		echo "newt or GTK libraries to build one and re-rerun" \
-		echo "'make menuselect'." \
+		echo "No menuselect user interface found. Install ncurses,"; \
+		echo "newt or GTK libraries to build one and re-rerun"; \
+		echo "'make menuselect'."; \
 	fi
 
 cmenuselect: menuselect/cmenuselect menuselect-tree
