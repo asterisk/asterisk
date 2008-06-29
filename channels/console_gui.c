@@ -7,30 +7,72 @@
 /*
  * GUI layout, structure and management
  
-For the GUI we use SDL to create a large surface (gui->screen)
-containing tree sections: remote video on the left, local video
-on the right, and the keypad with all controls and text windows
-in the center.
-The central section is built using an image for the skin, fonts and
-other GUI elements.  Comments embedded in the image to indicate to
-what function each area is mapped to.
+For the GUI we use SDL to create a large surface (gui->screen) with 4 areas:
+remote video on the left, local video on the right, keypad with all controls
+and text windows in the center, and source device thumbnails on the top.
+The top row is not displayed if no devices are specified in the config file.
+
+     ________________________________________________________________
+    |  ______   ______   ______   ______   ______   ______   ______  |
+    | | tn.1 | | tn.2 | | tn.3 | | tn.4 | | tn.5 | | tn.6 | | tn.7 | |
+    | |______| |______| |______| |______| |______| |______| |______| |
+    |  ______   ______   ______   ______   ______   ______   ______  |
+    | |______| |______| |______| |______| |______| |______| |______| |
+    |  _________________    __________________    _________________  |
+    | |                 |  |                  |  |                 | |
+    | |                 |  |                  |  |                 | |
+    | |                 |  |                  |  |                 | |
+    | |   remote video  |  |                  |  |   local video   | |
+    | |                 |  |                  |  |          ______ | |
+    | |                 |  |      keypad      |  |         |  PIP || |
+    | |                 |  |                  |  |         |______|| |
+    | |_________________|  |                  |  |_________________| |
+    |                      |                  |                      |
+    |                      |                  |                      |
+    |                      |__________________|                      |
+    |________________________________________________________________|
+
+
+The central section is built using an image (jpg, png, maybe gif too)
+for the skin, and other GUI elements.  Comments embedded in the image
+indicate to what function each area is mapped to.
+Another image (png with transparency) is used for the font.
 
 Mouse and keyboard events are detected on the whole surface, and
 handled differently according to their location:
-
+- center/right click on the local/remote window are used to resize
+  the corresponding window;
+- clicks on the thumbnail start/stop sources and select them as
+  primary or secondary video sources;
 - drag on the local video window are used to move the captured
-  area (in the case of X11 grabber) or the picture-in-picture
-  location (in case of camera included on the X11 grab).
-- click on the keypad are mapped to the corresponding key;
+  area (in the case of X11 grabber) or the picture-in-picture position;
+- keystrokes on the keypad are mapped to the corresponding key;
+  keystrokes are used as keypad functions, or as text input
+  if we are in text-input mode.
 - drag on some keypad areas (sliders etc.) are mapped to the
   corresponding functions;
-- keystrokes are used as keypad functions, or as text input
-  if we are in text-input mode.
 
 Configuration options control the appeareance of the gui:
 
-    keypad = /tmp/phone.jpg	; the skin
-    keypad_font = /tmp/font.ttf	; the font to use for output (XXX deprecated)
+    keypad = /tmp/kpad2.jpg	; the skin
+    keypad_font = /tmp/font.png	; the font to use for output
+
+For future implementation, intresting features can be the following:
+- freeze of the video coming from our remote party
+- save of the whole SDL window as a picture
+- oudio output device switching
+
+The audio switching feature should allow changing the device
+or switching to a recorded message for audio sent to remote party.
+The selection of the device should happen clicking on a marker in the layout.
+For this reason above the thumbnails row in the layout we would like a new row,
+the elements composing the row could be message boards, reporting the name of the
+device or the path of the message to be played.
+
+For video input freeze and entire window capture, we define 2 new key types,
+those should be activated pressing the buttons on the keypad, associated with
+new regions inside the keypad pictureas comments
+
 
  *
  */
@@ -42,13 +84,15 @@ Configuration options control the appeareance of the gui:
 #include "asterisk/utils.h"	/* ast_calloc and ast_realloc */
 #include <math.h>		/* sqrt */
 
-/* We use 3 'windows' in the GUI */
-enum { WIN_LOCAL, WIN_REMOTE, WIN_KEYPAD, WIN_MAX };
+/* We use a maximum of 12 'windows' in the GUI */
+enum { WIN_LOCAL, WIN_REMOTE, WIN_KEYPAD, WIN_SRC1,
+	WIN_SRC2, WIN_SRC3, WIN_SRC4, WIN_SRC5,
+	WIN_SRC6, WIN_SRC7, WIN_SRC8, WIN_SRC9, WIN_MAX };
 
 #ifndef HAVE_SDL	/* stubs if we don't have any sdl */
 static void show_frame(struct video_desc *env, int out)	{}
 static void sdl_setup(struct video_desc *env)		{}
-static struct gui_info *cleanup_sdl(struct gui_info *gui)	{ return NULL; }
+static struct gui_info *cleanup_sdl(struct gui_info* g, int n)	{ return NULL; }
 static void eventhandler(struct video_desc *env, const char *caption)	{}
 static int keypad_cfg_read(struct gui_info *gui, const char *val)	{ return 0; }
 
@@ -65,6 +109,9 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)	{ return 0; }
 #include <X11/Xlib.h>
 #endif
 
+#define BORDER	5		/* border around our windows */
+#define SRC_MSG_BD_H 20		/* height of the message board below those windows */
+
 enum kp_type { KP_NONE, KP_RECT, KP_CIRCLE };
 struct keypad_entry {
         int c;  /* corresponding character */
@@ -75,9 +122,16 @@ struct keypad_entry {
 /* our representation of a displayed window. SDL can only do one main
  * window so we map everything within that one
  */
-struct display_window {   
+struct display_window {
 	SDL_Overlay	*bmp;
 	SDL_Rect	rect;	/* location of the window */
+};
+
+/* each thumbnail message board has a rectangle associated for the geometry,
+ * and a board structure, we include these two elements in a singole structure */
+struct thumb_bd {
+	SDL_Rect		rect;		/* the rect for geometry and background */
+	struct board		*board;		/* the board */
 };
 
 struct gui_info {
@@ -92,9 +146,11 @@ struct gui_info {
 	SDL_Surface		*font;		/* font to be used */ 
 	SDL_Rect		font_rects[96];	/* only printable chars */
 
-	/* each board has two rectangles,
+	/* each of the following board has two rectangles,
 	 * [0] is the geometry relative to the keypad,
 	 * [1] is the geometry relative to the whole screen
+	 * we do not use the thumb_bd for these boards because here we need
+	 * 2 rectangles for geometry
 	 */
 	SDL_Rect		kp_msg[2];		/* incoming msg, relative to kpad */
 	struct board		*bd_msg;
@@ -104,6 +160,12 @@ struct gui_info {
 
 	SDL_Rect		kp_dialed[2];	/* dialed number */
 	struct board		*bd_dialed;
+
+	/* other boards are one associated with the source windows
+	 * above the keypad in the layout, we only have the geometry
+	 * relative to the whole screen
+	 */
+	struct thumb_bd		thumb_bd_array[MAX_VIDEO_SOURCES];
 
 	/* variable-size array mapping keypad regions to functions */
 	int kp_size, kp_used;
@@ -115,7 +177,7 @@ struct gui_info {
 /*! \brief free the resources in struct gui_info and the descriptor itself.
  *  Return NULL so we can assign the value back to the descriptor in case.
  */
-static struct gui_info *cleanup_sdl(struct gui_info *gui)
+static struct gui_info *cleanup_sdl(struct gui_info *gui, int device_num)
 {
 	int i;
 
@@ -142,11 +204,43 @@ static struct gui_info *cleanup_sdl(struct gui_info *gui)
 			SDL_FreeYUVOverlay(gui->win[i].bmp);
 	}
 	bzero(gui, sizeof(gui));
+
+	/* deallocates the space allocated for the keypad message boards */
+	if (gui->bd_dialed)
+		delete_board(gui->bd_dialed);
+	if (gui->bd_msg)
+		delete_board(gui->bd_msg);
+
+	/* deallocates the space allocated for the thumbnail message boards */
+	for (i = 0; i < device_num; i++) {
+		if (gui->thumb_bd_array[i].board) /* may be useless */
+			delete_board(gui->thumb_bd_array[i].board);
+	}
+	
 	ast_free(gui);
 	SDL_Quit();
 	return NULL;
 }
 
+/* messages to be displayed in the sources message boards
+ * below the source windows
+ */
+
+/* costants defined to describe status of devices */
+#define IS_PRIMARY 1
+#define IS_SECONDARY 2
+#define IS_ON 4
+
+char* src_msgs[] = {
+	"    OFF",
+	"1   OFF",
+	"  2 OFF",
+	"1+2 OFF",
+	"    ON",
+	"1   ON",
+	"  2 ON",
+	"1+2 ON",
+};
 /*
  * Display video frames (from local or remote stream) using the SDL library.
  * - Set the video mode to use the resolution specified by the codec context
@@ -171,7 +265,7 @@ static void show_frame(struct video_desc *env, int out)
 		b_in = &env->enc_in;
 		b_out = &env->loc_dpy;
 		p_in = NULL;
-	} else {
+	} else if (out == WIN_REMOTE) {
 		/* copy input format from the decoding context */
 		AVCodecContext *c;
 		if (env->in == NULL)	/* XXX should not happen - decoder not ready */
@@ -184,7 +278,14 @@ static void show_frame(struct video_desc *env, int out)
 
 		b_out = &env->rem_dpy;
 		p_in = (AVPicture *)env->in->d_frame;
-	}
+	} else {
+		int i = out-WIN_SRC1;
+		b_in = env->out.devices[i].dev_buf;
+		if (b_in == NULL)
+			return;
+		p_in = NULL;
+		b_out = &env->src_dpy[i];
+	}		
 	bmp = gui->win[out].bmp;
 	SDL_LockYUVOverlay(bmp);
 	/* output picture info - this is sdl, YUV420P */
@@ -236,6 +337,21 @@ enum skin_area {
 	KEY_DIALED = 203,	/* area for dialed numbers */
 	KEY_EDIT = 204,		/* area for editing user input */
 
+#ifdef notyet /* XXX for future implementation */
+	KEY_AUDIO_SRCS = 210,
+	/*indexes between 210 and 219 (or more) have been reserved for the "keys"
+	associated with the audio device markers, clicking on these markers
+	will change the source device for audio output */
+
+	KEY_FREEZE = 220,	/* freeze the incoming video */
+	KEY_CAPTURE = 221,	/* capture the whole SDL window as a picture */
+#endif
+	/* video source switching key(s) */
+	KEY_PIP = 230,
+	/*indexes between 231 and 239 have been reserved for the "keys"
+	associated with the device thumbnails, clicking on these pictures
+	will change the source device for primary or secondary (PiP) video output*/
+	KEY_SRCS_WIN = 231, /* till 239 */
 	/* areas outside the keypad - simulated */
 	KEY_OUT_OF_KEYPAD = 241,
 	KEY_REM_DPY = 242,
@@ -270,15 +386,16 @@ static char *keypad_toggle(struct video_desc *env, int index)
 	ast_log(LOG_WARNING, "keypad_toggle(%i) called\n", index);
 
 	switch (index) {
-	case KEY_SENDVIDEO:
+	case KEY_SENDVIDEO: /* send or do not send video */
 		env->out.sendvideo = !env->out.sendvideo;
 		break;
-#ifdef notyet
-	case KEY_MUTE: {
-		struct chan_oss_pvt *o = find_desc(oss_active);
-		o->mute = !o->mute;
-		}
+	case KEY_PIP: /* enable or disable Picture in Picture */
+		env->out.picture_in_picture = !env->out.picture_in_picture;
 		break;
+	case KEY_MUTE: /* send or do not send audio */
+		ast_cli_command(env->gui->outfd, "console mute toggle");
+		break;
+#ifdef notyet
 	case KEY_AUTOANSWER: {
 		struct chan_oss_pvt *o = find_desc(oss_active);
 		o->autoanswer = !o->autoanswer;
@@ -357,6 +474,130 @@ static void set_drag(struct drag_info *drag, int x, int y, enum drag_window win)
 	drag->drag_window = win;
 }
 
+static int update_device_info(struct video_desc *env, int i)
+{
+	reset_board(env->gui->thumb_bd_array[i].board);
+	print_message(env->gui->thumb_bd_array[i].board,
+		src_msgs[env->out.devices[i].status_index]);
+	return 0;
+}
+
+/*! \brief Changes the video output (local video) source, controlling if
+ * it is already using that video device, 
+ * and switching the correct fields of env->out.
+ * grabbers are always open and saved in the device table.
+ * The secondary or the primary device can be changed,
+ * according to the "button" parameter:
+ * the primary device is changed if button = SDL_BUTTON_LEFT;
+ * the secondary device is changed if button = not SDL_BUTTON_LEFT;
+ * 
+ * the correct message boards of the sources are also updated
+ * with the new status
+ * 
+ * \param env = pointer to the video environment descriptor
+ * \param index = index of the device the caller wants to use are primary or secondary device
+ * \param button = button clicked on the mouse
+ *
+ * returns 0 on success,
+ * returns 1 on error 
+ */
+static int switch_video_out(struct video_desc *env, int index, Uint8 button)
+{
+	int *p; /* pointer to the index of the device to select */
+
+	if (index >= env->out.device_num) {
+		ast_log(LOG_WARNING, "no devices\n");
+		return 1;
+	}
+	/* select primary or secondary */
+	p = (button == SDL_BUTTON_LEFT) ? &env->out.device_primary :
+		&env->out.device_secondary;
+	/* controls if the device is already selected */
+	if (index == *p) {
+		ast_log(LOG_WARNING, "device %s already selected\n", env->out.devices[index].name);
+		return 0;
+	}
+	ast_log(LOG_WARNING, "switching to %s...\n", env->out.devices[index].name);
+	/* already open */
+	if (env->out.devices[index].grabber) {
+		/* we also have to update the messages in the source 
+		message boards below the source windows */
+		/* first we update the board of the previous source */
+		if (p == &env->out.device_primary)
+			env->out.devices[*p].status_index &= ~IS_PRIMARY;
+		else
+			env->out.devices[*p].status_index &= ~IS_SECONDARY;
+		update_device_info(env, *p);
+		/* update the index used as primary or secondary */
+		*p = index;
+		ast_log(LOG_WARNING, "done\n");
+		/* then we update the board of the new primary or secondary source */
+		if (p == &env->out.device_primary)
+			env->out.devices[*p].status_index |= IS_PRIMARY;
+		else
+			env->out.devices[*p].status_index |= IS_SECONDARY;
+		update_device_info(env, *p);
+		return 0;
+	}
+	/* device is off, just do nothing */
+	ast_log(LOG_WARNING, "device is down\n");
+	return 1;
+}
+
+/*! \brief tries to switch the state of a device from on to off or off to on
+ * we also have to update the status of the device and the correct message board
+ *
+ * \param index = the device that must be turned on or off
+ * \param env = pointer to the video environment descriptor
+ *
+ * returns:
+ * - 0 on falure switching from off to on
+ * - 1 on success in switching from off to on
+ * - 2 on success in switching from on to off
+*/
+static int turn_on_off(int index, struct video_desc *env)
+{
+	struct video_device *p = &env->out.devices[index];
+
+	if (index >= env->out.device_num) {
+		ast_log(LOG_WARNING, "no devices\n");
+		return 0;
+	}
+
+	if (!p->grabber) { /* device off */
+		void *g_data; /* result of grabber_open() */
+		struct grab_desc *g;
+		int i;
+
+		/* see if the device can be used by one of the existing drivers */
+		for (i = 0; (g = console_grabbers[i]); i++) {
+			/* try open the device */
+			g_data = g->open(p->name, &env->out.loc_src_geometry, env->out.fps);
+			if (!g_data)	/* no luck, try the next driver */
+				continue;
+			p->grabber = g;
+			p->grabber_data = g_data;
+			/* update the status of the source */
+			p->status_index |= IS_ON;
+			/* print the new message in the message board */
+			update_device_info(env, index);
+			return 1; /* open succeded */
+		}
+		return 0; /* failure */
+	} else {
+		/* the grabber must be closed */
+		p->grabber_data = p->grabber->close(p->grabber_data);
+		p->grabber = NULL;
+		/* dev_buf is already freed by grabber->close() */
+		p->dev_buf = NULL;
+		/* update the status of the source */
+		p->status_index &= ~IS_ON;
+		/* print the new message in the message board */
+		update_device_info(env, index);
+		return 2; /* closed */
+	}	
+}
+
 /*
  * Handle SDL_MOUSEBUTTONDOWN type, finding the palette
  * index value and calling the right callback.
@@ -367,29 +608,83 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
 {
 	uint8_t index = KEY_OUT_OF_KEYPAD;	/* the key or region of the display we clicked on */
 	struct gui_info *gui = env->gui;
+		
+	int i; /* integer variable used as iterator */
 
+	int x; /* integer variable usable as a container */
+	
+	/* total width of source device thumbnails */
+	int src_wins_tot_w = env->out.device_num*(SRC_WIN_W+BORDER)+BORDER;
+
+	/* x coordinate of the center of the keypad */
+	int x0 = MAX(env->rem_dpy.w+gui->keypad->w/2+2*BORDER, src_wins_tot_w/2);
+	
 #if 0
 	ast_log(LOG_WARNING, "event %d %d have %d/%d regions at %p\n",
 		button.x, button.y, gui->kp_used, gui->kp_size, gui->kp);
 #endif
 	/* for each mousedown we end previous drag */
 	gui->drag.drag_window = DRAG_NONE;
-
+	
 	/* define keypad boundary */
-	if (button.x < env->rem_dpy.w)
-		index = KEY_REM_DPY; /* click on remote video */
-	else if (button.x > env->rem_dpy.w + gui->keypad->w)
-		index = KEY_LOC_DPY; /* click on local video */
-	else if (button.y > gui->keypad->h)
-		index = KEY_OUT_OF_KEYPAD; /* click outside the keypad */
-	else if (gui->kp) {
-		int i;
-		for (i = 0; i < gui->kp_used; i++) {
-			if (kp_match_area(&gui->kp[i], button.x - env->rem_dpy.w, button.y)) {
-				index = gui->kp[i].c;
-				break;
+	/* XXX this should be extended for clicks on different audio device markers */
+	if (button.y >= (env->out.device_num ? SRC_WIN_H+2*BORDER+SRC_MSG_BD_H : 0)) {
+		/* if control reaches this point this means that the clicked point is
+		below the row of the additional sources windows*/
+		/* adjust the y coordinate as if additional devices windows were not present */
+		button.y -= (env->out.device_num ? SRC_WIN_H+2*BORDER+SRC_MSG_BD_H : 0);
+		if (button.y < BORDER)
+			index = KEY_OUT_OF_KEYPAD;
+		else if (button.y >= MAX(MAX(env->rem_dpy.h, env->loc_dpy.h), gui->keypad->h))
+			index = KEY_OUT_OF_KEYPAD;
+		else if (button.x < x0 - gui->keypad->w/2 - BORDER - env->rem_dpy.w)
+			index = KEY_OUT_OF_KEYPAD;
+		else if (button.x < x0 - gui->keypad->w/2 - BORDER)
+			index = KEY_REM_DPY;
+		else if (button.x < x0 - gui->keypad->w/2)
+			index = KEY_OUT_OF_KEYPAD;
+		else if (button.x >= x0 + gui->keypad->w/2 + BORDER + env->loc_dpy.w)
+			index = KEY_OUT_OF_KEYPAD;
+		else if (button.x >= x0 + gui->keypad->w/2 + BORDER)
+			index = KEY_LOC_DPY;
+		else if (button.x >= x0 + gui->keypad->w/2)
+			index = KEY_OUT_OF_KEYPAD;
+		else if (gui->kp) {
+			/* we have to calculate the first coordinate 
+			inside the keypad before calling the kp_match_area*/
+			int x_keypad = button.x - (x0 - gui->keypad->w/2);
+			/* find the key clicked (if one was clicked) */
+			for (i = 0; i < gui->kp_used; i++) {
+				if (kp_match_area(&gui->kp[i],x_keypad, button.y - BORDER)) {
+					index = gui->kp[i].c;
+					break;
+				}
 			}
 		}
+	} else if (button.y < BORDER) {
+		index = KEY_OUT_OF_KEYPAD;
+	} else {  /* we are in the thumbnail area */
+		x = x0 - src_wins_tot_w/2 + BORDER;
+		if (button.y >= BORDER + SRC_WIN_H)
+			index = KEY_OUT_OF_KEYPAD;
+		else if (button.x < x)
+			index = KEY_OUT_OF_KEYPAD;
+		else if (button.x < x + src_wins_tot_w - BORDER) {
+			/* note that the additional device windows 
+			are numbered from left to right
+			starting from 0, with a maximum of 8, the index associated on a click is:
+			KEY_SRCS_WIN + number_of_the_window */
+			for (i = 1; i <= env->out.device_num; i++) {
+				if (button.x < x+i*(SRC_WIN_W+BORDER)-BORDER) {
+					index = KEY_SRCS_WIN+i-1;
+					break;
+				} else if (button.x < x+i*(SRC_WIN_W+BORDER)) {
+					index = KEY_OUT_OF_KEYPAD;
+					break;
+				}
+			}
+		} else
+			index = KEY_OUT_OF_KEYPAD;
 	}
 
 	/* exec the function */
@@ -397,6 +692,37 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
 		keypad_digit(env, index);
 		return;
 	}
+
+	else if (index >= KEY_SRCS_WIN && index < KEY_SRCS_WIN+env->out.device_num) {
+		index -= KEY_SRCS_WIN; /* index of the window, equal to the device index in the table */
+		/* if one of the additional device windows is clicked with
+		left or right mouse button, we have to switch to that device */
+		if (button.button == SDL_BUTTON_RIGHT || button.button == SDL_BUTTON_LEFT) {
+			switch_video_out(env, index, button.button);
+			return;
+		}
+		/* turn on or off the devices selectively with other mouse buttons */
+		else {
+			int ret = turn_on_off(index, env);
+			/* print a message according to what happened */
+			if (!ret)
+				ast_log(LOG_WARNING, "unable to turn on device %s\n",
+					env->out.devices[index].name);
+			else if (ret == 1)
+				ast_log(LOG_WARNING, "device %s changed state to on\n",
+					env->out.devices[index].name);
+			else if (ret == 2)
+				ast_log(LOG_WARNING, "device %s changed state to off\n",
+					env->out.devices[index].name);
+			return;
+		}
+	}
+
+	/* XXX for future implementation
+	else if (click on audio source marker)
+		change audio source device
+	*/
+
 	switch (index) {
 	/* answer/close function */
 	case KEY_PICK_UP:
@@ -407,9 +733,10 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
 		break;
 
 	/* other functions */
-	case KEY_MUTE:
+	case KEY_MUTE: /* send or not send the audio */
 	case KEY_AUTOANSWER:
-	case KEY_SENDVIDEO:
+	case KEY_SENDVIDEO: /* send or not send the video */
+	case KEY_PIP: /* activate/deactivate picture in picture mode */
 		keypad_toggle(env, index);
 		break;
 
@@ -417,6 +744,13 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
 		break;
 	case KEY_REMOTEVIDEO:
 		break;
+
+#ifdef notyet /* XXX for future implementations */
+	case KEY_FREEZE:
+		break
+	case KEY_CAPTURE:
+		break;
+#endif
 
 	case KEY_MESSAGEBOARD:
 		if (button.button == SDL_BUTTON_LEFT)
@@ -427,8 +761,26 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
 	case KEY_LOC_DPY:
 	case KEY_REM_DPY:
 		if (button.button == SDL_BUTTON_LEFT) {
-			if (index == KEY_LOC_DPY)
+			/* values used to find the position of the picture in picture (if present) */
+			int pip_loc_x = (double)env->out.pip_x/env->enc_in.w * env->loc_dpy.w;
+			int pip_loc_y = (double)env->out.pip_y/env->enc_in.h * env->loc_dpy.h;
+			/* check if picture in picture is active and the click was on it */
+			if (index == KEY_LOC_DPY && env->out.picture_in_picture &&
+			  button.x >= x0+gui->keypad->w/2+BORDER+pip_loc_x &&
+			  button.x < x0+gui->keypad->w/2+BORDER+pip_loc_x+env->loc_dpy.w/3 &&
+			  button.y >= BORDER+pip_loc_y && 
+			  button.y < BORDER+pip_loc_y+env->loc_dpy.h/3) {
+				/* set the y cordinate to his previous value */
+				button.y += (env->out.device_num ? SRC_WIN_H+2*BORDER+SRC_MSG_BD_H : 0);
+				/* starts dragging the picture inside the picture */
+				set_drag(&gui->drag, button.x, button.y, DRAG_PIP);
+			}
+			else if (index == KEY_LOC_DPY) {
+				/* set the y cordinate to his previous value */
+				button.y += (env->out.device_num ? SRC_WIN_H+2*BORDER+SRC_MSG_BD_H : 0);
+				/* click in the local display, but not on the PiP */
 				set_drag(&gui->drag, button.x, button.y, DRAG_LOCAL);
+			}
 			break;
 		} else {
 			char buf[128];
@@ -437,9 +789,21 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
 				fb->w, fb->h);
 			video_geom(fb, buf);
 			sdl_setup(env);
+			/* writes messages in the source boards, those can be 
+			modified during the execution, because of the events 
+			this must be done here, otherwise the status of sources will not be
+			shown after sdl_setup */
+			for (i = 0; i < env->out.device_num; i++) {
+				update_device_info(env, i);
+			}
+			/* we also have to refresh other boards, 
+			to avoid messages to disappear after video resize */
+			print_message(gui->bd_msg, " \b");
+			print_message(gui->bd_dialed, " \b");
 		}
 		break;
 	case KEY_OUT_OF_KEYPAD:
+		ast_log(LOG_WARNING, "nothing clicked, coordinates: %d, %d\n", button.x, button.y);
 		break;
 
 	case KEY_DIGIT_BACKGROUND:
@@ -524,7 +888,7 @@ static void handle_keyboard_input(struct video_desc *env, SDL_keysym *ks)
 	return;
 }
 
-static void grabber_move(struct video_out_desc *, int dx, int dy);
+static void grabber_move(struct video_device *, int dx, int dy);
 
 int compute_drag(int *start, int end, int magnifier);
 int compute_drag(int *start, int end, int magnifier)
@@ -537,6 +901,33 @@ int compute_drag(int *start, int end, int magnifier)
 #undef POLARITY
 	*start = end;
 	return delta;
+}
+
+/*! \brief This function moves the picture in picture,
+ * controlling the limits of the containing buffer
+ * to avoid problems deriving from going through the limits.
+ *
+ * \param env = pointer to the descriptor of the video environment
+ * \param dx = the variation of the x position
+ * \param dy = the variation of the y position
+*/
+static void pip_move(struct video_desc* env, int dx, int dy) {
+	int new_pip_x = env->out.pip_x+dx;
+	int new_pip_y = env->out.pip_y+dy;
+	/* going beyond the left borders */
+	if (new_pip_x < 0)
+		new_pip_x = 0;
+	/* going beyond the right borders */
+	else if (new_pip_x > env->enc_in.w - env->enc_in.w/3)
+		new_pip_x = env->enc_in.w - env->enc_in.w/3;
+	/* going beyond the top borders */
+	if (new_pip_y < 0)
+		new_pip_y = 0;
+	/* going beyond the bottom borders */
+	else if (new_pip_y > env->enc_in.h - env->enc_in.h/3)
+		new_pip_y = env->enc_in.h - env->enc_in.h/3;
+	env->out.pip_x = new_pip_x;
+	env->out.pip_y = new_pip_y;
 }
 
 /*
@@ -593,11 +984,24 @@ static void eventhandler(struct video_desc *env, const char *caption)
 
 			case SDL_MOUSEMOTION:
 			case SDL_MOUSEBUTTONUP:
-				if (drag->drag_window == DRAG_LOCAL) {
+				if (drag->drag_window == DRAG_LOCAL && env->out.device_num) {
 					/* move the capture source */
 					int dx = compute_drag(&drag->x_start, ev[i].motion.x, 3);
 					int dy = compute_drag(&drag->y_start, ev[i].motion.y, 3);
-					grabber_move(&env->out, dx, dy);
+					grabber_move(&env->out.devices[env->out.device_primary], dx, dy);
+				} else if (drag->drag_window == DRAG_PIP) {
+					/* move the PiP image inside the frames of the enc_in buffers */
+					int dx = ev[i].motion.x - drag->x_start;
+					int dy = ev[i].motion.y - drag->y_start;
+					/* dx and dy value are directly applied to env->out.pip_x and
+					env->out.pip_y, so they must work as if the format was cif */
+					dx = (double)dx*env->enc_in.w/env->loc_dpy.w;
+					dy = (double)dy*env->enc_in.h/env->loc_dpy.h;
+					/* sets starts to a new value */
+					drag->x_start = ev[i].motion.x;
+					drag->y_start = ev[i].motion.y;
+					/* ast_log(LOG_WARNING, "moving: %d, %d\n", dx, dy); */
+					pip_move(env, dx, dy);
 				} else if (drag->drag_window == DRAG_MESSAGE) {
 					/* scroll up/down the window */
 					int dy = compute_drag(&drag->y_start, ev[i].motion.y, 1);
@@ -808,7 +1212,15 @@ static void sdl_setup(struct video_desc *env)
 	const SDL_VideoInfo *info;
 	int kp_w = 0, kp_h = 0;	/* keypad width and height */
 	struct gui_info *gui = env->gui;
-
+	
+	/* Some helper variables used for filling the SDL window */
+	int x0; /* the x coordinate of the center of the keypad */
+	int x1; /* userful for calculating of the size of the parent window */
+	int y0; /* y coordinate of the keypad, the remote window and the local window */
+	int src_wins_tot_w; /* total width of the source windows */
+	int i;
+	int x; /* useful for the creation of the source windows; */
+	
 #ifdef HAVE_X11
 	const char *e = getenv("SDL_WINDOWID");
 
@@ -830,6 +1242,8 @@ static void sdl_setup(struct video_desc *env)
 	 * initialize the SDL environment. We have one large window
 	 * with local and remote video, and a keypad.
 	 * At the moment we arrange them statically, as follows:
+	 * - top row: thumbnails for local video sources;
+	 * - next row: message boards for local video sources
 	 * - on the left, the remote video;
 	 * - on the center, the keypad
 	 * - on the right, the local video
@@ -869,13 +1283,23 @@ static void sdl_setup(struct video_desc *env)
 			kp_h = gui->keypad->h;
 		}
 	}
-	/* XXX same for other boards */
-#define BORDER	5	/* border around our windows */
-	maxw = env->rem_dpy.w + env->loc_dpy.w + kp_w;
-	maxh = MAX( MAX(env->rem_dpy.h, env->loc_dpy.h), kp_h);
-	maxw += 4 * BORDER;
-	maxh += 2 * BORDER;
-
+	
+	/* total width of the thumbnails */
+	src_wins_tot_w = env->out.device_num*(SRC_WIN_W+BORDER)+BORDER;
+	
+	/* x coordinate of the center of the keypad */
+	x0 = MAX(env->rem_dpy.w+kp_w/2+2*BORDER, src_wins_tot_w/2);
+	
+	/* from center of the keypad to right border */
+	x1 = MAX(env->loc_dpy.w+kp_w/2+2*BORDER, src_wins_tot_w/2);
+	
+	/* total width of the SDL window to create */
+	maxw = x0+x1;
+	
+	/* total height of the mother window to create */
+	maxh = MAX( MAX(env->rem_dpy.h, env->loc_dpy.h), kp_h)+2*BORDER;
+	maxh += env->out.device_num ? (2*BORDER+SRC_WIN_H+SRC_MSG_BD_H) : 0;
+	
 	gui->screen = SDL_SetVideoMode(maxw, maxh, depth, 0);
 	if (!gui->screen) {
 		ast_log(LOG_ERROR, "SDL: could not set video mode - exiting\n");
@@ -974,24 +1398,53 @@ static void sdl_setup(struct video_desc *env)
 	}
     } while (0);
 #endif /* HAVE_X11 */
+
+	y0 = env->out.device_num ? (3*BORDER+SRC_WIN_H+SRC_MSG_BD_H) : BORDER;
+	
 	SDL_WM_SetCaption("Asterisk console Video Output", NULL);
+	
+	/* intialize the windows for local and remote video */
 	if (set_win(gui->screen, &gui->win[WIN_REMOTE], dpy_fmt,
-			env->rem_dpy.w, env->rem_dpy.h, BORDER, BORDER))
+			env->rem_dpy.w, env->rem_dpy.h, x0-kp_w/2-BORDER-env->rem_dpy.w, y0))
 		goto no_sdl;
 	if (set_win(gui->screen, &gui->win[WIN_LOCAL], dpy_fmt,
 			env->loc_dpy.w, env->loc_dpy.h,
-			3*BORDER+env->rem_dpy.w + kp_w, BORDER))
+			x0+kp_w/2+BORDER, y0))
 		goto no_sdl;
+	
+	/* initialize device_num source windows (thumbnails) and boards
+	(for a maximum of 9 additional windows and boards) */
+	x = x0 - src_wins_tot_w/2 + BORDER;
+	for (i = 0; i < env->out.device_num; i++){
+		struct thumb_bd *p = &gui->thumb_bd_array[i];
+		if (set_win(gui->screen, &gui->win[i+WIN_SRC1], dpy_fmt,
+			SRC_WIN_W, SRC_WIN_H, x+i*(BORDER+SRC_WIN_W), BORDER))
+			goto no_sdl;
+		/* set geometry for the rect for the message board of the device */
+		p->rect.w = SRC_WIN_W;
+		p->rect.h = SRC_MSG_BD_H;
+		p->rect.x = x+i*(BORDER+SRC_WIN_W);
+		p->rect.y = 2*BORDER+SRC_WIN_H;
+		/* the white color is used as background */
+		SDL_FillRect(gui->screen, &p->rect,
+			SDL_MapRGB(gui->screen->format, 255, 255, 255));
+		/* if necessary, initialize boards for the sources */
+		if (!p->board)
+			p->board =
+				board_setup(gui->screen, &p->rect,
+				gui->font, gui->font_rects);
+		/* update board rect */
+		SDL_UpdateRect(gui->screen, p->rect.x, p->rect.y, p->rect.w, p->rect.h);
+	}
 
 	/* display the skin, but do not free it as we need it later to
-	 * restore text areas and maybe sliders too.
-	 */
+	restore text areas and maybe sliders too */
 	if (gui->keypad) {
 		struct SDL_Rect *dest = &gui->win[WIN_KEYPAD].rect;
 		struct SDL_Rect *src = (gui->kp_rect.w > 0 && gui->kp_rect.h > 0) ? & gui->kp_rect : NULL;
 		/* set the coordinates of the keypad relative to the main screen */
-		dest->x = 2*BORDER + env->rem_dpy.w;
-		dest->y = BORDER;
+		dest->x = x0-kp_w/2;
+		dest->y = y0;
 		dest->w = kp_w;
 		dest->h = kp_h;
 		SDL_BlitSurface(gui->keypad, src, gui->screen, dest);
@@ -1003,7 +1456,7 @@ static void sdl_setup(struct video_desc *env)
 
 no_sdl:
 	/* free resources in case of errors */
-	env->gui = cleanup_sdl(gui);
+	env->gui = cleanup_sdl(gui, env->out.device_num);
 }
 
 /*
@@ -1043,6 +1496,7 @@ static int kp_match_area(const struct keypad_entry *e, int x, int y)
 
 struct _s_k { const char *s; int k; };
 static struct _s_k gui_key_map[] = {
+	{"PIP",		KEY_PIP},
 	{"PICK_UP",	KEY_PICK_UP },
 	{"PICKUP",	KEY_PICK_UP },
         {"HANG_UP",	KEY_HANG_UP },

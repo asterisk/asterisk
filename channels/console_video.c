@@ -87,6 +87,9 @@ codec parameters), as follows:
 
  rem_dpy	the format used to display the remote stream
 
+ src_dpy	is the format used to display the local video source streams
+	The number of these fbuf_t is determined at run time, with dynamic allocation
+
 We store the format info together with the buffer storing the data.
 As a future optimization, a format/buffer may reference another one
 if the formats are equivalent. This will save some unnecessary format
@@ -145,8 +148,26 @@ int console_video_formats =
 
 
 
+/* function to scale and encode buffers */
 static void my_scale(struct fbuf_t *in, AVPicture *p_in,
 	struct fbuf_t *out, AVPicture *p_out);
+
+/*
+ * this structure will be an entry in the table containing
+ * every device specified in the file oss.conf, it contains various infomation
+ * about the device
+ */
+struct video_device {
+	char 			*name;		/* name of the device			*/
+	/* allocated dynamically (see fill_table function) */
+	struct grab_desc 	*grabber;	/* the grabber for the device type	*/
+	void 			*grabber_data;	/* device's private data structure	*/
+	struct fbuf_t		*dev_buf;	/* buffer for incoming data		*/
+	struct timeval		last_frame;	/* when we read the last frame ?	*/
+	int 			status_index;	/* what is the status of the device (source) */
+	/* status index is set using the IS_ON, IS_PRIMARY and IS_SECONDARY costants */
+	/* status_index is the index of the status message in the src_msgs array in console_gui.c */
+};
 
 struct video_codec_desc;	/* forward declaration */
 /*
@@ -157,7 +178,8 @@ struct video_codec_desc;	/* forward declaration */
  *  + the encoding and RTP info, including timestamps to generate
  *    frames at the correct rate;
  *  + source-specific info, i.e. fd for /dev/video, dpy-image for x11, etc,
- *    filled in by grabber_open
+ *    filled in by grabber_open, part of source_specific information are in 
+ *    the device table (devices member), others are shared;
  * NOTE: loc_src.data == NULL means the rest of the struct is invalid, and
  *	the video source is not available.
  */
@@ -168,7 +190,6 @@ struct video_out_desc {
 	 * If we are successful, webcam_bufsize > 0 and we can read.
 	 */
 	/* all the following is config file info copied from the parent */
-	char		videodevice[64];
 	int		fps;
 	int		bitrate;
 	int		qmin;
@@ -184,10 +205,21 @@ struct video_out_desc {
 	AVFrame		*enc_in_frame;	/* enc_in mapped into avcodec format. */
 					/* The initial part of AVFrame is an AVPicture */
 	int		mtu;
-	struct timeval	last_frame;	/* when we read the last frame ? */
+	
+	/* Table of devices specified with "videodevice=" in oss.conf.
+	 * Static size as we have a limited number of entries.
+	 */
+	struct video_device	devices[MAX_VIDEO_SOURCES]; 
+	int 			device_num; /*number of devices in table*/
+	int			device_primary; /*index of the actual primary device in the table*/
+	int			device_secondary; /*index of the actual secondary device in the table*/
 
-	struct grab_desc *grabber;
-	void		*grabber_data;
+	int 			picture_in_picture; /*Is the PiP mode activated? 0 = NO | 1 = YES*/
+
+	/* these are the coordinates of the picture inside the picture (visible if PiP mode is active) 
+	these coordinates are valid considering the containing buffer with cif geometry*/
+	int 			pip_x;
+	int			pip_y;
 };
 
 /*
@@ -216,7 +248,11 @@ struct video_desc {
 	struct fbuf_t		rem_dpy;	/* display remote video, no buffer (it is in win[WIN_REMOTE].bmp) */
 	struct fbuf_t		loc_dpy;	/* display local source, no buffer (managed by SDL in bmp[1]) */
 
-
+	/*display for  sources in additional windows, 
+	ideally infinite additional sources could be present
+	pratically we assume a maximum of 9 sources to show*/
+	struct fbuf_t		src_dpy[MAX_VIDEO_SOURCES]; /* no buffer allocated here */
+	
 	/* local information for grabbers, codecs, gui */
 	struct gui_info		*gui;
 	struct video_dec_desc	*in;		/* remote video descriptor */
@@ -238,54 +274,108 @@ void fbuf_free(struct fbuf_t *b)
 	b->pix_fmt = x.pix_fmt;
 }
 
+#if 0
+/* helper function to print the amount of memory used by the process.
+ * Useful to track memory leaks, unfortunately this code is OS-specific
+ * so we keep it commented out.
+ */
+static int
+used_mem(const char *msg)
+{
+	char in[128];
+
+	pid_t pid = getpid();
+	sprintf(in, "ps -o vsz= -o rss= %d", pid);
+	ast_log(LOG_WARNING, "used mem (vsize, rss) %s ", msg);
+	system(in);
+	return 0;
+}
+#endif
+	
 #include "vcodecs.c"
 #include "console_gui.c"
 
-/*! \brief Try to open a video source, return 0 on success, 1 on error */
+/*! \brief Try to open video sources, return 0 on success, 1 on error
+ * opens all video sources found in the oss.conf configuration files.
+ * Saves the grabber and the datas in the device table (in the devices field
+ * of the descriptor referenced by v).
+ * Initializes the device_primary and device_secondary
+ * fields of v with the first devices that was
+ * successfully opened.
+ *
+ * \param v = video out environment descriptor
+ *
+ * returns 0 on success, 1 on error 
+*/
 static int grabber_open(struct video_out_desc *v)
 {
 	struct grab_desc *g;
 	void *g_data;
-	int i;
+	int i, j;
 
-	for (i = 0; (g = console_grabbers[i]); i++) {
-		g_data = g->open(v->videodevice, &v->loc_src_geometry, v->fps);
-		if (g_data) {
-			v->grabber = g;
-			v->grabber_data = g_data;
-			return 0;
+	/* for each device in the device table... */
+	for (i = 0; i < v->device_num; i++) {
+		/* device already open */
+		if (v->devices[i].grabber)
+			continue;
+		/* for each type of grabber supported... */
+		for (j = 0; (g = console_grabbers[j]); j++) {
+			/* the grabber is opened and the informations saved in the device table */
+			g_data = g->open(v->devices[i].name, &v->loc_src_geometry, v->fps);
+			if (!g_data)
+				continue;
+			v->devices[i].grabber = g;
+			v->devices[i].grabber_data = g_data;
+			v->devices[i].status_index |= IS_ON;
 		}
+	}
+	/* the first working device is selected as the primary one and the secondary one */
+	for (i = 0; i < v->device_num; i++) {
+		if (!v->devices[i].grabber) 
+			continue;
+		v->device_primary = i;
+		v->device_secondary = i;
+		return 0; /* source found */
 	}
 	return 1; /* no source found */
 }
 
-/*! \brief complete a buffer from the local video source.
+
+/*! \brief complete a buffer from the specified local video source.
  * Called by get_video_frames(), in turn called by the video thread.
+ *
+ * \param dev = video environment descriptor
+ * \param fps = frame per seconds, for every device
+ *
+ * returns:
+ * - NULL on falure
+ * - reference to the device buffer on success
  */
-static struct fbuf_t *grabber_read(struct video_out_desc *v)
+static struct fbuf_t *grabber_read(struct video_device *dev, int fps)
 {
 	struct timeval now = ast_tvnow();
 
-	if (v->grabber == NULL) /* not initialized */
-		return 0;
-
+	if (dev->grabber == NULL) /* not initialized */
+		return NULL;
+	
+	/* the last_frame field in this row of the device table (dev)
+	is always initialized, it is set during the parsing of the config
+	file, and never unset, function fill_device_table(). */
 	/* check if it is time to read */
-	if (ast_tvzero(v->last_frame))
-		v->last_frame = now;
-	if (ast_tvdiff_ms(now, v->last_frame) < 1000/v->fps)
-		return 0;	/* too early */
-	v->last_frame = now; /* XXX actually, should correct for drift */
-	return v->grabber->read(v->grabber_data);
+	if (ast_tvdiff_ms(now, dev->last_frame) < 1000/fps)
+		return NULL; /* too early */
+	dev->last_frame = now; /* XXX actually, should correct for drift */
+	return dev->grabber->read(dev->grabber_data);
 }
 
 /*! \brief handler run when dragging with the left button on
  * the local source window - the effect is to move the offset
  * of the captured area.
  */
-static void grabber_move(struct video_out_desc *v, int dx, int dy)
+static void grabber_move(struct video_device *dev, int dx, int dy)
 {
-	if (v->grabber && v->grabber->move)
-                v->grabber->move(v->grabber_data, dx, dy);
+	if (dev->grabber && dev->grabber->move)
+                dev->grabber->move(dev->grabber_data, dx, dy);
 }
 
 /*
@@ -313,7 +403,8 @@ static struct video_codec_desc *map_config_video_format(char *name)
 static int video_out_uninit(struct video_desc *env)
 {
 	struct video_out_desc *v = &env->out;
-
+	int i; /* integer variable used as iterator */
+	
 	/* XXX this should be a codec callback */
 	if (v->enc_ctx) {
 		AVCodecContext *enc_ctx = (AVCodecContext *)v->enc_ctx;
@@ -329,11 +420,18 @@ static int video_out_uninit(struct video_desc *env)
 	/* release the buffers */
 	fbuf_free(&env->enc_in);
 	fbuf_free(&v->enc_out);
-	/* close the grabber */
-	if (v->grabber) {
-		v->grabber_data = v->grabber->close(v->grabber_data);
-		v->grabber = NULL;
+	/* close the grabbers */
+	for (i = 0; i < v->device_num; i++) {
+		if (v->devices[i].grabber){
+			v->devices[i].grabber_data =
+				v->devices[i].grabber->close(v->devices[i].grabber_data);
+			v->devices[i].grabber = NULL;
+			/* dev_buf is already freed by grabber->close() */
+			v->devices[i].dev_buf = NULL;
+		}
+		v->devices[i].status_index = 0;
 	}
+	v->picture_in_picture = 0;
 	return -1;
 }
 
@@ -462,7 +560,8 @@ void console_video_uninit(struct video_desc *env)
 }
 
 /*! fill an AVPicture from our fbuf info, as it is required by
- * the image conversion routines in ffmpeg.
+ * the image conversion routines in ffmpeg. Note that the pointers
+ * are recalculated if the fbuf has an offset (and so represents a picture in picture)
  * XXX This depends on the format.
  */
 static AVPicture *fill_pict(struct fbuf_t *b, AVPicture *p)
@@ -471,23 +570,26 @@ static AVPicture *fill_pict(struct fbuf_t *b, AVPicture *p)
 	int l4 = b->w * b->h/4; /* size of U or V frame */
 	int len = b->w;		/* Y linesize, bytes */
 	int luv = b->w/2;	/* U/V linesize, bytes */
-
+	int sample_size = 1;
+	
 	bzero(p, sizeof(*p));
 	switch (b->pix_fmt) {
 	case PIX_FMT_RGB555:
 	case PIX_FMT_RGB565:
-		len *= 2;
+		sample_size = 2;
 		luv = 0;
 		break;
 	case PIX_FMT_RGBA32:
-		len *= 4;
+		sample_size = 4;
 		luv = 0;
 		break;
 	case PIX_FMT_YUYV422:	/* Packed YUV 4:2:2, 16bpp, Y0 Cb Y1 Cr */
-		len *= 2;	/* all data in first plane, probably */
+		sample_size = 2;	/* all data in first plane, probably */
 		luv = 0;
 		break;
 	}
+	len *= sample_size;
+	
 	p->data[0] = b->data;
 	p->linesize[0] = len;
 	/* these are only valid for component images */
@@ -495,6 +597,14 @@ static AVPicture *fill_pict(struct fbuf_t *b, AVPicture *p)
 	p->data[2] = luv ? b->data + 5*l4 : b->data+len;
 	p->linesize[1] = luv;
 	p->linesize[2] = luv;
+	
+	/* add the offsets to the pointers previously calculated, 
+	it is necessary for the picture in picture mode */
+	p->data[0] += len*b->win_y + b->win_x*sample_size;
+	if (luv) { 
+		p->data[1] += luv*(b->win_y/2) + (b->win_x/2) * sample_size;
+		p->data[2] += luv*(b->win_y/2) + (b->win_x/2) * sample_size;
+	}
 	return p;
 }
 
@@ -506,22 +616,30 @@ static void my_scale(struct fbuf_t *in, AVPicture *p_in,
 	struct fbuf_t *out, AVPicture *p_out)
 {
 	AVPicture my_p_in, my_p_out;
+	int eff_w=out->w, eff_h=out->h;
 
 	if (p_in == NULL)
 		p_in = fill_pict(in, &my_p_in);
 	if (p_out == NULL)
 		p_out = fill_pict(out, &my_p_out);
-
+	
+	/*if win_w is different from zero then we must change 
+	the size of the scaled buffer (the position is already 
+	encoded into the out parameter)*/
+	if (out->win_w) { /* picture in picture enabled */
+		eff_w=out->win_w;
+		eff_h=out->win_h;
+	}
 #ifdef OLD_FFMPEG
-	/* XXX img_convert is deprecated, and does not do rescaling */
+	/* XXX img_convert is deprecated, and does not do rescaling, PiP not supported */
 	img_convert(p_out, out->pix_fmt,
 		p_in, in->pix_fmt, in->w, in->h);
 #else /* XXX replacement */
     {
 	struct SwsContext *convert_ctx;
-
+	
 	convert_ctx = sws_getContext(in->w, in->h, in->pix_fmt,
-		out->w, out->h, out->pix_fmt,
+		eff_w, eff_h, out->pix_fmt,
 		SWS_BICUBIC, NULL, NULL, NULL);
 	if (convert_ctx == NULL) {
 		ast_log(LOG_ERROR, "FFMPEG::convert_cmodel : swscale context initialization failed");
@@ -529,7 +647,7 @@ static void my_scale(struct fbuf_t *in, AVPicture *p_in,
 	}
 	if (0)
 		ast_log(LOG_WARNING, "in %d %dx%d out %d %dx%d\n",
-			in->pix_fmt, in->w, in->h, out->pix_fmt, out->w, out->h);
+			in->pix_fmt, in->w, in->h, out->pix_fmt, eff_w, eff_h);
 	sws_scale(convert_ctx,
 		p_in->data, p_in->linesize,
 		in->w, in->h, /* src slice */
@@ -633,30 +751,76 @@ int console_write_video(struct ast_channel *chan, struct ast_frame *f)
 }
 
 
-/*! \brief read a frame from webcam or X11 through grabber_read(),
- * display it,  then encode and split it.
+/*! \brief refreshes the buffers of all the device by calling the
+ * grabber_read on each device in the device table.
+ * it encodes the primary source buffer, if the picture in picture mode is
+ * enabled it encodes (in the buffer to split) the secondary source buffer too.
+ * The encoded buffer is splitted to build the local and the remote view.
  * Return a list of ast_frame representing the video fragments.
  * The head pointer is returned by the function, the tail pointer
  * is returned as an argument.
+ *
+ * \param env = video environment descriptor
+ * \param tail = tail ponter (pratically a return value)
  */
 static struct ast_frame *get_video_frames(struct video_desc *env, struct ast_frame **tail)
 {
 	struct video_out_desc *v = &env->out;
 	struct ast_frame *dummy;
-	struct fbuf_t *loc_src = grabber_read(v);
-
-	if (!loc_src)
-		return NULL;	/* can happen, e.g. we are reading too early */
-
+	struct fbuf_t *loc_src_primary = NULL, *p_read;
+	int i;
+	/* if no device was found in the config file */
+	if (!env->out.device_num)
+		return NULL;
+	/* every time this function is called we refresh the buffers of every device,
+	updating the private device buffer in the device table */
+	for (i = 0; i < env->out.device_num; i++) {
+		p_read = grabber_read(&env->out.devices[i], env->out.fps);
+		/* it is used only if different from NULL, we mantain last good buffer otherwise */
+		if (p_read)
+			env->out.devices[i].dev_buf = p_read;
+	}
+	/* select the primary device buffer as the one to encode */
+	loc_src_primary = env->out.devices[env->out.device_primary].dev_buf;
+	/* loc_src_primary can be NULL if the device has been turned off during
+	execution of it is read too early */
+	if (loc_src_primary) {
+		/* Scale the video for the encoder, then use it for local rendering
+		so we will see the same as the remote party */
+		my_scale(loc_src_primary, NULL, &env->enc_in, NULL);
+	}
+	if (env->out.picture_in_picture) { /* the picture in picture mode is enabled */
+		struct fbuf_t *loc_src_secondary;
+		/* reads from the secondary source */
+		loc_src_secondary = env->out.devices[env->out.device_secondary].dev_buf;
+		if (loc_src_secondary) {
+			env->enc_in.win_x = env->out.pip_x;
+			env->enc_in.win_y = env->out.pip_y;
+			env->enc_in.win_w = env->enc_in.w/3;
+			env->enc_in.win_h = env->enc_in.h/3;
+			/* scales to the correct geometry and inserts in
+			the enc_in buffer the picture in picture */
+			my_scale(loc_src_secondary, NULL, &env->enc_in, NULL);
+			/* returns to normal parameters (not picture in picture) */
+			env->enc_in.win_x = 0;
+			env->enc_in.win_y = 0;
+			env->enc_in.win_w = 0;
+			env->enc_in.win_h = 0;
+		}
+		else {
+			/* loc_src_secondary can be NULL if the device has been turned off during
+			execution of it is read too early */
+			env->out.picture_in_picture = 0; /* disable picture in picture */
+		}
+	}
+	show_frame(env, WIN_LOCAL); /* local rendering */
+	for (i = 0; i < env->out.device_num; i++) 
+		show_frame(env, i+WIN_SRC1); /* rendering of every source device in thumbnails */
 	if (tail == NULL)
 		tail = &dummy;
 	*tail = NULL;
-	/* Scale the video for the encoder, then use it for local rendering
-	 * so we will see the same as the remote party.
-	 */
-	my_scale(loc_src, NULL, &env->enc_in, NULL);
-	show_frame(env, WIN_LOCAL);
-	if (!v->sendvideo)
+	/* if no reason for encoding, do not encode */
+	if (!env->owner || !loc_src_primary || !v->sendvideo)
 		return NULL;
 	if (v->enc_out.data == NULL) {
 		static volatile int a = 0;
@@ -669,8 +833,8 @@ static struct ast_frame *get_video_frames(struct video_desc *env, struct ast_fra
 }
 
 /*
- * Helper thread to periodically poll the video source and enqueue the
- * generated frames to the channel's queue.
+ * Helper thread to periodically poll the video sources and enqueue the
+ * generated frames directed to the remote party to the channel's queue.
  * Using a separate thread also helps because the encoding can be
  * computationally expensive so we don't want to starve the main thread.
  */
@@ -679,6 +843,7 @@ static void *video_thread(void *arg)
 	struct video_desc *env = arg;
 	int count = 0;
 	char save_display[128] = "";
+	int i; /* integer variable used as iterator */
 
 	/* if sdl_videodriver is set, override the environment. Also,
 	 * if it contains 'console' override DISPLAY around the call to SDL_Init
@@ -696,25 +861,25 @@ static void *video_thread(void *arg)
 	if (!ast_strlen_zero(save_display))
 		setenv("DISPLAY", save_display, 1);
 
-        /* initialize grab coordinates */
-        env->out.loc_src_geometry.x = 0;
-        env->out.loc_src_geometry.y = 0;
-
 	ast_mutex_init(&env->dec_lock);	/* used to sync decoder and renderer */
 
 	if (grabber_open(&env->out)) {
 		ast_log(LOG_WARNING, "cannot open local video source\n");
-	} else {
-#if 0
-		/* In principle, try to register the fd.
-		 * In practice, many webcam drivers do not support select/poll,
-		 * so don't bother and instead read periodically from the
-		 * video thread.
-		 */
-		if (env->out.fd >= 0)
-			ast_channel_set_fd(env->owner, 1, env->out.fd);
-#endif
-		video_out_init(env);
+	} 
+
+	if (env->out.device_num)
+		env->out.devices[env->out.device_primary].status_index |= IS_PRIMARY | IS_SECONDARY;
+	
+	/* even if no device is connected, we must call video_out_init,
+	 * as some of the data structures it initializes are
+	 * used in get_video_frames()
+	 */
+	video_out_init(env);
+
+	/* Writes intial status of the sources. */
+	for (i = 0; i < env->out.device_num; i++) {
+		print_message(env->gui->thumb_bd_array[i].board,
+		 src_msgs[env->out.devices[i].status_index]);
 	}
 
 	for (;;) {
@@ -726,9 +891,9 @@ static void *video_thread(void *arg)
 
 		/* determine if video format changed */
 		if (count++ % 10 == 0) {
-			if (env->out.sendvideo)
+			if (env->out.sendvideo && env->out.devices)
 			    sprintf(buf, "%s %s %dx%d @@ %dfps %dkbps",
-				env->out.videodevice, env->codec_name,
+				env->out.devices[env->out.device_primary].name, env->codec_name,
 				env->enc_in.w, env->enc_in.h,
 				env->out.fps, env->out.bitrate/1000);
 			else
@@ -777,8 +942,15 @@ static void *video_thread(void *arg)
 		if (!f)
 			continue;
 		chan = env->owner;
-		if (chan == NULL)
+		if (chan == NULL) {
+			/* drop the chain of frames, nobody uses them */
+			while (f) {
+				struct ast_frame *g = AST_LIST_NEXT(f, frame_list);
+				ast_frfree(f);
+				f = g;
+			}
 			continue;
+		}
 		fd = chan->alertpipe[1];
 		ast_channel_lock(chan);
 
@@ -809,7 +981,7 @@ static void *video_thread(void *arg)
 	video_out_uninit(env);
 
 	if (env->gui)
-		env->gui = cleanup_sdl(env->gui);
+		env->gui = cleanup_sdl(env->gui, env->out.device_num);
 	ast_mutex_destroy(&env->dec_lock);
 	env->shutdown = 0;
 	return NULL;
@@ -833,6 +1005,7 @@ static void init_env(struct video_desc *env)
 	struct fbuf_t *ei = &(env->enc_in);		/* encoder input */
 	struct fbuf_t *ld = &(env->loc_dpy);	/* local display */
 	struct fbuf_t *rd = &(env->rem_dpy);		/* remote display */
+	int i; /* integer working as iterator */
 
 	c->pix_fmt = PIX_FMT_YUV420P;	/* default - camera format */
 	ei->pix_fmt = PIX_FMT_YUV420P;	/* encoder input */
@@ -845,6 +1018,18 @@ static void init_env(struct video_desc *env)
 	copy_geometry(ei, c);	/* camera inherits from encoder input */
 	copy_geometry(ei, rd);	/* remote display inherits from encoder input */
 	copy_geometry(rd, ld);	/* local display inherits from remote display */
+
+	/* fix the size of buffers for small windows */
+	for (i = 0; i < env->out.device_num; i++) {
+		env->src_dpy[i].pix_fmt = PIX_FMT_YUV420P;
+		env->src_dpy[i].w = SRC_WIN_W;
+		env->src_dpy[i].h = SRC_WIN_H;
+	}
+	/* now we set the default coordinates for the picture in picture
+	frames inside the env_in buffers, those can be changed by dragging the
+	picture in picture with left click */
+	env->out.pip_x = ei->w - ei->w/3;
+	env->out.pip_y = ei->h - ei->h/3;
 }
 
 /*!
@@ -884,7 +1069,10 @@ void console_video_start(struct video_desc *env, struct ast_channel *owner)
 		env->out.bitrate = 65000;
 		ast_log(LOG_WARNING, "bitrate unset, forcing to %d\n", env->out.bitrate);
 	}
+	/* XXX below probably can use ast_pthread_create_detace\hed() */
 	ast_pthread_create_background(&env->vthread, NULL, video_thread, env);
+	/* detach the thread to make sure memory is freed on termination */
+	pthread_detach(env->vthread);
 	if (env->owner == NULL)
 		env->stayopen = 1;	/* manually opened so don't close on hangup */
 }
@@ -941,6 +1129,50 @@ static int video_geom(struct fbuf_t *b, const char *s)
 	return 0;
 }
 
+
+/*! \brief add an entry to the video_device table,
+ * ignoring duplicate names.
+ * The table is a static array of 9 elements.
+ * The last_frame field of each entry of the table is initialized to
+ * the current time (we need a value inside this field, on stop of the
+ * GUI the last_frame value is not changed, to avoid checking if it is 0 we
+ * set the initial value on current time) XXX
+ *
+ * PARAMETERS:
+ * \param devices_p = pointer to the table of devices
+ * \param device_num_p = pointer to the number of devices
+ * \param s = name of the new device to insert
+ *
+ * returns 0 on success, 1 on error
+ */
+static int device_table_fill(struct video_device *devices, int *device_num_p, const char *s)
+{
+	int i;
+	struct video_device *p;
+
+	/* with the current implementation, we support a maximum of 9 devices.*/
+	if (*device_num_p >= 9)
+		return 0; /* more devices will be ignored */
+	/* ignore duplicate names */
+	for (i = 0; i < *device_num_p; i++) {
+		if (!strcmp(devices[i].name, s))
+			return 0;
+	}
+	/* inserts the new video device */
+	p = &devices[*device_num_p];
+	/* XXX the string is allocated but NEVER deallocated,
+	the good time to do that is when the module is unloaded, now we skip the problem */
+	p->name = ast_strdup(s);		/* copy the name */
+	/* other fields initially NULL */
+	p->grabber = NULL;
+	p->grabber_data = NULL;
+	p->dev_buf = NULL;
+	p->last_frame = ast_tvnow();
+	p->status_index = 0;
+	(*device_num_p)++;			/* one device added */
+	return 0;
+}
+
 /* extend ast_cli with video commands. Called by console_video_config */
 int console_video_cli(struct video_desc *env, const char *var, int fd)
 {
@@ -948,7 +1180,7 @@ int console_video_cli(struct video_desc *env, const char *var, int fd)
 		return 1;	/* unrecognised */
 
         if (!strcasecmp(var, "videodevice")) {
-		ast_cli(fd, "videodevice is [%s]\n", env->out.videodevice);
+		ast_cli(fd, "videodevice is [%s]\n", env->out.devices[env->out.device_primary].name);
         } else if (!strcasecmp(var, "videocodec")) {
 		ast_cli(fd, "videocodec is [%s]\n", env->codec_name);
         } else if (!strcasecmp(var, "sendvideo")) {
@@ -1005,14 +1237,17 @@ int console_video_config(struct video_desc **penv,
 		
 		}
 		/* set default values */
-		ast_copy_string(env->out.videodevice, "X11", sizeof(env->out.videodevice));
+		env->out.device_primary = 0;
+		env->out.device_secondary = 0;
 		env->out.fps = 5;
 		env->out.bitrate = 65000;
 		env->out.sendvideo = 1;
 		env->out.qmin = 3;
+		env->out.device_num = 0;
+		env->out.picture_in_picture = 0; /* PiP mode intially disabled */
 	}
 	CV_START(var, val);
-	CV_STR("videodevice", env->out.videodevice);
+	CV_F("videodevice", device_table_fill(env->out.devices, &env->out.device_num, val));
 	CV_BOOL("sendvideo", env->out.sendvideo);
 	CV_F("video_size", video_geom(&env->enc_in, val));
 	CV_F("camera_size", video_geom(&env->out.loc_src_geometry, val));

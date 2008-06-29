@@ -313,6 +313,23 @@ int print_message(struct board *b, const char *s)
 	return 1;
 }
 
+/* deletes a board.
+ * we make the free operation on any fields of the board structure allocated
+ * in dynamic memory
+ */
+void delete_board(struct board *b)
+{
+	if (b) {
+		/* deletes the text */
+		if (b->text)
+			ast_free (b->text);
+		/* deallocates the blank surface */
+		SDL_FreeSurface(b->blank);
+		/* deallocates the board */
+		ast_free(b);
+	}
+}
+
 #if 0
 /*! \brief refresh the screen, and also grab a bunch of events.
  */
