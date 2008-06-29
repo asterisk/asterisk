@@ -57,3 +57,5 @@ dundi-parser.o: ASTCFLAGS+=-I.
 dundi-parser.o: ASTCFLAGS+=$(MENUSELECT_OPTS_pbx_dundi:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_pbx_dundi),$(value $(dep)_INCLUDE))
 
 $(if $(filter pbx_dundi,$(EMBEDDED_MODS)),modules.link,pbx_dundi.so): dundi-parser.o
+
+pbx_gtkconsole.o: ASTCFLAGS+=-Wno-strict-prototypes
