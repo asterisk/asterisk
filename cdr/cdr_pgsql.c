@@ -146,8 +146,8 @@ static int pgsql_log(struct ast_cdr *cdr)
 			if (!value) {
 				if (cur->notnull && !cur->hasdefault) {
 					/* Field is NOT NULL (but no default), must include it anyway */
-					LENGTHEN_BUF1(strlen(cur->name));
-					lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", cur->name);
+					LENGTHEN_BUF1(strlen(cur->name) + 2);
+					lensql += snprintf(sql + lensql, sizesql - lensql, "\"%s\",", cur->name);
 					LENGTHEN_BUF2(3);
 					strcat(sql2, "'',");
 					lensql2 += 3;
@@ -155,8 +155,8 @@ static int pgsql_log(struct ast_cdr *cdr)
 				continue;
 			}
 			
-			LENGTHEN_BUF1(strlen(cur->name));
-			lensql += snprintf(sql + lensql, sizesql - lensql, "%s,", cur->name);
+			LENGTHEN_BUF1(strlen(cur->name) + 2);
+			lensql += snprintf(sql + lensql, sizesql - lensql, "\"%s\",", cur->name);
 
 			if (strcmp(cur->name, "start") == 0 || strcmp(cur->name, "calldate") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
