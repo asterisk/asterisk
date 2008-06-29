@@ -307,11 +307,13 @@ static int mod_update(void)
 
 static void exit_now(GtkWidget *widget, gpointer data)
 {
+	int res;
+
 	ast_loader_unregister(mod_update);
 	gtk_main_quit();
 	inuse--;
 	ast_update_use_count();
-	ast_unregister_verbose(verboser);
+	res = ast_unregister_verbose(verboser);
 	ast_unload_resource("pbx_gtkconsole", 0);
 	ast_verb(2, "GTK Console Monitor Exiting\n");
 	/* XXX Trying to quit after calling this makes asterisk segfault XXX */
@@ -361,6 +363,8 @@ static int show_console(void)
 	GtkWidget *sw;
 	GtkWidget *bbox, *hbbox, *add, *removew, *reloadw;
 	char *modtitles[3] = { "Module", "Description", "Use Count" };
+	int res;
+
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	
 	statusbar = gtk_statusbar_new();
@@ -465,7 +469,7 @@ static int show_console(void)
 	ast_pthread_create(&console_thread, NULL, consolethread, NULL);
 	/* XXX Okay, seriously fix me! XXX */
 	usleep(100000);
-	ast_register_verbose(verboser);
+	res = ast_register_verbose(verboser);
 	gtk_clist_freeze(GTK_CLIST(verb));
 	ast_loader_register(mod_update);
 	gtk_clist_thaw(GTK_CLIST(verb));
