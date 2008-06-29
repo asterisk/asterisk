@@ -138,6 +138,5 @@ int reset_board(struct board *b);
 
 /*! \brief deallocates memory space for a board */
 void delete_board(struct board *b);
-
 #endif /* CONSOLE_VIDEO_H */
 /* end of file */

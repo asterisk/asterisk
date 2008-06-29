@@ -75,7 +75,7 @@ struct keypad_entry {
 /* our representation of a displayed window. SDL can only do one main
  * window so we map everything within that one
  */
-struct display_window   {   
+struct display_window {   
 	SDL_Overlay	*bmp;
 	SDL_Rect	rect;	/* location of the window */
 };
@@ -444,6 +444,7 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
 
 	case KEY_DIGIT_BACKGROUND:
 		break;
+
 	default:
 		ast_log(LOG_WARNING, "function not yet defined %i\n", index);
 	}
@@ -1027,7 +1028,7 @@ static int kp_match_area(const struct keypad_entry *e, int x, int y)
 		xp = ((x - e->x0)*dx + (y - e->y0)*dy)/l;
 		yp = (-(x - e->x0)*dy + (y - e->y0)*dx)/l;
 		if (e->type == KP_RECT) {
-			ret = (xp >= 0 && xp < l && yp >=0 && yp < l);
+			ret = (xp >= 0 && xp < l && yp >=0 && yp < e->h);
 		} else if (e->type == KP_CIRCLE) {
 			dx = xp*xp/(l*l) + yp*yp/(e->h*e->h);
 			ret = (dx < 1);

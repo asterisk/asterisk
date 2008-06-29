@@ -148,7 +148,7 @@ struct board *board_setup(SDL_Surface *screen, SDL_Rect *dest,
 	b->cur_col = 0;		/* current print column */
 	b->cur_line = 0;	/* last line displayed */
 
-	ast_log(LOG_WARNING, "Message board %dx%d@%d,%d successfully initialized\n",
+	if (0) ast_log(LOG_WARNING, "Message board %dx%d@%d,%d successfully initialized\n",
 		b->p_rect->w, b->p_rect->h,
 		b->p_rect->x, b->p_rect->y);
 	return b;
