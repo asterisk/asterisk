@@ -136,25 +136,25 @@ static int tds_log(struct ast_cdr *cdr)
 	}
 
 	erc = dbfcmd(settings->dbproc,
-		"INSERT INTO %s "
+		"INSERT INTO \"%s\" "
 		"("
-			"accountcode, "
-			"src, "
-			"dst, "
-			"dcontext, "
-			"clid, "
-			"channel, "
-			"dstchannel, "
-			"lastapp, "
-			"lastdata, "
-			"start, "
-			"answer, "
-			"[end], "
-			"duration, "
-			"billsec, "
-			"disposition, "
-			"amaflags, "
-			"uniqueid"
+			"\"accountcode\", "
+			"\"src\", "
+			"\"dst\", "
+			"\"dcontext\", "
+			"\"clid\", "
+			"\"channel\", "
+			"\"dstchannel\", "
+			"\"lastapp\", "
+			"\"lastdata\", "
+			"\"start\", "
+			"\"answer\", "
+			"\"end\", "
+			"\"duration\", "
+			"\"billsec\", "
+			"\"disposition\", "
+			"\"amaflags\", "
+			"\"uniqueid\""
 		") "
 		"VALUES "
 		"("
@@ -317,7 +317,7 @@ static int mssql_connect(void)
 		goto failed;
 	}
 
-	if (dbfcmd(settings->dbproc, "SELECT 1 FROM [%s]", settings->table) == FAIL) {
+	if (dbfcmd(settings->dbproc, "SELECT 1 FROM \"%s\"", settings->table) == FAIL) {
 		ast_log(LOG_ERROR, "Unable to build query while verifying the existence of table '%s'\n", settings->table);
 		goto failed;
 	}
