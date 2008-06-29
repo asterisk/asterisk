@@ -79,7 +79,8 @@ static void *grab_x11_open(const char *name, struct fbuf_t *geom, int fps)
 	struct grab_x11_desc *v;
 	struct fbuf_t *b;
 
-	if (strcasecmp(name, "X11"))
+	/* all names starting with X11 identify this grabber */
+	if (strncasecmp(name, "X11", 3))
 		return NULL;	/* not us */
 	v = ast_calloc(1, sizeof(*v));
 	if (v == NULL)
@@ -205,6 +206,9 @@ static void *grab_v4l1_open(const char *dev, struct fbuf_t *geom, int fps)
 	struct grab_v4l1_desc *v;
 	struct fbuf_t *b;
 
+	/* name should be something under /dev/ */
+	if (strncmp(dev, "/dev/", 5)) 
+		return NULL;
 	fd = open(dev, O_RDONLY | O_NONBLOCK);
 	if (fd < 0) {
 		ast_log(LOG_WARNING, "error opening camera %s\n", dev);
