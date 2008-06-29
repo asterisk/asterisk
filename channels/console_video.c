@@ -608,11 +608,11 @@ int console_write_video(struct ast_channel *chan, struct ast_frame *f)
 	}
 	v->next_seq++;
 
-	if (f->data == NULL || f->datalen < 2) {
+	if (f->data.ptr == NULL || f->datalen < 2) {
 		ast_log(LOG_WARNING, "empty video frame, discard\n");
 		return 0;
 	}
-	if (v->d_callbacks->dec_decap(v->dec_in_cur, f->data, f->datalen)) {
+	if (v->d_callbacks->dec_decap(v->dec_in_cur, f->data.ptr, f->datalen)) {
 		ast_log(LOG_WARNING, "error in dec_decap, enter discard\n");
 		v->discard = 1;
 	}

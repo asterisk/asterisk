@@ -240,7 +240,7 @@ static struct ast_frame *create_video_frame(uint8_t *start, uint8_t *end,
 		return NULL;
 	}
 	memcpy(data+head, start, len);
-	f->data = data;
+	f->data.ptr = data;
 	f->mallocd = AST_MALLOCD_DATA | AST_MALLOCD_HDR;
 	//f->has_timing_info = 1;
 	//f->ts = ast_tvdiff_ms(ast_tvnow(), out->ts);
@@ -393,7 +393,7 @@ static struct ast_frame *h263p_encap(struct fbuf_t *b, int mtu,
 		if (!f)
 			break;
 
-		data = f->data;
+		data = f->data.ptr;
 		if (h == 0) {	/* we start with a psc */
 			data[0] |= 0x04;	// set P == 1, and we are done
 		} else {	/* no psc, create a header */
@@ -647,7 +647,7 @@ static struct ast_frame *h263_encap(struct fbuf_t *b, int mtu,
 
 		if (!f)
 			break;
-		bcopy(h, f->data, 4);	/* copy the h263 header */
+		bcopy(h, f->data.ptr, 4);	/* copy the h263 header */
 		/* XXX to do: if not aligned, fix sbit and ebit,
 		 * then move i back by 1 for the next frame
 		 */
@@ -801,7 +801,7 @@ static struct ast_frame *h261_encap(struct fbuf_t *b, int mtu,
 			break;
 		/* recompute header with I=0, V=1 */
 		h[0] = ( (sbit & 7) << 5 ) | ( (ebit & 7) << 2 ) | 1;
-		bcopy(h, f->data, 4);	/* copy the h261 header */
+		bcopy(h, f->data.ptr, 4);	/* copy the h261 header */
 		if (ebit)	/* not aligned, restart from previous byte */
 			i--;
 		sbit = (8 - ebit) & 7;
@@ -1021,7 +1021,7 @@ static struct ast_frame *h264_encap(struct fbuf_t *b, int mtu,
 		size -= frag_size;	/* skip this data block */
 		start += frag_size;
 
-		data = f->data;
+		data = f->data.ptr;
 		data[0] = hdr[0];
 		data[1] = hdr[1] | (size == 0 ? 0x40 : 0);	/* end bit if we are done */
 		hdr[1] &= ~0x80;	/* clear start bit for subsequent frames */
