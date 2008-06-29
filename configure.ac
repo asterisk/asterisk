@@ -1343,8 +1343,6 @@ if test "${PBX_PWLIB}" = "1" -a "${USE_OPENH323}" != "no" ; then
 		[${PWLIB_INCLUDE}], [${PWLIB_LIB}])
 fi
 
-LUA_INCLUDE="-I/usr/include/lua5.1"
-LUA_LIB="-llua5.1"
 AST_EXT_LIB_CHECK([LUA], [lua5.1], [luaL_newstate], [lua5.1/lua.h]) 
 
 AST_EXT_LIB_CHECK([RADIUS], [radiusclient-ng], [rc_read_config], [radiusclient-ng.h])
