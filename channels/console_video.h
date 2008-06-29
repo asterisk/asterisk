@@ -43,6 +43,13 @@
 
 #endif	/* HAVE_VIDEO_CONSOLE and others */
 
+#define	SRC_WIN_W	80	/* width of video thumbnails */
+#define	SRC_WIN_H	60	/* height of video thumbnails */
+/* we only support a limited number of video sources in the GUI,
+ * because we need screen estate to switch between them.
+ */
+#define	MAX_VIDEO_SOURCES	9
+
 /*
  * In many places we use buffers to store the raw frames (but not only),
  * so here is a structure to keep all the info. data = NULL means the
@@ -60,6 +67,11 @@ struct fbuf_t {		/* frame buffers, dynamically allocated */
 	int	w;	/* size */ 
 	int	h;
 	int	pix_fmt;
+	/* offsets and size of the copy in Picture-in-Picture mode */
+	int	win_x;
+	int	win_y;
+	int	win_w;
+	int	win_h;
 };
 
 void fbuf_free(struct fbuf_t *);
@@ -103,6 +115,7 @@ enum drag_window {	/* which window are we dragging */
 	DRAG_DIALED,	/* dialed number */
 	DRAG_INPUT,	/* input window */
 	DRAG_MESSAGE,	/* message window */
+	DRAG_PIP,	/* picture in picture */
 };
 
 /*! \brief support for drag actions */
@@ -122,6 +135,9 @@ const char *read_message(const struct board *b);
 
 /*! \brief reset the board to blank */
 int reset_board(struct board *b);
+
+/*! \brief deallocates memory space for a board */
+void delete_board(struct board *b);
 
 #endif /* CONSOLE_VIDEO_H */
 /* end of file */
