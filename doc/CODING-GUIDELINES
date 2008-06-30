@@ -21,8 +21,8 @@ lines, and is well documented.
 
 Asterisk is published under a dual-licensing scheme by Digium.
 To be accepted into the codebase, all non-trivial changes must be
-disclaimed to Digium or placed in the public domain. For more information
-see http://bugs.digium.com
+licensed to Digium. For more information, see the electronic license
+agreement on http://bugs.digium.com/.
 
 Patches should be in the form of a unified (-u) diff, made from a checkout
 from subversion.
@@ -172,7 +172,7 @@ this means in verbose:
 Function calls and arguments should be spaced in a consistent way across
 the codebase.
 	GOOD: foo(arg1, arg2);
-	GOOD: foo(arg1,arg2);	/* Acceptable but not preferred */
+	BAD: foo(arg1,arg2);
 	BAD: foo (arg1, arg2);
 	BAD: foo( arg1, arg2 );
 	BAD: foo(arg1, arg2,arg3);
@@ -299,7 +299,7 @@ specific name should be given, such as "ast_find_call_feature".
 * Variable function argument parsing
 ------------------------------------
 
-Functions with a variable amount of argumenst need a 'sentinel' when called.
+Functions with a variable amount of arguments need a 'sentinel' when called.
 Newer GNU C compilers are fine if you use NULL for this. Older versions (pre 4)
 don't like this.
 You should use the constant SENTINEL.
@@ -335,9 +335,9 @@ this allows structure members, local variables and function arguments to
 be declared as using the enum's type. For example:
 
 enum option {
-  OPT_FOO = 1
-  OPT_BAR = 2
-  OPT_BAZ = 4
+  OPT_FOO = 1,
+  OPT_BAR = 2,
+  OPT_BAZ = 4,
 };
 
 static enum option global_option;
@@ -525,12 +525,14 @@ followed. Do not use the javadoc style.
 
 /*!
  * \brief Do interesting stuff.
+ *
  * \param thing1 interesting parameter 1.
  * \param thing2 interesting parameter 2.
  *
  * This function does some interesting stuff.
  *
- * \return zero on success, -1 on error.
+ * \retval zero on success
+ * \retval -1 on error.
  */
 int ast_interesting_stuff(int thing1, int thing2)
 {
@@ -693,5 +695,4 @@ Welcome to the Asterisk development community!
 Meet you on the asterisk-dev mailing list. 
 Subscribe at http://lists.digium.com!
 
-Mark Spencer, Kevin P. Fleming and 
-the Asterisk.org Development Team
+-- The Asterisk.org Development Team
