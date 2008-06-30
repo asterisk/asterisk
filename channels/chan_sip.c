@@ -5441,7 +5441,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		break;
 	case AST_CONTROL_BUSY:
 		if (ast->_state != AST_STATE_UP) {
-			transmit_response(p, "486 Busy Here", &p->initreq);
+			transmit_response_reliable(p, "486 Busy Here", &p->initreq);
 			p->invitestate = INV_COMPLETED;
 			sip_alreadygone(p);
 			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
@@ -5451,7 +5451,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		break;
 	case AST_CONTROL_CONGESTION:
 		if (ast->_state != AST_STATE_UP) {
-			transmit_response(p, "503 Service Unavailable", &p->initreq);
+			transmit_response_reliable(p, "503 Service Unavailable", &p->initreq);
 			p->invitestate = INV_COMPLETED;
 			sip_alreadygone(p);
 			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
@@ -8026,7 +8026,7 @@ static int transmit_response_with_minse(struct sip_pvt *p, const char *msg, cons
 */
 static int transmit_response_reliable(struct sip_pvt *p, const char *msg, const struct sip_request *req)
 {
-	return __transmit_response(p, msg, req, XMIT_CRITICAL);
+	return __transmit_response(p, msg, req, req->ignore ? XMIT_UNRELIABLE : XMIT_CRITICAL);
 }
 
 /*! \brief Append date to SIP message */
@@ -17521,7 +17521,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	   	being able to call yourself */
 		/* If pedantic is on, we need to check the tags. If they're different, this is
 	   	in fact a forked call through a SIP proxy somewhere. */
-		transmit_response(p, "482 Loop Detected", req);
+		transmit_response_reliable(p, "482 Loop Detected", req);
 		p->invitestate = INV_COMPLETED;
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return 0;
@@ -17529,7 +17529,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	
 	if (!req->ignore && p->pendinginvite) {
 		/* We already have a pending invite. Sorry. You are on hold. */
-		transmit_response(p, "491 Request Pending", req);
+		transmit_response_reliable(p, "491 Request Pending", req);
 		ast_debug(1, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
 		/* Don't destroy dialog here */
 		return 0;
@@ -17546,7 +17546,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 		if (p->owner) {
 			ast_debug(3, "INVITE w Replaces on existing call? Refusing action. [%s]\n", p->callid);
-			transmit_response(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
+			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
 			/* Do not destroy existing call */
 			return -1;
 		}
@@ -17558,7 +17558,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		ast_uri_decode(replace_id);
 
 		if (!p->refer && !sip_refer_allocate(p)) {
-			transmit_response(p, "500 Server Internal Error", req);
+			transmit_response_reliable(p, "500 Server Internal Error", req);
 			append_history(p, "Xfer", "INVITE/Replace Failed. Out of memory.");
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			p->invitestate = INV_COMPLETED;
@@ -17596,7 +17596,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		*/
 		if ((p->refer->refer_call = get_sip_pvt_byid_locked(replace_id, totag, fromtag)) == NULL) {
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-existent call id (%s)!\n", replace_id);
-			transmit_response(p, "481 Call Leg Does Not Exist (Replaces)", req);
+			transmit_response_reliable(p, "481 Call Leg Does Not Exist (Replaces)", req);
 			error = 1;
 		}
 
@@ -17609,7 +17609,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (p->refer->refer_call == p) {
 			ast_log(LOG_NOTICE, "INVITE with replaces into it's own call id (%s == %s)!\n", replace_id, p->callid);
 			p->refer->refer_call = dialog_unref(p->refer->refer_call, "unref dialog p->refer->refer_call");
-			transmit_response(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
+			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
 			error = 1;
 		}
 
@@ -17617,13 +17617,13 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* Oops, someting wrong anyway, no owner, no call */
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-existing call id (%s)!\n", replace_id);
 			/* Check for better return code */
-			transmit_response(p, "481 Call Leg Does Not Exist (Replace)", req);
+			transmit_response_reliable(p, "481 Call Leg Does Not Exist (Replace)", req);
 			error = 1;
 		}
 
 		if (!error && p->refer->refer_call->owner->_state != AST_STATE_RINGING && p->refer->refer_call->owner->_state != AST_STATE_RING && p->refer->refer_call->owner->_state != AST_STATE_UP ) {
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-ringing or active call id (%s)!\n", replace_id);
-			transmit_response(p, "603 Declined (Replaces)", req);
+			transmit_response_reliable(p, "603 Declined (Replaces)", req);
 			error = 1;
 		}
 
@@ -17666,7 +17666,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* Handle SDP here if we already have an owner */
 			if (find_sdp(req)) {
 				if (process_sdp(p, req, SDP_T38_INITIATE)) {
-					transmit_response(p, "488 Not acceptable here", req);
+					transmit_response_reliable(p, "488 Not acceptable here", req);
 					if (!p->lastinvite)
 						sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 					return -1;
@@ -17812,7 +17812,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (!ast_strlen_zero(p_uac_se_hdr)) {
 			rtn = parse_session_expires(p_uac_se_hdr, &uac_max_se, &st_ref);
 			if (rtn != 0) {
-				transmit_response(p, "400 Session-Expires Invalid Syntax", req);
+				transmit_response_reliable(p, "400 Session-Expires Invalid Syntax", req);
 				p->invitestate = INV_COMPLETED;
 				if (!p->lastinvite) {
 					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -17826,7 +17826,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (!ast_strlen_zero(p_uac_min_se)) {
 			rtn = parse_minse(p_uac_min_se, &uac_min_se); 
 			if (rtn != 0) {
-        			transmit_response(p, "400 Min-SE Invalid Syntax", req);
+        			transmit_response_reliable(p, "400 Min-SE Invalid Syntax", req);
        	   			p->invitestate = INV_COMPLETED;
        	   			if (!p->lastinvite) {
 					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -17954,18 +17954,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				case AST_PBX_FAILED:
 					ast_log(LOG_WARNING, "Failed to start PBX :(\n");
 					p->invitestate = INV_COMPLETED;
-					if (req->ignore)
-						transmit_response(p, "503 Unavailable", req);
-					else
-						transmit_response_reliable(p, "503 Unavailable", req);
+					transmit_response_reliable(p, "503 Unavailable", req);
 					break;
 				case AST_PBX_CALL_LIMIT:
 					ast_log(LOG_WARNING, "Failed to start PBX (call limit reached) \n");
 					p->invitestate = INV_COMPLETED;
-					if (req->ignore)
-						transmit_response(p, "480 Temporarily Unavailable", req);
-					else
-						transmit_response_reliable(p, "480 Temporarily Unavailable", req);
+					transmit_response_reliable(p, "480 Temporarily Unavailable", req);
 					break;
 				case AST_PBX_SUCCESS:
 					/* nothing to do */
@@ -17986,10 +17980,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				*nounlock = 1;
 				if (ast_pickup_call(c)) {
 					ast_log(LOG_NOTICE, "Nothing to pick up for %s\n", p->callid);
-					if (req->ignore)
-						transmit_response(p, "503 Unavailable", req);	/* OEJ - Right answer? */
-					else
-						transmit_response_reliable(p, "503 Unavailable", req);
+					transmit_response_reliable(p, "503 Unavailable", req);
 					sip_alreadygone(p);
 					/* Unlock locks so ast_hangup can do its magic */
 					sip_pvt_unlock(p);
@@ -18036,10 +18027,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 								sip_pvt_lock(bridgepvt);
 								change_t38_state(bridgepvt, T38_DISABLED);
 								sip_pvt_unlock(bridgepvt);
-								if (req->ignore)
-									transmit_response(p, "488 Not acceptable here", req);
-								else
-									transmit_response_reliable(p, "488 Not acceptable here", req);
+								transmit_response_reliable(p, "488 Not acceptable here", req);
 							
 							}
 						} else {
@@ -18049,10 +18037,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 						}
 					} else {
 						/* Other side is not a SIP channel */
-						if (req->ignore)
-							transmit_response(p, "488 Not acceptable here", req);
-						else
-							transmit_response_reliable(p, "488 Not acceptable here", req);
+						transmit_response_reliable(p, "488 Not acceptable here", req);
 						change_t38_state(p, T38_DISABLED);
 
 						if (!p->lastinvite) /* Only destroy if this is *not* a re-invite */
@@ -18077,10 +18062,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 						if (bridgepvt->t38.state == T38_ENABLED) {
 							ast_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
 							/* Insted of this we should somehow re-invite the other side of the bridge to RTP */
-							if (req->ignore)
-								transmit_response(p, "488 Not Acceptable Here (unsupported)", req);
-							else
-								transmit_response_reliable(p, "488 Not Acceptable Here (unsupported)", req);
+							transmit_response_reliable(p, "488 Not Acceptable Here (unsupported)", req);
 							sendok = FALSE;
 						} 
 						/* No bridged peer with T38 enabled*/
@@ -18109,10 +18091,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				ast_log(LOG_NOTICE, "Unable to create/find SIP channel for this INVITE\n");
 				msg = "503 Unavailable";
 			}
-			if (req->ignore)
-				transmit_response(p, msg, req);
-			else
-				transmit_response_reliable(p, msg, req);
+			transmit_response_reliable(p, msg, req);
 			p->invitestate = INV_COMPLETED;
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		}
