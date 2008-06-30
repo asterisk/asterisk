@@ -3924,7 +3924,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		break;
 	case AST_CONTROL_BUSY:
 		if (ast->_state != AST_STATE_UP) {
-			transmit_response(p, "486 Busy Here", &p->initreq);
+			transmit_response_reliable(p, "486 Busy Here", &p->initreq);
 			p->invitestate = INV_COMPLETED;
 			sip_alreadygone(p);
 			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
@@ -3934,7 +3934,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		break;
 	case AST_CONTROL_CONGESTION:
 		if (ast->_state != AST_STATE_UP) {
-			transmit_response(p, "503 Service Unavailable", &p->initreq);
+			transmit_response_reliable(p, "503 Service Unavailable", &p->initreq);
 			p->invitestate = INV_COMPLETED;
 			sip_alreadygone(p);
 			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
@@ -13815,7 +13815,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	   	being able to call yourself */
 		/* If pedantic is on, we need to check the tags. If they're different, this is
 	   	in fact a forked call through a SIP proxy somewhere. */
-		transmit_response(p, "482 Loop Detected", req);
+		transmit_response_reliable(p, "482 Loop Detected", req);
 		p->invitestate = INV_COMPLETED;
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return 0;
@@ -13823,7 +13823,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	
 	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->pendinginvite) {
 		/* We already have a pending invite. Sorry. You are on hold. */
-		transmit_response(p, "491 Request Pending", req);
+		transmit_response_reliable(p, "491 Request Pending", req);
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
 		/* Don't destroy dialog here */
@@ -13842,7 +13842,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (p->owner) {
 			if (option_debug > 2)
 				ast_log(LOG_DEBUG, "INVITE w Replaces on existing call? Refusing action. [%s]\n", p->callid);
-			transmit_response(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
+			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
 			/* Do not destroy existing call */
 			return -1;
 		}
@@ -13854,7 +13854,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		ast_uri_decode(replace_id);
 
 		if (!p->refer && !sip_refer_allocate(p)) {
-			transmit_response(p, "500 Server Internal Error", req);
+			transmit_response_reliable(p, "500 Server Internal Error", req);
 			append_history(p, "Xfer", "INVITE/Replace Failed. Out of memory.");
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			p->invitestate = INV_COMPLETED;
@@ -13892,7 +13892,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		*/
 		if ((p->refer->refer_call = get_sip_pvt_byid_locked(replace_id, totag, fromtag)) == NULL) {
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-existent call id (%s)!\n", replace_id);
-			transmit_response(p, "481 Call Leg Does Not Exist (Replaces)", req);
+			transmit_response_reliable(p, "481 Call Leg Does Not Exist (Replaces)", req);
 			error = 1;
 		}
 
@@ -13905,7 +13905,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (p->refer->refer_call == p) {
 			ast_log(LOG_NOTICE, "INVITE with replaces into it's own call id (%s == %s)!\n", replace_id, p->callid);
 			p->refer->refer_call = NULL;
-			transmit_response(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
+			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
 			error = 1;
 		}
 
@@ -13913,13 +13913,13 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* Oops, someting wrong anyway, no owner, no call */
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-existing call id (%s)!\n", replace_id);
 			/* Check for better return code */
-			transmit_response(p, "481 Call Leg Does Not Exist (Replace)", req);
+			transmit_response_reliable(p, "481 Call Leg Does Not Exist (Replace)", req);
 			error = 1;
 		}
 
 		if (!error && p->refer->refer_call->owner->_state != AST_STATE_RINGING && p->refer->refer_call->owner->_state != AST_STATE_RING && p->refer->refer_call->owner->_state != AST_STATE_UP ) {
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-ringing or active call id (%s)!\n", replace_id);
-			transmit_response(p, "603 Declined (Replaces)", req);
+			transmit_response_reliable(p, "603 Declined (Replaces)", req);
 			error = 1;
 		}
 
@@ -13961,7 +13961,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* Handle SDP here if we already have an owner */
 			if (find_sdp(req)) {
 				if (process_sdp(p, req)) {
-					transmit_response(p, "488 Not acceptable here", req);
+					transmit_response_reliable(p, "488 Not acceptable here", req);
 					if (!p->lastinvite)
 						sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 					return -1;
