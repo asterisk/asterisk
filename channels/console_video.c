@@ -137,6 +137,11 @@ void console_video_uninit(struct video_desc *env)
 {
 }
 
+int get_gui_startup(struct video_desc* env)
+{
+	return 0; /* no gui here */
+}
+
 int console_video_formats = 0;
 
 #else /* defined(HAVE_FFMPEG) && defined(HAVE_SDL) */
@@ -248,11 +253,11 @@ struct video_desc {
 	struct fbuf_t		rem_dpy;	/* display remote video, no buffer (it is in win[WIN_REMOTE].bmp) */
 	struct fbuf_t		loc_dpy;	/* display local source, no buffer (managed by SDL in bmp[1]) */
 
-	/*display for  sources in additional windows, 
-	ideally infinite additional sources could be present
-	pratically we assume a maximum of 9 sources to show*/
+	/* geometry of the thumbnails for all video sources. */
 	struct fbuf_t		src_dpy[MAX_VIDEO_SOURCES]; /* no buffer allocated here */
-	
+
+	int frame_freeze;	/* flag to freeze the incoming frame */
+
 	/* local information for grabbers, codecs, gui */
 	struct gui_info		*gui;
 	struct video_dec_desc	*in;		/* remote video descriptor */
@@ -272,6 +277,14 @@ void fbuf_free(struct fbuf_t *b)
 	b->w = x.w;
 	b->h = x.h;
 	b->pix_fmt = x.pix_fmt;
+}
+
+/* return the status of env->stayopen to chan_oss, as the latter
+ * does not have access to fields of struct video_desc
+ */
+int get_gui_startup(struct video_desc* env)
+{
+	return env->stayopen;
 }
 
 #if 0
@@ -432,6 +445,7 @@ static int video_out_uninit(struct video_desc *env)
 		v->devices[i].status_index = 0;
 	}
 	v->picture_in_picture = 0;
+	env->frame_freeze = 0;
 	return -1;
 }
 
@@ -545,7 +559,7 @@ static int video_out_init(struct video_desc *env)
 void console_video_uninit(struct video_desc *env)
 {
 	int i, t = 100;	/* initial wait is shorter, than make it longer */
-	if (env->stayopen == 0) {	/* in a call */
+	if (env->stayopen == 0) { /* gui opened by a call, do the shutdown */
 		env->shutdown = 1;
 		for (i=0; env->shutdown && i < 10; i++) {
 			if (env->owner)
@@ -555,6 +569,7 @@ void console_video_uninit(struct video_desc *env)
 			if (env->owner)
 				ast_channel_lock(env->owner);
 		}
+		env->vthread = NULL;
 	}
 	env->owner = NULL;	/* this is unconditional */
 }
@@ -920,7 +935,8 @@ static void *video_thread(void *arg)
 		while (v->dec_in_dpy) {
 			struct fbuf_t *tmp = v->dec_in_dpy;	/* store current pointer */
 
-			if (v->d_callbacks->dec_run(v, tmp))
+			/* decode the frame, but show it only if not frozen */
+			if (v->d_callbacks->dec_run(v, tmp) && !env->frame_freeze)
 				show_frame(env, WIN_REMOTE);
 			tmp->used = 0;	/* mark buffer as free */
 			tmp->ebit = 0;
@@ -1045,7 +1061,7 @@ void console_video_start(struct video_desc *env, struct ast_channel *owner)
 	if (env == NULL)	/* video not initialized */
 		return;
 	env->owner = owner;	/* work even if no owner is specified */
-	if (env->stayopen)
+	if (env->vthread)
 		return;		/* already initialized, nothing to do */
 	init_env(env);
 	env->out.enc = map_config_video_format(env->codec_name);
@@ -1073,8 +1089,6 @@ void console_video_start(struct video_desc *env, struct ast_channel *owner)
 	ast_pthread_create_background(&env->vthread, NULL, video_thread, env);
 	/* detach the thread to make sure memory is freed on termination */
 	pthread_detach(env->vthread);
-	if (env->owner == NULL)
-		env->stayopen = 1;	/* manually opened so don't close on hangup */
 }
 
 /*
@@ -1204,6 +1218,7 @@ int console_video_cli(struct video_desc *env, const char *var, int fd)
         } else if (!strcasecmp(var, "fps")) {
 		ast_cli(fd, "fps is [%d]\n", env->out.fps);
         } else if (!strcasecmp(var, "startgui")) {
+		env->stayopen = 1;
 		console_video_start(env, NULL);
         } else if (!strcasecmp(var, "stopgui") && env->stayopen != 0) {
 		env->stayopen = 0;
@@ -1236,7 +1251,7 @@ int console_video_config(struct video_desc **penv,
 			return 1;	/* error */
 		
 		}
-		/* set default values */
+		/* set default values - 0's are already there */
 		env->out.device_primary = 0;
 		env->out.device_secondary = 0;
 		env->out.fps = 5;
@@ -1244,7 +1259,6 @@ int console_video_config(struct video_desc **penv,
 		env->out.sendvideo = 1;
 		env->out.qmin = 3;
 		env->out.device_num = 0;
-		env->out.picture_in_picture = 0; /* PiP mode intially disabled */
 	}
 	CV_START(var, val);
 	CV_F("videodevice", device_table_fill(env->out.devices, &env->out.device_num, val));
@@ -1255,7 +1269,7 @@ int console_video_config(struct video_desc **penv,
 	CV_F("remote_size", video_geom(&env->rem_dpy, val));
 	CV_STR("keypad", env->keypad_file);
 	CV_F("region", keypad_cfg_read(env->gui, val));
-	CV_F("startgui", console_video_start(env, NULL));	// support enabling gui at startup
+	CV_UINT("startgui", env->stayopen);	/* enable gui at startup */
 	CV_STR("keypad_font", env->keypad_font);
 	CV_STR("sdl_videodriver", env->sdl_videodriver);
 	CV_UINT("fps", env->out.fps);

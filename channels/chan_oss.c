@@ -1387,6 +1387,11 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 		system(cmd);
 		ast_free(cmd);
 	}
+
+	/* if the config file requested to start the GUI, do it */
+	if (get_gui_startup(o->env))
+		console_video_start(o->env, NULL);
+
 	if (o == &oss_default)		/* we are done with the default */
 		return NULL;
 

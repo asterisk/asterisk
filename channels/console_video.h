@@ -97,6 +97,7 @@ int console_video_cli(struct video_desc *env, const char *var, int fd);
 int console_video_config(struct video_desc **penv, const char *var, const char *val);
 void console_video_uninit(struct video_desc *env);
 void console_video_start(struct video_desc *env, struct ast_channel *owner);
+int get_gui_startup(struct video_desc* env);
 
 /* console_board.c */
 

@@ -50,7 +50,9 @@ handled differently according to their location:
   keystrokes are used as keypad functions, or as text input
   if we are in text-input mode.
 - drag on some keypad areas (sliders etc.) are mapped to the
-  corresponding functions;
+  corresponding functions (mute/unmute audio and video,
+  enable/disable Picture-in-Picture, freeze the incoming video,
+  dial numbers, pick up or hang up a call, ...)
 
 Configuration options control the appeareance of the gui:
 
@@ -58,9 +60,8 @@ Configuration options control the appeareance of the gui:
     keypad_font = /tmp/font.png	; the font to use for output
 
 For future implementation, intresting features can be the following:
-- freeze of the video coming from our remote party
 - save of the whole SDL window as a picture
-- oudio output device switching
+- audio output device switching
 
 The audio switching feature should allow changing the device
 or switching to a recorded message for audio sent to remote party.
@@ -343,10 +344,10 @@ enum skin_area {
 	associated with the audio device markers, clicking on these markers
 	will change the source device for audio output */
 
+#endif
+	/* Keys related to video sources */
 	KEY_FREEZE = 220,	/* freeze the incoming video */
 	KEY_CAPTURE = 221,	/* capture the whole SDL window as a picture */
-#endif
-	/* video source switching key(s) */
 	KEY_PIP = 230,
 	/*indexes between 231 and 239 have been reserved for the "keys"
 	associated with the device thumbnails, clicking on these pictures
@@ -389,12 +390,19 @@ static char *keypad_toggle(struct video_desc *env, int index)
 	case KEY_SENDVIDEO: /* send or do not send video */
 		env->out.sendvideo = !env->out.sendvideo;
 		break;
+
 	case KEY_PIP: /* enable or disable Picture in Picture */
 		env->out.picture_in_picture = !env->out.picture_in_picture;
 		break;
+
 	case KEY_MUTE: /* send or do not send audio */
 		ast_cli_command(env->gui->outfd, "console mute toggle");
 		break;
+
+	case KEY_FREEZE: /* freeze/unfreeze the incoming frames */
+		env->frame_freeze = !env->frame_freeze;
+		break;
+
 #ifdef notyet
 	case KEY_AUTOANSWER: {
 		struct chan_oss_pvt *o = find_desc(oss_active);
@@ -737,6 +745,7 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
 	case KEY_AUTOANSWER:
 	case KEY_SENDVIDEO: /* send or not send the video */
 	case KEY_PIP: /* activate/deactivate picture in picture mode */
+	case KEY_FREEZE: /* freeze/unfreeze the incoming video */
 		keypad_toggle(env, index);
 		break;
 
@@ -746,8 +755,6 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
 		break;
 
 #ifdef notyet /* XXX for future implementations */
-	case KEY_FREEZE:
-		break
 	case KEY_CAPTURE:
 		break;
 #endif
@@ -1407,6 +1414,9 @@ static void sdl_setup(struct video_desc *env)
 	if (set_win(gui->screen, &gui->win[WIN_REMOTE], dpy_fmt,
 			env->rem_dpy.w, env->rem_dpy.h, x0-kp_w/2-BORDER-env->rem_dpy.w, y0))
 		goto no_sdl;
+	/* unfreeze incoming frames if set (to avoid showing nothing) */
+	env->frame_freeze = 0;
+
 	if (set_win(gui->screen, &gui->win[WIN_LOCAL], dpy_fmt,
 			env->loc_dpy.w, env->loc_dpy.h,
 			x0+kp_w/2+BORDER, y0))
@@ -1496,6 +1506,7 @@ static int kp_match_area(const struct keypad_entry *e, int x, int y)
 
 struct _s_k { const char *s; int k; };
 static struct _s_k gui_key_map[] = {
+	{"FREEZE",	KEY_FREEZE},
 	{"PIP",		KEY_PIP},
 	{"PICK_UP",	KEY_PICK_UP },
 	{"PICKUP",	KEY_PICK_UP },
@@ -1537,6 +1548,8 @@ static int gui_map_token(const char *s)
  *	token circle xc yc diameter
  *	token circle xc yc x1 y1 h	# ellipse, main diameter and height
  *	token rect x0 y0 x1 y1 h	# rectangle with main side and eight
+ *	token x0 y0 w h			# horizontal rectangle (short format)
+ *					# this is used e.g. for message boards
  * token is the token to be returned, either a character or a symbol
  * as KEY_* above
  * Return 1 on success, 0 on error.
@@ -1578,10 +1591,10 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)
 		else if (e.c == KEY_EDIT)
 			r = gui->kp_edit;
 		if (r) {
-			r->x = atoi(s2);
-			r->y = e.x0;
-			r->w = e.y0;
-			r->h = e.x1;
+			r->x = atoi(s2);	/* this becomes x0 */
+			r->y = e.x0;		/* this becomes y0 */
+			r->w = e.y0;		/* this becomes w  */
+			r->h = e.x1;		/* this becomes h  */
 			break;
 		}
 		if (strcasecmp(s2, "circle"))	/* invalid */
