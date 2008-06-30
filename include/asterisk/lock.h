@@ -1082,14 +1082,14 @@ static inline int _ast_rwlock_trywrlock(ast_rwlock_t *lock, const char *name,
 #else /* !DEBUG_THREADS */
 
 #define	CHANNEL_DEADLOCK_AVOIDANCE(chan) \
-	ast_channel_lock(chan); \
+	ast_channel_unlock(chan); \
 	usleep(1); \
-	ast_channel_unlock(chan);
+	ast_channel_lock(chan);
 
 #define	DEADLOCK_AVOIDANCE(lock) \
-	ast_mutex_lock(lock); \
+	ast_mutex_unlock(lock); \
 	usleep(1); \
-	ast_mutex_unlock(lock);
+	ast_mutex_lock(lock);
 
 static inline int ast_rwlock_init(ast_rwlock_t *prwlock)
 {
