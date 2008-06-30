@@ -1,3 +1,13 @@
+2008-06-30  Russell Bryant <russell@digium.com>
+
+	* Asterisk 1.4.21.1 released.
+
+2008-06-30 Russell Bryant <russell@digium.com>
+
+	* include/asterisk/lock.h: Fix a typo that introduced a number of
+	  deadlocks, most commonly in chan_iax2, when not running with
+	  DEBUG_THREADS enabled.
+
 2008-06-12  Russell Bryant <russell@digium.com>
 
 	* Asterisk 1.4.21 released.
