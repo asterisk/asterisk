@@ -55,7 +55,7 @@ context=default
 ; dms100:	  Nortel DMS100
 ; 4ess:           AT&T 4ESS
 ; 5ess:	          Lucent 5ESS
-; euroisdn:       EuroISDN
+; euroisdn:       EuroISDN (also known as ETSI NET/5; Cisco calls this "primary-net5")
 ; ni1:            Old National ISDN 1
 ; qsig:           Q.SIG
 ;
