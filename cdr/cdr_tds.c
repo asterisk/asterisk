@@ -299,10 +299,10 @@ static int mssql_connect(void)
 	}
 
 	DBSETLAPP(login,     "TSQL");
-	DBSETLUSER(login,    settings->username);
-	DBSETLPWD(login,     settings->password);
-	DBSETLCHARSET(login, settings->charset);
-	DBSETLNATLANG(login, settings->language);
+	DBSETLUSER(login,    (char *) settings->username);
+	DBSETLPWD(login,     (char *) settings->password);
+	DBSETLCHARSET(login, (char *) settings->charset);
+	DBSETLNATLANG(login, (char *) settings->language);
 
 	if ((settings->dbproc = dbopen(login, (char *) settings->hostname)) == NULL) {
 		ast_log(LOG_ERROR, "Unable to connect to %s\n", settings->hostname);
