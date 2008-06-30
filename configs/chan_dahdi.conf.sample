@@ -79,10 +79,20 @@
 ;
 ;nsf=none
 ;
-; PRI Dialplan:  Only RARELY used for PRI.
+; PRI Dialplan: The ISDN-level Type Of Number (TON) or numbering plan, used for
+; the dialed number.  For most installations, leaving this as 'unknown' (the
+; default) works in the most cases.  In some very unusual circumstances, you
+; may need to set this to 'dynamic' or 'redundant'.  Note that if you set one
+; of the others, you will be unable to dial another class of numbers.  For
+; example, if you set 'national', you will be unable to dial local or
+; international numbers.
+;
 ; PRI Local Dialplan:  Only RARELY used for PRI (sets the calling number's 
-; numbering plan)
-; pridialplan and prilocaldialplan cannot be changed on a reload.
+; numbering plan).  In North America, the typical use is sending the 10 digit
+; callerID number and setting the prilocaldialplan to 'national' (the default).
+; Only VERY rarely will you need to change this.
+;
+; Neither pridialplan nor prilocaldialplan can be changed on reload.
 ;
 ; unknown:        Unknown
 ; private:        Private ISDN
@@ -93,7 +103,7 @@
 ; redundant:      Same as dynamic, except that the underlying number is not 
 ;                 changed (not common)
 ;
-;pridialplan=national
+;pridialplan=unknown
 ;prilocaldialplan=national
 ; 
 ; pridialplan may be also set at dialtime, by prefixing the dialled number with
@@ -915,3 +925,57 @@ pickupgroup=1
 ; For more information on setting up SS7, see the README file in libss7 or
 ; the doc/ss7.txt file in the Asterisk source tree.
 ; ----------------- SS7 Options ----------------------------------------
+
+; Configuration Sections
+; ~~~~~~~~~~~~~~~~~~~~~~
+; You can also configure channels in a separate dahdi.conf section. In
+; this case the keyword 'channel' is not used. Instead the keyword
+; 'dahdichan' is used (as in users.conf) - configuration is only processed
+; in a section where the keyword dahdichan is used. It will only be
+; processed in the end of the section. Thus the following section:
+;
+;[phones]
+;echocancel = 64
+;dahdichan = 1-8
+;group = 1
+;
+; Is somewhat equivalent to the following snippet in the section
+; [channels]:
+;
+;echocancel = 64
+;group = 1
+;channel => 1-8
+;
+; When starting a new section almost all of the configuration values are
+; copied from their values at the end of the section [channels] in
+; dahdi.conf and [general] in users.conf - one section's configuration
+; does not affect another one's.
+;
+; Instead of letting common configuration values "slide through" you can 
+; use configuration templates to easily keep the common part in one
+; place and override where needed.
+;
+;[phones](!)
+;echocancel = yes
+;group = 0,4
+;callgroup = 3
+;pickupgroup = 3
+;threewaycalling = yes
+;transfer = yes
+;context = phones
+;faxdetect = incoming
+;
+;[phone-1](phones)
+;dahdichan = 1
+;callerid = My Name <501>
+;mailbox = 501@mailboxes
+;
+;
+;[fax](phones)
+;dahdichan = 2
+;faxdetect = no
+;context = fax
+;
+;[phone-3](phones)
+;dahdichan = 3
+;pickupgroup = 3,4
