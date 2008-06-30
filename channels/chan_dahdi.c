@@ -11360,16 +11360,15 @@ static int setup_dahdi(int reload)
 	int dchannels[NUM_DCHANS];
 #endif
 
+#ifdef HAVE_ZAPTEL
+	cfg = ast_config_load("zapata.conf");
+#else
 	cfg = ast_config_load(config);
-
-	/* Error if we have no chan_dahdi config file... */
+#endif
+	/* Error if we have no config file... */
 	if (!cfg) {
-		/* ...so try and load zapata.conf */
-		cfg = ast_config_load("zapata.conf");
-		if (!cfg) {
 			ast_log(LOG_ERROR, "Unable to load either config %s or zapata.conf\n", config);
 			return 0;
-		}
 	}
 
 	/* It's a little silly to lock it, but we mind as well just to be sure */
