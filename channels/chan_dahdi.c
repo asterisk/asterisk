@@ -9386,7 +9386,10 @@ static void *ss7_linkset(void *data)
 				}
 				break;
 			case MTP2_LINK_UP:
-				ast_debug(1, "MTP2 link up\n");
+				ast_verbose("MTP2 link up (SLC %d)\n", e->gen.data);
+				break;
+			case MTP2_LINK_DOWN:
+				ast_log(LOG_WARNING, "MTP2 link down (SLC %d)\n", e->gen.data);
 				break;
 			case ISUP_EVENT_CPG:
 				chanpos = ss7_find_cic(linkset, e->cpg.cic, e->cpg.opc);
