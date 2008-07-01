@@ -1,0 +1,159 @@
+	--- VIDEO CONSOLE SUPPORT IN ASTERISK ---
+
+Some console drivers (at the moment chan_oss.so) can be built with
+support for sending and receiving video.  In order to have this
+working you need to perform the following steps:
+
++++ Enable building the video_console support +++
+
+    The simplest way to do it is add this one line to channels/Makefile:
+
+    chan_oss.so: ASTCFLAGS += -DHAVE_VIDEO_CONSOLE
+
++++ Install prerequisite packages +++
+
+  The video_console support relies on the presence of SDL, SDL_image
+  and ffmpeg libraries, and of course on the availability of X11
+
+  On Linux, these are supplied by
+
+	libncurses-dev,
+	libsdl1.2-dev, libsdl-image1.2-dev
+	libavcodec-dev, libswcale-dev
+
+  On FreeBSD, you need the following ports:
+
+	multimedia/ffmpeg (2007.10.04)
+	devel/sdl12  graphics/sdl_image
+
++++ Build and install asterisk with all the above +++
+
+  Make sure you do a 'make clean' and run configure again after you
+  have installed the required packages, to make sure that the required
+  pieces are found.
+    Check that chan_oss.so is generated and correctly installed.
+
++++ Update configuration files +++
+
+  Video support requires explicit configuration as described below:
+  == oss.conf ==
+    You need to set various parameters for video console, the easiest
+    way is to uncomment the following line in oss.conf by removing the
+    leading ';'
+
+	;[general](+,my_video,skin2)
+
+    You also need to manually copy the two files
+
+	images/kpad2.jpg images/font.png
+
+    into the places specified in oss.conf, which in the sample are set to
+
+	    keypad = /tmp/kpad2.jpg
+	    keypad_font = /tmp/font.png
+
+    other configuration parameters are described in oss.conf.sample
+
+  == sip.conf ==
+    To actually run a call using SIP (the same probably applies to iax.conf)
+    you need to enable video support as following
+
+        [general](+)
+                videosupport=yes
+                allow=h263      ; this or other video formats   
+                allow=h263p     ; this or other video formats
+
+    you can add other video formats e.g. h261, h264, mpeg if they are
+    supported by your version of libavcodec.
+
+
++++ RUN THE PROGRAM +++
+
+   run asterisk in console mode e.g. asterisk -vdc
+
+   If video console support has been successfully compiled in, then
+   you will see the "console startgui" command available on the CLI`
+   interface. Run the command, and you should see a window like this:
+
+	http://info.iet.unipi.it/~luigi/asterisk_video_console.jpg
+
+   To exit from this window, in the console run "console stopgui".
+   If you want to start a video call, you need to configure your dialplan
+   so that you can reach (or be reachable) by a peer who can support video.
+   Once done, a video call is the same as an ordinary call:
+   "console dial ...", "console answer", "console hangup" all work the same.
+   To use the GUI, and also configure video sources, see the next section.
+
++++ VIDEO SOURCES +++
+
+  Video sources are declared with the "videodevice=..." lines in oss.conf
+  where the ... is the name of a device (e.g. /dev/video0 ...) or a
+  string starting with X11 which identifies one instance of an X11 grabber.
+  You can have up to 9 sources, displayed in thumbnails in the gui, and
+  select which one to transmit, possibly using Picture-in-Picture.
+
+  For webcams, the only control you have is the image size and frame
+  rate (which at the moment is the same for all video sources).
+  X11 grabbers capture a region of the X11 screen (it can contain
+  anything, even a live video) and use it as the source.
+  The position of the grab region can be configured using the GUI below
+  independently for each video source.
+
+  The actual video sent to the remote side is the device selected as
+  "primary" (with the mouse, see below), possibly with a small
+  'Picture-in-Picture' of the "secondary" device (all selectable
+  with the mouse).
+
++++ GUI COMMANDS AND VIDEO SOURCES +++
+
+(most of the text below is taken from channels/console_gui.c)
+
+The GUI is made of 4 areas: remote video on the left, local video
+on the right, keypad with all controls and text windows in the
+center, and source device thumbnails on the top.  The top row is
+not displayed if no devices are specified in the config file.
+
+     ________________________________________________________________
+    |  ______   ______   ______   ______   ______   ______   ______  |
+    | | tn.1 | | tn.2 | | tn.3 | | tn.4 | | tn.5 | | tn.6 | | tn.7 | |
+    | |______| |______| |______| |______| |______| |______| |______| |
+    |  ______   ______   ______   ______   ______   ______   ______  |
+    | |______| |______| |______| |______| |______| |______| |______| |
+    |  _________________    __________________    _________________  |
+    | |                 |  |                  |  |                 | |
+    | |                 |  |                  |  |                 | |
+    | |                 |  |                  |  |                 | |
+    | |   remote video  |  |                  |  |   local video   | |
+    | |                 |  |                  |  |          ______ | |
+    | |                 |  |      keypad      |  |         |  PIP || |
+    | |                 |  |                  |  |         |______|| |
+    | |_________________|  |                  |  |_________________| |
+    |                      |                  |                      |
+    |                      |                  |                      |
+    |                      |__________________|                      |
+    |________________________________________________________________|
+
+
+The central section is built using an image (jpg, png, maybe gif too)
+for the skin and other GUI elements.  Comments embedded in the image
+indicate to what function each area is mapped to.
+Another image (png with transparency) is used for the font.
+
+Mouse and keyboard events are detected on the whole surface, and
+handled differently according to their location:
+- center/right click on the local/remote window are used to resize
+  the corresponding window;
+- clicks on the thumbnail start/stop sources and select them as
+  primary or secondary video sources;
+- drag on the local video window are used to move the captured
+  area (in the case of X11 grabber) or the picture-in-picture position;
+- keystrokes on the keypad are mapped to the corresponding key;
+  keystrokes are used as keypad functions, or as text input
+  if we are in text-input mode.
+- drag on some keypad areas (sliders etc.) are mapped to the
+  corresponding functions (mute/unmute audio and video,
+  enable/disable Picture-in-Picture, freeze the incoming video,
+  dial numbers, pick up or hang up a call, ...)
+
+------------------------------------------------------------------------
+--- $Id $---

@@ -29,6 +29,7 @@ SIP		The SIP channel driver (chan_sip.so) has support for video
 IAX2		Supports video calls (over trunks too)
 Local		Forwards video calls as a proxy channel
 Agent		Forwards video calls as a proxy channel
+oss		Has support for video display/decoding, see video_console.txt
 
 Applications
 ------------
