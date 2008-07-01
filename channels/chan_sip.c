@@ -7372,7 +7372,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		ast_build_string(&t, &maxbytes, "<state>%s</state>\n", statestring);
 		if (state == AST_EXTENSION_ONHOLD) {
 			ast_build_string(&t, &maxbytes, "<local>\n<target uri=\"%s\">\n"
-			                                "<param pname=\"+sip.rendering\" pvalue=\"no\">\n"
+			                                "<param pname=\"+sip.rendering\" pvalue=\"no\"/>\n"
 			                                "</target>\n</local>\n", mto);
 		}
 		ast_build_string(&t, &maxbytes, "</dialog>\n</dialog-info>\n");
