@@ -1493,8 +1493,8 @@ static int make_trunk(unsigned short callno, int locked)
 			 * \note We delete these before switching the slot, because if
 			 * they fire in the meantime, they will generate a warning.
 			 */
-			AST_SCHED_DEL(sched, iaxs[x]->pingid);
-			AST_SCHED_DEL(sched, iaxs[x]->lagid);
+			AST_SCHED_DEL(sched, iaxs[callno]->pingid);
+			AST_SCHED_DEL(sched, iaxs[callno]->lagid);
 			iaxs[x] = iaxs[callno];
 			iaxs[x]->callno = x;
 			iaxs[callno] = NULL;
