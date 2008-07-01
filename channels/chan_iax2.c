@@ -1140,12 +1140,16 @@ static void __send_ping(const void *data)
 
 	ast_mutex_lock(&iaxsl[callno]);
 
-	while (iaxs[callno] && iaxs[callno]->pingid != -1) {
+	if (iaxs[callno]) {
 		if (iaxs[callno]->peercallno) {
 			send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PING, 0, NULL, 0, -1);
+			iaxs[callno]->pingid = iax2_sched_add(sched, ping_time * 1000, send_ping, data);
+		} else {
+			/* I am the schedule, so I'm allowed to do this */
+			iaxs[callno]->pingid = -1;
 		}
-		iaxs[callno]->pingid = iax2_sched_add(sched, ping_time * 1000, send_ping, data);
-		break;
+	} else if (option_debug > 0) {
+		ast_log(LOG_DEBUG, "I was supposed to send a PING with callno %d, but no such call exists (and I cannot remove pingid, either).\n", callno);
 	}
 
 	ast_mutex_unlock(&iaxsl[callno]);
@@ -1153,14 +1157,6 @@ static void __send_ping(const void *data)
 
 static int send_ping(const void *data)
 {
-	int callno = (long) data;
-
-	ast_mutex_lock(&iaxsl[callno]);
-	if (iaxs[callno]) {
-		iaxs[callno]->pingid = -1;
-	}
-	ast_mutex_unlock(&iaxsl[callno]);
-
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__send_ping, data))
 #endif		
@@ -1189,12 +1185,16 @@ static void __send_lagrq(const void *data)
 
 	ast_mutex_lock(&iaxsl[callno]);
 
-	while (iaxs[callno] && iaxs[callno]->lagid > -1) {
+	if (iaxs[callno]) {
 		if (iaxs[callno]->peercallno) {
 			send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
+			iaxs[callno]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, data);
+		} else {
+			/* I am the schedule, so I'm allowed to do this */
+			iaxs[callno]->lagid = -1;
 		}
-		iaxs[callno]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, data);
-		break;
+	} else if (option_debug > 0) {
+		ast_log(LOG_DEBUG, "I was supposed to send a LAGRQ with callno %d, but no such call exists (and I cannot remove lagid, either).\n", callno);
 	}
 
 	ast_mutex_unlock(&iaxsl[callno]);
@@ -1202,14 +1202,6 @@ static void __send_lagrq(const void *data)
 
 static int send_lagrq(const void *data)
 {
-	int callno = (long) data;
-
-	ast_mutex_lock(&iaxsl[callno]);
-	if (iaxs[callno]) {
-		iaxs[callno]->lagid = -1;
-	}
-	ast_mutex_unlock(&iaxsl[callno]);
-
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__send_lagrq, data))
 #endif		
@@ -1562,13 +1554,19 @@ static int make_trunk(unsigned short callno, int locked)
 	for (x = TRUNK_CALL_START; x < ARRAY_LEN(iaxs) - 1; x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (!iaxs[x] && ((now.tv_sec - lastused[x].tv_sec) > MIN_REUSE_TIME)) {
+			/*!
+			 * \note We delete these before switching the slot, because if
+			 * they fire in the meantime, they will generate a warning.
+			 */
+			AST_SCHED_DEL(sched, iaxs[callno]->pingid);
+			AST_SCHED_DEL(sched, iaxs[callno]->lagid);
 			iaxs[x] = iaxs[callno];
 			iaxs[x]->callno = x;
 			iaxs[callno] = NULL;
 			/* Update the two timers that should have been started */
-			iaxs[x]->pingid = iax2_sched_replace(iaxs[x]->pingid, sched, 
+			iaxs[x]->pingid = iax2_sched_add(sched, 
 				ping_time * 1000, send_ping, (void *)(long)x);
-			iaxs[x]->lagid = iax2_sched_replace(iaxs[x]->lagid, sched, 
+			iaxs[x]->lagid = iax2_sched_add(sched, 
 				lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			if (locked)
 				ast_mutex_unlock(&iaxsl[callno]);
