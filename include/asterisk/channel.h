@@ -469,6 +469,7 @@ struct ast_channel {
 		AST_STRING_FIELD(call_forward);		/*!< Where to forward to if asked to dial on this interface */
 		AST_STRING_FIELD(uniqueid);		/*!< Unique Channel Identifier */
 		AST_STRING_FIELD(parkinglot);		/*! Default parking lot, if empty, default parking lot  */
+		AST_STRING_FIELD(dialcontext);		/*!< Dial: Extension context that we were called from */
 	);
 	
 	struct timeval whentohangup;        		/*!< Non-zero, set to actual time when channel is to be hung up */
@@ -530,7 +531,6 @@ struct ast_channel {
 	char exten[AST_MAX_EXTENSION];			/*!< Dialplan: Current extension number */
 	char macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
 	char macroexten[AST_MAX_EXTENSION];		/*!< Macro: Current non-macro extension. See app_macro.c */
-	char dialcontext[AST_MAX_CONTEXT];              /*!< Dial: Extension context that we were called from */
 	char emulate_dtmf_digit;			/*!< Digit being emulated */
 };
 

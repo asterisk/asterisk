@@ -2205,10 +2205,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	/* Inherit context and extension */
 	ast_channel_lock(qe->chan);
 	macrocontext = pbx_builtin_getvar_helper(qe->chan, "MACRO_CONTEXT");
-	if (!ast_strlen_zero(macrocontext))
-		ast_copy_string(tmp->chan->dialcontext, macrocontext, sizeof(tmp->chan->dialcontext));
-	else
-		ast_copy_string(tmp->chan->dialcontext, qe->chan->context, sizeof(tmp->chan->dialcontext));
+	ast_string_field_set(tmp->chan, dialcontext, ast_strlen_zero(macrocontext) ? qe->chan->context : macrocontext);
 	macroexten = pbx_builtin_getvar_helper(qe->chan, "MACRO_EXTEN");
 	if (!ast_strlen_zero(macroexten))
 		ast_copy_string(tmp->chan->exten, macroexten, sizeof(tmp->chan->exten));
