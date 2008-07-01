@@ -1650,6 +1650,15 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			}
 		}
 
+		/* This will occur on the first response to a message that we initiated,
+		 * such as a PING. */
+		if (callno && dcallno && iaxs[dcallno] && !iaxs[dcallno]->peercallno && match(sin, callno, dcallno, iaxs[dcallno], check_dcallno)) {
+			iaxs[dcallno]->peercallno = callno;
+			res = dcallno;
+			store_by_peercallno(iaxs[dcallno]);
+			return res;
+		}
+
 		for (x = 1; !res && x < maxnontrunkcall; x++) {
 			ast_mutex_lock(&iaxsl[x]);
 			if (iaxs[x]) {
