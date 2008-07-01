@@ -64,6 +64,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/manager.h"
 
 #define INITIAL_NUM_FILES   8
 
@@ -1292,6 +1293,12 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	if (!mohclass)
 		return -1;
 
+	manager_event(EVENT_FLAG_CALL, "MusicOnHold",
+		"State: Start\r\n"
+		"Channel: %s\r\n"
+		"UniqueID: %s\r\n",
+		chan->name, chan->uniqueid);
+
 	ast_set_flag(chan, AST_FLAG_MOH);
 	if (mohclass->total_files) {
 		return ast_activate_generator(chan, &moh_file_stream, mohclass);
@@ -1311,6 +1318,12 @@ static void local_ast_moh_stop(struct ast_channel *chan)
 			chan->stream = NULL;
 		}
 	}
+
+	manager_event(EVENT_FLAG_CALL, "MusicOnHold",
+		"State: Stop\r\n"
+		"Channel: %s\r\n"
+		"UniqueID: %s\r\n",
+		chan->name, chan->uniqueid);
 }
 
 static int load_moh_classes(int reload)
