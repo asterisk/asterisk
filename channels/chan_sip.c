@@ -431,6 +431,12 @@ enum st_refresher {
         SESSION_TIMER_REFRESHER_UAS      /*!< Session is refreshed by the UAS */
 };
 
+/*!< Define some SIP transports */
+enum sip_transport {
+	SIP_TRANSPORT_UDP = 1,
+	SIP_TRANSPORT_TCP = 1 << 1,
+	SIP_TRANSPORT_TLS = 1 << 2,
+};
 
 /*! \brief definition of a sip proxy server
  *
@@ -442,6 +448,7 @@ struct sip_proxy {
 	char name[MAXHOSTNAMELEN];      /*!< DNS name of domain/host or IP */
 	struct sockaddr_in ip;          /*!< Currently used IP address and port */
 	time_t last_dnsupdate;          /*!< When this was resolved */
+	enum sip_transport transport;
 	int force;                      /*!< If it's an outbound proxy, Force use of this outbound proxy for all outbound requests */
 	/* Room for a SRV record chain based on the name */
 };
@@ -789,13 +796,6 @@ static int *sipsock_read_id;            /*!< ID of IO entry for sipsock FD */
 #define INC_CALL_LIMIT	1
 #define DEC_CALL_RINGING 2
 #define INC_CALL_RINGING 3
-
-/*!< Define some SIP transports */
-enum sip_transport {
-	SIP_TRANSPORT_UDP = 1,
-	SIP_TRANSPORT_TCP = 1 << 1,
-	SIP_TRANSPORT_TLS = 1 << 2,
-};
 
 /*!< The SIP socket definition */
 struct sip_socket {
@@ -1845,6 +1845,7 @@ static const char *sip_get_callid(struct ast_channel *chan);
 static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin);
 static int sip_standard_port(struct sip_socket s);
 static int sip_prepare_socket(struct sip_pvt *p);
+static int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum sip_transport *transport);
 
 /*--- Transmitting responses and requests */
 static int sipsock_read(int *id, int fd, short events, void *ignore);
@@ -2750,6 +2751,14 @@ static inline const char *get_transport(enum sip_transport t)
 	return "UNKNOWN";
 }
 
+static inline const char *get_transport_pvt(struct sip_pvt *p)
+{
+	if (p->outboundproxy && p->outboundproxy->transport)
+		p->socket.type = p->outboundproxy->transport;
+
+	return get_transport(p->socket.type);
+}
+
 /*! \brief Transmit SIP message 
 	Sends a SIP request or response on a given socket (in the pvt)
 	Called by retrans_pkt, send_request, send_response and 
@@ -2760,7 +2769,7 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 	int res = 0;
 	const struct sockaddr_in *dst = sip_real_dst(p);
 
-	ast_debug(1, "Trying to put '%.10s' onto %s socket destined for %s:%d\n", data->str, get_transport(p->socket.type), ast_inet_ntoa(dst->sin_addr), htons(dst->sin_port));
+	ast_debug(1, "Trying to put '%.10s' onto %s socket destined for %s:%d\n", data->str, get_transport_pvt(p), ast_inet_ntoa(dst->sin_addr), htons(dst->sin_port));
 
 	if (sip_prepare_socket(p) < 0)
 		return XMIT_ERROR;
@@ -2804,7 +2813,7 @@ static void build_via(struct sip_pvt *p)
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	ast_string_field_build(p, via, "SIP/2.0/%s %s:%d;branch=z9hG4bK%08x%s",
-			get_transport(p->socket.type),
+			get_transport_pvt(p),
 			ast_inet_ntoa(p->ourip.sin_addr),
 			ntohs(p->ourip.sin_port), p->branch, rport);
 }
@@ -6356,35 +6365,14 @@ static int sip_register(const char *value, int lineno)
 	char buf[256] = "";
 	char *username = NULL;
 	char *hostname=NULL, *secret=NULL, *authuser=NULL, *expiry=NULL;
-	char *porta=NULL;
 	char *callback=NULL;
-	char *trans=NULL;
 
 	if (!value)
 		return -1;
 
 	ast_copy_string(buf, value, sizeof(buf));
 
-	username = strstr(buf, "://");
-
-	if (username) {
-		*username = '\0';
-		username += 3;
-
-		trans = buf;
-
-		if (!strcasecmp(trans, "udp"))
-			transport = SIP_TRANSPORT_UDP;
-		else if (!strcasecmp(trans, "tcp"))
-			transport = SIP_TRANSPORT_TCP;
-		else if (!strcasecmp(trans, "tls"))
-			transport = SIP_TRANSPORT_TLS;
-		else
-			ast_log(LOG_WARNING, "'%s' is not a valid transport value for registration '%s' at line '%d'\n", trans, value, lineno);
-	} else {
-		username = buf;
-		ast_debug(1, "no trans\n");
-	}
+	sip_parse_host(buf, lineno, &username, &portnum, &transport);
 
 	/* First split around the last '@' then parse the two components. */
 	hostname = strrchr(username, '@'); /* allow @ in the first part */
@@ -6411,18 +6399,6 @@ static int sip_register(const char *value, int lineno)
 		*callback++ = '\0';
 	if (ast_strlen_zero(callback))
 		callback = "s";
-	porta = strchr(hostname, ':');
-	if (porta) {
-		*porta++ = '\0';
-		portnum = atoi(porta);
-		if (portnum == 0) {
-			ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
-			return -1;
-		}
-	} else {
-		portnum = (transport == SIP_TRANSPORT_TLS) ?
-			STANDARD_TLS_PORT : STANDARD_SIP_PORT;
-	}
 	if (!(reg = ast_calloc(1, sizeof(*reg)))) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
 		return -1;
@@ -8915,7 +8891,7 @@ static void build_contact(struct sip_pvt *p)
 		else
 			ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr));
 	} else 
-		ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d;transport=%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ntohs(p->socket.port), get_transport(p->socket.type));
+		ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d;transport=%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ntohs(p->socket.port), get_transport_pvt(p));
 }
 
 /*! \brief Build the Remote Party-ID & From using callingpres options */
@@ -19631,6 +19607,10 @@ static int sip_prepare_socket(struct sip_pvt *p)
 	if (s->fd != -1)
 		return s->fd;
 
+	if (p->outboundproxy && p->outboundproxy->transport) {
+		s->type = p->outboundproxy->transport;
+	}
+
 	if (s->type & SIP_TRANSPORT_UDP) {
 		s->fd = sipsock;
 		return s->fd;
@@ -19687,6 +19667,50 @@ static int sip_prepare_socket(struct sip_pvt *p)
 	}
 
 	return s->fd;
+}
+
+/*!
+ * \brief Small function to parse a config line for a host with a transport
+ *        i.e. tls://www.google.com:8056
+ */
+static int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum sip_transport *transport)
+{
+	char *port;
+
+	if ((*hostname = strstr(line, "://"))) {
+		*hostname += 3;
+
+		if (!strncasecmp(line, "tcp", 3))
+			*transport = SIP_TRANSPORT_TCP;
+		else if (!strncasecmp(line, "tls", 3))
+			*transport = SIP_TRANSPORT_TLS;
+		else if (!strncasecmp(line, "udp", 3))
+			*transport = SIP_TRANSPORT_UDP;
+		else
+			ast_log(LOG_NOTICE, "'%.3s' is not a valid transport type on line %d of sip.conf. defaulting to udp.\n", line, lineno);
+	} else {
+		*hostname = line;
+		*transport = SIP_TRANSPORT_UDP;
+	}
+
+	if ((port = strchr(*hostname, ':'))) {
+		*port++ = '\0';
+
+		if (!sscanf(port, "%u", portnum)) {
+			ast_log(LOG_NOTICE, "'%s' is not a valid port number on line %d of sip.conf. using default.\n", port, lineno);
+			port = NULL;
+		}
+	}
+
+	if (!port) {
+		if (*transport & SIP_TRANSPORT_TLS) {
+			*portnum = STANDARD_TLS_PORT;
+		} else {
+			*portnum = STANDARD_SIP_PORT;
+		}
+	}
+
+	return 0;
 }
 
 /*!
@@ -21922,21 +21946,33 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "fromdomain")) {
 			ast_copy_string(default_fromdomain, v->value, sizeof(default_fromdomain));
 		} else if (!strcasecmp(v->name, "outboundproxy")) {
-			char *name, *port = NULL, *force;
+			int portnum;
+			char *tok, *proxyname;
 
-			name = ast_strdupa(v->value);
-			if ((port = strchr(name, ':'))) {
-				*port++ = '\0';
-				global_outboundproxy.ip.sin_port = htons(atoi(port));
+			if (ast_strlen_zero(v->value)) {
+				ast_log(LOG_WARNING, "no value given for outbound proxy on line %d of sip.conf.", v->lineno);
+				continue;
 			}
 
-			if ((force = strchr(port ? port : name, ','))) {
-				*force++ = '\0';
-				global_outboundproxy.force = (!strcasecmp(force, "force"));
-			}
-			ast_copy_string(global_outboundproxy.name, name, sizeof(global_outboundproxy.name));
-			proxy_update(&global_outboundproxy);
+			tok = ast_skip_blanks(strtok(ast_strdupa(v->value), ","));
 
+			sip_parse_host(tok, v->lineno, &proxyname, &portnum, &global_outboundproxy.transport);
+
+			global_outboundproxy.ip.sin_port = htons(portnum);
+	
+			if ((tok = strtok(NULL, ","))) {
+				global_outboundproxy.force = !strncasecmp(ast_skip_blanks(tok), "force", 5);
+			} else {
+				global_outboundproxy.force = FALSE;
+			}
+
+			if (ast_strlen_zero(proxyname)) {
+				ast_log(LOG_WARNING, "you must specify a name for the outboundproxy on line %d of sip.conf.", v->lineno);
+				global_outboundproxy.name[0] = '\0';
+				continue;
+			}
+
+			ast_copy_string(global_outboundproxy.name, proxyname, sizeof(global_outboundproxy.name));
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
 			autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "match_auth_username")) {

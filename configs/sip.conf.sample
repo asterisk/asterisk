@@ -252,6 +252,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;outboundproxy=proxy.provider.domain           ; send outbound signaling to this proxy, not directly to the devices
 ;outboundproxy=proxy.provider.domain:8080       ; send outbound signaling to this proxy, not directly to the devices
 ;outboundproxy=proxy.provider.domain,force      ; Send ALL outbound signalling to proxy, ignoring route: headers
+;outboundproxy=tls://proxy.provider.domain		; same as '=proxy.provider.domain' except we try to connect with tls 
+;                                               ; (could also be tcp,udp) - defining transports on the proxy line only
+;                                               ; applies for the global proxy, otherwise use the transport= option
 ;matchexterniplocally = yes     ; Only substitute the externip or externhost setting if it matches
                                 ; your localnet setting. Unless you have some sort of strange network
                                 ; setup you will not need to enable this.
