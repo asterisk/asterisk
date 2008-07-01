@@ -1216,11 +1216,7 @@ void ast_backtrace(void)
 	if ((strings = backtrace_symbols(backtrace->addresses, backtrace->num_frames))) {
 		ast_debug(1, "Got %d backtrace record%c\n", backtrace->num_frames, backtrace->num_frames != 1 ? 's' : ' ');
 		for (i = 0; i < backtrace->num_frames; i++) {
-#if __WORDSIZE == 32
-			ast_log(LOG_DEBUG, "#%d: [%08X] %s\n", i, (unsigned int)backtrace->addresses[i], strings[i]);
-#elif __WORDSIZE == 64
-			ast_log(LOG_DEBUG, "#%d: [%016lX] %s\n", i, (unsigned long)backtrace->addresses[i], strings[i]);
-#endif
+			ast_log(LOG_DEBUG, "#%d: [%p] %s\n", i, backtrace->addresses[i], strings[i]);
 		}
 		free(strings);
 	} else {
