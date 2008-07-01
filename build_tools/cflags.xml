@@ -13,6 +13,8 @@
 		</member>
 		<member name="STATIC_BUILD" displayname="Build static binaries">
 		</member>
+		<member name="IAX_OLD_FIND" displayname="Use the old, slow method of searching for IAX callnos">
+		</member>
 		<member name="LOADABLE_MODULES" displayname="Runtime module loading">
 			<defaultenabled>yes</defaultenabled>
 		</member>
