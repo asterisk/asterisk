@@ -13584,10 +13584,17 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 {
 	int res;
 
-	res = get_destination(p, req);
-	build_contact(p);
 
 	/* XXX Should we authenticate OPTIONS? XXX */
+
+	if (p->lastinvite) {
+		/* if this is a request in an active dialog, just confirm that the dialog exists. */
+		transmit_response_with_allow(p, "200 OK", req, 0);
+		return 0;
+	}
+
+	res = get_destination(p, req);
+	build_contact(p);
 
 	if (ast_strlen_zero(p->context))
 		ast_string_field_set(p, context, default_context);
@@ -13601,8 +13608,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 
 	/* Destroy if this OPTIONS was the opening request, but not if
 	   it's in the middle of a normal call flow. */
-	if (!p->lastinvite)
-		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+	sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 
 	return res;
 }
