@@ -1556,6 +1556,15 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
  			}
  		}
 
+		/* This will occur on the first response to a message that we initiated,
+		 * such as a PING. */
+		if (callno && dcallno && iaxs[dcallno] && !iaxs[dcallno]->peercallno && match(sin, callno, dcallno, iaxs[dcallno], check_dcallno)) {
+			iaxs[dcallno]->peercallno = callno;
+			res = dcallno;
+			store_by_peercallno(iaxs[dcallno]);
+			return res;
+		}
+
 		/* If we get here, we SHOULD NOT find a call structure for this
 		   callno; if we do, it means that there is a call structure that
 		   has a peer callno but did NOT get entered into the hash table,
