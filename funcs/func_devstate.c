@@ -24,6 +24,8 @@
  *
  * \ingroup functions
  *
+ * \todo Delete the entry from AstDB when set to nothing like Set(DEVICE_STATE(Custom:lamp1)=)
+ *
  * \note Props go out to Ahrimanes in \#asterisk for requesting this at 4:30 AM
  *       when I couldn't sleep.  :)
  */
