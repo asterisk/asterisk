@@ -1696,15 +1696,31 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 	switch (chan->_state) {
 	case AST_STATE_RINGING:
 	case AST_STATE_RING:
-		if (chan->tech->answer)
-			res = chan->tech->answer(chan);
-		ast_setstate(chan, AST_STATE_UP);
-		ast_cdr_answer(chan->cdr);
-		ast_channel_unlock(chan);
-		if (delay)
+		if (delay) {
+			int needanswer = (chan->tech->answer != NULL);
+
+			ast_setstate(chan, AST_STATE_UP);
+			ast_cdr_answer(chan->cdr);
+			ast_channel_unlock(chan);
 			ast_safe_sleep(chan, delay);
+			/* don't tell the channel it has been answered until *after* the delay,
+			   so that the media path will be in place and usable when it wants to
+			   send media
+			*/
+			if (needanswer) {
+				ast_channel_lock(chan);
+				res = chan->tech->answer(chan);
+				ast_channel_unlock(chan);
+			}
+		} else {
+			if (chan->tech->answer) {
+				res = chan->tech->answer(chan);
+			}
+			ast_setstate(chan, AST_STATE_UP);
+			ast_cdr_answer(chan->cdr);
+			ast_channel_unlock(chan);
+		}
 		return res;
-		break;
 	case AST_STATE_UP:
 		ast_cdr_answer(chan->cdr);
 		break;
