@@ -539,6 +539,12 @@
 /* Define to indicate the ${OGG_DESCRIP} library version */
 #undef HAVE_OGG_VERSION
 
+/* Define this to indicate the ${OPENAIS_DESCRIP} library */
+#undef HAVE_OPENAIS
+
+/* Define to indicate the ${OPENAIS_DESCRIP} library version */
+#undef HAVE_OPENAIS_VERSION
+
 /* Define if your system has the OpenH323 libraries. */
 #undef HAVE_OPENH323
 
@@ -691,18 +697,6 @@
 
 /* Define RTLD_NOLOAD headers version */
 #undef HAVE_RTLD_NOLOAD_VERSION
-
-/* Define this to indicate the ${SACLM_DESCRIP} library */
-#undef HAVE_SACLM
-
-/* Define to indicate the ${SACLM_DESCRIP} library version */
-#undef HAVE_SACLM_VERSION
-
-/* Define this to indicate the ${SAEVT_DESCRIP} library */
-#undef HAVE_SAEVT
-
-/* Define to indicate the ${SAEVT_DESCRIP} library version */
-#undef HAVE_SAEVT_VERSION
 
 /* Define to 1 if your system has /sbin/launchd. */
 #undef HAVE_SBIN_LAUNCHD
@@ -1175,6 +1169,9 @@
 #endif
 #ifndef _POSIX_PTHREAD_SEMANTICS
 # undef _POSIX_PTHREAD_SEMANTICS
+#endif
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
 #endif
 
 /* Define like PROTOTYPES; this can be used by system headers. */

@@ -25,12 +25,12 @@
  * \arg http://www.openais.org/
  */
 
-#ifndef AST_AIS_H
-#define AST_AIS_H
+#ifndef RES_AIS_AIS_H
+#define RES_AIS_AIS_H
 
-#include <openais/saAis.h>
-#include <openais/saClm.h>
-#include <openais/saEvt.h>
+#include <saAis.h>
+#include <saClm.h>
+#include <saEvt.h>
 
 extern SaVersionT ais_version;
 
@@ -45,4 +45,4 @@ int ast_ais_evt_unload_module(void);
 
 const char *ais_err2str(SaAisErrorT error);
 
-#endif /* AST_AIS_H */
+#endif /* RES_AIS_AIS_H */

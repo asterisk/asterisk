@@ -29,8 +29,7 @@
  */
 
 /*** MODULEINFO
-	<depend>SaClm</depend>
-	<depend>SaEvt</depend>
+	<depend>ais</depend>
  ***/
 
 #include "asterisk.h"
