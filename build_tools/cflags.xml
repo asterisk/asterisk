@@ -42,4 +42,6 @@
 		<member name="BUSYDETECT_DEBUG" displayname="Enable additional busy detection debugging">
 			<defaultenabled>no</defaultenabled>
 		</member>
+		<member name="IAX_OLD_FIND" displayname="Use the old, slow method of searching for IAX callnos">
+		</member>
 	</category>
