@@ -1682,7 +1682,6 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 		if (delay) {
 			int needanswer = (chan->tech->answer != NULL);
 
-			ast_setstate(chan, AST_STATE_UP);
 			ast_cdr_answer(chan->cdr);
 			ast_channel_unlock(chan);
 			ast_safe_sleep(chan, delay);
@@ -1695,6 +1694,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 				res = chan->tech->answer(chan);
 				ast_channel_unlock(chan);
 			}
+			ast_setstate(chan, AST_STATE_UP);	
 		} else {
 			if (chan->tech->answer) {
 				res = chan->tech->answer(chan);
