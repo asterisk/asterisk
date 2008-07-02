@@ -892,9 +892,11 @@ static void *video_thread(void *arg)
 	video_out_init(env);
 
 	/* Writes intial status of the sources. */
-	for (i = 0; i < env->out.device_num; i++) {
+	if (env->gui) {
+	    for (i = 0; i < env->out.device_num; i++) {
 		print_message(env->gui->thumb_bd_array[i].board,
 		 src_msgs[env->out.devices[i].status_index]);
+	    }
 	}
 
 	for (;;) {
