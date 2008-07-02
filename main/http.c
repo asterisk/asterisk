@@ -143,6 +143,13 @@ static uint32_t manid_from_vars(struct ast_variable *sid) {
 	return mngid;
 }
 
+void ast_http_prefix(char *buf, int len)
+{
+	if (buf) {
+		ast_copy_string(buf, prefix, len);
+	}
+}
+
 static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *vars, struct ast_variable *headers, int *status, char **title, int *contentlength)
 {
 	char *path;

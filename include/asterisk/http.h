@@ -105,4 +105,7 @@ void ast_http_uri_unlink_all_with_key(const char *key);
 /*! \brief Return an ast_str malloc()'d string containing an HTTP error message */
 struct ast_str *ast_http_error(int status, const char *title, const char *extra_header, const char *text);
 
+/*! \brief Return the current prefix */
+void ast_http_prefix(char *buf, int len);
+
 #endif /* _ASTERISK_SRV_H */
