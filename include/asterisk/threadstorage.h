@@ -75,7 +75,7 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
 /*!
  * \brief Define a thread storage variable
  *
- * \arg name The name of the thread storage object
+ * \param name The name of the thread storage object
  *
  * This macro would be used to declare an instance of thread storage in a file.
  *
@@ -90,11 +90,11 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
 /*!
  * \brief Define a thread storage variable, with custom initialization and cleanup
  *
- * \arg name The name of the thread storage object
- * \arg init This is a custom function that will be called after each thread specific
+ * \param name The name of the thread storage object
+ * \param init This is a custom function that will be called after each thread specific
  *           object is allocated, with the allocated block of memory passed
  *           as the argument.
- * \arg cleanup This is a custom function that will be called instead of ast_free
+ * \param cleanup This is a custom function that will be called instead of ast_free
  *              when the thread goes away.  Note that if this is used, it *MUST*
  *              call free on the allocated memory.
  *
@@ -137,11 +137,11 @@ static void __init_##name(void)					\
 /*!
  * \brief Retrieve thread storage
  *
- * \arg ts This is a pointer to the thread storage structure declared by using
+ * \param ts This is a pointer to the thread storage structure declared by using
  *      the AST_THREADSTORAGE macro.  If declared with 
  *      AST_THREADSTORAGE(my_buf, my_buf_init), then this argument would be 
  *      (&my_buf).
- * \arg init_size This is the amount of space to be allocated the first time
+ * \param init_size This is the amount of space to be allocated the first time
  *      this thread requests its data. Thus, this should be the size that the
  *      code accessing this thread storage is assuming the size to be.
  *

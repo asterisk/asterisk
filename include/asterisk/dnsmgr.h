@@ -40,8 +40,8 @@ struct ast_dnsmgr_entry;
 /*!
  * \brief Allocate a new DNS manager entry
  *
- * \arg name the hostname
- * \arg result where the DNS manager should store the IP address as it refreshes it.
+ * \param name the hostname
+ * \param result where the DNS manager should store the IP address as it refreshes it.
  *      it.
  *
  * This function allocates a new DNS manager entry object, and fills it with the
@@ -56,7 +56,7 @@ struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct sockaddr_in *re
 /*!
  * \brief Free a DNS manager entry
  *
- * \arg entry the DNS manager entry to free
+ * \param entry the DNS manager entry to free
  *
  * \return nothing
  */
@@ -65,9 +65,9 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
 /*!
  * \brief Allocate and initialize a DNS manager entry
  *
- * \arg name the hostname
- * \arg result where to store the IP address as the DNS manager refreshes it
- * \arg dnsmgr Where to store the allocate DNS manager entry
+ * \param name the hostname
+ * \param result where to store the IP address as the DNS manager refreshes it
+ * \param dnsmgr Where to store the allocate DNS manager entry
  *
  * This function allocates a new DNS manager entry object, and fills it with
  * the provided hostname and IP address.  This function _does_ force an initial

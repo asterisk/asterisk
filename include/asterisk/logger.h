@@ -183,14 +183,14 @@ void ast_console_toggle_loglevel(int fd, int leve, int state);
 
 /*!
  * \brief Get the debug level for a file
- * \arg file the filename
+ * \param file the filename
  * \return the debug level
  */
 unsigned int ast_debug_get_by_file(const char *file);
 
 /*!
  * \brief Get the debug level for a file
- * \arg file the filename
+ * \param file the filename
  * \return the debug level
  */
 unsigned int ast_verbose_get_by_file(const char *file);

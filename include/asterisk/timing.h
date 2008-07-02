@@ -107,7 +107,7 @@ int ast_timer_open(void);
 /*!
  * \brief Close an opened timing handle
  *
- * \arg handle timing fd returned from timer_open()
+ * \param handle timing fd returned from timer_open()
  *
  * \return nothing
  */
@@ -116,8 +116,8 @@ void ast_timer_close(int handle);
 /*!
  * \brief Set the timing tick rate
  *
- * \arg handle timing fd returned from timer_open()
- * \arg rate ticks per second, 0 turns the ticks off if needed
+ * \param handle timing fd returned from timer_open()
+ * \param rate ticks per second, 0 turns the ticks off if needed
  *
  * Use this function if you want the timing fd to show input at a certain
  * rate.  The other alternative use of a timing fd, is using the continuous
@@ -131,8 +131,8 @@ int ast_timer_set_rate(int handle, unsigned int rate);
 /*!
  * \brief Acknowledge a timer event
  *
- * \arg handle timing fd returned from timer_open()
- * \arg quantity number of timer events to acknowledge
+ * \param handle timing fd returned from timer_open()
+ * \param quantity number of timer events to acknowledge
  *
  * \note This function should only be called if timer_get_event()
  *       returned AST_TIMING_EVENT_EXPIRED.
@@ -144,7 +144,7 @@ void ast_timer_ack(int handle, unsigned int quantity);
 /*!
  * \brief Enable continuous mode
  *
- * \arg handle timing fd returned from timer_open()
+ * \param handle timing fd returned from timer_open()
  *
  * Continuous mode causes poll() on the timing fd to immediately return
  * always until continuous mode is disabled.
@@ -157,7 +157,7 @@ int ast_timer_enable_continuous(int handle);
 /*!
  * \brief Disable continuous mode
  *
- * \arg handle timing fd returned from timer_close()
+ * \param handle timing fd returned from timer_close()
  *
  * \retval -1 failure, with errno set
  * \retval 0 success
@@ -167,7 +167,7 @@ int ast_timer_disable_continuous(int handle);
 /*!
  * \brief Determine timing event
  *
- * \arg handle timing fd returned by timer_open()
+ * \param handle timing fd returned by timer_open()
  *
  * After poll() indicates that there is input on the timing fd, this will
  * be called to find out what triggered it.
@@ -179,7 +179,7 @@ enum ast_timing_event ast_timer_get_event(int handle);
 /*!
  * \brief Get maximum rate supported for a timing handle
  *
- * \arg handle timing fd returned by timer_open()
+ * \param handle timing fd returned by timer_open()
  *
  * \return maximum rate supported for timing handle
  */

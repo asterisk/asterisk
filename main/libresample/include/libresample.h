@@ -27,12 +27,12 @@ extern "C" {
 /*!
  * \brief Create a resampler
  *
- * \arg highQuality Set this argument to non-zero to enable higher quality
+ * \param highQuality Set this argument to non-zero to enable higher quality
  *      resampling.  
- * \arg minFactor This is the minimum resampling factor that will be used for
+ * \param minFactor This is the minimum resampling factor that will be used for
  *      this resampler.  The resampling factor is calculated in the following
  *      way: ( from sample rate / to sample rate ).
- * \arg maxFactor This is the maximum resampling factor that will be used for
+ * \param maxFactor This is the maximum resampling factor that will be used for
  *      this resampler.
  *
  * Use this function to create a new resampler that will maintain state
@@ -47,7 +47,7 @@ void *resample_open(int      highQuality,
 /*!
  * \brief Duplicate a resampler
  *
- * \arg handle the resampler to duplicate
+ * \param handle the resampler to duplicate
  *
  * \return A new handle to a resampler, initialized with the same parameters
  * used to create the original resampler.
@@ -57,7 +57,7 @@ void *resample_dup(const void *handle);
 /*!
  * \brief Get filter width for resampler
  * 
- * \arg handle the resampler
+ * \param handle the resampler
  *
  * \return the filter width.
  */
@@ -66,22 +66,22 @@ int resample_get_filter_width(const void *handle);
 /*!
  * \brief Resample a chunk of audio
  *
- * \arg handle the resampler
- * \arg factor the resampling factor.  This factor should be calculated as
+ * \param handle the resampler
+ * \param factor the resampling factor.  This factor should be calculated as
  *      ( from sample rate / to sample rate ).  So, for converting from 8 kHz
  *      to 16 kHz, this value would be 2.0.
- * \arg inBuffer the input buffer for audio to resample.
- * \arg inBufferLen the number of samples in the input buffer
- * \arg lastFlag Set this argument to non-zero if the data in the input buffer
+ * \param inBuffer the input buffer for audio to resample.
+ * \param inBufferLen the number of samples in the input buffer
+ * \param lastFlag Set this argument to non-zero if the data in the input buffer
  *      is known to be the end of a stream.  This would be used if you're
  *      resampling a file, for example.
- * \arg inBufferUsed This is an output parameter that indicates how many
+ * \param inBufferUsed This is an output parameter that indicates how many
  *      samples were consumed from the input buffer.  Generally, this function
  *      is called in a loop until you know that the entire input buffer has
  *      been consumed, as it may take multiple calls to complete.
- * \arg outBuffer This is the output buffer.  This function will write the
+ * \param outBuffer This is the output buffer.  This function will write the
  *      resampled audio into this buffer.
- * \arg outBufferLen This parameter specifies how many samples there is room
+ * \param outBufferLen This parameter specifies how many samples there is room
  *      for in the output buffer.
  *
  * This is the main function used for resampling audio.  It should be called
@@ -104,7 +104,7 @@ int resample_process(void   *handle,
 /*!
  * \brief Close a resampler
  *
- * \arg handle the resampler to close
+ * \param handle the resampler to close
  * 
  * Use this function to release a handle to a resampler that was created using
  * either resample_open() or resample_dup().

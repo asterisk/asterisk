@@ -43,7 +43,7 @@ struct ast_slinfactory {
 /*!
  * \brief Initialize an slinfactory
  *
- * \arg sf The slinfactory to initialize
+ * \param sf The slinfactory to initialize
  *
  * \return Nothing
  */
@@ -52,7 +52,7 @@ void ast_slinfactory_init(struct ast_slinfactory *sf);
 /*!
  * \brief Destroy the contents of a slinfactory
  *
- * \arg sf The slinfactory that is no longer needed
+ * \param sf The slinfactory that is no longer needed
  *
  * This function will free any memory allocated for the contents of the
  * slinfactory.  It does not free the slinfactory itself.  If the sf is
@@ -65,8 +65,8 @@ void ast_slinfactory_destroy(struct ast_slinfactory *sf);
 /*!
  * \brief Feed audio into an slinfactory
  *
- * \arg sf The slinfactory to feed into
- * \arg f Frame containing audio to feed in
+ * \param sf The slinfactory to feed into
+ * \param f Frame containing audio to feed in
  *
  * \return Number of frames currently in factory
  */
@@ -75,9 +75,9 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f);
 /*!
  * \brief Read samples from an slinfactory
  *
- * \arg sf The slinfactory to read from
- * \arg buf Buffer to put samples into
- * \arg samples Number of samples wanted
+ * \param sf The slinfactory to read from
+ * \param buf Buffer to put samples into
+ * \param samples Number of samples wanted
  *
  * \return Number of samples read
  */
@@ -86,7 +86,7 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples)
 /*!
  * \brief Retrieve number of samples currently in an slinfactory
  *
- * \arg sf The slinfactory to peek into
+ * \param sf The slinfactory to peek into
  *
  * \return Number of samples in slinfactory
  */
@@ -95,7 +95,7 @@ unsigned int ast_slinfactory_available(const struct ast_slinfactory *sf);
 /*!
  * \brief Flush the contents of an slinfactory
  *
- * \arg sf The slinfactory to flush
+ * \param sf The slinfactory to flush
  *
  * \return Nothing
  */

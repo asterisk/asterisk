@@ -62,8 +62,7 @@ static force_inline int ast_strlen_zero(const char *s)
 
 /*!
   \brief Gets a pointer to the first non-whitespace character in a string.
-  \param ast_skip_blanks function being used
-  \arg str the input string
+  \param str the input string
   \return a pointer to the first non-whitespace character
  */
 AST_INLINE_API(
@@ -77,8 +76,7 @@ char *ast_skip_blanks(const char *str),
 
 /*!
   \brief Trims trailing whitespace characters from a string.
-  \param ast_skip_blanks function being used
-  \arg str the input string
+  \param str the input string
   \return a pointer to the modified string
  */
 AST_INLINE_API(
@@ -103,8 +101,7 @@ char *ast_trim_blanks(char *str),
 
 /*!
   \brief Gets a pointer to first whitespace character in a string.
-  \param ast_skip_noblanks function being used
-  \arg str the input string
+  \param str the input string
   \return a pointer to the first whitespace character
  */
 AST_INLINE_API(
@@ -118,8 +115,7 @@ char *ast_skip_nonblanks(char *str),
   
 /*!
   \brief Strip leading/trailing whitespace from a string.
-  \param ast_strip function ast_strip being used.
-  \arg s The string to be stripped (will be modified).
+  \param s The string to be stripped (will be modified).
   \return The stripped string.
 
   This functions strips all leading and trailing whitespace
@@ -178,9 +174,9 @@ char *ast_unescape_c(char *s);
 
 /*!
   \brief Size-limited null-terminating string copy.
-  \arg dst The destination buffer.
-  \arg src The source string
-  \arg size The size of the destination buffer
+  \param dst The destination buffer.
+  \param src The source string
+  \param size The size of the destination buffer
   \return Nothing.
 
   This is similar to \a strncpy, with two important differences:
@@ -213,9 +209,9 @@ void ast_copy_string(char *dst, const char *src, size_t size),
   This is a wrapper for snprintf, that properly handles the buffer pointer
   and buffer space available.
 
-  \arg buffer current position in buffer to place string into (will be updated on return)
-  \arg space remaining space in buffer (will be updated on return)
-  \arg fmt printf-style format string
+  \param buffer current position in buffer to place string into (will be updated on return)
+  \param space remaining space in buffer (will be updated on return)
+  \param fmt printf-style format string
   \retval 0 on success
   \retval non-zero on failure.
 */
@@ -325,7 +321,7 @@ int ast_get_timeval(const char *src, struct timeval *tv, struct timeval _default
  *	ast_str_set_va(&buf, max_len, ap)
  *	ast_str_append_va(&buf, max_len, ap)
  *
- * \arg max_len The maximum allowed length, reallocating if needed.
+ * \param max_len The maximum allowed length, reallocating if needed.
  * 	0 means unlimited, -1 means "at most the available space"
  *
  * \return All the functions return <0 in case of error, or the
@@ -352,7 +348,7 @@ struct ast_str {
 /*!
  * \brief Create a malloc'ed dynamic length string
  *
- * \arg init_len This is the initial length of the string buffer
+ * \param init_len This is the initial length of the string buffer
  *
  * \return This function returns a pointer to the dynamic string length.  The
  *         result will be NULL in the case of a memory allocation error.
@@ -444,11 +440,11 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 /*!
  * \brief Retrieve a thread locally stored dynamic string
  *
- * \arg ts This is a pointer to the thread storage structure declared by using
+ * \param ts This is a pointer to the thread storage structure declared by using
  *      the AST_THREADSTORAGE macro.  If declared with 
  *      AST_THREADSTORAGE(my_buf, my_buf_init), then this argument would be 
  *      (&my_buf).
- * \arg init_len This is the initial length of the thread's dynamic string. The
+ * \param init_len This is the initial length of the thread's dynamic string. The
  *      current length may be bigger if previous operations in this thread have
  *      caused it to increase.
  *
@@ -540,15 +536,15 @@ enum {
 /*!
  * \brief Set a dynamic string from a va_list
  *
- * \arg buf This is the address of a pointer to a struct ast_str.
+ * \param buf This is the address of a pointer to a struct ast_str.
  *	If it is retrieved using ast_str_thread_get, the
 	struct ast_threadstorage pointer will need to
  *      be updated in the case that the buffer has to be reallocated to
  *      accommodate a longer string than what it currently has space for.
- * \arg max_len This is the maximum length to allow the string buffer to grow
+ * \param max_len This is the maximum length to allow the string buffer to grow
  *      to.  If this is set to 0, then there is no maximum length.
- * \arg fmt This is the format string (printf style)
- * \arg ap This is the va_list
+ * \param fmt This is the format string (printf style)
+ * \param ap This is the va_list
  *
  * \return The return value of this function is the same as that of the printf
  *         family of functions.
@@ -634,14 +630,14 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
 /*!
  * \brief Set a dynamic string using variable arguments
  *
- * \arg buf This is the address of a pointer to a struct ast_str which should
+ * \param buf This is the address of a pointer to a struct ast_str which should
  *      have been retrieved using ast_str_thread_get.  It will need to
  *      be updated in the case that the buffer has to be reallocated to
  *      accomodate a longer string than what it currently has space for.
- * \arg max_len This is the maximum length to allow the string buffer to grow
+ * \param max_len This is the maximum length to allow the string buffer to grow
  *      to.  If this is set to 0, then there is no maximum length.
  *	If set to -1, we are bound to the current maximum length.
- * \arg fmt This is the format string (printf style)
+ * \param fmt This is the format string (printf style)
  *
  * \return The return value of this function is the same as that of the printf
  *         family of functions.

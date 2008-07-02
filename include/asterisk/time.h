@@ -57,9 +57,8 @@ int ast_tvdiff_sec(struct timeval end, struct timeval start),
 
 /*!
  * \brief Computes the difference (in microseconds) between two \c struct \c timeval instances.
- * \param ast_tvdiff_sec 
- * \arg end the end of the time period
- * \arg start the beginning of the time period
+ * \param end the end of the time period
+ * \param start the beginning of the time period
  * \return the difference in microseconds
  */
 AST_INLINE_API(

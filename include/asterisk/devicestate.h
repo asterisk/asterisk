@@ -204,7 +204,7 @@ struct ast_devstate_aggregate;
 /*!
  * \brief Initialize aggregate device state
  *
- * \arg agg the state object
+ * \param agg the state object
  *
  * \return nothing
  */
@@ -213,8 +213,8 @@ void ast_devstate_aggregate_init(struct ast_devstate_aggregate *agg);
 /*!
  * \brief Add a device state to the aggregate device state
  *
- * \arg agg the state object
- * \arg state the state to add
+ * \param agg the state object
+ * \param state the state to add
  *
  * \return nothing
  */
@@ -223,7 +223,7 @@ void ast_devstate_aggregate_add(struct ast_devstate_aggregate *agg, enum ast_dev
 /*!
  * \brief Get the aggregate device state result
  *
- * \arg agg the state object
+ * \param agg the state object
  *
  * \return the aggregate device state after adding some number of device states.
  */

@@ -708,8 +708,8 @@ void *_ao2_link(struct ao2_container *c, void *newobj);
 /*!
  * \brief Remove an object from the container
  *
- * \arg c the container
- * \arg obj the object to unlink
+ * \param c the container
+ * \param obj the object to unlink
  *
  * \retval NULL, always
  *
