@@ -20106,10 +20106,21 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_log(LOG_WARNING, "'%s' is not a valid T1 time at line %d.  Using default.\n", v->value, v->lineno);
 				peer->timer_t1 = global_t1;
 			}
+			/* Note that Timer B is dependent upon T1 and MUST NOT be lower
+			 * than T1 * 64, according to RFC 3261, Section 17.1.1.2 */
+			if (peer->timer_b < peer->timer_t1 * 64) {
+				peer->timer_b = peer->timer_t1 * 64;
+			}
 		} else if (!strcasecmp(v->name, "timerb")) {
 			if ((sscanf(v->value, "%d", &peer->timer_b) != 1) || (peer->timer_b < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid Timer B time at line %d.  Using default.\n", v->value, v->lineno);
 				peer->timer_b = global_timer_b;
+			}
+			if (peer->timer_b < peer->timer_t1 * 64) {
+				static int warning = 0;
+				if (warning++ % 20 == 0) {
+					ast_log(LOG_WARNING, "Timer B has been set lower than recommended. (RFC 3261, 17.1.1.2)\n");
+				}
 			}
 		} else if (!strcasecmp(v->name, "setvar")) {
 			peer->chanvars = add_var(v->value, peer->chanvars);
@@ -20476,6 +20487,13 @@ static int reload_config(enum channelreloadreason reason)
 			sip_cfg.peer_rtupdate = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "ignoreregexpire")) {
 			sip_cfg.ignore_regexpire = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "timert1")) {
+			/* Defaults to 500ms, but RFC 3261 states that it is recommended
+			 * for the value to be set higher, though a lower value is only
+			 * allowed on private networks unconnected to the Internet. */
+			global_t1 = atoi(v->value);
+			/* Note that timer B is dependent on the value of T1 */
+			global_timer_b = global_t1 * 64;
 		} else if (!strcasecmp(v->name, "t1min")) {
 			global_t1min = atoi(v->value);
 		} else if (!strcasecmp(v->name, "tcpenable")) {
