@@ -1902,6 +1902,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 
 	ast_copy_string(agent_goodbye, agentgoodbye, sizeof(agent_goodbye));
 
+	ast_channel_lock(chan);
 	/* Set Channel Specific Login Overrides */
 	if (pbx_builtin_getvar_helper(chan, "AGENTLMAXLOGINTRIES") && strlen(pbx_builtin_getvar_helper(chan, "AGENTLMAXLOGINTRIES"))) {
 		max_login_tries = atoi(pbx_builtin_getvar_helper(chan, "AGENTMAXLOGINTRIES"));
@@ -1926,6 +1927,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTGOODBYE=%s, setting agent_goodbye to: %s on Channel '%s'.\n",tmpoptions,agent_goodbye,chan->name);
 	}
+	ast_channel_unlock(chan);
 	/* End Channel Specific Login Overrides */
 	
 	if (callbackmode && args.extension) {
@@ -1972,6 +1974,8 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 		/* Check again for accuracy */
 		AST_LIST_LOCK(&agents);
 		AST_LIST_TRAVERSE(&agents, p, list) {
+			int unlock_channel = 1;
+			ast_channel_lock(chan);
 			ast_mutex_lock(&p->lock);
 			if (!strcmp(p->agent, user) &&
 			    !strcmp(p->password, pass) && !p->pending) {
@@ -2009,6 +2013,8 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTWRAPUPTIME=%s, setting wrapuptime to: %d for Agent '%s'.\n",tmpoptions,p->wrapuptime,p->agent);
 				}
+				ast_channel_unlock(chan);
+				unlock_channel = 0;
 				/* End Channel Specific Agent Overrides */
 				if (!p->chan) {
 					char last_loginchan[80] = "";
@@ -2246,6 +2252,9 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 				break;
 			}
 			ast_mutex_unlock(&p->lock);
+			if (unlock_channel) {
+				ast_channel_unlock(chan);
+			}
 		}
 		if (!p)
 			AST_LIST_UNLOCK(&agents);
