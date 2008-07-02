@@ -28,3 +28,11 @@
  -- Audit all channel/res/app/etc. modules to ensure that they do not register any entrypoints with the Asterisk core until after they are ready to service requests; all config file reading/processing, structure allocation, etc. must be completed before Asterisk is made aware of any services the module offers.
 
  -- Ensure that Realtime-enabled modules do not depend on the order of columns returned by the database lookup (example: outboundproxy and host settings in chan_sip).
+
+ -- There are several places in the code where the length of arrays is calculated in-line with sizeof() and division. A common place to find this is in for loops, like this:
+
+ 	for (i = 0; i < sizeof(array)/sizeof(array[0]); i++)
+
+	There is a macro in utils.h called ARRAY_LEN which should be used instead for readability's sake.
+
+	for (i = 0; i < ARRAY_LEN(array); i++)
