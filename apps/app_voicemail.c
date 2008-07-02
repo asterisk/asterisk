@@ -5128,8 +5128,10 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	int valid_extensions = 0;
 	char *dir;
 	int curmsg;
-	char *urgent_str = urgent ? "Urgent" : "";
+	char urgent_str[7] = "";
 	char tmptxtfile[PATH_MAX];
+
+	ast_copy_string(urgent_str, urgent ? "Urgent" : "", sizeof(urgent_str));
 
 	if (vms == NULL) return -1;
 	dir = vms->curdir;
@@ -10559,15 +10561,17 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 		case '4':
 			if (outsidecaller) {  /* only mark vm messages */
 				/* Mark Urgent */
-				if (!ast_strlen_zero(flag) && strcmp(flag, "Urgent")) {
+				if ((flag && ast_strlen_zero(flag)) || (!ast_strlen_zero(flag) && strcmp(flag, "Urgent"))) {
 					ast_verbose(VERBOSE_PREFIX_3 "marking message as Urgent\n");
 					ast_debug(1000, "This message is too urgent!\n");
 					res = ast_play_and_wait(chan, "vm-marked-urgent");
 					strcpy(flag, "Urgent");
-				} else {
+				} else if (flag) {
 					ast_verbose(VERBOSE_PREFIX_3 "UNmarking message as Urgent\n");
 					res = ast_play_and_wait(chan, "vm-urgent-removed");
 					strcpy(flag, "");
+				} else {
+					ast_play_and_wait(chan, "vm-sorry");
 				}
 				cmd = 0;
 			} else {
@@ -10610,8 +10614,10 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 					ast_play_and_wait(chan, "vm-msgsaved");
 					cmd = '0';
 				} else if (cmd == '4') {
-					ast_play_and_wait(chan, "vm-marked-urgent");
-					strcpy(flag, "Urgent");
+					if (flag) {
+						ast_play_and_wait(chan, "vm-marked-urgent");
+						strcpy(flag, "Urgent");
+					}
 					ast_play_and_wait(chan, "vm-msgsaved");
 					cmd = '0';
 				} else {
@@ -10630,10 +10636,10 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			if (message_exists) {
 				cmd = ast_play_and_wait(chan, "vm-review");
 				if (!cmd && outsidecaller) {
-					if (!ast_strlen_zero(flag) && strcmp(flag, "Urgent")) {
+					if ((flag && ast_strlen_zero(flag)) || (!ast_strlen_zero(flag) && strcmp(flag, "Urgent"))) {
 						cmd = ast_play_and_wait(chan, "vm-review-urgent");
-					} else {
-						cmd = ast_play_and_wait(chan, "vm-review-unurgent");
+					} else if (flag) {
+						cmd = ast_play_and_wait(chan, "vm-review-nonurgent");
 					}
 				}
 			} else {
