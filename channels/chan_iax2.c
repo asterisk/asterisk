@@ -6948,7 +6948,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 		iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
 		if (!ast_strlen_zero(p->mailbox)) {
 			struct ast_event *event;
-			int new, old, urgent;
+			int new, old;
 			char *mailbox, *context;
 
 			context = mailbox = ast_strdupa(p->mailbox);
@@ -6966,15 +6966,16 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 				new = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
 				old = ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
 				ast_event_destroy(event);
-			} else /* Fall back on checking the mailbox directly */
-				ast_app_inboxcount(p->mailbox, &urgent, &new, &old);
+			} else { /* Fall back on checking the mailbox directly */
+				ast_app_inboxcount(p->mailbox, &new, &old);
+			}
 
-			if (urgent > 255)
-				urgent = 255;
-			if (new > 255)
+			if (new > 255) {
 				new = 255;
-			if (old > 255)
+			}
+			if (old > 255) {
 				old = 255;
+			}
 			msgcount = (old << 8) | new;
 
 			iax_ie_append_short(&ied, IAX_IE_MSGCOUNT, msgcount);

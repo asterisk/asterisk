@@ -2430,7 +2430,7 @@ static int action_mailboxcount(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
-	ast_app_inboxcount(mailbox, &urgentmsgs, &newmsgs, &oldmsgs);
+	ast_app_inboxcount2(mailbox, &urgentmsgs, &newmsgs, &oldmsgs);
 	astman_start_ack(s, m);
 	astman_append(s,   "Message: Mailbox Message Count\r\n"
 			   "Mailbox: %s\r\n"

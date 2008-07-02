@@ -104,17 +104,21 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
 int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
 
 void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
-			      int (*inboxcount_func)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs),
+			      int (*inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs),
+			      int (*inboxcount2_func)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs),
 			      int (*messagecount_func)(const char *context, const char *mailbox, const char *folder),
 			      int (*sayname_func)(struct ast_channel *chan, const char *mailbox, const char *context));
-  
+
 void ast_uninstall_vm_functions(void);
 
 /*! \brief Determine if a given mailbox has any voicemail */
 int ast_app_has_voicemail(const char *mailbox, const char *folder);
 
+/*! \brief Determine number of new/old messages in a mailbox */
+int ast_app_inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs);
+
 /*! \brief Determine number of urgent/new/old messages in a mailbox */
-int ast_app_inboxcount(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs);
+int ast_app_inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs);
 
 /*! Given a mailbox and context, play that mailbox owner's name to the channel specified */
 int ast_app_sayname(struct ast_channel *chan, const char *mailbox, const char *context);

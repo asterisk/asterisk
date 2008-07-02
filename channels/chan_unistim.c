@@ -4375,7 +4375,7 @@ static int unistim_sendtext(struct ast_channel *ast, const char *text)
 static int unistim_send_mwi_to_peer(struct unistimsession *s, unsigned int tick)
 {
 	struct ast_event *event;
-	int new, old, urgent;
+	int new;
 	char *mailbox, *context;
 	struct unistim_line *peer = s->device->lines;
 
@@ -4388,27 +4388,28 @@ static int unistim_send_mwi_to_peer(struct unistimsession *s, unsigned int tick)
 		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
 		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
 		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
-		AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 		AST_EVENT_IE_END);
 
 	if (event) {
 		new = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
-		old = ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
 		ast_event_destroy(event);
-	} else /* Fall back on checking the mailbox directly */
-		ast_app_inboxcount(peer->mailbox, &urgent, &new, &old);
+	} else { /* Fall back on checking the mailbox directly */
+		new = ast_app_has_voicemail(peer->mailbox, "INBOX");
+	}
 
 	peer->nextmsgcheck = tick + TIMER_MWI;
 
 	/* Return now if it's the same thing we told them last time */
-	if (((new << 8) | (old)) == peer->lastmsgssent)
+	if (new == peer->lastmsgssent) {
 		return 0;
+	}
 
-	peer->lastmsgssent = ((new << 8) | (old));
-	if (new == 0)
+	peer->lastmsgssent = new;
+	if (new == 0) {
 		send_led_update(s, 0);
-	else
+	} else {
 		send_led_update(s, 1);
+	}
 
 	return 0;
 }

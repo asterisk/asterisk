@@ -2886,7 +2886,7 @@ static int folder_int(const char *folder)
 
 #ifdef ODBC_STORAGE
 /*! XXX \todo Fix this function to support multiple mailboxes in the intput string */
-static int inboxcount(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs)
+static int inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs)
 {
 	int x = -1;
 	int res;
@@ -2967,7 +2967,13 @@ static int inboxcount(const char *mailbox, int *urgentmsgs, int *newmsgs, int *o
 		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		*oldmsgs = atoi(rowdata);
-		
+
+		if (!urgentmsgs) {
+			x = 0;
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+
 		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, tmp, "Urgent");
 		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
 		if (!stmt) {
@@ -2998,6 +3004,11 @@ static int inboxcount(const char *mailbox, int *urgentmsgs, int *newmsgs, int *o
 		
 yuck:	
 	return x;
+}
+
+static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
+{
+	return inboxcount2(mailbox, NULL, newmsgs, oldmsgs);
 }
 
 /*!
@@ -3333,7 +3344,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
  *
  * \return zero on success, -1 on error.
  */
-static int inboxcount(const char *mailbox_context, int *urgentmsgs, int *newmsgs, int *oldmsgs)
+static int inboxcount2(const char *mailbox_context, int *urgentmsgs, int *newmsgs, int *oldmsgs)
 {
 	char tmp[PATH_MAX] = "";
 	char *mailboxnc;
@@ -3360,7 +3371,7 @@ static int inboxcount(const char *mailbox_context, int *urgentmsgs, int *newmsgs
 		mb = tmp;
 		while ((cur = strsep(&mb, ", "))) {
 			if (!ast_strlen_zero(cur)) {
-				if (inboxcount(cur, urgentmsgs ? &tmpurgent : NULL, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
+				if (inboxcount2(cur, urgentmsgs ? &tmpurgent : NULL, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
 					return -1;
 				else {
 					if (newmsgs)
@@ -3396,7 +3407,11 @@ static int inboxcount(const char *mailbox_context, int *urgentmsgs, int *newmsgs
 	}
 	return 0;
 }
-	
+
+static int inboxcount(const char *mailbox_context, int *newmsgs, int *oldmsgs)
+{
+	return inboxcount2(mailbox_context, NULL, newmsgs, oldmsgs);
+}
 
 /** 
  * \brief Determines if the given folder has messages.
@@ -3591,7 +3606,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 }
 
 
-static int inboxcount(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs)
+static int inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs)
 {
 	char tmp[256];
 	char *context;
@@ -3647,6 +3662,11 @@ static int inboxcount(const char *mailbox, int *urgentmsgs, int *newmsgs, int *o
 	return 0;
 }
 
+static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
+{
+	return inboxcount2(mailbox, NULL, newmsgs, oldmsgs);
+}
+
 #endif
 
 static void run_externnotify(char *context, char *extension, const char *flag)
@@ -3681,10 +3701,10 @@ static void run_externnotify(char *context, char *extension, const char *flag)
 	}
 
 	if (!ast_strlen_zero(externnotify)) {
-		if (inboxcount(ext_context, &urgentvoicemails, &newvoicemails, &oldvoicemails)) {
+		if (inboxcount2(ext_context, &urgentvoicemails, &newvoicemails, &oldvoicemails)) {
 			ast_log(AST_LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", extension);
 		} else {
-			snprintf(arguments, sizeof(arguments), "%s %s %s %d %d&", externnotify, context, extension, newvoicemails, urgentvoicemails);
+			snprintf(arguments, sizeof(arguments), "%s %s %s %d %d %d &", externnotify, context, extension, newvoicemails, oldvoicemails, urgentvoicemails);
 			ast_debug(1, "Executing %s\n", arguments);
 			ast_safe_system(arguments);
 		}
@@ -3956,7 +3976,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 #ifdef IMAP_STORAGE
 		/* Is ext a mailbox? */
 		/* must open stream for this user to get info! */
-		res = inboxcount(ext_context, &urgentmsgs, &newmsgs, &oldmsgs);
+		res = inboxcount(ext_context, &newmsgs, &oldmsgs);
 		if (res < 0) {
 			ast_log(AST_LOG_NOTICE, "Can not leave voicemail, unable to count messages\n");
 			return -1;
@@ -5061,7 +5081,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 
 	/* Leave voicemail for someone */
 	if (ast_app_has_voicemail(ext_context, NULL)) 
-		ast_app_inboxcount(ext_context, &urgentmsgs, &newmsgs, &oldmsgs);
+		ast_app_inboxcount2(ext_context, &urgentmsgs, &newmsgs, &oldmsgs);
 
 	queue_mwi_event(ext_context, urgentmsgs, newmsgs, oldmsgs);
 
@@ -8656,7 +8676,7 @@ out:
 		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, has_voicemail(ext_context, NULL));
 		/* Urgent flag not passwd to externnotify here */
 		run_externnotify(vmu->context, vmu->mailbox, NULL);
-		ast_app_inboxcount(ext_context, &urgent, &new, &old);
+		ast_app_inboxcount2(ext_context, &urgent, &new, &old);
 		queue_mwi_event(ext_context, urgent, new, old);
 	}
 #ifdef IMAP_STORAGE
@@ -8803,7 +8823,7 @@ static int append_mailbox(const char *context, const char *mbox, const char *dat
 	strcat(mailbox_full, "@");
 	strcat(mailbox_full, context);
 
-	inboxcount(mailbox_full, &urgent, &new, &old);
+	inboxcount2(mailbox_full, &urgent, &new, &old);
 	queue_mwi_event(mailbox_full, urgent, new, old);
 
 	return 0;
@@ -9028,13 +9048,13 @@ static char *handle_voicemail_show_users(struct ast_cli_entry *e, int cmd, struc
 		}
 	}
 	AST_LIST_TRAVERSE(&users, vmu, list) {
-		int newmsgs = 0, oldmsgs = 0, urgentmsgs = 0;
+		int newmsgs = 0, oldmsgs = 0;
 		char count[12], tmp[256] = "";
 
 		if ((a->argc == 3) || ((a->argc == 5) && !strcmp(context, vmu->context))) {
 			snprintf(tmp, sizeof(tmp), "%s@%s", vmu->mailbox, ast_strlen_zero(vmu->context) ? "default" : vmu->context);
-			inboxcount(tmp, &urgentmsgs, &newmsgs, &oldmsgs);
-			snprintf(count,sizeof(count),"%d",newmsgs+urgentmsgs);
+			inboxcount(tmp, &newmsgs, &oldmsgs);
+			snprintf(count, sizeof(count), "%d", newmsgs);
 			ast_cli(a->fd, HVSU_OUTPUT_FORMAT, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
 			users_counter++;
 		}
@@ -9120,7 +9140,7 @@ static void poll_subscribed_mailboxes(void)
 		if (ast_strlen_zero(mwi_sub->mailbox))
 			continue;
 
-		inboxcount(mwi_sub->mailbox, &urgent, &new, &old);
+		inboxcount2(mwi_sub->mailbox, &urgent, &new, &old);
 
 		if (urgent != mwi_sub->old_urgent || new != mwi_sub->old_new || old != mwi_sub->old_old) {
 			mwi_sub->old_urgent = urgent;
@@ -9320,8 +9340,8 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 		char dirname[256];
 
 #ifdef IMAP_STORAGE
-		int new, old, urgent;
-		inboxcount (vmu->mailbox, &urgent, &new, &old);
+		int new, old;
+		inboxcount(vmu->mailbox, &new, &old);
 #endif
 		
 		make_dir(dirname, sizeof(dirname), vmu->context, vmu->mailbox, "INBOX");
@@ -10128,7 +10148,7 @@ static int load_module(void)
 
 	ast_cli_register_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 
-	ast_install_vm_functions(has_voicemail, inboxcount, messagecount, sayname);
+	ast_install_vm_functions(has_voicemail, inboxcount, inboxcount2, messagecount, sayname);
 	ast_realtime_require_field("voicemail", "uniqueid", RQ_UINTEGER3, 11, "password", RQ_CHAR, 10, SENTINEL);
 	ast_realtime_require_field("voicemail_data", "filename", RQ_CHAR, 30, "duration", RQ_UINTEGER3, 5, SENTINEL);
 
