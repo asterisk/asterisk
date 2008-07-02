@@ -284,7 +284,7 @@ void fbuf_free(struct fbuf_t *b)
  */
 int get_gui_startup(struct video_desc* env)
 {
-	return env->stayopen;
+	return env ? env->stayopen : 0;
 }
 
 #if 0
