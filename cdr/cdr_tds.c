@@ -228,7 +228,7 @@ done:
 	ast_free(lastdata);
 	ast_free(uniqueid);
 
-	return 0;
+	return res;
 }
 
 static char *anti_injection(const char *str, int len)
