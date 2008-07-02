@@ -379,6 +379,13 @@ Local channel changes
      that is behind it when queried. This is useful for transfer scenarios as the
      actual channel will be transferred, not the Local channel.
 
+Agent channel changes
+----------------------
+  * The ackcall and endcall options are now supplemented with options acceptdtmf
+    and enddtmf. These allow for the DTMF keypress to be configurable. The options
+	default to their old hard-coded values ('#' and '*' respectively) so this should
+	not break any existing agent installations.
+
 Zaptel channel driver (chan_zap) Changes
 ----------------------------------------
   * SS7 support in chan_zap (via libss7 library)

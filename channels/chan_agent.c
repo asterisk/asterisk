@@ -124,6 +124,9 @@ static const char pa_family[] = "Agents";          /*!< Persistent Agents astdb 
 static int persistent_agents = 0;                   /*!< queues.conf [general] option */
 static void dump_agents(void);
 
+#define DEFAULT_ACCEPTDTMF '#'
+#define DEFAULT_ENDDTMF '*'
+
 static ast_group_t group;
 static int autologoff;
 static int wrapuptime;
@@ -131,6 +134,8 @@ static int ackcall;
 static int endcall;
 static int multiplelogin = 1;
 static int autologoffunavail = 0;
+static char acceptdtmf = DEFAULT_ACCEPTDTMF;
+static char enddtmf = DEFAULT_ENDDTMF;
 
 static int maxlogintries = 3;
 static char agentgoodbye[AST_MAX_FILENAME_LEN] = "vm-goodbye";
@@ -154,6 +159,8 @@ struct agent_pvt {
 	int autologoff;                /*!< Auto timeout time */
 	int ackcall;                   /*!< ackcall */
 	int deferlogoff;               /*!< Defer logoff to hangup */
+	char acceptdtmf;
+	char enddtmf;
 	time_t loginstart;             /*!< When agent first logged in (0 when logged off) */
 	time_t start;                  /*!< When call started */
 	struct timeval lastdisc;       /*!< When last disconnected */
@@ -324,6 +331,8 @@ static struct agent_pvt *add_agent(const char *agent, int pending)
 	ast_copy_string(p->moh, moh, sizeof(p->moh));
 	p->ackcall = ackcall;
 	p->autologoff = autologoff;
+	p->acceptdtmf = acceptdtmf;
+	p->enddtmf = enddtmf;
 
 	/* If someone reduces the wrapuptime and reloads, we want it
 	 * to change the wrapuptime immediately on all calls */
@@ -468,7 +477,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
  		case AST_FRAME_CONTROL:
  			if (f->subclass == AST_CONTROL_ANSWER) {
  				if (p->ackcall) {
- 					ast_verb(3, "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
+ 					ast_verb(3, "%s answered, waiting for '%c' to acknowledge\n", p->chan->name, p->acceptdtmf);
  					/* Don't pass answer along */
  					ast_frfree(f);
  					f = &ast_null_frame;
@@ -483,18 +492,18 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
  			break;
 		case AST_FRAME_DTMF_BEGIN:
 			/*ignore DTMF begin's as it can cause issues with queue announce files*/
-			if((!p->acknowledged && f->subclass == '#') || (f->subclass == '*' && endcall)){
+			if((!p->acknowledged && f->subclass == p->acceptdtmf) || (f->subclass == p->enddtmf && endcall)){
 				ast_frfree(f);
 				f = &ast_null_frame;
 			}
 			break;
  		case AST_FRAME_DTMF_END:
- 			if (!p->acknowledged && (f->subclass == '#')) {
+ 			if (!p->acknowledged && (f->subclass == p->acceptdtmf)) {
  				ast_verb(3, "%s acknowledged\n", p->chan->name);
  				p->acknowledged = 1;
  				ast_frfree(f);
  				f = &answer_frame;
- 			} else if (f->subclass == '*' && endcall) {
+ 			} else if (f->subclass == p->enddtmf && endcall) {
  				/* terminates call */
  				ast_frfree(f);
  				f = NULL;
@@ -907,7 +916,7 @@ static int agent_ack_sleep(void *data)
 		if (!p->app_sleep_cond) {
 			ast_mutex_unlock(&p->lock);
 			return 0;
-		} else if (res == '#') {
+		} else if (res == p->acceptdtmf) {
 			ast_mutex_unlock(&p->lock);
 			return 1;
 		}
@@ -1091,6 +1100,11 @@ static int read_agent_config(int reload)
 				ackcall = 0;
 		} else if (!strcasecmp(v->name, "endcall")) {
 			endcall = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "acceptdtmf")) {
+			acceptdtmf = *(v->value);
+			ast_log(LOG_NOTICE, "Set acceptdtmf to %c\n", acceptdtmf);
+		} else if (!strcasecmp(v->name, "enddtmf")) {
+			enddtmf = *(v->value);
 		} else if (!strcasecmp(v->name, "wrapuptime")) {
 			wrapuptime = atoi(v->value);
 			if (wrapuptime < 0)
@@ -1924,21 +1938,31 @@ static int login_exec(struct ast_channel *chan, void *data)
 					else
 						p->ackcall = 0;
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTACKCALL");
-					ast_verb(3, "Saw variable AGENTACKCALL=%s, setting ackcall to: %d for Agent '%s'.\n",tmpoptions,p->ackcall,p->agent);
+					ast_verb(3, "Saw variable AGENTACKCALL=%s, setting ackcall to: %d for Agent '%s'.\n", tmpoptions, p->ackcall, p->agent);
 				}
 				if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"))) {
 					p->autologoff = atoi(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"));
 					if (p->autologoff < 0)
 						p->autologoff = 0;
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF");
-					ast_verb(3, "Saw variable AGENTAUTOLOGOFF=%s, setting autologff to: %d for Agent '%s'.\n",tmpoptions,p->autologoff,p->agent);
+					ast_verb(3, "Saw variable AGENTAUTOLOGOFF=%s, setting autologff to: %d for Agent '%s'.\n", tmpoptions, p->autologoff, p->agent);
 				}
 				if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"))) {
 					p->wrapuptime = atoi(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"));
 					if (p->wrapuptime < 0)
 						p->wrapuptime = 0;
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME");
-					ast_verb(3, "Saw variable AGENTWRAPUPTIME=%s, setting wrapuptime to: %d for Agent '%s'.\n",tmpoptions,p->wrapuptime,p->agent);
+					ast_verb(3, "Saw variable AGENTWRAPUPTIME=%s, setting wrapuptime to: %d for Agent '%s'.\n", tmpoptions, p->wrapuptime, p->agent);
+				}
+				tmpoptions = pbx_builtin_getvar_helper(chan, "AGENTACCEPTDMTF");
+				if (!ast_strlen_zero(tmpoptions)) {
+					p->acceptdtmf = *tmpoptions;
+					ast_verb(3, "Saw variable AGENTACCEPTDTMF=%s, setting acceptdtmf to: %c for Agent '%s'.\n", tmpoptions, p->acceptdtmf, p->agent);
+				}
+				tmpoptions = pbx_builtin_getvar_helper(chan, "AGENTENDDTMF");
+				if (!ast_strlen_zero(tmpoptions)) {
+					p->enddtmf = *tmpoptions;
+					ast_verb(3, "Saw variable AGENTENDDTMF=%s, setting enddtmf to: %c for Agent '%s'.\n", tmpoptions, p->enddtmf, p->agent);
 				}
 				/* End Channel Specific Agent Overrides */
 				if (!p->chan) {
