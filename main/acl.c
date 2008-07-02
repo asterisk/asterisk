@@ -184,7 +184,7 @@ static int get_local_address(struct in_addr *ourip)
 			return -1;
 		}
 
-		for (ifr = (struct lifreq *)buf, x = 0; x < ifn.lifn_count; ifr++, x++) {
+		for (ifr = ifc.lifc_req, x = 0; x < ifn.lifn_count; ifr++, x++) {
 			sa = (struct sockaddr_in *)&(ifr->lifr_addr);
 			score_address(sa, &best_addr, &best_score);
 			res = 0;
