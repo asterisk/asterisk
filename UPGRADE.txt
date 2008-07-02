@@ -142,6 +142,9 @@ CDR:
   possible values the systemname prefix could be.  In the past, if the
   systemname was too long, the uniqueid would have been truncated.
 
+* The cdr_tds module now supports all versions of FreeTDS that contain
+  the db-lib frontend.
+
 Formats:
 
 * format_wav: The GAIN preprocessor definition and source code that used it
