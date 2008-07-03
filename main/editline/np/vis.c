@@ -44,6 +44,7 @@ __RCSID("$NetBSD: vis.c,v 1.22 2002/03/23 17:38:27 christos Exp $");
 #include <assert.h>
 #include "np/vis.h"
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifdef __weak_alias
 __weak_alias(strsvis,_strsvis)
@@ -167,8 +168,8 @@ do {									      \
 	if (isc) break;							      \
 	if (isextra || ((c & 0177) == ' ') || (flag & VIS_OCTAL)) {	      \
 		*dst++ = '\\';						      \
-		*dst++ = (u_char)(((u_int32_t)(u_char)c >> 6) & 03) + '0';    \
-		*dst++ = (u_char)(((u_int32_t)(u_char)c >> 3) & 07) + '0';    \
+		*dst++ = (u_char)(((uint32_t)(u_char)c >> 6) & 03) + '0';     \
+		*dst++ = (u_char)(((uint32_t)(u_char)c >> 3) & 07) + '0';     \
 		*dst++ =			     (c	      & 07) + '0';    \
 	} else {							      \
 		if ((flag & VIS_NOSLASH) == 0) *dst++ = '\\';		      \
