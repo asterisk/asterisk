@@ -163,6 +163,9 @@ Queue changes
 -------------
   * The TRANSFER queue log entry now includes the the caller's original
     position in the transferred-from queue.
+  * A new configuration option, "timeoutpriority" has been added. Please see the section labeled
+    "QUEUE TIMING OPTIONS" in configs/queues.conf.sample for a detailed explanation of the option
+    as well as an explanation about timeout options in general
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------

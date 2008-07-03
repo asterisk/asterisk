@@ -117,14 +117,51 @@ shared_lastcall=no
 ;
 ;context = qoutcon
 ;
-; How long do we let the phone ring before we consider this a timeout...
+;----------------------QUEUE TIMING OPTIONS------------------------------------
+; A Queue has two different "timeout" values associated with it. One is the
+; timeout parameter configured in queues.conf. This timeout specifies the
+; amount of time to try ringing a member's phone before considering the
+; member to be unavailable. The other timeout value is the second argument
+; to the Queue() application. This timeout represents the absolute amount
+; of time to allow a caller to stay in the queue before the caller is
+; removed from the queue. In certain situations, these two timeout values
+; may clash. For instance, if the timeout in queues.conf is set to 5 seconds,
+; the retry value in queues.conf is set to 4, and the second argument to Queue()
+; is 10, then the following may occur:
+;
+; A caller places a call to a queue.
+; The queue selects a member and attempts to ring that member.
+; The member's phone is rung for 5 seconds and he does not answer.
+; The retry time of 4 seconds occurs.
+; The queue selects a second member to call.
+; 
+; How long does that second member's phone ring? Does it ring for 5 seconds
+; since the timeout set in app_queue is 5 seconds? Does it ring for 1 second since
+; the caller has been in the queue for 9 seconds and is supposed to be removed after
+; being in the queue for 10 seconds? This is configurable with the timeoutpriority
+; option. By setting the timeoutpriority to "conf" then you are saying that you would
+; rather use the time specified in the configuration file even if it means having the
+; caller stay in the queue longer than the time specified in the application argument.
+; For the scenario described above, timeoutpriority=conf would result in the second
+; member's phone ringing for 5 seconds. By specifying "app" as the value for 
+; timeoutpriority, you are saying that the timeout specified as the argument to the 
+; Queue application is more important. In the scenario above, timeoutpriority=app
+; would result in the second member's phone ringing for 1 second.
+;
+; There are a few exceptions to the priority rules. For instance, if the configuration
+; file timeout is set to 0, but the application argument timeout is non-zero, then the
+; timeoutpriority is ignored and the application argument is used as the timeout. Furthermore,
+; if no application argument timeout is specified, then the timeoutpriority option is
+; ignored and the configuration file timeout is always used when calling queue members.
+;
+; The default value for timeoutpriority is "app" since this was how previous versions of
+; Asterisk behaved.
 ;
 ;timeout = 15
-;
-; How long do we wait before trying all the members again?
-;
 ;retry = 5
+;timeoutpriority = app|conf
 ;
+;-----------------------END QUEUE TIMING OPTIONS---------------------------------
 ; Weight of queue - when compared to other queues, higher weights get 
 ; first shot at available channels when the same channel is included in 
 ; more than one queue.

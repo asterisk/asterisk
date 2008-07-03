@@ -108,7 +108,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * to this order!
  */
 
-
 enum {
 	QUEUE_STRATEGY_RINGALL = 0,
 	QUEUE_STRATEGY_LEASTRECENT,
@@ -316,6 +315,11 @@ const struct {
 	{ QUEUE_CONTINUE, "CONTINUE" },
 };
 
+enum queue_timeout_priority {
+	TIMEOUT_PRIORITY_APP,
+	TIMEOUT_PRIORITY_CONF,
+};
+
 /*! \brief We define a custom "local user" structure because we
  *  use it not only for keeping track of what is in use but
  *  also for keeping track of who we're dialing.
@@ -498,6 +502,7 @@ struct call_queue {
 	int timeout;                        /*!< How long to wait for an answer */
 	int weight;                         /*!< Respective weight */
 	int autopause;                      /*!< Auto pause queue members if they fail to answer */
+	int timeoutpriority;                /*!< Do we allow a fraction of the timeout to occur for a ring? */
 
 	/* Queue strategy things */
 	int rrpos;                          /*!< Round Robin - position */
@@ -907,6 +912,7 @@ static void init_queue(struct call_queue *q)
 	q->periodicannouncefrequency = 0;
 	q->randomperiodicannounce = 0;
 	q->numperiodicannounce = 0;
+	q->timeoutpriority = TIMEOUT_PRIORITY_APP;
 	if (!q->members) {
 		if (q->strategy == QUEUE_STRATEGY_LINEAR)
 			/* linear strategy depends on order, so we have to place all members in a single bucket */
@@ -1295,6 +1301,12 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		q->timeoutrestart = ast_true(val);
 	} else if (!strcasecmp(param, "defaultrule")) {
 		ast_string_field_set(q, defaultrule, val);
+	} else if (!strcasecmp(param, "timeoutpriority")) {
+		if (!strcasecmp(val, "conf")) {
+			q->timeoutpriority = TIMEOUT_PRIORITY_CONF;
+		} else {
+			q->timeoutpriority = TIMEOUT_PRIORITY_APP;
+		}
 	} else if (failunknown) {
 		if (linenum >= 0) {
 			ast_log(LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queues.conf\n",
@@ -3362,7 +3374,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_free(tmp);
 		}
 	}
-	if (qe->expire && (!qe->parent->timeout || (qe->expire - now) <= qe->parent->timeout))
+
+	if (qe->expire && (!qe->parent->timeout || (qe->parent->timeoutpriority == TIMEOUT_PRIORITY_APP && (qe->expire - now) <= qe->parent->timeout)))
 		to = (qe->expire - now) * 1000;
 	else
 		to = (qe->parent->timeout) ? qe->parent->timeout * 1000 : -1;
