@@ -322,7 +322,7 @@ static int channel_spy(struct ast_channel *chan, struct chanspy_ds *spyee_chansp
 	char *name;
 	struct ast_frame *f;
 	struct ast_silence_generator *silgen = NULL;
-	struct ast_channel *spyee = NULL;
+	struct ast_channel *spyee = NULL, *spyee_bridge = NULL;
 	const char *spyer_name;
 
 	ast_channel_lock(chan);
