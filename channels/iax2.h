@@ -109,14 +109,6 @@ enum {
 	IAX_COMMAND_FWDATA =    37,
 	/*! Transfer media only */
 	IAX_COMMAND_TXMEDIA =   38,
-	/*! Command to send new key used for encryption */
-	IAX_COMMAND_RTENC =	39,
-	/*! Command to send new key used for decryption */
-	IAX_COMMAND_RTDEC =	40,
-	/*! ... */
-	IAX_COMMAND_RTPAUSE = 41,
-	/*! ... ... */
-	IAX_COMMAND_RTRESP = 42,
 };
 
 /*! By default require re-registration once per minute */
