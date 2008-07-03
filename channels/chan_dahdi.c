@@ -4080,18 +4080,6 @@ static int attempt_transfer(struct dahdi_pvt *p)
 		if (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_RING) {
 			tone_zone_play_tone(p->subs[SUB_THREEWAY].zfd, DAHDI_TONE_RINGTONE);
 		}
-		if (p->subs[SUB_REAL].owner->cdr) {
-			/* Move CDR from second channel to current one */
-			p->subs[SUB_THREEWAY].owner->cdr =
-				ast_cdr_append(p->subs[SUB_THREEWAY].owner->cdr, p->subs[SUB_REAL].owner->cdr);
-			p->subs[SUB_REAL].owner->cdr = NULL;
-		}
-		if (ast_bridged_channel(p->subs[SUB_REAL].owner)->cdr) {
-			/* Move CDR from second channel's bridge to current one */
-			p->subs[SUB_THREEWAY].owner->cdr =
-				ast_cdr_append(p->subs[SUB_THREEWAY].owner->cdr, ast_bridged_channel(p->subs[SUB_REAL].owner)->cdr);
-			ast_bridged_channel(p->subs[SUB_REAL].owner)->cdr = NULL;
-		}
 		 if (ast_channel_masquerade(p->subs[SUB_THREEWAY].owner, ast_bridged_channel(p->subs[SUB_REAL].owner))) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
 					ast_bridged_channel(p->subs[SUB_REAL].owner)->name, p->subs[SUB_THREEWAY].owner->name);
@@ -4107,18 +4095,6 @@ static int attempt_transfer(struct dahdi_pvt *p)
 		}
 		if (p->subs[SUB_REAL].owner->_state == AST_STATE_RING) {
 			tone_zone_play_tone(p->subs[SUB_REAL].zfd, DAHDI_TONE_RINGTONE);
-		}
-		if (p->subs[SUB_THREEWAY].owner->cdr) {
-			/* Move CDR from second channel to current one */
-			p->subs[SUB_REAL].owner->cdr = 
-				ast_cdr_append(p->subs[SUB_REAL].owner->cdr, p->subs[SUB_THREEWAY].owner->cdr);
-			p->subs[SUB_THREEWAY].owner->cdr = NULL;
-		}
-		if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner)->cdr) {
-			/* Move CDR from second channel's bridge to current one */
-			p->subs[SUB_REAL].owner->cdr = 
-				ast_cdr_append(p->subs[SUB_REAL].owner->cdr, ast_bridged_channel(p->subs[SUB_THREEWAY].owner)->cdr);
-			ast_bridged_channel(p->subs[SUB_THREEWAY].owner)->cdr = NULL;
 		}
 		if (ast_channel_masquerade(p->subs[SUB_REAL].owner, ast_bridged_channel(p->subs[SUB_THREEWAY].owner))) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
@@ -4855,7 +4831,19 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 							dahdi_enable_ec(p);
 							ast_hangup(chan);
 						} else {
+ 							struct ast_channel *other = ast_bridged_channel(p->subs[SUB_THREEWAY].owner);
+ 							int way3bridge = 0, cdr3way = 0;
+ 							
+ 							if (!other) {
+ 								other = ast_bridged_channel(p->subs[SUB_REAL].owner);
+ 							} else
+ 								way3bridge = 1;
+ 							
+ 							if (p->subs[SUB_THREEWAY].owner->cdr)
+ 								cdr3way = 1;
+ 							
 							ast_verb(3, "Started three way call on channel %d\n", p->channel);
+
 							/* Start music on hold if appropriate */
 							if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
 								ast_queue_control_data(p->subs[SUB_THREEWAY].owner, AST_CONTROL_HOLD,
@@ -4886,6 +4874,16 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						if (((ast->pbx) || (ast->_state == AST_STATE_UP)) && 
 						    (p->transfertobusy || (ast->_state != AST_STATE_BUSY))) {
 							int otherindex = SUB_THREEWAY;
+							struct ast_channel *other = ast_bridged_channel(p->subs[SUB_THREEWAY].owner);
+							int way3bridge = 0, cdr3way = 0;
+							
+							if (!other) {
+								other = ast_bridged_channel(p->subs[SUB_REAL].owner);
+							} else
+								way3bridge = 1;
+							
+							if (p->subs[SUB_THREEWAY].owner->cdr)
+								cdr3way = 1;
 
 							ast_verb(3, "Building conference on call on %s and %s\n", p->subs[SUB_THREEWAY].owner->name, p->subs[SUB_REAL].owner->name);
 							/* Put them in the threeway, and flip */

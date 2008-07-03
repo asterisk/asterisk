@@ -308,15 +308,6 @@ static void *ast_bridge_call_thread(void *data)
 	tobj->peer->appl = !tobj->return_to_pbx ? "Transferred Call" : "ManagerBridge";
 	tobj->peer->data = tobj->chan->name;
 
-	if (tobj->chan->cdr) {
-		ast_cdr_reset(tobj->chan->cdr, NULL);
-		ast_cdr_setdestchan(tobj->chan->cdr, tobj->peer->name);
-	}
-	if (tobj->peer->cdr) {
-		ast_cdr_reset(tobj->peer->cdr, NULL);
-		ast_cdr_setdestchan(tobj->peer->cdr, tobj->chan->name);
-	}
-
 	ast_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
 
 	if (tobj->return_to_pbx) {
@@ -1889,13 +1880,6 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 		ast_string_field_set(chan, language, language);
 		ast_channel_inherit_variables(caller, chan);	
 		pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller->name);
-		if (!chan->cdr) {
-			chan->cdr=ast_cdr_alloc();
-			if (chan->cdr) {
-				ast_cdr_init(chan->cdr, chan); /* initilize our channel's cdr */
-				ast_cdr_start(chan->cdr);
-			}
-		}
 			
 		if (!ast_call(chan, data, timeout)) {
 			struct timeval started;
@@ -2042,23 +2026,6 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 	if (outstate)
 		*outstate = state;
 
-	if (chan && res <= 0) {
-		if (chan->cdr || (chan->cdr = ast_cdr_alloc())) {
-			char tmp[256];
-			ast_cdr_init(chan->cdr, chan);
-			snprintf(tmp, 256, "%s/%s", type, (char *)data);
-			ast_cdr_setapp(chan->cdr,"Dial",tmp);
-			ast_cdr_update(chan);
-			ast_cdr_start(chan->cdr);
-			ast_cdr_end(chan->cdr);
-			/* If the cause wasn't handled properly */
-			if (ast_cdr_disposition(chan->cdr,chan->hangupcause))
-				ast_cdr_failed(chan->cdr);
-		} else {
-			ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
-		}
-	}
-	
 	return chan;
 }
 
@@ -2079,13 +2046,15 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	struct ast_channel *who;
 	char chan_featurecode[FEATURE_MAX_LEN + 1]="";
 	char peer_featurecode[FEATURE_MAX_LEN + 1]="";
+	char orig_channame[AST_MAX_EXTENSION];
+	char orig_peername[AST_MAX_EXTENSION];
 	int res;
 	int diff;
 	int hasfeatures=0;
 	int hadfeatures=0;
 	struct ast_option_header *aoh;
 	struct ast_bridge_config backup_config;
-	struct ast_cdr *bridge_cdr;
+	struct ast_cdr *bridge_cdr = NULL;
 
 	memset(&backup_config, 0, sizeof(backup_config));
 
@@ -2120,25 +2089,49 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	/* Answer if need be */
 	if (ast_answer(chan))
 		return -1;
-	peer->appl = "Bridged Call";
-	peer->data = chan->name;
 
-	/* copy the userfield from the B-leg to A-leg if applicable */
-	if (chan->cdr && peer->cdr && !ast_strlen_zero(peer->cdr->userfield)) {
-		char tmp[256];
-		if (!ast_strlen_zero(chan->cdr->userfield)) {
-			snprintf(tmp, sizeof(tmp), "%s;%s", chan->cdr->userfield, peer->cdr->userfield);
-			ast_cdr_appenduserfield(chan, tmp);
-		} else
-			ast_cdr_setuserfield(chan, peer->cdr->userfield);
-		/* free the peer's cdr without ast_cdr_free complaining */
-		ast_free(peer->cdr);
-		peer->cdr = NULL;
+	ast_copy_string(orig_channame,chan->name,sizeof(orig_channame));
+	ast_copy_string(orig_peername,peer->name,sizeof(orig_peername));
+	
+	if (!chan->cdr || (chan->cdr && !ast_test_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED))) {
+		
+		if (chan->cdr) {
+			ast_set_flag(chan->cdr, AST_CDR_FLAG_MAIN);
+			ast_cdr_update(chan);
+			bridge_cdr = ast_cdr_dup(chan->cdr);
+			ast_copy_string(bridge_cdr->lastapp, chan->appl, sizeof(bridge_cdr->lastapp));
+			ast_copy_string(bridge_cdr->lastdata, chan->data, sizeof(bridge_cdr->lastdata));
+		} else {
+			/* better yet, in a xfer situation, find out why the chan cdr got zapped (pun unintentional) */
+			bridge_cdr = ast_cdr_alloc(); /* this should be really, really rare/impossible? */
+			ast_copy_string(bridge_cdr->channel, chan->name, sizeof(bridge_cdr->channel));
+			ast_copy_string(bridge_cdr->dstchannel, peer->name, sizeof(bridge_cdr->dstchannel));
+			ast_copy_string(bridge_cdr->uniqueid, chan->uniqueid, sizeof(bridge_cdr->uniqueid));
+			ast_copy_string(bridge_cdr->lastapp, chan->appl, sizeof(bridge_cdr->lastapp));
+			ast_copy_string(bridge_cdr->lastdata, chan->data, sizeof(bridge_cdr->lastdata));
+			ast_cdr_setcid(bridge_cdr, chan);
+			bridge_cdr->disposition = (chan->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NULL;
+			bridge_cdr->amaflags = chan->amaflags ? chan->amaflags :  ast_default_amaflags;
+			ast_copy_string(bridge_cdr->accountcode, chan->accountcode, sizeof(bridge_cdr->accountcode));
+			/* Destination information */
+			ast_copy_string(bridge_cdr->dst, chan->exten, sizeof(bridge_cdr->dst));
+			ast_copy_string(bridge_cdr->dcontext, chan->context, sizeof(bridge_cdr->dcontext));
+			if (peer->cdr) {
+				bridge_cdr->start = peer->cdr->start;
+				ast_copy_string(bridge_cdr->userfield, peer->cdr->userfield, sizeof(bridge_cdr->userfield));
+			} else {
+				ast_cdr_start(bridge_cdr);
+			}
+		}
+		ast_cdr_answer(bridge_cdr);
+		ast_cdr_answer(chan->cdr); /* for the sake of cli status checks */
+		ast_set_flag(chan->cdr, AST_CDR_FLAG_BRIDGED);
+		if (peer->cdr)
+			ast_set_flag(peer->cdr, AST_CDR_FLAG_BRIDGED);
 	}
-
 	for (;;) {
 		struct ast_channel *other;	/* used later */
-
+		
 		res = ast_channel_bridge(chan, peer, config, &f, &who);
 
 		if (config->feature_timer) {
@@ -2297,67 +2290,18 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_frfree(f);
 
 	}
-	/* arrange the cdrs */
-	bridge_cdr = ast_cdr_alloc();
-	if (bridge_cdr) {
-		if (chan->cdr && peer->cdr) { /* both of them? merge */
-			ast_channel_lock(chan); /* lock the channel before modifying cdrs */
-			ast_cdr_init(bridge_cdr,chan); /* seems more logicaller to use the  destination as a base, but, really, it's random */
-			ast_cdr_start(bridge_cdr); /* now is the time to start */
-			
-			/* absorb the channel cdr */
-			ast_cdr_merge(bridge_cdr, chan->cdr);
-			if (!ast_test_flag(chan->cdr, AST_CDR_FLAG_LOCKED))
-				ast_cdr_discard(chan->cdr); /* if locked cdrs are in chan, they are taken over in the merge */
-			
-			chan->cdr = NULL;
-			ast_channel_unlock(chan);
-			/* absorb the peer cdr */
-			ast_channel_lock(peer);
-			ast_cdr_merge(bridge_cdr, peer->cdr);
-			if (!ast_test_flag(peer->cdr, AST_CDR_FLAG_LOCKED))
-				ast_cdr_discard(peer->cdr); /* if locked cdrs are in peer, they are taken over in the merge */
-			
-			peer->cdr = NULL; /* remove pointer to freed memory before releasing the lock */
-			ast_channel_unlock(peer);
-
-			ast_channel_lock(chan);
-			chan->cdr = bridge_cdr; /* make this available to the rest of the world via the chan while the call is in progress */
-			ast_channel_unlock(chan);
-		} else if (chan->cdr) {
-			ast_channel_lock(chan); /* Lock before modifying CDR */
-			/* take the cdr from the channel - literally */
-			ast_cdr_init(bridge_cdr,chan);
-			/* absorb this data */
-			ast_cdr_merge(bridge_cdr, chan->cdr);
-			if (!ast_test_flag(chan->cdr, AST_CDR_FLAG_LOCKED))
-				ast_cdr_discard(chan->cdr); /* if locked cdrs are in chan, they are taken over in the merge */
-			chan->cdr = bridge_cdr; /* make this available to the rest of the world via the chan while the call is in progress */
-			ast_channel_unlock(chan);
-		} else if (peer->cdr) {
-			ast_channel_lock(peer); /* Lock before modifying CDR */
-			/* take the cdr from the peer - literally */
-			ast_cdr_init(bridge_cdr,peer);
-			/* absorb this data */
-			ast_cdr_merge(bridge_cdr, peer->cdr);
-			if (!ast_test_flag(peer->cdr, AST_CDR_FLAG_LOCKED))
-				ast_cdr_discard(peer->cdr); /* if locked cdrs are in chan, they are taken over in the merge */
-			peer->cdr = NULL;
-			peer->cdr = bridge_cdr; /* make this available to the rest of the world via the chan while the call is in progress */
-			ast_channel_unlock(peer);
-		} else {
-			ast_channel_lock(chan); /* Lock before modifying CDR */
-			/* make up a new cdr */
-			ast_cdr_init(bridge_cdr,chan); /* eh, just pick one of them */
-			chan->cdr = bridge_cdr; /*  */
-			ast_channel_unlock(chan);
-		}
-		if (ast_strlen_zero(bridge_cdr->dstchannel)) {
-			if (strcmp(bridge_cdr->channel, peer->name) != 0)
-				ast_cdr_setdestchan(bridge_cdr, peer->name);
-			else
-				ast_cdr_setdestchan(bridge_cdr, chan->name);
-		}
+	/* obey the NoCDR() wishes. */
+	if (!chan->cdr || (chan->cdr && !ast_test_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED))) {
+		
+		ast_cdr_end(bridge_cdr);
+		
+		ast_cdr_detach(bridge_cdr);
+		
+		/* just in case, these channels get bridged again before hangup */
+		if (chan->cdr)
+			ast_cdr_specialized_reset(chan->cdr,0);
+		if (peer->cdr)
+			ast_cdr_specialized_reset(peer->cdr,0);
 	}
 	return res;
 }
