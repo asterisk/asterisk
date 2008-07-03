@@ -4822,6 +4822,10 @@ static int sip_hangup(struct ast_channel *ast)
 				p->invitestate = INV_TERMINATED;
 			}
 		} else {	/* Call is in UP state, send BYE */
+			if (p->stimer->st_active == TRUE) {
+				stop_session_timer(p);
+			}
+
 			if (!p->pendinginvite) {
 				char *audioqos = "";
 				char *videoqos = "";
