@@ -281,7 +281,7 @@ else
 endif
 
 ifeq ($(OSARCH),SunOS)
-  SOLINK=-shared -fpic -L/usr/local/ssl/lib
+  SOLINK=-shared -fpic -L/usr/local/ssl/lib -lrt
 endif
 
 SUBMAKE=$(MAKE) --quiet --no-print-directory
