@@ -7339,8 +7339,8 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	add_header(resp, "Allow", ALLOWED_METHODS);
 	add_header(resp, "Supported", SUPPORTED_EXTENSIONS);
 
-	/* Add Session-Timers related headers if the feature is active for this session */
-	if (p->stimer && p->stimer->st_active == TRUE && p->stimer->st_active_peer_ua == TRUE) {
+	/* If this is an invite, add Session-Timers related headers if the feature is active for this session */
+	if (p->method == SIP_INVITE && p->stimer && p->stimer->st_active == TRUE && p->stimer->st_active_peer_ua == TRUE) {
 		char se_hdr[256];
 		snprintf(se_hdr, sizeof(se_hdr), "%d;refresher=%s", p->stimer->st_interval, 
 			strefresher2str(p->stimer->st_ref));
@@ -7482,10 +7482,12 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	/* Add Session-Timers related headers if the feature is active for this session.
 	   An exception to this behavior is the ACK request. Since Asterisk never requires 
 	   session-timers support from a remote end-point (UAS) in an INVITE, it must 
-	   not send 'Require: timer' header in the ACK request. Also, Require: header 
-	   is not applicable for CANCEL method. */
+	   not send 'Require: timer' header in the ACK request. 
+	   This should only be added in the INVITE transactions, not MESSAGE or REFER or other
+	   in-dialog messages.
+	*/
 	if (p->stimer && p->stimer->st_active == TRUE && p->stimer->st_active_peer_ua == TRUE 
-	    && sipmethod != SIP_ACK && sipmethod != SIP_CANCEL) {
+	    && sipmethod == SIP_INVITE) {
 		char se_hdr[256];
 		snprintf(se_hdr, sizeof(se_hdr), "%d;refresher=%s", p->stimer->st_interval, 
 			strefresher2str(p->stimer->st_ref));
