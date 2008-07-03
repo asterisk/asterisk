@@ -12645,6 +12645,8 @@ static char *sip_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	return _sip_show_peers(a->fd, NULL, NULL, NULL, a->argc, (const char **) a->argv);
 }
 
+/*! \brief Execute sip dbdump command 
+*/
 static char *sip_dbdump(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -12662,7 +12664,7 @@ static char *sip_dbdump(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 	return _sip_dbdump(a->fd, NULL, NULL, NULL, a->argc, (const char **) a->argv);
 }
 
-/*! \brief Execute sip show peers command */
+/*! \brief Actually execute sip dbdump command */
 static char *_sip_dbdump(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[])
 {
 	struct sip_peer *peer;
@@ -12700,7 +12702,7 @@ static char *_sip_dbdump(int fd, int *total, struct mansession *s, const struct 
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {	
 
-		user = find_user(peer->name,realtimepeers);
+		user = find_user(peer->name, realtimepeers);	
 
 		ao2_lock(peer);
 
@@ -12710,199 +12712,199 @@ static char *_sip_dbdump(int fd, int *total, struct mansession *s, const struct 
 		fprintf(f1,"name");
 		
 		if (peer->host_dynamic)
-			fprintf(f1,",host");
+			fprintf(f1, ",host");
 		if (ast_test_flag(&peer->flags[0], SIP_NAT))
-			fprintf(f1,",nat");
+			fprintf(f1, ",nat");
 		fprintf(f1,",type");
 		if (!ast_strlen_zero(peer->accountcode))
-			fprintf(f1,",accountcode");
+			fprintf(f1, ",accountcode");
 		if (peer->amaflags)
-			fprintf(f1,",amaflags");
-		fprintf(f1,",`call-limit`");
+			fprintf(f1, ",amaflags");
+		fprintf(f1, ",`call-limit`");
 		if (peer->callgroup)
-			fprintf(f1,",callgroup");
+			fprintf(f1, ",callgroup");
 		if (user && !ast_strlen_zero(user->cid_num))
-			fprintf(f1,",callerid");
+			fprintf(f1, ",callerid");
 		if (ast_test_flag(&peer->flags[0], SIP_REINVITE))
-			fprintf(f1,",canreinvite");
+			fprintf(f1, ",canreinvite");
 		if (!ast_strlen_zero(peer->context))
-			fprintf(f1,",context");
+			fprintf(f1, ",context");
 		if (peer->defaddr.sin_addr.s_addr)
-			fprintf(f1,",defaultip");
+			fprintf(f1, ",defaultip");
 		if (ast_test_flag(&peer->flags[0], SIP_DTMF))
-			fprintf(f1,",dtmfmode");
+			fprintf(f1, ",dtmfmode");
 		if (!ast_strlen_zero(peer->fromuser))
-			fprintf(f1,",fromuser");
+			fprintf(f1, ",fromuser");
 		if (!ast_strlen_zero(peer->fromdomain))
-			fprintf(f1,",fromdomain");
+			fprintf(f1, ",fromdomain");
 		if (ast_test_flag(&peer->flags[0], SIP_INSECURE))
-			fprintf(f1,",insecure");
+			fprintf(f1, ",insecure");
 		if (!ast_strlen_zero(peer->language))
-			fprintf(f1,",language");
+			fprintf(f1, ",language");
 		if (!AST_LIST_EMPTY(&peer->mailboxes)) {
-			fprintf(f1,",mailbox");
+			fprintf(f1, ",mailbox");
 		}
 		if (!ast_strlen_zero(peer->md5secret))
-			fprintf(f1,",md5secret");
+			fprintf(f1, ",md5secret");
 		if (peer->ha) {
 			if (peer->ha->sense == AST_SENSE_DENY) {
-				fprintf(f1,",deny");
+				fprintf(f1, ",deny");
 			}
 			if (peer->ha->next && peer->ha->next->sense == AST_SENSE_ALLOW) {
-				fprintf(f1,",permit");
+				fprintf(f1, ",permit");
 			}
 		}
 		if (!ast_strlen_zero(peer->mohinterpret))
-			fprintf(f1,",mohinterpret");
+			fprintf(f1, ",mohinterpret");
 		if (!ast_strlen_zero(peer->mohsuggest))
-			fprintf(f1,",mohsuggest");
+			fprintf(f1, ",mohsuggest");
 		if (peer->pickupgroup)
-			fprintf(f1,",pickupgroup");
+			fprintf(f1, ",pickupgroup");
 		if (peer->maxms)
-			fprintf(f1,",qualify");
+			fprintf(f1, ",qualify");
 		if (!ast_strlen_zero(peer->regexten))
-			fprintf(f1,",regexten");
+			fprintf(f1, ",regexten");
 		if (peer->rtptimeout)
-			fprintf(f1,",rtptimeout");
+			fprintf(f1, ",rtptimeout");
 		if (peer->rtpholdtimeout)
-			fprintf(f1,",rtpholdtimeout");
+			fprintf(f1, ",rtpholdtimeout");
 		if (!ast_strlen_zero(peer->secret))
-			fprintf(f1,",secret");
+			fprintf(f1, ",secret");
 		if (peer->chanvars)
-			fprintf(f1,",setvar");
+			fprintf(f1, ",setvar");
 		if (ast_codec_pref_index(&peer->prefs, 0)) { /* print the codecs wanted in order */
-			fprintf(f1,",allow");
+			fprintf(f1, ",allow");
 		}
 		if (!ast_strlen_zero(peer->fullcontact))
-			fprintf(f1,",fullcontact");
+			fprintf(f1, ",fullcontact");
 		if (peer->addr.sin_addr.s_addr)
-			fprintf(f1,",ipaddr");
+			fprintf(f1, ",ipaddr");
 		if (peer->addr.sin_port)
-			fprintf(f1,",port");
+			fprintf(f1, ",port");
 		if (!ast_strlen_zero(peer->username))
-			fprintf(f1,",username");
+			fprintf(f1, ",username");
 		
 		/* print out the values in order */
 		fprintf(f1, ") VALUES (");
 		
-		fprintf(f1,"'%s'", peer->name);
+		fprintf(f1, "'%s'", peer->name);
 		
 		if (peer->host_dynamic)
-			fprintf(f1,",'dynamic'");
+			fprintf(f1, ",'dynamic'");
 		if (ast_test_flag(&peer->flags[0], SIP_NAT)) {
-			fprintf(f1,",'%s'",nat2strconfig(ast_test_flag(&peer->flags[0], SIP_NAT)));
+			fprintf(f1, ",'%s'", nat2strconfig(ast_test_flag(&peer->flags[0], SIP_NAT)));
 		}
 		if (user)
-			fprintf(f1,",'friend'");
+			fprintf(f1, ",'friend'");
 		else
-			fprintf(f1,",'peer'");
+			fprintf(f1, ",'peer'");
 		if (!ast_strlen_zero(peer->accountcode))
-			fprintf(f1,",'%s'", peer->accountcode);
+			fprintf(f1, ",'%s'", peer->accountcode);
 		if (peer->amaflags)
-			fprintf(f1,",'%s'", ast_cdr_flags2str(peer->amaflags));
-		fprintf(f1,",%d", peer->call_limit);
+			fprintf(f1, ",'%s'", ast_cdr_flags2str(peer->amaflags));
+		fprintf(f1, ",%d", peer->call_limit);
 		if (peer->callgroup) {
 			char buf[256];
 			
-			fprintf(f1,",'%s'", ast_print_group(buf, sizeof(buf), peer->callgroup));
+			fprintf(f1, ",'%s'", ast_print_group(buf, sizeof(buf), peer->callgroup));
 		}
 		if (user && !ast_strlen_zero(user->cid_num))
-			fprintf(f1,",\"%s<%s>\"", user->cid_name, user->cid_num);
+			fprintf(f1, ",\"%s<%s>\"", user->cid_name, user->cid_num);
 		if (ast_test_flag(&peer->flags[0], SIP_REINVITE)) {
 			switch (ast_test_flag(&peer->flags[0], SIP_REINVITE)) {
 			case SIP_REINVITE_NONE:
-				fprintf(f1,",'no'");
+				fprintf(f1, ",'no'");
 				break;
 			case SIP_CAN_REINVITE:
-				fprintf(f1,",'yes'");
+				fprintf(f1, ",'yes'");
 				break;
 			case SIP_CAN_REINVITE_NAT:
-				fprintf(f1,",'nonat'");
+				fprintf(f1, ",'nonat'");
 				break;
 			case SIP_REINVITE_UPDATE:
-				fprintf(f1,",'update'");
+				fprintf(f1, ",'update'");
 				break;
 			default:
-				fprintf(f1,",'no'");
+				fprintf(f1, ",'no'");
 				break;
 			}
 		}
 		if (!ast_strlen_zero(peer->context))
-			fprintf(f1,",'%s'",peer->context);
+			fprintf(f1, ",'%s'",peer->context);
 		if (peer->defaddr.sin_addr.s_addr)
-			fprintf(f1,",'%s'",  ast_inet_ntoa(peer->defaddr.sin_addr));
+			fprintf(f1, ",'%s'",  ast_inet_ntoa(peer->defaddr.sin_addr));
 		if (ast_test_flag(&peer->flags[0], SIP_DTMF)) {
-			fprintf(f1,",'%s'", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
+			fprintf(f1, ",'%s'", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
 		}
 		if (!ast_strlen_zero(peer->fromuser))
-			fprintf(f1,",'%s'", peer->fromuser);
+			fprintf(f1, ",'%s'", peer->fromuser);
 		if (!ast_strlen_zero(peer->fromdomain))
-			fprintf(f1,",'%s'", peer->fromdomain);
+			fprintf(f1, ",'%s'", peer->fromdomain);
 		if (ast_test_flag(&peer->flags[0], SIP_INSECURE)) {
 			
-			fprintf(f1,",'%s'", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
+			fprintf(f1, ",'%s'", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
 		}
 		if (!ast_strlen_zero(peer->language))
-			fprintf(f1,",'%s'", peer->language);
+			fprintf(f1, ",'%s'", peer->language);
 		
 		if (!AST_LIST_EMPTY(&peer->mailboxes)) {
 			struct ast_str *mailbox_str = ast_str_alloca(512);
 			peer_mailboxes_to_str(&mailbox_str, peer);
-			fprintf(f1,",'%s'", mailbox_str->str);
+			fprintf(f1, ",'%s'", mailbox_str->str);
 		}
 		
 		if (!ast_strlen_zero(peer->md5secret))
-			fprintf(f1,",'%s'", peer->md5secret);
+			fprintf(f1, ",'%s'", peer->md5secret);
 		if (peer->ha) {
 			if (peer->ha->sense == AST_SENSE_DENY) {
-				fprintf(f1,",'%s/%s'",  ast_inet_ntoa(peer->ha->netaddr), ast_inet_ntoa(peer->ha->netmask));
+				fprintf(f1, ",'%s/%s'",  ast_inet_ntoa(peer->ha->netaddr), ast_inet_ntoa(peer->ha->netmask));
 			}
 			if (peer->ha->next && peer->ha->next->sense == AST_SENSE_ALLOW) {
-				fprintf(f1,",'%s/%s'",  ast_inet_ntoa(peer->ha->next->netaddr), ast_inet_ntoa(peer->ha->next->netmask));
+				fprintf(f1, ",'%s/%s'",  ast_inet_ntoa(peer->ha->next->netaddr), ast_inet_ntoa(peer->ha->next->netmask));
 			}
 		}
 		
 		if (!ast_strlen_zero(peer->mohinterpret))
-			fprintf(f1,",'%s'", peer->mohinterpret);
+			fprintf(f1, ",'%s'", peer->mohinterpret);
 		if (!ast_strlen_zero(peer->mohsuggest))
-			fprintf(f1,",'%s'", peer->mohsuggest);
+			fprintf(f1, ",'%s'", peer->mohsuggest);
 		if (peer->pickupgroup) {
 			char buf[256];
 			
-			fprintf(f1,",'%s'", ast_print_group(buf, sizeof(buf), peer->pickupgroup));
+			fprintf(f1, ",'%s'", ast_print_group(buf, sizeof(buf), peer->pickupgroup));
 		}
 		if (peer->maxms)
-			fprintf(f1,",'%d'", peer->maxms);
+			fprintf(f1, ",'%d'", peer->maxms);
 		if (!ast_strlen_zero(peer->regexten))
-			fprintf(f1,",'%s'", peer->regexten);
+			fprintf(f1, ",'%s'", peer->regexten);
 		if (peer->rtptimeout)
-			fprintf(f1,",'%d'", peer->rtptimeout);
+			fprintf(f1, ",'%d'", peer->rtptimeout);
 		if (peer->rtpholdtimeout)
-			fprintf(f1,",'%d'", peer->rtpholdtimeout);
+			fprintf(f1, ",'%d'", peer->rtpholdtimeout);
 		if (!ast_strlen_zero(peer->secret))
-			fprintf(f1,",'%s'", peer->secret);
+			fprintf(f1, ",'%s'", peer->secret);
 		if (peer->chanvars) {
 			int first=1;
 			struct ast_variable *p1 = peer->chanvars;
-			fprintf(f1,",'");
+			fprintf(f1, ",'");
 			while (p1)
 			{
 				if (!first)
-					fprintf(f1,";");
+					fprintf(f1, ";");
 				else
 					first = 0;
 					
-				fprintf(f1,"%s=%s", p1->name, p1->value);
+				fprintf(f1, "%s=%s", p1->name, p1->value);
 				p1 = p1->next;
 			}
-			fprintf(f1,"'");
+			fprintf(f1, "'");
 		}
 		
 		if (ast_codec_pref_index(&peer->prefs, 0)) { /* print the codecs wanted in order */
 			/* this code isn't general, it assumes deny=all; but that's pretty common.
 			   people who use this differently will have to modify the results by hand. sorry. */
 			int x, codec;
-			fprintf(f1,",'");
+			fprintf(f1, ",'");
 			for(x = 0; x < 32 ; x++) {
 				codec = ast_codec_pref_index(&peer->prefs, x);
 				if (!codec)
@@ -12916,13 +12918,13 @@ static char *_sip_dbdump(int fd, int *total, struct mansession *s, const struct 
 		}
 		
 		if (!ast_strlen_zero(peer->fullcontact))
-			fprintf(f1,",'%s'", peer->fullcontact);
+			fprintf(f1, ",'%s'", peer->fullcontact);
 		if (peer->addr.sin_addr.s_addr)
-			fprintf(f1,",'%s'",  ast_inet_ntoa(peer->addr.sin_addr));
+			fprintf(f1, ",'%s'",  ast_inet_ntoa(peer->addr.sin_addr));
 		if (peer->addr.sin_port)
-			fprintf(f1,",%d", peer->addr.sin_port);
+			fprintf(f1, ",%d", peer->addr.sin_port);
 		if (!ast_strlen_zero(peer->username))
-			fprintf(f1,",'%s'", peer->username);
+			fprintf(f1, ",'%s'", peer->username);
 		
 		fprintf(f1, ");\n");
 	}
