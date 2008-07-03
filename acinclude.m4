@@ -42,7 +42,7 @@ AC_SUBST([$1_DIR])
 AC_SUBST([PBX_$1])
 ])
 
-# AST_EXT_LIB_CHECK([package symbol name], [package library name], [function to check], [package header], [additional LIB data])
+# AST_EXT_LIB_CHECK([package symbol name], [package library name], [function to check], [package header], [additional LIB data], [additional INCLUDE data])
 
 AC_DEFUN([AST_EXT_LIB_CHECK],
 [
@@ -63,17 +63,14 @@ if test "${USE_$1}" != "no"; then
       if test "x${$1_DIR}" != "x"; then
          $1_LIB="${pbxlibdir} ${$1_LIB}"
 	 $1_INCLUDE="-I${$1_DIR}/include"
-	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${$1_DIR}/include"
-	 if test "x$4" != "x" ; then
-	    AC_CHECK_HEADER([${$1_DIR}/include/$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
-	 fi
-	 CPPFLAGS="${saved_cppflags}"
-      else
-	 if test "x$4" != "x" ; then
-            AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
-	 fi
       fi
+      $1_INCLUDE="${$1_INCLUDE} $6"
+      saved_cppflags="${CPPFLAGS}"
+      CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
+      if test "x$4" != "x" ; then
+         AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
+      fi
+      CPPFLAGS="${saved_cppflags}"
       if test "x${$1_HEADER_FOUND}" = "x0" ; then
          if test -n "${$1_MANDATORY}" ;
          then
