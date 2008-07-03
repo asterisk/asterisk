@@ -433,6 +433,11 @@ struct iax2_registry {
 	AST_LIST_ENTRY(iax2_registry) entry;
 };
 
+struct iax2_transfer_wait {
+	int callnos[2], mediaonly;
+	unsigned int responses:2;
+};
+
 static AST_LIST_HEAD_STATIC(registrations, iax2_registry);
 
 /* Don't retry more frequently than every 10 ms, or less frequently than every 5 seconds */
@@ -537,6 +542,13 @@ struct chan_iax2_pvt {
 	unsigned char iseqno;
 	/*! Last incoming sequence number we have acknowledged */
 	unsigned char aseqno;
+	/*! TODO explain */
+	int rotateid;
+	/*! TODO explain ... ... */
+	int pauserotate:1;
+	/*! TODO explain ... */
+	struct iax2_transfer_wait *transferwait;
+
 
 	AST_DECLARE_STRING_FIELDS(
 		/*! Peer name */
@@ -2265,6 +2277,10 @@ retry:
 	
 	owner = pvt ? pvt->owner : NULL;
 
+	if (pvt->rotateid > 0 && !ast_sched_del(sched, pvt->rotateid)) {
+		pvt->rotateid = -1;
+	}
+
 	if (owner) {
 		if (ast_channel_trylock(owner)) {
 			ast_debug(3, "Avoiding IAX destroy deadlock\n");
@@ -3764,12 +3780,65 @@ static struct ast_frame *iax2_read(struct ast_channel *c)
 	return &ast_null_frame;
 }
 
+static int iax2_send_rotate_transfer(struct chan_iax2_pvt *, struct chan_iax2_pvt *);
+static void lock_both(unsigned short callno0, unsigned short callno1);
+static void unlock_both(unsigned short callno0, unsigned short callno1);
+
 static int iax2_start_transfer(unsigned short callno0, unsigned short callno1, int mediaonly)
 {
 	int res;
+	int call0enc; /*!< Is callno0 encrypted? */
+	int call1enc; /*!< Is callno1 encrypted? */
 	struct iax_ie_data ied0;
 	struct iax_ie_data ied1;
 	unsigned int transferid = (unsigned int)ast_random();
+
+#if 0
+	call0enc = ast_test_flag(iaxs[callno0], IAX_ENCRYPTED | IAX_KEYPOPULATED);
+	call1enc = ast_test_flag(iaxs[callno1], IAX_ENCRYPTED | IAX_KEYPOPULATED);
+#endif
+	call0enc = iaxs[callno0]->encmethods;
+	call1enc = iaxs[callno1]->encmethods;
+
+	lock_both(callno0, callno1);
+
+	if (call0enc & call1enc) {
+		if (!iaxs[callno0]->transferwait) {
+			if (!(iaxs[callno0]->transferwait = iaxs[callno1]->transferwait 
+			    = ast_calloc(1, sizeof(*iaxs[callno0]->transferwait)))) {
+				unlock_both(callno0, callno1);
+				return -1;
+			}
+
+			iaxs[callno0]->transferwait->callnos[0] = callno0;
+			iaxs[callno1]->transferwait->callnos[1] = callno1;
+			iaxs[callno0]->transferwait->mediaonly = mediaonly;
+			iaxs[callno0]->pauserotate =
+			iaxs[callno1]->pauserotate = 1;
+
+			if (send_command(iaxs[callno0], AST_FRAME_IAX, IAX_COMMAND_RTPAUSE, 0, NULL, 0, -1) ||
+			    send_command(iaxs[callno1], AST_FRAME_IAX, IAX_COMMAND_RTPAUSE, 0, NULL, 0, -1)) {
+				unlock_both(callno0, callno1);
+				return -1;
+			}
+
+			unlock_both(callno0, callno1);
+			return 0;
+		}
+
+		if (iaxs[callno0]->transferwait->responses < 2) {
+			unlock_both(callno0, callno1);
+			return 0;
+		}
+
+		ast_free(iaxs[callno0]->transferwait);
+
+		iaxs[callno0]->transferwait =
+		iaxs[callno1]->transferwait = NULL;
+	}
+
+	ast_log(LOG_NOTICE, "iax2_start_transfer begin %d (%s) %d (%s)\n", call0enc, iaxs[callno0]->username, call1enc, iaxs[callno1]->username);
+
 	memset(&ied0, 0, sizeof(ied0));
 	iaxs[callno0]->transferid = transferid;
 	iax_ie_append_addr(&ied0, IAX_IE_APPARENT_ADDR, &iaxs[callno1]->addr);
@@ -3782,6 +3851,23 @@ static int iax2_start_transfer(unsigned short callno0, unsigned short callno1, i
 	iax_ie_append_short(&ied1, IAX_IE_CALLNO, iaxs[callno0]->peercallno);
 	iax_ie_append_int(&ied1, IAX_IE_TRANSFERID, transferid);
 	
+	if (call0enc & call1enc) {
+		if ((res = iax2_send_rotate_transfer(iaxs[callno0], iaxs[callno1]))) {
+			ast_log(LOG_ERROR, "!!! send_rotate_transfer returned with %d ... !!!", res);
+			return res;
+		}
+
+		ast_log(LOG_NOTICE, "send_rotate_transfer returned SUCCESSFULLY\n");
+	} else if (call0enc || call1enc) {
+		ast_set_flag(iaxs[callno0], IAX_NOTRANSFER);
+		ast_set_flag(iaxs[callno1], IAX_NOTRANSFER);
+		ast_log(LOG_NOTICE, "only one end of the call is encrypted, or no matching enc methods?\n");
+		return 0; /* If only one end is encrypted, don't attempt a transfer */
+		/* return 0 so that no errors show up from this */
+	}
+
+	res = send_command(iaxs[callno0], AST_FRAME_IAX, IAX_COMMAND_TXREQ, 0, ied0.buf, ied0.pos, -1);
+
 	if (iaxs[callno0]->mediareleased) {
 		res = send_command_media(iaxs[callno0], AST_FRAME_IAX, IAX_COMMAND_TXREQ, 0, ied0.buf, ied0.pos);
 	} else {
@@ -3792,14 +3878,16 @@ static int iax2_start_transfer(unsigned short callno0, unsigned short callno1, i
 		return -1;
 	
 	if (iaxs[callno1]->mediareleased)
-		res = send_command_media(iaxs[callno1], AST_FRAME_IAX, IAX_COMMAND_TXREQ, 0, ied1.buf, ied1.pos);
+				res = send_command_media(iaxs[callno1], AST_FRAME_IAX, IAX_COMMAND_TXREQ, 0, ied1.buf, ied1.pos);
 	else
 		res = send_command(iaxs[callno1], AST_FRAME_IAX, IAX_COMMAND_TXREQ, 0, ied1.buf, ied1.pos, -1);
 	
 	if (res)
 		return -1;
+
 	iaxs[callno0]->transferring = mediaonly ? TRANSFER_MBEGIN : TRANSFER_BEGIN;
 	iaxs[callno1]->transferring = mediaonly ? TRANSFER_MBEGIN : TRANSFER_BEGIN;
+
 	iaxs[callno0]->triedtransfer = 1;
 	iaxs[callno1]->triedtransfer = 1;
 
@@ -4640,7 +4728,163 @@ static int decrypt_frame(int callno, struct ast_iax2_full_hdr *fh, struct ast_fr
 	return res;
 }
 
+static int iax2_rotate(struct chan_iax2_pvt *pvt, int subclass, struct iax_ies *ies)
+{
+	struct MD5Context md5;
+	unsigned char digest[16];
+	char dgststr[33] = ""; //, *tmp;
+	int i;
+
+	ast_log(LOG_NOTICE, " ...\n");
+
+//	if (pvt->transferring) {
+//		ast_log(LOG_WARNING, "..] Oops, we're transferring... iax2_rotate returning -1!!\n");
+//		return -1;
+//	}
+
+	MD5Init(&md5);
+	MD5Update(&md5, (unsigned char *)ies->challenge, strlen(ies->challenge));
+	MD5Final(digest, &md5);
+
+#if 1
+	for (tmp = dgststr, i = 0; i < 16; i++, tmp += 2)
+		snprintf(tmp, 3, "%02x", digest[i]);
+#endif
+
+	switch (subclass) {
+		case IAX_COMMAND_RTENC:
+			ast_log(LOG_NOTICE, "..] (_RTENC) rotating decrypt key... challenge: '%s'  digest: '%s'\n",
+				ies->challenge, dgststr);
+			ast_aes_decrypt_key(digest, &pvt->dcx);
+			break;
+		case IAX_COMMAND_RTDEC:
+			ast_log(LOG_NOTICE, "..] (_RTDEC) rotating encrypt key... challenge: '%s'  digest: '%s'\n",
+				ies->challenge, dgststr);
+			ast_aes_encrypt_key(digest, &pvt->ecx);
+			break;
+		default:
+			ast_log(LOG_WARNING, "iax2_rotate: invalid IAX_COMMAND = %d\n", subclass);
+			return -1;
+	}
+
+	return 0;
+}
+
+#define TICK(s) ast_log(LOG_NOTICE, "%s\n", (s))
+
+static int iax2_send_rotate_transfer(struct chan_iax2_pvt *pvt0, struct chan_iax2_pvt *pvt1)
+{
+	struct iax_ie_data ied;
+	struct iax_ies ies;
+	struct MD5Context md5;
+	char challenge[11] = "";
+	unsigned char digest[16];
+	char dgststr[33] = "", *tmp;
+	int ret, i;
+
+	TICK("start");
+
+	memset(&ied, 0, sizeof(ied));
+
+	sprintf(challenge, "%.*x", 10, (int)ast_random());
+
+	ast_log(LOG_NOTICE, "challenge (%d) '%s'", (int)strlen(challenge), challenge);
+
+	iax_ie_append_str(&ied, IAX_IE_CHALLENGE, challenge);
+
+	ies.challenge = challenge;
+
+	MD5Init(&md5);
+	MD5Update(&md5, (unsigned char *)ies.challenge, strlen(ies.challenge));
+	MD5Final(digest, &md5);
+
+	for (tmp = dgststr, i = 0; i < 16; i++, tmp += 2)
+		snprintf(tmp, 3, "%02x", digest[i]);
+
+	ast_log(LOG_NOTICE, "iax2_send_rotate_transfer: challenge (%d) == '%s' ... digest: '%s'\n", 
+		(int)strlen(challenge), challenge, dgststr);
+
+	if (send_command(pvt0, AST_FRAME_IAX, IAX_COMMAND_RTENC, 0, ied.buf, ied.pos, -1)) {
+		ret = 1;
+		goto error;
+	}
+
+	iax2_rotate(pvt0, IAX_COMMAND_RTDEC, &ies);
+//	ast_aes_encrypt_key(digest, &pvt0->ecx);
+
+	if (send_command(pvt0, AST_FRAME_IAX, IAX_COMMAND_RTDEC, 0, ied.buf, ied.pos, -1)) {
+		ret = 2;
+		goto error;
+	}
+
+	iax2_rotate(pvt0, IAX_COMMAND_RTENC, &ies);
+//	ast_aes_decrypt_key(digest, &pvt0->dcx);
+
+	if (send_command(pvt1, AST_FRAME_IAX, IAX_COMMAND_RTENC, 0, ied.buf, ied.pos, -1)) {
+		ret = 3;
+		goto error;
+	}
+
+	iax2_rotate(pvt1, IAX_COMMAND_RTDEC, &ies);
+//	ast_aes_encrypt_key(digest, &pvt1->ecx);
+
+	if (send_command(pvt1, AST_FRAME_IAX, IAX_COMMAND_RTDEC, 0, ied.buf, ied.pos, -1)) {
+		ret = 4;
+		goto error;
+	}
+
+	iax2_rotate(pvt1, IAX_COMMAND_RTENC, &ies);
+//	ast_aes_decrypt_key(digest, &pvt1->dcx);
+
+	return 0;
+
+error:
+	ast_log(LOG_NOTICE, "Returning from here with error code '%d'\n", ret);
+	return ret;
+}
+
+static int iax2_send_rotate(const void *p)
+{
+	struct chan_iax2_pvt *pvt = (struct chan_iax2_pvt *)p;
+	struct iax_ie_data ied;
+	struct MD5Context md5;
+	char challenge[11] = "";
+	unsigned char digest[16];
+	//char dgststr[33] = ""; //, *tmp;
+	int res = 0;//, i;
+
+	pvt->rotateid = iax2_sched_add(sched, (ast_random() % 180001) + 120000, iax2_send_rotate, pvt);
+
+	if (pvt->pauserotate || pvt->transferring)
+		return 0;
+
+	memset(&ied, 0, sizeof(ied));
+
+	snprintf(challenge, sizeof(challenge), "%x", (int)ast_random());
+
+	iax_ie_append_str(&ied, IAX_IE_CHALLENGE, challenge); //, sizeof(challenge));
+	res = send_command(pvt, AST_FRAME_IAX, IAX_COMMAND_RTENC, 0, ied.buf, ied.pos, -1);
+	
+	MD5Init(&md5);
+	MD5Update(&md5, (unsigned char *)challenge, strlen(challenge));
+	MD5Final(digest, &md5);
+
+//	for (tmp = dgststr, i = 0; i < 16; i++, tmp += 2)
+//		snprintf(tmp, 3, "%02x", digest[i]);
+
+//	ast_log(LOG_NOTICE, "iax2_send_rotate: challenge (%d) == '%s'\n", (int)strlen(challenge), challenge);
+
+//	ast_log(LOG_NOTICE, "iax2_send_rotate: sending new ecx key '%s'\n", dgststr);
+
+	ast_aes_encrypt_key(digest, &pvt->ecx);
+
+	return res;
+}
+
+//static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned int ts, int seqno, int now, int transfer, int final)
+//=======
 static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned int ts, int seqno, int now, int transfer, int final, int media)
+//>>>>>>> .merge-right.r117053
 {
 	/* Queue a packet for delivery on a given private structure.  Use "ts" for
 	   timestamp, or calculate if ts is 0.  Send immediately without retransmission
@@ -4707,6 +4951,11 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		}
 		pvt->lastvsent = fts;
 	}
+
+	if ( f->frametype == AST_FRAME_VOICE &&  ast_test_flag(pvt, IAX_ENCRYPTED) &&
+		 ast_test_flag(pvt, IAX_KEYPOPULATED) && pvt->rotateid < 1 ) {
+		iax2_send_rotate(pvt);
+	}
 	/* Allocate an iax_frame */
 	if (now) {
 		fr = &frb.fr2;
@@ -4767,7 +5016,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		else if (f->frametype == AST_FRAME_VOICE)
 			pvt->svoiceformat = f->subclass;
 		else if (f->frametype == AST_FRAME_VIDEO)
-			pvt->svideoformat = f->subclass & ~0x1;
+			pvt->svideoformat = f->subclass & ~0x1;		
 		if (ast_test_flag(pvt, IAX_ENCRYPTED)) {
 			if (ast_test_flag(pvt, IAX_KEYPOPULATED)) {
 				if (iaxdebug) {
@@ -4779,9 +5028,10 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 					else
 						iax_showframe(fr, NULL, 2, &pvt->addr, fr->datalen - sizeof(struct ast_iax2_full_hdr));
 				}
+
 				encrypt_frame(&pvt->ecx, fh, pvt->semirand, &fr->datalen);
 			} else
-				ast_log(LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
+				ast_log(LOG_WARNING, "Supposed to send packet encrypted, but no key? (no shared key found?)\n");
 		}
 	
 		if (now) {
@@ -4916,8 +5166,8 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 	int unmonitored_peers = 0;
 	struct ao2_iterator i;
 
-#define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-10s%s"
-#define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s%s"
+#define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-10s%s %-10.10s| %-10s"
+#define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s%s %-10.10s| %-10s"
 
 	struct iax2_peer *peer = NULL;
 	char name[256];
@@ -4959,7 +5209,7 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 
 
 	if (!s)
-		ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", term);
+		ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", "    ", "Encryption", term);
 
 	i = ao2_iterator_init(peers, 0);
 	for (peer = ao2_iterator_next(&i); peer; 
@@ -4994,7 +5244,7 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 			 ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
 			 nm,
 			 ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
-			 peer->encmethods ? "(E)" : "   ", status, term);
+			 peer->encmethods ? "(E)" : "   ", status, "    ", "Unknown", term);
 		
 		if (s)
 			astman_append(s, 
@@ -5019,7 +5269,7 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 				ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
 				nm,
 				ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
-				peer->encmethods ? "(E)" : "   ", status, term);
+				peer->encmethods ? "(E)" : "   ", status, "    ",  peer->encmethods ? "Yes" : "No", term);
 		total_peers++;
 	}
 
@@ -5740,6 +5990,11 @@ static int send_command_immediate(struct chan_iax2_pvt *i, char type, int comman
 
 static int send_command_transfer(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const unsigned char *data, int datalen)
 {
+	char buf[256] = "";
+
+	sprintf(buf, "send_command_transfer = command: %d", command);
+	TICK(buf);
+
 	return __send_command(i, type, command, ts, data, datalen, 0, 0, 1, 0, 0);
 }
 
@@ -6047,7 +6302,7 @@ static int authenticate_request(int call_num)
 
 	iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
 	if (p->authmethods & (IAX_AUTH_MD5 | IAX_AUTH_RSA)) {
-		snprintf(challenge, sizeof(challenge), "%d", (int)ast_random());
+		snprintf(challenge, sizeof(challenge), (ast_random() & 1) ? "%x" : "%X" , (int)ast_random());
 		ast_string_field_set(p, challenge, challenge);
 		/* snprintf(p->challenge, sizeof(p->challenge), "%d", (int)ast_random()); */
 		iax_ie_append_str(&ied, IAX_IE_CHALLENGE, p->challenge);
@@ -6460,6 +6715,10 @@ static int iax2_do_register_s(const void *data)
 	return 0;
 }
 
+#ifndef TICK
+#  define TICK(s) ast_log(LOG_NOTICE, "%s\n", (s))
+#endif
+
 static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 {
 	int newcall = 0;
@@ -6467,12 +6726,26 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 	struct iax_ie_data ied;
 	struct sockaddr_in new;
 	
+	TICK(__PRETTY_FUNCTION__);
 	
 	memset(&ied, 0, sizeof(ied));
 	if (ies->apparent_addr)
 		bcopy(ies->apparent_addr, &new, sizeof(new));
 	if (ies->callno)
 		newcall = ies->callno;
+#if 0
+	if (ies->challenge) {
+		struct MD5Context md5;
+		unsigned char digest[16];
+
+		MD5Init(&md5);
+		MD5Update(&md5, (unsigned char *)ies->challenge, strlen(ies->challenge));
+		MD5Final(digest, &md5);
+
+		build_enc_keys(digest, &pvt->ecx, &pvt->dcx);
+	}
+#endif
+
 	if (!newcall || !new.sin_addr.s_addr || !new.sin_port) {
 		ast_log(LOG_WARNING, "Invalid transfer request\n");
 		return -1;
@@ -6485,6 +6758,9 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 	pvt->transferid = ies->transferid;
 	if (ies->transferid)
 		iax_ie_append_int(&ied, IAX_IE_TRANSFERID, ies->transferid);
+
+	TICK(__PRETTY_FUNCTION__);
+
 	send_command_transfer(pvt, AST_FRAME_IAX, IAX_COMMAND_TXCNT, 0, ied.buf, ied.pos);
 	return 0; 
 }
@@ -8071,7 +8347,7 @@ static int socket_process(struct iax2_thread *thread)
 	}
 	if (ast_test_flag(iaxs[fr->callno], IAX_ENCRYPTED)) {
 		if (decrypt_frame(fr->callno, fh, &f, &res)) {
-			ast_log(LOG_NOTICE, "Packet Decrypt Failed!\n");
+			//ast_log(LOG_NOTICE, "Packet Decrypt Failed!\n");
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
@@ -9361,6 +9637,7 @@ retryowner2:
 
 				break;
 			case IAX_COMMAND_TXCNT:
+				TICK("case TXCNT...");
 				if ((iaxs[fr->callno]->transferring == TRANSFER_BEGIN) &&
 				    (iaxs[fr->callno]->transferid == ies.transferid)) {
 					memcpy(&iaxs[fr->callno]->transfer, &sin, sizeof(iaxs[fr->callno]->transfer));
@@ -9416,6 +9693,32 @@ retryowner2:
 					ast_mutex_unlock(&iaxsl[fr->callno]);
 					return 1;
 				}
+				break;
+			case IAX_COMMAND_RTENC:
+			case IAX_COMMAND_RTDEC:
+				ast_log(LOG_NOTICE, "..] receiving '%s'...\n", ((f.subclass == IAX_COMMAND_RTENC) ? "IAX_COMMAND_RTENC" : "IAX_COMMAND_RTDEC"));
+
+				if (!ast_test_flag(iaxs[fr->callno], IAX_ENCRYPTED) || !ast_test_flag(iaxs[fr->callno], IAX_KEYPOPULATED)) {
+					ast_log(LOG_WARNING, "**] breaking out of rotate sequence!!!\n");
+					break;
+				}
+
+				ast_log(LOG_NOTICE, "..] calling iax2_rotate\n");
+				iax2_rotate(iaxs[fr->callno], f.subclass, &ies);
+				break;
+			case IAX_COMMAND_RTPAUSE:
+				iaxs[fr->callno]->pauserotate = 1;
+				send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_RTRESP, 0, NULL, 0, -1);
+				break;
+			case IAX_COMMAND_RTRESP:
+				if (!iaxs[fr->callno]->transferwait) {
+					ast_log(LOG_NOTICE, "Received RTRESP without awaiting one for a transfer to begin! (could potentially lockup call).\n");
+					break;
+				}
+
+				if (iaxs[fr->callno]->transferwait->responses++ > 1)
+					iax2_start_transfer(iaxs[fr->callno]->transferwait->callnos[0], iaxs[fr->callno]->transferwait->callnos[1], iaxs[fr->callno]->transferwait->mediaonly);
+
 				break;
 			default:
 				ast_debug(1, "Unknown IAX command %d on %d/%d\n", f.subclass, fr->callno, iaxs[fr->callno]->peercallno);
@@ -10068,6 +10371,7 @@ static void *sched_thread(void *ignore)
 		pthread_testcancel();
 
 		count = ast_sched_runq(sched);
+
 		if (count >= 20)
 			ast_debug(1, "chan_iax2: ast_sched_runq ran %d scheduled tasks all at once\n", count);
 	}
