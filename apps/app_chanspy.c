@@ -366,7 +366,7 @@ static int channel_spy(struct ast_channel *chan, struct chanspy_ds *spyee_chansp
 	}
 	if ((spyee_bridge = ast_bridged_channel(spyee))) {
 		ast_channel_lock(spyee_bridge);
-		if (start_spying(ast_bridged_channel(spyee), spyer_name, &csth.bridge_whisper_audiohook)) {
+		if (start_spying(spyee_bridge, spyer_name, &csth.bridge_whisper_audiohook)) {
 			ast_log(LOG_WARNING, "Unable to attach barge audiohook on spyee %s. Barge mode disabled!\n", spyee->name);
 		}
 		ast_channel_unlock(spyee_bridge);
