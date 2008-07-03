@@ -192,7 +192,7 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
          $1_HEADER_FOUND="1"
       else				# check for the header
          saved_cppflags="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE} $6"
+         CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
 	 AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
          CPPFLAGS="${saved_cppflags}"
       fi

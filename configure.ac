@@ -1390,11 +1390,7 @@ if test "${host_os}" != "linux-gnu" ; then
   tonezone_extra="-lm"
 fi
 
-if test "x${DAHDI_DIR}" != "x"; then
-  tonezone_extra="${tonezone_extra} -I${DAHDI_DIR}/include"
-fi
-
-AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [dahdi/tonezone.h], [${tonezone_extra}])
+AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [dahdi/tonezone.h], [${tonezone_extra} ${DAHDI_INCLUDE}])
 
 AST_EXT_LIB_CHECK([USB], [usb], [usb_init], [usb.h], [])
 
