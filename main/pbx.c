@@ -3459,17 +3459,6 @@ static int __ast_pbx_run(struct ast_channel *c)
 	}
 	if (!(c->pbx = ast_calloc(1, sizeof(*c->pbx))))
 		return -1;
-	if (c->amaflags) {
-		if (!c->cdr) {
-			c->cdr = ast_cdr_alloc();
-			if (!c->cdr) {
-				ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
-				ast_free(c->pbx);
-				return -1;
-			}
-			ast_cdr_init(c->cdr, c);
-		}
-	}
 	/* Set reasonable defaults */
 	c->pbx->rtimeout = 10;
 	c->pbx->dtimeout = 5;
@@ -3492,8 +3481,6 @@ static int __ast_pbx_run(struct ast_channel *c)
 			ast_copy_string(c->context, "default", sizeof(c->context));
 		}
 	}
-	if (c->cdr && ast_tvzero(c->cdr->start))
-		ast_cdr_start(c->cdr);
 	for (;;) {
 		char dst_exten[256];	/* buffer to accumulate digits */
 		int pos = 0;		/* XXX should check bounds */
@@ -3659,8 +3646,6 @@ static int __ast_pbx_run(struct ast_channel *c)
 	if (res != AST_PBX_KEEPALIVE)
 		ast_softhangup(c, c->hangupcause ? c->hangupcause : AST_CAUSE_NORMAL_CLEARING);
 	if ((res != AST_PBX_KEEPALIVE) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
-		if (c->cdr && ast_opt_end_cdr_before_h_exten)
-			ast_cdr_end(c->cdr);
 		set_ext_pri(c, "h", 1);
 		while ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num, &found, 1)) == 0) {
 			c->priority++;
@@ -6798,18 +6783,6 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 	if (sync) {
 		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
 		if (chan) {
-			if (!chan->cdr) { /* check if the channel already has a cdr record, if not give it one */
-				chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
-				if (!chan->cdr) {
-					/* allocation of the cdr failed */
-					ast_free(chan->pbx);
-					res = -1;
-					goto outgoing_app_cleanup;
-				}
-				/* allocation of the cdr was successful */
-				ast_cdr_init(chan->cdr, chan);  /* initialize our channel's cdr */
-				ast_cdr_start(chan->cdr);
-			}
 			ast_set_variables(chan, vars);
 			if (account)
 				ast_cdr_setaccount(chan, account);
@@ -8084,7 +8057,6 @@ static int pbx_parseable_goto(struct ast_channel *chan, const char *goto_string,
 	else
 		ast_explicit_goto(chan, context, exten, ipri);
 	
-	ast_cdr_update(chan);
 	return 0;
 
 }

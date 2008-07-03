@@ -24,16 +24,23 @@
 #define _ASTERISK_CDR_H
 
 #include <sys/time.h>
+
+/*! \name CDR Flags */
+/*@{ */
 #define AST_CDR_FLAG_KEEP_VARS		(1 << 0)
 #define AST_CDR_FLAG_POSTED			(1 << 1)
 #define AST_CDR_FLAG_LOCKED			(1 << 2)
 #define AST_CDR_FLAG_CHILD			(1 << 3)
 #define AST_CDR_FLAG_POST_DISABLED	(1 << 4)
-#define AST_CDR_FLAG_ANSLOCKED      (1 << 5)
-#define AST_CDR_FLAG_DONT_TOUCH     (1 << 6)
+#define AST_CDR_FLAG_BRIDGED		(1 << 5)
+#define AST_CDR_FLAG_MAIN			(1 << 6)
+#define AST_CDR_FLAG_ENABLE			(1 << 7)
+#define AST_CDR_FLAG_ANSLOCKED      (1 << 8)
+#define AST_CDR_FLAG_DONT_TOUCH     (1 << 9)
 #define AST_CDR_FLAG_POST_ENABLE                (1 << 5)
+/*@} */
 
-/*! \name CDR Flags */
+/*! \name CDR Flags - Disposition */
 /*@{ */
 #define AST_CDR_NULL                0
 #define AST_CDR_FAILED				(1 << 0)
@@ -299,8 +306,16 @@ char *ast_cdr_disp2str(int disposition);
  */
 void ast_cdr_reset(struct ast_cdr *cdr, struct ast_flags *flags);
 
-/*! 
- * \brief Flags to a string 
+/*! Reset the detail record times, flags */
+/*!
+ * \param cdr which cdr to act upon
+ * \param flags |AST_CDR_FLAG_POSTED whether or not to post the cdr first before resetting it
+ *              |AST_CDR_FLAG_LOCKED whether or not to reset locked CDR's
+ */
+void ast_cdr_specialized_reset(struct ast_cdr *cdr, struct ast_flags *flags);
+
+/*! Flags to a string */
+/*!
  * \param flags binary flag
  * Converts binary flags to string flags
  * Returns string with flag name
