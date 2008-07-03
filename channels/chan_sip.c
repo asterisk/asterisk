@@ -13402,19 +13402,6 @@ static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target
 		if (peerd)
 			ast_quiet_chan(peerd);
 
-		/* Fix CDRs so they're attached to the remaining channel */
-		if (peera->cdr && peerb->cdr)
-			peerb->cdr = ast_cdr_append(peerb->cdr, peera->cdr);
-		else if (peera->cdr) 
-			peerb->cdr = peera->cdr;
-		peera->cdr = NULL;
-
-		if (peerb->cdr && peerc->cdr) 
-			peerb->cdr = ast_cdr_append(peerb->cdr, peerc->cdr);
-		else if (peerc->cdr)
-			peerb->cdr = peerc->cdr;
-		peerc->cdr = NULL;
-	
 		if (option_debug > 3)
 			ast_log(LOG_DEBUG, "SIP transfer: trying to masquerade %s into %s\n", peerc->name, peerb->name);
 		if (ast_channel_masquerade(peerb, peerc)) {
