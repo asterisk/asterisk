@@ -25,11 +25,6 @@ ifneq ($(findstring IMAP_STORAGE,$(MENUSELECT_OPTS_app_voicemail)),)
   MENUSELECT_DEPENDS_app_directory+=$(MENUSELECT_DEPENDS_IMAP_STORAGE)
 endif
 
-ifeq (SunOS,$(shell uname))
-  MENUSELECT_DEPENDS_app_chanspy+=RT
-  RT_LIB=-lrt
-endif
-
 all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules

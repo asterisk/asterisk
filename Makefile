@@ -304,7 +304,7 @@ else
 endif
 
 ifeq ($(OSARCH),SunOS)
-  SOLINK=-shared -fpic -L/usr/local/ssl/lib
+  SOLINK=-shared -fpic -L/usr/local/ssl/lib -lrt
 endif
 
 # comment to print directories during submakes
