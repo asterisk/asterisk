@@ -2805,11 +2805,16 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw, const ch
  */
 int ast_context_remove_extension(const char *context, const char *extension, int priority, const char *registrar)
 {
+	return ast_context_remove_extension_callerid(context, extension, priority, NULL, 0, registrar);
+}
+
+int ast_context_remove_extension_callerid(const char *context, const char *extension, int priority, const char *callerid, int matchcid, const char *registrar)
+{
 	int ret = -1; /* default error return */
 	struct ast_context *c = find_context_locked(context);
 
 	if (c) { /* ... remove extension ... */
-		ret = ast_context_remove_extension2(c, extension, priority, registrar);
+		ret = ast_context_remove_extension_callerid2(c, extension, priority, callerid, matchcid, registrar);
 		ast_unlock_contexts();
 	}
 	return ret;
@@ -2827,12 +2832,20 @@ int ast_context_remove_extension(const char *context, const char *extension, int
  */
 int ast_context_remove_extension2(struct ast_context *con, const char *extension, int priority, const char *registrar)
 {
+	return ast_context_remove_extension_callerid2(con, extension, priority, NULL, 0, registrar);
+}
+
+int ast_context_remove_extension_callerid2(struct ast_context *con, const char *extension, int priority, const char *callerid, int matchcid, const char *registrar)
+{
 	struct ast_exten *exten, *prev_exten = NULL;
 	struct ast_exten *peer;
+	struct ast_exten *previous_peer = NULL;
+	struct ast_exten *next_peer = NULL;
+	int found = 0;
 
 	ast_mutex_lock(&con->lock);
 
-	/* scan the extension list to find matching extension-registrar */
+	/* scan the extension list to find first matching extension-registrar */
 	for (exten = con->root; exten; prev_exten = exten, exten = exten->next) {
 		if (!strcmp(exten->exten, extension) &&
 			(!registrar || !strcmp(exten->registrar, registrar)))
@@ -2844,56 +2857,43 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 		return -1;
 	}
 
-	/* should we free all peers in this extension? (priority == 0)? */
-	if (priority == 0) {
-		/* remove this extension from context list */
-		if (prev_exten)
-			prev_exten->next = exten->next;
-		else
-			con->root = exten->next;
+	/* scan the priority list to remove extension with exten->priority == priority */
+	for (peer = exten, next_peer = exten->peer ? exten->peer : exten->next;
+			peer && !strcmp(peer->exten, extension);
+			peer = next_peer, next_peer = next_peer ? (next_peer->peer ? next_peer->peer : next_peer->next) : NULL) {
+		if ((priority == 0 || peer->priority == priority) &&
+				(!callerid || !matchcid || (matchcid && !strcmp(peer->cidmatch, callerid))) &&
+				(!registrar || !strcmp(peer->registrar, registrar) )) {
+			found = 1;
 
-		/* fire out all peers */
-		while ( (peer = exten) ) {
-			exten = peer->peer; /* prepare for next entry */
+			/* we are first priority extension? */
+			if (!previous_peer) {
+				/*
+				 * We are first in the priority chain, so must update the extension chain.
+				 * The next node is either the next priority or the next extension
+				 */
+				struct ast_exten *next_node = peer->peer ? peer->peer : peer->next;
+
+				if (!prev_exten) {	/* change the root... */
+					con->root = next_node;
+				} else {
+					prev_exten->next = next_node; /* unlink */
+				}
+				if (peer->peer)	{ /* update the new head of the pri list */
+					peer->peer->next = peer->next;
+				}
+			} else { /* easy, we are not first priority in extension */
+				previous_peer->peer = peer->peer;
+			}
+
+			/* now, free whole priority extension */
 			destroy_exten(peer);
+		} else {
+			previous_peer = peer;
 		}
-	} else {
-		/* scan the priority list to remove extension with exten->priority == priority */
-		struct ast_exten *previous_peer = NULL;
-
-		for (peer = exten; peer; previous_peer = peer, peer = peer->peer) {
-			if (peer->priority == priority &&
-					(!registrar || !strcmp(peer->registrar, registrar) ))
-				break; /* found our priority */
-		}
-		if (!peer) { /* not found */
-			ast_mutex_unlock(&con->lock);
-			return -1;
-		}
-		/* we are first priority extension? */
-		if (!previous_peer) {
-			/*
-			 * We are first in the priority chain, so must update the extension chain.
-			 * The next node is either the next priority or the next extension
-			 */
-			struct ast_exten *next_node = peer->peer ? peer->peer : peer->next;
-
-			if (!prev_exten)	/* change the root... */
-				con->root = next_node;
-			else
-				prev_exten->next = next_node; /* unlink */
-			if (peer->peer)	/* XXX update the new head of the pri list */
-				peer->peer->next = peer->next;
-		} else { /* easy, we are not first priority in extension */
-			previous_peer->peer = peer->peer;
-		}
-
-		/* now, free whole priority extension */
-		destroy_exten(peer);
-		/* XXX should we return -1 ? */
 	}
 	ast_mutex_unlock(&con->lock);
-	return 0;
+	return found ? 0 : -1;
 }
 
 
