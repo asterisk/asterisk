@@ -149,9 +149,9 @@ static int partial_match(const char *s, const char *word, int len)
 /*! \brief split extension\@context in two parts, return -1 on error.
  * The return string is malloc'ed and pointed by *ext
  */
-static int split_ec(const char *src, char **ext, char ** const ctx)
+static int split_ec(const char *src, char **ext, char ** const ctx, char ** const cid)
 {
-	char *c, *e = ast_strdup(src); /* now src is not used anymore */
+	char *i, *c, *e = ast_strdup(src); /* now src is not used anymore */
 
 	if (e == NULL)
 		return -1;	/* malloc error */
@@ -167,7 +167,14 @@ static int split_ec(const char *src, char **ext, char ** const ctx)
 			free(e);
 			return -1;
 		}
-	} 
+	}
+	if (cid && (i = strchr(e, '/'))) {
+		*i++ = '\0';
+		*cid = i;
+	} else if (cid) {
+		/* Signal none detected */
+		*cid = NULL;
+	}
 	return 0;
 }
 
@@ -298,14 +305,14 @@ static char *complete_dialplan_remove_include(struct ast_cli_args *a)
 static char *handle_cli_dialplan_remove_extension(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int removing_priority = 0;
-	char *exten, *context;
+	char *exten, *context, *cid;
 	char *ret = CLI_FAILURE;
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "dialplan remove extension";
 		e->usage =
-			"Usage: dialplan remove extension exten@context [priority]\n"
+			"Usage: dialplan remove extension exten[/cid]@context [priority]\n"
 			"       Remove an extension from a given context. If a priority\n"
 			"       is given, only that specific priority from the given extension\n"
 			"       will be removed.\n";
@@ -350,7 +357,7 @@ static char *handle_cli_dialplan_remove_extension(struct ast_cli_entry *e, int c
 	/*
 	 * Format exten@context checking ...
 	 */
-	if (split_ec(a->argv[3], &exten, &context))
+	if (split_ec(a->argv[3], &exten, &context, &cid))
 		return CLI_FAILURE; /* XXX malloc failure */
 	if ((!strlen(exten)) || (!(strlen(context)))) {
 		ast_cli(a->fd, "Missing extension or context name in third argument '%s'\n",
@@ -359,7 +366,9 @@ static char *handle_cli_dialplan_remove_extension(struct ast_cli_entry *e, int c
 		return CLI_FAILURE;
 	}
 
-	if (!ast_context_remove_extension(context, exten, removing_priority, registrar)) {
+	if (!ast_context_remove_extension_callerid(context, exten, removing_priority,
+			/* Do NOT substitute S_OR; it is NOT the same thing */
+			cid ? cid : (removing_priority ? "" : NULL), cid ? 1 : 0, registrar)) {
 		if (!removing_priority)
 			ast_cli(a->fd, "Whole extension %s@%s removed\n",
 				exten, context);
@@ -369,7 +378,11 @@ static char *handle_cli_dialplan_remove_extension(struct ast_cli_entry *e, int c
 			
 		ret = CLI_SUCCESS;
 	} else {
-		ast_cli(a->fd, "Failed to remove extension %s@%s\n", exten, context);
+		if (cid) {
+			ast_cli(a->fd, "Failed to remove extension %s/%s@%s\n", exten, cid, context);
+		} else {
+			ast_cli(a->fd, "Failed to remove extension %s@%s\n", exten, context);
+		}
 		ret = CLI_FAILURE;
 	}
 	free(exten);
@@ -381,15 +394,15 @@ static char *handle_cli_dialplan_remove_extension(struct ast_cli_entry *e, int c
 #ifdef BROKEN_READLINE
 /*
  * There is one funny thing, when you have word like 300@ and you hit
- * <tab>, you arguments will like as your word is '300 ', so it '@'
- * characters acts sometimes as word delimiter and sometimes as a part
- * of word
+ * <tab>, you arguments will act as your word is '300 ', so the '@'
+ * character acts sometimes as a word delimiter and sometimes as a part
+ * of a word.
  *
- * This fix function, allocates new word variable and store here every
- * time xxx@yyy always as one word and correct pos is set too
+ * This fix function allocates a new word variable and stores it every
+ * time as xxx@yyy. The correct pos is set, too.
  *
- * It's ugly, I know, but I'm waiting for Mark suggestion if upper is
- * bug or feature ...
+ * It's ugly, I know, but I'm waiting for Mark's suggestion if the
+ * previous is a bug or a feature ...
  */
 static int fix_complete_args(const char *line, char **word, int *pos)
 {
@@ -443,18 +456,21 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 
 	if (a->pos == 3) { /* 'dialplan remove extension _X_' (exten@context ... */
 		struct ast_context *c = NULL;
-		char *context = NULL, *exten = NULL;
+		char *context = NULL, *exten = NULL, *cid = NULL;
 		int le = 0;	/* length of extension */
 		int lc = 0;	/* length of context */
+		int lcid = 0; /* length of cid */
 
-		lc = split_ec(a->word, &exten, &context);
+		lc = split_ec(a->word, &exten, &context, &cid);
+		if (lc)	{ /* error */
 #ifdef BROKEN_READLINE
-		free(word2);
+			free(word2);
 #endif
-		if (lc)	/* error */
 			return NULL;
+		}
 		le = strlen(exten);
 		lc = strlen(context);
+		lcid = cid ? strlen(cid) : -1;
 
 		if (ast_rdlock_contexts()) {
 			ast_log(LOG_ERROR, "Failed to lock context list\n");
@@ -468,11 +484,22 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 			if (!partial_match(ast_get_context_name(c), context, lc))
 				continue;	/* context not matched */
 			while ( (e = ast_walk_context_extensions(c, e)) ) { /* try to complete extensions ... */
-				if ( partial_match(ast_get_extension_name(e), exten, le) && ++which > a->n) { /* n-th match */
-					/* If there is an extension then return exten@context. XXX otherwise ? */
-					if (exten)
-						asprintf(&ret, "%s@%s", ast_get_extension_name(e), ast_get_context_name(c));
-					break;
+				if ( !strchr(a->word, '/') ||
+						(!strchr(a->word, '@') && partial_match(ast_get_extension_cidmatch(e), cid, lcid)) ||
+						(strchr(a->word, '@') && !strcmp(ast_get_extension_cidmatch(e), cid))) {
+					if ( ((strchr(a->word, '/') || strchr(a->word, '@')) && !strcmp(ast_get_extension_name(e), exten)) ||
+						 (!strchr(a->word, '/') && !strchr(a->word, '@') && partial_match(ast_get_extension_name(e), exten, le))) { /* n-th match */
+						if (++which > a->n) {
+							/* If there is an extension then return exten@context. */
+							if (ast_get_extension_matchcid(e) && (!strchr(a->word, '@') || strchr(a->word, '/'))) {
+								asprintf(&ret, "%s/%s@%s", ast_get_extension_name(e), ast_get_extension_cidmatch(e), ast_get_context_name(c));
+								break;
+							} else if (!ast_get_extension_matchcid(e) && !strchr(a->word, '/')) {
+								asprintf(&ret, "%s@%s", ast_get_extension_name(e), ast_get_context_name(c));
+								break;
+							}
+						}
+					}
 				}
 			}
 			if (e)	/* got a match */
@@ -484,11 +511,11 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 		if (exten)
 			free(exten);
 	} else if (a->pos == 4) { /* 'dialplan remove extension EXT _X_' (priority) */
-		char *exten = NULL, *context, *p;
+		char *exten = NULL, *context, *cid, *p;
 		struct ast_context *c;
-		int le, lc, len;
+		int le, lc, lcid, len;
 		const char *s = skip_words(a->line, 3); /* skip 'dialplan' 'remove' 'extension' */
-		int i = split_ec(s, &exten, &context);	/* parse ext@context */
+		int i = split_ec(s, &exten, &context, &cid);	/* parse ext@context */
 
 		if (i)	/* error */
 			goto error3;
@@ -498,6 +525,7 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 			*p = '\0';
 		le = strlen(exten);
 		lc = strlen(context);
+		lcid = strlen(cid);
 		len = strlen(a->word);
 		if (le == 0 || lc == 0)
 			goto error3;
@@ -520,6 +548,9 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 				struct ast_exten *priority;
 				char buffer[10];
 
+				if (cid && strcmp(ast_get_extension_cidmatch(e), cid) != 0) {
+					continue;
+				}
 				if (strcmp(ast_get_extension_name(e), exten) != 0)
 					continue;
 				/* XXX lock e ? */
@@ -537,10 +568,10 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 	error3:
 		if (exten)
 			free(exten);
-#ifdef BROKEN_READLINE
-		free(word2);
-#endif
 	}
+#ifdef BROKEN_READLINE
+	free(word2);
+#endif
 	return ret; 
 }
 
