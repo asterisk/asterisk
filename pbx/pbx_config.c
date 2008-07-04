@@ -799,10 +799,10 @@ static char *complete_context_remove_extension_deprecated(const char *line, cons
 	error3:
 		if (exten)
 			free(exten);
-#ifdef BROKEN_READLINE
-		free(word2);
-#endif
 	}
+#ifdef BROKEN_READLINE
+	free(word2);
+#endif
 	return ret; 
 }
 
