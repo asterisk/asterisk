@@ -23111,7 +23111,7 @@ static int load_module(void)
 		"port", RQ_UINTEGER2, 5,
 		"regseconds", RQ_UINTEGER2, 5,   /* Max of 18 hours */
 		"defaultuser", RQ_CHAR, 10,
-		"fullcontact", RQ_CHAR, 20,
+		"fullcontact", RQ_CHAR, 35,
 		"regserver", RQ_CHAR, 20,
 		"useragent", RQ_CHAR, 20,
 		SENTINEL);
