@@ -2901,6 +2901,18 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
 	pbx_substitute_variables_helper(c, e->data, passdata, datalen - 1);
 }
 
+/*! \brief report AGI state for channel */
+const char *agi_state(struct ast_channel *chan)
+{
+	if (ast_test_flag(chan, AST_FLAG_AGI))
+		return "AGI";
+	if (ast_test_flag(chan, AST_FLAG_FASTAGI))
+		return "FASTAGI";
+	if (ast_test_flag(chan, AST_FLAG_ASYNCAGI))
+		return "ASYNCAGI";
+	return "";
+}
+
 /*! 
  * \brief The return value depends on the action:
  *
@@ -2981,8 +2993,9 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 					"Priority: %d\r\n"
 					"Application: %s\r\n"
 					"AppData: %s\r\n"
-					"Uniqueid: %s\r\n",
-					c->name, c->context, c->exten, c->priority, app->name, passdata, c->uniqueid);
+					"Uniqueid: %s\r\n"
+					"AGIstate: %s\r\n",
+					c->name, c->context, c->exten, c->priority, app->name, passdata, c->uniqueid, agi_state(c));
 			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */
