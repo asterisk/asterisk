@@ -14213,6 +14213,8 @@ static char *sip_show_channelstats(struct ast_cli_entry *e, int cmd, struct ast_
 			"       Lists all currently active SIP channel's RTCP statistics.\n"
 			"       Note that calls in the much optimized RTP P2P bridge mode will not show any packets here.";
 		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
 
 	if (a->argc != 3)
