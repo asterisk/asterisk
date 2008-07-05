@@ -14376,6 +14376,17 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				res = linkset_addsigchan(sigchan);
 				if (res < 0)
 					return -1;
+
+			} else if (!strcasecmp(v->name, "ss7_explicitacm")) {
+				struct dahdi_ss7 *link;
+				link = ss7_resolve_linkset(cur_linkset);
+				if (!link) {
+					ast_log(LOG_ERROR, "Invalid linkset number.  Must be between 1 and %d\n", NUM_SPANS + 1);
+					return -1;
+				}
+				if (ast_true(v->value))
+					link->flags |= LINKSET_FLAG_EXPLICITACM;
+
 #endif /* HAVE_SS7 */
 			} else if (!strcasecmp(v->name, "cadence")) {
 				/* setup to scan our argument */
