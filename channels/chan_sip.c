@@ -40,6 +40,8 @@
  * \todo We need to test TCP sessions with SIP proxies and in regards
  *       to the SIP outbound specs.
  * \todo Fix TCP/TLS handling in dialplan, SRV records, transfers and much more
+ * \todo Save TCP/TLS sessions in registry
+ * \todo Add TCP/TLS information to function SIPPEER and SIPCHANINFO
  *
  * \ingroup channel_drivers
  *
