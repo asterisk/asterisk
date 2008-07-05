@@ -69,6 +69,17 @@ enum ast_rtp_get_result {
 	AST_RTP_TRY_NATIVE,
 };
 
+/*! \brief Variables used in ast_rtcp_get function */
+enum ast_rtp_qos_vars {
+	AST_RTP_TXCOUNT,
+	AST_RTP_RXCOUNT,
+	AST_RTP_TXJITTER,
+	AST_RTP_RXJITTER,
+	AST_RTP_RXPLOSS,
+	AST_RTP_TXPLOSS,
+	AST_RTP_RTT
+};
+
 struct ast_rtp;
 /*! T.140 Redundancy structure*/
 struct rtp_red;
@@ -268,6 +279,10 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1);
 
 /*! \brief Get QOS stats on a RTP channel */
 int ast_rtp_get_qos(struct ast_rtp *rtp, const char *qos, char *buf, unsigned int buflen);
+
+/*! \brief Return RTP and RTCP QoS values */
+unsigned int ast_rtp_get_qosvalue(struct ast_rtp *rtp, enum ast_rtp_qos_vars value);
+
 /*! \brief Set RTPAUDIOQOS(...) variables on a channel when it is being hung up */
 void ast_rtp_set_vars(struct ast_channel *chan, struct ast_rtp *rtp);
 

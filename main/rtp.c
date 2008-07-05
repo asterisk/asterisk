@@ -2626,6 +2626,37 @@ void ast_rtp_reset(struct ast_rtp *rtp)
 	rtp->rxseqno = 0;
 }
 
+/*! Get QoS values from RTP and RTCP data (used in "sip show channelstats") */
+unsigned int ast_rtp_get_qosvalue(struct ast_rtp *rtp, enum ast_rtp_qos_vars value)
+{
+	if (rtp == NULL) {
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG, "NO RTP Structure? Kidding me? \n");
+		return 0;
+	}
+	if (option_debug > 1 && rtp->rtcp == NULL) {
+		ast_log(LOG_DEBUG, "NO RTCP structure. Maybe in RTP p2p bridging mode? \n");
+	}
+
+	switch (value) {
+	case AST_RTP_TXCOUNT:
+		return (unsigned int) rtp->txcount;
+	case AST_RTP_RXCOUNT:
+		return (unsigned int) rtp->rxcount;
+	case AST_RTP_TXJITTER:
+		return (unsigned int) (rtp->rxjitter * 100.0);
+	case AST_RTP_RXJITTER:
+		return (unsigned int) rtp->rtcp ? (rtp->rtcp->reported_jitter / (unsigned int) 65536.0) : 0;
+	case AST_RTP_RXPLOSS:
+		return rtp->rtcp ? (rtp->rtcp->expected_prior - rtp->rtcp->received_prior) : 0;
+	case AST_RTP_TXPLOSS:
+		return rtp->rtcp ? rtp->rtcp->reported_lost : 0;
+	case AST_RTP_RTT:
+		return (unsigned int) rtp->rtcp ? rtp->rtcp->rtt * 100 : 0;
+	}
+	return 0;	/* To make the compiler happy */
+}
+
 static double __ast_rtp_get_qos(struct ast_rtp *rtp, const char *qos, int *found)
 {
 	*found = 1;

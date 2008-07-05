@@ -311,6 +311,22 @@ enum invitestates {
 	INV_CANCELLED = 7,	/*!< Transaction cancelled by client or server in non-terminated state */
 };
 
+/*! \brief Readable descriptions of device states.
+       \note Should be aligned to above table as index */
+static const struct invstate2stringtable {
+	const enum invitestates state;
+	const char const *desc;
+} invitestate2string[] = {
+	{INV_NONE,              "None"  },
+	{INV_CALLING,           "Calling (Trying)"},
+	{INV_PROCEEDING,        "Proceeding "},
+	{INV_EARLY_MEDIA,       "Early media"},
+	{INV_COMPLETED,         "Completed (done)"},
+	{INV_CONFIRMED,         "Confirmed (up)"},
+	{INV_TERMINATED,        "Done"},
+	{INV_CANCELLED,         "Cancelled"}
+};
+
 enum xmittype {
 	XMIT_CRITICAL = 2,              /*!< Transmit critical SIP message reliably, with re-transmits.
                                               If it fails, it's critical and will cause a teardown of the session */
@@ -452,6 +468,14 @@ struct sip_proxy {
 	int force;                      /*!< If it's an outbound proxy, Force use of this outbound proxy for all outbound requests */
 	/* Room for a SRV record chain based on the name */
 };
+
+/*! \brief argument for the 'show channels|subscriptions' callback. */
+struct __show_chan_arg { 
+	int fd;
+	int subscriptions;
+	int numchans;   /* return value */
+};
+
 
 /*! \brief States whether a SIP message can create a dialog in Asterisk. */
 enum can_create_dialog {
@@ -2018,6 +2042,7 @@ static char *complete_sip_user(const char *word, int state, int flags2);
 static char *complete_sip_show_user(const char *line, const char *word, int pos, int state);
 static char *complete_sipnotify(const char *line, const char *word, int pos, int state);
 static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *sip_show_channelstats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_show_history(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_do_debug_ip(int fd, char *arg);
 static char *sip_do_debug_peer(int fd, char *arg);
@@ -14117,6 +14142,91 @@ static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	return CLI_SUCCESS;
 }
 
+/*! \brief Callback for show_chanstats */
+static int show_chanstats_cb(void *__cur, void *__arg, int flags)
+{
+#define FORMAT2 "%-15.15s  %-11.11s  %-8.8s %-10.10s  %-10.10s (%-2.2s) %-6.6s %-10.10s  %-10.10s ( %%) %-6.6s\n"
+#define FORMAT  "%-15.15s  %-11.11s  %-8.8s %-10.10u%-1.1s %-10.10u (%-2.2u%%) %-6.6u %-10.10u%-1.1s %-10.10u (%-2.2u%%) %-6.6u\n"
+	struct sip_pvt *cur = __cur;
+	unsigned int rxcount;
+	unsigned int txcount;
+	char durbuf[10];
+        int duration;
+        int durh, durm, durs;
+	struct ast_channel *c = cur->owner;
+	struct __show_chan_arg *arg = __arg;
+	int fd = arg->fd;
+
+
+	if (cur->subscribed != NONE) /* Subscriptions */
+		return 0;	/* don't care, we scan all channels */
+
+	if (!cur->rtp) {
+		if (sipdebug)
+			ast_cli(fd, "%-15.15s  %-11.11s (inv state: %s) -- %s\n", ast_inet_ntoa(cur->sa.sin_addr), cur->callid, invitestate2string[cur->invitestate].desc, "-- No RTP active");
+		return 0;	/* don't care, we scan all channels */
+	}
+	rxcount = ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXCOUNT);
+	txcount = ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXCOUNT);
+
+	/* Find the duration of this channel */
+	if (c && c->cdr && !ast_tvzero(c->cdr->start)) {
+		duration = (int)(ast_tvdiff_ms(ast_tvnow(), c->cdr->start) / 1000);
+		durh = duration / 3600;
+		durm = (duration % 3600) / 60;
+		durs = duration % 60;
+		snprintf(durbuf, sizeof(durbuf), "%02d:%02d:%02d", durh, durm, durs);
+	} else {
+		durbuf[0] = '\0';
+	}
+	/* Print stats for every call with RTP */
+	ast_cli(fd, FORMAT, 
+		ast_inet_ntoa(cur->sa.sin_addr), 
+		cur->callid, 
+		durbuf,
+		rxcount > (unsigned int) 100000 ? (unsigned int) (rxcount)/(unsigned int) 1000 : rxcount,
+		rxcount > (unsigned int) 100000 ? "K":" ",
+		ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS),
+		rxcount > ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS) ? (unsigned int) (ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS) / rxcount * 100) : 0,
+		ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXJITTER),
+		txcount > (unsigned int) 100000 ? (unsigned int) (txcount)/(unsigned int) 1000 : txcount,
+		txcount > (unsigned int) 100000 ? "K":" ",
+		ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXPLOSS),
+		txcount > ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXPLOSS) ? (unsigned int) (ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXPLOSS)/ txcount * 100) : 0,
+		ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXJITTER)
+	);
+	arg->numchans++;
+
+	return 0;	/* don't care, we scan all channels */
+}
+
+/*! \brief SIP show channelstats CLI (main function) */
+static char *sip_show_channelstats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct __show_chan_arg arg = { .fd = a->fd, .numchans = 0 };
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sip show channelstats";
+		e->usage =
+			"Usage: sip show channelstats\n"
+			"       Lists all currently active SIP channel's RTCP statistics.\n"
+			"       Note that calls in the much optimized RTP P2P bridge mode will not show any packets here.";
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, FORMAT2, "Peer", "Call ID", "Duration", "Recv: Pack", "Lost", "%", "Jitter", "Send: Pack", "Lost", "Jitter");
+	/* iterate on the container and invoke the callback on each item */
+	ao2_t_callback(dialogs, OBJ_NODATA, show_chanstats_cb, &arg, "callback to sip show chanstats");
+	ast_cli(a->fd, "%d active SIP channel%s\n", arg.numchans, (arg.numchans != 1) ? "s" : ""); 
+	return CLI_SUCCESS;
+}
+#undef FORMAT
+#undef FORMAT2
+
 /*! \brief List global settings for the SIP channel */
 static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -14334,13 +14444,6 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
  * that support iteration through callbacks will be a lot easier.
  */
 
-/*! \brief argument for the 'show channels|subscriptions' callback. */
-struct __show_chan_arg { 
-	int fd;
-	int subscriptions;
-	int numchans;   /* return value */
-};
-
 #define FORMAT4 "%-15.15s  %-10.10s  %-15.15s  %-15.15s  %-13.13s  %-15.15s %-10.10s %-6.6d\n"
 #define FORMAT3 "%-15.15s  %-10.10s  %-15.15s  %-15.15s  %-13.13s  %-15.15s %-10.10s %-6.6s\n"
 #define FORMAT2 "%-15.15s  %-10.10s  %-15.15s  %-15.15s  %-7.7s  %-15.15s %-6.6s\n"
@@ -14436,8 +14539,6 @@ static char *sip_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_
  * given position. As many functions of this kind, each invokation has
  * O(state) time complexity so be careful in using it.
  */
-
-
 static char *complete_sipch(const char *line, const char *word, int pos, int state)
 {
 	int which=0;
@@ -23001,12 +23102,13 @@ static int reload(void)
 static struct ast_cli_entry cli_sip_do_history_deprecated = AST_CLI_DEFINE(sip_do_history_deprecated, "Enable/Disable SIP history");
 /*! \brief SIP Cli commands definition */
 static struct ast_cli_entry cli_sip[] = {
-	AST_CLI_DEFINE(sip_show_channels, "List active SIP channels/subscriptions"),
+	AST_CLI_DEFINE(sip_show_channels, "List active SIP channels or subscriptions"),
+	AST_CLI_DEFINE(sip_show_channelstats, "List statistics for active SIP channels"),
 	AST_CLI_DEFINE(sip_show_domains, "List our local SIP domains."),
 	AST_CLI_DEFINE(sip_show_inuse, "List all inuse/limits"),
 	AST_CLI_DEFINE(sip_show_objects, "List all SIP object allocations"),
 	AST_CLI_DEFINE(sip_show_peers, "List defined SIP peers"),
-	AST_CLI_DEFINE(sip_dbdump, "dump peer info into realtime db sql format"),
+	AST_CLI_DEFINE(sip_dbdump, "Dump peer info into realtime database SQL format"),
 	AST_CLI_DEFINE(sip_show_registry, "List SIP registration status"),
 	AST_CLI_DEFINE(sip_unregister, "Unregister (force expiration) a SIP peer from the registery\n"),
 	AST_CLI_DEFINE(sip_show_settings, "Show SIP global settings"),
