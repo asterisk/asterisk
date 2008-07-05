@@ -20285,7 +20285,9 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&sip_tcp_desc.sin, 0, sizeof(sip_tcp_desc.sin));
 	memset(&sip_tls_desc.sin, 0, sizeof(sip_tls_desc.sin));
 
-	sip_tcp_desc.sin.sin_family = AF_INET;
+	/* sip_tcp_desc.sin.sin_family = AF_INET; Disabled, since TCP support in Asterisk is experimental */
+	sip_tcp_desc.sin.sin_family = 0;
+	default_tls_cfg.enabled = FALSE;
 
 	sip_tcp_desc.sin.sin_port = htons(STANDARD_SIP_PORT);
 	sip_tls_desc.sin.sin_port = htons(STANDARD_TLS_PORT);
