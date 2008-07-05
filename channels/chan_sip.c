@@ -315,7 +315,7 @@ enum invitestates {
        \note Should be aligned to above table as index */
 static const struct invstate2stringtable {
 	const enum invitestates state;
-	const char const *desc;
+	const char *desc;
 } invitestate2string[] = {
 	{INV_NONE,              "None"  },
 	{INV_CALLING,           "Calling (Trying)"},
