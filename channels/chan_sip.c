@@ -1307,7 +1307,7 @@ struct sip_pvt {
 /*! Max entires in the history list for a sip_pvt */
 #define MAX_HISTORY_ENTRIES 50
 
-/*!
+/*! \brief
  * Here we implement the container for dialogs (sip_pvt), defining
  * generic wrapper functions to ease the transition from the current
  * implementation (a single linked list) to a different container.
@@ -1337,6 +1337,10 @@ static void dialoglist_unlock(void)
 #define dialoglist_lock(x) ast_mutex_lock(&dialoglock)
 #define dialoglist_unlock(x) ast_mutex_unlock(&dialoglock)
 #endif
+
+#define sip_pvt_lock(x) ast_mutex_lock(&x->pvt_lock)
+#define sip_pvt_trylock(x) ast_mutex_trylock(&x->pvt_lock)
+#define sip_pvt_unlock(x) ast_mutex_unlock(&x->pvt_lock)
 
 /*!
  * when we create or delete references, make sure to use these
@@ -1662,8 +1666,8 @@ static struct sockaddr_in stunaddr;		/*!< stun server address */
  */
 static struct ast_ha *localaddr;		/*!< List of local networks, on the same side of NAT as this Asterisk */
 
-static int ourport_tcp;
-static int ourport_tls;
+static int ourport_tcp;				/*!< The port used for TCP connections */
+static int ourport_tls;				/*!< The port used for TCP/TLS connections */
 static struct sockaddr_in debugaddr;
 
 static struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we know how to send */
@@ -1960,6 +1964,10 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq);
 static int get_msg_text(char *buf, int len, struct sip_request *req);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout);
 
+/*-- TCP connection handling ---*/
+static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *ser);
+static void *sip_tcp_worker_fn(void *);
+
 /*--- Constructing requests and responses */
 static void initialize_initreq(struct sip_pvt *p, struct sip_request *req);
 static int init_req(struct sip_request *req, int sipmethod, const char *recip);
@@ -2078,11 +2086,14 @@ static const struct ast_channel_tech sip_tech = {
  */
 static struct ast_channel_tech sip_tech_info;
 
-static void *sip_tcp_worker_fn(void *);
 
+/*! \brief Working TLS connection configuration */
 static struct ast_tls_config sip_tls_cfg;
+
+/*! \brief Default TLS connection configuration */
 static struct ast_tls_config default_tls_cfg;
 
+/*! \brief The TCP server definition */
 static struct server_args sip_tcp_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,
@@ -2093,6 +2104,7 @@ static struct server_args sip_tcp_desc = {
 	.worker_fn = sip_tcp_worker_fn,
 };
 
+/*! \brief The TCP/TLS server definition */
 static struct server_args sip_tls_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,
@@ -2143,8 +2155,8 @@ static struct ast_rtp_protocol sip_rtp = {
 	.get_codec = sip_get_codec,
 };
 
-static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *ser);
 
+/*! \brief SIP TCP connection handler */
 static void *sip_tcp_worker_fn(void *data)
 {
 	struct ast_tcptls_session_instance *ser = data;
@@ -2152,7 +2164,7 @@ static void *sip_tcp_worker_fn(void *data)
 	return _sip_tcp_helper_thread(NULL, ser);
 }
 
-/*! \brief SIP TCP helper function */
+/*! \brief SIP TCP thread management function */
 static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *ser) 
 {
 	int res, cl;
@@ -2246,9 +2258,6 @@ cleanup2:
 	return NULL;
 }
 
-#define sip_pvt_lock(x) ast_mutex_lock(&x->pvt_lock)
-#define sip_pvt_trylock(x) ast_mutex_trylock(&x->pvt_lock)
-#define sip_pvt_unlock(x) ast_mutex_unlock(&x->pvt_lock)
 
 /*!
  * helper functions to unreference various types of objects.
@@ -4110,6 +4119,9 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 
 	/* Let's see if we can find the host in DNS. First try DNS SRV records,
    	   then hostname lookup */
+	/*! \todo Fix this function. When we ask SRC, we should check all transports 
+		  In the future, we should first check NAPTR to find out transport preference
+	 */
 
 	hostn = peername;
 	portno = port ? atoi(port) : (dialog->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
@@ -9903,7 +9915,10 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
 	pvt->expiry = expiry;
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry, peer->username, peer->fullcontact);
-	/* Saving TCP connections is useless, we won't be able to reconnect */
+	/* Saving TCP connections is useless, we won't be able to reconnect 
+		XXX WHY???? XXX
+		\todo check this
+	*/
 	if (!peer->rt_fromcontact && (peer->socket.type & SIP_TRANSPORT_UDP)) 
 		ast_db_put("SIP/Registry", peer->name, data);
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
