@@ -78,6 +78,9 @@ olcObjectIdentifier: AstConfigCategoryMetric AstAttrType:42
 olcObjectIdentifier: AstConfigVariableName AstAttrType:43
 olcObjectIdentifier: AstConfigVariableValue AstAttrType:44
 olcObjectIdentifier: AstConfigCommented AstAttrType:45
+olcObjectIdentifier: AstAccountIPAddress AstAttrType:46
+olcObjectIdentifier: AstAccountDefaultUser AstAttrType:47
+olcObjectIdentifier: AstAccountRegistrationServer AstAttrType:48
 #
 #
 #############################################################################
@@ -516,12 +519,14 @@ olcObjectClasses: ( AsteriskSIPUser
         AstAccountCallerID $ 
         AstAccountCanReinvite $
         AstAccountContext $
+        AstAccountDefaultUser $
         AstAccountDTMFMode $ 
         AstAccountFromUser $ 
         AstAccountFromDomain $     
         AstAccountFullContact $ 
         AstAccountHost $ 
         AstAccountInsecure $  
+        AstAccountIPAddress $
         AstAccountMailbox $    
         AstAccountRealmedPassword $ 
         AstAccountNAT $
@@ -540,6 +545,7 @@ olcObjectClasses: ( AsteriskSIPUser
         AstAccountExpirationTimestamp $ 
         AstAccountRegistrationContext $ 
         AstAccountRegistrationExten $
+        AstAccountRegistrationServer $
         AstAccountCanCallForward $ 
         AstAccountSecret $ 
         AstAccountName 
