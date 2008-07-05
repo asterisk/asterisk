@@ -67,21 +67,6 @@ context=default			; Default context for incoming calls
 ;match_auth_username=yes	; if available, match user entry using the
 				; 'username' field from the authentication line
 				; instead of the From: field.
-;;
-;; hash table sizes. For maximum efficiency, adjust the following
-;; values to be slightly larger than the maximum number of users/peers.
-;; Too large, and space is wasted. Too small, and things will run slower.
-;; 563 is probably way too big for small (home) applications, but it
-;; should cover most small/medium sites.
-;; it is recommended to make the sizes be a prime number!
-;; This was internally set to 17 for small-memory applications...
-;; All tables default to 563, except when compiled in LOW_MEMORY mode,
-;; in which case, they default to 17. You can override this by uncommenting
-;; the following, and changing the values.
-;hash_users=563
-;hash_peers=563
-;hash_dialogs=563
-
 allowoverlap=no			; Disable overlap dialing support. (Default is yes)
 ;allowtransfer=no		; Disable all transfers (unless enabled in peers or users)
 				; Default is enabled
@@ -325,7 +310,21 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;session-expires=600
 ;session-minse=90
 ;session-refresher=uas
-
+;
+;--------------------------- HASH TABLE SIZES ------------------------------------------------
+; For maximum efficiency, adjust the following
+; values to be slightly larger than the maximum number of in-memory objects (devices).
+; Too large, and space is wasted. Too small, and things will run slower.
+; 563 is probably way too big for small (home) applications, but it
+; should cover most small/medium sites.
+; It is recommended to make the sizes be a prime number!
+; This was internally set to 17 for small-memory applications...
+; All tables default to 563, except when compiled in LOW_MEMORY mode,
+; in which case, they default to 17. You can override this by uncommenting
+; the following, and changing the values.
+;hash_users=563
+;hash_peers=563
+;hash_dialogs=563
 
 ;--------------------------- SIP DEBUGGING ---------------------------------------------------
 ;sipdebug = yes			; Turn on SIP debugging by default, from
