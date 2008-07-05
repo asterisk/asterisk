@@ -12990,22 +12990,35 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 	ast_cli(a->fd, "\n\nGlobal Settings:\n");
 	ast_cli(a->fd, "----------------\n");
-	ast_cli(a->fd, "  SIP Port:               %d\n", ntohs(bindaddr.sin_port));
-	ast_cli(a->fd, "  Bindaddress:            %s\n", ast_inet_ntoa(bindaddr.sin_addr));
+	ast_cli(a->fd, "  UDP SIP Port:           %d\n", ntohs(bindaddr.sin_port));
+	ast_cli(a->fd, "  UDP Bindaddress:        %s\n", ast_inet_ntoa(bindaddr.sin_addr));
+	ast_cli(a->fd, "  TCP SIP Port:           ");
+	if (sip_tcp_desc.sin.sin_family != AF_INET) {
+		ast_cli(a->fd, "%d\n", ntohs(sip_tcp_desc.sin.sin_port));
+		ast_cli(a->fd, "  TCP Bindaddress:        %s\n", ast_inet_ntoa(sip_tcp_desc.sin.sin_addr));
+	} else {
+		ast_cli(a->fd, "Disabled");
+	}
+	if (default_tls_cfg.enabled != FALSE) {
+		ast_cli(a->fd, "%d\n", ntohs(sip_tls_desc.sin.sin_port));
+		ast_cli(a->fd, "  TLS Bindaddress:        %s\n", ast_inet_ntoa(sip_tls_desc.sin.sin_addr));
+	} else {
+		ast_cli(a->fd, "Disabled");
+	}
 	ast_cli(a->fd, "  Videosupport:           %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT)));
 	ast_cli(a->fd, "  Textsupport:            %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT)));
 	ast_cli(a->fd, "  AutoCreate Peer:        %s\n", cli_yesno(autocreatepeer));
 	ast_cli(a->fd, "  Match Auth Username:    %s\n", cli_yesno(global_match_auth_username));
 	ast_cli(a->fd, "  Allow unknown access:   %s\n", cli_yesno(global_allowguest));
 	ast_cli(a->fd, "  Allow subscriptions:    %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
-	ast_cli(a->fd, "  Enable call counters:   %s\n", cli_yesno(global_callcounter));
 	ast_cli(a->fd, "  Allow overlap dialing:  %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP)));
-	ast_cli(a->fd, "  Promsic. redir:         %s\n", cli_yesno(ast_test_flag(&global_flags[0], SIP_PROMISCREDIR)));
+	ast_cli(a->fd, "  Allow promsic. redir:   %s\n", cli_yesno(ast_test_flag(&global_flags[0], SIP_PROMISCREDIR)));
+	ast_cli(a->fd, "  Enable call counters:   %s\n", cli_yesno(global_callcounter));
 	ast_cli(a->fd, "  SIP domain support:     %s\n", cli_yesno(!AST_LIST_EMPTY(&domain_list)));
+	ast_cli(a->fd, "  Realm. auth:            %s\n", cli_yesno(authl != NULL));
+	ast_cli(a->fd, "  Our auth realm          %s\n", global_realm);
 	ast_cli(a->fd, "  Call to non-local dom.: %s\n", cli_yesno(allow_external_domains));
 	ast_cli(a->fd, "  URI user is phone no:   %s\n", cli_yesno(ast_test_flag(&global_flags[0], SIP_USEREQPHONE)));
-	ast_cli(a->fd, "  Our auth realm          %s\n", global_realm);
-	ast_cli(a->fd, "  Realm. auth:            %s\n", cli_yesno(authl != NULL));
  	ast_cli(a->fd, "  Always auth rejects:    %s\n", cli_yesno(global_alwaysauthreject));
 	ast_cli(a->fd, "  Call limit peers only:  %s\n", cli_yesno(global_limitonpeers));
 	ast_cli(a->fd, "  Direct RTP setup:       %s\n", cli_yesno(global_directrtpsetup));
