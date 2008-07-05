@@ -892,6 +892,11 @@ pickupgroup=1
 ;ss7_unknownprefix = 
 ;
 
+; This option is used to disable automatic sending of ACM when the call is started
+; in the dialplan.  If you do use this option, you will need to use the Proceeding()
+; application in the dialplan to send ACM.
+;ss7_explictacm=yes
+
 ; All settings apply to linkset 1
 ;linkset = 1
 
@@ -918,6 +923,12 @@ pickupgroup=1
 
 ; First signalling channel
 ;sigchan = 48
+
+; Additional signalling channel for this linkset (So you can have a linkset
+; with two signalling links in it).  It seems like a silly way to do it, but
+; for linksets with multiple signalling links, you add an additional sigchan
+; line for every additional signalling link on the linkset.
+;sigchan = 96
 
 ; Channels to associate with CICs on this linkset
 ;channel = 25-47
