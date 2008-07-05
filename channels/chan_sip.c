@@ -20644,7 +20644,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			}
 		} else if (!strcasecmp(v->name, "type")) {
 			if (!strcasecmp(v->value, "peer")) 
-				peer->onlymatchonip = true;		/* For realtime support, add type=peer in the table */
+				peer->onlymatchonip = TRUE;		/* For realtime support, add type=peer in the table */
 		} else if (!strcasecmp(v->name, "secret")) 
 			ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
 		else if (!strcasecmp(v->name, "md5secret")) 
