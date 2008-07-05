@@ -336,6 +336,8 @@ static int ringt_base = DEFAULT_RINGT;
 
 #define SS7_NAI_DYNAMIC		-1
 
+#define LINKSET_FLAG_EXPLICITACM (1 << 0)
+
 struct dahdi_ss7 {
 	pthread_t master;						/*!< Thread of master */
 	ast_mutex_t lock;
@@ -356,6 +358,7 @@ struct dahdi_ss7 {
 	char unknownprefix[20];						/*!< for unknown dialplans */
 	struct ss7 *ss7;
 	struct dahdi_pvt *pvts[MAX_CHANNELS];				/*!< Member channel pvt structs */
+	int flags;							/*!< Linkset flags */
 };
 
 static struct dahdi_ss7 linksets[NUM_SPANS];
@@ -9144,8 +9147,10 @@ static void ss7_start_call(struct dahdi_pvt *p, struct dahdi_ss7 *linkset)
 	if (res < 0) 
 		ast_log(LOG_WARNING, "Unable to set law on channel %d\n", p->channel);
 	
-	p->proceeding = 1;
-	isup_acm(ss7, p->ss7call);
+	if (!(linkset->flags & LINKSET_FLAG_EXPLICITACM)) {
+		p->proceeding = 1;
+		isup_acm(ss7, p->ss7call);
+	}
 
 	ast_mutex_unlock(&linkset->lock);
 	c = dahdi_new(p, AST_STATE_RING, 1, SUB_REAL, law, 0);
