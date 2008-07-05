@@ -21005,8 +21005,8 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&sip_tcp_desc.sin, 0, sizeof(sip_tcp_desc.sin));
 	memset(&sip_tls_desc.sin, 0, sizeof(sip_tls_desc.sin));
 
-	sip_tcp_desc.sin.sin_family = AF_INET;
-	default_tls_cfg.enabled = FALSE;
+	sip_tcp_desc.sin.sin_family = AF_INET;		/* Default: Enable TCP sessions */
+	default_tls_cfg.enabled = FALSE;		/* Default: Disable TLS */
 
 	sip_tcp_desc.sin.sin_port = htons(STANDARD_SIP_PORT);
 	sip_tls_desc.sin.sin_port = htons(STANDARD_TLS_PORT);
