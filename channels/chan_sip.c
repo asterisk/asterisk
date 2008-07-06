@@ -13472,13 +13472,14 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_cli(a->fd, "%d\n", ntohs(sip_tcp_desc.sin.sin_port));
 		ast_cli(a->fd, "  TCP Bindaddress:        %s\n", ast_inet_ntoa(sip_tcp_desc.sin.sin_addr));
 	} else {
-		ast_cli(a->fd, "Disabled");
+		ast_cli(a->fd, "Disabled\n");
 	}
+	ast_cli(a->fd, "  TLS SIP Port:           ");
 	if (default_tls_cfg.enabled != FALSE) {
 		ast_cli(a->fd, "%d\n", ntohs(sip_tls_desc.sin.sin_port));
 		ast_cli(a->fd, "  TLS Bindaddress:        %s\n", ast_inet_ntoa(sip_tls_desc.sin.sin_addr));
 	} else {
-		ast_cli(a->fd, "Disabled");
+		ast_cli(a->fd, "Disabled\n");
 	}
 	ast_cli(a->fd, "  Videosupport:           %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT)));
 	ast_cli(a->fd, "  Textsupport:            %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT)));
@@ -20754,7 +20755,7 @@ static int reload_config(enum channelreloadreason reason)
 	time_t run_start, run_end;
 	
 	run_start = time(0);
-	ast_unload_realtime("sipregs");
+	ast_unload_realtime("sipregs");		
 	ast_unload_realtime("sippeers");
 	cfg = ast_config_load(config, config_flags);
 
@@ -20948,7 +20949,6 @@ static int reload_config(enum channelreloadreason reason)
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
 			continue;
 
-		/* Create the dialogs list */
 		if (!strcasecmp(v->name, "context")) {
 			ast_copy_string(default_context, v->value, sizeof(default_context));
 		} else if (!strcasecmp(v->name, "subscribecontext")) {
@@ -20991,9 +20991,11 @@ static int reload_config(enum channelreloadreason reason)
 			global_t1min = atoi(v->value);
 		} else if (!strcasecmp(v->name, "tcpenable")) {
 			sip_tcp_desc.sin.sin_family = ast_false(v->value) ? 0 : AF_INET;
+			ast_debug(2, "Enabling TCP socket for listening\n");
 		} else if (!strcasecmp(v->name, "tcpbindaddr")) {
 			if (ast_parse_arg(v->value, PARSE_INADDR, &sip_tcp_desc.sin))
 				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n", v->name, v->value, v->lineno, config);
+			ast_debug(2, "Setting TCP socket address to %s\n", v->value);
 		} else if (!strcasecmp(v->name, "tlsenable")) {
 			default_tls_cfg.enabled = ast_true(v->value) ? TRUE : FALSE;
 			sip_tls_desc.sin.sin_family = AF_INET;
@@ -21420,6 +21422,7 @@ static int reload_config(enum channelreloadreason reason)
 		}
 	}
 	
+	/* Set UDP address and open socket */
 	bindaddr.sin_family = AF_INET;
 	internip = bindaddr;
 	if (ast_find_ourip(&internip.sin_addr, bindaddr)) {
@@ -21471,6 +21474,20 @@ static int reload_config(enum channelreloadreason reason)
 	}
 	ast_mutex_unlock(&netlock);
 
+	/* Start TCP server */
+	ast_tcptls_server_start(&sip_tcp_desc);
+
+	/* Start TLS server if needed */
+	memcpy(sip_tls_desc.tls_cfg, &default_tls_cfg, sizeof(default_tls_cfg));
+
+	if (ast_ssl_setup(sip_tls_desc.tls_cfg))
+		ast_tcptls_server_start(&sip_tls_desc);
+	else if (sip_tls_desc.tls_cfg->enabled) {
+		sip_tls_desc.tls_cfg = NULL;
+		ast_log(LOG_WARNING, "SIP TLS server did not load because of errors.\n");
+	}
+
+
 	/* Add default domains - host name, IP address and IP:port
 	 * Only do this if user added any sip domain with "localdomains" 
 	 * In order to *not* break backwards compatibility 
@@ -21484,6 +21501,14 @@ static int reload_config(enum channelreloadreason reason)
 			add_sip_domain(ast_inet_ntoa(bindaddr.sin_addr), SIP_DOMAIN_AUTO, NULL);
 		else
 			ast_log(LOG_NOTICE, "Can't add wildcard IP address to domain list, please add IP address to domain manually.\n");
+
+		/* If TCP is running on a different IP than UDP, then add it too */
+		if (sip_tcp_desc.sin.sin_addr.s_addr && !inaddrcmp(&bindaddr, &sip_tcp_desc.sin))
+			add_sip_domain(ast_inet_ntoa(sip_tcp_desc.sin.sin_addr), SIP_DOMAIN_AUTO, NULL);
+
+		/* If TLS is running on a differen IP than UDP and TCP, then add that too */
+		if (sip_tls_desc.sin.sin_addr.s_addr && !inaddrcmp(&bindaddr, &sip_tls_desc.sin) && inaddrcmp(&sip_tcp_desc.sin, &sip_tls_desc.sin))
+			add_sip_domain(ast_inet_ntoa(sip_tls_desc.sin.sin_addr), SIP_DOMAIN_AUTO, NULL);
 
 		/* Our extern IP address, if configured */
 		if (externip.sin_addr.s_addr)
@@ -21506,20 +21531,10 @@ static int reload_config(enum channelreloadreason reason)
 		ast_config_destroy(notify_types);
 	notify_types = ast_config_load(notify_config, config_flags);
 
-	memcpy(sip_tls_desc.tls_cfg, &default_tls_cfg, sizeof(default_tls_cfg));
-	ast_tcptls_server_start(&sip_tcp_desc);
-
-	if (ast_ssl_setup(sip_tls_desc.tls_cfg))
-		ast_tcptls_server_start(&sip_tls_desc);
-	else if (sip_tls_desc.tls_cfg->enabled) {
-		sip_tls_desc.tls_cfg = NULL;
-		ast_log(LOG_WARNING, "SIP TLS server did not load because of errors.\n");
-	}
-
 	/* Done, tell the manager */
 	manager_event(EVENT_FLAG_SYSTEM, "ChannelReload", "ChannelType: SIP\r\nReloadReason: %s\r\nRegistry_Count: %d\r\nPeer_Count: %d\r\n", channelreloadreason2txt(reason), registry_count, peer_count);
 	run_end = time(0);
-	ast_debug(4, "reload_config done...Runtime= %d sec\n", (int)(run_end-run_start));
+	ast_debug(4, "SIP reload_config done...Runtime= %d sec\n", (int)(run_end-run_start));
 
 	return 0;
 }

@@ -79,6 +79,7 @@ bindport=5060			; UDP Port to bind to (SIP standard port for unencrypted UDP
 				; and TCP sessions is 5060)
 				; bindport is the local UDP port that Asterisk will listen on
 bindaddr=0.0.0.0		; IP address to bind UDP listen socket to (0.0.0.0 binds to all)
+				; You can specify port here too, like 123.123.123.123:5080
 
 ;
 ; Note that the TCP and TLS support for chan_sip is currently considered
@@ -86,7 +87,7 @@ bindaddr=0.0.0.0		; IP address to bind UDP listen socket to (0.0.0.0 binds to al
 ; subject to change in any release.  If they are changed, the changes will
 ; be reflected in this sample configuration file, as well as in the UPGRADE.txt file.
 ;
-tcpenable=no                    ; Enable server for incoming TCP connections (default is yes)
+tcpenable=no                    ; Enable server for incoming TCP connections (default is no)
 tcpbindaddr=0.0.0.0	        ; IP address for TCP server to bind to (0.0.0.0 binds to all interfaces)
                                 ; Optionally add a port number, 192.168.1.1:5062 (default is port 5060)
 
