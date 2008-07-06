@@ -12065,6 +12065,17 @@ static struct _map_x_s natmodes[] = {
 	{ -1,                   NULL}, /* terminator */
 };
 
+/*! \brief  Convert NAT setting to text string */
+static const char *nat2str(int nat)
+{
+	return map_x_s(natmodes, nat, "Unknown");
+}
+
+#ifdef NOTUSED
+/* OEJ: This is not used, but may be useful in the future, so I don't want to 
+   delete it. Keeping it enabled generates compiler warnings.
+ */
+
 static struct _map_x_s natcfgmodes[] = {
 	{ SIP_NAT_NEVER,        "never"},
 	{ SIP_NAT_ROUTE,        "route"},
@@ -12073,17 +12084,12 @@ static struct _map_x_s natcfgmodes[] = {
 	{ -1,                   NULL}, /* terminator */
 };
 
-/*! \brief  Convert NAT setting to text string */
-static const char *nat2str(int nat)
-{
-	return map_x_s(natmodes, nat, "Unknown");
-}
-
 /*! \brief  Convert NAT setting to text string appropriate for config files */
 static const char *nat2strconfig(int nat)
 {
 	return map_x_s(natcfgmodes, nat, "Unknown");
 }
+#endif
 
 /*! \brief  Report Peer status in character string
  *  \return 0 if peer is unreachable, 1 if peer is online, -1 if unmonitored
