@@ -21379,10 +21379,8 @@ static int reload_config(enum channelreloadreason reason)
 		} else {
 			int is_peer = 0;
 			if (!strcasecmp(utype, "user")) {
-				ast_log(LOG_WARNING, "type=user is deprecated. Please use type=peer only.");
 				is_peer = 1;
 			} else if (!strcasecmp(utype, "friend")) {
-				ast_log(LOG_WARNING, "type=friend is deprecated. Please use type=peer only.");
 				is_peer = 1;
 			} else if (!strcasecmp(utype, "peer"))
 				is_peer = 2;
