@@ -22156,7 +22156,7 @@ static int load_module(void)
 	ast_manager_register2("SIPshowpeer", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_show_peer,
 			"Show SIP peer (text format)", mandescr_show_peer);
 	ast_manager_register2("SIPqualifypeer", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_qualify_peer,
-			"Show SIP peer (text format)", mandescr_show_peer);
+			"Show SIP peer (text format)", mandescr_show_peer);	/*! \todo Fix this XXX This must be all wrong XXXX */
 	ast_manager_register2("SIPshowregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_show_registry,
 			"Show SIP registrations (text format)", mandescr_show_registry);
 	ast_manager_register2("SIPnotify", EVENT_FLAG_SYSTEM, manager_sipnotify,
