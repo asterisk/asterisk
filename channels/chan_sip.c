@@ -293,9 +293,10 @@ enum transfermodes {
 };
 
 
+/*! \brief The result of a lot of functions */
 enum sip_result {
-	AST_SUCCESS = 0,
-	AST_FAILURE = -1,
+	AST_SUCCESS = 0,		/*! FALSE means success, funny enough */
+	AST_FAILURE = -1,		
 };
 
 /*! \brief States for the INVITE transaction, not the dialog 
@@ -329,6 +330,9 @@ static const struct invstate2stringtable {
 	{INV_CANCELLED,         "Cancelled"}
 };
 
+/*! \brief When sending a SIP message, we can send with a few options, depending on
+	type of SIP request. UNRELIABLE is moslty used for responses to repeated requests,
+	where the original response would be sent RELIABLE in an INVITE transaction */
 enum xmittype {
 	XMIT_CRITICAL = 2,              /*!< Transmit critical SIP message reliably, with re-transmits.
                                               If it fails, it's critical and will cause a teardown of the session */
@@ -342,6 +346,7 @@ enum parse_register_result {
 	PARSE_REGISTER_QUERY,
 };
 
+/*! \brief Type of subscription, based on the packages we do support */
 enum subscriptiontype { 
 	NONE = 0,
 	XPIDF_XML,
@@ -449,11 +454,13 @@ enum st_refresher {
         SESSION_TIMER_REFRESHER_UAS      /*!< Session is refreshed by the UAS */
 };
 
-/*!< Define some SIP transports */
+/*! \brief Define some implemented SIP transports 
+	\note Asterisk does not support SCTP or UDP/DTLS 
+*/
 enum sip_transport {
-	SIP_TRANSPORT_UDP = 1,
-	SIP_TRANSPORT_TCP = 1 << 1,
-	SIP_TRANSPORT_TLS = 1 << 2,
+	SIP_TRANSPORT_UDP = 1,		/*!< Unreliable transport for SIP, needs retransmissions */
+	SIP_TRANSPORT_TCP = 1 << 1,	/*!< Reliable, but unsecure */
+	SIP_TRANSPORT_TLS = 1 << 2,	/*!< TCP/TLS - reliable and secure transport for signalling */
 };
 
 /*! \brief definition of a sip proxy server
@@ -640,12 +647,18 @@ static const struct cfsip_options {
 */
 #define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY"
 
-/*! \brief SIP Extensions we support */
+/*! \brief SIP Extensions we support 
+	\note This should be generated based on the previous array
+		in combination with settings.
+	\todo We should not have "timer" if it's disabled in the configuration file.
+*/
 #define SUPPORTED_EXTENSIONS "replaces, timer" 
 
-/*! \brief Standard SIP and TLS port from RFC 3261. DO NOT CHANGE THIS */
+/*! \brief Standard SIP unsecure port for UDP and TCP from RFC 3261. DO NOT CHANGE THIS */
 #define STANDARD_SIP_PORT	5060
+/*! \brief Standard SIP TLS port for sips: from RFC 3261. DO NOT CHANGE THIS */
 #define STANDARD_TLS_PORT	5061
+
 /*! \note in many SIP headers, absence of a port number implies port 5060,
  * and this is why we cannot change the above constant.
  * There is a limited number of places in asterisk where we could,
@@ -676,12 +689,12 @@ static const struct cfsip_options {
 #define DEFAULT_TOS_AUDIO       0               /*!< Audio packets should be marked as DSCP EF (Expedited Forwarding), but the default is 0 to be compatible with previous versions. */
 #define DEFAULT_TOS_VIDEO       0               /*!< Video packets should be marked as DSCP AF41, but the default is 0 to be compatible with previous versions. */
 #define DEFAULT_TOS_TEXT        0               /*!< Text packets should be marked as XXXX XXXX, but the default is 0 to be compatible with previous versions. */
-#define DEFAULT_COS_SIP         4
-#define DEFAULT_COS_AUDIO       5
-#define DEFAULT_COS_VIDEO       6
-#define DEFAULT_COS_TEXT        5
-#define DEFAULT_ALLOW_EXT_DOM	TRUE
-#define DEFAULT_REALM		"asterisk"
+#define DEFAULT_COS_SIP         4		/*!< Level 2 class of service for SIP signalling */
+#define DEFAULT_COS_AUDIO       5		/*!< Level 2 class of service for audio media  */
+#define DEFAULT_COS_VIDEO       6		/*!< Level 2 class of service for video media */
+#define DEFAULT_COS_TEXT        5		/*!< Level 2 class of service for text media (T.140) */
+#define DEFAULT_ALLOW_EXT_DOM	TRUE		/*!< Allow external domains */
+#define DEFAULT_REALM		"asterisk"	/*!< Realm for HTTP digest authentication */
 #define DEFAULT_NOTIFYRINGING	TRUE
 #define DEFAULT_PEDANTIC	FALSE
 #define DEFAULT_AUTOCREATEPEER	FALSE
@@ -692,7 +705,7 @@ static const struct cfsip_options {
 #ifndef DEFAULT_USERAGENT
 #define DEFAULT_USERAGENT "Asterisk PBX"	/*!< Default Useragent: header unless re-defined in sip.conf */
 #define DEFAULT_SDPSESSION "Asterisk PBX"	/*!< Default SDP session name, (s=) header unless re-defined in sip.conf */
-#define DEFAULT_SDPOWNER "root"		/*!< Default SDP username field in (o=) header unless re-defined in sip.conf */
+#define DEFAULT_SDPOWNER "root"			/*!< Default SDP username field in (o=) header unless re-defined in sip.conf */
 #endif
 /*@}*/ 
 
@@ -773,17 +786,18 @@ static int global_callevents;		/*!< Whether we send manager events or not */
 static int global_authfailureevents;		/*!< Whether we send authentication failure manager events or not. Default no. */
 static int global_t1;			/*!< T1 time */
 static int global_t1min;		/*!< T1 roundtrip time minimum */
-static int global_timer_b;    /*!< Timer B - RFC 3261 Section 17.1.1.2 */
-static int global_regextenonqualify;  /*!< Whether to add/remove regexten when qualifying peers */
-static int global_autoframing;          /*!< Turn autoframing on or off. */
+static int global_timer_b;    			/*!< Timer B - RFC 3261 Section 17.1.1.2 */
+static int global_regextenonqualify;  		/*!< Whether to add/remove regexten when qualifying peers */
+static int global_autoframing;          	/*!< Turn autoframing on or off. */
 static enum transfermodes global_allowtransfer;	/*!< SIP Refer restriction scheme */
 static struct sip_proxy global_outboundproxy;	/*!< Outbound proxy */
-static int global_matchexterniplocally; /*!< Match externip/externhost setting against localnet setting */
-static int global_qualifyfreq; /*!< Qualify frequency */
+static int global_matchexterniplocally;		/*!< Match externip/externhost setting against localnet setting */
+static int global_qualifyfreq;			/*!< Qualify frequency */
 
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
+
 static enum st_mode global_st_mode;           /*!< Mode of operation for Session-Timers           */
 static enum st_refresher global_st_refresher; /*!< Session-Timer refresher                        */
 static int global_min_se;                     /*!< Lowest threshold for session refresh interval  */
@@ -801,14 +815,13 @@ static int regobjs = 0;                  /*!< Registry objects */
 /* }@ */
 
 static struct ast_flags global_flags[2] = {{0}};        /*!< global SIP_ flags */
-static char used_context[AST_MAX_CONTEXT]; /*!< name of automatically created context for unloading */
+static char used_context[AST_MAX_CONTEXT];		/*!< name of automatically created context for unloading */
 
 
 AST_MUTEX_DEFINE_STATIC(netlock);
 
 /*! \brief Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-
 AST_MUTEX_DEFINE_STATIC(monlock);
 
 AST_MUTEX_DEFINE_STATIC(sip_reload_lock);
@@ -829,12 +842,12 @@ static int *sipsock_read_id;            /*!< ID of IO entry for sipsock FD */
 #define DEC_CALL_RINGING 2
 #define INC_CALL_RINGING 3
 
-/*!< The SIP socket definition */
+/*! \brief The SIP socket definition */
 struct sip_socket {
-	enum sip_transport type;
-	int fd;
+	enum sip_transport type;	/*!< UDP, TCP or TLS */
+	int fd;				/*!< Filed descriptor, the actual socket */
 	uint16_t port;
-	struct ast_tcptls_session_instance *ser;
+	struct ast_tcptls_session_instance *ser;	/* If tcp or tls, a socket manager */
 };
 
 /*! \brief sip_request: The data grabbed from the UDP socket
@@ -1097,8 +1110,8 @@ enum sip_debug_e {
 static enum sip_debug_e sipdebug;
 
 /*! \brief extra debugging for 'text' related events.
- * At thie moment this is set together with sip_debug_console.
- * It should either go away or be implemented properly.
+ * At the moment this is set together with sip_debug_console.
+ * \note It should either go away or be implemented properly.
  */
 static int sipdebug_text;
 
@@ -1210,7 +1223,7 @@ struct sip_st_cfg {
 
 
 
-/*! \brief sip_pvt: structures used for each SIP dialog, ie. a call, a registration, a subscribe.
+/*! \brief Structure used for each SIP dialog, ie. a call, a registration, a subscribe.
  * Created and initialized by sip_alloc(), the descriptor goes into the list of
  * descriptors (dialoglist).
  */
@@ -1364,7 +1377,7 @@ struct sip_pvt {
 /*! Max entires in the history list for a sip_pvt */
 #define MAX_HISTORY_ENTRIES 50
 
-/*!
+/*! \brief
  * Here we implement the container for dialogs (sip_pvt), defining
  * generic wrapper functions to ease the transition from the current
  * implementation (a single linked list) to a different container.
@@ -1378,7 +1391,7 @@ struct ao2_container *dialogs;
 #define sip_pvt_trylock(x) ao2_trylock(x)
 #define sip_pvt_unlock(x) ao2_unlock(x)
 
-/*!
+/*! \brief
  * when we create or delete references, make sure to use these
  * functions so we keep track of the refcounts.
  * To simplify the code, we allow a NULL to be passed to dialog_unref().
@@ -1386,6 +1399,7 @@ struct ao2_container *dialogs;
 #ifdef REF_DEBUG
 #define dialog_ref(arg1,arg2) dialog_ref_debug((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define dialog_unref(arg1,arg2) dialog_unref_debug((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
 static struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, char *tag, char *file, int line, const char *func)
 {
 	if (p)
@@ -1567,7 +1581,7 @@ struct sip_registry {
 		AST_STRING_FIELD(callback);	/*!< Contact extension */
 		AST_STRING_FIELD(random);
 	);
-	enum sip_transport transport;
+	enum sip_transport transport;	/*!< Transport for this registration UDP, TCP or TLS */
 	int portno;			/*!<  Optional port override */
 	int expire;			/*!< Sched ID of expiration */
 	int expiry;			/*!< Value to use for the Expires header */
@@ -1585,11 +1599,12 @@ struct sip_registry {
 	char lastmsg[256];		/*!< Last Message sent/received */
 };
 
+/*! \brief Definition of a thread that handles a socket */
 struct sip_threadinfo {
 	int stop;
 	pthread_t threadid;
 	struct ast_tcptls_session_instance *ser;
-	enum sip_transport type;	/* We keep a copy of the type here so we can display it in the connection list */
+	enum sip_transport type;	/*!< We keep a copy of the type here so we can display it in the connection list */
 	AST_LIST_ENTRY(sip_threadinfo) list;
 };
 
@@ -1600,7 +1615,7 @@ static int hash_peer_size = 17;
 static int hash_dialog_size = 17;
 static int hash_user_size = 17;
 #else
-static int hash_peer_size = 563;
+static int hash_peer_size = 563;	/*!< Size of peer hash table, prime number preferred! */
 static int hash_dialog_size = 563;
 static int hash_user_size = 563;
 #endif
@@ -1608,7 +1623,7 @@ static int hash_user_size = 563;
 /*! \brief  The thread list of TCP threads */
 static AST_LIST_HEAD_STATIC(threadl, sip_threadinfo);
 
-/*! \brief  The peer list: Peers and Friends */
+/*! \brief  The peer list: Users, Peers and Friends */
 struct ao2_container *peers;
 struct ao2_container *peers_by_ip;
 
@@ -1618,7 +1633,7 @@ static struct ast_register_list {
 	int recheck;
 } regl;
 
-/*!
+/*! \brief
  * \note The only member of the peer used here is the name field
  */
 static int peer_hash_cb(const void *obj, const int flags)
@@ -1731,7 +1746,7 @@ static struct sip_auth *authl = NULL;
  */
 static int sipsock  = -1;
 
-static struct sockaddr_in bindaddr;	/*!< The address we bind to */
+static struct sockaddr_in bindaddr;	/*!< UDP: The address we bind to */
 
 /*! \brief our (internal) default address/port to put in SIP/SDP messages
  *  internip is initialized picking a suitable address from one of the
