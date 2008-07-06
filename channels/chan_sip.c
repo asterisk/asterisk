@@ -213,7 +213,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int min_expiry = DEFAULT_MIN_EXPIRY;        /*!< Minimum accepted registration time */
 static int max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registration time */
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
-static int expiry = DEFAULT_EXPIRY;
 
 #ifndef MAX
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
@@ -20376,7 +20375,8 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&default_prefs, 0 , sizeof(default_prefs));
 	memset(&global_outboundproxy, 0, sizeof(struct sip_proxy));
 	global_outboundproxy.ip.sin_port = htons(STANDARD_SIP_PORT);
-	global_outboundproxy.ip.sin_family = AF_INET;	/* Type of address: IPv4 */
+	global_outboundproxy.ip.sin_family = AF_INET;	/*!< Type of address: IPv4 */
+	global_outboundproxy.force = FALSE;		/*!< Don't force proxy usage, use route: headers */
 	ourport_tcp = STANDARD_SIP_PORT;
 	ourport_tls = STANDARD_TLS_PORT;
 	bindaddr.sin_port = htons(STANDARD_SIP_PORT);
@@ -20398,7 +20398,6 @@ static int reload_config(enum channelreloadreason reason)
 	allow_external_domains = DEFAULT_ALLOW_EXT_DOM;				/* Allow external invites */
 	global_regcontext[0] = '\0';
 	global_regextenonqualify = DEFAULT_REGEXTENONQUALIFY;
-	expiry = DEFAULT_EXPIRY;
 	global_notifyringing = DEFAULT_NOTIFYRINGING;
 	global_limitonpeers = FALSE;		/*!< Match call limit on peers only */
 	global_notifyhold = FALSE;		/*!< Keep track of hold status for a peer */
