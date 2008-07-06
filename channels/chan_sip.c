@@ -21147,7 +21147,7 @@ static int reload_config(enum channelreloadreason reason)
 			if (ast_parse_arg(v->value, PARSE_INADDR, &stunaddr))
 				ast_log(LOG_WARNING, "Invalid STUN server address: %s\n", v->value);
 			externexpire = time(NULL);
-		} else if (!strcasecmp(v->name, "bindaddr")) {
+		} else if (!strcasecmp(v->name, "bindaddr") || !strcasecmp(v->name, "udpbindaddr")) {
 			if (ast_parse_arg(v->value, PARSE_INADDR, &bindaddr))
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
 		} else if (!strcasecmp(v->name, "localnet")) {
