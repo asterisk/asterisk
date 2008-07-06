@@ -12908,7 +12908,7 @@ static char *sip_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	return _sip_show_peer(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
 }
 
-/*! \brief Show one peer in detail (main function) */
+/*! \brief Send qualify message to peer from cli or manager. Mostly for debugging. */
 static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
 {
 	struct sip_peer *peer;
@@ -15717,8 +15717,8 @@ static void stop_media_flows(struct sip_pvt *p)
 		ast_udptl_stop(p->udptl);
 }
 
-/*! \brief Handle SIP response in dialogue */
-/* XXX only called by handle_incoming */
+/*! \brief Handle SIP response in dialogue
+	\note only called by handle_incoming */
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
 {
 	struct ast_channel *owner;
@@ -19562,8 +19562,10 @@ static int sip_poke_noanswer(const void *data)
 }
 
 /*! \brief Check availability of peer, also keep NAT open
-\note	This is done with the interval in qualify= configuration option
-	Default is 2 seconds */
+\note	This is done with 60 seconds between each ping,
+	unless forced by cli or manager. If peer is unreachable,
+	we check every 10th second by default. 
+*/
 static int sip_poke_peer(struct sip_peer *peer, int force)
 {
 	struct sip_pvt *p;
@@ -19575,19 +19577,22 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 		AST_SCHED_DEL(sched, peer->pokeexpire);
 		
 		peer->lastms = 0;
-		if (peer->call)
+		if (peer->call) {
 			peer->call = dialog_unref(peer->call, "unref dialog peer->call");
+		}
 		return 0;
 	}
 	if (peer->call) {
-		if (sipdebug)
+		if (sipdebug) {
 			ast_log(LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
+		}
 		dialog_unlink_all(peer->call, TRUE, TRUE);
 		peer->call = dialog_unref(peer->call, "unref dialog peer->call");
 		/* peer->call = sip_destroy(peer->call); */
 	}
-	if (!(p = sip_alloc(NULL, NULL, 0, SIP_OPTIONS)))
+	if (!(p = sip_alloc(NULL, NULL, 0, SIP_OPTIONS))) {
 		return -1;
+	}
 	peer->call = dialog_ref(p, "copy sip alloc from p to peer->call");
 	
 	p->sa = peer->addr;
@@ -19628,8 +19633,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	if (xmitres == XMIT_ERROR) {
 		sip_poke_noanswer(peer);	/* Immediately unreachable, network problems */
 	} else if (!force) {
-		AST_SCHED_REPLACE(peer->pokeexpire, sched, 
-			peer->maxms * 2, sip_poke_noanswer, peer);
+		AST_SCHED_REPLACE(peer->pokeexpire, sched, peer->maxms * 2, sip_poke_noanswer, peer);
 	}
 	dialog_unref(p, "unref dialog at end of sip_poke_peer, obtained from sip_alloc, just before it goes out of scope");
 	return 0;
