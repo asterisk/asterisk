@@ -2902,7 +2902,7 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
 }
 
 /*! \brief report AGI state for channel */
-const char *agi_state(struct ast_channel *chan)
+const char *ast_agi_state(struct ast_channel *chan)
 {
 	if (ast_test_flag(chan, AST_FLAG_AGI))
 		return "AGI";
@@ -2995,7 +2995,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 					"AppData: %s\r\n"
 					"Uniqueid: %s\r\n"
 					"AGIstate: %s\r\n",
-					c->name, c->context, c->exten, c->priority, app->name, passdata, c->uniqueid, agi_state(c));
+					c->name, c->context, c->exten, c->priority, app->name, passdata, c->uniqueid, ast_agi_state(c));
 			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */
