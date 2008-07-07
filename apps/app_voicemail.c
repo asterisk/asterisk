@@ -911,7 +911,7 @@ static int check_password(struct ast_vm_user *vmu, char *password)
 	if (!ast_strlen_zero(ext_pass_check_cmd)) {
 		char cmd[255], buf[255];
 
-		ast_log(LOG_DEBUG, "Verify password policies for %s\n", password);
+		ast_log(AST_LOG_DEBUG, "Verify password policies for %s\n", password);
 
 		snprintf(cmd, sizeof(cmd), "%s %s %s %s %s", ext_pass_check_cmd, vmu->mailbox, vmu->context, vmu->password, password);
 		if (vm_check_password_shell(cmd, buf, sizeof(buf))) {
@@ -920,10 +920,10 @@ static int check_password(struct ast_vm_user *vmu, char *password)
 				ast_debug(3, "Passed password check: '%s'\n", buf);
 				return 0;
 			} else if (!strncasecmp(buf, "FAILURE", 7)) {
-				ast_log(LOG_WARNING, "Unable to execute password validation script: '%s'.\n", buf);
+				ast_log(AST_LOG_WARNING, "Unable to execute password validation script: '%s'.\n", buf);
 				return 0;
 			} else {
-				ast_log(LOG_NOTICE, "Password doesn't match policies for user %s %s\n", vmu->mailbox, password);
+				ast_log(AST_LOG_NOTICE, "Password doesn't match policies for user %s %s\n", vmu->mailbox, password);
 				return 1;
 			}
 		}
@@ -3735,7 +3735,7 @@ struct leave_vm_options {
 static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_options *options)
 {
 #ifdef IMAP_STORAGE
-	int newmsgs, oldmsgs, urgentmsgs;
+	int newmsgs, oldmsgs;
 	struct vm_state *vms = NULL;
 #else
 	char urgdir[PATH_MAX];
@@ -7433,7 +7433,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			return cmd;
 		cmd = check_password(vmu, newpassword); /* perform password validation */
 		if (cmd != 0) {
-			ast_log(LOG_NOTICE, "Invalid password for user %s (%s)\n", vms->username, newpassword);
+			ast_log(AST_LOG_NOTICE, "Invalid password for user %s (%s)\n", vms->username, newpassword);
 			cmd = ast_play_and_wait(chan, vm_invalid_password);
 		} else {
 			newpassword2[1] = '\0';
@@ -7447,7 +7447,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 				return cmd;
 			if (!strcmp(newpassword, newpassword2))
 				break;
-			ast_log(LOG_NOTICE, "Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
+			ast_log(AST_LOG_NOTICE, "Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
 			cmd = ast_play_and_wait(chan, vm_mismatch);
 		}
 		if (++tries == 3)
@@ -7571,7 +7571,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			}
 			cmd = check_password(vmu, newpassword); /* perform password validation */
 			if (cmd != 0) {
-				ast_log(LOG_NOTICE, "Invalid password for user %s (%s)\n", vms->username, newpassword);
+				ast_log(AST_LOG_NOTICE, "Invalid password for user %s (%s)\n", vms->username, newpassword);
 				cmd = ast_play_and_wait(chan, vm_invalid_password);
 				break;
 			}
@@ -9554,7 +9554,7 @@ static int load_config(int reload)
 		/* External password validation command */
 		if ((val = ast_variable_retrieve(cfg, "general", "externpasscheck"))) {
 			ast_copy_string(ext_pass_check_cmd, val, sizeof(ext_pass_check_cmd));
-			ast_log(LOG_DEBUG, "found externpasscheck: %s\n", ext_pass_check_cmd);
+			ast_log(AST_LOG_DEBUG, "found externpasscheck: %s\n", ext_pass_check_cmd);
 		}
 
 #ifdef IMAP_STORAGE
@@ -9748,7 +9748,7 @@ static int load_config(int reload)
 			if (sscanf(val, "%d", &x) == 1) {
 				minpassword = x;
 			} else {
-				ast_log(LOG_WARNING, "Invalid minimum password length.  Default to %d\n", minpassword);
+				ast_log(AST_LOG_WARNING, "Invalid minimum password length.  Default to %d\n", minpassword);
 			}
 		}
 
@@ -10131,7 +10131,7 @@ static int load_module(void)
 	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
 	
 	if (!(mwi_subscription_tps = ast_taskprocessor_get("app_voicemail", 0))) {
-		ast_log(LOG_WARNING, "failed to reference mwi subscription taskprocessor.  MWI will not work\n");
+		ast_log(AST_LOG_WARNING, "failed to reference mwi subscription taskprocessor.  MWI will not work\n");
 	}
 
 	if ((res = load_config(0)))
@@ -10993,14 +10993,14 @@ static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu, char 
 	struct vm_state *vms_p;
 
 	if (option_debug > 4)
-		ast_log(LOG_DEBUG,"Adding new vmstate for %s\n",vmu->imapuser);
+		ast_log(AST_LOG_DEBUG,"Adding new vmstate for %s\n",vmu->imapuser);
 	if (!(vms_p = ast_calloc(1, sizeof(*vms_p))))
 		return NULL;
 	ast_copy_string(vms_p->imapuser,vmu->imapuser, sizeof(vms_p->imapuser));
 	ast_copy_string(vms_p->username, mailbox, sizeof(vms_p->username)); /* save for access from interactive entry point */
 	vms_p->mailstream = NIL; /* save for access from interactive entry point */
 	if (option_debug > 4)
-		ast_log(LOG_DEBUG,"Copied %s to %s\n",vmu->imapuser,vms_p->imapuser);
+		ast_log(AST_LOG_DEBUG,"Copied %s to %s\n",vmu->imapuser,vms_p->imapuser);
 	vms_p->updated = 1;
 	/* set mailbox to INBOX! */
 	ast_copy_string(vms_p->curbox, mbox(0), sizeof(vms_p->curbox));
