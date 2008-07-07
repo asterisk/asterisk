@@ -1355,22 +1355,22 @@ AST_EXT_LIB_CHECK([TERMCAP], [termcap], [tgetent], [])
 AST_EXT_LIB_CHECK([TINFO], [tinfo], [tgetent], [])
 
 if test "${host_os}" != "linux-gnu" ; then
-  tonezone_extra="-lm"
+  tonezone_extra_lib="-lm"
 fi
 
 if test "${PBX_DAHDI}" = "1" || test "${USE_ZAPTEL}" = "no"; then
   tonezone_dir="dahdi"
    if test "x${DAHDI_DIR}" != "x"; then
-      tonezone_extra="${tonezone_extra} ${DAHDI_INCLUDE}"
+      tonezone_extra_inc="${DAHDI_INCLUDE}"
    fi
 else
   tonezone_dir="zaptel"
    if test "x${ZAPTEL_DIR}" != "x"; then
-      tonezone_extra="${tonezone_extra} ${ZAPTEL_INCLUDE}"
+      tonezone_extra_inc="${ZAPTEL_INCLUDE}"
    fi
 fi
 
-AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [${tonezone_dir}/tonezone.h], [${tonezone_extra}])
+AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [${tonezone_dir}/tonezone.h], [${tonezone_extra_lib}], [${tonezone_extra_inc}])
 
 AST_EXT_LIB_CHECK([USB], [usb], [usb_init], [usb.h], [])
 
