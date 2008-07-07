@@ -455,6 +455,7 @@ static AST_LIST_HEAD_STATIC(registrations, iax2_registry);
 static int iaxthreadcount = DEFAULT_THREAD_COUNT;
 static int iaxmaxthreadcount = DEFAULT_MAX_THREAD_COUNT;
 static int iaxdynamicthreadcount = 0;
+static int iaxdynamicthreadnum = 0;
 static int iaxactivethreadcount = 0;
 
 struct iax_rr {
@@ -1059,7 +1060,8 @@ static struct iax2_thread *find_idle_thread(void)
 		return NULL;
 
 	/* Set default values */
-	thread->threadnum = ast_atomic_fetchadd_int(&iaxdynamicthreadcount, 1);
+	ast_atomic_fetchadd_int(&iaxdynamicthreadcount, 1);
+	thread->threadnum = ast_atomic_fetchadd_int(&iaxdynamicthreadnum, 1);
 	thread->type = IAX_THREAD_TYPE_DYNAMIC;
 
 	/* Initialize lock and condition */
