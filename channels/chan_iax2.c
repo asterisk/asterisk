@@ -3766,11 +3766,13 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	ast_mutex_unlock(&iaxsl[callno]);
 	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, "IAX2/%s-%d", i->host, i->callno);
 	ast_mutex_lock(&iaxsl[callno]);
-	if (!iaxs[callno]) {
+	if (i != iaxs[callno]) {
 		if (tmp) {
+			/* unlock and relock iaxsl[callno] to preserve locking order */
+			ast_mutex_unlock(&iaxsl[callno]);
 			ast_channel_free(tmp);
+			ast_mutex_lock(&iaxsl[callno]);
 		}
-		ast_mutex_unlock(&iaxsl[callno]);
 		return NULL;
 	}
 
