@@ -5923,7 +5923,7 @@ static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int 
 	}
 
 	if (box == NEW_FOLDER) {
-		ast_copy_string(vms->vmbox, "vm-INBOX", sizeof(vm->vmbox));
+		ast_copy_string(vms->vmbox, "vm-INBOX", sizeof(vms->vmbox));
 	} else {
 		snprintf(vms->vmbox, sizeof(vm->vmbox), "vm-%s", mbox(box));
 	}
