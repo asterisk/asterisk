@@ -7781,7 +7781,7 @@ static int socket_process_meta(int packet_len, struct ast_iax2_meta_hdr *meta, s
 		if (!iaxs[fr->callno]) {
 			/* drop it */
 		} else if (iaxs[fr->callno]->voiceformat == 0) {
-			ast_log(LOG_WARNING, "Received trunked frame before first full voice frame\n ");
+			ast_log(LOG_WARNING, "Received trunked frame before first full voice frame\n");
 			iax2_vnak(fr->callno);
 		} else {
 			f.subclass = iaxs[fr->callno]->voiceformat;
@@ -9334,7 +9334,7 @@ retryowner2:
 		if (iaxs[fr->callno]->videoformat > 0) 
 			f.subclass = iaxs[fr->callno]->videoformat | (ntohs(vh->ts) & 0x8000 ? 1 : 0);
 		else {
-			ast_log(LOG_WARNING, "Received mini frame before first full video frame\n ");
+			ast_log(LOG_WARNING, "Received mini frame before first full video frame\n");
 			iax2_vnak(fr->callno);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
