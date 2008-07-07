@@ -1747,6 +1747,7 @@ struct insert_data {
 	char *msgnums;
 	void *data;
 	SQLLEN datalen;
+	SQLLEN indlen;
 	const char *context;
 	const char *macrocontext;
 	const char *callerid;
@@ -1763,7 +1764,6 @@ static SQLHSTMT insert_data_cb(struct odbc_obj *obj, void *vdata)
 	struct insert_data *data = vdata;
 	int res;
 	SQLHSTMT stmt;
-	SQLLEN len = data->datalen;
 
 	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -1774,7 +1774,7 @@ static SQLHSTMT insert_data_cb(struct odbc_obj *obj, void *vdata)
 
 	SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->dir), 0, (void *)data->dir, 0, NULL);
 	SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->msgnums), 0, (void *)data->msgnums, 0, NULL);
-	SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_LONGVARBINARY, data->datalen, 0, (void *)data->data, data->datalen, &len);
+	SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_LONGVARBINARY, data->datalen, 0, (void *)data->data, data->datalen, &data->indlen);
 	SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->context), 0, (void *)data->context, 0, NULL);
 	SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->macrocontext), 0, (void *)data->macrocontext, 0, NULL);
 	SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->callerid), 0, (void *)data->callerid, 0, NULL);
@@ -1887,7 +1887,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 			break;
 		} 
 		idata.data = fdm;
-		idata.datalen = fdlen;
+		idata.datalen = idata.indlen = fdlen;
 
 		if (!ast_strlen_zero(idata.category)) 
 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext,flag,category) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",odbc_table); 
