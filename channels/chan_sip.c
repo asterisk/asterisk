@@ -11687,8 +11687,9 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	peer = find_peer(of, NULL, TRUE, FALSE);
 
 	/* If not found, then find device on IP (if it's not a SUBSCRIBE) */
-	if (!peer && sipmethod != SIP_SUBSCRIBE)
-		find_peer(NULL, &p->recv, TRUE, FALSE);
+	if (!peer && sipmethod != SIP_SUBSCRIBE) {
+		peer = find_peer(NULL, &p->recv, TRUE, FALSE);
+	}
 
 	if (!peer) {
 		if (debug)
