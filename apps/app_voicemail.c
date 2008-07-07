@@ -1273,9 +1273,14 @@ static int retrieve_file(char *dir, int msgnum)
 					truncate(full_fn, fdlen);
 				}
 			} else {
-				res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+				SQLLEN ind;
+				res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), &ind);
 				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-					ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+					SQLINTEGER nativeerror = 0;
+					SQLSMALLINT diagbytes = 0;
+					unsigned char state[10], diagnostic[256];
+					SQLGetDiagRec(SQL_HANDLE_STMT, stmt, 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+					ast_log(LOG_WARNING, "SQL Get Data error: %s: %s!\n[%s]\n\n", state, diagnostic, sql);
 					SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 					ast_odbc_release_obj(obj);
 					goto yuck;
@@ -1462,23 +1467,85 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 	return;	
 }
 
+struct insert_cb_struct {
+	char *dir;
+	char *msgnum;
+	void *recording;
+	size_t recordinglen;
+	SQLLEN indlen;
+	const char *context;
+	const char *macrocontext;
+	const char *callerid;
+	const char *origtime;
+	const char *duration;
+	char *mailboxuser;
+	char *mailboxcontext;
+	const char *category;
+	char *sql;
+};
+
+static SQLHSTMT insert_cb(struct odbc_obj *obj, void *vd)
+{
+	struct insert_cb_struct *d = vd;
+	int res;
+	SQLHSTMT stmt;
+
+	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+		return NULL;
+	}
+
+	res = SQLPrepare(stmt, (unsigned char *)d->sql, SQL_NTS);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", d->sql);
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+
+	SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->dir), 0, (void *)d->dir, 0, NULL);
+	SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->msgnum), 0, (void *)d->msgnum, 0, NULL);
+	SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_LONGVARBINARY, d->recordinglen, 0, (void *)d->recording, 0, &d->indlen);
+	SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->context), 0, (void *)d->context, 0, NULL);
+	SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->macrocontext), 0, (void *)d->macrocontext, 0, NULL);
+	SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->callerid), 0, (void *)d->callerid, 0, NULL);
+	SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->origtime), 0, (void *)d->origtime, 0, NULL);
+	SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->duration), 0, (void *)d->duration, 0, NULL);
+	SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->mailboxuser), 0, (void *)d->mailboxuser, 0, NULL);
+	SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->mailboxcontext), 0, (void *)d->mailboxcontext, 0, NULL);
+	if (!ast_strlen_zero(d->category)) {
+		SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->category), 0, (void *)d->category, 0, NULL);
+	}
+
+	return stmt;
+}
+
 static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum)
 {
 	int x = 0;
-	int res;
 	int fd = -1;
 	void *fdm = MAP_FAILED;
 	size_t fdlen = -1;
 	SQLHSTMT stmt;
-	SQLLEN len;
 	char sql[PATH_MAX];
 	char msgnums[20];
 	char fn[PATH_MAX];
 	char full_fn[PATH_MAX];
 	char fmt[80] = "";
 	char *c;
-	const char *context = "", *macrocontext = "", *callerid = "", *origtime = "", *duration = "";
-	const char *category = "";
+	struct insert_cb_struct d = {
+		.dir = dir,
+		.msgnum = msgnums,
+		.context = "",
+		.macrocontext = "",
+		.callerid = "",
+		.origtime = "",
+		.duration = "",
+		.mailboxuser = mailboxuser,
+		.mailboxcontext = mailboxcontext,
+		.category = "",
+		.sql = sql
+	};
 	struct ast_config *cfg = NULL;
 	struct odbc_obj *obj;
 	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
@@ -1507,18 +1574,18 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 			goto yuck;
 		}
 		if (cfg) {
-			context = ast_variable_retrieve(cfg, "message", "context");
-			if (!context) context = "";
-			macrocontext = ast_variable_retrieve(cfg, "message", "macrocontext");
-			if (!macrocontext) macrocontext = "";
-			callerid = ast_variable_retrieve(cfg, "message", "callerid");
-			if (!callerid) callerid = "";
-			origtime = ast_variable_retrieve(cfg, "message", "origtime");
-			if (!origtime) origtime = "";
-			duration = ast_variable_retrieve(cfg, "message", "duration");
-			if (!duration) duration = "";
-			category = ast_variable_retrieve(cfg, "message", "category");
-			if (!category) category = "";
+			d.context = ast_variable_retrieve(cfg, "message", "context");
+			if (!d.context) d.context = "";
+			d.macrocontext = ast_variable_retrieve(cfg, "message", "macrocontext");
+			if (!d.macrocontext) d.macrocontext = "";
+			d.callerid = ast_variable_retrieve(cfg, "message", "callerid");
+			if (!d.callerid) d.callerid = "";
+			d.origtime = ast_variable_retrieve(cfg, "message", "origtime");
+			if (!d.origtime) d.origtime = "";
+			d.duration = ast_variable_retrieve(cfg, "message", "duration");
+			if (!d.duration) d.duration = "";
+			d.category = ast_variable_retrieve(cfg, "message", "category");
+			if (!d.category) d.category = "";
 		}
 		fdlen = lseek(fd, 0, SEEK_END);
 		lseek(fd, 0, SEEK_SET);
@@ -1529,44 +1596,16 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 			ast_odbc_release_obj(obj);
 			goto yuck;
 		} 
-		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
-		if (!ast_strlen_zero(category)) 
+		d.recording = fdm;
+		d.recordinglen = d.indlen = fdlen; /* SQL_LEN_DATA_AT_EXEC(fdlen); */
+		if (!ast_strlen_zero(d.category)) 
 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext,category) VALUES (?,?,?,?,?,?,?,?,?,?,?)", odbc_table);
 		else
 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext) VALUES (?,?,?,?,?,?,?,?,?,?)", odbc_table);
-		res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-			goto yuck;
+		stmt = ast_odbc_prepare_and_execute(obj, insert_cb, &d);
+		if (stmt) {
+			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		}
-		len = fdlen; /* SQL_LEN_DATA_AT_EXEC(fdlen); */
-		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dir), 0, (void *)dir, 0, NULL);
-		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
-		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_LONGVARBINARY, fdlen, 0, (void *)fdm, fdlen, &len);
-		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(context), 0, (void *)context, 0, NULL);
-		SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(macrocontext), 0, (void *)macrocontext, 0, NULL);
-		SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(callerid), 0, (void *)callerid, 0, NULL);
-		SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(origtime), 0, (void *)origtime, 0, NULL);
-		SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(duration), 0, (void *)duration, 0, NULL);
-		SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(mailboxuser), 0, (void *)mailboxuser, 0, NULL);
-		SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(mailboxcontext), 0, (void *)mailboxcontext, 0, NULL);
-		if (!ast_strlen_zero(category))
-			SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(category), 0, (void *)category, 0, NULL);
-		res = ast_odbc_smart_execute(obj, stmt);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
-		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
 	} else
 		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
@@ -1981,7 +2020,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	char dur[256];
 	char tmpcmd[256];
 	struct ast_tm tm;
-	char enc_cidnum[256], enc_cidname[256];
+	char enc_cidnum[256] = "", enc_cidname[256] = "";
 	char *passdata2;
 	size_t len_passdata;
 	char *greeting_attachment;
@@ -1992,8 +2031,12 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 #define ENDL "\n"
 #endif
 
-	strip_control(cidnum, enc_cidnum, sizeof(enc_cidnum));
-	strip_control(cidname, enc_cidname, sizeof(enc_cidname));
+	if (!ast_strlen_zero(cidnum)) {
+		strip_control(cidnum, enc_cidnum, sizeof(enc_cidnum));
+	}
+	if (!ast_strlen_zero(cidname)) {
+		strip_control(cidname, enc_cidname, sizeof(enc_cidname));
+	}
 	gethostname(host, sizeof(host) - 1);
 
 	if (strchr(srcemail, '@'))
