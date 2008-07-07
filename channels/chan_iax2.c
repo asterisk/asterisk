@@ -446,6 +446,7 @@ static AST_LIST_HEAD_STATIC(registrations, iax2_registry);
 static int iaxthreadcount = DEFAULT_THREAD_COUNT;
 static int iaxmaxthreadcount = DEFAULT_MAX_THREAD_COUNT;
 static int iaxdynamicthreadcount = 0;
+static int iaxdynamicthreadnum = 0;
 static int iaxactivethreadcount = 0;
 
 struct iax_rr {
@@ -920,7 +921,7 @@ static struct iax2_thread *find_idle_thread(void)
 		if (thread == NULL && iaxmaxthreadcount > iaxdynamicthreadcount) {
 			/* We need to MAKE a thread! */
 			if ((thread = ast_calloc(1, sizeof(*thread)))) {
-				thread->threadnum = iaxdynamicthreadcount;
+				thread->threadnum = iaxdynamicthreadnum++;
 				thread->type = IAX_TYPE_DYNAMIC;
 				ast_mutex_init(&thread->lock);
 				ast_cond_init(&thread->cond, NULL);
