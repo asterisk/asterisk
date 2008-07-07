@@ -70,7 +70,7 @@ writeprotect=no
 ;extenpatternmatchnew=no
 ;
 ; If clearglobalvars is set, global variables will be cleared 
-; and reparsed on an extensions reload, or Asterisk reload.
+; and reparsed on a dialplan reload, or Asterisk reload.
 ;
 ; If clearglobalvars is not set, then global variables will persist
 ; through reloads, and even if deleted from the extensions.conf or
