@@ -7136,7 +7136,7 @@ static int socket_process(struct iax2_thread *thread)
 								ast_log(LOG_WARNING, "Datalen < 0?\n");
 							}
 						} else {
-							ast_log(LOG_WARNING, "Received trunked frame before first full voice frame\n ");
+							ast_log(LOG_WARNING, "Received trunked frame before first full voice frame\n");
 							iax2_vnak(fr->callno);
 						}
 					}
@@ -8439,7 +8439,7 @@ retryowner2:
 		if (iaxs[fr->callno]->videoformat > 0) 
 			f.subclass = iaxs[fr->callno]->videoformat | (ntohs(vh->ts) & 0x8000 ? 1 : 0);
 		else {
-			ast_log(LOG_WARNING, "Received mini frame before first full video frame\n ");
+			ast_log(LOG_WARNING, "Received mini frame before first full video frame\n");
 			iax2_vnak(fr->callno);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
@@ -9159,7 +9159,7 @@ static int start_network_thread(void)
 	ast_pthread_create_background(&schedthreadid, NULL, sched_thread, NULL);
 	ast_pthread_create_background(&netthreadid, NULL, network_thread, NULL);
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "%d helper threaads started\n", threadcount);
+		ast_verbose(VERBOSE_PREFIX_2 "%d helper threads started\n", threadcount);
 	return 0;
 }
 
