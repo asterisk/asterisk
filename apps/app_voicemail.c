@@ -5918,10 +5918,14 @@ static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int 
 
 	if (box == OLD_FOLDER) {
 		ast_copy_string(vms->curbox, mbox(NEW_FOLDER), sizeof(vms->curbox));
-		snprintf(vms->vmbox, sizeof(vms->vmbox), "vm-%s", mbox(1));
 	} else {
 		ast_copy_string(vms->curbox, mbox(box), sizeof(vms->curbox));
-		snprintf(vms->vmbox, sizeof(vms->vmbox), "vm-%s", vms->curbox);
+	}
+
+	if (box == NEW_FOLDER) {
+		ast_copy_string(vms->vmbox, "vm-INBOX", sizeof(vm->vmbox));
+	} else {
+		snprintf(vms->vmbox, sizeof(vm->vmbox), "vm-%s", mbox(box));
 	}
 
 	/* Build up server information */
