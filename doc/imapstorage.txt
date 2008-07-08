@@ -105,6 +105,10 @@ imapflags=<IMAP flags, "novalidate-cert" for example>
 expungeonhangup=<yes or no>
 authuser=<username>
 authpassword=<password>
+opentimeout=<TCP open timeout in seconds>
+closetimeout=<TCP close timeout in seconds>
+readtimeout=<TCP read timeout in seconds>
+writetimeout=<TCP write timeout in seconds>
 
 The "expungeonhangup" flag is used to determine if the voicemail system should
 expunge all messages marked for deletion when the user hangs up the phone. 

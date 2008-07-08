@@ -109,7 +109,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #ifdef IMAP_STORAGE
 AST_MUTEX_DEFINE_STATIC(imaptemp_lock);
 static char imaptemp[1024];
-
 static char imapserver[48];
 static char imapport[8];
 static char imapflags[128];
@@ -119,6 +118,7 @@ static char authpassword[42];
 
 static int expungeonhangup = 1;
 static char delimiter = '\0';
+static const long DEFAULT_IMAP_TCP_TIMEOUT = 60L;
 
 struct vm_state;
 struct ast_vm_user;
@@ -7456,6 +7456,7 @@ static int load_config(void)
 	const char *auth_user;
 	const char *auth_password;
 	const char *expunge_on_hangup;
+	const char *imap_timeout;
 #endif
 	const char *astcallop;
 	const char *astreview;
@@ -7603,6 +7604,36 @@ static int load_config(void)
 		} else {
 			ast_copy_string(imapfolder,"INBOX", sizeof(imapfolder));
 		}
+
+		/* There is some very unorthodox casting done here. This is due
+		 * to the way c-client handles the argument passed in. It expects a 
+		 * void pointer and casts the pointer directly to a long without
+		 * first dereferencing it. */
+
+		if ((imap_timeout = ast_variable_retrieve(cfg, "general", "imapreadtimeout"))) {
+			mail_parameters(NIL, SET_READTIMEOUT, (void *) (atol(imap_timeout)));
+		} else {
+			mail_parameters(NIL, SET_READTIMEOUT, (void *) DEFAULT_IMAP_TCP_TIMEOUT);
+		}
+
+		if ((imap_timeout = ast_variable_retrieve(cfg, "general", "imapwritetimeout"))) {
+			mail_parameters(NIL, SET_WRITETIMEOUT, (void *) (atol(imap_timeout)));
+		} else {
+			mail_parameters(NIL, SET_WRITETIMEOUT, (void *) DEFAULT_IMAP_TCP_TIMEOUT);
+		}
+
+		if ((imap_timeout = ast_variable_retrieve(cfg, "general", "imapopentimeout"))) {
+			mail_parameters(NIL, SET_OPENTIMEOUT, (void *) (atol(imap_timeout)));
+		} else {
+			mail_parameters(NIL, SET_OPENTIMEOUT, (void *) DEFAULT_IMAP_TCP_TIMEOUT);
+		}
+
+		if ((imap_timeout = ast_variable_retrieve(cfg, "general", "imapclosetimeout"))) {
+			mail_parameters(NIL, SET_CLOSETIMEOUT, (void *) (atol(imap_timeout)));
+		} else {
+			mail_parameters(NIL, SET_CLOSETIMEOUT, (void *) DEFAULT_IMAP_TCP_TIMEOUT);
+		}
+
 #endif
 		/* External voicemail notify application */
 		
