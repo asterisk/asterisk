@@ -137,7 +137,7 @@ static int srv_callback(void *context, unsigned char *answer, int len, unsigned 
 	if (entry)
 		AST_LIST_INSERT_TAIL(&c->entries, entry, list);
 
-	return 1;
+	return 0;
 }
 
 /* Do the bizarre SRV record weight-handling algorithm
