@@ -381,6 +381,7 @@ static void handle_cause(int cause, struct cause_args *num)
 		num->congestion++;
 		break;
 
+	case AST_CAUSE_NO_ROUTE_DESTINATION:
 	case AST_CAUSE_UNREGISTERED:
 		if (cdr)
 			ast_cdr_failed(cdr);
