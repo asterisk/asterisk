@@ -19941,15 +19941,25 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (handle_common_options(&peerflags[0], &mask[0], v))
 			continue;
-		if (!strcasecmp(v->name, "transport")) {
-			if (!strcasecmp(v->value, "udp")) 
-				peer->transports &= SIP_TRANSPORT_UDP;
-			else if (!strcasecmp(v->value, "tcp"))
-				peer->transports &= SIP_TRANSPORT_TCP;
-			else if (!strcasecmp(v->value, "tls"))
-				peer->transports &= SIP_TRANSPORT_TLS;
-			if (!peer->socket.type) /*!< The first transport listed should be used for outgoing */
-				peer->socket.type = peer->transports;
+		if (!strcasecmp(v->name, "transport") && !ast_strlen_zero(v->value)) {
+			char *val = ast_strdupa(v->value);
+			char *trans;
+
+			while ((trans = strsep(&val, ","))) {
+				trans = ast_skip_blanks(trans);
+
+				if (!strncasecmp(trans, "udp", 3)) 
+					peer->transports |= SIP_TRANSPORT_UDP;
+				else if (!strncasecmp(trans, "tcp", 3))
+					peer->transports |= SIP_TRANSPORT_TCP;
+				else if (!strncasecmp(trans, "tls", 3))
+					peer->transports |= SIP_TRANSPORT_TLS;
+				else
+					ast_log(LOG_NOTICE, "'%s' is not a valid transport type. if no other is specified, udp will be used.\n", trans);
+
+				if (!peer->socket.type) /*!< The first transport listed should be used for outgoing */
+					peer->socket.type = peer->transports;
+			}
 		} else if (realtime && !strcasecmp(v->name, "regseconds")) {
 			ast_get_time_t(v->value, &regseconds, 0, NULL);
 		} else if (realtime && !strcasecmp(v->name, "ipaddr") && !ast_strlen_zero(v->value) ) {
