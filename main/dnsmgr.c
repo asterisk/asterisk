@@ -164,8 +164,7 @@ static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 	if (verbose)
 		ast_verb(3, "refreshing '%s'\n", entry->name);
 
-	ast_get_ip_or_srv(&tmp, entry->name, entry->service);
-	if (inaddrcmp(&tmp, &entry->last)) {
+	if (!ast_get_ip_or_srv(&tmp, entry->name, entry->service) && inaddrcmp(&tmp, &entry->last)) {
 		ast_copy_string(iabuf, ast_inet_ntoa(entry->last.sin_addr), sizeof(iabuf));
 		ast_copy_string(iabuf2, ast_inet_ntoa(tmp.sin_addr), sizeof(iabuf2));
 		ast_log(LOG_NOTICE, "dnssrv: host '%s' changed from %s:%d to %s:%d\n", 

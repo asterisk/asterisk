@@ -189,6 +189,7 @@ static int dns_parse_answer(void *context,
 	unsigned char *fullanswer = answer;
 	struct dn_answer *ans;
 	dns_HEADER *h;
+	int ret = 0;
 	int res;
 	int x;
 
@@ -234,14 +235,13 @@ static int dns_parse_answer(void *context,
 					ast_log(LOG_WARNING, "Failed to parse result\n");
 					return -1;
 				}
-				if (res > 0)
-					return 1;
+				ret = 1;
 			}
 		}
 		answer += ntohs(ans->size);
 		len -= ntohs(ans->size);
 	}
-	return 0;
+	return ret;
 }
 
 #ifndef HAVE_RES_NINIT
