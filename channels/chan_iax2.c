@@ -2820,25 +2820,31 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset);
 
 static void unwrap_timestamp(struct iax_frame *fr)
 {
-	int x;
+	/* Video mini frames only encode the lower 15 bits of the session
+	 * timestamp, but other frame types (e.g. audio) encode 16 bits. */
+	const int ts_shift = (fr->af.frametype == AST_FRAME_VIDEO) ? 15 : 16;
+	const int lower_mask = (1 << ts_shift) - 1;
+	const int upper_mask = ~lower_mask;
+	const int last_upper = iaxs[fr->callno]->last & upper_mask;
 
-	if ( (fr->ts & 0xFFFF0000) == (iaxs[fr->callno]->last & 0xFFFF0000) ) {
-		x = fr->ts - iaxs[fr->callno]->last;
-		if (x < -50000) {
+	if ( (fr->ts & upper_mask) == last_upper ) {
+		const int x = fr->ts - iaxs[fr->callno]->last;
+		const int threshold = (ts_shift == 15) ? 25000 : 50000;
+
+		if (x < -threshold) {
 			/* Sudden big jump backwards in timestamp:
 			   What likely happened here is that miniframe timestamp has circled but we haven't
 			   gotten the update from the main packet.  We'll just pretend that we did, and
 			   update the timestamp appropriately. */
-			fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) + 0x10000) | (fr->ts & 0xFFFF);
+			fr->ts = (last_upper + (1 << ts_shift)) | (fr->ts & lower_mask);
 			if (iaxdebug)
 				ast_debug(1, "schedule_delivery: pushed forward timestamp\n");
-		}
-		if (x > 50000) {
+		} else if (x > threshold) {
 			/* Sudden apparent big jump forwards in timestamp:
 			   What's likely happened is this is an old miniframe belonging to the previous
-			   top-16-bit timestamp that has turned up out of order.
+			   top 15 or 16-bit timestamp that has turned up out of order.
 			   Adjust the timestamp appropriately. */
-			fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) - 0x10000) | (fr->ts & 0xFFFF);
+			fr->ts = (last_upper - (1 << ts_shift)) | (fr->ts & lower_mask);
 			if (iaxdebug)
 				ast_debug(1, "schedule_delivery: pushed back timestamp\n");
 		}
