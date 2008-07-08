@@ -14100,7 +14100,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			else
 				ast_log(LOG_DEBUG, "Got a SIP re-transmit of INVITE for call %s\n", p->callid);
 		}
-		reinvite = 1;
+		if (!ast_test_flag(req, SIP_PKT_IGNORE))
+			reinvite = 1;
 		c = p->owner;
 	}
 
