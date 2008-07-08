@@ -1847,7 +1847,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	char fname[256];
 	char dur[256];
 	char tmpcmd[256];
-	char enc_cidnum[256], enc_cidname[256];
+	char enc_cidnum[256] = "", enc_cidname[256] = "";
 	struct tm tm;
 	char *passdata2;
 	size_t len_passdata;
@@ -1857,8 +1857,12 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 #define ENDL "\n"
 #endif
 
-	strip_control(cidnum, enc_cidnum, sizeof(enc_cidnum));
-	strip_control(cidname, enc_cidname, sizeof(enc_cidname));
+	if (cidnum) {
+		strip_control(cidnum, enc_cidnum, sizeof(enc_cidnum));
+	}
+	if (cidname) {
+		strip_control(cidname, enc_cidname, sizeof(enc_cidname));
+	}
 	gethostname(host, sizeof(host) - 1);
 	if (strchr(srcemail, '@'))
 		ast_copy_string(who, srcemail, sizeof(who));
