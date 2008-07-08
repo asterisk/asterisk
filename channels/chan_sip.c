@@ -6056,7 +6056,7 @@ static int sip_register(const char *value, int lineno)
 	if (hostname)
 		*hostname++ = '\0';
 	if (ast_strlen_zero(username) || ast_strlen_zero(hostname)) {
-		ast_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port][/contact] at line %d\n", lineno);
+		ast_log(LOG_WARNING, "Format for registration is [transport://]user[:secret[:authuser]]@host[:port][/contact][~expiry] at line %d\n", lineno);
 		return -1;
 	}
 	/* split user[:secret[:authuser]] */
@@ -18367,7 +18367,12 @@ static int sip_parse_host(char *line, int lineno, char **hostname, int *portnum,
 		*transport = SIP_TRANSPORT_UDP;
 	}
 
-	if ((port = strchr(*hostname, ':'))) {
+	if ((line = strrchr(*hostname, '@')))
+		line++;
+	else
+		line = *hostname;
+
+	if ((port = strrchr(line, ':'))) {
 		*port++ = '\0';
 
 		if (!sscanf(port, "%u", portnum)) {
