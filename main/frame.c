@@ -503,7 +503,7 @@ struct ast_format_list *ast_get_format_list_index(int index)
 
 struct ast_format_list *ast_get_format_list(size_t *size) 
 {
-	*size = (sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]));
+	*size = ARRAY_LEN(AST_FORMAT_LIST);
 	return AST_FORMAT_LIST;
 }
 
@@ -511,7 +511,7 @@ char* ast_getformatname(int format)
 {
 	int x;
 	char *ret = "unknown";
-	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		if (AST_FORMAT_LIST[x].bits == format) {
 			ret = AST_FORMAT_LIST[x].name;
 			break;
@@ -533,7 +533,7 @@ char *ast_getformatname_multiple(char *buf, size_t size, int format)
 	end += len;
 	size -= len;
 	start = end;
-	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		if (AST_FORMAT_LIST[x].bits & format) {
 			snprintf(end, size,"%s|",AST_FORMAT_LIST[x].name);
 			len = strlen(end);
@@ -561,7 +561,7 @@ static const char *ast_expand_codec_alias(const char *in)
 {
 	int x;
 
-	for (x = 0; x < sizeof(ast_codec_alias_table) / sizeof(ast_codec_alias_table[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(ast_codec_alias_table); x++) {
 		if (!strcmp(in,ast_codec_alias_table[x].alias))
 			return ast_codec_alias_table[x].realname;
 	}
@@ -573,7 +573,7 @@ int ast_getformatbyname(const char *name)
 	int x, all, format = 0;
 
 	all = strcasecmp(name, "all") ? 0 : 1;
-	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		if (all || 
 			  !strcasecmp(AST_FORMAT_LIST[x].name,name) ||
 			  !strcasecmp(AST_FORMAT_LIST[x].name, ast_expand_codec_alias(name))) {
@@ -590,7 +590,7 @@ char *ast_codec2str(int codec)
 {
 	int x;
 	char *ret = "unknown";
-	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		if (AST_FORMAT_LIST[x].bits == codec) {
 			ret = AST_FORMAT_LIST[x].desc;
 			break;
@@ -1023,7 +1023,7 @@ void ast_codec_pref_remove(struct ast_codec_pref *pref, int format)
 	memcpy(&oldorder, pref, sizeof(oldorder));
 	memset(pref, 0, sizeof(*pref));
 
-	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		slot = oldorder.order[x];
 		size = oldorder.framing[x];
 		if (! slot)
@@ -1043,7 +1043,7 @@ int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
 
 	ast_codec_pref_remove(pref, format);
 
-	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		if (AST_FORMAT_LIST[x].bits == format) {
 			newindex = x + 1;
 			break;
@@ -1051,7 +1051,7 @@ int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
 	}
 
 	if (newindex) {
-		for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
+		for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 			if (!pref->order[x]) {
 				pref->order[x] = newindex;
 				break;
@@ -1104,7 +1104,7 @@ int ast_codec_pref_setsize(struct ast_codec_pref *pref, int format, int framems)
 {
 	int x, index = -1;
 
-	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		if (AST_FORMAT_LIST[x].bits == format) {
 			index = x;
 			break;
@@ -1128,7 +1128,7 @@ int ast_codec_pref_setsize(struct ast_codec_pref *pref, int format, int framems)
 		framems = AST_FORMAT_LIST[index].max_ms;
 
 
-	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		if (pref->order[x] == (index + 1)) {
 			pref->framing[x] = framems;
 			break;
@@ -1144,7 +1144,7 @@ struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, int f
 	int x, index = -1, framems = 0;
 	struct ast_format_list fmt = { 0, };
 
-	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		if (AST_FORMAT_LIST[x].bits == format) {
 			fmt = AST_FORMAT_LIST[x];
 			index = x;
@@ -1152,7 +1152,7 @@ struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, int f
 		}
 	}
 
-	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		if (pref->order[x] == (index + 1)) {
 			framems = pref->framing[x];
 			break;
@@ -1182,7 +1182,7 @@ int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best)
 {
 	int x, ret = 0, slot;
 
-	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		slot = pref->order[x];
 
 		if (!slot)

@@ -2630,7 +2630,7 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported
 		next = ast_skip_blanks(next);
 		if (sipdebug)
 			ast_debug(3, "Found SIP option: -%s-\n", next);
-		for (i=0; i < (sizeof(sip_options) / sizeof(sip_options[0])); i++) {
+		for (i = 0; i < ARRAY_LEN(sip_options); i++) {
 			if (!strcasecmp(next, sip_options[i].text)) {
 				profile |= sip_options[i].id;
 				found = TRUE;
@@ -5705,9 +5705,10 @@ static const char *find_alias(const char *name, const char *_default)
 	};
 	int x;
 
-	for (x=0; x<sizeof(aliases) / sizeof(aliases[0]); x++) 
+	for (x = 0; x < ARRAY_LEN(aliases); x++) {
 		if (!strcasecmp(aliases[x].fullname, name))
 			return aliases[x].shortname;
+	}
 
 	return _default;
 }
@@ -13104,7 +13105,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  SIP Options  : ");
 		if (peer->sipoptions) {
 			int lastoption = -1;
-			for (x=0 ; (x < (sizeof(sip_options) / sizeof(sip_options[0]))); x++) {
+			for (x = 0 ; x < ARRAY_LEN(sip_options); x++) {
 				if (sip_options[x].id != lastoption) {
 					if (peer->sipoptions & sip_options[x].id)
 						ast_cli(fd, "%s ", sip_options[x].text);
@@ -13965,7 +13966,7 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			ast_cli(a->fd, "  SIP Options:            ");
 			if (cur->sipoptions) {
 				int x;
-				for (x=0 ; (x < (sizeof(sip_options) / sizeof(sip_options[0]))); x++) {
+				for (x = 0 ; x < ARRAY_LEN(sip_options); x++) {
 					if (cur->sipoptions & sip_options[x].id)
 						ast_cli(a->fd, "%s ", sip_options[x].text);
 				}

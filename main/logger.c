@@ -530,7 +530,7 @@ static int rotate_file(const char *filename)
 		/* Find the next empty slot, including a possible suffix */
 		for (x = 0; ; x++) {
 			found = 0;
-			for (which = 0; which < sizeof(suffixes) / sizeof(suffixes[0]); which++) {
+			for (which = 0; which < ARRAY_LEN(suffixes); which++) {
 				snprintf(new, sizeof(new), "%s.%d%s", filename, x, suffixes[which]);
 				fd = open(new, O_RDONLY);
 				if (fd > -1)
@@ -546,7 +546,7 @@ static int rotate_file(const char *filename)
 
 		/* Found an empty slot */
 		for (y = x; y > -1; y--) {
-			for (which = 0; which < sizeof(suffixes) / sizeof(suffixes[0]); which++) {
+			for (which = 0; which < ARRAY_LEN(suffixes); which++) {
 				snprintf(old, sizeof(old), "%s.%d%s", filename, y - 1, suffixes[which]);
 				fd = open(old, O_RDONLY);
 				if (fd > -1) {

@@ -434,7 +434,7 @@ int ast_str2tos(const char *value, unsigned int *tos)
 		return 0;
 	}
 
-	for (x = 0; x < sizeof(dscp_pool1) / sizeof(dscp_pool1[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(dscp_pool1); x++) {
 		if (!strcasecmp(value, dscp_pool1[x].name)) {
 			*tos = dscp_pool1[x].space << 2;
 			return 0;
@@ -448,7 +448,7 @@ const char *ast_tos2str(unsigned int tos)
 {
 	unsigned int x;
 
-	for (x = 0; x < sizeof(dscp_pool1) / sizeof(dscp_pool1[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(dscp_pool1); x++) {
 		if (dscp_pool1[x].space == (tos >> 2))
 			return dscp_pool1[x].name;
 	}

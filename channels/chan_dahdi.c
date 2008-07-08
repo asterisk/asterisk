@@ -1344,7 +1344,7 @@ static struct {
 static char *alarm2str(int alarm)
 {
 	int x;
-	for (x = 0; x < sizeof(alarms) / sizeof(alarms[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(alarms); x++) {
 		if (alarms[x].alarm & alarm)
 			return alarms[x].name;
 	}
@@ -1697,7 +1697,7 @@ static void fill_txgain(struct dahdi_gains *g, float gain, int law)
 
 	switch (law) {
 	case DAHDI_LAW_ALAW:
-		for (j = 0; j < (sizeof(g->txgain) / sizeof(g->txgain[0])); j++) {
+		for (j = 0; j < ARRAY_LEN(g->txgain); j++) {
 			if (gain) {
 				k = (int) (((float) AST_ALAW(j)) * linear_gain);
 				if (k > 32767) k = 32767;
@@ -1709,7 +1709,7 @@ static void fill_txgain(struct dahdi_gains *g, float gain, int law)
 		}
 		break;
 	case DAHDI_LAW_MULAW:
-		for (j = 0; j < (sizeof(g->txgain) / sizeof(g->txgain[0])); j++) {
+		for (j = 0; j < ARRAY_LEN(g->txgain); j++) {
 			if (gain) {
 				k = (int) (((float) AST_MULAW(j)) * linear_gain);
 				if (k > 32767) k = 32767;
@@ -1731,7 +1731,7 @@ static void fill_rxgain(struct dahdi_gains *g, float gain, int law)
 
 	switch (law) {
 	case DAHDI_LAW_ALAW:
-		for (j = 0; j < (sizeof(g->rxgain) / sizeof(g->rxgain[0])); j++) {
+		for (j = 0; j < ARRAY_LEN(g->rxgain); j++) {
 			if (gain) {
 				k = (int) (((float) AST_ALAW(j)) * linear_gain);
 				if (k > 32767) k = 32767;
@@ -1743,7 +1743,7 @@ static void fill_rxgain(struct dahdi_gains *g, float gain, int law)
 		}
 		break;
 	case DAHDI_LAW_MULAW:
-		for (j = 0; j < (sizeof(g->rxgain) / sizeof(g->rxgain[0])); j++) {
+		for (j = 0; j < ARRAY_LEN(g->rxgain); j++) {
 			if (gain) {
 				k = (int) (((float) AST_MULAW(j)) * linear_gain);
 				if (k > 32767) k = 32767;
@@ -6891,7 +6891,7 @@ static void *ss_thread(void *data)
 						len = 0;
 						distMatches = 0;
 						/* Clear the current ring data array so we dont have old data in it. */
-						for (receivedRingT = 0; receivedRingT < (sizeof(curRingData) / sizeof(curRingData[0])); receivedRingT++)
+						for (receivedRingT = 0; receivedRingT < ARRAY_LEN(curRingData); receivedRingT++)
 							curRingData[receivedRingT] = 0;
 						receivedRingT = 0;
 						counter = 0;
@@ -7040,7 +7040,7 @@ static void *ss_thread(void *data)
 				len = 0;
 				distMatches = 0;
 				/* Clear the current ring data array so we dont have old data in it. */
-				for (receivedRingT = 0; receivedRingT < (sizeof(curRingData) / sizeof(curRingData[0])); receivedRingT++)
+				for (receivedRingT = 0; receivedRingT < ARRAY_LEN(curRingData); receivedRingT++)
 					curRingData[receivedRingT] = 0;
 				receivedRingT = 0;
 				counter = 0;

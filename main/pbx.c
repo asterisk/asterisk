@@ -2320,7 +2320,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		}
 	}
 	/* if not found, look into chanvars or global vars */
-	for (i = 0; s == &not_found && i < (sizeof(places) / sizeof(places[0])); i++) {
+	for (i = 0; s == &not_found && i < ARRAY_LEN(places); i++) {
 		struct ast_var_t *variables;
 		if (!places[i])
 			continue;
@@ -3098,7 +3098,7 @@ const char *ast_extension_state2str(int extension_state)
 {
 	int i;
 
-	for (i = 0; (i < (sizeof(extension_states) / sizeof(extension_states[0]))); i++) {
+	for (i = 0; (i < ARRAY_LEN(extension_states)); i++) {
 		if (extension_states[i].extension_state == extension_state)
 			return extension_states[i].text;
 	}

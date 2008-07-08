@@ -2788,23 +2788,27 @@ static char *handle_cli_iax2_show_cache(struct ast_cli_entry *e, int cmd, struct
 		if (dp->flags & CACHE_FLAG_UNKNOWN)
 			strncat(tmp, "UNKNOWN|", sizeof(tmp) - strlen(tmp) - 1);
 		/* Trim trailing pipe */
-		if (!ast_strlen_zero(tmp))
+		if (!ast_strlen_zero(tmp)) {
 			tmp[strlen(tmp) - 1] = '\0';
-		else
+		} else {
 			ast_copy_string(tmp, "(none)", sizeof(tmp));
+		}
 		y = 0;
 		pc = strchr(dp->peercontext, '@');
-		if (!pc)
+		if (!pc) {
 			pc = dp->peercontext;
-		else
+		} else {
 			pc++;
-		for (x = 0; x < sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
+		}
+		for (x = 0; x < ARRAY_LEN(dp->waiters); x++) {
 			if (dp->waiters[x] > -1)
 				y++;
-		if (s > 0)
+		}
+		if (s > 0) {
 			ast_cli(a->fd, "%-20.20s %-12.12s %-9d %-8d %s\n", pc, dp->exten, s, y, tmp);
-		else
+		} else {
 			ast_cli(a->fd, "%-20.20s %-12.12s %-9.9s %-8d %s\n", pc, dp->exten, "(expired)", y, tmp);
+		}
 	}
 
 	AST_LIST_LOCK(&dpcache);
@@ -6527,9 +6531,10 @@ static int complete_dpreply(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 			dp->flags |= matchmore;
 		}
 		/* Wake up waiters */
-		for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
+		for (x = 0; x < ARRAY_LEN(dp->waiters); x++) {
 			if (dp->waiters[x] > -1)
 				write(dp->waiters[x], "asdf", 4);
+		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&dpcache);
@@ -11440,7 +11445,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 		/* Expires in 30 mins by default */
 		dp->expiry.tv_sec += iaxdefaultdpcache;
 		dp->flags = CACHE_FLAG_PENDING;
-		for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
+		for (x = 0; x < ARRAY_LEN(dp->waiters); x++)
 			dp->waiters[x] = -1;
 		/* Insert into the lists */
 		AST_LIST_INSERT_TAIL(&dpcache, dp, cache_list);
@@ -11455,12 +11460,12 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 	if (dp->flags & CACHE_FLAG_PENDING) {
 		/* Okay, here it starts to get nasty.  We need a pipe now to wait
 		   for a reply to come back so long as it's pending */
-		for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++) {
+		for (x = 0; x < ARRAY_LEN(dp->waiters); x++) {
 			/* Find an empty slot */
 			if (dp->waiters[x] < 0)
 				break;
 		}
-		if (x >= sizeof(dp->waiters) / sizeof(dp->waiters[0])) {
+		if (x >= ARRAY_LEN(dp->waiters)) {
 			ast_log(LOG_WARNING, "No more waiter positions available\n");
 			return NULL;
 		}
@@ -11513,9 +11518,10 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 				/* Expire after only 60 seconds now.  This is designed to help reduce backlog in heavily loaded
 				   systems without leaving it unavailable once the server comes back online */
 				dp->expiry.tv_sec = dp->orig.tv_sec + 60;
-				for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
+				for (x = 0; x < ARRAY_LEN(dp->waiters); x++) {
 					if (dp->waiters[x] > -1)
 						write(dp->waiters[x], "asdf", 4);
+				}
 			}
 		}
 		/* Our caller will obtain the rest */

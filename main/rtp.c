@@ -2205,7 +2205,7 @@ int ast_rtp_set_rtpmap_type(struct ast_rtp *rtp, int pt,
 	
 	rtp_bridge_lock(rtp);
 
-	for (i = 0; i < sizeof(mimeTypes)/sizeof(mimeTypes[0]); ++i) {
+	for (i = 0; i < ARRAY_LEN(mimeTypes); ++i) {
 		if (strcasecmp(mimeSubtype, mimeTypes[i].subtype) == 0 &&
 		    strcasecmp(mimeType, mimeTypes[i].type) == 0) {
 			found = 1;
@@ -2312,7 +2312,7 @@ const char *ast_rtp_lookup_mime_subtype(const int isAstFormat, const int code,
 {
 	unsigned int i;
 
-	for (i = 0; i < sizeof(mimeTypes)/sizeof(mimeTypes[0]); ++i) {
+	for (i = 0; i < ARRAY_LEN(mimeTypes); ++i) {
 		if ((mimeTypes[i].payloadType.code == code) && (mimeTypes[i].payloadType.isAstFormat == isAstFormat)) {
 			if (isAstFormat &&
 			    (code == AST_FORMAT_G726_AAL2) &&

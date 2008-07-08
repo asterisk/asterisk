@@ -970,7 +970,7 @@ static BOOL EmbedCiscoTunneledInfo(H323SignalPDU &pdu)
 	Q931 tmpQ931;
 	Q931 &q931 = pdu.GetQ931();
 
-	for(unsigned i = 0; i < (sizeof(codes) / sizeof(codes[0])); ++i) {
+	for(unsigned i = 0; i < ARRAY_LEN(codes); ++i) {
 		if (q931.HasIE(codes[i].ie)) {
 			tmpQ931.SetIE(codes[i].ie, q931.GetIE(codes[i].ie));
 			if (!codes[i].dontDelete)
@@ -1104,7 +1104,7 @@ static BOOL EmbedQSIGTunneledInfo(H323SignalPDU &pdu)
 	q931.Encode(message);
 
 	/* Remove non-standard IEs */
-	for(unsigned i = 0; i < (sizeof(codes) / sizeof(codes[0])); ++i) {
+	for(unsigned i = 0; i < ARRAY_LEN(codes); ++i) {
 		if (q931.HasIE(codes[i])) {
 			q931.RemoveIE(codes[i]);
 		}
