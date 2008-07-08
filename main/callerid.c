@@ -1074,7 +1074,7 @@ int ast_parse_caller_presentation(const char *data)
 {
 	int i;
 
-	for (i = 0; i < ((sizeof(pres_types) / sizeof(pres_types[0]))); i++) {
+	for (i = 0; i < ARRAY_LEN(pres_types); i++) {
 		if (!strcasecmp(pres_types[i].name, data))
 			return pres_types[i].val;
 	}
@@ -1090,7 +1090,7 @@ const char *ast_describe_caller_presentation(int data)
 {
 	int i;
 
-	for (i = 0; i < ((sizeof(pres_types) / sizeof(pres_types[0]))); i++) {
+	for (i = 0; i < ARRAY_LEN(pres_types); i++) {
 		if (pres_types[i].val == data)
 			return pres_types[i].description;
 	}
@@ -1106,7 +1106,7 @@ const char *ast_named_caller_presentation(int data)
 {
 	int i;
 
-	for (i = 0; i < ((sizeof(pres_types) / sizeof(pres_types[0]))); i++) {
+	for (i = 0; i < ARRAY_LEN(pres_types); i++) {
 		if (pres_types[i].val == data)
 			return pres_types[i].name;
 	}

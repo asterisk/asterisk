@@ -3068,7 +3068,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			/* Select first conference number not in use */
 			if (ast_strlen_zero(confno) && dynamic) {
 				AST_LIST_LOCK(&confs);
-				for (i = 0; i < sizeof(conf_map) / sizeof(conf_map[0]); i++) {
+				for (i = 0; i < ARRAY_LEN(conf_map); i++) {
 					if (!conf_map[i]) {
 						snprintf(confno, sizeof(confno), "%d", i);
 						conf_map[i] = 1;

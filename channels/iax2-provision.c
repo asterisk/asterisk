@@ -87,7 +87,7 @@ char *iax_provflags2str(char *buf, int buflen, unsigned int flags)
 	
 	buf[0] = '\0';
 
-	for (x = 0; x < sizeof(iax_flags) / sizeof(iax_flags[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(iax_flags); x++) {
 		if (flags & iax_flags[x].value){
 			strncat(buf, iax_flags[x].name, buflen - strlen(buf) - 1);
 			strncat(buf, ",", buflen - strlen(buf) - 1);
@@ -116,7 +116,7 @@ static unsigned int iax_str2flags(const char *buf)
 		else
 			len = 0;
 		found = 0;
-		for (x=0;x<sizeof(iax_flags) / sizeof(iax_flags[0]); x++) {
+		for (x = 0; x < ARRAY_LEN(iax_flags); x++) {
 			if ((len && !strncasecmp(iax_flags[x].name, buf, len)) ||
 			    (!len && !strcasecmp(iax_flags[x].name, buf))) {
 				flags |= iax_flags[x].value;

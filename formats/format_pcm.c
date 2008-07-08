@@ -472,9 +472,9 @@ static int load_module(void)
 	int index;
 
 	/* XXX better init ? */
-	for (index = 0; index < (sizeof(ulaw_silence) / sizeof(ulaw_silence[0])); index++)
+	for (index = 0; index < ARRAY_LEN(ulaw_silence); index++)
 		ulaw_silence[index] = AST_LIN2MU(0);
-	for (index = 0; index < (sizeof(alaw_silence) / sizeof(alaw_silence[0])); index++)
+	for (index = 0; index < ARRAY_LEN(alaw_silence); index++)
 		alaw_silence[index] = AST_LIN2A(0);
 
 	if ( ast_format_register(&pcm_f)

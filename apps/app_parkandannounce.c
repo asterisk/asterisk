@@ -146,7 +146,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 
 	ast_verb(4, "Announce Template:%s\n", args.template);
 
-	for (looptemp = 0; looptemp < sizeof(tmp) / sizeof(tmp[0]); looptemp++) {
+	for (looptemp = 0; looptemp < ARRAY_LEN(tmp); looptemp++) {
 		if ((tmp[looptemp] = strsep(&args.template, ":")) != NULL)
 			continue;
 		else

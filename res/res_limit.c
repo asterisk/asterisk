@@ -66,7 +66,7 @@ static struct limits {
 static int str2limit(const char *string)
 {
 	size_t i;
-	for (i = 0; i < sizeof(limits) / sizeof(limits[0]); i++) {
+	for (i = 0; i < ARRAY_LEN(limits); i++) {
 		if (!strcasecmp(string, limits[i].limit))
 			return limits[i].resource;
 	}
@@ -76,7 +76,7 @@ static int str2limit(const char *string)
 static const char *str2desc(const char *string)
 {
 	size_t i;
-	for (i = 0; i < sizeof(limits) / sizeof(limits[0]); i++) {
+	for (i = 0; i < ARRAY_LEN(limits); i++) {
 		if (!strcmp(string, limits[i].limit))
 			return limits[i].desc;
 	}
@@ -90,7 +90,7 @@ static char *complete_ulimit(struct ast_cli_args *a)
 
 	if (a->pos > 1)
 		return NULL;
-	for (i = 0; i < sizeof(limits) / sizeof(limits[0]); i++) {
+	for (i = 0; i < ARRAY_LEN(limits); i++) {
 		if (!strncasecmp(limits[i].limit, a->word, wordlen)) {
 			if (++which > a->n)
 				return ast_strdup(limits[i].limit);
@@ -154,7 +154,7 @@ static char *handle_cli_ulimit(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	if (a->argc == 1) {
 		char arg2[3];
 		char *newargv[2] = { "ulimit", arg2 };
-		for (resource = 0; resource < sizeof(limits) / sizeof(limits[0]); resource++) {
+		for (resource = 0; resource < ARRAY_LEN(limits); resource++) {
 			struct ast_cli_args newArgs = { .argv = newargv, .argc = 2 };
 			ast_copy_string(arg2, limits[resource].limit, sizeof(arg2));
 			handle_cli_ulimit(e, CLI_HANDLER, &newArgs);

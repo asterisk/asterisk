@@ -515,7 +515,7 @@ static int geteventbyname(char *name)
 {
 	int x;
 
-	for (x = 0; x < sizeof(events) / sizeof(events[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(events); x++) {
 		if (!strcasecmp(events[x].name, name))
 			return events[x].id;
 	}
@@ -527,7 +527,7 @@ static int getjustifybyname(char *name)
 {
 	int x;
 
-	for (x = 0; x <sizeof(justify) / sizeof(justify[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(justify); x++) {
 		if (!strcasecmp(justify[x].name, name))
 			return justify[x].id;
 	}
@@ -935,7 +935,7 @@ static int process_returncode(struct adsi_soft_key *key, char *code, char *args,
 	int x, res;
 	char *unused;
 
-	for (x = 0; x < sizeof(kcmds) / sizeof(kcmds[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(kcmds); x++) {
 		if ((kcmds[x].id > -1) && !strcasecmp(kcmds[x].name, code)) {
 			if (kcmds[x].add_args) {
 				res = kcmds[x].add_args(key->retstr + key->retstrlen,
@@ -964,7 +964,7 @@ static int process_opcode(struct adsi_subscript *sub, char *code, char *args, st
 	int x, res, max = sub->id ? MAX_SUB_LEN : MAX_MAIN_LEN;
 	char *unused;
 
-	for (x = 0; x < sizeof(opcmds) / sizeof(opcmds[0]); x++) {
+	for (x = 0; x < ARRAY_LEN(opcmds); x++) {
 		if ((opcmds[x].id > -1) && !strcasecmp(opcmds[x].name, code)) {
 			if (opcmds[x].add_args) {
 				res = opcmds[x].add_args(sub->data + sub->datalen,
