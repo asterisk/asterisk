@@ -448,9 +448,12 @@ static int transmit_audio(fax_session *s)
 
 	ast_deactivate_generator(s->chan);
 
-	/* Remove phase E handler because we do not want it to be executed
-	   only because we called t30_terminate */
-	t30_set_phase_e_handler(&fax.t30_state, NULL, NULL);
+	/* If we are switching to T38, remove phase E handler. Otherwise it will be executed
+	   by t30_terminate, display diagnostics and set status variables although no transmittion
+	   has taken place yet. */
+	if (res > 0) {
+		t30_set_phase_e_handler(&fax.t30_state, NULL, NULL);
+	}
 
 	t30_terminate(&fax.t30_state);
 	fax_release(&fax);
@@ -557,11 +560,8 @@ static int transmit_t38(fax_session *s)
 	if (inf)
 		ast_frfree(inf);
 
-	/* Remove phase E handler because we do not want it to be executed
-	   only because we called t30_terminate */
-	t30_set_phase_e_handler(&t38.t30_state, NULL, NULL);
-
 	t30_terminate(&t38.t30_state);
+	t38_terminal_release(&t38);
 
 	return res;
 }
