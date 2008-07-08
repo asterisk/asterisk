@@ -14719,21 +14719,17 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (outgoing) {
 			update_call_counter(p, DEC_CALL_RINGING);
 			parse_ok_contact(p, req);
-			if(set_address_from_contact(p)) {
-				/* Bad contact - we don't know how to reach this device */
-				/* We need to ACK, but then send a bye */
-				/* OEJ: Possible issue that may need a check:
-					If we have a proxy route between us and the device,
-					should we care about resolving the contact
-					or should we just send it?
-				*/
-				if (!req->ignore)
-					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
-			} 
-
 			/* Save Record-Route for any later requests we make on this dialogue */
 			if (!reinvite)
 				build_route(p, req, 1);
+
+			if(set_address_from_contact(p)) {
+				/* Bad contact - we don't know how to reach this device */
+				/* We need to ACK, but then send a bye */
+				if (!p->route && !req->ignore)
+					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
+			} 
+
 		}
 		
 		if (p->owner && (p->owner->_state == AST_STATE_UP) && (bridgepeer = ast_bridged_channel(p->owner))) { /* if this is a re-invite */
