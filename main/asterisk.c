@@ -1032,6 +1032,10 @@ static void *netconsole(void *vconsole)
 				break;
 			}
 			tmp[res] = 0;
+			if (strncmp(tmp, "cli quit after ", 15) == 0) {
+				ast_cli_command_multiple(con->fd, res - 15, tmp + 15);
+				break;
+			}
 			ast_cli_command_multiple(con->fd, res, tmp);
 		}
 		if (fds[1].revents) {
@@ -2439,8 +2443,12 @@ static void ast_remotecontrol(char * data)
 	int num = 0;
 
 	read(ast_consock, buf, sizeof(buf));
-	if (data)
-		write(ast_consock, data, strlen(data) + 1);
+	if (data) {
+		char prefix[] = "cli quit after ";
+		char *tmp = alloca(strlen(data) + strlen(prefix) + 1);
+		sprintf(tmp, "%s%s", prefix, data);
+		write(ast_consock, tmp, strlen(tmp) + 1);
+	}
 	stringp = buf;
 	hostname = strsep(&stringp, "/");
 	cpid = strsep(&stringp, "/");
