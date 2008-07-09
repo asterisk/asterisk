@@ -292,6 +292,7 @@ static int pbx_builtin_keepalive(struct ast_channel *, void *);
 static int pbx_builtin_resetcdr(struct ast_channel *, void *);
 static int pbx_builtin_setamaflags(struct ast_channel *, void *);
 static int pbx_builtin_ringing(struct ast_channel *, void *);
+static int pbx_builtin_proceeding(struct ast_channel *, void *);
 static int pbx_builtin_progress(struct ast_channel *, void *);
 static int pbx_builtin_congestion(struct ast_channel *, void *);
 static int pbx_builtin_busy(struct ast_channel *, void *);
@@ -588,9 +589,15 @@ static struct pbx_builtin {
 	"purposes. Any text that is provided as arguments to this application can be\n"
 	"viewed at the Asterisk CLI. This method can be used to see the evaluations of\n"
 	"variables or functions without having any effect. Alternatively, see the\n"
-  "Verbose() application for finer grain control of output at custom verbose levels.\n"
+		"Verbose() application for finer grain control of output at custom verbose levels.\n"
 	},
-
+	
+	{ "Proceeding", pbx_builtin_proceeding,
+	"Indicate proceeding",
+	"  Proceeding(): This application will request that a proceeding message\n"
+	"be provided to the calling channel.\n"
+	},
+	
 	{ "Progress", pbx_builtin_progress,
 	"Indicate progress",
 	"  Progress(): This application will request that in-band progress information\n"
@@ -7219,6 +7226,15 @@ static void wait_for_hangup(struct ast_channel *chan, void *data)
 		if (f)
 			ast_frfree(f);
 	} while(f);
+}
+
+/*!
+ * \ingroup applications
+ */
+static int pbx_builtin_proceeding(struct ast_channel *chan, void *data)
+{
+	ast_indicate(chan, AST_CONTROL_PROCEEDING);
+	return 0;
 }
 
 /*!
