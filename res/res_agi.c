@@ -204,7 +204,7 @@ static struct agi_cmd *get_agi_cmd(struct ast_channel *chan)
 	return cmd;
 }
 
-/*! \brief channel is locked when calling this one either from the CLI or manager thread */
+/* channel is locked when calling this one either from the CLI or manager thread */
 static int add_agi_cmd(struct ast_channel *chan, const char *cmd_buff, const char *cmd_id)
 {
 	struct ast_datastore *store;
@@ -424,8 +424,6 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 		returnstatus = AGI_RESULT_FAILURE;
 		goto quit;
 	}
-	ast_set_flag(chan, AST_FLAG_ASYNCAGI);
-
 	agi_buffer[res] = '\0';
 	/* encode it and send it thru the manager so whoever is going to take
 	   care of AGI commands on this channel can decide which AGI commands
@@ -608,10 +606,8 @@ static enum agi_result launch_script(struct ast_channel *chan, char *script, cha
 	int pid, toast[2], fromast[2], audio[2], res;
 	struct stat st;
 
-	if (!strncasecmp(script, "agi://", 6)) {
-		ast_set_flag(chan, AST_FLAG_FASTAGI);
+	if (!strncasecmp(script, "agi://", 6))
 		return launch_netscript(script, argv, fds, efd, opid);
-	}
 	if (!strncasecmp(script, "agi:async", sizeof("agi:async")-1))
 		return launch_asyncagi(chan, argv, efd);
 
@@ -715,7 +711,6 @@ static enum agi_result launch_script(struct ast_channel *chan, char *script, cha
 		close(audio[0]);
 
 	*opid = pid;
-	ast_set_flag(chan, AST_FLAG_AGI);
 	return AGI_RESULT_SUCCESS;
 }
 
@@ -2924,9 +2919,6 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 			close(efd);
 	}
 	ast_safe_fork_cleanup();
-	ast_clear_flag(chan, AST_FLAG_AGI);
-	ast_clear_flag(chan, AST_FLAG_FASTAGI);
-	ast_clear_flag(chan, AST_FLAG_ASYNCAGI);
 
 	switch (res) {
 	case AGI_RESULT_SUCCESS:

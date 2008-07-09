@@ -998,9 +998,6 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 									 const char *context, const char *exten, int priority,
 									 const char *label, const char *callerid, enum ext_match_t action);
 
-/*! \brief Function in pbx.c that propably should be somewhere else, but not in res_agi, since it's a loadable module */
-const char *ast_agi_state(struct ast_channel *chan);
-
 
 /* every time a write lock is obtained for contexts,
    a counter is incremented. You can check this via the

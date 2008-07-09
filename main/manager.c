@@ -2718,13 +2718,9 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			"AccountCode: %s\r\n"
 			"BridgedChannel: %s\r\n"
 			"BridgedUniqueID: %s\r\n"
-			"AGIstate: %s\r\n"
-			"\r\n",
-			c->name, c->uniqueid, c->context, c->exten, c->priority, c->_state, ast_state2str(c->_state),
+			"\r\n", c->name, c->uniqueid, c->context, c->exten, c->priority, c->_state, ast_state2str(c->_state),
 			c->appl ? c->appl : "", c->data ? S_OR(c->data, ""): "",
-			S_OR(c->cid.cid_num, ""), durbuf, S_OR(c->accountcode, ""), bc ? bc->name : "", bc ? bc->uniqueid : "",
-			ast_agi_state(c)
-			);
+			S_OR(c->cid.cid_num, ""), durbuf, S_OR(c->accountcode, ""), bc ? bc->name : "", bc ? bc->uniqueid : "");
 		ast_channel_unlock(c);
 		numchans++;
 	}

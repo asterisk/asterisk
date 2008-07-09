@@ -628,20 +628,6 @@ static char *handle_showcalls(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	return RESULT_SUCCESS;
 }
 
-/*! \brief Add a marker before the app if the channel is controlled by AGI/FastAGI or AsyncAGI 
-	Used for "show channels"
-*/
-static const char *agi_flag(struct ast_channel *chan)
-{
-	if (ast_test_flag(chan, AST_FLAG_AGI))
-		return "[AGI]  ";
-	if (ast_test_flag(chan, AST_FLAG_FASTAGI))
-		return "[FAGI] ";
-	if (ast_test_flag(chan, AST_FLAG_ASYNCAGI))
-		return "[AAGI] ";
-	return "";
-}
-
 static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT_STRING  "%-20.20s %-20.20s %-7.7s %-30.30s\n"
@@ -737,7 +723,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				if (!ast_strlen_zero(c->context) && !ast_strlen_zero(c->exten)) 
 					snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", c->exten, c->context, c->priority);
 				if (c->appl)
-					snprintf(appdata, sizeof(appdata), "%s%s(%s)", agi_flag(c), c->appl, S_OR(c->data, ""));
+					snprintf(appdata, sizeof(appdata), "%s(%s)", c->appl, S_OR(c->data, ""));
 				ast_cli(fd, FORMAT_STRING, c->name, locbuf, ast_state2str(c->_state), appdata);
 			}
 		}

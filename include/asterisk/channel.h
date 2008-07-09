@@ -582,12 +582,6 @@ enum {
 	/*! This flag indicates that on a masquerade, an active stream should not
 	 *  be carried over */
 	AST_FLAG_MASQ_NOSTREAM = (1 << 16),
-	/*! If the flag is controlled by AGI (not FastAGI) */
-	AST_FLAG_AGI =           (1 << 17),
-	/*! If the flag is controlled by FastAGI  */
-	AST_FLAG_FASTAGI =       (1 << 18),
-	/*! If the flag is controlled by AsyncAGI  */
-	AST_FLAG_ASYNCAGI =      (1 << 19),
 };
 
 /*! \brief ast_bridge_config flags */
