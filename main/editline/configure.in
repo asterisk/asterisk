@@ -18,6 +18,7 @@ AC_SUBST(A_CFLAGS)
 S_CFLAGS="-fPIC -DPIC"
 AC_SUBST(S_CFLAGS)
 AC_PROG_CPP
+AC_PROG_AWK
 
 dnl Platform-specific settings.  The ABI can probably be determined
 dnl programmatically, but doing so is error-prone, which makes it generally
@@ -273,4 +274,5 @@ AC_SUBST(TEST)
 AC_SUBST(TCSRCS)
 
 AC_CONFIG_HEADER(config.h)
-AC_OUTPUT(Makefile)
+AC_OUTPUT([Makefile makelist])
+
