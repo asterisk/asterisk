@@ -1438,13 +1438,13 @@ static struct iax_frame *iaxfrdup2(struct iax_frame *fr)
 #define NEW_ALLOW 	1
 #define NEW_FORCE 	2
 
-static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short dcallno, struct chan_iax2_pvt *cur, int check_dcallno)
+static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short dcallno, struct chan_iax2_pvt *cur)
 {
 	if ((cur->addr.sin_addr.s_addr == sin->sin_addr.s_addr) &&
 		(cur->addr.sin_port == sin->sin_port)) {
 		/* This is the main host */
 		if ( (cur->peercallno == 0 || cur->peercallno == callno) &&
-			 (check_dcallno ? dcallno == cur->callno : 1) ) {
+				(dcallno == 0 || cur->callno == dcallno) ) {
 			/* That's us.  Be sure we keep track of the peer call number */
 			return 1;
 		}
@@ -1525,7 +1525,7 @@ static int make_trunk(unsigned short callno, int locked)
 /*!
  * \note Calling this function while holding another pvt lock can cause a deadlock.
  */
-static int __find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd, int return_locked, int check_dcallno)
+static int __find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd, int return_locked)
 {
 	int res = 0;
 	int x;
@@ -1538,8 +1538,6 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
  			struct chan_iax2_pvt tmp_pvt = {
  				.callno = dcallno,
  				.peercallno = callno,
- 				/* hack!! */
- 				.frames_received = check_dcallno,
  			};
  
  			memcpy(&tmp_pvt.addr, sin, sizeof(tmp_pvt.addr));
@@ -1557,7 +1555,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 
 		/* This will occur on the first response to a message that we initiated,
 		 * such as a PING. */
-		if (callno && dcallno && iaxs[dcallno] && !iaxs[dcallno]->peercallno && match(sin, callno, dcallno, iaxs[dcallno], check_dcallno)) {
+		if (callno && dcallno && iaxs[dcallno] && !iaxs[dcallno]->peercallno && match(sin, callno, dcallno, iaxs[dcallno])) {
 			iaxs[dcallno]->peercallno = callno;
 			res = dcallno;
 			store_by_peercallno(iaxs[dcallno]);
@@ -1580,7 +1578,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			ast_mutex_lock(&iaxsl[x]);
 			if (iaxs[x]) {
 				/* Look for an exact match */
-				if (match(sin, callno, dcallno, iaxs[x], check_dcallno)) {
+				if (match(sin, callno, dcallno, iaxs[x])) {
 					res = x;
 				}
 			}
@@ -1592,7 +1590,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			ast_mutex_lock(&iaxsl[x]);
 			if (iaxs[x]) {
 				/* Look for an exact match */
-				if (match(sin, callno, dcallno, iaxs[x], check_dcallno)) {
+				if (match(sin, callno, dcallno, iaxs[x])) {
 					res = x;
 				}
 			}
@@ -1679,14 +1677,14 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 	return res;
 }
 
-static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd, int full_frame) {
+static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd) {
 
-	return __find_callno(callno, dcallno, sin, new, sockfd, 0, full_frame);
+	return __find_callno(callno, dcallno, sin, new, sockfd, 0);
 }
 
-static int find_callno_locked(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd, int full_frame) {
+static int find_callno_locked(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd) {
 
-	return __find_callno(callno, dcallno, sin, new, sockfd, 1, full_frame);
+	return __find_callno(callno, dcallno, sin, new, sockfd, 1);
 }
 
 /*!
@@ -7044,7 +7042,7 @@ static int socket_process(struct iax2_thread *thread)
 		}
 
 		/* This is a video frame, get call number */
-		fr->callno = find_callno(ntohs(vh->callno) & ~0x8000, dcallno, &sin, new, fd, 0);
+		fr->callno = find_callno(ntohs(vh->callno) & ~0x8000, dcallno, &sin, new, fd);
 		minivid = 1;
 	} else if ((meta->zeros == 0) && !(ntohs(meta->metacmd) & 0x8000)) {
 		unsigned char metatype;
@@ -7102,7 +7100,7 @@ static int socket_process(struct iax2_thread *thread)
 				/* Stop if we don't have enough data */
 				if (len > res)
 					break;
-				fr->callno = find_callno_locked(callno & ~IAX_FLAG_FULL, 0, &sin, NEW_PREVENT, fd, 0);
+				fr->callno = find_callno_locked(callno & ~IAX_FLAG_FULL, 0, &sin, NEW_PREVENT, fd);
 				if (fr->callno) {
 					/* If it's a valid call, deliver the contents.  If not, we
 					   drop it, since we don't have a scallno to use for an INVAL */
@@ -7168,14 +7166,37 @@ static int socket_process(struct iax2_thread *thread)
 			return 1;
 		}
 
-		/* Get the destination call number */
-		dcallno = ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS;
 		/* Retrieve the type and subclass */
 		f.frametype = fh->type;
 		if (f.frametype == AST_FRAME_VIDEO) {
 			f.subclass = uncompress_subclass(fh->csub & ~0x40) | ((fh->csub >> 6) & 0x1);
 		} else {
 			f.subclass = uncompress_subclass(fh->csub);
+		}
+
+		/*
+		 * We enforce accurate destination call numbers for all full frames except
+		 * NEW, LAGRQ, and PING commands. For these, we leave dcallno set to 0 to
+		 * avoid having find_callno() use it when matching against existing calls.
+		 *
+		 * For NEW commands, the destination call is always ignored. See section
+		 * 6.2.2 of the iax2 RFC.
+		 * 
+		 * For LAGRQ and PING commands, this is because older versions of Asterisk
+		 * schedule these commands to get sent very quickly, and they will sometimes
+		 * be sent before they receive the first frame from the other side.  When
+		 * that happens, it doesn't contain the destination call number.  However,
+		 * not checking it for these frames is safe.
+		 *
+		 * Discussed in the following thread:
+		 * http://lists.digium.com/pipermail/asterisk-dev/2008-May/033217.html 
+		 */
+		if (f.frametype != AST_FRAME_IAX ||
+				(f.subclass != IAX_COMMAND_NEW &&
+				 f.subclass != IAX_COMMAND_PING &&
+				 f.subclass != IAX_COMMAND_LAGRQ)) {
+			/* Get the destination call number */
+			dcallno = ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS;
 		}
 		if ((f.frametype == AST_FRAME_IAX) && ((f.subclass == IAX_COMMAND_NEW) || (f.subclass == IAX_COMMAND_REGREQ) ||
 						       (f.subclass == IAX_COMMAND_POKE) || (f.subclass == IAX_COMMAND_FWDOWNL) ||
@@ -7188,25 +7209,7 @@ static int socket_process(struct iax2_thread *thread)
 	}
 
 	if (!fr->callno) {
-		int check_dcallno = 0;
-
-		/*
-		 * We enforce accurate destination call numbers for all full frames except
-		 * LAGRQ and PING commands.  This is because older versions of Asterisk
-		 * schedule these commands to get sent very quickly, and they will sometimes
-		 * be sent before they receive the first frame from the other side.  When
-		 * that happens, it doesn't contain the destination call number.  However,
-		 * not checking it for these frames is safe.
-		 * 
-		 * Discussed in the following thread:
-		 *    http://lists.digium.com/pipermail/asterisk-dev/2008-May/033217.html 
-		 */
-
-		if (ntohs(mh->callno) & IAX_FLAG_FULL) {
-			check_dcallno = f.frametype == AST_FRAME_IAX ? (f.subclass != IAX_COMMAND_PING && f.subclass != IAX_COMMAND_LAGRQ) : 1;
-		}
-
-		fr->callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, fd, check_dcallno);
+		fr->callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, fd);
 	}
 
 	if (fr->callno > 0)
@@ -7293,6 +7296,7 @@ static int socket_process(struct iax2_thread *thread)
 			if (
 			 ((f.subclass != IAX_COMMAND_ACK) &&
 			  (f.subclass != IAX_COMMAND_INVAL) &&
+			  (f.subclass != IAX_COMMAND_NEW) &&        /* for duplicate/retrans NEW frames */
 			  (f.subclass != IAX_COMMAND_TXCNT) &&
 			  (f.subclass != IAX_COMMAND_TXREADY) &&		/* for attended transfer */
 			  (f.subclass != IAX_COMMAND_TXREL) &&		/* for attended transfer */
@@ -8709,7 +8713,7 @@ static int iax2_do_register(struct iax2_registry *reg)
 	if (!reg->callno) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Allocate call number\n");
-		reg->callno = find_callno_locked(0, 0, &reg->addr, NEW_FORCE, defaultsockfd, 0);
+		reg->callno = find_callno_locked(0, 0, &reg->addr, NEW_FORCE, defaultsockfd);
 		if (reg->callno < 1) {
 			ast_log(LOG_WARNING, "Unable to create call for registration\n");
 			return -1;
@@ -8770,7 +8774,7 @@ static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const
 	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_raw(&ied, IAX_IE_PROVISIONING, provdata.buf, provdata.pos);
 
-	callno = find_callno_locked(0, 0, &sin, NEW_FORCE, cai.sockfd, 0);
+	callno = find_callno_locked(0, 0, &sin, NEW_FORCE, cai.sockfd);
 	if (!callno)
 		return -1;
 
@@ -8916,7 +8920,7 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 	}
 	if (heldcall)
 		ast_mutex_unlock(&iaxsl[heldcall]);
-	callno = peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE, peer->sockfd, 0);
+	callno = peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE, peer->sockfd);
 	if (heldcall)
 		ast_mutex_lock(&iaxsl[heldcall]);
 	if (peer->callno < 1) {
@@ -9000,7 +9004,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	if (pds.port)
 		sin.sin_port = htons(atoi(pds.port));
 
-	callno = find_callno_locked(0, 0, &sin, NEW_FORCE, cai.sockfd, 0);
+	callno = find_callno_locked(0, 0, &sin, NEW_FORCE, cai.sockfd);
 	if (callno < 1) {
 		ast_log(LOG_WARNING, "Unable to create call\n");
 		*cause = AST_CAUSE_CONGESTION;
@@ -10320,7 +10324,7 @@ static int cache_get_callno_locked(const char *data)
 		ast_log(LOG_DEBUG, "peer: %s, username: %s, password: %s, context: %s\n",
 			pds.peer, pds.username, pds.password, pds.context);
 
-	callno = find_callno_locked(0, 0, &sin, NEW_FORCE, cai.sockfd, 0);
+	callno = find_callno_locked(0, 0, &sin, NEW_FORCE, cai.sockfd);
 	if (callno < 1) {
 		ast_log(LOG_WARNING, "Unable to create call\n");
 		return -1;
@@ -11096,11 +11100,7 @@ static int pvt_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct chan_iax2_pvt *pvt = obj, *pvt2 = arg;
 
-	/* The frames_received field is used to hold whether we're matching
-	 * against a full frame or not ... */
-
-	return match(&pvt2->addr, pvt2->peercallno, pvt2->callno, pvt, 
-		pvt2->frames_received) ? CMP_MATCH : 0;
+	return match(&pvt2->addr, pvt2->peercallno, pvt2->callno, pvt) ? CMP_MATCH : 0;
 }
 
 /*! \brief Load IAX2 module, load configuraiton ---*/
