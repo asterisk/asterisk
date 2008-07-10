@@ -138,8 +138,10 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	}
 
 	newparam = va_arg(aq, const char *);
-	if (!newparam)
+	if (!newparam) {
+		ast_odbc_release_obj(obj);
 		return NULL;
+	}
 	newval = va_arg(aq, const char *);
 	op = !strchr(newparam, ' ') ? " =" : "";
 	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?%s", table, newparam, op,
