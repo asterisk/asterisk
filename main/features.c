@@ -3547,20 +3547,10 @@ static char *handle_parkedcalls(struct ast_cli_entry *e, int cmd, struct ast_cli
 	return CLI_SUCCESS;
 }
 
-static char *handle_parkedcalls_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	char *res = handle_parkedcalls(e, cmd, a);
-	if (cmd == CLI_INIT)
-		e->command = "show parkedcalls";
-	return res;
-}
-
-static struct ast_cli_entry cli_show_parkedcalls_deprecated = AST_CLI_DEFINE(handle_parkedcalls_deprecated, "List currently parked calls.");
-
 static struct ast_cli_entry cli_features[] = {
 	AST_CLI_DEFINE(handle_feature_show, "Lists configured features"),
 	AST_CLI_DEFINE(handle_features_reload, "Reloads configured features"),
-	AST_CLI_DEFINE(handle_parkedcalls, "List currently parked calls", .deprecate_cmd = &cli_show_parkedcalls_deprecated),
+	AST_CLI_DEFINE(handle_parkedcalls, "List currently parked calls"),
 };
 
 /*! 
