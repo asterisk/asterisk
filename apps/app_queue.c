@@ -3807,7 +3807,7 @@ static struct member *interface_exists(struct call_queue *q, const char *interfa
 
 /*! \brief Dump all members in a specific queue to the database
  *
- * <pm_family>/<queuename> = <interface>;<penalty>;<paused>[|...]
+ * <pm_family>/<queuename> = <interface>;<penalty>;<paused>;<state_interface>[|...]
  */
 static void dump_queue_members(struct call_queue *pm_queue)
 {
@@ -3829,8 +3829,8 @@ static void dump_queue_members(struct call_queue *pm_queue)
 			continue;
 		}
 
-		res = snprintf(value + value_len, sizeof(value) - value_len, "%s%s;%d;%d;%s",
-			value_len ? "|" : "", cur_member->interface, cur_member->penalty, cur_member->paused, cur_member->membername);
+		res = snprintf(value + value_len, sizeof(value) - value_len, "%s%s;%d;%d;%s;%s",
+			value_len ? "|" : "", cur_member->interface, cur_member->penalty, cur_member->paused, cur_member->membername, cur_member->state_interface);
 
 		ao2_ref(cur_member, -1);
 
