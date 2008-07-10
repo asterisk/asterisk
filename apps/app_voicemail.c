@@ -420,7 +420,6 @@ struct vm_state {
 	char curdir[PATH_MAX];
 	char vmbox[PATH_MAX];
 	char fn[PATH_MAX];
-	char fn2[PATH_MAX];
 	char intro[PATH_MAX];
 	int *deleted;
 	int *heard;
@@ -5811,9 +5810,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	else if (vms->curmsg == vms->lastmsg)
 		res = wait_file2(chan, vms, "vm-last");		/* "last" */
 
-	/* Retrieve info from VM attribute file earlier, to get flag info */
-	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
-	snprintf(filename, sizeof(filename), "%s.txt", vms->fn2);
+	snprintf(filename, sizeof(filename), "%s.txt", vms->fn);
 	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
 	msg_cfg = ast_config_load(filename, config_flags);
 	if (!msg_cfg) {
@@ -5864,9 +5861,6 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		}
 	}
 
-	/* Retrieve info from VM attribute file */
-	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
-	snprintf(filename, sizeof(filename), "%s.txt", vms->fn2);
 	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
 	msg_cfg = ast_config_load(filename, config_flags);
 	if (!msg_cfg) {
@@ -6249,6 +6243,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	int x = 0;
 #ifndef IMAP_STORAGE
 	int res = 0, nummsg;
+	char fn2[PATH_MAX];
 #endif
 
 	if (vms->lastmsg <= -1)
@@ -6267,9 +6262,9 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 			if (!EXISTS(vms->curdir, x, vms->fn, NULL)) 
 				break;
 			vms->curmsg++; 
-			make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg); 
-			if (strcmp(vms->fn, vms->fn2)) { 
-				RENAME(vms->curdir, x, vmu->mailbox,vmu->context, vms->curdir, vms->curmsg, vms->fn, vms->fn2);
+			make_file(fn2, sizeof(fn2), vms->curdir, vms->curmsg); 
+			if (strcmp(vms->fn, fn2)) { 
+				RENAME(vms->curdir, x, vmu->mailbox,vmu->context, vms->curdir, vms->curmsg, vms->fn, fn2);
 			} 
 		} else if ((!strcasecmp(vms->curbox, "INBOX") || !strcasecmp(vms->curbox, "Urgent")) && vms->heard[x] && ast_test_flag(vmu, VM_MOVEHEARD) && !vms->deleted[x]) { 
 			/* Move to old folder before deleting */ 
@@ -8043,6 +8038,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 
 	/* Add the vm_state to the active list and keep it active */
 	memset(&vms, 0, sizeof(vms));
+
 	vms.lastmsg = -1;
 
 	memset(&vmus, 0, sizeof(vmus));
@@ -10297,9 +10293,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
 
 	/* Retrieve info from VM attribute file */
-
-	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
-	snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
+	snprintf(filename,sizeof(filename), "%s.txt", vms->fn);
 	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
 	msg_cfg = ast_config_load(filename, config_flags);
 	DISPOSE(vms->curdir, vms->curmsg);
