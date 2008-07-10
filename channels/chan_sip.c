@@ -21612,12 +21612,12 @@ static struct ast_cli_entry cli_sip_do_history_deprecated = AST_CLI_DEFINE(sip_d
 /*! \brief SIP Cli commands definition */
 static struct ast_cli_entry cli_sip[] = {
 	AST_CLI_DEFINE(sip_show_channels, "List active SIP channels/subscriptions"),
-	AST_CLI_DEFINE(sip_show_domains, "List our local SIP domains."),
+	AST_CLI_DEFINE(sip_show_domains, "List our local SIP domains"),
 	AST_CLI_DEFINE(sip_show_inuse, "List all inuse/limits"),
 	AST_CLI_DEFINE(sip_show_objects, "List all SIP object allocations"),
 	AST_CLI_DEFINE(sip_show_peers, "List defined SIP peers"),
 	AST_CLI_DEFINE(sip_show_registry, "List SIP registration status"),
-	AST_CLI_DEFINE(sip_unregister, "Unregister (force expiration) a SIP peer from the registery"),
+	AST_CLI_DEFINE(sip_unregister, "Unregister (force expiration) a SIP peer from the registry"),
 	AST_CLI_DEFINE(sip_show_settings, "Show SIP global settings"),
 	AST_CLI_DEFINE(sip_notify, "Send a notify packet to a SIP peer"),
 	AST_CLI_DEFINE(sip_show_channel, "Show detailed SIP channel info"),
