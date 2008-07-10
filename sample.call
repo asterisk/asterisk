@@ -1,6 +1,7 @@
 #
 # This is a sample file that can be dumped in /var/spool/asterisk/outgoing
-# to generate a call.  
+# to generate a call.  For Asterisk to read call files, you must have the
+# pbx_spool.so module loaded.
 #
 # Comments are indicated by a '#' character that begins a line, or follows
 # a space or tab character.  To be consistent with the configuration files
