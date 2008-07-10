@@ -457,10 +457,6 @@ datafiles: _all
 # Should static HTTP be installed during make samples or even with its own target ala
 # webvoicemail?  There are portions here that *could* be customized but might also be
 # improved a lot.  I'll put it here for now.
-	mkdir -p $(DESTDIR)$(ASTDATADIR)/phoneprov
-	for x in phoneprov/*; do \
-		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/phoneprov ; \
-	done
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/static-http
 	for x in static-http/*; do \
 		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/static-http ; \
@@ -699,6 +695,24 @@ samples: adsi
 	fi
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
 	build_tools/make_sample_voicemail $(DESTDIR)/$(ASTDATADIR) $(DESTDIR)/$(ASTSPOOLDIR)
+	@mkdir -p $(DESTDIR)$(ASTDATADIR)/phoneprov
+	@for x in phoneprov/*; do \
+		dst="$(DESTDIR)$(ASTDATADIR)/$$x" ;	\
+		if [ -f $${dst} ]; then \
+			if [ "$(OVERWRITE)" = "y" ]; then \
+				if cmp -s $${dst} $$x ; then \
+					echo "Config file $$x is unchanged"; \
+					continue; \
+				fi ; \
+				mv -f $${dst} $${dst}.old ; \
+			else \
+				echo "Skipping config file $$x"; \
+				continue; \
+			fi ;\
+		fi ; \
+		echo "Installing file $$x"; \
+		$(INSTALL) -m 644 $$x $${dst} ;\
+	done
 
 webvmail:
 	@[ -d $(DESTDIR)$(HTTP_DOCSDIR)/ ] || ( printf "http docs directory not found.\nUpdate assignment of variable HTTP_DOCSDIR in Makefile!\n" && exit 1 )
