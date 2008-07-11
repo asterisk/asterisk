@@ -286,6 +286,9 @@
 /* Define to indicate the ${PRI_DESCRIP} library */
 #undef HAVE_PRI
 
+/* Define to indicate the ${PRI_INBANDRELEASE_DESCRIP} library */
+#undef HAVE_PRI_INBANDRELEASE
+
 /* Define to indicate the ${PRI_VERSION_DESCRIP} library */
 #undef HAVE_PRI_VERSION
 

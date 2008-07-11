@@ -1245,6 +1245,8 @@ AST_EXT_LIB_CHECK([PRI], [pri], [pri_keypad_facility], [libpri.h])
 
 AST_EXT_LIB_CHECK([PRI_VERSION], [pri], [pri_get_version], [libpri.h])
 
+AST_EXT_LIB_CHECK([PRI_INBANDRELEASE], [pri], [pri_set_inbandrelease], [libpri.h])
+
 if test "${USE_PWLIB}" != "no"; then
 	if test -n "${PWLIB_DIR}"; then
 		PWLIBDIR="${PWLIB_DIR}"
