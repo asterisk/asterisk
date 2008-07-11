@@ -274,9 +274,9 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  */
 
 /*! \page Config_zap Zaptel configuration
- * \section zapconf zapata.conf
+ * \section zapconf chan_dahdi.conf
  * \arg Implemented in \ref chan_zap.c
- * \verbinclude zapata.conf.sample
+ * \verbinclude chan_dahdi.conf.sample
  */
 
 /*! \page Config_h323 H.323 channel driver information

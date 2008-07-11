@@ -1,10 +1,10 @@
 ;
-; Zapata telephony interface
+; DAHDI telephony interface
 ;
 ; Configuration file
 ;
-; You need to restart Asterisk to re-configure the Zap channel
-; CLI> reload chan_zap.so 
+; You need to restart Asterisk to re-configure the DAHDI channels
+; CLI> reload chan_dahdi.so 
 ;		will reload the configuration file,
 ;		but not all configuration options are 
 ; 		re-configured during a reload.
@@ -19,7 +19,7 @@
 ;        trunkgroup => <trunkgroup>,<dchannel>[,<backup1>...]
 ;
 ;        trunkgroup  is the numerical trunk group to create
-;        dchannel    is the zap channel which will have the 
+;        dchannel    is the DAHDI channel which will have the 
 ;                    d-channel for the trunk.
 ;        backup1     is an optional list of backup d-channels.
 ;
@@ -27,9 +27,9 @@
 ;trunkgroup => 1,24
 ;
 ; Spanmap: Associates a span with a trunk group
-;        spanmap => <zapspan>,<trunkgroup>[,<logicalspan>]
+;        spanmap => <dahdispan>,<trunkgroup>[,<logicalspan>]
 ;
-;        zapspan     is the zap span number to associate
+;        dahdispan   is the DAHDI span number to associate
 ;        trunkgroup  is the trunkgroup (specified above) for the mapping
 ;        logicalspan is the logical span number within the trunk group to use.
 ;                    if unspecified, no logical span number is used.
@@ -348,12 +348,12 @@ callreturn=yes
 ; Note that when setting the number of taps, the number 256 does not translate
 ; to 256 ms of echo cancellation.  echocancel=256 means 256 / 8 = 32 ms.
 ;
-; Note that if any of your Zaptel cards have hardware echo cancellers,
+; Note that if any of your DAHDI cards have hardware echo cancellers,
 ; then this setting only turns them on and off; numeric settings will
 ; be treated as "yes". There are no special settings required for
 ; hardware echo cancellers; when present and enabled in their kernel
 ; modules, they take precedence over the software echo canceller compiled
-; into Zaptel automatically.
+; into DAHDI automatically.
 ;
 echocancel=yes
 ;
@@ -502,7 +502,7 @@ immediate=no
 ;
 ; FXO (FXS signalled) devices must have a timeout to determine if there was a
 ; hangup before the line was answered.  This value can be tweaked to shorten
-; how long it takes before Zap considers a non-ringing line to have hungup.
+; how long it takes before DAHDI considers a non-ringing line to have hungup.
 ;
 ;ringtimeout=8000
 ;
@@ -537,7 +537,7 @@ immediate=no
 ;mohsuggest=default
 ;
 ; PRI channels can have an idle extension and a minunused number.  So long as
-; at least "minunused" channels are idle, chan_zap will try to call "idledial"
+; at least "minunused" channels are idle, chan_dahdi will try to call "idledial"
 ; on them, and then dump them into the PBX in the "idleext" extension (which
 ; is of the form exten@context).  When channels are needed the "idle" calls
 ; are disconnected (so long as there are at least "minidle" calls still
@@ -551,16 +551,16 @@ immediate=no
 ;minunused=2
 ;minidle=1
 ;
-; Configure jitter buffers in zapata (each one is 20ms, default is 4)
+; Configure jitter buffers in DAHDI (each one is 20ms, default is 4)
 ;
 ;jitterbuffers=4
 ;
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
-                              ; ZAP channel. Defaults to "no". An enabled jitterbuffer will
+                              ; DAHDI channel. Defaults to "no". An enabled jitterbuffer will
                               ; be used only if the sending side can create and the receiving
-                              ; side can not accept jitter. The ZAP channel can't accept jitter,
-                              ; thus an enabled jitterbuffer on the receive ZAP side will always
+                              ; side can not accept jitter. The DAHDI channel can't accept jitter,
+                              ; thus an enabled jitterbuffer on the receive DAHDI side will always
                               ; be used if the sending side can create jitter.
 
 ; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
@@ -570,7 +570,7 @@ immediate=no
                               ; big jumps in/broken timestamps, usually sent from exotic devices
                               ; and programs. Defaults to 1000.
 
-; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a ZAP
+; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a DAHDI
                               ; channel. Two implementations are currently available - "fixed"
                               ; (with size always equals to jbmax-size) and "adaptive" (with
                               ; variable size, actually the new jb of IAX2). Defaults to fixed.

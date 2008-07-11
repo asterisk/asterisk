@@ -159,7 +159,7 @@ they're used only to help make the configuration file easier to
 understand, and do not affect how it is actually parsed.
 
   Entries of the form 'variable=value' set the value of some parameter in
-asterisk.  For example, in zapata.conf, one might specify:
+asterisk.  For example, in chan_dahdi.conf, one might specify:
 
 	switchtype=national
 

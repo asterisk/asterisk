@@ -163,8 +163,6 @@ static const char tdesc[] = "DAHDI Telephony Driver"
 #endif
 ;
 
-static const char config[] = "chan_dahdi.conf";
-
 #define SIG_EM		DAHDI_SIG_EM
 #define SIG_EMWINK 	(0x0100000 | DAHDI_SIG_EM)
 #define SIG_FEATD	(0x0200000 | DAHDI_SIG_EM)
@@ -11371,16 +11369,16 @@ static int setup_dahdi(int reload)
 #endif
 
 #ifdef HAVE_ZAPTEL
-	cfg = ast_config_load("zapata.conf");
-#else
-	cfg = ast_config_load(config);
-#endif
-	/* Error if we have no config file... */
-	if (!cfg) {
-			ast_log(LOG_ERROR, "Unable to load either config %s or zapata.conf\n", config);
-			return 0;
+	if (!(cfg = ast_config_load("zapata.conf"))) {
+		ast_log(LOG_ERROR, "Unable to load zapata.conf\n");
+		return 0;
 	}
-
+#else
+	if (!(cfg = ast_config_load("chan_dahdi.conf"))) {
+		ast_log(LOG_ERROR, "Unable to load chan_dahdi.conf\n");
+		return 0;
+	}
+#endif
 	/* It's a little silly to lock it, but we mind as well just to be sure */
 	ast_mutex_lock(&iflock);
 #ifdef HAVE_PRI

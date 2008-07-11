@@ -2,7 +2,7 @@
 
 [interfaces]
 ; Specify serial ports to listen for SMDI messages on below.  These will be
-; referenced later in zapata.conf.  If you do not specify any interfaces then
+; referenced later in chan_dahdi.conf.  If you do not specify any interfaces then
 ; SMDI will be disabled.  Interfaces can have several different attributes
 ; associated with them.
 

@@ -27,7 +27,7 @@ globals {
 	TRUNK="Zap/g2";					// Trunk interface
 	//
 	// Note the 'g2' in the TRUNK variable above. It specifies which group (defined
-	// in zapata.conf) to dial, i.e. group 2, and how to choose a channel to use in
+	// in chan_dahdi.conf) to dial, i.e. group 2, and how to choose a channel to use in
 	// the specified group. The four possible options are:
 	//
 	// g: select the lowest-numbered non-busy Zap channel

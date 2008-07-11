@@ -23,7 +23,7 @@ IP channels.
 An SLA system is built up of virtual trunks and stations mapped to real
 Asterisk devices.  The configuration for all of this is done in three
 different files: extensions.conf, sla.conf, and the channel specific
-configuration file such as sip.conf or zapata.conf.
+configuration file such as sip.conf or chan_dahdi.conf.
 
 \subsection{Dialplan}
 
@@ -55,7 +55,7 @@ Please refer to the examples section for full dialplan samples for SLA.
 An SLA trunk is a mapping between a virtual trunk and a real Asterisk device.
 This device may be an analog FXO line, or something like a SIP trunk.  A trunk
 must be configured in two places.  First, configure the device itself in the
-channel specific configuration file such as zapata.conf or sip.conf.  Once the
+channel specific configuration file such as chan_dahdi.conf or sip.conf.  Once the
 trunk is configured, then map it to an SLA trunk in sla.conf.  
 
 \begin{verbatim}
@@ -66,7 +66,7 @@ device=Zap/1
 
 Be sure to configure the trunk's context to be the same one that is set for the
 "autocontext" option in sla.conf if automatic dialplan configuration is used.
-This would be done in the regular device entry in zapata.conf, sip.conf, etc.
+This would be done in the regular device entry in chan_dahdi.conf, sip.conf, etc.
 Note that the automatic dialplan generation creates the SLATrunk() extension
 at extension 's'.  This is perfect for Zap channels that are FXO trunks, for
 example.  However, it may not be good enough for an IP trunk, since the call
@@ -195,7 +195,7 @@ device=SIP/station3
 
 With this configuration, the dialplan is generated automatically.  The first
 zap channel should have its context set to "line1" and the second should be
-set to "line2" in zapata.conf.  In sip.conf, station1, station2, and station3
+set to "line2" in chan_dahdi.conf.  In sip.conf, station1, station2, and station3
 should all have their context set to "sla\_stations".
 
 For reference, here is the automatically generated dialplan for this situation:
@@ -238,7 +238,7 @@ For this example, assume that there are 2 trunks and 3 stations.  The trunks
 are Zap/1 and Zap/2.  The stations are SIP/station1, SIP/station2, and
 SIP/station3.
 
-In zapata.conf, channel 1 has context=line1 and channel 2 has context=line2.
+In chan_dahdi.conf, channel 1 has context=line1 and channel 2 has context=line2.
 
 In sip.conf, all three stations are configured with context=sla\_stations.
 

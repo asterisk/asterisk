@@ -18,7 +18,7 @@ Asterisk configuration files are defined as follows:
 	label = value
 	label2 = value
 
-In some files, (e.g. mgcp.conf, zapata.conf and agents.conf), the syntax
+In some files, (e.g. mgcp.conf, chan_dahdi.conf and agents.conf), the syntax
 is a bit different. In these files the syntax is as follows:
 	
 	[section]

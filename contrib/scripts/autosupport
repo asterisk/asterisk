@@ -164,6 +164,13 @@ if [ "$ans" = "y" ]; then
   echo >> $OUTPUT;
 
   echo "------------------" >> $OUTPUT;
+  echo "DAHDI CONFIG" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  grep -v '^;' /etc/asterisk/chan_dahdi.conf >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
   echo "EXTENSIONS CONFIG" >> $OUTPUT;
   echo "------------------" >> $OUTPUT;
   grep -v '^;' /etc/asterisk/extensions.conf >> $OUTPUT;
