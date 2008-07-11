@@ -8003,12 +8003,21 @@ static int socket_process(struct iax2_thread *thread)
 		 * Discussed in the following thread:
 		 * http://lists.digium.com/pipermail/asterisk-dev/2008-May/033217.html 
 		 */
-		if (f.frametype != AST_FRAME_IAX ||
-				(f.subclass != IAX_COMMAND_NEW &&
-				 f.subclass != IAX_COMMAND_PING &&
-				 f.subclass != IAX_COMMAND_LAGRQ)) {
-			/* Get the destination call number */
-			dcallno = ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS;
+
+		/* Get the destination call number */
+		dcallno = ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS;
+
+		if (f.frametype == AST_FRAME_IAX &&
+				(f.subclass == IAX_COMMAND_NEW ||
+				 f.subclass == IAX_COMMAND_PING ||
+				 f.subclass == IAX_COMMAND_LAGRQ)) {
+			dcallno = 0;
+		} else if (!dcallno) {
+			/* All other full-frames must have a non-zero dcallno,
+			 * We silently drop this frame since it cannot be a
+			 * valid match to an existing call session.
+			 */
+			return 1;
 		}
 		if ((f.frametype == AST_FRAME_IAX) && ((f.subclass == IAX_COMMAND_NEW) || (f.subclass == IAX_COMMAND_REGREQ) ||
 						       (f.subclass == IAX_COMMAND_POKE) || (f.subclass == IAX_COMMAND_FWDOWNL) ||
