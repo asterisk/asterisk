@@ -740,7 +740,7 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 	} else if (obj && obj->parent->idlecheck > 0 && ast_tvdiff_sec(ast_tvnow(), obj->last_used) > obj->parent->idlecheck)
 		odbc_obj_connect(obj);
 
-#if DEBUG_THREADS
+#ifdef DEBUG_THREADS
 	if (obj) {
 		ast_copy_string(obj->file, file, sizeof(obj->file));
 		ast_copy_string(obj->function, function, sizeof(obj->function));
