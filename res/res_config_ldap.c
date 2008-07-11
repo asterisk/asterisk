@@ -1525,7 +1525,7 @@ static int ldap_reconnect(void)
 
 static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char status[256], status2[100] = "";
+	char status[256], credentials[100] = "";
 	int ctime = time(NULL) - connect_time;
 
 	switch (cmd) {
@@ -1546,26 +1546,26 @@ static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_c
 		snprintf(status, sizeof(status), "Connected to '%s', baseDN %s", url, basedn);
 
 	if (!ast_strlen_zero(user))
-		snprintf(status2, sizeof(status2), " with username %s", user);
+		snprintf(credentials, sizeof(credentials), " with username %s", user);
 
 	if (ctime > 31536000) {
 		ast_cli(a->fd, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n",
-				status, status2, ctime / 31536000,
+				status, credentials, ctime / 31536000,
 				(ctime % 31536000) / 86400, (ctime % 86400) / 3600,
 				(ctime % 3600) / 60, ctime % 60);
 	} else if (ctime > 86400) {
 		ast_cli(a->fd, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n",
-				status, status2, ctime / 86400, (ctime % 86400) / 3600,
+				status, credentials, ctime / 86400, (ctime % 86400) / 3600,
 				(ctime % 3600) / 60, ctime % 60);
 	} else if (ctime > 3600) {
 		ast_cli(a->fd, "%s%s for %d hours, %d minutes, %d seconds.\n",
-				status, status2, ctime / 3600, (ctime % 3600) / 60,
+				status, credentials, ctime / 3600, (ctime % 3600) / 60,
 				ctime % 60);
 	} else if (ctime > 60) {
-		ast_cli(a->fd, "%s%s for %d minutes, %d seconds.\n", status, status2,
+		ast_cli(a->fd, "%s%s for %d minutes, %d seconds.\n", status, credentials,
 					ctime / 60, ctime % 60);
 	} else {
-		ast_cli(a->fd, "%s%s for %d seconds.\n", status, status2, ctime);
+		ast_cli(a->fd, "%s%s for %d seconds.\n", status, credentials, ctime);
 	}
 
 	return CLI_SUCCESS;

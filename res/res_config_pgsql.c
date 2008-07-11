@@ -945,7 +945,7 @@ static int pgsql_reconnect(const char *database)
 
 static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char status[256], status2[100] = "";
+	char status[256], credentials[100] = "";
 	int ctime = time(NULL) - connect_time;
 
 	switch (cmd) {
@@ -964,31 +964,31 @@ static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, 
 
 	if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
 		if (!ast_strlen_zero(dbhost))
-			snprintf(status, 255, "Connected to %s@%s, port %d", dbname, dbhost, dbport);
+			snprintf(status, sizeof(status), "Connected to %s@%s, port %d", dbname, dbhost, dbport);
 		else if (!ast_strlen_zero(dbsock))
-			snprintf(status, 255, "Connected to %s on socket file %s", dbname, dbsock);
+			snprintf(status, sizeof(status), "Connected to %s on socket file %s", dbname, dbsock);
 		else
-			snprintf(status, 255, "Connected to %s@%s", dbname, dbhost);
+			snprintf(status, sizeof(status), "Connected to %s@%s", dbname, dbhost);
 
 		if (!ast_strlen_zero(dbuser))
-			snprintf(status2, 99, " with username %s", dbuser);
+			snprintf(credentials, sizeof(credentials), " with username %s", dbuser);
 
 		if (ctime > 31536000)
 			ast_cli(a->fd, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n",
-					status, status2, ctime / 31536000, (ctime % 31536000) / 86400,
+					status, credentials, ctime / 31536000, (ctime % 31536000) / 86400,
 					(ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
 		else if (ctime > 86400)
 			ast_cli(a->fd, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status,
-					status2, ctime / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60,
+					credentials, ctime / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60,
 					ctime % 60);
 		else if (ctime > 3600)
-			ast_cli(a->fd, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2,
+			ast_cli(a->fd, "%s%s for %d hours, %d minutes, %d seconds.\n", status, credentials,
 					ctime / 3600, (ctime % 3600) / 60, ctime % 60);
 		else if (ctime > 60)
-			ast_cli(a->fd, "%s%s for %d minutes, %d seconds.\n", status, status2, ctime / 60,
+			ast_cli(a->fd, "%s%s for %d minutes, %d seconds.\n", status, credentials, ctime / 60,
 					ctime % 60);
 		else
-			ast_cli(a->fd, "%s%s for %d seconds.\n", status, status2, ctime);
+			ast_cli(a->fd, "%s%s for %d seconds.\n", status, credentials, ctime);
 
 		return CLI_SUCCESS;
 	} else {
