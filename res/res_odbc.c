@@ -741,9 +741,11 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 		odbc_obj_connect(obj);
 
 #if DEBUG_THREADS
-	ast_copy_string(obj->file, file, sizeof(obj->file));
-	ast_copy_string(obj->function, function, sizeof(obj->function));
-	obj->lineno = lineno;
+	if (obj) {
+		ast_copy_string(obj->file, file, sizeof(obj->file));
+		ast_copy_string(obj->function, function, sizeof(obj->function));
+		obj->lineno = lineno;
+	}
 #endif
 
 	return obj;
