@@ -480,9 +480,11 @@ $(SUBDIRS_INSTALL):
 	@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" $(MAKE) -C $(@:-install=) install
 
 NEWMODS=$(notdir $(wildcard */*.so))
-OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
+DEPMODS=chan_zap.so app_zapras.so app_zapscan.so app_zapbarge.so codec_zap.so
+OLDMODS=$(filter-out $(NEWMODS) $(DEPMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
 
 oldmodcheck:
+	@for f in $(DEPMODS); do rm -f $(DESTDIR)$(MODULES_DIR)/$$f; done
 	@if [ -n "$(OLDMODS)" ]; then \
 		echo " WARNING WARNING WARNING" ;\
 		echo "" ;\
