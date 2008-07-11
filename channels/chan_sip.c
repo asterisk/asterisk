@@ -2400,7 +2400,7 @@ static int find_sip_method(const char *msg)
 	
 	if (ast_strlen_zero(msg))
 		return 0;
-	for (i = 1; i < (ARRAY_LEN(sip_methods)) && !res; i++) {
+	for (i = 1; i < ARRAY_LEN(sip_methods) && !res; i++) {
 		if (method_match(i, msg))
 			res = sip_methods[i].id;
 	}
