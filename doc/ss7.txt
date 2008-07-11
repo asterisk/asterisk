@@ -18,23 +18,26 @@ done for ANSI switches.
 
 To Use:
 =======
-In order to use libss7, you must get at least the following versions of Zaptel and Asterisk:
-Zaptel: 1.4.x
+In order to use libss7, you must get at least the following versions of DAHDI and Asterisk:
+DAHDI: 2.0.x
 libss7: trunk (currently, there *only* is a trunk release).
-Asterisk: trunk
+Asterisk: 1.6.x
 
 You must then do a `make; make install` in each of the directories that you installed
-in the given order (Zaptel first, libss7 second, and Asterisk last).
+in the given order (DAHDI first, libss7 second, and Asterisk last).
 
 NOTE: In order to check out the code, you must have the subversion client installed.  This
 is how to check them out from the public subversion server.
 
 These are the commands you would type to install them:
 
-#jpeeler: REVISIT
-`svn co http://svn.digium.com/svn/zaptel/branches/1.4 zaptel-1.4`
-`cd zaptel-1.4`
+`svn co http://svn.digium.com/svn/dahdi/linux/trunk dahdi-trunk`
+`cd dahdi-trunk`
 `make; make install`
+
+`svn co http://svn.digium.com/svn/dahdi/tools/trunk dahdi-tools`
+`cd dahdi-tools`
+`./configure; make; make install`
 
 `svn co http://svn.digium.com/svn/libss7/trunk libss7-trunk`
 `cd libss7-trunk`
@@ -44,7 +47,7 @@ These are the commands you would type to install them:
 `cd asterisk-trunk`
 `./configure; make; make install;`
 
-This should build Zaptel, libss7, and Asterisk with SS7 support.
+This should build DAHDI, libss7, and Asterisk with SS7 support.
 
 In the past, there was a special asterisk-ss7 branch to use which contained the SS7 code.
 That code has been merged back into the trunk version of Asterisk, and the old asterisk-ss7
@@ -53,18 +56,17 @@ will not work against the current version of libss7, and you should switch to as
 instead.
 
 CONFIGURATION:
-In zaptel.conf, your signalling channel(s) should be a "dchan" and your bearers should
+In /etc/dahdi/system.conf, your signalling channel(s) should be a "dchan" and your bearers should
 be set as "bchan".
 
-In the asterisk-ss7 branch, there is a sample zapata.conf that is installed which
-contains sample configuration for setting up an E1 link.
+The sample chan_dahdi.conf contains sample configuration for setting up an E1 link.
 
 In brief, here is a simple ss7 linkset setup:
 
 signalling = ss7
 ss7type = itu 		; or ansi if you are using an ANSI link
 
-linkset = 1		; Pick a number for your linkset identifier in zapata.conf
+linkset = 1		; Pick a number for your linkset identifier in chan_dahdi.conf
 
 pointcode = 28		; The decimal form of your point code.  If you are using an
 			; ANSI linkset, you can use the xxx-xxx-xxx notation for
@@ -98,15 +100,15 @@ sigchan = 48		; This would put two signalling channels in our linkset, one at
 			; Zap/16 and one at Zap/48 which both would be used to send/receive
 			; ISUP traffic.
 
-; End of zapata.conf
+; End of chan_dahdi.conf
 
-This is how a basic linkset is setup.  For more detailed zapata.conf SS7 config information
-as well as other options available for that file, see the default zapata.conf that comes
+This is how a basic linkset is setup.  For more detailed chan_dahdi.conf SS7 config information
+as well as other options available for that file, see the default chan_dahdi.conf that comes
 with the samples in asterisk.  If you would like, you can do a `make samples` in your
-asterisk-trunk directory and it will install a sample zapata.conf for you that contains
+asterisk-trunk directory and it will install a sample chan_dahdi.conf for you that contains
 more information about SS7 setup.
 
-For more information, please use the Asterisk-ss7 or Asterisk-dev mailing
+For more information, please use the asterisk-ss7 or asterisk-dev mailing
 lists (I monitor them regularly) or email me directly.
 
 Matthew Fredrickson
