@@ -13701,7 +13701,7 @@ static void process_echocancel(struct dahdi_chan_conf *confp, const char *data, 
 	unsigned int param_count;
 	unsigned int x;
 
-	if (!(param_count = ast_app_separate_args(parse, ',', params, ARRAY_LEN(params)))
+	if (!(param_count = ast_app_separate_args(parse, ',', params, ARRAY_LEN(params))))
 		return;
 
 	memset(&confp->chan.echocancel, 0, sizeof(confp->chan.echocancel));

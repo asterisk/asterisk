@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/md5.h"
 #include "asterisk/linkedlists.h"
 
+#define ARRAY_LEN(a) (sizeof(a) / sizeof(a[0]))
 
 #undef gethostbyname
 
