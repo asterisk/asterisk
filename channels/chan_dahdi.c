@@ -13230,7 +13230,11 @@ static int linkset_addsigchan(int sigchan)
 			return -1;
 		}
 
-		ss7_add_link(link->ss7, SS7_TRANSPORT_DAHDI, link->fds[curfd]);
+		if (p.sigtype == DAHDI_SIG_MTP2)
+			ss7_add_link(link->ss7, SS7_TRANSPORT_DAHDIMTP2, link->fds[curfd]);
+		else
+			ss7_add_link(link->ss7, SS7_TRANSPORT_DAHDIDCHAN, link->fds[curfd]);
+
 		link->numsigchans++;
 
 		memset(&si, 0, sizeof(si));
