@@ -213,7 +213,7 @@ struct ast_context {
 	struct ast_context *next;		/*!< Link them together */
 	struct ast_include *includes;		/*!< Include other contexts */
 	struct ast_ignorepat *ignorepats;	/*!< Patterns for which to continue playing dialtone */
-	const char *registrar;			/*!< Registrar */
+	char *registrar;			/*!< Registrar -- make sure you malloc this, as the registrar may have to survive module unloads */
 	int refcount;                   /*!< each module that would have created this context should inc/dec this as appropriate */
 	AST_LIST_HEAD_NOLOCK(, ast_sw) alts;	/*!< Alternative switches */
 	ast_mutex_t macrolock;			/*!< A lock to implement "exclusive" macros - held whilst a call is executing in the macro */
@@ -5617,7 +5617,7 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		strcpy(tmp->name, name);
 		tmp->root = NULL;
 		tmp->root_table = NULL;
-		tmp->registrar = registrar;
+		tmp->registrar = ast_strdup(registrar);
 		tmp->includes = NULL;
 		tmp->ignorepats = NULL;
 		tmp->refcount = 1;
@@ -7305,6 +7305,9 @@ static void __ast_internal_context_destroy( struct ast_context *con)
 		ipi = ipi->next;
 		ast_free(ipl);
 	}
+	if (tmp->registrar)
+		ast_free(tmp->registrar);
+	
 	/* destroy the hash tabs */
 	if (tmp->root_table) {
 		ast_hashtab_destroy(tmp->root_table, 0);
