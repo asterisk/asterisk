@@ -652,7 +652,7 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 				if ((group = pbx_builtin_getvar_helper(peer, "SPYGROUP"))) {
 					dup_group = ast_strdupa(group);
 					num_groups = ast_app_separate_args(dup_group, ':', groups,
-						sizeof(groups) / sizeof(groups[0]));
+						ARRAY_LEN(groups));
 				}
 
 				for (x = 0; x < num_groups; x++) {

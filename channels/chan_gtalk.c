@@ -2000,7 +2000,7 @@ static int load_module(void)
 	}
 
 	ast_rtp_proto_register(&gtalk_rtp);
-	ast_cli_register_multiple(gtalk_cli, sizeof(gtalk_cli) / sizeof(gtalk_cli[0]));
+	ast_cli_register_multiple(gtalk_cli, ARRAY_LEN(gtalk_cli));
 
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&gtalk_tech)) {
@@ -2020,7 +2020,7 @@ static int reload(void)
 static int unload_module(void)
 {
 	struct gtalk_pvt *privates = NULL;
-	ast_cli_unregister_multiple(gtalk_cli, sizeof(gtalk_cli) / sizeof(gtalk_cli[0]));
+	ast_cli_unregister_multiple(gtalk_cli, ARRAY_LEN(gtalk_cli));
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(&gtalk_tech);
 	ast_rtp_proto_unregister(&gtalk_rtp);

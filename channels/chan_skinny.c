@@ -6092,7 +6092,7 @@ static int load_module(void)
 {
 	int res = 0;
 
-	for (; res < (sizeof(soft_key_template_default) / sizeof(soft_key_template_default[0])); res++) {
+	for (; res < ARRAY_LEN(soft_key_template_default); res++) {
 		soft_key_template_default[res].softKeyEvent = htolel(soft_key_template_default[res].softKeyEvent);
 	}
 	/* load and parse config */

@@ -232,7 +232,7 @@ static struct ast_cli_entry cli[] = {
 
 void threadstorage_init(void)
 {
-	ast_cli_register_multiple(cli, sizeof(cli) / sizeof(cli[0]));
+	ast_cli_register_multiple(cli, ARRAY_LEN(cli));
 }
 
 #endif /* !defined(DEBUG_THREADLOCALS) */

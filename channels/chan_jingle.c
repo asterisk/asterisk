@@ -1875,7 +1875,7 @@ static int load_module(void)
 	}
 
 	ast_rtp_proto_register(&jingle_rtp);
-	ast_cli_register_multiple(jingle_cli, sizeof(jingle_cli) / sizeof(jingle_cli[0]));
+	ast_cli_register_multiple(jingle_cli, ARRAY_LEN(jingle_cli));
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&jingle_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
@@ -1894,7 +1894,7 @@ static int reload(void)
 static int unload_module(void)
 {
 	struct jingle_pvt *privates = NULL;
-	ast_cli_unregister_multiple(jingle_cli, sizeof(jingle_cli) / sizeof(jingle_cli[0]));
+	ast_cli_unregister_multiple(jingle_cli, ARRAY_LEN(jingle_cli));
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(&jingle_tech);
 	ast_rtp_proto_unregister(&jingle_rtp);

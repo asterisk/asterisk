@@ -176,7 +176,7 @@ static void jb_choose_impl(struct ast_channel *chan)
 	struct ast_jb *jb = &chan->jb;
 	struct ast_jb_conf *jbconf = &jb->conf;
 	struct ast_jb_impl *test_impl;
-	int i, avail_impl_count = sizeof(avail_impl) / sizeof(avail_impl[0]);
+	int i, avail_impl_count = ARRAY_LEN(avail_impl);
 	
 	jb->impl = &avail_impl[default_impl];
 	

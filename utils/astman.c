@@ -258,14 +258,14 @@ static int process_message(struct ast_mansession *s, struct message *m)
 		fprintf(stderr, "Missing event in request");
 		return 0;
 	}
-	for (x=0;x<sizeof(events) / sizeof(events[0]);x++) {
+	for (x = 0; x < ARRAY_LEN(events); x++) {
 		if (!strcasecmp(event, events[x].event)) {
 			if (events[x].func(s, m))
 				return -1;
 			break;
 		}
 	}
-	if (x >= sizeof(events) / sizeof(events[0]))
+	if (x >= ARRAY_LEN(events))
 		fprintf(stderr, "Ignoring unknown event '%s'", event);
 #if 0
 	for (x=0;x<m->hdrcount;x++) {

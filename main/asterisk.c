@@ -2874,9 +2874,9 @@ int main(int argc, char *argv[])
 	char *remotesock = NULL;
 
 	/* Remember original args for restart */
-	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {
-		fprintf(stderr, "Truncating argument size to %d\n", (int)(sizeof(_argv) / sizeof(_argv[0])) - 1);
-		argc = sizeof(_argv) / sizeof(_argv[0]) - 1;
+	if (argc > ARRAY_LEN(_argv) - 1) {
+		fprintf(stderr, "Truncating argument size to %d\n", (int)ARRAY_LEN(_argv) - 1);
+		argc = ARRAY_LEN(_argv) - 1;
 	}
 	for (x = 0; x < argc; x++)
 		_argv[x] = argv[x];

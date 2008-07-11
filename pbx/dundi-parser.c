@@ -215,7 +215,7 @@ static void dump_cause(char *output, int maxlen, void *value, int len)
 	memcpy(tmp2, cause->desc, datalen);
 	tmp2[datalen] = '\0';
 
-	if (causecode < sizeof(causes) / sizeof(causes[0])) {
+	if (causecode < ARRAY_LEN(causes)) {
 		if (ast_strlen_zero(tmp2))
 			snprintf(output, maxlen, "%s", causes[causecode]);
 		else
