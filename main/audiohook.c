@@ -213,7 +213,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 	}
 
 	/* Start with the read factory... if there are enough samples, read them in */
-	if (usable_read && ast_slinfactory_available(&audiohook->read_factory) >= samples) {
+	if (usable_read) {
 		if (ast_slinfactory_read(&audiohook->read_factory, buf1, samples)) {
 			read_buf = buf1;
 			/* Adjust read volume if need be */
@@ -232,7 +232,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 		ast_log(LOG_DEBUG, "Failed to get %d samples from read factory %p\n", (int)samples, &audiohook->read_factory);
 
 	/* Move on to the write factory... if there are enough samples, read them in */
-	if (usable_write && ast_slinfactory_available(&audiohook->write_factory) >= samples) {
+	if (usable_write) {
 		if (ast_slinfactory_read(&audiohook->write_factory, buf2, samples)) {
 			write_buf = buf2;
 			/* Adjust write volume if need be */
