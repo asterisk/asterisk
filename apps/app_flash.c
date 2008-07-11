@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief App to flash a zap trunk
+ * \brief App to flash a DAHDI trunk
  *
  * \author Mark Spencer <markster@digium.com>
  * 
@@ -53,14 +53,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "Flash";
 
-static char *synopsis = "Flashes a Zap Trunk";
+static char *dahdi_synopsis = "Flashes a DAHDI trunk";
 
-static char *descrip = 
-"Performs a flash on a zap trunk.  This can be used\n"
+static char *dahdi_descrip = 
+"Performs a flash on a DAHDI trunk.  This can be used\n"
 "to access features provided on an incoming analogue circuit\n"
 "such as conference and call waiting. Use with SendDTMF() to\n"
 "perform external transfers\n";
 
+static char *zap_synopsis = "Flashes a Zap trunk";
+
+static char *zap_descrip = 
+"Performs a flash on a Zap trunk.  This can be used\n"
+"to access features provided on an incoming analogue circuit\n"
+"such as conference and call waiting. Use with SendDTMF() to\n"
+"perform external transfers\n";
 
 static inline int zt_wait_event(int fd)
 {
@@ -79,7 +86,7 @@ static int flash_exec(struct ast_channel *chan, void *data)
 	struct ast_module_user *u;
 	DAHDI_PARAMS ztp;
 	u = ast_module_user_add(chan);
-	if (!strcasecmp(chan->tech->type, "Zap")) {
+	if (!strcasecmp(chan->tech->type, dahdi_chan_name)) {
 		memset(&ztp, 0, sizeof(ztp));
 		res = ioctl(chan->fds[0], DAHDI_GET_PARAMS, &ztp);
 		if (!res) {
@@ -101,7 +108,7 @@ static int flash_exec(struct ast_channel *chan, void *data)
 		} else
 			ast_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
 	} else
-		ast_log(LOG_WARNING, "%s is not a Zap channel\n", chan->name);
+		ast_log(LOG_WARNING, "%s is not a DAHDI channel\n", chan->name);
 	ast_module_user_remove(u);
 	return res;
 }
@@ -119,8 +126,11 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, flash_exec, synopsis, descrip);
+	if (dahdi_chan_mode == ZAP_ONLY_MODE) {
+		return ast_register_application(app, flash_exec, zap_synopsis, zap_descrip);
+	} else {
+		return ast_register_application(app, flash_exec, dahdi_synopsis, dahdi_descrip);
+	}
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Flash channel application");
-

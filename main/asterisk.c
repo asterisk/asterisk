@@ -172,7 +172,14 @@ int option_maxcalls;				/*!< Max number of active calls */
 
 char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
 char debug_filename[AST_FILENAME_MAX] = "";
-char dahdi_chan_name[AST_CHANNEL_NAME] = "ZAP";
+#ifdef HAVE_ZAPTEL
+char _dahdi_chan_name[AST_CHANNEL_NAME] = "Zap";
+enum dahdi_chan_modes dahdi_chan_mode = ZAP_ONLY_MODE;
+#else
+char _dahdi_chan_name[AST_CHANNEL_NAME] = "DAHDI";
+enum dahdi_chan_modes dahdi_chan_mode = DAHDI_PLUS_ZAP;
+#endif
+const char *dahdi_chan_name;
 
 static int ast_socket = -1;		/*!< UNIX Socket for allowing remote control */
 static int ast_consock = -1;		/*!< UNIX Socket for controlling another asterisk */
@@ -2409,7 +2416,7 @@ static int show_cli_help(void) {
 	printf("   -g              Dump core in case of a crash\n");
 	printf("   -h              This help screen\n");
 	printf("   -i              Initialize crypto keys at startup\n");
-	printf("   -I              Enable internal timing if Zaptel timer is available\n");
+	printf("   -I              Enable internal timing if %s timer is available\n", dahdi_chan_name);
 	printf("   -L <load>       Limit the maximum load average before rejecting new calls\n");
 	printf("   -M <value>      Limit the maximum number of calls to the specified value\n");
 	printf("   -m              Mute debugging and console output on the console\n");
@@ -2583,9 +2590,17 @@ static void ast_readconfig(void)
 		} else if (!strcasecmp(v->name, "languageprefix")) {
 			ast_language_is_prefix = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dahdichanname")) {
-			if (!strcasecmp(v->value, "yes")) {
-				ast_copy_string(dahdi_chan_name, "DAHDI", sizeof(dahdi_chan_name));
+#ifdef HAVE_ZAPTEL
+			if (ast_true(v->value)) {
+				strcpy(_dahdi_chan_name, "DAHDI");
+				dahdi_chan_mode = DAHDI_PLUS_ZAP;
 			}
+#else
+			if (ast_false(v->value)) {
+				strcpy(_dahdi_chan_name, "Zap");
+				dahdi_chan_mode = ZAP_ONLY_MODE;
+			}
+#endif
 		}
 	}
 	ast_config_destroy(cfg);
@@ -2966,6 +2981,9 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+
+	dahdi_chan_name = _dahdi_chan_name;
+
 #ifdef HAVE_ZAPTEL
 	{
 		int fd;

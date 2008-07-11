@@ -1168,7 +1168,7 @@ int ast_autoservice_start(struct ast_channel *chan);
  */
 int ast_autoservice_stop(struct ast_channel *chan);
 
-/* If built with zaptel optimizations, force a scheduled expiration on the
+/* If built with DAHDI optimizations, force a scheduled expiration on the
    timer fd, at which point we call the callback function / data */
 int ast_settimeout(struct ast_channel *c, int samples, int (*func)(const void *data), void *data);
 

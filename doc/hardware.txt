@@ -2,12 +2,12 @@ A PBX is only really useful if you can get calls into it.  Of course, you
 can use Asterisk with VoIP calls (SIP, H.323, IAX), but you can also talk
 to the real PSTN through various cards.
 
-Supported Hardware is divided into two general groups:  Zaptel devices and 
-non-zaptel devices.  The Zaptel compatible hardware supports pseudo-TDM 
-conferencing and all call features through chan_zap, whereas non-zaptel 
+Supported Hardware is divided into two general groups:  DAHDI devices and 
+non-DAHDI devices.  The DAHDI compatible hardware supports pseudo-TDM 
+conferencing and all call features through chan_dahdi, whereas non-DAHDI 
 compatible hardware may have different features.
 
-Zaptel compatible hardware
+DAHDI compatible hardware
 ==========================
 
 -- Digium (Primary author of Asterisk)
@@ -31,7 +31,7 @@ Zaptel compatible hardware
    * Wildcard TE410P - Quad T1/E1 switchable interface.  Supports PRI and 
      RBS signalling, as well as PPP, FR, and HDLC data modes.
 
-Non-zaptel compatible hardware
+Non-DAHDI compatible hardware
 ==============================
 
 -- QuickNet, Inc. 

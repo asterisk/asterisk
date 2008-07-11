@@ -6580,7 +6580,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 #ifdef DAHDI_TIMERACK
 		/* Great, this is a timing interface, just call the ioctl */
 		if (ioctl(fd, DAHDI_TIMERACK, &x)) {
-			ast_log(LOG_WARNING, "Unable to acknowledge zap timer. IAX trunking will fail!\n");
+			ast_log(LOG_WARNING, "Unable to acknowledge timer. IAX trunking will fail!\n");
 			usleep(1);
 			return -1;
 		}
@@ -9408,7 +9408,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "trunk")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_TRUNK);	
 				if (ast_test_flag(peer, IAX_TRUNK) && (timingfd < 0)) {
-					ast_log(LOG_WARNING, "Unable to support trunking on peer '%s' without zaptel timing\n", peer->name);
+					ast_log(LOG_WARNING, "Unable to support trunking on peer '%s' without timing\n", peer->name);
 					ast_clear_flag(peer, IAX_TRUNK);
 				}
 			} else if (!strcasecmp(v->name, "auth")) {
@@ -9666,7 +9666,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "trunk")) {
 				ast_set2_flag(user, ast_true(v->value), IAX_TRUNK);	
 				if (ast_test_flag(user, IAX_TRUNK) && (timingfd < 0)) {
-					ast_log(LOG_WARNING, "Unable to support trunking on user '%s' without zaptel timing\n", user->name);
+					ast_log(LOG_WARNING, "Unable to support trunking on user '%s' without timing\n", user->name);
 					ast_clear_flag(user, IAX_TRUNK);
 				}
 			} else if (!strcasecmp(v->name, "auth")) {

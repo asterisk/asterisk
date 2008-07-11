@@ -683,7 +683,7 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 		if (s->owner->timingfd > -1) {
 			int zap_timer_samples = whennext;
 			int rate;
-			/* whennext is in samples, but zaptel timers operate in 8 kHz samples. */
+			/* whennext is in samples, but DAHDI timers operate in 8 kHz samples. */
 			if ((rate = ast_format_rate(s->fmt->format)) != 8000) {
 				float factor;
 				factor = ((float) rate) / ((float) 8000.0); 

@@ -61,17 +61,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/dahdi_compat.h"
 
-static char *app = "DAHDIBarge";
-static char *deprecated_app = "ZapBarge";
+static char *dahdi_app = "DAHDIBarge";
+static char *zap_app = "ZapBarge";
 
-static char *synopsis = "Barge in (monitor) Zap channel";
+static char *dahdi_synopsis = "Barge in (monitor) DAHDI channel";
+static char *zap_synopsis = "Barge in (monitor) Zap channel";
 
-static char *descrip = 
-"  ZapBarge([channel]): Barges in on a specified zap\n"
+static char *dahdi_descrip = 
+"  DAHDIBarge([channel]): Barges in on a specified DAHDI\n"
 "channel or prompts if one is not specified.  Returns\n"
 "-1 when caller user hangs up and is independent of the\n"
 "state of the channel being monitored.";
 
+static char *zap_descrip = 
+"  ZapBarge([channel]): Barges in on a specified Zaptel\n"
+"channel or prompts if one is not specified.  Returns\n"
+"-1 when caller user hangs up and is independent of the\n"
+"state of the channel being monitored.";
 
 #define CONF_SIZE 160
 
@@ -125,11 +131,15 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 		goto outrun;
 	}
 	ast_indicate(chan, -1);
-	retryzap = strcasecmp(chan->tech->type, "Zap");
+	retryzap = strcasecmp(chan->tech->type, dahdi_chan_name);
 zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {
+#ifdef HAVE_ZAPTEL
 		fd = open("/dev/zap/pseudo", O_RDWR);
+#else
+		fd = open("/dev/dahdi/pseudo", O_RDWR);
+#endif
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
 			goto outrun;
@@ -174,7 +184,7 @@ zapretry:
 	if (ztc.confmode) {
 		/* Whoa, already in a conference...  Retry... */
 		if (!retryzap) {
-			ast_log(LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
+			ast_log(LOG_DEBUG, "Channel is in a conference already, retrying with pseudo\n");
 			retryzap = 1;
 			goto zapretry;
 		}
@@ -190,7 +200,7 @@ zapretry:
 		close(fd);
 		goto outrun;
 	}
-	ast_log(LOG_DEBUG, "Placed channel %s in ZAP channel %d monitor\n", chan->name, confno);
+	ast_log(LOG_DEBUG, "Placed channel %s in channel %d monitor\n", chan->name, confno);
 
 	for(;;) {
 		outfd = -1;
@@ -259,7 +269,7 @@ outrun:
 	return ret;
 }
 
-static int conf_exec(struct ast_channel *chan, void *data)
+static int exec(struct ast_channel *chan, void *data, int dahdimode)
 {
 	int res=-1;
 	struct ast_module_user *u;
@@ -271,11 +281,20 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	u = ast_module_user_add(chan);
 	
 	if (!ast_strlen_zero(data)) {
-		if ((sscanf(data, "Zap/%d", &confno) != 1) &&
-		    (sscanf(data, "%d", &confno) != 1)) {
-			ast_log(LOG_WARNING, "ZapBarge Argument (if specified) must be a channel number, not '%s'\n", (char *)data);
-			ast_module_user_remove(u);
-			return 0;
+		if (dahdimode) {
+			if ((sscanf(data, "DAHDI/%d", &confno) != 1) &&
+			    (sscanf(data, "%d", &confno) != 1)) {
+				ast_log(LOG_WARNING, "Argument (if specified) must be a channel number, not '%s'\n", (char *) data);
+				ast_module_user_remove(u);
+				return 0;
+			}
+		} else {
+			if ((sscanf(data, "Zap/%d", &confno) != 1) &&
+			    (sscanf(data, "%d", &confno) != 1)) {
+				ast_log(LOG_WARNING, "Argument (if specified) must be a channel number, not '%s'\n", (char *) data);
+				ast_module_user_remove(u);
+				return 0;
+			}
 		}
 	}
 	
@@ -301,28 +320,44 @@ out:
 	return res;
 }
 
-static int conf_exec_warn(struct ast_channel *chan, void *data)
+static int exec_zap(struct ast_channel *chan, void *data)
 {
-    ast_log(LOG_WARNING, "Use of the command %s is deprecated, please use %s instead.\n", deprecated_app, app);
-    return conf_exec(chan, data);
+	ast_log(LOG_WARNING, "Use of the command %s is deprecated, please use %s instead.\n", zap_app, dahdi_app);
+	
+	return exec(chan, data, 0);
 }
 
-
-static int unload_module(void)
+static int exec_dahdi(struct ast_channel *chan, void *data)
 {
-	int res;
-	
-	res = ast_unregister_application(app);
+	return exec(chan, data, 1);
+}
+
+static int unload_module(void) 
+{
+	int res = 0;
+
+	if (dahdi_chan_mode == DAHDI_PLUS_ZAP) {
+		res |= ast_unregister_application(dahdi_app);
+	}
+
+	res |= ast_unregister_application(zap_app);
 	
 	ast_module_user_hangup_all();
 
-	return res;	
+	return res;
 }
 
 static int load_module(void)
 {
-	ast_register_application(deprecated_app, conf_exec_warn, synopsis, descrip);
-	return ast_register_application(app, conf_exec, synopsis, descrip);
+	int res = 0;
+
+	if (dahdi_chan_mode == DAHDI_PLUS_ZAP) {
+		res |= ast_register_application(dahdi_app, exec_dahdi, dahdi_synopsis, dahdi_descrip);
+	}
+
+	res |= ast_register_application(zap_app, exec_zap, zap_synopsis, zap_descrip);
+
+	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Barge in on Zap channel application");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Barge in on channel application");

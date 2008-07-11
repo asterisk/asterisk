@@ -116,10 +116,6 @@ static struct ast_jb_conf default_jbconf =
 };
 static struct ast_jb_conf global_jbconf;
 
-#if !defined(DAHDI_SIG_EM_E1) || (defined(HAVE_PRI) && !defined(DAHDI_SIG_HARDHDLC))
-#error "Your DAHDI is too old.  Please update"
-#endif
-
 #ifndef DAHDI_TONEDETECT
 /* Work around older code with no tone detect */
 #define DAHDI_EVENT_DTMFDOWN 0
@@ -706,6 +702,29 @@ static const struct ast_channel_tech dahdi_tech = {
 	.setoption = dahdi_setoption,
 	.func_channel_read = dahdi_func_read,
 };
+
+static const struct ast_channel_tech zap_tech = {
+	.type = "Zap",
+	.description = tdesc,
+	.capabilities = AST_FORMAT_SLINEAR | AST_FORMAT_ULAW | AST_FORMAT_ALAW,
+	.requester = dahdi_request,
+	.send_digit_begin = dahdi_digit_begin,
+	.send_digit_end = dahdi_digit_end,
+	.send_text = dahdi_sendtext,
+	.call = dahdi_call,
+	.hangup = dahdi_hangup,
+	.answer = dahdi_answer,
+	.read = dahdi_read,
+	.write = dahdi_write,
+	.bridge = dahdi_bridge,
+	.exception = dahdi_exception,
+	.indicate = dahdi_indicate,
+	.fixup = dahdi_fixup,
+	.setoption = dahdi_setoption,
+	.func_channel_read = dahdi_func_read,
+};
+
+static const struct ast_channel_tech *chan_tech;
 
 #ifdef HAVE_PRI
 #define GET_CHANNEL(p) ((p)->bearer ? (p)->bearer->channel : p->channel)
@@ -3813,7 +3832,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			do {
 				const char *alarm_str = alarm2str(res);
 
-				/* hack alert!  DAHDI 1.4 now exposes FXO battery as an alarm, but asterisk 1.4
+				/* hack alert! Zaptel 1.4 and DAHDI expose FXO battery as an alarm, but Asterisk 1.4
 				 * doesn't know what to do with it.  Don't confuse users with log messages. */
 				if (!strcasecmp(alarm_str, "No Alarm") || !strcasecmp(alarm_str, "Unknown Alarm")) {
 					p->unknown_alarm = 1;
@@ -5212,6 +5231,8 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	int features;
 	char *b2 = NULL;
 	DAHDI_PARAMS ps;
+	char chanprefix[strlen(dahdi_chan_name) + 4];
+
 	if (i->subs[index].owner) {
 		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
 		return NULL;
@@ -5235,12 +5256,14 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		}
 		y++;
 	} while (x < 3);
-	tmp = ast_channel_alloc(0, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, "DAHDI/%s", b2);
+	strcpy(chanprefix, dahdi_chan_name);
+	strcat(chanprefix, "/%s");
+	tmp = ast_channel_alloc(0, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, chanprefix, b2);
 	if (b2) /*!> b2 can be freed now, it's been copied into the channel structure */
 		free(b2);
 	if (!tmp)
 		return NULL;
-	tmp->tech = &dahdi_tech;
+	tmp->tech = chan_tech;
 	ps.channo = i->channel;
 	res = ioctl(i->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps);
 	if (res) {
@@ -5950,8 +5973,8 @@ static void *ss_thread(void *data)
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Enabled DND on channel %d\n", p->channel);
 				manager_event(EVENT_FLAG_SYSTEM, "DNDState",
-							"Channel: DAHDI/%d\r\n"
-							"Status: enabled\r\n", p->channel);
+					      "Channel: %s/%d\r\n"
+					      "Status: enabled\r\n", dahdi_chan_name, p->channel);
 				res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_DIALRECALL);
 				p->dnd = 1;
 				getforward = 0;
@@ -5962,8 +5985,8 @@ static void *ss_thread(void *data)
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Disabled DND on channel %d\n", p->channel);
 				manager_event(EVENT_FLAG_SYSTEM, "DNDState",
-							"Channel: DAHDI/%d\r\n"
-							"Status: disabled\r\n", p->channel);
+					      "Channel: %s/%d\r\n"
+					      "Status: disabled\r\n", dahdi_chan_name, p->channel);
 				res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_DIALRECALL);
 				p->dnd = 0;
 				getforward = 0;
@@ -6028,8 +6051,8 @@ static void *ss_thread(void *data)
 				if (nbridge && ast_bridged_channel(nbridge)) 
 					pbridge = ast_bridged_channel(nbridge)->tech_pvt;
 				if (nbridge && pbridge && 
-				    (nbridge->tech == &dahdi_tech) && 
-				    (ast_bridged_channel(nbridge)->tech == &dahdi_tech) &&
+				    (nbridge->tech == chan_tech) && 
+				    (ast_bridged_channel(nbridge)->tech == chan_tech) &&
 				    ISTRUNK(pbridge)) {
 					int func = DAHDI_FLASH;
 					/* Clear out the dial buffer */
@@ -6704,7 +6727,7 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 		if (!i->unknown_alarm) {
 			ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", i->channel);
 			manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
-				"Channel: %d\r\n", i->channel);
+				      "Channel: %d\r\n", i->channel);
 		} else {
 			i->unknown_alarm = 0;
 		}
@@ -8105,15 +8128,13 @@ static int pri_fixup_principle(struct dahdi_pri *pri, int principle, q931_call *
 				new->owner = old->owner;
 				old->owner = NULL;
 				if (new->owner) {
-					ast_string_field_build(new->owner, name, 
-							       "DAHDI/%d:%d-%d", pri->trunkgroup,
-							       new->channel, 1);
+					ast_string_field_build(new->owner, name, "%s/%d:%d-%d", dahdi_chan_name, pri->trunkgroup, new->channel, 1);
 					new->owner->tech_pvt = new;
 					new->owner->fds[0] = new->subs[SUB_REAL].dfd;
 					new->subs[SUB_REAL].owner = old->subs[SUB_REAL].owner;
 					old->subs[SUB_REAL].owner = NULL;
 				} else
-					ast_log(LOG_WARNING, "Whoa, there's no  owner, and we're having to fix up channel %d to channel %d\n", old->channel, new->channel);
+					ast_log(LOG_WARNING, "Whoa, there's no owner, and we're having to fix up channel %d to channel %d\n", old->channel, new->channel);
 				new->call = old->call;
 				old->call = NULL;
 
@@ -8471,7 +8492,7 @@ static void *pri_dchannel(void *vpri)
 				if (ast_tvdiff_ms(ast_tvnow(), lastidle) > 1000) {
 					/* Don't create a new idle call more than once per second */
 					snprintf(idlen, sizeof(idlen), "%d/%s", pri->pvts[nextidle]->channel, pri->idledial);
-					idle = dahdi_request("DAHDI", AST_FORMAT_ULAW, idlen, &cause);
+					idle = dahdi_request(dahdi_chan_name, AST_FORMAT_ULAW, idlen, &cause);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
 						if (ast_pthread_create_background(&p, NULL, do_idle_thread, idle)) {
@@ -9894,6 +9915,13 @@ static struct ast_cli_entry dahdi_pri_cli[] = {
 
 #endif /* HAVE_PRI */
 
+/* Wrappers for astman operations to use proper channel name prefix */
+
+#define local_astman_ack(s, m, msg) do { if (chan_tech == &dahdi_tech) astman_send_ack(s, m, "DAHDI" msg); else astman_send_ack(s, m, "Zap" msg); } while (0)
+#define local_astman_header(m, hdr) astman_get_header(m, (chan_tech == &dahdi_tech) ? "DAHDI" hdr : "Zap" hdr)
+#define local_astman_register(a, b, c, d) do { if (chan_tech == &dahdi_tech) ast_manager_register("DAHDI" a, b, c, d); else ast_manager_register("Zap" a, b, c, d); } while (0)
+#define local_astman_unregister(a) do { if (chan_tech == &dahdi_tech) ast_manager_unregister("DAHDI" a); else ast_manager_unregister("Zap" a); } while (0)
+
 static int dahdi_destroy_channel(int fd, int argc, char **argv)
 {
 	int channel;
@@ -9910,17 +9938,17 @@ static int setup_dahdi(int reload);
 static int dahdi_restart(void)
 {
 	if (option_verbose > 0)
-		ast_verbose(VERBOSE_PREFIX_1 "Destroying channels and reloading DAHDI configuration.\n");
+		ast_verbose(VERBOSE_PREFIX_1 "Destroying channels and reloading %s configuration.\n", dahdi_chan_name);
 	while (iflist) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Destroying DAHDI channel no. %d\n", iflist->channel);
+			ast_log(LOG_DEBUG, "Destroying %s channel no. %d\n", dahdi_chan_name, iflist->channel);
 		/* Also updates iflist: */
 		destroy_channel(NULL, iflist, 1);
 	}
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Channels destroyed. Now re-reading config.\n");
 	if (setup_dahdi(0) != 0) {
-		ast_log(LOG_WARNING, "Reload channels from dahdi config failed!\n");
+		ast_log(LOG_WARNING, "Reload channels from %s config failed!\n", dahdi_chan_name);
 		return 1;
 	}
 	return 0;
@@ -9940,10 +9968,10 @@ static int dahdi_restart_cmd(int fd, int argc, char **argv)
 static int action_dahdirestart(struct mansession *s, const struct message *m)
 {
 	if (dahdi_restart() != 0) {
-		astman_send_error(s, m, "Failed rereading DAHDI configuration");
+		astman_send_error(s, m, "Failed to restart chan_dahdi");
 		return 1;
 	}
-	astman_send_ack(s, m, "DAHDIRestart: Success");
+	local_astman_ack(s, m, "Restart: Success");
 	return 0;
 }
 
@@ -10181,15 +10209,18 @@ static int dahdi_show_status(int fd, int argc, char *argv[]) {
 	DAHDI_SPANINFO s;
 
 #ifdef HAVE_ZAPTEL
-	ctl = open("/dev/zap/ctl", O_RDWR);
+	if ((ctl = open("/dev/zap/ctl", O_RDWR)) < 0) {
+		ast_log(LOG_WARNING, "Unable to open /dev/zap/ctl: %s\n", strerror(errno));
+		ast_cli(fd, "No Zaptel interface found.\n");
+		return RESULT_FAILURE;
+	}
 #else
-	ctl = open("/dev/dahdi/ctl", O_RDWR);
-#endif
-	if (ctl < 0) {
+	if ((ctl = open("/dev/dahdi/ctl", O_RDWR)) < 0) {
 		ast_log(LOG_WARNING, "Unable to open /dev/dahdi/ctl: %s\n", strerror(errno));
 		ast_cli(fd, "No DAHDI interface found.\n");
 		return RESULT_FAILURE;
 	}
+#endif
 	ast_cli(fd, FORMAT2, "Description", "Alarms", "IRQ", "bpviol", "CRC4");
 
 	for (span = 1; span < DAHDI_MAX_SPANS; ++span) {
@@ -10347,7 +10378,7 @@ static struct dahdi_pvt *find_channel(int channel)
 static int action_dahdidndon(struct mansession *s, const struct message *m)
 {
 	struct dahdi_pvt *p = NULL;
-	const char *channel = astman_get_header(m, "DAHDIChannel");
+	const char *channel = local_astman_header(m, "Channel");
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
@@ -10366,7 +10397,7 @@ static int action_dahdidndon(struct mansession *s, const struct message *m)
 static int action_dahdidndoff(struct mansession *s, const struct message *m)
 {
 	struct dahdi_pvt *p = NULL;
-	const char *channel = astman_get_header(m, "DAHDIChannel");
+	const char *channel = local_astman_header(m, "Channel");
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
@@ -10385,7 +10416,7 @@ static int action_dahdidndoff(struct mansession *s, const struct message *m)
 static int action_transfer(struct mansession *s, const struct message *m)
 {
 	struct dahdi_pvt *p = NULL;
-	const char *channel = astman_get_header(m, "DAHDIChannel");
+	const char *channel = local_astman_header(m, "Channel");
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
@@ -10397,14 +10428,14 @@ static int action_transfer(struct mansession *s, const struct message *m)
 		return 0;
 	}
 	dahdi_fake_event(p,TRANSFER);
-	astman_send_ack(s, m, "DAHDITransfer");
+	local_astman_ack(s, m, "Transfer");
 	return 0;
 }
 
 static int action_transferhangup(struct mansession *s, const struct message *m)
 {
 	struct dahdi_pvt *p = NULL;
-	const char *channel = astman_get_header(m, "DAHDIChannel");
+	const char *channel = local_astman_header(m, "Channel");
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
@@ -10416,14 +10447,14 @@ static int action_transferhangup(struct mansession *s, const struct message *m)
 		return 0;
 	}
 	dahdi_fake_event(p,HANGUP);
-	astman_send_ack(s, m, "DAHDIHangup");
+	local_astman_ack(s, m, "Hangup");
 	return 0;
 }
 
 static int action_dahdidialoffhook(struct mansession *s, const struct message *m)
 {
 	struct dahdi_pvt *p = NULL;
-	const char *channel = astman_get_header(m, "DAHDIChannel");
+	const char *channel = local_astman_header(m, "Channel");
 	const char *number = astman_get_header(m, "Number");
 	int i;
 
@@ -10448,7 +10479,7 @@ static int action_dahdidialoffhook(struct mansession *s, const struct message *m
 		struct ast_frame f = { AST_FRAME_DTMF, number[i] };
 		dahdi_queue_frame(p, &f, NULL); 
 	}
-	astman_send_ack(s, m, "DAHDIDialOffhook");
+	local_astman_ack(s, m, "DialOffhook");
 	return 0;
 }
 
@@ -10458,7 +10489,7 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 	const char *id = astman_get_header(m, "ActionID");
 	char idText[256] = "";
 
-	astman_send_ack(s, m, "DAHDI channel status will follow");
+	local_astman_ack(s, m, " channel status will follow");
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText) - 1, "ActionID: %s\r\n", id);
 
@@ -10469,17 +10500,18 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 		if (tmp->channel > 0) {
 			int alarm = get_alarms(tmp);
 			astman_append(s,
-				"Event: DAHDIShowChannels\r\n"
-				"Channel: %d\r\n"
-				"Signalling: %s\r\n"
-				"Context: %s\r\n"
-				"DND: %s\r\n"
-				"Alarm: %s\r\n"
-				"%s"
-				"\r\n",
-				tmp->channel, sig2str(tmp->sig), tmp->context, 
-				tmp->dnd ? "Enabled" : "Disabled",
-				alarm2str(alarm), idText);
+				      "Event: %sShowChannels\r\n"
+				      "Channel: %d\r\n"
+				      "Signalling: %s\r\n"
+				      "Context: %s\r\n"
+				      "DND: %s\r\n"
+				      "Alarm: %s\r\n"
+				      "%s"
+				      "\r\n",
+				      dahdi_chan_name,
+				      tmp->channel, sig2str(tmp->sig), tmp->context, 
+				      tmp->dnd ? "Enabled" : "Disabled",
+				      alarm2str(alarm), idText);
 		} 
 
 		tmp = tmp->next;
@@ -10488,10 +10520,11 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 	ast_mutex_unlock(&iflock);
 	
 	astman_append(s, 
-		"Event: DAHDIShowChannelsComplete\r\n"
-		"%s"
-		"\r\n", 
-		idText);
+		      "Event: %sShowChannelsComplete\r\n"
+		      "%s"
+		      "\r\n",
+		      dahdi_chan_name,
+		      idText);
 	return 0;
 }
 
@@ -10510,14 +10543,14 @@ static int __unload_module(void)
 	ast_unregister_application(dahdi_send_keypad_facility_app);
 #endif
 	ast_cli_unregister_multiple(dahdi_cli, sizeof(dahdi_cli) / sizeof(struct ast_cli_entry));
-	ast_manager_unregister( "DAHDIDialOffhook" );
-	ast_manager_unregister( "DAHDIHangup" );
-	ast_manager_unregister( "DAHDITransfer" );
-	ast_manager_unregister( "DAHDIDNDoff" );
-	ast_manager_unregister( "DAHDIDNDon" );
-	ast_manager_unregister("DAHDIShowChannels");
-	ast_manager_unregister("DAHDIRestart");
-	ast_channel_unregister(&dahdi_tech);
+	local_astman_unregister("DialOffhook");
+	local_astman_unregister("Hangup");
+	local_astman_unregister("Transfer");
+	local_astman_unregister("DNDoff");
+	local_astman_unregister("DNDon");
+	local_astman_unregister("ShowChannels");
+	local_astman_unregister("Restart");
+	ast_channel_unregister(chan_tech);
 	ast_mutex_lock(&iflock);
 	/* Hangup all interfaces if they have an owner */
 	p = iflist;
@@ -11506,12 +11539,16 @@ static int load_module(void)
 	ast_register_application(dahdi_send_keypad_facility_app, dahdi_send_keypad_facility_exec,
 			dahdi_send_keypad_facility_synopsis, dahdi_send_keypad_facility_descrip);
 #endif
-	res = setup_dahdi(0);
-	/* Make sure we can register our DAHDI channel type */
-	if (res)
+	if ((res = setup_dahdi(0))) {
 		return AST_MODULE_LOAD_DECLINE;
-	if (ast_channel_register(&dahdi_tech)) {
-		ast_log(LOG_ERROR, "Unable to register channel class 'DAHDI'\n");
+	}
+	if (!strcmp(dahdi_chan_name, "DAHDI")) {
+		chan_tech = &dahdi_tech;
+	} else {
+		chan_tech = &zap_tech;
+	}
+	if (ast_channel_register(chan_tech)) {
+		ast_log(LOG_ERROR, "Unable to register channel class '%s'\n", chan_tech->type);
 		__unload_module();
 		return -1;
 	}
@@ -11523,13 +11560,13 @@ static int load_module(void)
 	ast_cli_register_multiple(dahdi_cli, sizeof(dahdi_cli) / sizeof(struct ast_cli_entry));
 	
 	memset(round_robin, 0, sizeof(round_robin));
-	ast_manager_register("DAHDITransfer", 0, action_transfer, "Transfer DAHDI Channel" );
-	ast_manager_register("DAHDIHangup", 0, action_transferhangup, "Hangup DAHDI Channel" );
-	ast_manager_register("DAHDIDialOffhook", 0, action_dahdidialoffhook, "Dial over DAHDI channel while offhook" );
-	ast_manager_register("DAHDIDNDon", 0, action_dahdidndon, "Toggle DAHDI channel Do Not Disturb status ON" );
-	ast_manager_register("DAHDIDNDoff", 0, action_dahdidndoff, "Toggle DAHDI channel Do Not Disturb status OFF" );
-	ast_manager_register("DAHDIShowChannels", 0, action_dahdishowchannels, "Show status DAHDI channels");
-	ast_manager_register("DAHDIRestart", 0, action_dahdirestart, "Fully Restart DAHDI channels (terminates calls)");
+	local_astman_register("Transfer", 0, action_transfer, "Transfer Channel");
+	local_astman_register("Hangup", 0, action_transferhangup, "Hangup Channel");
+	local_astman_register("DialOffhook", 0, action_dahdidialoffhook, "Dial over channel while offhook");
+	local_astman_register("DNDon", 0, action_dahdidndon, "Toggle channel Do Not Disturb status ON");
+	local_astman_register("DNDoff", 0, action_dahdidndoff, "Toggle channel Do Not Disturb status OFF");
+	local_astman_register("ShowChannels", 0, action_dahdishowchannels, "Show status channels");
+	local_astman_register("Restart", 0, action_dahdirestart, "Fully Restart channels (terminates calls)");
 
 	return res;
 }
