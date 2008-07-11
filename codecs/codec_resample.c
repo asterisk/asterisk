@@ -166,7 +166,7 @@ static struct ast_frame *slin16_to_slin8_sample(void)
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_SLINEAR16,
 		.datalen = sizeof(slin16_slin8_ex),
-		.samples = sizeof(slin16_slin8_ex) / sizeof(slin16_slin8_ex[0]),
+		.samples = ARRAY_LEN(slin16_slin8_ex),
 		.src = __PRETTY_FUNCTION__,
 		.data.ptr = slin16_slin8_ex,
 	};
@@ -180,7 +180,7 @@ static struct ast_frame *slin8_to_slin16_sample(void)
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_SLINEAR,
 		.datalen = sizeof(slin8_slin16_ex),
-		.samples = sizeof(slin8_slin16_ex) / sizeof(slin8_slin16_ex[0]),
+		.samples = ARRAY_LEN(slin8_slin16_ex),
 		.src = __PRETTY_FUNCTION__,
 		.data.ptr = slin8_slin16_ex,
 	};

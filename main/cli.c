@@ -1777,7 +1777,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	char matchstr[80] = "";
 	int tws = 0;
 	/* Split the argument into an array of words */
-	char *dup = parse_args(text, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws);
+	char *dup = parse_args(text, &x, argv, ARRAY_LEN(argv), &tws);
 
 	if (!dup)	/* malloc error */
 		return NULL;

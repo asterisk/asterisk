@@ -466,7 +466,7 @@ static int reload(void)
 
 static int unload_module(void)
 {
-	ast_cli_unregister_multiple(cli, sizeof(cli) / sizeof(cli[0]));
+	ast_cli_unregister_multiple(cli, ARRAY_LEN(cli));
 	unregister_translators();
 
 	return 0;
@@ -477,7 +477,7 @@ static int load_module(void)
 	if (parse_config(0))
 		return AST_MODULE_LOAD_DECLINE;
 	find_transcoders();
-	ast_cli_register_multiple(cli, sizeof(cli) / sizeof(cli[0]));
+	ast_cli_register_multiple(cli, ARRAY_LEN(cli));
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

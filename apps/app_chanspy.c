@@ -754,12 +754,12 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 			if (mygroup) {
 				dup_mygroup = ast_strdupa(mygroup);
 				num_mygroups = ast_app_separate_args(dup_mygroup, ':', mygroups,
-					sizeof(mygroups) / sizeof(mygroups[0]));
+					ARRAY_LEN(mygroups));
 
 				if ((group = pbx_builtin_getvar_helper(peer, "SPYGROUP"))) {
 					dup_group = ast_strdupa(group);
 					num_groups = ast_app_separate_args(dup_group, ':', groups,
-						sizeof(groups) / sizeof(groups[0]));
+						ARRAY_LEN(groups));
 				}
 
 				for (y = 0; y < num_mygroups; y++) {

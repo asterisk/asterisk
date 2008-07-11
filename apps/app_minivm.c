@@ -1641,7 +1641,7 @@ static int minivm_notify_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
-	argc = ast_app_separate_args(tmpptr, ',', argv, sizeof(argv) / sizeof(argv[0]));
+	argc = ast_app_separate_args(tmpptr, ',', argv, ARRAY_LEN(argv));
 
 	if (argc == 2 && !ast_strlen_zero(argv[1]))
 		template = argv[1];
@@ -1721,7 +1721,7 @@ static int minivm_record_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
-	argc = ast_app_separate_args(tmp, ',', argv, sizeof(argv) / sizeof(argv[0]));
+	argc = ast_app_separate_args(tmp, ',', argv, ARRAY_LEN(argv));
 	if (argc == 2) {
 		if (ast_app_parse_options(minivm_app_options, &flags, opts, argv[1])) {
 			return -1;
@@ -1783,7 +1783,7 @@ static int minivm_greet_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
-	argc = ast_app_separate_args(tmpptr, ',', argv, sizeof(argv) / sizeof(argv[0]));
+	argc = ast_app_separate_args(tmpptr, ',', argv, ARRAY_LEN(argv));
 
 	if (argc == 2) {
 		if (ast_app_parse_options(minivm_app_options, &flags, opts, argv[1]))
@@ -2005,7 +2005,7 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_ERROR, "Out of memory\n");
 			error = TRUE;
 		} else
-			argc = ast_app_separate_args(tmpptr, ',', argv, sizeof(argv) / sizeof(argv[0]));
+			argc = ast_app_separate_args(tmpptr, ',', argv, ARRAY_LEN(argv));
 	}
 
 	if (argc <=1) {

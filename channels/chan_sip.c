@@ -2601,7 +2601,7 @@ static int find_sip_method(const char *msg)
 	
 	if (ast_strlen_zero(msg))
 		return 0;
-	for (i = 1; i < (sizeof(sip_methods) / sizeof(sip_methods[0])) && !res; i++) {
+	for (i = 1; i < (ARRAY_LEN(sip_methods)) && !res; i++) {
 		if (method_match(i, msg))
 			res = sip_methods[i].id;
 	}
@@ -13640,7 +13640,7 @@ static const char *subscription_type2str(enum subscriptiontype subtype)
 {
 	int i;
 
-	for (i = 1; (i < (sizeof(subscription_types) / sizeof(subscription_types[0]))); i++) {
+	for (i = 1; i < ARRAY_LEN(subscription_types); i++) {
 		if (subscription_types[i].type == subtype) {
 			return subscription_types[i].text;
 		}
@@ -13653,7 +13653,7 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 {
 	int i;
 
-	for (i = 1; (i < (sizeof(subscription_types) / sizeof(subscription_types[0]))); i++) {
+	for (i = 1; i < ARRAY_LEN(subscription_types); i++) {
 		if (subscription_types[i].type == subtype) {
 			return &subscription_types[i];
 		}

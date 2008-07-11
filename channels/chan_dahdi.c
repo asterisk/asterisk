@@ -1357,7 +1357,7 @@ static char *alarm2str(int alarm)
 static char *event2str(int event)
 {
 	static char buf[256];
-	if ((event < (sizeof(events) / sizeof(events[0]))) && (event > -1))
+	if ((event < (ARRAY_LEN(events))) && (event > -1))
 		return events[event];
 	sprintf(buf, "Event %d", event); /* safe */
 	return buf;
@@ -6925,7 +6925,7 @@ static void *ss_thread(void *data)
 									break;
 								/* Increment the ringT counter so we can match it against
 								   values in chan_dahdi.conf for distinctive ring */
-								if (++receivedRingT == (sizeof(curRingData) / sizeof(curRingData[0])))
+								if (++receivedRingT == ARRAY_LEN(curRingData))
 									break;
 							} else if (i & DAHDI_IOMUX_READ) {
 								res = read(p->subs[index].zfd, buf, sizeof(buf));
@@ -7084,7 +7084,7 @@ static void *ss_thread(void *data)
 							break;
 						/* Increment the ringT counter so we can match it against
 						   values in chan_dahdi.conf for distinctive ring */
-						if (++receivedRingT == (sizeof(curRingData) / sizeof(curRingData[0])))
+						if (++receivedRingT == ARRAY_LEN(curRingData))
 							break;
 					} else if (i & DAHDI_IOMUX_READ) {
 						res = read(p->subs[index].zfd, buf, sizeof(buf));
@@ -7145,7 +7145,7 @@ static void *ss_thread(void *data)
 								break;
 							/* Increment the ringT counter so we can match it against
 							   values in chan_dahdi.conf for distinctive ring */
-							if (++receivedRingT == (sizeof(curRingData) / sizeof(curRingData[0])))
+							if (++receivedRingT == ARRAY_LEN(curRingData))
 								break;
 						} else if (i & DAHDI_IOMUX_READ) {
 							res = read(p->subs[index].zfd, buf, sizeof(buf));
@@ -13701,7 +13701,7 @@ static void process_echocancel(struct dahdi_chan_conf *confp, const char *data, 
 	unsigned int param_count;
 	unsigned int x;
 
-	if (!(param_count = ast_app_separate_args(parse, ',', params, sizeof(params) / sizeof(params[0]))))
+	if (!(param_count = ast_app_separate_args(parse, ',', params, ARRAY_LEN(params)))
 		return;
 
 	memset(&confp->chan.echocancel, 0, sizeof(confp->chan.echocancel));
@@ -14809,7 +14809,7 @@ static int load_module(void)
 	ast_cli_register_multiple(dahdi_pri_cli, sizeof(dahdi_pri_cli) / sizeof(struct ast_cli_entry));
 #endif	
 #ifdef HAVE_SS7
-	ast_cli_register_multiple(dahdi_ss7_cli, sizeof(dahdi_ss7_cli) / sizeof(dahdi_ss7_cli[0]));
+	ast_cli_register_multiple(dahdi_ss7_cli, ARRAY_LEN(dahdi_ss7_cli));
 #endif
 
 	ast_cli_register_multiple(dahdi_cli, sizeof(dahdi_cli) / sizeof(struct ast_cli_entry));

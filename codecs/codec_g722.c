@@ -166,7 +166,7 @@ static struct ast_frame *lintog722_sample (void)
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_SLINEAR,
 		.datalen = sizeof(slin_g722_ex),
-		.samples = sizeof(slin_g722_ex) / sizeof(slin_g722_ex[0]),
+		.samples = ARRAY_LEN(slin_g722_ex),
 		.src = __PRETTY_FUNCTION__,
 		.data.ptr = slin_g722_ex,
 	};
@@ -180,7 +180,7 @@ static struct ast_frame *lin16tog722_sample (void)
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_SLINEAR16,
 		.datalen = sizeof(slin_g722_ex),
-		.samples = sizeof(slin_g722_ex) / sizeof(slin_g722_ex[0]),
+		.samples = ARRAY_LEN(slin_g722_ex),
 		.src = __PRETTY_FUNCTION__,
 		.data.ptr = slin_g722_ex,
 	};
