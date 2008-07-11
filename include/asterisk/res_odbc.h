@@ -40,6 +40,11 @@ struct odbc_obj {
 	SQLHDBC  con;                   /* ODBC Connection Handle */
 	struct odbc_class *parent;      /* Information about the connection is protected */
 	struct timeval last_used;
+#ifdef DEBUG_THREADS
+	char file[80];
+	char function[80];
+	int lineno;
+#endif
 	unsigned int used:1;
 	unsigned int up:1;
 	AST_LIST_ENTRY(odbc_obj) list;
@@ -100,7 +105,12 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) __attribute__ ((
  * thread which requests it.  Note that all connections should be released
  * when the thread is done by calling odbc_release_obj(), below.
  */
+#ifdef DEBUG_THREADS
+struct odbc_obj *_ast_odbc_request_obj(const char *name, int check, const char *file, const char *function, int lineno);
+#define ast_odbc_request_obj(a, b)	_ast_odbc_request_obj(a, b, __FILE__, __PRETTY_FUNCTION__, __LINE__)
+#else
 struct odbc_obj *ast_odbc_request_obj(const char *name, int check);
+#endif
 
 /*! 
  * \brief Releases an ODBC object previously allocated by odbc_request_obj()

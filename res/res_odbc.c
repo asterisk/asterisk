@@ -143,6 +143,9 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
 	if (tableptr) {
 		AST_RWLIST_RDLOCK(&tableptr->columns);
 		AST_RWLIST_UNLOCK(&odbc_tables);
+		if (obj) {
+			ast_odbc_release_obj(obj);
+		}
 		return tableptr;
 	}
 
@@ -579,9 +582,16 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 
 				while ((current = ao2_iterator_next(&aoi2))) {
 					ast_mutex_lock(&current->lock);
+#ifdef DEBUG_THREADS
+					ast_cli(a->fd, "    - Connection %d: %s (%s:%d %s)\n", ++count,
+						current->used ? "in use" :
+						current->up && ast_odbc_sanity_check(current) ? "connected" : "disconnected",
+						current->file, current->lineno, current->function);
+#else
 					ast_cli(a->fd, "    - Connection %d: %s\n", ++count,
 						current->used ? "in use" :
 						current->up && ast_odbc_sanity_check(current) ? "connected" : "disconnected");
+#endif
 					ast_mutex_unlock(&current->lock);
 					ao2_ref(current, -1);
 				}
@@ -631,6 +641,11 @@ void ast_odbc_release_obj(struct odbc_obj *obj)
 	/* For pooled connections, this frees the connection to be
 	 * reused.  For non-pooled connections, it does nothing. */
 	obj->used = 0;
+#ifdef DEBUG_THREADS
+	obj->file[0] = '\0';
+	obj->function[0] = '\0';
+	obj->lineno = 0;
+#endif
 	ao2_ref(obj, -1);
 }
 
@@ -639,7 +654,11 @@ int ast_odbc_backslash_is_escape(struct odbc_obj *obj)
 	return obj->parent->backslash_is_escape;
 }
 
+#ifdef DEBUG_THREADS
+struct odbc_obj *_ast_odbc_request_obj(const char *name, int check, const char *file, const char *function, int lineno)
+#else
 struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
+#endif
 {
 	struct odbc_obj *obj = NULL;
 	struct odbc_class *class;
@@ -720,6 +739,12 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 		ast_odbc_sanity_check(obj);
 	} else if (obj && obj->parent->idlecheck > 0 && ast_tvdiff_sec(ast_tvnow(), obj->last_used) > obj->parent->idlecheck)
 		odbc_obj_connect(obj);
+
+#if DEBUG_THREADS
+	ast_copy_string(obj->file, file, sizeof(obj->file));
+	ast_copy_string(obj->function, function, sizeof(obj->function));
+	obj->lineno = lineno;
+#endif
 
 	return obj;
 }
