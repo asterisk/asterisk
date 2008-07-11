@@ -476,10 +476,10 @@ static struct ast_cli_entry cli_memory[] = {
 void __ast_mm_init(void)
 {
 	char filename[PATH_MAX];
-	int pad;
+	size_t pad = sizeof(struct ast_region) - offsetof(struct ast_region, data);
 
-	if ((pad = (__alignof__(struct ast_region) - (offsetof(struct ast_region, data) % __alignof__(struct ast_region)))) != 0) {
-		ast_log(LOG_ERROR, "struct ast_region has %d bytes of padding! This must be eliminated for low-fence checking to work properly!\n", pad);
+	if (pad) {
+		ast_log(LOG_ERROR, "struct ast_region has %d bytes of padding! This must be eliminated for low-fence checking to work properly!\n", (int) pad);
 	}
 
 	ast_cli_register_multiple(cli_memory, sizeof(cli_memory) / sizeof(struct ast_cli_entry));
