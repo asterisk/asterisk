@@ -1292,6 +1292,8 @@ AST_EXT_LIB_CHECK([PORTAUDIO], [portaudio], [Pa_GetDeviceCount], [portaudio.h])
 
 AST_EXT_LIB_CHECK([PRI], [pri], [pri_new_bri], [libpri.h])
 
+AST_EXT_LIB_CHECK([PRI_INBANDRELEASE], [pri], [pri_set_inbandrelease], [libpri.h])
+
 AST_C_COMPILE_CHECK([SPANDSP], [
 		#if SPANDSP_RELEASE_DATE < 20080516
 		#error "spandsp 0.0.5 or greater is required"

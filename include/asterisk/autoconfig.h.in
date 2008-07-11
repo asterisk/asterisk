@@ -589,6 +589,12 @@
 /* Define this to indicate the ${PRI_DESCRIP} library */
 #undef HAVE_PRI
 
+/* Define this to indicate the ${PRI_INBANDRELEASE_DESCRIP} library */
+#undef HAVE_PRI_INBANDRELEASE
+
+/* Define to indicate the ${PRI_INBANDRELEASE_DESCRIP} library version */
+#undef HAVE_PRI_INBANDRELEASE_VERSION
+
 /* Define to indicate the ${PRI_DESCRIP} library version */
 #undef HAVE_PRI_VERSION
 
