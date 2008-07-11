@@ -22,7 +22,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <zaptel/tonezone.h>
+#include <dahdi/tonezone.h>
 #include <unistd.h>
 
 #define PROGRAM "zones2indication"

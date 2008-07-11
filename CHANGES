@@ -35,9 +35,9 @@ Dialplan Functions
  * CHANNEL() now has options for the maximum, minimum, and standard or normal
    deviation of jitter, rtt, and loss for a call using chan_sip.
 
-Zaptel channel driver (chan_zap) Changes
+DAHDI channel driver (chan_dahdi) Changes
 ----------------------------------------
- * Channels can now be configured using named sections in zapata.conf, just
+ * Channels can now be configured using named sections in chan_dahdi.conf, just
    like other channel drivers, including the use of templates.
  * The default for pridialplan has changed from 'national' to 'unknown'.
 
@@ -389,28 +389,28 @@ Agent channel changes
 	default to their old hard-coded values ('#' and '*' respectively) so this should
 	not break any existing agent installations.
 
-Zaptel channel driver (chan_zap) Changes
+DAHDI channel driver (chan_dahdi) Changes
 ----------------------------------------
-  * SS7 support in chan_zap (via libss7 library)
+  * SS7 support (via libss7 library)
   * In India, some carriers transmit CID via dtmf. Some code has been added
      that will handle some situations. The cidstart=polarity_IN choice has been added for
      those carriers that transmit CID via dtmf after a polarity change.
   * CID matching information is now shown when doing 'dialplan show'.
-  * Added zap show version CLI command to chan_zap.
-  * Added setvar support to zapata.conf channel entries.
+  * Added dahdi show version CLI command.
+  * Added setvar support to chan_dahdi.conf channel entries.
   * Added two new options: mwimonitor and mwimonitornotify.  These options allow
      you to enable MWI monitoring on FXO lines.  When the MWI state changes,
      the script specified in the mwimonitornotify option is executed.  An internal
      event indicating the new state of the mailbox is also generated, so that
      the normal MWI facilities in Asterisk work as usual.
   * Added signalling type 'auto', which attempts to use the same signalling type
-     for a channel as configured in Zaptel. This is primarily designed for analog
+     for a channel as configured in DAHDI. This is primarily designed for analog
      ports, but will also work for digital ports that are configured for FXS or FXO
-     signalling types. This mode is also the default now, so if your zapata.conf
+     signalling types. This mode is also the default now, so if your chan_dahdi.conf
      does not specify signalling for a channel (which is unlikely as the sample
      configuration file has always recommended specifying it for every channel) then
      the 'auto' mode will be used for that channel if possible.
-  * Added a 'zap set dnd' command to allow CLI control of the Do-Not-Disturb
+  * Added a 'dahdi set dnd' command to allow CLI control of the Do-Not-Disturb
      state for a channel; also ensured that the DNDState Manager event is
      emitted no matter how the DND state is set or cleared.
 
