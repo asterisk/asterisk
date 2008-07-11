@@ -106,6 +106,8 @@ extern "C" {
  */
 #define ASTOBJ_WRLOCK(object) ast_mutex_lock(&(object)->_lock)
 
+#define ASTOBJ_TRYWRLOCK(object) ast_mutex_trylock(&(object)->_lock)
+
 /*! \brief Unlock a locked object. */
 #define ASTOBJ_UNLOCK(object) ast_mutex_unlock(&(object)->_lock)
 
