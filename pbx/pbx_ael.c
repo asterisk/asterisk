@@ -3627,7 +3627,7 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 			if_test->type = AEL_IF_CONTROL;
 			if_end->type = AEL_APPCALL;
 			if ( p->type == PV_RANDOM )
-				snprintf(buf1,sizeof(buf1),"$[${RAND(0,99)} < (%s)]",p->u1.str);
+				snprintf(buf1,sizeof(buf1),"$[${RAND(0|99)} < (%s)]",p->u1.str);
 			else
 				snprintf(buf1,sizeof(buf1),"$[%s]",p->u1.str);
 			if_test->app = 0;
