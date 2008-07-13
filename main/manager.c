@@ -2342,6 +2342,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 			fast->timeout = to;
 			fast->priority = pi;
 			if (ast_pthread_create_detached(&th, NULL, fast_originate, fast)) {
+				ast_free(fast);
 				res = -1;
 			} else {
 				res = 0;
