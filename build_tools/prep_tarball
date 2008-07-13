@@ -9,5 +9,10 @@ make -C sounds MENUSELECT_CORE_SOUNDS=CORE-SOUNDS-EN-GSM MENUSELECT_MOH=MOH-FREE
 make AWK=awk GREP=grep menuselect-tree
 
 VERSION=`cat .version`
-sed -i -e "s/ASTERISKVERSION/${VERSION}/" doc/tex/asterisk.tex
+# make backup of asterisk.tex because we are going to alter it
+cp asterisk.tex asterisk.tex.orig
+sed -e "s/ASTERISKVERSION/${VERSION}/" doc/tex/asterisk.tex > doc/tex/asterisk_local.tex
+mv asterisk_local.tex asterisk.tex
 cd doc/tex && rubber --pdf asterisk.tex && latex2html asterisk.tex
+# restore backup of asterisk.tex
+mv asterisk.tex.orig asterisk.tex
