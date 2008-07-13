@@ -68,6 +68,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/event.h"
 #include "asterisk/indications.h"
+#include "asterisk/linkedlists.h"
 
 /*************************************
  * Skinny/Asterisk Protocol Settings *
@@ -1105,10 +1106,6 @@ static struct io_context *io;
 AST_MUTEX_DEFINE_STATIC(monlock);
 /* Protect the network socket */
 AST_MUTEX_DEFINE_STATIC(netlock);
-/* Protect the session list */
-AST_MUTEX_DEFINE_STATIC(sessionlock);
-/* Protect the device list */
-AST_MUTEX_DEFINE_STATIC(devicelock);
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use. */
@@ -1142,7 +1139,7 @@ struct skinny_subchannel {
 	int xferor;
 
 
-	struct skinny_subchannel *next;
+	AST_LIST_ENTRY(skinny_subchannel) list;
 	struct skinny_subchannel *related;
 	struct skinny_line *parent;
 };
@@ -1199,9 +1196,9 @@ struct skinny_line {
 	int canreinvite;
 
 	struct ast_codec_pref prefs;
-	struct skinny_subchannel *sub;
 	struct skinny_subchannel *activesub;
-	struct skinny_line *next;
+	AST_LIST_HEAD(, skinny_subchannel) sub;
+	AST_LIST_ENTRY(skinny_line) list;
 	struct skinny_device *parent;
 	struct ast_variable *chanvars; /*!< Channel variables to set for inbound call */
 };
@@ -1216,19 +1213,18 @@ struct skinny_speeddial {
 	int laststate;
 	int isHint;
 
-	struct skinny_speeddial *next;
+	AST_LIST_ENTRY(skinny_speeddial) list;
 	struct skinny_device *parent;
 };
 
 struct skinny_addon {
 	ast_mutex_t lock;
 	char type[10];
-
-	struct skinny_addon *next;
+	AST_LIST_ENTRY(skinny_addon) list;
 	struct skinny_device *parent;
 };
 
-static struct skinny_device {
+struct skinny_device {
 	/* A device containing one or more lines */
 	char name[80];
 	char id[16];
@@ -1242,17 +1238,19 @@ static struct skinny_device {
 	int earlyrtp;
 	struct sockaddr_in addr;
 	struct in_addr ourip;
-	struct skinny_line *lines;
-	struct skinny_speeddial *speeddials;
-	struct skinny_addon *addons;
+	AST_LIST_HEAD(, skinny_line) lines;
+	AST_LIST_HEAD(, skinny_speeddial) speeddials;
+	AST_LIST_HEAD(, skinny_addon) addons;
 	struct ast_codec_pref prefs;
 	struct ast_ha *ha;
 	struct skinnysession *session;
-	struct skinny_device *next;
 	struct skinny_line *activeline;
-} *devices = NULL;
+	AST_LIST_ENTRY(skinny_device) list;
+};
 
-static struct skinnysession {
+static AST_LIST_HEAD_STATIC(devices, skinny_device);
+
+struct skinnysession {
 	pthread_t t;
 	ast_mutex_t lock;
 	struct sockaddr_in sin;
@@ -1260,8 +1258,10 @@ static struct skinnysession {
 	char inbuf[SKINNY_MAX_PACKET];
 	char outbuf[SKINNY_MAX_PACKET];
 	struct skinny_device *device;
-	struct skinnysession *next;
-} *sessions = NULL;
+	AST_LIST_ENTRY(skinnysession) list;
+};
+
+static AST_LIST_HEAD_STATIC(sessions, skinnysession);
 
 static struct ast_channel *skinny_request(const char *type, int format, void *data, int *cause);
 static int skinny_devicestate(void *data);
@@ -1301,7 +1301,7 @@ static int skinny_transfer(struct skinny_subchannel *sub);
 static void *get_button_template(struct skinnysession *s, struct button_definition_template *btn)
 {
 	struct skinny_device *d = s->device;
-	struct skinny_addon *a = d->addons;
+	struct skinny_addon *a;
 	int i;
 
 	switch (d->type) {
@@ -1422,7 +1422,8 @@ static void *get_button_template(struct skinnysession *s, struct button_definiti
 			break;
 	}
 
-	for (a = d->addons; a; a = a->next) {
+	AST_LIST_LOCK(&d->addons);
+	AST_LIST_TRAVERSE(&d->addons, a, list) {
 		if (!strcasecmp(a->type, "7914")) {
 			for (i = 0; i < 14; i++)
 				(btn++)->buttonDefinition = BT_CUST_LINESPEEDDIAL;
@@ -1430,6 +1431,7 @@ static void *get_button_template(struct skinnysession *s, struct button_definiti
 			ast_log(LOG_WARNING, "Unknown addon type '%s' found.  Skipping.\n", a->type);
 		}
 	}
+	AST_LIST_UNLOCK(&d->addons);
 
 	return btn;
 }
@@ -1457,7 +1459,7 @@ static struct skinny_line *find_line_by_instance(struct skinny_device *d, int in
 	if (!instance)
 		instance = 1;
 
-	for (l = d->lines; l; l = l->next) {
+	AST_LIST_TRAVERSE(&d->lines, l, list){
 		if (l->instance == instance)
 			break;
 	}
@@ -1487,8 +1489,8 @@ static struct skinny_line *find_line_by_name(const char *dest)
 	if (!ast_strlen_zero(device))
 		checkdevice = 1;
 
-	ast_mutex_lock(&devicelock);
-	for (d = devices; d; d = d->next) {
+	AST_LIST_LOCK(&devices);
+	AST_LIST_TRAVERSE(&devices, d, list){
 		if (checkdevice && tmpl)
 			break;
 		else if (!checkdevice) {
@@ -1500,19 +1502,19 @@ static struct skinny_line *find_line_by_name(const char *dest)
 			continue;
 
 		/* Found the device (or we don't care which device) */
-		for (l = d->lines; l; l = l->next) {
+		AST_LIST_TRAVERSE(&d->lines, l, list){
 			/* Search for the right line */
 			if (!strcasecmp(l->name, line)) {
 				if (tmpl) {
 					ast_verb(2, "Ambiguous line name: %s\n", line);
-					ast_mutex_unlock(&devicelock);
+					AST_LIST_UNLOCK(&devices);
 					return NULL;
 				} else
 					tmpl = l;
 			}
 		}
 	}
-	ast_mutex_unlock(&devicelock);
+	AST_LIST_UNLOCK(&devices);
 	return tmpl;
 }
 
@@ -1548,9 +1550,9 @@ static struct skinny_subchannel *find_subchannel_by_instance_reference(struct sk
 	   sub-channel on the list.
            This MIGHT need more love to be right */
 	if (!reference)
-		sub = l->sub;
+		sub = AST_LIST_FIRST(&l->sub);
 	else {
-		for (sub = l->sub; sub; sub = sub->next) {
+		AST_LIST_TRAVERSE(&l->sub, sub, list) {
 			if (sub->callid == reference)
 				break;
 		}
@@ -1567,8 +1569,8 @@ static struct skinny_subchannel *find_subchannel_by_reference(struct skinny_devi
 	struct skinny_line *l;
 	struct skinny_subchannel *sub = NULL;
 
-	for (l = d->lines; l; l = l->next) {
-		for (sub = l->sub; sub; sub = sub->next) {
+	AST_LIST_TRAVERSE(&d->lines, l, list){
+		AST_LIST_TRAVERSE(&l->sub, sub, list){
 			if (sub->callid == reference)
 				break;
 		}
@@ -1590,7 +1592,7 @@ static struct skinny_speeddial *find_speeddial_by_instance(struct skinny_device 
 {
 	struct skinny_speeddial *sd;
 
-	for (sd = d->speeddials; sd; sd = sd->next) {
+	AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
 		if (sd->isHint == isHint && sd->instance == instance)
 			break;
 	}
@@ -1760,8 +1762,8 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 	struct sockaddr_in sin;
 	socklen_t slen;
 
-	ast_mutex_lock(&devicelock);
-	for (d = devices; d; d = d->next) {
+	AST_LIST_LOCK(&devices);
+	AST_LIST_TRAVERSE(&devices, d, list){
 		if (!strcasecmp(req->data.reg.name, d->id)
 				&& ast_apply_ha(d->ha, &(s->sin))) {
 			s->device = d;
@@ -1779,17 +1781,17 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 			}
 			d->ourip = sin.sin_addr;
 
-			for (sd = d->speeddials; sd; sd = sd->next) {
+			AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
 				sd->stateid = ast_extension_state_add(sd->context, sd->exten, skinny_extensionstate_cb, sd);
 			}
-			for (l = d->lines; l; l = l->next) {
+			AST_LIST_TRAVERSE(&d->lines, l, list) {
 				register_exten(l);
 				ast_device_state_changed("Skinny/%s@%s", l->name, d->name);
 			}
 			break;
 		}
 	}
-	ast_mutex_unlock(&devicelock);
+	AST_LIST_UNLOCK(&devices);
 	if (!d) {
 		return 0;
 	}
@@ -1808,11 +1810,11 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 		d->session = NULL;
 		d->registered = 0;
 
-		for (sd = d->speeddials; sd; sd = sd->next) {
+		AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
 			if (sd->stateid > -1)
 				ast_extension_state_del(sd->stateid, NULL);
 		}
-		for (l = d->lines; l; l = l->next) {
+		AST_LIST_TRAVERSE(&d->lines, l, list) {
 			unregister_exten(l);
 			ast_device_state_changed("Skinny/%s@%s", l->name, d->name);
 		}
@@ -1886,6 +1888,10 @@ static void transmit_microphone_mode(struct skinnysession *s, int mode)
 static void transmit_callinfo(struct skinnysession *s, const char *fromname, const char *fromnum, const char *toname, const char *tonum, int instance, int callid, int calltype)
 {
 	struct skinny_req *req;
+
+	/* We should not be able to get here without a session */
+	if (!s)
+		return;
 
 	if (!(req = req_alloc(sizeof(struct call_info_message), CALL_INFO_MESSAGE)))
 		return;
@@ -2330,7 +2336,7 @@ static void do_housekeeping(struct skinnysession *s)
 	handle_time_date_req_message(NULL, s);
 
 	/* Set MWI on individual lines */
-	for (l = d->lines; l; l = l->next) {
+	AST_LIST_TRAVERSE(&d->lines, l, list) {
 		if (has_voicemail(l)) {
 			if (skinnydebug)
 				ast_verb(1, "Checking for voicemail Skinny %s@%s\n", l->name, d->name);
@@ -2541,7 +2547,7 @@ static char *complete_skinny_devices(const char *word, int state)
 	char *result = NULL;
 	int wordlen = strlen(word), which = 0;
 
-	for (d = devices; d && !result; d = d->next) {
+	AST_LIST_TRAVERSE(&devices, d, list) {
 		if (!strncasecmp(word, d->id, wordlen) && ++which > state)
 			result = ast_strdup(d->id);
 	}
@@ -2569,8 +2575,8 @@ static char *complete_skinny_show_line(const char *line, const char *word, int p
 	if (pos != 3)
 		return NULL;
 	
-	for (d = devices; d && !result; d = d->next) {
-		for (l = d->lines; l && !result; l = l->next) {
+	AST_LIST_TRAVERSE(&devices, d, list) {
+		AST_LIST_TRAVERSE(&d->lines, l, list) {
 			if (!strncasecmp(word, l->name, wordlen) && ++which > state)
 				result = ast_strdup(l->name);
 		}
@@ -2598,9 +2604,8 @@ static char *handle_skinny_reset(struct ast_cli_entry *e, int cmd, struct ast_cl
 	if (a->argc < 3 || a->argc > 4)
 		return CLI_SHOWUSAGE;
 
-	ast_mutex_lock(&devicelock);
-
-	for (d = devices; d; d = d->next) {
+	AST_LIST_LOCK(&devices);
+	AST_LIST_TRAVERSE(&devices, d, list) {
 		int fullrestart = 0;
 		if (!strcasecmp(a->argv[2], d->id) || !strcasecmp(a->argv[2], d->name) || !strcasecmp(a->argv[2], "all")) {
 			if (!(d->session))
@@ -2621,7 +2626,7 @@ static char *handle_skinny_reset(struct ast_cli_entry *e, int cmd, struct ast_cl
 			transmit_response(d->session, req);
 		}
 	}
-	ast_mutex_unlock(&devicelock);
+	AST_LIST_UNLOCK(&devices);
 	return CLI_SUCCESS;
 }
 
@@ -2751,16 +2756,15 @@ static char *handle_skinny_show_devices(struct ast_cli_entry *e, int cmd, struct
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 
-	ast_mutex_lock(&devicelock);
-
 	ast_cli(a->fd, "Name                 DeviceId         IP              Type            R NL\n");
 	ast_cli(a->fd, "-------------------- ---------------- --------------- --------------- - --\n");
 
-	for (d = devices; d; d = d->next) {
+	AST_LIST_LOCK(&devices); 
+	AST_LIST_TRAVERSE(&devices, d, list) {
 		int numlines = 0;
-
-		for (l = d->lines; l; l = l->next)
+		AST_LIST_TRAVERSE(&d->lines, l, list) {
 			numlines++;
+		}
 		
 		ast_cli(a->fd, "%-20s %-16s %-15s %-15s %c %2d\n",
 			d->name,
@@ -2770,9 +2774,7 @@ static char *handle_skinny_show_devices(struct ast_cli_entry *e, int cmd, struct
 			d->registered?'Y':'N',
 			numlines);
 	}
-
-	ast_mutex_unlock(&devicelock);
-
+	AST_LIST_UNLOCK(&devices);
 	return CLI_SUCCESS;
 }
 
@@ -2798,13 +2800,14 @@ static char *handle_skinny_show_device(struct ast_cli_entry *e, int cmd, struct 
 	if (a->argc < 4)
 		return CLI_SHOWUSAGE;
 
-	ast_mutex_lock(&devicelock);
-	for (d = devices; d; d = d->next) {
+	AST_LIST_LOCK(&devices);
+	AST_LIST_TRAVERSE(&devices,d , list) {
 		if (!strcasecmp(a->argv[3], d->id) || !strcasecmp(a->argv[3], d->name)) {
 			int numlines = 0, numaddons = 0, numspeeddials = 0;
 
-			for (l = d->lines; l; l = l->next)
+			AST_LIST_TRAVERSE(&d->lines, l, list){
 				numlines++;
+			}
 
 			ast_cli(a->fd, "Name:        %s\n", d->name);
 			ast_cli(a->fd, "Id:          %s\n", d->id);
@@ -2814,21 +2817,26 @@ static char *handle_skinny_show_device(struct ast_cli_entry *e, int cmd, struct 
 			ast_cli(a->fd, "Device Type: %s\n", device2str(d->type));
 			ast_cli(a->fd, "Registered:  %s\n", (d->registered ? "Yes" : "No"));
 			ast_cli(a->fd, "Lines:       %d\n", numlines);
-			for (l = d->lines; l; l = l->next)
+			AST_LIST_TRAVERSE(&d->lines, l, list) {
 				ast_cli(a->fd, "  %s (%s)\n", l->name, l->label);
-			for (sa = d->addons; sa; sa = sa->next)
+			}
+			AST_LIST_TRAVERSE(&d->addons, sa, list) {
 				numaddons++;
+			}	
 			ast_cli(a->fd, "Addons:      %d\n", numaddons);
-			for (sa = d->addons; sa; sa = sa->next)
+			AST_LIST_TRAVERSE(&d->addons, sa, list) {
 				ast_cli(a->fd, "  %s\n", sa->type);
-			for (sd = d->speeddials; sd; sd = sd->next)
+			}
+			AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
 				numspeeddials++;
+			}
 			ast_cli(a->fd, "Speeddials:  %d\n", numspeeddials);
-			for (sd = d->speeddials; sd; sd = sd->next)
+			AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
 				ast_cli(a->fd, "  %s (%s) ishint: %d\n", sd->exten, sd->label, sd->isHint);
+			}
 		}
 	}
-	ast_mutex_unlock(&devicelock);
+	AST_LIST_UNLOCK(&devices);
 	return CLI_SUCCESS;
 }
 
@@ -2851,12 +2859,12 @@ static char *handle_skinny_show_lines(struct ast_cli_entry *e, int cmd, struct a
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 	
-	ast_mutex_lock(&devicelock);
 	
 	ast_cli(a->fd, "Device Name          Instance Name                 Label               \n");
 	ast_cli(a->fd, "-------------------- -------- -------------------- --------------------\n");
-	for (d = devices; d; d = d->next) {
-		for (l = d->lines; l; l = l->next) {
+	AST_LIST_LOCK(&devices);
+	AST_LIST_TRAVERSE(&devices, d, list) {
+		AST_LIST_TRAVERSE(&d->lines, l, list) {
 			ast_cli(a->fd, "%-20s %8d %-20s %-20s\n",
 				d->name,
 				l->instance,
@@ -2864,8 +2872,7 @@ static char *handle_skinny_show_lines(struct ast_cli_entry *e, int cmd, struct a
 				l->label);
 		}
 	}
-	
-	ast_mutex_unlock(&devicelock);
+	AST_LIST_LOCK(&devices);
 	return CLI_SUCCESS;
 }
 
@@ -2891,13 +2898,13 @@ static char *handle_skinny_show_line(struct ast_cli_entry *e, int cmd, struct as
 	if (a->argc < 4)
 		return CLI_SHOWUSAGE;
 	
-	ast_mutex_lock(&devicelock);
+	AST_LIST_LOCK(&devices);
 
 	/* Show all lines matching the one supplied */
-	for (d = devices; d; d = d->next) {
+	AST_LIST_TRAVERSE(&devices, d, list) {
 		if (a->argc == 6 && (strcasecmp(a->argv[5], d->id) && strcasecmp(a->argv[5], d->name)))
 			continue;
-		for (l = d->lines; l; l = l->next) {
+		AST_LIST_TRAVERSE(&d->lines, l, list) {
 			if (strcasecmp(a->argv[3], l->name))
 				continue;
 			ast_cli(a->fd, "Line:             %s\n", l->name);
@@ -2943,7 +2950,7 @@ static char *handle_skinny_show_line(struct ast_cli_entry *e, int cmd, struct as
 		}
 	}
 	
-	ast_mutex_unlock(&devicelock);
+	AST_LIST_UNLOCK(&devices);
 	return CLI_SUCCESS;
 }
 
@@ -3127,8 +3134,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 
 					sd->parent = d;
 
-					sd->next = d->speeddials;
-					d->speeddials = sd;
+					AST_LIST_INSERT_HEAD(&d->speeddials, sd, list);
 				}
 			} else if (!strcasecmp(v->name, "addon")) {
 				if (!(a = ast_calloc(1, sizeof(*a)))) {
@@ -3137,8 +3143,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 					ast_mutex_init(&a->lock);
 					ast_copy_string(a->type, v->value, sizeof(a->type));
 
-					a->next = d->addons;
-					d->addons = a;
+					AST_LIST_INSERT_HEAD(&d->addons, a, list);
 				}
 			} else if (!strcasecmp(v->name, "trunk") || !strcasecmp(v->name, "line")) {
 				if (!(l = ast_calloc(1, sizeof(*l)))) {
@@ -3200,11 +3205,10 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 					l->nat = nat;
 					l->canreinvite = canreinvite;
 
-					if (!d->lines) {
+					if (!AST_LIST_FIRST(&d->lines)) {
 						d->activeline = l;
 					}
-					l->next = d->lines;
-					d->lines = l;
+					AST_LIST_INSERT_HEAD(&d->lines, l, list);
 				}
 			} else {
 				ast_log(LOG_WARNING, "Don't know keyword '%s' at line %d\n", v->name, v->lineno);
@@ -3212,7 +3216,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 			v = v->next;
 	 	}
 
-	 	if (!d->lines) {
+	 	if (!AST_LIST_FIRST(&d->lines)) {
 			ast_log(LOG_ERROR, "A Skinny device must have at least one line!\n");
 			return NULL;
 		}
@@ -3441,7 +3445,7 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 
 static int skinny_hangup(struct ast_channel *ast)
 {
-	struct skinny_subchannel *sub = ast->tech_pvt, *tmpsub;
+	struct skinny_subchannel *sub = ast->tech_pvt;
 	struct skinny_line *l;
 	struct skinny_device *d;
 	struct skinnysession *s;
@@ -3454,22 +3458,12 @@ static int skinny_hangup(struct ast_channel *ast)
 	d = l->parent;
 	s = d->session;
 
-	if (l->sub == sub) {
-		l->sub = l->sub->next;
-	} else {
-		tmpsub = l->sub;
-		while (tmpsub->next) {
-			if (tmpsub->next == sub) {
-				tmpsub->next = tmpsub->next->next;
-				break;
-			}
-		}
-	}
+	AST_LIST_REMOVE(&l->sub, sub, list);
 
 	if (d->registered) {
 		/* Ignoring l->type, doesn't seem relevant and previous code 
 		   assigned rather than tested, ie always true */
-		if (l->sub) {
+		if (!AST_LIST_EMPTY(&l->sub)) {
 			if (sub->related) {
 				sub->related->related = NULL;
 
@@ -3478,19 +3472,19 @@ static int skinny_hangup(struct ast_channel *ast)
 				if (sub->related) {
 					l->activesub = sub->related;
 				} else {
-					if (sub->next) {
-						l->activesub = sub->next;
+					if (AST_LIST_NEXT(sub, list)) {
+						l->activesub = AST_LIST_NEXT(sub, list);
 					} else {
-						l->activesub = l->sub;
+						l->activesub = AST_LIST_FIRST(&l->sub);
 					}
 				}
+				transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
 				transmit_activatecallplane(s, l);
 				transmit_closereceivechannel(s,sub);
 				transmit_stopmediatransmission(s,sub);
-				transmit_tone(s, SKINNY_CALLWAITTONE, l->instance, l->activesub->callid);
 				transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 			} else {    /* we are killing a background sub on the line with other subs*/
-				if (l->sub->next) {
+				if (AST_LIST_NEXT(sub, list)) {
 					transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 				} else {
 					transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
@@ -3511,30 +3505,6 @@ static int skinny_hangup(struct ast_channel *ast)
 				/* we should check to see if we can start the ringer if another line is ringing */
 			}
 		}
-
-		/* if ((l->type = TYPE_LINE) && (l->hookstate == SKINNY_OFFHOOK)) {
-			transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
-			if (onlysub){
-				if (skinnydebug)
-					ast_debug(1, "skinny_hangup(%s) on %s@%s is not the only call on this device\n", ast->name, l->name, d->name);
-				l->hookstate = SKINNY_ONHOOK;
-				transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_OFF);
-				transmit_speaker_mode(s, SKINNY_SPEAKEROFF);
-				transmit_ringer_mode(s, SKINNY_RING_OFF);
-			} else {
-				transmit_ringer_mode(s, SKINNY_RING_OFF);
-				if (skinnydebug)
-					ast_debug(1, "skinny_hangup(%s) on %s@%s \n", ast->name, l->name, d->name);
-			}
-			/ends
-
-		} else if ((l->type = TYPE_LINE) && (l->hookstate == SKINNY_ONHOOK)) {
-			transmit_tone(s, SKINNY_SILENCE, l->instance, sub->callid);
-			transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
-			transmit_ringer_mode(s, SKINNY_RING_OFF);
-			transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_OFF);
-			do_housekeeping(s);
-		} */
 	}
 	ast_mutex_lock(&sub->lock);
 	sub->owner = NULL;
@@ -3727,7 +3697,7 @@ static int get_devicestate(struct skinny_line *l)
 			res = AST_DEVICE_INUSE;
 		}
 
-		for (sub = l->sub; sub; sub = sub->next) {
+		AST_LIST_TRAVERSE(&l->sub, sub, list) {
 			if (sub->onhold) {
 				res = AST_DEVICE_ONHOLD;
 				break;
@@ -3985,9 +3955,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 			sub->xferor = 0;
 			sub->related = NULL;
 
-
-			sub->next = l->sub;
-			l->sub = sub;
+			AST_LIST_INSERT_HEAD(&l->sub, sub, list);
 			l->activesub = sub;
 		}
 		tmp->tech = &skinny_tech;
@@ -4344,13 +4312,13 @@ static int handle_keypad_button_message(struct skinny_req *req, struct skinnyses
 		f.frametype = AST_FRAME_DTMF_END;
 		ast_queue_frame(sub->owner, &f);
 		/* XXX This seriously needs to be fixed */
-		if (sub->next && sub->next->owner) {
+		if (AST_LIST_NEXT(sub, list) && AST_LIST_NEXT(sub, list)->owner) {
 			if (sub->owner->_state == 0) {
 				f.frametype = AST_FRAME_DTMF_BEGIN;
-				ast_queue_frame(sub->next->owner, &f);
+				ast_queue_frame(AST_LIST_NEXT(sub, list)->owner, &f);
 			}
 			f.frametype = AST_FRAME_DTMF_END;
-			ast_queue_frame(sub->next->owner, &f);
+			ast_queue_frame(AST_LIST_NEXT(sub, list)->owner, &f);
 		}
 	} else {
 		if (skinnydebug)
@@ -4719,7 +4687,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 	   probably move hookstate from line to device, afterall, it's actually
 	    a device that changes hookstates */
 
-	for (tmp = d->lines; tmp; tmp = tmp->next) {
+	AST_LIST_TRAVERSE(&d->lines, tmp, list) {
 		if (tmp->hookstate == SKINNY_OFFHOOK) {
 			ast_verbose(VERBOSE_PREFIX_3 "Got offhook message when device (%s@%s) already offhook\n", tmp->name, d->name);
 			return 0;
@@ -4795,7 +4763,7 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 {
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
-	struct skinny_subchannel *sub, *tmpsub;
+	struct skinny_subchannel *sub;
 	int instance;
 	int reference;
 	int onlysub = 0;
@@ -4825,17 +4793,10 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 		return 0;
 	}
 
-	if (!l->sub->next) {
+	if (!AST_LIST_NEXT(sub, list)) {
 		onlysub = 1;
 	} else {
-		tmpsub = l->sub;
-		while (tmpsub->next){
-			if ((sub == tmpsub->next) && sub->next) {
-				tmpsub->next = sub->next;
-				break;
-			}
-			tmpsub = tmpsub->next;
-		}
+		AST_LIST_REMOVE(&l->sub, sub, list);
 	}
 
 	sub->cxmode = SKINNY_CX_RECVONLY;
@@ -4866,7 +4827,7 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 				l->name, d->name, sub->callid);
 		}
 	}
-	if ((l->hookstate == SKINNY_ONHOOK) && (sub->next && !sub->next->rtp)) {
+	if ((l->hookstate == SKINNY_ONHOOK) && (AST_LIST_NEXT(sub, list) && !AST_LIST_NEXT(sub, list)->rtp)) {
 		do_housekeeping(s);
 	}
 	return 1;
@@ -4898,7 +4859,7 @@ static int handle_capabilities_res_message(struct skinny_req *req, struct skinny
 
 	d->capability &= codecs;
 	ast_verb(0, "Device capability set to '%d'\n", d->capability);
-	for (l = d->lines; l; l = l->next) {
+	AST_LIST_TRAVERSE(&d->lines, l, list) {
 		ast_mutex_lock(&l->lock);
 		l->capability = d->capability;
 		ast_mutex_unlock(&l->lock);
@@ -4941,7 +4902,7 @@ static int handle_line_state_req_message(struct skinny_req *req, struct skinnyse
 
 	instance = letohl(req->data.line.lineNumber);
 
-	ast_mutex_lock(&devicelock);
+	AST_LIST_LOCK(&devices);
 
 	l = find_line_by_instance(d, instance);
 
@@ -4953,7 +4914,7 @@ static int handle_line_state_req_message(struct skinny_req *req, struct skinnyse
 		return 0;
 	}
 
-	ast_mutex_unlock(&devicelock);
+	AST_LIST_UNLOCK(&devices);
 
 	if (!(req = req_alloc(sizeof(struct line_stat_res_message), LINE_STAT_RES_MESSAGE)))
 		return -1;
@@ -5019,7 +4980,7 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 				req->data.buttontemplate.definition[i].buttonDefinition = BT_NONE;
 				req->data.buttontemplate.definition[i].instanceNumber = htolel(0);
 
-				for (l = d->lines; l; l = l->next) {
+				AST_LIST_TRAVERSE(&d->lines, l, list) {
 					if (l->instance == lineInstance) {
 						ast_verb(0, "Adding button: %d, %d\n", BT_LINE, lineInstance);
 						req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
@@ -5032,7 +4993,7 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 				}
 
 				if (!btnSet) {
-					for (sd = d->speeddials; sd; sd = sd->next) {
+					AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
 						if (sd->isHint && sd->instance == lineInstance) {
 							ast_verb(0, "Adding button: %d, %d\n", BT_LINE, lineInstance);
 							req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
@@ -5050,7 +5011,7 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 				req->data.buttontemplate.definition[i].buttonDefinition = BT_NONE;
 				req->data.buttontemplate.definition[i].instanceNumber = htolel(0);
 
-				for (l = d->lines; l; l = l->next) {
+				AST_LIST_TRAVERSE(&d->lines, l, list) {
 					if (l->instance == lineInstance) {
 						ast_verb(0, "Adding button: %d, %d\n", BT_LINE, lineInstance);
 						req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
@@ -5063,7 +5024,7 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 				}
 
 				if (!btnSet) {
-					for (sd = d->speeddials; sd; sd = sd->next) {
+					AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
 						if (sd->isHint && sd->instance == lineInstance) {
 							ast_verb(0, "Adding button: %d, %d\n", BT_LINE, lineInstance);
 							req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
@@ -5088,7 +5049,7 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 				req->data.buttontemplate.definition[i].buttonDefinition = htolel(BT_NONE);
 				req->data.buttontemplate.definition[i].instanceNumber = htolel(0);
 
-				for (l = d->lines; l; l = l->next) {
+				AST_LIST_TRAVERSE(&d->lines, l, list) {
 					if (l->instance == lineInstance) {
 						ast_verb(0, "Adding button: %d, %d\n", BT_LINE, lineInstance);
 						req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
@@ -5104,7 +5065,7 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 				req->data.buttontemplate.definition[i].buttonDefinition = BT_NONE;
 				req->data.buttontemplate.definition[i].instanceNumber = 0;
 
-				for (sd = d->speeddials; sd; sd = sd->next) {
+				AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
 					if (!sd->isHint && sd->instance == speeddialInstance) {
 						ast_verb(0, "Adding button: %d, %d\n", BT_SPEEDDIAL, speeddialInstance);
 						req->data.buttontemplate.definition[i].buttonDefinition = BT_SPEEDDIAL;
@@ -5409,12 +5370,10 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		if (skinnydebug)
 			ast_verb(1, "Received Softkey Event: New Call(%d/%d)\n", instance, callreference);
 
-		if (!sub || !sub->owner) {
-			c = skinny_new(l, AST_STATE_DOWN);
-		} else {
-			c = sub->owner;
-		}
-
+		/* New Call ALWAYS gets a new sub-channel */
+		c = skinny_new(l, AST_STATE_DOWN);
+		sub = c->tech_pvt;
+	
 		/* transmit_ringer_mode(s,SKINNY_RING_OFF);
 		transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON); */
 
@@ -5427,8 +5386,10 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			if (l->hookstate == SKINNY_ONHOOK) {
 				l->hookstate = SKINNY_OFFHOOK;
 				transmit_speaker_mode(s, SKINNY_SPEAKERON);
-				transmit_callstate(s, l->instance, SKINNY_OFFHOOK, sub->callid);
 			}
+			ast_verb(1, "Call-id: %d\n", sub->callid);
+
+			transmit_callstate(s, l->instance, SKINNY_OFFHOOK, sub->callid);
 
 			if (skinnydebug)
 				ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
@@ -5541,19 +5502,11 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		}
 		if (sub) {
 			int onlysub = 0;
-			struct skinny_subchannel *tmpsub;
 
-			if (!l->sub->next) {
+			if (!AST_LIST_NEXT(sub, list)) {
 				onlysub = 1;
 			} else {
-				tmpsub = l->sub;
-				while (tmpsub->next){
-					if ((sub == tmpsub->next) && sub->next) {
-						tmpsub->next = sub->next;
-						break;
-					}
-					tmpsub = tmpsub->next;
-				}
+				AST_LIST_REMOVE(&l->sub, sub, list);
 			}
 
 			sub->cxmode = SKINNY_CX_RECVONLY;
@@ -5586,7 +5539,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 						l->name, d->name, sub->callid);
 				}
 			}
-			if ((l->hookstate == SKINNY_ONHOOK) && (sub->next && !sub->next->rtp)) {
+			if ((l->hookstate == SKINNY_ONHOOK) && (AST_LIST_NEXT(sub, list) && !AST_LIST_NEXT(sub, list)->rtp)) {
 				do_housekeeping(s);
 			}
 		}
@@ -5612,8 +5565,10 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 
 		transmit_ringer_mode(s,SKINNY_RING_OFF);
 		transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
-
-		l->hookstate = SKINNY_OFFHOOK;
+		if (l->hookstate == SKINNY_ONHOOK) {
+			transmit_speaker_mode(s, SKINNY_SPEAKERON);
+			l->hookstate = SKINNY_OFFHOOK;
+		}
 
 		if (sub && sub->outgoing) {
 			/* We're answering a ringing call */
@@ -5886,31 +5841,22 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 
 static void destroy_session(struct skinnysession *s)
 {
-	struct skinnysession *cur, *prev = NULL;
-	ast_mutex_lock(&sessionlock);
-	cur = sessions;
-	while(cur) {
+	struct skinnysession *cur;
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_TRAVERSE(&sessions, cur, list) {
 		if (cur == s) {
-			break;
-		}
-		prev = cur;
-		cur = cur->next;
-	}
-	if (cur) {
-		if (prev) {
-			prev->next = cur->next;
+			AST_LIST_REMOVE(&sessions, s, list);
+			if (s->fd > -1) 
+				close(s->fd);
+			
+			ast_mutex_destroy(&s->lock);
+			
+			ast_free(s);
 		} else {
-			sessions = cur->next;
+			ast_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
 		}
-		if (s->fd > -1) {
-			close(s->fd);
-		}
-		ast_mutex_destroy(&s->lock);
-		ast_free(s);
-	} else {
-		ast_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
 	}
-	ast_mutex_unlock(&sessionlock);
+	AST_LIST_UNLOCK(&sessions);
 }
 
 static int get_input(struct skinnysession *s)
@@ -6075,10 +6021,9 @@ static void *accept_thread(void *ignore)
 		memcpy(&s->sin, &sin, sizeof(sin));
 		ast_mutex_init(&s->lock);
 		s->fd = as;
-		ast_mutex_lock(&sessionlock);
-		s->next = sessions;
-		sessions = s;
-		ast_mutex_unlock(&sessionlock);
+		AST_LIST_LOCK(&sessions);
+		AST_LIST_INSERT_HEAD(&sessions, s, list);
+		AST_LIST_UNLOCK(&sessions);
 
 		if (ast_pthread_create_detached(&tcp_thread, NULL, skinny_session, s)) {
 			destroy_session(s);
@@ -6313,10 +6258,9 @@ static int reload_config(void)
 			d = build_device(cat, ast_variable_browse(cfg, cat));
 			if (d) {
 				ast_verb(3, "Added device '%s'\n", d->name);
-				ast_mutex_lock(&devicelock);
-				d->next = devices;
-				devices = d;
-				ast_mutex_unlock(&devicelock);
+				AST_LIST_LOCK(&devices);
+				AST_LIST_INSERT_HEAD(&devices, d, list);
+				AST_LIST_UNLOCK(&devices);
 			}
 		}
 		cat = ast_category_browse(cfg, cat);
@@ -6367,42 +6311,30 @@ static int reload_config(void)
 
 static void delete_devices(void)
 {
-	struct skinny_device *d, *dlast;
-	struct skinny_line *l, *llast;
-	struct skinny_speeddial *sd, *sdlast;
-	struct skinny_addon *a, *alast;
+	struct skinny_device *d;
+	struct skinny_line *l;
+	struct skinny_speeddial *sd;
+	struct skinny_addon *a;
 
-	ast_mutex_lock(&devicelock);
+	AST_LIST_LOCK(&devices);
 
 	/* Delete all devices */
-	for (d=devices;d;) {
+	while ((d = AST_LIST_REMOVE_HEAD(&devices, list))) {
 		/* Delete all lines for this device */
-		for (l=d->lines;l;) {
-			llast = l;
-			l = l->next;
-			ast_mutex_destroy(&llast->lock);
-			ast_free(llast);
+		while ((l = AST_LIST_REMOVE_HEAD(&d->lines, list))) {
+			free(l);
 		}
 		/* Delete all speeddials for this device */
-		for (sd=d->speeddials;sd;) {
-			sdlast = sd;
-			sd = sd->next;
-			ast_mutex_destroy(&sdlast->lock);
-			ast_free(sdlast);
+		while ((sd = AST_LIST_REMOVE_HEAD(&d->speeddials, list))) {
+			free(sd);
 		}
 		/* Delete all addons for this device */
-		for (a=d->addons;a;) {
-			alast = a;
-			a = a->next;
-			ast_mutex_destroy(&alast->lock);
-			ast_free(alast);
-		}
-		dlast = d;
-		d = d->next;
-		ast_free(dlast);
+		while ((a = AST_LIST_REMOVE_HEAD(&d->addons, list))) {
+			free(a);
+		} 
+		free(d);
 	}
-	devices=NULL;
-	ast_mutex_unlock(&devicelock);
+	AST_LIST_UNLOCK(&devices);
 }
 
 #if 0
@@ -6456,41 +6388,35 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	struct skinnysession *s, *slast;
+	struct skinnysession *s;
 	struct skinny_device *d;
 	struct skinny_line *l;
 	struct skinny_subchannel *sub;
 	struct ast_context *con;
 
-	ast_mutex_lock(&sessionlock);
+	AST_LIST_LOCK(&sessions);
 	/* Destroy all the interfaces and free their memory */
-	s = sessions;
-	while(s) {
-		slast = s;
-		s = s->next;
-		for (d = slast->device; d; d = d->next) {
-			for (l = d->lines; l; l = l->next) {
-				ast_mutex_lock(&l->lock);
-				for (sub = l->sub; sub; sub = sub->next) {
-					ast_mutex_lock(&sub->lock);
-					if (sub->owner) {
-						sub->alreadygone = 1;
-						ast_softhangup(sub->owner, AST_SOFTHANGUP_APPUNLOAD);
-					}
-					ast_mutex_unlock(&sub->lock);
+	while((s = AST_LIST_REMOVE_HEAD(&sessions, list))) {
+		d = s->device;
+		AST_LIST_TRAVERSE(&d->lines, l, list){
+			ast_mutex_lock(&l->lock);
+			AST_LIST_TRAVERSE(&l->sub, sub, list) {
+				ast_mutex_lock(&sub->lock);
+				if (sub->owner) {
+					sub->alreadygone = 1;
+					ast_softhangup(sub->owner, AST_SOFTHANGUP_APPUNLOAD);
 				}
-				if (l->mwi_event_sub)
-					ast_event_unsubscribe(l->mwi_event_sub);
-				ast_mutex_unlock(&l->lock);
+				ast_mutex_unlock(&sub->lock);
 			}
+			if (l->mwi_event_sub)
+				ast_event_unsubscribe(l->mwi_event_sub);
+			ast_mutex_unlock(&l->lock);
 		}
-		if (slast->fd > -1)
-			close(slast->fd);
-		ast_mutex_destroy(&slast->lock);
-		ast_free(slast);
+		if (s->fd > -1)
+			close(s->fd);
+		free(s);
 	}
-	sessions = NULL;
-	ast_mutex_unlock(&sessionlock);
+	AST_LIST_UNLOCK(&sessions);
 
 	delete_devices();
 
