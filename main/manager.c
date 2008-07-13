@@ -1920,6 +1920,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 			pthread_attr_init(&attr);
 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 			if (ast_pthread_create(&th, &attr, fast_originate, fast)) {
+				ast_free(fast);
 				res = -1;
 			} else {
 				res = 0;
