@@ -279,6 +279,7 @@ static void agent_devicestate_cb(const struct ast_event *event, void *unused)
 	device = ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE);
 
 	if (ast_strlen_zero(device)) {
+		AST_LIST_UNLOCK(&agents);
 		return;
 	}
 
