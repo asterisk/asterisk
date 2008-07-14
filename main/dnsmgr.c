@@ -275,6 +275,11 @@ static int handle_cli_refresh(int fd, int argc, char *argv[])
 		.verbose = 1,
 	};
 
+	if(!enabled) {
+		ast_cli(fd, "DNS Manager is disabled.\n");
+		return 0;
+	}
+
 	if (argc > 3)
 		return RESULT_SHOWUSAGE;
 
@@ -342,6 +347,7 @@ int dnsmgr_init(void)
 	}
 	ast_cli_register(&cli_reload);
 	ast_cli_register(&cli_status);
+	ast_cli_register(&cli_refresh);
 	return do_reload(1);
 }
 
@@ -394,7 +400,6 @@ static int do_reload(int loading)
 			if (ast_pthread_create_background(&refresh_thread, NULL, do_refresh, NULL) < 0) {
 				ast_log(LOG_ERROR, "Unable to start refresh thread.\n");
 			}
-			ast_cli_register(&cli_refresh);
 		}
 		/* make a background refresh happen right away */
 		refresh_sched = ast_sched_add_variable(sched, 100, refresh_list, &master_refresh_info, 1);
@@ -408,7 +413,6 @@ static int do_reload(int loading)
 		pthread_kill(refresh_thread, SIGURG);
 		pthread_join(refresh_thread, NULL);
 		refresh_thread = AST_PTHREADT_NULL;
-		ast_cli_unregister(&cli_refresh);
 		res = 0;
 	}
 	else
