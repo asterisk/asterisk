@@ -2845,8 +2845,10 @@ static void run_startup_commands(void)
 		return;
 
 	fd = open("/dev/null", O_RDWR);
-	if (fd < 0)
+	if (fd < 0) {
+		ast_config_destroy(cfg);
 		return;
+	}
 
 	for (v = ast_variable_browse(cfg, "startup_commands"); v; v = v->next) {
 		if (ast_true(v->value))
