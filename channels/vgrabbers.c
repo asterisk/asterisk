@@ -69,6 +69,8 @@ struct grab_x11_desc {
 	struct fbuf_t	b;		/* geometry and pointer into the XImage */
 };
 
+static void *grab_x11_close(void *desc);	/* forward declaration */
+
 /*! \brief open the grabber.
  * We use the special name 'X11' to indicate this grabber.
  */
@@ -127,12 +129,7 @@ static void *grab_x11_open(const char *name, struct fbuf_t *geom, int fps)
 	return v;
 
 error:
-	/* XXX maybe XDestroy (v->image) ? */
-	if (v->dpy)
-		XCloseDisplay(v->dpy);
-	v->dpy = NULL;
-	ast_free(v);
-	return NULL;
+	return grab_x11_close(v);
 }
 
 static struct fbuf_t *grab_x11_read(void *desc)
@@ -170,7 +167,8 @@ static void *grab_x11_close(void *desc)
 {
 	struct grab_x11_desc *v = desc;
 
-	XCloseDisplay(v->dpy);
+	if (v->dpy)
+		XCloseDisplay(v->dpy);
 	v->dpy = NULL;
 	v->image = NULL;
 	ast_free(v);
