@@ -285,20 +285,29 @@ static char *handle_cli_refresh(struct ast_cli_entry *e, int cmd, struct ast_cli
 	case CLI_GENERATE:
 		return NULL;	
 	}
-	if (a->argc > 3)
+
+	if (!enabled) {
+		ast_cli(a->fd, "DNS Manager is disabled.\n");
+		return 0;
+	}
+
+	if (a->argc > 3) {
 		return CLI_SHOWUSAGE;
+	}
 
 	if (a->argc == 3) {
-		if ( regcomp(&info.filter, a->argv[2], REG_EXTENDED | REG_NOSUB) )
+		if (regcomp(&info.filter, a->argv[2], REG_EXTENDED | REG_NOSUB)) {
 			return CLI_SHOWUSAGE;
-		else
+		} else {
 			info.regex_present = 1;
+		}
 	}
 
 	refresh_list(&info);
 
-	if (info.regex_present)
+	if (info.regex_present) {
 		regfree(&info.filter);
+	}
 
 	return CLI_SUCCESS;
 }
@@ -414,7 +423,6 @@ static int do_reload(int loading)
 		pthread_kill(refresh_thread, SIGURG);
 		pthread_join(refresh_thread, NULL);
 		refresh_thread = AST_PTHREADT_NULL;
-		ast_cli_unregister(&cli_refresh);
 		res = 0;
 	}
 	else
