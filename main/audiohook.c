@@ -210,14 +210,14 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 
 	/* If we want to provide only a read factory make sure we aren't waiting for other audio */
 	if (usable_read && !usable_write && (ast_tvdiff_ms(ast_tvnow(), audiohook->write_time) < (samples/8)*2)) {
-		if (option_debug)
+		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Write factory %p was pretty quick last time, waiting for them.\n", &audiohook->write_factory);
 		return NULL;
 	}
 
 	/* If we want to provide only a write factory make sure we aren't waiting for other audio */
 	if (usable_write && !usable_read && (ast_tvdiff_ms(ast_tvnow(), audiohook->read_time) < (samples/8)*2)) {
-		if (option_debug)
+		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Read factory %p was pretty quick last time, waiting for them.\n", &audiohook->read_factory);
 		return NULL;
 	}
