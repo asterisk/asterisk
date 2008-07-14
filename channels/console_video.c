@@ -1087,10 +1087,9 @@ void console_video_start(struct video_desc *env, struct ast_channel *owner)
 		env->out.bitrate = 65000;
 		ast_log(LOG_WARNING, "bitrate unset, forcing to %d\n", env->out.bitrate);
 	}
-	/* XXX below probably can use ast_pthread_create_detace\hed() */
-	ast_pthread_create_background(&env->vthread, NULL, video_thread, env);
-	/* detach the thread to make sure memory is freed on termination */
-	pthread_detach(env->vthread);
+	/* create the thread as detached so memory is freed on termination */
+	ast_pthread_create_detached_background(&env->vthread,
+		NULL, video_thread, env);
 }
 
 /*
