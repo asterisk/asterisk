@@ -321,9 +321,10 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('X', OPT_CALLER_MIXMONITOR),
 END_OPTIONS );
 
-#define CAN_EARLY_BRIDGE(flags) (!ast_test_flag64(flags, OPT_CALLEE_HANGUP | \
+#define CAN_EARLY_BRIDGE(flags,chan,peer) (!ast_test_flag64(flags, OPT_CALLEE_HANGUP | \
 	OPT_CALLER_HANGUP | OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER | \
-	OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR | OPT_CALLEE_PARK | OPT_CALLER_PARK))
+	OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR | OPT_CALLEE_PARK | OPT_CALLER_PARK) && \
+	!chan->audiohooks && !peer->audiohooks)
 
 /*
  * The list of active channels
@@ -671,7 +672,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							DIAL_NOFORWARDHTML);
 						ast_copy_string(c->dialcontext, "", sizeof(c->dialcontext));
 						ast_copy_string(c->exten, "", sizeof(c->exten));
-						if (CAN_EARLY_BRIDGE(peerflags))
+						if (CAN_EARLY_BRIDGE(peerflags, in, peer))
 							/* Setup early bridge if appropriate */
 							ast_channel_early_bridge(in, peer);
 					}
@@ -698,7 +699,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_CONTROL_RINGING:
 					ast_verb(3, "%s is ringing\n", c->name);
 					/* Setup early media if appropriate */
-					if (single && CAN_EARLY_BRIDGE(peerflags))
+					if (single && CAN_EARLY_BRIDGE(peerflags, in, c))
 						ast_channel_early_bridge(in, c);
 					if (!(pa->sentringing) && !ast_test_flag64(outgoing, OPT_MUSICBACK)) {
 						ast_indicate(in, AST_CONTROL_RINGING);
@@ -708,7 +709,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_CONTROL_PROGRESS:
 					ast_verb(3, "%s is making progress passing it to %s\n", c->name, in->name);
 					/* Setup early media if appropriate */
-					if (single && CAN_EARLY_BRIDGE(peerflags))
+					if (single && CAN_EARLY_BRIDGE(peerflags, in, c))
 						ast_channel_early_bridge(in, c);
 					if (!ast_test_flag64(outgoing, OPT_RINGBACK))
 						ast_indicate(in, AST_CONTROL_PROGRESS);
@@ -723,7 +724,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					break;
 				case AST_CONTROL_PROCEEDING:
 					ast_verb(3, "%s is proceeding passing it to %s\n", c->name, in->name);
-					if (single && CAN_EARLY_BRIDGE(peerflags))
+					if (single && CAN_EARLY_BRIDGE(peerflags, in, c))
 						ast_channel_early_bridge(in, c);
 					if (!ast_test_flag64(outgoing, OPT_RINGBACK))
 						ast_indicate(in, AST_CONTROL_PROCEEDING);
