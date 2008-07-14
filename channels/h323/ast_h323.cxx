@@ -956,7 +956,7 @@ static BOOL FetchCiscoTunneledInfo(Q931 &q931, const H323SignalPDU &pdu)
 
 static BOOL EmbedCiscoTunneledInfo(H323SignalPDU &pdu)
 {
-	const static struct {
+	static const struct {
 		Q931::InformationElementCodes ie;
 		BOOL dontDelete;
 	} codes[] = {
@@ -1095,7 +1095,7 @@ static BOOL QSIGTunnelRequested(H323SignalPDU &pdu)
 
 static BOOL EmbedQSIGTunneledInfo(H323SignalPDU &pdu)
 {
-	const static Q931::InformationElementCodes codes[] =
+	static const Q931::InformationElementCodes codes[] =
 	{ Q931::RedirectingNumberIE, Q931::FacilityIE };
 
 	Q931 &q931 = pdu.GetQ931();

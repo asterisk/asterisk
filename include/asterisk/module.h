@@ -258,7 +258,7 @@ void ast_module_unref(struct ast_module *);
 	{ \
 		ast_module_unregister(&__mod_info); \
 	} \
-	const static __attribute__((unused)) struct ast_module_info *ast_module_info = &__mod_info
+	static const __attribute__((unused)) struct ast_module_info *ast_module_info = &__mod_info
 
 #define AST_MODULE_INFO_STANDARD(keystr, desc)		\
 	AST_MODULE_INFO(keystr, AST_MODFLAG_DEFAULT, desc,	\
@@ -271,7 +271,7 @@ void ast_module_unref(struct ast_module *);
 /* forward declare this pointer in modules, so that macro/function
    calls that need it can get it, since it will actually be declared
    and populated at the end of the module's source file... */
-const static __attribute__((unused)) struct ast_module_info *ast_module_info;
+static const __attribute__((unused)) struct ast_module_info *ast_module_info;
 
 #if !defined(EMBEDDED_MODULE)
 #define __MODULE_INFO_SECTION
@@ -352,7 +352,7 @@ static void __restore_globals(void)
 	{ \
 		ast_module_unregister(&__mod_info); \
 	} \
-	const static struct ast_module_info *ast_module_info = &__mod_info
+	static const struct ast_module_info *ast_module_info = &__mod_info
 
 #define AST_MODULE_INFO_STANDARD(keystr, desc)		\
 	AST_MODULE_INFO(keystr, AST_MODFLAG_DEFAULT, desc,	\

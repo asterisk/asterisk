@@ -3964,7 +3964,7 @@ void misdn_lib_nt_keepcalls( int kc)
 
 void misdn_lib_nt_debug_init( int flags, char *file ) 
 {
-	int static init=0;
+	static int init=0;
 	char *f;
 	
 	if (!flags) 
