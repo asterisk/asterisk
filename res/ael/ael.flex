@@ -60,6 +60,7 @@
 %option bison-locations
 
 %{
+#include <asterisk.h"
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/types.h>
@@ -70,9 +71,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define GLOB_ABORTED GLOB_ABEND
 #endif
 # include <glob.h>
-
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
+#include "asterisk/lock.h"
+#include "asterisk/hashtab.h"
 #include "ael/ael.tab.h"
 #include "asterisk/ael_structs.h"
 

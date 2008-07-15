@@ -3441,6 +3441,7 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 {
 	char multi[256];
 	char *stringp, *ext, *context;
+	struct pbx_find_info q = { .stacklen = 0 };
 
 	/* XXX note that global_regcontext is both a global 'enable' flag and
 	 * the name of the global regexten context, if not specified
@@ -3461,11 +3462,12 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 		} else {
 			context = global_regcontext;
 		}
-		if (onoff)
+		if (onoff) {
 			ast_add_extension(context, 1, ext, 1, NULL, NULL, "Noop",
 				 ast_strdup(peer->name), ast_free_ptr, "SIP");
-		else
+		} else if (pbx_find_extension(NULL, NULL, &q, context, ext, 1, NULL, "", E_MATCH)) {
 			ast_context_remove_extension(context, ext, 1, NULL);
+		}
 	}
 }
 
@@ -20616,8 +20618,7 @@ static int reload_config(enum channelreloadreason reason)
 			/* Create contexts if they don't exist already */
 			while ((context = strsep(&stringp, "&"))) {
 				ast_copy_string(used_context, context, sizeof(used_context));
-				if (!ast_context_find(context))
-					ast_context_create(NULL, context, "SIP");
+				ast_context_find_or_create(NULL, NULL, context, "SIP");
 			}
 			ast_copy_string(global_regcontext, v->value, sizeof(global_regcontext));
 		} else if (!strcasecmp(v->name, "regextenonqualify")) {

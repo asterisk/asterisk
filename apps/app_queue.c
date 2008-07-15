@@ -6368,9 +6368,7 @@ static int load_module(void)
 	if (!reload_queues(0))
 		return AST_MODULE_LOAD_DECLINE;
 
-	con = ast_context_find("app_queue_gosub_virtual_context");
-	if (!con)
-		con = ast_context_create(NULL, "app_queue_gosub_virtual_context", "app_queue");
+	con = ast_context_find_or_create(NULL, NULL, "app_queue_gosub_virtual_context", "app_queue");
 	if (!con)
 		ast_log(LOG_ERROR, "Queue virtual context 'app_queue_gosub_virtual_context' does not exist and unable to create\n");
 	else

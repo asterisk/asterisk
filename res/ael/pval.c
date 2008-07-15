@@ -4006,7 +4006,7 @@ static void fix_gotos_in_extensions(struct ael_extension *exten)
 }
 
 
-void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
+void ast_compile_ael2(struct ast_context **local_contexts, struct ast_hashtab *local_table, struct pval *root)
 {
 	pval *p,*p2;
 	struct ast_context *context;
@@ -4037,7 +4037,7 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 		switch (p->type) {
 		case PV_MACRO:
 			
-			context = ast_context_create(local_contexts, p->u1.str, registrar);
+			context = ast_context_find_or_create(local_contexts, local_table, p->u1.str, registrar);
 			
 			exten = new_exten();
 			exten->context = context;
@@ -4075,7 +4075,7 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 			break;
 			
 		case PV_CONTEXT:
-			context = ast_context_find_or_create(local_contexts, p->u1.str, registrar);
+			context = ast_context_find_or_create(local_contexts, local_table, p->u1.str, registrar);
 			
 			/* contexts contain: ignorepat, includes, switches, eswitches, extensions,  */
 			for (p2=p->u2.statements; p2; p2=p2->next) {

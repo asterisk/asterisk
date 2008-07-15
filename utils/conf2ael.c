@@ -47,6 +47,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/options.h"
 #include "asterisk/callerid.h"
+#include "asterisk/lock.h"
+#include "asterisk/hashtab.h"
 #include "asterisk/ael_structs.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/stringfields.h"
@@ -607,14 +609,7 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 	return localized_context_add_include2(con, value,registrar);
 }
 
-struct ast_context *ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar)
-{
-	printf("Creating context %s, registrar=%s\n", name, registrar);
-	
-	return localized_context_create(extcontexts, name, registrar);
-}
-
-struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, const char *name, const char *registrar)
+struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *name, const char *registrar)
 {
 	printf("find/Creating context %s, registrar=%s\n", name, registrar);
 	
@@ -661,9 +656,9 @@ int ast_context_verify_includes(struct ast_context *con)
 	return  localized_context_verify_includes(con);
 }
 
-void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char *registrar);
+void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *registrar);
 
-void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char *registrar)
+void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *registrar)
 {
 	localized_merge_contexts_and_delete(extcontexts, registrar);
 }
@@ -691,3 +686,33 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	return localized_find_extension(bypass, q, context, exten, priority, label, callerid, action);
 }
 
+int ast_hashtab_compare_contexts(const void *ah_a, const void *ah_b);
+
+int ast_hashtab_compare_contexts(const void *ah_a, const void *ah_b)
+{
+	return 0;
+}
+
+unsigned int ast_hashtab_hash_contexts(const void *obj);
+
+unsigned int ast_hashtab_hash_contexts(const void *obj)
+{
+	return 0;
+}
+
+#ifdef DEBUG_THREADS
+
+void ast_mark_lock_acquired(void *lock_addr)
+{
+}
+
+void ast_remove_lock_info(void *lock_addr)
+{
+}
+
+void ast_store_lock_info(enum ast_lock_type type, const char *filename,
+	int line_num, const char *func, const char *lock_name, void *lock_addr)
+{
+}
+
+#endif

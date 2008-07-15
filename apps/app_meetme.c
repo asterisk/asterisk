@@ -5298,7 +5298,7 @@ static int sla_build_trunk(struct ast_config *cfg, const char *cat)
 
 	if (!ast_strlen_zero(trunk->autocontext)) {
 		struct ast_context *context;
-		context = ast_context_find_or_create(NULL, trunk->autocontext, sla_registrar);
+		context = ast_context_find_or_create(NULL, NULL, trunk->autocontext, sla_registrar);
 		if (!context) {
 			ast_log(LOG_ERROR, "Failed to automatically find or create "
 				"context '%s' for SLA!\n", trunk->autocontext);
@@ -5435,7 +5435,7 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 	if (!ast_strlen_zero(station->autocontext)) {
 		struct ast_context *context;
 		struct sla_trunk_ref *trunk_ref;
-		context = ast_context_find_or_create(NULL, station->autocontext, sla_registrar);
+		context = ast_context_find_or_create(NULL, NULL, station->autocontext, sla_registrar);
 		if (!context) {
 			ast_log(LOG_ERROR, "Failed to automatically find or create "
 				"context '%s' for SLA!\n", station->autocontext);

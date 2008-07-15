@@ -51,7 +51,7 @@ static int extenpatternmatchnew_config = 0;
 AST_MUTEX_DEFINE_STATIC(save_dialplan_lock);
 
 static struct ast_context *local_contexts = NULL;
-
+static struct ast_hashtab *local_table = NULL;
 /*
  * Prototypes for our completion functions
  */
@@ -1402,7 +1402,6 @@ static int pbx_load_config(const char *config_file)
 	const char *aft;
 	const char *newpm;
 	struct ast_flags config_flags = { 0 };
-
 	cfg = ast_config_load(config_file, config_flags);
 	if (!cfg)
 		return 0;
@@ -1430,7 +1429,7 @@ static int pbx_load_config(const char *config_file)
 		/* All categories but "general" or "globals" are considered contexts */
 		if (!strcasecmp(cxt, "general") || !strcasecmp(cxt, "globals"))
 			continue;
-		con=ast_context_find_or_create(&local_contexts,cxt, registrar);
+		con=ast_context_find_or_create(&local_contexts, local_table, cxt, registrar);
 		if (con == NULL)
 			continue;
 
@@ -1642,7 +1641,7 @@ static void pbx_load_users(void)
 			/* Only create a context here when it is really needed. Otherwise default empty context
 			created by pbx_config may conflict with the one explicitly created by pbx_ael */
 			if (!con)
-				con = ast_context_find_or_create(&local_contexts, userscontext, registrar);
+				con = ast_context_find_or_create(&local_contexts, local_table, userscontext, registrar);
 
 			if (!con) {
 				ast_log(LOG_ERROR, "Can't find/create user context '%s'\n", userscontext);
@@ -1667,12 +1666,17 @@ static int pbx_load_module(void)
 {
 	struct ast_context *con;
 
-	if(!pbx_load_config(config))
+	if (!local_table)
+		local_table = ast_hashtab_create(17, ast_hashtab_compare_contexts, ast_hashtab_resize_java, ast_hashtab_newsize_java, ast_hashtab_hash_contexts, 0);
+
+	if (!pbx_load_config(config))
 		return AST_MODULE_LOAD_DECLINE;
 	
 	pbx_load_users();
 
-	ast_merge_contexts_and_delete(&local_contexts, registrar);
+	ast_merge_contexts_and_delete(&local_contexts, local_table, registrar);
+	local_table = NULL; /* the local table has been moved into the global one. */
+	local_contexts = NULL;
 
 	for (con = NULL; (con = ast_walk_contexts(con));)
 		ast_context_verify_includes(con);

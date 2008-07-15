@@ -5913,8 +5913,7 @@ static int reload_config(void)
 			/* Create contexts if they don't exist already */
 			while ((context = strsep(&stringp, "&"))) {
 				ast_copy_string(used_context, context, sizeof(used_context));
-				if (!ast_context_find(context))
-					ast_context_create(NULL, context, "Skinny");
+				ast_context_find_or_create(NULL, NULL, context, "Skinny");
 			}
 			ast_copy_string(regcontext, v->value, sizeof(regcontext));
 		} else if (!strcasecmp(v->name, "dateformat")) {

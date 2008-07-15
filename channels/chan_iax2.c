@@ -11023,8 +11023,7 @@ static int set_config(char *config_file, int reload)
 		} else if (!strcasecmp(v->name, "regcontext")) {
 			ast_copy_string(regcontext, v->value, sizeof(regcontext));
 			/* Create context if it doesn't exist already */
-			if (!ast_context_find(regcontext))
-				ast_context_create(NULL, regcontext, "IAX2");
+			ast_context_find_or_create(NULL, NULL, regcontext, "IAX2");
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (ast_str2tos(v->value, &tos))
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, refer to QoS documentation\n", v->lineno);
