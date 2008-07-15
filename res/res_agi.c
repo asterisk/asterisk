@@ -2452,8 +2452,10 @@ static agi_command *find_command(char *cmds[], int exact)
 			if (!e->cmda[y] && !exact)
 				break;
 			/* don't segfault if the next part of a command doesn't exist */
-			if (!e->cmda[y])
+			if (!e->cmda[y]) {
+				AST_RWLIST_UNLOCK(&agi_commands);
 				return NULL;
+			}
 			if (strcasecmp(e->cmda[y], cmds[y]))
 				match = 0;
 		}
@@ -2461,8 +2463,10 @@ static agi_command *find_command(char *cmds[], int exact)
 		   a candidate (unless we're looking for a really inexact answer  */
 		if ((exact > -1) && e->cmda[y])
 			match = 0;
-		if (match)
+		if (match) {
+			AST_RWLIST_UNLOCK(&agi_commands);
 			return e;
+		}
 	}
 	AST_RWLIST_UNLOCK(&agi_commands);
 	return NULL;
