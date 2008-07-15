@@ -4077,6 +4077,7 @@ int ast_context_remove_include2(struct ast_context *con, const char *include, co
 		if (!strcmp(i->name, include) &&
 				(!registrar || !strcmp(i->registrar, registrar))) {
 			/* remove from list */
+			ast_verb(3, "Removing inclusion of context '%s' in context '%s; registrar=%s'\n", include, ast_get_context_name(con), registrar);
 			if (pi)
 				pi->next = i->next;
 			else
@@ -4131,6 +4132,7 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw, const ch
 		if (!strcmp(i->name, sw) && !strcmp(i->data, data) &&
 			(!registrar || !strcmp(i->registrar, registrar))) {
 			/* found, remove from list */
+			ast_verb(3, "Removing switch '%s' from context '%s; registrar=%s'\n", sw, ast_get_context_name(con), registrar);
 			AST_LIST_REMOVE_CURRENT(list);
 			ast_free(i); /* free switch and return */
 			ret = 0;
@@ -5620,6 +5622,7 @@ static void context_merge_incls_swits_igps_other_registrars(struct ast_context *
 	struct ast_ignorepat *ip;
 	struct ast_sw *sw;
 	
+	ast_verb(3, "merging incls/swits/igpats from old(%s) to new(%s) context, registrar = %s\n", ast_get_context_name(old), ast_get_context_name(new), registrar);
 	/* copy in the includes, switches, and ignorepats */
 	/* walk through includes */
 	for (i = NULL; (i = ast_walk_context_includes(old, i)) ; ) {
@@ -5681,10 +5684,10 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 				/* make sure the new context exists, so we have somewhere to stick this exten/prio */
 				if (!new) {
 					new = ast_context_find_or_create(extcontexts, exttable, context->name, prio_item->registrar); /* a new context created via priority from a different context in the old dialplan, gets its registrar from the prio's registrar */
-
-					/* copy in the includes, switches, and ignorepats */
-					context_merge_incls_swits_igps_other_registrars(new, context, registrar);
 				}
+
+				/* copy in the includes, switches, and ignorepats */
+				context_merge_incls_swits_igps_other_registrars(new, context, registrar);
 				if (!new) {
 					ast_log(LOG_ERROR,"Could not allocate a new context for %s in merge_and_delete! Danger!\n", context->name);
 					return; /* no sense continuing. */
