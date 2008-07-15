@@ -5887,20 +5887,17 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		/* And the permitted authentication methods */
 		iaxs[callno]->authmethods = user->authmethods;
 		iaxs[callno]->adsi = user->adsi;
-		/* If they have callerid, override the given caller id.  Always store the ANI */
-		if (!ast_strlen_zero(iaxs[callno]->cid_num) || !ast_strlen_zero(iaxs[callno]->cid_name)) {
-			if (ast_test_flag(user, IAX_HASCALLERID)) {
-				iaxs[callno]->calling_tns = 0;
-				iaxs[callno]->calling_ton = 0;
-				ast_string_field_set(iaxs[callno], cid_num, user->cid_num);
-				ast_string_field_set(iaxs[callno], cid_name, user->cid_name);
-				iaxs[callno]->calling_pres = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
-			}
-			if (ast_strlen_zero(iaxs[callno]->ani))
-				ast_string_field_set(iaxs[callno], ani, user->cid_num);
-		} else {
+		/* If the user has callerid, override the remote caller id. */
+		if (ast_test_flag(user, IAX_HASCALLERID)) {
+			iaxs[callno]->calling_tns = 0;
+			iaxs[callno]->calling_ton = 0;
+			ast_string_field_set(iaxs[callno], cid_num, user->cid_num);
+			ast_string_field_set(iaxs[callno], cid_name, user->cid_name);
+			ast_string_field_set(iaxs[callno], ani, user->cid_num);
+			iaxs[callno]->calling_pres = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
+		} else if (ast_strlen_zero(iaxs[callno]->cid_num) && ast_strlen_zero(iaxs[callno]->cid_name)) {
 			iaxs[callno]->calling_pres = AST_PRES_NUMBER_NOT_AVAILABLE;
-		}
+		} /* else user is allowed to set their own CID settings */
 		if (!ast_strlen_zero(user->accountcode))
 			ast_string_field_set(iaxs[callno], accountcode, user->accountcode);
 		if (!ast_strlen_zero(user->mohinterpret))
