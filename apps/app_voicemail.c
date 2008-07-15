@@ -9338,7 +9338,7 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 		return RESULT_SUCCESS;
 	}
 	
-	astman_send_ack(s, m, "Voicemail user list will follow\r\n");
+	astman_send_ack(s, m, "Voicemail user list will follow");
 	
 	AST_LIST_TRAVERSE(&users, vmu, list) {
 		char dirname[256];

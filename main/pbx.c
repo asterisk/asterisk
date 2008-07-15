@@ -5192,7 +5192,7 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 
 	/* try to lock contexts */
 	if (ast_rdlock_contexts()) {
-		astman_send_error(s, m, "Failed to lock contexts\r\n");
+		astman_send_error(s, m, "Failed to lock contexts");
 		ast_log(LOG_WARNING, "Failed to lock contexts list for manager: listdialplan\n");
 		return -1;
 	}
@@ -5337,7 +5337,7 @@ static int manager_show_dialplan(struct mansession *s, const struct message *m)
 	if (context && !counters.context_existence) {
 		char errorbuf[BUFSIZ];
 	
-		snprintf(errorbuf, sizeof(errorbuf), "Did not find context %s\r\n", context);
+		snprintf(errorbuf, sizeof(errorbuf), "Did not find context %s", context);
 		astman_send_error(s, m, errorbuf);
 		return 0;
 	}
@@ -5345,9 +5345,9 @@ static int manager_show_dialplan(struct mansession *s, const struct message *m)
 		char errorbuf[BUFSIZ];
 
 		if (context)
-			snprintf(errorbuf, sizeof(errorbuf), "Did not find extension %s@%s\r\n", exten, context);
+			snprintf(errorbuf, sizeof(errorbuf), "Did not find extension %s@%s", exten, context);
 		else
-			snprintf(errorbuf, sizeof(errorbuf), "Did not find extension %s in any context\r\n", exten);
+			snprintf(errorbuf, sizeof(errorbuf), "Did not find extension %s in any context", exten);
 		astman_send_error(s, m, errorbuf);
 		return 0;
 	}

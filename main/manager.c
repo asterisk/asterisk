@@ -1971,7 +1971,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	}
 	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
 		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
-			astman_send_error(s, m, "Invalid priority\n");
+			astman_send_error(s, m, "Invalid priority");
 			return 0;
 		}
 	}
@@ -1984,14 +1984,14 @@ static int action_redirect(struct mansession *s, const struct message *m)
 		return 0;
 	}
 	if (ast_check_hangup(chan)) {
-		astman_send_error(s, m, "Redirect failed, channel not up.\n");
+		astman_send_error(s, m, "Redirect failed, channel not up.");
 		ast_channel_unlock(chan);
 		return 0;
 	}
 	if (!ast_strlen_zero(name2))
 		chan2 = ast_get_channel_by_name_locked(name2);
 	if (chan2 && ast_check_hangup(chan2)) {
-		astman_send_error(s, m, "Redirect failed, extra channel not up.\n");
+		astman_send_error(s, m, "Redirect failed, extra channel not up.");
 		ast_channel_unlock(chan);
 		ast_channel_unlock(chan2);
 		return 0;
@@ -2039,34 +2039,34 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 	int priority_int = 0;
 
 	if (ast_strlen_zero(name)) { 
-		astman_send_error(s, m, "No channel specified\n");
+		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
 	if (ast_strlen_zero(exten)) {
-		astman_send_error(s, m, "No extension specified\n");
+		astman_send_error(s, m, "No extension specified");
 		return 0;
 	}
 	if (ast_strlen_zero(context)) {
-		astman_send_error(s, m, "No context specified\n");
+		astman_send_error(s, m, "No context specified");
 		return 0;
 	}
 	if (ast_strlen_zero(priority)) {
-		astman_send_error(s, m, "No priority specified\n");
+		astman_send_error(s, m, "No priority specified");
 		return 0;
 	}
 
 	if (sscanf(priority, "%d", &priority_int) != 1 && (priority_int = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
-		astman_send_error(s, m, "Invalid Priority\n");
+		astman_send_error(s, m, "Invalid Priority");
 		return 0;
 	}
 
 	if (!(atxfer_feature = ast_find_call_feature("atxfer"))) {
-		astman_send_error(s, m, "No attended transfer feature found\n");
+		astman_send_error(s, m, "No attended transfer feature found");
 		return 0;
 	}
 
 	if (!(chan = ast_get_channel_by_name_locked(name))) {
-		astman_send_error(s, m, "Channel specified does not exist\n");
+		astman_send_error(s, m, "Channel specified does not exist");
 		return 0;
 	}
 
@@ -2080,7 +2080,7 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 		ast_queue_frame(chan, &f);
 	}
 
-	astman_send_ack(s, m, "Atxfer successfully queued\n");
+	astman_send_ack(s, m, "Atxfer successfully queued");
 	ast_channel_unlock(chan);
 
 	return 0;
@@ -2288,19 +2288,19 @@ static int action_originate(struct mansession *s, const struct message *m)
 	}
 	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
 		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
-			astman_send_error(s, m, "Invalid priority\n");
+			astman_send_error(s, m, "Invalid priority");
 			return 0;
 		}
 	}
 	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
-		astman_send_error(s, m, "Invalid timeout\n");
+		astman_send_error(s, m, "Invalid timeout");
 		return 0;
 	}
 	ast_copy_string(tmp, name, sizeof(tmp));
 	tech = tmp;
 	data = strchr(tmp, '/');
 	if (!data) {
-		astman_send_error(s, m, "Invalid channel\n");
+		astman_send_error(s, m, "Invalid channel");
 		return 0;
 	}
 	*data++ = '\0';
