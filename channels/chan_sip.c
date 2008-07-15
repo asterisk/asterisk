@@ -10420,7 +10420,7 @@ static int manager_sip_show_peer(struct mansession *s, const struct message *m)
 
 	peer = astman_get_header(m,"Peer");
 	if (ast_strlen_zero(peer)) {
-		astman_send_error(s, m, "Peer: <name> missing.\n");
+		astman_send_error(s, m, "Peer: <name> missing.");
 		return 0;
 	}
 	a[0] = "sip";
@@ -10469,7 +10469,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 			if (!ast_strlen_zero(id))
 				astman_append(s, "ActionID: %s\r\n",id);
 		} else {
-			snprintf (cbuf, sizeof(cbuf), "Peer %s not found.\n", argv[3]);
+			snprintf (cbuf, sizeof(cbuf), "Peer %s not found.", argv[3]);
 			astman_send_error(s, m, cbuf);
 			return 0;
 		}
