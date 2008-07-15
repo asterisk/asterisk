@@ -127,6 +127,10 @@ SIP Changes
  * 'sip show peers' and 'sip show users' display their entries sorted in
     alphabetical order, as opposed to the order they were in, in the config 
     file or database. 
+ * Videosupport now supports an additional option, "always", which always sets
+    up video RTP ports, even on clients that don't support it.  This helps with
+    callfiles and certain transfers to ensure that if two video phones are
+    connected, they will always share video feeds.
 
 IAX Changes
 -----------
