@@ -782,6 +782,7 @@ static int handle_statechange(void *datap)
 	if (!curint) {
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", technology, loc, sc->state, devstate2str(sc->state));
+		ast_free(sc);
 		return 0;
 	}
 
