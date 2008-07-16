@@ -1305,7 +1305,7 @@ retry:
 			goto retry;
 		}
 	}
-	if (!owner) {
+	if (!owner && iaxs[callno]) {
 		AST_SCHED_DEL(sched, iaxs[callno]->lagid);
 		AST_SCHED_DEL(sched, iaxs[callno]->pingid);
 		iaxs[callno] = NULL;
