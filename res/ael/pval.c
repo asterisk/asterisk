@@ -1373,8 +1373,9 @@ static void check_goto(pval *item)
 static void find_pval_goto_item(pval *item, int lev)
 {
 	struct pval *p4;
+	
 	if (lev>100) {
-		ast_log(LOG_ERROR,"find_pval_goto in infinite loop!\n\n");
+		ast_log(LOG_ERROR,"find_pval_goto in infinite loop! item_type: %d\n\n", item->type);
 		return;
 	}
 	
@@ -1388,7 +1389,7 @@ static void find_pval_goto_item(pval *item, int lev)
 				   item->u3.macro_statements == pval list of statements in macro body.
 		*/
 			
-		/* printf("Descending into matching macro %s\n", match_context); */
+		/* printf("Descending into macro %s at line %d\n", item->u1.str, item->startline); */
 		find_pval_gotos(item->u3.macro_statements,lev+1); /* if we're just searching for a context, don't bother descending into them */
 		
 		break;
@@ -1404,6 +1405,7 @@ static void find_pval_goto_item(pval *item, int lev)
 		/* fields: item->u1.str     == value of case
 		           item->u2.statements == pval list of statements under the case
 		*/
+		/* printf("Descending into Case of %s\n", item->u1.str); */
 		find_pval_gotos(item->u2.statements,lev+1);
 		break;
 			
@@ -1411,6 +1413,7 @@ static void find_pval_goto_item(pval *item, int lev)
 		/* fields: item->u1.str     == value of case
 		           item->u2.statements == pval list of statements under the case
 		*/
+		/* printf("Descending into Pattern of %s\n", item->u1.str); */
 		find_pval_gotos(item->u2.statements,lev+1);
 		break;
 			
@@ -1418,6 +1421,7 @@ static void find_pval_goto_item(pval *item, int lev)
 		/* fields: 
 		           item->u2.statements == pval list of statements under the case
 		*/
+		/* printf("Descending into default\n"); */
 		find_pval_gotos(item->u2.statements,lev+1);
 		break;
 			
@@ -1425,12 +1429,14 @@ static void find_pval_goto_item(pval *item, int lev)
 		/* fields: item->u1.str     == name of extension to catch
 		           item->u2.statements == pval list of statements in context body
 		*/
+		/* printf("Descending into catch of %s\n", item->u1.str); */
 		find_pval_gotos(item->u2.statements,lev+1);
 		break;
 			
 	case PV_STATEMENTBLOCK:
 		/* fields: item->u1.list     == pval list of statements in block, one per entry in the list
 		*/
+		/* printf("Descending into statement block\n"); */
 		find_pval_gotos(item->u1.list,lev+1);
 		break;
 			
@@ -1450,8 +1456,9 @@ static void find_pval_goto_item(pval *item, int lev)
 			char *incl_context = p4->u1.str;
 			/* find a matching context name */
 			struct pval *that_context = find_context(incl_context);
-			if (that_context) {
-				find_pval_gotos(that_context,lev+1); /* keep working up the includes */
+			if (that_context && that_context->u2.statements) {
+				/* printf("Descending into include of '%s' at line %d; that_context=%s, that_context type=%d\n", incl_context, item->startline, that_context->u1.str, that_context->type); */
+				find_pval_gotos(that_context->u2.statements,lev+1); /* keep working up the includes */
 			}
 		}
 		break;
@@ -1463,6 +1470,7 @@ static void find_pval_goto_item(pval *item, int lev)
 
 				   item->u4.for_statements == a pval list of statements in the for ()
 		*/
+		/* printf("Descending into for at line %d\n", item->startline); */
 		find_pval_gotos(item->u4.for_statements,lev+1);
 		break;
 			
@@ -1471,6 +1479,7 @@ static void find_pval_goto_item(pval *item, int lev)
 
 				   item->u2.statements == a pval list of statements in the while ()
 		*/
+		/* printf("Descending into while at line %d\n", item->startline); */
 		find_pval_gotos(item->u2.statements,lev+1);
 		break;
 			
@@ -1496,9 +1505,11 @@ static void find_pval_goto_item(pval *item, int lev)
 				   item->u3.else_statements == a pval list of statements in the else
 											   (could be zero)
 		*/
+		/* printf("Descending into random/iftime/if at line %d\n", item->startline); */
 		find_pval_gotos(item->u2.statements,lev+1);
 
 		if (item->u3.else_statements) {
+			/* printf("Descending into random/iftime/if's ELSE at line %d\n", item->startline); */
 			find_pval_gotos(item->u3.else_statements,lev+1);
 		}
 		break;
@@ -1509,6 +1520,7 @@ static void find_pval_goto_item(pval *item, int lev)
 				   item->u2.statements == a pval list of statements in the switch, 
 				   							(will be case statements, most likely!)
 		*/
+		/* printf("Descending into switch at line %d\n", item->startline); */
 		find_pval_gotos(item->u3.else_statements,lev+1);
 		break;
 			
@@ -1520,6 +1532,7 @@ static void find_pval_goto_item(pval *item, int lev)
 				   item->u4.regexten   == an int boolean. non-zero says that regexten was specified
 		*/
 
+		/* printf("Descending into extension %s at line %d\n", item->u1.str, item->startline); */
 		find_pval_gotos(item->u2.statements,lev+1);
 		break;
 
@@ -1531,9 +1544,9 @@ static void find_pval_goto_item(pval *item, int lev)
 static void find_pval_gotos(pval *item,int lev)
 {
 	pval *i;
-
+	
 	for (i=item; i; i=i->next) {
-		
+		/* printf("About to call pval_goto_item, itemcount=%d, itemtype=%d\n", item_count, i->type); */
 		find_pval_goto_item(i, lev);
 	}
 }
