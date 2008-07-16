@@ -1512,9 +1512,9 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		/* We traversed all variables and didn't find a strategy */
 		if (!tmpvar)
 			q->strategy = QUEUE_STRATEGY_RINGALL;
-		init_queue(q);		/* Ensure defaults for all parameters not set explicitly. */
 		ao2_link(queues, q);
 	}
+	init_queue(q);		/* Ensure defaults for all parameters not set explicitly. */
 
 	memset(tmpbuf, 0, sizeof(tmpbuf));
 	for (v = queue_vars; v; v = v->next) {
