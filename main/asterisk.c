@@ -505,11 +505,11 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	ast_cli(a->fd, "\nSystem Statistics\n");
 	ast_cli(a->fd, "-----------------\n");
 	ast_cli(a->fd, "  System Uptime:             %ld hours\n", sys_info.uptime/3600);
-	ast_cli(a->fd, "  Total RAM:                 %ld KiB\n", (sys_info.totalram / sys_info.mem_unit)/1024);
-	ast_cli(a->fd, "  Free RAM:                  %ld KiB\n", (sys_info.freeram / sys_info.mem_unit)/1024);
-	ast_cli(a->fd, "  Buffer RAM:                %ld KiB\n", (sys_info.bufferram / sys_info.mem_unit)/1024);
-	ast_cli(a->fd, "  Total Swap Space:          %ld KiB\n", (sys_info.totalswap / sys_info.mem_unit)/1024);
-	ast_cli(a->fd, "  Free Swap Space:           %ld KiB\n\n", (sys_info.freeswap / sys_info.mem_unit)/1024);
+	ast_cli(a->fd, "  Total RAM:                 %ld KiB\n", (sys_info.totalram * sys_info.mem_unit)/1024);
+	ast_cli(a->fd, "  Free RAM:                  %ld KiB\n", (sys_info.freeram * sys_info.mem_unit)/1024);
+	ast_cli(a->fd, "  Buffer RAM:                %ld KiB\n", (sys_info.bufferram * sys_info.mem_unit)/1024);
+	ast_cli(a->fd, "  Total Swap Space:          %ld KiB\n", (sys_info.totalswap * sys_info.mem_unit)/1024);
+	ast_cli(a->fd, "  Free Swap Space:           %ld KiB\n\n", (sys_info.freeswap * sys_info.mem_unit)/1024);
 	ast_cli(a->fd, "  Number of Processes:       %d \n\n", sys_info.procs);
 	return CLI_SUCCESS;
 }
