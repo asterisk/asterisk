@@ -1270,7 +1270,7 @@ static int peer_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct iax2_peer *peer = obj, *peer2 = arg;
 
-	return !strcasecmp(peer->name, peer2->name) ? CMP_MATCH : 0;
+	return !strcmp(peer->name, peer2->name) ? CMP_MATCH : 0;
 }
 
 /*!
@@ -1290,7 +1290,7 @@ static int user_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct iax2_user *user = obj, *user2 = arg;
 
-	return !strcasecmp(user->name, user2->name) ? CMP_MATCH : 0;
+	return !strcmp(user->name, user2->name) ? CMP_MATCH : 0;
 }
 
 /*!
