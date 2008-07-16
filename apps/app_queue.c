@@ -3090,7 +3090,7 @@ static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struc
 	struct member *member = qtds->member;
 	int callstart = qtds->starttime;
 	struct ast_datastore *datastore;
-	
+
 	ast_queue_log(qe->parent->name, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld|%d",
 				new_chan->exten, new_chan->context, (long) (callstart - qe->start),
 				(long) (time(NULL) - callstart), qe->opos);
@@ -3101,6 +3101,7 @@ static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struc
 	}
 
 	ast_channel_datastore_remove(new_chan, datastore);
+	ast_channel_datastore_free(datastore);
 }
 
 /*! \brief mechanism to tell if a queue caller was atxferred by a queue member.
@@ -3797,6 +3798,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		 * when the masquerade occurred. These other "ending" queue_log messages are unnecessary
 		 */
 		if (!attended_transfer_occurred(qe->chan)) {
+			struct ast_datastore *transfer_ds = ast_channel_datastore_find(qe->chan, &queue_transfer_info, NULL);
 			if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld|%d",
 					qe->chan->exten, qe->chan->context, (long) (callstart - qe->start),
@@ -3810,6 +3812,12 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETEAGENT", "%ld|%ld|%d",
 					(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
 				send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), AGENT);
+			}
+			if (transfer_ds) {
+				ast_channel_lock(qe->chan);
+				ast_channel_datastore_remove(qe->chan, transfer_ds);
+				ast_channel_datastore_free(transfer_ds);
+				ast_channel_unlock(qe->chan);
 			}
 		}
 
