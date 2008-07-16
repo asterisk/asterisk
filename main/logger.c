@@ -484,19 +484,19 @@ static int rotate_file(const char *filename)
 			for (which = 0; which < ARRAY_LEN(suffixes); which++) {
 				snprintf(new, sizeof(new), "%s.%d%s", filename, x, suffixes[which]);
 				fd = open(new, O_RDONLY);
-				if (fd > -1)
+				if (fd > -1) {
 					close(fd);
-				else {
 					found = 1;
 					break;
 				}
 			}
-			if (!found)
+			if (!found) {
 				break;
+			}
 		}
 
 		/* Found an empty slot */
-		for (y = x; y > -1; y--) {
+		for (y = x; y > 0; y--) {
 			for (which = 0; which < ARRAY_LEN(suffixes); which++) {
 				snprintf(old, sizeof(old), "%s.%d%s", filename, y - 1, suffixes[which]);
 				fd = open(old, O_RDONLY);
