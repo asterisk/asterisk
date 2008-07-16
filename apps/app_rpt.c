@@ -14741,11 +14741,11 @@ static int rpt_manager_do_stats(struct mansession *s, const struct message *m, c
 						astman_append(s, "RemOffset: %c\r\n", offsetc);
 						if(rxplon && rxpl){
 							astman_append(s, "RxPl: %s\r\n",rxpl);
-							free(rxpl);
+							ast_free(rxpl);
 						}
 						if(txplon && txpl){
 							astman_append(s, "TxPl: %s\r\n",txpl);
-							free(txpl);
+							ast_free(txpl);
 						}
 					}
 					switch(powerlevel){
