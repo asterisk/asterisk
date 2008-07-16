@@ -3738,6 +3738,12 @@ static int iax2_hangup(struct ast_channel *c)
 			ast_debug(1, "Really destroying %s now...\n", c->name);
 			iax2_destroy(callno);
 		}
+	} else if (c->tech_pvt) {
+		/* If this call no longer exists, but the channel still
+		 * references it we need to set the channel's tech_pvt to null
+		 * to avoid ast_channel_free() trying to free it.
+		 */
+		c->tech_pvt = NULL;
 	}
 	ast_mutex_unlock(&iaxsl[callno]);
 	ast_verb(3, "Hungup '%s'\n", c->name);
