@@ -600,7 +600,7 @@ static int set_var(char **var, const char *name, const char *value)
 static int check_vars(void)
 {
 	if (!dbfile) {
-		ast_log(LOG_ERROR, "Undefined parameter %s\n", dbfile);
+		ast_log(LOG_ERROR, "Required parameter undefined: dbfile\n");
 		return 1;
 	}
 
