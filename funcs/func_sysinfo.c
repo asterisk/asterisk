@@ -60,15 +60,15 @@ static int sysinfo_helper(struct ast_channel *chan, const char *cmd, char *data,
 	else if (!strcasecmp("uptime", data)) {             /* in hours */
 		snprintf(buf, len, "%ld", sys_info.uptime/3600);
 	} else if (!strcasecmp("totalram", data)) {         /* in KiB */
-		snprintf(buf, len, "%ld",(sys_info.totalram / sys_info.mem_unit)/1024);
+		snprintf(buf, len, "%ld",(sys_info.totalram * sys_info.mem_unit)/1024);
 	} else if (!strcasecmp("freeram", data)) {          /* in KiB */
-		snprintf(buf, len, "%ld",(sys_info.freeram / sys_info.mem_unit)/1024);
+		snprintf(buf, len, "%ld",(sys_info.freeram * sys_info.mem_unit)/1024);
 	} else if (!strcasecmp("bufferram", data)) {        /* in KiB */
-		snprintf(buf, len, "%ld",(sys_info.bufferram / sys_info.mem_unit)/1024);
+		snprintf(buf, len, "%ld",(sys_info.bufferram * sys_info.mem_unit)/1024);
 	} else if (!strcasecmp("totalswap", data)) {        /* in KiB */
-		snprintf(buf, len, "%ld",(sys_info.totalswap / sys_info.mem_unit)/1024);
+		snprintf(buf, len, "%ld",(sys_info.totalswap * sys_info.mem_unit)/1024);
 	} else if (!strcasecmp("freeswap", data)) {         /* in KiB */
-		snprintf(buf, len, "%ld",(sys_info.freeswap / sys_info.mem_unit)/1024);
+		snprintf(buf, len, "%ld",(sys_info.freeswap * sys_info.mem_unit)/1024);
 	} else if (!strcasecmp("numprocs", data)) {
 		snprintf(buf, len, "%d", sys_info.procs);
 	}
