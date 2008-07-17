@@ -1330,14 +1330,6 @@ static void register_group_feature(struct feature_group *fg, const char *exten, 
 {
 	struct feature_group_exten *fge;
 
-	if (!(fge = ast_calloc(1, sizeof(*fge))))
-		return;
-
-	if (ast_string_field_init(fge, 128)) {
-		ast_free(fge);
-		return;
-	}
-
 	if (!fg) {
 		ast_log(LOG_NOTICE, "You didn't pass a group!\n");
 		return;
@@ -1348,7 +1340,15 @@ static void register_group_feature(struct feature_group *fg, const char *exten, 
 		return;
 	}
 
-	ast_string_field_set(fge, exten, (ast_strlen_zero(exten) ? feature->exten : exten));
+	if (!(fge = ast_calloc(1, sizeof(*fge))))
+		return;
+
+	if (ast_string_field_init(fge, 128)) {
+		ast_free(fge);
+		return;
+	}
+
+	ast_string_field_set(fge, exten, S_OR(exten, feature->exten));
 
 	fge->feature = feature;
 
