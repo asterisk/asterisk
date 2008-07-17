@@ -2488,7 +2488,8 @@ static int load_module(void)
 	/* Dialplan Functions */
 	ast_custom_function_register(&agent_function);
 
-	agent_devicestate_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, agent_devicestate_cb, NULL, AST_EVENT_IE_END);
+	agent_devicestate_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE,
+		agent_devicestate_cb, NULL, AST_EVENT_IE_END);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
