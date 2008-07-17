@@ -5376,7 +5376,6 @@ static char mandescr_show_dialplan[] =
 " Context: <context>		Context (Optional)\n"
 "\n";
 
-
 /*! \brief CLI support for listing global variables in a parseable way */
 static char *handle_show_globals(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -5385,9 +5384,9 @@ static char *handle_show_globals(struct ast_cli_entry *e, int cmd, struct ast_cl
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "core show globals";
+		e->command = "dialplan show globals";
 		e->usage = 
-			"Usage: core show globals\n"
+			"Usage: dialplan show globals\n"
 			"       List current global dialplan variables and their values\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -5400,8 +5399,50 @@ static char *handle_show_globals(struct ast_cli_entry *e, int cmd, struct ast_cl
 		ast_cli(a->fd, "   %s=%s\n", ast_var_name(newvariable), ast_var_value(newvariable));
 	}
 	ast_rwlock_unlock(&globalslock);
-	ast_cli(a->fd, "\n    -- %d variables\n", i);
+	ast_cli(a->fd, "\n    -- %d variable(s)\n", i);
 
+	return CLI_SUCCESS;
+}
+
+static char *handle_show_globals_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+
+	char *res = handle_show_globals(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "core show globals";
+	return res;
+}
+
+/*! \brief CLI support for listing chanvar's variables in a parseable way */
+static char *handle_show_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_channel *chan = NULL;
+	struct ast_str *vars = ast_str_alloca(BUFSIZ * 4); /* XXX large because we might have lots of channel vars */
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dialplan show chanvar";
+		e->usage = 
+			"Usage: dialplan show chanvar <channel>\n"
+			"       List current channel variables and their values\n";
+		return NULL;
+	case CLI_GENERATE:
+		return ast_complete_channels(a->line, a->word, a->pos, a->n, 3);
+	}
+
+	if (a->argc != e->args + 1)
+		return CLI_SHOWUSAGE;
+
+	if (!(chan = ast_get_channel_by_name_locked(a->argv[e->args]))) {
+		ast_cli(a->fd, "Channel '%s' not found\n", a->argv[e->args]);
+		return CLI_FAILURE;
+	}
+
+	pbx_builtin_serialize_variables(chan, &vars);
+	if (vars->str) {
+		ast_cli(a->fd, "\nVariables for channel %s:\n%s\n", a->argv[e->args], vars->str);
+	}
+	ast_channel_unlock(chan);
 	return CLI_SUCCESS;
 }
 
@@ -5409,9 +5450,9 @@ static char *handle_set_global(struct ast_cli_entry *e, int cmd, struct ast_cli_
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "core set global";
+		e->command = "dialplan set global";
 		e->usage = 
-			"Usage: core set global <name> <value>\n"
+			"Usage: dialplan set global <name> <value>\n"
 			"       Set global dialplan variable <name> to <value>\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -5422,9 +5463,17 @@ static char *handle_set_global(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 
 	pbx_builtin_setvar_helper(NULL, a->argv[3], a->argv[4]);
-	ast_cli(a->fd, "\n    -- Global variable %s set to %s\n", a->argv[3], a->argv[4]);
+	ast_cli(a->fd, "\n    -- Global variable '%s' set to '%s'\n", a->argv[3], a->argv[4]);
 
 	return CLI_SUCCESS;
+}
+
+static char *handle_set_global_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_set_global(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "core set global";
+	return res;
 }
 
 static char *handle_set_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -5434,9 +5483,9 @@ static char *handle_set_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "core set chanvar";
+		e->command = "dialplan set chanvar";
 		e->usage = 
-			"Usage: core set chanvar <channel> <varname> <value>\n"
+			"Usage: dialplan set chanvar <channel> <varname> <value>\n"
 			"       Set channel variable <varname> to <value>\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -5456,13 +5505,18 @@ static char *handle_set_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli
 	}
 
 	pbx_builtin_setvar_helper(chan, var_name, var_value);
-
 	ast_channel_unlock(chan);
-
-	ast_cli(a->fd, "\n    -- Channel variable '%s' set to '%s' for '%s'\n", 
-		var_name, var_value, chan_name);
+	ast_cli(a->fd, "\n    -- Channel variable '%s' set to '%s' for '%s'\n",  var_name, var_value, chan_name);
 
 	return CLI_SUCCESS;
+}
+
+static char *handle_set_chanvar_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_set_chanvar(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "core set chanvar";
+	return res;
 }
 
 static char *handle_set_extenpatternmatchnew(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -5522,6 +5576,14 @@ static char *handle_unset_extenpatternmatchnew(struct ast_cli_entry *e, int cmd,
 }
 
 /*
+ * Deprecated CLI commands
+ */
+
+static struct ast_cli_entry cli_show_globals_deprecated = AST_CLI_DEFINE(handle_show_globals_deprecated, "Show global dialplan variables.");
+static struct ast_cli_entry cli_set_chanvar_deprecated = AST_CLI_DEFINE(handle_set_chanvar_deprecated, "Set a channel variable.");
+static struct ast_cli_entry cli_set_global_deprecated = AST_CLI_DEFINE(handle_set_global_deprecated, "Set global dialplan variable.");
+
+/*
  * CLI entries for upper commands ...
  */
 static struct ast_cli_entry pbx_cli[] = {
@@ -5530,11 +5592,12 @@ static struct ast_cli_entry pbx_cli[] = {
 	AST_CLI_DEFINE(handle_show_switches, "Show alternative switches"),
 	AST_CLI_DEFINE(handle_show_hints, "Show dialplan hints"),
 	AST_CLI_DEFINE(handle_show_hint, "Show dialplan hint"),
-	AST_CLI_DEFINE(handle_show_globals, "Show global dialplan variables"),
+	AST_CLI_DEFINE(handle_show_globals, "Show global dialplan variables", .deprecate_cmd = &cli_show_globals_deprecated),
+	AST_CLI_DEFINE(handle_show_chanvar, "Show channel variables"),
 	AST_CLI_DEFINE(handle_show_function, "Describe a specific dialplan function"),
 	AST_CLI_DEFINE(handle_show_application, "Describe a specific dialplan application"),
-	AST_CLI_DEFINE(handle_set_global, "Set global dialplan variable"),
-	AST_CLI_DEFINE(handle_set_chanvar, "Set a channel variable"),
+	AST_CLI_DEFINE(handle_set_global, "Set global dialplan variable", .deprecate_cmd = &cli_set_global_deprecated),
+	AST_CLI_DEFINE(handle_set_chanvar, "Set a channel variable", .deprecate_cmd = &cli_set_chanvar_deprecated),
 	AST_CLI_DEFINE(handle_show_dialplan, "Show dialplan"),
 	AST_CLI_DEFINE(handle_unset_extenpatternmatchnew, "Use the Old extension pattern matching algorithm."),
 	AST_CLI_DEFINE(handle_set_extenpatternmatchnew, "Use the New extension pattern matching algorithm."),

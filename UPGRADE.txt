@@ -63,6 +63,11 @@ Core:
 * The concise versions of various CLI commands are now deprecated. We recommend
   using the manager interface (AMI) for application integration with Asterisk.
 
+* The following core commands dealing with dialplan has been deprecated: 'core
+  show globals', 'core set global' and 'core set chanvar'. Use the equivalent
+  'dialplan show globals', 'dialplan set global' and 'dialplan set chanvar'
+  instead.
+
 * The silencethreshold used for various applications is now settable via a
   centralized config option in dsp.conf.
 
