@@ -1175,6 +1175,7 @@ static int realtime_update_handler(const char *database, const char *table,
 
 	if (!(tmp_str = sqlite_mprintf("%s WHERE %q = '%q';", query, keyfield, entity))) {
 		ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
+		sqlite_freemem(query);
 		return -1;
 	}
 
@@ -1235,6 +1236,7 @@ static int realtime_store_handler(const char *database, const char *table, va_li
 		}
 		if (!tmp_keys) {
 			ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
+			sqlite_freemem(tmp_vals);
 			ast_free(params);
 			ast_free(vals);
 			return -1;
@@ -1248,6 +1250,7 @@ static int realtime_store_handler(const char *database, const char *table, va_li
 		}
 		if (!tmp_vals) {
 			ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
+			sqlite_freemem(tmp_keys);
 			ast_free(params);
 			ast_free(vals);
 			return -1;
@@ -1263,6 +1266,8 @@ static int realtime_store_handler(const char *database, const char *table, va_li
 
 	if (!(tmp_str = sqlite_mprintf(QUERY, table, tmp_keys, tmp_vals))) {
 		ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
+		sqlite_freemem(tmp_keys);
+		sqlite_freemem(tmp_vals);
 		return -1;
 	}
 
@@ -1342,6 +1347,7 @@ static int realtime_destroy_handler(const char *database, const char *table,
 	ast_free(vals);
 	if (!(tmp_str = sqlite_mprintf("%s %q = '%q';", query, keyfield, entity))) {
 		ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
+		sqlite_freemem(query);
 		return -1;
 	}
 	sqlite_freemem(query);
