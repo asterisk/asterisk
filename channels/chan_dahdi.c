@@ -5321,12 +5321,13 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 			else
 				i->dsp = NULL;
 			if (i->dsp) {
-				i->dsp_features = features & ~DSP_PROGRESS_TALK;
+				i->dsp_features = features;
 #ifdef HAVE_PRI
 				/* We cannot do progress detection until receives PROGRESS message */
 				if (i->outgoing && (i->sig == SIG_PRI)) {
 					/* Remember requested DSP features, don't treat
 					   talking as ANSWER */
+					i->dsp_features = features & ~DSP_PROGRESS_TALK;
 					features = 0;
 				}
 #endif
