@@ -1091,6 +1091,7 @@ static struct ast_config *realtime_multi_handler(const char *database,
 
 	if (!(tmp_str = sqlite_mprintf("%s ORDER BY %q;", query, initfield))) {
 		ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
+		sqlite_freemem(query);
 		ast_config_destroy(cfg);
 		ast_free(initfield);
 		return NULL;
