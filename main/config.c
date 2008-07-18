@@ -1028,7 +1028,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				return 0;	/* XXX is this correct ? or we should return -1 ? */
 			}
 		} else {
-			ast_log(LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
+			ast_log(LOG_WARNING, "Unknown directive '#%s' at line %d of %s\n", cur, lineno, configfile);
 			return 0;	/* XXX is this correct ? or we should return -1 ? */
 		}
 
