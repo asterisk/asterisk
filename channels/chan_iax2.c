@@ -1051,8 +1051,8 @@ static void __send_lagrq(const void *data)
 			/* I am the schedule, so I'm allowed to do this */
 			iaxs[callno]->lagid = -1;
 		}
-	} else if (option_debug > 0) {
-		ast_log(LOG_DEBUG, "I was supposed to send a LAGRQ with callno %d, but no such call exists (and I cannot remove lagid, either).\n", callno);
+	} else {
+		ast_log(LOG_WARNING, "I was supposed to send a LAGRQ with callno %d, but no such call exists (and I cannot remove lagid, either).\n", callno);
 	}
 
 	ast_mutex_unlock(&iaxsl[callno]);

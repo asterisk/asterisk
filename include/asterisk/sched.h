@@ -118,7 +118,8 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
  * \param id ID of the scheduled item to delete
  * \return Returns 0 on success, -1 on failure
  */
-int ast_sched_del(struct sched_context *con, int id);
+int _ast_sched_del(struct sched_context *con, int id, const char *file, int line, const char *function);
+#define	ast_sched_del(a, b)	_ast_sched_del(a, b, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*! \brief Determines number of seconds until the next outstanding event to take place
  * Determine the number of seconds until the next outstanding event
