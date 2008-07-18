@@ -1270,7 +1270,7 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 {
 	int x;
 	char hdr[40];
-	const char *action, *cat, *match, *line;
+	const char *action, *cat, *match, *line, *tmp;
 	char *var, *value;
 	struct ast_category *category;
 	struct ast_variable *v;
@@ -1285,11 +1285,19 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 		snprintf(hdr, sizeof(hdr), "Cat-%06d", x);
 		cat = astman_get_header(m, hdr);
 		snprintf(hdr, sizeof(hdr), "Var-%06d", x);
-		var = astman_get_header(m, hdr);
-		ast_uri_decode(var);
+		if ((tmp = astman_get_header(m, hdr))) {
+			var = ast_strdupa(tmp);
+			ast_uri_decode(var);
+		} else {
+			var = "";
+		}
 		snprintf(hdr, sizeof(hdr), "Value-%06d", x);
-		value = astman_get_header(m, hdr);
-		ast_uri_decode(value);
+		if ((tmp = astman_get_header(m, hdr))) {
+			value = ast_strdupa(tmp);
+			ast_uri_decode(value);
+		} else {
+			value = "";
+		}
 		if (!ast_strlen_zero(value) && *value == '>') {
 			object = 1;
 			value++;
