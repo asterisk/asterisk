@@ -3879,6 +3879,7 @@ static int __init_manager(int reload)
 					/* Insert into list */
 					AST_LIST_INSERT_TAIL(&users, user, list);
 					user->ha = NULL;
+					user->keep = 1;
 					user->readperm = -1;
 					user->writeperm = -1;
 					/* Default displayconnect from [general] */
