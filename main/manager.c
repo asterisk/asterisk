@@ -1274,6 +1274,8 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 	char *var, *value;
 	struct ast_category *category;
 	struct ast_variable *v;
+	struct ast_str *str1 = ast_str_create(16), *str2 = ast_str_create(16);
+	enum error_type result = 0;
 
 	for (x = 0; x < 100000; x++) {
 		unsigned int object = 0;
@@ -1286,14 +1288,18 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 		cat = astman_get_header(m, hdr);
 		snprintf(hdr, sizeof(hdr), "Var-%06d", x);
 		if ((tmp = astman_get_header(m, hdr))) {
-			var = ast_strdupa(tmp);
+			ast_str_make_space(&str1, strlen(tmp) + 1);
+			strcpy(str1->str, tmp);
+			var = str1->str;
 			ast_uri_decode(var);
 		} else {
 			var = "";
 		}
 		snprintf(hdr, sizeof(hdr), "Value-%06d", x);
 		if ((tmp = astman_get_header(m, hdr))) {
-			value = ast_strdupa(tmp);
+			ast_str_make_space(&str2, strlen(tmp) + 1);
+			strcpy(str2->str, tmp);
+			value = str2->str;
 			ast_uri_decode(value);
 		} else {
 			value = "";
@@ -1307,69 +1313,112 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 		snprintf(hdr, sizeof(hdr), "Line-%06d", x);
 		line = astman_get_header(m, hdr);
 		if (!strcasecmp(action, "newcat")) {
-			if (ast_strlen_zero(cat))
-				return UNSPECIFIED_CATEGORY;
-			if (!(category = ast_category_new(cat, dfn, -1)))
-				return FAILURE_ALLOCATION;
+			if (ast_strlen_zero(cat)) {
+				result = UNSPECIFIED_CATEGORY;
+				break;
+			}
+			if (!(category = ast_category_new(cat, dfn, -1))) {
+				result = FAILURE_ALLOCATION;
+				break;
+			}
 			if (ast_strlen_zero(match)) {
 				ast_category_append(cfg, category);
 			} else
 				ast_category_insert(cfg, category, match);
 		} else if (!strcasecmp(action, "renamecat")) {
-			if (ast_strlen_zero(cat) || ast_strlen_zero(value))
-				return UNSPECIFIED_ARGUMENT;
-			if (!(category = ast_category_get(cfg, cat)))
-				return UNKNOWN_CATEGORY;
+			if (ast_strlen_zero(cat) || ast_strlen_zero(value)) {
+				result = UNSPECIFIED_ARGUMENT;
+				break;
+			}
+			if (!(category = ast_category_get(cfg, cat))) {
+				result = UNKNOWN_CATEGORY;
+				break;
+			}
 			ast_category_rename(category, value);
 		} else if (!strcasecmp(action, "delcat")) {
-			if (ast_strlen_zero(cat))
-				return UNSPECIFIED_CATEGORY;
-			if (ast_category_delete(cfg, cat))
-				return FAILURE_DELCAT;
+			if (ast_strlen_zero(cat)) {
+				result = UNSPECIFIED_CATEGORY;
+				break;
+			}
+			if (ast_category_delete(cfg, cat)) {
+				result = FAILURE_DELCAT;
+				break;
+			}
 		} else if (!strcasecmp(action, "emptycat")) {
-			if (ast_strlen_zero(cat))
-				return UNSPECIFIED_CATEGORY;
-			if (ast_category_empty(cfg, cat))
-				return FAILURE_EMPTYCAT;
+			if (ast_strlen_zero(cat)) {
+				result = UNSPECIFIED_CATEGORY;
+				break;
+			}
+			if (ast_category_empty(cfg, cat)) {
+				result = FAILURE_EMPTYCAT;
+				break;
+			}
 		} else if (!strcasecmp(action, "update")) {
-			if (ast_strlen_zero(cat) || ast_strlen_zero(var))
-				return UNSPECIFIED_ARGUMENT;
-			if (!(category = ast_category_get(cfg,cat)))
-				return UNKNOWN_CATEGORY;
-			if (ast_variable_update(category, var, value, match, object))
-				return FAILURE_UPDATE;
+			if (ast_strlen_zero(cat) || ast_strlen_zero(var)) {
+				result = UNSPECIFIED_ARGUMENT;
+				break;
+			}
+			if (!(category = ast_category_get(cfg,cat))) {
+				result = UNKNOWN_CATEGORY;
+				break;
+			}
+			if (ast_variable_update(category, var, value, match, object)) {
+				result = FAILURE_UPDATE;
+				break;
+			}
 		} else if (!strcasecmp(action, "delete")) {
-			if (ast_strlen_zero(cat) || (ast_strlen_zero(var) && ast_strlen_zero(line)))
-				return UNSPECIFIED_ARGUMENT;
-			if (!(category = ast_category_get(cfg, cat)))
-				return UNKNOWN_CATEGORY;
-			if (ast_variable_delete(category, var, match, line))
-				return FAILURE_DELETE;
+			if (ast_strlen_zero(cat) || (ast_strlen_zero(var) && ast_strlen_zero(line))) {
+				result = UNSPECIFIED_ARGUMENT;
+				break;
+			}
+			if (!(category = ast_category_get(cfg, cat))) {
+				result = UNKNOWN_CATEGORY;
+				break;
+			}
+			if (ast_variable_delete(category, var, match, line)) {
+				result = FAILURE_DELETE;
+				break;
+			}
 		} else if (!strcasecmp(action, "append")) {
-			if (ast_strlen_zero(cat) || ast_strlen_zero(var))
-				return UNSPECIFIED_ARGUMENT;
-			if (!(category = ast_category_get(cfg, cat)))
-				return UNKNOWN_CATEGORY;	
-			if (!(v = ast_variable_new(var, value, dfn)))
-				return FAILURE_ALLOCATION;
+			if (ast_strlen_zero(cat) || ast_strlen_zero(var)) {
+				result = UNSPECIFIED_ARGUMENT;
+				break;
+			}
+			if (!(category = ast_category_get(cfg, cat))) {
+				result = UNKNOWN_CATEGORY;	
+				break;
+			}
+			if (!(v = ast_variable_new(var, value, dfn))) {
+				result = FAILURE_ALLOCATION;
+				break;
+			}
 			if (object || (match && !strcasecmp(match, "object")))
 				v->object = 1;
 			ast_variable_append(category, v);
 		} else if (!strcasecmp(action, "insert")) {
-			if (ast_strlen_zero(cat) || ast_strlen_zero(var) || ast_strlen_zero(line))
-				return UNSPECIFIED_ARGUMENT;
-			if (!(category = ast_category_get(cfg, cat)))
-				return UNKNOWN_CATEGORY;
-			if (!(v = ast_variable_new(var, value, dfn)))
-				return FAILURE_ALLOCATION;
+			if (ast_strlen_zero(cat) || ast_strlen_zero(var) || ast_strlen_zero(line)) {
+				result = UNSPECIFIED_ARGUMENT;
+				break;
+			}
+			if (!(category = ast_category_get(cfg, cat))) {
+				result = UNKNOWN_CATEGORY;
+				break;
+			}
+			if (!(v = ast_variable_new(var, value, dfn))) {
+				result = FAILURE_ALLOCATION;
+				break;
+			}
 			ast_variable_insert(category, v, line);
 		}
 		else {
 			ast_log(LOG_WARNING, "Action-%06d: %s not handled\n", x, action);
-			return UNKNOWN_ACTION;
+			result = UNKNOWN_ACTION;
+			break;
 		}
 	}
-	return 0;
+	ast_free(str1);
+	ast_free(str2);
+	return result;
 }
 
 static char mandescr_updateconfig[] =
