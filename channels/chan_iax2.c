@@ -1306,8 +1306,8 @@ retry:
 		}
 	}
 	if (!owner && iaxs[callno]) {
-		AST_SCHED_DEL(sched, iaxs[callno]->lagid);
-		AST_SCHED_DEL(sched, iaxs[callno]->pingid);
+		AST_SCHED_DEL_SPINLOCK(sched, iaxs[callno]->lagid, &iaxsl[callno]);
+		AST_SCHED_DEL_SPINLOCK(sched, iaxs[callno]->pingid, &iaxsl[callno]);
 		iaxs[callno] = NULL;
 	}
 
