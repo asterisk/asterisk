@@ -2151,11 +2151,15 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 {
 	int res = 0;
 	int playh = 0;
+	int playt = 0;
+	int playz = 0;
+	int last_length = 0;
+	char buf[20] = "";
 	char fn[256] = "";
 	if (!num)
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
-	while (!res && (num || playh)) {
+	while (!res && (num || playh || playt || playz)) {
 			if (num < 0) {
 				snprintf(fn, sizeof(fn), "digits/minus");
 				if ( num > INT_MIN ) {
@@ -2163,38 +2167,90 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 				} else {
 					num = 0;
 				}	
+			} else if (playz) {
+				snprintf(fn, sizeof(fn), "digits/0");
+				last_length = 0;
+				playz = 0;
 			} else if (playh) {
 				snprintf(fn, sizeof(fn), "digits/hundred");
 				playh = 0;
+			} else if (playt) {
+				snprintf(fn, sizeof(fn), "digits/thousand");
+				playt = 0;
 			} else	if (num < 10) {
-				snprintf(fn, sizeof(fn), "digits/%d", num);
+				snprintf(buf, 10, "%d", num);
+				if (last_length - strlen(buf) > 1 && last_length != 0) {
+					last_length = strlen(buf);
+					playz++;
+					continue;
+				}
+				if (strcasecmp(language,"twz") == 0)
+					snprintf(fn, sizeof(fn), "digits/%d", num);
+				else
+					snprintf(fn, sizeof(fn), "digits/%d", num);
 				num = 0;
 			} else	if (num < 100) {
-				snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
+				snprintf(buf, 10, "%d", num);
+				if (last_length - strlen(buf) > 1 && last_length != 0) {
+					last_length = strlen(buf);
+					playz++;
+					continue;
+				}
+				last_length = strlen(buf);
+				snprintf(fn, sizeof(fn), "digits/%d", (num / 10) * 10);
 				num -= ((num / 10) * 10);
 			} else {
 				if (num < 1000){
-					snprintf(fn, sizeof(fn), "digits/%d", (num/100));
+					snprintf(buf, 10, "%d", num);
+					if (last_length - strlen(buf) > 1 && last_length != 0) {
+						last_length = strlen(buf);
+						playz++;
+						continue;
+					}
+					snprintf(fn, sizeof(fn), "digits/%d", (num / 100));
 					playh++;
+					snprintf(buf, 10, "%d", num);
+					ast_log(LOG_DEBUG, "Number '%d' %d %d\n", num, (int)strlen(buf), last_length);
+					last_length = strlen(buf);
 					num -= ((num / 100) * 100);
-				} else {
-					if (num < 1000000) { /* 1,000,000 */
-						res = ast_say_number_full_tw(chan, num / 1000, ints, language, audiofd, ctrlfd);
+				} else if (num < 10000){
+					snprintf(buf, 10, "%d", num);
+					if (last_length - strlen(buf) > 1 && last_length != 0 && last_length % strlen(buf) > 0) {
+						last_length = strlen(buf);
+						playz++;
+						continue;
+					}
+					snprintf(fn, sizeof(fn), "digits/%d", (num / 1000));
+					playt++;
+					snprintf(buf, 10, "%d", num);
+					ast_log(LOG_DEBUG, "Number '%d' %d %d\n", num, (int)strlen(buf), last_length);
+					last_length = strlen(buf);
+					num -= ((num / 1000) * 1000);
+				} else if (num < 100000000) { /* 100,000,000 */
+						res = ast_say_number_full_tw(chan, num / 10000, ints, language, audiofd, ctrlfd);
 						if (res)
 							return res;
-						num = num % 1000;
-						snprintf(fn, sizeof(fn), "digits/thousand");
+						if (((num / 10000) % (num/100000)) == 0)
+							playz++;
+
+						snprintf(buf, 10, "%d", num);
+						ast_log(LOG_DEBUG, "Number '%d' %d %d\n", num, (int)strlen(buf), last_length);
+						num -= ((num / 10000) * 10000);
+						last_length = strlen(buf);
+						snprintf(fn, sizeof(fn), "digits/wan");
+				} else {
+					if (num < 1000000000) { /* 1000,000,000 */
+						res = ast_say_number_full_tw(chan, num / 100000000, ints, language, audiofd, ctrlfd);
+						if (res)
+							return res;
+						snprintf(buf, 10, "%d", num);
+						ast_log(LOG_DEBUG, "Number '%d' %d %d\n", num, (int)strlen(buf), last_length);
+						last_length = strlen(buf);
+						num -= ((num / 100000000) * 100000000);
+						snprintf(fn, sizeof(fn), "digits/yi");
 					} else {
-						if (num < 1000000000) {	/* 1,000,000,000 */
-							res = ast_say_number_full_tw(chan, num / 1000000, ints, language, audiofd, ctrlfd);
-							if (res)
-								return res;
-							num = num % 1000000;
-							snprintf(fn, sizeof(fn), "digits/million");
-						} else {
 							ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 							res = -1;
-						}
 					}
 				}
 			}
