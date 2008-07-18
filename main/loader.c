@@ -52,11 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/http.h"
 #include "asterisk/lock.h"
 
-#ifdef DLFCNCOMPAT
-#include "asterisk/dlfcn-compat.h"
-#else
 #include <dlfcn.h>
-#endif
 
 #include "asterisk/md5.h"
 #include "asterisk/utils.h"
