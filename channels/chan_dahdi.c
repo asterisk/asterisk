@@ -13227,6 +13227,9 @@ static char *handle_ss7_block_cic(struct ast_cli_entry *e, int cmd, struct ast_c
 	else
 		ast_cli(a->fd, "CIC %d already locally blocked\n", cic);
 
+	/* Break poll on the linkset so it sends our messages */
+	pthread_kill(linksets[linkset-1].master, SIGURG);
+
 	return CLI_SUCCESS;
 }
 
@@ -13265,6 +13268,9 @@ static char *handle_ss7_block_linkset(struct ast_cli_entry *e, int cmd, struct a
 		isup_blo(linksets[linkset-1].ss7, linksets[linkset-1].pvts[i]->cic, linksets[linkset-1].pvts[i]->dpc);
 		ast_mutex_unlock(&linksets[linkset-1].lock);
 	}
+
+	/* Break poll on the linkset so it sends our messages */
+	pthread_kill(linksets[linkset-1].master, SIGURG);
 
 	return CLI_SUCCESS;
 }
@@ -13319,6 +13325,10 @@ static char *handle_ss7_unblock_cic(struct ast_cli_entry *e, int cmd, struct ast
 
 	if (blocked > 0)
 		ast_cli(a->fd, "Sent unblocking request for linkset %d on CIC %d\n", linkset, cic);
+
+	/* Break poll on the linkset so it sends our messages */
+	pthread_kill(linksets[linkset-1].master, SIGURG);
+
 	return CLI_SUCCESS;
 }
 
@@ -13358,6 +13368,9 @@ static char *handle_ss7_unblock_linkset(struct ast_cli_entry *e, int cmd, struct
 		isup_ubl(linksets[linkset-1].ss7, linksets[linkset-1].pvts[i]->cic, linksets[linkset-1].pvts[i]->dpc);
 		ast_mutex_unlock(&linksets[linkset-1].lock);
 	}
+
+	/* Break poll on the linkset so it sends our messages */
+	pthread_kill(linksets[linkset-1].master, SIGURG);
 
 	return CLI_SUCCESS;
 }
