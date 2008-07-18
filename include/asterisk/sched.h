@@ -210,8 +210,12 @@ const void *ast_sched_find_data(struct sched_context *con, int id);
  * \param id ID of the scheduled item to delete
  * \return Returns 0 on success, -1 on failure
  */
+#ifndef DEVMODE
+int ast_sched_del(struct sched_context *con, int id) attribute_warn_unused_result;
+#else
 int _ast_sched_del(struct sched_context *con, int id, const char *file, int line, const char *function) attribute_warn_unused_result;
 #define	ast_sched_del(a, b)	_ast_sched_del(a, b, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#endif
 
 /*! \brief Determines number of seconds until the next outstanding event to take place
  * Determine the number of seconds until the next outstanding event
