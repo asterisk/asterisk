@@ -936,8 +936,8 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		}
 		/*! \todo XXX Maybe we should have another message here instead of invalid extension XXX */
 	} else if (ast_exists_extension(transferee, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
-		pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", transferee->name);
-		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
+		pbx_builtin_setvar_helper(transferer, "BLINDTRANSFER", transferee->name);
+		pbx_builtin_setvar_helper(transferee, "BLINDTRANSFER", transferer->name);
 		res=finishup(transferee);
 		if (!transferer->cdr) {
 			transferer->cdr=ast_cdr_alloc();
