@@ -263,7 +263,7 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, co
  * would be two or more in the list with that
  * id.
  */
-int ast_sched_del(struct sched_context *con, int id)
+int _ast_sched_del(struct sched_context *con, int id, const char *file, int line, const char *function)
 {
 	struct sched *s;
 
@@ -289,7 +289,7 @@ int ast_sched_del(struct sched_context *con, int id)
 
 	if (!s) {
 		ast_debug(1, "Attempted to delete nonexistent schedule entry %d!\n", id);
-		ast_assert(s != NULL);
+		_ast_assert(0, "s != NULL", file, line, function);
 		return -1;
 	}
 	
