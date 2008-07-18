@@ -765,7 +765,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 			}
 		}
 		else 
-			ast_log(LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
+			ast_log(LOG_WARNING, "Unknown directive '#%s' at line %d of %s\n", cur, lineno, configfile);
 	} else {
 		/* Just a line (variable = value) */
 		if (!(*cat)) {
