@@ -27,18 +27,12 @@
  * res_config_sqlite is a module for the Asterisk Open Source PBX to
  * support SQLite 2 databases. It can be used to fetch configuration
  * from a database (static configuration files and/or using the Asterisk
- * RealTime Architecture - ARA).
- * It can also be used to log CDR entries. Finally, it can be used for simple
- * queries in the Dialplan. Note that Asterisk already comes with a module
- * named cdr_sqlite. There are two reasons for including it in res_config_sqlite:
+ * RealTime Architecture - ARA).  It can also be used to log CDR entries. 
+ * Note that Asterisk already comes with a module named cdr_sqlite.
+ * There are two reasons for including it in res_config_sqlite:
  * the first is that rewriting it was a training to learn how to write a
  * simple module for Asterisk, the other is to have the same database open for
  * all kinds of operations, which improves reliability and performance.
- *
- * There is already a module for SQLite 3 (named res_sqlite3) in the Asterisk
- * addons. res_config_sqlite was developed because we, at Proformatique, are using
- * PHP 4 in our embedded systems, and PHP 4 has no stable support for SQLite 3
- * at this time. We also needed RealTime support.
  *
  * \section conf_sec Configuration
  *
@@ -324,7 +318,7 @@ static int add_rt_cfg_entry(void *arg, int argc, char **argv,
 	char **columnNames);
 
 /*!
- * Asterisk callback function for RealTime configuration.
+ * \brief Asterisk callback function for RealTime configuration.
  *
  * Asterisk will call this function each time it requires a variable
  * through the RealTime architecture. ap is a list of parameters and
