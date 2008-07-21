@@ -21007,8 +21007,10 @@ static int reload_config(enum channelreloadreason reason)
 			sip_tcp_desc.sin.sin_family = ast_false(v->value) ? 0 : AF_INET;
 			ast_debug(2, "Enabling TCP socket for listening\n");
 		} else if (!strcasecmp(v->name, "tcpbindaddr")) {
+			int family = sip_tcp_desc.sin.sin_family;
 			if (ast_parse_arg(v->value, PARSE_INADDR, &sip_tcp_desc.sin))
 				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n", v->name, v->value, v->lineno, config);
+			sip_tcp_desc.sin.sin_family = family;
 			ast_debug(2, "Setting TCP socket address to %s\n", v->value);
 		} else if (!strcasecmp(v->name, "tlsenable")) {
 			default_tls_cfg.enabled = ast_true(v->value) ? TRUE : FALSE;
