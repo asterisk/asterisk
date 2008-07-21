@@ -53,7 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/audiohook.h"
 
-#define RESAMPLE_QUALITY 0
+#define RESAMPLE_QUALITY 1
 
 #define RINGBUFFER_SIZE 16384
 
