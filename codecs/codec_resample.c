@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "slin_resample_ex.h"
 
-#define RESAMPLER_QUALITY 0
+#define RESAMPLER_QUALITY 1
 
 #define OUTBUF_SIZE   8096
 
