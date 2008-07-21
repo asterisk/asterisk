@@ -652,6 +652,12 @@
 /* Define to indicate the ${REMAINDER_DESCRIP} library version */
 #undef HAVE_REMAINDER_VERSION
 
+/* Define this to indicate the ${RESAMPLE_DESCRIP} library */
+#undef HAVE_RESAMPLE
+
+/* Define to indicate the ${RESAMPLE_DESCRIP} library version */
+#undef HAVE_RESAMPLE_VERSION
+
 /* Define to 1 if your system has the ndestroy resolver function. */
 #undef HAVE_RES_NDESTROY
 

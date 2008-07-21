@@ -27,12 +27,14 @@
  * another application, or to play audio from another application.
  *
  * \arg http://www.jackaudio.org/
+ * \arg http://svn.digium.com/svn/libresample/trunk
  *
  * \ingroup applications
  */
 
 /*** MODULEINFO
 	<depend>jack</depend>
+	<depend>resample</depend>
  ***/
 
 #include "asterisk.h"
@@ -44,11 +46,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <jack/jack.h>
 #include <jack/ringbuffer.h>
 
+#include <libresample.h>
+
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/strings.h"
 #include "asterisk/lock.h"
-#include "asterisk/libresample.h"
 #include "asterisk/app.h"
 #include "asterisk/pbx.h"
 #include "asterisk/audiohook.h"
