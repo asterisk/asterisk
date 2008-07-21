@@ -107,7 +107,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int nochecksums = 0;
 #endif
 
-
 #define PTR_TO_CALLNO(a) ((unsigned short)(unsigned long)(a))
 #define CALLNO_TO_PTR(a) ((void *)(unsigned long)(a))
 
@@ -784,53 +783,6 @@ static void signal_condition(ast_mutex_t *lock, ast_cond_t *cond)
 	ast_mutex_unlock(lock);
 }
 
-static void iax_debug_output(const char *data)
-{
-	if (iaxdebug)
-		ast_verbose("%s", data);
-}
-
-static void iax_error_output(const char *data)
-{
-	ast_log(LOG_WARNING, "%s", data);
-}
-
-static void __attribute__((format (printf, 1, 2))) jb_error_output(const char *fmt, ...)
-{
-	va_list args;
-	char buf[1024];
-
-	va_start(args, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
-
-	ast_log(LOG_ERROR, "%s", buf);
-}
-
-static void __attribute__((format (printf, 1, 2))) jb_warning_output(const char *fmt, ...)
-{
-	va_list args;
-	char buf[1024];
-
-	va_start(args, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
-
-	ast_log(LOG_WARNING, "%s", buf);
-}
-
-static void __attribute__((format (printf, 1, 2))) jb_debug_output(const char *fmt, ...)
-{
-	va_list args;
-	char buf[1024];
-
-	va_start(args, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
-
-	ast_verbose("%s", buf);
-}
-
 /*!
  * \brief an array of iax2 pvt structures
  *
@@ -885,6 +837,73 @@ static struct timeval lastused[ARRAY_LEN(iaxs)];
 /* Flag to use with trunk calls, keeping these calls high up.  It halves our effective use
    but keeps the division between trunked and non-trunked better. */
 #define TRUNK_CALL_START	ARRAY_LEN(iaxs) / 2
+
+/* Debug routines... */
+static struct sockaddr_in debugaddr;
+
+static void iax_outputframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen)
+{
+	if (iaxdebug ||
+	    (sin && debugaddr.sin_addr.s_addr && 
+	     (!ntohs(debugaddr.sin_port) ||
+	      debugaddr.sin_port == sin->sin_port) &&
+	     debugaddr.sin_addr.s_addr == sin->sin_addr.s_addr)) {
+		if (iaxdebug) {
+			iax_showframe(f, fhi, rx, sin, datalen);
+		} else {
+			iaxdebug = 1;
+			iax_showframe(f, fhi, rx, sin, datalen);
+			iaxdebug = 0;
+		}
+	}
+}
+
+static void iax_debug_output(const char *data)
+{
+	if (iaxdebug)
+		ast_verbose("%s", data);
+}
+
+static void iax_error_output(const char *data)
+{
+	ast_log(LOG_WARNING, "%s", data);
+}
+
+static void __attribute__((format (printf, 1, 2))) jb_error_output(const char *fmt, ...)
+{
+	va_list args;
+	char buf[1024];
+
+	va_start(args, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
+
+	ast_log(LOG_ERROR, "%s", buf);
+}
+
+static void __attribute__((format (printf, 1, 2))) jb_warning_output(const char *fmt, ...)
+{
+	va_list args;
+	char buf[1024];
+
+	va_start(args, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
+
+	ast_log(LOG_WARNING, "%s", buf);
+}
+
+static void __attribute__((format (printf, 1, 2))) jb_debug_output(const char *fmt, ...)
+{
+	va_list args;
+	char buf[1024];
+
+	va_start(args, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
+
+	ast_verbose("%s", buf);
+}
 
 static int maxtrunkcall = TRUNK_CALL_START;
 static int maxnontrunkcall = 1;
@@ -2213,8 +2232,7 @@ static int send_packet(struct iax_frame *f)
 		addr = &iaxs[callno]->addr;
 	}
 	
-	if (iaxdebug)
-		iax_showframe(f, NULL, 0, addr, f->datalen - sizeof(struct ast_iax2_full_hdr));
+	iax_outputframe(f, NULL, 0, addr, f->datalen - sizeof(struct ast_iax2_full_hdr));
 
 	res = sendto(iaxs[callno]->sockfd, f->data, f->datalen, 0,(struct sockaddr *)addr, 
 		     sizeof(iaxs[callno]->media));
@@ -4788,15 +4806,12 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			pvt->svideoformat = f->subclass & ~0x1;
 		if (ast_test_flag(pvt, IAX_ENCRYPTED)) {
 			if (ast_test_flag(pvt, IAX_KEYPOPULATED)) {
-				if (iaxdebug) {
-					if (fr->transfer)
-						iax_showframe(fr, NULL, 2, &pvt->transfer, fr->datalen - sizeof(struct ast_iax2_full_hdr));
-					else if (fr->media)
-						iax_showframe(fr, NULL, 2, &pvt->media, fr->datalen - sizeof(struct ast_iax2_full_hdr));
-
-					else
-						iax_showframe(fr, NULL, 2, &pvt->addr, fr->datalen - sizeof(struct ast_iax2_full_hdr));
-				}
+				if (fr->transfer)
+					iax_outputframe(fr, NULL, 2, &pvt->transfer, fr->datalen - sizeof(struct ast_iax2_full_hdr));
+				else if (fr->media)
+					iax_outputframe(fr, NULL, 2, &pvt->media, fr->datalen - sizeof(struct ast_iax2_full_hdr));
+				else
+					iax_outputframe(fr, NULL, 2, &pvt->addr, fr->datalen - sizeof(struct ast_iax2_full_hdr));
 				encrypt_frame(&pvt->ecx, fh, pvt->semirand, &fr->datalen);
 			} else
 				ast_log(LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
@@ -5524,79 +5539,52 @@ static char *handle_cli_iax2_show_netstats(struct ast_cli_entry *e, int cmd, str
 	return CLI_SUCCESS;
 }
 
-static char *handle_cli_iax2_set_debug_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "iax2 set debug [off]";
-		e->usage =
-			"Usage: iax2 set debug [off]\n"
-			"       Enables/Disables dumping of IAX packets for debugging purposes.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-	if (a->argc < 3 || a->argc > 4)
-		return CLI_SHOWUSAGE;
-	if (a->argc == 3) {
-		iaxdebug = 1;
-		ast_cli(a->fd, "IAX2 Debugging Enabled\n");
-	} else {
-		iaxdebug = 0;
-		ast_cli(a->fd, "IAX2 Debugging Disabled\n");
-	}
-	return CLI_SUCCESS;
-}
+
 
 static char *handle_cli_iax2_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "iax2 set debug {on|off}";
+		e->command = "iax2 set debug {on|off|peer} [peername]";
 		e->usage =
-			"Usage: iax2 set debug {on|off}\n"
+			"Usage: iax2 set debug {on|off|peer} [peername]\n"
 			"       Enables/Disables dumping of IAX packets for debugging purposes.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != e->args)
+	if (a->argc < e->args - 1  || 
+		a->argc > e->args)
 		return CLI_SHOWUSAGE;
 
-	if (!strncasecmp(a->argv[e->args -1], "on", 2)) {
+	if (!strcasecmp(a->argv[e->args-2], "peer")) {
+		struct iax2_peer *peer;
+
+		if (a->argc != e->args)
+			return CLI_SHOWUSAGE;
+
+		peer = find_peer(a->argv[e->args-1], 1);
+
+		if (!peer) {
+			ast_cli(a->fd, "IAX2 peer '%s' does not exist", a->argv[e->args-1]);
+			return CLI_FAILURE;
+		}
+
+		debugaddr.sin_addr = peer->addr.sin_addr;
+		debugaddr.sin_port = peer->addr.sin_port;
+
+		ast_cli(a->fd, "IAX2 Debugging Enabled for IP: %s:%d\n",
+			ast_inet_ntoa(debugaddr.sin_addr), ntohs(debugaddr.sin_port));
+
+		ao2_ref(peer, -1);
+	} else if (!strncasecmp(a->argv[e->args-2], "on", 2)) {
 		iaxdebug = 1;
 		ast_cli(a->fd, "IAX2 Debugging Enabled\n");
 	} else {
 		iaxdebug = 0;
+		memset(&debugaddr, 0, sizeof(debugaddr));
 		ast_cli(a->fd, "IAX2 Debugging Disabled\n");
-	}
-	return CLI_SUCCESS;
-}
-
-
-static char *handle_cli_iax2_set_debug_trunk_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "iax2 set debug trunk [off]";
-		e->usage =
-			"Usage: iax2 set debug trunk [off]\n"
-			"       Enables/Disables debugging of IAX trunking\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc < 4 || a->argc > 5)
-		return CLI_SHOWUSAGE;
-
-	if (a->argc == 4) {
-		iaxtrunkdebug = 1;
-		ast_cli(a->fd, "IAX2 Trunk Debugging Enabled\n");
-	} else {
-		iaxtrunkdebug = 0;
-		ast_cli(a->fd, "IAX2 Trunk Debugging Disabled\n");
 	}
 	return CLI_SUCCESS;
 }
@@ -5623,32 +5611,6 @@ static char *handle_cli_iax2_set_debug_trunk(struct ast_cli_entry *e, int cmd, s
 	} else {
 		iaxtrunkdebug = 0;
 		ast_cli(a->fd, "IAX2 Trunk Debugging Disabled\n");
-	}
-	return CLI_SUCCESS;
-}
-
-static char *handle_cli_iax2_set_debug_jb_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "iax2 set debug jb [off]";
-		e->usage =
-			"Usage: iax2 set debug jb [off]\n"
-			"       Enables/Disables jitterbuffer debugging information\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc < 4 || a->argc > 5)
-		return CLI_SHOWUSAGE;
-	
-	if (a->argc == 4) {
-		jb_setoutput(jb_error_output, jb_warning_output, jb_debug_output);
-		ast_cli(a->fd, "IAX2 Jitterbuffer Debugging Enabled\n");
-	} else {
-		jb_setoutput(jb_error_output, jb_warning_output, NULL);
-		ast_cli(a->fd, "IAX2 Jitterbuffer Debugging Disabled\n");
 	}
 	return CLI_SUCCESS;
 }
@@ -5999,8 +5961,7 @@ static int raw_hangup(struct sockaddr_in *sin, unsigned short src, unsigned shor
 	fh.iseqno = 0;
 	fh.type = AST_FRAME_IAX;
 	fh.csub = compress_subclass(IAX_COMMAND_INVAL);
-	if (iaxdebug)
-		 iax_showframe(NULL, &fh, 0, sin, 0);
+	iax_outputframe(NULL, &fh, 0, sin, 0);
 #if 0
 	if (option_debug)
 #endif	
@@ -8015,8 +7976,8 @@ static int socket_process(struct iax2_thread *thread)
 		return socket_process_meta(res, meta, &sin, fd, fr);
 
 #ifdef DEBUG_SUPPORT
-	if (iaxdebug && (res >= sizeof(*fh)))
-		iax_showframe(NULL, fh, 1, &sin, res - sizeof(*fh));
+	if (res >= sizeof(*fh))
+		iax_outputframe(NULL, fh, 1, &sin, res - sizeof(*fh));
 #endif
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
 		if (res < sizeof(*fh)) {
@@ -8092,8 +8053,8 @@ static int socket_process(struct iax2_thread *thread)
 			return 1;
 		}
 #ifdef DEBUG_SUPPORT
-		else if (iaxdebug)
-			iax_showframe(NULL, fh, 3, &sin, res - sizeof(*fh));
+		else
+			iax_outputframe(NULL, fh, 3, &sin, res - sizeof(*fh));
 #endif
 	}
 
@@ -11299,7 +11260,8 @@ static int reload_config(void)
 		prune_peers();
 		prune_users();
 		trunk_timed = trunk_untimed = 0; 
-		trunk_nmaxmtu = trunk_maxmtu = 0; 
+		trunk_nmaxmtu = trunk_maxmtu = 0;
+		memset(&debugaddr, '\0', sizeof(debugaddr));
 
 		AST_LIST_LOCK(&registrations);
 		AST_LIST_TRAVERSE(&registrations, reg, entry)
@@ -11961,18 +11923,14 @@ static struct ast_switch iax2_switch =
 #endif
 */
 
-static struct ast_cli_entry cli_iax2_set_debug_deprecated = AST_CLI_DEFINE(handle_cli_iax2_set_debug_deprecated, "Enable/Disable IAX debugging");
-static struct ast_cli_entry cli_iax2_set_debug_trunk_deprecated = AST_CLI_DEFINE(handle_cli_iax2_set_debug_trunk_deprecated, "Enable/Disable IAX debugging");
-static struct ast_cli_entry cli_iax2_set_debug_jb_deprecated = AST_CLI_DEFINE(handle_cli_iax2_set_debug_jb_deprecated, "Enable/Disable IAX debugging");
-
 static struct ast_cli_entry cli_iax2[] = {
 	AST_CLI_DEFINE(handle_cli_iax2_provision,           "Provision an IAX device"),
 	AST_CLI_DEFINE(handle_cli_iax2_prune_realtime,      "Prune a cached realtime lookup"),
 	AST_CLI_DEFINE(handle_cli_iax2_reload,              "Reload IAX configuration"),
 	AST_CLI_DEFINE(handle_cli_iax2_set_mtu,             "Set the IAX systemwide trunking MTU"),
-	AST_CLI_DEFINE(handle_cli_iax2_set_debug,           "Enable/Disable IAX debugging", .deprecate_cmd = &cli_iax2_set_debug_deprecated),
-	AST_CLI_DEFINE(handle_cli_iax2_set_debug_trunk,     "Enable/Disable IAX trunk debugging", .deprecate_cmd = &cli_iax2_set_debug_trunk_deprecated),
-	AST_CLI_DEFINE(handle_cli_iax2_set_debug_jb,        "Enable/Disable IAX jitterbuffer debugging", .deprecate_cmd = &cli_iax2_set_debug_jb_deprecated),
+	AST_CLI_DEFINE(handle_cli_iax2_set_debug,           "Enable/Disable IAX debugging"),
+	AST_CLI_DEFINE(handle_cli_iax2_set_debug_trunk,     "Enable/Disable IAX trunk debugging"),
+	AST_CLI_DEFINE(handle_cli_iax2_set_debug_jb,        "Enable/Disable IAX jitterbuffer debugging"),
 	AST_CLI_DEFINE(handle_cli_iax2_show_cache,          "Display IAX cached dialplan"),
 	AST_CLI_DEFINE(handle_cli_iax2_show_channels,       "List active IAX channels"),
 	AST_CLI_DEFINE(handle_cli_iax2_show_firmware,       "List available IAX firmware"),
