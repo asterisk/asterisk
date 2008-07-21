@@ -7935,11 +7935,19 @@ static int pri_resolve_span(int *span, int channel, int offset, struct dahdi_spa
 			ast_log(LOG_WARNING, "Unable to use span %d implicitly since it is already part of trunk group %d\n", *span, pris[*span].mastertrunkgroup);
 			*span = -1;
 		} else {
-			if (si->totalchans == 31) { /* if it's an E1 */
+			if (si->totalchans == 31) {
+				/* E1 */
 				pris[*span].dchannels[0] = 16 + offset;
-			} else { /* T1 or BRI: D Channel is the last Channel */
-				pris[*span].dchannels[0] = 
-					si->totalchans + offset;
+			} else if (si->totalchans == 24) {
+				/* T1 or J1 */
+				pris[*span].dchannels[0] = 24 + offset;
+			} else if (si->totalchans == 3) {
+				/* BRI */
+				pris[*span].dchannels[0] = 3 + offset;
+			} else {
+				ast_log(LOG_WARNING, "Unable to use span %d, since the D-channel cannot be located (unexpected span size of %d channels)\n", *span, si->totalchans);
+				*span = -1;
+				return 0;
 			}
 			pris[*span].dchanavail[0] |= DCHAN_PROVISIONED;
 			pris[*span].offset = offset;
