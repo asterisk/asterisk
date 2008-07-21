@@ -13776,7 +13776,6 @@ static void process_echocancel(struct dahdi_chan_conf *confp, const char *data, 
 static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct ast_variable *v, int reload, int options)
 {
 	struct dahdi_pvt *tmp;
-	const char *tempstr; /* temporary string for parsing the dring number, buffers policy */
 	int y;
 	int found_pseudo = 0;
 	char dahdichan[MAX_CHANLIST_LEN] = {};
@@ -13803,17 +13802,24 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
  			if (build_channels(confp, iscrv, v->value, reload, v->lineno, &found_pseudo))
  					return -1;
 		} else if (!strcasecmp(v->name, "buffers")) {
-			char policy[8];
-			tempstr = v->value;
-			sscanf(tempstr, "%d,%s", &confp->chan.buf_no, policy);
+			int res;
+			char policy[8] = "";
+			res = sscanf(v->value, "%d,%s", &confp->chan.buf_no, policy);
+			if (res != 2) {
+				ast_log(LOG_WARNING, "Parsing buffers option data failed, using defaults.\n");
+				confp->chan.buf_no = numbufs;
+				continue;
+			}
 			if (confp->chan.buf_no < 0)
 				confp->chan.buf_no = numbufs;
 			if (!strcasecmp(policy, "full")) {
 				confp->chan.buf_policy = DAHDI_POLICY_WHEN_FULL;
 			} else if (!strcasecmp(policy, "half")) {
 				confp->chan.buf_policy = DAHDI_POLICY_IMMEDIATE /*HALF_FULL*/;
-			} else {
+			} else if (!strcasecmp(policy, "immediate")) {
 				confp->chan.buf_policy = DAHDI_POLICY_IMMEDIATE;
+			} else {
+				ast_log(LOG_WARNING, "Invalid policy name given (%s).\n", policy);
 			}
  		} else if (!strcasecmp(v->name, "dahdichan")) {
  			ast_copy_string(dahdichan, v->value, sizeof(dahdichan));
@@ -13834,14 +13840,11 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "dring3range")) {
 			confp->chan.drings.ringnum[2].range = atoi(v->value);
 		} else if (!strcasecmp(v->name, "dring1")) {
-			tempstr = v->value;
-			sscanf(tempstr, "%d,%d,%d", &confp->chan.drings.ringnum[0].ring[0], &confp->chan.drings.ringnum[0].ring[1], &confp->chan.drings.ringnum[0].ring[2]);
+			sscanf(v->value, "%d,%d,%d", &confp->chan.drings.ringnum[0].ring[0], &confp->chan.drings.ringnum[0].ring[1], &confp->chan.drings.ringnum[0].ring[2]);
 		} else if (!strcasecmp(v->name, "dring2")) {
-			tempstr = v->value;
-			sscanf(tempstr,"%d,%d,%d", &confp->chan.drings.ringnum[1].ring[0], &confp->chan.drings.ringnum[1].ring[1], &confp->chan.drings.ringnum[1].ring[2]);
+			sscanf(v->value,"%d,%d,%d", &confp->chan.drings.ringnum[1].ring[0], &confp->chan.drings.ringnum[1].ring[1], &confp->chan.drings.ringnum[1].ring[2]);
 		} else if (!strcasecmp(v->name, "dring3")) {
-			tempstr = v->value;
-			sscanf(tempstr, "%d,%d,%d", &confp->chan.drings.ringnum[2].ring[0], &confp->chan.drings.ringnum[2].ring[1], &confp->chan.drings.ringnum[2].ring[2]);
+			sscanf(v->value, "%d,%d,%d", &confp->chan.drings.ringnum[2].ring[0], &confp->chan.drings.ringnum[2].ring[1], &confp->chan.drings.ringnum[2].ring[2]);
 		} else if (!strcasecmp(v->name, "usecallerid")) {
 			confp->chan.use_callerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "cidsignalling")) {
