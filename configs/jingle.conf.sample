@@ -1,5 +1,6 @@
 ;[general]
 ;context=default		;;Context to dump call into
+;bindaddr=0.0.0.0		;;Address to bind to
 ;allowguest=yes			;;Allow calls from people not in
 				;;list of peers
 ;
