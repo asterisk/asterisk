@@ -42,7 +42,7 @@ static const char *app = "SendText";
 static const char *synopsis = "Send a Text Message";
 
 static const char *descrip = 
-"  SendText(text[,options]): Sends text to current channel (callee).\n"
+"  SendText(text): Sends text to current channel (callee).\n"
 "Result of transmission will be stored in the SENDTEXTSTATUS\n"
 "channel variable:\n"
 "      SUCCESS      Transmission succeeded\n"
@@ -58,24 +58,21 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 	char *parse = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(text);
-		AST_APP_ARG(options);
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "SendText requires an argument (text[,options])\n");
+		ast_log(LOG_WARNING, "SendText requires an argument (text)\n");
 		return -1;
 	} else
 		parse = ast_strdupa(data);
 	
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (args.options) {
-	}
-
 	ast_channel_lock(chan);
 	if (!chan->tech->send_text) {
 		ast_channel_unlock(chan);
 		/* Does not support transport */
+		pbx_builtin_setvar_helper(chan, "SENDTEXTSTATUS", status);
 		return 0;
 	}
 	status = "FAILURE";
