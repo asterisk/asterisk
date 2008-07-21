@@ -128,6 +128,7 @@ struct callerid_state *callerid_new(int cid_signalling)
 	struct callerid_state *cid;
 
 	if ((cid = ast_calloc(1, sizeof(*cid)))) {
+#ifdef INTEGER_CALLERID
 		cid->fskd.ispb = 7;          	/* 1200 baud */	
 		/* Set up for 1200 / 8000 freq *32 to allow ints */
 		cid->fskd.pllispb  = (int)(8000 * 32  / 1200);
@@ -155,6 +156,27 @@ struct callerid_state *callerid_new(int cid_signalling)
 		/* cid->pos = 0; */
 
 		fskmodem_init(&cid->fskd);
+#else
+		cid->fskd.spb = 7.0;          	/* 1200 baud */
+		/* cid->fskd.hdlc = 0; */     	/* Async */
+		cid->fskd.nbit = 8;           	/* 8 bits */
+		cid->fskd.nstop = 1.0;        	/* 1 stop bit */
+		/* cid->fskd.paridad = 0; */  	/* No parity */
+		cid->fskd.bw = 1;             	/* Filter 800 Hz */
+		if (cid_signalling == 2) {    	/* v23 signalling */
+			cid->fskd.f_mark_idx =  4;	/* 1300 Hz */
+			cid->fskd.f_space_idx = 5;	/* 2100 Hz */
+		} else {                      	/* Bell 202 signalling as default */
+			cid->fskd.f_mark_idx =  2;	/* 1200 Hz */
+			cid->fskd.f_space_idx = 3;	/* 2200 Hz */
+		}
+		/* cid->fskd.pcola = 0; */    	/* No clue */
+		/* cid->fskd.cont = 0.0; */   	/* Digital PLL reset */
+		/* cid->fskd.x0 = 0.0; */
+		/* cid->fskd.state = 0; */
+		cid->flags = CID_UNKNOWN_NAME | CID_UNKNOWN_NUMBER;
+		/* cid->pos = 0; */
+#endif
 	}
 
 	return cid;
