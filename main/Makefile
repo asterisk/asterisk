@@ -17,8 +17,6 @@ all: asterisk
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
-RESAMPLE_OBJS:=libresample/src/resample.o libresample/src/resamplesubs.o libresample/src/filterkit.o
-
 OBJS= tcptls.o io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o pbx.o cli.o md5.o term.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
@@ -29,7 +27,7 @@ OBJS= tcptls.o io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o \
 	cryptostub.o sha1.o http.o fixedjitterbuf.o abstract_jb.o \
 	strcompat.o threadstorage.o dial.o event.o adsistub.o audiohook.o \
-	astobj2.o hashtab.o global_datastores.o $(RESAMPLE_OBJS) version.o \
+	astobj2.o hashtab.o global_datastores.o version.o \
 	features.o taskprocessor.o timing.o
 
 # we need to link in the objects statically, not as a library, because
