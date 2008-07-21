@@ -43,6 +43,7 @@ bindaddr = 0.0.0.0
 ;   sslbindport=5039		; the port to bind to
 ;   sslbindaddr=0.0.0.0		; address to bind to, default to bindaddr
 ;   sslcert=/tmp/asterisk.pem	; path to the certificate.
+;   sslcipher=<cipher string>   ; string specifying which SSL ciphers to use or not use
 
 
 ;

@@ -8,9 +8,12 @@ parkpos => 701-720		; What extensions to park calls on. (defafult parking lot)
 				; These needs to be numeric, as Asterisk starts from the start position
 				; and increments with one for the next parked call.
 context => parkedcalls		; Which context parked calls are in (default parking lot)
-context => parkedcalls		; Which context parked calls are in
+;parkinghints = no		; Add hints priorities automatically for parking slots (default is no).
 ;parkingtime => 45		; Number of seconds a call can be parked for 
 				; (default is 45 seconds)
+;comebacktoorigin = yes	; Whether to return to the original calling extension upon parking
+				; timeout or to send the call to context 'parkedcallstimeout' at
+				; extension 's', priority '1' (default is yes).
 ;courtesytone = beep		; Sound file to play to the parked caller 
 				; when someone dials a parked call
 				; or the Touch Monitor is activated/deactivated.
@@ -114,7 +117,7 @@ context => parkedcalls		; Which context parked calls are in
 ;*** Define another parking lot
 ;
 ; You can set parkinglot with the CHANNEL dialplan function
-; or configure it in the device configuration in the channel
+; or by setting 'parkinglot' directly in the channel configuration file.
 ;
 ;[parkinglot_edvina]
 ;context => edvinapark
