@@ -3697,16 +3697,14 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 static int iax2_hangup(struct ast_channel *c) 
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
-	int alreadygone;
  	struct iax_ie_data ied;
  	memset(&ied, 0, sizeof(ied));
 	ast_mutex_lock(&iaxsl[callno]);
 	if (callno && iaxs[callno]) {
 		ast_debug(1, "We're hanging up %s now...\n", c->name);
-		alreadygone = ast_test_flag(iaxs[callno], IAX_ALREADYGONE);
 		/* Send the hangup unless we have had a transmission error or are already gone */
  		iax_ie_append_byte(&ied, IAX_IE_CAUSECODE, (unsigned char)c->hangupcause);
-		if (!iaxs[callno]->error && !alreadygone) {
+		if (!iaxs[callno]->error && !ast_test_flag(iaxs[callno], IAX_ALREADYGONE)) {
  			send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_HANGUP, 0, ied.buf, ied.pos, -1);
 			if (!iaxs[callno]) {
 				ast_mutex_unlock(&iaxsl[callno]);
@@ -3716,7 +3714,7 @@ static int iax2_hangup(struct ast_channel *c)
 		/* Explicitly predestroy it */
 		iax2_predestroy(callno);
 		/* If we were already gone to begin with, destroy us now */
-		if (alreadygone && iaxs[callno]) {
+		if (iaxs[callno]) {
 			ast_debug(1, "Really destroying %s now...\n", c->name);
 			iax2_destroy(callno);
 		}
