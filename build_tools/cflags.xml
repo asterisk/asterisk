@@ -48,4 +48,6 @@
 		</member>
 		<member name="IAX_OLD_FIND" displayname="Use the old, slow method of searching for IAX callnos">
 		</member>
+		<member name="INTEGER_CALLERID" displayname="Use the (less accurate) integer-based method for decoding FSK tones (for embedded systems)">
+		</member>
 	</category>
