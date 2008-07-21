@@ -708,7 +708,7 @@ static void reg_source_db(struct iax2_peer *p);
 static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
 
 static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt);
-static char *complete_iax2_show_peer(const char *line, const char *word, int pos, int state);
+static char *complete_iax2_peers(const char *line, const char *word, int pos, int state);
 static char *complete_iax2_unregister(const char *line, const char *word, int pos, int state);
 
 enum iax2_thread_iostate {
@@ -2445,7 +2445,9 @@ static char *handle_cli_iax2_prune_realtime(struct ast_cli_entry *e, int cmd, st
 			"       Prunes object(s) from the cache\n";
 		return NULL;
 	case CLI_GENERATE:
-		return complete_iax2_show_peer(a->line, a->word, a->pos, a->n);
+		if (a->pos == 3)
+			return complete_iax2_peers(a->line, a->word, a->pos, a->n);
+		return NULL;
 	}
 
 	if (a->argc != 4)
@@ -2599,7 +2601,9 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
 			"       Display details on specific IAX peer\n";
 		return NULL;
 	case CLI_GENERATE:
-		return complete_iax2_show_peer(a->line, a->word, a->pos, a->n);
+		if (a->pos == 3)
+			return complete_iax2_peers(a->line, a->word, a->pos, a->n);
+		return NULL;
 	}
 
 	if (a->argc < 4)
@@ -2654,17 +2658,13 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
 	return CLI_SUCCESS;
 }
 
-static char *complete_iax2_show_peer(const char *line, const char *word, int pos, int state)
+static char *complete_iax2_peers(const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
 	struct iax2_peer *peer;
 	char *res = NULL;
 	int wordlen = strlen(word);
 	struct ao2_iterator i;
-
-	/* 0 - iax2; 1 - show; 2 - peer; 3 - <peername> */
-	if (pos != 3)
-		return NULL;
 
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_iterator_next(&i))) {
@@ -5545,29 +5545,30 @@ static char *handle_cli_iax2_set_debug(struct ast_cli_entry *e, int cmd, struct 
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "iax2 set debug {on|off|peer} [peername]";
+		e->command = "iax2 set debug {on|off|peer}";
 		e->usage =
-			"Usage: iax2 set debug {on|off|peer} [peername]\n"
+			"Usage: iax2 set debug {on|off|peer peername}\n"
 			"       Enables/Disables dumping of IAX packets for debugging purposes.\n";
 		return NULL;
 	case CLI_GENERATE:
+		if (a->pos == 4)
+			return complete_iax2_peers(a->line, a->word, a->pos, a->n);
 		return NULL;
 	}
 
-	if (a->argc < e->args - 1  || 
-		a->argc > e->args)
+	if (a->argc < e->args  || a->argc > e->args + 1)
 		return CLI_SHOWUSAGE;
 
-	if (!strcasecmp(a->argv[e->args-2], "peer")) {
+	if (!strcasecmp(a->argv[3], "peer")) {
 		struct iax2_peer *peer;
 
-		if (a->argc != e->args)
+		if (a->argc != e->args + 1)
 			return CLI_SHOWUSAGE;
 
-		peer = find_peer(a->argv[e->args-1], 1);
+		peer = find_peer(a->argv[4], 1);
 
 		if (!peer) {
-			ast_cli(a->fd, "IAX2 peer '%s' does not exist", a->argv[e->args-1]);
+			ast_cli(a->fd, "IAX2 peer '%s' does not exist\n", a->argv[e->args-1]);
 			return CLI_FAILURE;
 		}
 
@@ -5578,7 +5579,7 @@ static char *handle_cli_iax2_set_debug(struct ast_cli_entry *e, int cmd, struct 
 			ast_inet_ntoa(debugaddr.sin_addr), ntohs(debugaddr.sin_port));
 
 		ao2_ref(peer, -1);
-	} else if (!strncasecmp(a->argv[e->args-2], "on", 2)) {
+	} else if (!strncasecmp(a->argv[3], "on", 2)) {
 		iaxdebug = 1;
 		ast_cli(a->fd, "IAX2 Debugging Enabled\n");
 	} else {
