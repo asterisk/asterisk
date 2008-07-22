@@ -444,7 +444,7 @@ if test "${USE_DAHDI}" != "no" ; then
 	fi
 fi
 
-AST_C_COMPILE_CHECK([GETIFADDRS], [struct ifaddrs *p; getifaddrs(&p)], [ifaddrs.h])
+AST_C_COMPILE_CHECK([GETIFADDRS], [struct ifaddrs *p; getifaddrs(&p)], [ifaddrs.h], , [getifaddrs() support])
 
 GSM_INTERNAL="yes"
 AC_SUBST(GSM_INTERNAL)
