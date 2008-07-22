@@ -416,8 +416,8 @@ struct dahdi_pri {
 	int span;
 	int resetting;
 	int resetpos;
-#ifdef HAVE_PRI_INBANDRELEASE
-	unsigned int inbandrelease:1;					/*!< Should we support inband audio after receiving RELEASE? */
+#ifdef HAVE_PRI_INBANDDISCONNECT
+	unsigned int inbanddisconnect:1;				/*!< Should we support inband audio after receiving DISCONNECT? */
 #endif
 	time_t lastreset;						/*!< time when unused channels were last reset */
 	long resetinterval;						/*!< Interval (in seconds) for resetting unused channels */
@@ -8464,8 +8464,8 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].minunused = conf->pri.minunused;
 						pris[span].minidle = conf->pri.minidle;
 						pris[span].overlapdial = conf->pri.overlapdial;
-#ifdef HAVE_PRI_INBANDRELEASE
-						pris[span].inbandrelease = conf->pri.inbandrelease;
+#ifdef HAVE_PRI_INBANDDISCONNECT
+						pris[span].inbanddisconnect = conf->pri.inbandrelease;
 #endif
 						pris[span].facilityenable = conf->pri.facilityenable;
 						ast_copy_string(pris[span].idledial, conf->pri.idledial, sizeof(pris[span].idledial));
@@ -11498,8 +11498,8 @@ static int start_pri(struct dahdi_pri *pri)
 		if (pri->switchtype == PRI_SWITCH_GR303_TMC)
 			pri->overlapdial |= DAHDI_OVERLAPDIAL_BOTH;
 		pri_set_overlapdial(pri->dchans[i],(pri->overlapdial & DAHDI_OVERLAPDIAL_OUTGOING)?1:0);
-#ifdef HAVE_PRI_INBANDRELEASE
-		pri_set_inbandrelease(pri->dchans[i], pri->inbandrelease);
+#ifdef HAVE_PRI_INBANDDISCONNECT
+		pri_set_inbanddisconnect(pri->dchans[i], pri->inbandrelease);
 #endif
 		/* Enslave to master if appropriate */
 		if (i)
@@ -14342,9 +14342,9 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				} else {
 					confp->pri.overlapdial = DAHDI_OVERLAPDIAL_NONE;
 				}
-#ifdef HAVE_PRI_INBANDRELEASE
-			} else if (!strcasecmp(v->name, "inbandrelease")) {
-				confp->pri.inbandrelease = ast_true(v->value);
+#ifdef HAVE_PRI_INBANDDISCONNECT
+			} else if (!strcasecmp(v->name, "inbanddisconnect")) {
+				confp->pri.inbanddisconnect = ast_true(v->value);
 #endif
 			} else if (!strcasecmp(v->name, "pritimer")) {
 #ifdef PRI_GETSET_TIMERS
