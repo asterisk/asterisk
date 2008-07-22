@@ -276,6 +276,7 @@ enum iax2_flags {
 	IAX_DELAYPBXSTART =	(1 << 25),	/*!< Don't start a PBX on the channel until the peer sends us a
 						     response, so that we've achieved a three-way handshake with
 						     them before sending voice or anything else*/
+	IAX_ALLOWFWDOWNLOAD = (1 << 26),	/*!< Allow the FWDOWNL command? */
 };
 
 static int global_rtautoclear = 120;
@@ -1727,10 +1728,10 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 
 		now = ast_tvnow();
-		start = 1 + (ast_random() % (TRUNK_CALL_START - 1));
+		start = 2 + (ast_random() % (TRUNK_CALL_START - 1));
 		for (x = start; 1; x++) {
 			if (x == TRUNK_CALL_START) {
-				x = 0;
+				x = 1;
 				continue;
 			}
 
@@ -3482,6 +3483,15 @@ struct parsed_dial_string {
 	char *context;
 	char *options;
 };
+
+static int send_apathetic_reply(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int command, int ts, unsigned char seqno)
+{
+	struct ast_iax2_full_hdr f = { .scallno = htons(0x8000 | callno), .dcallno = htons(dcallno),
+		.ts = htonl(ts), .iseqno = seqno, .oseqno = seqno, .type = AST_FRAME_IAX,
+		.csub = compress_subclass(command) };
+
+	return sendto(defaultsockfd, &f, sizeof(f), 0, (struct sockaddr *)sin, sizeof(*sin));
+}
 
 /*!
  * \brief Parses an IAX dial string into its component parts.
@@ -7995,6 +8005,17 @@ static int socket_process(struct iax2_thread *thread)
 		} else {
 			f.subclass = uncompress_subclass(fh->csub);
 		}
+
+		/* Deal with POKE/PONG without allocating a callno */
+		if (f.frametype == AST_FRAME_IAX && f.subclass == IAX_COMMAND_POKE) {
+			/* Reply back with a PONG, but don't care about the result. */
+			send_apathetic_reply(1, ntohs(fh->scallno), &sin, IAX_COMMAND_PONG, ntohs(fh->ts), fh->oseqno);
+			return 1;
+		} else if (f.frametype == AST_FRAME_IAX && f.subclass == IAX_COMMAND_ACK && dcallno == 1) {
+			/* Ignore */
+			return 1;
+		}
+
 		if ((f.frametype == AST_FRAME_IAX) && ((f.subclass == IAX_COMMAND_NEW) || (f.subclass == IAX_COMMAND_REGREQ) ||
 						       (f.subclass == IAX_COMMAND_POKE) || (f.subclass == IAX_COMMAND_FWDOWNL) ||
 						       (f.subclass == IAX_COMMAND_REGREL)))
@@ -9382,6 +9403,10 @@ retryowner2:
 				break;
 			case IAX_COMMAND_FWDOWNL:
 				/* Firmware download */
+				if (!ast_test_flag(&globalflags, IAX_ALLOWFWDOWNLOAD)) {
+					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_UNSUPPORT, 0, NULL, 0, -1);
+					break;
+				}
 				memset(&ied0, 0, sizeof(ied0));
 				res = iax_firmware_append(&ied0, (unsigned char *)ies.devicetype, ies.fwdesc);
 				if (res < 0)
@@ -11029,6 +11054,8 @@ static int set_config(char *config_file, int reload)
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_FORCEJITTERBUF);	
 		else if (!strcasecmp(v->name, "delayreject"))
 			delayreject = ast_true(v->value);
+		else if (!strcasecmp(v->name, "allowfwdownload"))
+			ast_set2_flag((&globalflags), ast_true(v->value), IAX_ALLOWFWDOWNLOAD);
 		else if (!strcasecmp(v->name, "rtcachefriends"))
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTCACHEFRIENDS);	
 		else if (!strcasecmp(v->name, "rtignoreregexpire"))
