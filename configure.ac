@@ -1293,7 +1293,7 @@ AST_EXT_LIB_CHECK([PORTAUDIO], [portaudio], [Pa_GetDeviceCount], [portaudio.h])
 
 AST_EXT_LIB_CHECK([PRI], [pri], [pri_new_bri], [libpri.h])
 
-AST_EXT_LIB_CHECK([PRI_INBANDRELEASE], [pri], [pri_set_inbandrelease], [libpri.h])
+AST_EXT_LIB_CHECK([PRI_INBANDDISCONNECT], [pri], [pri_set_inbanddisconnect], [libpri.h])
 
 AST_EXT_LIB_CHECK([RESAMPLE], [resample], [resample_open], [libresample.h], [-lm])
 

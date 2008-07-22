@@ -164,7 +164,7 @@
 ;
 ; Allow inband audio (progress) when a call is RELEASEd by the far end of a PRI
 ;
-;inbandrelease=yes
+;inbanddisconnect=yes
 ;
 ; PRI Out of band indications.
 ; Enable this to report Busy and Congestion on a PRI using out-of-band
