@@ -42,6 +42,14 @@ endif
 	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) -MD -MT $@ -MF .$(subst /,_,$@).d -MP
 
+%.o: %.i
+	$(ECHO_PREFIX) echo "   [CCi] $< -> $@"
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) -MD -MT $@ -MF .$(subst /,_,$@).d -MP
+
+%.i: %.c
+	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
+	$(CMD_PREFIX) $(CC) -o $@ -E $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) -MD -MT $@ -MF .$(subst /,_,$@).d -MP
+
 %.o: %.s
 	$(ECHO_PREFIX) echo "   [AS] $< -> $@"
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) -MD -MT $@ -MF .$(subst /,_,$@).d -MP
