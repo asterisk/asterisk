@@ -126,7 +126,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (dahdi_chan_mode == ZAP_ONLY_MODE) {
+	if (dahdi_chan_mode == CHAN_ZAP_MODE) {
 		return ast_register_application(app, flash_exec, zap_synopsis, zap_descrip);
 	} else {
 		return ast_register_application(app, flash_exec, dahdi_synopsis, dahdi_descrip);

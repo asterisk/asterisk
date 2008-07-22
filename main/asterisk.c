@@ -174,10 +174,10 @@ char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
 char debug_filename[AST_FILENAME_MAX] = "";
 #ifdef HAVE_ZAPTEL
 char _dahdi_chan_name[AST_CHANNEL_NAME] = "Zap";
-enum dahdi_chan_modes dahdi_chan_mode = ZAP_ONLY_MODE;
+enum dahdi_chan_modes dahdi_chan_mode = CHAN_ZAP_MODE;
 #else
 char _dahdi_chan_name[AST_CHANNEL_NAME] = "DAHDI";
-enum dahdi_chan_modes dahdi_chan_mode = DAHDI_PLUS_ZAP;
+enum dahdi_chan_modes dahdi_chan_mode = CHAN_DAHDI_PLUS_ZAP_MODE;
 #endif
 const char *dahdi_chan_name;
 
@@ -2593,12 +2593,12 @@ static void ast_readconfig(void)
 #ifdef HAVE_ZAPTEL
 			if (ast_true(v->value)) {
 				strcpy(_dahdi_chan_name, "DAHDI");
-				dahdi_chan_mode = DAHDI_PLUS_ZAP;
+				dahdi_chan_mode = CHAN_DAHDI_PLUS_ZAP_MODE;
 			}
 #else
 			if (ast_false(v->value)) {
 				strcpy(_dahdi_chan_name, "Zap");
-				dahdi_chan_mode = ZAP_ONLY_MODE;
+				dahdi_chan_mode = CHAN_ZAP_MODE;
 			}
 #endif
 		}

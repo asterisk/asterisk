@@ -9906,13 +9906,6 @@ static struct ast_cli_entry dahdi_pri_cli[] = {
 
 #endif /* HAVE_PRI */
 
-/* Wrappers for astman operations to use proper channel name prefix */
-
-#define local_astman_ack(s, m, msg) do { if (chan_tech == &dahdi_tech) astman_send_ack(s, m, "DAHDI" msg); else astman_send_ack(s, m, "Zap" msg); } while (0)
-#define local_astman_header(m, hdr) astman_get_header(m, (chan_tech == &dahdi_tech) ? "DAHDI" hdr : "Zap" hdr)
-#define local_astman_register(a, b, c, d) do { if (chan_tech == &dahdi_tech) ast_manager_register("DAHDI" a, b, c, d); else ast_manager_register("Zap" a, b, c, d); } while (0)
-#define local_astman_unregister(a) do { if (chan_tech == &dahdi_tech) ast_manager_unregister("DAHDI" a); else ast_manager_unregister("Zap" a); } while (0)
-
 static int dahdi_destroy_channel(int fd, int argc, char **argv)
 {
 	int channel;
@@ -9954,16 +9947,6 @@ static int dahdi_restart_cmd(int fd, int argc, char **argv)
 	if (dahdi_restart() != 0)
 		return RESULT_FAILURE;
 	return RESULT_SUCCESS;
-}
-
-static int action_dahdirestart(struct mansession *s, const struct message *m)
-{
-	if (dahdi_restart() != 0) {
-		astman_send_error(s, m, "Failed to restart chan_dahdi");
-		return 1;
-	}
-	local_astman_ack(s, m, "Restart: Success");
-	return 0;
 }
 
 static int dahdi_show_channels(int fd, int argc, char **argv)
@@ -10366,86 +10349,109 @@ static struct dahdi_pvt *find_channel(int channel)
 	return p;
 }
 
-static int action_dahdidndon(struct mansession *s, const struct message *m)
+#define local_astman_ack(s, m, msg, zap) do { if (!zap) astman_send_ack(s, m, "DAHDI" msg); else astman_send_ack(s, m, "Zap" msg); } while (0)
+#define local_astman_header(m, hdr, zap) astman_get_header(m, (!zap) ? "DAHDI" hdr : "Zap" hdr)
+
+static int __action_dnd(struct mansession *s, const struct message *m, int zap_mode, int dnd)
 {
 	struct dahdi_pvt *p = NULL;
-	const char *channel = local_astman_header(m, "Channel");
+	const char *channel = local_astman_header(m, "Channel", zap_mode);
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	p = find_channel(atoi(channel));
-	if (!p) {
+	if (!(p = find_channel(atoi(channel)))) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	p->dnd = 1;
-	astman_send_ack(s, m, "DND Enabled");
+	p->dnd = dnd;
+	local_astman_ack(s, m, "DND", zap_mode);
+
 	return 0;
 }
 
-static int action_dahdidndoff(struct mansession *s, const struct message *m)
+static int zap_action_dndon(struct mansession *s, const struct message *m)
+{
+	return __action_dnd(s, m, 1, 1);
+}
+
+static int dahdi_action_dndon(struct mansession *s, const struct message *m)
+{
+	return __action_dnd(s, m, 0, 1);
+}
+
+static int zap_action_dndoff(struct mansession *s, const struct message *m)
+{
+	return __action_dnd(s, m, 1, 0);
+}
+
+static int dahdi_action_dndoff(struct mansession *s, const struct message *m)
+{
+	return __action_dnd(s, m, 0, 0);
+}
+
+static int __action_transfer(struct mansession *s, const struct message *m, int zap_mode)
 {
 	struct dahdi_pvt *p = NULL;
-	const char *channel = local_astman_header(m, "Channel");
+	const char *channel = local_astman_header(m, "Channel", zap_mode);
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	p = find_channel(atoi(channel));
-	if (!p) {
-		astman_send_error(s, m, "No such channel");
-		return 0;
-	}
-	p->dnd = 0;
-	astman_send_ack(s, m, "DND Disabled");
-	return 0;
-}
-
-static int action_transfer(struct mansession *s, const struct message *m)
-{
-	struct dahdi_pvt *p = NULL;
-	const char *channel = local_astman_header(m, "Channel");
-
-	if (ast_strlen_zero(channel)) {
-		astman_send_error(s, m, "No channel specified");
-		return 0;
-	}
-	p = find_channel(atoi(channel));
-	if (!p) {
+	if (!(p = find_channel(atoi(channel)))) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
 	dahdi_fake_event(p,TRANSFER);
-	local_astman_ack(s, m, "Transfer");
+	local_astman_ack(s, m, "Transfer", zap_mode);
+
 	return 0;
 }
 
-static int action_transferhangup(struct mansession *s, const struct message *m)
+static int zap_action_transfer(struct mansession *s, const struct message *m)
+{
+	return __action_transfer(s, m, 1);
+}
+
+static int dahdi_action_transfer(struct mansession *s, const struct message *m)
+{
+	return __action_transfer(s, m, 0);
+}
+
+static int __action_transferhangup(struct mansession *s, const struct message *m, int zap_mode)
 {
 	struct dahdi_pvt *p = NULL;
-	const char *channel = local_astman_header(m, "Channel");
+	const char *channel = local_astman_header(m, "Channel", zap_mode);
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	p = find_channel(atoi(channel));
-	if (!p) {
+	if (!(p = find_channel(atoi(channel)))) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	dahdi_fake_event(p,HANGUP);
-	local_astman_ack(s, m, "Hangup");
+	dahdi_fake_event(p, HANGUP);
+	local_astman_ack(s, m, "Hangup", zap_mode);
 	return 0;
 }
 
-static int action_dahdidialoffhook(struct mansession *s, const struct message *m)
+static int zap_action_transferhangup(struct mansession *s, const struct message *m)
+{
+	return __action_transferhangup(s, m, 1);
+}
+
+static int dahdi_action_transferhangup(struct mansession *s, const struct message *m)
+{
+	return __action_transferhangup(s, m, 0);
+}
+
+static int __action_dialoffhook(struct mansession *s, const struct message *m, int zap_mode)
 {
 	struct dahdi_pvt *p = NULL;
-	const char *channel = local_astman_header(m, "Channel");
+	const char *channel = local_astman_header(m, "Channel", zap_mode);
 	const char *number = astman_get_header(m, "Number");
 	int i;
 
@@ -10457,30 +10463,41 @@ static int action_dahdidialoffhook(struct mansession *s, const struct message *m
 		astman_send_error(s, m, "No number specified");
 		return 0;
 	}
-	p = find_channel(atoi(channel));
-	if (!p) {
+	if (!(p = find_channel(atoi(channel)))) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
 	if (!p->owner) {
-		astman_send_error(s, m, "Channel does not have it's owner");
+		astman_send_error(s, m, "Channel does not have an owner");
 		return 0;
 	}
 	for (i = 0; i < strlen(number); i++) {
 		struct ast_frame f = { AST_FRAME_DTMF, number[i] };
+
 		dahdi_queue_frame(p, &f, NULL); 
 	}
-	local_astman_ack(s, m, "DialOffhook");
+	local_astman_ack(s, m, "DialOffHook", zap_mode);
+
 	return 0;
 }
 
-static int action_dahdishowchannels(struct mansession *s, const struct message *m)
+static int zap_action_dialoffhook(struct mansession *s, const struct message *m)
+{
+	return __action_dialoffhook(s, m, 1);
+}
+
+static int dahdi_action_dialoffhook(struct mansession *s, const struct message *m)
+{
+	return __action_dialoffhook(s, m, 0);
+}
+
+static int __action_showchannels(struct mansession *s, const struct message *m, int zap_mode)
 {
 	struct dahdi_pvt *tmp = NULL;
 	const char *id = astman_get_header(m, "ActionID");
 	char idText[256] = "";
 
-	local_astman_ack(s, m, " channel status will follow");
+	local_astman_ack(s, m, " channel status will follow", zap_mode);
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText) - 1, "ActionID: %s\r\n", id);
 
@@ -10519,6 +10536,47 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 	return 0;
 }
 
+static int zap_action_showchannels(struct mansession *s, const struct message *m)
+{
+	return __action_showchannels(s, m, 1);
+}
+
+static int dahdi_action_showchannels(struct mansession *s, const struct message *m)
+{
+	return __action_showchannels(s, m, 0);
+}
+
+static int __action_restart(struct mansession *s, const struct message *m, int zap_mode)
+{
+	if (dahdi_restart() != 0) {
+		if (zap_mode) {
+			astman_send_error(s, m, "Failed to restart Zap");
+		} else {
+			astman_send_error(s, m, "Failed to restart DAHDI");
+		}
+		return 1;
+	}
+	local_astman_ack(s, m, "Restart: Success", zap_mode);
+	return 0;
+}
+
+static int zap_action_restart(struct mansession *s, const struct message *m)
+{
+	return __action_restart(s, m, 1);
+}
+
+static int dahdi_action_restart(struct mansession *s, const struct message *m)
+{
+	return __action_restart(s, m, 0);
+}
+
+#define local_astman_unregister(a) do { \
+					if (dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) { \
+						ast_manager_unregister("DAHDI" a); \
+					} \
+					ast_manager_unregister("Zap" a); \
+				   } while (0)
+
 static int __unload_module(void)
 {
 	int x;
@@ -10534,7 +10592,7 @@ static int __unload_module(void)
 	ast_unregister_application(dahdi_send_keypad_facility_app);
 #endif
 	ast_cli_unregister_multiple(dahdi_cli, sizeof(dahdi_cli) / sizeof(struct ast_cli_entry));
-	local_astman_unregister("DialOffhook");
+	local_astman_unregister("DialOffHook");
 	local_astman_unregister("Hangup");
 	local_astman_unregister("Transfer");
 	local_astman_unregister("DNDoff");
@@ -11511,6 +11569,13 @@ static int setup_dahdi(int reload)
 	return 0;
 }
 
+#define local_astman_register(a, b, c, d) do { \
+						if (dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) { \
+							ast_manager_register("DAHDI" a, b, dahdi_ ## c, d); \
+						} \
+						ast_manager_register("Zap" a, b, zap_ ## c, d); \
+					  } while (0)
+
 static int load_module(void)
 {
 	int res;
@@ -11533,7 +11598,7 @@ static int load_module(void)
 	if ((res = setup_dahdi(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	if (!strcmp(dahdi_chan_name, "DAHDI")) {
+	if (dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) {
 		chan_tech = &dahdi_tech;
 	} else {
 		chan_tech = &zap_tech;
@@ -11553,11 +11618,11 @@ static int load_module(void)
 	memset(round_robin, 0, sizeof(round_robin));
 	local_astman_register("Transfer", 0, action_transfer, "Transfer Channel");
 	local_astman_register("Hangup", 0, action_transferhangup, "Hangup Channel");
-	local_astman_register("DialOffhook", 0, action_dahdidialoffhook, "Dial over channel while offhook");
-	local_astman_register("DNDon", 0, action_dahdidndon, "Toggle channel Do Not Disturb status ON");
-	local_astman_register("DNDoff", 0, action_dahdidndoff, "Toggle channel Do Not Disturb status OFF");
-	local_astman_register("ShowChannels", 0, action_dahdishowchannels, "Show status channels");
-	local_astman_register("Restart", 0, action_dahdirestart, "Fully Restart channels (terminates calls)");
+	local_astman_register("DialOffHook", 0, action_dialoffhook, "Dial over channel while offhook");
+	local_astman_register("DNDon", 0, action_dndon, "Toggle channel Do Not Disturb status ON");
+	local_astman_register("DNDoff", 0, action_dndoff, "Toggle channel Do Not Disturb status OFF");
+	local_astman_register("ShowChannels", 0, action_showchannels, "Show status channels");
+	local_astman_register("Restart", 0, action_restart, "Fully Restart channels (terminates calls)");
 
 	return res;
 }

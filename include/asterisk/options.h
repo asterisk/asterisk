@@ -124,8 +124,8 @@ extern char record_cache_dir[AST_CACHE_DIR_LEN];
 extern char debug_filename[AST_FILENAME_MAX];
 extern const char *dahdi_chan_name;
 extern enum dahdi_chan_modes {
-	ZAP_ONLY_MODE,
-	DAHDI_PLUS_ZAP,
+	CHAN_ZAP_MODE,
+	CHAN_DAHDI_PLUS_ZAP_MODE,
 } dahdi_chan_mode;
 	
 extern int ast_language_is_prefix;
