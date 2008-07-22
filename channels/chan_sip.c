@@ -4643,8 +4643,6 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 			if (!found && option_debug > 4)
 				ast_log(LOG_DEBUG, "= Being pedantic: This is not our match on request: Call ID: %s Ourtag <null> Totag %s Method %s\n", p->callid, totag, sip_methods[req->method].text);
 		}
-
-
 		if (found) {
 			/* Found the call */
 			ast_mutex_lock(&p->lock);
@@ -7204,7 +7202,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		add_header_contentLength(&req, 0);
 	}
 
-	if (!p->initreq.headers)
+	if (!p->initreq.headers || init > 2)
 		initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
 	return send_request(p, &req, init ? XMIT_CRITICAL : XMIT_RELIABLE, p->ocseq);
@@ -13767,6 +13765,263 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	return 0;
 }
 
+/*! \brief helper routine for sip_uri_cmp
+ *
+ * This takes the parameters from two SIP URIs and determines
+ * if the URIs match. The rules for parameters *suck*. Here's a breakdown
+ * 1. If a parameter appears in both URIs, then they must have the same value
+ *    in order for the URIs to match
+ * 2. If one URI has a user, maddr, ttl, or method parameter, then the other
+ *    URI must also have that parameter and must have the same value
+ *    in order for the URIs to match
+ * 3. All other headers appearing in only one URI are not considered when
+ *    determining if URIs match
+ *
+ * \param input1 Parameters from URI 1
+ * \param input2 Parameters from URI 2
+ * \return Return 0 if the URIs' parameters match, 1 if they do not
+ */
+static int sip_uri_params_cmp(const char *input1, const char *input2) 
+{
+	char *params1 = ast_strdupa(input1);
+	char *params2 = ast_strdupa(input2);
+	char *pos1;
+	char *pos2;
+	int maddrmatch = 0;
+	int ttlmatch = 0;
+	int usermatch = 0;
+	int methodmatch = 0;
+
+	/*Quick optimization. If both params are zero-length, then
+	 * they match
+	 */
+	if (ast_strlen_zero(params1) && ast_strlen_zero(params2)) {
+		return 0;
+	}
+
+	pos1 = params1;
+	while (!ast_strlen_zero(pos1)) {
+		char *name1 = pos1;
+		char *value1 = strchr(pos1, '=');
+		char *semicolon1 = strchr(pos1, ';');
+		int matched = 0;
+		if (semicolon1) {
+			*semicolon1++ = '\0';
+		}
+		if (!value1) {
+			goto fail;
+		}
+		*value1++ = '\0';
+		/* Checkpoint reached. We have the name and value parsed for param1 
+		 * We have to duplicate params2 each time through the second loop
+		 * or else we can't search and replace the semicolons with \0 each
+		 * time
+		 */
+		pos2 = ast_strdupa(params2);
+		while (!ast_strlen_zero(pos2)) {
+			char *name2 = pos2;
+			char *value2 = strchr(pos2, '=');
+			char *semicolon2 = strchr(pos2, ';');
+			if (semicolon2) {
+				*semicolon2++ = '\0';
+			}
+			if (!value2) {
+				goto fail;
+			}
+			if (!strcasecmp(name1, name2)) {
+				if (strcasecmp(value1, value2)) {
+					goto fail;
+				} else {
+					matched = 1;
+					break;
+				}
+			}
+			pos2 = semicolon2;
+		}
+		/* Need to see if the parameter we're looking at is one of the 'must-match' parameters */
+		if (!strcasecmp(name1, "maddr")) {
+			if (matched) {
+				maddrmatch = 1;
+			} else {
+				goto fail;
+			}
+		} else if (!strcasecmp(name1, "ttl")) {
+			if (matched) {
+				ttlmatch = 1;
+			} else {
+				goto fail;
+			}
+		} else if (!strcasecmp(name1, "user")) {
+			if (matched) {
+				usermatch = 1;
+			} else {
+				goto fail;
+			}
+		} else if (!strcasecmp(name1, "method")) {
+			if (matched) {
+				methodmatch = 1;
+			} else {
+				goto fail;
+			}
+		}
+		pos1 = semicolon1;
+	}
+
+	/* We've made it out of that horrible O(m*n) construct and there are no
+	 * failures yet. We're not done yet, though, because params2 could have
+	 * an maddr, ttl, user, or method header and params1 did not.
+	 */
+	pos2 = params2;
+	while (!ast_strlen_zero(pos2)) {
+		char *name2 = pos2;
+		char *value2 = strchr(pos2, '=');
+		char *semicolon2 = strchr(pos2, ';');
+		if (semicolon2) {
+			*semicolon2++ = '\0';
+		}
+		if (!value2) {
+			goto fail;
+		}
+		if ((!strcasecmp(name2, "maddr") && !maddrmatch) ||
+				(!strcasecmp(name2, "ttl") && !ttlmatch) ||
+				(!strcasecmp(name2, "user") && !usermatch) ||
+				(!strcasecmp(name2, "method") && !methodmatch)) {
+			goto fail;
+		}
+	}
+	return 0;
+
+fail:
+	return 1;
+}
+
+/*! \brief helper routine for sip_uri_cmp
+ *
+ * This takes the "headers" from two SIP URIs and determines
+ * if the URIs match. The rules for headers is simple. If a header
+ * appears in one URI, then it must also appear in the other URI. The
+ * order in which the headers appear does not matter.
+ *
+ * \param input1 Headers from URI 1
+ * \param input2 Headers from URI 2
+ * \return Return 0 if the URIs' headers match, 1 if they do not
+ */
+static int sip_uri_headers_cmp(const char *input1, const char *input2)
+{
+	char *headers1 = ast_strdupa(input1);
+	char *headers2 = ast_strdupa(input2);
+	int zerolength1 = ast_strlen_zero(headers1);
+	int zerolength2 = ast_strlen_zero(headers2);
+	int different = 0;
+	char *header1;
+
+	if ((zerolength1 && !zerolength2) ||
+			(zerolength2 && !zerolength1))
+		return 1;
+
+	if (zerolength1 && zerolength2)
+		return 0;
+
+	/* At this point, we can definitively state that both inputs are
+	 * not zero-length. First, one more optimization. If the length
+	 * of the headers is not equal, then we definitely have no match
+	 */
+	if (strlen(headers1) != strlen(headers2)) {
+		return 1;
+	}
+
+	for (header1 = strsep(&headers1, "&"); header1; header1 = strsep(&headers1, "&")) {
+		if (!strcasestr(headers2, header1)) {
+			different = 1;
+			break;
+		}
+	}
+
+	return different;
+}
+
+static int sip_uri_cmp(const char *input1, const char *input2)
+{
+	char *uri1 = ast_strdupa(input1);
+	char *uri2 = ast_strdupa(input2);
+	char *host1;
+	char *host2;
+	char *params1;
+	char *params2;
+	char *headers1;
+	char *headers2;
+
+	/* Strip off "sip:" from the URI. We know this is present
+	 * because it was checked back in parse_request()
+	 */
+	strsep(&uri1, ":");
+	strsep(&uri2, ":");
+
+	if ((host1 = strchr(uri1, '@'))) {
+		*host1++ = '\0';
+	}
+	if ((host2 = strchr(uri2, '@'))) {
+		*host2++ = '\0';
+	}
+
+	/* Check for mismatched username and passwords. This is the
+	 * only case-sensitive comparison of a SIP URI
+	 */
+	if ((host1 && !host2) ||
+			(host2 && !host1) ||
+			(host1 && host2 && strcmp(uri1, uri2))) {
+		return 1;
+	}
+
+	if (!host1)
+		host1 = uri1;
+	if (!host2)
+		host2 = uri2;
+
+	/* Strip off the parameters and headers so we can compare
+	 * host and port
+	 */
+
+	if ((params1 = strchr(host1, ';'))) {
+		*params1++ = '\0';
+	}
+	if ((params2 = strchr(host2, ';'))) {
+		*params2++ = '\0';
+	}
+
+	/* Headers come after parameters, but there may be headers without
+	 * parameters, thus the S_OR
+	 */
+	if ((headers1 = strchr(S_OR(params1, host1), '?'))) {
+		*headers1++ = '\0';
+	}
+	if ((headers2 = strchr(S_OR(params2, host2), '?'))) {
+		*headers2++ = '\0';
+	}
+
+	/* Now the host/port are properly isolated. We can get by with a string comparison
+	 * because the SIP URI checking rules have some interesting exceptions that make
+	 * this possible. I will note 2 in particular
+	 * 1. hostnames which resolve to the same IP address as well as a hostname and its
+	 *    IP address are not considered a match with SIP URI's.
+	 * 2. If one URI specifies a port and the other does not, then the URIs do not match.
+	 *    This includes if one URI explicitly contains port 5060 and the other implies it
+	 *    by not having a port specified.
+	 */
+
+	if (strcasecmp(host1, host2)) {
+		return 1;
+	}
+
+	/* Headers have easier rules to follow, so do those first */
+	if (sip_uri_headers_cmp(headers1, headers2)) {
+		return 1;
+	}
+
+	/* And now the parameters. Ugh */
+	return sip_uri_params_cmp(params1, params2);
+}
+
 
 /*! \brief Handle incoming INVITE request
 \note 	If the INVITE has a Replaces header, it is part of an
@@ -13814,10 +14069,44 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	   	being able to call yourself */
 		/* If pedantic is on, we need to check the tags. If they're different, this is
 	   	in fact a forked call through a SIP proxy somewhere. */
-		transmit_response_reliable(p, "482 Loop Detected", req);
-		p->invitestate = INV_COMPLETED;
-		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-		return 0;
+		int different;
+		if (pedanticsipchecking)
+			different = sip_uri_cmp(p->initreq.rlPart2, req->rlPart2);
+		else
+			different = strcmp(p->initreq.rlPart2, req->rlPart2);
+		if (!different) {
+			transmit_response(p, "482 Loop Detected", req);
+			p->invitestate = INV_COMPLETED;
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+			return 0;
+		} else {
+			/* This is a spiral. What we need to do is to just change the outgoing INVITE
+			 * so that it now routes to the new Request URI. Since we created the INVITE ourselves
+			 * that should be all we need to do.
+			 */
+			char *uri = ast_strdupa(req->rlPart2);
+			char *at = strchr(uri, '@');
+			char *peerorhost;
+			struct sip_pkt *pkt = NULL;
+			if (option_debug > 2) {
+				ast_log(LOG_DEBUG, "Potential spiral detected. Original RURI was %s, new RURI is %s\n", p->initreq.rlPart2, req->rlPart2);
+			}
+			if (at) {
+				*at = '\0';
+			}
+			/* Parse out "sip:" */
+			if ((peerorhost = strchr(uri, ':'))) {
+				*peerorhost++ = '\0';
+			}
+			create_addr(p, peerorhost);
+			ast_string_field_free(p, theirtag);
+			for (pkt = p->packets; pkt; pkt = pkt->next) {
+				if (pkt->seqno == p->icseq && pkt->method == SIP_INVITE) {
+					AST_SCHED_DEL(sched, pkt->retransid);
+				}
+			}
+			return transmit_invite(p, SIP_INVITE, 1, 3);
+		}
 	}
 	
 	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->pendinginvite) {
@@ -15332,7 +15621,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (!p->initreq.headers) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %d Cmd %s\n", seqno, cmd);
-			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 			return 0;
 		} else if (p->ocseq && (p->ocseq < seqno) && (seqno != p->lastnoninvite)) {
 			if (option_debug)
