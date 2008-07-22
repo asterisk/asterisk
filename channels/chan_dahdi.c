@@ -326,7 +326,7 @@ struct dahdi_pri {
 	int resetting;
 	int resetpos;
 #ifdef HAVE_PRI_INBANDDISCONNECT
-	unsigned int inbanddisconnect:1;				/*!< Should we support inband audio after receiving RELEASE? */
+	unsigned int inbanddisconnect:1;				/*!< Should we support inband audio after receiving DISCONNECT? */
 #endif
 	time_t lastreset;						/*!< time when unused channels were last reset */
 	long resetinterval;						/*!< Interval (in seconds) for resetting unused channels */
