@@ -3677,6 +3677,26 @@ static void dahdi_handle_dtmfup(struct ast_channel *ast, int index, struct ast_f
 		dahdi_confmute(p, 0);
 }
 			
+static void handle_alarms(struct dahdi_pvt *p, int alarms)
+{
+	const char *alarm_str = alarm2str(alarms);
+	
+	/* hack alert! Zaptel 1.4 and DAHDI expose FXO battery as an alarm, but this code
+	 * doesn't know what to do with it.  Don't confuse users with log messages. */
+	if (!strcasecmp(alarm_str, "No Alarm") || !strcasecmp(alarm_str, "Unknown Alarm")) {
+		p->unknown_alarm = 1;
+		return;
+	} else {
+		p->unknown_alarm = 0;
+	}
+	
+	ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm_str);
+	manager_event(EVENT_FLAG_SYSTEM, "Alarm",
+		      "Alarm: %s\r\n"
+		      "Channel: %d\r\n",
+		      alarm_str, p->channel);
+}
+
 static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 {
 	int res, x;
@@ -3829,24 +3849,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 #endif
 			p->inalarm = 1;
 			res = get_alarms(p);
-			do {
-				const char *alarm_str = alarm2str(res);
-
-				/* hack alert! Zaptel 1.4 and DAHDI expose FXO battery as an alarm, but Asterisk 1.4
-				 * doesn't know what to do with it.  Don't confuse users with log messages. */
-				if (!strcasecmp(alarm_str, "No Alarm") || !strcasecmp(alarm_str, "Unknown Alarm")) {
-					p->unknown_alarm = 1;
-					break;
-				} else {
-					p->unknown_alarm = 0;
-				}
-					
-				ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm_str);
-				manager_event(EVENT_FLAG_SYSTEM, "Alarm",
-					"Alarm: %s\r\n"
-					"Channel: %d\r\n",
-					alarm_str, p->channel);
-			} while (0);
+			handle_alarms(p, res);
 #ifdef HAVE_LIBPRI
 			if (!p->pri || !p->pri->pri || pri_get_timer(p->pri->pri, PRI_TIMER_T309) < 0) {
 				/* fall through intentionally */
@@ -6736,24 +6739,7 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 	case DAHDI_EVENT_ALARM:
 		i->inalarm = 1;
 		res = get_alarms(i);
-		do {
-			const char *alarm_str = alarm2str(res);
-
-			/* hack alert!  DAHDI 1.4 now exposes FXO battery as an alarm, but asterisk 1.4
-			 * doesn't know what to do with it.  Don't confuse users with log messages. */
-			if (!strcasecmp(alarm_str, "No Alarm") || !strcasecmp(alarm_str, "Unknown Alarm")) {
-				i->unknown_alarm = 1;
-				break;
-			} else {
-				i->unknown_alarm = 0;
-			}
-
-			ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", i->channel, alarm_str);
-			manager_event(EVENT_FLAG_SYSTEM, "Alarm",
-				"Alarm: %s\r\n"
-				"Channel: %d\r\n",
-				alarm_str, i->channel);
-		} while (0);
+		handle_alarms(i, res);
 		/* fall thru intentionally */
 	case DAHDI_EVENT_ONHOOK:
 		if (i->radio)
@@ -7602,16 +7588,11 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			/* the dchannel is down so put the channel in alarm */
 			if (tmp->pri && !pri_is_up(tmp->pri))
 				tmp->inalarm = 1;
-			else
-				tmp->inalarm = 0;
 #endif				
-			memset(&si, 0, sizeof(si));
-			if (ioctl(tmp->subs[SUB_REAL].dfd,DAHDI_SPANSTAT,&si) == -1) {
-				ast_log(LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
-				destroy_dahdi_pvt(&tmp);
-				return NULL;
+			if ((res = get_alarms(tmp)) != DAHDI_ALARM_NONE) {
+				tmp->inalarm = 1;
+				handle_alarms(tmp, res);
 			}
-			if (si.alarms) tmp->inalarm = 1;
 		}
 
 		tmp->polarityonanswerdelay = conf->chan.polarityonanswerdelay;
