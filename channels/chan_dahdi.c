@@ -8072,8 +8072,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 	/* Make a dahdi_pvt structure for this interface (or CRV if "pri" is specified) */
 	struct dahdi_pvt *tmp = NULL, *tmp2,  *prev = NULL;
 	char fn[80];
-#if 1
 	struct dahdi_bufferinfo bi;
+#ifdef HAVE_PRI
+	struct dahdi_spaninfo si;
 #endif
 	int res;
 	int span = 0;
