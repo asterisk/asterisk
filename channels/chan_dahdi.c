@@ -8232,7 +8232,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 #if 1
 	struct dahdi_bufferinfo bi;
 #endif
-	struct dahdi_spaninfo si;
 
 	int res;
 	int span = 0;
