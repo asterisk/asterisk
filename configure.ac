@@ -600,7 +600,7 @@ AST_EXT_LIB_CHECK([STRTOD], [c], [strtod], [stdlib.h])
 AST_EXT_LIB_CHECK([FLOOR], [m], [floor])
 AST_EXT_LIB_CHECK([CEIL], [m], [ceil])
 
-AST_C_COMPILE_CHECK([GETIFADDRS], [struct ifaddrs *p; getifaddrs(&p)], [ifaddrs.h])
+AST_C_COMPILE_CHECK([GETIFADDRS], [struct ifaddrs *p; getifaddrs(&p)], [ifaddrs.h], , [getifaddrs() support])
 
 GSM_INTERNAL="yes"
 AC_SUBST(GSM_INTERNAL)
@@ -1301,7 +1301,7 @@ AST_C_COMPILE_CHECK([SPANDSP], [
 		#if SPANDSP_RELEASE_DATE < 20080516
 		#error "spandsp 0.0.5 or greater is required"
 		#endif
-	], [spandsp/version.h])
+	], [spandsp/version.h], , [minimum version of SpanDSP])
 
 if test "x${PBX_SPANDSP}" = "x1" ; then
 	# We found the correct version in the header, now let's make sure it links
