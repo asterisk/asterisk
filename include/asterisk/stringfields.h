@@ -123,7 +123,6 @@ struct ast_string_field_mgr {
 	size_t size;				/*!< the total size of the current pool */
 	size_t space;				/*!< the space available in the current pool */
 	size_t used;				/*!< the space used in the current pool */
-	ast_string_field last_alloc;		/*!< the last field allocated */
 };
 
 /*!
@@ -137,24 +136,6 @@ struct ast_string_field_mgr {
 */
 int __ast_string_field_init(struct ast_string_field_mgr *mgr, size_t size,
 			    ast_string_field *fields, int num_fields);
-
-/*!
-  \internal
-  \brief Attempt to 'grow' an already allocated field to a larger size
-  \param mgr Pointer to the pool manager structure
-  \param needed Amount of space needed for this field
-  \param fields Pointer to the first entry of the field array
-  \param index Index position of the field within the structure
-  \return 0 on success, non-zero on failure
-
-  This function will attempt to increase the amount of space allocated to
-  an existing field to the amount requested; this is only possible if the
-  field was the last field allocated from the current storage pool and
-  the pool has enough space available. If so, the additional space will be
-  allocated to this field and the field's address will not be changed.
-*/
-int __ast_string_field_index_grow(struct ast_string_field_mgr *mgr, size_t needed,
-				  ast_string_field *fields, int index);
 
 /*!
   \internal
@@ -258,7 +239,7 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
     if ( __dlen__ == 1 ) {\
       (x)->__begin_field[index] = __ast_string_field_empty; \
     } else { \
-      if (!__ast_string_field_index_grow(&(x)->__field_mgr, __dlen__, &(x)->__begin_field[0], index)) { \
+      if ((__zz__[0] != 0) && (__dlen__ <= (strlen(__zz__) + 1))) { \
         memcpy(__zz__, data, __dlen__); \
       } else { \
         if (((x)->__begin_field[index] = __ast_string_field_alloc_space(&(x)->__field_mgr, __dlen__, &(x)->__begin_field[0], ast_string_field_count(x)))) \
@@ -273,7 +254,7 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
     if ( __dlen__ == 1 ) {\
       (x)->__begin_field[index] = __ast_string_field_empty; \
     } else { \
-      if (!__ast_string_field_index_grow(&(x)->__field_mgr, __dlen__, &(x)->__begin_field[0], index)) { \
+      if ((__zz__[0] != 0) && (__dlen__ <= strlen(__zz__) + 1)) { \
         ast_verbose("%s: ======replacing '%s' with '%s'\n", logstr, __zz__, data); \
         memcpy(__zz__, data, __dlen__); \
       } else { \

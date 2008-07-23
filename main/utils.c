@@ -1223,7 +1223,6 @@ static int add_string_pool(struct ast_string_field_mgr *mgr, size_t size)
 	mgr->size = size;
 	mgr->space = size;
 	mgr->used = 0;
-	mgr->last_alloc = NULL;
 
 	return 0;
 }
@@ -1260,31 +1259,7 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 	result = mgr->pool->base + mgr->used;
 	mgr->used += needed;
 	mgr->space -= needed;
-	mgr->last_alloc = result;
 	return result;
-}
-
-int __ast_string_field_index_grow(struct ast_string_field_mgr *mgr, size_t needed,
-				  ast_string_field *fields, int index)
-{
-	int grow = needed - (strlen(fields[index]) + 1);
-
-	if (grow <= 0) {
-		return 0;
-	}
-
-	if (fields[index] != mgr->last_alloc) {
-		return 1;
-	}
-
-	if (mgr->space < grow) {
-		return 1;
-	}
-
-	mgr->space -= grow;
-	mgr->used += grow;
-
-	return 0;
 }
 
 void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
@@ -1310,7 +1285,6 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
 	}
 
 	fields[index] = mgr->pool->base + mgr->used;
-	mgr->last_alloc = fields[index];
 	mgr->used += needed;
 	mgr->space -= needed;
 }
