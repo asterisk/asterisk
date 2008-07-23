@@ -476,6 +476,7 @@ redo:
 
 	snprintf(channel_name, AST_CHANNEL_NAME, "%s/pseudo", dahdi_chan_name);
 	if (!strncmp(this->name, channel_name, 10)) {
+		last = this;
 		ast_channel_unlock(this);
 		goto redo;
 	} else if (this == chan) {
