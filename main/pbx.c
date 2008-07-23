@@ -359,6 +359,8 @@ int ast_hashtab_compare_contexts(const void *ah_a, const void *ah_b)
 {
 	const struct ast_context *ac = ah_a;
 	const struct ast_context *bc = ah_b;
+	if (!ac || !bc) /* safety valve, but it might prevent a crash you'd rather have happen */
+		return 1;
 	/* assume context names are registered in a string table! */
 	return strcmp(ac->name, bc->name);
 }
@@ -789,7 +791,7 @@ int check_contexts(char *file, int line )
 	for(c2=contexts;c2;c2=c2->next) {
 		c1 = find_context_locked(c2->name);
 		if (!c1) {
-			ast_log(LOG_NOTICE,"Could not find the %s context in the hashtab\n", c2->name);
+			ast_log(LOG_NOTICE,"Called from: %s:%d: Could not find the %s context in the hashtab\n", file, line, c2->name);
 			check_contexts_trouble();
 		} else
 			ast_unlock_contexts();
@@ -4333,9 +4335,6 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 			previous_peer = peer;
 		}
 	}
-#ifdef CONTEXT_DEBUG
-	check_contexts(__FILE__, __LINE__);
-#endif
 	if (!already_locked)
 		ast_unlock_context(con);
 	return found ? 0 : -1;
@@ -5592,14 +5591,17 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		*local_contexts = tmp;
 		ast_hashtab_insert_safe(contexts_table, tmp); /*put this context into the tree */
 		ast_unlock_contexts();
+		ast_debug(1, "Registered context '%s'(%p) in table %p registrar: %s\n", tmp->name, tmp, contexts_table, registrar);
+		ast_verb(3, "Registered extension context '%s' (%p) in table %p; registrar: %s\n", tmp->name, tmp, contexts_table, registrar);
 	} else {
 		tmp->next = *local_contexts;
 		if (exttable)
 			ast_hashtab_insert_immediate(exttable, tmp); /*put this context into the tree */
+		
 		*local_contexts = tmp;
+		ast_debug(1, "Registered context '%s'(%p) in local table %p; registrar: %s\n", tmp->name, tmp, exttable, registrar);
+		ast_verb(3, "Registered extension context '%s' (%p) in local table %p; registrar: %s\n", tmp->name, tmp, exttable, registrar);
 	}
-	ast_debug(1, "Registered context '%s'\n", tmp->name);
-	ast_verb(3, "Registered extension context '%s'\n", tmp->name);
 	return tmp;
 }
 
@@ -5656,11 +5658,13 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 	struct ast_hashtab_iter *exten_iter;
 	struct ast_hashtab_iter *prio_iter;
 	int insert_count = 0;
+	int first = 1;
 	
 	/* We'll traverse all the extensions/prios, and see which are not registrar'd with
 	   the current registrar, and copy them to the new context. If the new context does not
 	   exist, we'll create it "on demand". If no items are in this context to copy, then we'll
 	   only create the empty matching context if the old one meets the criteria */
+	
 	if (context->root_table) {
 		exten_iter = ast_hashtab_start_traversal(context->root_table);
 		while ((exten_item=ast_hashtab_next(exten_iter))) {
@@ -5672,6 +5676,7 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 			prio_iter = ast_hashtab_start_traversal(exten_item->peer_table);
 			while ((prio_item=ast_hashtab_next(prio_iter))) {
 				int res1;
+				char *dupdstr;
 				
 				if (new_exten_item) {
 					new_prio_item = ast_hashtab_lookup(new_exten_item->peer_table, prio_item);
@@ -5687,20 +5692,28 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 				}
 
 				/* copy in the includes, switches, and ignorepats */
-				context_merge_incls_swits_igps_other_registrars(new, context, registrar);
+				if (first) { /* but, only need to do this once */
+					context_merge_incls_swits_igps_other_registrars(new, context, registrar);
+					first = 0;
+				}
+				
 				if (!new) {
 					ast_log(LOG_ERROR,"Could not allocate a new context for %s in merge_and_delete! Danger!\n", context->name);
 					return; /* no sense continuing. */
 				}
 				/* we will not replace existing entries in the new context with stuff from the old context.
 				   but, if this is because of some sort of registrar conflict, we ought to say something... */
+				
+				dupdstr = ast_strdup(prio_item->data);
+				
 				res1 = ast_add_extension2(new, 0, prio_item->exten, prio_item->priority, prio_item->label, 
-										  prio_item->cidmatch, prio_item->app, prio_item->data, prio_item->datad, prio_item->registrar);
+										  prio_item->cidmatch, prio_item->app, dupdstr, prio_item->datad, prio_item->registrar);
 				if (!res1 && new_exten_item && new_prio_item){
 					ast_verb(3,"Dropping old dialplan item %s/%s/%d [%s(%s)] (registrar=%s) due to conflict with new dialplan\n",
 							context->name, prio_item->exten, prio_item->priority, prio_item->app, (char*)prio_item->data, prio_item->registrar);
 				} else {
-					prio_item->data = NULL; /* we pass the priority data from the old to the new */
+					/* we do NOT pass the priority data from the old to the new -- we pass a copy of it, so no changes to the current dialplan take place,
+					 and no double frees take place, either! */
 					insert_count++;
 				}
 			}
@@ -5711,7 +5724,6 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 	
 	if (!insert_count && !new && (strcmp(context->registrar, registrar) != 0 ||
 		  (strcmp(context->registrar, registrar) == 0 && context->refcount > 1))) {
-		
 		/* we could have given it the registrar of the other module who incremented the refcount,
 		   but that's not available, so we give it the registrar we know about */
 		new = ast_context_find_or_create(extcontexts, exttable, context->name, context->registrar);
@@ -5833,7 +5845,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	   is now freely using the new stuff instead */
 	
 	ast_hashtab_destroy(oldtable, NULL);
-
+	
 	for (tmp = oldcontextslist; tmp; ) {
 		struct ast_context *next;	/* next starting point */
 		next = tmp->next;
@@ -6527,8 +6539,12 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 		   replacement?  If so, replace, otherwise, bonk. */
 		if (!replace) {
 			ast_log(LOG_WARNING, "Unable to register extension '%s', priority %d in '%s', already in use\n", tmp->exten, tmp->priority, con->name);
-			if (tmp->datad)
+			if (tmp->datad) {
 				tmp->datad(tmp->data);
+				/* if you free this, null it out */
+				tmp->data = NULL;
+			}
+			
 			ast_free(tmp);
 			return -1;
 		}
@@ -6834,20 +6850,20 @@ int ast_add_extension2(struct ast_context *con,
 	}
 	if (option_debug) {
 		if (tmp->matchcid) {
-			ast_debug(1, "Added extension '%s' priority %d (CID match '%s') to %s\n",
-				tmp->exten, tmp->priority, tmp->cidmatch, con->name);
+			ast_debug(1, "Added extension '%s' priority %d (CID match '%s') to %s (%p)\n",
+					  tmp->exten, tmp->priority, tmp->cidmatch, con->name, con);
 		} else {
-			ast_debug(1, "Added extension '%s' priority %d to %s\n",
-				tmp->exten, tmp->priority, con->name);
+			ast_debug(1, "Added extension '%s' priority %d to %s (%p)\n",
+					  tmp->exten, tmp->priority, con->name, con);
 		}
 	}
 
 	if (tmp->matchcid) {
-		ast_verb(3, "Added extension '%s' priority %d (CID match '%s') to %s\n",
-			tmp->exten, tmp->priority, tmp->cidmatch, con->name);
+		ast_verb(3, "Added extension '%s' priority %d (CID match '%s') to %s (%p)\n",
+				 tmp->exten, tmp->priority, tmp->cidmatch, con->name, con);
 	} else {
-		ast_verb(3, "Added extension '%s' priority %d to %s\n",
-			tmp->exten, tmp->priority, con->name);
+		ast_verb(3, "Added extension '%s' priority %d to %s (%p)\n",
+				 tmp->exten, tmp->priority, con->name, con);
 	}
 	
 	return 0;
@@ -7246,7 +7262,7 @@ static void __ast_internal_context_destroy( struct ast_context *con)
 	struct ast_exten *e, *el, *en;
 	struct ast_ignorepat *ipi;
 	struct ast_context *tmp = con;
-
+	
 	for (tmpi = tmp->includes; tmpi; ) { /* Free includes */
 		struct ast_include *tmpil = tmpi;
 		tmpi = tmpi->next;
