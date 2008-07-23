@@ -2625,6 +2625,19 @@ static int handle_frm(msg_t *msg)
 			make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
 			bc=&dummybc;
 		}
+
+		if (!bc && (frm->prim==(CC_SETUP|INDICATION)) ) {
+			make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
+			dummybc.port=stack->port;
+			dummybc.l3_id=frm->dinfo;
+			bc=&dummybc;
+
+			misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+
+			free_msg(msg);
+			return 1;
+		}
+
     
 handle_frm_bc:
 		if (bc ) {
@@ -3110,7 +3123,7 @@ static int test_inuse(struct misdn_bchannel *bc)
 	struct timeval now;
 	gettimeofday(&now, NULL);
 	if (!bc->in_use) {
-		if ( bc->last_used.tv_sec == now.tv_sec ) {
+		if (misdn_lib_port_is_pri(bc->port) && bc->last_used.tv_sec == now.tv_sec ) {
 			cb_log(2,bc->port, "channel with stid:%x for one second still in use! (n:%d lu:%d)\n", bc->b_stid, now.tv_sec, bc->last_used.tv_sec);
 			return 1;
 		}
