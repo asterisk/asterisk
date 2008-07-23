@@ -52,6 +52,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define AST_NAME_STRLEN 256
 #define NUM_SPYGROUPS 128
 
+ /* "DAHDI/pseudo" is twelve characters */
+#define PSEUDO_CHAN_LEN 12
+
 static const char *tdesc = "Listen to a channel, and optionally whisper into it";
 static const char *app_chan = "ChanSpy";
 static const char *desc_chan =
@@ -609,7 +612,7 @@ redo:
 		return NULL;
 
 	snprintf(channel_name, AST_CHANNEL_NAME, "%s/pseudo", dahdi_chan_name);
-	if (!strncmp(next->name, channel_name, 10)) {
+	if (!strncmp(next->name, channel_name, PSEUDO_CHAN_LEN)) {
 		last = next;
 		ast_channel_unlock(next);
 		goto redo;
