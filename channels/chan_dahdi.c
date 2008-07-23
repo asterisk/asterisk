@@ -8073,9 +8073,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 	struct dahdi_pvt *tmp = NULL, *tmp2,  *prev = NULL;
 	char fn[80];
 	struct dahdi_bufferinfo bi;
-#ifdef HAVE_PRI
-	struct dahdi_spaninfo si;
-#endif
 	int res;
 	int span = 0;
 	int here = 0;
@@ -8221,6 +8218,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 					destroy_dahdi_pvt(&tmp);
 					return NULL;
 				} else {
+					struct dahdi_spaninfo si;
 					si.spanno = 0;
 					if (ioctl(tmp->subs[SUB_REAL].zfd,DAHDI_SPANSTAT,&si) == -1) {
 						ast_log(LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
