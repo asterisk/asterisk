@@ -51,9 +51,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define AST_NAME_STRLEN 256
 
- /* "DAHDI/pseudo" is twelve characters */
-#define PSEUDO_CHAN_LEN 12
-
 static const char *tdesc = "Listen to a channel, and optionally whisper into it";
 static const char *app_chan = "ChanSpy";
 static const char *desc_chan =
@@ -170,7 +167,14 @@ AST_APP_OPTIONS(spy_opts, {
 	AST_APP_OPTION('X', OPTION_EXIT),
 });
 
-int next_unique_id_to_use = 0;
+static int next_unique_id_to_use = 0;
+static int PSEUDO_CHAN_LEN;
+
+static void determine_pseudo_chan_len(void) 
+{
+	PSEUDO_CHAN_LEN = dahdi_chan_name_len + strlen("/pseudo");
+}
+
 
 struct chanspy_translation_helper {
 	/* spy data */
@@ -951,6 +955,7 @@ static int load_module(void)
 {
 	int res = 0;
 
+	determine_pseudo_chan_len();
 	res |= ast_register_application(app_chan, chanspy_exec, tdesc, desc_chan);
 	res |= ast_register_application(app_ext, extenspy_exec, tdesc, desc_ext);
 

@@ -169,6 +169,7 @@ int option_maxfiles;				/*!< Max number of open file handles (files, sockets) */
 long option_minmemfree;				/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
 #endif
 char dahdi_chan_name[AST_CHANNEL_NAME] = "ZAP";
+int dahdi_chan_name_len = 3;
 
 /*! @} */
 
