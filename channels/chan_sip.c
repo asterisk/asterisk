@@ -13011,7 +13011,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  UDP SIP Port:           %d\n", ntohs(bindaddr.sin_port));
 	ast_cli(a->fd, "  UDP Bindaddress:        %s\n", ast_inet_ntoa(bindaddr.sin_addr));
 	ast_cli(a->fd, "  TCP SIP Port:           ");
-	if (sip_tcp_desc.sin.sin_family != AF_INET) {
+	if (sip_tcp_desc.sin.sin_family == AF_INET) {
 		ast_cli(a->fd, "%d\n", ntohs(sip_tcp_desc.sin.sin_port));
 		ast_cli(a->fd, "  TCP Bindaddress:        %s\n", ast_inet_ntoa(sip_tcp_desc.sin.sin_addr));
 	} else {
@@ -20619,9 +20619,7 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&sip_tcp_desc.sin, 0, sizeof(sip_tcp_desc.sin));
 	memset(&sip_tls_desc.sin, 0, sizeof(sip_tls_desc.sin));
 
-	/* sip_tcp_desc.sin.sin_family = AF_INET; Disabled, since TCP support in Asterisk is experimental */
-	sip_tcp_desc.sin.sin_family = 0;
-	default_tls_cfg.enabled = FALSE;
+	default_tls_cfg.enabled = FALSE;		/* Default: Disable TLS */
 
 	sip_tcp_desc.sin.sin_port = htons(STANDARD_SIP_PORT);
 	sip_tls_desc.sin.sin_port = htons(STANDARD_TLS_PORT);
