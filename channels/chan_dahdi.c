@@ -7586,12 +7586,25 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			ioctl(tmp->subs[SUB_REAL].dfd,DAHDI_SETTONEZONE,&tmp->tonezone);
 #ifdef HAVE_PRI
 			/* the dchannel is down so put the channel in alarm */
-			if (tmp->pri && !pri_is_up(tmp->pri))
+			if (tmp->pri && !pri_is_up(tmp->pri)) {
 				tmp->inalarm = 1;
+			}
 #endif				
 			if ((res = get_alarms(tmp)) != DAHDI_ALARM_NONE) {
 				tmp->inalarm = 1;
 				handle_alarms(tmp, res);
+			} else {
+				/* yes, this looks strange... the unknown_alarm flag is only used to
+				   control whether an 'alarm cleared' message gets generated when we
+				   get an indication that the channel is no longer in alarm status.
+				   however, the channel *could* be in an alarm status that we aren't
+				   aware of (since get_alarms() only reports span alarms, not channel
+				   alarms). setting this flag will cause any potential 'alarm cleared'
+				   message to be suppressed, but if a real alarm occurs before that
+				   happens, this flag will get cleared by it and the situation will
+				   be normal.
+				*/
+				tmp->unknown_alarm = 1;
 			}
 		}
 
