@@ -123,11 +123,11 @@ extern pid_t ast_mainpid;
 extern char record_cache_dir[AST_CACHE_DIR_LEN];
 extern char debug_filename[AST_FILENAME_MAX];
 extern const char *dahdi_chan_name;
-extern int dahdi_chan_name_len;
-extern enum dahdi_chan_modes {
+extern const size_t *dahdi_chan_name_len;
+extern const enum dahdi_chan_modes {
 	CHAN_ZAP_MODE,
 	CHAN_DAHDI_PLUS_ZAP_MODE,
-} dahdi_chan_mode;
+} *dahdi_chan_mode;
 	
 extern int ast_language_is_prefix;
 

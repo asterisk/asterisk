@@ -336,7 +336,7 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	if (dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) {
+	if (*dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) {
 		res |= ast_unregister_application(dahdi_app);
 	}
 
@@ -351,7 +351,7 @@ static int load_module(void)
 {
 	int res = 0;
 
-	if (dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) {
+	if (*dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) {
 		res |= ast_register_application(dahdi_app, exec_dahdi, dahdi_synopsis, dahdi_descrip);
 	}
 

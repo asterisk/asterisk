@@ -147,13 +147,6 @@ AST_APP_OPTIONS(spy_opts, {
 });
 
 static int next_unique_id_to_use = 0;
-static int PSEUDO_CHAN_LEN;
-
-static void determine_pseudo_chan_len(void) 
-{
-	PSEUDO_CHAN_LEN = dahdi_chan_name_len + strlen("/pseudo");
-}
-
 
 struct chanspy_translation_helper {
 	/* spy data */
@@ -473,6 +466,11 @@ static struct chanspy_ds *next_channel(struct ast_channel *chan,
 {
 	struct ast_channel *this;
 	char channel_name[AST_CHANNEL_NAME];
+	static size_t PSEUDO_CHAN_LEN = 0;
+
+	if (!PSEUDO_CHAN_LEN) {
+		PSEUDO_CHAN_LEN = *dahdi_chan_name_len + strlen("/pseudo");
+	}
 
 redo:
 	if (spec)
@@ -865,7 +863,6 @@ static int load_module(void)
 {
 	int res = 0;
 
-	determine_pseudo_chan_len();
 	res |= ast_register_application(app_chan, chanspy_exec, tdesc, desc_chan);
 	res |= ast_register_application(app_ext, extenspy_exec, tdesc, desc_ext);
 

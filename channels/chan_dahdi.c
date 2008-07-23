@@ -5234,7 +5234,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	int features;
 	char *b2 = NULL;
 	DAHDI_PARAMS ps;
-	char chanprefix[dahdi_chan_name_len + 4];
+	char chanprefix[*dahdi_chan_name_len + 4];
 
 	if (i->subs[index].owner) {
 		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
@@ -10584,7 +10584,7 @@ static int dahdi_action_restart(struct mansession *s, const struct message *m)
 }
 
 #define local_astman_unregister(a) do { \
-					if (dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) { \
+					if (*dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) { \
 						ast_manager_unregister("DAHDI" a); \
 					} \
 					ast_manager_unregister("Zap" a); \
@@ -11583,7 +11583,7 @@ static int setup_dahdi(int reload)
 }
 
 #define local_astman_register(a, b, c, d) do { \
-						if (dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) { \
+						if (*dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) { \
 							ast_manager_register("DAHDI" a, b, dahdi_ ## c, d); \
 						} \
 						ast_manager_register("Zap" a, b, zap_ ## c, d); \
@@ -11611,7 +11611,7 @@ static int load_module(void)
 	if ((res = setup_dahdi(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	if (dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) {
+	if (*dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) {
 		chan_tech = &dahdi_tech;
 	} else {
 		chan_tech = &zap_tech;
