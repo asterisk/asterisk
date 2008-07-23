@@ -8304,7 +8304,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].minidle = conf->pri.minidle;
 						pris[span].overlapdial = conf->pri.overlapdial;
 #ifdef HAVE_PRI_INBANDDISCONNECT
-						pris[span].inbanddisconnect = conf->pri.inbandrelease;
+						pris[span].inbanddisconnect = conf->pri.inbanddisconnect;
 #endif
 						pris[span].facilityenable = conf->pri.facilityenable;
 						ast_copy_string(pris[span].idledial, conf->pri.idledial, sizeof(pris[span].idledial));
@@ -11335,7 +11335,7 @@ static int start_pri(struct dahdi_pri *pri)
 			pri->overlapdial |= DAHDI_OVERLAPDIAL_BOTH;
 		pri_set_overlapdial(pri->dchans[i],(pri->overlapdial & DAHDI_OVERLAPDIAL_OUTGOING)?1:0);
 #ifdef HAVE_PRI_INBANDDISCONNECT
-		pri_set_inbanddisconnect(pri->dchans[i], pri->inbandrelease);
+		pri_set_inbanddisconnect(pri->dchans[i], pri->inbanddisconnect);
 #endif
 		/* Enslave to master if appropriate */
 		if (i)
