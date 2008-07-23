@@ -135,9 +135,27 @@ struct ast_string_field_pool {
   pool, so the numbers here reflect just that.
 */
 struct ast_string_field_mgr {
-	size_t size;		/*!< the total size of the current pool */
-	size_t used;		/*!< the space used in the current pool */
+	size_t size;				/*!< the total size of the current pool */
+	size_t used;				/*!< the space used in the current pool */
+	ast_string_field last_alloc;		/*!< the last field allocated */
 };
+
+/*!
+  \internal
+  \brief Attempt to 'grow' an already allocated field to a larger size
+  \param mgr Pointer to the pool manager structure
+  \param needed Amount of space needed for this field
+  \param ptr Pointer to a field within the structure
+  \return 0 on success, non-zero on failure
+
+  This function will attempt to increase the amount of space allocated to
+  an existing field to the amount requested; this is only possible if the
+  field was the last field allocated from the current storage pool and
+  the pool has enough space available. If so, the additional space will be
+  allocated to this field and the field's address will not be changed.
+*/
+int __ast_string_field_ptr_grow(struct ast_string_field_mgr *mgr, size_t needed,
+				const ast_string_field *ptr);
 
 /*!
   \internal
@@ -152,7 +170,7 @@ struct ast_string_field_mgr {
   an additional pool will be allocated.
 */
 ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr,
-	 struct ast_string_field_pool **pool_head, size_t needed);
+						struct ast_string_field_pool **pool_head, size_t needed);
 
 /*!
   \internal
@@ -164,8 +182,8 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
   \return nothing
 */
 void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
-	struct ast_string_field_pool **pool_head,
-	const ast_string_field *ptr, const char *format, ...);
+				  struct ast_string_field_pool **pool_head,
+				  const ast_string_field *ptr, const char *format, ...);
 
 /*!
   \internal
@@ -179,8 +197,8 @@ void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
   \return nothing
 */
 void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
-	struct ast_string_field_pool **pool_head,
-	const ast_string_field *ptr, const char *format, va_list a1, va_list a2);
+				     struct ast_string_field_pool **pool_head,
+				     const ast_string_field *ptr, const char *format, va_list a1, va_list a2);
 
 /*!
   \brief Declare a string field
@@ -233,17 +251,16 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr,
   \param data String value to be copied into the field
   \return nothing
 */
-
 #define ast_string_field_ptr_set(x, ptr, data) do { 		\
 	const char *__d__ = (data);				\
-	size_t __dlen__ = (__d__) ? strlen(__d__) : 0;		\
-	const char **__p__ = (const char **)(ptr);		\
-	if (__dlen__ == 0)					\
+	size_t __dlen__ = (__d__) ? strlen(__d__) + 1 : 1;	\
+	const char **__p__ = (const char **) (ptr);		\
+	if (__dlen__ == 1)					\
 		*__p__ = __ast_string_field_empty;		\
-	else if (__dlen__ <= strlen(*__p__))			\
-		strcpy((char *)*__p__, __d__);			\
-	else if ( (*__p__ = __ast_string_field_alloc_space(&(x)->__field_mgr, &(x)->__field_mgr_pool, __dlen__ + 1) ) )	\
-		strcpy((char *)*__p__, __d__);			\
+	else if (!__ast_string_field_ptr_grow(&(x)->__field_mgr, __dlen__, ptr)) \
+		memcpy((char *) *__p__, __d__, __dlen__);	\
+	else if ((*__p__ = __ast_string_field_alloc_space(&(x)->__field_mgr, &(x)->__field_mgr_pool, __dlen__))) \
+		memcpy((char *) *__p__, __d__, __dlen__);	\
 	} while (0)
 
 /*!
@@ -253,10 +270,9 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr,
   \param data String value to be copied into the field
   \return nothing
 */
-#define ast_string_field_set(x, field, data)	do {		\
+#define ast_string_field_set(x, field, data) do {		\
 	ast_string_field_ptr_set(x, &(x)->field, data);		\
 	} while (0)
-
 
 /*!
   \brief Set a field to a complex (built) value

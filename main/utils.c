@@ -1318,7 +1318,8 @@ const char __ast_string_field_empty[] = ""; /*!< the empty string */
  * fields in *mgr reflect the size of that only.
  */
 static int add_string_pool(struct ast_string_field_mgr *mgr,
-	struct ast_string_field_pool **pool_head, size_t size)
+			   struct ast_string_field_pool **pool_head,
+			   size_t size)
 {
 	struct ast_string_field_pool *pool;
 
@@ -1329,6 +1330,7 @@ static int add_string_pool(struct ast_string_field_mgr *mgr,
 	*pool_head = pool;
 	mgr->size = size;
 	mgr->used = 0;
+	mgr->last_alloc = NULL;
 
 	return 0;
 }
@@ -1344,14 +1346,16 @@ static int add_string_pool(struct ast_string_field_mgr *mgr,
  *	This must be done before destroying the object.
  */
 int __ast_string_field_init(struct ast_string_field_mgr *mgr,
-	struct ast_string_field_pool **pool_head, int size)
+			    struct ast_string_field_pool **pool_head,
+			    int size)
 {
-	const char **p = (const char **)pool_head + 1;
+	const char **p = (const char **) pool_head + 1;
 	struct ast_string_field_pool *cur = *pool_head;
 
 	/* clear fields - this is always necessary */
-	while ((struct ast_string_field_mgr *)p != mgr)
+	while ((struct ast_string_field_mgr *) p != mgr)
 		*p++ = __ast_string_field_empty;
+	mgr->last_alloc = NULL;
 	if (size > 0) {			/* allocate the initial pool */
 		*pool_head = NULL;
 		return add_string_pool(mgr, pool_head, size);
@@ -1367,16 +1371,19 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr,
 		(*pool_head)->prev = NULL;
 		mgr->used = 0;
 	}
+
 	while (cur) {
 		struct ast_string_field_pool *prev = cur->prev;
+
 		ast_free(cur);
 		cur = prev;
 	}
+
 	return 0;
 }
 
 ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr,
-	struct ast_string_field_pool **pool_head, size_t needed)
+						struct ast_string_field_pool **pool_head, size_t needed)
 {
 	char *result = NULL;
 	size_t space = mgr->size - mgr->used;
@@ -1393,17 +1400,41 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 
 	result = (*pool_head)->base + mgr->used;
 	mgr->used += needed;
+	mgr->last_alloc = result;
 	return result;
+}
+
+int __ast_string_field_ptr_grow(struct ast_string_field_mgr *mgr, size_t needed,
+				const ast_string_field *ptr)
+{
+	int grow = needed - (strlen(*ptr) + 1);
+	size_t space = mgr->size - mgr->used;
+
+	if (grow <= 0) {
+		return 0;
+	}
+
+	if (*ptr != mgr->last_alloc) {
+		return 1;
+	}
+
+	if (space < grow) {
+		return 1;
+	}
+
+	mgr->used += grow;
+
+	return 0;
 }
 
 __attribute((format (printf, 4, 0)))
 void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
-	struct ast_string_field_pool **pool_head,
-	const ast_string_field *ptr, const char *format, va_list ap1, va_list ap2)
+				     struct ast_string_field_pool **pool_head,
+				     const ast_string_field *ptr, const char *format, va_list ap1, va_list ap2)
 {
 	size_t needed;
 	char *dst = (*pool_head)->base + mgr->used;
-	const char **p = (const char **)ptr;
+	const char **p = (const char **) ptr;
 	size_t space = mgr->size - mgr->used;
 
 	/* try to write using available space */
@@ -1424,14 +1455,14 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 		vsprintf(dst, format, ap2);
 	}
 
-	*p = dst;
+	mgr->last_alloc = *p = dst;
 	mgr->used += needed;
 }
 
 __attribute((format (printf, 4, 5)))
 void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
-	struct ast_string_field_pool **pool_head,
-	const ast_string_field *ptr, const char *format, ...)
+				  struct ast_string_field_pool **pool_head,
+				  const ast_string_field *ptr, const char *format, ...)
 {
 	va_list ap1, ap2;
 
