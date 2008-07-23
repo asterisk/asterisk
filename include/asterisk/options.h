@@ -142,6 +142,7 @@ extern pid_t ast_mainpid;
 
 extern char record_cache_dir[AST_CACHE_DIR_LEN];
 extern char dahdi_chan_name[AST_CHANNEL_NAME];
+extern int dahdi_chan_name_len;
 
 extern int ast_language_is_prefix;
 
