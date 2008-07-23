@@ -2639,7 +2639,7 @@ static int handle_frm(msg_t *msg)
 		}
 
 		if (!bc && (frm->prim==(CC_SETUP|INDICATION)) ) {
-			make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
+			misdn_make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
 			dummybc.port=stack->port;
 			dummybc.l3_id=frm->dinfo;
 			bc=&dummybc;
