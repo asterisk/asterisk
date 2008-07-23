@@ -174,12 +174,15 @@ char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
 char debug_filename[AST_FILENAME_MAX] = "";
 #ifdef HAVE_ZAPTEL
 char _dahdi_chan_name[AST_CHANNEL_NAME] = "Zap";
+int _dahdi_chan_name_len = 3;
 enum dahdi_chan_modes dahdi_chan_mode = CHAN_ZAP_MODE;
 #else
 char _dahdi_chan_name[AST_CHANNEL_NAME] = "DAHDI";
+int _dahdi_chan_name_len = 5;
 enum dahdi_chan_modes dahdi_chan_mode = CHAN_DAHDI_PLUS_ZAP_MODE;
 #endif
 const char *dahdi_chan_name;
+int dahdi_chan_name_len;
 
 static int ast_socket = -1;		/*!< UNIX Socket for allowing remote control */
 static int ast_consock = -1;		/*!< UNIX Socket for controlling another asterisk */
@@ -2593,11 +2596,13 @@ static void ast_readconfig(void)
 #ifdef HAVE_ZAPTEL
 			if (ast_true(v->value)) {
 				strcpy(_dahdi_chan_name, "DAHDI");
+				_dahdi_chan_name_len = 5;
 				dahdi_chan_mode = CHAN_DAHDI_PLUS_ZAP_MODE;
 			}
 #else
 			if (ast_false(v->value)) {
 				strcpy(_dahdi_chan_name, "Zap");
+				_dahdi_chan_name_len = 3;
 				dahdi_chan_mode = CHAN_ZAP_MODE;
 			}
 #endif
@@ -2983,6 +2988,7 @@ int main(int argc, char *argv[])
 	}
 
 	dahdi_chan_name = _dahdi_chan_name;
+	dahdi_chan_name_len = _dahdi_chan_name_len;
 
 #ifdef HAVE_ZAPTEL
 	{

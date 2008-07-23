@@ -5234,7 +5234,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	int features;
 	char *b2 = NULL;
 	DAHDI_PARAMS ps;
-	char chanprefix[strlen(dahdi_chan_name) + 4];
+	char chanprefix[dahdi_chan_name_len + 4];
 
 	if (i->subs[index].owner) {
 		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);

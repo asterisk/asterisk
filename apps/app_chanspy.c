@@ -58,11 +58,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* "Zap/pseudo" is ten characters.
  * "DAHDI/pseudo" is twelve characters.
  */
-#ifdef HAVE_ZAPTEL
-#define PSEUDO_CHAN_LEN 10
-#else
-#define PSEUDO_CHAN_LEN 12
-#endif
 
 static const char *tdesc = "Listen to a channel, and optionally whisper into it";
 static const char *app_chan = "ChanSpy";
@@ -151,7 +146,14 @@ AST_APP_OPTIONS(spy_opts, {
 	AST_APP_OPTION_ARG('r', OPTION_RECORD, OPT_ARG_RECORD),
 });
 
-int next_unique_id_to_use = 0;
+static int next_unique_id_to_use = 0;
+static int PSEUDO_CHAN_LEN;
+
+static void determine_pseudo_chan_len(void) 
+{
+	PSEUDO_CHAN_LEN = dahdi_chan_name_len + strlen("/pseudo");
+}
+
 
 struct chanspy_translation_helper {
 	/* spy data */
@@ -863,6 +865,7 @@ static int load_module(void)
 {
 	int res = 0;
 
+	determine_pseudo_chan_len();
 	res |= ast_register_application(app_chan, chanspy_exec, tdesc, desc_chan);
 	res |= ast_register_application(app_ext, extenspy_exec, tdesc, desc_ext);
 
