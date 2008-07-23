@@ -14867,7 +14867,7 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 		chanvar = strsep(&chanvar, "]");
 		for (v = peer->chanvars ; v ; v = v->next)
 			if (strcasecmp(v->name, chanvar) == 0)
-				ast_copy_string(buf, v->value, sizeof(buf));
+				ast_copy_string(buf, v->value, len);
 	} else  if (!strncasecmp(colname, "codec[", 6)) {
 		char *codecnum;
 		int index = 0, codec = 0;
