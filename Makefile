@@ -762,7 +762,9 @@ install-logrotate:
 	if [ ! -d $(ASTETCDIR)/../logrotate.d ]; then \
 		mkdir $(ASTETCDIR)/../logrotate.d ; \
 	fi
-	install -m 0644 contrib/scripts/asterisk.logrotate $(ASTETCDIR)/../logrotate.d/asterisk
+	sed 's#__LOGDIR__#$(ASTLOGDIR)#g' < contrib/scripts/asterisk.logrotate | sed 's#__SBINDIR__#$(ASTSBINDIR)#g' > contrib/scripts/asterisk.logrotate.tmp
+	install -m 0644 contrib/scripts/asterisk.logrotate.tmp $(ASTETCDIR)/../logrotate.d/asterisk
+	rm -f contrib/scripts/asterisk.logrotate.tmp
 
 config:
 	@if [ "${OSARCH}" = "linux-gnu" ]; then \
