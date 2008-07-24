@@ -136,6 +136,7 @@ struct logmsg {
 	char file[80];
 	int line;
 	char function[80];
+	long process_id;
 	AST_LIST_ENTRY(logmsg) list;
 	char str[0];
 };
@@ -833,7 +834,7 @@ static int handle_SIGXFSZ(int sig)
 	return 0;
 }
 
-static void ast_log_vsyslog(int level, const char *file, int line, const char *function, char *str)
+static void ast_log_vsyslog(int level, const char *file, int line, const char *function, char *str, long pid)
 {
 	char buf[BUFSIZ];
 
@@ -844,14 +845,14 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
 	}
 
 	if (level == __LOG_VERBOSE) {
-		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: %s", (long)GETTID(), str);
+		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: %s", pid, str);
 		level = __LOG_DEBUG;
 	} else if (level == __LOG_DTMF) {
-		snprintf(buf, sizeof(buf), "DTMF[%ld]: %s", (long)GETTID(), str);
+		snprintf(buf, sizeof(buf), "DTMF[%ld]: %s", pid, str);
 		level = __LOG_DEBUG;
 	} else {
 		snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: %s",
-			 levels[level], (long)GETTID(), file, line, function, str);
+			 levels[level], pid, file, line, function, str);
 	}
 
 	term_strip(buf, buf, strlen(buf) + 1);
@@ -880,7 +881,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 				continue;
 			/* Check syslog channels */
 			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << logmsg->level))) {
-				ast_log_vsyslog(logmsg->level, logmsg->file, logmsg->line, logmsg->function, logmsg->str);
+				ast_log_vsyslog(logmsg->level, logmsg->file, logmsg->line, logmsg->function, logmsg->str, logmsg->process_id);
 			/* Console channels */
 			} else if (chan->type == LOGTYPE_CONSOLE && (chan->logmask & (1 << logmsg->level))) {
 				char linestr[128];
@@ -896,7 +897,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 				snprintf(buf, sizeof(buf), "[%s] %s[%ld]: %s:%s %s: %s",
 					 logmsg->date,
 					 term_color(tmp1, levels[logmsg->level], colors[logmsg->level], 0, sizeof(tmp1)),
-					 (long)GETTID(),
+					 logmsg->process_id,
 					 term_color(tmp2, logmsg->file, COLOR_BRWHITE, 0, sizeof(tmp2)),
 					 term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 					 term_color(tmp4, logmsg->function, COLOR_BRWHITE, 0, sizeof(tmp4)),
@@ -913,7 +914,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 				
 				/* Print out to the file */
 				res = fprintf(chan->fileptr, "[%s] %s[%ld] %s: %s",
-					      logmsg->date, levels[logmsg->level], (long)GETTID(), logmsg->file, logmsg->str);
+					      logmsg->date, levels[logmsg->level], logmsg->process_id, logmsg->file, logmsg->str);
 				if (res <= 0 && !ast_strlen_zero(logmsg->str)) {
 					fprintf(stderr, "**** Asterisk Logging Error: ***********\n");
 					if (errno == ENOMEM || errno == ENOSPC)
@@ -1151,6 +1152,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	logmsg->line = line;
 	ast_copy_string(logmsg->file, file, sizeof(logmsg->file));
 	ast_copy_string(logmsg->function, function, sizeof(logmsg->function));
+	logmsg->process_id = (long) GETTID();
 
 	/* If the logger thread is active, append it to the tail end of the list - otherwise skip that step */
 	if (logthread != AST_PTHREADT_NULL) {
