@@ -1,4 +1,4 @@
-/var/log/asterisk/debug /var/log/asterisk/console /var/log/asterisk/full /var/log/asterisk/debug /var/log/asterisk/*log {
+__LOGDIR__/debug __LOGDIR__/console __LOGDIR__/full __LOGDIR__/messages __LOGDIR__/*log {
 	weekly
 	missingok
 	rotate 52
@@ -8,6 +8,6 @@
 	create 640 root root 
 	sharedscripts
 	postrotate
-		/usr/sbin/asterisk -rx 'logger reload' > /dev/null 2> /dev/null	
+		__SBINDIR__/asterisk -rx 'logger reload' > /dev/null 2> /dev/null	
 	endscript
 } 
