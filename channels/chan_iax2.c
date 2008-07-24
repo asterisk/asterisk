@@ -1318,10 +1318,10 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 
 		gettimeofday(&now, NULL);
 
-		start = 1 + (rand() % (TRUNK_CALL_START - 1));
+		start = 2 + (rand() % (TRUNK_CALL_START - 1));
 		for (x = start; 1; x++) {
 			if (x == TRUNK_CALL_START) {
-				x = 0;
+				x = 1;
 				continue;
 			}
 
