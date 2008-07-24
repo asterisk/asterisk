@@ -2643,9 +2643,8 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 			}
 		}
 		ASTOBJ_CONTAINER_LINK(&peerl,peer);
-	} else {
-		ast_set_flag(&peer->flags[0], SIP_REALTIME);
 	}
+	ast_set_flag(&peer->flags[0], SIP_REALTIME);
 	if(peerlist)
 		ast_config_destroy(peerlist);
 	else
@@ -2735,8 +2734,8 @@ static struct sip_user *realtime_user(const char *username)
 		/* Move counter from s to r... */
 		suserobjs--;
 		ruserobjs++;
-		ast_set_flag(&user->flags[0], SIP_REALTIME);
 	}
+	ast_set_flag(&user->flags[0], SIP_REALTIME);
 	ast_variables_destroy(var);
 	return user;
 }
@@ -8266,7 +8265,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		expiry = max_expiry;
 	if (expiry < min_expiry)
 		expiry = min_expiry;
-	if (ast_test_flag(&peer->flags[0], SIP_REALTIME)) {
+	if (ast_test_flag(&peer->flags[0], SIP_REALTIME) && !ast_test_flag(&peer->flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
 		peer->expire = -1;
 	} else {
 		peer->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, ASTOBJ_REF(peer));
@@ -16334,7 +16333,14 @@ static int sip_devicestate(void *data)
 	if (option_debug > 2) 
 		ast_log(LOG_DEBUG, "Checking device state for peer %s\n", host);
 
-	if ((p = find_peer(host, NULL, 1))) {
+	/* If find_peer asks for a realtime peer, then this breaks rtautoclear.  This
+	 * is because when a peer tries to autoexpire, the last thing it does is to
+	 * queue up an event telling the system that the devicestate has changed
+	 * (presumably to unavailable).  If we ask for a realtime peer here, this would
+	 * load it BACK into memory, thus defeating the point of trying to trying to
+	 * clear dead hosts out of memory.
+	 */
+	if ((p = find_peer(host, NULL, 0))) {
 		if (p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) {
 			/* we have an address for the peer */
 		
