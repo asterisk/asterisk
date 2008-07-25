@@ -28,7 +28,7 @@
 /*
  * define _ASTERISK_LOGGER_H to prevent the inclusion of logger.h;
  * it redefines LOG_* which we need to define syslog_level_map.
- * Later, we force the inclusion of logger.h again.
+ * later, we force the inclusion of logger.h again.
  */
 #define _ASTERISK_LOGGER_H
 #include "asterisk.h"
