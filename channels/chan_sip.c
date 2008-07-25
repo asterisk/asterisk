@@ -5450,7 +5450,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 /*! \brief Reads one line of SIP message body */
 static char *get_body_by_line(const char *line, const char *name, int nameLen)
 {
-	if (strncasecmp(line, name, nameLen) == 0 && line[nameLen] == '=')
+	if (!strncasecmp(line, name, nameLen) && line[nameLen] == '=')
 		return ast_skip_blanks(line + nameLen + 1);
 
 	return "";
@@ -6298,7 +6298,7 @@ static int find_sdp(struct sip_request *req)
 		if(!strcasecmp(req->line[x], "Content-Type: application/sdp"))
 			found_application_sdp = TRUE;
 		
-		if(strlen(req->line[x]) == 0 ){
+		if (ast_strlen_zero(req->line[x])) {
 			if(found_application_sdp && !found_end_of_headers){
 				req->sdp_start = x;
 				found_end_of_headers = TRUE;
@@ -7256,9 +7256,9 @@ static void set_destination(struct sip_pvt *p, char *uri)
 		++h;
 	else {
 		h = uri;
-		if (strncasecmp(h, "sip:", 4) == 0)
+		if (!strncasecmp(h, "sip:", 4))
 			h += 4;
-		else if (strncasecmp(h, "sips:", 5) == 0)
+		else if (!strncasecmp(h, "sips:", 5))
 			h += 5;
 	}
 	hn = strcspn(h, ":;>") + 1;
@@ -10549,27 +10549,27 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 /*! \brief Translate referring cause */
 static void sip_set_redirstr(struct sip_pvt *p, char *reason) {
 
-	if (strcmp(reason, "unknown")==0) {
+	if (!strcmp(reason, "unknown")) {
 		ast_string_field_set(p, redircause, "UNKNOWN");
-	} else if (strcmp(reason, "user-busy")==0) {
+	} else if (!strcmp(reason, "user-busy")) {
 		ast_string_field_set(p, redircause, "BUSY");
-	} else if (strcmp(reason, "no-answer")==0) {
+	} else if (!strcmp(reason, "no-answer")) {
 		ast_string_field_set(p, redircause, "NOANSWER");
-	} else if (strcmp(reason, "unavailable")==0) {
+	} else if (!strcmp(reason, "unavailable")) {
 		ast_string_field_set(p, redircause, "UNREACHABLE");
-	} else if (strcmp(reason, "unconditional")==0) {
+	} else if (!strcmp(reason, "unconditional")) {
 		ast_string_field_set(p, redircause, "UNCONDITIONAL");
-	} else if (strcmp(reason, "time-of-day")==0) {
+	} else if (!strcmp(reason, "time-of-day")) {
 		ast_string_field_set(p, redircause, "UNKNOWN");
-	} else if (strcmp(reason, "do-not-disturb")==0) {
+	} else if (!strcmp(reason, "do-not-disturb")) {
 		ast_string_field_set(p, redircause, "UNKNOWN");
-	} else if (strcmp(reason, "deflection")==0) {
+	} else if (!strcmp(reason, "deflection")) {
 		ast_string_field_set(p, redircause, "UNKNOWN");
-	} else if (strcmp(reason, "follow-me")==0) {
+	} else if (!strcmp(reason, "follow-me")) {
 		ast_string_field_set(p, redircause, "UNKNOWN");
-	} else if (strcmp(reason, "out-of-service")==0) {
+	} else if (!strcmp(reason, "out-of-service")) {
 		ast_string_field_set(p, redircause, "UNREACHABLE");
-	} else if (strcmp(reason, "away")==0) {
+	} else if (!strcmp(reason, "away")) {
 		ast_string_field_set(p, redircause, "UNREACHABLE");
 	} else {
 		ast_string_field_set(p, redircause, "UNKNOWN");
@@ -12294,7 +12294,7 @@ static void cleanup_stale_contexts(char *new, char *old)
 		ast_copy_string(newlist, new, sizeof(newlist));
 		stringp = newlist;
 		while ((newcontext = strsep(&stringp, "&"))) {
-			if (strcmp(newcontext, oldcontext) == 0) {
+			if (!strcmp(newcontext, oldcontext)) {
 				/* This is not the context you're looking for */
 				stalecontext = '\0';
 				break;
@@ -14401,7 +14401,7 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 	
 		chanvar = strsep(&chanvar, "]");
 		for (v = peer->chanvars ; v ; v = v->next)
-			if (strcasecmp(v->name, chanvar) == 0)
+			if (!strcasecmp(v->name, chanvar))
 				ast_copy_string(buf, v->value, len);
 	} else  if (!strncasecmp(colname, "codec[", 6)) {
 		char *codecnum;
@@ -17693,33 +17693,33 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 		if (ast_strlen_zero(args.field))
 			args.field = "all";
 		
-		if (strcasecmp(args.type, "AUDIO") == 0) {
+		if (!strcasecmp(args.type, "AUDIO")) {
 			all = ast_rtp_get_quality(p->rtp, &qos);
-		} else if (strcasecmp(args.type, "VIDEO") == 0) {
+		} else if (!strcasecmp(args.type, "VIDEO")) {
 			all = ast_rtp_get_quality(p->vrtp, &qos);
-		} else if (strcasecmp(args.type, "TEXT") == 0) {
+		} else if (!strcasecmp(args.type, "TEXT")) {
 			all = ast_rtp_get_quality(p->trtp, &qos);
 		}
 		
-		if (strcasecmp(args.field, "local_ssrc") == 0)
+		if (!strcasecmp(args.field, "local_ssrc"))
 			snprintf(buf, buflen, "%u", qos.local_ssrc);
-		else if (strcasecmp(args.field, "local_lostpackets") == 0)
+		else if (!strcasecmp(args.field, "local_lostpackets"))
 			snprintf(buf, buflen, "%u", qos.local_lostpackets);
-		else if (strcasecmp(args.field, "local_jitter") == 0)
+		else if (!strcasecmp(args.field, "local_jitter"))
 			snprintf(buf, buflen, "%.0f", qos.local_jitter * 1000.0);
-		else if (strcasecmp(args.field, "local_count") == 0)
+		else if (!strcasecmp(args.field, "local_count"))
 			snprintf(buf, buflen, "%u", qos.local_count);
-		else if (strcasecmp(args.field, "remote_ssrc") == 0)
+		else if (!strcasecmp(args.field, "remote_ssrc"))
 			snprintf(buf, buflen, "%u", qos.remote_ssrc);
-		else if (strcasecmp(args.field, "remote_lostpackets") == 0)
+		else if (!strcasecmp(args.field, "remote_lostpackets"))
 			snprintf(buf, buflen, "%u", qos.remote_lostpackets);
-		else if (strcasecmp(args.field, "remote_jitter") == 0)
+		else if (!strcasecmp(args.field, "remote_jitter"))
 			snprintf(buf, buflen, "%.0f", qos.remote_jitter * 1000.0);
-		else if (strcasecmp(args.field, "remote_count") == 0)
+		else if (!strcasecmp(args.field, "remote_count"))
 			snprintf(buf, buflen, "%u", qos.remote_count);
-		else if (strcasecmp(args.field, "rtt") == 0)
+		else if (!strcasecmp(args.field, "rtt"))
 			snprintf(buf, buflen, "%.0f", qos.rtt * 1000.0);
-		else if (strcasecmp(args.field, "all") == 0)
+		else if (!strcasecmp(args.field, "all"))
 			ast_copy_string(buf, all, buflen);
 		else {
 			ast_log(LOG_WARNING, "Unrecognized argument '%s' to %s\n", preparse, funcname);
