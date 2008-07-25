@@ -400,10 +400,13 @@ void ast_http_uri_unlink_all_with_key(const char *key)
  */
 static void http_decode(char *s)
 {
-	for (;*s; s++) {
-		if (*s == '+')
-			*s = ' ';
+	char *t;
+	
+	for (t = s; *t; t++) {
+		if (*t == '+')
+			*t = ' ';
 	}
+
 	ast_uri_decode(s);
 }
 
