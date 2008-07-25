@@ -4049,6 +4049,7 @@ static int set_member_paused(const char *queuename, const char *interface, const
 				if (failed) {
 					ast_log(LOG_WARNING, "Failed %spausing realtime queue member %s:%s\n", (paused ? "" : "un"), q->name, interface);
 					ao2_ref(mem, -1);
+					ao2_unlock(q);
 					continue;
 				}	
 				found++;
