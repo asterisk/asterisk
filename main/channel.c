@@ -1364,7 +1364,7 @@ void ast_channel_free(struct ast_channel *chan)
 	ast_free(chan);
 	AST_RWLIST_UNLOCK(&channels);
 
-	ast_device_state_changed_literal(name);
+	ast_devstate_changed_literal(AST_DEVICE_NOT_INUSE, name);
 }
 
 struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
@@ -4100,7 +4100,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 	}
 
 	chan->_state = state;
-	ast_device_state_changed_literal(name);
+	ast_devstate_changed_literal(ast_state_chan2dev(state), name);
 	/* setstate used to conditionally report Newchannel; this is no more */
 	manager_event(EVENT_FLAG_CALL,
 		      "Newstate",

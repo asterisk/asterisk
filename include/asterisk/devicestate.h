@@ -61,6 +61,13 @@ enum ast_device_state {
 /*! \brief Devicestate provider call back */
 typedef enum ast_device_state (*ast_devstate_prov_cb_type)(const char *data);
 
+/*!
+ * \brief Convert channel state to devicestate
+ *
+ * \param chanstate Current channel state
+ */
+enum ast_device_state ast_state_chan2dev(enum ast_channel_state chanstate);
+
 /*! 
  * \brief Convert device state to text string for output 
  *
@@ -158,7 +165,7 @@ int ast_devstate_changed_literal(enum ast_device_state state, const char *device
  * \note This is deprecated in favor of ast_devstate_changed()
  */
 int ast_device_state_changed(const char *fmt, ...)
-	__attribute__ ((format (printf, 1, 2)));
+	__attribute__ ((deprecated,format (printf, 1, 2)));
 
 /*! 
  * \brief Tells Asterisk the State for Device is changed 
@@ -173,7 +180,8 @@ int ast_device_state_changed(const char *fmt, ...)
  *
  * \note This is deprecated in favor of ast_devstate_changed_literal()
  */
-int ast_device_state_changed_literal(const char *device);
+int ast_device_state_changed_literal(const char *device)
+	__attribute__ ((deprecated));
 
 /*! 
  * \brief Add device state provider 

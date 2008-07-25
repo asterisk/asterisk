@@ -140,6 +140,24 @@ static const char *devstatestring[] = {
 	/* 8 AST_DEVICE_ONHOLD */	"On Hold"	/*!< On Hold */
 };
 
+/*!\brief Mapping for channel states to device states */
+static const struct chan2dev {
+	enum ast_channel_state chan;
+	enum ast_device_state dev;
+} chan2dev[] = {
+	{ AST_STATE_DOWN,            AST_DEVICE_NOT_INUSE },
+	{ AST_STATE_RESERVED,        AST_DEVICE_INUSE },
+	{ AST_STATE_OFFHOOK,         AST_DEVICE_INUSE },
+	{ AST_STATE_DIALING,         AST_DEVICE_INUSE },
+	{ AST_STATE_RING,            AST_DEVICE_INUSE },
+	{ AST_STATE_RINGING,         AST_DEVICE_RINGING },
+	{ AST_STATE_UP,              AST_DEVICE_INUSE },
+	{ AST_STATE_BUSY,            AST_DEVICE_BUSY },
+	{ AST_STATE_DIALING_OFFHOOK, AST_DEVICE_INUSE },
+	{ AST_STATE_PRERING,         AST_DEVICE_RINGING },
+	{ -100,                      -100 },
+};
+
 /*! \brief  A device state provider (not a channel) */
 struct devstate_prov {
 	char label[40];
@@ -200,6 +218,18 @@ static int getproviderstate(const char *provider, const char *address);
 const char *devstate2str(enum ast_device_state devstate) 
 {
 	return devstatestring[devstate];
+}
+
+enum ast_device_state ast_state_chan2dev(enum ast_channel_state chanstate)
+{
+	int i;
+	chanstate &= 0xFFFF;
+	for (i = 0; chan2dev[i].chan != -100; i++) {
+		if (chan2dev[i].chan == chanstate) {
+			return chan2dev[i].dev;
+		}
+	}
+	return AST_DEVICE_UNKNOWN;
 }
 
 const char *ast_devstate_str(enum ast_device_state state)

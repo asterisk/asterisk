@@ -6001,7 +6001,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	/* Configure the new channel jb */
 	ast_jb_configure(tmp, &global_jbconf);
 
-	ast_device_state_changed_literal(tmp->name);
+	ast_devstate_changed_literal(ast_state_chan2dev(state), tmp->name);
 
 	for (v = i->vars ; v ; v = v->next)
                 pbx_builtin_setvar_helper(tmp, v->name, v->value);

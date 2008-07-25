@@ -4691,7 +4691,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		ast_log(LOG_ERROR, "update_call_counter(%s, %d) called with no event!\n", name, event);
 	}
 	if (p) {
-		ast_device_state_changed("SIP/%s", p->name);
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", p->name);
 		unref_peer(p, "update_call_counter: unref_peer from call counter");
 	} 
 	return 0;
@@ -10035,7 +10035,7 @@ static int expire_register(const void *data)
 	
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
-	ast_device_state_changed("SIP/%s", peer->name);
+	ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "SIP/%s", peer->name);
 
 	/* Do we need to release this peer from memory? 
 		Only for realtime peers and autocreated peers
@@ -10660,7 +10660,7 @@ static void sip_peer_hold(struct sip_pvt *p, int hold)
 	ast_atomic_fetchadd_int(&peer->onHold, (hold ? +1 : -1));
 
 	/* Request device state update */
-	ast_device_state_changed("SIP/%s", peer->name);
+	ast_devstate_changed(hold ? AST_DEVICE_ONHOLD : AST_DEVICE_INUSE, "SIP/%s", peer->name);
 	unref_peer(peer, "sip_peer_hold: from find_peer operation");
 	
 	return;
@@ -10911,7 +10911,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		}
 	}
 	if (!res) {
-		ast_device_state_changed("SIP/%s", peer->name);
+		ast_devstate_changed(AST_DEVICE_NOT_INUSE, "SIP/%s", peer->name);
 	}
 	if (res < 0) {
 		switch (res) {
@@ -15708,7 +15708,7 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 
 		ast_log(LOG_NOTICE, "Peer '%s' is now %s. (%dms / %dms)\n",
 			peer->name, s, pingtime, peer->maxms);
-		ast_device_state_changed("SIP/%s", peer->name);
+		ast_devstate_changed(is_reachable ? AST_DEVICE_NOT_INUSE : AST_DEVICE_UNAVAILABLE, "SIP/%s", peer->name);
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 			"ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: %s\r\nTime: %d\r\n",
 			peer->name, s, pingtime);
@@ -19869,7 +19869,7 @@ static int sip_poke_noanswer(const void *data)
 	}
 	
 	peer->lastms = -1;
-	ast_device_state_changed("SIP/%s", peer->name);
+	ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "SIP/%s", peer->name);
 	/* Try again quickly */
 	AST_SCHED_REPLACE(peer->pokeexpire, sched, 
 		DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
