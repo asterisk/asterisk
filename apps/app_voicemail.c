@@ -5715,10 +5715,33 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 
 	adsi_message(chan, vms);
 	ast_debug(5,"**************  About to check urgent flag, set to:%s\n", flag);
-	if (!vms->curmsg)
-		res = wait_file2(chan, vms, "vm-first");	/* "First" */
-	else if (vms->curmsg == vms->lastmsg)
-		res = wait_file2(chan, vms, "vm-last");		/* "last" */
+	if (!strcasecmp(chan->language, "he")) {	/* HEBREW FORMAT */
+		/*
+		 * The syntax in hebrew for counting the number of message is up side down
+		 * in comparison to english.
+		 */
+		if (!vms->curmsg) {
+			res = wait_file2(chan, vms, "vm-message");
+			res = wait_file2(chan, vms, "vm-first");    /* "First" */
+		} else if (vms->curmsg == vms->lastmsg) {
+			res = wait_file2(chan, vms, "vm-message");
+			res = wait_file2(chan, vms, "vm-last");     /* "last" */
+		} else {
+			res = wait_file2(chan, vms, "vm-message");  /* "message" */
+			if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
+				ast_log(LOG_DEBUG, "curmsg: %s\n", vms->curmsg);
+				ast_log(LOG_DEBUG, "lagmsg: %s\n", vms->lastmsg);
+				if (!res) {
+					res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, "f");
+				}
+			}
+		}
+	} else {
+		if (!vms->curmsg)
+			res = wait_file2(chan, vms, "vm-first");	/* "First" */
+		else if (vms->curmsg == vms->lastmsg)
+			res = wait_file2(chan, vms, "vm-last");		/* "last" */
+	}
 	/* Play the word urgent if we are listening to urgent messages */
 	if (!ast_strlen_zero(flag) && !strcmp(flag, "Urgent")) {
 		res = wait_file2(chan, vms, "vm-Urgent");	/* "urgent" */
@@ -5849,6 +5872,19 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 			}
 			if (!res)
 				res = wait_file2(chan, vms, "vm-message");
+		/* HEBREW syntax */
+		} else if (!strcasecmp(chan->language, "he")) {
+			if (!vms->curmsg) {
+				res = wait_file2(chan, vms, "vm-message");
+				res = wait_file2(chan, vms, "vm-first");
+			} else if (vms->curmsg == vms->lastmsg) {
+				res = wait_file2(chan, vms, "vm-message");
+				res = wait_file2(chan, vms, "vm-last");
+			} else {
+				res = wait_file2(chan, vms, "vm-message");
+				res = wait_file2(chan, vms, "vm-number");
+				res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, "f");
+			}
 		} else {
 			if (!strcasecmp(chan->language, "se")) /* SWEDISH syntax */
 				res = wait_file2(chan, vms, "vm-meddelandet");  /* "message" */
@@ -6440,6 +6476,73 @@ static int vm_intro_gr(struct ast_channel *chan, struct vm_state *vms)
 		}
 	} else if (!vms->oldmessages && !vms->newmessages) 
 		res = ast_play_and_wait(chan, "vm-denExeteMynhmata"); 
+	return res;
+}
+
+/* Hebrew syntax */
+static int vm_intro_he(struct ast_channel *chan, struct vm_state *vms)
+{
+	int res = 0;
+
+	/* Introduce messages they have */
+	if (!res) {
+		if ((vms->newmessages) || (vms->oldmessages)) {
+			res = ast_play_and_wait(chan, "vm-youhave");
+		}
+		/*
+		 * The word "shtei" refers to the number 2 in hebrew when performing a count
+		 * of elements. In Hebrew, there are 6 forms of enumerating the number 2 for
+		 * an element, this is one of them.
+		 */
+		if (vms->newmessages) {
+			if (!res) {
+				if (vms->newmessages == 1) {
+					res = ast_play_and_wait(chan, "vm-INBOX1");
+				} else {
+					if (vms->newmessages == 2) {
+						res = ast_play_and_wait(chan, "vm-shtei");
+					} else {
+						res = ast_say_number(chan, vms->newmessages, AST_DIGIT_ANY, chan->language, "f");
+					}
+					res = ast_play_and_wait(chan, "vm-INBOX");
+				}
+			}
+			if (vms->oldmessages && !res) {
+				res = ast_play_and_wait(chan, "vm-and");
+				if (vms->oldmessages == 1) {
+					res = ast_play_and_wait(chan, "vm-Old1");
+				} else {
+					if (vms->oldmessages == 2) {
+						res = ast_play_and_wait(chan, "vm-shtei");
+					} else {
+						res = ast_say_number(chan, vms->oldmessages, AST_DIGIT_ANY, chan->language, "f");
+					}
+					res = ast_play_and_wait(chan, "vm-Old");
+				}
+			}
+		}
+		if (!res && vms->oldmessages && !vms->newmessages) {
+			if (!res) {
+				if (vms->oldmessages == 1) {
+					res = ast_play_and_wait(chan, "vm-Old1");
+				} else {
+					if (vms->oldmessages == 2) {
+						res = ast_play_and_wait(chan, "vm-shtei");
+					} else {
+						res = ast_say_number(chan, vms->oldmessages, AST_DIGIT_ANY, chan->language, "f");            
+					}
+					res = ast_play_and_wait(chan, "vm-Old");
+				}
+			}
+		}
+		if (!res) {
+			if (!vms->oldmessages && !vms->newmessages) {
+				if (!res) {
+					res = ast_play_and_wait(chan, "vm-nomessages");
+				}
+			}
+		}
+	}
 	return res;
 }
 	
@@ -7283,6 +7386,8 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 		return vm_intro_tw(chan, vms);
 	} else if (!strcasecmp(chan->language, "ua")) { /* UKRAINIAN syntax */
 		return vm_intro_ua(chan, vms);
+	} else if (!strcasecmp(chan->language, "he")) { /* HEBREW syntax */
+		 return vm_intro_he(chan, vms);
 	} else {					/* Default to ENGLISH */
 		return vm_intro_en(chan, vms);
 	}
@@ -7748,6 +7853,23 @@ static int vm_browse_messages_gr(struct ast_channel *chan, struct vm_state *vms,
 	return cmd;
 }
 
+/* Hebrew Syntax */
+static int vm_browse_messages_he(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
+{
+	int cmd = 0;
+
+	if (vms->lastmsg > -1) {
+		cmd = play_message(chan, vmu, vms);
+	} else {
+		if (!strcasecmp(vms->fn, "INBOX")) {
+			cmd = ast_play_and_wait(chan, "vm-nonewmessages");
+		} else {
+			cmd = ast_play_and_wait(chan, "vm-nomessages");
+		}
+	}
+	return cmd;
+}
+
 /*! 
  * \brief Default English syntax for 'You have N messages' greeting.
  * \param chan
@@ -7905,6 +8027,8 @@ static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, st
 		return vm_browse_messages_gr(chan, vms, vmu);   /* GREEK */
 	} else if (!strcasecmp(chan->language, "tw")){
 		return vm_browse_messages_tw(chan, vms, vmu);   /* CHINESE (Taiwan) */
+	} else if (!strcasecmp(chan->language, "he")) {
+		return vm_browse_messages_he(chan, vms, vmu);   /* HEBREW */
 	} else {	/* Default to English syntax */
 		return vm_browse_messages_en(chan, vms, vmu);
 	}
