@@ -16288,6 +16288,7 @@ static int sip_uri_params_cmp(const char *input1, const char *input2)
 			if (!value2) {
 				goto fail;
 			}
+			*value2++ = '\0';
 			if (!strcasecmp(name1, name2)) {
 				if (strcasecmp(value1, value2)) {
 					goto fail;
@@ -16342,6 +16343,7 @@ static int sip_uri_params_cmp(const char *input1, const char *input2)
 		if (!value2) {
 			goto fail;
 		}
+		*value2++ = '\0';
 		if ((!strcasecmp(name2, "maddr") && !maddrmatch) ||
 				(!strcasecmp(name2, "ttl") && !ttlmatch) ||
 				(!strcasecmp(name2, "user") && !usermatch) ||
