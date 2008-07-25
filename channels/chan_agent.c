@@ -272,6 +272,18 @@ static void agent_devicestate_cb(const struct ast_event *event, void *unused)
 	const char *device;
 	enum ast_device_state state;
 
+	state = ast_event_get_ie_uint(event, AST_EVENT_IE_STATE);
+	device = ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE);
+
+	if (ast_strlen_zero(device)) {
+		return;
+	}
+
+	/* Skip Agent status */
+	if (!strncasecmp(device, "Agent/", 6)) {
+		return;
+	}
+
 	/* Try to be safe, but don't deadlock */
 	for (i = 0; i < 10; i++) {
 		if ((res = AST_LIST_TRYLOCK(&agents)) == 0) {
@@ -279,14 +291,6 @@ static void agent_devicestate_cb(const struct ast_event *event, void *unused)
 		}
 	}
 	if (res) {
-		return;
-	}
-
-	state = ast_event_get_ie_uint(event, AST_EVENT_IE_STATE);
-	device = ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE);
-
-	if (ast_strlen_zero(device)) {
-		AST_LIST_UNLOCK(&agents);
 		return;
 	}
 
@@ -514,6 +518,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			}
 			p->chan = NULL;
 			p->inherited_devicestate = -1;
+			ast_device_state_changed("Agent/%s", p->agent);
 			p->acknowledged = 0;
 		}
  	} else {
@@ -729,6 +734,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		/* Agent hung-up */
 		p->chan = NULL;
 		p->inherited_devicestate = -1;
+		ast_device_state_changed("Agent/%s", p->agent);
 	}
 
 	if (!res) {
@@ -850,6 +856,7 @@ static int agent_hangup(struct ast_channel *ast)
 				ast_hangup(p->chan);
 				p->chan = NULL;
 				p->inherited_devicestate = -1;
+				ast_device_state_changed("Agent/%s", p->agent);
 			}
 			ast_debug(1, "Hungup, howlong is %d, autologoff is %d\n", howlong, p->autologoff);
 			if ((p->deferlogoff) || (howlong && p->autologoff && (howlong > p->autologoff))) {
