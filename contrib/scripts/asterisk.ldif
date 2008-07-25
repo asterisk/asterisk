@@ -1,9 +1,10 @@
 #
 # Copyright (c) 2007-2008 Suretec Systems Ltd. - <http://www.suretecsystems.com/>
 #
-# Version: 3.1.5
+# Version: 3.1.6
 #
 # Changes:
+# - http://bugs.digium.com/view.php?id=12860 - 04/07/2008
 # - Fixed wrong DESC - 07/05/2008
 #
 # Author: Gavin Henry - <ghenry@suretecsystems.com>
