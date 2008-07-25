@@ -293,7 +293,7 @@ static enum ast_device_state devstate_cached(const char *device)
 	enum ast_device_state res = AST_DEVICE_UNKNOWN;
 	struct ast_event *event;
 
-	event = ast_event_get_cached(AST_EVENT_DEVICE_STATE_CHANGE,
+	event = ast_event_get_cached(AST_EVENT_DEVICE_STATE,
 		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,
 		AST_EVENT_IE_END);
 
