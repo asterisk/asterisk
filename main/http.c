@@ -571,6 +571,23 @@ static struct ast_str *handle_post(struct ast_tcptls_session_instance *ser, char
 }
 #endif /* ENABLE_UPLOADS */
 
+/*
+ * Decode special characters in http uri.
+ * We have ast_uri_decode to handle %XX sequences, but spaces
+ * are encoded as a '+' so we need to replace them beforehand.
+ */
+static void http_decode(char *s)
+{
+	char *t;
+	
+	for (t = s; *t; t++) {
+		if (*t == '+')
+			*t = ' ';
+	}
+
+	ast_uri_decode(s);
+}
+
 static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char *uri, int *status, 
 	char **title, int *contentlength, struct ast_variable **cookies, 
 	unsigned int *static_content)
@@ -591,10 +608,10 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 		while ((val = strsep(&params, "&"))) {
 			var = strsep(&val, "=");
 			if (val)
-				ast_uri_decode(val);
+				http_decode(val);
 			else 
 				val = "";
-			ast_uri_decode(var);
+			http_decode(var);
 			if ((v = ast_variable_new(var, val, ""))) {
 				if (vars)
 					prev->next = v;
@@ -614,7 +631,7 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 	else
 		vars = *cookies;
 	*cookies = NULL;
-	ast_uri_decode(uri);
+	http_decode(uri);
 
 	AST_RWLIST_RDLOCK(&uri_redirects);
 	AST_RWLIST_TRAVERSE(&uri_redirects, redirect, entry) {
