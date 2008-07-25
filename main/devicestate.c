@@ -294,17 +294,13 @@ static void do_state_change(const char *device)
 	ast_hint_state_changed(device);
 }
 
-static int __ast_device_state_changed_literal(char *buf, int norecurse)
+int ast_device_state_changed_literal(const char *device)
 {
-	char *device;
 	struct state_change *change;
-	char *tmp = NULL;
 
 	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Notification of state change to be queued on device/channel %s\n", buf);
+		ast_log(LOG_DEBUG, "Notification of state change to be queued on device/channel %s\n", device);
 
-	device = buf;
-	
 	if (change_thread == AST_PTHREADT_NULL || !(change = ast_calloc(1, sizeof(*change) + strlen(device)))) {
 		/* we could not allocate a change struct, or */
 		/* there is no background thread, so process the change now */
@@ -320,26 +316,7 @@ static int __ast_device_state_changed_literal(char *buf, int norecurse)
 		AST_LIST_UNLOCK(&state_changes);
 	}
 
-	/* The problem with this API is that a device may be called with the unique
-	 * identifier appended or not, but it's separated from the channel name
-	 * with a '-', which is also a legitimate character in a channel name.  So,
-	 * we have to force both names to get their names checked for state changes
-	 * to ensure that the right one gets notified.  Not a huge performance hit,
-	 * but it might could be fixed by an enterprising programmer in trunk.
-	 */
-	if (!norecurse && (tmp = strrchr(device, '-'))) {
-		*tmp = '\0';
-		__ast_device_state_changed_literal(device, 1);
-	}
-	
 	return 1;
-}
-
-int ast_device_state_changed_literal(const char *dev)
-{
-	char *buf;
-	buf = ast_strdupa(dev);
-	return __ast_device_state_changed_literal(buf, 0);
 }
 
 /*! \brief Accept change notification, add it to change queue */
@@ -351,7 +328,7 @@ int ast_device_state_changed(const char *fmt, ...)
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
-	return __ast_device_state_changed_literal(buf, 0);
+	return ast_device_state_changed_literal(buf);
 }
 
 /*! \brief Go through the dev state change queue and update changes in the dev state thread */

@@ -1201,7 +1201,7 @@ void ast_channel_free(struct ast_channel *chan)
 	struct ast_frame *f;
 	struct varshead *headp;
 	struct ast_datastore *datastore = NULL;
-	char name[AST_CHANNEL_NAME];
+	char name[AST_CHANNEL_NAME], *dashptr;
 	
 	headp=&chan->varshead;
 	
@@ -1234,6 +1234,9 @@ void ast_channel_free(struct ast_channel *chan)
 		sched_context_destroy(chan->sched);
 
 	ast_copy_string(name, chan->name, sizeof(name));
+	if ((dashptr = strrchr(name, '-'))) {
+		*dashptr = '\0';
+	}
 
 	/* Stop monitoring */
 	if (chan->monitor)
@@ -3669,13 +3672,19 @@ void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char
 
 int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 {
+	char name[AST_CHANNEL_NAME], *dashptr;
 	int oldstate = chan->_state;
 
 	if (oldstate == state)
 		return 0;
 
+	ast_copy_string(name, chan->name, sizeof(name));
+	if ((dashptr = strrchr(name, '-'))) {
+		*dashptr = '\0';
+	}
+
 	chan->_state = state;
-	ast_device_state_changed_literal(chan->name);
+	ast_device_state_changed_literal(name);
 	/* setstate used to conditionally report Newchannel; this is no more */
 	manager_event(EVENT_FLAG_CALL,
 		      "Newstate",

@@ -289,6 +289,11 @@ static int agent_devicestate_cb(const char *dev, int state, void *data)
 	struct agent_pvt *p;
 	char basename[AST_CHANNEL_NAME], *tmp;
 
+	/* Skip Agent status */
+	if (!strncasecmp(dev, "Agent/", 6)) {
+		return 0;
+	}
+
 	/* Try to be safe, but don't deadlock */
 	for (i = 0; i < 10; i++) {
 		if ((res = AST_LIST_TRYLOCK(&agents)) == 0) {
@@ -522,6 +527,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			}
 			p->chan = NULL;
 			p->inherited_devicestate = -1;
+			ast_device_state_changed("Agent/%s", p->agent);
 			p->acknowledged = 0;
 		}
  	} else {
@@ -744,6 +750,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		/* Agent hung-up */
 		p->chan = NULL;
 		p->inherited_devicestate = -1;
+		ast_device_state_changed("Agent/%s", p->agent);
 	}
 
 	if (!res) {
@@ -867,6 +874,7 @@ static int agent_hangup(struct ast_channel *ast)
 				ast_hangup(p->chan);
 				p->chan = NULL;
 				p->inherited_devicestate = -1;
+				ast_device_state_changed("Agent/%s", p->agent);
 			}
 			ast_log(LOG_DEBUG, "Hungup, howlong is %d, autologoff is %d\n", howlong, p->autologoff);
 			if ((p->deferlogoff) || (howlong && p->autologoff && (howlong > p->autologoff))) {
