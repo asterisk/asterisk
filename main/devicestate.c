@@ -327,7 +327,7 @@ static enum ast_device_state devstate_cached(const char *device)
 }
 
 /*! \brief Check device state through channel specific function or generic function */
-enum ast_device_state ast_device_state(const char *device)
+static enum ast_device_state _ast_device_state(const char *device, int check_cache)
 {
 	char *buf;
 	char *number;
@@ -377,6 +377,14 @@ enum ast_device_state ast_device_state(const char *device)
 		return AST_DEVICE_NOT_INUSE;
 
 	return res;
+}
+
+enum ast_device_state ast_device_state(const char *device)
+{
+	/* This function is called from elsewhere in the code to find out the
+	 * current state of a device.  Check the cache, first. */
+
+	return _ast_device_state(device, 1);
 }
 
 /*! \brief Add device state provider */
@@ -465,7 +473,7 @@ static void do_state_change(const char *device)
 {
 	enum ast_device_state state;
 
-	state = ast_device_state(device);
+	state = _ast_device_state(device, 0);
 
 	ast_debug(3, "Changing state for %s - state %d (%s)\n", device, state, devstate2str(state));
 
