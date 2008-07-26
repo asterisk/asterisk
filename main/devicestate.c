@@ -476,12 +476,21 @@ int ast_devstate_changed_literal(enum ast_device_state state, const char *device
 {
 	struct state_change *change;
 
-	/* If we know the state change (how nice of the caller of this function!)
-	 * then we can just generate the event.  Otherwise, we have to go through
-	 * a crap ton of extra work to go figure out what the state change is.
-	 * We queue the fact that the state has changed up for another thread to
-	 * go figure out, which it does by calling into the channel driver if it
-	 * can, or by walking through the active channel list. */
+	/* 
+	 * If we know the state change (how nice of the caller of this function!)
+	 * then we can just generate a device state event. 
+	 *
+	 * Otherwise, we do the following:
+	 *   - Queue an event up to another thread that the state has changed
+	 *   - In the processing thread, it calls the callback provided by the
+	 *     device state provider (which may or may not be a channel driver)
+	 *     to determine the state.
+	 *   - If the device state provider does not know the state, or this is
+	 *     for a channel and the channel driver does not implement a device
+	 *     state callback, then we will look through the channel list to
+	 *     see if we can determine a state based on active calls.
+	 *   - Once a state has been determined, a device state event is generated.
+	 */
 
 	if (state != AST_DEVICE_UNKNOWN) {
 		devstate_event(device, state);
