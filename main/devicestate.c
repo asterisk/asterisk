@@ -183,17 +183,6 @@ static pthread_t change_thread = AST_PTHREADT_NULL;
 /*! \brief Flag for the queue */
 static ast_cond_t change_pending;
 
-/*! \brief Whether or not to cache this device state value */
-enum devstate_cache {
-	/*! Cache this value as it is coming from a device state provider which is
-	 *  pushing up state change events to us as they happen */
-	CACHE_ON,
-	/*! Don't cache this result, since it was pulled from the device state provider.
-	 *  We only want to cache results from device state providers that are being nice
-	 *  and pushing state change events up to us as they happen. */
-	CACHE_OFF,
-};
-
 struct devstate_change {
 	AST_LIST_ENTRY(devstate_change) entry;
 	uint32_t state;
@@ -449,11 +438,11 @@ static int getproviderstate(const char *provider, const char *address)
 	return res;
 }
 
-static void devstate_event(const char *device, enum ast_device_state state, enum devstate_cache cache)
+static void devstate_event(const char *device, enum ast_device_state state)
 {
 	struct ast_event *event;
 
-	ast_debug(1, "device '%s' state '%d'\n", device, state);
+	ast_debug(3, "device '%s' state '%d'\n", device, state);
 
 	if (!(event = ast_event_new(AST_EVENT_DEVICE_STATE_CHANGE,
 			AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,
@@ -462,16 +451,12 @@ static void devstate_event(const char *device, enum ast_device_state state, enum
 		return;
 	}
 
-	if (cache == CACHE_ON) {
-		/* Cache this event, replacing an event in the cache with the same
-		 * device name if it exists. */
-		ast_event_queue_and_cache(event,
-			AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR,
-			AST_EVENT_IE_EID, AST_EVENT_IE_PLTYPE_RAW, sizeof(struct ast_eid),
-			AST_EVENT_IE_END);
-	} else {
-		ast_event_queue(event);
-	}
+	/* Cache this event, replacing an event in the cache with the same
+	 * device name if it exists. */
+	ast_event_queue_and_cache(event,
+		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR,
+		AST_EVENT_IE_EID, AST_EVENT_IE_PLTYPE_RAW, sizeof(struct ast_eid),
+		AST_EVENT_IE_END);
 }
 
 /*! Called by the state change thread to find out what the state is, and then
@@ -484,17 +469,22 @@ static void do_state_change(const char *device)
 
 	ast_debug(3, "Changing state for %s - state %d (%s)\n", device, state, devstate2str(state));
 
-	devstate_event(device, state, CACHE_OFF);
+	devstate_event(device, state);
 }
 
 int ast_devstate_changed_literal(enum ast_device_state state, const char *device)
 {
 	struct state_change *change;
 
-	ast_debug(3, "Notification of state change to be queued on device/channel %s\n", device);
+	/* If we know the state change (how nice of the caller of this function!)
+	 * then we can just generate the event.  Otherwise, we have to go through
+	 * a crap ton of extra work to go figure out what the state change is.
+	 * We queue the fact that the state has changed up for another thread to
+	 * go figure out, which it does by calling into the channel driver if it
+	 * can, or by walking through the active channel list. */
 
 	if (state != AST_DEVICE_UNKNOWN) {
-		devstate_event(device, state, CACHE_ON);
+		devstate_event(device, state);
 	} else if (change_thread == AST_PTHREADT_NULL || !(change = ast_calloc(1, sizeof(*change) + strlen(device)))) {
 		/* we could not allocate a change struct, or */
 		/* there is no background thread, so process the change now */
