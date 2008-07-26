@@ -339,9 +339,12 @@ static enum ast_device_state _ast_device_state(const char *device, int check_cac
 	char *provider = NULL;
 
 	/* If the last known state is cached, just return that */
-	res = devstate_cached(device);
-	if (res != AST_DEVICE_UNKNOWN)
-		return res;
+	if (check_cache) {
+		res = devstate_cached(device);
+		if (res != AST_DEVICE_UNKNOWN) {
+			return res;
+		}
+	}
 
 	buf = ast_strdupa(device);
 	tech = strsep(&buf, "/");
