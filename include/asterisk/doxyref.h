@@ -486,3 +486,34 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  *  \verbinclude ajam.txt
  */
 
+/*!
+ * \page Licensing Asterisk Licensing Information
+ *
+ * \section license Asterisk License
+ * \verbinclude LICENSE
+ *
+ * \section otherlicenses Licensing of 3rd Party Code
+ *
+ * This section contains a (not yet complete) list of libraries that are used
+ * by various parts of Asterisk, including related licensing information.
+ *
+ * \subsection alsa_lib ALSA Library
+ * \arg <b>Library</b>: libasound
+ * \arg <b>Website</b>: http://www.alsa-project.org
+ * \arg <b>Used by</b>: chan_alsa
+ * \arg <b>License</b>: LGPL
+ *
+ * \subsection openssl_lib OpenSSL
+ * \arg <b>Library</b>: libcrypto, libssl
+ * \arg <b>Website</b>: http://www.openssl.org
+ * \arg <b>Used by</b>: Asterisk core (TLS for manager and HTTP), res_crypto
+ * \arg <b>License</b>: Apache 2.0
+ * \arg <b>Note</b>:    An exception has been granted to allow linking of 
+ *                      OpenSSL with Asterisk.
+ *
+ * \subsection curl_lib Curl
+ * \arg <b>Library</b>: libcurl
+ * \arg <b>Website</b>: http://curl.haxx.se
+ * \arg <b>Used by</b>: func_curl
+ * \arg <b>License</b>: BSD
+ */
