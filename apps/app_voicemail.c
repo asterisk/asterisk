@@ -2600,10 +2600,16 @@ static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, 
 		chmod(newtmp, VOICEMAIL_FILE_MODE & ~my_umask);
 		ast_debug(3, "newtmp: %s\n", newtmp);
 		if (tmpfd > -1) {
+			int soxstatus;
 			snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, attach, format, newtmp, format);
-			ast_safe_system(tmpcmd);
-			attach = newtmp;
-			ast_debug(3, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
+			if ((soxstatus = ast_safe_system(tmpcmd)) == 0) {
+				attach = newtmp;
+				ast_debug(3, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
+			} else {
+				ast_log(LOG_WARNING, "Sox failed to reencode %s.%s: %s (have you installed support for all sox file formats?)\n", attach, format,
+					soxstatus == 1 ? "Problem with command line options" : "An error occurred during file processing");
+				ast_log(LOG_WARNING, "Voicemail attachment will have no volume gain.\n");
+			}
 		}
 	}
 	fprintf(p, "--%s" ENDL, bound);
