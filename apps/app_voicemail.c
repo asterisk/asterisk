@@ -1994,11 +1994,18 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			if (option_debug > 2)
 				ast_log(LOG_DEBUG, "newtmp: %s\n", newtmp);
 			if (tmpfd > -1) {
+				int soxstatus;
 				snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, attach, format, newtmp, format);
-				ast_safe_system(tmpcmd);
-				attach = newtmp;
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
+				if ((soxstatus = ast_safe_system(tmpcmd)) == 0) {
+					attach = newtmp;
+					if (option_debug > 2) {
+						ast_log(LOG_DEBUG, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
+					}
+				} else {
+					ast_log(LOG_WARNING, "Sox failed to reencode %s.%s: %s (have you installed support for all sox file formats?)\n", attach, format,
+						soxstatus == 1 ? "Problem with command line options" : "An error occurred during file processing");
+					ast_log(LOG_WARNING, "Voicemail attachment will have no volume gain.\n");
+				}
 			}
 		}
 		fprintf(p, "--%s" ENDL, bound);
