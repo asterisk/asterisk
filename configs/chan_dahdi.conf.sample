@@ -464,13 +464,12 @@ callreturn=yes
 ;
 echocancel=yes
 ;
-; As of Zaptel 1.4.8, some DAHDI echo cancellers (software and hardware)
-; support adjustable parameters; these parameters can be supplied as
-; additional options to the 'echocancel' setting. Note that Asterisk
-; does not attempt to validate the parameters or their values, so if you
-; supply an invalid parameter you will not know the specific reason it
-; failed without checking the kernel message log for the error(s)
-; put there by DAHDI.
+; Some DAHDI echo cancellers (software and hardware) support adjustable
+; parameters; these parameters can be supplied as additional options to
+; the 'echocancel' setting. Note that Asterisk does not attempt to
+; validate the parameters or their values, so if you supply an invalid
+; parameter you will not know the specific reason it failed without
+; checking the kernel message log for the error(s) put there by DAHDI.
 ;
 ;echocancel=128,param1=32,param2=0,param3=14
 ;

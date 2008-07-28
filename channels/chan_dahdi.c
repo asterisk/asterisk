@@ -11912,24 +11912,6 @@ static char *dahdi_destroy_channel(struct ast_cli_entry *e, int cmd, struct ast_
 	return ( RESULT_SUCCESS == ret ) ? CLI_SUCCESS : CLI_FAILURE;
 }
 
-static char *handle_cli_zap_destroy_channel_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "zap destroy channel";
-		e->usage = 
-			"Usage: zap destroy channel <chan num>\n"
-			"	DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	case CLI_HANDLER:
-		return dahdi_destroy_channel(e, cmd, a);
-	}
-
-	return CLI_FAILURE;
-}
-
 static int setup_dahdi(int reload);
 static int dahdi_restart(void)
 {
@@ -11968,27 +11950,6 @@ static char *dahdi_restart_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	if (dahdi_restart() != 0)
 		return CLI_FAILURE;
 	return CLI_SUCCESS;
-}
-
-static char *handle_cli_zap_restart_cmd_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "zap restart";
-		e->usage = 
-			"Usage: zap restart\n"
-			"	Restarts the zap channels: destroys them all and then\n"
-			"	re-reads them from chan_dahdi.conf.\n"
-			"	Note that this will STOP any running CALL on zap channels.\n"
-			"";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	case CLI_HANDLER:
-		return dahdi_restart_cmd(e, cmd, a);
-	}
-
-	return CLI_FAILURE;
 }
 
 static int action_dahdirestart(struct mansession *s, const struct message *m)
@@ -12123,25 +12084,6 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
-}
-
-static char *handle_cli_zap_show_channels_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-    case CLI_INIT:
-        e->command = "zap show channels [trunkgroup|group|context]";
-        e->usage =
-            "Usage: zap show channels [ trunkgroup <trunkgroup> | group <group> | context <context> ]\n"
-            "   Shows a list of available channels with optional filtering\n"
-            "   <group> must be a number between 0 and 63\n";
-        return NULL;
-    case CLI_GENERATE:
-        return NULL;
-	case CLI_HANDLER:
-		return dahdi_show_channels(e, cmd, a);
-    }
-
-	return CLI_FAILURE;
 }
 
 static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -12321,24 +12263,6 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 	return CLI_FAILURE;
 }
 
-static char *handle_cli_zap_show_channel_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "zap show channel";
-		e->usage = 
-			"Usage: zap show channel <chan num>\n"
-			"	Detailed information about a given channel\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;	
-	case CLI_HANDLER:
-		return dahdi_show_channel(e, cmd, a);
-	}
-
-	return CLI_FAILURE;
-}
-
 static char *handle_dahdi_show_cadences(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int i, j;
@@ -12373,24 +12297,6 @@ static char *handle_dahdi_show_cadences(struct ast_cli_entry *e, int cmd, struct
 		ast_cli(a->fd,"%s\n",output);
 	}
 	return CLI_SUCCESS;
-}
-
-static char *handle_cli_zap_show_cadences_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch(cmd) {
-	case CLI_INIT:
-		e->command = "zap show cadences";
-		e->usage = 
-			"Usage: zap show cadences\n"
-			"		Shows all cadences currently defined\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	case CLI_HANDLER:
-		return handle_dahdi_show_cadences(e, cmd, a);
-	}
-
-	return CLI_FAILURE;
 }
 
 /* Based on irqmiss.c */
@@ -12487,24 +12393,6 @@ static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 #undef FORMAT2
 }
 
-static char *handle_cli_zap_show_status_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "zap show status";
-		e->usage = 
-			"Usage: zap show status\n"
-			"       Shows a list of zap cards with status\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;	
-	case CLI_HANDLER:
-		return dahdi_show_status(e, cmd, a);
-	}
-
-	return CLI_FAILURE;
-}
-
 static char *dahdi_show_version(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int pseudo_fd = -1;
@@ -12536,24 +12424,6 @@ static char *dahdi_show_version(struct ast_cli_entry *e, int cmd, struct ast_cli
 	close(pseudo_fd);
 
 	return CLI_SUCCESS;
-}
-
-static char *handle_cli_zap_show_version_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "zap show version";
-		e->usage = 
-			"Usage: zap show version\n"
-			"       Shows the zap version in use\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	case CLI_HANDLER:
-		return dahdi_show_version(e, cmd, a);
-	}
-
-	return CLI_FAILURE;
 }
 
 static char *dahdi_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -12623,29 +12493,6 @@ static char *dahdi_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	ast_cli(a->fd, "Unable to find given channel %d\n", channel);
 	return CLI_FAILURE;
 
-}
-
-static char *handle_cli_zap_set_hwgain_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "zap set hwgain";
-		e->usage = 
-			"Usage: zap set hwgain <rx|tx> <chan#> <gain>\n"
-			"	Sets the hardware gain on a a given channel, overriding the\n"
-			"   value provided at module loadtime, whether the channel is in\n"
-			"   use or not.  Changes take effect immediately.\n"
-			"   <rx|tx> which direction do you want to change (relative to our module)\n"
-			"   <chan num> is the channel number relative to the device\n"
-			"   <gain> is the gain in dB (e.g. -3.5 for -3.5dB)\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;	
-	case CLI_HANDLER:
-		return dahdi_set_hwgain(e, cmd, a);
-	}
-
-	return CLI_FAILURE;
 }
 
 static char *dahdi_set_swgain(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -12722,29 +12569,6 @@ static char *dahdi_set_swgain(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 }
 
-static char *handle_cli_zap_set_swgain_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "zap set swgain";
-		e->usage = 
-			"Usage: zap set swgain <rx|tx> <chan#> <gain>\n"
-			"	Sets the software gain on a a given channel, overriding the\n"
-			"   value provided at module loadtime, whether the channel is in\n"
-			"   use or not.  Changes take effect immediately.\n"
-			"   <rx|tx> which direction do you want to change (relative to our module)\n"
-			"   <chan num> is the channel number relative to the device\n"
-			"   <gain> is the gain in dB (e.g. -3.5 for -3.5dB)\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;	
-	case CLI_HANDLER:
-		return dahdi_set_swgain(e, cmd, a);
-	}
-
-	return CLI_FAILURE;
-}
-
 static char *dahdi_set_dnd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int channel;
@@ -12802,50 +12626,17 @@ static char *dahdi_set_dnd(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	return CLI_SUCCESS;
 }
 
-static char *handle_cli_zap_set_dnd_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "zap set dnd";
-		e->usage = 
-			"Usage: zap set dnd <chan#> <on|off>\n"
-			"   Sets/resets DND (Do Not Disturb) mode on a channel.\n"
-			"   Changes take effect immediately.\n"
-			"   <chan num> is the channel number\n"
-			"   <on|off> Enable or disable DND mode?\n"
-			;
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	case CLI_HANDLER:
-		return dahdi_set_dnd(e, cmd, a);
-	}
-
-	return CLI_FAILURE;
-}
-
-static struct ast_cli_entry cli_zap_show_cadences_deprecated = AST_CLI_DEFINE(handle_cli_zap_show_cadences_deprecated, "List cadences");
-static struct ast_cli_entry cli_zap_show_channels_deprecated = AST_CLI_DEFINE(handle_cli_zap_show_channels_deprecated, "Show active channels");
-static struct ast_cli_entry cli_zap_show_channel_deprecated = AST_CLI_DEFINE(handle_cli_zap_show_channel_deprecated, "Show information on a channel");
-static struct ast_cli_entry cli_zap_destroy_channel_deprecated = AST_CLI_DEFINE(handle_cli_zap_destroy_channel_deprecated, "Destroy a channel");
-static struct ast_cli_entry cli_zap_restart_cmd_deprecated = AST_CLI_DEFINE(handle_cli_zap_restart_cmd_deprecated, "Fully restart channels");
-static struct ast_cli_entry cli_zap_show_status_deprecated = AST_CLI_DEFINE(handle_cli_zap_show_status_deprecated, "Show all cards status");
-static struct ast_cli_entry cli_zap_show_version_deprecated = AST_CLI_DEFINE(handle_cli_zap_show_version_deprecated, "Show DAHDI version in use");
-static struct ast_cli_entry cli_zap_set_hwgain_deprecated = AST_CLI_DEFINE(handle_cli_zap_set_hwgain_deprecated, "Set hardware gain on a channel");
-static struct ast_cli_entry cli_zap_set_swgain_deprecated = AST_CLI_DEFINE(handle_cli_zap_set_swgain_deprecated, "Set software gain on a channel");
-static struct ast_cli_entry cli_zap_set_dnd_deprecated = AST_CLI_DEFINE(handle_cli_zap_set_dnd_deprecated, "Set software gain on a channel");
-
 static struct ast_cli_entry dahdi_cli[] = {
-	AST_CLI_DEFINE(handle_dahdi_show_cadences, "List cadences", .deprecate_cmd = &cli_zap_show_cadences_deprecated),
-	AST_CLI_DEFINE(dahdi_show_channels, "Show active DAHDI channels", .deprecate_cmd = &cli_zap_show_channels_deprecated),
-	AST_CLI_DEFINE(dahdi_show_channel, "Show information on a channel", .deprecate_cmd = &cli_zap_show_channel_deprecated),
-	AST_CLI_DEFINE(dahdi_destroy_channel, "Destroy a channel", .deprecate_cmd = &cli_zap_destroy_channel_deprecated),
-	AST_CLI_DEFINE(dahdi_restart_cmd, "Fully restart DAHDI channels", .deprecate_cmd = &cli_zap_restart_cmd_deprecated),
-	AST_CLI_DEFINE(dahdi_show_status, "Show all DAHDI cards status", .deprecate_cmd = &cli_zap_show_status_deprecated),
-	AST_CLI_DEFINE(dahdi_show_version, "Show the DAHDI version in use", .deprecate_cmd = &cli_zap_show_version_deprecated),
-	AST_CLI_DEFINE(dahdi_set_hwgain, "Set hardware gain on a channel", .deprecate_cmd = &cli_zap_set_hwgain_deprecated),
-	AST_CLI_DEFINE(dahdi_set_swgain, "Set software gain on a channel", .deprecate_cmd = &cli_zap_set_swgain_deprecated),
-	AST_CLI_DEFINE(dahdi_set_dnd, "Set software gain on a channel", .deprecate_cmd = &cli_zap_set_dnd_deprecated),
+	AST_CLI_DEFINE(handle_dahdi_show_cadences, "List cadences"),
+	AST_CLI_DEFINE(dahdi_show_channels, "Show active DAHDI channels"),
+	AST_CLI_DEFINE(dahdi_show_channel, "Show information on a channel"),
+	AST_CLI_DEFINE(dahdi_destroy_channel, "Destroy a channel"),
+	AST_CLI_DEFINE(dahdi_restart_cmd, "Fully restart DAHDI channels"),
+	AST_CLI_DEFINE(dahdi_show_status, "Show all DAHDI cards status"),
+	AST_CLI_DEFINE(dahdi_show_version, "Show the DAHDI version in use"),
+	AST_CLI_DEFINE(dahdi_set_hwgain, "Set hardware gain on a channel"),
+	AST_CLI_DEFINE(dahdi_set_swgain, "Set software gain on a channel"),
+	AST_CLI_DEFINE(dahdi_set_dnd, "Set software gain on a channel"),
 };
 
 #define TRANSFER	0

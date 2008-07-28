@@ -53,7 +53,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 
 static char *app = "DAHDIBarge";
-static char *deprecated_app = "ZapBarge";
 
 static char *synopsis = "Barge in (monitor) DAHDI channel";
 
@@ -287,12 +286,6 @@ out:
 	return res;
 }
 
-static int conf_exec_warn(struct ast_channel *chan, void *data)
-{
-	ast_log(LOG_WARNING, "Use of the command %s is deprecated, please use %s instead.\n", deprecated_app, app);
-	return conf_exec(chan, data);
-}
-
 static int unload_module(void)
 {
 	return ast_unregister_application(app);
@@ -300,7 +293,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	ast_register_application(deprecated_app, conf_exec_warn, synopsis, descrip);
 	return ((ast_register_application(app, conf_exec, synopsis, descrip)) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS);
 }
 

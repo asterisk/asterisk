@@ -13,7 +13,7 @@
 # Obviously, you MUST specify at least a channel in the same format as you
 # would for the "Dial" application.  Only one channel name is permitted.
 #
-Channel: Zap/1
+Channel: DAHDI/1
 #
 # You can specify codecs for the call
 Codecs: alaw, speex, h264

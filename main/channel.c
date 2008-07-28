@@ -3426,11 +3426,6 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 		return NULL;
 	}
 
-	if (!strcasecmp(type, "Zap")) {
-		type = "DAHDI";
-		ast_log(LOG_NOTICE, "Zap interface translated to DAHDI.\n");
-	}
-
 	AST_LIST_TRAVERSE(&backends, chan, list) {
 		if (strcasecmp(type, chan->tech->type))
 			continue;

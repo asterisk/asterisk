@@ -95,7 +95,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 		timeout = atoi(args.timeout) * 1000;
 
 	if (ast_strlen_zero(args.dial)) {
-		ast_log(LOG_WARNING, "PARK: A dial resource must be specified i.e: Console/dsp or Zap/g1/5551212\n");
+		ast_log(LOG_WARNING, "PARK: A dial resource must be specified i.e: Console/dsp or DAHDI/g1/5551212\n");
 		return -1;
 	}
 
