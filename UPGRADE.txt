@@ -97,6 +97,13 @@ Voicemail:
 
 Applications:
 
+* SendImage() no longer hangs up the channel on transmission error or on
+  another type of error; in those cases, a FAILURE status is stored in 
+  SENDIMAGESTATUS and dialplan execution continues.  The possible return values
+  stored in SENDIMAGESTATUS are: SUCCESS, FAILURE, and UNSUPPORTED. ('OK' has
+  been replaced with 'SUCCESS', and 'NOSUPPORT' has been replaced with
+  'UNSUPPORTED').  This change makes the SendImage application more consistent
+  with other applications.
 * ChanIsAvail() now has a 't' option, which allows the specified device
   to be queried for state without consulting the channel drivers. This
   performs mostly a 'ChanExists' sort of function.

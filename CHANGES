@@ -102,6 +102,10 @@ Application Changes
  * The Dial() application no longer copies the language used by the caller to the callee's
    channel. If you desire for the caller's channel's language to be used for file playback
    to the callee, then the file specified may be prepended with "${CHANNEL(language)}/" .
+ * SendImage() no longer hangs up the channel on error; instead, it sets the
+   status variable SENDIMAGESTATUS to one of 'SUCCESS', 'FAILURE', or
+   'UNSUPPORTED'.  This change makes SendImage() more consistent with other
+   applications.
 
 SIP Changes
 -----------

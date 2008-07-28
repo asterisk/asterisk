@@ -39,16 +39,15 @@ static char *synopsis = "Send an image file";
 
 static char *descrip = 
 "  SendImage(filename): Sends an image on a channel.\n"
-"If the channel supports image transport but the image send fails, the channel\n"
-"will be hung up.  Otherwise, the dialplan continues execution.  This\n"
-"application sets the following channel variable upon completion:\n"
-"   SENDIMAGESTATUS  The status is the result of the attempt, one of:\n"
-"                    OK | NOSUPPORT \n";			
+"Result of transmission will be stored in SENDIMAGESTATUS\n"
+"channel variable:\n"
+"    SUCCESS      Transmission succeeded\n"
+"    FAILURE      Transmission failed\n"
+"    UNSUPPORTED  Image transmission not supported by channel\n";
 
 
 static int sendimage_exec(struct ast_channel *chan, void *data)
 {
-	int res = 0;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SendImage requires an argument (filename)\n");
@@ -57,14 +56,17 @@ static int sendimage_exec(struct ast_channel *chan, void *data)
 
 	if (!ast_supports_images(chan)) {
 		/* Does not support transport */
-		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "NOSUPPORT");
+		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "UNSUPPORTED");
 		return 0;
 	}
 
-	if (!(res = ast_send_image(chan, data)))
-		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "OK");
-		
-	return res;
+	if (!ast_send_image(chan, data)) {
+		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "SUCCESS");
+	} else {
+		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "FAILURE");
+	}
+	
+	return 0;
 }
 
 static int unload_module(void)
