@@ -818,3 +818,9 @@ Miscellaneous
      as a backtrace of the stack which led to the lock calls.
   * users.conf now sports an optional alternateexts property, which permits
     allocation of additional extensions which will reach the specified user.
+  * A new option for the configure script, --enable-internal-poll, has been added
+    for use with systems which may have a buggy implementation of the poll system
+	call. If you notice odd behavior such as the CLI being unresponsive on remote
+	consoles, you may want to try using this option. This option is enabled by default
+	on Darwin systems since it is known that the Darwin poll() implementation has
+	odd issues.

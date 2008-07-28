@@ -42,8 +42,13 @@ OBJS+=say.o
 AST_LIBS += $(SSL_LIB)
 AST_LIBS += $(BKTR_LIB)
 
+
 ifeq ($(POLL_AVAILABLE),)
   OBJS+=poll.o
+else
+  ifneq ($(findstring darwin,$(OSARCH)),)
+    OBJS+=poll.o
+  endif
 endif
 
 ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc linux-gnueabi ),)

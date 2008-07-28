@@ -327,7 +327,17 @@ AC_CHECK_HEADER([sys/poll.h],
    [HAS_POLL=1]
    AC_DEFINE([HAVE_SYS_POLL_H], 1, [Define to 1 if your system has working sys/poll.h]),
    )
+
+AC_ARG_ENABLE(internal-poll,
+	[  --enable-internal-poll	Use Asterisk's poll implementation],
+	[case "${enableval}" in
+		y|ye|yes) HAS_POLL="";;
+		n|no) HAS_POLL="${HAS_POLL}" ;;
+		*) AC_MSG_ERROR(bad value ${enableval} for --enable-internal-poll) ;;
+	esac])
 AC_SUBST(HAS_POLL)
+
+
 
 # https support (in main/http.c) uses funopen on BSD systems,
 # fopencookie on linux
