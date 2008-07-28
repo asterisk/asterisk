@@ -1901,7 +1901,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		ast_mutex_unlock(&conf->playlock);
 		goto outrun;
 	}
-	ast_debug(1, "Placed channel %s in ZAP conf %d\n", chan->name, conf->dahdiconf);
+	ast_debug(1, "Placed channel %s in DAHDI conf %d\n", chan->name, conf->dahdiconf);
 
 	if (!sent_event) {
 		manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 

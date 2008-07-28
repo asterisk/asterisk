@@ -67,7 +67,7 @@ static char *descrip =
 static struct ast_channel *get_dahdi_channel_locked(int num) {
 	char name[80];
 	
-	snprintf(name, sizeof(name), "%s/%d-1", dahdi_chan_name, num);
+	snprintf(name, sizeof(name), "DAHDI/%d-1", num);
 	return ast_get_channel_by_name_locked(name);
 }
 
