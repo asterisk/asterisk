@@ -158,8 +158,6 @@ int option_maxfiles;				/*!< Max number of open file handles (files, sockets) */
 #if defined(HAVE_SYSINFO)
 long option_minmemfree;				/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
 #endif
-char dahdi_chan_name[AST_CHANNEL_NAME] = "ZAP";
-int dahdi_chan_name_len = 3;
 
 /*! @} */
 
@@ -2786,11 +2784,6 @@ static void ast_readconfig(void)
 				option_minmemfree = 0;
 			}
 #endif
-		} else if (!strcasecmp(v->name, "dahdichanname")) {
-			if (!strcasecmp(v->value, "yes")) {
-				ast_copy_string(dahdi_chan_name, "DAHDI", sizeof(dahdi_chan_name));
-				dahdi_chan_name_len = 5;
-			}
 		} else if (!strcasecmp(v->name, "entityid")) {
 			struct ast_eid tmp_eid;
 			if (!ast_str_to_eid(&tmp_eid, v->value)) {
