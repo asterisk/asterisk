@@ -304,7 +304,7 @@ defaultprotocol=SIP
 3.1.3 extensions.conf
 OSP functions are implemented as dial plan functions in the extensions.conf file.  To add OSP support to your Asterisk server, simply copy and paste the text box below to your extensions.conf file.  These functions will enable your Asterisk server to support all OSP call scenarios.  Configuration of your Asterisk server for OSP is now complete.
 [globals]
-DIALOUT=Zap/1
+DIALOUT=DAHDI/1
 
 [SrcGW]	; OSP Source Gateway
 exten => _XXXX.,1,NoOp(OSPSrcGW)

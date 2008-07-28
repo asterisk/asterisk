@@ -79,25 +79,25 @@ defaultdpc = 3		; The point code of the switch you want to send your ISUP
 
 ; Now we configure our Bearer channels (CICs)
 
-cicbeginswith = 1	; Number to start counting the CICs from.  So if Zap/1 to
-			; Zap/15 are CICs 1-15, you would set this to 1 before you
+cicbeginswith = 1	; Number to start counting the CICs from.  So if DAHDI/1 to
+			; DAHDI/15 are CICs 1-15, you would set this to 1 before you
 			; declare channel=1-15
 
-channel=1-15		; Use Zap/1-15 and assign them to CICs 1-15
+channel=1-15		; Use DAHDI/1-15 and assign them to CICs 1-15
 
-cicbeginswith = 17	; Now for Zap/17 to Zap/31, they are CICs 17-31 so we initialize
+cicbeginswith = 17	; Now for DAHDI/17 to DAHDI/31, they are CICs 17-31 so we initialize
 			; cicbeginswith to 17 before we declare those channels
 
 channel = 17-31		; This assigns CICs 17-31 to channels 17-31
 
-sigchan = 16		; This is where you declare which Zap channel is your signalling
-			; channel.  In our case it is Zap/16.  You can add redundant
+sigchan = 16		; This is where you declare which DAHDI channel is your signalling
+			; channel.  In our case it is DAHDI/16.  You can add redundant
 			; signalling channels by adding additional sigchan= lines.
 			
 ; If we want an alternate redundant signalling channel add this
 
 sigchan = 48		; This would put two signalling channels in our linkset, one at
-			; Zap/16 and one at Zap/48 which both would be used to send/receive
+			; DAHDI/16 and one at DAHDI/48 which both would be used to send/receive
 			; ISUP traffic.
 
 ; End of chan_dahdi.conf

@@ -2193,7 +2193,7 @@ static void *do_parking_thread(void *ignore)
 				if (pu->peername[0]) {
 					char *peername = ast_strdupa(pu->peername);
 					char *cp = strrchr(peername, '-');
-					char peername_flat[AST_MAX_EXTENSION]; /* using something like Zap/52 for an extension name is NOT a good idea */
+					char peername_flat[AST_MAX_EXTENSION]; /* using something like DAHDI/52 for an extension name is NOT a good idea */
 					int i;
 
 					if (cp) 

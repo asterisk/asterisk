@@ -1602,16 +1602,6 @@ static void pbx_load_users(void)
 		dahdichan = ast_variable_retrieve(cfg, cat, "dahdichan");
 		if (!dahdichan)
 			dahdichan = ast_variable_retrieve(cfg, "general", "dahdichan");
-		if (!dahdichan) {
-		/* no dahdichan, but look for zapchan too */
-			dahdichan = ast_variable_retrieve(cfg, cat, "zapchan");
-			if (!dahdichan) {
-				dahdichan = ast_variable_retrieve(cfg, "general", "zapchan");
-			}
-			if (!ast_strlen_zero(dahdichan)) {
-				ast_log(LOG_WARNING, "Use of zapchan in users.conf is deprecated. Please update configuration to use dahdichan instead.\n");
-			}
-		}
 		if (!ast_strlen_zero(dahdichan)) {
 			ast_copy_string(dahdicopy, dahdichan, sizeof(dahdicopy));
 			c = dahdicopy;

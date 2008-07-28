@@ -661,15 +661,15 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 	if (whennext != s->lasttimeout) {
 #ifdef HAVE_DAHDI
 		if (s->owner->timingfd > -1) {
-			int zap_timer_samples = whennext;
+			int dahdi_timer_samples = whennext;
 			int rate;
 			/* whennext is in samples, but DAHDI timers operate in 8 kHz samples. */
 			if ((rate = ast_format_rate(s->fmt->format)) != 8000) {
 				float factor;
 				factor = ((float) rate) / ((float) 8000.0); 
-				zap_timer_samples = (int) ( ((float) zap_timer_samples) / factor );
+				dahdi_timer_samples = (int) ( ((float) dahdi_timer_samples) / factor );
 			}
-			ast_settimeout(s->owner, zap_timer_samples, ast_fsread_audio, s);
+			ast_settimeout(s->owner, dahdi_timer_samples, ast_fsread_audio, s);
 		} else
 #endif		
 			s->owner->streamid = ast_sched_add(s->owner->sched, 

@@ -149,16 +149,15 @@ if [ "$ans" = "y" ]; then
   echo >> $OUTPUT;
   echo >> $OUTPUT;
 
-  #jpeeler: REVISIT
   echo "------------------" >> $OUTPUT;
-  echo "ZAPTEL CONFIG" >> $OUTPUT;
+  echo "DAHDI CONFIG" >> $OUTPUT;
   echo "------------------" >> $OUTPUT;
-  grep -v '^#' /etc/dahdi.conf >> $OUTPUT;
+  grep -v '^#' /etc/dahdi/system.conf >> $OUTPUT;
   echo >> $OUTPUT;
   echo >> $OUTPUT;
 
   echo "------------------" >> $OUTPUT;
-  echo "ZAPATA CONFIG" >> $OUTPUT;
+  echo "CHAN_DAHDI CONFIG" >> $OUTPUT;
   echo "------------------" >> $OUTPUT;
   grep -v '^;' /etc/asterisk/chan_dahdi.conf >> $OUTPUT;
   echo >> $OUTPUT;

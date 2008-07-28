@@ -14,7 +14,7 @@
 		</member>
 		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
 		</member>
-		<member name="LOTS_OF_SPANS" displayname="More than 32 Zaptel spans">
+		<member name="LOTS_OF_SPANS" displayname="More than 32 DAHDI spans">
 		</member>
 		<member name="RADIO_RELAX" displayname="Relax DTMF for Radio Applications">
 		</member>

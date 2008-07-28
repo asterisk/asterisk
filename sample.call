@@ -13,7 +13,7 @@
 # Obviously, you MUST specify at least a channel in the same format as you
 # would for the "Dial" application.  Only one channel name is permitted.
 #
-Channel: Zap/1
+Channel: DAHDI/1
 #
 # You may also specify a wait time (default is 45 seconds) for how long to
 # wait for the channel to be answered, a retry time (default is 5 mins)
