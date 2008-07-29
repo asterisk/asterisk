@@ -398,7 +398,7 @@ struct dahdi_subchannel {
 	unsigned int needunhold:1;
 	unsigned int linear:1;
 	unsigned int inthreeway:1;
-	DAHDI_CONFINFO curconf;
+	struct dahdi_confinfo curconf;
 };
 
 #define CONF_USER_REAL		(1 << 0)
@@ -413,7 +413,7 @@ static struct dahdi_pvt {
 		
 	struct dahdi_subchannel sub_unused;		/*!< Just a safety precaution */
 	struct dahdi_subchannel subs[3];			/*!< Sub-channels */
-	DAHDI_CONFINFO saveconf;			/*!< Saved conference info */
+	struct dahdi_confinfo saveconf;			/*!< Saved conference info */
 
 	struct dahdi_pvt *slaves[MAX_SLAVES];		/*!< Slave to us (follows our conferencing) */
 	struct dahdi_pvt *master;				/*!< Master to us (we follow their conferencing) */
@@ -543,7 +543,7 @@ static struct dahdi_pvt {
 	struct timeval flashtime;			/*!< Last flash-hook time */
 	struct ast_dsp *dsp;
 	int cref;					/*!< Call reference number */
-	DAHDI_DIAL_OPERATION dop;
+	struct dahdi_dialoperation dop;
 	int whichwink;					/*!< SIG_FEATDMF_TA Which wink are we on? */
 	char finaldial[64];
 	char accountcode[AST_MAX_ACCOUNT_CODE];		/*!< Account code */
@@ -589,7 +589,7 @@ struct dahdi_chan_conf {
 #ifdef HAVE_PRI
 	struct dahdi_pri pri;
 #endif
-	DAHDI_PARAMS timing;
+	struct dahdi_params timing;
 
 	char smdi_port[SMDI_MAX_FILENAME_LEN];
 };
@@ -952,7 +952,7 @@ static int dahdi_setlinear(int dfd, int linear)
 
 static int alloc_sub(struct dahdi_pvt *p, int x)
 {
-	DAHDI_BUFFERINFO bi;
+	struct dahdi_bufferinfo bi;
 	int res;
 	if (p->subs[x].dfd < 0) {
 #ifdef HAVE_ZAPTEL
@@ -1063,7 +1063,7 @@ static int dahdi_digit_begin(struct ast_channel *chan, char digit)
 
 	if (pvt->pulse || ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_SENDTONE, &dtmf)) {
 		int res;
-		DAHDI_DIAL_OPERATION zo = {
+		struct dahdi_dialoperation zo = {
 			.op = DAHDI_DIAL_OP_APPEND,
 			.dialstr[0] = 'T',
 			.dialstr[1] = digit,
@@ -1251,7 +1251,7 @@ static int conf_add(struct dahdi_pvt *p, struct dahdi_subchannel *c, int index, 
 {
 	/* If the conference already exists, and we're already in it
 	   don't bother doing anything */
-	DAHDI_CONFINFO zi;
+	struct dahdi_confinfo zi;
 	
 	memset(&zi, 0, sizeof(zi));
 	zi.chan = 0;
@@ -1298,7 +1298,7 @@ static int isourconf(struct dahdi_pvt *p, struct dahdi_subchannel *c)
 
 static int conf_del(struct dahdi_pvt *p, struct dahdi_subchannel *c, int index)
 {
-	DAHDI_CONFINFO zi;
+	struct dahdi_confinfo zi;
 	if (/* Can't delete if there's no dfd */
 		(c->dfd < 0) ||
 		/* Don't delete from the conference if it's not our conference */
@@ -1364,7 +1364,7 @@ static int isslavenative(struct dahdi_pvt *p, struct dahdi_pvt **out)
 
 static int reset_conf(struct dahdi_pvt *p)
 {
-	DAHDI_CONFINFO zi;
+	struct dahdi_confinfo zi;
 	memset(&zi, 0, sizeof(zi));
 	p->confno = -1;
 	memset(&p->subs[SUB_REAL].curconf, 0, sizeof(p->subs[SUB_REAL].curconf));
@@ -1497,7 +1497,7 @@ static void dahdi_disable_ec(struct dahdi_pvt *p)
 	p->echocanon = 0;
 }
 
-static void fill_txgain(DAHDI_GAINS *g, float gain, int law)
+static void fill_txgain(struct dahdi_gains *g, float gain, int law)
 {
 	int j;
 	int k;
@@ -1531,7 +1531,7 @@ static void fill_txgain(DAHDI_GAINS *g, float gain, int law)
 	}
 }
 
-static void fill_rxgain(DAHDI_GAINS *g, float gain, int law)
+static void fill_rxgain(struct dahdi_gains *g, float gain, int law)
 {
 	int j;
 	int k;
@@ -1567,7 +1567,7 @@ static void fill_rxgain(DAHDI_GAINS *g, float gain, int law)
 
 static int set_actual_txgain(int fd, int chan, float gain, int law)
 {
-	DAHDI_GAINS g;
+	struct dahdi_gains g;
 	int res;
 
 	memset(&g, 0, sizeof(g));
@@ -1586,7 +1586,7 @@ static int set_actual_txgain(int fd, int chan, float gain, int law)
 
 static int set_actual_rxgain(int fd, int chan, float gain, int law)
 {
-	DAHDI_GAINS g;
+	struct dahdi_gains g;
 	int res;
 
 	memset(&g, 0, sizeof(g));
@@ -1668,7 +1668,7 @@ static inline int dahdi_confmute(struct dahdi_pvt *p, int muted)
 
 static int save_conference(struct dahdi_pvt *p)
 {
-	DAHDI_CONFINFO c;
+	struct dahdi_confinfo c;
 	int res;
 	if (p->saveconf.confmode) {
 		ast_log(LOG_WARNING, "Can't save conference -- already in use\n");
@@ -2444,7 +2444,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 	struct dahdi_pvt *p = ast->tech_pvt;
 	struct dahdi_pvt *tmp = NULL;
 	struct dahdi_pvt *prev = NULL;
-	DAHDI_PARAMS par;
+	struct dahdi_params par;
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "dahdi_hangup(%s)\n", ast->name);
@@ -3572,7 +3572,7 @@ static int attempt_transfer(struct dahdi_pvt *p)
 
 static int check_for_conference(struct dahdi_pvt *p)
 {
-	DAHDI_CONFINFO ci;
+	struct dahdi_confinfo ci;
 	/* Fine if we already have a master, etc */
 	if (p->master || (p->confno > -1))
 		return 0;
@@ -3595,7 +3595,7 @@ static int check_for_conference(struct dahdi_pvt *p)
 static int get_alarms(struct dahdi_pvt *p)
 {
 	int res;
-	DAHDI_SPANINFO zi;
+	struct dahdi_spaninfo zi;
 	memset(&zi, 0, sizeof(zi));
 	zi.spanno = p->span;
 	res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SPANSTAT, &zi);
@@ -4194,7 +4194,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			if (p->oprmode < 0) break;
 			if (p->oprmode > 1)
 			{
-				DAHDI_PARAMS par;
+				struct dahdi_params par;
 
 				if (ioctl(p->oprpeer->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &par) != -1)
 				{
@@ -4691,7 +4691,7 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 	/* make sure it sends initial key state as first frame */
 	if ((p->radio || (p->oprmode < 0)) && (!p->firstradio))
 	{
-		DAHDI_PARAMS ps;
+		struct dahdi_params ps;
 
 		ps.channo = p->channel;
 		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps) < 0) {
@@ -5233,7 +5233,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	int x,y;
 	int features;
 	char *b2 = NULL;
-	DAHDI_PARAMS ps;
+	struct dahdi_params ps;
 	char chanprefix[*dahdi_chan_name_len + 4];
 
 	if (i->subs[index].owner) {
@@ -7051,7 +7051,7 @@ static int restart_monitor(void)
 }
 
 #ifdef HAVE_PRI
-static int pri_resolve_span(int *span, int channel, int offset, DAHDI_SPANINFO *si)
+static int pri_resolve_span(int *span, int channel, int offset, struct dahdi_spaninfo *si)
 {
 	int x;
 	int trunkgroup;
@@ -7099,8 +7099,8 @@ static int pri_resolve_span(int *span, int channel, int offset, DAHDI_SPANINFO *
 
 static int pri_create_trunkgroup(int trunkgroup, int *channels)
 {
-	DAHDI_SPANINFO si;
-	DAHDI_PARAMS p;
+	struct dahdi_spaninfo si;
+	struct dahdi_params p;
 	int fd;
 	int span;
 	int ospan=0;
@@ -7183,7 +7183,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 	struct dahdi_pvt *tmp = NULL, *tmp2,  *prev = NULL;
 	char fn[80];
 #if 1
-	DAHDI_BUFFERINFO bi;
+	struct dahdi_bufferinfo bi;
 #endif
 	int res;
 	int span=0;
@@ -7191,7 +7191,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 	int x;
 	struct dahdi_pvt **wlist;
 	struct dahdi_pvt **wend;
-	DAHDI_PARAMS p;
+	struct dahdi_params p;
 
 	wlist = &iflist;
 	wend = &ifend;
@@ -7287,7 +7287,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 					destroy_dahdi_pvt(&tmp);
 					return NULL;
 				} else {
-					DAHDI_SPANINFO si;
+					struct dahdi_spaninfo si;
 					si.spanno = 0;
 					if (ioctl(tmp->subs[SUB_REAL].dfd,DAHDI_SPANSTAT,&si) == -1) {
 						ast_log(LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
@@ -7664,7 +7664,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t groupmatch, int *busy, int *channelmatched, int *groupmatched)
 {
 	int res;
-	DAHDI_PARAMS par;
+	struct dahdi_params par;
 
 	/* First, check group matching */
 	if (groupmatch) {
@@ -7768,7 +7768,7 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 static struct dahdi_pvt *chandup(struct dahdi_pvt *src)
 {
 	struct dahdi_pvt *p;
-	DAHDI_BUFFERINFO bi;
+	struct dahdi_bufferinfo bi;
 	int res;
 	
 	if ((p = ast_malloc(sizeof(*p)))) {
@@ -8075,7 +8075,7 @@ static int pri_find_principle(struct dahdi_pri *pri, int channel)
 	int x;
 	int span = PRI_SPAN(channel);
 	int spanfd;
-	DAHDI_PARAMS param;
+	struct dahdi_params param;
 	int principle = -1;
 	int explicit = PRI_EXPLICIT(channel);
 	channel = PRI_CHANNEL(channel);
@@ -9506,9 +9506,9 @@ static void *pri_dchannel(void *vpri)
 static int start_pri(struct dahdi_pri *pri)
 {
 	int res, x;
-	DAHDI_PARAMS p;
-	DAHDI_BUFFERINFO bi;
-	DAHDI_SPANINFO si;
+	struct dahdi_params p;
+	struct dahdi_bufferinfo bi;
+	struct dahdi_spaninfo si;
 	int i;
 	
 	for (i = 0; i < NUM_DCHANS; i++) {
@@ -10027,8 +10027,8 @@ static int dahdi_show_channel(int fd, int argc, char **argv)
 {
 	int channel;
 	struct dahdi_pvt *tmp = NULL;
-	DAHDI_CONFINFO ci;
-	DAHDI_PARAMS ps;
+	struct dahdi_confinfo ci;
+	struct dahdi_params ps;
 	int x;
 	ast_mutex_t *lock;
 	struct dahdi_pvt *start;
@@ -10193,7 +10193,7 @@ static int dahdi_show_status(int fd, int argc, char *argv[]) {
 	char alarms[50];
 
 	int ctl;
-	DAHDI_SPANINFO s;
+	struct dahdi_spaninfo s;
 
 #ifdef HAVE_ZAPTEL
 	if ((ctl = open("/dev/zap/ctl", O_RDWR)) < 0) {
@@ -11385,7 +11385,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				int toneduration;
 				int ctlfd;
 				int res;
-				DAHDI_DIAL_PARAMS dps;
+				struct dahdi_dialparams dps;
 
 #ifdef HAVE_ZAPTEL
 				ctlfd = open("/dev/zap/ctl", O_RDWR);

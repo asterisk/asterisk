@@ -114,7 +114,7 @@ struct pvt {
 	int totalms;
 	int lasttotalms;
 #endif
-	DAHDI_TRANSCODE_HEADER *hdr;
+	struct dahdi_transcode_header *hdr;
 };
 
 static int transcoder_show(int fd, int argc, char **argv)
@@ -134,7 +134,7 @@ static int transcoder_show(int fd, int argc, char **argv)
 static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct pvt *ztp = pvt->pvt;
-	DAHDI_TRANSCODE_HEADER *hdr = ztp->hdr;
+	struct dahdi_transcode_header *hdr = ztp->hdr;
 
 	if (!f->subclass) {
 		/* Fake a return frame for calculation purposes */
@@ -181,7 +181,7 @@ static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 {
 	struct pvt *ztp = pvt->pvt;
-	DAHDI_TRANSCODE_HEADER *hdr = ztp->hdr;
+	struct dahdi_transcode_header *hdr = ztp->hdr;
 	unsigned int x;
 
 	if (ztp->fake == 2) {
@@ -260,7 +260,7 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 	int fd;
 	unsigned int x = DAHDI_TCOP_ALLOCATE;
 	struct pvt *ztp = pvt->pvt;
-	DAHDI_TRANSCODE_HEADER *hdr;
+	struct dahdi_transcode_header *hdr;
 	int flags;
 	
 	if ((fd = open("/dev/zap/transcode", O_RDWR)) < 0)
@@ -442,7 +442,7 @@ static void build_translators(struct format_map *map, unsigned int dstfmts, unsi
 
 static int find_transcoders(void)
 {
-	DAHDI_TRANSCODE_INFO info = { 0, };
+	struct dahdi_transcode_info info = { 0, };
 	struct format_map map = { { { 0 } } };
 	int fd, res;
 	unsigned int x, y;

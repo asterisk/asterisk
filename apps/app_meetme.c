@@ -742,7 +742,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
 static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic, int refcount)
 {
 	struct ast_conference *cnf;
-	DAHDI_CONFINFO ztc = { 0, };
+	struct dahdi_confinfo ztc = { 0, };
 	int confno_int = 0;
 
 	AST_LIST_LOCK(&confs);
@@ -1373,7 +1373,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	struct ast_conf_user *user = NULL;
 	struct ast_conf_user *usr = NULL;
 	int fd;
-	DAHDI_CONFINFO ztc, ztc_empty;
+	struct dahdi_confinfo ztc, ztc_empty;
 	struct ast_frame *f;
 	struct ast_channel *c;
 	struct ast_frame fr;
@@ -1406,7 +1406,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	char members[10] = "";
 	int dtmf, opt_waitmarked_timeout = 0;
 	time_t timeout = 0;
-	DAHDI_BUFFERINFO bi;
+	struct dahdi_bufferinfo bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 	int setusercount = 0;
