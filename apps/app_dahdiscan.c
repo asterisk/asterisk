@@ -108,7 +108,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 	char input[4];
 	int ic = 0;
 	
-	DAHDI_BUFFERINFO bi;
+	struct dahdi_bufferinfo bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 	

@@ -103,7 +103,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
 
-#ifdef DAHDI_SPANINFO_HAS_LINECONFIG
 static const char *lbostr[] = {
 "0 db (CSU)/0-133 feet (DSX-1)",
 "133-266 feet (DSX-1)",
@@ -114,7 +113,6 @@ static const char *lbostr[] = {
 "-15db (CSU)",
 "-22.5db (CSU)"
 };
-#endif
 
 /*! Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
@@ -489,7 +487,7 @@ struct dahdi_subchannel {
 	unsigned int needunhold:1;
 	unsigned int linear:1;
 	unsigned int inthreeway:1;
-	DAHDI_CONFINFO curconf;
+	struct dahdi_confinfo curconf;
 };
 
 #define CONF_USER_REAL		(1 << 0)
@@ -651,7 +649,7 @@ static struct dahdi_pvt {
 	struct timeval flashtime;			/*!< Last flash-hook time */
 	struct ast_dsp *dsp;
 	int cref;					/*!< Call reference number */
-	DAHDI_DIAL_OPERATION dop;
+	struct dahdi_dialoperation dop;
 	int whichwink;					/*!< SIG_FEATDMF_TA Which wink are we on? */
 	char finaldial[64];
 	char accountcode[AST_MAX_ACCOUNT_CODE];		/*!< Account code */
@@ -731,7 +729,7 @@ struct dahdi_chan_conf {
 #ifdef HAVE_SS7
 	struct dahdi_ss7 ss7;
 #endif
-	DAHDI_PARAMS timing;
+	struct dahdi_params timing;
 	int is_sig_auto; /*!< Use channel signalling from DAHDI? */
 
 	char smdi_port[SMDI_MAX_FILENAME_LEN];
@@ -1144,7 +1142,7 @@ static int dahdi_setlinear(int zfd, int linear)
 
 static int alloc_sub(struct dahdi_pvt *p, int x)
 {
-	DAHDI_BUFFERINFO bi;
+	struct dahdi_bufferinfo bi;
 	int res;
 	if (p->subs[x].zfd >= 0) {
 		ast_log(LOG_WARNING, "%s subchannel of %d already in use\n", subnames[x], p->channel);
@@ -1254,7 +1252,7 @@ static int dahdi_digit_begin(struct ast_channel *chan, char digit)
 
 	if (pvt->pulse || ioctl(pvt->subs[SUB_REAL].zfd, DAHDI_SENDTONE, &dtmf)) {
 		int res;
-		DAHDI_DIAL_OPERATION zo = {
+		struct dahdi_dialoperation zo = {
 			.op = DAHDI_DIAL_OP_APPEND,
 		};
 
@@ -1450,7 +1448,7 @@ static int conf_add(struct dahdi_pvt *p, struct dahdi_subchannel *c, int index, 
 {
 	/* If the conference already exists, and we're already in it
 	   don't bother doing anything */
-	DAHDI_CONFINFO zi;
+	struct dahdi_confinfo zi;
 	
 	memset(&zi, 0, sizeof(zi));
 	zi.chan = 0;
@@ -1497,7 +1495,7 @@ static int isourconf(struct dahdi_pvt *p, struct dahdi_subchannel *c)
 
 static int conf_del(struct dahdi_pvt *p, struct dahdi_subchannel *c, int index)
 {
-	DAHDI_CONFINFO zi;
+	struct dahdi_confinfo zi;
 	if (/* Can't delete if there's no zfd */
 		(c->zfd < 0) ||
 		/* Don't delete from the conference if it's not our conference */
@@ -1563,7 +1561,7 @@ static int isslavenative(struct dahdi_pvt *p, struct dahdi_pvt **out)
 
 static int reset_conf(struct dahdi_pvt *p)
 {
-	DAHDI_CONFINFO zi;
+	struct dahdi_confinfo zi;
 	memset(&zi, 0, sizeof(zi));
 	p->confno = -1;
 	memset(&p->subs[SUB_REAL].curconf, 0, sizeof(p->subs[SUB_REAL].curconf));
@@ -2968,7 +2966,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 	struct dahdi_pvt *p = ast->tech_pvt;
 	struct dahdi_pvt *tmp = NULL;
 	struct dahdi_pvt *prev = NULL;
-	DAHDI_PARAMS par;
+	struct dahdi_params par;
 
 	ast_debug(1, "dahdi_hangup(%s)\n", ast->name);
 	if (!ast->tech_pvt) {
@@ -3690,16 +3688,13 @@ static void dahdi_link(struct dahdi_pvt *slave, struct dahdi_pvt *master) {
 
 static void disable_dtmf_detect(struct dahdi_pvt *p)
 {
-#ifdef DAHDI_TONEDETECT
 	int val;
-#endif
 
 	p->ignoredtmf = 1;
 
-#ifdef DAHDI_TONEDETECT
 	val = 0;
 	ioctl(p->subs[SUB_REAL].zfd, DAHDI_TONEDETECT, &val);
-#endif		
+
 	if (!p->hardwaredtmf && p->dsp) {
 		p->dsp_features &= ~DSP_FEATURE_DIGIT_DETECT;
 		ast_dsp_set_features(p->dsp, p->dsp_features);
@@ -3708,19 +3703,16 @@ static void disable_dtmf_detect(struct dahdi_pvt *p)
 
 static void enable_dtmf_detect(struct dahdi_pvt *p)
 {
-#ifdef DAHDI_TONEDETECT
 	int val;
-#endif
 
 	if (p->channel == CHAN_PSEUDO)
 		return;
 
 	p->ignoredtmf = 0;
 
-#ifdef DAHDI_TONEDETECT
 	val = DAHDI_TONEDETECT_ON | DAHDI_TONEDETECT_MUTE;
 	ioctl(p->subs[SUB_REAL].zfd, DAHDI_TONEDETECT, &val);
-#endif		
+
 	if (!p->hardwaredtmf && p->dsp) {
 		p->dsp_features |= DSP_FEATURE_DIGIT_DETECT;
 		ast_dsp_set_features(p->dsp, p->dsp_features);
@@ -4129,7 +4121,7 @@ static int attempt_transfer(struct dahdi_pvt *p)
 
 static int check_for_conference(struct dahdi_pvt *p)
 {
-	DAHDI_CONFINFO ci;
+	struct dahdi_confinfo ci;
 	/* Fine if we already have a master, etc */
 	if (p->master || (p->confno > -1))
 		return 0;
@@ -4156,7 +4148,7 @@ static int check_for_conference(struct dahdi_pvt *p)
 static int get_alarms(struct dahdi_pvt *p)
 {
 	int res;
-	DAHDI_SPANINFO zi;
+	struct dahdi_spaninfo zi;
 	struct dahdi_params params;
 
 	memset(&zi, 0, sizeof(zi));
@@ -4304,12 +4296,10 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 	}
 
 	switch (res) {
-#ifdef DAHDI_EVENT_EC_DISABLED
 		case DAHDI_EVENT_EC_DISABLED:
 			ast_verb(3, "Channel %d echo canceler disabled due to CED detection\n", p->channel);
 			p->echocanon = 0;
 			break;
-#endif
 		case DAHDI_EVENT_BITSCHANGED:
 			ast_log(LOG_WARNING, "Recieved bits changed on %s signalling?\n", sig2str(p->sig));
 		case DAHDI_EVENT_PULSE_START:
@@ -4696,7 +4686,6 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				ast_log(LOG_WARNING, "Don't know how to handle ring/off hook for signalling %d\n", p->sig);
 			}
 			break;
-#ifdef DAHDI_EVENT_RINGBEGIN
 		case DAHDI_EVENT_RINGBEGIN:
 			switch (p->sig) {
 			case SIG_FXSLS:
@@ -4708,7 +4697,6 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				break;
 			}
 			break;
-#endif			
 		case DAHDI_EVENT_RINGEROFF:
 			if (p->inalarm) break;
 			if ((p->radio || (p->oprmode < 0))) break;
@@ -5232,7 +5220,7 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 	/* make sure it sends initial key state as first frame */
 	if ((p->radio || (p->oprmode < 0)) && (!p->firstradio))
 	{
-		DAHDI_PARAMS ps;
+		struct dahdi_params ps;
 
 		ps.channo = p->channel;
 		if (ioctl(p->subs[SUB_REAL].zfd, DAHDI_GET_PARAMS, &ps) < 0) {
@@ -5834,7 +5822,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	int features;
 	struct ast_str *chan_name;
 	struct ast_variable *v;
-	DAHDI_PARAMS ps;
+	struct dahdi_params ps;
 	if (i->subs[index].owner) {
 		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
 		return NULL;
@@ -5896,18 +5884,14 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		    (i->outgoing && (i->callprogress & CALLPROGRESS_FAX_OUTGOING))) {
 			features |= DSP_FEATURE_FAX_DETECT;
 		}
-#ifdef DAHDI_TONEDETECT
 		x = DAHDI_TONEDETECT_ON | DAHDI_TONEDETECT_MUTE;
 		if (ioctl(i->subs[index].zfd, DAHDI_TONEDETECT, &x)) {
-#endif		
 			i->hardwaredtmf = 0;
 			features |= DSP_FEATURE_DIGIT_DETECT;
-#ifdef DAHDI_TONEDETECT
 		} else if (NEED_MFDETECT(i)) {
 			i->hardwaredtmf = 1;
 			features |= DSP_FEATURE_DIGIT_DETECT;
 		}
-#endif
 	}
 	if (features) {
 		if (i->dsp) {
@@ -6828,12 +6812,10 @@ static void *ss_thread(void *data)
 							ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
 
 							if (p->cid_signalling == CID_SIG_V23_JP) {
-#ifdef DAHDI_EVENT_RINGBEGIN
 								if (res == DAHDI_EVENT_RINGBEGIN) {
 									res = dahdi_set_hook(p->subs[SUB_REAL].zfd, DAHDI_OFFHOOK);
 									usleep(1);
 								}
-#endif
 							} else {
 								res = 0;
 								break;
@@ -7335,10 +7317,8 @@ static void *mwi_thread(void *data)
 			res = dahdi_get_event(mtd->pvt->subs[SUB_REAL].zfd);
 
 			switch (res) {
-#ifdef HAVE_DAHDI_NEONMWI
 			case DAHDI_EVENT_NEONMWI_ACTIVE:
 			case DAHDI_EVENT_NEONMWI_INACTIVE:
-#endif
 			case DAHDI_EVENT_NONE:
 			case DAHDI_EVENT_BITSCHANGED:
 				break;
@@ -7821,7 +7801,6 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 				i->channel);
 		dahdi_destroy_channel_bynum(i->channel);
 		break;
-#ifdef HAVE_DAHDI_NEONMWI
 	case DAHDI_EVENT_NEONMWI_ACTIVE:
 		if (i->mwimonitor_neon) {
 			notify_message(i->mailbox, 1);
@@ -7834,7 +7813,6 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 			ast_log(LOG_NOTICE, "NEON MWI cleared for channel %d, mailbox %s\n", i->channel, i->mailbox);
 		}
 		break;
-#endif
 	}
 	return thread_spawned;
 }
@@ -7931,12 +7909,10 @@ static void *do_monitor(void *data)
 								pthread_attr_t attr;
 								pthread_t threadid;
 								struct mwi_thread_data *mtd;
-#ifdef DAHDI_VMWI
 								res2 = ioctl(last->subs[SUB_REAL].zfd, DAHDI_VMWI, res);
 								if (res2) {
 									ast_log(LOG_DEBUG, "Unable to control message waiting led on channel %d: %s\n", last->channel, strerror(errno));
 								}
-#endif
 								pthread_attr_init(&attr);
 								pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 								if ((mtd = ast_calloc(1, sizeof(*mtd)))) {
@@ -8116,7 +8092,7 @@ static int pri_resolve_span(int *span, int channel, int offset, struct dahdi_spa
 static int pri_create_trunkgroup(int trunkgroup, int *channels)
 {
 	struct dahdi_spaninfo si;
-	DAHDI_PARAMS p;
+	struct dahdi_params p;
 	int fd;
 	int span;
 	int ospan=0;
@@ -8237,7 +8213,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 	int x;
 	struct dahdi_pvt **wlist;
 	struct dahdi_pvt **wend;
-	DAHDI_PARAMS p;
+	struct dahdi_params p;
 
 	wlist = &iflist;
 	wend = &ifend;
@@ -8780,7 +8756,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t groupmatch, int *busy, int *channelmatched, int *groupmatched)
 {
 	int res;
-	DAHDI_PARAMS par;
+	struct dahdi_params par;
 
 	/* First, check group matching */
 	if (groupmatch) {
@@ -8852,11 +8828,7 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 				if (par.rxisoffhook)
 					return 1;
 				else
-#ifdef DAHDI_CHECK_HOOKSTATE
 					return 0;
-#else
-					return 1;
-#endif
 			} else if (par.rxisoffhook) {
 				ast_debug(1, "Channel %d off hook, can't use\n", p->channel);
 				/* Not available when the other end is off hook */
@@ -8896,7 +8868,7 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 static struct dahdi_pvt *chandup(struct dahdi_pvt *src)
 {
 	struct dahdi_pvt *p;
-	DAHDI_BUFFERINFO bi;
+	struct dahdi_bufferinfo bi;
 	int res;
 	
 	if ((p = ast_malloc(sizeof(*p)))) {
@@ -10020,7 +9992,7 @@ static int pri_find_principle(struct dahdi_pri *pri, int channel)
 	int x;
 	int span = PRI_SPAN(channel);
 	int spanfd;
-	DAHDI_PARAMS param;
+	struct dahdi_params param;
 	int principle = -1;
 	int explicit = PRI_EXPLICIT(channel);
 	channel = PRI_CHANNEL(channel);
@@ -11428,8 +11400,8 @@ static void *pri_dchannel(void *vpri)
 static int start_pri(struct dahdi_pri *pri)
 {
 	int res, x;
-	DAHDI_PARAMS p;
-	DAHDI_BUFFERINFO bi;
+	struct dahdi_params p;
+	struct dahdi_bufferinfo bi;
 	struct dahdi_spaninfo si;
 	int i;
 	
@@ -12090,8 +12062,8 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 {
 	int channel;
 	struct dahdi_pvt *tmp = NULL;
-	DAHDI_CONFINFO ci;
-	DAHDI_PARAMS ps;
+	struct dahdi_confinfo ci;
+	struct dahdi_params ps;
 	int x;
 	ast_mutex_t *lock;
 	struct dahdi_pvt *start;
@@ -12241,11 +12213,9 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 				if (!ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_GETCONF, &ci)) {
 					ast_cli(a->fd, "Actual Confinfo: Num/%d, Mode/0x%04x\n", ci.confno, ci.confmode);
 				}
-#ifdef DAHDI_GETCONFMUTE
 				if (!ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_GETCONFMUTE, &x)) {
 					ast_cli(a->fd, "Actual Confmute: %s\n", x ? "Yes" : "No");
 				}
-#endif
 				if (ioctl(tmp->subs[SUB_REAL].zfd, DAHDI_GET_PARAMS, &ps) < 0) {
 					ast_log(LOG_WARNING, "Failed to get parameters on channel %d: %s\n", tmp->channel, strerror(errno));
 				} else {
@@ -12302,19 +12272,14 @@ static char *handle_dahdi_show_cadences(struct ast_cli_entry *e, int cmd, struct
 /* Based on irqmiss.c */
 static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a) 
 {
-#ifdef DAHDI_SPANINFO_HAS_LINECONFIG
 	#define FORMAT "%-40.40s %-7.7s %-6d %-6d %-6d %-3.3s %-4.4s %-8.8s %s\n"
 	#define FORMAT2 "%-40.40s %-7.7s %-6.6s %-6.6s %-6.6s %-3.3s %-4.4s %-8.8s %s\n"
-#else
-	#define FORMAT "%-40.40s %-10.10s %-10d %-10d %-10d\n"
-	#define FORMAT2 "%-40.40s %-10.10s %-10.10s %-10.10s %-10.10s\n"
-#endif
 	int span;
 	int res;
 	char alarms[50];
 
 	int ctl;
-	DAHDI_SPANINFO s;
+	struct dahdi_spaninfo s;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -12331,11 +12296,7 @@ static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_cli(a->fd, "No DAHDI found. Unable to open /dev/dahdi/ctl: %s\n", strerror(errno));
 		return CLI_FAILURE;
 	}
-	ast_cli(a->fd, FORMAT2, "Description", "Alarms", "IRQ", "bpviol", "CRC4"
-#ifdef DAHDI_SPANINFO_HAS_LINECONFIG
-			, "Framing", "Coding", "Options", "LBO"
-#endif
-		);
+	ast_cli(a->fd, FORMAT2, "Description", "Alarms", "IRQ", "bpviol", "CRC4", "Framing", "Coding", "Options", "LBO");
 
 	for (span = 1; span < DAHDI_MAX_SPANS; ++span) {
 		s.spanno = span;
@@ -12371,7 +12332,6 @@ static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		}
 
 		ast_cli(a->fd, FORMAT, s.desc, alarms, s.irqmisses, s.bpvcount, s.crc4count
-#ifdef DAHDI_SPANINFO_HAS_LINECONFIG
 				, s.lineconfig & DAHDI_CONFIG_D4 ? "D4" :
 				  s.lineconfig & DAHDI_CONFIG_ESF ? "ESF" :
 				  s.lineconfig & DAHDI_CONFIG_CCS ? "CCS" :
@@ -12383,7 +12343,6 @@ static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 				, s.lineconfig & DAHDI_CONFIG_CRC4 ?
 				  s.lineconfig & DAHDI_CONFIG_NOTOPEN ? "CRC4/YEL" : "CRC4" : "YEL"
 				, lbostr[s.lbo]
-#endif
 			);
 	}
 	close(ctl);
@@ -12954,8 +12913,8 @@ static int linkset_addsigchan(int sigchan)
 	struct dahdi_ss7 *link;
 	int res;
 	int curfd;
-	DAHDI_PARAMS p;
-	DAHDI_BUFFERINFO bi;
+	struct dahdi_params p;
+	struct dahdi_bufferinfo bi;
 	struct dahdi_spaninfo si;
 
 
@@ -14772,10 +14731,18 @@ static int reload(void)
  * AST_MODULE_INFO(, , "DAHDI Telephony"
  */
 
-#ifdef DAHDI_PRI
+#ifdef HAVE_PRI
+#ifdef HAVE_SS7
+#define tdesc "DAHDI Telephony w/PRI & SS7"
+#else
 #define tdesc "DAHDI Telephony w/PRI"
+#endif
+#else
+#ifdef HAVE_SS7
+#define tdesc "DAHDI Telephony w/SS7"
 #else
 #define tdesc "DAHDI Telephony"
+#endif
 #endif
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, tdesc,
