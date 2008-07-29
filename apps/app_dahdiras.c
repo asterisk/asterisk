@@ -191,7 +191,7 @@ static int dahdiras_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	char *args;
-	DAHDI_PARAMS dahdip;
+	struct dahdi_params dahdip;
 
 	if (!data) 
 		data = "";
