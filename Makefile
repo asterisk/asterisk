@@ -221,10 +221,16 @@ ifeq ($(OSARCH),linux-gnu)
 endif
 
 ifeq ($(findstring -save-temps,$(ASTCFLAGS)),)
-ASTCFLAGS+=-pipe
+  ifeq ($(findstring -pipe,$(ASTCFLAGS)),)
+    ASTCFLAGS+=-pipe
+  endif
 endif
 
-ASTCFLAGS+=-Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
+ifeq ($(findstring -Wall,$(ASTCFLAGS)),)
+  ASTCFLAGS+=-Wall
+endif
+
+ASTCFLAGS+=-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
 
 ASTCFLAGS+=-include $(ASTTOPDIR)/include/asterisk/autoconfig.h
 
@@ -237,8 +243,10 @@ ifneq ($(findstring BSD,$(OSARCH)),)
   ASTLDFLAGS+=-L/usr/local/lib
 endif
 
-ifneq ($(PROC),ultrasparc)
-  ASTCFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
+ifeq ($(findstring -march,$(ASTCFLAGS)),)
+  ifneq ($(PROC),ultrasparc)
+    ASTCFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
+  endif
 endif
 
 ifeq ($(PROC),ppc)
