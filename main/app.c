@@ -227,8 +227,12 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 		res = ast_waitfor(chan, 100);
 
 	/* ast_waitfor will return the number of remaining ms on success */
-	if (res < 0)
+	if (res < 0) {
+		if (peer) {
+			ast_autoservice_stop(peer);
+		}
 		return res;
+	}
 
 	if (ast_opt_transmit_silence) {
 		silgen = ast_channel_start_silence_generator(chan);
