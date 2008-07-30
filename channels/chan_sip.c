@@ -10589,6 +10589,8 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 	if (ast_strlen_zero(tmp))
 		return 0;
 
+	params = strchr(tmp, ';');
+
 	exten = get_in_brackets(tmp);
 	if (!strncasecmp(exten, "sip:", 4)) {
 		exten += 4;
@@ -10600,7 +10602,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 	}
 
 	/* Get diversion-reason param if present */
-	if ((params = strchr(tmp, ';'))) {
+	if (params) {
 		*params = '\0';	/* Cut off parameters  */
 		params++;
 		while (*params == ';' || *params == ' ')
