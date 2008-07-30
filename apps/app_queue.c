@@ -127,6 +127,7 @@ static const struct strategy {
 	{ QUEUE_STRATEGY_FEWESTCALLS, "fewestcalls" },
 	{ QUEUE_STRATEGY_RANDOM, "random" },
 	{ QUEUE_STRATEGY_RRMEMORY, "rrmemory" },
+	{ QUEUE_STRATEGY_RRMEMORY, "roundrobin" },
 	{ QUEUE_STRATEGY_LINEAR, "linear" },
 	{ QUEUE_STRATEGY_WRANDOM, "wrandom"},
 };
