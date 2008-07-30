@@ -1541,23 +1541,37 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 	int res;
 	int authpass=0;
 	unsigned char *bufcpy;
-	struct dundi_ie_data ied;
-	struct dundi_ies ies;
+#ifdef LOW_MEMORY
+	struct dundi_ie_data *ied = ast_calloc(1, sizeof(*ied));
+#else
+	struct dundi_ie_data _ied = {
+		.pos = 0,	
+	};
+	struct dundi_ie_data *ied = &_ied;
+#endif
+	struct dundi_ies ies = {
+		.eidcount = 0,	
+	};
 	struct dundi_peer *peer = NULL;
 	char eid_str[20];
 	char eid_str2[20];
-	memset(&ied, 0, sizeof(ied));
-	memset(&ies, 0, sizeof(ies));
+	int retval = -1;
+
+	if (!ied) {
+		return -1;
+	}
+
 	if (datalen) {
 		bufcpy = alloca(datalen);
-		if (!bufcpy)
-			return -1;
+		if (!bufcpy) {
+			goto return_cleanup;
+		}
 		/* Make a copy for parsing */
 		memcpy(bufcpy, hdr->ies, datalen);
 		ast_log(LOG_DEBUG, "Got canonical message %d (%d), %d bytes data%s\n", cmd, hdr->oseqno, datalen, final ? " (Final)" : "");
 		if (dundi_parse_ies(&ies, bufcpy, datalen) < 0) {
 			ast_log(LOG_WARNING, "Failed to parse DUNDI information elements!\n");
-			return -1;
+			goto return_cleanup;
 		}
 	}
 	switch(cmd) {
@@ -1573,8 +1587,8 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 		/* A dialplan or entity discover -- qualify by highest level entity */
 		peer = find_peer(ies.eids[0]);
 		if (!peer) {
-			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, NULL);
-			dundi_send(trans, resp, 0, 1, &ied);
+			dundi_ie_append_cause(ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, NULL);
+			dundi_send(trans, resp, 0, 1, ied);
 		} else {
 			int hasauth = 0;
 			trans->us_eid = peer->us_eid;
@@ -1591,16 +1605,16 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 				} else {
 					if (ast_strlen_zero(ies.called_number)) {
 						/* They're not permitted to access that context */
-						dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Invalid or missing number/entity");
-						dundi_send(trans, resp, 0, 1, &ied);
+						dundi_ie_append_cause(ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Invalid or missing number/entity");
+						dundi_send(trans, resp, 0, 1, ied);
 					} else if ((cmd == DUNDI_COMMAND_DPDISCOVER) && 
 					           (peer->model & DUNDI_MODEL_INBOUND) && 
 							   has_permission(&peer->permit, ies.called_context)) {
 						res = dundi_answer_query(trans, &ies, ies.called_context);
 						if (res < 0) {
 							/* There is no such dundi context */
-							dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, "Unsupported DUNDI Context");
-							dundi_send(trans, resp, 0, 1, &ied);
+							dundi_ie_append_cause(ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, "Unsupported DUNDI Context");
+							dundi_send(trans, resp, 0, 1, ied);
 						}
 					} else if ((cmd = DUNDI_COMMAND_PRECACHERQ) && 
 					           (peer->pcmodel & DUNDI_MODEL_INBOUND) && 
@@ -1608,19 +1622,19 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 						res = dundi_prop_precache(trans, &ies, ies.called_context);
 						if (res < 0) {
 							/* There is no such dundi context */
-							dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, "Unsupported DUNDI Context");
-							dundi_send(trans, resp, 0, 1, &ied);
+							dundi_ie_append_cause(ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, "Unsupported DUNDI Context");
+							dundi_send(trans, resp, 0, 1, ied);
 						}
 					} else {
 						/* They're not permitted to access that context */
-						dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, "Permission to context denied");
-						dundi_send(trans, resp, 0, 1, &ied);
+						dundi_ie_append_cause(ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, "Permission to context denied");
+						dundi_send(trans, resp, 0, 1, ied);
 					}
 				}
 			} else {
 				/* They're not permitted to access that context */
-				dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, "Unencrypted responses not permitted");
-				dundi_send(trans, resp, 0, 1, &ied);
+				dundi_ie_append_cause(ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, "Unencrypted responses not permitted");
+				dundi_send(trans, resp, 0, 1, ied);
 			}
 		}
 		break;
@@ -1645,8 +1659,8 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 		}
 
 		if (!peer || !peer->dynamic) {
-			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, NULL);
-			dundi_send(trans, DUNDI_COMMAND_REGRESPONSE, 0, 1, &ied);
+			dundi_ie_append_cause(ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, NULL);
+			dundi_send(trans, DUNDI_COMMAND_REGRESPONSE, 0, 1, ied);
 		} else {
 			int hasauth = 0;
 			trans->us_eid = peer->us_eid;
@@ -1673,8 +1687,8 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 				}
 					
 				memcpy(&peer->addr, &trans->addr, sizeof(peer->addr));
-				dundi_ie_append_short(&ied, DUNDI_IE_EXPIRATION, default_expiration);
-				dundi_send(trans, DUNDI_COMMAND_REGRESPONSE, 0, 1, &ied);
+				dundi_ie_append_short(ied, DUNDI_IE_EXPIRATION, default_expiration);
+				dundi_send(trans, DUNDI_COMMAND_REGRESPONSE, 0, 1, ied);
 				if (needqual)
 					qualify_peer(peer, 1);
 			}
@@ -1830,8 +1844,8 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 			if (!hasauth) {
 				ast_log(LOG_NOTICE, "Reponse to register not authorized!\n");
 				if (!final) {
-					dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, "Improper signature in answer");
-					dundi_send(trans, DUNDI_COMMAND_CANCEL, 0, 1, &ied);
+					dundi_ie_append_cause(ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, "Improper signature in answer");
+					dundi_send(trans, DUNDI_COMMAND_CANCEL, 0, 1, ied);
 				}
 			} else {
 				ast_log(LOG_DEBUG, "Yay, we've registered as '%s' to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->us_eid),
@@ -1874,13 +1888,13 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 					memset(&ies, 0, sizeof(ies));
 					dundi_parse_ies(&ies, (AST_LIST_FIRST(&trans->lasttrans))->h->ies, (AST_LIST_FIRST(&trans->lasttrans))->datalen - sizeof(struct dundi_hdr));
 					/* Reconstruct outgoing encrypted packet */
-					memset(&ied, 0, sizeof(ied));
-					dundi_ie_append_eid(&ied, DUNDI_IE_EID, &trans->us_eid);
-					dundi_ie_append_raw(&ied, DUNDI_IE_SHAREDKEY, peer->txenckey, 128);
-					dundi_ie_append_raw(&ied, DUNDI_IE_SIGNATURE, peer->txenckey + 128, 128);
+					memset(ied, 0, sizeof(*ied));
+					dundi_ie_append_eid(ied, DUNDI_IE_EID, &trans->us_eid);
+					dundi_ie_append_raw(ied, DUNDI_IE_SHAREDKEY, peer->txenckey, 128);
+					dundi_ie_append_raw(ied, DUNDI_IE_SIGNATURE, peer->txenckey + 128, 128);
 					if (ies.encblock) 
-						dundi_ie_append_encdata(&ied, DUNDI_IE_ENCDATA, ies.encblock->iv, ies.encblock->encdata, ies.enclen);
-					dundi_send(trans, DUNDI_COMMAND_ENCRYPT, 0, (AST_LIST_FIRST(&trans->lasttrans))->h->cmdresp & 0x80, &ied);
+						dundi_ie_append_encdata(ied, DUNDI_IE_ENCDATA, ies.encblock->iv, ies.encblock->encdata, ies.enclen);
+					dundi_send(trans, DUNDI_COMMAND_ENCRYPT, 0, (AST_LIST_FIRST(&trans->lasttrans))->h->cmdresp & 0x80, ied);
 					peer->sentfullkey = 1;
 				}
 			}
@@ -1931,11 +1945,18 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 		/* Send unknown command if we don't know it, with final flag IFF it's the
 		   first command in the dialog and only if we haven't recieved final notification */
 		if (!final) {
-			dundi_ie_append_byte(&ied, DUNDI_IE_UNKNOWN, cmd);
-			dundi_send(trans, DUNDI_COMMAND_UNKNOWN, 0, !hdr->oseqno, &ied);
+			dundi_ie_append_byte(ied, DUNDI_IE_UNKNOWN, cmd);
+			dundi_send(trans, DUNDI_COMMAND_UNKNOWN, 0, !hdr->oseqno, ied);
 		}
 	}
-	return 0;
+
+	retval = 0;
+
+return_cleanup:
+#ifdef LOW_MEMORY
+	ast_free(ied);
+#endif
+	return retval;
 }
 
 static void destroy_packet(struct dundi_packet *pack, int needfree);
