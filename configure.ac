@@ -35,11 +35,13 @@ case "${host_os}" in
 
      *)
      ac_default_prefix=/usr
-     if test ${sysconfdir} = '${prefix}/etc'; then
-        sysconfdir=/etc
-     fi
-     if test ${mandir} = '${prefix}/man'; then
-        mandir=/usr/share/man
+     if test ${prefix} = '/usr'; then
+        if test ${sysconfdir} = '${prefix}/etc'; then
+           sysconfdir=/etc
+        fi
+        if test ${mandir} = '${prefix}/man'; then
+           mandir=/usr/share/man
+        fi
      fi
      ;;
 esac
