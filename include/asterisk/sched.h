@@ -158,7 +158,7 @@ int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, 
  * \param id ID of the scheduled item to delete
  * \return Returns 0 on success, -1 on failure
  */
-#ifndef DEVMODE
+#ifndef AST_DEVMODE
 int ast_sched_del(struct sched_context *con, int id);
 #else
 int _ast_sched_del(struct sched_context *con, int id, const char *file, int line, const char *function);
