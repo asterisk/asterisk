@@ -5696,7 +5696,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 			/* List Queue Members */
 			mem_iter = ao2_iterator_init(q->members, 0);
 			while ((mem = ao2_iterator_next(&mem_iter))) {
-				if (ast_strlen_zero(memberfilter) || !strcmp(mem->interface, memberfilter)) {
+				if (ast_strlen_zero(memberfilter) || !strcmp(mem->interface, memberfilter) || !strcmp(mem->membername, memberfilter)) {
 					astman_append(s, "Event: QueueMember\r\n"
 						"Queue: %s\r\n"
 						"Name: %s\r\n"
