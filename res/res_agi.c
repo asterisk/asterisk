@@ -112,9 +112,9 @@ static int agidebug = 0;
 #define AGI_PORT 4573
 
 enum agi_result {
+	AGI_RESULT_FAILURE = -1,
 	AGI_RESULT_SUCCESS,
 	AGI_RESULT_SUCCESS_FAST,
-	AGI_RESULT_FAILURE,
 	AGI_RESULT_HANGUP
 };
 
