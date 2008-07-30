@@ -85,6 +85,8 @@ static void curl_instance_cleanup(void *data)
 	CURL **curl = data;
 
 	curl_easy_cleanup(*curl);
+
+	ast_free(data);
 }
 
 AST_THREADSTORAGE_CUSTOM(curl_instance, curl_instance_init, curl_instance_cleanup);
