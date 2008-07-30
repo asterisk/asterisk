@@ -1235,6 +1235,21 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 	l = strlen(xferto);
 	snprintf(xferto + l, sizeof(xferto) - l, "@%s/n", transferer_real_context);	/* append context */
+
+	/* If we are performing an attended transfer and we have two channels involved then
+	   copy sound file information to play upon attended transfer completion */
+	if (transferee) {
+		const char *chan1_attended_sound = pbx_builtin_getvar_helper(transferer, "ATTENDED_TRANSFER_COMPLETE_SOUND");
+		const char *chan2_attended_sound = pbx_builtin_getvar_helper(transferee, "ATTENDED_TRANSFER_COMPLETE_SOUND");
+
+		if (!ast_strlen_zero(chan1_attended_sound)) {
+			pbx_builtin_setvar_helper(transferer, "BRIDGE_PLAY_SOUND", chan1_attended_sound);
+		}
+		if (!ast_strlen_zero(chan2_attended_sound)) {
+			pbx_builtin_setvar_helper(transferee, "BRIDGE_PLAY_SOUND", chan2_attended_sound);
+		}
+	}
+
 	newchan = ast_feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
 		xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1, transferer->language);
 

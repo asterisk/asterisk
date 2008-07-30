@@ -109,8 +109,6 @@ Application Changes
 
 SIP Changes
 -----------
- * The ATTENDED_TRANSFER_COMPLETE_SOUND can now be set using setvar to cause a given
-   audio file to be played upon completion of an attended transfer.
  * Added DNS manager support to registrations for peers referencing peer entries.
    DNS manager runs in the background which allows DNS lookups to be run asynchronously 
    as well as periodically updating the IP address. These properties allow for
@@ -179,6 +177,13 @@ Queue changes
   * A new configuration option, "timeoutpriority" has been added. Please see the section labeled
     "QUEUE TIMING OPTIONS" in configs/queues.conf.sample for a detailed explanation of the option
     as well as an explanation about timeout options in general
+
+Miscellaneous
+-------------
+  * The channel variable ATTENDED_TRANSFER_COMPLETE_SOUND can now be set using
+    the 'setvar' option to cause a given audio file to be played upon completion
+    of an attended transfer.  Currently it works for DAHDI, IAX2, SIP, and
+    Skinny channels only.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------

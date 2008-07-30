@@ -87,6 +87,10 @@ keepalive=120
 ;nat=yes
 ;callerid="George W. Bush" <202-456-1414>
 ;setvar=CUSTID=5678	; Channel variable to be set for all calls from this device
+;setvar=ATTENDED_TRANSFER_COMPLETE_SOUND=beep   ; This channel variable will
+                                                ; cause the given audio file to
+                                                ; be played upon completion of
+                                                ; an attended transfer.
 ;mailbox=500
 ;callwaiting=yes
 ;transfer=yes
