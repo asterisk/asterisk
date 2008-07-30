@@ -178,6 +178,15 @@ Queue changes
     "QUEUE TIMING OPTIONS" in configs/queues.conf.sample for a detailed explanation of the option
     as well as an explanation about timeout options in general
 
+Realtime changes
+----------------
+  * Several (ODBC, Postgres, MySQL, SQLite) realtime drivers have been given
+    adaptive capabilities.  What this means in practical terms is that if your
+    realtime table lacks critical fields, Asterisk will now emit warnings to
+    that effect.  Also, some of the realtime drivers have the ability (if
+    configured) to automatically add those columns to the table with the
+    correct type and length.
+
 Miscellaneous
 -------------
   * The channel variable ATTENDED_TRANSFER_COMPLETE_SOUND can now be set using
