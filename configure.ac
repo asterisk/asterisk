@@ -35,7 +35,7 @@ case "${host_os}" in
 
      *)
      ac_default_prefix=/usr
-     if test ${prefix} = '/usr'; then
+     if test ${prefix} = '/usr' || test ${prefix} = 'NONE'; then
         if test ${sysconfdir} = '${prefix}/etc'; then
            sysconfdir=/etc
         fi
