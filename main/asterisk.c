@@ -1991,25 +1991,34 @@ static int ast_el_read_char(EditLine *el, char *cp)
 	return (0);
 }
 
+static struct ast_str *prompt = NULL;
+
 static char *cli_prompt(EditLine *el)
 {
-	static char prompt[200];
+	char tmp[100];
 	char *pfmt;
 	int color_used = 0;
+	static int cli_prompt_changes = 0;
 	char term_code[20];
+	struct passwd *pw;
+	struct group *gr;
+
+	if (prompt == NULL) {
+		prompt = ast_str_create(100);
+	} else if (!cli_prompt_changes) {
+		return prompt->str;
+	} else {
+		ast_str_reset(prompt);
+	}
 
 	if ((pfmt = getenv("ASTERISK_PROMPT"))) {
-		char *t = pfmt, *p = prompt;
-		memset(prompt, 0, sizeof(prompt));
-		while (*t != '\0' && *p < sizeof(prompt)) {
+		char *t = pfmt;
+		struct timeval ts = ast_tvnow();
+		while (*t != '\0') {
 			if (*t == '%') {
-				char hostname[MAXHOSTNAMELEN]="";
-				int i;
-				struct timeval ts = ast_tvnow();
+				char hostname[MAXHOSTNAMELEN] = "";
+				int i, which;
 				struct ast_tm tm = { 0, };
-#ifdef linux
-				FILE *LOADAVG;
-#endif
 				int fgcolor = COLOR_WHITE, bgcolor = COLOR_BLACK;
 
 				t++;
@@ -2017,10 +2026,10 @@ static char *cli_prompt(EditLine *el)
 				case 'C': /* color */
 					t++;
 					if (sscanf(t, "%d;%d%n", &fgcolor, &bgcolor, &i) == 2) {
-						strncat(p, term_color_code(term_code, fgcolor, bgcolor, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
+						ast_str_append(&prompt, 0, "%s", term_color_code(term_code, fgcolor, bgcolor, sizeof(term_code)));
 						t += i - 1;
 					} else if (sscanf(t, "%d%n", &fgcolor, &i) == 1) {
-						strncat(p, term_color_code(term_code, fgcolor, 0, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
+						ast_str_append(&prompt, 0, "%s", term_color_code(term_code, fgcolor, 0, sizeof(term_code)));
 						t += i - 1;
 					}
 
@@ -2028,102 +2037,91 @@ static char *cli_prompt(EditLine *el)
 					color_used = ((fgcolor == COLOR_WHITE) && (bgcolor == COLOR_BLACK)) ? 0 : 1;
 					break;
 				case 'd': /* date */
-					if (ast_localtime(&ts, &tm, NULL))
-						ast_strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
+					if (ast_localtime(&ts, &tm, NULL)) {
+						ast_strftime(tmp, sizeof(tmp), "%Y-%m-%d", &tm);
+						ast_str_append(&prompt, 0, "%s", tmp);
+						cli_prompt_changes++;
+					}
+					break;
+				case 'g': /* group */
+					if ((gr = getgrgid(getgid()))) {
+						ast_str_append(&prompt, 0, "%s", gr->gr_name);
+					}
 					break;
 				case 'h': /* hostname */
-					if (!gethostname(hostname, sizeof(hostname) - 1))
-						strncat(p, hostname, sizeof(prompt) - strlen(prompt) - 1);
-					else
-						strncat(p, "localhost", sizeof(prompt) - strlen(prompt) - 1);
+					if (!gethostname(hostname, sizeof(hostname) - 1)) {
+						ast_str_append(&prompt, 0, "%s", hostname);
+					} else {
+						ast_str_append(&prompt, 0, "%s", "localhost");
+					}
 					break;
 				case 'H': /* short hostname */
 					if (!gethostname(hostname, sizeof(hostname) - 1)) {
-						for (i = 0; i < sizeof(hostname); i++) {
-							if (hostname[i] == '.') {
-								hostname[i] = '\0';
-								break;
-							}
+						char *dotptr;
+						if ((dotptr = strchr(hostname, '.'))) {
+							*dotptr = '\0';
 						}
-						strncat(p, hostname, sizeof(prompt) - strlen(prompt) - 1);
-					} else
-						strncat(p, "localhost", sizeof(prompt) - strlen(prompt) - 1);
+						ast_str_append(&prompt, 0, "%s", hostname);
+					} else {
+						ast_str_append(&prompt, 0, "%s", "localhost");
+					}
 					break;
-#ifdef linux
+#ifdef HAVE_GETLOADAVG
 				case 'l': /* load avg */
 					t++;
-					if ((LOADAVG = fopen("/proc/loadavg", "r"))) {
-						float avg1, avg2, avg3;
-						int actproc, totproc, npid, which;
-						fscanf(LOADAVG, "%f %f %f %d/%d %d",
-							&avg1, &avg2, &avg3, &actproc, &totproc, &npid);
-						if (sscanf(t, "%d", &which) == 1) {
-							switch (which) {
-							case 1:
-								snprintf(p, sizeof(prompt) - strlen(prompt), "%.2f", avg1);
-								break;
-							case 2:
-								snprintf(p, sizeof(prompt) - strlen(prompt), "%.2f", avg2);
-								break;
-							case 3:
-								snprintf(p, sizeof(prompt) - strlen(prompt), "%.2f", avg3);
-								break;
-							case 4:
-								snprintf(p, sizeof(prompt) - strlen(prompt), "%d/%d", actproc, totproc);
-								break;
-							case 5:
-								snprintf(p, sizeof(prompt) - strlen(prompt), "%d", npid);
-								break;
-							}
-						}
+					if (sscanf(t, "%d", &which) == 1 && which > 0 && which <= 3) {
+						double list[3];
+						getloadavg(list, 3);
+						ast_str_append(&prompt, 0, "%.2f", list[which - 1]);
+						cli_prompt_changes++;
 					}
 					break;
 #endif
 				case 's': /* Asterisk system name (from asterisk.conf) */
-					strncat(p, ast_config_AST_SYSTEM_NAME, sizeof(prompt) - strlen(prompt) - 1);
+					ast_str_append(&prompt, 0, "%s", ast_config_AST_SYSTEM_NAME);
 					break;
 				case 't': /* time */
-					if (ast_localtime(&ts, &tm, NULL))
-						ast_strftime(p, sizeof(prompt) - strlen(prompt), "%H:%M:%S", &tm);
+					if (ast_localtime(&ts, &tm, NULL)) {
+						ast_strftime(tmp, sizeof(tmp), "%H:%M:%S", &tm);
+						ast_str_append(&prompt, 0, "%s", tmp);
+						cli_prompt_changes++;
+					}
+					break;
+				case 'u': /* username */
+					if ((pw = getpwuid(getuid()))) {
+						ast_str_append(&prompt, 0, "%s", pw->pw_name);
+					}
 					break;
 				case '#': /* process console or remote? */
-					if (!ast_opt_remote) 
-						strncat(p, "#", sizeof(prompt) - strlen(prompt) - 1);
-					else
-						strncat(p, ">", sizeof(prompt) - strlen(prompt) - 1);
+					ast_str_append(&prompt, 0, "%c", ast_opt_remote ? '>' : '#');
 					break;
 				case '%': /* literal % */
-					strncat(p, "%", sizeof(prompt) - strlen(prompt) - 1);
+					ast_str_append(&prompt, 0, "%c", '%');
 					break;
 				case '\0': /* % is last character - prevent bug */
 					t--;
 					break;
 				}
-				while (*p != '\0')
-					p++;
 				t++;
 			} else {
-				*p = *t;
-				p++;
-				t++;
+				if (prompt->used + 5 > prompt->len) {
+					ast_str_make_space(&prompt, prompt->len + 5);
+				}
+				prompt->str[prompt->used++] = *t++;
+				prompt->str[prompt->used] = '\0';
 			}
 		}
 		if (color_used) {
 			/* Force colors back to normal at end */
-			term_color_code(term_code, COLOR_WHITE, COLOR_BLACK, sizeof(term_code));
-			if (strlen(term_code) > sizeof(prompt) - strlen(prompt) - 1) {
-				ast_copy_string(prompt + sizeof(prompt) - strlen(term_code) - 1, term_code, strlen(term_code) + 1);
-			} else {
-				/* This looks wrong, but we've already checked the length of term_code to ensure it's safe */
-				strncat(p, term_code, sizeof(term_code));
-			}
+			ast_str_append(&prompt, 0, "%s", term_color_code(term_code, COLOR_WHITE, COLOR_BLACK, sizeof(term_code)));
 		}
-	} else if (remotehostname)
-		snprintf(prompt, sizeof(prompt), ASTERISK_PROMPT2, remotehostname);
-	else
-		ast_copy_string(prompt, ASTERISK_PROMPT, sizeof(prompt));
+	} else if (remotehostname) {
+		ast_str_set(&prompt, 0, ASTERISK_PROMPT2, remotehostname);
+	} else {
+		ast_str_set(&prompt, 0, "%s", ASTERISK_PROMPT);
+	}
 
-	return(prompt);	
+	return(prompt->str);	
 }
 
 static char **ast_el_strtoarr(char *buf)
