@@ -220,14 +220,14 @@ static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, 
 	return NULL;
 
 out404:
-	*status = 404;
-	*title = ast_strdup("Not Found");
-	return ast_http_error(404, "Not Found", NULL, "Nothing to see here.  Move along.");
+	return ast_http_error((*status = 404),
+			      (*title = ast_strdup("Not Found")),
+			       NULL, "The requested URL was not found on this server.");
 
 out403:
-	*status = 403;
-	*title = ast_strdup("Access Denied");
-	return ast_http_error(403, "Access Denied", NULL, "Sorry, I cannot let you do that, Dave.");
+	return ast_http_error((*status = 403),
+			      (*title = ast_strdup("Access Denied")),
+			      NULL, "You do not have permission to access the requested URL.");
 }
 
 
@@ -638,10 +638,10 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 		if (!strcasecmp(uri, redirect->target)) {
 			char buf[512];
 			snprintf(buf, sizeof(buf), "Location: %s\r\n", redirect->dest);
-			out = ast_http_error(302, "Moved Temporarily", buf,
-				"There is no spoon...");
-			*status = 302;
-			*title = ast_strdup("Moved Temporarily");
+			out = ast_http_error((*status = 302),
+					     (*title = ast_strdup("Moved Temporarily")),
+					     buf, "Redirecting...");
+
 			break;
 		}
 	}
