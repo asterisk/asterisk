@@ -999,9 +999,11 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 
 #if !defined(LOW_MEMORY)
 	struct iax_frames *iax_frames = NULL;
+	struct iax_frame *smallest;
 
 	/* Attempt to get a frame from this thread's cache */
 	if ((iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
+		smallest = AST_LIST_FIRST(&iax_frames->list);
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&iax_frames->list, fr, list) {
 			if (fr->afdatalen >= datalen) {
 				size_t afdatalen = fr->afdatalen;
@@ -1010,12 +1012,21 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 				memset(fr, 0, sizeof(*fr));
 				fr->afdatalen = afdatalen;
 				break;
+			} else if (smallest->afdatalen > fr->afdatalen) {
+				smallest = fr;
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
 	}
 	if (!fr) {
-		if (!(fr = ast_calloc_cache(1, sizeof(*fr) + datalen)))
+		if (iax_frames->size >= FRAME_CACHE_MAX_SIZE && smallest) {
+			/* Make useless cache into something more useful */
+			AST_LIST_REMOVE(&iax_frames->list, smallest, list);
+			if (!(fr = ast_realloc(smallest, sizeof(*fr) + datalen))) {
+				AST_LIST_INSERT_TAIL(&iax_frames->list, smallest, list);
+				return NULL;
+			}
+		} else if (!(fr = ast_calloc_cache(1, sizeof(*fr) + datalen)))
 			return NULL;
 		fr->afdatalen = datalen;
 	}
@@ -1065,7 +1076,13 @@ void iax_frame_free(struct iax_frame *fr)
 
 	if (iax_frames->size < FRAME_CACHE_MAX_SIZE) {
 		fr->direction = 0;
-		AST_LIST_INSERT_HEAD(&iax_frames->list, fr, list);
+		/* Pseudo-sort: keep smaller frames at the top of the list. This should
+		 * increase the chance that we pick the smallest applicable frame for use. */
+		if (AST_LIST_FIRST(&iax_frames->list) && AST_LIST_FIRST(&iax_frames->list)->afdatalen < fr->afdatalen) {
+			AST_LIST_INSERT_TAIL(&iax_frames->list, fr, list);
+		} else {
+			AST_LIST_INSERT_HEAD(&iax_frames->list, fr, list);
+		}
 		iax_frames->size++;
 		return;
 	}
