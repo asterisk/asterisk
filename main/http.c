@@ -167,12 +167,12 @@ static char *static_callback(struct sockaddr_in *req, const char *uri, struct as
 out404:
 	*status = 404;
 	*title = strdup("Not Found");
-	return ast_http_error(404, "Not Found", NULL, "Nothing to see here.  Move along.");
+	return ast_http_error(404, "Not Found", NULL, "The requested URL was not found on this server.");
 
 out403:
 	*status = 403;
 	*title = strdup("Access Denied");
-	return ast_http_error(403, "Access Denied", NULL, "Sorry, I cannot let you do that, Dave.");
+	return ast_http_error(403, "Access Denied", NULL, "You do not have permission to access the requested URL.");
 }
 
 
@@ -367,7 +367,7 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status,
 		ast_rwlock_unlock(&uris_lock);
 	} else if (ast_strlen_zero(uri) && ast_strlen_zero(prefix)) {
 		/* Special case: If no prefix, and no URI, send to /static/index.html */
-		c = ast_http_error(302, "Moved Temporarily", "Location: /static/index.html\r\n", "This is not the page you are looking for...");
+		c = ast_http_error(302, "Moved Temporarily", "Location: /static/index.html\r\n", "Redirecting to /static/index.html.");
 		*status = 302;
 		*title = strdup("Moved Temporarily");
 	} else {
