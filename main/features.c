@@ -2070,6 +2070,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	struct ast_option_header *aoh;
 	struct ast_bridge_config backup_config;
 	struct ast_cdr *bridge_cdr = NULL;
+	struct ast_cdr *orig_peer_cdr = NULL;
 
 	memset(&backup_config, 0, sizeof(backup_config));
 
@@ -2107,6 +2108,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 
 	ast_copy_string(orig_channame,chan->name,sizeof(orig_channame));
 	ast_copy_string(orig_peername,peer->name,sizeof(orig_peername));
+	orig_peer_cdr = peer->cdr;
 	
 	if (!chan->cdr || (chan->cdr && !ast_test_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED))) {
 		
@@ -2141,8 +2143,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		ast_cdr_answer(bridge_cdr);
 		ast_cdr_answer(chan->cdr); /* for the sake of cli status checks */
 		ast_set_flag(chan->cdr, AST_CDR_FLAG_BRIDGED);
-		if (peer->cdr)
+		if (peer->cdr) {
 			ast_set_flag(peer->cdr, AST_CDR_FLAG_BRIDGED);
+		}
 	}
 	for (;;) {
 		struct ast_channel *other;	/* used later */
@@ -2313,10 +2316,17 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		ast_cdr_detach(bridge_cdr);
 		
 		/* just in case, these channels get bridged again before hangup */
-		if (chan->cdr)
+		if (chan->cdr) {
 			ast_cdr_specialized_reset(chan->cdr,0);
-		if (peer->cdr)
-			ast_cdr_specialized_reset(peer->cdr,0);
+		}
+		if (peer->cdr) {
+			if (orig_peer_cdr && peer->cdr != orig_peer_cdr) {
+				/* this can only happen if there was a transfer, methinks */
+				ast_cdr_specialized_reset(orig_peer_cdr,0);
+			} else {
+				ast_cdr_specialized_reset(peer->cdr,0);
+			}
+		}
 	}
 	return res;
 }
