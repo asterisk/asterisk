@@ -48,8 +48,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/options.h"
 
-#define ICES "/usr/bin/ices"
-#define LOCAL_ICES "/usr/local/bin/ices"
+#define path_BIN "/usr/bin/"
+#define path_LOCAL "/usr/local/bin/"
 
 static char *app = "ICES";
 
@@ -58,8 +58,7 @@ static char *synopsis = "Encode and stream using 'ices'";
 static char *descrip = 
 "  ICES(config.xml) Streams to an icecast server using ices\n"
 "(available separately).  A configuration file must be supplied\n"
-"for ices (see examples/asterisk-ices.conf). \n";
-
+"for ices (see contrib/asterisk-ices.xml). \n";
 
 static int icesencode(char *filename, int fd)
 {
@@ -89,13 +88,24 @@ static int icesencode(char *filename, int fd)
 		if ((x != STDIN_FILENO) && (x != STDOUT_FILENO))
 			close(x);
 	}
-	/* Most commonly installed in /usr/local/bin */
-	execl(ICES, "ices", filename, (char *)NULL);
-	/* But many places has it in /usr/bin */
-	execl(LOCAL_ICES, "ices", filename, (char *)NULL);
-	/* As a last-ditch effort, try to use PATH */
-	execlp("ices", "ices", filename, (char *)NULL);
-	ast_log(LOG_WARNING, "Execute of ices failed\n");
+
+	/* Most commonly installed in /usr/local/bin 
+	 * But many places has it in /usr/bin 
+	 * As a last-ditch effort, try to use PATH
+	 */
+	execl(path_LOCAL "ices2", "ices", filename, NULL);
+	execl(path_BIN "ices2", "ices", filename, NULL);
+	execlp("ices2", "ices", filename, NULL);
+
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Couldn't find ices version 2, attempting to use ices version 1.");
+
+	execl(path_LOCAL "ices", "ices", filename, NULL);
+	execl(path_BIN "ices", "ices", filename, NULL);
+	execlp("ices", "ices", filename, NULL);
+
+	ast_log(LOG_WARNING, "Execute of ices failed, could not be found.\n");
+	close(fd);
 	_exit(0);
 }
 
@@ -161,7 +171,6 @@ static int ices_exec(struct ast_channel *chan, void *data)
 	if (c)
 		*c = '\0';	
 	res = icesencode(filename, fds[0]);
-	close(fds[0]);
 	if (res >= 0) {
 		pid = res;
 		for (;;) {
@@ -192,6 +201,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 			ast_frfree(f);
 		}
 	}
+	close(fds[0]);
 	close(fds[1]);
 	
 	if (pid > -1)
