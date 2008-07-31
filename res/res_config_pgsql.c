@@ -991,7 +991,12 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 				PGresult *res;
 
 				if (requirements == RQ_CREATECHAR || type == RQ_CHAR) {
-					snprintf(fieldtype, sizeof(fieldtype), "CHAR(%d)", size);
+					/* Size is minimum length; make it at least 50% greater,
+					 * just to be sure, because PostgreSQL doesn't support
+					 * resizing columns. */
+					snprintf(fieldtype, sizeof(fieldtype), "CHAR(%d)",
+						size < 15 ? size * 2 :
+						(size * 3 / 2 > 255) ? 255 : size * 3 / 2);
 				} else if (type == RQ_INTEGER1 || type == RQ_UINTEGER1 || type == RQ_INTEGER2) {
 					snprintf(fieldtype, sizeof(fieldtype), "INT2");
 				} else if (type == RQ_UINTEGER2 || type == RQ_INTEGER3 || type == RQ_UINTEGER3 || type == RQ_INTEGER4) {
@@ -1008,6 +1013,7 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 				} else if (type == RQ_DATETIME) {
 					snprintf(fieldtype, sizeof(fieldtype), "TIMESTAMP");
 				} else {
+					ast_log(LOG_ERROR, "Unrecognized request type %d\n", type);
 					ast_free(sql);
 					continue;
 				}
@@ -1042,22 +1048,22 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 static int unload_pgsql(const char *database, const char *tablename)
 {
 	struct tables *cur;
-	ast_debug(1, "About to lock table cache list\n");
+	ast_debug(2, "About to lock table cache list\n");
 	AST_LIST_LOCK(&psql_tables);
-	ast_debug(1, "About to traverse table cache list\n");
+	ast_debug(2, "About to traverse table cache list\n");
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&psql_tables, cur, list) {
 		if (strcmp(cur->name, tablename) == 0) {
-			ast_debug(1, "About to remove matching cache entry\n");
+			ast_debug(2, "About to remove matching cache entry\n");
 			AST_LIST_REMOVE_CURRENT(list);
-			ast_debug(1, "About to destroy matching cache entry\n");
+			ast_debug(2, "About to destroy matching cache entry\n");
 			destroy_table(cur);
-			ast_debug(1, "Cache entry destroyed\n");
+			ast_debug(1, "Cache entry '%s@%s' destroyed\n", tablename, database);
 			break;
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&psql_tables);
-	ast_debug(1, "About to return\n");
+	ast_debug(2, "About to return\n");
 	return cur ? 0 : -1;
 }
 
