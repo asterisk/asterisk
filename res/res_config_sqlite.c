@@ -1580,9 +1580,9 @@ static char *handle_cli_show_sqlite_status(struct ast_cli_entry *e, int cmd, str
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "show sqlite status";
+		e->command = "sqlite show status";
 		e->usage =
-			"Usage: show sqlite status\n"
+			"Usage: sqlite show status\n"
 			"       Show status information about the SQLite 2 driver\n";
 		return NULL;
 	case CLI_GENERATE:
