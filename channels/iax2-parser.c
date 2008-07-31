@@ -54,7 +54,14 @@ AST_THREADSTORAGE_CUSTOM(frame_cache, NULL, frame_cache_cleanup);
 
 /*! \brief This is just so iax_frames, a list head struct for holding a list of
  *  iax_frame structures, is defined. */
-AST_LIST_HEAD_NOLOCK(iax_frames, iax_frame);
+AST_LIST_HEAD_NOLOCK(iax_frame_list, iax_frame);
+
+struct iax_frames {
+	struct iax_frame_list list;
+	size_t size;
+};
+
+#define FRAME_CACHE_MAX_SIZE	20
 #endif
 
 static void internaloutput(const char *str)
@@ -995,10 +1002,11 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 
 	/* Attempt to get a frame from this thread's cache */
 	if ((iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
-		AST_LIST_TRAVERSE_SAFE_BEGIN(iax_frames, fr, list) {
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&iax_frames->list, fr, list) {
 			if (fr->afdatalen >= datalen) {
 				size_t afdatalen = fr->afdatalen;
 				AST_LIST_REMOVE_CURRENT(list);
+				iax_frames->size--;
 				memset(fr, 0, sizeof(*fr));
 				fr->afdatalen = afdatalen;
 				break;
@@ -1055,11 +1063,14 @@ void iax_frame_free(struct iax_frame *fr)
 		return;
 	}
 
-	fr->direction = 0;
-	AST_LIST_INSERT_HEAD(iax_frames, fr, list);
-#else
-	ast_free(fr);
+	if (iax_frames->size < FRAME_CACHE_MAX_SIZE) {
+		fr->direction = 0;
+		AST_LIST_INSERT_HEAD(&iax_frames->list, fr, list);
+		iax_frames->size++;
+		return;
+	}
 #endif
+	ast_free(fr);
 }
 
 #if !defined(LOW_MEMORY)
@@ -1068,7 +1079,7 @@ static void frame_cache_cleanup(void *data)
 	struct iax_frames *frames = data;
 	struct iax_frame *cur;
 
-	while ((cur = AST_LIST_REMOVE_HEAD(frames, list)))
+	while ((cur = AST_LIST_REMOVE_HEAD(&frames->list, list)))
 		ast_free(cur);
 
 	ast_free(frames);
