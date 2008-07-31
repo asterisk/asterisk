@@ -228,12 +228,12 @@ static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, 
 out404:
 	return ast_http_error((*status = 404),
 			      (*title = ast_strdup("Not Found")),
-			       NULL, "Nothing to see here.  Move along.");
+			       NULL, "The requested URL was not found on this server.");
 
 out403:
 	return ast_http_error((*status = 403),
 			      (*title = ast_strdup("Access Denied")),
-			      NULL, "Sorry, I cannot let you do that, Dave.");
+			      NULL, "You do not have permission to access the requested URL.");
 }
 
 
@@ -480,7 +480,7 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 			snprintf(buf, sizeof(buf), "Location: %s\r\n", redirect->dest);
 			out = ast_http_error((*status = 302),
 					     (*title = ast_strdup("Moved Temporarily")),
-					     buf, "There is no spoon...");
+					     buf, "Redirecting...");
 
 			break;
 		}
@@ -544,7 +544,7 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 	if (method == AST_HTTP_POST && !astman_is_authed(manid_from_vars(vars))) {
 		out = ast_http_error((*status = 403),
 			      (*title = ast_strdup("Access Denied")),
-			      NULL, "Sorry, I cannot let you do that, Dave.");
+			      NULL, "You do not have permission to access the requested URL.");
 	} else if (urih) {
 		*static_content = urih->static_content;
 		out = urih->callback(ser, urih, uri, method, vars, headers, status, title, contentlength);
