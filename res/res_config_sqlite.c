@@ -124,7 +124,7 @@ MACRO_END
 
 /*!
  * Maximum number of loops before giving up executing a query. Calls to
- * sqlite_xxx() functions which can return SQLITE_BUSY or SQLITE_LOCKED
+ * sqlite_xxx() functions which can return SQLITE_BUSY
  * are enclosed by RES_CONFIG_SQLITE_BEGIN and RES_CONFIG_SQLITE_END, e.g.
  * <pre>
  * char *errormsg;
@@ -157,7 +157,7 @@ MACRO_BEGIN								\
  * \see RES_CONFIG_SQLITE_MAX_LOOPS.
  */
 #define RES_CONFIG_SQLITE_END(error)					\
-		if (error != SQLITE_BUSY && error != SQLITE_LOCKED)	\
+		if (error != SQLITE_BUSY)	\
 			break;						\
 		usleep(1000);						\
 	}								\
@@ -775,7 +775,7 @@ static void unload_config(void)
 
 static int cdr_handler(struct ast_cdr *cdr)
 {
-	char *errormsg, *tmp, workspace[500];
+	char *errormsg = NULL, *tmp, workspace[500];
 	int error, scannum;
 	struct sqlite_cache_tables *tbl = find_table(cdr_table);
 	struct sqlite_cache_columns *col;
@@ -830,10 +830,11 @@ static int cdr_handler(struct ast_cdr *cdr)
 	ast_free(sql1);
 
 	if (error) {
-		ast_log(LOG_ERROR, "%s\n", errormsg);
+		ast_log(LOG_ERROR, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 		sqlite_freemem(errormsg);
 		return 1;
 	}
+	sqlite_freemem(errormsg);
 
 	return 0;
 }
@@ -901,7 +902,7 @@ static struct ast_config *config_handler(const char *database,	const char *table
 	struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl, const char *who_asked)
 {
 	struct cfg_entry_args args;
-	char *query, *errormsg;
+	char *query, *errormsg = NULL;
 	int error;
 
 	if (!config_table) {
@@ -938,10 +939,11 @@ static struct ast_config *config_handler(const char *database,	const char *table
 	sqlite_freemem(query);
 
 	if (error) {
-		ast_log(LOG_ERROR, "%s\n", errormsg);
+		ast_log(LOG_ERROR, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 		sqlite_freemem(errormsg);
 		return NULL;
 	}
+	sqlite_freemem(errormsg);
 
 	return cfg;
 }
@@ -1015,7 +1017,7 @@ static int add_rt_cfg_entry(void *arg, int argc, char **argv, char **columnNames
 
 static struct ast_variable * realtime_handler(const char *database, const char *table, va_list ap)
 {
-	char *query, *errormsg, *op, *tmp_str;
+	char *query, *errormsg = NULL, *op, *tmp_str;
 	struct rt_cfg_entry_args args;
 	const char **params, **vals;
 	size_t params_count;
@@ -1093,11 +1095,12 @@ static struct ast_variable * realtime_handler(const char *database, const char *
 	sqlite_freemem(query);
 
 	if (error) {
-		ast_log(LOG_WARNING, "%s\n", errormsg);
+		ast_log(LOG_WARNING, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 		sqlite_freemem(errormsg);
 		ast_variables_destroy(args.var);
 		return NULL;
 	}
+	sqlite_freemem(errormsg);
 
 	return args.var;
 }
@@ -1153,7 +1156,7 @@ static int add_rt_multi_cfg_entry(void *arg, int argc, char **argv, char **colum
 static struct ast_config *realtime_multi_handler(const char *database,
 	const char *table, va_list ap)
 {
-	char *query, *errormsg, *op, *tmp_str, *initfield;
+	char *query, *errormsg = NULL, *op, *tmp_str, *initfield;
 	struct rt_multi_cfg_entry_args args;
 	const char **params, **vals;
 	struct ast_config *cfg;
@@ -1259,11 +1262,12 @@ static struct ast_config *realtime_multi_handler(const char *database,
 	ast_free(initfield);
 
 	if (error) {
-		ast_log(LOG_WARNING, "%s\n", errormsg);
+		ast_log(LOG_WARNING, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 		sqlite_freemem(errormsg);
 		ast_config_destroy(cfg);
 		return NULL;
 	}
+	sqlite_freemem(errormsg);
 
 	return cfg;
 }
@@ -1271,7 +1275,7 @@ static struct ast_config *realtime_multi_handler(const char *database,
 static int realtime_update_handler(const char *database, const char *table,
 	const char *keyfield, const char *entity, va_list ap)
 {
-	char *query, *errormsg, *tmp_str;
+	char *query, *errormsg = NULL, *tmp_str;
 	const char **params, **vals;
 	size_t params_count;
 	int error, rows_num;
@@ -1343,16 +1347,16 @@ static int realtime_update_handler(const char *database, const char *table,
 	sqlite_freemem(query);
 
 	if (error) {
-		ast_log(LOG_WARNING, "%s\n", errormsg);
-		sqlite_freemem(errormsg);
+		ast_log(LOG_WARNING, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 	}
+	sqlite_freemem(errormsg);
 
 	return rows_num;
 }
 
 static int realtime_store_handler(const char *database, const char *table, va_list ap)
 {
-	char *errormsg, *tmp_str, *tmp_keys = NULL, *tmp_keys2 = NULL, *tmp_vals = NULL, *tmp_vals2 = NULL;
+	char *errormsg = NULL, *tmp_str, *tmp_keys = NULL, *tmp_keys2 = NULL, *tmp_vals = NULL, *tmp_vals2 = NULL;
 	const char **params, **vals;
 	size_t params_count;
 	int error, rows_id;
@@ -1437,9 +1441,9 @@ static int realtime_store_handler(const char *database, const char *table, va_li
 	sqlite_freemem(tmp_str);
 
 	if (error) {
-		ast_log(LOG_WARNING, "%s\n", errormsg);
-		sqlite_freemem(errormsg);
+		ast_log(LOG_WARNING, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 	}
+	sqlite_freemem(errormsg);
 
 	return rows_id;
 }
@@ -1447,7 +1451,7 @@ static int realtime_store_handler(const char *database, const char *table, va_li
 static int realtime_destroy_handler(const char *database, const char *table,
 	const char *keyfield, const char *entity, va_list ap)
 {
-	char *query, *errormsg, *tmp_str;
+	char *query, *errormsg = NULL, *tmp_str;
 	const char **params, **vals;
 	size_t params_count;
 	int error, rows_num;
@@ -1514,9 +1518,9 @@ static int realtime_destroy_handler(const char *database, const char *table,
 	sqlite_freemem(query);
 
 	if (error) {
-		ast_log(LOG_WARNING, "%s\n", errormsg);
-		sqlite_freemem(errormsg);
+		ast_log(LOG_WARNING, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 	}
+	sqlite_freemem(errormsg);
 
 	return rows_num;
 }
@@ -1664,7 +1668,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	char *errormsg;
+	char *errormsg = NULL;
 	int error;
 
 	db = NULL;
@@ -1679,12 +1683,14 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 
 	if (!(db = sqlite_open(dbfile, 0660, &errormsg))) {
-		ast_log(LOG_ERROR, "%s\n", errormsg);
+		ast_log(LOG_ERROR, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 		sqlite_freemem(errormsg);
 		unload_module();
 		return 1;
 	}
 
+	sqlite_freemem(errormsg);
+	errormsg = NULL;
 	ast_config_engine_register(&sqlite_engine);
 
 	if (use_cdr) {
@@ -1716,13 +1722,14 @@ static int load_module(void)
 			 * Unexpected error.
 			 */
 			if (error != SQLITE_ERROR) {
-				ast_log(LOG_ERROR, "%s\n", errormsg);
+				ast_log(LOG_ERROR, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 				sqlite_freemem(errormsg);
 				unload_module();
 				return 1;
 			}
 
 			sqlite_freemem(errormsg);
+			errormsg = NULL;
 			query = sqlite_mprintf(sql_create_cdr_table, cdr_table);
 
 			if (!query) {
@@ -1740,12 +1747,14 @@ static int load_module(void)
 			sqlite_freemem(query);
 
 			if (error) {
-				ast_log(LOG_ERROR, "%s\n", errormsg);
+				ast_log(LOG_ERROR, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 				sqlite_freemem(errormsg);
 				unload_module();
 				return 1;
 			}
 		}
+		sqlite_freemem(errormsg);
+		errormsg = NULL;
 
 		error = ast_cdr_register(RES_CONFIG_SQLITE_NAME, RES_CONFIG_SQLITE_DESCRIPTION, cdr_handler);
 
