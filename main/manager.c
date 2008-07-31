@@ -75,6 +75,7 @@ struct fast_originate_helper {
 	char tech[AST_MAX_EXTENSION];
 	char data[AST_MAX_EXTENSION];
 	int timeout;
+	int format;
 	char app[AST_MAX_APP];
 	char appdata[AST_MAX_EXTENSION];
 	char cid_name[AST_MAX_EXTENSION];
@@ -1783,12 +1784,12 @@ static void *fast_originate(void *data)
 	char requested_channel[AST_CHANNEL_NAME];
 
 	if (!ast_strlen_zero(in->app)) {
-		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, 
+		res = ast_pbx_outgoing_app(in->tech, in->format, in->data, in->timeout, in->app, in->appdata, &reason, 1, 
 			S_OR(in->cid_num, NULL), 
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan);
 	} else {
-		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, 
+		res = ast_pbx_outgoing_exten(in->tech, in->format, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, 
 			S_OR(in->cid_num, NULL), 
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan);
@@ -1851,6 +1852,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 	const char *appdata = astman_get_header(m, "Data");
 	const char *async = astman_get_header(m, "Async");
 	const char *id = astman_get_header(m, "ActionID");
+	const char *codecs = astman_get_header(m, "Codecs");
 	struct ast_variable *vars = astman_get_variables(m);
 	char *tech, *data;
 	char *l = NULL, *n = NULL;
@@ -1860,6 +1862,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 	int reason = 0;
 	char tmp[256];
 	char tmp2[256];
+	int format = AST_FORMAT_SLINEAR;
 	
 	pthread_t th;
 	pthread_attr_t attr;
@@ -1896,6 +1899,10 @@ static int action_originate(struct mansession *s, const struct message *m)
 		if (ast_strlen_zero(l))
 			l = NULL;
 	}
+	if (!ast_strlen_zero(codecs)) {
+		format = 0;
+		ast_parse_allow_disallow(NULL, &format, codecs, 1);
+	}
 	if (ast_true(async)) {
 		struct fast_originate_helper *fast = ast_calloc(1, sizeof(*fast));
 		if (!fast) {
@@ -1915,6 +1922,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 			ast_copy_string(fast->context, context, sizeof(fast->context));
 			ast_copy_string(fast->exten, exten, sizeof(fast->exten));
 			ast_copy_string(fast->account, account, sizeof(fast->account));
+			fast->format = format;
 			fast->timeout = to;
 			fast->priority = pi;
 			pthread_attr_init(&attr);
@@ -1928,10 +1936,10 @@ static int action_originate(struct mansession *s, const struct message *m)
 			pthread_attr_destroy(&attr);
 		}
 	} else if (!ast_strlen_zero(app)) {
-        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);
+        	res = ast_pbx_outgoing_app(tech, format, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);
     	} else {
 		if (exten && context && pi)
-	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL);
+	        	res = ast_pbx_outgoing_exten(tech, format, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL);
 		else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;

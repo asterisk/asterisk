@@ -78,6 +78,8 @@ struct outgoing {
 	int waittime;
 	/* PID which is currently calling */
 	long callingpid;
+	/* Formats (codecs) for this call */
+	int format;
 	
 	/* What to connect to outgoing */
 	char tech[256];
@@ -115,6 +117,7 @@ static void init_outgoing(struct outgoing *o)
 	o->priority = 1;
 	o->retrytime = 300;
 	o->waittime = 45;
+	o->format = AST_FORMAT_SLINEAR;
 	ast_set_flag(&o->options, SPOOL_FLAG_ALWAYS_DELETE);
 }
 
@@ -190,6 +193,8 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 						ast_log(LOG_WARNING, "Invalid max retries at line %d of %s\n", lineno, fn);
 						o->maxretries = 0;
 					}
+				} else if (!strcasecmp(buf, "codecs")) {
+					ast_parse_allow_disallow(NULL, &o->format, c, 1);
 				} else if (!strcasecmp(buf, "context")) {
 					ast_copy_string(o->context, c, sizeof(o->context));
 				} else if (!strcasecmp(buf, "extension")) {
@@ -340,11 +345,11 @@ static void *attempt_thread(void *data)
 	if (!ast_strlen_zero(o->app)) {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for application %s(%s) (Retry %d)\n", o->tech, o->dest, o->app, o->data, o->retries);
-		res = ast_pbx_outgoing_app(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
+		res = ast_pbx_outgoing_app(o->tech, o->format, o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
 	} else {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for %s@%s:%d (Retry %d)\n", o->tech, o->dest, o->exten, o->context,o->priority, o->retries);
-		res = ast_pbx_outgoing_exten(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
+		res = ast_pbx_outgoing_exten(o->tech, o->format, o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
 	}
 	if (res) {
 		ast_log(LOG_NOTICE, "Call failed to go through, reason (%d) %s\n", reason, ast_channel_reason2str(reason));
