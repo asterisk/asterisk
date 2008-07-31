@@ -2842,6 +2842,12 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 			(res = say_position(qe,ringing)))
 			break;
 
+		/* If we have timed out, break out */
+		if (qe->expire && (time(NULL) > qe->expire)) {
+			*reason = QUEUE_TIMEOUT;
+			break;
+		}
+
 		/* Make a periodic announcement, if enabled */
 		if (qe->parent->periodicannouncefrequency &&
 			(res = say_periodic_announcement(qe,ringing)))
@@ -2852,12 +2858,24 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 			update_qe_rule(qe);
 		}
 
+		/* If we have timed out, break out */
+		if (qe->expire && (time(NULL) > qe->expire)) {
+			*reason = QUEUE_TIMEOUT;
+			break;
+		}
+		
 		/* Wait a second before checking again */
 		if ((res = ast_waitfordigit(qe->chan, RECHECK * 1000))) {
 			if (res > 0 && !valid_exit(qe, res))
 				res = 0;
 			else
 				break;
+		}
+		
+		/* If we have timed out, break out */
+		if (qe->expire && (time(NULL) > qe->expire)) {
+			*reason = QUEUE_TIMEOUT;
+			break;
 		}
 	}
 
@@ -3175,6 +3193,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	tmpid[0] = 0;
 	meid[0] = 0;
 	time(&now);
+
+	/* If we've already exceeded our timeout, then just stop
+	 * This should be extremely rare. queue_exec will take care
+	 * of removing the caller and reporting the timeout as the reason.
+	 */
+	if (qe->expire && now > qe->expire) {
+		res = 0;
+		goto out;
+	}
 		
 	for (; options && *options; options++)
 		switch (*options) {
@@ -4629,6 +4656,15 @@ check_turns:
 		if (qe.parent->periodicannouncefrequency)
 			if ((res = say_periodic_announcement(&qe,ringing)))
 				goto stop;
+	
+		/* Leave if we have exceeded our queuetimeout */
+		if (qe.expire && (time(NULL) > qe.expire)) {
+			record_abandoned(&qe);
+			reason = QUEUE_TIMEOUT;
+			res = 0;
+			ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+			break;
+		}
 
 		/* see if we need to move to the next penalty level for this queue */
 		while (qe.pr && ((time(NULL) - qe.start) > qe.pr->time)) {
@@ -4688,7 +4724,6 @@ check_turns:
 
 		/* If using dynamic realtime members, we should regenerate the member list for this queue */
 		update_realtime_members(qe.parent);
-
 		/* OK, we didn't get anybody; wait for 'retry' seconds; may get a digit to exit with */
 		res = wait_a_bit(&qe);
 		if (res)
