@@ -999,7 +999,7 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 
 #if !defined(LOW_MEMORY)
 	struct iax_frames *iax_frames = NULL;
-	struct iax_frame *smallest;
+	struct iax_frame *smallest = NULL;
 
 	/* Attempt to get a frame from this thread's cache */
 	if ((iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
