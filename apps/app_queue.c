@@ -2452,17 +2452,35 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 			(res = say_position(qe)))
 			break;
 
+		/* If we have timed out, break out */
+		if (qe->expire && (time(NULL) > qe->expire)) {
+			*reason = QUEUE_TIMEOUT;
+			break;
+		}
+
 		/* Make a periodic announcement, if enabled */
 		if (qe->parent->periodicannouncefrequency && !ringing &&
 			(res = say_periodic_announcement(qe)))
 			break;
 
+		/* If we have timed out, break out */
+		if (qe->expire && (time(NULL) > qe->expire)) {
+			*reason = QUEUE_TIMEOUT;
+			break;
+		}
+		
 		/* Wait a second before checking again */
 		if ((res = ast_waitfordigit(qe->chan, RECHECK * 1000))) {
 			if (res > 0 && !valid_exit(qe, res))
 				res = 0;
 			else
 				break;
+		}
+		
+		/* If we have timed out, break out */
+		if (qe->expire && (time(NULL) > qe->expire)) {
+			*reason = QUEUE_TIMEOUT;
+			break;
 		}
 	}
 
@@ -2700,6 +2718,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 
 	memset(&bridge_config, 0, sizeof(bridge_config));
 	time(&now);
+
+	/* If we've already exceeded our timeout, then just stop
+	 * This should be extremely rare. queue_exec will take care
+	 * of removing the caller and reporting the timeout as the reason.
+	 */
+	if (qe->expire && now > qe->expire) {
+		res = 0;
+		goto out;
+	}
 		
 	for (; options && *options; options++)
 		switch (*options) {
@@ -3929,11 +3956,27 @@ check_turns:
 			}
 			makeannouncement = 1;
 
+			/* Leave if we have exceeded our queuetimeout */
+			if (qe.expire && (time(NULL) > qe.expire)) {
+				record_abandoned(&qe);
+				reason = QUEUE_TIMEOUT;
+				res = 0;
+				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+				break;
+			}
 			/* Make a periodic announcement, if enabled */
 			if (qe.parent->periodicannouncefrequency && !ringing)
 				if ((res = say_periodic_announcement(&qe)))
 					goto stop;
 
+			/* Leave if we have exceeded our queuetimeout */
+			if (qe.expire && (time(NULL) > qe.expire)) {
+				record_abandoned(&qe);
+				reason = QUEUE_TIMEOUT;
+				res = 0;
+				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+				break;
+			}
 			/* Try calling all queue members for 'timeout' seconds */
 			res = try_calling(&qe, args.options, args.announceoverride, args.url, &tries, &noption, args.agi);
 			if (res)
@@ -3986,7 +4029,6 @@ check_turns:
 			res = wait_a_bit(&qe);
 			if (res)
 				goto stop;
-
 
 			/* Since this is a priority queue and
 			 * it is not sure that we are still at the head
