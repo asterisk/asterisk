@@ -15,6 +15,9 @@
 #
 Channel: DAHDI/1
 #
+# You can specify codecs for the call
+Codecs: alaw, speex, h264
+#
 # You may also specify a wait time (default is 45 seconds) for how long to
 # wait for the channel to be answered, a retry time (default is 5 mins)
 # for how soon to retry this call, and a maximum number of retries (default
