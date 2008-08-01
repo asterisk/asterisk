@@ -28,7 +28,7 @@ PRIORITY=0
 # set to the system's maximum files open devided by two, if not set here.
 # MAXFILES=32768
 
-function message() {
+message() {
 	echo "$1" >&2
 	if [ "$SYSLOG" != "" ]; then
 	    logger -p "${SYSLOG}.warn" -t safe_asterisk[$$] "$1"
@@ -141,7 +141,7 @@ run_asterisk()
 		if [ "$TTY" != "" ]; then
 			cd /tmp
 			stty sane < /dev/${TTY}
-			nice -n $PRIORITY ${ASTSBINDIR}/asterisk -f ${CLIARGS} ${ASTARGS} >& /dev/${TTY} < /dev/${TTY}
+			nice -n $PRIORITY ${ASTSBINDIR}/asterisk -f ${CLIARGS} ${ASTARGS} > /dev/${TTY} 2>&1 < /dev/${TTY}
 		else
 			cd /tmp
 			nice -n $PRIORITY ${ASTSBINDIR}/asterisk -f ${CLIARGS} ${ASTARGS}
