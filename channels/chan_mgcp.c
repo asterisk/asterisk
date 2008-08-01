@@ -2167,12 +2167,8 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp 
 	char local[256];
 	char tmp[80];
 	int x;
-	int capability;
 	struct mgcp_endpoint *p = sub->parent;
 
-	capability = p->capability;
-	if (codecs)
-		capability = codecs;
 	if (ast_strlen_zero(sub->cxident) && rtp) {
 		/* We don't have a CXident yet, store the destination and
 		   wait a bit */
