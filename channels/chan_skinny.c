@@ -1476,6 +1476,7 @@ static int transmit_response(struct skinnysession *s, struct skinny_req *req)
 
 	if (letohl(req->len > SKINNY_MAX_PACKET) || letohl(req->len < 0)) {
 		ast_log(LOG_WARNING, "transmit_response: the length of the request is out of bounds\n");
+		ast_mutex_unlock(&s->lock);
 		return -1;
 	}
 
@@ -4819,6 +4820,7 @@ static int reload_config(void)
 		if(setsockopt(skinnysock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
 			ast_log(LOG_ERROR, "Set Socket Options failed: errno %d, %s\n", errno, strerror(errno));
 			ast_config_destroy(cfg);
+			ast_mutex_unlock(&netlock);
 			return 0;
 		}
 		if (skinnysock < 0) {
@@ -4831,6 +4833,7 @@ static int reload_config(void)
 				close(skinnysock);
 				skinnysock = -1;
 				ast_config_destroy(cfg);
+				ast_mutex_unlock(&netlock);
 				return 0;
 			}
 			if (listen(skinnysock,DEFAULT_SKINNY_BACKLOG)) {
@@ -4840,6 +4843,7 @@ static int reload_config(void)
 					close(skinnysock);
 					skinnysock = -1;
 					ast_config_destroy(cfg);
+					ast_mutex_unlock(&netlock);
 					return 0;
 			}
 			if (option_verbose > 1)
