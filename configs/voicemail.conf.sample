@@ -149,6 +149,11 @@ emaildateformat=%A, %B %d, %Y at %r
 ; If imapgreetings=yes, then specify which folder to store your greetings in. If
 ; you do not specify a folder, then INBOX will be used
 ;greetingsfolder=INBOX
+; Some IMAP server implementations store folders under INBOX instead of 
+; using a top level folder (ex. INBOX/Friends).  In this case, user
+; imapparentfolder to set the parent folder. For example, Cyrus IMAP does
+; NOT use INBOX as the parent. Default is to have no parent folder set.
+;imapparentfolder=INBOX
 ; 
 ; Users may be located in different timezones, or may have different 
 ; message announcements for their introductory message when they enter 

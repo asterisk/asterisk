@@ -124,6 +124,7 @@ static char imapserver[48];
 static char imapport[8];
 static char imapflags[128];
 static char imapfolder[64];
+static char imapparentfolder[64] = "\0";
 static char greetingfolder[64];
 static char authuser[32];
 static char authpassword[42];
@@ -5100,8 +5101,13 @@ static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int 
 		snprintf(spec, len, "%s%s", tmp, use_folder? imapfolder: "INBOX");
 	else if (box == GREETINGS_FOLDER)
 		snprintf(spec, len, "%s%s", tmp, greetingfolder);
-	else
-		snprintf(spec, len, "%s%s%c%s", tmp, imapfolder, delimiter, mbox(box));
+	else 	/* Other folders such as Friends, Family, etc... */
+		if (!ast_strlen_zero(imapparentfolder)) {
+			/* imapparentfolder would typically be set to INBOX */
+			snprintf(spec, len, "%s%s%c%s", tmp, imapparentfolder, delimiter, mbox(box));
+		} else {
+			snprintf(spec, len, "%s%s", tmp, mbox(box));
+		}
 }
 
 static int init_mailstream(struct vm_state *vms, int box)
@@ -8300,7 +8306,9 @@ static int load_config(int reload)
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
 		ucfg = ast_config_load("users.conf", config_flags);
 	}
-
+#ifdef IMAP_STORAGE
+	ast_copy_string(imapparentfolder, "\0", sizeof(imapparentfolder));
+#endif
 	/* set audio control prompts */
 	strcpy(listen_control_forward_key, DEFAULT_LISTEN_CONTROL_FORWARD_KEY);
 	strcpy(listen_control_reverse_key, DEFAULT_LISTEN_CONTROL_REVERSE_KEY);
@@ -8447,6 +8455,9 @@ static int load_config(int reload)
 			ast_copy_string(imapfolder, val, sizeof(imapfolder));
 		} else {
 			ast_copy_string(imapfolder, "INBOX", sizeof(imapfolder));
+		}
+		if ((val = ast_variable_retrieve(cfg, "general", "imapparentfolder"))) {
+			ast_copy_string(imapparentfolder, val, sizeof(imapparentfolder));
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "imapgreetings"))) {
 			imapgreetings = ast_true(val);
