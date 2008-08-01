@@ -19531,7 +19531,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 {
 	struct sip_pvt *p;
 	struct ast_channel *tmpc = NULL;
-	char *ext, *host;
+	char *ext = NULL, *host;
 	char tmp[256];
 	char *dest = data;
 	char *dnid;
