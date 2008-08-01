@@ -92,15 +92,15 @@ static int icesencode(char *filename, int fd)
 	 * But many places has it in /usr/bin 
 	 * As a last-ditch effort, try to use PATH
 	 */
-	execl(path_LOCAL "ices2", "ices", filename, NULL);
-	execl(path_BIN "ices2", "ices", filename, NULL);
-	execlp("ices2", "ices", filename, NULL);
+	execl(path_LOCAL "ices2", "ices", filename, (char *)NULL);
+	execl(path_BIN "ices2", "ices", filename, (char *)NULL);
+	execlp("ices2", "ices", filename, (char *)NULL);
 
 	ast_debug(1, "Couldn't find ices version 2, attempting to use ices version 1.");
 
-	execl(path_LOCAL "ices", "ices", filename, NULL);
-	execl(path_BIN "ices", "ices", filename, NULL);
-	execlp("ices", "ices", filename, NULL);
+	execl(path_LOCAL "ices", "ices", filename, (char *)NULL);
+	execl(path_BIN "ices", "ices", filename, (char *)NULL);
+	execlp("ices", "ices", filename, (char *)NULL);
 
 	ast_log(LOG_WARNING, "Execute of ices failed, could not find command.\n");
 	close(fd);
