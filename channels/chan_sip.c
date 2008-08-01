@@ -1821,6 +1821,37 @@ static int sip_addrcmp(char *name, struct sockaddr_in *sin);	/* Support for peer
 static int sip_refer_allocate(struct sip_pvt *p);
 static void ast_quiet_chan(struct ast_channel *chan);
 static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target);
+/*!
+ * \brief generic function for determining if a correct transport is being 
+ * used to contact a peer
+ *
+ * this is done as a macro so that the "tmpl" var can be passed either a 
+ * sip_request or a sip_peer 
+ */
+#define check_request_transport(peer, tmpl) ({ \
+	int ret = 0; \
+	if (peer->socket.type == tmpl->socket.type) \
+		; \
+	else if (!(peer->transports & tmpl->socket.type)) {\
+		ast_log(LOG_ERROR, \
+			"'%s' is not a valid transport for '%s'. we only use '%s'! ending call.\n", \
+			get_transport(tmpl->socket.type), peer->name, get_transport_list(peer) \
+			); \
+		ret = 1; \
+	} else if (peer->socket.type & SIP_TRANSPORT_TLS) { \
+		ast_log(LOG_WARNING, \
+			"peer '%s' HAS NOT USED (OR SWITCHED TO) TLS in favor of '%s' (but this was allowed in sip.conf)!\n", \
+			peer->name, get_transport(tmpl->socket.type) \
+		); \
+	} else { \
+		ast_debug(1, \
+			"peer '%s' has contacted us over %s even though we prefer %s.\n", \
+			peer->name, get_transport(tmpl->socket.type), get_transport(peer->socket.type) \
+		); \
+	}\
+	(ret); \
+})
+
 
 /*--- Device monitoring and Device/extension state/event handling */
 static int cb_extensionstate(char *context, char* exten, int state, void *data);
@@ -3956,6 +3987,11 @@ static void copy_socket_data(struct sip_socket *to_sock, const struct sip_socket
  */
 static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 {
+	/* this checks that the dialog is contacting the peer on a valid
+	 * transport type based on the peers transport configuration,
+	 * otherwise, this function bails out */
+	if (dialog->socket.type && check_request_transport(peer, dialog))
+		return -1;
 	copy_socket_data(&dialog->socket, &peer->socket);
 
 	if ((peer->addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr) &&
@@ -4102,10 +4138,6 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 		int res = create_addr_from_peer(dialog, peer);
 		unref_peer(peer);
 		return res;
-	} else {
-		/* Setup default parameters for this dialog's socket. Currently we only support regular UDP SIP as the default */
-		dialog->socket.type = SIP_TRANSPORT_UDP;
-		dialog->socket.port = bindaddr.sin_port;
 	}
 
 	ast_string_field_set(dialog, tohost, peername);
@@ -4124,7 +4156,12 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 	 */
 
 	hostn = peername;
-	portno = port ? atoi(port) : (dialog->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+	if (!dialog->socket.type)
+		dialog->socket.type = SIP_TRANSPORT_UDP;
+	if (ast_strlen_zero(port) || sscanf(port, "%u", &portno) != 1) {
+		portno = dialog->socket.type & SIP_TRANSPORT_TLS ? 
+			STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+	}
 	if (global_srvlookup) {
 		char service[MAXHOSTNAMELEN];
 		int tportno;
@@ -4180,7 +4217,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	struct sip_pvt *p = ast->tech_pvt;	/* chan is locked, so the reference cannot go away */
 	struct varshead *headp;
 	struct ast_var_t *current;
-	const char *referer = NULL;   /* SIP referrer */	
+	const char *referer = NULL;   /* SIP referrer */
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "sip_call called on %s, neither down nor reserved\n", ast->name);
@@ -4211,9 +4248,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 			p->t38.state = T38_LOCAL_DIRECT;
 			ast_debug(1, "T38State change to %d on channel %s\n", p->t38.state, ast->name);
 		}
-
 	}
-	
+
 	res = 0;
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 
@@ -10452,27 +10488,10 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 					break;
 				}
 
-				if (peer->socket.type != req->socket.type ) {
-					if (!(peer->transports & req->socket.type)) {
-						ast_log(LOG_ERROR,
-							"peer '%s' has contacted us over %s, but we only accept '%s' for this peer! ending call.\n",
-							peer->name, get_transport(req->socket.type), get_transport_list(peer)
-						);
-
-						ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
-						transmit_response_with_date(p, "403 Forbidden", req);
-						res = AUTH_BAD_TRANSPORT;
-					} else if (peer->socket.type & SIP_TRANSPORT_TLS) {
-						ast_log(LOG_WARNING,
-							"peer '%s' HAS STOPPED USING TLS in favor of '%s' (but this was allowed in sip.conf)!\n",
-							peer->name, get_transport(req->socket.type)
-						);
-					} else {
-						ast_log(LOG_DEBUG,
-							"peer '%s' has contacted us over %s even though we prefer %s.\n", 
-							peer->name, get_transport(req->socket.type), get_transport(peer->socket.type)
-						);
-					}
+				if (check_request_transport(peer, req)) {
+					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
+					transmit_response_with_date(p, "403 Forbidden", req);
+					res = AUTH_BAD_TRANSPORT;
 				}
 			} 
 		}
@@ -14527,13 +14546,41 @@ static struct ast_custom_function sipchaninfo_function = {
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 {
 	char tmp[SIPBUFSIZE];
-	char *s, *e, *t;
+	char *s, *e, *t, *trans;
 	char *domain;
+	enum sip_transport transport = SIP_TRANSPORT_UDP;
 
 	ast_copy_string(tmp, get_header(req, "Contact"), sizeof(tmp));
 	if ((t = strchr(tmp, ',')))
 		*t = '\0';
-	s = remove_uri_parameters(get_in_brackets(tmp));
+
+	s = get_in_brackets(tmp);
+	if ((trans = strcasestr(s, ";transport="))) do {
+		trans += 11;
+
+		if ((e = strchr(trans, ';')))
+			*e = '\0';
+
+		if (!strncasecmp(trans, "tcp", 3))
+			transport = SIP_TRANSPORT_TCP;
+		else if (!strncasecmp(trans, "tls", 3))
+			transport = SIP_TRANSPORT_TLS;
+		else {
+			if (strncasecmp(trans, "udp", 3))
+				ast_debug(1, "received contact with an invalid transport, '%s'\n", s);
+			transport = SIP_TRANSPORT_UDP;
+		}
+	} while(0);
+	s = remove_uri_parameters(s);
+
+	if (p->socket.ser) {
+		ao2_ref(p->socket.ser, -1);
+		p->socket.ser = NULL;
+	}
+
+	p->socket.fd = -1;
+	p->socket.type = transport;
+
 	if (ast_test_flag(&p->flags[0], SIP_PROMISCREDIR)) {
 		if (!strncasecmp(s, "sip:", 4))
 			s += 4;
@@ -14542,9 +14589,9 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 		e = strchr(s, '/');
 		if (e)
 			*e = '\0';
-		ast_debug(2, "Found promiscuous redirection to 'SIP/%s'\n", s);
+		ast_debug(2, "Found promiscuous redirection to 'SIP/::::%s@%s'\n", get_transport(transport), s);
 		if (p->owner)
-			ast_string_field_build(p->owner, call_forward, "SIP/%s", s);
+			ast_string_field_build(p->owner, call_forward, "SIP/::::%s@%s", get_transport(transport), s);
 	} else {
 		e = strchr(tmp, '@');
 		if (e) {
@@ -19491,6 +19538,8 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
  	char *secret = NULL;
  	char *md5secret = NULL;
  	char *authname = NULL;
+	char *trans = NULL;
+	enum sip_transport transport = 0;
 	int oldformat = format;
 
 	/* mask request with some set of allowed formats.
@@ -19540,22 +19589,41 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		*host++ = '\0';
 		ext = tmp;
 		secret = strchr(ext, ':');
-		if (secret) {
-			*secret++ = '\0';
-			md5secret = strchr(secret, ':');
-			if (md5secret) {
-				*md5secret++ = '\0';
-				authname = strchr(md5secret, ':');
-				if (authname)
-					*authname++ = '\0';
-			}
+	}
+	if (secret) {
+		*secret++ = '\0';
+		md5secret = strchr(secret, ':');
+	}
+	if (md5secret) {
+		*md5secret++ = '\0';
+		authname = strchr(md5secret, ':');
+	}
+	if (authname) {
+		*authname++ = '\0';
+		trans = strchr(authname, ':');
+	}
+	if (trans) {
+		*trans++ = '\0';
+		if (!strcasecmp(trans, "tcp"))
+			transport = SIP_TRANSPORT_TCP;
+		else if (!strcasecmp(trans, "tls"))
+			transport = SIP_TRANSPORT_TLS;
+		else {
+			if (strcasecmp(trans, "udp"))
+				ast_log(LOG_WARNING, "'%s' is not a valid transport option to Dial() for SIP calls, using udp by default.\n", trans);
+			transport = SIP_TRANSPORT_UDP;
 		}
-	} else {
+	}
+
+	if (!host) {
 		ext = strchr(tmp, '/');
 		if (ext) 
 			*ext++ = '\0';
 		host = tmp;
 	}
+
+	p->socket.fd = -1;
+	p->socket.type = transport;
 
 	/* We now have 
 		host = peer name, DNS host name or DNS domain (for SRV) 
@@ -19574,7 +19642,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
 	build_via(p);
 	build_callid_pvt(p);
-	
+
 	/* We have an extension to call, don't use the full contact here */
 	/* This to enable dialing registered peers with extension dialling,
 	   like SIP/peername/extension 	

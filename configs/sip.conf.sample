@@ -7,7 +7,7 @@
 ; syntaxes for dialing SIP devices.
 ;	SIP/devicename
 ;	SIP/username@domain   (SIP uri)
-;	SIP/username[:password[:md5secret[:authname]]]@host[:port]
+;	SIP/username[:password[:md5secret[:authname[:transport]]]]@host[:port]
 ;	SIP/devicename/extension
 ;
 ;
