@@ -657,6 +657,7 @@ static void *httpd_helper_thread(void *data)
 	int status = 200, contentlength = 0;
 	struct ast_str *out = NULL;
 	unsigned int static_content = 0;
+	struct ast_variable *tail = headers;
 
 	if (!fgets(buf, sizeof(buf), ser->f)) {
 		goto done;
@@ -686,6 +687,24 @@ static void *httpd_helper_thread(void *data)
 		}
 		if (!strncasecmp(cookie, "Cookie: ", 8)) {
 			vars = parse_cookies(cookie);
+		} else {
+			char *name, *val;
+
+			val = cookie;
+			name = strsep(&val, ":");
+			if (ast_strlen_zero(name) || ast_strlen_zero(val)) {
+				continue;
+			}
+			ast_trim_blanks(name);
+			val = ast_skip_blanks(val);
+
+			if (!headers) {
+				headers = ast_variable_new(name, val, __FILE__);
+				tail = headers;
+			} else {
+				tail->next = ast_variable_new(name, val, __FILE__);
+				tail = tail->next;
+			}
 		}
 	}
 

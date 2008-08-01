@@ -203,6 +203,8 @@ static struct ast_str *http_post_callback(struct ast_tcptls_session_instance *se
 	}
 
 	for (var = headers; var; var = var->next) {
+		fprintf(f, "%s: %s\r\n", var->name, var->value);
+
 		if (!strcasecmp(var->name, "Content-Length")) {
 			if ((sscanf(var->value, "%u", &content_len)) != 1) {
 				ast_log(LOG_ERROR, "Invalid Content-Length in POST request!\n");
@@ -211,10 +213,10 @@ static struct ast_str *http_post_callback(struct ast_tcptls_session_instance *se
 				return NULL;
 			}
 			ast_debug(1, "Got a Content-Length of %d\n", content_len);
-		} else if (!strcasecmp(var->name, "Content-Type")) {
-			fprintf(f, "Content-Type: %s\r\n\r\n", var->value);
 		}
 	}
+
+	fprintf(f, "\r\n");
 
 	for (res = sizeof(buf); content_len; content_len -= res) {
 		if (content_len < res) {
