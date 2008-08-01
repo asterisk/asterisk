@@ -9582,8 +9582,9 @@ static int load_config(int reload)
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
 		ucfg = ast_config_load("users.conf", config_flags);
 	}
-
+#ifdef IMAP_STORAGE
 	ast_copy_string(imapparentfolder, "\0", sizeof(imapparentfolder));
+#endif
 	/* set audio control prompts */
 	strcpy(listen_control_forward_key,DEFAULT_LISTEN_CONTROL_FORWARD_KEY);
 	strcpy(listen_control_reverse_key,DEFAULT_LISTEN_CONTROL_REVERSE_KEY);
