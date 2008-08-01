@@ -172,6 +172,15 @@ forcejitterbuffer=no
 ;
 ; trunkmtu = 0
 ;
+; Enable IAX2 encryption.  The default is no.
+;
+; encryption = yes
+;
+; This is a compatibility option for older versions of IAX2 that do not support
+; key rotation with encryption.  This option will disable the IAX_COMMAND_RTENC message.
+; default is on
+;
+; keyrotate=off
 
 ; This option defines the maximum size an IAX2 trunk can grow to. The default value is 128000 bytes which
 ; represents 40ms uncompressed linear with 200 channels. Depending on different things though
@@ -385,6 +394,12 @@ inkeys=freeworlddialup
 ;accountcode=markster0101
 ;permit=209.16.236.73/255.255.255.0
 ;language=en		; Use english as default language
+;encryption=yes ; Enable IAX2 encryption.  The default is no.
+;keyrotate=off ; This is a compatibility option for older versions of
+;              ; IAX2 that do not support key rotation with encryption. 
+;              ; This option will disable the IAX_COMMAND_RTENC message. 
+;              ; default is on.
+;              ; 
 ;
 ; Peers may also be specified, with a secret and
 ; a remote hostname.
@@ -407,8 +422,13 @@ host=216.207.245.47
 ;qualifyfreqnotok = 10000	; how frequently to ping the peer when it's
 				; either LAGGED or UNAVAILABLE, in milliseconds
 ;jitterbuffer=no		; Turn off jitter buffer for this peer
-
 ;
+;encryption=yes ; Enable IAX2 encryption.  The default is no.
+;keyrotate=off ; This is a compatibility option for older versions of
+;              ; IAX2 that do not support key rotation with encryption. 
+;              ; This option will disable the IAX_COMMAND_RTENC message. 
+;              ; default is on.
+;              ; 
 ; Peers can remotely register as well, so that they can be mobile.  Default
 ; IP's can also optionally be given but are not required.  Caller*ID can be
 ; suggested to the other side as well if it is for example a phone instead of

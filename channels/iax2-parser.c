@@ -88,6 +88,16 @@ static void dump_addr(char *output, int maxlen, void *value, int len)
 	}
 }
 
+static void dump_string_hex(char *output, int maxlen, void *value, int len)
+{
+	int i = 0;
+
+	while (len-- && (i + 1) * 4 < maxlen) {
+		sprintf(output + (4 * i), "\\x%2.2x", *((unsigned char *)value + i));
+		i++;
+	}
+}
+
 static void dump_string(char *output, int maxlen, void *value, int len)
 {
 	maxlen--;
@@ -229,7 +239,7 @@ static struct iax2_ie {
 	{ IAX_IE_ADSICPE, "ADSICPE", dump_short },
 	{ IAX_IE_DNID, "DNID", dump_string },
 	{ IAX_IE_AUTHMETHODS, "AUTHMETHODS", dump_short },
-	{ IAX_IE_CHALLENGE, "CHALLENGE", dump_string },
+	{ IAX_IE_CHALLENGE, "CHALLENGE", dump_string_hex },
 	{ IAX_IE_MD5_RESULT, "MD5 RESULT", dump_string },
 	{ IAX_IE_RSA_RESULT, "RSA RESULT", dump_string },
 	{ IAX_IE_APPARENT_ADDR, "APPARENT ADDRESS", dump_addr },

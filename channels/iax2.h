@@ -109,6 +109,8 @@ enum {
 	IAX_COMMAND_FWDATA =    37,
 	/*! Transfer media only */
 	IAX_COMMAND_TXMEDIA =   38,
+	/*! Command to rotate key */
+	IAX_COMMAND_RTKEY = 	39,
 };
 
 /*! By default require re-registration once per minute */

@@ -137,6 +137,10 @@ SIP Changes
 IAX Changes
 -----------
  * Existing DNS manager lookups extended to check for SRV records.
+ * IAX2 encryption support has been improved to support periodic key rotation
+   within a call for enhanced security.  The option "keyrotate" has been
+   provided to disable this functionality to preserve backwards compatibility
+   with older versions of IAX2 that do not support key rotation.
 
 CLI Changes
 -----------
