@@ -6808,6 +6808,12 @@ int ast_add_extension2(struct ast_context *con,
 	struct ast_exten dummy_exten = {0};
 	char dummy_name[1024];
 
+	if (ast_strlen_zero(extension)) {
+		ast_log(LOG_ERROR,"You have to be kidding-- add exten '' to context %s? Figure out a name and call me back. Action ignored.\n",
+				con->name);
+		return -1;
+	}
+	
 	/* If we are adding a hint evalulate in variables and global variables */
 	if (priority == PRIORITY_HINT && strstr(application, "${") && !strstr(extension, "_")) {
 		struct ast_channel c = {0, };
