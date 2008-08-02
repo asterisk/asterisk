@@ -4166,7 +4166,7 @@ static int handle_keep_alive_message(struct skinny_req *req, struct skinnysessio
 
 static int handle_register_message(struct skinny_req *req, struct skinnysession *s)
 {
-	struct skinny_device *d;
+	struct skinny_device *d = s->device;
 	char name[16];
 	int res;
 
@@ -4185,8 +4185,6 @@ static int handle_register_message(struct skinny_req *req, struct skinnysession 
 	}
 	ast_verb(3, "Device '%s' successfully registered\n", name);
 	
-	d = s->device;
-
 	if (!(req = req_alloc(sizeof(struct register_ack_message), REGISTER_ACK_MESSAGE)))
 		return -1;
 
