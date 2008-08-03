@@ -4179,8 +4179,28 @@ static int handle_register_message(struct skinny_req *req, struct skinnysession 
 			return -1;
 
 		snprintf(req->data.regrej.errMsg, sizeof(req->data.regrej.errMsg), "No Authority: %s", name);
-		d->session = s;
-		transmit_response(d, req);
+
+		/* transmit_respons in line as we don't have a valid d */
+		ast_mutex_lock(&s->lock);
+
+		if (letohl(req->len > SKINNY_MAX_PACKET) || letohl(req->len < 0)) {
+			ast_log(LOG_WARNING, "transmit_response: the length of the request is out of bounds\n");
+			ast_mutex_unlock(&s->lock);
+			return -1;
+		}
+
+		memset(s->outbuf, 0, sizeof(s->outbuf));
+		memcpy(s->outbuf, req, skinny_header_size);
+		memcpy(s->outbuf+skinny_header_size, &req->data, letohl(req->len));
+
+		res = write(s->fd, s->outbuf, letohl(req->len)+8);
+
+		if (res != letohl(req->len)+8) {
+			ast_log(LOG_WARNING, "Transmit: write only sent %d out of %d bytes: %s\n", res, letohl(req->len)+8, strerror(errno));
+		}
+	
+		ast_mutex_unlock(&s->lock);
+
 		return 0;
 	}
 	ast_verb(3, "Device '%s' successfully registered\n", name);
