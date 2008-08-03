@@ -1844,7 +1844,7 @@ static int transmit_response(struct skinny_device *d, struct skinny_req *req)
 		return -1;
 	}
 
-	memset(s->outbuf,0,sizeof(s->outbuf));
+	memset(s->outbuf, 0, sizeof(s->outbuf));
 	memcpy(s->outbuf, req, skinny_header_size);
 	memcpy(s->outbuf+skinny_header_size, &req->data, letohl(req->len));
 
@@ -2802,7 +2802,7 @@ static char *handle_skinny_show_device(struct ast_cli_entry *e, int cmd, struct 
 		return CLI_SHOWUSAGE;
 
 	AST_LIST_LOCK(&devices);
-	AST_LIST_TRAVERSE(&devices,d , list) {
+	AST_LIST_TRAVERSE(&devices, d, list) {
 		if (!strcasecmp(a->argv[3], d->id) || !strcasecmp(a->argv[3], d->name)) {
 			int numlines = 0, numaddons = 0, numspeeddials = 0;
 
@@ -3478,8 +3478,8 @@ static int skinny_hangup(struct ast_channel *ast)
 				}
 				transmit_callstate(d, l->instance, SKINNY_ONHOOK, sub->callid);
 				transmit_activatecallplane(d, l);
-				transmit_closereceivechannel(d,sub);
-				transmit_stopmediatransmission(d,sub);
+				transmit_closereceivechannel(d, sub);
+				transmit_stopmediatransmission(d, sub);
 				transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 			} else {    /* we are killing a background sub on the line with other subs*/
 				if (AST_LIST_NEXT(sub, list)) {
@@ -3496,8 +3496,8 @@ static int skinny_hangup(struct ast_channel *ast)
 			transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_OFF);
 			if (sub->parent == d->activeline) {
 				transmit_activatecallplane(d, l);
-				transmit_closereceivechannel(d,sub);
-				transmit_stopmediatransmission(d,sub);
+				transmit_closereceivechannel(d, sub);
+				transmit_stopmediatransmission(d, sub);
 				transmit_speaker_mode(d, SKINNY_SPEAKEROFF);
 				transmit_ringer_mode(d, SKINNY_RING_OFF);
 				/* we should check to see if we can start the ringer if another line is ringing */
@@ -3781,7 +3781,7 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 			if (xferor->owner->_state == AST_STATE_RING) {
 				/* play ringing inband */
 				ts = ast_get_indication_tone(xferor->owner->zone, "ring");
-				ast_playtones_start(xferor->owner,0,ts->data, 1);
+				ast_playtones_start(xferor->owner, 0, ts->data, 1);
 			}
 			if (skinnydebug)
 				ast_debug(1, "Transfer Masquerading %s to %s\n",
@@ -3796,7 +3796,7 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 			if (xferor->owner->_state == AST_STATE_RING) {
 				/* play ringing inband */
 				ts = ast_get_indication_tone(xferor->owner->zone, "ring");
-				ast_playtones_start(xferor->owner,0,ts->data, 1);
+				ast_playtones_start(xferor->owner, 0, ts->data, 1);
 			}
 			if (skinnydebug)
 				ast_debug(1, "Transfer Masquerading %s to %s\n",
@@ -4039,8 +4039,8 @@ static int skinny_hold(struct skinny_subchannel *sub)
 		!ast_strlen_zero(l->mohsuggest) ? strlen(l->mohsuggest) + 1 : 0);
 
 	transmit_activatecallplane(d, l);
-	transmit_closereceivechannel(d,sub);
-	transmit_stopmediatransmission(d,sub);
+	transmit_closereceivechannel(d, sub);
+	transmit_stopmediatransmission(d, sub);
 
 	transmit_callstateonly(d, sub, SKINNY_HOLD);
 	transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_WINK);
@@ -4535,7 +4535,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 
 		if ((sub && sub->owner) && (sub->owner->_state ==  AST_STATE_UP)){
 			c = sub->owner;
-			if (!ast_masq_park_call(ast_bridged_channel(c) , c, 0, &extout)) {
+			if (!ast_masq_park_call(ast_bridged_channel(c), c, 0, &extout)) {
 				snprintf(message, sizeof(message), "Call Parked at: %d", extout);
 				transmit_displaynotify(d, message, 10);
 			} else {
@@ -4942,7 +4942,7 @@ static int handle_line_state_req_message(struct skinny_req *req, struct skinnyse
 		memcpy(req->data.linestat.lineDirNumber, l->name, sizeof(req->data.linestat.lineDirNumber));
 		memcpy(req->data.linestat.lineDisplayName, l->label, sizeof(req->data.linestat.lineDisplayName));
 	}
-	transmit_response(d,req);
+	transmit_response(d, req);
 	return 1;
 }
 
@@ -5295,7 +5295,7 @@ static int handle_soft_key_set_req_message(struct skinny_req *req, struct skinny
 		}
 		softkeymode++;
 	}
-	transmit_response(d,req);
+	transmit_response(d, req);
 	transmit_selectsoftkeys(d, 0, 0, KEYDEF_ONHOOK);
 	return 1;
 }
@@ -5390,7 +5390,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		c = skinny_new(l, AST_STATE_DOWN);
 		sub = c->tech_pvt;
 	
-		/* transmit_ringer_mode(d,SKINNY_RING_OFF);
+		/* transmit_ringer_mode(d, SKINNY_RING_OFF);
 		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON); */
 
 		/* l->hookstate = SKINNY_OFFHOOK; */
@@ -5618,7 +5618,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 
 		if ((sub && sub->owner) && (sub->owner->_state ==  AST_STATE_UP)){
 			c = sub->owner;
-			if (!ast_masq_park_call(ast_bridged_channel(c) , c, 0, &extout)) {
+			if (!ast_masq_park_call(ast_bridged_channel(c), c, 0, &extout)) {
 				snprintf(message, sizeof(message), "Call Parked at: %d", extout);
 				transmit_displaynotify(d, message, 10);
 			} else {
@@ -5671,7 +5671,7 @@ static int handle_soft_key_template_req_message(struct skinny_req *req, struct s
 	memcpy(req->data.softkeytemplate.softKeyTemplateDefinition,
 		soft_key_template_default,
 		sizeof(soft_key_template_default));
-	transmit_response(s->device,req);
+	transmit_response(s->device, req);
 	return 1;
 }
 
@@ -5902,7 +5902,7 @@ static int get_input(struct skinnysession *s)
 		     
 	if (fds[0].revents) {
 		ast_mutex_lock(&s->lock);
-		memset(s->inbuf,0,sizeof(s->inbuf));
+		memset(s->inbuf, 0, sizeof(s->inbuf));
 		res = read(s->fd, s->inbuf, 4);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "read() returned error: %s\n", strerror(errno));
@@ -5910,7 +5910,7 @@ static int get_input(struct skinnysession *s)
 			if (skinnydebug)
 				ast_verb(1, "Skinny Client was lost, unregistering\n");
 
-			skinny_unregister(NULL,s);
+			skinny_unregister(NULL, s);
 			ast_mutex_unlock(&s->lock);
 			return res;
 		} else if (res != 4) {
@@ -6308,7 +6308,7 @@ static int reload_config(void)
 				ast_mutex_unlock(&netlock);
 				return 0;
 			}
-			if (listen(skinnysock,DEFAULT_SKINNY_BACKLOG)) {
+			if (listen(skinnysock, DEFAULT_SKINNY_BACKLOG)) {
 					ast_log(LOG_WARNING, "Failed to start listening to %s:%d: %s\n",
 						ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port),
 							strerror(errno));
@@ -6321,7 +6321,7 @@ static int reload_config(void)
 			ast_verb(2, "Skinny listening on %s:%d\n",
 					ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
 			ast_netsock_set_qos(skinnysock, tos, cos, "Skinny");
-			ast_pthread_create_background(&accept_t,NULL, accept_thread, NULL);
+			ast_pthread_create_background(&accept_t, NULL, accept_thread, NULL);
 		}
 	}
 	ast_mutex_unlock(&netlock);
