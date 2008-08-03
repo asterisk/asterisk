@@ -197,6 +197,8 @@ Miscellaneous
     the 'setvar' option to cause a given audio file to be played upon completion
     of an attended transfer.  Currently it works for DAHDI, IAX2, SIP, and
     Skinny channels only.
+  * You can now compile Asterisk against the Hoard Memory Allocator, see doc/hoard.txt
+    for more information.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------

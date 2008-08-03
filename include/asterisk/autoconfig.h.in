@@ -343,6 +343,12 @@
 /* Define if your system has the GTK2 libraries. */
 #undef HAVE_GTK2
 
+/* Define this to indicate the ${HOARD_DESCRIP} library */
+#undef HAVE_HOARD
+
+/* Define to indicate the ${HOARD_DESCRIP} library version */
+#undef HAVE_HOARD_VERSION
+
 /* Define this to indicate the ${ICONV_DESCRIP} library */
 #undef HAVE_ICONV
 

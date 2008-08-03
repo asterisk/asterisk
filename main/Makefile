@@ -104,6 +104,12 @@ ifeq ($(OSARCH),SunOS)
   ASTLINK=
 endif
 
+ifneq ($(findstring USE_HOARD_ALLOCATOR,$(MENUSELECT_CFLAGS)),)
+  ifneq ($(HOARD_LIB),)
+    AST_LIBS+=$(HOARD_LIB)
+  endif
+endif
+
 CHECK_SUBDIR:	# do nothing, just make sure that we recurse in the subdir/
 
 editline/libedit.a: CHECK_SUBDIR
