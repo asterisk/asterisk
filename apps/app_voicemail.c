@@ -7844,10 +7844,28 @@ static struct ast_cli_entry cli_voicemail[] = {
 	voicemail_show_zones_help, NULL, &cli_show_voicemail_zones_deprecated },
 };
 
-static int load_config(void)
+static void free_vm_users(void)
 {
 	struct ast_vm_user *cur;
 	struct vm_zone *zcur;
+
+	AST_LIST_LOCK(&users);
+	while ((cur = AST_LIST_REMOVE_HEAD(&users, list))) {
+		ast_set_flag(cur, VM_ALLOCED);
+		free_user(cur);
+	}
+	AST_LIST_UNLOCK(&users);
+
+	AST_LIST_LOCK(&zones);
+	while ((zcur = AST_LIST_REMOVE_HEAD(&zones, list))) {
+		free_zone(zcur);
+	}
+	AST_LIST_UNLOCK(&zones);
+}
+
+static int load_config(void)
+{
+	struct ast_vm_user *cur;
 	struct ast_config *cfg, *ucfg;
 	char *cat;
 	struct ast_variable *var;
@@ -7897,16 +7915,9 @@ static int load_config(void)
 
 	cfg = ast_config_load(VOICEMAIL_CONFIG);
 
-	AST_LIST_LOCK(&users);
-	while ((cur = AST_LIST_REMOVE_HEAD(&users, list))) {
-		ast_set_flag(cur, VM_ALLOCED);
-		free_user(cur);
-	}
+	free_vm_users();
 
-	AST_LIST_LOCK(&zones);
-	while ((zcur = AST_LIST_REMOVE_HEAD(&zones, list))) 
-		free_zone(zcur);
-	AST_LIST_UNLOCK(&zones);
+	AST_LIST_LOCK(&users);
 
 	memset(ext_pass_cmd, 0, sizeof(ext_pass_cmd));
 
