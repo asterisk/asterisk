@@ -8284,10 +8284,31 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 	return RESULT_SUCCESS;
 }
 
+/*! \brief Free the users structure. */
+static void free_vm_users(void) 
+{
+	struct ast_vm_user *cur;
+	AST_LIST_LOCK(&users);
+	while ((cur = AST_LIST_REMOVE_HEAD(&users, list))) {
+		ast_set_flag(cur, VM_ALLOCED);
+		free_user(cur);
+	}
+	AST_LIST_UNLOCK(&users);
+}
+
+/*! \brief Free the zones structure. */
+static void free_vm_zones(void)
+{
+	struct vm_zone *zcur;
+	AST_LIST_LOCK(&zones);
+	while ((zcur = AST_LIST_REMOVE_HEAD(&zones, list)))
+		free_zone(zcur);
+	AST_LIST_UNLOCK(&zones);
+}
+
 static int load_config(int reload)
 {
 	struct ast_vm_user *cur;
-	struct vm_zone *zcur;
 	struct ast_config *cfg, *ucfg;
 	char *cat;
 	struct ast_variable *var;
@@ -8315,17 +8336,14 @@ static int load_config(int reload)
 	strcpy(listen_control_pause_key, DEFAULT_LISTEN_CONTROL_PAUSE_KEY);
 	strcpy(listen_control_restart_key, DEFAULT_LISTEN_CONTROL_RESTART_KEY);
 	strcpy(listen_control_stop_key, DEFAULT_LISTEN_CONTROL_STOP_KEY);
-	
-	AST_LIST_LOCK(&users);
-	while ((cur = AST_LIST_REMOVE_HEAD(&users, list))) {
-		ast_set_flag(cur, VM_ALLOCED);
-		free_user(cur);
-	}
 
-	AST_LIST_LOCK(&zones);
-	while ((zcur = AST_LIST_REMOVE_HEAD(&zones, list))) 
-		free_zone(zcur);
-	AST_LIST_UNLOCK(&zones);
+	/* Free all the users structure */	
+	free_vm_users();
+
+	/* Free all the zones structure */
+	free_vm_zones();
+
+	AST_LIST_LOCK(&users);	
 
 	memset(ext_pass_cmd, 0, sizeof(ext_pass_cmd));
 
@@ -8947,6 +8965,9 @@ static int unload_module(void)
 	if (poll_thread != AST_PTHREADT_NULL)
 		stop_poll_thread();
 
+
+	free_vm_users();
+	free_vm_zones();
 	return res;
 }
 
