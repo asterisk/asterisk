@@ -87,9 +87,13 @@ struct ast_http_uri {
 	unsigned int supports_get:1;
 	/*! This handler accepts POST requests */
 	unsigned int supports_post:1;
+	/*! Structure is malloc'd */
+	unsigned int mallocd:1;
+	/*! Data structure is malloc'd */
+	unsigned int dmallocd:1;
 	/*! Data to bind to the uri if needed */
 	void *data;
-	/*! Key to be used for unlinking if multipile URIs registerd */
+	/*! Key to be used for unlinking if multiple URIs registered */
 	const char *key;
 };
 

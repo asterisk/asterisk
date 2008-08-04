@@ -289,12 +289,15 @@ static int __ast_http_post_load(int reload)
 			struct ast_str *ds;
 
 			if (!(urih = ast_calloc(sizeof(*urih), 1))) {
+				ast_config_destroy(cfg);
 				return -1;
 			}
 
-			if (!(ds = ast_str_create(32)))
+			if (!(ds = ast_str_create(32))) {
+				ast_free(urih);
+				ast_config_destroy(cfg);
 				return -1;
-
+			}
 
 			urih->description = ast_strdup("HTTP POST mapping");
 			urih->uri = ast_strdup(v->name);
@@ -305,6 +308,7 @@ static int __ast_http_post_load(int reload)
 			urih->supports_post = 1;
 			urih->callback = http_post_callback;
 			urih->key = __FILE__;
+			urih->mallocd = urih->dmallocd = 1;
 
 			ast_http_uri_link(urih);
 		}
@@ -323,7 +327,6 @@ static int unload_module(void)
 
 static int reload(void)
 {
-
 	__ast_http_post_load(1);
 
 	return AST_MODULE_LOAD_SUCCESS;
