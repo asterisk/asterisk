@@ -786,7 +786,7 @@ config:
 			$(INSTALL) -m 755 contrib/init.d/rc.gentoo.asterisk $(DESTDIR)/etc/init.d/asterisk; \
 			if [ -z "$(DESTDIR)" ]; then /sbin/rc-update add asterisk default; fi; \
 		elif [ -f /etc/mandrake-release -o -f /etc/mandriva-release ]; then \
-			$(INSTALL) -m 755 contrib/init.d/rc.mandrake.asterisk $(DESTDIR)/etc/rc.d/init.d/asterisk; \
+			$(INSTALL) -m 755 contrib/init.d/rc.mandriva.asterisk $(DESTDIR)/etc/rc.d/init.d/asterisk; \
 			if [ -z "$(DESTDIR)" ]; then /sbin/chkconfig --add asterisk; fi; \
 		elif [ -f /etc/SuSE-release -o -f /etc/novell-release ]; then \
 			$(INSTALL) -m 755 contrib/init.d/rc.suse.asterisk $(DESTDIR)/etc/init.d/asterisk; \
