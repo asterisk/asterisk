@@ -623,7 +623,7 @@ immediate=no
 ; different context and use E & M signalling instead.
 ;
 ;context=remote
-;sigalling=em
+;signaling=em
 ;channel => 15
 ;channel => 16
 
