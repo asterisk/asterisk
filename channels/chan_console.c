@@ -1402,7 +1402,7 @@ static int load_config(int reload)
 		return -1;
 	}
 	
-	ao2_callback(pvts, 0, pvt_mark_destroy_cb, NULL);
+	ao2_callback(pvts, OBJ_NODATA, pvt_mark_destroy_cb, NULL);
 
 	ast_mutex_lock(&globals_lock);
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next)
