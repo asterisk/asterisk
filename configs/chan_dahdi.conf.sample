@@ -703,10 +703,13 @@ pickupgroup=1
 ; passed through as signalling instead of generating hold music locally. This
 ; setting is only valid when used on a channel that uses digital signalling.
 ;
+; This option may be set globally or on a per-channel basis.
+;
 ;mohinterpret=default
 ;
 ; This option specifies which music on hold class to suggest to the peer channel
-; when this channel places the peer on hold. 
+; when this channel places the peer on hold.  This option may be set globally,
+; or on a per-channel basis.
 ;
 ;mohsuggest=default
 ;
