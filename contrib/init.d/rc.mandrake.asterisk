@@ -17,6 +17,8 @@ CONSOLE=yes		# Whether or not you want a console
 NOTIFY=root		# Who to notify about crashes
 DUMPDROP=/tmp
 HOSTNAME=`hostname`
+ASTSBINDIR=/usr/sbin
+
 if [ 0`readlink $0` = "0" ]; then
 	CONFIGFILE=/etc/sysconfig/`basename $0`
 else
