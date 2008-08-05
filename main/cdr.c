@@ -157,6 +157,11 @@ void ast_cdr_unregister(const char *name)
 	AST_RWLIST_UNLOCK(&be_list);
 }
 
+int ast_cdr_isset_unanswered(void)
+{
+	return unanswered;
+}
+
 /*! Duplicate a CDR record 
 	\returns Pointer to new CDR record
 */
