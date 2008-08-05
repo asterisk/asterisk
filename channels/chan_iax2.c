@@ -9500,33 +9500,20 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				if (!ast_strlen_zero(v->value)) {
 					char name2[80];
 					char num2[80];
-					ast_callerid_split(v->value, name2, 80, num2, 80);
+					ast_callerid_split(v->value, name2, sizeof(name2), num2, sizeof(num2));
 					ast_string_field_set(peer, cid_name, name2);
 					ast_string_field_set(peer, cid_num, num2);
-					ast_set_flag(peer, IAX_HASCALLERID);
 				} else {
-					ast_clear_flag(peer, IAX_HASCALLERID);
 					ast_string_field_set(peer, cid_name, "");
 					ast_string_field_set(peer, cid_num, "");
 				}
+				ast_set_flag(peer, IAX_HASCALLERID);
 			} else if (!strcasecmp(v->name, "fullname")) {
-				if (!ast_strlen_zero(v->value)) {
-					ast_string_field_set(peer, cid_name, v->value);
-					ast_set_flag(peer, IAX_HASCALLERID);
-				} else {
-					ast_string_field_set(peer, cid_name, "");
-					if (ast_strlen_zero(peer->cid_num))
-						ast_clear_flag(peer, IAX_HASCALLERID);
-				}
+				ast_string_field_set(peer, cid_name, S_OR(v->value, ""));
+				ast_set_flag(peer, IAX_HASCALLERID);
 			} else if (!strcasecmp(v->name, "cid_number")) {
-				if (!ast_strlen_zero(v->value)) {
-					ast_string_field_set(peer, cid_num, v->value);
-					ast_set_flag(peer, IAX_HASCALLERID);
-				} else {
-					ast_string_field_set(peer, cid_num, "");
-					if (ast_strlen_zero(peer->cid_name))
-						ast_clear_flag(peer, IAX_HASCALLERID);
-				}
+				ast_string_field_set(peer, cid_num, S_OR(v->value, ""));
+				ast_set_flag(peer, IAX_HASCALLERID);
 			} else if (!strcasecmp(v->name, "sendani")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_SENDANI);	
 			} else if (!strcasecmp(v->name, "inkeys")) {
