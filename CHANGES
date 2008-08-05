@@ -199,6 +199,10 @@ Miscellaneous
     Skinny channels only.
   * You can now compile Asterisk against the Hoard Memory Allocator, see doc/hoard.txt
     for more information.
+  * Config file variables may now be appended to, by using the '+=' append
+    operator.  This is most helpful when working with long SQL queries in
+    func_odbc.conf, as the queries no longer need to be specified on a single
+    line.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------

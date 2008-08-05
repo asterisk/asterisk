@@ -98,6 +98,14 @@ struct cache_file_mtime {
 
 static AST_LIST_HEAD_STATIC(cfmtime_head, cache_file_mtime);
 
+static int init_appendbuf(void *data)
+{
+	struct ast_str **str = data;
+	*str = ast_str_create(16);
+	return *str ? 0 : -1;
+}
+
+AST_THREADSTORAGE_CUSTOM(appendbuf, init_appendbuf, ast_free_ptr);
 
 /* comment buffers are better implemented using the ast_str_*() API */
 #define CB_SIZE 250	/* initial size of comment buffers */
@@ -752,12 +760,8 @@ int ast_variable_update(struct ast_category *category, const char *variable,
 		return 0;
 	}
 
-	if (prev)
-		prev->next = newer;
-	else
-		category->root = newer;
-
-	return 0;
+	/* Could not find variable to update */
+	return -1;
 }
 
 int ast_category_delete(struct ast_config *cfg, const char *category)
@@ -1041,65 +1045,93 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 			return 0;	/* XXX is this correct ? or we should return -1 ? */
 		}
 
-				/* Strip off leading and trailing "'s and <>'s */
-				while ((*c == '<') || (*c == '>') || (*c == '\"')) c++;
-				/* Get rid of leading mess */
-				cur = c;
-				cur2 = cur;
-				while (!ast_strlen_zero(cur)) {
-					c = cur + strlen(cur) - 1;
-					if ((*c == '>') || (*c == '<') || (*c == '\"'))
-						*c = '\0';
-					else
-						break;
-				}
-				/* #exec </path/to/executable>
-				   We create a tmp file, then we #include it, then we delete it. */
-				if (!do_include) {
-					struct timeval tv = ast_tvnow();
-					if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
-						config_cache_attribute(configfile, ATTRIBUTE_EXEC, NULL, who_asked);
-					snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%d%d.%ld", (int)tv.tv_sec, (int)tv.tv_usec, (long)pthread_self());
-					snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file);
-					ast_safe_system(cmd);
-					cur = exec_file;
-				} else {
-					if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
-						config_cache_attribute(configfile, ATTRIBUTE_INCLUDE, cur, who_asked);
-					exec_file[0] = '\0';
-				}
-				/* A #include */
-				/* record this inclusion */
-				inclu = ast_include_new(cfg, configfile, cur, !do_include, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
+		/* Strip off leading and trailing "'s and <>'s */
+		while ((*c == '<') || (*c == '>') || (*c == '\"')) c++;
+		/* Get rid of leading mess */
+		cur = c;
+		cur2 = cur;
+		while (!ast_strlen_zero(cur)) {
+			c = cur + strlen(cur) - 1;
+			if ((*c == '>') || (*c == '<') || (*c == '\"'))
+				*c = '\0';
+			else
+				break;
+		}
+		/* #exec </path/to/executable>
+		   We create a tmp file, then we #include it, then we delete it. */
+		if (!do_include) {
+			struct timeval tv = ast_tvnow();
+			if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
+				config_cache_attribute(configfile, ATTRIBUTE_EXEC, NULL, who_asked);
+			snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%d%d.%ld", (int)tv.tv_sec, (int)tv.tv_usec, (long)pthread_self());
+			snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file);
+			ast_safe_system(cmd);
+			cur = exec_file;
+		} else {
+			if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
+				config_cache_attribute(configfile, ATTRIBUTE_INCLUDE, cur, who_asked);
+			exec_file[0] = '\0';
+		}
+		/* A #include */
+		/* record this inclusion */
+		inclu = ast_include_new(cfg, configfile, cur, !do_include, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
 
-				do_include = ast_config_internal_load(cur, cfg, flags, real_inclusion_name, who_asked) ? 1 : 0;
-				if (!ast_strlen_zero(exec_file))
-					unlink(exec_file);
-				if (!do_include) {
-					ast_log(LOG_ERROR, "The file '%s' was listed as a #include but it does not exist.\n", cur);
-					return -1;
-				}
-				/* XXX otherwise what ? the default return is 0 anyways */
+		do_include = ast_config_internal_load(cur, cfg, flags, real_inclusion_name, who_asked) ? 1 : 0;
+		if (!ast_strlen_zero(exec_file))
+			unlink(exec_file);
+		if (!do_include) {
+			ast_log(LOG_ERROR, "The file '%s' was listed as a #include but it does not exist.\n", cur);
+			return -1;
+		}
+		/* XXX otherwise what ? the default return is 0 anyways */
 
 	} else {
 		/* Just a line (variable = value) */
+		int object = 0;
 		if (!(*cat)) {
 			ast_log(LOG_WARNING,
 				"parse error: No category context for line %d of %s\n", lineno, configfile);
 			return -1;
 		}
 		c = strchr(cur, '=');
-		if (c) {
-			int object;
+
+		if (c && c > cur && (*(c - 1) == '+')) {
+			struct ast_variable *var, *replace = NULL;
+			struct ast_str **str = ast_threadstorage_get(&appendbuf, sizeof(*str));
+
+			if (!str || !*str) {
+				return -1;
+			}
+
+			*(c - 1) = '\0';
+			c++;
+			cur = ast_strip(cur);
+
+			/* Must iterate through category until we find last variable of same name (since there could be multiple) */
+			for (var = ast_category_first(*cat); var; var = var->next) {
+				if (!strcmp(var->name, cur)) {
+					replace = var;
+				}
+			}
+
+			if (!replace) {
+				/* Nothing to replace; just set a variable normally. */
+				goto set_new_variable;
+			}
+
+			ast_str_set(str, 0, "%s", replace->value);
+			ast_str_append(str, 0, "%s", c);
+			ast_variable_update(*cat, replace->name, ast_strip((*str)->str), replace->value, object);
+		} else if (c) {
 			*c = 0;
 			c++;
 			/* Ignore > in => */
 			if (*c== '>') {
 				object = 1;
 				c++;
-			} else
-				object = 0;
-			if ((v = ast_variable_new(ast_strip(cur), ast_strip(c), *suggested_include_file ? suggested_include_file : configfile))) {
+			}
+set_new_variable:
+			if ((v = ast_variable_new(ast_strip(cur), ast_strip(c), S_OR(suggested_include_file, configfile)))) {
 				v->lineno = lineno;
 				v->object = object;
 				*last_cat = 0;

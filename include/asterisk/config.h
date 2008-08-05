@@ -339,6 +339,15 @@ void ast_include_rename(struct ast_config *conf, const char *from_file, const ch
 void ast_variable_append(struct ast_category *category, struct ast_variable *variable);
 void ast_variable_insert(struct ast_category *category, struct ast_variable *variable, const char *line);
 int ast_variable_delete(struct ast_category *category, const char *variable, const char *match, const char *line);
+
+/*! \brief Update variable value within a config
+ * \param category Category element within the config
+ * \param variable Name of the variable to change
+ * \param value New value of the variable
+ * \param match If set, previous value of the variable (if NULL or zero-length, no matching will be done)
+ * \param object Boolean of whether to make the new variable an object
+ * \return 0 on success or -1 on failure.
+ */
 int ast_variable_update(struct ast_category *category, const char *variable, 
 						const char *value, const char *match, unsigned int object);
 

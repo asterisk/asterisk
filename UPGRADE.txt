@@ -226,6 +226,13 @@ Configuration:
 * queues.conf: the queue-lessthan sound file option is no longer available, and the
   queue-round-seconds option no longer takes '1' as a valid parameter.
 
+* If you have any third party modules which use a config file variable whose
+  name ends in a '+', please note that the append capability added to this
+  version may now conflict with that variable naming scheme.  An easy
+  workaround is to ensure that a space occurs between the '+' and the '=',
+  to differentiate your variable from the append operator.  This potential
+  conflict is unlikely, but is documented here to be thorough.
+
 Manager:
 
 * Manager has been upgraded to version 1.1 with a lot of changes. 
