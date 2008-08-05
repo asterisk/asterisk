@@ -69,4 +69,6 @@ elif [ -d .svn ]; then
     else
 	echo SVN-${RESULT}-r${REV}${BASE:+-${BASE}}
     fi
+else
+  echo "UNKNOWN__and_probably_unsupported"
 fi
