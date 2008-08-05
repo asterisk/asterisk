@@ -672,6 +672,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					if (!peer) {
 						ast_verb(3, "%s answered %s\n", c->name, in->name);
 						peer = c;
+						if (peer->cdr) {
+							peer->cdr->answer = ast_tvnow();
+							peer->cdr->disposition = AST_CDR_ANSWERED;
+						}
 						ast_copy_flags64(peerflags, o,
 							OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
 							OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
