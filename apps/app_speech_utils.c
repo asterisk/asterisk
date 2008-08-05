@@ -364,7 +364,7 @@ static int speech_create(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	datastore = ast_channel_datastore_alloc(&speech_datastore, NULL);
+	datastore = ast_datastore_alloc(&speech_datastore, NULL);
 	if (datastore == NULL) {
 		ast_speech_destroy(speech);
 		pbx_builtin_setvar_helper(chan, "ERROR", "1");

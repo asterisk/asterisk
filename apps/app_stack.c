@@ -242,7 +242,7 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 
 	if (!stack_store) {
 		ast_debug(1, "Channel %s has no datastore, so we're allocating one.\n", chan->name);
-		stack_store = ast_channel_datastore_alloc(&stack_info, NULL);
+		stack_store = ast_datastore_alloc(&stack_info, NULL);
 		if (!stack_store) {
 			ast_log(LOG_ERROR, "Unable to allocate new datastore.  Gosub will fail.\n");
 			return -1;
@@ -251,7 +251,7 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 		oldlist = ast_calloc(1, sizeof(*oldlist));
 		if (!oldlist) {
 			ast_log(LOG_ERROR, "Unable to allocate datastore list head.  Gosub will fail.\n");
-			ast_channel_datastore_free(stack_store);
+			ast_datastore_free(stack_store);
 			return -1;
 		}
 

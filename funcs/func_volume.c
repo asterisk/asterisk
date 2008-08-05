@@ -106,10 +106,10 @@ static int volume_write(struct ast_channel *chan, const char *cmd, char *data, c
 
 	if (!(datastore = ast_channel_datastore_find(chan, &volume_datastore, NULL))) {
 		/* Allocate a new datastore to hold the reference to this volume and audiohook information */
-		if (!(datastore = ast_channel_datastore_alloc(&volume_datastore, NULL)))
+		if (!(datastore = ast_datastore_alloc(&volume_datastore, NULL)))
 			return 0;
 		if (!(vi = ast_calloc(1, sizeof(*vi)))) {
-			ast_channel_datastore_free(datastore);
+			ast_datastore_free(datastore);
 			return 0;
 		}
 		ast_audiohook_init(&vi->audiohook, AST_AUDIOHOOK_TYPE_MANIPULATE, "Volume");

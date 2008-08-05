@@ -158,7 +158,7 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 		ast_channel_lock(chan);
 
 	if (!(varstore = ast_channel_datastore_find(chan, &shared_variable_info, NULL))) {
-		if (!(varstore = ast_channel_datastore_alloc(&shared_variable_info, NULL))) {
+		if (!(varstore = ast_datastore_alloc(&shared_variable_info, NULL))) {
 			ast_log(LOG_ERROR, "Unable to allocate new datastore.  Shared variable not set.\n");
 			ast_channel_unlock(chan);
 			return -1;
@@ -166,7 +166,7 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 
 		if (!(varshead = ast_calloc(1, sizeof(*varshead)))) {
 			ast_log(LOG_ERROR, "Unable to allocate variable structure.  Shared variable not set.\n");
-			ast_channel_datastore_free(varstore);
+			ast_datastore_free(varstore);
 			ast_channel_unlock(chan);
 			return -1;
 		}

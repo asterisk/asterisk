@@ -1294,7 +1294,7 @@ void ast_channel_free(struct ast_channel *chan)
 	/* Get rid of each of the data stores on the channel */
 	while ((datastore = AST_LIST_REMOVE_HEAD(&chan->datastores, entry)))
 		/* Free the data store */
-		ast_channel_datastore_free(datastore);
+		ast_datastore_free(datastore);
 
 	/* Lock and unlock the channel just to be sure nobody has it locked still
 	   due to a reference that was stored in a datastore. (i.e. app_chanspy) */
@@ -1369,46 +1369,12 @@ void ast_channel_free(struct ast_channel *chan)
 
 struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
 {
-	struct ast_datastore *datastore = NULL;
-
-	/* Make sure we at least have type so we can identify this */
-	if (!info) {
-		return NULL;
-	}
-
-	/* Allocate memory for datastore and clear it */
-	datastore = ast_calloc(1, sizeof(*datastore));
-	if (!datastore) {
-		return NULL;
-	}
-
-	datastore->info = info;
-
-	datastore->uid = ast_strdup(uid);
-
-	return datastore;
+	return ast_datastore_alloc(info, uid);
 }
 
 int ast_channel_datastore_free(struct ast_datastore *datastore)
 {
-	int res = 0;
-
-	/* Using the destroy function (if present) destroy the data */
-	if (datastore->info->destroy != NULL && datastore->data != NULL) {
-		datastore->info->destroy(datastore->data);
-		datastore->data = NULL;
-	}
-
-	/* Free allocated UID memory */
-	if (datastore->uid != NULL) {
-		ast_free((void *) datastore->uid);
-		datastore->uid = NULL;
-	}
-
-	/* Finally free memory used by ourselves */
-	ast_free(datastore);
-
-	return res;
+	return ast_datastore_free(datastore);
 }
 
 int ast_channel_datastore_inherit(struct ast_channel *from, struct ast_channel *to)
@@ -1417,7 +1383,7 @@ int ast_channel_datastore_inherit(struct ast_channel *from, struct ast_channel *
 
 	AST_LIST_TRAVERSE(&from->datastores, datastore, entry) {
 		if (datastore->inheritance > 0) {
-			datastore2 = ast_channel_datastore_alloc(datastore->info, datastore->uid);
+			datastore2 = ast_datastore_alloc(datastore->info, datastore->uid);
 			if (datastore2) {
 				datastore2->data = datastore->info->duplicate(datastore->data);
 				datastore2->inheritance = datastore->inheritance == DATASTORE_INHERIT_FOREVER ? DATASTORE_INHERIT_FOREVER : datastore->inheritance - 1;
@@ -1450,19 +1416,21 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
 		return NULL;
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore, entry) {
-		if (datastore->info == info) {
-			if (uid != NULL && datastore->uid != NULL) {
-				if (!strcasecmp(uid, datastore->uid)) {
-					/* Matched by type AND uid */
-					break;
-				}
-			} else {
-				/* Matched by type at least */
-				break;
-			}
+		if (datastore->info != info) {
+			continue;
+		}
+
+		if (uid == NULL) {
+			/* matched by type only */
+			break;
+		}
+
+		if ((datastore->uid != NULL) && !strcasecmp(uid, datastore->uid)) {
+			/* Matched by type AND uid */
+			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	return datastore;
 }

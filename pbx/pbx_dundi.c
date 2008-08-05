@@ -3956,7 +3956,7 @@ static int dundi_query_read(struct ast_channel *chan, const char *cmd, char *dat
 	drds->id = ast_atomic_fetchadd_int((int *) &dundi_result_id, 1);
 	snprintf(buf, len, "%u", drds->id);
 
-	if (!(datastore = ast_channel_datastore_alloc(&dundi_result_datastore_info, buf))) {
+	if (!(datastore = ast_datastore_alloc(&dundi_result_datastore_info, buf))) {
 		drds_destroy(drds);
 		ast_module_user_remove(u);
 		return -1;

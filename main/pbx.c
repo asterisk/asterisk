@@ -2558,17 +2558,17 @@ int pbx_builtin_raise_exception(struct ast_channel *chan, void *vreason)
 	struct pbx_exception *exception = NULL;
 
 	if (!ds) {
-		ds = ast_channel_datastore_alloc(&exception_store_info, NULL);
+		ds = ast_datastore_alloc(&exception_store_info, NULL);
 		if (!ds)
 			return -1;
 		exception = ast_calloc(1, sizeof(struct pbx_exception));
 		if (!exception) {
-			ast_channel_datastore_free(ds);
+			ast_datastore_free(ds);
 			return -1;
 		}
 		if (ast_string_field_init(exception, 128)) {
 			ast_free(exception);
-			ast_channel_datastore_free(ds);
+			ast_datastore_free(ds);
 			return -1;
 		}
 		ds->data = exception;

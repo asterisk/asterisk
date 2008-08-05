@@ -189,7 +189,7 @@ static int enum_query_read(struct ast_channel *chan, const char *cmd, char *data
 
 	snprintf(buf, len, "%u", erds->id);
 
-	if (!(datastore = ast_channel_datastore_alloc(&enum_result_datastore_info, buf))) {
+	if (!(datastore = ast_datastore_alloc(&enum_result_datastore_info, buf))) {
 		ast_free(erds->context);
 		ast_free(erds);
 		goto finish;

@@ -96,7 +96,7 @@ static int get_lock(struct ast_channel *chan, char *lockname, int try)
 
 	if (!lock_store) {
 		ast_debug(1, "Channel %s has no lock datastore, so we're allocating one.\n", chan->name);
-		lock_store = ast_channel_datastore_alloc(&lock_info, NULL);
+		lock_store = ast_datastore_alloc(&lock_info, NULL);
 		if (!lock_store) {
 			ast_log(LOG_ERROR, "Unable to allocate new datastore.  No locks will be obtained.\n");
 			return -1;
@@ -105,7 +105,7 @@ static int get_lock(struct ast_channel *chan, char *lockname, int try)
 		list = ast_calloc(1, sizeof(*list));
 		if (!list) {
 			ast_log(LOG_ERROR, "Unable to allocate datastore list head.  %sLOCK will fail.\n", try ? "TRY" : "");
-			ast_channel_datastore_free(lock_store);
+			ast_datastore_free(lock_store);
 			return -1;
 		}
 

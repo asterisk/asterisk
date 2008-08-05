@@ -21,6 +21,7 @@
 
 #include "asterisk/network.h"
 #include "asterisk/lock.h"
+#include "asterisk/datastore.h"
 
 /*!
  \file
@@ -211,5 +212,30 @@ int init_manager(void);
 
 /*! \brief Called by Asterisk module functions and the CLI command */
 int reload_manager(void);
+
+/*! 
+ * \brief Add a datastore to a session
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+
+int astman_datastore_add(struct mansession *s, struct ast_datastore *datastore);
+
+/*! 
+ * \brief Remove a datastore from a session
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int astman_datastore_remove(struct mansession *s, struct ast_datastore *datastore);
+
+/*! 
+ * \brief Find a datastore on a session
+ *
+ * \retval pointer to the datastore if found
+ * \retval NULL if not found
+ */
+struct ast_datastore *astman_datastore_find(struct mansession *s, const struct ast_datastore_info *info, const char *uid);
 
 #endif /* _ASTERISK_MANAGER_H */

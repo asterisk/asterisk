@@ -1162,7 +1162,7 @@ static int smdi_msg_retrieve_read(struct ast_channel *chan, const char *cmd, cha
 	smd->id = ast_atomic_fetchadd_int((int *) &smdi_msg_id, 1);
 	snprintf(buf, len, "%u", smd->id);
 
-	if (!(datastore = ast_channel_datastore_alloc(&smdi_msg_datastore_info, buf)))
+	if (!(datastore = ast_datastore_alloc(&smdi_msg_datastore_info, buf)))
 		goto return_error;
 
 	datastore->data = smd;

@@ -843,13 +843,13 @@ static struct audiohook_volume *audiohook_volume_get(struct ast_channel *chan, i
 	}
 
 	/* If we are not allowed to create a datastore or if we fail to create a datastore, bail out now as we have nothing for them */
-	if (!create || !(datastore = ast_channel_datastore_alloc(&audiohook_volume_datastore, NULL))) {
+	if (!create || !(datastore = ast_datastore_alloc(&audiohook_volume_datastore, NULL))) {
 		return NULL;
 	}
 
 	/* Create a new audiohook_volume structure to contain our adjustments and audiohook */
 	if (!(audiohook_volume = ast_calloc(1, sizeof(*audiohook_volume)))) {
-		ast_channel_datastore_free(datastore);
+		ast_datastore_free(datastore);
 		return NULL;
 	}
 

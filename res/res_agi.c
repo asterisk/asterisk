@@ -255,14 +255,14 @@ static int add_to_agi(struct ast_channel *chan)
 
 	/* the channel has never been on Async AGI,
 	   let's allocate it's datastore */
-	datastore = ast_channel_datastore_alloc(&agi_commands_datastore_info, "AGI");
+	datastore = ast_datastore_alloc(&agi_commands_datastore_info, "AGI");
 	if (!datastore) {
 		return -1;
 	}
 	agi_cmds_list = ast_calloc(1, sizeof(*agi_cmds_list));
 	if (!agi_cmds_list) {
 		ast_log(LOG_ERROR, "Unable to allocate Async AGI commands list.\n");
-		ast_channel_datastore_free(datastore);
+		ast_datastore_free(datastore);
 		return -1;
 	}
 	datastore->data = agi_cmds_list;

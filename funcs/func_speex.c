@@ -151,12 +151,12 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 	if (!(datastore = ast_channel_datastore_find(chan, &speex_datastore, NULL))) {
 		ast_channel_unlock(chan);
 
-		if (!(datastore = ast_channel_datastore_alloc(&speex_datastore, NULL))) {
+		if (!(datastore = ast_datastore_alloc(&speex_datastore, NULL))) {
 			return 0;
 		}
 
 		if (!(si = ast_calloc(1, sizeof(*si)))) {
-			ast_channel_datastore_free(datastore);
+			ast_datastore_free(datastore);
 			return 0;
 		}
 
@@ -177,7 +177,7 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 		ast_log(LOG_ERROR, "Invalid argument provided to the %s function\n", cmd);
 
 		if (is_new) {
-			ast_channel_datastore_free(datastore);
+			ast_datastore_free(datastore);
 			return -1;
 		}
 	}
@@ -237,7 +237,7 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 			ast_audiohook_detach(&si->audiohook);
 		}
 		
-		ast_channel_datastore_free(datastore);
+		ast_datastore_free(datastore);
 	}
 
 	if (is_new) { 

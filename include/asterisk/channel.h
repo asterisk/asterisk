@@ -150,8 +150,7 @@ extern "C" {
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/stringfields.h"
-
-#define DATASTORE_INHERIT_FOREVER	INT_MAX
+#include "asterisk/datastore.h"
 
 #define AST_MAX_FDS		10
 /*
@@ -184,37 +183,6 @@ struct ast_generator {
 	int (*generate)(struct ast_channel *chan, void *data, int len, int samples);
 	/*! This gets called when DTMF_END frames are read from the channel */
 	void (*digit)(struct ast_channel *chan, char digit);
-};
-
-/*! \brief Structure for a data store type */
-struct ast_datastore_info {
-	const char *type;		/*!< Type of data store */
-	void *(*duplicate)(void *data);	/*!< Duplicate item data (used for inheritance) */
-	void (*destroy)(void *data);	/*!< Destroy function */
-	/*!
-	 * \brief Fix up channel references
-	 *
-	 * \arg data The datastore data
-	 * \arg old_chan The old channel owning the datastore
-	 * \arg new_chan The new channel owning the datastore
-	 *
-	 * This is exactly like the fixup callback of the channel technology interface.
-	 * It allows a datastore to fix any pointers it saved to the owning channel
-	 * in case that the owning channel has changed.  Generally, this would happen
-	 * when the datastore is set to be inherited, and a masquerade occurs.
-	 *
-	 * \return nothing.
-	 */
-	void (*chan_fixup)(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan);
-};
-
-/*! \brief Structure for a channel data store */
-struct ast_datastore {
-	const char *uid;		/*!< Unique data store identifier */
-	void *data;		/*!< Contained data */
-	const struct ast_datastore_info *info;	/*!< Data store type information */
-	unsigned int inheritance;	/*!< Number of levels this item will continue to be inherited */
-	AST_LIST_ENTRY(ast_datastore) entry; /*!< Used for easy linking */
 };
 
 /*! \brief Structure for all kinds of caller ID identifications.
@@ -653,16 +621,24 @@ enum channelreloadreason {
 };
 
 /*! 
- * \brief Create a channel datastore structure 
- *
  * \note None of the datastore API calls lock the ast_channel they are using.
  *       So, the channel should be locked before calling the functions that
  *       take a channel argument.
  */
-struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid);
 
-/*! \brief Free a channel datastore structure */
-int ast_channel_datastore_free(struct ast_datastore *datastore);
+/*! 
+ * \brief Create a channel data store object
+ * \deprecated You should use the ast_datastore_alloc() generic function instead.
+ */
+struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
+	__attribute__ ((deprecated));
+
+/*!
+ * \brief Free a channel data store object
+ * \deprecated You should use the ast_datastore_free() generic function instead.
+ */
+int ast_channel_datastore_free(struct ast_datastore *datastore)
+	__attribute__ ((deprecated));
 
 /*! \brief Inherit datastores from a parent to a child. */
 int ast_channel_datastore_inherit(struct ast_channel *from, struct ast_channel *to);
@@ -695,6 +671,9 @@ int ast_channel_datastore_remove(struct ast_channel *chan, struct ast_datastore 
  *
  * \note The datastore returned from this function must not be used if the
  *       reference to the channel is released.
+ *
+ * \retval pointer to the datastore if found
+ * \retval NULL if not found
  */
 struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const struct ast_datastore_info *info, const char *uid);
 

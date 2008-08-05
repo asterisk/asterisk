@@ -172,6 +172,7 @@ struct mansession {
 	struct eventqent *last_ev;	/*!< last event processed. */
 	int writetimeout;	/*!< Timeout for ast_carefulwrite() */
 	int pending_event;         /*!< Pending events indicator in case when waiting_thread is NULL */
+	AST_LIST_HEAD_NOLOCK(mansession_datastores, ast_datastore) datastores; /*!< Data stores on the session */
 	AST_LIST_ENTRY(mansession) list;
 };
 
@@ -786,6 +787,14 @@ static void ref_event(struct eventqent *e)
 static void free_session(struct mansession *s)
 {
 	struct eventqent *eqe = s->last_ev;
+	struct ast_datastore *datastore;
+
+	/* Get rid of each of the data stores on the session */
+	while ((datastore = AST_LIST_REMOVE_HEAD(&s->datastores, entry))) {
+		/* Free the data store */
+		ast_datastore_free(datastore);
+	}
+
 	if (s->f != NULL)
 		fclose(s->f);
 	ast_mutex_destroy(&s->__lock);
@@ -3092,18 +3101,21 @@ static void *session_do(void *data)
 
 	ast_mutex_init(&s->__lock);
 	s->send_events = -1;
+	/* Hook to the tail of the event queue */
+	s->last_ev = grab_last();
+
 	/* these fields duplicate those in the 'ser' structure */
 	s->fd = ser->fd;
 	s->f = ser->f;
 	s->sin = ser->requestor;
 
+	AST_LIST_HEAD_INIT_NOLOCK(&s->datastores);
+
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_INSERT_HEAD(&sessions, s, list);
 	ast_atomic_fetchadd_int(&num_sessions, 1);
 	AST_LIST_UNLOCK(&sessions);
-	/* Hook to the tail of the event queue */
-	s->last_ev = grab_last();
-	s->f = ser->f;
+
 	astman_append(s, "Asterisk Call Manager/%s\r\n", AMI_VERSION);	/* welcome prompt */
 	for (;;) {
 		if ((res = do_message(s)) < 0)
@@ -3729,6 +3741,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		 */
 		while ((s->managerid = rand() ^ (unsigned long) s) == 0);
 		s->last_ev = grab_last();
+		AST_LIST_HEAD_INIT_NOLOCK(&s->datastores);
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
 		ast_atomic_fetchadd_int(&num_sessions, 1);
@@ -4257,4 +4270,43 @@ int init_manager(void)
 int reload_manager(void)
 {
 	return __init_manager(1);
+}
+
+int astman_datastore_add(struct mansession *s, struct ast_datastore *datastore)
+{
+	AST_LIST_INSERT_HEAD(&s->datastores, datastore, entry);
+
+	return 0;
+}
+
+int astman_datastore_remove(struct mansession *s, struct ast_datastore *datastore)
+{
+	return AST_LIST_REMOVE(&s->datastores, datastore, entry) ? 0 : -1;
+}
+
+struct ast_datastore *astman_datastore_find(struct mansession *s, const struct ast_datastore_info *info, const char *uid)
+{
+	struct ast_datastore *datastore = NULL;
+	
+	if (info == NULL)
+		return NULL;
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&s->datastores, datastore, entry) {
+		if (datastore->info != info) {
+			continue;
+		}
+
+		if (uid == NULL) {
+			/* matched by type only */
+			break;
+		}
+
+		if ((datastore->uid != NULL) && !strcasecmp(uid, datastore->uid)) {
+			/* Matched by type AND uid */
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	return datastore;
 }

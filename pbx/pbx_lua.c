@@ -988,7 +988,7 @@ static lua_State *lua_get_state(struct ast_channel *chan)
 
 		if (!datastore) {
 			/* nothing found, allocate a new lua state */
-			datastore = ast_channel_datastore_alloc(&lua_datastore, NULL);
+			datastore = ast_datastore_alloc(&lua_datastore, NULL);
 			if (!datastore) {
 				ast_log(LOG_ERROR, "Error allocation channel datastore for lua_State\n");
 				return NULL;
@@ -996,7 +996,7 @@ static lua_State *lua_get_state(struct ast_channel *chan)
 
 			datastore->data = luaL_newstate();
 			if (!datastore->data) {
-				ast_channel_datastore_free(datastore);
+				ast_datastore_free(datastore);
 				ast_log(LOG_ERROR, "Error allocating lua_State, no memory\n");
 				return NULL;
 			}
@@ -1015,7 +1015,7 @@ static lua_State *lua_get_state(struct ast_channel *chan)
 				ast_channel_datastore_remove(chan, datastore);
 				ast_channel_unlock(chan);
 
-				ast_channel_datastore_free(datastore);
+				ast_datastore_free(datastore);
 				return NULL;
 			}
 		}

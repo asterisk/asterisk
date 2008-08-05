@@ -6474,7 +6474,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 		struct ast_variable *var, *prev = NULL;
 		AST_LIST_HEAD(, ast_var_t) *varlist;
 		varlist = ast_calloc(1, sizeof(*varlist));
-		variablestore = ast_channel_datastore_alloc(&iax2_variable_datastore_info, NULL);
+		variablestore = ast_datastore_alloc(&iax2_variable_datastore_info, NULL);
 		if (variablestore && varlist && p->owner) {
 			variablestore->data = varlist;
 			variablestore->inheritance = DATASTORE_INHERIT_FOREVER;
@@ -6499,7 +6499,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 			if (p->owner)
 				ast_log(LOG_ERROR, "Memory allocation error while processing IAX2 variables\n");
 			if (variablestore)
-				ast_channel_datastore_free(variablestore);
+				ast_datastore_free(variablestore);
 			if (varlist)
 				ast_free(varlist);
 		}
@@ -7967,7 +7967,7 @@ static int acf_iaxvar_write(struct ast_channel *chan, const char *cmd, char *dat
 	struct ast_var_t *var;
 
 	if (!variablestore) {
-		variablestore = ast_channel_datastore_alloc(&iax2_variable_datastore_info, NULL);
+		variablestore = ast_datastore_alloc(&iax2_variable_datastore_info, NULL);
 		if (!variablestore) {
 			ast_log(LOG_ERROR, "Memory allocation error\n");
 			return -1;
@@ -8362,7 +8362,7 @@ static int socket_process(struct iax2_thread *thread)
 					struct ast_variable *var, *prev = NULL;
 					AST_LIST_HEAD(, ast_var_t) *varlist;
 					varlist = ast_calloc(1, sizeof(*varlist));
-					variablestore = ast_channel_datastore_alloc(&iax2_variable_datastore_info, NULL);
+					variablestore = ast_datastore_alloc(&iax2_variable_datastore_info, NULL);
 					if (variablestore && varlist) {
 						variablestore->data = varlist;
 						variablestore->inheritance = DATASTORE_INHERIT_FOREVER;
@@ -8386,7 +8386,7 @@ static int socket_process(struct iax2_thread *thread)
 					} else {
 						ast_log(LOG_ERROR, "Memory allocation error while processing IAX2 variables\n");
 						if (variablestore)
-							ast_channel_datastore_free(variablestore);
+							ast_datastore_free(variablestore);
 						if (varlist)
 							ast_free(varlist);
 					}
@@ -9139,7 +9139,7 @@ retryowner2:
 								struct ast_variable *var, *prev = NULL;
 								AST_LIST_HEAD(, ast_var_t) *varlist;
 								varlist = ast_calloc(1, sizeof(*varlist));
-								variablestore = ast_channel_datastore_alloc(&iax2_variable_datastore_info, NULL);
+								variablestore = ast_datastore_alloc(&iax2_variable_datastore_info, NULL);
 								if (variablestore && varlist) {
 									variablestore->data = varlist;
 									variablestore->inheritance = DATASTORE_INHERIT_FOREVER;
@@ -9163,7 +9163,7 @@ retryowner2:
 								} else {
 									ast_log(LOG_ERROR, "Memory allocation error while processing IAX2 variables\n");
 									if (variablestore)
-										ast_channel_datastore_free(variablestore);
+										ast_datastore_free(variablestore);
 									if (varlist)
 										ast_free(varlist);
 								}
@@ -9203,7 +9203,7 @@ retryowner2:
 							struct ast_variable *var, *prev = NULL;
 							AST_LIST_HEAD(, ast_var_t) *varlist;
 							varlist = ast_calloc(1, sizeof(*varlist));
-							variablestore = ast_channel_datastore_alloc(&iax2_variable_datastore_info, NULL);
+							variablestore = ast_datastore_alloc(&iax2_variable_datastore_info, NULL);
 							if (variablestore && varlist) {
 								variablestore->data = varlist;
 								variablestore->inheritance = DATASTORE_INHERIT_FOREVER;
@@ -9227,7 +9227,7 @@ retryowner2:
 							} else {
 								ast_log(LOG_ERROR, "Memory allocation error while processing IAX2 variables\n");
 								if (variablestore)
-									ast_channel_datastore_free(variablestore);
+									ast_datastore_free(variablestore);
 								if (varlist)
 									ast_free(varlist);
 							}

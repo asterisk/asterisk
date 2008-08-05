@@ -480,7 +480,7 @@ end_acf_read:
 		struct ast_datastore *odbc_store;
 		uid = ast_atomic_fetchadd_int(&resultcount, +1) + 1;
 		snprintf(buf, len, "%d", uid);
-		odbc_store = ast_channel_datastore_alloc(&odbc_info, buf);
+		odbc_store = ast_datastore_alloc(&odbc_info, buf);
 		if (!odbc_store) {
 			ast_log(LOG_ERROR, "Rows retrieved, but unable to store it in the channel.  Results fail.\n");
 			odbc_datastore_free(resultset);
@@ -550,7 +550,7 @@ static int acf_fetch(struct ast_channel *chan, const char *cmd, char *data, char
 	if (!row) {
 		/* Cleanup datastore */
 		ast_channel_datastore_remove(chan, store);
-		ast_channel_datastore_free(store);
+		ast_datastore_free(store);
 		return -1;
 	}
 	pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", resultset->names);
@@ -584,7 +584,7 @@ static int exec_odbcfinish(struct ast_channel *chan, void *data)
 	if (!store) /* Already freed; no big deal. */
 		return 0;
 	ast_channel_datastore_remove(chan, store);
-	ast_channel_datastore_free(store);
+	ast_datastore_free(store);
 	return 0;
 }
 
