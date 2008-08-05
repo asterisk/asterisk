@@ -36,6 +36,7 @@
 #define AST_CDR_FLAG_ENABLE			(1 << 7)
 #define AST_CDR_FLAG_ANSLOCKED      (1 << 8)
 #define AST_CDR_FLAG_DONT_TOUCH     (1 << 9)
+#define AST_CDR_FLAG_DIALED         (1 << 10)
 
 /*! Disposition */
 #define AST_CDR_NULL                0
@@ -103,6 +104,7 @@ struct ast_cdr {
 	struct ast_cdr *next;
 };
 
+int ast_cdr_isset_unanswered(void);
 void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur, int raw);
 int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int recur);
 int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur);

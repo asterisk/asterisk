@@ -1514,7 +1514,10 @@ int ast_hangup(struct ast_channel *chan)
 			ast_cause2str(chan->hangupcause)
 			);
 
-	if (chan->cdr && !ast_test_flag(chan->cdr, AST_CDR_FLAG_BRIDGED) && !ast_test_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED) && chan->cdr->disposition != AST_CDR_NULL) {
+	if (chan->cdr && !ast_test_flag(chan->cdr, AST_CDR_FLAG_BRIDGED) && 
+		!ast_test_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED) && 
+	    (chan->cdr->disposition != AST_CDR_NULL || ast_test_flag(chan->cdr, AST_CDR_FLAG_DIALED))) {
+			
 		ast_cdr_end(chan->cdr);
 		ast_cdr_detach(chan->cdr);
 	}
@@ -3052,6 +3055,8 @@ int ast_call(struct ast_channel *chan, char *addr, int timeout)
 	/* Stop if we're a zombie or need a soft hangup */
 	ast_channel_lock(chan);
 	if (!ast_test_flag(chan, AST_FLAG_ZOMBIE) && !ast_check_hangup(chan)) {
+		if (chan->cdr)
+			ast_set_flag(chan->cdr, AST_CDR_FLAG_DIALED);
 		if (chan->tech->call)
 			res = chan->tech->call(chan, addr, timeout);
 		ast_set_flag(chan, AST_FLAG_OUTGOING);

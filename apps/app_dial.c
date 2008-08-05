@@ -578,6 +578,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 						if (option_verbose > 2)
 							ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", c->name, in->name);
 						peer = c;
+						if (peer->cdr) {
+							peer->cdr->answer = ast_tvnow();
+							peer->cdr->disposition = AST_CDR_ANSWERED;
+						}
 						ast_copy_flags(peerflags, o,
 							       OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
 							       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
@@ -1761,8 +1765,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				res = -1;
 				goto done;
 			}
-			if (opermode && (!strncmp(chan->name,"Zap",3)) &&
-				(!strncmp(peer->name,"Zap",3)))
+			if (opermode && 
+				(((!strncasecmp(chan->name,"Zap",3)) && (!strncasecmp(peer->name,"Zap",3))) ||
+				 ((!strncasecmp(chan->name,"Dahdi",5)) && (!strncasecmp(peer->name,"Dahdi",5)))))
 			{
 				struct oprmode oprmode;
 
