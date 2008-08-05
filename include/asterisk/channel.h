@@ -152,6 +152,8 @@ extern "C" {
 #include "asterisk/stringfields.h"
 #include "asterisk/datastore.h"
 
+#define DATASTORE_INHERIT_FOREVER	INT_MAX
+
 #define AST_MAX_FDS		10
 /*
  * We have AST_MAX_FDS file descriptors in a channel.

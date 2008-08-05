@@ -27,8 +27,6 @@ extern "C" {
 
 #include "asterisk/linkedlists.h"
 
-#define DATASTORE_INHERIT_FOREVER	INT_MAX
-
 /*! \brief Structure for a data store type */
 struct ast_datastore_info {
 	const char *type;			/*!< Type of data store */
