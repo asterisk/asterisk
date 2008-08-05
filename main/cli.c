@@ -1249,7 +1249,7 @@ static char *complete_mod_4(const char *line, const char *word, int pos, int sta
 static char *complete_fn_2(const char *line, const char *word, int pos, int state)
 {
 	char *c, *d;
-	char filename[256];
+	char filename[PATH_MAX];
 
 	if (pos != 1)
 		return NULL;
@@ -1273,7 +1273,7 @@ static char *complete_fn_2(const char *line, const char *word, int pos, int stat
 static char *complete_fn_3(const char *line, const char *word, int pos, int state)
 {
 	char *c, *d;
-	char filename[256];
+	char filename[PATH_MAX];
 
 	if (pos != 2)
 		return NULL;
