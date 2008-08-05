@@ -122,7 +122,7 @@ static AST_RWLIST_HEAD_STATIC(helpers, ast_cli_entry);
 static char *complete_fn(const char *word, int state)
 {
 	char *c, *d;
-	char filename[256];
+	char filename[PATH_MAX];
 
 	if (word[0] == '/')
 		ast_copy_string(filename, word, sizeof(filename));
