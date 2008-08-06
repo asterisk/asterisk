@@ -88,7 +88,7 @@ start() {
 		ASTARGS="$ASTARGS -G $AST_GROUP"
 	fi
 	if [ $AST_CONFIG ]; then
-		ASTARGS="$ASTARGS -C $AST_CONFIG"
+		ASTARGS="$ASTARGS -C $AST_CONFIG/asterisk.conf"
 	fi
 	daemon $DAEMON $ASTARGS
 	RETVAL=$?
