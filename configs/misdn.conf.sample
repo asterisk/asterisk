@@ -166,7 +166,16 @@ far_alerting=no
 
 
 ;
-; here you can define which bearers should be allowed
+; Here you can list which bearer capabilities should be allowed:
+;   all                  - allow any bearer capability
+;   speech               - allow speech
+;   3_1khz               - allow 3.1KHz audio
+;   digital_unrestricted - allow unrestricted digital
+;   digital_restricted   - allow restricted digital
+;   video                - allow video
+;
+; Example:
+; allowed_bearers=speech,3_1khz
 ;
 allowed_bearers=all
 
@@ -345,9 +354,9 @@ nodialtone=no
 presentation=-1
 screen=-1
 
-; this enables echocancellation, with the given number of taps
-; be aware, move this setting only to outgoing portgroups!
-; A value of zero turns echocancellation off.
+; This enables echo cancellation with the given number of taps.
+; Be aware: Move this setting only to outgoing portgroups!
+; A value of zero turns echo cancellation off.
 ;
 ; possible values are: 0,32,64,128,256,yes(=128),no(=0)
 ;
