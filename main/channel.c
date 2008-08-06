@@ -4159,6 +4159,8 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 
 	/* Check the need of a jitterbuffer for each channel */
 	jb_in_use = ast_jb_do_usecheck(c0, c1);
+	if (jb_in_use)
+		ast_jb_empty_and_reset(c0, c1);
 
 	ast_poll_channel_add(c0, c1);
 
@@ -4224,6 +4226,9 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			case AST_CONTROL_VIDUPDATE:
 			case AST_CONTROL_SRCUPDATE:
 				ast_indicate_data(other, f->subclass, f->data.ptr, f->datalen);
+				if (jb_in_use) {
+					ast_jb_empty_and_reset(c0, c1);
+				}
 				break;
 			default:
 				*fo = f;

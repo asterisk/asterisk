@@ -212,6 +212,12 @@ void ast_jb_configure(struct ast_channel *chan, const struct ast_jb_conf *conf);
  */
 void ast_jb_get_config(const struct ast_channel *chan, struct ast_jb_conf *conf);
 
+/*!
+ * \brief drops all frames from a jitterbuffer and resets it
+ * \param c0 one channel of a bridge
+ * \param c1 the other channel of the bridge
+ */
+void ast_jb_empty_and_reset(struct ast_channel *c0, struct ast_channel *c1);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
