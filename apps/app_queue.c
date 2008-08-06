@@ -5045,7 +5045,6 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_queue, sizeof(cli_queue) / sizeof(struct ast_cli_entry));
 	res = ast_manager_unregister("QueueStatus");
 	res |= ast_manager_unregister("Queues");
-	res |= ast_manager_unregister("QueueStatus");
 	res |= ast_manager_unregister("QueueAdd");
 	res |= ast_manager_unregister("QueueRemove");
 	res |= ast_manager_unregister("QueuePause");
