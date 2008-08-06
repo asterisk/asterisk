@@ -509,7 +509,7 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
 #define ast_realloc(a,b)	realloc(a,b)
 #define ast_strdup(a)		strdup(a)
 #define ast_strndup(a,b)	strndup(a,b)
-#define ast_asprintf(a,b,c)	asprintf(a,b,c)
+#define ast_asprintf(a,b,...)	asprintf(a,b,__VA_ARGS__)
 #define ast_vasprintf(a,b,c)	vasprintf(a,b,c)
 
 #endif /* AST_DEBUG_MALLOC */
