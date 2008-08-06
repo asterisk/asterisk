@@ -52,7 +52,7 @@ enum {
 } odbc_option_flags;
 
 struct acf_odbc_query {
-	AST_LIST_ENTRY(acf_odbc_query) list;
+	AST_RWLIST_ENTRY(acf_odbc_query) list;
 	char readhandle[5][30];
 	char writehandle[5][30];
 	char sql_read[2048];
@@ -81,7 +81,7 @@ struct odbc_datastore {
 	char names[0];
 };
 
-AST_LIST_HEAD_STATIC(queries, acf_odbc_query);
+AST_RWLIST_HEAD_STATIC(queries, acf_odbc_query);
 
 static int resultcount = 0;
 
@@ -128,7 +128,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 {
 	struct odbc_obj *obj = NULL;
 	struct acf_odbc_query *query;
-	char *t, buf[2048], varname[15];
+	char *t, varname[15];
 	int i, dsn, bogus_chan = 0;
 	AST_DECLARE_APP_ARGS(values,
 		AST_APP_ARG(field)[100];
@@ -138,9 +138,14 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	);
 	SQLHSTMT stmt = NULL;
 	SQLLEN rows=0;
+	struct ast_str *buf = ast_str_create(16);
 
-	AST_LIST_LOCK(&queries);
-	AST_LIST_TRAVERSE(&queries, query, list) {
+	if (!buf) {
+		return -1;
+	}
+
+	AST_RWLIST_RDLOCK(&queries);
+	AST_RWLIST_TRAVERSE(&queries, query, list) {
 		if (!strcmp(query->acf->name, cmd)) {
 			break;
 		}
@@ -148,7 +153,8 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 
 	if (!query) {
 		ast_log(LOG_ERROR, "No such function '%s'\n", cmd);
-		AST_LIST_UNLOCK(&queries);
+		AST_RWLIST_UNLOCK(&queries);
+		ast_free(buf);
 		return -1;
 	}
 
@@ -160,16 +166,19 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	if (chan)
 		ast_autoservice_start(chan);
 
+	ast_str_make_space(&buf, strlen(query->sql_write) * 2);
+
 	/* Parse our arguments */
 	t = value ? ast_strdupa(value) : "";
 
 	if (!s || !t) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		AST_LIST_UNLOCK(&queries);
+		AST_RWLIST_UNLOCK(&queries);
 		if (chan)
 			ast_autoservice_stop(chan);
 		if (bogus_chan)
 			ast_channel_free(chan);
+		ast_free(buf);
 		return -1;
 	}
 
@@ -189,7 +198,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	/* Additionally set the value as a whole (but push an empty string if value is NULL) */
 	pbx_builtin_pushvar_helper(chan, "VALUE", value ? value : "");
 
-	pbx_substitute_variables_helper(chan, query->sql_write, buf, sizeof(buf) - 1);
+	pbx_substitute_variables_helper(chan, query->sql_write, buf->str, buf->len - 1);
 
 	/* Restore prior values */
 	for (i = 0; i < args.argc; i++) {
@@ -203,7 +212,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	}
 	pbx_builtin_setvar_helper(chan, "VALUE", NULL);
 
-	AST_LIST_UNLOCK(&queries);
+	AST_RWLIST_UNLOCK(&queries);
 
 	for (dsn = 0; dsn < 5; dsn++) {
 		if (!ast_strlen_zero(query->writehandle[dsn])) {
@@ -238,6 +247,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		ast_autoservice_stop(chan);
 	if (bogus_chan)
 		ast_channel_free(chan);
+	ast_free(buf);
 
 	return 0;
 }
@@ -246,7 +256,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 {
 	struct odbc_obj *obj = NULL;
 	struct acf_odbc_query *query;
-	char sql[2048], varname[15], colnames[2048] = "", rowcount[12] = "-1";
+	char varname[15], colnames[2048] = "", rowcount[12] = "-1";
 	int res, x, y, buflen = 0, escapecommas, rowlimit = 1, dsn, bogus_chan = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];
@@ -257,9 +267,14 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	SQLSMALLINT collength;
 	struct odbc_datastore *resultset = NULL;
 	struct odbc_datastore_row *row = NULL;
+	struct ast_str *sql = ast_str_create(16);
 
-	AST_LIST_LOCK(&queries);
-	AST_LIST_TRAVERSE(&queries, query, list) {
+	if (!sql) {
+		return -1;
+	}
+
+	AST_RWLIST_RDLOCK(&queries);
+	AST_RWLIST_TRAVERSE(&queries, query, list) {
 		if (!strcmp(query->acf->name, cmd)) {
 			break;
 		}
@@ -267,8 +282,9 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 
 	if (!query) {
 		ast_log(LOG_ERROR, "No such function '%s'\n", cmd);
-		AST_LIST_UNLOCK(&queries);
+		AST_RWLIST_UNLOCK(&queries);
 		pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
+		ast_free(sql);
 		return -1;
 	}
 
@@ -286,7 +302,8 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		pbx_builtin_pushvar_helper(chan, varname, args.field[x]);
 	}
 
-	pbx_substitute_variables_helper(chan, query->sql_read, sql, sizeof(sql) - 1);
+	ast_str_make_space(&sql, strlen(query->sql_read) * 2);
+	pbx_substitute_variables_helper(chan, query->sql_read, sql->str, sql->len - 1);
 
 	/* Restore prior values */
 	for (x = 0; x < args.argc; x++) {
@@ -304,20 +321,20 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		else
 			rowlimit = INT_MAX;
 	}
-	AST_LIST_UNLOCK(&queries);
+	AST_RWLIST_UNLOCK(&queries);
 
 	for (dsn = 0; dsn < 5; dsn++) {
 		if (!ast_strlen_zero(query->readhandle[dsn])) {
 			obj = ast_odbc_request_obj(query->readhandle[dsn], 0);
 			if (obj)
-				stmt = ast_odbc_direct_execute(obj, generic_execute, sql);
+				stmt = ast_odbc_direct_execute(obj, generic_execute, sql->str);
 		}
 		if (stmt)
 			break;
 	}
 
 	if (!stmt) {
-		ast_log(LOG_ERROR, "Unable to execute query [%s]\n", sql);
+		ast_log(LOG_ERROR, "Unable to execute query [%s]\n", sql->str);
 		if (obj)
 			ast_odbc_release_obj(obj);
 		pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
@@ -325,12 +342,13 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			ast_autoservice_stop(chan);
 		if (bogus_chan)
 			ast_channel_free(chan);
+		ast_free(sql);
 		return -1;
 	}
 
 	res = SQLNumResultCols(stmt, &colcount);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
+		ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql->str);
 		SQLCloseCursor(stmt);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
@@ -339,6 +357,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			ast_autoservice_stop(chan);
 		if (bogus_chan)
 			ast_channel_free(chan);
+		ast_free(sql);
 		return -1;
 	}
 
@@ -346,11 +365,11 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		int res1 = -1;
 		if (res == SQL_NO_DATA) {
-			ast_verb(4, "Found no rows [%s]\n", sql);
+			ast_verb(4, "Found no rows [%s]\n", sql->str);
 			res1 = 0;
 			ast_copy_string(rowcount, "0", sizeof(rowcount));
 		} else {
-			ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, sql);
+			ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, sql->str);
 		}
 		SQLCloseCursor(stmt);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
@@ -360,6 +379,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			ast_autoservice_stop(chan);
 		if (bogus_chan)
 			ast_channel_free(chan);
+		ast_free(sql);
 		return res1;
 	}
 
@@ -411,6 +431,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 							ast_autoservice_stop(chan);
 						if (bogus_chan)
 							ast_channel_free(chan);
+						ast_free(sql);
 						return -1;
 					}
 					resultset = tmp;
@@ -426,7 +447,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			}
 
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql->str);
 				y = -1;
 				goto end_acf_read;
 			}
@@ -464,7 +485,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			res = SQLFetch(stmt);
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 				if (res != SQL_NO_DATA)
-					ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, sql);
+					ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, sql->str);
 				y++;
 				break;
 			}
@@ -491,6 +512,7 @@ end_acf_read:
 				ast_autoservice_stop(chan);
 			if (bogus_chan)
 				ast_channel_free(chan);
+			ast_free(sql);
 			return -1;
 		}
 		odbc_store->data = resultset;
@@ -503,6 +525,7 @@ end_acf_read:
 		ast_autoservice_stop(chan);
 	if (bogus_chan)
 		ast_channel_free(chan);
+	ast_free(sql);
 	return 0;
 }
 
@@ -786,12 +809,12 @@ static int load_module(void)
 
 	res |= ast_custom_function_register(&fetch_function);
 	res |= ast_register_application(app_odbcfinish, exec_odbcfinish, syn_odbcfinish, desc_odbcfinish);
-	AST_LIST_LOCK(&queries);
+	AST_RWLIST_WRLOCK(&queries);
 
 	cfg = ast_config_load(config, config_flags);
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to load config for func_odbc: %s\n", config);
-		AST_LIST_UNLOCK(&queries);
+		AST_RWLIST_UNLOCK(&queries);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -809,7 +832,7 @@ static int load_module(void)
 			else
 				ast_log(LOG_ERROR, "%s (%d)\n", strerror(err), err);
 		} else {
-			AST_LIST_INSERT_HEAD(&queries, query, list);
+			AST_RWLIST_INSERT_HEAD(&queries, query, list);
 			ast_custom_function_register(query->acf);
 		}
 	}
@@ -817,7 +840,7 @@ static int load_module(void)
 	ast_config_destroy(cfg);
 	res |= ast_custom_function_register(&escape_function);
 
-	AST_LIST_UNLOCK(&queries);
+	AST_RWLIST_UNLOCK(&queries);
 	return res;
 }
 
@@ -826,9 +849,9 @@ static int unload_module(void)
 	struct acf_odbc_query *query;
 	int res = 0;
 
-	AST_LIST_LOCK(&queries);
-	while (!AST_LIST_EMPTY(&queries)) {
-		query = AST_LIST_REMOVE_HEAD(&queries, list);
+	AST_RWLIST_WRLOCK(&queries);
+	while (!AST_RWLIST_EMPTY(&queries)) {
+		query = AST_RWLIST_REMOVE_HEAD(&queries, list);
 		ast_custom_function_unregister(query->acf);
 		free_acf_query(query);
 	}
@@ -838,11 +861,11 @@ static int unload_module(void)
 	res |= ast_unregister_application(app_odbcfinish);
 
 	/* Allow any threads waiting for this lock to pass (avoids a race) */
-	AST_LIST_UNLOCK(&queries);
+	AST_RWLIST_UNLOCK(&queries);
 	usleep(1);
-	AST_LIST_LOCK(&queries);
+	AST_RWLIST_WRLOCK(&queries);
 
-	AST_LIST_UNLOCK(&queries);
+	AST_RWLIST_UNLOCK(&queries);
 	return 0;
 }
 
@@ -858,10 +881,10 @@ static int reload(void)
 	if (cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 
-	AST_LIST_LOCK(&queries);
+	AST_RWLIST_WRLOCK(&queries);
 
-	while (!AST_LIST_EMPTY(&queries)) {
-		oldquery = AST_LIST_REMOVE_HEAD(&queries, list);
+	while (!AST_RWLIST_EMPTY(&queries)) {
+		oldquery = AST_RWLIST_REMOVE_HEAD(&queries, list);
 		ast_custom_function_unregister(oldquery->acf);
 		free_acf_query(oldquery);
 	}
@@ -879,14 +902,14 @@ static int reload(void)
 		if (init_acf_query(cfg, catg, &query)) {
 			ast_log(LOG_ERROR, "Cannot initialize query %s\n", catg);
 		} else {
-			AST_LIST_INSERT_HEAD(&queries, query, list);
+			AST_RWLIST_INSERT_HEAD(&queries, query, list);
 			ast_custom_function_register(query->acf);
 		}
 	}
 
 	ast_config_destroy(cfg);
 reload_out:
-	AST_LIST_UNLOCK(&queries);
+	AST_RWLIST_UNLOCK(&queries);
 	return res;
 }
 
