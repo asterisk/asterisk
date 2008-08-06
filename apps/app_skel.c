@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
+#include "asterisk/utils.h"
 
 static char *app = "Skel";
 static char *synopsis = 
@@ -72,28 +73,26 @@ AST_APP_OPTIONS(app_opts,{
 	AST_APP_OPTION_ARG('c', OPTION_C, OPTION_ARG_C),
 });
 
+static void *dogballs(void *shit) 
+{
+	ast_log(LOG_NOTICE, "Oh GOD!! I am a thread magician!!\n");
+	return NULL;
+}
 
 static int app_exec(struct ast_channel *chan, void *data)
 {
-	int res = 0;
-	struct ast_flags flags;
+	int i;
 	struct ast_module_user *u;
-	char *parse, *opts[OPTION_ARG_ARRAY_SIZE];
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(dummy);
-		AST_APP_ARG(options);
-	);
-
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "%s requires an argument (dummy|[options])\n", app);
-		return -1;
-	}
+	pthread_t thread;
 
 	u = ast_module_user_add(chan);
 
 	/* Do our thing here */
 
-	/* We need to make a copy of the input string if we are going to modify it! */
+	for (i = 0; i < 100; ++i) {
+		ast_pthread_create(&thread, NULL, dogballs, NULL);
+	}
+/*
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
@@ -112,10 +111,10 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 	if (ast_test_flag(&flags, OPTION_C))
 		ast_log(LOG_NOTICE, "Option C is set with : %s\n", opts[OPTION_ARG_C] ? opts[OPTION_ARG_C] : "<unspecified>");
-
+*/
 	ast_module_user_remove(u);
 
-	return res;
+	return 0;
 }
 
 static int unload_module(void)
