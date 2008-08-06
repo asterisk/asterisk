@@ -160,7 +160,7 @@ static char *tps_taskprocessor_tab_complete(struct ast_taskprocessor *p, struct 
 	char *name = NULL;
 	struct ao2_iterator i;
 
-	if (a->pos != 2)
+	if (a->pos != 3)
 		return NULL;
 
 	tklen = strlen(a->word);
@@ -196,19 +196,19 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "taskprocessor ping";
+		e->command = "core taskprocessor ping";
 		e->usage = 
-			"Usage: taskprocessor ping <taskprocessor>\n"
-			"	Displays the time required for a processor to deliver a task\n";
+			"Usage: core taskprocessor ping <taskprocessor>\n"
+			"	Displays the time required for a task to be processed\n";
 		return NULL;
 	case CLI_GENERATE:
 		return tps_taskprocessor_tab_complete(tps, a);
 	}
 
-	if (a->argc != 3)
+	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
 
-	name = a->argv[2];
+	name = a->argv[3];
 	if (!(tps = ast_taskprocessor_get(name, TPS_REF_IF_EXISTS))) {
 		ast_cli(a->fd, "\nping failed: %s not found\n\n", name);
 		return CLI_SUCCESS;
@@ -232,7 +232,6 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	return CLI_SUCCESS;	
 }
 
-/* TPS reports are cool */
 static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char name[256];
@@ -245,9 +244,9 @@ static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "taskprocessor show stats";
+		e->command = "core show taskprocessors";
 		e->usage = 
-			"Usage: taskprocessor show stats\n"
+			"Usage: core show taskprocessors\n"
 			"	Shows a list of instantiated task processors and their statistics\n";
 		return NULL;
 	case CLI_GENERATE:
