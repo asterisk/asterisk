@@ -2868,9 +2868,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	case AST_CONTROL_PROCEEDING:
 		break;
 	case AST_CONTROL_SRCUPDATE:
-		if (sub->rtp) {
-			ast_rtp_new_source(sub->rtp);
-		}
+		ast_rtp_new_source(sub->rtp);
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
