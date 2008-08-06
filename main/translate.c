@@ -265,7 +265,12 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 	
 	source = powerof(source);
 	dest = powerof(dest);
-	
+
+	if (source == -1 || dest == -1) {
+		ast_log(LOG_WARNING, "No translator path: (%s codec is not valid)\n", source == -1 ? "starting" : "ending");
+		return NULL;
+	}
+
 	AST_RWLIST_RDLOCK(&translators);
 
 	while (source != dest) {
@@ -625,6 +630,10 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 	t->dstfmt = powerof(t->dstfmt);
 	t->active = 1;
 
+	if (t->srcfmt == -1 || t->dstfmt == -1) {
+		ast_log(LOG_WARNING, "Invalid translator path: (%s codec is not valid)\n", t->srcfmt == -1 ? "starting" : "ending");
+		return -1;
+	}
 	if (t->plc_samples) {
 		if (t->buffer_samples < t->plc_samples) {
 			ast_log(LOG_WARNING, "plc_samples %d buffer_samples %d\n",
@@ -794,6 +803,10 @@ unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src)
 	src = powerof(src);
 	dest = powerof(dest);
 
+	if (src == -1 || dest == -1) {
+		ast_log(LOG_WARNING, "No translator path: (%s codec is not valid)\n", src == -1 ? "starting" : "ending");
+		return -1;
+	}
 	AST_RWLIST_RDLOCK(&translators);
 
 	if (tr_matrix[src][dest].step)
