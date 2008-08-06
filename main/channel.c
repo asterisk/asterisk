@@ -1102,24 +1102,27 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 
 	for (retries = 0; retries < 200; retries++) {
 		int done;
+		/* Reset prev on each retry.  See note below for the reason. */
+		prev = _prev;
 		AST_RWLIST_RDLOCK(&channels);
 		AST_RWLIST_TRAVERSE(&channels, c, chan_list) {
-			prev = _prev;
-			if (prev) {	/* look for next item */
+			if (prev) {	/* look for last item, first, before any evaluation */
 				if (c != prev)	/* not this one */
 					continue;
 				/* found, prepare to return c->next */
 				if ((c = AST_RWLIST_NEXT(c, chan_list)) == NULL) break;
-				/* If prev was the last item on the channel list, then we just
-				 * want to return NULL, instead of trying to deref NULL in the
-				 * next section.
+				/*!\note
+				 * We're done searching through the list for the previous item.
+				 * Any item after this point, we want to evaluate for a match.
+				 * If we didn't set prev to NULL here, then we would only
+				 * return matches for the first matching item (since the above
+				 * "if (c != prev)" would not permit any other potential
+				 * matches to reach the additional matching logic, below).
+				 * Instead, it would just iterate until it once again found the
+				 * original match, then iterate down to the end of the list and
+				 * quit.
 				 */
 				prev = NULL;
-				/* We want prev to be NULL in case we end up doing more searching through
-				 * the channel list to find the channel (ie: name searching). If we didn't
-				 * set this to NULL the logic would just blow up
-				 * XXX Need a better explanation for this ...
-				 */
 			}
 			if (name) { /* want match by name */
 				if ((!namelen && strcasecmp(c->name, name) && strcmp(c->uniqueid, name)) ||
