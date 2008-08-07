@@ -10789,7 +10789,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			iscrv = !strcasecmp(v->name, "crv");
 			if (build_channels(confp, iscrv, v->value, reload, v->lineno, &found_pseudo))
 					return -1;
-		} else if (!strcasecmp(v->name, "dahdichan")) {
+		} else if (!strcasecmp(v->name, "zapchan") || !strcasecmp(v->name, "dahdichan")) {
 			ast_copy_string(dahdichan, v->value, sizeof(dahdichan));
 		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
 			if (ast_true(v->value))
