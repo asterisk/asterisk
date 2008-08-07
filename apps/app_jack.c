@@ -859,7 +859,7 @@ static int enable_jack_hook(struct ast_channel *chan, char *data)
 	if (init_jack_data(chan, jack_data))
 		goto return_error;
 
-	if (!(datastore = ast_channel_datastore_alloc(&jack_hook_ds_info, NULL)))
+	if (!(datastore = ast_datastore_alloc(&jack_hook_ds_info, NULL)))
 		goto return_error;
 
 	jack_data->has_audiohook = 1;
@@ -908,7 +908,7 @@ static int disable_jack_hook(struct ast_channel *chan)
 	/* Keep the channel locked while we destroy the datastore, so that we can
 	 * ensure that all of the jack stuff is stopped just in case another frame
 	 * tries to come through the audiohook callback. */
-	ast_channel_datastore_free(datastore);
+	ast_datastore_free(datastore);
 
 	ast_channel_unlock(chan);
 
