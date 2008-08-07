@@ -1841,7 +1841,6 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 static void write_file(char *filename, char *buffer, unsigned long len)
 {
 	FILE *output;
-	ast_log(LOG_NOTICE, "The name of the file I'm writing is %s\n", filename);
 
 	output = fopen (filename, "w");
 	fwrite (buffer, len, 1, output);
