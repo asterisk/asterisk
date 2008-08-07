@@ -1649,6 +1649,7 @@ int ast_hangup(struct ast_channel *chan)
 	return res;
 }
 
+#define ANSWER_WAIT_MS 500
 int __ast_answer(struct ast_channel *chan, unsigned int delay)
 {
 	int res = 0;
@@ -1670,31 +1671,40 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 	switch (chan->_state) {
 	case AST_STATE_RINGING:
 	case AST_STATE_RING:
-		if (delay) {
-			int needanswer = (chan->tech->answer != NULL);
-
-			ast_cdr_answer(chan->cdr);
-			ast_channel_unlock(chan);
+		if (chan->tech->answer)
+			res = chan->tech->answer(chan);
+		ast_setstate(chan, AST_STATE_UP);
+		ast_cdr_answer(chan->cdr);
+		if (delay)
 			ast_safe_sleep(chan, delay);
-			/* don't tell the channel it has been answered until *after* the delay,
-			   so that the media path will be in place and usable when it wants to
-			   send media
-			*/
-			if (needanswer) {
-				ast_channel_lock(chan);
-				res = chan->tech->answer(chan);
-				ast_channel_unlock(chan);
+		else {
+			struct ast_frame *f;
+			while (1) {
+				/* 500 ms was the original delay here, so now
+				 * we cap our waiting at 500 ms
+				 */
+				res = ast_waitfor(chan, ANSWER_WAIT_MS);
+				if (res < 0) {
+					ast_log(LOG_WARNING, "Error condition occurred when polling channel %s for a voice frame: %s\n", chan->name, strerror(errno));
+					break;
+				}
+				if (res == 0) {
+					ast_debug(2, "Didn't receive a voice frame from %s within %d ms of answering. Continuing anyway\n", chan->name, ANSWER_WAIT_MS);
+					break;
+				}
+				f = ast_read(chan);
+				if (!f || (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP)) {
+					res = -1;
+					ast_debug(2, "Hangup of channel %s detected in answer routine\n", chan->name);
+					break;
+				}
+				if (f->frametype == AST_FRAME_VOICE) {
+					res = 0;
+					break;
+				}
 			}
-			ast_setstate(chan, AST_STATE_UP);	
-		} else {
-			if (chan->tech->answer) {
-				res = chan->tech->answer(chan);
-			}
-			ast_setstate(chan, AST_STATE_UP);
-			ast_cdr_answer(chan->cdr);
-			ast_channel_unlock(chan);
 		}
-		return res;
+		break;
 	case AST_STATE_UP:
 		break;
 	default:
@@ -1708,7 +1718,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 
 int ast_answer(struct ast_channel *chan)
 {
-	return __ast_answer(chan, 500);
+	return __ast_answer(chan, 0);
 }
 
 void ast_deactivate_generator(struct ast_channel *chan)
