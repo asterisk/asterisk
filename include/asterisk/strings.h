@@ -428,13 +428,13 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 
 #define ast_str_alloca(init_len)			\
 	({						\
-		struct ast_str *buf;			\
-		buf = alloca(sizeof(*buf) + init_len);	\
-		buf->len = init_len;			\
-		buf->used = 0;				\
-		buf->ts = DS_ALLOCA;			\
-		buf->str[0] = '\0';			\
-		(buf);					\
+		struct ast_str *__ast_str_buf;			\
+		__ast_str_buf = alloca(sizeof(*__ast_str_buf) + init_len);	\
+		__ast_str_buf->len = init_len;			\
+		__ast_str_buf->used = 0;				\
+		__ast_str_buf->ts = DS_ALLOCA;			\
+		__ast_str_buf->str[0] = '\0';			\
+		(__ast_str_buf);					\
 	})
 
 /*!

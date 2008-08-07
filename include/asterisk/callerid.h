@@ -255,14 +255,14 @@ static inline float callerid_getcarrier(float *cr, float *ci, int bit)
 } while(0)
 
 #define PUT_AUDIO_SAMPLE(y) do { \
-	int index = (short)(rint(8192.0 * (y))); \
-	*(buf++) = AST_LIN2X(index); \
+	int __sample_idx = (short)(rint(8192.0 * (y))); \
+	*(buf++) = AST_LIN2X(__sample_idx); \
 	bytes++; \
 } while(0)
 
 #define PUT_CLID_MARKMS do { \
-	int x; \
-	for (x=0;x<8;x++) \
+	int __clid_x; \
+	for (__clid_x=0;__clid_x<8;__clid_x++) \
 		PUT_AUDIO_SAMPLE(callerid_getcarrier(&cr, &ci, 1)); \
 } while(0)
 
