@@ -268,7 +268,7 @@ static char *anti_injection(const char *str, int len)
 static void get_date(char *dateField, size_t len, struct timeval when)
 {
 	/* To make sure we have date variable if not insert null to SQL */
-	if (!ast_tvzero(tv)) {
+	if (!ast_tvzero(when)) {
 		struct ast_tm tm;
 		ast_localtime(&when, &tm, NULL);
 		ast_strftime(dateField, len, "'" DATE_FORMAT "'", &tm);
