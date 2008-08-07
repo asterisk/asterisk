@@ -1694,17 +1694,20 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 			ast_safe_sleep(chan, delay);
 		else {
 			struct ast_frame *f;
+			int ms = ANSWER_WAIT_MS;
 			while (1) {
 				/* 500 ms was the original delay here, so now
 				 * we cap our waiting at 500 ms
 				 */
-				res = ast_waitfor(chan, ANSWER_WAIT_MS);
-				if (res < 0) {
+				ms = ast_waitfor(chan, ms);
+				if (ms < 0) {
 					ast_log(LOG_WARNING, "Error condition occurred when polling channel %s for a voice frame: %s\n", chan->name, strerror(errno));
+					res = -1;
 					break;
 				}
-				if (res == 0) {
+				if (ms == 0) {
 					ast_debug(2, "Didn't receive a voice frame from %s within %d ms of answering. Continuing anyway\n", chan->name, ANSWER_WAIT_MS);
+					res = 0;
 					break;
 				}
 				f = ast_read(chan);
