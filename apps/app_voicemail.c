@@ -141,27 +141,24 @@ struct ast_vm_user;
 static int init_mailstream(struct vm_state *vms, int box);
 static void write_file(char *filename, char *buffer, unsigned long len);
 static char *get_header_by_tag(char *header, char *tag, char *buf, size_t len);
-static void vm_imap_delete(int msgnum, struct vm_state *vms);
+static void vm_imap_delete(int msgnum, struct ast_vm_user *vmu);
 static char *get_user_by_mailbox(char *mailbox, char *buf, size_t len);
 static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive);
 static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interactive);
-static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu, char *mailbox);
+static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu);
 static void vmstate_insert(struct vm_state *vms);
 static void vmstate_delete(struct vm_state *vms);
 static void set_update(MAILSTREAM * stream);
 static void init_vm_state(struct vm_state *vms);
-static void check_msgArray(struct vm_state *vms);
-static void copy_msgArray(struct vm_state *dst, struct vm_state *src);
-static int save_body(BODY *body, struct vm_state *vms, char *section, char *format, char *altfile);
-static int make_gsm_file(char *dest, size_t len, char *imapuser, char *dir, int num, char *prefix);
+static int save_body(BODY *body, struct vm_state *vms, char *section, char *format, int is_intro);
 static void get_mailbox_delimiter(MAILSTREAM *stream);
 static void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota);
 static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int box, int target);
-static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, char *introfile, const char *flag);
+static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, const char *flag);
 static void update_messages_by_imapuser(const char *user, unsigned long number);
 
 static int imap_remove_file (char *dir, int msgnum);
-static int imap_retrieve_file (char *dir, int msgnum, const char *mailbox, const char *context);
+static int imap_retrieve_file (const char *dir, const int msgnum, const char *mailbox, const char *context);
 static int imap_delete_old_greeting (char *dir, struct vm_state *vms);
 static void check_quota(struct vm_state *vms, char *mailbox);
 static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box);
@@ -439,6 +436,7 @@ struct vm_state {
 	int vmArrayIndex;
 	char imapuser[80];                   /*!< IMAP server login */
 	int interactive;
+	char introfn[PATH_MAX];              /*!< Name of prepended file */
 	unsigned int quota_limit;
 	unsigned int quota_usage;
 	struct vm_state *persist_vms;
@@ -450,29 +448,28 @@ static char odbc_database[80];
 static char odbc_table[80];
 #define RETRIEVE(a,b,c,d) retrieve_file(a,b)
 #define DISPOSE(a,b) remove_file(a,b)
-#define STORE(a,b,c,d,e,f,g,h,i,j,k) store_file(a,b,c,d)
+#define STORE(a,b,c,d,e,f,g,h,i,j) store_file(a,b,c,d)
 #define EXISTS(a,b,c,d) (message_exists(a,b))
 #define RENAME(a,b,c,d,e,f,g,h) (rename_file(a,b,c,d,e,f))
 #define COPY(a,b,c,d,e,f,g,h) (copy_file(a,b,c,d,e,f))
-#define DELETE(a,b,c) (delete_file(a,b))
+#define DELETE(a,b,c,d) (delete_file(a,b))
 #else
 #ifdef IMAP_STORAGE
-#define RETRIEVE(a,b,c,d) (imap_retrieve_file(a,b,c,d ))
 #define DISPOSE(a,b) (imap_remove_file(a,b))
-#define STORE(a,b,c,d,e,f,g,h,i,j,k) (imap_store_file(a,b,c,d,e,f,g,h,i,j,k))
+#define STORE(a,b,c,d,e,f,g,h,i,j) (imap_store_file(a,b,c,d,e,f,g,h,i,j))
+#define RETRIEVE(a,b,c,d) imap_retrieve_file(a,b,c,d)
 #define EXISTS(a,b,c,d) (ast_fileexists(c,NULL,d) > 0)
 #define RENAME(a,b,c,d,e,f,g,h) (rename_file(g,h));
 #define COPY(a,b,c,d,e,f,g,h) (copy_file(g,h));
-#define IMAP_DELETE(a,b,c,d) (vm_imap_delete(b,d))
-#define DELETE(a,b,c) (vm_delete(c))
+#define DELETE(a,b,c,d) (vm_imap_delete(b,d))
 #else
 #define RETRIEVE(a,b,c,d)
 #define DISPOSE(a,b)
-#define STORE(a,b,c,d,e,f,g,h,i,j,k)
+#define STORE(a,b,c,d,e,f,g,h,i,j)
 #define EXISTS(a,b,c,d) (ast_fileexists(c,NULL,d) > 0)
 #define RENAME(a,b,c,d,e,f,g,h) (rename_file(g,h));
 #define COPY(a,b,c,d,e,f,g,h) (copy_plain_file(g,h)); 
-#define DELETE(a,b,c) (vm_delete(c))
+#define DELETE(a,b,c,d) (vm_delete(c))
 #endif
 #endif
 
@@ -1243,40 +1240,35 @@ static int make_dir(char *dest, int len, const char *context, const char *ext, c
 	return snprintf(dest, len, "%s%s/%s/%s", VM_SPOOL_DIR, context, ext, folder);
 }
 
-#ifdef IMAP_STORAGE
-static int make_gsm_file(char *dest, size_t len, char *imapuser, char *dir, int num, char *prefix)
-{
-	int res;
-	if ((res = ast_mkdir(dir, 01777))) {
-		ast_log(AST_LOG_WARNING, "ast_mkdir '%s' failed: %s\n", dir, strerror(res));
-		return snprintf(dest, len, "%s/%s%04d", dir, prefix, num);
-	}
-	return snprintf(dest, len, "%s/%s%04d", dir, prefix, num);
-}
-
-static void vm_imap_delete(int msgnum, struct vm_state *vms)
-{
-	unsigned long messageNum = 0;
-	char arg[10];
-
-	/* find real message number based on msgnum */
-	/* this may be an index into vms->msgArray based on the msgnum. */
-
-	messageNum = vms->msgArray[msgnum];
-	if (messageNum == 0) {
-		ast_log(AST_LOG_WARNING, "msgnum %d, mailbox message %lu is zero.\n", msgnum, messageNum);
-		return;
-	}
-	ast_debug(3, "deleting msgnum %d, which is mailbox message %lu\n",msgnum,messageNum);
-	/* delete message */
-	snprintf (arg, sizeof(arg), "%lu",messageNum);
-	mail_setflag (vms->mailstream,arg,"\\DELETED");
-}
-
-#endif
-static int make_file(char *dest, int len, char *dir, int num)
+/*! 
+ * \brief Creates a file system path expression for a folder within the voicemail data folder and the appropriate context.
+ * \param dest The variable to hold the output generated path expression. This buffer should be of size PATH_MAX.
+ * \param len The length of the path string that was written out.
+ * 
+ * The path is constructed as 
+ * 	VM_SPOOL_DIRcontext/ext/folder
+ *
+ * \return zero on success, -1 on error.
+ */
+static int make_file(char *dest, const int len, const char *dir, const int num)
 {
 	return snprintf(dest, len, "%s/msg%04d", dir, num);
+}
+
+/* same as mkstemp, but return a FILE * */
+static FILE *vm_mkftemp(char *template)
+{
+	FILE *p = NULL;
+	int pfd = mkstemp(template);
+	chmod(template, VOICEMAIL_FILE_MODE & ~my_umask);
+	if (pfd > -1) {
+		p = fdopen(pfd, "w+");
+		if (!p) {
+			close(pfd);
+			pfd = -1;
+		}
+	}
+	return p;
 }
 
 /*! \brief basically mkdir -p $dest/$context/$ext/$folder
@@ -1299,6 +1291,1372 @@ static int create_dirpath(char *dest, int len, const char *context, const char *
 	}
 	return 0;
 }
+
+static const char *mbox(int id)
+{
+	static const char *msgs[] = {
+#ifdef IMAP_STORAGE
+		imapfolder,
+#else
+		"INBOX",
+#endif
+		"Old",
+		"Work",
+		"Family",
+		"Friends",
+		"Cust1",
+		"Cust2",
+		"Cust3",
+		"Cust4",
+		"Cust5",
+		"Deleted",
+		"Urgent"
+	};
+	return (id >= 0 && id < (sizeof(msgs)/sizeof(msgs[0]))) ? msgs[id] : "Unknown";
+}
+
+static void free_user(struct ast_vm_user *vmu)
+{
+	if (ast_test_flag(vmu, VM_ALLOCED))
+		ast_free(vmu);
+}
+
+/* All IMAP-specific functions should go in this block. This
+ * keeps them from being spread out all over the code */
+#ifdef IMAP_STORAGE
+static void vm_imap_delete(int msgnum, struct ast_vm_user *vmu)
+{
+	char arg[10];
+	struct vm_state *vms;
+	unsigned long messageNum;
+
+	/* Greetings aren't stored in IMAP, so we can't delete them there */
+	if (msgnum < 0) {
+		return;
+	}
+
+	if (!(vms = get_vm_state_by_mailbox(vmu->mailbox, 1)) && !(vms = get_vm_state_by_mailbox(vmu->mailbox, 0))) {
+		ast_log(LOG_WARNING, "Couldn't find a vm_state for mailbox %s. Unable to set \\DELETED flag for message %d\n", vmu->mailbox, msgnum);
+		return;
+	}
+
+	/* find real message number based on msgnum */
+	/* this may be an index into vms->msgArray based on the msgnum. */
+	messageNum = vms->msgArray[msgnum];
+	if (messageNum == 0) {
+		ast_log(LOG_WARNING, "msgnum %d, mailbox message %lu is zero.\n",msgnum,messageNum);
+		return;
+	}
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "deleting msgnum %d, which is mailbox message %lu\n",msgnum,messageNum);
+	/* delete message */
+	snprintf (arg, sizeof(arg), "%lu",messageNum);
+	mail_setflag (vms->mailstream,arg,"\\DELETED");
+}
+
+static int imap_retrieve_greeting (const char *dir, const int msgnum, struct ast_vm_user *vmu)
+{
+	struct vm_state *vms_p;
+	char *file, *filename;
+	char *attachment;
+	int ret = 0, i;
+	BODY *body;
+
+	/* This function is only used for retrieval of IMAP greetings
+	 * regular messages are not retrieved this way, nor are greetings
+	 * if they are stored locally*/
+	if (msgnum > -1 || !imapgreetings) {
+		return 0;
+	} else {
+		file = strrchr(ast_strdupa(dir), '/');
+		if (file)
+			*file++ = '\0';
+		else {
+			ast_debug (1, "Failed to procure file name from directory passed.\n");
+			return -1;
+		}
+	}
+
+	/* check if someone is accessing this box right now... */
+	if (!(vms_p = get_vm_state_by_mailbox(vmu->mailbox, 1)) ||!(vms_p = get_vm_state_by_mailbox(vmu->mailbox, 0))) {
+		ast_log(AST_LOG_ERROR, "Voicemail state not found!\n");
+		return -1;
+	}
+	
+	/* Greetings will never have a prepended message */
+	*vms_p->introfn = '\0';
+	
+	ret = init_mailstream(vms_p, GREETINGS_FOLDER);
+	if (!vms_p->mailstream) {
+		ast_log(AST_LOG_ERROR, "IMAP mailstream is NULL\n");
+		return -1;
+	}
+
+	/*XXX Yuck, this could probably be done a lot better */
+	for (i = 0; i < vms_p->mailstream->nmsgs; i++) {
+		mail_fetchstructure(vms_p->mailstream, i + 1, &body);
+		/* We have the body, now we extract the file name of the first attachment. */
+		if (body->nested.part && body->nested.part->next && body->nested.part->next->body.parameter->value) {
+			attachment = ast_strdupa(body->nested.part->next->body.parameter->value);
+		} else {
+			ast_log(AST_LOG_ERROR, "There is no file attached to this IMAP message.\n");
+			return -1;
+		}
+		filename = strsep(&attachment, ".");
+		if (!strcmp(filename, file)) {
+			ast_copy_string(vms_p->fn, dir, sizeof(vms_p->fn));
+			vms_p->msgArray[vms_p->curmsg] = i + 1;
+			save_body(body, vms_p, "2", attachment, 0);
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+static int imap_retrieve_file(const char *dir, const int msgnum, const char *mailbox, const char *context)
+{
+	BODY *body;
+	char *header_content;
+	char *attachedfilefmt;
+	char buf[80];
+	struct vm_state *vms;
+	char text_file[PATH_MAX];
+	FILE *text_file_ptr;
+	int res = 0;
+	struct ast_vm_user *vmu;
+
+	if (!(vmu = find_user(NULL, context, mailbox))) {
+		ast_log(LOG_WARNING, "Couldn't find user with mailbox %s@%s\n", mailbox, context);
+		return -1;
+	}
+	
+	if (msgnum < 0) {
+		if (imapgreetings) {
+			res = imap_retrieve_greeting(dir, msgnum, vmu);
+			goto exit;
+		} else {
+			res = 0;
+			goto exit;
+		}
+	}
+
+	/* Before anything can happen, we need a vm_state so that we can
+	 * actually access the imap server through the vms->mailstream
+	 */
+	if (!(vms = get_vm_state_by_mailbox(vmu->mailbox, 1)) && !(vms = get_vm_state_by_mailbox(vmu->mailbox, 0))) {
+		/* This should not happen. If it does, then I guess we'd
+		 * need to create the vm_state, extract which mailbox to
+		 * open, and then set up the msgArray so that the correct
+		 * IMAP message could be accessed. If I have seen correctly
+		 * though, the vms should be obtainable from the vmstates list
+		 * and should have its msgArray properly set up.
+		 */
+		ast_log(LOG_ERROR, "Couldn't find a vm_state for mailbox %s!!! Oh no!\n", vmu->mailbox);
+		res = -1;
+		goto exit;
+	}
+	
+	make_file(vms->fn, sizeof(vms->fn), dir, msgnum);
+	snprintf(vms->introfn, sizeof(vms->introfn), "%sintro", vms->fn);
+
+	/* Don't try to retrieve a message from IMAP if it already is on the file system */
+	if (ast_fileexists(vms->fn, NULL, NULL) > 0) {
+		res = 0;
+		goto exit;
+	}
+
+	if (option_debug > 2)
+		ast_log (LOG_DEBUG,"Before mail_fetchheaders, curmsg is: %d, imap messages is %lu\n", msgnum, vms->msgArray[msgnum]);
+	if (vms->msgArray[msgnum] == 0) {
+		ast_log (LOG_WARNING,"Trying to access unknown message\n");
+		res = -1;
+		goto exit;
+	}
+
+	/* This will only work for new messages... */
+	header_content = mail_fetchheader (vms->mailstream, vms->msgArray[msgnum]);
+	/* empty string means no valid header */
+	if (ast_strlen_zero(header_content)) {
+		ast_log (LOG_ERROR,"Could not fetch header for message number %ld\n",vms->msgArray[msgnum]);
+		res = -1;
+		goto exit;
+	}
+
+	mail_fetchstructure (vms->mailstream,vms->msgArray[msgnum],&body);
+	
+	/* We have the body, now we extract the file name of the first attachment. */
+	if (body->nested.part && body->nested.part->next && body->nested.part->next->body.parameter->value) {
+		attachedfilefmt = ast_strdupa(body->nested.part->next->body.parameter->value);
+		ast_log(LOG_NOTICE, "%s is the attached file\n", attachedfilefmt);
+	} else {
+		ast_log(LOG_ERROR, "There is no file attached to this IMAP message.\n");
+		res = -1;
+		goto exit;
+	}
+	
+	/* Find the format of the attached file */
+
+	strsep(&attachedfilefmt, ".");
+	if (!attachedfilefmt) {
+		ast_log(LOG_ERROR, "File format could not be obtained from IMAP message attachment\n");
+		res = -1;
+		goto exit;
+	}
+	
+	save_body(body, vms, "2", attachedfilefmt, 0);
+	if (save_body(body, vms, "3", attachedfilefmt, 1)) {
+		ast_log(LOG_NOTICE, "Nulling the introfn cuz ain't nothing in part 3\n");
+		*vms->introfn = '\0';
+	}
+
+	/* Get info from headers!! */
+	snprintf(text_file, sizeof(text_file), "%s.%s", vms->fn, "txt");
+
+	if (!(text_file_ptr = fopen(text_file, "w"))) {
+		ast_log(LOG_WARNING, "Unable to open/create file %s: %s\n", text_file, strerror(errno));
+	}
+
+	fprintf(text_file_ptr, "%s\n", "[message]");
+
+	get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Num:", buf, sizeof(buf));
+	fprintf(text_file_ptr, "callerid=\"%s\" ", S_OR(buf, ""));
+	get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Name:", buf, sizeof(buf));
+	fprintf(text_file_ptr, "<%s>\n", S_OR(buf, ""));
+	get_header_by_tag(header_content, "X-Asterisk-VM-Context:", buf, sizeof(buf));
+	fprintf(text_file_ptr, "context=%s\n", S_OR(buf, ""));
+	get_header_by_tag(header_content, "X-Asterisk-VM-Orig-time:", buf, sizeof(buf));
+	fprintf(text_file_ptr, "origtime=%s\n", S_OR(buf, ""));
+	get_header_by_tag(header_content, "X-Asterisk-VM-Duration:", buf, sizeof(buf));
+	fprintf(text_file_ptr, "duration=%s\n", S_OR(buf, ""));
+	get_header_by_tag(header_content, "X-Asterisk-VM-Category:", buf, sizeof(buf));
+	fprintf(text_file_ptr, "category=%s\n", S_OR(buf, ""));
+	fclose(text_file_ptr);
+
+exit:
+	free_user(vmu);
+	return res;
+}
+
+static int folder_int(const char *folder)
+{
+	/*assume a NULL folder means INBOX*/
+	if (!folder)
+		return 0;
+#ifdef IMAP_STORAGE
+	if (!strcasecmp(folder, imapfolder))
+#else
+	if (!strcasecmp(folder, "INBOX"))
+#endif
+		return 0;
+	else if (!strcasecmp(folder, "Old"))
+		return 1;
+	else if (!strcasecmp(folder, "Work"))
+		return 2;
+	else if (!strcasecmp(folder, "Family"))
+		return 3;
+	else if (!strcasecmp(folder, "Friends"))
+		return 4;
+	else if (!strcasecmp(folder, "Cust1"))
+		return 5;
+	else if (!strcasecmp(folder, "Cust2"))
+		return 6;
+	else if (!strcasecmp(folder, "Cust3"))
+		return 7;
+	else if (!strcasecmp(folder, "Cust4"))
+		return 8;
+	else if (!strcasecmp(folder, "Cust5"))
+		return 9;
+	else /*assume they meant INBOX if folder is not found otherwise*/
+		return 0;
+}
+
+/*!
+ * \brief Gets the number of messages that exist in a mailbox folder.
+ * \param context
+ * \param mailbox
+ * \param folder
+ * 
+ * This method is used when IMAP backend is used.
+ * \return The number of messages in this mailbox folder (zero or more).
+ */
+static int messagecount(const char *context, const char *mailbox, const char *folder)
+{
+	SEARCHPGM *pgm;
+	SEARCHHEADER *hdr;
+
+	struct ast_vm_user *vmu, vmus;
+	struct vm_state *vms_p;
+	int ret = 0;
+	int fold = folder_int(folder);
+	int urgent = 0;
+	
+	if (ast_strlen_zero(mailbox))
+		return 0;
+
+	/* We have to get the user before we can open the stream! */
+	vmu = find_user(&vmus, context, mailbox);
+	if (!vmu) {
+		ast_log(AST_LOG_ERROR, "Couldn't find mailbox %s in context %s\n", mailbox, context);
+		return -1;
+	} else {
+		/* No IMAP account available */
+		if (vmu->imapuser[0] == '\0') {
+			ast_log(AST_LOG_WARNING, "IMAP user not set for mailbox %s\n", vmu->mailbox);
+			return -1;
+		}
+	}
+	
+	/* No IMAP account available */
+	if (vmu->imapuser[0] == '\0') {
+		ast_log(AST_LOG_WARNING, "IMAP user not set for mailbox %s\n", vmu->mailbox);
+		free_user(vmu);
+		return -1;
+	}
+
+	/* check if someone is accessing this box right now... */
+	vms_p = get_vm_state_by_imapuser(vmu->imapuser,1);
+	if (!vms_p) {
+		vms_p = get_vm_state_by_mailbox(mailbox,1);
+	}
+	if (vms_p) {
+		ast_debug(3, "Returning before search - user is logged in\n");
+		if (fold == 0) { /* INBOX */
+			return vms_p->newmessages;
+		}
+		if (fold == 1) { /* Old messages */
+			return vms_p->oldmessages;
+		}
+		if (fold == 11) {/*Urgent messages*/
+		 	return vms_p->urgentmessages;
+		}
+	}
+
+	/* add one if not there... */
+	vms_p = get_vm_state_by_imapuser(vmu->imapuser,0);
+	if (!vms_p) {
+		vms_p = get_vm_state_by_mailbox(mailbox,0);
+	}
+
+	/* If URGENT, then look at INBOX */
+	if (fold == 11) {
+		fold = NEW_FOLDER;
+		urgent = 1;
+	}
+
+	if (!vms_p) {
+		ast_debug(3,"Adding new vmstate for %s\n",vmu->imapuser);
+		if (!(vms_p = ast_calloc(1, sizeof(*vms_p)))) {
+			return -1;
+		}
+		ast_copy_string(vms_p->imapuser,vmu->imapuser, sizeof(vms_p->imapuser));
+		ast_copy_string(vms_p->username, mailbox, sizeof(vms_p->username)); /* save for access from interactive entry point */
+		vms_p->mailstream = NIL; /* save for access from interactive entry point */
+		ast_debug(3, "Copied %s to %s\n",vmu->imapuser,vms_p->imapuser);
+		vms_p->updated = 1;
+		ast_copy_string(vms_p->curbox, mbox(fold), sizeof(vms_p->curbox));
+		init_vm_state(vms_p);
+		vmstate_insert(vms_p);
+	}
+	ret = init_mailstream(vms_p, fold);
+	if (!vms_p->mailstream) {
+		ast_log(AST_LOG_ERROR, "Houston we have a problem - IMAP mailstream is NULL\n");
+		return -1;
+	}
+	if (ret == 0) {
+		pgm = mail_newsearchpgm ();
+		hdr = mail_newsearchheader ("X-Asterisk-VM-Extension", (char *)mailbox);
+		pgm->header = hdr;
+		if (fold != 1) {
+			pgm->unseen = 1;
+			pgm->seen = 0;
+		}
+		/* In the special case where fold is 1 (old messages) we have to do things a bit
+		 * differently. Old messages are stored in the INBOX but are marked as "seen"
+		 */
+		else {
+			pgm->unseen = 0;
+			pgm->seen = 1;
+		}
+		/* look for urgent messages */
+		if (urgent) {
+			pgm->flagged = 1;
+			pgm->unflagged = 0;
+		}
+		pgm->undeleted = 1;
+		pgm->deleted = 0;
+
+		vms_p->vmArrayIndex = 0;
+		mail_search_full (vms_p->mailstream, NULL, pgm, NIL);
+		if (fold == 0 && urgent == 0)
+			vms_p->newmessages = vms_p->vmArrayIndex;
+		if (fold == 1)
+			vms_p->oldmessages = vms_p->vmArrayIndex;
+		if (fold == 0 && urgent == 1)
+			vms_p->urgentmessages = vms_p->vmArrayIndex;
+		/*Freeing the searchpgm also frees the searchhdr*/
+		mail_free_searchpgm(&pgm);
+		vms_p->updated = 0;
+		return vms_p->vmArrayIndex;
+	} else {  
+		mail_ping(vms_p->mailstream);
+	}
+	return 0;
+}
+
+static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, const char *flag)
+{
+	char *myserveremail = serveremail;
+	char fn[PATH_MAX];
+	char introfn[PATH_MAX];
+	char mailbox[256];
+	char *stringp;
+	FILE *p=NULL;
+	char tmp[80] = "/tmp/astmail-XXXXXX";
+	long len;
+	void *buf;
+	int tempcopy = 0;
+	STRING str;
+	int ret; /* for better error checking */
+	char *imapflags = NIL;
+
+	/* Set urgent flag for IMAP message */
+	if (!ast_strlen_zero(flag) && !strcmp(flag, "Urgent")) {
+		ast_debug(3, "Setting message flag \\\\FLAGGED.\n");
+		imapflags="\\FLAGGED";
+	}
+	
+	/* Attach only the first format */
+	fmt = ast_strdupa(fmt);
+	stringp = fmt;
+	strsep(&stringp, "|");
+
+	if (!ast_strlen_zero(vmu->serveremail))
+		myserveremail = vmu->serveremail;
+
+	if (msgnum > -1)
+		make_file(fn, sizeof(fn), dir, msgnum);
+	else
+		ast_copy_string (fn, dir, sizeof(fn));
+
+	snprintf(introfn, sizeof(introfn), "%sintro", fn);
+	if (ast_fileexists(introfn, NULL, NULL) <= 0) {
+		*introfn = '\0';
+	}
+	
+	if (ast_strlen_zero(vmu->email)) {
+		/* We need the vmu->email to be set when we call make_email_file, but
+		 * if we keep it set, a duplicate e-mail will be created. So at the end
+		 * of this function, we will revert back to an empty string if tempcopy
+		 * is 1.
+		 */
+		ast_copy_string(vmu->email, vmu->imapuser, sizeof(vmu->email));
+		tempcopy = 1;
+	}
+
+	if (!strcmp(fmt, "wav49"))
+		fmt = "WAV";
+	ast_debug(3, "Storing file '%s', format '%s'\n", fn, fmt);
+
+	/* Make a temporary file instead of piping directly to sendmail, in case the mail
+	   command hangs. */
+	if (!(p = vm_mkftemp(tmp))) {
+		ast_log(AST_LOG_WARNING, "Unable to store '%s' (can't create temporary file)\n", fn);
+		if (tempcopy)
+			*(vmu->email) = '\0';
+		return -1;
+	}
+
+	if (msgnum < 0 && imapgreetings) {
+		if ((ret = init_mailstream(vms, GREETINGS_FOLDER))) {
+			ast_log(AST_LOG_WARNING, "Unable to open mailstream.\n");
+			return -1;
+		}
+		imap_delete_old_greeting(fn, vms);
+	}
+	
+	make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, introfn, fmt, duration, 1, chan, NULL, 1, flag);
+	/* read mail file to memory */		
+	len = ftell(p);
+	rewind(p);
+	if (!(buf = ast_malloc(len + 1))) {
+		ast_log(AST_LOG_ERROR, "Can't allocate %ld bytes to read message\n", len + 1);
+		fclose(p);
+		if (tempcopy)
+			*(vmu->email) = '\0';
+		return -1;
+	}
+	fread(buf, len, 1, p);
+	((char *)buf)[len] = '\0';
+	INIT(&str, mail_string, buf, len);
+	ret = init_mailstream(vms, NEW_FOLDER);
+	if (ret == 0) {
+		imap_mailbox_name(mailbox, sizeof(mailbox), vms, NEW_FOLDER, 1);
+		if(!mail_append_full(vms->mailstream, mailbox, imapflags, NIL, &str))
+			ast_log(LOG_ERROR, "Error while sending the message to %s\n", mailbox);
+		fclose(p);
+		unlink(tmp);
+		ast_free(buf);
+	} else {
+		ast_log(LOG_ERROR, "Could not initialize mailstream for %s\n",mailbox);
+		fclose(p);
+		unlink(tmp);
+		ast_free(buf);
+		return -1;
+	}
+	ast_debug(3, "%s stored\n", fn);
+	
+	if (tempcopy)
+		*(vmu->email) = '\0';
+	
+	return 0;
+
+}
+
+/*!
+ * \brief Gets the number of messages that exist in the inbox folder.
+ * \param mailbox_context
+ * \param newmsgs The variable that is updated with the count of new messages within this inbox.
+ * \param oldmsgs The variable that is updated with the count of old messages within this inbox.
+ * \param urgentmsgs The variable that is updated with the count of urgent messages within this inbox.
+ * 
+ * This method is used when IMAP backend is used.
+ * Simultaneously determines the count of new,old, and urgent messages. The total messages would then be the sum of these three.
+ *
+ * \return zero on success, -1 on error.
+ */
+
+static int inboxcount2(const char *mailbox_context, int *urgentmsgs, int *newmsgs, int *oldmsgs)
+{
+	char tmp[PATH_MAX] = "";
+	char *mailboxnc;
+	char *context;
+	char *mb;
+	char *cur;
+	if (newmsgs)
+		*newmsgs = 0;
+	if (oldmsgs)
+		*oldmsgs = 0;
+	if (urgentmsgs)
+		*urgentmsgs = 0;
+
+	ast_debug(3,"Mailbox is set to %s\n",mailbox_context);
+	/* If no mailbox, return immediately */
+	if (ast_strlen_zero(mailbox_context))
+		return 0;
+	
+	ast_copy_string(tmp, mailbox_context, sizeof(tmp));
+	context = strchr(tmp, '@');
+	if (strchr(mailbox_context, ',')) {
+		int tmpnew, tmpold, tmpurgent;
+		ast_copy_string(tmp, mailbox_context, sizeof(tmp));
+		mb = tmp;
+		while ((cur = strsep(&mb, ", "))) {
+			if (!ast_strlen_zero(cur)) {
+				if (inboxcount2(cur, urgentmsgs ? &tmpurgent : NULL, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
+					return -1;
+				else {
+					if (newmsgs)
+						*newmsgs += tmpnew; 
+					if (oldmsgs)
+						*oldmsgs += tmpold;
+					if (urgentmsgs)
+						*urgentmsgs += tmpurgent;
+				}
+			}
+		}
+		return 0;
+	}
+	if (context) {
+		*context = '\0';
+		mailboxnc = tmp;
+		context++;
+	} else {
+		context = "default";
+		mailboxnc = (char *)mailbox_context;
+	}
+	if (newmsgs) {
+		if ((*newmsgs = messagecount(context, mailboxnc, imapfolder)) < 0)
+			return -1;
+	}
+	if (oldmsgs) {
+		if ((*oldmsgs = messagecount(context, mailboxnc, "Old")) < 0)
+			return -1;
+	}
+	if (urgentmsgs) {
+		if((*urgentmsgs = messagecount(context, mailboxnc, "Urgent")) < 0)
+			return -1;
+	}
+	return 0;
+}
+
+static int inboxcount(const char *mailbox_context, int *newmsgs, int *oldmsgs)
+{
+	return inboxcount2(mailbox_context, NULL, newmsgs, oldmsgs);
+}
+
+/** 
+ * \brief Determines if the given folder has messages.
+ * \param mailbox The @ delimited string for user@context. If no context is found, uses 'default' for the context.
+ * \param folder the folder to look in
+ *
+ * This function is used when the mailbox is stored in an IMAP back end.
+ * This invokes the messagecount(). Here we are interested in the presence of messages (> 0) only, not the actual count.
+ * \return 1 if the folder has one or more messages. zero otherwise.
+ */
+
+static int has_voicemail(const char *mailbox, const char *folder)
+{
+	char tmp[256], *tmp2, *mbox, *context;
+	ast_copy_string(tmp, mailbox, sizeof(tmp));
+	tmp2 = tmp;
+	if (strchr(tmp2, ',')) {
+		while ((mbox = strsep(&tmp2, ","))) {
+			if (!ast_strlen_zero(mbox)) {
+				if (has_voicemail(mbox, folder))
+					return 1;
+			}
+		}
+	}
+	if ((context= strchr(tmp, '@')))
+		*context++ = '\0';
+	else
+		context = "default";
+	return messagecount(context, tmp, folder) ? 1 : 0;
+}
+
+/*!
+ * \brief Copies a message from one mailbox to another.
+ * \param chan
+ * \param vmu
+ * \param imbox
+ * \param msgnum
+ * \param duration
+ * \param recip
+ * \param fmt
+ * \param dir
+ *
+ * This works with IMAP storage based mailboxes.
+ *
+ * \return zero on success, -1 on error.
+ */
+static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt, char *dir, char *flag)
+{
+	struct vm_state *sendvms = NULL, *destvms = NULL;
+	char messagestring[10]; /*I guess this could be a problem if someone has more than 999999999 messages...*/
+	if (msgnum >= recip->maxmsg) {
+		ast_log(LOG_WARNING, "Unable to copy mail, mailbox %s is full\n", recip->mailbox);
+		return -1;
+	}
+	if (!(sendvms = get_vm_state_by_imapuser(vmu->imapuser, 0))) {
+		ast_log(LOG_ERROR, "Couldn't get vm_state for originator's mailbox!!\n");
+		return -1;
+	}
+	if (!(destvms = get_vm_state_by_imapuser(recip->imapuser, 0))) {
+		ast_log(LOG_ERROR, "Couldn't get vm_state for destination mailbox!\n");
+		return -1;
+	}
+	snprintf(messagestring, sizeof(messagestring), "%ld", sendvms->msgArray[msgnum]);
+	if ((mail_copy(sendvms->mailstream, messagestring, (char *) mbox(imbox)) == T))
+		return 0;
+	ast_log(LOG_WARNING, "Unable to copy message from mailbox %s to mailbox %s\n", vmu->mailbox, recip->mailbox);
+	return -1;
+}
+
+static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int box, int use_folder)
+{
+	char tmp[256], *t = tmp;
+	size_t left = sizeof(tmp);
+	
+	if (box == OLD_FOLDER) {
+		ast_copy_string(vms->curbox, mbox(NEW_FOLDER), sizeof(vms->curbox));
+	} else {
+		ast_copy_string(vms->curbox, mbox(box), sizeof(vms->curbox));
+	}
+
+	if (box == NEW_FOLDER) {
+		ast_copy_string(vms->vmbox, "vm-INBOX", sizeof(vms->vmbox));
+	} else {
+		snprintf(vms->vmbox, sizeof(vms->vmbox), "vm-%s", mbox(box));
+	}
+
+	/* Build up server information */
+	ast_build_string(&t, &left, "{%s:%s/imap", imapserver, imapport);
+
+	/* Add authentication user if present */
+	if (!ast_strlen_zero(authuser))
+		ast_build_string(&t, &left, "/authuser=%s", authuser);
+
+	/* Add flags if present */
+	if (!ast_strlen_zero(imapflags))
+		ast_build_string(&t, &left, "/%s", imapflags);
+
+	/* End with username */
+	ast_build_string(&t, &left, "/user=%s}", vms->imapuser);
+	if (box == NEW_FOLDER || box == OLD_FOLDER)
+		snprintf(spec, len, "%s%s", tmp, use_folder? imapfolder: "INBOX");
+	else if (box == GREETINGS_FOLDER)
+		snprintf(spec, len, "%s%s", tmp, greetingfolder);
+	else {	/* Other folders such as Friends, Family, etc... */
+		if (!ast_strlen_zero(imapparentfolder)) {
+			/* imapparentfolder would typically be set to INBOX */
+			snprintf(spec, len, "%s%s%c%s", tmp, imapparentfolder, delimiter, mbox(box));
+		} else {
+			snprintf(spec, len, "%s%s", tmp, mbox(box));
+		}
+	}
+}
+
+static int init_mailstream(struct vm_state *vms, int box)
+{
+	MAILSTREAM *stream = NIL;
+	long debug;
+	char tmp[256];
+	
+	if (!vms) {
+		ast_log (LOG_ERROR,"vm_state is NULL!\n");
+		return -1;
+	}
+	if (option_debug > 2)
+		ast_log (LOG_DEBUG,"vm_state user is:%s\n",vms->imapuser);
+	if (vms->mailstream == NIL || !vms->mailstream) {
+		if (option_debug)
+			ast_log (LOG_DEBUG,"mailstream not set.\n");
+	} else {
+		stream = vms->mailstream;
+	}
+	/* debug = T;  user wants protocol telemetry? */
+	debug = NIL;  /* NO protocol telemetry? */
+
+	if (delimiter == '\0') {		/* did not probe the server yet */
+		char *cp;
+#ifdef USE_SYSTEM_IMAP
+#include <imap/linkage.c>
+#elif defined(USE_SYSTEM_CCLIENT)
+#include <c-client/linkage.c>
+#else
+#include "linkage.c"
+#endif
+		/* Connect to INBOX first to get folders delimiter */
+		imap_mailbox_name(tmp, sizeof(tmp), vms, 0, 1);
+		ast_mutex_lock(&vms->lock);
+		stream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
+		ast_mutex_unlock(&vms->lock);
+		if (stream == NIL) {
+			ast_log (LOG_ERROR, "Can't connect to imap server %s\n", tmp);
+			return -1;
+		}
+		get_mailbox_delimiter(stream);
+		/* update delimiter in imapfolder */
+		for (cp = imapfolder; *cp; cp++)
+			if (*cp == '/')
+				*cp = delimiter;
+	}
+	/* Now connect to the target folder */
+	imap_mailbox_name(tmp, sizeof(tmp), vms, box, 1);
+	if (option_debug > 2)
+		ast_log (LOG_DEBUG,"Before mail_open, server: %s, box:%d\n", tmp, box);
+	ast_mutex_lock(&vms->lock);
+	vms->mailstream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
+	ast_mutex_unlock(&vms->lock);
+	if (vms->mailstream == NIL) {
+		return -1;
+	} else {
+		return 0;
+	}
+}
+
+static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
+{
+	SEARCHPGM *pgm;
+	SEARCHHEADER *hdr;
+	int ret, urgent = 0;
+
+	/* If Urgent, then look at INBOX */
+	if (box == 11) {
+		box = NEW_FOLDER;
+		urgent = 1;
+	}
+
+	ast_copy_string(vms->imapuser,vmu->imapuser, sizeof(vms->imapuser));
+	ast_debug(3,"Before init_mailstream, user is %s\n",vmu->imapuser);
+
+	if ((ret = init_mailstream(vms, box)) || !vms->mailstream) {
+		ast_log(AST_LOG_ERROR, "Could not initialize mailstream\n");
+		return -1;
+	}
+	
+	create_dirpath(vms->curdir, sizeof(vms->curdir), vmu->context, vms->username, vms->curbox);
+	
+	/* Check Quota */
+	if  (box == 0)  {
+		ast_debug(3, "Mailbox name set to: %s, about to check quotas\n", mbox(box));
+		check_quota(vms,(char *)mbox(box));
+	}
+
+	pgm = mail_newsearchpgm();
+
+	/* Check IMAP folder for Asterisk messages only... */
+	hdr = mail_newsearchheader("X-Asterisk-VM-Extension", vmu->mailbox);
+	pgm->header = hdr;
+	pgm->deleted = 0;
+	pgm->undeleted = 1;
+
+	/* if box = NEW_FOLDER, check for new, if box = OLD_FOLDER, check for read */
+	if (box == NEW_FOLDER && urgent == 1) {
+		pgm->unseen = 1;
+		pgm->seen = 0;
+		pgm->flagged = 1;
+		pgm->unflagged = 0;
+	} else if (box == NEW_FOLDER && urgent == 0) {
+		pgm->unseen = 1;
+		pgm->seen = 0;
+		pgm->flagged = 0;
+		pgm->unflagged = 1;
+	} else if (box == OLD_FOLDER) {
+		pgm->seen = 1;
+		pgm->unseen = 0;
+	}
+
+	ast_debug(3,"Before mail_search_full, user is %s\n",vmu->imapuser);
+
+	vms->vmArrayIndex = 0;
+	mail_search_full (vms->mailstream, NULL, pgm, NIL);
+	vms->lastmsg = vms->vmArrayIndex - 1;
+	mail_free_searchpgm(&pgm);
+
+	return 0;
+}
+
+static void write_file(char *filename, char *buffer, unsigned long len)
+{
+	FILE *output;
+	ast_log(LOG_NOTICE, "The name of the file I'm writing is %s\n", filename);
+
+	output = fopen (filename, "w");
+	fwrite (buffer, len, 1, output);
+	fclose (output);
+}
+
+static void update_messages_by_imapuser(const char *user, unsigned long number)
+{
+	struct vmstate *vlist = NULL;
+
+	AST_LIST_LOCK(&vmstates);
+	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
+		if (!vlist->vms) {
+			ast_debug(3, "error: vms is NULL for %s\n", user);
+			continue;
+		}
+		if (!vlist->vms->imapuser) {
+			ast_debug(3, "error: imapuser is NULL for %s\n", user);
+			continue;
+		}
+		ast_debug(3, "saving mailbox message number %lu as message %d. Interactive set to %d\n", number, vlist->vms->vmArrayIndex, vlist->vms->interactive);
+		vlist->vms->msgArray[vlist->vms->vmArrayIndex++] = number;
+	}
+	AST_LIST_UNLOCK(&vmstates);
+}
+
+void mm_searched(MAILSTREAM *stream, unsigned long number)
+{
+	char *mailbox = stream->mailbox, buf[1024] = "", *user;
+
+	if (!(user = get_user_by_mailbox(mailbox, buf, sizeof(buf))))
+		return;
+
+	update_messages_by_imapuser(user, number);
+}
+
+static struct ast_vm_user *find_user_realtime_imapuser(const char *imapuser)
+{
+	struct ast_variable *var;
+	struct ast_vm_user *vmu;
+
+	vmu = ast_calloc(1, sizeof *vmu);
+	if (!vmu)
+		return NULL;
+	ast_set_flag(vmu, VM_ALLOCED);
+	populate_defaults(vmu);
+
+	var = ast_load_realtime("voicemail", "imapuser", imapuser, NULL);
+	if (var) {
+		apply_options_full(vmu, var);
+		ast_variables_destroy(var);
+		return vmu;
+	} else {
+		free(vmu);
+		return NULL;
+	}
+}
+
+/* Interfaces to C-client */
+
+void mm_exists(MAILSTREAM * stream, unsigned long number)
+{
+	/* mail_ping will callback here if new mail! */
+	ast_debug(4, "Entering EXISTS callback for message %ld\n", number);
+	if (number == 0) return;
+	set_update(stream);
+}
+
+
+void mm_expunged(MAILSTREAM * stream, unsigned long number)
+{
+	/* mail_ping will callback here if expunged mail! */
+	ast_debug(4, "Entering EXPUNGE callback for message %ld\n", number);
+	if (number == 0) return;
+	set_update(stream);
+}
+
+
+void mm_flags(MAILSTREAM * stream, unsigned long number)
+{
+	/* mail_ping will callback here if read mail! */
+	ast_debug(4, "Entering FLAGS callback for message %ld\n", number);
+	if (number == 0) return;
+	set_update(stream);
+}
+
+
+void mm_notify(MAILSTREAM * stream, char *string, long errflg)
+{
+	ast_debug(5, "Entering NOTIFY callback, errflag is %ld, string is %s\n", errflg, string);
+	mm_log (string, errflg);
+}
+
+
+void mm_list(MAILSTREAM * stream, int delim, char *mailbox, long attributes)
+{
+	if (delimiter == '\0') {
+		delimiter = delim;
+	}
+
+	ast_debug(5, "Delimiter set to %c and mailbox %s\n",delim, mailbox);
+	if (attributes & LATT_NOINFERIORS)
+		ast_debug(5, "no inferiors\n");
+	if (attributes & LATT_NOSELECT)
+		ast_debug(5, "no select\n");
+	if (attributes & LATT_MARKED)
+		ast_debug(5, "marked\n");
+	if (attributes & LATT_UNMARKED)
+		ast_debug(5, "unmarked\n");
+}
+
+
+void mm_lsub(MAILSTREAM * stream, int delimiter, char *mailbox, long attributes)
+{
+	ast_debug(5, "Delimiter set to %c and mailbox %s\n",delimiter, mailbox);
+	if (attributes & LATT_NOINFERIORS)
+		ast_debug(5, "no inferiors\n");
+	if (attributes & LATT_NOSELECT)
+		ast_debug(5, "no select\n");
+	if (attributes & LATT_MARKED)
+		ast_debug(5, "marked\n");
+	if (attributes & LATT_UNMARKED)
+		ast_debug(5, "unmarked\n");
+}
+
+
+void mm_status(MAILSTREAM * stream, char *mailbox, MAILSTATUS * status)
+{
+	ast_log(AST_LOG_NOTICE, " Mailbox %s", mailbox);
+	if (status->flags & SA_MESSAGES)
+		ast_log(AST_LOG_NOTICE, ", %lu messages", status->messages);
+	if (status->flags & SA_RECENT)
+		ast_log(AST_LOG_NOTICE, ", %lu recent", status->recent);
+	if (status->flags & SA_UNSEEN)
+		ast_log(AST_LOG_NOTICE, ", %lu unseen", status->unseen);
+	if (status->flags & SA_UIDVALIDITY)
+		ast_log(AST_LOG_NOTICE, ", %lu UID validity", status->uidvalidity);
+	if (status->flags & SA_UIDNEXT)
+		ast_log(AST_LOG_NOTICE, ", %lu next UID", status->uidnext);
+	ast_log(AST_LOG_NOTICE, "\n");
+}
+
+
+void mm_log(char *string, long errflg)
+{
+	switch ((short) errflg) {
+		case NIL:
+			ast_debug(1,"IMAP Info: %s\n", string);
+			break;
+		case PARSE:
+		case WARN:
+			ast_log(AST_LOG_WARNING, "IMAP Warning: %s\n", string);
+			break;
+		case ERROR:
+			ast_log(AST_LOG_ERROR, "IMAP Error: %s\n", string);
+			break;
+	}
+}
+
+
+void mm_dlog(char *string)
+{
+	ast_log(AST_LOG_NOTICE, "%s\n", string);
+}
+
+
+void mm_login(NETMBX * mb, char *user, char *pwd, long trial)
+{
+	struct ast_vm_user *vmu;
+
+	ast_debug(4, "Entering callback mm_login\n");
+
+	ast_copy_string(user, mb->user, MAILTMPLEN);
+
+	/* We should only do this when necessary */
+	if (!ast_strlen_zero(authpassword)) {
+		ast_copy_string(pwd, authpassword, MAILTMPLEN);
+	} else {
+		AST_LIST_TRAVERSE(&users, vmu, list) {
+			if (!strcasecmp(mb->user, vmu->imapuser)) {
+				ast_copy_string(pwd, vmu->imappassword, MAILTMPLEN);
+				break;
+			}
+		}
+		if (!vmu) {
+			if ((vmu = find_user_realtime_imapuser(mb->user))) {
+				ast_copy_string(pwd, vmu->imappassword, MAILTMPLEN);
+				free_user(vmu);
+			}
+		}
+	}
+}
+
+
+void mm_critical(MAILSTREAM * stream)
+{
+}
+
+
+void mm_nocritical(MAILSTREAM * stream)
+{
+}
+
+
+long mm_diskerror(MAILSTREAM * stream, long errcode, long serious)
+{
+	kill (getpid (), SIGSTOP);
+	return NIL;
+}
+
+
+void mm_fatal(char *string)
+{
+	ast_log(AST_LOG_ERROR, "IMAP access FATAL error: %s\n", string);
+}
+
+/* C-client callback to handle quota */
+static void mm_parsequota(MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota)
+{
+	struct vm_state *vms;
+	char *mailbox = stream->mailbox, *user;
+	char buf[1024] = "";
+	unsigned long usage = 0, limit = 0;
+	
+	while (pquota) {
+		usage = pquota->usage;
+		limit = pquota->limit;
+		pquota = pquota->next;
+	}
+	
+	if (!(user = get_user_by_mailbox(mailbox, buf, sizeof(buf))) || !(vms = get_vm_state_by_imapuser(user, 2))) {
+		ast_log(AST_LOG_ERROR, "No state found.\n");
+		return;
+	}
+
+	ast_debug(3, "User %s usage is %lu, limit is %lu\n", user, usage, limit);
+
+	vms->quota_usage = usage;
+	vms->quota_limit = limit;
+}
+
+static char *get_header_by_tag(char *header, char *tag, char *buf, size_t len)
+{
+	char *start, *eol_pnt;
+	int taglen;
+
+	if (ast_strlen_zero(header) || ast_strlen_zero(tag))
+		return NULL;
+
+	taglen = strlen(tag) + 1;
+	if (taglen < 1)
+		return NULL;
+
+	if (!(start = strstr(header, tag)))
+		return NULL;
+
+	/* Since we can be called multiple times we should clear our buffer */
+	memset(buf, 0, len);
+
+	ast_copy_string(buf, start+taglen, len);
+	if ((eol_pnt = strchr(buf,'\r')) || (eol_pnt = strchr(buf,'\n')))
+		*eol_pnt = '\0';
+	return buf;
+}
+
+static char *get_user_by_mailbox(char *mailbox, char *buf, size_t len)
+{
+	char *start, *quote, *eol_pnt;
+
+	if (ast_strlen_zero(mailbox))
+		return NULL;
+
+	if (!(start = strstr(mailbox, "/user=")))
+		return NULL;
+
+	ast_copy_string(buf, start+6, len);
+
+	if (!(quote = strchr(buf, '\"'))) {
+		if (!(eol_pnt = strchr(buf, '/')))
+			eol_pnt = strchr(buf,'}');
+		*eol_pnt = '\0';
+		return buf;
+	} else {
+		eol_pnt = strchr(buf+1,'\"');
+		*eol_pnt = '\0';
+		return buf+1;
+	}
+}
+
+static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu)
+{
+	struct vm_state *vms_p;
+
+	if (option_debug > 4)
+		ast_log(AST_LOG_DEBUG,"Adding new vmstate for %s\n",vmu->imapuser);
+	if (!(vms_p = ast_calloc(1, sizeof(*vms_p))))
+		return NULL;
+	ast_copy_string(vms_p->imapuser, vmu->imapuser, sizeof(vms_p->imapuser));
+	ast_copy_string(vms_p->username, vmu->mailbox, sizeof(vms_p->username)); /* save for access from interactive entry point */
+	vms_p->mailstream = NIL; /* save for access from interactive entry point */
+	if (option_debug > 4)
+		ast_log(AST_LOG_DEBUG,"Copied %s to %s\n",vmu->imapuser,vms_p->imapuser);
+	vms_p->updated = 1;
+	/* set mailbox to INBOX! */
+	ast_copy_string(vms_p->curbox, mbox(0), sizeof(vms_p->curbox));
+	init_vm_state(vms_p);
+	vmstate_insert(vms_p);
+	return vms_p;
+}
+
+static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
+{
+	struct vmstate *vlist = NULL;
+
+	AST_LIST_LOCK(&vmstates);
+	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
+		if (!vlist->vms) {
+			ast_debug(3, "error: vms is NULL for %s\n", user);
+			continue;
+		}
+		if (!vlist->vms->imapuser) {
+			ast_debug(3, "error: imapuser is NULL for %s\n", user);
+			continue;
+		}
+
+		if (!strcmp(vlist->vms->imapuser, user) && (interactive == 2 || vlist->vms->interactive == interactive)) {
+			AST_LIST_UNLOCK(&vmstates);
+			return vlist->vms;
+		}
+	}
+	AST_LIST_UNLOCK(&vmstates);
+
+	ast_debug(3, "%s not found in vmstates\n", user);
+
+	return NULL;
+}
+
+static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interactive)
+{
+
+	struct vmstate *vlist = NULL;
+
+	AST_LIST_LOCK(&vmstates);
+	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
+		if (!vlist->vms) {
+			ast_debug(3, "error: vms is NULL for %s\n", mailbox);
+			continue;
+		}
+		if (!vlist->vms->username) {
+			ast_debug(3, "error: username is NULL for %s\n", mailbox);
+			continue;
+		}
+
+		ast_debug(3, "comparing mailbox %s (i=%d) to vmstate mailbox %s (i=%d)\n", mailbox, interactive, vlist->vms->username, vlist->vms->interactive);
+		
+		if (!strcmp(vlist->vms->username,mailbox) && vlist->vms->interactive == interactive) {
+			ast_debug(3, "Found it!\n");
+			AST_LIST_UNLOCK(&vmstates);
+			return vlist->vms;
+		}
+	}
+	AST_LIST_UNLOCK(&vmstates);
+
+	ast_debug(3, "%s not found in vmstates\n", mailbox);
+
+	return NULL;
+}
+
+static void vmstate_insert(struct vm_state *vms) 
+{
+	struct vmstate *v;
+	struct vm_state *altvms;
+
+	/* If interactive, it probably already exists, and we should
+	   use the one we already have since it is more up to date.
+	   We can compare the username to find the duplicate */
+	if (vms->interactive == 1) {
+		altvms = get_vm_state_by_mailbox(vms->username,0);
+		if (altvms) {	
+			ast_debug(3, "Duplicate mailbox %s, copying message info...\n",vms->username);
+			vms->newmessages = altvms->newmessages;
+			vms->oldmessages = altvms->oldmessages;
+			vms->vmArrayIndex = altvms->vmArrayIndex;
+			vms->lastmsg = altvms->lastmsg;
+			vms->curmsg = altvms->curmsg;
+			/* get a pointer to the persistent store */
+			vms->persist_vms = altvms;
+			/* Reuse the mailstream? */
+			vms->mailstream = altvms->mailstream;
+			/* vms->mailstream = NIL; */
+		}
+	}
+
+	if (!(v = ast_calloc(1, sizeof(*v))))
+		return;
+	
+	v->vms = vms;
+
+	ast_debug(3, "Inserting vm_state for user:%s, mailbox %s\n",vms->imapuser,vms->username);
+
+	AST_LIST_LOCK(&vmstates);
+	AST_LIST_INSERT_TAIL(&vmstates, v, list);
+	AST_LIST_UNLOCK(&vmstates);
+}
+
+static void vmstate_delete(struct vm_state *vms) 
+{
+	struct vmstate *vc = NULL;
+	struct vm_state *altvms = NULL;
+
+	/* If interactive, we should copy pertinent info
+	   back to the persistent state (to make update immediate) */
+	if (vms->interactive == 1 && (altvms = vms->persist_vms)) {
+		ast_debug(3, "Duplicate mailbox %s, copying message info...\n", vms->username);
+		altvms->newmessages = vms->newmessages;
+		altvms->oldmessages = vms->oldmessages;
+		altvms->updated = 1;
+	}
+	
+	ast_debug(3, "Removing vm_state for user:%s, mailbox %s\n", vms->imapuser, vms->username);
+	
+	AST_LIST_LOCK(&vmstates);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&vmstates, vc, list) {
+		if (vc->vms == vms) {
+			AST_LIST_REMOVE_CURRENT(list);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&vmstates);
+	
+	if (vc) {
+		ast_mutex_destroy(&vc->vms->lock);
+		ast_free(vc);
+	}
+	else
+		ast_log(AST_LOG_ERROR, "No vmstate found for user:%s, mailbox %s\n", vms->imapuser, vms->username);
+}
+
+static void set_update(MAILSTREAM * stream) 
+{
+	struct vm_state *vms;
+	char *mailbox = stream->mailbox, *user;
+	char buf[1024] = "";
+
+	if (!(user = get_user_by_mailbox(mailbox, buf, sizeof(buf))) || !(vms = get_vm_state_by_imapuser(user, 0))) {
+		if (user && option_debug > 2)
+			ast_log(AST_LOG_WARNING, "User %s mailbox not found for update.\n", user);
+		return;
+	}
+
+	ast_debug(3, "User %s mailbox set for update.\n", user);
+
+	vms->updated = 1; /* Set updated flag since mailbox changed */
+}
+
+static void init_vm_state(struct vm_state *vms) 
+{
+	int x;
+	vms->vmArrayIndex = 0;
+	for (x = 0; x < VMSTATE_MAX_MSG_ARRAY; x++) {
+		vms->msgArray[x] = 0;
+	}
+	ast_mutex_init(&vms->lock);
+}
+
+static int save_body(BODY *body, struct vm_state *vms, char *section, char *format, int is_intro) 
+{
+	char *body_content;
+	char *body_decoded;
+	char *fn = is_intro ? vms->introfn : vms->fn;
+	unsigned long len;
+	unsigned long newlen;
+	char filename[256];
+	
+	if (!body || body == NIL)
+		return -1;
+
+	body_content = mail_fetchbody(vms->mailstream, vms->msgArray[vms->curmsg], section, &len);
+	if (body_content != NIL) {
+		snprintf(filename, sizeof(filename), "%s.%s", fn, format);
+		/* ast_debug(1,body_content); */
+		body_decoded = rfc822_base64((unsigned char *)body_content, len, &newlen);
+ 		/* If the body of the file is empty, return an error */
+		if (!newlen) {
+			return -1;
+		}
+		write_file(filename, (char *) body_decoded, newlen);
+	} else {
+		ast_debug(5, "Body of message is NULL.\n");
+		return -1;
+	}
+	return 0;
+}
+
+/*! 
+ * \brief Get delimiter via mm_list callback 
+ * \param stream
+ *
+ * Determines the delimiter character that is used by the underlying IMAP based mail store.
+ */
+static void get_mailbox_delimiter(MAILSTREAM *stream) {
+	char tmp[50];
+	snprintf(tmp, sizeof(tmp), "{%s}", imapserver);
+	mail_list(stream, tmp, "*");
+}
+
+/*! 
+ * \brief Check Quota for user 
+ * \param vms a pointer to a vm_state struct, will use the mailstream property of this.
+ * \param mailbox the mailbox to check the quota for.
+ *
+ * Calls imap_getquotaroot, which will populate its results into the vm_state vms input structure.
+ */
+static void check_quota(struct vm_state *vms, char *mailbox) {
+	mail_parameters(NULL, SET_QUOTA, (void *) mm_parsequota);
+	ast_debug(3, "Mailbox name set to: %s, about to check quotas\n", mailbox);
+	if (vms && vms->mailstream != NULL) {
+		imap_getquotaroot(vms->mailstream, mailbox);
+	} else {
+		ast_log(AST_LOG_WARNING, "Mailstream not available for mailbox: %s\n", mailbox);
+	}
+}
+
+#endif /* IMAP_STORAGE */
 
 /*! \brief Lock file path
     only return failure if ast_lock_path returns 'timeout',
@@ -1510,37 +2868,6 @@ yuck:
 	if (fd > -1)
 		close(fd);
 	return x - 1;
-}
-
-/*!
- * \brief Removes a voicemail message file.
- * \param dir the path to the message file.
- * \param msgnum the unique number for the message within the mailbox.
- *
- * Removes the message content file and the information file.
- * This method is used by the DISPOSE macro when mailboxes are stored in an ODBC back end.
- * Typical use is to clean up after a RETRIEVE operation. 
- * Note that this does not remove the message from the mailbox folders, to do that we would use delete_file().
- * \return zero on success, -1 on error.
- */
-static int remove_file(char *dir, int msgnum)
-{
-	char fn[PATH_MAX];
-	char full_fn[PATH_MAX];
-	char msgnums[80];
-	
-	if (msgnum > -1) {
-		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
-		make_file(fn, sizeof(fn), dir, msgnum);
-	} else
-		ast_copy_string(fn, dir, sizeof(fn));
-	ast_filedelete(fn, NULL);	
-	if (ast_check_realtime("voicemail_data")) {
-		ast_destroy_realtime("voicemail_data", "filename", fn, SENTINEL);
-	}
-	snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
-	unlink(full_fn);
-	return 0;
 }
 
 /*!
@@ -2044,6 +3371,35 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 
 	return x - 1;
 }
+#if (defined(IMAP_STORAGE) || defined(ODBC_STORAGE))
+/*!
+ * \brief Removes a voicemail message file.
+ * \param dir the path to the message file.
+ * \param msgnum the unique number for the message within the mailbox.
+ *
+ * Removes the message content file and the information file.
+ * This method is used by the DISPOSE macro when mailboxes are stored in an ODBC back end.
+ * Typical use is to clean up after a RETRIEVE operation. 
+ * Note that this does not remove the message from the mailbox folders, to do that we would use delete_file().
+ * \return zero on success, -1 on error.
+ */
+static int remove_file(char *dir, int msgnum)
+{
+	char fn[PATH_MAX];
+	char full_fn[PATH_MAX];
+	char msgnums[80];
+	
+	if (msgnum > -1) {
+		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
+		make_file(fn, sizeof(fn), dir, msgnum);
+	} else
+		ast_copy_string(fn, dir, sizeof(fn));
+	ast_filedelete(fn, NULL);	
+	snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
+	unlink(full_fn);
+	return 0;
+}
+#endif
 
 
 /*!
@@ -2159,7 +3515,7 @@ static void copy_plain_file(char *frompath, char *topath)
 
 #endif /* #ifndef IMAP_STORAGE */
 #endif /* #else of #ifdef ODBC_STORAGE */
-#ifndef ODBC_STORAGE
+#if (!defined(ODBC_STORAGE) && !defined(IMAP_STORAGE))
 /*! 
  * \brief Removes the voicemail sound and information file.
  * \param file The path to the sound file. This will be the the folder and message index, without the extension.
@@ -2377,22 +3733,6 @@ static const struct ast_tm *vmu_tm(const struct ast_vm_user *vmu, struct ast_tm 
 	return tm;
 }
 
-/*! \brief same as mkstemp, but return a FILE * */
-static FILE *vm_mkftemp(char *template)
-{
-	FILE *p = NULL;
-	int pfd = mkstemp(template);
-	chmod(template, VOICEMAIL_FILE_MODE & ~my_umask);
-	if (pfd > -1) {
-		p = fdopen(pfd, "w+");
-		if (!p) {
-			close(pfd);
-			pfd = -1;
-		}
-	}
-	return p;
-}
-
 /*!
  * \brief Creates the email file to be sent to indicate a new voicemail exists for a user.
  * \param p The output file to generate the email contents into.
@@ -2524,6 +3864,8 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		fprintf(p, "X-Asterisk-VM-Duration: %d" ENDL, duration);
 		if (!ast_strlen_zero(category)) {
 			fprintf(p, "X-Asterisk-VM-Category: %s" ENDL, category);
+		} else {
+			fprintf(p, "X-Asterisk-VM-Category: " ENDL);
 		}
 		fprintf(p, "X-Asterisk-VM-Message-Type: %s" ENDL, msgnum > -1 ? "Message" : greeting_attachment);
 		fprintf(p, "X-Asterisk-VM-Orig-date: %s" ENDL, date);
@@ -2570,12 +3912,12 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 
 	if (imap || attach_user_voicemail) {
 		if (!ast_strlen_zero(attach2)) {
-			snprintf(filename, sizeof(filename), "msgintro%04d.%s", msgnum, format);
-			ast_debug(5, "creating attachment filename %s\n", filename);
-			add_email_attachment(p, vmu, format, attach2, greeting_attachment, mailbox, bound, filename, 0, msgnum);
 			snprintf(filename, sizeof(filename), "msg%04d.%s", msgnum, format);
 			ast_debug(5, "creating second attachment filename %s\n", filename);
-			add_email_attachment(p, vmu, format, attach, greeting_attachment, mailbox, bound, filename, 1, msgnum);
+			add_email_attachment(p, vmu, format, attach, greeting_attachment, mailbox, bound, filename, 0, msgnum);
+			snprintf(filename, sizeof(filename), "msgintro%04d.%s", msgnum, format);
+			ast_debug(5, "creating attachment filename %s\n", filename);
+			add_email_attachment(p, vmu, format, attach2, greeting_attachment, mailbox, bound, filename, 1, msgnum);
 		} else {
 			snprintf(filename, sizeof(filename), "msg%04d.%s", msgnum, format);
 			ast_debug(5, "creating attachment filename %s, no second attachment.\n", filename);
@@ -2804,95 +4146,10 @@ static int invent_message(struct ast_channel *chan, char *context, char *ext, in
 	return res;
 }
 
-static void free_user(struct ast_vm_user *vmu)
-{
-	if (!ast_test_flag(vmu, VM_ALLOCED))
-		return;
-
-	ast_free(vmu);
-}
-
 static void free_zone(struct vm_zone *z)
 {
 	ast_free(z);
 }
-
-/*!
- * \brief Gets the name of the mailbox folder from the numeric index.
- * \param id The numerical index for the folder name.
- * 
- * When an invalid number is entered, or one that exceeds the pre-configured list of folder names, the name "tmp" is returned.
- *
- * \return the String name that coresponds to this folder index.
- */
-static const char *mbox(int id)
-{
-	static const char *msgs[] = {
-#ifdef IMAP_STORAGE
-		imapfolder,
-#else
-		"INBOX",
-#endif
-		"Old",
-		"Work",
-		"Family",
-		"Friends",
-		"Cust1",
-		"Cust2",
-		"Cust3",
-		"Cust4",
-		"Cust5",
-		"Deleted",
-		"Urgent"
-	};
-	return (id >= 0 && id < (sizeof(msgs)/sizeof(msgs[0]))) ? msgs[id] : "Unknown";
-}
-#ifdef IMAP_STORAGE
-/*!
- * \brief Converts a string folder name into the numerical identifier.
- * \param folder the string folder name to be converted to an id.
- *
- * This is the opposite of the mbox() function.
- *
- * \return the id that coresponds to the folder name
- */
-static int folder_int(const char *folder)
-{
-	/* assume a NULL folder means INBOX */
-	if (!folder)
-		return 0;
-#ifdef IMAP_STORAGE
-	if (!strcasecmp(folder, imapfolder))
-#else
-	if (!strcasecmp(folder, "INBOX"))
-#endif
-		return 0;
-	else if (!strcasecmp(folder, "Old"))
-		return 1;
-	else if (!strcasecmp(folder, "Work"))
-		return 2;
-	else if (!strcasecmp(folder, "Family"))
-		return 3;
-	else if (!strcasecmp(folder, "Friends"))
-		return 4;
-	else if (!strcasecmp(folder, "Cust1"))
-		return 5;
-	else if (!strcasecmp(folder, "Cust2"))
-		return 6;
-	else if (!strcasecmp(folder, "Cust3"))
-		return 7;
-	else if (!strcasecmp(folder, "Cust4"))
-		return 8;
-	else if (!strcasecmp(folder, "Cust5"))
-		return 9;
-	else if (!strcasecmp(folder, "Deleted"))
-		return 10;
-	else if (!strcasecmp(folder, "Urgent"))
-		return 11;
-	else /*assume they meant INBOX if folder is not found otherwise*/
-		return 0;
-}
-#endif
 
 #ifdef ODBC_STORAGE
 /*! XXX \todo Fix this function to support multiple mailboxes in the intput string */
@@ -3097,395 +4354,6 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	}
 	return 0;
 }
-
-#elif defined(IMAP_STORAGE)
-
-static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, char *introfile, const char *flag)
-{
-	char *myserveremail = serveremail;
-	char fn[PATH_MAX];
-	char intro[PATH_MAX];
-	char mailbox[256];
-	char *stringp;
-	FILE *p=NULL;
-	char tmp[80] = "/tmp/astmail-XXXXXX";
-	long len;
-	void *buf;
-	int tempcopy = 0;
-	STRING str;
-	int ret; /* for better error checking */
-	char *imapflags = NIL;
-
-	/* Set urgent flag for IMAP message */
-	if (!ast_strlen_zero(flag) && !strcmp(flag, "Urgent")) {
-		ast_debug(3, "Setting message flag \\\\FLAGGED.\n");
-		imapflags="\\FLAGGED";
-	}
-	
-	/* Attach only the first format */
-	fmt = ast_strdupa(fmt);
-	stringp = fmt;
-	strsep(&stringp, "|");
-
-	if (!ast_strlen_zero(vmu->serveremail))
-		myserveremail = vmu->serveremail;
-
-	if (msgnum > -1)
-		make_file(fn, sizeof(fn), dir, msgnum);
-	else
-		ast_copy_string (fn, dir, sizeof(fn));
-	
-	if (ast_strlen_zero(vmu->email)) {
-		/* We need the vmu->email to be set when we call make_email_file, but
-		 * if we keep it set, a duplicate e-mail will be created. So at the end
-		 * of this function, we will revert back to an empty string if tempcopy
-		 * is 1.
-		 */
-		ast_copy_string(vmu->email, vmu->imapuser, sizeof(vmu->email));
-		tempcopy = 1;
-	}
-
-	if (!ast_strlen_zero(introfile)) {
-		snprintf(intro, sizeof(intro), "%s/msgintro%04d", dir, msgnum);
-	} else {
-		intro[0] = '\0';
-	}
-
-	if (!strcmp(fmt, "wav49"))
-		fmt = "WAV";
-	ast_debug(3, "Storing file '%s', format '%s'\n", fn, fmt);
-
-	/* Make a temporary file instead of piping directly to sendmail, in case the mail
-	   command hangs. */
-	if (!(p = vm_mkftemp(tmp))) {
-		ast_log(AST_LOG_WARNING, "Unable to store '%s' (can't create temporary file)\n", fn);
-		if (tempcopy)
-			*(vmu->email) = '\0';
-		return -1;
-	}
-
-	if (msgnum < 0 && imapgreetings) {
-		if ((ret = init_mailstream(vms, GREETINGS_FOLDER))) {
-			ast_log(AST_LOG_WARNING, "Unable to open mailstream.\n");
-			return -1;
-		}
-		imap_delete_old_greeting(fn, vms);
-	}
-	
-	make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, intro, fmt, duration, 1, chan, NULL, 1, flag);
-	/* read mail file to memory */		
-	len = ftell(p);
-	rewind(p);
-	if (!(buf = ast_malloc(len + 1))) {
-		ast_log(AST_LOG_ERROR, "Can't allocate %ld bytes to read message\n", len + 1);
-		fclose(p);
-		if (tempcopy)
-			*(vmu->email) = '\0';
-		return -1;
-	}
-	fread(buf, len, 1, p);
-	((char *)buf)[len] = '\0';
-	INIT(&str, mail_string, buf, len);
-	ret = init_mailstream(vms, NEW_FOLDER);
-	if (ret == 0) {
-		imap_mailbox_name(mailbox, sizeof(mailbox), vms, NEW_FOLDER, 1);
-		if(!mail_append_full(vms->mailstream, mailbox, imapflags, NIL, &str))
-			ast_log(LOG_ERROR, "Error while sending the message to %s\n", mailbox);
-		fclose(p);
-		unlink(tmp);
-		ast_free(buf);
-	} else {
-		ast_log(LOG_ERROR, "Could not initialize mailstream for %s\n",mailbox);
-		fclose(p);
-		unlink(tmp);
-		ast_free(buf);
-		return -1;
-	}
-	ast_debug(3, "%s stored\n", fn);
-	
-	if (tempcopy)
-		*(vmu->email) = '\0';
-	
-	return 0;
-
-}
-
-/*!
- * \brief Gets the number of messages that exist in a mailbox folder.
- * \param context
- * \param mailbox
- * \param folder
- * 
- * This method is used when IMAP backend is used.
- * \return The number of messages in this mailbox folder (zero or more).
- */
-static int messagecount(const char *context, const char *mailbox, const char *folder)
-{
-	SEARCHPGM *pgm;
-	SEARCHHEADER *hdr;
-
-	struct ast_vm_user *vmu, vmus;
-	struct vm_state *vms_p;
-	int ret = 0;
-	int fold = folder_int(folder);
-	int urgent = 0;
-	
-	if (ast_strlen_zero(mailbox))
-		return 0;
-
-	/* We have to get the user before we can open the stream! */
-	vmu = find_user(&vmus, context, mailbox);
-	if (!vmu) {
-		ast_log(AST_LOG_ERROR, "Couldn't find mailbox %s in context %s\n", mailbox, context);
-		return -1;
-	} else {
-		/* No IMAP account available */
-		if (vmu->imapuser[0] == '\0') {
-			ast_log(AST_LOG_WARNING, "IMAP user not set for mailbox %s\n", vmu->mailbox);
-			return -1;
-		}
-	}
-	
-	/* No IMAP account available */
-	if (vmu->imapuser[0] == '\0') {
-		ast_log(AST_LOG_WARNING, "IMAP user not set for mailbox %s\n", vmu->mailbox);
-		free_user(vmu);
-		return -1;
-	}
-
-	/* check if someone is accessing this box right now... */
-	vms_p = get_vm_state_by_imapuser(vmu->imapuser,1);
-	if (!vms_p) {
-		vms_p = get_vm_state_by_mailbox(mailbox,1);
-	}
-	if (vms_p) {
-		ast_debug(3, "Returning before search - user is logged in\n");
-		if (fold == 0) { /* INBOX */
-			return vms_p->newmessages;
-		}
-		if (fold == 1) { /* Old messages */
-			return vms_p->oldmessages;
-		}
-		if (fold == 11) {/*Urgent messages*/
-		 	return vms_p->urgentmessages;
-		}
-	}
-
-	/* add one if not there... */
-	vms_p = get_vm_state_by_imapuser(vmu->imapuser,0);
-	if (!vms_p) {
-		vms_p = get_vm_state_by_mailbox(mailbox,0);
-	}
-
-	/* If URGENT, then look at INBOX */
-	if (fold == 11) {
-		fold = NEW_FOLDER;
-		urgent = 1;
-	}
-
-	if (!vms_p) {
-		ast_debug(3,"Adding new vmstate for %s\n",vmu->imapuser);
-		if (!(vms_p = ast_calloc(1, sizeof(*vms_p)))) {
-			return -1;
-		}
-		ast_copy_string(vms_p->imapuser,vmu->imapuser, sizeof(vms_p->imapuser));
-		ast_copy_string(vms_p->username, mailbox, sizeof(vms_p->username)); /* save for access from interactive entry point */
-		vms_p->mailstream = NIL; /* save for access from interactive entry point */
-		ast_debug(3, "Copied %s to %s\n",vmu->imapuser,vms_p->imapuser);
-		vms_p->updated = 1;
-		ast_copy_string(vms_p->curbox, mbox(fold), sizeof(vms_p->curbox));
-		init_vm_state(vms_p);
-		vmstate_insert(vms_p);
-	}
-	ret = init_mailstream(vms_p, fold);
-	if (!vms_p->mailstream) {
-		ast_log(AST_LOG_ERROR, "Houston we have a problem - IMAP mailstream is NULL\n");
-		return -1;
-	}
-	if (ret == 0) {
-		pgm = mail_newsearchpgm ();
-		hdr = mail_newsearchheader ("X-Asterisk-VM-Extension", (char *)mailbox);
-		pgm->header = hdr;
-		if (fold != 1) {
-			pgm->unseen = 1;
-			pgm->seen = 0;
-		}
-		/* In the special case where fold is 1 (old messages) we have to do things a bit
-		 * differently. Old messages are stored in the INBOX but are marked as "seen"
-		 */
-		else {
-			pgm->unseen = 0;
-			pgm->seen = 1;
-		}
-		/* look for urgent messages */
-		if (urgent == 1) {
-                	pgm->flagged = 1;
-                	pgm->unflagged = 0;
-		}
-		pgm->undeleted = 1;
-		pgm->deleted = 0;
-
-		vms_p->vmArrayIndex = 0;
-		mail_search_full (vms_p->mailstream, NULL, pgm, NIL);
-		if (fold == 0 && urgent == 0)
-			vms_p->newmessages = vms_p->vmArrayIndex;
-		if (fold == 1)
-			vms_p->oldmessages = vms_p->vmArrayIndex;
-		if (fold == 0 && urgent == 1)
-			vms_p->urgentmessages = vms_p->vmArrayIndex;
-		/*Freeing the searchpgm also frees the searchhdr*/
-		mail_free_searchpgm(&pgm);
-		vms_p->updated = 0;
-		return vms_p->vmArrayIndex;
-	} else {  
-		mail_ping(vms_p->mailstream);
-	}
-	return 0;
-}
-
-/*!
- * \brief Gets the number of messages that exist in the inbox folder.
- * \param mailbox_context
- * \param newmsgs The variable that is updated with the count of new messages within this inbox.
- * \param oldmsgs The variable that is updated with the count of old messages within this inbox.
- * 
- * This method is used when IMAP backend is used.
- * Simultaneously determines the count of new and old messages. The total messages would then be the sum of these two.
- *
- * \return zero on success, -1 on error.
- */
-static int inboxcount2(const char *mailbox_context, int *urgentmsgs, int *newmsgs, int *oldmsgs)
-{
-	char tmp[PATH_MAX] = "";
-	char *mailboxnc;
-	char *context;
-	char *mb;
-	char *cur;
-	if (newmsgs)
-		*newmsgs = 0;
-	if (oldmsgs)
-		*oldmsgs = 0;
-	if (urgentmsgs)
-		*urgentmsgs = 0;
-
-	ast_debug(3,"Mailbox is set to %s\n",mailbox_context);
-	/* If no mailbox, return immediately */
-	if (ast_strlen_zero(mailbox_context))
-		return 0;
-	
-	ast_copy_string(tmp, mailbox_context, sizeof(tmp));
-	context = strchr(tmp, '@');
-	if (strchr(mailbox_context, ',')) {
-		int tmpnew, tmpold, tmpurgent;
-		ast_copy_string(tmp, mailbox_context, sizeof(tmp));
-		mb = tmp;
-		while ((cur = strsep(&mb, ", "))) {
-			if (!ast_strlen_zero(cur)) {
-				if (inboxcount2(cur, urgentmsgs ? &tmpurgent : NULL, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
-					return -1;
-				else {
-					if (newmsgs)
-						*newmsgs += tmpnew; 
-					if (oldmsgs)
-						*oldmsgs += tmpold;
-					if (urgentmsgs)
-						*urgentmsgs += tmpurgent;
-				}
-			}
-		}
-		return 0;
-	}
-	if (context) {
-		*context = '\0';
-		mailboxnc = tmp;
-		context++;
-	} else {
-		context = "default";
-		mailboxnc = (char *)mailbox_context;
-	}
-	if (newmsgs) {
-		if ((*newmsgs = messagecount(context, mailboxnc, imapfolder)) < 0)
-			return -1;
-	}
-	if (oldmsgs) {
-		if ((*oldmsgs = messagecount(context, mailboxnc, "Old")) < 0)
-			return -1;
-	}
-	if (urgentmsgs) {
-		if((*urgentmsgs = messagecount(context, mailboxnc, "Urgent")) < 0)
-			return -1;
-	}
-	return 0;
-}
-
-static int inboxcount(const char *mailbox_context, int *newmsgs, int *oldmsgs)
-{
-	return inboxcount2(mailbox_context, NULL, newmsgs, oldmsgs);
-}
-
-/** 
- * \brief Determines if the given folder has messages.
- * \param mailbox The @ delimited string for user@context. If no context is found, uses 'default' for the context.
- * \param folder the folder to look in
- *
- * This function is used when the mailbox is stored in an IMAP back end.
- * This invokes the messagecount(). Here we are interested in the presence of messages (> 0) only, not the actual count.
- * \return 1 if the folder has one or more messages. zero otherwise.
- */
-static int has_voicemail(const char *mailbox, const char *folder)
-{
-	char tmp[256], *tmp2, *mbox, *context;
-	ast_copy_string(tmp, mailbox, sizeof(tmp));
-	tmp2 = tmp;
-	if (strchr(tmp2, ',')) {
-		while ((mbox = strsep(&tmp2, ","))) {
-			if (!ast_strlen_zero(mbox)) {
-				if (has_voicemail(mbox, folder))
-					return 1;
-			}
-		}
-	}
-	if ((context= strchr(tmp, '@')))
-		*context++ = '\0';
-	else
-		context = "default";
-	return messagecount(context, tmp, folder) ? 1 : 0;
-}
-
-/*!
- * \brief Copies a message from one mailbox to another.
- * \param chan
- * \param vmu
- * \param imbox
- * \param msgnum
- * \param duration
- * \param recip
- * \param fmt
- * \param dir
- *
- * This works with IMAP storage based mailboxes.
- *
- * \return zero on success, -1 on error.
- */
-static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt, char *dir, const char *flag)
-{
-	struct vm_state *sendvms = NULL, *destvms = NULL;
-	char messagestring[10]; /* I guess this could be a problem if someone has more than 999,999,999 messages... */
-	if (!(sendvms = get_vm_state_by_imapuser(vmu->imapuser, 0))) {
-		ast_log(AST_LOG_ERROR, "Couldn't get vm_state for originator's mailbox!!\n");
-		return -1;
-	}
-	if (!(destvms = get_vm_state_by_imapuser(recip->imapuser, 0))) {
-		ast_log(AST_LOG_ERROR, "Couldn't get vm_state for destination mailbox!\n");
-		return -1;
-	}
-	snprintf(messagestring, sizeof(messagestring), "%ld", sendvms->msgArray[msgnum]);
-	if ((mail_copy(sendvms->mailstream, messagestring, (char *) mbox(imbox)) == T))
-		return 0;
-	ast_log(AST_LOG_WARNING, "Unable to copy message from mailbox %s to mailbox %s\n", vmu->mailbox, recip->mailbox);
-	return -1;
-}
-
 #endif
 #ifndef IMAP_STORAGE
 /*! 
@@ -3746,12 +4614,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 {
 #ifdef IMAP_STORAGE
 	int newmsgs, oldmsgs;
-	struct vm_state *vms = NULL;
 #else
 	char urgdir[PATH_MAX];
 #endif
 	char txtfile[PATH_MAX];
 	char tmptxtfile[PATH_MAX];
+	struct vm_state *vms = NULL;
 	char callerid[256];
 	FILE *txt;
 	char date[256];
@@ -3842,9 +4710,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		ast_log(AST_LOG_WARNING, "Failed to make directory (%s)\n", tempfile);
 		return -1;
 	}
-
-	RETRIEVE(tempfile, -1, ext, context);
-
+	RETRIEVE(tempfile, -1, vmu->mailbox, vmu->context);
 	if (ast_fileexists(tempfile, NULL, NULL) > 0)
 		ast_copy_string(prefile, tempfile, sizeof(prefile));
 
@@ -3996,19 +4862,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		 * create a vm_state when it was needed. This is a catchall which will
 		 * rarely be used.
 		 */
-			if (!(vms = ast_calloc(1, sizeof(*vms)))) {
+			if (!(vms = create_vm_state_from_user(vmu))) {
 				ast_log(AST_LOG_ERROR, "Couldn't allocate necessary space\n");
 				return -1;
 			}
-			ast_copy_string(vms->imapuser, vmu->imapuser, sizeof(vms->imapuser));
-			ast_copy_string(vms->username, ext, sizeof(vms->username));
-			vms->mailstream = NIL;
-			ast_debug(3, "Copied %s to %s\n", vmu->imapuser, vms->imapuser);
-			vms->updated=1;
-			ast_copy_string(vms->curbox, mbox(0), sizeof(vms->curbox));
-			init_vm_state(vms);
-			vmstate_insert(vms);
-			vms = get_vm_state_by_mailbox(ext,0);
 		}
 		vms->newmessages++;
 		
@@ -4033,7 +4890,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			ast_play_and_wait(chan, "vm-mailboxfull");
 			return -1;
 		}
-
 #else
 		if (count_messages(vmu, dir) >= vmu->maxmsg) {
 			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
@@ -4101,11 +4957,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				category ? category : "");
 		} else
 			ast_log(AST_LOG_WARNING, "Error opening text file for output\n");
-#ifdef IMAP_STORAGE
 		res = play_record_review(chan, NULL, tmptxtfile, vmu->maxsecs, fmt, 1, vmu, &duration, NULL, options->record_gain, vms, flag);
-#else
-		res = play_record_review(chan, NULL, tmptxtfile, vmu->maxsecs, fmt, 1, vmu, &duration, NULL, options->record_gain, NULL, flag);
-#endif
 
 		if (txt) {
 			fprintf(txt, "flag=%s\n", flag);
@@ -4167,7 +5019,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					 * ODBC storage does the entire copy with SQL.
 					 */
 					if (ast_fileexists(fn, NULL, NULL) > 0) {
-						STORE(dir, vmu->mailbox, vmu->context, msgnum, chan, vmu, fmt, duration, vms, NULL, flag);
+						STORE(dir, vmu->mailbox, vmu->context, msgnum, chan, vmu, fmt, duration, vms, flag);
 					}
 
 					/* Are there to be more recipients of this message? */
@@ -4247,14 +5099,19 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 #ifdef IMAP_STORAGE
 	/* we must use mbox(x) folder names, and copy the message there */
 	/* simple. huh? */
-	long res;
 	char sequence[10];
 	char mailbox[256];
-
-	/* if save to Old folder, just leave in INBOX */
-	if (box == 1) return 10;
 	/* get the real IMAP message number for this message */
 	snprintf(sequence, sizeof(sequence), "%ld", vms->msgArray[msg]);
+	
+	ast_debug(3, "Copying sequence %s to mailbox %s\n", sequence, mbox(box));
+	if (box == OLD_FOLDER) {
+		mail_setflag(vms->mailstream, sequence, "\\Seen");
+	} else if (box == NEW_FOLDER) {
+		mail_clearflag(vms->mailstream, sequence, "\\Seen");
+	}
+	if (!strcasecmp(mbox(NEW_FOLDER), vms->curbox) && (box == NEW_FOLDER || box == OLD_FOLDER))
+		return 0;
 	/* Create the folder if it don't exist */
 	imap_mailbox_name(mailbox, sizeof(mailbox), vms, box, 1); /* Get the full mailbox name */
 	ast_debug(5, "Checking if folder exists: %s\n",mailbox);
@@ -4262,11 +5119,7 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 		ast_debug(5, "Folder exists.\n");
 	else
 		ast_log(AST_LOG_NOTICE, "Folder %s created!\n",mbox(box));
-
-	ast_debug(3, "Copying sequence %s to mailbox %s\n", sequence, mbox(box));
-	res = mail_copy(vms->mailstream, sequence, (char *)mbox(box));
-	if (res == 1) return 0;
-	return 1;
+	return !mail_copy(vms->mailstream, sequence, (char *)mbox(box));
 #else
 	char *dir = vms->curdir;
 	char *username = vms->username;
@@ -4872,7 +5725,7 @@ static int get_folder2(struct ast_channel *chan, char *fn, int start)
  * \return zero on success, -1 on error.
  */
 static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, char *curdir, int curmsg, char *vmfmts,
-			char *context, signed char record_gain, long *duration, struct vm_state *vms, char *introfile, char *flag)
+			char *context, signed char record_gain, long *duration, struct vm_state *vms, char *flag)
 {
 #ifdef IMAP_STORAGE
 	int res;
@@ -4909,9 +5762,11 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 
 #ifdef IMAP_STORAGE
 			/* Record new intro file */
+			make_file(vms->introfn, sizeof(vms->introfn), curdir, curmsg);
+			strncat(vms->introfn, "intro", sizeof(vms->introfn));
 			res = ast_play_and_wait(chan, INTRO);
 			res = ast_play_and_wait(chan, "beep");
-			res = play_record_review(chan, NULL, introfile, vmu->maxsecs, vmfmts, 1, vmu, (int *)duration, NULL, record_gain, vms, flag);
+			res = play_record_review(chan, NULL, vms->introfn, vmu->maxsecs, vmfmts, 1, vmu, (int *)duration, NULL, record_gain, vms, flag);
 			cmd = 't';
 #else
 
@@ -4956,7 +5811,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 				snprintf(duration_str, 11, "%ld", *duration);
 				if (!ast_variable_update(msg_cat, "duration", duration_str, NULL, 0)) {
 					config_text_file_save(textfile, msg_cfg, "app_voicemail");
-					STORE(curdir, vmu->mailbox, context, curmsg, chan, vmu, vmfmts, prepend_duration, vms, NULL, NULL);
+					STORE(curdir, vmu->mailbox, context, curmsg, chan, vmu, vmfmts, prepend_duration, vms, NULL);
 				}
 			}
 
@@ -4964,7 +5819,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			break;
 		case '2': 
 			/* NULL out introfile so we know there is no intro! */
-			introfile[0] = '\0';
+			*vms->introfn = '\0';
 			cmd = 't';
 			break;
 		case '*':
@@ -5087,7 +5942,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 		sendpage(myserveremail, vmu->pager, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, duration, vmu, category, flag);
 
 	if (ast_test_flag(vmu, VM_DELETE))
-		DELETE(todir, msgnum, fn);
+		DELETE(todir, msgnum, fn, vmu);
 
 	/* Leave voicemail for someone */
 	if (ast_app_has_voicemail(ext_context, NULL)) 
@@ -5098,13 +5953,6 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s@%s\r\nWaiting: %d\r\nNew: %d\r\nOld: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context, NULL), newmsgs, oldmsgs);
 	run_externnotify(vmu->context, vmu->mailbox, flag);
 
-#ifdef IMAP_STORAGE
-	DELETE(todir, msgnum, fn);  /* Delete the file, but not the IMAP message */
-	if (ast_test_flag(vmu, VM_DELETE))  { /* Delete the IMAP message if delete = yes */
-		IMAP_DELETE(vms->curdir, vms->curmsg, vms->fn, vms);
-		vms->newmessages--;  /* Fix new message count */
-	}
-#endif
 	return 0;
 }
 
@@ -5137,14 +5985,8 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 static int forward_message(struct ast_channel *chan, char *context, struct vm_state *vms, struct ast_vm_user *sender, char *fmt, int is_new_message, signed char record_gain, int urgent)
 {
 #ifdef IMAP_STORAGE
-	BODY *body;
-	char *header_content;
-	char *temp;
-	char todir[256], introtmp[256];
-	char tmpcmd[512];
-	int todircount = 0, two_part = -1;
+	int todircount=0;
 	struct vm_state *dstvms;
-	char tmpdir[PATH_MAX];
 #endif
 	char username[70]="";
 	char fn[PATH_MAX]; /* for playback of name greeting */
@@ -5301,113 +6143,41 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		leave_options.record_gain = record_gain;
 		cmd = leave_voicemail(chan, mailbox, &leave_options);
 	} else {
-
 		/* Forward VoiceMail */
 		long duration = 0;
-		char origmsgfile[PATH_MAX], msgfile[PATH_MAX];
 		struct vm_state vmstmp;
-#ifdef IMAP_STORAGE
-		char *myserveremail = serveremail;
-		char buf[1024] = "";
-		/* create tempfile for forwarding intro */
-		create_dirpath(tmpdir, sizeof(tmpdir), receiver->context, receiver->mailbox, "tmp");
-		snprintf(tmptxtfile, sizeof(tmptxtfile), "%s/msgintro%04d", tmpdir, curmsg);
-		ast_debug(5, "Creating temp file name %s...\n",tmptxtfile);
-#endif
 		memcpy(&vmstmp, vms, sizeof(vmstmp));
 
-		make_file(origmsgfile, sizeof(origmsgfile), dir, curmsg);
-		create_dirpath(vmstmp.curdir, sizeof(vmstmp.curdir), sender->context, vmstmp.username, "tmp");
-		make_file(msgfile, sizeof(msgfile), vmstmp.curdir, curmsg);
+ 		RETRIEVE(dir, curmsg, sender->mailbox, sender->context);
 
-		RETRIEVE(dir, curmsg, sender->mailbox, context);
-
-		make_file(origmsgfile, sizeof(origmsgfile), dir, curmsg);
-		create_dirpath(vmstmp.curdir, sizeof(vmstmp.curdir), sender->context, vmstmp.username, "tmp");
-		make_file(msgfile, sizeof(msgfile), vmstmp.curdir, curmsg);
-
-		cmd = vm_forwardoptions(chan, sender, vmstmp.curdir, curmsg, vmfmts, S_OR(context, "default"), record_gain, &duration, &vmstmp, tmptxtfile, urgent_str);
+		cmd = vm_forwardoptions(chan, sender, vmstmp.curdir, curmsg, vmfmts, S_OR(context, "default"), record_gain, &duration, &vmstmp, urgent_str);
 		if (!cmd) {
 			AST_LIST_TRAVERSE_SAFE_BEGIN(&extensions, vmtmp, list) {
 #ifdef IMAP_STORAGE
 				int attach_user_voicemail;
-
-				/* Need to get message content */
-				ast_debug(3, "Before mail_fetchheaders, curmsg is: %d, imap messages is %lu\n", vms->curmsg, vms->msgArray[vms->curmsg]);
-				if (!vms->msgArray[vms->curmsg]) {
-					ast_log(AST_LOG_WARNING, "Trying to access unknown message\n");
-					return -1;
-				}
-
-				/* This will only work for new messages... */
-				header_content = mail_fetchheader (vms->mailstream, vms->msgArray[vms->curmsg]);
-
-				/* empty string means no valid header */
-				if (ast_strlen_zero(header_content)) {
-					ast_log(AST_LOG_ERROR, "Could not fetch header for message number %ld\n", vms->msgArray[vms->curmsg]);
-					return -1;
-				}
-				/* Get header info needed by sendmail */
-				if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Duration:", buf, sizeof(buf))))
-					duration = atoi(temp);
-				else
-					duration = 0;
+				char *myserveremail = serveremail;
 				
-				/* Attach only the first format */
-				if ((fmt = ast_strdupa(fmt))) {
-					stringp = fmt;
-					strsep(&stringp, "|");
-				} else {
-					ast_log(AST_LOG_ERROR, "audio format not set. Default to WAV\n");
-					fmt = "WAV";
-				}
-				if (!strcasecmp(fmt, "wav49"))
-					fmt = "WAV";
-				ast_debug(3, "**** format set to %s, vmfmts set to %s\n", fmt, vmfmts);
-				snprintf(todir, sizeof(todir), "%s%s/%s/tmp", VM_SPOOL_DIR, vmtmp->context, vmtmp->mailbox);
-				make_gsm_file(vms->fn, sizeof(vms->fn), vms->imapuser, todir, vms->curmsg, "msg");
-
-				ast_debug(3, "Before mail_fetchstructure, message number is %ld, filename is:%s\n", vms->msgArray[vms->curmsg], vms->fn);
-				mail_fetchstructure(vms->mailstream, vms->msgArray[vms->curmsg], &body);
-				/* should not assume "fmt" here! */
-				save_body(body, vms, "2", fmt, vms->fn);
-  
-				/* second attachment would be body if intro, otherwise null
-				 * two_part will be set to 0 if there are two parts, otherwise -1 */
-				snprintf(introtmp, sizeof(introtmp), "%stmp",vms->intro);
-				two_part = save_body(body,vms,"3",fmt, introtmp);
-
-				/* If there are two parts to the existing 
-				 * message, merge them together into one message before sending */
-				if (two_part == 0) {
-					snprintf(tmpcmd, sizeof(tmpcmd), "sox %s.%s %s.%s %smerge.%s ; mv -f %smerge.%s %s/msg%04d.%s", vms->fn, fmt, introtmp, fmt, vms->fn, fmt, vms->fn, fmt, tmpdir, curmsg, fmt);
-					ast_debug(5,"about to execute system command %s\n",tmpcmd);
-					ast_safe_system(tmpcmd);
-				} /* by now vms->fn should have merged audio */
-
 				/* get destination mailbox */
 				dstvms = get_vm_state_by_mailbox(vmtmp->mailbox,0);
 				if (!dstvms) {
-					dstvms = create_vm_state_from_user(vmtmp, vmtmp->mailbox);
+					dstvms = create_vm_state_from_user(vmtmp);
 				}
 				if (dstvms) {
 					init_mailstream(dstvms, 0);
 					if (!dstvms->mailstream) {
 						ast_log(AST_LOG_ERROR, "IMAP mailstream for %s is NULL\n", vmtmp->mailbox);
 					} else {
-						STORE(todir, vmtmp->mailbox, vmtmp->context, dstvms->curmsg, chan, vmtmp, fmt, duration, dstvms, tmptxtfile, urgent_str);
+						STORE(vmstmp.curdir, vmtmp->mailbox, vmtmp->context, dstvms->curmsg, chan, vmtmp, fmt, duration, dstvms, urgent_str);
 						run_externnotify(vmtmp->context, vmtmp->mailbox, urgent_str); 
 					}
 				} else {
 					ast_log(AST_LOG_ERROR, "Could not find state information for mailbox %s\n", vmtmp->mailbox);
 				}
-
 				if (!ast_strlen_zero(vmtmp->serveremail))
 					myserveremail = vmtmp->serveremail;
 				attach_user_voicemail = ast_test_flag(vmtmp, VM_ATTACH);
 				/* NULL category for IMAP storage */
-				sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), vms->fn, tmptxtfile, fmt, duration, attach_user_voicemail, chan, NULL, urgent_str);
-
+				sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), vmstmp.fn, vmstmp.introfn, fmt, duration, attach_user_voicemail, chan, NULL, urgent_str);
 #else
 				copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt, dir, urgent_str);
 #endif
@@ -5427,13 +6197,14 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 					res = ast_play_and_wait(chan, "vm-messages");
 				if (!res)
 					res = ast_play_and_wait(chan, "vm-saved"); */
-
+#ifdef IMAP_STORAGE
 				/* If forwarded with intro, DON'T PLAY THIS MESSAGE AGAIN! */
-				if (ast_strlen_zero(tmptxtfile)) { /* not a forwarded message with intro */
-					res = ast_play_and_wait(chan, "vm-msgsaved");
-				}
+				if (ast_strlen_zero(vmstmp.introfn))
+#endif
+				res = ast_play_and_wait(chan, "vm-msgsaved");
 			}	
 		}
+		DISPOSE(dir, curmsg);
 	}
 
 	/* If anything failed above, we still have this list to free */
@@ -5511,8 +6282,9 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 
 	/* Can't think of how other diffs might be helpful, but I'm sure somebody will think of something. */
 #endif
-	if (the_zone)
+	if (the_zone) {
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, the_zone->msg_format, the_zone->timezone);
+	}
 	else if (!strcasecmp(chan->language,"pl"))       /* POLISH syntax */
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' Q HM", NULL);
 	else if (!strcasecmp(chan->language,"se"))       /* SWEDISH syntax */
@@ -5531,8 +6303,9 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' Ad 'digits/pt-de' B 'digits/pt-de' Y 'digits/pt-as' HM ", NULL);
 	else if (!strcasecmp(chan->language,"tw"))      /* CHINESE (Taiwan) syntax */
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "qR 'vm-received'", NULL);		
-	else
+	else {
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q 'digits/at' IMp", NULL);
+	}
 #if 0
 	pbx_builtin_setvar_helper(chan, "DIFF_DAY", NULL);
 #endif
@@ -5655,175 +6428,6 @@ static int play_message_duration(struct ast_channel *chan, struct vm_state *vms,
 	return res;
 }
 
-#ifdef IMAP_STORAGE
-static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
-{
-	BODY *body;
-	char *header_content;
-	char cid[256], cidN[256];
-	char context[256];
-	char origtime[32];
-	char duration[16];
-	char category[32];
-	char todir[PATH_MAX];
-	int res = 0, two_part = -1;
-	char *attachedfilefmt;
-	char *temp;
-	char buf[1024];
-	char flag[80];
-
-	vms->starting = 0; 
-	ast_debug(3,"Before mail_fetchheaders, curmsg is: %d, imap messages is %lu\n",vms->curmsg, vms->msgArray[vms->curmsg]);
-
-	if (!vms->msgArray[vms->curmsg]) {
-		ast_log(AST_LOG_WARNING, "Trying to access unknown message\n");
-		return -1;
-	}
-
-	/* This will only work for new messages... */
-	header_content = mail_fetchheader (vms->mailstream, vms->msgArray[vms->curmsg]);
-	/* empty string means no valid header */
-	if (ast_strlen_zero(header_content)) {
-		ast_log(AST_LOG_ERROR, "Could not fetch header for message number %ld\n", vms->msgArray[vms->curmsg]);
-		return -1;
-	}
-
-	/* Get Urgent flag from headers */
-	temp = get_header_by_tag(header_content, "X-Asterisk-VM-Flag:", buf, sizeof(buf));
-	ast_debug(3,"Voicemail FLAG set to %s\n",temp);
-
-	if (temp)
-		ast_copy_string(flag, temp, sizeof(flag));
-	else
-		flag[0] = '\0';
-
-	snprintf(todir, sizeof(todir), "%s%s/%s/tmp", VM_SPOOL_DIR, vmu->context, vmu->mailbox);
-	make_gsm_file(vms->fn, sizeof(vms->fn), vms->imapuser, todir, vms->curmsg, "msg");
-	make_gsm_file(vms->intro, sizeof(vms->intro), vms->imapuser, todir, vms->curmsg, "msgintro");
-
-	mail_fetchstructure (vms->mailstream,vms->msgArray[vms->curmsg],&body);
-	
-	/* We have the body, now we extract the file name of the first attachment. */
-	if (body->nested.part && body->nested.part->next && body->nested.part->next->body.parameter->value) {
-		attachedfilefmt = ast_strdupa(body->nested.part->next->body.parameter->value);
-	} else {
-		ast_log(AST_LOG_ERROR, "There is no file attached to this IMAP message.\n");
-		return -1;
-	}
-	
-	/* Find the format of the attached file */
-	strsep(&attachedfilefmt, ".");
-	if (!attachedfilefmt) {
-		ast_log(AST_LOG_ERROR, "File format could not be obtained from IMAP message attachment\n");
-		return -1;
-	}
-	save_body(body, vms, "2", attachedfilefmt, vms->fn); /* save first attachment */
-	two_part = save_body(body, vms, "3", attachedfilefmt, vms->intro); /* save forwarded intro if present */
-
-	adsi_message(chan, vms);
-	ast_debug(5,"**************  About to check urgent flag, set to:%s\n", flag);
-	if (!strcasecmp(chan->language, "he")) {	/* HEBREW FORMAT */
-		/*
-		 * The syntax in hebrew for counting the number of message is up side down
-		 * in comparison to english.
-		 */
-		if (!vms->curmsg) {
-			res = wait_file2(chan, vms, "vm-message");
-			res = wait_file2(chan, vms, "vm-first");    /* "First" */
-		} else if (vms->curmsg == vms->lastmsg) {
-			res = wait_file2(chan, vms, "vm-message");
-			res = wait_file2(chan, vms, "vm-last");     /* "last" */
-		} else {
-			res = wait_file2(chan, vms, "vm-message");  /* "message" */
-			if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
-				ast_log(LOG_DEBUG, "curmsg: %d\n", vms->curmsg);
-				ast_log(LOG_DEBUG, "lagmsg: %d\n", vms->lastmsg);
-				if (!res) {
-					res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, "f");
-				}
-			}
-		}
-	} else {
-		if (!vms->curmsg)
-			res = wait_file2(chan, vms, "vm-first");	/* "First" */
-		else if (vms->curmsg == vms->lastmsg)
-			res = wait_file2(chan, vms, "vm-last");		/* "last" */
-	}
-	/* Play the word urgent if we are listening to urgent messages */
-	if (!ast_strlen_zero(flag) && !strcmp(flag, "Urgent")) {
-		res = wait_file2(chan, vms, "vm-Urgent");	/* "urgent" */
-	}
-
-	if (!res) {
-		res = wait_file2(chan, vms, "vm-message");	/* "message" */
-		if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
-			if (!res)
-				res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, NULL);
-		}
-	}
-
-	/* Get info from headers!! */
-	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Name:", buf, sizeof(buf))))
-		ast_copy_string(cidN, temp, sizeof(cidN));
-	else
-		cidN[0] = '\0';
-
-	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Num:", buf, sizeof(buf))))
-		snprintf(cid, sizeof(cid), "\"%s\" <%s>", cidN, temp);
-	else
-		cid[0] = '\0';
-
-	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Context:", buf, sizeof(buf))))
-		ast_copy_string(context, temp, sizeof(context)); 
-	else
-		context[0] = '\0';
-
-	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Orig-time:", buf, sizeof(buf))))
-		ast_copy_string(origtime, temp, sizeof(origtime));
-	else
-		origtime[0] = '\0';
-
-	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Duration:", buf, sizeof(buf))))
-		ast_copy_string(duration,temp, sizeof(duration));
-	else
-		duration[0] = '\0';
-	
-	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Category:", buf, sizeof(buf))))
-		ast_copy_string(category,temp, sizeof(category));
-	else
-		category[0] = '\0';
-
-	if (res == '1')
-		res = 0;
-
-	if ((!res) && !ast_strlen_zero(category)) {
-		res = play_message_category(chan, category);
-	}
-
-	if ((!res) && (ast_test_flag(vmu, VM_ENVELOPE)) && origtime[0] != '\0')
-		res = play_message_datetime(chan, vmu, origtime, "IMAP_STORAGE");
-	if ((!res) && (ast_test_flag(vmu, VM_SAYCID)) && cid[0] !='\0' && context[0] !='\0')
-		res = play_message_callerid(chan, vms, cid, context, 0);
-
-	if ((!res) && (ast_test_flag(vmu, VM_SAYDURATION)) && duration[0] != '\0')
-		res = play_message_duration(chan, vms, duration, vmu->saydurationm);
-
-	res = 0;
-
-	if (!res) {
-		vms->heard[vms->curmsg] = 1;
-		if (two_part == 0) {   /* If there are two parts */
-			wait_file(chan, vms, vms->fn);
-			res = wait_file(chan, vms, vms->intro);
-		} else {
-			res = wait_file(chan, vms, vms->fn);
-		}
-	}
-	DISPOSE(vms->curdir, vms->curmsg);
-	DELETE(0, 0, vms->fn);
-	return res;
-}
-#else
 static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
 {
 	int res = 0;
@@ -5842,6 +6446,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 
 	snprintf(filename, sizeof(filename), "%s.txt", vms->fn);
 	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
+	ast_log(LOG_NOTICE, "I just retrieved %s and %s\n", vms->fn, S_OR(vms->introfn, "No intro"));
 	msg_cfg = ast_config_load(filename, config_flags);
 	if (!msg_cfg) {
 		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
@@ -5895,17 +6500,17 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		} else {
 			if (!strcasecmp(chan->language, "se")) /* SWEDISH syntax */
 				res = wait_file2(chan, vms, "vm-meddelandet");  /* "message" */
-			else /* DEFAULT syntax */
+			else /* DEFAULT syntax */ {
 				res = wait_file2(chan, vms, "vm-message");
+			}
 			if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
-				if (!res)
+				if (!res) {
 					res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, NULL);
+				}
 			}
 		}
 	}
 
-	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
-	msg_cfg = ast_config_load(filename, config_flags);
 	if (!msg_cfg) {
 		ast_log(AST_LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
@@ -5925,8 +6530,9 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	context = ast_variable_retrieve(msg_cfg, "message", "context");
 	if (!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
 		context = ast_variable_retrieve(msg_cfg, "message","macrocontext");
-	if (!res)
+	if (!res) {
 		res = play_message_category(chan, category);
+	}
 	if ((!res) && (ast_test_flag(vmu, VM_ENVELOPE)))
 		res = play_message_datetime(chan, vmu, origtime, filename);
 	if ((!res) && (ast_test_flag(vmu, VM_SAYCID)))
@@ -5941,271 +6547,49 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	if (!res) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, vms->curmsg);
 		vms->heard[vms->curmsg] = 1;
+#ifdef IMAP_STORAGE
+		/*IMAP storage stores any prepended message from a forward
+		 * as a separate file from the rest of the message
+		 */
+		if (!ast_strlen_zero(vms->introfn) && ast_fileexists(vms->introfn, NULL, NULL) > 0) {
+			wait_file(chan, vms, vms->introfn);
+		}
+#endif
 		if ((res = wait_file(chan, vms, vms->fn)) < 0) {
 			ast_log(AST_LOG_WARNING, "Playback of message %s failed\n", vms->fn);
 			res = 0;
 		}
 	}
 	DISPOSE(vms->curdir, vms->curmsg);
+	ast_log(LOG_NOTICE, "I just disposed of %s and %s\n", vms->fn, S_OR(vms->introfn, "No intro"));
 	return res;
 }
-#endif
 
 #ifdef IMAP_STORAGE
-static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int box, int use_folder)
-{
-	char tmp[256], *t = tmp;
-	size_t left = sizeof(tmp);
-
-	if (box == OLD_FOLDER) {
-		ast_copy_string(vms->curbox, mbox(NEW_FOLDER), sizeof(vms->curbox));
-	} else {
-		ast_copy_string(vms->curbox, mbox(box), sizeof(vms->curbox));
-	}
-
-	if (box == NEW_FOLDER) {
-		ast_copy_string(vms->vmbox, "vm-INBOX", sizeof(vms->vmbox));
-	} else {
-		snprintf(vms->vmbox, sizeof(vms->vmbox), "vm-%s", mbox(box));
-	}
-
-	/* Build up server information */
-	ast_build_string(&t, &left, "{%s:%s/imap", imapserver, imapport);
-
-	/* Add authentication user if present */
-	if (!ast_strlen_zero(authuser))
-		ast_build_string(&t, &left, "/authuser=%s", authuser);
-
-	/* Add flags if present */
-	if (!ast_strlen_zero(imapflags))
-		ast_build_string(&t, &left, "/%s", imapflags);
-
-	/* End with username */
-	ast_build_string(&t, &left, "/user=%s}", vms->imapuser);
-
-	if (box == NEW_FOLDER || box == OLD_FOLDER)
-		snprintf(spec, len, "%s%s", tmp, use_folder? imapfolder: "INBOX");
-	else if (box == GREETINGS_FOLDER)
-		snprintf(spec, len, "%s%s", tmp, greetingfolder);
-	else 	/* Other folders such as Friends, Family, etc... */
-		if (!ast_strlen_zero(imapparentfolder)) {
-			/* imapparentfolder would typically be set to INBOX */
-			snprintf(spec, len, "%s%s%c%s", tmp, imapparentfolder, delimiter, mbox(box));
-		} else {
-			snprintf(spec, len, "%s%s", tmp, mbox(box));
-		}
-}
-
-static int init_mailstream(struct vm_state *vms, int box)
-{
-	MAILSTREAM *stream = NIL;
-	long debug;
-	char tmp[256];
-	
-	if (!vms) {
-		ast_log(AST_LOG_ERROR, "vm_state is NULL!\n");
-		return -1;
-	}
-	ast_debug(3,"vm_state user is:%s\n",vms->imapuser);
-	if (vms->mailstream == NIL || !vms->mailstream) {
-		ast_debug(1,"mailstream not set.\n");
-	} else {
-		stream = vms->mailstream;
-	}
-	/* debug = T;  user wants protocol telemetry? */
-	debug = NIL;  /* NO protocol telemetry? */
-
-	if (delimiter == '\0') {		/* did not probe the server yet */
-		char *cp;
-#ifdef USE_SYSTEM_IMAP
-#include <imap/linkage.c>
-#elif defined(USE_SYSTEM_CCLIENT)
-#include <c-client/linkage.c>
-#else
-#include "linkage.c"
-#endif
-		/* Connect to mailbox to get mailstream so we can get delimiter */ 
-		imap_mailbox_name(tmp, sizeof(tmp), vms, 0, 1);
-		ast_mutex_lock(&vms->lock);
-		stream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
-		ast_mutex_unlock(&vms->lock);
-		if (stream == NIL) {
-			ast_log(AST_LOG_ERROR, "Can't connect to imap server %s\n", tmp);
-			return -1;
-		}
-		get_mailbox_delimiter(stream);
-		/* update delimiter in imapfolder */
-		for (cp = imapfolder; *cp; cp++) {
-			if (*cp == '/')
-				*cp = delimiter;
-		}
-	}
-	/* Now connect to the target folder */
-	imap_mailbox_name(tmp, sizeof(tmp), vms, box, 1);
-	ast_debug(3,"Before mail_open, server: %s, box:%d\n", tmp, box);
-	ast_mutex_lock(&vms->lock);
-	vms->mailstream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
-	ast_mutex_unlock(&vms->lock);
-	if (vms->mailstream == NIL) {
-		return -1;
-	} else {
-		return 0;
-	}
-}
-
-static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
-{
-	SEARCHPGM *pgm;
-	SEARCHHEADER *hdr;
-	int ret, urgent = 0;
-
-	/* If Urgent, then look at INBOX */
-	if (box == 11) {
-		box = NEW_FOLDER;
-		urgent = 1;
-	}
-
-	ast_copy_string(vms->imapuser,vmu->imapuser, sizeof(vms->imapuser));
-	ast_debug(3,"Before init_mailstream, user is %s\n",vmu->imapuser);
-
-	if ((ret = init_mailstream(vms, box)) || !vms->mailstream) {
-		ast_log(AST_LOG_ERROR, "Could not initialize mailstream\n");
-		return -1;
-	}
-	
-	/* Check Quota */
-	if  (box == 0)  {
-		ast_debug(3, "Mailbox name set to: %s, about to check quotas\n", mbox(box));
-		check_quota(vms,(char *)mbox(box));
-	}
-
-	pgm = mail_newsearchpgm();
-
-	/* Check IMAP folder for Asterisk messages only... */
-	hdr = mail_newsearchheader("X-Asterisk-VM-Extension", vmu->mailbox);
-	pgm->header = hdr;
-	pgm->deleted = 0;
-	pgm->undeleted = 1;
-
-	/* if box = NEW_FOLDER, check for new, if box = OLD_FOLDER, check for read */
-	if (box == NEW_FOLDER && urgent == 1) {
-		pgm->unseen = 1;
-		pgm->seen = 0;
-		pgm->flagged = 1;
-		pgm->unflagged = 0;
-	} else if (box == NEW_FOLDER && urgent == 0) {
-		pgm->unseen = 1;
-		pgm->seen = 0;
-		pgm->flagged = 0;
-		pgm->unflagged = 1;
-	} else if (box == OLD_FOLDER) {
-		pgm->seen = 1;
-		pgm->unseen = 0;
-	}
-
-	ast_debug(3,"Before mail_search_full, user is %s\n",vmu->imapuser);
-
-	vms->vmArrayIndex = 0;
-	mail_search_full (vms->mailstream, NULL, pgm, NIL);
-	vms->lastmsg = vms->vmArrayIndex - 1;
-	mail_free_searchpgm(&pgm);
-
-	return 0;
-}
-
 static int imap_remove_file(char *dir, int msgnum)
 {
 	char fn[PATH_MAX];
 	char full_fn[PATH_MAX];
-	char msgnums[80];
+	char intro[PATH_MAX] = {0,};
 	
 	if (msgnum > -1) {
-		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
 		make_file(fn, sizeof(fn), dir, msgnum);
+		snprintf(intro, sizeof(intro), "%sintro", fn);
 	} else
 		ast_copy_string(fn, dir, sizeof(fn));
 	
 	if ((msgnum < 0 && imapgreetings) || msgnum > -1) {
-		ast_filedelete(fn, NULL);	
+		ast_filedelete(fn, NULL);
+		if (!ast_strlen_zero(intro)) {
+			ast_filedelete(intro, NULL);
+		}
 		snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
 		unlink(full_fn);
 	}
 	return 0;
 }
 
-static int imap_retrieve_file (char *dir, int msgnum, const char *mailbox, const char *context)
-{
-	struct ast_vm_user *vmu;
-	struct vm_state *vms_p;
-	char *file, *filename;
-	char *attachment;
-	int ret = 0, i;
-	BODY *body;
 
-	/* This function is only used for retrieval of IMAP greetings
-	 * regular messages are not retrieved this way, nor are greetings
-	 * if they are stored locally*/
-	if (msgnum > -1 || !imapgreetings) {
-		return 0;
-	} else {
-		file = strrchr(ast_strdupa(dir), '/');
-		if (file)
-			*file++ = '\0';
-		else {
-			ast_debug (1, "Failed to procure file name from directory passed.\n");
-			return -1;
-		}
-	}
-	/* We have to get the user before we can open the stream! */
-	vmu = find_user(NULL, context, mailbox);
-	if (!vmu) {
-		ast_log(AST_LOG_ERROR, "Couldn't find mailbox %s in context %s\n", mailbox, context);
-		return -1;
-	} else {
-		/* No IMAP account available */
-		if (vmu->imapuser[0] == '\0') {
-			ast_log(AST_LOG_WARNING, "IMAP user not set for mailbox %s\n", vmu->mailbox);
-			free_user(vmu);
-			return -1;
-		}
-	}
-
-	/* check if someone is accessing this box right now... */
-	vms_p = get_vm_state_by_mailbox(mailbox,0);
-	if (!vms_p) {
-		ast_log(AST_LOG_ERROR, "Voicemail state not found!\n");
-		return -1;
-	}
-	
-	ret = init_mailstream(vms_p, GREETINGS_FOLDER);
-	if (!vms_p->mailstream) {
-		ast_log(AST_LOG_ERROR, "IMAP mailstream is NULL\n");
-		free_user(vmu);
-		return -1;
-	}
-
-	for (i = 0; i < vms_p->mailstream->nmsgs; i++) {
-		mail_fetchstructure(vms_p->mailstream, i + 1, &body);
-		/* We have the body, now we extract the file name of the first attachment. */
-		if (body->nested.part && body->nested.part->next && body->nested.part->next->body.parameter->value) {
-			attachment = ast_strdupa(body->nested.part->next->body.parameter->value);
-		} else {
-			ast_log(AST_LOG_ERROR, "There is no file attached to this IMAP message.\n");
-			return -1;
-		}
-		filename = strsep(&attachment, ".");
-		if (!strcmp(filename, file)) {
-			ast_copy_string(vms_p->fn, dir, sizeof(vms_p->fn));
-			vms_p->msgArray[vms_p->curmsg] = i + 1;
-			save_body(body, vms_p, "2", attachment, vms_p->fn);
-			free_user(vmu);
-			return 0;
-		}
-	}
-
-	free_user(vmu);
-	return -1;
-}
 
 static int imap_delete_old_greeting (char *dir, struct vm_state *vms)
 {
@@ -6244,6 +6628,7 @@ static int imap_delete_old_greeting (char *dir, struct vm_state *vms)
 }
 
 #else
+#ifndef IMAP_STORAGE
 static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 {
 	int count_msg, last_msg;
@@ -6284,6 +6669,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 
 	return 0;
 }
+#endif
 #endif
 
 static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
@@ -6347,7 +6733,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	for (x = vms->curmsg + 1; x <= nummsg; x++) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, x);
 		if (EXISTS(vms->curdir, x, vms->fn, NULL))
-			DELETE(vms->curdir, x, vms->fn);
+			DELETE(vms->curdir, x, vms->fn, vmu);
 	}
 	ast_unlock_path(vms->curdir);
 #else
@@ -6355,7 +6741,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 		for (x=0;x < vmu->maxmsg;x++) { 
 			if (vms->deleted[x]) { 
 				ast_debug(3,"IMAP delete of %d\n",x);
-				IMAP_DELETE(vms->curdir, x, vms->fn, vms);
+				DELETE(vms->curdir, x, vms->fn, vmu);
 			}
 		}
 	}
@@ -7585,11 +7971,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 	if (ast_test_flag(vmu, VM_FORCENAME)) {
 		snprintf(prefile,sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, vmu->context, vms->username);
 		if (ast_fileexists(prefile, NULL, NULL) < 1) {
-#ifndef IMAP_STORAGE
-			cmd = play_record_review(chan, "vm-rec-name", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL, NULL);
-#else
 			cmd = play_record_review(chan, "vm-rec-name", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, vms, NULL);
-#endif
 			if (cmd < 0 || cmd == 't' || cmd == '#')
 				return cmd;
 		}
@@ -7599,22 +7981,14 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 	if (ast_test_flag(vmu, VM_FORCEGREET)) {
 		snprintf(prefile,sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, vms->username);
 		if (ast_fileexists(prefile, NULL, NULL) < 1) {
-#ifndef IMAP_STORAGE
-			cmd = play_record_review(chan, "vm-rec-unv", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL, NULL);
-#else
 			cmd = play_record_review(chan, "vm-rec-unv", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, vms, NULL);
-#endif
 			if (cmd < 0 || cmd == 't' || cmd == '#')
 				return cmd;
 		}
 
 		snprintf(prefile,sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, vms->username);
 		if (ast_fileexists(prefile, NULL, NULL) < 1) {
-#ifndef IMAP_STORAGE
-			cmd = play_record_review(chan, "vm-rec-busy", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL, NULL);
-#else
 			cmd = play_record_review(chan, "vm-rec-busy", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, vms, NULL);
-#endif
 			if (cmd < 0 || cmd == 't' || cmd == '#')
 				return cmd;
 		}
@@ -7648,27 +8022,15 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		switch (cmd) {
 		case '1': /* Record your unavailable message */
 			snprintf(prefile,sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, vms->username);
-#ifndef IMAP_STORAGE
-			cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL, NULL);
-#else
 			cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, vms, NULL);
-#endif
 			break;
 		case '2':  /* Record your busy message */
 			snprintf(prefile,sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, vms->username);
-#ifndef IMAP_STORAGE
-			cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL, NULL);
-#else
 			cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, vms, NULL);
-#endif
 			break;
 		case '3': /* Record greeting */
 			snprintf(prefile,sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, vmu->context, vms->username);
-#ifndef IMAP_STORAGE
-			cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL, NULL);
-#else
 			cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, vms, NULL);
-#endif
 			break;
 		case '4':  /* manage the temporary greeting */
 			cmd = vm_tempgreeting(chan, vmu, vms, fmtc, record_gain);
@@ -7788,23 +8150,15 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 			retries = 0;
 		RETRIEVE(prefile, -1, vmu->mailbox, vmu->context);
 		if (ast_fileexists(prefile, NULL, NULL) <= 0) {
-#ifndef IMAP_STORAGE
-			play_record_review(chan, "vm-rec-temp", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL, NULL);
-#else
 			play_record_review(chan, "vm-rec-temp", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, vms, NULL);
-#endif
 			cmd = 't';	
 		} else {
 			switch (cmd) {
 			case '1':
-#ifndef IMAP_STORAGE
-				cmd = play_record_review(chan, "vm-rec-temp", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL, NULL);
-#else
 				cmd = play_record_review(chan, "vm-rec-temp", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, vms, NULL);
-#endif
 				break;
 			case '2':
-				DELETE(prefile, -1, prefile);
+				DELETE(prefile, -1, prefile, vmu);
 				ast_play_and_wait(chan, "vm-tempremoved");
 				cmd = 't';	
 				break;
@@ -8294,7 +8648,6 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	/* Set language from config to override channel language */
 	if (!ast_strlen_zero(vmu->language))
 		ast_string_field_set(chan, language, vmu->language);
-	create_dirpath(vms.curdir, sizeof(vms.curdir), vmu->context, vms.username, "");
 
 	/* Retrieve urgent, old and new message counts */
 	ast_debug(1, "Before open_mailbox\n");
@@ -8706,12 +9059,10 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				if (cmd == ERROR_LOCK_PATH) {
 					res = cmd;
 					goto out;
-#ifdef IMAP_STORAGE
-				} else if (cmd == 10) {
-					goto out;
-#endif
+#ifndef IMAP_STORAGE
 				} else if (!cmd) {
 					vms.deleted[vms.curmsg] = 1;
+#endif
 				} else {
 					vms.deleted[vms.curmsg] = 0;
 					vms.heard[vms.curmsg] = 0;
@@ -8723,7 +9074,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			snprintf(vms.fn, sizeof(vms.fn), "vm-%s", mbox(box));
 			if (!cmd) {
 				cmd = ast_play_and_wait(chan, "vm-message");
-				if (!cmd)
+				if (!cmd) 
 					cmd = say_and_wait(chan, vms.curmsg + 1, chan->language);
 				if (!cmd)
 					cmd = ast_play_and_wait(chan, "vm-savedto");
@@ -10396,62 +10747,16 @@ static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num,
 static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msg, int option, signed char record_gain)
 {
 	int res = 0;
-#ifdef IMAP_STORAGE
-	char origtimeS[256], cidN[256], cid[256], contextS[256];
-	char *header_content, *temp;
-	char buf[1024];
-#else
-	char *cid;
-	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
-#endif
 	char filename[PATH_MAX];
 	struct ast_config *msg_cfg = NULL;
 	const char *origtime, *context;
 	char *name, *num;
 	int retries = 0;
+	char *cid;
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE, };
 
 	vms->starting = 0; 
-#ifdef IMAP_STORAGE
-	/* START HERE */
 
-	/* get the message info!! */
-	ast_debug(3, "Before mail_fetchheaders, curmsg is: %d, imap messages is %lu\n", vms->curmsg, vms->msgArray[vms->curmsg]);
-
-	if (!vms->msgArray[vms->curmsg]) {
-		ast_log(AST_LOG_WARNING, "Trying to access unknown message\n");
-		return -1;
-	}
-
-	/* This will only work for new messages... */
-	if (!(header_content = mail_fetchheader(vms->mailstream, vms->msgArray[vms->curmsg])) || ast_strlen_zero(header_content)) {
-		ast_log(AST_LOG_ERROR, "Could not fetch header for message number %ld\n", vms->msgArray[vms->curmsg]);
-		return -1;
-	}
-	
-	/* Get info from headers!! */
-	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Name:", buf, sizeof(buf))))
-		ast_copy_string(cidN, temp, sizeof(cidN));
-	else
-		cidN[0] = '\0';
-
-	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Num:", buf, sizeof(buf))))
-		snprintf(cid, sizeof(cid), "\"%s\" <%s>",cidN, temp);
-	else if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Context:", buf, sizeof(buf))))
-		ast_copy_string(contextS,temp, sizeof(contextS));
-	else
-		contextS[0] = '\0';
-	
-	context = &contextS[0];
-
-	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Orig-time:", buf, sizeof(buf))))
-		ast_copy_string(origtimeS,temp, sizeof(origtimeS));
-	else
-		origtimeS[0] = '\0';
-	
-	origtime = &origtimeS[0];
-	
-	ast_copy_string(filename, "IMAP_STORAGE", sizeof(filename));
-#else
 	make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
 
 	/* Retrieve info from VM attribute file */
@@ -10474,7 +10779,6 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	context = ast_variable_retrieve(msg_cfg, "message", "context");
 	if (!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
 		context = ast_variable_retrieve(msg_cfg, "message","macrocontext");
-#endif
 	switch (option) {
 	case 3: /* Play message envelope */
 		if (!res)
@@ -10675,7 +10979,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				if (!outsidecaller) {
 					/* Saves to IMAP server - but SHOULD save to filesystem ONLY if recording greetings! */
 #ifndef IMAP_STORAGE
-					STORE(recordfile, vmu->mailbox, vmu->context, -1, chan, vmu, fmt, *duration, vms, NULL, flag);
+					STORE(recordfile, vmu->mailbox, vmu->context, -1, chan, vmu, fmt, *duration, vms, flag);
 					DISPOSE(recordfile, -1);
 #endif
 				}
@@ -10806,7 +11110,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 					cmd = '0';
 				} else {
 					ast_play_and_wait(chan, "vm-deleted");
-					DELETE(recordfile, -1, recordfile);
+					DELETE(recordfile, -1, recordfile, vmu);
 					cmd = '0';
 				}
 			}
@@ -10857,568 +11161,6 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 		cmd = 0;
 	return cmd;
 }
-
-#ifdef IMAP_STORAGE
-
-static void write_file(char *filename, char *buffer, unsigned long len)
-{
-	FILE *output;
-
-	output = fopen (filename, "w");
-	fwrite (buffer, len, 1, output);
-	fclose (output);
-}
-
-static void update_messages_by_imapuser(const char *user, unsigned long number)
-{
-	struct vmstate *vlist = NULL;
-
-	AST_LIST_LOCK(&vmstates);
-	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
-		if (!vlist->vms) {
-			ast_debug(3, "error: vms is NULL for %s\n", user);
-			continue;
-		}
-		if (!vlist->vms->imapuser) {
-			ast_debug(3, "error: imapuser is NULL for %s\n", user);
-			continue;
-		}
-		ast_debug(3, "saving mailbox message number %lu as message %d. Interactive set to %d\n", number, vlist->vms->vmArrayIndex, vlist->vms->interactive);
-		vlist->vms->msgArray[vlist->vms->vmArrayIndex++] = number;
-	}
-	AST_LIST_UNLOCK(&vmstates);
-}
-
-void mm_searched(MAILSTREAM *stream, unsigned long number)
-{
-	char *mailbox = stream->mailbox, buf[1024] = "", *user;
-
-	if (!(user = get_user_by_mailbox(mailbox, buf, sizeof(buf))))
-		return;
-
-	update_messages_by_imapuser(user, number);
-}
-
-static struct ast_vm_user *find_user_realtime_imapuser(const char *imapuser)
-{
-	struct ast_variable *var;
-	struct ast_vm_user *vmu;
-
-	vmu = ast_calloc(1, sizeof *vmu);
-	if (!vmu)
-		return NULL;
-	ast_set_flag(vmu, VM_ALLOCED);
-	populate_defaults(vmu);
-
-	var = ast_load_realtime("voicemail", "imapuser", imapuser, SENTINEL);
-	if (var) {
-		apply_options_full(vmu, var);
-		ast_variables_destroy(var);
-		return vmu;
-	} else {
-		ast_free(vmu);
-		return NULL;
-	}
-}
-
-/* Interfaces to C-client */
-
-void mm_exists(MAILSTREAM * stream, unsigned long number)
-{
-	/* mail_ping will callback here if new mail! */
-	ast_debug(4, "Entering EXISTS callback for message %ld\n", number);
-	if (number == 0) return;
-	set_update(stream);
-}
-
-
-void mm_expunged(MAILSTREAM * stream, unsigned long number)
-{
-	/* mail_ping will callback here if expunged mail! */
-	ast_debug(4, "Entering EXPUNGE callback for message %ld\n", number);
-	if (number == 0) return;
-	set_update(stream);
-}
-
-
-void mm_flags(MAILSTREAM * stream, unsigned long number)
-{
-	/* mail_ping will callback here if read mail! */
-	ast_debug(4, "Entering FLAGS callback for message %ld\n", number);
-	if (number == 0) return;
-	set_update(stream);
-}
-
-
-void mm_notify(MAILSTREAM * stream, char *string, long errflg)
-{
-	ast_debug(5, "Entering NOTIFY callback, errflag is %ld, string is %s\n", errflg, string);
-	mm_log (string, errflg);
-}
-
-
-void mm_list(MAILSTREAM * stream, int delim, char *mailbox, long attributes)
-{
-	if (delimiter == '\0') {
-		delimiter = delim;
-	}
-
-	ast_debug(5, "Delimiter set to %c and mailbox %s\n",delim, mailbox);
-	if (attributes & LATT_NOINFERIORS)
-		ast_debug(5, "no inferiors\n");
-	if (attributes & LATT_NOSELECT)
-		ast_debug(5, "no select\n");
-	if (attributes & LATT_MARKED)
-		ast_debug(5, "marked\n");
-	if (attributes & LATT_UNMARKED)
-		ast_debug(5, "unmarked\n");
-}
-
-
-void mm_lsub(MAILSTREAM * stream, int delimiter, char *mailbox, long attributes)
-{
-	ast_debug(5, "Delimiter set to %c and mailbox %s\n",delimiter, mailbox);
-	if (attributes & LATT_NOINFERIORS)
-		ast_debug(5, "no inferiors\n");
-	if (attributes & LATT_NOSELECT)
-		ast_debug(5, "no select\n");
-	if (attributes & LATT_MARKED)
-		ast_debug(5, "marked\n");
-	if (attributes & LATT_UNMARKED)
-		ast_debug(5, "unmarked\n");
-}
-
-
-void mm_status(MAILSTREAM * stream, char *mailbox, MAILSTATUS * status)
-{
-	ast_log(AST_LOG_NOTICE, " Mailbox %s", mailbox);
-	if (status->flags & SA_MESSAGES)
-		ast_log(AST_LOG_NOTICE, ", %lu messages", status->messages);
-	if (status->flags & SA_RECENT)
-		ast_log(AST_LOG_NOTICE, ", %lu recent", status->recent);
-	if (status->flags & SA_UNSEEN)
-		ast_log(AST_LOG_NOTICE, ", %lu unseen", status->unseen);
-	if (status->flags & SA_UIDVALIDITY)
-		ast_log(AST_LOG_NOTICE, ", %lu UID validity", status->uidvalidity);
-	if (status->flags & SA_UIDNEXT)
-		ast_log(AST_LOG_NOTICE, ", %lu next UID", status->uidnext);
-	ast_log(AST_LOG_NOTICE, "\n");
-}
-
-
-void mm_log(char *string, long errflg)
-{
-	switch ((short) errflg) {
-		case NIL:
-			ast_debug(1,"IMAP Info: %s\n", string);
-			break;
-		case PARSE:
-		case WARN:
-			ast_log(AST_LOG_WARNING, "IMAP Warning: %s\n", string);
-			break;
-		case ERROR:
-			ast_log(AST_LOG_ERROR, "IMAP Error: %s\n", string);
-			break;
-	}
-}
-
-
-void mm_dlog(char *string)
-{
-	ast_log(AST_LOG_NOTICE, "%s\n", string);
-}
-
-
-void mm_login(NETMBX * mb, char *user, char *pwd, long trial)
-{
-	struct ast_vm_user *vmu;
-
-	ast_debug(4, "Entering callback mm_login\n");
-
-	ast_copy_string(user, mb->user, MAILTMPLEN);
-
-	/* We should only do this when necessary */
-	if (!ast_strlen_zero(authpassword)) {
-		ast_copy_string(pwd, authpassword, MAILTMPLEN);
-	} else {
-		AST_LIST_TRAVERSE(&users, vmu, list) {
-			if (!strcasecmp(mb->user, vmu->imapuser)) {
-				ast_copy_string(pwd, vmu->imappassword, MAILTMPLEN);
-				break;
-			}
-		}
-		if (!vmu) {
-			if ((vmu = find_user_realtime_imapuser(mb->user))) {
-				ast_copy_string(pwd, vmu->imappassword, MAILTMPLEN);
-				free_user(vmu);
-			}
-		}
-	}
-}
-
-
-void mm_critical(MAILSTREAM * stream)
-{
-}
-
-
-void mm_nocritical(MAILSTREAM * stream)
-{
-}
-
-
-long mm_diskerror(MAILSTREAM * stream, long errcode, long serious)
-{
-	kill (getpid (), SIGSTOP);
-	return NIL;
-}
-
-
-void mm_fatal(char *string)
-{
-	ast_log(AST_LOG_ERROR, "IMAP access FATAL error: %s\n", string);
-}
-
-/* C-client callback to handle quota */
-static void mm_parsequota(MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota)
-{
-	struct vm_state *vms;
-	char *mailbox = stream->mailbox, *user;
-	char buf[1024] = "";
-	unsigned long usage = 0, limit = 0;
-	
-	while (pquota) {
-		usage = pquota->usage;
-		limit = pquota->limit;
-		pquota = pquota->next;
-	}
-	
-	if (!(user = get_user_by_mailbox(mailbox, buf, sizeof(buf))) || !(vms = get_vm_state_by_imapuser(user, 2))) {
-		ast_log(AST_LOG_ERROR, "No state found.\n");
-		return;
-	}
-
-	ast_debug(3, "User %s usage is %lu, limit is %lu\n", user, usage, limit);
-
-	vms->quota_usage = usage;
-	vms->quota_limit = limit;
-}
-
-static char *get_header_by_tag(char *header, char *tag, char *buf, size_t len)
-{
-	char *start, *eol_pnt;
-	int taglen;
-
-	if (ast_strlen_zero(header) || ast_strlen_zero(tag))
-		return NULL;
-
-	taglen = strlen(tag) + 1;
-	if (taglen < 1)
-		return NULL;
-
-	if (!(start = strstr(header, tag)))
-		return NULL;
-
-	/* Since we can be called multiple times we should clear our buffer */
-	memset(buf, 0, len);
-
-	ast_copy_string(buf, start+taglen, len);
-	if ((eol_pnt = strchr(buf,'\r')) || (eol_pnt = strchr(buf,'\n')))
-		*eol_pnt = '\0';
-	return buf;
-}
-
-static char *get_user_by_mailbox(char *mailbox, char *buf, size_t len)
-{
-	char *start, *quote, *eol_pnt;
-
-	if (ast_strlen_zero(mailbox))
-		return NULL;
-
-	if (!(start = strstr(mailbox, "/user=")))
-		return NULL;
-
-	ast_copy_string(buf, start+6, len);
-
-	if (!(quote = strchr(buf, '\"'))) {
-		if (!(eol_pnt = strchr(buf, '/')))
-			eol_pnt = strchr(buf,'}');
-		*eol_pnt = '\0';
-		return buf;
-	} else {
-		eol_pnt = strchr(buf+1,'\"');
-		*eol_pnt = '\0';
-		return buf+1;
-	}
-}
-
-static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu, char *mailbox)
-{
-	struct vm_state *vms_p;
-
-	if (option_debug > 4)
-		ast_log(AST_LOG_DEBUG,"Adding new vmstate for %s\n",vmu->imapuser);
-	if (!(vms_p = ast_calloc(1, sizeof(*vms_p))))
-		return NULL;
-	ast_copy_string(vms_p->imapuser,vmu->imapuser, sizeof(vms_p->imapuser));
-	ast_copy_string(vms_p->username, mailbox, sizeof(vms_p->username)); /* save for access from interactive entry point */
-	vms_p->mailstream = NIL; /* save for access from interactive entry point */
-	if (option_debug > 4)
-		ast_log(AST_LOG_DEBUG,"Copied %s to %s\n",vmu->imapuser,vms_p->imapuser);
-	vms_p->updated = 1;
-	/* set mailbox to INBOX! */
-	ast_copy_string(vms_p->curbox, mbox(0), sizeof(vms_p->curbox));
-	init_vm_state(vms_p);
-	vmstate_insert(vms_p);
-	return vms_p;
-}
-
-static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
-{
-	struct vmstate *vlist = NULL;
-
-	AST_LIST_LOCK(&vmstates);
-	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
-		if (!vlist->vms) {
-			ast_debug(3, "error: vms is NULL for %s\n", user);
-			continue;
-		}
-		if (!vlist->vms->imapuser) {
-			ast_debug(3, "error: imapuser is NULL for %s\n", user);
-			continue;
-		}
-
-		if (!strcmp(vlist->vms->imapuser, user) && (interactive == 2 || vlist->vms->interactive == interactive)) {
-			AST_LIST_UNLOCK(&vmstates);
-			return vlist->vms;
-		}
-	}
-	AST_LIST_UNLOCK(&vmstates);
-
-	ast_debug(3, "%s not found in vmstates\n", user);
-
-	return NULL;
-}
-
-static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interactive)
-{
-
-	struct vmstate *vlist = NULL;
-
-	AST_LIST_LOCK(&vmstates);
-	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
-		if (!vlist->vms) {
-			ast_debug(3, "error: vms is NULL for %s\n", mailbox);
-			continue;
-		}
-		if (!vlist->vms->username) {
-			ast_debug(3, "error: username is NULL for %s\n", mailbox);
-			continue;
-		}
-
-		ast_debug(3, "comparing mailbox %s (i=%d) to vmstate mailbox %s (i=%d)\n", mailbox, interactive, vlist->vms->username, vlist->vms->interactive);
-		
-		if (!strcmp(vlist->vms->username,mailbox) && vlist->vms->interactive == interactive) {
-			ast_debug(3, "Found it!\n");
-			AST_LIST_UNLOCK(&vmstates);
-			return vlist->vms;
-		}
-	}
-	AST_LIST_UNLOCK(&vmstates);
-
-	ast_debug(3, "%s not found in vmstates\n", mailbox);
-
-	return NULL;
-}
-
-static void vmstate_insert(struct vm_state *vms) 
-{
-	struct vmstate *v;
-	struct vm_state *altvms;
-
-	/* If interactive, it probably already exists, and we should
-	   use the one we already have since it is more up to date.
-	   We can compare the username to find the duplicate */
-	if (vms->interactive == 1) {
-		altvms = get_vm_state_by_mailbox(vms->username,0);
-		if (altvms) {	
-			ast_debug(3, "Duplicate mailbox %s, copying message info...\n",vms->username);
-			vms->newmessages = altvms->newmessages;
-			vms->oldmessages = altvms->oldmessages;
-			ast_debug(3, "check_msgArray before memcpy\n");
-			check_msgArray(vms);
-			/* memcpy(vms->msgArray, altvms->msgArray, sizeof(long)*256); */
-			copy_msgArray(vms, altvms);
-			ast_debug(3, "check_msgArray after memcpy\n");
-			check_msgArray(vms);
-			vms->vmArrayIndex = altvms->vmArrayIndex;
-			vms->lastmsg = altvms->lastmsg;
-			vms->curmsg = altvms->curmsg;
-			/* get a pointer to the persistent store */
-			vms->persist_vms = altvms;
-			/* Reuse the mailstream? */
-			vms->mailstream = altvms->mailstream;
-			/* vms->mailstream = NIL; */
-		}
-	}
-
-	if (!(v = ast_calloc(1, sizeof(*v))))
-		return;
-	
-	v->vms = vms;
-
-	ast_debug(3, "Inserting vm_state for user:%s, mailbox %s\n",vms->imapuser,vms->username);
-
-	AST_LIST_LOCK(&vmstates);
-	AST_LIST_INSERT_TAIL(&vmstates, v, list);
-	AST_LIST_UNLOCK(&vmstates);
-}
-
-static void vmstate_delete(struct vm_state *vms) 
-{
-	struct vmstate *vc = NULL;
-	struct vm_state *altvms = NULL;
-
-	/* If interactive, we should copy pertinent info
-	   back to the persistent state (to make update immediate) */
-	if (vms->interactive == 1 && (altvms = vms->persist_vms)) {
-		ast_debug(3, "Duplicate mailbox %s, copying message info...\n", vms->username);
-		altvms->newmessages = vms->newmessages;
-		altvms->oldmessages = vms->oldmessages;
-		altvms->updated = 1;
-	}
-	
-	ast_debug(3, "Removing vm_state for user:%s, mailbox %s\n", vms->imapuser, vms->username);
-	
-	AST_LIST_LOCK(&vmstates);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&vmstates, vc, list) {
-		if (vc->vms == vms) {
-			AST_LIST_REMOVE_CURRENT(list);
-			break;
-		}
-	}
-	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&vmstates);
-	
-	if (vc) {
-		ast_mutex_destroy(&vc->vms->lock);
-		ast_free(vc);
-	}
-	else
-		ast_log(AST_LOG_ERROR, "No vmstate found for user:%s, mailbox %s\n", vms->imapuser, vms->username);
-}
-
-static void set_update(MAILSTREAM * stream) 
-{
-	struct vm_state *vms;
-	char *mailbox = stream->mailbox, *user;
-	char buf[1024] = "";
-
-	if (!(user = get_user_by_mailbox(mailbox, buf, sizeof(buf))) || !(vms = get_vm_state_by_imapuser(user, 0))) {
-		if (user && option_debug > 2)
-			ast_log(AST_LOG_WARNING, "User %s mailbox not found for update.\n", user);
-		return;
-	}
-
-	ast_debug(3, "User %s mailbox set for update.\n", user);
-
-	vms->updated = 1; /* Set updated flag since mailbox changed */
-}
-
-static void init_vm_state(struct vm_state *vms) 
-{
-	int x;
-	vms->vmArrayIndex = 0;
-	for (x = 0; x < VMSTATE_MAX_MSG_ARRAY; x++) {
-		vms->msgArray[x] = 0;
-	}
-	ast_mutex_init(&vms->lock);
-}
-
-static void check_msgArray(struct vm_state *vms) 
-{
-	int x;
-	for (x = 0; x < VMSTATE_MAX_MSG_ARRAY; x++) {
-		if (vms->msgArray[x] != 0) {
-			ast_debug(1, "Item %d set to %ld\n", x, vms->msgArray[x]);
-		}
-	}
-}
-
-/*!
- * \brief Copies the msgArray property from one vm_state to another.
- * \param dst
- * \param src
- *
- * Goes over each element in the msgArray array property and copies the value from the source to the destination vm_state.
- */
-static void copy_msgArray(struct vm_state *dst, struct vm_state *src)
-{
-	int x;
-	for (x = 0; x < VMSTATE_MAX_MSG_ARRAY; x++) {
-		dst->msgArray[x] = src->msgArray[x];
-	}
-}
-
-static int save_body(BODY *body, struct vm_state *vms, char *section, char *format, char *altfile) 
-{
-	char *body_content;
-	char *body_decoded;
-	char *fn = S_OR(altfile, vms->fn);
-	unsigned long len;
-	unsigned long newlen;
-	char filename[256];
-	
-	if (!body || body == NIL)
-		return -1;
-
-	body_content = mail_fetchbody(vms->mailstream, vms->msgArray[vms->curmsg], section, &len);
-	if (body_content != NIL) {
-		snprintf(filename, sizeof(filename), "%s.%s", fn, format);
-		/* ast_debug(1,body_content); */
-		body_decoded = rfc822_base64((unsigned char *)body_content, len, &newlen);
- 		/* If the body of the file is empty, return an error */
-		if (!newlen) {
-			return -1;
-		}
-		write_file(filename, (char *) body_decoded, newlen);
-	} else {
-		ast_debug(5, "Body of message is NULL.\n");
-		return -1;
-	}
-	return 0;
-}
-
-/*! 
- * \brief Get delimiter via mm_list callback 
- * \param stream
- *
- * Determines the delimiter character that is used by the underlying IMAP based mail store.
- */
-static void get_mailbox_delimiter(MAILSTREAM *stream) {
-	char tmp[50];
-	snprintf(tmp, sizeof(tmp), "{%s}", imapserver);
-	mail_list(stream, tmp, "*");
-}
-
-/*! 
- * \brief Check Quota for user 
- * \param vms a pointer to a vm_state struct, will use the mailstream property of this.
- * \param mailbox the mailbox to check the quota for.
- *
- * Calls imap_getquotaroot, which will populate its results into the vm_state vms input structure.
- */
-static void check_quota(struct vm_state *vms, char *mailbox) {
-	mail_parameters(NULL, SET_QUOTA, (void *) mm_parsequota);
-	ast_debug(3, "Mailbox name set to: %s, about to check quotas\n", mailbox);
-	if (vms && vms->mailstream != NULL) {
-		imap_getquotaroot(vms->mailstream, mailbox);
-	} else {
-		ast_log(AST_LOG_WARNING, "Mailstream not available for mailbox: %s\n", mailbox);
-	}
-}
-
-#endif /* IMAP_STORAGE */
 
 /* This is a workaround so that menuselect displays a proper description
  * AST_MODULE_INFO(, , "Comedian Mail (Voicemail System)"
