@@ -5736,8 +5736,8 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		} else {
 			res = wait_file2(chan, vms, "vm-message");  /* "message" */
 			if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
-				ast_log(LOG_DEBUG, "curmsg: %s\n", vms->curmsg);
-				ast_log(LOG_DEBUG, "lagmsg: %s\n", vms->lastmsg);
+				ast_log(LOG_DEBUG, "curmsg: %d\n", vms->curmsg);
+				ast_log(LOG_DEBUG, "lagmsg: %d\n", vms->lastmsg);
 				if (!res) {
 					res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, "f");
 				}
