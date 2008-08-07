@@ -2140,7 +2140,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				ast_cdr_start(bridge_cdr);
 			}
 		}
-		ast_log(LOG_NOTICE,"bridge answer set, chan answer set\n");
+		ast_debug(4,"bridge answer set, chan answer set\n");
 		/* peer->cdr->answer will be set when a macro runs on the peer;
 		   in that case, the bridge answer will be delayed while the
 		   macro plays on the peer channel. The peer answered the call
