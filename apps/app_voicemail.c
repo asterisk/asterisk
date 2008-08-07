@@ -5819,7 +5819,9 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			break;
 		case '2': 
 			/* NULL out introfile so we know there is no intro! */
+#ifdef IMAP_STORAGE
 			*vms->introfn = '\0';
+#endif
 			cmd = 't';
 			break;
 		case '*':
@@ -6446,7 +6448,6 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 
 	snprintf(filename, sizeof(filename), "%s.txt", vms->fn);
 	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
-	ast_log(LOG_NOTICE, "I just retrieved %s and %s\n", vms->fn, S_OR(vms->introfn, "No intro"));
 	msg_cfg = ast_config_load(filename, config_flags);
 	if (!msg_cfg) {
 		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
@@ -6561,7 +6562,6 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		}
 	}
 	DISPOSE(vms->curdir, vms->curmsg);
-	ast_log(LOG_NOTICE, "I just disposed of %s and %s\n", vms->fn, S_OR(vms->introfn, "No intro"));
 	return res;
 }
 
@@ -6724,7 +6724,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 			cause RENAME() will overwrite files, but will keep duplicate records in RT-storage */
 			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x);
 			if (EXISTS(vms->curdir, x, vms->fn, NULL))
-				DELETE(vms->curdir, x, vms->fn);
+				DELETE(vms->curdir, x, vms->fn, vmu);
 		}
 	} 
 
