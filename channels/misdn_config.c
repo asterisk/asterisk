@@ -97,26 +97,31 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "name", MISDN_CFG_GROUPNAME, MISDN_CTYPE_STR, "default", NONE,
 		"Name of the portgroup." },
 	{ "allowed_bearers", MISDN_CFG_ALLOWED_BEARERS, MISDN_CTYPE_STR, "all", NONE,
-		"Here you can define which bearers should be allowed." },
+		"Here you can list which bearer capabilities should be allowed:\n"
+		"\t  all                  - allow any bearer capability\n"
+		"\t  speech               - allow speech\n"
+		"\t  3_1khz               - allow 3.1KHz audio\n"
+		"\t  digital_unrestricted - allow unrestricted digital\n"
+		"\t  digital_restricted   - allow restricted digital\n"
+		"\t  video                - allow video" },
 	{ "rxgain", MISDN_CFG_RXGAIN, MISDN_CTYPE_INT, "0", NONE,
 		"Set this between -8 and 8 to change the RX Gain." },
 	{ "txgain", MISDN_CFG_TXGAIN, MISDN_CTYPE_INT, "0", NONE,
 		"Set this between -8 and 8 to change the TX Gain." },
 	{ "te_choose_channel", MISDN_CFG_TE_CHOOSE_CHANNEL, MISDN_CTYPE_BOOL, "no", NONE,
-		"Some telcos espacially in NL seem to need this set to yes,\n"
-		"\talso in switzerland this seems to be important." },
+		"Some telcos especially in NL seem to need this set to yes,\n"
+		"\talso in Switzerland this seems to be important." },
 	{ "far_alerting", MISDN_CFG_FAR_ALERTING, MISDN_CTYPE_BOOL, "no", NONE,
 		"If we should generate ringing for chan_sip and others." },
 	{ "pmp_l1_check", MISDN_CFG_PMP_L1_CHECK, MISDN_CTYPE_BOOL, "no", NONE,
 		"This option defines, if chan_misdn should check the L1 on a PMP\n"
-		"\tbefore makeing a group call on it. The L1 may go down for PMP Ports\n"
+		"\tbefore making a group call on it. The L1 may go down for PMP Ports\n"
 		"\tso we might need this.\n"
 		"\tBut be aware! a broken or plugged off cable might be used for a group call\n"
 		"\tas well, since chan_misdn has no chance to distinguish if the L1 is down\n"
 		"\tbecause of a lost Link or because the Provider shut it down..." },
 	{ "block_on_alarm", MISDN_CFG_ALARM_BLOCK, MISDN_CTYPE_BOOL, "no", NONE ,
-	  "Block this port if we have an alarm on it."
-	  "default: yes\n" },
+	  "Block this port if we have an alarm on it." },
 	{ "hdlc", MISDN_CFG_HDLC, MISDN_CTYPE_BOOL, "no", NONE,
 		"Set this to yes, if you want to bridge a mISDN data channel to\n"
 		"\tanother channel type or to an application." },
@@ -166,7 +171,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\t2 - National\n"
 		"\t4 - Subscriber\n"
 		"\n"
-		"\tThis setting is used for outgoing calls" },
+		"\tThis setting is used for outgoing calls." },
 	{ "cpndialplan", MISDN_CFG_CPNDIALPLAN, MISDN_CTYPE_INT, "0", NONE,
 		"Dialplan means Type Of Number in ISDN Terms (for outgoing calls)\n"
 		"\n"
@@ -236,9 +241,9 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\tyou to send indications by yourself, normally the Telco sends the\n"
 		"\tindications to the remote party." },
 	{ "echocancel", MISDN_CFG_ECHOCANCEL, MISDN_CTYPE_BOOLINT, "0", 128,
-		"This enables echocancellation, with the given number of taps.\n"
-		"\tBe aware, move this setting only to outgoing portgroups!\n"
-		"\tA value of zero turns echocancellation off.\n"
+		"This enables echo cancellation with the given number of taps.\n"
+		"\tBe aware: Move this setting only to outgoing portgroups!\n"
+		"\tA value of zero turns echo cancellation off.\n"
 		"\n"
 		"\tPossible values are: 0,32,64,128,256,yes(=128),no(=0)" },
 #ifdef MISDN_1_2
@@ -271,7 +276,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"Do not send SETUP_ACKNOWLEDGE or PROCEEDING automatically to the calling Party.\n"
 		"Instead we directly jump into the dialplan. This might be useful for fast call\n"
 		"rejection, or for some broken switches, that need hangup causes like busy in the.\n"
-		"RELEASE_COMPLETE Message, instead of the DISCONNECT Message.\n"},
+		"RELEASE_COMPLETE Message, instead of the DISCONNECT Message."},
 	{ "jitterbuffer", MISDN_CFG_JITTERBUFFER, MISDN_CTYPE_INT, "4000", NONE,
 		"The jitterbuffer." },
 	{ "jitterbuffer_upper_threshold", MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD, MISDN_CTYPE_INT, "0", NONE,
@@ -282,7 +287,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"Pickupgroup." },
 	{ "max_incoming", MISDN_CFG_MAX_IN, MISDN_CTYPE_INT, "-1", NONE,
 		"Defines the maximum amount of incoming calls per port for this group.\n"
-		"\tCalls which exceed the maximum will be marked with the channel varible\n"
+		"\tCalls which exceed the maximum will be marked with the channel variable\n"
 		"\tMAX_OVERFLOW. It will contain the amount of overflowed calls" },
 	{ "max_outgoing", MISDN_CFG_MAX_OUT, MISDN_CTYPE_INT, "-1", NONE,
 		"Defines the maximum amount of outgoing calls per port for this group\n"
@@ -325,12 +330,11 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"This can be used to have bridging enabled in general and to\n"
 		"disable it for specific ports. It makes sense to disable\n"
 		"bridging on NT Port where you plan to use the HOLD/RETRIEVE\n"
-		"features with ISDN phones.\n"
-		},
+		"features with ISDN phones." },
 	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, "*", NONE,
 		"MSN's for TE ports, listen on those numbers on the above ports, and\n"
 		"\tindicate the incoming calls to Asterisk.\n"
-		"\tHere you can give a comma seperated list, or simply an '*' for any msn." },
+		"\tHere you can give a comma separated list, or simply an '*' for any msn." },
 };
 
 static const struct misdn_cfg_spec gen_spec[] = {
@@ -352,18 +356,18 @@ static const struct misdn_cfg_spec gen_spec[] = {
 	{ "stop_tone_after_first_digit", MISDN_GEN_STOP_TONE, MISDN_CTYPE_BOOL, "yes", NONE,
 		"Stops dialtone after getting first digit on NT Port." },
 	{ "append_digits2exten", MISDN_GEN_APPEND_DIGITS2EXTEN, MISDN_CTYPE_BOOL, "yes", NONE,
-		"Wether to append overlapdialed Digits to Extension or not." },
+		"Whether to append overlapdialed Digits to Extension or not." },
 	{ "dynamic_crypt", MISDN_GEN_DYNAMIC_CRYPT, MISDN_CTYPE_BOOL, "no", NONE,
-		"Wether to look out for dynamic crypting attempts." },
+		"Whether to look out for dynamic crypting attempts." },
 	{ "crypt_prefix", MISDN_GEN_CRYPT_PREFIX, MISDN_CTYPE_STR, NO_DEFAULT, NONE,
 		"What is used for crypting Protocol." },
 	{ "crypt_keys", MISDN_GEN_CRYPT_KEYS, MISDN_CTYPE_STR, NO_DEFAULT, NONE,
 		"Keys for cryption, you reference them in the dialplan\n"
 		"\tLater also in dynamic encr." },
  	{ "ntkeepcalls", MISDN_GEN_NTKEEPCALLS, MISDN_CTYPE_BOOL, "no", NONE, 
-		"avoid dropping calls if the L2 goes down. some nortel pbx\n" 
+		"avoid dropping calls if the L2 goes down. some Nortel pbx\n" 
 		"do put down the L2/L1 for some milliseconds even if there\n"
-		"are running calls. with this option you can avoid dropping them\n" },
+		"are running calls. with this option you can avoid dropping them" },
 	{ "ntdebugflags", MISDN_GEN_NTDEBUGFLAGS, MISDN_CTYPE_INT, "0", NONE,
 	  	"No description yet."},
 	{ "ntdebugfile", MISDN_GEN_NTDEBUGFILE, MISDN_CTYPE_STR, "/var/log/misdn-nt.log", NONE,
@@ -566,7 +570,7 @@ enum misdn_cfg_elements misdn_cfg_get_elem(char *name)
 {
 	int pos;
 
-	/* here comes a hack to replace the (not existing) "name" elemet with the "ports" element */
+	/* here comes a hack to replace the (not existing) "name" element with the "ports" element */
 	if (!strcmp(name, "ports"))
 		return MISDN_CFG_GROUPNAME;
 	if (!strcmp(name, "name"))
@@ -594,7 +598,7 @@ void misdn_cfg_get_name(enum misdn_cfg_elements elem, void *buf, int bufsize)
 		return;
 	}
 	
-	/* here comes a hack to replace the (not existing) "name" elemet with the "ports" element */
+	/* here comes a hack to replace the (not existing) "name" element with the "ports" element */
 	if (elem == MISDN_CFG_GROUPNAME) {
 		if (!snprintf(buf, bufsize, "ports"))
 			memset(buf, 0, 1);
@@ -614,7 +618,7 @@ void misdn_cfg_get_desc (enum misdn_cfg_elements elem, void *buf, int bufsize, v
 	int place = map[elem];
 	struct misdn_cfg_spec *spec = NULL;
 
-	/* here comes a hack to replace the (not existing) "name" elemet with the "ports" element */
+	/* here comes a hack to replace the (not existing) "name" element with the "ports" element */
 	if (elem == MISDN_CFG_GROUPNAME) {
 		ast_copy_string(buf, ports_description, bufsize);
 		if (buf_default && bufsize_default)
@@ -704,6 +708,9 @@ int misdn_cfg_is_group_method (char *group, enum misdn_cfg_method meth)
 	return re;
 }
 
+/*! 
+ * \brief Generate a comma separated list of all active ports
+ */
 void misdn_cfg_get_ports_string (char *ports)
 {
 	char tmp[16];
@@ -724,8 +731,10 @@ void misdn_cfg_get_ports_string (char *ports)
 	}
 	misdn_cfg_unlock();
 
-	if ((l = strlen(ports)))
+	if ((l = strlen(ports))) {
+		/* Strip trailing ',' */
 		ports[l-1] = 0;
+	}
 }
 
 void misdn_cfg_get_config_string (int port, enum misdn_cfg_elements elem, char* buf, int bufsize)
