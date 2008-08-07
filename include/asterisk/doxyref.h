@@ -516,4 +516,65 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg <b>Website</b>: http://curl.haxx.se
  * \arg <b>Used by</b>: func_curl
  * \arg <b>License</b>: BSD
+ *
+ * \subsection rawlist Raw list of libraries that used by any part of Asterisk
+ * \li c-client.a (app_voicemail with IMAP support)
+ * \li libasound.so.2
+ * \li libc.so.6
+ * \li libcom_err.so.2
+ * \li libcrypt.so.1
+ * \li libcrypto.so.0.9.8 (chan_h323)
+ * \li libcurl.so.4
+ * \li libdl.so.2
+ * \li libexpat.so (chan_h323)
+ * \li libgcc_s.so (chan_h323)
+ * \li libgcrypt.so.11 (chan_h323)
+ * \li libgnutls.so.13 (chan_h323)
+ * \li libgpg-error.so.0 (chan_h323)
+ * \li libgssapi_krb5.so.2
+ * \li libidn.so.11
+ * \li libiksemel.so.3
+ * \li libisdnnet.so
+ * \li libk5crypto.so.3
+ * \li libkeyutils.so.1
+ * \li libkrb5.so.3
+ * \li libkrb5support.so.0
+ * \li liblber-2.4.so.2 (chan_h323)
+ * \li libldap_r-2.4.so.2 (chan_h323)
+ * \li libltdl.so.3
+ * \li libm.so.6
+ * \li libmISDN.so
+ * \li libnbs.so.1
+ * \li libncurses.so.5
+ * \li libnetsnmp.so.15
+ * \li libnetsnmpagent.so.15
+ * \li libnetsnmphelpers.so.15
+ * \li libnetsnmpmibs.so.15
+ * \li libnsl.so.1
+ * \li libodbc.so.1
+ * \li libogg.so.0
+ * \li libopenh323.so (chan_h323)
+ * \li libperl.so.5.8
+ * \li libpq.so.5
+ * \li libpri.so.1.4
+ * \li libpt.so (chan_h323)
+ * \li libpthread.so.0
+ * \li libradiusclient-ng.so.2
+ * \li libresolv.so.2 (chan_h323)
+ * \li libsasl2.so.2 (chan_h323)
+ * \li libsensors.so.3
+ * \li libspeex.so.1
+ * \li libsqlite.so.0
+ * \li libssl.so.0.9.8 (chan_h323)
+ * \li libstdc++.so (chan_h323, chan_vpb)
+ * \li libsuppserv.so
+ * \li libsysfs.so.2
+ * \li libtasn1.so.3 (chan_h323)
+ * \li libtds.so.4
+ * \li libtonezone.so.1.0
+ * \li libvorbis.so.0
+ * \li libvorbisenc.so.2
+ * \li libvpb.a (chan_vpb)
+ * \li libwrap.so.0
+ * \li libz.so.1 (chan_h323)
  */
