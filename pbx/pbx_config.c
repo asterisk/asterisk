@@ -654,7 +654,6 @@ static char *complete_dialplan_add_include(struct ast_cli_args *a)
 	} else if (a->pos == 4) { /* dialplan add include CTX _X_ */
 		/* complete  as 'into' if context exists or we are unable to check */
 		char *context, *dupline;
-		struct ast_context *c;
 		const char *s = skip_words(a->line, 3); /* should not fail */
 
 		if (a->n != 0)	/* only once */
@@ -674,8 +673,9 @@ static char *complete_dialplan_add_include(struct ast_cli_args *a)
 			/* our fault, we can't check, so complete 'into' ... */
 			ret = strdup("into");
 		} else {
-			for (c = NULL; !ret && (c = ast_walk_contexts(c)); )
-				if (!strcmp(context, ast_get_context_name(c)))
+			struct ast_context *ctx;
+			for (ctx = NULL; !ret && (ctx = ast_walk_contexts(ctx)); )
+				if (!strcmp(context, ast_get_context_name(ctx)))
 					ret = strdup("into"); /* found */
 			ast_unlock_contexts();
 		}
@@ -845,7 +845,7 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 	/* walk all contexts */
 	for (c = NULL; (c = ast_walk_contexts(c)); ) {
 		int context_header_written = 0;
-		struct ast_exten *e, *last_written_e = NULL;
+		struct ast_exten *ext, *last_written_e = NULL;
 		struct ast_include *i;
 		struct ast_ignorepat *ip;
 		struct ast_sw *sw;
@@ -863,11 +863,11 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 		}
 
 		/* walk extensions ... */
-		for (e = NULL; (e = ast_walk_context_extensions(c, e)); ) {
+		for (ext = NULL; (ext = ast_walk_context_extensions(c, ext)); ) {
 			struct ast_exten *p = NULL;
 
 			/* fireout priorities */
-			while ( (p = ast_walk_extension_priorities(e, p)) ) {
+			while ( (p = ast_walk_extension_priorities(ext, p)) ) {
 				if (strcmp(ast_get_extension_registrar(p), registrar) != 0) /* not this source */
 					continue;
 		

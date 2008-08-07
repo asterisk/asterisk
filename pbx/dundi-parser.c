@@ -339,7 +339,7 @@ static struct dundi_ie {
 	int ie;
 	char *name;
 	void (*dump)(char *output, int maxlen, void *value, int len);
-} ies[] = {
+} infoelts[] = {
 	{ DUNDI_IE_EID, "ENTITY IDENT", dump_eid },
 	{ DUNDI_IE_CALLED_CONTEXT, "CALLED CONTEXT", dump_string },
 	{ DUNDI_IE_CALLED_NUMBER, "CALLED NUMBER", dump_string },
@@ -370,9 +370,9 @@ static struct dundi_ie {
 const char *dundi_ie2str(int ie)
 {
 	int x;
-	for (x=0;x<(int)sizeof(ies) / (int)sizeof(ies[0]); x++) {
-		if (ies[x].ie == ie)
-			return ies[x].name;
+	for (x = 0; x < ARRAY_LEN(infoelts); x++) {
+		if (infoelts[x].ie == ie)
+			return infoelts[x].name;
 	}
 	return "Unknown IE";
 }
@@ -399,18 +399,18 @@ static void dump_ies(unsigned char *iedata, int spaces, int len)
 			return;
 		}
 		found = 0;
-		for (x=0;x<(int)sizeof(ies) / (int)sizeof(ies[0]); x++) {
-			if (ies[x].ie == ie) {
-				if (ies[x].dump) {
-					ies[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
-					snprintf(tmp, (int)sizeof(tmp), "   %s%-15.15s : %s\n", (spaces ? "     " : "" ), ies[x].name, interp);
+		for (x = 0; x < ARRAY_LEN(infoelts); x++) {
+			if (infoelts[x].ie == ie) {
+				if (infoelts[x].dump) {
+					infoelts[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
+					snprintf(tmp, (int)sizeof(tmp), "   %s%-15.15s : %s\n", (spaces ? "     " : "" ), infoelts[x].name, interp);
 					outputf(tmp);
 				} else {
 					if (ielen)
 						snprintf(interp, (int)sizeof(interp), "%d bytes", ielen);
 					else
 						strcpy(interp, "Present");
-					snprintf(tmp, (int)sizeof(tmp), "   %s%-15.15s : %s\n", (spaces ? "     " : "" ), ies[x].name, interp);
+					snprintf(tmp, (int)sizeof(tmp), "   %s%-15.15s : %s\n", (spaces ? "     " : "" ), infoelts[x].name, interp);
 					outputf(tmp);
 				}
 				found++;

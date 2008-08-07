@@ -1139,7 +1139,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 	return 0;
 }
 
-static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned long crc32, int *lowexpiration)
+static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned long checksum, int *lowexpiration)
 {
 	char key[256];
 	char eid_str[20];
@@ -1155,7 +1155,7 @@ static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned
 	dundi_eid_to_str_short(eid_str, sizeof(eid_str), peer_eid);
 	dundi_eid_to_str_short(eidroot_str, sizeof(eidroot_str), &req->root_eid);
 	ast_eid_to_str(eid_str_full, sizeof(eid_str_full), peer_eid);
-	snprintf(key, sizeof(key), "%s/%s/%s/e%08lx", eid_str, req->number, req->dcontext, crc32);
+	snprintf(key, sizeof(key), "%s/%s/%s/e%08lx", eid_str, req->number, req->dcontext, checksum);
 	res |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
 	snprintf(key, sizeof(key), "%s/%s/%s/e%08lx", eid_str, req->number, req->dcontext, 0L);
 	res |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
@@ -1170,7 +1170,7 @@ static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned
 				break;
 			x++;
 			/* Check for hints */
-			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08lx", eid_str, tmp, req->dcontext, crc32);
+			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08lx", eid_str, tmp, req->dcontext, checksum);
 			res2 |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
 			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08lx", eid_str, tmp, req->dcontext, 0L);
 			res2 |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
@@ -4640,11 +4640,11 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 			} else if(sin->sin_port != last_port)
 				ast_log(LOG_WARNING, "change to port ignored until next asterisk re-start\n");
 		} else if (!strcasecmp(v->name, "bindaddr")) {
-			struct hostent *hp;
-			struct ast_hostent he;
-			hp = ast_gethostbyname(v->value, &he);
-			if (hp) {
-				memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
+			struct hostent *hep;
+			struct ast_hostent hent;
+			hep = ast_gethostbyname(v->value, &hent);
+			if (hep) {
+				memcpy(&sin->sin_addr, hep->h_addr, sizeof(sin->sin_addr));
 			} else
 				ast_log(LOG_WARNING, "Invalid host/IP '%s'\n", v->value);
 		} else if (!strcasecmp(v->name, "authdebug")) {

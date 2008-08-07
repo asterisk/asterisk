@@ -469,13 +469,13 @@ static const struct ast_format au_f = {
 
 static int load_module(void)
 {
-	int index;
+	int i;
 
 	/* XXX better init ? */
-	for (index = 0; index < ARRAY_LEN(ulaw_silence); index++)
-		ulaw_silence[index] = AST_LIN2MU(0);
-	for (index = 0; index < ARRAY_LEN(alaw_silence); index++)
-		alaw_silence[index] = AST_LIN2A(0);
+	for (i = 0; i < ARRAY_LEN(ulaw_silence); i++)
+		ulaw_silence[i] = AST_LIN2MU(0);
+	for (i = 0; i < ARRAY_LEN(alaw_silence); i++)
+		alaw_silence[i] = AST_LIN2A(0);
 
 	if ( ast_format_register(&pcm_f)
 		|| ast_format_register(&alaw_f)
