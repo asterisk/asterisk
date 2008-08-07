@@ -7540,6 +7540,10 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 	if ((chan->_state != AST_STATE_UP) && !ast_strlen_zero(data))
 		delay = atoi(data);
 
+	if (delay < 0) {
+		delay = 0;
+	}
+
 	return __ast_answer(chan, delay);
 }
 
