@@ -196,58 +196,6 @@ static struct ast_frame *dahdi_frameout(struct ast_trans_pvt *pvt)
 	/* Shouldn't get here... */
 	return NULL;
 }
-#if 0
-	struct pvt *dahdip = pvt->pvt;
-	struct dahdi_transcode_header *hdr = dahdip->hdr;
-	unsigned int x;
-
-	if (dahdip->fake == 2) {
-		dahdip->fake = 1;
-		pvt->f.frametype = AST_FRAME_VOICE;
-		pvt->f.subclass = 0;
-		pvt->f.samples = 160;
-		pvt->f.data = NULL;
-		pvt->f.offset = 0;
-		pvt->f.datalen = 0;
-		pvt->f.mallocd = 0;
-		ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
-		pvt->samples = 0;
-	} else if (dahdip->fake == 1) {
-		return NULL;
-	} else {
-		if (hdr->dstlen) {
-#ifdef DEBUG_TRANSCODE
-			dahdip->totalms += hdr->dstsamples;
-			if ((dahdip->totalms - dahdip->lasttotalms) > 8000) {
-				printf("Whee %p, %d (%d to %d)\n", dahdip, hdr->dstlen, dahdip->lasttotalms, dahdip->totalms);
-				dahdip->lasttotalms = dahdip->totalms;
-			}
-#endif
-			pvt->f.frametype = AST_FRAME_VOICE;
-			pvt->f.subclass = hdr->dstfmt;
-			pvt->f.samples = hdr->dstsamples;
-			pvt->f.data = hdr->dstdata + hdr->dstoffset;
-			pvt->f.offset = hdr->dstoffset;
-			pvt->f.datalen = hdr->dstlen;
-			pvt->f.mallocd = 0;
-			ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
-			pvt->samples -= pvt->f.samples;
-			hdr->dstlen = 0;
-			
-		} else {
-			if (hdr->srclen) {
-				hdr->dstoffset = AST_FRIENDLY_OFFSET;
-				x = DAHDI_TCOP_TRANSCODE;
-				if (ioctl(dahdip->fd, DAHDI_TRANSCODE_OP, &x))
-					ast_log(LOG_WARNING, "Failed to transcode: %s\n", strerror(errno));
-			}
-			return NULL;
-		}
-	}
-
-	return &pvt->f;
-}
-#endif
 
 static void dahdi_destroy(struct ast_trans_pvt *pvt)
 {
@@ -310,65 +258,6 @@ static int dahdi_translate(struct ast_trans_pvt *pvt, int dest, int source)
 
 	return 0;
 }
-#if 0
-	/* Request translation through dahdi if possible */
-	int fd;
-	unsigned int x = DAHDI_TCOP_ALLOCATE;
-	struct pvt *dahdip = pvt->pvt;
-	struct dahdi_transcode_header *hdr;
-	int flags;
-	
-	if ((fd = open("/dev/dahdi/transcode", O_RDWR)) < 0)
-		return -1;
-	flags = fcntl(fd, F_GETFL);
-	if (flags > - 1) {
-		if (fcntl(fd, F_SETFL, flags | O_NONBLOCK))
-			ast_log(LOG_WARNING, "Could not set non-block mode!\n");
-	}
-	
-
-	if ((hdr = mmap(NULL, sizeof(*hdr), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) == MAP_FAILED) {
-		ast_log(LOG_ERROR, "Memory Map failed for transcoding (%s)\n", strerror(errno));
-		close(fd);
-
-		return -1;
-	}
-
-	if (hdr->magic != DAHDI_TRANSCODE_MAGIC) {
-		ast_log(LOG_ERROR, "Transcoder header (%08x) wasn't magic.  Abandoning\n", hdr->magic);
-		munmap(hdr, sizeof(*hdr));
-		close(fd);
-
-		return -1;
-	}
-	
-	hdr->srcfmt = (1 << source);
-	hdr->dstfmt = (1 << dest);
-	if (ioctl(fd, DAHDI_TRANSCODE_OP, &x)) {
-		ast_log(LOG_ERROR, "Unable to attach transcoder: %s\n", strerror(errno));
-		munmap(hdr, sizeof(*hdr));
-		close(fd);
-
-		return -1;
-	}
-
-	dahdip = pvt->pvt;
-	dahdip->fd = fd;
-	dahdip->hdr = hdr;
-
-	switch (hdr->dstfmt) {
-	case AST_FORMAT_G729A:
-	case AST_FORMAT_G723_1:
-		ast_atomic_fetchadd_int(&channels.encoders, +1);
-		break;
-	default:
-		ast_atomic_fetchadd_int(&channels.decoders, +1);
-		break;
-	}
-
-	return 0;
-}
-#endif
 
 static int dahdi_new(struct ast_trans_pvt *pvt)
 {
