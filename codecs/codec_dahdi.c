@@ -3,7 +3,7 @@
  *
  * DAHDI native transcoding support
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2008, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  * Kevin P. Fleming <kpfleming@digium.com>
@@ -86,7 +86,7 @@ struct pvt {
 	int totalms;
 	int lasttotalms;
 #endif
-	struct dahdi_transcode_header *hdr;
+	struct dahdi_transcoder_formats fmts;
 };
 
 static char *handle_cli_transcoder_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -119,40 +119,84 @@ static char *handle_cli_transcoder_show(struct ast_cli_entry *e, int cmd, struct
 
 static int dahdi_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
+	int res;
 	struct pvt *dahdip = pvt->pvt;
-	struct dahdi_transcode_header *hdr = dahdip->hdr;
 
-	if (!f->subclass) {
+	if (f->subclass) {
+		/* Give the frame to the hardware transcoder... */
+		res = write(dahdip->fd, f->data, f->datalen); 
+		if (-1 == res) {
+			ast_log(LOG_ERROR, "Failed to write to /dev/dahdi/transcode: %s\n", strerror(errno));
+		}
+		if (f->datalen != res) {
+			ast_log(LOG_ERROR, "Requested write of %d bytes, but only wrote %d bytes.\n", f->datalen, res);
+		}
+		res = -1;
+		pvt->samples += f->samples;
+	} else {
 		/* Fake a return frame for calculation purposes */
 		dahdip->fake = 2;
 		pvt->samples = f->samples;
-		return 0;
+		res = 0;
 	}
-
-	if (!hdr->srclen)
-		/* Copy at front of buffer */
-		hdr->srcoffset = 0;
-
-	if (hdr->srclen + f->datalen > sizeof(hdr->srcdata)) {
-		ast_log(LOG_WARNING, "Out of space for codec translation!\n");
-		return -1;
-	}
-
-	if (hdr->srclen + f->datalen + hdr->srcoffset > sizeof(hdr->srcdata)) {
-		/* Very unlikely */
-		memmove(hdr->srcdata, hdr->srcdata + hdr->srcoffset, hdr->srclen);
-		hdr->srcoffset = 0;
-	}
-
-	memcpy(hdr->srcdata + hdr->srcoffset + hdr->srclen, f->data, f->datalen);
-	hdr->srclen += f->datalen;
-	pvt->samples += f->samples;
-
-	return -1;
+	return res;
 }
 
 static struct ast_frame *dahdi_frameout(struct ast_trans_pvt *pvt)
 {
+	struct pvt *dahdip = pvt->pvt;
+
+	if (0 == dahdip->fake) {
+		int res;
+		/* Let's check to see if there is a new frame for us.... */
+		res = read(dahdip->fd, pvt->outbuf + pvt->datalen, pvt->t->buf_size - pvt->datalen);
+		if (-1 == res) {
+			if (EWOULDBLOCK == errno) {
+				/* Nothing waiting... */
+				return NULL;
+			} else {
+				ast_log(LOG_ERROR, "Failed to read from /dev/dahdi/transcode: %s\n", strerror(errno));
+				return NULL;
+			}
+		} else {
+			pvt->f.samples = res;
+			pvt->f.datalen = res;
+			pvt->datalen = 0;
+			pvt->f.frametype = AST_FRAME_VOICE;
+			pvt->f.subclass = 1 <<  (pvt->t->dstfmt);
+			pvt->f.mallocd = 0;
+			pvt->f.offset = AST_FRIENDLY_OFFSET;
+			pvt->f.src = pvt->t->name;
+			pvt->f.data = pvt->outbuf;
+			ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
+
+			return &pvt->f;
+		}
+
+	} else if (2 == dahdip->fake) {
+
+		dahdip->fake = 1;
+		pvt->f.frametype = AST_FRAME_VOICE;
+		pvt->f.subclass = 0;
+		pvt->f.samples = 160;
+		pvt->f.data = NULL;
+		pvt->f.offset = 0;
+		pvt->f.datalen = 0;
+		pvt->f.mallocd = 0;
+		ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
+		pvt->samples = 0;
+
+		return &pvt->f;
+
+	} else if (1 == dahdip->fake) {
+
+		return NULL;
+
+	}
+	/* Shouldn't get here... */
+	return NULL;
+}
+#if 0
 	struct pvt *dahdip = pvt->pvt;
 	struct dahdi_transcode_header *hdr = dahdip->hdr;
 	unsigned int x;
@@ -203,17 +247,13 @@ static struct ast_frame *dahdi_frameout(struct ast_trans_pvt *pvt)
 
 	return &pvt->f;
 }
+#endif
 
 static void dahdi_destroy(struct ast_trans_pvt *pvt)
 {
 	struct pvt *dahdip = pvt->pvt;
-	unsigned int x;
 
-	x = DAHDI_TCOP_RELEASE;
-	if (ioctl(dahdip->fd, DAHDI_TRANSCODE_OP, &x))
-		ast_log(LOG_WARNING, "Failed to release transcoder channel: %s\n", strerror(errno));
-
-	switch (dahdip->hdr->dstfmt) {
+	switch (dahdip->fmts.dstfmt) {
 	case AST_FORMAT_G729A:
 	case AST_FORMAT_G723_1:
 		ast_atomic_fetchadd_int(&channels.encoders, -1);
@@ -223,12 +263,54 @@ static void dahdi_destroy(struct ast_trans_pvt *pvt)
 		break;
 	}
 
-	munmap(dahdip->hdr, sizeof(*dahdip->hdr));
 	close(dahdip->fd);
 }
 
 static int dahdi_translate(struct ast_trans_pvt *pvt, int dest, int source)
 {
+	/* Request translation through zap if possible */
+	int fd;
+	struct pvt *dahdip = pvt->pvt;
+	int flags;
+	
+	if ((fd = open("/dev/dahdi/transcode", O_RDWR)) < 0) {
+		ast_log(LOG_ERROR, "Failed to open /dev/dahdi/transcode: %s\n", strerror(errno));
+		return -1;
+	}
+	
+	dahdip->fmts.srcfmt = (1 << source);
+	dahdip->fmts.dstfmt = (1 << dest);
+
+	ast_log(LOG_VERBOSE, "Opening transcoder channel from %d to %d.\n", source, dest);
+
+	if (ioctl(fd, DAHDI_TC_ALLOCATE, &dahdip->fmts)) {
+		ast_log(LOG_ERROR, "Unable to attach to transcoder: %s\n", strerror(errno));
+		close(fd);
+
+		return -1;
+	}
+
+	flags = fcntl(fd, F_GETFL);
+	if (flags > - 1) {
+		if (fcntl(fd, F_SETFL, flags | O_NONBLOCK))
+			ast_log(LOG_WARNING, "Could not set non-block mode!\n");
+	}
+
+	dahdip->fd = fd;
+
+	switch (dahdip->fmts.dstfmt) {
+	case AST_FORMAT_G729A:
+	case AST_FORMAT_G723_1:
+		ast_atomic_fetchadd_int(&channels.encoders, +1);
+		break;
+	default:
+		ast_atomic_fetchadd_int(&channels.decoders, +1);
+		break;
+	}
+
+	return 0;
+}
+#if 0
 	/* Request translation through dahdi if possible */
 	int fd;
 	unsigned int x = DAHDI_TCOP_ALLOCATE;
@@ -286,6 +368,7 @@ static int dahdi_translate(struct ast_trans_pvt *pvt, int dest, int source)
 
 	return 0;
 }
+#endif
 
 static int dahdi_new(struct ast_trans_pvt *pvt)
 {
@@ -417,27 +500,27 @@ static void build_translators(struct format_map *map, unsigned int dstfmts, unsi
 
 static int find_transcoders(void)
 {
-	struct dahdi_transcode_info info = { 0, };
+	struct dahdi_transcoder_info info = { 0, };
 	struct format_map map = { { { 0 } } };
 	int fd, res;
 	unsigned int x, y;
 
 	if ((fd = open("/dev/dahdi/transcode", O_RDWR)) < 0) {
-		ast_verbose(VERBOSE_PREFIX_2 "No hardware transcoders found.\n");
+		ast_log(LOG_ERROR, "Failed to open /dev/dahdi/transcode: %s\n", strerror(errno));
 		return 0;
 	}
 
-	info.op = DAHDI_TCOP_GETINFO;
-	for (info.tcnum = 0; !(res = ioctl(fd, DAHDI_TRANSCODE_OP, &info)); info.tcnum++) {
-		ast_verb(2, "Found transcoder '%s'.\n", info.name);
+	for (info.tcnum = 0; !(res = ioctl(fd, DAHDI_TC_GETINFO, &info)); info.tcnum++) {
+		if (option_verbose > 1)
+			ast_verbose(VERBOSE_PREFIX_2 "Found transcoder '%s'.\n", info.name);
 		build_translators(&map, info.dstfmts, info.srcfmts);
 		ast_atomic_fetchadd_int(&channels.total, info.numchannels / 2);
 	}
 
 	close(fd);
 
-	if (!info.tcnum)
-		ast_verb(2, "No hardware transcoders found.\n");
+	if (!info.tcnum && (option_verbose > 1))
+		ast_verbose(VERBOSE_PREFIX_2 "No hardware transcoders found.\n");
 
 	for (x = 0; x < 32; x++) {
 		for (y = 0; y < 32; y++) {
