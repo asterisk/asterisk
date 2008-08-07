@@ -2373,624 +2373,624 @@ static void check_quota(struct vm_state *vms, char *mailbox) {
 
 
 #ifdef ODBC_STORAGE
-	struct generic_prepare_struct {
-		char *sql;
-		int argc;
-		char **argv;
-	};
+struct generic_prepare_struct {
+	char *sql;
+	int argc;
+	char **argv;
+};
 
-	static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
-	{
-		struct generic_prepare_struct *gps = data;
-		int res, i;
-		SQLHSTMT stmt;
+static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
+{
+	struct generic_prepare_struct *gps = data;
+	int res, i;
+	SQLHSTMT stmt;
 
-		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
-			return NULL;
-		}
-		res = SQLPrepare(stmt, (unsigned char *)gps->sql, SQL_NTS);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", gps->sql);
-			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-			return NULL;
-		}
-		for (i = 0; i < gps->argc; i++)
-			SQLBindParameter(stmt, i + 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(gps->argv[i]), 0, gps->argv[i], 0, NULL);
-
-		return stmt;
+	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+		return NULL;
 	}
+	res = SQLPrepare(stmt, (unsigned char *)gps->sql, SQL_NTS);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", gps->sql);
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+	for (i = 0; i < gps->argc; i++)
+		SQLBindParameter(stmt, i + 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(gps->argv[i]), 0, gps->argv[i], 0, NULL);
 
-	static int retrieve_file(char *dir, int msgnum)
-	{
-		int x = 0;
-		int res;
-		int fd = -1;
-		size_t fdlen = 0;
-		void *fdm = MAP_FAILED;
-		SQLSMALLINT colcount = 0;
-		SQLHSTMT stmt;
-		char sql[PATH_MAX];
-		char fmt[80] = "";
-		char *c;
-		char coltitle[256];
-		SQLSMALLINT collen;
-		SQLSMALLINT datatype;
-		SQLSMALLINT decimaldigits;
-		SQLSMALLINT nullable;
-		SQLULEN colsize;
-		SQLLEN colsize2;
-		FILE *f = NULL;
-		char rowdata[80];
-		char fn[PATH_MAX];
-		char full_fn[PATH_MAX];
-		char msgnums[80];
-		char *argv[] = { dir, msgnums };
-		struct generic_prepare_struct gps = { .sql = sql, .argc = 2, .argv = argv };
+	return stmt;
+}
 
-		struct odbc_obj *obj;
-		obj = ast_odbc_request_obj(odbc_database, 0);
-		if (obj) {
-			ast_copy_string(fmt, vmfmts, sizeof(fmt));
-			c = strchr(fmt, '|');
-			if (c)
-				*c = '\0';
-			if (!strcasecmp(fmt, "wav49"))
-				strcpy(fmt, "WAV");
-			snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
-			if (msgnum > -1)
-				make_file(fn, sizeof(fn), dir, msgnum);
-			else
-				ast_copy_string(fn, dir, sizeof(fn));
-			snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
-			
-			if (!(f = fopen(full_fn, "w+"))) {
-				ast_log(LOG_WARNING, "Failed to open/create '%s'\n", full_fn);
-				goto yuck;
-			}
-			
-			snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
-			snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE dir=? AND msgnum=?", odbc_table);
-			stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
-			if (!stmt) {
-				ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-				ast_odbc_release_obj(obj);
-				goto yuck;
-			}
-			res = SQLFetch(stmt);
-			if (res == SQL_NO_DATA) {
+static int retrieve_file(char *dir, int msgnum)
+{
+	int x = 0;
+	int res;
+	int fd = -1;
+	size_t fdlen = 0;
+	void *fdm = MAP_FAILED;
+	SQLSMALLINT colcount = 0;
+	SQLHSTMT stmt;
+	char sql[PATH_MAX];
+	char fmt[80] = "";
+	char *c;
+	char coltitle[256];
+	SQLSMALLINT collen;
+	SQLSMALLINT datatype;
+	SQLSMALLINT decimaldigits;
+	SQLSMALLINT nullable;
+	SQLULEN colsize;
+	SQLLEN colsize2;
+	FILE *f = NULL;
+	char rowdata[80];
+	char fn[PATH_MAX];
+	char full_fn[PATH_MAX];
+	char msgnums[80];
+	char *argv[] = { dir, msgnums };
+	struct generic_prepare_struct gps = { .sql = sql, .argc = 2, .argv = argv };
+
+	struct odbc_obj *obj;
+	obj = ast_odbc_request_obj(odbc_database, 0);
+	if (obj) {
+		ast_copy_string(fmt, vmfmts, sizeof(fmt));
+		c = strchr(fmt, '|');
+		if (c)
+			*c = '\0';
+		if (!strcasecmp(fmt, "wav49"))
+			strcpy(fmt, "WAV");
+		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
+		if (msgnum > -1)
+			make_file(fn, sizeof(fn), dir, msgnum);
+		else
+			ast_copy_string(fn, dir, sizeof(fn));
+		snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
+		
+		if (!(f = fopen(full_fn, "w+"))) {
+			ast_log(LOG_WARNING, "Failed to open/create '%s'\n", full_fn);
+			goto yuck;
+		}
+		
+		snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
+		snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE dir=? AND msgnum=?", odbc_table);
+		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
+		if (!stmt) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		res = SQLFetch(stmt);
+		if (res == SQL_NO_DATA) {
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		} else if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		fd = open(full_fn, O_RDWR | O_CREAT | O_TRUNC, VOICEMAIL_FILE_MODE);
+		if (fd < 0) {
+			ast_log(LOG_WARNING, "Failed to write '%s': %s\n", full_fn, strerror(errno));
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		res = SQLNumResultCols(stmt, &colcount);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {	
+			ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		if (f) 
+			fprintf(f, "[message]\n");
+		for (x = 0; x < colcount; x++) {
+			rowdata[0] = '\0';
+			collen = sizeof(coltitle);
+			res = SQLDescribeCol(stmt, x + 1, (unsigned char *)coltitle, sizeof(coltitle), &collen, 
+						&datatype, &colsize, &decimaldigits, &nullable);
+			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+				ast_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
 				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 				ast_odbc_release_obj(obj);
 				goto yuck;
-			} else if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
-				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-				ast_odbc_release_obj(obj);
-				goto yuck;
 			}
-			fd = open(full_fn, O_RDWR | O_CREAT | O_TRUNC, VOICEMAIL_FILE_MODE);
-			if (fd < 0) {
-				ast_log(LOG_WARNING, "Failed to write '%s': %s\n", full_fn, strerror(errno));
-				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-				ast_odbc_release_obj(obj);
-				goto yuck;
-			}
-			res = SQLNumResultCols(stmt, &colcount);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {	
-				ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
-				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-				ast_odbc_release_obj(obj);
-				goto yuck;
-			}
-			if (f) 
-				fprintf(f, "[message]\n");
-			for (x = 0; x < colcount; x++) {
-				rowdata[0] = '\0';
-				collen = sizeof(coltitle);
-				res = SQLDescribeCol(stmt, x + 1, (unsigned char *)coltitle, sizeof(coltitle), &collen, 
-							&datatype, &colsize, &decimaldigits, &nullable);
+			if (!strcasecmp(coltitle, "recording")) {
+				off_t offset;
+				res = SQLGetData(stmt, x + 1, SQL_BINARY, rowdata, 0, &colsize2);
+				fdlen = colsize2;
+				if (fd > -1) {
+					char tmp[1] = "";
+					lseek(fd, fdlen - 1, SEEK_SET);
+					if (write(fd, tmp, 1) != 1) {
+						close(fd);
+						fd = -1;
+						continue;
+					}
+					/* Read out in small chunks */
+					for (offset = 0; offset < colsize2; offset += CHUNKSIZE) {
+						if ((fdm = mmap(NULL, CHUNKSIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset)) == MAP_FAILED) {
+							ast_log(LOG_WARNING, "Could not mmap the output file: %s (%d)\n", strerror(errno), errno);
+							SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+							ast_odbc_release_obj(obj);
+							goto yuck;
+						} else {
+							res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, CHUNKSIZE, NULL);
+							munmap(fdm, CHUNKSIZE);
+							if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+								ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+								unlink(full_fn);
+								SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+								ast_odbc_release_obj(obj);
+								goto yuck;
+							}
+						}
+					}
+					truncate(full_fn, fdlen);
+				}
+			} else {
+				SQLLEN ind;
+				res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), &ind);
 				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-					ast_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
+					SQLINTEGER nativeerror = 0;
+					SQLSMALLINT diagbytes = 0;
+					unsigned char state[10], diagnostic[256];
+					SQLGetDiagRec(SQL_HANDLE_STMT, stmt, 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+					ast_log(LOG_WARNING, "SQL Get Data error: %s: %s!\n[%s]\n\n", state, diagnostic, sql);
 					SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 					ast_odbc_release_obj(obj);
 					goto yuck;
 				}
-				if (!strcasecmp(coltitle, "recording")) {
-					off_t offset;
-					res = SQLGetData(stmt, x + 1, SQL_BINARY, rowdata, 0, &colsize2);
-					fdlen = colsize2;
-					if (fd > -1) {
-						char tmp[1] = "";
-						lseek(fd, fdlen - 1, SEEK_SET);
-						if (write(fd, tmp, 1) != 1) {
-							close(fd);
-							fd = -1;
-							continue;
-						}
-						/* Read out in small chunks */
-						for (offset = 0; offset < colsize2; offset += CHUNKSIZE) {
-							if ((fdm = mmap(NULL, CHUNKSIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset)) == MAP_FAILED) {
-								ast_log(LOG_WARNING, "Could not mmap the output file: %s (%d)\n", strerror(errno), errno);
-								SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-								ast_odbc_release_obj(obj);
-								goto yuck;
-							} else {
-								res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, CHUNKSIZE, NULL);
-								munmap(fdm, CHUNKSIZE);
-								if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-									ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
-									unlink(full_fn);
-									SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-									ast_odbc_release_obj(obj);
-									goto yuck;
-								}
-							}
-						}
-						truncate(full_fn, fdlen);
-					}
-				} else {
-					SQLLEN ind;
-					res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), &ind);
-					if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-						SQLINTEGER nativeerror = 0;
-						SQLSMALLINT diagbytes = 0;
-						unsigned char state[10], diagnostic[256];
-						SQLGetDiagRec(SQL_HANDLE_STMT, stmt, 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
-						ast_log(LOG_WARNING, "SQL Get Data error: %s: %s!\n[%s]\n\n", state, diagnostic, sql);
-						SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-						ast_odbc_release_obj(obj);
-						goto yuck;
-					}
-					if (strcasecmp(coltitle, "msgnum") && strcasecmp(coltitle, "dir") && f)
-						fprintf(f, "%s=%s\n", coltitle, rowdata);
-				}
+				if (strcasecmp(coltitle, "msgnum") && strcasecmp(coltitle, "dir") && f)
+					fprintf(f, "%s=%s\n", coltitle, rowdata);
 			}
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-		} else
-			ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-	yuck:	
-		if (f)
-			fclose(f);
-		if (fd > -1)
-			close(fd);
-		return x - 1;
-	}
-
-	/*!
-	* \brief Determines the highest message number in use for a given user and mailbox folder.
-	* \param vmu 
-	* \param dir the folder the mailbox folder to look for messages. Used to construct the SQL where clause.
-	*
-	* This method is used when mailboxes are stored in an ODBC back end.
-	* Typical use to set the msgnum would be to take the value returned from this method and add one to it.
-	*
-	* \return the value of zero or greaterto indicate the last message index in use, -1 to indicate none.
-	*/
-	static int last_message_index(struct ast_vm_user *vmu, char *dir)
-	{
-		int x = 0;
-		int res;
-		SQLHSTMT stmt;
-		char sql[PATH_MAX];
-		char rowdata[20];
-		char *argv[] = { dir };
-		struct generic_prepare_struct gps = { .sql = sql, .argc = 1, .argv = argv };
-
-		struct odbc_obj *obj;
-		obj = ast_odbc_request_obj(odbc_database, 0);
-		if (obj) {
-			snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir=?", odbc_table);
-			stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
-			if (!stmt) {
-				ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-				ast_odbc_release_obj(obj);
-				goto yuck;
-			}
-			res = SQLFetch(stmt);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
-				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-				ast_odbc_release_obj(obj);
-				goto yuck;
-			}
-			res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
-				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-				ast_odbc_release_obj(obj);
-				goto yuck;
-			}
-			if (sscanf(rowdata, "%d", &x) != 1)
-				ast_log(LOG_WARNING, "Failed to read message count!\n");
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-		} else
-			ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-	yuck:	
-		return x - 1;
-	}
-
-	static int message_exists(char *dir, int msgnum)
-	{
-		int x = 0;
-		int res;
-		SQLHSTMT stmt;
-		char sql[PATH_MAX];
-		char rowdata[20];
-		char msgnums[20];
-		char *argv[] = { dir, msgnums };
-		struct generic_prepare_struct gps = { .sql = sql, .argc = 2, .argv = argv };
-
-		struct odbc_obj *obj;
-		obj = ast_odbc_request_obj(odbc_database, 0);
-		if (obj) {
-			snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
-			snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir=? AND msgnum=?", odbc_table);
-			stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
-			if (!stmt) {
-				ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-				ast_odbc_release_obj(obj);
-				goto yuck;
-			}
-			res = SQLFetch(stmt);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
-				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-				ast_odbc_release_obj(obj);
-				goto yuck;
-			}
-			res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
-				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-				ast_odbc_release_obj(obj);
-				goto yuck;
-			}
-			if (sscanf(rowdata, "%d", &x) != 1)
-				ast_log(LOG_WARNING, "Failed to read message count!\n");
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-		} else
-			ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-	yuck:	
-		return x;
-	}
-
-	static int count_messages(struct ast_vm_user *vmu, char *dir)
-	{
-		return last_message_index(vmu, dir) + 1;
-	}
-
-	static void delete_file(char *sdir, int smsg)
-	{
-		SQLHSTMT stmt;
-		char sql[PATH_MAX];
-		char msgnums[20];
-		char *argv[] = { sdir, msgnums };
-		struct generic_prepare_struct gps = { .sql = sql, .argc = 2, .argv = argv };
-
-		struct odbc_obj *obj;
-		obj = ast_odbc_request_obj(odbc_database, 0);
-		if (obj) {
-			snprintf(msgnums, sizeof(msgnums), "%d", smsg);
-			snprintf(sql, sizeof(sql), "DELETE FROM %s WHERE dir=? AND msgnum=?", odbc_table);
-			stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
-			if (!stmt)
-				ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-			else
-				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-		} else
-			ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-		return;	
-	}
-
-	static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailboxuser, char *dmailboxcontext)
-	{
-		SQLHSTMT stmt;
-		char sql[512];
-		char msgnums[20];
-		char msgnumd[20];
-		struct odbc_obj *obj;
-		char *argv[] = { ddir, msgnumd, dmailboxuser, dmailboxcontext, sdir, msgnums };
-		struct generic_prepare_struct gps = { .sql = sql, .argc = 6, .argv = argv };
-
-		delete_file(ddir, dmsg);
-		obj = ast_odbc_request_obj(odbc_database, 0);
-		if (obj) {
-			snprintf(msgnums, sizeof(msgnums), "%d", smsg);
-			snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
-			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, context, macrocontext, callerid, origtime, duration, recording, mailboxuser, mailboxcontext) SELECT ?,?,context,macrocontext,callerid,origtime,duration,recording,?,? FROM %s WHERE dir=? AND msgnum=?", odbc_table, odbc_table);
-			stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
-			if (!stmt)
-				ast_log(LOG_WARNING, "SQL Execute error!\n[%s] (You probably don't have MySQL 4.1 or later installed)\n\n", sql);
-			else
-				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-		} else
-			ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-		return;	
-	}
-
-	struct insert_cb_struct {
-		char *dir;
-		char *msgnum;
-		void *recording;
-		size_t recordinglen;
-		SQLLEN indlen;
-		const char *context;
-		const char *macrocontext;
-		const char *callerid;
-		const char *origtime;
-		const char *duration;
-		char *mailboxuser;
-		char *mailboxcontext;
-		const char *category;
-		char *sql;
-	};
-
-	static SQLHSTMT insert_cb(struct odbc_obj *obj, void *vd)
-	{
-		struct insert_cb_struct *d = vd;
-		int res;
-		SQLHSTMT stmt;
-
-		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
-			return NULL;
 		}
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		ast_odbc_release_obj(obj);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+yuck:	
+	if (f)
+		fclose(f);
+	if (fd > -1)
+		close(fd);
+	return x - 1;
+}
 
-		res = SQLPrepare(stmt, (unsigned char *)d->sql, SQL_NTS);
+/*!
+* \brief Determines the highest message number in use for a given user and mailbox folder.
+* \param vmu 
+* \param dir the folder the mailbox folder to look for messages. Used to construct the SQL where clause.
+*
+* This method is used when mailboxes are stored in an ODBC back end.
+* Typical use to set the msgnum would be to take the value returned from this method and add one to it.
+*
+* \return the value of zero or greaterto indicate the last message index in use, -1 to indicate none.
+*/
+static int last_message_index(struct ast_vm_user *vmu, char *dir)
+{
+	int x = 0;
+	int res;
+	SQLHSTMT stmt;
+	char sql[PATH_MAX];
+	char rowdata[20];
+	char *argv[] = { dir };
+	struct generic_prepare_struct gps = { .sql = sql, .argc = 1, .argv = argv };
+
+	struct odbc_obj *obj;
+	obj = ast_odbc_request_obj(odbc_database, 0);
+	if (obj) {
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir=?", odbc_table);
+		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
+		if (!stmt) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		res = SQLFetch(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", d->sql);
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		if (sscanf(rowdata, "%d", &x) != 1)
+			ast_log(LOG_WARNING, "Failed to read message count!\n");
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		ast_odbc_release_obj(obj);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+yuck:	
+	return x - 1;
+}
+
+static int message_exists(char *dir, int msgnum)
+{
+	int x = 0;
+	int res;
+	SQLHSTMT stmt;
+	char sql[PATH_MAX];
+	char rowdata[20];
+	char msgnums[20];
+	char *argv[] = { dir, msgnums };
+	struct generic_prepare_struct gps = { .sql = sql, .argc = 2, .argv = argv };
+
+	struct odbc_obj *obj;
+	obj = ast_odbc_request_obj(odbc_database, 0);
+	if (obj) {
+		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir=? AND msgnum=?", odbc_table);
+		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
+		if (!stmt) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		res = SQLFetch(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		if (sscanf(rowdata, "%d", &x) != 1)
+			ast_log(LOG_WARNING, "Failed to read message count!\n");
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		ast_odbc_release_obj(obj);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+yuck:	
+	return x;
+}
+
+static int count_messages(struct ast_vm_user *vmu, char *dir)
+{
+	return last_message_index(vmu, dir) + 1;
+}
+
+static void delete_file(char *sdir, int smsg)
+{
+	SQLHSTMT stmt;
+	char sql[PATH_MAX];
+	char msgnums[20];
+	char *argv[] = { sdir, msgnums };
+	struct generic_prepare_struct gps = { .sql = sql, .argc = 2, .argv = argv };
+
+	struct odbc_obj *obj;
+	obj = ast_odbc_request_obj(odbc_database, 0);
+	if (obj) {
+		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
+		snprintf(sql, sizeof(sql), "DELETE FROM %s WHERE dir=? AND msgnum=?", odbc_table);
+		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
+		if (!stmt)
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+		else
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		ast_odbc_release_obj(obj);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+	return;	
+}
+
+static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailboxuser, char *dmailboxcontext)
+{
+	SQLHSTMT stmt;
+	char sql[512];
+	char msgnums[20];
+	char msgnumd[20];
+	struct odbc_obj *obj;
+	char *argv[] = { ddir, msgnumd, dmailboxuser, dmailboxcontext, sdir, msgnums };
+	struct generic_prepare_struct gps = { .sql = sql, .argc = 6, .argv = argv };
+
+	delete_file(ddir, dmsg);
+	obj = ast_odbc_request_obj(odbc_database, 0);
+	if (obj) {
+		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
+		snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
+		snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, context, macrocontext, callerid, origtime, duration, recording, mailboxuser, mailboxcontext) SELECT ?,?,context,macrocontext,callerid,origtime,duration,recording,?,? FROM %s WHERE dir=? AND msgnum=?", odbc_table, odbc_table);
+		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
+		if (!stmt)
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s] (You probably don't have MySQL 4.1 or later installed)\n\n", sql);
+		else
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-			return NULL;
-		}
+		ast_odbc_release_obj(obj);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+	return;	
+}
 
-		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->dir), 0, (void *)d->dir, 0, NULL);
-		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->msgnum), 0, (void *)d->msgnum, 0, NULL);
-		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_LONGVARBINARY, d->recordinglen, 0, (void *)d->recording, 0, &d->indlen);
-		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->context), 0, (void *)d->context, 0, NULL);
-		SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->macrocontext), 0, (void *)d->macrocontext, 0, NULL);
-		SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->callerid), 0, (void *)d->callerid, 0, NULL);
-		SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->origtime), 0, (void *)d->origtime, 0, NULL);
-		SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->duration), 0, (void *)d->duration, 0, NULL);
-		SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->mailboxuser), 0, (void *)d->mailboxuser, 0, NULL);
-		SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->mailboxcontext), 0, (void *)d->mailboxcontext, 0, NULL);
-		if (!ast_strlen_zero(d->category)) {
-			SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->category), 0, (void *)d->category, 0, NULL);
-		}
+struct insert_cb_struct {
+	char *dir;
+	char *msgnum;
+	void *recording;
+	size_t recordinglen;
+	SQLLEN indlen;
+	const char *context;
+	const char *macrocontext;
+	const char *callerid;
+	const char *origtime;
+	const char *duration;
+	char *mailboxuser;
+	char *mailboxcontext;
+	const char *category;
+	char *sql;
+};
 
-		return stmt;
+static SQLHSTMT insert_cb(struct odbc_obj *obj, void *vd)
+{
+	struct insert_cb_struct *d = vd;
+	int res;
+	SQLHSTMT stmt;
+
+	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+		return NULL;
 	}
 
-	static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum)
-	{
-		int x = 0;
-		int fd = -1;
-		void *fdm = MAP_FAILED;
-		size_t fdlen = -1;
-		SQLHSTMT stmt;
-		char sql[PATH_MAX];
-		char msgnums[20];
-		char fn[PATH_MAX];
-		char full_fn[PATH_MAX];
-		char fmt[80] = "";
-		char *c;
-		struct insert_cb_struct d = {
-			.dir = dir,
-			.msgnum = msgnums,
-			.context = "",
-			.macrocontext = "",
-			.callerid = "",
-			.origtime = "",
-			.duration = "",
-			.mailboxuser = mailboxuser,
-			.mailboxcontext = mailboxcontext,
-			.category = "",
-			.sql = sql
-		};
-		struct ast_config *cfg = NULL;
-		struct odbc_obj *obj;
-		struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
+	res = SQLPrepare(stmt, (unsigned char *)d->sql, SQL_NTS);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", d->sql);
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
 
-		delete_file(dir, msgnum);
-		obj = ast_odbc_request_obj(odbc_database, 0);
-		if (obj) {
-			ast_copy_string(fmt, vmfmts, sizeof(fmt));
-			c = strchr(fmt, '|');
-			if (c)
-				*c = '\0';
-			if (!strcasecmp(fmt, "wav49"))
-				strcpy(fmt, "WAV");
-			snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
-			if (msgnum > -1)
-				make_file(fn, sizeof(fn), dir, msgnum);
-			else
-				ast_copy_string(fn, dir, sizeof(fn));
-			snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
-			cfg = ast_config_load(full_fn, config_flags);
-			snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
-			fd = open(full_fn, O_RDWR);
-			if (fd < 0) {
-				ast_log(LOG_WARNING, "Open of sound file '%s' failed: %s\n", full_fn, strerror(errno));
-				ast_odbc_release_obj(obj);
-				goto yuck;
-			}
-			if (cfg) {
-				d.context = ast_variable_retrieve(cfg, "message", "context");
-				if (!d.context) d.context = "";
-				d.macrocontext = ast_variable_retrieve(cfg, "message", "macrocontext");
-				if (!d.macrocontext) d.macrocontext = "";
-				d.callerid = ast_variable_retrieve(cfg, "message", "callerid");
-				if (!d.callerid) d.callerid = "";
-				d.origtime = ast_variable_retrieve(cfg, "message", "origtime");
-				if (!d.origtime) d.origtime = "";
-				d.duration = ast_variable_retrieve(cfg, "message", "duration");
-				if (!d.duration) d.duration = "";
-				d.category = ast_variable_retrieve(cfg, "message", "category");
-				if (!d.category) d.category = "";
-			}
-			fdlen = lseek(fd, 0, SEEK_END);
-			lseek(fd, 0, SEEK_SET);
-			printf("Length is %zd\n", fdlen);
-			fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-			if (fdm == MAP_FAILED) {
-				ast_log(LOG_WARNING, "Memory map failed!\n");
-				ast_odbc_release_obj(obj);
-				goto yuck;
-			} 
-			d.recording = fdm;
-			d.recordinglen = d.indlen = fdlen; /* SQL_LEN_DATA_AT_EXEC(fdlen); */
-			if (!ast_strlen_zero(d.category)) 
-				snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext,category) VALUES (?,?,?,?,?,?,?,?,?,?,?)", odbc_table);
-			else
-				snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext) VALUES (?,?,?,?,?,?,?,?,?,?)", odbc_table);
-			stmt = ast_odbc_prepare_and_execute(obj, insert_cb, &d);
-			if (stmt) {
-				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-			}
+	SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->dir), 0, (void *)d->dir, 0, NULL);
+	SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->msgnum), 0, (void *)d->msgnum, 0, NULL);
+	SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_LONGVARBINARY, d->recordinglen, 0, (void *)d->recording, 0, &d->indlen);
+	SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->context), 0, (void *)d->context, 0, NULL);
+	SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->macrocontext), 0, (void *)d->macrocontext, 0, NULL);
+	SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->callerid), 0, (void *)d->callerid, 0, NULL);
+	SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->origtime), 0, (void *)d->origtime, 0, NULL);
+	SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->duration), 0, (void *)d->duration, 0, NULL);
+	SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->mailboxuser), 0, (void *)d->mailboxuser, 0, NULL);
+	SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->mailboxcontext), 0, (void *)d->mailboxcontext, 0, NULL);
+	if (!ast_strlen_zero(d->category)) {
+		SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(d->category), 0, (void *)d->category, 0, NULL);
+	}
+
+	return stmt;
+}
+
+static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum)
+{
+	int x = 0;
+	int fd = -1;
+	void *fdm = MAP_FAILED;
+	size_t fdlen = -1;
+	SQLHSTMT stmt;
+	char sql[PATH_MAX];
+	char msgnums[20];
+	char fn[PATH_MAX];
+	char full_fn[PATH_MAX];
+	char fmt[80] = "";
+	char *c;
+	struct insert_cb_struct d = {
+		.dir = dir,
+		.msgnum = msgnums,
+		.context = "",
+		.macrocontext = "",
+		.callerid = "",
+		.origtime = "",
+		.duration = "",
+		.mailboxuser = mailboxuser,
+		.mailboxcontext = mailboxcontext,
+		.category = "",
+		.sql = sql
+	};
+	struct ast_config *cfg = NULL;
+	struct odbc_obj *obj;
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
+
+	delete_file(dir, msgnum);
+	obj = ast_odbc_request_obj(odbc_database, 0);
+	if (obj) {
+		ast_copy_string(fmt, vmfmts, sizeof(fmt));
+		c = strchr(fmt, '|');
+		if (c)
+			*c = '\0';
+		if (!strcasecmp(fmt, "wav49"))
+			strcpy(fmt, "WAV");
+		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
+		if (msgnum > -1)
+			make_file(fn, sizeof(fn), dir, msgnum);
+		else
+			ast_copy_string(fn, dir, sizeof(fn));
+		snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
+		cfg = ast_config_load(full_fn, config_flags);
+		snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
+		fd = open(full_fn, O_RDWR);
+		if (fd < 0) {
+			ast_log(LOG_WARNING, "Open of sound file '%s' failed: %s\n", full_fn, strerror(errno));
 			ast_odbc_release_obj(obj);
-		} else
-			ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-	yuck:	
-		if (cfg)
-			ast_config_destroy(cfg);
-		if (fdm != MAP_FAILED)
-			munmap(fdm, fdlen);
-		if (fd > -1)
-			close(fd);
-		return x;
-	}
-
-	static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxcontext, char *ddir, int dmsg)
-	{
-		SQLHSTMT stmt;
-		char sql[PATH_MAX];
-		char msgnums[20];
-		char msgnumd[20];
-		struct odbc_obj *obj;
-		char *argv[] = { ddir, msgnumd, mailboxuser, mailboxcontext, sdir, msgnums };
-		struct generic_prepare_struct gps = { .sql = sql, .argc = 6, .argv = argv };
-
-		delete_file(ddir, dmsg);
-		obj = ast_odbc_request_obj(odbc_database, 0);
-		if (obj) {
-			snprintf(msgnums, sizeof(msgnums), "%d", smsg);
-			snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
-			snprintf(sql, sizeof(sql), "UPDATE %s SET dir=?, msgnum=?, mailboxuser=?, mailboxcontext=? WHERE dir=? AND msgnum=?", odbc_table);
-			stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
-			if (!stmt)
-				ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-			else
-				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		if (cfg) {
+			d.context = ast_variable_retrieve(cfg, "message", "context");
+			if (!d.context) d.context = "";
+			d.macrocontext = ast_variable_retrieve(cfg, "message", "macrocontext");
+			if (!d.macrocontext) d.macrocontext = "";
+			d.callerid = ast_variable_retrieve(cfg, "message", "callerid");
+			if (!d.callerid) d.callerid = "";
+			d.origtime = ast_variable_retrieve(cfg, "message", "origtime");
+			if (!d.origtime) d.origtime = "";
+			d.duration = ast_variable_retrieve(cfg, "message", "duration");
+			if (!d.duration) d.duration = "";
+			d.category = ast_variable_retrieve(cfg, "message", "category");
+			if (!d.category) d.category = "";
+		}
+		fdlen = lseek(fd, 0, SEEK_END);
+		lseek(fd, 0, SEEK_SET);
+		printf("Length is %zd\n", fdlen);
+		fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+		if (fdm == MAP_FAILED) {
+			ast_log(LOG_WARNING, "Memory map failed!\n");
 			ast_odbc_release_obj(obj);
-		} else
-			ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-		return;	
-	}
+			goto yuck;
+		} 
+		d.recording = fdm;
+		d.recordinglen = d.indlen = fdlen; /* SQL_LEN_DATA_AT_EXEC(fdlen); */
+		if (!ast_strlen_zero(d.category)) 
+			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext,category) VALUES (?,?,?,?,?,?,?,?,?,?,?)", odbc_table);
+		else
+			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext) VALUES (?,?,?,?,?,?,?,?,?,?)", odbc_table);
+		stmt = ast_odbc_prepare_and_execute(obj, insert_cb, &d);
+		if (stmt) {
+			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		}
+		ast_odbc_release_obj(obj);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+yuck:	
+	if (cfg)
+		ast_config_destroy(cfg);
+	if (fdm != MAP_FAILED)
+		munmap(fdm, fdlen);
+	if (fd > -1)
+		close(fd);
+	return x;
+}
+
+static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxcontext, char *ddir, int dmsg)
+{
+	SQLHSTMT stmt;
+	char sql[PATH_MAX];
+	char msgnums[20];
+	char msgnumd[20];
+	struct odbc_obj *obj;
+	char *argv[] = { ddir, msgnumd, mailboxuser, mailboxcontext, sdir, msgnums };
+	struct generic_prepare_struct gps = { .sql = sql, .argc = 6, .argv = argv };
+
+	delete_file(ddir, dmsg);
+	obj = ast_odbc_request_obj(odbc_database, 0);
+	if (obj) {
+		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
+		snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
+		snprintf(sql, sizeof(sql), "UPDATE %s SET dir=?, msgnum=?, mailboxuser=?, mailboxcontext=? WHERE dir=? AND msgnum=?", odbc_table);
+		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
+		if (!stmt)
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+		else
+			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		ast_odbc_release_obj(obj);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+	return;	
+}
 
 #else
 #ifndef IMAP_STORAGE
-	static int count_messages(struct ast_vm_user *vmu, char *dir)
-	{
-		/* Find all .txt files - even if they are not in sequence from 0000 */
+static int count_messages(struct ast_vm_user *vmu, char *dir)
+{
+	/* Find all .txt files - even if they are not in sequence from 0000 */
 
-		int vmcount = 0;
-		DIR *vmdir = NULL;
-		struct dirent *vment = NULL;
+	int vmcount = 0;
+	DIR *vmdir = NULL;
+	struct dirent *vment = NULL;
 
-		if (vm_lock_path(dir))
-			return ERROR_LOCK_PATH;
+	if (vm_lock_path(dir))
+		return ERROR_LOCK_PATH;
 
-		if ((vmdir = opendir(dir))) {
-			while ((vment = readdir(vmdir))) {
-				if (strlen(vment->d_name) > 7 && !strncmp(vment->d_name + 7, ".txt", 4)) 
-					vmcount++;
-			}
-			closedir(vmdir);
+	if ((vmdir = opendir(dir))) {
+		while ((vment = readdir(vmdir))) {
+			if (strlen(vment->d_name) > 7 && !strncmp(vment->d_name + 7, ".txt", 4)) 
+				vmcount++;
 		}
-		ast_unlock_path(dir);
-		
-		return vmcount;
+		closedir(vmdir);
 	}
+	ast_unlock_path(dir);
+	
+	return vmcount;
+}
 
-	static void rename_file(char *sfn, char *dfn)
-	{
-		char stxt[PATH_MAX];
-		char dtxt[PATH_MAX];
-		ast_filerename(sfn, dfn, NULL);
-		snprintf(stxt, sizeof(stxt), "%s.txt", sfn);
-		snprintf(dtxt, sizeof(dtxt), "%s.txt", dfn);
-		if (ast_check_realtime("voicemail_data")) {
-			ast_update_realtime("voicemail_data", "filename", sfn, "filename", dfn, NULL);
-		}
-		rename(stxt, dtxt);
+static void rename_file(char *sfn, char *dfn)
+{
+	char stxt[PATH_MAX];
+	char dtxt[PATH_MAX];
+	ast_filerename(sfn, dfn, NULL);
+	snprintf(stxt, sizeof(stxt), "%s.txt", sfn);
+	snprintf(dtxt, sizeof(dtxt), "%s.txt", dfn);
+	if (ast_check_realtime("voicemail_data")) {
+		ast_update_realtime("voicemail_data", "filename", sfn, "filename", dfn, NULL);
 	}
+	rename(stxt, dtxt);
+}
 #endif
 
 #ifndef IMAP_STORAGE
-	/*! \brief
-	* A negative return value indicates an error.
-	* \note Should always be called with a lock already set on dir.
-	*/
-	static int last_message_index(struct ast_vm_user *vmu, char *dir)
-	{
-		int x;
-		unsigned char map[MAXMSGLIMIT] = "";
-		DIR *msgdir;
-		struct dirent *msgdirent;
-		int msgdirint;
+/*! \brief
+* A negative return value indicates an error.
+* \note Should always be called with a lock already set on dir.
+*/
+static int last_message_index(struct ast_vm_user *vmu, char *dir)
+{
+	int x;
+	unsigned char map[MAXMSGLIMIT] = "";
+	DIR *msgdir;
+	struct dirent *msgdirent;
+	int msgdirint;
 
-		/* Reading the entire directory into a file map scales better than
-		* doing a stat repeatedly on a predicted sequence.  I suspect this
-		* is partially due to stat(2) internally doing a readdir(2) itself to
-		* find each file. */
-		msgdir = opendir(dir);
-		while ((msgdirent = readdir(msgdir))) {
-			if (sscanf(msgdirent->d_name, "msg%d", &msgdirint) == 1 && msgdirint < MAXMSGLIMIT)
-				map[msgdirint] = 1;
-		}
-		closedir(msgdir);
-
-		for (x = 0; x < vmu->maxmsg; x++) {
-			if (map[x] == 0)
-				break;
-		}
-
-		return x - 1;
+	/* Reading the entire directory into a file map scales better than
+	* doing a stat repeatedly on a predicted sequence.  I suspect this
+	* is partially due to stat(2) internally doing a readdir(2) itself to
+	* find each file. */
+	msgdir = opendir(dir);
+	while ((msgdirent = readdir(msgdir))) {
+		if (sscanf(msgdirent->d_name, "msg%d", &msgdirint) == 1 && msgdirint < MAXMSGLIMIT)
+			map[msgdirint] = 1;
 	}
+	closedir(msgdir);
+
+	for (x = 0; x < vmu->maxmsg; x++) {
+		if (map[x] == 0)
+			break;
+	}
+
+	return x - 1;
+}
 #if (defined(IMAP_STORAGE) || defined(ODBC_STORAGE))
-	/*!
-	* \brief Removes a voicemail message file.
-	* \param dir the path to the message file.
-	* \param msgnum the unique number for the message within the mailbox.
-	*
-	* Removes the message content file and the information file.
-	* This method is used by the DISPOSE macro when mailboxes are stored in an ODBC back end.
-	* Typical use is to clean up after a RETRIEVE operation. 
-	* Note that this does not remove the message from the mailbox folders, to do that we would use delete_file().
-	* \return zero on success, -1 on error.
-	*/
-	static int remove_file(char *dir, int msgnum)
-	{
-		char fn[PATH_MAX];
-		char full_fn[PATH_MAX];
-		char msgnums[80];
-		
-		if (msgnum > -1) {
-			snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
-			make_file(fn, sizeof(fn), dir, msgnum);
-		} else
-			ast_copy_string(fn, dir, sizeof(fn));
-		ast_filedelete(fn, NULL);	
-		snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
-		unlink(full_fn);
-		return 0;
-	}
+/*!
+* \brief Removes a voicemail message file.
+* \param dir the path to the message file.
+* \param msgnum the unique number for the message within the mailbox.
+*
+* Removes the message content file and the information file.
+* This method is used by the DISPOSE macro when mailboxes are stored in an ODBC back end.
+* Typical use is to clean up after a RETRIEVE operation. 
+* Note that this does not remove the message from the mailbox folders, to do that we would use delete_file().
+* \return zero on success, -1 on error.
+*/
+static int remove_file(char *dir, int msgnum)
+{
+	char fn[PATH_MAX];
+	char full_fn[PATH_MAX];
+	char msgnums[80];
+	
+	if (msgnum > -1) {
+		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
+		make_file(fn, sizeof(fn), dir, msgnum);
+	} else
+		ast_copy_string(fn, dir, sizeof(fn));
+	ast_filedelete(fn, NULL);	
+	snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
+	unlink(full_fn);
+	return 0;
+}
 #endif
 
 #endif /* #ifndef IMAP_STORAGE */
