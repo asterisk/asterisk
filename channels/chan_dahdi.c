@@ -10791,6 +10791,9 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					return -1;
 		} else if (!strcasecmp(v->name, "zapchan") || !strcasecmp(v->name, "dahdichan")) {
 			ast_copy_string(dahdichan, v->value, sizeof(dahdichan));
+			if (v->name[0] == 'z' || v->name[0] == 'Z') {
+				ast_log(LOG_WARNING, "Option zapchan has been deprecated in favor of dahdichan (found in [%s])\n", cat);
+			}
 		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
 			if (ast_true(v->value))
 				confp->chan.usedistinctiveringdetection = 1;
@@ -10968,8 +10971,11 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			ast_copy_string(confp->chan.cid_name, v->value, sizeof(confp->chan.cid_name));
 		} else if (!strcasecmp(v->name, "cid_number")) {
 			ast_copy_string(confp->chan.cid_num, v->value, sizeof(confp->chan.cid_num));
-		} else if (!strcasecmp(v->name, "useincomingcalleridondahditransfer")) {
+		} else if (!strcasecmp(v->name, "useincomingcalleridondahditransfer") || !strcasecmp(v->name, "useincomingcalleridonzaptransfer")) {
 			confp->chan.dahditrcallerid = ast_true(v->value);
+			if (strstr(v->name, "zap")) {
+				ast_log(LOG_WARNING, "Option useincomingcalleridonzaptransfer has been deprecated in favor of useincomingcalleridondahditransfer (in [%s]).\n", cat);
+			}
 		} else if (!strcasecmp(v->name, "restrictcid")) {
 			confp->chan.restrictcid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "usecallingpres")) {
