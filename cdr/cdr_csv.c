@@ -178,7 +178,7 @@ static int append_int(char *buf, int s, size_t bufsize)
 	return 0;
 }
 
-static int append_date(char *buf, struct timeval tv, size_t bufsize)
+static int append_date(char *buf, struct timeval when, size_t bufsize)
 {
 	char tmp[80] = "";
 	struct ast_tm tm;
@@ -186,12 +186,12 @@ static int append_date(char *buf, struct timeval tv, size_t bufsize)
 	if (strlen(buf) > bufsize - 3)
 		return -1;
 
-	if (ast_tvzero(tv)) {
+	if (ast_tvzero(when)) {
 		strncat(buf, ",", bufsize - strlen(buf) - 1);
 		return 0;
 	}
 
-	ast_localtime(&tv, &tm, usegmtime ? "GMT" : NULL);
+	ast_localtime(&when, &tm, usegmtime ? "GMT" : NULL);
 	ast_strftime(tmp, sizeof(tmp), DATE_FORMAT, &tm);
 
 	return append_string(buf, tmp, bufsize);

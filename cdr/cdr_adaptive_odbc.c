@@ -191,8 +191,8 @@ static int load_config(void)
 			 */
 			for (var = ast_variable_browse(cfg, catg); var; var = var->next) {
 				if (strncmp(var->name, "alias", 5) == 0 && strcasecmp(var->value, columnname) == 0) {
-					char *tmp = ast_strdupa(var->name + 5);
-					cdrvar = ast_strip(tmp);
+					char *alias = ast_strdupa(var->name + 5);
+					cdrvar = ast_strip(alias);
 					ast_verb(3, "Found alias %s for column %s in %s@%s\n", cdrvar, columnname, tableptr->table, tableptr->connection);
 					break;
 				}

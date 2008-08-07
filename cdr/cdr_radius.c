@@ -87,50 +87,50 @@ static struct ast_flags global_flags = { RADIUS_FLAG_USEGMTIME | RADIUS_FLAG_LOG
 
 static rc_handle *rh = NULL;
 
-static int build_radius_record(VALUE_PAIR **send, struct ast_cdr *cdr)
+static int build_radius_record(VALUE_PAIR **tosend, struct ast_cdr *cdr)
 {
 	int recordtype = PW_STATUS_STOP;
 	struct ast_tm tm;
 	char timestr[128];
 	char *tmp;
 
-	if (!rc_avpair_add(rh, send, PW_ACCT_STATUS_TYPE, &recordtype, 0, 0))
+	if (!rc_avpair_add(rh, tosend, PW_ACCT_STATUS_TYPE, &recordtype, 0, 0))
 		return -1;
 
 	/* Account code */
-	if (!rc_avpair_add(rh, send, PW_AST_ACCT_CODE, &cdr->accountcode, strlen(cdr->accountcode), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_ACCT_CODE, &cdr->accountcode, strlen(cdr->accountcode), VENDOR_CODE))
 		return -1;
 
  	/* Source */
-	if (!rc_avpair_add(rh, send, PW_AST_SRC, &cdr->src, strlen(cdr->src), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_SRC, &cdr->src, strlen(cdr->src), VENDOR_CODE))
 		return -1;
 
  	/* Destination */
-	if (!rc_avpair_add(rh, send, PW_AST_DST, &cdr->dst, strlen(cdr->dst), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_DST, &cdr->dst, strlen(cdr->dst), VENDOR_CODE))
 		return -1;
 
  	/* Destination context */
-	if (!rc_avpair_add(rh, send, PW_AST_DST_CTX, &cdr->dcontext, strlen(cdr->dcontext), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_DST_CTX, &cdr->dcontext, strlen(cdr->dcontext), VENDOR_CODE))
 		return -1;
 
 	/* Caller ID */
-	if (!rc_avpair_add(rh, send, PW_AST_CLID, &cdr->clid, strlen(cdr->clid), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_CLID, &cdr->clid, strlen(cdr->clid), VENDOR_CODE))
 		return -1;
 
 	/* Channel */
-	if (!rc_avpair_add(rh, send, PW_AST_CHAN, &cdr->channel, strlen(cdr->channel), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_CHAN, &cdr->channel, strlen(cdr->channel), VENDOR_CODE))
 		return -1;
 
 	/* Destination Channel */
-	if (!rc_avpair_add(rh, send, PW_AST_DST_CHAN, &cdr->dstchannel, strlen(cdr->dstchannel), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_DST_CHAN, &cdr->dstchannel, strlen(cdr->dstchannel), VENDOR_CODE))
 		return -1;
 
 	/* Last Application */
-	if (!rc_avpair_add(rh, send, PW_AST_LAST_APP, &cdr->lastapp, strlen(cdr->lastapp), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_LAST_APP, &cdr->lastapp, strlen(cdr->lastapp), VENDOR_CODE))
 		return -1;
 
 	/* Last Data */
-	if (!rc_avpair_add(rh, send, PW_AST_LAST_DATA, &cdr->lastdata, strlen(cdr->lastdata), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_LAST_DATA, &cdr->lastdata, strlen(cdr->lastdata), VENDOR_CODE))
 		return -1;
 
 
@@ -138,61 +138,61 @@ static int build_radius_record(VALUE_PAIR **send, struct ast_cdr *cdr)
 	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, 
 		ast_localtime(&cdr->start, &tm,
 			ast_test_flag(&global_flags, RADIUS_FLAG_USEGMTIME) ? "GMT" : NULL));
-	if (!rc_avpair_add(rh, send, PW_AST_START_TIME, timestr, strlen(timestr), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_START_TIME, timestr, strlen(timestr), VENDOR_CODE))
 		return -1;
 
 	/* Answer Time */
 	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, 
 		ast_localtime(&cdr->answer, &tm,
 			ast_test_flag(&global_flags, RADIUS_FLAG_USEGMTIME) ? "GMT" : NULL));
-	if (!rc_avpair_add(rh, send, PW_AST_ANSWER_TIME, timestr, strlen(timestr), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_ANSWER_TIME, timestr, strlen(timestr), VENDOR_CODE))
 		return -1;
 
 	/* End Time */
 	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, 
 		ast_localtime(&cdr->end, &tm,
 			ast_test_flag(&global_flags, RADIUS_FLAG_USEGMTIME) ? "GMT" : NULL));
-	if (!rc_avpair_add(rh, send, PW_AST_END_TIME, timestr, strlen(timestr), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_END_TIME, timestr, strlen(timestr), VENDOR_CODE))
 		return -1;
 
  	/* Duration */ 
-	if (!rc_avpair_add(rh, send, PW_AST_DURATION, &cdr->duration, 0, VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_DURATION, &cdr->duration, 0, VENDOR_CODE))
 		return -1;
 
 	/* Billable seconds */
-	if (!rc_avpair_add(rh, send, PW_AST_BILL_SEC, &cdr->billsec, 0, VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_BILL_SEC, &cdr->billsec, 0, VENDOR_CODE))
 		return -1;
 
 	/* Disposition */
 	tmp = ast_cdr_disp2str(cdr->disposition);
-	if (!rc_avpair_add(rh, send, PW_AST_DISPOSITION, tmp, strlen(tmp), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_DISPOSITION, tmp, strlen(tmp), VENDOR_CODE))
 		return -1;
 
 	/* AMA Flags */
 	tmp = ast_cdr_flags2str(cdr->amaflags);
-	if (!rc_avpair_add(rh, send, PW_AST_AMA_FLAGS, tmp, strlen(tmp), VENDOR_CODE))
+	if (!rc_avpair_add(rh, tosend, PW_AST_AMA_FLAGS, tmp, strlen(tmp), VENDOR_CODE))
 		return -1;
 
 	if (ast_test_flag(&global_flags, RADIUS_FLAG_LOGUNIQUEID)) {
 		/* Unique ID */
-		if (!rc_avpair_add(rh, send, PW_AST_UNIQUE_ID, &cdr->uniqueid, strlen(cdr->uniqueid), VENDOR_CODE))
+		if (!rc_avpair_add(rh, tosend, PW_AST_UNIQUE_ID, &cdr->uniqueid, strlen(cdr->uniqueid), VENDOR_CODE))
 			return -1;
 	}
 
 	if (ast_test_flag(&global_flags, RADIUS_FLAG_LOGUSERFIELD)) {
 		/* append the user field */
-		if (!rc_avpair_add(rh, send, PW_AST_USER_FIELD, &cdr->userfield, strlen(cdr->userfield), VENDOR_CODE))
+		if (!rc_avpair_add(rh, tosend, PW_AST_USER_FIELD, &cdr->userfield, strlen(cdr->userfield), VENDOR_CODE))
 			return -1;
 	}
 
 	/* Setting Acct-Session-Id & User-Name attributes for proper generation
 	   of Acct-Unique-Session-Id on server side */ 
 	/* Channel */
-	if (!rc_avpair_add(rh, send, PW_USER_NAME, &cdr->channel, strlen(cdr->channel), 0))
+	if (!rc_avpair_add(rh, tosend, PW_USER_NAME, &cdr->channel, strlen(cdr->channel), 0))
 		return -1;
 
 	/* Unique ID */
-	if (!rc_avpair_add(rh, send, PW_ACCT_SESSION_ID, &cdr->uniqueid, strlen(cdr->uniqueid), 0))
+	if (!rc_avpair_add(rh, tosend, PW_ACCT_SESSION_ID, &cdr->uniqueid, strlen(cdr->uniqueid), 0))
 		return -1;
 
 	return 0;
@@ -201,14 +201,14 @@ static int build_radius_record(VALUE_PAIR **send, struct ast_cdr *cdr)
 static int radius_log(struct ast_cdr *cdr)
 {
 	int result = ERROR_RC;
-	VALUE_PAIR *send = NULL;
+	VALUE_PAIR *tosend = NULL;
 
-	if (build_radius_record(&send, cdr)) {
+	if (build_radius_record(&tosend, cdr)) {
 		ast_debug(1, "Unable to create RADIUS record. CDR not recorded!\n");
 		return result;
 	}
 	
-	result = rc_acct(rh, 0, send);
+	result = rc_acct(rh, 0, tosend);
 	if (result != OK_RC)
 		ast_log(LOG_ERROR, "Failed to record Radius CDR record!\n");
 

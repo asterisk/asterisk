@@ -265,12 +265,12 @@ static char *anti_injection(const char *str, int len)
 	return buf;
 }
 
-static void get_date(char *dateField, size_t len, struct timeval tv)
+static void get_date(char *dateField, size_t len, struct timeval when)
 {
 	/* To make sure we have date variable if not insert null to SQL */
 	if (!ast_tvzero(tv)) {
 		struct ast_tm tm;
-		ast_localtime(&tv, &tm, NULL);
+		ast_localtime(&when, &tm, NULL);
 		ast_strftime(dateField, len, "'" DATE_FORMAT "'", &tm);
 	} else {
 		ast_copy_string(dateField, "null", len);

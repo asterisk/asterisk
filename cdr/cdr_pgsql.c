@@ -204,14 +204,14 @@ static int pgsql_log(struct ast_cdr *cdr)
 					LENGTHEN_BUF2(12);
 					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%s", value);
 				} else if (strncmp(cur->type, "float", 5) == 0) {
-					struct timeval *tv = cur->name[0] == 'd' ? &cdr->start : &cdr->answer;
+					struct timeval *when = cur->name[0] == 'd' ? &cdr->start : &cdr->answer;
 					LENGTHEN_BUF2(30);
-					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%f", (double)cdr->end.tv_sec - tv->tv_sec + cdr->end.tv_usec / 1000000.0 - tv->tv_usec / 1000000.0);
+					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%f", (double)cdr->end.tv_sec - when->tv_sec + cdr->end.tv_usec / 1000000.0 - when->tv_usec / 1000000.0);
 				} else {
 					/* Char field, probably */
-					struct timeval *tv = cur->name[0] == 'd' ? &cdr->start : &cdr->answer;
+					struct timeval *when = cur->name[0] == 'd' ? &cdr->start : &cdr->answer;
 					LENGTHEN_BUF2(30);
-					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "'%f'", (double)cdr->end.tv_sec - tv->tv_sec + cdr->end.tv_usec / 1000000.0 - tv->tv_usec / 1000000.0);
+					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "'%f'", (double)cdr->end.tv_sec - when->tv_sec + cdr->end.tv_usec / 1000000.0 - when->tv_usec / 1000000.0);
 				}
 			} else if (strcmp(cur->name, "disposition") == 0 || strcmp(cur->name, "amaflags") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
@@ -321,7 +321,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 
 static int unload_module(void)
 {
-	struct columns *cur;
+	struct columns *current;
 	ast_cdr_unregister(name);
 
 	/* Give all threads time to finish */
@@ -342,8 +342,8 @@ static int unload_module(void)
 		ast_free(table);
 
 	AST_RWLIST_WRLOCK(&psql_columns);
-	while ((cur = AST_RWLIST_REMOVE_HEAD(&psql_columns, list))) {
-		ast_free(cur);
+	while ((current = AST_RWLIST_REMOVE_HEAD(&psql_columns, list))) {
+		ast_free(current);
 	}
 	AST_RWLIST_UNLOCK(&psql_columns);
 
