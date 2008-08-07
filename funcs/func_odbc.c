@@ -626,25 +626,25 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 
 	if (((tmp = ast_variable_retrieve(cfg, catg, "writehandle"))) || ((tmp = ast_variable_retrieve(cfg, catg, "dsn")))) {
 		char *tmp2 = ast_strdupa(tmp);
-		AST_DECLARE_APP_ARGS(write,
+		AST_DECLARE_APP_ARGS(writeconf,
 			AST_APP_ARG(dsn)[5];
 		);
-		AST_STANDARD_APP_ARGS(write, tmp2);
+		AST_STANDARD_APP_ARGS(writeconf, tmp2);
 		for (i = 0; i < 5; i++) {
-			if (!ast_strlen_zero(write.dsn[i]))
-				ast_copy_string((*query)->writehandle[i], write.dsn[i], sizeof((*query)->writehandle[i]));
+			if (!ast_strlen_zero(writeconf.dsn[i]))
+				ast_copy_string((*query)->writehandle[i], writeconf.dsn[i], sizeof((*query)->writehandle[i]));
 		}
 	}
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "readhandle"))) {
 		char *tmp2 = ast_strdupa(tmp);
-		AST_DECLARE_APP_ARGS(read,
+		AST_DECLARE_APP_ARGS(readconf,
 			AST_APP_ARG(dsn)[5];
 		);
-		AST_STANDARD_APP_ARGS(read, tmp2);
+		AST_STANDARD_APP_ARGS(readconf, tmp2);
 		for (i = 0; i < 5; i++) {
-			if (!ast_strlen_zero(read.dsn[i]))
-				ast_copy_string((*query)->readhandle[i], read.dsn[i], sizeof((*query)->readhandle[i]));
+			if (!ast_strlen_zero(readconf.dsn[i]))
+				ast_copy_string((*query)->readhandle[i], readconf.dsn[i], sizeof((*query)->readhandle[i]));
 		}
 	} else {
 		/* If no separate readhandle, then use the writehandle for reading */

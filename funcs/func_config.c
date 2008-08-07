@@ -170,13 +170,13 @@ static struct ast_custom_function config_function = {
 
 static int unload_module(void)
 {
-	struct config_item *cur;
+	struct config_item *current;
 	int res = ast_custom_function_unregister(&config_function);
 
 	AST_RWLIST_WRLOCK(&configs);
-	while ((cur = AST_RWLIST_REMOVE_HEAD(&configs, entry))) {
-		ast_config_destroy(cur->cfg);
-		ast_free(cur);
+	while ((current = AST_RWLIST_REMOVE_HEAD(&configs, entry))) {
+		ast_config_destroy(current->cfg);
+		ast_free(current);
 	}
 	AST_RWLIST_UNLOCK(&configs);
 

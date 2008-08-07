@@ -609,14 +609,14 @@ static struct ast_custom_function quote_function = {
 
 
 static int len(struct ast_channel *chan, const char *cmd, char *data, char *buf,
-	       size_t len)
+	       size_t buflen)
 {
 	int length = 0;
 
 	if (data)
 		length = strlen(data);
 
-	snprintf(buf, len, "%d", length);
+	snprintf(buf, buflen, "%d", length);
 
 	return 0;
 }
@@ -629,30 +629,30 @@ static struct ast_custom_function len_function = {
 };
 
 static int acf_strftime(struct ast_channel *chan, const char *cmd, char *parse,
-			char *buf, size_t len)
+			char *buf, size_t buflen)
 {
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(epoch);
 			     AST_APP_ARG(timezone);
 			     AST_APP_ARG(format);
 	);
-	struct timeval tv;
+	struct timeval when;
 	struct ast_tm tm;
 
 	buf[0] = '\0';
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	ast_get_timeval(args.epoch, &tv, ast_tvnow(), NULL);
-	ast_localtime(&tv, &tm, args.timezone);
+	ast_get_timeval(args.epoch, &when, ast_tvnow(), NULL);
+	ast_localtime(&when, &tm, args.timezone);
 
 	if (!args.format)
 		args.format = "%c";
 
-	if (ast_strftime(buf, len, args.format, &tm) <= 0)
+	if (ast_strftime(buf, buflen, args.format, &tm) <= 0)
 		ast_log(LOG_WARNING, "C function strftime() output nothing?!!\n");
 
-	buf[len - 1] = '\0';
+	buf[buflen - 1] = '\0';
 
 	return 0;
 }
@@ -673,7 +673,7 @@ static struct ast_custom_function strftime_function = {
 };
 
 static int acf_strptime(struct ast_channel *chan, const char *cmd, char *data,
-			char *buf, size_t len)
+			char *buf, size_t buflen)
 {
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(timestring);
@@ -704,11 +704,11 @@ static int acf_strptime(struct ast_channel *chan, const char *cmd, char *data,
 	if (!strptime(args.timestring, args.format, &t.time)) {
 		ast_log(LOG_WARNING, "C function strptime() output nothing?!!\n");
 	} else {
-		struct timeval tv;
+		struct timeval when;
 		/* Since strptime(3) does not check DST, force ast_mktime() to calculate it. */
 		t.atm.tm_isdst = -1;
-		tv = ast_mktime(&t.atm, args.timezone);
-		snprintf(buf, len, "%d", (int) tv.tv_sec);
+		when = ast_mktime(&t.atm, args.timezone);
+		snprintf(buf, buflen, "%d", (int) when.tv_sec);
 	}
 
 	return 0;
@@ -730,7 +730,7 @@ static struct ast_custom_function strptime_function = {
 };
 
 static int function_eval(struct ast_channel *chan, const char *cmd, char *data,
-			 char *buf, size_t len)
+			 char *buf, size_t buflen)
 {
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "EVAL requires an argument: EVAL(<string>)\n");
@@ -739,7 +739,7 @@ static int function_eval(struct ast_channel *chan, const char *cmd, char *data,
 
 	if (chan)
 		ast_autoservice_start(chan);
-	pbx_substitute_variables_helper(chan, data, buf, len - 1);
+	pbx_substitute_variables_helper(chan, data, buf, buflen - 1);
 	if (chan)
 		ast_autoservice_stop(chan);
 
@@ -762,11 +762,11 @@ static struct ast_custom_function eval_function = {
 	.read = function_eval,
 };
 
-static int keypadhash(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+static int keypadhash(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t buflen)
 {
 	char *bufptr, *dataptr;
 
-	for (bufptr = buf, dataptr = data; bufptr < buf + len - 1; dataptr++) {
+	for (bufptr = buf, dataptr = data; bufptr < buf + buflen - 1; dataptr++) {
 		if (*dataptr == '1') {
 			*bufptr++ = '1';
 		} else if (strchr("AaBbCc2", *dataptr)) {
@@ -792,7 +792,7 @@ static int keypadhash(struct ast_channel *chan, const char *cmd, char *data, cha
 			break;
 		}
 	}
-	buf[len - 1] = '\0';
+	buf[buflen - 1] = '\0';
 
 	return 0;
 }
@@ -805,11 +805,11 @@ static struct ast_custom_function keypadhash_function = {
 	.desc = "Example:  ${KEYPADHASH(Les)} returns \"537\"\n",
 };
 
-static int string_toupper(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+static int string_toupper(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t buflen)
 {
 	char *bufptr = buf, *dataptr = data;
 
-	while ((bufptr < buf + len - 1) && (*bufptr++ = toupper(*dataptr++)));
+	while ((bufptr < buf + buflen - 1) && (*bufptr++ = toupper(*dataptr++)));
 
 	return 0;
 }
@@ -822,11 +822,11 @@ static struct ast_custom_function toupper_function = {
 	.desc = "Example: ${TOUPPER(Example)} returns \"EXAMPLE\"\n",
 };
 
-static int string_tolower(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+static int string_tolower(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t buflen)
 {
 	char *bufptr = buf, *dataptr = data;
 
-	while ((bufptr < buf + len - 1) && (*bufptr++ = tolower(*dataptr++)));
+	while ((bufptr < buf + buflen - 1) && (*bufptr++ = tolower(*dataptr++)));
 
 	return 0;
 }

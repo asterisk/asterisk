@@ -87,7 +87,7 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 	long sec;
 	char timestr[64];
 	struct ast_tm myt;
-	struct timeval tv;
+	struct timeval when;
 
 	if (!chan)
 		return -1;
@@ -101,21 +101,21 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 		return -1;
 
 	if ((sscanf(value, "%ld%lf", &sec, &x) == 0) || sec < 0)
-		tv.tv_sec = 0;
+		when.tv_sec = 0;
 	else {
-		tv.tv_sec = sec;
-		tv.tv_usec = x * 1000000;
+		when.tv_sec = sec;
+		when.tv_usec = x * 1000000;
 	}
 
 	switch (*data) {
 	case 'a':
 	case 'A':
-		ast_channel_setwhentohangup_tv(chan, tv);
+		ast_channel_setwhentohangup_tv(chan, when);
 		if (VERBOSITY_ATLEAST(3)) {
 			if (!ast_tvzero(chan->whentohangup)) {
-				tv = ast_tvadd(tv, ast_tvnow());
+				when = ast_tvadd(when, ast_tvnow());
 				ast_strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S.%3q %Z",
-					ast_localtime(&tv, &myt, NULL));
+					ast_localtime(&when, &myt, NULL));
 				ast_verbose("Channel will hangup at %s.\n", timestr);
 			} else {
 				ast_verbose("Channel hangup cancelled.\n");
@@ -126,7 +126,7 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 	case 'r':
 	case 'R':
 		if (chan->pbx) {
-			chan->pbx->rtimeoutms = tv.tv_sec * 1000 + tv.tv_usec / 1000.0;
+			chan->pbx->rtimeoutms = when.tv_sec * 1000 + when.tv_usec / 1000.0;
 			ast_verb(3, "Response timeout set to %.3f\n", chan->pbx->rtimeoutms / 1000.0);
 		}
 		break;
@@ -134,7 +134,7 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 	case 'd':
 	case 'D':
 		if (chan->pbx) {
-			chan->pbx->dtimeoutms = tv.tv_sec * 1000 + tv.tv_usec / 1000.0;
+			chan->pbx->dtimeoutms = when.tv_sec * 1000 + when.tv_usec / 1000.0;
 			ast_verb(3, "Digit timeout set to %.3f\n", chan->pbx->dtimeoutms / 1000.0);
 		}
 		break;
