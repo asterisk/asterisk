@@ -1,9 +1,9 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Zaptel native transcoding support
+ * DAHDI native transcoding support
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2008, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  * Kevin P. Fleming <kpfleming@digium.com>
@@ -21,7 +21,7 @@
 
 /*! \file
  *
- * \brief Translate between various formats natively through Zaptel transcoding
+ * \brief Translate between various formats natively through DAHDI transcoding
  *
  * \ingroup codecs
  */
@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <sys/mman.h>
+#include <dahdi/user.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/translate.h"
@@ -55,8 +56,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
-
-#include "asterisk/dahdi_compat.h"
 
 #define BUFFER_SAMPLES	8000
 
@@ -70,25 +69,25 @@ static struct channel_usage {
 
 static char show_transcoder_usage[] =
 "Usage: show transcoder\n"
-"       Displays channel utilization of Zaptel transcoder(s).\n";
+"       Displays channel utilization of DAHDI transcoder(s).\n";
 
 static char transcoder_show_usage[] =
 "Usage: transcoder show\n"
-"       Displays channel utilization of Zaptel transcoder(s).\n";
+"       Displays channel utilization of DAHDI transcoder(s).\n";
 
 static int transcoder_show(int fd, int argc, char **argv);
 
 static struct ast_cli_entry cli_deprecated[] = {
 	{ { "show", "transcoder", NULL },
 	  transcoder_show,
-	  "Display Zaptel transcoder utilization.",
+	  "Display DAHDI transcoder utilization.",
 	  show_transcoder_usage}
 };
 
 static struct ast_cli_entry cli[] = {
 	{ { "transcoder", "show", NULL },
 	  transcoder_show,
-	  "Display Zaptel transcoder utilization.",
+	  "Display DAHDI transcoder utilization.",
 	  transcoder_show_usage, NULL,
 	  &cli_deprecated[0]}
 };
@@ -114,7 +113,7 @@ struct pvt {
 	int totalms;
 	int lasttotalms;
 #endif
-	struct dahdi_transcode_header *hdr;
+	struct dahdi_transcoder_formats fmts;
 };
 
 static int transcoder_show(int fd, int argc, char **argv)
@@ -124,7 +123,7 @@ static int transcoder_show(int fd, int argc, char **argv)
 	copy = channels;
 
 	if (copy.total == 0)
-		ast_cli(fd, "No Zaptel transcoders found.\n");
+		ast_cli(fd, "No DAHDI transcoders found.\n");
 	else
 		ast_cli(fd, "%d/%d encoders/decoders of %d channels are in use.\n", copy.encoders, copy.decoders, copy.total);
 
@@ -133,58 +132,62 @@ static int transcoder_show(int fd, int argc, char **argv)
 
 static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
+	int res;
 	struct pvt *ztp = pvt->pvt;
-	struct dahdi_transcode_header *hdr = ztp->hdr;
 
-	if (!f->subclass) {
+	if (f->subclass) {
+		/* Give the frame to the hardware transcoder... */
+		res = write(ztp->fd, f->data, f->datalen); 
+		if (-1 == res) {
+			ast_log(LOG_ERROR, "Failed to write to /dev/dahdi/transcode: %s\n", strerror(errno));
+		}
+		if (f->datalen != res) {
+			ast_log(LOG_ERROR, "Requested write of %d bytes, but only wrote %d bytes.\n", f->datalen, res);
+		}
+		res = -1;
+		pvt->samples += f->samples;
+	} else {
 		/* Fake a return frame for calculation purposes */
 		ztp->fake = 2;
 		pvt->samples = f->samples;
-		return 0;
+		res = 0;
 	}
-
-	if (!hdr->srclen)
-		/* Copy at front of buffer */
-		hdr->srcoffset = 0;
-
-	/* if we get handed a G.729 frame that is not a multiple of
-	   10 bytes (10 milliseconds), then it has a CNG frame and
-	   we need to avoid sending that to the transcoder
-	*/
-	if ((f->subclass == AST_FORMAT_G729A) && ((f->datalen % 10) != 0)) {
-		if (!ztp->g729b_warning) {
-			ast_log(LOG_WARNING, "G.729B CNG frame received but is not supported; dropping.\n");
-			ztp->g729b_warning = 1;
-		}
-		f->datalen -= f->datalen % 10;
-		f->samples = f->datalen * 8;
-	}
-
-	if (hdr->srclen + f->datalen > sizeof(hdr->srcdata)) {
-		ast_log(LOG_WARNING, "Out of space for codec translation!\n");
-		return -1;
-	}
-
-	if (hdr->srclen + f->datalen + hdr->srcoffset > sizeof(hdr->srcdata)) {
-		/* Very unlikely */
-		memmove(hdr->srcdata, hdr->srcdata + hdr->srcoffset, hdr->srclen);
-		hdr->srcoffset = 0;
-	}
-
-	memcpy(hdr->srcdata + hdr->srcoffset + hdr->srclen, f->data, f->datalen);
-	hdr->srclen += f->datalen;
-	pvt->samples += f->samples;
-
-	return -1;
+	return res;
 }
 
 static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 {
 	struct pvt *ztp = pvt->pvt;
-	struct dahdi_transcode_header *hdr = ztp->hdr;
-	unsigned int x;
 
-	if (ztp->fake == 2) {
+	if (0 == ztp->fake) {
+		int res;
+		/* Let's check to see if there is a new frame for us.... */
+		res = read(ztp->fd, pvt->outbuf + pvt->datalen, pvt->t->buf_size - pvt->datalen);
+		if (-1 == res) {
+			if (EWOULDBLOCK == errno) {
+				/* Nothing waiting... */
+				return NULL;
+			} else {
+				ast_log(LOG_ERROR, "Failed to read from /dev/dahdi/transcode: %s\n", strerror(errno));
+				return NULL;
+			}
+		} else {
+			pvt->f.samples = res;
+			pvt->f.datalen = res;
+			pvt->datalen = 0;
+			pvt->f.frametype = AST_FRAME_VOICE;
+			pvt->f.subclass = 1 <<  (pvt->t->dstfmt);
+			pvt->f.mallocd = 0;
+			pvt->f.offset = AST_FRIENDLY_OFFSET;
+			pvt->f.src = pvt->t->name;
+			pvt->f.data = pvt->outbuf;
+			ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
+
+			return &pvt->f;
+		}
+
+	} else if (2 == ztp->fake) {
+
 		ztp->fake = 1;
 		pvt->f.frametype = AST_FRAME_VOICE;
 		pvt->f.subclass = 0;
@@ -195,52 +198,23 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 		pvt->f.mallocd = 0;
 		ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
 		pvt->samples = 0;
-	} else if (ztp->fake == 1) {
-		return NULL;
-	} else {
-		if (hdr->dstlen) {
-#ifdef DEBUG_TRANSCODE
-			ztp->totalms += hdr->dstsamples;
-			if ((ztp->totalms - ztp->lasttotalms) > 8000) {
-				printf("Whee %p, %d (%d to %d)\n", ztp, hdr->dstlen, ztp->lasttotalms, ztp->totalms);
-				ztp->lasttotalms = ztp->totalms;
-			}
-#endif
-			pvt->f.frametype = AST_FRAME_VOICE;
-			pvt->f.subclass = hdr->dstfmt;
-			pvt->f.samples = hdr->dstsamples;
-			pvt->f.data = hdr->dstdata + hdr->dstoffset;
-			pvt->f.offset = hdr->dstoffset;
-			pvt->f.datalen = hdr->dstlen;
-			pvt->f.mallocd = 0;
-			ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
-			pvt->samples -= pvt->f.samples;
-			hdr->dstlen = 0;
-			
-		} else {
-			if (hdr->srclen) {
-				hdr->dstoffset = AST_FRIENDLY_OFFSET;
-				x = DAHDI_TCOP_TRANSCODE;
-				if (ioctl(ztp->fd, DAHDI_TRANSCODE_OP, &x))
-					ast_log(LOG_WARNING, "Failed to transcode: %s\n", strerror(errno));
-			}
-			return NULL;
-		}
-	}
 
-	return &pvt->f;
+		return &pvt->f;
+
+	} else if (1 == ztp->fake) {
+
+		return NULL;
+
+	}
+	/* Shouldn't get here... */
+	return NULL;
 }
 
 static void zap_destroy(struct ast_trans_pvt *pvt)
 {
 	struct pvt *ztp = pvt->pvt;
-	unsigned int x;
 
-	x = DAHDI_TCOP_RELEASE;
-	if (ioctl(ztp->fd, DAHDI_TRANSCODE_OP, &x))
-		ast_log(LOG_WARNING, "Failed to release transcoder channel: %s\n", strerror(errno));
-
-	switch (ztp->hdr->dstfmt) {
+	switch (ztp->fmts.dstfmt) {
 	case AST_FORMAT_G729A:
 	case AST_FORMAT_G723_1:
 		ast_atomic_fetchadd_int(&channels.encoders, -1);
@@ -250,7 +224,6 @@ static void zap_destroy(struct ast_trans_pvt *pvt)
 		break;
 	}
 
-	munmap(ztp->hdr, sizeof(*ztp->hdr));
 	close(ztp->fd);
 }
 
@@ -258,50 +231,35 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 {
 	/* Request translation through zap if possible */
 	int fd;
-	unsigned int x = DAHDI_TCOP_ALLOCATE;
 	struct pvt *ztp = pvt->pvt;
-	struct dahdi_transcode_header *hdr;
 	int flags;
 	
-	if ((fd = open("/dev/zap/transcode", O_RDWR)) < 0)
+	if ((fd = open("/dev/dahdi/transcode", O_RDWR)) < 0) {
+		ast_log(LOG_ERROR, "Failed to open /dev/dahdi/transcode: %s\n", strerror(errno));
 		return -1;
+	}
+	
+	ztp->fmts.srcfmt = (1 << source);
+	ztp->fmts.dstfmt = (1 << dest);
+
+	ast_log(LOG_VERBOSE, "Opening transcoder channel from %d to %d.\n", source, dest);
+
+	if (ioctl(fd, DAHDI_TC_ALLOCATE, &ztp->fmts)) {
+		ast_log(LOG_ERROR, "Unable to attach to transcoder: %s\n", strerror(errno));
+		close(fd);
+
+		return -1;
+	}
+
 	flags = fcntl(fd, F_GETFL);
 	if (flags > - 1) {
 		if (fcntl(fd, F_SETFL, flags | O_NONBLOCK))
 			ast_log(LOG_WARNING, "Could not set non-block mode!\n");
 	}
-	
 
-	if ((hdr = mmap(NULL, sizeof(*hdr), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) == MAP_FAILED) {
-		ast_log(LOG_ERROR, "Memory Map failed for transcoding (%s)\n", strerror(errno));
-		close(fd);
-
-		return -1;
-	}
-
-	if (hdr->magic != DAHDI_TRANSCODE_MAGIC) {
-		ast_log(LOG_ERROR, "Transcoder header (%08x) wasn't magic.  Abandoning\n", hdr->magic);
-		munmap(hdr, sizeof(*hdr));
-		close(fd);
-
-		return -1;
-	}
-	
-	hdr->srcfmt = (1 << source);
-	hdr->dstfmt = (1 << dest);
-	if (ioctl(fd, DAHDI_TRANSCODE_OP, &x)) {
-		ast_log(LOG_ERROR, "Unable to attach transcoder: %s\n", strerror(errno));
-		munmap(hdr, sizeof(*hdr));
-		close(fd);
-
-		return -1;
-	}
-
-	ztp = pvt->pvt;
 	ztp->fd = fd;
-	ztp->hdr = hdr;
 
-	switch (hdr->dstfmt) {
+	switch (ztp->fmts.dstfmt) {
 	case AST_FORMAT_G729A:
 	case AST_FORMAT_G723_1:
 		ast_atomic_fetchadd_int(&channels.encoders, +1);
@@ -442,18 +400,17 @@ static void build_translators(struct format_map *map, unsigned int dstfmts, unsi
 
 static int find_transcoders(void)
 {
-	struct dahdi_transcode_info info = { 0, };
+	struct dahdi_transcoder_info info = { 0, };
 	struct format_map map = { { { 0 } } };
 	int fd, res;
 	unsigned int x, y;
 
-	if ((fd = open("/dev/zap/transcode", O_RDWR)) < 0) {
-		ast_verbose(VERBOSE_PREFIX_2 "No hardware transcoders found.\n");
+	if ((fd = open("/dev/dahdi/transcode", O_RDWR)) < 0) {
+		ast_log(LOG_ERROR, "Failed to open /dev/dahdi/transcode: %s\n", strerror(errno));
 		return 0;
 	}
 
-	info.op = DAHDI_TCOP_GETINFO;
-	for (info.tcnum = 0; !(res = ioctl(fd, DAHDI_TRANSCODE_OP, &info)); info.tcnum++) {
+	for (info.tcnum = 0; !(res = ioctl(fd, DAHDI_TC_GETINFO, &info)); info.tcnum++) {
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Found transcoder '%s'.\n", info.name);
 		build_translators(&map, info.dstfmts, info.srcfmts);
@@ -506,7 +463,7 @@ static int load_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Generic Zaptel Transcoder Codec Translator",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Generic DAHDI Transcoder Codec Translator",
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
