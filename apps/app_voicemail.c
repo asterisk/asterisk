@@ -952,9 +952,9 @@ static int create_dirpath(char *dest, int len, const char *context, const char *
 	return 0;
 }
 
-static const char *mbox(int id)
+static char *mbox(int id)
 {
-	static const char *msgs[] = {
+	static char *msgs[] = {
 		"INBOX",
 		"Old",
 		"Work",
