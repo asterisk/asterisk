@@ -321,83 +321,82 @@ static void rxqcheck (char *dir, char *queue, char *process)
          fclose (f);
          /* set up user data variables */
          {
-            char temp[481];
-            int n,
-              p;
-            for (n = 0, p = 0; p < udl; p++)
+            char tmp[481];
+            int n, x;
+            for (n = 0, x = 0; x < udl; x++)
             {
-               unsigned short v = ud[p];
+               unsigned short v = ud[x];
                if (v)
                {
                   if (v < 0x80)
-                     temp[n++] = v;
+                     tmp[n++] = v;
                   else if (v < 0x800)
                   {
-                     temp[n++] = (0xC0 + (v >> 6));
-                     temp[n++] = (0x80 + (v & 0x3F));
+                     tmp[n++] = (0xC0 + (v >> 6));
+                     tmp[n++] = (0x80 + (v & 0x3F));
                   } else
                   {
-                     temp[n++] = (0xE0 + (v >> 12));
-                     temp[n++] = (0x80 + ((v >> 6) & 0x3F));
-                     temp[n++] = (0x80 + (v & 0x3F));
+                     tmp[n++] = (0xE0 + (v >> 12));
+                     tmp[n++] = (0x80 + ((v >> 6) & 0x3F));
+                     tmp[n++] = (0x80 + (v & 0x3F));
                   }
                }
             }
-            temp[n] = 0;
-            setenv ("ud", temp, 1);
-            for (n = 0, p = 0; p < udl; p++)
+            tmp[n] = 0;
+            setenv ("ud", tmp, 1);
+            for (n = 0, x = 0; x < udl; x++)
             {
-               unsigned short v = ud[p];
+               unsigned short v = ud[x];
                if (v < ' ' || v == '\\')
                {
-                  temp[n++] = '\\';
+                  tmp[n++] = '\\';
                   if (v == '\\')
-                     temp[n++] = '\\';
+                     tmp[n++] = '\\';
                   else if (v == '\n')
-                     temp[n++] = 'n';
+                     tmp[n++] = 'n';
                   else if (v == '\r')
-                     temp[n++] = 'r';
+                     tmp[n++] = 'r';
                   else if (v == '\t')
-                     temp[n++] = 't';
+                     tmp[n++] = 't';
                   else if (v == '\f')
-                     temp[n++] = 'f';
+                     tmp[n++] = 'f';
                   else
                   {
-                     temp[n++] = '0' + (v >> 6);
-                     temp[n++] = '0' + ((v >> 3) & 7);
-                     temp[n++] = '0' + (v & 7);
+                     tmp[n++] = '0' + (v >> 6);
+                     tmp[n++] = '0' + ((v >> 3) & 7);
+                     tmp[n++] = '0' + (v & 7);
                   }
                } else if (v < 0x80)
-                  temp[n++] = v;
+                  tmp[n++] = v;
                else if (v < 0x800)
                {
-                  temp[n++] = (0xC0 + (v >> 6));
-                  temp[n++] = (0x80 + (v & 0x3F));
+                  tmp[n++] = (0xC0 + (v >> 6));
+                  tmp[n++] = (0x80 + (v & 0x3F));
                } else
                {
-                  temp[n++] = (0xE0 + (v >> 12));
-                  temp[n++] = (0x80 + ((v >> 6) & 0x3F));
-                  temp[n++] = (0x80 + (v & 0x3F));
+                  tmp[n++] = (0xE0 + (v >> 12));
+                  tmp[n++] = (0x80 + ((v >> 6) & 0x3F));
+                  tmp[n++] = (0x80 + (v & 0x3F));
                }
             }
-            temp[n] = 0;
-            setenv ("ude", temp, 1);
-            for (p = 0; p < udl && ud[p] < 0x100; p++);
-            if (p == udl)
+            tmp[n] = 0;
+            setenv ("ude", tmp, 1);
+            for (x = 0; x < udl && ud[x] < 0x100; x++);
+            if (x == udl)
             {
-               for (n = 0, p = 0; p < udl; p++)
+               for (n = 0, x = 0; x < udl; x++)
                {
-                  sprintf (temp + n, "%02X", ud[p]);
+                  sprintf (tmp + n, "%02X", ud[x]);
                   n += 2;
                }
-               setenv ("ud8", temp, 1);
+               setenv ("ud8", tmp, 1);
             }
-            for (n = 0, p = 0; p < udl; p++)
+            for (n = 0, x = 0; x < udl; x++)
             {
-               sprintf (temp + n, "%04X", ud[p]);
+               sprintf (tmp + n, "%04X", ud[x]);
                n += 4;
             }
-            setenv ("ud16", temp, 1);
+            setenv ("ud16", tmp, 1);
          }
          /* run the command */
          system (process);

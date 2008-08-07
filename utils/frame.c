@@ -1008,7 +1008,7 @@ double double2db( double value)
   return 6.0 * log( value / 32767) / log( 2);
 }
 
-void readawaysamples( FILE *in, size_t size)
+void readawaysamples( FILE *input, size_t size)
 {
   short *buffer;
   int samplesread, count;
@@ -1023,8 +1023,8 @@ void readawaysamples( FILE *in, size_t size)
       else
 	count = size;
 
-      samplesread = fread( buffer, sizeof(*buffer), count, in);
-      if (ferror( in) != 0)
+      samplesread = fread( buffer, sizeof(*buffer), count, input);
+      if (ferror( input) != 0)
 	fatalperror("Error reading input file");
       size -= samplesread;
     }

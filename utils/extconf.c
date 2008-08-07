@@ -1247,7 +1247,7 @@ static unsigned int safe_system_level = 0;
 static void *safe_system_prev_handler;
 
 /*! \brief NULL handler so we can collect the child exit status */
-static void null_sig_handler(int signal)
+static void null_sig_handler(int sig)
 {
 
 }
@@ -2639,8 +2639,8 @@ struct ast_switch {
 };
 
 
-static char *config = "extensions.conf";
-static char *registrar = "conf2ael";
+static char *config_filename = "extensions.conf";
+static char *global_registrar = "conf2ael";
 static char userscontext[AST_MAX_EXTENSION] = "default";
 static int static_config = 0;
 static int write_protect_config = 1;
@@ -3791,9 +3791,9 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				}
 				
 				if (process_buf) {
-					char *buf = ast_strip(process_buf);
-					if (!ast_strlen_zero(buf)) {
-						if (process_text_line(cfg, &cat, buf, lineno, filename, withcomments, suggested_include_file)) {
+					char *stripped_process_buf = ast_strip(process_buf);
+					if (!ast_strlen_zero(stripped_process_buf)) {
+						if (process_text_line(cfg, &cat, stripped_process_buf, lineno, filename, withcomments, suggested_include_file)) {
 							cfg = NULL;
 							break;
 						}
@@ -5249,16 +5249,16 @@ int localized_context_add_switch2(struct ast_context *con, const char *value,
 
 static struct ast_context *__ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar, int existsokay)
 {
-	struct ast_context *tmp, **local_contexts;
+	struct ast_context *tmp, **loc_contexts;
 	int length = sizeof(struct ast_context) + strlen(name) + 1;
 
 	if (!extcontexts) {
 		ast_wrlock_contexts();
-		local_contexts = &contexts;
+		loc_contexts = &contexts;
 	} else
-		local_contexts = extcontexts;
+		loc_contexts = extcontexts;
 
-	for (tmp = *local_contexts; tmp; tmp = tmp->next) {
+	for (tmp = *loc_contexts; tmp; tmp = tmp->next) {
 		if (!strcasecmp(tmp->name, name)) {
 			if (!existsokay) {
 				ast_log(LOG_WARNING, "Tried to register context '%s', already in use\n", name);
@@ -5275,10 +5275,10 @@ static struct ast_context *__ast_context_create(struct ast_context **extcontexts
 		strcpy(tmp->name, name);
 		tmp->root = NULL;
 		tmp->registrar = registrar;
-		tmp->next = *local_contexts;
+		tmp->next = *loc_contexts;
 		tmp->includes = NULL;
 		tmp->ignorepats = NULL;
-		*local_contexts = tmp;
+		*loc_contexts = tmp;
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Registered context '%s'\n", tmp->name);
 		if (option_verbose > 2)
@@ -5916,7 +5916,7 @@ static int pbx_load_config(const char *config_file)
 		/* All categories but "general" or "globals" are considered contexts */
 		if (!strcasecmp(cxt, "general") || !strcasecmp(cxt, "globals"))
 			continue;
-		con=ast_context_find_or_create(&local_contexts,NULL,cxt, registrar);
+		con=ast_context_find_or_create(&local_contexts,NULL,cxt, global_registrar);
 		if (con == NULL)
 			continue;
 
@@ -6004,7 +6004,7 @@ static int pbx_load_config(const char *config_file)
 						lastpri = ipri;
 						if (!ast_opt_dont_warn && !strcmp(realext, "_."))
 							ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
-						if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), ast_free, registrar)) {
+						if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), ast_free, global_registrar)) {
 							ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 						}
 					}
@@ -6013,12 +6013,12 @@ static int pbx_load_config(const char *config_file)
 			} else if (!strcasecmp(v->name, "include")) {
 				memset(realvalue, 0, sizeof(realvalue));
 				pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
-				if (ast_context_add_include2(con, realvalue, registrar))
+				if (ast_context_add_include2(con, realvalue, global_registrar))
 					ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 			} else if (!strcasecmp(v->name, "ignorepat")) {
 				memset(realvalue, 0, sizeof(realvalue));
 				pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
-				if (ast_context_add_ignorepat2(con, realvalue, registrar))
+				if (ast_context_add_ignorepat2(con, realvalue, global_registrar))
 					ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 			} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 				char *stringp= realvalue;
@@ -6033,7 +6033,7 @@ static int pbx_load_config(const char *config_file)
 				data = strsep(&stringp, ""); /* XXX what for ? */
 				if (!data)
 					data = "";
-				if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
+				if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), global_registrar))
 					ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
 			} else {
 				ast_log(LOG_WARNING, "==!!== Unknown directive: %s at line %d -- IGNORING!!!\n", v->name, v->lineno);
@@ -6193,12 +6193,12 @@ int localized_pbx_load_module(void)
 {
 	struct ast_context *con;
 
-	if(!pbx_load_config(config))
+	if(!pbx_load_config(config_filename))
 		return -1 /* AST_MODULE_LOAD_DECLINE*/;
 
 	/* pbx_load_users(); */ /* does this affect the dialplan? */
 
-	ast_merge_contexts_and_delete(&local_contexts, registrar);
+	ast_merge_contexts_and_delete(&local_contexts, global_registrar);
 
 	for (con = NULL; (con = ast_walk_contexts(con));)
 		ast_context_verify_includes(con);

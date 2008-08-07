@@ -626,7 +626,7 @@ static int manage_calls(char *host)
 	return 0;
 }
 
-static int login(char *hostname)
+static int manager_login(char *hostname)
 {
 	newtComponent form;
 	newtComponent cancel;
@@ -756,7 +756,7 @@ int main(int argc, char *argv[])
 	newtCls();
 	newtDrawRootText(0, 0, "Asterisk Manager (C)2002, Linux Support Services, Inc.");
 	newtPushHelpLine("Welcome to the Asterisk Manager!");
-	if (login(argv[1])) {
+	if (manager_login(argv[1])) {
 		newtFinished();
 		exit(1);
 	}

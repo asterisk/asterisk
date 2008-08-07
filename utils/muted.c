@@ -410,19 +410,19 @@ static float mutevol = 0;
 #endif
 
 #ifndef __Darwin__
-static int mutedlevel(int orig, int mutelevel)
+static int mutedlevel(int orig, int level)
 {
 	int l = orig >> 8;
 	int r = orig & 0xff;
-	l = (float)(mutelevel) * (float)(l) / 100.0;
-	r = (float)(mutelevel) * (float)(r) / 100.0;
+	l = (float)(level) * (float)(l) / 100.0;
+	r = (float)(level) * (float)(r) / 100.0;
 
 	return (l << 8) | r;
 #else
-static float mutedlevel(float orig, float mutelevel)
+static float mutedlevel(float orig, float level)
 {
 	float master = orig;
-	master = mutelevel * master / 100.0;
+	master = level * master / 100.0;
 	return master;
 #endif
 	
