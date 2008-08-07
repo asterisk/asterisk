@@ -1488,7 +1488,6 @@ static int imap_retrieve_file(const char *dir, const int msgnum, const char *mai
 	/* We have the body, now we extract the file name of the first attachment. */
 	if (body->nested.part && body->nested.part->next && body->nested.part->next->body.parameter->value) {
 		attachedfilefmt = ast_strdupa(body->nested.part->next->body.parameter->value);
-		ast_log(LOG_NOTICE, "%s is the attached file\n", attachedfilefmt);
 	} else {
 		ast_log(LOG_ERROR, "There is no file attached to this IMAP message.\n");
 		res = -1;
@@ -1506,7 +1505,6 @@ static int imap_retrieve_file(const char *dir, const int msgnum, const char *mai
 	
 	save_body(body, vms, "2", attachedfilefmt, 0);
 	if (save_body(body, vms, "3", attachedfilefmt, 1)) {
-		ast_log(LOG_NOTICE, "Nulling the introfn cuz ain't nothing in part 3\n");
 		*vms->introfn = '\0';
 	}
 
@@ -2131,7 +2129,6 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 static void write_file(char *filename, char *buffer, unsigned long len)
 {
 	FILE *output;
-	ast_log(LOG_NOTICE, "The name of the file I'm writing is %s\n", filename);
 
 	output = fopen (filename, "w");
 	fwrite (buffer, len, 1, output);
