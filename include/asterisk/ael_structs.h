@@ -107,7 +107,8 @@ struct ael_extension
 	char *hints;
 	int regexten;
 	int is_switch;
-	int has_switch;
+	int has_switch; /* set if a switch exists in the extension */
+	int checked_switch; /* set if we checked for a switch in the extension -- so we don't have to do it again */
 	
 	struct ast_context *context;
 	
