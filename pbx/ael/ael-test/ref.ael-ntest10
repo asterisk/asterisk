@@ -10,20 +10,20 @@ LOG: lev:2 file:pbx_ael.c  line:128 func: pbx_load_module  AEL load process: par
 LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1-4: The macro endsess does not end with a return; I will insert one.
 LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 6-9: The macro nullchk does not end with a return; I will insert one.
 LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 11-26: The macro endcall does not end with a return; I will insert one.
-LOG: lev:3 file:pval.c  line:2284 func: check_switch_expr  Warning: file ./extensions.ael, line 13-13: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2297 func: check_switch_expr  Warning: file ./extensions.ael, line 13-13: A default case was automatically added to the switch.
 LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 28-44: The macro endcall2 does not end with a return; I will insert one.
-LOG: lev:3 file:pval.c  line:2284 func: check_switch_expr  Warning: file ./extensions.ael, line 36-36: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2297 func: check_switch_expr  Warning: file ./extensions.ael, line 36-36: A default case was automatically added to the switch.
 LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 46-68: The macro endcall3 does not end with a return; I will insert one.
-LOG: lev:3 file:pval.c  line:2284 func: check_switch_expr  Warning: file ./extensions.ael, line 48-48: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:2284 func: check_switch_expr  Warning: file ./extensions.ael, line 60-60: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2297 func: check_switch_expr  Warning: file ./extensions.ael, line 48-48: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2297 func: check_switch_expr  Warning: file ./extensions.ael, line 60-60: A default case was automatically added to the switch.
 LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 70-96: The macro endcall4 does not end with a return; I will insert one.
-LOG: lev:3 file:pval.c  line:2284 func: check_switch_expr  Warning: file ./extensions.ael, line 72-72: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:2284 func: check_switch_expr  Warning: file ./extensions.ael, line 84-84: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:2284 func: check_switch_expr  Warning: file ./extensions.ael, line 87-87: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2297 func: check_switch_expr  Warning: file ./extensions.ael, line 72-72: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2297 func: check_switch_expr  Warning: file ./extensions.ael, line 84-84: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2297 func: check_switch_expr  Warning: file ./extensions.ael, line 87-87: A default case was automatically added to the switch.
 LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 98-131: The macro endcall5 does not end with a return; I will insert one.
-LOG: lev:3 file:pval.c  line:2284 func: check_switch_expr  Warning: file ./extensions.ael, line 106-106: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:2284 func: check_switch_expr  Warning: file ./extensions.ael, line 119-119: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:2284 func: check_switch_expr  Warning: file ./extensions.ael, line 122-122: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2297 func: check_switch_expr  Warning: file ./extensions.ael, line 106-106: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2297 func: check_switch_expr  Warning: file ./extensions.ael, line 119-119: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2297 func: check_switch_expr  Warning: file ./extensions.ael, line 122-122: A default case was automatically added to the switch.
 LOG: lev:2 file:pbx_ael.c  line:131 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
 Executed ast_context_find_or_create(conts, name=endsess, registrar=pbx_ael);
 Executed ast_context_find_or_create(conts, name=nullchk, registrar=pbx_ael);
@@ -110,15 +110,14 @@ Executed ast_add_extension2(context=endcall4, rep=0, exten=s, priority=9, label=
 Executed ast_add_extension2(context=endcall4, rep=0, exten=s, priority=10, label=(null), callerid=(null), appl=Return, data=, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall4, rep=0, exten=_sw-13-., priority=10, label=(null), callerid=(null), appl=Goto, data=s,9, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-13-, priority=10, label=(null), callerid=(null), appl=Goto, data=sw-13-.|10, FREE, registrar=pbx_ael);
-Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-13-out, priority=10, label=(null), callerid=(null), appl=Set, data=~~EXTEN~~=${EXTEN}, FREE, registrar=pbx_ael);
-Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-13-out, priority=11, label=(null), callerid=(null), appl=Goto, data=sw-14-${type},10, FREE, registrar=pbx_ael);
-Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-13-out, priority=12, label=(null), callerid=(null), appl=NoOp, data=Finish switch-sw-endcall4-out-13-14, FREE, registrar=pbx_ael);
-Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-13-out, priority=13, label=(null), callerid=(null), appl=Goto, data=sw-13-.,10, FREE, registrar=pbx_ael);
-Executed ast_add_extension2(context=endcall4, rep=0, exten=_sw-14-., priority=10, label=(null), callerid=(null), appl=Goto, data=sw-13-out,12, FREE, registrar=pbx_ael);
+Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-13-out, priority=10, label=(null), callerid=(null), appl=Goto, data=sw-14-${type},10, FREE, registrar=pbx_ael);
+Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-13-out, priority=11, label=(null), callerid=(null), appl=NoOp, data=Finish switch-sw-endcall4-out-13-14, FREE, registrar=pbx_ael);
+Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-13-out, priority=12, label=(null), callerid=(null), appl=Goto, data=sw-13-.,10, FREE, registrar=pbx_ael);
+Executed ast_add_extension2(context=endcall4, rep=0, exten=_sw-14-., priority=10, label=(null), callerid=(null), appl=Goto, data=sw-13-out,11, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-14-, priority=10, label=(null), callerid=(null), appl=Goto, data=sw-14-.|10, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-14-in, priority=10, label=(null), callerid=(null), appl=GotoIf, data=$[${testnotnull}]?11:13, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-14-in, priority=11, label=ptr1, callerid=(null), appl=Softhangup, data=${CHANNEL}, FREE, registrar=pbx_ael);
-Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-14-in, priority=12, label=(null), callerid=(null), appl=Goto, data=sw-13-out,12, FREE, registrar=pbx_ael);
+Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-14-in, priority=12, label=(null), callerid=(null), appl=Goto, data=sw-13-out,11, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-14-in, priority=13, label=(null), callerid=(null), appl=NoOp, data=Finish if-sw-sw-endcall4-out-13-in-14-15, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-14-in, priority=14, label=(null), callerid=(null), appl=Noop, data=esac, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall4, rep=0, exten=sw-14-in, priority=15, label=(null), callerid=(null), appl=Goto, data=sw-14-.,10, FREE, registrar=pbx_ael);
@@ -143,15 +142,14 @@ Executed ast_add_extension2(context=endcall5, rep=0, exten=s, priority=9, label=
 Executed ast_add_extension2(context=endcall5, rep=0, exten=s, priority=10, label=(null), callerid=(null), appl=Return, data=, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall5, rep=0, exten=_sw-20-., priority=10, label=(null), callerid=(null), appl=Goto, data=s,9, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-20-, priority=10, label=(null), callerid=(null), appl=Goto, data=sw-20-.|10, FREE, registrar=pbx_ael);
-Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-20-out, priority=10, label=(null), callerid=(null), appl=Set, data=~~EXTEN~~=${EXTEN}, FREE, registrar=pbx_ael);
-Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-20-out, priority=11, label=(null), callerid=(null), appl=Goto, data=sw-21-${type},10, FREE, registrar=pbx_ael);
-Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-20-out, priority=12, label=(null), callerid=(null), appl=NoOp, data=Finish switch-sw-endcall5-out-20-21, FREE, registrar=pbx_ael);
-Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-20-out, priority=13, label=(null), callerid=(null), appl=Goto, data=sw-20-.,10, FREE, registrar=pbx_ael);
-Executed ast_add_extension2(context=endcall5, rep=0, exten=_sw-21-., priority=10, label=(null), callerid=(null), appl=Goto, data=sw-20-out,12, FREE, registrar=pbx_ael);
+Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-20-out, priority=10, label=(null), callerid=(null), appl=Goto, data=sw-21-${type},10, FREE, registrar=pbx_ael);
+Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-20-out, priority=11, label=(null), callerid=(null), appl=NoOp, data=Finish switch-sw-endcall5-out-20-21, FREE, registrar=pbx_ael);
+Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-20-out, priority=12, label=(null), callerid=(null), appl=Goto, data=sw-20-.,10, FREE, registrar=pbx_ael);
+Executed ast_add_extension2(context=endcall5, rep=0, exten=_sw-21-., priority=10, label=(null), callerid=(null), appl=Goto, data=sw-20-out,11, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-21-, priority=10, label=(null), callerid=(null), appl=Goto, data=sw-21-.|10, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-21-in, priority=10, label=(null), callerid=(null), appl=GotoIf, data=$[${testnotnull}]?11:13, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-21-in, priority=11, label=ptr1, callerid=(null), appl=Softhangup, data=${CHANNEL}, FREE, registrar=pbx_ael);
-Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-21-in, priority=12, label=(null), callerid=(null), appl=Goto, data=sw-20-out,12, FREE, registrar=pbx_ael);
+Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-21-in, priority=12, label=(null), callerid=(null), appl=Goto, data=sw-20-out,11, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-21-in, priority=13, label=(null), callerid=(null), appl=NoOp, data=Finish if-sw-sw-endcall5-out-20-in-21-22, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-21-in, priority=14, label=(null), callerid=(null), appl=Noop, data=esac, FREE, registrar=pbx_ael);
 Executed ast_add_extension2(context=endcall5, rep=0, exten=sw-21-in, priority=15, label=(null), callerid=(null), appl=Goto, data=sw-21-.,10, FREE, registrar=pbx_ael);
@@ -175,4 +173,4 @@ Executed ast_merge_contexts_and_delete();
 LOG: lev:2 file:pbx_ael.c  line:139 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
 Executed ast_walk_contexts();
 LOG: lev:2 file:pbx_ael.c  line:142 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
-LOG: lev:4 file:ael2_parse  line:518 func: main  7 contexts, 37 extensions, 138 priorities
+LOG: lev:4 file:ael2_parse  line:518 func: main  7 contexts, 37 extensions, 136 priorities
