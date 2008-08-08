@@ -3277,6 +3277,33 @@ static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxco
 	return;	
 }
 
+/*!
+ * \brief Removes a voicemail message file.
+ * \param dir the path to the message file.
+ * \param msgnum the unique number for the message within the mailbox.
+ *
+ * Removes the message content file and the information file.
+ * This method is used by the DISPOSE macro when mailboxes are stored in an ODBC back end.
+ * Typical use is to clean up after a RETRIEVE operation. 
+ * Note that this does not remove the message from the mailbox folders, to do that we would use delete_file().
+ * \return zero on success, -1 on error.
+ */
+static int remove_file(char *dir, int msgnum)
+{
+	char fn[PATH_MAX];
+	char full_fn[PATH_MAX];
+	char msgnums[80];
+	
+	if (msgnum > -1) {
+		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
+		make_file(fn, sizeof(fn), dir, msgnum);
+	} else
+		ast_copy_string(fn, dir, sizeof(fn));
+	ast_filedelete(fn, NULL);	
+	snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
+	unlink(full_fn);
+	return 0;
+}
 #else
 #ifndef IMAP_STORAGE
 /*!
@@ -3368,36 +3395,6 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 
 	return x - 1;
 }
-#if (defined(IMAP_STORAGE) || defined(ODBC_STORAGE))
-/*!
- * \brief Removes a voicemail message file.
- * \param dir the path to the message file.
- * \param msgnum the unique number for the message within the mailbox.
- *
- * Removes the message content file and the information file.
- * This method is used by the DISPOSE macro when mailboxes are stored in an ODBC back end.
- * Typical use is to clean up after a RETRIEVE operation. 
- * Note that this does not remove the message from the mailbox folders, to do that we would use delete_file().
- * \return zero on success, -1 on error.
- */
-static int remove_file(char *dir, int msgnum)
-{
-	char fn[PATH_MAX];
-	char full_fn[PATH_MAX];
-	char msgnums[80];
-	
-	if (msgnum > -1) {
-		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
-		make_file(fn, sizeof(fn), dir, msgnum);
-	} else
-		ast_copy_string(fn, dir, sizeof(fn));
-	ast_filedelete(fn, NULL);	
-	snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
-	unlink(full_fn);
-	return 0;
-}
-#endif
-
 
 /*!
  * \brief Utility function to copy a file.
@@ -3512,6 +3509,7 @@ static void copy_plain_file(char *frompath, char *topath)
 
 #endif /* #ifndef IMAP_STORAGE */
 #endif /* #else of #ifdef ODBC_STORAGE */
+
 #if (!defined(ODBC_STORAGE) && !defined(IMAP_STORAGE))
 /*! 
  * \brief Removes the voicemail sound and information file.
