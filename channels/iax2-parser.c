@@ -224,7 +224,7 @@ static struct iax2_ie {
 	int ie;
 	char *name;
 	void (*dump)(char *output, int maxlen, void *value, int len);
-} ies[] = {
+} infoelts[] = {
 	{ IAX_IE_CALLED_NUMBER, "CALLED NUMBER", dump_string },
 	{ IAX_IE_CALLING_NUMBER, "CALLING NUMBER", dump_string },
 	{ IAX_IE_CALLING_ANI, "ANI", dump_string },
@@ -302,9 +302,9 @@ static struct iax2_ie prov_ies[] = {
 const char *iax_ie2str(int ie)
 {
 	int x;
-	for (x=0;x<(int)sizeof(ies) / (int)sizeof(ies[0]); x++) {
-		if (ies[x].ie == ie)
-			return ies[x].name;
+	for (x = 0; x < ARRAY_LEN(infoelts); x++) {
+		if (infoelts[x].ie == ie)
+			return infoelts[x].name;
 	}
 	return "Unknown IE";
 }
@@ -381,18 +381,18 @@ static void dump_ies(unsigned char *iedata, int len)
 			return;
 		}
 		found = 0;
-		for (x=0;x<(int)sizeof(ies) / (int)sizeof(ies[0]); x++) {
-			if (ies[x].ie == ie) {
-				if (ies[x].dump) {
-					ies[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
-					snprintf(tmp, (int)sizeof(tmp), "   %-15.15s : %s\n", ies[x].name, interp);
+		for (x = 0; x < ARRAY_LEN(infoelts); x++) {
+			if (infoelts[x].ie == ie) {
+				if (infoelts[x].dump) {
+					infoelts[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
+					snprintf(tmp, (int)sizeof(tmp), "   %-15.15s : %s\n", infoelts[x].name, interp);
 					outputf(tmp);
 				} else {
 					if (ielen)
 						snprintf(interp, (int)sizeof(interp), "%d bytes", ielen);
 					else
 						strcpy(interp, "Present");
-					snprintf(tmp, (int)sizeof(tmp), "   %-15.15s : %s\n", ies[x].name, interp);
+					snprintf(tmp, (int)sizeof(tmp), "   %-15.15s : %s\n", infoelts[x].name, interp);
 					outputf(tmp);
 				}
 				found++;
@@ -410,7 +410,7 @@ static void dump_ies(unsigned char *iedata, int len)
 
 void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen)
 {
-	const char *frames[] = {
+	const char *framelist[] = {
 		"(0?)",
 		"DTMF_E ",
 		"VOICE  ",
@@ -523,11 +523,11 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		/* Don't mess with mini-frames */
 		return;
 	}
-	if (fh->type >= (int)sizeof(frames)/(int)sizeof(frames[0])) {
+	if (fh->type >= ARRAY_LEN(framelist)) {
 		snprintf(class2, sizeof(class2), "(%d?)", fh->type);
 		class = class2;
 	} else {
-		class = frames[(int)fh->type];
+		class = framelist[(int)fh->type];
 	}
 	if (fh->type == AST_FRAME_DTMF_BEGIN || fh->type == AST_FRAME_DTMF_END) {
 		sprintf(subclass2, "%c", fh->csub);
@@ -926,9 +926,9 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			/* Existing variable or new variable? */
 			for (var2 = ies->vars, prev = NULL; var2; prev = var2, var2 = var2->next) {
 				if (strcmp(tmp, var2->name) == 0) {
-					int len = strlen(var2->value) + strlen(tmp2) + 1;
-					char *tmp3 = alloca(len);
-					snprintf(tmp3, len, "%s%s", var2->value, tmp2);
+					int length = strlen(var2->value) + strlen(tmp2) + 1;
+					char *tmp3 = alloca(length);
+					snprintf(tmp3, length, "%s%s", var2->value, tmp2);
 					var = ast_variable_new(tmp, tmp3, var2->file);
 					var->next = var2->next;
 					if (prev)
@@ -1103,13 +1103,13 @@ void iax_frame_free(struct iax_frame *fr)
 #if !defined(LOW_MEMORY)
 static void frame_cache_cleanup(void *data)
 {
-	struct iax_frames *frames = data;
-	struct iax_frame *cur;
+	struct iax_frames *framelist = data;
+	struct iax_frame *current;
 
-	while ((cur = AST_LIST_REMOVE_HEAD(&frames->list, list)))
-		ast_free(cur);
+	while ((current = AST_LIST_REMOVE_HEAD(&framelist->list, list)))
+		ast_free(current);
 
-	ast_free(frames);
+	ast_free(framelist);
 }
 #endif
 

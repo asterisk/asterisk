@@ -135,8 +135,8 @@ static const char tdesc[] = "Inter Asterisk eXchange Driver (Ver 2)";
 static int global_max_trunk_mtu; 	/*!< Maximum MTU, 0 if not used */
 static int trunk_timed, trunk_untimed, trunk_maxmtu, trunk_nmaxmtu ; 	/*!< Trunk MTU statistics */
 
+#define DEFAULT_CONTEXT "default"
 
-static char context[80] = "default";
 static char default_parkinglot[AST_MAX_CONTEXT];
 
 static char language[MAX_LANGUAGE] = "";
@@ -164,9 +164,10 @@ static int iaxdefaultdpcache=10 * 60;	/* Cache dialplan entries for 10 minutes b
 
 static int iaxdefaulttimeout = 5;		/* Default to wait no more than 5 seconds for a reply to come back */
 
-static unsigned int tos = 0;
-
-static unsigned int cos = 0;
+static struct {
+	unsigned int tos;
+	unsigned int cos;
+} qos = { 0, 0 };
 
 static int min_reg_expire;
 static int max_reg_expire;
@@ -2793,7 +2794,7 @@ static char *handle_cli_iax2_show_cache(struct ast_cli_entry *e, int cmd, struct
 	struct iax2_dpcache *dp = NULL;
 	char tmp[1024], *pc = NULL;
 	int s, x, y;
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2811,7 +2812,7 @@ static char *handle_cli_iax2_show_cache(struct ast_cli_entry *e, int cmd, struct
 	ast_cli(a->fd, "%-20.20s %-12.12s %-9.9s %-8.8s %s\n", "Peer/Context", "Exten", "Exp.", "Wait.", "Flags");
 
 	AST_LIST_TRAVERSE(&dpcache, dp, cache_list) {
-		s = dp->expiry.tv_sec - tv.tv_sec;
+		s = dp->expiry.tv_sec - now.tv_sec;
 		tmp[0] = '\0';
 		if (dp->flags & CACHE_FLAG_EXISTS)
 			strncat(tmp, "EXISTS|", sizeof(tmp) - strlen(tmp) - 1);
@@ -2919,9 +2920,9 @@ static void __get_from_jb(const void *p)
 	struct iax_frame *fr;
 	jb_frame frame;
 	int ret;
-	long now;
+	long ms;
 	long next;
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 	
 	/* Make sure we have a valid private structure before going on */
 	ast_mutex_lock(&iaxsl[callno]);
@@ -2937,12 +2938,12 @@ static void __get_from_jb(const void *p)
 	/* round up a millisecond since ast_sched_runq does; */
 	/* prevents us from spinning while waiting for our now */
 	/* to catch up with runq's now */
-	tv.tv_usec += 1000;
+	now.tv_usec += 1000;
 	
-	now = ast_tvdiff_ms(tv, pvt->rxcore);
+	ms = ast_tvdiff_ms(now, pvt->rxcore);
 	
-	if(now >= (next = jb_next(pvt->jb))) {
-		ret = jb_get(pvt->jb,&frame,now,ast_codec_interp_len(pvt->voiceformat));
+	if(ms >= (next = jb_next(pvt->jb))) {
+		ret = jb_get(pvt->jb,&frame,ms,ast_codec_interp_len(pvt->voiceformat));
 		switch(ret) {
 		case JB_OK:
 			fr = frame.data;
@@ -3938,7 +3939,7 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 	struct ast_frame *f;
 	unsigned short callno0 = PTR_TO_CALLNO(c0->tech_pvt);
 	unsigned short callno1 = PTR_TO_CALLNO(c1->tech_pvt);
-	struct timeval waittimer = {0, 0}, tv;
+	struct timeval waittimer = {0, 0};
 
 	/* We currently do not support native bridging if a timeoutms value has been provided */
 	if (timeoutms > 0) {
@@ -4008,10 +4009,10 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 		}
 		if ((iaxs[callno0]->transferring == TRANSFER_RELEASED) && (iaxs[callno1]->transferring == TRANSFER_RELEASED)) {
 			/* Call has been transferred.  We're no longer involved */
-			tv = ast_tvnow();
+			struct timeval now = ast_tvnow();
 			if (ast_tvzero(waittimer)) {
-				waittimer = tv;
-			} else if (tv.tv_sec - waittimer.tv_sec > IAX_LINGER_TIMEOUT) {
+				waittimer = now;
+			} else if (now.tv_sec - waittimer.tv_sec > IAX_LINGER_TIMEOUT) {
 				c0->_softhangup |= AST_SOFTHANGUP_DEV;
 				c1->_softhangup |= AST_SOFTHANGUP_DEV;
 				*fo = NULL;
@@ -4264,23 +4265,23 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	return tmp;
 }
 
-static unsigned int calc_txpeerstamp(struct iax2_trunk_peer *tpeer, int sampms, struct timeval *tv)
+static unsigned int calc_txpeerstamp(struct iax2_trunk_peer *tpeer, int sampms, struct timeval *now)
 {
 	unsigned long int mssincetx; /* unsigned to handle overflows */
 	long int ms, pred;
 
-	tpeer->trunkact = *tv;
-	mssincetx = ast_tvdiff_ms(*tv, tpeer->lasttxtime);
+	tpeer->trunkact = *now;
+	mssincetx = ast_tvdiff_ms(*now, tpeer->lasttxtime);
 	if (mssincetx > 5000 || ast_tvzero(tpeer->txtrunktime)) {
 		/* If it's been at least 5 seconds since the last time we transmitted on this trunk, reset our timers */
-		tpeer->txtrunktime = *tv;
+		tpeer->txtrunktime = *now;
 		tpeer->lastsent = 999999;
 	}
 	/* Update last transmit time now */
-	tpeer->lasttxtime = *tv;
+	tpeer->lasttxtime = *now;
 	
 	/* Calculate ms offset */
-	ms = ast_tvdiff_ms(*tv, tpeer->txtrunktime);
+	ms = ast_tvdiff_ms(*now, tpeer->txtrunktime);
 	/* Predict from last value */
 	pred = tpeer->lastsent + sampms;
 	if (abs(ms - pred) < MAX_TIMESTAMP_SKEW)
@@ -4293,7 +4294,7 @@ static unsigned int calc_txpeerstamp(struct iax2_trunk_peer *tpeer, int sampms, 
 	return ms;
 }
 
-static unsigned int fix_peerts(struct timeval *tv, int callno, unsigned int ts)
+static unsigned int fix_peerts(struct timeval *rxtrunktime, int callno, unsigned int ts)
 {
 	long ms;	/* NOT unsigned */
 	if (ast_tvzero(iaxs[callno]->rxcore)) {
@@ -4303,7 +4304,7 @@ static unsigned int fix_peerts(struct timeval *tv, int callno, unsigned int ts)
 		iaxs[callno]->rxcore.tv_usec -= iaxs[callno]->rxcore.tv_usec % 20000;
 	}
 	/* Calculate difference between trunk and channel */
-	ms = ast_tvdiff_ms(*tv, iaxs[callno]->rxcore);
+	ms = ast_tvdiff_ms(*rxtrunktime, iaxs[callno]->rxcore);
 	/* Return as the sum of trunk time and the difference between trunk and real time */
 	return ms + ts;
 }
@@ -5017,7 +5018,7 @@ static char *handle_cli_iax2_show_users(struct ast_cli_entry *e, int cmd, struct
 			pstr = ast_test_flag(user,IAX_CODEC_USER_FIRST) ? "Caller" : "Host";
 		
 		ast_cli(a->fd, FORMAT2, user->name, auth, user->authmethods, 
-			user->contexts ? user->contexts->context : context,
+			user->contexts ? user->contexts->context : DEFAULT_CONTEXT,
 			user->ha ? "Yes" : "No", pstr);
 	}
 
@@ -5989,7 +5990,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			if (user->contexts)
 				ast_string_field_set(iaxs[callno], context, user->contexts->context);
 			else
-				ast_string_field_set(iaxs[callno], context, context);
+				ast_string_field_set(iaxs[callno], context, DEFAULT_CONTEXT);
 		}
 		/* And any input keys */
 		ast_string_field_set(iaxs[callno], inkeys, user->inkeys);
@@ -8466,10 +8467,10 @@ retryowner:
 					ast_set_flag(iaxs[fr->callno], IAX_QUELCH);
 					if (ies.musiconhold) {
 						if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner)) {
-							const char *mohsuggest = iaxs[fr->callno]->mohsuggest;
+							const char *moh_suggest = iaxs[fr->callno]->mohsuggest;
 							iax2_queue_control_data(fr->callno, AST_CONTROL_HOLD, 
-								S_OR(mohsuggest, NULL),
-								!ast_strlen_zero(mohsuggest) ? strlen(mohsuggest) + 1 : 0);
+								S_OR(moh_suggest, NULL),
+								!ast_strlen_zero(moh_suggest) ? strlen(moh_suggest) + 1 : 0);
 							if (!iaxs[fr->callno]) {
 								ast_mutex_unlock(&iaxsl[fr->callno]);
 								return 1;
@@ -9647,7 +9648,7 @@ static void iax2_process_thread_cleanup(void *data)
 static void *iax2_process_thread(void *data)
 {
 	struct iax2_thread *thread = data;
-	struct timeval tv;
+	struct timeval wait;
 	struct timespec ts;
 	int put_into_idle = 0;
 
@@ -9667,9 +9668,9 @@ static void *iax2_process_thread(void *data)
 		if (thread->type == IAX_THREAD_TYPE_DYNAMIC) {
 			struct iax2_thread *t = NULL;
 			/* Wait to be signalled or time out */
-			tv = ast_tvadd(ast_tvnow(), ast_samp2tv(30000, 1000));
-			ts.tv_sec = tv.tv_sec;
-			ts.tv_nsec = tv.tv_usec * 1000;
+			wait = ast_tvadd(ast_tvnow(), ast_samp2tv(30000, 1000));
+			ts.tv_sec = wait.tv_sec;
+			ts.tv_nsec = wait.tv_usec * 1000;
 			if (ast_cond_timedwait(&thread->cond, &thread->lock, &ts) == ETIMEDOUT) {
 				/* This thread was never put back into the available dynamic
 				 * thread list, so just go away. */
@@ -9692,9 +9693,9 @@ static void *iax2_process_thread(void *data)
 				/* Someone grabbed our thread *right* after we timed out.
 				 * Wait for them to set us up with something to do and signal
 				 * us to continue. */
-				tv = ast_tvadd(ast_tvnow(), ast_samp2tv(30000, 1000));
-				ts.tv_sec = tv.tv_sec;
-				ts.tv_nsec = tv.tv_usec * 1000;
+				wait = ast_tvadd(ast_tvnow(), ast_samp2tv(30000, 1000));
+				ts.tv_sec = wait.tv_sec;
+				ts.tv_nsec = wait.tv_usec * 1000;
 				if (ast_cond_timedwait(&thread->cond, &thread->lock, &ts) == ETIMEDOUT)
 				{
 					ast_mutex_unlock(&thread->lock);
@@ -10147,16 +10148,16 @@ static void *sched_thread(void *ignore)
 {
 	int count;
 	int res;
-	struct timeval tv;
+	struct timeval wait;
 	struct timespec ts;
 
 	for (;;) {
 		res = ast_sched_wait(sched);
 		if ((res > 1000) || (res < 0))
 			res = 1000;
-		tv = ast_tvadd(ast_tvnow(), ast_samp2tv(res, 1000));
-		ts.tv_sec = tv.tv_sec;
-		ts.tv_nsec = tv.tv_usec * 1000;
+		wait = ast_tvadd(ast_tvnow(), ast_samp2tv(res, 1000));
+		ts.tv_sec = wait.tv_sec;
+		ts.tv_nsec = wait.tv_usec * 1000;
 
 		pthread_testcancel();
 		ast_mutex_lock(&sched_lock);
@@ -10359,7 +10360,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 				sin.sin_addr.s_addr = INADDR_ANY;
 				if (ast_netsock_find(netsock, &sin)) {
 					sin.sin_addr.s_addr = orig_saddr;
-					sock = ast_netsock_bind(outsock, io, srcaddr, port, tos, cos, socket_read, NULL);
+					sock = ast_netsock_bind(outsock, io, srcaddr, port, qos.tos, qos.cos, socket_read, NULL);
 					if (sock) {
 						sockfd = ast_netsock_sockfd(sock);
 						ast_netsock_unref(sock);
@@ -11035,13 +11036,13 @@ static int set_config(char *config_file, int reload)
 	/* Seed initial tos value */
 	tosval = ast_variable_retrieve(cfg, "general", "tos");
 	if (tosval) {
-		if (ast_str2tos(tosval, &tos))
+		if (ast_str2tos(tosval, &qos.tos))
 			ast_log(LOG_WARNING, "Invalid tos value, refer to QoS documentation\n");
 	}
 	/* Seed initial cos value */
 	tosval = ast_variable_retrieve(cfg, "general", "cos");
 	if (tosval) {
-		if (ast_str2cos(tosval, &cos))
+		if (ast_str2cos(tosval, &qos.cos))
 			ast_log(LOG_WARNING, "Invalid cos value, refer to QoS documentation\n");
 	}
 	while(v) {
@@ -11110,7 +11111,7 @@ static int set_config(char *config_file, int reload)
 			if (reload) {
 				ast_log(LOG_NOTICE, "Ignoring bindaddr on reload\n");
 			} else {
-				if (!(ns = ast_netsock_bind(netsock, io, v->value, portno, tos, cos, socket_read, NULL))) {
+				if (!(ns = ast_netsock_bind(netsock, io, v->value, portno, qos.tos, qos.cos, socket_read, NULL))) {
 					ast_log(LOG_WARNING, "Unable apply binding to '%s' at line %d\n", v->value, v->lineno);
 				} else {
 						if (strchr(v->value, ':'))
@@ -11220,10 +11221,10 @@ static int set_config(char *config_file, int reload)
 			/* Create context if it doesn't exist already */
 			ast_context_find_or_create(NULL, NULL, regcontext, "IAX2");
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (ast_str2tos(v->value, &tos))
+			if (ast_str2tos(v->value, &qos.tos))
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "cos")) {
-			if (ast_str2cos(v->value, &cos))
+			if (ast_str2cos(v->value, &qos.cos))
 				ast_log(LOG_WARNING, "Invalid cos value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "parkinglot")) {
 			ast_copy_string(default_parkinglot, v->value, sizeof(default_parkinglot));
@@ -11256,7 +11257,7 @@ static int set_config(char *config_file, int reload)
 	}
 	
 	if (defaultsockfd < 0) {
-		if (!(ns = ast_netsock_bind(netsock, io, "0.0.0.0", portno, tos, cos, socket_read, NULL))) {
+		if (!(ns = ast_netsock_bind(netsock, io, "0.0.0.0", portno, qos.tos, qos.cos, socket_read, NULL))) {
 			ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
 		} else {
 			ast_verb(2, "Binding IAX2 to default address 0.0.0.0:%d\n", portno);
@@ -11504,13 +11505,13 @@ static int cache_get_callno_locked(const char *data)
 static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *data, const char *context, const char *exten, int priority)
 {
 	struct iax2_dpcache *dp = NULL;
-	struct timeval tv = ast_tvnow();
-	int x, com[2], timeout, old = 0, outfd, abort, callno;
+	struct timeval now = ast_tvnow();
+	int x, com[2], timeout, old = 0, outfd, doabort, callno;
 	struct ast_channel *c = NULL;
 	struct ast_frame *f = NULL;
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&dpcache, dp, cache_list) {
-		if (ast_tvcmp(tv, dp->expiry) > 0) {
+		if (ast_tvcmp(now, dp->expiry) > 0) {
 			AST_LIST_REMOVE_CURRENT(cache_list);
 			if ((dp->flags & CACHE_FLAG_PENDING) || dp->callno)
 				ast_log(LOG_WARNING, "DP still has peer field or pending or callno (flags = %d, peer = blah, callno = %d)\n", dp->flags, dp->callno);
@@ -11577,7 +11578,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 		/* Defer any dtmf */
 		if (chan)
 			old = ast_channel_defer_dtmf(chan);
-		abort = 0;
+		doabort = 0;
 		while(timeout) {
 			c = ast_waitfor_nandfds(&chan, chan ? 1 : 0, &com[0], 1, NULL, &outfd, &timeout);
 			if (outfd > -1)
@@ -11585,7 +11586,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 			if (!c)
 				continue;
 			if (!(f = ast_read(c))) {
-				abort = 1;
+				doabort = 1;
 				break;
 			}
 			ast_frfree(f);
@@ -11597,7 +11598,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 		dp->waiters[x] = -1;
 		close(com[1]);
 		close(com[0]);
-		if (abort) {
+		if (doabort) {
 			/* Don't interpret anything, just abort.  Not sure what th epoint
 			  of undeferring dtmf on a hung up channel is but hey whatever */
 			if (!old && chan)
@@ -11793,7 +11794,7 @@ static int function_iaxpeer(struct ast_channel *chan, const char *cmd, char *dat
 		ast_getformatname_multiple(buf, len -1, peer->capability);
 	} else  if (!strncasecmp(colname, "codec[", 6)) {
 		char *codecnum, *ptr;
-		int index = 0, codec = 0;
+		int codec = 0;
 		
 		codecnum = strchr(colname, '[');
 		*codecnum = '\0';
@@ -11801,8 +11802,7 @@ static int function_iaxpeer(struct ast_channel *chan, const char *cmd, char *dat
 		if ((ptr = strchr(codecnum, ']'))) {
 			*ptr = '\0';
 		}
-		index = atoi(codecnum);
-		if((codec = ast_codec_pref_index(&peer->prefs, index))) {
+		if((codec = ast_codec_pref_index(&peer->prefs, atoi(codecnum)))) {
 			ast_copy_string(buf, ast_getformatname(codec), len);
 		}
 	}

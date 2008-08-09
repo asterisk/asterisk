@@ -76,13 +76,13 @@ static int ppdrvdev=0;
 /*
 	Trace Routines
 */
-void strace(i16 point, t_sdbg *sdbg, i16 index, i16 value)
+void strace(i16 point, t_sdbg *sdbg, i16 idx, i16 value)
 {
 	// make dbg_trace buffer in structure
 	if(!sdbg->mode || sdbg->point[point]<0){
 		return;
     } else {
-		sdbg->buffer[(index*XPMR_DEBUG_CHANS) + sdbg->point[point]] = value;
+		sdbg->buffer[(idx*XPMR_DEBUG_CHANS) + sdbg->point[point]] = value;
 	}
 }
 /*
@@ -268,8 +268,8 @@ i16 code_string_parse(t_pmr_chan *pChan)
 	// Do Receive Codes String
 	for(i=0;i<pChan->numrxcodes;i++)
 	{
-		i16 ii,ri,ti;
-		float f;
+		i16 ri,_ti;
+		float _f;
 
  		p=pChan->pStr=pChan->pRxCode[i];
 
@@ -277,32 +277,33 @@ i16 code_string_parse(t_pmr_chan *pChan)
 		if(!xpmrx(pChan,XXO_LSDCODEPARSE_1))
 		#endif
 		{
-			sscanf(p,"%f",&f);
-			ri=CtcssFreqIndex(f);
+			sscanf(p,"%f",&_f);
+			ri=CtcssFreqIndex(_f);
 			if(ri>maxctcssindex)maxctcssindex=ri;
 
-			sscanf(pChan->pTxCode[i],"%f",&f);
-		    ti=CtcssFreqIndex(f);
-			if(f>maxctcsstxfreq)maxctcsstxfreq=f;
+			sscanf(pChan->pTxCode[i],"%f",&_f);
+		    _ti=CtcssFreqIndex(_f);
+			if(_f>maxctcsstxfreq)maxctcsstxfreq=_f;
 
-			if(ri>CTCSS_NULL && ti>CTCSS_NULL)
+			if(ri>CTCSS_NULL && _ti>CTCSS_NULL)
 			{
 				pChan->b.ctcssRxEnable=pChan->b.ctcssTxEnable=1;
-				pChan->rxCtcssMap[ri]=ti;
+				pChan->rxCtcssMap[ri]=_ti;
 				pChan->numrxctcssfreqs++;
-				TRACEF(1,("pChan->rxctcss[%i]=%s  pChan->rxCtcssMap[%i]=%i\n",i,pChan->rxctcss[i],ri,ti));
+				TRACEF(1,("pChan->rxctcss[%i]=%s  pChan->rxCtcssMap[%i]=%i\n",i,pChan->rxctcss[i],ri,_ti));
 			}
-			else if(ri>CTCSS_NULL && f==0)
+			else if(ri>CTCSS_NULL && _f==0)
 			{
 				pChan->b.ctcssRxEnable=1;
 				pChan->rxCtcssMap[ri]=CTCSS_RXONLY;
 				pChan->numrxctcssfreqs++;
-				TRACEF(1,("pChan->rxctcss[%i]=%s  pChan->rxCtcssMap[%i]=%i RXONLY\n",i,pChan->rxctcss[i],ri,ti));
+				TRACEF(1,("pChan->rxctcss[%i]=%s  pChan->rxCtcssMap[%i]=%i RXONLY\n",i,pChan->rxctcss[i],ri,_ti));
 			}
 			else
 			{
+				i16 _ii;
 				pChan->numrxctcssfreqs=0;
-				for(ii=0;ii<CTCSS_NUM_CODES;ii++) pChan->rxCtcssMap[ii]=CTCSS_NULL;
+				for(_ii=0;_ii<CTCSS_NUM_CODES;_ii++) pChan->rxCtcssMap[_ii]=CTCSS_NULL;
 				TRACEF(1,("WARNING: Invalid Channel code detected and ignored. %i %s %s \n",i,pChan->pRxCode[i],pChan->pTxCode[i]));
 			}
 		}
@@ -825,7 +826,7 @@ i16 gp_diff(t_pmr_sps *mySps)
 	i32	i;
 	i32 temp0,temp1;
  	i16 x0;
-	i32 y0;
+	i32 _y0;
 	i16 a0,a1;
 	i16 b0;
 	i16 *coef;
@@ -855,12 +856,12 @@ i16 gp_diff(t_pmr_sps *mySps)
 		temp0 =	x0 * a1;
 		   x0 = input[i];
 		temp1 = input[i] * a0;
-		   y0 = (temp0 + temp1)/calcAdjust;
-		   y0 =(y0*outputGain)/M_Q8;
+		  _y0 = (temp0 + temp1)/calcAdjust;
+		  _y0 = (_y0*outputGain)/M_Q8;
 		
-		if(y0>32766)y0=32766;
-		else if(y0<-32766)y0=-32766;
-        output[i]=y0;
+		if(_y0>32766)_y0=32766;
+		else if(_y0<-32766)_y0=-32766;
+        output[i]=_y0;
     }
 
 	x[0]=x0;

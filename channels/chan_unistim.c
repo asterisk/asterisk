@@ -180,7 +180,7 @@ enum autoprov_extn {
 
 #define FAV_MAX_LENGTH		  0x0A
 
-static void dummy(char *dummy, ...)
+static void dummy(char *unused, ...)
 {
 	return;
 }
@@ -206,17 +206,21 @@ static int unistim_port;
 static enum autoprovision autoprovisioning = AUTOPROVISIONING_NO;
 static int unistim_keepalive;
 static int unistimsock = -1;
-static unsigned int tos = 0;
-static unsigned int tos_audio = 0;
-static unsigned int cos = 0;
-static unsigned int cos_audio = 0;
+
+static struct {
+	unsigned int tos;
+	unsigned int tos_audio;
+	unsigned int cos;
+	unsigned int cos_audio;
+} qos = { 0, 0, 0, 0 };
+
 static struct io_context *io;
 static struct sched_context *sched;
 static struct sockaddr_in public_ip = { 0, };
 /*! give the IP address for the last packet received */
-static struct sockaddr_in addr_from;
+static struct sockaddr_in address_from;
 /*! size of the sockaddr_in (in WSARecvFrom) */
-static unsigned int size_addr_from = sizeof(addr_from);
+static unsigned int size_addr_from = sizeof(address_from);
 /*! Receive buffer address */
 static unsigned char *buff;
 static int unistim_reloading = 0;
@@ -663,7 +667,7 @@ static unsigned char packet_send_ping[] =
 #define BUFFSEND unsigned char buffsend[64] = { 0x00, 0x00, 0xaa, 0xbb, 0x02, 0x01 }
 
 static const char tdesc[] = "UNISTIM Channel Driver";
-static const char type[] = "USTM";
+static const char channel_type[] = "USTM";
 
 /*! Protos */
 static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state);
@@ -692,7 +696,7 @@ static int write_entry_history(struct unistimsession *pte, FILE * f, char c,
 static void change_callerid(struct unistimsession *pte, int type, char *callerid);
 
 static const struct ast_channel_tech unistim_tech = {
-	.type = type,
+	.type = channel_type,
 	.description = tdesc,
 	.capabilities = CAPABILITY,
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
@@ -723,9 +727,9 @@ static void display_last_error(const char *sz_msg)
 
 static unsigned int get_tick_count(void)
 {
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 
-	return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+	return (now.tv_sec * 1000) + (now.tv_usec / 1000);
 }
 
 /* Send data to a phone without retransmit nor buffering */
@@ -1356,13 +1360,13 @@ static void send_texttitle(struct unistimsession *pte, const char *text)
 static void send_date_time(struct unistimsession *pte)
 {
 	BUFFSEND;
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 	struct ast_tm atm = { 0, };
 
 	if (unistimdebug)
 		ast_verb(0, "Sending Time & Date\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_date_time, sizeof(packet_send_date_time));
-	ast_localtime(&tv, &atm, NULL);
+	ast_localtime(&now, &atm, NULL);
 	buffsend[10] = (unsigned char) atm.tm_mon + 1;
 	buffsend[11] = (unsigned char) atm.tm_mday;
 	buffsend[12] = (unsigned char) atm.tm_hour;
@@ -1373,13 +1377,13 @@ static void send_date_time(struct unistimsession *pte)
 static void send_date_time2(struct unistimsession *pte)
 {
 	BUFFSEND;
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 	struct ast_tm atm = { 0, };
 
 	if (unistimdebug)
 		ast_verb(0, "Sending Time & Date #2\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_date_time2, sizeof(packet_send_date_time2));
-	ast_localtime(&tv, &atm, NULL);
+	ast_localtime(&now, &atm, NULL);
 	if (pte->device)
 		buffsend[9] = pte->device->datetimeformat;
 	else
@@ -1394,13 +1398,13 @@ static void send_date_time2(struct unistimsession *pte)
 static void send_date_time3(struct unistimsession *pte)
 {
 	BUFFSEND;
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 	struct ast_tm atm = { 0, };
 
 	if (unistimdebug)
 		ast_verb(0, "Sending Time & Date #3\n");
 	memcpy(buffsend + SIZE_HEADER, packet_send_date_time3, sizeof(packet_send_date_time3));
-	ast_localtime(&tv, &atm, NULL);
+	ast_localtime(&now, &atm, NULL);
 	buffsend[10] = (unsigned char) atm.tm_mon + 1;
 	buffsend[11] = (unsigned char) atm.tm_mday;
 	buffsend[12] = (unsigned char) atm.tm_hour;
@@ -1692,7 +1696,7 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 	char count = 0, *histbuf;
 	int size;
 	FILE *f, *f2;
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 	struct ast_tm atm = { 0, };
 
 	if (!pte->device)
@@ -1713,7 +1717,7 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 		}
 	}
 
-	ast_localtime(&tv, &atm, NULL);
+	ast_localtime(&now, &atm, NULL);
 	if (ismissed) {
 		if (way == 'i')
 			strcpy(tmp2, "Miss");
@@ -2064,7 +2068,7 @@ static void start_rtp(struct unistim_subchannel *sub)
 		sub->owner->fds[1] = ast_rtcp_fd(sub->rtp);
 	}
 	if (sub->rtp) {
-		ast_rtp_setqos(sub->rtp, tos_audio, cos_audio, "UNISTIM RTP");
+		ast_rtp_setqos(sub->rtp, qos.tos_audio, qos.cos_audio, "UNISTIM RTP");
 		ast_rtp_setnat(sub->rtp, sub->parent->parent->nat);
 	}
 
@@ -2376,11 +2380,11 @@ static void HandleCallOutgoing(struct unistimsession *s)
 	} else {					/* We already have a call, so we switch in a threeway call */
 
 		if (s->device->moh) {
-			struct unistim_subchannel *sub;
+			struct unistim_subchannel *subchannel;
 			struct unistim_line *p = s->device->lines;
-			sub = p->subs[SUB_REAL];
+			subchannel = p->subs[SUB_REAL];
 
-			if (!sub->owner) {
+			if (!subchannel->owner) {
 				ast_log(LOG_WARNING, "Unable to find subchannel for music on hold\n");
 				return;
 			}
@@ -2397,7 +2401,7 @@ static void HandleCallOutgoing(struct unistimsession *s)
 			if (s->device->silence_generator) {
 				if (unistimdebug)
 					ast_verb(0, "Stopping silence generator\n");
-				ast_channel_stop_silence_generator(sub->owner,
+				ast_channel_stop_silence_generator(subchannel->owner,
 												   s->device->silence_generator);
 				s->device->silence_generator = NULL;
 			}
@@ -5318,16 +5322,16 @@ static int reload_config(void)
 		else if (!strcasecmp(v->name, "port"))
 			unistim_port = atoi(v->value);
                 else if (!strcasecmp(v->name, "tos")) {
-                        if (ast_str2tos(v->value, &tos))
+                        if (ast_str2tos(v->value, &qos.tos))
                             ast_log(LOG_WARNING, "Invalid tos value at line %d, refer to QoS documentation\n", v->lineno);
                 } else if (!strcasecmp(v->name, "tos_audio")) {
-                        if (ast_str2tos(v->value, &tos_audio))
+                        if (ast_str2tos(v->value, &qos.tos_audio))
                             ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, refer to QoS documentation\n", v->lineno);
                 } else if (!strcasecmp(v->name, "cos")) {
-                        if (ast_str2cos(v->value, &cos))
+                        if (ast_str2cos(v->value, &qos.cos))
                             ast_log(LOG_WARNING, "Invalid cos value at line %d, refer to QoS documentation\n", v->lineno);
                 } else if (!strcasecmp(v->name, "cos_audio")) {
-                        if (ast_str2cos(v->value, &cos_audio))
+                        if (ast_str2cos(v->value, &qos.cos_audio))
                             ast_log(LOG_WARNING, "Invalid cos_audio value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "autoprovisioning")) {
 			if (!strcasecmp(v->value, "no"))
@@ -5506,7 +5510,7 @@ static int reload_config(void)
 		unistimsock = -1;
 	} else {
 		ast_verb(2, "UNISTIM Listening on %s:%d\n", ast_inet_ntoa(bindaddr.sin_addr), htons(bindaddr.sin_port));
-		ast_netsock_set_qos(unistimsock, tos, cos, "UNISTIM");
+		ast_netsock_set_qos(unistimsock, qos.tos, qos.cos, "UNISTIM");
 	}
 	return 0;
 }
@@ -5552,7 +5556,7 @@ static int unistim_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp,
 }
 
 static struct ast_rtp_protocol unistim_rtp = {
-	.type = type,
+	.type = channel_type,
 	.get_rtp_info = unistim_get_rtp_peer,
 	.get_vrtp_info = unistim_get_vrtp_peer,
 	.set_rtp_peer = unistim_set_rtp_peer,
@@ -5584,7 +5588,7 @@ int load_module(void)
 
 	/* Make sure we can register our unistim channel type */
 	if (ast_channel_register(&unistim_tech)) {
-		ast_log(LOG_ERROR, "Unable to register channel type '%s'\n", type);
+		ast_log(LOG_ERROR, "Unable to register channel type '%s'\n", channel_type);
 		goto chanreg_failed;
 	} 
 

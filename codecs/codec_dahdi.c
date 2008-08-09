@@ -334,12 +334,12 @@ static void drop_translator(int dst, int src)
 
 static void unregister_translators(void)
 {
-	struct translator *cur;
+	struct translator *current;
 
 	AST_LIST_LOCK(&translators);
-	while ((cur = AST_LIST_REMOVE_HEAD(&translators, entry))) {
-		ast_unregister_translator(&cur->t);
-		ast_free(cur);
+	while ((current = AST_LIST_REMOVE_HEAD(&translators, entry))) {
+		ast_unregister_translator(&current->t);
+		ast_free(current);
 	}
 	AST_LIST_UNLOCK(&translators);
 }
