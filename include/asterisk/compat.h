@@ -54,6 +54,7 @@
 typedef unsigned char	u_int8_t;
 typedef unsigned short	u_int16_t;
 typedef unsigned int	u_int32_t;
+typedef unsigned int	uint;
 #endif
 
 char* strsep(char** str, const char* delims);
