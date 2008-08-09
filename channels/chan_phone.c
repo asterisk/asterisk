@@ -844,18 +844,18 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 	return 0;
 }
 
-static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *context)
+static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx)
 {
 	struct ast_channel *tmp;
-	struct phone_codec_data codec;
+	struct phone_codec_data queried_codec;
 	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "", i->ext, i->context, 0, "Phone/%s", i->dev + 5);
 	if (tmp) {
 		tmp->tech = cur_tech;
 		ast_channel_set_fd(tmp, 0, i->fd);
 		/* XXX Switching formats silently causes kernel panics XXX */
 		if (i->mode == MODE_FXS &&
-		    ioctl(i->fd, PHONE_QUERY_CODEC, &codec) == 0) {
-			if (codec.type == LINEAR16)
+		    ioctl(i->fd, PHONE_QUERY_CODEC, &queried_codec) == 0) {
+			if (queried_codec.type == LINEAR16)
 				tmp->nativeformats =
 				tmp->rawreadformat =
 				tmp->rawwriteformat =
@@ -876,7 +876,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->tech_pvt = i;
-		ast_copy_string(tmp->context, context, sizeof(tmp->context));
+		ast_copy_string(tmp->context, cntx, sizeof(tmp->context));
 		if (!ast_strlen_zero(i->ext))
 			ast_copy_string(tmp->exten, i->ext, sizeof(tmp->exten));
 		else
@@ -1017,7 +1017,7 @@ static void *do_monitor(void *data)
 	struct phone_pvt *i;
 	int tonepos = 0;
 	/* The tone we're playing this round */
-	struct timeval tv = {0,0};
+	struct timeval wait = {0,0};
 	int dotone;
 	/* This thread monitors all the frame relay interfaces which are not yet in use
 	   (and thus do not have a separate thread) indefinitely */
@@ -1048,7 +1048,7 @@ static void *do_monitor(void *data)
 				if (i->dialtone && i->mode != MODE_SIGMA) {
 					/* Remember we're going to have to come back and play
 					   more dialtones */
-					if (ast_tvzero(tv)) {
+					if (ast_tvzero(wait)) {
 						/* If we're due for a dialtone, play one */
 						if (write(i->fd, DialTone + tonepos, 240) != 240)
 							ast_log(LOG_WARNING, "Dial tone write error\n");
@@ -1068,13 +1068,13 @@ static void *do_monitor(void *data)
 			tonepos += 240;
 			if (tonepos >= sizeof(DialTone))
 					tonepos = 0;
-			if (ast_tvzero(tv)) {
-				tv = ast_tv(30000, 0);
+			if (ast_tvzero(wait)) {
+				wait = ast_tv(30000, 0);
 			}
-			res = ast_select(n + 1, &rfds, NULL, &efds, &tv);
+			res = ast_select(n + 1, &rfds, NULL, &efds, &wait);
 		} else {
 			res = ast_select(n + 1, &rfds, NULL, &efds, NULL);
-			tv = ast_tv(0,0);
+			wait = ast_tv(0,0);
 			tonepos = 0;
 		}
 		/* Okay, select has finished.  Let's see what happened.  */

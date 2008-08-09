@@ -311,7 +311,7 @@ static int open_stream(struct console_pvt *pvt)
 			.suggestedLatency = (1.0 / 50.0), /* 20 ms */
 			.device = paNoDevice,
 		};
-		PaDeviceIndex index, num_devices, def_input, def_output;
+		PaDeviceIndex idx, num_devices, def_input, def_output;
 
 		if (!(num_devices = Pa_GetDeviceCount()))
 			return res;
@@ -319,23 +319,23 @@ static int open_stream(struct console_pvt *pvt)
 		def_input = Pa_GetDefaultInputDevice();
 		def_output = Pa_GetDefaultOutputDevice();
 
-		for (index = 0; 
-			index < num_devices && (input_params.device == paNoDevice 
+		for (idx = 0; 
+			idx < num_devices && (input_params.device == paNoDevice 
 				|| output_params.device == paNoDevice); 
-			index++) 
+			idx++) 
 		{
-			const PaDeviceInfo *dev = Pa_GetDeviceInfo(index);
+			const PaDeviceInfo *dev = Pa_GetDeviceInfo(idx);
 
 			if (dev->maxInputChannels) {
-				if ( (index == def_input && !strcasecmp(pvt->input_device, "default")) ||
+				if ( (idx == def_input && !strcasecmp(pvt->input_device, "default")) ||
 					!strcasecmp(pvt->input_device, dev->name) )
-					input_params.device = index;
+					input_params.device = idx;
 			}
 
 			if (dev->maxOutputChannels) {
-				if ( (index == def_output && !strcasecmp(pvt->output_device, "default")) ||
+				if ( (idx == def_output && !strcasecmp(pvt->output_device, "default")) ||
 					!strcasecmp(pvt->output_device, dev->name) )
-					output_params.device = index;
+					output_params.device = idx;
 			}
 		}
 
@@ -922,7 +922,7 @@ static char *cli_console_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 static char *cli_list_available(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	PaDeviceIndex index, num, def_input, def_output;
+	PaDeviceIndex idx, num, def_input, def_output;
 
 	if (cmd == CLI_INIT) {
 		e->command = "console list available";
@@ -950,16 +950,16 @@ static char *cli_list_available(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 	def_input = Pa_GetDefaultInputDevice();
 	def_output = Pa_GetDefaultOutputDevice();
-	for (index = 0; index < num; index++) {
-		const PaDeviceInfo *dev = Pa_GetDeviceInfo(index);
+	for (idx = 0; idx < num; idx++) {
+		const PaDeviceInfo *dev = Pa_GetDeviceInfo(idx);
 		if (!dev)
 			continue;
 		ast_cli(a->fd, "=== ---------------------------------------------------------\n"
 		               "=== Device Name: %s\n", dev->name);
 		if (dev->maxInputChannels)
-			ast_cli(a->fd, "=== ---> %sInput Device\n", (index == def_input) ? "Default " : "");
+			ast_cli(a->fd, "=== ---> %sInput Device\n", (idx == def_input) ? "Default " : "");
 		if (dev->maxOutputChannels)
-			ast_cli(a->fd, "=== ---> %sOutput Device\n", (index == def_output) ? "Default " : "");
+			ast_cli(a->fd, "=== ---> %sOutput Device\n", (idx == def_output) ? "Default " : "");
 		ast_cli(a->fd, "=== ---------------------------------------------------------\n===\n");
 	}
 

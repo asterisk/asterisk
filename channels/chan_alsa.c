@@ -560,12 +560,12 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 	return tmp;
 }
 
-static struct ast_channel *alsa_request(const char *type, int format, void *data, int *cause)
+static struct ast_channel *alsa_request(const char *type, int fmt, void *data, int *cause)
 {
-	int oldformat = format;
+	int oldformat = fmt;
 	struct ast_channel *tmp = NULL;
 
-	if (!(format &= AST_FORMAT_SLINEAR)) {
+	if (!(fmt &= AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of format '%d'\n", oldformat);
 		return NULL;
 	}

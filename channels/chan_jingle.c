@@ -161,7 +161,7 @@ struct jingle_container {
 };
 
 static const char desc[] = "Jingle Channel";
-static const char type[] = "Jingle";
+static const char channel_type[] = "Jingle";
 
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
 
@@ -1464,7 +1464,7 @@ static int jingle_hangup(struct ast_channel *ast)
 }
 
 /*! \brief Part of PBX interface */
-static struct ast_channel *jingle_request(const char *type, int format, void *data, int *cause)
+static struct ast_channel *jingle_request(const char *request_type, int format, void *data, int *cause)
 {
 	struct jingle_pvt *p = NULL;
 	struct jingle *client = NULL;
@@ -1882,7 +1882,7 @@ static int load_module(void)
 	ast_cli_register_multiple(jingle_cli, ARRAY_LEN(jingle_cli));
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&jingle_tech)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		ast_log(LOG_ERROR, "Unable to register channel class %s\n", channel_type);
 		return -1;
 	}
 	return 0;

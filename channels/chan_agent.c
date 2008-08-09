@@ -268,7 +268,7 @@ static void agent_devicestate_cb(const struct ast_event *event, void *unused)
 {
 	int res, i;
 	struct agent_pvt *p;
-	char basename[AST_CHANNEL_NAME], *tmp;
+	char base[AST_CHANNEL_NAME], *tmp;
 	const char *device;
 	enum ast_device_state state;
 
@@ -297,11 +297,11 @@ static void agent_devicestate_cb(const struct ast_event *event, void *unused)
 	AST_LIST_TRAVERSE(&agents, p, list) {
 		ast_mutex_lock(&p->lock);
 		if (p->chan) {
-			ast_copy_string(basename, p->chan->name, sizeof(basename));
-			if ((tmp = strrchr(basename, '-'))) {
+			ast_copy_string(base, p->chan->name, sizeof(base));
+			if ((tmp = strrchr(base, '-'))) {
 				*tmp = '\0';
 			}
-			if (strcasecmp(p->chan->name, device) == 0 || strcasecmp(basename, device) == 0) {
+			if (strcasecmp(p->chan->name, device) == 0 || strcasecmp(base, device) == 0) {
 				p->inherited_devicestate = state;
 				ast_devstate_changed(state, "Agent/%s", p->agent);
 			}
@@ -1363,7 +1363,7 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 	int groupoff;
 	int waitforagent=0;
 	int hasagent = 0;
-	struct timeval tv;
+	struct timeval now;
 
 	s = data;
 	if ((s[0] == '@') && (sscanf(s + 1, "%d", &groupoff) == 1)) {
@@ -1382,8 +1382,8 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 		    ast_strlen_zero(p->loginchan)) {
 			if (p->chan)
 				hasagent++;
-			tv = ast_tvnow();
-			if (!p->lastdisc.tv_sec || (tv.tv_sec >= p->lastdisc.tv_sec)) {
+			now = ast_tvnow();
+			if (!p->lastdisc.tv_sec || (now.tv_sec >= p->lastdisc.tv_sec)) {
 				p->lastdisc = ast_tv(0, 0);
 				/* Agent must be registered, but not have any active call, and not be in a waiting state */
 				if (!p->owner && p->chan) {
@@ -1404,11 +1404,11 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 			if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
 				if (p->chan || !ast_strlen_zero(p->loginchan))
 					hasagent++;
-				tv = ast_tvnow();
+				now = ast_tvnow();
 #if 0
-				ast_log(LOG_NOTICE, "Time now: %ld, Time of lastdisc: %ld\n", tv.tv_sec, p->lastdisc.tv_sec);
+				ast_log(LOG_NOTICE, "Time now: %ld, Time of lastdisc: %ld\n", now.tv_sec, p->lastdisc.tv_sec);
 #endif
-				if (!p->lastdisc.tv_sec || (tv.tv_sec >= p->lastdisc.tv_sec)) {
+				if (!p->lastdisc.tv_sec || (now.tv_sec >= p->lastdisc.tv_sec)) {
 					p->lastdisc = ast_tv(0, 0);
 					/* Agent must be registered, but not have any active call, and not be in a waiting state */
 					if (!p->owner && p->chan) {
@@ -1726,7 +1726,7 @@ static char *agents_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	char username[AST_MAX_BUF];
 	char location[AST_MAX_BUF] = "";
 	char talkingto[AST_MAX_BUF] = "";
-	char moh[AST_MAX_BUF];
+	char music[AST_MAX_BUF];
 	int count_agents = 0;		/*!< Number of agents configured */
 	int online_agents = 0;		/*!< Number of online agents */
 	int offline_agents = 0;		/*!< Number of offline agents */
@@ -1780,9 +1780,9 @@ static char *agents_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 				offline_agents++;
 			}
 			if (!ast_strlen_zero(p->moh))
-				snprintf(moh, sizeof(moh), " (musiconhold is '%s')", p->moh);
+				snprintf(music, sizeof(music), " (musiconhold is '%s')", p->moh);
 			ast_cli(a->fd, "%-12.12s %s%s%s%s\n", p->agent, 
-				username, location, talkingto, moh);
+				username, location, talkingto, music);
 			count_agents++;
 		}
 		ast_mutex_unlock(&p->lock);
@@ -1804,7 +1804,7 @@ static char *agents_show_online(struct ast_cli_entry *e, int cmd, struct ast_cli
 	char username[AST_MAX_BUF];
 	char location[AST_MAX_BUF] = "";
 	char talkingto[AST_MAX_BUF] = "";
-	char moh[AST_MAX_BUF];
+	char music[AST_MAX_BUF];
 	int count_agents = 0;           /* Number of agents configured */
 	int online_agents = 0;          /* Number of online agents */
 	int agent_status = 0;           /* 0 means offline, 1 means online */
@@ -1848,9 +1848,9 @@ static char *agents_show_online(struct ast_cli_entry *e, int cmd, struct ast_cli
 				strncat(location, " (Confirmed)", sizeof(location) - strlen(location) - 1);
 		}
 		if (!ast_strlen_zero(p->moh))
-			snprintf(moh, sizeof(moh), " (musiconhold is '%s')", p->moh);
+			snprintf(music, sizeof(music), " (musiconhold is '%s')", p->moh);
 		if (agent_status)
-			ast_cli(a->fd, "%-12.12s %s%s%s%s\n", p->agent, username, location, talkingto, moh);
+			ast_cli(a->fd, "%-12.12s %s%s%s%s\n", p->agent, username, location, talkingto, music);
 		count_agents++;
 		ast_mutex_unlock(&p->lock);
 	}
