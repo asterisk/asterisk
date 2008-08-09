@@ -438,6 +438,7 @@ if test "x${host_os}" = "xlinux-gnu" ; then
   AST_EXT_LIB_CHECK([CAP], [cap], [cap_from_text], [sys/capability.h])
 fi
 
+PBX_DAHDI_TRANSCODE=0
 if test "${USE_DAHDI}" != "no" ; then
 	AST_C_DEFINE_CHECK([DAHDI], [DAHDI_CODE], [dahdi/user.h])
 	if test "x${PBX_DAHDI}" = "x1" ; then
