@@ -17,6 +17,8 @@
 #ifndef _ASTERISK_ASTOBJ2_H
 #define _ASTERISK_ASTOBJ2_H
 
+#include "asterisk/compat.h"
+
 /*! \file 
  *
  * \brief Object Model implementing objects and containers.
