@@ -1216,16 +1216,16 @@ static int digit_to_dtmfindex(char digit)
 static int dahdi_digit_begin(struct ast_channel *chan, char digit)
 {
 	struct dahdi_pvt *pvt;
-	int index;
+	int idx;
 	int dtmf = -1;
 	
 	pvt = chan->tech_pvt;
 
 	ast_mutex_lock(&pvt->lock);
 
-	index = dahdi_get_index(chan, pvt, 0);
+	idx = dahdi_get_index(chan, pvt, 0);
 
-	if ((index != SUB_REAL) || !pvt->owner)
+	if ((idx != SUB_REAL) || !pvt->owner)
 		goto out;
 
 #ifdef HAVE_PRI
@@ -1279,16 +1279,16 @@ static int dahdi_digit_end(struct ast_channel *chan, char digit, unsigned int du
 {
 	struct dahdi_pvt *pvt;
 	int res = 0;
-	int index;
+	int idx;
 	int x;
 	
 	pvt = chan->tech_pvt;
 
 	ast_mutex_lock(&pvt->lock);
 	
-	index = dahdi_get_index(chan, pvt, 0);
+	idx = dahdi_get_index(chan, pvt, 0);
 
-	if ((index != SUB_REAL) || !pvt->owner || pvt->pulse)
+	if ((idx != SUB_REAL) || !pvt->owner || pvt->pulse)
 		goto out;
 
 #ifdef HAVE_PRI
@@ -1347,14 +1347,14 @@ static struct {
 	{ DAHDI_ALARM_NONE, "None" },
 };
 
-static char *alarm2str(int alarm)
+static char *alarm2str(int alm)
 {
 	int x;
 	for (x = 0; x < ARRAY_LEN(alarms); x++) {
-		if (alarms[x].alarm & alarm)
+		if (alarms[x].alarm & alm)
 			return alarms[x].name;
 	}
-	return alarm ? "Unknown Alarm" : "No Alarm";
+	return alm ? "Unknown Alarm" : "No Alarm";
 }
 
 static char *event2str(int event)
@@ -1444,7 +1444,7 @@ static char *dahdi_sig2str(int sig)
 
 #define sig2str dahdi_sig2str
 
-static int conf_add(struct dahdi_pvt *p, struct dahdi_subchannel *c, int index, int slavechannel)
+static int conf_add(struct dahdi_pvt *p, struct dahdi_subchannel *c, int idx, int slavechannel)
 {
 	/* If the conference already exists, and we're already in it
 	   don't bother doing anything */
@@ -1458,7 +1458,7 @@ static int conf_add(struct dahdi_pvt *p, struct dahdi_subchannel *c, int index, 
 		zi.confmode = DAHDI_CONF_DIGITALMON;
 		zi.confno = slavechannel;
 	} else {
-		if (!index) {
+		if (!idx) {
 			/* Real-side and pseudo-side both participate in conference */
 			zi.confmode = DAHDI_CONF_REALANDPSEUDO | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER |
 				DAHDI_CONF_PSEUDO_TALKER | DAHDI_CONF_PSEUDO_LISTENER;
@@ -1493,7 +1493,7 @@ static int isourconf(struct dahdi_pvt *p, struct dahdi_subchannel *c)
 	return 0;
 }
 
-static int conf_del(struct dahdi_pvt *p, struct dahdi_subchannel *c, int index)
+static int conf_del(struct dahdi_pvt *p, struct dahdi_subchannel *c, int idx)
 {
 	struct dahdi_confinfo zi;
 	if (/* Can't delete if there's no zfd */
@@ -2074,7 +2074,7 @@ static unsigned char cid_pres2ss7screen(int cid_pres)
 static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 {
 	struct dahdi_pvt *p = ast->tech_pvt;
-	int x, res, index,mysig;
+	int x, res, idx,mysig;
 	char *c, *n, *l;
 #ifdef HAVE_PRI
 	char *s = NULL;
@@ -2200,9 +2200,9 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		else
 			p->lastcid_name[0] = '\0';
 		ast_setstate(ast, AST_STATE_RINGING);
-		index = dahdi_get_index(ast, p, 0);
-		if (index > -1) {
-			p->subs[index].needringing = 1;
+		idx = dahdi_get_index(ast, p, 0);
+		if (idx > -1) {
+			p->subs[idx].needringing = 1;
 		}
 		break;
 	case SIG_FXSLS:
@@ -2961,7 +2961,7 @@ static int pri_find_dchan(struct dahdi_pri *pri)
 static int dahdi_hangup(struct ast_channel *ast)
 {
 	int res;
-	int index,x, law;
+	int idx,x, law;
 	/*static int restore_gains(struct dahdi_pvt *p);*/
 	struct dahdi_pvt *p = ast->tech_pvt;
 	struct dahdi_pvt *tmp = NULL;
@@ -2976,7 +2976,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 	
 	ast_mutex_lock(&p->lock);
 	
-	index = dahdi_get_index(ast, p, 1);
+	idx = dahdi_get_index(ast, p, 1);
 
 	if ((p->sig == SIG_PRI) || (p->sig == SIG_SS7) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) {
 		x = 1;
@@ -3003,22 +3003,22 @@ static int dahdi_hangup(struct ast_channel *ast)
 		p->exten[0] = '\0';
 
 	ast_debug(1, "Hangup: channel: %d index = %d, normal = %d, callwait = %d, thirdcall = %d\n",
-		p->channel, index, p->subs[SUB_REAL].zfd, p->subs[SUB_CALLWAIT].zfd, p->subs[SUB_THREEWAY].zfd);
+		p->channel, idx, p->subs[SUB_REAL].zfd, p->subs[SUB_CALLWAIT].zfd, p->subs[SUB_THREEWAY].zfd);
 	p->ignoredtmf = 0;
 	
-	if (index > -1) {
+	if (idx > -1) {
 		/* Real channel, do some fixup */
-		p->subs[index].owner = NULL;
-		p->subs[index].needanswer = 0;
-		p->subs[index].needflash = 0;
-		p->subs[index].needringing = 0;
-		p->subs[index].needbusy = 0;
-		p->subs[index].needcongestion = 0;
-		p->subs[index].linear = 0;
-		p->subs[index].needcallerid = 0;
+		p->subs[idx].owner = NULL;
+		p->subs[idx].needanswer = 0;
+		p->subs[idx].needflash = 0;
+		p->subs[idx].needringing = 0;
+		p->subs[idx].needbusy = 0;
+		p->subs[idx].needcongestion = 0;
+		p->subs[idx].linear = 0;
+		p->subs[idx].needcallerid = 0;
 		p->polarity = POLARITY_IDLE;
-		dahdi_setlinear(p->subs[index].zfd, 0);
-		if (index == SUB_REAL) {
+		dahdi_setlinear(p->subs[idx].zfd, 0);
+		if (idx == SUB_REAL) {
 			if ((p->subs[SUB_CALLWAIT].zfd > -1) && (p->subs[SUB_THREEWAY].zfd > -1)) {
 				ast_debug(1, "Normal call hung up with both three way call and a call waiting call in place?\n");
 				if (p->subs[SUB_CALLWAIT].inthreeway) {
@@ -3069,7 +3069,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 				}
 				p->subs[SUB_REAL].inthreeway = 0;
 			}
-		} else if (index == SUB_CALLWAIT) {
+		} else if (idx == SUB_CALLWAIT) {
 			/* Ditch the holding callwait call, and immediately make it availabe */
 			if (p->subs[SUB_CALLWAIT].inthreeway) {
 				/* This is actually part of a three way, placed on hold.  Place the third part
@@ -3085,7 +3085,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 				unalloc_sub(p, SUB_THREEWAY);
 			} else
 				unalloc_sub(p, SUB_CALLWAIT);
-		} else if (index == SUB_THREEWAY) {
+		} else if (idx == SUB_THREEWAY) {
 			if (p->subs[SUB_CALLWAIT].inthreeway) {
 				/* The other party of the three way call is currently in a call-wait state.
 				   Start music on hold for them, and take the main guy out of the third call */
@@ -3313,13 +3313,13 @@ static int dahdi_answer(struct ast_channel *ast)
 {
 	struct dahdi_pvt *p = ast->tech_pvt;
 	int res = 0;
-	int index;
+	int idx;
 	int oldstate = ast->_state;
 	ast_setstate(ast, AST_STATE_UP);
 	ast_mutex_lock(&p->lock);
-	index = dahdi_get_index(ast, p, 0);
-	if (index < 0)
-		index = SUB_REAL;
+	idx = dahdi_get_index(ast, p, 0);
+	if (idx < 0)
+		idx = SUB_REAL;
 	/* nothing to do if a radio channel */
 	if ((p->radio || (p->oprmode < 0))) {
 		ast_mutex_unlock(&p->lock);
@@ -3355,9 +3355,9 @@ static int dahdi_answer(struct ast_channel *ast)
 			p->polaritydelaytv = ast_tvnow();
 		}
 		res = dahdi_set_hook(p->subs[SUB_REAL].zfd, DAHDI_OFFHOOK);
-		tone_zone_play_tone(p->subs[index].zfd, -1);
+		tone_zone_play_tone(p->subs[idx].zfd, -1);
 		p->dialing = 0;
-		if ((index == SUB_REAL) && p->subs[SUB_THREEWAY].inthreeway) {
+		if ((idx == SUB_REAL) && p->subs[SUB_THREEWAY].inthreeway) {
 			if (oldstate == AST_STATE_RINGING) {
 				ast_debug(1, "Finally swapping real and threeway\n");
 				tone_zone_play_tone(p->subs[SUB_THREEWAY].zfd, -1);
@@ -3413,7 +3413,7 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 	char *cp;
 	signed char *scp;
 	int x;
-	int index;
+	int idx;
 	struct dahdi_pvt *p = chan->tech_pvt, *pp;
 	struct oprmode *oprmode;
 	
@@ -3427,22 +3427,22 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 	switch (option) {
 	case AST_OPTION_TXGAIN:
 		scp = (signed char *) data;
-		index = dahdi_get_index(chan, p, 0);
-		if (index < 0) {
+		idx = dahdi_get_index(chan, p, 0);
+		if (idx < 0) {
 			ast_log(LOG_WARNING, "No index in TXGAIN?\n");
 			return -1;
 		}
 		ast_debug(1, "Setting actual tx gain on %s to %f\n", chan->name, p->txgain + (float) *scp);
-		return set_actual_txgain(p->subs[index].zfd, 0, p->txgain + (float) *scp, p->law);
+		return set_actual_txgain(p->subs[idx].zfd, 0, p->txgain + (float) *scp, p->law);
 	case AST_OPTION_RXGAIN:
 		scp = (signed char *) data;
-		index = dahdi_get_index(chan, p, 0);
-		if (index < 0) {
+		idx = dahdi_get_index(chan, p, 0);
+		if (idx < 0) {
 			ast_log(LOG_WARNING, "No index in RXGAIN?\n");
 			return -1;
 		}
 		ast_debug(1, "Setting actual rx gain on %s to %f\n", chan->name, p->rxgain + (float) *scp);
-		return set_actual_rxgain(p->subs[index].zfd, 0, p->rxgain + (float) *scp, p->law);
+		return set_actual_rxgain(p->subs[idx].zfd, 0, p->rxgain + (float) *scp, p->law);
 	case AST_OPTION_TONE_VERIFY:
 		if (!p->dsp)
 			break;
@@ -3486,12 +3486,12 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 			memset(buf, 0x7f, sizeof(mybuf)); /* set to silence */
 			ast_tdd_gen_ecdisa(buf + 16000, 16000);  /* put in tone */
 			len = 40000;
-			index = dahdi_get_index(chan, p, 0);
-			if (index < 0) {
+			idx = dahdi_get_index(chan, p, 0);
+			if (idx < 0) {
 				ast_log(LOG_WARNING, "No index in TDD?\n");
 				return -1;
 			}
-			fd = p->subs[index].zfd;
+			fd = p->subs[idx].zfd;
 			while (len) {
 				if (ast_check_hangup(chan))
 					return -1;
@@ -4171,7 +4171,7 @@ static int get_alarms(struct dahdi_pvt *p)
 	return DAHDI_ALARM_NONE;
 }
 
-static void dahdi_handle_dtmfup(struct ast_channel *ast, int index, struct ast_frame **dest)
+static void dahdi_handle_dtmfup(struct ast_channel *ast, int idx, struct ast_frame **dest)
 {
 	struct dahdi_pvt *p = ast->tech_pvt;
 	struct ast_frame *f = *dest;
@@ -4182,9 +4182,9 @@ static void dahdi_handle_dtmfup(struct ast_channel *ast, int index, struct ast_f
 		ast_debug(1, "Confirm answer on %s!\n", ast->name);
 		/* Upon receiving a DTMF digit, consider this an answer confirmation instead
 		   of a DTMF digit */
-		p->subs[index].f.frametype = AST_FRAME_CONTROL;
-		p->subs[index].f.subclass = AST_CONTROL_ANSWER;
-		*dest = &p->subs[index].f;
+		p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+		p->subs[idx].f.subclass = AST_CONTROL_ANSWER;
+		*dest = &p->subs[idx].f;
 		/* Reset confirmanswer so DTMF's will behave properly for the duration of the call */
 		p->confirmanswer = 0;
 	} else if (p->callwaitcas) {
@@ -4195,9 +4195,9 @@ static void dahdi_handle_dtmfup(struct ast_channel *ast, int index, struct ast_f
 			send_cwcidspill(p);
 		}
 		p->callwaitcas = 0;
-		p->subs[index].f.frametype = AST_FRAME_NULL;
-		p->subs[index].f.subclass = 0;
-		*dest = &p->subs[index].f;
+		p->subs[idx].f.frametype = AST_FRAME_NULL;
+		p->subs[idx].f.subclass = 0;
+		*dest = &p->subs[idx].f;
 	} else if (f->subclass == 'f') {
 		/* Fax tone -- Handle and return NULL */
 		if ((p->callprogress & CALLPROGRESS_FAX) && !p->faxhandled) {
@@ -4218,15 +4218,15 @@ static void dahdi_handle_dtmfup(struct ast_channel *ast, int index, struct ast_f
 		} else
 			ast_debug(1, "Fax already handled\n");
 		dahdi_confmute(p, 0);
-		p->subs[index].f.frametype = AST_FRAME_NULL;
-		p->subs[index].f.subclass = 0;
-		*dest = &p->subs[index].f;
+		p->subs[idx].f.frametype = AST_FRAME_NULL;
+		p->subs[idx].f.subclass = 0;
+		*dest = &p->subs[idx].f;
 	}
 }
 			
-static void handle_alarms(struct dahdi_pvt *p, int alarms)
+static void handle_alarms(struct dahdi_pvt *p, int alms)
 {
-	const char *alarm_str = alarm2str(alarms);
+	const char *alarm_str = alarm2str(alms);
 
 	ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm_str);
 	manager_event(EVENT_FLAG_SYSTEM, "Alarm",
@@ -4238,36 +4238,36 @@ static void handle_alarms(struct dahdi_pvt *p, int alarms)
 static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 {
 	int res, x;
-	int index, mysig;
+	int idx, mysig;
 	char *c;
 	struct dahdi_pvt *p = ast->tech_pvt;
 	pthread_t threadid;
 	struct ast_channel *chan;
 	struct ast_frame *f;
 
-	index = dahdi_get_index(ast, p, 0);
+	idx = dahdi_get_index(ast, p, 0);
 	mysig = p->sig;
 	if (p->outsigmod > -1)
 		mysig = p->outsigmod;
-	p->subs[index].f.frametype = AST_FRAME_NULL;
-	p->subs[index].f.subclass = 0;
-	p->subs[index].f.datalen = 0;
-	p->subs[index].f.samples = 0;
-	p->subs[index].f.mallocd = 0;
-	p->subs[index].f.offset = 0;
-	p->subs[index].f.src = "dahdi_handle_event";
-	p->subs[index].f.data.ptr = NULL;
-	f = &p->subs[index].f;
+	p->subs[idx].f.frametype = AST_FRAME_NULL;
+	p->subs[idx].f.subclass = 0;
+	p->subs[idx].f.datalen = 0;
+	p->subs[idx].f.samples = 0;
+	p->subs[idx].f.mallocd = 0;
+	p->subs[idx].f.offset = 0;
+	p->subs[idx].f.src = "dahdi_handle_event";
+	p->subs[idx].f.data.ptr = NULL;
+	f = &p->subs[idx].f;
 
-	if (index < 0)
-		return &p->subs[index].f;
+	if (idx < 0)
+		return &p->subs[idx].f;
 	if (p->fake_event) {
 		res = p->fake_event;
 		p->fake_event = 0;
 	} else
-		res = dahdi_get_event(p->subs[index].zfd);
+		res = dahdi_get_event(p->subs[idx].zfd);
 
-	ast_debug(1, "Got event %s(%d) on channel %d (index %d)\n", event2str(res), res, p->channel, index);
+	ast_debug(1, "Got event %s(%d) on channel %d (index %d)\n", event2str(res), res, p->channel, idx);
 
 	if (res & (DAHDI_EVENT_PULSEDIGIT | DAHDI_EVENT_DTMFUP)) {
 		p->pulsedial =  (res & DAHDI_EVENT_PULSEDIGIT) ? 1 : 0;
@@ -4277,12 +4277,12 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			/* absorb event */
 		} else {
 #endif
-			p->subs[index].f.frametype = AST_FRAME_DTMF_END;
-			p->subs[index].f.subclass = res & 0xff;
+			p->subs[idx].f.frametype = AST_FRAME_DTMF_END;
+			p->subs[idx].f.subclass = res & 0xff;
 #ifdef HAVE_PRI
 		}
 #endif
-		dahdi_handle_dtmfup(ast, index, &f);
+		dahdi_handle_dtmfup(ast, idx, &f);
 		return f;
 	}
 
@@ -4290,9 +4290,9 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		ast_debug(1, "DTMF Down '%c'\n", res & 0xff);
 		/* Mute conference */
 		dahdi_confmute(p, 1);
-		p->subs[index].f.frametype = AST_FRAME_DTMF_BEGIN;
-		p->subs[index].f.subclass = res & 0xff;
-		return &p->subs[index].f;
+		p->subs[idx].f.frametype = AST_FRAME_DTMF_BEGIN;
+		p->subs[idx].f.subclass = res & 0xff;
+		return &p->subs[idx].f;
 	}
 
 	switch (res) {
@@ -4305,12 +4305,12 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		case DAHDI_EVENT_PULSE_START:
 			/* Stop tone if there's a pulse start and the PBX isn't started */
 			if (!ast->pbx)
-				tone_zone_play_tone(p->subs[index].zfd, -1);
+				tone_zone_play_tone(p->subs[idx].zfd, -1);
 			break;	
 		case DAHDI_EVENT_DIALCOMPLETE:
 			if (p->inalarm) break;
 			if ((p->radio || (p->oprmode < 0))) break;
-			if (ioctl(p->subs[index].zfd,DAHDI_DIALING,&x) == -1) {
+			if (ioctl(p->subs[idx].zfd,DAHDI_DIALING,&x) == -1) {
 				ast_log(LOG_DEBUG, "DAHDI_DIALING ioctl failed on %s: %s\n",ast->name, strerror(errno));
 				return NULL;
 			}
@@ -4328,8 +4328,8 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						/* if thru with dialing after offhook */
 						if (ast->_state == AST_STATE_DIALING_OFFHOOK) {
 							ast_setstate(ast, AST_STATE_UP);
-							p->subs[index].f.frametype = AST_FRAME_CONTROL;
-							p->subs[index].f.subclass = AST_CONTROL_ANSWER;
+							p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+							p->subs[idx].f.subclass = AST_CONTROL_ANSWER;
 							break;
 						} else { /* if to state wait for offhook to dial rest */
 							/* we now wait for off hook */
@@ -4343,8 +4343,8 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 							ast_setstate(ast, AST_STATE_RINGING);
 						} else if (!p->answeronpolarityswitch) {
 							ast_setstate(ast, AST_STATE_UP);
-							p->subs[index].f.frametype = AST_FRAME_CONTROL;
-							p->subs[index].f.subclass = AST_CONTROL_ANSWER;
+							p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+							p->subs[idx].f.subclass = AST_CONTROL_ANSWER;
 							/* If aops=0 and hops=1, this is necessary */
 							p->polarity = POLARITY_REV;
 						} else {
@@ -4396,8 +4396,8 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 #endif
 		case DAHDI_EVENT_ONHOOK:
 			if (p->radio) {
-				p->subs[index].f.frametype = AST_FRAME_CONTROL;
-				p->subs[index].f.subclass = AST_CONTROL_RADIO_UNKEY;
+				p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+				p->subs[idx].f.subclass = AST_CONTROL_RADIO_UNKEY;
 				break;
 			}
 			if (p->oprmode < 0)
@@ -4420,7 +4420,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				p->onhooktime = time(NULL);
 				p->msgstate = -1;
 				/* Check for some special conditions regarding call waiting */
-				if (index == SUB_REAL) {
+				if (idx == SUB_REAL) {
 					/* The normal line was hung up */
 					if (p->subs[SUB_CALLWAIT].owner) {
 						/* There's a call waiting call, so ring the phone, but make it unowned in the mean time */
@@ -4428,8 +4428,8 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						ast_verb(3, "Channel %d still has (callwait) call, ringing phone\n", p->channel);
 						unalloc_sub(p, SUB_CALLWAIT);	
 #if 0
-						p->subs[index].needanswer = 0;
-						p->subs[index].needringing = 0;
+						p->subs[idx].needanswer = 0;
+						p->subs[idx].needringing = 0;
 #endif						
 						p->callwaitingrepeat = 0;
 						p->cidcwexpire = 0;
@@ -4509,7 +4509,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						}
 					}
 				} else {
-					ast_log(LOG_WARNING, "Got a hangup and my index is %d?\n", index);
+					ast_log(LOG_WARNING, "Got a hangup and my index is %d?\n", idx);
 				}
 				/* Fall through */
 			default:
@@ -4532,8 +4532,8 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			}
 			if (p->radio)
 			{
-				p->subs[index].f.frametype = AST_FRAME_CONTROL;
-				p->subs[index].f.subclass = AST_CONTROL_RADIO_KEY;
+				p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+				p->subs[idx].f.subclass = AST_CONTROL_RADIO_KEY;
 				break;
  			}
 			/* for E911, its supposed to wait for offhook then dial
@@ -4563,7 +4563,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					return NULL;
 					}
 				p->dialing = 1;
-				return &p->subs[index].f;
+				return &p->subs[idx].f;
 			}
 			switch (p->sig) {
 			case SIG_FXOLS:
@@ -4573,10 +4573,10 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				case AST_STATE_RINGING:
 					dahdi_enable_ec(p);
 					dahdi_train_ec(p);
-					p->subs[index].f.frametype = AST_FRAME_CONTROL;
-					p->subs[index].f.subclass = AST_CONTROL_ANSWER;
+					p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+					p->subs[idx].f.subclass = AST_CONTROL_ANSWER;
 					/* Make sure it stops ringing */
-					dahdi_set_hook(p->subs[index].zfd, DAHDI_OFFHOOK);
+					dahdi_set_hook(p->subs[idx].zfd, DAHDI_OFFHOOK);
 					ast_debug(1, "channel %d answered\n", p->channel);
 					if (p->cidspill) {
 						/* Cancel any running CallerID spill */
@@ -4587,8 +4587,8 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					p->callwaitcas = 0;
 					if (p->confirmanswer) {
 						/* Ignore answer if "confirm answer" is enabled */
-						p->subs[index].f.frametype = AST_FRAME_NULL;
-						p->subs[index].f.subclass = 0;
+						p->subs[idx].f.frametype = AST_FRAME_NULL;
+						p->subs[idx].f.subclass = 0;
 					} else if (!ast_strlen_zero(p->dop.dialstr)) {
 						/* nick@dccinc.com 4/3/03 - fxo should be able to do deferred dialing */
 						res = ioctl(p->subs[SUB_REAL].zfd, DAHDI_DIAL, &p->dop);
@@ -4598,29 +4598,29 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 							return NULL;
 						} else {
 							ast_debug(1, "Sent FXO deferred digit string: %s\n", p->dop.dialstr);
-							p->subs[index].f.frametype = AST_FRAME_NULL;
-							p->subs[index].f.subclass = 0;
+							p->subs[idx].f.frametype = AST_FRAME_NULL;
+							p->subs[idx].f.subclass = 0;
 							p->dialing = 1;
 						}
 						p->dop.dialstr[0] = '\0';
 						ast_setstate(ast, AST_STATE_DIALING);
 					} else
 						ast_setstate(ast, AST_STATE_UP);
-					return &p->subs[index].f;
+					return &p->subs[idx].f;
 				case AST_STATE_DOWN:
 					ast_setstate(ast, AST_STATE_RING);
 					ast->rings = 1;
-					p->subs[index].f.frametype = AST_FRAME_CONTROL;
-					p->subs[index].f.subclass = AST_CONTROL_OFFHOOK;
+					p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+					p->subs[idx].f.subclass = AST_CONTROL_OFFHOOK;
 					ast_debug(1, "channel %d picked up\n", p->channel);
-					return &p->subs[index].f;
+					return &p->subs[idx].f;
 				case AST_STATE_UP:
 					/* Make sure it stops ringing */
-					dahdi_set_hook(p->subs[index].zfd, DAHDI_OFFHOOK);
+					dahdi_set_hook(p->subs[idx].zfd, DAHDI_OFFHOOK);
 					/* Okay -- probably call waiting*/
 					if (ast_bridged_channel(p->owner))
 						ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
-					p->subs[index].needunhold = 1;
+					p->subs[idx].needunhold = 1;
 					break;
 				case AST_STATE_RESERVED:
 					/* Start up dialtone */
@@ -4667,16 +4667,16 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					ast_setstate(ast, AST_STATE_RING);
 				if ((ast->_state == AST_STATE_DOWN) || (ast->_state == AST_STATE_RING)) {
 					ast_debug(1, "Ring detected\n");
-					p->subs[index].f.frametype = AST_FRAME_CONTROL;
-					p->subs[index].f.subclass = AST_CONTROL_RING;
+					p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+					p->subs[idx].f.subclass = AST_CONTROL_RING;
 				} else if (p->outgoing && ((ast->_state == AST_STATE_RINGING) || (ast->_state == AST_STATE_DIALING))) {
 					ast_debug(1, "Line answered\n");
 					if (p->confirmanswer) {
-						p->subs[index].f.frametype = AST_FRAME_NULL;
-						p->subs[index].f.subclass = 0;
+						p->subs[idx].f.frametype = AST_FRAME_NULL;
+						p->subs[idx].f.subclass = 0;
 					} else {
-						p->subs[index].f.frametype = AST_FRAME_CONTROL;
-						p->subs[index].f.subclass = AST_CONTROL_ANSWER;
+						p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+						p->subs[idx].f.subclass = AST_CONTROL_ANSWER;
 						ast_setstate(ast, AST_STATE_UP);
 					}
 				} else if (ast->_state != AST_STATE_RING)
@@ -4707,8 +4707,8 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				p->cidspill = NULL;
 				p->callwaitcas = 0;
 			}
-			p->subs[index].f.frametype = AST_FRAME_CONTROL;
-			p->subs[index].f.subclass = AST_CONTROL_RINGING;
+			p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+			p->subs[idx].f.subclass = AST_CONTROL_RINGING;
 			break;
 		case DAHDI_EVENT_RINGERON:
 			break;
@@ -4751,11 +4751,11 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			case SIG_FXOGS:
 			case SIG_FXOKS:
 				ast_debug(1, "Winkflash, index: %d, normal: %d, callwait: %d, thirdcall: %d\n",
-					index, p->subs[SUB_REAL].zfd, p->subs[SUB_CALLWAIT].zfd, p->subs[SUB_THREEWAY].zfd);
+					idx, p->subs[SUB_REAL].zfd, p->subs[SUB_CALLWAIT].zfd, p->subs[SUB_THREEWAY].zfd);
 				p->callwaitcas = 0;
 
-				if (index != SUB_REAL) {
-					ast_log(LOG_WARNING, "Got flash hook with index %d on channel %d?!?\n", index, p->channel);
+				if (idx != SUB_REAL) {
+					ast_log(LOG_WARNING, "Got flash hook with index %d on channel %d?!?\n", idx, p->channel);
 					goto winkflashdone;
 				}
 				
@@ -5065,7 +5065,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		default:
 			ast_debug(1, "Dunno what to do with event %d on channel %d\n", res, p->channel);
 	}
-	return &p->subs[index].f;
+	return &p->subs[idx].f;
 }
 
 static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
@@ -5073,21 +5073,21 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 	struct dahdi_pvt *p = ast->tech_pvt;
 	int res;
 	int usedindex=-1;
-	int index;
+	int idx;
 	struct ast_frame *f;
 
 
-	index = dahdi_get_index(ast, p, 1);
+	idx = dahdi_get_index(ast, p, 1);
 	
-	p->subs[index].f.frametype = AST_FRAME_NULL;
-	p->subs[index].f.datalen = 0;
-	p->subs[index].f.samples = 0;
-	p->subs[index].f.mallocd = 0;
-	p->subs[index].f.offset = 0;
-	p->subs[index].f.subclass = 0;
-	p->subs[index].f.delivery = ast_tv(0,0);
-	p->subs[index].f.src = "dahdi_exception";
-	p->subs[index].f.data.ptr = NULL;
+	p->subs[idx].f.frametype = AST_FRAME_NULL;
+	p->subs[idx].f.datalen = 0;
+	p->subs[idx].f.samples = 0;
+	p->subs[idx].f.mallocd = 0;
+	p->subs[idx].f.offset = 0;
+	p->subs[idx].f.subclass = 0;
+	p->subs[idx].f.delivery = ast_tv(0,0);
+	p->subs[idx].f.src = "dahdi_exception";
+	p->subs[idx].f.data.ptr = NULL;
 	
 	
 	if ((!p->owner) && (!(p->radio || (p->oprmode < 0)))) {
@@ -5159,7 +5159,7 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 		default:
 			ast_log(LOG_WARNING, "Don't know how to absorb event %s\n", event2str(res));
 		}
-		f = &p->subs[index].f;
+		f = &p->subs[idx].f;
 		return f;
 	}
 	if (!(p->radio || (p->oprmode < 0))) 
@@ -5167,7 +5167,7 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 	/* If it's not us, return NULL immediately */
 	if (ast != p->owner) {
 		ast_log(LOG_WARNING, "We're %s, not %s\n", ast->name, p->owner->name);
-		f = &p->subs[index].f;
+		f = &p->subs[idx].f;
 		return f;
 	}
 	f = dahdi_handle_event(ast);
@@ -5188,7 +5188,7 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 {
 	struct dahdi_pvt *p = ast->tech_pvt;
 	int res;
-	int index;
+	int idx;
 	void *readbuf;
 	struct ast_frame *f;
 
@@ -5196,10 +5196,10 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 		CHANNEL_DEADLOCK_AVOIDANCE(ast);
 	}
 
-	index = dahdi_get_index(ast, p, 0);
+	idx = dahdi_get_index(ast, p, 0);
 	
 	/* Hang up if we don't really exist */
-	if (index < 0)	{
+	if (idx < 0)	{
 		ast_log(LOG_WARNING, "We dont exist?\n");
 		ast_mutex_unlock(&p->lock);
 		return NULL;
@@ -5207,15 +5207,15 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 	
 	if ((p->radio || (p->oprmode < 0)) && p->inalarm) return NULL;
 
-	p->subs[index].f.frametype = AST_FRAME_NULL;
-	p->subs[index].f.datalen = 0;
-	p->subs[index].f.samples = 0;
-	p->subs[index].f.mallocd = 0;
-	p->subs[index].f.offset = 0;
-	p->subs[index].f.subclass = 0;
-	p->subs[index].f.delivery = ast_tv(0,0);
-	p->subs[index].f.src = "dahdi_read";
-	p->subs[index].f.data.ptr = NULL;
+	p->subs[idx].f.frametype = AST_FRAME_NULL;
+	p->subs[idx].f.datalen = 0;
+	p->subs[idx].f.samples = 0;
+	p->subs[idx].f.mallocd = 0;
+	p->subs[idx].f.offset = 0;
+	p->subs[idx].f.subclass = 0;
+	p->subs[idx].f.delivery = ast_tv(0,0);
+	p->subs[idx].f.src = "dahdi_read";
+	p->subs[idx].f.data.ptr = NULL;
 	
 	/* make sure it sends initial key state as first frame */
 	if ((p->radio || (p->oprmode < 0)) && (!p->firstradio))
@@ -5228,17 +5228,17 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 			return NULL;
 		}
 		p->firstradio = 1;
-		p->subs[index].f.frametype = AST_FRAME_CONTROL;
+		p->subs[idx].f.frametype = AST_FRAME_CONTROL;
 		if (ps.rxisoffhook)
 		{
-			p->subs[index].f.subclass = AST_CONTROL_RADIO_KEY;
+			p->subs[idx].f.subclass = AST_CONTROL_RADIO_KEY;
 		}
 		else
 		{
-			p->subs[index].f.subclass = AST_CONTROL_RADIO_UNKEY;
+			p->subs[idx].f.subclass = AST_CONTROL_RADIO_UNKEY;
 		}
 		ast_mutex_unlock(&p->lock);
-		return &p->subs[index].f;
+		return &p->subs[idx].f;
 	}
 	if (p->ringt == 1) {
 		ast_mutex_unlock(&p->lock);
@@ -5247,103 +5247,103 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 	else if (p->ringt > 0) 
 		p->ringt--;
 
-	if (p->subs[index].needringing) {
+	if (p->subs[idx].needringing) {
 		/* Send ringing frame if requested */
-		p->subs[index].needringing = 0;
-		p->subs[index].f.frametype = AST_FRAME_CONTROL;
-		p->subs[index].f.subclass = AST_CONTROL_RINGING;
+		p->subs[idx].needringing = 0;
+		p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+		p->subs[idx].f.subclass = AST_CONTROL_RINGING;
 		ast_setstate(ast, AST_STATE_RINGING);
 		ast_mutex_unlock(&p->lock);
-		return &p->subs[index].f;
+		return &p->subs[idx].f;
 	}
 
-	if (p->subs[index].needbusy) {
+	if (p->subs[idx].needbusy) {
 		/* Send busy frame if requested */
-		p->subs[index].needbusy = 0;
-		p->subs[index].f.frametype = AST_FRAME_CONTROL;
-		p->subs[index].f.subclass = AST_CONTROL_BUSY;
+		p->subs[idx].needbusy = 0;
+		p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+		p->subs[idx].f.subclass = AST_CONTROL_BUSY;
 		ast_mutex_unlock(&p->lock);
-		return &p->subs[index].f;
+		return &p->subs[idx].f;
 	}
 
-	if (p->subs[index].needcongestion) {
+	if (p->subs[idx].needcongestion) {
 		/* Send congestion frame if requested */
-		p->subs[index].needcongestion = 0;
-		p->subs[index].f.frametype = AST_FRAME_CONTROL;
-		p->subs[index].f.subclass = AST_CONTROL_CONGESTION;
+		p->subs[idx].needcongestion = 0;
+		p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+		p->subs[idx].f.subclass = AST_CONTROL_CONGESTION;
 		ast_mutex_unlock(&p->lock);
-		return &p->subs[index].f;
+		return &p->subs[idx].f;
 	}
 
-	if (p->subs[index].needcallerid) {
+	if (p->subs[idx].needcallerid) {
 		ast_set_callerid(ast, S_OR(p->lastcid_num, NULL),
 							S_OR(p->lastcid_name, NULL),
 							S_OR(p->lastcid_num, NULL)
 							);
-		p->subs[index].needcallerid = 0;
+		p->subs[idx].needcallerid = 0;
 	}
 	
-	if (p->subs[index].needanswer) {
+	if (p->subs[idx].needanswer) {
 		/* Send answer frame if requested */
-		p->subs[index].needanswer = 0;
-		p->subs[index].f.frametype = AST_FRAME_CONTROL;
-		p->subs[index].f.subclass = AST_CONTROL_ANSWER;
+		p->subs[idx].needanswer = 0;
+		p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+		p->subs[idx].f.subclass = AST_CONTROL_ANSWER;
 		ast_mutex_unlock(&p->lock);
-		return &p->subs[index].f;
+		return &p->subs[idx].f;
 	}	
 	
-	if (p->subs[index].needflash) {
+	if (p->subs[idx].needflash) {
 		/* Send answer frame if requested */
-		p->subs[index].needflash = 0;
-		p->subs[index].f.frametype = AST_FRAME_CONTROL;
-		p->subs[index].f.subclass = AST_CONTROL_FLASH;
+		p->subs[idx].needflash = 0;
+		p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+		p->subs[idx].f.subclass = AST_CONTROL_FLASH;
 		ast_mutex_unlock(&p->lock);
-		return &p->subs[index].f;
+		return &p->subs[idx].f;
 	}	
 	
-	if (p->subs[index].needhold) {
+	if (p->subs[idx].needhold) {
 		/* Send answer frame if requested */
-		p->subs[index].needhold = 0;
-		p->subs[index].f.frametype = AST_FRAME_CONTROL;
-		p->subs[index].f.subclass = AST_CONTROL_HOLD;
+		p->subs[idx].needhold = 0;
+		p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+		p->subs[idx].f.subclass = AST_CONTROL_HOLD;
 		ast_mutex_unlock(&p->lock);
 		ast_debug(1, "Sending hold on '%s'\n", ast->name);
-		return &p->subs[index].f;
+		return &p->subs[idx].f;
 	}	
 	
-	if (p->subs[index].needunhold) {
+	if (p->subs[idx].needunhold) {
 		/* Send answer frame if requested */
-		p->subs[index].needunhold = 0;
-		p->subs[index].f.frametype = AST_FRAME_CONTROL;
-		p->subs[index].f.subclass = AST_CONTROL_UNHOLD;
+		p->subs[idx].needunhold = 0;
+		p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+		p->subs[idx].f.subclass = AST_CONTROL_UNHOLD;
 		ast_mutex_unlock(&p->lock);
 		ast_debug(1, "Sending unhold on '%s'\n", ast->name);
-		return &p->subs[index].f;
+		return &p->subs[idx].f;
 	}	
 	
 	if (ast->rawreadformat == AST_FORMAT_SLINEAR) {
-		if (!p->subs[index].linear) {
-			p->subs[index].linear = 1;
-			res = dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
+		if (!p->subs[idx].linear) {
+			p->subs[idx].linear = 1;
+			res = dahdi_setlinear(p->subs[idx].zfd, p->subs[idx].linear);
 			if (res) 
-				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to linear mode.\n", p->channel, index);
+				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to linear mode.\n", p->channel, idx);
 		}
 	} else if ((ast->rawreadformat == AST_FORMAT_ULAW) ||
 		   (ast->rawreadformat == AST_FORMAT_ALAW)) {
-		if (p->subs[index].linear) {
-			p->subs[index].linear = 0;
-			res = dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
+		if (p->subs[idx].linear) {
+			p->subs[idx].linear = 0;
+			res = dahdi_setlinear(p->subs[idx].zfd, p->subs[idx].linear);
 			if (res) 
-				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to companded mode.\n", p->channel, index);
+				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to companded mode.\n", p->channel, idx);
 		}
 	} else {
 		ast_log(LOG_WARNING, "Don't know how to read frames in format %s\n", ast_getformatname(ast->rawreadformat));
 		ast_mutex_unlock(&p->lock);
 		return NULL;
 	}
-	readbuf = ((unsigned char *)p->subs[index].buffer) + AST_FRIENDLY_OFFSET;
+	readbuf = ((unsigned char *)p->subs[idx].buffer) + AST_FRIENDLY_OFFSET;
 	CHECK_BLOCKING(ast);
-	res = read(p->subs[index].zfd, readbuf, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
+	res = read(p->subs[idx].zfd, readbuf, p->subs[idx].linear ? READ_SIZE * 2 : READ_SIZE);
 	ast_clear_flag(ast, AST_FLAG_BLOCKING);
 	/* Check for hangup */
 	if (res < 0) {
@@ -5352,7 +5352,7 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 			if (errno == EAGAIN) {
 				/* Return "NULL" frame if there is nobody there */
 				ast_mutex_unlock(&p->lock);
-				return &p->subs[index].f;
+				return &p->subs[idx].f;
 			} else if (errno == ELAST) {
 				f = __dahdi_exception(ast);
 			} else
@@ -5361,8 +5361,8 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 		ast_mutex_unlock(&p->lock);
 		return f;
 	}
-	if (res != (p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE)) {
-		ast_debug(1, "Short read (%d/%d), must be an event...\n", res, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
+	if (res != (p->subs[idx].linear ? READ_SIZE * 2 : READ_SIZE)) {
+		ast_debug(1, "Short read (%d/%d), must be an event...\n", res, p->subs[idx].linear ? READ_SIZE * 2 : READ_SIZE);
 		f = __dahdi_exception(ast);
 		ast_mutex_unlock(&p->lock);
 		return f;
@@ -5377,15 +5377,15 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 			return NULL;
 		}
 		if (c) { /* if a char to return */
-			p->subs[index].f.subclass = 0;
-			p->subs[index].f.frametype = AST_FRAME_TEXT;
-			p->subs[index].f.mallocd = 0;
-			p->subs[index].f.offset = AST_FRIENDLY_OFFSET;
-			p->subs[index].f.data.ptr = p->subs[index].buffer + AST_FRIENDLY_OFFSET;
-			p->subs[index].f.datalen = 1;
-			*((char *) p->subs[index].f.data.ptr) = c;
+			p->subs[idx].f.subclass = 0;
+			p->subs[idx].f.frametype = AST_FRAME_TEXT;
+			p->subs[idx].f.mallocd = 0;
+			p->subs[idx].f.offset = AST_FRIENDLY_OFFSET;
+			p->subs[idx].f.data.ptr = p->subs[idx].buffer + AST_FRIENDLY_OFFSET;
+			p->subs[idx].f.datalen = 1;
+			*((char *) p->subs[idx].f.data.ptr) = c;
 			ast_mutex_unlock(&p->lock);
-			return &p->subs[index].f;
+			return &p->subs[idx].f;
 		}
 	}
 	/* Ensure the CW timer decrements only on a single subchannel */
@@ -5404,44 +5404,44 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 		ast_verb(3, "CPE does not support Call Waiting Caller*ID.\n");
 		restore_conference(p);
 	}
-	if (p->subs[index].linear) {
-		p->subs[index].f.datalen = READ_SIZE * 2;
+	if (p->subs[idx].linear) {
+		p->subs[idx].f.datalen = READ_SIZE * 2;
 	} else 
-		p->subs[index].f.datalen = READ_SIZE;
+		p->subs[idx].f.datalen = READ_SIZE;
 
 	/* Handle CallerID Transmission */
 	if ((p->owner == ast) && p->cidspill &&((ast->_state == AST_STATE_UP) || (ast->rings == p->cidrings))) {
 		send_callerid(p);
 	}
 
-	p->subs[index].f.frametype = AST_FRAME_VOICE;
-	p->subs[index].f.subclass = ast->rawreadformat;
-	p->subs[index].f.samples = READ_SIZE;
-	p->subs[index].f.mallocd = 0;
-	p->subs[index].f.offset = AST_FRIENDLY_OFFSET;
-	p->subs[index].f.data.ptr = p->subs[index].buffer + AST_FRIENDLY_OFFSET / sizeof(p->subs[index].buffer[0]);
+	p->subs[idx].f.frametype = AST_FRAME_VOICE;
+	p->subs[idx].f.subclass = ast->rawreadformat;
+	p->subs[idx].f.samples = READ_SIZE;
+	p->subs[idx].f.mallocd = 0;
+	p->subs[idx].f.offset = AST_FRIENDLY_OFFSET;
+	p->subs[idx].f.data.ptr = p->subs[idx].buffer + AST_FRIENDLY_OFFSET / sizeof(p->subs[idx].buffer[0]);
 #if 0
-	ast_debug(1, "Read %d of voice on %s\n", p->subs[index].f.datalen, ast->name);
+	ast_debug(1, "Read %d of voice on %s\n", p->subs[idx].f.datalen, ast->name);
 #endif	
 	if (p->dialing || /* Transmitting something */
-	   (index && (ast->_state != AST_STATE_UP)) || /* Three-way or callwait that isn't up */
-	   ((index == SUB_CALLWAIT) && !p->subs[SUB_CALLWAIT].inthreeway) /* Inactive and non-confed call-wait */
+	   (idx && (ast->_state != AST_STATE_UP)) || /* Three-way or callwait that isn't up */
+	   ((idx == SUB_CALLWAIT) && !p->subs[SUB_CALLWAIT].inthreeway) /* Inactive and non-confed call-wait */
 	   ) {
 		/* Whoops, we're still dialing, or in a state where we shouldn't transmit....
 		   don't send anything */
-		p->subs[index].f.frametype = AST_FRAME_NULL;
-		p->subs[index].f.subclass = 0;
-		p->subs[index].f.samples = 0;
-		p->subs[index].f.mallocd = 0;
-		p->subs[index].f.offset = 0;
-		p->subs[index].f.data.ptr = NULL;
-		p->subs[index].f.datalen= 0;
+		p->subs[idx].f.frametype = AST_FRAME_NULL;
+		p->subs[idx].f.subclass = 0;
+		p->subs[idx].f.samples = 0;
+		p->subs[idx].f.mallocd = 0;
+		p->subs[idx].f.offset = 0;
+		p->subs[idx].f.data.ptr = NULL;
+		p->subs[idx].f.datalen= 0;
 	}
-	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect  || p->callprogress) && !index) {
+	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect  || p->callprogress) && !idx) {
 		/* Perform busy detection. etc on the dahdi line */
 		int mute;
 
-		f = ast_dsp_process(ast, p->dsp, &p->subs[index].f);
+		f = ast_dsp_process(ast, p->dsp, &p->subs[idx].f);
 
 		/* Check if DSP code thinks we should be muting this frame and mute the conference if so */
 		mute = ast_dsp_was_muted(p->dsp);
@@ -5472,10 +5472,10 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 			}
 		}
 	} else 
-		f = &p->subs[index].f; 
+		f = &p->subs[idx].f; 
 
 	if (f && (f->frametype == AST_FRAME_DTMF))
-		dahdi_handle_dtmfup(ast, index, &f);
+		dahdi_handle_dtmfup(ast, idx, &f);
 
 	/* If we have a fake_event, trigger exception to handle it */
 	if (p->fake_event)
@@ -5485,13 +5485,13 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 	return f;
 }
 
-static int my_dahdi_write(struct dahdi_pvt *p, unsigned char *buf, int len, int index, int linear)
+static int my_dahdi_write(struct dahdi_pvt *p, unsigned char *buf, int len, int idx, int linear)
 {
 	int sent=0;
 	int size;
 	int res;
 	int fd;
-	fd = p->subs[index].zfd;
+	fd = p->subs[idx].zfd;
 	while (len) {
 		size = len;
 		if (size > (linear ? READ_SIZE * 2 : READ_SIZE))
@@ -5511,9 +5511,9 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 {
 	struct dahdi_pvt *p = ast->tech_pvt;
 	int res;
-	int index;
-	index = dahdi_get_index(ast, p, 0);
-	if (index < 0) {
+	int idx;
+	idx = dahdi_get_index(ast, p, 0);
+	if (idx < 0) {
 		ast_log(LOG_WARNING, "%s doesn't really exist?\n", ast->name);
 		return -1;
 	}
@@ -5563,22 +5563,22 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 		return 0;
 
 	if (frame->subclass == AST_FORMAT_SLINEAR) {
-		if (!p->subs[index].linear) {
-			p->subs[index].linear = 1;
-			res = dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
+		if (!p->subs[idx].linear) {
+			p->subs[idx].linear = 1;
+			res = dahdi_setlinear(p->subs[idx].zfd, p->subs[idx].linear);
 			if (res)
 				ast_log(LOG_WARNING, "Unable to set linear mode on channel %d\n", p->channel);
 		}
-		res = my_dahdi_write(p, (unsigned char *)frame->data.ptr, frame->datalen, index, 1);
+		res = my_dahdi_write(p, (unsigned char *)frame->data.ptr, frame->datalen, idx, 1);
 	} else {
 		/* x-law already */
-		if (p->subs[index].linear) {
-			p->subs[index].linear = 0;
-			res = dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
+		if (p->subs[idx].linear) {
+			p->subs[idx].linear = 0;
+			res = dahdi_setlinear(p->subs[idx].zfd, p->subs[idx].linear);
 			if (res)
 				ast_log(LOG_WARNING, "Unable to set companded mode on channel %d\n", p->channel);
 		}
-		res = my_dahdi_write(p, (unsigned char *)frame->data.ptr, frame->datalen, index, 0);
+		res = my_dahdi_write(p, (unsigned char *)frame->data.ptr, frame->datalen, idx, 0);
 	}
 	if (res < 0) {
 		ast_log(LOG_WARNING, "write failed: %s\n", strerror(errno));
@@ -5591,12 +5591,12 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 {
 	struct dahdi_pvt *p = chan->tech_pvt;
 	int res=-1;
-	int index;
+	int idx;
 	int func = DAHDI_FLASH;
 	ast_mutex_lock(&p->lock);
-	index = dahdi_get_index(chan, p, 0);
+	idx = dahdi_get_index(chan, p, 0);
 	ast_debug(1, "Requested indication %d on channel %s\n", condition, chan->name);
-	if (index == SUB_REAL) {
+	if (idx == SUB_REAL) {
 		switch (condition) {
 		case AST_CONTROL_BUSY:
 #ifdef HAVE_PRI
@@ -5616,10 +5616,10 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
 				p->progress = 1;
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_BUSY);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_BUSY);
 			} else
 #endif
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_BUSY);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_BUSY);
 			break;
 		case AST_CONTROL_RINGING:
 #ifdef HAVE_PRI
@@ -5652,7 +5652,7 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 			}
 #endif
 				
-			res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_RINGTONE);
+			res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_RINGTONE);
 			
 			if (chan->_state != AST_STATE_UP) {
 				if ((chan->_state != AST_STATE_RING) ||
@@ -5748,10 +5748,10 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
 				p->progress = 1;
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_CONGESTION);
 			} else
 #endif
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_CONGESTION);
 			break;
 		case AST_CONTROL_HOLD:
 #ifdef HAVE_PRI
@@ -5779,12 +5779,12 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 			break;
 		case AST_CONTROL_RADIO_KEY:
 			if (p->radio) 
-			    res =  dahdi_set_hook(p->subs[index].zfd, DAHDI_OFFHOOK);
+			    res =  dahdi_set_hook(p->subs[idx].zfd, DAHDI_OFFHOOK);
 			res = 0;
 			break;
 		case AST_CONTROL_RADIO_UNKEY:
 			if (p->radio)
-			    res =  dahdi_set_hook(p->subs[index].zfd, DAHDI_RINGOFF);
+			    res =  dahdi_set_hook(p->subs[idx].zfd, DAHDI_RINGOFF);
 			res = 0;
 			break;
 		case AST_CONTROL_FLASH:
@@ -5804,7 +5804,7 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 			res = 0;
 			break;
 		case -1:
-			res = tone_zone_play_tone(p->subs[index].zfd, -1);
+			res = tone_zone_play_tone(p->subs[idx].zfd, -1);
 			break;
 		}
 	} else
@@ -5813,7 +5813,7 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 	return res;
 }
 
-static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int index, int law, int transfercapability)
+static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, int transfercapability)
 {
 	struct ast_channel *tmp;
 	int deflaw;
@@ -5823,8 +5823,8 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	struct ast_str *chan_name;
 	struct ast_variable *v;
 	struct dahdi_params ps;
-	if (i->subs[index].owner) {
-		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
+	if (i->subs[idx].owner) {
+		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[idx]);
 		return NULL;
 	}
 	y = 1;
@@ -5840,7 +5840,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		else	
 			ast_str_set(&chan_name, 0, "%d-%d", i->channel, y);
 		for (x = 0; x < 3; x++) {
-			if ((index != x) && i->subs[x].owner && !strcasecmp(chan_name->str, i->subs[x].owner->name))
+			if ((idx != x) && i->subs[x].owner && !strcasecmp(chan_name->str, i->subs[x].owner->name))
 				break;
 		}
 		y++;
@@ -5865,17 +5865,17 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		else
 			deflaw = AST_FORMAT_ULAW;
 	}
-	ast_channel_set_fd(tmp, 0, i->subs[index].zfd);
+	ast_channel_set_fd(tmp, 0, i->subs[idx].zfd);
 	tmp->nativeformats = AST_FORMAT_SLINEAR | deflaw;
 	/* Start out assuming ulaw since it's smaller :) */
 	tmp->rawreadformat = deflaw;
 	tmp->readformat = deflaw;
 	tmp->rawwriteformat = deflaw;
 	tmp->writeformat = deflaw;
-	i->subs[index].linear = 0;
-	dahdi_setlinear(i->subs[index].zfd, i->subs[index].linear);
+	i->subs[idx].linear = 0;
+	dahdi_setlinear(i->subs[idx].zfd, i->subs[idx].linear);
 	features = 0;
-	if (index == SUB_REAL) {
+	if (idx == SUB_REAL) {
 		if (i->busydetect && CANBUSYDETECT(i))
 			features |= DSP_FEATURE_BUSY_DETECT;
 		if ((i->callprogress & CALLPROGRESS_PROGRESS) && CANPROGRESSDETECT(i))
@@ -5885,7 +5885,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 			features |= DSP_FEATURE_FAX_DETECT;
 		}
 		x = DAHDI_TONEDETECT_ON | DAHDI_TONEDETECT_MUTE;
-		if (ioctl(i->subs[index].zfd, DAHDI_TONEDETECT, &x)) {
+		if (ioctl(i->subs[idx].zfd, DAHDI_TONEDETECT, &x)) {
 			i->hardwaredtmf = 0;
 			features |= DSP_FEATURE_DIGIT_DETECT;
 		} else if (NEED_MFDETECT(i)) {
@@ -5942,7 +5942,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		ast_string_field_set(tmp, accountcode, i->accountcode);
 	if (i->amaflags)
 		tmp->amaflags = i->amaflags;
-	i->subs[index].owner = tmp;
+	i->subs[idx].owner = tmp;
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
 	ast_string_field_set(tmp, call_forward, i->call_forward);
 	/* If we've been told "no ADSI" then enforce it */
@@ -6023,21 +6023,21 @@ static int my_getsigstr(struct ast_channel *chan, char *str, const char *term, i
 	}
 }
 
-static int dahdi_wink(struct dahdi_pvt *p, int index)
+static int dahdi_wink(struct dahdi_pvt *p, int idx)
 {
 	int j;
-	dahdi_set_hook(p->subs[index].zfd, DAHDI_WINK);
+	dahdi_set_hook(p->subs[idx].zfd, DAHDI_WINK);
 	for (;;)
 	{
 		   /* set bits of interest */
 		j = DAHDI_IOMUX_SIGEVENT;
 		    /* wait for some happening */
-		if (ioctl(p->subs[index].zfd,DAHDI_IOMUX,&j) == -1) return(-1);
+		if (ioctl(p->subs[idx].zfd,DAHDI_IOMUX,&j) == -1) return(-1);
 		   /* exit loop if we have it */
 		if (j & DAHDI_IOMUX_SIGEVENT) break;
 	}
 	  /* get the event info */
-	if (ioctl(p->subs[index].zfd,DAHDI_GETEVENT,&j) == -1) return(-1);
+	if (ioctl(p->subs[idx].zfd,DAHDI_GETEVENT,&j) == -1) return(-1);
 	return 0;
 }
 
@@ -6088,7 +6088,7 @@ static void *ss_thread(void *data)
 	char *s1, *s2;
 	int len = 0;
 	int res;
-	int index;
+	int idx;
 
 	/* in the bizarre case where the channel has become a zombie before we
 	   even get started here, abort safely
@@ -6100,8 +6100,8 @@ static void *ss_thread(void *data)
 	}
 
 	ast_verb(3, "Starting simple switch on '%s'\n", chan->name);
-	index = dahdi_get_index(chan, p, 1);
-	if (index < 0) {
+	idx = dahdi_get_index(chan, p, 1);
+	if (idx < 0) {
 		ast_log(LOG_WARNING, "Huh?\n");
 		ast_hangup(chan);
 		return NULL;
@@ -6119,9 +6119,9 @@ static void *ss_thread(void *data)
 		res = 0;
 		while ((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
 			if (len && !ast_ignore_pattern(chan->context, exten))
-				tone_zone_play_tone(p->subs[index].zfd, -1);
+				tone_zone_play_tone(p->subs[idx].zfd, -1);
 			else
-				tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALTONE);
+				tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALTONE);
 			if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num))
 				timeout = matchdigittimeout;
 			else
@@ -6143,7 +6143,7 @@ static void *ss_thread(void *data)
 			exten[0] = 's';
 			exten[1] = '\0';
 		}
-		tone_zone_play_tone(p->subs[index].zfd, -1);
+		tone_zone_play_tone(p->subs[idx].zfd, -1);
 		if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num)) {
 			/* Start the real PBX */
 			ast_copy_string(chan->exten, exten, sizeof(chan->exten));
@@ -6176,14 +6176,14 @@ static void *ss_thread(void *data)
 	case SIG_SF_FEATDMF:
 	case SIG_SF_FEATB:
 	case SIG_SFWINK:
-		if (dahdi_wink(p, index))	
+		if (dahdi_wink(p, idx))	
 			return NULL;
 		/* Fall through */
 	case SIG_EM:
 	case SIG_EM_E1:
 	case SIG_SF:
 	case SIG_FGC_CAMA:
-		res = tone_zone_play_tone(p->subs[index].zfd, -1);
+		res = tone_zone_play_tone(p->subs[idx].zfd, -1);
 		if (p->dsp)
 			ast_dsp_digitreset(p->dsp);
 		/* set digit mode appropriately */
@@ -6214,7 +6214,7 @@ static void *ss_thread(void *data)
 			case SIG_FEATDMF_TA:
 				res = my_getsigstr(chan, dtmfbuf + 1, "#", 3000);
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
-				if (dahdi_wink(p, index)) return NULL;
+				if (dahdi_wink(p, idx)) return NULL;
 				dtmfbuf[0] = 0;
 				/* Wait for the first digit (up to 5 seconds). */
 				res = ast_waitfordigit(chan, 5000);
@@ -6229,7 +6229,7 @@ static void *ss_thread(void *data)
 				/* if international caca, do it again to get real ANO */
 				if ((p->sig == SIG_FEATDMF) && (dtmfbuf[1] != '0') && (strlen(dtmfbuf) != 14))
 				{
-					if (dahdi_wink(p, index)) return NULL;
+					if (dahdi_wink(p, idx)) return NULL;
 					dtmfbuf[0] = 0;
 					/* Wait for the first digit (up to 5 seconds). */
 					res = ast_waitfordigit(chan, 5000);
@@ -6387,7 +6387,7 @@ static void *ss_thread(void *data)
 				ast_log(LOG_WARNING, "Got a non-Feature Group B input on channel %d.  Assuming E&M Wink instead\n", p->channel);
 		}
 		if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATDMF_TA)) {
-			dahdi_wink(p, index);
+			dahdi_wink(p, idx);
                         /* some switches require a minimum guard time between
                            the last FGD wink and something that answers
                            immediately. This ensures it */
@@ -6411,13 +6411,13 @@ static void *ss_thread(void *data)
 			res = ast_pbx_run(chan);
 			if (res) {
 				ast_log(LOG_WARNING, "PBX exited non-zero\n");
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_CONGESTION);
 			}
 			return NULL;
 		} else {
 			ast_verb(2, "Unknown extension '%s' in context '%s' requested\n", exten, chan->context);
 			sleep(2);
-			res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_INFO);
+			res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_INFO);
 			if (res < 0)
 				ast_log(LOG_WARNING, "Unable to start special tone on %d\n", p->channel);
 			else
@@ -6425,7 +6425,7 @@ static void *ss_thread(void *data)
 			res = ast_streamfile(chan, "ss-noservice", chan->language);
 			if (res >= 0)
 				ast_waitstream(chan, "");
-			res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
+			res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_CONGESTION);
 			ast_hangup(chan);
 			return NULL;
 		}
@@ -6449,7 +6449,7 @@ static void *ss_thread(void *data)
 			timeout = 0;
 			if (res < 0) {
 				ast_debug(1, "waitfordigit returned < 0...\n");
-				res = tone_zone_play_tone(p->subs[index].zfd, -1);
+				res = tone_zone_play_tone(p->subs[idx].zfd, -1);
 				ast_hangup(chan);
 				return NULL;
 			} else if (res)  {
@@ -6458,27 +6458,27 @@ static void *ss_thread(void *data)
 				exten[len] = '\0';
 			}
 			if (!ast_ignore_pattern(chan->context, exten))
-				tone_zone_play_tone(p->subs[index].zfd, -1);
+				tone_zone_play_tone(p->subs[idx].zfd, -1);
 			else
-				tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALTONE);
+				tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALTONE);
 			if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num) && strcmp(exten, ast_parking_ext())) {
 				if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
 					if (getforward) {
 						/* Record this as the forwarding extension */
 						ast_copy_string(p->call_forward, exten, sizeof(p->call_forward)); 
 						ast_verb(3, "Setting call forward to '%s' on channel %d\n", p->call_forward, p->channel);
-						res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
+						res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALRECALL);
 						if (res)
 							break;
 						usleep(500000);
-						res = tone_zone_play_tone(p->subs[index].zfd, -1);
+						res = tone_zone_play_tone(p->subs[idx].zfd, -1);
 						sleep(1);
 						memset(exten, 0, sizeof(exten));
-						res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALTONE);
+						res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALTONE);
 						len = 0;
 						getforward = 0;
 					} else  {
-						res = tone_zone_play_tone(p->subs[index].zfd, -1);
+						res = tone_zone_play_tone(p->subs[idx].zfd, -1);
 						ast_copy_string(chan->exten, exten, sizeof(chan->exten));
 						if (!ast_strlen_zero(p->cid_num)) {
 							if (!p->hidecallerid)
@@ -6495,7 +6495,7 @@ static void *ss_thread(void *data)
 						res = ast_pbx_run(chan);
 						if (res) {
 							ast_log(LOG_WARNING, "PBX exited non-zero\n");
-							res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
+							res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_CONGESTION);
 						}
 						return NULL;
 					}
@@ -6506,21 +6506,21 @@ static void *ss_thread(void *data)
 				}
 			} else if (res == 0) {
 				ast_debug(1, "not enough digits (and no ambiguous match)...\n");
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
-				dahdi_wait_event(p->subs[index].zfd);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_CONGESTION);
+				dahdi_wait_event(p->subs[idx].zfd);
 				ast_hangup(chan);
 				return NULL;
 			} else if (p->callwaiting && !strcmp(exten, "*70")) {
 				ast_verb(3, "Disabling call waiting on %s\n", chan->name);
 				/* Disable call waiting if enabled */
 				p->callwaiting = 0;
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
 						chan->name, strerror(errno));
 				}
 				len = 0;
-				ioctl(p->subs[index].zfd,DAHDI_CONFDIAG,&len);
+				ioctl(p->subs[idx].zfd,DAHDI_CONFDIAG,&len);
 				memset(exten, 0, sizeof(exten));
 				timeout = firstdigittimeout;
 					
@@ -6529,7 +6529,7 @@ static void *ss_thread(void *data)
 				 * ringing channels that have call groups
 				 * that equal this channels pickup group  
 				 */
-			  	if (index == SUB_REAL) {
+			  	if (idx == SUB_REAL) {
 					/* Switch us from Third call to Call Wait */
 				  	if (p->subs[SUB_THREEWAY].owner) {
 						/* If you make a threeway call and the *8# a call, it should actually 
@@ -6541,8 +6541,8 @@ static void *ss_thread(void *data)
 					dahdi_enable_ec(p);
 					if (ast_pickup_call(chan)) {
 						ast_debug(1, "No call pickup possible...\n");
-						res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
-						dahdi_wait_event(p->subs[index].zfd);
+						res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_CONGESTION);
+						dahdi_wait_event(p->subs[idx].zfd);
 					}
 					ast_hangup(chan);
 					return NULL;
@@ -6562,7 +6562,7 @@ static void *ss_thread(void *data)
 				if (chan->cid.cid_name)
 					ast_free(chan->cid.cid_name);
 				chan->cid.cid_name = NULL;
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
 						chan->name, strerror(errno));
@@ -6576,30 +6576,30 @@ static void *ss_thread(void *data)
 					res = ast_say_digit_str(chan, p->lastcid_num, "", chan->language);
 				}
 				if (!res)
-					res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
+					res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALRECALL);
 				break;
 			} else if (!strcmp(exten, "*78")) {
 				dahdi_dnd(p, 1);
 				/* Do not disturb */
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALRECALL);
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
 			} else if (!strcmp(exten, "*79")) {
 				dahdi_dnd(p, 0);
 				/* Do not disturb */
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALRECALL);
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
 			} else if (p->cancallforward && !strcmp(exten, "*72")) {
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALRECALL);
 				getforward = 1;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
 			} else if (p->cancallforward && !strcmp(exten, "*73")) {
 				ast_verb(3, "Cancelling call forwarding on channel %d\n", p->channel);
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALRECALL);
 				memset(p->call_forward, 0, sizeof(p->call_forward));
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
@@ -6616,7 +6616,7 @@ static void *ss_thread(void *data)
 				ast_verb(3, "Blacklisting number %s\n", p->lastcid_num);
 				res = ast_db_put("blacklist", p->lastcid_num, "1");
 				if (!res) {
-					res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
+					res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALRECALL);
 					memset(exten, 0, sizeof(exten));
 					len = 0;
 				}
@@ -6631,7 +6631,7 @@ static void *ss_thread(void *data)
 					ast_free(chan->cid.cid_name);
 				chan->cid.cid_name = NULL;
 				ast_set_callerid(chan, p->cid_num, p->cid_name, NULL);
-				res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
 						chan->name, strerror(errno));
@@ -6666,9 +6666,9 @@ static void *ss_thread(void *data)
 					ast_hangup(chan);
 					return NULL;
 				} else {
-					tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
-					dahdi_wait_event(p->subs[index].zfd);
-					tone_zone_play_tone(p->subs[index].zfd, -1);
+					tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_CONGESTION);
+					dahdi_wait_event(p->subs[idx].zfd);
+					tone_zone_play_tone(p->subs[idx].zfd, -1);
 					swap_subs(p, SUB_REAL, SUB_THREEWAY);
 					unalloc_sub(p, SUB_THREEWAY);
 					p->owner = p->subs[SUB_REAL].owner;
@@ -6683,7 +6683,7 @@ static void *ss_thread(void *data)
 			if (!timeout)
 				timeout = gendigittimeout;
 			if (len && !ast_ignore_pattern(chan->context, exten))
-				tone_zone_play_tone(p->subs[index].zfd, -1);
+				tone_zone_play_tone(p->subs[idx].zfd, -1);
 		}
 		break;
 	case SIG_FXSLS:
@@ -6747,11 +6747,11 @@ static void *ss_thread(void *data)
 		} else if (p->use_callerid && (chan->_state == AST_STATE_PRERING && (p->cid_start == CID_START_POLARITY || p->cid_start == CID_START_POLARITY_IN))) {
 			/* If set to use DTMF CID signalling, listen for DTMF */
 			if (p->cid_signalling == CID_SIG_DTMF) {
-				int i = 0;
+				int k = 0;
 				cs = NULL;
 				ast_debug(1, "Receiving DTMF cid on "
 					"channel %s\n", chan->name);
-				dahdi_setlinear(p->subs[index].zfd, 0);
+				dahdi_setlinear(p->subs[idx].zfd, 0);
 				res = 2000;
 				for (;;) {
 					struct ast_frame *f;
@@ -6766,7 +6766,7 @@ static void *ss_thread(void *data)
 					if (!f)
 						break;
 					if (f->frametype == AST_FRAME_DTMF) {
-						dtmfbuf[i++] = f->subclass;
+						dtmfbuf[k++] = f->subclass;
 						ast_debug(1, "CID got digit '%c'\n", f->subclass);
 						res = 2000;
 					}
@@ -6775,8 +6775,8 @@ static void *ss_thread(void *data)
 					    chan->_state == AST_STATE_RINGING) 
 						break; /* Got ring */
 				}
-				dtmfbuf[i] = '\0';
-				dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
+				dtmfbuf[k] = '\0';
+				dahdi_setlinear(p->subs[idx].zfd, p->subs[idx].linear);
 				/* Got cid and ring. */
 				ast_debug(1, "CID got string '%s'\n", dtmfbuf);
 				callerid_get_dtmf(dtmfbuf, dtmfcid, &flags);
@@ -6796,19 +6796,19 @@ static void *ss_thread(void *data)
 					bump_gains(p);
 #endif
 					/* Take out of linear mode for Caller*ID processing */
-					dahdi_setlinear(p->subs[index].zfd, 0);
+					dahdi_setlinear(p->subs[idx].zfd, 0);
 					
 					/* First we wait and listen for the Caller*ID */
 					for (;;) {	
 						i = DAHDI_IOMUX_READ | DAHDI_IOMUX_SIGEVENT;
-						if ((res = ioctl(p->subs[index].zfd, DAHDI_IOMUX, &i)))	{
+						if ((res = ioctl(p->subs[idx].zfd, DAHDI_IOMUX, &i)))	{
 							ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
 							callerid_free(cs);
 							ast_hangup(chan);
 							return NULL;
 						}
 						if (i & DAHDI_IOMUX_SIGEVENT) {
-							res = dahdi_get_event(p->subs[index].zfd);
+							res = dahdi_get_event(p->subs[idx].zfd);
 							ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
 
 							if (p->cid_signalling == CID_SIG_V23_JP) {
@@ -6821,7 +6821,7 @@ static void *ss_thread(void *data)
 								break;
 							}
 						} else if (i & DAHDI_IOMUX_READ) {
-							res = read(p->subs[index].zfd, buf, sizeof(buf));
+							res = read(p->subs[idx].zfd, buf, sizeof(buf));
 							if (res < 0) {
 								if (errno != ELAST) {
 									ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
@@ -6902,14 +6902,14 @@ static void *ss_thread(void *data)
 		
 						for (;;) {	
 							i = DAHDI_IOMUX_READ | DAHDI_IOMUX_SIGEVENT;
-							if ((res = ioctl(p->subs[index].zfd, DAHDI_IOMUX, &i)))	{
+							if ((res = ioctl(p->subs[idx].zfd, DAHDI_IOMUX, &i)))	{
 								ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
 								callerid_free(cs);
 								ast_hangup(chan);
 								return NULL;
 							}
 							if (i & DAHDI_IOMUX_SIGEVENT) {
-								res = dahdi_get_event(p->subs[index].zfd);
+								res = dahdi_get_event(p->subs[idx].zfd);
 								ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
 								res = 0;
 								/* Let us detect distinctive ring */
@@ -6923,7 +6923,7 @@ static void *ss_thread(void *data)
 								if (++receivedRingT == ARRAY_LEN(curRingData))
 									break;
 							} else if (i & DAHDI_IOMUX_READ) {
-								res = read(p->subs[index].zfd, buf, sizeof(buf));
+								res = read(p->subs[idx].zfd, buf, sizeof(buf));
 								if (res < 0) {
 									if (errno != ELAST) {
 										ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
@@ -6973,7 +6973,7 @@ static void *ss_thread(void *data)
 						}
 					}
 					/* Restore linear mode (if appropriate) for Caller*ID processing */
-					dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
+					dahdi_setlinear(p->subs[idx].zfd, p->subs[idx].linear);
 #if 1
 					restore_gains(p);
 #endif				
@@ -6990,9 +6990,9 @@ static void *ss_thread(void *data)
 			}
 		} else if (p->use_callerid && p->cid_start == CID_START_RING) {
                         if (p->cid_signalling == CID_SIG_DTMF) {
-                                int i = 0;
+                                int k = 0;
                                 cs = NULL;
-                                dahdi_setlinear(p->subs[index].zfd, 0);
+                                dahdi_setlinear(p->subs[idx].zfd, 0);
                                 res = 2000;
                                 for (;;) {
                                         struct ast_frame *f;
@@ -7005,7 +7005,7 @@ static void *ss_thread(void *data)
                                         }
                                         f = ast_read(chan);
                                         if (f->frametype == AST_FRAME_DTMF) {
-                                                dtmfbuf[i++] = f->subclass;
+                                                dtmfbuf[k++] = f->subclass;
                                                 ast_log(LOG_DEBUG, "CID got digit '%c'\n", f->subclass);
                                                 res = 2000;
                                         }
@@ -7015,8 +7015,8 @@ static void *ss_thread(void *data)
                                                 break;
 
                                 }
-                                dtmfbuf[i] = '\0';
-                                dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
+                                dtmfbuf[k] = '\0';
+                                dahdi_setlinear(p->subs[idx].zfd, p->subs[idx].linear);
                                 /* Got cid and ring. */
                                 callerid_get_dtmf(dtmfbuf, dtmfcid, &flags);
                                 ast_log(LOG_DEBUG, "CID is '%s', flags %d\n",
@@ -7050,17 +7050,17 @@ static void *ss_thread(void *data)
 				}
 
 				/* Take out of linear mode for Caller*ID processing */
-				dahdi_setlinear(p->subs[index].zfd, 0);
+				dahdi_setlinear(p->subs[idx].zfd, 0);
 				for (;;) {	
 					i = DAHDI_IOMUX_READ | DAHDI_IOMUX_SIGEVENT;
-					if ((res = ioctl(p->subs[index].zfd, DAHDI_IOMUX, &i)))	{
+					if ((res = ioctl(p->subs[idx].zfd, DAHDI_IOMUX, &i)))	{
 						ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
 						callerid_free(cs);
 						ast_hangup(chan);
 						return NULL;
 					}
 					if (i & DAHDI_IOMUX_SIGEVENT) {
-						res = dahdi_get_event(p->subs[index].zfd);
+						res = dahdi_get_event(p->subs[idx].zfd);
 						ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
 						/* If we get a PR event, they hung up while processing calerid */
 						if ( res == DAHDI_EVENT_POLARITY && p->hanguponpolarityswitch && p->polarity == POLARITY_REV) {
@@ -7082,7 +7082,7 @@ static void *ss_thread(void *data)
 						if (++receivedRingT == ARRAY_LEN(curRingData))
 							break;
 					} else if (i & DAHDI_IOMUX_READ) {
-						res = read(p->subs[index].zfd, buf, sizeof(buf));
+						res = read(p->subs[idx].zfd, buf, sizeof(buf));
 						if (res < 0) {
 							if (errno != ELAST) {
 								ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
@@ -7122,14 +7122,14 @@ static void *ss_thread(void *data)
 					ast_verb(3, "Detecting post-CID distinctive ring\n");
 					for (;;) {
 						i = DAHDI_IOMUX_READ | DAHDI_IOMUX_SIGEVENT;
-						if ((res = ioctl(p->subs[index].zfd, DAHDI_IOMUX, &i)))    {
+						if ((res = ioctl(p->subs[idx].zfd, DAHDI_IOMUX, &i)))    {
 							ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
 							callerid_free(cs);
 							ast_hangup(chan);
 							return NULL;
 						}
 						if (i & DAHDI_IOMUX_SIGEVENT) {
-							res = dahdi_get_event(p->subs[index].zfd);
+							res = dahdi_get_event(p->subs[idx].zfd);
 							ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
 							res = 0;
 							/* Let us detect callerid when the telco uses distinctive ring */
@@ -7143,7 +7143,7 @@ static void *ss_thread(void *data)
 							if (++receivedRingT == ARRAY_LEN(curRingData))
 								break;
 						} else if (i & DAHDI_IOMUX_READ) {
-							res = read(p->subs[index].zfd, buf, sizeof(buf));
+							res = read(p->subs[idx].zfd, buf, sizeof(buf));
 							if (res < 0) {
 								if (errno != ELAST) {
 									ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
@@ -7200,7 +7200,7 @@ static void *ss_thread(void *data)
 					}
 				}
 				/* Restore linear mode (if appropriate) for Caller*ID processing */
-				dahdi_setlinear(p->subs[index].zfd, p->subs[index].linear);
+				dahdi_setlinear(p->subs[idx].zfd, p->subs[idx].linear);
 #if 1
 				restore_gains(p);
 #endif				
@@ -7247,11 +7247,11 @@ static void *ss_thread(void *data)
 		return NULL;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to handle simple switch with signalling %s on channel %d\n", sig2str(p->sig), p->channel);
-		res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
+		res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_CONGESTION);
 		if (res < 0)
 				ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", p->channel);
 	}
-	res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_CONGESTION);
+	res = tone_zone_play_tone(p->subs[idx].zfd, DAHDI_TONE_CONGESTION);
 	if (res < 0)
 			ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", p->channel);
 	ast_hangup(chan);
@@ -7428,7 +7428,7 @@ enum mwisend_states {
 static void *mwi_send_thread(void *data)
 {
 	struct mwi_thread_data *mtd = data;
-	struct timeval timeout_basis, pause, now;
+	struct timeval timeout_basis, suspend, now;
 	int x, i, res;
 	int num_read;
 	enum mwisend_states mwi_send_state = MWI_SEND_SPILL; /*Assume FSK only */
@@ -7481,7 +7481,7 @@ static void *mwi_send_thread(void *data)
 							goto quit;
 						}
 						mwi_send_state = MWI_SEND_PAUSE;
-						gettimeofday(&pause, NULL);
+						gettimeofday(&suspend, NULL);
 					}
 					break;
 				case DAHDI_EVENT_RINGERON:
@@ -7520,7 +7520,7 @@ static void *mwi_send_thread(void *data)
 					break;
 					case MWI_SEND_PAUSE:  /* Wait between alert and spill - min of 500 mS*/
 						gettimeofday(&now, NULL);
-						if ((int)(now.tv_sec - pause.tv_sec) * 1000000 + (int)now.tv_usec - (int)pause.tv_usec > 500000) {
+						if ((int)(now.tv_sec - suspend.tv_sec) * 1000000 + (int)now.tv_usec - (int)suspend.tv_usec > 500000) {
 							mwi_send_state = MWI_SEND_SPILL;
 						}
 						break;
@@ -8951,7 +8951,7 @@ static struct ast_channel *dahdi_request(const char *type, int format, void *dat
 	int trunkgroup;
 	struct dahdi_pri *pri=NULL;
 #endif	
-	struct dahdi_pvt *exit, *start, *end;
+	struct dahdi_pvt *exitpvt, *start, *end;
 	ast_mutex_t *lock;
 	int channelmatched = 0;
 	int groupmatched = 0;
@@ -9038,7 +9038,7 @@ static struct ast_channel *dahdi_request(const char *type, int format, void *dat
 	}
 	/* Search for an unowned channel */
 	ast_mutex_lock(lock);
-	exit = p;
+	exitpvt = p;
 	while (p && !tmp) {
 		if (roundrobin)
 			round_robin[x] = p;
@@ -9132,7 +9132,7 @@ next:
 				p = start;
 		}
 		/* stop when you roll to the one that we started from */
-		if (p == exit)
+		if (p == exitpvt)
 			break;
 	}
 	ast_mutex_unlock(lock);
@@ -12276,7 +12276,7 @@ static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	#define FORMAT2 "%-40.40s %-7.7s %-6.6s %-6.6s %-6.6s %-3.3s %-4.4s %-8.8s %s\n"
 	int span;
 	int res;
-	char alarms[50];
+	char alarmstr[50];
 
 	int ctl;
 	struct dahdi_spaninfo s;
@@ -12304,34 +12304,34 @@ static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		if (res) {
 			continue;
 		}
-		alarms[0] = '\0';
+		alarmstr[0] = '\0';
 		if (s.alarms > 0) {
 			if (s.alarms & DAHDI_ALARM_BLUE)
-				strcat(alarms, "BLU/");
+				strcat(alarmstr, "BLU/");
 			if (s.alarms & DAHDI_ALARM_YELLOW)
-				strcat(alarms, "YEL/");
+				strcat(alarmstr, "YEL/");
 			if (s.alarms & DAHDI_ALARM_RED)
-				strcat(alarms, "RED/");
+				strcat(alarmstr, "RED/");
 			if (s.alarms & DAHDI_ALARM_LOOPBACK)
-				strcat(alarms, "LB/");
+				strcat(alarmstr, "LB/");
 			if (s.alarms & DAHDI_ALARM_RECOVER)
-				strcat(alarms, "REC/");
+				strcat(alarmstr, "REC/");
 			if (s.alarms & DAHDI_ALARM_NOTOPEN)
-				strcat(alarms, "NOP/");
-			if (!strlen(alarms))
-				strcat(alarms, "UUU/");
-			if (strlen(alarms)) {
+				strcat(alarmstr, "NOP/");
+			if (!strlen(alarmstr))
+				strcat(alarmstr, "UUU/");
+			if (strlen(alarmstr)) {
 				/* Strip trailing / */
-				alarms[strlen(alarms) - 1] = '\0';
+				alarmstr[strlen(alarmstr) - 1] = '\0';
 			}
 		} else {
 			if (s.numchans)
-				strcpy(alarms, "OK");
+				strcpy(alarmstr, "OK");
 			else
-				strcpy(alarms, "UNCONFIGURED");
+				strcpy(alarmstr, "UNCONFIGURED");
 		}
 
-		ast_cli(a->fd, FORMAT, s.desc, alarms, s.irqmisses, s.bpvcount, s.crc4count
+		ast_cli(a->fd, FORMAT, s.desc, alarmstr, s.irqmisses, s.bpvcount, s.crc4count
 				, s.lineconfig & DAHDI_CONFIG_D4 ? "D4" :
 				  s.lineconfig & DAHDI_CONFIG_ESF ? "ESF" :
 				  s.lineconfig & DAHDI_CONFIG_CCS ? "CCS" :
@@ -12758,7 +12758,7 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 	tmp = iflist;
 	while (tmp) {
 		if (tmp->channel > 0) {
-			int alarm = get_alarms(tmp);
+			int alm = get_alarms(tmp);
 
 			/* If a specific channel is queried for, only deliver status for that channel */
 			if (dahdichanquery > 0 && tmp->channel != dahdichanquery)
@@ -12788,7 +12788,7 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 					tmp->sig,
 					tmp->context, 
 					tmp->dnd ? "Enabled" : "Disabled",
-					alarm2str(alarm), idText);
+					alarm2str(alm), idText);
 			} else {
 				astman_append(s,
 					"Event: DAHDIShowChannels\r\n"
@@ -12803,7 +12803,7 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 					tmp->channel, sig2str(tmp->sig), tmp->sig, 
 					tmp->context, 
 					tmp->dnd ? "Enabled" : "Disabled",
-					alarm2str(alarm), idText);
+					alarm2str(alm), idText);
 			}
 		} 
 
@@ -14632,10 +14632,10 @@ static int dahdi_sendtext(struct ast_channel *c, const char *text)
 	float cr = 1.0;
 	float ci = 0.0;
 	float scont = 0.0;
-	int index;
+	int idx;
 
-	index = dahdi_get_index(c, p, 0);
-	if (index < 0) {
+	idx = dahdi_get_index(c, p, 0);
+	if (idx < 0) {
 		ast_log(LOG_WARNING, "Huh?  I don't exist?\n");
 		return -1;
 	}
@@ -14672,7 +14672,7 @@ static int dahdi_sendtext(struct ast_channel *c, const char *text)
 	}
 	memset(buf + len, 0x7f, END_SILENCE_LEN);
 	len += END_SILENCE_LEN;
-	fd = p->subs[index].zfd;
+	fd = p->subs[idx].zfd;
 	while (len) {
 		if (ast_check_hangup(c)) {
 			ast_free(mybuf);
