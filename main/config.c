@@ -1060,10 +1060,10 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		/* #exec </path/to/executable>
 		   We create a tmp file, then we #include it, then we delete it. */
 		if (!do_include) {
-			struct timeval tv = ast_tvnow();
+			struct timeval now = ast_tvnow();
 			if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
 				config_cache_attribute(configfile, ATTRIBUTE_EXEC, NULL, who_asked);
-			snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%d%d.%ld", (int)tv.tv_sec, (int)tv.tv_usec, (long)pthread_self());
+			snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%d%d.%ld", (int)now.tv_sec, (int)now.tv_usec, (long)pthread_self());
 			snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file);
 			ast_safe_system(cmd);
 			cur = exec_file;
@@ -1260,17 +1260,17 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				 * incorrectly cause no reload to be necessary. */
 				char fn2[256];
 #ifdef AST_INCLUDE_GLOB
-				int glob_ret;
-				glob_t globbuf = { .gl_offs = 0 };
-				glob_ret = glob(cfinclude->include, MY_GLOB_FLAGS, NULL, &globbuf);
+				int glob_return;
+				glob_t glob_buf = { .gl_offs = 0 };
+				glob_return = glob(cfinclude->include, MY_GLOB_FLAGS, NULL, &glob_buf);
 				/* On error, we reparse */
-				if (glob_ret == GLOB_NOSPACE || glob_ret  == GLOB_ABORTED)
+				if (glob_return == GLOB_NOSPACE || glob_return  == GLOB_ABORTED)
 					unchanged = 0;
 				else  {
 					/* loop over expanded files */
 					int j;
-					for (j = 0; j < globbuf.gl_pathc; j++) {
-						ast_copy_string(fn2, globbuf.gl_pathv[j], sizeof(fn2));
+					for (j = 0; j < glob_buf.gl_pathc; j++) {
+						ast_copy_string(fn2, glob_buf.gl_pathv[j], sizeof(fn2));
 #else
 						ast_copy_string(fn2, cfinclude->include);
 #endif
@@ -1387,9 +1387,9 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				}
 				
 				if (process_buf) {
-					char *buf = ast_strip(process_buf);
-					if (!ast_strlen_zero(buf)) {
-						if (process_text_line(cfg, &cat, buf, lineno, fn, flags, comment_buffer, lline_buffer, suggested_include_file, &last_cat, &last_var, who_asked)) {
+					char *buffer = ast_strip(process_buf);
+					if (!ast_strlen_zero(buffer)) {
+						if (process_text_line(cfg, &cat, buffer, lineno, fn, flags, comment_buffer, lline_buffer, suggested_include_file, &last_cat, &last_var, who_asked)) {
 							cfg = NULL;
 							break;
 						}

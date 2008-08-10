@@ -268,22 +268,22 @@ enum ast_event_subscriber_res ast_event_check_subscriber(enum ast_event_type typ
 		ie_type != AST_EVENT_IE_END;
 		ie_type = va_arg(ap, enum ast_event_type))
 	{
-		struct ast_event_ie_val *ie_val = alloca(sizeof(*ie_val));
-		memset(ie_val, 0, sizeof(*ie_val));
-		ie_val->ie_type = ie_type;
-		ie_val->ie_pltype = va_arg(ap, enum ast_event_ie_pltype);
-		if (ie_val->ie_pltype == AST_EVENT_IE_PLTYPE_UINT)
-			ie_val->payload.uint = va_arg(ap, uint32_t);
-		else if (ie_val->ie_pltype == AST_EVENT_IE_PLTYPE_STR)
-			ie_val->payload.str = ast_strdupa(va_arg(ap, const char *));
-		else if (ie_val->ie_pltype == AST_EVENT_IE_PLTYPE_RAW) {
+		struct ast_event_ie_val *ie_value = alloca(sizeof(*ie_value));
+		memset(ie_value, 0, sizeof(*ie_value));
+		ie_value->ie_type = ie_type;
+		ie_value->ie_pltype = va_arg(ap, enum ast_event_ie_pltype);
+		if (ie_value->ie_pltype == AST_EVENT_IE_PLTYPE_UINT)
+			ie_value->payload.uint = va_arg(ap, uint32_t);
+		else if (ie_value->ie_pltype == AST_EVENT_IE_PLTYPE_STR)
+			ie_value->payload.str = ast_strdupa(va_arg(ap, const char *));
+		else if (ie_value->ie_pltype == AST_EVENT_IE_PLTYPE_RAW) {
 			void *data = va_arg(ap, void *);
 			size_t datalen = va_arg(ap, size_t);
-			ie_val->payload.raw = alloca(datalen);
-			memcpy(ie_val->payload.raw, data, datalen);
-			ie_val->raw_datalen = datalen;
+			ie_value->payload.raw = alloca(datalen);
+			memcpy(ie_value->payload.raw, data, datalen);
+			ie_value->raw_datalen = datalen;
 		}
-		AST_LIST_INSERT_TAIL(&ie_vals, ie_val, entry);
+		AST_LIST_INSERT_TAIL(&ie_vals, ie_value, entry);
 	}
 	va_end(ap);
 
@@ -479,7 +479,7 @@ struct ast_event_sub *ast_event_subscribe_new(enum ast_event_type type,
 }
 
 int ast_event_sub_append_ie_uint(struct ast_event_sub *sub,
-	enum ast_event_ie_type ie_type, uint32_t uint)
+	enum ast_event_ie_type ie_type, uint32_t unsigned_int)
 {
 	struct ast_event_ie_val *ie_val;
 
@@ -490,7 +490,7 @@ int ast_event_sub_append_ie_uint(struct ast_event_sub *sub,
 		return -1;
 
 	ie_val->ie_type = ie_type;
-	ie_val->payload.uint = uint;
+	ie_val->payload.uint = unsigned_int;
 	ie_val->ie_pltype = AST_EVENT_IE_PLTYPE_UINT;
 
 	AST_LIST_INSERT_TAIL(&sub->ie_vals, ie_val, entry);
@@ -612,8 +612,8 @@ struct ast_event_sub *ast_event_subscribe(enum ast_event_type type, ast_event_cb
 			break;
 		case AST_EVENT_IE_PLTYPE_UINT:
 		{
-			uint32_t uint = va_arg(ap, uint32_t);
-			ast_event_sub_append_ie_uint(sub, ie_type, uint);
+			uint32_t unsigned_int = va_arg(ap, uint32_t);
+			ast_event_sub_append_ie_uint(sub, ie_type, unsigned_int);
 			break;
 		}
 		case AST_EVENT_IE_PLTYPE_STR:
@@ -799,22 +799,22 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 		ie_type != AST_EVENT_IE_END;
 		ie_type = va_arg(ap, enum ast_event_type))
 	{
-		struct ast_event_ie_val *ie_val = alloca(sizeof(*ie_val));
-		memset(ie_val, 0, sizeof(*ie_val));
-		ie_val->ie_type = ie_type;
-		ie_val->ie_pltype = va_arg(ap, enum ast_event_ie_pltype);
-		if (ie_val->ie_pltype == AST_EVENT_IE_PLTYPE_UINT)
-			ie_val->payload.uint = va_arg(ap, uint32_t);
-		else if (ie_val->ie_pltype == AST_EVENT_IE_PLTYPE_STR)
-			ie_val->payload.str = ast_strdupa(va_arg(ap, const char *));
-		else if (ie_val->ie_pltype == AST_EVENT_IE_PLTYPE_RAW) {
+		struct ast_event_ie_val *ie_value = alloca(sizeof(*ie_value));
+		memset(ie_value, 0, sizeof(*ie_value));
+		ie_value->ie_type = ie_type;
+		ie_value->ie_pltype = va_arg(ap, enum ast_event_ie_pltype);
+		if (ie_value->ie_pltype == AST_EVENT_IE_PLTYPE_UINT)
+			ie_value->payload.uint = va_arg(ap, uint32_t);
+		else if (ie_value->ie_pltype == AST_EVENT_IE_PLTYPE_STR)
+			ie_value->payload.str = ast_strdupa(va_arg(ap, const char *));
+		else if (ie_value->ie_pltype == AST_EVENT_IE_PLTYPE_RAW) {
 			void *data = va_arg(ap, void *);
 			size_t datalen = va_arg(ap, size_t);
-			ie_val->payload.raw = alloca(datalen);
-			memcpy(ie_val->payload.raw, data, datalen);
-			ie_val->raw_datalen = datalen;
+			ie_value->payload.raw = alloca(datalen);
+			memcpy(ie_value->payload.raw, data, datalen);
+			ie_value->raw_datalen = datalen;
 		}
-		AST_LIST_INSERT_TAIL(&ie_vals, ie_val, entry);
+		AST_LIST_INSERT_TAIL(&ie_vals, ie_value, entry);
 	}
 	va_end(ap);
 

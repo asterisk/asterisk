@@ -277,7 +277,7 @@ static void history_calc_maxbuf(jitterbuf *jb)
 static void history_get(jitterbuf *jb) 
 {
 	long max, min, jitter;
-	int index;
+	int idx;
 	int count;
 
 	if (!jb->hist_maxbuf_valid) 
@@ -286,22 +286,21 @@ static void history_get(jitterbuf *jb)
 	/* count is how many items in history we're examining */
 	count = (jb->hist_ptr < JB_HISTORY_SZ) ? jb->hist_ptr : JB_HISTORY_SZ;
 
-	/* index is the "n"ths highest/lowest that we'll look for */
-	index = count * JB_HISTORY_DROPPCT / 100;
+	/* idx is the "n"ths highest/lowest that we'll look for */
+	idx = count * JB_HISTORY_DROPPCT / 100;
 
-	/* sanity checks for index */
-	if (index > (JB_HISTORY_MAXBUF_SZ - 1)) 
-		index = JB_HISTORY_MAXBUF_SZ - 1;
+	/* sanity checks for idx */
+	if (idx > (JB_HISTORY_MAXBUF_SZ - 1)) 
+		idx = JB_HISTORY_MAXBUF_SZ - 1;
 
-
-	if (index < 0) {
+	if (idx < 0) {
 		jb->info.min = 0;
 		jb->info.jitter = 0;
 		return;
 	}
 
-	max = jb->hist_maxbuf[index];
-	min = jb->hist_minbuf[index];
+	max = jb->hist_maxbuf[idx];
+	min = jb->hist_minbuf[idx];
 
 	jitter = max - min;
 

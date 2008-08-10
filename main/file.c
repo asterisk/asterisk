@@ -1072,7 +1072,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
  * \brief the core of all waitstream() functions
  */
 static int waitstream_core(struct ast_channel *c, const char *breakon,
-	const char *forward, const char *rewind, int skip_ms,
+	const char *forward, const char *reverse, int skip_ms,
 	int audiofd, int cmdfd,  const char *context)
 {
 	const char *orig_chan_name = NULL;
@@ -1082,8 +1082,8 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 		breakon = "";
 	if (!forward)
 		forward = "";
-	if (!rewind)
-		rewind = "";
+	if (!reverse)
+		reverse = "";
 
 	/* Switch the channel to end DTMF frame only. waitstream_core doesn't care about the start of DTMF. */
 	ast_set_flag(c, AST_FLAG_END_DTMF_ONLY);
@@ -1154,7 +1154,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 					res = fr->subclass;
 					if (strchr(forward, res)) {
 						ast_stream_fastforward(c->stream, skip_ms);
-					} else if (strchr(rewind, res)) {
+					} else if (strchr(reverse, res)) {
 						ast_stream_rewind(c->stream, skip_ms);
 					} else if (strchr(breakon, res)) {
 						ast_frfree(fr);
@@ -1201,9 +1201,9 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 	return (err || c->_softhangup) ? -1 : 0;
 }
 
-int ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *forward, const char *rewind, int ms)
+int ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *forward, const char *reverse, int ms)
 {
-	return waitstream_core(c, breakon, forward, rewind, ms,
+	return waitstream_core(c, breakon, forward, reverse, ms,
 		-1 /* no audiofd */, -1 /* no cmdfd */, NULL /* no context */);
 }
 

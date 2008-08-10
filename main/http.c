@@ -159,7 +159,7 @@ static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, 
 	struct stat st;
 	int len;
 	int fd;
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 	char buf[256];
 	struct ast_tm tm;
 
@@ -207,7 +207,7 @@ static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, 
 		goto out403;
 	}
 
-	ast_strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S %Z", ast_localtime(&tv, &tm, "GMT"));
+	ast_strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S %Z", ast_localtime(&now, &tm, "GMT"));
 	fprintf(ser->f, "HTTP/1.1 200 OK\r\n"
 		"Server: Asterisk/%s\r\n"
 		"Date: %s\r\n"
@@ -734,11 +734,11 @@ static void *httpd_helper_thread(void *data)
 	}
 
 	if (out) {
-		struct timeval tv = ast_tvnow();
+		struct timeval now = ast_tvnow();
 		char timebuf[256];
 		struct ast_tm tm;
 
-		ast_strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S %Z", ast_localtime(&tv, &tm, "GMT"));
+		ast_strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S %Z", ast_localtime(&now, &tm, "GMT"));
 		fprintf(ser->f,
 			"HTTP/1.1 %d %s\r\n"
 			"Server: Asterisk/%s\r\n"

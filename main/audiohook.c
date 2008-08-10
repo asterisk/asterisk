@@ -122,13 +122,13 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 {
 	struct ast_slinfactory *factory = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->read_factory : &audiohook->write_factory);
 	struct ast_slinfactory *other_factory = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->write_factory : &audiohook->read_factory);
-	struct timeval *time = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->read_time : &audiohook->write_time), previous_time = *time;
+	struct timeval *rwtime = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->read_time : &audiohook->write_time), previous_time = *rwtime;
 
 	/* Update last feeding time to be current */
-	*time = ast_tvnow();
+	*rwtime = ast_tvnow();
 
 	/* If we are using a sync trigger and this factory suddenly got audio fed in after a lapse, then flush both factories to ensure they remain in sync */
-	if (ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC) && ast_slinfactory_available(other_factory) && (ast_tvdiff_ms(*time, previous_time) > (ast_slinfactory_available(other_factory) / 8))) {
+	if (ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC) && ast_slinfactory_available(other_factory) && (ast_tvdiff_ms(*rwtime, previous_time) > (ast_slinfactory_available(other_factory) / 8))) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Flushing audiohook %p so it remains in sync\n", audiohook);
 		ast_slinfactory_flush(factory);
@@ -666,12 +666,12 @@ struct ast_frame *ast_audiohook_write_list(struct ast_channel *chan, struct ast_
  */
 void ast_audiohook_trigger_wait(struct ast_audiohook *audiohook)
 {
-	struct timeval tv;
+	struct timeval wait;
 	struct timespec ts;
 
-	tv = ast_tvadd(ast_tvnow(), ast_samp2tv(50000, 1000));
-	ts.tv_sec = tv.tv_sec;
-	ts.tv_nsec = tv.tv_usec * 1000;
+	wait = ast_tvadd(ast_tvnow(), ast_samp2tv(50000, 1000));
+	ts.tv_sec = wait.tv_sec;
+	ts.tv_nsec = wait.tv_usec * 1000;
 	
 	ast_cond_timedwait(&audiohook->trigger, &audiohook->lock, &ts);
 	

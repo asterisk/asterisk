@@ -201,15 +201,15 @@ static const char *ast_cdr_getvar_internal(struct ast_cdr *cdr, const char *name
 	return NULL;
 }
 
-static void cdr_get_tv(struct timeval tv, const char *fmt, char *buf, int bufsize)
+static void cdr_get_tv(struct timeval when, const char *fmt, char *buf, int bufsize)
 {
 	if (fmt == NULL) {	/* raw mode */
-		snprintf(buf, bufsize, "%ld.%06ld", (long)tv.tv_sec, (long)tv.tv_usec);
+		snprintf(buf, bufsize, "%ld.%06ld", (long)when.tv_sec, (long)when.tv_usec);
 	} else {
-		if (tv.tv_sec) {
+		if (when.tv_sec) {
 			struct ast_tm tm;
 			
-			ast_localtime(&tv, &tm, NULL);
+			ast_localtime(&when, &tm, NULL);
 			ast_strftime(buf, bufsize, fmt, &tm);
 		}
 	}
@@ -1034,7 +1034,7 @@ static void post_cdr(struct ast_cdr *cdr)
 
 void ast_cdr_reset(struct ast_cdr *cdr, struct ast_flags *_flags)
 {
-	struct ast_cdr *dup;
+	struct ast_cdr *duplicate;
 	struct ast_flags flags = { 0 };
 
 	if (_flags)
@@ -1045,8 +1045,8 @@ void ast_cdr_reset(struct ast_cdr *cdr, struct ast_flags *_flags)
 		if (ast_test_flag(&flags, AST_CDR_FLAG_LOCKED) || !ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			if (ast_test_flag(&flags, AST_CDR_FLAG_POSTED)) {
 				ast_cdr_end(cdr);
-				if ((dup = ast_cdr_dup(cdr))) {
-					ast_cdr_detach(dup);
+				if ((duplicate = ast_cdr_dup(cdr))) {
+					ast_cdr_detach(duplicate);
 				}
 				ast_set_flag(cdr, AST_CDR_FLAG_POSTED);
 			}
@@ -1150,7 +1150,7 @@ static void *do_batch_backend_process(void *data)
 	return NULL;
 }
 
-void ast_cdr_submit_batch(int shutdown)
+void ast_cdr_submit_batch(int do_shutdown)
 {
 	struct ast_cdr_batch_item *oldbatchitems = NULL;
 	pthread_t batch_post_thread = AST_PTHREADT_NULL;
@@ -1167,7 +1167,7 @@ void ast_cdr_submit_batch(int shutdown)
 
 	/* if configured, spawn a new thread to post these CDRs,
 	   also try to save as much as possible if we are shutting down safely */
-	if (batchscheduleronly || shutdown) {
+	if (batchscheduleronly || do_shutdown) {
 		ast_debug(1, "CDR single-threaded batch processing begins now\n");
 		do_batch_backend_process(oldbatchitems);
 	} else {

@@ -828,14 +828,14 @@ static const char *__astman_get_header(const struct message *m, char *var, int m
 	for (x = 0; x < m->hdrcount; x++) {
 		const char *h = m->headers[x];
 		if (!strncasecmp(var, h, l) && h[l] == ':' && h[l+1] == ' ') {
-			const char *x = h + l + 2;
+			const char *value = h + l + 2;
 			/* found a potential candidate */
-			if (mode & GET_HEADER_SKIP_EMPTY && ast_strlen_zero(x))
+			if (mode & GET_HEADER_SKIP_EMPTY && ast_strlen_zero(value))
 				continue;	/* not interesting */
 			if (mode & GET_HEADER_LAST_MATCH)
-				result = x;	/* record the last match so far */
+				result = value;	/* record the last match so far */
 			else
-				return x;
+				return value;
 		}
 	}
 
@@ -2545,7 +2545,7 @@ static int action_timeout(struct mansession *s, const struct message *m)
 	struct ast_channel *c;
 	const char *name = astman_get_header(m, "Channel");
 	double timeout = atof(astman_get_header(m, "Timeout"));
-	struct timeval tv = { timeout, 0 };
+	struct timeval when = { timeout, 0 };
 
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
@@ -2561,8 +2561,8 @@ static int action_timeout(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	tv.tv_usec = (timeout - tv.tv_sec) * 1000000.0;
-	ast_channel_setwhentohangup_tv(c, tv);
+	when.tv_usec = (timeout - when.tv_sec) * 1000000.0;
+	ast_channel_setwhentohangup_tv(c, when);
 	ast_channel_unlock(c);
 	astman_send_ack(s, m, "Timeout Set");
 	return 0;
@@ -4147,11 +4147,11 @@ static int __init_manager(int reload)
 					user->displayconnects = ast_true(user_displayconnects);
 
 				if (user_writetimeout) {
-					int val = atoi(user_writetimeout);
-					if (val < 100)
+					int value = atoi(user_writetimeout);
+					if (value < 100)
 						ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at users.conf line %d\n", var->value, var->lineno);
 					else
-						user->writetimeout = val;
+						user->writetimeout = value;
 				}
 			}
 		}
@@ -4205,11 +4205,11 @@ static int __init_manager(int reload)
 			}  else if (!strcasecmp(var->name, "displayconnects") ) {
 				user->displayconnects = ast_true(var->value);
 			} else if (!strcasecmp(var->name, "writetimeout")) {
-				int val = atoi(var->value);
-				if (val < 100)
+				int value = atoi(var->value);
+				if (value < 100)
 					ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", var->value, var->lineno);
 				else
-					user->writetimeout = val;
+					user->writetimeout = value;
 			} else
 				ast_debug(1, "%s is an unknown option.\n", var->name);
 		}

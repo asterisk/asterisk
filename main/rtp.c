@@ -460,7 +460,7 @@ static void append_attr_string(struct stun_attr **attr, int attrval, const char 
 }
 
 /*! \brief append an address to an STUN message */
-static void append_attr_address(struct stun_attr **attr, int attrval, struct sockaddr_in *sin, int *len, int *left)
+static void append_attr_address(struct stun_attr **attr, int attrval, struct sockaddr_in *sock_in, int *len, int *left)
 {
 	int size = sizeof(**attr) + 8;
 	struct stun_addr *addr;
@@ -470,8 +470,8 @@ static void append_attr_address(struct stun_attr **attr, int attrval, struct soc
 		addr = (struct stun_addr *)((*attr)->value);
 		addr->unused = 0;
 		addr->family = 0x01;
-		addr->port = sin->sin_port;
-		addr->addr = sin->sin_addr.s_addr;
+		addr->port = sock_in->sin_port;
+		addr->addr = sock_in->sin_addr.s_addr;
 		(*attr) = (struct stun_attr *)((*attr)->value + 8);
 		*len += size;
 		*left -= size;
@@ -707,11 +707,11 @@ void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, c
 /*! \brief List of current sessions */
 static AST_RWLIST_HEAD_STATIC(protos, ast_rtp_protocol);
 
-static void timeval2ntp(struct timeval tv, unsigned int *msw, unsigned int *lsw)
+static void timeval2ntp(struct timeval when, unsigned int *msw, unsigned int *lsw)
 {
 	unsigned int sec, usec, frac;
-	sec = tv.tv_sec + 2208988800u; /* Sec between 1900 and 1970 */
-	usec = tv.tv_usec;
+	sec = when.tv_sec + 2208988800u; /* Sec between 1900 and 1970 */
+	usec = when.tv_usec;
 	frac = (usec << 12) + (usec << 8) - ((usec * 3650) >> 6);
 	*msw = sec;
 	*lsw = frac;
@@ -1130,7 +1130,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	socklen_t len;
 	int position, i, packetwords;
 	int res;
-	struct sockaddr_in sin;
+	struct sockaddr_in sock_in;
 	unsigned int rtcpdata[8192 + AST_FRIENDLY_OFFSET];
 	unsigned int *rtcpheader;
 	int pt;
@@ -1155,10 +1155,10 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	if (!rtp || !rtp->rtcp)
 		return &ast_null_frame;
 
-	len = sizeof(sin);
+	len = sizeof(sock_in);
 	
 	res = recvfrom(rtp->rtcp->s, rtcpdata + AST_FRIENDLY_OFFSET, sizeof(rtcpdata) - sizeof(unsigned int) * AST_FRIENDLY_OFFSET,
-					0, (struct sockaddr *)&sin, &len);
+					0, (struct sockaddr *)&sock_in, &len);
 	rtcpheader = (unsigned int *)(rtcpdata + AST_FRIENDLY_OFFSET);
 	
 	if (res < 0) {
@@ -1174,9 +1174,9 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	
 	if (rtp->nat) {
 		/* Send to whoever sent to us */
-		if ((rtp->rtcp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
-		    (rtp->rtcp->them.sin_port != sin.sin_port)) {
-			memcpy(&rtp->rtcp->them, &sin, sizeof(rtp->rtcp->them));
+		if ((rtp->rtcp->them.sin_addr.s_addr != sock_in.sin_addr.s_addr) ||
+		    (rtp->rtcp->them.sin_port != sock_in.sin_port)) {
+			memcpy(&rtp->rtcp->them, &sock_in, sizeof(rtp->rtcp->them));
 			if (option_debug || rtpdebug)
 				ast_debug(0, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 		}
@@ -1199,8 +1199,8 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 			return &ast_null_frame;
 		}
 		
-		if (rtcp_debug_test_addr(&sin)) {
-		  	ast_verbose("\n\nGot RTCP from %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+		if (rtcp_debug_test_addr(&sock_in)) {
+		  	ast_verbose("\n\nGot RTCP from %s:%d\n", ast_inet_ntoa(sock_in.sin_addr), ntohs(sock_in.sin_port));
 		  	ast_verbose("PT: %d(%s)\n", pt, (pt == 200) ? "Sender Report" : (pt == 201) ? "Receiver Report" : (pt == 192) ? "H.261 FUR" : "Unknown");
 		  	ast_verbose("Reception reports: %d\n", rc);
 		  	ast_verbose("SSRC of sender: %u\n", rtcpheader[i + 1]);
@@ -1215,7 +1215,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 			rtp->rtcp->soc = ntohl(rtcpheader[i + 4]);
 			rtp->rtcp->themrxlsr = ((ntohl(rtcpheader[i]) & 0x0000ffff) << 16) | ((ntohl(rtcpheader[i + 1]) & 0xffff0000) >> 16); /* Going to LSR in RR*/
  
-			if (rtcp_debug_test_addr(&sin)) {
+			if (rtcp_debug_test_addr(&sock_in)) {
 				ast_verbose("NTP timestamp: %lu.%010lu\n", (unsigned long) ntohl(rtcpheader[i]), (unsigned long) ntohl(rtcpheader[i + 1]) * 4096);
 				ast_verbose("RTP timestamp: %lu\n", (unsigned long) ntohl(rtcpheader[i + 2]));
 				ast_verbose("SPC: %lu\tSOC: %lu\n", (unsigned long) ntohl(rtcpheader[i + 3]), (unsigned long) ntohl(rtcpheader[i + 4]));
@@ -1266,7 +1266,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 					rtp->rtcp->normdevrtt = normdevrtt_current;
 
 					rtp->rtcp->rtt_count++;
-				} else if (rtcp_debug_test_addr(&sin)) {
+				} else if (rtcp_debug_test_addr(&sock_in)) {
 					ast_verbose("Internal RTCP NTP clock skew detected: "
 							   "lsr=%u, now=%u, dlsr=%u (%d:%03dms), "
 							   "diff=%d\n",
@@ -1316,7 +1316,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 
 			rtp->rtcp->reported_jitter_count++;
 
-			if (rtcp_debug_test_addr(&sin)) {
+			if (rtcp_debug_test_addr(&sock_in)) {
 				ast_verbose("  Fraction lost: %ld\n", (((long) ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24));
 				ast_verbose("  Packets lost so far: %d\n", rtp->rtcp->reported_lost);
 				ast_verbose("  Highest sequence number: %ld\n", (long) (ntohl(rtcpheader[i + 2]) & 0xffff));
@@ -1341,7 +1341,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 								    "LastSR: %lu.%010lu\r\n"
 								    "DLSR: %4.4f(sec)\r\n"
 								    "RTT: %llu(sec)\r\n",
-								    ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port),
+								    ast_inet_ntoa(sock_in.sin_addr), ntohs(sock_in.sin_port),
 								    pt, (pt == 200) ? "Sender Report" : (pt == 201) ? "Receiver Report" : (pt == 192) ? "H.261 FUR" : "Unknown",
 								    rc,
 								    rtcpheader[i + 1],
@@ -1365,7 +1365,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 								    "IAJitter: %u\r\n"
 								    "LastSR: %lu.%010lu\r\n"
 								    "DLSR: %4.4f(sec)\r\n",
-								    ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port),
+								    ast_inet_ntoa(sock_in.sin_addr), ntohs(sock_in.sin_port),
 								    pt, (pt == 200) ? "Sender Report" : (pt == 201) ? "Receiver Report" : (pt == 192) ? "H.261 FUR" : "Unknown",
 								    rc,
 								    rtcpheader[i + 1],
@@ -1380,7 +1380,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 			}
 			break;
 		case RTCP_PT_FUR:
-			if (rtcp_debug_test_addr(&sin))
+			if (rtcp_debug_test_addr(&sock_in))
 				ast_verbose("Received an RTCP Fast Update Request\n");
 			rtp->f.frametype = AST_FRAME_CONTROL;
 			rtp->f.subclass = AST_CONTROL_VIDUPDATE;
@@ -1391,11 +1391,11 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 			f = &rtp->f;
 			break;
 		case RTCP_PT_SDES:
-			if (rtcp_debug_test_addr(&sin))
+			if (rtcp_debug_test_addr(&sock_in))
 				ast_verbose("Received an SDES from %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 			break;
 		case RTCP_PT_BYE:
-			if (rtcp_debug_test_addr(&sin))
+			if (rtcp_debug_test_addr(&sock_in))
 				ast_verbose("Received a BYE from %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 			break;
 		default:
@@ -1408,7 +1408,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	return f;
 }
 
-static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int timestamp, int mark)
+static void calc_rxstamp(struct timeval *when, struct ast_rtp *rtp, unsigned int timestamp, int mark)
 {
 	struct timeval now;
 	double transit;
@@ -1436,11 +1436,11 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 
 	gettimeofday(&now,NULL);
 	/* rxcore is the mapping between the RTP timestamp and _our_ real time from gettimeofday() */
-	tv->tv_sec = rtp->rxcore.tv_sec + timestamp / 8000;
-	tv->tv_usec = rtp->rxcore.tv_usec + (timestamp % 8000) * 125;
-	if (tv->tv_usec >= 1000000) {
-		tv->tv_usec -= 1000000;
-		tv->tv_sec += 1;
+	when->tv_sec = rtp->rxcore.tv_sec + timestamp / 8000;
+	when->tv_usec = rtp->rxcore.tv_usec + (timestamp % 8000) * 125;
+	if (when->tv_usec >= 1000000) {
+		when->tv_usec -= 1000000;
+		when->tv_sec += 1;
 	}
 	prog = (double)((timestamp-rtp->seedrxts)/8000.);
 	dtv = (double)rtp->drxcore + (double)(prog);
@@ -1523,7 +1523,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp *rtp, struct ast_rtp *bridged, un
 struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 {
 	int res;
-	struct sockaddr_in sin;
+	struct sockaddr_in sock_in;
 	socklen_t len;
 	unsigned int seqno;
 	int version;
@@ -1544,23 +1544,23 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	if (rtp->sending_digit)
 		ast_rtp_senddigit_continuation(rtp);
 
-	len = sizeof(sin);
+	len = sizeof(sock_in);
 	
 	/* Cache where the header will go */
 	res = recvfrom(rtp->s, rtp->rawdata + AST_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET,
-					0, (struct sockaddr *)&sin, &len);
+					0, (struct sockaddr *)&sock_in, &len);
 
 	/* If strict RTP protection is enabled see if we need to learn this address or if the packet should be dropped */
 	if (rtp->strict_rtp_state == STRICT_RTP_LEARN) {
 		/* Copy over address that this packet was received on */
-		memcpy(&rtp->strict_rtp_address, &sin, sizeof(rtp->strict_rtp_address));
+		memcpy(&rtp->strict_rtp_address, &sock_in, sizeof(rtp->strict_rtp_address));
 		/* Now move over to actually protecting the RTP port */
 		rtp->strict_rtp_state = STRICT_RTP_CLOSED;
 		ast_debug(1, "Learned remote address is %s:%d for strict RTP purposes, now protecting the port.\n", ast_inet_ntoa(rtp->strict_rtp_address.sin_addr), ntohs(rtp->strict_rtp_address.sin_port));
 	} else if (rtp->strict_rtp_state == STRICT_RTP_CLOSED) {
 		/* If the address we previously learned doesn't match the address this packet came in on simply drop it */
-		if ((rtp->strict_rtp_address.sin_addr.s_addr != sin.sin_addr.s_addr) || (rtp->strict_rtp_address.sin_port != sin.sin_port)) {
-			ast_debug(1, "Received RTP packet from %s:%d, dropping due to strict RTP protection. Expected it to be from %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), ast_inet_ntoa(rtp->strict_rtp_address.sin_addr), ntohs(rtp->strict_rtp_address.sin_port));
+		if ((rtp->strict_rtp_address.sin_addr.s_addr != sock_in.sin_addr.s_addr) || (rtp->strict_rtp_address.sin_port != sock_in.sin_port)) {
+			ast_debug(1, "Received RTP packet from %s:%d, dropping due to strict RTP protection. Expected it to be from %s:%d\n", ast_inet_ntoa(sock_in.sin_addr), ntohs(sock_in.sin_port), ast_inet_ntoa(rtp->strict_rtp_address.sin_addr), ntohs(rtp->strict_rtp_address.sin_port));
 			return &ast_null_frame;
 		}
 	}
@@ -1591,9 +1591,9 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		 * answers to requests, and it returns STUN_ACCEPT
 		 * if the request is valid.
 		 */
-		if ((stun_handle_packet(rtp->s, &sin, rtp->rawdata + AST_FRIENDLY_OFFSET, res, NULL, NULL) == STUN_ACCEPT) &&
+		if ((stun_handle_packet(rtp->s, &sock_in, rtp->rawdata + AST_FRIENDLY_OFFSET, res, NULL, NULL) == STUN_ACCEPT) &&
 			(!rtp->them.sin_port && !rtp->them.sin_addr.s_addr)) {
-			memcpy(&rtp->them, &sin, sizeof(rtp->them));
+			memcpy(&rtp->them, &sock_in, sizeof(rtp->them));
 		}
 		return &ast_null_frame;
 	}
@@ -1606,11 +1606,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	/* Send to whoever send to us if NAT is turned on */
 	if (rtp->nat) {
-		if ((rtp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
-		    (rtp->them.sin_port != sin.sin_port)) {
-			rtp->them = sin;
+		if ((rtp->them.sin_addr.s_addr != sock_in.sin_addr.s_addr) ||
+		    (rtp->them.sin_port != sock_in.sin_port)) {
+			rtp->them = sock_in;
 			if (rtp->rtcp) {
-				memcpy(&rtp->rtcp->them, &sin, sizeof(rtp->rtcp->them));
+				memcpy(&rtp->rtcp->them, &sock_in, sizeof(rtp->rtcp->them));
 				rtp->rtcp->them.sin_port = htons(ntohs(rtp->them.sin_port)+1);
 			}
 			rtp->rxseqno = 0;
@@ -1695,9 +1695,9 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	if (!rtp->themssrc)
 		rtp->themssrc = ntohl(rtpheader[2]); /* Record their SSRC to put in future RR */
 	
-	if (rtp_debug_test_addr(&sin))
+	if (rtp_debug_test_addr(&sock_in))
 		ast_verbose("Got  RTP packet from    %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
-			ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
+			ast_inet_ntoa(sock_in.sin_addr), ntohs(sock_in.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 
 	rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
@@ -1706,7 +1706,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		/* This is special in-band data that's not one of our codecs */
 		if (rtpPT.code == AST_RTP_DTMF) {
 			/* It's special -- rfc2833 process it */
-			if (rtp_debug_test_addr(&sin)) {
+			if (rtp_debug_test_addr(&sock_in)) {
 				unsigned char *data;
 				unsigned int event;
 				unsigned int event_end;
@@ -1719,7 +1719,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				event_end >>= 24;
 				duration = ntohl(*((unsigned int *)(data)));
 				duration &= 0xFFFF;
-				ast_verbose("Got  RTP RFC2833 from   %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
+				ast_verbose("Got  RTP RFC2833 from   %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n", ast_inet_ntoa(sock_in.sin_addr), ntohs(sock_in.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
 			}
 			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp);
 		} else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
@@ -1768,7 +1768,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		unsigned char *header_end;
 		int num_generations;
 		int header_length;
-		int len;
+		int length;
 		int diff =(int)seqno - (prev_seqno+1); /* if diff = 0, no drop*/
 		int x;
 
@@ -1778,21 +1778,21 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		
 		header_length = header_end - data;
 		num_generations = header_length / 4;
-		len = header_length;
+		length = header_length;
 
 		if (!diff) {
 			for (x = 0; x < num_generations; x++)
-				len += data[x * 4 + 3];
+				length += data[x * 4 + 3];
 			
-			if (!(rtp->f.datalen - len))
+			if (!(rtp->f.datalen - length))
 				return &ast_null_frame;
 			
-			rtp->f.data.ptr += len;
-			rtp->f.datalen -= len;
+			rtp->f.data.ptr += length;
+			rtp->f.datalen -= length;
 		} else if (diff > num_generations && diff < 10) {
-			len -= 3;
-			rtp->f.data.ptr += len;
-			rtp->f.datalen -= len;
+			length -= 3;
+			rtp->f.data.ptr += length;
+			rtp->f.datalen -= length;
 			
 			data = rtp->f.data.ptr;
 			*data++ = 0xEF;
@@ -1800,10 +1800,10 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			*data = 0xBD;
 		} else 	{
 			for ( x = 0; x < num_generations - diff; x++) 
-				len += data[x * 4 + 3];
+				length += data[x * 4 + 3];
 			
-			rtp->f.data.ptr += len;
-			rtp->f.datalen -= len;
+			rtp->f.data.ptr += length;
+			rtp->f.datalen -= length;
 		}
 	}
 
@@ -2530,9 +2530,9 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, 
 	return ast_rtp_new_with_bindaddr(sched, io, rtcpenable, callbackmode, ia);
 }
 
-int ast_rtp_setqos(struct ast_rtp *rtp, int tos, int cos, char *desc)
+int ast_rtp_setqos(struct ast_rtp *rtp, int type_of_service, int class_of_service, char *desc)
 {
-	return ast_netsock_set_qos(rtp->s, tos, cos, desc);
+	return ast_netsock_set_qos(rtp->s, type_of_service, class_of_service, desc);
 }
 
 void ast_rtp_new_source(struct ast_rtp *rtp)
@@ -2548,7 +2548,8 @@ void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
 	rtp->them.sin_port = them->sin_port;
 	rtp->them.sin_addr = them->sin_addr;
 	if (rtp->rtcp) {
-		rtp->rtcp->them.sin_port = htons(ntohs(them->sin_port) + 1);
+		int h = ntohs(them->sin_port);
+		rtp->rtcp->them.sin_port = htons(h + 1);
 		rtp->rtcp->them.sin_addr = them->sin_addr;
 	}
 	rtp->rxseqno = 0;

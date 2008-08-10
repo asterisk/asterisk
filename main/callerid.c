@@ -722,14 +722,14 @@ void callerid_free(struct callerid_state *cid)
 
 static int callerid_genmsg(char *msg, int size, const char *number, const char *name, int flags)
 {
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 	struct ast_tm tm;
 	char *ptr;
 	int res;
 	int i, x;
 
 	/* Get the time */
-	ast_localtime(&tv, &tm, NULL);
+	ast_localtime(&now, &tm, NULL);
 	
 	ptr = msg;
 	

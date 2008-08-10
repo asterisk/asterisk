@@ -246,18 +246,18 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 {
 	struct ast_ha *start = original;
 	struct ast_ha *ret = NULL;
-	struct ast_ha *link, *prev = NULL;
+	struct ast_ha *current, *prev = NULL;
 
 	while (start) {
-		link = ast_duplicate_ha(start);  /* Create copy of this object */
+		current = ast_duplicate_ha(start);  /* Create copy of this object */
 		if (prev)
-			prev->next = link;		/* Link previous to this object */
+			prev->next = current;		/* Link previous to this object */
 
 		if (!ret)
-			ret = link;		/* Save starting point */
+			ret = current;		/* Save starting point */
 
 		start = start->next;		/* Go to next object */
-		prev = link;			/* Save pointer to this object */
+		prev = current;			/* Save pointer to this object */
 	}
 	return ret;    			/* Return start of list */
 }

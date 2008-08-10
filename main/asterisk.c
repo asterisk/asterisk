@@ -644,14 +644,14 @@ static char *handle_show_profile(struct ast_cli_entry *e, int cmd, struct ast_cl
 	ast_cli(a->fd, "%6s   %8s  %10s %12s %12s  %s\n", "ID", "Scale", "Events",
 			"Value", "Average", "Name");
 	for (i = min; i < max; i++) {
-		struct profile_entry *e = &prof_data->e[i];
+		struct profile_entry *entry = &prof_data->e[i];
 		if (!search || strstr(prof_data->e[i].name, search))
 		    ast_cli(a->fd, "%6d: [%8ld] %10ld %12lld %12lld  %s\n",
 			i,
-			(long)e->scale,
-			(long)e->events, (long long)e->value,
-			(long long)(e->events ? e->value / e->events : e->value),
-			e->name);
+			(long)entry->scale,
+			(long)entry->events, (long long)entry->value,
+			(long long)(entry->events ? entry->value / entry->events : entry->value),
+			entry->name);
 	}
 	return CLI_SUCCESS;
 }
@@ -817,7 +817,7 @@ static int fdprint(int fd, const char *s)
 }
 
 /*! \brief NULL handler so we can collect the child exit status */
-static void null_sig_handler(int signal)
+static void null_sig_handler(int sig)
 {
 
 }
@@ -1326,7 +1326,7 @@ static void ast_run_atexits(void)
 	AST_RWLIST_UNLOCK(&atexits);
 }
 
-static void quit_handler(int num, int nice, int safeshutdown, int restart)
+static void quit_handler(int num, int niceness, int safeshutdown, int restart)
 {
 	char filename[80] = "";
 	time_t s,e;
@@ -1335,7 +1335,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	ast_cdr_engine_term();
 	if (safeshutdown) {
 		shuttingdown = 1;
-		if (!nice) {
+		if (!niceness) {
 			/* Begin shutdown routine, hanging up active channels */
 			ast_begin_shutdown(1);
 			if (option_verbose && ast_opt_console)
@@ -1354,7 +1354,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 				usleep(100000);
 			}
 		} else {
-			if (nice < 2)
+			if (niceness < 2)
 				ast_begin_shutdown(0);
 			if (option_verbose && ast_opt_console)
 				ast_verbose("Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
@@ -1373,7 +1373,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 			return;
 		}
 
-		if (nice)
+		if (niceness)
 			ast_module_shutdown();
 	}
 	if (ast_opt_console || ast_opt_remote) {
@@ -1899,7 +1899,7 @@ static struct ast_cli_entry cli_asterisk[] = {
 #endif /* ! LOW_MEMORY */
 };
 
-static int ast_el_read_char(EditLine *el, char *cp)
+static int ast_el_read_char(EditLine *editline, char *cp)
 {
 	int num_read = 0;
 	int lastpos = 0;
@@ -1993,7 +1993,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 
 static struct ast_str *prompt = NULL;
 
-static char *cli_prompt(EditLine *el)
+static char *cli_prompt(EditLine *editline)
 {
 	char tmp[100];
 	char *pfmt;
@@ -2225,7 +2225,7 @@ static int ast_cli_display_match_list(char **matches, int len, int max)
 }
 
 
-static char *cli_complete(EditLine *el, int ch)
+static char *cli_complete(EditLine *editline, int ch)
 {
 	int len = 0;
 	char *ptr;
@@ -2235,7 +2235,7 @@ static char *cli_complete(EditLine *el, int ch)
 	char buf[2048];
 	int res;
 
-	LineInfo *lf = (LineInfo *)el_line(el);
+	LineInfo *lf = (LineInfo *)el_line(editline);
 
 	*(char *)lf->cursor = '\0';
 	ptr = (char *)lf->cursor;
@@ -2302,14 +2302,14 @@ static char *cli_complete(EditLine *el, int ch)
 		int matches_num, maxlen, match_len;
 
 		if (matches[0][0] != '\0') {
-			el_deletestr(el, (int) len);
-			el_insertstr(el, matches[0]);
+			el_deletestr(editline, (int) len);
+			el_insertstr(editline, matches[0]);
 			retval = CC_REFRESH;
 		}
 
 		if (nummatches == 1) {
 			/* Found an exact match */
-			el_insertstr(el, " ");
+			el_insertstr(editline, " ");
 			retval = CC_REFRESH;
 		} else {
 			/* Must be more than one match */
@@ -2324,7 +2324,7 @@ static char *cli_complete(EditLine *el, int ch)
 				ast_cli_display_match_list(matches, nummatches, maxlen);
 				retval = CC_REDISPLAY;
 			} else { 
-				el_insertstr(el," ");
+				el_insertstr(editline," ");
 				retval = CC_REFRESH;
 			}
 		}
@@ -2427,7 +2427,6 @@ static void ast_remotecontrol(char * data)
 	char *cpid;
 	char *version;
 	int pid;
-	char tmp[80];
 	char *stringp = NULL;
 
 	char *ebuf;
@@ -2453,6 +2452,7 @@ static void ast_remotecontrol(char * data)
 	else
 		pid = -1;
 	if (!data) {
+		char tmp[80];
 		snprintf(tmp, sizeof(tmp), "core set verbose atleast %d", option_verbose);
 		fdsend(ast_consock, tmp);
 		snprintf(tmp, sizeof(tmp), "core set debug atleast %d", option_debug);
@@ -2480,10 +2480,10 @@ static void ast_remotecontrol(char * data)
 		fds.events = POLLIN;
 		fds.revents = 0;
 		while (poll(&fds, 1, 500) > 0) {
-			char buf[512] = "", *curline = buf, *nextline;
+			char buffer[512] = "", *curline = buffer, *nextline;
 			int not_written = 1;
 
-			if (read(ast_consock, buf, sizeof(buf) - 1) <= 0) {
+			if (read(ast_consock, buffer, sizeof(buffer) - 1) <= 0) {
 				break;
 			}
 
@@ -2520,11 +2520,11 @@ static void ast_remotecontrol(char * data)
 				ebuf[strlen(ebuf)-1] = '\0';
 			if (!remoteconsolehandler(ebuf)) {
 				/* Strip preamble from output */
-				char *tmp;
-				for (tmp = ebuf; *tmp; tmp++) {
-					if (*tmp == 127) {
-						memmove(tmp, tmp + 1, strlen(tmp));
-						tmp--;
+				char *temp;
+				for (temp = ebuf; *temp; temp++) {
+					if (*temp == 127) {
+						memmove(temp, temp + 1, strlen(temp));
+						temp--;
 					}
 				}
 				res = write(ast_consock, ebuf, strlen(ebuf) + 1);
@@ -2831,15 +2831,15 @@ static void *monitor_sig_flags(void *unused)
 static void *canary_thread(void *unused)
 {
 	struct stat canary_stat;
-	struct timeval tv;
+	struct timeval now;
 
 	/* Give the canary time to sing */
 	sleep(120);
 
 	for (;;) {
 		stat(canary_filename, &canary_stat);
-		tv = ast_tvnow();
-		if (tv.tv_sec > canary_stat.st_mtime + 60) {
+		now = ast_tvnow();
+		if (now.tv_sec > canary_stat.st_mtime + 60) {
 			ast_log(LOG_WARNING, "The canary is no more.  He has ceased to be!  He's expired and gone to meet his maker!  He's a stiff!  Bereft of life, he rests in peace.  His metabolic processes are now history!  He's off the twig!  He's kicked the bucket.  He's shuffled off his mortal coil, run down the curtain, and joined the bleeding choir invisible!!  THIS is an EX-CANARY.  (Reducing priority)\n");
 			ast_set_priority(0);
 			pthread_exit(NULL);

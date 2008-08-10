@@ -529,8 +529,8 @@ void ast_channel_setwhentohangup_tv(struct ast_channel *chan, struct timeval off
 
 void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
 {
-	struct timeval tv = { offset, };
-	ast_channel_setwhentohangup_tv(chan, tv);
+	struct timeval when = { offset, };
+	ast_channel_setwhentohangup_tv(chan, when);
 }
 
 /*! \brief Compare a offset with when to hangup channel */
@@ -1540,16 +1540,16 @@ int ast_softhangup(struct ast_channel *chan, int cause)
 	return res;
 }
 
-static void free_translation(struct ast_channel *clone)
+static void free_translation(struct ast_channel *clonechan)
 {
-	if (clone->writetrans)
-		ast_translator_free_path(clone->writetrans);
-	if (clone->readtrans)
-		ast_translator_free_path(clone->readtrans);
-	clone->writetrans = NULL;
-	clone->readtrans = NULL;
-	clone->rawwriteformat = clone->nativeformats;
-	clone->rawreadformat = clone->nativeformats;
+	if (clonechan->writetrans)
+		ast_translator_free_path(clonechan->writetrans);
+	if (clonechan->readtrans)
+		ast_translator_free_path(clonechan->readtrans);
+	clonechan->writetrans = NULL;
+	clonechan->readtrans = NULL;
+	clonechan->rawwriteformat = clonechan->nativeformats;
+	clonechan->rawreadformat = clonechan->nativeformats;
 }
 
 /*! \brief Hangup a channel */
@@ -3617,17 +3617,17 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 	return rc;
 }
 
-int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone)
+int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clonechan)
 {
 	int res = -1;
 	struct ast_channel *final_orig, *final_clone, *base;
 
 retrymasq:
 	final_orig = original;
-	final_clone = clone;
+	final_clone = clonechan;
 
 	ast_channel_lock(original);
-	while (ast_channel_trylock(clone)) {
+	while (ast_channel_trylock(clonechan)) {
 		ast_channel_unlock(original);
 		usleep(1);
 		ast_channel_lock(original);
@@ -3638,59 +3638,59 @@ retrymasq:
 	if (original->_bridge && (original->_bridge != ast_bridged_channel(original)) && (original->_bridge->_bridge != original))
 		final_orig = original->_bridge;
 
-	if (clone->_bridge && (clone->_bridge != ast_bridged_channel(clone)) && (clone->_bridge->_bridge != clone))
-		final_clone = clone->_bridge;
+	if (clonechan->_bridge && (clonechan->_bridge != ast_bridged_channel(clonechan)) && (clonechan->_bridge->_bridge != clonechan))
+		final_clone = clonechan->_bridge;
 	
 	if (final_clone->tech->get_base_channel && (base = final_clone->tech->get_base_channel(final_clone))) {
 		final_clone = base;
 	}
 
-	if ((final_orig != original) || (final_clone != clone)) {
+	if ((final_orig != original) || (final_clone != clonechan)) {
 		/* Lots and lots of deadlock avoidance.  The main one we're competing with
 		 * is ast_write(), which locks channels recursively, when working with a
 		 * proxy channel. */
 		if (ast_channel_trylock(final_orig)) {
-			ast_channel_unlock(clone);
+			ast_channel_unlock(clonechan);
 			ast_channel_unlock(original);
 			goto retrymasq;
 		}
 		if (ast_channel_trylock(final_clone)) {
 			ast_channel_unlock(final_orig);
-			ast_channel_unlock(clone);
+			ast_channel_unlock(clonechan);
 			ast_channel_unlock(original);
 			goto retrymasq;
 		}
-		ast_channel_unlock(clone);
+		ast_channel_unlock(clonechan);
 		ast_channel_unlock(original);
 		original = final_orig;
-		clone = final_clone;
+		clonechan = final_clone;
 	}
 
-	if (original == clone) {
+	if (original == clonechan) {
 		ast_log(LOG_WARNING, "Can't masquerade channel '%s' into itself!\n", original->name);
-		ast_channel_unlock(clone);
+		ast_channel_unlock(clonechan);
 		ast_channel_unlock(original);
 		return -1;
 	}
 
 	ast_debug(1, "Planning to masquerade channel %s into the structure of %s\n",
-		clone->name, original->name);
+		clonechan->name, original->name);
 	if (original->masq) {
 		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n",
 			original->masq->name, original->name);
-	} else if (clone->masqr) {
+	} else if (clonechan->masqr) {
 		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n",
-			clone->name, clone->masqr->name);
+			clonechan->name, clonechan->masqr->name);
 	} else {
-		original->masq = clone;
-		clone->masqr = original;
+		original->masq = clonechan;
+		clonechan->masqr = original;
 		ast_queue_frame(original, &ast_null_frame);
-		ast_queue_frame(clone, &ast_null_frame);
-		ast_debug(1, "Done planning to masquerade channel %s into the structure of %s\n", clone->name, original->name);
+		ast_queue_frame(clonechan, &ast_null_frame);
+		ast_debug(1, "Done planning to masquerade channel %s into the structure of %s\n", clonechan->name, original->name);
 		res = 0;
 	}
 
-	ast_channel_unlock(clone);
+	ast_channel_unlock(clonechan);
 	ast_channel_unlock(original);
 
 	return res;
@@ -3751,20 +3751,20 @@ void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_
 
   \note Assumes locks will be in place on both channels when called.
 */
-static void clone_variables(struct ast_channel *original, struct ast_channel *clone)
+static void clone_variables(struct ast_channel *original, struct ast_channel *clonechan)
 {
 	struct ast_var_t *current, *newvar;
 	/* Append variables from clone channel into original channel */
 	/* XXX Is this always correct?  We have to in order to keep MACROS working XXX */
-	if (AST_LIST_FIRST(&clone->varshead))
-		AST_LIST_APPEND_LIST(&original->varshead, &clone->varshead, entries);
+	if (AST_LIST_FIRST(&clonechan->varshead))
+		AST_LIST_APPEND_LIST(&original->varshead, &clonechan->varshead, entries);
 
 	/* then, dup the varshead list into the clone */
 	
 	AST_LIST_TRAVERSE(&original->varshead, current, entries) {
 		newvar = ast_var_assign(current->name, current->value);
 		if (newvar)
-			AST_LIST_INSERT_TAIL(&clone->varshead, newvar, entries);
+			AST_LIST_INSERT_TAIL(&clonechan->varshead, newvar, entries);
 	}
 }
 
@@ -3778,11 +3778,11 @@ int ast_do_masquerade(struct ast_channel *original)
 	int x,i;
 	int res=0;
 	int origstate;
-	struct ast_frame *cur;
+	struct ast_frame *current;
 	const struct ast_channel_tech *t;
 	void *t_pvt;
 	struct ast_callerid tmpcid;
-	struct ast_channel *clone = original->masq;
+	struct ast_channel *clonechan = original->masq;
 	struct ast_cdr *cdr;
 	int rformat = original->readformat;
 	int wformat = original->writeformat;
@@ -3792,10 +3792,10 @@ int ast_do_masquerade(struct ast_channel *original)
 	char zombn[AST_CHANNEL_NAME];
 
 	ast_debug(4, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
-		clone->name, clone->_state, original->name, original->_state);
+		clonechan->name, clonechan->_state, original->name, original->_state);
 
 	manager_event(EVENT_FLAG_CALL, "Masquerade", "Clone: %s\r\nCloneState: %s\r\nOriginal: %s\r\nOriginalState: %s\r\n",
-		      clone->name, ast_state2str(clone->_state), original->name, ast_state2str(original->_state));
+		      clonechan->name, ast_state2str(clonechan->_state), original->name, ast_state2str(original->_state));
 
 	/* XXX This is a seriously wacked out operation.  We're essentially putting the guts of
 	   the clone channel into the original channel.  Start by killing off the original
@@ -3803,24 +3803,24 @@ int ast_do_masquerade(struct ast_channel *original)
 	   while the features are nice, the cost is very high in terms of pure nastiness. XXX */
 
 	/* We need the clone's lock, too */
-	ast_channel_lock(clone);
+	ast_channel_lock(clonechan);
 
-	ast_debug(2, "Got clone lock for masquerade on '%s' at %p\n", clone->name, &clone->lock_dont_use);
+	ast_debug(2, "Got clone lock for masquerade on '%s' at %p\n", clonechan->name, &clonechan->lock_dont_use);
 
 	/* Having remembered the original read/write formats, we turn off any translation on either
 	   one */
-	free_translation(clone);
+	free_translation(clonechan);
 	free_translation(original);
 
 
 	/* Unlink the masquerade */
 	original->masq = NULL;
-	clone->masqr = NULL;
+	clonechan->masqr = NULL;
 	
 	/* Save the original name */
 	ast_copy_string(orig, original->name, sizeof(orig));
 	/* Save the new name */
-	ast_copy_string(newn, clone->name, sizeof(newn));
+	ast_copy_string(newn, clonechan->name, sizeof(newn));
 	/* Create the masq name */
 	snprintf(masqn, sizeof(masqn), "%s<MASQ>", newn);
 		
@@ -3828,31 +3828,31 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_string_field_set(original, name, newn);
 
 	/* Mangle the name of the clone channel */
-	ast_string_field_set(clone, name, masqn);
+	ast_string_field_set(clonechan, name, masqn);
 	
 	/* Notify any managers of the change, first the masq then the other */
-	manager_event(EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", newn, masqn, clone->uniqueid);
+	manager_event(EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", newn, masqn, clonechan->uniqueid);
 	manager_event(EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", orig, newn, original->uniqueid);
 
 	/* Swap the technologies */	
 	t = original->tech;
-	original->tech = clone->tech;
-	clone->tech = t;
+	original->tech = clonechan->tech;
+	clonechan->tech = t;
 
 	/* Swap the cdrs */
 	cdr = original->cdr;
-	original->cdr = clone->cdr;
-	clone->cdr = cdr;
+	original->cdr = clonechan->cdr;
+	clonechan->cdr = cdr;
 
 	t_pvt = original->tech_pvt;
-	original->tech_pvt = clone->tech_pvt;
-	clone->tech_pvt = t_pvt;
+	original->tech_pvt = clonechan->tech_pvt;
+	clonechan->tech_pvt = t_pvt;
 
 	/* Swap the alertpipes */
 	for (i = 0; i < 2; i++) {
 		x = original->alertpipe[i];
-		original->alertpipe[i] = clone->alertpipe[i];
-		clone->alertpipe[i] = x;
+		original->alertpipe[i] = clonechan->alertpipe[i];
+		clonechan->alertpipe[i] = x;
 	}
 
 	/* 
@@ -3871,10 +3871,10 @@ int ast_do_masquerade(struct ast_channel *original)
 		AST_LIST_HEAD_SET_NOLOCK(&tmp_readq, NULL);
 
 		AST_LIST_APPEND_LIST(&tmp_readq, &original->readq, frame_list);
-		AST_LIST_APPEND_LIST(&original->readq, &clone->readq, frame_list);
+		AST_LIST_APPEND_LIST(&original->readq, &clonechan->readq, frame_list);
 
-		while ((cur = AST_LIST_REMOVE_HEAD(&tmp_readq, frame_list))) {
-			AST_LIST_INSERT_TAIL(&original->readq, cur, frame_list);
+		while ((current = AST_LIST_REMOVE_HEAD(&tmp_readq, frame_list))) {
+			AST_LIST_INSERT_TAIL(&original->readq, current, frame_list);
 			if (original->alertpipe[1] > -1) {
 				int poke = 0;
 				write(original->alertpipe[1], &poke, sizeof(poke));
@@ -3884,77 +3884,77 @@ int ast_do_masquerade(struct ast_channel *original)
 
 	/* Swap the raw formats */
 	x = original->rawreadformat;
-	original->rawreadformat = clone->rawreadformat;
-	clone->rawreadformat = x;
+	original->rawreadformat = clonechan->rawreadformat;
+	clonechan->rawreadformat = x;
 	x = original->rawwriteformat;
-	original->rawwriteformat = clone->rawwriteformat;
-	clone->rawwriteformat = x;
+	original->rawwriteformat = clonechan->rawwriteformat;
+	clonechan->rawwriteformat = x;
 
-	clone->_softhangup = AST_SOFTHANGUP_DEV;
+	clonechan->_softhangup = AST_SOFTHANGUP_DEV;
 
 	/* And of course, so does our current state.  Note we need not
 	   call ast_setstate since the event manager doesn't really consider
 	   these separate.  We do this early so that the clone has the proper
 	   state of the original channel. */
 	origstate = original->_state;
-	original->_state = clone->_state;
-	clone->_state = origstate;
+	original->_state = clonechan->_state;
+	clonechan->_state = origstate;
 
-	if (clone->tech->fixup){
-		res = clone->tech->fixup(original, clone);
+	if (clonechan->tech->fixup){
+		res = clonechan->tech->fixup(original, clonechan);
 		if (res)
-			ast_log(LOG_WARNING, "Fixup failed on channel %s, strange things may happen.\n", clone->name);
+			ast_log(LOG_WARNING, "Fixup failed on channel %s, strange things may happen.\n", clonechan->name);
 	}
 
 	/* Start by disconnecting the original's physical side */
-	if (clone->tech->hangup)
-		res = clone->tech->hangup(clone);
+	if (clonechan->tech->hangup)
+		res = clonechan->tech->hangup(clonechan);
 	if (res) {
 		ast_log(LOG_WARNING, "Hangup failed!  Strange things may happen!\n");
-		ast_channel_unlock(clone);
+		ast_channel_unlock(clonechan);
 		return -1;
 	}
 
 	snprintf(zombn, sizeof(zombn), "%s<ZOMBIE>", orig);
 	/* Mangle the name of the clone channel */
-	ast_string_field_set(clone, name, zombn);
-	manager_event(EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", masqn, zombn, clone->uniqueid);
+	ast_string_field_set(clonechan, name, zombn);
+	manager_event(EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", masqn, zombn, clonechan->uniqueid);
 
 	/* Update the type. */
 	t_pvt = original->monitor;
-	original->monitor = clone->monitor;
-	clone->monitor = t_pvt;
+	original->monitor = clonechan->monitor;
+	clonechan->monitor = t_pvt;
 
 	/* Keep the same language.  */
-	ast_string_field_set(original, language, clone->language);
+	ast_string_field_set(original, language, clonechan->language);
 	/* Copy the FD's other than the generator fd */
 	for (x = 0; x < AST_MAX_FDS; x++) {
 		if (x != AST_GENERATOR_FD)
-			ast_channel_set_fd(original, x, clone->fds[x]);
+			ast_channel_set_fd(original, x, clonechan->fds[x]);
 	}
 
-	ast_app_group_update(clone, original);
+	ast_app_group_update(clonechan, original);
 
 	/* Move data stores over */
-	if (AST_LIST_FIRST(&clone->datastores)) {
+	if (AST_LIST_FIRST(&clonechan->datastores)) {
 		struct ast_datastore *ds;
-		AST_LIST_APPEND_LIST(&original->datastores, &clone->datastores, entry);
+		AST_LIST_APPEND_LIST(&original->datastores, &clonechan->datastores, entry);
 		AST_LIST_TRAVERSE(&original->datastores, ds, entry) {
 			if (ds->info->chan_fixup)
-				ds->info->chan_fixup(ds->data, clone, original);
+				ds->info->chan_fixup(ds->data, clonechan, original);
 		}
 	}
 
-	clone_variables(original, clone);
+	clone_variables(original, clonechan);
 	/* Presense of ADSI capable CPE follows clone */
-	original->adsicpe = clone->adsicpe;
+	original->adsicpe = clonechan->adsicpe;
 	/* Bridge remains the same */
 	/* CDR fields remain the same */
 	/* XXX What about blocking, softhangup, blocker, and lock and blockproc? XXX */
 	/* Application and data remain the same */
 	/* Clone exception  becomes real one, as with fdno */
-	ast_copy_flags(original, clone, AST_FLAG_EXCEPTION);
-	original->fdno = clone->fdno;
+	ast_copy_flags(original, clonechan, AST_FLAG_EXCEPTION);
+	original->fdno = clonechan->fdno;
 	/* Schedule context remains the same */
 	/* Stream stuff stays the same */
 	/* Keep the original state.  The fixup code will need to work with it most likely */
@@ -3962,14 +3962,14 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* Just swap the whole structures, nevermind the allocations, they'll work themselves
 	   out. */
 	tmpcid = original->cid;
-	original->cid = clone->cid;
-	clone->cid = tmpcid;
+	original->cid = clonechan->cid;
+	clonechan->cid = tmpcid;
 
 	/* Restore original timing file descriptor */
 	ast_channel_set_fd(original, AST_TIMING_FD, original->timingfd);
 
 	/* Our native formats are different now */
-	original->nativeformats = clone->nativeformats;
+	original->nativeformats = clonechan->nativeformats;
 
 	/* Context, extension, priority, app data, jump table,  remain the same */
 	/* pvt switches.  pbx stays the same, as does next */
@@ -3981,18 +3981,18 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_set_read_format(original, rformat);
 
 	/* Copy the music class */
-	ast_string_field_set(original, musicclass, clone->musicclass);
+	ast_string_field_set(original, musicclass, clonechan->musicclass);
 
 	ast_debug(1, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
 
 	/* Okay.  Last thing is to let the channel driver know about all this mess, so he
 	   can fix up everything as best as possible */
 	if (original->tech->fixup) {
-		res = original->tech->fixup(clone, original);
+		res = original->tech->fixup(clonechan, original);
 		if (res) {
 			ast_log(LOG_WARNING, "Channel for type '%s' could not fixup channel %s\n",
 				original->tech->type, original->name);
-			ast_channel_unlock(clone);
+			ast_channel_unlock(clonechan);
 			return -1;
 		}
 	} else
@@ -4006,25 +4006,25 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
 	   a zombie so nothing tries to touch it.  If it's already been marked as a
 	   zombie, then free it now (since it already is considered invalid). */
-	if (ast_test_flag(clone, AST_FLAG_ZOMBIE)) {
-		ast_debug(1, "Destroying channel clone '%s'\n", clone->name);
-		ast_channel_unlock(clone);
+	if (ast_test_flag(clonechan, AST_FLAG_ZOMBIE)) {
+		ast_debug(1, "Destroying channel clone '%s'\n", clonechan->name);
+		ast_channel_unlock(clonechan);
 		manager_event(EVENT_FLAG_CALL, "Hangup",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
 			"Cause: %d\r\n"
 			"Cause-txt: %s\r\n",
-			clone->name,
-			clone->uniqueid,
-			clone->hangupcause,
-			ast_cause2str(clone->hangupcause)
+			clonechan->name,
+			clonechan->uniqueid,
+			clonechan->hangupcause,
+			ast_cause2str(clonechan->hangupcause)
 			);
-		ast_channel_free(clone);
+		ast_channel_free(clonechan);
 	} else {
-		ast_debug(1, "Released clone lock on '%s'\n", clone->name);
-		ast_set_flag(clone, AST_FLAG_ZOMBIE);
-		ast_queue_frame(clone, &ast_null_frame);
-		ast_channel_unlock(clone);
+		ast_debug(1, "Released clone lock on '%s'\n", clonechan->name);
+		ast_set_flag(clonechan, AST_FLAG_ZOMBIE);
+		ast_queue_frame(clonechan, &ast_null_frame);
+		ast_channel_unlock(clonechan);
 	}
 
 	/* Signal any blocker */

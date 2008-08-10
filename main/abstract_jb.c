@@ -551,16 +551,16 @@ void ast_jb_destroy(struct ast_channel *chan)
 }
 
 
-static long get_now(struct ast_jb *jb, struct timeval *tv)
+static long get_now(struct ast_jb *jb, struct timeval *when)
 {
 	struct timeval now;
 
-	if (!tv) {
-		tv = &now;
-		gettimeofday(tv, NULL);
+	if (!when) {
+		when = &now;
+		gettimeofday(when, NULL);
 	}
 
-	return ast_tvdiff_ms(*tv, jb->timebase);
+	return ast_tvdiff_ms(*when, jb->timebase);
 }
 
 

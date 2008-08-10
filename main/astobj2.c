@@ -813,10 +813,10 @@ static void container_destruct(void *_c)
 	_ao2_callback(c, OBJ_UNLINK, cd_cb, NULL);
 
 	for (i = 0; i < c->n_buckets; i++) {
-		struct bucket_list *cur;
+		struct bucket_list *current;
 
-		while ((cur = AST_LIST_REMOVE_HEAD(&c->buckets[i], entry))) {
-			ast_free(cur);
+		while ((current = AST_LIST_REMOVE_HEAD(&c->buckets[i], entry))) {
+			ast_free(current);
 		}
 	}
 
@@ -833,10 +833,10 @@ static void container_destruct_debug(void *_c)
 	_ao2_callback_debug(c, OBJ_UNLINK, cd_cb_debug, NULL, "container_destruct_debug called", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
 	for (i = 0; i < c->n_buckets; i++) {
-		struct bucket_list *cur;
+		struct bucket_list *current;
 
-		while ((cur = AST_LIST_REMOVE_HEAD(&c->buckets[i], entry))) {
-			ast_free(cur);
+		while ((current = AST_LIST_REMOVE_HEAD(&c->buckets[i], entry))) {
+			ast_free(current);
 		}
 	}
 

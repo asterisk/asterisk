@@ -452,7 +452,7 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 
 int ast_control_streamfile(struct ast_channel *chan, const char *file,
 			   const char *fwd, const char *rev,
-			   const char *stop, const char *pause,
+			   const char *stop, const char *suspend,
 			   const char *restart, int skipms, long *offsetms) 
 {
 	char *breaks = NULL;
@@ -467,8 +467,8 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 
 	if (stop)
 		blen += strlen(stop);
-	if (pause)
-		blen += strlen(pause);
+	if (suspend)
+		blen += strlen(suspend);
 	if (restart)
 		blen += strlen(restart);
 
@@ -477,8 +477,8 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 		breaks[0] = '\0';
 		if (stop)
 			strcat(breaks, stop);
-		if (pause)
-			strcat(breaks, pause);
+		if (suspend)
+			strcat(breaks, suspend);
 		if (restart)
 			strcat(breaks, restart);
 	}
@@ -528,17 +528,17 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 			continue;
 		}
 
-		if (pause && strchr(pause, res)) {
+		if (suspend && strchr(suspend, res)) {
 			pause_restart_point = ast_tellstream(chan->stream);
 			for (;;) {
 				ast_stopstream(chan);
 				res = ast_waitfordigit(chan, 1000);
 				if (!res)
 					continue;
-				else if (res == -1 || strchr(pause, res) || (stop && strchr(stop, res)))
+				else if (res == -1 || strchr(suspend, res) || (stop && strchr(stop, res)))
 					break;
 			}
-			if (res == *pause) {
+			if (res == *suspend) {
 				res = 0;
 				continue;
 			}

@@ -2567,9 +2567,9 @@ static void *do_parking_thread(void *ignore)
 		rfds = nrfds;
 		efds = nefds;
 		{
-			struct timeval tv = ast_samp2tv(ms, 1000);
+			struct timeval wait = ast_samp2tv(ms, 1000);
 			/* Wait for something to happen */
-			ast_select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &tv : NULL);
+			ast_select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &wait : NULL);
 		}
 		pthread_testcancel();
 	}
