@@ -205,12 +205,12 @@ static int decode_open_type(uint8_t *buf, int limit, int *len, const uint8_t **p
 {
 	int octet_cnt;
 	int octet_idx;
-	int stat;
+	int length;
 	int i;
 	const uint8_t **pbuf;
 
 	for (octet_idx = 0, *p_num_octets = 0; ; octet_idx += octet_cnt) {
-		if ((stat = decode_length(buf, limit, len, &octet_cnt)) < 0)
+		if ((length = decode_length(buf, limit, len, &octet_cnt)) < 0)
 			return -1;
 		if (octet_cnt > 0) {
 			*p_num_octets += octet_cnt;
@@ -224,7 +224,7 @@ static int decode_open_type(uint8_t *buf, int limit, int *len, const uint8_t **p
 			*pbuf = &buf[*len];
 			*len += octet_cnt;
 		}
-		if (stat == 0)
+		if (length == 0)
 			break;
 	}
 	return 0;
@@ -289,7 +289,7 @@ static int encode_open_type(uint8_t *buf, int *len, const uint8_t *data, int num
 
 static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 {
-	int stat;
+	int stat1;
 	int stat2;
 	int i;
 	int j;
@@ -324,7 +324,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 	ptr += 2;
 
 	/* Break out the primary packet */
-	if ((stat = decode_open_type(buf, len, &ptr, &ifp, &ifp_len)) != 0)
+	if ((stat1 = decode_open_type(buf, len, &ptr, &ifp, &ifp_len)) != 0)
 		return -1;
 	/* Decode error_recovery */
 	if (ptr + 1 > len)
@@ -339,7 +339,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 				if ((stat2 = decode_length(buf, len, &ptr, &count)) < 0)
 					return -1;
 				for (i = 0; i < count; i++) {
-					if ((stat = decode_open_type(buf, len, &ptr, &bufs[total_count + i], &lengths[total_count + i])) != 0)
+					if ((stat1 = decode_open_type(buf, len, &ptr, &bufs[total_count + i], &lengths[total_count + i])) != 0)
 						return -1;
 				}
 				total_count += count;
@@ -411,7 +411,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 
 		/* Decode the elements */
 		for (i = 0; i < entries; i++) {
-			if ((stat = decode_open_type(buf, len, &ptr, &data, &s->rx[x].fec_len[i])) != 0)
+			if ((stat1 = decode_open_type(buf, len, &ptr, &data, &s->rx[x].fec_len[i])) != 0)
 				return -1;
 			if (s->rx[x].fec_len[i] > LOCAL_FAX_MAX_DATAGRAM)
 				return -1;

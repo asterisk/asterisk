@@ -190,7 +190,7 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 {
 	struct timeval begin, end, delta;
 	char *name;
-	struct timeval tv;
+	struct timeval when;
 	struct timespec ts;
 	struct ast_taskprocessor *tps = NULL;
 
@@ -214,9 +214,9 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 		return CLI_SUCCESS;
 	}
 	ast_cli(a->fd, "\npinging %s ...", name);
-	tv = ast_tvadd((begin = ast_tvnow()), ast_samp2tv(1000, 1000));
-	ts.tv_sec = tv.tv_sec;
-	ts.tv_nsec = tv.tv_usec * 1000;
+	when = ast_tvadd((begin = ast_tvnow()), ast_samp2tv(1000, 1000));
+	ts.tv_sec = when.tv_sec;
+	ts.tv_nsec = when.tv_usec * 1000;
 	ast_mutex_lock(&cli_ping_cond_lock);
 	if (ast_taskprocessor_push(tps, tps_ping_handler, 0) < 0) {
 		ast_cli(a->fd, "\nping failed: could not push task to %s\n\n", name);
