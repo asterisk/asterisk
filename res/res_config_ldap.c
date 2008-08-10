@@ -66,7 +66,7 @@ static LDAP *ldapConn;
 static char url[512];
 static char user[512];
 static char pass[50];
-static char basedn[512];
+static char base_distinguished_name[512];
 static int version = 3;
 static time_t connect_time;
 
@@ -345,7 +345,7 @@ static struct ast_variable *realtime_ldap_entry_to_var(struct ldap_table_config 
  * \return \a vars - an array of ast_variable variables terminated with a null.
  **/
 static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_config *table_config,
-	LDAPMessage *ldap_result, unsigned int *entries_count_ptr)
+	LDAPMessage *ldap_result_msg, unsigned int *entries_count_ptr)
 {
 	struct ast_variable **vars;
 	int i = 0;
@@ -361,7 +361,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 	int delim_count = 0;
 
 	/* First find the total count */
-	ldap_entry = ldap_first_entry(ldapConn, ldap_result);
+	ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
 
 	for (tot_count = 0; ldap_entry; tot_count++){ 
 		tot_count += semicolon_count_var(realtime_ldap_entry_to_var(table_config, ldap_entry));
@@ -377,7 +377,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 	 * This memory must be freed outside of this function. */
 	vars = ast_calloc(sizeof(struct ast_variable *), tot_count + 1);
 
-	ldap_entry = ldap_first_entry(ldapConn, ldap_result);
+	ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
 
 	i = 0;
 
@@ -547,14 +547,14 @@ static struct ast_variable *ldap_loadentry(struct ldap_table_config *table_confi
 		struct ast_variable **vars = NULL;
 		struct ast_variable *var = NULL;
 		int result = -1;
-		LDAPMessage *ldap_result = NULL;
+		LDAPMessage *ldap_result_msg = NULL;
 		int tries = 0;
 
 		ast_debug(2, "ldap_loadentry dn=%s\n", dn);
 
 		do {
 			result = ldap_search_ext_s(ldapConn, dn, LDAP_SCOPE_BASE,
-					   "(objectclass=*)", NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &ldap_result);
+					   "(objectclass=*)", NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &ldap_result_msg);
 			if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
 				ast_log(LOG_WARNING,
 					"Failed to query database. Try %d/3\n",
@@ -583,17 +583,17 @@ static struct ast_variable *ldap_loadentry(struct ldap_table_config *table_confi
 		} else {
 			int num_entry = 0;
 			unsigned int *entries_count_ptr = NULL; /*!< not using this */
-			if ((num_entry = ldap_count_entries(ldapConn, ldap_result)) > 0) {
+			if ((num_entry = ldap_count_entries(ldapConn, ldap_result_msg)) > 0) {
 				ast_debug(3, "num_entry: %d\n", num_entry);
 
-				vars = realtime_ldap_result_to_vars(table_config, ldap_result, entries_count_ptr);
+				vars = realtime_ldap_result_to_vars(table_config, ldap_result_msg, entries_count_ptr);
 				if (num_entry > 1)
 					ast_log(LOG_NOTICE, "More than one entry for dn=%s. Take only 1st one\n", dn);
 			} else {
 				ast_debug(2, "Could not find any entry dn=%s.\n", dn);
 			}
 		}
-		ldap_msgfree(ldap_result);
+		ldap_msgfree(ldap_result_msg);
 
 		/* Chopping \a vars down to one variable */
 		if (vars != NULL) {
@@ -722,7 +722,7 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 	struct ast_str *filter = NULL;
 	int tries = 0;
 	int result = 0;
-	LDAPMessage *ldap_result = NULL;
+	LDAPMessage *ldap_result_msg = NULL;
 
 	if (!table_name) {
 		ast_log(LOG_WARNING, "No table_name specified.\n");
@@ -789,7 +789,7 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 		/* freeing ldap_result further down */
 		result = ldap_search_ext_s(ldapConn, clean_basedn,
 				  LDAP_SCOPE_SUBTREE, filter->str, NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT,
-				  &ldap_result);
+				  &ldap_result_msg);
 		if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
 			ast_log(LOG_DEBUG, "Failed to query database. Try %d/10\n",
 				tries + 1);
@@ -812,15 +812,15 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 	} else {
 		/* this is where we create the variables from the search result 
 		 * freeing this \a vars outside this function */
-		if (ldap_count_entries(ldapConn, ldap_result) > 0) {
+		if (ldap_count_entries(ldapConn, ldap_result_msg) > 0) {
 			/* is this a static var or some other? they are handled different for delimited values */
-			vars = realtime_ldap_result_to_vars(table_config, ldap_result, entries_count_ptr);
+			vars = realtime_ldap_result_to_vars(table_config, ldap_result_msg, entries_count_ptr);
 		} else {
 			ast_debug(1, "Could not find any entry matching %s in base dn %s.\n",
 				filter->str, clean_basedn);
 		}
 
-		ldap_msgfree(ldap_result);
+		ldap_msgfree(ldap_result_msg);
 
 		/* TODO: get the default variables from the accountBaseDN, not implemented with delimited values */
 		if (vars) {
@@ -1090,8 +1090,8 @@ static struct ast_config *config_ldap(const char *basedn, const char *table_name
 
 	for (i = 0; i < vars_count; i++) {
 		if (!strcmp(categories[i].variable_name, "#include")) {
-			struct ast_flags config_flags = { 0 };
-			if (!ast_config_internal_load(categories[i].variable_value, cfg, config_flags, "", who_asked))
+			struct ast_flags flags = { 0 };
+			if (!ast_config_internal_load(categories[i].variable_value, cfg, flags, "", who_asked))
 				break;
 			continue;
 		}
@@ -1139,7 +1139,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	struct ast_str *filter = NULL;
 	int tries = 0;
 	int result = 0;
-	LDAPMessage *ldap_result = NULL;
+	LDAPMessage *ldap_result_msg = NULL;
 
 	if (!table_name) {
 		ast_log(LOG_WARNING, "No table_name specified.\n");
@@ -1246,7 +1246,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 		/* freeing ldap_result further down */
 		result = ldap_search_ext_s(ldapConn, clean_basedn,
 				  LDAP_SCOPE_SUBTREE, filter->str, NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT,
-				  &ldap_result);
+				  &ldap_result_msg);
 		if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
 			ast_log(LOG_WARNING, "Failed to query database. Try %d/3\n",
 				tries + 1);
@@ -1274,17 +1274,17 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 			free(filter);
 		if (clean_basedn)
 			free(clean_basedn);
-		ldap_msgfree(ldap_result);
+		ldap_msgfree(ldap_result_msg);
 		ldap_mods_free(ldap_mods, 0);
 		return -1;
 	}
 	/* Ready to update */
-	if ((num_entries = ldap_count_entries(ldapConn, ldap_result)) > 0) {
+	if ((num_entries = ldap_count_entries(ldapConn, ldap_result_msg)) > 0) {
 		ast_debug(3, "LINE(%d) Modifying %s=%s hits: %d\n", __LINE__, attribute, lookup, num_entries);
 		for (i = 0; option_debug > 2 && i < mods_size - 1; i++)
 			ast_debug(3, "LINE(%d) %s=%s \n", __LINE__, ldap_mods[i]->mod_type, ldap_mods[i]->mod_values[0]);
 
-		ldap_entry = ldap_first_entry(ldapConn, ldap_result);
+		ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
 
 		for (i = 0; ldap_entry; i++) { 
 			dn = ldap_get_dn(ldapConn, ldap_entry);
@@ -1300,7 +1300,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 		free(filter);
 	if (clean_basedn)
 		free(clean_basedn);
-	ldap_msgfree(ldap_result);
+	ldap_msgfree(ldap_result_msg);
 	ldap_mods_free(ldap_mods, 0);
 	return num_entries;
 }
@@ -1430,9 +1430,9 @@ int parse_config(void)
 
 	if (!(s = ast_variable_retrieve(config, "_general", "basedn"))) {
 		ast_log(LOG_ERROR, "No LDAP base dn found, using '%s' as default.\n", RES_CONFIG_LDAP_DEFAULT_BASEDN);
-		ast_copy_string(basedn, RES_CONFIG_LDAP_DEFAULT_BASEDN, sizeof(basedn));
+		ast_copy_string(base_distinguished_name, RES_CONFIG_LDAP_DEFAULT_BASEDN, sizeof(base_distinguished_name));
 	} else 
-		ast_copy_string(basedn, s, sizeof(basedn));
+		ast_copy_string(base_distinguished_name, s, sizeof(base_distinguished_name));
 
 	if (!(s = ast_variable_retrieve(config, "_general", "version")) && !(s = ast_variable_retrieve(config, "_general", "protocol"))) {
 		ast_log(LOG_NOTICE, "No explicit LDAP version found, using 3 as default.\n");
@@ -1526,7 +1526,7 @@ static int ldap_reconnect(void)
 static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char status[256], credentials[100] = "";
-	int ctime = time(NULL) - connect_time;
+	int ctimesec = time(NULL) - connect_time;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1543,29 +1543,29 @@ static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_c
 		return CLI_FAILURE;
 
 	if (!ast_strlen_zero(url)) 
-		snprintf(status, sizeof(status), "Connected to '%s', baseDN %s", url, basedn);
+		snprintf(status, sizeof(status), "Connected to '%s', baseDN %s", url, base_distinguished_name);
 
 	if (!ast_strlen_zero(user))
 		snprintf(credentials, sizeof(credentials), " with username %s", user);
 
-	if (ctime > 31536000) {
+	if (ctimesec > 31536000) {
 		ast_cli(a->fd, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n",
-				status, credentials, ctime / 31536000,
-				(ctime % 31536000) / 86400, (ctime % 86400) / 3600,
-				(ctime % 3600) / 60, ctime % 60);
-	} else if (ctime > 86400) {
+				status, credentials, ctimesec / 31536000,
+				(ctimesec % 31536000) / 86400, (ctimesec % 86400) / 3600,
+				(ctimesec % 3600) / 60, ctimesec % 60);
+	} else if (ctimesec > 86400) {
 		ast_cli(a->fd, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n",
-				status, credentials, ctime / 86400, (ctime % 86400) / 3600,
-				(ctime % 3600) / 60, ctime % 60);
-	} else if (ctime > 3600) {
+				status, credentials, ctimesec / 86400, (ctimesec % 86400) / 3600,
+				(ctimesec % 3600) / 60, ctimesec % 60);
+	} else if (ctimesec > 3600) {
 		ast_cli(a->fd, "%s%s for %d hours, %d minutes, %d seconds.\n",
-				status, credentials, ctime / 3600, (ctime % 3600) / 60,
-				ctime % 60);
-	} else if (ctime > 60) {
+				status, credentials, ctimesec / 3600, (ctimesec % 3600) / 60,
+				ctimesec % 60);
+	} else if (ctimesec > 60) {
 		ast_cli(a->fd, "%s%s for %d minutes, %d seconds.\n", status, credentials,
-					ctime / 60, ctime % 60);
+					ctimesec / 60, ctimesec % 60);
 	} else {
-		ast_cli(a->fd, "%s%s for %d seconds.\n", status, credentials, ctime);
+		ast_cli(a->fd, "%s%s for %d seconds.\n", status, credentials, ctimesec);
 	}
 
 	return CLI_SUCCESS;

@@ -988,7 +988,7 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 			} else {
 				struct ast_str *sql = ast_str_create(100);
 				char fieldtype[15];
-				PGresult *res;
+				PGresult *result;
 
 				if (requirements == RQ_CREATECHAR || type == RQ_CHAR) {
 					/* Size is minimum length; make it at least 50% greater,
@@ -1029,12 +1029,12 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 				}
 
 				ast_debug(1, "About to run ALTER query on table '%s' to add column '%s'\n", tablename, elm);
-				res = PQexec(pgsqlConn, sql->str);
+				result = PQexec(pgsqlConn, sql->str);
 				ast_debug(1, "Finished running ALTER query on table '%s'\n", tablename);
-				if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+				if (PQresultStatus(result) != PGRES_COMMAND_OK) {
 					ast_log(LOG_ERROR, "Unable to add column: %s\n", sql->str);
 				}
-				PQclear(res);
+				PQclear(result);
 				ast_mutex_unlock(&pgsql_lock);
 
 				ast_free(sql);
@@ -1125,11 +1125,11 @@ static int reload(void)
 	return 0;
 }
 
-static int parse_config(int reload)
+static int parse_config(int is_reload)
 {
 	struct ast_config *config;
 	const char *s;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { is_reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	if ((config = ast_config_load(RES_CONFIG_PGSQL_CONF, config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
@@ -1336,7 +1336,7 @@ static char *handle_cli_realtime_pgsql_cache(struct ast_cli_entry *e, int cmd, s
 static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char status[256], credentials[100] = "";
-	int ctime = time(NULL) - connect_time;
+	int ctimesec = time(NULL) - connect_time;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1363,22 +1363,22 @@ static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, 
 		if (!ast_strlen_zero(dbuser))
 			snprintf(credentials, sizeof(credentials), " with username %s", dbuser);
 
-		if (ctime > 31536000)
+		if (ctimesec > 31536000)
 			ast_cli(a->fd, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n",
-					status, credentials, ctime / 31536000, (ctime % 31536000) / 86400,
-					(ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
-		else if (ctime > 86400)
+					status, credentials, ctimesec / 31536000, (ctimesec % 31536000) / 86400,
+					(ctimesec % 86400) / 3600, (ctimesec % 3600) / 60, ctimesec % 60);
+		else if (ctimesec > 86400)
 			ast_cli(a->fd, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status,
-					credentials, ctime / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60,
-					ctime % 60);
-		else if (ctime > 3600)
+					credentials, ctimesec / 86400, (ctimesec % 86400) / 3600, (ctimesec % 3600) / 60,
+					ctimesec % 60);
+		else if (ctimesec > 3600)
 			ast_cli(a->fd, "%s%s for %d hours, %d minutes, %d seconds.\n", status, credentials,
-					ctime / 3600, (ctime % 3600) / 60, ctime % 60);
-		else if (ctime > 60)
-			ast_cli(a->fd, "%s%s for %d minutes, %d seconds.\n", status, credentials, ctime / 60,
-					ctime % 60);
+					ctimesec / 3600, (ctimesec % 3600) / 60, ctimesec % 60);
+		else if (ctimesec > 60)
+			ast_cli(a->fd, "%s%s for %d minutes, %d seconds.\n", status, credentials, ctimesec / 60,
+					ctimesec % 60);
 		else
-			ast_cli(a->fd, "%s%s for %d seconds.\n", status, credentials, ctime);
+			ast_cli(a->fd, "%s%s for %d seconds.\n", status, credentials, ctimesec);
 
 		return CLI_SUCCESS;
 	} else {

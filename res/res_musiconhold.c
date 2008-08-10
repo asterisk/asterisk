@@ -544,10 +544,10 @@ static void *monmp3thread(void *data)
 	short sbuf[8192];
 	int res, res2;
 	int len;
-	struct timeval tv, tv_tmp;
+	struct timeval deadline, tv_tmp;
 
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
+	deadline.tv_sec = 0;
+	deadline.tv_usec = 0;
 	for(;/* ever */;) {
 		pthread_testcancel();
 		/* Spawn mp3 player if it's not there */
@@ -570,16 +570,16 @@ static void *monmp3thread(void *data)
 			long delta;
 			/* Reliable sleep */
 			tv_tmp = ast_tvnow();
-			if (ast_tvzero(tv))
-				tv = tv_tmp;
-			delta = ast_tvdiff_ms(tv_tmp, tv);
+			if (ast_tvzero(deadline))
+				deadline = tv_tmp;
+			delta = ast_tvdiff_ms(tv_tmp, deadline);
 			if (delta < MOH_MS_INTERVAL) {	/* too early */
-				tv = ast_tvadd(tv, ast_samp2tv(MOH_MS_INTERVAL, 1000));	/* next deadline */
+				deadline = ast_tvadd(deadline, ast_samp2tv(MOH_MS_INTERVAL, 1000));	/* next deadline */
 				usleep(1000 * (MOH_MS_INTERVAL - delta));
 				pthread_testcancel();
 			} else {
 				ast_log(LOG_NOTICE, "Request to schedule in the past?!?!\n");
-				tv = tv_tmp;
+				deadline = tv_tmp;
 			}
 			res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
 		}
@@ -985,7 +985,7 @@ static int moh_diff(struct mohclass *old, struct mohclass *new)
 	return 0;
 }
 
-static int moh_register(struct mohclass *moh, int reload)
+static int moh_register(struct mohclass *moh, int is_reload)
 {
 #ifdef HAVE_DAHDI
 	int x;
@@ -1326,21 +1326,21 @@ static void local_ast_moh_stop(struct ast_channel *chan)
 		chan->name, chan->uniqueid);
 }
 
-static int load_moh_classes(int reload)
+static int load_moh_classes(int is_reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	struct mohclass *class;	
 	char *cat;
 	int numclasses = 0;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { is_reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	cfg = ast_config_load("musiconhold.conf", config_flags);
 
 	if (cfg == NULL || cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 
-	if (reload) {
+	if (is_reload) {
 		AST_RWLIST_WRLOCK(&mohclasses);
 		AST_RWLIST_TRAVERSE(&mohclasses, class, list) {
 			class->delete = 1;
@@ -1417,7 +1417,7 @@ static int load_moh_classes(int reload)
 			}
 
 			/* Don't leak a class when it's already registered */
-			moh_register(class, reload);
+			moh_register(class, is_reload);
 
 			numclasses++;
 		}
@@ -1431,12 +1431,12 @@ static int load_moh_classes(int reload)
 static int ast_moh_destroy_one(struct mohclass *moh)
 {
 	char buff[8192];
-	int bytes, tbytes = 0, stime = 0, pid = 0;
+	int bytes, tbytes = 0, stop_time = 0, pid = 0;
 
 	if (moh) {
 		if (moh->pid > 1) {
 			ast_debug(1, "killing %d!\n", moh->pid);
-			stime = time(NULL) + 2;
+			stop_time = time(NULL) + 2;
 			pid = moh->pid;
 			moh->pid = 0;
 			/* Back when this was just mpg123, SIGKILL was fine.  Now we need
@@ -1447,7 +1447,7 @@ static int ast_moh_destroy_one(struct mohclass *moh)
 			kill(pid, SIGTERM);
 			usleep(100000);
 			kill(pid, SIGKILL);
-			while ((ast_wait_for_input(moh->srcfd, 100) > 0) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime)
+			while ((ast_wait_for_input(moh->srcfd, 100) > 0) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stop_time)
 				tbytes = tbytes + bytes;
 			ast_debug(1, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
 			close(moh->srcfd);
@@ -1569,16 +1569,16 @@ static struct ast_cli_entry cli_moh[] = {
 	AST_CLI_DEFINE(handle_cli_moh_show_files,   "List MusicOnHold file-based classes")
 };
 
-static int init_classes(int reload) 
+static int init_classes(int is_reload) 
 {
 	struct mohclass *moh;
     
-	if (!load_moh_classes(reload)) 		/* Load classes from config */
+	if (!load_moh_classes(is_reload)) 		/* Load classes from config */
 		return 0;			/* Return if nothing is found */
 
 	AST_RWLIST_WRLOCK(&mohclasses);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&mohclasses, moh, list) {
-		if (reload && moh->delete) {
+		if (is_reload && moh->delete) {
 			AST_RWLIST_REMOVE_CURRENT(list);
 			if (!moh->inuse)
 				ast_moh_destroy_one(moh);

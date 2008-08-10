@@ -3003,7 +3003,7 @@ void reset_argcount(yyscan_t yyscanner )
 /* used elsewhere, but some local vars */
 struct pval *ael2_parse(char *filename, int *errors)
 {
-	struct pval *pval;
+	struct pval *pvalue;
 	struct parse_io *io;
 	char *buffer;
 	struct stat stats;
@@ -3042,14 +3042,14 @@ struct pval *ael2_parse(char *filename, int *errors)
 	ael_yyparse(io);
 
 
-	pval = io->pval;
+	pvalue = io->pval;
 	*errors = io->syntax_error_count;
 
 	ael_yylex_destroy(io->scanner);
 	free(buffer);
 	free(io);
 
-	return pval;
+	return pvalue;
 }
 
 static void setup_filestack(char *fnamebuf2, int fnamebuf_siz, glob_t *globbuf, int globpos, yyscan_t yyscanner, int create)

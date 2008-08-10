@@ -87,7 +87,7 @@ struct pthread_timer {
 };
 
 static void pthread_timer_destructor(void *obj);
-static struct pthread_timer *find_timer(int handle, int unlink);
+static struct pthread_timer *find_timer(int handle, int unlinkobj);
 static void write_byte(int wr_fd);
 static void read_pipe(int rd_fd, unsigned int num, int clear);
 
@@ -256,7 +256,7 @@ static unsigned int pthread_timer_get_max_rate(int handle)
 	return MAX_RATE;
 }
 
-static struct pthread_timer *find_timer(int handle, int unlink)
+static struct pthread_timer *find_timer(int handle, int unlinkobj)
 {
 	struct pthread_timer *timer;
 	struct pthread_timer tmp_timer;
@@ -264,7 +264,7 @@ static struct pthread_timer *find_timer(int handle, int unlink)
 
 	tmp_timer.pipe[PIPE_READ] = handle;
 
-	if (unlink) {
+	if (unlinkobj) {
 		flags |= OBJ_UNLINK;
 	}
 
@@ -348,7 +348,7 @@ static void read_pipe(int rd_fd, unsigned int quantity, int clear)
 		unsigned char buf[1024];
 		ssize_t res;
 		fd_set rfds;
-		struct timeval tv = {
+		struct timeval timeout = {
 			.tv_sec = 0,
 		};
 
@@ -356,7 +356,7 @@ static void read_pipe(int rd_fd, unsigned int quantity, int clear)
 		FD_ZERO(&rfds);
 		FD_SET(rd_fd, &rfds);
 
-		if (select(rd_fd + 1, &rfds, NULL, NULL, &tv) != 1) {
+		if (select(rd_fd + 1, &rfds, NULL, NULL, &timeout) != 1) {
 			break;
 		}
 

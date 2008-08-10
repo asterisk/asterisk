@@ -518,7 +518,7 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, in
 	int s, flags, res, port = AGI_PORT;
 	struct pollfd pfds[1];
 	char *host, *c, *script = "";
-	struct sockaddr_in sin;
+	struct sockaddr_in addr_in;
 	struct hostent *hp;
 	struct ast_hostent ahp;
 
@@ -557,11 +557,11 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, in
 		close(s);
 		return -1;
 	}
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(port);
-	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
-	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) && (errno != EINPROGRESS)) {
+	memset(&addr_in, 0, sizeof(addr_in));
+	addr_in.sin_family = AF_INET;
+	addr_in.sin_port = htons(port);
+	memcpy(&addr_in.sin_addr, hp->h_addr, sizeof(addr_in.sin_addr));
+	if (connect(s, (struct sockaddr *)&addr_in, sizeof(addr_in)) && (errno != EINPROGRESS)) {
 		ast_log(LOG_WARNING, "Connect failed with unexpected error: %s\n", strerror(errno));
 		close(s);
 		return AGI_RESULT_FAILURE;
@@ -884,7 +884,7 @@ static int handle_sendimage(struct ast_channel *chan, AGI *agi, int argc, char *
 static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res = 0, skipms = 3000;
-	char *fwd = "#", *rev = "*", *pause = NULL, *stop = NULL;	/* Default values */
+	char *fwd = "#", *rev = "*", *suspend = NULL, *stop = NULL;	/* Default values */
 
 	if (argc < 5 || argc > 9) {
 		return RESULT_SHOWUSAGE;
@@ -907,10 +907,10 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 	}
 
 	if (argc > 8 && !ast_strlen_zero(argv[8])) {
-		pause = argv[8];
+		suspend = argv[8];
 	}
 
-	res = ast_control_streamfile(chan, argv[3], fwd, rev, stop, pause, NULL, skipms, NULL);
+	res = ast_control_streamfile(chan, argv[3], fwd, rev, stop, suspend, NULL, skipms, NULL);
 
 	ast_agi_fdprintf(chan, agi->fd, "200 result=%d\n", res);
 
@@ -1449,14 +1449,14 @@ static int handle_hangup(struct ast_channel *chan, AGI *agi, int argc, char **ar
 static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	int res;
-	struct ast_app *app;
+	struct ast_app *app_to_exec;
 
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
 
 	ast_verb(3, "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argv[2]);
 
-	if ((app = pbx_findapp(argv[1]))) {
+	if ((app_to_exec = pbx_findapp(argv[1]))) {
 		if (ast_compat_res_agi && !ast_strlen_zero(argv[2])) {
 			char *compat = alloca(strlen(argv[2]) * 2 + 1), *cptr, *vptr;
 			for (cptr = compat, vptr = argv[2]; *vptr; vptr++) {
@@ -1470,9 +1470,9 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 				}
 			}
 			*cptr = '\0';
-			res = pbx_exec(chan, app, compat);
+			res = pbx_exec(chan, app_to_exec, compat);
 		} else {
-			res = pbx_exec(chan, app, argv[2]);
+			res = pbx_exec(chan, app_to_exec, argv[2]);
 		}
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);

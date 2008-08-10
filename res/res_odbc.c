@@ -411,7 +411,7 @@ static int load_odbc_config(void)
 	const char *dsn, *username, *password, *sanitysql;
 	int enabled, pooling, limit, bse;
 	unsigned int idlecheck;
-	int connect = 0, res = 0;
+	int preconnect = 0, res = 0;
 	struct ast_flags config_flags = { 0 };
 
 	struct odbc_class *new;
@@ -431,7 +431,7 @@ static int load_odbc_config(void)
 			/* Reset all to defaults for each class of odbc connections */
 			dsn = username = password = sanitysql = NULL;
 			enabled = 1;
-			connect = idlecheck = 0;
+			preconnect = idlecheck = 0;
 			pooling = 0;
 			limit = 0;
 			bse = 1;
@@ -458,7 +458,7 @@ static int load_odbc_config(void)
 				} else if (!strcasecmp(v->name, "enabled")) {
 					enabled = ast_true(v->value);
 				} else if (!strcasecmp(v->name, "pre-connect")) {
-					connect = ast_true(v->value);
+					preconnect = ast_true(v->value);
 				} else if (!strcasecmp(v->name, "dsn")) {
 					dsn = v->value;
 				} else if (!strcasecmp(v->name, "username")) {
@@ -521,7 +521,7 @@ static int load_odbc_config(void)
 					break;
 				}
 
-				odbc_register_class(new, connect);
+				odbc_register_class(new, preconnect);
 				ast_log(LOG_NOTICE, "Registered ODBC class '%s' dsn->[%s]\n", cat, dsn);
 				ao2_ref(new, -1);
 				new = NULL;
@@ -615,14 +615,14 @@ static struct ast_cli_entry cli_odbc[] = {
 	AST_CLI_DEFINE(handle_cli_odbc_show, "List ODBC DSN(s)")
 };
 
-static int odbc_register_class(struct odbc_class *class, int connect)
+static int odbc_register_class(struct odbc_class *class, int preconnect)
 {
 	struct odbc_obj *obj;
 	if (class) {
 		ao2_link(class_container, class);
 		/* I still have a reference in the caller, so a deref is NOT missing here. */
 
-		if (connect) {
+		if (preconnect) {
 			/* Request and release builds a connection */
 			obj = ast_odbc_request_obj(class->name, 0);
 			if (obj)
@@ -774,7 +774,7 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 	int res;
 	SQLINTEGER err;
 	short int mlen;
-	unsigned char msg[200], stat[10];
+	unsigned char msg[200], state[10];
 #ifdef NEEDTRACE
 	SQLINTEGER enable = 1;
 	char *tracefile = "/tmp/odbc.trace";
@@ -808,7 +808,7 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 		   (SQLCHAR *) obj->parent->password, SQL_NTS);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, stat, &err, msg, 100, &mlen);
+		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, state, &err, msg, 100, &mlen);
 		ast_mutex_unlock(&obj->lock);
 		ast_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%d %s\n", res, (int)err, msg);
 		return ODBC_FAIL;

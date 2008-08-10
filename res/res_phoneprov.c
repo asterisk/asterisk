@@ -349,7 +349,7 @@ static void set_timezone_variables(struct varshead *headp, const char *zone)
 	int tzoffset;
 	char buffer[21];
 	struct ast_var_t *var;
-	struct timeval tv;
+	struct timeval when;
 
 	time(&utc_time);
 	ast_get_dst_info(&utc_time, &dstenable, &dststart, &dstend, &tzoffset, zone);
@@ -364,8 +364,8 @@ static void set_timezone_variables(struct varshead *headp, const char *zone)
 	if ((var = ast_var_assign("DST_ENABLE", "1")))
 		AST_LIST_INSERT_TAIL(headp, var, entries);
 
-	tv.tv_sec = dststart; 
-	ast_localtime(&tv, &tm_info, zone);
+	when.tv_sec = dststart; 
+	ast_localtime(&when, &tm_info, zone);
 
 	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_mon+1);
 	if ((var = ast_var_assign("DST_START_MONTH", buffer)))
@@ -379,8 +379,8 @@ static void set_timezone_variables(struct varshead *headp, const char *zone)
 	if ((var = ast_var_assign("DST_START_HOUR", buffer)))
 		AST_LIST_INSERT_TAIL(headp, var, entries);
 
-	tv.tv_sec = dstend;
-	ast_localtime(&tv, &tm_info, zone);
+	when.tv_sec = dstend;
+	ast_localtime(&when, &tm_info, zone);
 
 	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_mon + 1);
 	if ((var = ast_var_assign("DST_END_MONTH", buffer)))
@@ -408,7 +408,7 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 	int len;
 	int fd;
 	char buf[256];
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 	struct ast_tm tm;
 
 	if (!(route = ao2_find(http_routes, &search_route, OBJ_POINTER))) {
@@ -432,7 +432,7 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 			goto out500;
 		}
 
-		ast_strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S %Z", ast_localtime(&tv, &tm, "GMT"));
+		ast_strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S %Z", ast_localtime(&now, &tm, "GMT"));
 		fprintf(ser->f, "HTTP/1.1 200 OK\r\n"
 			"Server: Asterisk/%s\r\n"
 			"Date: %s\r\n"
@@ -595,7 +595,7 @@ static void build_profile(const char *name, struct ast_variable *v)
 		if (!strcasecmp(v->name, "mime_type")) {
 			ast_string_field_set(profile, default_mime_type, v->value);
 		} else if (!strcasecmp(v->name, "setvar")) {
-			struct ast_var_t *var;
+			struct ast_var_t *variable;
 			char *value_copy = ast_strdupa(v->value);
 
 			AST_DECLARE_APP_ARGS(args,
@@ -611,8 +611,8 @@ static void build_profile(const char *name, struct ast_variable *v)
 				args.varval = ast_strip(args.varval);
 				if (ast_strlen_zero(args.varname) || ast_strlen_zero(args.varval))
 					break;
-				if ((var = ast_var_assign(args.varname, args.varval)))
-					AST_LIST_INSERT_TAIL(profile->headp, var, entries);
+				if ((variable = ast_var_assign(args.varname, args.varval)))
+					AST_LIST_INSERT_TAIL(profile->headp, variable, entries);
 			} while (0);
 		} else if (!strcasecmp(v->name, "staticdir")) {
 			ast_string_field_set(profile, staticdir, v->value);

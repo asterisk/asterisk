@@ -437,7 +437,7 @@ static void *smdi_message_wait(struct ast_smdi_interface *iface, int timeout,
 
 	while (diff < timeout) {
 		struct timespec ts = { 0, };
-		struct timeval tv;
+		struct timeval wait;
 
 		lock_msg_q(iface, type);
 
@@ -446,9 +446,9 @@ static void *smdi_message_wait(struct ast_smdi_interface *iface, int timeout,
 			return msg;
 		}
 
-		tv = ast_tvadd(start, ast_tv(0, timeout));
-		ts.tv_sec = tv.tv_sec;
-		ts.tv_nsec = tv.tv_usec * 1000;
+		wait = ast_tvadd(start, ast_tv(0, timeout));
+		ts.tv_sec = wait.tv_sec;
+		ts.tv_nsec = wait.tv_usec * 1000;
 
 		/* If there were no messages in the queue, then go to sleep until one
 		 * arrives. */
@@ -778,7 +778,7 @@ static void *mwi_monitor_handler(void *data)
 {
 	while (!mwi_monitor.stop) {
 		struct timespec ts = { 0, };
-		struct timeval tv;
+		struct timeval polltime;
 		struct mailbox_mapping *mm;
 
 		ast_mutex_lock(&mwi_monitor.lock);
@@ -790,9 +790,9 @@ static void *mwi_monitor_handler(void *data)
 
 		/* Sleep up to the configured polling interval.  Allow unload_module()
 		 * to signal us to wake up and exit. */
-		tv = ast_tvadd(mwi_monitor.last_poll, ast_tv(mwi_monitor.polling_interval, 0));
-		ts.tv_sec = tv.tv_sec;
-		ts.tv_nsec = tv.tv_usec * 1000;
+		polltime = ast_tvadd(mwi_monitor.last_poll, ast_tv(mwi_monitor.polling_interval, 0));
+		ts.tv_sec = polltime.tv_sec;
+		ts.tv_nsec = polltime.tv_usec * 1000;
 		ast_cond_timedwait(&mwi_monitor.cond, &mwi_monitor.lock, &ts);
 
 		ast_mutex_unlock(&mwi_monitor.lock);

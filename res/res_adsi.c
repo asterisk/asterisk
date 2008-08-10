@@ -114,7 +114,7 @@ static int adsi_generate(unsigned char *buf, int msgtype, unsigned char *msg, in
 
 }
 
-static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int len, int *remainder)
+static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int len, int *remain)
 {
 	/* Sends carefully on a full duplex channel by using reading for
 	   timing */
@@ -124,14 +124,14 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 	/* Zero out our outgoing frame */
 	memset(&outf, 0, sizeof(outf));
 
-	if (remainder && *remainder) {
+	if (remain && *remain) {
 		amt = len;
 
 		/* Send remainder if provided */
-		if (amt > *remainder)
-			amt = *remainder;
+		if (amt > *remain)
+			amt = *remain;
 		else
-			*remainder = *remainder - amt;
+			*remain = *remain - amt;
 		outf.frametype = AST_FRAME_VOICE;
 		outf.subclass = AST_FORMAT_ULAW;
 		outf.data.ptr = buf;
@@ -170,8 +170,8 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 		/* Send no more than they sent us */
 		if (amt > inf->datalen)
 			amt = inf->datalen;
-		else if (remainder)
-			*remainder = inf->datalen - amt;
+		else if (remain)
+			*remain = inf->datalen - amt;
 		outf.frametype = AST_FRAME_VOICE;
 		outf.subclass = AST_FORMAT_ULAW;
 		outf.data.ptr = buf;
@@ -914,13 +914,13 @@ static int _ast_adsi_channel_restore(struct ast_channel *chan)
 
 }
 
-static int _ast_adsi_print(struct ast_channel *chan, char **lines, int *aligns, int voice)
+static int _ast_adsi_print(struct ast_channel *chan, char **lines, int *alignments, int voice)
 {
 	unsigned char buf[4096];
 	int bytes = 0, res, x;
 
 	for(x = 0; lines[x]; x++) 
-		bytes += ast_adsi_display(buf + bytes, ADSI_INFO_PAGE, x+1, aligns[x], 0, lines[x], "");
+		bytes += ast_adsi_display(buf + bytes, ADSI_INFO_PAGE, x+1, alignments[x], 0, lines[x], "");
 	bytes += ast_adsi_set_line(buf + bytes, ADSI_INFO_PAGE, 1);
 	if (voice)
 		bytes += ast_adsi_voice_mode(buf + bytes, 0);
