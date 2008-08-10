@@ -1086,7 +1086,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	struct logmsg *logmsg = NULL;
 	struct ast_str *buf = NULL;
 	struct ast_tm tm;
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 	int res = 0;
 	va_list ap;
 
@@ -1099,11 +1099,11 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		 * so just log to stdout
 		 */
 		if (level != __LOG_VERBOSE) {
-			int res;
+			int result;
 			va_start(ap, fmt);
-			res = ast_str_set_va(&buf, BUFSIZ, fmt, ap); /* XXX BUFSIZ ? */
+			result = ast_str_set_va(&buf, BUFSIZ, fmt, ap); /* XXX BUFSIZ ? */
 			va_end(ap);
-			if (res != AST_DYNSTR_BUILD_FAILED) {
+			if (result != AST_DYNSTR_BUILD_FAILED) {
 				term_filter_escapes(buf->str);
 				fputs(buf->str, stdout);
 			}
@@ -1144,7 +1144,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	logmsg->type = LOGMSG_NORMAL;
 
 	/* Create our date/time */
-	ast_localtime(&tv, &tm, NULL);
+	ast_localtime(&now, &tm, NULL);
 	ast_strftime(logmsg->date, sizeof(logmsg->date), dateformat, &tm);
 
 	/* Copy over data */
@@ -1206,25 +1206,25 @@ void *ast_bt_destroy(struct ast_bt *bt)
 void ast_backtrace(void)
 {
 #ifdef HAVE_BKTR
-	struct ast_bt *backtrace;
+	struct ast_bt *bt;
 	int i = 0;
 	char **strings;
 
-	if (!(backtrace = ast_bt_create())) {
+	if (!(bt = ast_bt_create())) {
 		ast_log(LOG_WARNING, "Unable to allocate space for backtrace structure\n");
 		return;
 	}
 
-	if ((strings = backtrace_symbols(backtrace->addresses, backtrace->num_frames))) {
-		ast_debug(1, "Got %d backtrace record%c\n", backtrace->num_frames, backtrace->num_frames != 1 ? 's' : ' ');
-		for (i = 0; i < backtrace->num_frames; i++) {
-			ast_log(LOG_DEBUG, "#%d: [%p] %s\n", i, backtrace->addresses[i], strings[i]);
+	if ((strings = backtrace_symbols(bt->addresses, bt->num_frames))) {
+		ast_debug(1, "Got %d backtrace record%c\n", bt->num_frames, bt->num_frames != 1 ? 's' : ' ');
+		for (i = 0; i < bt->num_frames; i++) {
+			ast_log(LOG_DEBUG, "#%d: [%p] %s\n", i, bt->addresses[i], strings[i]);
 		}
 		free(strings);
 	} else {
 		ast_debug(1, "Could not allocate memory for backtrace\n");
 	}
-	ast_bt_destroy(backtrace);
+	ast_bt_destroy(bt);
 #else
 	ast_log(LOG_WARNING, "Must run configure with '--with-execinfo' for stack backtraces.\n");
 #endif
@@ -1241,13 +1241,13 @@ void __ast_verbose(const char *file, int line, const char *func, const char *fmt
 		return;
 
 	if (ast_opt_timestamp) {
-		struct timeval tv;
+		struct timeval now;
 		struct ast_tm tm;
 		char date[40];
 		char *datefmt;
 
-		tv = ast_tvnow();
-		ast_localtime(&tv, &tm, NULL);
+		now = ast_tvnow();
+		ast_localtime(&now, &tm, NULL);
 		ast_strftime(date, sizeof(date), dateformat, &tm);
 		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
 		sprintf(datefmt, "%c[%s] %s", 127, date, fmt);

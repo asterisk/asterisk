@@ -1610,8 +1610,10 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		    (rtp->them.sin_port != sock_in.sin_port)) {
 			rtp->them = sock_in;
 			if (rtp->rtcp) {
+				int h = 0;
 				memcpy(&rtp->rtcp->them, &sock_in, sizeof(rtp->rtcp->them));
-				rtp->rtcp->them.sin_port = htons(ntohs(rtp->them.sin_port)+1);
+				h = ntohs(rtp->them.sin_port);
+				rtp->rtcp->them.sin_port = htons(h + 1);
 			}
 			rtp->rxseqno = 0;
 			ast_set_flag(rtp, FLAG_NAT_ACTIVE);

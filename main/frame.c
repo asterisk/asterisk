@@ -496,9 +496,9 @@ void ast_swapcopy_samples(void *dst, const void *src, int samples)
 }
 
 
-struct ast_format_list *ast_get_format_list_index(int index) 
+struct ast_format_list *ast_get_format_list_index(int idx) 
 {
-	return &AST_FORMAT_LIST[index];
+	return &AST_FORMAT_LIST[idx];
 }
 
 struct ast_format_list *ast_get_format_list(size_t *size) 
@@ -997,16 +997,15 @@ int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size)
 	return size - total_len;
 }
 
-int ast_codec_pref_index(struct ast_codec_pref *pref, int index) 
+int ast_codec_pref_index(struct ast_codec_pref *pref, int idx)
 {
 	int slot = 0;
 
-	
-	if ((index >= 0) && (index < sizeof(pref->order))) {
-		slot = pref->order[index];
+	if ((idx >= 0) && (idx < sizeof(pref->order))) {
+		slot = pref->order[idx];
 	}
 
-	return slot ? AST_FORMAT_LIST[slot-1].bits : 0;
+	return slot ? AST_FORMAT_LIST[slot - 1].bits : 0;
 }
 
 /*! \brief Remove codec from pref list */
@@ -1102,34 +1101,33 @@ void ast_codec_pref_prepend(struct ast_codec_pref *pref, int format, int only_if
 /*! \brief Set packet size for codec */
 int ast_codec_pref_setsize(struct ast_codec_pref *pref, int format, int framems)
 {
-	int x, index = -1;
+	int x, idx = -1;
 
 	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		if (AST_FORMAT_LIST[x].bits == format) {
-			index = x;
+			idx = x;
 			break;
 		}
 	}
 
-	if (index < 0)
+	if (idx < 0)
 		return -1;
 
 	/* size validation */
 	if (!framems)
-		framems = AST_FORMAT_LIST[index].def_ms;
+		framems = AST_FORMAT_LIST[idx].def_ms;
 
-	if (AST_FORMAT_LIST[index].inc_ms && framems % AST_FORMAT_LIST[index].inc_ms) /* avoid division by zero */
-		framems -= framems % AST_FORMAT_LIST[index].inc_ms;
+	if (AST_FORMAT_LIST[idx].inc_ms && framems % AST_FORMAT_LIST[idx].inc_ms) /* avoid division by zero */
+		framems -= framems % AST_FORMAT_LIST[idx].inc_ms;
 
-	if (framems < AST_FORMAT_LIST[index].min_ms)
-		framems = AST_FORMAT_LIST[index].min_ms;
+	if (framems < AST_FORMAT_LIST[idx].min_ms)
+		framems = AST_FORMAT_LIST[idx].min_ms;
 
-	if (framems > AST_FORMAT_LIST[index].max_ms)
-		framems = AST_FORMAT_LIST[index].max_ms;
-
+	if (framems > AST_FORMAT_LIST[idx].max_ms)
+		framems = AST_FORMAT_LIST[idx].max_ms;
 
 	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
-		if (pref->order[x] == (index + 1)) {
+		if (pref->order[x] == (idx + 1)) {
 			pref->framing[x] = framems;
 			break;
 		}
@@ -1141,19 +1139,19 @@ int ast_codec_pref_setsize(struct ast_codec_pref *pref, int format, int framems)
 /*! \brief Get packet size for codec */
 struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, int format)
 {
-	int x, index = -1, framems = 0;
+	int x, idx = -1, framems = 0;
 	struct ast_format_list fmt = { 0, };
 
 	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		if (AST_FORMAT_LIST[x].bits == format) {
 			fmt = AST_FORMAT_LIST[x];
-			index = x;
+			idx = x;
 			break;
 		}
 	}
 
 	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
-		if (pref->order[x] == (index + 1)) {
+		if (pref->order[x] == (idx + 1)) {
 			framems = pref->framing[x];
 			break;
 		}
@@ -1161,16 +1159,16 @@ struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, int f
 
 	/* size validation */
 	if (!framems)
-		framems = AST_FORMAT_LIST[index].def_ms;
+		framems = AST_FORMAT_LIST[idx].def_ms;
 
-	if (AST_FORMAT_LIST[index].inc_ms && framems % AST_FORMAT_LIST[index].inc_ms) /* avoid division by zero */
-		framems -= framems % AST_FORMAT_LIST[index].inc_ms;
+	if (AST_FORMAT_LIST[idx].inc_ms && framems % AST_FORMAT_LIST[idx].inc_ms) /* avoid division by zero */
+		framems -= framems % AST_FORMAT_LIST[idx].inc_ms;
 
-	if (framems < AST_FORMAT_LIST[index].min_ms)
-		framems = AST_FORMAT_LIST[index].min_ms;
+	if (framems < AST_FORMAT_LIST[idx].min_ms)
+		framems = AST_FORMAT_LIST[idx].min_ms;
 
-	if (framems > AST_FORMAT_LIST[index].max_ms)
-		framems = AST_FORMAT_LIST[index].max_ms;
+	if (framems > AST_FORMAT_LIST[idx].max_ms)
+		framems = AST_FORMAT_LIST[idx].max_ms;
 
 	fmt.cur_ms = framems;
 

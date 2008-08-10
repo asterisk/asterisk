@@ -645,7 +645,7 @@ static char *handle_show_profile(struct ast_cli_entry *e, int cmd, struct ast_cl
 			"Value", "Average", "Name");
 	for (i = min; i < max; i++) {
 		struct profile_entry *entry = &prof_data->e[i];
-		if (!search || strstr(prof_data->e[i].name, search))
+		if (!search || strstr(entry->name, search))
 		    ast_cli(a->fd, "%6d: [%8ld] %10ld %12lld %12lld  %s\n",
 			i,
 			(long)entry->scale,

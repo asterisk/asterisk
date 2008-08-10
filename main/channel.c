@@ -551,8 +551,8 @@ int ast_channel_cmpwhentohangup_tv(struct ast_channel *chan, struct timeval offs
 
 int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset)
 {
-	struct timeval tv = { offset, };
-	return ast_channel_cmpwhentohangup_tv(chan, tv);
+	struct timeval when = { offset, };
+	return ast_channel_cmpwhentohangup_tv(chan, when);
 }
 
 /*! \brief Register a new telephony channel in Asterisk */

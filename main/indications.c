@@ -233,55 +233,55 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 		separator = ",";
 	s = strsep(&stringp,separator);
 	while (s && *s) {
-		int freq1, freq2, time, modulate = 0, midinote = 0;
+		int freq1, freq2, duration, modulate = 0, midinote = 0;
 
 		if (s[0]=='!')
 			s++;
 		else if (d.reppos == -1)
 			d.reppos = d.nitems;
-		if (sscanf(s, "%d+%d/%d", &freq1, &freq2, &time) == 3) {
+		if (sscanf(s, "%d+%d/%d", &freq1, &freq2, &duration) == 3) {
 			/* f1+f2/time format */
 		} else if (sscanf(s, "%d+%d", &freq1, &freq2) == 2) {
 			/* f1+f2 format */
-			time = 0;
-		} else if (sscanf(s, "%d*%d/%d", &freq1, &freq2, &time) == 3) {
+			duration = 0;
+		} else if (sscanf(s, "%d*%d/%d", &freq1, &freq2, &duration) == 3) {
 			/* f1*f2/time format */
 			modulate = 1;
 		} else if (sscanf(s, "%d*%d", &freq1, &freq2) == 2) {
 			/* f1*f2 format */
-			time = 0;
+			duration = 0;
 			modulate = 1;
-		} else if (sscanf(s, "%d/%d", &freq1, &time) == 2) {
+		} else if (sscanf(s, "%d/%d", &freq1, &duration) == 2) {
 			/* f1/time format */
 			freq2 = 0;
 		} else if (sscanf(s, "%d", &freq1) == 1) {
 			/* f1 format */
 			freq2 = 0;
-			time = 0;
-		} else if (sscanf(s, "M%d+M%d/%d", &freq1, &freq2, &time) == 3) {
+			duration = 0;
+		} else if (sscanf(s, "M%d+M%d/%d", &freq1, &freq2, &duration) == 3) {
 			/* Mf1+Mf2/time format */
 			midinote = 1;
 		} else if (sscanf(s, "M%d+M%d", &freq1, &freq2) == 2) {
 			/* Mf1+Mf2 format */
-			time = 0;
+			duration = 0;
 			midinote = 1;
-		} else if (sscanf(s, "M%d*M%d/%d", &freq1, &freq2, &time) == 3) {
+		} else if (sscanf(s, "M%d*M%d/%d", &freq1, &freq2, &duration) == 3) {
 			/* Mf1*Mf2/time format */
 			modulate = 1;
 			midinote = 1;
 		} else if (sscanf(s, "M%d*M%d", &freq1, &freq2) == 2) {
 			/* Mf1*Mf2 format */
-			time = 0;
+			duration = 0;
 			modulate = 1;
 			midinote = 1;
-		} else if (sscanf(s, "M%d/%d", &freq1, &time) == 2) {
+		} else if (sscanf(s, "M%d/%d", &freq1, &duration) == 2) {
 			/* Mf1/time format */
 			freq2 = -1;
 			midinote = 1;
 		} else if (sscanf(s, "M%d", &freq1) == 1) {
 			/* Mf1 format */
 			freq2 = -1;
-			time = 0;
+			duration = 0;
 			midinote = 1;
 		} else {
 			ast_log(LOG_WARNING,"%s: tone component '%s' of '%s' is no good\n",chan->name,s,playlst);
@@ -311,7 +311,7 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 		d.items[d.nitems].fac2 = 2.0 * cos(2.0 * M_PI * (freq2 / 8000.0)) * 32768.0;
 		d.items[d.nitems].init_v2_2 = sin(-4.0 * M_PI * (freq2 / 8000.0)) * d.vol;
 		d.items[d.nitems].init_v3_2 = sin(-2.0 * M_PI * (freq2 / 8000.0)) * d.vol;
-		d.items[d.nitems].duration = time;
+		d.items[d.nitems].duration = duration;
 		d.items[d.nitems].modulate = modulate;
 		d.nitems++;
 

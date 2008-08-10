@@ -2977,14 +2977,14 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 					cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
 				else {
 					struct varshead old;
-					struct ast_channel *c = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/%p", vars);
-					if (c) {
-						memcpy(&old, &c->varshead, sizeof(old));
-						memcpy(&c->varshead, headp, sizeof(c->varshead));
-						cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
+					struct ast_channel *bogus = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/%p", vars);
+					if (bogus) {
+						memcpy(&old, &bogus->varshead, sizeof(old));
+						memcpy(&bogus->varshead, headp, sizeof(bogus->varshead));
+						cp4 = ast_func_read(bogus, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
 						/* Don't deallocate the varshead that was passed in */
-						memcpy(&c->varshead, &old, sizeof(c->varshead));
-						ast_channel_free(c);
+						memcpy(&bogus->varshead, &old, sizeof(bogus->varshead));
+						ast_channel_free(bogus);
 					} else
 						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
 				}
@@ -4198,13 +4198,13 @@ int ast_context_remove_extension(const char *context, const char *extension, int
 	return ast_context_remove_extension_callerid(context, extension, priority, NULL, 0, registrar);
 }
 
-int ast_context_remove_extension_callerid(const char *context, const char *extension, int priority, const char *callerid, int matchcid, const char *registrar)
+int ast_context_remove_extension_callerid(const char *context, const char *extension, int priority, const char *callerid, int matchcallerid, const char *registrar)
 {
 	int ret = -1; /* default error return */
 	struct ast_context *c = find_context_locked(context);
 
 	if (c) { /* ... remove extension ... */
-		ret = ast_context_remove_extension_callerid2(c, extension, priority, callerid, matchcid, registrar, 1);
+		ret = ast_context_remove_extension_callerid2(c, extension, priority, callerid, matchcallerid, registrar, 1);
 		ast_unlock_contexts();
 	}
 	return ret;
@@ -4225,7 +4225,7 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 	return ast_context_remove_extension_callerid2(con, extension, priority, NULL, 0, registrar, already_locked);
 }
 
-int ast_context_remove_extension_callerid2(struct ast_context *con, const char *extension, int priority, const char *callerid, int matchcid, const char *registrar, int already_locked)
+int ast_context_remove_extension_callerid2(struct ast_context *con, const char *extension, int priority, const char *callerid, int matchcallerid, const char *registrar, int already_locked)
 {
 	struct ast_exten *exten, *prev_exten = NULL;
 	struct ast_exten *peer;
@@ -4243,14 +4243,14 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 	/* FIXME For backwards compatibility, if callerid==NULL, then remove ALL
 	 * peers, not just those matching the callerid. */
 #ifdef NEED_DEBUG
-	ast_verb(3,"Removing %s/%s/%d%s%s from trees, registrar=%s\n", con->name, extension, priority, matchcid ? "/" : "", matchcid ? callerid : "", registrar);
+	ast_verb(3,"Removing %s/%s/%d%s%s from trees, registrar=%s\n", con->name, extension, priority, matchcallerid ? "/" : "", matchcallerid ? callerid : "", registrar);
 #endif
 #ifdef CONTEXT_DEBUG
 	check_contexts(__FILE__, __LINE__);
 #endif
 	/* find this particular extension */
 	ex.exten = dummy_name;
-	ex.matchcid = matchcid && !ast_strlen_zero(callerid); /* don't say match if there's no callerid */
+	ex.matchcid = matchcallerid && !ast_strlen_zero(callerid); /* don't say match if there's no callerid */
 	ex.cidmatch = callerid;
 	ast_copy_string(dummy_name, extension, sizeof(dummy_name));
 	exten = ast_hashtab_lookup(con->root_table, &ex);
@@ -4323,7 +4323,7 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 	for (exten = con->root; exten; prev_exten = exten, exten = exten->next) {
 		if (!strcmp(exten->exten, extension) &&
 			(!registrar || !strcmp(exten->registrar, registrar)) &&
-			(!matchcid || (!ast_strlen_zero(callerid) && !ast_strlen_zero(exten->cidmatch) && !strcmp(exten->cidmatch, callerid)) || (ast_strlen_zero(callerid) && ast_strlen_zero(exten->cidmatch))))
+			(!matchcallerid || (!ast_strlen_zero(callerid) && !ast_strlen_zero(exten->cidmatch) && !strcmp(exten->cidmatch, callerid)) || (ast_strlen_zero(callerid) && ast_strlen_zero(exten->cidmatch))))
 			break;
 	}
 	if (!exten) {
@@ -4335,10 +4335,10 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 
 	/* scan the priority list to remove extension with exten->priority == priority */
 	for (peer = exten, next_peer = exten->peer ? exten->peer : exten->next;
-		 peer && !strcmp(peer->exten, extension) && (!matchcid || (!ast_strlen_zero(callerid) && !ast_strlen_zero(peer->cidmatch) && !strcmp(peer->cidmatch,callerid)) || (ast_strlen_zero(callerid) && ast_strlen_zero(peer->cidmatch)));
+		 peer && !strcmp(peer->exten, extension) && (!matchcallerid || (!ast_strlen_zero(callerid) && !ast_strlen_zero(peer->cidmatch) && !strcmp(peer->cidmatch,callerid)) || (ast_strlen_zero(callerid) && ast_strlen_zero(peer->cidmatch)));
 			peer = next_peer, next_peer = next_peer ? (next_peer->peer ? next_peer->peer : next_peer->next) : NULL) {
 		if ((priority == 0 || peer->priority == priority) &&
-				(!callerid || !matchcid || (matchcid && !strcmp(peer->cidmatch, callerid))) &&
+				(!callerid || !matchcallerid || (matchcallerid && !strcmp(peer->cidmatch, callerid))) &&
 				(!registrar || !strcmp(peer->registrar, registrar) )) {
 			found = 1;
 
@@ -6206,9 +6206,9 @@ int ast_build_timing(struct ast_timing *i, const char *info_in)
 int ast_check_timing(const struct ast_timing *i)
 {
 	struct ast_tm tm;
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 
-	ast_localtime(&tv, &tm, NULL);
+	ast_localtime(&now, &tm, NULL);
 
 	/* If it's not the right month, return */
 	if (!(i->monthmask & (1 << tm.tm_mon)))
@@ -7086,14 +7086,14 @@ static int ast_pbx_outgoing_cdr_failed(void)
 	return 0;  /* success */
 }
 
-int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel)
+int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
 	int res = -1, cdr_res = -1;
 	struct outgoing_helper oh;
 
-	if (sync) {
+	if (synchronous) {
 		oh.context = context;
 		oh.exten = exten;
 		oh.priority = priority;
@@ -7114,7 +7114,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 					res = 0;
 				ast_verb(4, "Channel %s was answered.\n", chan->name);
 
-				if (sync > 1) {
+				if (synchronous > 1) {
 					if (channel)
 						ast_channel_unlock(chan);
 					if (ast_pbx_run(chan)) {
@@ -7252,7 +7252,7 @@ static void *ast_pbx_run_app(void *data)
 	return NULL;
 }
 
-int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel)
+int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel)
 {
 	struct ast_channel *chan;
 	struct app_tmp *tmp;
@@ -7269,7 +7269,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 		res = -1;
 		goto outgoing_app_cleanup;
 	}
-	if (sync) {
+	if (synchronous) {
 		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
 		if (chan) {
 			ast_set_variables(chan, vars);
@@ -7286,7 +7286,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 					if (appdata)
 						ast_copy_string(tmp->data, appdata, sizeof(tmp->data));
 					tmp->chan = chan;
-					if (sync > 1) {
+					if (synchronous > 1) {
 						if (locked_channel)
 							ast_channel_unlock(chan);
 						ast_pbx_run_app(tmp);

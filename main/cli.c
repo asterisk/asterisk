@@ -1625,7 +1625,7 @@ static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 static char *parse_args(const char *s, int *argc, char *argv[], int max, int *trailingwhitespace)
 {
-	char *dup, *cur;
+	char *duplicate, *cur;
 	int x = 0;
 	int quoted = 0;
 	int escaped = 0;
@@ -1638,10 +1638,10 @@ static char *parse_args(const char *s, int *argc, char *argv[], int max, int *tr
 	if (s == NULL)	/* invalid, though! */
 		return NULL;
 	/* make a copy to store the parsed string */
-	if (!(dup = ast_strdup(s)))
+	if (!(duplicate = ast_strdup(s)))
 		return NULL;
 
-	cur = dup;
+	cur = duplicate;
 	/* scan the original string copying into cur when needed */
 	for (; *s ; s++) {
 		if (x >= max - 1) {
@@ -1685,7 +1685,7 @@ static char *parse_args(const char *s, int *argc, char *argv[], int max, int *tr
 	argv[x] = NULL;
 	*argc = x;
 	*trailingwhitespace = whitespace;
-	return dup;
+	return duplicate;
 }
 
 /*! \brief Return the number of unique matches for the generator */
@@ -1777,9 +1777,9 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	char matchstr[80] = "";
 	int tws = 0;
 	/* Split the argument into an array of words */
-	char *dup = parse_args(text, &x, argv, ARRAY_LEN(argv), &tws);
+	char *duplicate = parse_args(text, &x, argv, ARRAY_LEN(argv), &tws);
 
-	if (!dup)	/* malloc error */
+	if (!duplicate)	/* malloc error */
 		return NULL;
 
 	/* Compute the index of the last argument (could be an empty string) */
@@ -1844,7 +1844,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	}
 	if (lock)
 		AST_RWLIST_UNLOCK(&helpers);
-	ast_free(dup);
+	ast_free(duplicate);
 	return ret;
 }
 
@@ -1858,12 +1858,12 @@ int ast_cli_command(int fd, const char *s)
 	char *args[AST_MAX_ARGS + 1];
 	struct ast_cli_entry *e;
 	int x;
-	char *dup = parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
+	char *duplicate = parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
 	char *retval = NULL;
 	struct ast_cli_args a = {
 		.fd = fd, .argc = x, .argv = args+1 };
 
-	if (dup == NULL)
+	if (duplicate == NULL)
 		return -1;
 
 	if (x < 1)	/* We need at least one entry, otherwise ignore */
@@ -1904,7 +1904,7 @@ int ast_cli_command(int fd, const char *s)
 	}
 	ast_atomic_fetchadd_int(&e->inuse, -1);
 done:
-	ast_free(dup);
+	ast_free(duplicate);
 	return 0;
 }
 
