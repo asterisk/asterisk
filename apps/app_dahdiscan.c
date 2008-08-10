@@ -284,7 +284,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int res=-1;
 	int confflags = 0;
 	int confno = 0;
-	char confstr[80] = "", *tmp = NULL;
+	char confnostr[80] = "", *tmp = NULL;
 	struct ast_channel *tempchan = NULL, *lastchan = NULL, *ichan = NULL;
 	struct ast_frame *f;
 	char *desired_group;
@@ -335,12 +335,12 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		}
 		if (tempchan && (!strcmp(tempchan->tech->type, "DAHDI")) && (tempchan != chan)) {
 			ast_verb(3, "DAHDI channel %s is in-use, monitoring...\n", tempchan->name);
-			ast_copy_string(confstr, tempchan->name, sizeof(confstr));
+			ast_copy_string(confnostr, tempchan->name, sizeof(confnostr));
 			ast_channel_unlock(tempchan);
-			if ((tmp = strchr(confstr, '-'))) {
+			if ((tmp = strchr(confnostr, '-'))) {
 				*tmp = '\0';
 			}
-			confno = atoi(strchr(confstr, '/') + 1);
+			confno = atoi(strchr(confnostr, '/') + 1);
 			ast_stopstream(chan);
 			ast_say_number(chan, confno, AST_DIGIT_ANY, chan->language, (char *) NULL);
 			res = conf_run(chan, confno, confflags);

@@ -173,7 +173,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 		);
 		char *tmp2 = ast_strdupa(args.filename);
 		char countstring[15];
-		int i;
+		int idx;
 
 		/* Separate each piece out by the format specifier */
 		AST_NONSTANDARD_APP_ARGS(fname, tmp2, '%');
@@ -182,8 +182,8 @@ static int record_exec(struct ast_channel *chan, void *data)
 			/* First piece has no leading percent, so it's copied verbatim */
 			ast_copy_string(tmp, fname.piece[0], sizeof(tmp));
 			tmplen = strlen(tmp);
-			for (i = 1; i < fname.argc; i++) {
-				if (fname.piece[i][0] == 'd') {
+			for (idx = 1; idx < fname.argc; idx++) {
+				if (fname.piece[idx][0] == 'd') {
 					/* Substitute the count */
 					snprintf(countstring, sizeof(countstring), "%d", count);
 					ast_copy_string(tmp + tmplen, countstring, sizeof(tmp) - tmplen);
@@ -191,10 +191,10 @@ static int record_exec(struct ast_channel *chan, void *data)
 				} else if (tmplen + 2 < sizeof(tmp)) {
 					/* Unknown format specifier - just copy it verbatim */
 					tmp[tmplen++] = '%';
-					tmp[tmplen++] = fname.piece[i][0];
+					tmp[tmplen++] = fname.piece[idx][0];
 				}
 				/* Copy the remaining portion of the piece */
-				ast_copy_string(tmp + tmplen, &(fname.piece[i][1]), sizeof(tmp) - tmplen);
+				ast_copy_string(tmp + tmplen, &(fname.piece[idx][1]), sizeof(tmp) - tmplen);
 			}
 			count++;
 		} while (ast_fileexists(tmp, ext, chan->language) > 0);

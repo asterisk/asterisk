@@ -330,22 +330,22 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 		snprintf(newfestivalcommand, strln, "%s%s%s", startcmd, args.text, endcmd);
 		festivalcommand = newfestivalcommand;
 	} else { /* This else parses the festivalcommand that we're sent from the config file for \n's, etc */
-		int i, j;
+		int x, j;
 		newfestivalcommand = alloca(strlen(festivalcommand) + strlen(args.text) + 1);
 
-		for (i = 0, j = 0; i < strlen(festivalcommand); i++) {
-			if (festivalcommand[i] == '\\' && festivalcommand[i + 1] == 'n') {
+		for (x = 0, j = 0; x < strlen(festivalcommand); x++) {
+			if (festivalcommand[x] == '\\' && festivalcommand[x + 1] == 'n') {
 				newfestivalcommand[j++] = '\n';
-				i++;
-			} else if (festivalcommand[i] == '\\') {
-				newfestivalcommand[j++] = festivalcommand[i + 1];
-				i++;
-			} else if (festivalcommand[i] == '%' && festivalcommand[i + 1] == 's') {
+				x++;
+			} else if (festivalcommand[x] == '\\') {
+				newfestivalcommand[j++] = festivalcommand[x + 1];
+				x++;
+			} else if (festivalcommand[x] == '%' && festivalcommand[x + 1] == 's') {
 				sprintf(&newfestivalcommand[j], "%s", args.text); /* we know it is big enough */
 				j += strlen(args.text);
-				i++;
+				x++;
 			} else
-				newfestivalcommand[j++] = festivalcommand[i];
+				newfestivalcommand[j++] = festivalcommand[x];
 		}
 		newfestivalcommand[j] = '\0';
 		festivalcommand = newfestivalcommand;

@@ -275,16 +275,16 @@ static int say_enumeration_full(struct ast_channel *chan, int num,
 }
 
 static int say_date_generic(struct ast_channel *chan, time_t t,
-	const char *ints, const char *lang, const char *format, const char *timezone, const char *prefix)
+	const char *ints, const char *lang, const char *format, const char *timezonename, const char *prefix)
 {
 	char buf[128];
 	struct ast_tm tm;
-	struct timeval tv = { t, 0 };
+	struct timeval when = { t, 0 };
 	say_args_t a = { chan, ints, lang, -1, -1 };
 	if (format == NULL)
 		format = "";
 
-	ast_localtime(&tv, &tm, NULL);
+	ast_localtime(&when, &tm, NULL);
 	snprintf(buf, sizeof(buf), "%s:%s:%04d%02d%02d%02d%02d.%02d-%d-%3d",
 		prefix,
 		format,
@@ -300,9 +300,9 @@ static int say_date_generic(struct ast_channel *chan, time_t t,
 }
 
 static int say_date_with_format(struct ast_channel *chan, time_t t,
-	const char *ints, const char *lang, const char *format, const char *timezone)
+	const char *ints, const char *lang, const char *format, const char *timezonename)
 {
-	return say_date_generic(chan, t, ints, lang, format, timezone, "datetime");
+	return say_date_generic(chan, t, ints, lang, format, timezonename, "datetime");
 }
 
 static int say_date(struct ast_channel *chan, time_t t, const char *ints, const char *lang)

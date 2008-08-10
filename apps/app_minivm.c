@@ -706,9 +706,9 @@ static int base_encode(char *filename, FILE *so)
 static int get_date(char *s, int len)
 {
 	struct ast_tm tm;
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 
-	ast_localtime(&tv, &tm, NULL);
+	ast_localtime(&now, &tm, NULL);
 	return ast_strftime(s, len, "%a %b %e %r %Z %Y", &tm);
 }
 
@@ -1040,18 +1040,18 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		fprintf(p, "To: %s <%s@%s>\n", mailheader_quote(vmu->fullname, passdata2, len_passdata), vmu->username, vmu->domain);
 
 	if (!ast_strlen_zero(template->subject)) {
-		char *passdata;
+		char *pass_data;
 		int vmlen = strlen(template->subject) * 3 + 200;
-		if ((passdata = alloca(vmlen))) {
-			pbx_substitute_variables_helper(ast, template->subject, passdata, vmlen);
-			fprintf(p, "Subject: %s\n", passdata);
+		if ((pass_data = alloca(vmlen))) {
+			pbx_substitute_variables_helper(ast, template->subject, pass_data, vmlen);
+			fprintf(p, "Subject: %s\n", pass_data);
 		} else {
 			ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
 			fclose(p);
 			return -1;	
 		}
 
-		ast_debug(4, "-_-_- Subject now: %s\n", passdata);
+		ast_debug(4, "-_-_- Subject now: %s\n", pass_data);
 
 	} else  {
 		fprintf(p, "Subject: New message in mailbox %s@%s\n", vmu->username, vmu->domain);
@@ -1071,12 +1071,12 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	fprintf(p, "--%s\n", bound);
 	fprintf(p, "Content-Type: text/plain; charset=%s\nContent-Transfer-Encoding: 8bit\n\n", global_charset);
 	if (!ast_strlen_zero(template->body)) {
-		char *passdata;
+		char *pass_data;
 		int vmlen = strlen(template->body)*3 + 200;
-		if ((passdata = alloca(vmlen))) {
-			pbx_substitute_variables_helper(ast, template->body, passdata, vmlen);
-			ast_debug(3, "Message now: %s\n-----\n", passdata);
-			fprintf(p, "%s\n", passdata);
+		if ((pass_data = alloca(vmlen))) {
+			pbx_substitute_variables_helper(ast, template->body, pass_data, vmlen);
+			ast_debug(3, "Message now: %s\n-----\n", pass_data);
+			fprintf(p, "%s\n", pass_data);
 		} else
 			ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
 	} else {
@@ -1400,11 +1400,11 @@ static int notify_new_message(struct ast_channel *chan, const char *templatename
 	strsep(&stringp, "|");
 
 	if (!ast_strlen_zero(etemplate->locale)) {
-		char *newlocale;
+		char *new_locale;
 		ast_copy_string(oldlocale, setlocale(LC_TIME, NULL), sizeof(oldlocale));
 		ast_debug(2, "-_-_- Changing locale from %s to %s\n", oldlocale, etemplate->locale);
-		newlocale = setlocale(LC_TIME, etemplate->locale);
-		if (newlocale == NULL) {
+		new_locale = setlocale(LC_TIME, etemplate->locale);
+		if (new_locale == NULL) {
 			ast_log(LOG_WARNING, "-_-_- Changing to new locale did not work. Locale: %s\n", etemplate->locale);
 		}
 	}
@@ -2192,9 +2192,8 @@ static void timezone_destroy_list(void)
 /*! \brief Add time zone to memory list */
 static int timezone_add(const char *zonename, const char *config)
 {
-
 	struct minivm_zone *newzone;
-	char *msg_format, *timezone;
+	char *msg_format, *timezone_str;
 
 	newzone = ast_calloc(1, sizeof(*newzone));
 	if (newzone == NULL)
@@ -2207,7 +2206,7 @@ static int timezone_add(const char *zonename, const char *config)
 		return 0;
 	}
 
-	timezone = strsep(&msg_format, "|");
+	timezone_str = strsep(&msg_format, "|");
 	if (!msg_format) {
 		ast_log(LOG_WARNING, "Invalid timezone definition : %s\n", zonename);
 		ast_free(newzone);
@@ -2215,7 +2214,7 @@ static int timezone_add(const char *zonename, const char *config)
 	}
 			
 	ast_copy_string(newzone->name, zonename, sizeof(newzone->name));
-	ast_copy_string(newzone->timezone, timezone, sizeof(newzone->timezone));
+	ast_copy_string(newzone->timezone, timezone_str, sizeof(newzone->timezone));
 	ast_copy_string(newzone->msg_format, msg_format, sizeof(newzone->msg_format));
 
 	AST_LIST_LOCK(&minivm_zones);
@@ -2675,7 +2674,7 @@ static char *handle_minivm_show_settings(struct ast_cli_entry *e, int cmd, struc
 /*! \brief Show stats */
 static char *handle_minivm_show_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ast_tm time;
+	struct ast_tm timebuf;
 	char buf[BUFSIZ];
 
 	switch (cmd) {
@@ -2700,12 +2699,12 @@ static char *handle_minivm_show_stats(struct ast_cli_entry *e, int cmd, struct a
 		ast_cli(a->fd, "  Received messages since last reset:  <none>\n");
 	} else {
 		ast_cli(a->fd, "  Received messages since last reset:  %d\n", global_stats.receivedmessages);
-		ast_localtime(&global_stats.lastreceived, &time, NULL);
-		ast_strftime(buf, sizeof(buf), "%a %b %e %r %Z %Y", &time);
+		ast_localtime(&global_stats.lastreceived, &timebuf, NULL);
+		ast_strftime(buf, sizeof(buf), "%a %b %e %r %Z %Y", &timebuf);
 		ast_cli(a->fd, "  Last received voicemail:             %s\n", buf);
 	}
-	ast_localtime(&global_stats.reset, &time, NULL);
-	ast_strftime(buf, sizeof(buf), "%a %b %e %r %Z %Y", &time);
+	ast_localtime(&global_stats.reset, &timebuf, NULL);
+	ast_strftime(buf, sizeof(buf), "%a %b %e %r %Z %Y", &timebuf);
 	ast_cli(a->fd, "  Last reset:                          %s\n", buf);
 
 	ast_cli(a->fd, "\n");

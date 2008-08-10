@@ -2018,7 +2018,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 {
 	char *parse;
 	const char *context = NULL;
-	int sleep = 0, loops = 0, res = -1;
+	int sleepms = 0, loops = 0, res = -1;
 	struct ast_flags64 peerflags = { 0, };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(announce);
@@ -2035,8 +2035,8 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if ((sleep = atoi(args.sleep)))
-		sleep *= 1000;
+	if ((sleepms = atoi(args.sleep)))
+		sleepms *= 1000;
 
 	loops = atoi(args.retries);
 
@@ -2045,8 +2045,8 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		goto done;
 	}
 
-	if (sleep < 1000)
-		sleep = 10000;
+	if (sleepms < 1000)
+		sleepms = 10000;
 
 	if (!loops)
 		loops = -1; /* run forever */
@@ -2077,10 +2077,10 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 					} else
 						ast_log(LOG_WARNING, "Announce file \"%s\" specified in Retrydial does not exist\n", args.announce);
 				}
-				if (!res && sleep) {
+				if (!res && sleepms) {
 					if (!ast_test_flag(chan, AST_FLAG_MOH))
 						ast_moh_start(chan, NULL, NULL);
-					res = ast_waitfordigit(chan, sleep);
+					res = ast_waitfordigit(chan, sleepms);
 				}
 			} else {
 				if (!ast_strlen_zero(args.announce)) {
@@ -2090,11 +2090,11 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 					} else
 						ast_log(LOG_WARNING, "Announce file \"%s\" specified in Retrydial does not exist\n", args.announce);
 				}
-				if (sleep) {
+				if (sleepms) {
 					if (!ast_test_flag(chan, AST_FLAG_MOH))
 						ast_moh_start(chan, NULL, NULL);
 					if (!res)
-						res = ast_waitfordigit(chan, sleep);
+						res = ast_waitfordigit(chan, sleepms);
 				}
 			}
 		}

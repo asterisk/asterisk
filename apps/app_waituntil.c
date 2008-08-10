@@ -50,7 +50,7 @@ static int waituntil_exec(struct ast_channel *chan, void *data)
 	double fraction;
 	long seconds;
 	struct timeval future = { 0, };
-	struct timeval tv = ast_tvnow();
+	struct timeval now = ast_tvnow();
 	int msec;
 
 	if (ast_strlen_zero(data)) {
@@ -68,8 +68,8 @@ static int waituntil_exec(struct ast_channel *chan, void *data)
 	future.tv_sec = seconds;
 	future.tv_usec = fraction * 1000000;
 
-	if ((msec = ast_tvdiff_ms(future, tv)) < 0) {
-		ast_log(LOG_NOTICE, "WaitUntil called in the past (now %ld, arg %ld)\n", (long)tv.tv_sec, (long)future.tv_sec);
+	if ((msec = ast_tvdiff_ms(future, now)) < 0) {
+		ast_log(LOG_NOTICE, "WaitUntil called in the past (now %ld, arg %ld)\n", (long)now.tv_sec, (long)future.tv_sec);
 		pbx_builtin_setvar_helper(chan, "WAITUNTILSTATUS", "PAST");
 		return 0;
 	}

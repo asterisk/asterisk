@@ -318,7 +318,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 	if (k == 3) {
 		int recheck = 0;
-		struct ast_flags flags = { AST_CDR_FLAG_POSTED };
+		struct ast_flags cdr_flags = { AST_CDR_FLAG_POSTED };
 
 		if (!ast_exists_extension(chan, args.context, exten, 1, chan->cid.cid_num)) {
 			pbx_builtin_setvar_helper(chan, "INVALID_EXTEN", exten);
@@ -337,8 +337,8 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			if (!ast_strlen_zero(acctcode))
 				ast_string_field_set(chan, accountcode, acctcode);
 
-			if (special_noanswer) flags.flags = 0;
-			ast_cdr_reset(chan->cdr, &flags);
+			if (special_noanswer) cdr_flags.flags = 0;
+			ast_cdr_reset(chan->cdr, &cdr_flags);
 			ast_explicit_goto(chan, args.context, exten, 1);
 			return 0;
 		}

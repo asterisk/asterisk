@@ -484,23 +484,23 @@ static int search_directory(const char *context, struct ast_config *vmcfg, struc
 
 	if (ucfg) {
 		for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
-			const char *pos;
+			const char *position;
 			if (!strcasecmp(cat, "general"))
 				continue;
 			if (!ast_true(ast_config_option(ucfg, cat, "hasdirectory")))
 				continue;
 
 			/* Find all candidate extensions */
-			pos = ast_variable_retrieve(ucfg, cat, "fullname");
-			if (!pos)
+			position = ast_variable_retrieve(ucfg, cat, "fullname");
+			if (!position)
 				continue;
 
 			res = 0;
 			if (ast_test_flag(&flags, OPT_LISTBYLASTNAME)) {
-				res = check_match(&item, pos, cat, ext, 0 /* use_first_name */);
+				res = check_match(&item, position, cat, ext, 0 /* use_first_name */);
 			}
 			if (!res && ast_test_flag(&flags, OPT_LISTBYFIRSTNAME)) {
-				res = check_match(&item, pos, cat, ext, 1 /* use_first_name */);
+				res = check_match(&item, position, cat, ext, 1 /* use_first_name */);
 			}
 
 			if (!res)

@@ -251,11 +251,11 @@ outrun:
 
 static int conf_exec(struct ast_channel *chan, void *data)
 {
-	int res=-1;
+	int res = -1;
 	int retrycnt = 0;
 	int confflags = 0;
 	int confno = 0;
-	char confstr[80] = "";
+	char confnostr[80] = "";
 	
 	if (!ast_strlen_zero(data)) {
 		if ((sscanf(data, "DAHDI/%d", &confno) != 1) &&
@@ -270,10 +270,10 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 	while(!confno && (++retrycnt < 4)) {
 		/* Prompt user for conference number */
-		confstr[0] = '\0';
-		res = ast_app_getdata(chan, "conf-getchannel",confstr, sizeof(confstr) - 1, 0);
+		confnostr[0] = '\0';
+		res = ast_app_getdata(chan, "conf-getchannel",confnostr, sizeof(confnostr) - 1, 0);
 		if (res <0) goto out;
-		if (sscanf(confstr, "%d", &confno) != 1)
+		if (sscanf(confnostr, "%d", &confno) != 1)
 			confno = 0;
 	}
 	if (confno) {

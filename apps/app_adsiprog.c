@@ -776,7 +776,7 @@ static int digitcollect(char *buf, char *name, int id, char *args, struct adsi_s
 static int subscript(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
 	char *tok = get_token(&args, script, lineno);
-	char subscript[80];
+	char subscr[80];
 	struct adsi_subscript *sub;
 
 	if (!tok) {
@@ -784,12 +784,12 @@ static int subscript(char *buf, char *name, int id, char *args, struct adsi_scri
 		return 0;
 	}
 
-	if (process_token(subscript, tok, sizeof(subscript) - 1, ARG_STRING)) {
+	if (process_token(subscr, tok, sizeof(subscr) - 1, ARG_STRING)) {
 		ast_log(LOG_WARNING, "Invalid number of seconds '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
 
-	if (!(sub = getsubbyname(state, subscript, script, lineno)))
+	if (!(sub = getsubbyname(state, subscr, script, lineno)))
 		return 0;
 
 	buf[0] = 0x9d;
@@ -801,7 +801,7 @@ static int subscript(char *buf, char *name, int id, char *args, struct adsi_scri
 static int onevent(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
 	char *tok = get_token(&args, script, lineno);
-	char subscript[80], sname[80];
+	char subscr[80], sname[80];
 	int sawin = 0, event, snums[8], scnt = 0, x;
 	struct adsi_subscript *sub;
 
@@ -848,11 +848,11 @@ static int onevent(char *buf, char *name, int id, char *args, struct adsi_script
 		ast_log(LOG_WARNING, "Missing subscript to call at line %d of %s\n", lineno, script);
 		return 0;
 	}
-	if (process_token(subscript, tok, sizeof(subscript) - 1, ARG_STRING)) {
+	if (process_token(subscr, tok, sizeof(subscr) - 1, ARG_STRING)) {
 		ast_log(LOG_WARNING, "Invalid subscript '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
-	if (!(sub = getsubbyname(state, subscript, script, lineno)))
+	if (!(sub = getsubbyname(state, subscr, script, lineno)))
 		return 0;
 	buf[0] = 8;
 	buf[1] = event;

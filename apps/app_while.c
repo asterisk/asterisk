@@ -60,10 +60,10 @@ static char *continue_synopsis = "Restart a While loop";
 #define VAR_SIZE 64
 
 
-static const char *get_index(struct ast_channel *chan, const char *prefix, int index) {
+static const char *get_index(struct ast_channel *chan, const char *prefix, int idx) {
 	char varname[VAR_SIZE];
 
-	snprintf(varname, VAR_SIZE, "%s_%d", prefix, index);
+	snprintf(varname, VAR_SIZE, "%s_%d", prefix, idx);
 	return pbx_builtin_getvar_helper(chan, varname);
 }
 

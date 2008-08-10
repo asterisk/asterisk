@@ -1536,9 +1536,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int announcement_played = 0;
 	struct timeval now;
 	struct ast_dsp *dsp = NULL;
-	struct ast_app *app;
+	struct ast_app *agi_app;
 	char *agifile;
-	const char *agifiledefault = "conf-background.agi", *tmp;
+	const char *agifiledefault = "conf-background.agi", *tmpvar;
 	char meetmesecs[30] = "";
 	char exitcontext[AST_MAX_CONTEXT] = "";
 	char recordingtmp[AST_MAX_EXTENSION] = "";
@@ -1787,8 +1787,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 	if (confflags & CONFFLAG_EXIT_CONTEXT) {
 		ast_channel_lock(chan);
-		if ((tmp = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT"))) {
-			ast_copy_string(exitcontext, tmp, sizeof(exitcontext));
+		if ((tmpvar = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT"))) {
+			ast_copy_string(exitcontext, tmpvar, sizeof(exitcontext));
 		} else if (!ast_strlen_zero(chan->macrocontext)) {
 			ast_copy_string(exitcontext, chan->macrocontext, sizeof(exitcontext));
 		} else {
@@ -1986,8 +1986,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		   or use default filename of conf-background.agi */
 
 		ast_channel_lock(chan);
-		if ((tmp = pbx_builtin_getvar_helper(chan, "MEETME_AGI_BACKGROUND"))) {
-			agifile = ast_strdupa(tmp);
+		if ((tmpvar = pbx_builtin_getvar_helper(chan, "MEETME_AGI_BACKGROUND"))) {
+			agifile = ast_strdupa(tmpvar);
 		} else {
 			agifile = ast_strdupa(agifiledefault);
 		}
@@ -1999,9 +1999,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			ast_channel_setoption(chan, AST_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
 		}
 		/* Find a pointer to the agi app and execute the script */
-		app = pbx_findapp("agi");
-		if (app) {
-			ret = pbx_exec(chan, app, agifile);
+		agi_app = pbx_findapp("agi");
+		if (agi_app) {
+			ret = pbx_exec(chan, agi_app, agifile);
 		} else {
 			ast_log(LOG_WARNING, "Could not find application (agi)\n");
 			ret = -2;
@@ -2600,27 +2600,27 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						((confflags & CONFFLAG_MONITOR) || 
 						 (user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) ||
 						 (!user->talking)) ) {
-						int index;
-						for (index = 0; index < AST_FRAME_BITS; index++)
-							if (chan->rawwriteformat & (1 << index))
+						int idx;
+						for (idx = 0; idx < AST_FRAME_BITS; idx++)
+							if (chan->rawwriteformat & (1 << idx))
 								break;
-						if (index >= AST_FRAME_BITS)
+						if (idx >= AST_FRAME_BITS)
 							goto bailoutandtrynormal;
 						ast_mutex_lock(&conf->listenlock);
-						if (!conf->transframe[index]) {
+						if (!conf->transframe[idx]) {
 							if (conf->origframe) {
-								if (!conf->transpath[index])
-									conf->transpath[index] = ast_translator_build_path((1 << index), AST_FORMAT_SLINEAR);
-								if (conf->transpath[index]) {
-									conf->transframe[index] = ast_translate(conf->transpath[index], conf->origframe, 0);
-									if (!conf->transframe[index])
-										conf->transframe[index] = &ast_null_frame;
+								if (!conf->transpath[idx])
+									conf->transpath[idx] = ast_translator_build_path((1 << idx), AST_FORMAT_SLINEAR);
+								if (conf->transpath[idx]) {
+									conf->transframe[idx] = ast_translate(conf->transpath[idx], conf->origframe, 0);
+									if (!conf->transframe[idx])
+										conf->transframe[idx] = &ast_null_frame;
 								}
 							}
 						}
-						if (conf->transframe[index]) {
- 							if (conf->transframe[index]->frametype != AST_FRAME_NULL) {
-	 							if (ast_write(chan, conf->transframe[index]))
+						if (conf->transframe[idx]) {
+ 							if (conf->transframe[idx]->frametype != AST_FRAME_NULL) {
+	 							if (ast_write(chan, conf->transframe[idx]))
 									ast_log(LOG_WARNING, "Unable to write frame to channel %s\n", chan->name);
 							}
 						} else {
@@ -4059,7 +4059,7 @@ static int sla_check_timed_out_station(const struct sla_ringing_trunk *ringing_t
  * \note Assumes that sla.lock is locked
  */
 static struct sla_ringing_trunk *sla_choose_ringing_trunk(struct sla_station *station, 
-	struct sla_trunk_ref **trunk_ref, int remove)
+	struct sla_trunk_ref **trunk_ref, int rm)
 {
 	struct sla_trunk_ref *s_trunk_ref;
 	struct sla_ringing_trunk *ringing_trunk = NULL;
@@ -4075,7 +4075,7 @@ static struct sla_ringing_trunk *sla_choose_ringing_trunk(struct sla_station *st
 			if (sla_check_timed_out_station(ringing_trunk, station))
 				continue;
 
-			if (remove)
+			if (rm)
 				AST_LIST_REMOVE_CURRENT(entry);
 
 			if (trunk_ref)
@@ -4590,7 +4590,7 @@ static int sla_calc_station_delays(unsigned int *timeout)
 static int sla_process_timers(struct timespec *ts)
 {
 	unsigned int timeout = UINT_MAX;
-	struct timeval tv;
+	struct timeval wait;
 	unsigned int change_made = 0;
 
 	/* Check for ring timeouts on ringing trunks */
@@ -4614,9 +4614,9 @@ static int sla_process_timers(struct timespec *ts)
 		return 0;
 
 	if (ts) {
-		tv = ast_tvadd(ast_tvnow(), ast_samp2tv(timeout, 1000));
-		ts->tv_sec = tv.tv_sec;
-		ts->tv_nsec = tv.tv_usec * 1000;
+		wait = ast_tvadd(ast_tvnow(), ast_samp2tv(timeout, 1000));
+		ts->tv_sec = wait.tv_sec;
+		ts->tv_nsec = wait.tv_usec * 1000;
 	}
 
 	return 1;

@@ -272,8 +272,8 @@ static void numcpy(char *d, char *s)
 static char *isodate(time_t t, char *buf, int len)
 {
 	struct ast_tm tm;
-	struct timeval tv = { t, 0 };
-	ast_localtime(&tv, &tm, NULL);
+	struct timeval local = { t, 0 };
+	ast_localtime(&local, &tm, NULL);
 	ast_strftime(buf, len, "%Y-%m-%dT%H:%M:%S", &tm);
 	return buf;
 }
@@ -507,10 +507,10 @@ static int packsms(unsigned char dcs, unsigned char *base, unsigned int udhl, un
 static void packdate(unsigned char *o, time_t w)
 {
 	struct ast_tm t;
-	struct timeval tv = { w, 0 };
+	struct timeval topack = { w, 0 };
 	int z;
 
-	ast_localtime(&tv, &t, NULL);
+	ast_localtime(&topack, &t, NULL);
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__) || defined(__CYGWIN__)
 	z = -t.tm_gmtoff / 60 / 15;
 #else
@@ -980,8 +980,8 @@ static void sms_writefile(sms_t * h)
 		}
 	}
 	if (h->scts.tv_sec) {
-		char buf[30];
-		fprintf(o, "scts=%s\n", isodate(h->scts.tv_sec, buf, sizeof(buf)));
+		char datebuf[30];
+		fprintf(o, "scts=%s\n", isodate(h->scts.tv_sec, datebuf, sizeof(datebuf)));
 	}
 	if (h->pid)
 		fprintf(o, "pid=%d\n", h->pid);
@@ -1113,7 +1113,7 @@ static void putdummydata_proto2(sms_t *h)
 static void sms_compose2(sms_t *h, int more)
 {
 	struct ast_tm tm;
-	struct timeval tv = h->scts;
+	struct timeval now = h->scts;
 	char stm[9];
 
 	h->omsg[0] = 0x00;       /* set later... */
@@ -1122,7 +1122,7 @@ static void sms_compose2(sms_t *h, int more)
 	if (h->smsc) {		  /* deliver */
 		h->omsg[0] = 0x11;      /* SMS_DELIVERY */
 		/* Required: 10 11 12 13 14 15 17 (seems they must be ordered!) */
-		ast_localtime(&tv, &tm, NULL);
+		ast_localtime(&now, &tm, NULL);
 		sprintf(stm, "%02d%02d%02d%02d", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min);     /* Date mmddHHMM */
 		adddata_proto2(h, 0x14, stm, 8);	       /* Date */
 		if (*h->oa == 0)
@@ -1161,14 +1161,14 @@ static int sms_handleincoming_proto2(sms_t *h)
 	int f, i, sz = 0;
 	int msg, msgsz;
 	struct ast_tm tm;
-	struct timeval tv = { 0, 0 };
+	struct timeval now = { 0, 0 };
 	char debug_buf[MAX_DEBUG_LEN * 3 + 1];
 
 	sz = h->imsg[1] + 2;
 	/* ast_verb(3, "SMS-P2 Frame: %s\n", sms_hexdump(h->imsg, sz, debug_buf)); */
 
 	/* Parse message body (called payload) */
-	tv = h->scts = ast_tvnow();
+	now = h->scts = ast_tvnow();
 	for (f = 4; f < sz; ) {
 		msg = h->imsg[f++];
 		msgsz = h->imsg[f++];
@@ -1183,8 +1183,8 @@ static int sms_handleincoming_proto2(sms_t *h)
 			h->udl = msgsz;
 			break;
 		case 0x14:      /* Date SCTS */
-			tv = h->scts = ast_tvnow();
-			ast_localtime(&tv, &tm, NULL);
+			now = h->scts = ast_tvnow();
+			ast_localtime(&now, &tm, NULL);
 			tm.tm_mon = ( (h->imsg[f] * 10) + h->imsg[f + 1] ) - 1;
 			tm.tm_mday = ( (h->imsg[f + 2] * 10) + h->imsg[f + 3] );
 			tm.tm_hour = ( (h->imsg[f + 4] * 10) + h->imsg[f + 5] );
@@ -1743,7 +1743,7 @@ static int sms_exec(struct ast_channel *chan, void *data)
 	int res = -1;
 	sms_t h = { 0 };
 	/* argument parsing support */
-	struct ast_flags sms_flags;
+	struct ast_flags flags;
 	char *parse, *sms_opts[OPTION_ARG_ARRAY_SIZE];
 	char *p;
 	AST_DECLARE_APP_ARGS(sms_args,
@@ -1761,7 +1761,7 @@ static int sms_exec(struct ast_channel *chan, void *data)
 	parse = ast_strdupa(data);	/* create a local copy */
 	AST_STANDARD_APP_ARGS(sms_args, parse);
 	if (sms_args.argc > 1)
-		ast_app_parse_options(sms_options, &sms_flags, sms_opts, sms_args.options);
+		ast_app_parse_options(sms_options, &flags, sms_opts, sms_args.options);
 
 	ast_verb(1, "sms argc %d queue <%s> opts <%s> addr <%s> body <%s>\n",
 		sms_args.argc, S_OR(sms_args.queue, ""),
@@ -1789,8 +1789,8 @@ static int sms_exec(struct ast_channel *chan, void *data)
 		if (!isalnum(*p))
 			*p = '-';			  /* make very safe for filenames */
 
-	h.smsc = ast_test_flag(&sms_flags, OPTION_BE_SMSC);
-	h.protocol = ast_test_flag(&sms_flags, OPTION_TWO) ? 2 : 1;
+	h.smsc = ast_test_flag(&flags, OPTION_BE_SMSC);
+	h.protocol = ast_test_flag(&flags, OPTION_TWO) ? 2 : 1;
 	if (!ast_strlen_zero(sms_opts[OPTION_ARG_PAUSE]))
 		h.opause_0 = atoi(sms_opts[OPTION_ARG_PAUSE]);
 	if (h.opause_0 < 25 || h.opause_0 > 2000)
@@ -1799,9 +1799,9 @@ static int sms_exec(struct ast_channel *chan, void *data)
 
 
 	/* the following apply if there is an arg3/4 and apply to the created message file */
-	if (ast_test_flag(&sms_flags, OPTION_SRR))
+	if (ast_test_flag(&flags, OPTION_SRR))
 		h.srr = 1;
-	if (ast_test_flag(&sms_flags, OPTION_DCS))
+	if (ast_test_flag(&flags, OPTION_DCS))
 		h.dcs = 1;
 #if 0	
 		case '1':
@@ -1858,7 +1858,7 @@ static int sms_exec(struct ast_channel *chan, void *data)
 		goto done;
 	}
 
-	if (ast_test_flag(&sms_flags, OPTION_ANSWER)) {
+	if (ast_test_flag(&flags, OPTION_ANSWER)) {
 		h.framenumber = 1;	     /* Proto 2 */
 		/* set up SMS_EST initial message */
 		if (h.protocol == 2) {

@@ -253,12 +253,12 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 
 	ast_channel_lock(chan);
 	while((cur = strsep(&rest, ",")) && (argc < MAX_ARGS)) {
-		const char *s;
+		const char *argp;
   		/* Save copy of old arguments if we're overwriting some, otherwise
 	   	let them pass through to the other macro */
   		snprintf(varname, sizeof(varname), "ARG%d", argc);
-		if ((s = pbx_builtin_getvar_helper(chan, varname))) {
-			oldargs[argc] = ast_strdup(s);
+		if ((argp = pbx_builtin_getvar_helper(chan, varname))) {
+			oldargs[argc] = ast_strdup(argp);
 		}
 		pbx_builtin_setvar_helper(chan, varname, cur);
 		argc++;
@@ -329,12 +329,12 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			gosub_level++;
 			ast_debug(1, "Incrementing gosub_level\n");
 		} else if (!strcasecmp(runningapp, "GOSUBIF")) {
-			char tmp2[1024], *cond, *app, *app2 = tmp2;
+			char tmp2[1024], *cond, *app_arg, *app2 = tmp2;
 			pbx_substitute_variables_helper(chan, runningdata, tmp2, sizeof(tmp2) - 1);
 			cond = strsep(&app2, "?");
-			app = strsep(&app2, ":");
+			app_arg = strsep(&app2, ":");
 			if (pbx_checkcondition(cond)) {
-				if (!ast_strlen_zero(app)) {
+				if (!ast_strlen_zero(app_arg)) {
 					gosub_level++;
 					ast_debug(1, "Incrementing gosub_level\n");
 				}
