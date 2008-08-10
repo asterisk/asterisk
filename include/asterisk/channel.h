@@ -1510,16 +1510,16 @@ static inline int ast_add_fd(struct pollfd *pfd, int fd)
 }
 
 /*! \brief Helper function for migrating select to poll */
-static inline int ast_fdisset(struct pollfd *pfds, int fd, int max, int *start)
+static inline int ast_fdisset(struct pollfd *pfds, int fd, int maximum, int *start)
 {
 	int x;
-	int dummy=0;
+	int dummy = 0;
 
 	if (fd < 0)
 		return 0;
 	if (!start)
 		start = &dummy;
-	for (x = *start; x<max; x++)
+	for (x = *start; x < maximum; x++)
 		if (pfds[x].fd == fd) {
 			if (x == *start)
 				(*start)++;
