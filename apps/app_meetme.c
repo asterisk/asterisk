@@ -217,15 +217,15 @@ static const char *descrip =
 "conference.  If the conference number is omitted, the user will be prompted\n"
 "to enter one.  User can exit the conference by hangup, or if the 'p' option\n"
 "is specified, by pressing '#'.\n"
-"Please note: The Zaptel kernel modules and at least one hardware driver (or ztdummy)\n"
-"             must be present for conferencing to operate properly. In addition, the chan_zap\n"
+"Please note: The DAHDI kernel modules and at least one hardware driver (or dahdi_dummy)\n"
+"             must be present for conferencing to operate properly. In addition, the chan_dahdi\n"
 "             channel driver must be loaded for the 'i' and 'r' options to operate at all.\n\n"
 "The option string may contain zero or more of the following characters:\n"
 "      'a' -- set admin mode\n"
 "      'A' -- set marked mode\n"
 "      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND}\n"
 "             Default: conf-background.agi  (Note: This does not work with\n"
-"             non-Zap channels in the same conference)\n"
+"             non-DAHDI channels in the same conference)\n"
 "      'c' -- announce user(s) count on joining a conference\n"
 "      'd' -- dynamically add conference\n"
 "      'D' -- dynamically add conference, prompting for a PIN\n"
@@ -265,8 +265,7 @@ static const char *descrip2 =
 "MeetMe conference. If var is specified, playback will be skipped and the value\n"
 "will be returned in the variable. Upon app completion, MeetMeCount will hangup\n"
 "the channel, unless priority n+1 exists, in which case priority progress will\n"
-"continue.\n"
-"A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
+"continue.\n";
 
 static const char *descrip3 = 
 "  MeetMeAdmin(confno,command[,user]): Run admin command for conference\n"
@@ -770,7 +769,11 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	/* Setup a new zap conference */
 	ztc.confno = -1;
 	ztc.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
+#ifdef HAVE_ZAPTEL
 	cnf->fd = open("/dev/zap/pseudo", O_RDWR);
+#else
+	cnf->fd = open("/dev/dahdi/pseudo", O_RDWR);
+#endif
 	if (cnf->fd < 0 || ioctl(cnf->fd, DAHDI_SETCONF, &ztc)) {
 		ast_log(LOG_WARNING, "Unable to open pseudo device\n");
 		if (cnf->fd >= 0)
@@ -783,7 +786,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	cnf->zapconf = ztc.confno;
 
 	/* Setup a new channel for playback of audio files */
-	cnf->chan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
+	cnf->chan = ast_request(dahdi_chan_name, AST_FORMAT_SLINEAR, "pseudo", NULL);
 	if (cnf->chan) {
 		ast_set_read_format(cnf->chan, AST_FORMAT_SLINEAR);
 		ast_set_write_format(cnf->chan, AST_FORMAT_SLINEAR);
@@ -1440,7 +1443,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	}
 
 	ast_mutex_lock(&conf->recordthreadlock);
-	if ((conf->recordthread == AST_PTHREADT_NULL) && (confflags & CONFFLAG_RECORDCONF) && ((conf->lchan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL)))) {
+	if ((conf->recordthread == AST_PTHREADT_NULL) && (confflags & CONFFLAG_RECORDCONF) && ((conf->lchan = ast_request(dahdi_chan_name, AST_FORMAT_SLINEAR, "pseudo", NULL)))) {
 		ast_set_read_format(conf->lchan, AST_FORMAT_SLINEAR);
 		ast_set_write_format(conf->lchan, AST_FORMAT_SLINEAR);
 		ztc.chan = 0;
@@ -1590,13 +1593,17 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		goto outrun;
 	}
 
-	retryzap = (strcasecmp(chan->tech->type, "Zap") || (chan->audiohooks || chan->monitor) ? 1 : 0);
+	retryzap = (strcasecmp(chan->tech->type, dahdi_chan_name) || (chan->audiohooks || chan->monitor) ? 1 : 0);
 	user->zapchannel = !retryzap;
 
  zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {
+#ifdef HAVE_ZAPTEL
 		fd = open("/dev/zap/pseudo", O_RDWR);
+#else
+		fd = open("/dev/dahdi/pseudo", O_RDWR);
+#endif
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
 			goto outrun;
@@ -1649,7 +1656,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	if (ztc.confmode) {
 		/* Whoa, already in a conference...  Retry... */
 		if (!retryzap) {
-			ast_log(LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
+			ast_log(LOG_DEBUG, "%s channel is in a conference already, retrying with pseudo\n", dahdi_chan_name);
 			retryzap = 1;
 			goto zapretry;
 		}
@@ -1685,7 +1692,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		ast_mutex_unlock(&conf->playlock);
 		goto outrun;
 	}
-	ast_log(LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
+	ast_log(LOG_DEBUG, "Placed channel %s in %s conf %d\n", chan->name, dahdi_chan_name, conf->zapconf);
 
 	if (!sent_event) {
 		manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 
@@ -1919,7 +1926,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						using_pseudo = 0;
 					}
 					ast_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
-					retryzap = (strcasecmp(c->tech->type, "Zap") || (c->audiohooks || c->monitor) ? 1 : 0);
+					retryzap = (strcasecmp(c->tech->type, dahdi_chan_name) || (c->audiohooks || c->monitor) ? 1 : 0);
 					user->zapchannel = !retryzap;
 					goto zapretry;
 				}
@@ -2365,13 +2372,13 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		if (confflags && !cnf->chan &&
 		    !ast_test_flag(confflags, CONFFLAG_QUIET) &&
 		    ast_test_flag(confflags, CONFFLAG_INTROUSER)) {
-			ast_log(LOG_WARNING, "No Zap channel available for conference, user introduction disabled (is chan_zap loaded?)\n");
+			ast_log(LOG_WARNING, "No %s channel available for conference, user introduction disabled (is chan_zap loaded?)\n", dahdi_chan_name);
 			ast_clear_flag(confflags, CONFFLAG_INTROUSER);
 		}
 		
 		if (confflags && !cnf->chan &&
 		    ast_test_flag(confflags, CONFFLAG_RECORDCONF)) {
-			ast_log(LOG_WARNING, "No Zap channel available for conference, conference recording disabled (is chan_zap loaded?)\n");
+			ast_log(LOG_WARNING, "No %s channel available for conference, conference recording disabled (is chan_zap loaded?)\n", dahdi_chan_name);
 			ast_clear_flag(confflags, CONFFLAG_RECORDCONF);
 		}
 	}
@@ -2459,13 +2466,13 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 		if (confflags && !cnf->chan &&
 		    !ast_test_flag(confflags, CONFFLAG_QUIET) &&
 		    ast_test_flag(confflags, CONFFLAG_INTROUSER)) {
-			ast_log(LOG_WARNING, "No Zap channel available for conference, user introduction disabled (is chan_zap loaded?)\n");
+			ast_log(LOG_WARNING, "No %s channel available for conference, user introduction disabled (is chan_zap loaded?)\n", dahdi_chan_name);
 			ast_clear_flag(confflags, CONFFLAG_INTROUSER);
 		}
 		
 		if (confflags && !cnf->chan &&
 		    ast_test_flag(confflags, CONFFLAG_RECORDCONF)) {
-			ast_log(LOG_WARNING, "No Zap channel available for conference, conference recording disabled (is chan_zap loaded?)\n");
+			ast_log(LOG_WARNING, "No %s channel available for conference, conference recording disabled (is chan_zap loaded?)\n", dahdi_chan_name);
 			ast_clear_flag(confflags, CONFFLAG_RECORDCONF);
 		}
 	}
