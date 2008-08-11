@@ -48,7 +48,8 @@ CREATE TABLE [dbo].[cdr] (
 	[billsec] [int] NULL ,
 	[disposition] [varchar] (20) NULL ,
 	[amaflags] [varchar] (16) NULL ,
-	[uniqueid] [varchar] (32) NULL
+	[uniqueid] [varchar] (32) NULL ,
+	[userfield] [varchar] (256) NULL
 ) ON [PRIMARY]
 
 \endverbatim
@@ -91,6 +92,7 @@ struct cdr_tds_config {
 	);
 	DBPROCESS *dbproc;
 	unsigned int connected:1;
+	unsigned int has_userfield:1;
 };
 
 AST_MUTEX_DEFINE_STATIC(tds_lock);
@@ -100,13 +102,16 @@ static struct cdr_tds_config *settings;
 static char *anti_injection(const char *, int);
 static void get_date(char *, size_t len, struct timeval);
 
+static int execute_and_consume(DBPROCESS *dbproc, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
+
 static int mssql_connect(void);
 static int mssql_disconnect(void);
 
 static int tds_log(struct ast_cdr *cdr)
 {
 	char start[80], answer[80], end[80];
-	char *accountcode, *src, *dst, *dcontext, *clid, *channel, *dstchannel, *lastapp, *lastdata, *uniqueid;
+	char *accountcode, *src, *dst, *dcontext, *clid, *channel, *dstchannel, *lastapp, *lastdata, *uniqueid, *userfield = NULL;
 	RETCODE erc;
 	int res = -1;
 
@@ -127,6 +132,10 @@ static int tds_log(struct ast_cdr *cdr)
 
 	ast_mutex_lock(&tds_lock);
 
+	if (settings->has_userfield) {
+		userfield = anti_injection(cdr->userfield, AST_MAX_USER_FIELD);
+	}
+
 	/* Ensure that we are connected */
 	if (!settings->connected) {
 		if (mssql_connect()) {
@@ -135,66 +144,46 @@ static int tds_log(struct ast_cdr *cdr)
 		}
 	}
 
-	erc = dbfcmd(settings->dbproc,
-		"INSERT INTO %s "
-		"("
-			"accountcode, "
-			"src, "
-			"dst, "
-			"dcontext, "
-			"clid, "
-			"channel, "
-			"dstchannel, "
-			"lastapp, "
-			"lastdata, "
-			"start, "
-			"answer, "
-			"[end], "
-			"duration, "
-			"billsec, "
-			"disposition, "
-			"amaflags, "
-			"uniqueid"
-		") "
-		"VALUES "
-		"("
-			"'%s', "	/* accountcode */
-			"'%s', "	/* src */
-			"'%s', "	/* dst */
-			"'%s', "	/* dcontext */
-			"'%s', "	/* clid */
-			"'%s', "	/* channel */
-			"'%s', "	/* dstchannel */
-			"'%s', "	/* lastapp */
-			"'%s', "	/* lastdata */
-			"%s, "		/* start */
-			"%s, "		/* answer */
-			"%s, "		/* end */
-			"%ld, "		/* duration */
-			"%ld, "		/* billsec */
-			"'%s', "	/* disposition */
-			"'%s', "	/* amaflags */
-			"'%s'"		/* uniqueid */
-		")",
-		settings->table,
-		accountcode,
-		src,
-		dst,
-		dcontext,
-		clid,
-		channel,
-		dstchannel,
-		lastapp,
-		lastdata,
-		start,
-		answer,
-		end,
-		cdr->duration,
-		cdr->billsec,
-		ast_cdr_disp2str(cdr->disposition),
-		ast_cdr_flags2str(cdr->amaflags),
-		uniqueid
-	);
+	if (settings->has_userfield) {
+		erc = dbfcmd(settings->dbproc,
+					 "INSERT INTO %s "
+					 "("
+					 "accountcode, src, dst, dcontext, clid, channel, "
+					 "dstchannel, lastapp, lastdata, start, answer, [end], duration, "
+					 "billsec, disposition, amaflags, uniqueid, userfield"
+					 ") "
+					 "VALUES "
+					 "("
+					 "'%s', '%s', '%s', '%s', '%s', '%s', "
+					 "'%s', '%s', '%s', %s, %s, %s, %ld, "
+					 "%ld, '%s', '%s', '%s', '%s'"
+					 ")",
+					 settings->table,
+					 accountcode, src, dst, dcontext, clid, channel,
+					 dstchannel, lastapp, lastdata, start, answer, end, cdr->duration,
+					 cdr->billsec, ast_cdr_disp2str(cdr->disposition), ast_cdr_flags2str(cdr->amaflags), uniqueid,
+					 userfield
+			);
+	} else {
+		erc = dbfcmd(settings->dbproc,
+					 "INSERT INTO %s "
+					 "("
+					 "accountcode, src, dst, dcontext, clid, channel, "
+					 "dstchannel, lastapp, lastdata, start, answer, [end], duration, "
+					 "billsec, disposition, amaflags, uniqueid"
+					 ") "
+					 "VALUES "
+					 "("
+					 "'%s', '%s', '%s', '%s', '%s', '%s', "
+					 "'%s', '%s', '%s', %s, %s, %s, %ld, "
+					 "%ld, '%s', '%s', '%s'"
+					 ")",
+					 settings->table,
+					 accountcode, src, dst, dcontext, clid, channel,
+					 dstchannel, lastapp, lastdata, start, answer, end, cdr->duration,
+					 cdr->billsec, ast_cdr_disp2str(cdr->disposition), ast_cdr_flags2str(cdr->amaflags), uniqueid
+			);
+	}
 
 	if (erc == FAIL) {
 		ast_log(LOG_ERROR, "Failed to build INSERT statement, no CDR was logged.\n");
@@ -227,6 +216,10 @@ done:
 	ast_free(lastapp);
 	ast_free(lastdata);
 	ast_free(uniqueid);
+
+	if (userfield) {
+		ast_free(userfield);
+	}
 
 	return res;
 }
@@ -277,6 +270,37 @@ static void get_date(char *dateField, size_t len, struct timeval tv)
 	}
 }
 
+static int execute_and_consume(DBPROCESS *dbproc, const char *fmt, ...)
+{
+	va_list ap;
+	char *buffer;
+
+	va_start(ap, fmt);
+	if (vasprintf(&buffer, fmt, ap) < 0) {
+		va_end(ap);
+		return 1;
+	}
+	va_end(ap);
+
+	if (dbfcmd(dbproc, buffer) == FAIL) {
+		free(buffer);
+		return 1;
+	}
+
+	free(buffer);
+
+	if (dbsqlexec(dbproc) == FAIL) {
+		return 1;
+	}
+
+	/* Consume the result set (we don't really care about the result, though) */
+	while (dbresults(dbproc) != NO_MORE_RESULTS) {
+		while (dbnextrow(dbproc) != NO_MORE_ROWS);
+	}
+
+	return 0;
+}
+
 static int mssql_disconnect(void)
 {
 	if (settings->dbproc) {
@@ -317,19 +341,17 @@ static int mssql_connect(void)
 		goto failed;
 	}
 
-	if (dbfcmd(settings->dbproc, "SELECT 1 FROM [%s]", settings->table) == FAIL) {
-		ast_log(LOG_ERROR, "Unable to build query while verifying the existence of table '%s'\n", settings->table);
+	if (execute_and_consume(settings->dbproc, "SELECT 1 FROM [%s]", settings->table)) {
+		ast_log(LOG_ERROR, "Unable to find table '%s'\n", settings->table);
 		goto failed;
 	}
 
-	if (dbsqlexec(settings->dbproc) == FAIL) {
-		ast_log(LOG_ERROR, "Unable to verify existence of table '%s'\n", settings->table);
-		goto failed;
-	}
-
-	/* Consume the result set (we don't really care about the result, though) */
-	while (dbresults(settings->dbproc) != NO_MORE_RESULTS) {
-		while (dbnextrow(settings->dbproc) != NO_MORE_ROWS);
+	/* Check to see if we have a userfield column in the table */
+	if (execute_and_consume(settings->dbproc, "SELECT userfield FROM [%s] WHERE 1 = 0", settings->table)) {
+		ast_log(LOG_NOTICE, "Unable to find 'userfield' column in table '%s'\n", settings->table);
+		settings->has_userfield = 0;
+	} else {
+		settings->has_userfield = 1;
 	}
 
 	settings->connected = 1;

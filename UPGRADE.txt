@@ -143,7 +143,8 @@ CDR:
   systemname was too long, the uniqueid would have been truncated.
 
 * The cdr_tds module now supports all versions of FreeTDS that contain
-  the db-lib frontend.
+  the db-lib frontend.  It will also now log the userfield variable if
+  the target database table contains a column for it.
 
 Formats:
 
