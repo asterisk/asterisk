@@ -533,16 +533,27 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 static odbc_status odbc_obj_disconnect(struct odbc_obj *obj)
 {
 	int res;
+	SQLINTEGER err;
+	short int mlen;
+	unsigned char msg[200], stat[10];
+
 	ast_mutex_lock(&obj->lock);
 
 	res = SQLDisconnect(obj->con);
 
 	if (res == ODBC_SUCCESS) {
-		ast_log(LOG_WARNING, "res_odbc: disconnected %d from %s [%s]\n", res, obj->parent->name, obj->parent->dsn);
+		ast_log(LOG_DEBUG, "Disconnected %d from %s [%s]\n", res, obj->parent->name, obj->parent->dsn);
 	} else {
-		ast_log(LOG_WARNING, "res_odbc: %s [%s] already disconnected\n",
-		obj->parent->name, obj->parent->dsn);
+		ast_log(LOG_DEBUG, "res_odbc: %s [%s] already disconnected\n", obj->parent->name, obj->parent->dsn);
 	}
+
+	if ((res = SQLFreeHandle(SQL_HANDLE_DBC, obj->con) == ODBC_SUCCESS)) {
+		ast_log(LOG_DEBUG, "Database handle deallocated\n");
+	} else {
+		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, stat, &err, msg, 100, &mlen);
+		ast_log(LOG_WARNING, "Unable to deallocate database handle? %d errno=%d %s\n", res, (int)err, msg);
+	}
+
 	obj->up = 0;
 	ast_mutex_unlock(&obj->lock);
 	return ODBC_SUCCESS;
