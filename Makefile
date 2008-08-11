@@ -320,7 +320,7 @@ endif
 
 SILENTMAKE:=$(MAKE) --quiet --no-print-directory
 ifneq ($(PRINT_DIR)$(NOISY_BUILD),)
-SUBMAKE:=$(MAKE) --quiet
+SUBMAKE:=$(MAKE)
 else
 SUBMAKE:=$(MAKE) --quiet --no-print-directory
 endif
@@ -377,9 +377,9 @@ $(MOD_SUBDIRS_MENUSELECT_TREE):
 makeopts.embed_rules: menuselect.makeopts
 	@echo "Generating embedded module rules ..."
 	@rm -f $@
-	@$(MAKE) $(PRINT_DIR) $(MOD_SUBDIRS_EMBED_LDSCRIPT)
-	@$(MAKE) $(PRINT_DIR) $(MOD_SUBDIRS_EMBED_LDFLAGS)
-	@$(MAKE) $(PRINT_DIR) $(MOD_SUBDIRS_EMBED_LIBS)
+	@$(SUBMAKE) $(MOD_SUBDIRS_EMBED_LDSCRIPT)
+	@$(SUBMAKE) $(MOD_SUBDIRS_EMBED_LDFLAGS)
+	@$(SUBMAKE) $(MOD_SUBDIRS_EMBED_LIBS)
 
 $(SUBDIRS): main/version.c include/asterisk/version.h include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
 
@@ -402,10 +402,10 @@ res:	main
 endif
 
 $(MOD_SUBDIRS):
-	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) $(PRINT_DIR) --no-builtin-rules -C $@ SUBDIR=$@ all
+	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(SUBMAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
 
 $(OTHER_SUBDIRS):
-	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) $(PRINT_DIR) --no-builtin-rules -C $@ SUBDIR=$@ all
+	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(SUBMAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
 
 defaults.h: makeopts
 	@build_tools/make_defaults_h > $@.tmp
@@ -433,10 +433,10 @@ include/asterisk/build.h:
 	@rm -f $@.tmp
 
 $(SUBDIRS_CLEAN):
-	@$(MAKE) $(PRINT_DIR) -C $(@:-clean=) clean
+	@$(SUBMAKE) -C $(@:-clean=) clean
 
 $(SUBDIRS_DIST_CLEAN):
-	@$(MAKE) $(PRINT_DIR) -C $(@:-dist-clean=) dist-clean
+	@$(SUBMAKE) -C $(@:-dist-clean=) dist-clean
 
 clean: $(SUBDIRS_CLEAN)
 	rm -f defaults.h
@@ -547,7 +547,7 @@ bininstall: _all installdirs $(SUBDIRS_INSTALL)
 	fi
 
 $(SUBDIRS_INSTALL):
-	@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" $(MAKE) --quiet $(PRINT_DIR) -C $(@:-install=) install
+	@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" $(SUBMAKE) -C $(@:-install=) install
 
 NEWMODS:=$(foreach d,$(MOD_SUBDIRS),$(notdir $(wildcard $(d)/*.so)))
 OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
@@ -811,7 +811,7 @@ cleantest:
 	@cmp -s .cleancount .lastclean || $(MAKE) clean
 
 $(SUBDIRS_UNINSTALL):
-	@$(MAKE) $(PRINT_DIR) -C $(@:-uninstall=) uninstall
+	@$(SUBMAKE) -C $(@:-uninstall=) uninstall
 
 _uninstall: $(SUBDIRS_UNINSTALL)
 	rm -f $(DESTDIR)$(MODULES_DIR)/*
