@@ -2310,14 +2310,19 @@ static int destroy_channel(struct dahdi_pvt *prev, struct dahdi_pvt *cur, int no
 
 #ifdef HAVE_PRI
 static char *dahdi_send_keypad_facility_app = "DAHDISendKeypadFacility";
+static char *zap_send_keypad_facility_app = "ZapSendKeypadFacility";
 
 static char *dahdi_send_keypad_facility_synopsis = "Send digits out of band over a PRI";
+static char *zap_send_keypad_facility_synopsis = "Send digits out of band over a PRI";
 
 static char *dahdi_send_keypad_facility_descrip = 
 "  DAHDISendKeypadFacility(): This application will send the given string of digits in a Keypad Facility\n"
 "  IE over the current channel.\n";
+static char *zap_send_keypad_facility_descrip = 
+"  ZapSendKeypadFacility(): This application will send the given string of digits in a Keypad Facility\n"
+"  IE over the current channel.\n";
 
-static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, void *data)
+static int send_keypad_facility_exec(struct ast_channel *chan, void *data)
 {
 	/* Data will be our digit string */
 	struct dahdi_pvt *p;
@@ -2355,6 +2360,17 @@ static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, void *data)
 	ast_mutex_unlock(&p->lock);
 
 	return 0;
+}
+
+static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, void *data)
+{
+	return send_keypad_facility_exec(chan, data);
+}
+
+static int zap_send_keypad_facility_exec(struct ast_channel *chan, void *data)
+{
+	ast_log(LOG_WARNING, "Use of the command %s is deprecated, please use %s instead.\n", zap_send_keypad_facility_app, dahdi_send_keypad_facility_app);	
+	return send_keypad_facility_exec(chan, data);
 }
 
 static int pri_is_up(struct dahdi_pri *pri)
@@ -10602,7 +10618,11 @@ static int __unload_module(void)
 			pthread_cancel(pris[i].master);
 	}
 	ast_cli_unregister_multiple(dahdi_pri_cli, sizeof(dahdi_pri_cli) / sizeof(struct ast_cli_entry));
-	ast_unregister_application(dahdi_send_keypad_facility_app);
+
+	if (*dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) {
+		ast_unregister_application(dahdi_send_keypad_facility_app);
+	}
+	ast_unregister_application(zap_send_keypad_facility_app);
 #endif
 	ast_cli_unregister_multiple(dahdi_cli, sizeof(dahdi_cli) / sizeof(struct ast_cli_entry));
 	local_astman_unregister("DialOffHook");
@@ -11618,8 +11638,12 @@ static int load_module(void)
 	}
 	pri_set_error(dahdi_pri_error);
 	pri_set_message(dahdi_pri_message);
-	ast_register_application(dahdi_send_keypad_facility_app, dahdi_send_keypad_facility_exec,
+	if (*dahdi_chan_mode == CHAN_DAHDI_PLUS_ZAP_MODE) {
+		ast_register_application(dahdi_send_keypad_facility_app, dahdi_send_keypad_facility_exec,
 			dahdi_send_keypad_facility_synopsis, dahdi_send_keypad_facility_descrip);
+	}
+	ast_register_application(zap_send_keypad_facility_app, zap_send_keypad_facility_exec,
+		zap_send_keypad_facility_synopsis, zap_send_keypad_facility_descrip);
 #endif
 	if ((res = setup_dahdi(0))) {
 		return AST_MODULE_LOAD_DECLINE;
