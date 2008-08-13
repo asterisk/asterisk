@@ -429,12 +429,12 @@ int ast_channel_trace_enable(struct ast_channel *chan)
 	struct ast_datastore *store = ast_channel_datastore_find(chan, &ast_chan_trace_datastore_info, NULL);
 	struct ast_chan_trace_data *traced;
 	if (!store) {
-		store = ast_channel_datastore_alloc(&ast_chan_trace_datastore_info, "ChanTrace");
+		store = ast_datastore_alloc(&ast_chan_trace_datastore_info, "ChanTrace");
 		if (!store) 
 			return -1;
 		traced = ast_calloc(1, sizeof(*traced));
 		if (!traced) {
-			ast_channel_datastore_free(store);
+			ast_datastore_free(store);
 			return -1;
 		}	
 		store->data = traced;
