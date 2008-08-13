@@ -48,7 +48,8 @@ CREATE TABLE [dbo].[cdr] (
 	[billsec] [int] NULL ,
 	[disposition] [varchar] (20) NULL ,
 	[amaflags] [varchar] (16) NULL ,
-	[uniqueid] [varchar] (32) NULL
+	[uniqueid] [varchar] (32) NULL ,
+	[userfield] [varchar] (256) NULL
 ) ON [PRIMARY]
 
 \endverbatim
@@ -95,6 +96,7 @@ static char *hostname = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL, 
 static char *table = NULL;
 
 static int connected = 0;
+static int has_userfield = 0;
 
 AST_MUTEX_DEFINE_STATIC(tds_lock);
 
@@ -103,7 +105,7 @@ static TDSLOGIN *login;
 static TDSCONTEXT *context;
 
 static char *anti_injection(const char *, int);
-static void get_date(char *, struct timeval);
+static void get_date(char *, size_t, struct timeval);
 
 static int mssql_connect(void);
 static int mssql_disconnect(void);
@@ -111,7 +113,7 @@ static int mssql_disconnect(void);
 static int tds_log(struct ast_cdr *cdr)
 {
 	char sqlcmd[2048], start[80], answer[80], end[80];
-	char *accountcode, *src, *dst, *dcontext, *clid, *channel, *dstchannel, *lastapp, *lastdata, *uniqueid;
+	char *accountcode, *src, *dst, *dcontext, *clid, *channel, *dstchannel, *lastapp, *lastdata, *uniqueid, *userfield = NULL;
 	int res = 0;
 	int retried = 0;
 #ifdef FREETDS_PRE_0_62
@@ -133,71 +135,144 @@ static int tds_log(struct ast_cdr *cdr)
 	lastdata = anti_injection(cdr->lastdata, 80);
 	uniqueid = anti_injection(cdr->uniqueid, 32);
 
-	get_date(start, cdr->start);
-	get_date(answer, cdr->answer);
-	get_date(end, cdr->end);
+	if (has_userfield) {
+		userfield = anti_injection(cdr->userfield, AST_MAX_USER_FIELD);
+	}
 
-	sprintf(
-		sqlcmd,
-		"INSERT INTO %s "
-		"("
-			"accountcode, "
-			"src, "
-			"dst, "
-			"dcontext, "
-			"clid, "
-			"channel, "
-			"dstchannel, "
-			"lastapp, "
-			"lastdata, "
-			"start, "
-			"answer, "
-			"[end], "
-			"duration, "
-			"billsec, "
-			"disposition, "
-			"amaflags, "
-			"uniqueid"
-		") "
-		"VALUES "
-		"("
-			"'%s', "	/* accountcode */
-			"'%s', "	/* src */
-			"'%s', "	/* dst */
-			"'%s', "	/* dcontext */
-			"'%s', "	/* clid */
-			"'%s', "	/* channel */
-			"'%s', "	/* dstchannel */
-			"'%s', "	/* lastapp */
-			"'%s', "	/* lastdata */
-			"%s, "		/* start */
-			"%s, "		/* answer */
-			"%s, "		/* end */
-			"%ld, "		/* duration */
-			"%ld, "		/* billsec */
-			"'%s', "	/* disposition */
-			"'%s', "	/* amaflags */
-			"'%s'"		/* uniqueid */
-		")",
-		table,
-		accountcode,
-		src,
-		dst,
-		dcontext,
-		clid,
-		channel,
-		dstchannel,
-		lastapp,
-		lastdata,
-		start,
-		answer,
-		end,
-		cdr->duration,
-		cdr->billsec,
-		ast_cdr_disp2str(cdr->disposition),
-		ast_cdr_flags2str(cdr->amaflags),
-		uniqueid
-	);
+	get_date(start, sizeof(start), cdr->start);
+	get_date(answer, sizeof(answer), cdr->answer);
+	get_date(end, sizeof(end), cdr->end);
+
+	if (has_userfield) {
+		snprintf(
+			sqlcmd,
+			sizeof(sqlcmd),
+			"INSERT INTO %s "
+			"("
+				"accountcode, "
+				"src, "
+				"dst, "
+				"dcontext, "
+				"clid, "
+				"channel, "
+				"dstchannel, "
+				"lastapp, "
+				"lastdata, "
+				"start, "
+				"answer, "
+				"[end], "
+				"duration, "
+				"billsec, "
+				"disposition, "
+				"amaflags, "
+				"uniqueid, "
+				"userfield"
+			") "
+			"VALUES "
+			"("
+				"'%s', "	/* accountcode */
+				"'%s', "	/* src */
+				"'%s', "	/* dst */
+				"'%s', "	/* dcontext */
+				"'%s', "	/* clid */
+				"'%s', "	/* channel */
+				"'%s', "	/* dstchannel */
+				"'%s', "	/* lastapp */
+				"'%s', "	/* lastdata */
+				"%s, "		/* start */
+				"%s, "		/* answer */
+				"%s, "		/* end */
+				"%ld, "		/* duration */
+				"%ld, "		/* billsec */
+				"'%s', "	/* disposition */
+				"'%s', "	/* amaflags */
+				"'%s', "	/* uniqueid */
+				"'%s'"		/* userfield */
+			")",
+			table,
+			accountcode,
+			src,
+			dst,
+			dcontext,
+			clid,
+			channel,
+			dstchannel,
+			lastapp,
+			lastdata,
+			start,
+			answer,
+			end,
+			cdr->duration,
+			cdr->billsec,
+			ast_cdr_disp2str(cdr->disposition),
+			ast_cdr_flags2str(cdr->amaflags),
+			uniqueid,
+			userfield
+			);
+	} else {
+		snprintf(
+			sqlcmd,
+			sizeof(sqlcmd),
+			"INSERT INTO %s "
+			"("
+				"accountcode, "
+				"src, "
+				"dst, "
+				"dcontext, "
+				"clid, "
+				"channel, "
+				"dstchannel, "
+				"lastapp, "
+				"lastdata, "
+				"start, "
+				"answer, "
+				"[end], "
+				"duration, "
+				"billsec, "
+				"disposition, "
+				"amaflags, "
+				"uniqueid"
+			") "
+			"VALUES "
+			"("
+				"'%s', "	/* accountcode */
+				"'%s', "	/* src */
+				"'%s', "	/* dst */
+				"'%s', "	/* dcontext */
+				"'%s', "	/* clid */
+				"'%s', "	/* channel */
+				"'%s', "	/* dstchannel */
+				"'%s', "	/* lastapp */
+				"'%s', "	/* lastdata */
+				"%s, "		/* start */
+				"%s, "		/* answer */
+				"%s, "		/* end */
+				"%ld, "		/* duration */
+				"%ld, "		/* billsec */
+				"'%s', "	/* disposition */
+				"'%s', "	/* amaflags */
+				"'%s'"		/* uniqueid */
+			")",
+			table,
+			accountcode,
+			src,
+			dst,
+			dcontext,
+			clid,
+			channel,
+			dstchannel,
+			lastapp,
+			lastdata,
+			start,
+			answer,
+			end,
+			cdr->duration,
+			cdr->billsec,
+			ast_cdr_disp2str(cdr->disposition),
+			ast_cdr_flags2str(cdr->amaflags),
+			uniqueid
+			);
+	}
 
 	do {
 		if (!connected) {
@@ -231,6 +306,9 @@ static int tds_log(struct ast_cdr *cdr)
 	free(lastapp);
 	free(lastdata);
 	free(uniqueid);
+	if (userfield) {
+		free(userfield);
+	}
 
 	ast_mutex_unlock(&tds_lock);
 
@@ -276,7 +354,7 @@ static char *anti_injection(const char *str, int len)
 	return buf;
 }
 
-static void get_date(char *dateField, struct timeval tv)
+static void get_date(char *dateField, size_t length, struct timeval tv)
 {
 	struct tm tm;
 	time_t t;
@@ -287,12 +365,12 @@ static void get_date(char *dateField, struct timeval tv)
 	{
 		t = tv.tv_sec;
 		ast_localtime(&t, &tm, NULL);
-		strftime(buf, 80, DATE_FORMAT, &tm);
-		sprintf(dateField, "'%s'", buf);
+		strftime(buf, sizeof(buf), DATE_FORMAT, &tm);
+		snprintf(dateField, length, "'%s'", buf);
 	}
 	else
 	{
-		strcpy(dateField, "null");
+		ast_copy_string(dateField, "null", length);
 	}
 }
 
@@ -325,7 +403,7 @@ static int mssql_connect(void)
 #else
 	TDSCONNECTINFO *connection = NULL;
 #endif
-	char query[128];
+	char query[512];
 
 	/* Connect to M$SQL Server */
 	if (!(login = tds_alloc_login()))
@@ -388,7 +466,7 @@ static int mssql_connect(void)
 #endif
 	connection = NULL;
 
-	sprintf(query, "USE %s", dbname);
+	snprintf(query, sizeof(query), "USE %s", dbname);
 #ifdef FREETDS_PRE_0_62
 	if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds, &result_type) != TDS_SUCCEED || result_type != TDS_CMD_SUCCEED))
 #else
@@ -397,6 +475,29 @@ static int mssql_connect(void)
 	{
 		ast_log(LOG_ERROR, "Could not change database (%s)\n", dbname);
 		goto connect_fail;
+	}
+
+	snprintf(query, sizeof(query), "SELECT 1 FROM %s", table);
+#ifdef FREETDS_PRE_0_62
+	if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds, &result_type) != TDS_SUCCEED || result_type != TDS_CMD_SUCCEED))
+#else
+	if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
+#endif
+	{
+		ast_log(LOG_ERROR, "Could not find table '%s' in database '%s'\n", table, dbname);
+		goto connect_fail;
+	}
+
+	has_userfield = 1;
+	snprintf(query, sizeof(query), "SELECT userfield FROM %s WHERE 1 = 0", table);
+#ifdef FREETDS_PRE_0_62
+	if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds, &result_type) != TDS_SUCCEED || result_type != TDS_CMD_SUCCEED))
+#else
+	if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
+#endif
+	{
+		ast_log(LOG_NOTICE, "Unable to find 'userfield' column in table '%s'\n", table);
+		has_userfield = 0;
 	}
 
 	connected = 1;
