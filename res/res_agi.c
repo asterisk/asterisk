@@ -73,19 +73,20 @@ static char *deadsynopsis = "Executes AGI on a hungup channel";
 
 static char *descrip =
 "  [E|Dead]AGI(command,args): Executes an Asterisk Gateway Interface compliant\n"
-"program on a channel. AGI allows Asterisk to launch external programs\n"
-"written in any language to control a telephony channel, play audio,\n"
-"read DTMF digits, etc. by communicating with the AGI protocol on stdin\n"
-"and stdout.\n"
-"  This channel will stop dialplan execution on hangup inside of this\n"
-"application, except when using DeadAGI.  Otherwise, dialplan execution\n"
-"will continue normally.\n"
+"program on a channel. AGI allows Asterisk to launch external programs written\n"
+"in any language to control a telephony channel, play audio, read DTMF digits,\n"
+"etc. by communicating with the AGI protocol on stdin and stdout.\n"
+"  As of 1.6.0, this channel will not stop dialplan execution on hangup inside\n"
+"of this application. Dialplan execution will continue normally, even upon\n"
+"hangup until the AGI application signals a desire to stop (either by exiting\n"
+"or, in the case of a net script, by closing the connection).\n"
 "  A locally executed AGI script will receive SIGHUP on hangup from the channel\n"
-"except when using DeadAGI. This can be disabled by setting the AGISIGHUP channel\n"
-"variable to \"no\" before executing the AGI application.\n"
+"except when using DeadAGI. A fast AGI server will correspondingly receive a\n"
+"HANGUP in OOB data. Both of these signals may be disabled by setting the\n"
+"AGISIGHUP channel variable to \"no\" before executing the AGI application.\n"
 "  Using 'EAGI' provides enhanced AGI, with incoming audio available out of band\n"
-"on file descriptor 3\n\n"
-"  Use the CLI command 'agi show' to list available agi commands\n"
+"on file descriptor 3.\n\n"
+"  Use the CLI command 'agi show' to list available agi commands.\n"
 "  This application sets the following channel variable upon completion:\n"
 "     AGISTATUS      The status of the attempt to the run the AGI script\n"
 "                    text string, one of SUCCESS | FAILURE | NOTFOUND | HANGUP\n";
@@ -2619,6 +2620,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	/* how many times we'll retry if ast_waitfor_nandfs will return without either 
 	  channel or file descriptor in case select is interrupted by a system call (EINTR) */
 	int retry = AGI_NANDFS_RETRY;
+	const char *sighup;
 
 	if (!(readf = fdopen(agi->ctrl, "r"))) {
 		ast_log(LOG_WARNING, "Unable to fdopen file descriptor\n");
@@ -2633,8 +2635,11 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 		if (needhup) {
 			needhup = 0;
 			dead = 1;
-			if (pid > -1)
+			if (pid > -1) {
 				kill(pid, SIGHUP);
+			} else if (agi->fast) {
+				send(agi->ctrl, "HANGUP\n", 7, MSG_OOB);
+			}
 		}
 		ms = -1;
 		c = ast_waitfor_nandfds(&chan, dead ? 0 : 1, &agi->ctrl, 1, NULL, &outfd, &ms);
@@ -2716,16 +2721,18 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 		}
 	}
 	/* Notify process */
-	if (pid > -1) {
-		const char *sighup = pbx_builtin_getvar_helper(chan, "AGISIGHUP");
-		if (ast_strlen_zero(sighup) || !ast_false(sighup)) {
+	sighup = pbx_builtin_getvar_helper(chan, "AGISIGHUP");
+	if (ast_strlen_zero(sighup) || !ast_false(sighup)) {
+		if (pid > -1) {
 			if (kill(pid, SIGHUP)) {
 				ast_log(LOG_WARNING, "unable to send SIGHUP to AGI process %d: %s\n", pid, strerror(errno));
 			} else { /* Give the process a chance to die */
 				usleep(1);
 			}
+			waitpid(pid, status, WNOHANG);
+		} else if (agi->fast) {
+			send(agi->ctrl, "HANGUP\n", 7, MSG_OOB);
 		}
-		waitpid(pid, status, WNOHANG);
 	}
 	fclose(readf);
 	return returnstatus;
