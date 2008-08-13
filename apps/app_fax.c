@@ -46,8 +46,8 @@ static char *app_sndfax_desc =
 "  SendFAX(filename[|options]):\n"
 "Send a given TIFF file to the channel as a FAX.\n"
 "The option string may contain zero or more of the following characters:\n"
-"     'a' -- makes the application behave as an answering machine\n"
-"	    The default behaviour is to behave as a calling machine.\n"
+"     'a' - makes the application behave as an answering machine\n"
+"           The default behaviour is to behave as a calling machine.\n"
 "\n"
 "This application uses following variables:\n"
 "     LOCALSTATIONID to identify itself to the remote end.\n"
@@ -55,10 +55,12 @@ static char *app_sndfax_desc =
 "\n"
 "This application sets the following channel variables upon completion:\n"
 "     FAXSTATUS       - status of operation:\n"
-"			   SUCCESS | FAILED\n"
-"     FAXERROR	- Error when FAILED\n"
+"                           SUCCESS | FAILED\n"
+"     FAXERROR        - Error when FAILED\n"
+"     FAXMODE         - Mode used:\n"
+"                           audio | T38\n"
 "     REMOTESTATIONID - CSID of the remote side.\n"
-"     FAXPAGES	- number of pages sent.\n"
+"     FAXPAGES        - number of pages sent.\n"
 "     FAXBITRATE      - transmition rate.\n"
 "     FAXRESOLUTION   - resolution.\n"
 "\n"
@@ -73,7 +75,7 @@ static char *app_rcvfax_desc =
 "the file if it already exists. File created will have TIFF format.\n"
 "The option string may contain zero or more of the following characters:\n"
 "     'c' -- makes the application behave as a calling machine\n"
-"	    The default behaviour is to behave as an answering machine.\n"
+"            The default behaviour is to behave as an answering machine.\n"
 "\n"
 "This application uses following variables:\n"
 "     LOCALSTATIONID to identify itself to the remote end.\n"
@@ -81,10 +83,12 @@ static char *app_rcvfax_desc =
 "\n"
 "This application sets the following channel variables upon completion:\n"
 "     FAXSTATUS       - status of operation:\n"
-"			   SUCCESS | FAILED\n"
-"     FAXERROR	- Error when FAILED\n"
+"                           SUCCESS | FAILED\n"
+"     FAXERROR        - Error when FAILED\n"
+"     FAXMODE         - Mode used:\n"
+"                           audio | T38\n"
 "     REMOTESTATIONID - CSID of the remote side.\n"
-"     FAXPAGES	- number of pages sent.\n"
+"     FAXPAGES        - number of pages sent.\n"
 "     FAXBITRATE      - transmition rate.\n"
 "     FAXRESOLUTION   - resolution.\n"
 "\n"
@@ -575,6 +579,7 @@ static int transmit(fax_session *s)
 	pbx_builtin_setvar_helper(s->chan, "FAXSTATUS", "FAILED"); 
 	pbx_builtin_setvar_helper(s->chan, "FAXERROR", "Channel problems"); 
 
+	pbx_builtin_setvar_helper(s->chan, "FAXMODE", NULL);
 	pbx_builtin_setvar_helper(s->chan, "REMOTESTATIONID", NULL);
 	pbx_builtin_setvar_helper(s->chan, "FAXPAGES", NULL);
 	pbx_builtin_setvar_helper(s->chan, "FAXRESOLUTION", NULL);
@@ -593,6 +598,7 @@ static int transmit(fax_session *s)
 	s->t38state = ast_channel_get_t38_state(s->chan);
 	if (s->t38state != T38_STATE_NEGOTIATED) {
 		/* T38 is not negotiated on the channel yet. First start regular transmission. If it switches to T38, follow */	
+		pbx_builtin_setvar_helper(s->chan, "FAXMODE", "audio"); 
 		res = transmit_audio(s);
 		if (res > 0) {
 			/* transmit_audio reports switchover to T38. Update t38state */
@@ -604,6 +610,7 @@ static int transmit(fax_session *s)
 	}
 
 	if (s->t38state == T38_STATE_NEGOTIATED) {
+		pbx_builtin_setvar_helper(s->chan, "FAXMODE", "T38"); 
 		res = transmit_t38(s);
 	}
 
