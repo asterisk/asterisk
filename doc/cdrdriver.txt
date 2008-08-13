@@ -153,7 +153,8 @@ MSSQL:		Asterisk can currently store CDRs into an MSSQL database in
 		        [billsec]       [int]                   NULL ,
 		        [disposition]   [varchar] (20)          NULL ,
 		        [amaflags]      [varchar] (16)          NULL ,
-		        [uniqueid]      [varchar] (32)          NULL
+		        [uniqueid]      [varchar] (32)          NULL ,
+		        [userfield]     [varchar] (256)         NULL
 		)
 
                 Start asterisk in verbose mode, you should see that asterisk
