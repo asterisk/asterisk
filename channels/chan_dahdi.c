@@ -11470,16 +11470,23 @@ static int setup_dahdi(int reload)
 #endif
 
 #ifdef HAVE_ZAPTEL
-	if (!(cfg = ast_config_load("zapata.conf"))) {
-		ast_log(LOG_ERROR, "Unable to load zapata.conf\n");
-		return 0;
-	}
+	int load_from_zapata_conf = 1;
 #else
-	if (!(cfg = ast_config_load("chan_dahdi.conf"))) {
-		ast_log(LOG_ERROR, "Unable to load chan_dahdi.conf\n");
-		return 0;
-	}
+	int load_from_zapata_conf = (dahdi_chan_mode == CHAN_ZAP_MODE);
 #endif
+
+	if (load_from_zapata_conf) {
+		if (!(cfg = ast_config_load("zapata.conf"))) {
+			ast_log(LOG_ERROR, "Unable to load zapata.conf\n");
+			return 0;
+		}
+	} else {
+		if (!(cfg = ast_config_load("chan_dahdi.conf"))) {
+			ast_log(LOG_ERROR, "Unable to load chan_dahdi.conf\n");
+			return 0;
+		}
+	}
+
 	/* It's a little silly to lock it, but we mind as well just to be sure */
 	ast_mutex_lock(&iflock);
 #ifdef HAVE_PRI
