@@ -84,6 +84,7 @@ Voicemail:
   to make them more distinguishable from 'maxmsgs', which sets folder
   size.  The old variables will continue to work in this version, albeit
   with a deprecation warning.
+
 * If you use any interface for modifying voicemail aside from the built in
   dialplan applications, then the option "pollmailboxes" *must* be set in
   voicemail.conf for message waiting indication (MWI) to work properly.  This
@@ -92,6 +93,7 @@ Voicemail:
   checking mailboxes for changes so that they can send MWI information to users.
   Examples of situations that would require this option are web interfaces to
   voicemail or an email client in the case of using IMAP storage.
+
 * The externnotify script should accept an additional (last) parameter
   containing the number of urgent messages in the INBOX.
 
@@ -104,17 +106,22 @@ Applications:
   been replaced with 'SUCCESS', and 'NOSUPPORT' has been replaced with
   'UNSUPPORTED').  This change makes the SendImage application more consistent
   with other applications.
+
 * ChanIsAvail() now has a 't' option, which allows the specified device
   to be queried for state without consulting the channel drivers. This
   performs mostly a 'ChanExists' sort of function.
+
 * ChannelRedirect() will not terminate the channel that fails to do a
   channelredirect as it has done previously. Instead CHANNELREDIRECT_STATUS
   will reflect if the attempt was successful of not.
+
 * SetCallerPres() has been replaced with the CALLERPRES() dialplan function
   and is now deprecated.
+
 * DISA()'s fifth argument is now an options argument.  If you have previously
   used 'NOANSWER' in this argument, you'll need to convert that to the new
   option 'n'.
+
 * Macro() is now deprecated.  If you need subroutines, you should use the
   Gosub()/Return() applications.  To replace MacroExclusive(), we have
   introduced dialplan functions LOCK(), TRYLOCK(), and UNLOCK().  You may use
@@ -125,20 +132,28 @@ Applications:
   sake of backwards compatibility it will not be removed .  It is also worth
   noting that using both Macro() and GoSub() at the same time is _heavily_
   discouraged.
+
 * Read() now sets a READSTATUS variable on exit.  It does NOT automatically
   return -1 (and hangup) anymore on error.  If you want to hangup on error,
   you need to do so explicitly in your dialplan.
+
 * Privacy() no longer uses privacy.conf, so any options must be specified
   directly in the application arguments.
+
 * MusicOnHold application now has duration parameter which allows specifying
   timeout in seconds.
+
 * WaitMusicOnHold application is now deprecated in favor of extended MusicOnHold.
+
 * SetMusicOnHold is now deprecated. You should use Set(CHANNEL(musicclass)=...)
   instead.
+
 * While app_directory has always relied on having a voicemail.conf or users.conf file
   correctly set up, it now is dependent on app_voicemail being compiled as well.
+
 * The arguments in ExecIf changed a bit, to be more like other applications.
   The syntax is now ExecIf(<cond>?appiftrue(args):appiffalse(args)).
+
 * The behavior of the Set application now depends upon a compatibility option,
   set in asterisk.conf.  To use the old 1.4 behavior, which allowed Set to take
   multiple key/value pairs, set app_set=1.4 in [compat] in asterisk.conf.  To
@@ -188,15 +203,18 @@ Channel Drivers:
   file names and formats are all controlled via the normal mechanisms. If the
   user has not configured the automon feature, the normal "415 Unsupported media type"
   is returned, and nothing is done.
+
 * SIP: The "call-limit" option is marked as deprecated. It still works in this version of
   Asterisk, but will be removed in the following version. Please use the groupcount functions
   in the dialplan to enforce call limits. The "limitonpeer" configuration option is
   now renamed to "counteronpeer".
+
 * SIP: The "username" option is now renamed to "defaultuser" to match "defaultip".
   These are used only before registration to call a peer with the uri 
 	sip:defaultuser@defaultip
   The "username" setting still work, but is deprecated and will not work in 
   the next version of Asterisk.
+
 * SIP: All of the functionality in SIPCHANINFO() has been implemented in CHANNEL(),
   and you should start using that function instead for retrieving information about
   the channel in a technology-agnostic way.
@@ -204,6 +222,7 @@ Channel Drivers:
 * chan_local.c: the comma delimiter inside the channel name has been changed to a
   semicolon, in order to make the Local channel driver compatible with the comma
   delimiter change in applications.
+
 * H323: The "tos" setting has changed name to "tos_audio" and "cos" to "cos_audio"
   to be compatible with settings in sip.conf. The "tos" and "cos" configuration
   is deprecated and will stop working in the next release of Asterisk.
@@ -215,7 +234,12 @@ Channel Drivers:
   to modify modules.conf to add another "noload" line to ensure that only one of
   these three modules gets loaded.
 
-* Zap: The "msdstrip" option has been deprecated, as it provides no value over
+* DAHDI: The chan_zap module that supported PSTN interfaces using
+  Zaptel has been renamed to chan_dahdi, and only supports the DAHDI
+  telephony driver package for PSTN interfaces. See the
+  Zaptel-to-DAHDI.txt file for more details on this transition.
+
+* DAHDI: The "msdstrip" option has been deprecated, as it provides no value over
   the method of stripping digits in the dialplan using variable substring syntax.
 
 Configuration:
