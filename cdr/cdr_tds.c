@@ -276,7 +276,7 @@ static int execute_and_consume(DBPROCESS *dbproc, const char *fmt, ...)
 	char *buffer;
 
 	va_start(ap, fmt);
-	if (vasprintf(&buffer, fmt, ap) < 0) {
+	if (ast_vasprintf(&buffer, fmt, ap) < 0) {
 		va_end(ap);
 		return 1;
 	}
