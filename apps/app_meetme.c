@@ -2372,13 +2372,13 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		if (confflags && !cnf->chan &&
 		    !ast_test_flag(confflags, CONFFLAG_QUIET) &&
 		    ast_test_flag(confflags, CONFFLAG_INTROUSER)) {
-			ast_log(LOG_WARNING, "No %s channel available for conference, user introduction disabled (is chan_zap loaded?)\n", dahdi_chan_name);
+			ast_log(LOG_WARNING, "No %s channel available for conference, user introduction disabled\n", dahdi_chan_name);
 			ast_clear_flag(confflags, CONFFLAG_INTROUSER);
 		}
 		
 		if (confflags && !cnf->chan &&
 		    ast_test_flag(confflags, CONFFLAG_RECORDCONF)) {
-			ast_log(LOG_WARNING, "No %s channel available for conference, conference recording disabled (is chan_zap loaded?)\n", dahdi_chan_name);
+			ast_log(LOG_WARNING, "No %s channel available for conference, conference recording disabled\n", dahdi_chan_name);
 			ast_clear_flag(confflags, CONFFLAG_RECORDCONF);
 		}
 	}
@@ -2466,13 +2466,13 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 		if (confflags && !cnf->chan &&
 		    !ast_test_flag(confflags, CONFFLAG_QUIET) &&
 		    ast_test_flag(confflags, CONFFLAG_INTROUSER)) {
-			ast_log(LOG_WARNING, "No %s channel available for conference, user introduction disabled (is chan_zap loaded?)\n", dahdi_chan_name);
+			ast_log(LOG_WARNING, "No %s channel available for conference, user introduction disabled\n", dahdi_chan_name);
 			ast_clear_flag(confflags, CONFFLAG_INTROUSER);
 		}
 		
 		if (confflags && !cnf->chan &&
 		    ast_test_flag(confflags, CONFFLAG_RECORDCONF)) {
-			ast_log(LOG_WARNING, "No %s channel available for conference, conference recording disabled (is chan_zap loaded?)\n", dahdi_chan_name);
+			ast_log(LOG_WARNING, "No %s channel available for conference, conference recording disabled\n", dahdi_chan_name);
 			ast_clear_flag(confflags, CONFFLAG_RECORDCONF);
 		}
 	}
