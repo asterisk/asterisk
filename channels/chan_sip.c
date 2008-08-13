@@ -14705,7 +14705,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
  	/* Final response, not 200 ? */
  	if (resp >= 300 && (p->invitestate == INV_CALLING || p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA ))
  		p->invitestate = INV_COMPLETED;
- 		
+ 	
+	/* Final response, clear out pending invite */
+	if ((resp == 200 || resp >= 300) && p->pendinginvite && seqno == p->pendinginvite)
+		p->pendinginvite = 0;
 
 	switch (resp) {
 	case 100:	/* Trying */
