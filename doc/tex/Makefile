@@ -15,7 +15,7 @@ else
 	@echo "** located at asterisk.pdf.                ***"	
 	@echo "**********************************************"
 ifneq ($(findstring kpsewhich,$(KPATHSEA)),)
-ifeq ($(findstring fncychap.sty,$(shell find `$(KPATHSEA) --expand-braces='$$(TEXMF)'| tr -d \! | sed 's/:/ /g'` -name fncychap.sty -print)),)
+ifeq ($(findstring fncychap.sty,$(shell find `$(KPATHSEA) --expand-braces='$${TEXMF}'| tr -d \! | sed 's/:/ /g'` -name fncychap.sty -print)),)
 	@echo
 	@echo "WARNING:  The fncychap.sty document was not found"
 	@echo "On Ubuntu, install the texlive-latex-extra package."
