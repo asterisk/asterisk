@@ -150,10 +150,8 @@
 #define DAHDI_SPANSTAT ZT_SPANSTAT
 #define DAHDI_SPECIFY ZT_SPECIFY
 #define DAHDI_START ZT_START
-#define DAHDI_TCOP_ALLOCATE ZT_TCOP_ALLOCATE
-#define DAHDI_TCOP_GETINFO ZT_TCOP_GETINFO
-#define DAHDI_TCOP_RELEASE ZT_TCOP_RELEASE
-#define DAHDI_TCOP_TRANSCODE ZT_TCOP_TRANSCODE
+#define DAHDI_TC_ALLOCATE ZT_TC_ALLOCATE
+#define DAHDI_TC_GETINFO ZT_TC_GETINFO
 #define DAHDI_TIMERACK ZT_TIMERACK
 #define DAHDI_TIMERCONFIG ZT_TIMERCONFIG
 #define DAHDI_TIMERPING ZT_TIMERPING
@@ -172,10 +170,8 @@
 #define DAHDI_TONE_INFO ZT_TONE_INFO
 #define DAHDI_TONE_RINGTONE ZT_TONE_RINGTONE
 #define DAHDI_TONE_STUTTER ZT_TONE_STUTTER
-#define dahdi_transcode_header zt_transcode_header
-#define dahdi_transcode_info zt_transcode_info
-#define DAHDI_TRANSCODE_MAGIC ZT_TRANSCODE_MAGIC
-#define DAHDI_TRANSCODE_OP ZT_TRANSCODE_OP
+#define dahdi_transcoder_formats zt_transcoder_formats
+#define dahdi_transcoder_info zt_transcoder_info
 #define DAHDI_vldtmf ZT_vldtmf
 #define DAHDI_WINK ZT_WINK
 #define HAVE_DAHDI HAVE_ZAPTEL

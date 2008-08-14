@@ -44,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <sys/mman.h>
-#include <dahdi/user.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/translate.h"
@@ -56,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/dahdi_compat.h"
 
 #define BUFFER_SAMPLES	8000
 

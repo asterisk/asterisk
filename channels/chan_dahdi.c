@@ -39,7 +39,7 @@
 
 /*** MODULEINFO
 	<depend>res_smdi</depend>
-	<depend>DAHDI</depend>
+	<depend>dahdi</depend>
 	<depend>tonezone</depend>
 	<depend>res_features</depend>
 	<use>pri</use>
