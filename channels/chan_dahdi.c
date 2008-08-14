@@ -5270,7 +5270,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		else	
 			b2 = ast_safe_string_alloc("%d-%d", i->channel, y);
 		for (x = 0; x < 3; x++) {
-			if ((index != x) && i->subs[x].owner && !strcasecmp(b2, i->subs[x].owner->name))
+			if ((index != x) && i->subs[x].owner && !strcasecmp(b2, i->subs[x].owner->name + (strncmp(i->subs[x].owner->name, "Zap", 3) ? 4 : 6)))
 				break;
 		}
 		y++;
