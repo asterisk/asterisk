@@ -19,6 +19,7 @@ renamed; the new names are:
   app_zapbarge.so -> app_dahdibarge.so
   app_zapras.so -> app_dahdiras.so
   app_zapscan.so -> app_dahdiscan.so
+  codec_zap.so -> codec_dahdi.so
 
 However, in spite of the file name changes, the channels and
 applications provided by these modules can still be used with 'Zap'
