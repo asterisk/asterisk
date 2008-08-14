@@ -18,6 +18,7 @@ renamed; the new names are:
   app_zapbarge.so -> app_dahdibarge.so
   app_zapras.so -> app_dahdiras.so
   app_zapscan.so -> app_dahdiscan.so
+  codec_zap.so -> codec_dahdi.so
 
 Second, the behavior of many modules has changed due to the switch to
 DAHDI; the changes are listed below.
