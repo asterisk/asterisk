@@ -4158,8 +4158,10 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 	hostn = peername;
 	if (!dialog->socket.type)
 		dialog->socket.type = SIP_TRANSPORT_UDP;
+	if (!dialog->socket.port)
+		dialog->socket.port = bindaddr.sin_port;
 	if (ast_strlen_zero(port) || sscanf(port, "%u", &portno) != 1) {
-		portno = dialog->socket.type & SIP_TRANSPORT_TLS ? 
+		portno = (dialog->socket.type & SIP_TRANSPORT_TLS) ? 
 			STANDARD_TLS_PORT : STANDARD_SIP_PORT;
 	}
 	if (global_srvlookup) {
