@@ -75,7 +75,7 @@ static int free_config(void);
 static int load_column_config(const char *tmp)
 {
 	char *col = NULL;
-	char *cols = NULL;
+	char *cols = NULL, *save = NULL;
 	char *escaped = NULL;
 	struct ast_str *column_string = NULL;
 
@@ -87,7 +87,7 @@ static int load_column_config(const char *tmp)
 		ast_log(LOG_ERROR, "Out of memory creating temporary buffer for column list for table '%s.'\n", table);
 		return -1;
 	}
-	if (!(cols = ast_strdup(tmp))) {
+	if (!(save = cols = ast_strdup(tmp))) {
 		ast_log(LOG_ERROR, "Out of memory creating temporary buffer for column list for table '%s.'\n", table);
 		ast_free(column_string);
 		return -1;
@@ -98,7 +98,7 @@ static int load_column_config(const char *tmp)
 		if (!escaped) {
 			ast_log(LOG_ERROR, "Out of memory creating entry for column '%s' in table '%s.'\n", col, table);
 			ast_free(column_string);
-			ast_free(cols);
+			ast_free(save);
 			return -1;
 		}
 		if (!column_string->used)
@@ -110,11 +110,11 @@ static int load_column_config(const char *tmp)
 	if (!(columns = ast_strdup(column_string->str))) {
 		ast_log(LOG_ERROR, "Out of memory copying columns string for table '%s.'\n", table);
 		ast_free(column_string);
-		ast_free(cols);
+		ast_free(save);
 		return -1;
 	}
 	ast_free(column_string);
-	ast_free(cols);
+	ast_free(save);
 
 	return 0;
 }
@@ -122,14 +122,14 @@ static int load_column_config(const char *tmp)
 static int load_values_config(const char *tmp)
 {
 	char *val = NULL;
-	char *vals = NULL;
+	char *vals = NULL, *save = NULL;
 	struct values *value = NULL;
 
 	if (ast_strlen_zero(tmp)) {
 		ast_log(LOG_WARNING, "Values not specified. Module not loaded.\n");
 		return -1;
 	}
-	if (!(vals = ast_strdup(tmp))) {
+	if (!(save = vals = ast_strdup(tmp))) {
 		ast_log(LOG_ERROR, "Out of memory creating temporary buffer for value '%s'\n", tmp);
 		return -1;
 	}
@@ -139,14 +139,14 @@ static int load_values_config(const char *tmp)
 		value = ast_calloc(sizeof(char), sizeof(*value) + strlen(val) + 1);
 		if (!value) {
 			ast_log(LOG_ERROR, "Out of memory creating entry for value '%s'\n", val);
-			ast_free(vals);
+			ast_free(save);
 			return -1;
 		}
 		value->expression = (char *) value + sizeof(*value);
 		ast_copy_string(value->expression, val, strlen(val) + 1);
 		AST_LIST_INSERT_TAIL(&sql_values, value, list);
 	}
-	ast_free(vals);
+	ast_free(save);
 
 	return 0;
 }
