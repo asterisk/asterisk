@@ -5840,7 +5840,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		else	
 			ast_str_set(&chan_name, 0, "%d-%d", i->channel, y);
 		for (x = 0; x < 3; x++) {
-			if ((idx != x) && i->subs[x].owner && !strcasecmp(chan_name->str, i->subs[x].owner->name))
+			if ((idx != x) && i->subs[x].owner && !strcasecmp(chan_name->str, i->subs[x].owner->name + 6))
 				break;
 		}
 		y++;
