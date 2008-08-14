@@ -114,6 +114,7 @@ static int tds_log(struct ast_cdr *cdr)
 	char *accountcode, *src, *dst, *dcontext, *clid, *channel, *dstchannel, *lastapp, *lastdata, *uniqueid, *userfield = NULL;
 	RETCODE erc;
 	int res = -1;
+	int attempt = 1;
 
 	accountcode = anti_injection(cdr->accountcode, 20);
 	src         = anti_injection(cdr->src, 80);
@@ -136,10 +137,15 @@ static int tds_log(struct ast_cdr *cdr)
 		userfield = anti_injection(cdr->userfield, AST_MAX_USER_FIELD);
 	}
 
+retry:
 	/* Ensure that we are connected */
 	if (!settings->connected) {
+		ast_log(LOG_NOTICE, "Attempting to reconnect to %s (Attempt %d)\n", settings->hostname, attempt);
 		if (mssql_connect()) {
 			/* Connect failed */
+			if (attempt++ < 3) {
+				goto retry;
+			}
 			goto done;
 		}
 	}
@@ -186,13 +192,25 @@ static int tds_log(struct ast_cdr *cdr)
 	}
 
 	if (erc == FAIL) {
-		ast_log(LOG_ERROR, "Failed to build INSERT statement, no CDR was logged.\n");
-		goto done;
+		if (attempt++ < 3) {
+			ast_log(LOG_NOTICE, "Failed to build INSERT statement, retrying...\n");
+			mssql_disconnect();
+			goto retry;
+		} else {
+			ast_log(LOG_ERROR, "Failed to build INSERT statement, no CDR was logged.\n");
+			goto done;
+		}
 	}
 
 	if (dbsqlexec(settings->dbproc) == FAIL) {
-		ast_log(LOG_ERROR, "Failed to execute INSERT statement, no CDR was logged.\n");
-		goto done;
+		if (attempt++ < 3) {
+			ast_log(LOG_NOTICE, "Failed to execute INSERT statement, retrying...\n");
+			mssql_disconnect();
+			goto retry;
+		} else {
+			ast_log(LOG_ERROR, "Failed to execute INSERT statement, no CDR was logged.\n");
+			goto done;
+		}
 	}
 
 	/* Consume any results we might get back (this is more of a sanity check than
