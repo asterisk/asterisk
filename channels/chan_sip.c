@@ -4343,7 +4343,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 		memcpy(&dialog->sa.sin_addr, &sin->sin_addr, sizeof(dialog->sa.sin_addr));
 		if (!sin->sin_port) {
 			if (ast_strlen_zero(port) || sscanf(port, "%u", &portno) != 1) {
-				portno = dialog->socket.type & SIP_TRANSPORT_TLS ?
+				portno = (dialog->socket.type & SIP_TRANSPORT_TLS) ?
 					STANDARD_TLS_PORT : STANDARD_SIP_PORT;
 			}
 		} else {
@@ -4380,6 +4380,8 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 
 	if (!dialog->socket.type)
 		dialog->socket.type = SIP_TRANSPORT_UDP;
+	if (!dialog->socket.port)
+		dialog->socket.port = bindaddr.sin_port;
 	dialog->sa.sin_port = htons(portno);
 	dialog->recv = dialog->sa;
 	return 0;
