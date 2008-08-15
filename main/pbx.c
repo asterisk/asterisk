@@ -3391,7 +3391,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 	 */
 	if (e->exten[0] == '_') {
 		ast_add_extension(e->parent->name, 0, exten, e->priority, e->label,
-			e->cidmatch, e->app, strdup(e->data), free,
+			e->cidmatch, e->app, ast_strdup(e->data), free,
 			e->registrar);
 		e = ast_hint_extension(NULL, context, exten);
 		if (!e || e->exten[0] == '_') {
