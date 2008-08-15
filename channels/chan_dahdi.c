@@ -241,8 +241,8 @@ AST_MUTEX_DEFINE_STATIC(monlock);
    which are not currently in use. */
 static pthread_t monitor_thread = AST_PTHREADT_NULL;
 static ast_cond_t ss_thread_complete = PTHREAD_COND_INITIALIZER;
-static ast_mutex_t ss_thread_lock = { PTHREAD_MUTEX_INITIALIZER };
-static ast_mutex_t restart_lock = { PTHREAD_MUTEX_INITIALIZER };
+AST_MUTEX_DEFINE_STATIC(ss_thread_lock);
+AST_MUTEX_DEFINE_STATIC(restart_lock);
 static int ss_thread_count = 0;
 static int num_restart_pending = 0;
 
