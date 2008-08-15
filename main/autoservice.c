@@ -157,14 +157,7 @@ static void *autoservice_run(void *ign)
 			}
 		}
 
-		if (!defer_frame) {
-			if (f) {
-				ast_frfree(f);
-			}
-			continue;
-		}
-
-		if (f) {
+		if (defer_frame) {
 			for (i = 0; i < x; i++) {
 				struct ast_frame *dup_f;
 				
@@ -172,12 +165,15 @@ static void *autoservice_run(void *ign)
 					continue;
 				}
 				
-				if ((dup_f = ast_frdup(f))) {
+				if ((dup_f = ast_frdup(defer_frame))) {
 					AST_LIST_INSERT_TAIL(&ents[i]->deferred_frames, dup_f, frame_list);
 				}
 				
 				break;
 			}
+		}
+
+		if (f) {
 			ast_frfree(f);
 		}
 	}
