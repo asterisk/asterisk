@@ -22584,7 +22584,7 @@ static int load_module(void)
 		"name", RQ_CHAR, 10,
 		"ipaddr", RQ_CHAR, 15,
 		"port", RQ_UINTEGER2, 5,
-		"regseconds", RQ_UINTEGER2, 5,   /* Max of 18 hours */
+		"regseconds", RQ_INTEGER4, 11,
 		"defaultuser", RQ_CHAR, 10,
 		"fullcontact", RQ_CHAR, 35,
 		"regserver", RQ_CHAR, 20,
