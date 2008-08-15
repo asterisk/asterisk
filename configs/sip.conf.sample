@@ -551,7 +551,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; If set to yes, when a SIP UA registers successfully, the ip address,
                                 ; the origination port, the registration period, and the username of
                                 ; the UA will be set to database via realtime. 
-                                ; If not present, defaults to 'yes'.
+                                ; If not present, defaults to 'yes'. Note: realtime peers will
+                                ; probably not function across reloads in the way that you expect, if
+                                ; you turn this option off.
 ;rtautoclear=yes                ; Auto-Expire friends created on the fly on the same schedule
                                 ; as if it had just registered? (yes|no|<seconds>)
                                 ; If set to yes, when the registration expires, the friend will
