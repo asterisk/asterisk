@@ -240,7 +240,7 @@ AST_MUTEX_DEFINE_STATIC(monlock);
 /*! \brief This is the thread for the monitor which checks for input on the channels
    which are not currently in use. */
 static pthread_t monitor_thread = AST_PTHREADT_NULL;
-static ast_cond_t ss_thread_complete = PTHREAD_COND_INITIALIZER;
+static ast_cond_t ss_thread_complete;
 AST_MUTEX_DEFINE_STATIC(ss_thread_lock);
 AST_MUTEX_DEFINE_STATIC(restart_lock);
 static int ss_thread_count = 0;
@@ -10851,6 +10851,7 @@ static int __unload_module(void)
 		}
 	}
 #endif
+	ast_cond_destroy(&ss_thread_complete);
 	return 0;
 }
 
@@ -11845,6 +11846,8 @@ static int load_module(void)
 	local_astman_register("DNDoff", 0, action_dndoff, "Toggle channel Do Not Disturb status OFF");
 	local_astman_register("ShowChannels", 0, action_showchannels, "Show status channels");
 	local_astman_register("Restart", 0, action_restart, "Fully Restart channels (terminates calls)");
+
+	ast_cond_init(&ss_thread_complete, NULL);
 
 	return res;
 }
