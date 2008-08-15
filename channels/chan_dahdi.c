@@ -5546,7 +5546,9 @@ static void *ss_thread(void *data)
 	int res;
 	int index;
 
+	ast_mutex_lock(&ss_thread_lock);
 	ss_thread_count++;
+	ast_mutex_unlock(&ss_thread_lock);
 	/* in the bizarre case where the channel has become a zombie before we
 	   even get started here, abort safely
 	*/
