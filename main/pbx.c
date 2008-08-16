@@ -5921,7 +5921,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 		 */
 		if (exten && exten->exten[0] == '_') {
 			ast_add_extension(exten->parent->name, 0, this->exten, PRIORITY_HINT, NULL,
-				0, exten->app, strdup(exten->data), free, registrar);
+				0, exten->app, ast_strdup(exten->data), ast_free_ptr, registrar);
 			exten = ast_hint_extension(NULL, this->context, this->exten);
 		}
 
