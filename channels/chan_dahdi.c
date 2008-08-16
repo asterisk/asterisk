@@ -7464,6 +7464,7 @@ static int dahdi_destroy_channel_bynum(int channel)
 			int x = DAHDI_FLASH;
 			ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_HOOK, &x); /* important to create an event for dahdi_wait_event to register so that all ss_threads terminate */
 			destroy_channel(prev, tmp, 1);
+			ast_module_unref(ast_module_info->self);
 			return RESULT_SUCCESS;
 		}
 		prev = tmp;
