@@ -11805,8 +11805,10 @@ retry:
 static int setup_dahdi(int reload);
 static int dahdi_restart(void)
 {
-
-	int i, j, cancel_code;
+#if defined(HAVE_PRI)
+	int i, j;
+#endif
+	int cancel_code;
 	struct dahdi_pvt *p;
 
 	ast_mutex_lock(&restart_lock);
