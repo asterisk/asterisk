@@ -1192,7 +1192,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 					ast_verbose("  RTT: %lu(sec)\n", (unsigned long) rtt);
 			}
 			if (rtt) {
-				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From %s:%d\r\n"
+				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From: %s:%d\r\n"
 								    "PT: %d(%s)\r\n"
 								    "ReceptionReports: %d\r\n"
 								    "SenderSSRC: %u\r\n"
@@ -1217,7 +1217,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 								    ntohl(rtcpheader[i + 5])/65536.0,
 								    (unsigned long long)rtt);
 			} else {
-				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From %s:%d\r\n"
+				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From: %s:%d\r\n"
 								    "PT: %d(%s)\r\n"
 								    "ReceptionReports: %d\r\n"
 								    "SenderSSRC: %u\r\n"
@@ -2821,7 +2821,7 @@ static int ast_rtcp_write_sr(const void *data)
 		ast_verbose("  Their last SR: %u\n", rtp->rtcp->themrxlsr);
 		ast_verbose("  DLSR: %4.4f (sec)\n\n", (double)(ntohl(rtcpheader[12])/65536.0));
 	}
-	manager_event(EVENT_FLAG_REPORTING, "RTCPSent", "To %s:%d\r\n"
+	manager_event(EVENT_FLAG_REPORTING, "RTCPSent", "To: %s:%d\r\n"
 					    "OurSSRC: %u\r\n"
 					    "SentNTP: %u.%010u\r\n"
 					    "SentRTP: %u\r\n"
