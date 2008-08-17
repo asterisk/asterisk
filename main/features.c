@@ -475,11 +475,12 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	manager_event(EVENT_FLAG_CALL, "ParkedCall",
 		"Exten: %s\r\n"
 		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n"
 		"From: %s\r\n"
 		"Timeout: %ld\r\n"
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n",
-		pu->parkingexten, pu->chan->name, peer ? peer->name : "",
+		pu->parkingexten, pu->chan->name, pu->chan->uniqueid, peer ? peer->name : "",
 		(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL),
 		S_OR(pu->chan->cid.cid_num, "<unknown>"),
 		S_OR(pu->chan->cid.cid_name, "<unknown>")
