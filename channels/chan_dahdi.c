@@ -11805,7 +11805,7 @@ retry:
 static int setup_dahdi(int reload);
 static int dahdi_restart(void)
 {
-#if defined(HAVE_PRI)
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
 	int i, j;
 #endif
 	int cancel_code;
