@@ -2314,6 +2314,14 @@ static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *bus
 			ast_debug(1, "Trying '%s' with metric %d\n", best->interface, best->metric);
 			ret = ring_entry(qe, best, busies);
 		}
+		
+		/* If we have timed out, break out */
+		if (qe->expire && (time(NULL) >= qe->expire)) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Queue timed out while ringing members.\n");
+			ret = 0;
+			break;
+		}
 	}
 
 	return ret;
@@ -3407,10 +3415,22 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 	}
 
-	if (qe->expire && (!qe->parent->timeout || (qe->parent->timeoutpriority == TIMEOUT_PRIORITY_APP && (qe->expire - now) <= qe->parent->timeout)))
-		to = (qe->expire - now) * 1000;
-	else
-		to = (qe->parent->timeout) ? qe->parent->timeout * 1000 : -1;
+	if (qe->parent->timeoutpriority == TIMEOUT_PRIORITY_APP) {
+		/* Application arguments have higher timeout priority (behaviour for <=1.6) */
+		if (qe->expire && (!qe->parent->timeout || (qe->expire - now) <= qe->parent->timeout))
+			to = (qe->expire - now) * 1000;
+		else
+			to = (qe->parent->timeout) ? qe->parent->timeout * 1000 : -1;
+	} else {
+		/* Config timeout is higher priority thatn application timeout */
+		if (qe->expire && qe->expire<=now) {
+			to = 0;
+		} else if (qe->parent->timeout) {
+			to = qe->parent->timeout * 1000;
+		} else {
+			to = -1;
+		}
+	}
 	orig = to;
 	++qe->pending;
 	ao2_unlock(qe->parent);
