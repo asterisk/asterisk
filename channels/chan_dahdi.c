@@ -10053,7 +10053,7 @@ static int setup_dahdi(int reload);
 static int dahdi_restart(void)
 {
 #if defined(HAVE_PRI)
-	int i, j
+	int i, j;
 #endif
 	int cancel_code;
 	struct dahdi_pvt *p;
