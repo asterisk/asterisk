@@ -148,11 +148,19 @@ shared_lastcall=no
 ; Queue application is more important. In the scenario above, timeoutpriority=app
 ; would result in the second member's phone ringing for 1 second.
 ;
-; There are a few exceptions to the priority rules. For instance, if the configuration
-; file timeout is set to 0, but the application argument timeout is non-zero, then the
-; timeoutpriority is ignored and the application argument is used as the timeout. Furthermore,
-; if no application argument timeout is specified, then the timeoutpriority option is
-; ignored and the configuration file timeout is always used when calling queue members.
+; There are a few exceptions to the priority rules. For instance, if timeoutpriority=appp
+; and the configuration file timeout is set to 0, but the application argument timeout is
+; non-zero, then the timeoutpriority is ignored and the application argument is used as
+; the timeout. Furthermore, if no application argument timeout is specified, then the
+; timeoutpriority option is ignored and the configuration file timeout is always used 
+; when calling queue members.
+;
+; In timeoutpriority=conf mode however timeout specified in config file will take higher
+; priority than timeout in application arguments, so if config file has timeout 0, each
+; queue member will be called indefineately and application timeout will be checked only
+; after this call attempt. This is useful for having queue members with custom timeouts
+; specified within Dial application of Local channel, and allows handling NO ANSWER which
+; would otherwise be interrupted by queue destroying child channel on timeout.
 ;
 ; The default value for timeoutpriority is "app" since this was how previous versions of
 ; Asterisk behaved.
