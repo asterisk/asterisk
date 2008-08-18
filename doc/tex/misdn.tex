@@ -1,28 +1,27 @@
 \subsection{Introduction}
 
 This package contains the mISDN Channel Driver for the Asterisk PBX. It
-supports every mISDN Hardware and provides an interface for asterisk.
+supports every mISDN Hardware and provides an interface for Asterisk.
 
 \subsection{Features}
 
 \begin{itemize}
-\item  NT and TE mode
-\item  PP and PMP mode
-\item  BRI and PRI (with BNE1 and BN2E1 Cards)
-\item  Hardware Bridging
-\item  DTMF Detection in HW+mISDNdsp
-\item  Display Messages on Phones (on those that support display msg)
-\item  app\_SendText
-\item  HOLD/RETRIEVE/TRANSFER on ISDN Phones : )
-\item  Screen/ Not Screen User Number
-\item  EchoCancellation
-\item  Volume Control
-\item  Crypting with mISDNdsp (Blowfish)
-\item  Data (HDLC) callthrough
-\item  Data Calling (with app\_ptyfork +pppd)
-\item  Echo cancellation
-\item  CallDeflection
-\item Some other
+\item NT and TE mode
+\item PP and PMP mode
+\item BRI and PRI (with BNE1 and BN2E1 Cards)
+\item Hardware bridging
+\item DTMF detection in HW+mISDNdsp
+\item Display messages on phones (on those that support it)
+\item app\_SendText
+\item HOLD/RETRIEVE/TRANSFER on ISDN phones : )
+\item Allow/restrict user number presentation
+\item Volume control
+\item Crypting with mISDNdsp (Blowfish)
+\item Data (HDLC) callthrough
+\item Data calling (with app\_ptyfork +pppd)
+\item Echo cancellation
+\item Call deflection
+\item Some others
 \end{itemize}
 
 \subsection{Fast Installation Guide}
@@ -31,7 +30,7 @@ It is easy to install mISDN and mISDNuser. This can be done by:
 \begin{itemize}
      \item You can download latest stable releases from \url{http://www.misdn.org/downloads/}
 
-     \item Just fetch the newest head of the GIT (mISDN provect moved from CVS)
+     \item Just fetch the newest head of the GIT (mISDN project moved from CVS)
      In details this process described here: \url{http://www.misdn.org/index.php/GIT}
 \end{itemize}
 
@@ -50,7 +49,7 @@ cd mISDNuser ;
 make && make install
 \end{verbatim}
 \end{astlisting}
-Now you can compile chan\_misdn, just by making asterisk:
+Now you can compile chan\_misdn, just by making Asterisk:
 \begin{astlisting}
 \begin{verbatim}
 cd asterisk ;
@@ -84,7 +83,7 @@ script is:
 \end{verbatim}
 \end{astlisting}
 Now you will want to configure the misdn.conf file which resides in the
-asterisk config directory (normally /etc/asterisk).
+Asterisk config directory (normally /etc/asterisk).
 
 \subsubsection{misdn.conf: [general]}
 The misdn.conf file contains a "general" subsection, and user subsections which
@@ -93,13 +92,13 @@ contain misdn port settings and different Asterisk contexts.
 In the general subsection you can set options that are not directly port
 related. There is for example the very important debug variable which you can
 set from the Asterisk cli (command line interface) or in this configuration
-file, bigger numbers will lead to more debug output. There's also a tracefile
+file, bigger numbers will lead to more debug output. There's also a trace file
 option, which takes a path+filename where debug output is written to.
 
 \subsubsection{misdn.conf: [default] subsection}
 
 The default subsection is another special subsection which can contain all the
-options available in the user/port subsections. the user/port subsection inherit
+options available in the user/port subsections. The user/port subsections inherit
 their parameters from the default subsection.
 
 \subsubsection{misdn.conf: user/port subsections}
@@ -108,13 +107,13 @@ The user subsections have names which are unequal to "general". Those subsection
 contain the ports variable which mean the mISDN Ports. Here you can add
 multiple ports, comma separated.
 
-Espacially for TE-Mode Ports there is a msns option. This option tells the
+Especially for TE-Mode Ports there is a msns option. This option tells the
 chan\_misdn driver to listen for incoming calls with the given msns, you can
-insert a '*' as single msn, which leads in getting every incoming call (if you
-want to share on PMP TE S0 with a asterisk and a phone or isdn card you should
-insert here the msns which you'll like to give the Asterisk).  Finally a
-context variable resides in the user subsections, which tells chan\_misdn where to
-send incoming calls to in the Asterisk dial plan (extension.conf).
+insert a '*' as single msn, which leads to getting every incoming call. If you
+want to share on PMP TE S0 with Asterisk and a phone or ISDN card you should
+insert here the msns which you assign to Asterisk.  Finally a context variable
+resides in the user subsections, which tells chan\_misdn where to send incoming
+calls to in the Asterisk dial plan (extension.conf).
 
 
 \subsubsection{Dial and Options String}
@@ -127,20 +126,31 @@ so the generic dial string looks like:
 mISDN/<port>|g:<group>/<extension>[/<OPTIONSSTRING>]
 
 The Optionsstring looks Like:
-:<optchar1><OptParam1>:<optchar2><OptParam2>
+:<optchar><optarg>:<optchar><optarg>...
 
 the ":" character is the delimiter.
 
-The available Optchars are:
-  d - Send display text on called phone, text is the optparam
-  n - don't detect dtmf tones on called channel
-  h - make digital outgoing call
-  c - make crypted outgoing call, param is keyindex
-  e - perform echo cancellation on this channel,
-      takes taps as arguments (32,64,128,256)
-  s - send Non Inband DTMF as inband
-  vr - rxgain control
-  vt - txgain control
+The available options are:
+  a - Have Asterisk detect DTMF tones on called channel
+  c - Make crypted outgoing call, optarg is keyindex
+  d - Send display text to called phone, text is the optarg
+  e - Perform echo cancelation on this channel,
+      takes taps as optarg (32,64,128,256)
+ e! - Disable echo cancelation on this channel
+  f - Enable fax detection
+  h - Make digital outgoing call 
+ h1 - Make HDLC mode digital outgoing call 
+  i - Ignore detected DTMF tones, don't signal them to Asterisk,
+      they will be transported inband.
+ jb - Set jitter buffer length, optarg is length
+ jt - Set jitter buffer upper threshold, optarg is threshold
+ jn - Disable jitter buffer
+  n - Don't have mISDN detect DTMF tones on called channel
+  p - Caller ID presentation,
+      optarg is either 'allowed' or 'restricted'
+  s - Send Non-inband DTMF as inband
+ vr - Rx gain control, optarg is gain
+ vt - Tx gain control, optarg is gain
 \end{verbatim}
 \end{astlisting}
 
@@ -161,7 +171,7 @@ Phone1 --> * Box 1 --> PSTN_TE
 PSTN_TE --> * Box 2 --> Phone2
 \end{verbatim}
 
-The Encryption must be done on the PSTN sides, so the dialplan on the boxes
+The encryption must be done on the PSTN sides, so the dialplan on the boxes
 are:
 
 \begin{verbatim}
@@ -210,7 +220,7 @@ Now you should see the misdn cli commands:
 
 You can only use "misdn send display" when an Asterisk channel is created and
 isdn is in the correct state. "correct state" means that you have established a
-call to another phone (mustn't be isdn though).
+call to another phone (mustnot be isdn though).
 
 Then you use it like this:
 
@@ -232,8 +242,8 @@ mISDN Exports/Imports a few Variables:
 \subsection{Debugging and sending bug reports}
 
 If you encounter problems, you should set up the debugging flag, usually
-debug=2 should be enough. the messages are divided in asterisk and misdn
-parts.  Misdn Debug messages begin with an 'I', asterisk messages begin with
+debug=2 should be enough. The messages are divided into Asterisk and mISDN
+parts.  mISDN Debug messages begin with an 'I', Asterisk messages begin with
 an '*', the rest is clear I think.
 
 Please take a trace of the problem and open a report in the Asterisk issue
@@ -266,7 +276,7 @@ as Display Message to the Phone.
 
 \subsection{Known Problems}
 
-Q: I cannot hear any tone after a successful CONNECT to the other end
+Q: I cannot hear any tone after a successful CONNECT to the other end.
 
 A: You forgot to load mISDNdsp, which is now needed by chan\_misdn for switching
-and dtmf tone detection
+and DTMF tone detection.

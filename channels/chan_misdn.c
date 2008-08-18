@@ -389,51 +389,35 @@ static struct chan_list * get_chan_by_ast_name(char *name)
 
 
 struct allowed_bearers {
-	int cap;
-	int val;
-	char *name;
-	int deprecated;
+	char *name;			/*!< Bearer capability name string used in /etc/misdn.conf allowed_bearers */
+	char *display;		/*!< Bearer capability displayable name */
+	int cap;			/*!< SETUP message bearer capability field code value */
+	int deprecated;		/*!< TRUE if this entry is deprecated. (Misspelled or bad name to use) */
 };
 
-static struct allowed_bearers allowed_bearers_array[]= {
-	{INFO_CAPABILITY_SPEECH,1,"speech"},
-	{INFO_CAPABILITY_AUDIO_3_1K,2,"3_1khz"},
-	{INFO_CAPABILITY_DIGITAL_UNRESTRICTED,4,"digital_unrestricted"},
-	{INFO_CAPABILITY_DIGITAL_RESTRICTED,8,"digital_restricted"},
-	{INFO_CAPABILITY_DIGITAL_RESTRICTED,8,"digital_restriced", 1}, /* Allow misspelling for backwards compatibility */
-	{INFO_CAPABILITY_VIDEO,16,"video"}
+/* *INDENT-OFF* */
+static const struct allowed_bearers allowed_bearers_array[]= {
+	/* Name,                      Displayable Name       Bearer Capability,                    Deprecated */
+	{ "speech",                  "Speech",               INFO_CAPABILITY_SPEECH,               0 },
+	{ "3_1khz",                  "3.1KHz Audio",         INFO_CAPABILITY_AUDIO_3_1K,           0 },
+	{ "digital_unrestricted",    "Unrestricted Digital", INFO_CAPABILITY_DIGITAL_UNRESTRICTED, 0 },
+	{ "digital_restricted",      "Restricted Digital",   INFO_CAPABILITY_DIGITAL_RESTRICTED,   0 },
+	{ "digital_restriced",       "Restricted Digital",   INFO_CAPABILITY_DIGITAL_RESTRICTED,   1 }, /* Allow misspelling for backwards compatibility */
+	{ "video",                   "Video",                INFO_CAPABILITY_VIDEO,                0 }
 };
+/* *INDENT-ON* */
 
-static char *bearer2str(int cap) {
-	static char *bearers[]={
-		"Speech",
-		"Audio 3.1k",
-		"Unres Digital",
-		"Res Digital",
-		"Video",
-		"Unknown Bearer"
-	};
-	
-	switch (cap) {
-	case INFO_CAPABILITY_SPEECH:
-		return bearers[0];
-		break;
-	case INFO_CAPABILITY_AUDIO_3_1K:
-		return bearers[1];
-		break;
-	case INFO_CAPABILITY_DIGITAL_UNRESTRICTED:
-		return bearers[2];
-		break;
-	case INFO_CAPABILITY_DIGITAL_RESTRICTED:
-		return bearers[3];
-		break;
-	case INFO_CAPABILITY_VIDEO:
-		return bearers[4];
-		break;
-	default:
-		return bearers[5];
-		break;
-	}
+static const char *bearer2str(int cap)
+{
+	unsigned index;
+
+	for (index = 0; index < ARRAY_LEN(allowed_bearers_array); ++index) {
+		if (allowed_bearers_array[index].cap == cap) {
+			return allowed_bearers_array[index].display;
+		}
+	}	/* end for */
+
+	return "Unknown Bearer";
 }
 
 
@@ -700,7 +684,7 @@ static int misdn_overlap_dial_task (const void *data)
 		} else {
 misdn_overlap_dial_task_disconnect:
 			hanguptone_indicate(ch);
-			ch->bc->out_cause=1;
+			ch->bc->out_cause = AST_CAUSE_UNALLOCATED;
 			ch->state=MISDN_CLEANING;
 			misdn_lib_send_event(ch->bc, EVENT_DISCONNECT);
 		}
@@ -1811,46 +1795,42 @@ static int update_config(struct chan_list *ch, int orig)
 	misdn_cfg_get(port, MISDN_CFG_SCREEN, &screen, sizeof(screen));
 	chan_misdn_log(2, port, " --> pres: %d screen: %d\n", pres, screen);
 		
-	if ( (pres + screen) < 0 ) {
-
+	if (pres < 0 || screen < 0) {
 		chan_misdn_log(2, port, " --> pres: %x\n", ast->cid.cid_pres);
 			
 		switch (ast->cid.cid_pres & 0x60) {
-				
 		case AST_PRES_RESTRICTED:
 			bc->pres = 1;
-			chan_misdn_log(2, port, " --> PRES: Restricted (0x1)\n");
+			chan_misdn_log(2, port, " --> PRES: Restricted (1)\n");
 			break;
 		case AST_PRES_UNAVAILABLE:
 			bc->pres = 2;
-			chan_misdn_log(2, port, " --> PRES: Unavailable (0x2)\n");
+			chan_misdn_log(2, port, " --> PRES: Unavailable (2)\n");
 			break;
 		default:
 			bc->pres = 0;
-			chan_misdn_log(2, port, " --> PRES: Allowed (0x0)\n");
+			chan_misdn_log(2, port, " --> PRES: Allowed (0)\n");
+			break;
 		}
-			
-		switch (ast->cid.cid_pres & 0x3) {
 
+		switch (ast->cid.cid_pres & 0x3) {
+		default:
 		case AST_PRES_USER_NUMBER_UNSCREENED:
 			bc->screen = 0;
-			chan_misdn_log(2, port, " --> SCREEN: Unscreened (0x0)\n");
+			chan_misdn_log(2, port, " --> SCREEN: Unscreened (0)\n");
 			break;
 		case AST_PRES_USER_NUMBER_PASSED_SCREEN:
 			bc->screen = 1;
-			chan_misdn_log(2, port, " --> SCREEN: Passed Screen (0x1)\n");
+			chan_misdn_log(2, port, " --> SCREEN: Passed Screen (1)\n");
 			break;
 		case AST_PRES_USER_NUMBER_FAILED_SCREEN:
 			bc->screen = 2;
-			chan_misdn_log(2, port, " --> SCREEN: Failed Screen (0x2)\n");
+			chan_misdn_log(2, port, " --> SCREEN: Failed Screen (2)\n");
 			break;
 		case AST_PRES_NETWORK_NUMBER:
 			bc->screen = 3;
-			chan_misdn_log(2, port, " --> SCREEN: Network Nr. (0x3)\n");
+			chan_misdn_log(2, port, " --> SCREEN: Network Nr. (3)\n");
 			break;
-		default:
-			bc->screen = 0;
-			chan_misdn_log(2, port, " --> SCREEN: Unscreened (0x0)\n");
 		}
 	} else {
 		bc->screen = screen;
@@ -2666,7 +2646,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		if (p->bc->nt) {
 			start_bc_tones(p);
 			hanguptone_indicate(p);
-			p->bc->progress_indicator = 8;
+			p->bc->progress_indicator = INFO_PI_INBAND_AVAILABLE;
 		}
 		if (bc->need_disconnect)
 			misdn_lib_send_event( bc, EVENT_DISCONNECT);
@@ -2964,7 +2944,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 		return 0;
 	}
 
-	chan_misdn_log(9, ch->bc->port, "Sending :%d bytes 2 MISDN\n", frame->samples);
+	chan_misdn_log(9, ch->bc->port, "Sending :%d bytes to MISDN\n", frame->samples);
 	if ( !ch->bc->nojitter && misdn_cap_is_speech(ch->bc->capability) ) {
 		/* Buffered Transmit (triggered by read from isdn side)*/
 		if (misdn_jb_fill(ch->jb, frame->data.ptr, frame->samples) < 0) {
@@ -3224,7 +3204,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	}
 
 	if (misdn_cfg_is_group_method(group, METHOD_STANDARD_DEC)) {
-		chan_misdn_log(4, port, " --> STARTING STANDARDDEC...\n");
+		chan_misdn_log(4, port, " --> STARTING STANDARD DEC...\n");
 		dec = 1;
 	}
 
@@ -3828,12 +3808,13 @@ static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel *bc, s
 
 	switch (bc->cause) {
 
-	case 1: /** Congestion Cases **/
-	case 2:
-	case 3:
- 	case 4:
- 	case 22:
- 	case 27:
+	case AST_CAUSE_UNALLOCATED:
+	case AST_CAUSE_NO_ROUTE_TRANSIT_NET:
+	case AST_CAUSE_NO_ROUTE_DESTINATION:
+ 	case 4:	/* Send special information tone */
+ 	case AST_CAUSE_NUMBER_CHANGED:
+ 	case AST_CAUSE_DESTINATION_OUT_OF_ORDER:
+		/* Congestion Cases */
 		/*
 		 * Not Queueing the Congestion anymore, since we want to hear
 		 * the inband message
@@ -3845,9 +3826,8 @@ static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel *bc, s
 		*/
 		break;
 
-	case 21:
-	case 17: /* user busy */
-
+	case AST_CAUSE_CALL_REJECTED:
+	case AST_CAUSE_USER_BUSY:
 		ch->state = MISDN_BUSY;
 
 		if (!ch->need_busy) {
@@ -4139,14 +4119,14 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 					break;
 				}
 
-				ast_log(LOG_WARNING, "Extension can never match, so disconnecting on port(%d)."
-						"maybe you want to add an 'i' extension to catch this case.\n",
+				ast_log(LOG_WARNING, "Extension can never match, so disconnecting on port(%d).\n"
+						"\tMaybe you want to add an 'i' extension to catch this case.\n",
 						bc->port);
 
 				if (bc->nt)
 					hanguptone_indicate(ch);
 				ch->state = MISDN_EXTCANTMATCH;
-				bc->out_cause = 1;
+				bc->out_cause = AST_CAUSE_UNALLOCATED;
 
 				misdn_lib_send_event(bc, EVENT_DISCONNECT);
 				break;
@@ -4226,7 +4206,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			int cause;
 			chan_misdn_log(0, bc->port, " --> Call Waiting on PMP sending RELEASE_COMPLETE\n");
 			misdn_cfg_get(bc->port, MISDN_CFG_REJECT_CAUSE, &cause, sizeof(cause));
-			bc->out_cause = cause ? cause : 16;
+			bc->out_cause = cause ? cause : AST_CAUSE_NORMAL_CLEARING;
 			return RESPONSE_RELEASE_SETUP;
 		}
 
@@ -4241,7 +4221,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			int cause;
 			chan_misdn_log(0, bc->port, " --> Call Waiting on PMP sending RELEASE_COMPLETE\n");
 			misdn_cfg_get(bc->port, MISDN_CFG_REJECT_CAUSE, &cause, sizeof(cause));
-			bc->out_cause = cause ? cause : 16;
+			bc->out_cause = cause ? cause : AST_CAUSE_NORMAL_CLEARING;
 			return RESPONSE_RELEASE_SETUP;
 		}
 
@@ -4289,17 +4269,19 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			break;
 		case 2:
 			pres = AST_PRES_UNAVAILABLE;
-			chan_misdn_log(2, bc->port, " --> PRES: Restricted (2)\n");
+			chan_misdn_log(2, bc->port, " --> PRES: Unavailable (2)\n");
 			break;
 		default:
 			pres = AST_PRES_ALLOWED;
-			chan_misdn_log(2, bc->port, " --> PRES: Restricted (%d)\n", bc->pres);
+			chan_misdn_log(2, bc->port, " --> PRES: Allowed (%d)\n", bc->pres);
+			break;
 		}
 
 		switch (bc->screen) {
+		default:
 		case 0:
 			screen = AST_PRES_USER_NUMBER_UNSCREENED;
-			chan_misdn_log(2, bc->port, " --> SCREEN: Unscreened (0)\n");
+			chan_misdn_log(2, bc->port, " --> SCREEN: Unscreened (%d)\n", bc->screen);
 			break;
 		case 1:
 			screen = AST_PRES_USER_NUMBER_PASSED_SCREEN;
@@ -4313,12 +4295,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			screen = AST_PRES_NETWORK_NUMBER;
 			chan_misdn_log(2, bc->port, " --> SCREEN: Network Number (3)\n");
 			break;
-		default:
-			screen = AST_PRES_USER_NUMBER_UNSCREENED;
-			chan_misdn_log(2, bc->port, " --> SCREEN: Unscreened (%d)\n", bc->screen);
 		}
 
-		chan->cid.cid_pres = pres + screen;
+		chan->cid.cid_pres = pres | screen;
 
 		pbx_builtin_setvar_helper(chan, "TRANSFERCAPABILITY", ast_transfercapability2str(bc->capability));
 		chan->transfercapability = bc->capability;
@@ -4408,8 +4387,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				break;
 			}
 
-			ast_log(LOG_WARNING, "Extension can never match, so disconnecting on port(%d)."
-					"maybe you want to add an 'i' extension to catch this case.\n",
+			ast_log(LOG_WARNING, "Extension can never match, so disconnecting on port(%d).\n"
+					"\tMaybe you want to add an 'i' extension to catch this case.\n",
 					bc->port);
 			if (bc->nt)
 				hanguptone_indicate(ch);
@@ -4784,7 +4763,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 			
 			if (FD_ISSET(ch->pipe[1], &wrfs)) {
-				chan_misdn_log(9, bc->port, "writing %d bytes 2 asterisk\n", bc->bframe_len);
+				chan_misdn_log(9, bc->port, "writing %d bytes to asterisk\n", bc->bframe_len);
 				if (write(ch->pipe[1], bc->bframe, bc->bframe_len) <= 0) {
 					chan_misdn_log(0, bc->port, "Write returned <=0 (err=%s) --> hanging up channel\n", strerror(errno));
 
@@ -4814,7 +4793,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		case MISDN_PROCEEDING:
 		case MISDN_CALLING_ACKNOWLEDGE:
 			if (bc->nt) {
-				bc->progress_indicator = 8;
+				bc->progress_indicator = INFO_PI_INBAND_AVAILABLE;
 				hanguptone_indicate(ch);
 			}
 				
@@ -4824,7 +4803,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		case MISDN_WAITING4DIGS:
 			if (bc->nt) {
-				bc->progress_indicator = 8;
+				bc->progress_indicator = INFO_PI_INBAND_AVAILABLE;
 				bc->out_cause = AST_CAUSE_UNALLOCATED;
 				hanguptone_indicate(ch);
 				misdn_lib_send_event(bc, EVENT_DISCONNECT);
@@ -5117,20 +5096,30 @@ static int load_module(void)
 	ast_cli_register_multiple(chan_misdn_clis, sizeof(chan_misdn_clis) / sizeof(struct ast_cli_entry));
 
 	ast_register_application("misdn_set_opt", misdn_set_opt_exec, "misdn_set_opt",
-				 "misdn_set_opt(:<opt><optarg>:<opt><optarg>..):\n"
-				 "Sets mISDN opts. and optargs\n"
-				 "\n"
-				 "The available options are:\n"
-				 "    d - Send display text on called phone, text is the optparam\n"
-				 "    n - don't detect dtmf tones on called channel\n"
-				 "    h - make digital outgoing call\n" 
-				 "    c - make crypted outgoing call, param is keyindex\n"
-				 "    e - perform echo cancelation on this channel,\n"
-				 "        takes taps as arguments (32,64,128,256)\n"
-				 "    s - send Non Inband DTMF as inband\n"
-				 "   vr - rxgain control\n"
-				 "   vt - txgain control\n"
-				 "    i - Ignore detected dtmf tones, don't signal them to asterisk, they will be transported inband.\n"
+		"misdn_set_opt(:<opt><optarg>:<opt><optarg>...):\n"
+		"Sets mISDN opts. and optargs\n"
+		"\n"
+		"The available options are:\n"
+		"    a - Have Asterisk detect DTMF tones on called channel\n"
+		"    c - Make crypted outgoing call, optarg is keyindex\n"
+		"    d - Send display text to called phone, text is the optarg\n"
+		"    e - Perform echo cancelation on this channel,\n"
+		"        takes taps as optarg (32,64,128,256)\n"
+		"   e! - Disable echo cancelation on this channel\n"
+		"    f - Enable fax detection\n"
+		"    h - Make digital outgoing call\n" 
+		"   h1 - Make HDLC mode digital outgoing call\n" 
+		"    i - Ignore detected DTMF tones, don't signal them to Asterisk,\n"
+		"        they will be transported inband.\n"
+		"   jb - Set jitter buffer length, optarg is length\n"
+		"   jt - Set jitter buffer upper threshold, optarg is threshold\n"
+		"   jn - Disable jitter buffer\n"
+		"    n - Don't have mISDN detect DTMF tones on called channel\n"
+		"    p - Caller ID presentation,\n"
+		"        optarg is either 'allowed' or 'restricted'\n"
+		"    s - Send Non-inband DTMF as inband\n"
+		"   vr - Rx gain control, optarg is gain\n"
+		"   vt - Tx gain control, optarg is gain\n"
 		);
 
 	
@@ -5481,7 +5470,10 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 			/* CRICH: callingpres!!! */
 			if (strstr(tok,"allowed")) {
 				ch->bc->pres = 0;
+			} else if (strstr(tok, "restricted")) {
+				ch->bc->pres = 1;
 			} else if (strstr(tok, "not_screened")) {
+				chan_misdn_log(0, ch->bc->port, "SETOPT: callerpres: not_screened is deprecated\n");
 				ch->bc->pres = 1;
 			}
 			break;

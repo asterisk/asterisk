@@ -371,10 +371,10 @@ nodialtone=no
 
 ;
 ; these are the exact isdn screening and presentation indicators
-; if -1 is given for both values the presentation indicators are used
-; from asterisks SetCallerPres application.
-; s=0, p=0 -> callerid presented not screened
-; s=1, p=1 -> callerid presented but screened (the remote end does not see it!)
+; if -1 is given for either value the presentation indicators are used
+; from asterisks CALLERPRES function.
+; s=0, p=0 -> callerid presented
+; s=1, p=1 -> callerid restricted (the remote end does not see it!)
 ; 
 ; default values s=-1, p=-1
 presentation=-1
