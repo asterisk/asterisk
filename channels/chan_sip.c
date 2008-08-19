@@ -12291,9 +12291,9 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 			"Username: %s\r\n"
 			"Refresh: %d\r\n"
 			"State: %s\r\n"
-			"RegistrationTime: %s\r\n"
+			"RegistrationTime: %ld\r\n"
 			"\r\n", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT,
-			iterator->username, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
+					  iterator->username, iterator->refresh, regstate2str(iterator->regstate), (long) iterator->regtime.tv_sec);
 		ASTOBJ_UNLOCK(iterator);
 		total++;
 	} while(0));
