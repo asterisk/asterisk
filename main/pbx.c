@@ -669,6 +669,11 @@ static struct pbx_builtin {
 	"channel. If the variable name is prefixed with __, the variable will be\n"
 	"inherited into channels created from the current channel and all children\n"
 	"channels.\n"
+	"Compatibility note: If (and only if), in /etc/asterisk/asterisk.conf, you have a [compat]\n"
+    "category, and you have app_set = 1.6 under that, then the behavior of this\n"
+    "app changes, and does not strip surrounding quotes from the right hand side\n"
+    "as it did previously in 1.4. The app_set = 1.6 is only inserted if 'make samples'\n"
+	"is executed, or if the users inserts this by hand into the asterisk.conf file.\n"
 	},
 
 	{ "MSet", pbx_builtin_setvar_multiple,
@@ -681,7 +686,8 @@ static struct pbx_builtin {
 	"inherited into channels created from the current channel and all children\n"
 	"channels.\n\n"
 	"MSet behaves in a similar fashion to the way Set worked in 1.2/1.4 and is thus\n"
-	"prone to doing things that you may not expect.  Avoid its use if possible.\n"
+	"prone to doing things that you may not expect. For example, it strips surrounding\n"
+	"double-quotes from the right-hand side (value).  Avoid its use if possible.\n"
 	},
 
 	{ "SetAMAFlags", pbx_builtin_setamaflags,
