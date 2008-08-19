@@ -12268,7 +12268,6 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 {
 	const char *id = astman_get_header(m, "ActionID");
 	char idtext[256] = "";
-	char tmpdat[256] = "";
 	int total = 0;
 	struct ast_tm tm;
 
@@ -12279,11 +12278,6 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
-		if (iterator->regtime.tv_sec) {
-			ast_localtime(&iterator->regtime, &tm, NULL);
-			ast_strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T", &tm);
-		} else
-			tmpdat[0] = '\0';
 		astman_append(s,
 			"Event: RegistryEntry\r\n"
 			"Host: %s\r\n"
