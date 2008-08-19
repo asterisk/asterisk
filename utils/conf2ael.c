@@ -55,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pval.h"
 #include "asterisk/extconf.h"
 
+struct ast_flags ast_compat = { 7 };
 const char *ast_config_AST_CONFIG_DIR = "/etc/asterisk";	/* placeholder */
 
 void get_start_stop(unsigned int *word, int bitsperword, int totalbits, int *start, int *end);
