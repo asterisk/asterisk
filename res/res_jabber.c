@@ -134,22 +134,22 @@ static struct ast_cli_entry aji_cli[] = {
 
 static char *app_ajisend = "JabberSend";
 
-static char *ajisend_synopsis = "JabberSend(jabber,screenname,message)";
+static char *ajisend_synopsis = "JabberSend(Jabber,JID,Message)";
 
 static char *ajisend_descrip =
-"JabberSend(Jabber,ScreenName,Message)\n"
-"  Jabber - Client or transport Asterisk uses to connect to Jabber\n" 
-"  ScreenName - XMPP/Jabber JID (Name) of recipient\n" 
-"  Message - Message to be sent to the budd (UTF8)y\n";
+"JabberSend(Jabber,JID,Message)\n"
+"  Jabber   - Client or transport Asterisk uses to connect to Jabber\n" 
+"  JID      - XMPP/Jabber JID (Name) of recipient\n" 
+"  Message  - Message to be sent to the buddy\n";
 
 static char *app_ajistatus = "JabberStatus";
 
-static char *ajistatus_synopsis = "JabberStatus(Jabber,ScreenName,Variable)";
+static char *ajistatus_synopsis = "JabberStatus(Jabber,JID,Variable)";
 
 static char *ajistatus_descrip =
-"JabberStatus(Jabber,ScreenName,Variable)\n"
-"  Jabber - Client or transport Asterisk uses to connect to Jabber\n"
-"  ScreenName - User Name to retrieve status from.\n"
+"JabberStatus(Jabber,JID,Variable)\n"
+"  Jabber   - Client or transport Asterisk uses to connect to Jabber\n"
+"  JID      - User Name to retrieve status from.\n"
 "  Variable - Variable to store presence in will be 1-6.\n" 
 "             In order, 1=Online, 2=Chatty, 3=Away, 4=XAway, 5=DND, 6=Offline\n" 
 "             If not in roster variable will be set to 7\n\n"
@@ -364,7 +364,7 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "JabberStatus is deprecated.  Please use the JABBER_STATUS dialplan function in the future.\n");
 
 	if (!data) {
-		ast_log(LOG_ERROR, "Usage: JabberStatus(<sender>,<screenname>[/<resource>],<varname>\n");
+		ast_log(LOG_ERROR, "Usage: JabberStatus(<sender>,<jid>[/<resource>],<varname>\n");
 		return 0;
 	}
 	s = ast_strdupa(data);
@@ -2945,9 +2945,9 @@ struct aji_client_container *ast_aji_get_clients(void)
 static char mandescr_jabber_send[] =
 "Description: Sends a message to a Jabber Client.\n"
 "Variables: \n"
-"  Jabber:	Client or transport Asterisk uses to connect to JABBER.\n"
-"  ScreenName:	User Name to message.\n"
-"  Message:	Message to be sent to the buddy\n";
+"  Jabber:    Client or transport Asterisk uses to connect to JABBER\n"
+"  JID:       XMPP/Jabber JID (Name) of recipient\n" 
+"  Message:   Message to be sent to the buddy\n";
 
 /*! 
  * \brief  Send a Jabber Message via call from the Manager 
