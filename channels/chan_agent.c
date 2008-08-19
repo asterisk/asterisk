@@ -2001,6 +2001,8 @@ static int login_exec(struct ast_channel *chan, void *data)
 						p->ackcall = 0;
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTACKCALL");
 					ast_verb(3, "Saw variable AGENTACKCALL=%s, setting ackcall to: %d for Agent '%s'.\n", tmpoptions, p->ackcall, p->agent);
+				} else {
+					p->ackcall = ackcall;
 				}
 				if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"))) {
 					p->autologoff = atoi(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"));
@@ -2008,6 +2010,8 @@ static int login_exec(struct ast_channel *chan, void *data)
 						p->autologoff = 0;
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF");
 					ast_verb(3, "Saw variable AGENTAUTOLOGOFF=%s, setting autologff to: %d for Agent '%s'.\n", tmpoptions, p->autologoff, p->agent);
+				} else {
+					p->autologoff = autologoff;
 				}
 				if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"))) {
 					p->wrapuptime = atoi(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"));
@@ -2015,6 +2019,8 @@ static int login_exec(struct ast_channel *chan, void *data)
 						p->wrapuptime = 0;
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME");
 					ast_verb(3, "Saw variable AGENTWRAPUPTIME=%s, setting wrapuptime to: %d for Agent '%s'.\n", tmpoptions, p->wrapuptime, p->agent);
+				} else {
+					p->wrapuptime = wrapuptime;
 				}
 				tmpoptions = pbx_builtin_getvar_helper(chan, "AGENTACCEPTDMTF");
 				if (!ast_strlen_zero(tmpoptions)) {
