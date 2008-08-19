@@ -12268,9 +12268,7 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 {
 	const char *id = astman_get_header(m, "ActionID");
 	char idtext[256] = "";
-	char tmpdat[256] = "";
 	int total = 0;
-	struct ast_tm tm;
 
 	if (!ast_strlen_zero(id))
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
@@ -12279,11 +12277,6 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
-		if (iterator->regtime.tv_sec) {
-			ast_localtime(&iterator->regtime, &tm, NULL);
-			ast_strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T", &tm);
-		} else
-			tmpdat[0] = '\0';
 		astman_append(s,
 			"Event: RegistryEntry\r\n"
 			"Host: %s\r\n"
@@ -12291,9 +12284,9 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 			"Username: %s\r\n"
 			"Refresh: %d\r\n"
 			"State: %s\r\n"
-			"RegistrationTime: %s\r\n"
+			"RegistrationTime: %ld\r\n"
 			"\r\n", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT,
-			iterator->username, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
+					  iterator->username, iterator->refresh, regstate2str(iterator->regstate), (long) iterator->regtime.tv_sec);
 		ASTOBJ_UNLOCK(iterator);
 		total++;
 	} while(0));
