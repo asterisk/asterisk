@@ -24,6 +24,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ael_structs.h"
 #include "asterisk/extconf.h"
 
+struct ast_flags ast_compat = { 7 };
+
 /*** MODULEINFO
   	<depend>res_ael_share</depend>
  ***/
