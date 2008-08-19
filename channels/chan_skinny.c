@@ -3418,12 +3418,18 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 		return -1;
 	}
 
+	if (AST_LIST_NEXT(sub,list) && !l->callwaiting) {
+		ast_queue_control(ast, AST_CONTROL_BUSY);
+		return -1;
+	}
+	
 	switch (l->hookstate) {
 	case SKINNY_OFFHOOK:
 		tone = SKINNY_CALLWAITTONE;
 		break;
 	case SKINNY_ONHOOK:
 		tone = SKINNY_ALERT;
+		l->activesub = sub;
 		break;
 	default:
 		ast_log(LOG_ERROR, "Don't know how to deal with hookstate %d\n", l->hookstate);
@@ -3454,9 +3460,13 @@ static int skinny_hangup(struct ast_channel *ast)
 		ast_debug(1, "Asked to hangup channel not connected\n");
 		return 0;
 	}
+
 	l = sub->parent;
 	d = l->parent;
 	s = d->session;
+
+	if (skinnydebug)
+		ast_verb(3,"Hanging up %s/%d\n",d->name,sub->callid);
 
 	AST_LIST_REMOVE(&l->sub, sub, list);
 
@@ -3469,6 +3479,7 @@ static int skinny_hangup(struct ast_channel *ast)
 
 			}
 			if (sub == l->activesub) {      /* we are killing the active sub, but there are other subs on the line*/
+				ast_verb(4,"Killing active sub %d\n", sub->callid);
 				if (sub->related) {
 					l->activesub = sub->related;
 				} else {
@@ -3478,12 +3489,13 @@ static int skinny_hangup(struct ast_channel *ast)
 						l->activesub = AST_LIST_FIRST(&l->sub);
 					}
 				}
-				transmit_callstate(d, l->instance, SKINNY_ONHOOK, sub->callid);
+				//transmit_callstate(d, l->instance, SKINNY_ONHOOK, sub->callid);
 				transmit_activatecallplane(d, l);
 				transmit_closereceivechannel(d, sub);
 				transmit_stopmediatransmission(d, sub);
 				transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 			} else {    /* we are killing a background sub on the line with other subs*/
+				ast_verb(4,"Killing inactive sub %d\n", sub->callid);
 				if (AST_LIST_NEXT(sub, list)) {
 					transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 				} else {
@@ -3491,7 +3503,7 @@ static int skinny_hangup(struct ast_channel *ast)
 				}
 			}
 		} else {                                                /* no more subs on line so make idle */
-
+			ast_verb(4,"Killing only sub %d\n", sub->callid);
 			l->hookstate = SKINNY_ONHOOK;
 			transmit_callstate(d, l->instance, SKINNY_ONHOOK, sub->callid);
 			l->activesub = NULL;
@@ -3947,7 +3959,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 			sub->related = NULL;
 
 			AST_LIST_INSERT_HEAD(&l->sub, sub, list);
-			l->activesub = sub;
+			//l->activesub = sub;
 		}
 		tmp->tech = &skinny_tech;
 		tmp->tech_pvt = sub;
@@ -4388,6 +4400,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		} else {
 			sub = c->tech_pvt;
 			l = sub->parent;
+			l->activesub = sub;
 			if (l->hookstate == SKINNY_ONHOOK) {
 				l->hookstate = SKINNY_OFFHOOK;
 				transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
@@ -4428,6 +4441,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		} else {
 			sub = c->tech_pvt;
 			l = sub->parent;
+			l->activesub = sub;
 			if (l->hookstate == SKINNY_ONHOOK) {
 				l->hookstate = SKINNY_OFFHOOK;
 				transmit_speaker_mode(d, SKINNY_SPEAKERON);
@@ -4487,6 +4501,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		} else {
 			sub = c->tech_pvt;
 			l = sub->parent;
+			l->activesub = sub;
 
 			if (ast_strlen_zero(l->vmexten))  /* Exit the call if no VM pilot */
 				break;
@@ -4651,6 +4666,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 				c = skinny_new(l, AST_STATE_DOWN);
 				if (c) {
 					sub = c->tech_pvt;
+					l->activesub = sub;
 					transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
 					if (skinnydebug)
 						ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
@@ -4748,6 +4764,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 			c = skinny_new(l, AST_STATE_DOWN);
 			if (c) {
 				sub = c->tech_pvt;
+				l->activesub = sub;
 				transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
 				if (skinnydebug)
 					ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
@@ -4789,6 +4806,9 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 	} else {
 		l = d->activeline;
 		sub = l->activesub;
+		if (!sub) {
+			return 0;
+		}
 	}
 
 	if (l->hookstate == SKINNY_ONHOOK) {
@@ -5241,6 +5261,7 @@ static int handle_enbloc_call_message(struct skinny_req *req, struct skinnysessi
 		l->hookstate = SKINNY_OFFHOOK;
 
 		sub = c->tech_pvt;
+		l->activesub = sub;
 		transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
 		if (skinnydebug)
 			ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
@@ -5355,6 +5376,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		} else {
 			sub = c->tech_pvt;
+			l->activesub = sub;
 			if (l->hookstate == SKINNY_ONHOOK) {
 				l->hookstate = SKINNY_OFFHOOK;
 				transmit_speaker_mode(d, SKINNY_SPEAKERON);
@@ -5393,6 +5415,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		} else {
 			sub = c->tech_pvt;
+			l->activesub = sub;
 			if (l->hookstate == SKINNY_ONHOOK) {
 				l->hookstate = SKINNY_OFFHOOK;
 				transmit_speaker_mode(d, SKINNY_SPEAKERON);
@@ -5459,6 +5482,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		} else {
 			sub = c->tech_pvt;
+			l->activesub = sub;
 			handle_callforward_button(sub, SKINNY_CFWD_ALL);
 		}
 		break;
@@ -5476,6 +5500,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		} else {
 			sub = c->tech_pvt;
+			l->activesub = sub;
 			handle_callforward_button(sub, SKINNY_CFWD_BUSY);
 		}
 		break;
@@ -5494,6 +5519,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		} else {
 			sub = c->tech_pvt;
+			l->activesub = sub;
 			handle_callforward_button(sub, SKINNY_CFWD_NOANSWER);
 		}
 #endif
