@@ -2044,6 +2044,8 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTACKCALL");
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTACKCALL=%s, setting ackcall to: %d for Agent '%s'.\n",tmpoptions,p->ackcall,p->agent);
+				} else {
+					p->ackcall = ackcall;
 				}
 				if (pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF") && strlen(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"))) {
 					p->autologoff = atoi(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"));
@@ -2052,6 +2054,8 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF");
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTAUTOLOGOFF=%s, setting autologff to: %d for Agent '%s'.\n",tmpoptions,p->autologoff,p->agent);
+				} else {
+					p->autologoff = autologoff;
 				}
 				if (pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME") && strlen(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"))) {
 					p->wrapuptime = atoi(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"));
@@ -2060,6 +2064,8 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME");
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTWRAPUPTIME=%s, setting wrapuptime to: %d for Agent '%s'.\n",tmpoptions,p->wrapuptime,p->agent);
+				} else {
+					p->wrapuptime = wrapuptime;
 				}
 				ast_channel_unlock(chan);
 				unlock_channel = 0;
@@ -2447,7 +2453,9 @@ static int action_agent_callback_login(struct mansession *s, const struct messag
 				p->wrapuptime = 0;
 		}
 
-		if (ast_true(ackcall_s))
+		if (strcasecmp(ackcall_s, "always"))
+			p->ackcall = 2;
+		else if (ast_true(ackcall_s))
 			p->ackcall = 1;
 		else
 			p->ackcall = 0;
