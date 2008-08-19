@@ -36,6 +36,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ael_structs.h"
 #include "asterisk/utils.h"
 
+extern struct ast_flags ast_compat;
+
 pval * linku1(pval *head, pval *tail);
 static void set_dads(pval *dad, pval *child_list);
 void reset_parencount(yyscan_t yyscanner);
