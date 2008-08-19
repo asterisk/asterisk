@@ -772,6 +772,8 @@ exit:
 
 	ast_channel_setoption(chan, AST_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
 
+	ast_mutex_lock(&chanspy_ds.lock);
+	ast_mutex_unlock(&chanspy_ds.lock);
 	ast_mutex_destroy(&chanspy_ds.lock);
 
 	return res;
