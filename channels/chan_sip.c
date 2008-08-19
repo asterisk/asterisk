@@ -12269,7 +12269,6 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 	const char *id = astman_get_header(m, "ActionID");
 	char idtext[256] = "";
 	int total = 0;
-	struct ast_tm tm;
 
 	if (!ast_strlen_zero(id))
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
