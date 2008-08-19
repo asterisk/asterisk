@@ -424,6 +424,8 @@ static struct dahdi_pvt {
 	struct dahdi_pvt *master;				/*!< Master to us (we follow their conferencing) */
 	int inconference;				/*!< If our real should be in the conference */
 	
+	int buf_no;					/*!< Number of buffers */
+	int buf_policy;				/*!< Buffer policy */
 	int sig;					/*!< Signalling style */
 	int radio;					/*!< radio type */
 	int outsigmod;					/*!< Outbound Signalling style (modifier) */
@@ -654,7 +656,10 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void) {
 
 			.polarityonanswerdelay = 600,
 
-			.sendcalleridafter = DEFAULT_CIDRINGS
+			.sendcalleridafter = DEFAULT_CIDRINGS,
+
+			.buf_policy = DAHDI_POLICY_IMMEDIATE,
+			.buf_no = numbufs
 		},
 		.timing = {
 			.prewinktime = -1,
@@ -970,9 +975,9 @@ static int alloc_sub(struct dahdi_pvt *p, int x)
 		if (p->subs[x].dfd > -1) {
 			res = ioctl(p->subs[x].dfd, DAHDI_GET_BUFINFO, &bi);
 			if (!res) {
-				bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
-				bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
-				bi.numbufs = numbufs;
+				bi.txbufpolicy = p->buf_policy;
+				bi.rxbufpolicy = p->buf_policy;
+				bi.numbufs = p->buf_no;
 				res = ioctl(p->subs[x].dfd, DAHDI_SET_BUFINFO, &bi);
 				if (res < 0) {
 					ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d: %s\n", x, strerror(errno));
@@ -7551,9 +7556,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			memset(&bi, 0, sizeof(bi));
 			res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GET_BUFINFO, &bi);
 			if (!res) {
-				bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
-				bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
-				bi.numbufs = numbufs;
+				bi.txbufpolicy = conf->chan.buf_policy;
+				bi.rxbufpolicy = conf->chan.buf_policy;
+				bi.numbufs = conf->chan.buf_no;
 				res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_SET_BUFINFO, &bi);
 				if (res < 0) {
 					ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d: %s\n", channel, strerror(errno));
@@ -7871,9 +7876,9 @@ static struct dahdi_pvt *chandup(struct dahdi_pvt *src)
 		}
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_GET_BUFINFO, &bi);
 		if (!res) {
-			bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
-			bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
-			bi.numbufs = numbufs;
+			bi.txbufpolicy = p->buf_policy;
+			bi.rxbufpolicy = p->buf_policy;
+			bi.numbufs = p->buf_no;
 			res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SET_BUFINFO, &bi);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Unable to set buffer policy on dup channel: %s\n", strerror(errno));
@@ -10967,7 +10972,6 @@ static int build_channels(struct dahdi_chan_conf *conf, int iscrv, const char *v
 static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct ast_variable *v, int reload, int skipchannels)
 {
 	struct dahdi_pvt *tmp;
-	char *ringc; /* temporary string for parsing the dring number. */
 	int y;
 	int found_pseudo = 0;
         char dahdichan[MAX_CHANLIST_LEN] = {};
@@ -10988,6 +10992,26 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			iscrv = !strcasecmp(v->name, "crv");
 			if (build_channels(confp, iscrv, v->value, reload, v->lineno, &found_pseudo))
 					return -1;
+		} else if (!strcasecmp(v->name, "buffers")) {
+			int res;
+			char policy[8] = "";
+			res = sscanf(v->value, "%d,%s", &confp->chan.buf_no, policy);
+			if (res != 2) {
+				ast_log(LOG_WARNING, "Parsing buffers option data failed, using defaults.\n");
+				confp->chan.buf_no = numbufs;
+				continue;
+			}
+			if (confp->chan.buf_no < 0)
+				confp->chan.buf_no = numbufs;
+			if (!strcasecmp(policy, "full")) {
+				confp->chan.buf_policy = DAHDI_POLICY_WHEN_FULL;
+			} else if (!strcasecmp(policy, "half")) {
+				confp->chan.buf_policy = DAHDI_POLICY_IMMEDIATE /* TODO: change to HALF_FULL */;
+			} else if (!strcasecmp(policy, "immediate")) {
+				confp->chan.buf_policy = DAHDI_POLICY_IMMEDIATE;
+			} else {
+				ast_log(LOG_WARNING, "Invalid policy name given (%s).\n", policy);
+			}
 		} else if (!strcasecmp(v->name, "zapchan") || !strcasecmp(v->name, "dahdichan")) {
 			ast_copy_string(dahdichan, v->value, sizeof(dahdichan));
 			if (v->name[0] == 'z' || v->name[0] == 'Z') {
@@ -11006,14 +11030,11 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "dring3context")) {
 			ast_copy_string(drings.ringContext[2].contextData, v->value, sizeof(drings.ringContext[2].contextData));
 		} else if (!strcasecmp(v->name, "dring1")) {
-			ringc = v->value;
-			sscanf(ringc, "%d,%d,%d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
+			sscanf(v->value, "%d,%d,%d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
 		} else if (!strcasecmp(v->name, "dring2")) {
-			ringc = v->value;
-			sscanf(ringc, "%d,%d,%d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
+			sscanf(v->value, "%d,%d,%d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
 		} else if (!strcasecmp(v->name, "dring3")) {
-			ringc = v->value;
-			sscanf(ringc, "%d,%d,%d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
+			sscanf(v->value, "%d,%d,%d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
 		} else if (!strcasecmp(v->name, "usecallerid")) {
 			confp->chan.use_callerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "cidsignalling")) {
