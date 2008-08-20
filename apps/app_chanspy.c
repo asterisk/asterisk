@@ -713,7 +713,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 			char *groups[NUM_SPYGROUPS];
 			char *mygroups[NUM_SPYGROUPS];
 			int num_groups = 0;
-			char *dup_group;
+			char dup_group[512];
 			int num_mygroups = 0;
 			char *dup_mygroup;
 			int x;
@@ -757,7 +757,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 					ARRAY_LEN(mygroups));
 
 				if ((group = pbx_builtin_getvar_helper(peer, "SPYGROUP"))) {
-					dup_group = ast_strdupa(group);
+					ast_copy_string(dup_group, group, sizeof(dup_group));
 					num_groups = ast_app_separate_args(dup_group, ':', groups,
 						ARRAY_LEN(groups));
 				}
