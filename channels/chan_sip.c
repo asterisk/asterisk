@@ -13244,12 +13244,11 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		peer_status(peer, status, sizeof(status));
 		astman_append(s, "%s\r\n", status);
  		astman_append(s, "SIP-Useragent: %s\r\n", peer->useragent);
- 		astman_append(s, "Reg-Contact : %s\r\n", peer->fullcontact);
-		astman_append(s, "QualifyFreq : %d ms\n", peer->qualifyfreq);
+ 		astman_append(s, "Reg-Contact: %s\r\n", peer->fullcontact);
+		astman_append(s, "QualifyFreq: %d ms\r\n", peer->qualifyfreq);
 		if (peer->chanvars) {
 			for (v = peer->chanvars ; v ; v = v->next) {
- 				astman_append(s, "ChanVariable:\n");
- 				astman_append(s, " %s,%s\r\n", v->name, v->value);
+ 				astman_append(s, "ChanVariable: %s=%s\r\n", v->name, v->value);
 			}
 		}
 
