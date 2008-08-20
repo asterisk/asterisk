@@ -1458,6 +1458,15 @@ if test "${USE_ZAPTEL}" != "no" && test "x${PBX_DAHDI}" != "x1"; then
 	fi
 	PBX_ZAPTEL=1
 	AC_DEFINE([HAVE_ZAPTEL], 1, [Define if your system has the Zaptel headers.])
+	saved_cppflags="${CPPFLAGS}"
+	CPPFLAGS="${CPPFLAGS} ${ZAPTEL_INCLUDE}"
+	AC_CHECK_MEMBER([ZT_PARAMS.chan_alarms],,,[#include <zaptel/zaptel.h>])
+	CPPFLAGS="${saved_cppflags}"
+	if test "${ac_cv_member_ZT_PARAMS_chan_alarms}" = "yes"; then
+	     AC_DEFINE([HAVE_ZAPTEL_CHANALARMS], 1, [Define if your Zaptel drivers have chan_alarms.])
+	else
+	     AC_DEFINE([HAVE_ZAPTEL_CHANALARMS], 0, [Define if your Zaptel drivers have chan_alarms.])
+	fi
    elif test -n "${ZAPTEL_MANDATORY}"; 
    then
       AC_MSG_NOTICE([***])

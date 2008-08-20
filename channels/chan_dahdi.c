@@ -3666,14 +3666,33 @@ static int get_alarms(struct dahdi_pvt *p)
 {
 	int res;
 	struct dahdi_spaninfo zi;
+#if defined(HAVE_DAHDI) || defined(HAVE_ZAPTEL_CHANALARMS)
+	/*
+	 * The conditional compilation is needed only in asterisk-1.4 for
+	 * backward compatibility with old zaptel drivers that don't have
+	 * a DAHDI_PARAMS.chan_alarms field.
+	 */
+	struct dahdi_params params;
+#endif
+
 	memset(&zi, 0, sizeof(zi));
 	zi.spanno = p->span;
-	res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SPANSTAT, &zi);
-	if (res < 0) {
+
+	/* First check for span alarms */
+	if((res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SPANSTAT, &zi)) < 0) {
 		ast_log(LOG_WARNING, "Unable to determine alarm on channel %d: %s\n", p->channel, strerror(errno));
 		return 0;
 	}
-	return zi.alarms;
+	if (zi.alarms != DAHDI_ALARM_NONE)
+		return zi.alarms;
+#if defined(HAVE_DAHDI) || defined(HAVE_ZAPTEL_CHANALARMS)
+	/* No alarms on the span. Check for channel alarms. */
+	if ((res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &params)) >= 0)
+		return params.chan_alarms;
+	/* ioctl failed */
+	ast_log(LOG_WARNING, "Unable to determine alarm on channel %d\n", p->channel);
+#endif
+	return DAHDI_ALARM_NONE;
 }
 
 static void dahdi_handle_dtmfup(struct ast_channel *ast, int index, struct ast_frame **dest)

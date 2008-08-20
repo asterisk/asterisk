@@ -546,6 +546,9 @@
 /* Define if your system has the Zaptel headers. */
 #undef HAVE_ZAPTEL
 
+/* Define if your Zaptel drivers have chan_alarms. */
+#undef HAVE_ZAPTEL_CHANALARMS
+
 /* Define to indicate the ${ZLIB_DESCRIP} library */
 #undef HAVE_ZLIB
 
