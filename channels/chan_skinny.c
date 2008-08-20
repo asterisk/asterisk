@@ -4377,6 +4377,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		if (!l) {
 			return 0;
 		}
+		sub = l->activesub;
 	} else {
 		l = sub->parent;
 	}
