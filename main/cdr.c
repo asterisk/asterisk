@@ -1073,12 +1073,15 @@ void ast_cdr_specialized_reset(struct ast_cdr *cdr, struct ast_flags *_flags)
 
 	if (_flags)
 		ast_copy_flags(&flags, _flags, AST_FLAGS_ALL);
-
-	if (_flags)
-		ast_copy_flags(&flags, _flags, AST_FLAGS_ALL);
 	
 	/* Reset to initial state */
-	ast_clear_flag(cdr, AST_FLAGS_ALL);	
+	if (ast_test_flag(cdr, AST_CDR_FLAG_POST_DISABLED)) { /* But do NOT lose the NoCDR() setting */
+		ast_clear_flag(cdr, AST_FLAGS_ALL);	
+		ast_set_flag(cdr, AST_CDR_FLAG_POST_DISABLED);
+	} else {
+		ast_clear_flag(cdr, AST_FLAGS_ALL);	
+	}
+	
 	memset(&cdr->start, 0, sizeof(cdr->start));
 	memset(&cdr->end, 0, sizeof(cdr->end));
 	memset(&cdr->answer, 0, sizeof(cdr->answer));
