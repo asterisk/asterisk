@@ -108,11 +108,7 @@ static AST_LIST_HEAD_STATIC(translators, translator);
 struct pvt {
 	int fd;
 	int fake;
-	unsigned int g729b_warning:1;
-#ifdef DEBUG_TRANSCODE
-	int totalms;
-	int lasttotalms;
-#endif
+	int samples;
 	struct dahdi_transcoder_formats fmts;
 };
 
@@ -172,7 +168,7 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 				return NULL;
 			}
 		} else {
-			pvt->f.samples = res;
+			pvt->f.samples = ztp->samples;
 			pvt->f.datalen = res;
 			pvt->datalen = 0;
 			pvt->f.frametype = AST_FRAME_VOICE;
@@ -268,6 +264,20 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 
 	switch (ztp->fmts.dstfmt) {
 	case AST_FORMAT_G729A:
+		ztp->samples = 160;
+		break;
+	case AST_FORMAT_G723_1:
+		ztp->samples = 240;
+		break;
+	default:
+		ztp->samples = 160;
+		break;
+	};
+
+	switch (ztp->fmts.dstfmt) {
+	case AST_FORMAT_G729A:
+		ast_atomic_fetchadd_int(&channels.encoders, +1);
+		break;
 	case AST_FORMAT_G723_1:
 		ast_atomic_fetchadd_int(&channels.encoders, +1);
 		break;
