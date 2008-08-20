@@ -108,7 +108,6 @@ static char *handle_cli_transcoder_show(struct ast_cli_entry *e, int cmd, struct
 
 	if (copy.total == 0)
 		ast_cli(a->fd, "No DAHDI transcoders found.\n");
-	ast_debug(1, "codec_dahdi.so loaded.\n");
 	else
 		ast_cli(a->fd, "%d/%d encoders/decoders of %d channels are in use.\n", copy.encoders, copy.decoders, copy.total);
 
@@ -448,7 +447,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	ast_debug(1, "codec_dahdi.so loaded.\n");
 	if (parse_config(0))
 		return AST_MODULE_LOAD_DECLINE;
 	find_transcoders();
