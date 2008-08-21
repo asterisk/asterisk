@@ -1619,6 +1619,7 @@ static struct ast_channel *gtalk_request(const char *type, int format, void *dat
 		client->connection = ast_aji_get_client(sender);
 		if (!client->connection) {
 			ast_log(LOG_ERROR, "No XMPP client to talk to, us (partial JID) : %s\n", sender);
+			ASTOBJ_UNREF(client, gtalk_member_destroy);
 			return NULL;
 		}
 	}
@@ -1960,6 +1961,7 @@ static int gtalk_load_config(void)
 						ASTOBJ_UNLOCK(iterator);
 					});
 					ASTOBJ_CONTAINER_LINK(&gtalk_list, member);
+					ASTOBJ_UNREF(member, gtalk_member_destroy);
 				} else {
 					ASTOBJ_UNLOCK(member);
 					ASTOBJ_UNREF(member, gtalk_member_destroy);
