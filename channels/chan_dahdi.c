@@ -8153,12 +8153,14 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		int chan_sig = conf->chan.sig;
 		if (!here) {
 			if ((channel != CHAN_PSEUDO) && !pri) {
+				int count = 0;
 				snprintf(fn, sizeof(fn), "%d", channel);
 				/* Open non-blocking */
 				tmp->subs[SUB_REAL].dfd = dahdi_open(fn);
-				while (tmp->subs[SUB_REAL].dfd < 0 && reloading == 2) { /* the kernel may not call dahdi_release fast enough for the open flagbit to be cleared in time */
+				while (tmp->subs[SUB_REAL].dfd < 0 && reloading == 2 && count < 1000) { /* the kernel may not call dahdi_release fast enough for the open flagbit to be cleared in time */
 					usleep(1);
 					tmp->subs[SUB_REAL].dfd = dahdi_open(fn);
+					count++;
 				}
 				/* Allocate a DAHDI structure */
 				if (tmp->subs[SUB_REAL].dfd < 0) {
