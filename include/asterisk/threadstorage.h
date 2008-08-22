@@ -199,7 +199,7 @@ void *__ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size, co
 			return NULL;
 		}
 		pthread_setspecific(ts->key, buf);
-		__ast_threadstorage_object_add(ts->key, init_size, file, function, line);
+		__ast_threadstorage_object_add(&ts->key, init_size, file, function, line);
 	}
 
 	return buf;
