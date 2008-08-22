@@ -8695,13 +8695,13 @@ retryowner:
 					pbx_builtin_setvar_helper(bridged_chan, "BLINDTRANSFER", iaxs[fr->callno]->owner->name);
 					if (!strcmp(ies.called_number, ast_parking_ext())) {
 						struct ast_channel *saved_channel = iaxs[fr->callno]->owner;
-						ast_mutex_unlock(iaxsl[fr->callno]);
+						ast_mutex_unlock(&iaxsl[fr->callno]);
 						if (iax_park(bridged_chan, saved_channel)) {
 							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", bridged_chan->name);
 						} else {
 							ast_debug(1, "Parked call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
 						}
-						ast_mutex_lock(iaxsl[fr->callno]);
+						ast_mutex_lock(&iaxsl[fr->callno]);
 					} else {
 						if (ast_async_goto(bridged_chan, iaxs[fr->callno]->context, ies.called_number, 1))
 							ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", bridged_chan->name, 
