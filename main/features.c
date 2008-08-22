@@ -2140,6 +2140,49 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 
 	}
    before_you_go:
+	if (ast_exists_extension(chan, chan->context, "h", 1, chan->cid.cid_num)) {
+		struct ast_cdr *swapper;
+		char savelastapp[AST_MAX_EXTENSION];
+		char savelastdata[AST_MAX_EXTENSION];
+		char save_exten[AST_MAX_EXTENSION];
+		int  save_prio;
+		int  found = 0;	/* set if we find at least one match */
+		
+		if (chan->cdr && ast_opt_end_cdr_before_h_exten) {
+			ast_cdr_end(bridge_cdr);
+		}
+		/* swap the bridge cdr and the chan cdr for a moment, and let the endbridge
+		   dialplan code operate on it */
+		swapper = chan->cdr;
+		ast_copy_string(savelastapp, bridge_cdr->lastapp, sizeof(bridge_cdr->lastapp));
+		ast_copy_string(savelastdata, bridge_cdr->lastdata, sizeof(bridge_cdr->lastdata));
+		chan->cdr = bridge_cdr;
+		ast_channel_lock(chan);
+		ast_copy_string(save_exten, chan->exten, sizeof(save_exten));
+		save_prio = chan->priority;
+		ast_copy_string(chan->exten, "h", sizeof(chan->exten));
+		chan->priority = 1;
+		ast_channel_unlock(chan);
+		while ((res = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num, &found, 1)) == 0) {
+			chan->priority++;
+		}
+		if (found && res) 
+		{
+			/* Something bad happened, or a hangup has been requested. */
+			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", chan->context, chan->exten, chan->priority, chan->name);
+			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", chan->context, chan->exten, chan->priority, chan->name);
+		}
+		/* swap it back */
+		ast_channel_lock(chan);
+		ast_copy_string(chan->exten, save_exten, sizeof(chan->exten));
+		chan->priority = save_prio;
+		chan->cdr = swapper;
+		ast_channel_lock(chan);
+		/* protect the lastapp/lastdata against the effects of the hangup/dialplan code */
+		ast_copy_string(bridge_cdr->lastapp, savelastapp, sizeof(bridge_cdr->lastapp));
+		ast_copy_string(bridge_cdr->lastdata, savelastdata, sizeof(bridge_cdr->lastdata));
+	}
+
 	/* obey the NoCDR() wishes. */
 	if (!chan->cdr || (chan->cdr && !ast_test_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED))) {
 		
