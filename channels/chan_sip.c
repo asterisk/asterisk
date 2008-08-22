@@ -9470,9 +9470,9 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 	struct ast_variable *vars = astman_get_variables(m);
 	struct sip_pvt *p;
 
-	if (!channame) {
+	if (ast_strlen_zero(channame)) {
 		astman_send_error(s, m, "SIPNotify requires a channel name");
-		return -1;
+		return 0;
 	}
 
 	if (!strncasecmp(channame, "sip/", 4)) {
@@ -9481,7 +9481,7 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 
 	if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY))) {
 		astman_send_error(s, m, "Unable to build sip pvt data for notify (memory/socket error)");
-		return -1;
+		return 0;
 	}
 
 	if (create_addr(p, channame, NULL, 0)) {
@@ -9490,7 +9490,7 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 		dialog_unref(p, "unref dialog inside for loop" );
 		/* sip_destroy(p); */
 		astman_send_error(s, m, "Could not create address");
-		return -1;
+		return 0;
 	}
 
 	/* Notify is outgoing call */
