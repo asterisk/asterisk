@@ -1959,7 +1959,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			autoloopflag = ast_test_flag(peer, AST_FLAG_IN_AUTOLOOP); /* save value to restore at the end */
 			ast_set_flag(peer, AST_FLAG_IN_AUTOLOOP);
 
-			while ((res = ast_spawn_extension(peer, peer->context, peer->exten, peer->priority, peer->cid.cid_num, &found, 1)))
+			while ((res = ast_spawn_extension(peer, peer->context, peer->exten, peer->priority, peer->cid.cid_num, &found, 1)) == 0)
 				peer->priority++;
 
 			if (found && res) {
