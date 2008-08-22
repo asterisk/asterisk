@@ -1663,6 +1663,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		struct ast_cdr *swapper;
 		char savelastapp[AST_MAX_EXTENSION];
 		char savelastdata[AST_MAX_EXTENSION];
+		char save_exten[AST_MAX_EXTENSION];
+		int  save_prio;
 		
 		if (chan->cdr && ast_opt_end_cdr_before_h_exten) {
 			ast_cdr_end(bridge_cdr);
@@ -1674,6 +1676,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		ast_copy_string(savelastdata, bridge_cdr->lastdata, sizeof(bridge_cdr->lastdata));
 		chan->cdr = bridge_cdr;
 		ast_channel_lock(chan);
+		ast_copy_string(save_exten, chan->exten, sizeof(save_exten));
+		save_prio = chan->priority;
 		ast_copy_string(chan->exten, "h", sizeof(chan->exten));
 		chan->priority = 1;
 		ast_channel_unlock(chan);
@@ -1689,7 +1693,11 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			chan->priority++;
 		}
 		/* swap it back */
+		ast_channel_lock(chan);
+		ast_copy_string(chan->exten, save_exten, sizeof(chan->exten));
+		chan->priority = save_prio;
 		chan->cdr = swapper;
+		ast_channel_unlock(chan);
 		/* protect the lastapp/lastdata against the effects of the hangup/dialplan code */
 		ast_copy_string(bridge_cdr->lastapp, savelastapp, sizeof(bridge_cdr->lastapp));
 		ast_copy_string(bridge_cdr->lastdata, savelastdata, sizeof(bridge_cdr->lastdata));
