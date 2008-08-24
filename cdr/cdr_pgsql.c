@@ -292,6 +292,8 @@ static int pgsql_log(struct ast_cdr *cdr)
 				conn = NULL;
 				connected = 0;
 				ast_mutex_unlock(&pgsql_lock);
+				ast_free(sql);
+				ast_free(sql2);
 				return -1;
 			}
 		}
