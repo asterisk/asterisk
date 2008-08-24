@@ -132,7 +132,17 @@ static int pgsql_log(struct ast_cdr *cdr)
 		int lensql, lensql2, sizesql = maxsize, sizesql2 = maxsize2, newsize;
 		char *sql = ast_calloc(sizeof(char), sizesql), *sql2 = ast_calloc(sizeof(char), sizesql2), *tmp, *value;
 		char buf[257], escapebuf[513];
-  
+ 
+		if (!sql || !sql2) {
+			if (sql) {
+				ast_free(sql);
+			}
+			if (sql2) {
+				ast_free(sql2);
+			}
+			return -1;
+		}
+ 
 		lensql = snprintf(sql, sizesql, "INSERT INTO %s (", table);
 		lensql2 = snprintf(sql2, sizesql2, " VALUES (");
   
@@ -288,6 +298,8 @@ static int pgsql_log(struct ast_cdr *cdr)
 				conn = NULL;
 				connected = 0;
 				ast_mutex_unlock(&pgsql_lock);
+				ast_free(sql);
+				ast_free(sql2);
 				return -1;
 			}
 		}
@@ -311,9 +323,13 @@ static int pgsql_log(struct ast_cdr *cdr)
 			}
 			ast_mutex_unlock(&pgsql_lock);
 			PQclear(result);
+			ast_free(sql);
+			ast_free(sql2);
 			return -1;
 		}
 		PQclear(result);
+		ast_free(sql);
+		ast_free(sql2);
 	}
 	ast_mutex_unlock(&pgsql_lock);
 	return 0;
