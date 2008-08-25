@@ -2337,7 +2337,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 	int format = AST_FORMAT_SLINEAR;
 
 	pthread_t th;
-	if (!ast_strlen_zero(name)) {
+	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
