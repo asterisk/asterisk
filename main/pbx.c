@@ -3873,10 +3873,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 		ast_log(LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
 	if (res != AST_PBX_KEEPALIVE)
 		ast_softhangup(c, c->hangupcause ? c->hangupcause : AST_CAUSE_NORMAL_CLEARING);
-#ifdef HANGUP_EXTEN_EXECUTION_MOVED_TO_res_features
 	if ((res != AST_PBX_KEEPALIVE) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
-		/* end before h exten was here */
-		
 		set_ext_pri(c, "h", 1);
 		while ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num, &found, 1)) == 0) {
 			c->priority++;
@@ -3887,7 +3884,6 @@ static int __ast_pbx_run(struct ast_channel *c)
 			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 		}
 	}
-#endif
 	ast_set2_flag(c, autoloopflag, AST_FLAG_IN_AUTOLOOP);
 
 	pbx_destroy(c->pbx);
