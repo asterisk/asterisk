@@ -18203,10 +18203,10 @@ static int sip_addheader(struct ast_channel *chan, void *data)
 	/* Check for headers */
 	while (!ok && no <= 50) {
 		no++;
-		snprintf(varbuf, sizeof(varbuf), "_SIPADDHEADER%.2d", no);
+		snprintf(varbuf, sizeof(varbuf), "__SIPADDHEADER%.2d", no);
 
-		/* Compare without the leading underscore */
-		if( (pbx_builtin_getvar_helper(chan, (const char *) varbuf + 1) == (const char *) NULL) )
+		/* Compare without the leading underscores */
+		if( (pbx_builtin_getvar_helper(chan, (const char *) varbuf + 2) == (const char *) NULL) )
 			ok = TRUE;
 	}
 	if (ok) {
