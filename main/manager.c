@@ -1866,7 +1866,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 	
 	pthread_t th;
 	pthread_attr_t attr;
-	if (!ast_strlen_zero(name)) {
+	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
