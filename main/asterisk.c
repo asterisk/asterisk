@@ -2113,7 +2113,7 @@ static char *cli_prompt(EditLine *editline)
 		}
 		if (color_used) {
 			/* Force colors back to normal at end */
-			ast_str_append(&prompt, 0, "%s", term_color_code(term_code, COLOR_WHITE, COLOR_BLACK, sizeof(term_code)));
+			ast_str_append(&prompt, 0, "%s", term_color_code(term_code, 0, 0, sizeof(term_code)));
 		}
 	} else if (remotehostname) {
 		ast_str_set(&prompt, 0, ASTERISK_PROMPT2, remotehostname);
@@ -2570,13 +2570,14 @@ static int show_cli_help(void) {
 	printf("   -q              Quiet mode (suppress output)\n");
 	printf("   -r              Connect to Asterisk on this machine\n");
 	printf("   -R              Same as -r, except attempt to reconnect if disconnected\n");
+	printf("   -s <socket>     Connect to Asterisk via socket <socket> (only valid with -r)\n");
 	printf("   -t              Record soundfiles in /var/tmp and move them where they\n");
 	printf("                   belong after they are done\n");
 	printf("   -T              Display the time in [Mmm dd hh:mm:ss] format for each line\n");
 	printf("                   of output to the CLI\n");
 	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
 	printf("   -x <cmd>        Execute command <cmd> (only valid with -r)\n");
-	printf("   -s <socket>     Connect to Asterisk via socket <socket> (only valid with -r)\n");
+	printf("   -W              Adjust terminal colors to compensate for a light background\n");
 	printf("\n");
 	return 0;
 }
@@ -2789,6 +2790,8 @@ static void ast_readconfig(void)
 				g_eid = tmp_eid;
 			} else
 				ast_verbose("Invalid Entity ID '%s' provided\n", v->value);
+		} else if (!strcasecmp(v->name, "lightbackground")) {
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_LIGHT_BACKGROUND);
 		}
 	}
 	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {
@@ -2928,7 +2931,7 @@ int main(int argc, char *argv[])
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	/* Check for options */
-	while ((c = getopt(argc, argv, "mtThfFdvVqprRgciInx:U:G:C:L:M:e:s:")) != -1) {
+	while ((c = getopt(argc, argv, "mtThfFdvVqprRgciInx:U:G:C:L:M:e:s:W")) != -1) {
 		switch (c) {
 #if defined(HAVE_SYSINFO)
 		case 'e':
@@ -3019,6 +3022,9 @@ int main(int argc, char *argv[])
 			break;
 		case 's':
 			remotesock = ast_strdupa(optarg);
+			break;
+		case 'W': /* White background */
+			ast_set_flag(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND);
 			break;
 		case '?':
 			exit(1);
