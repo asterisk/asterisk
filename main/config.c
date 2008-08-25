@@ -1013,6 +1013,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 	struct ast_comment *cmt;
 	struct stat s;
 	int blanklines = 0;
+	int stat_result = 0;
 
 	if (configfile[0] == '/') {
 		snprintf(fntmp, sizeof(fntmp), "%s.XXXXXX", configfile);
@@ -1124,10 +1125,11 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 			close(fd);
 		return -1;
 	}
-	stat(fn, &s);
-	fchmod(fd, s.st_mode);
+	if (!(stat_result = stat(fn, &s))) {
+		fchmod(fd, s.st_mode);
+	}
 	fclose(f);
-	if (unlink(fn) || link(fntmp, fn)) {
+	if ((!stat_result && unlink(fn)) || link(fntmp, fn)) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Unable to open for writing: %s (%s)\n", fn, strerror(errno));
 		if (option_verbose > 1)
