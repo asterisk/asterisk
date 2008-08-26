@@ -19546,6 +19546,12 @@ static void *do_monitor(void *data)
 		   dialog that was found and destroyed, probably because the list contents would change,
 		   so we'd need to restart. This isn't the best thing to do with callbacks. */
 
+		/* XXX TODO The scheduler usage in this module does not have sufficient 
+		 * synchronization being done between running the scheduler and places 
+		 * scheduling tasks.  As it is written, any scheduled item may not run 
+		 * any sooner than about  1 second, regardless of whether a sooner time 
+		 * was asked for. */
+
 		pthread_testcancel();
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
@@ -19555,11 +19561,9 @@ static void *do_monitor(void *data)
 		if (res > 20)
 			ast_debug(1, "chan_sip: ast_io_wait ran %d all at once\n", res);
 		ast_mutex_lock(&monlock);
-		if (res >= 0)  {
-			res = ast_sched_runq(sched);
-			if (res >= 20)
-				ast_debug(1, "chan_sip: ast_sched_runq ran %d all at once\n", res);
-		}
+		res = ast_sched_runq(sched);
+		if (res >= 20)
+			ast_debug(1, "chan_sip: ast_sched_runq ran %d all at once\n", res);
 		ast_mutex_unlock(&monlock);
 	}
 
