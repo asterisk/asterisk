@@ -952,6 +952,18 @@ static void dahdi_close(int fd)
 		close(fd);
 }
 
+static void dahdi_close_sub(struct dahdi_pvt *chan_pvt, int sub_num)
+{
+	dahdi_close(chan_pvt->subs[sub_num].dfd);
+	chan_pvt->subs[sub_num].dfd = -1;
+}
+
+static void dahdi_close_pri_fd(struct dahdi_pri *pri, int fd_num)
+{
+	dahdi_close(pri->fds[fd_num]);
+	pri->fds[fd_num] = -1;
+}
+
 static int dahdi_setlinear(int dfd, int linear)
 {
 	int res;
@@ -986,8 +998,7 @@ static int alloc_sub(struct dahdi_pvt *p, int x)
 				ast_log(LOG_WARNING, "Unable to check buffer policy on channel %d: %s\n", x, strerror(errno));
 			if (ioctl(p->subs[x].dfd, DAHDI_CHANNO, &p->subs[x].chan) == 1) {
 				ast_log(LOG_WARNING, "Unable to get channel number for pseudo channel on FD %d: %s\n", p->subs[x].dfd, strerror(errno));
-				dahdi_close(p->subs[x].dfd);
-				p->subs[x].dfd = -1;
+				dahdi_close_sub(p, x);
 				return -1;
 			}
 			if (option_debug)
@@ -1008,10 +1019,7 @@ static int unalloc_sub(struct dahdi_pvt *p, int x)
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "Released sub %d of channel %d\n", x, p->channel);
-	if (p->subs[x].dfd > -1) {
-		dahdi_close(p->subs[x].dfd);
-	}
-	p->subs[x].dfd = -1;
+	dahdi_close_sub(p, x);
 	p->subs[x].linear = 0;
 	p->subs[x].chan = 0;
 	p->subs[x].owner = NULL;
@@ -2261,6 +2269,7 @@ static void destroy_dahdi_pvt(struct dahdi_pvt **pvt)
 	if (p->use_smdi)
 		ast_smdi_interface_unref(p->smdi_iface);
 	ast_mutex_destroy(&p->lock);
+	dahdi_close_sub(p, SUB_REAL);
 	if (p->owner)
 		p->owner->tech_pvt = NULL;
 	free(p);
@@ -2296,9 +2305,6 @@ static int destroy_channel(struct dahdi_pvt *prev, struct dahdi_pvt *cur, int no
 				else
 					ifend = NULL;
 			}
-			if (cur->subs[SUB_REAL].dfd > -1) {
-				dahdi_close(cur->subs[SUB_REAL].dfd);
-			}
 			destroy_dahdi_pvt(&cur);
 		}
 	} else {
@@ -2314,9 +2320,6 @@ static int destroy_channel(struct dahdi_pvt *prev, struct dahdi_pvt *cur, int no
 				iflist->prev = NULL;
 			else
 				ifend = NULL;
-		}
-		if (cur->subs[SUB_REAL].dfd > -1) {
-			dahdi_close(cur->subs[SUB_REAL].dfd);
 		}
 		destroy_dahdi_pvt(&cur);
 	}
@@ -2339,9 +2342,6 @@ static void destroy_all_channels(void)
 		/* Free any callerid */
 		if (p->cidspill)
 			ast_free(p->cidspill);
-		/* Close the DAHDI thingy */
-		if (p->subs[SUB_REAL].dfd > -1)
-			dahdi_close(p->subs[SUB_REAL].dfd);
 		pl = p;
 		p = p->next;
 		x = pl->channel;
@@ -7232,7 +7232,7 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 		x = channels[y];
 		if (ioctl(fd, DAHDI_SPECIFY, &x)) {
 			ast_log(LOG_WARNING, "Failed to specify channel %d: %s\n", channels[y], strerror(errno));
-			dahdi_close(fd);
+			close(fd);
 			return -1;
 		}
 		if (ioctl(fd, DAHDI_GET_PARAMS, &p)) {
@@ -7241,18 +7241,18 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 		}
 		if (ioctl(fd, DAHDI_SPANSTAT, &si)) {
 			ast_log(LOG_WARNING, "Failed go get span information on channel %d (span %d): %s\n", channels[y], p.spanno, strerror(errno));
-			dahdi_close(fd);
+			close(fd);
 			return -1;
 		}
 		span = p.spanno - 1;
 		if (pris[span].trunkgroup) {
 			ast_log(LOG_WARNING, "Span %d is already provisioned for trunk group %d\n", span + 1, pris[span].trunkgroup);
-			dahdi_close(fd);
+			close(fd);
 			return -1;
 		}
 		if (pris[span].pvts[0]) {
 			ast_log(LOG_WARNING, "Span %d is already provisioned with channels (implicit PRI maybe?)\n", span + 1);
-			dahdi_close(fd);
+			close(fd);
 			return -1;
 		}
 		if (!y) {
@@ -7263,7 +7263,7 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 		pris[ospan].dchannels[y] = channels[y];
 		pris[ospan].dchanavail[y] |= DCHAN_PROVISIONED;
 		pris[span].span = span + 1;
-		dahdi_close(fd);
+		close(fd);
 	}
 	return 0;	
 }
@@ -8273,7 +8273,7 @@ static int pri_fixup_principle(struct dahdi_pri *pri, int principle, q931_call *
 			else {
 				/* Looks good.  Drop the pseudo channel now, clear up the assignment, and
 				   wakeup the potential sleeper */
-				dahdi_close(crv->subs[SUB_REAL].dfd);
+				dahdi_close_sub(crv, SUB_REAL);
 				pri->pvts[principle]->call = crv->call;
 				pri_assign_bearer(crv, pri, pri->pvts[principle]);
 				ast_log(LOG_DEBUG, "Assigning bearer %d/%d to CRV %d:%d\n",
@@ -9642,22 +9642,19 @@ static int start_pri(struct dahdi_pri *pri)
 		}
 		res = ioctl(pri->fds[i], DAHDI_GET_PARAMS, &p);
 		if (res) {
-			dahdi_close(pri->fds[i]);
-			pri->fds[i] = -1;
+			dahdi_close_pri_fd(pri, i);
 			ast_log(LOG_ERROR, "Unable to get parameters for D-channel %d (%s)\n", x, strerror(errno));
 			return -1;
 		}
 		if ((p.sigtype != DAHDI_SIG_HDLCFCS) && (p.sigtype != DAHDI_SIG_HARDHDLC)) {
-			dahdi_close(pri->fds[i]);
-			pri->fds[i] = -1;
+			dahdi_close_pri_fd(pri, i);
 			ast_log(LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/dahdi/system.conf\n", x);
 			return -1;
 		}
 		memset(&si, 0, sizeof(si));
 		res = ioctl(pri->fds[i], DAHDI_SPANSTAT, &si);
 		if (res) {
-			dahdi_close(pri->fds[i]);
-			pri->fds[i] = -1;
+			dahdi_close_pri_fd(pri, i);
 			ast_log(LOG_ERROR, "Unable to get span state for D-channel %d (%s)\n", x, strerror(errno));
 		}
 		if (!si.alarms)
@@ -9670,8 +9667,7 @@ static int start_pri(struct dahdi_pri *pri)
 		bi.bufsize = 1024;
 		if (ioctl(pri->fds[i], DAHDI_SET_BUFINFO, &bi)) {
 			ast_log(LOG_ERROR, "Unable to set appropriate buffering on channel %d: %s\n", x, strerror(errno));
-			dahdi_close(pri->fds[i]);
-			pri->fds[i] = -1;
+			dahdi_close_pri_fd(pri, i);
 			return -1;
 		}
 		pri->dchans[i] = pri_new(pri->fds[i], pri->nodetype, pri->switchtype);
@@ -9686,8 +9682,7 @@ static int start_pri(struct dahdi_pri *pri)
 		if (i)
 			pri_enslave(pri->dchans[0], pri->dchans[i]);
 		if (!pri->dchans[i]) {
-			dahdi_close(pri->fds[i]);
-			pri->fds[i] = -1;
+			dahdi_close_pri_fd(pri, i);
 			ast_log(LOG_ERROR, "Unable to create PRI structure\n");
 			return -1;
 		}
@@ -9707,8 +9702,7 @@ static int start_pri(struct dahdi_pri *pri)
 		for (i = 0; i < NUM_DCHANS; i++) {
 			if (!pri->dchannels[i])
 				break;
-			dahdi_close(pri->fds[i]);
-			pri->fds[i] = -1;
+			dahdi_close_pri_fd(pri, i);
 		}
 		ast_log(LOG_ERROR, "Unable to spawn D-channel: %s\n", strerror(errno));
 		return -1;
@@ -10144,7 +10138,7 @@ static int dahdi_restart(void)
 	#ifdef HAVE_PRI
 	for (i = 0; i < NUM_SPANS; i++) {
 		for (j = 0; j < NUM_DCHANS; j++)
-        	dahdi_close(pris[i].fds[j]);
+        		dahdi_close_pri_fd(&(pris[i]), j);
 	}
 
 	memset(pris, 0, sizeof(pris));
@@ -10810,8 +10804,7 @@ static int dahdi_action_restart(struct mansession *s, const struct message *m)
 
 static int __unload_module(void)
 {
-	int x;
-	struct dahdi_pvt *p, *pl;
+	struct dahdi_pvt *p;
 
 #ifdef HAVE_PRI
 	int i, j;
@@ -10853,33 +10846,13 @@ static int __unload_module(void)
 	monitor_thread = AST_PTHREADT_STOP;
 	ast_mutex_unlock(&monlock);
 
-	ast_mutex_lock(&iflock);
-	/* Destroy all the interfaces and free their memory */
-	p = iflist;
-	while (p) {
-		/* Free any callerid */
-		if (p->cidspill)
-			free(p->cidspill);
-		/* Close the DAHDI thingy */
-		if (p->subs[SUB_REAL].dfd > -1)
-			dahdi_close(p->subs[SUB_REAL].dfd);
-		pl = p;
-		p = p->next;
-		x = pl->channel;
-		/* Free associated memory */
-		if (pl)
-			destroy_dahdi_pvt(&pl);
-		ast_verbose(VERBOSE_PREFIX_3 "Unregistered channel %d\n", x);
-	}
-	iflist = NULL;
-	ifcount = 0;
-	ast_mutex_unlock(&iflock);
+	destroy_all_channels();
 #ifdef HAVE_PRI		
 	for (i = 0; i < NUM_SPANS; i++) {
 		if (pris[i].master && (pris[i].master != AST_PTHREADT_NULL))
 			pthread_join(pris[i].master, NULL);
 		for (j = 0; j < NUM_DCHANS; j++) {
-			dahdi_close(pris[i].fds[j]);
+			dahdi_close_pri_fd(&(pris[i]), j);
 		}
 	}
 #endif
