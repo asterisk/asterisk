@@ -16101,6 +16101,12 @@ restartsearch:
 		}
 		ast_mutex_unlock(&iflock);
 
+		/* XXX TODO The scheduler usage in this module does not have sufficient 
+		 * synchronization being done between running the scheduler and places 
+		 * scheduling tasks.  As it is written, any scheduled item may not run 
+		 * any sooner than about  1 second, regardless of whether a sooner time 
+		 * was asked for. */
+
 		pthread_testcancel();
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
@@ -16113,11 +16119,9 @@ restartsearch:
 		if (option_debug && res > 20)
 			ast_log(LOG_DEBUG, "chan_sip: ast_io_wait ran %d all at once\n", res);
 		ast_mutex_lock(&monlock);
-		if (res >= 0)  {
-			res = ast_sched_runq(sched);
-			if (option_debug && res >= 20)
-				ast_log(LOG_DEBUG, "chan_sip: ast_sched_runq ran %d all at once\n", res);
-		}
+		res = ast_sched_runq(sched);
+		if (option_debug && res >= 20)
+			ast_log(LOG_DEBUG, "chan_sip: ast_sched_runq ran %d all at once\n", res);
 
 		/* Send MWI notifications to peers - static and cached realtime peers */
 		t = time(NULL);
