@@ -65,6 +65,15 @@
 ; retrieved inside of of this extension.
 ;endbeforehexten=no
 
+; Normally, the 'billsec' field logged to the backends (text files or databases)
+; is simply the end time (hangup time) minus the answer time in seconds. Internally,
+; asterisk stores the time in terms of microseconds and seconds. By setting 
+; initiatedseconds to 'yes', you can force asterisk to report any seconds
+; that were initiated (a sort of round up method). Technically, this is
+; when the microsecond part of the end time is greater than the microsecond
+; part of the answer time, then the billsec time is incremented one second.
+;initiatedseconds=no
+
 ;
 ;
 ; CHOOSING A CDR "BACKEND"  (what kind of output to generate)

@@ -209,6 +209,11 @@ Miscellaneous
     operator.  This is most helpful when working with long SQL queries in
     func_odbc.conf, as the queries no longer need to be specified on a single
     line.
+  * CDR config file, cdr.conf, has an added option, "initiatedseconds", 
+    which will add a second to the billsec when the ending
+    time is set, if the number in the microseconds field of the end time is 
+    greater than the number of microseconds in the answer time. This allows
+    users to count the 'initiated' seconds in their billing records. 
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------

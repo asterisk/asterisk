@@ -84,6 +84,8 @@ enum ast_option_flags {
 	AST_OPT_FLAG_VERBOSE_FILE = (1 << 24),
 	/*! Terminal colors should be adjusted for a light-colored background */
 	AST_OPT_FLAG_LIGHT_BACKGROUND = (1 << 25),
+	/*! Count Initiated seconds in CDR's */
+	AST_OPT_FLAG_INITIATED_SECONDS = (1 << 26),
 };
 
 /*! These are the options that set by default when Asterisk starts */

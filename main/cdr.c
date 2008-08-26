@@ -874,8 +874,11 @@ void ast_cdr_end(struct ast_cdr *cdr)
 				ast_log(LOG_WARNING, "CDR on channel '%s' has no answer time but is 'ANSWERED'\n", S_OR(cdr->channel, "<unknown>"));
 				cdr->disposition = AST_CDR_FAILED;
 			}
-		} else
+		} else {
 			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec;
+			if (ast_test_flag(&ast_options, AST_OPT_FLAG_INITIATED_SECONDS))
+				cdr->billsec += cdr->end.tv_usec > cdr->answer.tv_usec ? 1 : 0;
+		}
 	}
 }
 
@@ -1386,6 +1389,7 @@ static int do_reload(int reload)
 	const char *size_value;
 	const char *time_value;
 	const char *end_before_h_value;
+	const char *initiatedseconds_value;
 	int cfg_size;
 	int cfg_time;
 	int was_enabled;
@@ -1444,6 +1448,8 @@ static int do_reload(int reload)
 		}
 		if ((end_before_h_value = ast_variable_retrieve(config, "general", "endbeforehexten")))
 			ast_set2_flag(&ast_options, ast_true(end_before_h_value), AST_OPT_FLAG_END_CDR_BEFORE_H_EXTEN);
+		if ((initiatedseconds_value = ast_variable_retrieve(config, "general", "initiatedseconds")))
+			ast_set2_flag(&ast_options, ast_true(initiatedseconds_value), AST_OPT_FLAG_INITIATED_SECONDS);
 	}
 
 	if (enabled && !batchmode) {
