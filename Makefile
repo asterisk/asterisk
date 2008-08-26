@@ -583,7 +583,8 @@ samples: adsi
 		echo "astrundir => $(ASTVARRUNDIR)" ; \
 		echo "astlogdir => $(ASTLOGDIR)" ; \
 		echo "" ; \
-		echo ";[options]" ; \
+		echo "[options]" ; \
+		echo "languageprefix = yes ; Use the new sound prefix path syntax" ; \
 		echo ";verbose = 3" ; \
 		echo ";debug = 3" ; \
 		echo ";alwaysfork = yes ; same as -F at startup" ; \
@@ -597,7 +598,6 @@ samples: adsi
 		echo ";nocolor = yes ; Disable console colors" ; \
 		echo ";dontwarn = yes ; Disable some warnings" ; \
 		echo ";dumpcore = yes ; Dump core on crash (same as -g at startup)" ; \
-		echo ";languageprefix = yes ; Use the new sound prefix path syntax" ; \
 		echo ";internal_timing = yes" ; \
 		echo ";systemname = my_system_name ; prefix uniqueid with a system name for global uniqueness issues" ; \
 		echo ";maxcalls = 10 ; Maximum amount of calls allowed" ; \
