@@ -9650,7 +9650,7 @@ static int start_pri(struct dahdi_pri *pri)
 		if ((p.sigtype != DAHDI_SIG_HDLCFCS) && (p.sigtype != DAHDI_SIG_HARDHDLC)) {
 			dahdi_close(pri->fds[i]);
 			pri->fds[i] = -1;
-			ast_log(LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/DAHDI.conf\n", x);
+			ast_log(LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/dahdi/system.conf\n", x);
 			return -1;
 		}
 		memset(&si, 0, sizeof(si));
