@@ -889,7 +889,7 @@ static void findmeexec(struct fm_args *tpargs)
 
 static struct call_followme *find_realtime(const char *name)
 {
-	struct ast_variable *var = ast_load_realtime("followme", "name", name, NULL), *v;
+	struct ast_variable *var = ast_load_realtime("followme", "name", name, SENTINEL), *v;
 	struct ast_config *cfg;
 	const char *catg;
 	struct call_followme *new;
@@ -919,7 +919,7 @@ static struct call_followme *find_realtime(const char *name)
 	new->realtime = 1;
 
 	/* Load numbers */
-	if (!(cfg = ast_load_realtime_multientry("followme_numbers", "ordinal LIKE", "%", "name", name, NULL))) {
+	if (!(cfg = ast_load_realtime_multientry("followme_numbers", "ordinal LIKE", "%", "name", name, SENTINEL))) {
 		ast_mutex_destroy(&new->lock);
 		ast_free(new);
 		return NULL;
