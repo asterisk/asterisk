@@ -313,37 +313,50 @@ static int reload_followme(int reload)
 			featuredigittimeout = 5000;
 	}
 
-	takecallstr = ast_variable_retrieve(cfg, "general", "takecall");
-	if (!ast_strlen_zero(takecallstr))
+	if ((takecallstr = ast_variable_retrieve(cfg, "general", "takecall")) && !ast_strlen_zero(takecallstr)) {
 		ast_copy_string(takecall, takecallstr, sizeof(takecall));
+	}
 
-	declinecallstr = ast_variable_retrieve(cfg, "general", "declinecall");
-	if (!ast_strlen_zero(declinecallstr))
+	if ((declinecallstr = ast_variable_retrieve(cfg, "general", "declinecall")) && !ast_strlen_zero(declinecallstr)) {
 		ast_copy_string(nextindp, declinecallstr, sizeof(nextindp));
+	}
 
-	tmpstr = ast_variable_retrieve(cfg, "general", "call-from-prompt");
-	if (!ast_strlen_zero(tmpstr))
+	if ((tmpstr = ast_variable_retrieve(cfg, "general", "call-from-prompt")) && !ast_strlen_zero(tmpstr)) {
 		ast_copy_string(callfromprompt, tmpstr, sizeof(callfromprompt));
+	} else if ((tmpstr = ast_variable_retrieve(cfg, "general", "call_from_prompt")) && !ast_strlen_zero(tmpstr)) {
+		ast_copy_string(callfromprompt, tmpstr, sizeof(callfromprompt));
+	}
 
-	tmpstr = ast_variable_retrieve(cfg, "general", "norecording-prompt");
-	if (!ast_strlen_zero(tmpstr))
+	if ((tmpstr = ast_variable_retrieve(cfg, "general", "norecording-prompt")) && !ast_strlen_zero(tmpstr)) {
 		ast_copy_string(norecordingprompt, tmpstr, sizeof(norecordingprompt));
+	} else if ((tmpstr = ast_variable_retrieve(cfg, "general", "norecording_prompt")) && !ast_strlen_zero(tmpstr)) {
+		ast_copy_string(callfromprompt, tmpstr, sizeof(callfromprompt));
+	}
 
-	tmpstr = ast_variable_retrieve(cfg, "general", "options-prompt");
-	if (!ast_strlen_zero(tmpstr))
+
+	if ((tmpstr = ast_variable_retrieve(cfg, "general", "options-prompt")) && !ast_strlen_zero(tmpstr)) {
 		ast_copy_string(optionsprompt, tmpstr, sizeof(optionsprompt));
+	} else if ((tmpstr = ast_variable_retrieve(cfg, "general", "options_prompt")) && !ast_strlen_zero(tmpstr)) {
+		ast_copy_string(optionsprompt, tmpstr, sizeof(optionsprompt));
+	}
 
-	tmpstr = ast_variable_retrieve(cfg, "general", "pls-hold-prompt");
-	if (!ast_strlen_zero(tmpstr))
-		ast_copy_string(plsholdprompt, tmpstr, sizeof(plsholdprompt));
+	if ((tmpstr = ast_variable_retrieve(cfg, "general", "pls-hold-prompt")) && !ast_strlen_zero(tmpstr)) {
+		ast_copy_string(optionsprompt, tmpstr, sizeof(optionsprompt));
+	} else if ((tmpstr = ast_variable_retrieve(cfg, "general", "pls_hold_prompt")) && !ast_strlen_zero(tmpstr)) {
+		ast_copy_string(optionsprompt, tmpstr, sizeof(optionsprompt));
+	}
 
-	tmpstr = ast_variable_retrieve(cfg, "general", "status-prompt");
-	if (!ast_strlen_zero(tmpstr))
-		ast_copy_string(statusprompt, tmpstr, sizeof(statusprompt));
+	if ((tmpstr = ast_variable_retrieve(cfg, "general", "status-prompt")) && !ast_strlen_zero(tmpstr)) {
+		ast_copy_string(optionsprompt, tmpstr, sizeof(optionsprompt));
+	} else if ((tmpstr = ast_variable_retrieve(cfg, "general", "status_prompt")) && !ast_strlen_zero(tmpstr)) {
+		ast_copy_string(optionsprompt, tmpstr, sizeof(optionsprompt));
+	}
 
-	tmpstr = ast_variable_retrieve(cfg, "general", "sorry-prompt");
-	if (!ast_strlen_zero(tmpstr))
-		ast_copy_string(sorryprompt, tmpstr, sizeof(sorryprompt));
+	if ((tmpstr = ast_variable_retrieve(cfg, "general", "sorry-prompt")) && !ast_strlen_zero(tmpstr)) {
+		ast_copy_string(optionsprompt, tmpstr, sizeof(optionsprompt));
+	} else if ((tmpstr = ast_variable_retrieve(cfg, "general", "sorry_prompt")) && !ast_strlen_zero(tmpstr)) {
+		ast_copy_string(optionsprompt, tmpstr, sizeof(optionsprompt));
+	}
 
 	/* Chug through config file */
 	while ((cat = ast_category_browse(cfg, cat))) {
@@ -376,7 +389,7 @@ static int reload_followme(int reload)
 		init_profile(f);
 		free_numbers(f);
 		var = ast_variable_browse(cfg, cat);
-		while(var) {
+		while (var) {
 			if (!strcasecmp(var->name, "number")) {
 				int idx = 0;
 

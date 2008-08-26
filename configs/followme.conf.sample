@@ -13,23 +13,23 @@ declinecall=>2
 ; The global default keypress for the callee to decline taking the current call. This can
 ; be a single digit or multiple digits. Default is "2".
 ;
-call-from-prompt=>followme/call-from
+call_from_prompt=>followme/call-from
 ; The global default for the 'Incoming call from' message.
 ;
-norecording-prompt=>followme/no-recording
+norecording_prompt=>followme/no-recording
 ; The global default for the 'You have an incoming call' message when the caller elects
 ; not to leave their name or the option isn't set for them to do so.
 ;
-options-prompt=>followme/options
+options_prompt=>followme/options
 ; The global default for the 'Press 1 to accept this call or press 2 to decline it' message.
 ;
-pls-hold-prompt=>followme/pls-hold-while-try
+pls_hold_prompt=>followme/pls-hold-while-try
 ; The global default for 'Please hold while we try and connect your call' message.
 ;
-status-prompt=>followme/status
+status_prompt=>followme/status
 ; The global default for 'The party you're calling isn't at their desk' message.
 ;
-sorry-prompt=>followme/sorry  
+sorry_prompt=>followme/sorry  
 ; The global default for 'I'm sorry, but we were unable to locate your party' message.
 ;
 ;
@@ -59,27 +59,27 @@ declinecall=>2
 ; The keypress for the callee to decline taking the current call. This can
 ; be a single digit or multiple digits. Default is the global default.
 ;
-call-from-prompt=>followme/call-from
+call_from_prompt=>followme/call-from
 ; The 'Incoming call from' message prompt. Default is the global default.
 ;
-followme-norecording-prompt=>followme/no-recording
+norecording_prompt=>followme/no-recording
 ; The 'You have an incoming call' message prompt when the caller elects
 ; not to leave their name or the option isn't set for them to do so. Default
 ; is the global default.
 ;
-followme-options-prompt=>followme/options
+options_prompt=>followme/options
 ; The 'Press 1 to accept this call or press 2 to decline it' message prompt.
 ; Default is the global default.
 ;
-followme-pls-hold-prompt=>followme/pls-hold-while-try
+pls_hold_prompt=>followme/pls-hold-while-try
 ; The 'Please hold while we try and connect your call' message prompt.
 ; Default is the global default.
 ;
-followme-status-prompt=>followme/status
+status_prompt=>followme/status
 ; The 'The party you're calling isn't at their desk' message prompt.
 ; Default is the global default.
 ;
-followme-sorry-prompt=>followme/sorry  
+sorry_prompt=>followme/sorry  
 ; The 'I'm sorry, but we were unable to locate your party' message prompt. Default
 ; is the global default.
 
