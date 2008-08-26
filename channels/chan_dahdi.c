@@ -957,12 +957,14 @@ static void dahdi_close_sub(struct dahdi_pvt *chan_pvt, int sub_num)
 	dahdi_close(chan_pvt->subs[sub_num].dfd);
 	chan_pvt->subs[sub_num].dfd = -1;
 }
-
+ 
+#ifdef HAVE_PRI
 static void dahdi_close_pri_fd(struct dahdi_pri *pri, int fd_num)
 {
 	dahdi_close(pri->fds[fd_num]);
 	pri->fds[fd_num] = -1;
 }
+#endif
 
 static int dahdi_setlinear(int dfd, int linear)
 {
