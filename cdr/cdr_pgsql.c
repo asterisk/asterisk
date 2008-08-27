@@ -266,8 +266,8 @@ static int pgsql_log(struct ast_cdr *cdr)
   		}
 		AST_RWLIST_UNLOCK(&psql_columns);
 		LENGTHEN_BUF1(sql2->len);
-		sql->str[sql->len - 1] = ')';
-		sql2->str[sql2->len - 1] = ')';
+		sql->str[sql->used - 1] = ')';
+		sql2->str[sql2->used - 1] = ')';
 		ast_str_append(&sql, 0, "%s", sql2->str);
 		ast_verb(11, "[%s]\n", sql->str);
 
