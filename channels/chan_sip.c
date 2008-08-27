@@ -11216,9 +11216,6 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 }
 
 /*! \brief Lock dialog lock and find matching pvt lock  
-	- Their tag is fromtag, our tag is to-tag
-	- This means that in some transactions, totag needs to be their tag :-)
-	  depending upon the direction
 	\return a reference, remember to release it when done 
 */
 static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *totag, const char *fromtag) 
@@ -11235,21 +11232,32 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 	
 	sip_pvt_ptr = ao2_t_find(dialogs, &tmp_dialog, OBJ_POINTER, "ao2_find of dialog in dialogs table");
 	if (sip_pvt_ptr) {
-		char *ourtag = sip_pvt_ptr->tag;
 		/* Go ahead and lock it (and its owner) before returning */
 		sip_pvt_lock(sip_pvt_ptr);
-		
-		if (pedanticsipchecking && (strcmp(fromtag, sip_pvt_ptr->theirtag) || (!ast_strlen_zero(totag) && strcmp(totag, ourtag)))) {
-			sip_pvt_unlock(sip_pvt_ptr);
-			ast_debug(4, "Matched %s call for callid=%s - But the pedantic check rejected the match; their tag is %s Our tag is %s\n",
-					  ast_test_flag(&sip_pvt_ptr->flags[0], SIP_OUTGOING) ? "OUTGOING": "INCOMING", sip_pvt_ptr->callid, 
-					  sip_pvt_ptr->theirtag, sip_pvt_ptr->tag);
-			return 0;
+		if (pedanticsipchecking) {
+			const char *pvt_fromtag, *pvt_totag;
+
+			if (sip_pvt_ptr->outgoing_call == TRUE) {
+				/* Outgoing call tags : from is "our", to is "their" */
+				pvt_fromtag = sip_pvt_ptr->tag ;
+				pvt_totag = sip_pvt_ptr->theirtag ;
+			} else {
+				/* Incoming call tags : from is "their", to is "our" */
+				pvt_fromtag = sip_pvt_ptr->theirtag ;
+				pvt_totag = sip_pvt_ptr->tag ;
+			}
+			if (ast_strlen_zero(fromtag) || strcmp(fromtag, pvt_fromtag) || (!ast_strlen_zero(totag) && strcmp(totag, pvt_totag))) {
+				sip_pvt_unlock(sip_pvt_ptr);
+				ast_debug(4, "Matched %s call for callid=%s - But the pedantic check rejected the match; their tag is %s Our tag is %s\n",
+						  sip_pvt_ptr->outgoing_call == TRUE ? "OUTGOING": "INCOMING", sip_pvt_ptr->callid, 
+						  sip_pvt_ptr->theirtag, sip_pvt_ptr->tag);
+				return NULL;
+			}
 		}
 		
 		if (totag)
 			ast_debug(4, "Matched %s call - their tag is %s Our tag is %s\n",
-					  ast_test_flag(&sip_pvt_ptr->flags[0], SIP_OUTGOING) ? "OUTGOING": "INCOMING",
+					  sip_pvt_ptr->outgoing_call == TRUE ? "OUTGOING": "INCOMING",
 					  sip_pvt_ptr->theirtag, sip_pvt_ptr->tag);
 
 		/* deadlock avoidance... */
