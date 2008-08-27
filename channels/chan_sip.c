@@ -10794,12 +10794,16 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	return -1;
 }
 
-/*! \brief Lock dialog lock and find matching pvt lock
+/*! \brief Lock dialog lock and find matching pvt lock  
+	- Their tag is fromtag, our tag is to-tag
+	- This means that in some transactions, totag needs to be their tag :-)
+	  depending upon the direction
 	Returns a reference, remember to release it when done XXX
 */
 static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *totag, const char *fromtag) 
 {
 	struct sip_pvt *sip_pvt_ptr;
+
 
 	if (totag)
 		ast_debug(4, "Looking for callid %s (fromtag %s totag %s)\n", callid, fromtag ? fromtag : "<no fromtag>", totag ? totag : "<no totag>");
@@ -10809,6 +10813,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 	for (sip_pvt_ptr = dialoglist; sip_pvt_ptr; sip_pvt_ptr = sip_pvt_ptr->next) {
 		if (!strcmp(sip_pvt_ptr->callid, callid)) {
 			int match = 1;
+			char *ourtag = sip_pvt_ptr->tag;
 
 			/* Go ahead and lock it (and its owner) before returning */
 			sip_pvt_lock(sip_pvt_ptr);
@@ -10817,21 +10822,8 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 			   (With a forking SIP proxy, several call legs share the
 			   call id, but have different tags)
 			*/
-			if (pedanticsipchecking) {
-				const char *pvt_fromtag, *pvt_totag;
-
-				if (sip_pvt_ptr->outgoing_call == TRUE) {
-					/* Outgoing call tags : from is "our", to is "their" */
-					pvt_fromtag = sip_pvt_ptr->tag ;
-					pvt_totag = sip_pvt_ptr->theirtag ;
-				} else {
-					/* Incoming call tags : from is "their", to is "our" */
-					pvt_fromtag = sip_pvt_ptr->theirtag ;
-					pvt_totag = sip_pvt_ptr->tag ;
-				}
-				if (ast_strlen_zero(fromtag) || strcmp(fromtag, pvt_fromtag) || (!ast_strlen_zero(totag) && strcmp(totag, pvt_totag)))
-					match = 0;
-			}
+			if (pedanticsipchecking && (strcmp(fromtag, sip_pvt_ptr->theirtag) || (!ast_strlen_zero(totag) && strcmp(totag, ourtag))))
+				match = 0;
 
 			if (!match) {
 				sip_pvt_unlock(sip_pvt_ptr);
@@ -10840,7 +10832,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 
 			if (totag)				 
 				ast_debug(4, "Matched %s call - their tag is %s Our tag is %s\n",
-					sip_pvt_ptr->outgoing_call == TRUE ? "OUTGOING": "INCOMING",
+					ast_test_flag(&sip_pvt_ptr->flags[0], SIP_OUTGOING) ? "OUTGOING": "INCOMING",
 					sip_pvt_ptr->theirtag, sip_pvt_ptr->tag);
 
 			/* deadlock avoidance... */
