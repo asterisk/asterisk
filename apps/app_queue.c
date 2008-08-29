@@ -797,7 +797,7 @@ static int member_hash_fn(const void *obj, const int flags)
 static int member_cmp_fn(void *obj1, void *obj2, int flags)
 {
 	struct member *mem1 = obj1, *mem2 = obj2;
-	return strcmp(mem1->interface, mem2->interface) ? 0 : CMP_MATCH;
+	return strcmp(mem1->interface, mem2->interface) ? 0 : CMP_MATCH | CMP_STOP;
 }
 
 static void init_queue(struct call_queue *q)
