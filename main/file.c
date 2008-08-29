@@ -379,7 +379,8 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 				struct ast_filestream *s;
 
 				if ( !(chan->writeformat & f->format) &&
-				     !(f->format & AST_FORMAT_AUDIO_MASK && fmt)) {
+				     !((f->format & AST_FORMAT_AUDIO_MASK && fmt) ||
+					  (f->format & AST_FORMAT_VIDEO_MASK && fmt))) {
 					ast_free(fn);
 					continue;	/* not a supported format */
 				}
