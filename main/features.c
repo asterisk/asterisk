@@ -182,6 +182,7 @@ static char *descrip2 =
 " options - A list of options for this parked call.  Valid options are:\n"
 "    'r' - Send ringing instead of MOH to the parked call.\n"
 "    'R' - Randomize the selection of a parking space.\n"
+"    's' - Silence announcement of the parking space number.\n"
 "";
 
 static struct ast_app *monitor_app = NULL;
@@ -431,6 +432,8 @@ enum ast_park_call_options {
 	/*! Randomly choose a parking spot for the caller instead of choosing
 	 *  the first one that is available. */
 	AST_PARK_OPT_RANDOMIZE = (1 << 1),
+	/*! Do not announce the parking number */
+	AST_PARK_OPT_SILENCE = (1 << 2),
 };
 
 struct ast_park_call_args {
@@ -625,7 +628,7 @@ static int ast_park_call_full(struct ast_channel *chan, struct ast_channel *peer
 	if (!con)	/* Still no context? Bad */
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parkinglot->parking_con);
 	/* Tell the peer channel the number of the parking space */
-	if (peer && (ast_strlen_zero(args->orig_chan_name) || !strcasecmp(peer->name, args->orig_chan_name))) { /* Only say number if it's a number and the channel hasn't been masqueraded away */
+	if (peer && !ast_test_flag(args, AST_PARK_OPT_SILENCE) && (ast_strlen_zero(args->orig_chan_name) || !strcasecmp(peer->name, args->orig_chan_name))) { /* Only say number if it's a number and the channel hasn't been masqueraded away */
 		/* If a channel is masqueraded into peer while playing back the parking slot number do not continue playing it back. This is the case if an attended transfer occurs. */
 		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
@@ -2602,6 +2605,7 @@ struct ast_parkinglot *find_parkinglot(const char *name)
 AST_APP_OPTIONS(park_call_options, BEGIN_OPTIONS
 	AST_APP_OPTION('r', AST_PARK_OPT_RINGING),
 	AST_APP_OPTION('R', AST_PARK_OPT_RANDOMIZE),
+	AST_APP_OPTION('s', AST_PARK_OPT_SILENCE),
 END_OPTIONS );
 
 /*! \brief Park a call */
@@ -2670,7 +2674,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 			}
 		}
 
-		ast_app_parse_options(park_call_options, &flags, NULL, NULL);
+		ast_app_parse_options(park_call_options, &flags, NULL, app_args.options);
 		args.flags = flags.flags;
 
 		res = ast_park_call_full(chan, chan, &args);
