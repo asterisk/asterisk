@@ -4325,6 +4325,11 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 		if (newdialog)
 			dialog->socket.type = 0;
 		res = create_addr_from_peer(dialog, peer);
+		if (!ast_strlen_zero(port)) {
+			if ((portno = atoi(port))) {
+				dialog->sa.sin_port = dialog->recv.sin_port = htons(portno);
+			}
+		}
 		unref_peer(peer, "create_addr: unref peer from find_peer hashtab lookup");
 		return res;
 	}
