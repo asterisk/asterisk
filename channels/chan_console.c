@@ -1432,7 +1432,7 @@ static int pvt_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct console_pvt *pvt = obj, *pvt2 = arg;
 
-	return !strcasecmp(pvt->name, pvt2->name) ? CMP_MATCH : 0;
+	return !strcasecmp(pvt->name, pvt2->name) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 static void stop_streams(void)

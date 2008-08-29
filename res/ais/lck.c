@@ -115,7 +115,7 @@ static int lock_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct lock_resource *lock1 = obj, *lock2 = arg;
 
-	return !strcasecmp(lock1->name, lock2->name) ? CMP_MATCH : 0;
+	return !strcasecmp(lock1->name, lock2->name) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 static int lock_resources_init(void *data)

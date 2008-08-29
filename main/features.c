@@ -230,7 +230,7 @@ static int parkinglot_hash_cb(const void *obj, const int flags)
 static int parkinglot_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct ast_parkinglot *parkinglot = obj, *parkinglot2 = arg;
-	return !strcasecmp(parkinglot->name, parkinglot2->name) ? CMP_MATCH : 0;
+	return !strcasecmp(parkinglot->name, parkinglot2->name) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*!

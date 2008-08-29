@@ -339,7 +339,7 @@ static int tps_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct ast_taskprocessor *lhs = obj, *rhs = arg;
 
-	return !strcasecmp(lhs->name, rhs->name) ? CMP_MATCH : 0;
+	return !strcasecmp(lhs->name, rhs->name) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /* destroy the taskprocessor */

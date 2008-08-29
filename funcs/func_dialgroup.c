@@ -67,9 +67,9 @@ static int group_cmp_fn(void *obj1, void *name2, int flags)
 	struct group *g1 = obj1, *g2 = name2;
 	char *name = name2;
 	if (flags & OBJ_POINTER)
-		return strcmp(g1->name, g2->name) ? 0 : CMP_MATCH;
+		return strcmp(g1->name, g2->name) ? 0 : CMP_MATCH | CMP_STOP;
 	else
-		return strcmp(g1->name, name) ? 0 : CMP_MATCH;
+		return strcmp(g1->name, name) ? 0 : CMP_MATCH | CMP_STOP;
 }
 
 static int entry_hash_fn(const void *obj, const int flags)
@@ -83,9 +83,9 @@ static int entry_cmp_fn(void *obj1, void *name2, int flags)
 	struct group_entry *e1 = obj1, *e2 = name2;
 	char *name = name2;
 	if (flags & OBJ_POINTER)
-		return strcmp(e1->name, e2->name) ? 0 : CMP_MATCH;
+		return strcmp(e1->name, e2->name) ? 0 : CMP_MATCH | CMP_STOP;
 	else
-		return strcmp(e1->name, name) ? 0 : CMP_MATCH;
+		return strcmp(e1->name, name) ? 0 : CMP_MATCH | CMP_STOP;
 }
 
 static int dialgroup_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
