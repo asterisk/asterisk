@@ -112,6 +112,7 @@ Application Changes
    status variable SENDIMAGESTATUS to one of 'SUCCESS', 'FAILURE', or
    'UNSUPPORTED'.  This change makes SendImage() more consistent with other
    applications.
+ * Park has a new option, 's', which silences the announcement of the parking space number.
 
 SIP Changes
 -----------
