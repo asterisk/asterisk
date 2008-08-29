@@ -130,7 +130,7 @@ static char *get_header_by_tag(char *header, char *tag);
 static void vm_imap_delete(int msgnum, struct ast_vm_user *vmu);
 static char *get_user_by_mailbox(char *mailbox);
 static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive);
-static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interactive);
+static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, const char *context, int interactive);
 static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu);
 static void vmstate_insert(struct vm_state *vms);
 static void vmstate_delete(struct vm_state *vms);
@@ -358,6 +358,7 @@ struct vm_zone {
 struct vm_state {
 	char curbox[80];
 	char username[80];
+	char context[80];
 	char curdir[PATH_MAX];
 	char vmbox[PATH_MAX];
 	char fn[PATH_MAX];
@@ -989,7 +990,7 @@ static void vm_imap_delete(int msgnum, struct ast_vm_user *vmu)
 		return;
 	}
 
-	if (!(vms = get_vm_state_by_mailbox(vmu->mailbox, 1)) && !(vms = get_vm_state_by_mailbox(vmu->mailbox, 0))) {
+	if (!(vms = get_vm_state_by_mailbox(vmu->mailbox, vmu->context, 1)) && !(vms = get_vm_state_by_mailbox(vmu->mailbox, vmu->context, 0))) {
 		ast_log(LOG_WARNING, "Couldn't find a vm_state for mailbox %s. Unable to set \\DELETED flag for message %d\n", vmu->mailbox, msgnum);
 		return;
 	}
@@ -1033,7 +1034,7 @@ static int imap_retrieve_file(const char *dir, const int msgnum, const struct as
 	/* Before anything can happen, we need a vm_state so that we can
 	 * actually access the imap server through the vms->mailstream
 	 */
-	if(!(vms = get_vm_state_by_mailbox(vmu->mailbox, 1)) && !(vms = get_vm_state_by_mailbox(vmu->mailbox, 0))) {
+	if(!(vms = get_vm_state_by_mailbox(vmu->mailbox, vmu->context, 1)) && !(vms = get_vm_state_by_mailbox(vmu->mailbox, vmu->context, 0))) {
 		/* This should not happen. If it does, then I guess we'd
 		 * need to create the vm_state, extract which mailbox to
 		 * open, and then set up the msgArray so that the correct
@@ -1170,7 +1171,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	/* check if someone is accessing this box right now... */
 	vms_p = get_vm_state_by_imapuser(vmu->imapuser,1);
 	if (!vms_p) {
-		vms_p = get_vm_state_by_mailbox(mailbox,1);
+		vms_p = get_vm_state_by_mailbox(mailbox, context, 1);
 	}
 	if (vms_p) {
 		if (option_debug > 2)
@@ -1186,7 +1187,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	/* add one if not there... */
 	vms_p = get_vm_state_by_imapuser(vmu->imapuser,0);
 	if (!vms_p) {
-		vms_p = get_vm_state_by_mailbox(mailbox,0);
+		vms_p = get_vm_state_by_mailbox(mailbox, context, 0);
 	}
 
 	if (!vms_p) {
@@ -1866,6 +1867,7 @@ static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu)
 		return NULL;
 	ast_copy_string(vms_p->imapuser,vmu->imapuser, sizeof(vms_p->imapuser));
 	ast_copy_string(vms_p->username, vmu->mailbox, sizeof(vms_p->username)); /* save for access from interactive entry point */
+	ast_copy_string(vms_p->context, vmu->context, sizeof(vms_p->context));
 	vms_p->mailstream = NIL; /* save for access from interactive entry point */
 	if (option_debug > 4)
 		ast_log(LOG_DEBUG,"Copied %s to %s\n",vmu->imapuser,vms_p->imapuser);
@@ -1911,9 +1913,10 @@ static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
 	return NULL;
 }
 
-static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interactive)
+static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, const char *context, int interactive)
 { 
 	struct vmstate *vlist = NULL;
+	const char *local_context = S_OR(context, "default");
 
 	ast_mutex_lock(&vmstate_lock);
 	vlist = vmstates;
@@ -1921,10 +1924,10 @@ static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interac
 		ast_log(LOG_DEBUG, "Mailbox set to %s\n",mailbox);
 	while (vlist) {
 		if (vlist->vms) {
-			if (vlist->vms->username) {
+			if (vlist->vms->username && vlist->vms->context) {
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG, "	comparing mailbox %s (i=%d) to vmstate mailbox %s (i=%d)\n",mailbox,interactive,vlist->vms->username,vlist->vms->interactive);
-				if (!strcmp(vlist->vms->username,mailbox) && vlist->vms->interactive == interactive) {
+				if (!strcmp(vlist->vms->username,mailbox) && !(strcmp(vlist->vms->context, local_context)) && vlist->vms->interactive == interactive) {
 					if (option_debug > 2)
 						ast_log(LOG_DEBUG, "	Found it!\n");
 					ast_mutex_unlock(&vmstate_lock);
@@ -1932,7 +1935,7 @@ static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interac
 				}
 			} else {
 				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "	error: username is NULL for %s\n",mailbox);
+					ast_log(LOG_DEBUG, "	error: username or context is NULL for %s\n",mailbox);
 			}
 		} else {
 			if (option_debug > 2)
@@ -1955,7 +1958,7 @@ static void vmstate_insert(struct vm_state *vms)
 	   use the one we already have since it is more up to date.
 	   We can compare the username to find the duplicate */
 	if (vms->interactive == 1) {
-		altvms = get_vm_state_by_mailbox(vms->username,0);
+		altvms = get_vm_state_by_mailbox(vms->username, vms->context, 0);
 		if (altvms) {
 			if (option_debug > 2)
 				ast_log(LOG_DEBUG, "Duplicate mailbox %s, copying message info...\n",vms->username);
@@ -3861,7 +3864,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			ast_log(LOG_NOTICE,"Can not leave voicemail, unable to count messages\n");
 			return -1;
 		}
-		if (!(vms = get_vm_state_by_mailbox(ext,0))) {
+		if (!(vms = get_vm_state_by_mailbox(ext, context, 0))) {
 		/*It is possible under certain circumstances that inboxcount did not create a vm_state when it was needed. This is a catchall which will
 		 * rarely be used*/
 			if (!(vms = create_vm_state_from_user(vmu))) {
@@ -5005,7 +5008,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				char *myserveremail;
 				int attach_user_voicemail;
 				/* get destination mailbox */
-				dstvms = get_vm_state_by_mailbox(vmtmp->mailbox,0);
+				dstvms = get_vm_state_by_mailbox(vmtmp->mailbox, vmtmp->context, 0);
 				if (!dstvms) {
 					dstvms = create_vm_state_from_user(vmtmp);
 				}
