@@ -3566,7 +3566,7 @@ static int variable_count_cmp_fn(void *obj, void *vstr, int flags)
 	 * the address of both the struct and the string are exactly the same. */
 	struct variable_count *vc = obj;
 	char *str = vstr;
-	return !strcmp(vc->varname, str) ? CMP_MATCH : 0;
+	return !strcmp(vc->varname, str) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*! \brief Convert the input into XML or HTML.

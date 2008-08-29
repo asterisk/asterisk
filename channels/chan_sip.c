@@ -1651,7 +1651,7 @@ static int peer_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct sip_peer *peer = obj, *peer2 = arg;
 
-	return !strcasecmp(peer->name, peer2->name) ? CMP_MATCH : 0;
+	return !strcasecmp(peer->name, peer2->name) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*!
@@ -1683,11 +1683,11 @@ static int peer_ipcmp_cb(void *obj, void *arg, int flags)
 	
 	if (!ast_test_flag(&peer->flags[0], SIP_INSECURE_PORT) && !ast_test_flag(&peer2->flags[0], SIP_INSECURE_PORT)) {
 		if (peer->addr.sin_port == peer2->addr.sin_port)
-			return CMP_MATCH;
+			return CMP_MATCH | CMP_STOP;
 		else
 			return 0;
 	}
-	return CMP_MATCH;
+	return CMP_MATCH | CMP_STOP;
 }
 
 /*!
@@ -1707,7 +1707,7 @@ static int dialog_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct sip_pvt *pvt = obj, *pvt2 = arg;
 	
-	return !strcasecmp(pvt->callid, pvt2->callid) ? CMP_MATCH : 0;
+	return !strcasecmp(pvt->callid, pvt2->callid) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 static int temp_pvt_init(void *);

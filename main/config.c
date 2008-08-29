@@ -170,7 +170,7 @@ static int hash_string(const void *obj, const int flags)
 static int hashtab_compare_strings(void *a, void *b, int flags)
 {
 	const struct inclfile *ae = a, *be = b;
-	return !strcmp(ae->fname, be->fname) ? CMP_MATCH : 0;
+	return !strcmp(ae->fname, be->fname) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 static struct ast_config_map {

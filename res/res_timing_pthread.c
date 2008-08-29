@@ -308,7 +308,7 @@ static int pthread_timer_cmp(void *obj, void *arg, int flags)
 {
 	struct pthread_timer *timer1 = obj, *timer2 = arg;
 
-	return (timer1->pipe[PIPE_READ] == timer2->pipe[PIPE_READ]) ? CMP_MATCH : 0;
+	return (timer1->pipe[PIPE_READ] == timer2->pipe[PIPE_READ]) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*!

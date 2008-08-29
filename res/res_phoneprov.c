@@ -249,7 +249,7 @@ static int profile_cmp_fn(void *obj, void *arg, int flags)
 {
 	const struct phone_profile *profile1 = obj, *profile2 = arg;
 
-	return !strcasecmp(profile1->name, profile2->name) ? CMP_MATCH : 0;
+	return !strcasecmp(profile1->name, profile2->name) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 static void delete_file(struct phoneprov_file *file)
@@ -295,7 +295,7 @@ static int routes_cmp_fn(void *obj, void *arg, int flags)
 {
 	const struct http_route *route1 = obj, *route2 = arg;
 
-	return !strcmp(route1->uri, route2->uri) ? CMP_MATCH : 0;
+	return !strcmp(route1->uri, route2->uri) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 static void route_destructor(void *obj)
@@ -784,7 +784,7 @@ static int users_cmp_fn(void *obj, void *arg, int flags)
 {
 	const struct user *user1 = obj, *user2 = arg;
 
-	return !strcasecmp(user1->macaddress, user2->macaddress) ? CMP_MATCH : 0;
+	return !strcasecmp(user1->macaddress, user2->macaddress) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*! \brief Free all memory associated with a user */
