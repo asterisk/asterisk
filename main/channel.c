@@ -1279,7 +1279,7 @@ void ast_channel_free(struct ast_channel *chan)
 	ast_jb_destroy(chan);
 
 	if (chan->cdr) {
-		ast_cdr_free(chan->cdr);
+		ast_cdr_detach(chan->cdr);
 		chan->cdr = NULL;
 	}
 	
