@@ -8626,6 +8626,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 #ifdef IMAP_STORAGE
 	vms.interactive = 1;
 	vms.updated = 1;
+	ast_copy_string(vms.context, vmu->context, sizeof(vms.context));
 	vmstate_insert(&vms);
 	init_vm_state(&vms);
 #endif
