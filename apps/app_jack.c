@@ -27,7 +27,9 @@
  * another application, or to play audio from another application.
  *
  * \arg http://www.jackaudio.org/
- * \arg http://svn.digium.com/svn/libresample/trunk
+ *
+ * \note To install libresample, check it out of the following repository:
+ * <code>$ svn co http://svn.digium.com/svn/thirdparty/libresample/trunk</code>
  *
  * \ingroup applications
  */
