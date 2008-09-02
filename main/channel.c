@@ -1277,6 +1277,11 @@ void ast_channel_free(struct ast_channel *chan)
 
 	/* Destroy the jitterbuffer */
 	ast_jb_destroy(chan);
+
+	if (chan->cdr) {
+		ast_cdr_free(chan->cdr);
+		chan->cdr = NULL;
+	}
 	
 	ast_mutex_destroy(&chan->lock);
 
@@ -1523,6 +1528,7 @@ int ast_hangup(struct ast_channel *chan)
 			
 		ast_cdr_end(chan->cdr);
 		ast_cdr_detach(chan->cdr);
+		chan->cdr = NULL;
 	}
 	
 	ast_channel_free(chan);
