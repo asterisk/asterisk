@@ -11233,9 +11233,9 @@ static int set_config(char *config_file, int reload)
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(accountcode, v->value, sizeof(accountcode));
 		} else if (!strcasecmp(v->name, "mohinterpret")) {
-			ast_copy_string(mohinterpret, v->value, sizeof(user->mohinterpret));
+			ast_copy_string(mohinterpret, v->value, sizeof(mohinterpret));
 		} else if (!strcasecmp(v->name, "mohsuggest")) {
-			ast_copy_string(mohsuggest, v->value, sizeof(user->mohsuggest));
+			ast_copy_string(mohsuggest, v->value, sizeof(mohsuggest));
 		} else if (!strcasecmp(v->name, "amaflags")) {
 			format = ast_cdr_amaflags2int(v->value);
 			if (format < 0) {
