@@ -984,7 +984,7 @@ static int add_to_interfaces(const char *interface)
 	return 0;
 }
 
-static int interface_exists_global(const char *interface)
+static int interface_exists_global(const char *interface, int lock_queue_container)
 {
 	struct call_queue *q;
 	struct member *mem, tmpmem;
@@ -992,7 +992,7 @@ static int interface_exists_global(const char *interface)
 	int ret = 0;
 
 	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
-	queue_iter = ao2_iterator_init(queues, 0);
+	queue_iter = ao2_iterator_init(queues, lock_queue_container ? 0 : F_AO2I_DONTLOCK);
 	while ((q = ao2_iterator_next(&queue_iter))) {
 		ao2_lock(q);
 		mem_iter = ao2_iterator_init(q->members, 0);
@@ -1010,11 +1010,11 @@ static int interface_exists_global(const char *interface)
 	return ret;
 }
 
-static int remove_from_interfaces(const char *interface)
+static int remove_from_interfaces(const char *interface, int lock_queue_container)
 {
 	struct member_interface *curint;
 
-	if (interface_exists_global(interface))
+	if (interface_exists_global(interface, lock_queue_container))
 		return 0;
 
 	AST_LIST_LOCK(&interfaces);
@@ -1354,7 +1354,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
  			if (paused_str)
  				m->paused = paused;
  			if (strcasecmp(state_interface, m->state_interface)) {
- 				remove_from_interfaces(m->state_interface);
+ 				remove_from_interfaces(m->state_interface, 0);
  				ast_copy_string(m->state_interface, state_interface, sizeof(m->state_interface));
  				add_to_interfaces(m->state_interface);
  			}	   
@@ -1392,7 +1392,7 @@ static void free_members(struct call_queue *q, int all)
 	while ((cur = ao2_iterator_next(&mem_iter))) {
 		if (all || !cur->dynamic) {
 			ao2_unlink(q->members, cur);
-			remove_from_interfaces(cur->state_interface);
+			remove_from_interfaces(cur->state_interface, 1);
 			q->membercount--;
 		}
 		ao2_ref(cur, -1);
@@ -1560,7 +1560,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		if (m->dead) {
 			ast_queue_log(q->name, "REALTIME", m->interface, "REMOVEMEMBER", "%s", "");
 			ao2_unlink(q->members, m);
-			remove_from_interfaces(m->state_interface);
+			remove_from_interfaces(m->state_interface, 0);
 			q->membercount--;
 		}
 		ao2_ref(m, -1);
@@ -1643,6 +1643,7 @@ static void update_realtime_members(struct call_queue *q)
 		return;
 	}
 
+	ao2_lock(queues);
 	ao2_lock(q);
 	
 	/* Temporarily set realtime  members dead so we can detect deleted ones.*/ 
@@ -1668,12 +1669,13 @@ static void update_realtime_members(struct call_queue *q)
 		if (m->dead) {
 			ast_queue_log(q->name, "REALTIME", m->interface, "REMOVEMEMBER", "%s", "");
 			ao2_unlink(q->members, m);
-			remove_from_interfaces(m->state_interface);
+			remove_from_interfaces(m->state_interface, 0);
 			q->membercount--;
 		}
 		ao2_ref(m, -1);
 	}
 	ao2_unlock(q);
+	ao2_unlock(queues);
 	ast_config_destroy(member_config);
 }
 
@@ -3980,6 +3982,7 @@ static int remove_from_queue(const char *queuename, const char *interface)
 
 	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
 	if ((q = ao2_find(queues, &tmpq, OBJ_POINTER))) {
+		ao2_lock(queues);
 		ao2_lock(q);
 		if ((mem = ao2_find(q->members, &tmpmem, OBJ_POINTER))) {
 			/* XXX future changes should beware of this assumption!! */
@@ -3995,7 +3998,7 @@ static int remove_from_queue(const char *queuename, const char *interface)
 				"MemberName: %s\r\n",
 				q->name, mem->interface, mem->membername);
 			ao2_unlink(q->members, mem);
-			remove_from_interfaces(mem->state_interface);
+			remove_from_interfaces(mem->state_interface, 0);
 			ao2_ref(mem, -1);
 
 			if (queue_persistent_members)
@@ -4006,6 +4009,7 @@ static int remove_from_queue(const char *queuename, const char *interface)
 			res = RES_EXISTS;
 		}
 		ao2_unlock(q);
+		ao2_unlock(queues);
 		queue_unref(q);
 	}
 
@@ -5441,7 +5445,7 @@ static int reload_queues(int reload)
 						cur = ao2_find(q->members, &tmpmem, OBJ_POINTER | OBJ_UNLINK);
 						/* Only attempt removing from interfaces list if the new state_interface is different than the old one */
 						if (cur && strcasecmp(cur->state_interface, state_interface)) {
-							remove_from_interfaces(cur->state_interface);
+							remove_from_interfaces(cur->state_interface, 0);
 						}
 						newm = create_queue_member(interface, membername, penalty, cur ? cur->paused : 0, state_interface);
 						if (!cur || (cur && strcasecmp(cur->state_interface, state_interface)))
@@ -5469,7 +5473,7 @@ static int reload_queues(int reload)
 					}
 					q->membercount--;
 					ao2_unlink(q->members, cur);
-					remove_from_interfaces(cur->interface);
+					remove_from_interfaces(cur->interface, 0);
 					ao2_ref(cur, -1);
 				}
 
