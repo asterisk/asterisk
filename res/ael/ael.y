@@ -52,7 +52,6 @@ extern char *my_file;
 int ael_is_funcname(char *name);
 #endif
 static char *ael_token_subst(const char *mess);
-static int only_one_app_set_warning = 0;
 
 %}
 
@@ -242,10 +241,6 @@ global_statements : { $$ = NULL; }
 
 assignment : word EQ { reset_semicount(parseio->scanner); }  word SEMI {
 		$$ = npval2(PV_VARDEC, &@1, &@5);
-		if (!ast_compat_app_set && !only_one_app_set_warning && strchr($4,'"')) {
-			ast_log(LOG_NOTICE,"Note: In asterisk.conf, in the [compat] section, the app_set is set to 1.6 or greater. The Set() function no longer removes double quotes from the value. If this is a surprise to you, you can set app_set to 1.4.\n");
-			only_one_app_set_warning = 1;
-		}
 		$$->u1.str = $1;
 		$$->u2.val = $4; }
 	;
