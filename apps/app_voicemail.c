@@ -3515,7 +3515,18 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 		recipmsgnum++;
 	} while (recipmsgnum < recip->maxmsg);
 	if (recipmsgnum < recip->maxmsg) {
-		COPY(fromdir, msgnum, todir, recipmsgnum, recip->mailbox, recip->context, frompath, topath);
+		if (EXISTS(fromdir, msgnum, frompath, chan->language)) {
+			COPY(fromdir, msgnum, todir, recipmsgnum, recip->mailbox, recip->context, frompath, topath);
+		} else {
+			/* For ODBC storage, if the file we want to copy isn't yet in the database, then the SQL
+			 * copy will fail. Instead, we need to create a local copy, store it, and delete the local
+			 * copy. We don't have to #ifdef this because if file storage reaches this point, there's a
+			 * much worse problem happening and IMAP storage doesn't call this function
+			 */
+			copy_plain_file(frompath, topath);
+			STORE(todir, recip->mailbox, recip->context, recipmsgnum, chan, recip, fmt, duration, NULL);
+			vm_delete(topath);
+		}
 	} else {
 		ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 	}
@@ -4743,7 +4754,6 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 				snprintf(duration_str, 11, "%d", prepend_duration);
 				if (!ast_variable_update(msg_cat, "duration", duration_str, NULL, 0)) {
 					config_text_file_save(textfile, msg_cfg, "app_voicemail");
-					STORE(curdir, vmu->mailbox, context, curmsg, chan, vmu, vmfmts, prepend_duration, vms);
 				}
 			}
 
@@ -5054,6 +5064,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 
 		/* Remove surrogate file */
 		vm_delete(msgfile);
+		DISPOSE(dir, curmsg);
 	}
 
 	/* If anything failed above, we still have this list to free */
