@@ -325,6 +325,7 @@ CLI Changes
     sorted into the different possible callbacks, with the number of entries
     currently scheduled for each. Gives you a feel for how busy the sip channel
     driver is.
+  * Added 'skinny show lines verbose' CLI command. This will show the subs for every channel.
 
 SIP changes
 -----------

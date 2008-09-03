@@ -2847,20 +2847,32 @@ static char *handle_skinny_show_lines(struct ast_cli_entry *e, int cmd, struct a
 {
 	struct skinny_device *d;
 	struct skinny_line *l;
+	struct skinny_subchannel *sub;
+	int verbose = 0;
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "skinny show lines";
+		e->command = "skinny show lines [verbose]";
 		e->usage =
 			"Usage: skinny show lines\n"
-			"       Lists all lines known to the Skinny subsystem.\n";
+			"       Lists all lines known to the Skinny subsystem.\n"
+			"       If 'verbose' is specified, the output includes\n"
+			"       information about subs for each line.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != 3)
+
+	if (a->argc == e->args) {
+		if (!strcasecmp(a->argv[e->args-1], "verbose")) {
+			verbose = 1;
+		} else {
+			return CLI_SHOWUSAGE;
+		}
+	} else if (a->argc != e->args - 1) {
 		return CLI_SHOWUSAGE;
+	}
 	
 	
 	ast_cli(a->fd, "Device Name          Instance Name                 Label               \n");
@@ -2873,6 +2885,15 @@ static char *handle_skinny_show_lines(struct ast_cli_entry *e, int cmd, struct a
 				l->instance,
 				l->name,
 				l->label);
+			if (verbose) {
+				AST_LIST_TRAVERSE(&l->sub, sub, list) {
+					ast_cli(a->fd, "  %s> %s to %s\n",
+						(sub == l->activesub?"Active  ":"Inactive"),
+						sub->owner->name,
+						(ast_bridged_channel(sub->owner)?ast_bridged_channel(sub->owner)->name:"")
+					);
+				}
+			}
 		}
 	}
 	AST_LIST_UNLOCK(&devices);
