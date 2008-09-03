@@ -1407,8 +1407,7 @@ static void insert_in_next_chars_alt_char_list(struct match_char **parent_ptr, s
 				}
 				lcurr = curr;
 			}
-			if (!curr)
-			{
+			if (!curr) {
 				lcurr->alt_char = node;
 			}
 		}
