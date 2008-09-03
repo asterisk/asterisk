@@ -87,24 +87,26 @@ static char sql_create_table[] = "CREATE TABLE cdr ("
 #endif
 ");";
 
+static void format_date(char *buffer, size_t length, struct timeval *when)
+{
+	struct ast_tm tm;
+
+	ast_localtime(when, &tm, NULL);
+	ast_strftime(buffer, length, DATE_FORMAT, &tm);
+}
+
 static int sqlite_log(struct ast_cdr *cdr)
 {
 	int res = 0;
 	char *zErr = 0;
-	struct ast_tm tm;
 	char startstr[80], answerstr[80], endstr[80];
 	int count;
 
 	ast_mutex_lock(&sqlite_lock);
 
-	ast_localtime(&cdr->start, &tm, NULL);
-	ast_strftime(startstr, sizeof(startstr), DATE_FORMAT, &tm);
-
-	ast_localtime(&cdr->answer, &tm, NULL);
-	ast_strftime(answerstr, sizeof(answerstr), DATE_FORMAT, &tm);
-
-	ast_localtime(&cdr->end, &tm, NULL);
-	ast_strftime(endstr, sizeof(endstr), DATE_FORMAT, &tm);
+	format_date(startstr, sizeof(startstr), &cdr->start);
+	format_date(answerstr, sizeof(answerstr), &cdr->answer);
+	format_date(endstr, sizeof(endstr), &cdr->end);
 
 	for(count=0; count<5; count++) {
 		res = sqlite_exec_printf(db,
