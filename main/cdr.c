@@ -431,13 +431,6 @@ void ast_cdr_free(struct ast_cdr *cdr)
 
 	while (cdr) {
 		struct ast_cdr *next = cdr->next;
-		char *chan = S_OR(cdr->channel, "<unknown>");
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_POSTED) && !ast_test_flag(cdr, AST_CDR_FLAG_POST_DISABLED))
-			ast_log(LOG_NOTICE, "CDR on channel '%s' not posted\n", chan);
-		if (ast_tvzero(cdr->end))
-			ast_log(LOG_NOTICE, "CDR on channel '%s' lacks end\n", chan);
-		if (ast_tvzero(cdr->start))
-			ast_log(LOG_NOTICE, "CDR on channel '%s' lacks start\n", chan);
 
 		ast_cdr_free_vars(cdr, 0);
 		ast_free(cdr);
@@ -1017,10 +1010,6 @@ static void post_cdr(struct ast_cdr *cdr)
 
 		chan = S_OR(cdr->channel, "<unknown>");
 		check_post(cdr);
-		if (ast_tvzero(cdr->end))
-			ast_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
-		if (ast_tvzero(cdr->start))
-			ast_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
 		ast_set_flag(cdr, AST_CDR_FLAG_POSTED);
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POST_DISABLED))
 			continue;
