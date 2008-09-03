@@ -268,19 +268,19 @@ int poll
 	fd_set  except_descs;                        /* exception descs */
 	struct  timeval stime;                       /* select() timeout value */
 	int	    ready_descriptors;                   /* function result */
-	int	    max_fd;                              /* maximum fd value */
+	int	    max_fd = 0;                          /* maximum fd value */
 	struct  timeval *pTimeout;                   /* actually passed */
 
 	FD_ZERO (&read_descs);
 	FD_ZERO (&write_descs);
 	FD_ZERO (&except_descs);
 
-	assert(pArray != (struct pollfd *) NULL);
-
 	/* Map the poll() file descriptor list in the select() data structures. */
 
-	max_fd = map_poll_spec(pArray, n_fds,
-			&read_descs, &write_descs, &except_descs);
+	if (pArray) {
+    	max_fd = map_poll_spec (pArray, n_fds,
+				&read_descs, &write_descs, &except_descs);
+	}
 
 	/* Map the poll() timeout value in the select() timeout structure. */
 	pTimeout = map_timeout(timeout, &stime);
