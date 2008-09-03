@@ -3399,6 +3399,9 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	return x - 1;
 }
 
+#endif /* #ifndef IMAP_STORAGE */
+#endif /* #else of #ifdef ODBC_STORAGE */
+#ifndef IMAP_STORAGE
 /*!
  * \brief Utility function to copy a file.
  * \param infile The path to the file to be copied. The file must be readable, it is opened in read only mode.
@@ -3510,10 +3513,6 @@ static void copy_plain_file(char *frompath, char *topath)
 	ast_variables_destroy(var);
 }
 
-#endif /* #ifndef IMAP_STORAGE */
-#endif /* #else of #ifdef ODBC_STORAGE */
-
-#if (!defined(ODBC_STORAGE) && !defined(IMAP_STORAGE))
 /*! 
  * \brief Removes the voicemail sound and information file.
  * \param file The path to the sound file. This will be the the folder and message index, without the extension.
@@ -4406,7 +4405,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 			 * much worse problem happening and IMAP storage doesn't call this function
 			 */
 			copy_plain_file(frompath, topath);
-			STORE(todir, recip->mailbox, recip->context, recipmsgnum, chan, recip, fmt, duration, NULL);
+			STORE(todir, recip->mailbox, recip->context, recipmsgnum, chan, recip, fmt, duration, NULL, NULL);
 			vm_delete(topath);
 		}
 	} else {
