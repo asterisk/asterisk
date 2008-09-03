@@ -673,7 +673,12 @@ static struct pbx_builtin {
     "category, and you have app_set = 1.6 under that, then the behavior of this\n"
     "app changes, and does not strip surrounding quotes from the right hand side\n"
     "as it did previously in 1.4. The app_set = 1.6 is only inserted if 'make samples'\n"
-	"is executed, or if the users inserts this by hand into the asterisk.conf file.\n"
+	"is executed, or if users insert this by hand into the asterisk.conf file.\n"
+	"/nThe advantages of not stripping out quoting, and not caring about the\n"
+	"separator characters (comma and vertical bar) were sufficient to make these\n"
+	"changes in 1.6. Confusion about how many backslashes would be needed to properly\n"
+	"protect separators and quotes in various database access strings has been greatly\n"
+	"reduced by these changes.\n"
 	},
 
 	{ "MSet", pbx_builtin_setvar_multiple,
@@ -687,7 +692,9 @@ static struct pbx_builtin {
 	"channels.\n\n"
 	"MSet behaves in a similar fashion to the way Set worked in 1.2/1.4 and is thus\n"
 	"prone to doing things that you may not expect. For example, it strips surrounding\n"
-	"double-quotes from the right-hand side (value).  Avoid its use if possible.\n"
+	"double-quotes from the right-hand side (value). If you need to put a separator\n"
+        "character (comma or vert-bar), you will need to escape them by inserting a backslash\n"
+	"before them. Avoid its use if possible.\n"
 	},
 
 	{ "SetAMAFlags", pbx_builtin_setamaflags,
