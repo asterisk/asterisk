@@ -6972,6 +6972,7 @@ static int ast_pbx_outgoing_cdr_failed(void)
 	ast_cdr_end(chan->cdr);
 	ast_cdr_failed(chan->cdr);      /* set the status to failed */
 	ast_cdr_detach(chan->cdr);      /* post and free the record */
+	chan->cdr = NULL;
 	ast_channel_free(chan);         /* free the channel */
 
 	return 0;  /* success */
