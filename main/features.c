@@ -1511,8 +1511,13 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 
 	ast_autoservice_stop(idle);
 
-	if (res == AST_PBX_KEEPALIVE)
-		return FEATURE_RETURN_PBX_KEEPALIVE;
+	if (res == AST_PBX_KEEPALIVE) {
+		/* do not hangup peer if feature is to be activated on it */
+		if ((ast_test_flag(feature, AST_FEATURE_FLAG_ONPEER) && sense == FEATURE_SENSE_CHAN) || (ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF) && sense == FEATURE_SENSE_PEER))
+			return FEATURE_RETURN_NO_HANGUP_PEER;
+		else
+			return FEATURE_RETURN_PBX_KEEPALIVE;
+	}
 	else if (res == AST_PBX_NO_HANGUP_PEER)
 		return FEATURE_RETURN_NO_HANGUP_PEER;
 	else if (res)
@@ -1561,12 +1566,13 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 {
 	int x;
 	struct ast_flags features;
-	int res = FEATURE_RETURN_PASSDIGITS;
 	struct ast_call_feature *feature;
 	struct feature_group *fg = NULL;
 	struct feature_group_exten *fge;
 	const char *dynamic_features;
 	char *tmp, *tok;
+	int res = FEATURE_RETURN_PASSDIGITS;
+	int feature_detected = 0;
 
 	if (sense == FEATURE_SENSE_CHAN) {
 		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);
@@ -1585,6 +1591,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 			/* Feature is up for consideration */
 			if (!strcmp(builtin_features[x].exten, code)) {
 				res = builtin_features[x].operation(chan, peer, config, code, sense, NULL);
+				feature_detected = 1;
 				break;
 			} else if (!strncmp(builtin_features[x].exten, code, strlen(code))) {
 				if (res == FEATURE_RETURN_PASSDIGITS)
@@ -1594,7 +1601,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	}
 	ast_rwlock_unlock(&features_lock);
 
-	if (ast_strlen_zero(dynamic_features))
+	if (ast_strlen_zero(dynamic_features) || feature_detected)
 		return res;
 
 	tmp = ast_strdupa(dynamic_features);
