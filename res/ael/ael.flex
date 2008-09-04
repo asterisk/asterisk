@@ -26,7 +26,7 @@
  *
  * %x describes the contexts we have: paren, semic and argg, plus INITIAL
  */
-%x paren semic argg  comment
+%x paren semic argg  comment curlystate wordstate brackstate
 
 /* prefix used for various globally-visible functions and variables.
  * This renames also yywrap, but since we do not use it, we just
@@ -85,8 +85,26 @@ static char pbcstack[400];	/* XXX missing size checks */
 static int pbcpos = 0;
 static void pbcpush(char x);
 static int pbcpop(char x);
-
 static int parencount = 0;
+
+/*
+ * A similar stack to keep track of matching brackets ( [ { } ] ) in word tokens surrounded by ${ ... }
+ */
+static char pbcstack2[400];	/* XXX missing size checks */
+static int pbcpos2 = 0;
+static void pbcpush2(char x);
+static int pbcpop2(char x);
+static int parencount2 = 0;
+
+/*
+ * A similar stack to keep track of matching brackets ( [ { } ] ) in word tokens surrounded by $[ ... ]
+ */
+static char pbcstack3[400];	/* XXX missing size checks */
+static int pbcpos3 = 0;
+static void pbcpush3(char x);
+static int pbcpop3(char x);
+static int parencount3 = 0;
+
 
 /*
  * current line, column and filename, updated as we read the input.
@@ -177,6 +195,7 @@ static void pbcwhere(const char *text, int *line, int *col )
 #endif
 %}
 
+KEYWORD     (context|abstract|extend|macro|globals|local|ignorepat|switch|if|ifTime|random|regexten|hint|else|goto|jump|return|break|continue|for|while|case|default|pattern|catch|switches|eswitches|includes)
 
 NOPARENS	([^()\[\]\{\}]|\\[()\[\]\{\}])*
 
@@ -235,19 +254,143 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 <comment>[^*\n]*\n	{ ++my_lineno; my_col=1;}
 <comment>"*"+[^*/\n]*	{ my_col += yyleng; }
 <comment>"*"+[^*/\n]*\n 	{ ++my_lineno; my_col=1;}
-<comment>"*/"		{ my_col += 2; BEGIN(INITIAL); }
+<comment>"*/"		{ my_col += 2; BEGIN(INITIAL); } /* the nice thing about comments is that you know exactly what ends them */
 
 \n		{ my_lineno++; my_col = 1; }
 [ ]+		{ my_col += yyleng; }
 [\t]+		{ my_col += (yyleng*8)-(my_col%8); }
 
-([-a-zA-Z0-9'"_/.\<\>\*\\\+!$#\[\]]|{HIBIT})([-a-zA-Z0-9'"_/.!\*\\\+\<\>\{\}$#\[\]]|{HIBIT})*	{
+({KEYWORD}?[-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]]|{HIBIT}|(\\.)|(\$\{)|(\$\[)) { 
+      /* boy did I open a can of worms when I changed the lexical token "word". 
+  	  	 all the above keywords can be used as a beginning to a "word".-
+		 before, a "word" would match a longer sequence than the above	 
+	     keywords, and all would be well. But now "word" is a single char		
+	     and feeds into a statemachine sort of sequence from there on. So...
+		 I added the {KEYWORD}? to the beginning of the word match sequence */
+
+		if (!strcmp(yytext,"${")) {
+		   	parencount2 = 0;
+			pbcpos2 = 0;
+			pbcpush2('{');	/* push '{' so the last pcbpop (parencount2 = -1) will succeed */
+			BEGIN(curlystate);
+			yymore();
+		} else if (!strcmp(yytext,"$[")) {
+		   	parencount3 = 0;
+			pbcpos3 = 0;
+			pbcpush3('[');	/* push '[' so the last pcbpop (parencount3 = -1) will succeed */
+			BEGIN(brackstate);
+			yymore();
+		} else {
+		    BEGIN(wordstate);
+			yymore();
+		}
+	}
+
+<wordstate>[-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]] { yymore(); /* Keep going */ }
+<wordstate>{HIBIT} { yymore(); /* Keep going */ }
+<wordstate>(\\.)  { yymore(); /* Keep Going */ }
+<wordstate>(\$\{)  { /* the beginning of a ${} construct. prepare and pop into curlystate */
+	   	parencount2 = 0;
+		pbcpos2 = 0;
+		pbcpush2('{');	/* push '{' so the last pcbpop (parencount2 = -1) will succeed */
+		BEGIN(curlystate);
+		yymore();
+	}
+<wordstate>(\$\[)  { /* the beginning of a $[] construct. prepare and pop into brackstate */
+	   	parencount3 = 0;
+		pbcpos3 = 0;
+		pbcpush3('[');	/* push '[' so the last pcbpop (parencount3 = -1) will succeed */
+		BEGIN(brackstate);
+		yymore();
+	}
+<wordstate>([^a-zA-Z0-9\x80-\xff\x2d'"_/.\<\>\*\+!$#\[\]]) {
+		/* a non-word constituent char, like a space, tab, curly, paren, etc */
+		char c = yytext[yyleng-1];
 		STORE_POS;
 		yylval->str = strdup(yytext);
-		prev_word = yylval->str;
+		yylval->str[yyleng-1] = 0;
+		unput(c);  /* put this ending char back in the stream */
+		BEGIN(0);
 		return word;
 	}
 
+
+<curlystate>{NOPARENS}\}	{
+		if ( pbcpop2('}') ) {	/* error */
+			STORE_LOC;
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno, my_col, yytext);
+			BEGIN(0);
+			yylval->str = strdup(yytext);
+			return word;
+		}
+		parencount2--;
+		if ( parencount2 >= 0) {
+			yymore();
+		} else {
+			BEGIN(wordstate); /* Finished with the current ${} construct. Return to word gathering state */
+			yymore();
+		}
+	}
+
+<curlystate>{NOPARENS}[\(\[\{]	{ 
+		char c = yytext[yyleng-1];
+		if (c == '{')
+			parencount2++;
+		pbcpush2(c);
+		yymore();
+	}
+
+<curlystate>{NOPARENS}[\]\)]	{ 
+		char c = yytext[yyleng-1];
+		if ( pbcpop2(c))  { /* error */
+			STORE_LOC;
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n",
+				my_file, my_lineno, my_col, c);
+			BEGIN(0);
+			yylval->str = strdup(yytext);
+			return word;
+		}
+		yymore();
+	}
+
+
+<brackstate>{NOPARENS}\]	{
+		if ( pbcpop3(']') ) {	/* error */
+			STORE_LOC;
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno, my_col, yytext);
+			BEGIN(0);
+			yylval->str = strdup(yytext);
+			return word;
+		}
+		parencount3--;
+		if ( parencount3 >= 0) {
+			yymore();
+		} else {
+			BEGIN(wordstate); /* Finished with the current ${} construct. Return to word gathering state */
+			yymore();
+		}
+	}
+
+<brackstate>{NOPARENS}[\(\[\{]	{ 
+		char c = yytext[yyleng-1];
+		if (c == '[')
+			parencount3++;
+		pbcpush3(c);
+		yymore();
+	}
+
+<brackstate>{NOPARENS}[\}\)]	{ 
+		char c = yytext[yyleng-1];
+		if ( pbcpop3(c))  { /* error */
+			STORE_LOC;
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n",
+				my_file, my_lineno, my_col, c);
+			BEGIN(0);
+			yylval->str = strdup(yytext);
+			return word;
+		}
+		yymore();
+	}
 
 
 	/*
@@ -495,6 +638,38 @@ static int pbcpop(char x)
 		|| ( x == ']' && pbcstack[pbcpos-1] == '[' )
 		|| ( x == '}' && pbcstack[pbcpos-1] == '{' )) {
 		pbcpos--;
+		return 0;
+	}
+	return 1; /* error */
+}
+
+static void pbcpush2(char x)
+{
+	pbcstack2[pbcpos2++] = x;
+}
+
+static int pbcpop2(char x)
+{
+	if (   ( x == ')' && pbcstack2[pbcpos2-1] == '(' )
+		|| ( x == ']' && pbcstack2[pbcpos2-1] == '[' )
+		|| ( x == '}' && pbcstack2[pbcpos2-1] == '{' )) {
+		pbcpos2--;
+		return 0;
+	}
+	return 1; /* error */
+}
+
+static void pbcpush3(char x)
+{
+	pbcstack3[pbcpos3++] = x;
+}
+
+static int pbcpop3(char x)
+{
+	if (   ( x == ')' && pbcstack3[pbcpos3-1] == '(' )
+		|| ( x == ']' && pbcstack3[pbcpos3-1] == '[' )
+		|| ( x == '}' && pbcstack3[pbcpos3-1] == '{' )) {
+		pbcpos3--;
 		return 0;
 	}
 	return 1; /* error */
