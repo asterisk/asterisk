@@ -646,7 +646,7 @@ static int agent_indicate(struct ast_channel *ast, int condition, const void *da
 	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
 	ast_mutex_lock(&p->lock);
-	if (p->chan)
+	if (p->chan && !ast_check_hangup(p->chan))
 		res = p->chan->tech->indicate ? p->chan->tech->indicate(p->chan, condition, data, datalen) : -1;
 	else
 		res = 0;
