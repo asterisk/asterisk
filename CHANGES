@@ -2,7 +2,11 @@
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
 ------------------------------------------------------------------------------
 
-* Nothing, yet!
+Dialplan Functions
+------------------
+ * Added a new dialplan function, CURLOPT, which permits setting various
+   options that may be useful with the CURL dialplan function, such as
+   cookies, proxies, connection timeouts, passwords, etc.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.0 to Asterisk 1.6.1  -------------
