@@ -2903,18 +2903,18 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 	dialog->sa.sin_family = AF_INET;
 	dialog->timer_t1 = 500; /* Default SIP retransmission timer T1 (RFC 3261) */
 	p = find_peer(peer, NULL, 1, 0);
-	
-	portno = port ? atoi(port) : STANDARD_SIP_PORT;
 
 	if (p) {
 		int res = create_addr_from_peer(dialog, p);
-		if (portno) {
+		if (port) {
+			portno = atoi(port);
 			dialog->sa.sin_port = dialog->recv.sin_port = htons(portno);
 		}
 		ASTOBJ_UNREF(p, sip_destroy_peer);
 		return res;
 	}
 	hostn = peer;
+	portno = port ? atoi(port) : STANDARD_SIP_PORT;
 	if (srvlookup) {
 		char service[MAXHOSTNAMELEN];
 		int tportno;
