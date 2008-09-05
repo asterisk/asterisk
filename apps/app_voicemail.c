@@ -2704,8 +2704,16 @@ static int remove_file(char *dir, int msgnum)
 	if (msgnum > -1) {
 		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
 		make_file(fn, sizeof(fn), dir, msgnum);
-	} else
+	} else {
+#ifndef IMAP_STORAGE
 		ast_copy_string(fn, dir, sizeof(fn));
+#else
+		/*IMAP stores greetings locally so it should not
+		 * try to dispose of them
+		 */
+		return 0;
+#endif
+	}
 	ast_filedelete(fn, NULL);	
 	snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
 	unlink(full_fn);
