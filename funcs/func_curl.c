@@ -187,7 +187,7 @@ static int acf_curlopt_write(struct ast_channel *chan, const char *cmd, char *na
 	if (!parse_curlopt_key(name, &key, &ot)) {
 		if (ot == OT_BOOLEAN) {
 			if ((new = ast_calloc(1, sizeof(*new)))) {
-				new->value = (void *)ast_true(value);
+				new->value = (void *)((long) ast_true(value));
 			}
 		} else if (ot == OT_INTEGER) {
 			long tmp = atol(value);
@@ -349,14 +349,14 @@ static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *da
 	register int realsize = size * nmemb;
 	struct ast_str **pstr = (struct ast_str **)data;
 
-	ast_debug(3, "Called with data=%p, str=%p, realsize=%d, len=%d, used=%d\n", data, *pstr, realsize, (*pstr)->len, (*pstr)->used);
+	ast_debug(3, "Called with data=%p, str=%p, realsize=%d, len=%zu, used=%zu\n", data, *pstr, realsize, (*pstr)->len, (*pstr)->used);
 
 	if (ast_str_make_space(pstr, (((*pstr)->used + realsize + 1) / 512 + 1) * 512 + 470) == 0) {
 		memcpy(&((*pstr)->str[(*pstr)->used]), ptr, realsize);
 		(*pstr)->used += realsize;
 	}
 
-	ast_debug(3, "Now, len=%d, used=%d\n", (*pstr)->len, (*pstr)->used);
+	ast_debug(3, "Now, len=%zu, used=%zu\n", (*pstr)->len, (*pstr)->used);
 
 	return realsize;
 }
