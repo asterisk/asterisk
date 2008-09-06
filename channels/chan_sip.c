@@ -18359,6 +18359,8 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
 	}
 
+	__sip_pretend_ack(p);
+
 	p->invitestate = INV_TERMINATED;
 
 	copy_request(&p->initreq, req);
