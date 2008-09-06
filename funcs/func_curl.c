@@ -155,7 +155,7 @@ static int parse_curlopt_key(const char *name, CURLoption *key, enum optiontype 
 static int acf_curlopt_write(struct ast_channel *chan, const char *cmd, char *name, const char *value)
 {
 	struct ast_datastore *store;
-	AST_LIST_HEAD(global_curl_info, curl_settings) *list;
+	struct global_curl_info *list;
 	struct curl_settings *cur, *new = NULL;
 	CURLoption key;
 	enum optiontype ot;
@@ -181,7 +181,7 @@ static int acf_curlopt_write(struct ast_channel *chan, const char *cmd, char *na
 		}
 	} else {
 		/* Populate the global structure */
-		list = (struct global_curl_info *)&global_curl_info;
+		list = &global_curl_info;
 	}
 
 	if (!parse_curlopt_key(name, &key, &ot)) {
@@ -274,7 +274,7 @@ yuck:
 static int acf_curlopt_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct ast_datastore *store;
-	AST_LIST_HEAD(global_curl_info, curl_settings) *list[2] = { (struct global_curl_info *)&global_curl_info, NULL };
+	struct global_curl_info *list[2] = { &global_curl_info, NULL };
 	struct curl_settings *cur;
 	CURLoption key;
 	enum optiontype ot;
@@ -287,7 +287,7 @@ static int acf_curlopt_read(struct ast_channel *chan, const char *cmd, char *dat
 
 	if (chan && (store = ast_channel_datastore_find(chan, &curl_info, NULL))) {
 		list[0] = store->data;
-		list[1] = (struct global_curl_info *)&global_curl_info;
+		list[1] = &global_curl_info;
 	}
 
 	for (i = 0; i < 2; i++) {
