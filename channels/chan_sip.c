@@ -12740,19 +12740,25 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 	char *name = NULL;
 	regex_t regexbuf;
 	struct ao2_iterator i;
+	static char *choices[] = { "all", "like", NULL };
+	char *cmplt;
 	
 	if (cmd == CLI_INIT) {
-		e->command = "sip prune realtime [peer|all] [all|like]";
+		e->command = "sip prune realtime [peer|all]";
 		e->usage =
-		"Usage: sip prune realtime [peer] [<name>|all|like <pattern>]\n"
+		"Usage: sip prune realtime [peer [<name>|all|like <pattern>]|all]\n"
 		"       Prunes object(s) from the cache.\n"
 		"       Optional regular expression pattern is used to filter the objects.\n";
 		return NULL;
 	} else if (cmd == CLI_GENERATE) {
-		if (a->pos == 4) {
-			if (strcasestr(a->line, "realtime peer"))
-				return complete_sip_peer(a->word, a->n, SIP_PAGE2_RTCACHEFRIENDS);
+		if (a->pos == 4 && !strcasecmp(a->argv[3], "peer")) {
+			cmplt = ast_cli_complete(a->word, choices, a->n);
+			if (!cmplt)
+				cmplt = complete_sip_peer(a->word, a->n - sizeof(choices), SIP_PAGE2_RTCACHEFRIENDS);
+			return cmplt;
 		}
+		if (a->pos == 5 && !strcasecmp(a->argv[4], "like"))
+			return complete_sip_peer(a->word, a->n, SIP_PAGE2_RTCACHEFRIENDS);
 		return NULL;
 	}
 	switch (a->argc) {
@@ -12778,9 +12784,9 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 			multi = TRUE;
 		} else
 			return CLI_SHOWUSAGE;
-		if (!strcasecmp(a->argv[4], "like"))
+		if (!strcasecmp(name, "like"))
 			return CLI_SHOWUSAGE;
-		if (!multi && !strcasecmp(a->argv[4], "all")) {
+		if (!multi && !strcasecmp(name, "all")) {
 			multi = TRUE;
 			name = NULL;
 		}
@@ -14384,7 +14390,7 @@ static char *sip_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 			"       IP address or registered peer.\n";
 		return NULL;
 	} else if (cmd == CLI_GENERATE) {
-		if (a->pos == 4 && strcasestr(a->line, " peer")) /* XXX should check on argv too */
+		if (a->pos == 4 && !strcasecmp(a->argv[3], "peer")) 
 			return complete_sip_peer(a->word, a->n, 0);
 		return NULL;
         }

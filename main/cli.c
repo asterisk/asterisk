@@ -1835,7 +1835,9 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 				struct ast_cli_args a = {
 					.line = matchstr, .word = word,
 					.pos = argindex,
-					.n = state - matchnum };
+					.n = state - matchnum,
+					.argv = argv,
+					.argc = x};
 				ret = e->handler(e, CLI_GENERATE, &a);
 			}
 			if (ret)

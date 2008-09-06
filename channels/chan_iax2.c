@@ -731,7 +731,7 @@ static void reg_source_db(struct iax2_peer *p);
 static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
 
 static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt);
-static char *complete_iax2_peers(const char *line, const char *word, int pos, int state);
+static char *complete_iax2_peers(const char *line, const char *word, int pos, int state, int flags);
 static char *complete_iax2_unregister(const char *line, const char *word, int pos, int state);
 
 enum iax2_thread_iostate {
@@ -2461,6 +2461,8 @@ static int attempt_transmit(const void *data)
 static char *handle_cli_iax2_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct iax2_peer *peer;
+	static char *choices[] = { "all", NULL };
+	char *cmplt;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2470,18 +2472,22 @@ static char *handle_cli_iax2_prune_realtime(struct ast_cli_entry *e, int cmd, st
 			"       Prunes object(s) from the cache\n";
 		return NULL;
 	case CLI_GENERATE:
-		if (a->pos == 3)
-			return complete_iax2_peers(a->line, a->word, a->pos, a->n);
+		if (a->pos == 3) {
+			cmplt = ast_cli_complete(a->word, choices, a->n);
+			if (!cmplt)
+				cmplt = complete_iax2_peers(a->line, a->word, a->pos, a->n - sizeof(choices), IAX_RTCACHEFRIENDS);
+			return cmplt;
+		}
 		return NULL;
 	}
 
 	if (a->argc != 4)
-        return CLI_SHOWUSAGE;
+		return CLI_SHOWUSAGE;
 	if (!strcmp(a->argv[3], "all")) {
 		reload_config();
 		ast_cli(a->fd, "Cache flushed successfully.\n");
 	} else if ((peer = find_peer(a->argv[3], 0))) {
-		if(ast_test_flag(peer, IAX_RTCACHEFRIENDS)) {
+		if (ast_test_flag(peer, IAX_RTCACHEFRIENDS)) {
 			ast_set_flag(peer, IAX_RTAUTOCLEAR);
 			expire_registry(peer_ref(peer));
 			ast_cli(a->fd, "Peer %s was removed from the cache.\n", a->argv[3]);
@@ -2627,7 +2633,7 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 3)
-			return complete_iax2_peers(a->line, a->word, a->pos, a->n);
+			return complete_iax2_peers(a->line, a->word, a->pos, a->n, 0);
 		return NULL;
 	}
 
@@ -2683,7 +2689,7 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
 	return CLI_SUCCESS;
 }
 
-static char *complete_iax2_peers(const char *line, const char *word, int pos, int state)
+static char *complete_iax2_peers(const char *line, const char *word, int pos, int state, int flags)
 {
 	int which = 0;
 	struct iax2_peer *peer;
@@ -2693,7 +2699,8 @@ static char *complete_iax2_peers(const char *line, const char *word, int pos, in
 
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_iterator_next(&i))) {
-		if (!strncasecmp(peer->name, word, wordlen) && ++which > state) {
+		if (!strncasecmp(peer->name, word, wordlen) && ++which > state
+			&& (!flags || ast_test_flag(peer, flags))) {
 			res = ast_strdup(peer->name);
 			peer_unref(peer);
 			break;
@@ -5642,8 +5649,8 @@ static char *handle_cli_iax2_set_debug(struct ast_cli_entry *e, int cmd, struct 
 			"       Enables/Disables dumping of IAX packets for debugging purposes.\n";
 		return NULL;
 	case CLI_GENERATE:
-		if (a->pos == 4)
-			return complete_iax2_peers(a->line, a->word, a->pos, a->n);
+		if (a->pos == 4 && !strcasecmp(a->argv[3], "peer"))
+			return complete_iax2_peers(a->line, a->word, a->pos, a->n, 0);
 		return NULL;
 	}
 
