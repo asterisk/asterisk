@@ -2092,7 +2092,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		return -1;
 	}
 
-	return res;
+	return 0;
 }
 
 static int agi_exec(struct ast_channel *chan, void *data)
