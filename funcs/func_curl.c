@@ -275,7 +275,7 @@ static int acf_curlopt_read(struct ast_channel *chan, const char *cmd, char *dat
 {
 	struct ast_datastore *store;
 	struct global_curl_info *list[2] = { &global_curl_info, NULL };
-	struct curl_settings *cur;
+	struct curl_settings *cur = NULL;
 	CURLoption key;
 	enum optiontype ot;
 	int i;
