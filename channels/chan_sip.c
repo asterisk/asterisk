@@ -1035,6 +1035,7 @@ struct sip_auth {
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< GP: Should we clean memory from peers after expiry? */
 /* Space for addition of other realtime flags in the future */
 #define SIP_PAGE2_STATECHANGEQUEUE	(1 << 9)	/*!< D: Unsent state pending change exists */
+#define SIP_PAGE2_DIALOG_ESTABLISHED    (1 << 29)       /*!< 29: Has a dialog been established? */
 
 #define SIP_PAGE2_VIDEOSUPPORT		(1 << 14)	/*!< DP: Video supported if offered? */
 #define SIP_PAGE2_TEXTSUPPORT		(1 << 15)	/*!< GDP: Global text enable */
@@ -5147,9 +5148,11 @@ static int sip_answer(struct ast_channel *ast)
 		if (p->t38.state == T38_PEER_DIRECT) {
 			change_t38_state(p, T38_ENABLED);
 			res = transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
+			ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 		} else {
 			ast_rtp_new_source(p->rtp);
 			res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL, FALSE);
+			ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 		}
 	}
 	sip_pvt_unlock(p);
@@ -6230,6 +6233,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		}
 	}
 
+<<<<<<< .working
 restartsearch:
 	if (!pedanticsipchecking) {
 		struct sip_pvt tmp_dialog = {
@@ -6249,6 +6253,35 @@ restartsearch:
 				ao2_unlock(dialogs);
 				usleep(1);
 				goto restartsearch;
+=======
+	ast_mutex_lock(&iflock);
+	for (p = iflist; p; p = p->next) {
+		/* In pedantic, we do not want packets with bad syntax to be connected to a PVT */
+		int found = FALSE;
+		if (ast_strlen_zero(p->callid))
+			continue;
+		if (req->method == SIP_REGISTER)
+			found = (!strcmp(p->callid, callid));
+		else {
+			found = !strcmp(p->callid, callid);
+			if (pedanticsipchecking && found) {
+				found = ast_strlen_zero(tag) || ast_strlen_zero(p->theirtag) || !ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED) || !strcmp(p->theirtag, tag);
+			}
+		}
+
+		if (option_debug > 4)
+			ast_log(LOG_DEBUG, "= %s Their Call ID: %s Their Tag %s Our tag: %s\n", found ? "Found" : "No match", p->callid, p->theirtag, p->tag);
+
+		/* If we get a new request within an existing to-tag - check the to tag as well */
+		if (pedanticsipchecking && found  && req->method != SIP_RESPONSE) {	/* SIP Request */
+			if (p->tag[0] == '\0' && totag[0]) {
+				/* We have no to tag, but they have. Wrong dialog */
+				found = FALSE;
+			} else if (totag[0]) {			/* Both have tags, compare them */
+				if (strcmp(totag, p->tag)) {
+					found = FALSE;		/* This is not our packet */
+				}
+>>>>>>> .merge-right.r141809
 			}
 			ao2_unlock(dialogs);
 			return p;
@@ -15360,6 +15393,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 
 		/* If I understand this right, the branch is different for a non-200 ACK only */
 		p->invitestate = INV_TERMINATED;
+		ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, TRUE);
 		check_pendings(p);
 		break;
@@ -15890,8 +15924,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				handle_response_notify(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_REGISTER) 
 				res = handle_response_register(p, resp, rest, req, seqno);
-			else if (sipmethod == SIP_BYE)		/* Ok, we're ready to go */
+			else if (sipmethod == SIP_BYE) {		/* Ok, we're ready to go */
 				p->needdestroy = 1;
+				ast_clear_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
+			} else if (sipmethod == SIP_SUBSCRIBE) {
+				ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
+			}
 			break;
 		case 202:   /* Transfer accepted */
 			if (sipmethod == SIP_REFER) 
@@ -17680,6 +17718,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 							}
 						} else {
 							/* The other side is already setup for T.38 most likely so we need to acknowledge this too */
+							ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 							transmit_response_with_t38_sdp(p, "200 OK", req, XMIT_CRITICAL);
 							change_t38_state(p, T38_ENABLED);
 						}
@@ -17693,6 +17732,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					}
 				} else {
 					/* we are not bridged in a call */
+					ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 					transmit_response_with_t38_sdp(p, "200 OK", req, XMIT_CRITICAL);
 					change_t38_state(p, T38_ENABLED);
 				}
@@ -17719,6 +17759,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				/* Respond to normal re-invite */
 				if (sendok) {
 					/* If this is not a re-invite or something to ignore - it's critical */
+					ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 					transmit_response_with_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)), p->session_modify == TRUE ? FALSE:TRUE); 
 				}
 			}
@@ -18451,6 +18492,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		ast_debug(3, "Received bye, no owner, selfdestruct soon.\n");
 	}
+	ast_clear_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 	transmit_response(p, "200 OK", req);
 
 	return 1;
@@ -18733,6 +18775,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			sip_scheddestroy(p, (p->expiry + 10) * 1000);	/* Set timer for destruction of call at expiration */
 
 		if (p->subscribed == MWI_NOTIFICATION) {
+			ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 			transmit_response(p, "200 OK", req);
 			if (p->relatedpeer) {	/* Send first notification */
 				ao2_lock(p->relatedpeer); /* was WRLOCK */
@@ -18749,7 +18792,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				p->needdestroy = 1;
 				return 0;
 			}
-
+			ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 			transmit_response(p, "200 OK", req);
 			transmit_state_notify(p, firststate, 1, FALSE);	/* Send first notification */
 			append_history(p, "Subscribestatus", "%s", ast_extension_state2str(firststate));
