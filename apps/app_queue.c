@@ -1695,16 +1695,18 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	ao2_lock(q);
 
 	/* This is our one */
-	status = get_member_status(q, qe->max_penalty, qe->min_penalty);
-	if (!q->joinempty && (status == QUEUE_NO_MEMBERS))
-		*reason = QUEUE_JOINEMPTY;
-	else if ((q->joinempty == QUEUE_EMPTY_STRICT) && (status == QUEUE_NO_REACHABLE_MEMBERS || status == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS || status == QUEUE_NO_MEMBERS))
-		*reason = QUEUE_JOINUNAVAIL;
-	else if ((q->joinempty == QUEUE_EMPTY_LOOSE) && (status == QUEUE_NO_REACHABLE_MEMBERS || status == QUEUE_NO_MEMBERS))
-		*reason = QUEUE_JOINUNAVAIL;
-	else if (q->maxlen && (q->count >= q->maxlen))
+	if (q->joinempty != QUEUE_EMPTY_NORMAL) {
+		status = get_member_status(q, qe->max_penalty, qe->min_penalty);
+		if (!q->joinempty && (status == QUEUE_NO_MEMBERS))
+			*reason = QUEUE_JOINEMPTY;
+		else if ((q->joinempty == QUEUE_EMPTY_STRICT) && (status == QUEUE_NO_REACHABLE_MEMBERS || status == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS || status == QUEUE_NO_MEMBERS))
+			*reason = QUEUE_JOINUNAVAIL;
+		else if ((q->joinempty == QUEUE_EMPTY_LOOSE) && (status == QUEUE_NO_REACHABLE_MEMBERS || status == QUEUE_NO_MEMBERS))
+			*reason = QUEUE_JOINUNAVAIL;
+	}
+	if (*reason == QUEUE_UNKNOWN && q->maxlen && (q->count >= q->maxlen))
 		*reason = QUEUE_FULL;
-	else {
+	else if (*reason == QUEUE_UNKNOWN) {
 		/* There's space for us, put us at the right position inside
 		 * the queue.
 		 * Take into account the priority of the calling user */
@@ -2875,28 +2877,30 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 			break;
 		}
 
-		status = get_member_status(qe->parent, qe->max_penalty, qe->min_penalty);
+		if (qe->parent->leavewhenempty) {
+			status = get_member_status(qe->parent, qe->max_penalty, qe->min_penalty);
 
-		/* leave the queue if no agents, if enabled */
-		if (qe->parent->leavewhenempty && (status == QUEUE_NO_MEMBERS)) {
-			*reason = QUEUE_LEAVEEMPTY;
-			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
-			leave_queue(qe);
-			break;
-		}
+			/* leave the queue if no agents, if enabled */
+			if (status == QUEUE_NO_MEMBERS) {
+				*reason = QUEUE_LEAVEEMPTY;
+				ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
+				leave_queue(qe);
+				break;
+			}
 
-		/* leave the queue if no reachable agents, if enabled */
-		if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (status == QUEUE_NO_REACHABLE_MEMBERS || status == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) {
-			*reason = QUEUE_LEAVEUNAVAIL;
-			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
-			leave_queue(qe);
-			break;
-		}
-		if ((qe->parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (status == QUEUE_NO_REACHABLE_MEMBERS)) {
-			*reason = QUEUE_LEAVEUNAVAIL;
-			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
-			leave_queue(qe);
-			break;
+			/* leave the queue if no reachable agents, if enabled */
+			if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (status == QUEUE_NO_REACHABLE_MEMBERS || status == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) {
+				*reason = QUEUE_LEAVEUNAVAIL;
+				ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
+				leave_queue(qe);
+				break;
+			}
+			if ((qe->parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (status == QUEUE_NO_REACHABLE_MEMBERS)) {
+				*reason = QUEUE_LEAVEUNAVAIL;
+				ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
+				leave_queue(qe);
+				break;
+			}
 		}
 
 		/* Make a position announcement, if enabled */
@@ -4778,7 +4782,32 @@ check_turns:
 			goto stop;
 		}
 
-		status = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty);
+		if (qe.parent->leavewhenempty) {
+			status = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty);
+			/* leave the queue if no agents, if enabled */
+			if (status == QUEUE_NO_MEMBERS) {
+				record_abandoned(&qe);
+				reason = QUEUE_LEAVEEMPTY;
+				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
+				res = 0;
+				break;
+			}
+
+			/* leave the queue if no reachable agents, if enabled */
+			if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (status == QUEUE_NO_REACHABLE_MEMBERS || status == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) {
+				record_abandoned(&qe);
+				reason = QUEUE_LEAVEUNAVAIL;
+				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
+				res = 0;
+				break;
+			}
+			if ((qe.parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (status == QUEUE_NO_REACHABLE_MEMBERS)) {
+				record_abandoned(&qe);
+				reason = QUEUE_LEAVEUNAVAIL;
+				res = 0;
+				break;
+			}
+		}
 
 		/* exit after 'timeout' cycle if 'n' option enabled */
 		if (noption && tries >= qe.parent->membercount) {
@@ -4790,30 +4819,7 @@ check_turns:
 			break;
 		}
 
-		/* leave the queue if no agents, if enabled */
-		if (qe.parent->leavewhenempty && (status == QUEUE_NO_MEMBERS)) {
-			record_abandoned(&qe);
-			reason = QUEUE_LEAVEEMPTY;
-			ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
-			res = 0;
-			break;
-		}
-
-		/* leave the queue if no reachable agents, if enabled */
-		if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (status == QUEUE_NO_REACHABLE_MEMBERS || status == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) {
-			record_abandoned(&qe);
-			reason = QUEUE_LEAVEUNAVAIL;
-			ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
-			res = 0;
-			break;
-		}
-		if ((qe.parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (status == QUEUE_NO_REACHABLE_MEMBERS)) {
-			record_abandoned(&qe);
-			reason = QUEUE_LEAVEUNAVAIL;
-			res = 0;
-			break;
-		}
-
+		
 		/* Leave if we have exceeded our queuetimeout */
 		if (qe.expire && (time(NULL) >= qe.expire)) {
 			record_abandoned(&qe);
