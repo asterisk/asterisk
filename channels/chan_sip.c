@@ -6152,10 +6152,12 @@ static int find_call_cb(void *__pvt, void *__arg, int flags)
 	if (!ast_strlen_zero(p->callid)) { /* XXX double check, do we allow match on empty p->callid ? */
 		if (arg->method == SIP_REGISTER)
  	  	  	found = (!strcmp(p->callid, arg->callid));
-		else
- 	  	  	found = (!strcmp(p->callid, arg->callid) &&
-					 (!pedanticsipchecking || ast_strlen_zero(arg->tag) || ast_strlen_zero(p->theirtag) || !strcmp(p->theirtag, arg->tag))) ;
-
+		else {
+ 	  		found = !strcmp(p->callid, arg->callid);
+			if (pedanticsipchecking && found) {
+				found = ast_strlen_zero(arg->tag) || ast_strlen_zero(p->theirtag) || !ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED) || !strcmp(p->theirtag, arg->tag);
+			} 
+		}
 		
 		ast_debug(5, "= %s Their Call ID: %s Their Tag %s Our tag: %s\n", found ? "Found" : "No match", p->callid, p->theirtag, p->tag);
 		
@@ -6233,7 +6235,6 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		}
 	}
 
-<<<<<<< .working
 restartsearch:
 	if (!pedanticsipchecking) {
 		struct sip_pvt tmp_dialog = {
@@ -6253,35 +6254,6 @@ restartsearch:
 				ao2_unlock(dialogs);
 				usleep(1);
 				goto restartsearch;
-=======
-	ast_mutex_lock(&iflock);
-	for (p = iflist; p; p = p->next) {
-		/* In pedantic, we do not want packets with bad syntax to be connected to a PVT */
-		int found = FALSE;
-		if (ast_strlen_zero(p->callid))
-			continue;
-		if (req->method == SIP_REGISTER)
-			found = (!strcmp(p->callid, callid));
-		else {
-			found = !strcmp(p->callid, callid);
-			if (pedanticsipchecking && found) {
-				found = ast_strlen_zero(tag) || ast_strlen_zero(p->theirtag) || !ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED) || !strcmp(p->theirtag, tag);
-			}
-		}
-
-		if (option_debug > 4)
-			ast_log(LOG_DEBUG, "= %s Their Call ID: %s Their Tag %s Our tag: %s\n", found ? "Found" : "No match", p->callid, p->theirtag, p->tag);
-
-		/* If we get a new request within an existing to-tag - check the to tag as well */
-		if (pedanticsipchecking && found  && req->method != SIP_RESPONSE) {	/* SIP Request */
-			if (p->tag[0] == '\0' && totag[0]) {
-				/* We have no to tag, but they have. Wrong dialog */
-				found = FALSE;
-			} else if (totag[0]) {			/* Both have tags, compare them */
-				if (strcmp(totag, p->tag)) {
-					found = FALSE;		/* This is not our packet */
-				}
->>>>>>> .merge-right.r141809
 			}
 			ao2_unlock(dialogs);
 			return p;
