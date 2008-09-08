@@ -6461,17 +6461,23 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 				S_OR(context, chan->context), S_OR(exten, chan->exten), priority);
 
 			/* Masquerade into temp channel */
-			ast_channel_masquerade(tmpchan, chan);
-
-			/* Grab the locks and get going */
-			ast_channel_lock(tmpchan);
-			ast_do_masquerade(tmpchan);
-			ast_channel_unlock(tmpchan);
-			/* Start the PBX going on our stolen channel */
-			if (ast_pbx_start(tmpchan)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmpchan->name);
+			if (ast_channel_masquerade(tmpchan, chan)) {
+				/* Failed to set up the masquerade.  It's probably chan_local
+				 * in the middle of optimizing itself out.  Sad. :( */
 				ast_hangup(tmpchan);
+				tmpchan = NULL;
 				res = -1;
+			} else {
+				/* Grab the locks and get going */
+				ast_channel_lock(tmpchan);
+				ast_do_masquerade(tmpchan);
+				ast_channel_unlock(tmpchan);
+				/* Start the PBX going on our stolen channel */
+				if (ast_pbx_start(tmpchan)) {
+					ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmpchan->name);
+					ast_hangup(tmpchan);
+					res = -1;
+				}
 			}
 		}
 	}
