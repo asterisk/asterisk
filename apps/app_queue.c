@@ -753,18 +753,7 @@ static int update_status(const char *interface, const int status)
 static int handle_statechange(void *datap)
 {
 	struct member_interface *curint;
-	char *loc;
-	char *technology;
 	struct statechange *sc = datap;
-
-	technology = ast_strdupa(sc->dev);
-	loc = strchr(technology, '/');
-	if (loc) {
-		*loc++ = '\0';
-	} else {
-		ast_free(sc);
-		return 0;
-	}
 
 	AST_LIST_LOCK(&interfaces);
 	AST_LIST_TRAVERSE(&interfaces, curint, list) {
@@ -781,12 +770,12 @@ static int handle_statechange(void *datap)
 	AST_LIST_UNLOCK(&interfaces);
 
 	if (!curint) {
-		ast_debug(3, "Device '%s/%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", technology, loc, sc->state, devstate2str(sc->state));
+		ast_debug(3, "Device '%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", sc->dev, sc->state, devstate2str(sc->state));
 		ast_free(sc);
 		return 0;
 	}
 
-	ast_debug(1, "Device '%s/%s' changed to state '%d' (%s)\n", technology, loc, sc->state, devstate2str(sc->state));
+	ast_debug(1, "Device '%s' changed to state '%d' (%s)\n", sc->dev, sc->state, devstate2str(sc->state));
 
 	update_status(sc->dev, sc->state);
 	ast_free(sc);
