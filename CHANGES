@@ -532,6 +532,9 @@ Miscellaneous New Modules
 
 Miscellaneous 
 -------------
+ * res_jabber: autoprune has been disabled by default, to avoid misconfiguration 
+   that would end up being interpreted as a bug once Asterisk started removing 
+   the contacts from a user list.
   * Ability to use libcap to set high ToS bits when non-root
      on Linux. If configure is unable to find libcap then you
      can use --with-cap to specify the path.
