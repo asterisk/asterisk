@@ -1464,18 +1464,22 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	struct chan_oss_pvt *o;
+	struct chan_oss_pvt *o, *next;
 
 	ast_channel_unregister(&oss_tech);
 	ast_cli_unregister_multiple(cli_oss, sizeof(cli_oss) / sizeof(struct ast_cli_entry));
 
-	for (o = oss_default.next; o; o = o->next) {
+	o = oss_default.next;
+	while (o) {
 		close(o->sounddev);
 		if (o->owner)
 			ast_softhangup(o->owner, AST_SOFTHANGUP_APPUNLOAD);
 		if (o->owner)			/* XXX how ??? */
 			return -1;
-		/* XXX what about the memory allocated ? */
+		next = o->next;
+		ast_free(o->name);
+		ast_free(o);
+		o = next;
 	}
 	return 0;
 }
