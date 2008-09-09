@@ -496,7 +496,7 @@ data structures depending on the needs.
 
 Operations on container include:
 
-  -  c = \b ao2_container_alloc(size, cmp_fn, hash_fn)
+  -  c = \b ao2_container_alloc(size, hash_fn, cmp_fn)
 	allocate a container with desired size and default compare
 	and hash function
          -The compare function returns an int, which
