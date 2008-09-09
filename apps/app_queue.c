@@ -781,14 +781,12 @@ static int handle_statechange(void *datap)
 	AST_LIST_UNLOCK(&interfaces);
 
 	if (!curint) {
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", technology, loc, sc->state, devstate2str(sc->state));
+		ast_debug(3, "Device '%s/%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", technology, loc, sc->state, devstate2str(sc->state));
 		ast_free(sc);
 		return 0;
 	}
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s)\n", technology, loc, sc->state, devstate2str(sc->state));
+	ast_debug(1, "Device '%s/%s' changed to state '%d' (%s)\n", technology, loc, sc->state, devstate2str(sc->state));
 
 	update_status(sc->dev, sc->state);
 	ast_free(sc);
@@ -2321,8 +2319,7 @@ static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *bus
 		
 		/* If we have timed out, break out */
 		if (qe->expire && (time(NULL) >= qe->expire)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Queue timed out while ringing members.\n");
+			ast_debug(1, "Queue timed out while ringing members.\n");
 			ret = 0;
 			break;
 		}
@@ -3371,7 +3368,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		AST_LIST_LOCK(dialed_interfaces);
 		AST_LIST_TRAVERSE(dialed_interfaces, di, list) {
 			if (!strcasecmp(cur->interface, di->interface)) {
-				ast_log(LOG_DEBUG, "Skipping dialing interface '%s' since it has already been dialed\n", 
+				ast_debug(1, "Skipping dialing interface '%s' since it has already been dialed\n", 
 					di->interface);
 				break;
 			}
@@ -3773,8 +3770,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 
 		if (!ast_strlen_zero(gosubexec)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "app_queue: gosub=%s.\n", gosubexec);
+			ast_debug(1, "app_queue: gosub=%s.\n", gosubexec);
 			
 			res = ast_autoservice_start(qe->chan);
 			if (res) {
@@ -3804,8 +3800,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					res = pbx_exec(qe->chan, application, gosub_args);
 					ast_pbx_run(qe->chan);
 					free(gosub_args);
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
+					ast_debug(1, "Gosub exited with status %d\n", res);
 				} else
 					ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
 				
@@ -6369,7 +6364,6 @@ static char *complete_queue_rule_show(const char *line, const char *word, int po
 	int wordlen = strlen(word);
 	char *ret = NULL;
 	if (pos != 3) /* Wha? */ {
-		ast_log(LOG_DEBUG, "Hitting this???, pos is %d\n", pos);
 		return NULL;
 	}
 
