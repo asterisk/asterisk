@@ -159,7 +159,7 @@ struct aji_client_container clients;
 struct aji_capabilities *capabilities = NULL;
 
 /*! \brief Global flags, initialized to default values */
-static struct ast_flags globalflags = { AJI_AUTOPRUNE | AJI_AUTOREGISTER };
+static struct ast_flags globalflags = { AJI_AUTOREGISTER };
 
 /*!
  * \brief Deletes the aji_client data structure.
@@ -2076,7 +2076,7 @@ static void aji_pruneregister(struct aji_client *client)
 		ASTOBJ_RDLOCK(iterator);
 		/* For an aji_buddy, both AUTOPRUNE and AUTOREGISTER will never
 		 * be called at the same time */
-		if (ast_test_flag(&iterator->flags, AJI_AUTOPRUNE)) {
+		if (ast_test_flag(&iterator->flags, AJI_AUTOPRUNE)) { /* If autoprune is set on jabber.conf */
 			res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBE, iterator->name,
 								 "GoodBye. Your status is no longer needed by Asterisk the Open Source PBX"
 								 " so I am no longer subscribing to your presence.\n"));
@@ -2881,7 +2881,7 @@ static int aji_load_config(int reload)
 		return -1;
 
 	/* Reset flags to default value */
-	ast_set_flag(&globalflags, AJI_AUTOPRUNE | AJI_AUTOREGISTER);
+	ast_set_flag(&globalflags, AJI_AUTOREGISTER);
 
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", JABBER_CONFIG);
@@ -2890,12 +2890,13 @@ static int aji_load_config(int reload)
 
 	cat = ast_category_browse(cfg, NULL);
 	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
-		if (!strcasecmp(var->name, "debug"))
+		if (!strcasecmp(var->name, "debug")) {
 			debug = (ast_false(ast_variable_retrieve(cfg, "general", "debug"))) ? 0 : 1;
-		else if (!strcasecmp(var->name, "autoprune"))
+		} else if (!strcasecmp(var->name, "autoprune")) {
 			ast_set2_flag(&globalflags, ast_true(var->value), AJI_AUTOPRUNE);
-		else if (!strcasecmp(var->name, "autoregister"))
+		} else if (!strcasecmp(var->name, "autoregister")) {
 			ast_set2_flag(&globalflags, ast_true(var->value), AJI_AUTOREGISTER);
+		}
 	}
 
 	while (cat) {

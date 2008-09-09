@@ -1,7 +1,9 @@
 [general]
 ;debug=yes				;;Turn on debugging by default.
-;autoprune=yes				;;Auto remove users from buddy list.
-;autoregister=yes			;;Auto register users from buddy list. 
+;autoprune=yes				;;Auto remove users from buddy list. Depending on your
+					;;setup (ie, using your personal Gtalk account for a test)
+					;;you might lose your contacts list. Default is 'no'.
+;autoregister=yes			;;Auto register users from buddy list.
 
 ;[asterisk]				;;label
 ;type=client				;;Client or Component connection
