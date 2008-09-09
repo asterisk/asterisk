@@ -1674,16 +1674,21 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 		return -1;
 	}
 
+	ast_channel_unlock(chan);
+
 	switch (chan->_state) {
 	case AST_STATE_RINGING:
 	case AST_STATE_RING:
-		if (chan->tech->answer)
+		ast_channel_lock(chan);
+		if (chan->tech->answer) {
 			res = chan->tech->answer(chan);
+		}
 		ast_setstate(chan, AST_STATE_UP);
 		ast_cdr_answer(chan->cdr);
-		if (delay)
+		ast_channel_unlock(chan);
+		if (delay) {
 			ast_safe_sleep(chan, delay);
-		else {
+		} else {
 			struct ast_frame *f;
 			int ms = ANSWER_WAIT_MS;
 			while (1) {
@@ -1719,8 +1724,8 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 	default:
 		break;
 	}
+
 	chan->visible_indication = 0;
-	ast_channel_unlock(chan);
 
 	return res;
 }
