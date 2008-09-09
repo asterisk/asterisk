@@ -18315,7 +18315,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 static int sip_get_codec(struct ast_channel *chan)
 {
 	struct sip_pvt *p = chan->tech_pvt;
-	return p->peercapability ? p->peercapability : p->capability;	
+	return p->jointcapability ? p->jointcapability : p->capability;	
 }
 
 /*! \brief Send a poke to all known peers 
