@@ -2345,6 +2345,22 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_cdr_specialized_reset(chan->cdr,0);
 		}
 		if (peer->cdr) {
+			struct ast_cdr *cur;
+
+			ast_channel_lock(peer);
+			for (cur = peer->cdr; cur; cur = cur->next) {
+				if (cur == orig_peer_cdr) {
+					break;
+				}
+			}
+
+			if (!cur) {
+				/* orig_peer_cdr is gone, probably because of a masquerade
+				 * during the bridge. */
+				ast_channel_unlock(peer);
+				return res;
+			}
+
 			/* before resetting the peer cdr, throw a copy of it to the 
 			   backend, just in case the cdr.conf file is calling for
 			   unanswered CDR's. */
@@ -2361,6 +2377,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				}
 			}
 			ast_cdr_specialized_reset(orig_peer_cdr,0);
+			ast_channel_unlock(peer);
 		}
  	}
 	return res;
