@@ -27,15 +27,6 @@
 	  fail the async goto instead of bursting into flames. (closes
 	  issue #13435) Reported by: geoff2010
 
-2008-09-08 20:15 +0000 [r141741]  Jason Parker <jparker@digium.com>
-
-	* Makefile, redhat (removed): Remove RPM package targets from
-	  Makefile (and all associated parts). This has never worked in
-	  1.4, and we decided that it makes no sense to be done here. There
-	  are many distros out there that already have "proper" spec files
-	  that can be (re)used. Closes issue #13113 Closes issue #10950
-	  Closes issue #10952
-
 2008-09-08  Russell Bryant <russell@digium.com>
 
 	* Asterisk 1.4.22-rc4 released.
