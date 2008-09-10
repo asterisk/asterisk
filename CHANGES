@@ -8,6 +8,12 @@ Dialplan Functions
    options that may be useful with the CURL dialplan function, such as
    cookies, proxies, connection timeouts, passwords, etc.
 
+Miscellaneous
+-------------
+ * res_jabber: autoprune has been disabled by default, to avoid misconfiguration 
+   that would end up being interpreted as a bug once Asterisk started removing 
+   the contacts from a user list.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.0 to Asterisk 1.6.1  -------------
 ------------------------------------------------------------------------------
@@ -805,9 +811,6 @@ Miscellaneous New Modules
 
 Miscellaneous 
 -------------
- * res_jabber: autoprune has been disabled by default, to avoid misconfiguration 
-   that would end up being interpreted as a bug once Asterisk started removing 
-   the contacts from a user list.
   * Ability to use libcap to set high ToS bits when non-root
      on Linux. If configure is unable to find libcap then you
      can use --with-cap to specify the path.
