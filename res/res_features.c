@@ -1491,6 +1491,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		if (peer->cdr && !ast_tvzero(peer->cdr->answer)) {
 			bridge_cdr->answer = peer->cdr->answer;
 			chan->cdr->answer = peer->cdr->answer;
+			bridge_cdr->disposition = peer->cdr->disposition;
+			chan->cdr->disposition = peer->cdr->disposition;
 		} else {
 			ast_cdr_answer(bridge_cdr);
 			ast_cdr_answer(chan->cdr); /* for the sake of cli status checks */
