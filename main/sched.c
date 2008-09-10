@@ -254,7 +254,6 @@ static int sched_settime(struct timeval *t, int when)
 		*t = now;
 	*t = ast_tvadd(*t, ast_samp2tv(when, 1000));
 	if (ast_tvcmp(*t, now) < 0) {
-		ast_debug(1, "Request to schedule in the past?!?!\n");
 		*t = now;
 	}
 	return 0;
@@ -276,11 +275,9 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
 {
 	struct sched *tmp;
 	int res = -1;
+
 	DEBUG(ast_debug(1, "ast_sched_add()\n"));
-	if (!when) {
-		ast_log(LOG_NOTICE, "Scheduled event in 0 ms?\n");
-		return -1;
-	}
+
 	ast_mutex_lock(&con->lock);
 	if ((tmp = sched_alloc(con))) {
 		tmp->id = con->eventcnt++;
@@ -302,6 +299,7 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
 		ast_sched_dump(con);
 #endif
 	ast_mutex_unlock(&con->lock);
+
 	return res;
 }
 
