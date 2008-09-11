@@ -28,6 +28,7 @@
 ;[third]
 ;connection=sqlserver
 ;table=AsteriskCDR
+;usegmtime=yes ; defaults to no
 ;alias src => source
 ;alias channel => source_channel
 ;alias dst => dest
@@ -37,4 +38,20 @@
 ;filter accountcode => somename
 ;filter src => 123
 
+
+; On Wednesday 10 September 2008 21:11:16 Tilghman Lesher wrote:
+;
+; I thought that the sample cdr_adaptive_odbc.conf was rather clear, but
+; apparently not.  The point of this module is to allow you log whatever you
+; like in terms of the CDR variables.  Do you want to log uniqueid?  Then simply
+; ensure that your table has that column.  If you don't want the column, ensure
+; that it does not exist in the table structure.  If you'd like to call uniqueid
+; something else in your table, simply provide an alias in the configuration
+; file that maps the standard CDR field name (uniqueid) to whatever column
+; name you like.  Perhaps you'd like some extra CDR values logged that aren't
+; in the standard repertoire of CDR variables (some that come to mind are
+; certain values used for LCR:  route, per_minute_cost, and per_minute_price).
+; Simply set those CDR variables in your dialplan, i.e. Set(CDR(route)=27),
+; ensure that a corresponding column exists in your table, and cdr_adaptive_odbc
+; will do the rest.
 

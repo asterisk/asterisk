@@ -69,6 +69,7 @@ struct columns {
 struct tables {
 	char *connection;
 	char *table;
+	unsigned int usegmtime:1;
 	AST_LIST_HEAD_NOLOCK(odbc_columns, columns) columns;
 	AST_RWLIST_ENTRY(tables) list;
 };
@@ -86,7 +87,7 @@ static int load_config(void)
 	char columnname[80];
 	char connection[40];
 	char table[40];
-	int lenconnection, lentable;
+	int lenconnection, lentable, usegmtime;
 	SQLLEN sqlptr;
 	int res = 0;
 	SQLHSTMT stmt = NULL;
@@ -109,6 +110,10 @@ static int load_config(void)
 		}
 		ast_copy_string(connection, tmp, sizeof(connection));
 		lenconnection = strlen(connection);
+
+		if (!ast_strlen_zero(tmp = ast_variable_retrieve(cfg, catg, "usegmtime"))) {
+			usegmtime = ast_true(tmp);
+		}
 
 		/* When loading, we want to be sure we can connect. */
 		obj = ast_odbc_request_obj(connection, 1);
@@ -146,6 +151,7 @@ static int load_config(void)
 			break;
 		}
 
+		tableptr->usegmtime = usegmtime;
 		tableptr->connection = (char *)tableptr + sizeof(*tableptr);
 		tableptr->table = (char *)tableptr + sizeof(*tableptr) + lenconnection + 1;
 		ast_copy_string(tableptr->connection, connection, lenconnection + 1);
@@ -354,11 +360,24 @@ static int odbc_log(struct ast_cdr *cdr)
 		}
 
 		AST_LIST_TRAVERSE(&(tableptr->columns), entry, list) {
+			int datefield = 0;
+			if (strcasecmp(entry->cdrname, "start") == 0) {
+				datefield = 1;
+			} else if (strcasecmp(entry->cdrname, "answer") == 0) {
+				datefield = 2;
+			} else if (strcasecmp(entry->cdrname, "end") == 0) {
+				datefield = 3;
+			}
+
 			/* Check if we have a similarly named variable */
-			ast_cdr_getvar(cdr, entry->cdrname, &colptr, colbuf, sizeof(colbuf), 0,
-				(strcasecmp(entry->cdrname, "start") == 0 ||
-				 strcasecmp(entry->cdrname, "answer") == 0 ||
-				 strcasecmp(entry->cdrname, "end") == 0) ? 0 : 1);
+			if (datefield && tableptr->usegmtime) {
+				struct timeval tv = (datefield == 1) ? cdr->start : (datefield == 2) ? cdr->answer : cdr->end;
+				struct ast_tm tm = { 0, };
+				ast_localtime(&tv, &tm, "UTC");
+				ast_strftime(colbuf, sizeof(colbuf), "%Y-%m-%d %H:%M:%S", &tm);
+			} else {
+				ast_cdr_getvar(cdr, entry->cdrname, &colptr, colbuf, sizeof(colbuf), 0, datefield ? 0 : 1);
+			}
 
 			if (colptr) {
 				/* Check first if the column filters this entry.  Note that this
