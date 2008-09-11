@@ -2057,6 +2057,20 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 }
 
 /*!
+ * \brief return the first unlocked cdr in a possible chain
+*/
+static struct ast_cdr *pick_unlocked_cdr(struct ast_cdr *cdr)
+{
+	struct ast_cdr *cdr_orig = cdr;
+	while (cdr) {
+		if (!ast_test_flag(cdr,AST_CDR_FLAG_LOCKED))
+			return cdr;
+		cdr = cdr->next;
+	}
+	return cdr_orig; /* everybody LOCKED or some other weirdness, like a NULL */
+}
+
+/*!
  * \brief bridge the call and set CDR
  * \param chan,peer,config
  * 
@@ -2083,6 +2097,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	struct ast_bridge_config backup_config;
 	struct ast_cdr *bridge_cdr = NULL;
 	struct ast_cdr *orig_peer_cdr = NULL;
+	struct ast_cdr *chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
+	struct ast_cdr *peer_cdr = pick_unlocked_cdr(peer->cdr); /* the proper chan cdr, if there are forked cdrs */
 
 	memset(&backup_config, 0, sizeof(backup_config));
 
@@ -2120,14 +2136,14 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 
 	ast_copy_string(orig_channame,chan->name,sizeof(orig_channame));
 	ast_copy_string(orig_peername,peer->name,sizeof(orig_peername));
-	orig_peer_cdr = peer->cdr;
+	orig_peer_cdr = peer_cdr;
 	
-	if (!chan->cdr || (chan->cdr && !ast_test_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED))) {
+	if (!chan_cdr || (chan_cdr && !ast_test_flag(chan_cdr, AST_CDR_FLAG_POST_DISABLED))) {
 		
-		if (chan->cdr) {
-			ast_set_flag(chan->cdr, AST_CDR_FLAG_MAIN);
+		if (chan_cdr) {
+			ast_set_flag(chan_cdr, AST_CDR_FLAG_MAIN);
 			ast_cdr_update(chan);
-			bridge_cdr = ast_cdr_dup(chan->cdr);
+			bridge_cdr = ast_cdr_dup(chan_cdr);
 			ast_copy_string(bridge_cdr->lastapp, chan->appl, sizeof(bridge_cdr->lastapp));
 			ast_copy_string(bridge_cdr->lastdata, chan->data, sizeof(bridge_cdr->lastdata));
 		} else {
@@ -2145,32 +2161,32 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			/* Destination information */
 			ast_copy_string(bridge_cdr->dst, chan->exten, sizeof(bridge_cdr->dst));
 			ast_copy_string(bridge_cdr->dcontext, chan->context, sizeof(bridge_cdr->dcontext));
-			if (peer->cdr) {
-				bridge_cdr->start = peer->cdr->start;
-				ast_copy_string(bridge_cdr->userfield, peer->cdr->userfield, sizeof(bridge_cdr->userfield));
+			if (peer_cdr) {
+				bridge_cdr->start = peer_cdr->start;
+				ast_copy_string(bridge_cdr->userfield, peer_cdr->userfield, sizeof(bridge_cdr->userfield));
 			} else {
 				ast_cdr_start(bridge_cdr);
 			}
 		}
 		ast_debug(4,"bridge answer set, chan answer set\n");
-		/* peer->cdr->answer will be set when a macro runs on the peer;
+		/* peer_cdr->answer will be set when a macro runs on the peer;
 		   in that case, the bridge answer will be delayed while the
 		   macro plays on the peer channel. The peer answered the call
 		   before the macro started playing. To the phone system,
 		   this is billable time for the call, even tho the caller
 		   hears nothing but ringing while the macro does its thing. */
-		if (peer->cdr && !ast_tvzero(peer->cdr->answer)) {
-			bridge_cdr->answer = peer->cdr->answer;
-			chan->cdr->answer = peer->cdr->answer;
-			bridge_cdr->disposition = peer->cdr->disposition;
-			chan->cdr->disposition = peer->cdr->disposition;
+		if (peer_cdr && !ast_tvzero(peer_cdr->answer)) {
+			bridge_cdr->answer = peer_cdr->answer;
+			chan_cdr->answer = peer_cdr->answer;
+			bridge_cdr->disposition = peer_cdr->disposition;
+			chan_cdr->disposition = peer_cdr->disposition;
 		} else {
 			ast_cdr_answer(bridge_cdr);
-			ast_cdr_answer(chan->cdr); /* for the sake of cli status checks */
+			ast_cdr_answer(chan_cdr); /* for the sake of cli status checks */
 		}
- 		ast_set_flag(chan->cdr, AST_CDR_FLAG_BRIDGED);
-		if (peer->cdr) {
- 			ast_set_flag(peer->cdr, AST_CDR_FLAG_BRIDGED);
+ 		ast_set_flag(chan_cdr, AST_CDR_FLAG_BRIDGED);
+		if (peer_cdr) {
+ 			ast_set_flag(peer_cdr, AST_CDR_FLAG_BRIDGED);
 		}
 	}
 	for (;;) {
@@ -2336,21 +2352,23 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	}
    before_you_go:
 	/* obey the NoCDR() wishes. */
-	if (!chan->cdr || (chan->cdr && !ast_test_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED))) {
+	if (chan_cdr && ast_test_flag(chan_cdr, AST_CDR_FLAG_POST_DISABLED) && peer_cdr && !ast_test_flag(peer_cdr, AST_CDR_FLAG_POST_DISABLED))
+		ast_set_flag(peer_cdr, AST_CDR_FLAG_POST_DISABLED); /* DISABLED is viral-- it will propagate across a bridge */
+	if (!chan_cdr || (chan_cdr && !ast_test_flag(chan_cdr, AST_CDR_FLAG_POST_DISABLED))) {
 		
 		ast_cdr_end(bridge_cdr);
 		
 		ast_cdr_detach(bridge_cdr);
 		
 		/* just in case, these channels get bridged again before hangup */
-		if (chan->cdr) {
-			ast_cdr_specialized_reset(chan->cdr,0);
+		if (chan_cdr) {
+			ast_cdr_specialized_reset(chan_cdr,0);
 		}
-		if (peer->cdr) {
+		if (peer_cdr) {
 			struct ast_cdr *cur;
 
 			ast_channel_lock(peer);
-			for (cur = peer->cdr; cur; cur = cur->next) {
+			for (cur = peer_cdr; cur; cur = cur->next) {
 				if (cur == orig_peer_cdr) {
 					break;
 				}
@@ -2367,7 +2385,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			   backend, just in case the cdr.conf file is calling for
 			   unanswered CDR's. */
 			
-			/* When peer->cdr isn't the same addr as orig_peer_cdr,
+			/* When peer_cdr isn't the same addr as orig_peer_cdr,
 			   this can only happen if there was a transfer, methinks;
 			   at any rate, only pay attention to the original*/
 			if (ast_cdr_isset_unanswered()) {
