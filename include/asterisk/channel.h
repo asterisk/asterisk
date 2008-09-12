@@ -552,6 +552,10 @@ enum {
 	/*! This flag indicates that on a masquerade, an active stream should not
 	 *  be carried over */
 	AST_FLAG_MASQ_NOSTREAM = (1 << 16),
+	/*! This flag indicates that the hangup exten was run when the bridge terminated,
+	 *  a message aimed at preventing a subsequent hangup exten being run at the pbx_run
+	 *  level */
+	AST_FLAG_BRIDGE_HANGUP_RUN = (1 << 17),
 };
 
 /*! \brief ast_bridge_config flags */
@@ -563,6 +567,7 @@ enum {
 	AST_FEATURE_AUTOMON =      (1 << 4),
 	AST_FEATURE_PARKCALL =     (1 << 5),
 	AST_FEATURE_AUTOMIXMON =   (1 << 6),
+	AST_FEATURE_NO_H_EXTEN =   (1 << 7),
 };
 
 /*! \brief bridge configuration */

@@ -3880,7 +3880,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 		ast_log(LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
 	if (res != AST_PBX_KEEPALIVE)
 		ast_softhangup(c, c->hangupcause ? c->hangupcause : AST_CAUSE_NORMAL_CLEARING);
-	if ((res != AST_PBX_KEEPALIVE) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
+	if ((res != AST_PBX_KEEPALIVE) && !ast_test_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
 		set_ext_pri(c, "h", 1);
 		while ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num, &found, 1)) == 0) {
 			c->priority++;
@@ -3892,7 +3892,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 		}
 	}
 	ast_set2_flag(c, autoloopflag, AST_FLAG_IN_AUTOLOOP);
-
+	ast_clear_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN); /* from one round to the next, make sure this gets cleared */
 	pbx_destroy(c->pbx);
 	c->pbx = NULL;
 	if (res != AST_PBX_KEEPALIVE)
