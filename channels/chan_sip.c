@@ -804,6 +804,10 @@ static int global_max_se;                     /*!< Highest threshold for session
 
 /*@}*/ 
 
+/*! \brief Global list of addresses dynamic peers are not allowed to use */
+static struct ast_ha *global_contact_ha = NULL;
+static int global_dynamic_exclude_static = 0;
+
 /*! \name Object counters @{
  * \bug These counters are not handled in a thread-safe way ast_atomic_fetchadd_int()
  * should be used to modify these values. */
@@ -1542,6 +1546,7 @@ struct sip_peer {
 	struct timeval ps;		/*!<  Time for sending SIP OPTION in sip_pke_peer() */
 	struct sockaddr_in defaddr;	/*!<  Default IP address, used until registration */
 	struct ast_ha *ha;		/*!<  Access control list */
+	struct ast_ha *contactha;       /*!<  Restrict what IPs are allowed in the Contact header (for registration) */
 	struct ast_variable *chanvars;	/*!<  Variables to set for channel created by user */
 	struct sip_pvt *mwipvt;		/*!<  Subscription for MWI */
 	int autoframing;
@@ -10268,7 +10273,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	const char *useragent;
 	struct hostent *hp;
 	struct ast_hostent ahp;
-	struct sockaddr_in oldsin;
+	struct sockaddr_in oldsin, testsin;
 
 	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
 
@@ -10342,13 +10347,26 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	}
 
 	oldsin = peer->addr;
+
+	/* Check that they're allowed to register at this IP */
+	/* XXX This could block for a long time XXX */
+	hp = ast_gethostbyname(host, &ahp);
+	if (!hp)  {
+		ast_log(LOG_WARNING, "Invalid host '%s'\n", host);
+		*peer->fullcontact = '\0';
+		ast_string_field_set(pvt, our_contact, "");
+		return PARSE_REGISTER_FAILED;
+	}
+	memcpy(&testsin.sin_addr, hp->h_addr, sizeof(testsin.sin_addr));
+	if (	ast_apply_ha(global_contact_ha, &testsin) != AST_SENSE_ALLOW ||
+			ast_apply_ha(peer->contactha, &testsin) != AST_SENSE_ALLOW) {
+		ast_log(LOG_WARNING, "Host '%s' disallowed by rule\n", host);
+		*peer->fullcontact = '\0';
+		ast_string_field_set(pvt, our_contact, "");
+		return PARSE_REGISTER_FAILED;
+	}
+
 	if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE)) {
-		/* XXX This could block for a long time XXX */
-		hp = ast_gethostbyname(host, &ahp);
-		if (!hp)  {
-			ast_log(LOG_WARNING, "Invalid host '%s'\n", host);
-			return PARSE_REGISTER_FAILED;
-		}
 		peer->addr.sin_family = AF_INET;
 		memcpy(&peer->addr.sin_addr, hp->h_addr, sizeof(peer->addr.sin_addr));
 		peer->addr.sin_port = htons(port);
@@ -20891,6 +20909,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				AST_SCHED_DEL(sched, peer->expire);
 				peer->host_dynamic = FALSE;
 				srvlookup = v->value;
+				if (global_dynamic_exclude_static) {
+					int err = 0;
+					global_contact_ha = ast_append_ha("deny", (char *)ast_inet_ntoa(peer->addr.sin_addr), global_contact_ha, &err);
+					if (err) {
+						ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+					}
+				}
 			}
 		} else if (!strcasecmp(v->name, "defaultip")) {
 			if (ast_get_ip(&peer->defaddr, v->value)) {
@@ -20903,6 +20928,12 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			peer->ha = ast_append_ha(v->name, v->value, peer->ha, &ha_error);
 			if (ha_error)
 				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+		} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
+			int ha_error = 0;
+			peer->contactha = ast_append_ha(v->name + 7, v->value, peer->contactha, &ha_error);
+			if (ha_error) {
+				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+			}
 		} else if (!strcasecmp(v->name, "port")) {
 			if (!realtime && peer->host_dynamic)
 				peer->defaddr.sin_port = htons(atoi(v->value));
@@ -21203,6 +21234,9 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&sip_tcp_desc.sin, 0, sizeof(sip_tcp_desc.sin));
 	memset(&sip_tls_desc.sin, 0, sizeof(sip_tls_desc.sin));
 
+	ast_free_ha(global_contact_ha);
+	global_contact_ha = NULL;
+
 	default_tls_cfg.enabled = FALSE;		/* Default: Disable TLS */
 
 	sip_tcp_desc.sin.sin_port = htons(STANDARD_SIP_PORT);
@@ -21443,6 +21477,14 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "tlsbindaddr")) {
 			if (ast_parse_arg(v->value, PARSE_INADDR, &sip_tls_desc.sin))
 				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n", v->name, v->value, v->lineno, config);
+		} else if (!strcasecmp(v->name, "dynamic_exclude_static") || !strcasecmp(v->name, "dynamic_excludes_static")) {
+			global_dynamic_exclude_static = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
+			int ha_error = 0;
+			global_contact_ha = ast_append_ha(v->name + 7, v->value, global_contact_ha, &ha_error);
+			if (ha_error) {
+				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+			}
 		} else if (!strcasecmp(v->name, "rtautoclear")) {
 			int i = atoi(v->value);
 			if (i > 0)
