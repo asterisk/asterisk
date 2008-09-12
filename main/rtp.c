@@ -4694,8 +4694,10 @@ static int __ast_rtp_reload(int reload)
 	const char *s;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if ((cfg = ast_config_load2("rtp.conf", "rtp", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+	cfg = ast_config_load2("rtp.conf", "rtp", config_flags);
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
+	}
 
 	rtpstart = 5000;
 	rtpend = 31000;

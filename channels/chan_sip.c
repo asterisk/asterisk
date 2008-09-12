@@ -21220,14 +21220,29 @@ static int reload_config(enum channelreloadreason reason)
 		return -1;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		ucfg = ast_config_load("users.conf", config_flags);
-		if (ucfg == CONFIG_STATUS_FILEUNCHANGED)
+		if (ucfg == CONFIG_STATUS_FILEUNCHANGED) {
 			return 1;
+		} else if (ucfg == CONFIG_STATUS_FILEINVALID) {
+			ast_log(LOG_ERROR, "Contents of users.conf are invalid and cannot be parsed\n");
+			return 1;
+		}
 		/* Must reread both files, because one changed */
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
-		cfg = ast_config_load(config, config_flags);
+		if ((cfg = ast_config_load(config, config_flags)) == CONFIG_STATUS_FILEINVALID) {
+			ast_log(LOG_ERROR, "Contents of %s are invalid and cannot be parsed\n", config);
+			ast_config_destroy(ucfg);
+			return 1;
+		}
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Contents of %s are invalid and cannot be parsed\n", config);
+		return 1;
 	} else {
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
-		ucfg = ast_config_load("users.conf", config_flags);
+		if ((ucfg = ast_config_load("users.conf", config_flags)) == CONFIG_STATUS_FILEINVALID) {
+			ast_log(LOG_ERROR, "Contents of users.conf are invalid and cannot be parsed\n");
+			ast_config_destroy(cfg);
+			return 1;
+		}
 	}
 
 	/* Initialize tcp sockets */
@@ -21996,7 +22011,10 @@ static int reload_config(enum channelreloadreason reason)
 	/* Load the list of manual NOTIFY types to support */
 	if (notify_types)
 		ast_config_destroy(notify_types);
-	notify_types = ast_config_load(notify_config, config_flags);
+	if ((notify_types = ast_config_load(notify_config, config_flags)) == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Contents of %s are invalid and cannot be parsed.\n", notify_config);
+		notify_types = NULL;
+	}
 
 	/* Done, tell the manager */
 	manager_event(EVENT_FLAG_SYSTEM, "ChannelReload", "ChannelType: SIP\r\nReloadReason: %s\r\nRegistry_Count: %d\r\nPeer_Count: %d\r\n", channelreloadreason2txt(reason), registry_count, peer_count);

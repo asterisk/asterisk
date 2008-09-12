@@ -848,7 +848,7 @@ static int smdi_load(int reload)
 	int msdstrip = 0;              /* strip zero digits */
 	long msg_expiry = SMDI_MSG_EXPIRY_TIME;
 
-	if (!(conf = ast_config_load(config_file, config_flags))) {
+	if (!(conf = ast_config_load(config_file, config_flags)) || conf == CONFIG_STATUS_FILEINVALID) {
 		if (reload)
 			ast_log(LOG_NOTICE, "Unable to reload config %s: SMDI untouched\n", config_file);
 		else

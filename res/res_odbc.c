@@ -417,7 +417,7 @@ static int load_odbc_config(void)
 	struct odbc_class *new;
 
 	config = ast_config_load(cfg, config_flags);
-	if (!config) {
+	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "Unable to load config file res_odbc.conf\n");
 		return -1;
 	}

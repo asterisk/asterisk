@@ -903,12 +903,12 @@ static int set_config(void)
 
 	/* Try to grab the port from sip.conf.  If we don't get it here, we'll set it
 	 * to whatever is set in phoneprov.conf or default to 5060 */
-	if ((cfg = ast_config_load("sip.conf", config_flags))) {
+	if ((cfg = ast_config_load("sip.conf", config_flags)) && cfg != CONFIG_STATUS_FILEINVALID) {
 		ast_copy_string(global_serverport, S_OR(ast_variable_retrieve(cfg, "general", "bindport"), "5060"), sizeof(global_serverport));
 		ast_config_destroy(cfg);
 	}
 
-	if (!(cfg = ast_config_load("users.conf", config_flags))) {
+	if (!(cfg = ast_config_load("users.conf", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "Unable to load users.cfg\n");
 		return 0;
 	}
@@ -930,7 +930,7 @@ static int set_config(void)
 		}
 	}
 
-	if (!(phoneprov_cfg = ast_config_load("phoneprov.conf", config_flags))) {
+	if (!(phoneprov_cfg = ast_config_load("phoneprov.conf", config_flags)) || phoneprov_cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Unable to load config phoneprov.conf\n");
 		return -1;
 	}

@@ -5304,6 +5304,9 @@ static int reload_config(void)
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
 		return -1;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file %s is in an invalid format.  Aborting.\n", config);
+		return -1;
 	}
 	
 	/* Copy the default jb config over global_jbconf */

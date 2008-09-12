@@ -1776,8 +1776,12 @@ static int osp_load(int reload)
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	int error = OSPC_ERR_NO_ERROR;
 
-	if ((cfg = ast_config_load(OSP_CONFIG_FILE, config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+	if ((cfg = ast_config_load(OSP_CONFIG_FILE, config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file " OSP_CONFIG_FILE " is in an invalid format.  Aborting.\n");
+		return 0;
+	}
 
 	if (cfg) {
 		if (reload)

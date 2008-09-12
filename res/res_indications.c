@@ -263,10 +263,11 @@ static int ind_load_module(int reload)
 	/* that the following cast is needed, is yuk! */
 	/* yup, checked it out. It is NOT written to. */
 	cfg = ast_config_load((char *)config, config_flags);
-	if (!cfg)
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
 		return -1;
-	else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
+	}
 
 	if (reload)
 		ast_unregister_indication_country(NULL);

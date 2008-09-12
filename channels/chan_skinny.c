@@ -6210,7 +6210,10 @@ static int reload_config(void)
 		ast_log(LOG_WARNING, "Unable to get hostname, Skinny disabled\n");
 		return 0;
 	}
-	cfg = ast_config_load(config, config_flags);
+	if ((cfg = ast_config_load(config, config_flags)) == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file %s is in an invalid format.  Aborting.\n", config);
+		return 0;
+	}
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {

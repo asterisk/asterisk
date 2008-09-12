@@ -52,7 +52,7 @@ static int load_config(void)
 	res_snmp_enabled = 0;
 	res_snmp_agentx_subagent = 1;
 	cfg = ast_config_load("res_snmp.conf", config_flags);
-	if (!cfg) {
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "Could not load res_snmp.conf\n");
 		return 0;
 	}

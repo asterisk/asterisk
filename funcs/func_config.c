@@ -82,7 +82,7 @@ static int config_function_read(struct ast_channel *chan, const char *cmd, char 
 		return -1;
 	}
 
-	if (!(cfg = ast_config_load(args.filename, cfg_flags))) {
+	if (!(cfg = ast_config_load(args.filename, cfg_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
 		return -1;
 	}
 
@@ -107,7 +107,7 @@ static int config_function_read(struct ast_channel *chan, const char *cmd, char 
 			strcpy(cur->filename, args.filename);
 
 			ast_clear_flag(&cfg_flags, CONFIG_FLAG_FILEUNCHANGED);
-			if (!(cfg = ast_config_load(args.filename, cfg_flags))) {
+			if (!(cfg = ast_config_load(args.filename, cfg_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
 				ast_free(cur);
 				AST_RWLIST_UNLOCK(&configs);
 				return -1;

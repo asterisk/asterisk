@@ -1337,8 +1337,9 @@ static int load_moh_classes(int is_reload)
 
 	cfg = ast_config_load("musiconhold.conf", config_flags);
 
-	if (cfg == NULL || cfg == CONFIG_STATUS_FILEUNCHANGED)
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
+	}
 
 	if (is_reload) {
 		AST_RWLIST_WRLOCK(&mohclasses);

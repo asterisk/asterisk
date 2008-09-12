@@ -787,7 +787,8 @@ int load_modules(unsigned int preload_only)
 		embedded_module_list.first = NULL;
 	}
 
-	if (!(cfg = ast_config_load2(AST_MODULE_CONFIG, "" /* core, can't reload */, config_flags))) {
+	cfg = ast_config_load2(AST_MODULE_CONFIG, "" /* core, can't reload */, config_flags);
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "No '%s' found, no modules will be loaded.\n", AST_MODULE_CONFIG);
 		goto done;
 	}

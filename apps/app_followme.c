@@ -293,8 +293,12 @@ static int reload_followme(int reload)
 	if (!(cfg = ast_config_load("followme.conf", config_flags))) {
 		ast_log(LOG_WARNING, "No follow me config file (followme.conf), so no follow me\n");
 		return 0;
-	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file followme.conf is in an invalid format.  Aborting.\n");
+		return 0;
+	}
 
 	AST_RWLIST_WRLOCK(&followmes);
 

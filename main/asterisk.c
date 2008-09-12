@@ -2596,7 +2596,7 @@ static void ast_readconfig(void)
 
 	if (ast_opt_override_config) {
 		cfg = ast_config_load2(ast_config_AST_CONFIG_FILE, "" /* core, can't reload */, config_flags);
-		if (!cfg)
+		if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID)
 			ast_log(LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", ast_config_AST_CONFIG_FILE);
 	} else 
 		cfg = ast_config_load2(config, "" /* core, can't reload */, config_flags);
@@ -2619,7 +2619,7 @@ static void ast_readconfig(void)
 	ast_set_default_eid(&g_eid);
 
 	/* no asterisk.conf? no problem, use buildtime config! */
-	if (!cfg) {
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 		return;
 	}
 
@@ -2869,6 +2869,9 @@ static void run_startup_commands(void)
 
 	if (!(cfg = ast_config_load2("cli.conf", "" /* core, can't reload */, cfg_flags)))
 		return;
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
+		return;
+	}
 
 	fd = open("/dev/null", O_RDWR);
 	if (fd < 0) {

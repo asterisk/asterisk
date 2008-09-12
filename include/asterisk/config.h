@@ -45,7 +45,9 @@ enum {
 	CONFIG_FLAG_NOCACHE       = (1 << 2),
 };
 
+#define	CONFIG_STATUS_FILEMISSING	(void *)0
 #define	CONFIG_STATUS_FILEUNCHANGED	(void *)-1
+#define	CONFIG_STATUS_FILEINVALID	(void *)-2
 
 /*!
  * \brief Types used in ast_realtime_require_field

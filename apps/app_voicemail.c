@@ -1157,7 +1157,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 		return;
 
 	/* check voicemail.conf */
-	if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags))) {
+	if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) && cfg != CONFIG_STATUS_FILEINVALID) {
 		while ((category = ast_category_browse(cfg, category))) {
 			if (!strcasecmp(category, vmu->context)) {
 				if (!(tmp = ast_variable_retrieve(cfg, category, vmu->mailbox))) {
@@ -1187,7 +1187,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	var = NULL;
 	/* check users.conf and update the password stored for the mailbox*/
 	/* if no vmsecret entry exists create one. */
-	if ((cfg = ast_config_load("users.conf", config_flags))) {
+	if ((cfg = ast_config_load("users.conf", config_flags)) && cfg != CONFIG_STATUS_FILEINVALID) {
 		ast_debug(4, "we are looking for %s\n", vmu->mailbox);
 		while ((category = ast_category_browse(cfg, category))) {
 			ast_debug(4, "users.conf: %s\n", category);
@@ -3181,7 +3181,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 			res = -1;
 			break;
 		}
-		if (cfg) {
+		if (cfg && cfg != CONFIG_STATUS_FILEINVALID) {
 			if (!(idata.context = ast_variable_retrieve(cfg, "message", "context"))) {
 				idata.context = "";
 			}
@@ -5756,7 +5756,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	strncat(textfile, ".txt", sizeof(textfile) - strlen(textfile) - 1);
 	strncat(backup, "-bak", sizeof(backup) - strlen(backup) - 1);
 
-	if ((msg_cfg = ast_config_load(textfile, config_flags)) && (duration_str = ast_variable_retrieve(msg_cfg, "message", "duration"))) {
+	if ((msg_cfg = ast_config_load(textfile, config_flags)) && msg_cfg != CONFIG_STATUS_FILEINVALID && (duration_str = ast_variable_retrieve(msg_cfg, "message", "duration"))) {
 		*duration = atoi(duration_str);
 	} else {
 		*duration = 0;
@@ -6456,7 +6456,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	snprintf(filename, sizeof(filename), "%s.txt", vms->fn);
 	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
 	msg_cfg = ast_config_load(filename, config_flags);
-	if (!msg_cfg) {
+	if (!msg_cfg || msg_cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
 	}
@@ -9954,13 +9954,27 @@ static int load_config(int reload)
 	ast_unload_realtime("voicemail_data");
 
 	if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
-		if ((ucfg = ast_config_load("users.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		if ((ucfg = ast_config_load("users.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
 			return 0;
+		} else if (ucfg == CONFIG_STATUS_FILEINVALID) {
+			ast_log(LOG_ERROR, "Config file users.conf is in an invalid format.  Avoiding.\n");
+			ucfg = NULL;
+		}
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
-		cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags);
+		if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) == CONFIG_STATUS_FILEINVALID) {
+			ast_config_destroy(ucfg);
+			ast_log(LOG_ERROR, "Config file " VOICEMAIL_CONFIG " is in an invalid format.  Aborting.\n");
+			return 0;
+		}
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file " VOICEMAIL_CONFIG " is in an invalid format.  Aborting.\n");
+		return 0;
 	} else {
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
-		ucfg = ast_config_load("users.conf", config_flags);
+		if ((ucfg = ast_config_load("users.conf", config_flags)) == CONFIG_STATUS_FILEINVALID) {
+			ast_log(LOG_ERROR, "Config file users.conf is in an invalid format.  Avoiding.\n");
+			ucfg = NULL;
+		}
 	}
 #ifdef IMAP_STORAGE
 	ast_copy_string(imapparentfolder, "\0", sizeof(imapparentfolder));
@@ -10772,7 +10786,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
 	msg_cfg = ast_config_load(filename, config_flags);
 	DISPOSE(vms->curdir, vms->curmsg);
-	if (!msg_cfg) {
+	if (!msg_cfg || msg_cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(AST_LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
 	}

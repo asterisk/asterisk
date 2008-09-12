@@ -1388,6 +1388,9 @@ static int do_reload(int reload)
 
 	if ((config = ast_config_load2("cdr.conf", "cdr", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
+	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEUNCHANGED || config == CONFIG_STATUS_FILEINVALID) {
+		return 0;
+	}
 
 	ast_mutex_lock(&cdr_batch_lock);
 

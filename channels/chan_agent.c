@@ -1117,8 +1117,21 @@ static int read_agent_config(int reload)
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No agent configuration found -- agent support disabled\n");
 		return 0;
-	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		return -1;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "%s contains a parsing error.  Aborting\n", config);
+		return 0;
+	}
+	if ((ucfg = ast_config_load("users.conf", config_flags))) {
+		if (ucfg == CONFIG_STATUS_FILEUNCHANGED) {
+			ucfg = NULL;
+		} else if (ucfg == CONFIG_STATUS_FILEINVALID) {
+			ast_log(LOG_ERROR, "users.conf contains a parsing error.  Aborting\n");
+			return 0;
+		}
+	}
+
 	AST_LIST_LOCK(&agents);
 	AST_LIST_TRAVERSE(&agents, p, list) {
 		p->dead = 1;
@@ -1208,7 +1221,7 @@ static int read_agent_config(int reload)
 		}
 		v = v->next;
 	}
-	if ((ucfg = ast_config_load("users.conf", config_flags)) && ucfg != CONFIG_STATUS_FILEUNCHANGED) {
+	if (ucfg) {
 		genhasagent = ast_true(ast_variable_retrieve(ucfg, "general", "hasagent"));
 		catname = ast_category_browse(ucfg, NULL);
 		while(catname) {

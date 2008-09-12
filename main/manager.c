@@ -1132,7 +1132,8 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Filename not specified");
 		return 0;
 	}
-	if (!(cfg = ast_config_load2(fn, "manager", config_flags))) {
+	cfg = ast_config_load2(fn, "manager", config_flags);
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
 		astman_send_error(s, m, "Config file not found");
 		return 0;
 	}

@@ -1869,8 +1869,12 @@ static int gtalk_load_config(void)
 	struct ast_flags config_flags = { 0 };
 
 	cfg = ast_config_load(GOOGLE_CONFIG, config_flags);
-	if (!cfg)
+	if (!cfg) {
 		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file %s is in an invalid format.  Aborting.\n", GOOGLE_CONFIG);
+		return 0;
+	}
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));

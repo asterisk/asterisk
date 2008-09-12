@@ -1346,7 +1346,10 @@ static int load_module(void)
 	int txgain = DEFAULT_GAIN, rxgain = DEFAULT_GAIN; /* default gain 1.0 */
 	struct ast_flags config_flags = { 0 };
 
-	cfg = ast_config_load(config, config_flags);
+	if ((cfg = ast_config_load(config, config_flags)) == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file %s is in an invalid format.  Aborting.\n", config);
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {

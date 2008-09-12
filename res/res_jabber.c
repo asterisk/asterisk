@@ -2883,7 +2883,7 @@ static int aji_load_config(int reload)
 	/* Reset flags to default value */
 	ast_set_flag(&globalflags, AJI_AUTOREGISTER);
 
-	if (!cfg) {
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", JABBER_CONFIG);
 		return 0;
 	}

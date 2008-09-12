@@ -1736,8 +1736,9 @@ static int jingle_load_config(void)
 	struct ast_flags config_flags = { 0 };
 
 	cfg = ast_config_load(JINGLE_CONFIG, config_flags);
-	if (!cfg)
+	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
+	}
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));

@@ -2921,6 +2921,9 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 			if (!cfg) {
 				ast_log(LOG_WARNING, "No %s file :(\n", CONFIG_FILE_NAME);
 				return NULL;
+			} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+				ast_log(LOG_ERROR, "Config file " CONFIG_FILE_NAME " is in an invalid format.  Aborting.\n");
+				return NULL;
 			}
 			for (var = ast_variable_browse(cfg, "rooms"); var; var = var->next) {
 				if (strcasecmp(var->name, "conf"))
@@ -3083,7 +3086,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			/* We only need to load the config file for static and empty_no_pin (otherwise we don't care) */
 			if ((empty_no_pin) || (!dynamic)) {
 				cfg = ast_config_load(CONFIG_FILE_NAME, config_flags);
-				if (cfg) {
+				if (cfg && cfg != CONFIG_STATUS_FILEINVALID) {
 					var = ast_variable_browse(cfg, "rooms");
 					while (var) {
 						if (!strcasecmp(var->name, "conf")) {
@@ -3729,8 +3732,12 @@ static void load_config_meetme(void)
 	struct ast_flags config_flags = { 0 };
 	const char *val;
 
-	if (!(cfg = ast_config_load(CONFIG_FILE_NAME, config_flags)))
+	if (!(cfg = ast_config_load(CONFIG_FILE_NAME, config_flags))) {
 		return;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file " CONFIG_FILE_NAME " is in an invalid format.  Aborting.\n");
+		return;
+	}
 
 	audio_buffers = DEFAULT_AUDIO_BUFFERS;
 
@@ -5558,10 +5565,14 @@ static int sla_load_config(int reload)
 		ast_cond_init(&sla.cond, NULL);
 	}
 
-	if (!(cfg = ast_config_load(SLA_CONFIG_FILE, config_flags)))
+	if (!(cfg = ast_config_load(SLA_CONFIG_FILE, config_flags))) {
 		return 0; /* Treat no config as normal */
-	else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file " SLA_CONFIG_FILE " is in an invalid format.  Aborting.\n");
+		return 0;
+	}
 
 	if ((val = ast_variable_retrieve(cfg, "general", "attemptcallerid")))
 		sla.attempt_callerid = ast_true(val);

@@ -3143,7 +3143,7 @@ static int load_config(void)
 	atxfercallbackretries = DEFAULT_ATXFER_CALLBACK_RETRIES;
 
 	cfg = ast_config_load2("features.conf", "features", config_flags);
-	if (!cfg) {
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING,"Could not load features.conf\n");
 		return 0;
 	}

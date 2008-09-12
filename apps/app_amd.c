@@ -376,8 +376,12 @@ static int load_config(int reload)
 	if (!(cfg = ast_config_load("amd.conf", config_flags))) {
 		ast_log(LOG_ERROR, "Configuration file amd.conf missing.\n");
 		return -1;
-	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file amd.conf is in an invalid format.  Aborting.\n");
+		return -1;
+	}
 
 	cat = ast_category_browse(cfg, NULL);
 

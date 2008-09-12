@@ -362,6 +362,9 @@ static struct ast_config *realtime_directory(char *context)
 		/* Loading config failed. */
 		ast_log(LOG_WARNING, "Loading config failed.\n");
 		return NULL;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file %s is in an invalid format.  Aborting.\n", VOICEMAIL_CONFIG);
+		return NULL;
 	}
 
 	/* Get realtime entries, categorized by their mailbox number
@@ -670,7 +673,10 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	ucfg = ast_config_load("users.conf", config_flags);
+	if ((ucfg = ast_config_load("users.conf", config_flags)) == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file users.conf is in an invalid format.  Aborting.\n");
+		ucfg = NULL;
+	}
 
 	dirintro = ast_variable_retrieve(cfg, args.vmcontext, "directoryintro");
 	if (ast_strlen_zero(dirintro))

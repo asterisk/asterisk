@@ -266,7 +266,8 @@ static int __ast_http_post_load(int reload)
 	struct ast_variable *v;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if ((cfg = ast_config_load2("http.conf", "http", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
+	cfg = ast_config_load2("http.conf", "http", config_flags);
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
 	}
 

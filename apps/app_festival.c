@@ -300,7 +300,11 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
 		return -1;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file " FESTIVAL_CONFIG " is in an invalid format.  Aborting.\n");
+		return -1;
 	}
+
 	if (!(host = ast_variable_retrieve(cfg, "general", "host"))) {
 		host = "localhost";
 	}
@@ -516,6 +520,9 @@ static int load_module(void)
 	struct ast_config *cfg = ast_config_load(FESTIVAL_CONFIG, config_flags);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
+		return AST_MODULE_LOAD_DECLINE;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file " FESTIVAL_CONFIG " is in an invalid format.  Aborting.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_config_destroy(cfg);

@@ -1131,10 +1131,12 @@ static int parse_config(int is_reload)
 	const char *s;
 	struct ast_flags config_flags = { is_reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if ((config = ast_config_load(RES_CONFIG_PGSQL_CONF, config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+	config = ast_config_load(RES_CONFIG_PGSQL_CONF, config_flags);
+	if (config == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
+	}
 
-	if (!config) {
+	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "Unable to load config %s\n", RES_CONFIG_PGSQL_CONF);
 		return 0;
 	}

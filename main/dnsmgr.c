@@ -372,8 +372,10 @@ static int do_reload(int loading)
 	int was_enabled;
 	int res = -1;
 
-	if ((config = ast_config_load2("dnsmgr.conf", "dnsmgr", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+	config = ast_config_load2("dnsmgr.conf", "dnsmgr", config_flags);
+	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEUNCHANGED || config == CONFIG_STATUS_FILEINVALID) {
 		return 0;
+	}
 
 	/* ensure that no refresh cycles run while the reload is in progress */
 	ast_mutex_lock(&refresh_lock);

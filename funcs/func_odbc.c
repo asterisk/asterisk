@@ -812,7 +812,7 @@ static int load_module(void)
 	AST_RWLIST_WRLOCK(&queries);
 
 	cfg = ast_config_load(config, config_flags);
-	if (!cfg) {
+	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_NOTICE, "Unable to load config for func_odbc: %s\n", config);
 		AST_RWLIST_UNLOCK(&queries);
 		return AST_MODULE_LOAD_DECLINE;
@@ -878,7 +878,7 @@ static int reload(void)
 	struct ast_flags config_flags = { CONFIG_FLAG_FILEUNCHANGED };
 
 	cfg = ast_config_load(config, config_flags);
-	if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+	if (cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID)
 		return 0;
 
 	AST_RWLIST_WRLOCK(&queries);

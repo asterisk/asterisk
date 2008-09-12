@@ -959,6 +959,9 @@ static int private_enum_init(int reload)
 
 	if ((cfg = ast_config_load2("enum.conf", "enum", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
+		return 0;
+	}
 
 	/* Destroy existing list */
 	ast_mutex_lock(&enumlock);

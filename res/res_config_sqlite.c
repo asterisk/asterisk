@@ -730,7 +730,7 @@ static int load_config(void)
 
 	config = ast_config_load(RES_CONFIG_SQLITE_CONF_FILE, config_flags);
 
-	if (!config) {
+	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Unable to load " RES_CONFIG_SQLITE_CONF_FILE "\n");
 		return 1;
 	}

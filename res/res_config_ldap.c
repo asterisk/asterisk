@@ -1391,8 +1391,7 @@ int parse_config(void)
 	char *category_name = NULL;
 
 	config = ast_config_load(RES_CONFIG_LDAP_CONF, config_flags);
-
-	if (!config) {
+	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "Cannot load configuration %s\n", RES_CONFIG_LDAP_CONF);
 		return -1;
 	}

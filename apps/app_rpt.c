@@ -2008,7 +2008,7 @@ struct ast_variable *vp;
 		ourcfg = ast_config_load(myrpt->p.extnodefile);
 #endif
 		/* if file not there, just bail */
-		if (!ourcfg)
+		if (!ourcfg || ourcfg == CONFIG_STATUS_FILEINVALID)
 		{
 			ast_mutex_unlock(&nodelookuplock);
 			return(NULL);
@@ -2234,7 +2234,7 @@ static char *cs_keywords[] = {"rptena","rptdis","apena","apdis","lnkena","lnkdis
 #else
 	cfg = ast_config_load("rpt.conf");
 #endif
-	if (!cfg) {
+	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_mutex_unlock(&rpt_vars[n].lock);
  		ast_log(LOG_NOTICE, "Unable to open radio repeater configuration rpt.conf.  Radio Repeater disabled.\n");
 		pthread_exit(NULL);
@@ -12923,7 +12923,7 @@ char *this,*val;
 	rpt_vars[n].cfg = ast_config_load("rpt.conf");
 #endif
 	cfg = rpt_vars[n].cfg;
-	if (!cfg) {
+	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_NOTICE, "Unable to open radio repeater configuration rpt.conf.  Radio Repeater disabled.\n");
 		pthread_exit(NULL);
 	}

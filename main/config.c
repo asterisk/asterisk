@@ -1015,13 +1015,17 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 
 		cur++;
 		c = cur;
-		while (*c && (*c > 32)) c++;
+		while (*c && (*c > 32)) {
+			c++;
+		}
+
 		if (*c) {
 			*c = '\0';
 			/* Find real argument */
 			c = ast_skip_blanks(c + 1);
-			if (!(*c))
+			if (!(*c)) {
 				c = NULL;
+			}
 		} else 
 			c = NULL;
 		if (!strcasecmp(cur, "include")) {
@@ -1390,7 +1394,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 					char *buffer = ast_strip(process_buf);
 					if (!ast_strlen_zero(buffer)) {
 						if (process_text_line(cfg, &cat, buffer, lineno, fn, flags, comment_buffer, lline_buffer, suggested_include_file, &last_cat, &last_var, who_asked)) {
-							cfg = NULL;
+							cfg = CONFIG_STATUS_FILEINVALID;
 							break;
 						}
 					}
@@ -1428,15 +1432,16 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment - 1]);
 	}
 #ifdef AST_INCLUDE_GLOB
-					if (cfg == NULL || cfg == CONFIG_STATUS_FILEUNCHANGED)
+					if (cfg == NULL || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 						break;
+					}
 				}
 				globfree(&globbuf);
 			}
 		}
 #endif
 
-	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED && cfg->include_level == 1 && ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
+	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED && cfg != CONFIG_STATUS_FILEINVALID && cfg->include_level == 1 && ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
 		if (comment_buffer)
 			ast_free(comment_buffer);
 		if (lline_buffer)
@@ -2055,7 +2060,7 @@ struct ast_config *ast_config_load2(const char *filename, const char *who_asked,
 		return NULL;
 
 	result = ast_config_internal_load(filename, cfg, flags, "", who_asked);
-	if (!result || result == CONFIG_STATUS_FILEUNCHANGED)
+	if (!result || result == CONFIG_STATUS_FILEUNCHANGED || result == CONFIG_STATUS_FILEINVALID)
 		ast_config_destroy(cfg);
 
 	return result;

@@ -1021,10 +1021,10 @@ static void adsi_load(int reload)
 	char *name, *sname;
 	init_state();
 
-	if (!(conf = ast_config_load("adsi.conf", config_flags)))
+	conf = ast_config_load("adsi.conf", config_flags);
+	if (conf == CONFIG_STATUS_FILEMISSING || conf == CONFIG_STATUS_FILEUNCHANGED || conf == CONFIG_STATUS_FILEINVALID) {
 		return;
-	else if (conf == CONFIG_STATUS_FILEUNCHANGED)
-		return;
+	}
 	for (v = ast_variable_browse(conf, "intro"); v; v = v->next) {
 		if (!strcasecmp(v->name, "alignment"))
 			alignment = str2align(v->value);

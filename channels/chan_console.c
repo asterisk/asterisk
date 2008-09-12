@@ -1400,6 +1400,9 @@ static int load_config(int reload)
 	if (!(cfg = ast_config_load(config_file, config_flags))) {
 		ast_log(LOG_NOTICE, "Unable to open configuration file %s!\n", config_file);
 		return -1;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_NOTICE, "Config file %s has an invalid format\n", config_file);
+		return -1;
 	}
 	
 	ao2_callback(pvts, OBJ_NODATA, pvt_mark_destroy_cb, NULL);

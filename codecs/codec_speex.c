@@ -375,9 +375,7 @@ static int parse_config(int reload)
 	int res;
 	float res_f;
 
-	if (cfg == NULL)
-		return 0;
-	if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID)
 		return 0;
 
 	for (var = ast_variable_browse(cfg, "speex"); var; var = var->next) {

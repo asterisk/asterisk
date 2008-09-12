@@ -639,6 +639,9 @@ static int load_config(void)
 	if (!cfg) {
 		ast_verb(4, "AlarmReceiver: No config file\n");
 		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file %s is in an invalid format.  Aborting.\n", ALMRCV_CONFIG);
+		return 0;
 	} else {
 		p = ast_variable_retrieve(cfg, "general", "eventcmd");
 		if (p) {

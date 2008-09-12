@@ -5135,6 +5135,9 @@ static int reload_queue_rules(int reload)
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		ast_log(LOG_NOTICE, "queuerules.conf has not changed since it was last loaded. Not taking any action.\n");
 		return AST_MODULE_LOAD_SUCCESS;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file queuerules.conf is in an invalid format.  Aborting.\n");
+		return AST_MODULE_LOAD_SUCCESS;
 	} else {
 		AST_LIST_LOCK(&rule_lists);
 		while ((rl_iter = AST_LIST_REMOVE_HEAD(&rule_lists, list))) {
@@ -5196,8 +5199,12 @@ static int reload_queues(int reload)
 	if (!(cfg = ast_config_load("queues.conf", config_flags))) {
 		ast_log(LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
 		return 0;
-	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file queues.conf is in an invalid format.  Aborting.\n");
+		return 0;
+	}
 	ao2_lock(queues);
 	use_weight=0;
 	/* Mark all queues as dead for the moment */

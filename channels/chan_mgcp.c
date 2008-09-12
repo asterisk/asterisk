@@ -4120,8 +4120,12 @@ static int reload_config(int reload)
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to load config %s, MGCP disabled\n", config);
 		return 0;
-	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file %s is in an invalid format.  Aborting.\n", config);
+		return 0;
+	}
 
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	dtmfmode = 0;
