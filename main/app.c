@@ -1748,6 +1748,11 @@ int ast_get_encoded_char(const char *stream, char *result, size_t *consumed)
 	int i;
 	*consumed = 1;
 	*result = 0;
+	if (ast_strlen_zero(stream)) {
+		*consumed = 0;
+		return -1;
+	}
+
 	if (*stream == '\\') {
 		*consumed = 2;
 		switch (*(stream + 1)) {
