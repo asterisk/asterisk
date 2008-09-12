@@ -1861,6 +1861,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_set_flag(&(config.features_callee), AST_FEATURE_AUTOMIXMON);
 			if (ast_test_flag64(peerflags, OPT_CALLER_MIXMONITOR))
 				ast_set_flag(&(config.features_caller), AST_FEATURE_AUTOMIXMON);
+			if (ast_test_flag64(peerflags, OPT_GO_ON))
+				ast_set_flag(&(config.features_caller), AST_FEATURE_NO_H_EXTEN);
 
 			if (moh) {
 				moh = 0;

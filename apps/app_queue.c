@@ -3209,6 +3209,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		case 'W':
 			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_AUTOMON);
 			break;
+		case 'c':
+			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_NO_H_EXTEN);
+			break;
 		case 'd':
 			nondataquality = 0;
 			break;
