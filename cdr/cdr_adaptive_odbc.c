@@ -87,7 +87,7 @@ static int load_config(void)
 	char columnname[80];
 	char connection[40];
 	char table[40];
-	int lenconnection, lentable, usegmtime;
+	int lenconnection, lentable, usegmtime = 0;
 	SQLLEN sqlptr;
 	int res = 0;
 	SQLHSTMT stmt = NULL;
