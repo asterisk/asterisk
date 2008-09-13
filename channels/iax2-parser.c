@@ -913,20 +913,21 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				*tmp2++ = '\0';
 			else
 				tmp2 = "";
-			/* Existing variable or new variable? */
-			for (var2 = ies->vars, prev = NULL; var2; prev = var2, var2 = var2->next) {
-				if (strcmp(tmp, var2->name) == 0) {
-					int len = strlen(var2->value) + strlen(tmp2) + 1;
-					char *tmp3 = alloca(len);
-					snprintf(tmp3, len, "%s%s", var2->value, tmp2);
-					var = ast_variable_new(tmp, tmp3, var2->file);
-					var->next = var2->next;
-					if (prev)
-						prev->next = var;
-					else
-						ies->vars = var;
-					ast_free(var2);
-					break;
+			{
+				struct ast_str *str = ast_str_create(16);
+				/* Existing variable or new variable? */
+				for (var2 = ies->vars, prev = NULL; var2; prev = var2, var2 = var2->next) {
+					if (strcmp(tmp, var2->name) == 0) {
+						ast_str_set(&str, 0, "%s%s", var2->value, tmp2);
+						var = ast_variable_new(tmp, str->str, var2->file);
+						var->next = var2->next;
+						if (prev)
+							prev->next = var;
+						else
+							ies->vars = var;
+						ast_free(var2);
+						break;
+					}
 				}
 			}
 			if (!var2) {
