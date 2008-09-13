@@ -1492,6 +1492,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		
 		/* Inherit specially named variables from parent channel */
 		ast_channel_inherit_variables(chan, tc);
+		ast_channel_datastore_inherit(chan, tc);
 
 		tc->appl = "AppDial";
 		tc->data = "(Outgoing Line)";
