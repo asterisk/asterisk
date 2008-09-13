@@ -1779,7 +1779,7 @@ static int osp_load(int reload)
 	if ((cfg = ast_config_load(OSP_CONFIG_FILE, config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
 	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_ERROR, "Config file " OSP_CONFIG_FILE " is in an invalid format.  Aborting.\n");
+		ast_log(LOG_ERROR, "Config file %s is in an invalid format.  Aborting.\n", OSP_CONFIG_FILE);
 		return 0;
 	}
 
