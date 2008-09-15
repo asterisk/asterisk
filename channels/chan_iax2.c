@@ -3801,8 +3801,8 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	tmp->tech = &iax2_tech;
 	/* We can support any format by default, until we get restricted */
 	tmp->nativeformats = capability;
-	tmp->readformat = ast_best_codec(capability);
-	tmp->writeformat = ast_best_codec(capability);
+	tmp->readformat = tmp->rawreadformat = ast_best_codec(capability);
+	tmp->writeformat = tmp->rawwriteformat = ast_best_codec(capability);
 	tmp->tech_pvt = CALLNO_TO_PTR(i->callno);
 
 	/* Don't use ast_set_callerid() here because it will
