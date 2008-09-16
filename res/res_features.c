@@ -146,7 +146,6 @@ struct parkeduser {
 	int priority;
 	int parkingtime;                            /*!< Maximum length in parking lot before return */
 	int notquiteyet;
-	int added_exten;							/*!< Flag marking if extension has been added to parking context */
 	char peername[1024];
 	unsigned char moh_trys;
 	struct parkeduser *next;
@@ -306,7 +305,7 @@ static int metermaidstate(const char *data)
 static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout, char *orig_chan_name)
 {
 	struct parkeduser *pu, *cur;
-	int i, x = -1, parking_range;
+	int i, x = -1, parking_range, parkingnum_copy;
 	struct ast_context *con;
 	const char *parkingexten;
 	
@@ -415,15 +414,12 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	ast_copy_string(pu->exten, S_OR(chan->macroexten, chan->exten), sizeof(pu->exten));
 	pu->priority = chan->macropriority ? chan->macropriority : chan->priority;
 	pu->next = parkinglot;
-	pu->added_exten = 0;
 	parkinglot = pu;
-
-	/* If parking a channel directly, don't quiet yet get parking running on it */
+	parkingnum_copy = pu->parkingnum;
+	/* If parking a channel directly, don't quite yet get parking running on it */
 	if (peer == chan) 
 		pu->notquiteyet = 1;
-	ast_mutex_unlock(&parking_lock);
-	/* Wake up the (presumably select()ing) thread */
-	pthread_kill(parking_thread, SIGURG);
+
 	if (option_verbose > 1) 
 		ast_verbose(VERBOSE_PREFIX_2 "Parked %s on %d@%s. Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, parking_con, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
 
@@ -450,20 +446,25 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 		con = ast_context_create(NULL, parking_con, registrar);
 	if (!con)	/* Still no context? Bad */
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
+	if (con) {
+		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, strdup(pu->parkingexten), ast_free, registrar)) {
+			notify_metermaids(pu->parkingexten, parking_con);
+		}
+	}
+
+	ast_mutex_unlock(&parking_lock);
+	/* Wake up the (presumably select()ing) thread */
+	pthread_kill(parking_thread, SIGURG);
+
 	/* Only say number if it's a number and the channel hasn't been masqueraded away */
 	if (peer && (ast_strlen_zero(orig_chan_name) || !strcasecmp(peer->name, orig_chan_name))) {
 		/* Make sure we don't start saying digits to the channel being parked */
 		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 		/* Tell the peer channel the number of the parking space */
-		ast_say_digits(peer, pu->parkingnum, "", peer->language);
+		ast_say_digits(peer, parkingnum_copy, "", peer->language);
 		ast_clear_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 	}
-	if (con) {
-		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, strdup(pu->parkingexten), ast_free, registrar)) {
-			notify_metermaids(pu->parkingexten, parking_con);
-			pu->added_exten = 1;
-		}
-	}
+
 	if (pu->notquiteyet) {
 		/* Wake up parking thread if we're really done */
 		ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
@@ -1945,15 +1946,14 @@ static void *do_parking_thread(void *ignore)
 						pt = pu;
 						pu = pu->next;
 						con = ast_context_find(parking_con);
-						if (pt->added_exten == 1) {
-							if (con) {
-								if (ast_context_remove_extension2(con, pt->parkingexten, 1, NULL))
-									ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
-								else
-									notify_metermaids(pt->parkingexten, parking_con);
-							} else
-								ast_log(LOG_WARNING, "Whoa, no parking context?\n");
-						}
+						if (con) {
+							if (ast_context_remove_extension2(con, pt->parkingexten, 1, NULL))
+								ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
+							else {
+								notify_metermaids(pt->parkingexten, parking_con);
+							}
+						} else
+							ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 						free(pt);
 						break;
 					} else {
