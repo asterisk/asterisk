@@ -146,6 +146,7 @@ struct parkeduser {
 	int priority;
 	int parkingtime;                            /*!< Maximum length in parking lot before return */
 	int notquiteyet;
+	int added_exten;							/*!< Flag marking if extension has been added to parking context */
 	char peername[1024];
 	unsigned char moh_trys;
 	struct parkeduser *next;
@@ -414,6 +415,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	ast_copy_string(pu->exten, S_OR(chan->macroexten, chan->exten), sizeof(pu->exten));
 	pu->priority = chan->macropriority ? chan->macropriority : chan->priority;
 	pu->next = parkinglot;
+	pu->added_exten = 0;
 	parkinglot = pu;
 
 	/* If parking a channel directly, don't quiet yet get parking running on it */
@@ -448,16 +450,19 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 		con = ast_context_create(NULL, parking_con, registrar);
 	if (!con)	/* Still no context? Bad */
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
-	/* Tell the peer channel the number of the parking space */
-	if (peer && (ast_strlen_zero(orig_chan_name) || !strcasecmp(peer->name, orig_chan_name))) { /* Only say number if it's a number and the channel hasn't been masqueraded away */
+	/* Only say number if it's a number and the channel hasn't been masqueraded away */
+	if (peer && (ast_strlen_zero(orig_chan_name) || !strcasecmp(peer->name, orig_chan_name))) {
 		/* Make sure we don't start saying digits to the channel being parked */
 		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
+		/* Tell the peer channel the number of the parking space */
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
 		ast_clear_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 	}
 	if (con) {
-		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, strdup(pu->parkingexten), ast_free, registrar))
+		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, strdup(pu->parkingexten), ast_free, registrar)) {
 			notify_metermaids(pu->parkingexten, parking_con);
+			pu->added_exten = 1;
+		}
 	}
 	if (pu->notquiteyet) {
 		/* Wake up parking thread if we're really done */
@@ -478,7 +483,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	return park_call_full(chan, peer, timeout, extout, NULL);
 }
 
-int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
+static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout, int play_announcement)
 {
 	struct ast_channel *chan;
 	struct ast_frame *f;
@@ -500,11 +505,13 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	set_c_e_p(chan, rchan->context, rchan->exten, rchan->priority);
 
 	/* Make the masq execute */
-	f = ast_read(chan);
-	if (f)
+	if ((f = ast_read(chan))) {
 		ast_frfree(f);
+	}
 
-	orig_chan_name = ast_strdupa(chan->name);
+	if (!play_announcement) {
+		orig_chan_name = ast_strdupa(chan->name);
+	}
 
 	park_status = park_call_full(chan, peer, timeout, extout, orig_chan_name);
 	if (park_status == 1) {
@@ -516,6 +523,15 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	return 0;
 }
 
+int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
+{
+	return masq_park_call(rchan, peer, timeout, extout, 0);
+}
+
+static int masq_park_call_announce(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
+{
+	return masq_park_call(rchan, peer, timeout, extout, 1);
+}
 
 #define FEATURE_RETURN_HANGUP		-1
 #define FEATURE_RETURN_SUCCESSBREAK	 0
@@ -563,17 +579,25 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 		res = ast_answer(chan);
 	if (!res)
 		res = ast_safe_sleep(chan, 1000);
-	if (!res)
-		res = ast_park_call(parkee, parker, 0, NULL);
-
-	ast_module_user_remove(u);
 
 	if (!res) {
-		if (sense == FEATURE_SENSE_CHAN)
-			res = AST_PBX_NO_HANGUP_PEER;
-		else
-			res = AST_PBX_KEEPALIVE;
+		if (sense == FEATURE_SENSE_CHAN) {
+			res = ast_park_call(parkee, parker, 0, NULL);
+			if (!res) {
+				if (sense == FEATURE_SENSE_CHAN) {
+					res = AST_PBX_NO_HANGUP_PEER;
+				} else {
+					res = AST_PBX_KEEPALIVE;
+				}
+			}
+		}
+		else if (sense == FEATURE_SENSE_PEER) {
+			masq_park_call_announce(parkee, parker, 0, NULL);
+			res = 0; /* PBX should hangup zombie channel */
+		}
 	}
+
+	ast_module_user_remove(u);
 	return res;
 
 }
@@ -1921,13 +1945,15 @@ static void *do_parking_thread(void *ignore)
 						pt = pu;
 						pu = pu->next;
 						con = ast_context_find(parking_con);
-						if (con) {
-							if (ast_context_remove_extension2(con, pt->parkingexten, 1, NULL))
-								ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
-						else
-							notify_metermaids(pt->parkingexten, parking_con);
-						} else
-							ast_log(LOG_WARNING, "Whoa, no parking context?\n");
+						if (pt->added_exten == 1) {
+							if (con) {
+								if (ast_context_remove_extension2(con, pt->parkingexten, 1, NULL))
+									ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
+								else
+									notify_metermaids(pt->parkingexten, parking_con);
+							} else
+								ast_log(LOG_WARNING, "Whoa, no parking context?\n");
+						}
 						free(pt);
 						break;
 					} else {
