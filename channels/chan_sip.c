@@ -13225,7 +13225,6 @@ static void *sip_park_thread(void *stuff)
 	transferee = d->chan1;
 	transferer = d->chan2;
 	copy_request(&req, &d->req);
-	free(d);
 
 	if (!transferee || !transferer) {
 		ast_log(LOG_ERROR, "Missing channels for parking! Transferer %s Transferee %s\n", transferer ? "<available>" : "<missing>", transferee ? "<available>" : "<missing>" );
@@ -13274,6 +13273,7 @@ static void *sip_park_thread(void *stuff)
 			ast_log(LOG_DEBUG, "SIP Call parked failed \n");
 		/* Do not hangup call */
 	}
+	free(d);
 	return NULL;
 }
 
