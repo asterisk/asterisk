@@ -16253,12 +16253,12 @@ static void *sip_park_thread(void *stuff)
 	transferee = d->chan1;
 	transferer = d->chan2;
 	copy_request(&req, &d->req);
-	if (d->req.data)
-		ast_free(d->req.data);
-	ast_free(d);
 
 	if (!transferee || !transferer) {
 		ast_log(LOG_ERROR, "Missing channels for parking! Transferer %s Transferee %s\n", transferer ? "<available>" : "<missing>", transferee ? "<available>" : "<missing>" );
+		if (d->req.data)
+			ast_free(d->req.data);
+		free(d);
 		return NULL;
 	}
 	ast_debug(4, "SIP Park: Transferer channel %s, Transferee %s\n", transferer->name, transferee->name);
@@ -16268,6 +16268,9 @@ static void *sip_park_thread(void *stuff)
 		ast_log(LOG_WARNING, "Masquerade failed.\n");
 		transmit_response(transferer->tech_pvt, "503 Internal error", &req);
 		ast_channel_unlock(transferee);
+		if (d->req.data)
+			ast_free(d->req.data);
+		free(d);
 		return NULL;
 	} 
 	ast_channel_unlock(transferee);
@@ -16301,6 +16304,9 @@ static void *sip_park_thread(void *stuff)
 		ast_debug(1, "SIP Call parked failed \n");
 		/* Do not hangup call */
 	}
+	if (d->req.data)
+		ast_free(d->req.data);
+	free(d);
 	return NULL;
 }
 
