@@ -465,7 +465,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 		ast_clear_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 	}
 
-	if (pu->notquiteyet) {
+	if (peer == chan) { /* pu->notquiteyet = 1 */
 		/* Wake up parking thread if we're really done */
 		ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
 			S_OR(parkmohclass, NULL),
