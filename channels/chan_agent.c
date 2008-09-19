@@ -2535,7 +2535,9 @@ static int unload_module(void)
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(&agent_tech);
 	/* Delete devicestate subscription */
-	agent_devicestate_sub = ast_event_unsubscribe(agent_devicestate_sub);
+	if (agent_devicestate_sub) {
+		agent_devicestate_sub = ast_event_unsubscribe(agent_devicestate_sub);
+	}
 	/* Unregister dialplan functions */
 	ast_custom_function_unregister(&agent_function);	
 	/* Unregister CLI commands */
