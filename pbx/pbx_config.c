@@ -2478,7 +2478,7 @@ static void pbx_load_users(void)
 					start = x;
 				}
 				for (x = start; x <= finish; x++) {
-					snprintf(tmp, sizeof(tmp), "Zap/%d", x);
+					snprintf(tmp, sizeof(tmp), "%s/%d", dahdi_chan_name, x);
 					append_interface(iface, sizeof(iface), tmp);
 				}
 				chan = strsep(&c, ",");
