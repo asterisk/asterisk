@@ -2493,7 +2493,8 @@ static int unload_module(void)
 	ast_channel_unregister(&agent_tech);
 	/* Delete devicestate subscription */
 	if (agent_devicestate_sub) {
-		agent_devicestate_sub = ast_event_unsubscribe(agent_devicestate_sub);
+		ast_event_unsubscribe(agent_devicestate_sub);
+		agent_devicestate_sub = NULL;
 	}
 	/* Unregister dialplan functions */
 	ast_custom_function_unregister(&agent_function);	
