@@ -3555,6 +3555,7 @@ static int skinny_hangup(struct ast_channel *ast)
 	}
 	ast_mutex_unlock(&sub->lock);
 	ast_free(sub);
+	ast_module_unref(ast_module_info->self);
 	return 0;
 }
 
@@ -6065,7 +6066,6 @@ static void *accept_thread(void *ignore)
 	struct skinnysession *s;
 	struct protoent *p;
 	int arg = 1;
-	pthread_t tcp_thread;
 
 	for (;;) {
 		sinlen = sizeof(sin);
@@ -6090,7 +6090,7 @@ static void *accept_thread(void *ignore)
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
 		AST_LIST_UNLOCK(&sessions);
 
-		if (ast_pthread_create_detached(&tcp_thread, NULL, skinny_session, s)) {
+		if (ast_pthread_create_detached(&s->t, NULL, skinny_session, s)) {
 			destroy_session(s);
 		}
 	}
@@ -6465,6 +6465,10 @@ static int unload_module(void)
 	struct skinny_subchannel *sub;
 	struct ast_context *con;
 
+	ast_rtp_proto_unregister(&skinny_rtp);
+	ast_channel_unregister(&skinny_tech);
+	ast_cli_unregister_multiple(cli_skinny, sizeof(cli_skinny) / sizeof(struct ast_cli_entry));
+	
 	AST_LIST_LOCK(&sessions);
 	/* Destroy all the interfaces and free their memory */
 	while((s = AST_LIST_REMOVE_HEAD(&sessions, list))) {
@@ -6482,9 +6486,13 @@ static int unload_module(void)
 			if (l->mwi_event_sub)
 				ast_event_unsubscribe(l->mwi_event_sub);
 			ast_mutex_unlock(&l->lock);
+			unregister_exten(l);
 		}
 		if (s->fd > -1)
 			close(s->fd);
+		pthread_cancel(s->t);
+		pthread_kill(s->t, SIGURG);
+		pthread_join(s->t, NULL);
 		free(s);
 	}
 	AST_LIST_UNLOCK(&sessions);
@@ -6508,10 +6516,6 @@ static int unload_module(void)
 	}
 	accept_t = AST_PTHREADT_STOP;
 	ast_mutex_unlock(&netlock);
-
-	ast_rtp_proto_unregister(&skinny_rtp);
-	ast_channel_unregister(&skinny_tech);
-	ast_cli_unregister_multiple(cli_skinny, sizeof(cli_skinny) / sizeof(struct ast_cli_entry));
 
 	close(skinnysock);
 	if (sched)
