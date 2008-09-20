@@ -193,7 +193,40 @@ sub check_login($$)
 		}
 	}
 	close(VMAIL);
-	return ("", $category);
+	return check_login_users();
+}
+
+sub check_login_users {
+	my ($mbox, $context) = split(/\@/, param('mailbox'));
+	my $pass = param('password');
+	my ($found, $fullname) = (0, "");
+	open VMAIL, "</etc/asterisk/users.conf";
+	while (<VMAIL>) {
+		chomp;
+		if (m/\[(.*)\]/) {
+			if ($1 eq $mbox) {
+				$found = 1;
+			} elsif ($found == 2) {
+				close VMAIL;
+				return (($fullname ? $fullname : "Extension $mbox in $context"), $context);
+			} else {
+				$found = 0;
+			}
+		} elsif ($found) {
+			my ($var, $value) = split /\s*=\s*/, $_, 2;
+			if ($var eq 'vmsecret' and $value eq $pass) {
+				$found = 2;
+			} elsif ($var eq 'fullname') {
+				$fullname = $value;
+				if ($found == 2) {
+					close VMAIL;
+					return ($fullname, $context);
+				}
+			}
+		}
+	}
+	close VMAIL;
+	return ("", "");
 }
 
 sub validmailbox($$$$)
