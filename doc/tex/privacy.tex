@@ -48,6 +48,12 @@ instead of giving you theirs. A simple test can detect this. More
 advanced tests would be to look for -555- numbers, numbers that count
 up or down, numbers of all the same digit, etc.
 
+PrivacyManager can be told about a context where you can have patterns
+that describe valid phone numbers. If none of the patterns match the
+input, it will be considered a non-valid phonenumber and the user
+can try again until the retry counter is reached.
+This helps in resolving the issues stated in the previous paragraph.
+
 My logs show that 39 have hung up in the PrivacyManager script over
 the last year.
 
