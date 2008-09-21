@@ -35,8 +35,10 @@ Null callerid's are a fact of life, and could be a friend with an
 unlisted number, or some charity looking for a handout. The
 PrivacyManager application can help here. It will ask the caller to
 enter a 10-digit phone number. They get 3 tries(configurable), and this is
-configurable, with control being passed to priority+101 if they won't
-supply one.
+configurable, with control being passed to next priority where you can
+check the channelvariable PRIVACYMGRSTATUS. If the callerid was valid this
+variable will have the value SUCCESS, otherwise it will have the value
+FAILED.
 
 PrivacyManager can't guarantee that the number they supply is any
 good, tho, as there is no way to find out, short of hanging up and
