@@ -76,13 +76,15 @@ exten => s,2,SetVar,repeatcount=0
 exten => s,3,Zapateller,nocallerid
 exten => s,4,PrivacyManager
      ;; do this if they don't enter a number to Privacy Manager
+exten => s,5,GotoIf($[ "${PRIVACYMGRSTATUS}" = "FAILED" ]?s,105)
+exten => s,6,GotoIf($[ "${CALLERID(num)}"  = "7773334444" & "${CALLERID(name)}" : "Privacy Manager" ]?callerid-liar,s,1:s,7)
+exten => s,7,Dial(SIP/yourphone)
 exten => s,105,Background(tt-allbusy)
 exten => s,106,Background(tt-somethingwrong)
 exten => s,107,Background(tt-monkeysintro)
 exten => s,108,Background(tt-monkeys)
 exten => s,109,Background(tt-weasels)
 exten => s,110,Hangup
-exten => s,5,GotoIf($[ "${CALLERID(num)}"  = "7773334444" & "${CALLERID(name)}" : "Privacy Manager" ]?callerid-liar,s,1:s,7)
 \end{verbatim}
 \end{astlisting}
 
