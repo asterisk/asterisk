@@ -284,9 +284,10 @@ static int check_header(FILE *f)
 	if (magic != (uint32_t) AU_MAGIC) {
 		ast_log(LOG_WARNING, "Bad magic: 0x%x\n", magic);
 	}
-/*	hdr_size = ltohl(header[AU_HDR_HDR_SIZE_OFF]);
-	if (hdr_size < AU_HEADER_SIZE)*/
-	hdr_size = AU_HEADER_SIZE;
+	hdr_size = ltohl(header[AU_HDR_HDR_SIZE_OFF]);
+	if (hdr_size < AU_HEADER_SIZE) {
+		hdr_size = AU_HEADER_SIZE;
+	}
 /*	data_size = ltohl(header[AU_HDR_DATA_SIZE_OFF]); */
 	encoding = ltohl(header[AU_HDR_ENCODING_OFF]);
 	if (encoding != AU_ENC_8BIT_ULAW) {
