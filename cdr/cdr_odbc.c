@@ -90,10 +90,10 @@ static void odbc_disconnect(void)
 	connected = 0;
 }
 
-static void build_query(struct ast_cdr *cdr)
+static void build_query(struct ast_cdr *cdr, char *timestr, int timesize)
 {
 	int ODBC_res;
-	char sqlcmd[2048] = "", timestr[128];
+	char sqlcmd[2048] = "";
 	int res = 0;
 	struct tm tm;
 
@@ -102,7 +102,7 @@ static void build_query(struct ast_cdr *cdr)
 	else
 		ast_localtime(&cdr->start.tv_sec, &tm, NULL);
 
-	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
+	strftime(timestr, timesize, DATE_FORMAT, &tm);
 	memset(sqlcmd,0,2048);
 	if (loguniqueid) {
 		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
@@ -150,7 +150,7 @@ static void build_query(struct ast_cdr *cdr)
 		return;
 	}
 
-	SQLBindParameter(ODBC_stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(timestr), 0, &timestr, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, timesize, 0, timestr, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->clid), 0, cdr->clid, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->src), 0, cdr->src, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dst), 0, cdr->dst, 0, NULL);
@@ -177,15 +177,14 @@ static void build_query(struct ast_cdr *cdr)
 static int odbc_log(struct ast_cdr *cdr)
 {
 	int res = 0;
+	char timestr[150];
 
 	ast_mutex_lock(&odbc_lock);
-	build_query(cdr);
+	build_query(cdr, timestr, sizeof(timestr));
 
 	if (connected) {
 		res = odbc_do_query();
 		if (res < 0) {
-			if (option_verbose > 10)		
-				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
 			if (option_verbose > 10)
 				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Reconnecting to dsn %s\n", dsn);
 			odbc_disconnect();
@@ -198,7 +197,7 @@ static int odbc_log(struct ast_cdr *cdr)
 				if (option_verbose > 10)
 					ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Trying Query again!\n");
 				SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
-				build_query(cdr); /* what a waste. If we have to reconnect, we have to build a new query */
+				build_query(cdr, timestr, sizeof(timestr)); /* what a waste. If we have to reconnect, we have to build a new query */
 				res = odbc_do_query();
 				if (res < 0) {
 					if (option_verbose > 10)
