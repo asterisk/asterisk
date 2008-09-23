@@ -14595,6 +14595,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 	p->socket.type = transport;
 
 	if (ast_test_flag(&p->flags[0], SIP_PROMISCREDIR)) {
+		char *host = NULL;
 		if (!strncasecmp(s, "sip:", 4))
 			s += 4;
 		else if (!strncasecmp(s, "sips:", 5))
@@ -14602,9 +14603,16 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 		e = strchr(s, '/');
 		if (e)
 			*e = '\0';
-		ast_debug(2, "Found promiscuous redirection to 'SIP/::::%s@%s'\n", get_transport(transport), s);
-		if (p->owner)
-			ast_string_field_build(p->owner, call_forward, "SIP/::::%s@%s", get_transport(transport), s);
+		if ((host = strchr(s, '@'))) {
+			*host++ = '\0';
+			ast_debug(2, "Found promiscuous redirection to 'SIP/%s::::%s@%s'\n", s, get_transport(transport), host);
+			if (p->owner)
+				ast_string_field_build(p->owner, call_forward, "SIP/%s::::%s@%s", s, get_transport(transport), host);
+		} else {
+			ast_debug(2, "Found promiscuous redirection to 'SIP/::::%s@%s'\n", get_transport(transport), s);
+			if (p->owner)
+				ast_string_field_build(p->owner, call_forward, "SIP/::::%s@%s", get_transport(transport), s);
+		}
 	} else {
 		e = strchr(tmp, '@');
 		if (e) {
