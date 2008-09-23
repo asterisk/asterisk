@@ -1452,6 +1452,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	struct ast_cdr *orig_peer_cdr = NULL;
 	struct ast_cdr *chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
 	struct ast_cdr *peer_cdr = pick_unlocked_cdr(peer->cdr); /* the proper chan cdr, if there are forked cdrs */
+	struct ast_cdr *new_chan_cdr = NULL; /* the proper chan cdr, if there are forked cdrs */
+	struct ast_cdr *new_peer_cdr = NULL; /* the proper chan cdr, if there are forked cdrs */
 
 	memset(&backup_config, 0, sizeof(backup_config));
 
@@ -1707,6 +1709,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 
 	}
    before_you_go:
+	new_chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
+	new_peer_cdr = pick_unlocked_cdr(peer->cdr); /* the proper chan cdr, if there are forked cdrs */
+
 	if (!ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN) && ast_exists_extension(chan, chan->context, "h", 1, chan->cid.cid_num)) {
 		struct ast_cdr *swapper;
 		char savelastapp[AST_MAX_EXTENSION];
@@ -1714,7 +1719,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		char save_exten[AST_MAX_EXTENSION];
 		int  save_prio;
 		
-		if (chan->cdr && ast_opt_end_cdr_before_h_exten) {
+		if (ast_opt_end_cdr_before_h_exten) {
 			ast_cdr_end(bridge_cdr);
 		}
 		/* swap the bridge cdr and the chan cdr for a moment, and let the endbridge
@@ -1753,52 +1758,80 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	}
 	
 	/* obey the NoCDR() wishes. */
-	if (chan_cdr && ast_test_flag(chan_cdr, AST_CDR_FLAG_POST_DISABLED) && peer_cdr && !ast_test_flag(peer_cdr, AST_CDR_FLAG_POST_DISABLED))
-		ast_set_flag(peer_cdr, AST_CDR_FLAG_POST_DISABLED); /* DISABLED is viral-- it will propagate across a bridge */
-	if (!chan_cdr || (chan_cdr && !ast_test_flag(chan_cdr, AST_CDR_FLAG_POST_DISABLED))) {
+	if (new_chan_cdr && ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED) && new_peer_cdr && !ast_test_flag(new_peer_cdr, AST_CDR_FLAG_POST_DISABLED))
+		ast_set_flag(new_peer_cdr, AST_CDR_FLAG_POST_DISABLED); /* DISABLED is viral-- it will propagate across a bridge */
+	if (!new_chan_cdr || (new_chan_cdr && !ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED))) {
+		struct ast_channel *chan_ptr = NULL;
 		
 		ast_cdr_end(bridge_cdr);
 		
 		ast_cdr_detach(bridge_cdr);
-		
-		/* just in case, these channels get bridged again before hangup */
-		if (chan_cdr) {
-			ast_cdr_specialized_reset(chan_cdr,0);
+
+		/* do a specialized reset on the beginning channel
+		   CDR's, if they still exist, so as not to mess up
+		   issues in future bridges;
+
+		   Here are the rules of the game:
+		   1. The chan and peer channel pointers will not change
+		      during the life of the bridge.
+		   2. But, in transfers, the channel names will change.
+              between the time the bridge is started, and the
+              time the channel ends. 
+              Usually, when a channel changes names, it will
+              also change CDR pointers.
+           3. Usually, only one of the two channels (chan or peer)
+              will change names.
+           4. Usually, if a channel changes names during a bridge,
+              it is because of a transfer. Usually, in these situations,
+              it is normal to see 2 bridges running simultaneously, and
+              it is not unusual to see the two channels that change
+              swapped between bridges.
+		   5. After a bridge occurs, we have 2 or 3 channels' CDRs
+		      to attend to; if the chan or peer changed names,
+			  we have the before and after attached CDR's.
+		*/
+
+		if (strcasecmp(orig_channame, chan->name) != 0) { 
+			/* old channel */
+			chan_ptr = ast_get_channel_by_name_locked(orig_channame);
+			if (chan_ptr) {
+				if (!ast_bridged_channel(chan_ptr)) {
+					struct ast_cdr *cur;
+					for (cur = chan_ptr->cdr; cur; cur = cur->next) {
+						if (cur == chan_cdr) {
+							break;
+						}
+					}
+					if (cur)
+						ast_cdr_specialized_reset(chan_cdr,0);
+				}
+				ast_channel_unlock(chan_ptr);
+			}
+			/* new channel */
+			ast_cdr_specialized_reset(new_chan_cdr,0);
+		} else {
+			ast_cdr_specialized_reset(chan_cdr,0); /* nothing changed, reset the chan_cdr  */
 		}
-		if (peer_cdr) {
-			struct ast_cdr *cur;
-
-			ast_channel_lock(peer);
-			for (cur = peer_cdr; cur; cur = cur->next) {
-				if (cur == orig_peer_cdr) {
-					break;
+		if (strcasecmp(orig_peername, peer->name) != 0) { 
+			/* old channel */
+			chan_ptr = ast_get_channel_by_name_locked(orig_peername);
+			if (chan_ptr) {
+				if (!ast_bridged_channel(chan_ptr)) {
+					struct ast_cdr *cur;
+					for (cur = chan_ptr->cdr; cur; cur = cur->next) {
+						if (cur == peer_cdr) {
+							break;
+						}
+					}
+					if (cur)
+						ast_cdr_specialized_reset(peer_cdr,0);
 				}
+				ast_channel_unlock(chan_ptr);
 			}
-
-			if (!cur) {
-				/* orig_peer_cdr is gone, probably because of a masquerade
-				 * during the bridge. */
-				ast_channel_unlock(peer);
-				return res;
-			}
-
-			/* before resetting the peer cdr, throw a copy of it to the
-			   backend, just in case the cdr.conf file is calling for
-			   unanswered CDR's. */
-			
-			/* When peer_cdr isn't the same addr as orig_peer_cdr,
-			   this can only happen if there was a transfer, methinks;
-			   at any rate, only pay attention to the original*/
-			if (ast_cdr_isset_unanswered()) {
-				struct ast_cdr *dupd = ast_cdr_dup(orig_peer_cdr);
-				if (dupd) {
-					if (ast_tvzero(dupd->end) && ast_cdr_isset_unanswered())
-						ast_cdr_end(dupd);
-					ast_cdr_detach(dupd);
-				}
-			}
-			ast_cdr_specialized_reset(orig_peer_cdr,0);
-			ast_channel_unlock(peer);
+			/* new channel */
+			ast_cdr_specialized_reset(new_peer_cdr,0);
+		} else {
+			ast_cdr_specialized_reset(peer_cdr,0); /* nothing changed, reset the peer_cdr  */
 		}
 	}
 	return res;
