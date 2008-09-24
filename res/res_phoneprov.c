@@ -526,7 +526,7 @@ out404:
 	*status = 404;
 	*title = strdup("Not Found");
 	*contentlength = 0;
-	return ast_http_error(404, "Not Found", NULL, "Nothing to see here.  Move along.");
+	return ast_http_error(404, "Not Found", NULL, "The requested URL was not found on this server.");
 
 out500:
 	route = unref_route(route);
