@@ -5114,7 +5114,7 @@ static int load_module(void)
 		"   jb - Set jitter buffer length, optarg is length\n"
 		"   jt - Set jitter buffer upper threshold, optarg is threshold\n"
 		"   jn - Disable jitter buffer\n"
-		"    n - Don't have mISDN detect DTMF tones on called channel\n"
+		"    n - disable DSP on channel, disables: Echocancel, DTMF Detection and Volume Control.\n"
 		"    p - Caller ID presentation,\n"
 		"        optarg is either 'allowed' or 'restricted'\n"
 		"    s - Send Non-inband DTMF as inband\n"
