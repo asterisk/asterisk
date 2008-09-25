@@ -1208,6 +1208,7 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 				ast_log(LOG_ERROR, "Error executing lua extension: %s\n", error);
 				res = -1;
 			}
+			lua_pop(L, 1);
 		} else {
 			res = -1;
 		}
