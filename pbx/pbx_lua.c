@@ -1193,22 +1193,25 @@ static int lua_find_extension(lua_State *L, const char *context, const char *ext
 	
 	/* step through the extensions looking for a match */
 	for (i = 1; i < lua_objlen(L, context_order_table) + 1; i++) {
-		int e_index, isnumber, match = 0;
+		int e_index, e_index_copy, match = 0;
 		const char *e;
 
 		lua_pushinteger(L, i);
 		lua_gettable(L, context_order_table);
 		e_index = lua_gettop(L);
-		isnumber = lua_isnumber(L, e_index);
 
-		if (!(e = lua_tostring(L, e_index))) {
-			lua_pop(L, 1);
+		/* copy the key at the top of the stack for use later */
+		lua_pushvalue(L, -1);
+		e_index_copy = lua_gettop(L);
+
+		if (!(e = lua_tostring(L, e_index_copy))) {
+			lua_pop(L, 2);
 			continue;
 		}
 
 		/* make sure this is not the 'include' extension */
 		if (!strcasecmp(e, "include")) {
-			lua_pop(L, 1);
+			lua_pop(L, 2);
 			continue;
 		}
 
@@ -1223,34 +1226,28 @@ static int lua_find_extension(lua_State *L, const char *context, const char *ext
 		 * match, 2 on earlymatch */
 
 		if (!match) {
-			lua_pop(L, 1);
+			/* pop the copy and the extension */
+			lua_pop(L, 2);
 			continue;	/* keep trying */
 		}
 
 		if (func == &matchmore && match == 2) {
 			/* We match an extension ending in '!'. The decision in
 			 * this case is final and counts as no match. */
-			lua_pop(L, 3);
+			lua_pop(L, 4);
 			return 0;
 		}
 
-		/* remove the context table, the context order table, and the
-		 * extension (or replace the extension with the corisponding
-		 * function) */
+		/* remove the context table, the context order table, the
+		 * extension, and the extension copy (or replace the extension
+		 * with the corresponding function) */
 		if (push_func) {
-			/* here we must convert the exten back to an integer
-			 * because lua_tostring will change the value on the
-			 * stack to a string */
-			if (isnumber) {
-				int e_int = lua_tointeger(L, e_index);
-				lua_pop(L, 1);  /* the exten should be the top of the stack */
-				lua_pushinteger(L, e_int);
-			}
+			lua_pop(L, 1);  /* pop the copy */
 			lua_gettable(L, context_table);
 			lua_insert(L, -3);
 			lua_pop(L, 2);
 		} else {
-			lua_pop(L, 3);
+			lua_pop(L, 4);
 		}
 
 		return 1;
