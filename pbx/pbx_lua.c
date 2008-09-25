@@ -40,12 +40,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/term.h"
 #include "asterisk/paths.h"
+#include "asterisk/hashtab.h"
 
 #include <lua5.1/lua.h>
 #include <lua5.1/lauxlib.h>
 #include <lua5.1/lualib.h>
 
 static char *config = "extensions.lua";
+static char *registrar = "pbx_lua";
 
 #define LUA_EXT_DATA_SIZE 256
 #define LUA_BUF_SIZE 4096
@@ -55,6 +57,7 @@ static int lua_load_extensions(lua_State *L, struct ast_channel *chan);
 static int lua_reload_extensions(lua_State *L);
 static void lua_free_extensions(void);
 static int lua_sort_extensions(lua_State *L);
+static int lua_register_switches(lua_State *L);
 static int lua_extension_cmp(lua_State *L);
 static int lua_find_extension(lua_State *L, const char *context, const char *exten, int priority, ast_switch_f *func, int push_func);
 static int lua_pbx_findapp(lua_State *L);
@@ -91,6 +94,9 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 AST_MUTEX_DEFINE_STATIC(config_file_lock);
 char *config_file_data = NULL;
 long config_file_size = 0;
+
+static struct ast_context *local_contexts = NULL;
+static struct ast_hashtab *local_table = NULL;
 
 static const struct ast_datastore_info lua_datastore = {
 	.type = "lua",
@@ -789,6 +795,65 @@ static int lua_sort_extensions(lua_State *L)
 }
 
 /*!
+ * \brief Register dialplan switches for our pbx_lua contexs.
+ *
+ * In the event of an error, an error string will be pushed onto the lua stack.
+ *
+ * \retval 0 success
+ * \retval 1 failure
+ */
+static int lua_register_switches(lua_State *L)
+{
+	int extensions;
+	struct ast_context *con = NULL;
+
+	/* create the hash table for our contexts */
+	/* XXX do we ever need to destroy this? pbx_config does not */
+	if (!local_table)
+		local_table = ast_hashtab_create(17, ast_hashtab_compare_contexts, ast_hashtab_resize_java, ast_hashtab_newsize_java, ast_hashtab_hash_contexts, 0);
+
+	/* load the 'extensions' table */
+	lua_getglobal(L, "extensions");
+	extensions = lua_gettop(L);
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 1);
+		lua_pushstring(L, "Unable to find 'extensions' table in extensions.lua\n");
+		return 1;
+	}
+
+	/* iterate through the extensions table and register a context and
+	 * dialplan switch for each lua context
+	 */
+	for (lua_pushnil(L); lua_next(L, extensions); lua_pop(L, 1)) {
+		int context = lua_gettop(L);
+		int context_name = context - 1;
+		const char *context_str = lua_tostring(L, context_name);
+
+		/* find or create this context */
+		con = ast_context_find_or_create(&local_contexts, local_table, context_str, registrar);
+		if (!con) {
+			/* remove extensions table and context key and value */
+			lua_pop(L, 3);
+			lua_pushstring(L, "Failed to find or create context\n");
+			return 1;
+		}
+
+		/* register the switch */
+		if (ast_context_add_switch2(con, "Lua", "", 0, registrar)) {
+			/* remove extensions table and context key and value */
+			lua_pop(L, 3);
+			lua_pushstring(L, "Unable to create switch for context\n");
+			return 1;
+		}
+	}
+	
+	/* remove the extensions table */
+	lua_pop(L, 1);
+	return 0;
+}
+
+
+/*!
  * \brief [lua_CFunction] Compare two extensions (for access from lua, don't
  * call directly)
  *
@@ -852,7 +917,8 @@ static char *lua_read_extensions_file(lua_State *L, long *size)
 
 	if (luaL_loadbuffer(L, data, *size, "extensions.lua")
 			|| lua_pcall(L, 0, LUA_MULTRET, 0)
-			|| lua_sort_extensions(L)) {
+			|| lua_sort_extensions(L)
+			|| lua_register_switches(L)) {
 		ast_free(data);
 		data = NULL;
 		*size = 0;
@@ -933,6 +999,15 @@ static int lua_reload_extensions(lua_State *L)
 
 	config_file_data = data;
 	config_file_size = size;
+	
+	/* merge our new contexts */
+	ast_merge_contexts_and_delete(&local_contexts, local_table, registrar);
+	/* merge_contexts_and_delete will actually, at the correct moment, 
+	   set the global dialplan pointers to your local_contexts and local_table.
+	   It then will free up the old tables itself. Just be sure not to
+	   hang onto the pointers. */
+	local_table = NULL;
+	local_contexts = NULL;
 
 	ast_mutex_unlock(&config_file_lock);
 	return 0;
@@ -1320,6 +1395,7 @@ static int load_or_reload_lua_stuff(void)
 
 static int unload_module(void)
 {
+	ast_context_destroy(NULL, registrar);
 	ast_unregister_switch(&lua_switch);
 	lua_free_extensions();
 	return 0;
