@@ -2092,10 +2092,17 @@ static int __sip_autodestruct(const void *data)
 	}
 
 	/* If there are packets still waiting for delivery, delay the destruction */
-	if (p->packets) {
+	/* via bug 12101, the two usages of SIP_NEEDDESTROY in the following block
+	* of code make a sort of "safety relief valve", that allows sip channels
+	* that were created via INVITE, then thru some sequence were CANCELED,
+	* to die, rather than infinitely be rescheduled */
+	if (p->packets && !ast_test_flag(&p->flags[0], SIP_NEEDDESTROY)) {
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
 		append_history(p, "ReliableXmit", "timeout");
+		if (p->method == SIP_CANCEL || p->method == SIP_BYE) {
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+		}
 		return 10000;
 	}
 
