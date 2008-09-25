@@ -198,7 +198,11 @@ struct ast_hashtab * ast_hashtab_create(int initial_buckets,
 
 /*!
  * \brief This func will free the hash table and all its memory. 
- * \note It doesn't touch the objects stored in it
+ * \note It doesn't touch the objects stored in it, unless you
+ *       specify a destroy func; it will call that func for each
+ *       object in the hashtab, remove all the objects, and then
+ *       free the hashtab itself. If no destroyfunc is specified
+ *       then the routine will assume you will free it yourself.
  * \param tab
  * \param objdestroyfunc
 */
