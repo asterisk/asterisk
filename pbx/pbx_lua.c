@@ -73,6 +73,7 @@ static int lua_autoservice_start(lua_State *L);
 static int lua_autoservice_stop(lua_State *L);
 static int lua_autoservice_status(lua_State *L);
 static int lua_check_hangup(lua_State *L);
+static int lua_error_function(lua_State *L);
 
 static void lua_update_registry(lua_State *L, const char *context, const char *exten, int priority);
 static void lua_push_variable_table(lua_State *L, const char *name);
@@ -717,6 +718,39 @@ static int lua_check_hangup(lua_State *L)
 }
 
 /*!
+ * \brief [lua_CFunction] Handle lua errors (for access from lua, don't call
+ * directly)
+ *
+ * \param L the lua_State to use
+ */
+static int lua_error_function(lua_State *L)
+{
+	int message_index;
+
+	/* pass number arguments right through back to asterisk*/
+	if (lua_isnumber(L, -1)) {
+		return 1;
+	}
+
+	/* if we are here then we have a string error message, let's attach a
+	 * backtrace to it */
+	message_index = lua_gettop(L);
+
+	lua_getglobal(L, "debug");
+	lua_getfield(L, -1, "traceback");
+	lua_remove(L, -2); /* remove the 'debug' table */
+
+	lua_pushvalue(L, message_index);
+	lua_remove(L, message_index);
+
+	lua_pushnumber(L, 2);
+
+	lua_call(L, 2, 1);
+
+	return 1;
+}
+
+/*!
  * \brief Store the sort order of each context
  
  * In the event of an error, an error string will be pushed onto the lua stack.
@@ -1171,7 +1205,7 @@ static int matchmore(struct ast_channel *chan, const char *context, const char *
 
 static int exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	int res;
+	int res, error_func;
 	lua_State *L;
 	struct ast_module_user *u = ast_module_user_add(chan);
 	if (!u) {
@@ -1185,8 +1219,12 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 		return -1;
 	}
 
+	lua_pushcfunction(L, &lua_error_function);
+	error_func = lua_gettop(L);
+
 	/* push the extension function onto the stack */
 	if (!lua_find_extension(L, context, exten, priority, &exists, 1)) {
+		lua_pop(L, 1); /* pop the debug function */
 		ast_log(LOG_ERROR, "Could not find extension %s in context %s\n", exten, context);
 		if (!chan) lua_close(L);
 		ast_module_user_remove(u);
@@ -1198,21 +1236,26 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 	lua_pushstring(L, context);
 	lua_pushstring(L, exten);
 	
-	res = lua_pcall(L, 2, 0, 0);
+	res = lua_pcall(L, 2, 0, error_func);
 	if (res) {
 		if (res == LUA_ERRRUN) {
+			res = -1;
 			if (lua_isnumber(L, -1)) {
 				res = lua_tointeger(L, -1);
 			} else if (lua_isstring(L, -1)) {
 				const char *error = lua_tostring(L, -1);
 				ast_log(LOG_ERROR, "Error executing lua extension: %s\n", error);
-				res = -1;
 			}
-			lua_pop(L, 1);
-		} else {
+		} else if (res == LUA_ERRERR) {
 			res = -1;
+			ast_log(LOG_ERROR, "Error in the lua error handler (this is probably a bug in pbx_lua)\n");
+		} else if (res == LUA_ERRMEM) {
+			res = -1;
+			ast_log(LOG_ERROR, "Memory allocation error\n");
 		}
+		lua_pop(L, 1);
 	}
+	lua_remove(L, error_func);
 	if (!chan) lua_close(L);
 	ast_module_user_remove(u);
 	return res;
