@@ -1862,8 +1862,6 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */
-		if (found)
-			*found = 1;
 		ast_unlock_contexts();
 		if (matching_action) {
 			return -1;
