@@ -16,7 +16,6 @@ ASTTOPDIR?=..
 
 .PHONY: clean all uninstall
 
-# to get check_expr, add it to the ALL_UTILS list
 ALL_UTILS:=astman smsq stereorize streamplayer muted check_expr hashtest2 hashtest astcanary refcounter
 # aelparse and conf2ael currently not being built because they rely on extconf, which is horribly broken
 # ALL_UTILS:=aelparse conf2ael
