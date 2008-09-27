@@ -17,7 +17,9 @@ ASTTOPDIR?=..
 .PHONY: clean all uninstall
 
 # to get check_expr, add it to the ALL_UTILS list
-ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted check_expr conf2ael hashtest2 hashtest astcanary refcounter
+ALL_UTILS:=astman smsq stereorize streamplayer muted check_expr hashtest2 hashtest astcanary refcounter
+# aelparse and conf2ael currently not being built because they rely on extconf, which is horribly broken
+# ALL_UTILS:=aelparse conf2ael
 UTILS:=$(ALL_UTILS)
 
 LIBS += $(BKTR_LIB)	# astobj2 with devmode uses backtrace
@@ -82,6 +84,7 @@ md5.c: $(ASTTOPDIR)/main/md5.c
 	@cp $< $@
 astman: astman.o md5.o
 astman: LIBS+=$(NEWT_LIB)
+astman.o: ASTCFLAGS+=-DNO_MALLOC_DEBUG
 
 stereorize: stereorize.o frame.o
 stereorize: LIBS+=-lm
@@ -106,10 +109,12 @@ pval.c: $(ASTTOPDIR)/res/ael/pval.c
 ast_expr2.c: $(ASTTOPDIR)/main/ast_expr2.c
 	@cp $< $@
 
+ast_expr2.o: ASTCFLAGS+=-DSTANDALONE
+
 ast_expr2f.c: $(ASTTOPDIR)/main/ast_expr2f.c
 	@cp $< $@
 
-ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE_AEL -I$(ASTTOPDIR)/main -Wno-unused
+ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE -I$(ASTTOPDIR)/main -Wno-unused
 
 pval.o : ASTCFLAGS+=-DSTANDALONE
 
@@ -118,17 +123,19 @@ check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o threadstorage.o cl
 aelbison.c: $(ASTTOPDIR)/res/ael/ael.tab.c
 	@cp $< $@
 
-aelbison.o: ASTCFLAGS+=-I$(ASTTOPDIR)/res/ael  -DYYENABLE_NLS=0
+aelbison.o: ASTCFLAGS+=-I$(ASTTOPDIR)/res/ael  -DYYENABLE_NLS=0 -DSTANDALONE
 
 pbx_ael.c: $(ASTTOPDIR)/pbx/pbx_ael.c
 	@cp $< $@
 
-pbx_ael.o: ASTCFLAGS+=-DSTANDALONE_AEL
+pbx_ael.o: ASTCFLAGS+=-DSTANDALONE
 
 aelparse.c: $(ASTTOPDIR)/res/ael/ael_lex.c
 	@cp $< $@
 
-aelparse.o: ASTCFLAGS+=-I$(ASTTOPDIR)/res -DSTANDALONE_AEL -Wno-unused
+ael_main.o: ASTCFLAGS+=-DSTANDALONE
+
+aelparse.o: ASTCFLAGS+=-I$(ASTTOPDIR)/res -DSTANDALONE -Wno-unused
 
 aelparse: aelparse.o aelbison.o pbx_ael.o hashtab.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
 
@@ -161,8 +168,8 @@ extconf.o: extconf.c
 conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o hashtab.o aelbison.o aelparse.o pbx_ael.o pval.o extconf.o strcompat.o
 
 testexpr2s: $(ASTTOPDIR)/main/ast_expr2f.c $(ASTTOPDIR)/main/ast_expr2.c $(ASTTOPDIR)/main/ast_expr2.h
-	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE_AEL $(ASTTOPDIR)/main/ast_expr2f.c -o ast_expr2f.o
-	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE_AEL $(ASTTOPDIR)/main/ast_expr2.c -o ast_expr2.o
+	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE $(ASTTOPDIR)/main/ast_expr2f.c -o ast_expr2f.o
+	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE $(ASTTOPDIR)/main/ast_expr2.c -o ast_expr2.o
 	$(CC) -g -o testexpr2s ast_expr2f.o ast_expr2.o
 	rm ast_expr2.o ast_expr2f.o 
 	./testexpr2s expr2.testinput
