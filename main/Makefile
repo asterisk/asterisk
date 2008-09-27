@@ -117,9 +117,12 @@ ast_expr2.c ast_expr2.h:
 	bison -o $@ -d --name-prefix=ast_yy ast_expr2.y
 
 ast_expr2f.c:
-	flex -o $@ --full ast_expr2.fl # moved the correction of yyfree into the flex input file itself.
-	sed 's@#if __STDC_VERSION__ >= 199901L@#if !defined __STDC_VERSION__ || __STDC_VERSION__ >= 199901L@' ast_expr2f.c > zz
-	mv zz ast_expr2f.c
+	flex -o $@ --full ast_expr2.fl
+	sed 's@#if __STDC_VERSION__ >= 199901L@#if !defined __STDC_VERSION__ || __STDC_VERSION__ >= 199901L@' $@ > $@.fix
+	echo "#include \"asterisk.h\"" > $@
+	echo >> $@
+	cat $@.fix >> $@
+	rm $@.fix
 
 ast_expr2f.o: ASTCFLAGS+=-Wno-unused
 

@@ -18,14 +18,11 @@
 #ifndef _ASTERISK_H
 #define _ASTERISK_H
 
-/* The include of 'autoconfig.h' is not necessary for any modules that
-   are part of the Asterisk source tree, because the top-level Makefile
-   will forcibly include that header in all compilations before all
-   other headers (even system headers). However, leaving this here will
-   help out-of-tree module builders, and doesn't cause any harm for the
-   in-tree modules.
-*/
 #include "asterisk/autoconfig.h"
+
+#if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE) && defined(MALLOC_DEBUG)
+#include "asterisk/astmm.h"
+#endif
 
 #include "asterisk/compat.h"
 

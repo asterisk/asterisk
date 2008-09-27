@@ -23,9 +23,9 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
-#ifdef __AST_DEBUG_MALLOC
-
 #include "asterisk.h"
+
+#ifdef __AST_DEBUG_MALLOC
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
