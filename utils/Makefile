@@ -65,6 +65,7 @@ md5.c: ../main/md5.c
 
 astman: astman.o md5.o
 astman: LIBS+=$(NEWT_LIB)
+astman.o: ASTCFLAGS+=-DNO_MALLOC_DEBUG
 
 stereorize: stereorize.o frame.o
 stereorize: LIBS+=-lm

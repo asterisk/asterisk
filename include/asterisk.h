@@ -20,7 +20,7 @@
 
 #include "asterisk/autoconfig.h"
 
-#if !defined(STANDALONE_AEL) && defined(MALLOC_DEBUG)
+#if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE_AEL) && defined(MALLOC_DEBUG)
 #include "asterisk/astmm.h"
 #endif
 

@@ -22,6 +22,8 @@
  *
  */
  
+#include "asterisk.h"
+
 #include <newt.h>
 #include <stdio.h>
 #include <sys/time.h>
