@@ -817,7 +817,9 @@ static yyconst flex_int16_t yy_chk[1073] =
  * bison-locations is probably not needed.
  */
 #line 63 "ael.flex"
+#if !defined(STANDALONE_AEL)
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>

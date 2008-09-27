@@ -44,6 +44,8 @@
 
 /*LINTLIBRARY*/
 
+#include "asterisk.h"
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -55,7 +57,6 @@
 
 #include "private.h"
 #include "tzfile.h"
-#include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 

@@ -131,7 +131,7 @@
 
 #include "asterisk.h"
 
-#ifndef STANDALONE
+#if !defined(STANDALONE_AEL)
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 

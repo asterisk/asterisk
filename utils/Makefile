@@ -83,6 +83,8 @@ strcompat.c: ../main/strcompat.c
 ast_expr2.c: ../main/ast_expr2.c
 	@cp $< $@
 
+ast_expr2.o: ASTCFLAGS+=-DSTANDALONE_AEL
+
 ast_expr2f.c: ../main/ast_expr2f.c
 	@cp $< $@
 
@@ -93,13 +95,14 @@ check_expr: check_expr.o ast_expr2.o ast_expr2f.o
 aelbison.c: ../pbx/ael/ael.tab.c
 	@cp $< $@
 aelbison.o: aelbison.c ../pbx/ael/ael.tab.h ../include/asterisk/ael_structs.h
-aelbison.o: ASTCFLAGS+=-I../pbx
+aelbison.o: ASTCFLAGS+=-I../pbx -DSTANDALONE_AEL
 
 pbx_ael.c: ../pbx/pbx_ael.c
 	@cp $< $@
 pbx_ael.o: ASTCFLAGS+=-DSTANDALONE_AEL
 
 ael_main.o: ael_main.c ../include/asterisk/ael_structs.h
+ael_main.o: ASTCFLAGS+=-DSTANDALONE_AEL
 
 aelparse.c: ../pbx/ael/ael_lex.c
 	@cp $< $@

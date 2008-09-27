@@ -504,7 +504,7 @@ static yyconst flex_int16_t yy_chk[127] =
 
 #include "asterisk.h"
 
-#ifndef STANDALONE
+#if !defined(STANDALONE_AEL)
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 

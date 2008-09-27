@@ -60,7 +60,9 @@
 %option bison-locations
 
 %{
+#if !defined(STANDALONE_AEL)
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>

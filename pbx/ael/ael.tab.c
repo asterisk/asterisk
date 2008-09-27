@@ -179,7 +179,9 @@
 
 #include "asterisk.h"
 
+#if !defined(STANDALONE_AEL)
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
