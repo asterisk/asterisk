@@ -5953,7 +5953,8 @@ static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct as
 	case CLI_INIT:
 		e->command = "queue add member";
 		e->usage =
-			"Usage: queue add member <channel> to <queue> [[[penalty <penalty>] as <membername>] state_interface <interface>]\n"; 
+			"Usage: queue add member <channel> to <queue> [[[penalty <penalty>] as <membername>] state_interface <interface>]\n"
+			"       Add a channel to a queue with optionally:  a penalty, membername and a state_interface\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_queue_add_member(a->line, a->word, a->pos, a->n);
@@ -6065,7 +6066,9 @@ static char *handle_queue_remove_member(struct ast_cli_entry *e, int cmd, struct
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "queue remove member";
-		e->usage = "Usage: queue remove member <channel> from <queue>\n"; 
+		e->usage = 
+			"Usage: queue remove member <channel> from <queue>\n"
+			"       Remove a specific channel from a queue.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_queue_remove_member(a->line, a->word, a->pos, a->n);
