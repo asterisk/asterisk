@@ -8943,7 +8943,12 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 	return 1;
 }
 
-static struct dahdi_pvt *chandup(struct dahdi_pvt *src)
+/* This function can *ONLY* be used for copying pseudo (CHAN_PSEUDO) private
+   structures; it makes no attempt to safely copy regular channel private
+   structures that might contain reference-counted object pointers and other
+   scary bits
+*/
+static struct dahdi_pvt *duplicate_pseudo(struct dahdi_pvt *src)
 {
 	struct dahdi_pvt *p;
 	struct dahdi_bufferinfo bi;
@@ -8953,7 +8958,6 @@ static struct dahdi_pvt *chandup(struct dahdi_pvt *src)
 		memcpy(p, src, sizeof(struct dahdi_pvt));
 		ast_mutex_init(&p->lock);
 		p->subs[SUB_REAL].dfd = dahdi_open("/dev/dahdi/pseudo");
-		/* Allocate a dahdi structure */
 		if (p->subs[SUB_REAL].dfd < 0) {
 			ast_log(LOG_ERROR, "Unable to dup channel: %s\n",  strerror(errno));
 			destroy_dahdi_pvt(&p);
@@ -9155,7 +9159,7 @@ static struct ast_channel *dahdi_request(const char *type, int format, void *dat
 			}
 #endif			
 			if (p->channel == CHAN_PSEUDO) {
-				p = chandup(p);
+				p = duplicate_pseudo(p);
 				if (!p) {
 					break;
 				}
@@ -14525,14 +14529,13 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 	/*< \todo why check for the pseudo in the per-channel section.
 	 * Any actual use for manual setup of the pseudo channel? */
 	if (!found_pseudo && reload == 0) {
-		/* Make sure pseudo isn't a member of any groups if
-		   we're automatically making it. */	
-		
-		confp->chan.group = 0;
-		confp->chan.callgroup = 0;
-		confp->chan.pickupgroup = 0;
+		/* use the default configuration for a channel, so
+		   that any settings from real configured channels
+		   don't "leak" into the pseudo channel config
+		*/
+		struct dahdi_chan_conf conf = dahdi_chan_conf_default();
 
-		tmp = mkintf(CHAN_PSEUDO, confp, NULL, reload);
+		tmp = mkintf(CHAN_PSEUDO, &conf, NULL, reload);
 
 		if (tmp) {
 			ast_verb(3, "Automatically generated pseudo channel\n");
