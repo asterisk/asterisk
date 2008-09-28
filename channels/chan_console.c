@@ -694,9 +694,9 @@ static char *cli_console_autoanswer(struct ast_cli_entry *e, int cmd,
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "console set autoanswer [on|off]";
+		e->command = "console {set|show} autoanswer [on|off]";
 		e->usage =
-			"Usage: console set autoanswer [on|off]\n"
+			"Usage: console {set|show} autoanswer [on|off]\n"
 			"       Enables or disables autoanswer feature.  If used without\n"
 			"       argument, displays the current on/off status of autoanswer.\n"
 			"       The default value of autoanswer is in 'oss.conf'.\n";
@@ -1154,12 +1154,10 @@ static char *cli_console_active(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "console active";
+		e->command = "console {set|show} active [<device>]";
 		e->usage =
-			"Usage: console active [device]\n"
-			"       If no device is specified.  The active console device will be shown.\n"
-			"Otherwise, the specified device will become the console device active for\n"
-			"the Asterisk CLI.\n";
+			"Usage: console {set|show} active [<device>]\n"
+			"       Set or show the active console device for the Asterisk CLI.\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == e->args) {
@@ -1181,7 +1179,7 @@ static char *cli_console_active(struct ast_cli_entry *e, int cmd, struct ast_cli
 	if (a->argc < e->args)
 		return CLI_SHOWUSAGE;
 
-	if (a->argc == e->args) {
+	if (a->argc == 3) {
 		pvt = get_active_pvt();
 
 		if (!pvt)

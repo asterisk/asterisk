@@ -1315,13 +1315,13 @@ static char *handle_cli_realtime_pgsql_cache(struct ast_cli_entry *e, int cmd, s
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "realtime pgsql cache";
+		e->command = "realtime show pgsql cache";
 		e->usage =
-			"Usage: realtime pgsql cache [<table>]\n"
+			"Usage: realtime show pgsql cache [<table>]\n"
 			"       Shows table cache for the PostgreSQL RealTime driver\n";
 		return NULL;
 	case CLI_GENERATE:
-		if (a->argc != 3) {
+		if (a->argc != 4) {
 			return NULL;
 		}
 		l = strlen(a->word);
@@ -1337,25 +1337,25 @@ static char *handle_cli_realtime_pgsql_cache(struct ast_cli_entry *e, int cmd, s
 		return ret;
 	}
 
-	if (a->argc == 3) {
+	if (a->argc == 4) {
 		/* List of tables */
 		AST_LIST_LOCK(&psql_tables);
 		AST_LIST_TRAVERSE(&psql_tables, cur, list) {
 			ast_cli(a->fd, "%s\n", cur->name);
 		}
 		AST_LIST_UNLOCK(&psql_tables);
-	} else if (a->argc == 4) {
+	} else if (a->argc == 5) {
 		/* List of columns */
-		if ((cur = find_table(a->argv[3]))) {
+		if ((cur = find_table(a->argv[4]))) {
 			struct columns *col;
-			ast_cli(a->fd, "Columns for Table Cache '%s':\n", a->argv[3]);
+			ast_cli(a->fd, "Columns for Table Cache '%s':\n", a->argv[4]);
 			ast_cli(a->fd, "%-20.20s %-20.20s %-3.3s %-8.8s\n", "Name", "Type", "Len", "Nullable");
 			AST_LIST_TRAVERSE(&cur->columns, col, list) {
 				ast_cli(a->fd, "%-20.20s %-20.20s %3d %-8.8s\n", col->name, col->type, col->len, col->notnull ? "NOT NULL" : "");
 			}
 			ast_mutex_unlock(&cur->lock);
 		} else {
-			ast_cli(a->fd, "No such table '%s'\n", a->argv[3]);
+			ast_cli(a->fd, "No such table '%s'\n", a->argv[4]);
 		}
 	}
 	return 0;
@@ -1368,16 +1368,16 @@ static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, 
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "realtime pgsql status";
+		e->command = "realtime show pgsql status";
 		e->usage =
-			"Usage: realtime pgsql status\n"
+			"Usage: realtime show pgsql status\n"
 			"       Shows connection information for the PostgreSQL RealTime driver\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != 3)
+	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
 
 	if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {

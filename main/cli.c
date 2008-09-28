@@ -756,18 +756,18 @@ static char *handle_softhangup(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "soft hangup";
+		e->command = "channel request hangup";
 		e->usage =
-			"Usage: soft hangup <channel>\n"
+			"Usage: channel request hangup <channel>\n"
 			"       Request that a channel be hung up. The hangup takes effect\n"
 			"       the next time the driver reads or writes from the channel\n";
 		return NULL;
 	case CLI_GENERATE:
 		return ast_complete_channels(a->line, a->word, a->pos, a->n, 2);
 	}
-	if (a->argc != 3)
+	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
-	c = ast_get_channel_by_name_locked(a->argv[2]);
+	c = ast_get_channel_by_name_locked(a->argv[3]);
 	if (c) {
 		ast_cli(a->fd, "Requested Hangup on channel '%s'\n", c->name);
 		ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);

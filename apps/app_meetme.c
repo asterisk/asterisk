@@ -883,7 +883,6 @@ cnfout:
 	return cnf;
 }
 
-
 static char *complete_meetmecmd(const char *line, const char *word, int pos, int state)
 {
 	static char *cmds[] = {"concise", "lock", "unlock", "mute", "unmute", "kick", "list", NULL};
@@ -946,11 +945,10 @@ static char *complete_meetmecmd(const char *line, const char *word, int pos, int
 	return NULL;
 }
 
-static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	/* Process the command */
 	struct ast_conference *cnf;
-	struct ast_conf_user *user;
 	int hr, min, sec;
 	int i = 0, total = 0;
 	time_t now;
@@ -960,17 +958,15 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "meetme";
+		e->command = "meetme list [concise]";
 		e->usage =
-			"Usage: meetme (un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
-			"       Executes a command for the conference or on a conferee\n";
+			"Usage: meetme list [concise] <confno> \n"
+			"       List all or a specific conference.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_meetmecmd(a->line, a->word, a->pos, a->n);
 	}
 
-	if (a->argc > 8)
-		ast_cli(a->fd, "Invalid Arguments.\n");
 	/* Check for length so no buffer will overflow... */
 	for (i = 0; i < a->argc; i++) {
 		if (strlen(a->argv[i]) > 100)
@@ -1028,7 +1024,55 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 		ast_free(cmdline);
 		return CLI_SUCCESS;
 	}
-	if (a->argc < 3) {
+	if (a->argc < 2) {
+		ast_free(cmdline);
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_debug(1, "Cmdline: %s\n", cmdline->str);
+
+	admin_exec(NULL, cmdline->str);
+	ast_free(cmdline);
+
+	return CLI_SUCCESS;
+}
+
+
+static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	/* Process the command */
+	struct ast_conference *cnf;
+	struct ast_conf_user *user;
+	int hr, min, sec;
+	int i = 0;
+	time_t now;
+	struct ast_str *cmdline = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "meetme {lock|unlock|mute|unmute|kick}";
+		e->usage =
+			"Usage: meetme (un)lock|(un)mute|kick <confno> <usernumber>\n"
+			"       Executes a command for the conference or on a conferee\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_meetmecmd(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc > 8)
+		ast_cli(a->fd, "Invalid Arguments.\n");
+	/* Check for length so no buffer will overflow... */
+	for (i = 0; i < a->argc; i++) {
+		if (strlen(a->argv[i]) > 100)
+			ast_cli(a->fd, "Invalid Arguments.\n");
+	}
+
+	/* Max confno length */
+	if (!(cmdline = ast_str_create(MAX_CONFNUM))) {
+		return CLI_FAILURE;
+	}
+
+	if (a->argc < 1) {
 		ast_free(cmdline);
 		return CLI_SHOWUSAGE;
 	}
@@ -1307,6 +1351,7 @@ static char *sla_show_stations(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 static struct ast_cli_entry cli_meetme[] = {
 	AST_CLI_DEFINE(meetme_cmd, "Execute a command on a conference or conferee"),
+	AST_CLI_DEFINE(meetme_show_cmd, "List all or one conference"),
 	AST_CLI_DEFINE(sla_show_trunks, "Show SLA Trunks"),
 	AST_CLI_DEFINE(sla_show_stations, "Show SLA Stations"),
 };

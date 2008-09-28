@@ -365,7 +365,7 @@ static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "mixmonitor [start|stop]";
+		e->command = "mixmonitor {start|stop} {<chan_name>} [args]";
 		e->usage =
 			"Usage: mixmonitor <start|stop> <chan_name> [args]\n"
 			"       The optional arguments are passed to the MixMonitor\n"

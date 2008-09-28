@@ -196,9 +196,9 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "core taskprocessor ping";
+		e->command = "core ping taskprocessor";
 		e->usage = 
-			"Usage: core taskprocessor ping <taskprocessor>\n"
+			"Usage: core ping taskprocessor <taskprocessor>\n"
 			"	Displays the time required for a task to be processed\n";
 		return NULL;
 	case CLI_GENERATE:

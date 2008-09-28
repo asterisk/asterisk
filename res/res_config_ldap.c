@@ -1529,9 +1529,9 @@ static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_c
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "realtime ldap status";
+		e->command = "realtime show ldap status";
 		e->usage =
-			"Usage: realtime ldap status\n"
+			"Usage: realtime show ldap status\n"
 			"               Shows connection information for the LDAP RealTime driver\n";
 		return NULL;
 	case CLI_GENERATE:

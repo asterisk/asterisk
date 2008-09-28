@@ -862,9 +862,9 @@ static char *handle_astobj2_stats(struct ast_cli_entry *e, int cmd, struct ast_c
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "astobj2 stats";
-		e->usage = "Usage: astobj2 stats\n"
-			   "       Show astobj2 stats\n";
+		e->command = "astobj2 show stats";
+		e->usage = "Usage: astobj2 show stats\n"
+			   "       Show astobj2 show stats\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;

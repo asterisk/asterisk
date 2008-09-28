@@ -519,18 +519,18 @@ static char *handle_mandebug(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "manager debug [on|off]";
-		e->usage = "Usage: manager debug [on|off]\n	Show, enable, disable debugging of the manager code.\n";
+		e->command = "manager set debug [on|off]";
+		e->usage = "Usage: manager set debug [on|off]\n	Show, enable, disable debugging of the manager code.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;	
 	}
-	if (a->argc == 2)
+	if (a->argc == 3)
 		ast_cli(a->fd, "manager debug is %s\n", manager_debug? "on" : "off");
-	else if (a->argc == 3) {
-		if (!strcasecmp(a->argv[2], "on"))
+	else if (a->argc == 4) {
+		if (!strcasecmp(a->argv[3], "on"))
 			manager_debug = 1;
-		else if (!strcasecmp(a->argv[2], "off"))
+		else if (!strcasecmp(a->argv[3], "off"))
 			manager_debug = 0;
 		else
 			return CLI_SHOWUSAGE;

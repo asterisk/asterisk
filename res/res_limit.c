@@ -44,22 +44,23 @@ static struct limits {
 	int resource;
 	char limit[3];
 	char desc[40];
+	char clicmd[15];
 } limits[] = {
-	{ RLIMIT_CPU,     "-t", "cpu time" },
-	{ RLIMIT_FSIZE,   "-f", "file size" },
-	{ RLIMIT_DATA,    "-d", "program data segment" },
-	{ RLIMIT_STACK,   "-s", "program stack size" },
-	{ RLIMIT_CORE,    "-c", "core file size" },
+	{ RLIMIT_CPU,     "-t", "cpu time", "time" },
+	{ RLIMIT_FSIZE,   "-f", "file size" , "file" },
+	{ RLIMIT_DATA,    "-d", "program data segment", "data" },
+	{ RLIMIT_STACK,   "-s", "program stack size", "stack" },
+	{ RLIMIT_CORE,    "-c", "core file size", "core" },
 #ifdef RLIMIT_RSS
-	{ RLIMIT_RSS,     "-m", "resident memory" },
-	{ RLIMIT_MEMLOCK, "-l", "amount of memory locked into RAM" },
+	{ RLIMIT_RSS,     "-m", "resident memory", "memory" },
+	{ RLIMIT_MEMLOCK, "-l", "amount of memory locked into RAM", "locked" },
 #endif
 #ifdef RLIMIT_NPROC
-	{ RLIMIT_NPROC,   "-u", "number of processes" },
+	{ RLIMIT_NPROC,   "-u", "number of processes", "processes" },
 #endif
-	{ RLIMIT_NOFILE,  "-n", "number of file descriptors" },
+	{ RLIMIT_NOFILE,  "-n", "number of file descriptors", "descriptors" },
 #ifdef VMEM_DEF
-	{ VMEM_DEF,       "-v", "virtual memory" },
+	{ VMEM_DEF,       "-v", "virtual memory", "virtual" },
 #endif
 };
 
@@ -67,7 +68,7 @@ static int str2limit(const char *string)
 {
 	size_t i;
 	for (i = 0; i < ARRAY_LEN(limits); i++) {
-		if (!strcasecmp(string, limits[i].limit))
+		if (!strcasecmp(string, limits[i].clicmd))
 			return limits[i].resource;
 	}
 	return -1;
@@ -77,7 +78,7 @@ static const char *str2desc(const char *string)
 {
 	size_t i;
 	for (i = 0; i < ARRAY_LEN(limits); i++) {
-		if (!strcmp(string, limits[i].limit))
+		if (!strcmp(string, limits[i].clicmd))
 			return limits[i].desc;
 	}
 	return "<unknown>";
@@ -91,9 +92,9 @@ static char *complete_ulimit(struct ast_cli_args *a)
 	if (a->pos > 1)
 		return NULL;
 	for (i = 0; i < ARRAY_LEN(limits); i++) {
-		if (!strncasecmp(limits[i].limit, a->word, wordlen)) {
+		if (!strncasecmp(limits[i].clicmd, a->word, wordlen)) {
 			if (++which > a->n)
-				return ast_strdup(limits[i].limit);
+				return ast_strdup(limits[i].clicmd);
 		}
 	}
 	return NULL;
@@ -108,41 +109,41 @@ static char *handle_cli_ulimit(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	case CLI_INIT:
 		e->command = "ulimit";
 		e->usage =
-			"Usage: ulimit {-d|"
+			"Usage: ulimit {data|"
 #ifdef RLIMIT_RSS
-			"-l|"
+			"limit|"
 #endif
-			"-f|"
+			"file|"
 #ifdef RLIMIT_RSS
-			"-m|"
+			"memory|"
 #endif
-			"-s|-t|"
+			"stack|time|"
 #ifdef RLIMIT_NPROC
-			"-u|"
+			"processes|"
 #endif
 #ifdef VMEM_DEF
-			"-v|"
+			"virtual|"
 #endif
-			"-c|-n} [<num>]\n"
+			"core|descriptors} [<num>]\n"
 			"       Shows or sets the corresponding resource limit.\n"
-			"         -d  Process data segment [readonly]\n"
+			"         data          Process data segment [readonly]\n"
 #ifdef RLIMIT_RSS
-			"         -l  Memory lock size [readonly]\n"
+			"         lock          Memory lock size [readonly]\n"
 #endif
-			"         -f  File size\n"
+			"         file          File size\n"
 #ifdef RLIMIT_RSS
-			"         -m  Process resident memory [readonly]\n"
+			"         memory        Process resident memory [readonly]\n"
 #endif
-			"         -s  Process stack size [readonly]\n"
-			"         -t  CPU usage [readonly]\n"
+			"         stack         Process stack size [readonly]\n"
+			"         time          CPU usage [readonly]\n"
 #ifdef RLIMIT_NPROC
-			"         -u  Child processes\n"
+			"         processes     Child processes\n"
 #endif
 #ifdef VMEM_DEF
-			"         -v  Process virtual memory [readonly]\n"
+			"         virtual       Process virtual memory [readonly]\n"
 #endif
-			"         -c  Core dump file size\n"
-			"         -n  Number of file descriptors\n";
+			"         core          Core dump file size\n"
+			"         descriptors   Number of file descriptors\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_ulimit(a);
@@ -152,11 +153,11 @@ static char *handle_cli_ulimit(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 
 	if (a->argc == 1) {
-		char arg2[3];
+		char arg2[15];
 		char *newargv[2] = { "ulimit", arg2 };
 		for (resource = 0; resource < ARRAY_LEN(limits); resource++) {
 			struct ast_cli_args newArgs = { .argv = newargv, .argc = 2 };
-			ast_copy_string(arg2, limits[resource].limit, sizeof(arg2));
+			ast_copy_string(arg2, limits[resource].clicmd, sizeof(arg2));
 			handle_cli_ulimit(e, CLI_HANDLER, &newArgs);
 		}
 		return CLI_SUCCESS;

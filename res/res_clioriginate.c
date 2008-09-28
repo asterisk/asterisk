@@ -122,26 +122,26 @@ static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	char *res;
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "originate";
+		e->command = "channel originate";
 		e->usage = 
 			"  There are two ways to use this command. A call can be originated between a\n"
 			"channel and a specific application, or between a channel and an extension in\n"
 			"the dialplan. This is similar to call files or the manager originate action.\n"
 			"Calls originated with this command are given a timeout of 30 seconds.\n\n"
 
-			"Usage1: originate <tech/data> application <appname> [appdata]\n"
+			"Usage1: channel originate <tech/data> application <appname> [appdata]\n"
 			"  This will originate a call between the specified channel tech/data and the\n"
 			"given application. Arguments to the application are optional. If the given\n"
 			"arguments to the application include spaces, all of the arguments to the\n"
 			"application need to be placed in quotation marks.\n\n"
 
-			"Usage2: originate <tech/data> extension [exten@][context]\n"
+			"Usage2: channel originate <tech/data> extension [exten@][context]\n"
 			"  This will originate a call between the specified channel tech/data and the\n"
 			"given extension. If no context is specified, the 'default' context will be\n"
 			"used. If no extension is given, the 's' extension will be used.\n";
 		return NULL;
 	case CLI_GENERATE:
-		if (a->pos != 2)
+		if (a->pos != 3)
 			return NULL;
 
 		/* ugly, can be removed when CLI entries have ast_module pointers */
@@ -152,18 +152,20 @@ static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		return res;
 	}
 
-	if (ast_strlen_zero(a->argv[1]) || ast_strlen_zero(a->argv[2]))
+	if (ast_strlen_zero(a->argv[2]) || ast_strlen_zero(a->argv[3]))
 		return CLI_SHOWUSAGE;
 
 	/* ugly, can be removed when CLI entries have ast_module pointers */
 	ast_module_ref(ast_module_info->self);
 
-	if (!strcasecmp("application", a->argv[2])) {
-		res = orig_app(a->fd, a->argv[1], a->argv[3], a->argv[4]);	
-	} else if (!strcasecmp("extension", a->argv[2])) {
-		res = orig_exten(a->fd, a->argv[1], a->argv[3]);
-	} else
+	if (!strcasecmp("application", a->argv[3])) {
+		res = orig_app(a->fd, a->argv[2], a->argv[4], a->argv[5]);	
+	} else if (!strcasecmp("extension", a->argv[3])) {
+		res = orig_exten(a->fd, a->argv[2], a->argv[4]);
+	} else {
+		ast_log(LOG_WARNING, "else");
 		res = CLI_SHOWUSAGE;
+	}
 
 	ast_module_unref(ast_module_info->self);
 

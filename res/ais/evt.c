@@ -271,9 +271,9 @@ static char *ais_evt_show_event_channels(struct ast_cli_entry *e, int cmd, struc
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "ais evt show event channels";
+		e->command = "ais show evt event channels";
 		e->usage =
-			"Usage: ais evt show event channels\n"
+			"Usage: ais show evt event channels\n"
 			"       List configured event channels for the (EVT) Eventing service.\n";
 		return NULL;
 

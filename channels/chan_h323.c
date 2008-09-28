@@ -2619,16 +2619,16 @@ static char *handle_cli_h323_set_trace(struct ast_cli_entry *e, int cmd, struct 
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "h323 set trace [off]";
+		e->command = "h323 set trace [on|off]";
 		e->usage =
-			"Usage: h323 set trace (off|<trace level>)\n"
+			"Usage: h323 set trace (on|off|<trace level>)\n"
 			"       Enable/Disable H.323 stack tracing for debugging purposes\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != 4)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	if (!strcasecmp(a->argv[3], "off")) {
 		h323_debug(0, 0);
@@ -2645,21 +2645,21 @@ static char *handle_cli_h323_set_debug(struct ast_cli_entry *e, int cmd, struct 
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "h323 set debug [off]";
+		e->command = "h323 set debug [on|off]";
 		e->usage =
-			"Usage: h323 set debug [off]\n"
+			"Usage: h323 set debug [on|off]\n"
 			"       Enable/Disable H.323 debugging output\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc < 3 || a->argc > 4)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	if (a->argc == 4 && strcasecmp(a->argv[3], "off"))
+	if (strcasecmp(a->argv[3], "on") && strcasecmp(a->argv[3], "off"))
 		return CLI_SHOWUSAGE;
 
-	h323debug = (a->argc == 3) ? 1 : 0;
+	h323debug = (strcasecmp(a->argv[3], "on")) ? 0 : 1;
 	ast_cli(a->fd, "H.323 Debugging %s\n", h323debug ? "Enabled" : "Disabled");
 	return CLI_SUCCESS;
 }

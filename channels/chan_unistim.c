@@ -4682,9 +4682,9 @@ static char *unistim_info(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "unistim info";
+		e->command = "unistim show info";
 		e->usage =
-			"Usage: unistim info\n" 
+			"Usage: unistim show info\n" 
 			"       Dump internal structures.\n";
 		return NULL;
 
@@ -4751,27 +4751,27 @@ static char *unistim_sp(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "unistim sp";
+		e->command = "unistim send packet";
 		e->usage =
-			"Usage: unistim sp USTM/line@name hexa\n"
-			"       unistim sp USTM/1000@hans 19040004\n";
+			"Usage: unistim send packet USTM/line@name hexa\n"
+			"       unistim send packet USTM/1000@hans 19040004\n";
 		return NULL;
 
 	case CLI_GENERATE:
 		return NULL;	/* no completion */
 	}
 	
-	if (a->argc < 4)
+	if (a->argc < 5)
 		return CLI_SHOWUSAGE;
 
-	if (strlen(a->argv[2]) < 9)
+	if (strlen(a->argv[3]) < 9)
 		return CLI_SHOWUSAGE;
 
-	len = strlen(a->argv[3]);
+	len = strlen(a->argv[4]);
 	if (len % 2)
 		return CLI_SHOWUSAGE;
 
-	ast_copy_string(tmp, a->argv[2] + 5, sizeof(tmp));
+	ast_copy_string(tmp, a->argv[3] + 5, sizeof(tmp));
 	sub = find_subchannel_by_name(tmp);
 	if (!sub) {
 		ast_cli(a->fd, "Can't find '%s'\n", tmp);
@@ -4781,15 +4781,15 @@ static char *unistim_sp(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 		ast_cli(a->fd, "'%s' is not connected\n", tmp);
 		return CLI_SUCCESS;
 	}
-	ast_cli(a->fd, "Sending '%s' to %s (%p)\n", a->argv[3], tmp, sub->parent->parent->session);
+	ast_cli(a->fd, "Sending '%s' to %s (%p)\n", a->argv[4], tmp, sub->parent->parent->session);
 	for (i = 0; i < len; i++) {
-		c = a->argv[3][i];
+		c = a->argv[4][i];
 		if (c >= 'a')
 			c -= 'a' - 10;
 		else
 			c -= '0';
 		i++;
-		cc = a->argv[3][i];
+		cc = a->argv[4][i];
 		if (cc >= 'a')
 			cc -= 'a' - 10;
 		else

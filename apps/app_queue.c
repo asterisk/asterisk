@@ -6264,9 +6264,9 @@ static char *handle_queue_rule_show(struct ast_cli_entry *e, int cmd, struct ast
 	struct penalty_rule *pr_iter;
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "queue rules show";
+		e->command = "queue show rules";
 		e->usage =
-		"Usage: queue rules show [rulename]\n"
+		"Usage: queue show rules [rulename]\n"
 		"Show the list of rules associated with rulename. If no\n"
 		"rulename is specified, list all rules defined in queuerules.conf\n";
 		return NULL;
@@ -6295,9 +6295,9 @@ static char *handle_queue_rule_reload(struct ast_cli_entry *e, int cmd, struct a
 {
 	switch (cmd) {
 		case CLI_INIT:
-			e->command = "queue rules reload";
+			e->command = "queue reload rules";
 			e->usage = 
-				"Usage: queue rules reload\n"
+				"Usage: queue reload rules\n"
 				"Reloads rules defined in queuerules.conf\n";
 			return NULL;
 		case CLI_GENERATE:

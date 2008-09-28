@@ -86,7 +86,7 @@ static char *descrip =
 "AGISIGHUP channel variable to \"no\" before executing the AGI application.\n"
 "  Using 'EAGI' provides enhanced AGI, with incoming audio available out of band\n"
 "on file descriptor 3.\n\n"
-"  Use the CLI command 'agi show' to list available agi commands.\n"
+"  Use the CLI command 'agi show commnands' to list available agi commands.\n"
 "  This application sets the following channel variable upon completion:\n"
 "     AGISTATUS      The status of the attempt to the run the AGI script\n"
 "                    text string, one of SUCCESS | FAILURE | NOTFOUND | HANGUP\n";
@@ -2727,9 +2727,9 @@ static char *handle_cli_agi_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "agi show";
+		e->command = "agi show commands [topic]";
 		e->usage =
-			"Usage: agi show [topic]\n"
+			"Usage: agi show commands [topic]\n"
 			"       When called with a topic as an argument, displays usage\n"
 			"       information on the given command.  If called without a\n"
 			"       topic, it provides a list of AGI commands.\n";

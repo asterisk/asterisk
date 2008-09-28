@@ -501,9 +501,9 @@ static char *features_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "feature show channels";
+		e->command = "features show channels";
 		e->usage =
-			"Usage: feature show channels\n"
+			"Usage: features show channels\n"
 			"       Provides summary information on feature channels.\n";
 		return NULL;
 	case CLI_GENERATE:
