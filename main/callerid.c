@@ -957,16 +957,16 @@ int ast_is_shrinkable_phonenumber(const char *exten)
 	return ast_is_valid_string(exten, "0123456789*#+()-.");
 }
 
-/*! \brief parse string for caller id information 
-	\return always returns 0, as the code always returns something.
-  XXX note that 'name' is not parsed consistently e.g. we have
-
-	input			location	name
-	" foo bar " <123>	123		' foo bar ' (with spaces around)
-	" foo bar "		NULL		'foo bar' (without spaces around)
-	" foo bar  <123>"	123		'" foo bar'
-  The parsing of leading and trailing space/quotes should be more consistent.
-*/
+/*!
+ * \brief Destructively parse instr for caller id information 
+ * \return always returns 0, as the code always returns something.
+ * \note XXX 'name' is not parsed consistently e.g. we have
+ * input                   location        name
+ * " foo bar " <123>       123             ' foo bar ' (with spaces around)
+ * " foo bar "             NULL            'foo bar' (without spaces around)
+ * " foo bar  <123>"       123             '" foo bar'
+ * The parsing of leading and trailing space/quotes should be more consistent.
+ */
 int ast_callerid_parse(char *instr, char **name, char **location)
 {
 	char *ns, *ne, *ls, *le;

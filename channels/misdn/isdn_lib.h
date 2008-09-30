@@ -11,6 +11,12 @@
  * the GNU General Public License
  */
 
+/*! \file
+ * \brief Interface to mISDN
+ *
+ * \author Christian Richter <crich@beronet.com>
+ */
+
 #ifndef TE_LIB
 #define TE_LIB
 
@@ -21,9 +27,9 @@
 /** end of init usage **/
 
 
-/* 
+/*
  * uncomment the following to make chan_misdn create
- * record files in /tmp/misdn-{rx|tx}-PortChannel format 
+ * record files in /tmp/misdn-{rx|tx}-PortChannel format
  * */
 
 /*#define MISDN_SAVE_DATA*/
@@ -44,9 +50,9 @@ beroec_t *beroec_new(int tail, enum beroec_type type, int anti_howl,
 		     int tonedisable, int zerocoeff, int adapt, int nlp);
 
 void beroec_destroy(beroec_t *ec);
-int beroec_cancel_alaw_chunk(beroec_t *ec, 
-	char *send, 
-	char *receive , 
+int beroec_cancel_alaw_chunk(beroec_t *ec,
+	char *send,
+	char *receive,
 	int len);
 
 int beroec_version(void);
@@ -97,7 +103,7 @@ enum mISDN_NUMBER_PLAN {
 	NUMPLAN_NATIONAL=0x2,
 	NUMPLAN_SUBSCRIBER=0x4,
 	NUMPLAN_UNKNOWN=0x0
-}; 
+};
 
 
 enum event_response_e {
@@ -152,7 +158,7 @@ enum event_e {
 	EVENT_PORT_ALARM,
 	EVENT_NEW_CHANNEL,
 	EVENT_UNKNOWN
-}; 
+};
 
 
 enum ie_name_e {
@@ -186,7 +192,7 @@ enum { /* progress indicators */
 enum { /*CODECS*/
 	INFO_CODEC_ULAW=2,
 	INFO_CODEC_ALAW=3
-}; 
+};
 
 
 enum layer_e {
@@ -194,85 +200,173 @@ enum layer_e {
 	L2,
 	L1,
 	UNKNOWN
-}; 
+};
 
 
 
 struct misdn_bchannel {
+	/*! \brief B channel send locking structure */
 	struct send_lock *send_lock;
 
+	/*! \brief TRUE if this is a dummy BC record */
 	int dummy;
 
+	/*! \brief TRUE if NT side of protocol (TE otherwise) */
 	int nt;
+
+	/*! \brief TRUE if ISDN-PRI (ISDN-BRI otherwise) */
 	int pri;
 
+	/*! \brief Logical Layer 1 port associated with this B channel */
 	int port;
+
 	/** init stuff **/
+	/*! \brief B Channel mISDN driver stack ID */
 	int b_stid;
+
 	/* int b_addr; */
+
+	/*! \brief B Channel mISDN driver layer ID from mISDN_new_layer() */
 	int layer_id;
 
+	/*! \brief B channel layer; set to 3 or 4 */
 	int layer;
-	
-	/*state stuff*/
+
+	/* state stuff */
+	/*! \brief TRUE if DISCONNECT needs to be sent to clear a call */
 	int need_disconnect;
+
+	/*! \brief TRUE if RELEASE needs to be sent to clear a call */
 	int need_release;
+
+	/*! \brief TRUE if RELEASE_COMPLETE needs to be sent to clear a call */
 	int need_release_complete;
 
+	/*! \brief TRUE if allocate higher B channels first */
 	int dec;
-	/** var stuff**/
+
+	/* var stuff */
+	/*! \brief Layer 3 process ID */
 	int l3_id;
+
+	/*! \brief B channel process ID (1-5000) */
 	int pid;
+
+	/*! \brief Not used. Saved mISDN stack CONNECT_t ces value */
 	int ces;
 
+	/*! \brief B channel to restart if received a RESTART message */
 	int restart_channel;
+
+	/*! \brief Assigned B channel number B1, B2... 0 if not assigned */
 	int channel;
+
+	/*! \brief TRUE if the B channel number is preselected */
 	int channel_preselected;
-	
+
+	/*! \brief TRUE if B channel record is in use */
 	int in_use;
+
+	/*! \brief Time when empty_bc() last called on this record */
 	struct timeval last_used;
+
+	/*! \brief TRUE if call waiting */
 	int cw;
+
+	/*! \brief B Channel mISDN driver layer ID from mISDN_get_layerid() */
 	int addr;
 
-	char * bframe;
+	/*! \brief B channel speech sample data buffer */
+	char *bframe;
+
+	/*! \brief B channel speech sample data buffer size */
 	int bframe_len;
-	int time_usec;
-	
-	
+	int time_usec;	/* Not used */
+
+	/*! \brief Not used. Contents are setup but not used. */
 	void *astbuf;
 
-	void *misdnbuf;
+	void *misdnbuf;	/* Not used */
 
+	/*! \brief TRUE if the TE side should choose the B channel to use
+	 * \note This value is user configurable in /etc/asterisk/misdn.conf
+	 */
 	int te_choose_channel;
+
+	/*! \brief TRUE if the call progress indicators can indicate an inband audio message for the user to listen to
+	 * \note This value is user configurable in /etc/asterisk/misdn.conf
+	 */
 	int early_bconnect;
-	
-	/* dtmf digit */
+
+	/*! \brief Last decoded DTMF digit from mISDN driver */
 	int dtmf;
+
+	/*! \brief TRUE if we should produce DTMF tones ourselves
+	 * \note This value is user configurable in /etc/asterisk/misdn.conf
+	 */
 	int send_dtmf;
 
-	/* get setup ack */
+	/*! \brief TRUE if we send SETUP_ACKNOWLEDGE on incoming calls anyway (instead of PROCEEDING).
+	 *
+	 * This requests additional INFORMATION messages, so we can
+	 * wait for digits without issues.
+	 * \note This value is user configurable in /etc/asterisk/misdn.conf
+	 */
 	int need_more_infos;
 
-	/* may there be more infos ?*/
+	/*! \brief TRUE if all digits necessary to complete the call are available.
+	 * No more INFORMATION messages are needed.
+	 */
 	int sending_complete;
 
 
-	/* wether we should use jollys dsp or not */
+	/*! \brief TRUE if we will not use jollys dsp */
 	int nodsp;
-	
-	/* wether we should use our jitter buf system or not */
+
+	/*! \brief TRUE if we will not use the jitter buffer system */
 	int nojitter;
-	
+
+	/*! \brief Type-of-number in ISDN terms for the dialed/called number
+	 * \note This value is set to "dialplan" in /etc/asterisk/misdn.conf for outgoing calls
+	 */
 	enum mISDN_NUMBER_PLAN dnumplan;
+
+	/*! \brief Type-of-number in ISDN terms for the redirecting number which a call diversion or transfer was invoked.
+	 * \note Collected from the incoming SETUP message but not used.
+	 */
 	enum mISDN_NUMBER_PLAN rnumplan;
+
+	/*! \brief Type-of-number in ISDN terms for the originating/calling number (Caller-ID)
+	 * \note This value is set to "localdialplan" in /etc/asterisk/misdn.conf for outgoing calls
+	 */
 	enum mISDN_NUMBER_PLAN onumplan;
+
+	/*! \brief Type-of-number in ISDN terms for the connected party number
+	 * \note This value is set to "cpndialplan" in /etc/asterisk/misdn.conf for outgoing calls
+	 */
 	enum mISDN_NUMBER_PLAN cpnnumplan;
 
+	/*! \brief Progress Indicator IE coding standard field.
+	 * \note Collected from the incoming messages but not used.
+	 */
 	int progress_coding;
+
+	/*! \brief Progress Indicator IE location field.
+	 * \note Collected from the incoming messages but not used.
+	 */
 	int progress_location;
+
+	/*! \brief Progress Indicator IE progress description field.
+	 * Used to determine if there is an inband audio message present.
+	 */
 	int progress_indicator;
 
+	/*! \brief Inbound FACILITY message function type and contents */
 	struct FacParm fac_in;
+
+	/*! \brief Outbound FACILITY message function type and contents.
+	 * \note Filled in by misdn facility commands before FACILITY message sent.
+	 */
 	struct FacParm fac_out;
 
 	/* storing the current AOCD info here */
@@ -281,102 +375,205 @@ struct misdn_bchannel {
 		struct FacAOCDCurrency currency;
 		struct FacAOCDChargingUnit chargingUnit;
 	} AOCD;
-	
-	enum event_e evq;
-	
-	/*** CRYPTING STUFF ***/
-	
-	int crypt;
-	int curprx;
-	int curptx; 
-	char crypt_key[255];
-  
-	int crypt_state;
-    
-	/*char ast_dtmf_buf[255];
-	  char misdn_dtmf_buf[255]; */
-  
-	/*** CRYPTING STUFF END***/
-  
-	int active;
-	int upset;
 
+	/*! \brief Event waiting for Layer 1 to come up */
+	enum event_e evq;
+
+	/*** CRYPTING STUFF ***/
+	int crypt;		/* Initialized, Not used */
+	int curprx;		/* Initialized, Not used */
+	int curptx;		/* Initialized, Not used */
+
+	/*! \brief Blowfish encryption key string (secret) */
+	char crypt_key[255];
+
+	int crypt_state;	/* Not used */
+	/*** CRYPTING STUFF END***/
+
+	/*! \brief Seems to have been intended for something to do with the jitter buffer.
+	 * \note Used as a boolean.  Only initialized to 0 and referenced in a couple places
+	 */
+	int active;
+	int upset;	/* Not used */
+
+	/*! \brief TRUE if tone generator allowed to start */
 	int generate_tone;
+
+	/*! \brief Number of tone samples to generate */
 	int tone_cnt;
- 
+
+	/*! \brief Current B Channel state */
 	enum bchannel_state bc_state;
+
+	/*! \brief This is used as a pending bridge join request for when bc_state becomes BCHAN_ACTIVATED */
 	enum bchannel_state next_bc_state;
 
+	/*! \brief Bridging conference ID */
 	int conf_id;
-	
+
+	/*! \brief TRUE if this channel is on hold */
 	int holded;
+
+	/*! \brief TRUE if this channel is on the misdn_stack->holding list
+	 * \note If TRUE this implies that the structure is also malloced.
+	 */
 	int stack_holder;
 
+	/*! \brief Caller ID presentation restriction code
+	 * 0=Allowed, 1=Restricted, 2=Unavailable
+	 * \note It is settable by the misdn_set_opt() application.
+	 */
 	int pres;
+
+	/*! \brief Caller ID screening code
+	 * 0=Unscreened, 1=Passed Screen, 2=Failed Screen, 3=Network Number
+	 */
 	int screen;
-	
+
+	/*! \brief SETUP message bearer capability field code value */
 	int capability;
+
+	/*! \brief Companding ALaw/uLaw encoding (INFO_CODEC_ALAW / INFO_CODEC_ULAW) */
 	int law;
-	/** V110 Stuff **/
+
+	/* V110 Stuff */
+	/*! \brief Q.931 Bearer Capability IE Information Transfer Rate field. Initialized to 0x10 (64kbit). Altered by incoming SETUP messages. */
 	int rate;
+
+	/*! \brief Q.931 Bearer Capability IE Transfer Mode field. Initialized to 0 (Circuit). Altered by incoming SETUP messages. */
 	int mode;
 
+	/*! \brief Q.931 Bearer Capability IE User Information Layer 1 Protocol field code.
+	 * \note Collected from the incoming SETUP message but not used.
+	 */
 	int user1;
+
+	/*! \brief Q.931 Bearer Capability IE Layer 1 User Rate field.
+	 * \note Collected from the incoming SETUP message and exported to Asterisk variable MISDN_URATE.
+	 */
 	int urate;
+
+	/*! \brief TRUE if call made in digital HDLC mode
+	 * \note This value is user configurable in /etc/asterisk/misdn.conf.
+	 * It is also settable by the misdn_set_opt() application.
+	 */
 	int hdlc;
 	/* V110 */
-  
+
+	/*! \brief Display message that can be displayed by the user phone.
+	 * \note Maximum displayable length is 34 or 82 octets.
+	 * It is also settable by the misdn_set_opt() application.
+	 */
 	char display[84];
+
+	/*! \brief Not used. Contents are setup but not used. */
 	char msn[32];
+
+	/*! \brief Originating/Calling Phone Number (Address)
+	 * \note This value can be set to "callerid" in /etc/asterisk/misdn.conf for outgoing calls
+	 */
 	char oad[32];
+
+	/*! \brief Redirecting Phone Number (Address) where a call diversion or transfer was invoked */
 	char rad[32];
+
+	/*! \brief Dialed/Called Phone Number (Address) */
 	char dad[32];
+
+	/*! \brief Connected Party/Line Phone Number (Address) */
 	char cad[32];
+
+	/*! \brief Original Dialed/Called Phone Number (Address) before national/international dialing prefix added.
+	 * \note Not used. Contents are setup but not used.
+	 */
 	char orig_dad[32];
+
+	/*! \brief Q.931 Keypad Facility IE contents
+	 * \note Contents exported and imported to Asterisk variable MISDN_KEYPAD
+	 */
 	char keypad[32];
 
+	/*! \brief Current overlap dialing digits to/from INFORMATION messages */
 	char info_dad[64];
+
+	/*! \brief Collected digits to go into info_dad[] while waiting for a SETUP_ACKNOWLEDGE to come in. */
 	char infos_pending[64];
 
 /* 	unsigned char info_keypad[32]; */
 /* 	unsigned char clisub[24]; */
 /* 	unsigned char cldsub[24]; */
 
+	/*! \brief User-User information string.
+	 * \note Contents exported and imported to Asterisk variable MISDN_USERUSER
+	 * \note We only support ASCII strings (IA5 characters).
+	 */
  	char uu[256];
+
+	/*! \brief User-User information string length in uu[] */
 	int uulen;
-  
+
+	/*! \brief Q.931 Cause for disconnection code (received)
+	 * \note Need to use the AST_CAUSE_xxx code definitions in causes.h
+	 */
 	int cause;
+
+	/*! \brief Q.931 Cause for disconnection code (sent)
+	 * \note Need to use the AST_CAUSE_xxx code definitions in causes.h
+	 * \note -1 is used to suppress including the cause code in the RELEASE message.
+	 */
 	int out_cause;
-  
+
 	/* struct misdn_bchannel hold_bc; */
-  
+
 	/** list stuf **/
 
 #ifdef MISDN_1_2
+	/*! \brief The configuration string for the mISDN dsp pipeline in /etc/asterisk/misdn.conf. */
 	char pipeline[128];
 #else
+	/*! \brief TRUE if the echo cancellor is enabled */
 	int ec_enable;
+
+	/*! \brief Number of taps in the echo cancellor when enabled.
+	 * \note This value is user configurable in /etc/asterisk/misdn.conf (echocancel)
+	 */
 	int ec_deftaps;
 #endif
-	
+
+	/*! \brief TRUE if the channel was allocated from the available B channels */
 	int channel_found;
-	
+
+	/*! \brief Who originated the call (ORG_AST, ORG_MISDN)
+	 * \note Set but not used when the misdn_set_opt() application enables echo cancellation.
+	 */
 	int orig;
 
+	/*! \brief Tx gain setting (range -8 to 8)
+	 * \note This value is user configurable in /etc/asterisk/misdn.conf.
+	 * It is also settable by the misdn_set_opt() application.
+	 */
 	int txgain;
+
+	/*! \brief Rx gain setting (range -8 to 8)
+	 * \note This value is user configurable in /etc/asterisk/misdn.conf.
+	 * It is also settable by the misdn_set_opt() application.
+	 */
 	int rxgain;
-  
+
+	/*! \brief Next node in the misdn_stack.holding list */
 	struct misdn_bchannel *next;
 };
 
 
 enum event_response_e (*cb_event) (enum event_e event, struct misdn_bchannel *bc, void *user_data);
-void (*cb_log) (int level, int port, char *tmpl, ...);
+void (*cb_log) (int level, int port, char *tmpl, ...)
+	__attribute__ ((format (printf, 3, 4)));
 int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
 
 struct misdn_lib_iface {
 	enum event_response_e (*cb_event)(enum event_e event, struct misdn_bchannel *bc, void *user_data);
-	void (*cb_log)(int level, int port, char *tmpl, ...);
+	void (*cb_log)(int level, int port, char *tmpl, ...)
+		__attribute__ ((format (printf, 3, 4)));
 	int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
 };
 
@@ -429,7 +626,7 @@ int misdn_lib_port_up(int port, int notcheck);
 int misdn_lib_get_port_down(int port);
 
 int misdn_lib_get_port_up (int port) ;
-     
+
 int misdn_lib_maxports_get(void) ;
 
 void misdn_lib_release(struct misdn_bchannel *bc);

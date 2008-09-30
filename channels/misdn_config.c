@@ -196,19 +196,19 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "presentation", MISDN_CFG_PRES, MISDN_CTYPE_INT, "-1", NONE,
 		"These (presentation and screen) are the exact isdn screening and presentation\n"
 		"\tindicators.\n"
-		"\tIf -1 is given for both values, the presentation indicators are used from\n"
-		"\tAsterisks SetCallerPres application.\n"
+		"\tIf -1 is given for either value, the presentation indicators are used from\n"
+		"\tAsterisk's SetCallerPres application.\n"
 		"\n"
-		"\tscreen=0, presentation=0 -> callerid presented not screened\n"
-		"\tscreen=1, presentation=1 -> callerid presented but screened (the remote end doesn't see it!)" },
+		"\tscreen=0, presentation=0 -> callerid presented\n"
+		"\tscreen=1, presentation=1 -> callerid restricted (the remote end doesn't see it!)" },
 	{ "screen", MISDN_CFG_SCREEN, MISDN_CTYPE_INT, "-1", NONE,
 		"These (presentation and screen) are the exact isdn screening and presentation\n"
 		"\tindicators.\n"
-		"\tIf -1 is given for both values, the presentation indicators are used from\n"
-		"\tAsterisks SetCallerPres application.\n"
+		"\tIf -1 is given for either value, the presentation indicators are used from\n"
+		"\tAsterisk's SetCallerPres application.\n"
 		"\n"
-		"\tscreen=0, presentation=0 -> callerid presented not screened\n"
-		"\tscreen=1, presentation=1 -> callerid presented but screened (the remote end doesn't see it!)" },
+		"\tscreen=0, presentation=0 -> callerid presented\n"
+		"\tscreen=1, presentation=1 -> callerid restricted (the remote end doesn't see it!)" },
 	{ "always_immediate", MISDN_CFG_ALWAYS_IMMEDIATE, MISDN_CTYPE_BOOL, "no", NONE,
 		"Enable this to get into the s dialplan-extension.\n"
 		"\tThere you can use DigitTimeout if you can't or don't want to use\n"
