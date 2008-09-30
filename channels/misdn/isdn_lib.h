@@ -410,7 +410,7 @@ struct misdn_bchannel {
 	/*! \brief This is used as a pending bridge join request for when bc_state becomes BCHAN_ACTIVATED */
 	enum bchannel_state next_bc_state;
 
-	/*! \brief Bridgign conference ID */
+	/*! \brief Bridging conference ID */
 	int conf_id;
 
 	/*! \brief TRUE if this channel is on hold */

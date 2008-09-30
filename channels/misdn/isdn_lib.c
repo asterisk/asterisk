@@ -979,7 +979,10 @@ void misdn_lib_setup_bc(struct misdn_bchannel *bc)
 int setup_bc(struct misdn_bchannel *bc)
 {
 	unsigned char buff[1025];
-	int midev, channel, b_stid, i;
+	int midev;
+	int channel;
+	int b_stid;
+	int i;
 	mISDN_pid_t pid;
 	int ret;
 
@@ -1857,7 +1860,8 @@ handle_event_nt(void *dat, void *arg)
 		switch(hh->prim){
 		case CC_RETRIEVE|INDICATION:
 		{
-			struct misdn_bchannel *bc, *hold_bc;
+			struct misdn_bchannel *bc;
+			struct misdn_bchannel *hold_bc;
 
 			iframe_t frm; /* fake te frm to add callref to global callreflist */
 			frm.dinfo = hh->dinfo;
@@ -3965,7 +3969,7 @@ static void manager_event_handler(void *arg)
 				} else {
 					iframe_t *frm = (iframe_t *)msg->data;
 					struct misdn_bchannel *bc = find_bc_by_l3id(stack, frm->dinfo);
-					if (bc) 
+					if (bc)
 						send_msg(glob_mgr->midev, bc, msg);
 					else  {
 						if (frm->dinfo == MISDN_ID_GLOBAL || frm->dinfo == MISDN_ID_DUMMY ) {
@@ -4204,7 +4208,6 @@ void manager_bchannel_activate(struct misdn_bchannel *bc)
 
 void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 {
-
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	iframe_t dact;
 	char buf[128];	
@@ -4586,7 +4589,8 @@ void misdn_split_conf(struct misdn_bchannel *bc, int conf_id)
 	cb_log(4,bc->port, "Splitting bc:%x in conf:%d\n",bc->addr,conf_id);
 }
 
-void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2) {
+void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2)
+{
 	int conf_id = bc1->pid + 1;
 	struct misdn_bchannel *bc_list[] = { bc1, bc2, NULL };
 	struct misdn_bchannel **bc;

@@ -65,8 +65,7 @@ Modules. Also install process described in \url{http://www.misdn.org/index.php/I
 
 To compile and install this driver, you'll need at least one mISDN Driver and
 the mISDNuser package. Chan\_misdn works with both, the current release version
-and the development (svn trunk) version of Asterisk. mISDNuser and mISDN must
-be fetched from cvs.isdn4linux.de.
+and the development (svn trunk) version of Asterisk.
 
 You should use Kernels $>$= 2.6.9
 
@@ -138,14 +137,15 @@ The available options are:
       takes taps as optarg (32,64,128,256)
  e! - Disable echo cancelation on this channel
   f - Enable fax detection
-  h - Make digital outgoing call 
- h1 - Make HDLC mode digital outgoing call 
+  h - Make digital outgoing call
+ h1 - Make HDLC mode digital outgoing call
   i - Ignore detected DTMF tones, don't signal them to Asterisk,
       they will be transported inband.
  jb - Set jitter buffer length, optarg is length
  jt - Set jitter buffer upper threshold, optarg is threshold
  jn - Disable jitter buffer
-  n - Don't have mISDN detect DTMF tones on called channel
+  n - Disable mISDN DSP on channel.
+      Disables: echo cancel, DTMF detection, and volume control.
   p - Caller ID presentation,
       optarg is either 'allowed' or 'restricted'
   s - Send Non-inband DTMF as inband
@@ -220,7 +220,7 @@ Now you should see the misdn cli commands:
 
 You can only use "misdn send display" when an Asterisk channel is created and
 isdn is in the correct state. "correct state" means that you have established a
-call to another phone (mustnot be isdn though).
+call to another phone (must not be isdn though).
 
 Then you use it like this:
 
