@@ -2,6 +2,12 @@
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
 ------------------------------------------------------------------------------
 
+SIP Changes
+-----------
+ * Added support for SUBSCRIBE/NOTIFY with dialog-info based call pickups.
+    Snom phones use this for call pickup of extensions that the phone is
+	subscribed to.
+
 Dialplan Functions
 ------------------
  * Added a new dialplan function, CURLOPT, which permits setting various

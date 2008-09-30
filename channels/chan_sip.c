@@ -1957,6 +1957,7 @@ static void peer_mailboxes_to_str(struct ast_str **mailbox_str, struct sip_peer 
 static int sip_refer_allocate(struct sip_pvt *p);
 static void ast_quiet_chan(struct ast_channel *chan);
 static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target);
+static int do_magic_pickup(struct ast_channel *channel, const char *extension, const char *context);
 /*!
  * \brief generic function for determining if a correct transport is being 
  * used to contact a peer
@@ -9367,11 +9368,28 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		break;
 	case DIALOG_INFO_XML: /* SNOM subscribes in this format */
 		ast_str_append(&tmp, 0, "<?xml version=\"1.0\"?>\n");
-		ast_str_append(&tmp, 0, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full":"partial", mto);
-		if ((state & AST_EXTENSION_RINGING) && global_notifyringing)
-			ast_str_append(&tmp, 0, "<dialog id=\"%s\" direction=\"recipient\">\n", p->exten);
-		else
+		ast_str_append(&tmp, 0, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full" : "partial", mto);
+		if ((state & AST_EXTENSION_RINGING) && global_notifyringing) {
+			/* We create a fake call-id which the phone will send back in an INVITE
+			   Replaces header which we can grab and do some magic with. */
+			ast_str_append(&tmp, 0, 
+					"<dialog id=\"%s\" call-id=\"pickup-%s\" direction=\"recipient\">\n"
+					"<remote>\n"
+					/* Note that the identity and target elements for the local participant are currently
+					   (and may forever be) incorrect since we have no reliable way to get at that information 
+					   at the moment.  Luckily the phone seems to still live happily without it being correct */
+					"<identity>%s</identity>\n"
+					"<target uri=\"%s\"/>\n"
+					"</remote>\n"
+					"<local>\n"
+					"<identity>%s</identity>\n"
+					"<target uri=\"%s\"/>\n"
+					"</local>\n",
+					p->exten, p->callid,
+					mto, mto, mto, mto);
+		} else {
 			ast_str_append(&tmp, 0, "<dialog id=\"%s\">\n", p->exten);
+		}
 		ast_str_append(&tmp, 0, "<state>%s</state>\n", statestring);
 		if (state == AST_EXTENSION_ONHOLD) {
 			ast_str_append(&tmp, 0, "<local>\n<target uri=\"%s\">\n"
@@ -17116,6 +17134,27 @@ static int sip_uri_cmp(const char *input1, const char *input2)
 	return sip_uri_params_cmp(params1, params2);
 }
 
+static int do_magic_pickup(struct ast_channel *channel, const char *extension, const char *context)
+{
+	struct ast_str *str = ast_str_alloca(AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2);
+	struct ast_app *pickup = pbx_findapp("Pickup");
+
+	if (!pickup) {
+		ast_log(LOG_ERROR, "Unable to perform pickup: Application 'Pickup' not loaded (app_directed_pickup.so).\n");
+		return -1;
+	}
+
+	ast_str_set(&str, 0, "%s@%s", extension, context);
+
+	ast_debug(2, "About to call Pickup(%s)\n", str->str);
+
+	/* There is no point in capturing the return value since pickup_exec
+	   doesn't return anything meaningful unless the passed data is an empty
+	   string (which in our case it will not be) */
+	pbx_exec(channel, pickup, str->str);
+
+	return 0;
+}
 
 /*! \brief Handle incoming INVITE request
 \note 	If the INVITE has a Replaces header, it is part of an
@@ -17143,6 +17182,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	int st_interval = 0;            /* Session-Timer negotiated refresh interval                */
 	enum st_refresher st_ref;       /* Session-Timer session refresher                          */
 	int dlg_min_se = -1;
+	struct {
+		char exten[AST_MAX_EXTENSION];
+		char context[AST_MAX_CONTEXT];
+	} pickup = {
+		.exten = "",	
+	};
 	st_ref = SESSION_TIMER_REFRESHER_AUTO;
 
 	/* Find out what they support */
@@ -17279,14 +17324,36 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			}
 		}
 
-		if (sipdebug) 
-			ast_debug(4, "Invite/replaces: Will use Replace-Call-ID : %s Fromtag: %s Totag: %s\n", replace_id, fromtag ? fromtag : "<no from tag>", totag ? totag : "<no to tag>");
+		if (sipdebug)
+			ast_debug(4, "Invite/replaces: Will use Replace-Call-ID : %s Fromtag: %s Totag: %s\n",
+					  replace_id,
+					  fromtag ? fromtag : "<no from tag>",
+					  totag ? totag : "<no to tag>");
 
+		/* Try to find call that we are replacing.
+		   If we have a Replaces header, we need to cancel that call if we succeed with this call.
+		   First we cheat a little and look for a magic call-id from phones that support
+		   dialog-info+xml so we can do technology independent pickup... */
+		if (strncmp(replace_id, "pickup-", 7) == 0) {
+			struct sip_pvt *subscription = NULL;
+			replace_id += 7; /* Worst case we are looking at \0 */
 
-		/* Try to find call that we are replacing 
-			If we have a Replaces  header, we need to cancel that call if we succeed with this call 
-		*/
-		if ((p->refer->refer_call = get_sip_pvt_byid_locked(replace_id, totag, fromtag)) == NULL) {
+			if ((subscription = get_sip_pvt_byid_locked(replace_id, NULL, NULL)) == NULL) {
+				ast_log(LOG_NOTICE, "Unable to find subscription with call-id: %s\n", replace_id);
+				transmit_response_reliable(p, "481 Call Leg Does Not Exist (Replaces)", req);
+				error = 1;
+			} else {
+				ast_log(LOG_NOTICE, "Trying to pick up %s@%s\n", subscription->exten, subscription->context);
+				ast_copy_string(pickup.exten, subscription->exten, sizeof(pickup.exten));
+				ast_copy_string(pickup.context, subscription->context, sizeof(pickup.context));
+				sip_pvt_unlock(subscription);
+				if (subscription->owner) {
+					ast_channel_unlock(subscription->owner);
+				}
+			}
+		}
+
+		if (!error && ast_strlen_zero(pickup.exten) && (p->refer->refer_call = get_sip_pvt_byid_locked(replace_id, totag, fromtag)) == NULL) {
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-existent call id (%s)!\n", replace_id);
 			transmit_response_reliable(p, "481 Call Leg Does Not Exist (Replaces)", req);
 			error = 1;
@@ -17305,7 +17372,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			error = 1;
 		}
 
-		if (!error && !p->refer->refer_call->owner) {
+		if (!error && ast_strlen_zero(pickup.exten) && !p->refer->refer_call->owner) {
 			/* Oops, someting wrong anyway, no owner, no call */
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-existing call id (%s)!\n", replace_id);
 			/* Check for better return code */
@@ -17313,7 +17380,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			error = 1;
 		}
 
-		if (!error && p->refer->refer_call->owner->_state != AST_STATE_RINGING && p->refer->refer_call->owner->_state != AST_STATE_RING && p->refer->refer_call->owner->_state != AST_STATE_UP ) {
+		if (!error && ast_strlen_zero(pickup.exten) && p->refer->refer_call->owner->_state != AST_STATE_RINGING && p->refer->refer_call->owner->_state != AST_STATE_RING && p->refer->refer_call->owner->_state != AST_STATE_UP) {
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-ringing or active call id (%s)!\n", replace_id);
 			transmit_response_reliable(p, "603 Declined (Replaces)", req);
 			error = 1;
@@ -17626,10 +17693,28 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		p->lastinvite = seqno;
 
 	if (replace_id) { 	/* Attended transfer or call pickup - we're the target */
-		/* Go and take over the target call */
-		if (sipdebug)
-			ast_debug(4, "Sending this call to the invite/replcaes handler %s\n", p->callid);
-		return handle_invite_replaces(p, req, debug, seqno, sin);
+		if (!ast_strlen_zero(pickup.exten)) {
+			append_history(p, "Xfer", "INVITE/Replace received");
+
+			/* Let the caller know we're giving it a shot */
+			transmit_response(p, "100 Trying", req);
+			ast_setstate(c, AST_STATE_RING);
+
+			/* Do the pickup itself */
+			ast_channel_unlock(c);
+			*nounlock = 1;
+			do_magic_pickup(c, pickup.exten, pickup.context);
+
+			/* Now we're either masqueraded or we failed to pickup, in either case we... */
+			ast_hangup(c);
+
+			return 0;
+		} else {
+			/* Go and take over the target call */
+			if (sipdebug)
+				ast_debug(4, "Sending this call to the invite/replcaes handler %s\n", p->callid);
+			return handle_invite_replaces(p, req, debug, seqno, sin);
+		}
 	}
 
 
