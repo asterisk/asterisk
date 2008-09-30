@@ -19647,6 +19647,8 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 				ast_log(LOG_WARNING, "'%s' is not a valid transport option to Dial() for SIP calls, using udp by default.\n", trans);
 			transport = SIP_TRANSPORT_UDP;
 		}
+	} else { /* use default */
+		transport = SIP_TRANSPORT_UDP;
 	}
 
 	if (!host) {
