@@ -1,5 +1,3 @@
-#include "asterisk.h"
-
 #line 2 "ast_expr2f.c"
 
 #line 4 "ast_expr2f.c"
@@ -508,10 +506,12 @@ static yyconst flex_int16_t yy_chk[139] =
  * \brief Dialplan Expression Lexical Scanner
  */
 
+#include "asterisk.h"
+
 #include <sys/types.h>
 #include <stdio.h>
 
-#if !defined(STANDALONE)
+#ifndef STANDALONE
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #else
 #ifndef __USE_ISOC99
@@ -2369,7 +2369,7 @@ int ast_expr(char *expr, char *buf, int length, struct ast_channel *chan)
 			return_value = (res_length <= length) ? res_length : length;
 		} else {
 			if (io.val->u.s)
-#if defined(STANDALONE) || defined(LOW_MEMORY) || defined(STANDALONE)
+#if defined(STANDALONE) || defined(LOW_MEMORY) || defined(STANDALONE_AEL)
 				strncpy(buf, io.val->u.s, length - 1);
 #else /* !STANDALONE && !LOW_MEMORY */
 				ast_copy_string(buf, io.val->u.s, length);

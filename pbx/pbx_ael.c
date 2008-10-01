@@ -28,9 +28,7 @@
 
 #include "asterisk.h"
 
-#if !defined(STANDALONE)
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-#endif
 
 #include <ctype.h>
 #include <regex.h>
@@ -264,7 +262,7 @@ static int reload(void)
 	return pbx_load_module();
 }
 
-#ifdef STANDALONE
+#ifdef STANDALONE_AEL
 #define AST_MODULE "ael"
 int ael_external_load_module(void);
 int ael_external_load_module(void)

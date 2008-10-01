@@ -40,14 +40,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/term.h"
 #include "asterisk/paths.h"
-#include "asterisk/hashtab.h"
 
 #include <lua5.1/lua.h>
 #include <lua5.1/lauxlib.h>
 #include <lua5.1/lualib.h>
 
 static char *config = "extensions.lua";
-static char *registrar = "pbx_lua";
 
 #define LUA_EXT_DATA_SIZE 256
 #define LUA_BUF_SIZE 4096
@@ -57,7 +55,6 @@ static int lua_load_extensions(lua_State *L, struct ast_channel *chan);
 static int lua_reload_extensions(lua_State *L);
 static void lua_free_extensions(void);
 static int lua_sort_extensions(lua_State *L);
-static int lua_register_switches(lua_State *L);
 static int lua_extension_cmp(lua_State *L);
 static int lua_find_extension(lua_State *L, const char *context, const char *exten, int priority, ast_switch_f *func, int push_func);
 static int lua_pbx_findapp(lua_State *L);
@@ -73,7 +70,6 @@ static int lua_autoservice_start(lua_State *L);
 static int lua_autoservice_stop(lua_State *L);
 static int lua_autoservice_status(lua_State *L);
 static int lua_check_hangup(lua_State *L);
-static int lua_error_function(lua_State *L);
 
 static void lua_update_registry(lua_State *L, const char *context, const char *exten, int priority);
 static void lua_push_variable_table(lua_State *L, const char *name);
@@ -95,9 +91,6 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 AST_MUTEX_DEFINE_STATIC(config_file_lock);
 char *config_file_data = NULL;
 long config_file_size = 0;
-
-static struct ast_context *local_contexts = NULL;
-static struct ast_hashtab *local_table = NULL;
 
 static const struct ast_datastore_info lua_datastore = {
 	.type = "lua",
@@ -718,39 +711,6 @@ static int lua_check_hangup(lua_State *L)
 }
 
 /*!
- * \brief [lua_CFunction] Handle lua errors (for access from lua, don't call
- * directly)
- *
- * \param L the lua_State to use
- */
-static int lua_error_function(lua_State *L)
-{
-	int message_index;
-
-	/* pass number arguments right through back to asterisk*/
-	if (lua_isnumber(L, -1)) {
-		return 1;
-	}
-
-	/* if we are here then we have a string error message, let's attach a
-	 * backtrace to it */
-	message_index = lua_gettop(L);
-
-	lua_getglobal(L, "debug");
-	lua_getfield(L, -1, "traceback");
-	lua_remove(L, -2); /* remove the 'debug' table */
-
-	lua_pushvalue(L, message_index);
-	lua_remove(L, message_index);
-
-	lua_pushnumber(L, 2);
-
-	lua_call(L, 2, 1);
-
-	return 1;
-}
-
-/*!
  * \brief Store the sort order of each context
  
  * In the event of an error, an error string will be pushed onto the lua stack.
@@ -829,65 +789,6 @@ static int lua_sort_extensions(lua_State *L)
 }
 
 /*!
- * \brief Register dialplan switches for our pbx_lua contexs.
- *
- * In the event of an error, an error string will be pushed onto the lua stack.
- *
- * \retval 0 success
- * \retval 1 failure
- */
-static int lua_register_switches(lua_State *L)
-{
-	int extensions;
-	struct ast_context *con = NULL;
-
-	/* create the hash table for our contexts */
-	/* XXX do we ever need to destroy this? pbx_config does not */
-	if (!local_table)
-		local_table = ast_hashtab_create(17, ast_hashtab_compare_contexts, ast_hashtab_resize_java, ast_hashtab_newsize_java, ast_hashtab_hash_contexts, 0);
-
-	/* load the 'extensions' table */
-	lua_getglobal(L, "extensions");
-	extensions = lua_gettop(L);
-	if (lua_isnil(L, -1)) {
-		lua_pop(L, 1);
-		lua_pushstring(L, "Unable to find 'extensions' table in extensions.lua\n");
-		return 1;
-	}
-
-	/* iterate through the extensions table and register a context and
-	 * dialplan switch for each lua context
-	 */
-	for (lua_pushnil(L); lua_next(L, extensions); lua_pop(L, 1)) {
-		int context = lua_gettop(L);
-		int context_name = context - 1;
-		const char *context_str = lua_tostring(L, context_name);
-
-		/* find or create this context */
-		con = ast_context_find_or_create(&local_contexts, local_table, context_str, registrar);
-		if (!con) {
-			/* remove extensions table and context key and value */
-			lua_pop(L, 3);
-			lua_pushstring(L, "Failed to find or create context\n");
-			return 1;
-		}
-
-		/* register the switch */
-		if (ast_context_add_switch2(con, "Lua", "", 0, registrar)) {
-			/* remove extensions table and context key and value */
-			lua_pop(L, 3);
-			lua_pushstring(L, "Unable to create switch for context\n");
-			return 1;
-		}
-	}
-	
-	/* remove the extensions table */
-	lua_pop(L, 1);
-	return 0;
-}
-
-
-/*!
  * \brief [lua_CFunction] Compare two extensions (for access from lua, don't
  * call directly)
  *
@@ -951,8 +852,7 @@ static char *lua_read_extensions_file(lua_State *L, long *size)
 
 	if (luaL_loadbuffer(L, data, *size, "extensions.lua")
 			|| lua_pcall(L, 0, LUA_MULTRET, 0)
-			|| lua_sort_extensions(L)
-			|| lua_register_switches(L)) {
+			|| lua_sort_extensions(L)) {
 		ast_free(data);
 		data = NULL;
 		*size = 0;
@@ -1033,15 +933,6 @@ static int lua_reload_extensions(lua_State *L)
 
 	config_file_data = data;
 	config_file_size = size;
-	
-	/* merge our new contexts */
-	ast_merge_contexts_and_delete(&local_contexts, local_table, registrar);
-	/* merge_contexts_and_delete will actually, at the correct moment, 
-	   set the global dialplan pointers to your local_contexts and local_table.
-	   It then will free up the old tables itself. Just be sure not to
-	   hang onto the pointers. */
-	local_table = NULL;
-	local_contexts = NULL;
 
 	ast_mutex_unlock(&config_file_lock);
 	return 0;
@@ -1205,7 +1096,7 @@ static int matchmore(struct ast_channel *chan, const char *context, const char *
 
 static int exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	int res, error_func;
+	int res;
 	lua_State *L;
 	struct ast_module_user *u = ast_module_user_add(chan);
 	if (!u) {
@@ -1219,12 +1110,8 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 		return -1;
 	}
 
-	lua_pushcfunction(L, &lua_error_function);
-	error_func = lua_gettop(L);
-
 	/* push the extension function onto the stack */
 	if (!lua_find_extension(L, context, exten, priority, &exists, 1)) {
-		lua_pop(L, 1); /* pop the debug function */
 		ast_log(LOG_ERROR, "Could not find extension %s in context %s\n", exten, context);
 		if (!chan) lua_close(L);
 		ast_module_user_remove(u);
@@ -1236,26 +1123,20 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 	lua_pushstring(L, context);
 	lua_pushstring(L, exten);
 	
-	res = lua_pcall(L, 2, 0, error_func);
+	res = lua_pcall(L, 2, 0, 0);
 	if (res) {
 		if (res == LUA_ERRRUN) {
-			res = -1;
 			if (lua_isnumber(L, -1)) {
 				res = lua_tointeger(L, -1);
 			} else if (lua_isstring(L, -1)) {
 				const char *error = lua_tostring(L, -1);
 				ast_log(LOG_ERROR, "Error executing lua extension: %s\n", error);
+				res = -1;
 			}
-		} else if (res == LUA_ERRERR) {
+		} else {
 			res = -1;
-			ast_log(LOG_ERROR, "Error in the lua error handler (this is probably a bug in pbx_lua)\n");
-		} else if (res == LUA_ERRMEM) {
-			res = -1;
-			ast_log(LOG_ERROR, "Memory allocation error\n");
 		}
-		lua_pop(L, 1);
 	}
-	lua_remove(L, error_func);
 	if (!chan) lua_close(L);
 	ast_module_user_remove(u);
 	return res;
@@ -1312,25 +1193,22 @@ static int lua_find_extension(lua_State *L, const char *context, const char *ext
 	
 	/* step through the extensions looking for a match */
 	for (i = 1; i < lua_objlen(L, context_order_table) + 1; i++) {
-		int e_index, e_index_copy, match = 0;
+		int e_index, isnumber, match = 0;
 		const char *e;
 
 		lua_pushinteger(L, i);
 		lua_gettable(L, context_order_table);
 		e_index = lua_gettop(L);
+		isnumber = lua_isnumber(L, e_index);
 
-		/* copy the key at the top of the stack for use later */
-		lua_pushvalue(L, -1);
-		e_index_copy = lua_gettop(L);
-
-		if (!(e = lua_tostring(L, e_index_copy))) {
-			lua_pop(L, 2);
+		if (!(e = lua_tostring(L, e_index))) {
+			lua_pop(L, 1);
 			continue;
 		}
 
 		/* make sure this is not the 'include' extension */
 		if (!strcasecmp(e, "include")) {
-			lua_pop(L, 2);
+			lua_pop(L, 1);
 			continue;
 		}
 
@@ -1345,28 +1223,34 @@ static int lua_find_extension(lua_State *L, const char *context, const char *ext
 		 * match, 2 on earlymatch */
 
 		if (!match) {
-			/* pop the copy and the extension */
-			lua_pop(L, 2);
+			lua_pop(L, 1);
 			continue;	/* keep trying */
 		}
 
 		if (func == &matchmore && match == 2) {
 			/* We match an extension ending in '!'. The decision in
 			 * this case is final and counts as no match. */
-			lua_pop(L, 4);
+			lua_pop(L, 3);
 			return 0;
 		}
 
-		/* remove the context table, the context order table, the
-		 * extension, and the extension copy (or replace the extension
-		 * with the corresponding function) */
+		/* remove the context table, the context order table, and the
+		 * extension (or replace the extension with the corisponding
+		 * function) */
 		if (push_func) {
-			lua_pop(L, 1);  /* pop the copy */
+			/* here we must convert the exten back to an integer
+			 * because lua_tostring will change the value on the
+			 * stack to a string */
+			if (isnumber) {
+				int e_int = lua_tointeger(L, e_index);
+				lua_pop(L, 1);  /* the exten should be the top of the stack */
+				lua_pushinteger(L, e_int);
+			}
 			lua_gettable(L, context_table);
 			lua_insert(L, -3);
 			lua_pop(L, 2);
 		} else {
-			lua_pop(L, 4);
+			lua_pop(L, 3);
 		}
 
 		return 1;
@@ -1439,7 +1323,6 @@ static int load_or_reload_lua_stuff(void)
 
 static int unload_module(void)
 {
-	ast_context_destroy(NULL, registrar);
 	ast_unregister_switch(&lua_switch);
 	lua_free_extensions();
 	return 0;

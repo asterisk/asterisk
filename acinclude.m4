@@ -555,7 +555,7 @@ fi
 AC_DEFUN(
 [AST_CHECK_PWLIB_VERSION], [
 	if test "${HAS_$2:-unset}" != "unset"; then
-		$2_VERSION=`grep "$2_VERSION" ${$2_INCDIR}/$3 | sed -e 's/[[[:space:]]]\{1,\}/ /g' | cut -f3 -d ' ' | sed -e 's/"//g'`
+		$2_VERSION=`grep "$2_VERSION" ${$2_INCDIR}/$3 | cut -f2 -d ' ' | sed -e 's/"//g'`
 		$2_MAJOR_VERSION=`echo ${$2_VERSION} | cut -f1 -d.`
 		$2_MINOR_VERSION=`echo ${$2_VERSION} | cut -f2 -d.`
 		$2_BUILD_NUMBER=`echo ${$2_VERSION} | cut -f3 -d.`

@@ -35,10 +35,8 @@ Null callerid's are a fact of life, and could be a friend with an
 unlisted number, or some charity looking for a handout. The
 PrivacyManager application can help here. It will ask the caller to
 enter a 10-digit phone number. They get 3 tries(configurable), and this is
-configurable, with control being passed to next priority where you can
-check the channelvariable PRIVACYMGRSTATUS. If the callerid was valid this
-variable will have the value SUCCESS, otherwise it will have the value
-FAILED.
+configurable, with control being passed to priority+101 if they won't
+supply one.
 
 PrivacyManager can't guarantee that the number they supply is any
 good, tho, as there is no way to find out, short of hanging up and
@@ -76,15 +74,13 @@ exten => s,2,SetVar,repeatcount=0
 exten => s,3,Zapateller,nocallerid
 exten => s,4,PrivacyManager
      ;; do this if they don't enter a number to Privacy Manager
-exten => s,5,GotoIf($[ "${PRIVACYMGRSTATUS}" = "FAILED" ]?s,105)
-exten => s,6,GotoIf($[ "${CALLERID(num)}"  = "7773334444" & "${CALLERID(name)}" : "Privacy Manager" ]?callerid-liar,s,1:s,7)
-exten => s,7,Dial(SIP/yourphone)
 exten => s,105,Background(tt-allbusy)
 exten => s,106,Background(tt-somethingwrong)
 exten => s,107,Background(tt-monkeysintro)
 exten => s,108,Background(tt-monkeys)
 exten => s,109,Background(tt-weasels)
 exten => s,110,Hangup
+exten => s,5,GotoIf($[ "${CALLERID(num)}"  = "7773334444" & "${CALLERID(name)}" : "Privacy Manager" ]?callerid-liar,s,1:s,7)
 \end{verbatim}
 \end{astlisting}
 

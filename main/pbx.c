@@ -1042,7 +1042,7 @@ static void pbx_destroy(struct ast_pbx *p)
  *     NULL
  *
  *   In the above, I could easily turn "N" into "23456789", but I think that a quick "if( *z >= '2' && *z <= '9' )" might take
- *   fewer CPU cycles than a call to strchr("23456789",*z), where *z is the char to match...
+ *   fewer CPU cycles than a call to index("23456789",*z), where *z is the char to match...
  *
  *   traversal is pretty simple: one routine merely traverses the alt list, and for each matching char in the pattern,  it calls itself
  *   on the corresponding next pointer, incrementing also the pointer of the string to be matched, and passing the total specificity and length.
@@ -1340,7 +1340,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 					return; /* the first match is all we need */
 				}
 			}
-		} else if (strchr(p->x, *str)) {
+		} else if (index(p->x, *str)) {
 			ast_debug(4, "Nothing strange about this match\n");
 			NEW_MATCHER_CHK_MATCH;
 			NEW_MATCHER_RECURSE;
@@ -3113,8 +3113,6 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */
-		if (found)
-			*found = 1;
 		ast_unlock_contexts();
 		if (matching_action) {
 			return -1;
@@ -3847,7 +3845,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 		ast_log(LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
 	if (res != AST_PBX_KEEPALIVE)
 		ast_softhangup(c, c->hangupcause ? c->hangupcause : AST_CAUSE_NORMAL_CLEARING);
-	if ((res != AST_PBX_KEEPALIVE) && !ast_test_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
+	if ((res != AST_PBX_KEEPALIVE) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
 		set_ext_pri(c, "h", 1);
 		while ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num, &found, 1)) == 0) {
 			c->priority++;
@@ -3859,7 +3857,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 		}
 	}
 	ast_set2_flag(c, autoloopflag, AST_FLAG_IN_AUTOLOOP);
-	ast_clear_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN); /* from one round to the next, make sure this gets cleared */
+
 	pbx_destroy(c->pbx);
 	c->pbx = NULL;
 	if (res != AST_PBX_KEEPALIVE)

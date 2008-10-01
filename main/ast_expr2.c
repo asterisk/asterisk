@@ -131,14 +131,11 @@
  * $FreeBSD: src/bin/expr/expr.y,v 1.16 2000/07/22 10:59:36 se Exp $
  */
 
-#include "asterisk.h"
-
 #include <sys/types.h>
 #include <stdio.h>
-
-#if !defined(STANDALONE)
+#include "asterisk.h"
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-#else
+#ifdef STANDALONE
 #ifndef __USE_ISOC99
 #define __USE_ISOC99 1
 #endif
@@ -426,6 +423,7 @@ static int		to_number __P((struct val *));
 static void		to_string __P((struct val *));
 static struct expr_node *alloc_expr_node(enum node_type);
 static void destroy_arglist(struct expr_node *arglist);
+static int is_really_num(char *str);
 
 /* uh, if I want to predeclare yylex with a YYLTYPE, I have to predeclare the yyltype... sigh */
 typedef struct yyltype
@@ -2475,6 +2473,61 @@ is_zero_or_null (struct val *vp)
 	/* NOTREACHED */
 }
 
+#ifdef STANDALONE
+
+void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+{
+	va_list vars;
+	va_start(vars,fmt);
+	
+        printf("LOG: lev:%d file:%s  line:%d func: %s  ",
+                   level, file, line, function);
+	vprintf(fmt, vars);
+	fflush(stdout);
+	va_end(vars);
+}
+
+
+int main(int argc,char **argv) {
+	char s[4096];
+	char out[4096];
+	FILE *infile;
+	
+	if( !argv[1] )
+		exit(20);
+	
+	if( access(argv[1],F_OK)== 0 )
+	{
+		int ret;
+		
+		infile = fopen(argv[1],"r");
+		if( !infile )
+		{
+			printf("Sorry, couldn't open %s for reading!\n", argv[1]);
+			exit(10);
+		}
+		while( fgets(s,sizeof(s),infile) )
+		{
+			if( s[strlen(s)-1] == '\n' )
+				s[strlen(s)-1] = 0;
+			
+			ret = ast_expr(s, out, sizeof(out),NULL);
+			printf("Expression: %s    Result: [%d] '%s'\n",
+				   s, ret, out);
+		}
+		fclose(infile);
+	}
+	else
+	{
+		if (ast_expr(argv[1], s, sizeof(s), NULL))
+			printf("=====%s======\n",s);
+		else
+			printf("No result\n");
+	}
+}
+
+#endif
+
 #undef ast_yyerror
 #define ast_yyerror(x) ast_yyerror(x, YYLTYPE *yylloc, struct parse_io *parseio)
 
@@ -2499,7 +2552,6 @@ static void destroy_arglist(struct expr_node *arglist)
 	}
 }
 
-#if !defined(STANDALONE)
 static char *compose_func_args(struct expr_node *arglist)
 {
 	struct expr_node *t = arglist;
@@ -2549,7 +2601,7 @@ static int is_really_num(char *str)
 	else
 		return 0;
 }
-#endif
+
 
 static struct val *op_func(struct val *funcname, struct expr_node *arglist, struct ast_channel *chan)
 {

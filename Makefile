@@ -226,6 +226,8 @@ endif
 
 ASTCFLAGS+=-Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
 
+ASTCFLAGS+=-include $(ASTTOPDIR)/include/asterisk/autoconfig.h
+
 ifeq ($(AST_DEVMODE),yes)
   ASTCFLAGS+=-Werror -Wunused -Wundef $(AST_DECLARATION_AFTER_STATEMENT) -Wmissing-format-attribute -Wformat-security #-Wformat=2
 endif

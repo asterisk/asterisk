@@ -29,13 +29,8 @@ all: $(AGIS)
 
 strcompat.c: ../main/strcompat.c
 	@cp $< $@
-strcompat.o: ASTCFLAGS+=-DSTANDALONE
-
-eagi-test.o: ASTCFLAGS+=-DSTANDALONE
 
 eagi-test: eagi-test.o strcompat.o
-
-eagi-sphinx-test.o: ASTCFLAGS+=-DSTANDALONE
 
 eagi-sphinx-test: eagi-sphinx-test.o
 

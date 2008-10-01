@@ -733,6 +733,16 @@ static int update_status(const char *interface, const int status)
 static void *handle_statechange(struct statechange *sc)
 {
 	struct member_interface *curint;
+	char *loc;
+	char *technology;
+
+	technology = ast_strdupa(sc->dev);
+	loc = strchr(technology, '/');
+	if (loc) {
+		*loc++ = '\0';
+	} else {
+		return NULL;
+	}
 
 	AST_LIST_LOCK(&interfaces);
 	AST_LIST_TRAVERSE(&interfaces, curint, list) {
@@ -749,11 +759,13 @@ static void *handle_statechange(struct statechange *sc)
 	AST_LIST_UNLOCK(&interfaces);
 
 	if (!curint) {
-		ast_debug(3, "Device '%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", sc->dev, sc->state, devstate2str(sc->state));
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", technology, loc, sc->state, devstate2str(sc->state));
 		return NULL;
 	}
 
-	ast_debug(1, "Device '%s' changed to state '%d' (%s)\n", sc->dev, sc->state, devstate2str(sc->state));
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s)\n", technology, loc, sc->state, devstate2str(sc->state));
 
 	update_status(sc->dev, sc->state);
 
@@ -3208,9 +3220,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			break;
 		case 'W':
 			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_AUTOMON);
-			break;
-		case 'c':
-			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_NO_H_EXTEN);
 			break;
 		case 'd':
 			nondataquality = 0;

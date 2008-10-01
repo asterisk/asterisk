@@ -1845,7 +1845,7 @@ static int transmit_response(struct skinnysession *s, struct skinny_req *req)
 	memcpy(s->outbuf+skinny_header_size, &req->data, letohl(req->len));
 
 	res = write(s->fd, s->outbuf, letohl(req->len)+8);
-	
+
 	if (res != letohl(req->len)+8) {
 		ast_log(LOG_WARNING, "Transmit: write only sent %d out of %d bytes: %s\n", res, letohl(req->len)+8, strerror(errno));
 		if (res == -1) {
@@ -1856,7 +1856,6 @@ static int transmit_response(struct skinnysession *s, struct skinny_req *req)
 		
 	}
 	
-	ast_free(req);
 	ast_mutex_unlock(&s->lock);
 	return 1;
 }
@@ -1954,11 +1953,9 @@ static void transmit_tone(struct skinnysession *s, int tone, int instance, int r
 		req->data.stoptone.reference = htolel(reference);
 	}
 
-	//Bad, tone is already set so this is redundant and a change to the if above
-	//may lead to issues where we try to set a tone to a stop_tone_message
-	//if (tone > 0) {
-	//	req->data.starttone.tone = htolel(tone);
-	//}
+	if (tone > 0) {
+		req->data.starttone.tone = htolel(tone);
+	}
 	transmit_response(s, req);
 }
 
@@ -2022,10 +2019,8 @@ static void transmit_displaymessage(struct skinnysession *s, const char *text, i
 		if (!(req = req_alloc(0, CLEAR_DISPLAY_MESSAGE)))
 			return;
 
-		//what do we want hear CLEAR_DISPLAY_MESSAGE or CLEAR_PROMPT_STATUS???
-		//if we are clearing the display, it appears there is no instance and refernece info (size 0)
-		//req->data.clearpromptstatus.lineInstance = instance;
-		//req->data.clearpromptstatus.callReference = reference;
+		req->data.clearpromptstatus.lineInstance = instance;
+		req->data.clearpromptstatus.callReference = reference;
 
 		if (skinnydebug)
 			ast_debug(1, "Clearing Display\n");
@@ -3449,7 +3444,6 @@ static int skinny_hangup(struct ast_channel *ast)
 		sub->rtp = NULL;
 	}
 	ast_mutex_unlock(&sub->lock);
-	ast_free(sub);
 	return 0;
 }
 

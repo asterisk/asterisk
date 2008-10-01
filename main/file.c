@@ -917,7 +917,6 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 			ast_log(LOG_WARNING, "Unable to open %s\n", fn);
 			if (fs)
 				ast_free(fs);
-			fs = NULL;
 			if (bfile)
 				fclose(bfile);
 			ast_free(fn);

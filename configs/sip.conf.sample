@@ -238,16 +238,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; your localnet setting. Unless you have some sort of strange network
                                 ; setup you will not need to enable this.
 
-;dynamic_exclude_static = yes   ; Disallow all dynamic hosts from registering
-                                ; as any IP address used for staticly defined
-                                ; hosts.  This helps avoid the configuration
-                                ; error of allowing your users to register at
-                                ; the same address as a SIP provider.
-
-;contactdeny=0.0.0.0/0.0.0.0           ; Use contactpermit and contactdeny to
-;contactpermit=172.16.0.0/255.255.0.0  ; restrict at what IPs your users may
-                                       ; register their phones.
-
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy a
 ; NoOp priority 1 extension for a given peer who registers or unregisters with
@@ -731,10 +721,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;                             timerb
 ;                             qualifyfreq
 ;                             t38pt_usertpsource
-;                             contactpermit         ; Limit what a host may register as (a neat trick
-;                             contactdeny           ; is to register at the same IP as a SIP provider,
-;                                                   ; then call oneself, and get redirected to that
-;                                                   ; same location).
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)

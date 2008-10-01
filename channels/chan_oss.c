@@ -1292,7 +1292,7 @@ static void store_mixer(struct chan_oss_pvt *o, const char *s)
 	int i;
 
 	for (i = 0; i < strlen(s); i++) {
-		if (!isalnum(s[i]) && strchr(" \t-/", s[i]) == NULL) {
+		if (!isalnum(s[i]) && index(" \t-/", s[i]) == NULL) {
 			ast_log(LOG_WARNING, "Suspect char %c in mixer cmd, ignoring:\n\t%s\n", s[i], s);
 			return;
 		}

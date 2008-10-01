@@ -470,22 +470,14 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	return -1;
 }
 
-#define ESCAPE_STRING(buffer, stringname) \
-	do { \
-		int len; \
-		if ((len = strlen(stringname)) > (buffer->len - 1) / 2) { \
-			ast_str_make_space(&buffer, len * 2 + 1); \
-		} \
-		PQescapeStringConn(pgsqlConn, buffer->str, stringname, len, &pgresult); \
-	} while (0)
-
 static int store_pgsql(const char *database, const char *table, va_list ap)
 {
 	PGresult *result = NULL;
 	Oid insertid;
-	struct ast_str *buf = ast_str_create(256);
-	struct ast_str *sql1 = ast_str_create(256);
-	struct ast_str *sql2 = ast_str_create(256);
+	char sql[256];
+	char params[256];
+	char vals[256];
+	char buf[256];
 	int pgresult;
 	const char *newparam, *newval;
 
@@ -503,7 +495,7 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
 		if (pgsqlConn) {
 			PQfinish(pgsqlConn);
 			pgsqlConn = NULL;
-		}
+		};
 		return -1;
 	}
 
@@ -516,31 +508,28 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
 
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
-	ESCAPE_STRING(buf, newparam);
-	ast_str_set(&sql1, 0, "INSERT INTO %s (%s", table, buf->str);
-	ESCAPE_STRING(buf, newval);
-	ast_str_set(&sql2, 0, ") VALUES ('%s'", buf->str);
+	PQescapeStringConn(pgsqlConn, buf, newparam, sizeof(newparam), &pgresult);
+	snprintf(params, sizeof(params), "%s", buf);
+	PQescapeStringConn(pgsqlConn, buf, newval, sizeof(newval), &pgresult);
+	snprintf(vals, sizeof(vals), "'%s'", buf);
 	while ((newparam = va_arg(ap, const char *))) {
 		newval = va_arg(ap, const char *);
-		ESCAPE_STRING(buf, newparam);
-		ast_str_append(&sql1, 0, ", %s", buf->str);
-		ESCAPE_STRING(buf, newval);
-		ast_str_append(&sql2, 0, ", '%s'", buf->str);
+		PQescapeStringConn(pgsqlConn, buf, newparam, sizeof(newparam), &pgresult);
+		snprintf(params + strlen(params), sizeof(params) - strlen(params), ", %s", buf);
+		PQescapeStringConn(pgsqlConn, buf, newval, sizeof(newval), &pgresult);
+		snprintf(vals + strlen(vals), sizeof(vals) - strlen(vals), ", '%s'", buf);
 	}
 	va_end(ap);
-	ast_str_append(&sql1, 0, "%s)", sql2->str);
+	snprintf(sql, sizeof(sql), "INSERT INTO (%s) VALUES (%s)", params, vals);
 
-	ast_debug(1, "PostgreSQL RealTime: Insert SQL: %s\n", sql1->str);
+	ast_debug(1, "PostgreSQL RealTime: Insert SQL: %s\n", sql);
 
-	if (!(result = PQexec(pgsqlConn, sql1->str))) {
+	if (!(result = PQexec(pgsqlConn, sql))) {
 		ast_log(LOG_WARNING,
 				"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
-		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql1->str);
+		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
 		ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
 		ast_mutex_unlock(&pgsql_lock);
-		ast_free(sql1);
-		ast_free(sql2);
-		ast_free(buf);
 		return -1;
 	} else {
 		ExecStatusType result_status = PQresultStatus(result);
@@ -549,22 +538,16 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
 			&& result_status != PGRES_NONFATAL_ERROR) {
 			ast_log(LOG_WARNING,
 					"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
-			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql1->str);
+			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
 			ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s (%s)\n",
 						PQresultErrorMessage(result), PQresStatus(result_status));
 			ast_mutex_unlock(&pgsql_lock);
-			ast_free(sql1);
-			ast_free(sql2);
-			ast_free(buf);
 			return -1;
 		}
 	}
 
 	insertid = PQoidValue(result);
 	ast_mutex_unlock(&pgsql_lock);
-	ast_free(sql1);
-	ast_free(sql2);
-	ast_free(buf);
 
 	ast_debug(1, "PostgreSQL RealTime: row inserted on table: %s, id: %u\n", table, insertid);
 
@@ -585,8 +568,8 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 	PGresult *result = NULL;
 	int numrows = 0;
 	int pgresult;
-	struct ast_str *sql = ast_str_create(256);
-	struct ast_str *buf1 = ast_str_create(60), *buf2 = ast_str_create(60);
+	char sql[256];
+	char buf[256], buf2[256];
 	const char *newparam, *newval;
 
 	if (!table) {
@@ -619,28 +602,25 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
 
-	ESCAPE_STRING(buf1, keyfield);
-	ESCAPE_STRING(buf2, lookup);
-	ast_str_set(&sql, 0, "DELETE FROM %s WHERE %s = '%s'", table, buf1->str, buf2->str);
+	PQescapeStringConn(pgsqlConn, buf, keyfield, sizeof(keyfield), &pgresult);
+	PQescapeStringConn(pgsqlConn, buf2, lookup, sizeof(lookup), &pgresult);
+	snprintf(sql, sizeof(sql), "DELETE FROM %s WHERE %s = '%s'", table, buf, buf2);
 	while ((newparam = va_arg(ap, const char *))) {
 		newval = va_arg(ap, const char *);
-		ESCAPE_STRING(buf1, newparam);
-		ESCAPE_STRING(buf2, newval);
-		ast_str_append(&sql, 0, " AND %s = '%s'", buf1->str, buf2->str);
+		PQescapeStringConn(pgsqlConn, buf, newparam, sizeof(newparam), &pgresult);
+		PQescapeStringConn(pgsqlConn, buf2, newval, sizeof(newval), &pgresult);
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s = '%s'", buf, buf2);
 	}
 	va_end(ap);
 
-	ast_debug(1, "PostgreSQL RealTime: Delete SQL: %s\n", sql->str);
+	ast_debug(1, "PostgreSQL RealTime: Delete SQL: %s\n", sql);
 
-	if (!(result = PQexec(pgsqlConn, sql->str))) {
+	if (!(result = PQexec(pgsqlConn, sql))) {
 		ast_log(LOG_WARNING,
 				"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
-		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql->str);
+		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
 		ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
 		ast_mutex_unlock(&pgsql_lock);
-		ast_free(buf1);
-		ast_free(buf2);
-		ast_free(sql);
 		return -1;
 	} else {
 		ExecStatusType result_status = PQresultStatus(result);
@@ -649,22 +629,16 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 			&& result_status != PGRES_NONFATAL_ERROR) {
 			ast_log(LOG_WARNING,
 					"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
-			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql->str);
+			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
 			ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s (%s)\n",
 						PQresultErrorMessage(result), PQresStatus(result_status));
 			ast_mutex_unlock(&pgsql_lock);
-			ast_free(buf1);
-			ast_free(buf2);
-			ast_free(sql);
 			return -1;
 		}
 	}
 
 	numrows = atoi(PQcmdTuples(result));
 	ast_mutex_unlock(&pgsql_lock);
-	ast_free(buf1);
-	ast_free(buf2);
-	ast_free(sql);
 
 	ast_debug(1, "PostgreSQL RealTime: Deleted %d rows on table: %s\n", numrows, table);
 
