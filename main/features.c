@@ -2193,7 +2193,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		ast_copy_string(chan->exten, "h", sizeof(chan->exten));
 		chan->priority = 1;
 		ast_channel_unlock(chan);
-		while ((res = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num, &found, 1)) == 0) {
+		while (!(res = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num, &found, 1)) == 0) {
 			chan->priority++;
 		}
 		if (found && res) 
