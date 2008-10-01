@@ -599,6 +599,8 @@ install: badshell datafiles bininstall
 	@echo " +-------------------------------------------+"
 	@$(MAKE) -s oldmodcheck
 
+isntall: install
+
 upgrade: bininstall
 
 # XXX why *.adsi is installed first ?
