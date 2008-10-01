@@ -1742,7 +1742,7 @@ static int sms_exec(struct ast_channel *chan, void *data)
 	sms_t h = { 0 };
 	/* argument parsing support */
 	struct ast_flags sms_flags;
-	char *parse, *sms_opts[OPTION_ARG_ARRAY_SIZE];
+	char *parse, *sms_opts[OPTION_ARG_ARRAY_SIZE] = { 0, };
 	char *p;
 	AST_DECLARE_APP_ARGS(sms_args,
 		AST_APP_ARG(queue);
