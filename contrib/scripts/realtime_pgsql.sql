@@ -117,6 +117,7 @@ reportholdtime bool,
 memberdelay int8,
 weight int8,
 timeoutrestart bool,
+setinterfacevar bool,
 PRIMARY KEY (name)
 ) WITHOUT OIDS;
 ALTER TABLE queue_table OWNER TO asterisk;
