@@ -691,10 +691,7 @@ static int acf_strptime(struct ast_channel *chan, const char *cmd, char *data,
 			     AST_APP_ARG(timezone);
 			     AST_APP_ARG(format);
 	);
-	union {
-		struct ast_tm atm;
-		struct tm time;
-	} t = { { 0, }, };
+	struct ast_tm tm;
 
 	buf[0] = '\0';
 
@@ -712,13 +709,11 @@ static int acf_strptime(struct ast_channel *chan, const char *cmd, char *data,
 		return -1;
 	}
 
-	if (!strptime(args.timestring, args.format, &t.time)) {
-		ast_log(LOG_WARNING, "C function strptime() output nothing?!!\n");
+	if (!ast_strptime(args.timestring, args.format, &tm)) {
+		ast_log(LOG_WARNING, "STRPTIME() found no time specified within the string\n");
 	} else {
 		struct timeval when;
-		/* Since strptime(3) does not check DST, force ast_mktime() to calculate it. */
-		t.atm.tm_isdst = -1;
-		when = ast_mktime(&t.atm, args.timezone);
+		when = ast_mktime(&tm, args.timezone);
 		snprintf(buf, buflen, "%d", (int) when.tv_sec);
 	}
 
