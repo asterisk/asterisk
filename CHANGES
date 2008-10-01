@@ -5,8 +5,8 @@
 SIP Changes
 -----------
  * Added support for SUBSCRIBE/NOTIFY with dialog-info based call pickups.
-    Snom phones use this for call pickup of extensions that the phone is
-	subscribed to.
+   Snom phones use this for call pickup of extensions that the phone is
+   subscribed to.
 
 Dialplan Functions
 ------------------
@@ -452,8 +452,8 @@ Agent channel changes
 ----------------------
   * The ackcall and endcall options are now supplemented with options acceptdtmf
     and enddtmf. These allow for the DTMF keypress to be configurable. The options
-	default to their old hard-coded values ('#' and '*' respectively) so this should
-	not break any existing agent installations.
+    default to their old hard-coded values ('#' and '*' respectively) so this should
+    not break any existing agent installations.
 
 DAHDI channel driver (chan_dahdi) Changes
 ----------------------------------------
@@ -873,7 +873,7 @@ Miscellaneous
     allocation of additional extensions which will reach the specified user.
   * A new option for the configure script, --enable-internal-poll, has been added
     for use with systems which may have a buggy implementation of the poll system
-	call. If you notice odd behavior such as the CLI being unresponsive on remote
-	consoles, you may want to try using this option. This option is enabled by default
-	on Darwin systems since it is known that the Darwin poll() implementation has
-	odd issues.
+    call. If you notice odd behavior such as the CLI being unresponsive on remote
+    consoles, you may want to try using this option. This option is enabled by default
+    on Darwin systems since it is known that the Darwin poll() implementation has
+    odd issues.
