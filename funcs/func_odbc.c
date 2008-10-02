@@ -564,6 +564,7 @@ static int acf_fetch(struct ast_channel *chan, const char *cmd, char *data, char
 	struct odbc_datastore_row *row;
 	store = ast_channel_datastore_find(chan, &odbc_info, data);
 	if (!store) {
+		pbx_builtin_setvar_helper(chan, "ODBC_FETCH_STATUS", "FAILURE");
 		return -1;
 	}
 	resultset = store->data;
@@ -574,11 +575,13 @@ static int acf_fetch(struct ast_channel *chan, const char *cmd, char *data, char
 		/* Cleanup datastore */
 		ast_channel_datastore_remove(chan, store);
 		ast_datastore_free(store);
+		pbx_builtin_setvar_helper(chan, "ODBC_FETCH_STATUS", "FAILURE");
 		return -1;
 	}
 	pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", resultset->names);
 	ast_copy_string(buf, row->data, len);
 	ast_free(row);
+	pbx_builtin_setvar_helper(chan, "ODBC_FETCH_STATUS", "SUCCESS");
 	return 0;
 }
 
@@ -589,7 +592,9 @@ static struct ast_custom_function fetch_function = {
 	.desc =
 "For queries which are marked as mode=multirow, the original query returns a\n"
 "result-id from which results may be fetched.  This function implements the\n"
-"actual fetch of the results.\n",
+"actual fetch of the results.\n"
+"This function also sets ODBC_FETCH_STATUS to one of \"SUCCESS\" or \"FAILURE\",\n"
+"depending upon whether there were rows available or not.\n",
 	.read = acf_fetch,
 	.write = NULL,
 };
@@ -716,7 +721,11 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		return ENOMEM;
 	}
 
-	asprintf((char **)&((*query)->acf->syntax), "%s(<arg1>[...[,<argN>]])", (*query)->acf->name);
+	if ((tmp = ast_variable_retrieve(cfg, catg, "syntax")) && !ast_strlen_zero(tmp)) {
+		asprintf((char **)&((*query)->acf->syntax), "%s(%s)", (*query)->acf->name, tmp);
+	} else {
+		asprintf((char **)&((*query)->acf->syntax), "%s(<arg1>[...[,<argN>]])", (*query)->acf->name);
+	}
 
 	if (!((*query)->acf->syntax)) {
 		ast_free((char *)(*query)->acf->name);
@@ -726,7 +735,21 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		return ENOMEM;
 	}
 
-	(*query)->acf->synopsis = "Runs the referenced query with the specified arguments";
+	if ((tmp = ast_variable_retrieve(cfg, catg, "synopsis")) && !ast_strlen_zero(tmp)) {
+		(*query)->acf->synopsis = ast_strdup(tmp);
+	} else {
+		(*query)->acf->synopsis = ast_strdup("Runs the referenced query with the specified arguments");
+	}
+
+	if (!((*query)->acf->synopsis)) {
+		ast_free((char *)(*query)->acf->name);
+		ast_free((char *)(*query)->acf->syntax);
+		ast_free((*query)->acf);
+		ast_free(*query);
+		*query = NULL;
+		return ENOMEM;
+	}
+
 	if (!ast_strlen_zero((*query)->sql_read) && !ast_strlen_zero((*query)->sql_write)) {
 		asprintf((char **)&((*query)->acf->desc),
 					"Runs the following query, as defined in func_odbc.conf, performing\n"
@@ -751,6 +774,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 					"This function may only be set.\nSQL:\n%s\n",
 					(*query)->sql_write);
 	} else {
+		ast_free((char *)(*query)->acf->synopsis);
 		ast_free((char *)(*query)->acf->syntax);
 		ast_free((char *)(*query)->acf->name);
 		ast_free((*query)->acf);
@@ -760,6 +784,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if (! ((*query)->acf->desc)) {
+		ast_free((char *)(*query)->acf->synopsis);
 		ast_free((char *)(*query)->acf->syntax);
 		ast_free((char *)(*query)->acf->name);
 		ast_free((*query)->acf);
@@ -791,6 +816,8 @@ static int free_acf_query(struct acf_odbc_query *query)
 				ast_free((char *)query->acf->name);
 			if (query->acf->syntax)
 				ast_free((char *)query->acf->syntax);
+			if (query->acf->synopsis)
+				ast_free((char *)query->acf->synopsis);
 			if (query->acf->desc)
 				ast_free((char *)query->acf->desc);
 			ast_free(query->acf);

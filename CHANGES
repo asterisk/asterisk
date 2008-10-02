@@ -13,6 +13,8 @@ Dialplan Functions
  * Added a new dialplan function, CURLOPT, which permits setting various
    options that may be useful with the CURL dialplan function, such as
    cookies, proxies, connection timeouts, passwords, etc.
+ * Permit the syntax and synopsis fields of the corresponding dialplan
+   functions to be individually set from func_odbc.conf.
 
 Miscellaneous
 -------------

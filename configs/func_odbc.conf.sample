@@ -57,6 +57,8 @@ dsn=mysql1,mysql2   ; Use mysql1 as the primary handle, but fall back to mysql2
                     ; "writehandle", if it is important to separate reads and
                     ; writes to different databases.
 readsql=SELECT COUNT(*) FROM exgirlfriends WHERE callerid='${SQL_ESC(${ARG1})}'
+syntax=<callerid>
+synopsis=Check if a specified callerid is contained in the ex-gf database
 
 ; ODBC_PRESENCE - Retrieve and update presence
 [PRESENCE]
