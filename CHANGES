@@ -88,6 +88,8 @@ Application Changes
  * ExternalIVR now takes several options that affect the way it performs, as
    well as having several new commands.  Please see doc/externalivr.txt for the
    complete documentation.
+ * Added ability to communicate over a TCP socket instead of forking a child process for the 
+   ExternalIVR application.
  * ChanIsAvail has a new option, 'a', which will return all available channels instead
    of just the first one if you give the function more then one channel to check.
  * PrivacyManager now takes an option where you can specify a context where the 
@@ -632,8 +634,6 @@ Other Dialplan Application Changes
      or NOCHANNEL if the given channel was not found.
   * The silencethreshold setting that was previously configurable in multiple
      applications is now settable globally via dsp.conf.
-  * Added ability to communicate over a TCP socket instead of forking a child process for the 
-    ExternalIVR application.
 
 Music On Hold Changes
 ---------------------
