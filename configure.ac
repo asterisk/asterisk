@@ -1435,35 +1435,7 @@ then
     AST_EXT_LIB_CHECK([OSPTK], [osptk], [OSPPCryptoDecrypt], [osp/osp.h], [-lcrypto -lssl])
 fi
 
-AST_EXT_TOOL_CHECK([GMIME], [gmime])
-
-if test "$PBX_GMIME" = "1";
-then
-   saved_libs="${LIBS}"
-   saved_cflags="${CFLAGS}"
-   LIBS="${LIBS} ${GMIME_LIB}"
-   CFLAGS="${CFLAGS} ${GMIME_INCLUDE}"
-   AC_MSG_CHECKING(for g_mime_check_version)
-   AC_LINK_IFELSE(
-	[
-	AC_LANG_PROGRAM(
-	[#include <gmime/gmime.h>],
-	[gboolean q = g_mime_check_version(0,0,0);])
-	],
-	[	AC_MSG_RESULT(yes)
-		PBX_GMIME=1
-	],
-	[	AC_MSG_RESULT(no)
-		AC_MSG_NOTICE([***])
-		AC_MSG_NOTICE([*** It appears that you do not have the gmime development package installed.])
-		AC_MSG_NOTICE([*** Please install it to include ${GMIME_DESCRIP} support.])
-		AC_MSG_NOTICE([***])
-		PBX_GMIME=0
-	]
-	)
-   LIBS="${saved_libs}"
-   CFLAGS="${saved_cflags}"
-fi
+AST_EXT_TOOL_CHECK([GMIME], [gmime], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
 
 AST_EXT_LIB_CHECK([HOARD], [hoard], [malloc], [])
 
