@@ -2145,7 +2145,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 			if (rt_schedule && conf->endtime) {
 				char currenttime[32];
-				long localendtime;
+				long localendtime = 0;
 				int extended = 0;
 				struct ast_tm tm;
 				struct ast_variable *var, *origvar;
