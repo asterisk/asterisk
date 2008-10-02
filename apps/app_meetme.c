@@ -947,8 +947,7 @@ static char *complete_meetmecmd(const char *line, const char *word, int pos, int
 			}
 			AST_LIST_UNLOCK(&confs);
 			return usr ? ast_strdup(usrno) : NULL;
-		} else if (strstr(line, "list") && (state == 0))
-			return ast_strdup("concise");
+		}
 	}
 
 	return NULL;
@@ -957,6 +956,7 @@ static char *complete_meetmecmd(const char *line, const char *word, int pos, int
 static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	/* Process the command */
+	struct ast_conf_user *user;
 	struct ast_conference *cnf;
 	int hr, min, sec;
 	int i = 0, total = 0;
@@ -987,9 +987,9 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		return CLI_FAILURE;
 	}
 
-	if (a->argc == 1 || (a->argc == 2 && !strcasecmp(a->argv[1], "concise"))) {
-		/* 'MeetMe': List all the conferences */	
-		int concise = (a->argc == 2 && !strcasecmp(a->argv[1], "concise"));
+	if (a->argc == 2 || (a->argc == 3 && !strcasecmp(a->argv[2], "concise"))) {
+		/* List all the conferences */	
+		int concise = (a->argc == 3 && !strcasecmp(a->argv[2], "concise"));
 		now = time(NULL);
 		AST_LIST_LOCK(&confs);
 		if (AST_LIST_EMPTY(&confs)) {
@@ -1032,6 +1032,66 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		}
 		ast_free(cmdline);
 		return CLI_SUCCESS;
+	} else if (strcmp(a->argv[1], "list") == 0) {
+		int concise = (a->argc == 4 && (!strcasecmp(a->argv[3], "concise")));
+		/* List all the users in a conference */
+		if (AST_LIST_EMPTY(&confs)) {
+			if (!concise) {
+				ast_cli(a->fd, "No active MeetMe conferences.\n");
+			}
+			ast_free(cmdline);
+			return CLI_SUCCESS;	
+		}
+		/* Find the right conference */
+		AST_LIST_LOCK(&confs);
+		AST_LIST_TRAVERSE(&confs, cnf, list) {
+			if (strcmp(cnf->confno, a->argv[2]) == 0) {
+				break;
+			}
+		}
+		if (!cnf) {
+			if (!concise)
+				ast_cli(a->fd, "No such conference: %s.\n", a->argv[2]);
+			AST_LIST_UNLOCK(&confs);
+			ast_free(cmdline);
+			return CLI_SUCCESS;
+		}
+		/* Show all the users */
+		time(&now);
+		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
+			hr = (now - user->jointime) / 3600;
+			min = ((now - user->jointime) % 3600) / 60;
+			sec = (now - user->jointime) % 60;
+			if (!concise) {
+				ast_cli(a->fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %s %02d:%02d:%02d\n",
+					user->user_no,
+					S_OR(user->chan->cid.cid_num, "<unknown>"),
+					S_OR(user->chan->cid.cid_name, "<no name>"),
+					user->chan->name,
+					user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
+					user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
+					user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : user->adminflags & ADMINFLAG_SELFMUTED ? "(Muted)" : "",
+					user->adminflags & ADMINFLAG_T_REQUEST ? "(Request to Talk)" : "",
+					istalking(user->talking), hr, min, sec); 
+			} else {
+				ast_cli(a->fd, "%d!%s!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
+					user->user_no,
+					S_OR(user->chan->cid.cid_num, ""),
+					S_OR(user->chan->cid.cid_name, ""),
+					user->chan->name,
+					user->userflags  & CONFFLAG_ADMIN   ? "1" : "",
+					user->userflags  & CONFFLAG_MONITOR ? "1" : "",
+					user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED) ? "1" : "",
+					user->adminflags & ADMINFLAG_T_REQUEST ? "1" : "",
+					user->talking, hr, min, sec);
+			}
+		}
+		if (!concise) {
+			ast_cli(a->fd, "%d users in that conference.\n", cnf->users);
+		}
+		AST_LIST_UNLOCK(&confs);
+		ast_free(cmdline);
+		return CLI_SUCCESS;
 	}
 	if (a->argc < 2) {
 		ast_free(cmdline);
@@ -1050,12 +1110,8 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	/* Process the command */
-	struct ast_conference *cnf;
-	struct ast_conf_user *user;
-	int hr, min, sec;
-	int i = 0;
-	time_t now;
 	struct ast_str *cmdline = NULL;
+	int i = 0;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1127,66 +1183,6 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 			/* Kick a single user */
 			ast_str_append(&cmdline, 0, ",k,%s", a->argv[3]);
 		}
-	} else if (strcmp(a->argv[1], "list") == 0) {
-		int concise = (a->argc == 4 && (!strcasecmp(a->argv[3], "concise")));
-		/* List all the users in a conference */
-		if (AST_LIST_EMPTY(&confs)) {
-			if (!concise) {
-				ast_cli(a->fd, "No active conferences.\n");
-			}
-			ast_free(cmdline);
-			return CLI_SUCCESS;	
-		}
-		/* Find the right conference */
-		AST_LIST_LOCK(&confs);
-		AST_LIST_TRAVERSE(&confs, cnf, list) {
-			if (strcmp(cnf->confno, a->argv[2]) == 0) {
-				break;
-			}
-		}
-		if (!cnf) {
-			if (!concise)
-				ast_cli(a->fd, "No such conference: %s.\n", a->argv[2]);
-			AST_LIST_UNLOCK(&confs);
-			ast_free(cmdline);
-			return CLI_SUCCESS;
-		}
-		/* Show all the users */
-		time(&now);
-		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
-			hr = (now - user->jointime) / 3600;
-			min = ((now - user->jointime) % 3600) / 60;
-			sec = (now - user->jointime) % 60;
-			if (!concise) {
-				ast_cli(a->fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %s %02d:%02d:%02d\n",
-					user->user_no,
-					S_OR(user->chan->cid.cid_num, "<unknown>"),
-					S_OR(user->chan->cid.cid_name, "<no name>"),
-					user->chan->name,
-					user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
-					user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
-					user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : user->adminflags & ADMINFLAG_SELFMUTED ? "(Muted)" : "",
-					user->adminflags & ADMINFLAG_T_REQUEST ? "(Request to Talk)" : "",
-					istalking(user->talking), hr, min, sec); 
-			} else {
-				ast_cli(a->fd, "%d!%s!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
-					user->user_no,
-					S_OR(user->chan->cid.cid_num, ""),
-					S_OR(user->chan->cid.cid_name, ""),
-					user->chan->name,
-					user->userflags  & CONFFLAG_ADMIN   ? "1" : "",
-					user->userflags  & CONFFLAG_MONITOR ? "1" : "",
-					user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED) ? "1" : "",
-					user->adminflags & ADMINFLAG_T_REQUEST ? "1" : "",
-					user->talking, hr, min, sec);
-			}
-		}
-		if (!concise) {
-			ast_cli(a->fd, "%d users in that conference.\n", cnf->users);
-		}
-		AST_LIST_UNLOCK(&confs);
-		ast_free(cmdline);
-		return CLI_SUCCESS;
 	} else {
 		ast_free(cmdline);
 		return CLI_SHOWUSAGE;
