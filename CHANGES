@@ -614,7 +614,7 @@ Other Dialplan Application Changes
      WaitForRing() now takes floating pt timeout arg.
      SpeechBackground() -- clarified in the docstrings that the timeout is an integer seconds.
   * Added 's' option to Page application.
-  * Added 'E' and 'V' commands to ExternalIVR.
+  * Added 'E', 'V', and 'P' commands to ExternalIVR.
   * Added 'o' and 'X' options to Chanspy.
   * Added a new dialplan application, Bridge, which allows you to bridge the
      calling channel to any other active channel on the system.
