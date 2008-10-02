@@ -416,17 +416,21 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "dsn"))) {
 		ast_copy_string((*query)->dsn, tmp, sizeof((*query)->dsn));
+	} else if ((tmp = ast_variable_retrieve(cfg, catg, "writehandle")) || (tmp = ast_variable_retrieve(cfg, catg, "readhandle"))) {
+		ast_log(LOG_WARNING, "Separate read and write handles are not supported in this version of func_odbc.so\n");
+		ast_copy_string((*query)->dsn, tmp, sizeof((*query)->dsn));
 	} else {
 		free(*query);
 		*query = NULL;
+		ast_log(LOG_ERROR, "No database handle was specified for func_odbc class '%s'\n", catg);
 		return -1;
 	}
 
-	if ((tmp = ast_variable_retrieve(cfg, catg, "read"))) {
+	if ((tmp = ast_variable_retrieve(cfg, catg, "read")) || (tmp = ast_variable_retrieve(cfg, catg, "readsql"))) {
 		ast_copy_string((*query)->sql_read, tmp, sizeof((*query)->sql_read));
 	}
 
-	if ((tmp = ast_variable_retrieve(cfg, catg, "write"))) {
+	if ((tmp = ast_variable_retrieve(cfg, catg, "write")) || (tmp = ast_variable_retrieve(cfg, catg, "writesql"))) {
 		ast_copy_string((*query)->sql_write, tmp, sizeof((*query)->sql_write));
 	}
 
@@ -491,6 +495,8 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 					"${VALUE} or parsed as ${VAL1}, ${VAL2}, ... ${VALn}.\n"
 					"This function may only be set.\nSQL:\n%s\n",
 					(*query)->sql_write);
+	} else {
+		ast_log(LOG_ERROR, "No SQL was found for func_odbc class '%s'\n", catg);
 	}
 
 	/* Could be out of memory, or could be we have neither sql_read nor sql_write */
