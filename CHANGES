@@ -346,6 +346,8 @@ CLI Changes
     currently scheduled for each. Gives you a feel for how busy the sip channel
     driver is.
   * Added 'skinny show lines verbose' CLI command. This will show the subs for every channel.
+  * Cleanup another bunch of CLI commands. Now all modules follow the same schema.
+    (Done by lmadsen, junky and mvanbaak during the AstriDevCon)
 
 SIP changes
 -----------
