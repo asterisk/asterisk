@@ -271,6 +271,7 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 	/* Inherit everything from he who spawned this dial */
 	if (chan) {
 		ast_channel_inherit_variables(chan, channel->owner);
+		ast_channel_datastore_inherit(chan, channel->owner);
 
 		/* Copy over callerid information */
 		S_REPLACE(channel->owner->cid.cid_num, ast_strdup(chan->cid.cid_num));
