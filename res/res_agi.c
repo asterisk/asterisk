@@ -64,6 +64,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/strings.h"
 #include "asterisk/agi.h"
+#include "asterisk/features.h"
 
 #define MAX_ARGS 128
 #define MAX_COMMANDS 128
@@ -1110,6 +1111,9 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 	app = pbx_findapp(argv[1]);
 
 	if (app) {
+		if(!strcasecmp(argv[1], PARK_APP_NAME)) {
+			ast_masq_park_call(chan, NULL, 0, NULL);
+		}
 		res = pbx_exec(chan, app, argv[2]);
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
@@ -2035,7 +2039,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 	int fds[2];
 	int efd = -1;
 	int pid;
-        char *stringp;
+	char *stringp;
 	AGI agi;
 
 	if (ast_strlen_zero(data)) {

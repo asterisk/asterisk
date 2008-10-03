@@ -118,7 +118,7 @@ static char *descrip = "ParkedCall(exten):"
 "into the dialplan, although you should include the 'parkedcalls'\n"
 "context.\n";
 
-static char *parkcall = "Park";
+static char *parkcall = PARK_APP_NAME;
 
 static char *synopsis2 = "Park yourself";
 
@@ -565,7 +565,7 @@ static void set_peers(struct ast_channel **caller, struct ast_channel **callee,
 static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	struct ast_channel *parker;
-        struct ast_channel *parkee;
+	struct ast_channel *parkee;
 	int res = 0;
 	struct ast_module_user *u;
 
