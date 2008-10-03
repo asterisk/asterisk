@@ -16,6 +16,11 @@ Dialplan Functions
  * Permit the syntax and synopsis fields of the corresponding dialplan
    functions to be individually set from func_odbc.conf.
 
+Applications
+------------
+ * Scheduled meetme conferences may now have their end times extended by
+   using MeetMeAdmin.
+
 Miscellaneous
 -------------
  * res_jabber: autoprune has been disabled by default, to avoid misconfiguration 
