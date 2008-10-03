@@ -2901,7 +2901,7 @@ static int split_freq(char *mhz, char *decimals, char *freq);
 
 static void *rpt_tele_thread(void *this)
 {
-DAHDI_CONFINFO ci;  /* conference info */
+struct dahdi_confinfo ci;  /* conference info */
 int	res = 0,haslink,hastx,hasremote,imdone = 0, unkeys_queued, x;
 struct	rpt_tele *mytele = (struct rpt_tele *)this;
 struct  rpt_tele *tlist;
@@ -4157,7 +4157,7 @@ pthread_attr_t attr;
 
 static void *rpt_call(void *this)
 {
-DAHDI_CONFINFO ci;  /* conference info */
+struct dahdi_confinfo ci;  /* conference info */
 struct	rpt *myrpt = (struct rpt *)this;
 int	res;
 int stopped,congstarted,dialtimer,lastcidx,aborted;
@@ -4467,7 +4467,7 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 	struct rpt_link *l;
 	int reconnects = 0;
 	int i,n;
-	DAHDI_CONFINFO ci;  /* conference info */
+	struct dahdi_confinfo ci;  /* conference info */
 
 	val = node_lookup(myrpt,node);
 	if (!val){
@@ -8759,7 +8759,7 @@ char *tele,*idtalkover,c;
 int ms = MSWAIT,i,lasttx=0,val,remrx=0,identqueued,othertelemqueued;
 int tailmessagequeued,ctqueued,dtmfed;
 struct ast_channel *who;
-DAHDI_CONFINFO ci;  /* conference info */
+struct dahdi_confinfo ci;  /* conference info */
 time_t	t;
 struct rpt_link *l,*m;
 struct rpt_tele *telem;
@@ -10564,8 +10564,8 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	struct ast_channel *who;
 	struct ast_channel *cs[20];
 	struct	rpt_link *l;
-	DAHDI_CONFINFO ci;  /* conference info */
-	DAHDI_PARAMS par;
+	struct dahdi_confinfo ci;  /* conference info */
+	struct dahdi_params par;
 	int ms,elap,nullfd;
 	time_t t,last_timeout_warning;
 	struct	dahdi_radio_param z;
