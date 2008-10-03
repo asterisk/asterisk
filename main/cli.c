@@ -1255,11 +1255,11 @@ void ast_builtins_init(void)
 
 static struct ast_cli_entry *cli_next(struct ast_cli_entry *e)
 {
-	if (e == NULL)
-		e = AST_LIST_FIRST(&helpers);
-	if (e) 
-		e = AST_LIST_NEXT(e, list);
-	return e;
+	if (e) {
+		return AST_LIST_NEXT(e, list);
+	} else {
+		return AST_LIST_FIRST(&helpers);
+	}
 }
 
 /*!
