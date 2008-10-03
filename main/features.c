@@ -2500,7 +2500,7 @@ static void post_manager_event(const char *s, struct parkeduser *pu)
 		);
 }
 
-/*! \brief Run management on parkinglots, collad once per parkinglot */
+/*! \brief Run management on parkinglots, called once per parkinglot */
 int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds, fd_set *nrfds, fd_set *nefds, int *ms, int *max)
 {
 
@@ -2508,8 +2508,6 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 	int res = 0;
 	char parkingslot[AST_MAX_EXTENSION];
 
-	/* TODO: I believe this reference increase is not necessary since the iterator in the calling function already did so */
-	//parkinglot_addref(curlot);
 	/* Lock parking list */
 	AST_LIST_LOCK(&curlot->parkings);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&curlot->parkings, pu, list) {
@@ -2593,7 +2591,6 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 			} else
 				ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 			AST_LIST_REMOVE_CURRENT(list);
-			parkinglot_unref(curlot);
 		} else {	/* still within parking time, process descriptors */
 			for (x = 0; x < AST_MAX_FDS; x++) {
 				struct ast_frame *f;
@@ -2628,7 +2625,6 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 					} else
 						ast_log(LOG_WARNING, "Whoa, no parking context for parking lot %s?\n", curlot->name);
 					AST_LIST_REMOVE_CURRENT(list);
-					parkinglot_unref(curlot);
 					break;
 				} else {
 					/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
