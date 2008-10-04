@@ -1,10 +1,14 @@
-[polycom-check-cfg]
+; Aastra
+
+[aastra-check-cfg]
 Event=>check-sync
 Content-Length=>0
 
-[sipura-check-cfg]
-Event=>resync
+[aastra-xml]
+Event=>aastra-xml
 Content-Length=>0
+
+; Linksys
 
 [linksys-cold-restart]
 Event=>reboot_now
@@ -14,27 +18,36 @@ Content-Length=>0
 Event=>restart_now
 Content-Length=>0
 
+; Polycom
+
+[polycom-check-cfg]
+Event=>check-sync
+Content-Length=>0
+
+; Sipura
+
+[sipura-check-cfg]
+Event=>resync
+Content-Length=>0
+
 [sipura-get-report]
 Event=>report
 Content-Length=>0
 
-; Untested
-[grandstream-check-cfg]
-Event=>sys-control
-
-; Untested
-[cisco-check-cfg]
-Event=>check-sync
-Content-Length=>0
+; snom
 
 [snom-check-cfg]
 Event=>check-sync\;reboot=false
 Content-Length=>0
 
-[aastra-check-cfg]
-Event=>check-sync
+[snom-reboot]
+Event=>reboot
 Content-Length=>0
 
-[aastra-xml]
-Event=>aastra-xml
+;;
+;; The following NOTIFY messages are not confirmed to work.
+;;
+
+[cisco-check-cfg]
+Event=>check-sync
 Content-Length=>0
