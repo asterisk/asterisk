@@ -2371,15 +2371,17 @@ static int ast_el_initialize(void)
 	return 0;
 }
 
+#define MAX_HISTORY_COMMAND_LENGTH 256
+
 static int ast_el_add_history(char *buf)
 {
 	HistEvent ev;
 
 	if (el_hist == NULL || el == NULL)
 		ast_el_initialize();
-	if (strlen(buf) > 256)
+	if (strlen(buf) > (MAX_HISTORY_COMMAND_LENGTH - 1))
 		return 0;
-	return (history(el_hist, &ev, H_ENTER, buf));
+	return (history(el_hist, &ev, H_ENTER, ast_strip(ast_strdupa(buf))));
 }
 
 static int ast_el_write_history(char *filename)
@@ -2394,7 +2396,7 @@ static int ast_el_write_history(char *filename)
 
 static int ast_el_read_history(char *filename)
 {
-	char buf[256];
+	char buf[MAX_HISTORY_COMMAND_LENGTH];
 	FILE *f;
 	int ret = -1;
 
@@ -2405,7 +2407,8 @@ static int ast_el_read_history(char *filename)
 		return ret;
 
 	while (!feof(f)) {
-		fgets(buf, sizeof(buf), f);
+		if (!fgets(buf, sizeof(buf), f))
+			break;
 		if (!strcmp(buf, "_HiStOrY_V2_\n"))
 			continue;
 		if (ast_all_zeros(buf))
