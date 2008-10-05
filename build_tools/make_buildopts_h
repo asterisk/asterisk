@@ -26,19 +26,13 @@ then
 	echo "#define AST_DEVMODE 1"
 	TMP="${TMP} AST_DEVMODE"
 fi
-
-case ${OSARCH} in	# actually we should check build_os
-*BSD|mingw|darwin*)
-	BUILDSUM=`echo ${TMP} | md5 | cut -c1-32`
-	;;
-SunOS)
-	BUILDSUM=`echo ${TMP} | digest -a md5 | cut -c1-32`
-	;;
-*)
-	BUILDSUM=`echo ${TMP} | md5sum | cut -c1-32`
-	;;
-esac
+for x in md5 digest md5sum gmd5sum; do
+	BUILDSUM=`echo ${TMP} | $x 2> /dev/null`
+	if [ $? = 0 ]; then
+		BUILDSUM=`echo ${BUILDSUM} | cut -c1-32`
+		break;
+	fi
+done
 
 echo "#define AST_BUILDOPT_SUM \"${BUILDSUM}\""
-
 echo "#define AST_BUILDOPTS \"${BUILDOPTS}\""
