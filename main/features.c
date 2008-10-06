@@ -627,10 +627,11 @@ static int ast_park_call_full(struct ast_channel *chan, struct ast_channel *peer
 	con = ast_context_find_or_create(NULL, NULL, parkinglot->parking_con, registrar);
 	if (!con)	/* Still no context? Bad */
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parkinglot->parking_con);
-	/* Tell the peer channel the number of the parking space */
-	if (peer && !ast_test_flag(args, AST_PARK_OPT_SILENCE) && (ast_strlen_zero(args->orig_chan_name) || !strcasecmp(peer->name, args->orig_chan_name))) { /* Only say number if it's a number and the channel hasn't been masqueraded away */
+	/* Only say number if it's a number and the channel hasn't been masqueraded away */
+	if (peer && !ast_test_flag(args, AST_PARK_OPT_SILENCE) && (ast_strlen_zero(args->orig_chan_name) || !strcasecmp(peer->name, args->orig_chan_name))) {
 		/* If a channel is masqueraded into peer while playing back the parking slot number do not continue playing it back. This is the case if an attended transfer occurs. */
 		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
+		/* Tell the peer channel the number of the parking space */
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
 		ast_clear_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 	}
