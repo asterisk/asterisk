@@ -218,7 +218,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	struct odbc_obj *obj;
 	struct acf_odbc_query *query;
 	char sql[2048] = "", varname[15];
-	int res, x, buflen = 0, escapecommas, bogus_chan = 0;
+	int res, x, buflen = 1, escapecommas, bogus_chan = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];
 	);

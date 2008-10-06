@@ -97,6 +97,7 @@ AST_THREADSTORAGE_CUSTOM(curl_instance, curl_instance_init, curl_instance_cleanu
 
 static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
 {
+	int ret;
 	CURL **curl;
 
 	if (!(curl = ast_threadstorage_get(&curl_instance, sizeof(*curl))))
@@ -119,16 +120,17 @@ static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
 		curl_easy_setopt(*curl, CURLOPT_POSTFIELDS, post);
 	}
 
-	curl_easy_perform(*curl);
+	ret = curl_easy_perform(*curl);
 
 	if (post)
 		curl_easy_setopt(*curl, CURLOPT_POST, 0);
 
-	return 0;
+	return ret ? -1 : 0;
 }
 
 static int acf_curl_exec(struct ast_channel *chan, char *cmd, char *info, char *buf, size_t len)
 {
+	int ret = -1;
 	struct ast_module_user *u;
 	struct MemoryStruct chunk = { NULL, 0 };
 	AST_DECLARE_APP_ARGS(args,
@@ -159,6 +161,7 @@ static int acf_curl_exec(struct ast_channel *chan, char *cmd, char *info, char *
 			ast_copy_string(buf, chunk.memory, len);
 			free(chunk.memory);
 		}
+		ret = 0;
 	} else {
 		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
 	}
@@ -168,7 +171,7 @@ static int acf_curl_exec(struct ast_channel *chan, char *cmd, char *info, char *
 
 	ast_module_user_remove(u);
 
-	return 0;
+	return ret;
 }
 
 struct ast_custom_function acf_curl = {

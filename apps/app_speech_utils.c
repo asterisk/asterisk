@@ -193,8 +193,11 @@ static int speech_text(struct ast_channel *chan, char *cmd, char *data,
 	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data)))
                 return -1;
 
-	if (result->text != NULL)
+	if (result->text != NULL) {
 		ast_copy_string(buf, result->text, len);
+	} else {
+		buf[0] = '\0';
+	}
 
         return 0;
 }
@@ -219,8 +222,11 @@ static int speech_grammar(struct ast_channel *chan, char *cmd, char *data,
 	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data)))
                 return -1;
 
-	if (result->grammar != NULL)
+	if (result->grammar != NULL) {
 		ast_copy_string(buf, result->grammar, len);
+	} else {
+		buf[0] = '\0';
+	}
 
         return 0;
 }
@@ -322,6 +328,8 @@ static int speech_read(struct ast_channel *chan, char *cmd, char *data,
 		}
 		snprintf(tmp, sizeof(tmp), "%d", results);
 		ast_copy_string(buf, tmp, len);
+	} else {
+		buf[0] = '\0';
 	}
 
 	return 0;

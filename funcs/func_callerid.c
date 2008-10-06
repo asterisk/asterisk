@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 			 char *buf, size_t len)
 {
+	int res = -1;
 	char *opt = data;
 
 	if (!chan)
@@ -54,12 +55,15 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 
 		if (!strncasecmp("all", data, 3)) {
 			snprintf(buf, len, "\"%s\" <%s>", name, num);
+			res = 0;
 		} else if (!strncasecmp("name", data, 4)) {
 			ast_copy_string(buf, name, len);
+			res = 0;
 		} else if (!strncasecmp("num", data, 3) ||
 			   !strncasecmp("number", data, 6)) {
 
 			ast_copy_string(buf, num, len);
+			res = 0;
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 		}
@@ -70,26 +74,32 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 			snprintf(buf, len, "\"%s\" <%s>",
 				 S_OR(chan->cid.cid_name, ""),
 				 S_OR(chan->cid.cid_num, ""));
+			res = 0;
 		} else if (!strncasecmp("name", data, 4)) {
 			if (chan->cid.cid_name) {
 				ast_copy_string(buf, chan->cid.cid_name, len);
+				res = 0;
 			}
 		} else if (!strncasecmp("num", data, 3)
 				   || !strncasecmp("number", data, 6)) {
 			if (chan->cid.cid_num) {
 				ast_copy_string(buf, chan->cid.cid_num, len);
+				res = 0;
 			}
 		} else if (!strncasecmp("ani", data, 3)) {
 			if (chan->cid.cid_ani) {
 				ast_copy_string(buf, chan->cid.cid_ani, len);
+				res = 0;
 			}
 		} else if (!strncasecmp("dnid", data, 4)) {
 			if (chan->cid.cid_dnid) {
 				ast_copy_string(buf, chan->cid.cid_dnid, len);
+				res = 0;
 			}
 		} else if (!strncasecmp("rdnis", data, 5)) {
 			if (chan->cid.cid_rdnis) {
 				ast_copy_string(buf, chan->cid.cid_rdnis, len);
+				res = 0;
 			}
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
@@ -98,7 +108,7 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 		ast_channel_unlock(chan);
 	}
 
-	return 0;
+	return res;
 }
 
 static int callerid_write(struct ast_channel *chan, char *cmd, char *data,

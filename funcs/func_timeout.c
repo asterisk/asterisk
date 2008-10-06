@@ -80,7 +80,7 @@ static int timeout_read(struct ast_channel *chan, char *cmd, char *data,
 
 	default:
 		ast_log(LOG_ERROR, "Unknown timeout type specified.\n");
-		break;
+		return -1;
 	}
 
 	return 0;
