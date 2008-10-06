@@ -27,12 +27,12 @@
  * Autodetect system endianess
  */
 
-#include "asterisk/compat.h"
 
 #ifndef __BYTE_ORDER
 #ifdef __linux__
 #include <endian.h>
 #elif defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
+#include "asterisk/compat.h"
 #include <machine/endian.h>
 #define __BYTE_ORDER BYTE_ORDER
 #define __LITTLE_ENDIAN LITTLE_ENDIAN
