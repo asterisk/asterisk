@@ -33,6 +33,8 @@
 #define FEATURE_EXTEN_LEN	32
 #define FEATURE_MOH_LEN		80  /* same as MAX_MUSICCLASS from channel.h */
 
+#define PARK_APP_NAME "Park"
+
 /*! \brief main call feature structure */
 
 enum {

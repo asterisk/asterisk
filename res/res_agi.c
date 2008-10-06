@@ -56,6 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ast_version.h"
 #include "asterisk/speech.h"
 #include "asterisk/manager.h"
+#include "asterisk/features.h"
 
 #define MAX_ARGS 128
 #define AGI_NANDFS_RETRY 3
@@ -1457,6 +1458,9 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 	ast_verb(3, "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argv[2]);
 
 	if ((app_to_exec = pbx_findapp(argv[1]))) {
+		if(!strcasecmp(argv[1], PARK_APP_NAME)) {
+			ast_masq_park_call(chan, NULL, 0, NULL);
+		}
 		if (ast_compat_res_agi && !ast_strlen_zero(argv[2])) {
 			char *compat = alloca(strlen(argv[2]) * 2 + 1), *cptr, *vptr;
 			for (cptr = compat, vptr = argv[2]; *vptr; vptr++) {
