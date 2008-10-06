@@ -607,6 +607,10 @@ Queue changes
     when a realtime queue member is removed. Since there is no calling channel associated
     with these events, the string "REALTIME" is placed where the channel's unique id
     is typically placed.
+  * The configuration method for the "joinempty" and "leavewhenempty" options has
+    changed to a comma-separated list of methods of determining member availability
+	instead of vague terms such as "yes," "loose," "no," and "strict." These old four
+	values are still accepted for backwards-compatibility, though.
 
 MeetMe Changes
 --------------

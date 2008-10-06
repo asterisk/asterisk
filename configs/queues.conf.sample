@@ -365,25 +365,58 @@ shared_lastcall=no
 ; The contents of MONITOR_FILENAME will also be unescaped from ^{X} to ${X} and
 ; all variables will be evaluated just prior to recording being started.
 ;
+; ---------------------- Queue Empty Options ----------------------------------
 ;
-; This setting controls whether callers can join a queue with no members. There
-; are three choices:
+; Asterisk has provided the "joinempty" and "leavewhenempty" options for a while
+; with tenuous definitions of what they actually mean. The "joinempty" option controls
+; whether a caller may join a queue depending on several factors of member availability.
+; Similarly, then leavewhenempty option controls whether a caller may remain in a queue
+; he has already joined. Both options take a comma-separated list of factors which
+; contribute towards whether a caller may join/remain in the queue. The list of 
+; factors which contribute to these option is as follows:
+; 
+; paused: a member is not considered available if he is paused
+; penalty: a member is not considered available if his penalty is less than QUEUE_MAX_PENALTY
+; inuse: a member is not considered available if he is currently on a call
+; ringing: a member is not considered available if his phone is currently ringing
+; unavailable: This applies mainly to Agent channels. If the agent is a member of the queue
+;              but has not logged in, then do not consider the member to be available
+; invalid: Do not consider a member to be available if he has an "invalid" device state.
+;          This generally is caused by an error condition in the member's channel driver.
+; unknown: Do not consider a member to be available if we are unable to determine the member's
+;          current device state.
+; wrapup: A member is not considered available if he is currently in his wrapuptime after
+;         taking a call.
+; 
+; For the "joinempty" option, when a caller attempts to enter a queue, the members of that
+; queue are examined. If all members are deemed to be unavailable due to any of the conditions
+; listed for the "joinempty" option, then the caller will be unable to enter the queue. For the
+; "leavewhenempty" option, the state of the members of the queue are checked periodically during
+; the caller's stay in the queue. If all of the members are unavailable due to any of the above
+; conditions, then the caller will be removed from the queue.
+; 
+; Some examples:
 ;
-; yes    - callers can join a queue with no members or only unavailable members
-; no     - callers cannot join a queue with no members
-; strict - callers cannot join a queue with no members or only unavailable
-;          members
-; loose  - same as strict, but paused queue members do not count as unavailable
+;joinempty = paused,inuse,invalid
 ;
-; joinempty = yes
+; A caller will not be able to enter a queue if at least one member cannot be found
+; who is not paused, on the phone, or who has an invalid device state.
 ;
+;leavewhenempty = inuse,ringing
 ;
-; If you wish to remove callers from the queue when new callers cannot join,
-; set this setting to one of the same choices for 'joinempty'
+; A caller will be removed from the queue if at least one member cannot be found 
+; who is not on the phone, or whose phone is not ringing.
 ;
-; leavewhenempty = yes
+; For the sake of backwards-compatibility, the joinempty and leavewhenempty
+; options also accept the strings "yes" "no" "strict" and "loose". The following
+; serves as a translation for these values:
 ;
+; yes - (empty) for joinempty; penalty,paused,invalid for leavewhenempty
+; no - penalty,paused,invalid for joinempty; (empty) for leavewhenempty
+; strict - penalty,paused,invalid,unavailable
+; loose - penalty,invalid
 ;
+
 ; If this is set to yes, the following manager events will be generated:
 ; AgentCalled, AgentDump, AgentConnect, AgentComplete; setting this to
 ; vars also sends all channel variables with the event.

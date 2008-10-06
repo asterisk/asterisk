@@ -392,10 +392,18 @@ struct member {
 	char rt_uniqueid[80];               /*!< Unique id of realtime member entry */
 };
 
+enum empty_conditions {
+	QUEUE_EMPTY_PENALTY = (1 << 0),
+	QUEUE_EMPTY_PAUSED = (1 << 1),
+	QUEUE_EMPTY_INUSE = (1 << 2),
+	QUEUE_EMPTY_RINGING = (1 << 3),
+	QUEUE_EMPTY_UNAVAILABLE = (1 << 4),
+	QUEUE_EMPTY_INVALID = (1 << 5),
+	QUEUE_EMPTY_UNKNOWN = (1 << 6),
+	QUEUE_EMPTY_WRAPUP = (1 << 7),
+};
+
 /* values used in multi-bit flags in call_queue */
-#define QUEUE_EMPTY_NORMAL 1
-#define QUEUE_EMPTY_STRICT 2
-#define QUEUE_EMPTY_LOOSE 3
 #define ANNOUNCEHOLDTIME_ALWAYS 1
 #define ANNOUNCEHOLDTIME_ONCE 2
 #define QUEUE_EVENT_VARIABLES 3
@@ -458,9 +466,7 @@ struct call_queue {
 	/*! Sound files: Custom announce, no default */
 	struct ast_str *sound_periodicannounce[MAX_PERIODIC_ANNOUNCEMENTS];
 	unsigned int dead:1;
-	unsigned int joinempty:2;
 	unsigned int eventwhencalled:2;
-	unsigned int leavewhenempty:2;
 	unsigned int ringinuse:1;
 	unsigned int setinterfacevar:1;
 	unsigned int setqueuevar:1;
@@ -474,6 +480,8 @@ struct call_queue {
 	unsigned int maskmemberstatus:1;
 	unsigned int realtime:1;
 	unsigned int found:1;
+	enum empty_conditions joinempty;
+	enum empty_conditions leavewhenempty;
 	int announcepositionlimit;          /*!< How many positions we announce? */
 	int announcefrequency;              /*!< How often to announce their position */
 	int minannouncefrequency;           /*!< The minimum number of seconds between position announcements (def. 15) */
@@ -630,53 +638,67 @@ static inline void insert_entry(struct call_queue *q, struct queue_ent *prev, st
 	new->opos = *pos;
 }
 
-enum queue_member_status {
-	QUEUE_NO_MEMBERS,
-	QUEUE_NO_REACHABLE_MEMBERS,
-	QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS,
-	QUEUE_NORMAL
-};
-
 /*! \brief Check if members are available
  *
  * This function checks to see if members are available to be called. If any member
- * is available, the function immediately returns QUEUE_NORMAL. If no members are available,
- * the appropriate reason why is returned
+ * is available, the function immediately returns 0. If no members are available,
+ * then -1 is returned.
  */
-static enum queue_member_status get_member_status(struct call_queue *q, int max_penalty, int min_penalty)
+static int get_member_status(struct call_queue *q, int max_penalty, int min_penalty, enum empty_conditions conditions)
 {
 	struct member *member;
 	struct ao2_iterator mem_iter;
-	enum queue_member_status result = QUEUE_NO_MEMBERS;
 
 	ao2_lock(q);
 	mem_iter = ao2_iterator_init(q->members, 0);
 	for (; (member = ao2_iterator_next(&mem_iter)); ao2_ref(member, -1)) {
-		if ((max_penalty && (member->penalty > max_penalty)) || (min_penalty && (member->penalty < min_penalty)))
-			continue;
+		if ((max_penalty && (member->penalty > max_penalty)) || (min_penalty && (member->penalty < min_penalty))) {
+			if (conditions & QUEUE_EMPTY_PENALTY) {
+				ast_debug(4, "%s is unavailable because his penalty is not between %d and %d\n", member->membername, min_penalty, max_penalty);
+				continue;
+			}
+		}
 
 		switch (member->status) {
 		case AST_DEVICE_INVALID:
-			/* nothing to do */
-			break;
+			if (conditions & QUEUE_EMPTY_INVALID) {
+				ast_debug(4, "%s is unavailable because his device state is 'invalid'\n", member->membername);
+				break;
+			}
 		case AST_DEVICE_UNAVAILABLE:
-			if (result != QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS) 
-				result = QUEUE_NO_REACHABLE_MEMBERS;
-			break;
+			if (conditions & QUEUE_EMPTY_UNAVAILABLE) {
+				ast_debug(4, "%s is unavailable because his device state is 'unavailable'\n", member->membername);
+				break;
+			}
+		case AST_DEVICE_INUSE:
+			if (conditions & QUEUE_EMPTY_INUSE) {
+				ast_debug(4, "%s is unavailable because his device state is 'inuse'\n", member->membername);
+				break;
+			}
+		case AST_DEVICE_UNKNOWN:
+			if (conditions & QUEUE_EMPTY_UNKNOWN) {
+				ast_debug(4, "%s is unavailable because his device state is 'unknown'\n", member->membername);
+				break;
+			}
 		default:
-			if (member->paused) {
-				result = QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS;
+			if (member->paused && (conditions & QUEUE_EMPTY_PAUSED)) {
+				ast_debug(4, "%s is unavailable because he is paused'\n", member->membername);
+				break;
+			} else if ((conditions & QUEUE_EMPTY_WRAPUP) && member->lastcall && q->wrapuptime && (time(NULL) - q->wrapuptime < member->lastcall)) {
+				ast_debug(4, "%s is unavailable because it has only been %d seconds since his last call (wrapup time is %d)\n", member->membername, (int) (time(NULL) - member->lastcall), q->wrapuptime);
+				break;
 			} else {
 				ao2_unlock(q);
 				ao2_ref(member, -1);
-				return QUEUE_NORMAL;
+				ast_debug(4, "%s is available.\n", member->membername);
+				return 0;
 			}
 			break;
 		}
 	}
 
 	ao2_unlock(q);
-	return result;
+	return -1;
 }
 
 struct statechange {
@@ -1000,6 +1022,39 @@ static int insert_penaltychange (const char *list_name, const char *content, con
 	return 0;
 }
 
+static void parse_empty_options(const char *value, enum empty_conditions *empty)
+{
+	char *value_copy = ast_strdupa(value);
+	char *option = NULL;
+	while ((option = strsep(&value_copy, ","))) {
+		if (!strcasecmp(option, "paused")) {
+			*empty |= QUEUE_EMPTY_PAUSED;
+		} else if (!strcasecmp(option, "penalty")) {
+			*empty |= QUEUE_EMPTY_PENALTY;
+		} else if (!strcasecmp(option, "inuse")) {
+			*empty |= QUEUE_EMPTY_INUSE;
+		} else if (!strcasecmp(option, "ringing")) {
+			*empty |= QUEUE_EMPTY_RINGING;
+		} else if (!strcasecmp(option, "invalid")) {
+			*empty |= QUEUE_EMPTY_INVALID;
+		} else if (!strcasecmp(option, "wrapup")) {
+			*empty |= QUEUE_EMPTY_WRAPUP;
+		} else if (!strcasecmp(option, "unavailable")) {
+			*empty |= QUEUE_EMPTY_UNAVAILABLE;
+		} else if (!strcasecmp(option, "unknown")) {
+			*empty |= QUEUE_EMPTY_UNKNOWN;
+		} else if (!strcasecmp(option, "loose")) {
+			*empty = (QUEUE_EMPTY_PENALTY | QUEUE_EMPTY_INVALID);
+		} else if (!strcasecmp(option, "strict")) {
+			*empty = (QUEUE_EMPTY_PENALTY | QUEUE_EMPTY_INVALID | QUEUE_EMPTY_PAUSED | QUEUE_EMPTY_UNAVAILABLE);
+		} else if (ast_false(option)) {
+			*empty = (QUEUE_EMPTY_PENALTY | QUEUE_EMPTY_INVALID | QUEUE_EMPTY_PAUSED);
+		} else if (ast_true(option)) {
+			*empty = 0;
+		}
+	}
+}
+
 /*! \brief Configure a queue parameter.
  * 
  * The failunknown flag is set for config files (and static realtime) to show
@@ -1142,23 +1197,9 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		/* We already have set this, no need to do it again */
 		return;
 	} else if (!strcasecmp(param, "joinempty")) {
-		if (!strcasecmp(val, "loose"))
-			q->joinempty = QUEUE_EMPTY_LOOSE;
-		else if (!strcasecmp(val, "strict"))
-			q->joinempty = QUEUE_EMPTY_STRICT;
-		else if (ast_true(val))
-			q->joinempty = QUEUE_EMPTY_NORMAL;
-		else
-			q->joinempty = 0;
+		parse_empty_options(val, &q->joinempty);
 	} else if (!strcasecmp(param, "leavewhenempty")) {
-		if (!strcasecmp(val, "loose"))
-			q->leavewhenempty = QUEUE_EMPTY_LOOSE;
-		else if (!strcasecmp(val, "strict"))
-			q->leavewhenempty = QUEUE_EMPTY_STRICT;
-		else if (ast_true(val))
-			q->leavewhenempty = QUEUE_EMPTY_NORMAL;
-		else
-			q->leavewhenempty = 0;
+		parse_empty_options(val, &q->leavewhenempty);
 	} else if (!strcasecmp(param, "eventmemberstatus")) {
 		q->maskmemberstatus = !ast_true(val);
 	} else if (!strcasecmp(param, "eventwhencalled")) {
@@ -1558,7 +1599,6 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	int res = -1;
 	int pos = 0;
 	int inserted = 0;
-	enum queue_member_status status;
 
 	if (!(q = load_realtime_queue(queuename)))
 		return res;
@@ -1567,14 +1607,14 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	ao2_lock(q);
 
 	/* This is our one */
-	if (q->joinempty != QUEUE_EMPTY_NORMAL) {
-		status = get_member_status(q, qe->max_penalty, qe->min_penalty);
-		if (!q->joinempty && (status == QUEUE_NO_MEMBERS))
+	if (q->joinempty) {
+		int status = 0;
+		if ((status = get_member_status(q, qe->max_penalty, qe->min_penalty, q->joinempty))) {
 			*reason = QUEUE_JOINEMPTY;
-		else if ((q->joinempty == QUEUE_EMPTY_STRICT) && (status == QUEUE_NO_REACHABLE_MEMBERS || status == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS || status == QUEUE_NO_MEMBERS))
-			*reason = QUEUE_JOINUNAVAIL;
-		else if ((q->joinempty == QUEUE_EMPTY_LOOSE) && (status == QUEUE_NO_REACHABLE_MEMBERS || status == QUEUE_NO_MEMBERS))
-			*reason = QUEUE_JOINUNAVAIL;
+			ao2_unlock(q);
+			ao2_unlock(queues);
+			return res;
+		}
 	}
 	if (*reason == QUEUE_UNKNOWN && q->maxlen && (q->count >= q->maxlen))
 		*reason = QUEUE_FULL;
@@ -2735,7 +2775,6 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 
 	/* This is the holding pen for callers 2 through maxlen */
 	for (;;) {
-		enum queue_member_status status;
 
 		if (is_our_turn(qe))
 			break;
@@ -2747,25 +2786,10 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		}
 
 		if (qe->parent->leavewhenempty) {
-			status = get_member_status(qe->parent, qe->max_penalty, qe->min_penalty);
+			int status = 0;
 
-			/* leave the queue if no agents, if enabled */
-			if (status == QUEUE_NO_MEMBERS) {
+			if ((status = get_member_status(qe->parent, qe->max_penalty, qe->min_penalty, qe->parent->leavewhenempty))) {
 				*reason = QUEUE_LEAVEEMPTY;
-				ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
-				leave_queue(qe);
-				break;
-			}
-
-			/* leave the queue if no reachable agents, if enabled */
-			if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (status == QUEUE_NO_REACHABLE_MEMBERS || status == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) {
-				*reason = QUEUE_LEAVEUNAVAIL;
-				ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
-				leave_queue(qe);
-				break;
-			}
-			if ((qe->parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (status == QUEUE_NO_REACHABLE_MEMBERS)) {
-				*reason = QUEUE_LEAVEUNAVAIL;
 				ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
 				leave_queue(qe);
 				break;
@@ -4607,8 +4631,6 @@ check_turns:
 		/* they may dial a digit from the queue context; */
 		/* or, they may timeout. */
 
-		enum queue_member_status status;
-
 		/* Leave if we have exceeded our queuetimeout */
 		if (qe.expire && (time(NULL) >= qe.expire)) {
 			record_abandoned(&qe);
@@ -4653,27 +4675,11 @@ check_turns:
 		}
 
 		if (qe.parent->leavewhenempty) {
-			status = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty);
-			/* leave the queue if no agents, if enabled */
-			if (status == QUEUE_NO_MEMBERS) {
+			int status = 0;
+			if ((status = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty, qe.parent->leavewhenempty))) {
 				record_abandoned(&qe);
 				reason = QUEUE_LEAVEEMPTY;
 				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
-				res = 0;
-				break;
-			}
-
-			/* leave the queue if no reachable agents, if enabled */
-			if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (status == QUEUE_NO_REACHABLE_MEMBERS || status == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) {
-				record_abandoned(&qe);
-				reason = QUEUE_LEAVEUNAVAIL;
-				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
-				res = 0;
-				break;
-			}
-			if ((qe.parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (status == QUEUE_NO_REACHABLE_MEMBERS)) {
-				record_abandoned(&qe);
-				reason = QUEUE_LEAVEUNAVAIL;
 				res = 0;
 				break;
 			}
