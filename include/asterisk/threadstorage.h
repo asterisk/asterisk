@@ -139,8 +139,7 @@ static void __init_##name(void)					\
  *
  * \param ts This is a pointer to the thread storage structure declared by using
  *      the AST_THREADSTORAGE macro.  If declared with 
- *      AST_THREADSTORAGE(my_buf, my_buf_init), then this argument would be 
- *      (&my_buf).
+ *      AST_THREADSTORAGE(my_buf), then this argument would be (&my_buf).
  * \param init_size This is the amount of space to be allocated the first time
  *      this thread requests its data. Thus, this should be the size that the
  *      code accessing this thread storage is assuming the size to be.
@@ -151,7 +150,7 @@ static void __init_##name(void)					\
  *
  * Example usage:
  * \code
- * AST_THREADSTORAGE(my_buf, my_buf_init);
+ * AST_THREADSTORAGE(my_buf);
  * #define MY_BUF_SIZE   128
  * ...
  * void my_func(const char *fmt, ...)
