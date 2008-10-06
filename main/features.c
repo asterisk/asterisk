@@ -456,7 +456,7 @@ static int ast_park_call_full(struct ast_channel *chan, struct ast_channel *peer
 	struct ast_park_call_args *args)
 {
 	struct parkeduser *pu;
-	int i, x = -1, parking_range;
+	int i, x = -1, parking_range, parkingnum_copy;
 	struct ast_context *con;
 	const char *parkinglotname = NULL;
 	const char *parkingexten;
@@ -574,6 +574,7 @@ static int ast_park_call_full(struct ast_channel *chan, struct ast_channel *peer
 	pu->parkingnum = x;
 	pu->parkinglot = parkinglot;
 	pu->parkingtime = (args->timeout > 0) ? args->timeout : parkinglot->parkingtime;
+	parkingnum_copy = pu->parkingnum;
 	if (args->extout)
 		*(args->extout) = x;
 
@@ -596,8 +597,6 @@ static int ast_park_call_full(struct ast_channel *chan, struct ast_channel *peer
 	/* If parking a channel directly, don't quiet yet get parking running on it */
 	if (peer == chan) 
 		pu->notquiteyet = 1;
-	AST_LIST_UNLOCK(&parkinglot->parkings);
-
 
 	/* Wake up the (presumably select()ing) thread */
 	pthread_kill(parking_thread, SIGURG);
@@ -627,6 +626,13 @@ static int ast_park_call_full(struct ast_channel *chan, struct ast_channel *peer
 	con = ast_context_find_or_create(NULL, NULL, parkinglot->parking_con, registrar);
 	if (!con)	/* Still no context? Bad */
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parkinglot->parking_con);
+	if (con) {
+		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, ast_strdup(pu->parkingexten), ast_free_ptr, registrar))
+			notify_metermaids(pu->parkingexten, parkinglot->parking_con, AST_DEVICE_INUSE);
+	}
+
+	AST_LIST_UNLOCK(&parkinglot->parkings);
+
 	/* Only say number if it's a number and the channel hasn't been masqueraded away */
 	if (peer && !ast_test_flag(args, AST_PARK_OPT_SILENCE) && (ast_strlen_zero(args->orig_chan_name) || !strcasecmp(peer->name, args->orig_chan_name))) {
 		/* If a channel is masqueraded into peer while playing back the parking slot number do not continue playing it back. This is the case if an attended transfer occurs. */
@@ -635,11 +641,7 @@ static int ast_park_call_full(struct ast_channel *chan, struct ast_channel *peer
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
 		ast_clear_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 	}
-	if (con) {
-		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, ast_strdup(pu->parkingexten), ast_free_ptr, registrar))
-			notify_metermaids(pu->parkingexten, parkinglot->parking_con, AST_DEVICE_INUSE);
-	}
-	if (pu->notquiteyet) {
+	if (peer == chan) { /* pu->notquiteyet = 1 */
 		/* Wake up parking thread if we're really done */
 		ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
 			S_OR(parkinglot->mohclass, NULL),
@@ -661,8 +663,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	return ast_park_call_full(chan, peer, &args);
 }
 
-/* Park call via masquraded channel */
-int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
+static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout, int play_announcement)
 {
 	struct ast_channel *chan;
 	struct ast_frame *f;
@@ -687,7 +688,9 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	if ((f = ast_read(chan)))
 		ast_frfree(f);
 
-	orig_chan_name = ast_strdupa(chan->name);
+	if (!play_announcement) {
+		orig_chan_name = ast_strdupa(chan->name);
+	}
 
 	{
 		struct ast_park_call_args args = {
@@ -706,6 +709,18 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 
 	return 0;
 }
+
+/* Park call via masquraded channel */
+int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
+{
+	return masq_park_call(rchan, peer, timeout, extout, 0);
+}
+
+static int masq_park_call_announce(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
+{
+	return masq_park_call(rchan, peer, timeout, extout, 1);
+}
+
 
 
 #define FEATURE_SENSE_CHAN	(1 << 0)
@@ -756,15 +771,23 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 		res = ast_answer(chan);
 	if (!res)
 		res = ast_safe_sleep(chan, 1000);
-	if (!res)
-		res = ast_park_call(parkee, parker, 0, NULL);
 
 	if (!res) {
-		if (sense == FEATURE_SENSE_CHAN)
-			res = AST_PBX_NO_HANGUP_PEER;
-		else
-			res = AST_PBX_KEEPALIVE;
+		if (sense == FEATURE_SENSE_CHAN) {
+			res = ast_park_call(parkee, parker, 0, NULL);
+			if (!res) {
+				if (sense == FEATURE_SENSE_CHAN) {
+					res = AST_PBX_NO_HANGUP_PEER;
+				} else {
+					res = AST_PBX_KEEPALIVE;
+				}
+			}
+		} else if (sense == FEATURE_SENSE_PEER) {
+			masq_park_call_announce(parkee, parker, 0, NULL);
+			res = 0; /* PBX should hangup zombie channel */
+		}
 	}
+
 	return res;
 
 }
