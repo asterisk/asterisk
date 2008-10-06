@@ -84,7 +84,7 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 		       ast_test_flag(&flags, OPT_RECURSIVE),
 			   ast_test_flag(&flags, OPT_UNPARSED));
 
-	return 0;
+	return ret ? 0 : -1;
 }
 
 static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,

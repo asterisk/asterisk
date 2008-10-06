@@ -367,6 +367,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		if (res == SQL_NO_DATA) {
 			ast_verb(4, "Found no rows [%s]\n", sql->str);
 			res1 = 0;
+			buf[0] = '\0';
 			ast_copy_string(rowcount, "0", sizeof(rowcount));
 		} else {
 			ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, sql->str);
@@ -517,6 +518,8 @@ end_acf_read:
 		}
 		odbc_store->data = resultset;
 		ast_channel_datastore_add(chan, odbc_store);
+	} else {
+		buf[0] = '\0';
 	}
 	SQLCloseCursor(stmt);
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);

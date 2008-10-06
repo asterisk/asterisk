@@ -397,6 +397,7 @@ AST_THREADSTORAGE_CUSTOM(curl_instance, curl_instance_init, curl_instance_cleanu
 static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, char *buf, size_t len)
 {
 	struct ast_str *str = ast_str_create(16);
+	int ret = -1;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(url);
 		AST_APP_ARG(postdata);
@@ -494,13 +495,14 @@ static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, 
 		} else {
 			ast_copy_string(buf, str->str, len);
 		}
+		ret = 0;
 	}
 	ast_free(str);
 
 	if (chan)
 		ast_autoservice_stop(chan);
 	
-	return 0;
+	return ret;
 }
 
 struct ast_custom_function acf_curl = {
