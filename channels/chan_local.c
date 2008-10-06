@@ -483,6 +483,11 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	ast_cdr_update(p->chan);
 	p->chan->cdrflags = p->owner->cdrflags;
 
+	if (!ast_exists_extension(NULL, p->chan->context, p->chan->exten, 1, p->owner->cid.cid_num)) {
+		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", p->chan->exten, p->chan->context);
+		return -1;
+	}
+
 	/* copy the channel variables from the incoming channel to the outgoing channel */
 	/* Note that due to certain assumptions, they MUST be in the same order */
 	AST_LIST_TRAVERSE(&p->owner->varshead, varptr, entries) {
@@ -617,15 +622,22 @@ static struct local_pvt *local_alloc(const char *data, int format)
 
 	tmp->reqformat = format;
 
+#if 0
+	/* We can't do this check here, because we don't know the CallerID yet, and
+	 * the CallerID could potentially affect what step is actually taken (or
+	 * even if that step exists). */
 	if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
 		ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->exten, tmp->context);
 		tmp = local_pvt_destroy(tmp);
 	} else {
+#endif
 		/* Add to list */
 		AST_LIST_LOCK(&locals);
 		AST_LIST_INSERT_HEAD(&locals, tmp, list);
 		AST_LIST_UNLOCK(&locals);
+#if 0
 	}
+#endif
 	
 	return tmp;
 }
