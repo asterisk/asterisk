@@ -27,6 +27,8 @@
  * Autodetect system endianess
  */
 
+#include "asterisk/compat.h"
+
 #ifndef __BYTE_ORDER
 #ifdef __linux__
 #include <endian.h>
