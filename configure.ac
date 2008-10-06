@@ -181,8 +181,9 @@ ACX_PTHREAD
 
 AC_LANG(C)
 
-AC_ARG_ENABLE(dev-mode,
-	[  --enable-dev-mode    Turn on developer mode],
+AC_ARG_ENABLE([dev-mode],
+	[AS_HELP_STRING([--enable-dev-mode],
+		[Turn on developer mode])],
 	[case "${enableval}" in
 	      y|ye|yes) AST_DEVMODE=yes ;;
 	      n|no)  AST_DEVMODE=no ;;
@@ -331,8 +332,9 @@ AC_CHECK_HEADER([sys/poll.h],
    AC_DEFINE([HAVE_SYS_POLL_H], 1, [Define to 1 if your system has working sys/poll.h]),
    )
 
-AC_ARG_ENABLE(internal-poll,
-	[  --enable-internal-poll	Use Asterisk's poll implementation],
+AC_ARG_ENABLE([internal-poll],
+	[AS_HELP_STRING([--enable-internal-poll],
+		[Use Asterisk's poll implementation])],
 	[case "${enableval}" in
 		y|ye|yes) HAS_POLL="";;
 		n|no) HAS_POLL="${HAS_POLL}" ;;
