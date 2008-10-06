@@ -159,7 +159,7 @@ static char *descrip = "ParkedCall(exten): "
 "context.  If no extension is provided, then the first available\n"
 "parked call will be acquired.\n";
 
-static char *parkcall = "Park";
+static char *parkcall = PARK_APP_NAME;
 
 static char *synopsis2 = "Park yourself";
 
