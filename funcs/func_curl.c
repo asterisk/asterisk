@@ -117,6 +117,7 @@ static int curl_internal(struct ast_str **chunk, char *url, char *post)
 static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, char *buf, size_t len)
 {
 	struct ast_str *str = ast_str_create(16);
+	int ret = -1;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(url);
 		AST_APP_ARG(postdata);
@@ -144,6 +145,7 @@ static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, 
 
 			ast_copy_string(buf, str->str, len);
 		}
+		ret = 0;
 	} else {
 		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
 	}
@@ -152,7 +154,7 @@ static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, 
 	if (chan)
 		ast_autoservice_stop(chan);
 	
-	return 0;
+	return ret;
 }
 
 struct ast_custom_function acf_curl = {

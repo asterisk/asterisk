@@ -14935,7 +14935,11 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 		codecnum = strsep(&codecnum, "]"); /* trim trailing ']' if any */
 		if((codec = ast_codec_pref_index(&peer->prefs, atoi(codecnum)))) {
 			ast_copy_string(buf, ast_getformatname(codec), len);
+		} else {
+			buf[0] = '\0';
 		}
+	} else {
+		buf[0] = '\0';
 	}
 
 	unref_peer(peer, "unref_peer from function_sippeer, just before return");

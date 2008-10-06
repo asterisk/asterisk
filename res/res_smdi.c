@@ -1260,7 +1260,7 @@ static int smdi_msg_read(struct ast_channel *chan, const char *cmd, char *data, 
 return_error:
 	ast_module_user_remove(u);
 
-	return 0;
+	return res;
 }
 
 static struct ast_custom_function smdi_msg_retrieve_function = {

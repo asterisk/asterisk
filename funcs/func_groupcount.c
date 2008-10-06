@@ -34,6 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int group_count_function_read(struct ast_channel *chan, const char *cmd,
 				     char *data, char *buf, size_t len)
 {
+	int ret = -1;
 	int count = -1;
 	char group[80] = "", category[80] = "";
 
@@ -59,12 +60,14 @@ static int group_count_function_read(struct ast_channel *chan, const char *cmd,
 		ast_app_group_list_unlock();
 	}
 
-	if ((count = ast_app_group_get_count(group, category)) == -1)
+	if ((count = ast_app_group_get_count(group, category)) == -1) {
 		ast_log(LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);
-	else
+	} else {
 		snprintf(buf, len, "%d", count);
+		ret = 0;
+	}
 
-	return 0;
+	return ret;
 }
 
 static struct ast_custom_function group_count_function = {
@@ -91,9 +94,10 @@ static int group_match_count_function_read(struct ast_channel *chan,
 	if (!ast_strlen_zero(group)) {
 		count = ast_app_group_match_get_count(group, category);
 		snprintf(buf, len, "%d", count);
+		return 0;
 	}
 
-	return 0;
+	return -1;
 }
 
 static struct ast_custom_function group_match_count_function = {
@@ -111,6 +115,7 @@ static struct ast_custom_function group_match_count_function = {
 static int group_function_read(struct ast_channel *chan, const char *cmd,
 			       char *data, char *buf, size_t len)
 {
+	int ret = -1;
 	struct ast_group_info *gi = NULL;
 	
 	ast_app_group_list_rdlock();
@@ -124,12 +129,14 @@ static int group_function_read(struct ast_channel *chan, const char *cmd,
 			break;
 	}
 	
-	if (gi)
+	if (gi) {
 		ast_copy_string(buf, gi->group, len);
+		ret = 0;
+	}
 	
 	ast_app_group_list_unlock();
 	
-	return 0;
+	return ret;
 }
 
 static int group_function_write(struct ast_channel *chan, const char *cmd,

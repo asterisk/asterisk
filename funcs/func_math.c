@@ -82,14 +82,14 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 	);
 
 	if (ast_strlen_zero(parse)) {
-		ast_log(LOG_WARNING, "Syntax: Math(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
+		ast_log(LOG_WARNING, "Syntax: MATH(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
 		return -1;
 	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (args.argc < 1) {
-		ast_log(LOG_WARNING, "Syntax: Math(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
+		ast_log(LOG_WARNING, "Syntax: MATH(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
 		return -1;
 	}
 
