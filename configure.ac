@@ -27,7 +27,7 @@ AC_GNU_SOURCE
 AC_USE_SYSTEM_EXTENSIONS	# note- does not work on FreeBSD
 
 case "${host_os}" in
-     freebsd*)
+     freebsd*|openbsd*)
      ac_default_prefix=/usr/local
      CPPFLAGS=-I/usr/local/include
      LDFLAGS=-L/usr/local/lib
@@ -220,6 +220,7 @@ AST_EXT_LIB_SETUP([HOARD], [Hoard Memory Allocator], [hoard])
 AST_EXT_LIB_SETUP([ICONV], [Iconv Library], [iconv])
 AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber Library], [iksemel])
 AST_EXT_LIB_SETUP([IMAP_TK], [UW IMAP Toolkit], [imap])
+AST_EXT_LIB_SETUP([IODBC], [iODBC], [iodbc])
 AST_EXT_LIB_SETUP([ISDNNET], [ISDN4Linux Library], [isdnnet])
 AST_EXT_LIB_SETUP([JACK], [Jack Audio Connection Kit], [jack])
 AST_EXT_LIB_SETUP([LDAP], [OpenLDAP], [ldap])
@@ -230,7 +231,6 @@ AST_EXT_LIB_SETUP([NBS], [Network Broadcast Sound], [nbs])
 AST_EXT_LIB_SETUP([NCURSES], [ncurses], [ncurses])
 AST_EXT_LIB_SETUP([NETSNMP], [Net-SNMP], [netsnmp])
 AST_EXT_LIB_SETUP([NEWT], [newt], [newt])
-AST_EXT_LIB_SETUP([UNIXODBC], [unixODBC], [odbc])
 AST_EXT_LIB_SETUP([OGG], [OGG], [ogg])
 AST_EXT_LIB_SETUP([OSPTK], [OSP Toolkit], [osptk])
 AST_EXT_LIB_SETUP([OSS], [Open Sound System], [oss])
@@ -257,6 +257,7 @@ AST_EXT_LIB_SETUP([FREETDS], [FreeTDS], [tds])
 AST_EXT_LIB_SETUP([TERMCAP], [Termcap], [termcap])
 AST_EXT_LIB_SETUP([TINFO], [Term Info], [tinfo])
 AST_EXT_LIB_SETUP([TONEZONE], [tonezone], [tonezone])
+AST_EXT_LIB_SETUP([UNIXODBC], [unixODBC], [unixodbc])
 AST_EXT_LIB_SETUP([USB], [usb], [usb])
 AST_EXT_LIB_SETUP([VORBIS], [Vorbis], [vorbis])
 AST_EXT_LIB_SETUP([VPB], [Voicetronix API], [vpb])
@@ -1226,6 +1227,8 @@ if test "${USE_IMAP_TK}" != "no"; then
 	LIBS="${saved_libs}"
 fi
 
+AST_EXT_LIB_CHECK([IODBC], [iodbc], [SQLConnect], [sql.h], [-lpthread])
+
 AST_EXT_LIB_CHECK([JACK], [jack], [jack_activate], [jack/jack.h])
 
 # Needed by unixodbc
@@ -1256,6 +1259,12 @@ AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp], , [--agent-libs],
 AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 
 AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [])
+
+PBX_ODBC=0
+if test "$PBX_IODBC" = "1" -o "$PBX_UNIXODBC" = "1"; then
+   PBX_ODBC=1
+fi
+AC_SUBST(PBX_ODBC)
 
 AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
 

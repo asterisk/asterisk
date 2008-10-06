@@ -377,6 +377,12 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define this to indicate the ${IODBC_DESCRIP} library */
+#undef HAVE_IODBC
+
+/* Define to indicate the ${IODBC_DESCRIP} library version */
+#undef HAVE_IODBC_VERSION
+
 /* Define if your system has the IP_MTU_DISCOVER headers. */
 #undef HAVE_IP_MTU_DISCOVER
 
