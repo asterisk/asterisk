@@ -2773,22 +2773,30 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 	if (!res) {
 		struct ast_park_call_args args = {
 			.orig_chan_name = orig_chan_name,
+			.extout = NULL,
+			.return_con = NULL,
+			.return_ext = NULL,
 		};
 		struct ast_flags flags = { 0 };
 
-		if (parse && !ast_strlen_zero(app_args.timeout)) {
-			if (sscanf(app_args.timeout, "%d", &args.timeout) != 1) {
-				ast_log(LOG_WARNING, "Invalid timeout '%s' provided\n", app_args.timeout);
-				args.timeout = 0;
+		if (parse) {
+			if (!ast_strlen_zero(app_args.timeout)) {
+				if (sscanf(app_args.timeout, "%d", &args.timeout) != 1) {
+					ast_log(LOG_WARNING, "Invalid timeout '%s' provided\n", app_args.timeout);
+					args.timeout = 0;
+				}
 			}
-		}
-
-		args.return_con = app_args.return_con;
-		args.return_ext = app_args.return_ext;
-		if (parse && !ast_strlen_zero(app_args.return_pri)) {
-			if (sscanf(app_args.return_pri, "%d", &args.return_pri) != 1) {
-				ast_log(LOG_WARNING, "Invalid priority '%s' specified\n", app_args.return_pri);
-				args.return_pri = 0;
+			if (!ast_strlen_zero(app_args.return_con)) {
+				args.return_con = app_args.return_con;
+			}
+			if (!ast_strlen_zero(app_args.return_ext)) {
+				args.return_ext = app_args.return_ext;
+			}
+			if (!ast_strlen_zero(app_args.return_pri)) {
+				if (sscanf(app_args.return_pri, "%d", &args.return_pri) != 1) {
+					ast_log(LOG_WARNING, "Invalid priority '%s' specified\n", app_args.return_pri);
+					args.return_pri = 0;
+				}
 			}
 		}
 
