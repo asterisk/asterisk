@@ -9080,16 +9080,10 @@ static void *pri_dchannel(void *vpri)
 							}
 							pthread_attr_destroy(&attr);
 						} else  {
-							/* Release PRI lock while we create the channel */
 							ast_mutex_unlock(&pri->lock);
-
-							if (!(c = dahdi_new(pri->pvts[chanpos], AST_STATE_RING, 0, SUB_REAL, law, e->ring.ctype))) {
-								ast_mutex_lock(&pri->lock);
-								ast_log(LOG_WARNING, "Unable to create channel for %d/%d, span %d\n", 
-									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
-								pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
-								pri->pvts[chanpos]->call = NULL;
-							} else {
+							/* Release PRI lock while we create the channel */
+							c = dahdi_new(pri->pvts[chanpos], AST_STATE_RING, 1, SUB_REAL, law, e->ring.ctype);
+							if (c) {
 								char calledtonstr[10];
 
 								ast_mutex_unlock(&pri->pvts[chanpos]->lock);
@@ -9116,17 +9110,17 @@ static void *pri_dchannel(void *vpri)
 
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d/%d, span %d\n",
-										    plancallingnum, pri->pvts[chanpos]->exten, 
-										    pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
-								if (ast_pbx_start(c)) {
-									ast_log(LOG_WARNING, "Unable to start PBX on %s\n", c->name);
-									ast_hangup(c);
-									pri->pvts[chanpos]->owner = NULL;
-									pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
-									pri->pvts[chanpos]->call = NULL;
-								} else {
-									dahdi_enable_ec(pri->pvts[chanpos]);
-								}
+										plancallingnum, pri->pvts[chanpos]->exten, 
+											pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
+								dahdi_enable_ec(pri->pvts[chanpos]);
+							} else {
+
+								ast_mutex_lock(&pri->lock);
+
+								ast_log(LOG_WARNING, "Unable to start PBX on channel %d/%d, span %d\n", 
+									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
+								pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
+								pri->pvts[chanpos]->call = NULL;
 							}
 						}
 					} else {
