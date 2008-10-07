@@ -16,8 +16,8 @@ MENUSELECT_CATEGORY=CHANNELS
 MENUSELECT_DESCRIPTION=Channel Drivers
 
 ifeq ($(OSARCH),OpenBSD)
-  PTLIB=-lpt_OpenBSD_x86_r
-  H323LIB=-lh323_OpenBSD_x86_r
+  PTLIB=-lpt
+  H323LIB=-lh323
 endif
 
 ifeq ($(OSARCH),linux-gnu)
