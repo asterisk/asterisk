@@ -1476,7 +1476,12 @@ AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [dahdi/tonezone.h], 
 
 AST_EXT_LIB_CHECK([USB], [usb], [usb_init], [usb.h], [])
 
-AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm -lvorbisenc])
+if test "${OSARCH}" = "OpenBSD";
+then
+	AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm -lvorbisenc -logg])
+else
+	AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm -lvorbisenc])
+fi
 
 AC_LANG_PUSH(C++)
 
