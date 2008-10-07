@@ -86,6 +86,8 @@ enum ast_option_flags {
 	AST_OPT_FLAG_LIGHT_BACKGROUND = (1 << 25),
 	/*! Count Initiated seconds in CDR's */
 	AST_OPT_FLAG_INITIATED_SECONDS = (1 << 26),
+	/*! Force black background */
+	AST_OPT_FLAG_FORCE_BLACK_BACKGROUND = (1 << 27),
 };
 
 /*! These are the options that set by default when Asterisk starts */
@@ -116,6 +118,7 @@ enum ast_option_flags {
 #define ast_opt_dbg_file		ast_test_flag(&ast_options, AST_OPT_FLAG_DEBUG_FILE)
 #define ast_opt_verb_file		ast_test_flag(&ast_options, AST_OPT_FLAG_VERBOSE_FILE)
 #define ast_opt_light_background		ast_test_flag(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND)
+#define ast_opt_force_black_background		ast_test_flag(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND)
 
 extern struct ast_flags ast_options;
 

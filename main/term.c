@@ -152,6 +152,10 @@ int ast_term_init(void)
 			snprintf(prepdata, sizeof(prepdata), "%c[%dm", ESC, COLOR_BROWN);
 			snprintf(enddata, sizeof(enddata), "%c[%dm", ESC, COLOR_BLACK);
 			snprintf(quitdata, sizeof(quitdata), "%c[0m", ESC);
+		} else if (ast_opt_force_black_background) {
+			snprintf(prepdata, sizeof(prepdata), "%c[%d;%d;%dm", ESC, ATTR_BRIGHT, COLOR_BROWN, COLOR_BLACK + 10);
+			snprintf(enddata, sizeof(enddata), "%c[%d;%d;%dm", ESC, ATTR_RESET, COLOR_WHITE, COLOR_BLACK + 10);
+			snprintf(quitdata, sizeof(quitdata), "%c[0m", ESC);
 		} else {
 			snprintf(prepdata, sizeof(prepdata), "%c[%d;%dm", ESC, ATTR_BRIGHT, COLOR_BROWN);
 			snprintf(enddata, sizeof(enddata), "%c[%d;%dm", ESC, ATTR_RESET, COLOR_WHITE);
@@ -179,11 +183,19 @@ char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int 
 		fgcolor &= ~128;
 	}
 
+	if (bgcolor) {
+		bgcolor &= ~128;
+	}
+
 	if (ast_opt_light_background) {
 		fgcolor = opposite(fgcolor);
 	}
 
-	snprintf(outbuf, maxout, "%c[%d;%dm%s%c[0m", ESC, attr, fgcolor, inbuf, ESC);
+	if (ast_opt_force_black_background) {
+		snprintf(outbuf, maxout, "%c[%d;%d;%dm%s%c[%d;%dm", ESC, attr, fgcolor, bgcolor + 10, inbuf, ESC, COLOR_WHITE, COLOR_BLACK + 10);
+	} else {
+		snprintf(outbuf, maxout, "%c[%d;%dm%s%c[0m", ESC, attr, fgcolor, inbuf, ESC);
+	}
 	return outbuf;
 }
 
@@ -204,7 +216,15 @@ char *term_color_code(char *outbuf, int fgcolor, int bgcolor, int maxout)
 		fgcolor = opposite(fgcolor);
 	}
 
-	snprintf(outbuf, maxout, "%c[%d;%dm", ESC, attr, fgcolor);
+	if (bgcolor) {
+		bgcolor &= ~128;
+	}
+
+	if (ast_opt_force_black_background) {
+		snprintf(outbuf, maxout, "%c[%d;%d;%dm", ESC, attr, fgcolor, bgcolor + 10);
+	} else {
+		snprintf(outbuf, maxout, "%c[%d;%dm", ESC, attr, fgcolor);
+	}
 	return outbuf;
 }
 
@@ -235,7 +255,13 @@ char *term_prompt(char *outbuf, const char *inbuf, int maxout)
 		ast_copy_string(outbuf, inbuf, maxout);
 		return outbuf;
 	}
-	if (ast_opt_light_background) {
+	if (ast_opt_force_black_background) {
+		snprintf(outbuf, maxout, "%c[%d;%dm%c%c[%d;%dm%s",
+			ESC, COLOR_BLUE, COLOR_BLACK + 10,
+			inbuf[0],
+			ESC, COLOR_WHITE, COLOR_BLACK + 10,
+			inbuf + 1);
+	} else if (ast_opt_light_background) {
 		snprintf(outbuf, maxout, "%c[%d;0m%c%c[%d;0m%s",
 			ESC, COLOR_BLUE,
 			inbuf[0],

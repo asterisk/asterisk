@@ -2795,6 +2795,8 @@ static void ast_readconfig(void)
 				ast_verbose("Invalid Entity ID '%s' provided\n", v->value);
 		} else if (!strcasecmp(v->name, "lightbackground")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_LIGHT_BACKGROUND);
+		} else if (!strcasecmp(v->name, "forceblackbackground")) {
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
 		}
 	}
 	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {
@@ -2937,7 +2939,7 @@ int main(int argc, char *argv[])
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	/* Check for options */
-	while ((c = getopt(argc, argv, "mtThfFdvVqprRgciInx:U:G:C:L:M:e:s:W")) != -1) {
+	while ((c = getopt(argc, argv, "mtThfFdvVqprRgciInx:U:G:C:L:M:e:s:WB")) != -1) {
 		switch (c) {
 #if defined(HAVE_SYSINFO)
 		case 'e':
@@ -3031,6 +3033,11 @@ int main(int argc, char *argv[])
 			break;
 		case 'W': /* White background */
 			ast_set_flag(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND);
+			ast_clear_flag(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
+			break;
+		case 'B': /* Force black background */
+			ast_set_flag(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
+			ast_clear_flag(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND);
 			break;
 		case '?':
 			exit(1);

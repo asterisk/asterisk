@@ -77,6 +77,13 @@ Core:
   had any significance).  Since this violates the Principle of Least Surprise,
   it has been changed.
 
+* The default console now will use colors according to the default background
+  color, instead of forcing the background color to black.  If you are using a
+  light colored background for your console, you may wish to use the option
+  flag '-W' to present better color choices for the various messages.  However,
+  if you'd prefer the old method of forcing colors to white text on a black
+  background, the compatiblity option -B is provided for this purpose.
+
 Voicemail:
 
 * The voicemail configuration values 'maxmessage' and 'minmessage' have
