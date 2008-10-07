@@ -2797,9 +2797,6 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 	if (!res) {
 		struct ast_park_call_args args = {
 			.orig_chan_name = orig_chan_name,
-			.extout = NULL,
-			.return_con = NULL,
-			.return_ext = NULL,
 		};
 		struct ast_flags flags = { 0 };
 
