@@ -776,7 +776,6 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 	} else if (!strcasecmp(var, "imappassword")) {
 		ast_copy_string(vmu->imappassword, value, sizeof(vmu->imappassword));
 	} else if (!strcasecmp(var, "imapsecret")) {
-		ast_log(LOG_WARNING, "Use of the 'imapsecret' option is discouraged, please use 'imappassword' instead.\n");
 		ast_copy_string(vmu->imappassword, value, sizeof(vmu->imappassword));
 #endif
 	} else if (!strcasecmp(var, "delete") || !strcasecmp(var, "deletevoicemail")) {
@@ -1013,7 +1012,6 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 		} else if (!strcasecmp(tmp->name, "imappassword")) {
 			ast_copy_string(retval->imappassword, tmp->value, sizeof(retval->imappassword));
 		} else if (!strcasecmp(tmp->name, "imapsecret")) {
-			ast_log(LOG_WARNING, "Use of the 'imapsecret' option is discouraged, please use 'imappassword' instead.\n");
 			ast_copy_string(retval->imappassword, tmp->value, sizeof(retval->imappassword));
 #endif
 		} else
