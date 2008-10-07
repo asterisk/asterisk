@@ -27,12 +27,24 @@ AC_GNU_SOURCE
 AC_USE_SYSTEM_EXTENSIONS	# note- does not work on FreeBSD
 
 case "${host_os}" in
-     freebsd*|openbsd*)
+     freebsd*)
      ac_default_prefix=/usr/local
      CPPFLAGS=-I/usr/local/include
      LDFLAGS=-L/usr/local/lib
      ;;
-
+     openbsd*)
+     ac_default_prefix=/usr/local
+     if test ${prefix} = '/usr/local' || test ${prefix} = 'NONE'; then
+        if test ${sysconfdir} = '${prefix}/etc'; then
+           sysconfdir=/etc
+        fi
+        if test ${mandir} = '${prefix}/man'; then
+           mandir=/usr/share/man
+        fi
+     fi
+     CPPFLAGS=-I/usr/local/include
+     LDFLAGS=-L/usr/local/lib
+     ;;
      *)
      ac_default_prefix=/usr
      if test ${prefix} = '/usr' || test ${prefix} = 'NONE'; then
