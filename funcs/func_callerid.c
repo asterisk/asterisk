@@ -51,8 +51,10 @@ static int callerpres_write(struct ast_channel *chan, const char *cmd, char *dat
 static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 			 char *buf, size_t len)
 {
-	int res = -1;
 	char *opt = data;
+
+	/* Ensure that the buffer is empty */
+	*buf = 0;
 
 	if (!chan)
 		return -1;
@@ -65,13 +67,10 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 
 		if (!strncasecmp("all", data, 3)) {
 			snprintf(buf, len, "\"%s\" <%s>", name, num);
-			res = 0;
 		} else if (!strncasecmp("name", data, 4)) {
 			ast_copy_string(buf, name, len);
-			res = 0;
 		} else if (!strncasecmp("num", data, 3)) {
 			ast_copy_string(buf, num, len);
-			res = 0;
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 		}
@@ -80,42 +79,34 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 
 		if (!strncasecmp("all", data, 3)) {
 			snprintf(buf, len, "\"%s\" <%s>",
-				 S_OR(chan->cid.cid_name, ""),
-				 S_OR(chan->cid.cid_num, ""));
-			res = 0;
+				S_OR(chan->cid.cid_name, ""),
+				S_OR(chan->cid.cid_num, ""));
 		} else if (!strncasecmp("name", data, 4)) {
 			if (chan->cid.cid_name) {
 				ast_copy_string(buf, chan->cid.cid_name, len);
-				res = 0;
 			}
 		} else if (!strncasecmp("num", data, 3)) {
 			if (chan->cid.cid_num) {
 				ast_copy_string(buf, chan->cid.cid_num, len);
-				res = 0;
 			}
 		} else if (!strncasecmp("ani", data, 3)) {
 			if (!strncasecmp(data + 3, "2", 1)) {
 				snprintf(buf, len, "%d", chan->cid.cid_ani2);
 			} else if (chan->cid.cid_ani) {
 				ast_copy_string(buf, chan->cid.cid_ani, len);
-				res = 0;
 			}
 		} else if (!strncasecmp("dnid", data, 4)) {
 			if (chan->cid.cid_dnid) {
 				ast_copy_string(buf, chan->cid.cid_dnid, len);
-				res = 0;
 			}
 		} else if (!strncasecmp("rdnis", data, 5)) {
 			if (chan->cid.cid_rdnis) {
 				ast_copy_string(buf, chan->cid.cid_rdnis, len);
-				res = 0;
 			}
 		} else if (!strncasecmp("pres", data, 4)) {
 			ast_copy_string(buf, ast_named_caller_presentation(chan->cid.cid_pres), len);
-			res = 0;
 		} else if (!strncasecmp("ton", data, 3)) {
 			snprintf(buf, len, "%d", chan->cid.cid_ton);
-			res = 0;
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 		}
@@ -123,7 +114,7 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 		ast_channel_unlock(chan);
 	}
 
-	return res;
+	return 0;
 }
 
 static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
@@ -132,62 +123,58 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 	if (!value || !chan)
 		return -1;
 
+	value = ast_skip_blanks(value);
+
 	if (!strncasecmp("all", data, 3)) {
 		char name[256];
 		char num[256];
 
-		if (!ast_callerid_split(value, name, sizeof(name), num, sizeof(num)))
-			ast_set_callerid(chan, num, name, num);
+		ast_callerid_split(value, name, sizeof(name), num, sizeof(num));
+		ast_set_callerid(chan, num, name, num);
 	} else if (!strncasecmp("name", data, 4)) {
 		ast_set_callerid(chan, NULL, value, NULL);
 	} else if (!strncasecmp("num", data, 3)) { 
 		ast_set_callerid(chan, value, NULL, NULL);
 	} else if (!strncasecmp("ani", data, 3)) {
 		if (!strncasecmp(data + 3, "2", 1)) {
-			int i = atoi(value);
-			chan->cid.cid_ani2 = i;
-		} else
+			chan->cid.cid_ani2 = atoi(value);
+		} else {
 			ast_set_callerid(chan, NULL, NULL, value);
+		}
 	} else if (!strncasecmp("dnid", data, 4)) {
 		ast_channel_lock(chan);
-		if (chan->cid.cid_dnid)
+		if (chan->cid.cid_dnid) {
 			ast_free(chan->cid.cid_dnid);
+		}
 		chan->cid.cid_dnid = ast_strdup(value);
 		ast_channel_unlock(chan);
 	} else if (!strncasecmp("rdnis", data, 5)) {
 		ast_channel_lock(chan);
-		if (chan->cid.cid_rdnis)
+		if (chan->cid.cid_rdnis) {
 			ast_free(chan->cid.cid_rdnis);
+		}
 		chan->cid.cid_rdnis = ast_strdup(value);
 		ast_channel_unlock(chan);
 	} else if (!strncasecmp("pres", data, 4)) {
 		int i;
-		char *s, *val;
-
-		/* Strip leading spaces */
-		while ((value[0] == '\t') || (value[0] == ' '))
-			++value;
+		char *val;
 
 		val = ast_strdupa(value);
+		ast_trim_blanks(val);
 
-		/* Strip trailing spaces */
-		s = val + strlen(val);
-		while ((s != val) && ((s[-1] == '\t') || (s[-1] == ' ')))
-			--s;
-		*s = '\0';
-
-		if ((val[0] >= '0') && (val[0] <= '9'))
+		if ((val[0] >= '0') && (val[0] <= '9')) {
 			i = atoi(val);
-		else
+		} else {
 			i = ast_parse_caller_presentation(val);
+		}
 
-		if (i < 0)
+		if (i < 0) {
 			ast_log(LOG_ERROR, "Unknown calling number presentation '%s', value unchanged\n", val);
-		else
+		} else {
 			chan->cid.cid_pres = i;
+		}
 	} else if (!strncasecmp("ton", data, 3)) {
-		int i = atoi(value);
-		chan->cid.cid_ton = i;
+		chan->cid.cid_ton = atoi(value);
 	} else {
 		ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 	}
