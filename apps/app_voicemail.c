@@ -849,6 +849,8 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		sscanf(value, "%lf", &vmu->volgain);
 	} else if (!strcasecmp(var, "options")) {
 		apply_options(vmu, value);
+	} else {
+		ast_log(LOG_WARNING, "Unknown option '%s' specified for mailbox '%s'.\n", var, vmu->mailbox);
 	}
 }
 
