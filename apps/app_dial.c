@@ -1926,7 +1926,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				res = -1;
 				goto done;
 			}
-			if (opermode && !strncmp(chan->tech->type, "DAHDI", 3) && !strncmp(peer->name, "DAHDI", 3)) {
+			if (opermode && !strncmp(chan->tech->type, "DAHDI", 5) && !strncmp(peer->name, "DAHDI", 5)) {
 				/* what's this special handling for dahdi <-> dahdi ?
 				 * A: dahdi to dahdi calls are natively bridged at the kernel driver
 				 * level, so we need to ensure that this mode gets propagated
