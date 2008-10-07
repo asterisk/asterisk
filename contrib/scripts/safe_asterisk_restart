@@ -101,8 +101,8 @@ done
 
 # doing the dirty work
 [[ $TRY_STOP_NOW_FIRST ]] && docmd "Asking asterisk kindly to shutdown" "$ASTERISK -rx 'stop now'"
-docmd "Sending asterisk processes the TERM signal" "killall -15 $PROCVICTIMS"
-docmd "Sending asterisk processes KILL signal" "killall -9 $PROCVICTIMS"
+docmd "Sending asterisk processes the TERM signal" "pkill -15 $PROCVICTIMS"
+docmd "Sending asterisk processes KILL signal" "pkill -9 $PROCVICTIMS"
 docmd "Starting safe_asterisk" "$SAFE_ASTERISK"
 for i in $PROCVICTIMS
 do

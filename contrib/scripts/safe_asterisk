@@ -184,7 +184,7 @@ run_asterisk()
 		sleep $SLEEPSECS
 		if [ $KILLALLMPG123 ]
 		then
-			killall -9 mpg123
+			pkill -9 mpg123
 		fi
 	done
 }
