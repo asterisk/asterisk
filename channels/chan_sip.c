@@ -16258,7 +16258,7 @@ static void *sip_park_thread(void *stuff)
 {
 	struct ast_channel *transferee, *transferer;	/* Chan1: The transferee, Chan2: The transferer */
 	struct sip_dual *d;
-	struct sip_request req;
+	struct sip_request req = {0,};
 	int ext;
 	int res;
 
