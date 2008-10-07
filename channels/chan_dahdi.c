@@ -3638,6 +3638,13 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 		break;
 	case AST_OPTION_OPRMODE:  /* Operator services mode */
 		oprmode = (struct oprmode *) data;
+		/* We don't support operator mode across technologies */
+		if (strcasecmp(chan->tech->type, oprmode->peer->tech->type)) {
+			ast_log(LOG_NOTICE, "Operator mode not supported on %s to %s calls.\n",
+					chan->tech->type, oprmode->peer->tech->type);
+			errno = EINVAL;
+			return -1;
+		}
 		pp = oprmode->peer->tech_pvt;
 		p->oprmode = pp->oprmode = 0;
 		/* setup peers */
