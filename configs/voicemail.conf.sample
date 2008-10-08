@@ -338,3 +338,11 @@ european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
 ;111 => 7383,Pete,pete@acme-widgets.com,,tz=central
 ;112 => 6262,Nancy,nancy@acme-widgets.com
 ;
+
+;
+; When using IMAP storage, imapuser and imappassword can be used to specify the
+; user's credentials.
+;
+;[imapvm]
+;4324 => 7764,Ellis Redding,red@buxton.us,,imapuser=eredding|imappassword=g3tbusy
+;4325 => 2392,Andrew Dufresne,andy@dufresne.info,,imapuser=adufresne|imappassword=rockh@mmer
