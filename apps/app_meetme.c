@@ -2157,9 +2157,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 						for ( ; var; var = var->next) {
 							if (!strcasecmp(var->name, "endtime")) {
-								struct ast_tm tm;
-								ast_strptime(var->value, "%Y-%m-%d %H:%M:%S", &tm);
-								tmp = ast_mktime(&tm, NULL);
+								struct ast_tm endtime_tm;
+								ast_strptime(var->value, "%Y-%m-%d %H:%M:%S", &endtime_tm);
+								tmp = ast_mktime(&endtime_tm, NULL);
 								localendtime = tmp.tv_sec;
 							}
 						}
@@ -3057,9 +3057,9 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 			} else if (!strcasecmp(var->name, "adminopts")) {
 				ast_copy_string(adminopts, var->value, sizeof(char[OPTIONS_LEN]));
 			} else if (!strcasecmp(var->name, "endtime")) {
-				struct ast_tm tm;
-				ast_strptime(var->value, "%Y-%m-%d %H:%M:%S", &tm);
-				endtime = ast_mktime(&tm, NULL);
+				struct ast_tm endtime_tm;
+				ast_strptime(var->value, "%Y-%m-%d %H:%M:%S", &endtime_tm);
+				endtime = ast_mktime(&endtime_tm, NULL);
 			}
 		}
 

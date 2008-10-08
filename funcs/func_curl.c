@@ -73,12 +73,12 @@ AST_LIST_HEAD_STATIC(global_curl_info, curl_settings);
 static void curlds_free(void *data)
 {
 	AST_LIST_HEAD(global_curl_info, curl_settings) *list = data;
-	struct curl_settings *cur;
+	struct curl_settings *setting;
 	if (!list) {
 		return;
 	}
-	while ((cur = AST_LIST_REMOVE_HEAD(list, list))) {
-		free(cur);
+	while ((setting = AST_LIST_REMOVE_HEAD(list, list))) {
+		free(setting);
 	}
 	AST_LIST_HEAD_DESTROY(list);
 }

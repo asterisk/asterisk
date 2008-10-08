@@ -758,7 +758,7 @@ static odbc_status odbc_obj_disconnect(struct odbc_obj *obj)
 	int res;
 	SQLINTEGER err;
 	short int mlen;
-	unsigned char msg[200], stat[10];
+	unsigned char msg[200], state[10];
 
 	/* Nothing to disconnect */
 	if (!obj->con) {
@@ -779,7 +779,7 @@ static odbc_status odbc_obj_disconnect(struct odbc_obj *obj)
 		obj->con = NULL;
 		ast_log(LOG_DEBUG, "Database handle deallocated\n");
 	} else {
-		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, stat, &err, msg, 100, &mlen);
+		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, state, &err, msg, 100, &mlen);
 		ast_log(LOG_WARNING, "Unable to deallocate database handle? %d errno=%d %s\n", res, (int)err, msg);
 	}
 
