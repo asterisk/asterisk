@@ -13655,8 +13655,9 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
  					return -1;
 		} else if (!strcasecmp(v->name, "buffers")) {
 			int res;
-			char policy[8] = "";
-			res = sscanf(v->value, "%d,%s", &confp->chan.buf_no, policy);
+			char policy[21] = "";
+
+			res = sscanf(v->value, "%d,%20s", &confp->chan.buf_no, policy);
 			if (res != 2) {
 				ast_log(LOG_WARNING, "Parsing buffers option data failed, using defaults.\n");
 				confp->chan.buf_no = numbufs;
