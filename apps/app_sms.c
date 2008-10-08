@@ -86,7 +86,7 @@ static char *descrip =
 	" t  - use protocol 2 (default used is protocol 1).\n"
 	" p(N)  - set the initial delay to N ms (default is 300).\n"
 	"         addr and body are a deprecated format to send messages out.\n"
-	" s  - set the Status Report Request (SRR) bit.\n"
+	" r  - set the Status Report Request (SRR) bit.\n"
 	" o  - the body should be coded as octets not 7-bit symbols.\n"
 	"Messages are processed as per text file message queues.\n" 
 	"smsq (a separate software) is a command to generate message\n"
@@ -919,6 +919,9 @@ static void sms_writefile(sms_t * h)
 	char buf[30];
 	FILE *o;
 
+	if (ast_tvzero(h->scts)) {
+		h->scts = ast_tvnow();
+	}
 	snprintf(fn, sizeof(fn), "%s/sms/%s", ast_config_AST_SPOOL_DIR, h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
 	ast_mkdir(fn, 0777);			/* ensure it exists */
 	ast_copy_string(fn2, fn, sizeof(fn2));
