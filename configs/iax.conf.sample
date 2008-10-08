@@ -170,7 +170,7 @@ forcejitterbuffer=no
 ; This setting sets the maximum transmission unit for IAX2 UDP trunking.
 ; default is 1240 bytes. Zero disables this functionality and let's the O/S handle fragmentation.
 ;
-; trunkmtu = 0
+; trunkmtu = 1240
 ;
 ; Enable IAX2 encryption.  The default is no.
 ;
