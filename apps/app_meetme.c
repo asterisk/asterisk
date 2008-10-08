@@ -2172,16 +2172,16 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 							extended = 1;
 						}
 
-						if (conf->endtime && (now.tv_sec > conf->endtime)) {
+						if (conf->endtime && (now.tv_sec >= conf->endtime)) {
 							ast_verbose("Quitting time...\n");
 							goto outrun;
 						}
 
 						if (!announcement_played && conf->endalert) {
-							if (now.tv_sec + conf->endalert > conf->endtime) {
+							if (now.tv_sec + conf->endalert >= conf->endtime) {
 								if (!ast_streamfile(chan, "conf-will-end-in", chan->language))
 									ast_waitstream(chan, "");
-								ast_say_digits(chan, (now.tv_sec + conf->endalert - conf->endtime) / 60, "", chan->language);
+								ast_say_digits(chan, (conf->endtime - now.tv_sec) / 60, "", chan->language);
 								if (!ast_streamfile(chan, "minutes", chan->language))
 									ast_waitstream(chan, "");
 								announcement_played = 1;
