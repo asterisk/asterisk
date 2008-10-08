@@ -1,3 +1,11 @@
+2008-10-08  Russell Bryant <russell@digium.com>
+
+	* Asterisk 1.6.0.1 released.
+
+	* configs/chan_dahdi.conf.sample: Remove mention of configuration
+	  sections for defining channels in chan_dahdi.conf.  This code
+	  is in 1.6.1, and was not merged into 1.6.0.
+
 2008-10-01  Russell Bryant <russell@digium.com>
 
 	* Asterisk 1.6.0 released.
