@@ -774,6 +774,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 			speech->results->text = strdup(dtmf);
 			speech->results->grammar = strdup("dtmf");
 		}
+		ast_speech_change_state(speech, AST_SPEECH_STATE_NOT_READY);
 	}
 
         /* See if it was because they hung up */
