@@ -917,8 +917,11 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 
 	ast_debug(3, "-_-_- Sending mail to %s@%s - Using template %s\n", vmu->username, vmu->domain, template->name);
 
-	if (!strcmp(format, "wav49"))
+	if (!strcmp(format, "wav49")) {
 		format = "WAV";
+	} else if (!strcmp(format, "wav16")) {
+		format = "Wav";
+	}
 
 
 	/* If we have a gain option, process it now with sox */

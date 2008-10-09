@@ -248,6 +248,8 @@ static char *build_filename(const char *filename, const char *ext)
 
 	if (!strcmp(ext, "wav49"))
 		ext = "WAV";
+	if (!strcmp(ext, "wav16"))
+		ext = "Wav";
 
 	if (filename[0] == '/')
 		asprintf(&fn, "%s.%s", filename, ext);

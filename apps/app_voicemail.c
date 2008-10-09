@@ -1755,8 +1755,11 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 		tempcopy = 1;
 	}
 
-	if (!strcmp(fmt, "wav49"))
+	if (!strcmp(fmt, "wav49")) {
 		fmt = "WAV";
+	} else if (!strcmp(fmt, "wav16")) {
+		fmt = "Wav";
+	}
 	ast_debug(3, "Storing file '%s', format '%s'\n", fn, fmt);
 
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
@@ -2753,8 +2756,11 @@ static int retrieve_file(char *dir, int msgnum)
 		c = strchr(fmt, '|');
 		if (c)
 			*c = '\0';
-		if (!strcasecmp(fmt, "wav49"))
+		if (!strcasecmp(fmt, "wav49")) {
 			strcpy(fmt, "WAV");
+		} else if (!strcasecmp(fmt, "wav16")) {
+			strcpy(fmt, "Wav");
+		}
 		snprintf(msgnums, sizeof(msgnums),"%d", msgnum);
 		if (msgnum > -1)
 			make_file(fn, sizeof(fn), dir, msgnum);
@@ -3167,8 +3173,11 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 		c = strchr(fmt, '|');
 		if (c)
 			*c = '\0';
-		if (!strcasecmp(fmt, "wav49"))
+		if (!strcasecmp(fmt, "wav49")) {
 			strcpy(fmt, "WAV");
+		} else if (!strcasecmp(fmt, "wav16")) {
+			strcpy(fmt, "Wav");
+		}
 		snprintf(msgnums, sizeof(msgnums),"%d", msgnum);
 		if (msgnum > -1)
 			make_file(fn, sizeof(fn), dir, msgnum);
@@ -3989,8 +3998,11 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		ast_log(AST_LOG_WARNING, "E-mail address missing for mailbox [%s].  E-mail will not be sent.\n", vmu->mailbox);
 		return(0);
 	}
-	if (!strcmp(format, "wav49"))
+	if (!strcmp(format, "wav49")) {
 		format = "WAV";
+	} else if (!strcmp(format, "wav16")) {
+		format = "Wav";
+	}
 	ast_debug(3, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
