@@ -216,6 +216,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEFAULT_DEFAULT_EXPIRY  120
 #define DEFAULT_MIN_EXPIRY      60
 #define DEFAULT_MAX_EXPIRY      3600
+#define DEFAULT_MWI_EXPIRY      3600
 #define DEFAULT_REGISTRATION_TIMEOUT 20
 #define DEFAULT_MAX_FORWARDS    "70"
 
@@ -235,6 +236,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int min_expiry = DEFAULT_MIN_EXPIRY;        /*!< Minimum accepted registration time */
 static int max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registration time */
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
+static int mwi_expiry = DEFAULT_MWI_EXPIRY;
 
 #ifndef MAX
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
@@ -1379,6 +1381,8 @@ struct sip_pvt {
 	struct sip_st_dlg *stimer;		/*!< SIP Session-Timers */              
   
 	int red; 
+
+	struct sip_subscription_mwi *mwi;       /*!< If this is a subscription MWI dialog, to which subscription */
 };
 
 /*! Max entires in the history list for a sip_pvt */
@@ -1616,6 +1620,25 @@ struct sip_threadinfo {
 	AST_LIST_ENTRY(sip_threadinfo) list;
 };
 
+/*! \brief Definition of an MWI subscription to another server */
+struct sip_subscription_mwi {
+	ASTOBJ_COMPONENTS_FULL(struct sip_subscription_mwi,1,1);
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(username);     /*!< Who we are sending the subscription as */
+		AST_STRING_FIELD(authuser);     /*!< Who we *authenticate* as */
+		AST_STRING_FIELD(hostname);     /*!< Domain or host we subscribe to */
+		AST_STRING_FIELD(secret);       /*!< Password in clear text */
+		AST_STRING_FIELD(mailbox);      /*!< Mailbox store to put MWI into */
+		);
+	enum sip_transport transport;    /*!< Transport to use */
+	int portno;                      /*!< Optional port override */
+	int resub;                       /*!< Sched ID of resubscription */
+	unsigned int subscribed:1;       /*!< Whether we are currently subscribed or not */
+	struct sip_pvt *call;            /*!< Outbound subscription dialog */
+	struct ast_dnsmgr_entry *dnsmgr; /*!< DNS refresh manager for subscription */
+	struct sockaddr_in us;           /*!< Who the server thinks we are */
+};
+
 /* --- Hash tables of various objects --------*/
 
 #ifdef LOW_MEMORY
@@ -1640,6 +1663,11 @@ static struct ast_register_list {
 	ASTOBJ_CONTAINER_COMPONENTS(struct sip_registry);
 	int recheck;
 } regl;
+
+/*! \brief  The MWI subscription list */
+static struct ast_subscription_mwi_list {
+	ASTOBJ_CONTAINER_COMPONENTS(struct sip_subscription_mwi);
+} submwil;
 
 /*! \brief
  * \note The only member of the peer used here is the name field
@@ -2024,6 +2052,7 @@ static char *sip_qualify_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *sip_show_mwi(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static const char *subscription_type2str(enum subscriptiontype subtype) attribute_pure;
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static char *complete_sip_peer(const char *word, int state, int flags2);
@@ -2181,6 +2210,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static void handle_response_notify(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
+static void handle_response_subscribe(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 
@@ -2213,6 +2243,12 @@ static enum st_refresher st_get_refresher(struct sip_pvt *);
 static enum st_mode st_get_mode(struct sip_pvt *);
 static struct sip_st_dlg* sip_st_alloc(struct sip_pvt *const p);
 
+/*!--- SIP MWI Subscription support */
+static int sip_subscribe_mwi(const char *value, int lineno);
+static void sip_subscribe_mwi_destroy(struct sip_subscription_mwi *mwi);
+static void sip_send_all_mwi_subscriptions(void);
+static int sip_subscribe_mwi_do(const void *data);
+static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi);
 
 /*! \brief Definition of this channel for PBX channel registration */
 static const struct ast_channel_tech sip_tech = {
@@ -4539,6 +4575,20 @@ static void sip_registry_destroy(struct sip_registry *reg)
 	
 }
 
+/*! \brief Destroy MWI subscription object */
+static void sip_subscribe_mwi_destroy(struct sip_subscription_mwi *mwi)
+{
+	if (mwi->call) {
+		mwi->call->mwi = NULL;
+		sip_destroy(mwi->call);
+	}
+	
+	AST_SCHED_DEL(sched, mwi->resub);
+	ast_string_field_free_memory(mwi);
+	ast_dnsmgr_release(mwi->dnsmgr);
+	ast_free(mwi);
+}
+
 /*! \brief Execute destruction of SIP dialog structure, release memory */
 static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 {
@@ -5688,9 +5738,9 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 }
 
 /*! \brief Reads one line of SIP message body */
-static char *get_body_by_line(const char *line, const char *name, int nameLen)
+static char *get_body_by_line(const char *line, const char *name, int nameLen, char delimiter)
 {
-	if (!strncasecmp(line, name, nameLen) && line[nameLen] == '=')
+	if (!strncasecmp(line, name, nameLen) && line[nameLen] == delimiter)
 		return ast_skip_blanks(line + nameLen + 1);
 
 	return "";
@@ -5705,7 +5755,7 @@ static const char *get_sdp_iterate(int *start, struct sip_request *req, const ch
 	int len = strlen(name);
 
 	while (*start < req->sdp_end) {
-		const char *r = get_body_by_line(req->line[(*start)++], name, len);
+		const char *r = get_body_by_line(req->line[(*start)++], name, len, '=');
 		if (r[0] != '\0')
 			return r;
 	}
@@ -5722,14 +5772,14 @@ static const char *get_sdp(struct sip_request *req, const char *name)
 }
 
 /*! \brief Get a specific line from the message body */
-static char *get_body(struct sip_request *req, char *name) 
+static char *get_body(struct sip_request *req, char *name, char delimiter) 
 {
 	int x;
 	int len = strlen(name);
 	char *r;
 
 	for (x = 0; x < req->lines; x++) {
-		r = get_body_by_line(req->line[x], name, len);
+		r = get_body_by_line(req->line[x], name, len, delimiter);
 		if (r[0] != '\0')
 			return r;
 	}
@@ -6388,6 +6438,80 @@ static int sip_register(const char *value, int lineno)
 	reg->ocseq = INITIAL_CSEQ;
 	ASTOBJ_CONTAINER_LINK(&regl, reg); /* Add the new registry entry to the list */
 	registry_unref(reg, "unref the reg pointer");	/* release the reference given by ASTOBJ_INIT. The container has another reference */
+	return 0;
+}
+
+/*! \brief Parse mwi=> line in sip.conf and add to list */
+static int sip_subscribe_mwi(const char *value, int lineno)
+{
+	struct sip_subscription_mwi *mwi;
+	int portnum = 0;
+	enum sip_transport transport = SIP_TRANSPORT_UDP;
+	char buf[256] = "";
+	char *username = NULL, *hostname = NULL, *secret = NULL, *authuser = NULL, *porta = NULL, *mailbox = NULL;
+	
+	if (!value) {
+		return -1;
+	}
+	
+	ast_copy_string(buf, value, sizeof(buf));
+
+	sip_parse_host(buf, lineno, &username, &portnum, &transport);
+	
+	if ((hostname = strrchr(username, '@'))) {
+		*hostname++ = '\0';
+	}
+	
+	if ((secret = strchr(username, ':'))) {
+		*secret++ = '\0';
+		if ((authuser = strchr(secret, ':'))) {
+			*authuser++ = '\0';
+		}
+	}
+	
+	if ((mailbox = strchr(hostname, '/'))) {
+		*mailbox++ = '\0';
+	}
+
+	if (ast_strlen_zero(username) || ast_strlen_zero(hostname) || ast_strlen_zero(mailbox)) {
+		ast_log(LOG_WARNING, "Format for MWI subscription is user[:secret[:authuser]]@host[:port][/mailbox] at line %d\n", lineno);
+		return -1;
+	}
+	
+	if ((porta = strchr(hostname, ':'))) {
+		*porta++ = '\0';
+		if (!(portnum = atoi(porta))) {
+			ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
+			return -1;
+		}
+	}
+	
+	if (!(mwi = ast_calloc(1, sizeof(*mwi)))) {
+		return -1;
+	}
+	
+	if (ast_string_field_init(mwi, 256)) {
+		ast_free(mwi);
+		return -1;
+	}
+	
+	ASTOBJ_INIT(mwi);
+	ast_string_field_set(mwi, username, username);
+	if (secret) {
+		ast_string_field_set(mwi, secret, secret);
+	}
+	if (authuser) {
+		ast_string_field_set(mwi, authuser, authuser);
+	}
+	ast_string_field_set(mwi, hostname, hostname);
+	ast_string_field_set(mwi, mailbox, mailbox);
+	mwi->resub = -1;
+	mwi->portno = portnum;
+	mwi->transport = transport;
+	
+	ASTOBJ_CONTAINER_LINK(&submwil, mwi);
+	ASTOBJ_UNREF(mwi, sip_subscribe_mwi_destroy);
+	
 	return 0;
 }
 
@@ -9083,7 +9207,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		add_header(req, "Remote-Party-ID", p->rpid);
 }
 
-/*! \brief Build REFER/INVITE/OPTIONS message and transmit it 
+/*! \brief Build REFER/INVITE/OPTIONS/SUBSCRIBE message and transmit it 
 	\param init 0 = Prepare request within dialog, 1= prepare request, new branch, 2= prepare new request and new dialog. do_proxy_auth calls this with init!=2
  \param p sip_pvt structure
  \param sdp unknown 
@@ -9119,7 +9243,15 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 				add_header(&req, "Referred-By", buf);
 			}
 		}
+	} else if (sipmethod == SIP_SUBSCRIBE) { /* We only support sending MWI subscriptions right now */
+		char buf[SIPBUFSIZE];
+
+		add_header(&req, "Event", "message-summary");
+		add_header(&req, "Accept", "application/simple-message-summary");
+		snprintf(buf, sizeof(buf), "%d", mwi_expiry);
+		add_header(&req, "Expires", buf);
 	}
+
 	/* This new INVITE is part of an attended transfer. Make sure that the
 	other end knows and replace the current call with this new call */
 	if (p->options && !ast_strlen_zero(p->options->replaces)) {
@@ -9209,6 +9341,94 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
 	return send_request(p, &req, init ? XMIT_CRITICAL : XMIT_RELIABLE, p->ocseq);
+}
+
+/*! \brief Send a subscription or resubscription for MWI */
+static int sip_subscribe_mwi_do(const void *data)
+{
+	struct sip_subscription_mwi *mwi = ASTOBJ_REF((struct sip_subscription_mwi *) data);
+	
+	if (!mwi) {
+		return -1;
+	}
+	
+	mwi->resub = -1;
+	__sip_subscribe_mwi_do(mwi);
+	ASTOBJ_UNREF(mwi, sip_subscribe_mwi_destroy);
+	
+	return 0;
+}
+
+/*! \brief Actually setup an MWI subscription or resubscribe */
+static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
+{
+	/* If we have no DNS manager let's do a lookup */
+	if (!mwi->dnsmgr) {
+		char transport[MAXHOSTNAMELEN];
+		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(mwi->transport));
+		ast_dnsmgr_lookup(mwi->hostname, &mwi->us, &mwi->dnsmgr, global_srvlookup ? transport : NULL);
+	}
+
+	/* If we already have a subscription up simply send a resubscription */
+	if (mwi->call) {
+		transmit_invite(mwi->call, SIP_SUBSCRIBE, 0, 0);
+		return 0;
+	}
+	
+	/* Create a dialog that we will use for the subscription */
+	if (!(mwi->call = sip_alloc(NULL, NULL, 0, SIP_SUBSCRIBE))) {
+		return -1;
+	}
+
+	mwi->call->outboundproxy = obproxy_get(mwi->call, NULL);
+
+	if (!mwi->us.sin_port && mwi->portno) {
+		mwi->us.sin_port = htons(mwi->portno);
+	}
+	
+	/* Setup the destination of our subscription */
+	if (create_addr(mwi->call, mwi->hostname, &mwi->us, 0)) {
+		dialog_unlink_all(mwi->call, TRUE, TRUE);
+		mwi->call = dialog_unref(mwi->call, "unref dialog after unlink_all");
+		return 0;
+	}
+	
+	if (!mwi->dnsmgr && mwi->portno) {
+		mwi->call->sa.sin_port = htons(mwi->portno);
+		mwi->call->recv.sin_port = htons(mwi->portno);
+	} else {
+		mwi->portno = ntohs(mwi->call->sa.sin_port);
+	}
+	
+	/* Set various other information */
+	if (!ast_strlen_zero(mwi->authuser)) {
+		ast_string_field_set(mwi->call, peername, mwi->authuser);
+		ast_string_field_set(mwi->call, authname, mwi->authuser);
+		ast_string_field_set(mwi->call, fromuser, mwi->authuser);
+	} else {
+		ast_string_field_set(mwi->call, peername, mwi->username);
+		ast_string_field_set(mwi->call, authname, mwi->username);
+		ast_string_field_set(mwi->call, fromuser, mwi->username);
+	}
+	ast_string_field_set(mwi->call, username, mwi->username);
+	if (!ast_strlen_zero(mwi->secret)) {
+		ast_string_field_set(mwi->call, peersecret, mwi->secret);
+	}
+	mwi->call->socket.type = mwi->transport;
+	mwi->call->socket.port = htons(mwi->portno);
+	ast_sip_ouraddrfor(&mwi->call->sa.sin_addr, &mwi->call->ourip);
+	build_contact(mwi->call);
+	build_via(mwi->call);
+	build_callid_pvt(mwi->call);
+	ast_set_flag(&mwi->call->flags[0], SIP_OUTGOING);
+	
+	/* Associate the call with us */
+	mwi->call->mwi = ASTOBJ_REF(mwi);
+	
+	/* Actually send the packet */
+	transmit_invite(mwi->call, SIP_SUBSCRIBE, 0, 2);
+	
+	return 0;
 }
 
 /*! \brief Used in the SUBSCRIBE notification subsystem (RFC3265) */
@@ -13728,6 +13948,36 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	return CLI_SUCCESS;
 }
 
+static char *sip_show_mwi(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+#define FORMAT  "%-30.30s  %-12.12s  %-10.10s  %-10.10s\n"
+	char host[80];
+	
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sip show mwi";
+		e->usage =
+			"Usage: sip show mwi\n"
+			"       Provides a list of MWI subscriptions and status.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	
+	ast_cli(a->fd, FORMAT, "Host", "Username", "Mailbox", "Subscribed");
+	
+	ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
+		ASTOBJ_RDLOCK(iterator);
+		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT);
+		ast_cli(a->fd, FORMAT, host, iterator->username, iterator->mailbox, iterator->subscribed ? "Yes" : "No");
+		ASTOBJ_UNLOCK(iterator);
+	} while(0));
+
+	return CLI_SUCCESS;
+#undef FORMAT
+}
+
+
 /*! \brief Show subscription type in string format */
 static const char *subscription_type2str(enum subscriptiontype subtype)
 {
@@ -14208,7 +14458,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 		}
 
 		/* Try getting the "signal=" part */
-		if (ast_strlen_zero(c = get_body(req, "Signal")) && ast_strlen_zero(c = get_body(req, "d"))) {
+		if (ast_strlen_zero(c = get_body(req, "Signal", '=')) && ast_strlen_zero(c = get_body(req, "d", '='))) {
 			ast_log(LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
 			transmit_response(p, "200 OK", req); /* Should return error */
 			return;
@@ -14216,7 +14466,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			ast_copy_string(buf, c, sizeof(buf));
 		}
 
-		if (!ast_strlen_zero((c = get_body(req, "Duration"))))
+		if (!ast_strlen_zero((c = get_body(req, "Duration", '='))))
 			duration = atoi(c);
 		if (!duration)
 			duration = 100; /* 100 ms */
@@ -15600,6 +15850,63 @@ static void handle_response_notify(struct sip_pvt *p, int resp, char *rest, stru
 	}
 }
 
+/* \brief Handle SIP response in SUBSCRIBE transaction */
+static void handle_response_subscribe(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
+{
+	if (!p->mwi) {
+		return;
+	}
+
+	switch (resp) {
+	case 200: /* Subscription accepted */
+		ast_debug(3, "Got 200 OK on subscription for MWI\n");
+		if (p->options) {
+			ast_free(p->options);
+			p->options = NULL;
+		}
+		p->mwi->subscribed = 1;
+		p->mwi->resub = ast_sched_add(sched, mwi_expiry * 1000, sip_subscribe_mwi_do, p->mwi);
+		break;
+	case 401:
+	case 407:
+		ast_string_field_set(p, theirtag, NULL);
+		if (p->authtries > 1 || do_proxy_auth(p, req, resp, SIP_SUBSCRIBE, 0)) {
+			ast_log(LOG_NOTICE, "Failed to authenticate on SUBSCRIBE to '%s'\n", get_header(&p->initreq, "From"));
+			p->mwi->call = NULL;
+			ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
+			p->needdestroy = 1;
+		}
+		break;
+	case 403:
+		transmit_response_with_date(p, "200 OK", req);
+		ast_log(LOG_WARNING, "Authentication failed while trying to subscribe for MWI.\n");
+		p->mwi->call = NULL;
+		ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
+		p->needdestroy = 1;
+		sip_alreadygone(p);
+		break;
+	case 404:
+		ast_log(LOG_WARNING, "Subscription failed for MWI. The remote side said that a mailbox may not have been configured.\n");
+		p->mwi->call = NULL;
+		ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
+		p->needdestroy = 1;
+		break;
+	case 481:
+		ast_log(LOG_WARNING, "Subscription failed for MWI. The remote side said that our dialog did not exist.\n");
+		p->mwi->call = NULL;
+		ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
+		p->needdestroy = 1;
+		break;
+	case 500:
+	case 501:
+		ast_log(LOG_WARNING, "Subscription failed for MWI. The remote side may have suffered a heart attack.\n");
+		p->mwi->call = NULL;
+		ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
+		p->needdestroy = 1;
+		break;
+	}
+}
+
 /* \brief Handle SIP response in REFER transaction
 	We've sent a REFER, now handle responses to it 
   */
@@ -15948,13 +16255,14 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_NOTIFY) {
 				handle_response_notify(p, resp, rest, req, seqno);
-			} else if (sipmethod == SIP_REGISTER) 
+			} else if (sipmethod == SIP_REGISTER) {
 				res = handle_response_register(p, resp, rest, req, seqno);
-			else if (sipmethod == SIP_BYE) {		/* Ok, we're ready to go */
-				p->needdestroy = 1;
-				ast_clear_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 			} else if (sipmethod == SIP_SUBSCRIBE) {
 				ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
+				handle_response_subscribe(p, resp, rest, req, seqno);
+			} else if (sipmethod == SIP_BYE) {		/* Ok, we're ready to go */
+				p->needdestroy = 1;
+				ast_clear_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 			}
 			break;
 		case 202:   /* Transfer accepted */
@@ -15969,6 +16277,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				handle_response_notify(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, seqno);
+			else if (sipmethod == SIP_SUBSCRIBE)
+				handle_response_subscribe(p, resp, rest, req, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER)
 				res = handle_response_register(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_BYE) {
@@ -15990,6 +16300,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 403: /* Forbidden - we failed authentication */
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
+			else if (sipmethod == SIP_SUBSCRIBE)
+				handle_response_subscribe(p, resp, rest, req, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER) 
 				res = handle_response_register(p, resp, rest, req, seqno);
 			else {
@@ -16002,6 +16314,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				res = handle_response_register(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
+			else if (sipmethod == SIP_SUBSCRIBE)
+				handle_response_subscribe(p, resp, rest, req, seqno);
 			else if (owner)
 				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 			break;
@@ -16035,6 +16349,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_REFER) {
 				handle_response_refer(p, resp, rest, req, seqno);
+			} else if (sipmethod == SIP_SUBSCRIBE) {
+				handle_response_subscribe(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_BYE) {
 				/* The other side has no transaction to bye,
 				just assume it's all right then */
@@ -16118,6 +16434,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 500: /* Server error */
 					if (sipmethod == SIP_REFER) {
 						handle_response_refer(p, resp, rest, req, seqno);
+						break;
+					} else if (sipmethod == SIP_SUBSCRIBE) {
+						handle_response_subscribe(p, resp, rest, req, seqno);
 						break;
 					}
 					/* Fall through */
@@ -16567,12 +16886,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 	if (sipdebug)
 		ast_debug(2, "Got NOTIFY Event: %s\n", event);
 
-	if (strcmp(event, "refer")) {
-		/* We don't understand this event. */
-		/* Here's room to implement incoming voicemail notifications :-) */
-		transmit_response(p, "489 Bad event", req);
-		res = -1;
-	} else {
+	if (!strcmp(event, "refer")) {
 		/* Save nesting depth for now, since there might be other events we will
 			support in the future */
 
@@ -16672,7 +16986,33 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		
 		/* Confirm that we received this packet */
 		transmit_response(p, "200 OK", req);
-	};
+	} else if (p->mwi && !strcmp(event, "message-summary")) {
+		char *c = ast_strdupa(get_body(req, "Voice-Message", ':'));
+
+		if (!ast_strlen_zero(c)) {
+			char *old = strsep(&c, " ");
+			char *new = strsep(&old, "/");
+			struct ast_event *event;
+
+			if ((event = ast_event_new(AST_EVENT_MWI,
+						   AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, p->mwi->mailbox,
+						   AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, "SIP_Remote",
+						   AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, atoi(new),
+						   AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, atoi(old),
+						   AST_EVENT_IE_END))) {
+				ast_event_queue_and_cache(event,
+							  AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR,
+							  AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR,
+							  AST_EVENT_IE_END);
+			}
+		}
+
+		transmit_response(p, "200 OK", req);
+	} else {
+		/* We don't understand this event. */
+		transmit_response(p, "489 Bad event", req);
+		res = -1;
+	}
 
 	if (!p->lastinvite)
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -21717,6 +22057,10 @@ static int reload_config(enum channelreloadreason reason)
 			default_expiry = atoi(v->value);
 			if (default_expiry < 1)
 				default_expiry = DEFAULT_DEFAULT_EXPIRY;
+		} else if (!strcasecmp(v->name, "mwiexpiry") || !strcasecmp(v->name, "mwiexpirey")) {
+			mwi_expiry = atoi(v->value);
+			if (mwi_expiry < 1)
+				mwi_expiry = DEFAULT_MWI_EXPIRY;
 		} else if (!strcasecmp(v->name, "sipdebug")) {
 			if (ast_true(v->value))
 				sipdebug |= sip_debug_config;
@@ -21795,6 +22139,8 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "register")) {
 			if (sip_register(v->value, v->lineno) == 0)
 				registry_count++;
+		} else if (!strcasecmp(v->name, "mwi")) {
+			sip_subscribe_mwi(v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "tos_sip")) {
 			if (ast_str2tos(v->value, &global_tos_sip))
 				ast_log(LOG_WARNING, "Invalid tos_sip value at line %d, refer to QoS documentation\n", v->lineno);
@@ -22623,6 +22969,17 @@ static void sip_send_all_registers(void)
 	);
 }
 
+/*! \brief Send all MWI subscriptions */
+static void sip_send_all_mwi_subscriptions(void)
+{
+	ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
+		ASTOBJ_WRLOCK(iterator);
+		AST_SCHED_DEL(sched, iterator->resub);
+		iterator->resub = ast_sched_add(sched, 1, sip_subscribe_mwi_do, iterator);
+		ASTOBJ_UNLOCK(iterator);
+	} while (0));
+}
+
 /*! \brief Reload module */
 static int sip_do_reload(enum channelreloadreason reason)
 {
@@ -22642,6 +22999,9 @@ static int sip_do_reload(enum channelreloadreason reason)
 
 	/* Register with all services */
 	sip_send_all_registers();
+
+	sip_send_all_mwi_subscriptions();
+
 	end_poke = time(0);
 	
 	ast_debug(4, "do_reload finished. peer poke/prune reg contact time = %d sec.\n", (int)(end_poke-start_poke));
@@ -22699,6 +23059,7 @@ static struct ast_cli_entry cli_sip[] = {
 	AST_CLI_DEFINE(sip_show_registry, "List SIP registration status"),
 	AST_CLI_DEFINE(sip_unregister, "Unregister (force expiration) a SIP peer from the registry"),
 	AST_CLI_DEFINE(sip_show_settings, "Show SIP global settings"),
+	AST_CLI_DEFINE(sip_show_mwi, "Show MWI subscriptions"),
 	AST_CLI_DEFINE(sip_cli_notify, "Send a notify packet to a SIP peer"),
 	AST_CLI_DEFINE(sip_show_channel, "Show detailed SIP channel info"),
 	AST_CLI_DEFINE(sip_show_history, "Show SIP dialog history"),
@@ -22723,6 +23084,7 @@ static int load_module(void)
 	dialogs = ao2_t_container_alloc(hash_dialog_size, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs");
 	
 	ASTOBJ_CONTAINER_INIT(&regl); /* Registry object list -- not searched for anything */
+	ASTOBJ_CONTAINER_INIT(&submwil); /* MWI subscription object list */
 
 	if (!(sched = sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context\n");
@@ -22787,7 +23149,8 @@ static int load_module(void)
 			"Send a SIP notify", mandescr_sipnotify);
 	sip_poke_all_peers();	
 	sip_send_all_registers();
-	
+	sip_send_all_mwi_subscriptions();
+
 	/* And start the monitor for the first time */
 	restart_monitor();
 
@@ -22904,6 +23267,8 @@ static int unload_module(void)
 
 	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&regl);
+	ASTOBJ_CONTAINER_DESTROYALL(&submwil, sip_subscribe_mwi_destroy);
+	ASTOBJ_CONTAINER_DESTROY(&submwil);
 
 	ao2_t_ref(peers, -1, "unref the peers table");
 	ao2_t_ref(peers_by_ip, -1, "unref the peers_by_ip table");

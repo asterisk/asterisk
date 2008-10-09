@@ -7,6 +7,8 @@ SIP Changes
  * Added support for SUBSCRIBE/NOTIFY with dialog-info based call pickups.
    Snom phones use this for call pickup of extensions that the phone is
    subscribed to.
+ * Added support for subscribing to a voice mailbox on a remote server and
+   making the new/old message count available to local devices.
 
 Dialplan Functions
 ------------------

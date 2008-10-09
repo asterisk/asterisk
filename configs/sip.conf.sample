@@ -142,9 +142,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;cos_text=3                     ; Sets 802.1p priority for RTP text packets.
 
 ;maxexpiry=3600                 ; Maximum allowed time of incoming registrations
-                                ; and subscriptions (seconds)
+                                ; and subscriptions (seconds)5A
 ;minexpiry=60                   ; Minimum length of registrations/subscriptions (default 60)
 ;defaultexpiry=120              ; Default length of incoming/outgoing registration
+;mwiexpiry=3600                 ; Expiry time for outgoing MWI subscriptions
 ;qualifyfreq=60                 ; Qualification: How often to check for the 
                                 ; host to be up in seconds
                                 ; Set to low value if you use low timeout for
@@ -445,7 +446,17 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; 0 = continue forever, hammering the other server
                                 ; until it accepts the registration
                                 ; Default is 0 tries, continue forever
-
+;----------------------------------------- OUTBOUND MWI SUBSCRIPTIONS -------------------------
+; Asterisk can subscribe to receive the MWI from another SIP server and store it locally for retrieval
+; by other phones.
+; Format for the mwi register statement is:
+;       mwi => user[:secret[:authuser]]@host[:port][/mailbox]
+;
+; Examples:
+;mwi => 1234:password@mysipprovider.com/1234
+;
+; MWI received will be stored in the 1234 mailbox of the SIP_Remote context. It can be used by other phones by following the below:
+; mailbox=1234@SIP_Remote
 ;----------------------------------------- NAT SUPPORT ------------------------
 ;
 ; WARNING: SIP operation behind a NAT is tricky and you really need
