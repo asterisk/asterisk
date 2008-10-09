@@ -2387,6 +2387,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		char save_exten[AST_MAX_EXTENSION];
 		int  save_prio;
 		int  found = 0;	/* set if we find at least one match */
+		int  spawn_error = 0;
 		
 		if (ast_opt_end_cdr_before_h_exten) {
 			ast_cdr_end(bridge_cdr);
@@ -2403,15 +2404,13 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		ast_copy_string(chan->exten, "h", sizeof(chan->exten));
 		chan->priority = 1;
 		ast_channel_unlock(chan);
-		while ((res = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num, &found, 1)) == 0) {
+		while ((spawn_error = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num, &found, 1)) == 0) {
 			chan->priority++;
 		}
-		if (found && res) {
+		if (found && spawn_error) {
 			/* Something bad happened, or a hangup has been requested. */
 			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", chan->context, chan->exten, chan->priority, chan->name);
 			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", chan->context, chan->exten, chan->priority, chan->name);
-		} else if (!found && res) {
-			res = 0;
 		}
 		/* swap it back */
 		ast_channel_lock(chan);
