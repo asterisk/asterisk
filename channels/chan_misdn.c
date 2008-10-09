@@ -737,7 +737,7 @@ static char *handle_cli_misdn_set_debug(struct ast_cli_entry *e, int cmd, struct
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "misdn set debug {on|off|<level>}";
+		e->command = "misdn set debug [on|off]";
 		e->usage =
 			"Usage: misdn set debug {on|off|<level>} [only] | [port <port> [only]]\n"
 			"       Set the debug level of the mISDN channel.\n";

@@ -2633,6 +2633,9 @@ static char *handle_cli_h323_set_trace(struct ast_cli_entry *e, int cmd, struct 
 	if (!strcasecmp(a->argv[3], "off")) {
 		h323_debug(0, 0);
 		ast_cli(a->fd, "H.323 Trace Disabled\n");
+	} else if (!strcasecmp(a->argv[3], "on")) {
+		h323_debug(1, 1);
+		ast_cli(a->fd, "H.323 Trace Enabled\n");
 	} else {
 		int tracelevel = atoi(a->argv[3]);
 		h323_debug(1, tracelevel);
