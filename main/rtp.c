@@ -675,7 +675,7 @@ int ast_stun_request(int s, struct sockaddr_in *dst,
 		res = ast_select(s + 1, &rfds, NULL, NULL, &to);
 		if (res <= 0)	/* timeout or error */
 			continue;
-		bzero(&src, sizeof(src));
+		memset(&src, '\0', sizeof(src));
 		srclen = sizeof(src);
 		/* XXX pass -1 in the size, because stun_handle_packet might
 		 * write past the end of the buffer.
@@ -687,7 +687,7 @@ int ast_stun_request(int s, struct sockaddr_in *dst,
 				retry, res);
 			continue;
 		}
-		bzero(answer, sizeof(struct sockaddr_in));
+		memset(answer, '\0', sizeof(struct sockaddr_in));
 		stun_handle_packet(s, &src, reply_buf, res,
 			stun_get_mapped, answer);
 		res = 0; /* signal regular exit */

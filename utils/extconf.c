@@ -4406,7 +4406,7 @@ static int ext_cmp1(const char **p)
 		return 0x40000;	/* XXX make this entry go last... */
 	}
 
-	bzero(chars, sizeof(chars));	/* clear all chars in the set */
+	memset(chars, '\0', sizeof(chars));	/* clear all chars in the set */
 	for (; *p < end  ; (*p)++) {
 		unsigned char c1, c2;	/* first-last char in range */
 		c1 = (unsigned char)((*p)[0]);

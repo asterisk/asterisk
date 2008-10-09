@@ -2335,7 +2335,7 @@ int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
 		struct hostent *hp;
 		struct ast_hostent ahp;
 
-		bzero(&_sa_buf, sizeof(_sa_buf)); /* clear buffer */
+		memset(&_sa_buf, '\0', sizeof(_sa_buf)); /* clear buffer */
 		/* duplicate the string to strip away the :port */
 		port = ast_strdupa(arg);
 		buf = strsep(&port, ":");

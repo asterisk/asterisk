@@ -1411,7 +1411,7 @@ static void send_sound(struct chan_usbradio_pvt *o)
 				l = FRAME_SIZE - ofs;
 			if (l > s->datalen - start)	/* don't overflow the source */
 				l = s->datalen - start;
-			bcopy(s->data + start, myframe + ofs, l * 2);
+			memmove(myframe + ofs, s->data + start, l * 2);
 			if (0)
 				ast_log(LOG_WARNING, "send_sound sound %d/%d of %d into %d\n", l_sampsent, l, s->samplen, ofs);
 			l_sampsent += l;
@@ -1422,14 +1422,14 @@ static void send_sound(struct chan_usbradio_pvt *o)
 			if (l > 0) {
 				if (l > FRAME_SIZE - ofs)
 					l = FRAME_SIZE - ofs;
-				bcopy(silence, myframe + ofs, l * 2);
+				memmove(myframe + ofs, silence, l * 2);
 				l_sampsent += l;
 			} else {			/* silence is over, restart sound if loop */
 				if (s->repeat == 0) {	/* last block */
 					o->cursound = -1;
 					o->nosound = 0;	/* allow audio data */
 					if (ofs < FRAME_SIZE)	/* pad with silence */
-						bcopy(silence, myframe + ofs, (FRAME_SIZE - ofs) * 2);
+						memmove(myframe + ofs, silence, (FRAME_SIZE - ofs) * 2);
 				}
 				l_sampsent = 0;
 			}
@@ -1813,7 +1813,7 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 	}
 	/* XXX can be simplified returning &ast_null_frame */
 	/* prepare a NULL frame in case we don't have enough data to return */
-	bzero(f, sizeof(struct ast_frame));
+	memset(f, '\0', sizeof(struct ast_frame));
 	f->frametype = AST_FRAME_NULL;
 	f->src = usbradio_tech.type;
 
