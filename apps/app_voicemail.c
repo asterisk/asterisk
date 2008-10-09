@@ -1309,9 +1309,9 @@ static int imap_retrieve_file(const char *dir, const int msgnum, const char *mai
 
 	fprintf(text_file_ptr, "%s\n", "[message]");
 
-	get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Num:", buf, sizeof(buf));
-	fprintf(text_file_ptr, "callerid=\"%s\" ", S_OR(buf, ""));
 	get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Name:", buf, sizeof(buf));
+	fprintf(text_file_ptr, "callerid=\"%s\" ", S_OR(buf, ""));
+	get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Num:", buf, sizeof(buf));
 	fprintf(text_file_ptr, "<%s>\n", S_OR(buf, ""));
 	get_header_by_tag(header_content, "X-Asterisk-VM-Context:", buf, sizeof(buf));
 	fprintf(text_file_ptr, "context=%s\n", S_OR(buf, ""));
@@ -1321,6 +1321,8 @@ static int imap_retrieve_file(const char *dir, const int msgnum, const char *mai
 	fprintf(text_file_ptr, "duration=%s\n", S_OR(buf, ""));
 	get_header_by_tag(header_content, "X-Asterisk-VM-Category:", buf, sizeof(buf));
 	fprintf(text_file_ptr, "category=%s\n", S_OR(buf, ""));
+	get_header_by_tag(header_content, "X-Asterisk-VM-Flag:", buf, sizeof(buf));
+	fprintf(text_file_ptr, "flag=%s\n", S_OR(buf, ""));
 	fclose(text_file_ptr);
 
 exit:
