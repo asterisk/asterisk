@@ -204,7 +204,7 @@ void dump_buf(struct fbuf_t *b)
 		if ( x == 0) {	/* new line */
 			if (i != 0)
 				ast_log(LOG_WARNING, "%s\n", buf);
-			bzero(buf, sizeof(buf));
+			memset(buf, '\0', sizeof(buf));
 			sprintf(buf, "%04x: ", i);
 		}
 		sprintf(buf + 6 + x*3, "%02x ", b->data[i]);
@@ -504,7 +504,7 @@ static int ffmpeg_decode(struct video_dec_desc *v, struct fbuf_t *b)
 		}
 	}
 	if (srclen != 0)	/* update b with leftover data */
-		bcopy(src, b->data, srclen);
+		memmove(b->data, src, srclen);
 	b->used = srclen;
 	b->ebit = 0;
 	return full_frame;
@@ -582,7 +582,7 @@ static struct ast_frame *h263_encap(struct fbuf_t *b, int mtu,
 	if (len < H263_MIN_LEN)	/* unreasonably small */
 		return NULL;
 
-	bzero(h263_hdr, sizeof(h263_hdr));
+	memset(h263_hdr, '\0', sizeof(h263_hdr));
 	/* Now set the header bytes. Only type A by now,
 	 * and h[0] = h[2] = h[3] = 0 by default.
 	 * PTYPE starts 30 bits in the picture, so the first useful
@@ -647,7 +647,7 @@ static struct ast_frame *h263_encap(struct fbuf_t *b, int mtu,
 
 		if (!f)
 			break;
-		bcopy(h, f->data.ptr, 4);	/* copy the h263 header */
+		memmove(f->data.ptr, h, 4);	/* copy the h263 header */
 		/* XXX to do: if not aligned, fix sbit and ebit,
 		 * then move i back by 1 for the next frame
 		 */
@@ -737,7 +737,7 @@ static struct ast_frame *h261_encap(struct fbuf_t *b, int mtu,
 	if (len < H261_MIN_LEN)	/* unreasonably small */
 		return NULL;
 
-	bzero(h261_hdr, sizeof(h261_hdr));
+	memset(h261_hdr, '\0', sizeof(h261_hdr));
 
 	/* Similar to the code in h263_encap, but the marker there is longer.
 	 * Start a few bytes within the bitstream to avoid hitting the marker
@@ -801,7 +801,7 @@ static struct ast_frame *h261_encap(struct fbuf_t *b, int mtu,
 			break;
 		/* recompute header with I=0, V=1 */
 		h[0] = ( (sbit & 7) << 5 ) | ( (ebit & 7) << 2 ) | 1;
-		bcopy(h, f->data.ptr, 4);	/* copy the h261 header */
+		memmove(f->data.ptr, h, 4);	/* copy the h261 header */
 		if (ebit)	/* not aligned, restart from previous byte */
 			i--;
 		sbit = (8 - ebit) & 7;
@@ -902,7 +902,7 @@ static int mpeg4_decode(struct video_dec_desc *v, struct fbuf_t *b)
 	}
 	datalen -= ret;
 	if (datalen > 0)	/* update b with leftover bytes */
-		bcopy(b->data + ret, b->data, datalen);
+		memmove(b->data, b->data + ret, datalen);
 	b->used = datalen;
 	b->ebit = 0;
 	return full_frame;

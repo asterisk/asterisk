@@ -178,4 +178,7 @@ struct ast_module;
 struct ast_variable;
 struct ast_str;
 
+#define bzero  0x__dont_use_bzero__use_memset_instead""
+#define bcopy  0x__dont_use_bcopy__use_memmove_instead()
+
 #endif /* _ASTERISK_H */

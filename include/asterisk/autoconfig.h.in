@@ -126,9 +126,6 @@
 /* Define to 1 if byteswap.h macros are available. */
 #undef HAVE_BYTESWAP_H
 
-/* Define to 1 if you have the `bzero' function. */
-#undef HAVE_BZERO
-
 /* Define this to indicate the ${CAP_DESCRIP} library */
 #undef HAVE_CAP
 
