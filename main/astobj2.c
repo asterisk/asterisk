@@ -194,7 +194,7 @@ int ao2_ref(void *user_data, const int delta)
 		/* for safety, zero-out the astobj2 header and also the
 		 * first word of the user-data, which we make sure is always
 		 * allocated. */
-		bzero(obj, sizeof(struct astobj2 *) + sizeof(void *) );
+		memset(obj, '\0', sizeof(struct astobj2 *) + sizeof(void *) );
 		free(obj);
 	}
 

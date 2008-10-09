@@ -451,7 +451,7 @@ static void rebuild_matrix(int samples)
 
 	ast_debug(1, "Resetting translation matrix\n");
 
-	bzero(tr_matrix, sizeof(tr_matrix));
+	memset(tr_matrix, '\0', sizeof(tr_matrix));
 
 	/* first, compute all direct costs */
 	AST_RWLIST_TRAVERSE(&translators, t, list) {

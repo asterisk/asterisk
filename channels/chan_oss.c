@@ -701,7 +701,7 @@ static struct ast_frame *oss_read(struct ast_channel *c)
 
 	/* XXX can be simplified returning &ast_null_frame */
 	/* prepare a NULL frame in case we don't have enough data to return */
-	bzero(f, sizeof(struct ast_frame));
+	memset(f, '\0', sizeof(struct ast_frame));
 	f->frametype = AST_FRAME_NULL;
 	f->src = oss_tech.type;
 

@@ -6483,7 +6483,7 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 	
 	memset(&ied, 0, sizeof(ied));
 	if (ies->apparent_addr)
-		bcopy(ies->apparent_addr, &new, sizeof(new));
+		memmove(&new, ies->apparent_addr, sizeof(new));
 	if (ies->callno)
 		newcall = ies->callno;
 	if (!newcall || !new.sin_addr.s_addr || !new.sin_port) {
@@ -6619,7 +6619,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 
 	memset(&us, 0, sizeof(us));
 	if (ies->apparent_addr)
-		bcopy(ies->apparent_addr, &us, sizeof(us));
+		memmove(&us, ies->apparent_addr, sizeof(us));
 	if (ies->username)
 		ast_copy_string(peer, ies->username, sizeof(peer));
 	if (ies->refresh)

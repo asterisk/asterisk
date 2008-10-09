@@ -231,7 +231,7 @@ void fbuf_free(struct fbuf_t *b)
 
 	if (b->data && b->size)
 		ast_free(b->data);
-	bzero(b, sizeof(*b));
+	memset(b, '\0', sizeof(*b));
 	/* restore some fields */
 	b->w = x.w;
 	b->h = x.h;
@@ -472,7 +472,7 @@ static AVPicture *fill_pict(struct fbuf_t *b, AVPicture *p)
 	int len = b->w;		/* Y linesize, bytes */
 	int luv = b->w/2;	/* U/V linesize, bytes */
 
-	bzero(p, sizeof(*p));
+	memset(p, '\0', sizeof(*p));
 	switch (b->pix_fmt) {
 	case PIX_FMT_RGB555:
 	case PIX_FMT_RGB565:

@@ -135,7 +135,7 @@ static struct gui_info *cleanup_sdl(struct gui_info *gui)
 		if (gui->win[i].bmp)
 			SDL_FreeYUVOverlay(gui->win[i].bmp);
 	}
-	bzero(gui, sizeof(gui));
+	memset(gui, '\0', sizeof(gui));
 	ast_free(gui);
 	SDL_Quit();
 	return NULL;
@@ -182,7 +182,7 @@ static void show_frame(struct video_desc *env, int out)
 	bmp = gui->win[out].bmp;
 	SDL_LockYUVOverlay(bmp);
 	/* output picture info - this is sdl, YUV420P */
-	bzero(&p_out, sizeof(p_out));
+	memset(&p_out, '\0', sizeof(p_out));
 	p_out.data[0] = bmp->pixels[0];
 	p_out.data[1] = bmp->pixels[1];
 	p_out.data[2] = bmp->pixels[2];
@@ -943,7 +943,7 @@ static int keypad_cfg_read(struct gui_info *gui, const char *val)
 		return 0;
 
 	s1[0] = s2[0] = '\0';
-	bzero(&e, sizeof(e));
+	memset(&e, '\0', sizeof(e));
 	i = sscanf(val, "%14s %14s %d %d %d %d %d",
                 s1, s2, &e.x0, &e.y0, &e.x1, &e.y1, &e.h);
 

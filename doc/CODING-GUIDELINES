@@ -373,6 +373,12 @@ processor operations, unlike ast_copy_string().
 * Use of functions
 ------------------
 
+For the sake of uclibc, do not use index, bcopy or bzero; use 
+strchr(), memset(), and memmove() instead. uclibc can be configured
+to supply these functions, but we can save these users
+time and consternation if we abstain from using these
+functions.
+
 When making applications, always ast_strdupa(data) to a local pointer if
 you intend to parse the incoming data string.
 
