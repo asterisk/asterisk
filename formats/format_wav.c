@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define	WAV_BUF_SIZE	320
 
 struct wav_desc {	/* format-specific parameters */
+	int which;
 	int bytes;
 	int lasttimeout;
 	int maxlen;
@@ -70,7 +71,7 @@ struct wav_desc {	/* format-specific parameters */
 #endif
 
 
-static int check_header(FILE *f)
+static int check_header(FILE *f, int which)
 {
 	int type, size, formtype;
 	int fmt, hsize;
@@ -135,7 +136,10 @@ static int check_header(FILE *f)
 		ast_log(LOG_WARNING, "Read failed (freq)\n");
 		return -1;
 	}
-	if (ltohl(freq) != DEFAULT_SAMPLE_RATE) {
+	if (ltohl(freq) != DEFAULT_SAMPLE_RATE && which == 8000) {
+		ast_log(LOG_WARNING, "Unexpected freqency %d\n", ltohl(freq));
+		return -1;
+	} else if (ltohl(freq) != 16000 && which == 16000) {
 		ast_log(LOG_WARNING, "Unexpected freqency %d\n", ltohl(freq));
 		return -1;
 	}
@@ -239,7 +243,7 @@ static int update_header(FILE *f)
 	return 0;
 }
 
-static int write_header(FILE *f)
+static int write_header(FILE *f, int which)
 {
 	unsigned int hz=htoll(8000);
 	unsigned int bhz = htoll(16000);
@@ -249,6 +253,11 @@ static int write_header(FILE *f)
 	unsigned short bysam = htols(2);
 	unsigned short bisam = htols(16);
 	unsigned int size = htoll(0);
+	if (which == 16000) {
+		hz = htoll(16000);
+		bhz = htoll(32000);
+	}
+
 	/* Write a wav header, ignoring sizes which will be filled in later */
 	fseek(f,0,SEEK_SET);
 	if (fwrite("RIFF", 1, 4, f) != 4) {
@@ -308,9 +317,16 @@ static int wav_open(struct ast_filestream *s)
 	   if we did, it would go here.  We also might want to check
 	   and be sure it's a valid file.  */
 	struct wav_desc *tmp = (struct wav_desc *)s->_private;
-	if ((tmp->maxlen = check_header(s->f)) < 0)
+	if ((tmp->maxlen = check_header(s->f, tmp->which)) < 0)
 		return -1;
 	return 0;
+}
+
+static int wav16_open(struct ast_filestream *s)
+{
+	struct wav_desc *tmp = (struct wav_desc *)s->_private;
+	tmp->which = 16000;
+	return wav_open(s);
 }
 
 static int wav_rewrite(struct ast_filestream *s, const char *comment)
@@ -318,10 +334,18 @@ static int wav_rewrite(struct ast_filestream *s, const char *comment)
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
 	   and be sure it's a valid file.  */
+	struct wav_desc *tmp = (struct wav_desc *)s->_private;
 
-	if (write_header(s->f))
+	if (write_header(s->f, tmp->which))
 		return -1;
 	return 0;
+}
+
+static int wav16_rewrite(struct ast_filestream *s, const char *comment)
+{
+	struct wav_desc *tmp = (struct wav_desc *)s->_private;
+	tmp->which = 16000;
+	return wav_rewrite(s, comment);
 }
 
 static void wav_close(struct ast_filestream *s)
@@ -351,6 +375,10 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	/* Send a frame from the file to the appropriate channel */
 	struct wav_desc *fs = (struct wav_desc *)s->_private;
 
+	if (fs->which == 16000) {
+		bytes *= 2;
+	}
+
 	here = ftello(s->f);
 	if (fs->maxlen - here < bytes)		/* truncate if necessary */
 		bytes = fs->maxlen - here;
@@ -358,10 +386,10 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 		bytes = 0;
 /* 	ast_debug(1, "here: %d, maxlen: %d, bytes: %d\n", here, s->maxlen, bytes); */
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass = AST_FORMAT_SLINEAR;
+	s->fr.subclass = fs->which == 16000 ? AST_FORMAT_SLINEAR16 : AST_FORMAT_SLINEAR;
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, bytes);
-	
+
 	if ( (res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) <= 0 ) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
@@ -373,7 +401,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	tmp = (short *)(s->fr.data.ptr);
 #if __BYTE_ORDER == __BIG_ENDIAN
 	/* file format is little endian so we need to swap */
-	for( x = 0; x < samples; x++)
+	for( x = 0; x < samples * (fs->which == 16000 ? 2 : 1); x++)
 		tmp[x] = (tmp[x] << 8) | ((tmp[x] & 0xff00) >> 8);
 #endif
 
@@ -385,7 +413,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 {
 #if __BYTE_ORDER == __BIG_ENDIAN
 	int x;
-	short tmp[8000], *tmpi;
+	short tmp[16000], *tmpi;
 #endif
 	struct wav_desc *s = (struct wav_desc *)fs->_private;
 	int res;
@@ -394,8 +422,11 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass != AST_FORMAT_SLINEAR) {
+	if (f->subclass != AST_FORMAT_SLINEAR && s->which == 0) {
 		ast_log(LOG_WARNING, "Asked to write non-SLINEAR frame (%d)!\n", f->subclass);
+		return -1;
+	} else if (f->subclass != AST_FORMAT_SLINEAR16 && s->which == 16000) {
+		ast_log(LOG_WARNING, "Asked to write non-SLINEAR16 frame (%d)!\n", f->subclass);
 		return -1;
 	}
 	if (!f->datalen)
@@ -421,9 +452,15 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 	}
 
 	s->bytes += f->datalen;
-		
-	return 0;
 
+	return 0;
+}
+
+static int wav16_write(struct ast_filestream *fs, struct ast_frame *f)
+{
+	struct wav_desc *s = (struct wav_desc *)fs->_private;
+	s->which = 16000;
+	return wav_write(fs, f);
 }
 
 static int wav_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
@@ -480,16 +517,38 @@ static const struct ast_format wav_f = {
 	.desc_size = sizeof(struct wav_desc),
 };
 
+static const struct ast_format Wav_f = {
+	.name = "wav16",
+	.exts = "Wav|wav16",
+	.format = AST_FORMAT_SLINEAR16,
+	.open =	wav16_open,
+	.rewrite = wav16_rewrite,
+	.write = wav16_write,
+	.seek = wav_seek,
+	.trunc = wav_trunc,
+	.tell =	wav_tell,
+	.read = wav_read,
+	.close = wav_close,
+	.buf_size = WAV_BUF_SIZE * 2 + AST_FRIENDLY_OFFSET,
+	.desc_size = sizeof(struct wav_desc),
+};
+
 static int load_module(void)
 {
 	if (ast_format_register(&wav_f))
 		return AST_MODULE_LOAD_FAILURE;
+	ast_format_register(&Wav_f);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	return ast_format_unregister(wav_f.name);
+	int res;
+	if (!(res = ast_format_unregister(Wav_f.name))) {
+		return ast_format_unregister(wav_f.name);
+	} else {
+		return res;
+	}
 }	
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Microsoft WAV format (8000Hz Signed Linear)");
