@@ -53,8 +53,8 @@ static_file => sip.ld,application/octet-stream
 static_file => sip.ver,plain/text
 static_file => sip.cfg
 static_file => custom.cfg
-${TOLOWER(${MAC})}.cfg => 000000000000.cfg               ; Dynamically generated files.
-${TOLOWER(${MAC})}-phone.cfg => 000000000000-phone.cfg   ; (relative to AST_DATA_DIR/phoneprov)
-config/${TOLOWER(${MAC})} => polycom.xml                 ; Dynamic Filename => template file 
-${TOLOWER(${MAC})}-directory.xml => 000000000000-directory.xml
+${MAC}.cfg => 000000000000.cfg               ; Dynamically generated files.
+${MAC}-phone.cfg => 000000000000-phone.cfg   ; (relative to AST_DATA_DIR/phoneprov)
+config/${MAC} => polycom.xml                 ; Dynamic Filename => template file 
+${MAC}-directory.xml => 000000000000-directory.xml
 setvar => CUSTOM_CONFIG=/var/lib/asterisk/phoneprov/configs/custom.cfg  ; Custom variable
