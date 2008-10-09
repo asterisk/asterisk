@@ -142,7 +142,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;cos_text=3                     ; Sets 802.1p priority for RTP text packets.
 
 ;maxexpiry=3600                 ; Maximum allowed time of incoming registrations
-                                ; and subscriptions (seconds)5A
+                                ; and subscriptions (seconds)
 ;minexpiry=60                   ; Minimum length of registrations/subscriptions (default 60)
 ;defaultexpiry=120              ; Default length of incoming/outgoing registration
 ;mwiexpiry=3600                 ; Expiry time for outgoing MWI subscriptions
