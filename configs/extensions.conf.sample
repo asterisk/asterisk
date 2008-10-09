@@ -156,27 +156,29 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ;   ! - wildcard, causes the matching process to complete as soon as
 ;       it can unambiguously determine that no other matches are possible
 ;
-; For example the extension _NXXXXXX would match normal 7 digit dialings, 
+; For example, the extension _NXXXXXX would match normal 7 digit dialings, 
 ; while _1NXXNXXXXXX would represent an area code plus phone number
 ; preceded by a one.
 ;
-; Each step of an extension is ordered by priority, which must
-; always start with 1 to be considered a valid extension.  The priority
-; "next" or "n" means the previous priority plus one, regardless of whether
-; the previous priority was associated with the current extension or not.
-; The priority "same" or "s" means the same as the previously specified
-; priority, again regardless of whether the previous entry was for the
-; same extension.  Priorities may be immediately followed by a plus sign
-; and another integer to add that amount (most useful with 's' or 'n').  
-; Priorities may then also have an alias, or label, in 
-; parenthesis after their name which can be used in goto situations
+; Each step of an extension is ordered by priority, which must always start
+; with 1 to be considered a valid extension.  The priority "next" or "n" means
+; the previous priority plus one, regardless of whether the previous priority
+; was associated with the current extension or not.  The priority "same" or "s"
+; means the same as the previously specified priority, again regardless of
+; whether the previous entry was for the same extension.  Priorities may be
+; immediately followed by a plus sign and another integer to add that amount
+; (most useful with 's' or 'n').  Priorities may then also have an alias, or
+; label, in parentheses after their name which can be used in goto situations.
 ;
-; Contexts contain several lines, one for each step of each
-; extension, which can take one of two forms as listed below,
-; with the first form being preferred.  One may include another
-; context in the current one as well, optionally with a
-; date and time.  Included contexts are included in the order
-; they are listed.
+; Contexts contain several lines, one for each step of each extension.  One may
+; include another context in the current one as well, optionally with a date
+; and time.  Included contexts are included in the order they are listed.
+; Switches may also be included within a context.  The order of matching within
+; a context is always exact extensions, pattern match extensions, includes, and
+; switches.  Includes are always processed depth-first.  So for example, if you
+; would like a switch "A" to match before context "B", simply put switch "A" in
+; an included context "C", where "C" is included in your original context
+; before "B".
 ;
 ;[context]
 ;exten => someexten,{priority|label{+|-}offset}[(alias)],application(arg1,arg2,...)
@@ -193,13 +195,18 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ;include => weekend|*|sat-sun|*|*
 ;include => weeknights|17:02-8:58|mon-fri|*|*
 ;
-; ignorepat can be used to instruct drivers to not cancel dialtone upon
-; receipt of a particular pattern.  The most commonly used example is
-; of course '9' like this:
+; ignorepat can be used to instruct drivers to not cancel dialtone upon receipt
+; of a particular pattern.  The most commonly used example is of course '9'
+; like this:
 ;
 ;ignorepat => 9
 ;
-; so that dialtone remains even after dialing a 9.
+; so that dialtone remains even after dialing a 9.  Please note that ignorepat
+; only works with channels which receive dialtone from the PBX, such as DAHDI,
+; Phone, and VPB.  Other channels, such as SIP and MGCP, which generate their
+; own dialtone and converse with the PBX only after a number is complete, are
+; generally unaffected by ignorepat (unless DISA or another method is used to
+; generate a dialtone after answering the channel).
 ;
 
 ;
