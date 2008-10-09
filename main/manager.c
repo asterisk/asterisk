@@ -2087,11 +2087,9 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 	const char *name = astman_get_header(m, "Channel");
 	const char *exten = astman_get_header(m, "Exten");
 	const char *context = astman_get_header(m, "Context");
-	const char *priority = astman_get_header(m, "Priority");
 	struct ast_channel *chan = NULL;
 	struct ast_call_feature *atxfer_feature = NULL;
 	char *feature_code = NULL;
-	int priority_int = 0;
 
 	if (ast_strlen_zero(name)) { 
 		astman_send_error(s, m, "No channel specified");
@@ -2099,19 +2097,6 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 	}
 	if (ast_strlen_zero(exten)) {
 		astman_send_error(s, m, "No extension specified");
-		return 0;
-	}
-	if (ast_strlen_zero(context)) {
-		astman_send_error(s, m, "No context specified");
-		return 0;
-	}
-	if (ast_strlen_zero(priority)) {
-		astman_send_error(s, m, "No priority specified");
-		return 0;
-	}
-
-	if (sscanf(priority, "%d", &priority_int) != 1 && (priority_int = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
-		astman_send_error(s, m, "Invalid Priority");
 		return 0;
 	}
 
@@ -2123,6 +2108,10 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 	if (!(chan = ast_get_channel_by_name_locked(name))) {
 		astman_send_error(s, m, "Channel specified does not exist");
 		return 0;
+	}
+
+	if (!ast_strlen_zero(context)) {
+		pbx_builtin_setvar_helper(chan, "TRANSFER_CONTEXT", context);
 	}
 
 	for (feature_code = atxfer_feature->exten; feature_code && *feature_code; ++feature_code) {
