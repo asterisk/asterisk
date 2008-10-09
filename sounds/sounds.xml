@@ -57,6 +57,8 @@
 		</member>
 		<member name="MOH-FREEPLAY-G722" displayname="FreePlay Music On Hold Files, G.722 format" >
 		</member>
+		<member name="MOH-FREEPLAY-SLN16" displayname="FreePlay Music On Hold Files, Signed-linear 16kHz format" >
+		</member>
 	</category>
 	<category name="MENUSELECT_EXTRA_SOUNDS" displayname="Extras Sound Packages" positive_output="yes">
 		<member name="EXTRA-SOUNDS-EN-WAV" displayname="English, WAV format">
