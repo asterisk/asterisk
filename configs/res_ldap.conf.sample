@@ -88,6 +88,9 @@ regseconds = AstAccountExpirationTimestamp
 regcontext = AstAccountRegistrationContext
 regexten = AstAccountRegistrationExten
 CanCallForward = AstAccountCanCallForward
+ipaddr = AstAccountIPAddress
+defaultuser = AstAccountDefaultUser
+regserver = AstAccountRegistrationServer
 additionalFilter=(objectClass=AstAccountSIP)
 
 ;
