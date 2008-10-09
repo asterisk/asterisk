@@ -1201,13 +1201,10 @@ static int read_agent_config(int reload)
 			recordagentcalls = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "recordformat")) {
 			ast_copy_string(recordformat, v->value, sizeof(recordformat));
-			if (!strcasecmp(v->value, "wav49")) {
+			if (!strcasecmp(v->value, "wav49"))
 				strcpy(recordformatext, "WAV");
-			} else if (!strcasecmp(v->value, "wav16")) {
-				strcpy(recordformatext, "Wav");
-			} else {
+			else
 				ast_copy_string(recordformatext, v->value, sizeof(recordformatext));
-			}
 		} else if (!strcasecmp(v->name, "urlprefix")) {
 			ast_copy_string(urlprefix, v->value, sizeof(urlprefix));
 			if (urlprefix[strlen(urlprefix) - 1] != '/')
