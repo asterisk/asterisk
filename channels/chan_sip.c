@@ -11759,13 +11759,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	/* For subscribes, match on device name only; for other methods,
 	 * match on IP address-port of the incoming request.
 	 */
-	/* First find device on name */
-	peer = find_peer(of, NULL, TRUE, FALSE, FALSE);
-
-	/* If not found, then find device on IP (if it's not a SUBSCRIBE) */
-	if (!peer && sipmethod != SIP_SUBSCRIBE) {
-		peer = find_peer(NULL, &p->recv, TRUE, FALSE, FALSE);
-	}
+	peer = (sipmethod == SIP_SUBSCRIBE) ? find_peer(of, NULL, TRUE, FALSE, FALSE) : find_peer(NULL, &p->recv, TRUE, FALSE, FALSE);
 
 	if (!peer) {
 		if (debug)
