@@ -7756,8 +7756,11 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 	/* Notify the user that the temp greeting is set and give them the option to remove it */
 	snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
 	if (ast_test_flag(vmu, VM_TEMPGREETWARN)) {
-		if (ast_fileexists(prefile, NULL, NULL) > 0)
+		RETRIEVE(prefile, -1, vmu->mailbox, vmu->context);
+		if (ast_fileexists(prefile, NULL, NULL) > 0) {
 			ast_play_and_wait(chan, "vm-tempgreetactive");
+		}
+		DISPOSE(prefile, -1);
 	}
 
 	/* Play voicemail intro - syntax is different for different languages */
@@ -8095,9 +8098,11 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		default: 
 			cmd = 0;
 			snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
+			RETRIEVE(prefile, -1, vmu->mailbox, vmu->context);
 			if (ast_fileexists(prefile, NULL, NULL)) {
 				cmd = ast_play_and_wait(chan, "vm-tmpexists");
 			}
+			DISPOSE(prefile, -1);
 			if (!cmd) {
 				cmd = ast_play_and_wait(chan, "vm-options");
 			}
