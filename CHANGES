@@ -28,6 +28,11 @@ Miscellaneous
  * res_jabber: autoprune has been disabled by default, to avoid misconfiguration 
    that would end up being interpreted as a bug once Asterisk started removing 
    the contacts from a user list.
+ * extensions.conf now allows you to use keyword "same" to define an extension
+   without actually specifying an extension.  It uses exactly the same pattern
+   as previously used on the last "exten" line.  For example:
+     exten => 123,1,NoOp(something)
+     same  =>     n,SomethingElse()
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.0 to Asterisk 1.6.1  -------------
