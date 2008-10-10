@@ -80,6 +80,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sqlite.h>
 
+#include "asterisk/logger.h"
 #include "asterisk/app.h"
 #include "asterisk/pbx.h"
 #include "asterisk/cdr.h"
