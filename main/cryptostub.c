@@ -28,6 +28,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/crypto.h"
+#include "asterisk/logger.h"
 
 static struct ast_key *stub_ast_key_get(const char *kname, int ktype)
 {

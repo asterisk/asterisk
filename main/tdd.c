@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <math.h>
 #include <ctype.h>
 
+#include "asterisk/logger.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/tdd.h"
 #include "asterisk/fskmodem.h"
