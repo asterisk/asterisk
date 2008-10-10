@@ -4691,13 +4691,13 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	/* incoming and outgoing affects the inUse counter */
 	case DEC_CALL_LIMIT:
 		/* Decrement inuse count if applicable */
-		if (inuse && ast_test_flag(&fup->flags[0], SIP_INC_COUNT)) {
+		if (inuse && *inuse > 0 && ast_test_flag(&fup->flags[0], SIP_INC_COUNT)) {
 			ast_atomic_fetchadd_int(inuse, -1);
 			ast_clear_flag(&fup->flags[0], SIP_INC_COUNT);
 		} else
 			*inuse = 0;
 		/* Decrement ringing count if applicable */
-		if (inringing && ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
+		if (inringing && *inringing > 0 && ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
 			ast_atomic_fetchadd_int(inringing, -1);
 			ast_clear_flag(&fup->flags[0], SIP_INC_RINGING);
 		}
@@ -4735,7 +4735,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		break;
 
 	case DEC_CALL_RINGING:
-		if (inringing && ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
+		if (inringing && *inringing > 0 && ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
 			ast_atomic_fetchadd_int(inringing, -1);
 			ast_clear_flag(&fup->flags[0], SIP_INC_RINGING);
 		}
