@@ -1410,7 +1410,7 @@ static int pbx_load_config(const char *config_file)
 	const char *aft;
 	const char *newpm, *ovsw;
 	struct ast_flags config_flags = { 0 };
-	char lastextension[256] = "";
+	char lastextension[256];
 	cfg = ast_config_load(config_file, config_flags);
 	if (!cfg)
 		return 0;
@@ -1451,11 +1451,19 @@ static int pbx_load_config(const char *config_file)
 		if (con == NULL)
 			continue;
 
+		/* Reset continuation items at the beginning of each context */
+		lastextension[0] = '\0';
+		lastpri = -2;
+
 		for (v = ast_variable_browse(cfg, cxt); v; v = v->next) {
 			char *tc = NULL;
 			char realext[256] = "";
 			char *stringp, *ext;
 			if (!strncasecmp(v->name, "same", 4)) {
+				if (ast_strlen_zero(lastextension)) {
+					ast_log(LOG_ERROR, "No previous pattern in the first entry of context '%s' to match '%s'!\n", cxt, v->name);
+					continue;
+				}
 				if ((stringp = tc = ast_strdup(v->value))) {
 					ast_copy_string(realext, lastextension, sizeof(realext));
 					goto copy_last_extension;
