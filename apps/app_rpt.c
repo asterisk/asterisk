@@ -2525,20 +2525,12 @@ static void rpt_telemetry(struct rpt *myrpt, int mode, void *data)
 
 static void *rpt_call(void *this)
 {
-<<<<<<< .working
-	DAHDI_CONFINFO ci;  /* conference info */
+	struct dahdi_confinfo ci;  /* conference info */
 	struct rpt *myrpt = (struct rpt *)this;
 	int	res;
 	struct ast_frame wf;
 	int stopped, congstarted, dialtimer, lastcidx, aborted;
 	struct ast_channel *mychannel, *genchannel;
-=======
-struct dahdi_confinfo ci;  /* conference info */
-struct	rpt *myrpt = (struct rpt *)this;
-int	res;
-int stopped,congstarted,dialtimer,lastcidx,aborted;
-struct ast_channel *mychannel,*genchannel;
->>>>>>> .merge-right.r134260
 
 	myrpt->mydtmf = 0;
 	/* allocate a pseudo-channel thru asterisk */
@@ -2801,250 +2793,6 @@ static void send_link_dtmf(struct rpt *myrpt, char c)
 	return;
 }
 
-<<<<<<< .working
-=======
-static void send_link_keyquery(struct rpt *myrpt)
-{
-char	str[300];
-struct	ast_frame wf;
-struct	rpt_link *l;
-
-	rpt_mutex_lock(&myrpt->lock);
-	memset(myrpt->topkey,0,sizeof(myrpt->topkey));
-	myrpt->topkeystate = 1;
-	time(&myrpt->topkeytime);
-	rpt_mutex_unlock(&myrpt->lock);
-	snprintf(str, sizeof(str), "K? * %s 0 0", myrpt->name);
-	wf.frametype = AST_FRAME_TEXT;
-	wf.subclass = 0;
-	wf.offset = 0;
-	wf.mallocd = 0;
-	wf.datalen = strlen(str) + 1;
-	wf.samples = 0;
-	l = myrpt->links.next;
-	/* give it to everyone */
-	while(l != &myrpt->links)
-	{
-		wf.data.ptr = str;
-		if (l->chan) ast_write(l->chan,&wf);
-		l = l->next;
-	}
-	return;
-}
-
-/* send newkey request */
-
-static void send_newkey(struct ast_channel *chan)
-{
-
-	/* ast_safe_sleep(chan,10); */
-	ast_sendtext(chan,newkeystr);
-	return;
-}
-
-
-/* 
- * Connect a link 
- *
- * Return values:
- * -2: Attempt to connect to self 
- * -1: No such node
- *  0: Success
- *  1: No match yet
- *  2: Already connected to this node
- */
-
-static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
-{
-	char *val, *s, *s1, *s2, *tele;
-	char lstr[MAXLINKLIST],*strs[MAXLINKLIST];
-	char tmp[300], deststr[300] = "",modechange = 0;
-	char sx[320],*sy;
-	struct rpt_link *l;
-	int reconnects = 0;
-	int i,n;
-	struct dahdi_confinfo ci;  /* conference info */
-
-	val = node_lookup(myrpt,node);
-	if (!val){
-		if(strlen(node) >= myrpt->longestnode)
-			return -1; /* No such node */
-		return 1; /* No match yet */
-	}
-
-	if(!strcmp(myrpt->name,node)) /* Do not allow connections to self */
-		return -2;
-		
-	if(debug > 3){
-		ast_log(LOG_NOTICE,"Connect attempt to node %s\n", node);
-		ast_log(LOG_NOTICE,"Mode: %s\n",(mode)?"Transceive":"Monitor");
-		ast_log(LOG_NOTICE,"Connection type: %s\n",(perma)?"Permalink":"Normal");
-	}
-
-	strncpy(tmp,val,sizeof(tmp) - 1);
-	s = tmp;
-	s1 = strsep(&s,",");
-	if (!strchr(s1,':') && strchr(s1,'/') && strncasecmp(s1, "local/", 6))
-	{
-		sy = strchr(s1,'/');		
-		*sy = 0;
-		sprintf(sx,"%s:4569/%s",s1,sy + 1);
-		s1 = sx;
-	}
-	s2 = strsep(&s,",");
-	rpt_mutex_lock(&myrpt->lock);
-	l = myrpt->links.next;
-	/* try to find this one in queue */
-	while(l != &myrpt->links){
-		if (l->name[0] == '0') 
-		{
-			l = l->next;
-			continue;
-		}
-	/* if found matching string */
-		if (!strcmp(l->name, node))
-			break;
-		l = l->next;
-	}
-	/* if found */
-	if (l != &myrpt->links){ 
-	/* if already in this mode, just ignore */
-		if ((l->mode) || (!l->chan)) {
-			rpt_mutex_unlock(&myrpt->lock);
-			return 2; /* Already linked */
-		}
-		reconnects = l->reconnects;
-		rpt_mutex_unlock(&myrpt->lock);
-		if (l->chan) ast_softhangup(l->chan, AST_SOFTHANGUP_DEV);
-		l->retries = l->max_retries + 1;
-		l->disced = 2;
-		modechange = 1;
-	} else
-	{
-		__mklinklist(myrpt,NULL,lstr);
-		rpt_mutex_unlock(&myrpt->lock);
-		n = finddelim(lstr,strs,MAXLINKLIST);
-		for(i = 0; i < n; i++)
-		{
-			if ((*strs[i] < '0') || 
-			    (*strs[i] > '9')) strs[i]++;
-			if (!strcmp(strs[i],node))
-			{
-				return 2; /* Already linked */
-			}
-		}
-	}
-	strncpy(myrpt->lastlinknode,node,MAXNODESTR - 1);
-	/* establish call */
-	l = ast_malloc(sizeof(struct rpt_link));
-	if (!l)
-	{
-		ast_log(LOG_WARNING, "Unable to malloc\n");
-		return -1;
-	}
-	/* zero the silly thing */
-	memset((char *)l,0,sizeof(struct rpt_link));
-	l->mode = mode;
-	l->outbound = 1;
-	l->thisconnected = 0;
-	voxinit_link(l,1);
-	strncpy(l->name, node, MAXNODESTR - 1);
-	l->isremote = (s && ast_true(s));
-	if (modechange) l->connected = 1;
-	l->hasconnected = l->perma = perma;
-#ifdef ALLOW_LOCAL_CHANNELS
-	if ((strncasecmp(s1,"iax2/", 5) == 0) || (strncasecmp(s1, "local/", 6) == 0))
-        	strncpy(deststr, s1, sizeof(deststr));
-	else
-	        snprintf(deststr, sizeof(deststr), "IAX2/%s", s1);
-#else
-	snprintf(deststr, sizeof(deststr), "IAX2/%s", s1);
-#endif
-	tele = strchr(deststr, '/');
-	if (!tele){
-		ast_log(LOG_WARNING,"link3:Dial number (%s) must be in format tech/number\n",deststr);
-		ast_free(l);
-		return -1;
-	}
-	*tele++ = 0;
-	l->chan = ast_request(deststr, AST_FORMAT_SLINEAR, tele,NULL);
-	if (l->chan){
-		ast_set_read_format(l->chan, AST_FORMAT_SLINEAR);
-		ast_set_write_format(l->chan, AST_FORMAT_SLINEAR);
-#ifdef	AST_CDR_FLAG_POST_DISABLED
-		if (l->chan->cdr)
-			ast_set_flag(l->chan->cdr,AST_CDR_FLAG_POST_DISABLED);
-#endif
-#ifndef	NEW_ASTERISK
-		l->chan->whentohangup = 0;
-#endif
-		l->chan->appl = "Apprpt";
-		l->chan->data = "(Remote Rx)";
-		if (debug > 3)
-			ast_log(LOG_NOTICE, "rpt (remote) initiating call to %s/%s on %s\n",
-		deststr, tele, l->chan->name);
-		if(l->chan->cid.cid_num)
-			ast_free(l->chan->cid.cid_num);
-		l->chan->cid.cid_num = ast_strdup(myrpt->name);
-		ast_call(l->chan,tele,999);
-	}
-	else {
-		if(debug > 3) 
-			ast_log(LOG_NOTICE, "Unable to place call to %s/%s on %s\n",
-		deststr,tele,l->chan->name);
-		if (myrpt->p.archivedir)
-		{
-			char str[100];
-			sprintf(str,"LINKFAIL,%s",l->name);
-			donodelog(myrpt,str);
-		}
-		ast_free(l);
-		return -1;
-	}
-	/* allocate a pseudo-channel thru asterisk */
-	l->pchan = ast_request("DAHDI",AST_FORMAT_SLINEAR,"pseudo",NULL);
-	if (!l->pchan){
-		ast_log(LOG_WARNING,"rpt connect: Sorry unable to obtain pseudo channel\n");
-		ast_hangup(l->chan);
-		ast_free(l);
-		return -1;
-	}
-	ast_set_read_format(l->pchan, AST_FORMAT_SLINEAR);
-	ast_set_write_format(l->pchan, AST_FORMAT_SLINEAR);
-#ifdef	AST_CDR_FLAG_POST_DISABLED
-	if (l->pchan->cdr)
-		ast_set_flag(l->pchan->cdr,AST_CDR_FLAG_POST_DISABLED);
-#endif
-	/* make a conference for the tx */
-	ci.chan = 0;
-	ci.confno = myrpt->conf;
-	ci.confmode = DAHDI_CONF_CONF | DAHDI_CONF_LISTENER | DAHDI_CONF_TALKER;
-	/* first put the channel on the conference in proper mode */
-	if (ioctl(l->pchan->fds[0], DAHDI_SETCONF, &ci) == -1)
-	{
-		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
-		ast_hangup(l->chan);
-		ast_hangup(l->pchan);
-		ast_free(l);
-		return -1;
-	}
-	rpt_mutex_lock(&myrpt->lock);
-	l->reconnects = reconnects;
-	/* insert at end of queue */
-	l->max_retries = MAX_RETRIES;
-	if (perma)
-		l->max_retries = MAX_RETRIES_PERM;
-	if (l->isremote) l->retries = l->max_retries + 1;
-	insque((struct qelem *)l,(struct qelem *)myrpt->links.next);
-	__kickshort(myrpt);
-	rpt_mutex_unlock(&myrpt->lock);
-	if (!l->phonemode) send_newkey(l->chan);
-	return 0;
-}
-
-
-
->>>>>>> .merge-right.r134260
 /*
 * Internet linking function 
 */
@@ -3057,7 +2805,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 	char digitbuf[MAXNODESTR];
 	struct rpt_link *l;
 	int reconnects = 0;
-	DAHDI_CONFINFO ci;  /* conference info */
+	struct dahdi_confinfo ci;  /* conference info */
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(s1);
 		AST_APP_ARG(s2); /* XXX Never used.  Scratch? XXX */
@@ -5904,29 +5652,16 @@ static void do_scheduler(struct rpt *myrpt)
 /* single thread with one file (request) to dial */
 static void *rpt(void *this)
 {
-<<<<<<< .working
 	struct rpt *myrpt = (struct rpt *)this;
 	char *tele, c;
 	const char *idtalkover;
 	int ms = MSWAIT, i, lasttx=0, val, remrx=0, identqueued, othertelemqueued, tailmessagequeued, ctqueued;
 	struct ast_channel *who;
-	DAHDI_CONFINFO ci;  /* conference info */
+	struct dahdi_confinfo ci;  /* conference info */
 	time_t t;
 	struct rpt_link *l, *m;
 	struct rpt_tele *telem;
 	char tmpstr[300];
-=======
-struct	rpt *myrpt = (struct rpt *)this;
-char *tele,*idtalkover,c,myfirst,*p;
-int ms = MSWAIT,i,lasttx=0,val,remrx=0,identqueued,othertelemqueued;
-int tailmessagequeued,ctqueued,dtmfed,lastmyrx,localmsgqueued;
-struct ast_channel *who;
-struct dahdi_confinfo ci;  /* conference info */
-time_t	t;
-struct rpt_link *l,*m;
-struct rpt_tele *telem;
-char tmpstr[300],lstr[MAXLINKLIST];
->>>>>>> .merge-right.r134260
 
 	rpt_mutex_lock(&myrpt->lock);
 
