@@ -2740,9 +2740,9 @@ static char *handle_cli_agi_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc < e->args)
+	if (a->argc < e->args - 1 || (a->argc >= e->args && strcasecmp(a->argv[e->args - 1], "topic")))
 		return CLI_SHOWUSAGE;
-	if (a->argc > e->args) {
+	if (a->argc > e->args - 1) {
 		command = find_command(a->argv + e->args, 1);
 		if (command) {
 			ast_cli(a->fd, "%s", command->usage);
