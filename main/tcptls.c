@@ -319,13 +319,14 @@ void ast_tcptls_server_start(struct server_args *desc)
 		close(desc->accept_fd);
 
 	/* If there's no new server, stop here */
-	if (desc->sin.sin_family == 0)
+	if (desc->sin.sin_family == 0) {
+		ast_debug(2, "Server disabled:  %s\n", desc->name);
 		return;
+	}
 
 	desc->accept_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (desc->accept_fd < 0) {
-		ast_log(LOG_ERROR, "Unable to allocate socket for %s: %s\n",
-			desc->name, strerror(errno));
+		ast_log(LOG_ERROR, "Unable to allocate socket for %s: %s\n", desc->name, strerror(errno));
 		return;
 	}
 	
@@ -368,6 +369,7 @@ void ast_tcptls_server_stop(struct server_args *desc)
 	if (desc->accept_fd != -1)
 		close(desc->accept_fd);
 	desc->accept_fd = -1;
+	ast_debug(2, "Stopped server :: %s\n", desc->name);
 }
 
 /*! \brief

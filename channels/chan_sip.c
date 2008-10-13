@@ -729,6 +729,8 @@ static char default_mohsuggest[MAX_MUSICCLASS];	   /*!< Global setting for moh c
 static char default_parkinglot[AST_MAX_CONTEXT]; /*!< Parkinglot */
 static int default_maxcallbitrate;	/*!< Maximum bitrate for call */
 static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
+static unsigned int default_transports;			/*!< Default Transports (enum sip_transport) that are acceptable */
+static unsigned int default_primary_transport;		/*!< Default primary Transport (enum sip_transport) for outbound connections to devices */
 
 /*! \brief a place to store all global settings for the sip channel driver */
 struct sip_settings {
@@ -1484,7 +1486,7 @@ struct sip_mailbox {
 struct sip_peer {
 	char name[80];			/*!< peer->name is the unique name of this object */
 	struct sip_socket socket;	/*!< Socket used for this peer */
-	unsigned int transports:3; /*!< Transports (enum sip_transport) that are acceptable for this peer */
+	unsigned int transports:3;      /*!< Transports (enum sip_transport) that are acceptable for this peer */
 	char secret[80];		/*!< Password */
 	char md5secret[80];		/*!< Password in MD5 */
 	struct sip_auth *auth;		/*!< Realm authentication list */
@@ -2000,7 +2002,7 @@ static int do_magic_pickup(struct ast_channel *channel, const char *extension, c
 	else if (!(peer->transports & tmpl->socket.type)) {\
 		ast_log(LOG_ERROR, \
 			"'%s' is not a valid transport for '%s'. we only use '%s'! ending call.\n", \
-			get_transport(tmpl->socket.type), peer->name, get_transport_list(peer) \
+			get_transport(tmpl->socket.type), peer->name, get_transport_list(peer->transports) \
 			); \
 		ret = 1; \
 	} else if (peer->socket.type & SIP_TRANSPORT_TLS) { \
@@ -2300,7 +2302,7 @@ static struct server_args sip_tcp_desc = {
 	.master = AST_PTHREADT_NULL,
 	.tls_cfg = NULL,
 	.poll_timeout = -1,
-	.name = "sip tcp server",
+	.name = "SIP TCP server",
 	.accept_fn = ast_tcptls_server_root,
 	.worker_fn = sip_tcp_worker_fn,
 };
@@ -2311,7 +2313,7 @@ static struct server_args sip_tls_desc = {
 	.master = AST_PTHREADT_NULL,
 	.tls_cfg = &sip_tls_cfg,
 	.poll_timeout = -1,
-	.name = "sip tls server",
+	.name = "SIP TLS server",
 	.accept_fn = ast_tcptls_server_root,
 	.worker_fn = sip_tcp_worker_fn,
 };
@@ -2385,6 +2387,8 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 	else
 		me->type = SIP_TRANSPORT_TCP;
 
+	ast_debug(2, "Starting thread for %s server\n", ser->ssl ? "SSL" : "TCP");
+
 	AST_LIST_LOCK(&threadl);
 	AST_LIST_INSERT_TAIL(&threadl, me, list);
 	AST_LIST_UNLOCK(&threadl);
@@ -2411,7 +2415,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		}
 		res = ast_wait_for_input(ser->fd, -1);
 		if (res < 0) {
-			ast_debug(1, "ast_wait_for_input returned %d\n", res);
+			ast_debug(2, "SIP %s server :: ast_wait_for_input returned %d\n", ser->ssl ? "SSL": "TCP", res);
 			goto cleanup;
 		}
 
@@ -2430,6 +2434,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		}
 		copy_request(&reqcpy, &req);
 		parse_request(&reqcpy);
+		/* In order to know how much to read, we need the content-length header */
 		if (sscanf(get_header(&reqcpy, "Content-Length"), "%d", &cl)) {
 			while (cl > 0) {
 				ast_mutex_lock(&ser->lock);
@@ -2445,6 +2450,9 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 				req.len = req.data->used;
 			}
 		}
+		/*! \todo XXX If there's no Content-Length or if the content-lenght and what
+				we receive is not the same - we should generate an error */
+
 		req.socket.ser = ser;
 		handle_request_do(&req, &ser->requestor);
 	}
@@ -2466,6 +2474,8 @@ cleanup2:
 		ast_free(req.data);
 		req.data = NULL;
 	}
+
+	ast_debug(2, "Shutting down thread for %s server\n", ser->ssl ? "SSL" : "TCP");
 	
 
 	ao2_ref(ser, -1);
@@ -2774,8 +2784,9 @@ static inline int sip_debug_test_pvt(struct sip_pvt *p)
 	return sip_debug_test_addr(sip_real_dst(p));
 }
 
-static inline const char *get_transport_list(struct sip_peer *peer) {
-	switch (peer->transports) {
+/*! \brief Return configuration of transports for a device */
+static inline const char *get_transport_list(unsigned int transports) {
+	switch (transports) {
 		case SIP_TRANSPORT_UDP:
 			return "UDP";
 		case SIP_TRANSPORT_TCP:
@@ -2789,11 +2800,12 @@ static inline const char *get_transport_list(struct sip_peer *peer) {
 		case SIP_TRANSPORT_TCP | SIP_TRANSPORT_TLS:
 			return "TLS,TCP";
 		default:
-			return peer->transports ? 
+			return transports ? 
 				"TLS,TCP,UDP" : "UNKNOWN";	
 	}
 }
 
+/*! \brief Return transport as string */
 static inline const char *get_transport(enum sip_transport t)
 {
 	switch (t) {
@@ -2808,6 +2820,12 @@ static inline const char *get_transport(enum sip_transport t)
 	return "UNKNOWN";
 }
 
+/*! \brief Return transport of dialog.
+	\note this is based on a false assumption. We don't always use the
+	outbound proxy for all requests in a dialog. It depends on the
+	"force" parameter. The FIRST request is always sent to the ob proxy.
+	\todo Fix this function to work correctly
+*/
 static inline const char *get_transport_pvt(struct sip_pvt *p)
 {
 	if (p->outboundproxy && p->outboundproxy->transport)
@@ -2826,7 +2844,7 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 	int res = 0;
 	const struct sockaddr_in *dst = sip_real_dst(p);
 
-	ast_debug(1, "Trying to put '%.10s' onto %s socket destined for %s:%d\n", data->str, get_transport_pvt(p), ast_inet_ntoa(dst->sin_addr), htons(dst->sin_port));
+	ast_debug(2, "Trying to put '%.10s' onto %s socket destined for %s:%d\n", data->str, get_transport_pvt(p), ast_inet_ntoa(dst->sin_addr), htons(dst->sin_port));
 
 	if (sip_prepare_socket(p) < 0)
 		return XMIT_ERROR;
@@ -2840,7 +2858,7 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 		if (p->socket.ser->f) 
 			res = ast_tcptls_server_write(p->socket.ser, data->str, len);
 		else
-			ast_debug(1, "No p->socket.ser->f len=%d\n", len);
+			ast_debug(2, "No p->socket.ser->f len=%d\n", len);
 	} 
 
 	if (p->socket.ser)
@@ -3117,14 +3135,15 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 
 	/* If the transport is something reliable (TCP or TLS) then don't really send this reliably */
 	/* I removed the code from retrans_pkt that does the same thing so it doesn't get loaded into the scheduler */
-	/* According to the RFC some packets need to be retransmitted even if its TCP, so this needs to get revisited */
+	/*! \todo According to the RFC some packets need to be retransmitted even if its TCP, so this needs to get revisited */
 	if (!(p->socket.type & SIP_TRANSPORT_UDP)) {
-		xmitres = __sip_xmit(dialog_ref(p, "pasing dialog ptr into callback..."), data, len);	/* Send packet */
+		xmitres = __sip_xmit(dialog_ref(p, "passing dialog ptr into callback..."), data, len);	/* Send packet */
 		if (xmitres == XMIT_ERROR) {	/* Serious network trouble, no need to try again */
 			append_history(p, "XmitErr", "%s", fatal ? "(Critical)" : "(Non-critical)");
 			return AST_FAILURE;
-		} else
+		} else {
 			return AST_SUCCESS;
+		}
 	}
 
 	if (!(pkt = ast_calloc(1, sizeof(*pkt) + len + 1)))
@@ -4402,7 +4421,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 
 		/* Let's see if we can find the host in DNS. First try DNS SRV records,
 		   then hostname lookup */
-		/*! \todo Fix this function. When we ask SRC, we should check all transports 
+		/*! \todo Fix this function. When we ask for SRV, we should check all transports 
 			  In the future, we should first check NAPTR to find out transport preference
 		 */
 		hostn = peername;
@@ -8976,8 +8995,10 @@ static void build_contact(struct sip_pvt *p)
 			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ntohs(p->socket.port));
 		else
 			ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr));
-	} else 
+	} else  {
+		/*! \todo We should not always add port here. Port is only added if it's non-standard (see code above) */
 		ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d;transport=%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ntohs(p->socket.port), get_transport_pvt(p));
+	}
 }
 
 /*! \brief Build the Remote Party-ID & From using callingpres options */
@@ -10459,6 +10480,15 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 	contact2 = contact2_buf;
 
 	/* We have only the part in <brackets> here so we just need to parse a SIP URI.*/
+
+       /*! \brief This code is wrong, it assumes that the contact we receive will use the
+               same transport as the request. It's not a valid assumption. The contact for
+               a udp connection can be a SIPS uri, or request ;transport=tcp
+               \todo Fix this buggy code. It doesn't even parse transport!!!!
+
+		Note: The outbound proxy could be using UDP between the proxy and Asterisk.
+		We still need to be able to send to the remote agent through the proxy.
+       */
 	if (tcp) {
 		if (parse_uri(contact, "sips:", &contact, NULL, &host, &pt, NULL)) {
 			if (parse_uri(contact2, "sip:", &contact, NULL, &host, &pt, NULL))
@@ -10491,6 +10521,7 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 	if (ast_test_flag(&pvt->flags[0], SIP_NAT_ROUTE)) {
 		/* NAT: Don't trust the contact field.  Just use what they came to us
 		   with. */
+		/*! \todo We need to save the TRANSPORT here too */
 		pvt->sa = pvt->recv;
 		return 0;
 	}
@@ -11092,7 +11123,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, ast_inet_ntoa(sin->sin_addr));
 	}
 
-	/* XXX here too we interpret a missing @domain as a name-only
+	/*! \todo XXX here too we interpret a missing @domain as a name-only
 	 * URI, whereas the RFC says this is a domain-only uri.
 	 */
 	/* Strip off the domain name */
@@ -11126,6 +11157,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	}
 
 	if (peer) {
+		/*! \todo OEJ Remove this - there's never RTP in a REGISTER dialog... */
 		/* Set Frame packetization */
 		if (p->rtp) {
 			ast_rtp_codec_setpref(p->rtp, &peer->prefs);
@@ -13409,7 +13441,8 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  ToHost       : %s\n", peer->tohost);
 		ast_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
 		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
-		ast_cli(fd, "  Transport    : %s\n", get_transport(peer->socket.type));
+		ast_cli(fd, "  Prim.Transp. : %s\n", get_transport(peer->socket.type));
+		ast_cli(fd, "  Allowed.Trsp : %s\n", get_transport_list(peer->transports)); 
 		if (!ast_strlen_zero(global_regcontext))
 			ast_cli(fd, "  Reg. exten   : %s\n", peer->regexten);
 		ast_cli(fd, "  Def. Username: %s\n", peer->username);
@@ -13917,6 +13950,8 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 	ast_cli(a->fd, "\nDefault Settings:\n");
 	ast_cli(a->fd, "-----------------\n");
+	ast_cli(a->fd, "  Allowed transports:     %s\n", get_transport_list(default_transports)); 
+	ast_cli(a->fd, "  Outbound transport:	  %s\n", get_transport(default_primary_transport));
 	ast_cli(a->fd, "  Context:                %s\n", default_context);
 	ast_cli(a->fd, "  Nat:                    %s\n", nat2str(ast_test_flag(&global_flags[0], SIP_NAT)));
 	ast_cli(a->fd, "  DTMF:                   %s\n", dtmfmode2str(ast_test_flag(&global_flags[0], SIP_DTMF)));
@@ -15420,7 +15455,7 @@ static void check_pendings(struct sip_pvt *p)
 			/* Actually don't destroy us yet, wait for the 487 on our original 
 			   INVITE, but do set an autodestruct just in case we never get it. */
 		else {
-			/* We have a pending outbound invite, don't send someting
+			/* We have a pending outbound invite, don't send something
 				new in-transaction */
 			if (p->pendinginvite)
 				return;
@@ -19597,6 +19632,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	return 1;
 }
 
+/*! \brief Handle incoming SIP message - request or response */
 static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin) 
 {
 	struct sip_pvt *p;
@@ -19609,7 +19645,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 	if (pedanticsipchecking)
 		req->len = lws2sws(req->data->str, req->len);	/* Fix multiline headers */
 	if (req->debug) {
-		ast_verbose("\n<--- SIP read from %s://%s:%d --->\n%s\n<------------->\n", 
+		ast_verbose("\n<--- SIP read from %s:%s:%d --->\n%s\n<------------->\n", 
 			get_transport(req->socket.type), ast_inet_ntoa(sin->sin_addr), 
 			ntohs(sin->sin_port), req->data->str);
 	}
@@ -19698,7 +19734,7 @@ static int sip_standard_port(struct sip_socket s)
 		return s.port == htons(STANDARD_SIP_PORT);
 }
 
-/*! \todo document this function. */
+/*! \todo Find thread for TCP/TLS session (based on IP/Port */
 static struct ast_tcptls_session_instance *sip_tcp_locate(struct sockaddr_in *s)
 {
 	struct sip_threadinfo *th;
@@ -19716,7 +19752,7 @@ static struct ast_tcptls_session_instance *sip_tcp_locate(struct sockaddr_in *s)
 	return NULL;
 }
 
-/*! \todo document this function. */
+/*! \todo Get socket for dialog, prepare if needed, and return file handle  */
 static int sip_prepare_socket(struct sip_pvt *p) 
 {
 	struct sip_socket *s = &p->socket;
@@ -19728,8 +19764,11 @@ static int sip_prepare_socket(struct sip_pvt *p)
 	};
 
 	if (s->fd != -1)
-		return s->fd;
+		return s->fd;	/* This socket is already active */
 
+	/*! \todo Check this... This might be wrong, depending on the proxy configuration
+		If proxy is in "force" mode its correct.
+	 */
 	if (p->outboundproxy && p->outboundproxy->transport) {
 		s->type = p->outboundproxy->transport;
 	}
@@ -19741,7 +19780,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 
 	ca.sin = *(sip_real_dst(p));
 
-	if ((ser = sip_tcp_locate(&ca.sin))) {
+	if ((ser = sip_tcp_locate(&ca.sin))) {	/* Check if we have a thread handling a socket connected to this IP/port */
 		s->fd = ser->fd;
 		if (s->ser) {
 			ao2_ref(s->ser, -1);
@@ -19768,7 +19807,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 	if (s->ser) {
 		/* the pvt socket already has a server instance ... */
 	} else {
-		s->ser = ast_tcptls_client_start(&ca);
+		s->ser = ast_tcptls_client_start(&ca); /* Start a client connection to this address */
 	}
 
 	if (!s->ser) {
@@ -21548,8 +21587,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	}
 
 	if (!peer->socket.type) {
-		peer->transports  = SIP_TRANSPORT_UDP;
-		peer->socket.type = SIP_TRANSPORT_UDP;
+		/* Set default set of transports */
+		peer->transports  = default_transports;
+		/* Set default primary transport */
+		peer->socket.type = default_primary_transport;
 	}
 
 	if (fullcontact->used > 0) {
@@ -21737,6 +21778,7 @@ static int reload_config(enum channelreloadreason reason)
 	default_tls_cfg.cipher = ast_strdup("");
 	default_tls_cfg.cafile = ast_strdup("");
 	default_tls_cfg.capath = ast_strdup("");
+
 	
 	/* Initialize copy of current global_regcontext for later use in removing stale contexts */
 	ast_copy_string(oldcontexts, global_regcontext, sizeof(oldcontexts));
@@ -21762,6 +21804,8 @@ static int reload_config(enum channelreloadreason reason)
 	global_outboundproxy.ip.sin_port = htons(STANDARD_SIP_PORT);
 	global_outboundproxy.ip.sin_family = AF_INET;	/*!< Type of address: IPv4 */
 	global_outboundproxy.force = FALSE;		/*!< Don't force proxy usage, use route: headers */
+	default_transports = 0;				/*!< Reset default transport to zero here, default value later on */
+	default_primary_transport = 0;			/*!< Reset default primary transport to zero here, default value later on */
 	ourport_tcp = STANDARD_SIP_PORT;
 	ourport_tls = STANDARD_TLS_PORT;
 	bindaddr.sin_port = htons(STANDARD_SIP_PORT);
@@ -21903,6 +21947,25 @@ static int reload_config(enum channelreloadreason reason)
 			global_timer_b = global_t1 * 64;
 		} else if (!strcasecmp(v->name, "t1min")) {
 			global_t1min = atoi(v->value);
+		} else if (!strcasecmp(v->name, "transport") && !ast_strlen_zero(v->value)) {
+			char *val = ast_strdupa(v->value);
+			char *trans;
+
+			while ((trans = strsep(&val, ","))) {
+				trans = ast_skip_blanks(trans);
+
+				if (!strncasecmp(trans, "udp", 3)) 
+					default_transports |= SIP_TRANSPORT_UDP;
+				else if (!strncasecmp(trans, "tcp", 3))
+					default_transports |= SIP_TRANSPORT_TCP;
+				else if (!strncasecmp(trans, "tls", 3))
+					default_transports |= SIP_TRANSPORT_TLS;
+				else
+					ast_log(LOG_NOTICE, "'%s' is not a valid transport type. if no other is specified, udp will be used.\n", trans);
+				if (default_primary_transport == 0) {
+					default_primary_transport = default_transports;
+				}
+			}
 		} else if (!strcasecmp(v->name, "tcpenable")) {
 			sip_tcp_desc.sin.sin_family = ast_false(v->value) ? 0 : AF_INET;
 			ast_debug(2, "Enabling TCP socket for listening\n");
@@ -22253,6 +22316,10 @@ static int reload_config(enum channelreloadreason reason)
 		ast_log(LOG_WARNING, "To disallow external domains, you need to configure local SIP domains.\n");
 		allow_external_domains = 1;
 	}
+	/* If not configured, set default transports */
+	if (default_transports == 0) {
+		default_transports = default_primary_transport = SIP_TRANSPORT_UDP;
+	}
 	
 	/* Build list of authentication to various SIP realms, i.e. service providers */
  	for (v = ast_variable_browse(cfg, "authentication"); v ; v = v->next) {
@@ -22406,13 +22473,24 @@ static int reload_config(enum channelreloadreason reason)
 
 	/* Start TCP server */
 	ast_tcptls_server_start(&sip_tcp_desc);
+ 	if (sip_tcp_desc.accept_fd == -1 &&  sip_tcp_desc.sin.sin_family == AF_INET) {
+		/* TCP server start failed. Tell the admin */
+		ast_log(LOG_ERROR, "SIP TCP Server start failed. Not listening on TCP socket.\n");
+		sip_tcp_desc.sin.sin_family = 0;
+	} else {
+		ast_debug(2, "SIP TCP server started\n");
+	}
 
 	/* Start TLS server if needed */
 	memcpy(sip_tls_desc.tls_cfg, &default_tls_cfg, sizeof(default_tls_cfg));
 
-	if (ast_ssl_setup(sip_tls_desc.tls_cfg))
+	if (ast_ssl_setup(sip_tls_desc.tls_cfg)) {
 		ast_tcptls_server_start(&sip_tls_desc);
-	else if (sip_tls_desc.tls_cfg->enabled) {
+ 		if (default_tls_cfg.enabled && sip_tls_desc.accept_fd == -1) {
+			ast_log(LOG_ERROR, "TLS Server start failed. Not listening on TLS socket.\n");
+			sip_tls_desc.tls_cfg = NULL;
+		}
+	} else if (sip_tls_desc.tls_cfg->enabled) {
 		sip_tls_desc.tls_cfg = NULL;
 		ast_log(LOG_WARNING, "SIP TLS server did not load because of errors.\n");
 	}
