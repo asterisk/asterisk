@@ -10904,35 +10904,37 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 				if (sip_cancel_destroy(p))
 					ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 
-				/* We have a successful registration attempt with proper authentication,
-				   now, update the peer */
-				switch (parse_register_contact(p, peer, req)) {
-				case PARSE_REGISTER_FAILED:
-					ast_log(LOG_WARNING, "Failed to parse contact info\n");
-					transmit_response_with_date(p, "400 Bad Request", req);
-					peer->lastmsgssent = -1;
-					res = 0;
-					break;
-				case PARSE_REGISTER_QUERY:
-					transmit_response_with_date(p, "200 OK", req);
-					peer->lastmsgssent = -1;
-					res = 0;
-					break;
-				case PARSE_REGISTER_UPDATE:
-					update_peer(peer, p->expiry);
-					/* Say OK and ask subsystem to retransmit msg counter */
-					transmit_response_with_date(p, "200 OK", req);
-					if (!ast_test_flag((&peer->flags[1]), SIP_PAGE2_SUBSCRIBEMWIONLY))
-						peer->lastmsgssent = -1;
-					res = 0;
-					break;
-				}
-
 				if (check_request_transport(peer, req)) {
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
 					transmit_response_with_date(p, "403 Forbidden", req);
 					res = AUTH_BAD_TRANSPORT;
+				} else {
+
+					/* We have a successful registration attempt with proper authentication,
+				   	now, update the peer */
+					switch (parse_register_contact(p, peer, req)) {
+					case PARSE_REGISTER_FAILED:
+						ast_log(LOG_WARNING, "Failed to parse contact info\n");
+						transmit_response_with_date(p, "400 Bad Request", req);
+						peer->lastmsgssent = -1;
+						res = 0;
+						break;
+					case PARSE_REGISTER_QUERY:
+						transmit_response_with_date(p, "200 OK", req);
+						peer->lastmsgssent = -1;
+						res = 0;
+						break;
+					case PARSE_REGISTER_UPDATE:
+						update_peer(peer, p->expiry);
+						/* Say OK and ask subsystem to retransmit msg counter */
+						transmit_response_with_date(p, "200 OK", req);
+						if (!ast_test_flag((&peer->flags[1]), SIP_PAGE2_SUBSCRIBEMWIONLY))
+							peer->lastmsgssent = -1;
+						res = 0;
+						break;
+					}
 				}
+
 			} 
 		}
 	}
