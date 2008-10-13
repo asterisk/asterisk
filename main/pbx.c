@@ -5090,18 +5090,57 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 			}
 		}
 		
-		if (option_debug && c->pattern_tree)
-		{
-			ast_cli(fd,"\r\n     In-mem exten Trie for Fast Extension Pattern Matching:\r\n\r\n");
+		ast_unlock_context(c);
 
-			ast_cli(fd,"\r\n           Explanation: Node Contents Format = <char(s) to match>:<pattern?>:<specif>:[matched extension]\r\n");
-			ast_cli(fd,    "                        Where <char(s) to match> is a set of chars, any one of which should match the current character\r\n");
-			ast_cli(fd,    "                              <pattern?>: Y if this a pattern match (eg. _XZN[5-7]), N otherwise\r\n");
-			ast_cli(fd,    "                              <specif>: an assigned 'exactness' number for this matching char. The lower the number, the more exact the match\r\n");
-			ast_cli(fd,    "                              [matched exten]: If all chars matched to this point, which extension this matches. In form: EXTEN:<exten string> \r\n");
-			ast_cli(fd,    "                        In general, you match a trie node to a string character, from left to right. All possible matching chars\r\n");
-			ast_cli(fd,    "                        are in a string vertically, separated by an unbroken string of '+' characters.\r\n\r\n");
+		/* if we print something in context, make an empty line */
+		if (context_info_printed)
+			ast_cli(fd, "\r\n");
+	}
+	ast_unlock_contexts();
+
+	return (dpc->total_exten == old_total_exten) ? -1 : res;
+}
+
+static int show_debug_helper(int fd, const char *context, const char *exten, struct dialplan_counters *dpc, struct ast_include *rinclude, int includecount, const char *includes[])
+{
+	struct ast_context *c = NULL;
+	int res = 0, old_total_exten = dpc->total_exten;
+
+	ast_cli(fd,"\r\n     In-mem exten Trie for Fast Extension Pattern Matching:\r\n\r\n");
+
+	ast_cli(fd,"\r\n           Explanation: Node Contents Format = <char(s) to match>:<pattern?>:<specif>:[matched extension]\r\n");
+	ast_cli(fd,    "                        Where <char(s) to match> is a set of chars, any one of which should match the current character\r\n");
+	ast_cli(fd,    "                              <pattern?>: Y if this a pattern match (eg. _XZN[5-7]), N otherwise\r\n");
+	ast_cli(fd,    "                              <specif>: an assigned 'exactness' number for this matching char. The lower the number, the more exact the match\r\n");
+	ast_cli(fd,    "                              [matched exten]: If all chars matched to this point, which extension this matches. In form: EXTEN:<exten string> \r\n");
+	ast_cli(fd,    "                        In general, you match a trie node to a string character, from left to right. All possible matching chars\r\n");
+	ast_cli(fd,    "                        are in a string vertically, separated by an unbroken string of '+' characters.\r\n\r\n");
+	ast_rdlock_contexts();
+
+	/* walk all contexts ... */
+	while ( (c = ast_walk_contexts(c)) ) {
+		int context_info_printed = 0;
+
+		if (context && strcmp(ast_get_context_name(c), context))
+			continue;	/* skip this one, name doesn't match */
+
+		dpc->context_existence = 1;
+
+		if (!c->pattern_tree)
+			ast_exists_extension(NULL, c->name, "s", 1, ""); /* do this to force the trie to built, if it is not already */
+
+		ast_rdlock_context(c);
+
+		dpc->total_context++;
+		ast_cli(fd, "[ Context '%s' created by '%s' ]\n",
+			ast_get_context_name(c), ast_get_context_registrar(c));
+		context_info_printed = 1;
+		
+		if (c->pattern_tree)
+		{
 			cli_match_char_tree(c->pattern_tree, " ", fd);
+		} else {
+			ast_cli(fd,"\r\n     No Pattern Trie present. Perhaps the context is empty...or there is trouble...\r\n\r\n");
 		}
 
 		ast_unlock_context(c);
@@ -5176,6 +5215,62 @@ static char *handle_show_dialplan(struct ast_cli_entry *e, int cmd, struct ast_c
 				counters.total_exten, counters.total_exten == 1 ? "extension" : "extensions",
 				counters.total_prio, counters.total_prio == 1 ? "priority" : "priorities",
 				counters.total_context, counters.total_context == 1 ? "context" : "contexts");
+
+	/* everything ok */
+	return CLI_SUCCESS;
+}
+
+/*! \brief Send ack once */
+static char *handle_debug_dialplan(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *exten = NULL, *context = NULL;
+	/* Variables used for different counters */
+	struct dialplan_counters counters;
+	const char *incstack[AST_PBX_MAX_STACK];
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dialplan debug";
+		e->usage = 
+			"Usage: dialplan debug [context]\n"
+			"       Show dialplan context Trie(s). Usually only useful to folks debugging the deep internals of the fast pattern matcher\n";
+		return NULL;
+	case CLI_GENERATE:	
+		return complete_show_dialplan_context(a->line, a->word, a->pos, a->n);
+	}
+
+	memset(&counters, 0, sizeof(counters));
+
+	if (a->argc != 2 && a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	/* we obtain [exten@]context? if yes, split them ... */
+	/* note: we ignore the exten totally here .... */
+	if (a->argc == 3) {
+		if (strchr(a->argv[2], '@')) {	/* split into exten & context */
+			context = ast_strdupa(a->argv[2]);
+			exten = strsep(&context, "@");
+			/* change empty strings to NULL */
+			if (ast_strlen_zero(exten))
+				exten = NULL;
+		} else { /* no '@' char, only context given */
+			context = a->argv[2];
+		}
+		if (ast_strlen_zero(context))
+			context = NULL;
+	}
+	/* else Show complete dial plan, context and exten are NULL */
+	show_debug_helper(a->fd, context, exten, &counters, NULL, 0, incstack);
+
+	/* check for input failure and throw some error messages */
+	if (context && !counters.context_existence) {
+		ast_cli(a->fd, "There is no existence of '%s' context\n", context);
+		return CLI_FAILURE;
+	}
+
+
+	ast_cli(a->fd,"-= %d %s. =-\n",
+			counters.total_context, counters.total_context == 1 ? "context" : "contexts");
 
 	/* everything ok */
 	return CLI_SUCCESS;
@@ -5613,6 +5708,7 @@ static struct ast_cli_entry pbx_cli[] = {
 	AST_CLI_DEFINE(handle_set_global, "Set global dialplan variable", .deprecate_cmd = &cli_set_global_deprecated),
 	AST_CLI_DEFINE(handle_set_chanvar, "Set a channel variable", .deprecate_cmd = &cli_set_chanvar_deprecated),
 	AST_CLI_DEFINE(handle_show_dialplan, "Show dialplan"),
+	AST_CLI_DEFINE(handle_debug_dialplan, "Show fast extension pattern matching data structures"),
 	AST_CLI_DEFINE(handle_unset_extenpatternmatchnew, "Use the Old extension pattern matching algorithm."),
 	AST_CLI_DEFINE(handle_set_extenpatternmatchnew, "Use the New extension pattern matching algorithm."),
 };
