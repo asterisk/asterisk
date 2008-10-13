@@ -12952,11 +12952,11 @@ static void cleanup_stale_contexts(char *new, char *old)
 	}
 }
 
-/* this func is used with ao2_callback to unlink/delete all dialogs that
+/*! \brief this func is used with ao2_callback to unlink/delete all dialogs that
    are marked needdestroy. It will return CMP_MATCH for candidates, and they
-   will be unlinked */
+   will be unlinked 
 
-/* TODO: Implement a queue and instead of marking a dialog 
+   TODO: Implement a queue and instead of marking a dialog 
    to be destroyed, toss it into the queue. Have a separate
    thread do the locking and destruction */
 
@@ -12990,7 +12990,7 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 	
 	/* We absolutely cannot destroy the rtp struct while a bridge is active or we WILL crash */
 	if (dialog->rtp && ast_rtp_get_bridged(dialog->rtp)) {
-		ast_debug(2, "Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", dialog->callid, sip_methods[dialog->method].text);
+		ast_debug(2, "Bridge still active.  Delaying destruction of SIP dialog '%s' Method: %s\n", dialog->callid, sip_methods[dialog->method].text);
 		sip_pvt_unlock(dialog);
 		return 0;
 	}
