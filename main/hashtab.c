@@ -209,22 +209,40 @@ unsigned int ast_hashtab_hash_short(const short x)
 	return x;
 }
 
-struct ast_hashtab *ast_hashtab_create(int initial_buckets, 
+struct ast_hashtab *
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+_ast_hashtab_create
+#else
+ast_hashtab_create
+#endif
+(int initial_buckets, 
 	int (*compare)(const void *a, const void *b), 
 	int (*resize)(struct ast_hashtab *), 
 	int (*newsize)(struct ast_hashtab *tab),
 	unsigned int (*hash)(const void *obj), 
-	int do_locking)
+	int do_locking
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+	, const char *file, int lineno, const char *function
+#endif
+)
 {
 	struct ast_hashtab *ht;
-	
+
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+	if (!(ht = __ast_calloc(1, sizeof(*ht), file, lineno, function)))
+#else
 	if (!(ht = ast_calloc(1, sizeof(*ht))))
+#endif
 		return NULL;
 
 	while (!ast_is_prime(initial_buckets)) /* make sure this is prime */
 		initial_buckets++;
 
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+	if (!(ht->array = __ast_calloc(initial_buckets, sizeof(*(ht->array)), file, lineno, function))) {
+#else
 	if (!(ht->array = ast_calloc(initial_buckets, sizeof(*(ht->array))))) {
+#endif
 		free(ht);
 		return NULL;
 	}

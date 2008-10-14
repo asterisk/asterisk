@@ -249,6 +249,23 @@ static int handle_stopplaytones(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+/* helper function to delete a tone_zone in its entirety */
+static inline void free_zone(struct ind_tone_zone* zone)
+{
+	while (zone->tones) {
+		struct ind_tone_zone_sound *tmp = zone->tones->next;
+		ast_free((void *)zone->tones->name);
+		ast_free((void *)zone->tones->data);
+		ast_free(zone->tones);
+		zone->tones = tmp;
+	}
+
+	if (zone->ringcadence)
+		ast_free(zone->ringcadence);
+
+	ast_free(zone);
+}
+
 /*! \brief load indications module */
 static int ind_load_module(int reload)
 {
@@ -303,6 +320,7 @@ static int ind_load_module(int reload)
 					}					
 					if (!(tmp = ast_realloc(tones->ringcadence, (tones->nrringcadence + 1) * sizeof(int)))) {
 						ast_config_destroy(cfg);
+						free_zone(tones);
 						return -1;
 					}
 					tones->ringcadence = tmp;
@@ -319,13 +337,14 @@ static int ind_load_module(int reload)
 					struct ind_tone_zone* azone;
 					if (!(azone = ast_calloc(1, sizeof(*azone)))) {
 						ast_config_destroy(cfg);
+						free_zone(tones);
 						return -1;
 					}
 					ast_copy_string(azone->country, country, sizeof(azone->country));
 					ast_copy_string(azone->alias, cxt, sizeof(azone->alias));
 					if (ast_register_indication_country(azone)) {
 						ast_log(LOG_WARNING, "Unable to register indication alias at line %d.\n",v->lineno);
-						ast_free(tones);
+						free_zone(tones);
 					}
 					/* next item */
 					country = strsep(&c,",");
@@ -358,17 +377,20 @@ out:			v = v->next;
 		if (tones->description[0] || tones->alias[0] || tones->tones) {
 			if (ast_register_indication_country(tones)) {
 				ast_log(LOG_WARNING, "Unable to register indication at line %d.\n",v->lineno);
-				ast_free(tones);
+				free_zone(tones);
 			}
-		} else ast_free(tones);
+		} else {
+			free_zone(tones);
+		}
 
 		cxt = ast_category_browse(cfg, cxt);
 	}
 
 	/* determine which country is the default */
 	country = ast_variable_retrieve(cfg,"general","country");
-	if (!country || !*country || ast_set_indication_country(country))
+	if (ast_strlen_zero(country) || ast_set_indication_country(country)) {
 		ast_log(LOG_WARNING,"Unable to set the default country (for indication tones)\n");
+	}
 
 	ast_config_destroy(cfg);
 	return 0;

@@ -230,14 +230,22 @@ struct ast_config_include {
 	struct ast_config_include *next; /*!< ptr to next inclusion in the list */
 };
 
+#ifdef MALLOC_DEBUG
+struct ast_variable *_ast_variable_new(const char *name, const char *value, const char *filename, const char *file, const char *func, int lineno) 
+#else
 struct ast_variable *ast_variable_new(const char *name, const char *value, const char *filename) 
+#endif
 {
 	struct ast_variable *variable;
 	int name_len = strlen(name) + 1;	
 	int val_len = strlen(value) + 1;	
 	int fn_len = strlen(filename) + 1;	
 
+#ifdef MALLOC_DEBUG
+	if ((variable = __ast_calloc(1, name_len + val_len + fn_len + sizeof(*variable), file, lineno, func))) {
+#else
 	if ((variable = ast_calloc(1, name_len + val_len + fn_len + sizeof(*variable)))) {
+#endif
 		char *dst = variable->stuff;	/* writable space starts here */
 		variable->name = strcpy(dst, name);
 		dst += name_len;
