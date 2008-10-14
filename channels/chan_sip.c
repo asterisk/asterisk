@@ -1,4 +1,4 @@
- /*
+/*
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2006, Digium, Inc.
@@ -2358,11 +2358,17 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		goto cleanup;
 
 	for (;;) {
+		struct ast_str *str_save;
+
+		str_save = req.data;
+		memset(&req, 0, sizeof(req));
+		req.data = str_save;
 		ast_str_reset(req.data);
+
+		str_save = reqcpy.data;
+		memset(&reqcpy, 0, sizeof(reqcpy));
+		reqcpy.data = str_save;
 		ast_str_reset(reqcpy.data);
-		req.len = 0;
-		req.ignore = 0;
-		req.debug = 0;
 
 		req.socket.fd = ser->fd;
 		if (ser->ssl) {
