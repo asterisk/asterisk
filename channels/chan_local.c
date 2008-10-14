@@ -584,8 +584,12 @@ static int local_hangup(struct ast_channel *ast)
 	} else {
 		p->owner = NULL;
 		ast_module_user_remove(p->u_owner);
+		while (p->chan && ast_channel_trylock(p->chan)) {
+			DEADLOCK_AVOIDANCE(&p->lock);
+		}
 		if (p->chan) {
 			ast_queue_hangup(p->chan);
+			ast_channel_unlock(p->chan);
 		}
 	}
 	
