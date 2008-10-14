@@ -9376,7 +9376,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 /*! \brief Send a subscription or resubscription for MWI */
 static int sip_subscribe_mwi_do(const void *data)
 {
-	struct sip_subscription_mwi *mwi = ASTOBJ_REF((struct sip_subscription_mwi *) data);
+	struct sip_subscription_mwi *mwi = (struct sip_subscription_mwi*)data;
 	
 	if (!mwi) {
 		return -1;
@@ -15905,7 +15905,9 @@ static void handle_response_subscribe(struct sip_pvt *p, int resp, char *rest, s
 			p->options = NULL;
 		}
 		p->mwi->subscribed = 1;
-		p->mwi->resub = ast_sched_add(sched, mwi_expiry * 1000, sip_subscribe_mwi_do, p->mwi);
+		if ((p->mwi->resub = ast_sched_add(sched, mwi_expiry * 1000, sip_subscribe_mwi_do, ASTOBJ_REF(p->mwi))) < 0) {
+			ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
+		}
 		break;
 	case 401:
 	case 407:
@@ -23063,7 +23065,9 @@ static void sip_send_all_mwi_subscriptions(void)
 	ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
 		ASTOBJ_WRLOCK(iterator);
 		AST_SCHED_DEL(sched, iterator->resub);
-		iterator->resub = ast_sched_add(sched, 1, sip_subscribe_mwi_do, iterator);
+		if ((iterator->resub = ast_sched_add(sched, 1, sip_subscribe_mwi_do, ASTOBJ_REF(iterator))) < 0) {
+			ASTOBJ_UNREF(iterator, sip_subscribe_mwi_destroy);
+		}
 		ASTOBJ_UNLOCK(iterator);
 	} while (0));
 }
