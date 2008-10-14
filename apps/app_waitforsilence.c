@@ -81,7 +81,7 @@ static char *descrip_noise =
 "Wait for Noise: The same as Wait for Silance but waits for noise that is above the threshold specified\n";
 
 static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, int timeout, int wait_for_silence) {
-	struct ast_frame *f;
+	struct ast_frame *f = NULL;
 	int dsptime = 0;
 	int rfmt = 0;
 	int res = 0;
@@ -93,57 +93,50 @@ static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, 
 				wait_for_silence ? ast_dsp_silence : ast_dsp_noise;
 
 	rfmt = chan->readformat; /* Set to linear mode */
-	res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
-	if (res < 0) {
+	if ((res = ast_set_read_format(chan, AST_FORMAT_SLINEAR)) < 0) {
 		ast_log(LOG_WARNING, "Unable to set channel to linear mode, giving up\n");
 		return -1;
 	}
 
-	sildet = ast_dsp_new(); /* Create the silence detector */
-	if (!sildet) {
+	/* Create the silence detector */
+	if (!(sildet = ast_dsp_new())) {
 		ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
 		return -1;
 	}
 	ast_dsp_set_threshold(sildet, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE));
 
 	/* Await silence... */
-	f = NULL;
-	for(;;) {
+	for (;;) {
 		/* Start with no silence received */
 		dsptime = 0;
 
 		res = ast_waitfor(chan, timereqd);
 
 		/* Must have gotten a hangup; let's exit */
-		if (res <= 0) {
-			f = NULL;
+		if (res < 0) {
+			pbx_builtin_setvar_helper(chan, "WAITSTATUS", "HANGUP");
 			break;
 		}
 		
 		/* We waited and got no frame; sounds like digital silence or a muted digital channel */
-		if (!res) {
+		if (res == 0) {
 			dsptime = timereqd;
 		} else {
 			/* Looks like we did get a frame, so let's check it out */
-			f = ast_read(chan);
-			if (!f)
+			if (!(f = ast_read(chan))) {
+				pbx_builtin_setvar_helper(chan, "WAITSTATUS", "HANGUP");
 				break;
-			if (f && f->frametype == AST_FRAME_VOICE) {
-				ast_dsp_func(sildet, f, &dsptime);
-				ast_frfree(f);
 			}
+			if (f->frametype == AST_FRAME_VOICE) {
+				ast_dsp_func(sildet, f, &dsptime);
+			}
+			ast_frfree(f);
 		}
 
-		if (wait_for_silence)
-			ast_verb(6, "Got %dms silence < %dms required\n", dsptime, timereqd);
-		else
-			ast_verb(6, "Got %dms noise < %dms required\n", dsptime, timereqd);
+		ast_verb(6, "Got %dms %s < %dms required\n", dsptime, wait_for_silence ? "silence" : "noise", timereqd);
 
 		if (dsptime >= timereqd) {
-			if (wait_for_silence)
-				ast_verb(3, "Exiting with %dms silence >= %dms required\n", dsptime, timereqd);
-			else
-				ast_verb(3, "Exiting with %dms noise >= %dms required\n", dsptime, timereqd);
+			ast_verb(3, "Exiting with %dms %s >= %dms required\n", dsptime, wait_for_silence ? "silence" : "noise", timereqd);
 			/* Ended happily with silence */
 			res = 1;
 			pbx_builtin_setvar_helper(chan, "WAITSTATUS", wait_for_silence ? "SILENCE" : "NOISE");
