@@ -107,13 +107,13 @@ static int do_waiting(struct ast_channel *chan, int silencereqd, time_t waitstar
 		res = ast_waitfor(chan, silencereqd);
 
 		/* Must have gotten a hangup; let's exit */
-		if (res <= 0) {
+		if (res < 0) {
 			f = NULL;
 			break;
 		}
 		
 		/* We waited and got no frame; sounds like digital silence or a muted digital channel */
-		if (!res) {
+		if (res == 0) {
 			dspsilence = silencereqd;
 		} else {
 			/* Looks like we did get a frame, so let's check it out */
@@ -122,6 +122,8 @@ static int do_waiting(struct ast_channel *chan, int silencereqd, time_t waitstar
 				break;
 			if (f && f->frametype == AST_FRAME_VOICE) {
 				ast_dsp_silence(sildet, f, &dspsilence);
+			}
+			if (f) {
 				ast_frfree(f);
 			}
 		}
