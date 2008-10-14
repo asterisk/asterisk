@@ -295,8 +295,15 @@ Changes since Asterisk 1.2:
               21. rtp.conf
                       o rtcpinterval varaible added
               22. sip.conf
+                      o allowguest variable can't be set to 'osp'
                       o allowoverlap variable added
                       o allowtransfer variable added
+                      o limitonpeer variable added
+                      o directrtpsetup variable added
+                      o buggymwi variable added
+                      o ospauth variable REMOVED
+                      o notifyhold variable added
+                      o autoframing variable added
                       o tos variable REMOVED
                       o tos_sip variable added
                       o tos_audio variable added
@@ -305,18 +312,22 @@ Changes since Asterisk 1.2:
                       o t1min variable added
                       o musicclass variable REMOVED
                       o mohinterpret variable added
-                      o maxcallbitratesuggest variable added
+                      o mohsuggest variable added
                       o allowsubscribe variable added
                       o videosupport variable added
                       o maxcallbitrate variable added
                       o g726nonstandard variable added
                       o dumphistory variable added
-                      o allowsubscribe variable added
                       o t38pt_udptl variable added
+                      o t38pt_rtp variable added
+                      o t38pt_tcp variable added
+                      o rfc2833compensate variable added
+                      o matchexterniplocally variable added
                       o canreinvite variable can also now be set to 'nonat'
                       o rtsavesysname variable added
                       o JitterBuffer support added
                       o t38pt_usertpsource variable added
+                      o regcontext variable can contains multiple contexts separated by an '&'
               23. skinny.conf
                       o port variable renamed to bindport
                       o JitterBuffer support added
