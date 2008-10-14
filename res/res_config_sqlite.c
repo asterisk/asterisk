@@ -123,6 +123,9 @@ MACRO_BEGIN						\
 	}						\
 MACRO_END
 
+AST_THREADSTORAGE(sql_buf);
+AST_THREADSTORAGE(where_buf);
+
 /*!
  * Maximum number of loops before giving up executing a query. Calls to
  * sqlite_xxx() functions which can return SQLITE_BUSY
@@ -299,7 +302,7 @@ static struct ast_config * config_handler(const char *database, const char *tabl
  * \retval 0 if an error occurred.
  */
 static size_t get_params(va_list ap, const char ***params_ptr,
-	const char ***vals_ptr);
+	const char ***vals_ptr, int warn);
 
 /*!
  * \brief SQLite callback function for RealTime configuration.
@@ -396,6 +399,8 @@ static struct ast_config * realtime_multi_handler(const char *database,
  */
 static int realtime_update_handler(const char *database, const char *table,
 	const char *keyfield, const char *entity, va_list ap);
+static int realtime_update2_handler(const char *database, const char *table,
+	va_list ap);
 
 /*!
  * \brief Asterisk callback function for RealTime configuration (variable
@@ -484,6 +489,7 @@ static struct ast_config_engine sqlite_engine =
 	.store_func = realtime_store_handler,
 	.destroy_func = realtime_destroy_handler,
 	.update_func = realtime_update_handler,
+	.update2_func = realtime_update2_handler,
 	.require_func = realtime_require_handler,
 	.unload_func = realtime_unload_handler,
 };
@@ -949,7 +955,7 @@ static struct ast_config *config_handler(const char *database,	const char *table
 	return cfg;
 }
 
-static size_t get_params(va_list ap, const char ***params_ptr, const char ***vals_ptr)
+static size_t get_params(va_list ap, const char ***params_ptr, const char ***vals_ptr, int warn)
 {
 	const char **tmp, *param, *val, **params, **vals;
 	size_t params_count;
@@ -981,8 +987,9 @@ static size_t get_params(va_list ap, const char ***params_ptr, const char ***val
 	if (params_count > 0) {
 		*params_ptr = params;
 		*vals_ptr = vals;
-	} else
+	} else if (warn) {
 		ast_log(LOG_WARNING, "1 parameter and 1 value at least required\n");
+	}
 
 	return params_count;
 }
@@ -1029,7 +1036,7 @@ static struct ast_variable * realtime_handler(const char *database, const char *
 		return NULL;
 	}
 
-	params_count = get_params(ap, &params, &vals);
+	params_count = get_params(ap, &params, &vals, 1);
 
 	if (params_count == 0)
 		return NULL;
@@ -1038,10 +1045,10 @@ static struct ast_variable * realtime_handler(const char *database, const char *
 
 /* \cond DOXYGEN_CAN_PARSE_THIS */
 #undef QUERY
-#define QUERY "SELECT * FROM '%q' WHERE commented = 0 AND %q%s '%q'"
+#define QUERY "SELECT * FROM '%q' WHERE%s %q%s '%q'"
 /* \endcond */
 
-	query = sqlite_mprintf(QUERY, table, params[0], op, vals[0]);
+	query = sqlite_mprintf(QUERY, table, !strcmp(config_table, table) ? " commented = 0 AND" : "", params[0], op, vals[0]);
 
 	if (!query) {
 		ast_log(LOG_WARNING, "Unable to allocate SQL query\n");
@@ -1174,7 +1181,7 @@ static struct ast_config *realtime_multi_handler(const char *database,
 		return NULL;
 	}
 
-	if (!(params_count = get_params(ap, &params, &vals))) {
+	if (!(params_count = get_params(ap, &params, &vals, 1))) {
 		ast_config_destroy(cfg);
 		return NULL;
 	}
@@ -1286,7 +1293,7 @@ static int realtime_update_handler(const char *database, const char *table,
 		return -1;
 	}
 
-	if (!(params_count = get_params(ap, &params, &vals)))
+	if (!(params_count = get_params(ap, &params, &vals, 1)))
 		return -1;
 
 /* \cond DOXYGEN_CAN_PARSE_THIS */
@@ -1355,6 +1362,80 @@ static int realtime_update_handler(const char *database, const char *table,
 	return rows_num;
 }
 
+static int realtime_update2_handler(const char *database, const char *table,
+	va_list ap)
+{
+	char *errormsg = NULL, *tmp1, *tmp2;
+	int error, rows_num, first = 1;
+	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100);
+	struct ast_str *where = ast_str_thread_get(&where_buf, 100);
+	const char *param, *value;
+
+	if (!table) {
+		ast_log(LOG_WARNING, "Table name unspecified\n");
+		return -1;
+	}
+
+	if (!sql) {
+		return -1;
+	}
+
+	ast_str_set(&sql, 0, "UPDATE %s SET", table);
+	ast_str_set(&where, 0, " WHERE");
+
+	while ((param = va_arg(ap, const char *))) {
+		value = va_arg(ap, const char *);
+		ast_str_append(&where, 0, "%s %s = %s",
+			first ? "" : " AND",
+			tmp1 = sqlite_mprintf("%q", param),
+			tmp2 = sqlite_mprintf("%Q", value));
+		sqlite_freemem(tmp1);
+		sqlite_freemem(tmp2);
+		first = 0;
+	}
+
+	if (first) {
+		ast_log(LOG_ERROR, "No criteria specified on update to '%s@%s'!\n", table, database);
+		return -1;
+	}
+
+	first = 1;
+	while ((param = va_arg(ap, const char *))) {
+		value = va_arg(ap, const char *);
+		ast_str_append(&sql, 0, "%s %s = %s",
+			first ? "" : ",",
+			tmp1 = sqlite_mprintf("%q", param),
+			tmp2 = sqlite_mprintf("%Q", value));
+		sqlite_freemem(tmp1);
+		sqlite_freemem(tmp2);
+		first = 0;
+	}
+
+	ast_str_append(&sql, 0, " %s", where->str);
+	ast_debug(1, "SQL query: %s\n", sql->str);
+
+	ast_mutex_lock(&mutex);
+
+	RES_CONFIG_SQLITE_BEGIN
+		error = sqlite_exec(db, sql->str, NULL, NULL, &errormsg);
+	RES_CONFIG_SQLITE_END(error)
+
+	if (!error) {
+		rows_num = sqlite_changes(db);
+	} else {
+		rows_num = -1;
+	}
+
+	ast_mutex_unlock(&mutex);
+
+	if (error) {
+		ast_log(LOG_WARNING, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
+	}
+	sqlite_freemem(errormsg);
+
+	return rows_num;
+}
+
 static int realtime_store_handler(const char *database, const char *table, va_list ap)
 {
 	char *errormsg = NULL, *tmp_str, *tmp_keys = NULL, *tmp_keys2 = NULL, *tmp_vals = NULL, *tmp_vals2 = NULL;
@@ -1368,7 +1449,7 @@ static int realtime_store_handler(const char *database, const char *table, va_li
 		return -1;
 	}
 
-	if (!(params_count = get_params(ap, &params, &vals)))
+	if (!(params_count = get_params(ap, &params, &vals, 1)))
 		return -1;
 
 /* \cond DOXYGEN_CAN_PARSE_THIS */
@@ -1392,10 +1473,10 @@ static int realtime_store_handler(const char *database, const char *table, va_li
 		}
 
 		if ( tmp_vals2 ) {
-			tmp_vals = sqlite_mprintf("%s, '%q'", tmp_vals2, params[i]);
+			tmp_vals = sqlite_mprintf("%s, '%q'", tmp_vals2, vals[i]);
 			sqlite_freemem(tmp_vals2);
 		} else {
-			tmp_vals = sqlite_mprintf("'%q'", params[i]);
+			tmp_vals = sqlite_mprintf("'%q'", vals[i]);
 		}
 		if (!tmp_vals) {
 			ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
@@ -1453,7 +1534,7 @@ static int realtime_destroy_handler(const char *database, const char *table,
 	const char *keyfield, const char *entity, va_list ap)
 {
 	char *query, *errormsg = NULL, *tmp_str;
-	const char **params, **vals;
+	const char **params = NULL, **vals = NULL;
 	size_t params_count;
 	int error, rows_num;
 	size_t i;
@@ -1463,8 +1544,7 @@ static int realtime_destroy_handler(const char *database, const char *table,
 		return -1;
 	}
 
-	if (!(params_count = get_params(ap, &params, &vals)))
-		return -1;
+	params_count = get_params(ap, &params, &vals, 0);
 
 /* \cond DOXYGEN_CAN_PARSE_THIS */
 #undef QUERY
@@ -1509,10 +1589,11 @@ static int realtime_destroy_handler(const char *database, const char *table,
 		error = sqlite_exec(db, query, NULL, NULL, &errormsg);
 	RES_CONFIG_SQLITE_END(error)
 
-	if (!error)
+	if (!error) {
 		rows_num = sqlite_changes(db);
-	else
+	} else {
 		rows_num = -1;
+	}
 
 	ast_mutex_unlock(&mutex);
 

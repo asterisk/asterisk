@@ -2069,8 +2069,8 @@ struct ast_config *ast_config_load2(const char *filename, const char *who_asked,
 static struct ast_variable *ast_load_realtime_helper(const char *family, va_list ap)
 {
 	struct ast_config_engine *eng;
-	char db[256]="";
-	char table[256]="";
+	char db[256];
+	char table[256];
 	struct ast_variable *res=NULL;
 
 	eng = find_engine(family, db, sizeof(db), table, sizeof(table));
@@ -2141,8 +2141,8 @@ int ast_realtime_enabled()
 int ast_realtime_require_field(const char *family, ...)
 {
 	struct ast_config_engine *eng;
-	char db[256] = "";
-	char table[256] = "";
+	char db[256];
+	char table[256];
 	va_list ap;
 	int res = -1;
 
@@ -2159,8 +2159,8 @@ int ast_realtime_require_field(const char *family, ...)
 int ast_unload_realtime(const char *family)
 {
 	struct ast_config_engine *eng;
-	char db[256] = "";
-	char table[256] = "";
+	char db[256];
+	char table[256];
 	int res = -1;
 
 	eng = find_engine(family, db, sizeof(db), table, sizeof(table));
@@ -2173,9 +2173,9 @@ int ast_unload_realtime(const char *family)
 struct ast_config *ast_load_realtime_multientry(const char *family, ...)
 {
 	struct ast_config_engine *eng;
-	char db[256]="";
-	char table[256]="";
-	struct ast_config *res=NULL;
+	char db[256];
+	char table[256];
+	struct ast_config *res = NULL;
 	va_list ap;
 
 	va_start(ap, family);
@@ -2191,8 +2191,8 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
 {
 	struct ast_config_engine *eng;
 	int res = -1;
-	char db[256]="";
-	char table[256]="";
+	char db[256];
+	char table[256];
 	va_list ap;
 
 	va_start(ap, lookup);
@@ -2204,12 +2204,29 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
 	return res;
 }
 
+int ast_update2_realtime(const char *family, ...)
+{
+	struct ast_config_engine *eng;
+	int res = -1;
+	char db[256];
+	char table[256];
+	va_list ap;
+
+	va_start(ap, family);
+	eng = find_engine(family, db, sizeof(db), table, sizeof(table));
+	if (eng && eng->update2_func) 
+		res = eng->update2_func(db, table, ap);
+	va_end(ap);
+
+	return res;
+}
+
 int ast_store_realtime(const char *family, ...)
 {
 	struct ast_config_engine *eng;
 	int res = -1;
-	char db[256]="";
-	char table[256]="";
+	char db[256];
+	char table[256];
 	va_list ap;
 
 	va_start(ap, family);
@@ -2225,8 +2242,8 @@ int ast_destroy_realtime(const char *family, const char *keyfield, const char *l
 {
 	struct ast_config_engine *eng;
 	int res = -1;
-	char db[256]="";
-	char table[256]="";
+	char db[256];
+	char table[256];
 	va_list ap;
 
 	va_start(ap, lookup);

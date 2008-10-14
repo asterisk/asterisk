@@ -943,7 +943,7 @@ static int change_password_realtime(struct ast_vm_user *vmu, const char *passwor
 		if (strlen(password) > 10) {
 			ast_realtime_require_field("voicemail", "password", RQ_CHAR, strlen(password), SENTINEL);
 		}
-		res = ast_update_realtime("voicemail", "uniqueid", vmu->uniqueid, "password", password, SENTINEL);
+		res = ast_update2_realtime("voicemail", "context", vmu->context, "mailbox", vmu->mailbox, SENTINEL, "password", password, SENTINEL);
 		if (res > 0) {
 			ast_copy_string(vmu->password, password, sizeof(vmu->password));
 			res = 0;
@@ -4638,8 +4638,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	int ausemacro = 0;
 	int ousemacro = 0;
 	int ouseexten = 0;
-	int rtmsgid = 0;
-	char tmpid[16];
 	char tmpdur[16];
 	char priority[16];
 	char origtime[16];
@@ -4932,7 +4930,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			snprintf(priority, sizeof(priority), "%d", chan->priority);
 			snprintf(origtime, sizeof(origtime), "%ld", (long)time(NULL));
 			get_date(date, sizeof(date));
-			rtmsgid = ast_store_realtime("voicemail_data", "origmailbox", ext, "context", chan->context, "macrocontext", chan->macrocontext, "exten", chan->exten, "priority", priority, "callerchan", chan->name, "callerid", ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"), "origdate", date, "origtime", origtime, "category", S_OR(category,""), SENTINEL);
+			ast_store_realtime("voicemail_data", "origmailbox", ext, "context", chan->context, "macrocontext", chan->macrocontext, "exten", chan->exten, "priority", priority, "callerchan", chan->name, "callerid", ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"), "origdate", date, "origtime", origtime, "category", S_OR(category,""), "filename", tmptxtfile, SENTINEL);
 		}
 
 		/* Store information */
@@ -4976,8 +4974,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				ast_filedelete(tmptxtfile, NULL);
 				unlink(tmptxtfile);
 				if (ast_check_realtime("voicemail_data")) {
-					snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
-					ast_destroy_realtime("voicemail_data", "id", tmpid, SENTINEL);
+					ast_destroy_realtime("voicemail_data", "filename", tmptxtfile, SENTINEL);
 				}
 			} else {
 				fprintf(txt, "duration=%d\n", duration);
@@ -4992,8 +4989,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					unlink(tmptxtfile);
 					ast_unlock_path(dir);
 					if (ast_check_realtime("voicemail_data")) {
-						snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
-						ast_destroy_realtime("voicemail_data", "id", tmpid, SENTINEL);
+						ast_destroy_realtime("voicemail_data", "filename", tmptxtfile, SENTINEL);
 					}
 				} else {
 #ifndef IMAP_STORAGE
@@ -5019,9 +5015,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 					ast_unlock_path(dir);
 					if (ast_check_realtime("voicemail_data")) {
-						snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
 						snprintf(tmpdur, sizeof(tmpdur), "%d", duration);
-						ast_update_realtime("voicemail_data", "id", tmpid, "filename", fn, "duration", tmpdur, SENTINEL);
+						ast_update_realtime("voicemail_data", "filename", tmptxtfile, "filename", fn, "duration", tmpdur, SENTINEL);
 					}
 					/* We must store the file first, before copying the message, because
 					 * ODBC storage does the entire copy with SQL.

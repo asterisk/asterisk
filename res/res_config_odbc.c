@@ -49,6 +49,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_odbc.h"
 #include "asterisk/utils.h"
 
+AST_THREADSTORAGE(sql_buf);
+
 struct custom_prepare_struct {
 	const char *sql;
 	const char *extra;
@@ -470,6 +472,147 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 
 	if (rowcount >= 0)
 		return (int)rowcount;
+
+	return -1;
+}
+
+struct update2_prepare_struct {
+	const char *database;
+	const char *table;
+	va_list ap;
+};
+
+static SQLHSTMT update2_prepare(struct odbc_obj *obj, void *data)
+{
+	int res, x = 1, first = 1;
+	struct update2_prepare_struct *ups = data;
+	const char *newparam, *newval;
+	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
+	SQLHSTMT stmt;
+	va_list ap;
+	struct odbc_cache_tables *tableptr = ast_odbc_find_table(ups->database, ups->table);
+	struct odbc_cache_columns *column;
+
+	if (!sql) {
+		if (tableptr) {
+			ast_odbc_release_table(tableptr);
+		}
+		return NULL;
+	}
+
+	if (!tableptr) {
+		ast_log(LOG_ERROR, "Could not retrieve metadata for table '%s@%s'.  Update will fail!\n", ups->table, ups->database);
+		return NULL;
+	}
+
+	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+		ast_odbc_release_table(tableptr);
+		return NULL;
+	}
+
+	ast_str_set(&sql, 0, "UPDATE %s SET ", ups->table);
+
+	/* Start by finding the second set of parameters */
+	va_copy(ap, ups->ap);
+
+	while ((newparam = va_arg(ap, const char *))) {
+		newval = va_arg(ap, const char *);
+	}
+
+	while ((newparam = va_arg(ap, const char *))) {
+		newval = va_arg(ap, const char *);
+		if ((column = ast_odbc_find_column(tableptr, newparam))) {
+			ast_str_append(&sql, 0, "%s%s=? ", first ? "" : ", ", newparam);
+			SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
+			first = 0;
+		} else {
+			ast_log(LOG_NOTICE, "Not updating column '%s' in '%s@%s' because that column does not exist!\n", newparam, ups->table, ups->database);
+		}
+	}
+	va_end(ap);
+
+	/* Restart search, because we need to add the search parameters */
+	va_copy(ap, ups->ap);
+	ast_str_append(&sql, 0, "WHERE");
+	first = 1;
+
+	while ((newparam = va_arg(ap, const char *))) {
+		newval = va_arg(ap, const char *);
+		if (!(column = ast_odbc_find_column(tableptr, newparam))) {
+			ast_log(LOG_ERROR, "One or more of the criteria columns '%s' on '%s@%s' for this update does not exist!\n", newparam, ups->table, ups->database);
+			ast_odbc_release_table(tableptr);
+			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+			return NULL;
+		}
+		ast_str_append(&sql, 0, "%s %s=?", first ? "" : " AND", newparam);
+		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
+		first = 0;
+	}
+	va_end(ap);
+
+	/* Done with the table metadata */
+	ast_odbc_release_table(tableptr);
+
+	res = SQLPrepare(stmt, (unsigned char *)sql->str, SQL_NTS);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql->str);
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+
+	return stmt;
+}
+
+/*!
+ * \brief Execute an UPDATE query
+ * \param database
+ * \param table
+ * \param ap list containing one or more field/value set(s).
+ *
+ * Update a database table, preparing the sql statement from a list of
+ * key/value pairs specified in ap.  The lookup pairs are specified first
+ * and are separated from the update pairs by a sentinel value.
+ * Sub-in the values to the prepared statement and execute it.
+ *
+ * \retval number of rows affected
+ * \retval -1 on failure
+*/
+static int update2_odbc(const char *database, const char *table, va_list ap)
+{
+	struct odbc_obj *obj;
+	SQLHSTMT stmt;
+	struct update2_prepare_struct ups = { .database = database, .table = table, };
+	struct ast_str *sql;
+	int res;
+	SQLLEN rowcount = 0;
+
+	va_copy(ups.ap, ap);
+
+	if (!(obj = ast_odbc_request_obj(database, 0))) {
+		return -1;
+	}
+
+	if (!(stmt = ast_odbc_prepare_and_execute(obj, update2_prepare, &ups))) {
+		ast_odbc_release_obj(obj);
+		return -1;
+	}
+
+	res = SQLRowCount(stmt, &rowcount);
+	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	ast_odbc_release_obj(obj);
+
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		/* Since only a single thread can access this memory, we can retrieve what would otherwise be lost. */
+		sql = ast_str_thread_get(&sql_buf, 16);
+		ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n", sql->str);
+		return -1;
+	}
+
+	if (rowcount >= 0) {
+		return (int)rowcount;
+	}
 
 	return -1;
 }
@@ -899,6 +1042,7 @@ static struct ast_config_engine odbc_engine = {
 	.store_func = store_odbc,
 	.destroy_func = destroy_odbc,
 	.update_func = update_odbc,
+	.update2_func = update2_odbc,
 	.require_func = require_odbc,
 	.unload_func = ast_odbc_clear_cache,
 };

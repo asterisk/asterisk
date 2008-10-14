@@ -89,6 +89,7 @@ struct ldap_table_config {
 	struct ast_variable *attributes;  /*!< attribute names conversion */
 	struct ast_variable *delimiters;  /*!< the current delimiter is semicolon, so we are not using this variable */
 	AST_LIST_ENTRY(ldap_table_config) entry;
+	/* TODO: Make proxies work */
 };
 
 /*! \brief Should be locked before using it */
@@ -1305,12 +1306,199 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	return num_entries;
 }
 
+static int update2_ldap(const char *basedn, const char *table_name, va_list ap)
+{
+	int error = 0;
+	LDAPMessage *ldap_entry = NULL;
+	LDAPMod **ldap_mods;
+	const char *newparam = NULL;
+	const char *newval = NULL;
+	char *dn;
+	int num_entries = 0;
+	int i = 0;
+	int mods_size = 0;
+	int mod_exists = 0;
+	struct ldap_table_config *table_config = NULL;
+	char *clean_basedn = NULL;
+	struct ast_str *filter = NULL;
+	int tries = 0;
+	int result = 0;
+	LDAPMessage *ldap_result_msg = NULL;
+
+	if (!table_name) {
+		ast_log(LOG_WARNING, "No table_name specified.\n");
+		return -1;
+	} 
+
+	if (!(filter = ast_str_create(80)))
+		return -1;
+
+	ast_mutex_lock(&ldap_lock);
+
+	/* We now have our complete statement; Lets connect to the server and execute it.  */
+	if (!ldap_reconnect()) {
+		ast_mutex_unlock(&ldap_lock);
+		ast_free(filter);
+		return -1;
+	}
+
+	table_config = table_config_for_table_name(table_name);
+	if (!table_config) {
+		ast_log(LOG_WARNING, "No table named '%s'.\n", table_name);
+		ast_mutex_unlock(&ldap_lock);
+		ast_free(filter);
+		return -1;
+	}
+
+	clean_basedn = cleaned_basedn(NULL, basedn);
+
+	/* Create the filter with the table additional filter and the parameter/value pairs we were given */
+	ast_str_append(&filter, 0, "(&");
+	if (table_config && table_config->additional_filter) {
+		ast_str_append(&filter, 0, "%s", table_config->additional_filter);
+	}
+	if (table_config != base_table_config && base_table_config
+		&& base_table_config->additional_filter) {
+		ast_str_append(&filter, 0, "%s", base_table_config->additional_filter);
+	}
+
+	/* Get multiple lookup keyfields and values */
+	while ((newparam = va_arg(ap, const char *))) {
+		newval = va_arg(ap, const char *);
+		append_var_and_value_to_filter(&filter, table_config, newparam, newval);
+	}
+	ast_str_append(&filter, 0, ")");
+
+	/* Create the modification array with the parameter/value pairs we were given, 
+	 * if there are several parameters with the same name, we collect them into 
+	 * one parameter/value pair and delimit them with a semicolon */
+	newparam = va_arg(ap, const char *);
+	newparam = convert_attribute_name_to_ldap(table_config, newparam);
+	newval = va_arg(ap, const char *);
+	if (!newparam || !newval) {
+		ast_log(LOG_WARNING,
+				"LINE(%d): need at least one parameter to modify.\n", __LINE__);
+		ast_free(filter);
+		ast_free(clean_basedn);
+		return -1;
+	}
+
+	mods_size = 2; /* one for the first param/value pair and one for the the terminating NULL */
+	ldap_mods = ast_calloc(sizeof(LDAPMod *), mods_size);
+	ldap_mods[0] = ast_calloc(1, sizeof(LDAPMod));
+
+	ldap_mods[0]->mod_op = LDAP_MOD_REPLACE;
+	ldap_mods[0]->mod_type = ast_calloc(sizeof(char), strlen(newparam) + 1);
+	strcpy(ldap_mods[0]->mod_type, newparam);
+
+	ldap_mods[0]->mod_values = ast_calloc(sizeof(char), 2);
+	ldap_mods[0]->mod_values[0] = ast_calloc(sizeof(char), strlen(newval) + 1);
+	strcpy(ldap_mods[0]->mod_values[0], newval);
+
+	while ((newparam = va_arg(ap, const char *))) {
+		newparam = convert_attribute_name_to_ldap(table_config, newparam);
+		newval = va_arg(ap, const char *);
+		mod_exists = 0;
+
+		for (i = 0; i < mods_size - 1; i++) {
+			if (ldap_mods[i]&& !strcmp(ldap_mods[i]->mod_type, newparam)) {
+				/* We have the parameter allready, adding the value as a semicolon delimited value */
+				ldap_mods[i]->mod_values[0] = ast_realloc(ldap_mods[i]->mod_values[0], sizeof(char) * (strlen(ldap_mods[i]->mod_values[0]) + strlen(newval) + 2));
+				strcat(ldap_mods[i]->mod_values[0], ";");
+				strcat(ldap_mods[i]->mod_values[0], newval);
+				mod_exists = 1;	
+				break;
+			}
+		}
+
+		/* create new mod */
+		if (!mod_exists) {
+			mods_size++;
+			ldap_mods = ast_realloc(ldap_mods, sizeof(LDAPMod *) * mods_size);
+			ldap_mods[mods_size - 1] = NULL;
+			ldap_mods[mods_size - 2] = ast_calloc(1, sizeof(LDAPMod));
+
+			ldap_mods[mods_size - 2]->mod_op = LDAP_MOD_REPLACE;
+
+			ldap_mods[mods_size - 2]->mod_type = ast_calloc(sizeof(char), strlen(newparam) + 1);
+			strcpy(ldap_mods[mods_size - 2]->mod_type, newparam);
+
+			ldap_mods[mods_size - 2]->mod_values = ast_calloc(sizeof(char *), 2);
+			ldap_mods[mods_size - 2]->mod_values[0] = ast_calloc(sizeof(char), strlen(newval) + 1);
+			strcpy(ldap_mods[mods_size - 2]->mod_values[0], newval);
+		}
+	}
+	/* freeing ldap_mods further down */
+
+	do {
+		/* freeing ldap_result further down */
+		result = ldap_search_ext_s(ldapConn, clean_basedn,
+				  LDAP_SCOPE_SUBTREE, filter->str, NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT,
+				  &ldap_result_msg);
+		if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
+			ast_log(LOG_WARNING, "Failed to query database. Try %d/3\n",
+				tries + 1);
+			tries++;
+			if (tries < 3) {
+				usleep(500000L * tries);
+				if (ldapConn) {
+					ldap_unbind_ext_s(ldapConn, NULL, NULL);
+					ldapConn = NULL;
+				}
+				if (!ldap_reconnect())
+					break;
+			}
+		}
+	} while (result != LDAP_SUCCESS && tries < 3 && is_ldap_connect_error(result));
+
+	if (result != LDAP_SUCCESS) {
+		ast_log(LOG_WARNING, "Failed to query directory. Check debug for more info.\n");
+		ast_log(LOG_WARNING, "Query: %s\n", filter->str);
+		ast_log(LOG_WARNING, "Query Failed because: %s\n",
+			ldap_err2string(result));
+
+		ast_mutex_unlock(&ldap_lock);
+		if (filter)
+			free(filter);
+		if (clean_basedn)
+			free(clean_basedn);
+		ldap_msgfree(ldap_result_msg);
+		ldap_mods_free(ldap_mods, 0);
+		return -1;
+	}
+	/* Ready to update */
+	if ((num_entries = ldap_count_entries(ldapConn, ldap_result_msg)) > 0) {
+		for (i = 0; option_debug > 2 && i < mods_size - 1; i++)
+			ast_debug(3, "LINE(%d) %s=%s \n", __LINE__, ldap_mods[i]->mod_type, ldap_mods[i]->mod_values[0]);
+
+		ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
+
+		for (i = 0; ldap_entry; i++) { 
+			dn = ldap_get_dn(ldapConn, ldap_entry);
+			if ((error = ldap_modify_ext_s(ldapConn, dn, ldap_mods, NULL, NULL)) != LDAP_SUCCESS) 
+				ast_log(LOG_ERROR, "Couldn't modify dn:%s because %s", dn, ldap_err2string(error));
+
+			ldap_entry = ldap_next_entry(ldapConn, ldap_entry);
+		}
+	}
+
+	ast_mutex_unlock(&ldap_lock);
+	if (filter)
+		free(filter);
+	if (clean_basedn)
+		free(clean_basedn);
+	ldap_msgfree(ldap_result_msg);
+	ldap_mods_free(ldap_mods, 0);
+	return num_entries;
+}
+
 static struct ast_config_engine ldap_engine = {
 	.name = "ldap",
 	.load_func = config_ldap,
 	.realtime_func = realtime_ldap,
 	.realtime_multi_func = realtime_multi_ldap,
-	.update_func = update_ldap
+	.update_func = update_ldap,
+	.update2_func = update2_ldap,
 };
 
 static int load_module(void)

@@ -421,8 +421,8 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 		_DB1(__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));)
 	}
 
-        (*buf)->len = new_len;
-        return 0;
+	(*buf)->len = new_len;
+	return 0;
 }
 )
 
