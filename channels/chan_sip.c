@@ -4815,7 +4815,7 @@ static int sip_register(char *value, int lineno)
 	return 0;
 
 invalid_char:
-	ast_log(LOG_WARNING, "A reserved character ('%c') was used in a \"register\" line. This registration will not occur\n", *reserved);
+	ast_log(LOG_ERROR, "A reserved character ('%c') was used in a \"register\" line. This registration will not occur\n", *reserved);
 	return -1;
 }
 
