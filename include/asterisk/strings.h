@@ -404,6 +404,30 @@ void ast_str_reset(struct ast_str *buf),
 /*!
  * Make space in a new string (e.g. to read in data from a file)
  */
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+AST_INLINE_API(
+int _ast_str_make_space(struct ast_str **buf, size_t new_len, const char *file, int lineno, const char *function),
+{
+	_DB1(struct ast_str *old_buf = *buf;)
+
+	if (new_len <= (*buf)->len) 
+		return 0;	/* success */
+	if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
+		return -1;	/* cannot extend */
+	*buf = (struct ast_str *)__ast_realloc(*buf, new_len + sizeof(struct ast_str), file, lineno, function);
+	if (*buf == NULL) /* XXX watch out, we leak memory here */
+		return -1;
+	if ((*buf)->ts != DS_MALLOC) {
+		pthread_setspecific((*buf)->ts->key, *buf);
+		_DB1(__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));)
+	}
+
+	(*buf)->len = new_len;
+	return 0;
+}
+)
+#define ast_str_make_space(a,b)	_ast_str_make_space(a,b,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+#else
 AST_INLINE_API(
 int ast_str_make_space(struct ast_str **buf, size_t new_len),
 {
@@ -425,6 +449,7 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
         return 0;
 }
 )
+#endif
 
 #define ast_str_alloca(init_len)			\
 	({						\

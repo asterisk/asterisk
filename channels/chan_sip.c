@@ -21325,6 +21325,12 @@ static int reload_config(enum channelreloadreason reason)
 	}
 	
 	/* Reset certificate handling for TLS sessions */
+	if (reason != CHANNEL_MODULE_LOAD) {
+		ast_free(default_tls_cfg.certfile);
+		ast_free(default_tls_cfg.cipher);
+		ast_free(default_tls_cfg.cafile);
+		ast_free(default_tls_cfg.capath);
+	}
 	default_tls_cfg.certfile = ast_strdup(AST_CERTFILE); /*XXX Not sure if this is useful */
 	default_tls_cfg.cipher = ast_strdup("");
 	default_tls_cfg.cafile = ast_strdup("");

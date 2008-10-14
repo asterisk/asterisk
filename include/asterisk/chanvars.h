@@ -33,7 +33,12 @@ struct ast_var_t {
 
 AST_LIST_HEAD_NOLOCK(varshead, ast_var_t);
 
+#ifdef MALLOC_DEBUG
+struct ast_var_t *_ast_var_assign(const char *name, const char *value, const char *file, int lineno, const char *function);
+#define ast_var_assign(a,b)	_ast_var_assign(a,b,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+#else
 struct ast_var_t *ast_var_assign(const char *name, const char *value);
+#endif
 void ast_var_delete(struct ast_var_t *var);
 const char *ast_var_name(const struct ast_var_t *var);
 const char *ast_var_full_name(const struct ast_var_t *var);
