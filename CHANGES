@@ -145,6 +145,8 @@ Application Changes
    'UNSUPPORTED'.  This change makes SendImage() more consistent with other
    applications.
  * Park has a new option, 's', which silences the announcement of the parking space number.
+ * A non-numeric, zero, or negative timeout specified to Dial() will now be interpreted as
+   invalid input and will be assumed to mean that no timeout is desired.
 
 SIP Changes
 -----------

@@ -1589,8 +1589,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		to = atoi(args.timeout);
 		if (to > 0)
 			to *= 1000;
-		else
-			ast_log(LOG_WARNING, "Invalid timeout specified: '%s'\n", args.timeout);
+		else {
+			ast_log(LOG_WARNING, "Invalid timeout specified: '%s'. Setting timeout to infinite\n", args.timeout);
+			to = -1;
+		}
 	}
 
 	if (!outgoing) {
