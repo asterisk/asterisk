@@ -15262,7 +15262,7 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 }
 
 /*! \brief Structure to declare a dialplan function: SIPPEER */
-struct ast_custom_function sippeer_function = {
+static struct ast_custom_function sippeer_function = {
 	.name = "SIPPEER",
 	.synopsis = "Gets SIP peer information",
 	.syntax = "SIPPEER(<peername>[,item])",
