@@ -60,6 +60,8 @@ enum ast_audiohook_flags {
 	AST_AUDIOHOOK_TRIGGER_SYNC = (1 << 2),  /*!< Audiohook wants to be triggered when both sides have combined audio available */
 };
 
+#define AST_AUDIOHOOK_SYNC_TOLERANCE 100 /*< Tolerance in milliseconds for audiohooks synchronization */
+
 struct ast_audiohook;
 
 /*! \brief Callback function for manipulate audiohook type
