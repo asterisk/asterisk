@@ -2566,6 +2566,7 @@ struct queue_transfer_ds {
 	struct queue_ent *qe;
 	struct member *member;
 	int starttime;
+	int callcompletedinsl;
 };
 
 static void queue_transfer_destroy(void *data)
@@ -2597,11 +2598,14 @@ static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struc
 	struct queue_ent *qe = qtds->qe;
 	struct member *member = qtds->member;
 	int callstart = qtds->starttime;
+	int callcompletedinsl = qtds->callcompletedinsl;
 	struct ast_datastore *datastore;
 
 	ast_queue_log(qe->parent->name, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld",
 				new_chan->exten, new_chan->context, (long) (callstart - qe->start),
 				(long) (time(NULL) - callstart));
+
+	update_queue(qe->parent, member, callcompletedinsl);
 	
 	if (!(datastore = ast_channel_datastore_find(new_chan, &queue_transfer_info, NULL))) {
 		ast_log(LOG_WARNING, "Can't find the queue_transfer datastore.\n");
@@ -2625,7 +2629,7 @@ static int attended_transfer_occurred(struct ast_channel *chan)
 
 /*! \brief create a datastore for storing relevant info to log attended transfers in the queue_log
  */
-static void setup_transfer_datastore(struct queue_ent *qe, struct member *member, int starttime)
+static void setup_transfer_datastore(struct queue_ent *qe, struct member *member, int starttime, int callcompletedinsl)
 {
 	struct ast_datastore *ds;
 	struct queue_transfer_ds *qtds = ast_calloc(1, sizeof(*qtds));
@@ -2646,6 +2650,7 @@ static void setup_transfer_datastore(struct queue_ent *qe, struct member *member
 	/* This member is refcounted in try_calling, so no need to add it here, too */
 	qtds->member = member;
 	qtds->starttime = starttime;
+	qtds->callcompletedinsl = callcompletedinsl;
 	ds->data = qtds;
 	ast_channel_datastore_add(qe->chan, ds);
 	ast_channel_unlock(qe->chan);
@@ -3135,7 +3140,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (member->status == AST_DEVICE_NOT_INUSE)
 			ast_log(LOG_WARNING, "The device state of this queue member, %s, is still 'Not in Use' when it probably should not be! Please check UPGRADE.txt for correct configuration settings.\n", member->membername);
 			
-		setup_transfer_datastore(qe, member, callstart);
+		setup_transfer_datastore(qe, member, callstart, callcompletedinsl);
 		bridge = ast_bridge_call(qe->chan,peer, &bridge_config);
 
 		if (!attended_transfer_occurred(qe->chan)) {
@@ -3185,11 +3190,11 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_channel_datastore_free(transfer_ds);
 			}
 			ast_channel_unlock(qe->chan);
+			update_queue(qe->parent, member, callcompletedinsl);
 		}
 
 		if (bridge != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
-		update_queue(qe->parent, member, callcompletedinsl);
 		res = bridge ? bridge : 1;
 		ao2_ref(member, -1);
 	}
