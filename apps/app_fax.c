@@ -29,6 +29,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <tiffio.h>
 
 #include <spandsp.h>
+#include <spandsp/version.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -310,6 +311,7 @@ static int transmit_audio(fax_session *s)
 	int original_read_fmt = AST_FORMAT_SLINEAR;
 	int original_write_fmt = AST_FORMAT_SLINEAR;
 	fax_state_t fax;
+	t30_state_t *t30state;
 	struct ast_dsp *dsp = NULL;
 	int detect_tone = 0;
 	struct ast_frame *inf = NULL;
@@ -317,6 +319,14 @@ static int transmit_audio(fax_session *s)
 	int last_state = 0;
 	struct timeval now, start, state_change;
 	enum ast_control_t38 t38control;
+
+#if SPANDSP_RELEASE_DATE >= 20081012
+        /* for spandsp shaphots 0.0.6 and higher */
+        t30state = &fax.t30;
+#else
+        /* for spandsp release 0.0.5 */
+        t30state = &fax.t30_state;
+#endif
 
 	original_read_fmt = s->chan->readformat;
 	if (original_read_fmt != AST_FORMAT_SLINEAR) {
@@ -341,16 +351,16 @@ static int transmit_audio(fax_session *s)
 
 	/* Setup logging */
 	set_logging(&fax.logging);
-	set_logging(&fax.t30_state.logging);
+	set_logging(&t30state->logging);
 
 	/* Configure terminal */
-	set_local_info(&fax.t30_state, s);
-	set_file(&fax.t30_state, s);
-	set_ecm(&fax.t30_state, TRUE);
+	set_local_info(t30state, s);
+	set_file(t30state, s);
+	set_ecm(t30state, TRUE);
 
 	fax_set_transmit_on_idle(&fax, TRUE);
 
-	t30_set_phase_e_handler(&fax.t30_state, phase_e_handler, s);
+	t30_set_phase_e_handler(t30state, phase_e_handler, s);
 
 	if (s->t38state == T38_STATE_UNAVAILABLE) {
 		ast_debug(1, "T38 is unavailable on %s\n", s->chan->name);
@@ -415,9 +425,9 @@ static int transmit_audio(fax_session *s)
 			}
 
 			/* Watchdog */
-			if (last_state != fax.t30_state.state) {
+			if (last_state != t30state->state) {
 				state_change = ast_tvnow();
-				last_state = fax.t30_state.state;
+				last_state = t30state->state;
 			}
 		} else if (inf->frametype == AST_FRAME_CONTROL && inf->subclass == AST_CONTROL_T38 &&
 				inf->datalen == sizeof(enum ast_control_t38)) {
@@ -456,10 +466,10 @@ static int transmit_audio(fax_session *s)
 	   by t30_terminate, display diagnostics and set status variables although no transmittion
 	   has taken place yet. */
 	if (res > 0) {
-		t30_set_phase_e_handler(&fax.t30_state, NULL, NULL);
+		t30_set_phase_e_handler(t30state, NULL, NULL);
 	}
 
-	t30_terminate(&fax.t30_state);
+	t30_terminate(t30state);
 	fax_release(&fax);
 
 done:
@@ -486,6 +496,19 @@ static int transmit_t38(fax_session *s)
 	struct timeval now, start, state_change, last_frame;
 	enum ast_control_t38 t38control;
 
+	t30_state_t *t30state;
+	t38_core_state_t *t38state;
+
+#if SPANDSP_RELEASE_DATE >= 20081012
+	/* for spandsp shaphots 0.0.6 and higher */
+	t30state = &t38.t30;
+	t38state = &t38.t38_fe.t38;
+#else
+	/* for spandsp releases 0.0.5 */
+	t30state = &t38.t30_state;
+	t38state = &t38.t38;
+#endif
+
 	/* Initialize terminal */
 	memset(&t38, 0, sizeof(t38));
 	if (t38_terminal_init(&t38, s->caller_mode, t38_tx_packet_handler, s->chan) == NULL) {
@@ -495,15 +518,15 @@ static int transmit_t38(fax_session *s)
 
 	/* Setup logging */
 	set_logging(&t38.logging);
-	set_logging(&t38.t30_state.logging);
-	set_logging(&t38.t38.logging);
+	set_logging(&t30state->logging);
+	set_logging(&t38state->logging);
 
 	/* Configure terminal */
-	set_local_info(&t38.t30_state, s);
-	set_file(&t38.t30_state, s);
-	set_ecm(&t38.t30_state, TRUE);
+	set_local_info(t30state, s);
+	set_file(t30state, s);
+	set_ecm(t30state, TRUE);
 
-	t30_set_phase_e_handler(&t38.t30_state, phase_e_handler, s);
+	t30_set_phase_e_handler(t30state, phase_e_handler, s);
 
 	now = start = state_change = ast_tvnow();
 
@@ -529,12 +552,12 @@ static int transmit_t38(fax_session *s)
 		ast_debug(10, "frame %d/%d, len=%d\n", inf->frametype, inf->subclass, inf->datalen);
 
 		if (inf->frametype == AST_FRAME_MODEM && inf->subclass == AST_MODEM_T38) {
-			t38_core_rx_ifp_packet(&t38.t38, inf->data.ptr, inf->datalen, inf->seqno);
+			t38_core_rx_ifp_packet(t38state, inf->data.ptr, inf->datalen, inf->seqno);
 
 			/* Watchdog */
-			if (last_state != t38.t30_state.state) {
+			if (last_state != t30state->state) {
 				state_change = ast_tvnow();
-				last_state = t38.t30_state.state;
+				last_state = t30state->state;
 			}
 		} else if (inf->frametype == AST_FRAME_CONTROL && inf->subclass == AST_CONTROL_T38 &&
 				inf->datalen == sizeof(enum ast_control_t38)) {
@@ -564,7 +587,7 @@ static int transmit_t38(fax_session *s)
 	if (inf)
 		ast_frfree(inf);
 
-	t30_terminate(&t38.t30_state);
+	t30_terminate(t30state);
 	t38_terminal_release(&t38);
 
 	return res;
