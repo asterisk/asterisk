@@ -62,7 +62,8 @@
  *
  * \par incoming packets
  * Incoming packets are received in the monitoring thread, then handled by
- * sipsock_read(). This function parses the packet and matches an existing
+ * sipsock_read() for udp only. In tcp, packets are read by the tcp_helper thread.
+ * sipsock_read() function parses the packet and matches an existing
  * dialog or starts a new SIP dialog.
  * 
  * sipsock_read sends the packet to handle_incoming(), that parses a bit more.
@@ -2367,7 +2368,9 @@ static void *sip_tcp_worker_fn(void *data)
 	return _sip_tcp_helper_thread(NULL, ser);
 }
 
-/*! \brief SIP TCP thread management function */
+/*! \brief SIP TCP thread management function 
+	This function reads from the socket, parses the packet into a request
+*/
 static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *ser) 
 {
 	int res, cl;
@@ -2450,7 +2453,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 				req.len = req.data->used;
 			}
 		}
-		/*! \todo XXX If there's no Content-Length or if the content-lenght and what
+		/*! \todo XXX If there's no Content-Length or if the content-length and what
 				we receive is not the same - we should generate an error */
 
 		req.socket.ser = ser;
@@ -19582,7 +19585,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 	return res;
 }
 
-/*! \brief Read data from SIP socket
+/*! \brief Read data from SIP UDP socket
 \note sipsock_read locks the owner channel while we are processing the SIP message
 \return 1 on error, 0 on success
 \note Successful messages is connected to SIP call and forwarded to handle_incoming() 
@@ -19632,7 +19635,10 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	return 1;
 }
 
-/*! \brief Handle incoming SIP message - request or response */
+/*! \brief Handle incoming SIP message - request or response 
+
+ 	This is used for all transports (udp, tcp and tcp/tls)
+*/
 static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin) 
 {
 	struct sip_pvt *p;
