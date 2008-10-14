@@ -3055,7 +3055,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	char enc_cidnum[256] = "", enc_cidname[256] = "";
 	struct tm tm;
 	char *passdata = NULL, *passdata2;
-	size_t len_passdata, len_passdata2, tmplen;
+	size_t len_passdata = 0, len_passdata2, tmplen;
 #ifdef IMAP_STORAGE
 #define ENDL "\r\n"
 #else
