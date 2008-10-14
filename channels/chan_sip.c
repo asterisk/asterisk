@@ -211,6 +211,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define XMIT_ERROR		-2
 
+#define SIP_RESERVED ";/?:@&=+$,# "
+
 /* #define VOCAL_DATA_HACK */
 
 #define DEFAULT_DEFAULT_EXPIRY  120
@@ -6326,8 +6328,10 @@ static int sip_register(const char *value, int lineno)
 	enum sip_transport transport = SIP_TRANSPORT_UDP;
 	char buf[256] = "";
 	char *username = NULL;
+	char *port = NULL;
 	char *hostname=NULL, *secret=NULL, *authuser=NULL, *expire=NULL;
 	char *callback=NULL;
+	char *reserved = NULL;
 
 	if (!value)
 		return -1;
@@ -6352,6 +6356,15 @@ static int sip_register(const char *value, int lineno)
 		if (authuser)
 			*authuser++ = '\0';
 	}
+	if ((reserved = strpbrk(username, SIP_RESERVED))) {
+		goto invalid_char;
+	}
+	if (!ast_strlen_zero(secret) && (reserved = strpbrk(secret, SIP_RESERVED))) {
+		goto invalid_char;
+	}
+	if (!ast_strlen_zero(authuser) && (reserved = strpbrk(authuser, SIP_RESERVED))) {
+		goto invalid_char;
+	}
 	/* split host[:port][/contact] */
 	expire = strchr(hostname, '~');
 	if (expire)
@@ -6361,6 +6374,19 @@ static int sip_register(const char *value, int lineno)
 		*callback++ = '\0';
 	if (ast_strlen_zero(callback))
 		callback = "s";
+	/* Separate host from port when checking for reserved characters
+	 */
+	if ((port = strchr(hostname, ':'))) {
+		*port = '\0';
+	}
+	if ((reserved = strpbrk(hostname, SIP_RESERVED))) {
+		goto invalid_char;
+	}
+	/* And then re-merge the host and port so they are stored correctly
+	 */
+	if (port) {
+		*port = ':';
+	}
 	if (!(reg = ast_calloc(1, sizeof(*reg)))) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
 		return -1;
@@ -6394,6 +6420,10 @@ static int sip_register(const char *value, int lineno)
 	ASTOBJ_CONTAINER_LINK(&regl, reg); /* Add the new registry entry to the list */
 	registry_unref(reg, "unref the reg pointer");	/* release the reference given by ASTOBJ_INIT. The container has another reference */
 	return 0;
+
+invalid_char:
+	ast_log(LOG_WARNING, "A reserved character ('%c') was used in a \"register\" line. This registration will not occur\n", *reserved);
+	return -1;
 }
 
 /*! \brief  Parse multiline SIP headers into one header
