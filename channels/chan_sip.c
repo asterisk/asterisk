@@ -18422,7 +18422,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 
 	/* Get RTCP quality before end of call */
 	if (p->do_history || p->owner) {
-		struct ast_channel *bridge = ast_bridged_channel(p->owner);
+		struct ast_channel *bridge = p->owner ? ast_bridged_channel(p->owner) : NULL;
 		char *videoqos, *textqos;
 
 		if (p->rtp) {	
@@ -18443,7 +18443,9 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 				append_history(p, "RTCPaudioRTT", "Quality:%s", audioqos_rtt);
 			}
 			
-			ast_rtp_set_vars(p->owner, p->rtp);
+			if (p->owner) {
+				ast_rtp_set_vars(p->owner, p->rtp);
+			}
 		}
 
 		if (bridge) {
