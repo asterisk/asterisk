@@ -3824,7 +3824,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	struct ast_tm tm;
 	char enc_cidnum[256] = "", enc_cidname[256] = "";
 	char *passdata = NULL, *passdata2;
-	size_t len_passdata, len_passdata2, tmplen;
+	size_t len_passdata = 0, len_passdata2, tmplen;
 	char *greeting_attachment; 
 	char filename[256];
 
