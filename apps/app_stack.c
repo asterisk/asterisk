@@ -25,6 +25,10 @@
  * \ingroup applications
  */
 
+/*** MODULEINFO
+	<depend>res_agi</depend>
+ ***/
+
 #include "asterisk.h"
  
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
