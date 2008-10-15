@@ -4121,6 +4121,11 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	
 	\note Avoid using this function in new functions if there is a way to avoid it, i
 	since it might cause a database lookup.
+
+	\todo - we need to fix so that we actually match on username only if forcenamematch is on.
+ 	There's a flag in peers for "onlymatchonip" - these peers needs to be avoided when
+	searching the "peers" hash table.
+
 */
 static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime, int forcenamematch, int devstate_only)
 {
