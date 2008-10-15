@@ -452,6 +452,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql->str);
 				y = -1;
+				buf[0] = '\0';
 				goto end_acf_read;
 			}
 
@@ -520,8 +521,6 @@ end_acf_read:
 		}
 		odbc_store->data = resultset;
 		ast_channel_datastore_add(chan, odbc_store);
-	} else {
-		buf[0] = '\0';
 	}
 	SQLCloseCursor(stmt);
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
