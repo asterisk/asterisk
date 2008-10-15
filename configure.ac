@@ -1350,10 +1350,7 @@ AST_C_COMPILE_CHECK([SPANDSP], [
 		#if SPANDSP_RELEASE_DATE < 20080516
 		#error "spandsp 0.0.5 or greater is required"
 		#endif
-		#if SPANDSP_RELEASE_DATE >= 20081012
-		#error "spandsp 0.0.6 or greater is not supported; use 0.0.5"
-		#endif
-	], [spandsp/version.h], , [compatible version of SpanDSP])
+	], [spandsp/version.h], , [minimum version of SpanDSP])
 
 if test "x${PBX_SPANDSP}" = "x1" ; then
 	# We found the correct version in the header, now let's make sure it links
