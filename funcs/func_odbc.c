@@ -87,6 +87,9 @@ AST_RWLIST_HEAD_STATIC(queries, acf_odbc_query);
 
 static int resultcount = 0;
 
+AST_THREADSTORAGE(coldata_buf);
+AST_THREADSTORAGE(colnames_buf);
+
 static void odbc_datastore_free(void *data)
 {
 	struct odbc_datastore *result = data;
@@ -258,7 +261,8 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 {
 	struct odbc_obj *obj = NULL;
 	struct acf_odbc_query *query;
-	char varname[15], colnames[2048] = "", rowcount[12] = "-1";
+	char varname[15], rowcount[12] = "-1";
+	struct ast_str *colnames = ast_str_thread_get(&colnames_buf, 16);
 	int res, x, y, buflen = 0, escapecommas, rowlimit = 1, dsn, bogus_chan = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];
@@ -387,42 +391,43 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	}
 
 	for (y = 0; y < rowlimit; y++) {
-		*buf = '\0';
 		for (x = 0; x < colcount; x++) {
 			int i;
-			char coldata[256];
+			struct ast_str *coldata = ast_str_thread_get(&coldata_buf, 16);
 
 			if (y == 0) {
 				char colname[256];
-				int namelen;
+				SQLULEN maxcol;
 
-				res = SQLDescribeCol(stmt, x + 1, (unsigned char *)colname, sizeof(colname), &collength, NULL, NULL, NULL, NULL);
+				res = SQLDescribeCol(stmt, x + 1, (unsigned char *)colname, sizeof(colname), &collength, NULL, &maxcol, NULL, NULL);
+				ast_debug(3, "Got collength of %d and maxcol of %d for column '%s' (offset %d)\n", (int)collength, (int)maxcol, colname, x);
 				if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || collength == 0) {
 					snprintf(colname, sizeof(colname), "field%d", x);
 				}
 
-				if (!ast_strlen_zero(colnames))
-					strncat(colnames, ",", sizeof(colnames) - strlen(colnames) - 1);
-				namelen = strlen(colnames);
+				if (coldata->len < maxcol + 1) {
+					ast_str_make_space(&coldata, maxcol + 1);
+				}
+
+				if (colnames->used) {
+					ast_str_append(&colnames, 0, ",");
+				}
+				ast_str_make_space(&colnames, strlen(colname) * 2 + 1 + colnames->used);
 
 				/* Copy data, encoding '\' and ',' for the argument parser */
 				for (i = 0; i < sizeof(colname); i++) {
 					if (escapecommas && (colname[i] == '\\' || colname[i] == ',')) {
-						colnames[namelen++] = '\\';
+						colnames->str[colnames->used++] = '\\';
 					}
-					colnames[namelen++] = colname[i];
+					colnames->str[colnames->used++] = colname[i];
 
-					if (namelen >= sizeof(colnames) - 2) {
-						colnames[namelen >= sizeof(colnames) ? sizeof(colnames) - 1 : namelen] = '\0';
+					if (colname[i] == '\0') {
 						break;
 					}
-
-					if (colname[i] == '\0')
-						break;
 				}
 
 				if (resultset) {
-					void *tmp = ast_realloc(resultset, sizeof(*resultset) + strlen(colnames) + 1);
+					void *tmp = ast_realloc(resultset, sizeof(*resultset) + colnames->used + 1);
 					if (!tmp) {
 						ast_log(LOG_ERROR, "No space for a new resultset?\n");
 						ast_free(resultset);
@@ -438,14 +443,15 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 						return -1;
 					}
 					resultset = tmp;
-					strcpy((char *)resultset + sizeof(*resultset), colnames);
+					strcpy((char *)resultset + sizeof(*resultset), colnames->str);
 				}
 			}
 
 			buflen = strlen(buf);
-			res = SQLGetData(stmt, x + 1, SQL_CHAR, coldata, sizeof(coldata), &indicator);
+			res = SQLGetData(stmt, x + 1, SQL_CHAR, coldata->str, coldata->len, &indicator);
 			if (indicator == SQL_NULL_DATA) {
-				coldata[0] = '\0';
+				ast_debug(3, "Got NULL data\n");
+				ast_str_reset(coldata);
 				res = SQL_SUCCESS;
 			}
 
@@ -456,25 +462,30 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 				goto end_acf_read;
 			}
 
+			ast_debug(2, "Got coldata of '%s'\n", coldata->str);
+			coldata->used = strlen(coldata->str);
+
 			/* Copy data, encoding '\' and ',' for the argument parser */
-			for (i = 0; i < sizeof(coldata); i++) {
-				if (escapecommas && (coldata[i] == '\\' || coldata[i] == ',')) {
+			for (i = 0; i < coldata->used; i++) {
+				if (escapecommas && (coldata->str[i] == '\\' || coldata->str[i] == ',')) {
 					buf[buflen++] = '\\';
 				}
-				buf[buflen++] = coldata[i];
+				buf[buflen++] = coldata->str[i];
 
 				if (buflen >= len - 2)
 					break;
 
-				if (coldata[i] == '\0')
+				if (coldata->str[i] == '\0')
 					break;
 			}
 
-			buf[buflen - 1] = ',';
+			buf[buflen++] = ',';
 			buf[buflen] = '\0';
+			ast_debug(2, "buf is now set to '%s'\n", buf);
 		}
 		/* Trim trailing comma */
 		buf[buflen - 1] = '\0';
+		ast_debug(2, "buf is now set to '%s'\n", buf);
 
 		if (resultset) {
 			row = ast_calloc(1, sizeof(*row) + buflen);
@@ -499,7 +510,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 end_acf_read:
 	snprintf(rowcount, sizeof(rowcount), "%d", y);
 	pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
-	pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", colnames);
+	pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", colnames->str);
 	if (resultset) {
 		int uid;
 		struct ast_datastore *odbc_store;
