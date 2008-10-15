@@ -203,10 +203,11 @@ Changes since Asterisk 1.2:
                            1. mohinterpret
                            2. mohsuggest
                2. agents.conf
+                      o multiplelogin variable added
                       o maxlogintries variable added
                       o autologoffunavail variable added
                       o endcall variable added
-                      o agentgoodbye variable added
+                      o goodbye variable added
                       o createlink variable REMOVED
                3. alsa.conf
                       o mohinterpret variable added
