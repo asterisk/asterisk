@@ -6628,51 +6628,82 @@ static int parse_request(struct sip_request *req)
 {
 	char *c = req->data->str, **dst = req->header;
 	int i = 0, lim = SIP_MAX_HEADERS - 1;
+	unsigned int skipping_headers = 0;
 
 	req->header[0] = c;
 	req->headers = -1;	/* mark that we are working on the header */
 	for (; *c; c++) {
-		if (*c == '\r')		/* remove \r */
+		if (*c == '\r') {		/* remove \r */
 			*c = '\0';
-		else if (*c == '\n') { /* end of this line */
+		} else if (*c == '\n') { 	/* end of this line */
 			*c = '\0';
-			if (sipdebug)
+			if (skipping_headers) {
+				/* check to see if this line is blank; if so, turn off
+				   the skipping flag, so the next line will be processed
+				   as a body line */
+				if (ast_strlen_zero(dst[i])) {
+					skipping_headers = 0;
+				}
+				dst[i] = c + 1; /* record start of next line */
+				continue;
+			}
+			if (sipdebug) {
 				ast_debug(4, "%7s %2d [%3d]: %s\n",
-					req->headers < 0 ? "Header" : "Body",
-					i, (int)strlen(dst[i]), dst[i]);
+					  req->headers < 0 ? "Header" : "Body",
+					  i, (int) strlen(dst[i]), dst[i]);
+			}
 			if (ast_strlen_zero(dst[i]) && req->headers < 0) {
 				req->headers = i;	/* record number of header lines */
 				dst = req->line;	/* start working on the body */
 				i = 0;
 				lim = SIP_MAX_LINES - 1;
 			} else {	/* move to next line, check for overflows */
-				if (i++ >= lim)
-					break;
+				if (i++ == lim) {
+					/* if we're processing headers, then skip any remaining
+					   headers and move on to processing the body, otherwise
+					   we're done */
+					if (req->headers != -1) {
+						break;
+					} else {
+						req->headers = i;
+						dst = req->line;
+						i = 0;
+						lim = SIP_MAX_LINES - 1;
+						skipping_headers = 1;
+					}
+				}
 			}
 			dst[i] = c + 1; /* record start of next line */
 		}
         }
-	/* Check for last header without CRLF. The RFC for SDP requires CRLF,
-	   but since some devices send without, we'll be generous in what we accept.
+
+	/* Check for last header or body line without CRLF. The RFC for SDP requires CRLF,
+	   but since some devices send without, we'll be generous in what we accept. However,
+	   if we've already reached the maximum number of lines for portion of the message
+	   we were parsing, we can't accept any more, so just ignore it.
 	*/
-	if (!ast_strlen_zero(dst[i])) {
-		if (sipdebug)
+	if ((i < lim) && !ast_strlen_zero(dst[i])) {
+		if (sipdebug) {
 			ast_debug(4, "%7s %2d [%3d]: %s\n",
-				req->headers < 0 ? "Header" : "Body",
-				i, (int)strlen(dst[i]), dst[i]);
+				  req->headers < 0 ? "Header" : "Body",
+				  i, (int) strlen(dst[i]), dst[i]);
+		}
 		i++;
 	}
+
 	/* update count of header or body lines */
-	if (req->headers >= 0)	/* we are in the body */
+	if (req->headers >= 0) {	/* we are in the body */
 		req->lines = i;
-	else {			/* no body */
+	} else {			/* no body */
 		req->headers = i;
 		req->lines = 0;
 		req->line[0] = "";
 	}
 
-	if (*c)
+	if (*c) {
 		ast_log(LOG_WARNING, "Too many lines, skipping <%s>\n", c);
+	}
+
 	/* Split up the first line parts */
 	return determine_firstline_parts(req);
 }
