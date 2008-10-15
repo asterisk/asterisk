@@ -1314,7 +1314,7 @@ struct sip_pvt {
 	int jointnoncodeccapability;            /*!< Joint Non codec capability */
 	int redircodecs;			/*!< Redirect codecs */
 	int maxcallbitrate;			/*!< Maximum Call Bitrate for Video Calls */	
-	struct sip_proxy *outboundproxy;	/*!< Outbound proxy for this dialog */
+	struct sip_proxy *outboundproxy;	/*!< Outbound proxy for this dialog. Use ref_proxy to set this instead of setting it directly */
 	struct t38properties t38;		/*!< T38 settings */
 	struct sockaddr_in udptlredirip;	/*!< Where our T.38 UDPTL should be going if not to us */
 	struct ast_udptl *udptl;		/*!< T.38 UDPTL session */
@@ -2463,6 +2463,31 @@ static struct sip_peer *ref_peer(struct sip_peer *peer, char *tag)
 	return peer;
 }
 
+/*! \brief maintain proper refcounts for a sip_pvt's outboundproxy
+ *
+ * This function sets pvt's outboundproxy pointer to the one referenced
+ * by the proxy parameter. Because proxy may be a refcounted object, and
+ * because pvt's old outboundproxy may also be a refcounted object, we need
+ * to maintain the proper refcounts.
+ *
+ * \param pvt The sip_pvt for which we wish to set the outboundproxy
+ * \param proxy The sip_proxy which we will point pvt towards.
+ * \return Returns void
+ */
+static struct sip_proxy *ref_proxy(struct sip_pvt *pvt, struct sip_proxy *proxy)
+{
+	struct sip_proxy *old_obproxy = pvt->outboundproxy;
+	/* Cool, now get the refs correct */
+	if (proxy && proxy != &global_outboundproxy) {
+		ao2_ref(proxy, +1);
+	}
+	pvt->outboundproxy = proxy;
+	if (old_obproxy && old_obproxy != &global_outboundproxy) {
+		ao2_ref(old_obproxy, -1);
+	}
+	return proxy;
+}
+
 /*!
  * \brief Unlink a dialog from the dialogs container, as well as any other places
  * that it may be currently stored.
@@ -2597,7 +2622,7 @@ static int proxy_update(struct sip_proxy *proxy)
 static struct sip_proxy *proxy_allocate(char *name, char *port, int force)
 {
 	struct sip_proxy *proxy;
-	proxy = ast_calloc(1, sizeof(*proxy));
+	proxy = ao2_alloc(sizeof(*proxy), NULL);
 	if (!proxy)
 		return NULL;
 	proxy->force = force;
@@ -3244,8 +3269,9 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 	  If obforcing is set, we will keep the outbound proxy during the whole
 	  dialog, regardless of what the SIP rfc says
 	*/
-	if (p->outboundproxy && !p->outboundproxy->force)
-		p->outboundproxy = NULL;
+	if (p->outboundproxy && !p->outboundproxy->force){
+		ref_proxy(p, NULL);
+	}
 
 	for (cur = p->packets; cur; prev = cur, cur = cur->next) {
 		if (cur->seqno != seqno || cur->is_resp != resp)
@@ -3780,7 +3806,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 {
 	ast_debug(3, "Destroying SIP peer %s\n", peer->name);
 	if (peer->outboundproxy)
-		ast_free(peer->outboundproxy);
+		ao2_ref(peer->outboundproxy, -1);
 	peer->outboundproxy = NULL;
 
 	/* Delete it, it needs to disappear */
@@ -4258,7 +4284,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	ast_string_field_set(dialog, fullcontact, peer->fullcontact);
 	ast_string_field_set(dialog, context, peer->context);
 	ast_string_field_set(dialog, parkinglot, peer->parkinglot);
-	dialog->outboundproxy = obproxy_get(dialog, peer);
+	ref_proxy(dialog, obproxy_get(dialog, peer));
 	dialog->callgroup = peer->callgroup;
 	dialog->pickupgroup = peer->pickupgroup;
 	dialog->allowtransfer = peer->allowtransfer;
@@ -4354,7 +4380,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 	ast_string_field_set(dialog, tohost, peername);
 
 	/* Get the outbound proxy information */
-	dialog->outboundproxy = obproxy_get(dialog, NULL);
+	ref_proxy(dialog, obproxy_get(dialog, NULL));
 
 	/* If we have an outbound proxy, don't bother with DNS resolution at all */
 	if (dialog->outboundproxy)
@@ -9778,7 +9804,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		if (p->do_history)
 			append_history(p, "RegistryInit", "Account: %s@%s", r->username, r->hostname);
 
-		p->outboundproxy = obproxy_get(p, NULL);
+		ref_proxy(p, obproxy_get(p, NULL));
 
 		/* Use port number specified if no SRV record was found */
 		if (!r->us.sin_port && r->portno)
