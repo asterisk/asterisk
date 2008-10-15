@@ -6886,28 +6886,28 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	
 	o = get_sdp(req, "o");
 	if (ast_strlen_zero(o)) {
-		ast_log(LOG_WARNING, "SDP sytax error. SDP without an o= line\n");
+		ast_log(LOG_WARNING, "SDP syntax error. SDP without an o= line\n");
 		return -1;
 	}
 
 	o_copy = ast_strdupa(o);
 	token = strsep(&o_copy, " ");  /* Skip username   */
 	if (!o_copy) { 
-		ast_log(LOG_WARNING, "SDP sytax error in o= line username\n");
+		ast_log(LOG_WARNING, "SDP syntax error in o= line username\n");
 		return -1;
 	}
 	token = strsep(&o_copy, " ");  /* Skip session-id */
 	if (!o_copy) { 
-		ast_log(LOG_WARNING, "SDP sytax error in o= line session-id\n");
+		ast_log(LOG_WARNING, "SDP syntax error in o= line session-id\n");
 		return -1;
 	}
 	token = strsep(&o_copy, " ");  /* Version         */
 	if (!o_copy) { 
-		ast_log(LOG_WARNING, "SDP sytax error in o= line\n");
+		ast_log(LOG_WARNING, "SDP syntax error in o= line\n");
 		return -1;
 	}
 	if (!sscanf(token, "%d", &rua_version)) {
-		ast_log(LOG_WARNING, "SDP sytax error in o= line version\n");
+		ast_log(LOG_WARNING, "SDP syntax error in o= line version\n");
 		return -1;
 	}
 
@@ -6916,7 +6916,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		p->session_modify = TRUE;
 	} else if (p->sessionversion_remote == rua_version) {
 		p->session_modify = FALSE;
-		ast_debug(2, "SDP version number same as previous SDP\n");
+		ast_debug(2, "SDP version number same as previous SDP. Not parsing this SDP.\n");
 		return 0;
 	} 
 
