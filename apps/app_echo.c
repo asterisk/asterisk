@@ -54,8 +54,9 @@ static int echo_exec(struct ast_channel *chan, void *data)
 
 	while (ast_waitfor(chan, -1) > -1) {
 		struct ast_frame *f = ast_read(chan);
-		if (!f)
+		if (!f) {
 			break;
+		}
 		f->delivery.tv_sec = 0;
 		f->delivery.tv_usec = 0;
 		if (ast_write(chan, f)) {
