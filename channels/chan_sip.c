@@ -7816,7 +7816,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		seqno = p->ocseq;
 	}
 	
-	if (sipmethod == SIP_CANCEL) {
+	if (sipmethod == SIP_CANCEL || sipmethod == SIP_INVITE) {
 		p->branch = p->invite_branch;
 		build_via(p);
 	} else if (newbranch) {
