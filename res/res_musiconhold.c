@@ -65,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/manager.h"
+#include "asterisk/paths.h"
 
 #define INITIAL_NUM_FILES   8
 
@@ -906,6 +907,7 @@ static int moh_scan_files(struct mohclass *class) {
 
 	DIR *files_DIR;
 	struct dirent *files_dirent;
+	char dir_path[PATH_MAX];
 	char path[PATH_MAX];
 	char filepath[PATH_MAX];
 	char *ext;
@@ -913,9 +915,17 @@ static int moh_scan_files(struct mohclass *class) {
 	int dirnamelen;
 	int i;
 
-	files_DIR = opendir(class->dir);
+	if (class->dir[0] != '/') {
+		ast_copy_string(dir_path, ast_config_AST_VAR_DIR, sizeof(dir_path));
+		strncat(dir_path, "/", sizeof(dir_path));
+		strncat(dir_path, class->dir, sizeof(dir_path));
+	} else {
+		ast_copy_string(dir_path, class->dir, sizeof(dir_path));
+	}
+	ast_debug(4, "Scanning '%s' for files for class '%s'\n", dir_path, class->name);
+	files_DIR = opendir(dir_path);
 	if (!files_DIR) {
-		ast_log(LOG_WARNING, "Cannot open dir %s or dir does not exist\n", class->dir);
+		ast_log(LOG_WARNING, "Cannot open dir %s or dir does not exist\n", dir_path);
 		return -1;
 	}
 
@@ -923,9 +933,9 @@ static int moh_scan_files(struct mohclass *class) {
 		ast_free(class->filearray[i]);
 
 	class->total_files = 0;
-	dirnamelen = strlen(class->dir) + 2;
+	dirnamelen = strlen(dir_path) + 2;
 	getcwd(path, sizeof(path));
-	chdir(class->dir);
+	chdir(dir_path);
 	while ((files_dirent = readdir(files_DIR))) {
 		/* The file name must be at least long enough to have the file type extension */
 		if ((strlen(files_dirent->d_name) < 4))
@@ -939,7 +949,7 @@ static int moh_scan_files(struct mohclass *class) {
 		if (!strchr(files_dirent->d_name, '.'))
 			continue;
 
-		snprintf(filepath, sizeof(filepath), "%s/%s", class->dir, files_dirent->d_name);
+		snprintf(filepath, sizeof(filepath), "%s/%s", dir_path, files_dirent->d_name);
 
 		if (stat(filepath, &statbuf))
 			continue;

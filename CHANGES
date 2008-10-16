@@ -33,6 +33,8 @@ Miscellaneous
    as previously used on the last "exten" line.  For example:
      exten => 123,1,NoOp(something)
      same  =>     n,SomethingElse()
+ * musiconhold.conf classes of type 'files' can now use relative directory paths,
+   which are interpreted as relative to the astvarlibdir setting in asterisk.conf.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.0 to Asterisk 1.6.1  -------------

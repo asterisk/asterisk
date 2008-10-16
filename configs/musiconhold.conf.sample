@@ -29,6 +29,11 @@
 ; Files can be present in as many formats as you wish, and the
 ; 'best' format will be chosen at playback time.
 ;
+; The path specified can be either an absolute path (starts with '/'),
+; or a relative path; relative paths are interpreted as being relative
+; to the 'astvarlibdir' in asterisk.conf, which defaults to
+; /var/lib/asterisk.
+;
 ; NOTE:
 ; If you are not using "autoload" in modules.conf, then you
 ; must ensure that the format modules for any formats you wish
@@ -39,11 +44,11 @@
 
 [default]
 mode=files
-directory=/var/lib/asterisk/moh
+directory=moh
 ;
 ;[native-random]
 ;mode=files
-;directory=/var/lib/asterisk/moh
+;directory=moh
 ;digit=#        ; If this option is set for a class, then when callers are
 ;               ; listening to music on hold, they can press this digit, and
 ;               ; they will switch to listening to this music class.
@@ -51,7 +56,7 @@ directory=/var/lib/asterisk/moh
 
 ;[native-alphabetical]
 ;mode=files
-;directory=/var/lib/asterisk/moh
+;directory=moh
 ;sort=alpha     ; Sort the files in alphabetical order.  If this option is
 ;               ; not specified, the sort order is undefined.
 
