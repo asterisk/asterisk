@@ -5574,6 +5574,7 @@ void misdn_jb_destroy(struct misdn_jb *jb)
 {
 	ast_mutex_destroy(&jb->mutexjb);
 	
+	ast_free(jb->ok);
 	ast_free(jb->samples);
 	ast_free(jb);
 }
