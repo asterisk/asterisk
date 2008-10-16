@@ -909,7 +909,7 @@ static int set_config(void)
 	}
 
 	if (!(cfg = ast_config_load("users.conf", config_flags))) {
-		ast_log(LOG_WARNING, "Unable to load users.cfg\n");
+		ast_log(LOG_WARNING, "Unable to load users.conf\n");
 		return 0;
 	}
 
