@@ -1958,6 +1958,10 @@ static int sms_exec(struct ast_channel *chan, void *data)
 		res = h.err;
 		goto done;
 	}
+	
+	if (chan->_state != AST_STATE_UP) {		/* make sure channel is answered before any TX */
+		ast_answer(chan);
+	}
 
 	if (ast_test_flag(&flags, OPTION_ANSWER)) {
 		h.framenumber = 1;                  /* Proto 2 */
@@ -1970,10 +1974,6 @@ static int sms_exec(struct ast_channel *chan, void *data)
 			h.omsg[1] = 0;
 		}
 		sms_messagetx(&h);
-	}
-
-	if (chan->_state != AST_STATE_UP) {
-		ast_answer(chan);
 	}
 
 	res = ast_set_write_format(chan, __OUT_FMT);
