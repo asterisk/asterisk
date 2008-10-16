@@ -32,16 +32,27 @@
  * \note TCP/TLS support is EXPERIMENTAL and WILL CHANGE. This applies to configuration
  *	settings, dialplan commands and dialplans apps/functions
  * 
- *
- * TODO:s
- * \todo Better support of forking
- * \todo VIA branch tag transaction checking
- * \todo Transaction support
- * \todo We need to test TCP sessions with SIP proxies and in regards
- *       to the SIP outbound specs.
+ * ******** TCP implementation changes needed
  * \todo Fix TCP/TLS handling in dialplan, SRV records, transfers and much more
  * \todo Save TCP/TLS sessions in registry
  * \todo Add TCP/TLS information to function SIPPEER and SIPCHANINFO
+ * \todo If tcpenable=yes, we must open a TCP socket on the same address as the IP for UDP.
+ * 	 The tcpbindaddr config option should only be used to open ADDITIONAL ports
+ * \todo Be prepared for one outbound and another incoming socket per pvt. This applies
+ *       specially to communication with other peers (proxies).
+ * \todo We need to test TCP sessions with SIP proxies and in regards
+ *       to the SIP outbound specs.
+ * \todo transport=tls was deprecated in RFC3261 and should not be used at all. See section 22.2.2.
+ * \todo If the message is smaller than the given Content-length, the request should get a 400 Bad request
+ *       message. If it's a response, it should be dropped. (RFC 3261, Section 18.3)
+ * \todo Since we have had multidomain support in Asterisk for quite a while, we need to support
+ *       multiple domains in our TLS implementation, meaning one socket and one cert per domain
+ *
+ *
+ * ******** General TODO:s
+ * \todo Better support of forking
+ * \todo VIA branch tag transaction checking
+ * \todo Transaction support
  *
  * \ingroup channel_drivers
  *
@@ -647,7 +658,7 @@ static const struct cfsip_options {
 
 
 /*! \brief SIP Methods we support 
-	\todo This string should be set dynamically. We only support REFER and SUBSCRIBE is we have
+	\todo This string should be set dynamically. We only support REFER and SUBSCRIBE if we have
 	allowsubscribe and allowrefer on in sip.conf.
 */
 #define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY"
