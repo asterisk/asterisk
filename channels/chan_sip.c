@@ -1397,7 +1397,7 @@ struct sip_pvt {
 							you know more) */
 	struct sip_st_dlg *stimer;		/*!< SIP Session-Timers */              
   
-	int red; 
+	int red; 				/*!< T.140 RTP Redundancy */
 
 	struct sip_subscription_mwi *mwi;       /*!< If this is a subscription MWI dialog, to which subscription */
 };
