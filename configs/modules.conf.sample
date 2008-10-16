@@ -18,9 +18,6 @@ autoload=yes
 ;preload => res_odbc.so
 ;preload => res_config_odbc.so
 ;
-; res_phoneprov requires func_strings.so to be loaded:
-preload => func_strings.so
-;
 ; Uncomment the following if you wish to use the Speech Recognition API
 ;preload => res_speech.so
 ;
