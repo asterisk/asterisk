@@ -1804,10 +1804,7 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	}
 
 	if (varname[strlen(varname) - 1] == ')') {
-		if (!c) {
-			astman_send_error(s, m, "No such channel");
-			return 0;
-		}
+
 		ast_func_read(c, (char *) varname, workspace, sizeof(workspace));
 		varval = workspace;
 	} else {
