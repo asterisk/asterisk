@@ -26,10 +26,6 @@
  * \author Terry Wilson <twilson@digium.com>
  */
 
-/*** MODULEINFO
-	<depend>func_strings</depend>
- ***/
-
 #include "asterisk.h"
 
 #include <ctype.h>
