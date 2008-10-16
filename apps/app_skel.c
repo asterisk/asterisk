@@ -14,6 +14,9 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
+ *
+ * Please follow coding guidelines 
+ * http://svn.digium.com/view/asterisk/trunk/doc/CODING-GUIDELINES
  */
 
 /*! \file
@@ -89,20 +92,25 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (args.argc == 2)
+	if (args.argc == 2) {
 		ast_app_parse_options(app_opts, &flags, opts, args.options);
+	}
 
-	if (!ast_strlen_zero(args.dummy)) 
+	if (!ast_strlen_zero(args.dummy)) {
 		ast_log(LOG_NOTICE, "Dummy value is : %s\n", args.dummy);
+	}
 
-	if (ast_test_flag(&flags, OPTION_A))
+	if (ast_test_flag(&flags, OPTION_A)) {
 		ast_log(LOG_NOTICE, "Option A is set\n");
+	}
 
-	if (ast_test_flag(&flags, OPTION_B))
+	if (ast_test_flag(&flags, OPTION_B)) {
 		ast_log(LOG_NOTICE, "Option B is set with : %s\n", opts[OPTION_ARG_B] ? opts[OPTION_ARG_B] : "<unspecified>");
+	}
 
-	if (ast_test_flag(&flags, OPTION_C))
+	if (ast_test_flag(&flags, OPTION_C)) {
 		ast_log(LOG_NOTICE, "Option C is set with : %s\n", opts[OPTION_ARG_C] ? opts[OPTION_ARG_C] : "<unspecified>");
+	}
 
 	return res;
 }
