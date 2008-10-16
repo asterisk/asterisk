@@ -84,9 +84,12 @@ static SQLHSTMT	ODBC_stmt;			/* global ODBC Statement Handle */
 
 static void odbc_disconnect(void)
 {
+	ODBC_stmt = SQL_NULL_HANDLE;
 	SQLDisconnect(ODBC_con);
 	SQLFreeHandle(SQL_HANDLE_DBC, ODBC_con);
+	ODBC_con = SQL_NULL_HANDLE;
 	SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
+	ODBC_env = SQL_NULL_HANDLE;
 	connected = 0;
 }
 
@@ -119,7 +122,6 @@ static void build_query(struct ast_cdr *cdr, char *timestr, int timesize)
 		res = odbc_init();
 		if (res < 0) {
 			odbc_disconnect();
-			ast_mutex_unlock(&odbc_lock);
 			return;
 		}				
 	}
@@ -130,8 +132,8 @@ static void build_query(struct ast_cdr *cdr, char *timestr, int timesize)
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
+		ODBC_stmt = SQL_NULL_HANDLE;
 		odbc_disconnect();
-		ast_mutex_unlock(&odbc_lock);
 		return;
 	}
 
@@ -145,8 +147,8 @@ static void build_query(struct ast_cdr *cdr, char *timestr, int timesize)
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in PREPARE %d\n", ODBC_res);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
+		ODBC_stmt = SQL_NULL_HANDLE;
 		odbc_disconnect();
-		ast_mutex_unlock(&odbc_lock);
 		return;
 	}
 
@@ -197,6 +199,7 @@ static int odbc_log(struct ast_cdr *cdr)
 				if (option_verbose > 10)
 					ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Trying Query again!\n");
 				SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
+				ODBC_stmt = SQL_NULL_HANDLE;
 				build_query(cdr, timestr, sizeof(timestr)); /* what a waste. If we have to reconnect, we have to build a new query */
 				res = odbc_do_query();
 				if (res < 0) {
@@ -210,6 +213,7 @@ static int odbc_log(struct ast_cdr *cdr)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
 	}
 	SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
+	ODBC_stmt = SQL_NULL_HANDLE;
 	ast_mutex_unlock(&odbc_lock);
 	return 0;
 }
@@ -221,6 +225,7 @@ static int odbc_unload_module(void)
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Disconnecting from %s\n", dsn);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
+		ODBC_stmt = SQL_NULL_HANDLE;
 		odbc_disconnect();
 	}
 	if (dsn) {
@@ -414,6 +419,7 @@ static int odbc_init(void)
 			if (option_verbose > 10)
 				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error SetEnv\n");
 			SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
+			ODBC_env = SQL_NULL_HANDLE;
 			connected = 0;
 			return -1;
 		}
@@ -424,6 +430,7 @@ static int odbc_init(void)
 			if (option_verbose > 10)
 				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error AllocHDB %d\n", ODBC_res);
 			SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
+			ODBC_env = SQL_NULL_HANDLE;
 			connected = 0;
 			return -1;
 		}
@@ -438,7 +445,9 @@ static int odbc_init(void)
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error SQLConnect %d\n", ODBC_res);
 		SQLFreeHandle(SQL_HANDLE_DBC, ODBC_con);
+		ODBC_con = SQL_NULL_HANDLE;
 		SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
+		ODBC_env = SQL_NULL_HANDLE;
 		connected = 0;
 		return -1;
 	} else {
