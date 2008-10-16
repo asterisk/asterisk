@@ -13104,6 +13104,7 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 	time_t *t = arg;
 	
 	/* log_show_lock(ao2_object_get_lockaddr(dialog)); this is an example of how to use log_show_lock() */
+
 	if (sip_pvt_trylock(dialog)) {
 		/* In very short-duration calls via sipp,
 		   this path gets executed fairly frequently (3% or so) even in low load
@@ -13114,6 +13115,7 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 		ao2_unlock(dialogs);
 		usleep(1);
 		ao2_lock(dialogs);
+
 		/* I had previously returned CMP_STOP here; but changed it to return
 		   a zero instead, because there is no need to stop at the first sign
 		   of trouble. The old algorithm would restart in such circumstances,
@@ -13126,18 +13128,6 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 		return 0;
 	}
 	
-	/* We absolutely cannot destroy the rtp struct while a bridge is active or we WILL crash */
-	if (dialog->rtp && ast_rtp_get_bridged(dialog->rtp)) {
-		ast_debug(2, "Bridge still active.  Delaying destruction of SIP dialog '%s' Method: %s\n", dialog->callid, sip_methods[dialog->method].text);
-		sip_pvt_unlock(dialog);
-		return 0;
-	}
-
-	if (dialog->vrtp && ast_rtp_get_bridged(dialog->vrtp)) {
-		ast_debug(2, "Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", dialog->callid, sip_methods[dialog->method].text);
-		sip_pvt_unlock(dialog);
-		return 0;
-	}
 	/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
 	check_rtp_timeout(dialog, *t);
 
@@ -13145,13 +13135,28 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 	/* Check if we have outstanding requests not responsed to or an active call
 	   - if that's the case, wait with destruction */
 	if (dialog->needdestroy && !dialog->packets && !dialog->owner) {
+		/* We absolutely cannot destroy the rtp struct while a bridge is active or we WILL crash */
+		if (dialog->rtp && ast_rtp_get_bridged(dialog->rtp)) {
+			ast_debug(2, "Bridge still active.  Delaying destruction of SIP dialog '%s' Method: %s\n", dialog->callid, sip_methods[dialog->method].text);
+			sip_pvt_unlock(dialog);
+			return 0;
+		}
+		
+		if (dialog->vrtp && ast_rtp_get_bridged(dialog->vrtp)) {
+			ast_debug(2, "Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", dialog->callid, sip_methods[dialog->method].text);
+			sip_pvt_unlock(dialog);
+			return 0;
+		}
+
 		sip_pvt_unlock(dialog);
 		/* no, the unlink should handle this: dialog_unref(dialog, "needdestroy: one more refcount decrement to allow dialog to be destroyed"); */
 		/* the CMP_MATCH will unlink this dialog from the dialog hash table */
 		dialog_unlink_all(dialog, TRUE, FALSE);
 		return 0; /* the unlink_all should unlink this from the table, so.... no need to return a match */
 	}
+
 	sip_pvt_unlock(dialog);
+
 	return 0;
 }
 
