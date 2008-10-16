@@ -2393,8 +2393,7 @@ static void __attempt_transmit(const void *data)
 							send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_TXREJ, 0, ied.buf, ied.pos, -1);
 						}
 					} else if (f->final) {
-						if (f->final) 
-							iax2_destroy(callno);
+						iax2_destroy(callno);
 					} else {
 						if (iaxs[callno]->owner)
 							ast_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", ast_inet_ntoa(iaxs[f->callno]->addr.sin_addr),iaxs[f->callno]->owner->name , f->af.frametype, f->af.subclass, f->ts, f->oseqno);
