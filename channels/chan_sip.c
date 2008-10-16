@@ -4177,9 +4177,25 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 	struct sip_peer *p = NULL;
 	struct sip_peer tmp_peer;
 	
+	auto int find_by_name(void *obj, void *arg, int flags);
+	int find_by_name(void *obj, void *arg, int flags)
+	{
+		struct sip_peer *search = obj, *match = arg;
+
+		if (strcasecmp(search->name, match->name)) {
+			return 0;
+		}
+
+		if (forcenamematch && search->onlymatchonip) {
+			return 0;
+		}
+
+		return CMP_MATCH | CMP_STOP;
+	}
+
 	if (peer) {
 		ast_copy_string(tmp_peer.name, peer, sizeof(tmp_peer.name));
-		p = ao2_t_find(peers, &tmp_peer, OBJ_POINTER, "ao2_find in peers table");
+		p = ao2_t_callback(peers, OBJ_POINTER, find_by_name, &tmp_peer, "ao2_find in peers table");
 	} else if (sin) { /* search by addr? */
 		tmp_peer.addr.sin_addr.s_addr = sin->sin_addr.s_addr;
 		tmp_peer.addr.sin_port = sin->sin_port;
