@@ -1340,7 +1340,7 @@ AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
 
 AST_EXT_LIB_CHECK([PORTAUDIO], [portaudio], [Pa_GetDeviceCount], [portaudio.h])
 
-AST_EXT_LIB_CHECK([PRI], [pri], [pri_get_version], [libpri.h])
+AST_EXT_LIB_CHECK([PRI], [pri], [pri_progress_with_cause], [libpri.h])
 
 AST_EXT_LIB_CHECK([PRI_INBANDDISCONNECT], [pri], [pri_set_inbanddisconnect], [libpri.h])
 
