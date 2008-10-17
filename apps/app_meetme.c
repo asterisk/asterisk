@@ -3391,8 +3391,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			}
 		}
 		if (!ast_strlen_zero(confno)) {
-			char useropts[OPTIONS_LEN];
-			char adminopts[OPTIONS_LEN];
+			char useropts[OPTIONS_LEN] = "";
+			char adminopts[OPTIONS_LEN] = "";
 			/* Check the validity of the conference */
 			cnf = find_conf(chan, confno, 1, dynamic, the_pin, 
 				sizeof(the_pin), 1, &confflags);
