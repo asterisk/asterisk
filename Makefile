@@ -296,7 +296,7 @@ MOD_SUBDIRS_EMBED_LIBS:=$(MOD_SUBDIRS:%=%-embed-libs)
 MOD_SUBDIRS_MENUSELECT_TREE:=$(MOD_SUBDIRS:%=%-menuselect-tree)
 
 ifneq ($(findstring darwin,$(OSARCH)),)
-  ASTCFLAGS+=-D__Darwin__
+  ASTCFLAGS+=-D__Darwin__ -fnested-functions
   SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
 else
 # These are used for all but Darwin
