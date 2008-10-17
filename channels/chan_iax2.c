@@ -2312,8 +2312,9 @@ static void iax2_destroy(int callno)
 	struct ast_channel *owner = NULL;
 
 retry:
-	pvt = iaxs[callno];
-	iax2_destroy_helper(pvt);
+	if ((pvt = iaxs[callno])) {
+		iax2_destroy_helper(pvt);
+	}
 
 	lastused[callno] = ast_tvnow();
 	
