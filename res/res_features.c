@@ -1812,9 +1812,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		} else {
 			ast_cdr_specialized_reset(chan_cdr,0); /* nothing changed, reset the chan_cdr  */
 		}
-		if (strcasecmp(orig_peername, peer->name) != 0) { 
+		chan_ptr = ast_get_channel_by_name_locked(orig_peername);
+		if (chan_ptr && strcasecmp(orig_peername, peer->name) != 0) { 
 			/* old channel */
-			chan_ptr = ast_get_channel_by_name_locked(orig_peername);
 			if (chan_ptr) {
 				if (!ast_bridged_channel(chan_ptr)) {
 					struct ast_cdr *cur;
@@ -1826,13 +1826,15 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					if (cur)
 						ast_cdr_specialized_reset(peer_cdr,0);
 				}
-				ast_channel_unlock(chan_ptr);
 			}
 			/* new channel */
 			ast_cdr_specialized_reset(new_peer_cdr,0);
 		} else {
-			ast_cdr_specialized_reset(peer_cdr,0); /* nothing changed, reset the peer_cdr  */
+			if (chan_ptr)
+				ast_cdr_specialized_reset(peer_cdr,0); /* nothing changed, reset the peer_cdr  */
 		}
+		if (chan_ptr)
+			ast_channel_unlock(chan_ptr);
 	}
 	return res;
 }
