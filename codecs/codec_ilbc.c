@@ -40,10 +40,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "ilbc/iLBC_encode.h"
 #include "ilbc/iLBC_decode.h"
 
-/* Sample frame data */
-#include "slin_ilbc_ex.h"
-#include "ilbc_slin_ex.h"
-
 #define USE_ILBC_ENHANCER	0
 #define ILBC_MS 			30
 /* #define ILBC_MS			20 */
@@ -51,6 +47,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define	ILBC_FRAME_LEN	50	/* apparently... */
 #define	ILBC_SAMPLES	240	/* 30ms at 8000 hz */
 #define	BUFFER_SAMPLES	8000
+
+/* Sample frame data */
+#include "asterisk/slin.h"
+#include "ex_ilbc.h"
 
 struct ilbc_coder_pvt {
 	iLBC_Enc_Inst_t enc;
@@ -75,35 +75,6 @@ static int ilbctolin_new(struct ast_trans_pvt *pvt)
 	initDecode(&tmp->dec, ILBC_MS, USE_ILBC_ENHANCER);
 
 	return 0;
-}
-
-static struct ast_frame *lintoilbc_sample(void)
-{
-	static struct ast_frame f;
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = AST_FORMAT_SLINEAR;
-	f.datalen = sizeof(slin_ilbc_ex);
-	f.samples = sizeof(slin_ilbc_ex)/2;
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
-	f.data.ptr = slin_ilbc_ex;
-	return &f;
-}
-
-static struct ast_frame *ilbctolin_sample(void)
-{
-	static struct ast_frame f;
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = AST_FORMAT_ILBC;
-	f.datalen = sizeof(ilbc_slin_ex);
-	/* All frames are 30 ms long */
-	f.samples = ILBC_SAMPLES;
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
-	f.data.ptr = ilbc_slin_ex;
-	return &f;
 }
 
 /*! \brief decode a frame and store in outbuf */
@@ -194,7 +165,7 @@ static struct ast_translator ilbctolin = {
 	.dstfmt = AST_FORMAT_SLINEAR,
 	.newpvt = ilbctolin_new,
 	.framein = ilbctolin_framein,
-	.sample = ilbctolin_sample,
+	.sample = ilbc_sample,
 	.desc_size = sizeof(struct ilbc_coder_pvt),
 	.buf_size = BUFFER_SAMPLES * 2,
 	.native_plc = 1,
@@ -207,7 +178,7 @@ static struct ast_translator lintoilbc = {
 	.newpvt = lintoilbc_new,
 	.framein = lintoilbc_framein,
 	.frameout = lintoilbc_frameout,
-	.sample = lintoilbc_sample,
+	.sample = slin8_sample,
 	.desc_size = sizeof(struct ilbc_coder_pvt),
 	.buf_size = (BUFFER_SAMPLES * ILBC_FRAME_LEN + ILBC_SAMPLES - 1) / ILBC_SAMPLES,
 };

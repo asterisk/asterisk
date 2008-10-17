@@ -36,9 +36,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define BUFFER_SAMPLES   8096	/* size for the translation buffers */
 
 /* Sample frame data */
-
-#include "slin_ulaw_ex.h"
-#include "ulaw_slin_ex.h"
+#include "asterisk/slin.h"
+#include "ex_ulaw.h"
 
 /*! \brief convert and store samples in outbuf */
 static int ulawtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
@@ -73,40 +72,6 @@ static int lintoulaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	return 0;
 }
 
-/*!  * \brief ulawToLin_Sample */
-static struct ast_frame *ulawtolin_sample(void)
-{
-	static struct ast_frame f;
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = AST_FORMAT_ULAW;
-	f.datalen = sizeof(ulaw_slin_ex);
-	f.samples = sizeof(ulaw_slin_ex);
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
-	f.data.ptr = ulaw_slin_ex;
-	return &f;
-}
-
-/*!
- * \brief LinToulaw_Sample
- */
-
-static struct ast_frame *lintoulaw_sample(void)
-{
-	static struct ast_frame f;
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = AST_FORMAT_SLINEAR;
-	f.datalen = sizeof(slin_ulaw_ex);
-	/* Assume 8000 Hz */
-	f.samples = sizeof(slin_ulaw_ex) / 2;
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
-	f.data.ptr = slin_ulaw_ex;
-	return &f;
-}
-
 /*!
  * \brief The complete translator for ulawToLin.
  */
@@ -116,7 +81,7 @@ static struct ast_translator ulawtolin = {
 	.srcfmt = AST_FORMAT_ULAW,
 	.dstfmt = AST_FORMAT_SLINEAR,
 	.framein = ulawtolin_framein,
-	.sample = ulawtolin_sample,
+	.sample = ulaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
 	.plc_samples = 160,
@@ -131,7 +96,7 @@ static struct ast_translator lintoulaw = {
 	.srcfmt = AST_FORMAT_SLINEAR,
 	.dstfmt = AST_FORMAT_ULAW,
 	.framein = lintoulaw_framein,
-	.sample = lintoulaw_sample,
+	.sample = slin8_sample,
 	.buf_size = BUFFER_SAMPLES,
 	.buffer_samples = BUFFER_SAMPLES,
 };

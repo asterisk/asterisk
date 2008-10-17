@@ -49,7 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
 
-#include "slin_resample_ex.h"
+#include "asterisk/slin.h"
 
 #define RESAMPLER_QUALITY 1
 
@@ -69,9 +69,9 @@ static int slin16_to_slin8_new(struct ast_trans_pvt *pvt)
 {
 	struct slin16_to_slin8_pvt *resamp_pvt = pvt->pvt;
 
-	resamp_pvt->resample_factor = 0.5;
+	resamp_pvt->resample_factor = 8000.0 / 16000.0;
 
-	if (!(resamp_pvt->resampler = resample_open(RESAMPLER_QUALITY, 0.5, 0.5)))
+	if (!(resamp_pvt->resampler = resample_open(RESAMPLER_QUALITY, resamp_pvt->resample_factor, resamp_pvt->resample_factor)))
 		return -1;
 
 	return 0;
@@ -81,9 +81,9 @@ static int slin8_to_slin16_new(struct ast_trans_pvt *pvt)
 {
 	struct slin8_to_slin16_pvt *resamp_pvt = pvt->pvt;
 
-	resamp_pvt->resample_factor = 2.0;
+	resamp_pvt->resample_factor = 16000.0 / 8000.0;
 
-	if (!(resamp_pvt->resampler = resample_open(RESAMPLER_QUALITY, 2.0, 2.0)))
+	if (!(resamp_pvt->resampler = resample_open(RESAMPLER_QUALITY, resamp_pvt->resample_factor, resamp_pvt->resample_factor)))
 		return -1;
 
 	return 0;
@@ -168,34 +168,6 @@ static int slin8_to_slin16_framein(struct ast_trans_pvt *pvt, struct ast_frame *
 	return resample_frame(pvt, resampler, resample_factor, f);
 }
 
-static struct ast_frame *slin16_to_slin8_sample(void)
-{
-	static struct ast_frame f = {
-		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_SLINEAR16,
-		.datalen = sizeof(slin16_slin8_ex),
-		.samples = ARRAY_LEN(slin16_slin8_ex),
-		.src = __PRETTY_FUNCTION__,
-		.data.ptr = slin16_slin8_ex,
-	};
-
-	return &f;
-}
-
-static struct ast_frame *slin8_to_slin16_sample(void)
-{
-	static struct ast_frame f = {
-		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_SLINEAR,
-		.datalen = sizeof(slin8_slin16_ex),
-		.samples = ARRAY_LEN(slin8_slin16_ex),
-		.src = __PRETTY_FUNCTION__,
-		.data.ptr = slin8_slin16_ex,
-	};
-
-	return &f;
-}
-
 static struct ast_translator slin16_to_slin8 = {
 	.name = "slin16_to_slin8",
 	.srcfmt = AST_FORMAT_SLINEAR16,
@@ -203,7 +175,7 @@ static struct ast_translator slin16_to_slin8 = {
 	.newpvt = slin16_to_slin8_new,
 	.destroy = slin16_to_slin8_destroy,
 	.framein = slin16_to_slin8_framein,
-	.sample = slin16_to_slin8_sample,
+	.sample = slin16_sample,
 	.desc_size = sizeof(struct slin16_to_slin8_pvt),
 	.buffer_samples = (OUTBUF_SIZE / sizeof(int16_t)),
 	.buf_size = OUTBUF_SIZE,
@@ -216,7 +188,7 @@ static struct ast_translator slin8_to_slin16 = {
 	.newpvt = slin8_to_slin16_new,
 	.destroy = slin8_to_slin16_destroy,
 	.framein = slin8_to_slin16_framein,
-	.sample = slin8_to_slin16_sample,
+	.sample = slin8_sample,
 	.desc_size = sizeof(struct slin8_to_slin16_pvt),
 	.buffer_samples = (OUTBUF_SIZE / sizeof(int16_t)),
 	.buf_size = OUTBUF_SIZE,

@@ -53,10 +53,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/utils.h"
 
-/* Sample frame data */
-#include "slin_speex_ex.h"
-#include "speex_slin_ex.h"
-
 /* codec variables */
 static int quality = 3;
 static int complexity = 2;
@@ -83,6 +79,10 @@ static float pp_dereverb_level = 0.3;
 
 #define	BUFFER_SAMPLES	8000
 #define	SPEEX_SAMPLES	160
+
+/* Sample frame data */
+#include "asterisk/slin.h"
+#include "ex_speex.h"
 
 struct speex_coder_pvt {
 	void *speex;
@@ -152,36 +152,6 @@ static int speextolin_new(struct ast_trans_pvt *pvt)
 		speex_decoder_ctl(tmp->speex, SPEEX_SET_ENH, &enhancement);
 
 	return 0;
-}
-
-static struct ast_frame *lintospeex_sample(void)
-{
-	static struct ast_frame f;
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = AST_FORMAT_SLINEAR;
-	f.datalen = sizeof(slin_speex_ex);
-	/* Assume 8000 Hz */
-	f.samples = sizeof(slin_speex_ex)/2;
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
-	f.data.ptr = slin_speex_ex;
-	return &f;
-}
-
-static struct ast_frame *speextolin_sample(void)
-{
-	static struct ast_frame f;
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = AST_FORMAT_SPEEX;
-	f.datalen = sizeof(speex_slin_ex);
-	/* All frames are 20 ms long */
-	f.samples = SPEEX_SAMPLES;
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
-	f.data.ptr = speex_slin_ex;
-	return &f;
 }
 
 /*! \brief convert and store into outbuf */
@@ -346,7 +316,7 @@ static struct ast_translator speextolin = {
 	.newpvt = speextolin_new,
 	.framein = speextolin_framein,
 	.destroy = speextolin_destroy,
-	.sample = speextolin_sample,
+	.sample = speex_sample,
 	.desc_size = sizeof(struct speex_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
@@ -361,7 +331,7 @@ static struct ast_translator lintospeex = {
 	.framein = lintospeex_framein,
 	.frameout = lintospeex_frameout,
 	.destroy = lintospeex_destroy,
-	.sample = lintospeex_sample,
+	.sample = slin8_sample,
 	.desc_size = sizeof(struct speex_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2, /* XXX maybe a lot less ? */

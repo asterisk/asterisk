@@ -58,9 +58,8 @@ typedef long long sint64;
 #define BUF_SHIFT	5
 
 /* Sample frame data */
-
-#include "slin_g726_ex.h"
-#include "g726_slin_ex.h"
+#include "asterisk/slin.h"
+#include "ex_g726.h"
 
 /*
  * The following is the definition of the state structure
@@ -786,41 +785,13 @@ static int g726tog726aal2_framein(struct ast_trans_pvt *pvt, struct ast_frame *f
 	return 0;
 }
 
-static struct ast_frame *g726tolin_sample(void)
-{
-	static struct ast_frame f = {
-		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_G726,
-		.datalen = sizeof(g726_slin_ex),
-		.samples = sizeof(g726_slin_ex) * 2,	/* 2 samples per byte */
-		.src = __PRETTY_FUNCTION__,
-		.data.ptr = g726_slin_ex,
-	};
-
-	return &f;
-}
-
-static struct ast_frame *lintog726_sample (void)
-{
-	static struct ast_frame f = {
-		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_SLINEAR,
-		.datalen = sizeof(slin_g726_ex),
-		.samples = sizeof(slin_g726_ex) / 2,	/* 1 sample per 2 bytes */
-		.src = __PRETTY_FUNCTION__,
-		.data.ptr = slin_g726_ex,
-	};
-
-	return &f;
-}
-
 static struct ast_translator g726tolin = {
 	.name = "g726tolin",
 	.srcfmt = AST_FORMAT_G726,
 	.dstfmt = AST_FORMAT_SLINEAR,
 	.newpvt = lintog726_new,	/* same for both directions */
 	.framein = g726tolin_framein,
-	.sample = g726tolin_sample,
+	.sample = g726_sample,
 	.desc_size = sizeof(struct g726_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
@@ -833,7 +804,7 @@ static struct ast_translator lintog726 = {
 	.dstfmt = AST_FORMAT_G726,
 	.newpvt = lintog726_new,	/* same for both directions */
 	.framein = lintog726_framein,
-	.sample = lintog726_sample,
+	.sample = slin8_sample,
 	.desc_size = sizeof(struct g726_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES/2,
@@ -845,7 +816,7 @@ static struct ast_translator g726aal2tolin = {
 	.dstfmt = AST_FORMAT_SLINEAR,
 	.newpvt = lintog726_new,	/* same for both directions */
 	.framein = g726aal2tolin_framein,
-	.sample = g726tolin_sample,
+	.sample = g726_sample,
 	.desc_size = sizeof(struct g726_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
@@ -858,7 +829,7 @@ static struct ast_translator lintog726aal2 = {
 	.dstfmt = AST_FORMAT_G726_AAL2,
 	.newpvt = lintog726_new,	/* same for both directions */
 	.framein = lintog726aal2_framein,
-	.sample = lintog726_sample,
+	.sample = slin8_sample,
 	.desc_size = sizeof(struct g726_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES / 2,
@@ -869,7 +840,7 @@ static struct ast_translator g726tog726aal2 = {
 	.srcfmt = AST_FORMAT_G726,
 	.dstfmt = AST_FORMAT_G726_AAL2,
 	.framein = g726tog726aal2_framein,	/* same for both directions */
-	.sample = lintog726_sample,
+	.sample = g726_sample,
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES,
 };
@@ -879,7 +850,7 @@ static struct ast_translator g726aal2tog726 = {
 	.srcfmt = AST_FORMAT_G726_AAL2,
 	.dstfmt = AST_FORMAT_G726,
 	.framein = g726tog726aal2_framein,	/* same for both directions */
-	.sample = lintog726_sample,
+	.sample = g726_sample,
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES,
 };
