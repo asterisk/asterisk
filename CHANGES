@@ -308,6 +308,8 @@ AMI - The manager (TCP/TLS/HTTP)
   * Originate now accepts codec settings with "Codecs: alaw, ulaw, h264" 
   * New command: Atxfer. See doc/manager_1_1.txt for more details or 
     manager show command Atxfer from the CLI
+  * New command: IAXregistry. See doc/manager_1_1.txt for more details or
+    manager show command IAXregistry from the CLI
 
 Dialplan functions
 ------------------

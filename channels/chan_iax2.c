@@ -5525,6 +5525,55 @@ static char *handle_cli_iax2_show_registry(struct ast_cli_entry *e, int cmd, str
 #undef FORMAT2
 }
 
+static int manager_iax2_show_registry(struct mansession *s, const struct message *m)
+{
+	const char *id = astman_get_header(m, "ActionID");
+	struct iax2_registry *reg = NULL;
+	char idtext[256] = "";
+	char host[80] = "";
+	char perceived[80] = "";
+	int total = 0;
+
+	if (!ast_strlen_zero(id))
+		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
+
+	astman_send_listack(s, m, "Registrations will follow", "start");
+
+	AST_LIST_LOCK(&registrations);
+	AST_LIST_TRAVERSE(&registrations, reg, entry) {
+		snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(reg->addr.sin_addr), ntohs(reg->addr.sin_port));
+		
+		if (reg->us.sin_addr.s_addr) {
+			snprintf(perceived, sizeof(perceived), "%s:%d", ast_inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
+		} else {
+			ast_copy_string(perceived, "<Unregistered>", sizeof(perceived));
+		}
+		
+		astman_append(s,
+			"Event: RegistryEntry\r\n"
+			"Host: %s\r\n"
+			"DNSmanager: %s\r\n"
+			"Username: %s\r\n"
+			"Perceived: %s\r\n"
+			"Refresh: %d\r\n"
+			"State: %s\r\n"
+			"\r\n", host, (reg->dnsmgr) ? "Y" : "N", reg->username, perceived, 
+			reg->refresh, regstate2str(reg->regstate));
+
+		total++;
+	}
+	AST_LIST_UNLOCK(&registrations);
+
+	astman_append(s,
+		"Event: RegistrationsComplete\r\n"
+		"EventList: Complete\r\n"
+		"ListItems: %d\r\n"
+		"%s"
+		"\r\n", total, idtext);
+	
+	return 0;
+}
+
 static char *handle_cli_iax2_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT2 "%-20.20s  %-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %-6.6s  %s\n"
@@ -12233,6 +12282,7 @@ static int __unload_module(void)
 	ast_manager_unregister( "IAXpeers" );
 	ast_manager_unregister( "IAXpeerlist" );
 	ast_manager_unregister( "IAXnetstats" );
+	ast_manager_unregister( "IAXregistry" );
 	ast_unregister_application(papp);
 	ast_cli_unregister_multiple(cli_iax2, sizeof(cli_iax2) / sizeof(struct ast_cli_entry));
 	ast_unregister_switch(&iax2_switch);
@@ -12368,6 +12418,7 @@ static int load_module(void)
 	ast_manager_register( "IAXpeers", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peers, "List IAX Peers" );
 	ast_manager_register( "IAXpeerlist", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peer_list, "List IAX Peers" );
 	ast_manager_register( "IAXnetstats", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_netstats, "Show IAX Netstats" );
+	ast_manager_register( "IAXregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_registry, "Show IAX registrations");
 
 	if(set_config(config, 0) == -1)
 		return AST_MODULE_LOAD_DECLINE;

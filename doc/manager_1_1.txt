@@ -1,6 +1,12 @@
 Changes to manager version 1.1:
 -------------------------------
 
+- Action: IAXregistry
+	Modules: chan_iax2
+	Purpose:
+		To list all IAX2 peers in the IAX registry with their registration status.
+	Variables:
+	  ActionID: <id>		Action ID for this transaction. Will be returned.
 
 * SYNTAX CLEANUPS
 -----------------
