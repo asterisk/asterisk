@@ -10,6 +10,12 @@ SIP Changes
  * Added support for subscribing to a voice mailbox on a remote server and
    making the new/old message count available to local devices.
 
+Skinny Changes
+--------------
+ * The configuration file now holds seperate sections for devices and lines.
+   Please have a look at configs/skinny.conf.sample and change your skinny.conf
+   accordingly.
+
 Dialplan Functions
 ------------------
  * Added a new dialplan function, CURLOPT, which permits setting various

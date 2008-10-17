@@ -265,6 +265,10 @@ Configuration:
   to differentiate your variable from the append operator.  This potential
   conflict is unlikely, but is documented here to be thorough.
 
+* skinny.conf now has seperate sections for lines and devices.
+  Please have a look at configs/skinny.conf.sample and update
+  your skinny.conf.
+
 Manager:
 
 * Manager has been upgraded to version 1.1 with a lot of changes. 
