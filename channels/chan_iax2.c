@@ -1412,6 +1412,8 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len)
 	return res;
 }
 
+/*!\note Assumes the lock on the pvt is already held, when
+ * iax2_destroy_helper() is called. */
 static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 {
 	/* Decrement AUTHREQ count if needed */
@@ -1430,8 +1432,8 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 		ast_clear_flag(pvt, IAX_MAXAUTHREQ);
 	}
 	/* No more pings or lagrq's */
-	AST_SCHED_DEL(sched, pvt->pingid);
-	AST_SCHED_DEL(sched, pvt->lagid);
+	AST_SCHED_DEL_SPINLOCK(sched, pvt->pingid, &iaxsl[pvt->callno]);
+	AST_SCHED_DEL_SPINLOCK(sched, pvt->lagid, &iaxsl[pvt->callno]);
 	AST_SCHED_DEL(sched, pvt->autoid);
 	AST_SCHED_DEL(sched, pvt->authid);
 	AST_SCHED_DEL(sched, pvt->initid);
@@ -1450,7 +1452,9 @@ static void pvt_destructor(void *obj)
 	struct chan_iax2_pvt *pvt = obj;
 	struct iax_frame *cur = NULL;
 
+	ast_mutex_lock(&iaxsl[pvt->callno]);
 	iax2_destroy_helper(pvt);
+	ast_mutex_unlock(&iaxsl[pvt->callno]);
 
 	/* Already gone */
 	ast_set_flag(pvt, IAX_ALREADYGONE);	
@@ -2309,6 +2313,8 @@ static void iax2_destroy(int callno)
 
 retry:
 	pvt = iaxs[callno];
+	iax2_destroy_helper(pvt);
+
 	lastused[callno] = ast_tvnow();
 	
 	owner = pvt ? pvt->owner : NULL;

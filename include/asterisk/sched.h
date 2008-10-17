@@ -72,6 +72,22 @@ extern "C" {
 		id = -1; \
 	} while (0);
 
+#define AST_SCHED_DEL_SPINLOCK(sched, id, lock) \
+	({ \
+		int _count = 0; \
+		int _sched_res = -1; \
+		while (id > -1 && (_sched_res = ast_sched_del(sched, id)) && ++_count < 10) { \
+			ast_mutex_unlock(lock); \
+			usleep(1); \
+			ast_mutex_lock(lock); \
+		} \
+		if (_count == 10 && option_debug > 2) { \
+			ast_log(LOG_DEBUG, "Unable to cancel schedule ID %d.\n", id); \
+		} \
+		id = -1; \
+		(_sched_res); \
+	})
+
 #define AST_SCHED_REPLACE_VARIABLE(id, sched, when, callback, data, variable) \
 	do { \
 		int _count = 0; \
