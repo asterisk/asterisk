@@ -763,7 +763,7 @@ static char *handle_softhangup(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			"       the next time the driver reads or writes from the channel\n";
 		return NULL;
 	case CLI_GENERATE:
-		return ast_complete_channels(a->line, a->word, a->pos, a->n, 2);
+		return ast_complete_channels(a->line, a->word, a->pos, a->n, e->args);
 	}
 	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
@@ -773,7 +773,7 @@ static char *handle_softhangup(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
 		ast_channel_unlock(c);
 	} else
-		ast_cli(a->fd, "%s is not a known channel\n", a->argv[2]);
+		ast_cli(a->fd, "%s is not a known channel\n", a->argv[3]);
 	return CLI_SUCCESS;
 }
 
