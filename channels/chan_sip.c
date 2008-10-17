@@ -35,18 +35,36 @@
  * ******** TCP implementation changes needed
  * \todo Fix TCP/TLS handling in dialplan, SRV records, transfers and much more
  * \todo Save TCP/TLS sessions in registry
+ *	If someone registers a SIPS uri, this forces us to set up a TLS connection back.
  * \todo Add TCP/TLS information to function SIPPEER and SIPCHANINFO
  * \todo If tcpenable=yes, we must open a TCP socket on the same address as the IP for UDP.
  * 	 The tcpbindaddr config option should only be used to open ADDITIONAL ports
+ * 	 So we should propably go back to
+ *		bindaddr= the default address to bind to. If tcpenable=yes, then bind this to both udp and TCP
+ *				if tlsenable=yes, open TLS port (provided we also have cert)
+ *		tcpbindaddr = extra address for additional TCP connections
+ *		tlsbindaddr = extra address for additional TCP/TLS connections
+ *		udpbindaddr = extra address for additional UDP connections
+ *			These three options should take multiple IP/port pairs
+ *	Note: Since opening additional listen sockets is a *new* feature we do not have today
+ *		the XXXbindaddr options needs to be disabled until we have support for it
+ *		
  * \todo Be prepared for one outbound and another incoming socket per pvt. This applies
  *       specially to communication with other peers (proxies).
  * \todo We need to test TCP sessions with SIP proxies and in regards
  *       to the SIP outbound specs.
  * \todo transport=tls was deprecated in RFC3261 and should not be used at all. See section 22.2.2.
+ *
  * \todo If the message is smaller than the given Content-length, the request should get a 400 Bad request
  *       message. If it's a response, it should be dropped. (RFC 3261, Section 18.3)
  * \todo Since we have had multidomain support in Asterisk for quite a while, we need to support
  *       multiple domains in our TLS implementation, meaning one socket and one cert per domain
+ * \todo Selection of transport for a request needs to be done after we've parsed all route headers,
+ *	 also considering outbound proxy options.
+ *		First request: Outboundproxy, routes, (reg contact or URI. If URI doesn't have port:  DNS naptr, srv, AAA)
+ *		Intermediate requests: Outboundproxy(only when forced), routes, contact/uri
+ *	DNS naptr support is crucial. A SIP uri might lead to a TLS connection.
+ *	Also note that due to outbound proxy settings, a SIPS uri might have to be sent on UDP (not to recommend though)
  *
  *
  * ******** General TODO:s
