@@ -389,6 +389,9 @@ struct ast_conference {
 	char pinadmin[MAX_PIN];                 /*!< If protected by a admin PIN */
 	char uniqueid[32];
 	long endtime;                           /*!< When to end the conf if scheduled */
+	const char *useropts;                   /*!< RealTime user flags */
+	const char *adminopts;                  /*!< RealTime moderator flags */
+	const char *bookid;                     /*!< RealTime conference id */
 	struct ast_frame *transframe[32];
 	struct ast_frame *origframe;
 	struct ast_trans_pvt *transpath[32];
@@ -2966,8 +2969,7 @@ bailoutandtrynormal:
 }
 
 static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char *confno, int make, int dynamic,
-				char *dynamic_pin, size_t pin_buf_len, int refcount, struct ast_flags *confflags,
-				char *useropts, char *adminopts, int *too_early)
+				char *dynamic_pin, size_t pin_buf_len, int refcount, struct ast_flags *confflags, int *too_early)
 {
 	struct ast_variable *var, *origvar;
 	struct ast_conference *cnf;
@@ -2991,6 +2993,10 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		struct timeval now;
 		char currenttime[19] = "";
 		char eatime[19] = "";
+		char bookid[19] = "";
+		char recordingtmp[AST_MAX_EXTENSION] = "";
+		char useropts[OPTIONS_LEN]; /* Used for RealTime conferences */
+		char adminopts[OPTIONS_LEN];
 		struct ast_tm tm, etm;
 		struct timeval endtime = { .tv_sec = 0 };
 
@@ -3050,6 +3056,8 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 				pin = ast_strdupa(var->value);
 			} else if (!strcasecmp(var->name, "adminpin")) {
 				pinadmin = ast_strdupa(var->value);
+			} else if (!strcasecmp(var->name, "bookId")) {
+				ast_copy_string(bookid, var->value, sizeof(bookid));
 			} else if (!strcasecmp(var->name, "opts")) {
 				ast_copy_string(useropts, var->value, sizeof(char[OPTIONS_LEN]));
 			} else if (!strcasecmp(var->name, "maxusers")) {
@@ -3071,6 +3079,12 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 			cnf->maxusers = maxusers;
 			cnf->endalert = endalert;
 			cnf->endtime = endtime.tv_sec;
+			cnf->useropts = ast_strdup(useropts);
+			cnf->adminopts = ast_strdup(adminopts);
+			cnf->bookid = ast_strdup(bookid);
+			snprintf(recordingtmp, sizeof(recordingtmp), "%s/meetme/meetme-conf-rec-%s-%s", ast_config_AST_SPOOL_DIR, confno, bookid);
+			cnf->recordingfilename = ast_strdup(recordingtmp);
+			cnf->recordingformat = ast_strdup("wav");
 		}
 	}
 
@@ -3391,8 +3405,6 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			}
 		}
 		if (!ast_strlen_zero(confno)) {
-			char useropts[OPTIONS_LEN] = "";
-			char adminopts[OPTIONS_LEN] = "";
 			/* Check the validity of the conference */
 			cnf = find_conf(chan, confno, 1, dynamic, the_pin, 
 				sizeof(the_pin), 1, &confflags);
@@ -3400,7 +3412,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				int too_early = 0;
 
 				cnf = find_conf_realtime(chan, confno, 1, dynamic, 
-					the_pin, sizeof(the_pin), 1, &confflags, useropts, adminopts, &too_early);
+					the_pin, sizeof(the_pin), 1, &confflags,&too_early);
 				if (rt_schedule && too_early)
 					allowretry = 0;
 			}
@@ -3437,14 +3449,16 @@ static int conf_exec(struct ast_channel *chan, void *data)
 								/* Pin correct */
 								allowretry = 0;
 								if (!ast_strlen_zero(cnf->pinadmin) && !strcasecmp(pin, cnf->pinadmin)) {
-									if(!ast_strlen_zero(adminopts))
-										ast_app_parse_options(meetme_opts, &confflags, optargs, adminopts);
-									ast_set_flag(&confflags, CONFFLAG_ADMIN);
+									if (!ast_strlen_zero(cnf->adminopts)) {
+										char *opts = ast_strdupa(cnf->adminopts);
+										ast_app_parse_options(meetme_opts, &confflags, optargs, opts);
+									}
 								} else {
-									if(!ast_strlen_zero(useropts))
-										ast_app_parse_options(meetme_opts, &confflags, optargs, useropts);
+									if (!ast_strlen_zero(cnf->useropts)) {
+										char *opts = ast_strdupa(cnf->useropts);
+										ast_app_parse_options(meetme_opts, &confflags, optargs, opts);
+									}
 								}
-
 								/* Run the conference */
 								res = conf_run(chan, cnf, confflags.flags, optargs);
 								break;
@@ -3453,8 +3467,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 								if (!ast_streamfile(chan, "conf-invalidpin", chan->language)) {
 									res = ast_waitstream(chan, AST_DIGIT_ANY);
 									ast_stopstream(chan);
-								}
-								else {
+								} else {
 									ast_log(LOG_WARNING, "Couldn't play invalid pin msg!\n");
 									break;
 								}
