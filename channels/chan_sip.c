@@ -5320,15 +5320,12 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	{
 		const char *my_name;	/* pick a good name */
 	
-		if (title) {
+		if (title)
 			my_name = title;
-		} else {
-			char *port = NULL;
-			my_name = ast_strdupa(i->fromdomain);
-			if ((port = strchr(i->fromdomain, ':'))) {
-				*port = '\0';
-			}
-		}
+		else if ( (my_name = strchr(i->fromdomain, ':')) )
+			my_name++;	/* skip ':' */
+		else
+			my_name = i->fromdomain;
 
 		sip_pvt_unlock(i);
 		/* Don't hold a sip pvt lock while we allocate a channel */
