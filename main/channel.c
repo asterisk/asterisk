@@ -37,7 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <unistd.h>
 #include <math.h>
 
-#if defined(HAVE_ZAPTEL) || defined (HAVE_DAHDI)
+#if defined(HAVE_DAHDI)
 #include <sys/ioctl.h>
 #include "asterisk/dahdi_compat.h"
 #endif

@@ -3668,7 +3668,7 @@ static int get_alarms(struct dahdi_pvt *p)
 {
 	int res;
 	struct dahdi_spaninfo zi;
-#if defined(HAVE_DAHDI) || defined(HAVE_ZAPTEL_CHANALARMS)
+#if !defined(HAVE_ZAPTEL) || defined(HAVE_ZAPTEL_CHANALARMS)
 	/*
 	 * The conditional compilation is needed only in asterisk-1.4 for
 	 * backward compatibility with old zaptel drivers that don't have
@@ -3687,7 +3687,7 @@ static int get_alarms(struct dahdi_pvt *p)
 	}
 	if (zi.alarms != DAHDI_ALARM_NONE)
 		return zi.alarms;
-#if defined(HAVE_DAHDI) || defined(HAVE_ZAPTEL_CHANALARMS)
+#if !defined(HAVE_ZAPTEL) || defined(HAVE_ZAPTEL_CHANALARMS)
 	/* No alarms on the span. Check for channel alarms. */
 	if ((res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &params)) >= 0)
 		return params.chan_alarms;
