@@ -262,6 +262,10 @@ static int matchdigittimeout = 3000;
 /*! \brief Protect the interface list (of dahdi_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
 
+/* QSIG channel mapping option types */
+#define DAHDI_CHAN_MAPPING_LOGICAL	0
+#define DAHDI_CHAN_MAPPING_PHYSICAL	1
+
 
 static int ifcount = 0;
 
@@ -409,6 +413,8 @@ struct dahdi_pri {
 	int prilogicalspan;						/*!< Logical span number within trunk group */
 	int numchans;							/*!< Num of channels we represent */
 	int overlapdial;						/*!< In overlap dialing mode */
+	int qsigchannelmapping;						/*!< QSIG channel mapping type */
+	int discardremoteholdretrieval;					/*!< shall remote hold or remote retrieval notifications be discarded? */
 	int facilityenable;						/*!< Enable facility IEs */
 	struct pri *dchans[NUM_DCHANS];					/*!< Actual d-channels */
 	int dchanavail[NUM_DCHANS];					/*!< Whether each channel is available */
@@ -2951,6 +2957,87 @@ static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, void *data)
 	ast_mutex_unlock(&p->lock);
 
 	return 0;
+}
+
+static char *dahdi_send_callrerouting_facility_app = "DAHDISendCallreroutingFacility";
+
+static char *dahdi_send_callrerouting_facility_synopsis = "Send QSIG call rerouting facility over a PRI";
+
+static char *dahdi_send_callrerouting_facility_descrip =
+"  DAHDISendCallreroutingFacility(): This application will send a Callrerouting Facility\n"
+"  IE over the current channel.\n";
+
+static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, void *data)
+{
+	/* Data will be our digit string */
+	struct dahdi_pvt *p;
+	char *parse, *tok, *tokb;
+	char *dest = NULL;
+	char *original = NULL;
+	char *reason = NULL;
+	int res = -1;
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_DEBUG, "No data sent to application!\n");
+		return -1;
+	}
+
+	p = (struct dahdi_pvt *)chan->tech_pvt;
+
+	if (!p) {
+		ast_log(LOG_DEBUG, "Unable to find technology private\n");
+		return -1;
+	}
+
+
+	parse = ast_strdupa(data);
+	tok = strtok_r(parse, "|", &tokb);
+
+	if (!tok) {
+		ast_log(LOG_WARNING, "callrerouting facility requires at least destination number argument\n");
+		return -1;
+	}
+	dest = tok;	
+
+	tok = strtok_r(NULL, "|", &tokb);
+	if (!tok) {
+		ast_log(LOG_WARNING, "Callrerouting Facility without original called number argument\n");
+	} else {
+		original = tok;
+	}
+
+	tok = strtok_r(NULL, "|", &tokb);
+	if (!tok) {
+		ast_log(LOG_NOTICE, "Callrerouting Facility without diversion reason argument, defaulting to unknown\n");
+	} else {
+		reason = tok;
+	}
+
+	ast_mutex_lock(&p->lock);
+
+	if (!p->pri || !p->call) {
+		ast_log(LOG_DEBUG, "Unable to find pri or call on channel!\n");
+		ast_mutex_unlock(&p->lock);
+		return -1;
+	}
+
+	switch (p->sig) {
+	case SIG_PRI:
+		if (!pri_grab(p, p->pri)) {
+			if (chan->_state == AST_STATE_RING)
+				res = pri_callrerouting_facility(p->pri->pri, p->call, dest, original, reason);
+			pri_rel(p->pri);
+		} else {
+			ast_log(LOG_DEBUG, "Unable to grab pri to send callrerouting facility on span %d!\n", p->span);
+			ast_mutex_unlock(&p->lock);
+			return -1;
+		}
+		break;
+	}
+
+	ast_mutex_unlock(&p->lock);
+
+	return res;
 }
 
 static int pri_is_up(struct dahdi_pri *pri)
@@ -5696,7 +5783,7 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 					&& p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
-						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+						pri_progress_with_cause(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1, PRI_CAUSE_USER_BUSY); /* cause = 17 */
 						pri_rel(p->pri);
 					}
 					else
@@ -5793,7 +5880,7 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 					&& p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
-						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+						pri_progress_with_cause(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1, -1);  /* no cause at all */
 						pri_rel(p->pri);
 					}
 					else
@@ -5829,7 +5916,7 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 					&& p->pri && !p->outgoing) {
 				if (p->pri) {		
 					if (!pri_grab(p, p->pri)) {
-						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+						pri_progress_with_cause(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1, PRI_CAUSE_SWITCH_CONGESTION); /* cause = 42 */
 						pri_rel(p->pri);
 					} else
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
@@ -8522,6 +8609,8 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].minunused = conf->pri.minunused;
 						pris[span].minidle = conf->pri.minidle;
 						pris[span].overlapdial = conf->pri.overlapdial;
+						pris[span].qsigchannelmapping = conf->pri.qsigchannelmapping;
+						pris[span].discardremoteholdretrieval = conf->pri.discardremoteholdretrieval;
 #ifdef HAVE_PRI_INBANDDISCONNECT
 						pris[span].inbanddisconnect = conf->pri.inbanddisconnect;
 #endif
@@ -11467,7 +11556,7 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Received NOTIFY on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->notify.channel), PRI_CHANNEL(e->notify.channel), pri->span);
-				} else {
+				} else if (!pri->discardremoteholdretrieval) {
 					struct ast_frame f = { AST_FRAME_CONTROL, };
 					ast_mutex_lock(&pri->pvts[chanpos]->lock);
 					switch (e->notify.info) {
@@ -11554,6 +11643,9 @@ static int start_pri(struct dahdi_pri *pri)
 		if (pri->switchtype == PRI_SWITCH_GR303_TMC)
 			pri->overlapdial |= DAHDI_OVERLAPDIAL_BOTH;
 		pri_set_overlapdial(pri->dchans[i],(pri->overlapdial & DAHDI_OVERLAPDIAL_OUTGOING)?1:0);
+#ifdef PRI_SET_CHAN_MAPPING_LOGICAL
+		pri_set_chan_mapping_logical(pri->dchans[i], pri->qsigchannelmapping == DAHDI_CHAN_MAPPING_LOGICAL);
+#endif
 #ifdef HAVE_PRI_INBANDDISCONNECT
 		pri_set_inbanddisconnect(pri->dchans[i], pri->inbanddisconnect);
 #endif
@@ -13399,6 +13491,7 @@ static int __unload_module(void)
 	}
 	ast_cli_unregister_multiple(dahdi_pri_cli, ARRAY_LEN(dahdi_pri_cli));
 	ast_unregister_application(dahdi_send_keypad_facility_app);
+	ast_unregister_application(dahdi_send_callrerouting_facility_app);
 #endif
 #if defined(HAVE_SS7)
 	for (i = 0; i < NUM_SPANS; i++) {
@@ -14188,6 +14281,16 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					confp->pri.overlapdial = DAHDI_OVERLAPDIAL_NONE;
 				}
 #ifdef HAVE_PRI_INBANDDISCONNECT
+			} else if (!strcasecmp(v->name, "qsigchannelmapping")) {
+				if (!strcasecmp(v->value, "logical")) {
+					confp->pri.qsigchannelmapping = DAHDI_CHAN_MAPPING_LOGICAL;
+				} else if (!strcasecmp(v->value, "physical")) {
+					confp->pri.qsigchannelmapping = DAHDI_CHAN_MAPPING_PHYSICAL;
+				} else {
+					confp->pri.qsigchannelmapping = DAHDI_CHAN_MAPPING_PHYSICAL;
+				}
+			} else if (!strcasecmp(v->name, "discardremoteholdretrieval")) {
+				confp->pri.discardremoteholdretrieval = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "inbanddisconnect")) {
 				confp->pri.inbanddisconnect = ast_true(v->value);
 #endif
@@ -14688,6 +14791,8 @@ static int load_module(void)
 	pri_set_message(dahdi_pri_message);
 	ast_register_application(dahdi_send_keypad_facility_app, dahdi_send_keypad_facility_exec,
 			dahdi_send_keypad_facility_synopsis, dahdi_send_keypad_facility_descrip);
+	ast_register_application(dahdi_send_callrerouting_facility_app, dahdi_send_callrerouting_facility_exec,
+		dahdi_send_callrerouting_facility_synopsis, dahdi_send_callrerouting_facility_descrip);
 #endif
 #ifdef HAVE_SS7
 	memset(linksets, 0, sizeof(linksets));

@@ -185,6 +185,20 @@
 ;
 ;priexclusive = yes
 ;
+;
+; If you need to use the logical channel mapping with your Q.SIG PRI instead
+; of the physical mapping you must use the qsigchannelmapping option.
+;
+; logical:	Use the logical channel mapping
+; physical:	Use physical channel mapping (default)
+;
+;qsigchannelmapping=logical
+;
+; If you wish to ignore remote hold indications (and use MOH that is supplied over
+; the B channel) enable this option.
+;
+;discardremoteholdretrieval=yes
+;
 ; ISDN Timers
 ; All of the ISDN timers and counters that are used are configurable.  Specify
 ; the timer name, and its value (in ms for timers).
