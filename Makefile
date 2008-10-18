@@ -262,7 +262,7 @@ ifeq ($(OSARCH),NetBSD)
 endif
 
 ifeq ($(OSARCH),OpenBSD)
-  ASTCFLAGS+=-pthread
+  ASTCFLAGS+=-pthread -ftrampolines
 endif
 
 ifeq ($(OSARCH),SunOS)
@@ -308,6 +308,10 @@ endif
 
 ifeq ($(OSARCH),SunOS)
   SOLINK=-shared -fpic -L/usr/local/ssl/lib -lrt
+endif
+
+ifeq ($(OSARCH),OpenBSD)
+  SOLINK=-shared -fpic
 endif
 
 # comment to print directories during submakes
