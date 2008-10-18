@@ -28,6 +28,8 @@ Applications
 ------------
  * Scheduled meetme conferences may now have their end times extended by
    using MeetMeAdmin.
+ * app_authenticate now gives the ability to select a prompt other than
+   the default.
 
 Miscellaneous
 -------------

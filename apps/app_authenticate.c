@@ -58,7 +58,7 @@ static char *app = "Authenticate";
 static char *synopsis = "Authenticate a user";
 
 static char *descrip =
-"  Authenticate(password[,options[,maxdigits]]): This application asks the caller\n"
+"  Authenticate(password[,options[,maxdigits[,prompt]]]): This application asks the caller\n"
 "to enter a given password in order to continue dialplan execution. If the password\n"
 "begins with the '/' character, it is interpreted as a file which contains a list of\n"
 "valid passwords, listed 1 password per line in the file.\n"
@@ -76,6 +76,8 @@ static char *descrip =
 "         maxdigits have been entered (without requiring the user to\n"
 "         press the '#' key).\n"
 "         Defaults to 0 - no limit - wait for the user press the '#' key.\n"
+"     prompt - Override the agent-pass prompt file.\n"
+ ;
 ;
 
 static int auth_exec(struct ast_channel *chan, void *data)
@@ -88,6 +90,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(password);
 		AST_APP_ARG(options);
 		AST_APP_ARG(maxdigits);
+		AST_APP_ARG(prompt);
 	);
 
 	if (ast_strlen_zero(data)) {
@@ -115,6 +118,12 @@ static int auth_exec(struct ast_channel *chan, void *data)
 		maxdigits = sizeof(passwd) - 2;
 	}
 
+	if (!ast_strlen_zero(arglist.prompt)) {
+		prompt = arglist.prompt;
+	} else {
+		prompt = "agent-pass";
+	}
+   
 	/* Start asking for password */
 	for (retries = 0; retries < 3; retries++) {
 		if ((res = ast_app_getdata(chan, prompt, passwd, maxdigits, 0)) < 0)
