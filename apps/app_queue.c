@@ -5746,12 +5746,13 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 					"Queue: %s\r\n"
 					"Position: %d\r\n"
 					"Channel: %s\r\n"
+					"Uniqueid: %s\r\n"
 					"CallerIDNum: %s\r\n"
 					"CallerIDName: %s\r\n"
 					"Wait: %ld\r\n"
 					"%s"
 					"\r\n",
-					q->name, pos++, qe->chan->name,
+					q->name, pos++, qe->chan->name, qe->chan->uniqueid,
 					S_OR(qe->chan->cid.cid_num, "unknown"),
 					S_OR(qe->chan->cid.cid_name, "unknown"),
 					(long) (now - qe->start), idText);

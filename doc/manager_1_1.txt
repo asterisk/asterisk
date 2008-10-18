@@ -125,6 +125,8 @@ Changes to manager version 1.1:
 	If you call out to a subshell in Originate with the Application parameter,
 		you now also need the System privilege.
 
+- Event QueueEntry now also returns the Uniqueid field like other events from app_queue.
+
 * NEW ACTIONS
 -------------
 - Action: ModuleLoad

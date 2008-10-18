@@ -216,6 +216,7 @@ AMI - The manager (TCP/TLS/HTTP)
 --------------------------------
   * The Status command now takes an optional list of variables to display
     along with channel status.
+  * The QueueEntry event now also includes the channel's uniqueid
 
 ODBC Changes
 ------------
