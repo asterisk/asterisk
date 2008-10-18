@@ -105,7 +105,7 @@ restart() {
 }
 
 reload() {
-	$DAEMON -rx 'reload' > /dev/null 2> /dev/null
+	$DAEMON -rx 'module reload' > /dev/null 2> /dev/null
 }
 
 # See how we were called.

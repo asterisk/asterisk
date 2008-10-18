@@ -79,7 +79,7 @@ case "$1" in
 	;;
   reload)
 	echo "Reloading $DESC configuration files."
-	$DAEMON -rx 'reload' > /dev/null 2> /dev/null
+	$DAEMON -rx 'module reload' > /dev/null 2> /dev/null
 	;;
   restart|force-reload)
 	$0 stop

@@ -142,7 +142,7 @@ case "$1" in
 		;;
 	stop)
 		gprintf "Stopping asterisk: "
-		asterisk -r -x "stop gracefully" >/dev/null 2>&1
+		asterisk -r -x "core stop gracefully" >/dev/null 2>&1
 		killall -9 mpg123 2>/dev/null
 		success
 		echo
@@ -154,13 +154,13 @@ case "$1" in
 		;;
 	reload)
 		gprintf "Reloading asterisk: "
-		asterisk -r -x "reload" >/dev/null 2>&1
+		asterisk -r -x "module reload" >/dev/null 2>&1
 		success
 		echo
 		;;
 	stopnow)
 		gprintf "Stopping asterisk: "
-		asterisk -r -x "stop now" >/dev/null 2>&1
+		asterisk -r -x "core stop now" >/dev/null 2>&1
 		success
 		echo
 		;;
