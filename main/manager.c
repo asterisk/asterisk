@@ -1805,8 +1805,15 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	}
 
 	if (varname[strlen(varname) - 1] == ')') {
-
-		ast_func_read(c, (char *) varname, workspace, sizeof(workspace));
+		if (!c) {
+			c = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/%p", NULL);
+			if (c) {
+				ast_func_read(c, (char *) varname, workspace, sizeof(workspace));
+				ast_channel_free(c);
+			} else
+				ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
+		} else
+			ast_func_read(c, (char *) varname, workspace, sizeof(workspace));
 		varval = workspace;
 	} else {
 		pbx_retrieve_variable(c, varname, &varval, workspace, sizeof(workspace), NULL);
