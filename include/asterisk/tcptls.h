@@ -45,12 +45,10 @@
  *
  */
 
-
-#ifndef _ASTERISK_SERVER_H
-#define _ASTERISK_SERVER_H
+#ifndef _ASTERISK_TCPTLS_H
+#define _ASTERISK_TCPTLS_H
 
 #include "asterisk/utils.h"
-#include "asterisk/astobj2.h"
 
 #if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
 #define DO_SSL  /* comment in/out if you want to support ssl */
@@ -90,7 +88,7 @@ struct ast_tls_config {
 /*!
  * The following code implements a generic mechanism for starting
  * services on a TCP or TLS socket.
- * The service is configured in the struct server_args, and
+ * The service is configured in the struct session_args, and
  * then started by calling server_start(desc) on the descriptor.
  * server_start() first verifies if an instance of the service is active,
  * and in case shuts it down. Then, if the service must be started, creates
@@ -105,38 +103,19 @@ struct ast_tls_config {
  * running the session, whose body is desc->worker_fn(). The argument of
  * worker_fn() is a struct ast_tcptls_session_instance, which contains the address
  * of the other party, a pointer to desc, the file descriptors (fd) on which
- * we can do a select/poll (but NOT IO/, and a FILE *on which we can do I/O.
+ * we can do a select/poll (but NOT I/O), and a FILE *on which we can do I/O.
  * We have both because we want to support plain and SSL sockets, and
- * going through a FILE *lets us provide the encryption/decryption
+ * going through a FILE * lets us provide the encryption/decryption
  * on the stream without using an auxiliary thread.
- *
- * NOTE: in order to let other parts of asterisk use these services,
- * we need to do the following:
- * + move struct ast_tcptls_session_instance and struct server_args to
- * a common header file, together with prototypes for
- * server_start() and server_root().
  */
-
-/*! \brief
- * describes a server instance
- */
-struct ast_tcptls_session_instance {
-	FILE *f;    /* fopen/funopen result */
-	int fd;     /* the socket returned by accept() */
-	SSL *ssl;   /* ssl state */
-/*	iint (*ssl_setup)(SSL *); */
-	int client;
-	struct sockaddr_in requestor;
-	struct server_args *parent;
-	ast_mutex_t lock;
-};
 
 /*! \brief
  * arguments for the accepting thread
  */
-struct server_args {
-	struct sockaddr_in sin;
-	struct sockaddr_in oldsin;
+struct ast_tcptls_session_args {
+	struct sockaddr_in local_address;
+	struct sockaddr_in old_local_address;
+	struct sockaddr_in remote_address;
 	char hostname[MAXHOSTNAMELEN]; /*!< only necessary for SSL clients so we can compare to common name */
 	struct ast_tls_config *tls_cfg; /*!< points to the SSL configuration if any */
 	int accept_fd;
@@ -148,6 +127,20 @@ struct server_args {
 	const char *name;
 };
 
+/*
+ * describes a server instance
+ */
+struct ast_tcptls_session_instance {
+	FILE *f;    /* fopen/funopen result */
+	int fd;     /* the socket returned by accept() */
+	SSL *ssl;   /* ssl state */
+/*	iint (*ssl_setup)(SSL *); */
+	int client;
+	struct sockaddr_in remote_address;
+	struct ast_tcptls_session_args *parent;
+	ast_mutex_t lock;
+};
+
 #if defined(HAVE_FUNOPEN)
 #define HOOK_T int
 #define LEN_T int
@@ -156,16 +149,14 @@ struct server_args {
 #define LEN_T size_t
 #endif
 
-struct ast_tcptls_session_instance *ast_tcptls_client_start(struct server_args *desc);
+struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_session_args *desc);
 
 void *ast_tcptls_server_root(void *);
-void ast_tcptls_server_start(struct server_args *desc);
-void ast_tcptls_server_stop(struct server_args *desc);
+void ast_tcptls_server_start(struct ast_tcptls_session_args *desc);
+void ast_tcptls_server_stop(struct ast_tcptls_session_args *desc);
 int ast_ssl_setup(struct ast_tls_config *cfg);
-
-void *ast_make_file_from_fd(void *data);
 
 HOOK_T ast_tcptls_server_read(struct ast_tcptls_session_instance *ser, void *buf, size_t count);
 HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *ser, void *buf, size_t count);
 
-#endif /* _ASTERISK_SERVER_H */
+#endif /* _ASTERISK_TCPTLS_H */

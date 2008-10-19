@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ast_version.h"
 #include "asterisk/manager.h"
 #include "asterisk/_private.h"
+#include "asterisk/astobj2.h"
 
 #define MAX_PREFIX 80
 
@@ -65,7 +66,7 @@ static void *httpd_helper_thread(void *arg);
 /*!
  * we have up to two accepting threads, one for http, one for https
  */
-static struct server_args http_desc = {
+static struct ast_tcptls_session_args http_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,
 	.tls_cfg = NULL,
@@ -75,7 +76,7 @@ static struct server_args http_desc = {
 	.worker_fn = httpd_helper_thread,
 };
 
-static struct server_args https_desc = {
+static struct ast_tcptls_session_args https_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,
 	.tls_cfg = &http_tls_cfg,
@@ -254,13 +255,13 @@ static struct ast_str *httpstatus_callback(struct ast_tcptls_session_instance *s
 		       "<h2>&nbsp;&nbsp;Asterisk&trade; HTTP Status</h2></td></tr>\r\n");
 	ast_str_append(&out, 0, "<tr><td><i>Prefix</i></td><td><b>%s</b></td></tr>\r\n", prefix);
 	ast_str_append(&out, 0, "<tr><td><i>Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
-		       ast_inet_ntoa(http_desc.oldsin.sin_addr));
+		       ast_inet_ntoa(http_desc.old_local_address.sin_addr));
 	ast_str_append(&out, 0, "<tr><td><i>Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
-		       ntohs(http_desc.oldsin.sin_port));
+		       ntohs(http_desc.old_local_address.sin_port));
 
 	if (http_tls_cfg.enabled) {
 		ast_str_append(&out, 0, "<tr><td><i>SSL Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
-			       ntohs(https_desc.oldsin.sin_port));
+			       ntohs(https_desc.old_local_address.sin_port));
 	}
 
 	ast_str_append(&out, 0, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
@@ -857,11 +858,11 @@ static int __ast_http_load(int reload)
 	}
 
 	/* default values */
-	memset(&http_desc.sin, 0, sizeof(http_desc.sin));
-	http_desc.sin.sin_port = htons(8088);
+	memset(&http_desc.local_address, 0, sizeof(http_desc.local_address));
+	http_desc.local_address.sin_port = htons(8088);
 
-	memset(&https_desc.sin, 0, sizeof(https_desc.sin));
-	https_desc.sin.sin_port = htons(8089);
+	memset(&https_desc.local_address, 0, sizeof(https_desc.local_address));
+	https_desc.local_address.sin_port = htons(8089);
 
 	http_tls_cfg.enabled = 0;
 	if (http_tls_cfg.certfile) {
@@ -887,7 +888,7 @@ static int __ast_http_load(int reload)
 			} else if (!strcasecmp(v->name, "sslenable")) {
 				http_tls_cfg.enabled = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "sslbindport")) {
-				https_desc.sin.sin_port = htons(atoi(v->value));
+				https_desc.local_address.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "sslcert")) {
 				ast_free(http_tls_cfg.certfile);
 				http_tls_cfg.certfile = ast_strdup(v->value);
@@ -897,17 +898,17 @@ static int __ast_http_load(int reload)
 			} else if (!strcasecmp(v->name, "enablestatic")) {
 				newenablestatic = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "bindport")) {
-				http_desc.sin.sin_port = htons(atoi(v->value));
+				http_desc.local_address.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "sslbindaddr")) {
 				if ((hp = ast_gethostbyname(v->value, &ahp))) {
-					memcpy(&https_desc.sin.sin_addr, hp->h_addr, sizeof(https_desc.sin.sin_addr));
+					memcpy(&https_desc.local_address.sin_addr, hp->h_addr, sizeof(https_desc.local_address.sin_addr));
 					have_sslbindaddr = 1;
 				} else {
 					ast_log(LOG_WARNING, "Invalid bind address '%s'\n", v->value);
 				}
 			} else if (!strcasecmp(v->name, "bindaddr")) {
 				if ((hp = ast_gethostbyname(v->value, &ahp))) {
-					memcpy(&http_desc.sin.sin_addr, hp->h_addr, sizeof(http_desc.sin.sin_addr));
+					memcpy(&http_desc.local_address.sin_addr, hp->h_addr, sizeof(http_desc.local_address.sin_addr));
 				} else {
 					ast_log(LOG_WARNING, "Invalid bind address '%s'\n", v->value);
 				}
@@ -929,10 +930,10 @@ static int __ast_http_load(int reload)
 	}
 
 	if (!have_sslbindaddr) {
-		https_desc.sin.sin_addr = http_desc.sin.sin_addr;
+		https_desc.local_address.sin_addr = http_desc.local_address.sin_addr;
 	}
 	if (enabled) {
-		http_desc.sin.sin_family = https_desc.sin.sin_family = AF_INET;
+		http_desc.local_address.sin_family = https_desc.local_address.sin_family = AF_INET;
 	}
 	if (strcmp(prefix, newprefix)) {
 		ast_copy_string(prefix, newprefix, sizeof(prefix));
@@ -967,16 +968,16 @@ static char *handle_show_http(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	}
 	ast_cli(a->fd, "HTTP Server Status:\n");
 	ast_cli(a->fd, "Prefix: %s\n", prefix);
-	if (!http_desc.oldsin.sin_family) {
+	if (!http_desc.old_local_address.sin_family) {
 		ast_cli(a->fd, "Server Disabled\n\n");
 	} else {
 		ast_cli(a->fd, "Server Enabled and Bound to %s:%d\n\n",
-			ast_inet_ntoa(http_desc.oldsin.sin_addr),
-			ntohs(http_desc.oldsin.sin_port));
+			ast_inet_ntoa(http_desc.old_local_address.sin_addr),
+			ntohs(http_desc.old_local_address.sin_port));
 		if (http_tls_cfg.enabled) {
 			ast_cli(a->fd, "HTTPS Server Enabled and Bound to %s:%d\n\n",
-				ast_inet_ntoa(https_desc.oldsin.sin_addr),
-				ntohs(https_desc.oldsin.sin_port));
+				ast_inet_ntoa(https_desc.old_local_address.sin_addr),
+				ntohs(https_desc.old_local_address.sin_port));
 		}
 	}
 

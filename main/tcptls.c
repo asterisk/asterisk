@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/options.h"
 #include "asterisk/manager.h"
+#include "asterisk/astobj2.h"
 
 /*! \brief
  * replacement read/write functions for SSL support.
@@ -117,267 +118,12 @@ static void session_instance_destructor(void *obj)
 	ast_mutex_destroy(&i->lock);
 }
 
-void *ast_tcptls_server_root(void *data)
-{
-	struct server_args *desc = data;
-	int fd;
-	struct sockaddr_in sin;
-	socklen_t sinlen;
-	struct ast_tcptls_session_instance *ser;
-	pthread_t launched;
-	
-	for (;;) {
-		int i, flags;
-
-		if (desc->periodic_fn)
-			desc->periodic_fn(desc);
-		i = ast_wait_for_input(desc->accept_fd, desc->poll_timeout);
-		if (i <= 0)
-			continue;
-		sinlen = sizeof(sin);
-		fd = accept(desc->accept_fd, (struct sockaddr *)&sin, &sinlen);
-		if (fd < 0) {
-			if ((errno != EAGAIN) && (errno != EINTR))
-				ast_log(LOG_WARNING, "Accept failed: %s\n", strerror(errno));
-			continue;
-		}
-		ser = ao2_alloc(sizeof(*ser), session_instance_destructor);
-		if (!ser) {
-			ast_log(LOG_WARNING, "No memory for new session: %s\n", strerror(errno));
-			close(fd);
-			continue;
-		}
-
-		ast_mutex_init(&ser->lock);
-
-		flags = fcntl(fd, F_GETFL);
-		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
-		ser->fd = fd;
-		ser->parent = desc;
-		memcpy(&ser->requestor, &sin, sizeof(ser->requestor));
-
-		ser->client = 0;
-			
-		if (ast_pthread_create_detached_background(&launched, NULL, ast_make_file_from_fd, ser)) {
-			ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
-			close(ser->fd);
-			ao2_ref(ser, -1);
-		}
-	}
-	return NULL;
-}
-
-static int __ssl_setup(struct ast_tls_config *cfg, int client)
-{
-#ifndef DO_SSL
-	cfg->enabled = 0;
-	return 0;
-#else
-	if (!cfg->enabled)
-		return 0;
-
-	SSL_load_error_strings();
-	SSLeay_add_ssl_algorithms();
-
-	if (!(cfg->ssl_ctx = SSL_CTX_new( client ? SSLv23_client_method() : SSLv23_server_method() ))) {
-		ast_debug(1, "Sorry, SSL_CTX_new call returned null...\n");
-		cfg->enabled = 0;
-		return 0;
-	}
-	if (!ast_strlen_zero(cfg->certfile)) {
-		if (SSL_CTX_use_certificate_file(cfg->ssl_ctx, cfg->certfile, SSL_FILETYPE_PEM) == 0 ||
-		    SSL_CTX_use_PrivateKey_file(cfg->ssl_ctx, cfg->certfile, SSL_FILETYPE_PEM) == 0 ||
-		    SSL_CTX_check_private_key(cfg->ssl_ctx) == 0 ) {
-			if (!client) {
-				/* Clients don't need a certificate, but if its setup we can use it */
-				ast_verb(0, "SSL cert error <%s>", cfg->certfile);
-				sleep(2);
-				cfg->enabled = 0;
-				return 0;
-			}
-		}
-	}
-	if (!ast_strlen_zero(cfg->cipher)) {
-		if (SSL_CTX_set_cipher_list(cfg->ssl_ctx, cfg->cipher) == 0 ) {
-			if (!client) {
-				ast_verb(0, "SSL cipher error <%s>", cfg->cipher);
-				sleep(2);
-				cfg->enabled = 0;
-				return 0;
-			}
-		}
-	}
-	if (!ast_strlen_zero(cfg->cafile) || !ast_strlen_zero(cfg->capath)) {
-		if (SSL_CTX_load_verify_locations(cfg->ssl_ctx, S_OR(cfg->cafile, NULL), S_OR(cfg->capath,NULL)) == 0)
-			ast_verb(0, "SSL CA file(%s)/path(%s) error\n", cfg->cafile, cfg->capath);
-	}
-
-	ast_verb(0, "SSL certificate ok\n");
-	return 1;
-#endif
-}
-
-int ast_ssl_setup(struct ast_tls_config *cfg)
-{
-	return __ssl_setup(cfg, 0);
-}
-
-/*! \brief A generic client routine for a TCP client
- *  and starts a thread for handling accept()
- */
-struct ast_tcptls_session_instance *ast_tcptls_client_start(struct server_args *desc)
-{
-	int flags;
-	struct ast_tcptls_session_instance *ser = NULL;
-
-	/* Do nothing if nothing has changed */
-	if(!memcmp(&desc->oldsin, &desc->sin, sizeof(desc->oldsin))) {
-		ast_debug(1, "Nothing changed in %s\n", desc->name);
-		return NULL;
-	}
-
-	desc->oldsin = desc->sin;
-
-	if (desc->accept_fd != -1)
-		close(desc->accept_fd);
-
-	desc->accept_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (desc->accept_fd < 0) {
-		ast_log(LOG_WARNING, "Unable to allocate socket for %s: %s\n",
-			desc->name, strerror(errno));
-		return NULL;
-	}
-
-	if (connect(desc->accept_fd, (const struct sockaddr *)&desc->sin, sizeof(desc->sin))) {
-		ast_log(LOG_ERROR, "Unable to connect %s to %s:%d: %s\n",
-			desc->name,
-			ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
-			strerror(errno));
-		goto error;
-	}
-
-	if (!(ser = ao2_alloc(sizeof(*ser), session_instance_destructor)))
-		goto error;
-
-	ast_mutex_init(&ser->lock);
-
-	flags = fcntl(desc->accept_fd, F_GETFL);
-	fcntl(desc->accept_fd, F_SETFL, flags & ~O_NONBLOCK);
-
-	ser->fd = desc->accept_fd;
-	ser->parent = desc;
-	ser->parent->worker_fn = NULL;
-	memcpy(&ser->requestor, &desc->sin, sizeof(ser->requestor));
-
-	ser->client = 1;
-
-	if (desc->tls_cfg) {
-		desc->tls_cfg->enabled = 1;
-		__ssl_setup(desc->tls_cfg, 1);
-	}
-
-	ao2_ref(ser, +1);
-	if (!ast_make_file_from_fd(ser))
-		goto error;
-
-	return ser;
-
-error:
-	close(desc->accept_fd);
-	desc->accept_fd = -1;
-	if (ser)
-		ao2_ref(ser, -1);
-	return NULL;
-}
-
-/*! \brief
- * This is a generic (re)start routine for a TCP server,
- * which does the socket/bind/listen and starts a thread for handling
- * accept().
- */
-void ast_tcptls_server_start(struct server_args *desc)
-{
-	int flags;
-	int x = 1;
-	
-	/* Do nothing if nothing has changed */
-	if (!memcmp(&desc->oldsin, &desc->sin, sizeof(desc->oldsin))) {
-		ast_debug(1, "Nothing changed in %s\n", desc->name);
-		return;
-	}
-	
-	desc->oldsin = desc->sin;
-	
-	/* Shutdown a running server if there is one */
-	if (desc->master != AST_PTHREADT_NULL) {
-		pthread_cancel(desc->master);
-		pthread_kill(desc->master, SIGURG);
-		pthread_join(desc->master, NULL);
-	}
-	
-	if (desc->accept_fd != -1)
-		close(desc->accept_fd);
-
-	/* If there's no new server, stop here */
-	if (desc->sin.sin_family == 0) {
-		ast_debug(2, "Server disabled:  %s\n", desc->name);
-		return;
-	}
-
-	desc->accept_fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (desc->accept_fd < 0) {
-		ast_log(LOG_ERROR, "Unable to allocate socket for %s: %s\n", desc->name, strerror(errno));
-		return;
-	}
-	
-	setsockopt(desc->accept_fd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
-	if (bind(desc->accept_fd, (struct sockaddr *)&desc->sin, sizeof(desc->sin))) {
-		ast_log(LOG_ERROR, "Unable to bind %s to %s:%d: %s\n",
-			desc->name,
-			ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
-			strerror(errno));
-		goto error;
-	}
-	if (listen(desc->accept_fd, 10)) {
-		ast_log(LOG_ERROR, "Unable to listen for %s!\n", desc->name);
-		goto error;
-	}
-	flags = fcntl(desc->accept_fd, F_GETFL);
-	fcntl(desc->accept_fd, F_SETFL, flags | O_NONBLOCK);
-	if (ast_pthread_create_background(&desc->master, NULL, desc->accept_fn, desc)) {
-		ast_log(LOG_ERROR, "Unable to launch thread for %s on %s:%d: %s\n",
-			desc->name,
-			ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
-			strerror(errno));
-		goto error;
-	}
-	return;
-
-error:
-	close(desc->accept_fd);
-	desc->accept_fd = -1;
-}
-
-/*! \brief Shutdown a running server if there is one */
-void ast_tcptls_server_stop(struct server_args *desc)
-{
-	if (desc->master != AST_PTHREADT_NULL) {
-		pthread_cancel(desc->master);
-		pthread_kill(desc->master, SIGURG);
-		pthread_join(desc->master, NULL);
-	}
-	if (desc->accept_fd != -1)
-		close(desc->accept_fd);
-	desc->accept_fd = -1;
-	ast_debug(2, "Stopped server :: %s\n", desc->name);
-}
-
 /*! \brief
 * creates a FILE * from the fd passed by the accept thread.
 * This operation is potentially expensive (certificate verification),
 * so we do it in the child thread context.
 */
-void *ast_make_file_from_fd(void *data)
+static void *handle_tls_connection(void *data)
 {
 	struct ast_tcptls_session_instance *ser = data;
 #ifdef DO_SSL
@@ -473,3 +219,271 @@ void *ast_make_file_from_fd(void *data)
 		return ser;
 }
 
+void *ast_tcptls_server_root(void *data)
+{
+	struct ast_tcptls_session_args *desc = data;
+	int fd;
+	struct sockaddr_in sin;
+	socklen_t sinlen;
+	struct ast_tcptls_session_instance *ser;
+	pthread_t launched;
+	
+	for (;;) {
+		int i, flags;
+
+		if (desc->periodic_fn)
+			desc->periodic_fn(desc);
+		i = ast_wait_for_input(desc->accept_fd, desc->poll_timeout);
+		if (i <= 0)
+			continue;
+		sinlen = sizeof(sin);
+		fd = accept(desc->accept_fd, (struct sockaddr *) &sin, &sinlen);
+		if (fd < 0) {
+			if ((errno != EAGAIN) && (errno != EINTR))
+				ast_log(LOG_WARNING, "Accept failed: %s\n", strerror(errno));
+			continue;
+		}
+		ser = ao2_alloc(sizeof(*ser), session_instance_destructor);
+		if (!ser) {
+			ast_log(LOG_WARNING, "No memory for new session: %s\n", strerror(errno));
+			close(fd);
+			continue;
+		}
+
+		ast_mutex_init(&ser->lock);
+
+		flags = fcntl(fd, F_GETFL);
+		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+		ser->fd = fd;
+		ser->parent = desc;
+		memcpy(&ser->remote_address, &sin, sizeof(ser->remote_address));
+
+		ser->client = 0;
+			
+		if (ast_pthread_create_detached_background(&launched, NULL, handle_tls_connection, ser)) {
+			ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
+			close(ser->fd);
+			ao2_ref(ser, -1);
+		}
+	}
+	return NULL;
+}
+
+static int __ssl_setup(struct ast_tls_config *cfg, int client)
+{
+#ifndef DO_SSL
+	cfg->enabled = 0;
+	return 0;
+#else
+	if (!cfg->enabled)
+		return 0;
+
+	SSL_load_error_strings();
+	SSLeay_add_ssl_algorithms();
+
+	if (!(cfg->ssl_ctx = SSL_CTX_new( client ? SSLv23_client_method() : SSLv23_server_method() ))) {
+		ast_debug(1, "Sorry, SSL_CTX_new call returned null...\n");
+		cfg->enabled = 0;
+		return 0;
+	}
+	if (!ast_strlen_zero(cfg->certfile)) {
+		if (SSL_CTX_use_certificate_file(cfg->ssl_ctx, cfg->certfile, SSL_FILETYPE_PEM) == 0 ||
+		    SSL_CTX_use_PrivateKey_file(cfg->ssl_ctx, cfg->certfile, SSL_FILETYPE_PEM) == 0 ||
+		    SSL_CTX_check_private_key(cfg->ssl_ctx) == 0 ) {
+			if (!client) {
+				/* Clients don't need a certificate, but if its setup we can use it */
+				ast_verb(0, "SSL cert error <%s>", cfg->certfile);
+				sleep(2);
+				cfg->enabled = 0;
+				return 0;
+			}
+		}
+	}
+	if (!ast_strlen_zero(cfg->cipher)) {
+		if (SSL_CTX_set_cipher_list(cfg->ssl_ctx, cfg->cipher) == 0 ) {
+			if (!client) {
+				ast_verb(0, "SSL cipher error <%s>", cfg->cipher);
+				sleep(2);
+				cfg->enabled = 0;
+				return 0;
+			}
+		}
+	}
+	if (!ast_strlen_zero(cfg->cafile) || !ast_strlen_zero(cfg->capath)) {
+		if (SSL_CTX_load_verify_locations(cfg->ssl_ctx, S_OR(cfg->cafile, NULL), S_OR(cfg->capath,NULL)) == 0)
+			ast_verb(0, "SSL CA file(%s)/path(%s) error\n", cfg->cafile, cfg->capath);
+	}
+
+	ast_verb(0, "SSL certificate ok\n");
+	return 1;
+#endif
+}
+
+int ast_ssl_setup(struct ast_tls_config *cfg)
+{
+	return __ssl_setup(cfg, 0);
+}
+
+/*! \brief A generic client routine for a TCP client
+ *  and starts a thread for handling accept()
+ */
+struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_session_args *desc)
+{
+	int flags;
+	int x = 1;
+	struct ast_tcptls_session_instance *ser = NULL;
+
+	/* Do nothing if nothing has changed */
+	if(!memcmp(&desc->old_local_address, &desc->local_address, sizeof(desc->old_local_address))) {
+		ast_debug(1, "Nothing changed in %s\n", desc->name);
+		return NULL;
+	}
+
+	desc->old_local_address = desc->local_address;
+
+	if (desc->accept_fd != -1)
+		close(desc->accept_fd);
+
+	desc->accept_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (desc->accept_fd < 0) {
+		ast_log(LOG_WARNING, "Unable to allocate socket for %s: %s\n",
+			desc->name, strerror(errno));
+		return NULL;
+	}
+
+	/* if a local address was specified, bind to it so the connection will
+	   originate from the desired address */
+	if (desc->local_address.sin_family != 0) {
+		setsockopt(desc->accept_fd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
+		if (bind(desc->accept_fd, (struct sockaddr *) &desc->local_address, sizeof(desc->local_address))) {
+			ast_log(LOG_ERROR, "Unable to bind %s to %s:%d: %s\n",
+			desc->name,
+				ast_inet_ntoa(desc->local_address.sin_addr), ntohs(desc->local_address.sin_port),
+				strerror(errno));
+			goto error;
+		}
+	}
+
+	if (connect(desc->accept_fd, (const struct sockaddr *) &desc->remote_address, sizeof(desc->remote_address))) {
+		ast_log(LOG_ERROR, "Unable to connect %s to %s:%d: %s\n",
+			desc->name,
+			ast_inet_ntoa(desc->remote_address.sin_addr), ntohs(desc->remote_address.sin_port),
+			strerror(errno));
+		goto error;
+	}
+
+	if (!(ser = ao2_alloc(sizeof(*ser), session_instance_destructor)))
+		goto error;
+
+	ast_mutex_init(&ser->lock);
+
+	flags = fcntl(desc->accept_fd, F_GETFL);
+	fcntl(desc->accept_fd, F_SETFL, flags & ~O_NONBLOCK);
+
+	ser->fd = desc->accept_fd;
+	ser->parent = desc;
+	ser->parent->worker_fn = NULL;
+	memcpy(&ser->remote_address, &desc->local_address, sizeof(ser->remote_address));
+
+	ser->client = 1;
+
+	if (desc->tls_cfg) {
+		desc->tls_cfg->enabled = 1;
+		__ssl_setup(desc->tls_cfg, 1);
+	}
+
+	ao2_ref(ser, +1);
+	if (!handle_tls_connection(ser))
+		goto error;
+
+	return ser;
+
+error:
+	close(desc->accept_fd);
+	desc->accept_fd = -1;
+	if (ser)
+		ao2_ref(ser, -1);
+	return NULL;
+}
+
+/*! \brief
+ * This is a generic (re)start routine for a TCP server,
+ * which does the socket/bind/listen and starts a thread for handling
+ * accept().
+ */
+void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
+{
+	int flags;
+	int x = 1;
+	
+	/* Do nothing if nothing has changed */
+	if (!memcmp(&desc->old_local_address, &desc->local_address, sizeof(desc->old_local_address))) {
+		ast_debug(1, "Nothing changed in %s\n", desc->name);
+		return;
+	}
+	
+	desc->old_local_address = desc->local_address;
+	
+	/* Shutdown a running server if there is one */
+	if (desc->master != AST_PTHREADT_NULL) {
+		pthread_cancel(desc->master);
+		pthread_kill(desc->master, SIGURG);
+		pthread_join(desc->master, NULL);
+	}
+	
+	if (desc->accept_fd != -1)
+		close(desc->accept_fd);
+
+	/* If there's no new server, stop here */
+	if (desc->local_address.sin_family == 0) {
+		ast_debug(2, "Server disabled:  %s\n", desc->name);
+		return;
+	}
+
+	desc->accept_fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (desc->accept_fd < 0) {
+		ast_log(LOG_ERROR, "Unable to allocate socket for %s: %s\n", desc->name, strerror(errno));
+		return;
+	}
+	
+	setsockopt(desc->accept_fd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
+	if (bind(desc->accept_fd, (struct sockaddr *) &desc->local_address, sizeof(desc->local_address))) {
+		ast_log(LOG_ERROR, "Unable to bind %s to %s:%d: %s\n",
+			desc->name,
+			ast_inet_ntoa(desc->local_address.sin_addr), ntohs(desc->local_address.sin_port),
+			strerror(errno));
+		goto error;
+	}
+	if (listen(desc->accept_fd, 10)) {
+		ast_log(LOG_ERROR, "Unable to listen for %s!\n", desc->name);
+		goto error;
+	}
+	flags = fcntl(desc->accept_fd, F_GETFL);
+	fcntl(desc->accept_fd, F_SETFL, flags | O_NONBLOCK);
+	if (ast_pthread_create_background(&desc->master, NULL, desc->accept_fn, desc)) {
+		ast_log(LOG_ERROR, "Unable to launch thread for %s on %s:%d: %s\n",
+			desc->name,
+			ast_inet_ntoa(desc->local_address.sin_addr), ntohs(desc->local_address.sin_port),
+			strerror(errno));
+		goto error;
+	}
+	return;
+
+error:
+	close(desc->accept_fd);
+	desc->accept_fd = -1;
+}
+
+/*! \brief Shutdown a running server if there is one */
+void ast_tcptls_server_stop(struct ast_tcptls_session_args *desc)
+{
+	if (desc->master != AST_PTHREADT_NULL) {
+		pthread_cancel(desc->master);
+		pthread_kill(desc->master, SIGURG);
+		pthread_join(desc->master, NULL);
+	}
+	if (desc->accept_fd != -1)
+		close(desc->accept_fd);
+	desc->accept_fd = -1;
+	ast_debug(2, "Stopped server :: %s\n", desc->name);
+}
