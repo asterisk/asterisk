@@ -74,9 +74,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <pwd.h>
 #include <sys/stat.h>
 
-#if defined(HAVE_DAHDI)
+#if defined(HAVE_ZAPTEL) || defined (HAVE_DAHDI)
 #include <sys/ioctl.h>
+#endif
+
+#if defined(HAVE_DAHDI)
 #include "asterisk/dahdi_compat.h"
+#endif
+
+#if defined(HAVE_ZAPTEL)
+#include <zaptel/zaptel.h>
 #endif
 
 #ifdef linux
@@ -2991,7 +2998,7 @@ int main(int argc, char *argv[])
 		int x = 160;
 		fd = open("/dev/zap/timer", O_RDWR);
 		if (fd >= 0) {
-			if (ioctl(fd, DAHDI_TIMERCONFIG, &x)) {
+			if (ioctl(fd, ZT_TIMERCONFIG, &x)) {
 				ast_log(LOG_ERROR, "You have Zaptel built and drivers loaded, but the Zaptel timer test failed to set ZT_TIMERCONFIG to %d.\n", x);
 				exit(1);
 			}
