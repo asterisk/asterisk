@@ -31,41 +31,8 @@
  * ********** IMPORTANT *
  * \note TCP/TLS support is EXPERIMENTAL and WILL CHANGE. This applies to configuration
  *	settings, dialplan commands and dialplans apps/functions
+ * See \ref sip_tcp_tls
  * 
- * ******** TCP implementation changes needed
- * \todo Fix TCP/TLS handling in dialplan, SRV records, transfers and much more
- * \todo Save TCP/TLS sessions in registry
- *	If someone registers a SIPS uri, this forces us to set up a TLS connection back.
- * \todo Add TCP/TLS information to function SIPPEER and SIPCHANINFO
- * \todo If tcpenable=yes, we must open a TCP socket on the same address as the IP for UDP.
- * 	 The tcpbindaddr config option should only be used to open ADDITIONAL ports
- * 	 So we should propably go back to
- *		bindaddr= the default address to bind to. If tcpenable=yes, then bind this to both udp and TCP
- *				if tlsenable=yes, open TLS port (provided we also have cert)
- *		tcpbindaddr = extra address for additional TCP connections
- *		tlsbindaddr = extra address for additional TCP/TLS connections
- *		udpbindaddr = extra address for additional UDP connections
- *			These three options should take multiple IP/port pairs
- *	Note: Since opening additional listen sockets is a *new* feature we do not have today
- *		the XXXbindaddr options needs to be disabled until we have support for it
- *		
- * \todo Be prepared for one outbound and another incoming socket per pvt. This applies
- *       specially to communication with other peers (proxies).
- * \todo We need to test TCP sessions with SIP proxies and in regards
- *       to the SIP outbound specs.
- * \todo transport=tls was deprecated in RFC3261 and should not be used at all. See section 22.2.2.
- *
- * \todo If the message is smaller than the given Content-length, the request should get a 400 Bad request
- *       message. If it's a response, it should be dropped. (RFC 3261, Section 18.3)
- * \todo Since we have had multidomain support in Asterisk for quite a while, we need to support
- *       multiple domains in our TLS implementation, meaning one socket and one cert per domain
- * \todo Selection of transport for a request needs to be done after we've parsed all route headers,
- *	 also considering outbound proxy options.
- *		First request: Outboundproxy, routes, (reg contact or URI. If URI doesn't have port:  DNS naptr, srv, AAA)
- *		Intermediate requests: Outboundproxy(only when forced), routes, contact/uri
- *	DNS naptr support is crucial. A SIP uri might lead to a TLS connection.
- *	Also note that due to outbound proxy settings, a SIPS uri might have to be sent on UDP (not to recommend though)
- *
  *
  * ******** General TODO:s
  * \todo Better support of forking
@@ -118,6 +85,84 @@
  * \par Hanging up
  * The PBX issues a hangup on both incoming and outgoing calls through
  * the sip_hangup() function
+ */
+
+/*!  \page sip_tcp_tls SIP TCP and TLS support
+ * The TCP and TLS support is unfortunately implemented in a way that is not 
+ * SIP compliant and tested in a SIP infrastructure. We hope to fix this for 
+ * at least release 1.6.2. This code was new in 1.6.0 and won't be fixed for
+ * that release, due to the current release policy. Only bugs compared with
+ * the working functionality in 1.4 will be fixed. Bugs in new features will
+ * be fixed in the next release. As 1.6.1 is already in release
+ * candidate mode, there will be a buggy SIP channel in that release too.
+ *
+ * If you have opinions about this release policy, send mail to the asterisk-dev
+ * mailing list.
+ *
+ * \par tcpfixes TCP implementation changes needed
+ * \todo Fix TCP/TLS handling in dialplan, SRV records, transfers and much more
+ * \todo Save TCP/TLS sessions in registry
+ *	If someone registers a SIPS uri, this forces us to set up a TLS connection back.
+ * \todo Add TCP/TLS information to function SIPPEER and SIPCHANINFO
+ * \todo If tcpenable=yes, we must open a TCP socket on the same address as the IP for UDP.
+ * 	 The tcpbindaddr config option should only be used to open ADDITIONAL ports
+ * 	 So we should propably go back to
+ *		bindaddr= the default address to bind to. If tcpenable=yes, then bind this to both udp and TCP
+ *				if tlsenable=yes, open TLS port (provided we also have cert)
+ *		tcpbindaddr = extra address for additional TCP connections
+ *		tlsbindaddr = extra address for additional TCP/TLS connections
+ *		udpbindaddr = extra address for additional UDP connections
+ *			These three options should take multiple IP/port pairs
+ *	Note: Since opening additional listen sockets is a *new* feature we do not have today
+ *		the XXXbindaddr options needs to be disabled until we have support for it
+ *		
+ * \todo re-evaluate the transport= setting in sip.conf. This is right now not well
+ * 	thought of. If a device in sip.conf contacts us via TCP, we should not switch transport,
+ *	even if udp is the configured first transport.
+ *	
+ * \todo Be prepared for one outbound and another incoming socket per pvt. This applies
+ *       specially to communication with other peers (proxies).
+ * \todo We need to test TCP sessions with SIP proxies and in regards
+ *       to the SIP outbound specs.
+ * \todo transport=tls was deprecated in RFC3261 and should not be used at all. See section 22.2.2.
+ *
+ * \todo If the message is smaller than the given Content-length, the request should get a 400 Bad request
+ *       message. If it's a response, it should be dropped. (RFC 3261, Section 18.3)
+ * \todo Since we have had multidomain support in Asterisk for quite a while, we need to support
+ *       multiple domains in our TLS implementation, meaning one socket and one cert per domain
+ * \todo Selection of transport for a request needs to be done after we've parsed all route headers,
+ *	 also considering outbound proxy options.
+ *		First request: Outboundproxy, routes, (reg contact or URI. If URI doesn't have port:  DNS naptr, srv, AAA)
+ *		Intermediate requests: Outboundproxy(only when forced), routes, contact/uri
+ *	DNS naptr support is crucial. A SIP uri might lead to a TLS connection.
+ *	Also note that due to outbound proxy settings, a SIPS uri might have to be sent on UDP (not to recommend though)
+ * \todo Default transports are set to UDP, which cause the wrong behaviour when contacting remote
+ *	devices directly from the dialplan. UDP is only a fallback if no other method works,
+ *	in order to be compatible with RFC2543 (SIP/1.0) devices. For transactions that exceed the
+ * 	MTU (like INIVTE with video, audio and RTT)  TCP should be preferred.
+ *
+ *	When dialling unconfigured peers (with no port number)  or devices in external domains
+ *	NAPTR records MUST be consulted to find configured transport. If they are not found,
+ *	SRV records for both TCP and UDP should be checked. If there's a record for TCP, use that.
+ *	If there's no record for TCP, then use UDP as a last resort. If there's no SRV records,
+ *	\note this only applies if there's no outbound proxy configured for the session. If an outbound
+ *	proxy is configured, these procedures might apply for locating the proxy and determining
+ *	the transport to use for communication with the proxy.
+ * \par Other bugs to fix ----
+ * __set_address_from_contact(const char *fullcontact, struct sockaddr_in *sin, int tcp)
+ *	- sets TLS port as default for all TCP connections, unless other port is given in contact.
+ * parse_register_contact(struct sip_pvt *pvt, struct sip_peer *peer, struct sip_request *req)
+ *	- assumes that the contact the UA registers is using the same transport as the REGISTER request, which is 
+ *	  a bad guess.
+ *      - Does not save any information about TCP/TLS connected devices, which is a severe BUG, as discussed on the mailing list.
+ * get_destination(struct sip_pvt *p, struct sip_request *oreq)
+ *	- Doesn't store the information that we got an incoming SIPS request in the channel, so that
+ *	  we can require a secure signalling path OUT of Asterisk (on SIP or IAX2). Possibly, the call should
+ *	  fail on in-secure signalling paths if there's no override in our configuration. At least, provide a
+ *	  channel variable in the dialplan.
+ * get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoing_req)
+ *	- As above, if we have a SIPS: uri in the refer-to header
+ * 	- Does not check transport in refer_to uri.
  */
 
 /*** MODULEINFO
@@ -507,7 +552,7 @@ struct sip_proxy {
 	char name[MAXHOSTNAMELEN];      /*!< DNS name of domain/host or IP */
 	struct sockaddr_in ip;          /*!< Currently used IP address and port */
 	time_t last_dnsupdate;          /*!< When this was resolved */
-	enum sip_transport transport;
+	enum sip_transport transport;	
 	int force;                      /*!< If it's an outbound proxy, Force use of this outbound proxy for all outbound requests */
 	/* Room for a SRV record chain based on the name */
 };
@@ -620,7 +665,8 @@ static const struct  cfsip_methods {
 #define SIP_OPT_FROMCHANGE	(1 << 17)
 #define SIP_OPT_RECLISTINV	(1 << 18)
 #define SIP_OPT_RECLISTSUB	(1 << 19)
-#define SIP_OPT_UNKNOWN		(1 << 20)
+#define SIP_OPT_OUTBOUND	(1 << 20)
+#define SIP_OPT_UNKNOWN		(1 << 21)
 
 
 /*! \brief List of well-known SIP options. If we get this in a require,
@@ -646,6 +692,8 @@ static const struct cfsip_options {
 	{ SIP_OPT_JOIN,		NOT_SUPPORTED,	"join" },
 	/* Disable the REFER subscription, RFC 4488 */
 	{ SIP_OPT_NOREFERSUB,	NOT_SUPPORTED,	"norefersub" },
+	/* SIP outbound - the final NAT battle - draft-sip-outbound */
+	{ SIP_OPT_OUTBOUND,	NOT_SUPPORTED,	"outbound" },
 	/* RFC3327: Path support */
 	{ SIP_OPT_PATH,		NOT_SUPPORTED,	"path" },
 	/* RFC3840: Callee preferences */
@@ -690,7 +738,7 @@ static const struct cfsip_options {
 
 /*! \brief Standard SIP unsecure port for UDP and TCP from RFC 3261. DO NOT CHANGE THIS */
 #define STANDARD_SIP_PORT	5060
-/*! \brief Standard SIP TLS port for sips: from RFC 3261. DO NOT CHANGE THIS */
+/*! \brief Standard SIP TLS port from RFC 3261. DO NOT CHANGE THIS */
 #define STANDARD_TLS_PORT	5061
 
 /*! \note in many SIP headers, absence of a port number implies port 5060,
@@ -1801,11 +1849,11 @@ static struct sip_auth *authl = NULL;
 
 /* --- Sockets and networking --------------*/
 
-/*! \brief Main socket for SIP communication.
+/*! \brief Main socket for UDP SIP communication.
  *
  * sipsock is shared between the SIP manager thread (which handles reload
- * requests), the io handler (sipsock_read()) and the user routines that
- * issue writes (using __sip_xmit()).
+ * requests), the udp io handler (sipsock_read()) and the user routines that
+ * issue udp writes (using __sip_xmit()).
  * The socket is -1 only when opening fails (this is a permanent condition),
  * or when we are handling a reload() that changes its address (this is
  * a transient situation during which we might have a harmless race, see
@@ -2021,6 +2069,7 @@ static int sip_refer_allocate(struct sip_pvt *p);
 static void ast_quiet_chan(struct ast_channel *chan);
 static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target);
 static int do_magic_pickup(struct ast_channel *channel, const char *extension, const char *context);
+
 /*!
  * \brief generic function for determining if a correct transport is being 
  * used to contact a peer
@@ -3666,6 +3715,8 @@ static char *get_in_brackets(char *tmp)
  * \verbatim 
  * general form we are expecting is sip[s]:username[:password][;parameter]@host[:port][;...] 
  * \endverbatim
+ * 
+ * \todo This function needs to look for ;transport= too
  */
 static int parse_uri(char *uri, char *scheme,
 	char **ret_name, char **pass, char **domain, char **port, char **options)
@@ -7845,7 +7896,15 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 	add_header(req, "Route", r);
 }
 
-/*! \brief Set destination from SIP URI */
+/*! \brief Set destination from SIP URI 
+ *
+ * Parse uri to h (host) and port - uri is already just the part inside the <> 
+ * general form we are expecting is sip[s]:username[:password][;parameter]@host[:port][;...] 
+ * If there's a port given, turn NAPTR/SRV off. NAPTR might indicate SIPS preference even
+ * for SIP: uri's
+ *
+ * If there's a sips: uri scheme, TLS will be required. 
+ */
 static void set_destination(struct sip_pvt *p, char *uri)
 {
 	char *h, *maddr, hostname[256];
@@ -7853,9 +7912,8 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	int debug=sip_debug_test_pvt(p);
-
-	/* Parse uri to h (host) and port - uri is already just the part inside the <> */
-	/* general form we are expecting is sip[s]:username[:password][;parameter]@host[:port][;...] */
+	int tls_on = FALSE;
+	int use_dns = global_srvlookup;
 
 	if (debug)
 		ast_verbose("set_destination: Parsing <%s> for address/port to send to\n", uri);
@@ -7866,10 +7924,12 @@ static void set_destination(struct sip_pvt *p, char *uri)
 		++h;
 	else {
 		h = uri;
-		if (!strncasecmp(h, "sip:", 4))
+		if (!strncasecmp(h, "sip:", 4)) {
 			h += 4;
-		else if (!strncasecmp(h, "sips:", 5))
+		} else if (!strncasecmp(h, "sips:", 5)) {
 			h += 5;
+			tls_on = TRUE;
+		}
 	}
 	hn = strcspn(h, ":;>") + 1;
 	if (hn > sizeof(hostname)) 
@@ -7883,9 +7943,9 @@ static void set_destination(struct sip_pvt *p, char *uri)
 		/* Parse port */
 		++h;
 		port = strtol(h, &h, 10);
-	}
-	else
-		port = STANDARD_SIP_PORT;
+		use_dns = FALSE;
+	} else
+		port = tls_on ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
 
 	/* Got the hostname:port - but maybe there's a "maddr=" to override address? */
 	maddr = strstr(h, "maddr=");
@@ -7896,6 +7956,8 @@ static void set_destination(struct sip_pvt *p, char *uri)
 			hn = sizeof(hostname);
 		ast_copy_string(hostname, maddr, hn);
 	}
+
+	/*! \todo XXX If we have use_dns on, then look for NAPTR/SRV, otherwise, just look for A records */
 	
 	hp = ast_gethostbyname(hostname, &ahp);
 	if (hp == NULL)  {
@@ -9707,8 +9769,8 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 
 	ast_copy_string(to, get_header(&p->initreq, "To"), sizeof(to));
 	c = get_in_brackets(to);
-	if (strncasecmp(c, "sip:", 4) && strncasecmp(c, "sips:", 5)) {
-		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
+	if (strncasecmp(to, "sip:", 4) && strncasecmp(to, "sips:", 5)) {
+		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", to);
 		return -1;
 	}
 	mto = remove_uri_parameters(c);
@@ -10341,6 +10403,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	char referto[256];
 	char *ttag, *ftag;
 	char *theirtag = ast_strdupa(p->theirtag);
+	int	use_tls=FALSE;
 
 	if (sipdebug)
 		ast_debug(1, "SIP transfer of %s to %s\n", p->callid, dest);
@@ -10359,21 +10422,23 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	ast_copy_string(from, of, sizeof(from));
 	of = get_in_brackets(from);
 	ast_string_field_set(p, from, of);
-	if (!strncasecmp(of, "sip:", 4))
+	if (!strncasecmp(of, "sip:", 4)) {
 		of += 4;
-	else if (!strncasecmp(of, "sips:", 5))
+	}else if (!strncasecmp(of, "sips:", 5)) {
 		of += 5;
-	else
-		ast_log(LOG_NOTICE, "From address missing 'sip(s):', using it anyway\n");
+		use_tls = TRUE;
+	} else {
+		ast_log(LOG_NOTICE, "From address missing 'sip(s):', assuming sip:\n");
+	}
 	/* Get just the username part */
 	if ((c = strchr(dest, '@')))
 		c = NULL;
 	else if ((c = strchr(of, '@')))
 		*c++ = '\0';
 	if (c) 
-		snprintf(referto, sizeof(referto), "<sip:%s@%s>", dest, c);
+		snprintf(referto, sizeof(referto), "<sip%s:%s@%s>", use_tls ? "s" : "", dest, c);
 	else
-		snprintf(referto, sizeof(referto), "<sip:%s>", dest);
+		snprintf(referto, sizeof(referto), "<sip%s:%s>", use_tls ? "s" : "", dest);
 
 	/* save in case we get 407 challenge */
 	sip_refer_allocate(p);
@@ -10632,6 +10697,7 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 	char contact_buf[256];
 	char contact2_buf[256];
 	char *contact, *contact2;
+	int use_tls = FALSE;
 
 	/* Work on a copy */
 	ast_copy_string(contact_buf, fullcontact, sizeof(contact_buf));
@@ -10650,11 +10716,14 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 		We still need to be able to send to the remote agent through the proxy.
        */
 	if (tcp) {
-		if (parse_uri(contact, "sips:", &contact, NULL, &host, &pt, NULL)) {
+		if (!parse_uri(contact, "sips:", &contact, NULL, &host, &pt, NULL)) {
+			use_tls = TRUE;
+		} else {
 			if (parse_uri(contact2, "sip:", &contact, NULL, &host, &pt, NULL))
 				ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", contact);
 		}
 		port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_TLS_PORT;
+		/*! \todo XXX why are we setting TLS port if there's no port given? parse_uri needs to return the transport. */
 	} else {
 		if (parse_uri(contact, "sip:", &contact, NULL, &host, &pt, NULL))
 			ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", contact);
@@ -10663,6 +10732,10 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 
 	/* XXX This could block for a long time XXX */
 	/* We should only do this if it's a name, not an IP */
+	/* \todo - if there's no PORT number in contact - we are required to check NAPTR/SRV records
+		to find transport, port address and hostname. If there's a port number, we have to
+		assume that the domain part is a host name and only look for an A/AAAA record in DNS.
+	*/
 	hp = ast_gethostbyname(host, &ahp);
 	if (!hp)  {
 		ast_log(LOG_WARNING, "Invalid host name in Contact: (can't resolve in DNS) : '%s'\n", host);
@@ -10764,6 +10837,12 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	ast_string_field_build(pvt, our_contact, "<%s>", curi);
 
 	/* Make sure it's a SIP URL */
+	/*! \todo This code assumes that the Contact is using the same transport as the
+		REGISTER request. That might not be true at all. You can receive
+		sips: requests over any transport. Needs to be fixed.
+		Does not parse the ;transport uri parameter at this point, which might be handy
+		in some situations.
+	*/
 	if (pvt->socket.type == SIP_TRANSPORT_TLS) {
 		if (parse_uri(curi, "sips:", &curi, NULL, &host, &pt, NULL)) {
 			if (parse_uri(curi2, "sip:", &curi, NULL, &host, &pt, NULL))
@@ -10780,6 +10859,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 
 	/* Check that they're allowed to register at this IP */
 	/* XXX This could block for a long time XXX */
+	/*! \todo Check NAPTR/SRV if we have not got a port in the URI */
 	hp = ast_gethostbyname(host, &ahp);
 	if (!hp)  {
 		ast_log(LOG_WARNING, "Invalid host '%s'\n", host);
@@ -10788,7 +10868,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		return PARSE_REGISTER_FAILED;
 	}
 	memcpy(&testsin.sin_addr, hp->h_addr, sizeof(testsin.sin_addr));
-	if (	ast_apply_ha(global_contact_ha, &testsin) != AST_SENSE_ALLOW ||
+	if (ast_apply_ha(global_contact_ha, &testsin) != AST_SENSE_ALLOW ||
 			ast_apply_ha(peer->contactha, &testsin) != AST_SENSE_ALLOW) {
 		ast_log(LOG_WARNING, "Host '%s' disallowed by rule\n", host);
 		*peer->fullcontact = '\0';
@@ -10796,6 +10876,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		return PARSE_REGISTER_FAILED;
 	}
 
+	/*! \todo This could come before the checking of DNS earlier on, to avoid 
+		DNS lookups where we don't need it... */
 	if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE)) {
 		peer->addr.sin_family = AF_INET;
 		memcpy(&peer->addr.sin_addr, hp->h_addr, sizeof(peer->addr.sin_addr));
@@ -10823,7 +10905,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expire, peer->username, peer->fullcontact);
 	/* Saving TCP connections is useless, we won't be able to reconnect 
 		XXX WHY???? XXX
-		\todo check this
+		\todo Fix this immediately.
 	*/
 	if (!peer->rt_fromcontact && (peer->socket.type & SIP_TRANSPORT_UDP)) 
 		ast_db_put("SIP/Registry", peer->name, data);
@@ -11235,12 +11317,15 @@ static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *r
  * Terminate the uri at the first ';' or space.
  * Technically we should ignore escaped space per RFC3261 (19.1.1 etc)
  * but don't do it for the time being. Remember the uri format is:
+ * (User-parameters was added after RFC 3261)
  *\verbatim
  *
- *	sip:user:password@host:port;uri-parameters?headers
- *	sips:user:password@host:port;uri-parameters?headers
+ *	sip:user:password;user-parameters@host:port;uri-parameters?headers
+ *	sips:user:password;user-parameters@host:port;uri-parameters?headers
  *
  *\endverbatim
+ * \todo As this function does not support user-parameters, it's considered broken
+ *	and needs fixing.
  */
 static char *terminate_uri(char *uri)
 {
@@ -11497,6 +11582,9 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 	if (ast_strlen_zero(tmp))
 		return 0;
 
+	/*! \todo This function does not take user-parameters into consideration.
+		First look for @, then start looking for ; to find uri-parameters.
+	*/
 	params = strchr(tmp, ';');
 
 	exten = get_in_brackets(tmp);
@@ -11551,6 +11639,10 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 	\return 0 on success (found a matching extension),
 	1 for pickup extension or overlap dialling support (if we support it),
 	-1 on error.
+
+  \note If the incoming uri is a SIPS: uri, we are required to carry this across
+	the dialplan, so that the outbound call also is a sips: call or encrypted
+	IAX2 call. If that's not available, the call should FAIL.
 */
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 {
@@ -11764,7 +11856,12 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 }
 
 /*! \brief Call transfer support (the REFER method) 
- * 	Extracts Refer headers into pvt dialog structure */
+ * 	Extracts Refer headers into pvt dialog structure 
+ *
+ * \note If we get a SIPS uri in the refer-to header, we're required to set up a secure signalling path
+ *	to that extension. As a minimum, this needs to be added to a channel variable, if not a channel
+ *	flag.
+ */
 static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoing_req)
 {
 
@@ -11943,7 +12040,9 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 }
 
 
-/*! \brief Call transfer support (old way, deprecated by the IETF)--*/
+/*! \brief Call transfer support (old way, deprecated by the IETF)
+ *	\note does not account for SIPS: uri requirements, nor check transport
+ */
 static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 {
 	char tmp[256] = "", *c, *a;
@@ -12399,6 +12498,8 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	of2 = ast_strdupa(of);
 
 	/* ignore all fields but name */
+	/*! \todo Samme logical error as in many places above. Need a generic function for this.
+ 	*/
 	if (p->socket.type == SIP_TRANSPORT_TLS) {
 		if (parse_uri(of, "sips:", &of, &dummy, &domain, &dummy, &dummy)) {
 			if (parse_uri(of2, "sip:", &of, &dummy, &domain, &dummy, &dummy))
@@ -15550,7 +15651,12 @@ static struct ast_custom_function sipchaninfo_function = {
 	"- t38passthrough        1 if T38 is offered or enabled in this channel, otherwise 0\n"
 };
 
-/*! \brief Parse 302 Moved temporalily response */
+/*! \brief Parse 302 Moved temporalily response 
+	\todo XXX Doesn't redirect over TLS on sips: uri's.
+		If we get a redirect to a SIPS: uri, this needs to be going back to the
+		dialplan (this is a request for a secure signalling path).
+		Note that transport=tls is deprecated, but we need to support it on incoming requests.
+*/
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 {
 	char tmp[SIPBUFSIZE];
@@ -15576,6 +15682,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 		else {
 			if (strncasecmp(trans, "udp", 3))
 				ast_debug(1, "received contact with an invalid transport, '%s'\n", s);
+			/* This will assume UDP for all unknown transports */
 			transport = SIP_TRANSPORT_UDP;
 		}
 	} while(0);
@@ -15950,6 +16057,16 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_string_field_set(p, theirtag, NULL);
 		proc_422_rsp(p, req);
 		break;
+
+	case 428: /* Use identity header - rfc 4474 - not supported by Asterisk yet */
+		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
+		append_history(p, "Identity", "SIP identity is required. Not supported by Asterisk.");
+		ast_log(LOG_WARNING, "SIP identity required by proxy. SIP dialog '%s'. Giving up.\n", p->callid);
+		if (p->owner)
+			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+		break;
+
+		
 
 	case 487: /* Cancelled transaction */
 		/* We have sent CANCEL on an outbound INVITE 
