@@ -3104,7 +3104,7 @@ static void *session_do(void *data)
 	/* these fields duplicate those in the 'ser' structure */
 	s->fd = ser->fd;
 	s->f = ser->f;
-	s->sin = ser->requestor;
+	s->sin = ser->remote_address;
 
 	AST_LIST_HEAD_INIT_NOLOCK(&s->datastores);
 
@@ -3695,7 +3695,7 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *v
 }
 
 static struct ast_str *generic_http_callback(enum output_format format,
-					     struct sockaddr_in *requestor, const char *uri, enum ast_http_method method,
+					     struct sockaddr_in *remote_address, const char *uri, enum ast_http_method method,
 					     struct ast_variable *params, int *status,
 					     char **title, int *contentlength)
 {
@@ -3724,7 +3724,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 			*status = 500;
 			goto generic_callback_out;
 		}
-		s->sin = *requestor;
+		s->sin = *remote_address;
 		s->fd = -1;
 		s->waiting_thread = AST_PTHREADT_NULL;
 		s->send_events = 0;
@@ -3870,17 +3870,17 @@ generic_callback_out:
 
 static struct ast_str *manager_http_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *params, struct ast_variable *headers, int *status, char **title, int *contentlength)
 {
-	return generic_http_callback(FORMAT_HTML, &ser->requestor, uri, method, params, status, title, contentlength);
+	return generic_http_callback(FORMAT_HTML, &ser->remote_address, uri, method, params, status, title, contentlength);
 }
 
 static struct ast_str *mxml_http_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *params, struct ast_variable *headers, int *status, char **title, int *contentlength)
 {
-	return generic_http_callback(FORMAT_XML, &ser->requestor, uri, method, params, status, title, contentlength);
+	return generic_http_callback(FORMAT_XML, &ser->remote_address, uri, method, params, status, title, contentlength);
 }
 
 static struct ast_str *rawman_http_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *params, struct ast_variable *headers, int *status, char **title, int *contentlength)
 {
-	return generic_http_callback(FORMAT_RAW, &ser->requestor, uri, method, params, status, title, contentlength);
+	return generic_http_callback(FORMAT_RAW, &ser->remote_address, uri, method, params, status, title, contentlength);
 }
 
 struct ast_http_uri rawmanuri = {
@@ -3923,7 +3923,7 @@ static void purge_old_stuff(void *data)
 }
 
 struct ast_tls_config ami_tls_cfg;
-static struct server_args ami_desc = {
+static struct ast_tcptls_session_args ami_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,
 	.tls_cfg = NULL, 
@@ -3934,7 +3934,7 @@ static struct server_args ami_desc = {
 	.worker_fn = session_do,	/* thread handling the session */
 };
 
-static struct server_args amis_desc = {
+static struct ast_tcptls_session_args amis_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,
 	.tls_cfg = &ami_tls_cfg, 
@@ -4010,10 +4010,10 @@ static int __init_manager(int reload)
 	}
 
 	/* default values */
-	memset(&ami_desc.sin, 0, sizeof(struct sockaddr_in));
-	memset(&amis_desc.sin, 0, sizeof(amis_desc.sin));
-	amis_desc.sin.sin_port = htons(5039);
-	ami_desc.sin.sin_port = htons(DEFAULT_MANAGER_PORT);
+	memset(&ami_desc.local_address, 0, sizeof(struct sockaddr_in));
+	memset(&amis_desc.local_address, 0, sizeof(amis_desc.local_address));
+	amis_desc.local_address.sin_port = htons(5039);
+	ami_desc.local_address.sin_port = htons(DEFAULT_MANAGER_PORT);
 
 	ami_tls_cfg.enabled = 0;
 	if (ami_tls_cfg.certfile)
@@ -4028,10 +4028,10 @@ static int __init_manager(int reload)
 		if (!strcasecmp(var->name, "sslenable"))
 			ami_tls_cfg.enabled = ast_true(val);
 		else if (!strcasecmp(var->name, "sslbindport"))
-			amis_desc.sin.sin_port = htons(atoi(val));
+			amis_desc.local_address.sin_port = htons(atoi(val));
 		else if (!strcasecmp(var->name, "sslbindaddr")) {
 			if ((hp = ast_gethostbyname(val, &ahp))) {
-				memcpy(&amis_desc.sin.sin_addr, hp->h_addr, sizeof(amis_desc.sin.sin_addr));
+				memcpy(&amis_desc.local_address.sin_addr, hp->h_addr, sizeof(amis_desc.local_address.sin_addr));
 				have_sslbindaddr = 1;
 			} else {
 				ast_log(LOG_WARNING, "Invalid bind address '%s'\n", val);
@@ -4049,11 +4049,11 @@ static int __init_manager(int reload)
 		} else if (!strcasecmp(var->name, "webenabled")) {
 			webmanager_enabled = ast_true(val);
 		} else if (!strcasecmp(var->name, "port")) {
-			ami_desc.sin.sin_port = htons(atoi(val));
+			ami_desc.local_address.sin_port = htons(atoi(val));
 		} else if (!strcasecmp(var->name, "bindaddr")) {
-			if (!inet_aton(val, &ami_desc.sin.sin_addr)) {
+			if (!inet_aton(val, &ami_desc.local_address.sin_addr)) {
 				ast_log(LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
-				memset(&ami_desc.sin.sin_addr, 0, sizeof(ami_desc.sin.sin_addr));
+				memset(&ami_desc.local_address.sin_addr, 0, sizeof(ami_desc.local_address.sin_addr));
 			}
 		} else if (!strcasecmp(var->name, "allowmultiplelogin")) { 
 			allowmultiplelogin = ast_true(val);
@@ -4072,11 +4072,11 @@ static int __init_manager(int reload)
 	}
 
 	if (manager_enabled)
-		ami_desc.sin.sin_family = AF_INET;
+		ami_desc.local_address.sin_family = AF_INET;
 	if (!have_sslbindaddr)
-		amis_desc.sin.sin_addr = ami_desc.sin.sin_addr;
+		amis_desc.local_address.sin_addr = ami_desc.local_address.sin_addr;
 	if (ami_tls_cfg.enabled)
-		amis_desc.sin.sin_family = AF_INET;
+		amis_desc.local_address.sin_family = AF_INET;
 
 	
 	AST_RWLIST_WRLOCK(&users);

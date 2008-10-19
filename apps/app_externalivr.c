@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
 #include "asterisk/tcptls.h"
+#include "asterisk/astobj2.h"
 
 static const char *app = "ExternalIVR";
 
@@ -419,7 +420,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (!strncmp(app_args[0], "ivr://", 6)) {
-		struct server_args ivr_desc = {
+		struct ast_tcptls_session_args ivr_desc = {
 			.accept_fd = -1,
 			.name = "IVR",
 		};
@@ -438,9 +439,9 @@ static int app_exec(struct ast_channel *chan, void *data)
 		}
 
 		ast_gethostbyname(hostname, &hp);
-		ivr_desc.sin.sin_family = AF_INET;
-		ivr_desc.sin.sin_port = htons(port);
-		memmove(&ivr_desc.sin.sin_addr.s_addr, hp.hp.h_addr, hp.hp.h_length);
+		ivr_desc.local_address.sin_family = AF_INET;
+		ivr_desc.local_address.sin_port = htons(port);
+		memcpy(&ivr_desc.local_address.sin_addr.s_addr, hp.hp.h_addr, hp.hp.h_length);
 		ser = ast_tcptls_client_start(&ivr_desc);
 
 		if (!ser) {

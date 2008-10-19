@@ -2260,7 +2260,7 @@ static struct ast_tls_config sip_tls_cfg;
 static struct ast_tls_config default_tls_cfg;
 
 /*! \brief The TCP server definition */
-static struct server_args sip_tcp_desc = {
+static struct ast_tcptls_session_args sip_tcp_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,
 	.tls_cfg = NULL,
@@ -2271,7 +2271,7 @@ static struct server_args sip_tcp_desc = {
 };
 
 /*! \brief The TCP/TLS server definition */
-static struct server_args sip_tls_desc = {
+static struct ast_tcptls_session_args sip_tls_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,
 	.tls_cfg = &sip_tls_cfg,
@@ -2417,7 +2417,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 			}
 		}
 		req.socket.ser = ser;
-		handle_request_do(&req, &ser->requestor);
+		handle_request_do(&req, &ser->remote_address);
 	}
 
 cleanup:
@@ -2459,7 +2459,7 @@ static void *unref_peer(struct sip_peer *peer, char *tag)
 
 static struct sip_peer *ref_peer(struct sip_peer *peer, char *tag)
 {
-	ao2_t_ref(peer, 1,tag);
+	ao2_t_ref(peer, 1, tag);
 	return peer;
 }
 
@@ -12376,8 +12376,8 @@ static char *sip_show_tcp(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	ast_cli(a->fd, FORMAT2, "Host", "Port", "Transport", "Type");
 	AST_LIST_LOCK(&threadl);
 	AST_LIST_TRAVERSE(&threadl, th, list) {
-		ast_cli(a->fd, FORMAT, ast_inet_ntoa(th->ser->requestor.sin_addr), 
-			ntohs(th->ser->requestor.sin_port), 
+		ast_cli(a->fd, FORMAT, ast_inet_ntoa(th->ser->remote_address.sin_addr), 
+			ntohs(th->ser->remote_address.sin_port), 
 			get_transport(th->type), 
 			(th->ser->client ? "Client" : "Server"));
 
@@ -13636,16 +13636,16 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  UDP SIP Port:           %d\n", ntohs(bindaddr.sin_port));
 	ast_cli(a->fd, "  UDP Bindaddress:        %s\n", ast_inet_ntoa(bindaddr.sin_addr));
 	ast_cli(a->fd, "  TCP SIP Port:           ");
-	if (sip_tcp_desc.sin.sin_family == AF_INET) {
-		ast_cli(a->fd, "%d\n", ntohs(sip_tcp_desc.sin.sin_port));
-		ast_cli(a->fd, "  TCP Bindaddress:        %s\n", ast_inet_ntoa(sip_tcp_desc.sin.sin_addr));
+	if (sip_tcp_desc.local_address.sin_family == AF_INET) {
+		ast_cli(a->fd, "%d\n", ntohs(sip_tcp_desc.local_address.sin_port));
+		ast_cli(a->fd, "  TCP Bindaddress:        %s\n", ast_inet_ntoa(sip_tcp_desc.local_address.sin_addr));
 	} else {
 		ast_cli(a->fd, "Disabled\n");
 	}
 	ast_cli(a->fd, "  TLS SIP Port:           ");
 	if (default_tls_cfg.enabled != FALSE) {
-		ast_cli(a->fd, "%d\n", ntohs(sip_tls_desc.sin.sin_port));
-		ast_cli(a->fd, "  TLS Bindaddress:        %s\n", ast_inet_ntoa(sip_tls_desc.sin.sin_addr));
+		ast_cli(a->fd, "%d\n", ntohs(sip_tls_desc.local_address.sin_port));
+		ast_cli(a->fd, "  TLS Bindaddress:        %s\n", ast_inet_ntoa(sip_tls_desc.local_address.sin_addr));
 	} else {
 		ast_cli(a->fd, "Disabled\n");
 	}
@@ -19376,9 +19376,9 @@ static struct ast_tcptls_session_instance *sip_tcp_locate(struct sockaddr_in *s)
 
 	AST_LIST_LOCK(&threadl);
 	AST_LIST_TRAVERSE(&threadl, th, list) {
-		if ((s->sin_family == th->ser->requestor.sin_family) &&
-			(s->sin_addr.s_addr == th->ser->requestor.sin_addr.s_addr) &&
-			(s->sin_port == th->ser->requestor.sin_port))  {
+		if ((s->sin_family == th->ser->remote_address.sin_family) &&
+			(s->sin_addr.s_addr == th->ser->remote_address.sin_addr.s_addr) &&
+			(s->sin_port == th->ser->remote_address.sin_port))  {
 				AST_LIST_UNLOCK(&threadl);
 				return th->ser;
 			}
@@ -19393,7 +19393,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 	struct sip_socket *s = &p->socket;
 	static const char name[] = "SIP socket";
 	struct ast_tcptls_session_instance *ser;
-	struct server_args ca = {
+	struct ast_tcptls_session_args ca = {
 		.name = name,
 		.accept_fd = -1,
 	};
@@ -19410,9 +19410,9 @@ static int sip_prepare_socket(struct sip_pvt *p)
 		return s->fd;
 	}
 
-	ca.sin = *(sip_real_dst(p));
+	ca.remote_address = *(sip_real_dst(p));
 
-	if ((ser = sip_tcp_locate(&ca.sin))) {
+	if ((ser = sip_tcp_locate(&ca.remote_address))) {	/* Check if we have a thread handling a socket connected to this IP/port */
 		s->fd = ser->fd;
 		if (s->ser) {
 			ao2_ref(s->ser, -1);
@@ -21344,16 +21344,16 @@ static int reload_config(enum channelreloadreason reason)
 	}
 
 	/* Initialize tcp sockets */
-	memset(&sip_tcp_desc.sin, 0, sizeof(sip_tcp_desc.sin));
-	memset(&sip_tls_desc.sin, 0, sizeof(sip_tls_desc.sin));
+	memset(&sip_tcp_desc.local_address, 0, sizeof(sip_tcp_desc.local_address));
+	memset(&sip_tls_desc.local_address, 0, sizeof(sip_tls_desc.local_address));
 
 	ast_free_ha(global_contact_ha);
 	global_contact_ha = NULL;
 
 	default_tls_cfg.enabled = FALSE;		/* Default: Disable TLS */
 
-	sip_tcp_desc.sin.sin_port = htons(STANDARD_SIP_PORT);
-	sip_tls_desc.sin.sin_port = htons(STANDARD_TLS_PORT);
+	sip_tcp_desc.local_address.sin_port = htons(STANDARD_SIP_PORT);
+	sip_tls_desc.local_address.sin_port = htons(STANDARD_TLS_PORT);
 
 	if (reason != CHANNEL_MODULE_LOAD) {
 		ast_debug(4, "--------------- SIP reload started\n");
@@ -21566,17 +21566,17 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "t1min")) {
 			global_t1min = atoi(v->value);
 		} else if (!strcasecmp(v->name, "tcpenable")) {
-			sip_tcp_desc.sin.sin_family = ast_false(v->value) ? 0 : AF_INET;
+			sip_tcp_desc.local_address.sin_family = ast_false(v->value) ? 0 : AF_INET;
 			ast_debug(2, "Enabling TCP socket for listening\n");
 		} else if (!strcasecmp(v->name, "tcpbindaddr")) {
-			int family = sip_tcp_desc.sin.sin_family;
-			if (ast_parse_arg(v->value, PARSE_INADDR, &sip_tcp_desc.sin))
+			int family = sip_tcp_desc.local_address.sin_family;
+			if (ast_parse_arg(v->value, PARSE_INADDR, &sip_tcp_desc.local_address))
 				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n", v->name, v->value, v->lineno, config);
-			sip_tcp_desc.sin.sin_family = family;
+			sip_tcp_desc.local_address.sin_family = family;
 			ast_debug(2, "Setting TCP socket address to %s\n", v->value);
 		} else if (!strcasecmp(v->name, "tlsenable")) {
 			default_tls_cfg.enabled = ast_true(v->value) ? TRUE : FALSE;
-			sip_tls_desc.sin.sin_family = AF_INET;
+			sip_tls_desc.local_address.sin_family = AF_INET;
 		} else if (!strcasecmp(v->name, "tlscertfile")) {
 			ast_free(default_tls_cfg.certfile);
 			default_tls_cfg.certfile = ast_strdup(v->value);
@@ -21594,7 +21594,7 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "tlsdontverifyserver")) {
 			ast_set2_flag(&default_tls_cfg.flags, ast_true(v->value), AST_SSL_DONT_VERIFY_SERVER);	
 		} else if (!strcasecmp(v->name, "tlsbindaddr")) {
-			if (ast_parse_arg(v->value, PARSE_INADDR, &sip_tls_desc.sin))
+			if (ast_parse_arg(v->value, PARSE_INADDR, &sip_tls_desc.local_address))
 				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n", v->name, v->value, v->lineno, config);
 		} else if (!strcasecmp(v->name, "dynamic_exclude_static") || !strcasecmp(v->name, "dynamic_excludes_static")) {
 			global_dynamic_exclude_static = ast_true(v->value);
@@ -22089,12 +22089,12 @@ static int reload_config(enum channelreloadreason reason)
 			ast_log(LOG_NOTICE, "Can't add wildcard IP address to domain list, please add IP address to domain manually.\n");
 
 		/* If TCP is running on a different IP than UDP, then add it too */
-		if (sip_tcp_desc.sin.sin_addr.s_addr && !inaddrcmp(&bindaddr, &sip_tcp_desc.sin))
-			add_sip_domain(ast_inet_ntoa(sip_tcp_desc.sin.sin_addr), SIP_DOMAIN_AUTO, NULL);
+		if (sip_tcp_desc.local_address.sin_addr.s_addr && !inaddrcmp(&bindaddr, &sip_tcp_desc.local_address))
+			add_sip_domain(ast_inet_ntoa(sip_tcp_desc.local_address.sin_addr), SIP_DOMAIN_AUTO, NULL);
 
 		/* If TLS is running on a differen IP than UDP and TCP, then add that too */
-		if (sip_tls_desc.sin.sin_addr.s_addr && !inaddrcmp(&bindaddr, &sip_tls_desc.sin) && inaddrcmp(&sip_tcp_desc.sin, &sip_tls_desc.sin))
-			add_sip_domain(ast_inet_ntoa(sip_tls_desc.sin.sin_addr), SIP_DOMAIN_AUTO, NULL);
+		if (sip_tls_desc.local_address.sin_addr.s_addr && !inaddrcmp(&bindaddr, &sip_tls_desc.local_address) && inaddrcmp(&sip_tcp_desc.local_address, &sip_tls_desc.local_address))
+			add_sip_domain(ast_inet_ntoa(sip_tls_desc.local_address.sin_addr), SIP_DOMAIN_AUTO, NULL);
 
 		/* Our extern IP address, if configured */
 		if (externip.sin_addr.s_addr)
