@@ -3784,6 +3784,11 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 	struct ast_variable *v = NULL;
 	int fmt;
 
+	if (!l->device) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return NULL;
+	}
+
 	tmp = ast_channel_alloc(1, state, l->cid_num, l->cid_name, l->accountcode, l->exten, l->context, l->amaflags, "Skinny/%s@%s-%d", l->name, d->name, callnums);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
