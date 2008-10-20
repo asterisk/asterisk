@@ -1,3 +1,88 @@
+AC_DEFUN([AST_CHECK_PWLIB_PLATFORM], [
+PWLIB_OSTYPE=
+case "$host_os" in
+  linux*)          PWLIB_OSTYPE=linux ;
+  		;;
+  freebsd* )       PWLIB_OSTYPE=FreeBSD ;
+  		;;
+  openbsd* )       PWLIB_OSTYPE=OpenBSD ;
+				   ENDLDLIBS="-lossaudio" ;
+		;;
+  netbsd* )        PWLIB_OSTYPE=NetBSD ;
+				   ENDLDLIBS="-lossaudio" ;
+		;;
+  solaris* | sunos* ) PWLIB_OSTYPE=solaris ;
+		;;
+  darwin* )	       PWLIB_OSTYPE=Darwin ;
+		;;
+  beos*)           PWLIB_OSTYPE=beos ;
+                   STDCCFLAGS="$STDCCFLAGS -D__BEOS__"
+		;;
+  cygwin*)         PWLIB_OSTYPE=cygwin ;
+		;;
+  mingw*)	       PWLIB_OSTYPE=mingw ;
+		           STDCCFLAGS="$STDCCFLAGS -mms-bitfields" ;
+		           ENDLDLIBS="-lwinmm -lwsock32 -lsnmpapi -lmpr -lcomdlg32 -lgdi32 -lavicap32" ;
+		;;
+  * )		       PWLIB_OSTYPE="$host_os" ;
+		           AC_MSG_WARN("OS $PWLIB_OSTYPE not recognized - proceed with caution!") ;
+		;;
+esac
+
+PWLIB_MACHTYPE=
+case "$host_cpu" in
+   x86 | i686 | i586 | i486 | i386 ) PWLIB_MACHTYPE=x86
+                   ;;
+
+   x86_64)	   PWLIB_MACHTYPE=x86_64 ;
+		   P_64BIT=1 ;
+                   LIB64=1 ;
+		   ;;
+
+   alpha | alphaev56 | alphaev6 | alphaev67 | alphaev7) PWLIB_MACHTYPE=alpha ;
+		   P_64BIT=1 ;
+		   ;;
+
+   sparc )         PWLIB_MACHTYPE=sparc ;
+		   ;;
+
+   powerpc )       PWLIB_MACHTYPE=ppc ;
+		   ;;
+
+   ppc )           PWLIB_MACHTYPE=ppc ;
+		   ;;
+
+   powerpc64 )     PWLIB_MACHTYPE=ppc64 ;
+		   P_64BIT=1 ;
+                   LIB64=1 ;
+		   ;;
+
+   ppc64 )         PWLIB_MACHTYPE=ppc64 ;
+		   P_64BIT=1 ;
+                   LIB64=1 ;
+		   ;;
+
+   ia64)	   PWLIB_MACHTYPE=ia64 ;
+		   P_64BIT=1 ;
+	  	   ;;
+
+   s390x)	   PWLIB_MACHTYPE=s390x ;
+		   P_64BIT=1 ;
+                   LIB64=1 ;
+		   ;;
+
+   s390)	   PWLIB_MACHTYPE=s390 ;
+		   ;;
+
+   * )		   PWLIB_MACHTYPE="$host_cpu";
+		   AC_MSG_WARN("CPU $PWLIB_MACHTYPE not recognized - proceed with caution!") ;;
+esac
+
+PWLIB_PLATFORM="${PWLIB_OSTYPE}_${PWLIB_MACHTYPE}"
+
+AC_SUBST([PWLIB_PLATFORM])
+])
+
 AC_DEFUN([AST_CHECK_PWLIB], [
 PWLIB_INCDIR=
 PWLIB_LIBDIR=
