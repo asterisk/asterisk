@@ -1332,7 +1332,7 @@ if test "${USE_PWLIB}" != "no"; then
 	AST_CHECK_PWLIB_VERSION([PWLib], [PWLIB], [ptbuildopts.h], [1], [9], [2])
 		
 	if test "${HAS_PWLIB:-unset}" != "unset"; then
-		AST_CHECK_OPENH323_PLATFORM()
+		AST_CHECK_PWLIB_PLATFORM()
 
 		PLATFORM_PWLIB="pt_${PWLIB_PLATFORM}_r"
 
