@@ -1412,7 +1412,7 @@ static int pbx_load_config(const char *config_file)
 	struct ast_flags config_flags = { 0 };
 	char lastextension[256];
 	cfg = ast_config_load(config_file, config_flags);
-	if (!cfg)
+	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID)
 		return 0;
 
 	/* Use existing config to populate the PBX table */

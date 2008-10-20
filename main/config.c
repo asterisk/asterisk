@@ -2050,9 +2050,9 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 
 	result = loader->load_func(db, table, filename, cfg, flags, suggested_include_file, who_asked);
 
-	if (result && result != CONFIG_STATUS_FILEUNCHANGED)
+	if (result && result != CONFIG_STATUS_FILEINVALID && result != CONFIG_STATUS_FILEUNCHANGED)
 		result->include_level--;
-	else
+	else if (result != CONFIG_STATUS_FILEINVALID)
 		cfg->include_level--;
 
 	return result;
