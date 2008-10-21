@@ -21247,7 +21247,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		char *params;
 
 		ast_copy_string(_srvlookup, srvlookup, sizeof(_srvlookup));
-		if (params = strchr(_srvlookup, ';')) {
+		if ((params = strchr(_srvlookup, ';'))) {
 			*params++ = '\0';
 		}
 		
