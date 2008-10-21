@@ -19573,6 +19573,11 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 		/* Build temporary dialog for this message */
 		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY))) 
 			return -1;
+		/* If we don't set the socket type to 0, then create_addr_from_peer will fail immediately if the peer
+		 * uses any transport other than UDP. We set the type to 0 here and then let create_addr_from_peer copy 
+		 * the peer's socket information to the sip_pvt we just allocated
+		 */
+		p->socket.type = 0;
 		if (create_addr_from_peer(p, peer)) {
 			/* Maybe they're not registered, etc. */
 			dialog_unlink_all(p, TRUE, TRUE);
