@@ -167,7 +167,7 @@ static void *mixmonitor_thread(void *obj)
 				else
 					ext = "raw";
 				
-				if (!(fs = ast_writefile(mixmonitor->filename, ext, NULL, oflags, 0, 0644))) {
+				if (!(fs = ast_writefile(mixmonitor->filename, ext, NULL, oflags, 0, 0666))) {
 					ast_log(LOG_ERROR, "Cannot open %s.%s\n", mixmonitor->filename, ext);
 					errflag = 1;
 				}
