@@ -22723,7 +22723,7 @@ static int reload_config(enum channelreloadreason reason)
 			if (!strcasecmp(utype, "user")) {
 				is_peer = 1;
 			} else if (!strcasecmp(utype, "friend")) {
-				is_peer = 1;
+				is_peer = 2;
 			} else if (!strcasecmp(utype, "peer"))
 				is_peer = 2;
 			else {
