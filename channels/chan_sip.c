@@ -21927,9 +21927,17 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 	if (srvlookup && peer->dnsmgr == NULL) {
 		char transport[MAXHOSTNAMELEN];
+		char _srvlookup[MAXHOSTNAMELEN];
+		char *params;
+
+		ast_copy_string(_srvlookup, srvlookup, sizeof(_srvlookup));
+		if (params = strchr(_srvlookup, ';')) {
+			*params++ = '\0';
+		}
+		
 		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(peer->socket.type));
 
-		if (ast_dnsmgr_lookup(srvlookup, &peer->addr, &peer->dnsmgr, global_srvlookup ? transport : NULL)) {
+		if (ast_dnsmgr_lookup(_srvlookup, &peer->addr, &peer->dnsmgr, global_srvlookup ? transport : NULL)) {
 			unref_peer(peer, "getting rid of a peer pointer");
 			return NULL;
 		}
