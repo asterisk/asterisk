@@ -13759,11 +13759,14 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 #endif			
 			) {
  			int iscrv;
- 			if (options && PROC_DAHDI_OPT_NOCHAN)
+ 			if (options & PROC_DAHDI_OPT_NOCHAN) {
+				ast_log(LOG_WARNING, "Channel '%s' ignored.\n", v->value);
  				continue;
+			}
  			iscrv = !strcasecmp(v->name, "crv");
  			if (build_channels(confp, iscrv, v->value, reload, v->lineno, &found_pseudo))
  					return -1;
+			ast_log(LOG_DEBUG, "Channel '%s' configured.\n", v->value);
 		} else if (!strcasecmp(v->name, "buffers")) {
 			int res;
 			char policy[21] = "";
@@ -14533,7 +14536,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			} else if (!strcasecmp(v->name, "mwilevel")) {
 				mwilevel = atoi(v->value);
 			}
-		} else if (!(options && PROC_DAHDI_OPT_NOWARN) )
+		} else if (!(options & PROC_DAHDI_OPT_NOWARN) )
 			ast_log(LOG_WARNING, "Ignoring %s at line %d.\n", v->name, v->lineno);
 	}
 	if (dahdichan[0]) { 
