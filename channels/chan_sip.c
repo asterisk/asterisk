@@ -1843,7 +1843,7 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 static const char *sip_get_callid(struct ast_channel *chan);
 
 static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin);
-static int sip_standard_port(struct sip_socket s);
+static int sip_standard_port(enum sip_transport type, int port);
 static int sip_prepare_socket(struct sip_pvt *p);
 static int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum sip_transport *transport);
 
@@ -8940,14 +8940,16 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 /*! \brief Build contact header - the contact header we send out */
 static void build_contact(struct sip_pvt *p)
 {
-	/* Construct Contact: header */
+
+	int ourport = ntohs(p->ourip.sin_port);
+
 	if (p->socket.type & SIP_TRANSPORT_UDP) {
-		if (!sip_standard_port(p->socket))
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ntohs(p->socket.port));
+		if (!sip_standard_port(p->socket.type, ourport))
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ourport);
 		else
 			ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr));
 	} else 
-		ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d;transport=%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ntohs(p->socket.port), get_transport_pvt(p));
+		ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d;transport=%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ourport, get_transport(p->socket.type));
 }
 
 /*! \brief Build the Remote Party-ID & From using callingpres options */
@@ -9040,6 +9042,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	const char *l = NULL;	/* XXX what is this, exactly ? */
 	const char *n = NULL;	/* XXX what is this, exactly ? */
 	const char *urioptions = "";
+	int ourport;
 
 	if (ast_test_flag(&p->flags[0], SIP_USEREQPHONE)) {
 	 	const char *s = p->username;	/* being a string field, cannot be NULL */
@@ -9096,8 +9099,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		l = tmp_l;
 	}
 
-	if (!sip_standard_port(p->socket) && ast_strlen_zero(p->fromdomain))
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr)), ntohs(p->socket.port), p->tag);
+	ourport = ntohs(p->ourip.sin_port);
+	if (!sip_standard_port(p->socket.type, ourport) && ast_strlen_zero(p->fromdomain))
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, ast_inet_ntoa(p->ourip.sin_addr), ourport, p->tag);
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr)), p->tag);
 
@@ -19360,13 +19364,18 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 	return 1;
 }
 
-/*! \brief Returns the port to use for this socket */
-static int sip_standard_port(struct sip_socket s) 
+/*! \brief Returns the port to use for this socket
+ *
+ * \param type The type of transport used
+ * \param port Port we are checking to see if it's the standard port.
+ * \note port is expected in host byte order
+ */
+static int sip_standard_port(enum sip_transport type, int port)
 {
-	if (s.type & SIP_TRANSPORT_TLS)
-		return s.port == htons(STANDARD_TLS_PORT);
+	if (type & SIP_TRANSPORT_TLS)
+		return port == STANDARD_TLS_PORT;
 	else
-		return s.port == htons(STANDARD_SIP_PORT);
+		return port == STANDARD_SIP_PORT;
 }
 
 /*! \todo document this function. */
