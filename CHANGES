@@ -23,6 +23,7 @@ Dialplan Functions
    cookies, proxies, connection timeouts, passwords, etc.
  * Permit the syntax and synopsis fields of the corresponding dialplan
    functions to be individually set from func_odbc.conf.
+ * Added debugging CLI functions to func_odbc, 'odbc read' and 'odbc write'.
 
 Applications
 ------------

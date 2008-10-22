@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/res_odbc.h"
 #include "asterisk/app.h"
+#include "asterisk/cli.h"
 
 static char *config = "func_odbc.conf";
 
@@ -87,6 +88,7 @@ AST_RWLIST_HEAD_STATIC(queries, acf_odbc_query);
 
 static int resultcount = 0;
 
+AST_THREADSTORAGE(sql_buf);
 AST_THREADSTORAGE(coldata_buf);
 AST_THREADSTORAGE(colnames_buf);
 
@@ -171,7 +173,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	if (chan)
 		ast_autoservice_start(chan);
 
-	ast_str_make_space(&buf, strlen(query->sql_write) * 2);
+	ast_str_make_space(&buf, strlen(query->sql_write) * 2 + 300);
 
 	/* Parse our arguments */
 	t = value ? ast_strdupa(value) : "";
@@ -217,8 +219,6 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	}
 	pbx_builtin_setvar_helper(chan, "VALUE", NULL);
 
-	AST_RWLIST_UNLOCK(&queries);
-
 	for (dsn = 0; dsn < 5; dsn++) {
 		if (!ast_strlen_zero(query->writehandle[dsn])) {
 			obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
@@ -228,6 +228,8 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		if (stmt)
 			break;
 	}
+
+	AST_RWLIST_UNLOCK(&queries);
 
 	if (stmt) {
 		/* Rows affected */
@@ -308,7 +310,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		pbx_builtin_pushvar_helper(chan, varname, args.field[x]);
 	}
 
-	ast_str_make_space(&sql, strlen(query->sql_read) * 2);
+	ast_str_make_space(&sql, strlen(query->sql_read) * 2 + 300);
 	pbx_substitute_variables_helper(chan, query->sql_read, sql->str, sql->len - 1);
 
 	/* Restore prior values */
@@ -842,6 +844,325 @@ static int free_acf_query(struct acf_odbc_query *query)
 	return 0;
 }
 
+static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(field)[100];
+	);
+	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
+	char *char_args, varname[10];
+	struct acf_odbc_query *query;
+	struct ast_channel *chan;
+	int i;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "odbc read";
+		e->usage =
+			"Usage: odbc read <name> <args> [exec]\n"
+			"       Evaluates the SQL provided in the ODBC function <name>, and\n"
+			"       optionally executes the function.  This function is intended for\n"
+			"       testing purposes.  Remember to quote arguments containing spaces.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 2) {
+			int wordlen = strlen(a->word), which = 0;
+			/* Complete function name */
+			AST_RWLIST_RDLOCK(&queries);
+			AST_RWLIST_TRAVERSE(&queries, query, list) {
+				if (!strncasecmp(query->acf->name, a->word, wordlen)) {
+					if (++which > a->n) {
+						char *res = ast_strdup(query->acf->name);
+						AST_RWLIST_UNLOCK(&queries);
+						return res;
+					}
+				}
+			}
+			AST_RWLIST_UNLOCK(&queries);
+			return NULL;
+		} else if (a->pos == 4) {
+			return a->n == 0 ? ast_strdup("exec") : NULL;
+		} else {
+			return NULL;
+		}
+	}
+
+	if (a->argc < 4 || a->argc > 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	AST_RWLIST_RDLOCK(&queries);
+	AST_RWLIST_TRAVERSE(&queries, query, list) {
+		if (!strcmp(query->acf->name, a->argv[2])) {
+			break;
+		}
+	}
+
+	if (!query) {
+		ast_cli(a->fd, "No such query '%s'\n", a->argv[2]);
+		AST_RWLIST_UNLOCK(&queries);
+		return CLI_SHOWUSAGE;
+	}
+
+	if (ast_strlen_zero(query->sql_read)) {
+		ast_cli(a->fd, "The function %s has no writesql parameter.\n", a->argv[2]);
+		AST_RWLIST_UNLOCK(&queries);
+		return CLI_SUCCESS;
+	}
+
+	ast_str_make_space(&sql, strlen(query->sql_read) * 2 + 300);
+
+	/* Evaluate function */
+	char_args = ast_strdupa(a->argv[3]);
+
+	chan = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/func_odbc");
+
+	AST_STANDARD_APP_ARGS(args, char_args);
+	for (i = 0; i < args.argc; i++) {
+		snprintf(varname, sizeof(varname), "ARG%d", i + 1);
+		pbx_builtin_pushvar_helper(chan, varname, args.field[i]);
+	}
+
+	/*!\note This does not set sql->used, so don't try to use that value. */
+	pbx_substitute_variables_helper(chan, query->sql_read, sql->str, sql->len - 1);
+	ast_channel_free(chan);
+
+	if (a->argc == 5 && !strcmp(a->argv[4], "exec")) {
+		/* Execute the query */
+		struct odbc_obj *obj;
+		int dsn, executed = 0;
+		SQLHSTMT stmt;
+		int rows = 0, res, x;
+		SQLSMALLINT colcount = 0, collength;
+		SQLLEN indicator;
+
+		for (dsn = 0; dsn < 5; dsn++) {
+			if (!ast_strlen_zero(query->readhandle[dsn])) {
+				ast_debug(1, "Found handle %s\n", query->readhandle[dsn]);
+				if ((obj = ast_odbc_request_obj(query->readhandle[dsn], 0))) {
+					ast_debug(1, "Got obj\n");
+					if ((stmt = ast_odbc_direct_execute(obj, generic_execute, sql->str))) {
+						struct ast_str *coldata = ast_str_thread_get(&coldata_buf, 16);
+						char colname[256];
+						SQLULEN maxcol;
+
+						executed = 1;
+
+						res = SQLNumResultCols(stmt, &colcount);
+						if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+							ast_cli(a->fd, "SQL Column Count error!\n[%s]\n\n", sql->str);
+							SQLCloseCursor(stmt);
+							SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+							ast_odbc_release_obj(obj);
+							AST_RWLIST_UNLOCK(&queries);
+						}
+
+						res = SQLFetch(stmt);
+						if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+							SQLCloseCursor(stmt);
+							SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+							ast_odbc_release_obj(obj);
+							if (res == SQL_NO_DATA) {
+								ast_cli(a->fd, "Returned %d rows.  Query executed on handle %d:%s [%s]\n", rows, dsn, query->readhandle[dsn], sql->str);
+								break;
+							} else {
+								ast_cli(a->fd, "Error %d in FETCH [%s]\n", res, sql->str);
+							}
+							AST_RWLIST_UNLOCK(&queries);
+							return CLI_SUCCESS;
+						}
+						for (;;) {
+							for (x = 0; x < colcount; x++) {
+								res = SQLDescribeCol(stmt, x + 1, (unsigned char *)colname, sizeof(colname), &collength, NULL, &maxcol, NULL, NULL);
+								if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || collength == 0) {
+									snprintf(colname, sizeof(colname), "field%d", x);
+								}
+
+								if (coldata->len < maxcol + 1) {
+									ast_str_make_space(&coldata, maxcol + 1);
+								}
+
+								res = SQLGetData(stmt, x + 1, SQL_CHAR, coldata->str, coldata->len, &indicator);
+								if (indicator == SQL_NULL_DATA) {
+									ast_str_set(&coldata, 0, "(nil)");
+									res = SQL_SUCCESS;
+								}
+
+								if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+									ast_cli(a->fd, "SQL Get Data error %d!\n[%s]\n\n", res, sql->str);
+									SQLCloseCursor(stmt);
+									SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+									ast_odbc_release_obj(obj);
+									AST_RWLIST_UNLOCK(&queries);
+									return CLI_SUCCESS;
+								}
+
+								ast_cli(a->fd, "%-20.20s  %s\n", colname, coldata->str);
+							}
+							/* Get next row */
+							res = SQLFetch(stmt);
+							if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+								break;
+							}
+							ast_cli(a->fd, "%-20.20s  %s\n", "----------", "----------");
+							rows++;
+						}
+						SQLCloseCursor(stmt);
+						SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+						ast_odbc_release_obj(obj);
+						ast_cli(a->fd, "Returned %d rows.  Query executed on handle %d [%s]\n", rows, dsn, query->readhandle[dsn]);
+						break;
+					}
+					ast_odbc_release_obj(obj);
+				}
+			}
+		}
+
+		if (!executed) {
+			ast_cli(a->fd, "Failed to execute query. [%s]\n", sql->str);
+		}
+	} else {
+		ast_cli(a->fd, "%s\n", sql->str);
+	}
+	AST_RWLIST_UNLOCK(&queries);
+	return CLI_SUCCESS;
+}
+
+static char *cli_odbc_write(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	AST_DECLARE_APP_ARGS(values,
+		AST_APP_ARG(field)[100];
+	);
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(field)[100];
+	);
+	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
+	char *char_args, *char_values, varname[10];
+	struct acf_odbc_query *query;
+	struct ast_channel *chan;
+	int i;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "odbc write";
+		e->usage =
+			"Usage: odbc write <name> <args> <value> [exec]\n"
+			"       Evaluates the SQL provided in the ODBC function <name>, and\n"
+			"       optionally executes the function.  This function is intended for\n"
+			"       testing purposes.  Remember to quote arguments containing spaces.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 2) {
+			int wordlen = strlen(a->word), which = 0;
+			/* Complete function name */
+			AST_RWLIST_RDLOCK(&queries);
+			AST_RWLIST_TRAVERSE(&queries, query, list) {
+				if (!strncasecmp(query->acf->name, a->word, wordlen)) {
+					if (++which > a->n) {
+						char *res = ast_strdup(query->acf->name);
+						AST_RWLIST_UNLOCK(&queries);
+						return res;
+					}
+				}
+			}
+			AST_RWLIST_UNLOCK(&queries);
+			return NULL;
+		} else if (a->pos == 5) {
+			return a->n == 0 ? ast_strdup("exec") : NULL;
+		} else {
+			return NULL;
+		}
+	}
+
+	if (a->argc < 5 || a->argc > 6) {
+		return CLI_SHOWUSAGE;
+	}
+
+	AST_RWLIST_RDLOCK(&queries);
+	AST_RWLIST_TRAVERSE(&queries, query, list) {
+		if (!strcmp(query->acf->name, a->argv[2])) {
+			break;
+		}
+	}
+
+	if (!query) {
+		ast_cli(a->fd, "No such query '%s'\n", a->argv[2]);
+		AST_RWLIST_UNLOCK(&queries);
+		return CLI_SHOWUSAGE;
+	}
+
+	if (ast_strlen_zero(query->sql_write)) {
+		ast_cli(a->fd, "The function %s has no writesql parameter.\n", a->argv[2]);
+		AST_RWLIST_UNLOCK(&queries);
+		return CLI_SUCCESS;
+	}
+
+	ast_str_make_space(&sql, strlen(query->sql_write) * 2 + 300);
+
+	/* Evaluate function */
+	char_args = ast_strdupa(a->argv[3]);
+	char_values = ast_strdupa(a->argv[4]);
+
+	chan = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/func_odbc");
+
+	AST_STANDARD_APP_ARGS(args, char_args);
+	for (i = 0; i < args.argc; i++) {
+		snprintf(varname, sizeof(varname), "ARG%d", i + 1);
+		pbx_builtin_pushvar_helper(chan, varname, args.field[i]);
+	}
+
+	/* Parse values, just like arguments */
+	AST_STANDARD_APP_ARGS(values, char_values);
+	for (i = 0; i < values.argc; i++) {
+		snprintf(varname, sizeof(varname), "VAL%d", i + 1);
+		pbx_builtin_pushvar_helper(chan, varname, values.field[i]);
+	}
+
+	/* Additionally set the value as a whole (but push an empty string if value is NULL) */
+	pbx_builtin_pushvar_helper(chan, "VALUE", S_OR(a->argv[4], ""));
+	pbx_substitute_variables_helper(chan, query->sql_write, sql->str, sql->len - 1);
+	ast_debug(1, "SQL is %s\n", sql->str);
+	ast_channel_free(chan);
+
+	if (a->argc == 6 && !strcmp(a->argv[5], "exec")) {
+		/* Execute the query */
+		struct odbc_obj *obj = NULL;
+		int dsn, executed = 0;
+		SQLHSTMT stmt;
+		SQLLEN rows = -1;
+
+		for (dsn = 0; dsn < 5; dsn++) {
+			if (!ast_strlen_zero(query->writehandle[dsn])) {
+				if ((obj = ast_odbc_request_obj(query->writehandle[dsn], 0))) {
+					if ((stmt = ast_odbc_direct_execute(obj, generic_execute, sql->str))) {
+						SQLRowCount(stmt, &rows);
+						SQLCloseCursor(stmt);
+						SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+						ast_odbc_release_obj(obj);
+						ast_cli(a->fd, "Affected %d rows.  Query executed on handle %d [%s]\n", (int)rows, dsn, query->writehandle[dsn]);
+						executed = 1;
+						break;
+					}
+					ast_odbc_release_obj(obj);
+				}
+			}
+		}
+
+		if (!executed) {
+			ast_cli(a->fd, "Failed to execute query.\n");
+		}
+	} else {
+		ast_cli(a->fd, "%s\n", sql->str);
+	}
+	AST_RWLIST_UNLOCK(&queries);
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry cli_func_odbc[] = {
+	AST_CLI_DEFINE(cli_odbc_write, "Test setting a func_odbc function"),
+	AST_CLI_DEFINE(cli_odbc_read, "Test reading a func_odbc function"),
+};
+
 static int load_module(void)
 {
 	int res = 0;
@@ -881,6 +1202,7 @@ static int load_module(void)
 
 	ast_config_destroy(cfg);
 	res |= ast_custom_function_register(&escape_function);
+	ast_cli_register_multiple(cli_func_odbc, ARRAY_LEN(cli_func_odbc));
 
 	AST_RWLIST_UNLOCK(&queries);
 	return res;
@@ -901,6 +1223,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&escape_function);
 	res |= ast_custom_function_unregister(&fetch_function);
 	res |= ast_unregister_application(app_odbcfinish);
+	ast_cli_unregister_multiple(cli_func_odbc, ARRAY_LEN(cli_func_odbc));
 
 	/* Allow any threads waiting for this lock to pass (avoids a race) */
 	AST_RWLIST_UNLOCK(&queries);
