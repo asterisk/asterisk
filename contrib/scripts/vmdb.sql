@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS voicemail;
 CREATE TABLE voicemail (
-	-- All of these column names are very specific, including "uniqueid".  Do not change them if you wish voicemail to work.
+	-- "uniqueid" is a required column prior to 1.6.2.  As of that version, it may be omitted.
 	uniqueid INT(5) NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	-- Mailbox context.
 	context CHAR(80) NOT NULL DEFAULT 'default',
