@@ -4652,6 +4652,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		} else if (!p->options->addsipheaders && !strncasecmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
 			/* Check whether there is a variable with a name starting with SIPADDHEADER */
 			p->options->addsipheaders = 1;
+		} else if (!strcasecmp(ast_var_name(current), "SIPFROMDOMAIN")) {
+			ast_string_field_set(p, fromdomain, ast_var_value(current));
 		} else if (!strcasecmp(ast_var_name(current), "SIPTRANSFER")) {
 			/* This is a transfered call */
 			p->options->transfer = 1;
