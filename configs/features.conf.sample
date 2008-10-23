@@ -15,6 +15,8 @@ context => parkedcalls		; Which context parked calls are in
 				; or the Touch Monitor is activated/deactivated.
 ;parkedplay = caller		; Who to play the courtesy tone to when picking up a parked call
 				; one of: parked, caller, both  (default is caller)
+;parkedcalltransfers = caller   ; Enables or disables DTMF based transfers when picking up a parked call.
+                                ; one of: callee, caller, both, no (default is both)
 ;adsipark = yes			; if you want ADSI parking announcements
 ;findslot => next		; Continue to the 'next' free parking space. 
 				; Defaults to 'first' available

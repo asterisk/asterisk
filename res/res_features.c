@@ -92,6 +92,8 @@ static char parkmohclass[MAX_MUSICCLASS];                  /*!< Music class used
 static int parking_start;                                  /*!< First available extension for parking */
 static int parking_stop;                                   /*!< Last available extension for parking */
 
+static int parkedcalltransfers;                            /*!< Who can REDIRECT after picking up a parked a call */
+
 static char courtesytone[256];                             /*!< Courtesy tone */
 static int parkedplay = 0;                                 /*!< Who to play the courtesy tone to */
 static char xfersound[256];                                /*!< Call transfer sound */
@@ -2194,8 +2196,13 @@ static int park_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "PARKEDCHANNEL", peer->name);
 		ast_cdr_setdestchan(chan->cdr, peer->name);
 		memset(&config, 0, sizeof(struct ast_bridge_config));
-		ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
-		ast_set_flag(&(config.features_caller), AST_FEATURE_REDIRECT);
+
+		if ((parkedcalltransfers == AST_FEATURE_FLAG_BYCALLEE) || (parkedcalltransfers == AST_FEATURE_FLAG_BYBOTH)) {
+			ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
+		}
+		if ((parkedcalltransfers == AST_FEATURE_FLAG_BYCALLER) || (parkedcalltransfers == AST_FEATURE_FLAG_BYBOTH)) {
+			ast_set_flag(&(config.features_caller), AST_FEATURE_REDIRECT);
+		}
 		res = ast_bridge_call(chan, peer, &config);
 
 		pbx_builtin_setvar_helper(chan, "PARKEDCHANNEL", peer->name);
@@ -2486,6 +2493,7 @@ static int load_config(void)
 	parkfindnext = 0;
 	adsipark = 0;
 	parkaddhints = 0;
+	parkedcalltransfers = AST_FEATURE_FLAG_BYBOTH;
 
 	transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 	featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
@@ -2518,6 +2526,15 @@ static int load_config(void)
 			parkfindnext = (!strcasecmp(var->value, "next"));
 		} else if (!strcasecmp(var->name, "parkinghints")) {
 			parkaddhints = ast_true(var->value);
+		} else if (!strcasecmp(var->name, "parkedcalltransfers")) {
+			if (!strcasecmp(var->value, "no"))
+				parkedcalltransfers = 0;
+			else if (!strcasecmp(var->value, "caller"))
+				parkedcalltransfers = AST_FEATURE_FLAG_BYCALLER;
+			else if (!strcasecmp(var->value, "callee"))
+				parkedcalltransfers = AST_FEATURE_FLAG_BYCALLEE;
+			else if (!strcasecmp(var->value, "both"))
+				parkedcalltransfers = AST_FEATURE_FLAG_BYBOTH;
 		} else if (!strcasecmp(var->name, "adsipark")) {
 			adsipark = ast_true(var->value);
 		} else if (!strcasecmp(var->name, "transferdigittimeout")) {

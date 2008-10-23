@@ -230,6 +230,7 @@ Changes since Asterisk 1.2:
                       o atxfernoanswertimeout variable added
                       o parkcall variable added (one step parking)
                       o improved documentation for dynamic feature declarations!
+                      o added parkedcallltransfers option to control builtin transfers with parking
                9. iax.conf
                       o adsi variable added
                       o mohinterpret variable added
