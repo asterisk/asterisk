@@ -3577,6 +3577,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		ao2_ref(peer->socket.ser, -1);
 		peer->socket.ser = NULL;
 	}
+	ast_free(peer);
 }
 
 /*! \brief Update peer data in database (if used) */
@@ -19296,6 +19297,7 @@ int st_get_se(struct sip_pvt *p, int max)
 				struct sip_user *up = find_user(p->username, 1);
 				if (up) {
 					p->stimer->st_cached_max_se = up->stimer.st_max_se;
+					unref_user(up);
 					return (p->stimer->st_cached_max_se);
 				}
 			} 
@@ -19303,6 +19305,7 @@ int st_get_se(struct sip_pvt *p, int max)
 				struct sip_peer *pp = find_peer(p->peername, NULL, 1, 0);
 				if (pp) {
 					p->stimer->st_cached_max_se = pp->stimer.st_max_se;
+					unref_peer(pp);
 					return (p->stimer->st_cached_max_se);
 				}
 			}
@@ -19317,6 +19320,7 @@ int st_get_se(struct sip_pvt *p, int max)
 				struct sip_user *up = find_user(p->username, 1);
 				if (up) {
 					p->stimer->st_cached_min_se = up->stimer.st_min_se;
+					unref_user(up);
 					return (p->stimer->st_cached_min_se);
 				}
 			} 
@@ -19324,6 +19328,7 @@ int st_get_se(struct sip_pvt *p, int max)
 				struct sip_peer *pp = find_peer(p->peername, NULL, 1, 0);
 				if (pp) {
 					p->stimer->st_cached_min_se = pp->stimer.st_min_se;
+					unref_peer(pp);
 					return (p->stimer->st_cached_min_se);
 				}
 			}
@@ -19378,14 +19383,16 @@ enum st_mode st_get_mode(struct sip_pvt *p)
 		struct sip_user *up = find_user(p->username, 1);
 		if (up) {
 			p->stimer->st_cached_mode = up->stimer.st_mode_oper;
-			return up->stimer.st_mode_oper;
+			unref_user(up);
+			return p->stimer->st_cached_mode;
 		}
 	} 
 	if (p->peername) {
 		struct sip_peer *pp = find_peer(p->peername, NULL, 1, 0);
 		if (pp) {
 			p->stimer->st_cached_mode = pp->stimer.st_mode_oper;
-			return pp->stimer.st_mode_oper;
+			unref_peer(pp);
+			return p->stimer->st_cached_mode;
 		}
 	}
 
