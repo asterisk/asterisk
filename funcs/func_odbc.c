@@ -939,7 +939,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 
 	if (a->argc == 5 && !strcmp(a->argv[4], "exec")) {
 		/* Execute the query */
-		struct odbc_obj *obj;
+		struct odbc_obj *obj = NULL;
 		int dsn, executed = 0;
 		SQLHSTMT stmt;
 		int rows = 0, res, x;
