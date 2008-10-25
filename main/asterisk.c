@@ -3061,11 +3061,6 @@ int main(int argc, char *argv[])
 
 	ast_channels_init();
 
-	if (init_manager()) {
-		printf(term_quit());
-		exit(1);
-	}
-
 	if (ast_cdr_engine_init()) {
 		printf(term_quit());
 		exit(1);
@@ -3111,6 +3106,15 @@ int main(int argc, char *argv[])
 	}
 
 	if (load_modules(0)) {
+		printf(term_quit());
+		exit(1);
+	}
+
+	/* AMI is initialized after loading modules because of a potential
+	 * conflict between issuing a module reload from manager and
+	 * registering manager actions.  This will cause reversed locking
+	 * order between the module list and manager actions list. */
+	if (init_manager()) {
 		printf(term_quit());
 		exit(1);
 	}
