@@ -573,7 +573,10 @@ static int keypadhash(struct ast_channel *chan, char *cmd, char *data, char *buf
 	char *bufptr, *dataptr;
 
 	for (bufptr = buf, dataptr = data; bufptr < buf + len - 1; dataptr++) {
-		if (*dataptr == '1') {
+		if (*dataptr == '\0') {
+			*bufptr++ = '\0';
+			break;
+		} else if (*dataptr == '1') {
 			*bufptr++ = '1';
 		} else if (strchr("AaBbCc2", *dataptr)) {
 			*bufptr++ = '2';
@@ -593,9 +596,6 @@ static int keypadhash(struct ast_channel *chan, char *cmd, char *data, char *buf
 			*bufptr++ = '9';
 		} else if (*dataptr == '0') {
 			*bufptr++ = '0';
-		} else if (*dataptr == '\0') {
-			*bufptr++ = '\0';
-			break;
 		}
 	}
 	buf[len - 1] = '\0';
