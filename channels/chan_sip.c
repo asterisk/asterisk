@@ -286,6 +286,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #endif
 
+/* Arguments for find_peer */
+#define	FINDALLDEVICES	FALSE
+#define FINDONLYUSERS	TRUE
+
 
 #define	SIPBUFSIZE		512		/*!< Buffer size for many operations */
 
@@ -4251,16 +4255,20 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 	struct sip_peer *p = NULL;
 	struct sip_peer tmp_peer;
 	
+	/* Inline function to assist finding peers by name only */
 	auto int find_by_name(void *obj, void *arg, int flags);
 
 	int find_by_name(void *obj, void *arg, int flags)
 	{
 		struct sip_peer *search = obj, *match = arg;
 
-		if (strcasecmp(search->name, match->name)) {
+		/* Usernames in SIP uri's are case sensitive. Domains are not */
+		if (strcmp(search->name, match->name)) {
 			return 0;
 		}
 
+		/* If we're only looking for name matches, we should avoid type=peer devices,
+		   since these should not match on any name-based search */
 		if (forcenamematch && search->onlymatchonip) {
 			return 0;
 		}
@@ -4536,7 +4544,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 	dialog->sa.sin_family = AF_INET;
 	dialog->timer_t1 = global_t1; /* Default SIP retransmission timer T1 (RFC 3261) */
 	dialog->timer_b = global_timer_b; /* Default SIP transaction timer B (RFC 3261) */
-	peer = find_peer(peername, NULL, TRUE, TRUE, FALSE);
+	peer = find_peer(peername, NULL, TRUE, FINDALLDEVICES, FALSE);
 
 	if (peer) {
 		int res;
@@ -4903,7 +4911,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	ast_copy_string(name, fup->username, sizeof(name));
 
 	/* Check the list of devices */
-	if ( (p = find_peer(ast_strlen_zero(fup->peername) ? name : fup->peername, NULL, TRUE, FALSE, FALSE) ) ) { /* Try to find peer */
+	if ( (p = find_peer(ast_strlen_zero(fup->peername) ? name : fup->peername, NULL, TRUE, FINDALLDEVICES, FALSE) ) ) { /* Try to find peer */
 		inuse = &p->inUse;
 		call_limit = &p->call_limit;
 		inringing = &p->inRinging;
@@ -11251,7 +11259,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 /*! \brief Change onhold state of a peer using a pvt structure */
 static void sip_peer_hold(struct sip_pvt *p, int hold)
 {
-	struct sip_peer *peer = find_peer(p->peername, NULL, 1, TRUE, FALSE);
+	struct sip_peer *peer = find_peer(p->peername, NULL, 1, FINDALLDEVICES, FALSE);
 
 	if (!peer)
 		return;
@@ -11403,7 +11411,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 
 	ast_string_field_set(p, exten, name);
 	build_contact(p);
-	peer = find_peer(name, NULL, TRUE, TRUE, FALSE);
+	peer = find_peer(name, NULL, TRUE, FINDALLDEVICES, FALSE);
 	if (!(peer && ast_apply_ha(peer->ha, sin))) {
 		/* Peer fails ACL check */
 		if (peer) {
@@ -12315,7 +12323,7 @@ static void replace_cid(struct sip_pvt *p, const char *rpid_num, const char *cal
 	}
 }
 
-/*! \brief Validate peer authentication */
+/*! \brief Validate device authentication */
 static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	struct sip_request *req, int sipmethod, struct sockaddr_in *sin,
 	struct sip_peer **authpeer,
@@ -12326,10 +12334,20 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	int debug=sip_debug_test_addr(sin);
 	struct sip_peer *peer;
 
-	/* For subscribes, match on device name only; for other methods,
-	 * match on IP address-port of the incoming request.
-	 */
-	peer = (sipmethod == SIP_SUBSCRIBE) ? find_peer(of, NULL, TRUE, FALSE, FALSE) : find_peer(NULL, &p->recv, TRUE, FALSE, FALSE);
+	if (sipmethod == SIP_SUBSCRIBE) {
+		/* For subscribes, match on device name only; for other methods,
+	 	* match on IP address-port of the incoming request.
+	 	*/
+		peer = find_peer(of, NULL, TRUE, FINDALLDEVICES, FALSE);
+	} else {
+		/* First find devices based on username (avoid all type=peer's) */
+		peer = find_peer(of, NULL, TRUE, FINDONLYUSERS, FALSE);
+
+		/* Then find devices based on IP */
+		if (!peer) {
+			find_peer(NULL, &p->recv, TRUE, FINDALLDEVICES, FALSE);
+		}
+	}
 
 	if (!peer) {
 		if (debug)
@@ -13582,7 +13600,7 @@ static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const str
 		return CLI_SHOWUSAGE;
 
 	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? TRUE : FALSE;
-	if ((peer = find_peer(argv[3], NULL, load_realtime, FALSE, FALSE))) {
+	if ((peer = find_peer(argv[3], NULL, load_realtime, FINDALLDEVICES, FALSE))) {
 		sip_poke_peer(peer, 1);
 		unref_peer(peer, "qualify: done with peer");
 	} else if (type == 0) {
@@ -13664,7 +13682,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		return CLI_SHOWUSAGE;
 
 	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? TRUE : FALSE;
-	peer = find_peer(argv[3], NULL, load_realtime, TRUE, FALSE);
+	peer = find_peer(argv[3], NULL, load_realtime, FINDALLDEVICES, FALSE);
 	if (s) { 	/* Manager */
 		if (peer) {
 			const char *id = astman_get_header(m, "ActionID");
@@ -13986,7 +14004,7 @@ static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 	
-	if ((peer = find_peer(a->argv[2], NULL, load_realtime, TRUE, TRUE))) {
+	if ((peer = find_peer(a->argv[2], NULL, load_realtime, FINDALLDEVICES, TRUE))) {
 		if (peer->expire > 0) {
 			expire_register(peer);
 			ast_cli(a->fd, "Unregistered peer \'%s\'\n\n", a->argv[2]);
@@ -14990,7 +15008,7 @@ static char *sip_do_debug_ip(int fd, char *arg)
 /*! \brief  Turn on SIP debugging for a given peer */
 static char *sip_do_debug_peer(int fd, char *arg)
 {
-	struct sip_peer *peer = find_peer(arg, NULL, TRUE, TRUE, FALSE);
+	struct sip_peer *peer = find_peer(arg, NULL, TRUE, FINDALLDEVICES, FALSE);
 	if (!peer)
 		ast_cli(fd, "No such peer '%s'\n", arg);
 	else if (peer->addr.sin_addr.s_addr == 0)
@@ -15486,7 +15504,7 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 	else
 		colname = "ip";
 
-	if (!(peer = find_peer(data, NULL, TRUE, TRUE, FALSE)))
+	if (!(peer = find_peer(data, NULL, TRUE, FINDALLDEVICES, FALSE)))
 		return -1;
 
 	if (!strcasecmp(colname, "ip")) {
@@ -17934,9 +17952,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return 0;
 		} else {
-			/* This is a spiral. What we need to do is to just change the outgoing INVITE
+			/*! This is a spiral. What we need to do is to just change the outgoing INVITE
 			 * so that it now routes to the new Request URI. Since we created the INVITE ourselves
 			 * that should be all we need to do.
+			 * 
+ 			 * \todo XXX This needs to be reviewed.  YOu don't change the request URI really, you route the packet
+			 * correctly instead...
 			 */
 			char *uri = ast_strdupa(req->rlPart2);
 			char *at = strchr(uri, '@');
@@ -20699,7 +20720,7 @@ int st_get_se(struct sip_pvt *p, int max)
 		if (p->stimer->st_cached_max_se) {
 			return p->stimer->st_cached_max_se;
 		} else if (p->peername) {
-			struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, TRUE, FALSE);
+			struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, FINDALLDEVICES, FALSE);
 			if (pp) {
 				p->stimer->st_cached_max_se = pp->stimer.st_max_se;
 				unref_peer(pp, "unref peer pointer from find_peer call in st_get_se");
@@ -20712,7 +20733,7 @@ int st_get_se(struct sip_pvt *p, int max)
 		if (p->stimer->st_cached_min_se) {
 			return p->stimer->st_cached_min_se;
 		} else if (p->peername) {
-			struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, TRUE, FALSE);
+			struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, FINDALLDEVICES, FALSE);
 			if (pp) {
 				p->stimer->st_cached_min_se = pp->stimer.st_min_se;
 				unref_peer(pp, "unref peer pointer from find_peer call in st_get_se (2)");
@@ -20734,7 +20755,7 @@ enum st_refresher st_get_refresher(struct sip_pvt *p)
 		return p->stimer->st_cached_ref;
 
 	if (p->peername) {
-		struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, TRUE, FALSE);
+		struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, FINDALLDEVICES, FALSE);
 		if (pp) {
 			p->stimer->st_cached_ref = pp->stimer.st_ref;
 			unref_peer(pp, "unref peer pointer from find_peer call in st_get_refresher");
@@ -20759,7 +20780,7 @@ enum st_mode st_get_mode(struct sip_pvt *p)
 		return p->stimer->st_cached_mode;
 
 	if (p->peername) {
-		struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, TRUE, FALSE);
+		struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, FINDALLDEVICES, FALSE);
 		if (pp) {
 			p->stimer->st_cached_mode = pp->stimer.st_mode_oper;
 			unref_peer(pp, "unref peer pointer from find_peer call in st_get_mode");
@@ -20931,7 +20952,7 @@ static int sip_devicestate(void *data)
 	 * load it BACK into memory, thus defeating the point of trying to clear dead
 	 * hosts out of memory.
 	 */
-	if ((p = find_peer(host, NULL, FALSE, TRUE, TRUE))) {
+	if ((p = find_peer(host, NULL, FALSE, FINDALLDEVICES, TRUE))) {
 		if (p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) {
 			/* we have an address for the peer */
 		
