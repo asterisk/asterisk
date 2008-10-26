@@ -282,11 +282,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define TRUE     1
 #endif
 
-#define	SIPBUFSIZE		512
+#ifndef MAX
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#endif
+
+
+#define	SIPBUFSIZE		512		/*!< Buffer size for many operations */
 
 #define XMIT_ERROR		-2
 
-#define SIP_RESERVED ";/?:@&=+$,# "
+#define SIP_RESERVED ";/?:@&=+$,# "		/*!< Reserved characters in the username part of the URI */
 
 /* #define VOCAL_DATA_HACK */
 
@@ -315,10 +320,6 @@ static int max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registr
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 static int mwi_expiry = DEFAULT_MWI_EXPIRY;
 
-#ifndef MAX
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#endif
-
 #define CALLERID_UNKNOWN        "Unknown"
 
 #define DEFAULT_MAXMS                2000             /*!< Qualification: Must be faster than 2 seconds by default */
@@ -327,19 +328,18 @@ static int mwi_expiry = DEFAULT_MWI_EXPIRY;
 
 #define DEFAULT_RETRANS              1000             /*!< How frequently to retransmit Default: 2 * 500 ms in RFC 3261 */
 #define MAX_RETRANS                  6                /*!< Try only 6 times for retransmissions, a total of 7 transmissions */
-#define SIP_TIMER_T1                 500              /* SIP timer T1 (according to RFC 3261) */
+#define SIP_TIMER_T1                 500              /*!< SIP timer T1 (according to RFC 3261) */
 #define SIP_TRANS_TIMEOUT            64 * SIP_TIMER_T1/*!< SIP request timeout (rfc 3261) 64*T1 
                                                       \todo Use known T1 for timeout (peerpoke)
                                                       */
-#define DEFAULT_TRANS_TIMEOUT        -1               /* Use default SIP transaction timeout */
+#define DEFAULT_TRANS_TIMEOUT        -1               /*!< Use default SIP transaction timeout */
 #define MAX_AUTHTRIES                3                /*!< Try authentication three times, then fail */
 
 #define SIP_MAX_HEADERS              64               /*!< Max amount of SIP headers to read */
 #define SIP_MAX_LINES                64               /*!< Max amount of lines in SIP attachment (like SDP) */
-#define SIP_MAX_PACKET               4096             /*!< Also from RFC 3261 (2543), should sub headers tho */
 #define SIP_MIN_PACKET               1024             /*!< Initialize size of memory to allocate for packets */
 
-#define INITIAL_CSEQ                 101              /*!< our initial sip sequence number */
+#define INITIAL_CSEQ                 101              /*!< Our initial sip sequence number */
 
 #define DEFAULT_MAX_SE               1800             /*!< Session-Timer Default Session-Expires period (RFC 4028) */
 #define DEFAULT_MIN_SE               90               /*!< Session-Timer Default Min-SE period (RFC 4028) */
@@ -354,15 +354,16 @@ static struct ast_jb_conf default_jbconf =
 	.resync_threshold = -1,
 	.impl = ""
 };
-static struct ast_jb_conf global_jbconf;	/*!< Global jitterbuffer configuration */
+static struct ast_jb_conf global_jbconf;		/*!< Global jitterbuffer configuration */
 
-static const char config[] = "sip.conf";	/*!< Main configuration file */
+static const char config[] = "sip.conf";		/*!< Main configuration file */
 static const char notify_config[] = "sip_notify.conf";	/*!< Configuration file for sending Notify with CLI commands to reconfigure or reboot phones */
 
 #define RTP 	1
 #define NO_RTP	0
 
 /*! \brief Authorization scheme for call transfers 
+
 \note Not a bitfield flag, since there are plans for other modes,
 	like "only allow transfers for authenticated devices" */
 enum transfermodes {
@@ -373,8 +374,8 @@ enum transfermodes {
 
 /*! \brief The result of a lot of functions */
 enum sip_result {
-	AST_SUCCESS = 0,		/*! FALSE means success, funny enough */
-	AST_FAILURE = -1,		
+	AST_SUCCESS = 0,		/*!< FALSE means success, funny enough */
+	AST_FAILURE = -1,		/*!< Failure code */
 };
 
 /*! \brief States for the INVITE transaction, not the dialog 
@@ -418,13 +419,14 @@ enum xmittype {
 	XMIT_UNRELIABLE = 0,            /*!< Transmit SIP message without bothering with re-transmits */
 };
 
+/*! \brief Results from the parse_register() function */
 enum parse_register_result {
 	PARSE_REGISTER_FAILED,
 	PARSE_REGISTER_UPDATE,
 	PARSE_REGISTER_QUERY,
 };
 
-/*! \brief Type of subscription, based on the packages we do support */
+/*! \brief Type of subscription, based on the packages we do support, see \ref subscription_types */
 enum subscriptiontype { 
 	NONE = 0,
 	XPIDF_XML,
@@ -757,16 +759,16 @@ static const struct cfsip_options {
    yet encouraging new behaviour on new installations 
  */
 /*@{*/ 
-#define DEFAULT_CONTEXT		"default"
-#define DEFAULT_MOHINTERPRET    "default"
+#define DEFAULT_CONTEXT		"default"	/*!< The default context for [general] section as well as devices */
+#define DEFAULT_MOHINTERPRET    "default"	/*!< The default music class */
 #define DEFAULT_MOHSUGGEST      ""
-#define DEFAULT_VMEXTEN 	"asterisk"
-#define DEFAULT_CALLERID 	"asterisk"
+#define DEFAULT_VMEXTEN 	"asterisk"	/*!< Default voicemail extension */
+#define DEFAULT_CALLERID 	"asterisk"	/*!< Default caller ID */
 #define DEFAULT_NOTIFYMIME 	"application/simple-message-summary"
 #define DEFAULT_ALLOWGUEST	TRUE
 #define DEFAULT_CALLCOUNTER	FALSE
 #define DEFAULT_SRVLOOKUP	TRUE		/*!< Recommended setting is ON */
-#define DEFAULT_COMPACTHEADERS	FALSE
+#define DEFAULT_COMPACTHEADERS	FALSE		/*!< Send compact (one-character) SIP headers. Default off */
 #define DEFAULT_TOS_SIP         0               /*!< Call signalling packets should be marked as DSCP CS3, but the default is 0 to be compatible with previous versions. */
 #define DEFAULT_TOS_AUDIO       0               /*!< Audio packets should be marked as DSCP EF (Expedited Forwarding), but the default is 0 to be compatible with previous versions. */
 #define DEFAULT_TOS_VIDEO       0               /*!< Video packets should be marked as DSCP AF41, but the default is 0 to be compatible with previous versions. */
@@ -777,10 +779,10 @@ static const struct cfsip_options {
 #define DEFAULT_COS_TEXT        5		/*!< Level 2 class of service for text media (T.140) */
 #define DEFAULT_ALLOW_EXT_DOM	TRUE		/*!< Allow external domains */
 #define DEFAULT_REALM		"asterisk"	/*!< Realm for HTTP digest authentication */
-#define DEFAULT_NOTIFYRINGING	TRUE
-#define DEFAULT_PEDANTIC	FALSE
-#define DEFAULT_AUTOCREATEPEER	FALSE
-#define DEFAULT_QUALIFY		FALSE
+#define DEFAULT_NOTIFYRINGING	TRUE		/*!< Notify devicestate system on ringing state */
+#define DEFAULT_PEDANTIC	FALSE		/*!< Avoid following SIP standards for dialog matching */
+#define DEFAULT_AUTOCREATEPEER	FALSE		/*!< Don't create peers automagically */
+#define DEFAULT_QUALIFY		FALSE		/*!< Don't monitor devices */
 #define DEFAULT_REGEXTENONQUALIFY FALSE
 #define DEFAULT_T1MIN		100		/*!< 100 MS for minimal roundtrip time */
 #define DEFAULT_MAX_CALL_BITRATE (384)		/*!< Max bitrate for video */
@@ -4233,12 +4235,8 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
  *	This is used on find matching device on name or ip/port.
 	If the device was declared as type=peer, we don't match on peer name on incoming INVITEs.
 	
-	\note Avoid using this function in new functions if there is a way to avoid it, i
+	\note Avoid using this function in new functions if there is a way to avoid it,
 	since it might cause a database lookup.
-
-	\todo - we need to fix so that we actually match on username only if forcenamematch is on.
- 	There's a flag in peers for "onlymatchonip" - these peers needs to be avoided when
-	searching the "peers" hash table.
 
 */
 static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime, int forcenamematch, int devstate_only)
@@ -4247,6 +4245,7 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 	struct sip_peer tmp_peer;
 	
 	auto int find_by_name(void *obj, void *arg, int flags);
+
 	int find_by_name(void *obj, void *arg, int flags)
 	{
 		struct sip_peer *search = obj, *match = arg;
@@ -4279,8 +4278,9 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 		}
 	}
 
-	if (!p && (realtime || devstate_only))
+	if (!p && (realtime || devstate_only)) {
 		p = realtime_peer(peer, sin, devstate_only);
+	}
 
 	return p;
 }
