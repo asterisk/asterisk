@@ -118,8 +118,6 @@ static int frame_set_var(struct ast_channel *chan, struct gosub_stack_frame *fra
 
 static void gosub_release_frame(struct ast_channel *chan, struct gosub_stack_frame *frame)
 {
-	unsigned char i;
-	char argname[15];
 	struct ast_var_t *vardata;
 
 	/* If chan is not defined, then we're calling it as part of gosub_free,
@@ -128,14 +126,6 @@ static void gosub_release_frame(struct ast_channel *chan, struct gosub_stack_fra
 	 * that frame, so that we re-expose the variables from the previous frame
 	 * that were hidden by this one.
 	 */
-	if (chan) {
-		for (i = 1; i <= frame->arguments && i != 0; i++) {
-			snprintf(argname, sizeof(argname), "ARG%hhd", i);
-			pbx_builtin_setvar_helper(chan, argname, NULL);
-		}
-	}
-
-	/* Delete local variables */
 	while ((vardata = AST_LIST_REMOVE_HEAD(&frame->varshead, entries))) {
 		if (chan)
 			pbx_builtin_setvar_helper(chan, ast_var_name(vardata), NULL);	
