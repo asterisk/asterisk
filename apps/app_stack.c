@@ -118,8 +118,6 @@ static int frame_set_var(struct ast_channel *chan, struct gosub_stack_frame *fra
 
 static void gosub_release_frame(struct ast_channel *chan, struct gosub_stack_frame *frame)
 {
-	unsigned char i;
-	char argname[15];
 	struct ast_var_t *vardata;
 
 	/* If chan is not defined, then we're calling it as part of gosub_free,
@@ -287,6 +285,8 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 		frame_set_var(chan, newframe, argname, args2.argval[i]);
 		ast_debug(1, "Setting '%s' to '%s'\n", argname, args2.argval[i]);
 	}
+	snprintf(argname, sizeof(argname), "%d", args2.argc);
+	frame_set_var(chan, newframe, "ARGC", argname);
 
 	/* And finally, save our return address */
 	oldlist = stack_store->data;
