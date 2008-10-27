@@ -42,7 +42,7 @@ static const char *app = "Transfer";
 static const char *synopsis = "Transfer caller to remote extension";
 
 static const char *descrip = 
-"  Transfer([Tech/]dest[,options]):  Requests the remote caller be transferred\n"
+"  Transfer([Tech/]dest):  Requests the remote caller be transferred\n"
 "to a given destination. If TECH (SIP, IAX2, LOCAL etc) is used, only\n"
 "an incoming call with the same channel technology will be transfered.\n"
 "Note that for SIP, if you transfer before call is setup, a 302 redirect\n"
@@ -64,20 +64,16 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(dest);
-		AST_APP_ARG(options);
 	);
 
 	if (ast_strlen_zero((char *)data)) {
-		ast_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination[,options])\n");
+		ast_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination)\n");
 		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
 		return 0;
 	} else
 		parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
-
-	if (args.options) {
-	}
 
 	dest = args.dest;
 
