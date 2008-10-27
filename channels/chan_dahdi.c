@@ -13781,8 +13781,6 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				confp->chan.buf_no = numbufs;
 			if (!strcasecmp(policy, "full")) {
 				confp->chan.buf_policy = DAHDI_POLICY_WHEN_FULL;
-			} else if (!strcasecmp(policy, "half")) {
-				confp->chan.buf_policy = DAHDI_POLICY_IMMEDIATE /*HALF_FULL*/;
 			} else if (!strcasecmp(policy, "immediate")) {
 				confp->chan.buf_policy = DAHDI_POLICY_IMMEDIATE;
 			} else {
