@@ -3115,7 +3115,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 				}
 				fprintf(p, "%s %s <%s>" ENDL, first_line ? "From:" : "", passdata, who);
 			} else {
-				fprintf(p, "From: %s <%s>" ENDL, quote(passdata, passdata2, len_passdata2), who);
+				fprintf(p, "From: %s <%s>" ENDL, quote(passdata2, passdata, len_passdata), who);
 			}
 			ast_channel_free(ast);
 		} else
