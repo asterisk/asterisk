@@ -877,6 +877,13 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		return -1;
 	}
 
+	/* Reset all DIAL variables back to blank, to prevent confusion (in case we don't reset all of them). */
+	pbx_builtin_setvar_helper(chan, "DIALSTATUS", "");
+	pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", "");
+	pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", "");
+	pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", "");
+	pbx_builtin_setvar_helper(chan, "DIALEDTIME", "");
+
 	u = ast_module_user_add(chan);
 
 	parse = ast_strdupa(data);
