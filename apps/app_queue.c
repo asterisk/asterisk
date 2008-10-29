@@ -511,6 +511,8 @@ AST_LIST_HEAD_STATIC(rule_lists, rule_list);
 
 static struct ao2_container *queues;
 
+static void copy_rules(struct queue_ent *qe, const char *rulename);
+static void update_qe_rule(struct queue_ent *qe);
 static void update_realtime_members(struct call_queue *q);
 static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused);
 
@@ -1666,7 +1668,7 @@ static void update_realtime_members(struct call_queue *q)
 	ast_config_destroy(member_config);
 }
 
-static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *reason)
+static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *reason, const char *overriding_rule)
 {
 	struct call_queue *q;
 	struct queue_ent *cur, *prev = NULL;
@@ -1674,6 +1676,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	int pos = 0;
 	int inserted = 0;
 	enum queue_member_status stat;
+	int exit = 0;
 
 	if (!(q = load_realtime_queue(queuename)))
 		return res;
@@ -1681,50 +1684,63 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	ao2_lock(queues);
 	ao2_lock(q);
 
+	copy_rules(qe, S_OR(overriding_rule, q->defaultrule));
+	qe->pr = AST_LIST_FIRST(&qe->qe_rules);
+
 	/* This is our one */
-	stat = get_member_status(q, qe->max_penalty, qe->min_penalty);
-	if (!q->joinempty && (stat == QUEUE_NO_MEMBERS))
-		*reason = QUEUE_JOINEMPTY;
-	else if ((q->joinempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS || stat == QUEUE_NO_MEMBERS))
-		*reason = QUEUE_JOINUNAVAIL;
-	else if ((q->joinempty == QUEUE_EMPTY_LOOSE) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_MEMBERS))
-		*reason = QUEUE_JOINUNAVAIL;
-	else if (q->maxlen && (q->count >= q->maxlen))
-		*reason = QUEUE_FULL;
-	else {
-		/* There's space for us, put us at the right position inside
-		 * the queue.
-		 * Take into account the priority of the calling user */
-		inserted = 0;
-		prev = NULL;
-		cur = q->head;
-		while (cur) {
-			/* We have higher priority than the current user, enter
-			 * before him, after all the other users with priority
-			 * higher or equal to our priority. */
-			if ((!inserted) && (qe->prio > cur->prio)) {
-				insert_entry(q, prev, qe, &pos);
-				inserted = 1;
+	while (!exit) {
+		stat = get_member_status(q, qe->max_penalty, qe->min_penalty);
+		if (!q->joinempty && (stat == QUEUE_NO_MEMBERS))
+			*reason = QUEUE_JOINEMPTY;
+		else if ((q->joinempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS || stat == QUEUE_NO_MEMBERS))
+			*reason = QUEUE_JOINUNAVAIL;
+		else if ((q->joinempty == QUEUE_EMPTY_LOOSE) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_MEMBERS))
+			*reason = QUEUE_JOINUNAVAIL;
+		else if (q->maxlen && (q->count >= q->maxlen))
+			*reason = QUEUE_FULL;
+		else {
+			/* There's space for us, put us at the right position inside
+			 * the queue.
+			 * Take into account the priority of the calling user */
+			inserted = 0;
+			prev = NULL;
+			cur = q->head;
+			while (cur) {
+				/* We have higher priority than the current user, enter
+				 * before him, after all the other users with priority
+				 * higher or equal to our priority. */
+				if ((!inserted) && (qe->prio > cur->prio)) {
+					insert_entry(q, prev, qe, &pos);
+					inserted = 1;
+				}
+				cur->pos = ++pos;
+				prev = cur;
+				cur = cur->next;
 			}
-			cur->pos = ++pos;
-			prev = cur;
-			cur = cur->next;
+			/* No luck, join at the end of the queue */
+			if (!inserted)
+				insert_entry(q, prev, qe, &pos);
+			ast_copy_string(qe->moh, q->moh, sizeof(qe->moh));
+			ast_copy_string(qe->announce, q->announce, sizeof(qe->announce));
+			ast_copy_string(qe->context, q->context, sizeof(qe->context));
+			q->count++;
+			res = 0;
+			manager_event(EVENT_FLAG_CALL, "Join",
+				"Channel: %s\r\nCallerID: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\nUniqueid: %s\r\n",
+				qe->chan->name,
+				S_OR(qe->chan->cid.cid_num, "unknown"), /* XXX somewhere else it is <unknown> */
+				S_OR(qe->chan->cid.cid_name, "unknown"),
+				q->name, qe->pos, q->count, qe->chan->uniqueid );
+			ast_debug(1, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 		}
-		/* No luck, join at the end of the queue */
-		if (!inserted)
-			insert_entry(q, prev, qe, &pos);
-		ast_copy_string(qe->moh, q->moh, sizeof(qe->moh));
-		ast_copy_string(qe->announce, q->announce, sizeof(qe->announce));
-		ast_copy_string(qe->context, q->context, sizeof(qe->context));
-		q->count++;
-		res = 0;
-		manager_event(EVENT_FLAG_CALL, "Join",
-			"Channel: %s\r\nCallerID: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\nUniqueid: %s\r\n",
-			qe->chan->name,
-			S_OR(qe->chan->cid.cid_num, "unknown"), /* XXX somewhere else it is <unknown> */
-			S_OR(qe->chan->cid.cid_name, "unknown"),
-			q->name, qe->pos, q->count, qe->chan->uniqueid );
-		ast_debug(1, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
+		if (!exit && qe->pr && res) {
+			/* We failed to join the queue, but perhaps we can join if we move
+			 * to the next defined penalty rule
+			 */
+			update_qe_rule(qe);
+		} else {
+			exit = 1;
+		}
 	}
 	ao2_unlock(q);
 	ao2_unlock(queues);
@@ -2794,7 +2810,8 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 
 	/* This is the holding pen for callers 2 through maxlen */
 	for (;;) {
-		enum queue_member_status stat;
+		enum queue_member_status stat = QUEUE_NORMAL;
+		int exit = 0;
 
 		if (is_our_turn(qe))
 			break;
@@ -2805,9 +2822,27 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 			break;
 		}
 
-		stat = get_member_status(qe->parent, qe->max_penalty, qe->min_penalty);
+		/* If we are going to exit due to a leavewhenempty condition, we should
+		 * actually attempt to keep the caller in the queue until we have
+		 * exhausted all penalty rules.
+		 */
+		for (; !exit || qe->pr; update_qe_rule(qe)) {
+			stat = get_member_status(qe->parent, qe->max_penalty, qe->min_penalty);
 
-		/* leave the queue if no agents, if enabled */
+			if (!qe->pr || stat == QUEUE_NORMAL) {
+				break;
+			}
+
+			/* leave the queue if no agents, if enabled */
+			if ((qe->parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) ||
+					((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) ||
+					((qe->parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (stat == QUEUE_NO_REACHABLE_MEMBERS))) {
+				continue;
+			} else {
+				exit = 1;
+			}
+		}
+
 		if (qe->parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
 			*reason = QUEUE_LEAVEEMPTY;
 			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
@@ -4455,7 +4490,10 @@ static void copy_rules(struct queue_ent *qe, const char *rulename)
 {
 	struct penalty_rule *pr_iter;
 	struct rule_list *rl_iter;
-	const char *tmp = ast_strlen_zero(rulename) ? qe->parent->defaultrule : rulename;
+	const char *tmp = rulename;
+	if (ast_strlen_zero(tmp)) {
+		return;
+	}
 	AST_LIST_LOCK(&rule_lists);
 	AST_LIST_TRAVERSE(&rule_lists, rl_iter, list) {
 		if (!strcasecmp(rl_iter->name, tmp))
@@ -4599,15 +4637,13 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	qe.last_periodic_announce_time = time(NULL);
 	qe.last_periodic_announce_sound = 0;
 	qe.valid_digits = 0;
-	if (join_queue(args.queuename, &qe, &reason)) {
+	if (join_queue(args.queuename, &qe, &reason, args.rule)) {
 		ast_log(LOG_WARNING, "Unable to join queue '%s'\n", args.queuename);
 		set_queue_result(chan, reason);
 		return 0;
 	}
 	ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", S_OR(args.url, ""),
 		S_OR(chan->cid.cid_num, ""));
-	copy_rules(&qe, args.rule);
-	qe.pr = AST_LIST_FIRST(&qe.qe_rules);
 check_turns:
 	if (ringing) {
 		ast_indicate(chan, AST_CONTROL_RINGING);
@@ -4629,7 +4665,8 @@ check_turns:
 		/* they may dial a digit from the queue context; */
 		/* or, they may timeout. */
 
-		enum queue_member_status stat;
+		enum queue_member_status stat = QUEUE_NORMAL;
+		int exit = 0;
 
 		/* Leave if we have exceeded our queuetimeout */
 		if (qe.expire && (time(NULL) >= qe.expire)) {
@@ -4674,8 +4711,6 @@ check_turns:
 			goto stop;
 		}
 
-		stat = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty);
-
 		/* exit after 'timeout' cycle if 'n' option enabled */
 		if (noption && tries >= qe.parent->membercount) {
 			ast_verb(3, "Exiting on time-out cycle\n");
@@ -4684,6 +4719,22 @@ check_turns:
 			reason = QUEUE_TIMEOUT;
 			res = 0;
 			break;
+		}
+
+		for (; !exit || qe.pr; update_qe_rule(&qe)) {
+			stat = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty);
+
+			if (!qe.pr || stat == QUEUE_NORMAL) {
+				break;
+			}
+
+			if ((qe.parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) ||
+					((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) ||
+					((qe.parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (stat == QUEUE_NO_REACHABLE_MEMBERS))) {
+				continue;
+			} else {
+				exit = 1;
+			}
 		}
 
 		/* leave the queue if no agents, if enabled */
@@ -5169,10 +5220,11 @@ static int reload_queue_rules(int reload)
 				ast_copy_string(new_rl->name, rulecat, sizeof(new_rl->name));
 				AST_LIST_INSERT_TAIL(&rule_lists, new_rl, list);
 				for (rulevar = ast_variable_browse(cfg, rulecat); rulevar; rulevar = rulevar->next)
-					if(!strcasecmp(rulevar->name, "penaltychange"))
+					if(!strcasecmp(rulevar->name, "penaltychange")) {
 						insert_penaltychange(new_rl->name, rulevar->value, rulevar->lineno);
-					else
+					} else {
 						ast_log(LOG_WARNING, "Don't know how to handle rule type '%s' on line %d\n", rulevar->name, rulevar->lineno);
+					}
 			}
 		}
 		AST_LIST_UNLOCK(&rule_lists);
