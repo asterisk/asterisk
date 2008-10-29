@@ -536,14 +536,15 @@ static int masq_park_call_announce(struct ast_channel *rchan, struct ast_channel
 	return masq_park_call(rchan, peer, timeout, extout, 1);
 }
 
-#define FEATURE_RETURN_HANGUP		-1
-#define FEATURE_RETURN_SUCCESSBREAK	 0
-#define FEATURE_RETURN_PBX_KEEPALIVE	AST_PBX_KEEPALIVE
-#define FEATURE_RETURN_NO_HANGUP_PEER	AST_PBX_NO_HANGUP_PEER
-#define FEATURE_RETURN_PASSDIGITS	 21
-#define FEATURE_RETURN_STOREDIGITS	 22
-#define FEATURE_RETURN_SUCCESS	 	 23
-#define FEATURE_RETURN_KEEPTRYING    24
+#define FEATURE_RETURN_HANGUP                  -1
+#define FEATURE_RETURN_SUCCESSBREAK             0
+#define FEATURE_RETURN_PBX_KEEPALIVE            AST_PBX_KEEPALIVE
+#define FEATURE_RETURN_NO_HANGUP_PEER           AST_PBX_NO_HANGUP_PEER
+#define FEATURE_RETURN_NO_HANGUP_PEER_PARKED    AST_PBX_NO_HANGUP_PEER_PARKED
+#define FEATURE_RETURN_PASSDIGITS               21
+#define FEATURE_RETURN_STOREDIGITS              22
+#define FEATURE_RETURN_SUCCESS                  23
+#define FEATURE_RETURN_KEEPTRYING               24
 
 #define FEATURE_SENSE_CHAN	(1 << 0)
 #define FEATURE_SENSE_PEER	(1 << 1)
@@ -588,7 +589,7 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 			res = ast_park_call(parkee, parker, 0, NULL);
 			if (!res) {
 				if (sense == FEATURE_SENSE_CHAN) {
-					res = AST_PBX_NO_HANGUP_PEER;
+					res = AST_PBX_NO_HANGUP_PEER_PARKED;
 				} else {
 					res = AST_PBX_KEEPALIVE;
 				}
@@ -755,8 +756,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			/* We return non-zero, but tell the PBX not to hang the channel when
 			   the thread dies -- We have to be careful now though.  We are responsible for 
 			   hanging up the channel, else it will never be hung up! */
-
-			return (transferer == peer) ? AST_PBX_KEEPALIVE : AST_PBX_NO_HANGUP_PEER;
+			return (transferer == peer) ? AST_PBX_KEEPALIVE : AST_PBX_NO_HANGUP_PEER_PARKED;
 		} else {
 			ast_log(LOG_WARNING, "Unable to park call %s\n", transferee->name);
 		}
@@ -1112,14 +1112,15 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 
 	if (res == AST_PBX_KEEPALIVE) {
 		/* do not hangup peer if feature is to be activated on it */
-		if ((ast_test_flag(feature, AST_FEATURE_FLAG_ONPEER) && sense == FEATURE_SENSE_CHAN) || (ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF) && sense == FEATURE_SENSE_PEER))
+		if ((ast_test_flag(feature, AST_FEATURE_FLAG_ONPEER) && sense == FEATURE_SENSE_CHAN) || (ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF) && sense == FEATURE_SENSE_PEER)) {
 			return FEATURE_RETURN_NO_HANGUP_PEER;
-		else
+		} else
 			return FEATURE_RETURN_PBX_KEEPALIVE;
-	}
-	else if (res == AST_PBX_NO_HANGUP_PEER)
+	} else if (res == AST_PBX_NO_HANGUP_PEER) {
 		return FEATURE_RETURN_NO_HANGUP_PEER;
-	else if (res)
+	} else if (res == AST_PBX_NO_HANGUP_PEER_PARKED) {
+		return FEATURE_RETURN_NO_HANGUP_PEER_PARKED;
+	} else if (res)
 		return FEATURE_RETURN_SUCCESSBREAK;
 	
 	return FEATURE_RETURN_SUCCESS;	/*! \todo XXX should probably return res */
@@ -1710,11 +1711,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_frfree(f);
 
 	}
-   before_you_go:
-	new_chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
-	new_peer_cdr = pick_unlocked_cdr(peer->cdr); /* the proper chan cdr, if there are forked cdrs */
-
-	if (!ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN) && ast_exists_extension(chan, chan->context, "h", 1, chan->cid.cid_num)) {
+  before_you_go:
+	if (res != AST_PBX_KEEPALIVE && !ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN) && ast_exists_extension(chan, chan->context, "h", 1, chan->cid.cid_num)) {
 		struct ast_cdr *swapper;
 		char savelastapp[AST_MAX_EXTENSION];
 		char savelastdata[AST_MAX_EXTENSION];
@@ -1758,41 +1756,59 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		ast_copy_string(bridge_cdr->lastapp, savelastapp, sizeof(bridge_cdr->lastapp));
 		ast_copy_string(bridge_cdr->lastdata, savelastdata, sizeof(bridge_cdr->lastdata));
 	}
+
+	/* obey the NoCDR() wishes. -- move the DISABLED flag to the bridge CDR if it was set on the channel during the bridge... */
+	if (res != AST_PBX_KEEPALIVE) {
+		new_chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
+		if (new_chan_cdr && ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED))
+			ast_set_flag(bridge_cdr, AST_CDR_FLAG_POST_DISABLED);
+	}
+
+	/* we can post the bridge CDR at this point */
+	ast_cdr_end(bridge_cdr);
+	ast_cdr_detach(bridge_cdr);
 	
-	/* obey the NoCDR() wishes. */
-	if (new_chan_cdr && ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED) && new_peer_cdr && !ast_test_flag(new_peer_cdr, AST_CDR_FLAG_POST_DISABLED))
-		ast_set_flag(new_peer_cdr, AST_CDR_FLAG_POST_DISABLED); /* DISABLED is viral-- it will propagate across a bridge */
-	if (!new_chan_cdr || (new_chan_cdr && !ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED))) {
+	/* do a specialized reset on the beginning channel
+	   CDR's, if they still exist, so as not to mess up
+	   issues in future bridges;
+	   
+	   Here are the rules of the game:
+	   1. The chan and peer channel pointers will not change
+	      during the life of the bridge.
+	   2. But, in transfers, the channel names will change.
+	      between the time the bridge is started, and the
+	      time the channel ends. 
+	      Usually, when a channel changes names, it will
+	      also change CDR pointers.
+	   3. Usually, only one of the two channels (chan or peer)
+	      will change names.
+	   4. Usually, if a channel changes names during a bridge,
+	      it is because of a transfer. Usually, in these situations,
+	      it is normal to see 2 bridges running simultaneously, and
+	      it is not unusual to see the two channels that change
+	      swapped between bridges.
+	   5. After a bridge occurs, we have 2 or 3 channels' CDRs
+	      to attend to; if the chan or peer changed names,
+	      we have the before and after attached CDR's.
+	   6. Parking has to be accounted for in the code:
+	      a. Parking will cause ast_bridge_call to return
+	         either AST_PBX_NO_HANGUP_PEER or AST_PBX_NO_HANGUP_PEER_PARKED;
+			 in the latter case, peer is (most likely) a bad
+			 pointer, you can no longer deref it. If it does still
+			 exist, it is under another's thread control, and
+			 could be destroyed at any time.
+          b. The same applies to AST_PBX_KEEPALIVE, in which
+		     case, the chan ptr cannot be used, as another thread
+			 owns it and may have destroyed the channel.
+	      c. In the former case, you need to check peer to see if it 
+	         still exists before you deref it, and obtain a lock.
+	      d. In neither case should you do an ast_hangup(peer).
+		  e. Do not overwrite the result code from ast_bridge_call.
+	*/
+	
+	if (res != AST_PBX_KEEPALIVE && new_chan_cdr) {
 		struct ast_channel *chan_ptr = NULL;
 		
-		ast_cdr_end(bridge_cdr);
-		
-		ast_cdr_detach(bridge_cdr);
-
-		/* do a specialized reset on the beginning channel
-		   CDR's, if they still exist, so as not to mess up
-		   issues in future bridges;
-
-		   Here are the rules of the game:
-		   1. The chan and peer channel pointers will not change
-		      during the life of the bridge.
-		   2. But, in transfers, the channel names will change.
-              between the time the bridge is started, and the
-              time the channel ends. 
-              Usually, when a channel changes names, it will
-              also change CDR pointers.
-           3. Usually, only one of the two channels (chan or peer)
-              will change names.
-           4. Usually, if a channel changes names during a bridge,
-              it is because of a transfer. Usually, in these situations,
-              it is normal to see 2 bridges running simultaneously, and
-              it is not unusual to see the two channels that change
-              swapped between bridges.
-		   5. After a bridge occurs, we have 2 or 3 channels' CDRs
-		      to attend to; if the chan or peer changed names,
-			  we have the before and after attached CDR's.
-		*/
-
 		if (strcasecmp(orig_channame, chan->name) != 0) { 
 			/* old channel */
 			chan_ptr = ast_get_channel_by_name_locked(orig_channame);
@@ -1814,9 +1830,16 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		} else {
 			ast_cdr_specialized_reset(chan_cdr,0); /* nothing changed, reset the chan_cdr  */
 		}
-		chan_ptr = ast_get_channel_by_name_locked(orig_peername);
-		if (chan_ptr && strcasecmp(orig_peername, peer->name) != 0) { 
+	}
+
+	if (res != AST_PBX_NO_HANGUP_PEER_PARKED) { /* if the peer was involved in a park, don't even touch it; it's probably gone */
+		struct ast_channel *chan_ptr = NULL;
+		new_peer_cdr = pick_unlocked_cdr(peer->cdr); /* the proper chan cdr, if there are forked cdrs */
+		if (new_chan_cdr && ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED) && new_peer_cdr && !ast_test_flag(new_peer_cdr, AST_CDR_FLAG_POST_DISABLED))
+			ast_set_flag(new_peer_cdr, AST_CDR_FLAG_POST_DISABLED); /* DISABLED is viral-- it will propagate across a bridge */
+		if (strcasecmp(orig_peername, peer->name) != 0) { 
 			/* old channel */
+			chan_ptr = ast_get_channel_by_name_locked(orig_peername);
 			if (chan_ptr) {
 				if (!ast_bridged_channel(chan_ptr)) {
 					struct ast_cdr *cur;
@@ -1828,19 +1851,17 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					if (cur)
 						ast_cdr_specialized_reset(peer_cdr,0);
 				}
+				ast_channel_unlock(chan_ptr);
 			}
 			/* new channel */
 			ast_cdr_specialized_reset(new_peer_cdr,0);
 		} else {
-			if (chan_ptr)
-				ast_cdr_specialized_reset(peer_cdr,0); /* nothing changed, reset the peer_cdr  */
+			ast_cdr_specialized_reset(peer_cdr,0); /* nothing changed, reset the peer_cdr  */
 		}
-		if (chan_ptr)
-			ast_channel_unlock(chan_ptr);
 	}
 	return res;
 }
-
+	
 static void post_manager_event(const char *s, char *parkingexten, struct ast_channel *chan)
 {
 	manager_event(EVENT_FLAG_CALL, s,
@@ -2209,7 +2230,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		ast_cdr_setdestchan(chan->cdr, peer->name);
 
 		/* Simulate the PBX hanging up */
-		if (res != AST_PBX_NO_HANGUP_PEER)
+		if (res != AST_PBX_NO_HANGUP_PEER && res != AST_PBX_NO_HANGUP_PEER_PARKED)
 			ast_hangup(peer);
 		ast_module_user_remove(u);
 		return res;

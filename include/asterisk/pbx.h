@@ -37,8 +37,9 @@ extern "C" {
 #define AST_PBX_REPLACE 1
 
 /*! \brief Special return values from applications to the PBX { */
-#define AST_PBX_KEEPALIVE	10	/*!< Destroy the thread, but don't hang up the channel */
-#define AST_PBX_NO_HANGUP_PEER	11
+#define AST_PBX_KEEPALIVE               10	/*!< Destroy the thread, but don't hang up the channel */
+#define AST_PBX_NO_HANGUP_PEER	        11  /*!< The peer has been involved in a transfer */
+#define AST_PBX_NO_HANGUP_PEER_PARKED	12  /*!< Don't touch the peer channel - it was sent to the parking lot and might be gone by now */
 /*! } */
 
 #define PRIORITY_HINT	-1	/*!< Special Priority for a hint */
