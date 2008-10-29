@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2008, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -111,7 +111,8 @@ static char *descrip =
 "           DTMF string is sent to the called party, and the 'calling' DTMF\n"
 "           string is sent to the calling party. Both parameters can be used\n"
 "           alone.\n"
-"    e    - execute the 'h' extension for peer after the call ends\n"
+"    e    - execute the 'h' extension for peer after the call ends. This\n"
+"           operation will not be performed if the peer was parked\n"
 "    f    - Force the callerid of the *calling* channel to be set as the\n"
 "           extension associated with the channel using a dialplan 'hint'.\n"
 "           For example, some PSTNs do not allow CallerID to be set to anything\n"
@@ -1793,16 +1794,17 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			struct ast_app *theapp;
 			const char *gosub_result;
 			char *gosub_args, *gosub_argstart;
+			int res9 = -1;
 
-			res = ast_autoservice_start(chan);
-			if (res) {
+			res9 = ast_autoservice_start(chan);
+			if (res9) {
 				ast_log(LOG_ERROR, "Unable to start autoservice on calling channel\n");
-				res = -1;
+				res9 = -1;
 			}
 
 			theapp = pbx_findapp("Gosub");
 
-			if (theapp && !res) {
+			if (theapp && !res9) {
 				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GOSUB]);
 
 				/* Set where we came from */
@@ -1820,50 +1822,50 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				}
 
 				if (gosub_args) {
-					res = pbx_exec(peer, theapp, gosub_args);
+					res9 = pbx_exec(peer, theapp, gosub_args);
 					ast_pbx_run(peer);
 					ast_free(gosub_args);
 					if (option_debug)
-						ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
+						ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res9);
 				} else
 					ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
 
-				res = 0;
-			} else if (!res) {
+				res9 = 0;
+			} else if (!res9) {
 				ast_log(LOG_ERROR, "Could not find application Gosub\n");
-				res = -1;
+				res9 = -1;
 			}
 
 			if (ast_autoservice_stop(chan) < 0) {
 				ast_log(LOG_ERROR, "Could not stop autoservice on calling channel\n");
-				res = -1;
+				res9 = -1;
 			}
 			
 			ast_channel_lock(peer);
 
-			if (!res && (gosub_result = pbx_builtin_getvar_helper(peer, "GOSUB_RESULT"))) {
+			if (!res9 && (gosub_result = pbx_builtin_getvar_helper(peer, "GOSUB_RESULT"))) {
 				char *gosub_transfer_dest;
 
 				if (!strcasecmp(gosub_result, "BUSY")) {
 					ast_copy_string(pa.status, gosub_result, sizeof(pa.status));
 					ast_set_flag64(peerflags, OPT_GO_ON);
-					res = -1;
+					res9 = -1;
 				} else if (!strcasecmp(gosub_result, "CONGESTION") || !strcasecmp(gosub_result, "CHANUNAVAIL")) {
 					ast_copy_string(pa.status, gosub_result, sizeof(pa.status));
 					ast_set_flag64(peerflags, OPT_GO_ON);
-					res = -1;
+					res9 = -1;
 				} else if (!strcasecmp(gosub_result, "CONTINUE")) {
 					/* hangup peer and keep chan alive assuming the macro has changed
 					   the context / exten / priority or perhaps
 					   the next priority in the current exten is desired.
 					*/
 					ast_set_flag64(peerflags, OPT_GO_ON);
-					res = -1;
+					res9 = -1;
 				} else if (!strcasecmp(gosub_result, "ABORT")) {
 					/* Hangup both ends unless the caller has the g flag */
-					res = -1;
+					res9 = -1;
 				} else if (!strncasecmp(gosub_result, "GOTO:", 5) && (gosub_transfer_dest = ast_strdupa(gosub_result + 5))) {
-					res = -1;
+					res9 = -1;
 					/* perform a transfer to a new extension */
 					if (strchr(gosub_transfer_dest, '^')) { /* context^exten^priority*/
 						replace_macro_delimiter(gosub_transfer_dest);
@@ -1952,32 +1954,34 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
 		pbx_builtin_setvar_helper(chan, "DIALEDTIME", toast);
 
-		if (ast_test_flag64(&opts, OPT_PEER_H)) {
+		if (res != AST_PBX_NO_HANGUP_PEER_PARKED && ast_test_flag64(&opts, OPT_PEER_H)) {
 			ast_log(LOG_NOTICE, "PEER context: %s; PEER exten: %s;  PEER priority: %d\n",
 				peer->context, peer->exten, peer->priority);
 		}
+		if (res != AST_PBX_NO_HANGUP_PEER_PARKED)
+			strcpy(peer->context, chan->context);
 
-		strcpy(peer->context, chan->context);
-
-		if (ast_test_flag64(&opts, OPT_PEER_H) && ast_exists_extension(peer, peer->context, "h", 1, peer->cid.cid_num)) {
+		if (res != AST_PBX_NO_HANGUP_PEER_PARKED && ast_test_flag64(&opts, OPT_PEER_H) && ast_exists_extension(peer, peer->context, "h", 1, peer->cid.cid_num)) {
 			int autoloopflag;
 			int found;
+			int res9;
+			
 			strcpy(peer->exten, "h");
 			peer->priority = 1;
 			autoloopflag = ast_test_flag(peer, AST_FLAG_IN_AUTOLOOP); /* save value to restore at the end */
 			ast_set_flag(peer, AST_FLAG_IN_AUTOLOOP);
 
-			while ((res = ast_spawn_extension(peer, peer->context, peer->exten, peer->priority, peer->cid.cid_num, &found, 1)) == 0)
+			while ((res9 = ast_spawn_extension(peer, peer->context, peer->exten, peer->priority, peer->cid.cid_num, &found, 1)) == 0)
 				peer->priority++;
 
-			if (found && res) {
+			if (found && res9) {
 				/* Something bad happened, or a hangup has been requested. */
 				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", peer->context, peer->exten, peer->priority, peer->name);
 				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", peer->context, peer->exten, peer->priority, peer->name);
 			}
 			ast_set2_flag(peer, autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
 		}
-		if (res != AST_PBX_NO_HANGUP_PEER) {
+		if (res != AST_PBX_NO_HANGUP_PEER && res != AST_PBX_NO_HANGUP_PEER_PARKED) {
 			if (!ast_check_hangup(peer) && ast_test_flag64(&opts, OPT_CALLEE_GO_ON) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {		
 				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
 				ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
@@ -1990,23 +1994,28 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 	}
 out:
-	if (moh) {
-		moh = 0;
-		ast_moh_stop(chan);
-	} else if (sentringing) {
-		sentringing = 0;
-		ast_indicate(chan, -1);
-	}
-	ast_channel_early_bridge(chan, NULL);
-	hanguptree(outgoing, NULL, 0); /* In this case, there's no answer anywhere */
-	pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
-	senddialendevent(chan, pa.status);
-	ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);
+	/* cleaning up chan is not a good idea here if AST_PBX_KEEPALIVE
+	   is returned; chan will get the love it needs from another
+	   thread */
+	if (res != AST_PBX_KEEPALIVE) {
+		if (moh) {
+			moh = 0;
+			ast_moh_stop(chan);
+		} else if (sentringing) {
+			sentringing = 0;
+			ast_indicate(chan, -1);
+		}
+		ast_channel_early_bridge(chan, NULL);
+		hanguptree(outgoing, NULL, 0); /* In this case, there's no answer anywhere */
+		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
+		senddialendevent(chan, pa.status);
+		ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);
 
-	if ((ast_test_flag64(peerflags, OPT_GO_ON)) && !ast_check_hangup(chan) && (res != AST_PBX_KEEPALIVE) && (res != AST_PBX_INCOMPLETE)) {
-		if (calldurationlimit)
-			memset(&chan->whentohangup, 0, sizeof(chan->whentohangup));
-		res = 0;
+		if ((ast_test_flag64(peerflags, OPT_GO_ON)) && !ast_check_hangup(chan) && (res != AST_PBX_KEEPALIVE) && (res != AST_PBX_INCOMPLETE)) {
+			if (calldurationlimit)
+				memset(&chan->whentohangup, 0, sizeof(chan->whentohangup));
+			res = 0;
+		}
 	}
 
 done:
