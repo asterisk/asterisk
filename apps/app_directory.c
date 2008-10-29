@@ -222,6 +222,10 @@ static int compare(const char *text, const char *template)
 {
 	char digit;
 
+	if (ast_strlen_zero(text)) {
+		return -1;
+	}
+
 	while (*template) {
 		digit = toupper(*text++);
 		switch (digit) {
