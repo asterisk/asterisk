@@ -3228,15 +3228,18 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 }
 
 /*! \brief Find hint for given extension in context */
+static struct ast_exten *ast_hint_extension_nolock(struct ast_channel *c, const char *context, const char *exten)
+{
+	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is set in pbx_find_context */
+	return pbx_find_extension(c, NULL, &q, context, exten, PRIORITY_HINT, NULL, "", E_MATCH);
+}
+
 static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *context, const char *exten)
 {
 	struct ast_exten *e;
-	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is set in pbx_find_context */
-
 	ast_rdlock_contexts();
-	e = pbx_find_extension(c, NULL, &q, context, exten, PRIORITY_HINT, NULL, "", E_MATCH);
+	e = ast_hint_extension_nolock(c, context, exten);
 	ast_unlock_contexts();
-
 	return e;
 }
 
@@ -6032,7 +6035,8 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 		if (exten && exten->exten[0] == '_') {
 			ast_add_extension(exten->parent->name, 0, this->exten, PRIORITY_HINT, NULL,
 				0, exten->app, ast_strdup(exten->data), ast_free_ptr, registrar);
-			exten = ast_hint_extension(NULL, this->context, this->exten);
+			/* rwlocks are not recursive locks */
+			exten = ast_hint_extension_nolock(NULL, this->context, this->exten);
 		}
 
 		/* Find the hint in the list of hints */
