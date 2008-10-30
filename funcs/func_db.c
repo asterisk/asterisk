@@ -44,8 +44,8 @@ static int function_db_read(struct ast_channel *chan, const char *cmd,
 			    char *parse, char *buf, size_t len)
 {
 	AST_DECLARE_APP_ARGS(args,
-			     AST_APP_ARG(family);
-			     AST_APP_ARG(key);
+		AST_APP_ARG(family);
+		AST_APP_ARG(key);
 	);
 
 	buf[0] = '\0';
@@ -64,8 +64,9 @@ static int function_db_read(struct ast_channel *chan, const char *cmd,
 
 	if (ast_db_get(args.family, args.key, buf, len - 1)) {
 		ast_debug(1, "DB: %s/%s not found in database.\n", args.family, args.key);
-	} else
+	} else {
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
+	}
 
 	return 0;
 }
@@ -74,8 +75,8 @@ static int function_db_write(struct ast_channel *chan, const char *cmd, char *pa
 			     const char *value)
 {
 	AST_DECLARE_APP_ARGS(args,
-			     AST_APP_ARG(family);
-			     AST_APP_ARG(key);
+		AST_APP_ARG(family);
+		AST_APP_ARG(key);
 	);
 
 	if (ast_strlen_zero(parse)) {
@@ -90,8 +91,9 @@ static int function_db_write(struct ast_channel *chan, const char *cmd, char *pa
 		return -1;
 	}
 
-	if (ast_db_put(args.family, args.key, (char *) value))
+	if (ast_db_put(args.family, args.key, value)) {
 		ast_log(LOG_WARNING, "DB: Error writing value to database.\n");
+	}
 
 	return 0;
 }
@@ -114,8 +116,8 @@ static int function_db_exists(struct ast_channel *chan, const char *cmd,
 			      char *parse, char *buf, size_t len)
 {
 	AST_DECLARE_APP_ARGS(args,
-			     AST_APP_ARG(family);
-			     AST_APP_ARG(key);
+		AST_APP_ARG(family);
+		AST_APP_ARG(key);
 	);
 
 	buf[0] = '\0';
@@ -132,9 +134,9 @@ static int function_db_exists(struct ast_channel *chan, const char *cmd,
 		return -1;
 	}
 
-	if (ast_db_get(args.family, args.key, buf, len - 1))
+	if (ast_db_get(args.family, args.key, buf, len - 1)) {
 		strcpy(buf, "0");
-	else {
+	} else {
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
 		strcpy(buf, "1");
 	}
@@ -158,8 +160,8 @@ static int function_db_delete(struct ast_channel *chan, const char *cmd,
 			      char *parse, char *buf, size_t len)
 {
 	AST_DECLARE_APP_ARGS(args,
-			     AST_APP_ARG(family);
-			     AST_APP_ARG(key);
+		AST_APP_ARG(family);
+		AST_APP_ARG(key);
 	);
 
 	buf[0] = '\0';
@@ -183,6 +185,7 @@ static int function_db_delete(struct ast_channel *chan, const char *cmd,
 			ast_debug(1, "DB_DELETE: %s/%s could not be deleted from the database\n", args.family, args.key);
 		}
 	}
+
 	pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
 
 	return 0;
