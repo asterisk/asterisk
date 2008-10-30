@@ -35,8 +35,8 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 ;xfersound = beep		; to indicate an attended transfer is complete
 ;xferfailsound = beeperr	; to indicate a failed transfer
 ;pickupexten = *8		; Configure the pickup extension. (default is *8)
-;featuredigittimeout = 500	; Max time (ms) between digits for 
-				; feature activation  (default is 500 ms)
+;featuredigittimeout = 2000	; Max time (ms) between digits for 
+				; feature activation  (default is 2000 ms)
 ;atxfernoanswertimeout = 15 ; Timeout for answer on attended transfer default is 15 seconds.
 ;atxferdropcall = no        ; If someone does an attended transfer, then hangs up before the transferred
                             ; caller is connected, then by default, the system will try to call back the

@@ -769,6 +769,7 @@ Call Features (res_features) Changes
      the first one available.
   * Added cli command 'features reload' to reload call features from features.conf
   * Moved into core asterisk binary.
+  * Changed the default setting for featuredigittimeout to 2000 ms from 500 ms.
 
 Language Support Changes
 ------------------------
