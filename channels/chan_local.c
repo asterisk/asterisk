@@ -521,6 +521,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 
 	if (!ast_exists_extension(NULL, p->chan->context, p->chan->exten, 1, p->owner->cid.cid_num)) {
 		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", p->chan->exten, p->chan->context);
+		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
 
