@@ -25,6 +25,14 @@
 #include "isdn_lib_intern.h"
 #include "isdn_lib.h"
 
+enum event_response_e (*cb_event) (enum event_e event, struct misdn_bchannel *bc, void *user_data);
+
+void (*cb_log) (int level, int port, char *tmpl, ...)
+	__attribute__ ((format (printf, 3, 4)));
+
+int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
+
+
 /* 
  * Define ARRAY_LEN() because I cannot
  * #include "asterisk/utils.h"
@@ -259,8 +267,8 @@ static int  entity;
 
 static struct misdn_lib *glob_mgr;
 
-char tone_425_flip[TONE_425_SIZE];
-char tone_silence_flip[TONE_SILENCE_SIZE];
+static char tone_425_flip[TONE_425_SIZE];
+static char tone_silence_flip[TONE_SILENCE_SIZE];
 
 static void misdn_lib_isdn_event_catcher(void *arg);
 static int handle_event_nt(void *dat, void *arg);
@@ -472,7 +480,7 @@ static void dump_chan_list(struct misdn_stack *stack)
 }
 
 
-void misdn_dump_chanlist()
+void misdn_dump_chanlist(void)
 {
 	struct misdn_stack *stack=get_misdn_stack();
 	for ( ; stack; stack=stack->next) {
@@ -481,7 +489,7 @@ void misdn_dump_chanlist()
 
 }
 
-int set_chan_in_stack(struct misdn_stack *stack, int channel)
+static int set_chan_in_stack(struct misdn_stack *stack, int channel)
 {
 
 	cb_log(4,stack->port,"set_chan_in_stack: %d\n",channel);
@@ -1838,7 +1846,7 @@ int release_cr(struct misdn_stack *stack, mISDNuser_head_t *hh)
 	return 0 ;
 }
 
-int
+static int
 handle_event_nt(void *dat, void *arg)
 {
 	manager_t *mgr = (manager_t *)dat;
@@ -3079,7 +3087,7 @@ static void misdn_lib_isdn_event_catcher(void *arg)
 
 /** App Interface **/
 
-int te_lib_init() {
+int te_lib_init(void) {
 	char buff[1025] = "";
 	iframe_t *frm=(iframe_t*)buff;
 	int midev=mISDN_open();
@@ -3888,7 +3896,7 @@ int misdn_lib_port_restart(int port)
 
 
 
-sem_t handler_started; 
+static sem_t handler_started; 
 
 /* This is a thread */
 static void manager_event_handler(void *arg)
@@ -4036,7 +4044,6 @@ void misdn_lib_nt_debug_init( int flags, char *file )
 		debug_init( flags , f, f, f);
 	}
 }
-
 
 int misdn_lib_init(char *portlist, struct misdn_lib_iface *iface, void *user_data)
 {
@@ -4560,7 +4567,7 @@ void manager_ec_disable(struct misdn_bchannel *bc)
 #endif
 }
 
-struct misdn_stack* get_misdn_stack() {
+struct misdn_stack* get_misdn_stack(void) {
 	return glob_mgr->stack_list;
 }
 

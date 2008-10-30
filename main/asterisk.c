@@ -117,6 +117,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/devicestate.h"
 #include "asterisk/module.h"
 #include "asterisk/dsp.h"
+#include "asterisk/buildinfo.h"
 
 #include "asterisk/doxyref.h"		/* Doxygen documentation */
 
@@ -245,13 +246,6 @@ static char ast_config_AST_CTL_PERMISSIONS[PATH_MAX];
 static char ast_config_AST_CTL_OWNER[PATH_MAX] = "\0";
 static char ast_config_AST_CTL_GROUP[PATH_MAX] = "\0";
 static char ast_config_AST_CTL[PATH_MAX] = "asterisk.ctl";
-
-extern const char *ast_build_hostname;
-extern const char *ast_build_kernel;
-extern const char *ast_build_machine;
-extern const char *ast_build_os;
-extern const char *ast_build_date;
-extern const char *ast_build_user;
 
 static char *_argv[256];
 static int shuttingdown;

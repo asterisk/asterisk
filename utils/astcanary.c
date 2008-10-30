@@ -59,7 +59,7 @@
  * Asterisk itself.
  */
 
-const char explanation[] =
+static const char explanation[] =
 "This file is created when Asterisk is run with a realtime priority (-p).  It\n"
 "must continue to exist, and the astcanary process must be allowed to continue\n"
 "running, or else the Asterisk process will, within a short period of time,\n"

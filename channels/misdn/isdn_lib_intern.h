@@ -28,8 +28,10 @@
 #endif
 
 
+#if 0
 ibuffer_t *astbuf;		/* Not used */
 ibuffer_t *misdnbuf;	/* Not used */
+#endif
 
 struct send_lock {
 	pthread_mutex_t lock;

@@ -57,7 +57,7 @@ struct ast_dnsmgr_entry {
 	/*! SRV record to lookup, if provided. Composed of service, protocol, and domain name: _Service._Proto.Name */
 	char *service;
 	/*! Set to 1 if the entry changes */
-	int changed:1;
+	unsigned int changed:1;
 	ast_mutex_t lock;
 	AST_RWLIST_ENTRY(ast_dnsmgr_entry) list;
 	/*! just 1 here, but we use calloc to allocate the correct size */

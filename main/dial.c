@@ -53,15 +53,15 @@ struct ast_dial {
 
 /*! \brief Dialing channel structure. Contains per-channel dialing options, asterisk channel, and more! */
 struct ast_dial_channel {
-	int num;                               /*!< Unique number for dialed channel */
-	int timeout;                           /*!< Maximum time allowed for attempt */
-	char *tech;                            /*!< Technology being dialed */
-	char *device;                          /*!< Device being dialed */
-	void *options[AST_DIAL_OPTION_MAX];    /*!< Channel specific options */
-	int cause;                             /*!< Cause code in case of failure */
-	int is_running_app:1;                  /*!< Is this running an application? */
-	struct ast_channel *owner;             /*!< Asterisk channel */
-	AST_LIST_ENTRY(ast_dial_channel) list; /*!< Linked list information */
+	int num;				/*!< Unique number for dialed channel */
+	int timeout;				/*!< Maximum time allowed for attempt */
+	char *tech;				/*!< Technology being dialed */
+	char *device;				/*!< Device being dialed */
+	void *options[AST_DIAL_OPTION_MAX];	/*!< Channel specific options */
+	int cause;				/*!< Cause code in case of failure */
+	unsigned int is_running_app:1;		/*!< Is this running an application? */
+	struct ast_channel *owner;		/*!< Asterisk channel */
+	AST_LIST_ENTRY(ast_dial_channel) list;	/*!< Linked list information */
 };
 
 /*! \brief Typedef for dial option enable */
