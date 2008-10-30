@@ -43,6 +43,9 @@
   4) Multiple 'event types', so that the code using the timer can
      know whether the wakeup it received was due to a periodic trigger
      or a continuous trigger.
+
+  \todo Create an implementation of this API for Linux based on the
+   following API: http://www.kernel.org/doc/man-pages/online/pages/man2/timerfd_create.2.html
  */
 
 #ifndef _ASTERISK_TIMING_H
