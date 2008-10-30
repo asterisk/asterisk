@@ -214,10 +214,11 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ;
 ;
 [dundi-e164-canonical]
+;include => stdexten
 ;
 ; List canonical entries here
 ;
-;exten => 12564286000,1,Gosub(stdexten,s,1(6000,IAX2/foo))
+;exten => 12564286000,1,Gosub(stdexten(6000,IAX2/foo))
 ;exten => 12564286000,n,Goto(default,s,1)	; exited Voicemail
 ;exten => _125642860XX,1,Dial(IAX2/otherbox/${EXTEN:7})
 
@@ -402,28 +403,28 @@ exten => _s-.,1,NoOp
 ; variable on top of an existing variable, and its value will revert to its
 ; previous value (before being declared as LOCAL()) upon Return.
 ;
-exten => s,1,NoOp(Start stdexten)
-exten => s,n,Set(LOCAL(ext)=${ARG1})
-exten => s,n,Set(LOCAL(dev)=${ARG2})
-exten => s,n,Set(LOCAL(cntx)=${ARG3})
+exten => _X.,50000(stdexten),NoOp(Start stdexten)
+exten => _X.,n,Set(LOCAL(ext)=${ARG1})
+exten => _X.,n,Set(LOCAL(dev)=${ARG2})
+exten => _X.,n,Set(LOCAL(cntx)=${ARG3})
 
-exten => s,n,Set(LOCAL(mbx)="${ext}"$["${cntx}" ? "@${cntx}" :: ""])
-exten => s,n,Dial(${dev},20)			; Ring the interface, 20 seconds maximum
-exten => s,n,Goto(s-${DIALSTATUS},1)		; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
+exten => _X.,n,Set(LOCAL(mbx)="${ext}"$["${cntx}" ? "@${cntx}" :: ""])
+exten => _X.,n,Dial(${dev},20)			; Ring the interface, 20 seconds maximum
+exten => _X.,n,Goto(stdexten-${DIALSTATUS},1)		; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
 
-exten => s-NOANSWER,1,Voicemail(${mbx},u)	; If unavailable, send to voicemail w/ unavail announce
-exten => s-NOANSWER,n,NoOp(Finish stdexten NOANSWER)
-exten => s-NOANSWER,n,Return()			; If they press #, return to start
+exten => stdexten-NOANSWER,1,Voicemail(${mbx},u)	; If unavailable, send to voicemail w/ unavail announce
+exten => stdexten-NOANSWER,n,NoOp(Finish stdexten NOANSWER)
+exten => stdexten-NOANSWER,n,Return()			; If they press #, return to start
 
-exten => s-BUSY,1,Voicemail(${mbx},b)
+exten => stdexten-BUSY,1,Voicemail(${mbx},b)
 						; If busy, send to voicemail w/ busy announce
-exten => s-BUSY,n,NoOp(Finish stdexten BUSY)
-exten => s-BUSY,n,Return()			; If they press #, return to start
+exten => stdexten-BUSY,n,NoOp(Finish stdexten BUSY)
+exten => stdexten-BUSY,n,Return()			; If they press #, return to start
 
-exten => _s-.,1,Goto(s-NOANSWER,1)		; Treat anything else as no answer
+exten => _stdexten[\-].,1,Goto(s-NOANSWER,1)		; Treat anything else as no answer
 
 exten => a,1,VoicemailMain(${mbx})		; If they press *, send the user into VoicemailMain
-						; does this ever return?
+exten => a,n,Return()
 
 [stdPrivacyexten]
 ;
@@ -436,33 +437,34 @@ exten => a,1,VoicemailMain(${mbx})		; If they press *, send the user into Voicem
 ;
 ; See above note in stdexten about priority handling on exit.
 ;
-exten => s,1,NoOp(Start stdPrivacyexten)
-exten => s,n,Set(LOCAL(ext)=${ARG1})
-exten => s,n,Set(LOCAL(dev)=${ARG2})
-exten => s,n,Set(LOCAL(dontcntx)=${ARG3})
-exten => s,n,Set(LOCAL(tortcntx)=${ARG4})
-exten => s,n,Set(LOCAL(cntx)=${ARG5})
+exten => _X.,60000(stdPrivacyexten),NoOp(Start stdPrivacyexten)
+exten => _X.,n,Set(LOCAL(ext)=${ARG1})
+exten => _X.,n,Set(LOCAL(dev)=${ARG2})
+exten => _X.,n,Set(LOCAL(dontcntx)=${ARG3})
+exten => _X.,n,Set(LOCAL(tortcntx)=${ARG4})
+exten => _X.,n,Set(LOCAL(cntx)=${ARG5})
 
-exten => s,n,Set(LOCAL(mbx)="${ext}"$["${cntx}" ? "@${cntx}" :: ""])
-exten => s,n,Dial(${dev},20|p)			; Ring the interface, 20 seconds maximum, call screening 
+exten => _X.,n,Set(LOCAL(mbx)="${ext}"$["${cntx}" ? "@${cntx}" :: ""])
+exten => _X.,n,Dial(${dev},20|p)			; Ring the interface, 20 seconds maximum, call screening 
 						; option (or use P for databased call screening)
-exten => s,n,Goto(s-${DIALSTATUS},1)		; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
+exten => _X.,n,Goto(stdexten-${DIALSTATUS},1)		; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
 
-exten => s-NOANSWER,1,Voicemail(${mbx},u)	; If unavailable, send to voicemail w/ unavail announce
-exten => s-NOANSWER,n,NoOp(Finish stdPrivacyexten NOANSWER)
-exten => s-NOANSWER,n,Return()			; If they press #, return to start
+exten => stdexten-NOANSWER,1,Voicemail(${mbx},u)	; If unavailable, send to voicemail w/ unavail announce
+exten => stdexten-NOANSWER,n,NoOp(Finish stdPrivacyexten NOANSWER)
+exten => stdexten-NOANSWER,n,Return()			; If they press #, return to start
 
-exten => s-BUSY,1,Voicemail(${mbx},b)		; If busy, send to voicemail w/ busy announce
-exten => s-BUSY,n,NoOp(Finish stdPrivacyexten BUSY)
-exten => s-BUSY,n,Return()			; If they press #, return to start
+exten => stdexten-BUSY,1,Voicemail(${mbx},b)		; If busy, send to voicemail w/ busy announce
+exten => stdexten-BUSY,n,NoOp(Finish stdPrivacyexten BUSY)
+exten => stdexten-BUSY,n,Return()			; If they press #, return to start
 
-exten => s-DONTCALL,1,Goto(${dontcntx},s,1)	; Callee chose to send this call to a polite "Don't call again" script.
+exten => stdexten-DONTCALL,1,Goto(${dontcntx},s,1)	; Callee chose to send this call to a polite "Don't call again" script.
 
-exten => s-TORTURE,1,Goto(${tortcntx},s,1)	; Callee chose to send this call to a telemarketer torture script.
+exten => stdexten-TORTURE,1,Goto(${tortcntx},s,1)	; Callee chose to send this call to a telemarketer torture script.
 
-exten => _s-.,1,Goto(s-NOANSWER,1)		; Treat anything else as no answer
+exten => _stdexten-.,1,Goto(s-NOANSWER,1)		; Treat anything else as no answer
 
 exten => a,1,VoicemailMain(${mbx})		; If they press *, send the user into VoicemailMain
+exten => a,n,Return()
 						; does this ever return?
 
 [macro-page];
@@ -483,6 +485,7 @@ exten => s,n(fail),Hangup
 
 
 [demo]
+include => stdexten
 ;
 ; We start with what to do when a call first comes in.
 ;
@@ -507,7 +510,7 @@ exten => 1000,1,Goto(default,s,1)
 ;
 exten => 1234,1,Playback(transfer,skip)		; "Please hold while..." 
 					; (but skip if channel is not up)
-exten => 1234,n,Gosub(stdexten,s,1(1234,${GLOBAL(CONSOLE)}))
+exten => 1234,n,Gosub(stdexten(1234,${GLOBAL(CONSOLE)}))
 exten => 1234,n,Goto(default,s,1)		; exited Voicemail
 
 exten => 1235,1,Voicemail(1234,u)		; Right to voicemail
@@ -624,11 +627,11 @@ include => demo
 ;exten => 6391,1,Dial(JINGLE/asterisk@digium.com/mogorman@astjab.org) ;Dial via jingle using asterisk as the transport and calling mogorman.
 ;exten => 6394,1,Dial(Local/6275/n)		; this will dial ${MARK}
 
-;exten => 6275,1,Gosub(stdexten,s,1(6275,${MARK}))
+;exten => 6275,1,Gosub(stdexten(6275,${MARK}))
 						; assuming ${MARK} is something like DAHDI/2
 ;exten => 6275,n,Goto(default,s,1)		; exited Voicemail
 ;exten => mark,1,Goto(6275|1)			; alias mark to 6275
-;exten => 6536,1,Gosub(stdexten,s,1(6236,${WIL}))
+;exten => 6536,1,Gosub(stdexten(6236,${WIL}))
 						; Ditto for wil
 ;exten => 6536,n,Goto(default,s,1)		; exited Voicemail
 ;exten => wil,1,Goto(6236|1)
@@ -694,10 +697,11 @@ include => demo
 ; grouping of acme's extensions... never used directly, always included.
 ;
 ;[acme-extens]
-;exten => 111,1,Gosub(stdexten,s,1(111,SIP/pete_1,acme))
+;include => stdexten
+;exten => 111,1,Gosub(stdexten(111,SIP/pete_1,acme))
 ;exten => 111,n,Goto(s,exten)
 ;
-;exten => 112,1,Gosub(stdexten,s,1(112,SIP/nancy_1,acme))
+;exten => 112,1,Gosub(stdexten(112,SIP/nancy_1,acme))
 ;exten => 112,n,Goto(s,end)
 ;
 ; end of acme example
