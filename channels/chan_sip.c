@@ -16604,18 +16604,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		switch(resp) {
 		case 100:	/* 100 Trying */
 		case 101:	/* 101 Dialog establishment */
-			if (sipmethod == SIP_INVITE) 
-				handle_response_invite(p, resp, rest, req, seqno);
-			break;
 		case 183:	/* 183 Session Progress */
-			if (sipmethod == SIP_INVITE) 
-				handle_response_invite(p, resp, rest, req, seqno);
-			break;
 		case 180:	/* 180 Ringing */
-			if (sipmethod == SIP_INVITE) 
-				handle_response_invite(p, resp, rest, req, seqno);
-			break;
-		case 182:       /* 182 Queued */
+		case 182:	/* 182 Queued */
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
 			break;
