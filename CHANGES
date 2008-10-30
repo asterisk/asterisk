@@ -33,6 +33,9 @@ Applications
    using MeetMeAdmin.
  * app_authenticate now gives the ability to select a prompt other than
    the default.
+ * app_directory now pays attention to the searchcontexts setting in
+   voicemail.conf and will look through all contexts, if no context is
+   specified in the initial argument.
 
 Miscellaneous
 -------------
