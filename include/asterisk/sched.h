@@ -113,11 +113,10 @@ extern "C" {
 			unrefcall;	/* should ref _data! */		\
 		if (_count == 10) \
 			ast_log(LOG_WARNING, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
+		refcall; \
 		id = ast_sched_add_variable(sched, when, callback, data, variable); \
 		if (id == -1)  \
 			addfailcall;	\
-		else \
-			refcall; \
 	} while (0);
 
 #define AST_SCHED_REPLACE_UNREF(id, sched, when, callback, data, unrefcall, addfailcall, refcall) \
