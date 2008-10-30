@@ -3989,14 +3989,6 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		peer->chanvars = NULL;
 	}
 	
-	/* If the schedule delete fails, that means the schedule is currently
-	 * running, which means we should wait for that thread to complete.
-	 * Otherwise, there's a crashable race condition.
-	 *
-	 * NOTE: once peer is refcounted, this probably is no longer necessary.
-	 */
-	AST_SCHED_DEL(sched, peer->pokeexpire);
-
 	register_peer_exten(peer, FALSE);
 	ast_free_ha(peer->ha);
 	if (peer->selfdestruct)
@@ -10631,7 +10623,11 @@ static int sip_poke_peer_s(const void *data)
 	struct sip_peer *peer = (struct sip_peer *)data;
 
 	peer->pokeexpire = -1;
+
 	sip_poke_peer(peer, 0);
+
+	unref_peer(peer, "removing poke peer ref");
+
 	return 0;
 }
 
@@ -10683,7 +10679,10 @@ static void reg_source_db(struct sip_peer *peer)
 	peer->addr.sin_port = htons(port);
 	if (sipsock < 0) {
 		/* SIP isn't up yet, so schedule a poke only, pretty soon */
-		AST_SCHED_REPLACE(peer->pokeexpire, sched, ast_random() % 5000 + 1, sip_poke_peer_s, peer);
+		AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched, ast_random() % 5000 + 1, sip_poke_peer_s, peer,
+				unref_peer(_data, "removing poke peer ref"),
+				unref_peer(peer, "removing poke peer ref"),
+				ref_peer(peer, "adding poke peer ref"));
 	} else {
 		sip_poke_peer(peer, 0);
 	}
@@ -16543,10 +16542,12 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 	pvt_set_needdestroy(p, "got OPTIONS response");
 
 	/* Try again eventually */
-	AST_SCHED_REPLACE(peer->pokeexpire, sched,
-		is_reachable ? peer->qualifyfreq : DEFAULT_FREQ_NOTOK,
-		sip_poke_peer_s, peer);
-	/* unref_peer(peer, "unref relatedpeer ptr var at end of handle_response_peerpoke"); */
+	AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched,
+			is_reachable ? peer->qualifyfreq : DEFAULT_FREQ_NOTOK,
+			sip_poke_peer_s, peer,
+			unref_peer(_data, "removing poke peer ref"),
+			unref_peer(peer, "removing poke peer ref"),
+			ref_peer(peer, "adding poke peer ref"));
 }
 
 /*! \brief Immediately stop RTP, VRTP and UDPTL as applicable */
@@ -20807,12 +20808,14 @@ static int sip_poke_noanswer(const void *data)
 	struct sip_peer *peer = (struct sip_peer *)data;
 	
 	peer->pokeexpire = -1;
+
 	if (peer->lastms > -1) {
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
 		if (sip_cfg.regextenonqualify)
 			register_peer_exten(peer, FALSE);
 	}
+
 	if (peer->call) {
 		dialog_unlink_all(peer->call, TRUE, TRUE);
 		peer->call = dialog_unref(peer->call, "unref dialog peer->call");
@@ -20821,9 +20824,17 @@ static int sip_poke_noanswer(const void *data)
 	
 	peer->lastms = -1;
 	ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "SIP/%s", peer->name);
+
 	/* Try again quickly */
-	AST_SCHED_REPLACE(peer->pokeexpire, sched, 
-		DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
+	AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched, 
+			DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer,
+			unref_peer(_data, "removing poke peer ref"),
+			unref_peer(peer, "removing poke peer ref"),
+			ref_peer(peer, "adding poke peer ref"));
+
+	/* Release the ref held by the running scheduler entry */
+	unref_peer(peer, "release peer poke noanswer ref");
+
 	return 0;
 }
 
@@ -20840,7 +20851,8 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	if ((!peer->maxms && !force) || !peer->addr.sin_addr.s_addr) {
 		/* IF we have no IP, or this isn't to be monitored, return
 		  immediately after clearing things out */
-		AST_SCHED_DEL(sched, peer->pokeexpire);
+		AST_SCHED_DEL_UNREF(sched, peer->pokeexpire,
+				unref_peer(peer, "removing poke peer ref"));
 		
 		peer->lastms = 0;
 		if (peer->call) {
@@ -20883,7 +20895,8 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	build_callid_pvt(p);
 	ao2_t_link(dialogs, p, "Linking in under new name");
 
-	AST_SCHED_DEL(sched, peer->pokeexpire);
+	AST_SCHED_DEL_UNREF(sched, peer->pokeexpire,
+			unref_peer(peer, "removing poke peer ref"));
 	
 	if (p->relatedpeer)
 		p->relatedpeer = unref_peer(p->relatedpeer,"unsetting the relatedpeer field in the dialog, before it is set to something else.");
@@ -20899,7 +20912,10 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	if (xmitres == XMIT_ERROR) {
 		sip_poke_noanswer(peer);	/* Immediately unreachable, network problems */
 	} else if (!force) {
-		AST_SCHED_REPLACE(peer->pokeexpire, sched, peer->maxms * 2, sip_poke_noanswer, peer);
+		AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched, peer->maxms * 2, sip_poke_noanswer, peer,
+				unref_peer(_data, "removing poke peer ref"),
+				unref_peer(peer, "removing poke peer ref"),
+				ref_peer(peer, "adding poke peer ref"));
 	}
 	dialog_unref(p, "unref dialog at end of sip_poke_peer, obtained from sip_alloc, just before it goes out of scope");
 	return 0;
@@ -23400,7 +23416,10 @@ static void sip_poke_all_peers(void)
 	while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {
 		ao2_lock(peer);
 		ms += 100;
-		AST_SCHED_REPLACE(peer->pokeexpire, sched, ms, sip_poke_peer_s, peer);
+		AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched, ms, sip_poke_peer_s, peer,
+				unref_peer(_data, "removing poke peer ref"),
+				unref_peer(peer, "removing poke peer ref"),
+				ref_peer(peer, "adding poke peer ref"));
 		ao2_unlock(peer);
 		unref_peer(peer, "toss iterator peer ptr");
 	}
