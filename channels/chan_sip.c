@@ -1657,7 +1657,9 @@ struct sip_peer {
 };
 
 
-/*! \brief Registrations with other SIP proxies
+/*! 
+ * \brief Registrations with other SIP proxies
+ *
  * Created by sip_register(), the entry is linked in the 'regl' list,
  * and never deleted (other than at 'sip reload' or module unload times).
  * The entry always has a pending timeout, either waiting for an ACK to
@@ -1666,11 +1668,12 @@ struct sip_peer {
  * or once the previously completed registration one expires).
  * The registration can be in one of many states, though at the moment
  * the handling is a bit mixed.
- * Note that the entire evolution of sip_registry (transmissions,
- * incoming packets and timeouts) is driven by one single thread,
- * do_monitor(), so there is almost no synchronization issue.
- * The only exception  is the sip_pvt creation/lookup,
- * as the dialoglist is also manipulated by other threads.
+ *
+ * XXX \todo Reference count handling for this object has some problems with
+ * respect to scheduler entries.  The ref count is handled in some places,
+ * but not all of them.  There are some places where references get leaked
+ * when this scheduler entry gets cancelled.  At worst, this would cause
+ * memory leaks on reloads if registrations get removed from configuration.
  */
 struct sip_registry {
 	ASTOBJ_COMPONENTS_FULL(struct sip_registry,1,1);
@@ -4756,7 +4759,6 @@ static void sip_registry_destroy(struct sip_registry *reg)
 	ast_atomic_fetchadd_int(&regobjs, -1);
 	ast_dnsmgr_release(reg->dnsmgr);
 	ast_free(reg);
-	
 }
 
 /*! \brief Destroy MWI subscription object */
