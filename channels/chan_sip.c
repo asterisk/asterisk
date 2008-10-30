@@ -3835,7 +3835,6 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	 *
 	 * NOTE: once peer is refcounted, this probably is no longer necessary.
 	 */
-	AST_SCHED_DEL(sched, peer->expire);
 	AST_SCHED_DEL(sched, peer->pokeexpire);
 
 	register_peer_exten(peer, FALSE);
@@ -4065,9 +4064,10 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 		/* Cache peer */
 		ast_copy_flags(&peer->flags[1], &global_flags[1], SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
 		if (ast_test_flag(&global_flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
-			AST_SCHED_REPLACE(peer->expire, sched, global_rtautoclear * 1000, expire_register, (void *) peer);
-			/* we could be incr. its refcount right here, but I guess, since
-			   peers hang around until module unload time anyway, it's not worth the trouble */
+			AST_SCHED_REPLACE_UNREF(peer->expire, sched, global_rtautoclear * 1000, expire_register, peer,
+					unref_peer(_data, "remove registration ref"),
+					unref_peer(peer, "remove registration ref"),
+					ref_peer(peer, "add registration ref"));
 		}
 		ao2_t_link(peers, peer, "link peer into peers table");
 		if (peer->addr.sin_addr.s_addr) {
@@ -10212,8 +10212,9 @@ static int expire_register(const void *data)
 		if (peer->addr.sin_addr.s_addr) {
 			ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
 		}
-		
 	}
+
+	unref_peer(peer, "removing peer ref for expire_register");
 
 	return 0;
 }
@@ -10280,7 +10281,10 @@ static void reg_source_db(struct sip_peer *peer)
 	} else {
 		sip_poke_peer(peer, 0);
 	}
-	AST_SCHED_REPLACE(peer->expire, sched, (expire + 10) * 1000, expire_register, peer);
+	AST_SCHED_REPLACE_UNREF(peer->expire, sched, (expire + 10) * 1000, expire_register, peer,
+			unref_peer(_data, "remove registration ref"),
+			unref_peer(peer, "remove registration ref"),
+			ref_peer(peer, "add registration ref"));
 	register_peer_exten(peer, TRUE);
 }
 
@@ -10413,7 +10417,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	} else if (!strcasecmp(curi, "*") || !expire) {	/* Unregister this peer */
 		/* This means remove all registrations and return OK */
 		memset(&peer->addr, 0, sizeof(peer->addr));
-		AST_SCHED_DEL(sched, peer->expire);
+
+		AST_SCHED_DEL_UNREF(sched, peer->expire,
+				unref_peer(peer, "remove register expire ref"));
 
 		destroy_association(peer);
 		
@@ -10484,13 +10490,22 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	if (!ast_strlen_zero(curi) && ast_strlen_zero(peer->username))
 		ast_copy_string(peer->username, curi, sizeof(peer->username));
 
-	AST_SCHED_DEL(sched, peer->expire);
+	AST_SCHED_DEL_UNREF(sched, peer->expire,
+			unref_peer(peer, "remove register expire ref"));
+
 	if (expire > max_expiry)
 		expire = max_expiry;
 	if (expire < min_expiry)
 		expire = min_expiry;
-	peer->expire = peer->is_realtime && !ast_test_flag(&peer->flags[1], SIP_PAGE2_RTCACHEFRIENDS) ? -1 :
-		ast_sched_add(sched, (expire + 10) * 1000, expire_register, peer);
+	if (peer->is_realtime && !ast_test_flag(&peer->flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
+		peer->expire = -1;
+	} else {
+		peer->expire = ast_sched_add(sched, (expire + 10) * 1000, expire_register, 
+				ref_peer(peer, "add registration ref"));
+		if (peer->expire == -1) {
+			unref_peer(peer, "remote registration ref");
+		}
+	}
 	pvt->expiry = expire;
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expire, peer->username, peer->fullcontact);
 	/* Saving TCP connections is useless, we won't be able to reconnect 
@@ -13512,7 +13527,7 @@ static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	
 	if ((peer = find_peer(a->argv[2], NULL, load_realtime, TRUE, TRUE))) {
 		if (peer->expire > 0) {
-			expire_register(peer);
+			expire_register(ref_peer(peer, "ref for expire_register"));
 			ast_cli(a->fd, "Unregistered peer \'%s\'\n\n", a->argv[2]);
 		} else {
 			ast_cli(a->fd, "Peer %s not registered\n", a->argv[2]);
@@ -21035,7 +21050,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->host_dynamic = TRUE;
 			} else {
 				/* Non-dynamic.  Make sure we become that way if we're not */
-				AST_SCHED_DEL(sched, peer->expire);
+				AST_SCHED_DEL_UNREF(sched, peer->expire,
+						unref_peer(peer, "removing register expire ref"));
 				peer->host_dynamic = FALSE;
 				srvlookup = v->value;
 				if (global_dynamic_exclude_static) {
