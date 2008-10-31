@@ -363,8 +363,7 @@ int ast_channel_trace_serialize(struct ast_channel *chan, struct ast_str **buf)
 		return total;
 	}
 	traced = store->data;
-	(*buf)->used = 0;
-	(*buf)->str[0] = '\0';
+	ast_str_reset(*buf);
 	AST_LIST_TRAVERSE(&traced->trace, trace, entry) {
 		if (ast_str_append(buf, 0, "[%d] => %s, %s, %d\n", total, trace->context, trace->exten, trace->priority) < 0) {
 			ast_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
