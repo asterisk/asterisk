@@ -1712,6 +1712,10 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 
 	}
   before_you_go:
+	if (res != AST_PBX_KEEPALIVE && config->end_bridge_callback) {
+		config->end_bridge_callback();
+	}
+
 	if (res != AST_PBX_KEEPALIVE && !ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN) && ast_exists_extension(chan, chan->context, "h", 1, chan->cid.cid_num)) {
 		struct ast_cdr *swapper;
 		char savelastapp[AST_MAX_EXTENSION];
