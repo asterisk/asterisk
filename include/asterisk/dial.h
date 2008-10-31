@@ -154,7 +154,7 @@ void ast_dial_set_state_callback(struct ast_dial *dial, ast_dial_state_callback 
 
 /*! \brief Set the maximum time (globally) allowed for trying to ring phones
  * \param dial The dial structure to apply the time limit to
- * \param timeout Maximum time allowed
+ * \param timeout Maximum time allowed in milliseconds
  * \return nothing
  */
 void ast_dial_set_global_timeout(struct ast_dial *dial, int timeout);
@@ -162,7 +162,7 @@ void ast_dial_set_global_timeout(struct ast_dial *dial, int timeout);
 /*! \brief Set the maximum time (per channel) allowed for trying to ring the phone
  * \param dial The dial structure the channel belongs to
  * \param num Channel number to set timeout on
- * \param timeout Maximum time allowed
+ * \param timeout Maximum time allowed in milliseconds
  * \return nothing
  */
 void ast_dial_set_timeout(struct ast_dial *dial, int num, int timeout);
