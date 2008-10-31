@@ -1238,7 +1238,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int sentringing = 0, moh = 0;
 	const char *outbound_group = NULL;
 	int result = 0;
-	time_t start_time;
 	char *parse;
 	int opermode = 0;
 	AST_DECLARE_APP_ARGS(args,
@@ -1594,7 +1593,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 	}
 
-	time(&start_time);
 	peer = wait_for_answer(chan, outgoing, &to, peerflags, &pa, &num, &result);
 
 	/* The ast_channel_datastore_remove() function could fail here if the
@@ -1616,10 +1614,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		/* almost done, although the 'else' block is 400 lines */
 	} else {
 		const char *number;
-		time_t end_time, answer_time = time(NULL);
-		char toast[80]; /* buffer to set variables */
 
 		strcpy(pa.status, "ANSWER");
+		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the
 		   conversation.  */
@@ -1837,11 +1834,31 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				res = ast_dtmf_stream(chan, peer, dtmfcalling, 250, 0);
 			}
 		}
-		
+
 		if (res) { /* some error */
 			res = -1;
-			end_time = time(NULL);
 		} else {
+			auto void end_bridge_callback(void);
+			void end_bridge_callback (void)
+			{
+				char buf[80];
+				time_t end;
+
+				time(&end);
+
+				ast_channel_lock(chan);
+				if (chan->cdr->answer.tv_sec) {
+					snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->answer.tv_sec);
+					pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", buf);
+				}
+
+				if (chan->cdr->start.tv_sec) {
+					snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->start.tv_sec);
+					pbx_builtin_setvar_helper(chan, "DIALEDTIME", buf);
+				}
+				ast_channel_unlock(chan);
+			}
+
 			if (ast_test_flag64(peerflags, OPT_CALLEE_TRANSFER))
 				ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
 			if (ast_test_flag64(peerflags, OPT_CALLER_TRANSFER))
@@ -1864,6 +1881,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_set_flag(&(config.features_caller), AST_FEATURE_AUTOMIXMON);
 			if (ast_test_flag64(peerflags, OPT_GO_ON))
 				ast_set_flag(&(config.features_caller), AST_FEATURE_NO_H_EXTEN);
+
+			config.end_bridge_callback = end_bridge_callback;
 
 			if (moh) {
 				moh = 0;
@@ -1895,13 +1914,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_channel_setoption(chan, AST_OPTION_OPRMODE, &oprmode, sizeof(oprmode), 0);
 			}
 			res = ast_bridge_call(chan, peer, &config);
-			end_time = time(NULL);
-			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - answer_time));
-			pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", toast);
 		}
-
-		snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
-		pbx_builtin_setvar_helper(chan, "DIALEDTIME", toast);
 
 		if (ast_test_flag64(&opts, OPT_PEER_H)) {
 			ast_log(LOG_NOTICE, "PEER context: %s; PEER exten: %s;  PEER priority: %d\n",
