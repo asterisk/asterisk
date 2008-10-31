@@ -31,6 +31,8 @@
 ;              readhandle.  "dsn" is a synonym for "writehandle".
 ; readsql      The statement to execute when reading from the function class.
 ; writesql     The statement to execute when writing to the function class.
+; insertsql    The statement to execute when writing to the function class
+;              succeeds, but initially indicates that 0 rows were affected.
 ; prefix       Normally, all function classes are prefixed with "ODBC" to keep
 ;              them uniquely named.  You may choose to change this prefix, which
 ;              may be useful to segregate a collection of certain function
