@@ -584,6 +584,7 @@ struct ast_bridge_config {
 	const char *start_sound;
 	int firstpass;
 	unsigned int flags;
+	void (* end_bridge_callback)(void);   /*!< A callback that is called after a bridge attempt */
 };
 
 struct chanmon;

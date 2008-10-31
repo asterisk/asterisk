@@ -2119,6 +2119,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	int diff;
 	int hasfeatures=0;
 	int hadfeatures=0;
+	int autoloopflag;
 	struct ast_option_header *aoh;
 	struct ast_bridge_config backup_config;
 	struct ast_cdr *bridge_cdr = NULL;
@@ -2379,11 +2380,16 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 
 	}
    before_you_go:
+	if (res != AST_PBX_KEEPALIVE && config->end_bridge_callback) {
+		config->end_bridge_callback();
+	}
 
 	/* run the hangup exten on the chan object IFF it was NOT involved in a parking situation 
 	 * if it were, then chan belongs to a different thread now, and might have been hung up long
      * ago.
 	 */
+	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
+	ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	if (res != AST_PBX_KEEPALIVE && !ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN) && ast_exists_extension(chan, chan->context, "h", 1, chan->cid.cid_num)) {
 		struct ast_cdr *swapper;
 		char savelastapp[AST_MAX_EXTENSION];
@@ -2427,6 +2433,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		ast_copy_string(bridge_cdr->lastapp, savelastapp, sizeof(bridge_cdr->lastapp));
 		ast_copy_string(bridge_cdr->lastdata, savelastdata, sizeof(bridge_cdr->lastdata));
 	}
+	ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
 
 	/* obey the NoCDR() wishes. -- move the DISABLED flag to the bridge CDR if it was set on the channel during the bridge... */
 	if (res != AST_PBX_KEEPALIVE) {
