@@ -12363,7 +12363,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 
 		/* Then find devices based on IP */
 		if (!peer) {
-			find_peer(NULL, &p->recv, TRUE, FINDALLDEVICES, FALSE);
+			peer = find_peer(NULL, &p->recv, TRUE, FINDALLDEVICES, FALSE);
 		}
 	}
 
