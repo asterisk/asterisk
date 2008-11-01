@@ -47,13 +47,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "ADSIProg";
 
-static char *synopsis = "Load Asterisk ADSI Scripts into phone";
+/*** DOCUMENTATION
+	<application name="ADSIProg" language="en_US">
+		<synopsis>
+			Load Asterisk ADSI Scripts into phone
+		</synopsis>
+		<syntax>
+			<parameter name="script" required="false">
+				<para>adsi script to use. If not given uses the default script <filename>asterisk.adsi</filename></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application programs an ADSI Phone with the given script</para>
+		</description>
+	</application>
+ ***/
 
 /* #define DUMP_MESSAGES */
-
-static char *descrip =
-"  ADSIProg(script): This application programs an ADSI Phone with the given\n"
-"script. If nothing is specified, the default script (asterisk.adsi) is used.\n";
 
 struct adsi_event {
 	int id;
@@ -1570,7 +1580,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (ast_register_application(app, adsi_exec, synopsis, descrip))
+	if (ast_register_application_xml(app, adsi_exec))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
 }

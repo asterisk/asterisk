@@ -33,6 +33,59 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<function name="ENV" language="en_US">
+		<synopsis>
+			Gets or sets the environment variable specified.
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true">
+				<para>Enviroment variable name</para>
+			</parameter>
+		</syntax>
+		<description>
+		</description>
+	</function>
+	<function name="STAT" language="en_US">
+		<synopsis>
+			Does a check on the specified file.
+		</synopsis>
+		<syntax>
+			<parameter name="flag" required="true">
+				<para>Flag may be one of the following:</para>
+				<para>d - Checks if the file is a directory.</para>
+				<para>e - Checks if the file exists.</para>
+				<para>f - Checks if the file is a regular file.</para>
+				<para>m - Returns the file mode (in octal)</para>
+				<para>s - Returns the size (in bytes) of the file</para>
+				<para>A - Returns the epoch at which the file was last accessed.</para>
+				<para>C - Returns the epoch at which the inode was last changed.</para>
+				<para>M - Returns the epoch at which the file was last modified.</para>
+			</parameter>
+			<parameter name="filename" required="true" />
+		</syntax>
+		<description>
+		</description>
+	</function>
+	<function name="FILE" language="en_US">
+		<synopsis>
+			Obtains the contents of a file.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true" />
+			<parameter name="offset" required="true">
+				<para>Maybe specified as any number. if negative <replaceable>offset</replaceable> specifies the number
+				of bytes back from the end of the file.</para>
+			</parameter>
+			<parameter name="length" required="true">
+				<para>If specified, will limit the length of the data read to that size.</para>
+			</parameter>
+		</syntax>
+		<description>
+		</description>
+	</function>
+ ***/
+
 static int env_read(struct ast_channel *chan, const char *cmd, char *data,
 		    char *buf, size_t len)
 {
@@ -151,43 +204,23 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, char
 
 static struct ast_custom_function env_function = {
 	.name = "ENV",
-	.synopsis = "Gets or sets the environment variable specified",
-	.syntax = "ENV(<envname>)",
 	.read = env_read,
-	.write = env_write,
+	.write = env_write
 };
 
 static struct ast_custom_function stat_function = {
 	.name = "STAT",
-	.synopsis = "Does a check on the specified file",
-	.syntax = "STAT(<flag>,<filename>)",
-	.read = stat_read,
-	.desc =
-		"flag may be one of the following:\n"
-		"  d - Checks if the file is a directory\n"
-		"  e - Checks if the file exists\n"
-		"  f - Checks if the file is a regular file\n"
-		"  m - Returns the file mode (in octal)\n"
-		"  s - Returns the size (in bytes) of the file\n"
-		"  A - Returns the epoch at which the file was last accessed\n"
-		"  C - Returns the epoch at which the inode was last changed\n"
-		"  M - Returns the epoch at which the file was last modified\n",
+	.read = stat_read
 };
 
 static struct ast_custom_function file_function = {
 	.name = "FILE",
-	.synopsis = "Obtains the contents of a file",
-	.syntax = "FILE(<filename>,<offset>,<length>)",
-	.read = file_read,
+	.read = file_read
 	/*
 	 * Some enterprising programmer could probably add write functionality
 	 * to FILE(), although I'm not sure how useful it would be.  Hence why
 	 * it's called FILE and not READFILE (like the app was).
 	 */
-	.desc =
-"<offset> may be specified as any number.  If negative, <offset> specifies\n"
-"    the number of bytes back from the end of the file.\n"
-"<length>, if specified, will limit the length of the data read to that size.\n",
 };
 
 static int unload_module(void)

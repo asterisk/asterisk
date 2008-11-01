@@ -31,6 +31,67 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<function name="GROUP_COUNT" language="en_US">
+		<synopsis>
+			Counts the number of channels in the specified group.
+		</synopsis>
+		<syntax argsep="@">
+			<parameter name="groupname">
+				<para>Group name.</para>
+			</parameter>
+			<parameter name="category">
+				<para>Category name</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Calculates the group count for the specified group, or uses the
+			channel's current group if not specifed (and non-empty).</para>
+		</description>
+	</function>
+	<function name="GROUP_MATCH_COUNT" language="en_US">
+		<synopsis>
+			Counts the number of channels in the groups matching the specified pattern.
+		</synopsis>
+		<syntax argsep="@">
+			<parameter name="groupmatch" required="true">
+				<para>A standard regular expression used to match a group name.</para>
+			</parameter>
+			<parameter name="category">
+				<para>Category name.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Calculates the group count for all groups that match the specified pattern.
+			Uses standard regular expression matching (see regex(7)).</para>
+		</description>
+	</function>
+	<function name="GROUP" language="en_US">
+		<synopsis>
+			Gets or sets the channel group.
+		</synopsis>
+		<syntax>
+			<parameter name="category">
+				<para>Category name.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para><replaceable>category</replaceable> can be employed for more fine grained group management. Each channel 
+			can only be member of exactly one group per <replaceable>category</replaceable>.</para>
+		</description>
+	</function>
+	<function name="GROUP_LIST" language="en_US">
+		<synopsis>
+			Gets a list of the groups set on a channel.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Gets a list of the groups set on a channel.</para>
+		</description>
+	</function>
+
+ ***/
+
 static int group_count_function_read(struct ast_channel *chan, const char *cmd,
 				     char *data, char *buf, size_t len)
 {
@@ -72,11 +133,6 @@ static int group_count_function_read(struct ast_channel *chan, const char *cmd,
 
 static struct ast_custom_function group_count_function = {
 	.name = "GROUP_COUNT",
-	.syntax = "GROUP_COUNT([groupname][@category])",
-	.synopsis = "Counts the number of channels in the specified group",
-	.desc =
-		"Calculates the group count for the specified group, or uses the\n"
-		"channel's current group if not specifed (and non-empty).\n",
 	.read = group_count_function_read,
 };
 
@@ -102,12 +158,6 @@ static int group_match_count_function_read(struct ast_channel *chan,
 
 static struct ast_custom_function group_match_count_function = {
 	.name = "GROUP_MATCH_COUNT",
-	.syntax = "GROUP_MATCH_COUNT(groupmatch[@category])",
-	.synopsis =
-		"Counts the number of channels in the groups matching the specified pattern",
-	.desc =
-		"Calculates the group count for all groups that match the specified pattern.\n"
-		"Uses standard regular expression matching (see regex(7)).\n",
 	.read = group_match_count_function_read,
 	.write = NULL,
 };
@@ -159,9 +209,6 @@ static int group_function_write(struct ast_channel *chan, const char *cmd,
 
 static struct ast_custom_function group_function = {
 	.name = "GROUP",
-	.syntax = "GROUP([category])",
-	.synopsis = "Gets or sets the channel group.",
-	.desc = "Gets or sets the channel group.\n",
 	.read = group_function_read,
 	.write = group_function_write,
 };
@@ -204,9 +251,6 @@ static int group_list_function_read(struct ast_channel *chan, const char *cmd,
 
 static struct ast_custom_function group_list_function = {
 	.name = "GROUP_LIST",
-	.syntax = "GROUP_LIST()",
-	.synopsis = "Gets a list of the groups set on a channel.",
-	.desc = "Gets a list of the groups set on a channel.\n",
 	.read = group_list_function_read,
 	.write = NULL,
 };

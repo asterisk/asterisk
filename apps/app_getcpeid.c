@@ -36,14 +36,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/adsi.h"
 
+/*** DOCUMENTATION
+	<application name="GetCPEID" language="en_US">
+		<synopsis>
+			Get ADSI CPE ID.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Obtains and displays ADSI CPE ID and other information in order
+			to properly setup <filename>dahdi.conf</filename> for on-hook operations.</para>
+		</description>
+	</application>
+ ***/
 static char *app = "GetCPEID";
-
-static char *synopsis = "Get ADSI CPE ID";
-
-static char *descrip =
-"  GetCPEID(): Obtains and displays ADSI CPE ID and other information in order\n"
-"to properly setup dahdi.conf for on-hook operations.\n";
-
 
 static int cpeid_setstatus(struct ast_channel *chan, char *stuff[], int voice)
 {
@@ -124,7 +129,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, cpeid_exec, synopsis, descrip);
+	return ast_register_application_xml(app, cpeid_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Get ADSI CPE ID");

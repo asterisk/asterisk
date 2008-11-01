@@ -26,6 +26,7 @@
 #include "asterisk/sched.h"
 #include "asterisk/chanvars.h"
 #include "asterisk/hashtab.h"
+#include "asterisk/stringfields.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -73,12 +74,23 @@ struct ast_sw;
 /*! \brief Typedef for devicestate and hint callbacks */
 typedef int (*ast_state_cb_type)(char *context, char* id, enum ast_extension_states state, void *data);
 
+/*! \brief From where the documentation come from */
+enum ast_doc_src {
+	AST_XML_DOC,            /*!< From XML documentation */
+	AST_STATIC_DOC          /*!< From application/function registration */
+};
+
 /*! \brief Data structure associated with a custom dialplan function */
 struct ast_custom_function {
-	const char *name;		/*!< Name */
-	const char *synopsis;		/*!< Short description for "show functions" */
-	const char *desc;		/*!< Help text that explains it all */
-	const char *syntax;		/*!< Syntax description */
+	const char *name;			/*!< Name */
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(synopsis);     /*!< Synopsis text for 'show functions' */
+		AST_STRING_FIELD(desc);		/*!< Description (help text) for 'show functions &lt;name&gt;' */
+		AST_STRING_FIELD(syntax);       /*!< Syntax text for 'core show functions' */
+		AST_STRING_FIELD(arguments);    /*!< Arguments description */
+		AST_STRING_FIELD(seealso);      /*!< See also */
+	);
+	enum ast_doc_src docsrc;		/*!< Where the documentation come from */
 	int (*read)(struct ast_channel *, const char *, char *, char *, size_t);	/*!< Read function, if read is supported */
 	int (*write)(struct ast_channel *, const char *, char *, const char *);		/*!< Write function, if write is supported */
 	struct ast_module *mod;         /*!< Module this custom function belongs to */

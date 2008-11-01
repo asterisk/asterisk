@@ -52,15 +52,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/options.h"
 
+/*** DOCUMENTATION
+	<application name="DAHDIScan" language="en_US">
+		<synopsis>
+			Scan DAHDI channels to monitor calls.
+		</synopsis>
+		<syntax>
+			<parameter name="group">
+				<para>Limit scanning to a channel <replaceable>group</replaceable> by setting this option.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Allows a call center manager to monitor DAHDI channels in a
+			convenient way.  Use <literal>#</literal> to select the next channel and use <literal>*</literal> to exit.</para>
+		</description>
+	</application>
+ ***/
 static char *app = "DAHDIScan";
-
-static char *synopsis = "Scan DAHDI channels to monitor calls";
-
-static char *descrip =
-"  DAHDIScan([group]) allows a call center manager to monitor DAHDI channels in\n"
-"a convenient way.  Use '#' to select the next channel and use '*' to exit\n"
-"Limit scanning to a channel GROUP by setting the option group argument.\n";
-
 
 #define CONF_SIZE 160
 
@@ -363,7 +371,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ((ast_register_application(app, conf_exec, synopsis, descrip)) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS);
+	return ((ast_register_application_xml(app, conf_exec)) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Scan DAHDI channels application");

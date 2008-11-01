@@ -33,15 +33,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
 
+/*** DOCUMENTATION
+	<application name="Echo" language="en_US">
+		<synopsis>
+			Echo audio, video, DTMF back to the calling party
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Echos back any audio, video or DTMF frames read from the calling 
+			channel back to itself. Note: If '#' detected application exits</para>
+		</description>
+	</application>
+ ***/
+
 static char *app = "Echo";
-
-static char *synopsis = "Echo audio, video, or DTMF back to the calling party";
-
-static char *descrip =
-"  Echo(): This application will echo any audio, video, or DTMF frames read from\n"
-"the calling channel back to itself. If the DTMF digit '#' is received, the\n"
-"application will exit.\n";
-
 
 static int echo_exec(struct ast_channel *chan, void *data)
 {
@@ -81,7 +86,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, echo_exec, synopsis, descrip);
+	return ast_register_application_xml(app, echo_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Simple Echo Application");

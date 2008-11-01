@@ -33,6 +33,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<function name="DIALPLAN_EXISTS" language="en_US">
+		<synopsis>
+			Checks the existence of a dialplan target.
+		</synopsis>
+		<syntax>
+			<parameter name="context" required="true" />
+			<parameter name="extension" />
+			<parameter name="priority" />
+		</syntax>
+		<description>
+			<para>This function returns <literal>1</literal> if the target exits. Otherwise, it returns <literal>0</literal>.</para>
+		</description>
+	</function>
+
+ ***/
+
 static int isexten_function_read(struct ast_channel *chan, const char *cmd, char *data, 
 	char *buf, size_t len) 
 {
@@ -87,9 +104,6 @@ static int isexten_function_read(struct ast_channel *chan, const char *cmd, char
 
 static struct ast_custom_function isexten_function = {
 	.name = "DIALPLAN_EXISTS",
-	.syntax = "DIALPLAN_EXISTS(context[,extension[,priority]])",
-	.synopsis = "Checks the existence of a dialplan target.",
-	.desc = "This function returns 1 if the target exits.  Otherwise, it returns 0.\n",
 	.read = isexten_function_read,
 };
 

@@ -34,6 +34,49 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<function name="SORT" language="en_US">
+		<synopsis>
+			Sorts a list of key/vals into a list of keys, based upon the vals.	
+		</synopsis>
+		<syntax>
+			<parameter name="keyval" required="true" argsep=":">
+				<argument name="key1" required="true" />
+				<argument name="val1" required="true" />
+			</parameter>
+			<parameter name="keyvaln" multiple="true" argsep=":">
+				<argument name="key2" required="true" />
+				<argument name="val2" required="true" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>Takes a comma-separated list of keys and values, each separated by a colon, and returns a
+			comma-separated list of the keys, sorted by their values.  Values will be evaluated as
+			floating-point numbers.</para>
+		</description>
+	</function>
+	<function name="CUT" language="en_US">
+		<synopsis>
+			Slices and dices strings, based upon a named delimiter.		
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true">
+				<para>Variable you want cut</para>
+			</parameter>
+			<parameter name="char-delim" required="true">
+				<para>Delimiter, defaults to <literal>-</literal></para>
+			</parameter>
+			<parameter name="range-spec" required="true">
+				<para>Number of the field you want (1-based offset), may also be specified as a range (with <literal>-</literal>)
+				or group of ranges and fields (with <literal>&amp;</literal>)</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Cut out information from a string (<replaceable>varname</replaceable>), based upon a named delimiter.</para>
+		</description>	
+	</function>
+ ***/
+
 /* Maximum length of any variable */
 #define MAXRESULT	1024
 
@@ -255,25 +298,11 @@ static int acf_cut_exec(struct ast_channel *chan, const char *cmd, char *data, c
 
 struct ast_custom_function acf_sort = {
 	.name = "SORT",
-	.synopsis = "Sorts a list of key/vals into a list of keys, based upon the vals",
-	.syntax = "SORT(key1:val1[...][,keyN:valN])",
-	.desc =
-"Takes a comma-separated list of keys and values, each separated by a colon, and returns a\n"
-"comma-separated list of the keys, sorted by their values.  Values will be evaluated as\n"
-"floating-point numbers.\n",
 	.read = acf_sort_exec,
 };
 
 struct ast_custom_function acf_cut = {
 	.name = "CUT",
-	.synopsis = "Slices and dices strings, based upon a named delimiter.",
-	.syntax = "CUT(<varname>,<char-delim>,<range-spec>)",
-	.desc =
-"  varname    - variable you want cut\n"
-"  char-delim - defaults to '-'\n"
-"  range-spec - number of the field you want (1-based offset)\n"
-"             may also be specified as a range (with -)\n"
-"             or group of ranges and fields (with &)\n",
 	.read = acf_cut_exec,
 };
 

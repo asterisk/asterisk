@@ -35,18 +35,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/channel.h"
 
+/*** DOCUMENTATION
+	<application name="SendDTMF" language="en_US">
+		<synopsis>
+			Sends arbitrary DTMF digits
+		</synopsis>
+		<syntax>
+			<parameter name="digits" required="true">
+				<para>List of digits 0-9,*#,abcd</para>
+			</parameter>
+			<parameter name="timeout_ms" required="false">
+				<para>Amount of time to wait in ms between tones. (defaults to .25s)</para>
+			</parameter>
+			<parameter name="duration_ms" required="false">
+				<para>Duration of each digit</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>DTMF digits sent to a channel with half second pause</para>
+			<para>It will pass all digits or terminate if it encounters an error.</para>
+		</description>
+	</application>
+ ***/
 static char *app = "SendDTMF";
-
-static char *synopsis = "Sends arbitrary DTMF digits";
-
-static char *descrip = 
-" SendDTMF(digits[,[timeout_ms][,duration_ms]]): Sends DTMF digits on a channel. \n"
-" Accepted digits: 0-9, *#abcd, (default .25s pause between digits)\n"
-" The application will either pass the assigned digits or terminate if it\n"
-" encounters an error.\n"
-" Optional Params: \n"
-"   timeout_ms: pause between digits.\n"
-"   duration_ms: duration of each digit.\n";
 
 static int senddtmf_exec(struct ast_channel *chan, void *vdata)
 {
@@ -121,7 +132,7 @@ static int load_module(void)
 	int res;
 
 	res = ast_manager_register2( "PlayDTMF", EVENT_FLAG_CALL, manager_play_dtmf, "Play DTMF signal on a specific channel.", mandescr_playdtmf );
-	res |= ast_register_application(app, senddtmf_exec, synopsis, descrip);
+	res |= ast_register_application_xml(app, senddtmf_exec);
 
 	return res;
 }

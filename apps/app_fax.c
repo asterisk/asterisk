@@ -41,60 +41,105 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/manager.h"
 
-static char *app_sndfax_name = "SendFAX";
-static char *app_sndfax_synopsis = "Send a FAX";
-static char *app_sndfax_desc = 
-"  SendFAX(filename[|options]):\n"
-"Send a given TIFF file to the channel as a FAX.\n"
-"The option string may contain zero or more of the following characters:\n"
-"     'a' - makes the application behave as an answering machine\n"
-"           The default behaviour is to behave as a calling machine.\n"
-"\n"
-"This application uses following variables:\n"
-"     LOCALSTATIONID to identify itself to the remote end.\n"
-"     LOCALHEADERINFO to generate a header line on each page.\n"
-"\n"
-"This application sets the following channel variables upon completion:\n"
-"     FAXSTATUS       - status of operation:\n"
-"                           SUCCESS | FAILED\n"
-"     FAXERROR        - Error when FAILED\n"
-"     FAXMODE         - Mode used:\n"
-"                           audio | T38\n"
-"     REMOTESTATIONID - CSID of the remote side.\n"
-"     FAXPAGES        - number of pages sent.\n"
-"     FAXBITRATE      - transmition rate.\n"
-"     FAXRESOLUTION   - resolution.\n"
-"\n"
-"Returns -1 in case of user hang up or any channel error.\n"
-"Returns 0 on success.\n";
+/*** DOCUMENTATION
+	<application name="SendFAX" language="en_US">
+		<synopsis>
+			Send a Fax
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true">
+				<para>Filename of TIFF file to fax</para>
+			</parameter>
+			<parameter name="a" required="false">
+				<para>Makes the application behave as the answering machine</para>
+				<para>(Default behavior is as calling machine)</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Send a given TIFF file to the channel as a FAX.</para>
+			<para>This application sets the following channel variables:</para>
+			<variablelist>
+				<variable name="LOCALSTATIONID">
+					<para>To identify itself to the remote end</para>
+				</variable>
+				<variable name="LOCALHEADERINFO">
+					<para>To generate a header line on each page</para>
+				</variable>
+				<variable name="FAXSTATUS">
+					<value name="SUCCESS"/>
+					<value name="FAILED"/>
+				</variable>
+				<variable name="FAXERROR">
+					<para>Cause of failure</para>
+				</variable>
+				<variable name="REMOTESTATIONID">
+					<para>The CSID of the remote side</para>
+				</variable>
+				<variable name="FAXPAGES">
+					<para>Number of pages sent</para>
+				</variable>
+				<variable name="FAXBITRATE">
+					<para>Transmission rate</para>
+				</variable>
+				<variable name="FAXRESOLUTION">
+					<para>Resolution of sent fax</para>
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+	<application name="ReceiveFAX" language="en_US">
+		<synopsis>
+			Receive a Fax
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true">
+				<para>Filename of TIFF file save incoming fax</para>
+			</parameter>
+			<parameter name="c" required="false">
+				<para>Makes the application behave as the calling machine</para> 
+				<para>(Default behavior is as answering machine)</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Receives a FAX from the channel into the given filename 
+			overwriting the file if it already exists.</para>
+			<para>File created will be in TIFF format.</para>
 
+			<para>This application sets the following channel variables:</para>
+			<variablelist>
+				<variable name="LOCALSTATIONID">
+					<para>To identify itself to the remote end</para>
+				</variable>
+				<variable name="LOCALHEADERINFO">
+					<para>To generate a header line on each page</para>
+				</variable>
+				<variable name="FAXSTATUS">
+					<value name="SUCCESS"/>
+					<value name="FAILED"/>
+				</variable>
+				<variable name="FAXERROR">
+					<para>Cause of failure</para>
+				</variable>
+				<variable name="REMOTESTATIONID">
+					<para>The CSID of the remote side</para>
+				</variable>
+				<variable name="FAXPAGES">
+					<para>Number of pages sent</para>
+				</variable>
+				<variable name="FAXBITRATE">
+					<para>Transmission rate</para>
+				</variable>
+				<variable name="FAXRESOLUTION">
+					<para>Resolution of sent fax</para>
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+
+ ***/
+
+static char *app_sndfax_name = "SendFAX";
 static char *app_rcvfax_name = "ReceiveFAX";
-static char *app_rcvfax_synopsis = "Receive a FAX";
-static char *app_rcvfax_desc = 
-"  ReceiveFAX(filename[|options]):\n"
-"Receives a fax from the channel into the given filename overwriting\n"
-"the file if it already exists. File created will have TIFF format.\n"
-"The option string may contain zero or more of the following characters:\n"
-"     'c' -- makes the application behave as a calling machine\n"
-"            The default behaviour is to behave as an answering machine.\n"
-"\n"
-"This application uses following variables:\n"
-"     LOCALSTATIONID to identify itself to the remote end.\n"
-"     LOCALHEADERINFO to generate a header line on each page.\n"
-"\n"
-"This application sets the following channel variables upon completion:\n"
-"     FAXSTATUS       - status of operation:\n"
-"                           SUCCESS | FAILED\n"
-"     FAXERROR        - Error when FAILED\n"
-"     FAXMODE         - Mode used:\n"
-"                           audio | T38\n"
-"     REMOTESTATIONID - CSID of the remote side.\n"
-"     FAXPAGES        - number of pages sent.\n"
-"     FAXBITRATE      - transmition rate.\n"
-"     FAXRESOLUTION   - resolution.\n"
-"\n"
-"Returns -1 in case of user hang up or any channel error.\n"
-"Returns 0 on success.\n";
 
 #define MAX_SAMPLES 240
 
@@ -753,8 +798,8 @@ static int load_module(void)
 {
 	int res ;
 
-	res = ast_register_application(app_sndfax_name, sndfax_exec, app_sndfax_synopsis, app_sndfax_desc);
-	res |= ast_register_application(app_rcvfax_name, rcvfax_exec, app_rcvfax_synopsis, app_rcvfax_desc);
+	res = ast_register_application_xml(app_sndfax_name, sndfax_exec);
+	res |= ast_register_application_xml(app_rcvfax_name, rcvfax_exec);
 
 	/* The default SPAN message handler prints to stderr. It is something we do not want */
 	span_set_message_handler(NULL);

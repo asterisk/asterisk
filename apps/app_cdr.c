@@ -32,13 +32,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/module.h"
 
-static char *nocdr_descrip =
-"  NoCDR(): This application will tell Asterisk not to maintain a CDR for the\n"
-"current call.\n";
+/*** DOCUMENTATION
+	<application name="NoCDR" language="en_US">
+		<synopsis>
+			Tell Asterisk to not maintain a CDR for the current call
+		</synopsis>
+		<syntax />
+		<description>
+			<para>This application will tell Asterisk not to maintain a CDR for the current call.</para>
+		</description>
+	</application>
+ ***/
 
 static char *nocdr_app = "NoCDR";
-static char *nocdr_synopsis = "Tell Asterisk to not maintain a CDR for the current call";
-
 
 static int nocdr_exec(struct ast_channel *chan, void *data)
 {
@@ -55,7 +61,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (ast_register_application(nocdr_app, nocdr_exec, nocdr_synopsis, nocdr_descrip))
+	if (ast_register_application_xml(nocdr_app, nocdr_exec))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
 }

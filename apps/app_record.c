@@ -36,34 +36,65 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/dsp.h"	/* use dsp routines for silence detection */
 
+/*** DOCUMENTATION
+	<application name="Record" language="en_US">
+		<synopsis>
+			Record to a file.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true" argsep=".">
+				<argument name="filename" required="true" />
+				<argument name="format" required="true">
+					<para>Is the format of the file type to be recorded (wav, gsm, etc).</para>
+				</argument>
+			</parameter>
+			<parameter name="silence">
+				<para>Is the number of seconds of silence to allow before returning.</para>
+			</parameter>
+			<parameter name="maxduration">
+				<para>Is the maximum recording duration in seconds. If missing
+				or 0 there is no maximum.</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="a">
+						<para>Append to existing recording rather than replacing.</para>
+					</option>
+					<option name="n">
+						<para>Do not answer, but record anyway if line not yet answered.</para>
+					</option>
+					<option name="q">
+						<para>quiet (do not play a beep tone).</para>
+					</option>
+					<option name="s">
+						<para>skip recording if the line is not yet answered.</para>
+					</option>
+					<option name="t">
+						<para>use alternate '*' terminator key (DTMF) instead of default '#'</para>
+					</option>
+					<option name="x">
+						<para>Ignore all terminator keys (DTMF) and keep recording until hangup.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>If filename contains <literal>%d</literal>, these characters will be replaced with a number
+			incremented by one each time the file is recorded.
+			Use <astcli>core show file formats</astcli> to see the available formats on your system
+			User can press <literal>#</literal> to terminate the recording and continue to the next priority.
+			If the user hangup during a recording, all data will be lost and the application will teminate.</para>
+			<variablelist>
+				<variable name="RECORDED_FILE">
+					<para>Will be set to the final filename of the recording.</para>
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+
+ ***/
 
 static char *app = "Record";
-
-static char *synopsis = "Record to a file";
-
-static char *descrip = 
-"  Record(filename.format,silence[,maxduration][,options])\n\n"
-"Records from the channel into a given filename. If the file exists it will\n"
-"be overwritten.\n"
-"- 'format' is the format of the file type to be recorded (wav, gsm, etc).\n"
-"- 'silence' is the number of seconds of silence to allow before returning.\n"
-"- 'maxduration' is the maximum recording duration in seconds. If missing\n"
-"or 0 there is no maximum.\n"
-"- 'options' may contain any of the following letters:\n"
-"     'a' : append to existing recording rather than replacing\n"
-"     'n' : do not answer, but record anyway if line not yet answered\n"
-"     'q' : quiet (do not play a beep tone)\n"
-"     's' : skip recording if the line is not yet answered\n"
-"     't' : use alternate '*' terminator key (DTMF) instead of default '#'\n"
-"     'x' : ignore all terminator keys (DTMF) and keep recording until hangup\n"
-"\n"
-"If filename contains '%d', these characters will be replaced with a number\n"
-"incremented by one each time the file is recorded. A channel variable\n"
-"named RECORDED_FILE will also be set, which contains the final filemname.\n\n"
-"Use 'core show file formats' to see the available formats on your system\n\n"
-"User can press '#' to terminate the recording and continue to the next priority.\n\n"
-"If the user should hangup during a recording, all data will be lost and the\n"
-"application will teminate. \n";
 
 enum {
 	OPTION_APPEND = (1 << 0),
@@ -359,7 +390,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, record_exec, synopsis, descrip);
+	return ast_register_application_xml(app, record_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Trivial Record Application");

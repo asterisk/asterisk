@@ -39,21 +39,39 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dsp.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<application name="BackGroundDetect" language="en_US">
+		<synopsis>
+			Background a file with talk detect.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true" />
+			<parameter name="sil">
+				<para>If not specified, defaults to <literal>1000</literal>.</para>
+			</parameter>
+			<parameter name="min">
+				<para>If not specified, defaults to <literal>100</literal>.</para>
+			</parameter>
+			<parameter name="max">
+				<para>If not specified, defaults to <literal>infinity</literal>.</para>
+			</parameter>
+			<parameter name="analysistime">
+				<para>If not specified, defaults to <literal>infinity</literal>.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Plays back <replaceable>filename</replaceable>, waiting for interruption from a given digit (the digit
+			must start the beginning of a valid extension, or it will be ignored). During
+			the playback of the file, audio is monitored in the receive direction, and if
+			a period of non-silence which is greater than <replaceable>min</replaceable> ms yet less than
+			<replaceable>max</replaceable> ms is followed by silence for at least <replaceable>sil</replaceable> ms,
+			which occurs during the first <replaceable>analysistime</replaceable> ms, then the audio playback is
+			aborted and processing jumps to the <replaceable>talk</replaceable> extension, if available.</para>
+		</description>
+	</application>
+ ***/
+
 static char *app = "BackgroundDetect";
-
-static char *synopsis = "Background a file with talk detect";
-
-static char *descrip = 
-"  BackgroundDetect(<filename>[,<sil>[,<min>[,<max>[,<analysistime>]]]]):\n"
-"Plays back <filename>, waiting for interruption from a given digit (the digit\n"
-"must start the beginning of a valid extension, or it will be ignored).  During\n"
-"the playback of the file, audio is monitored in the receive direction, and if\n"
-"a period of non-silence which is greater than <min> ms yet less than <max> ms\n"
-"is followed by silence for at least <sil> ms, which occurs during the first\n"
-"<analysistime> ms, then the audio playback is aborted and processing jumps to\n"
-"the <talk> extension, if available.  If unspecified, <sil>, <min>, <max>, and\n"
-"<analysistime> default to 1000, 100, infinity, and infinity respectively.\n";
-
 
 static int background_detect_exec(struct ast_channel *chan, void *data)
 {
@@ -227,7 +245,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, background_detect_exec, synopsis, descrip);
+	return ast_register_application_xml(app, background_detect_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Playback with Talk Detection");

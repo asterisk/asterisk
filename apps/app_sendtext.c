@@ -37,19 +37,36 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<application name="SendText" language="en_US">
+		<synopsis>
+			Send a Text Message.
+		</synopsis>
+		<syntax>
+			<parameter name="text" required="true" />
+		</syntax>
+		<description>
+			<para>Sends <replaceable>text</replaceable> to current channel (callee).</para>
+			<para>Result of transmission will be stored in the <variable>SENDTEXTSTATUS</variable></para>
+			<variablelist>
+				<variable name="SENDTEXTSTATUS">
+					<value name="SUCCESS">
+						Transmission succeeded.
+					</value>
+					<value name="FAILURE">
+						Transmission failed.
+					</value>
+					<value name="UNSUPPORTED">
+						Text transmission not supported by channel.
+					</value>
+				</variable>
+			</variablelist>
+			<note><para>At this moment, text is supposed to be 7 bit ASCII in most channels.</para></note>
+		</description>
+	</application>
+ ***/
+
 static const char *app = "SendText";
-
-static const char *synopsis = "Send a Text Message";
-
-static const char *descrip = 
-"  SendText(text): Sends text to current channel (callee).\n"
-"Result of transmission will be stored in the SENDTEXTSTATUS\n"
-"channel variable:\n"
-"      SUCCESS      Transmission succeeded\n"
-"      FAILURE      Transmission failed\n"
-"      UNSUPPORTED  Text transmission not supported by channel\n"
-"\n"
-"At this moment, text is supposed to be 7 bit ASCII in most channels.\n";
 
 static int sendtext_exec(struct ast_channel *chan, void *data)
 {
@@ -91,7 +108,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, sendtext_exec, synopsis, descrip);
+	return ast_register_application_xml(app, sendtext_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Send Text Applications");

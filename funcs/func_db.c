@@ -40,6 +40,54 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/astdb.h"
 
+/*** DOCUMENTATION
+	<function name="DB" language="en_US">
+		<synopsis>
+			Read from or write to the Asterisk database.
+		</synopsis>
+		<syntax argsep="/">
+			<parameter name="family" required="true" />
+			<parameter name="key" required="true" />
+		</syntax>
+		<description>
+			<para>This function will read from or write a value to the Asterisk database.  On a
+			read, this function returns the corresponding value from the database, or blank
+			if it does not exist.  Reading a database value will also set the variable
+			DB_RESULT.  If you wish to find out if an entry exists, use the DB_EXISTS
+			function.</para>
+		</description>
+	</function>
+	<function name="DB_EXISTS" language="en_US">
+		<synopsis>
+			Check to see if a key exists in the Asterisk database.
+		</synopsis>
+		<syntax argsep="/">
+			<parameter name="family" required="true" />
+			<parameter name="key" required="true" />
+		</syntax>
+		<description>
+			<para>This function will check to see if a key exists in the Asterisk
+			database. If it exists, the function will return <literal>1</literal>. If not,
+			it will return <literal>0</literal>.  Checking for existence of a database key will
+			also set the variable DB_RESULT to the key's value if it exists.</para>
+		</description>
+	</function>
+	<function name="DB_DELETE" language="en_US">
+		<synopsis>
+			Return a value from the database and delete it.
+		</synopsis>
+		<syntax argsep="/">
+			<parameter name="family" required="true" />
+			<parameter name="key" required="true" />
+		</syntax>
+		<description>
+			<para>This function will retrieve a value from the Asterisk database
+			and then remove that key from the database. <variable>DB_RESULT</variable>
+			will be set to the key's value if it exists.</para>
+		</description>
+	</function>
+ ***/
+
 static int function_db_read(struct ast_channel *chan, const char *cmd,
 			    char *parse, char *buf, size_t len)
 {
@@ -100,14 +148,6 @@ static int function_db_write(struct ast_channel *chan, const char *cmd, char *pa
 
 static struct ast_custom_function db_function = {
 	.name = "DB",
-	.synopsis = "Read from or write to the Asterisk database",
-	.syntax = "DB(<family>/<key>)",
-	.desc =
-"This function will read from or write a value to the Asterisk database.  On a\n"
-"read, this function returns the corresponding value from the database, or blank\n"
-"if it does not exist.  Reading a database value will also set the variable\n"
-"DB_RESULT.  If you wish to find out if an entry exists, use the DB_EXISTS\n"
-"function.\n",
 	.read = function_db_read,
 	.write = function_db_write,
 };
@@ -146,13 +186,6 @@ static int function_db_exists(struct ast_channel *chan, const char *cmd,
 
 static struct ast_custom_function db_exists_function = {
 	.name = "DB_EXISTS",
-	.synopsis = "Check to see if a key exists in the Asterisk database",
-	.syntax = "DB_EXISTS(<family>/<key>)",
-	.desc =
-		"This function will check to see if a key exists in the Asterisk\n"
-		"database. If it exists, the function will return \"1\". If not,\n"
-		"it will return \"0\".  Checking for existence of a database key will\n"
-		"also set the variable DB_RESULT to the key's value if it exists.\n",
 	.read = function_db_exists,
 };
 
@@ -194,12 +227,6 @@ static int function_db_delete(struct ast_channel *chan, const char *cmd,
 
 static struct ast_custom_function db_delete_function = {
 	.name = "DB_DELETE",
-	.synopsis = "Return a value from the database and delete it",
-	.syntax = "DB_DELETE(<family>/<key>)",
-	.desc =
-		"This function will retrieve a value from the Asterisk database\n"
-		" and then remove that key from the database.  DB_RESULT\n"
-		"will be set to the key's value if it exists.\n",
 	.read = function_db_delete,
 };
 

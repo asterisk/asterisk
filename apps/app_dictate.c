@@ -40,11 +40,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/app.h"
 
-static char *app = "Dictate";
-static char *synopsis = "Virtual Dictation Machine";
-static char *desc = "  Dictate([<base_dir>[,<filename>]])\n"
-"Start dictation machine using optional base dir for files.\n";
+/*** DOCUMENTATION
+	<application name="Dictate" language="en_US">
+		<synopsis>
+			Virtual Dictation Machine.
+		</synopsis>
+		<syntax>
+			<parameter name="base_dir" />
+			<parameter name="filename" />
+		</syntax>
+		<description>
+			<para>Start dictation machine using optional <replaceable>base_dir</replaceable> for files.</para>
+		</description>
+	</application>
+ ***/
 
+static char *app = "Dictate";
 
 typedef enum {
 	DFLAG_RECORD = (1 << 0),
@@ -332,7 +343,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, dictate_exec, synopsis, desc);
+	return ast_register_application_xml(app, dictate_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Virtual Dictation Machine");

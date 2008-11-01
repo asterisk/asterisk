@@ -199,32 +199,72 @@ char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int 
 	return outbuf;
 }
 
+static void check_fgcolor(int *fgcolor, int *attr)
+{
+	if (*fgcolor & 128) {
+		*attr = ast_opt_light_background ? 0 : ATTR_BRIGHT;
+		*fgcolor &= ~128;
+	}
+	
+	if (ast_opt_light_background) {
+		*fgcolor = opposite(*fgcolor);
+	}
+}
+
+static void check_bgcolor(int *bgcolor)
+{
+	if (*bgcolor) {
+		*bgcolor &= ~128;
+	}
+}
+
+static int check_colors_allowed(int fgcolor)
+{
+	return (!vt100compat || !fgcolor) ? 0 : 1;
+}
+
+int ast_term_color_code(struct ast_str **str, int fgcolor, int bgcolor)
+{
+	int attr = 0;
+
+	if (!check_colors_allowed(fgcolor)) {
+		return -1;
+	}
+
+	check_fgcolor(&fgcolor, &attr);
+	check_bgcolor(&bgcolor);
+	
+	if (ast_opt_force_black_background) {
+		ast_str_append(str, 0, "%c[%d;%d;%dm", ESC, attr, fgcolor, COLOR_BLACK + 10);
+	} else if (bgcolor) {
+		ast_str_append(str, 0, "%c[%d;%d;%dm", ESC, attr, fgcolor, bgcolor + 10);
+	} else {
+		ast_str_append(str, 0, "%c[%d;%dm", ESC, attr, fgcolor);
+	}
+
+	return 0;
+}
+
 char *term_color_code(char *outbuf, int fgcolor, int bgcolor, int maxout)
 {
 	int attr = 0;
-	if ((!vt100compat) || (!fgcolor)) {
+
+	if (!check_colors_allowed(fgcolor)) {
 		*outbuf = '\0';
 		return outbuf;
 	}
 
-	if (fgcolor & 128) {
-		attr = ast_opt_light_background ? 0 : ATTR_BRIGHT;
-		fgcolor &= ~128;
-	}
-
-	if (ast_opt_light_background) {
-		fgcolor = opposite(fgcolor);
-	}
-
-	if (bgcolor) {
-		bgcolor &= ~128;
-	}
+	check_fgcolor(&fgcolor, &attr);
+	check_bgcolor(&bgcolor);
 
 	if (ast_opt_force_black_background) {
+		snprintf(outbuf, maxout, "%c[%d;%d;%dm", ESC, attr, fgcolor, COLOR_BLACK + 10);
+	} else if (bgcolor) {
 		snprintf(outbuf, maxout, "%c[%d;%d;%dm", ESC, attr, fgcolor, bgcolor + 10);
 	} else {
 		snprintf(outbuf, maxout, "%c[%d;%dm", ESC, attr, fgcolor);
 	}
+
 	return outbuf;
 }
 

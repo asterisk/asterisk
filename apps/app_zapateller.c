@@ -37,23 +37,42 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<application name="Zapateller" language="en_US">
+		<synopsis>
+			Block telemarketers with SIT.
+		</synopsis>
+		<syntax>
+			<parameter name="options" required="true">
+				<para>Comma delimited list of options.</para>
+				<optionlist>
+					<option name="answer">
+						<para>Causes the line to be answered before playing the tone.</para>
+					</option>
+					<option name="nocallerid">
+						<para>Causes Zapateller to only play the tone if there is no
+						callerid information available.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Generates special information tone to block telemarketers from calling you.</para>
+			<para>This application will set the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="ZAPATELLERSTATUS">
+					<para>This will contain the last action accomplished by the
+					Zapateller application. Possible values include:</para>
+					<value name="NOTHING" />
+					<value name="ANSWERED" />
+					<value name="ZAPPED" />
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+ ***/
+
 static char *app = "Zapateller";
-
-static char *synopsis = "Block telemarketers with SIT";
-
-static char *descrip = 
-"  Zapateller(options):  Generates special information tone to block\n"
-"telemarketers from calling you.  Options is a pipe-delimited list of\n" 
-"options.  The following options are available:\n"
-"    'answer'     - causes the line to be answered before playing the tone,\n" 
-"    'nocallerid' - causes Zapateller to only play the tone if there is no\n"
-"                   callerid information available.  Options should be\n"
-"                   separated by , characters\n\n"
-"  This application will set the following channel variable upon completion:\n"
-"    ZAPATELLERSTATUS - This will contain the last action accomplished by the\n"
-"                        Zapateller application. Possible values include:\n"
-"                        NOTHING | ANSWERED | ZAPPED\n\n";
-
 
 static int zapateller_exec(struct ast_channel *chan, void *data)
 {
@@ -107,7 +126,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ((ast_register_application(app, zapateller_exec, synopsis, descrip)) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS);
+	return ((ast_register_application_xml(app, zapateller_exec)) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Block Telemarketers with Special Information Tone");

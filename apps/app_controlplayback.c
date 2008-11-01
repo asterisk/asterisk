@@ -33,31 +33,66 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/module.h"
 
+/*** DOCUMENTATION
+	<application name="ControlPlayback" language="en_US">
+		<synopsis>
+			Play a file with fast forward and rewind.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true" />
+			<parameter name="skipms">
+				<para>This is number of milliseconds to skip when rewinding or
+				fast-forwarding.</para>
+			</parameter>
+			<parameter name="ff">
+				<para>Fast-forward when this DTMF digit is received. (defaults to <literal>#</literal>)</para>
+			</parameter>
+			<parameter name="rew">
+				<para>Rewind when this DTMF digit is received. (defaults to <literal>*</literal>)</para>
+			</parameter>
+			<parameter name="stop">
+				<para>Stop playback when this DTMF digit is received.</para>
+			</parameter>
+			<parameter name="pause">
+				<para>Pause playback when this DTMF digit is received.</para>
+			</parameter>
+			<parameter name="restart">
+				<para>Restart playback when this DTMF digit is received.</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="o">
+						<argument name="time" required="true">
+							<para>Start at <replaceable>time</replaceable> ms from the
+							beginning of the file.</para>
+						</argument>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application will play back the given <replaceable>filename</replaceable>.</para>
+			<para>It sets the following channel variables upon completion:</para>
+			<variablelist>
+				<variable name="CPLAYBACKSTATUS">
+					<para>Contains the status of the attempt as a text string</para>
+					<value name="SUCCESS" />
+					<value name="USERSTOPPED" />
+					<value name="ERROR" />
+				</variable>
+				<variable name="CPLAYBACKOFFSET">
+					<para>Contains the offset in ms into the file where playback
+					was at when it stopped. <literal>-1</literal> is end of file.</para>
+				</variable>
+				<variable name="CPLAYBACKSTOPKEY">
+					<para>If the playback is stopped by the user this variable contains
+					the key that was pressed.</para>
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+ ***/
 static const char *app = "ControlPlayback";
-
-static const char *synopsis = "Play a file with fast forward and rewind";
-
-static const char *descrip =
-"  ControlPlayback(file[,skipms[,ff[,rew[,stop[,pause[,restart,options]]]]]]]):\n"
-"This application will play back the given filename. By default, the '*' key\n"
-"can be used to rewind, and the '#' key can be used to fast-forward.\n"
-"Parameters:\n"
-"  skipms  - This is number of milliseconds to skip when rewinding or\n"
-"            fast-forwarding.\n"
-"  ff      - Fast-forward when this DTMF digit is received.\n"
-"  rew     - Rewind when this DTMF digit is received.\n"
-"  stop    - Stop playback when this DTMF digit is received.\n"
-"  pause   - Pause playback when this DTMF digit is received.\n"
-"  restart - Restart playback when this DTMF digit is received.\n"
-"Options:\n"
-"  o(#) - Start at # ms from the beginning of the file.\n"
-"This application sets the following channel variables upon completion:\n"
-"  CPLAYBACKSTATUS -  This variable contains the status of the attempt as a text\n"
-"                     string, one of: SUCCESS | USERSTOPPED | ERROR\n"
-"  CPLAYBACKOFFSET -  This contains the offset in ms into the file where\n"
-"                     playback was at when it stopped.  -1 is end of file.\n"
-"  CPLAYBACKSTOPKEY - If the playback is stopped by the user this variable contains\n"
-"                     the key that was pressed.\n";
 
 enum {
 	OPT_OFFSET = (1 << 1),
@@ -185,7 +220,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, controlplayback_exec, synopsis, descrip);
+	return ast_register_application_xml(app, controlplayback_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Control Playback Application");

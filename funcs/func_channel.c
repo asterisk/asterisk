@@ -38,6 +38,168 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/indications.h"
 #include "asterisk/stringfields.h"
 
+/*** DOCUMENTATION
+	<function name="CHANNELS" language="en_US">
+		<synopsis>
+			Gets the list of channels, optionally filtering by a regular expression.
+		</synopsis>
+		<syntax>
+			<parameter name="regular_expression" />
+		</syntax>
+		<description>
+			<para>Gets the list of channels, optionally filtering by a <replaceable>regular_expression</replaceable>. If
+			no argument is provided, all known channels are returned. The
+			<replaceable>regular_expression</replaceable> must correspond to
+			the POSIX.2 specification, as shown in <emphasis>regex(7)</emphasis>. The list returned
+			will be space-delimited.</para>
+		</description>
+	</function>
+	<function name="CHANNEL" language="en_US">
+		<synopsis>
+			Gets/sets various pieces of information about the channel.
+		</synopsis>
+		<syntax>
+			<parameter name="item" required="true">
+				<para>Standard items (provided by all channel technologies) are:</para>
+				<enumlist>
+					<enum name="audioreadformat">
+						<para>R/O format currently being read.</para>
+					</enum>
+					<enum name="audionativeformat">
+						<para>R/O format used natively for audio.</para>
+					</enum>
+					<enum name="audiowriteformat">
+						<para>R/O format currently being written.</para>
+					</enum>
+					<enum name="callgroup">
+						<para>R/W call groups for call pickup.</para>
+					</enum>
+					<enum name="channeltype">
+						<para>R/O technology used for channel.</para>
+					</enum>
+					<enum name="language">
+						<para>R/W language for sounds played.</para>
+					</enum>
+					<enum name="musicclass">
+						<para>R/W class (from musiconhold.conf) for hold music.</para>
+					</enum>
+					<enum name="parkinglot">
+						<para>R/W parkinglot for parking.</para>
+					</enum>
+					<enum name="rxgain">
+						<para>R/W set rxgain level on channel drivers that support it.</para>
+					</enum>
+					<enum name="state">
+						<para>R/O state for channel</para>
+					</enum>
+					<enum name="tonezone">
+						<para>R/W zone for indications played</para>
+					</enum>
+					<enum name="txgain">
+						<para>R/W set txgain level on channel drivers that support it.</para>
+					</enum>
+					<enum name="videonativeformat">
+						<para>R/O format used natively for video</para>
+					</enum>
+					<enum name="trace">
+						<para>R/W whether or not context tracing is enabled, only available
+						<emphasis>if CHANNEL_TRACE is defined</emphasis>.</para>
+					</enum>
+				</enumlist>
+				<para><emphasis>chan_sip</emphasis> provides the following additional options:</para>
+				<enumlist>
+					<enum name="peerip">
+						<para>R/O Get the IP address of the peer.</para>
+					</enum>
+					<enum name="recvip">
+						<para>R/O Get the source IP address of the peer.</para>
+					</enum>
+					<enum name="from">
+						<para>R/O Get the URI from the From: header.</para>
+					</enum>
+					<enum name="uri">
+						<para>R/O Get the URI from the Contact: header.</para>
+					</enum>
+					<enum name="useragent">
+						<para>R/O Get the useragent.</para>
+					</enum>
+					<enum name="peername">
+						<para>R/O Get the name of the peer.</para>
+					</enum>
+					<enum name="t38passthrough">
+						<para>R/O <literal>1</literal> if T38 is offered or enabled in this channel,
+						otherwise <literal>0</literal></para>
+					</enum>
+					<enum name="rtpqos">
+						<para>R/O Get QOS information about the RTP stream</para>
+						<para>    This option takes two additional arguments:</para>
+						<para>    Argument 1:</para>
+						<para>     <literal>audio</literal>             Get data about the audio stream</para>
+						<para>     <literal>video</literal>             Get data about the video stream</para>
+						<para>     <literal>text</literal>              Get data about the text stream</para>
+						<para>    Argument 2:</para>
+						<para>     <literal>local_ssrc</literal>        Local SSRC (stream ID)</para>
+						<para>     <literal>local_lostpackets</literal> Local lost packets</para>
+						<para>     <literal>local_jitter</literal>      Local calculated jitter</para>
+						<para>     <literal>local_maxjitter</literal>   Local calculated jitter (maximum)</para>
+						<para>     <literal>local_minjitter</literal>   Local calculated jitter (minimum)</para>
+						<para>     <literal>local_normdevjitter</literal>Local calculated jitter (normal deviation)</para>
+						<para>     <literal>local_stdevjitter</literal> Local calculated jitter (standard deviation)</para>
+						<para>     <literal>local_count</literal>       Number of received packets</para>
+						<para>     <literal>remote_ssrc</literal>       Remote SSRC (stream ID)</para>
+						<para>     <literal>remote_lostpackets</literal>Remote lost packets</para>
+						<para>     <literal>remote_jitter</literal>     Remote reported jitter</para>
+						<para>     <literal>remote_maxjitter</literal>  Remote calculated jitter (maximum)</para>
+						<para>     <literal>remote_minjitter</literal>  Remote calculated jitter (minimum)</para>
+						<para>     <literal>remote_normdevjitter</literal>Remote calculated jitter (normal deviation)</para>
+						<para>     <literal>remote_stdevjitter</literal>Remote calculated jitter (standard deviation)</para>
+						<para>     <literal>remote_count</literal>      Number of transmitted packets</para>
+						<para>     <literal>remote_ssrc</literal>       Remote SSRC (stream ID)</para>
+						<para>     <literal>remote_lostpackets</literal>Remote lost packets</para>
+						<para>     <literal>remote_jitter</literal>     Remote reported jitter</para>
+						<para>     <literal>remote_maxjitter</literal>  Remote calculated jitter (maximum)</para>
+						<para>     <literal>remote_minjitter</literal>  Remote calculated jitter (minimum)</para>
+						<para>     <literal>remote_normdevjitter</literal>Remote calculated jitter (normal deviation)</para>
+						<para>     <literal>remote_stdevjitter</literal>Remote calculated jitter (standard deviation)</para>
+						<para>     <literal>remote_count</literal>      Number of transmitted packets</para>
+						<para>     <literal>rtt</literal>               Round trip time</para>
+						<para>     <literal>maxrtt</literal>            Round trip time (maximum)</para>
+						<para>     <literal>minrtt</literal>            Round trip time (minimum)</para>
+						<para>     <literal>normdevrtt</literal>        Round trip time (normal deviation)</para>
+						<para>     <literal>stdevrtt</literal>          Round trip time (standard deviation)</para>
+						<para>     <literal>all</literal>               All statistics (in a form suited to logging,
+						but not for parsing)</para>
+					</enum>
+					<enum name="rtpdest">
+						<para>R/O Get remote RTP destination information.</para>
+						<para>   This option takes one additional argument:</para>
+						<para>    Argument 1:</para>
+						<para>     <literal>audio</literal>             Get audio destination</para>
+						<para>     <literal>video</literal>             Get video destination</para>
+					</enum>
+				</enumlist>
+				<para><emphasis>chan_iax2</emphasis> provides the following additional options:</para>
+				<enumlist>
+					<enum name="osptoken">
+						<para>R/W Get or set the OSP token information for a call.</para>
+					</enum>
+					<enum name="peerip">
+						<para>R/O Get the peer's ip address.</para>
+					</enum>
+					<enum name="peername">
+						<para>R/O Get the peer's username.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Gets/sets various pieces of information about the channel, additional <replaceable>item</replaceable> may
+			be available from the channel driver; see its documentation for details. Any <replaceable>item</replaceable>
+			requested that is not available on the current channel will return an empty string.</para>
+		</description>
+	</function>
+ ***/
+
 #define locked_copy_string(chan, dest, source, len) \
 	do { \
 		ast_channel_lock(chan); \
@@ -168,80 +330,6 @@ static int func_channel_write(struct ast_channel *chan, const char *function,
 
 static struct ast_custom_function channel_function = {
 	.name = "CHANNEL",
-	.synopsis = "Gets/sets various pieces of information about the channel.",
-	.syntax = "CHANNEL(item)",
-	.desc = "Gets/set various pieces of information about the channel.\n"
-		"Standard items (provided by all channel technologies) are:\n"
-		"R/O	audioreadformat    format currently being read\n"
-		"R/O	audionativeformat  format used natively for audio\n"
-		"R/O	audiowriteformat   format currently being written\n"
-		"R/W	callgroup          call groups for call pickup\n"
-		"R/O	channeltype        technology used for channel\n"
-		"R/W	language           language for sounds played\n"
-		"R/W	musicclass         class (from musiconhold.conf) for hold music\n"
-		"R/W	parkinglot         parkinglot for parking\n"
-		"R/W	rxgain             set rxgain level on channel drivers that support it\n"
-		"R/O	state              state for channel\n"
-		"R/W	tonezone           zone for indications played\n"
-		"R/W	txgain             set txgain level on channel drivers that support it\n"
-		"R/O	videonativeformat  format used natively for video\n"
-#ifdef CHANNEL_TRACE
-		"R/W	trace              whether or not context tracing is enabled\n"
-#endif
-		"\n"
-		"chan_sip provides the following additional options:\n"
-		"R/O    peerip             Get the IP address of the peer\n"
-		"R/O    recvip             Get the source IP address of the peer\n"
-		"R/O    from               Get the URI from the From: header\n"
-		"R/O    uri                Get the URI from the Contact: header\n"
-		"R/O    useragent          Get the useragent\n"
-		"R/O    peername           Get the name of the peer\n"
-		"R/O    t38passthrough     1 if T38 is offered or enabled in this channel, otherwise 0\n"
-		"R/O    rtpqos             Get QOS information about the RTP stream\n"
-		"       This option takes two additional arguments:\n"
-		"  Argument 1:\n"
-		"    audio                 Get data about the audio stream\n"
-		"    video                 Get data about the video stream\n"
-		"    text                  Get data about the text stream\n"
-		"  Argument 2:\n"
-		"    local_ssrc            Local SSRC (stream ID)\n"
-		"    local_lostpackets     Local lost packets\n"
-		"    local_jitter          Local calculated jitter\n"
-		"    local_maxjitter       Local calculated jitter (maximum)\n"
-		"    local_minjitter       Local calculated jitter (minimum)\n"
-		"    local_normdevjitter   Local calculated jitter (normal deviation)\n"
-		"    local_stdevjitter     Local calculated jitter (standard deviation)\n"
-		"    local_count           Number of received packets\n"
-		"    remote_ssrc           Remote SSRC (stream ID)\n"
-		"    remote_lostpackets    Remote lost packets\n"
-		"    remote_jitter         Remote reported jitter\n"
-		"    remote_maxjitter      Remote calculated jitter (maximum)\n"
-		"    remote_minjitter      Remote calculated jitter (minimum)\n"
-		"    remote_normdevjitter  Remote calculated jitter (normal deviation)\n"
-		"    remote_stdevjitter    Remote calculated jitter (standard deviation)\n"
-		"    remote_count          Number of transmitted packets\n"
-		"    rtt                   Round trip time\n"
-		"    maxrtt                Round trip time (maximum)\n"
-		"    minrtt                Round trip time (minimum)\n"
-		"    normdevrtt            Round trip time (normal deviation)\n"
-		"    stdevrtt              Round trip time (standard deviation)\n"
-		"    all                   All statistics (in a form suited to logging, but not for parsing)\n"
-		"R/O    rtpdest            Get remote RTP destination information\n"
-		"       This option takes one additional argument:\n"
-		"  Argument 1:\n"
-		"    audio                 Get audio destination\n"
-		"    video                 Get video destination\n"
-		"\n"
-		"chan_iax2 provides the following additional options:\n"
-		"R/W    osptoken           Get or set the OSP token information for a call\n"
-		"R/O    peerip             Get the peer's ip address\n"
-		"R/O    peername           Get the peer's username\n"
-		"\n"
-		"Additional items may be available from the channel driver providing\n"
-		"the channel; see its documentation for details.\n"
-		"\n"
-		"Any item requested that is not available on the current channel will\n"
-		"return an empty string.\n",
 	.read = func_channel_read,
 	.write = func_channel_write,
 };
@@ -288,13 +376,6 @@ static int func_channels_read(struct ast_channel *chan, const char *function, ch
 
 static struct ast_custom_function channels_function = {
 	.name = "CHANNELS",
-	.synopsis = "Gets the list of channels, optionally filtering by a regular expression.",
-	.syntax = "CHANNEL([regular expression])",
-	.desc =
-"Gets the list of channels, optionally filtering by a regular expression.  If\n"
-"no argument is provided, all known channels are returned.  The regular\n"
-"expression must correspond to the POSIX.2 specification, as shown in\n"
-"regex(7).  The list returned will be space-delimited.\n",
 	.read = func_channels_read,
 };
 

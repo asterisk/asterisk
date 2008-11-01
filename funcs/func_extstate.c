@@ -36,6 +36,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/devicestate.h"
 
+/*** DOCUMENTATION
+	<function name="EXTENSION_STATE" language="en_US">
+		<synopsis>
+			Get an extension's state.
+		</synopsis>	
+		<syntax argsep="@">
+			<parameter name="extension" required="true" />
+			<parameter name="context">
+				<para>If it is not specified defaults to <literal>default</literal>.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>The EXTENSION_STATE function can be used to retrieve the state from any
+			hinted extension. For example:</para>
+			<para>NoOp(1234@default has state ${EXTENSION_STATE(1234)})</para>
+			<para>NoOp(4567@home has state ${EXTENSION_STATE(4567@home)})</para>
+			<para>The possible values returned by this function are:</para>
+			<para>UNKNOWN | NOT_INUSE | INUSE | BUSY | INVALID | UNAVAILABLE | RINGING |
+			RINGINUSE | HOLDINUSE | ONHOLD</para>
+		</description>
+	</function>
+ ***/
+
 static const char *ast_extstate_str(int state)
 {
 	const char *res = "UNKNOWN";
@@ -98,17 +121,6 @@ static int extstate_read(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function extstate_function = {
 	.name = "EXTENSION_STATE",
-	.synopsis = "Get an extension's state",
-	.syntax = "EXTENSION_STATE(extension[@context])",
-	.desc =
-	"  The EXTENSION_STATE function can be used to retrieve the state from any\n"
-	"hinted extension.  For example:\n"
-	"   NoOp(1234@default has state ${EXTENSION_STATE(1234)})\n"
-	"   NoOp(4567@home has state ${EXTENSION_STATE(4567@home)})\n"
-	"\n"
-	"  The possible values returned by this function are:\n"
-	"UNKNOWN | NOT_INUSE | INUSE | BUSY | INVALID | UNAVAILABLE | RINGING\n"
-	"RINGINUSE | HOLDINUSE | ONHOLD\n",
 	.read = extstate_read,
 };
 

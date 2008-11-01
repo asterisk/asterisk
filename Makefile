@@ -105,6 +105,9 @@ endif
 ASTCFLAGS+=$(COPTS)
 ASTLDFLAGS+=$(LDOPTS)
 
+# libxml2 cflags
+ASTCFLAGS+=$(LIBXML2_INCLUDE)
+
 #Uncomment this to see all build commands instead of 'quiet' output
 #NOISY_BUILD=yes
 
@@ -481,6 +484,20 @@ datafiles: _all
 	mkdir -p $(DESTDIR)$(AGI_DIR)
 	$(MAKE) -C sounds install
 
+documentation:
+	@echo -n "Building Documentation For: "
+	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > doc/core-en_US.xml
+	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> doc/core-en_US.xml
+	@echo "<docs>" >> doc/core-en_US.xml
+	@for x in $(MOD_SUBDIRS); do \
+		echo -n "$$x " ; \
+		for i in $$x/*.c; do \
+			$(AWK) -f build_tools/get_documentation $$i >> doc/core-en_US.xml ; \
+		done ; \
+	done
+	@echo "</docs>" >> doc/core-en_US.xml
+	@echo -e "\ndoc/core-en_US.xml --> $(ASTDATADIR)/documentation/core-en_US.xml"
+
 update: 
 	@if [ -d .svn ]; then \
 		echo "Updating from Subversion..." ; \
@@ -529,12 +546,16 @@ bininstall: _all installdirs $(SUBDIRS_INSTALL)
 	if [ -n "$(OLDHEADERS)" ]; then \
 		rm -f $(addprefix $(DESTDIR)$(ASTHEADERDIR)/,$(OLDHEADERS)) ;\
 	fi
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/documentation
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/documentation/thirdparty
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-custom
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/keys
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/firmware
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/firmware/iax
 	mkdir -p $(DESTDIR)$(ASTMANDIR)/man8
+	$(INSTALL) -m 644 doc/core-*.xml $(ASTDATADIR)/documentation
+	$(INSTALL) -m 644 doc/appdocsxml.dtd $(ASTVARLIBDIR)/documentation
 	$(INSTALL) -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTDATADIR)/keys
 	$(INSTALL) -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTDATADIR)/keys
 	$(INSTALL) -m 644 doc/asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
@@ -576,7 +597,7 @@ ifneq ($(findstring ~,$(DESTDIR)),)
 	@exit 1
 endif
 
-install: badshell datafiles bininstall
+install: badshell datafiles documentation bininstall
 	@if [ -x /usr/sbin/asterisk-post-install ]; then \
 		/usr/sbin/asterisk-post-install $(DESTDIR) . ; \
 	fi
@@ -656,7 +677,7 @@ samples: adsi
 		echo "astrundir => $(ASTVARRUNDIR)" ; \
 		echo "astlogdir => $(ASTLOGDIR)" ; \
 		echo "" ; \
-		echo ";[options]" ; \
+		echo "[options]" ; \
 		echo ";verbose = 3" ; \
 		echo ";debug = 3" ; \
 		echo ";alwaysfork = yes ; same as -F at startup" ; \
@@ -686,6 +707,7 @@ samples: adsi
 		echo ";runuser = asterisk ; The user to run as" ; \
 		echo ";rungroup = asterisk ; The group to run as" ; \
 		echo ";lightbackground = yes ; If your terminal is set for a light-colored background" ; \
+		echo "documentation_language = en_US ; Set the Language you want Documentation displayed in. Value is in the same format as locale names" ; \
 		echo "" ; \
 		echo "; Changing the following lines may compromise your security." ; \
 		echo ";[files]" ; \

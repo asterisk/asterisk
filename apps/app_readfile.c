@@ -35,16 +35,33 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/module.h"
 
+/*** DOCUMENTATION
+	<application name="ReadFile" language="en_US">
+		<synopsis>
+			Read the contents of a text file into a channel variable.
+		</synopsis>
+		<syntax argsep="=">
+			<parameter name="varname" required="true">
+				<para>Result stored here.</para>
+			</parameter>
+			<parameter name="fileparams" required="true">
+				<argument name="file" required="true">
+					<para>The name of the file to read.</para>
+				</argument>
+				<argument name="length" required="false">
+					<para>Maximum number of characters to capture.</para>
+					<para>If not specified defaults to max.</para>
+				</argument>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Read the contents of a text file into channel variable <replaceable>varname</replaceable></para>
+			<warning><para>ReadFile has been deprecated in favor of Set(varname=${FILE(file,0,length)})</para></warning>
+		</description>
+	</application>
+ ***/
+
 static char *app_readfile = "ReadFile";
-
-static char *readfile_synopsis = "Read the contents of a text file into a channel variable";
-
-static char *readfile_descrip =
-"ReadFile(varname=file,length)\n"
-"  varname  - Result stored here.\n"
-"  file     - The name of the file to read.\n"
-"  length   - Maximum number of characters to capture.\n";
-
 
 static int readfile_exec(struct ast_channel *chan, void *data)
 {
@@ -101,7 +118,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app_readfile, readfile_exec, readfile_synopsis, readfile_descrip);
+	return ast_register_application_xml(app_readfile, readfile_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Stores output of file into a variable");

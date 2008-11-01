@@ -44,23 +44,56 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/dial.h"
 
+/*** DOCUMENTATION
+	<application name="Page" language="en_US">
+		<synopsis>
+			Page series of phones
+		</synopsis>
+		<syntax>
+			<parameter name="Technology/Resource" required="true" argsep="&amp;">
+				<argument name="Technology/Resource" required="true">
+					<para>Specification of the device(s) to dial. These must be in the format of
+					<literal>Technology/Resource</literal>, where <replaceable>Technology</replaceable>
+					represents a particular channel driver, and <replaceable>Resource</replaceable> represents a resource
+					available to that particular channel driver.</para>
+				</argument>
+				<argument name="Technology2/Resource2" multiple="true">
+					<para>Optional extra devices to dial inparallel</para>
+					<para>If you need more then one enter them as Technology2/Resource2&amp;
+					Technology3/Resourse3&amp;.....</para>
+				</argument>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="d">
+						<para>Full duplex audio</para>
+					</option>
+					<option name="q">
+						<para>Quiet, do not play beep to caller</para>
+					</option>
+					<option name="r">
+						<para>Record the page into a file (meetme option <literal>r</literal>)</para>
+					</option>
+					<option name="s">
+						<para>Only dial channel if devicestate says its <literal>notinuse</literal></para>
+					</option>
+				</optionlist>
+			</parameter>
+			<parameter name="timeout">
+				<para>Specify the length of time that the system will attempt to connect a call.
+				After this duration, any intercom calls that have not been answered will be hung up by the
+				system.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Places outbound calls to the given <replaceable>technology</replaceable>/<replaceable>resource</replaceable>
+			and dumps them into a conference bridge as muted participants. The original
+			caller is dumped into the conference as a speaker and the room is
+			destroyed when the original callers leaves.</para>
+		</description>
+	</application>
+ ***/
 static const char *app_page= "Page";
-
-static const char *page_synopsis = "Pages phones";
-
-static const char *page_descrip =
-"Page(Technology/Resource&Technology2/Resource2[,options][,timeout])\n"
-"  Places outbound calls to the given technology / resource and dumps\n"
-"them into a conference bridge as muted participants.  The original\n"
-"caller is dumped into the conference as a speaker and the room is\n"
-"destroyed when the original caller leaves.  Valid options are:\n"
-"        d - full duplex audio\n"
-"        q - quiet, do not play beep to caller\n"
-"        r - record the page into a file (see 'r' for app_meetme)\n"
-"        s - only dial channel if devicestate says it is not in use\n"
-"The timeout parameter specifies the length of time that the system\n"
-"will attempt to connect a call. After this duration, any intercom\n"
-"calls that have not been answered will be hung up by the system.\n";
 
 enum {
 	PAGE_DUPLEX = (1 << 0),
@@ -216,7 +249,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app_page, page_exec, page_synopsis, page_descrip);
+	return ast_register_application_xml(app_page, page_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Page Multiple Phones");

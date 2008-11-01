@@ -36,6 +36,26 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/audiohook.h"
 
+/*** DOCUMENTATION
+	<function name="VOLUME" language="en_US">
+		<synopsis>
+			Set the TX or RX volume of a channel.
+		</synopsis>
+		<syntax>
+			<parameter name="direction" required="true">
+				<para>Must be <literal>TX</literal> or <literal>RX</literal>.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>The VOLUME function can be used to increase or decrease the <literal>tx</literal> or
+			<literal>rx</literal> gain of any channel.</para>
+			<para>For example:</para>
+			<para>Set(VOLUME(TX)=3)</para>
+			<para>Set(VOLUME(RX)=2)</para>
+		</description>
+	</function>
+ ***/
+
 struct volume_information {
 	struct ast_audiohook audiohook;
 	int tx_gain;
@@ -137,13 +157,6 @@ static int volume_write(struct ast_channel *chan, const char *cmd, char *data, c
 
 static struct ast_custom_function volume_function = {
 	.name = "VOLUME",
-	.synopsis = "Set the TX or RX volume of a channel",
-	.syntax = "VOLUME(TX|RX)",
-	.desc =
-	"  The VOLUME function can be used to increase or decrease the tx or\n"
-	"rx gain of any channel.  For example:\n"
-	"  Set(VOLUME(TX)=3)\n"
-	"  Set(VOLUME(RX)=2)\n",
 	.write = volume_write,
 };
 

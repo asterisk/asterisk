@@ -44,6 +44,57 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astdb.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<function name="DEVICE_STATE" language="en_US">
+		<synopsis>
+			Get or Set a device state.
+		</synopsis>
+		<syntax>
+			<parameter name="device" required="true" />
+		</syntax>
+		<description>
+			<para>The DEVICE_STATE function can be used to retrieve the device state from any
+			device state provider. For example:</para>
+			<para>NoOp(SIP/mypeer has state ${DEVICE_STATE(SIP/mypeer)})</para>
+			<para>NoOp(Conference number 1234 has state ${DEVICE_STATE(MeetMe:1234)})</para>
+			<para>The DEVICE_STATE function can also be used to set custom device state from
+			the dialplan.  The <literal>Custom:</literal> prefix must be used. For example:</para>
+			<para>Set(DEVICE_STATE(Custom:lamp1)=BUSY)</para>
+			<para>Set(DEVICE_STATE(Custom:lamp2)=NOT_INUSE)</para>
+			<para>You can subscribe to the status of a custom device state using a hint in
+			the dialplan:</para>
+			<para>exten => 1234,hint,Custom:lamp1</para>
+			<para>The possible values for both uses of this function are:</para>
+			<para>UNKNOWN | NOT_INUSE | INUSE | BUSY | INVALID | UNAVAILABLE | RINGING |
+			RINGINUSE | ONHOLD</para>
+		</description>
+	</function>
+	<function name="HINT" language="en_US">
+		<synopsis>
+			Get the devices set for a dialplan hint.
+		</synopsis>
+		<syntax>
+			<parameter name="extension" required="true" argsep="@">
+				<argument name="extension" required="true" />
+				<argument name="context" />
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="n">
+						<para>Retrieve name on the hint instead of list of devices.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>The HINT function can be used to retrieve the list of devices that are
+			mapped to a dialplan hint. For example:</para>
+			<para>NoOp(Hint for Extension 1234 is ${HINT(1234)})</para>
+		</description>
+	</function>
+ ***/
+
+
 static const char astdb_family[] = "CustomDevstate";
 
 static int devstate_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
@@ -296,40 +347,12 @@ static struct ast_cli_entry cli_funcdevstate[] = {
 
 static struct ast_custom_function devstate_function = {
 	.name = "DEVICE_STATE",
-	.synopsis = "Get or Set a device state",
-	.syntax = "DEVICE_STATE(device)",
-	.desc =
-	"  The DEVICE_STATE function can be used to retrieve the device state from any\n"
-	"device state provider.  For example:\n"
-	"   NoOp(SIP/mypeer has state ${DEVICE_STATE(SIP/mypeer)})\n"
-	"   NoOp(Conference number 1234 has state ${DEVICE_STATE(MeetMe:1234)})\n"
-	"\n"
-	"  The DEVICE_STATE function can also be used to set custom device state from\n"
-	"the dialplan.  The \"Custom:\" prefix must be used.  For example:\n"
-	"  Set(DEVICE_STATE(Custom:lamp1)=BUSY)\n"
-	"  Set(DEVICE_STATE(Custom:lamp2)=NOT_INUSE)\n"
-	"You can subscribe to the status of a custom device state using a hint in\n"
-	"the dialplan:\n"
-	"  exten => 1234,hint,Custom:lamp1\n"
-	"\n"
-	"  The possible values for both uses of this function are:\n"
-	"UNKNOWN | NOT_INUSE | INUSE | BUSY | INVALID | UNAVAILABLE | RINGING\n"
-	"RINGINUSE | ONHOLD\n",
 	.read = devstate_read,
 	.write = devstate_write,
 };
 
 static struct ast_custom_function hint_function = {
 	.name = "HINT",
-	.synopsis = "Get the devices set for a dialplan hint",
-	.syntax = "HINT(extension[@context][|options])",
-	.desc =
-	"  The HINT function can be used to retrieve the list of devices that are\n"
-	"mapped to a dialplan hint.  For example:\n"
-	"   NoOp(Hint for Extension 1234 is ${HINT(1234)})\n"
-	"Options:\n"
-	"   'n' - Retrieve name on the hint instead of list of devices\n"
-	"",
 	.read = hint_read,
 };
 

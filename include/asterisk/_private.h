@@ -56,4 +56,10 @@ int ast_timing_init(void);		/*!< Provided by timing.c */
  */
 int ast_module_reload(const char *name);
 
+/*! \brief Load XML documentation. Provided by pbx.c 
+ *  \retval 1 on error.
+ *  \retval 0 on success. 
+ */
+int ast_load_documentation(void);
+
 #endif /* _ASTERISK__PRIVATE_H */

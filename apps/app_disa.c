@@ -45,50 +45,68 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/stringfields.h"
 
+/*** DOCUMENTATION
+	<application name="DISA" language="en_US">
+		<synopsis>
+			Direct Inward System Access.
+		</synopsis>
+		<syntax>
+			<parameter name="passcode|filename" required="true">
+				<para>If you need to present a DISA dialtone without entering a password,
+				simply set <replaceable>passcode</replaceable> to <literal>no-password</literal></para>
+				<para>You may specified a <replaceable>filename</replaceable> instead of a
+				<replaceable>passcode</replaceable>, this filename must contain individual passcodes</para>
+			</parameter>
+			<parameter name="context">
+				<para>Specifies the dialplan context in which the user-entered extension
+				will be matched. If no context is specified, the DISA application defaults
+				to the <literal>disa</literal> context. Presumably a normal system will have a special
+				context set up for DISA use with some or a lot of restrictions.</para>
+			</parameter>
+			<parameter name="cid">
+				<para>Specifies a new (different) callerid to be used for this call.</para>
+			</parameter>
+			<parameter name="mailbox" argsep="@">
+				<para>Will cause a stutter-dialtone (indication <emphasis>dialrecall</emphasis>)
+				to be used, if the specified mailbox contains any new messages.</para>
+				<argument name="mailbox" required="true" />
+				<argument name="context" required="false" />
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="n">
+						<para>The DISA application will not answer initially.</para>
+					</option>
+					<option name="p">
+						<para>The extension entered will be considered complete when a <literal>#</literal>
+						is entered.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>The DISA, Direct Inward System Access, application allows someone from
+			outside the telephone switch (PBX) to obtain an <emphasis>internal</emphasis> system
+			dialtone and to place calls from it as if they were placing a call from
+			within the switch.
+			DISA plays a dialtone. The user enters their numeric passcode, followed by
+			the pound sign <literal>#</literal>. If the passcode is correct, the user is then given
+			system dialtone within <replaceable>context</replaceable> on which a call may be placed.
+			If the user enters an invalid extension and extension <literal>i</literal> exists in the specified
+			<replaceable>context</replaceable>, it will be used.
+			</para>
+			<para>Be aware that using this may compromise the security of your PBX.</para>
+			<para>The arguments to this application (in <filename>extensions.conf</filename>) allow either
+			specification of a single global <replaceable>passcode</replaceable> (that everyone uses), or
+			individual passcodes contained in a file (<replaceable>filename</replaceable>).</para>
+			<para>The file that contains the passcodes (if used) allows a complete
+			specification of all of the same arguments available on the command
+			line, with the sole exception of the options. The file may contain blank
+			lines, or comments starting with <literal>#</literal> or <literal>;</literal>.</para>
+		</description>
+	</application>
+ ***/
 static char *app = "DISA";
-
-static char *synopsis = "DISA (Direct Inward System Access)";
-
-static char *descrip =
-"DISA(<numeric passcode>[,<context>[,<cid>[,mailbox[,options]]]]) or\n"
-"DISA(<filename>[,,,,options])\n"
-"The DISA, Direct Inward System Access, application allows someone from \n"
-"outside the telephone switch (PBX) to obtain an \"internal\" system \n"
-"dialtone and to place calls from it as if they were placing a call from \n"
-"within the switch.\n"
-"DISA plays a dialtone. The user enters their numeric passcode, followed by\n"
-"the pound sign (#). If the passcode is correct, the user is then given\n"
-"system dialtone within <context> on which a call may be placed. If the user\n"
-"enters an invalid extension and extension \"i\" exists in the specified\n"
-"context, it will be used.\n"
-"\n"
-"If you need to present a DISA dialtone without entering a password, simply\n"
-"set <passcode> to \"no-password\".\n"
-"\n"
-"Be aware that using this may compromise the security of your PBX.\n"
-"\n"
-"The arguments to this application (in extensions.conf) allow either\n"
-"specification of a single global passcode (that everyone uses), or\n"
-"individual passcodes contained in a file.\n"
-"\n"
-"The file that contains the passcodes (if used) allows a complete\n"
-"specification of all of the same arguments available on the command\n"
-"line, with the sole exception of the options. The file may contain blank\n"
-"lines, or comments starting with \"#\" or \";\".\n"
-"\n"
-"<context> specifies the dialplan context in which the user-entered extension\n"
-"will be matched. If no context is specified, the DISA application defaults\n"
-"the context to \"disa\". Presumably a normal system will have a special\n"
-"context set up for DISA use with some or a lot of restrictions.\n"
-"\n"
-"<cid> specifies a new (different) callerid to be used for this call.\n"
-"\n"
-"<mailbox[@context]> will cause a stutter-dialtone (indication \"dialrecall\")\n"
-"to be used, if the specified mailbox contains any new messages.\n"
-"\n"
-"The following options are available:\n"
-"  n - the DISA application will not answer initially.\n"
-"  p - the extension entered will be considered complete when a '#' is entered.\n";
 
 enum {
 	NOANSWER_FLAG = (1 << 0),
@@ -363,7 +381,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, disa_exec, synopsis, descrip) ?
+	return ast_register_application_xml(app, disa_exec) ?
 		AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 

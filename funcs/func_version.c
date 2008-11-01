@@ -34,6 +34,49 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ast_version.h"
 #include "asterisk/build.h"
 
+/*** DOCUMENTATION
+	<function name="VERSION" language="en_US">
+		<synopsis>
+			Return the Version info for this Asterisk.
+		</synopsis>
+		<syntax>
+			<parameter name="info">
+				<para>The possible values are:</para>
+				<enumlist>
+					<enum name="ASTERISK_VERSION_NUM">
+						<para>A string of digits is returned (right now fixed at 999999).</para>
+					</enum>
+					<enum name="BUILD_USER">
+						<para>The string representing the user's name whose account
+						was used to configure Asterisk, is returned.</para>
+					</enum>
+					<enum name="BUILD_HOSTNAME">
+						<para>The string representing the name of the host on which Asterisk was configured, is returned.</para>
+					</enum>
+					<enum name="BUILD_MACHINE">
+						<para>The string representing the type of machine on which Asterisk was configured, is returned.</para>
+					</enum>
+					<enum name="BUILD_OS">
+						<para>The string representing the OS of the machine on which Asterisk was configured, is returned.</para>
+					</enum>
+					<enum name="BUILD_DATE">
+						<para>The string representing the date on which Asterisk was configured, is returned.</para>
+					</enum>
+					<enum name="BUILD_KERNEL">
+						<para>The string representing the kernel version of the machine on which Asterisk
+						was configured, is returned.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>If there are no arguments, return the version of Asterisk in this format: SVN-branch-1.4-r44830M</para>
+			<para>Example:  Set(junky=${VERSION()};</para>
+			<para>Sets junky to the string <literal>SVN-branch-1.6-r74830M</literal>, or possibly, <literal>SVN-trunk-r45126M</literal>.</para>
+		</description>
+	</function>
+ ***/
+
 static int acf_version_exec(struct ast_channel *chan, const char *cmd,
 			 char *parse, char *buffer, size_t buflen)
 {
@@ -70,19 +113,6 @@ static int acf_version_exec(struct ast_channel *chan, const char *cmd,
 
 static struct ast_custom_function acf_version = {
 	.name = "VERSION",
-	.synopsis = "Return the Version info for this Asterisk",
-	.syntax = "VERSION([info])",
-	.desc =
-		"If there are no arguments, return the version of Asterisk in this format: SVN-branch-1.4-r44830M\n"
-		"If the argument is 'ASTERISK_VERSION_NUM', a string of digits is returned (right now fixed at 999999).\n"
-		"If the argument is 'BUILD_USER', the string representing the user's name whose account was used to configure Asterisk, is returned.\n"
-		"If the argument is 'BUILD_HOSTNAME', the string representing the name of the host on which Asterisk was configured, is returned.\n"
-		"If the argument is 'BUILD_MACHINE', the string representing the type of machine on which Asterisk was configured, is returned.\n"
-		"If the argument is 'BUILD_OS', the string representing the OS of the machine on which Asterisk was configured, is returned.\n"
-		"If the argument is 'BUILD_DATE', the string representing the date on which Asterisk was configured, is returned.\n"
-		"If the argument is 'BUILD_KERNEL', the string representing the kernel version of the machine on which Asterisk was configured, is returned .\n"
-		"  Example:  Set(junky=${VERSION()}; \n"
-		"  Sets junky to the string 'SVN-branch-1.6-r74830M', or possibly, 'SVN-trunk-r45126M'.\n",
 	.read = acf_version_exec,
 };
 

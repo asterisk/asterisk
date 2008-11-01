@@ -34,6 +34,83 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<function name="ISNULL" language="en_US">
+		<synopsis>
+			Check if a value is NULL.
+		</synopsis>
+		<syntax>
+			<parameter name="data" required="true" />
+		</syntax>
+		<description>
+			<para>Returns <literal>1</literal> if NULL or <literal>0</literal> otherwise.</para>
+		</description>
+	</function>
+	<function name="SET" language="en_US">
+		<synopsis>
+			SET assigns a value to a channel variable.
+		</synopsis>
+		<syntax argsep="=">
+			<parameter name="varname" required="true" />
+			<parameter name="value" />
+		</syntax>
+		<description>
+		</description>
+	</function>
+	<function name="EXISTS" language="en_US">
+		<synopsis>
+			Test the existence of a value.
+		</synopsis>
+		<syntax>
+			<parameter name="data" required="true" />
+		</syntax>
+		<description>
+			<para>Returns <literal>1</literal> if exists, <literal>0</literal> otherwise.</para>
+		</description>
+	</function>
+	<function name="IF" language="en_US">
+		<synopsis>
+			Check for an expresion.
+		</synopsis>
+		<syntax argsep="?">
+			<parameter name="expresion" required="true" />
+			<parameter name="retvalue" argsep=":" required="true">
+				<argument name="true" />
+				<argument name="false" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns the data following <literal>?</literal> if true, else the data following <literal>:</literal></para>
+		</description>	
+	</function>
+	<function name="IFTIME" language="en_US">
+		<synopsis>
+			Temporal Conditional.
+		</synopsis>
+		<syntax argsep="?">
+			<parameter name="timespec" required="true" />
+			<parameter name="retvalue" required="true" argsep=":">
+				<argument name="true" />
+				<argument name="false" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns the data following <literal>?</literal> if true, else the data following <literal>:</literal></para>
+		</description>
+	</function>
+	<function name="IMPORT" language="en_US">
+		<synopsis>
+			Retrieve the value of a variable from another channel.
+		</synopsis>
+		<syntax>
+			<parameter name="channel" required="true" />
+			<parameter name="variable" required="true" />
+		</syntax>
+		<description>
+		</description>
+	</function>
+ ***/
+
 static int isnull(struct ast_channel *chan, const char *cmd, char *data,
 		  char *buf, size_t len)
 {
@@ -168,46 +245,31 @@ static int acf_import(struct ast_channel *chan, const char *cmd, char *data, cha
 
 static struct ast_custom_function isnull_function = {
 	.name = "ISNULL",
-	.synopsis = "NULL Test: Returns 1 if NULL or 0 otherwise",
-	.syntax = "ISNULL(<data>)",
 	.read = isnull,
 };
 
 static struct ast_custom_function set_function = {
 	.name = "SET",
-	.synopsis = "SET assigns a value to a channel variable",
-	.syntax = "SET(<varname>=[<value>])",
 	.read = set,
 };
 
 static struct ast_custom_function exists_function = {
 	.name = "EXISTS",
-	.synopsis = "Existence Test: Returns 1 if exists, 0 otherwise",
-	.syntax = "EXISTS(<data>)",
 	.read = exists,
 };
 
 static struct ast_custom_function if_function = {
 	.name = "IF",
-	.synopsis =
-		"Conditional: Returns the data following '?' if true, else the data following ':'",
-	.syntax = "IF(<expr>?[<true>][:<false>])",
 	.read = acf_if,
 };
 
 static struct ast_custom_function if_time_function = {
 	.name = "IFTIME",
-	.synopsis =
-		"Temporal Conditional: Returns the data following '?' if true, else the data following ':'",
-	.syntax = "IFTIME(<timespec>?[<true>][:<false>])",
 	.read = iftime,
 };
 
 static struct ast_custom_function import_function = {
 	.name = "IMPORT",
-	.synopsis =
-		"Retrieve the value of a variable from another channel\n",
-	.syntax = "IMPORT(channel,variable)",
 	.read = acf_import,
 };
 

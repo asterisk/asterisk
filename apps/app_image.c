@@ -35,16 +35,35 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "SendImage";
 
-static char *synopsis = "Send an image file";
-
-static char *descrip = 
-"  SendImage(filename): Sends an image on a channel.\n"
-"Result of transmission will be stored in SENDIMAGESTATUS\n"
-"channel variable:\n"
-"    SUCCESS      Transmission succeeded\n"
-"    FAILURE      Transmission failed\n"
-"    UNSUPPORTED  Image transmission not supported by channel\n";
-
+/*** DOCUMENTATION
+	<application name="SendImage" language="en_US">
+		<synopsis>
+			Sends an image file.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true">
+				<para>Path of the filename (image) to send.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Send an image file on a channel supporting it.</para>
+			<para>Result of transmission will be stored in <variable>SENDIMAGESTATUS</variable></para>
+			<variablelist>
+				<variable name="SENDIMAGESTATUS">
+					<value name="SUCCESS">
+						Transmission succeeded.
+					</value>
+					<value name="FAILURE">
+						Transmission failed.
+					</value>
+					<value name="UNSUPPORTED">
+						Image transmission not supported by channel.
+					</value>
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+ ***/
 
 static int sendimage_exec(struct ast_channel *chan, void *data)
 {
@@ -76,7 +95,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, sendimage_exec, synopsis, descrip);
+	return ast_register_application_xml(app, sendimage_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Image Transmission Application");

@@ -44,15 +44,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define LOCAL_MPG_123 "/usr/local/bin/mpg123"
 #define MPG_123 "/usr/bin/mpg123"
 
+/*** DOCUMENTATION
+	<application name="MP3Player" language="en_US">
+		<synopsis>
+			Play an MP3 file or stream.
+		</synopsis>
+		<syntax>
+			<parameter name="Location" required="true">
+				<para>Location of the file to be played.
+				(argument passed to mpg123)</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Executes mpg123 to play the given location, which typically would be a filename or a URL.
+			User can exit by pressing any key on the dialpad, or by hanging up.</para>
+		</description>
+	</application>
+
+ ***/
 static char *app = "MP3Player";
-
-static char *synopsis = "Play an MP3 file or stream";
-
-static char *descrip = 
-"  MP3Player(location): Executes mpg123 to play the given location,\n"
-"which typically would be a filename or a URL. User can exit by pressing\n"
-"any key on the dialpad, or by hanging up."; 
-
 
 static int mp3play(char *filename, int fd)
 {
@@ -221,7 +231,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, mp3_exec, synopsis, descrip);
+	return ast_register_application_xml(app, mp3_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Silly MP3 Application");

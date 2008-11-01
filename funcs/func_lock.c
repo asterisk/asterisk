@@ -37,6 +37,53 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/linkedlists.h"
 
+/*** DOCUMENTATION
+	<function name="LOCK" language="en_US">
+		<synopsis>
+			Attempt to obtain a named mutex.
+		</synopsis>
+		<syntax>
+			<parameter name="lockname" required="true" />
+		</syntax>
+		<description>
+			<para>Attempts to grab a named lock exclusively, and prevents other channels from
+			obtaining the same lock.  LOCK will wait for the lock to become available.
+			Returns <literal>1</literal> if the lock was obtained or <literal>0</literal> on error.</para>
+			<note><para>To avoid the possibility of a deadlock, LOCK will only attempt to
+			obtain the lock for 3 seconds if the channel already has another lock.</para></note>
+		</description>
+	</function>
+	<function name="TRYLOCK" language="en_US">
+		<synopsis>
+			Attempt to obtain a named mutex.
+		</synopsis>
+		<syntax>
+			<parameter name="lockname" required="true" />
+		</syntax>
+		<description>
+			<para>Attempts to grab a named lock exclusively, and prevents other channels
+			from obtaining the same lock.  Returns <literal>1</literal> if the lock was 
+			available or <literal>0</literal> otherwise.</para>
+		</description>
+	</function>
+	<function name="UNLOCK" language="en_US">
+		<synopsis>
+			Unlocks a named mutex.
+		</synopsis>
+		<syntax>
+			<parameter name="lockname" required="true" />
+		</syntax>
+		<description>
+			<para>Unlocks a previously locked mutex. Returns <literal>1</literal> if the channel 
+			had a lock or <literal>0</literal> otherwise.</para>
+			<note><para>It is generally unnecessary to unlock in a hangup routine, as any locks 
+			held are automatically freed when the channel is destroyed.</para></note>
+		</description>
+	</function>
+ ***/
+
+
+
 AST_LIST_HEAD_STATIC(locklist, lock_frame);
 
 static void lock_free(void *data);
@@ -276,36 +323,16 @@ static int trylock_read(struct ast_channel *chan, const char *cmd, char *data, c
 
 static struct ast_custom_function lock_function = {
 	.name = "LOCK",
-	.synopsis = "Attempt to obtain a named mutex",
-	.desc =
-"Attempts to grab a named lock exclusively, and prevents other channels from\n"
-"obtaining the same lock.  LOCK will wait for the lock to become available.\n"
-"Returns 1 if the lock was obtained or 0 on error.\n\n"
-"Note: to avoid the possibility of a deadlock, LOCK will only attempt to\n"
-"obtain the lock for 3 seconds if the channel already has another lock.\n",
-	.syntax = "LOCK(<lockname>)",
 	.read = lock_read,
 };
 
 static struct ast_custom_function trylock_function = {
 	.name = "TRYLOCK",
-	.synopsis = "Attempt to obtain a named mutex",
-	.desc =
-"Attempts to grab a named lock exclusively, and prevents other channels\n"
-"from obtaining the same lock.  Returns 1 if the lock was available or 0\n"
-"otherwise.\n",
-	.syntax = "TRYLOCK(<lockname>)",
 	.read = trylock_read,
 };
 
 static struct ast_custom_function unlock_function = {
 	.name = "UNLOCK",
-	.synopsis = "Unlocks a named mutex",
-	.desc =
-"Unlocks a previously locked mutex.  Note that it is generally unnecessary to\n"
-"unlock in a hangup routine, as any locks held are automatically freed when the\n"
-"channel is destroyed.  Returns 1 if the channel had a lock or 0 otherwise.\n",
-	.syntax = "UNLOCK(<lockname>)",
 	.read = unlock_read,
 };
 

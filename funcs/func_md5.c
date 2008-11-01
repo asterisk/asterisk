@@ -33,6 +33,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 
+/*** DOCUMENTATION
+	<function name="MD5" language="en_US">
+		<synopsis>
+			Computes an MD5 digest.
+		</synopsis>
+		<syntax>
+			<parameter name="data" required="true" />
+		</syntax>
+		<description>
+			<para>Computes an MD5 digest.</para>
+		</description>
+	</function>
+ ***/
+
 static int md5(struct ast_channel *chan, const char *cmd, char *data,
 	       char *buf, size_t len)
 {
@@ -49,8 +63,6 @@ static int md5(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function md5_function = {
 	.name = "MD5",
-	.synopsis = "Computes an MD5 digest",
-	.syntax = "MD5(<data>)",
 	.read = md5,
 };
 

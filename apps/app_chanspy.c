@@ -52,128 +52,238 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define AST_NAME_STRLEN 256
 #define NUM_SPYGROUPS 128
 
-static const char *tdesc = "Listen to a channel, and optionally whisper into it";
+/*** DOCUMENTATION
+	<application name="ChanSpy" language="en_US">
+		<synopsis>
+			Listen to a channel, and optionally whisper into it.
+		</synopsis>
+		<syntax>
+			<parameter name="chanprefix" />
+			<parameter name="options">
+				<optionlist>
+					<option name="b">
+						<para>Only spy on channels involved in a bridged call.</para>
+					</option>
+					<option name="B">
+						<para>Instead of whispering on a single channel barge in on both
+						channels involved in the call.</para>
+					</option>
+					<option name="d">
+						<para>Override the typical numeric DTMF functionality and instead
+						use DTMF to switch between spy modes.</para>
+						<enumlist>
+							<enum name="4">
+								<para>spy mode</para>
+							</enum>
+							<enum name="5">
+								<para>whisper mode</para>
+							</enum>
+							<enum name="6">
+								<para>barge mode</para>
+							</enum>
+						</enumlist>
+					</option>
+					<option name="g">
+						<argument name="grp" required="true">
+							<para>Only spy on channels in which one or more of the groups
+							listed in <replaceable>grp</replaceable> matches one or more groups from the
+							<variable>SPYGROUP</variable> variable set on the channel to be spied upon.</para>
+						</argument>
+						<note><para>both <replaceable>grp</replaceable> and <variable>SPYGROUP</variable> can contain 
+						either a single group or a colon-delimited list of groups, such
+						as <literal>sales:support:accounting</literal>.</para></note>
+					</option>
+					<option name="n" argsep="@">
+						<para>Say the name of the person being spied on if that person has recorded
+						his/her name. If a context is specified, then that voicemail context will
+						be searched when retrieving the name, otherwise the <literal>default</literal> context
+						be used when searching for the name (i.e. if SIP/1000 is the channel being
+						spied on and no mailbox is specified, then <literal>1000</literal> will be used when searching
+						for the name).</para>
+						<argument name="mailbox" />
+						<argument name="context" />
+					</option>
+					<option name="q">
+						<para>Don't play a beep when beginning to spy on a channel, or speak the
+						selected channel name.</para>
+					</option>
+					<option name="r">
+						<para>Record the session to the monitor spool directory. An optional base for the filename 
+						may be specified. The default is <literal>chanspy</literal>.</para>
+						<argument name="basename" />
+					</option>
+					<option name="s">
+						<para>Skip the playback of the channel type (i.e. SIP, IAX, etc) when
+						speaking the selected channel name.</para>
+					</option>
+					<option name="v">
+						<argument name="value" />
+						<para>Adjust the initial volume in the range from <literal>-4</literal> 
+						to <literal>4</literal>. A negative value refers to a quieter setting.</para>
+					</option>
+					<option name="w">
+						<para>Enable <literal>whisper</literal> mode, so the spying channel can talk to
+						the spied-on channel.</para>
+					</option>
+					<option name="W">
+						<para>Enable <literal>private whisper</literal> mode, so the spying channel can
+						talk to the spied-on channel but cannot listen to that channel.</para>
+					</option>
+					<option name="o">
+						<para>Only listen to audio coming from this channel.</para>
+					</option>
+					<option name="X">
+						<para>Allow the user to exit ChanSpy to a valid single digit
+						numeric extension in the current context or the context
+						specified by the <variable>SPY_EXIT_CONTEXT</variable> channel variable. The
+						name of the last channel that was spied on will be stored
+						in the <variable>SPY_CHANNEL</variable> variable.</para>
+					</option>
+					<option name="e">
+						<argument name="ext" required="true" />
+						<para>Enable <emphasis>enforced</emphasis> mode, so the spying channel can
+						only monitor extensions whose name is in the <replaceable>ext</replaceable> : delimited 
+						list.</para>
+					</option>
+				</optionlist>		
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application is used to listen to the audio from an Asterisk channel. This includes the audio 
+			coming in and "out of the channel being spied on. If the <literal>chanprefix</literal> parameter is specified,
+			only channels beginning with this string will be spied upon.</para>
+			<para>While spying, the following actions may be performed:</para>
+			<para> - Dialing <literal>#</literal> cycles the volume level.</para>
+			<para> - Dialing <literal>*</literal> will stop spying and look for another channel to spy on.</para>
+			<para> - Dialing a series of digits followed by <literal>#</literal> builds a channel name to append
+			to 'chanprefix'. For example, executing ChanSpy(Agent) and then dialing the digits '1234#' 
+			while spying will begin spying on the channel 'Agent/1234'. Note that this feature will be overriden if the 'd' option
+			is used</para>
+			<note><para>The <replaceable>X</replaceable> option supersedes the three features above in that if a valid
+			single digit extension exists in the correct context ChanSpy will exit to it.
+			This also disables choosing a channel based on <literal>chanprefix</literal> and a digit sequence.</para></note>
+		</description>
+	</application>
+	<application name="ExtenSpy" language="en_US">
+		<synopsis>
+			Listen to a channel, and optionally whisper into it.
+		</synopsis>
+		<syntax>
+			<parameter name="exten" required="true" argsep="@">
+				<argument name="exten" required="true">
+					<para>Specify extension.</para>
+				</argument>
+				<argument name="context">
+					<para>Optionally specify a context, defaults to <literal>default</literal>.</para>
+				</argument>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="b">
+						<para>Only spy on channels involved in a bridged call.</para>
+					</option>
+					<option name="B">
+						<para>Instead of whispering on a single channel barge in on both
+						channels involved in the call.</para>
+					</option>
+					<option name="d">
+						<para>Override the typical numeric DTMF functionality and instead
+						use DTMF to switch between spy modes.</para>
+						<enumlist>
+							<enum name="4">
+								<para>spy mode</para>
+							</enum>
+							<enum name="5">
+								<para>whisper mode</para>
+							</enum>
+							<enum name="6">
+								<para>barge mode</para>
+							</enum>
+						</enumlist>
+					</option>
+					<option name="g">
+						<argument name="grp" required="true">
+							<para>Only spy on channels in which one or more of the groups
+							listed in <replaceable>grp</replaceable> matches one or more groups from the
+							<variable>SPYGROUP</variable> variable set on the channel to be spied upon.</para>
+						</argument>
+						<note><para>both <replaceable>grp</replaceable> and <variable>SPYGROUP</variable> can contain 
+						either a single group or a colon-delimited list of groups, such
+						as <literal>sales:support:accounting</literal>.</para></note>
+					</option>
+					<option name="n" argsep="@">
+						<para>Say the name of the person being spied on if that person has recorded
+						his/her name. If a context is specified, then that voicemail context will
+						be searched when retrieving the name, otherwise the <literal>default</literal> context
+						be used when searching for the name (i.e. if SIP/1000 is the channel being
+						spied on and no mailbox is specified, then <literal>1000</literal> will be used when searching
+						for the name).</para>
+						<argument name="mailbox" />
+						<argument name="context" />
+					</option>
+					<option name="q">
+						<para>Don't play a beep when beginning to spy on a channel, or speak the
+						selected channel name.</para>
+					</option>
+					<option name="r">
+						<para>Record the session to the monitor spool directory. An optional base for the filename 
+						may be specified. The default is <literal>chanspy</literal>.</para>
+						<argument name="basename" />
+					</option>
+					<option name="s">
+						<para>Skip the playback of the channel type (i.e. SIP, IAX, etc) when
+						speaking the selected channel name.</para>
+					</option>
+					<option name="v">
+						<argument name="value" />
+						<para>Adjust the initial volume in the range from <literal>-4</literal> 
+						to <literal>4</literal>. A negative value refers to a quieter setting.</para>
+					</option>
+					<option name="w">
+						<para>Enable <literal>whisper</literal> mode, so the spying channel can talk to
+						the spied-on channel.</para>
+					</option>
+					<option name="W">
+						<para>Enable <literal>private whisper</literal> mode, so the spying channel can
+						talk to the spied-on channel but cannot listen to that channel.</para>
+					</option>
+					<option name="o">
+						<para>Only listen to audio coming from this channel.</para>
+					</option>
+					<option name="X">
+						<para>Allow the user to exit ChanSpy to a valid single digit
+						numeric extension in the current context or the context
+						specified by the <variable>SPY_EXIT_CONTEXT</variable> channel variable. The
+						name of the last channel that was spied on will be stored
+						in the <variable>SPY_CHANNEL</variable> variable.</para>
+					</option>
+					<option name="e">
+						<argument name="ext" required="true" />
+						<para>Enable <emphasis>enforced</emphasis> mode, so the spying channel can
+						only monitor extensions whose name is in the <replaceable>ext</replaceable> : delimited 
+						list.</para>
+					</option>
+				</optionlist>	
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application is used to listen to the audio from an Asterisk channel. This includes 
+			the audio coming in and out of the channel being spied on. Only channels created by outgoing calls for the
+			specified extension will be selected for spying. If the optional context is not supplied, 
+			the current channel's context will be used.</para>
+			<para>While spying, the following actions may be performed:</para>
+			<para> - Dialing <literal>#</literal> cycles the volume level.</para>
+                        <para> - Dialing <literal>*</literal> will stop spying and look for another channel to spy on.</para>
+			<note><para>The <replaceable>X</replaceable> option supersedes the three features above in that if a valid
+			single digit extension exists in the correct context ChanSpy will exit to it.
+			This also disables choosing a channel based on <literal>chanprefix</literal> and a digit sequence.</para></note>
+		</description>
+	</application>
+
+ ***/
 static const char *app_chan = "ChanSpy";
-static const char *desc_chan =
-"  ChanSpy([chanprefix][,options]): This application is used to listen to the\n"
-"audio from an Asterisk channel. This includes the audio coming in and\n"
-"out of the channel being spied on. If the 'chanprefix' parameter is specified,\n"
-"only channels beginning with this string will be spied upon.\n"
-"  While spying, the following actions may be performed:\n"
-"    - Dialing # cycles the volume level.\n"
-"    - Dialing * will stop spying and look for another channel to spy on.\n"
-"    - Dialing a series of digits followed by # builds a channel name to append\n"
-"      to 'chanprefix'. For example, executing ChanSpy(Agent) and then dialing\n"
-"      the digits '1234#' while spying will begin spying on the channel\n"
-"      'Agent/1234'. Note that this feature will be overriden if the 'd' option\n"
-"       is used\n"
-"  Note: The X option supersedes the three features above in that if a valid\n"
-"        single digit extension exists in the correct context ChanSpy will\n"
-"        exit to it. This also disables choosing a channel based on 'chanprefix'\n"
-"        and a digit sequence.\n"
-"  Options:\n"
-"    b                      - Only spy on channels involved in a bridged call.\n"
-"    B                      - Instead of whispering on a single channel barge in on both\n"
-"                             channels involved in the call.\n"
-"    d                      - Override the typical numeric DTMF functionality and instead\n"
-"                             use DTMF to switch between spy modes.\n"
-"                                     4 = spy mode\n"
-"                                     5 = whisper mode\n"
-"                                     6 = barge mode\n"
-"    g(grp)                 - Only spy on channels in which one or more of the groups \n"
-"                             listed in 'grp' matches one or more groups from the\n"
-"                             SPYGROUP variable set on the channel to be spied upon.\n"
-"                             Note that both 'grp' and SPYGROUP can contain either a\n"
-"                             single group or a colon-delimited list of groups, such\n"
-"                             as 'sales:support:accounting'.\n"
-"    n([mailbox][@context]) - Say the name of the person being spied on if that person has recorded\n"
-"                             his/her name. If a context is specified, then that voicemail context will\n"
-"                             be searched when retrieving the name, otherwise the \"default\" context\n"
-"                             will be searched. If no mailbox is specified, then the channel name will\n"
-"                             be used when searching for the name (i.e. if SIP/1000 is the channel being\n"
-"                             spied on and no mailbox is specified, then \"1000\" will be used when searching\n"
-"                             for the name).\n"
-"    q                      - Don't play a beep when beginning to spy on a channel, or speak the\n"
-"                             selected channel name.\n"
-"    r[(basename)]          - Record the session to the monitor spool directory. An\n"
-"                             optional base for the filename may be specified. The\n"
-"                             default is 'chanspy'.\n"
-"    s                      - Skip the playback of the channel type (i.e. SIP, IAX, etc) when\n"
-"                             speaking the selected channel name.\n"
-"    v([value])             - Adjust the initial volume in the range from -4 to 4. A\n"
-"                             negative value refers to a quieter setting.\n"
-"    w                      - Enable 'whisper' mode, so the spying channel can talk to\n"
-"                             the spied-on channel.\n"
-"    W                      - Enable 'private whisper' mode, so the spying channel can\n"
-"                             talk to the spied-on channel but cannot listen to that\n"
-"                             channel.\n"
-"    o                      - Only listen to audio coming from this channel.\n"
-"    X                      - Allow the user to exit ChanSpy to a valid single digit\n"
-"                             numeric extension in the current context or the context\n"
-"                             specified by the SPY_EXIT_CONTEXT channel variable. The\n"
-"                             name of the last channel that was spied on will be stored\n"
-"                             in the SPY_CHANNEL variable.\n"
-"    e(ext)                 - Enable 'enforced' mode, so the spying channel can\n"
-"                             only monitor extensions whose name is in the 'ext' : \n"
-"                             delimited list.\n"
-;
 
 static const char *app_ext = "ExtenSpy";
-static const char *desc_ext =
-"  ExtenSpy(exten[@context][,options]): This application is used to listen to the\n"
-"audio from an Asterisk channel. This includes the audio coming in and\n"
-"out of the channel being spied on. Only channels created by outgoing calls for the\n"
-"specified extension will be selected for spying. If the optional context is not\n"
-"supplied, the current channel's context will be used.\n"
-"  While spying, the following actions may be performed:\n"
-"    - Dialing # cycles the volume level.\n"
-"    - Dialing * will stop spying and look for another channel to spy on.\n"
-"  Note: The X option superseeds the two features above in that if a valid\n"
-"        single digit extension exists in the correct context it ChanSpy will\n"
-"        exit to it.\n"
-"  Options:\n"
-"    b                      - Only spy on channels involved in a bridged call.\n"
-"    B                      - Instead of whispering on a single channel barge in on both\n"
-"                             channels involved in the call.\n"
-"    d                      - Override the typical numeric DTMF functionality and instead\n"
-"                             use DTMF to switch between spy modes.\n"
-"                                     4 = spy mode\n"
-"                                     5 = whisper mode\n"
-"                                     6 = barge mode\n"
-"    g(grp)                 - Only spy on channels in which one or more of the groups \n"
-"                             listed in 'grp' matches one or more groups from the\n"
-"                             SPYGROUP variable set on the channel to be spied upon.\n"
-"                             Note that both 'grp' and SPYGROUP can contain either a\n"
-"                             single group or a colon-delimited list of groups, such\n"
-"                             as 'sales:support:accounting'.\n"
-"    n([mailbox][@context]) - Say the name of the person being spied on if that person has recorded\n"
-"                             his/her name. If a context is specified, then that voicemail context will\n"
-"                             be searched when retrieving the name, otherwise the \"default\" context\n"
-"                             will be searched. If no mailbox is specified, then the channel name will\n"
-"                             be used when searching for the name (i.e. if SIP/1000 is the channel being\n"
-"                             spied on and no mailbox is specified, then \"1000\" will be used when searching\n"
-"                             for the name).\n"
-"    q                      - Don't play a beep when beginning to spy on a channel, or speak the\n"
-"                             selected channel name.\n"
-"    r[(basename)]          - Record the session to the monitor spool directory. An\n"
-"                             optional base for the filename may be specified. The\n"
-"                             default is 'chanspy'.\n"
-"    s                      - Skip the playback of the channel type (i.e. SIP, IAX, etc) when\n"
-"                             speaking the selected channel name.\n"
-"    v([value])             - Adjust the initial volume in the range from -4 to 4. A\n"
-"                             negative value refers to a quieter setting.\n"
-"    w                      - Enable 'whisper' mode, so the spying channel can talk to\n"
-"                             the spied-on channel.\n"
-"    W                      - Enable 'private whisper' mode, so the spying channel can\n"
-"                             talk to the spied-on channel but cannot listen to that\n"
-"                             channel.\n"
-"    o                      - Only listen to audio coming from this channel.\n"
-"    X                      - Allow the user to exit ChanSpy to a valid single digit\n"
-"                             numeric extension in the current context or the context\n"
-"                             specified by the SPY_EXIT_CONTEXT channel variable. The\n"
-"                             name of the last channel that was spied on will be stored\n"
-"                             in the SPY_CHANNEL variable.\n"
-;
 
 enum {
 	OPTION_QUIET             = (1 << 0),    /* Quiet, no announcement */
@@ -1103,8 +1213,8 @@ static int load_module(void)
 {
 	int res = 0;
 
-	res |= ast_register_application(app_chan, chanspy_exec, tdesc, desc_chan);
-	res |= ast_register_application(app_ext, extenspy_exec, tdesc, desc_ext);
+	res |= ast_register_application_xml(app_chan, chanspy_exec);
+	res |= ast_register_application_xml(app_ext, extenspy_exec);
 
 	return res;
 }

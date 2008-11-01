@@ -46,6 +46,109 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/enum.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<function name="ENUMQUERY" language="en_US">
+		<synopsis>
+			Initiate an ENUM query.
+		</synopsis>
+		<syntax>
+			<parameter name="number" required="true" />
+			<parameter name="method-type">
+				<para>If no <replaceable>method-type</replaceable> is given, the default will be
+				<literal>sip</literal>.</para>
+			</parameter>
+			<parameter name="zone-suffix">
+				<para>If no <replaceable>zone-suffix</replaceable> is given, the default will be
+				<literal>e164.arpa</literal></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This will do a ENUM lookup of the given phone number.</para>
+		</description>
+	</function>
+	<function name="ENUMRESULT" language="en_US">
+		<synopsis>
+			Retrieve results from a ENUMQUERY.
+		</synopsis>
+		<syntax>
+			<parameter name="id" required="true">
+				<para>The identifier returned by the ENUMQUERY function.</para>
+			</parameter>
+			<parameter name="resultnum" required="true">
+				<para>The number of the result that you want to retrieve.</para>
+				<para>Results start at <literal>1</literal>. If this argument is specified
+				as <literal>getnum</literal>, then it will return the total number of results 
+				that are available.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This function will retrieve results from a previous use
+			of the ENUMQUERY function.</para>
+		</description>
+	</function>	
+	<function name="ENUMLOOKUP" language="en_US">
+		<synopsis>
+			General or specific querying of NAPTR records for ENUM or ENUM-like DNS pointers.
+		</synopsis>
+		<syntax>
+			<parameter name="number" required="true" />
+			<parameter name="method-type">
+				<para>If no <replaceable>method-type</replaceable> is given, the default will be
+                                <literal>sip</literal>.</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="c">
+						<para>Returns an integer count of the number of NAPTRs of a certain RR type.</para>
+						<para>Combination of <literal>c</literal> and Method-type of <literal>ALL</literal> will
+						return a count of all NAPTRs for the record.</para>
+					</option>
+					<option name="u">
+						<para>Returns the full URI and does not strip off the URI-scheme.</para>
+					</option>
+					<option name="s">
+						<para>Triggers ISN specific rewriting.</para>
+					</option>
+					<option name="i">
+						<para>Looks for branches into an Infrastructure ENUM tree.</para>
+					</option>
+					<option name="d">
+						<para>for a direct DNS lookup without any flipping of digits.</para>
+					</option>
+				</optionlist>	
+			</parameter>
+			<parameter name="record#">
+				<para>If no <replaceable>record#</replaceable> is given, 
+				defaults to <literal>1</literal>.</para>
+			</parameter>
+			<parameter name="zone-suffix">
+				<para>If no <replaceable>zone-suffix</replaceable> is given, the default will be
+				<literal>e164.arpa</literal></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>For more information see <filename>doc/asterisk.pdf</filename>.</para>
+		</description>
+	</function>
+	<function name="TXTCIDNAME" language="en_US">
+		<synopsis>
+			TXTCIDNAME looks up a caller name via DNS.
+		</synopsis>
+		<syntax>
+			<parameter name="number" required="true" />
+			<parameter name="zone-suffix">
+				<para>If no <replaceable>zone-suffix</replaceable> is given, the default will be
+				<literal>e164.arpa</literal></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This function looks up the given phone number in DNS to retrieve
+			the caller id name.  The result will either be blank or be the value
+			found in the TXT record in DNS.</para>
+		</description>
+	</function>
+ ***/
+
 static char *synopsis = "Syntax: ENUMLOOKUP(number[,Method-type[,options[,record#[,zone-suffix]]]])\n";
 
 static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
@@ -295,44 +398,16 @@ finish:
 
 static struct ast_custom_function enum_query_function = {
 	.name = "ENUMQUERY",
-	.synopsis = "Initiate an ENUM query",
-	.syntax = "ENUMQUERY(number[,Method-type[,zone-suffix]])",
-	.desc = "This will do a ENUM lookup of the given phone number.\n"
-	"If no method-tpye is given, the default will be sip. If no\n"
-	"zone-suffix is given, the default will be \"e164.arpa\".\n"
-	"The result of this function will be a numeric ID that can\n"
-	"be used to retrieve the results using the ENUMRESULT function.\n",
 	.read = enum_query_read,
 };
 
 static struct ast_custom_function enum_result_function = {
 	.name = "ENUMRESULT",
-	.synopsis = "Retrieve results from a ENUMQUERY",
-	.syntax = "ENUMRESULT(id,resultnum)",
-	.desc = "This function will retrieve results from a previous use\n"
-	"of the ENUMQUERY function.\n"
-	"  id - This argument is the identifier returned by the ENUMQUERY function.\n"
-	"  resultnum - This is the number of the result that you want to retrieve.\n"
-	"       Results start at 1.  If this argument is specified as \"getnum\",\n"
-	"       then it will return the total number of results that are available.\n",
 	.read = enum_result_read,
 };
 
 static struct ast_custom_function enum_function = {
 	.name = "ENUMLOOKUP",
-	.synopsis =
-		"General or specific querying of NAPTR records for ENUM or ENUM-like DNS pointers",
-	.syntax =
-		"ENUMLOOKUP(number[,Method-type[,options[,record#[,zone-suffix]]]])",
-	.desc =
-		"Option 'c' returns an integer count of the number of NAPTRs of a certain RR type.\n"
-		"Combination of 'c' and Method-type of 'ALL' will return a count of all NAPTRs for the record.\n"
-		"Option 'u' returns the full URI and does not strip off the URI-scheme.\n"
-		"Option 's' triggers ISN specific rewriting\n"
-		"Option 'i' looks for branches into an Infrastructure ENUM tree\n"
-		"Option 'd' for a direct DNS lookup without any flipping of digits\n"
-		"Defaults are: Method-type=sip, no options, record=1, zone-suffix=e164.arpa\n\n"
-		"For more information, see doc/asterisk.pdf",
 	.read = function_enum,
 };
 
@@ -370,12 +445,6 @@ static int function_txtcidname(struct ast_channel *chan, const char *cmd,
 
 static struct ast_custom_function txtcidname_function = {
 	.name = "TXTCIDNAME",
-	.synopsis = "TXTCIDNAME looks up a caller name via DNS",
-	.syntax = "TXTCIDNAME(<number>[,zone-suffix])",
-	.desc =
-		"This function looks up the given phone number in DNS to retrieve\n"
-		"the caller id name.  The result will either be blank or be the value\n"
-		"found in the TXT record in DNS. The default zone-suffix is e164.arpa.\n",
 	.read = function_txtcidname,
 };
 

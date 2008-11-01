@@ -34,17 +34,32 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/indications.h"
 
+/*** DOCUMENTATION
+	<application name="Morsecode" language="en_US">
+		<synopsis>
+			Plays morse code
+		</synopsis>
+		<syntax>
+			<parameter name="string" required="true">
+				<para>String to playback as morse code to channel</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Plays the Morse code equivalent of the passed string.</para>
+
+			<para>This application uses the following variables:</para>
+			<variablelist>
+				<variable name="MORSEDITLEN">
+					<para>Use this value in (ms) for length of dit</para>
+				</variable>
+				<variable name="MORSETONE">
+					<para>The pitch of the tone in (Hz), default is 800</para>
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+ ***/	
 static char *app_morsecode = "Morsecode";
-
-static char *morsecode_synopsis = "Plays morse code";
-
-static char *morsecode_descrip =
-"  Morsecode(<string>):\n"
-"Plays the Morse code equivalent of the passed string.  If the variable\n"
-"MORSEDITLEN is set, it will use that value for the length (in ms) of the dit\n"
-"(defaults to 80).  Additionally, if MORSETONE is set, it will use that tone\n"
-"(in Hz).  The tone default is 800.\n";
-
 
 static char *morsecode[] = {
 	"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", /*  0-15 */
@@ -159,7 +174,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app_morsecode, morsecode_exec, morsecode_synopsis, morsecode_descrip);
+	return ast_register_application_xml(app_morsecode, morsecode_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Morse code");

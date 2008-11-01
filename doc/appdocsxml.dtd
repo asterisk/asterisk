@@ -1,0 +1,64 @@
+  <!ELEMENT docs (application|function)* >
+
+  <!ELEMENT application (synopsis?,syntax?,description?,see-also?)>
+  <!ATTLIST application name CDATA #REQUIRED>
+  <!ATTLIST application language CDATA #REQUIRED>
+
+  <!ELEMENT function (synopsis?,syntax?,description?,see-also?)>
+  <!ATTLIST function name CDATA #REQUIRED>
+  <!ATTLIST function language CDATA #REQUIRED>  
+
+  <!ELEMENT see-also (ref*)>
+
+  <!ELEMENT ref (#PCDATA)*>
+  <!ATTLIST ref type (application|function|astcli|link|manpage) #REQUIRED>
+
+  <!ELEMENT synopsis (#PCDATA)>
+  
+  <!ELEMENT syntax (parameter*)>
+  <!ATTLIST syntax argsep CDATA ",">
+
+  <!ELEMENT description (para|note|warning|variablelist|enumlist)*>
+
+  <!ELEMENT parameter (optionlist|enumlist|argument|para|note|warning)*>
+  <!ATTLIST parameter name CDATA #REQUIRED>
+  <!ATTLIST parameter required (yes|no|true|false) "false">
+  <!ATTLIST parameter multiple (yes|no|true|false) "false">
+  <!ATTLIST parameter hasparams (yes|no|true|false|optional) "false">
+  <!ATTLIST parameter argsep CDATA ",">
+
+  <!ELEMENT optionlist (option+)>
+  <!ELEMENT option (argument|para|note|warning|variablelist|enumlist)*>
+  <!ATTLIST option name CDATA #REQUIRED> 
+  <!ATTLIST option argsep CDATA ",">
+  <!ATTLIST option implies CDATA "">
+
+  <!ELEMENT enumlist (enum+)>
+  <!ELEMENT enum (para|note|warning)*>
+  <!ATTLIST enum name CDATA #REQUIRED>
+
+  <!ELEMENT argument (para|note|warning|variablelist|argument)*>
+  <!ATTLIST argument name CDATA #REQUIRED>
+  <!ATTLIST argument multiple (yes|no|true|false) "false">
+  <!ATTLIST argument required (yes|no|true|false) "false">
+  <!ATTLIST argument hasparams (yes|no|true|false|optional) "false">
+
+  <!ELEMENT para (#PCDATA|astcli|literal|emphasis|filename|directory|replaceable|variable)*>
+  <!ELEMENT literal (#PCDATA)>
+  <!ELEMENT emphasis (#PCDATA)>
+  <!ELEMENT filename (#PCDATA)>
+  <!ELEMENT replaceable (#PCDATA)>
+  <!ELEMENT directory (#PCDATA)>
+  <!ELEMENT astcli (#PCDATA)>
+ 
+  <!ELEMENT note (para+)>
+  <!ELEMENT warning (para+)>
+ 
+  <!ELEMENT variablelist (variable+)>
+  <!ELEMENT variable (#PCDATA|value|para)*>
+  <!ATTLIST variable name CDATA "">
+  
+  <!ELEMENT value (#PCDATA)>
+  <!ATTLIST value name CDATA #REQUIRED>
+  <!ATTLIST value default CDATA "">
+

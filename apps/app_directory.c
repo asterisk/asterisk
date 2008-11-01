@@ -42,50 +42,78 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
 
-static char *app = "Directory";
+/*** DOCUMENTATION
+	<application name="Directory" language="en_US">
+		<synopsis>
+			Provide directory of voicemail extensions.
+		</synopsis>
+		<syntax>
+			<parameter name="vm-context">
+				<para>This is the context within voicemail.conf to use for the Directory. If not specified and
+				<literal>searchcontexts=no</literal> in <filename>voicemail.conf</filename>, then <literal>default</literal>
+				will be assumed.</para>
+			</parameter>
+			<parameter name="dial-context" required="false">
+				<para>This is the dialplan context to use when looking for an
+				extension that the user has selected, or when jumping to the
+				<literal>o</literal> or <literal>a</literal> extension.</para>
+			</parameter>
+			<parameter name="options" required="false">
+				<optionlist>
+					<option name="e">
+						<para>In addition to the name, also read the extension number to the
+						caller before presenting dialing options.</para>
+					</option>
+					<option name="f">
+						<para>Allow the caller to enter the first name of a user in the
+						directory instead of using the last name.  If specified, the
+						optional number argument will be used for the number of
+						characters the user should enter.</para>
+						<argument name="n" required="true" />
+					</option>
+					<option name="l">
+						<para>Allow the caller to enter the last name of a user in the
+						directory.  This is the default.  If specified, the
+						optional number argument will be used for the number of
+						characters the user should enter.</para>
+						<argument name="n" required="true" />
+					</option>
+					<option name="b">
+						<para> Allow the caller to enter either the first or the last name
+						of a user in the directory.  If specified, the optional number
+						argument will be used for the number of characters the user should enter.</para>
+						<argument name="n" required="true" />
+					</option>
+					<option name="m">
+						<para>Instead of reading each name sequentially and asking for
+						confirmation, create a menu of up to 8 names.</para>
+					</option>
+					<option name="p">
+						<para>Pause for n milliseconds after the digits are typed.  This is
+						helpful for people with cellphones, who are not holding the
+						receiver to their ear while entering DTMF.</para>
+						<argument name="n" required="true" />
+					</option>
+				</optionlist>
+				<note><para>Only one of the <replaceable>f</replaceable>, <replaceable>l</replaceable>, or <replaceable>b</replaceable>
+				options may be specified. <emphasis>If more than one is specified</emphasis>, then Directory will act as 
+				if <replaceable>b</replaceable> was specified.  The number
+				of characters for the user to type defaults to <literal>3</literal>.</para></note>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application will present the calling channel with a directory of extensions from which they can search
+			by name. The list of names and corresponding extensions is retrieved from the
+			voicemail configuration file, <filename>voicemail.conf</filename>.</para>
+			<para>This application will immediately exit if one of the following DTMF digits are
+			received and the extension to jump to exists:</para>
+			<para><literal>0</literal> - Jump to the 'o' extension, if it exists.</para>
+			<para><literal>*</literal> - Jump to the 'a' extension, if it exists.</para>
+		</description>
+	</application>
 
-static char *synopsis = "Provide directory of voicemail extensions";
-static char *descrip =
-"  Directory([vm-context][,dial-context[,options]]): This application will present\n"
-"the calling channel with a directory of extensions from which they can search\n"
-"by name. The list of names and corresponding extensions is retrieved from the\n"
-"voicemail configuration file, voicemail.conf.\n"
-"  This application will immediately exit if one of the following DTMF digits are\n"
-"received and the extension to jump to exists:\n"
-"    0 - Jump to the 'o' extension, if it exists.\n"
-"    * - Jump to the 'a' extension, if it exists.\n\n"
-"  Parameters:\n"
-"    vm-context   - This is the context within voicemail.conf to use for the\n"
-"                   Directory.  If not specified and searchcontexts=no in\n"
-"                   voicemail.conf, then \"default\" will be assumed.\n"
-"                   Otherwise, in not specified, all contexts will be searched.\n"
-"    dial-context - This is the dialplan context to use when looking for an\n"
-"                   extension that the user has selected, or when jumping to the\n"
-"                   'o' or 'a' extension.\n\n"
-"  Options:\n"
-"    e           In addition to the name, also read the extension number to the\n"
-"              caller before presenting dialing options.\n"
-"    f[(<n>)]    Allow the caller to enter the first name of a user in the\n"
-"              directory instead of using the last name.  If specified, the\n"
-"              optional number argument will be used for the number of\n"
-"              characters the user should enter.\n"
-"    l[(<n>)]    Allow the caller to enter the last name of a user in the\n"
-"              directory.  This is the default.  If specified, the\n"
-"              optional number argument will be used for the number of\n"
-"              characters the user should enter.\n"
-"    b[(<n>)]    Allow the caller to enter either the first or the last name\n"
-"              of a user in the directory.  If specified, the optional number\n"
-"              argument will be used for the number of characters the user\n"
-"              should enter.\n"
-"    m           Instead of reading each name sequentially and asking for\n"
-"              confirmation, create a menu of up to 8 names.\n"
-"    p(<n>)      Pause for n milliseconds after the digits are typed.  This is\n"
-"              helpful for people with cellphones, who are not holding the\n"
-"              receiver to their ear while entering DTMF.\n"
-"\n"
-"    Only one of the f, l, or b options may be specified.  If more than one is\n"
-"    specified, then Directory will act as if 'b' was specified.  The number\n"
-"    of characters for the user to type defaults to 3.\n";
+ ***/
+static char *app = "Directory";
 
 /* For simplicity, I'm keeping the format compatible with the voicemail config,
    but i'm open to suggestions for isolating it */
@@ -809,7 +837,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, directory_exec, synopsis, descrip);
+	return ast_register_application_xml(app, directory_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Extension Directory");

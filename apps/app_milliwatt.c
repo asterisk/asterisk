@@ -37,16 +37,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 
+/*** DOCUMENTATION
+	<application name="Milliwatt" language="en_US">
+		<synopsis>
+			Generate a Constant 1004Hz tone at 0dbm (mu-law).
+		</synopsis>
+		<syntax>
+			<parameter name="options">
+				<optionlist>
+					<option name="o">
+						<para>Generate the tone at 1000Hz like previous version.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Previous versions of this application generated the tone at 1000Hz.  If for
+			some reason you would prefer that behavior, supply the <literal>o</literal> option to get the
+			old behavior.</para>
+		</description>
+	</application>
+ ***/
+
 static char *app = "Milliwatt";
-
-static char *synopsis = "Generate a Constant 1004Hz tone at 0dbm (mu-law)";
-
-static char *descrip = 
-"   Milliwatt([options]): Generate a Constant 1004Hz tone at 0dbm.\n"
-"Previous versions of this application generated the tone at 1000Hz.  If for\n"
-"some reason you would prefer that behavior, supply the 'o' option to get the\n"
-"old behavior.\n"
-"";
 
 static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
 
@@ -161,7 +174,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, milliwatt_exec, synopsis, descrip);
+	return ast_register_application_xml(app, milliwatt_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Digital Milliwatt (mu-law) Test Application");

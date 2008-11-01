@@ -117,6 +117,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/devicestate.h"
 #include "asterisk/module.h"
 #include "asterisk/dsp.h"
+#include "asterisk/xml.h"
 #include "asterisk/buildinfo.h"
 
 #include "asterisk/doxyref.h"		/* Doxygen documentation */
@@ -3321,6 +3322,11 @@ int main(int argc, char *argv[])
 		printf("%s", term_quit());
 		exit(1);
 	}
+
+#ifdef AST_XML_DOCS
+	/* Load XML documentation. */
+	ast_load_documentation();
+#endif
 
 	if (load_modules(1)) {		/* Load modules, pre-load only */
 		printf("%s", term_quit());

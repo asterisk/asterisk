@@ -32,6 +32,74 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/callerid.h"
 
+/*** DOCUMENTATION
+	<function name="CALLERID" language="en_US">
+		<synopsis>
+			Gets or sets Caller*ID data on the channel.
+		</synopsis>
+		<syntax>
+			<parameter name="datatype" required="true">
+				<para>The allowable datatypes are:</para>
+				<enumlist>
+					<enum name="all" />
+					<enum name="num" />
+					<enum name="ANI" />
+					<enum name="DNID" />
+					<enum name="RDNIS" />
+					<enum name="pres" />
+					<enum name="ton" />
+				</enumlist>
+			</parameter>
+			<parameter name="CID">
+				<para>Optional Caller*ID</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Gets or sets Caller*ID data on the channel. Uses channel callerid by default or optional
+			callerid, if specified.</para>
+		</description>
+	</function>
+	<function name="CALLERPRES" language="en_US">
+		<synopsis>
+			Gets or sets Caller*ID presentation on the channel.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Gets or sets Caller*ID presentation on the channel. The following values
+			are valid:</para>
+			<enumlist>
+				<enum name="allowed_not_screened">
+					<para>Presentation Allowed, Not Screened.</para>
+				</enum>
+				<enum name="allowed_passed_screen">
+					<para>Presentation Allowed, Passed Screen.</para>
+				</enum>
+				<enum name="allowed_failed_screen">
+					<para>Presentation Allowed, Failed Screen.</para>
+				</enum>
+				<enum name="allowed">
+					<para>Presentation Allowed, Network Number.</para>
+				</enum>
+				<enum name="prohib_not_screened">
+					<para>Presentation Prohibited, Not Screened.</para>
+				</enum>
+				<enum name="prohib_passed_screen">
+					<para>Presentation Prohibited, Passed Screen.</para>
+				</enum>
+				<enum name="prohib_failed_screen">
+					<para>Presentation Prohibited, Failed Screen.</para>
+				</enum>
+				<enum name="prohib">
+					<para>Presentation Prohibited, Network Number.</para>
+				</enum>
+				<enum name="unavailable">
+					<para>Number Unavailable.</para>
+				</enum>
+			</enumlist>
+		</description>
+	</function>
+ ***/
+
 static int callerpres_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	ast_copy_string(buf, ast_named_caller_presentation(chan->cid.cid_pres), len);
@@ -184,33 +252,12 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function callerid_function = {
 	.name = "CALLERID",
-	.synopsis = "Gets or sets Caller*ID data on the channel.",
-	.syntax = "CALLERID(datatype[,<optional-CID>])",
-	.desc =
-		"Gets or sets Caller*ID data on the channel.  The allowable datatypes\n"
-		"are \"all\", \"name\", \"num\", \"ANI\", \"DNID\", \"RDNIS\", \"pres\",\n"
-		"and \"ton\".\n"
-		"Uses channel callerid by default or optional callerid, if specified.\n",
 	.read = callerid_read,
 	.write = callerid_write,
 };
 
 static struct ast_custom_function callerpres_function = {
 	.name = "CALLERPRES",
-	.synopsis = "Gets or sets Caller*ID presentation on the channel.",
-	.syntax = "CALLERPRES()",
-	.desc =
-"Gets or sets Caller*ID presentation on the channel.  The following values\n"
-"are valid:\n"
-"      allowed_not_screened    : Presentation Allowed, Not Screened\n"
-"      allowed_passed_screen   : Presentation Allowed, Passed Screen\n" 
-"      allowed_failed_screen   : Presentation Allowed, Failed Screen\n" 
-"      allowed                 : Presentation Allowed, Network Number\n"
-"      prohib_not_screened     : Presentation Prohibited, Not Screened\n" 
-"      prohib_passed_screen    : Presentation Prohibited, Passed Screen\n"
-"      prohib_failed_screen    : Presentation Prohibited, Failed Screen\n"
-"      prohib                  : Presentation Prohibited, Network Number\n"
-"      unavailable             : Number Unavailable\n",
 	.read = callerpres_read,
 	.write = callerpres_write,
 };

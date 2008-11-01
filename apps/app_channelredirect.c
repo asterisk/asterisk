@@ -35,14 +35,32 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/features.h"
 
+/*** DOCUMENTATION
+	<application name="ChannelRedirect" language="en_US">
+		<synopsis>
+			Redirects given channel to a dialplan target
+		</synopsis>
+		<syntax>
+			<parameter name="channel" required="true" />
+			<parameter name="context" required="false" />
+			<parameter name="extension" required="false" />
+			<parameter name="priority" required="true" />
+		</syntax>
+		<description>
+			<para>Sends the specified channel to the specified extension priority</para>
+
+			<para>This application sets the following channel variables upon completion</para>
+			<variablelist>
+				<variable name="CHANNELREDIRECT_STATUS">
+					<value name="NOCHANNEL" />
+					<value name="SUCCESS" />
+					<para>Are set to the result of the redirection</para>
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+ ***/
 static char *app = "ChannelRedirect";
-static char *synopsis = "Redirects given channel to a dialplan target.";
-static char *descrip =
-"ChannelRedirect(channel,[[context,]extension,]priority)\n"
-"  Sends the specified channel to the specified extension priority\n"
-"This application sets the following channel variables upon completion:\n"
-"  CHANNELREDIRECT_STATUS - Are set to the result of the redirection\n"
-"                           either NOCHANNEL or SUCCESS\n";
 
 static int asyncgoto_exec(struct ast_channel *chan, void *data)
 {
@@ -89,7 +107,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, asyncgoto_exec, synopsis, descrip) ?
+	return ast_register_application_xml(app, asyncgoto_exec) ?
 		AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 

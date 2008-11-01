@@ -39,45 +39,88 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<application name="AMD" language="en_US">
+		<synopsis>
+			Attempt to detect answering machines.
+		</synopsis>
+		<syntax>
+			<parameter name="initialSilence" required="false">
+				<para>Is maximum initial silence duration before greeting.</para>
+				<para>If this is exceeded set as MACHINE</para>
+			</parameter>
+			<parameter name="greeting" required="false">
+				<para>is the maximum length of a greeting.</para>
+				<para>If this is exceeded set as MACHINE</para>
+			</parameter>
+			<parameter name="afterGreetingSilence" required="false">
+				<para>Is the silence after detecting a greeting.</para>
+				<para>If this is exceeded set as HUMAN</para>
+			</parameter>
+			<parameter name="totalAnalysis Time" required="false">
+				<para>Is the maximum time allowed for the algorithm</para>
+				<para>to decide HUMAN or MACHINE</para>
+			</parameter>
+			<parameter name="miniumWordLength" required="false">
+				<para>Is the minimum duration of Voice considered to be a word</para>
+			</parameter>
+			<parameter name="betweenWordSilence" required="false">
+				<para>Is the minimum duration of silence after a word to
+				consider the audio that follows to be a new word</para>
+			</parameter>
+			<parameter name="maximumNumberOfWords" required="false">
+				<para>Is the maximum number of words in a greeting</para>
+				<para>If this is exceeded set as MACHINE</para>
+			</parameter>
+			<parameter name="silenceThreshold" required="false">
+				<para>How long do we consider silence</para>
+			</parameter>
+			<parameter name="maximumWordLength" required="false">
+				<para>Is the maximum duration of a word to accept.</para>
+				<para>If exceeded set as MACHINE</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application attempts to detect answering machines at the beginning
+			of outbound calls. Simply call this application after the call
+			has been answered (outbound only, of course).</para>
+			<para>When loaded, AMD reads amd.conf and uses the parameters specified as
+			default values. Those default values get overwritten when the calling AMD
+			with parameters.</para>
+			<para>This application sets the following channel variables:</para>
+			<variablelist>
+				<variable name="AMDSTATUS">
+					<para>This is the status of the answering machine detection</para>
+					<value name="MACHINE" />
+					<value name="HUMAN" />
+					<value name="NOTSURE" />
+					<value name="HANGUP" />
+				</variable>
+				<variable name="AMDCAUSE">
+					<para>Indicates the cause that led to the conclusion</para>
+					<value name="TOOLONG">
+						Total Time.
+					</value>
+					<value name="INITIALSILENCE">
+						Silence Duration - Initial Silence.
+					</value>
+					<value name="HUMAN">
+						Silence Duration - afterGreetingSilence.
+					</value>
+					<value name="LONGGREETING">
+						Voice Duration - Greeting.
+					</value>
+					<value name="MAXWORDLENGTH">
+						Word Count - maximum number of words.
+					</value>	
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+
+ ***/
 
 static char *app = "AMD";
-static char *synopsis = "Attempts to detect answering machines";
-static char *descrip =
-"  AMD([initialSilence],[greeting],[afterGreetingSilence],[totalAnalysisTime]\n"
-"      ,[minimumWordLength],[betweenWordsSilence],[maximumNumberOfWords]\n"
-"      ,[silenceThreshold],[|maximumWordLength])\n"
-"  This application attempts to detect answering machines at the beginning\n"
-"  of outbound calls.  Simply call this application after the call\n"
-"  has been answered (outbound only, of course).\n"
-"  When loaded, AMD reads amd.conf and uses the parameters specified as\n"
-"  default values. Those default values get overwritten when calling AMD\n"
-"  with parameters.\n"
-"- 'initialSilence' is the maximum silence duration before the greeting. If\n"
-"   exceeded then MACHINE.\n"
-"- 'greeting' is the maximum length of a greeting. If exceeded then MACHINE.\n"
-"- 'afterGreetingSilence' is the silence after detecting a greeting.\n"
-"   If exceeded then HUMAN.\n"
-"- 'totalAnalysisTime' is the maximum time allowed for the algorithm to decide\n"
-"   on a HUMAN or MACHINE.\n"
-"- 'minimumWordLength'is the minimum duration of Voice to considered as a word.\n"
-"- 'betweenWordsSilence' is the minimum duration of silence after a word to \n"
-"   consider the audio that follows as a new word.\n"
-"- 'maximumNumberOfWords'is the maximum number of words in the greeting. \n"
-"   If exceeded then MACHINE.\n"
-"- 'silenceThreshold' is the silence threshold.\n"
-"- 'maximumWordLength' is the maximum duration of a word to accept. If exceeded then MACHINE\n"
-"This application sets the following channel variables upon completion:\n"
-"    AMDSTATUS - This is the status of the answering machine detection.\n"
-"                Possible values are:\n"
-"                MACHINE | HUMAN | NOTSURE | HANGUP\n"
-"    AMDCAUSE - Indicates the cause that led to the conclusion.\n"
-"               Possible values are:\n"
-"               TOOLONG-<%d total_time>\n"
-"               INITIALSILENCE-<%d silenceDuration>-<%d initialSilence>\n"
-"               HUMAN-<%d silenceDuration>-<%d afterGreetingSilence>\n"
-"               MAXWORDS-<%d wordsCount>-<%d maximumNumberOfWords>\n"
-"               LONGGREETING-<%d voiceDuration>-<%d greeting>\n"
-"               MAXWORDLENGTH-<%d consecutiveVoiceDuration>\n";
 
 #define STATE_IN_WORD       1
 #define STATE_IN_SILENCE    2
@@ -437,7 +480,7 @@ static int load_module(void)
 {
 	if (load_config(0))
 		return AST_MODULE_LOAD_DECLINE;
-	if (ast_register_application(app, amd_exec, synopsis, descrip))
+	if (ast_register_application_xml(app, amd_exec))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
 }

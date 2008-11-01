@@ -33,29 +33,72 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
 
+/*** DOCUMENTATION
+	<application name="While" language="en_US">
+		<synopsis>
+			Start a while loop.
+		</synopsis>
+		<syntax>
+			<parameter name="expr" required="true" />
+		</syntax>
+		<description>
+			<para>Start a While Loop.  Execution will return to this point when
+			<literal>EndWhile()</literal> is called until expr is no longer true.</para>
+		</description>
+		<see-also>
+			<ref type="application">EndWhile</ref>
+			<ref type="application">ExitWhile</ref>
+			<ref type="application">ContinueWhile</ref>
+		</see-also>
+	</application>
+	<application name="EndWhile" language="en_US">
+		<synopsis>
+			End a while loop.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Return to the previous called <literal>While()</literal>.</para>
+		</description>
+		<see-also>
+			<ref type="application">While</ref>
+			<ref type="application">ExitWhile</ref>
+			<ref type="application">ContinueWhile</ref>
+		</see-also>
+	</application>
+	<application name="ExitWhile" language="en_US">
+		<synopsis>
+			End a While loop.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Exits a <literal>While()</literal> loop, whether or not the conditional has been satisfied.</para>
+		</description>
+		<see-also>
+			<ref type="application">While</ref>
+			<ref type="application">EndWhile</ref>
+			<ref type="application">ContinueWhile</ref>
+		</see-also>
+	</application>
+	<application name="ContinueWhile" language="en_US">
+		<synopsis>
+			Restart a While loop.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Returns to the top of the while loop and re-evaluates the conditional.</para>
+		</description>
+		<see-also>
+			<ref type="application">While</ref>
+			<ref type="application">EndWhile</ref>
+			<ref type="application">ExitWhile</ref>
+		</see-also>
+	</application>
+ ***/
+
 static char *start_app = "While";
-static char *start_desc = 
-"  While(<expr>): Start a While Loop.  Execution will return to this\n"
-"point when EndWhile() is called until expr is no longer true.\n";
-
-static char *start_synopsis = "Start a while loop";
-
-
 static char *stop_app = "EndWhile";
-static char *stop_desc = 
-"  EndWhile(): Return to the previous called While()\n";
-
-static char *stop_synopsis = "End a while loop";
-
 static char *exit_app = "ExitWhile";
-static char *exit_desc =
-"  ExitWhile(): Exits a While() loop, whether or not the conditional has been satisfied.\n";
-static char *exit_synopsis = "End a While loop";
-
 static char *continue_app = "ContinueWhile";
-static char *continue_desc =
-"  ContinueWhile(): Returns to the top of the while loop and re-evaluates the conditional.\n";
-static char *continue_synopsis = "Restart a While loop";
 
 #define VAR_SIZE 64
 
@@ -295,10 +338,10 @@ static int load_module(void)
 {
 	int res;
 
-	res = ast_register_application(start_app, while_start_exec, start_synopsis, start_desc);
-	res |= ast_register_application(stop_app, while_end_exec, stop_synopsis, stop_desc);
-	res |= ast_register_application(exit_app, while_exit_exec, exit_synopsis, exit_desc);
-	res |= ast_register_application(continue_app, while_continue_exec, continue_synopsis, continue_desc);
+	res = ast_register_application_xml(start_app, while_start_exec);
+	res |= ast_register_application_xml(stop_app, while_end_exec);
+	res |= ast_register_application_xml(exit_app, while_exit_exec);
+	res |= ast_register_application_xml(continue_app, while_continue_exec);
 
 	return res;
 }

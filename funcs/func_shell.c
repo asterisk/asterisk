@@ -63,19 +63,31 @@ static int shell_helper(struct ast_channel *chan, const char *cmd, char *data,
 	return 0;
 }
 
+/*** DOCUMENTATION
+	<function name="SHELL" language="en_US">
+		<synopsis>
+			Executes a command as if you were at a shell.
+		</synopsis>
+		<syntax>
+			<parameter name="command" required="true">
+				<para>This is the argument to the function, the command you want to pass to the shell.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns the value from a system command</para>
+			<para>Example:  <literal>Set(foo=${SHELL(echo \bar\)})</literal></para>
+			<note><para>When using the SHELL() dialplan function, your \SHELL\ is /bin/sh,
+			which may differ as to the underlying shell, depending upon your production
+			platform.  Also keep in mind that if you are using a common path, you should
+			be mindful of race conditions that could result from two calls running
+			SHELL() simultaneously.</para></note>
+		</description>
+ 
+	</function>
+ ***/
 static struct ast_custom_function shell_function = {
 	.name = "SHELL",
-	.synopsis = "Executes a command as if you were at a shell.",
-	.syntax = "SHELL(<command>)",
 	.read = shell_helper,
-	.desc =
-"Returns the value from a system command\n"
-"  Example:  Set(foo=${SHELL(echo \"bar\")})\n"
-"  Note:  When using the SHELL() dialplan function, your \"SHELL\" is /bin/sh,\n"
-"  which may differ as to the underlying shell, depending upon your production\n"
-"  platform.  Also keep in mind that if you are using a common path, you should\n"
-"  be mindful of race conditions that could result from two calls running\n"
-"  SHELL() simultaneously.\n",
 };
 
 static int unload_module(void)

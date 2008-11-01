@@ -43,23 +43,48 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define PICKUPMARK "PICKUPMARK"
 
+/*** DOCUMENTATION
+	<application name="Pickup" language="en_US">
+		<synopsis>
+			Directed extension call pickup.
+		</synopsis>
+		<syntax argsep="&amp;">
+			<parameter name="ext" argsep="@" required="true">
+				<argument name="extension" required="true"/>
+				<argument name="context" />
+			</parameter>
+			<parameter name="ext2" argsep="@" multiple="true">
+				<argument name="extension2" required="true"/>
+				<argument name="context2"/>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application can pickup any ringing channel that is calling
+			the specified <replaceable>extension</replaceable>. If no <replaceable>context</replaceable>
+			is specified, the current context will be used. If you use the special string <literal>PICKUPMARK</literal>
+			for the context parameter, for example 10@PICKUPMARK, this application
+			tries to find a channel which has defined a <variable>PICKUPMARK</variable>
+			channel variable with the same value as <replaceable>extension</replaceable>
+			(in this example, <literal>10</literal>). When no parameter is specified, the application
+			will pickup a channel matching the pickup group of the active channel.</para>
+		</description>
+	</application>
+	<application name="PickupChan" language="en_US">
+		<synopsis>
+			Pickup a ringing channel.
+		</synopsis>
+		<syntax>
+			<parameter name="channel" required="true" />
+			<parameter name="channel2" multiple="true" />
+		</syntax>
+		<description>
+			<para>This will pickup a specified <replaceable>channel</replaceable> if ringing.</para>
+		</description>
+	</application>
+ ***/
+
 static const char *app = "Pickup";
-static const char *synopsis = "Directed Call Pickup";
-static const char *descrip =
-"  Pickup([extension[@context][&extension2@[context]...]]):  This application can\n"
-"pickup any ringing channel that is calling the specified extension.  If no\n"
-"context is specified, the current context will be used. If you use the special\n"
-"string \"PICKUPMARK\" for the context parameter, for example 10@PICKUPMARK,\n"
-"this application tries to find a channel which has defined a ${PICKUPMARK}\n"
-"channel variable with the same value as \"extension\" (in this example, \"10\").\n"
-"When no parameter is specified, the application will pickup a channel matching\n"
-"the pickup group of the active channel.";
-
 static const char *app2 = "PickupChan";
-static const char *synopsis2 = "Pickup a ringing channel";
-static const char *descrip2 =
-"  PickupChan(channel[&channel...]): This application can pickup any ringing channel\n";
-
 /*! \todo This application should return a result code, like PICKUPRESULT */
 
 /* Perform actual pickup between two channels */
@@ -248,8 +273,8 @@ static int load_module(void)
 {
 	int res;
 
-	res = ast_register_application(app, pickup_exec, synopsis, descrip);
-	res |= ast_register_application(app2, pickupchan_exec, synopsis2, descrip2);
+	res = ast_register_application_xml(app, pickup_exec);
+	res |= ast_register_application_xml(app2, pickupchan_exec);
 
 	return res;
 }

@@ -36,28 +36,53 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<application name="SayUnixTime" language="en_US">
+		<synopsis>
+			Says a specified time in a custom format.
+		</synopsis>
+		<syntax>
+			<parameter name="unixtime">
+				<para>time, in seconds since Jan 1, 1970.  May be negative. Defaults to now.</para>
+			</parameter>
+			<parameter name="timezone">
+				<para>timezone, see <directory>/usr/share/zoneinfo</directory> for a list. Defaults to machine default.</para>
+			</parameter>
+			<parameter name="format">
+				<para>a format the time is to be said in.  See <filename>voicemail.conf</filename>.
+				Defaults to <literal>ABdY "digits/at" IMp</literal></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Uses some of the sound files stored in <directory>/var/lib/asterisk/sounds</directory> to construct a phrase 
+			saying the specified date and/or time in the specified format. </para>
+		</description>
+	</application>
+	<application name="DateTime" language="en_US">
+		<synopsis>
+			Says a specified time in a custom format.
+		</synopsis>
+		<syntax>
+			<parameter name="unixtime">
+				<para>time, in seconds since Jan 1, 1970.  May be negative. Defaults to now.</para>
+			</parameter>
+			<parameter name="timezone">
+				<para>timezone, see <filename>/usr/share/zoneinfo</filename> for a list. Defaults to machine default.</para>
+			</parameter>
+			<parameter name="format">
+				<para>a format the time is to be said in.  See <filename>voicemail.conf</filename>.
+				Defaults to <literal>ABdY "digits/at" IMp</literal></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Say the date and time in a specified format.</para>
+		</description>
+	</application>
+
+ ***/
+
 static char *app_sayunixtime = "SayUnixTime";
 static char *app_datetime = "DateTime";
-
-static char *sayunixtime_synopsis = "Says a specified time in a custom format";
-
-static char *sayunixtime_descrip =
-"SayUnixTime([unixtime][,[timezone][,format]])\n"
-"  unixtime  - time, in seconds since Jan 1, 1970.  May be negative.\n"
-"              defaults to now.\n"
-"  timezone  - timezone, see /usr/share/zoneinfo for a list.\n"
-"              defaults to machine default.\n"
-"  format    - a format the time is to be said in.  See voicemail.conf.\n"
-"              defaults to \"ABdY 'digits/at' IMp\"\n";
-static char *datetime_descrip =
-"DateTime([unixtime][,[timezone][,format]])\n"
-"  unixtime  - time, in seconds since Jan 1, 1970.  May be negative.\n"
-"              defaults to now.\n"
-"  timezone  - timezone, see /usr/share/zoneinfo for a list.\n"
-"              defaults to machine default.\n"
-"  format:   - a format the time is to be said in.  See voicemail.conf.\n"
-"              defaults to \"ABdY 'digits/at' IMp\"\n";
-
 
 static int sayunixtime_exec(struct ast_channel *chan, void *data)
 {
@@ -103,8 +128,8 @@ static int load_module(void)
 {
 	int res;
 	
-	res = ast_register_application(app_sayunixtime, sayunixtime_exec, sayunixtime_synopsis, sayunixtime_descrip);
-	res |= ast_register_application(app_datetime, sayunixtime_exec, sayunixtime_synopsis, datetime_descrip);
+	res = ast_register_application_xml(app_sayunixtime, sayunixtime_exec);
+	res |= ast_register_application_xml(app_datetime, sayunixtime_exec);
 	
 	return res;
 }

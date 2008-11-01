@@ -38,6 +38,35 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<function name="URIENCODE" language="en_US">
+		<synopsis>
+			Encodes a string to URI-safe encoding according to RFC 2396.
+		</synopsis>
+		<syntax>
+			<parameter name="data" required="true">
+				<para>Input string to be encoded.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns the encoded string defined in <replaceable>data</replaceable>.</para>
+		</description>
+	</function>
+	<function name="URIDECODE" language="en_US">
+		<synopsis>
+			Decodes a URI-encoded string according to RFC 2396.
+		</synopsis>
+		<syntax>
+			<parameter name="data" required="true">
+				<para>Input string to be decoded.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns the decoded URI-encoded <replaceable>data</replaceable> string.</para>
+		</description>
+	</function>
+ ***/
+
 /*! \brief uriencode: Encode URL according to RFC 2396 */
 static int uriencode(struct ast_channel *chan, const char *cmd, char *data,
 		     char *buf, size_t len)
@@ -69,15 +98,11 @@ static int uridecode(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function urldecode_function = {
 	.name = "URIDECODE",
-	.synopsis = "Decodes a URI-encoded string according to RFC 2396.",
-	.syntax = "URIDECODE(<data>)",
 	.read = uridecode,
 };
 
 static struct ast_custom_function urlencode_function = {
 	.name = "URIENCODE",
-	.synopsis = "Encodes a string to URI-safe encoding according to RFC 2396.",
-	.syntax = "URIENCODE(<data>)",
 	.read = uriencode,
 };
 

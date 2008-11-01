@@ -41,6 +41,32 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<function name="ICONV" language="en_US">
+		<synopsis>
+			Converts charsets of strings.	
+		</synopsis>
+		<syntax>
+			<parameter name="in-charset" required="true">
+				<para>Input charset</para>
+			</parameter>
+			<parameter name="out-charset" required="true">
+				<para>Output charset</para>
+			</parameter>
+			<parameter name="string" required="true">
+				<para>String to convert, from <replaceable>in-charset</replaceable> to <replaceable>out-charset</replaceable></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Converts string from <replaceable>in-charset</replaceable> into <replaceable>out-charset</replaceable>.
+			For available charsets, use <literal>iconv -l</literal> on your shell command line.</para>
+			<note><para>Due to limitations within the API, ICONV will not currently work with
+			charsets with embedded NULLs. If found, the string will terminate.</para></note>
+		</description>
+	</function>
+ ***/
+
+
 /*! 
  * Some systems define the second arg to iconv() as (const char *),
  * while others define it as (char *).  Cast it to a (void *) to 
@@ -101,14 +127,7 @@ static int iconv_read(struct ast_channel *chan, const char *cmd, char *arguments
 
 static struct ast_custom_function iconv_function = {
 	.name = "ICONV",
-	.synopsis = "Converts charsets of strings.",
-	.desc =
-"Converts string from in-charset into out-charset.  For available charsets,\n"
-"use 'iconv -l' on your shell command line.\n"
-"Note: due to limitations within the API, ICONV will not currently work with\n"
-"charsets with embedded NULLs.  If found, the string will terminate.\n",
-	.syntax = "ICONV(in-charset,out-charset,string)",
-	.read = iconv_read,
+	.read = iconv_read
 };
 
 static int unload_module(void)

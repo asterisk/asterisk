@@ -47,6 +47,58 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/cli.h"
 
+/*** DOCUMENTATION
+	<function name="ODBC_FETCH" language="en_US">
+		<synopsis>
+			Fetch a row from a multirow query.
+		</synopsis>
+		<syntax>
+			<parameter name="result-id" required="true" />
+		</syntax>
+		<description>
+			<para>For queries which are marked as mode=multirow, the original 
+			query returns a <replaceable>result-id</replaceable> from which results 
+			may be fetched.  This function implements the actual fetch of the results.</para>
+			<para>This also sets <variable>ODBC_FETCH_STATUS</variable>.</para>
+			<variablelist>
+				<variable name="ODBC_FETCH_STATUS">
+					<value name="SUCESS">
+						If rows are available.
+					</value>
+					<value name="FAILURE">
+						If no rows are available.
+					</value>
+				</variable>
+			</variablelist>
+		</description>
+	</function>
+	<application name="ODBCFinish" language="en_US">
+		<synopsis>
+			Clear the resultset of a sucessful multirow query.
+		</synopsis>
+		<syntax>
+			<parameter name="result-id" required="true" />
+		</syntax>
+		<description>
+			<para>For queries which are marked as mode=multirow, this will clear 
+			any remaining rows of the specified resultset.</para>
+		</description>
+	</application>
+	<function name="SQL_ESC" language="en_US">
+		<synopsis>
+			Escapes single ticks for use in SQL statements.
+		</synopsis>
+		<syntax>
+			<parameter name="string" required="true" />
+		</syntax>
+		<description>
+			<para>Used in SQL templates to escape data which may contain single ticks 
+			<literal>'</literal> which are otherwise used to delimit data.</para>
+		  	<para>Example: SELECT foo FROM bar WHERE baz='${SQL_ESC(${ARG1})}'</para>
+		</description>
+	</function>
+ ***/
+
 static char *config = "func_odbc.conf";
 
 enum {
@@ -620,12 +672,6 @@ static int acf_escape(struct ast_channel *chan, const char *cmd, char *data, cha
 
 static struct ast_custom_function escape_function = {
 	.name = "SQL_ESC",
-	.synopsis = "Escapes single ticks for use in SQL statements",
-	.syntax = "SQL_ESC(<string>)",
-	.desc =
-"Used in SQL templates to escape data which may contain single ticks (') which\n"
-"are otherwise used to delimit data.  For example:\n"
-"SELECT foo FROM bar WHERE baz='${SQL_ESC(${ARG1})}'\n",
 	.read = acf_escape,
 	.write = NULL,
 };
@@ -660,24 +706,11 @@ static int acf_fetch(struct ast_channel *chan, const char *cmd, char *data, char
 
 static struct ast_custom_function fetch_function = {
 	.name = "ODBC_FETCH",
-	.synopsis = "Fetch a row from a multirow query",
-	.syntax = "ODBC_FETCH(<result-id>)",
-	.desc =
-"For queries which are marked as mode=multirow, the original query returns a\n"
-"result-id from which results may be fetched.  This function implements the\n"
-"actual fetch of the results.\n"
-"This function also sets ODBC_FETCH_STATUS to one of \"SUCCESS\" or \"FAILURE\",\n"
-"depending upon whether there were rows available or not.\n",
 	.read = acf_fetch,
 	.write = NULL,
 };
 
 static char *app_odbcfinish = "ODBCFinish";
-static char *syn_odbcfinish = "Clear the resultset of a successful multirow query";
-static char *desc_odbcfinish =
-"ODBCFinish(<result-id>)\n"
-"  Clears any remaining rows of the specified resultset\n";
-
 
 static int exec_odbcfinish(struct ast_channel *chan, void *data)
 {
@@ -784,6 +817,12 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		*query = NULL;
 		return ENOMEM;
 	}
+	if (ast_string_field_init((*query)->acf, 128)) {
+		ast_free((*query)->acf);
+		ast_free(*query);
+		*query = NULL;
+		return ENOMEM;
+	}
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "prefix")) && !ast_strlen_zero(tmp)) {
 		asprintf((char **)&((*query)->acf->name), "%s_%s", tmp, catg);
@@ -792,6 +831,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if (!((*query)->acf->name)) {
+		ast_string_field_free_memory((*query)->acf);
 		ast_free((*query)->acf);
 		ast_free(*query);
 		*query = NULL;
@@ -799,13 +839,14 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "syntax")) && !ast_strlen_zero(tmp)) {
-		asprintf((char **)&((*query)->acf->syntax), "%s(%s)", (*query)->acf->name, tmp);
+		ast_string_field_build((*query)->acf, syntax, "%s(%s)", (*query)->acf->name, tmp);
 	} else {
-		asprintf((char **)&((*query)->acf->syntax), "%s(<arg1>[...[,<argN>]])", (*query)->acf->name);
+		ast_string_field_build((*query)->acf, syntax, "%s(<arg1>[...[,<argN>]])", (*query)->acf->name);
 	}
 
-	if (!((*query)->acf->syntax)) {
+	if (ast_strlen_zero((*query)->acf->syntax)) {
 		ast_free((char *)(*query)->acf->name);
+		ast_string_field_free_memory((*query)->acf);
 		ast_free((*query)->acf);
 		ast_free(*query);
 		*query = NULL;
@@ -813,14 +854,14 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "synopsis")) && !ast_strlen_zero(tmp)) {
-		(*query)->acf->synopsis = ast_strdup(tmp);
+		ast_string_field_set((*query)->acf, synopsis, tmp);
 	} else {
-		(*query)->acf->synopsis = ast_strdup("Runs the referenced query with the specified arguments");
+		ast_string_field_set((*query)->acf, synopsis, "Runs the referenced query with the specified arguments");
 	}
 
-	if (!((*query)->acf->synopsis)) {
+	if (ast_strlen_zero((*query)->acf->synopsis)) {
 		ast_free((char *)(*query)->acf->name);
-		ast_free((char *)(*query)->acf->syntax);
+		ast_string_field_free_memory((*query)->acf);
 		ast_free((*query)->acf);
 		ast_free(*query);
 		*query = NULL;
@@ -828,7 +869,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if (!ast_strlen_zero((*query)->sql_read) && !ast_strlen_zero((*query)->sql_write)) {
-		asprintf((char **)&((*query)->acf->desc),
+		ast_string_field_build((*query)->acf, desc,
 					"Runs the following query, as defined in func_odbc.conf, performing\n"
 				   	"substitution of the arguments into the query as specified by ${ARG1},\n"
 					"${ARG2}, ... ${ARGn}.  When setting the function, the values are provided\n"
@@ -844,13 +885,13 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 					ast_strlen_zero((*query)->sql_insert) ? "" : (*query)->sql_insert,
 					ast_strlen_zero((*query)->sql_insert) ? "" : "\n");
 	} else if (!ast_strlen_zero((*query)->sql_read)) {
-		asprintf((char **)&((*query)->acf->desc),
-					"Runs the following query, as defined in func_odbc.conf, performing\n"
-				   	"substitution of the arguments into the query as specified by ${ARG1},\n"
-					"${ARG2}, ... ${ARGn}.  This function may only be read, not set.\n\nSQL:\n%s\n",
-					(*query)->sql_read);
+		ast_string_field_build((*query)->acf, desc,
+						"Runs the following query, as defined in func_odbc.conf, performing\n"
+					   	"substitution of the arguments into the query as specified by ${ARG1},\n"
+						"${ARG2}, ... ${ARGn}.  This function may only be read, not set.\n\nSQL:\n%s\n",
+						(*query)->sql_read);
 	} else if (!ast_strlen_zero((*query)->sql_write)) {
-		asprintf((char **)&((*query)->acf->desc),
+		ast_string_field_build((*query)->acf, desc,	
 					"Runs the following query, as defined in func_odbc.conf, performing\n"
 				   	"substitution of the arguments into the query as specified by ${ARG1},\n"
 					"${ARG2}, ... ${ARGn}.  The values are provided either in whole as\n"
@@ -864,8 +905,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 					ast_strlen_zero((*query)->sql_insert) ? "" : (*query)->sql_insert,
 					ast_strlen_zero((*query)->sql_insert) ? "" : "\n");
 	} else {
-		ast_free((char *)(*query)->acf->synopsis);
-		ast_free((char *)(*query)->acf->syntax);
+		ast_string_field_free_memory((*query)->acf);
 		ast_free((char *)(*query)->acf->name);
 		ast_free((*query)->acf);
 		ast_free(*query);
@@ -873,9 +913,8 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		return EINVAL;
 	}
 
-	if (! ((*query)->acf->desc)) {
-		ast_free((char *)(*query)->acf->synopsis);
-		ast_free((char *)(*query)->acf->syntax);
+	if (ast_strlen_zero((*query)->acf->desc)) {
+		ast_string_field_free_memory((*query)->acf);
 		ast_free((char *)(*query)->acf->name);
 		ast_free((*query)->acf);
 		ast_free(*query);
@@ -904,12 +943,7 @@ static int free_acf_query(struct acf_odbc_query *query)
 		if (query->acf) {
 			if (query->acf->name)
 				ast_free((char *)query->acf->name);
-			if (query->acf->syntax)
-				ast_free((char *)query->acf->syntax);
-			if (query->acf->synopsis)
-				ast_free((char *)query->acf->synopsis);
-			if (query->acf->desc)
-				ast_free((char *)query->acf->desc);
+			ast_string_field_free_memory(query->acf);
 			ast_free(query->acf);
 		}
 		ast_free(query);
@@ -1254,7 +1288,7 @@ static int load_module(void)
 	struct ast_flags config_flags = { 0 };
 
 	res |= ast_custom_function_register(&fetch_function);
-	res |= ast_register_application(app_odbcfinish, exec_odbcfinish, syn_odbcfinish, desc_odbcfinish);
+	res |= ast_register_application_xml(app_odbcfinish, exec_odbcfinish);
 	AST_RWLIST_WRLOCK(&queries);
 
 	cfg = ast_config_load(config, config_flags);

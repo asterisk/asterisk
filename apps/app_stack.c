@@ -40,33 +40,76 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/agi.h"
 
+/*** DOCUMENTATION
+	<application name="Gosub" language="en_US">
+		<synopsis>
+			Jump to label, saving return address.
+		</synopsis>
+		<syntax>
+			<parameter name="context" />
+			<parameter name="exten" />
+			<parameter name="priority" required="true" hasparams="optional">
+				<argument name="arg1" multiple="true" required="true" />
+				<argument name="argN" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>Jumps to the label specified, saving the return address.</para>
+		</description>
+	</application>
+	<application name="GosubIf" language="en_US">
+		<synopsis>
+			Conditionally jump to label, saving return address.
+		</synopsis>
+		<syntax argsep="?">
+			<parameter name="condition" required="true" />
+			<parameter name="destination" required="true" argsep=":">
+				<argument name="labeliftrue" hasparams="optional">
+					<argument name="arg1" required="true" multiple="true" />
+					<argument name="argN" />
+				</argument>
+				<argument name="labeliffalse" hasparams="optional">
+					<argument name="arg1" required="true" multiple="true" />
+					<argument name="argN" />
+				</argument>
+			</parameter>
+		</syntax>
+		<description>
+			<para>If the condition is true, then jump to labeliftrue.  If false, jumps to
+			labeliffalse, if specified.  In either case, a jump saves the return point
+			in the dialplan, to be returned to with a Return.</para>
+		</description>
+	</application>
+	<application name="Return" language="en_US">
+		<synopsis>
+			Return from gosub routine.
+		</synopsis>
+		<syntax>
+			<parameter name="value">
+				<para>Return value.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Jumps to the last label on the stack, removing it. The return <replaceable>value</replaceable>, if
+			any, is saved in the channel variable <variable>GOSUB_RETVAL</variable>.</para>
+		</description>
+	</application>
+	<application name="StackPop" language="en_US">
+		<synopsis>
+			Remove one address from gosub stack.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Removes last label on the stack, discarding it.</para>
+		</description>
+	</application>
+ ***/
 static int agi_loaded = 0;
 
 static const char *app_gosub = "Gosub";
 static const char *app_gosubif = "GosubIf";
 static const char *app_return = "Return";
 static const char *app_pop = "StackPop";
-
-static const char *gosub_synopsis = "Jump to label, saving return address";
-static const char *gosubif_synopsis = "Conditionally jump to label, saving return address";
-static const char *return_synopsis = "Return from gosub routine";
-static const char *pop_synopsis = "Remove one address from gosub stack";
-
-static const char *gosub_descrip =
-"  Gosub([[context,]exten,]priority[(arg1[,...][,argN])]):\n"
-"Jumps to the label specified, saving the return address.\n";
-static const char *gosubif_descrip =
-"  GosubIf(condition?labeliftrue[(arg1[,...])][:labeliffalse[(arg1[,...])]]):\n"
-"If the condition is true, then jump to labeliftrue.  If false, jumps to\n"
-"labeliffalse, if specified.  In either case, a jump saves the return point\n"
-"in the dialplan, to be returned to with a Return.\n";
-static const char *return_descrip =
-"  Return([return-value]):\n"
-"Jumps to the last label on the stack, removing it.  The return value, if\n"
-"any, is saved in the channel variable GOSUB_RETVAL.\n";
-static const char *pop_descrip =
-"  StackPop():\n"
-"Removes last label on the stack, discarding it.\n";
 
 static void gosub_free(void *data);
 
@@ -530,10 +573,10 @@ static int load_module(void)
 		ast_agi_register(ast_module_info->self, &gosub_agi_command);
 	}
 
-	ast_register_application(app_pop, pop_exec, pop_synopsis, pop_descrip);
-	ast_register_application(app_return, return_exec, return_synopsis, return_descrip);
-	ast_register_application(app_gosubif, gosubif_exec, gosubif_synopsis, gosubif_descrip);
-	ast_register_application(app_gosub, gosub_exec, gosub_synopsis, gosub_descrip);
+	ast_register_application_xml(app_pop, pop_exec);
+	ast_register_application_xml(app_return, return_exec);
+	ast_register_application_xml(app_gosubif, gosubif_exec);
+	ast_register_application_xml(app_gosub, gosub_exec);
 	ast_custom_function_register(&local_function);
 
 	return 0;

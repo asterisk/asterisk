@@ -44,11 +44,35 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<application name="Skel" language="en_US">
+		<synopsis>
+			Simple one line explaination.
+		</synopsis>
+		<syntax>
+			<parameter name="dummy" required="true"/>
+			<parameter name="options">
+				<optionlist>
+					<option name="a">
+						<para>Option A.</para>
+					</option>
+					<option name="b">
+						<para>Option B.</para>
+					</option>
+					<option name="c">
+						<para>Option C.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+		<para>This application is a template to build other applications from. 
+		It shows you the basic structure to create your own Asterisk applications.</para>
+		</description>
+	</application>
+ ***/
+
 static char *app = "Skel";
-static char *synopsis = 
-"Skeleton application.";
-static char *descrip = "This application is a template to build other applications from.\n"
- " It shows you the basic structure to create your own Asterisk applications.\n";
 
 enum {
 	OPTION_A = (1 << 0),
@@ -122,7 +146,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, app_exec, synopsis, descrip) ? 
+	return ast_register_application_xml(app, app_exec) ? 
 		AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 

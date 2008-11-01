@@ -52,17 +52,28 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<application name="DAHDIRAS" language="en_US">
+		<synopsis>
+			Executes DAHDI ISDN RAS application.
+		</synopsis>
+		<syntax>
+			<parameter name="args" required="true">
+				<para>A list of parameters to pass to the pppd daemon,
+				separeted by <literal>,</literal> characters.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Executes a RAS server using pppd on the given channel.
+			The channel must be a clear channel (i.e. PRI source) and a DAHDI
+			channel to be able to use this function (No modem emulation is included).</para>
+			<para>Your pppd must be patched to be DAHDI aware.</para>
+		</description>
+	</application>
+
+ ***/
+
 static char *app = "DAHDIRAS";
-
-static char *synopsis = "Executes DAHDI ISDN RAS application";
-
-static char *descrip =
-"  DAHDIRAS(args): Executes a RAS server using pppd on the given channel.\n"
-"The channel must be a clear channel (i.e. PRI source) and a DAHDI\n"
-"channel to be able to use this function (No modem emulation is included).\n"
-"Your pppd must be patched to be DAHDI aware. Arguments should be\n"
-"separated by , characters.\n";
-
 
 #define PPP_MAX_ARGS	32
 #define PPP_EXEC	"/usr/sbin/pppd"
@@ -218,7 +229,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ((ast_register_application(app, dahdiras_exec, synopsis, descrip)) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS);
+	return ((ast_register_application_xml(app, dahdiras_exec)) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "DAHDI ISDN Remote Access Server");

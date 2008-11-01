@@ -34,6 +34,42 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<function name="TIMEOUT" language="en_US">
+		<synopsis>
+			Gets or sets timeouts on the channel. Timeout values are in seconds.
+		</synopsis>
+		<syntax>
+			<parameter name="timeouttype" required="true">
+				<para>The timeout that will be manipulated. The possible timeout types
+				are: <literal>absolute</literal>, <literal>digit</literal> or 
+				<literal>response</literal></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>The timeouts that can be manipulated are:</para>
+			<para><literal>absolute</literal>: The absolute maximum amount of time permitted for a call.
+			Setting of 0 disables the timeout.</para>
+			<para><literal>digit</literal>: The maximum amount of time permitted between digits when the
+			user is typing in an extension.  When this timeout expires,
+			after the user has started to type in an extension, the
+			extension will be considered complete, and will be
+			interpreted.  Note that if an extension typed in is valid,
+			it will not have to timeout to be tested, so typically at
+			the expiry of this timeout, the extension will be considered
+			invalid (and thus control would be passed to the <literal>i</literal>
+			extension, or if it doesn't exist the call would be
+			terminated).  The default timeout is 5 seconds.</para>
+			<para><literal>response</literal>: The maximum amount of time permitted after falling through a
+			series of priorities for a channel in which the user may
+			begin typing an extension.  If the user does not type an
+			extension in this amount of time, control will pass to the
+			<literal>t</literal> extension if it exists, and if not the call would be
+			terminated.  The default timeout is 10 seconds.</para>
+		</description>
+	</function>
+ ***/
+
 static int timeout_read(struct ast_channel *chan, const char *cmd, char *data,
 			char *buf, size_t len)
 {
@@ -149,29 +185,6 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function timeout_function = {
 	.name = "TIMEOUT",
-	.synopsis = "Gets or sets timeouts on the channel. Timeout values are in seconds.",
-	.syntax = "TIMEOUT(timeouttype)",
-	.desc =
-		"Gets or sets various channel timeouts. The timeouts that can be\n"
-		"manipulated are:\n" "\n"
-		"absolute: The absolute maximum amount of time permitted for a call.  A\n"
-		"          setting of 0 disables the timeout.\n" "\n"
-		"digit:    The maximum amount of time permitted between digits when the\n"
-		"          user is typing in an extension.  When this timeout expires,\n"
-		"          after the user has started to type in an extension, the\n"
-		"          extension will be considered complete, and will be\n"
-		"          interpreted.  Note that if an extension typed in is valid,\n"
-		"          it will not have to timeout to be tested, so typically at\n"
-		"          the expiry of this timeout, the extension will be considered\n"
-		"          invalid (and thus control would be passed to the 'i'\n"
-		"          extension, or if it doesn't exist the call would be\n"
-		"          terminated).  The default timeout is 5 seconds.\n" "\n"
-		"response: The maximum amount of time permitted after falling through a\n"
-		"          series of priorities for a channel in which the user may\n"
-		"          begin typing an extension.  If the user does not type an\n"
-		"          extension in this amount of time, control will pass to the\n"
-		"          't' extension if it exists, and if not the call would be\n"
-		"          terminated.  The default timeout is 10 seconds.\n",
 	.read = timeout_read,
 	.write = timeout_write,
 };

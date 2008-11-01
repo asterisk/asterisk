@@ -108,6 +108,344 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * to this order!
  */
 
+/*** DOCUMENTATION
+	<application name="Queue" language="en_US">
+		<synopsis>
+			Queue a call for a call queue.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" required="true" />
+			<parameter name="options">
+				<optionlist>
+					<option name="c">
+						<para>Continue in the dialplan if the callee hangs up.</para>
+					</option>
+					<option name="d">
+						<para>data-quality (modem) call (minimum delay).</para>
+					</option>
+					<option name="h">
+						<para>Allow <emphasis>callee</emphasis> to hang up by pressing <literal>*</literal>.</para>
+					</option>
+					<option name="H">
+						<para>Allow <emphasis>caller</emphasis> to hang up by pressing <literal>*</literal>.</para>
+					</option>
+					<option name="n">
+						<para>No retries on the timeout; will exit this application and
+						go to the next step.</para>
+					</option>
+					<option name="i">
+						<para>Ignore call forward requests from queue members and do nothing
+						when they are requested.</para>
+					</option>
+					<option name="r">
+						<para>Ring instead of playing MOH. Periodic Announcements are still made, if applicable.</para>
+					</option>
+					<option name="t">
+						<para>Allow the <emphasis>called</emphasis> user to transfer the calling user.</para>
+					</option>
+					<option name="T">
+						<para>Allow the <emphasis>calling</emphasis> user to transfer the call.</para>
+					</option>
+					<option name="w">
+						<para>Allow the <emphasis>called</emphasis> user to write the conversation to
+						disk via Monitor.</para>
+					</option>
+					<option name="W">
+						<para>Allow the <emphasis>calling</emphasis> user to write the conversation to
+						disk via Monitor.</para>
+					</option>
+					<option name="k">
+						<para>Allow the <emphasis>called</emphasis> party to enable parking of the call by sending
+						the DTMF sequence defined for call parking in <filename>features.conf</filename>.</para>
+					</option>
+					<option name="K">
+						<para>Allow the <emphasis>calling</emphasis> party to enable parking of the call by sending
+						the DTMF sequence defined for call parking in <filename>features.conf</filename>.</para>
+					</option>
+					<option name="x">
+						<para>Allow the <emphasis>called</emphasis> user to write the conversation
+						to disk via MixMonitor.</para>
+					</option>
+					<option name="X">
+						<para>Allow the <emphasis>calling</emphasis> user to write the conversation to
+						disk via MixMonitor.</para>
+					</option>
+				</optionlist>
+			</parameter>
+			<parameter name="URL">
+				<para><replaceable>URL</replaceable> will be sent to the called party if the channel supports it.</para>
+			</parameter>
+			<parameter name="announceoverride" />
+			<parameter name="timeout">
+				<para>Will cause the queue to fail out after a specified number of
+				seconds, checked between each <filename>queues.conf</filename> <replaceable>timeout</replaceable> and
+				<replaceable>retry</replaceable> cycle.</para>
+			</parameter>
+			<parameter name="AGI">
+				<para>Will setup an AGI script to be executed on the calling party's channel once they are
+				connected to a queue member.</para>
+			</parameter>
+			<parameter name="macro">
+				<para>Will run a macro on the calling party's channel once they are connected to a queue member.</para>
+			</parameter>
+			<parameter name="gosub">
+				<para>Will run a gosub on the calling party's channel once they are connected to a queue member.</para>
+			</parameter>
+			<parameter name="rule">
+				<para>Will cause the queue's defaultrule to be overridden by the rule specified.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>In addition to transferring the call, a call may be parked and then picked
+			up by another user.</para>
+			<para>This application will return to the dialplan if the queue does not exist, or
+			any of the join options cause the caller to not enter the queue.</para>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="QUEUESTATUS">
+					<para>The status of the call as a text string.</para>
+					<value name="TIMEOUT" />
+					<value name="FULL" />
+					<value name="JOINEMPTY" />
+					<value name="LEAVEEMPTY" />
+					<value name="JOINUNAVAIL" />
+					<value name="LEAVEUNAVAIL" />
+					<value name="CONTINUE" />
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+	<application name="AddQueueMember" language="en_US">
+		<synopsis>
+			Dynamically adds queue members.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" required="true" />
+			<parameter name="interface" />
+			<parameter name="penalty" />
+			<parameter name="options" />
+			<parameter name="membername" />
+			<parameter name="stateinterface" />
+		</syntax>
+		<description>
+			<para>Dynamically adds interface to an existing queue. If the interface is
+			already in the queue it will return an error.</para>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="AQMSTATUS">
+					<para>The status of the attempt to add a queue member as a text string.</para>
+					<value name="ADDED" />
+					<value name="MEMBERALREADY" />
+					<value name="NOSUCHQUEUE" />
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+	<application name="RemoveQueueMember" language="en_US">
+		<synopsis>
+			Dynamically removes queue members.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" required="true" />
+			<parameter name="interface" />
+			<parameter name="options" />
+		</syntax>
+		<description>
+			<para>If the interface is <emphasis>NOT</emphasis> in the queue it will return an error.</para>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="RQMSTATUS">
+					<value name="REMOVED" />
+					<value name="NOTINQUEUE" />
+					<value name="NOSUCHQUEUE" />
+				</variable>
+			</variablelist>
+			<para>Example: RemoveQueueMember(techsupport,SIP/3000)</para>
+		</description>
+	</application>
+	<application name="PauseQueueMember" language="en_US">
+		<synopsis>
+			Pauses a queue member.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" />
+			<parameter name="interface" required="true" />
+			<parameter name="options" />
+			<parameter name="reason">
+				<para>Is used to add extra information to the appropriate queue_log entries and manager events.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Pauses (blocks calls for) a queue member. The given interface will be paused in the given queue.
+			This prevents any calls from being sent from the queue to the interface until it is
+			unpaused with UnpauseQueueMember or the manager interface.  If no queuename is given,
+			the interface is paused in every queue it is a member of. The application will fail if the
+			interface is not found.</para>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="PQMSTATUS">
+					<para>The status of the attempt to pause a queue member as a text string.</para>
+					<value name="PAUSED" />
+					<value name="NOTFOUND" />
+				</variable>
+			</variablelist>
+			<para>Example: PauseQueueMember(,SIP/3000)</para>
+		</description>
+	</application>
+	<application name="UnpauseQueueMember" language="en_US">
+		<synopsis>
+			Unpauses a queue member.		
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" />
+			<parameter name="interface" required="true" />
+			<parameter name="options" />
+			<parameter name="reason">
+				<para>Is used to add extra information to the appropriate queue_log entries and manager events.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Unpauses (resumes calls to) a queue member. This is the counterpart to <literal>PauseQueueMember()</literal>
+			and operates exactly the same way, except it unpauses instead of pausing the given interface.</para>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="UPQMSTATUS">
+					<para>The status of the attempt to unpause a queue member as a text string.</para>
+					<value name="UNPAUSED" />
+					<value name="NOTFOUND" />
+				</variable>
+			</variablelist>
+			<para>Example: UnpauseQueueMember(,SIP/3000)</para>
+		</description>
+	</application>
+	<application name="QueueLog" language="en_US">
+		<synopsis>
+			Writes to the queue_log file.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" required="true" />
+			<parameter name="uniqueid" required="true" />
+			<parameter name="agent" required="true" />
+			<parameter name="event" required="true" />
+			<parameter name="additionalinfo" />
+		</syntax>
+		<description>
+			<para>Allows you to write your own events into the queue log.</para>
+			<para>Example: QueueLog(101,${UNIQUEID},${AGENT},WENTONBREAK,600)</para>
+		</description>
+	</application>
+	<function name="QUEUE_VARIABLES" language="en_US">
+		<synopsis>
+			Return Queue information in variables.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" required="true">
+				<enumlist>
+					<enum name="QUEUEMAX">
+						<para>Maxmimum number of calls allowed.</para>
+					</enum>
+					<enum name="QUEUESTRATEGY">
+						<para>The strategy of the queue.</para>
+					</enum>
+					<enum name="QUEUECALLS">
+						<para>Number of calls currently in the queue.</para>
+					</enum>
+					<enum name="QUEUEHOLDTIME">
+						<para>Current average hold time.</para>
+					</enum>
+					<enum name="QUEUECOMPLETED">
+						<para>Number of completed calls for the queue.</para>
+					</enum>
+					<enum name="QUEUEABANDONED">
+						<para>Number of abandoned calls.</para>
+					</enum>
+					<enum name="QUEUESRVLEVEL">
+						<para>Queue service level.</para>
+					</enum>
+					<enum name="QUEUESRVLEVELPERF">
+						<para>Current service level performance.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Makes the following queue variables available.</para>
+			<para>Returns <literal>0</literal> if queue is found and setqueuevar is defined, <literal>-1</literal> otherwise.</para>
+		</description>
+	</function>
+	<function name="QUEUE_MEMBER" language="en_US">
+		<synopsis>
+			Count number of members answering a queue.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" required="true" />
+			<parameter name="option" required="true">
+				<enumlist>
+					<enum name="logged">
+						<para>Returns the number of logged-in members for the specified queue.</para>
+					</enum>
+					<enum name="free">
+						<para>Returns the number of logged-in members for the specified queue available to take a call.</para>
+					</enum>
+					<enum name="count">
+						<para>Returns the total number of members for the specified queue.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns the number of members currently associated with the specified <replaceable>queuename</replaceable>.</para>
+		</description>
+	</function>
+	<function name="QUEUE_MEMBER_COUNT" language="en_US">
+		<synopsis>
+			Count number of members answering a queue.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" required="true" />
+		</syntax>
+		<description>
+			<para>Returns the number of members currently associated with the specified <replaceable>queuename</replaceable>.</para>
+			<warning><para>This function has been deprecated in favor of the <literal>QUEUE_MEMBER()</literal> function</para></warning>
+		</description>
+	</function>
+	<function name="QUEUE_WAITING_COUNT" language="en_US">
+		<synopsis>
+			Count number of calls currently waiting in a queue.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" />
+		</syntax>
+		<description>
+			<para>Returns the number of callers currently waiting in the specified <replaceable>queuename</replaceable>.</para>
+		</description>
+	</function>
+	<function name="QUEUE_MEMBER_LIST" language="en_US">
+		<synopsis>
+			Returns a list of interfaces on a queue.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" required="true" />
+		</syntax>
+		<description>
+			<para>Returns a comma-separated list of members associated with the specified <replaceable>queuename</replaceable>.</para>
+		</description>
+	</function>
+	<function name="QUEUE_MEMBER_PENALTY" language="en_US">
+		<synopsis>
+			Gets or sets queue members penalty.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" required="true" />
+			<parameter name="interface" required="true" />
+		</syntax>
+		<description>
+			<para>Gets or sets queue members penalty.</para>
+		</description>
+	</function>
+
+ ***/
+
 enum {
 	QUEUE_STRATEGY_RINGALL = 0,
 	QUEUE_STRATEGY_LEASTRECENT,
@@ -150,128 +488,15 @@ static struct ast_taskprocessor *devicestate_tps;
 
 static char *app = "Queue";
 
-static char *synopsis = "Queue a call for a call queue";
-
-static char *descrip =
-"  Queue(queuename[,options[,URL][,announceoverride][,timeout][,AGI][,macro][,gosub][,rule]):\n"
-"Queues an incoming call in a particular call queue as defined in queues.conf.\n"
-"This application will return to the dialplan if the queue does not exist, or\n"
-"any of the join options cause the caller to not enter the queue.\n"
-"The option string may contain zero or more of the following characters:\n"
-"      'c' -- continue in the dialplan if the callee hangs up.\n"
-"      'd' -- data-quality (modem) call (minimum delay).\n"
-"      'h' -- allow callee to hang up by hitting '*', or whatver disconnect sequence\n"
-"             that is defined in the featuremap section in features.conf.\n"
-"      'H' -- allow caller to hang up by hitting '*', or whatever disconnect sequence\n"
-"             that is defined in the featuremap section in features.conf.\n"
-"      'n' -- no retries on the timeout; will exit this application and \n"
-"             go to the next step.\n"
-"      'i' -- ignore call forward requests from queue members and do nothing\n"
-"             when they are requested.\n"
-"      'r' -- ring instead of playing MOH. Periodic Announcements are still made, if applicable.\n"
-"      't' -- allow the called user transfer the calling user by pressing '#' or\n"
-"             whatever blindxfer sequence defined in the featuremap section in\n"
-"             features.conf\n"
-"      'T' -- to allow the calling user to transfer the call by pressing '#' or\n"
-"             whatever blindxfer sequence defined in the featuremap section in\n"
-"             features.conf\n"
-"      'w' -- allow the called user to write the conversation to disk via Monitor\n"
-"             by pressing the automon sequence defined in the featuremap section in\n"
-"             features.conf\n"
-"      'W' -- allow the calling user to write the conversation to disk via Monitor\n"
-"             by pressing the automon sequence defined in the featuremap section in\n"
-"             features.conf\n"
-"      'k' -- Allow the called party to enable parking of the call by sending\n"
-"             the DTMF sequence defined for call parking in features.conf.\n"
-"      'K' -- Allow the calling party to enable parking of the call by sending\n"
-"             the DTMF sequence defined for call parking in features.conf.\n"
-"      'x' -- allow the called user to write the conversation to disk via MixMonitor\n"
-"             by pressing the automixmon sequence defined in the featuremap section in\n"
-"             features.conf\n"
-"      'X' -- allow the calling user to write the conversation to disk via MixMonitor\n"
-"             by pressing the automixmon sequence defined in the featuremap section in\n"
-"             features.conf\n"
-"  The optional URL will be sent to the called party if the channel supports\n"
-"it.\n"
-"  The optional AGI parameter will setup an AGI script to be executed on the \n"
-"calling party's channel once they are connected to a queue member.\n"
-"  The optional macro parameter will run a macro on the \n"
-"calling party's channel once they are connected to a queue member.\n"
-"  The optional gosub parameter will run a gosub on the \n"
-"calling party's channel once they are connected to a queue member.\n"
-"  The optional rule parameter will cause the queue's defaultrule to be\n"
-"overridden by the rule specified.\n"
-"  The timeout will cause the queue to fail out after a specified number of\n"
-"seconds, checked between each queues.conf 'timeout' and 'retry' cycle.\n"
-"  This application sets the following channel variable upon completion:\n"
-"      QUEUESTATUS    The status of the call as a text string, one of\n"
-"             TIMEOUT | FULL | JOINEMPTY | LEAVEEMPTY | JOINUNAVAIL | LEAVEUNAVAIL | CONTINUE\n";
-
 static char *app_aqm = "AddQueueMember" ;
-static char *app_aqm_synopsis = "Dynamically adds queue members" ;
-static char *app_aqm_descrip =
-"   AddQueueMember(queuename[,interface[,penalty[,options[,membername[,stateinterface]]]]]):\n"
-"Dynamically adds interface to an existing queue.\n"
-"If the interface is already in the queue it will return an error.\n"
-"  This application sets the following channel variable upon completion:\n"
-"     AQMSTATUS    The status of the attempt to add a queue member as a \n"
-"                     text string, one of\n"
-"           ADDED | MEMBERALREADY | NOSUCHQUEUE \n"
-"Example: AddQueueMember(techsupport,SIP/3000)\n"
-"";
 
 static char *app_rqm = "RemoveQueueMember" ;
-static char *app_rqm_synopsis = "Dynamically removes queue members" ;
-static char *app_rqm_descrip =
-"   RemoveQueueMember(queuename[,interface[,options]]):\n"
-"Dynamically removes interface to an existing queue\n"
-"If the interface is NOT in the queue it will return an error.\n"
-"  This application sets the following channel variable upon completion:\n"
-"     RQMSTATUS      The status of the attempt to remove a queue member as a\n"
-"                     text string, one of\n"
-"           REMOVED | NOTINQUEUE | NOSUCHQUEUE \n"
-"Example: RemoveQueueMember(techsupport,SIP/3000)\n"
-"";
 
 static char *app_pqm = "PauseQueueMember" ;
-static char *app_pqm_synopsis = "Pauses a queue member" ;
-static char *app_pqm_descrip =
-"   PauseQueueMember([queuename],interface[,options[,reason]]):\n"
-"Pauses (blocks calls for) a queue member.\n"
-"The given interface will be paused in the given queue.  This prevents\n"
-"any calls from being sent from the queue to the interface until it is\n"
-"unpaused with UnpauseQueueMember or the manager interface.  If no\n"
-"queuename is given, the interface is paused in every queue it is a\n"
-"member of. The application will fail if the interface is not found.\n"
-"The reason string is entirely optional and is used to add extra information\n"
-"to the appropriate queue_log entries and manager events.\n"
-"  This application sets the following channel variable upon completion:\n"
-"     PQMSTATUS      The status of the attempt to pause a queue member as a\n"
-"                     text string, one of\n"
-"           PAUSED | NOTFOUND\n"
-"Example: PauseQueueMember(,SIP/3000)\n";
 
 static char *app_upqm = "UnpauseQueueMember" ;
-static char *app_upqm_synopsis = "Unpauses a queue member" ;
-static char *app_upqm_descrip =
-"   UnpauseQueueMember([queuename],interface[,options[,reason]]):\n"
-"Unpauses (resumes calls to) a queue member.\n"
-"This is the counterpart to PauseQueueMember and operates exactly the\n"
-"same way, except it unpauses instead of pausing the given interface.\n"
-"The reason string is entirely optional and is used to add extra information\n"
-"to the appropriate queue_log entries and manager events.\n"
-"  This application sets the following channel variable upon completion:\n"
-"     UPQMSTATUS       The status of the attempt to unpause a queue \n"
-"                      member as a text string, one of\n"
-"            UNPAUSED | NOTFOUND\n"
-"Example: UnpauseQueueMember(,SIP/3000)\n";
 
 static char *app_ql = "QueueLog" ;
-static char *app_ql_synopsis = "Writes to the queue_log" ;
-static char *app_ql_descrip =
-"   QueueLog(queuename,uniqueid,agent,event[,additionalinfo]):\n"
-"Allows you to write your own events into the queue log\n"
-"Example: QueueLog(101,${UNIQUEID},${AGENT},WENTONBREAK,600)\n";
 
 /*! \brief Persistent Members astdb family */
 static const char *pm_family = "Queue/PersistentMembers";
@@ -5088,69 +5313,31 @@ static int queue_function_memberpenalty_write(struct ast_channel *chan, const ch
 
 static struct ast_custom_function queuevar_function = {
 	.name = "QUEUE_VARIABLES",
-	.synopsis = "Return Queue information in variables",
-	.syntax = "QUEUE_VARIABLES(<queuename>)",
-	.desc =
-"Makes the following queue variables available.\n"
-"QUEUEMAX maxmimum number of calls allowed\n"
-"QUEUESTRATEGY the strategy of the queue\n"
-"QUEUECALLS number of calls currently in the queue\n"
-"QUEUEHOLDTIME current average hold time\n"
-"QUEUECOMPLETED number of completed calls for the queue\n"
-"QUEUEABANDONED number of abandoned calls\n"
-"QUEUESRVLEVEL queue service level\n"
-"QUEUESRVLEVELPERF current service level performance\n"
-"Returns 0 if queue is found and setqueuevar is defined, -1 otherwise",
 	.read = queue_function_var,
 };
 
 static struct ast_custom_function queuemembercount_function = {
 	.name = "QUEUE_MEMBER",
-	.synopsis = "Count number of members answering a queue",
-	.syntax = "QUEUE_MEMBER(<queuename>, <option>)",
-	.desc =
-"Returns the number of members currently associated with the specified queue.\n"
-"One of three options may be passed to determine the count returned:\n"
-	"\"logged\" - Returns the number of logged-in members for the specified queue\n"
-	"\"free\" - Returns the number of logged-in members for the specified queue available to take a call\n"
-	"\"count\" - Returns the total number of members for the specified queue\n",
 	.read = queue_function_qac,
 };
 
 static struct ast_custom_function queuemembercount_dep = {
 	.name = "QUEUE_MEMBER_COUNT",
-	.synopsis = "Count number of members answering a queue",
-	.syntax = "QUEUE_MEMBER_COUNT(<queuename>)",
-	.desc =
-"Returns the number of members currently associated with the specified queue.\n\n"
-"This function has been deprecated in favor of the QUEUE_MEMBER function\n",
 	.read = queue_function_qac_dep,
 };
 
 static struct ast_custom_function queuewaitingcount_function = {
 	.name = "QUEUE_WAITING_COUNT",
-	.synopsis = "Count number of calls currently waiting in a queue",
-	.syntax = "QUEUE_WAITING_COUNT(<queuename>)",
-	.desc =
-"Returns the number of callers currently waiting in the specified queue.\n",
 	.read = queue_function_queuewaitingcount,
 };
 
 static struct ast_custom_function queuememberlist_function = {
 	.name = "QUEUE_MEMBER_LIST",
-	.synopsis = "Returns a list of interfaces on a queue",
-	.syntax = "QUEUE_MEMBER_LIST(<queuename>)",
-	.desc =
-"Returns a comma-separated list of members associated with the specified queue.\n",
 	.read = queue_function_queuememberlist,
 };
 
 static struct ast_custom_function queuememberpenalty_function = {
 	.name = "QUEUE_MEMBER_PENALTY",
-	.synopsis = "Gets or sets queue members penalty.",
-	.syntax = "QUEUE_MEMBER_PENALTY(<queuename>,<interface>)",
-	.desc =
-"Gets or sets queue members penalty\n",
 	.read = queue_function_memberpenalty_read,
 	.write = queue_function_memberpenalty_write,
 };
@@ -6430,12 +6617,12 @@ static int load_module(void)
 		reload_queue_members();
 
 	ast_cli_register_multiple(cli_queue, sizeof(cli_queue) / sizeof(struct ast_cli_entry));
-	res = ast_register_application(app, queue_exec, synopsis, descrip);
-	res |= ast_register_application(app_aqm, aqm_exec, app_aqm_synopsis, app_aqm_descrip);
-	res |= ast_register_application(app_rqm, rqm_exec, app_rqm_synopsis, app_rqm_descrip);
-	res |= ast_register_application(app_pqm, pqm_exec, app_pqm_synopsis, app_pqm_descrip);
-	res |= ast_register_application(app_upqm, upqm_exec, app_upqm_synopsis, app_upqm_descrip);
-	res |= ast_register_application(app_ql, ql_exec, app_ql_synopsis, app_ql_descrip);
+	res = ast_register_application_xml(app, queue_exec);
+	res |= ast_register_application_xml(app_aqm, aqm_exec);
+	res |= ast_register_application_xml(app_rqm, rqm_exec);
+	res |= ast_register_application_xml(app_pqm, pqm_exec);
+	res |= ast_register_application_xml(app_upqm, upqm_exec);
+	res |= ast_register_application_xml(app_ql, ql_exec);
 	res |= ast_manager_register("Queues", 0, manager_queues_show, "Queues");
 	res |= ast_manager_register("QueueStatus", 0, manager_queues_status, "Queue Status");
 	res |= ast_manager_register("QueueSummary", 0, manager_queues_summary, "Queue Summary");

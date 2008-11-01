@@ -36,22 +36,43 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/channel.h"
 
+/*** DOCUMENTATION
+	<application name="Transfer" language="en_US">
+		<synopsis>
+			Transfer caller to remote extension.
+		</synopsis>
+		<syntax>
+			<parameter name="dest" required="true" argsep="/">
+				<argument name="Tech" />
+				<argument name="destination" required="true" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>Requests the remote caller be transferred
+			to a given destination. If TECH (SIP, IAX2, LOCAL etc) is used, only
+			an incoming call with the same channel technology will be transfered.
+			Note that for SIP, if you transfer before call is setup, a 302 redirect
+			SIP message will be returned to the caller.</para>
+			<para>The result of the application will be reported in the <variable>TRANSFERSTATUS</variable>
+			channel variable:</para>
+			<variablelist>
+				<variable name="TRANSFERSTATUS">
+					<value name="SUCCESS">
+						Transfer succeeded.
+					</value>
+					<value name="FAILURE">
+						Transfer failed.
+					</value>
+					<value name="UNSUPPORTED">
+						Transfer unsupported by channel driver.
+					</value>
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+ ***/
 
 static const char *app = "Transfer";
-
-static const char *synopsis = "Transfer caller to remote extension";
-
-static const char *descrip = 
-"  Transfer([Tech/]dest):  Requests the remote caller be transferred\n"
-"to a given destination. If TECH (SIP, IAX2, LOCAL etc) is used, only\n"
-"an incoming call with the same channel technology will be transfered.\n"
-"Note that for SIP, if you transfer before call is setup, a 302 redirect\n"
-"SIP message will be returned to the caller.\n"
-"\nThe result of the application will be reported in the TRANSFERSTATUS\n"
-"channel variable:\n"
-"       SUCCESS      Transfer succeeded\n"
-"       FAILURE      Transfer failed\n"
-"       UNSUPPORTED  Transfer unsupported by channel driver\n";
 
 static int transfer_exec(struct ast_channel *chan, void *data)
 {
@@ -115,7 +136,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, transfer_exec, synopsis, descrip);
+	return ast_register_application_xml(app, transfer_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Transfers a caller to another extension");

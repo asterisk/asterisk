@@ -34,24 +34,49 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/channel.h"
 
+/*** DOCUMENTATION
+	<application name="SendURL" language="en_US">
+		<synopsis>
+			Send a URL.
+		</synopsis>
+		<syntax>
+			<parameter name="URL" required="true" />
+			<parameter name="option">
+				<optionlist>
+					<option name="w">
+						<para>Execution will wait for an acknowledgement that the
+						URL has been loaded before continuing.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Requests client go to <replaceable>URL</replaceable> (IAX2) or sends the
+			URL to the client (other channels).</para>
+			<para>Result is returned in the <variable>SENDURLSTATUS</variable> channel variable:</para>
+			<variablelist>
+				<variable name="SENDURLSTATUS">
+					<value name="SUCCESS">
+						URL successfully sent to client.
+					</value>
+					<value name="FAILURE">
+						Failed to send URL.
+					</value>
+					<value name="NOLOAD">
+						Client failed to load URL (wait enabled).
+					</value>
+					<value name="UNSUPPORTED">
+						Channel does not support URL transport.
+					</value>
+				</variable>
+			</variablelist>
+			<para>SendURL continues normally if the URL was sent correctly or if the channel
+			does not support HTML transport.  Otherwise, the channel is hung up.</para>
+		</description>
+	</application>
+ ***/
+
 static char *app = "SendURL";
-
-static char *synopsis = "Send a URL";
-
-static char *descrip = 
-"  SendURL(URL[,option]): Requests client go to URL (IAX2) or sends the \n"
-"URL to the client (other channels).\n"
-"Result is returned in the SENDURLSTATUS channel variable:\n"
-"    SUCCESS       URL successfully sent to client\n"
-"    FAILURE       Failed to send URL\n"
-"    NOLOAD        Client failed to load URL (wait enabled)\n"
-"    UNSUPPORTED   Channel does not support URL transport\n"
-"\n"
-"If the option 'w' is specified, execution will wait for an\n"
-"acknowledgement that the URL has been loaded before continuing\n"
-"\n"
-"SendURL continues normally if the URL was sent correctly or if the channel\n"
-"does not support HTML transport.  Otherwise, the channel is hung up.\n";
 
 enum {
 	OPTION_WAIT = (1 << 0),
@@ -143,7 +168,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, sendurl_exec, synopsis, descrip);
+	return ast_register_application_xml(app, sendurl_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Send URL Applications");

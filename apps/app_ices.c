@@ -45,20 +45,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<application name="ICES" language="en_US">
+		<synopsis>
+			Encode and stream using 'ices'.
+		</synopsis>
+		<syntax>
+			<parameter name="config" required="true">
+				<para>ICES configuration file.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Streams to an icecast server using ices (available separately).
+			A configuration file must be supplied for ices (see contrib/asterisk-ices.xml).</para>
+			<note><para>ICES version 2 cient and server required.</para></note>
+		</description>
+	</application>
+
+ ***/
+
 #define path_BIN "/usr/bin/"
 #define path_LOCAL "/usr/local/bin/"
 
 static char *app = "ICES";
-
-static char *synopsis = "Encode and stream using 'ices'";
-
-static char *descrip = 
-"  ICES(config.xml) Streams to an icecast server using ices\n"
-"(available separately).  A configuration file must be supplied\n"
-"for ices (see contrib/asterisk-ices.xml). \n"
-"\n"
-"- ICES version 2 cient and server required.\n";
-
 
 static int icesencode(char *filename, int fd)
 {
@@ -199,7 +208,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, ices_exec, synopsis, descrip);
+	return ast_register_application_xml(app, ices_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Encode and Stream via icecast and ices");

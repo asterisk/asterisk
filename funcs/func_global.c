@@ -37,6 +37,51 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/manager.h"
 
+/*** DOCUMENTATION
+	<function name="GLOBAL" language="en_US">
+		<synopsis>
+			Gets or sets the global variable specified.
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true">
+				<para>Global variable name</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Set or get the value of a global variable specified in <replaceable>varname</replaceable></para>
+		</description>
+	</function>
+	<function name="SHARED" language="en_US">
+		<synopsis>
+			Gets or sets the shared variable specified.
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true">
+				<para>Variable name</para>
+			</parameter>
+			<parameter name="channel">
+				<para>If not specified will default to current channel. It is the complete
+				channel name: <literal>SIP/12-abcd1234</literal> or the prefix only <literal>SIP/12</literal>.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Implements a shared variable area, in which you may share variables between
+			channels.</para>
+			<para>The variables used in this space are separate from the general namespace of
+			the channel and thus <variable>SHARED(foo)</variable> and <variable>foo</variable> 
+			represent two completely different variables, despite sharing the same name.</para>
+			<para>Finally, realize that there is an inherent race between channels operating
+			at the same time, fiddling with each others' internal variables, which is why
+			this special variable namespace exists; it is to remind you that variables in
+			the SHARED namespace may change at any time, without warning.  You should
+			therefore take special care to ensure that when using the SHARED namespace,
+			you retrieve the variable and store it in a regular channel variable before
+			using it in a set of calculations (or you might be surprised by the result).</para>
+		</description>
+	</function>
+
+ ***/
+
 static void shared_variable_free(void *data);
 
 static struct ast_datastore_info shared_variable_info = {
@@ -76,8 +121,6 @@ static int global_write(struct ast_channel *chan, const char *cmd, char *data, c
 
 static struct ast_custom_function global_function = {
 	.name = "GLOBAL",
-	.synopsis = "Gets or sets the global variable specified",
-	.syntax = "GLOBAL(<varname>)",
 	.read = global_read,
 	.write = global_write,
 };
@@ -203,25 +246,6 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 
 static struct ast_custom_function shared_function = {
 	.name = "SHARED",
-	.synopsis = "Gets or sets the shared variable specified",
-	.syntax = "SHARED(<varname>[,<channel>])",
-	.desc =
-"Implements a shared variable area, in which you may share variables between\n"
-"channels.  If channel is unspecified, defaults to the current channel.  Note\n"
-"that the channel name may be the complete name (i.e. SIP/12-abcd1234) or the\n"
-"prefix only (i.e. SIP/12).\n"
-"\n"
-"The variables used in this space are separate from the general namespace of\n"
-"the channel and thus ${SHARED(foo)} and ${foo} represent two completely\n"
-"different variables, despite sharing the same name.\n"
-"\n"
-"Finally, realize that there is an inherent race between channels operating\n"
-"at the same time, fiddling with each others' internal variables, which is why\n"
-"this special variable namespace exists; it is to remind you that variables in\n"
-"the SHARED namespace may change at any time, without warning.  You should\n"
-"therefore take special care to ensure that when using the SHARED namespace,\n"
-"you retrieve the variable and store it in a regular channel variable before\n"
-"using it in a set of calculations (or you might be surprised by the result).\n",
 	.read = shared_read,
 	.write = shared_write,
 };

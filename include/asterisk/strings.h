@@ -387,6 +387,21 @@ void ast_str_reset(struct ast_str *buf),
 }
 )
 
+/*! \brief Trims trailing whitespace characters from an ast_str string.
+ *  \param buf A pointer to the ast_str string.
+ */
+AST_INLINE_API(
+void ast_str_trim_blanks(struct ast_str *buf),
+{
+	if (!buf) {
+		return;
+	}
+	while (buf->used && buf->str[buf->used - 1] < 33) {
+		buf->str[--(buf->used)] = '\0';
+	}
+}
+)
+
 /*
  * AST_INLINE_API() is a macro that takes a block of code as an argument.
  * Using preprocessor #directives in the argument is not supported by all

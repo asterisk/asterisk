@@ -36,13 +36,28 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 
-static char *synopsis = "Soft Hangup Application";
+/*** DOCUMENTATION
+	<application name="SoftHangup" language="en_US">
+		<synopsis>
+			Hangs up the requested channel.
+		</synopsis>
+		<syntax>
+			<parameter name="Technology/Resource" required="true" />
+			<parameter name="options">
+				<optionlist>
+					<option name="a">
+						<para>Hang up all channels on a specified device instead of a single resource</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>	
+		<description>
+			<para>Hangs up the requested channel.  If there are no channels to 
+			hangup, the application will report it.</para>
+		</description>
+	</application>
 
-static char *desc = "  SoftHangup(Technology/resource[,options]):\n"
-"Hangs up the requested channel.  If there are no channels to hangup,\n"
-"the application will report it.\n"
-"  Options:\n"
-"     'a'  - hang up all channels on a specified device instead of a single resource\n";
+ ***/
 
 static char *app = "SoftHangup";
 
@@ -114,7 +129,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, softhangup_exec, synopsis, desc);
+	return ast_register_application_xml(app, softhangup_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Hangs up the requested channel");

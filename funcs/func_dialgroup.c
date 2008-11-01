@@ -39,6 +39,40 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/astdb.h"
 
+/*** DOCUMENTATION
+	<function name="DIALGROUP" language="en_US">
+		<synopsis>
+			Manages a group of users for dialing.
+		</synopsis>
+		<syntax>
+			<parameter name="group" required="true" />
+			<parameter name="op">
+				<para>The operation name, possible values are:</para>
+				<para><literal>add</literal> - add a channel name or interface (write-only)</para>
+				<para><literal>del</literal> - remove a channel name or interface (write-only)</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Presents an interface meant to be used in concert with the Dial
+			application, by presenting a list of channels which should be dialled when
+			referenced.</para>
+			<para>When DIALGROUP is read from, the argument is interpreted as the particular
+			<replaceable>group</replaceable> for which a dial should be attempted.  When DIALGROUP is written to
+			with no arguments, the entire list is replaced with the argument specified.</para>
+			<para>Functionality is similar to a queue, except that when no interfaces are
+			available, execution may continue in the dialplan.  This is useful when
+			you want certain people to be the first to answer any calls, with immediate
+			fallback to a queue when the front line people are busy or unavailable, but
+			you still want front line people to log in and out of that group, just like
+			a queue.</para>
+			<para>Example:</para>
+			<para>exten => 1,1,Set(DIALGROUP(mygroup,add)=SIP/10)</para>
+			<para>exten => 1,n,Set(DIALGROUP(mygroup,add)=SIP/20)</para>
+			<para>exten => 1,n,Dial(${DIALGROUP(mygroup)})</para>
+		</description>
+	</function>
+ ***/
+
 static struct ao2_container *group_container = NULL;
 
 struct group_entry {
@@ -232,24 +266,6 @@ static int dialgroup_write(struct ast_channel *chan, const char *cmd, char *data
 
 static struct ast_custom_function dialgroup_function = {
 	.name = "DIALGROUP",
-	.synopsis = "Manages a group of users for dialing",
-	.syntax = "DIALGROUP(<group>[,op])",
-	.desc =
-"  DIALGROUP presents an interface meant to be used in concert with the Dial\n"
-"application, by presenting a list of channels which should be dialled when\n"
-"referenced.\n"
-"  When DIALGROUP is read from, the argument is interpreted as the particular\n"
-"group for which a dial should be attempted.  When DIALGROUP is written to\n"
-"with no arguments, the entire list is replaced with the argument specified.\n"
-"Other operations are as follows:\n"
-"  add - add a channel name or interface (write-only)\n"
-"  del - remove a channel name or interface (write-only)\n\n"
-"Functionality is similar to a queue, except that when no interfaces are\n"
-"available, execution may continue in the dialplan.  This is useful when\n"
-"you want certain people to be the first to answer any calls, with immediate\n"
-"fallback to a queue when the front line people are busy or unavailable, but\n"
-"you still want front line people to log in and out of that group, just like\n"
-"a queue.\n",
 	.read = dialgroup_read,
 	.write = dialgroup_write,
 };

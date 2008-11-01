@@ -31,6 +31,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 
+/*** DOCUMENTATION
+	<function name="SHA1" language="en_US">
+		<synopsis>
+			Computes a SHA1 digest.
+		</synopsis>
+		<syntax>
+			<parameter name="data" required="true">
+				<para>Input string</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Generate a SHA1 digest via the SHA1 algorythm.</para>
+			<para>Example:  Set(sha1hash=${SHA1(junky)})</para>
+			<para>Sets the asterisk variable sha1hash to the string <literal>60fa5675b9303eb62f99a9cd47f9f5837d18f9a0</literal>
+			which is known as his hash</para>	
+		</description>
+	</function>
+ ***/
+
 static int sha1(struct ast_channel *chan, const char *cmd, char *data,
 		char *buf, size_t len)
 {
@@ -54,13 +73,7 @@ static int sha1(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function sha1_function = {
 	.name = "SHA1",
-	.synopsis = "Computes a SHA1 digest",
-	.syntax = "SHA1(<data>)",
 	.read = sha1,
-	.desc = "Generate a SHA1 digest via the SHA1 algorythm.\n"
-		" Example:  Set(sha1hash=${SHA1(junky)})\n"
-		" Sets the asterisk variable sha1hash to the string '60fa5675b9303eb62f99a9cd47f9f5837d18f9a0'\n"
-		" which is known as his hash\n",
 };
 
 static int unload_module(void)

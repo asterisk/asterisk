@@ -56,6 +56,98 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/global_datastores.h"
 #include "asterisk/astobj2.h"
 
+/*** DOCUMENTATION
+	<application name="Bridge" language="en_US">
+		<synopsis>
+			Bridge two channels.
+		</synopsis>
+		<syntax>
+			<parameter name="channel" required="true">
+				<para>The current channel is bridged to the specified <replaceable>channel</replaceable>.</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="p">
+						<para>Play a courtesy tone to <replaceable>channel</replaceable>.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Allows the ability to bridge two channels via the dialplan.</para>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="BRIDGERESULT">
+					<para>The result of the bridge attempt as a text string.</para>
+					<value name="SUCCESS" />
+					<value name="FAILURE" />
+					<value name="LOOP" />
+					<value name="NONEXISTENT" />
+					<value name="INCOMPATIBLE" />
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+	<application name="ParkedCall" language="en_US">
+		<synopsis>
+			Answer a parked call.
+		</synopsis>
+		<syntax>
+			<parameter name="exten" required="true" />
+		</syntax>
+		<description>
+			<para>Used to connect to a parked call. This application is always
+			registered internally and does not need to be explicitly added
+			into the dialplan, although you should include the <literal>parkedcalls</literal>
+			context. If no extension is provided, then the first available
+			parked call will be acquired.</para>
+		</description>
+	</application>
+	<application name="Park" language="en_US">
+		<synopsis>
+			Park yourself.
+		</synopsis>
+		<syntax>
+			<parameter name="timeout">
+				<para>A custom parking timeout for this parked call.</para>
+			</parameter>
+			<parameter name="return_context">
+				<para>The context to return the call to after it times out.</para>
+			</parameter>
+			<parameter name="return_exten">
+				<para>The extension to return the call to after it times out.</para>
+			</parameter>
+			<parameter name="return_priority">
+				<para>The priority to return the call to after it times out.</para>
+			</parameter>
+			<parameter name="options">
+				<para>A list of options for this parked call.</para>
+				<optionlist>
+					<option name="r">
+						<para>Send ringing instead of MOH to the parked call.</para>
+					</option>
+					<option name="R">
+						<para>Randomize the selection of a parking space.</para>
+					</option>
+					<option name="s">
+						<para>Silence announcement of the parking space number.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Used to park yourself (typically in combination with a supervised
+			transfer to know the parking space). This application is always
+			registered internally and does not need to be explicitly added
+			into the dialplan, although you should include the <literal>parkedcalls</literal>
+			context (or the context specified in <filename>features.conf</filename>).</para>
+			<para>If you set the <variable>PARKINGEXTEN</variable> variable to an extension in your
+			parking context, Park() will park the call on that extension, unless
+			it already exists. In that case, execution will continue at next priority.</para>
+		</description>
+	</application>
+ ***/
+
 #define DEFAULT_PARK_TIME 45000
 #define DEFAULT_TRANSFER_DIGIT_TIMEOUT 3000
 #define DEFAULT_FEATURE_DIGIT_TIMEOUT 2000
@@ -150,40 +242,7 @@ static unsigned int atxfercallbackretries;
 static char *registrar = "features";		   /*!< Registrar for operations */
 
 /* module and CLI command definitions */
-static char *synopsis = "Answer a parked call";
-
-static char *descrip = "ParkedCall(exten): "
-"Used to connect to a parked call.  This application is always\n"
-"registered internally and does not need to be explicitly added\n"
-"into the dialplan, although you should include the 'parkedcalls'\n"
-"context.  If no extension is provided, then the first available\n"
-"parked call will be acquired.\n";
-
 static char *parkcall = PARK_APP_NAME;
-
-static char *synopsis2 = "Park yourself";
-
-static char *descrip2 = 
-"   Park([timeout,[return_context,[return_exten,[return_priority,[options]]]]]):"
-"Used to park yourself (typically in combination with a supervised\n"
-"transfer to know the parking space). This application is always\n"
-"registered internally and does not need to be explicitly added\n"
-"into the dialplan, although you should include the 'parkedcalls'\n"
-"context (or the context specified in features.conf).\n\n"
-"If you set the PARKINGEXTEN variable to an extension in your\n"
-"parking context, Park() will park the call on that extension, unless\n"
-"it already exists. In that case, execution will continue at next\n"
-"priority.\n"
-"   This application can accept arguments as well.\n"
-" timeout - A custom parking timeout for this parked call.\n"
-" return_context - The context to return the call to after it times out.\n"
-" return_exten - The extension to return the call to after it times out.\n"
-" return_priority - The priority to return the call to after it times out.\n"
-" options - A list of options for this parked call.  Valid options are:\n"
-"    'r' - Send ringing instead of MOH to the parked call.\n"
-"    'R' - Randomize the selection of a parking space.\n"
-"    's' - Silence announcement of the parking space number.\n"
-"";
 
 static struct ast_app *monitor_app = NULL;
 static int monitor_ok = 1;
@@ -3962,16 +4021,6 @@ int ast_pickup_call(struct ast_channel *chan)
 }
 
 static char *app_bridge = "Bridge";
-static char *bridge_synopsis = "Bridge two channels";
-static char *bridge_descrip =
-"Usage: Bridge(channel[,options])\n"
-"	Allows the ability to bridge two channels via the dialplan.\n"
-"The current channel is bridged to the specified 'channel'.\n"
-"  Options:\n"
-"    p - Play a courtesy tone to 'channel'.\n"
-"This application sets the following channel variable upon completion:\n"
-" BRIDGERESULT    The result of the bridge attempt as a text string, one of\n"
-"           SUCCESS | FAILURE | LOOP | NONEXISTENT | INCOMPATIBLE\n";
 
 enum {
 	BRIDGE_OPT_PLAYTONE = (1 << 0),
@@ -4113,7 +4162,7 @@ int ast_features_init(void)
 {
 	int res;
 
-	ast_register_application2(app_bridge, bridge_exec, bridge_synopsis, bridge_descrip, NULL);
+	ast_register_application2(app_bridge, bridge_exec, NULL, NULL, NULL);
 
 	parkinglots = ao2_container_alloc(7, parkinglot_hash_cb, parkinglot_cmp_cb);
 
@@ -4121,9 +4170,9 @@ int ast_features_init(void)
 		return res;
 	ast_cli_register_multiple(cli_features, sizeof(cli_features) / sizeof(struct ast_cli_entry));
 	ast_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
-	res = ast_register_application2(parkedcall, park_exec, synopsis, descrip, NULL);
+	res = ast_register_application2(parkedcall, park_exec, NULL, NULL, NULL);
 	if (!res)
-		res = ast_register_application2(parkcall, park_call_exec, synopsis2, descrip2, NULL);
+		res = ast_register_application2(parkcall, park_call_exec, NULL, NULL, NULL);
 	if (!res) {
 		ast_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls");
 		ast_manager_register2("Park", EVENT_FLAG_CALL, manager_park, "Park a channel", mandescr_park); 

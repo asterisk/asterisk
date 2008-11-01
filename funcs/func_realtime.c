@@ -37,6 +37,72 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<function name="REALTIME" language="en_US">
+		<synopsis>
+			RealTime Read/Write Functions.
+		</synopsis>
+		<syntax>
+			<parameter name="family" required="true" />
+			<parameter name="fieldmatch" required="true" />
+			<parameter name="value" />
+			<parameter name="delim1|field">
+				<para>Use <replaceable>delim1</replaceable> with <replaceable>delim2</replaceable> on
+				read and <replaceable>field</replaceable> without <replaceable>delim2</replaceable> on
+				write</para>
+				<para>If we are reading and <replaceable>delim1</replaceable> is not specified, defaults
+				to <literal>,</literal></para>
+			</parameter>
+			<parameter name="delim2">
+				<para>Parameter only used when reading, if not specified defaults to <literal>=</literal></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This function will read or write values from/to a RealTime repository.
+			REALTIME(....) will read names/values from the repository, and 
+			REALTIME(....)= will write a new value/field to the repository. On a
+			read, this function returns a delimited text string. The name/value
+			pairs are delimited by <replaceable>delim1</replaceable>, and the name and value are delimited
+			between each other with delim2. 
+			If there is no match, NULL will be returned by the function.
+			On a write, this function will always return NULL.</para>
+		</description>
+	</function>
+	<function name="REALTIME_STORE" language="en_US">
+		<synopsis>
+			RealTime Store Function.
+		</synopsis>
+		<syntax>
+			<parameter name="family" required="true" />
+			<parameter name="field1" required="true" />
+			<parameter name="fieldN" required="true" multiple="true" />
+			<parameter name="field30" required="true" />
+		</syntax>
+		<description>
+			<para>This function will insert a new set of values into the RealTime repository.
+			If RT engine provides an unique ID of the stored record, REALTIME_STORE(...)=..
+			creates channel variable named RTSTOREID, which contains value of unique ID.
+			Currently, a maximum of 30 field/value pairs is supported.</para>
+		</description>
+	</function>
+	<function name="REALTIME_DESTROY" language="en_US">
+		<synopsis>
+			RealTime Destroy Function.
+		</synopsis>
+		<syntax>
+			<parameter name="family" required="true" />
+			<parameter name="fieldmatch" required="true" />
+			<parameter name="value" />
+			<parameter name="delim1" />
+			<parameter name="delim2" />
+		</syntax>
+		<description>
+			<para>This function acts in the same way as REALTIME(....) does, except that
+			it destroys matched record in RT engine.</para>
+		</description>
+	</function>
+ ***/
+
 static int function_realtime_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len) 
 {
 	struct ast_variable *var, *head;
@@ -232,39 +298,17 @@ static int function_realtime_readdestroy(struct ast_channel *chan, const char *c
 
 struct ast_custom_function realtime_function = {
 	.name = "REALTIME",
-	.synopsis = "RealTime Read/Write Functions",
-	.syntax = "REALTIME(family,fieldmatch[,value[,delim1[,delim2]]]) on read\n"
-		  "REALTIME(family,fieldmatch,value,field) on write",
-	.desc = "This function will read or write values from/to a RealTime repository.\n"
-		"REALTIME(....) will read names/values from the repository, and \n"
-		"REALTIME(....)= will write a new value/field to the repository. On a\n"
-		"read, this function returns a delimited text string. The name/value \n"
-		"pairs are delimited by delim1, and the name and value are delimited \n"
-		"between each other with delim2. The default for delim1 is ',' and   \n"
-		"the default for delim2 is '='. If there is no match, NULL will be   \n"
-		"returned by the function. On a write, this function will always     \n"
-		"return NULL. \n",
 	.read = function_realtime_read,
 	.write = function_realtime_write,
 };
 
 struct ast_custom_function realtime_store_function = {
 	.name = "REALTIME_STORE",
-	.synopsis = "RealTime Store Function",
-	.syntax = "REALTIME_STORE(family,field1,field2,...,field30) = value1,value2,...,value30",
-	.desc = "This function will insert a new set of values into the RealTime repository.\n"
-		"If RT engine provides an unique ID of the stored record, REALTIME_STORE(...)=..\n"
-		"creates channel variable named RTSTOREID, which contains value of unique ID.\n"
-		"Currently, a maximum of 30 field/value pairs is supported.\n",
 	.write = function_realtime_store,
 };
 
 struct ast_custom_function realtime_destroy_function = {
 	.name = "REALTIME_DESTROY",
-	.synopsis = "RealTime Destroy Function",
-	.syntax = "REALTIME_DESTROY(family,fieldmatch[,value[,delim1[,delim2]]])\n",
-	.desc = "This function acts in the same way as REALTIME(....) does, except that\n"
-		"it destroys matched record in RT engine.\n",
 	.read = function_realtime_readdestroy,
 };
 

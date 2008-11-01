@@ -43,22 +43,54 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "ChanIsAvail";
 
-static char *synopsis = "Check channel availability";
-
-static char *descrip =
-"  ChanIsAvail(Technology/resource[&Technology2/resource2...][,options]): \n"
-"This application will check to see if any of the specified channels are\n"
-"available.\n"
-"  Options:\n"
-"    a - Check for all available channels, not only the first one.\n"
-"    s - Consider the channel unavailable if the channel is in use at all.\n"
-"    t - Simply checks if specified channels exist in the channel list\n"
-"        (implies option s).\n"
-"This application sets the following channel variable upon completion:\n"
-"  AVAILCHAN     - the name of the available channel, if one exists\n"
-"  AVAILORIGCHAN - the canonical channel name that was used to create the channel\n"
-"  AVAILSTATUS   - the status code for the available channel\n";
-
+/*** DOCUMENTATION
+	<application name="ChanIsAvail" language="en_US">
+		<synopsis>
+			Check channel availability
+		</synopsis>
+		<syntax>
+			<parameter name="Technology/Resource" required="true" argsep="&amp;">
+				<argument name="Technology2/Resource2" multiple="true">
+					<para>Optional extra devices to check</para>
+					<para>If you need more then one enter them as
+					Technology2/Resource2&amp;Technology3/Resourse3&amp;.....</para>
+				</argument>
+				<para>Specification of the device(s) to check.  These must be in the format of 
+				<literal>Technology/Resource</literal>, where <replaceable>Technology</replaceable>
+				represents a particular channel driver, and <replaceable>Resource</replaceable>
+				represents a resource available to that particular channel driver.</para>
+			</parameter>
+			<parameter name="options" required="false">
+				<optionlist>
+					<option name="a">
+						<para>Check for all available channels, not only the first one</para>
+					</option>
+					<option name="s">
+						<para>Consider the channel unavailable if the channel is in use at all</para>
+					</option>
+					<option name="t" implies="s">
+						<para>Simply checks if specified channels exist in the channel list</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application will check to see if any of the specified channels are available.</para>
+			<para>This application sets the following channel variables:</para>
+			<variablelist>
+				<variable name="AVAILCHAN">
+					<para>The name of the available channel, if one exists</para>
+				</variable>
+				<variable name="AVAILORIGCHAN">
+					<para>The canonical channel name that was used to create the channel</para>
+				</variable>
+				<variable name="AVAILSTATUS">
+					<para>The status code for the available channel</para>
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+ ***/
 
 static int chanavail_exec(struct ast_channel *chan, void *data)
 {
@@ -165,7 +197,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, chanavail_exec, synopsis, descrip) ?
+	return ast_register_application_xml(app, chanavail_exec) ?
 		AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 

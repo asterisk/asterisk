@@ -28,6 +28,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 
+/*** DOCUMENTATION
+	<function name="IFMODULE" language="en_US">
+		<synopsis>
+			Checks if an Asterisk module is loaded in memory.
+		</synopsis>
+		<syntax>
+			<parameter name="modulename.so" required="true">
+				<para>Module name complete with <literal>.so</literal></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Checks if a module is loaded. Use the full module name
+			as shown by the list in <literal>module list</literal>.
+			Returns <literal>1</literal> if module exists in memory, otherwise <literal>0</literal></para>
+		</description>
+	</function>
+ ***/
+
 static int ifmodule_read(struct ast_channel *chan, const char *cmd, char *data,
 		    char *buf, size_t len)
 {
@@ -46,12 +64,7 @@ static int ifmodule_read(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function ifmodule_function = {
 	.name = "IFMODULE",
-	.synopsis = "Checks if an Asterisk module is loaded in memory",
-	.syntax = "IFMODULE(<modulename.so>)",
 	.read = ifmodule_read,
-	.desc = "Checks if a module is loaded. Use the full module name\n"
-		"as shown by the list in \"module list\". \n"
-		"Returns \"1\" if module exists in memory, otherwise \"0\".\n",
 };
 
 

@@ -73,18 +73,46 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 "                running.\n" \
 "    c(<name>) - By default, Asterisk will use the channel name for the jack client\n" \
 "                name.  Use this option to specify a custom client name.\n"
-
+/*** DOCUMENTATION
+	<application name="JACK" language="en_US">
+		<synopsis>
+			Jack Audio Connection Kit
+		</synopsis>
+		<syntax>
+			<parameter name="options" required="false">
+				<optionlist>
+					<option name="s">
+						<argument name="name" required="true">
+							<para>Connect to the specified jack server name</para>
+						</argument>
+					</option>
+					<option name="i">
+						<argument name="name" required="true">
+							<para>Connect the output port that gets created to the specified jack input port</para>
+						</argument>
+					</option>
+					<option name="o">
+						<argument name="name" required="true">
+							<para>Connect the input port that gets created to the specified jack output port</para>
+						</argument>
+					</option>
+					<option name="c">
+						<argument name="name" required="true">
+							<para>By default, Asterisk will use the channel name for the jack client name.</para>
+							<para>Use this option to specify a custom client name.</para>
+						</argument>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>When executing this application, two jack ports will be created; 
+			one input and one output. Other applications can be hooked up to 
+			these ports to access audio coming from, or being send to the channel.</para>
+		</description>
+	</application>
+ ***/
 static char *jack_app = "JACK";
-static char *jack_synopsis = 
-"JACK (Jack Audio Connection Kit) Application";
-static char *jack_desc = 
-"JACK([options])\n"
-"  When this application is executed, two jack ports will be created; one input\n"
-"and one output.  Other applications can be hooked up to these ports to access\n"
-"the audio coming from, or being sent to the channel.\n"
-"  Valid options:\n"
-COMMON_OPTIONS
-"";
 
 struct jack_data {
 	AST_DECLARE_STRING_FIELDS(
@@ -982,7 +1010,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (ast_register_application(jack_app, jack_exec, jack_synopsis, jack_desc)) {
+	if (ast_register_application_xml(jack_app, jack_exec)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

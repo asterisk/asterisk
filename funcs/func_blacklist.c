@@ -35,6 +35,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/astdb.h"
 
+/*** DOCUMENTATION
+	<function name="BLACKLIST" language="en_US">
+		<synopsis>
+			Check if the callerid is on the blacklist.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Uses astdb to check if the Caller*ID is in family <literal>blacklist</literal>.
+			Returns <literal>1</literal> or <literal>0</literal>.</para>
+		</description>
+	</function>
+
+***/
+
 static int blacklist_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char blacklist[1];
@@ -55,9 +69,6 @@ static int blacklist_read(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function blacklist_function = {
 	.name = "BLACKLIST",
-	.synopsis = "Check if the callerid is on the blacklist",
-	.desc = "Uses astdb to check if the Caller*ID is in family 'blacklist'.  Returns 1 or 0.\n",
-	.syntax = "BLACKLIST()",
 	.read = blacklist_read,
 };
 

@@ -48,6 +48,52 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DEFAULT_AGC_LEVEL 8000.0
 
+/*** DOCUMENTATION
+	<function name="AGC" language="en_US">
+		<synopsis>
+			Apply automatic gain control to audio on a channel.
+		</synopsis>
+		<syntax>
+			<parameter name="channeldirection" required="true">
+				<para>This can be either <literal>rx</literal> or <literal>tx</literal></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>The AGC function will apply automatic gain control to the audio on the
+			channel that it is executed on. Using <literal>rx</literal> for audio recieved
+			and <literal>tx</literal> for audio transmitted to the channel. When using this
+			function you set a target audio level. It is primarly intended for use with
+			analog lines, but could be useful for other channels as well. The target volume 
+			is set with a number between <literal>1-32768</literal>. The larger the number
+			the louder (more gain) the channel will recieve.</para>
+			<para>Examples:</para>
+			<para>exten => 1,1,Set(AGC(rx)=8000)</para>
+			<para>exten => 1,2,Set(AGC(tx)=off)</para>
+		</description>
+	</function>
+	<function name="DENOISE" language="en_US">
+		<synopsis>
+			Apply noise reduction to audio on a channel.
+		</synopsis>
+		<syntax>
+			<parameter name="channeldirection" required="true">
+				<para>This can be either <literal>rx</literal> or <literal>tx</literal> 
+				the values that can be set to this are either <literal>on</literal> and
+				<literal>off</literal></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>The DENOISE function will apply noise reduction to audio on the channel
+			that it is executed on. It is very useful for noisy analog lines, especially
+			when adjusting gains or using AGC. Use <literal>rx</literal> for audio received from the channel
+			and <literal>tx</literal> to apply the filter to the audio being sent to the channel.</para>
+			<para>Examples:</para>
+			<para>exten => 1,1,Set(DENOISE(rx)=on)</para>
+			<para>exten => 1,2,Set(DENOISE(tx)=off)</para>
+		</description>
+	</function>
+ ***/
+
 struct speex_direction_info {
 	SpeexPreprocessState *state;	/*!< speex preprocess state object */
 	int agc;						/*!< audio gain control is enabled or not */
@@ -290,39 +336,12 @@ static int speex_read(struct ast_channel *chan, const char *cmd, char *data, cha
 
 static struct ast_custom_function agc_function = {
 	.name = "AGC",
-	.synopsis = "Apply automatic gain control to audio on a channel",
-	.desc =
-	"  The AGC function will apply automatic gain control to audio on the channel\n"
-	"that this function is executed on.  Use rx for audio received from the channel\n"
-	"and tx to apply AGC to the audio being sent to the channel.  When using this\n"
-	"function, you set a target audio level.  It is primarily intended for use with\n"
-	"analog lines, but could be useful for other channels, as well.  The target volume\n"
-	"is set with a number between 1 and 32768.  Larger numbers are louder.\n"
-	"  Example Usage:\n"
-	"    Set(AGC(rx)=8000)\n"
-	"    Set(AGC(tx)=8000)\n"
-	"    Set(AGC(rx)=off)\n"
-	"    Set(AGC(tx)=off)\n"
-	"",
 	.write = speex_write,
 	.read = speex_read
 };
 
 static struct ast_custom_function denoise_function = {
 	.name = "DENOISE",
-	.synopsis = "Apply noise reduction to audio on a channel",
-	.desc =
-	"  The DENOISE function will apply noise reduction to audio on the channel\n"
-	"that this function is executed on.  It is especially useful for noisy analog\n"
-	"lines, especially when adjusting gains or using AGC.  Use rx for audio\n"
-	"received from the channel and tx to apply the filter to the audio being sent\n"
-	"to the channel.\n"
-	"  Example Usage:\n"
-	"    Set(DENOISE(rx)=on)\n"
-	"    Set(DENOISE(tx)=on)\n"
-	"    Set(DENOISE(rx)=off)\n"
-	"    Set(DENOISE(tx)=off)\n"
-	"",
 	.write = speex_write,
 	.read = speex_read
 };

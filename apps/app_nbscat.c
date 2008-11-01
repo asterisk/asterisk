@@ -43,6 +43,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<application name="NBScat" language="en_US">
+		<synopsis>
+			Play an NBS local stream.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Executes nbscat to listen to the local NBS stream.
+			User can exit by pressing any key.</para>
+		</description>
+	</application>
+ ***/
+
 #define LOCAL_NBSCAT "/usr/local/bin/nbscat8k"
 #define NBSCAT "/usr/bin/nbscat8k"
 
@@ -51,13 +64,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 static char *app = "NBScat";
-
-static char *synopsis = "Play an NBS local stream";
-
-static char *descrip = 
-"  NBScat(): Executes nbscat to listen to the local NBS stream.\n"
-"User can exit by pressing any key.\n";
-
 
 static int NBScatplay(int fd)
 {
@@ -204,7 +210,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, NBScat_exec, synopsis, descrip);
+	return ast_register_application_xml(app, NBScat_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Silly NBS Stream Application");

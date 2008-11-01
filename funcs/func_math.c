@@ -39,6 +39,35 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/config.h"
 
+/*** DOCUMENTATION
+	<function name="MATH" language="en_US">
+		<synopsis>
+			Performs Mathematical Functions.
+		</synopsis>
+		<syntax>
+			<parameter name="expression" required="true">
+				<para>Is of the form:
+				<replaceable>number1</replaceable><replaceable>op</replaceable><replaceable>number2</replaceable>
+				where the possible values for <replaceable>op</replaceable>
+				are:</para>
+				<para>+,-,/,*,%,&lt;&lt;,&gt;&gt;,^,AND,OR,XOR,&lt;,%gt;,&gt;=,&lt;=,== (and behave as their C equivalents)</para>
+			</parameter>
+			<parameter name="type">
+				<para>Wanted type of result:</para>
+				<para>f, float - float(default)</para>
+				<para>i, int - integer</para>
+				<para>h, hex - hex</para>
+				<para>c, char - char</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Performs mathematicas functions based on two parameters and a operator, the returned
+			value type is <replaceable>type</replaceable></para>
+			<para>Example: Set(i=${MATH(123%16,int)}) - sets var i=11</para>
+		</description>
+	</function>
+ ***/
+
 enum TypeOfFunctions {
 	ADDFUNCTION,
 	DIVIDEFUNCTION,
@@ -306,17 +335,6 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 
 static struct ast_custom_function math_function = {
 	.name = "MATH",
-	.synopsis = "Performs Mathematical Functions",
-	.syntax = "MATH(<number1><op><number2>[,<type_of_result>])",
-	.desc = "Perform calculation on number1 to number2. Valid ops are: \n"
-		"    +,-,/,*,%,<<,>>,^,AND,OR,XOR,<,>,>=,<=,==\n"
-		"and behave as their C equivalents.\n"
-		"<type_of_result> - wanted type of result:\n"
-		"	f, float - float(default)\n"
-		"	i, int - integer,\n"
-		"	h, hex - hex,\n"
-		"	c, char - char\n"
-		"Example: Set(i=${MATH(123%16,int)}) - sets var i=11",
 	.read = math
 };
 

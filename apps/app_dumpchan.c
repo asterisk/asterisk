@@ -36,15 +36,26 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
 
-static char *app = "DumpChan";
-static char *synopsis = "Dump Info About The Calling Channel";
-static char *desc =
-	"   DumpChan([<min_verbose_level>])\n"
-	"Displays information on channel and listing of all channel\n"
-	"variables. If min_verbose_level is specified, output is only\n"
-	"displayed when the verbose level is currently set to that number\n"
-	"or greater. \n";
+/*** DOCUMENTATION
+	<application name="DumpChan" language="en_US">
+		<synopsis>
+			Dump Info About The Calling Channel.
+		</synopsis>
+		<syntax>
+			<parameter name="level">
+				<para>Minimun verbose level</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Displays information on channel and listing of all channel
+			variables. If <replaceable>level</replaceable> is specified, output is only
+			displayed when the verbose level is currently set to that number
+			or greater.</para>
+		</description>
+	</application>
+ ***/
 
+static char *app = "DumpChan";
 
 static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 {
@@ -156,7 +167,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, dumpchan_exec, synopsis, desc);
+	return ast_register_application_xml(app, dumpchan_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Dump Info About The Calling Channel");

@@ -76,8 +76,14 @@ struct ast_config {
 /*! \brief A registered application */
 struct ast_app {
 	int (*execute)(struct ast_channel *chan, void *data);
-	const char *synopsis;			/*!< Synopsis text for 'show applications' */
-	const char *description;		/*!< Description (help text) for 'show application &lt;name&gt;' */
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(synopsis);     /*!< Synopsis text for 'show applications' */
+		AST_STRING_FIELD(description);  /*!< Description (help text) for 'show application &lt;name&gt;' */
+		AST_STRING_FIELD(syntax);       /*!< Syntax text for 'core show applications' */
+		AST_STRING_FIELD(arguments);    /*!< Arguments description */
+		AST_STRING_FIELD(seealso);      /*!< See also */
+	);
+	enum ast_xmldoc_src docsrc;		/*!< Where the documentation come from. */
 	AST_RWLIST_ENTRY(ast_app) list;		/*!< Next app in list */
 	void *module;			/*!< Module this app belongs to */
 	char name[0];				/*!< Name of the application */

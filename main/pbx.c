@@ -12,7 +12,7 @@
  * channels for your use.
  *
  * This program is free software, distributed under the terms of
- * the GNU General Public License Version 2. See the LICENSE file
+* the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
 
@@ -59,12 +59,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/app.h"
 #include "asterisk/devicestate.h"
-#include "asterisk/stringfields.h"
 #include "asterisk/event.h"
 #include "asterisk/hashtab.h"
 #include "asterisk/module.h"
 #include "asterisk/indications.h"
 #include "asterisk/taskprocessor.h"
+#include "asterisk/xml.h"
 
 /*!
  * \note I M P O R T A N T :
@@ -86,6 +86,541 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * speed in small dialplans, they are worth the trouble in large dialplans.
  *
  */
+
+/*** DOCUMENTATION
+	<application name="Answer" language="en_US">
+		<synopsis>
+			Answer a channel if ringing.
+		</synopsis>
+		<syntax>
+			<parameter name="delay">
+				<para>Asterisk will wait this number of milliseconds before returning to
+				the dialplan after answering the call.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>If the call has not been answered, this application will
+			answer it. Otherwise, it has no effect on the call.</para>
+		</description>
+	</application>
+	<application name="BackGround" language="en_US">
+		<synopsis>
+			Play an audio file while waiting for digits of an extension to go to.
+		</synopsis>
+		<syntax>
+			<parameter name="filenames" required="true" argsep="&amp;">
+				<argument name="filename1" required="true" />
+				<argument name="filename2" multiple="true" />
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="s">
+						<para>Causes the playback of the message to be skipped
+						if the channel is not in the <literal>up</literal> state (i.e. it
+						hasn't been answered yet). If this happens, the
+						application will return immediately.</para>
+					</option>
+					<option name="n">
+						<para>Don't answer the channel before playing the files.</para>
+					</option>
+					<option name="m">
+						<para>Only break if a digit hit matches a one digit
+						extension in the destination context.</para>
+					</option>
+				</optionlist>
+			</parameter>
+			<parameter name="langoverride">
+				<para>Explicitly specifies which language to attempt to use for the requested sound files.</para>
+			</parameter>
+			<parameter name="context">
+				<para>This is the dialplan context that this application will use when exiting
+				to a dialed extension.</para>
+			</parameter>	
+		</syntax>
+		<description>
+			<para>This application will play the given list of files <emphasis>(do not put extension)</emphasis>
+			while waiting for an extension to be dialed by the calling channel. To continue waiting
+			for digits after this application has finished playing files, the <literal>WaitExten</literal>
+			application should be used.</para>
+			<para>If one of the requested sound files does not exist, call processing will be terminated.</para>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="BACKGROUNDSTATUS">
+					<para>The status of the background attempt as a text string.</para>
+					<value name="SUCCESS" />
+					<value name="FAILED" />
+				</variable>
+			</variablelist>
+		</description>
+		<see-also>
+			<ref type="application">Playback</ref>
+		</see-also>
+	</application>
+	<application name="Busy" language="en_US">
+		<synopsis>
+			Indicate the Busy condition.
+		</synopsis>
+		<syntax>
+			<parameter name="timeout">
+				<para>If specified, the calling channel will be hung up after the specified number of seconds.
+				Otherwise, this application will wait until the calling channel hangs up.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application will indicate the busy condition to the calling channel.</para>
+		</description>
+	</application>
+	<application name="Congestion" language="en_US">
+		<synopsis>
+			Indicate the Congestion condition.
+		</synopsis>
+		<syntax>
+			<parameter name="timeout">
+				<para>If specified, the calling channel will be hung up after the specified number of seconds.
+				Otherwise, this application will wait until the calling channel hangs up.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application will indicate the congestion condition to the calling channel.</para>
+		</description>
+	</application>
+	<application name="ExecIfTime" language="en_US">
+		<synopsis>
+			Conditional application execution based on the current time.
+		</synopsis>
+		<syntax argsep="?">
+			<parameter name="day_condition" required="true">
+				<argument name="times" required="true" />
+				<argument name="weekdays" required="true" />
+				<argument name="mdays" required="true" />
+				<argument name="months" required="true" />
+			</parameter>
+			<parameter name="appname" required="true" hasparams="optional">
+				<argument name="appargs" required="true" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application will execute the specified dialplan application, with optional
+			arguments, if the current time matches the given time specification.</para>
+		</description>
+	</application>
+	<application name="Goto" language="en_US">
+		<synopsis>
+			Jump to a particular priority, extension, or context.
+		</synopsis>
+		<syntax>
+			<parameter name="context" />
+			<parameter name="extensions" />
+			<parameter name="priority" required="true" />
+		</syntax>
+		<description>
+			<para>This application will set the current context, extension, and priority in the channel structure.
+			After it completes, the pbx engine will continue dialplan execution at the specified location.
+			If no specific <replaceable>extension</replaceable>, or <replaceable>extension</replaceable> and
+			<replaceable>context</replaceable>, are specified, then this application will
+			just set the specified <replaceable>priority</replaceable> of the current extension.</para>
+			<para>At least a <replaceable>priority</replaceable> is required as an argument, or the goto will
+			return a <literal>-1</literal>,	and the channel and call will be terminated.</para>
+			<para>If the location that is put into the channel information is bogus, and asterisk cannot
+			find that location in the dialplan, then the execution engine will try to find and execute the code in
+			the <literal>i</literal> (invalid) extension in the current context. If that does not exist, it will try to execute the
+			<literal>h</literal> extension. If either or neither the <literal>h</literal> or <literal>i</literal> extensions
+			have been defined, the channel is hung up, and the execution of instructions on the channel is terminated.
+			What this means is that, for example, you specify a context that does not exist, then
+			it will not be possible to find the <literal>h</literal> or <literal>i</literal> extensions,
+			and the call will terminate!</para>
+		</description>
+	</application>
+	<application name="GotoIf" language="en_US">
+		<synopsis>
+			Conditional goto.
+		</synopsis>
+		<syntax argsep="?">
+			<parameter name="condition" required="true" />
+			<parameter name="destination" required="true" argsep=":">
+				<argument name="labeliftrue">
+					<para>Continue at <replaceable>labeliftrue</replaceable> if the condition is true.</para>
+				</argument>
+				<argument name="labeliffalse">
+					<para>Continue at <replaceable>labeliffalse</replaceable> if the condition is false.</para>
+				</argument>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application will set the current context, extension, and priority in the channel structure
+			based on the evaluation of the given condition. After this application completes, the
+			pbx engine will continue dialplan execution at the specified location in the dialplan.
+			The labels are specified with the same syntax as used within the Goto application.
+			If the label chosen by the condition is omitted, no jump is performed, and the execution passes to the
+			next instruction. If the target location is bogus, and does not exist, the execution engine will try
+			to find and execute the code in the <literal>i</literal> (invalid) extension in the current context.
+			If that does not exist, it will try to execute the <literal>h</literal> extension.
+			If either or neither the <literal>h</literal> or <literal>i</literal> extensions have been defined,
+			the channel is hung up, and the execution of instructions on the channel is terminated.
+			Remember that this command can set the current context, and if the context specified
+			does not exist, then it will not be able to find any 'h' or 'i' extensions there, and
+			the channel and call will both be terminated!.</para>
+		</description>
+	</application>
+	<application name="GotoIfTime" language="en_US">
+		<synopsis>
+			Conditional Goto based on the current time.
+		</synopsis>
+		<syntax argsep="?">
+			<parameter name="condition" required="true">
+				<argument name="times" required="true" />
+				<argument name="weekdays" required="true" />
+				<argument name="mdays" required="true" />
+				<argument name="months" required="true" />
+			</parameter>
+			<parameter name="destination" required="true" argsep=":">
+				<argument name="labeliftrue" />
+				<argument name="labeliffalse" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application will set the context, extension, and priority in the channel structure
+			based on the evaluation of the given time specification. After this application completes,
+			the pbx engine will continue dialplan execution at the specified location in the dialplan.
+			If the current time is within the given time specification, the channel will continue at
+			<replaceable>labeliftrue</replaceable>. Otherwise the channel will continue at <replaceable>labeliffalse</replaceable>.
+			If the label chosen by the condition is omitted, no jump is performed, and execution passes to the next
+			instruction. If the target jump location is bogus, the same actions would be taken as for <literal>Goto</literal>.
+			Further information on the time specification can be found in examples
+			illustrating how to do time-based context includes in the dialplan.</para>
+		</description>
+	</application>
+	<application name="ImportVar" language="en_US">
+		<synopsis>
+			Import a variable from a channel into a new variable.
+		</synopsis>
+		<syntax argsep="=">
+			<parameter name="newvar" required="true" />
+			<parameter name="vardata" required="true">
+				<argument name="channelname" required="true" />
+				<argument name="variable" required="true" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application imports a <replaceable>variable</replaceable> from the specified
+			<replaceable>channel</replaceable> (as opposed to the current one) and stores it as a variable
+			(<replaceable>newvar</replaceable>) in the current channel (the channel that is calling this
+			application). Variables created by this application have the same inheritance properties as those
+			created with the <literal>Set</literal> application.</para>
+		</description>
+		<see-also>
+			<ref type="application">Set</ref>
+		</see-also>
+	</application>
+	<application name="Hangup" language="en_US">
+		<synopsis>
+			Hang up the calling channel.
+		</synopsis>
+		<syntax>
+			<parameter name="causecode">
+				<para>If a <replaceable>causecode</replaceable> is given the channel's
+				hangup cause will be set to the given value.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application will hang up the calling channel.</para>
+		</description>
+	</application>
+	<application name="Incomplete" language="en_US">
+		<synopsis>
+			Returns AST_PBX_INCOMPLETE value.
+		</synopsis>
+		<syntax>
+			<parameter name="n">
+				<para>If specified, then Incomplete will not attempt to answer the channel first.</para>
+				<note><para>Most channel types need to be in Answer state in order to receive DTMF.</para></note>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Signals the PBX routines that the previous matched extension is incomplete
+			and that further input should be allowed before matching can be considered
+			to be complete.  Can be used within a pattern match when certain criteria warrants
+			a longer match.</para>
+			
+		</description>
+	</application>
+	<application name="KeepAlive" language="en_US">
+		<synopsis>
+			Returns AST_PBX_KEEPALIVE value.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>This application is chiefly meant for internal use with Gosubs. Please do not run
+			it alone from the dialplan!</para>
+		</description>
+	</application>
+	<application name="NoOp" language="en_US">
+		<synopsis>
+			Do Nothing (No Operation).
+		</synopsis>
+		<syntax>
+			<parameter name="text">
+				<para>Any text provided can be viewed at the Asterisk CLI.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application does nothing. However, it is useful for debugging purposes.</para>
+			<para>This method can be used to see the evaluations of variables or functions without having any effect.</para>
+		</description>
+		<see-also>
+			<ref type="application">Verbose</ref>
+		</see-also>
+	</application>
+	<application name="Proceeding" language="en_US">
+		<synopsis>
+			Indicate proceeding.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>This application will request that a proceeding message be provided to the calling channel.</para>
+		</description>
+	</application>
+	<application name="Progress" language="en_US">
+		<synopsis>
+			Indicate progress.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>This application will request that in-band progress information be provided to the calling channel.</para>
+		</description>
+	</application>
+	<application name="RaiseException" language="en_US">
+		<synopsis>
+			Handle an exceptional condition.
+		</synopsis>
+		<syntax>
+			<parameter name="reason" required="true" />
+		</syntax>
+		<description>
+			<para>This application will jump to the <literal>e</literal> extension in the current context, setting the
+			dialplan function EXCEPTION(). If the <literal>e</literal> extension does not exist, the call will hangup.</para>
+		</description>
+	</application>
+	<application name="ResetCDR" language="en_US">
+		<synopsis>
+			Resets the Call Data Record.
+		</synopsis>
+		<syntax>
+			<parameter name="options">
+				<optionlist>
+					<option name="w">
+						<para>Store the current CDR record before resetting it.</para>
+					</option>
+					<option name="a">
+						<para>Store any stacked records.</para>
+					</option>
+					<option name="v">
+						<para>Save CDR variables.</para>
+					</option>
+					<option name="e">
+						<para>Enable CDR only (negate effects of NoCDR).</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application causes the Call Data Record to be reset.</para>
+		</description>
+	</application>
+	<application name="Ringing" language="en_US">
+		<synopsis>
+			Indicate ringing tone.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>This application will request that the channel indicate a ringing tone to the user.</para>
+		</description>
+	</application>
+	<application name="SayAlpha" language="en_US">
+		<synopsis>
+			Say Alpha.
+		</synopsis>
+		<syntax>
+			<parameter name="string" required="true" />
+		</syntax>
+		<description>
+			<para>This application will play the sounds that correspond to the letters of the
+			given <replaceable>string</replaceable>.</para>
+		</description>
+	</application>
+	<application name="SayDigits" language="en_US">
+		<synopsis>
+			Say Digits.
+		</synopsis>
+		<syntax>
+			<parameter name="digits" required="true" />
+		</syntax>
+		<description>
+			<para>This application will play the sounds that correspond to the digits of
+			the given number. This will use the language that is currently set for the channel.</para>
+		</description>
+	</application>
+	<application name="SayNumber" language="en_US">
+		<synopsis>
+			Say Number.
+		</synopsis>
+		<syntax>
+			<parameter name="digits" required="true" />
+			<parameter name="gender" />
+		</syntax>
+		<description>
+			<para>This application will play the sounds that correspond to the given <replaceable>digits</replaceable>.
+			Optionally, a <replaceable>gender</replaceable> may be specified. This will use the language that is currently
+			set for the channel. See the LANGUAGE() function for more information on setting the language for the channel.</para>
+		</description>
+	</application>
+	<application name="SayPhonetic" language="en_US">
+		<synopsis>
+			Say Phonetic.
+		</synopsis>
+		<syntax>
+			<parameter name="string" required="true" />
+		</syntax>
+		<description>
+			<para>This application will play the sounds from the phonetic alphabet that correspond to the
+			letters in the given <replaceable>string</replaceable>.</para>
+		</description>
+	</application>
+	<application name="Set" language="en_US">
+		<synopsis>
+			Set channel variable or function value.
+		</synopsis>
+		<syntax argsep="=">
+			<parameter name="name" required="true" />
+			<parameter name="value" required="true" />
+		</syntax>
+		<description>
+			<para>This function can be used to set the value of channel variables or dialplan functions.
+			When setting variables, if the variable name is prefixed with <literal>_</literal>,
+			the variable will be inherited into channels created from the current channel.
+			If the variable name is prefixed with <literal>__</literal>, the variable will be
+			inherited into channels created from the current channel and all children channels.</para>
+			<note><para>If (and only if), in <filename>/etc/asterisk/asterisk.conf</filename>, you have
+			a <literal>[compat]</literal> category, and you have <literal>app_set = 1.6</literal> under that,then
+			the behavior of this app changes, and does not strip surrounding quotes from the right hand side as
+			it did previously in 1.4. The <literal>app_set = 1.6</literal> is only inserted if <literal>make samples</literal>
+			is executed, or if users insert this by hand into the <filename>asterisk.conf</filename> file.
+			The advantages of not stripping out quoting, and not caring about the separator characters (comma and vertical bar)
+			were sufficient to make these changes in 1.6. Confusion about how many backslashes would be needed to properly
+			protect separators and quotes in various database access strings has been greatly
+			reduced by these changes.</para></note>
+		</description>
+	</application>
+	<application name="MSet" language="en_US">
+		<synopsis>
+			Set channel variable(s) or function value(s).
+		</synopsis>
+		<syntax>
+			<parameter name="set1" required="true" argsep="=">
+				<argument name="name1" required="true" />
+				<argument name="value1" required="true" />
+			</parameter>
+			<parameter name="set2" multiple="true" argsep="=">
+				<argument name="name2" required="true" />
+				<argument name="value2" required="true" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>This function can be used to set the value of channel variables or dialplan functions.
+			When setting variables, if the variable name is prefixed with <literal>_</literal>,
+			the variable will be inherited into channels created from the current channel
+			If the variable name is prefixed with <literal>__</literal>, the variable will be
+			inherited into channels created from the current channel and all children channels.
+			MSet behaves in a similar fashion to the way Set worked in 1.2/1.4 and is thus
+			prone to doing things that you may not expect. For example, it strips surrounding
+			double-quotes from the right-hand side (value). If you need to put a separator
+			character (comma or vert-bar), you will need to escape them by inserting a backslash
+			before them. Avoid its use if possible.</para>
+		</description>
+	</application>
+	<application name="SetAMAFlags" language="en_US">
+		<synopsis>
+			Set the AMA Flags.
+		</synopsis>
+		<syntax>
+			<parameter name="flag" />
+		</syntax>
+		<description>
+			<para>This application will set the channel's AMA Flags for billing purposes.</para>
+		</description>
+	</application>
+	<application name="Wait" language="en_US">
+		<synopsis>
+			Waits for some time.
+		</synopsis>
+		<syntax>
+			<parameter name="seconds" required="true">
+				<para>Can be passed with fractions of a second. For example, <literal>1.5</literal> will ask the
+				application to wait for 1.5 seconds.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application waits for a specified number of <replaceable>seconds</replaceable>.</para>
+		</description>
+	</application>
+	<application name="WaitExten" language="en_US">
+		<synopsis>
+			Waits for an extension to be entered.
+		</synopsis>
+		<syntax>
+			<parameter name="seconds">
+				<para>Can be passed with fractions of a second. For example, <literal>1.5</literal> will ask the
+				application to wait for 1.5 seconds.</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="m">
+						<para>Provide music on hold to the caller while waiting for an extension.</para>
+						<argument name="x">
+							<para>Specify the class for music on hold.</para>
+						</argument>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application waits for the user to enter a new extension for a specified number
+			of <replaceable>seconds</replaceable>.</para>
+		</description>
+		<see-also>
+			<ref type="application">Playback</ref>
+			<ref type="application">Background</ref>
+		</see-also>
+	</application>
+	<function name="EXCEPTION" language="en_US">
+		<synopsis>
+			Retrieve the details of the current dialplan exception.
+		</synopsis>
+		<syntax>
+			<parameter name="field" required="true">
+				<para>The following fields are available for retrieval:</para>
+				<enumlist>
+					<enum name="reason">
+						<para>INVALID, ERROR, RESPONSETIMEOUT, ABSOLUTETIMEOUT, or custom
+						value set by the RaiseException() application</para>
+					</enum>
+					<enum name="context">
+						<para>The context executing when the exception occurred.</para>
+					</enum>
+					<enum name="exten">
+						<para>The extension executing when the exception occurred.</para>
+					</enum>
+					<enum name="priority">
+						<para>The numeric priority executing when the exception occurred.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Retrieve the details (specified <replaceable>field</replaceable>) of the current dialplan exception.</para>
+		</description>
+	</function>
+ ***/
 
 #ifdef LOW_MEMORY
 #define EXT_DATA_SIZE 256
@@ -220,12 +755,17 @@ struct ast_context {
 	char name[0];				/*!< Name of the context */
 };
 
-
 /*! \brief ast_app: A registered application */
 struct ast_app {
 	int (*execute)(struct ast_channel *chan, void *data);
-	const char *synopsis;			/*!< Synopsis text for 'show applications' */
-	const char *description;		/*!< Description (help text) for 'show application &lt;name&gt;' */
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(synopsis);     /*!< Synopsis text for 'show applications' */
+		AST_STRING_FIELD(description);  /*!< Description (help text) for 'show application &lt;name&gt;' */
+		AST_STRING_FIELD(syntax);       /*!< Syntax text for 'core show applications' */
+		AST_STRING_FIELD(arguments);    /*!< Arguments description */
+		AST_STRING_FIELD(seealso);      /*!< See also */
+	);
+	enum ast_doc_src docsrc;/*!< Where the documentation come from. */
 	AST_RWLIST_ENTRY(ast_app) list;		/*!< Next app in list */
 	struct ast_module *module;		/*!< Module this app belongs to */
 	char name[0];				/*!< Name of the application */
@@ -281,6 +821,42 @@ struct pbx_exception {
 	int priority;				/*!< Priority associated with this exception */
 };
 
+#ifdef AST_XML_DOCS
+/*! \brief Default documentation language. */
+static const char default_documentation_language[] = "en_US";
+
+/*! \brief Number of columns to print when showing the XML documentation with a 
+ *         'core show application/function *' CLI command. Used in text wrapping.*/
+static const int xmldoc_text_columns = 74;
+
+/*! \brief This is a value that we will use to let the wrapping mechanism move the cursor
+ *         backward and forward xmldoc_max_diff positions before cutting the middle of a
+ *         word, trying to find a space or a \n. */
+static const int xmldoc_max_diff = 5;
+
+/*! \brief XML documentation language. */
+static char documentation_language[6];
+
+/*! \brief XML documentation tree */
+struct documentation_tree {
+	char *filename;					/*!< XML document filename. */
+	struct ast_xml_doc *doc;			/*!< Open document pointer. */
+	AST_RWLIST_ENTRY(documentation_tree) entry;
+};
+
+/*!
+ * \brief Container of documentation trees
+ *
+ * \note A RWLIST is a sufficient container type to use here for now.
+ *       However, some changes will need to be made to implement ref counting
+ *       if reload support is added in the future.
+ */
+static AST_RWLIST_HEAD_STATIC(xmldoc_tree, documentation_tree);
+#endif
+
+/*! \brief Maximum number of characters needed for a color escape sequence, plus a null char */
+#define MAX_ESCAPE_CHARS   23
+
 static int pbx_builtin_answer(struct ast_channel *, void *);
 static int pbx_builtin_goto(struct ast_channel *, void *);
 static int pbx_builtin_hangup(struct ast_channel *, void *);
@@ -326,6 +902,9 @@ static unsigned int hashtab_hash_extens(const void *obj);
 static unsigned int hashtab_hash_priority(const void *obj);
 static unsigned int hashtab_hash_labels(const void *obj);
 static void __ast_internal_context_destroy( struct ast_context *con);
+#ifdef AST_XML_DOCS
+static char *xmldoc_colorization(const char *bwinput);
+#endif
 
 /* a func for qsort to use to sort a char array */
 static int compare_char(const void *a, const void *b)
@@ -433,296 +1012,38 @@ static AST_RWLIST_HEAD_STATIC(acf_root, ast_custom_function);
 static struct pbx_builtin {
 	char name[AST_MAX_APP];
 	int (*execute)(struct ast_channel *chan, void *data);
-	char *synopsis;
-	char *description;
 } builtins[] =
 {
 	/* These applications are built into the PBX core and do not
 	   need separate modules */
 
-	{ "Answer", pbx_builtin_answer,
-	"Answer a channel if ringing",
-	"  Answer([delay]): If the call has not been answered, this application will\n"
-	"answer it. Otherwise, it has no effect on the call. If a delay is specified,\n"
-	"Asterisk will wait this number of milliseconds before returning to\n"
-	"the dialplan after answering the call.\n"
-	},
-
-	{ "BackGround", pbx_builtin_background,
-	"Play an audio file while waiting for digits of an extension to go to.",
-	"  Background(filename1[&filename2...][,options[,langoverride][,context]]):\n"
-	"This application will play the given list of files (do not put extension)\n"
-	"while waiting for an extension to be dialed by the calling channel. To\n"
-	"continue waiting for digits after this application has finished playing\n"
-	"files, the WaitExten application should be used. The 'langoverride' option\n"
-	"explicitly specifies which language to attempt to use for the requested sound\n"
-	"files. If a 'context' is specified, this is the dialplan context that this\n"
-	"application will use when exiting to a dialed extension."
-	"  If one of the requested sound files does not exist, call processing will be\n"
-	"terminated.\n"
-	"  Options:\n"
-	"    s - Causes the playback of the message to be skipped\n"
-	"          if the channel is not in the 'up' state (i.e. it\n"
-	"          hasn't been answered yet). If this happens, the\n"
-	"          application will return immediately.\n"
-	"    n - Don't answer the channel before playing the files.\n"
-	"    m - Only break if a digit hit matches a one digit\n"
-	"          extension in the destination context.\n"
-	"This application sets the following channel variable upon completion:\n"
-	" BACKGROUNDSTATUS    The status of the background attempt as a text string, one of\n"
-	"               SUCCESS | FAILED\n"
-	"See Also: Playback (application) -- Play sound file(s) to the channel,\n"
-	"                                    that cannot be interrupted\n"
-	},
-
-	{ "Busy", pbx_builtin_busy,
-	"Indicate the Busy condition",
-	"  Busy([timeout]): This application will indicate the busy condition to\n"
-	"the calling channel. If the optional timeout is specified, the calling channel\n"
-	"will be hung up after the specified number of seconds. Otherwise, this\n"
-	"application will wait until the calling channel hangs up.\n"
-	},
-
-	{ "Congestion", pbx_builtin_congestion,
-	"Indicate the Congestion condition",
-	"  Congestion([timeout]): This application will indicate the congestion\n"
-	"condition to the calling channel. If the optional timeout is specified, the\n"
-	"calling channel will be hung up after the specified number of seconds.\n"
-	"Otherwise, this application will wait until the calling channel hangs up.\n"
-	},
-
-	{ "ExecIfTime", pbx_builtin_execiftime,
-	"Conditional application execution based on the current time",
-	"  ExecIfTime(<times>,<weekdays>,<mdays>,<months>?appname[(appargs)]):\n"
-	"This application will execute the specified dialplan application, with optional\n"
-	"arguments, if the current time matches the given time specification.\n"
-	},
-
-	{ "Goto", pbx_builtin_goto,
-	"Jump to a particular priority, extension, or context",
-	"  Goto([[context,]extension,]priority): This application will set the current\n"
-	"context, extension, and priority in the channel structure. After it completes, the\n"
-	"pbx engine will continue dialplan execution at the specified location.\n"
-	"If no specific extension, or extension and context, are specified, then this\n"
-	"application will just set the specified priority of the current extension.\n"
-	"  At least a priority is required as an argument, or the goto will return a -1,\n"
-	"and the channel and call will be terminated.\n"
-	"  If the location that is put into the channel information is bogus, and asterisk cannot\n"
-	"find that location in the dialplan,\n"
-	"then the execution engine will try to find and execute the code in the 'i' (invalid)\n"
-	"extension in the current context. If that does not exist, it will try to execute the\n"
-	"'h' extension. If either or neither the 'h' or 'i' extensions have been defined, the\n"
-	"channel is hung up, and the execution of instructions on the channel is terminated.\n"
-	"What this means is that, for example, you specify a context that does not exist, then\n"
-	"it will not be possible to find the 'h' or 'i' extensions, and the call will terminate!\n"
-	},
-
-	{ "GotoIf", pbx_builtin_gotoif,
-	"Conditional goto",
-	"  GotoIf(condition?[labeliftrue]:[labeliffalse]): This application will set the current\n"
-	"context, extension, and priority in the channel structure based on the evaluation of\n"
-	"the given condition. After this application completes, the\n"
-	"pbx engine will continue dialplan execution at the specified location in the dialplan.\n"
-	"The channel will continue at\n"
-	"'labeliftrue' if the condition is true, or 'labeliffalse' if the condition is\n"
-	"false. The labels are specified with the same syntax as used within the Goto\n"
-	"application.  If the label chosen by the condition is omitted, no jump is\n"
-	"performed, and the execution passes to the next instruction.\n"
-	"If the target location is bogus, and does not exist, the execution engine will try \n"
-	"to find and execute the code in the 'i' (invalid)\n"
-	"extension in the current context. If that does not exist, it will try to execute the\n"
-	"'h' extension. If either or neither the 'h' or 'i' extensions have been defined, the\n"
-	"channel is hung up, and the execution of instructions on the channel is terminated.\n"
-	"Remember that this command can set the current context, and if the context specified\n"
-	"does not exist, then it will not be able to find any 'h' or 'i' extensions there, and\n"
-	"the channel and call will both be terminated!\n"
-	},
-
-	{ "GotoIfTime", pbx_builtin_gotoiftime,
-	"Conditional Goto based on the current time",
-	"  GotoIfTime(<times>,<weekdays>,<mdays>,<months>?[labeliftrue]:[labeliffalse]):\n"
-	"This application will set the context, extension, and priority in the channel structure\n"
-	"based on the evaluation of the given time specification. After this application completes,\n"
-	"the pbx engine will continue dialplan execution at the specified location in the dialplan.\n"
-	"If the current time is within the given time specification, the channel will continue at\n"
-	"'labeliftrue'. Otherwise the channel will continue at 'labeliffalse'. If the label chosen\n"
-	"by the condition is omitted, no jump is performed, and execution passes to the next\n"
-	"instruction. If the target jump location is bogus, the same actions would be taken as for\n"
-	"Goto.\n"
-	"Further information on the time specification can be found in examples\n"
-	"illustrating how to do time-based context includes in the dialplan.\n"
-	},
-
-	{ "ImportVar", pbx_builtin_importvar,
-	"Import a variable from a channel into a new variable",
-	"  ImportVar(newvar=channelname,variable): This application imports a variable\n"
-	"from the specified channel (as opposed to the current one) and stores it as\n"
-	"a variable in the current channel (the channel that is calling this\n"
-	"application). Variables created by this application have the same inheritance\n"
-	"properties as those created with the Set application. See the documentation for\n"
-	"Set for more information.\n"
-	},
-
-	{ "Hangup", pbx_builtin_hangup,
-	"Hang up the calling channel",
-	"  Hangup([causecode]): This application will hang up the calling channel.\n"
-	"If a causecode is given the channel's hangup cause will be set to the given\n"
-	"value.\n"
-	},
-
-	{ "Incomplete", pbx_builtin_incomplete,
-	"returns AST_PBX_INCOMPLETE value",
-	"  Incomplete([n]): Signals the PBX routines that the previous matched extension\n"
-	"is incomplete and that further input should be allowed before matching can\n"
-	"be considered to be complete.  Can be used within a pattern match when\n"
-	"certain criteria warrants a longer match.\n"
-	"  If the 'n' option is specified, then Incomplete will not attempt to answer\n"
-	"the channel first.  Note that most channel types need to be in Answer state\n"
-	"in order to receive DTMF.\n"
-	},
-
-	{ "KeepAlive", pbx_builtin_keepalive,
-	"returns AST_PBX_KEEPALIVE value",
-	"  KeepAlive(): This application is chiefly meant for internal use with Gosubs.\n"
-	"Please do not run it alone from the dialplan!\n"
-	},
-
-	{ "NoOp", pbx_builtin_noop,
-	"Do Nothing (No Operation)",
-	"  NoOp(): This application does nothing. However, it is useful for debugging\n"
-	"purposes. Any text that is provided as arguments to this application can be\n"
-	"viewed at the Asterisk CLI. This method can be used to see the evaluations of\n"
-	"variables or functions without having any effect. Alternatively, see the\n"
-		"Verbose() application for finer grain control of output at custom verbose levels.\n"
-	},
-	
-	{ "Proceeding", pbx_builtin_proceeding,
-	"Indicate proceeding",
-	"  Proceeding(): This application will request that a proceeding message\n"
-	"be provided to the calling channel.\n"
-	},
-	
-	{ "Progress", pbx_builtin_progress,
-	"Indicate progress",
-	"  Progress(): This application will request that in-band progress information\n"
-	"be provided to the calling channel.\n"
-	},
-
-	{ "RaiseException", pbx_builtin_raise_exception,
-	"Handle an exceptional condition",
-	"  RaiseException(<reason>): This application will jump to the \"e\" extension\n"
-	"in the current context, setting the dialplan function EXCEPTION(). If the \"e\"\n"
-	"extension does not exist, the call will hangup.\n"
-	},
-
-	{ "ResetCDR", pbx_builtin_resetcdr,
-	"Resets the Call Data Record",
-	"  ResetCDR([options]):  This application causes the Call Data Record to be\n"
-	"reset.\n"
-	"  Options:\n"
-	"    w -- Store the current CDR record before resetting it.\n"
-	"    a -- Store any stacked records.\n"
-	"    v -- Save CDR variables.\n"
-	"    e -- Enable CDR only (negate effects of NoCDR).\n"
-	},
-
-	{ "Ringing", pbx_builtin_ringing,
-	"Indicate ringing tone",
-	"  Ringing(): This application will request that the channel indicate a ringing\n"
-	"tone to the user.\n"
-	},
-
-	{ "SayAlpha", pbx_builtin_saycharacters,
-	"Say Alpha",
-	"  SayAlpha(string): This application will play the sounds that correspond to\n"
-	"the letters of the given string.\n"
-	},
-
-	{ "SayDigits", pbx_builtin_saydigits,
-	"Say Digits",
-	"  SayDigits(digits): This application will play the sounds that correspond\n"
-	"to the digits of the given number. This will use the language that is currently\n"
-	"set for the channel. See the LANGUAGE function for more information on setting\n"
-	"the language for the channel.\n"
-	},
-
-	{ "SayNumber", pbx_builtin_saynumber,
-	"Say Number",
-	"  SayNumber(digits[,gender]): This application will play the sounds that\n"
-	"correspond to the given number. Optionally, a gender may be specified.\n"
-	"This will use the language that is currently set for the channel. See the\n"
-	"LANGUAGE function for more information on setting the language for the channel.\n"
-	},
-
-	{ "SayPhonetic", pbx_builtin_sayphonetic,
-	"Say Phonetic",
-	"  SayPhonetic(string): This application will play the sounds from the phonetic\n"
-	"alphabet that correspond to the letters in the given string.\n"
-	},
-
-	{ "Set", pbx_builtin_setvar,
-	"Set channel variable or function value",
-	"  Set(name=value)\n"
-	"This function can be used to set the value of channel variables or dialplan\n"
-	"functions. When setting variables, if the variable name is prefixed with _,\n"
-	"the variable will be inherited into channels created from the current\n"
-	"channel. If the variable name is prefixed with __, the variable will be\n"
-	"inherited into channels created from the current channel and all children\n"
-	"channels.\n"
-	"Compatibility note: If (and only if), in /etc/asterisk/asterisk.conf, you have a [compat]\n"
-    "category, and you have app_set = 1.6 under that, then the behavior of this\n"
-    "app changes, and does not strip surrounding quotes from the right hand side\n"
-    "as it did previously in 1.4. The app_set = 1.6 is only inserted if 'make samples'\n"
-	"is executed, or if users insert this by hand into the asterisk.conf file.\n"
-	"/nThe advantages of not stripping out quoting, and not caring about the\n"
-	"separator characters (comma and vertical bar) were sufficient to make these\n"
-	"changes in 1.6. Confusion about how many backslashes would be needed to properly\n"
-	"protect separators and quotes in various database access strings has been greatly\n"
-	"reduced by these changes.\n"
-	},
-
-	{ "MSet", pbx_builtin_setvar_multiple,
-	"Set channel variable(s) or function value(s)",
-	"  MSet(name1=value1,name2=value2,...)\n"
-	"This function can be used to set the value of channel variables or dialplan\n"
-	"functions. When setting variables, if the variable name is prefixed with _,\n"
-	"the variable will be inherited into channels created from the current\n"
-	"channel. If the variable name is prefixed with __, the variable will be\n"
-	"inherited into channels created from the current channel and all children\n"
-	"channels.\n\n"
-	"MSet behaves in a similar fashion to the way Set worked in 1.2/1.4 and is thus\n"
-	"prone to doing things that you may not expect. For example, it strips surrounding\n"
-	"double-quotes from the right-hand side (value). If you need to put a separator\n"
-        "character (comma or vert-bar), you will need to escape them by inserting a backslash\n"
-	"before them. Avoid its use if possible.\n"
-	},
-
-	{ "SetAMAFlags", pbx_builtin_setamaflags,
-	"Set the AMA Flags",
-	"  SetAMAFlags([flag]): This application will set the channel's AMA Flags for\n"
- 	"  billing purposes.\n"
-	},
-
-	{ "Wait", pbx_builtin_wait,
-	"Waits for some time",
-	"  Wait(seconds): This application waits for a specified number of seconds.\n"
-	"Then, dialplan execution will continue at the next priority.\n"
-	"  Note that the seconds can be passed with fractions of a second. For example,\n"
-	"'1.5' will ask the application to wait for 1.5 seconds.\n"
-	},
-
-	{ "WaitExten", pbx_builtin_waitexten,
-	"Waits for an extension to be entered",
-	"  WaitExten([seconds][,options]): This application waits for the user to enter\n"
-	"a new extension for a specified number of seconds.\n"
-	"  Note that the seconds can be passed with fractions of a second. For example,\n"
-	"'1.5' will ask the application to wait for 1.5 seconds.\n"
-	"  Options:\n"
-	"    m[(x)] - Provide music on hold to the caller while waiting for an extension.\n"
-	"               Optionally, specify the class for music on hold within parenthesis.\n"
-	"See Also: Playback(application), Background(application).\n"
-	},
-
+	{ "Answer",         pbx_builtin_answer },
+	{ "BackGround",     pbx_builtin_background },
+	{ "Busy",           pbx_builtin_busy },
+	{ "Congestion",     pbx_builtin_congestion },
+	{ "ExecIfTime",     pbx_builtin_execiftime },
+	{ "Goto",           pbx_builtin_goto },
+	{ "GotoIf",         pbx_builtin_gotoif },
+	{ "GotoIfTime",     pbx_builtin_gotoiftime },
+	{ "ImportVar",      pbx_builtin_importvar },
+	{ "Hangup",         pbx_builtin_hangup },
+	{ "Incomplete",     pbx_builtin_incomplete },
+	{ "KeepAlive",      pbx_builtin_keepalive },
+	{ "NoOp",           pbx_builtin_noop },
+	{ "Proceeding",     pbx_builtin_proceeding },
+	{ "Progress",       pbx_builtin_progress },
+	{ "RaiseException", pbx_builtin_raise_exception },
+	{ "ResetCDR",       pbx_builtin_resetcdr },
+	{ "Ringing",        pbx_builtin_ringing },
+	{ "SayAlpha",       pbx_builtin_saycharacters },
+	{ "SayDigits",      pbx_builtin_saydigits },
+	{ "SayNumber",      pbx_builtin_saynumber },
+	{ "SayPhonetic",    pbx_builtin_sayphonetic },
+	{ "Set",            pbx_builtin_setvar },
+	{ "MSet",           pbx_builtin_setvar_multiple },
+	{ "SetAMAFlags",    pbx_builtin_setamaflags },
+	{ "Wait",           pbx_builtin_wait },
+	{ "WaitExten",      pbx_builtin_waitexten }
 };
 
 static struct ast_context *contexts;
@@ -2618,15 +2939,6 @@ static int acf_exception_read(struct ast_channel *chan, const char *name, char *
 
 static struct ast_custom_function exception_function = {
 	.name = "EXCEPTION",
-	.synopsis = "Retrieve the details of the current dialplan exception",
-	.desc =
-"The following fields are available for retrieval:\n"
-"  reason    INVALID, ERROR, RESPONSETIMEOUT, ABSOLUTETIMEOUT, or custom\n"
-"               value set by the RaiseException() application\n"
-"  context   The context executing when the exception occurred\n"
-"  exten     The extension executing when the exception occurred\n"
-"  priority  The numeric priority executing when the exception occurred\n",
-	.syntax = "EXCEPTION(<field>)",
 	.read = acf_exception_read,
 };
 
@@ -2673,10 +2985,10 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 {
 	struct ast_custom_function *acf;
 	/* Maximum number of characters added by terminal coloring is 22 */
-	char infotitle[64 + AST_MAX_APP + 22], syntitle[40], destitle[40];
-	char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL;
-	char stxtitle[40], *syntax = NULL;
-	int synopsis_size, description_size, syntax_size;
+	char infotitle[64 + AST_MAX_APP + 22], syntitle[40], destitle[40], argtitle[40], seealsotitle[40];
+	char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL, *seealso = NULL;
+	char stxtitle[40], *syntax = NULL, *arguments = NULL;
+	int syntax_size, description_size, synopsis_size, arguments_size, seealso_size;
 	char *ret = NULL;
 	int which = 0;
 	int wordlen;
@@ -2703,49 +3015,75 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 		return ret;
 	}
 
-	if (a->argc < 4)
+	if (a->argc < 4) {
 		return CLI_SHOWUSAGE;
+	}
 
 	if (!(acf = ast_custom_function_find(a->argv[3]))) {
 		ast_cli(a->fd, "No function by that name registered.\n");
 		return CLI_FAILURE;
-
 	}
 
-	if (acf->synopsis)
-		synopsis_size = strlen(acf->synopsis) + 23;
-	else
-		synopsis_size = strlen("Not available") + 23;
-	synopsis = alloca(synopsis_size);
+	syntax_size = strlen(S_OR(acf->syntax, "Not Available")) + MAX_ESCAPE_CHARS;
+	if (!(syntax = ast_malloc(syntax_size))) {
+		ast_cli(a->fd, "Memory allocation failure!\n");
+		return CLI_FAILURE;
+	}
 
-	if (acf->desc)
-		description_size = strlen(acf->desc) + 23;
-	else
-		description_size = strlen("Not available") + 23;
-	description = alloca(description_size);
-
-	if (acf->syntax)
-		syntax_size = strlen(acf->syntax) + 23;
-	else
-		syntax_size = strlen("Not available") + 23;
-	syntax = alloca(syntax_size);
-
-	snprintf(info, 64 + AST_MAX_APP, "\n  -= Info about function '%s' =- \n\n", acf->name);
-	term_color(infotitle, info, COLOR_MAGENTA, 0, 64 + AST_MAX_APP + 22);
-	term_color(stxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
+	snprintf(info, sizeof(info), "\n  -= Info about function '%s' =- \n\n", acf->name);
+	term_color(infotitle, info, COLOR_MAGENTA, 0, sizeof(infotitle));
 	term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
 	term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
-	term_color(syntax,
-		   acf->syntax ? acf->syntax : "Not available",
-		   COLOR_CYAN, 0, syntax_size);
-	term_color(synopsis,
-		   acf->synopsis ? acf->synopsis : "Not available",
-		   COLOR_CYAN, 0, synopsis_size);
-	term_color(description,
-		   acf->desc ? acf->desc : "Not available",
-		   COLOR_CYAN, 0, description_size);
+	term_color(stxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
+	term_color(argtitle, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
+	term_color(seealsotitle, "[See Also]\n", COLOR_MAGENTA, 0, 40);
+	term_color(syntax, S_OR(acf->syntax, "Not available"), COLOR_CYAN, 0, syntax_size);
+#ifdef AST_XML_DOCS
+	if (acf->docsrc == AST_XML_DOC) {
+		arguments = xmldoc_colorization(S_OR(acf->arguments, "Not available"));
+		synopsis = xmldoc_colorization(S_OR(acf->synopsis, "Not available"));
+		description = xmldoc_colorization(S_OR(acf->desc, "Not available"));
+		seealso = xmldoc_colorization(S_OR(acf->seealso, "Not available"));
+	} else 
+#endif
+	{
+		synopsis_size = strlen(S_OR(acf->synopsis, "Not Available")) + MAX_ESCAPE_CHARS;
+		synopsis = ast_malloc(synopsis_size);
 
-	ast_cli(a->fd,"%s%s%s\n\n%s%s\n\n%s%s\n", infotitle, stxtitle, syntax, syntitle, synopsis, destitle, description);
+		description_size = strlen(S_OR(acf->desc, "Not Available")) + MAX_ESCAPE_CHARS;
+		description = ast_malloc(description_size);
+
+		arguments_size = strlen(S_OR(acf->arguments, "Not Available")) + MAX_ESCAPE_CHARS;
+		arguments = ast_malloc(arguments_size);
+
+		seealso_size = strlen(S_OR(acf->seealso, "Not Available")) + MAX_ESCAPE_CHARS;
+		seealso = ast_malloc(seealso_size);
+
+		/* check allocated memory. */
+		if (!synopsis || !description || !arguments || !seealso) {
+			ast_free(synopsis);
+			ast_free(description);
+			ast_free(arguments);
+			ast_free(seealso);
+			ast_free(syntax);
+			return CLI_FAILURE;
+		}
+
+		term_color(arguments, S_OR(acf->arguments, "Not available"), COLOR_CYAN, 0, arguments_size);
+		term_color(synopsis, S_OR(acf->synopsis, "Not available"), COLOR_CYAN, 0, synopsis_size);
+		term_color(description, S_OR(acf->desc, "Not available"), COLOR_CYAN, 0, description_size);
+		term_color(seealso, S_OR(acf->seealso, "Not available"), COLOR_CYAN, 0, seealso_size);
+	}
+
+	ast_cli(a->fd,"%s%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n", 
+			infotitle, syntitle, synopsis, destitle, description, 
+			stxtitle, syntax, argtitle, arguments, seealsotitle, seealso);
+
+	ast_free(arguments);
+	ast_free(synopsis);
+	ast_free(description);
+	ast_free(seealso);
+	ast_free(syntax);
 
 	return CLI_SUCCESS;
 }
@@ -2772,11 +3110,1516 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 		return -1;
 
 	AST_RWLIST_WRLOCK(&acf_root);
-	if ((cur = AST_RWLIST_REMOVE(&acf_root, acf, acflist)))
+	if ((cur = AST_RWLIST_REMOVE(&acf_root, acf, acflist))) {
+		if (cur->docsrc == AST_XML_DOC) {
+			ast_string_field_free_memory(acf);
+		}
 		ast_verb(2, "Unregistered custom function %s\n", cur->name);
+	}
 	AST_RWLIST_UNLOCK(&acf_root);
 
 	return cur ? 0 : -1;
+}
+
+#ifdef AST_XML_DOCS
+static const struct strcolorized_tags {
+	const char *init;      /*!< Replace initial tag with this string. */
+	const char *end;       /*!< Replace end tag with this string. */
+	const int colorfg;     /*!< Foreground color. */
+	const char *inittag;   /*!< Initial tag description. */
+	const char *endtag;    /*!< Ending tag description. */
+} colorized_tags[] = {
+	{ "<",  ">",  COLOR_GREEN,  "<replaceable>", "</replaceable>" },
+	{ "\'", "\'", COLOR_BLUE,   "<literal>",     "</literal>" },
+	{ "*",  "*",  COLOR_RED,    "<emphasis>",    "</emphasis>" },
+	{ "\"", "\"", COLOR_YELLOW, "<filename>",    "</filename>" },
+	{ "\"", "\"", COLOR_CYAN,   "<directory>",   "</directory>" },
+	{ "${", "}",  COLOR_GREEN,  "<variable>",    "</variable>" },
+	{ "",   "",   COLOR_BLUE,   "<value>",       "</value>" },
+	{ "",   "",   COLOR_BLUE,   "<enum>",        "</enum>" },
+	{ "\'", "\'", COLOR_GRAY,   "<astcli>",      "</astcli>" },
+
+	/* Special tags */
+	{ "", "", COLOR_YELLOW, "<note>",   "</note>" },
+	{ "", "", COLOR_RED,   "<warning>", "</warning>" }
+};
+
+static const struct strspecial_tags {
+	const char *tagname;		/*!< Special tag name. */
+	const char *init;		/*!< Print this at the beginning. */
+	const char *end;		/*!< Print this at the end. */
+} special_tags[] = {
+	{ "note",    "<note>NOTE:</note> ",             "" },
+	{ "warning", "<warning>WARNING!!!:</warning> ", "" }
+};
+
+/*! \internal
+ *  \brief Calculate the space in bytes used by a format string
+ *         that will be passed to a sprintf function.
+ *  \param postbr The format string to use to calculate the length.
+ *  \retval The postbr length.
+ */
+static int xmldoc_postbrlen(const char *postbr)
+{
+	int postbrreallen = 0, i;
+	size_t postbrlen;
+
+	if (!postbr) {
+		return 0;
+	}
+	postbrlen = strlen(postbr);
+	for (i = 0; i < postbrlen; i++) {
+		if (postbr[i] == '\t') {
+			postbrreallen += 8 - (postbrreallen % 8);
+		} else {
+			postbrreallen++;
+		}
+	}
+	return postbrreallen;
+}
+
+/*! \internal
+ *  \brief Setup postbr to be used while wrapping the text.
+ *         Add to postbr array all the spaces and tabs at the beginning of text.
+ *  \param postbr output array.
+ *  \param len text array length.
+ *  \param text Text with format string before the actual string.
+ */
+static void xmldoc_setpostbr(char *postbr, size_t len, const char *text)
+{
+	int c, postbrlen = 0;
+
+	if (!text) {
+		return;
+	}
+
+	for (c = 0; c < len; c++) {
+		if (text[c] == '\t' || text[c] == ' ') {
+			postbr[postbrlen++] = text[c];
+		} else {
+			break;
+		}
+	}
+	postbr[postbrlen] = '\0';
+}
+
+/*! \internal
+ *  \brief Try to find a space or a break in text starting at currentpost
+ *         and moving at most maxdiff positions.
+ *         Helper for xmldoc_string_wrap().
+ *  \param text Input string where it will search.
+ *  \param currentpos Current position within text.
+ *  \param maxdiff Not move more than maxdiff inside text.
+ *  \retval 1 if a space or break is found inside text while moving.
+ *  \retval 0 if no space or break is found.
+ */
+static int xmldoc_wait_nextspace(const char *text, int currentpos, int maxdiff)
+{
+	int i, textlen;
+
+	if (!text) {
+		return 0;
+	}
+
+	textlen = strlen(text);
+	for (i = currentpos; i < textlen; i++) {
+		if (text[i] == ESC) {
+			/* Move to the end of the escape sequence */
+			while (i < textlen && text[i] != 'm') {
+				i++;
+			}
+		} else if (text[i] == ' ' || text[i] == '\n') {
+			/* Found the next space or linefeed */
+			return 1;
+		} else if (i - currentpos > maxdiff) {
+			/* We have looked the max distance and didn't find it */
+			return 0;
+		}
+	}
+
+	/* Reached the end and did not find it */
+
+	return 0;
+}
+
+/*! \internal
+ *  \brief Helper function for xmldoc_string_wrap().
+ *	   Try to found a space or a break inside text moving backward
+ *	   not more than maxdiff positions.
+ *  \param text The input string where to search for a space.
+ *  \param currentpos The current cursor position.
+ *  \param maxdiff The max number of positions to move within text.
+ *  \retval 0 If no space is found (Notice that text[currentpos] is not a space or a break)
+ *  \retval > 0 If a space or a break is found, and the result is the position relative to
+ *		currentpos.
+ */
+static int xmldoc_foundspace_backward(const char *text, int currentpos, int maxdiff)
+{
+	int i;
+
+	for (i = currentpos; i > 0; i--) {
+		if (text[i] == ' ' || text[i] == '\n') {
+			return (currentpos - i);
+		} else if (text[i] == 'm' && (text[i - 1] >= '0' || text[i - 1] <= '9')) {
+			/* give up, we found the end of a possible ESC sequence. */
+			return 0;
+		} else if (currentpos - i > maxdiff) {
+			/* give up, we can't move anymore. */
+			return 0;
+		}
+	}
+
+	/* we found the beginning of the text */
+
+	return 0;
+}
+
+/*! \internal
+ *  \brief Justify a text to a number of columns.
+ *  \param text Input text to be justified.
+ *  \param columns Number of columns to preserve in the text.
+ *  \param maxdiff Try to not cut a word when goinf down.
+ *  \retval NULL on error.
+ *  \retval The wrapped text.
+ */
+static char *xmldoc_string_wrap(const char *text, int columns, int maxdiff)
+{
+	struct ast_str *tmp;
+	char *ret, postbr[160];
+	int count = 1, i, backspace, needtobreak = 0, colmax, textlen;
+
+	/* sanity check */
+	if (!text || columns <= 0 || maxdiff < 0) {
+		ast_log(LOG_WARNING, "Passing wrong arguments while trying to wrap the text\n");
+		return NULL;
+	}
+
+	tmp = ast_str_create(strlen(text) * 3);
+
+	if (!tmp) {
+		return NULL;
+	}
+
+	/* Check for blanks and tabs and put them in postbr. */
+	xmldoc_setpostbr(postbr, sizeof(postbr), text);
+	colmax = columns - xmldoc_postbrlen(postbr);
+
+	textlen = strlen(text);
+	for (i = 0; i < textlen; i++) {
+		if (needtobreak || !(count % colmax)) {
+			if (text[i] == ' ') {
+				ast_str_append(&tmp, 0, "\n%s", postbr);
+				needtobreak = 0;
+				count = 1;
+			} else if (text[i] != '\n') {
+				needtobreak = 1;
+				if (xmldoc_wait_nextspace(text, i, maxdiff)) {
+					/* wait for the next space */
+					ast_str_append(&tmp, 0, "%c", text[i]);
+					continue;
+				}
+				/* Try to look backwards */
+				backspace = xmldoc_foundspace_backward(text, i, maxdiff);
+				if (backspace) {
+					needtobreak = 1;
+					tmp->used -= backspace;
+					tmp->str[tmp->used] = '\0';
+					i -= backspace + 1;
+					continue;
+				}
+				ast_str_append(&tmp, 0, "\n%s", postbr);
+				needtobreak = 0;
+				count = 1;
+			}
+			/* skip blanks after a \n */
+			while (text[i] == ' ') {
+				i++;
+			}
+		}
+		if (text[i] == '\n') {
+			xmldoc_setpostbr(postbr, sizeof(postbr), &text[i] + 1);
+			colmax = columns - xmldoc_postbrlen(postbr);
+			needtobreak = 0;
+			count = 1;
+		}
+		if (text[i] == ESC) {
+			/* Ignore Escape sequences. */
+			do {
+				ast_str_append(&tmp, 0, "%c", text[i]);
+				i++;
+			} while (i < textlen && text[i] != 'm');
+		} else {
+			count++;
+		}
+		ast_str_append(&tmp, 0, "%c", text[i]);
+	}
+
+	ret = ast_strdup(tmp->str);
+	ast_free(tmp);
+
+	return ret;
+}
+
+/*! \internal
+ *  \brief Colorize the xmldoc output.
+ *  \param bwinput Not colorized input.
+ *  \retval NULL on error.
+ *  \retval New malloced buffer colorized.
+ */
+static char *xmldoc_colorization(const char *bwinput)
+{
+	struct ast_str *colorized;
+	char *wrapped = NULL;
+	int i, c, len, colorsection;
+	char *tmp;
+	size_t bwinputlen;
+	static const int base_fg = COLOR_CYAN;
+
+	if (!bwinput) {
+		return NULL;
+	}
+
+	bwinputlen = strlen(bwinput);
+
+	if (!(colorized = ast_str_create(256))) {
+		return NULL;
+	}
+
+	ast_term_color_code(&colorized, base_fg, 0);
+	if (!colorized) {
+		return NULL;
+	}
+
+	for (i = 0; i < bwinputlen; i++) {
+		colorsection = 0;
+		/* Check if we are at the beginning of a tag to be colorized. */
+		for (c = 0; c < ARRAY_LEN(colorized_tags); c++) {
+			if (strncasecmp(bwinput + i, colorized_tags[c].inittag, strlen(colorized_tags[c].inittag))) {
+				continue;
+			}
+			
+			if (!(tmp = strcasestr(bwinput + i + strlen(colorized_tags[c].inittag), colorized_tags[c].endtag))) {
+				continue;
+			}
+
+			len = tmp - (bwinput + i + strlen(colorized_tags[c].inittag));
+
+			/* Setup color */
+			ast_term_color_code(&colorized, colorized_tags[c].colorfg, 0);
+			if (!colorized) {
+				return NULL;
+			}
+
+			/* copy initial string replace */
+			ast_str_append(&colorized, 0, "%s", colorized_tags[c].init);
+			if (!colorized) {
+				return NULL;
+			}
+			{
+				char buf[len + 1];
+				ast_copy_string(buf, bwinput + i + strlen(colorized_tags[c].inittag), sizeof(buf));
+				ast_str_append(&colorized, 0, "%s", buf);
+			}
+			if (!colorized) {
+				return NULL;
+			}
+
+			/* copy the ending string replace */
+			ast_str_append(&colorized, 0, "%s", colorized_tags[c].end);
+			if (!colorized) {
+				return NULL;
+			}
+
+			/* Continue with the last color. */
+			ast_term_color_code(&colorized, base_fg, 0);
+			if (!colorized) {
+				return NULL;
+			}
+
+			i += len + strlen(colorized_tags[c].endtag) + strlen(colorized_tags[c].inittag) - 1;
+			colorsection = 1;
+			break;
+		}
+
+		if (!colorsection) {
+			ast_str_append(&colorized, 0, "%c", bwinput[i]);
+			if (!colorized) {
+				return NULL;
+			}
+		}
+	}
+
+	ast_term_color_code(&colorized, COLOR_BRWHITE, 0);
+	if (!colorized) {
+		return NULL;
+	}
+
+	/* Wrap the text, notice that string wrap will avoid cutting an ESC sequence. */
+	wrapped = xmldoc_string_wrap(colorized->str, xmldoc_text_columns, xmldoc_max_diff);
+
+	ast_free(colorized);
+
+	return wrapped;
+}
+
+/*! \internal
+ *  \brief Cleanup spaces and tabs after a \n
+ *  \param text String to be cleaned up.
+ *  \param output buffer (not already allocated).
+ *  \param lastspaces Remove last spaces in the string.
+ */
+static void xmldoc_string_cleanup(const char *text, struct ast_str **output, int lastspaces)
+{
+	int i;
+	size_t textlen;
+
+	if (!text) {
+		*output = NULL;
+		return;
+	}
+	
+	textlen = strlen(text);
+
+	*output = ast_str_create(textlen);
+	if (!(*output)) {
+		ast_log(LOG_ERROR, "Problem allocating output buffer\n");
+		return;
+	}
+
+	for (i = 0; i < textlen; i++) {
+		if (text[i] == '\n' || text[i] == '\r') {
+			/* remove spaces/tabs/\n after a \n. */
+			while (text[i + 1] == '\t' || text[i + 1] == '\r' || text[i + 1] == '\n') {
+				i++;
+			}
+			ast_str_append(output, 0, " ");
+			continue;
+		} else {
+			ast_str_append(output, 0, "%c", text[i]);
+		}
+	}
+
+	/* remove last spaces (we dont want always to remove the trailing spaces). */
+	if (lastspaces) {
+		ast_str_trim_blanks(*output);
+	}
+}
+
+/*! \internal
+ *  \brief Get the application/function node for 'name' application/function with language 'language'
+ *         if we don't find any, get the first application with 'name' no matter which language with.
+ *  \param type 'application', 'function', ...
+ *  \param name Application or Function name.
+ *  \param language Try to get this language (if not found try with en_US)
+ *  \retval NULL on error.
+ *  \retval A node of type ast_xml_node.
+ */
+static struct ast_xml_node *xmldoc_get_node(const char *type, const char *name, const char *language)
+{
+	struct ast_xml_node *node = NULL;
+	struct documentation_tree *doctree;
+	const char *lang;
+
+	AST_RWLIST_RDLOCK(&xmldoc_tree);
+	AST_LIST_TRAVERSE(&xmldoc_tree, doctree, entry) {
+		/* the core xml documents have priority over thirdparty document. */
+		node = ast_xml_get_root(doctree->doc);
+		while ((node = ast_xml_find_element(node, type, "name", name))) {
+			/* Check language */
+			lang = ast_xml_get_attribute(node, "language");
+			if (lang && !strcmp(lang, language)) {
+				ast_xml_free_attr(lang);
+				break;
+			} else if (lang) {
+				ast_xml_free_attr(lang);
+			}
+		}
+
+		if (node && ast_xml_node_get_children(node)) {
+			break;
+		}
+
+		/* We didn't find the application documentation for the specified language,
+		so, try to load documentation for any language */
+		node = ast_xml_get_root(doctree->doc);
+		if (ast_xml_node_get_children(node)) {
+			if ((node = ast_xml_find_element(ast_xml_node_get_children(node), type, "name", name))) {
+				break;
+			}
+		}
+	}
+	AST_RWLIST_UNLOCK(&xmldoc_tree);
+
+	return node;
+}
+
+/*! \internal
+ *  \brief Helper function used to build the syntax, it allocates the needed buffer (or reallocates it),
+ *         and based on the reverse value it makes use of fmt to print the parameter list inside the 
+ *         realloced buffer (syntax).
+ *  \param reverse We are going backwards while generating the syntax?
+ *  \param len Current length of 'syntax' buffer.
+ *  \param syntax Output buffer for the concatenated values.
+ *  \param fmt A format string that will be used in a sprintf call.
+ */
+static __attribute__((format(printf,4,5))) void xmldoc_reverse_helper(int reverse, int *len, char **syntax, const char *fmt, ...)
+{
+	int totlen, tmpfmtlen;
+	char *tmpfmt, tmp;
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (ast_vasprintf(&tmpfmt, fmt, ap) < 0) {
+		va_end(ap);
+		return;
+	}
+	va_end(ap);
+
+	tmpfmtlen = strlen(tmpfmt);
+	totlen = *len + tmpfmtlen + 1;
+
+	*syntax = ast_realloc(*syntax, totlen);
+
+	if (!*syntax) {
+		ast_free(tmpfmt);
+		return;
+	}
+
+	if (reverse) {
+		memmove(*syntax + tmpfmtlen, *syntax, *len);
+		/* Save this char, it will be overwritten by the \0 of strcpy. */
+		tmp = (*syntax)[0];
+		strcpy(*syntax, tmpfmt);
+		/* Restore the already saved char. */
+		(*syntax)[tmpfmtlen] = tmp;
+		(*syntax)[totlen - 1] = '\0';
+	} else {
+		strcpy(*syntax + *len, tmpfmt);
+	}
+
+	*len = totlen - 1;
+	ast_free(tmpfmt);
+}
+
+/*! \internal
+ *  \brief Check if the passed node has <argument> tags inside it.
+ *  \param node Root node to search argument elements.
+ *  \retval 1 If a <argument> element is found inside 'node'.
+ *  \retval 0 If no <argument> is found inside 'node'.
+ */
+static int xmldoc_has_arguments(struct ast_xml_node *fixnode)
+{
+	struct ast_xml_node *node = fixnode;
+
+	for (node = ast_xml_node_get_children(fixnode); node; node = ast_xml_node_get_next(node)) {
+		if (!strcasecmp(ast_xml_node_get_name(node), "argument")) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*! \internal
+ *  \brief Build the syntax for a specified starting node.
+ *  \param rootnode A pointer to the ast_xml root node.
+ *  \param rootname Name of the application, function, option, etc. to build the syntax.
+ *  \param childname The name of each parameter node.
+ *  \param printparenthesis Boolean if we must print parenthesis if not parameters are found in the rootnode.
+ *  \param printrootname Boolean if we must print the rootname before the syntax and parenthesis at the begining/end.
+ *  \retval NULL on error.
+ *  \retval An ast_malloc'ed string with the syntax generated.
+ */
+static char *xmldoc_get_syntax(struct ast_xml_node *rootnode, const char *rootname, const char *childname, int printparenthesis, int printrootname)
+{
+#define GOTONEXT(__rev, __a) (__rev ? ast_xml_node_get_prev(__a) : ast_xml_node_get_next(__a))
+#define ISLAST(__rev, __a)  (__rev == 1 ? (ast_xml_node_get_prev(__a) ? 0 : 1) : (ast_xml_node_get_next(__a) ? 0 : 1))
+#define MP(__a) ((multiple ? __a : ""))
+	struct ast_xml_node *node = NULL, *firstparam = NULL, *lastparam = NULL;
+	const char *paramtype, *multipletype, *paramname, *attrargsep, *parenthesis, *argname;
+	int reverse, required, paramcount = 0, openbrackets = 0, len = 0, hasparams=0;
+	int reqfinode = 0, reqlanode = 0, optmidnode = 0, prnparenthesis;
+	char *syntax = NULL, *argsep;
+	int paramnamemalloc, multiple;
+
+	if (ast_strlen_zero(rootname) || ast_strlen_zero(childname)) {
+		ast_log(LOG_WARNING, "Tried to look in XML tree with faulty rootname or childname while creating a syntax.\n");
+		return NULL;
+	}
+
+	if (!rootnode || !ast_xml_node_get_children(rootnode)) {
+		/* If the rootnode field is not found, at least print name. */
+		ast_asprintf(&syntax, "%s%s", (printrootname ? rootname : ""), (printparenthesis ? "()" : ""));
+		return syntax;
+	}
+
+	/* Get the argument separator from the root node attribute name 'argsep', if not found
+	defaults to ','. */
+	attrargsep = ast_xml_get_attribute(rootnode, "argsep");
+	if (attrargsep) {
+		argsep = ast_strdupa(attrargsep);
+		ast_xml_free_attr(attrargsep);
+	} else {
+		argsep = ast_strdupa(",");
+	}
+
+	/* Get order of evaluation. */
+	for (node = ast_xml_node_get_children(rootnode); node; node = ast_xml_node_get_next(node)) {
+		if (strcasecmp(ast_xml_node_get_name(node), childname)) {
+			continue;
+		}
+		required = 0;
+		hasparams = 1;
+		if ((paramtype = ast_xml_get_attribute(node, "required"))) {
+			if (ast_true(paramtype)) {
+				required = 1;
+			}
+			ast_xml_free_attr(paramtype);
+		}
+
+		lastparam = node;
+		reqlanode = required;
+
+		if (!firstparam) {
+			/* first parameter node */
+			firstparam = node;
+			reqfinode = required;
+		}
+	}
+
+	if (!hasparams) {
+		/* This application, function, option, etc, doesn't have any params. */
+		ast_asprintf(&syntax, "%s%s", (printrootname ? rootname : ""), (printparenthesis ? "()" : ""));
+		return syntax;
+	}
+
+	if (reqfinode && reqlanode) {
+		/* check midnode */
+		for (node = ast_xml_node_get_children(rootnode); node; node = ast_xml_node_get_next(node)) {
+			if (strcasecmp(ast_xml_node_get_name(node), childname)) {
+				continue;
+			}
+			if (node != firstparam && node != lastparam) {
+				if ((paramtype = ast_xml_get_attribute(node, "required"))) {
+					if (!ast_true(paramtype)) {
+						optmidnode = 1;
+						break;
+					}
+					ast_xml_free_attr(paramtype);
+				}
+			}
+		}
+	}
+
+	if ((!reqfinode && reqlanode) || (reqfinode && reqlanode && optmidnode)) {
+		reverse = 1;
+		node = lastparam;
+	} else {
+		reverse = 0;
+		node = firstparam;
+	}
+
+	/* init syntax string. */
+	if (reverse) {
+		xmldoc_reverse_helper(reverse, &len, &syntax,
+			(printrootname ? (printrootname == 2 ? ")]" : ")"): ""));
+	} else {
+		xmldoc_reverse_helper(reverse, &len, &syntax, "%s%s", (printrootname ? rootname : ""),
+			(printrootname ? (printrootname == 2 ? "[(" : "(") : ""));
+	}
+
+	for (; node; node = GOTONEXT(reverse, node)) {
+		if (strcasecmp(ast_xml_node_get_name(node), childname)) {
+			continue;
+		}
+
+		/* Get the argument name, if it is not the leaf, go inside that parameter. */
+		if (xmldoc_has_arguments(node)) {
+			parenthesis = ast_xml_get_attribute(node, "hasparams");
+			prnparenthesis = 0;
+			if (parenthesis) {
+				prnparenthesis = ast_true(parenthesis);
+				if (!strcasecmp(parenthesis, "optional")) {
+					prnparenthesis = 2;
+				}
+				ast_xml_free_attr(parenthesis);
+			}
+			argname = ast_xml_get_attribute(node, "name");
+			if (argname) {
+				paramname = xmldoc_get_syntax(node, argname, "argument", prnparenthesis, prnparenthesis);
+				ast_xml_free_attr(argname);
+				paramnamemalloc = 1;
+			} else {
+				/* Malformed XML, print **UNKOWN** */
+				paramname = ast_strdup("**unknown**");
+			}
+			paramnamemalloc = 1;
+		} else {
+			paramnamemalloc = 0;
+			paramname = ast_xml_get_attribute(node, "name");
+			if (!paramname) {
+				ast_log(LOG_WARNING, "Malformed XML %s: no %s name\n", rootname, childname);
+				if (syntax) {
+					/* Free already allocated syntax */
+					ast_free(syntax);
+				}
+				/* to give up is ok? */
+				ast_asprintf(&syntax, "%s%s", (printrootname ? rootname : ""), (printparenthesis ? "()" : ""));
+				return syntax;
+			}
+		}
+
+		/* Defaults to 'false'. */
+		multiple = 0;
+		if ((multipletype = ast_xml_get_attribute(node, "multiple"))) {
+			if (ast_true(multipletype)) {
+				multiple = 1;
+			}
+			ast_xml_free_attr(multipletype);
+		}
+
+		required = 0;	/* Defaults to 'false'. */
+		if ((paramtype = ast_xml_get_attribute(node, "required"))) {
+			if (ast_true(paramtype)) {
+				required = 1;
+			}
+			ast_xml_free_attr(paramtype);
+		}
+
+		/* build syntax core. */
+
+		if (required) {
+			/* First parameter */
+			if (!paramcount) {
+				xmldoc_reverse_helper(reverse, &len, &syntax, "%s%s%s%s", paramname, MP("["), MP(argsep), MP("...]"));
+			} else {
+				/* Time to close open brackets. */
+				while (openbrackets > 0) {
+					xmldoc_reverse_helper(reverse, &len, &syntax, (reverse ? "[" : "]"));
+					openbrackets--;
+				}
+				if (reverse) {
+					xmldoc_reverse_helper(reverse, &len, &syntax, "%s%s", paramname, argsep);
+				} else {
+					xmldoc_reverse_helper(reverse, &len, &syntax, "%s%s", argsep, paramname);
+				}
+				xmldoc_reverse_helper(reverse, &len, &syntax, "%s%s%s", MP("["), MP(argsep), MP("...]"));
+			}
+		} else {
+			/* First parameter */
+			if (!paramcount) {
+				xmldoc_reverse_helper(reverse, &len, &syntax, "[%s%s%s%s]", paramname, MP("["), MP(argsep), MP("...]"));
+			} else {
+				if (ISLAST(reverse, node)) {
+					/* This is the last parameter. */
+					if (reverse) {
+						xmldoc_reverse_helper(reverse, &len, &syntax, "[%s%s%s%s]%s", paramname,
+									MP("["), MP(argsep), MP("...]"), argsep);
+					} else {
+						xmldoc_reverse_helper(reverse, &len, &syntax, "%s[%s%s%s%s]", argsep, paramname,
+									MP("["), MP(argsep), MP("...]"));
+					}
+				} else {
+					if (reverse) {
+						xmldoc_reverse_helper(reverse, &len, &syntax, "%s%s%s%s%s]", paramname, argsep,
+									MP("["), MP(argsep), MP("...]"));
+					} else {
+						xmldoc_reverse_helper(reverse, &len, &syntax, "[%s%s%s%s%s", argsep, paramname,
+									MP("["), MP(argsep), MP("...]"));
+					}
+					openbrackets++;
+				}
+			}
+		}
+		if (paramnamemalloc) {
+			ast_free((char *) paramname);
+		} else {
+			ast_xml_free_attr(paramname);
+		}
+
+		paramcount++;
+	}
+
+	/* Time to close open brackets. */
+	while (openbrackets > 0) {
+		xmldoc_reverse_helper(reverse, &len, &syntax, (reverse ? "[" : "]"));
+		openbrackets--;
+	}
+
+	/* close syntax string. */
+	if (reverse) {
+		xmldoc_reverse_helper(reverse, &len, &syntax, "%s%s", (printrootname ? rootname : ""), 
+			(printrootname ? (printrootname == 2 ? "[(" : "(") : ""));
+	} else {
+		xmldoc_reverse_helper(reverse, &len, &syntax, (printrootname ? (printrootname == 2 ? ")]" : ")") : ""));
+	}
+
+	return syntax;
+#undef ISLAST
+#undef GOTONEXT
+#undef MP
+}
+
+/*! \internal
+ *  \brief Get the syntax for a specified application or function.
+ *  \param type Application or Function ?
+ *  \param name Name of the application or function.
+ *  \retval NULL on error.
+ *  \retval The generated syntax in a ast_malloc'ed string.
+ */
+static char *xmldoc_build_syntax(const char *type, const char *name)
+{
+	struct ast_xml_node *node;
+	char *syntax = NULL;
+
+	node = xmldoc_get_node(type, name, documentation_language);
+	if (!node) {
+		return NULL;
+	}
+
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		if (!strcasecmp(ast_xml_node_get_name(node), "syntax")) {
+			break;
+		}
+	}
+
+	if (node) {
+		syntax = xmldoc_get_syntax(node, name, "parameter", 1, 1);
+	}
+	return syntax;
+}
+
+/*! \internal
+ *  \brief Parse a <para> element.
+ *  \param node The <para> element pointer.
+ *  \param tabs Added this string before the content of the <para> element.
+ *  \param posttabs Added this string after the content of the <para> element.
+ *  \param buffer This must be an already allocated ast_str. It will be used
+ *         to store the result (if already has something it will be appended to the current
+ *         string).
+ *  \retval 1 If 'node' is a named 'para'.
+ *  \retval 2 If data is appended in buffer.
+ *  \retval 0 on error.
+ */
+static int xmldoc_parse_para(struct ast_xml_node *node, const char *tabs, const char *posttabs, struct ast_str **buffer)
+{
+	const char *tmptext;
+	struct ast_xml_node *tmp;
+	int ret = 0;
+	struct ast_str *tmpstr;
+
+	if (!node || !ast_xml_node_get_children(node)) {
+		return ret;
+	}
+
+	if (strcasecmp(ast_xml_node_get_name(node), "para")) {
+		return ret;
+	}
+
+	ast_str_append(buffer, 0, "%s", tabs);
+
+	ret = 1;
+
+	for (tmp = ast_xml_node_get_children(node); tmp; tmp = ast_xml_node_get_next(tmp)) {
+		/* Get the text inside the <para> element and append it to buffer. */
+		tmptext = ast_xml_get_text(tmp);
+		if (tmptext) {
+			/* Strip \n etc. */
+			xmldoc_string_cleanup(tmptext, &tmpstr, 0);
+			ast_xml_free_text(tmptext);
+			if (tmpstr) {
+				if (strcasecmp(ast_xml_node_get_name(tmp), "text")) {
+					ast_str_append(buffer, 0, "<%s>%s</%s>", ast_xml_node_get_name(tmp), 
+							tmpstr->str, ast_xml_node_get_name(tmp));
+				} else {
+					ast_str_append(buffer, 0, "%s", tmpstr->str);
+				}
+				ast_free(tmpstr);
+				ret = 2;
+			}
+		}
+	}
+
+	ast_str_append(buffer, 0, "%s", posttabs);
+
+	return ret;
+}
+
+/*! \internal
+ *  \brief Parse special elements defined in 'struct special_tags' special elements must have a <para> element inside them.
+ *  \param fixnode special tag node pointer.
+ *  \param tabs put tabs before printing the node content.
+ *  \param posttabs put posttabs after printing node content.
+ *  \param buffer Output buffer, the special tags will be appended here.
+ *  \retval 0 if no special element is parsed.
+ *  \retval 1 if a special element is parsed (data is appended to buffer).
+ *  \retval 2 if a special element is parsed and also a <para> element is parsed inside the specialtag.
+ */
+static int xmldoc_parse_specialtags(struct ast_xml_node *fixnode, const char *tabs, const char *posttabs, struct ast_str **buffer)
+{
+	struct ast_xml_node *node = fixnode;
+	int ret = 0, i, count = 0;
+
+	if (!node || !ast_xml_node_get_children(node)) {
+		return ret;
+	}
+
+	for (i = 0; i < ARRAY_LEN(special_tags); i++) {
+		if (strcasecmp(ast_xml_node_get_name(node), special_tags[i].tagname)) {
+			continue;
+		}
+
+		ret = 1;
+		/* This is a special tag. */
+
+		/* concat data */
+		if (!ast_strlen_zero(special_tags[i].init)) {
+			ast_str_append(buffer, 0, "%s%s", tabs, special_tags[i].init);
+		}
+
+		/* parse <para> elements inside special tags. */
+		for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+			/* first <para> just print it without tabs at the begining. */
+			if (xmldoc_parse_para(node, (!count ? "" : tabs), posttabs, buffer) == 2) {
+				ret = 2;
+			}
+		}
+
+		if (!ast_strlen_zero(special_tags[i].end)) {
+			ast_str_append(buffer, 0, "%s%s", special_tags[i].end, posttabs);
+		}
+
+		break;
+	}
+
+	return ret;
+}
+
+/*! \internal
+ *  \brief Parse an <argument> element from the xml documentation.
+ *  \param fixnode Pointer to the 'argument' xml node.
+ *  \param insideparameter If we are parsing an <argument> inside a <parameter>.
+ *  \param paramtabs pre tabs if we are inside a parameter element.
+ *  \param tabs What to be printed before the argument name.
+ *  \param buffer Output buffer to put values found inside the <argument> element.
+ *  \retval 1 If there is content inside the argument.
+ *  \retval 0 If the argument element is not parsed, or there is no content inside it.
+ */
+static int xmldoc_parse_argument(struct ast_xml_node *fixnode, int insideparameter, const char *paramtabs, const char *tabs, struct ast_str **buffer)
+{
+	struct ast_xml_node *node = fixnode;
+	const char *argname;
+	int count=0, ret = 0;
+
+	if (!node || !ast_xml_node_get_children(node)) {
+		return ret;
+	}
+
+	/* Print the argument names */
+	argname = ast_xml_get_attribute(node, "name");
+	if (!argname) {
+		return 0;
+	}
+	ast_str_append(buffer, 0, "%s%s%s", tabs, argname, (insideparameter ? "\n" : ""));
+	ast_xml_free_attr(argname);
+
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		if (xmldoc_parse_para(node, (insideparameter ? paramtabs : (!count ? " - " : tabs)), "\n", buffer) == 2) {
+			count++;
+			ret = 1;
+		} else if (xmldoc_parse_specialtags(node, (insideparameter ? paramtabs : (!count ? " - " : tabs)), "\n", buffer) == 2) {
+			count++;
+			ret = 1;
+		}
+	}
+
+	return ret;
+}
+
+/*! \internal
+ *  \brief Parse a <variable> node inside a <variablelist> node.
+ *  \param node The variable node to parse.
+ *  \param tabs A string to be appended at the begining of the output that will be stored
+ *         in buffer.
+ *  \param buffer This must be an already created ast_str. It will be used
+ *         to store the result (if already has something it will be appended to the current
+ *         string).
+ *  \retval 0 if no data is appended.
+ *  \retval 1 if data is appended.
+ */
+static int xmldoc_parse_variable(struct ast_xml_node *node, const char *tabs, struct ast_str **buffer)
+{
+	struct ast_xml_node *tmp;
+	const char *valname;
+	const char *tmptext;
+	struct ast_str *cleanstr;
+	int ret = 0, printedpara=0;
+
+	for (tmp = ast_xml_node_get_children(node); tmp; tmp = ast_xml_node_get_next(tmp)) {
+		if (xmldoc_parse_para(tmp, (ret ? tabs : ""), "\n", buffer)) {
+			printedpara = 1;
+			continue;
+		} else if (xmldoc_parse_specialtags(tmp, (ret ? tabs : ""), "\n", buffer)) {
+			printedpara = 1;
+			continue;
+		}
+
+		if (strcasecmp(ast_xml_node_get_name(tmp), "value")) {
+			continue;
+		}
+
+		/* Parse a <value> tag only. */
+		if (!printedpara) {
+			ast_str_append(buffer, 0, "\n");
+			printedpara = 1;
+		}
+		/* Parse each <value name='valuename'>desciption</value> */
+		valname = ast_xml_get_attribute(tmp, "name");
+		if (valname) {
+			ret = 1;
+			ast_str_append(buffer, 0, "%s<value>%s</value>", tabs, valname);
+			ast_xml_free_attr(valname);
+		}
+		tmptext = ast_xml_get_text(tmp);
+		/* Check inside this node for any explanation about its meaning. */
+		if (tmptext) {
+			/* Cleanup text. */
+			xmldoc_string_cleanup(tmptext, &cleanstr, 1);
+			ast_xml_free_text(tmptext);
+			if (cleanstr && cleanstr->used > 0) {
+				ast_str_append(buffer, 0, ":%s", cleanstr->str);
+			}
+			ast_free(cleanstr);
+		}
+		ast_str_append(buffer, 0, "\n");
+	}
+
+	return ret;
+}
+
+/*! \internal
+ *  \brief Parse a <variablelist> node and put all the output inside 'buffer'.
+ *  \param node The variablelist node pointer.
+ *  \param tabs A string to be appended at the begining of the output that will be stored
+ *         in buffer.
+ *  \param buffer This must be an already created ast_str. It will be used
+ *         to store the result (if already has something it will be appended to the current
+ *         string).
+ *  \retval 1 If a <variablelist> element is parsed.
+ *  \retval 0 On error.
+ */
+static int xmldoc_parse_variablelist(struct ast_xml_node *node, const char *tabs, struct ast_str **buffer)
+{
+	struct ast_xml_node *tmp;
+	const char *varname;
+	char *vartabs;
+	int ret = 0;
+
+	if (!node || !ast_xml_node_get_children(node)) {
+		return ret;
+	}
+
+	if (strcasecmp(ast_xml_node_get_name(node), "variablelist")) {
+		return ret;
+	}
+
+	/* use this spacing (add 4 spaces) inside a variablelist node. */
+	ast_asprintf(&vartabs, "%s    ", tabs);
+	if (!vartabs) {
+		return ret;
+	}
+	for (tmp = ast_xml_node_get_children(node); tmp; tmp = ast_xml_node_get_next(tmp)) {
+		/* We can have a <para> element inside the variable list */
+		if ((xmldoc_parse_para(tmp, (ret ? tabs : ""), "\n", buffer))) {
+			ret = 1;
+			continue;
+		} else if ((xmldoc_parse_specialtags(tmp, (ret ? tabs : ""), "\n", buffer))) {
+			ret = 1;
+			continue;
+		}
+
+		if (!strcasecmp(ast_xml_node_get_name(tmp), "variable")) {
+			/* Store the variable name in buffer. */
+			varname = ast_xml_get_attribute(tmp, "name");
+			if (varname) {
+				ast_str_append(buffer, 0, "%s<variable>%s</variable>: ", tabs, varname);
+				ast_xml_free_attr(varname);
+				/* Parse the <variable> possible values. */
+				xmldoc_parse_variable(tmp, vartabs, buffer);
+				ret = 1;
+			}
+		}
+	}
+
+	ast_free(vartabs);
+
+	return ret;
+}
+
+/*! \internal
+ *  \brief Parse the <see-also> node content.
+ *  \param type 'application' or 'function'.
+ *  \param name Application or functions name.
+ *  \retval NULL on error.
+ *  \retval Content of the see-also node.
+ */
+static char *xmldoc_build_seealso(const char *type, const char *name)
+{
+	struct ast_str *outputstr;
+	char *output;
+	struct ast_xml_node *node;
+	const char *typename;
+	const char *content;
+
+	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
+		return NULL;
+	}
+
+	/* get the application/function root node. */
+	node = xmldoc_get_node(type, name, documentation_language);
+	if (!node || !ast_xml_node_get_children(node)) {
+		return NULL;
+	}
+
+	/* Find the <see-also> node. */
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		if (!strcasecmp(ast_xml_node_get_name(node), "see-also")) {
+			break;
+		}
+	}
+
+	if (!node || !ast_xml_node_get_children(node)) {
+		/* we couldnt find a <see-also> node. */
+		return NULL;
+	}
+
+	/* prepare the output string. */
+	outputstr = ast_str_create(128);
+	if (!outputstr) {
+		return NULL;
+	}
+
+	/* get into the <see-also> node. */
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		if (strcasecmp(ast_xml_node_get_name(node), "ref")) {
+			continue;
+		}
+
+		/* parse the <ref> node. 'type' attribute is required. */
+		typename = ast_xml_get_attribute(node, "type");
+		if (!typename) {
+			continue;
+		}
+		content = ast_xml_get_text(node);
+		if (!content) {
+			ast_xml_free_attr(typename);
+			continue;
+		}
+		if (!strcasecmp(typename, "application") || !strcasecmp(typename, "function")) {
+			ast_str_append(&outputstr, 0, "%s: Type <astcli>core show %s %s</astcli> for more info.\n",
+				content, typename, content);
+		} else if (!strcasecmp(typename, "astcli")) {
+			ast_str_append(&outputstr, 0, "%s: Type <astcli>help %s</astcli> for more info.\n", content, content);
+		} else if (!strcasecmp(typename, "link")) {
+			ast_str_append(&outputstr, 0, "%s\n", content);
+		} else if (!strcasecmp(typename, "manpage")) {
+			ast_str_append(&outputstr, 0, "ManPage: %s\n", content);
+		}
+		ast_xml_free_text(content);
+	}
+
+	output = ast_strdup(outputstr->str);
+	ast_free(outputstr);
+
+	return output;
+}
+
+/*! \internal
+ *  \brief Parse a <enum> node.
+ *  \brief fixnode An ast_xml_node pointer to the <enum> node.
+ *  \bried buffer The output buffer.
+ *  \retval 0 if content is not found inside the enum element (data is not appended to buffer).
+ *  \retval 1 if content is found and data is appended to buffer.
+ */
+static int xmldoc_parse_enum(struct ast_xml_node *fixnode, const char *tabs, struct ast_str **buffer)
+{
+	struct ast_xml_node *node = fixnode;
+	int ret = 0;
+
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		if ((xmldoc_parse_para(node, (ret ? tabs : " - "), "\n", buffer))) {
+			ret = 1;
+		} else if ((xmldoc_parse_specialtags(node, (ret ? tabs : " - "), "\n", buffer))) {
+			ret = 1;
+		}
+	}
+	return ret;
+}
+
+/*! \internal
+ *  \brief Parse a <enumlist> node.
+ *  \param fixnode As ast_xml pointer to the <enumlist> node.
+ *  \param buffer The ast_str output buffer.
+ *  \retval 0 if no <enumlist> node was parsed.
+ *  \retval 1 if a <enumlist> node was parsed.
+ */
+static int xmldoc_parse_enumlist(struct ast_xml_node *fixnode, const char *tabs, struct ast_str **buffer)
+{
+	struct ast_xml_node *node = fixnode;
+	const char *enumname;
+	int ret = 0;
+
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		if (strcasecmp(ast_xml_node_get_name(node), "enum")) {
+			continue;
+		}
+
+		enumname = ast_xml_get_attribute(node, "name");
+		if (enumname) {
+			ast_str_append(buffer, 0, "%s<enum>%s</enum>", tabs, enumname);
+			ast_xml_free_attr(enumname);
+
+			/* parse only enum elements inside a enumlist node. */
+			if ((xmldoc_parse_enum(node, tabs, buffer))) {
+				ret = 1;
+			} else {
+				ast_str_append(buffer, 0, "\n");
+			}
+		}
+	}
+	return ret;
+}
+
+/*! \internal
+ *  \brief Parse an <option> node.
+ *  \param fixnode An ast_xml pointer to the <option> node.
+ *  \param tabs A string to be appended at the begining of each line being added to the
+ *              buffer string.
+ *  \param buffer The output buffer.
+ *  \retval 0 if no option node is parsed.
+ *  \retval 1 if an option node is parsed.
+ */
+static int xmldoc_parse_option(struct ast_xml_node *fixnode, const char *tabs, struct ast_str **buffer)
+{
+	struct ast_xml_node *node;
+	int ret = 0;
+	char *optiontabs;
+
+	ast_asprintf(&optiontabs, "%s    ", tabs);
+	if (!optiontabs) {
+		return ret;
+	}
+	for (node = ast_xml_node_get_children(fixnode); node; node = ast_xml_node_get_next(node)) {
+		if (!strcasecmp(ast_xml_node_get_name(node), "argument")) {
+			/* if this is the first data appended to buffer, print a \n*/
+			if (!ret && ast_xml_node_get_children(node)) {
+				/* print \n */
+				ast_str_append(buffer, 0, "\n");
+			}
+			if (xmldoc_parse_argument(node, 0, NULL, optiontabs, buffer)) {
+				ret = 1;
+			}
+			continue;
+		}
+
+		if (xmldoc_parse_para(node, (ret ? tabs :  ""), "\n", buffer)) {
+			ret = 1;
+		} else if (xmldoc_parse_specialtags(node, (ret ? tabs :  ""), "\n", buffer)) {
+			ret = 1;
+		}
+
+		xmldoc_parse_variablelist(node, optiontabs, buffer);
+
+		xmldoc_parse_enumlist(node, optiontabs, buffer);
+	}
+	ast_free(optiontabs);
+
+	return ret;
+}
+
+/*! \internal
+ *  \brief Parse an <optionlist> element from the xml documentation.
+ *  \param fixnode Pointer to the optionlist xml node.
+ *  \param tabs A string to be appended at the begining of each line being added to the
+ *              buffer string.
+ *  \param buffer Output buffer to put what is inside the optionlist tag.
+ */
+static void xmldoc_parse_optionlist(struct ast_xml_node *fixnode, const char *tabs, struct ast_str **buffer)
+{
+	struct ast_xml_node *node;
+	const char *optname;
+	char *optionsyntax;
+
+	for (node = ast_xml_node_get_children(fixnode); node; node = ast_xml_node_get_next(node)) {
+		/* Start appending every option tag. */
+		if (strcasecmp(ast_xml_node_get_name(node), "option")) {
+			continue;
+		}
+
+		/* Get the option name. */
+		optname = ast_xml_get_attribute(node, "name");
+		if (!optname) {
+			continue;
+		}
+
+		optionsyntax = xmldoc_get_syntax(node, optname, "argument", 0, 1);
+		if (!optionsyntax) {
+			continue;
+		}
+
+		ast_str_append(buffer, 0, "%s%s: ", tabs, optionsyntax);
+
+		if (!xmldoc_parse_option(node, tabs, buffer)) {
+			ast_str_append(buffer, 0, "\n");
+		}
+	}
+}
+
+/*! \internal
+ *  \brief Parse a 'parameter' tag inside a syntax element.
+ *  \param fixnode A pointer to the 'parameter' xml node.
+ *  \param tabs A string to be appended at the beginning of each line being printed inside
+ *              'buffer'.
+ *  \param buffer String buffer to put values found inside the parameter element.
+ */
+static void xmldoc_parse_parameter(struct ast_xml_node *fixnode, const char *tabs, struct ast_str **buffer)
+{
+	const char *paramname;
+	struct ast_xml_node *node = fixnode;
+	int hasarguments, printed = 0;
+	char *internaltabs;
+
+	if (strcasecmp(ast_xml_node_get_name(node), "parameter")) {
+		return;
+	}
+
+	hasarguments = xmldoc_has_arguments(node);
+	if (!(paramname = ast_xml_get_attribute(node, "name"))) {
+		/* parameter MUST have an attribute name. */
+		return;
+	}
+
+	ast_asprintf(&internaltabs, "%s    ", tabs);
+	if (!internaltabs) {
+		return;
+	}
+
+	if (!hasarguments) {
+		ast_str_append(buffer, 0, "%s\n", paramname);
+		ast_xml_free_attr(paramname);
+		printed = 1;
+	}
+
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		if (!strcasecmp(ast_xml_node_get_name(node), "optionlist")) {
+			xmldoc_parse_optionlist(node, internaltabs, buffer);
+		} else if (!strcasecmp(ast_xml_node_get_name(node), "enumlist")) {
+			xmldoc_parse_enumlist(node, internaltabs, buffer);
+		} else if (!strcasecmp(ast_xml_node_get_name(node), "argument")) {
+			xmldoc_parse_argument(node, 1, internaltabs, (!hasarguments ? "        " : ""), buffer);
+		} else if (!strcasecmp(ast_xml_node_get_name(node), "para")) {
+			if (!printed) {
+				ast_str_append(buffer, 0, "%s\n", paramname);
+				ast_xml_free_attr(paramname);
+				printed = 1;
+			}
+			xmldoc_parse_para(node, internaltabs, "\n", buffer);
+			continue;
+		} else if ((xmldoc_parse_specialtags(node, internaltabs, "\n", buffer))) {
+			continue;
+		}
+	}
+	ast_free(internaltabs);
+}
+
+/*! \internal
+ *  \brief Generate the [arguments] tag based on type of node 'application' or
+ *         'function' and name.
+ *  \param type 'application' or 'function' ?
+ *  \param name Name of the application or function to build the 'arguments' tag.
+ *  \retval NULL on error.
+ *  \retval Output buffer with the [arguments] tag content.
+ */
+static char *xmldoc_build_arguments(const char *type, const char *name)
+{
+	struct ast_xml_node *node;
+	struct ast_str *ret = ast_str_create(128);
+	char *retstr = NULL;
+
+	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
+		return NULL;
+	}
+
+	node = xmldoc_get_node(type, name, documentation_language);
+
+	if (!node || !ast_xml_node_get_children(node)) {
+		return NULL;
+	}
+
+	/* Find the syntax field. */
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		if (!strcasecmp(ast_xml_node_get_name(node), "syntax")) {
+			break;
+		}
+	}
+
+	if (!node || !ast_xml_node_get_children(node)) {
+		/* We couldn't find the syntax node. */
+		return NULL;
+	}
+
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		xmldoc_parse_parameter(node, "", &ret);
+	}
+
+	if (ret->used > 0) {
+		/* remove last '\n' */
+		if (ret->str[ret->used - 1] == '\n') {
+			ret->str[ret->used - 1] = '\0';
+			ret->used--;
+		}
+		retstr = ast_strdup(ret->str);
+	}
+	ast_free(ret);
+
+	return retstr;
+}
+
+/*! \internal
+ *  \brief Return the string within a node formatted with <para> and <variablelist> elements.
+ *  \param node Parent node where content resides.
+ *  \param raw If set, return the node's content without further processing.
+ *  \param raw_wrap Wrap raw text.
+ *  \retval NULL on error
+ *  \retval Node content on success.
+ */
+static struct ast_str *xmldoc_get_formatted(struct ast_xml_node *node, int raw_output, int raw_wrap)
+{
+	struct ast_xml_node *tmp;
+	const char *notcleanret, *tmpstr;
+	struct ast_str *ret = ast_str_create(128);
+
+	if (raw_output) {
+		notcleanret = ast_xml_get_text(node);
+		tmpstr = notcleanret;
+		xmldoc_string_cleanup(ast_skip_blanks(notcleanret), &ret, 0);
+		ast_xml_free_text(tmpstr);
+	} else {
+		for (tmp = ast_xml_node_get_children(node); tmp; tmp = ast_xml_node_get_next(tmp)) {
+			/* if found, parse a <para> element. */
+			if (xmldoc_parse_para(tmp, "", "\n", &ret)) {
+				continue;
+			} else if (xmldoc_parse_specialtags(tmp, "", "\n", &ret)) {
+				continue;
+			}
+			/* if found, parse a <variablelist> element. */
+			xmldoc_parse_variablelist(tmp, "", &ret);
+			xmldoc_parse_enumlist(tmp, "    ", &ret);
+		}
+		/* remove last '\n' */
+		/* XXX Don't modify ast_str internals manually */
+		if (ret->str[ret->used-1] == '\n') {
+			ret->str[ret->used-1] = '\0';
+			ret->used--;
+		}
+	}
+	return ret;
+}
+
+/*! \internal
+ *  \brief Get the content of a field (synopsis, description, etc) from an asterisk document tree
+ *  \param type Type of element (application, function, ...).
+ *  \param name Name of element (Dial, Echo, Playback, ...).
+ *  \param var Name of field to return (synopsis, description, etc).
+ *  \param raw Field only contains text, no other elements inside it.
+ *  \retval NULL On error.
+ *  \retval Field text content on success.
+ */
+static char *xmldoc_build_field(const char *type, const char *name, const char *var, int raw)
+{
+	struct ast_xml_node *node;
+	char *ret = NULL;
+	struct ast_str *formatted;
+
+	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
+		ast_log(LOG_ERROR, "Tried to look in XML tree with faulty values.\n");
+		return ret;
+	}
+
+	node = xmldoc_get_node(type, name, documentation_language);
+
+	if (!node) {
+		ast_log(LOG_WARNING, "Counldn't find %s %s in XML documentation\n", type, name);
+		return ret;
+	}
+
+	node = ast_xml_find_element(ast_xml_node_get_children(node), var, NULL, NULL);
+
+	if (!node || !ast_xml_node_get_children(node)) {
+		ast_log(LOG_DEBUG, "Cannot find variable '%s' in tree '%s'\n", name, var);
+		return ret;
+	}
+
+	formatted = xmldoc_get_formatted(node, raw, raw);
+	if (formatted->used > 0) {
+		ret = ast_strdup(formatted->str);
+	}
+	ast_free(formatted);
+
+	return ret;
+}
+#endif /* AST_XML_DOCS */
+
+/*! \internal
+ *  \brief Retrieve the XML documentation of a specified ast_custom_function,
+ *         and populate ast_custom_function string fields.
+ *  \param acf ast_custom_function structure with empty 'desc' and 'synopsis'
+ *             but with a function 'name'.
+ *  \retval -1 On error.
+ *  \retval 0 On succes.
+ */
+static int acf_retrieve_docs(struct ast_custom_function *acf)
+{
+#ifdef AST_XML_DOCS
+	char *tmpxml;
+
+	/* Let's try to find it in the Documentation XML */
+	if (!ast_strlen_zero(acf->desc) || !ast_strlen_zero(acf->synopsis)) {
+		return 0;
+	}
+
+	if (ast_string_field_init(acf, 128)) {
+		return -1;
+	}
+
+	/* load synopsis */
+	tmpxml = xmldoc_build_field("function", acf->name, "synopsis", 1);
+	ast_string_field_set(acf, synopsis, tmpxml);
+	ast_free(tmpxml);
+
+	/* load description */
+	tmpxml = xmldoc_build_field("function", acf->name, "description", 0);
+	ast_string_field_set(acf, desc, tmpxml);
+	ast_free(tmpxml);
+
+	/* load syntax */
+	tmpxml = xmldoc_build_syntax("function", acf->name);
+	ast_string_field_set(acf, syntax, tmpxml);
+	ast_free(tmpxml);
+
+	/* load arguments */
+	tmpxml = xmldoc_build_arguments("function", acf->name);
+	ast_string_field_set(acf, arguments, tmpxml);
+	ast_free(tmpxml);
+
+	/* load seealso */
+	tmpxml = xmldoc_build_seealso("function", acf->name);
+	ast_string_field_set(acf, seealso, tmpxml);
+	ast_free(tmpxml);
+
+	acf->docsrc = AST_XML_DOC;
+#endif
+
+	return 0;
 }
 
 int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_module *mod)
@@ -2784,10 +4627,16 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
 	struct ast_custom_function *cur;
 	char tmps[80];
 
-	if (!acf)
+	if (!acf) {
 		return -1;
+	}
 
 	acf->mod = mod;
+	acf->docsrc = AST_STATIC_DOC;
+
+	if (acf_retrieve_docs(acf)) {
+		return -1;
+	}
 
 	AST_RWLIST_WRLOCK(&acf_root);
 
@@ -2807,8 +4656,10 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
-	if (!cur)
+
+	if (!cur) {
 		AST_RWLIST_INSERT_TAIL(&acf_root, acf, acflist);
+	}
 
 	AST_RWLIST_UNLOCK(&acf_root);
 
@@ -4478,6 +6329,9 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 	struct ast_app *tmp, *cur = NULL;
 	char tmps[80];
 	int length, res;
+#ifdef AST_XML_DOCS
+	char *tmpxml;
+#endif
 
 	AST_RWLIST_WRLOCK(&apps);
 	AST_RWLIST_TRAVERSE(&apps, tmp, list) {
@@ -4496,10 +6350,50 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 		return -1;
 	}
 
+	if (ast_string_field_init(tmp, 128)) {
+		ast_free(tmp);
+		return -1;
+	}
+
+#ifdef AST_XML_DOCS
+	/* Try to lookup the docs in our XML documentation database */
+	if (ast_strlen_zero(synopsis) && ast_strlen_zero(description)) {
+		/* load synopsis */
+		tmpxml = xmldoc_build_field("application", app, "synopsis", 1);
+		ast_string_field_set(tmp, synopsis, tmpxml);
+		ast_free(tmpxml);
+
+		/* load description */
+		tmpxml = xmldoc_build_field("application", app, "description", 0);
+		ast_string_field_set(tmp, description, tmpxml);
+		ast_free(tmpxml);
+
+		/* load syntax */
+		tmpxml = xmldoc_build_syntax("application", app);
+		ast_string_field_set(tmp, syntax, tmpxml);
+		ast_free(tmpxml);
+
+		/* load arguments */
+		tmpxml = xmldoc_build_arguments("application", app);
+		ast_string_field_set(tmp, arguments, tmpxml);
+		ast_free(tmpxml);
+
+		/* load seealso */
+		tmpxml = xmldoc_build_seealso("application", app);
+		ast_string_field_set(tmp, seealso, tmpxml);
+		ast_free(tmpxml);
+		tmp->docsrc = AST_XML_DOC;
+	} else {
+#endif
+		ast_string_field_set(tmp, synopsis, synopsis);
+		ast_string_field_set(tmp, description, description);
+		tmp->docsrc = AST_STATIC_DOC;
+#ifdef AST_XML_DOCS
+	}
+#endif
+
 	strcpy(tmp->name, app);
 	tmp->execute = execute;
-	tmp->synopsis = synopsis;
-	tmp->description = description;
 	tmp->module = mod;
 
 	/* Store in alphabetical order */
@@ -4519,6 +6413,123 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 
 	return 0;
 }
+
+#ifdef AST_XML_DOCS
+/*! \brief Close and unload XML documentation. */
+static void xmldoc_unload_documentation(void)
+{
+        struct documentation_tree *doctree;
+
+	AST_RWLIST_WRLOCK(&xmldoc_tree);
+	while ((doctree = AST_RWLIST_REMOVE_HEAD(&xmldoc_tree, entry))) {
+		ast_free(doctree->filename);
+		ast_xml_close(doctree->doc);
+	}
+	AST_RWLIST_UNLOCK(&xmldoc_tree);
+
+	ast_xml_finish();
+}
+
+int ast_load_documentation(void)
+{
+	struct ast_xml_node *root_node;
+	struct ast_xml_doc *tmpdoc;
+	struct documentation_tree *doc_tree;
+	char *xmlpattern;
+	struct ast_config *cfg = NULL;
+	struct ast_variable *var = NULL;
+	struct ast_flags cnfflags = { 0 };
+	int globret, i, dup, duplicate;
+	glob_t globbuf;
+
+	/* setup default XML documentation language */
+	snprintf(documentation_language, sizeof(documentation_language), default_documentation_language);
+
+	if (!(cfg = ast_config_load2("asterisk.conf", "" /* core can't reload */, cnfflags))) {
+		ast_log(LOG_ERROR, "No asterisk.conf? That cannot be good.\n");
+	}
+
+	for (var = ast_variable_browse(cfg, "options"); var; var = var->next) {
+		if (!strcasecmp(var->name, "documentation_language")) {
+			if (!ast_strlen_zero(var->value)) {
+				snprintf(documentation_language, sizeof(documentation_language), "%s", var->value);
+			}
+		}
+	}
+        ast_config_destroy(cfg);
+
+	/* initialize the XML library. */
+	ast_xml_init();
+
+	/* register function to be run when asterisk finish. */
+	ast_register_atexit(xmldoc_unload_documentation);
+
+	/* Get every *-LANG.xml file inside $(ASTDATADIR)/documentation */
+	ast_asprintf(&xmlpattern, "%s/documentation{/thirdparty/,/}*-{%s,%.2s_??,%s}.xml", ast_config_AST_DATA_DIR,
+			documentation_language, documentation_language, default_documentation_language);
+	globbuf.gl_offs = 0;    /* initialize it to silence gcc */
+	globret = glob(xmlpattern, MY_GLOB_FLAGS | GLOB_BRACE, NULL, &globbuf);
+	if (globret == GLOB_NOSPACE) {
+		ast_log(LOG_WARNING, "Glob Expansion of pattern '%s' failed: Not enough memory\n", xmlpattern);
+		ast_free(xmlpattern);
+		return 1;
+	} else if (globret  == GLOB_ABORTED) {
+		ast_log(LOG_WARNING, "Glob Expansion of pattern '%s' failed: Read error\n", xmlpattern);
+		ast_free(xmlpattern);
+		return 1;
+	}
+	ast_free(xmlpattern);
+
+	AST_RWLIST_WRLOCK(&xmldoc_tree);
+	/* loop over expanded files */
+	for (i = 0; i < globbuf.gl_pathc; i++) {
+		/* check for duplicates (if we already [try to] open the same file. */
+		duplicate = 0;
+		for (dup = 0; dup < i; dup++) {
+			if (!strcmp(globbuf.gl_pathv[i], globbuf.gl_pathv[dup])) {
+				duplicate = 1;
+				break;
+			}
+		}
+		if (duplicate) {
+			continue;
+		}
+		tmpdoc = NULL;
+		tmpdoc = ast_xml_open(globbuf.gl_pathv[i]);
+		if (!tmpdoc) {
+			ast_log(LOG_ERROR, "Could not open XML documentation at '%s'\n", globbuf.gl_pathv[i]);
+			continue;
+		}
+		/* Get doc root node and check if it starts with '<docs>' */
+		root_node = ast_xml_get_root(tmpdoc);
+		if (!root_node) {
+			ast_log(LOG_ERROR, "Error getting documentation root node");
+			ast_xml_close(tmpdoc);
+			continue;
+		}
+		/* Check root node name for malformed xmls. */
+		if (strcmp(ast_xml_node_get_name(root_node), "docs")) {
+			ast_log(LOG_ERROR, "Documentation file is not well formed!\n");
+			ast_xml_close(tmpdoc);
+			continue;
+		}
+		doc_tree = ast_calloc(1, sizeof(*doc_tree));
+		if (!doc_tree) {
+			ast_log(LOG_ERROR, "Unable to allocate documentation_tree structure!\n");
+			ast_xml_close(tmpdoc);
+			continue;
+		}
+		doc_tree->doc = tmpdoc;
+		doc_tree->filename = ast_strdup(globbuf.gl_pathv[i]);
+		AST_RWLIST_INSERT_TAIL(&xmldoc_tree, doc_tree, entry);
+	}
+	AST_RWLIST_UNLOCK(&xmldoc_tree);
+
+	globfree(&globbuf);
+
+	return 0;
+}
+#endif /* AST_XML_DOCS */
 
 /*
  * Append to the list. We don't have a tail pointer because we need
@@ -4552,6 +6563,78 @@ void ast_unregister_switch(struct ast_switch *sw)
 /*
  * Help for CLI commands ...
  */
+
+static void print_app_docs(struct ast_app *aa, int fd)
+{
+	/* Maximum number of characters added by terminal coloring is 22 */
+	char infotitle[64 + AST_MAX_APP + 22], syntitle[40], destitle[40], stxtitle[40], argtitle[40];
+	char seealsotitle[40];
+	char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL, *syntax = NULL, *arguments = NULL;
+	char *seealso = NULL;
+	int syntax_size, synopsis_size, description_size, arguments_size, seealso_size;
+
+	snprintf(info, sizeof(info), "\n  -= Info about application '%s' =- \n\n", aa->name);
+	term_color(infotitle, info, COLOR_MAGENTA, 0, sizeof(infotitle));
+
+	term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
+	term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
+	term_color(stxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
+	term_color(argtitle, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
+	term_color(seealsotitle, "[See Also]\n", COLOR_MAGENTA, 0, 40);
+
+#ifdef AST_XML_DOCS
+	if (aa->docsrc == AST_XML_DOC) {
+		description = xmldoc_colorization(S_OR(aa->description, "Not available"));
+		arguments = xmldoc_colorization(S_OR(aa->arguments, "Not available"));
+		synopsis = xmldoc_colorization(S_OR(aa->synopsis, "Not available"));
+		seealso = xmldoc_colorization(S_OR(aa->seealso, "Not available"));
+		
+		if (!synopsis || !description || !arguments || !seealso) {
+			goto return_cleanup;
+		}
+	} else 
+#endif
+	{
+		synopsis_size = strlen(S_OR(aa->synopsis, "Not Available")) + MAX_ESCAPE_CHARS;
+		synopsis = ast_malloc(synopsis_size);
+
+		description_size = strlen(S_OR(aa->description, "Not Available")) + MAX_ESCAPE_CHARS;
+		description = ast_malloc(description_size);
+
+		arguments_size = strlen(S_OR(aa->arguments, "Not Available")) + MAX_ESCAPE_CHARS;
+		arguments = ast_malloc(arguments_size);
+
+		seealso_size = strlen(S_OR(aa->seealso, "Not Available")) + MAX_ESCAPE_CHARS;
+		seealso = ast_malloc(seealso_size);
+
+		if (!synopsis || !description || !arguments || !seealso) {
+			goto return_cleanup;
+		}
+
+		term_color(synopsis, S_OR(aa->synopsis, "Not available"), COLOR_CYAN, 0, synopsis_size);
+		term_color(description, S_OR(aa->description, "Not available"),	COLOR_CYAN, 0, description_size);
+		term_color(arguments, S_OR(aa->arguments, "Not available"), COLOR_CYAN, 0, arguments_size);
+		term_color(seealso, S_OR(aa->seealso, "Not available"), COLOR_CYAN, 0, seealso_size);
+	}
+
+	/* Handle the syntax the same for both XML and raw docs */
+	syntax_size = strlen(S_OR(aa->syntax, "Not Available")) + MAX_ESCAPE_CHARS;
+	if (!(syntax = ast_malloc(syntax_size))) {
+		goto return_cleanup;
+	}
+	term_color(syntax, S_OR(aa->syntax, "Not available"), COLOR_CYAN, 0, syntax_size);
+
+	ast_cli(fd, "%s%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n", 
+			infotitle, syntitle, synopsis, destitle, description, 
+			stxtitle, syntax, argtitle, arguments, seealsotitle, seealso);
+
+return_cleanup:
+	ast_free(description);
+	ast_free(arguments);
+	ast_free(synopsis);
+	ast_free(seealso);
+	ast_free(syntax);
+}
 
 /*
  * \brief 'show application' CLI command implementation function...
@@ -4591,58 +6674,22 @@ static char *handle_show_application(struct ast_cli_entry *e, int cmd, struct as
 		return ret;
 	}
 
-	if (a->argc < 4)
+	if (a->argc < 4) {
 		return CLI_SHOWUSAGE;
+	}
 
-	/* ... go through all applications ... */
 	AST_RWLIST_RDLOCK(&apps);
 	AST_RWLIST_TRAVERSE(&apps, aa, list) {
-		/* ... compare this application name with all arguments given
-		 * to 'show application' command ... */
+		/* Check for each app that was supplied as an argument */
 		for (app = 3; app < a->argc; app++) {
-			if (!strcasecmp(aa->name, a->argv[app])) {
-				/* Maximum number of characters added by terminal coloring is 22 */
-				char infotitle[64 + AST_MAX_APP + 22], syntitle[40], destitle[40];
-				char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL;
-				int synopsis_size, description_size;
-
-				no_registered_app = 0;
-
-				if (aa->synopsis)
-					synopsis_size = strlen(aa->synopsis) + 23;
-				else
-					synopsis_size = strlen("Not available") + 23;
-				synopsis = alloca(synopsis_size);
-
-				if (aa->description)
-					description_size = strlen(aa->description) + 23;
-				else
-					description_size = strlen("Not available") + 23;
-				description = alloca(description_size);
-
-				if (synopsis && description) {
-					snprintf(info, 64 + AST_MAX_APP, "\n  -= Info about application '%s' =- \n\n", aa->name);
-					term_color(infotitle, info, COLOR_MAGENTA, 0, 64 + AST_MAX_APP + 22);
-					term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
-					term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
-					term_color(synopsis,
-									aa->synopsis ? aa->synopsis : "Not available",
-									COLOR_CYAN, 0, synopsis_size);
-					term_color(description,
-									aa->description ? aa->description : "Not available",
-									COLOR_CYAN, 0, description_size);
-
-					ast_cli(a->fd,"%s%s%s\n\n%s%s\n", infotitle, syntitle, synopsis, destitle, description);
-				} else {
-					/* ... one of our applications, show info ...*/
-					ast_cli(a->fd,"\n  -= Info about application '%s' =- \n\n"
-						"[Synopsis]\n  %s\n\n"
-						"[Description]\n%s\n",
-						aa->name,
-						aa->synopsis ? aa->synopsis : "Not available",
-						aa->description ? aa->description : "Not available");
-				}
+			if (strcasecmp(aa->name, a->argv[app])) {
+				continue;
 			}
+
+			/* We found it! */
+			no_registered_app = 0;
+
+			print_app_docs(aa, a->fd);
 		}
 	}
 	AST_RWLIST_UNLOCK(&apps);
@@ -5744,6 +7791,11 @@ int ast_unregister_application(const char *app)
 			unreference_cached_app(tmp);
 			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_verb(2, "Unregistered application '%s'\n", tmp->name);
+#ifdef AST_XML_DOCS
+			if (tmp->docsrc == AST_XML_DOC) {
+				ast_string_field_free_memory(tmp);
+			}
+#endif
 			ast_free(tmp);
 			break;
 		}
@@ -8534,12 +10586,12 @@ int load_pbx(void)
 	/* Register builtin applications */
 	for (x = 0; x < sizeof(builtins) / sizeof(struct pbx_builtin); x++) {
 		ast_verb(1, "[%s]\n", builtins[x].name);
-		if (ast_register_application2(builtins[x].name, builtins[x].execute, builtins[x].synopsis, builtins[x].description, NULL)) {
+		if (ast_register_application2(builtins[x].name, builtins[x].execute, NULL, NULL, NULL)) {
 			ast_log(LOG_ERROR, "Unable to register builtin application '%s'\n", builtins[x].name);
 			return -1;
 		}
 	}
-	
+
 	/* Register manager application */
 	ast_manager_register2("ShowDialPlan", EVENT_FLAG_CONFIG | EVENT_FLAG_REPORTING, manager_show_dialplan, "List dialplan", mandescr_show_dialplan);
 
