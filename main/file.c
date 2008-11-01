@@ -1207,8 +1207,11 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				break;
 			case AST_FRAME_VOICE:
 				/* Write audio if appropriate */
-				if (audiofd > -1)
-					write(audiofd, fr->data, fr->datalen);
+				if (audiofd > -1) {
+					if (write(audiofd, fr->data, fr->datalen) < 0) {
+						ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+					}
+				}
 			default:
 				/* Ignore all others */
 				break;

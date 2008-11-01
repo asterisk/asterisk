@@ -601,7 +601,8 @@ static void *sound_thread(void *arg)
 	 * Just in case, kick the driver by trying to read from it.
 	 * Ignore errors - this read is almost guaranteed to fail.
 	 */
-	read(o->sounddev, ign, sizeof(ign));
+	if (read(o->sounddev, ign, sizeof(ign)) < 0) {
+	}
 	for (;;) {
 		fd_set rfds, wfds;
 		int maxfd, res;
@@ -635,7 +636,10 @@ static void *sound_thread(void *arg)
 			/* read which sound to play from the pipe */
 			int i, what = -1;
 
-			read(o->sndcmd[0], &what, sizeof(what));
+			if (read(o->sndcmd[0], &what, sizeof(what)) != sizeof(what)) {
+				ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
+				continue;
+			}
 			for (i = 0; sounds[i].ind != -1; i++) {
 				if (sounds[i].ind == what) {
 					o->cursound = i;
@@ -649,7 +653,8 @@ static void *sound_thread(void *arg)
 		}
 		if (o->sounddev > -1) {
 			if (FD_ISSET(o->sounddev, &rfds))	/* read and ignore errors */
-				read(o->sounddev, ign, sizeof(ign));
+				if (read(o->sounddev, ign, sizeof(ign)) < 0) {
+				}
 			if (FD_ISSET(o->sounddev, &wfds))
 				send_sound(o);
 		}
@@ -783,7 +788,9 @@ static int oss_text(struct ast_channel *c, const char *text)
 /* Play ringtone 'x' on device 'o' */
 static void ring(struct chan_oss_pvt *o, int x)
 {
-	write(o->sndcmd[1], &x, sizeof(x));
+	if (write(o->sndcmd[1], &x, sizeof(x)) < 0) {
+		ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+	}
 }
 
 
@@ -1787,7 +1794,9 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 
 		asprintf(&cmd, "mixer %s", o->mixer_cmd);
 		ast_log(LOG_WARNING, "running [%s]\n", cmd);
-		system(cmd);
+		if (system(cmd) < 0) {
+			ast_log(LOG_WARNING, "system() failed: %s\n", strerror(errno));
+		}
 		free(cmd);
 	}
 	if (o == &oss_default)		/* we are done with the default */

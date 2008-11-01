@@ -8379,8 +8379,11 @@ static void dahdi_pri_message(struct pri *pri, char *s)
 
 	ast_mutex_lock(&pridebugfdlock);
 
-	if (pridebugfd >= 0)
-		write(pridebugfd, s, strlen(s));
+	if (pridebugfd >= 0) {
+		if (write(pridebugfd, s, strlen(s)) < 0) {
+			ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+		}
+	}
 
 	ast_mutex_unlock(&pridebugfdlock);
 }
@@ -8418,8 +8421,11 @@ static void dahdi_pri_error(struct pri *pri, char *s)
 
 	ast_mutex_lock(&pridebugfdlock);
 
-	if (pridebugfd >= 0)
-		write(pridebugfd, s, strlen(s));
+	if (pridebugfd >= 0) {
+		if (write(pridebugfd, s, strlen(s)) < 0) {
+			ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+		}
+	}
 
 	ast_mutex_unlock(&pridebugfdlock);
 }

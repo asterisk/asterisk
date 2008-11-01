@@ -779,7 +779,7 @@ static void jb_error_output(const char *fmt, ...)
 	vsnprintf(buf, 1024, fmt, args);
 	va_end(args);
 
-	ast_log(LOG_ERROR, buf);
+	ast_log(LOG_ERROR, "%s", buf);
 }
 
 static void jb_warning_output(const char *fmt, ...)
@@ -791,7 +791,7 @@ static void jb_warning_output(const char *fmt, ...)
 	vsnprintf(buf, 1024, fmt, args);
 	va_end(args);
 
-	ast_log(LOG_WARNING, buf);
+	ast_log(LOG_WARNING, "%s", buf);
 }
 
 static void jb_debug_output(const char *fmt, ...)
@@ -803,7 +803,7 @@ static void jb_debug_output(const char *fmt, ...)
 	vsnprintf(buf, 1024, fmt, args);
 	va_end(args);
 
-	ast_verbose(buf);
+	ast_verbose("%s", buf);
 }
 
 /* XXX We probably should use a mutex when working with this XXX */
@@ -5864,9 +5864,13 @@ static int complete_dpreply(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 				dp->flags |= matchmore;
 			}
 			/* Wake up waiters */
-			for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
-				if (dp->waiters[x] > -1)
-					write(dp->waiters[x], "asdf", 4);
+			for (x = 0; x < ARRAY_LEN(dp->waiters); x++) {
+				if (dp->waiters[x] > -1) {
+					if (write(dp->waiters[x], "asdf", 4) < 0) {
+						ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+					}
+				}
+			}
 		}
 		prev = dp;
 		dp = dp->peer;
@@ -10503,9 +10507,13 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 				/* Expire after only 60 seconds now.  This is designed to help reduce backlog in heavily loaded
 				   systems without leaving it unavailable once the server comes back online */
 				dp->expiry.tv_sec = dp->orig.tv_sec + 60;
-				for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
-					if (dp->waiters[x] > -1)
-						write(dp->waiters[x], "asdf", 4);
+				for (x = 0; x < ARRAY_LEN(dp->waiters); x++) {
+					if (dp->waiters[x] > -1) {
+						if (write(dp->waiters[x], "asdf", 4) < 0) {
+							ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+						}
+					}
+				}
 			}
 		}
 		/* Our caller will obtain the rest */

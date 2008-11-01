@@ -496,8 +496,12 @@ static void *ast_httpd_helper_thread(void *data)
 				tmp = strstr(c, "\r\n\r\n");
 				if (tmp) {
 					ast_cli(ser->fd, "Content-length: %d\r\n", contentlength);
-					write(ser->fd, c, (tmp + 4 - c));
-					write(ser->fd, tmp + 4, contentlength);
+					if (write(ser->fd, c, (tmp + 4 - c)) < 0) {
+						ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+					}
+					if (write(ser->fd, tmp + 4, contentlength) < 0) {
+						ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+					}
 				}
 			} else
 				ast_cli(ser->fd, "%s", c);

@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <unistd.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -160,7 +161,9 @@ static int send_waveform_to_fd(char *waveform, int length, int fd) {
 	}
 #endif
 	
-	write(fd,waveform,length);
+	if (write(fd,waveform,length) < 0) {
+		ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+	}
 	close(fd);
 	exit(0);
 }
@@ -431,17 +434,25 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
     				writecache=1;
     				strln=strlen((char *)data);
     				ast_log(LOG_DEBUG,"line length : %d\n",strln);
-    				write(fdesc,&strln,sizeof(int));
-    				write(fdesc,data,strln);
+    				if (write(fdesc,&strln,sizeof(int)) < 0) {
+					ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+				}
+    				if (write(fdesc,data,strln) < 0) {
+					ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+				}
 				seekpos=lseek(fdesc,0,SEEK_CUR);
 				ast_log(LOG_DEBUG,"Seek position : %d\n",seekpos);
     			}
     		} else {
-    			read(fdesc,&strln,sizeof(int));
+    			if (read(fdesc,&strln,sizeof(int)) != sizeof(int)) {
+				ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
+			}
     			ast_log(LOG_DEBUG,"Cache file exists, strln=%d, strlen=%d\n",strln,(int)strlen((char *)data));
     			if (strlen((char *)data)==strln) {
     				ast_log(LOG_DEBUG,"Size OK\n");
-    				read(fdesc,&bigstring,strln);
+    				if (read(fdesc,&bigstring,strln) != strln) {
+					ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
+				}
 	    			bigstring[strln] = 0;
 				if (strcmp(bigstring,data)==0) { 
 	    				readcache=1;
@@ -470,7 +481,9 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	if (writecache==1) {
 		ast_log(LOG_DEBUG,"Writing result to cache...\n");
 		while ((strln=read(fd,buffer,16384))!=0) {
-			write(fdesc,buffer,strln);
+			if (write(fdesc,buffer,strln) < 0) {
+				ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+			}
 		}
 		close(fd);
 		close(fdesc);

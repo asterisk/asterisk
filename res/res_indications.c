@@ -179,7 +179,7 @@ static int handle_show_indications(int fd, int argc, char *argv[])
 				if (tz->nrringcadence)
 					j--;
 				ast_copy_string(buf+j,"\n",sizeof(buf)-j);
-				ast_cli(fd,buf);
+				ast_cli(fd, "%s", buf);
 				for (ts=tz->tones; ts; ts=ts->next)
 					ast_cli(fd,"%-7.7s %-15.15s %s\n",tz->country,ts->name,ts->data);
 				break;

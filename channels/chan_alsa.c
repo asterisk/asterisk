@@ -327,7 +327,9 @@ static void *sound_thread(void *unused)
 		}
 #endif
 		if (FD_ISSET(sndcmd[0], &rfds)) {
-			read(sndcmd[0], &cursound, sizeof(cursound));
+			if (read(sndcmd[0], &cursound, sizeof(cursound)) < 0) {
+				ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
+			}
 			silencelen = 0;
 			offset = 0;
 			sampsent = 0;
@@ -532,7 +534,9 @@ static int alsa_call(struct ast_channel *c, char *dest, int timeout)
 			ast_queue_frame(alsa.owner, &f);
 			ast_mutex_unlock(&alsa.owner->lock);
 		}
-		write(sndcmd[1], &res, sizeof(res));
+		if (write(sndcmd[1], &res, sizeof(res)) < 0) {
+			ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+		}
 	}
 	snd_pcm_prepare(alsa.icard);
 	snd_pcm_start(alsa.icard);
@@ -543,10 +547,12 @@ static int alsa_call(struct ast_channel *c, char *dest, int timeout)
 static void answer_sound(void)
 {
 	int res;
+
 	nosound = 1;
 	res = 4;
-	write(sndcmd[1], &res, sizeof(res));
-
+	if (write(sndcmd[1], &res, sizeof(res)) < 0) {
+		ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+	}
 }
 
 static int alsa_answer(struct ast_channel *c)
@@ -576,7 +582,9 @@ static int alsa_hangup(struct ast_channel *c)
 		if (!autoanswer) {
 			/* Congestion noise */
 			res = 2;
-			write(sndcmd[1], &res, sizeof(res));
+			if (write(sndcmd[1], &res, sizeof(res)) < 0) {
+				ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+			}
 		}
 	}
 	snd_pcm_drop(alsa.icard);
@@ -770,8 +778,11 @@ static int alsa_indicate(struct ast_channel *chan, int cond, const void *data, s
 		res = -1;
 	}
 
-	if (res > -1)
-		write(sndcmd[1], &res, sizeof(res));
+	if (res > -1) {
+		if (write(sndcmd[1], &res, sizeof(res)) < 0) {
+			ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+		}
+	}
 
 	ast_mutex_unlock(&alsalock);
 

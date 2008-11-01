@@ -150,10 +150,10 @@ int main( int argcount, char *args[])
       for (; i < maxk; i++)
 	stereosample[2 * i + 1] = 0;
 
-      fwrite(stereosample, sizeof(*leftsample), 2 * maxk, out);
-      if (ferror( out) != 0)
-	fatalerror("Error writing to file '%s': %s\n",
-		   outfilename, strerror(errno));
+      if (!fwrite(stereosample, sizeof(*leftsample), 2 * maxk, out)) {
+	      fatalerror("Error writing to file '%s': %s\n",
+			 outfilename, strerror(errno));
+      }
    }
    /* That was an endless loop. This point is never reached. */
 }

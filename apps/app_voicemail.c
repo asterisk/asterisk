@@ -4541,7 +4541,9 @@ static void adsi_message(struct ast_channel *chan, struct vm_state *vms)
 	f = fopen(fn2, "r");
 	if (f) {
 		while (!feof(f)) {	
-			fgets((char *)buf, sizeof(buf), f);
+			if (!fgets((char *)buf, sizeof(buf), f)) {
+				continue;
+			}
 			if (!feof(f)) {
 				char *stringp=NULL;
 				stringp = (char *)buf;

@@ -873,7 +873,7 @@ static int handle_commandcomplete(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	buf = __ast_cli_generator(argv[2], argv[3], atoi(argv[4]), 0);
 	if (buf) {
-		ast_cli(fd, buf);
+		ast_cli(fd, "%s", buf);
 		free(buf);
 	} else
 		ast_cli(fd, "NULL\n");

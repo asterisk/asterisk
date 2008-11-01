@@ -114,7 +114,9 @@ static int load_config(void)
 		return -1;
 	}
 	while(!feof(f)) {
-		fgets(buf, sizeof(buf), f);
+		if (!fgets(buf, sizeof(buf), f)) {
+			continue;
+		}
 		if (!feof(f)) {
 			lineno++;
 			val = strchr(buf, '#');
@@ -682,7 +684,10 @@ int main(int argc, char *argv[])
 	}
 	if (needfork) {
 #ifndef HAVE_SBIN_LAUNCHD
-		daemon(0,0);
+		if (daemon(0,0) < 0) {
+			fprintf(stderr, "daemon() failed: %s\n", strerror(errno));
+			exit(1);
+		}
 #else
 		fprintf(stderr, "Mac OS X detected.  Use 'launchd -d muted -f' to launch.\n");
 		exit(1);

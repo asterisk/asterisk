@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -190,8 +191,11 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 		return -1;
 	}
 
-	if (csth->fd)
-		write(csth->fd, f->data, f->datalen);
+	if (csth->fd) {
+		if (write(csth->fd, f->data, f->datalen) < 0) {
+			ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+		}
+	}
 
 	ast_frfree(f);
 
