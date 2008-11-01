@@ -4644,8 +4644,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 
 	/* Destroy Session-Timers if allocated */
 	if (p->stimer) {
-		if (p->stimer->st_active == TRUE && p->stimer->st_schedid > -1)
-			AST_SCHED_DEL(sched, p->stimer->st_schedid);
+		if (p->stimer->st_active == TRUE && p->stimer->st_schedid > -1) {
+			AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid,
+					dialog_unref(p, "removing session timer ref"));
+		}
 		ast_free(p->stimer);
 		p->stimer = NULL;
 	}
@@ -19810,7 +19812,8 @@ static void restart_session_timer(struct sip_pvt *p)
 	}
 
 	if (p->stimer->st_active == TRUE) {
-		AST_SCHED_DEL(sched, p->stimer->st_schedid);
+		AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid,
+				dialog_unref(p, "Removing session timer ref"));
 		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
 		start_session_timer(p);
 	}
@@ -19827,7 +19830,8 @@ static void stop_session_timer(struct sip_pvt *p)
 
 	if (p->stimer->st_active == TRUE) {
 		p->stimer->st_active = FALSE;
-		AST_SCHED_DEL(sched, p->stimer->st_schedid);
+		AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid,
+				dialog_unref(p, "removing session timer ref"));
 		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
 	}
 }
@@ -19841,8 +19845,10 @@ static void start_session_timer(struct sip_pvt *p)
 		return;
 	}
 
-	p->stimer->st_schedid  = ast_sched_add(sched, p->stimer->st_interval * 1000 / 2, proc_session_timer, p);
+	p->stimer->st_schedid  = ast_sched_add(sched, p->stimer->st_interval * 1000 / 2, proc_session_timer, 
+			dialog_ref(p, "adding session timer ref"));
 	if (p->stimer->st_schedid < 0) {
+		dialog_unref(p, "removing session timer ref");
 		ast_log(LOG_ERROR, "ast_sched_add failed.\n");
 	}
 	ast_debug(2, "Session timer started: %d - %s\n", p->stimer->st_schedid, p->callid);
@@ -19854,23 +19860,21 @@ static int proc_session_timer(const void *vp)
 {
 	struct sip_pvt *p = (struct sip_pvt *) vp;
 	int sendreinv = FALSE;
+	int res = 0;
 
 	if (!p->stimer) {
 		ast_log(LOG_WARNING, "Null stimer in proc_session_timer - %s\n", p->callid);
-		return 0;
+		goto return_unref;
 	}
 
 	ast_debug(2, "Session timer expired: %d - %s\n", p->stimer->st_schedid, p->callid);
 
 	if (!p->owner) {
-		if (p->stimer->st_active == TRUE) {
-			stop_session_timer(p);
-		}
-		return 0;
+		goto return_unref;
 	}
 
 	if ((p->stimer->st_active != TRUE) || (p->owner->_state != AST_STATE_UP)) {
-		return 0;
+		goto return_unref;
 	}
 
 	switch (p->stimer->st_ref) {
@@ -19886,28 +19890,40 @@ static int proc_session_timer(const void *vp)
 		break;
 	default:
 		ast_log(LOG_ERROR, "Unknown session refresher %d\n", p->stimer->st_ref);
-		return -1;
+		goto return_unref;
 	}
 
 	if (sendreinv == TRUE) {
+		res = 1;
 		transmit_reinvite_with_sdp(p, FALSE, TRUE);
 	} else {
 		p->stimer->st_expirys++;
 		if (p->stimer->st_expirys >= 2) {
 			ast_log(LOG_WARNING, "Session-Timer expired - %s\n", p->callid);
-			stop_session_timer(p);
 
 			while (p->owner && ast_channel_trylock(p->owner)) {
 				sip_pvt_unlock(p);
 				usleep(1);
 				sip_pvt_lock(p);
-          		}
+			}
 
-           		ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
-           		ast_channel_unlock(p->owner);
+			ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+			ast_channel_unlock(p->owner);
 		}
 	}
-	return 1;
+
+return_unref:
+	if (!res) {
+		/* An error occurred.  Stop session timer processing */
+		p->stimer->st_schedid = -1;
+		stop_session_timer(p);
+		
+		/* If we are not asking to be rescheduled, then we need to release our
+		 * reference to the dialog. */
+		dialog_unref(p, "removing session timer ref");
+	}
+
+	return res;
 }
 
 
