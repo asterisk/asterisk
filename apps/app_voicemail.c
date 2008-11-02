@@ -979,34 +979,31 @@ static void apply_options(struct ast_vm_user *vmu, const char *options)
  */
 static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *var)
 {
-	struct ast_variable *tmp;
-	tmp = var;
-	while (tmp) {
-		if (!strcasecmp(tmp->name, "vmsecret")) {
-			ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
-		} else if (!strcasecmp(tmp->name, "secret") || !strcasecmp(tmp->name, "password")) { /* don't overwrite vmsecret if it exists */
+	for (; var; var = var->next) {
+		if (!strcasecmp(var->name, "vmsecret")) {
+			ast_copy_string(retval->password, var->value, sizeof(retval->password));
+		} else if (!strcasecmp(var->name, "secret") || !strcasecmp(var->name, "password")) { /* don't overwrite vmsecret if it exists */
 			if (ast_strlen_zero(retval->password))
-				ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
-		} else if (!strcasecmp(tmp->name, "uniqueid")) {
-			ast_copy_string(retval->uniqueid, tmp->value, sizeof(retval->uniqueid));
-		} else if (!strcasecmp(tmp->name, "pager")) {
-			ast_copy_string(retval->pager, tmp->value, sizeof(retval->pager));
-		} else if (!strcasecmp(tmp->name, "email")) {
-			ast_copy_string(retval->email, tmp->value, sizeof(retval->email));
-		} else if (!strcasecmp(tmp->name, "fullname")) {
-			ast_copy_string(retval->fullname, tmp->value, sizeof(retval->fullname));
-		} else if (!strcasecmp(tmp->name, "context")) {
-			ast_copy_string(retval->context, tmp->value, sizeof(retval->context));
+				ast_copy_string(retval->password, var->value, sizeof(retval->password));
+		} else if (!strcasecmp(var->name, "uniqueid")) {
+			ast_copy_string(retval->uniqueid, var->value, sizeof(retval->uniqueid));
+		} else if (!strcasecmp(var->name, "pager")) {
+			ast_copy_string(retval->pager, var->value, sizeof(retval->pager));
+		} else if (!strcasecmp(var->name, "email")) {
+			ast_copy_string(retval->email, var->value, sizeof(retval->email));
+		} else if (!strcasecmp(var->name, "fullname")) {
+			ast_copy_string(retval->fullname, var->value, sizeof(retval->fullname));
+		} else if (!strcasecmp(var->name, "context")) {
+			ast_copy_string(retval->context, var->value, sizeof(retval->context));
 #ifdef IMAP_STORAGE
-		} else if (!strcasecmp(tmp->name, "imapuser")) {
-			ast_copy_string(retval->imapuser, tmp->value, sizeof(retval->imapuser));
-		} else if (!strcasecmp(tmp->name, "imappassword") || !strcasecmp(tmp->name, "imapsecret")) {
-			ast_copy_string(retval->imappassword, tmp->value, sizeof(retval->imappassword));
+		} else if (!strcasecmp(var->name, "imapuser")) {
+			ast_copy_string(retval->imapuser, var->value, sizeof(retval->imapuser));
+		} else if (!strcasecmp(var->name, "imappassword") || !strcasecmp(var->name, "imapsecret")) {
+			ast_copy_string(retval->imappassword, var->value, sizeof(retval->imappassword));
 #endif
 		} else
-			apply_option(retval, tmp->name, tmp->value);
-		tmp = tmp->next;
-	} 
+			apply_option(retval, var->name, var->value);
+	}
 }
 
 /*!
