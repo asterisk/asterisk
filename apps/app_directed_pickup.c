@@ -122,10 +122,16 @@ static int can_pickup(struct ast_channel *chan)
 }
 
 /*! \brief Helper Function to walk through ALL channels checking NAME and STATE */
-static struct ast_channel *my_ast_get_channel_by_name_locked(char *channame)
+static struct ast_channel *my_ast_get_channel_by_name_locked(const char *channame)
 {
 	struct ast_channel *chan;
-	char *chkchan = alloca(strlen(channame) + 2);
+	char *chkchan;
+	size_t channame_len, chkchan_len;
+
+	channame_len = strlen(channame);
+	chkchan_len = channame_len + 2;
+
+ 	chkchan = alloca(chkchan_len);
 
 	/* need to append a '-' for the comparison so we check full channel name,
 	 * i.e SIP/hgc- , use a temporary variable so original stays the same for
@@ -134,11 +140,12 @@ static struct ast_channel *my_ast_get_channel_by_name_locked(char *channame)
 	strcpy(chkchan, channame);
 	strcat(chkchan, "-");
 
-	for (chan = ast_walk_channel_by_name_prefix_locked(NULL, channame, strlen(channame));
+	for (chan = ast_walk_channel_by_name_prefix_locked(NULL, channame, channame_len);
 		 chan;
-		 chan = ast_walk_channel_by_name_prefix_locked(chan, channame, strlen(channame))) {
-		if (!strncasecmp(chan->name, chkchan, strlen(chkchan)) && can_pickup(chan))
+		 chan = ast_walk_channel_by_name_prefix_locked(chan, channame, channame_len)) {
+		if (!strncasecmp(chan->name, chkchan, chkchan_len) && can_pickup(chan)) {
 			return chan;
+		}
 		ast_channel_unlock(chan);
 	}
 	return NULL;
