@@ -83,7 +83,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			incremented by one each time the file is recorded.
 			Use <astcli>core show file formats</astcli> to see the available formats on your system
 			User can press <literal>#</literal> to terminate the recording and continue to the next priority.
-			If the user hangup during a recording, all data will be lost and the application will terminate.</para>
+			If the user hangs up during a recording, all data will be lost and the application will terminate.</para>
 			<variablelist>
 				<variable name="RECORDED_FILE">
 					<para>Will be set to the final filename of the recording.</para>
