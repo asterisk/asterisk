@@ -49,7 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Allows an arbitrary application to be invoked even when not
-			hardcoded into the dialplan.  If the underlying application
+			hard coded into the dialplan.  If the underlying application
 			terminates the dialplan, or if the application cannot be found,
 			Exec will terminate the dialplan.</para>
 			<para>To invoke external applications, see the application System.
@@ -67,7 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Allows an arbitrary application to be invoked even when not
-			hardcoded into the dialplan. To invoke external applications
+			hard coded into the dialplan. To invoke external applications
 			see the application System.  Always returns to the dialplan.
 			The channel variable TRYSTATUS will be set to one of:
 			</para>

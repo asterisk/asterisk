@@ -149,7 +149,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>The comma-delimited list passed as a value to which the function is set will 
 			be interpreted as a set of values to which the comma-delimited list of 
-			variable names in the arguement should be set.</para>
+			variable names in the argument should be set.</para>
 			<para>Example: Set(ARRAY(var1,var2)=1,2) will set var1 to 1 and var2 to 2</para>
 		</description>
 	</function>

@@ -425,7 +425,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>Filename of sound that will be played when no channel can be reached</para>
 			</parameter>
 			<parameter name="sleep" required="true">
-				<para>Number of seconds to wait after a dialattempt failed before a new attempt is made</para>
+				<para>Number of seconds to wait after a dial attempt failed before a new attempt is made</para>
 			</parameter>
 			<parameter name="retries" required="true">
 				<para>Number of retries</para>

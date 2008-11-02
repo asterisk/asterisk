@@ -157,7 +157,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para> - Dialing <literal>*</literal> will stop spying and look for another channel to spy on.</para>
 			<para> - Dialing a series of digits followed by <literal>#</literal> builds a channel name to append
 			to 'chanprefix'. For example, executing ChanSpy(Agent) and then dialing the digits '1234#' 
-			while spying will begin spying on the channel 'Agent/1234'. Note that this feature will be overriden if the 'd' option
+			while spying will begin spying on the channel 'Agent/1234'. Note that this feature will be overridden if the 'd' option
 			is used</para>
 			<note><para>The <replaceable>X</replaceable> option supersedes the three features above in that if a valid
 			single digit extension exists in the correct context ChanSpy will exit to it.

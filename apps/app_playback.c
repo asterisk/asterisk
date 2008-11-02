@@ -75,7 +75,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<value name="FAILED"/>
 				</variable>
 			</variablelist>
-			<para>See Also: Background (application) -- for playing soundfiles that are interruptible</para>
+			<para>See Also: Background (application) -- for playing sound files that are interruptible</para>
 			<para>WaitExten (application) -- wait for digits from caller, optionally play music on hold</para>
 		</description>
 	</application>

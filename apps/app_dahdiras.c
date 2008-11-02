@@ -60,7 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="args" required="true">
 				<para>A list of parameters to pass to the pppd daemon,
-				separeted by <literal>,</literal> characters.</para>
+				separated by <literal>,</literal> characters.</para>
 			</parameter>
 		</syntax>
 		<description>

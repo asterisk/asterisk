@@ -75,7 +75,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Record the page into a file (meetme option <literal>r</literal>)</para>
 					</option>
 					<option name="s">
-						<para>Only dial channel if devicestate says its <literal>notinuse</literal></para>
+						<para>Only dial a channel if ts device state says that it is <literal>NOT_INUSE</literal></para>
 					</option>
 				</optionlist>
 			</parameter>

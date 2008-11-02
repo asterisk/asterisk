@@ -40,7 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<parameter name="varname" required="true">
-				<para>Enviroment variable name</para>
+				<para>Environment variable name</para>
 			</parameter>
 		</syntax>
 		<description>

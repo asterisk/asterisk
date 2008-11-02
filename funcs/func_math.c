@@ -61,7 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
-			<para>Performs mathematicas functions based on two parameters and a operator, the returned
+			<para>Performs mathematical functions based on two parameters and an operator.  The returned
 			value type is <replaceable>type</replaceable></para>
 			<para>Example: Set(i=${MATH(123%16,int)}) - sets var i=11</para>
 		</description>

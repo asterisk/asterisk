@@ -60,12 +60,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>The AGC function will apply automatic gain control to the audio on the
-			channel that it is executed on. Using <literal>rx</literal> for audio recieved
+			channel that it is executed on. Using <literal>rx</literal> for audio received
 			and <literal>tx</literal> for audio transmitted to the channel. When using this
-			function you set a target audio level. It is primarly intended for use with
+			function you set a target audio level. It is primarily intended for use with
 			analog lines, but could be useful for other channels as well. The target volume 
 			is set with a number between <literal>1-32768</literal>. The larger the number
-			the louder (more gain) the channel will recieve.</para>
+			the louder (more gain) the channel will receive.</para>
 			<para>Examples:</para>
 			<para>exten => 1,1,Set(AGC(rx)=8000)</para>
 			<para>exten => 1,2,Set(AGC(tx)=off)</para>
