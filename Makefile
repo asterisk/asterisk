@@ -351,7 +351,7 @@ all: _all
 	@echo " +               $(mK) install               +"  
 	@echo " +-------------------------------------------+"  
 
-_all: cleantest makeopts $(SUBDIRS)
+_all: cleantest makeopts $(SUBDIRS) doc/core-en_US.xml
 
 makeopts: configure
 	@echo "****"
@@ -484,19 +484,19 @@ datafiles: _all
 	mkdir -p $(DESTDIR)$(AGI_DIR)
 	$(MAKE) -C sounds install
 
-documentation:
+doc/core-en_US.xml: $(foreach dir,$(MOD_SUBDIRS),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) 
 	@echo -n "Building Documentation For: "
-	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > doc/core-en_US.xml
-	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> doc/core-en_US.xml
-	@echo "<docs>" >> doc/core-en_US.xml
+	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > $@
+	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> $@
+	@echo "<docs>" >> $@
 	@for x in $(MOD_SUBDIRS); do \
 		echo -n "$$x " ; \
 		for i in $$x/*.c; do \
-			$(AWK) -f build_tools/get_documentation $$i >> doc/core-en_US.xml ; \
+			$(AWK) -f build_tools/get_documentation $$i >> $@ ; \
 		done ; \
 	done
-	@echo "</docs>" >> doc/core-en_US.xml
-	@echo -e "\ndoc/core-en_US.xml --> $(ASTDATADIR)/documentation/core-en_US.xml"
+	@echo
+	@echo "</docs>" >> $@
 
 update: 
 	@if [ -d .svn ]; then \
@@ -597,7 +597,7 @@ ifneq ($(findstring ~,$(DESTDIR)),)
 	@exit 1
 endif
 
-install: badshell datafiles documentation bininstall
+install: badshell datafiles bininstall
 	@if [ -x /usr/sbin/asterisk-post-install ]; then \
 		/usr/sbin/asterisk-post-install $(DESTDIR) . ; \
 	fi
