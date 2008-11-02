@@ -43,16 +43,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/image.h"
 
+/*** DOCUMENTATION
+	<application name="Flash" language="en_US">
+		<synopsis>
+			Flashes a DAHDI Trunk.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Performs a flash on a DAHDI trunk. This can be used to access features
+			provided on an incoming analogue circuit such as conference and call waiting.
+			Use with SendDTMF() to perform external transfers.</para>
+		</description>
+		<see-also>
+			<ref type="application">SendDTMF</ref>
+		</see-also>
+	</application>
+ ***/
+
 static char *app = "Flash";
-
-static char *synopsis = "Flashes a DAHDI Trunk";
-
-static char *descrip = 
-"Performs a flash on a DAHDI trunk.  This can be used\n"
-"to access features provided on an incoming analogue circuit\n"
-"such as conference and call waiting. Use with SendDTMF() to\n"
-"perform external transfers\n";
-
 
 static inline int dahdi_wait_event(int fd)
 {
@@ -105,7 +113,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, flash_exec, synopsis, descrip);
+	return ast_register_application_xml(app, flash_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Flash channel application");
