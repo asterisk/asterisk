@@ -334,8 +334,11 @@ static void wav_close(struct ast_filestream *s)
 	}
 
 	/* Pad to even length */
-	if (fs->bytes & 0x1)
-		fwrite(&zero, 1, 1, s->f);
+	if (fs->bytes & 0x1) {
+		if (!fwrite(&zero, 1, 1, s->f)) {
+			ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+		}
+	}
 }
 
 static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)

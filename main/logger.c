@@ -576,7 +576,9 @@ static int rotate_file(const char *filename)
 		char buf[512];
 		pbx_builtin_setvar_helper(c, "filename", filename);
 		pbx_substitute_variables_helper(c, exec_after_rotate, buf, sizeof(buf));
-		system(buf);
+		if (system(buf) < 0) {
+			ast_log(LOG_WARNING, "system() failed for '%s': %s\n", buf, strerror(errno));
+		}
 		ast_channel_free(c);
 	}
 	return res;

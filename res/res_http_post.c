@@ -215,8 +215,11 @@ static int readmimefile(FILE * fin, FILE * fout, char * boundary, int contentlen
 			num_to_read = contentlen;
 		}
 
-		if(0 < num_to_read) {
-			fread(&(buf[char_in_buf]), 1, num_to_read, fin);
+		if (0 < num_to_read) {
+			if (fread(&(buf[char_in_buf]), 1, num_to_read, fin) < num_to_read) {
+				ast_log(LOG_WARNING, "fread() failed: %s\n", strerror(errno));
+				num_to_read = 0;
+			}
 			contentlen -= num_to_read;
 			char_in_buf += num_to_read;
 		}
@@ -241,9 +244,13 @@ static int readmimefile(FILE * fin, FILE * fout, char * boundary, int contentlen
 				}
 			}
 			if (filespec) {	/* If the file name path was found in the header */
-				fwrite(buf, 1, marker, fout);
+				if (fwrite(buf, 1, marker, fout) != marker) {
+					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+				}
 				x = (int)(path_end+1 - filespec);
-				fwrite(filespec, 1, x, fout);
+				if (fwrite(filespec, 1, x, fout) != x) {
+					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+				}
 				x = (int)(path_end+1 - buf);
 				memmove(buf, &(buf[x]), char_in_buf-x);
 				char_in_buf -= x;
@@ -254,18 +261,24 @@ static int readmimefile(FILE * fin, FILE * fout, char * boundary, int contentlen
 			if (0 > marker) {
 				if (char_in_buf < (boundary_len)) {
 					/*no possibility to find the boundary, write all you have */
-					fwrite(buf, 1, char_in_buf, fout);
+					if (fwrite(buf, 1, char_in_buf, fout) != char_in_buf) {
+						ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+					}
 					char_in_buf = 0;
 				} else {
 					/* write all except for area where the boundary marker could be */
-					fwrite(buf, 1, char_in_buf -(boundary_len -1), fout);
+					if (fwrite(buf, 1, char_in_buf -(boundary_len -1), fout) != char_in_buf - (boundary_len - 1)) {
+						ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+					}
 					x = char_in_buf -(boundary_len -1);
 					memmove(buf, &(buf[x]), char_in_buf-x);
 					char_in_buf = (boundary_len -1);
 				}
 			} else {
 				/* write up through the boundary, then look for filename in the rest */
-				fwrite(buf, 1, marker + boundary_len, fout);
+				if (fwrite(buf, 1, marker + boundary_len, fout) != marker + boundary_len) {
+					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+				}
 				x = marker + boundary_len;
 				memmove(buf, &(buf[x]), char_in_buf-x);
 				char_in_buf -= marker + boundary_len;

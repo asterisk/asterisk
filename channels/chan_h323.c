@@ -1246,7 +1246,7 @@ static struct oh323_alias *realtime_alias(const char *alias)
 
 static int update_common_options(struct ast_variable *v, struct call_options *options)
 {
-	int tmp;
+	int tmp = 0;
 	char *val, *opt;
 
 	if (!strcasecmp(v->name, "allow")) {

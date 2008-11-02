@@ -825,9 +825,13 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "prefix")) && !ast_strlen_zero(tmp)) {
-		asprintf((char **)&((*query)->acf->name), "%s_%s", tmp, catg);
+		if (asprintf((char **)&((*query)->acf->name), "%s_%s", tmp, catg) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+		}
 	} else {
-		asprintf((char **)&((*query)->acf->name), "ODBC_%s", catg);
+		if (asprintf((char **)&((*query)->acf->name), "ODBC_%s", catg) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+		}
 	}
 
 	if (!((*query)->acf->name)) {
