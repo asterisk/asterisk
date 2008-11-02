@@ -40,7 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 
 /*** DOCUMENTATION
-	<application name="BackGroundDetect" language="en_US">
+	<application name="BackgroundDetect" language="en_US">
 		<synopsis>
 			Background a file with talk detect.
 		</synopsis>
