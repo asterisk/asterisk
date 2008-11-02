@@ -55,11 +55,17 @@ typedef struct agi_command {
 	AST_LIST_ENTRY(agi_command) list;
 } agi_command;
 
-int ast_agi_fdprintf(struct ast_channel *chan, int fd, char *fmt, ...);
-int ast_agi_register(struct ast_module *mod, agi_command *cmd);
-int ast_agi_unregister(struct ast_module *mod, agi_command *cmd);
-void ast_agi_register_multiple(struct ast_module *mod, agi_command *cmd, int len);
-void ast_agi_unregister_multiple(struct ast_module *mod, agi_command *cmd, int len);
+#if defined(ASTERISK_AGI_OPTIONAL)
+#define AGI_WEAK attribute_weak
+#else
+#define AGI_WEAK
+#endif
+
+int AGI_WEAK ast_agi_fdprintf(struct ast_channel *chan, int fd, char *fmt, ...);
+int AGI_WEAK ast_agi_register(struct ast_module *mod, agi_command *cmd);
+int AGI_WEAK ast_agi_unregister(struct ast_module *mod, agi_command *cmd);
+void AGI_WEAK ast_agi_register_multiple(struct ast_module *mod, agi_command *cmd, int len);
+void AGI_WEAK ast_agi_unregister_multiple(struct ast_module *mod, agi_command *cmd, int len);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
