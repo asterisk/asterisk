@@ -941,7 +941,7 @@ static int moh_scan_files(struct mohclass *class) {
 		ast_log(LOG_WARNING, "getcwd() failed: %s\n", strerror(errno));
 		return -1;
 	}
-	if (chdir(path) < 0) {
+	if (chdir(dir_path) < 0) {
 		ast_log(LOG_WARNING, "chdir() failed: %s\n", strerror(errno));
 		return -1;
 	}
