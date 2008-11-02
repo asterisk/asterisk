@@ -24,7 +24,9 @@ static int read_environment(void)
 	char *val;
 	/* Read environment */
 	for(;;) {
-		fgets(buf, sizeof(buf), stdin);
+		if (!fgets(buf, sizeof(buf), stdin)) {
+			return -1;
+		}
 		if (feof(stdin))
 			return -1;
 		buf[strlen(buf) - 1] = '\0';
@@ -68,7 +70,9 @@ static char *wait_result(void)
 			return NULL;
 		}
 		if (FD_ISSET(STDIN_FILENO, &fds)) {
-			fgets(astresp, sizeof(astresp), stdin);
+			if (!fgets(astresp, sizeof(astresp), stdin)) {
+				return NULL;
+			}
 			if (feof(stdin)) {
 				fprintf(stderr, "Got hungup on apparently\n");
 				return NULL;

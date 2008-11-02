@@ -865,7 +865,9 @@ static char *vm_check_password_shell(char *command, char *buf, size_t len)
 		} else if (pid) {
 			/* parent */
 			close(fds[1]);
-			read(fds[0], buf, len);
+			if (read(fds[0], buf, len) < 0) {
+				ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
+			}
 			close(fds[0]);
 		} else {
 			/*  child */
@@ -5539,7 +5541,9 @@ static void adsi_message(struct ast_channel *chan, struct vm_state *vms)
 	f = fopen(fn2, "r");
 	if (f) {
 		while (!feof(f)) {	
-			fgets((char *)buf, sizeof(buf), f);
+			if (!fgets((char *)buf, sizeof(buf), f)) {
+				continue;
+			}
 			if (!feof(f)) {
 				char *stringp=NULL;
 				stringp = (char *)buf;

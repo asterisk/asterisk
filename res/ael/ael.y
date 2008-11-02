@@ -319,10 +319,15 @@ statements : /* empty */ { $$ = NULL; }
  * detect the '-' but only the ':' as separator
  */
 timerange: word3_list COLON word3_list COLON word3_list {
-		asprintf(&$$, "%s:%s:%s", $1, $3, $5);
-		free($1);
-		free($3);
-		free($5); }
+		if (asprintf(&$$, "%s:%s:%s", $1, $3, $5) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed\n");
+			$$ = NULL;
+		} else {
+			free($1);
+			free($3);
+			free($5);
+		}
+	}
 	| word { $$ = $1; }
 	;
 
@@ -358,50 +363,90 @@ if_like_head : KW_IF test_expr {
 
 word_list : word { $$ = $1;}
 	| word word {
-		asprintf(&($$), "%s%s", $1, $2);
-		free($1);
-		free($2);
-		prev_word = $$;}
+		if (asprintf(&($$), "%s%s", $1, $2) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed\n");
+			$$ = NULL;
+		} else {
+			free($1);
+			free($2);
+			prev_word = $$;
+		}
+	}
 	;
 
 hint_word : word { $$ = $1; }
 	| hint_word word {
-		asprintf(&($$), "%s %s", $1, $2);
-		free($1);
-		free($2); }
+		if (asprintf(&($$), "%s %s", $1, $2) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed\n");
+			$$ = NULL;
+		} else {
+			free($1);
+			free($2);
+		}
+	}
 	| hint_word COLON word {
-		asprintf(&($$), "%s:%s", $1, $3);
-		free($1);
-		free($3); }
+		if (asprintf(&($$), "%s:%s", $1, $3) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed\n");
+			$$ = NULL;
+		} else {
+			free($1);
+			free($3);
+		}
+	}
 	| hint_word AMPER word {  /* there are often '&' in hints */
-		asprintf(&($$), "%s&%s", $1, $3);
-		free($1);
-		free($3);}
-
+		if (asprintf(&($$), "%s&%s", $1, $3) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed\n");
+			$$ = NULL;
+		} else {
+			free($1);
+			free($3);
+		}
+	}
+	;
 
 word3_list : word { $$ = $1;}
 	| word word {
-		asprintf(&($$), "%s%s", $1, $2);
-		free($1);
-		free($2);
-		prev_word = $$;}
+		if (asprintf(&($$), "%s%s", $1, $2) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed\n");
+			$$ = NULL;
+		} else {
+			free($1);
+			free($2);
+			prev_word = $$;
+		}			
+	}
 	| word word word {
-		asprintf(&($$), "%s%s%s", $1, $2, $3);
-		free($1);
-		free($2);
-		free($3);
-		prev_word=$$;}
+		if (asprintf(&($$), "%s%s%s", $1, $2, $3) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed\n");
+			$$ = NULL;
+		} else {
+			free($1);
+			free($2);
+			free($3);
+			prev_word=$$;
+		}
+	}
 	;
 
 goto_word : word { $$ = $1;}
 	| word word {
-		asprintf(&($$), "%s%s", $1, $2);
-		free($1);
-		free($2);}
+		if (asprintf(&($$), "%s%s", $1, $2) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed\n");
+			$$ = NULL;
+		} else {
+			free($1);
+			free($2);
+		}
+	}
 	| goto_word COLON word {
-		asprintf(&($$), "%s:%s", $1, $3);
-		free($1);
-		free($3);}
+		if (asprintf(&($$), "%s:%s", $1, $3) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed\n");
+			$$ = NULL;
+		} else {
+			free($1);
+			free($3);
+		}
+	}
 	;
 
 switch_statement : KW_SWITCH test_expr LC case_statements RC {
@@ -618,8 +663,17 @@ eswitches : KW_ESWITCHES LC switchlist RC {
 
 switchlist : /* empty */ { $$ = NULL; }
 	| word SEMI switchlist { $$ = linku1(nword($1, &@1), $3); }
-	| word AT word SEMI switchlist { char *x; asprintf(&x,"%s@%s", $1,$3); free($1); free($3);
-									  $$ = linku1(nword(x, &@1), $5);}
+	| word AT word SEMI switchlist {
+	  char *x;
+	  if (asprintf(&x,"%s@%s", $1, $3) < 0) {
+		ast_log(LOG_WARNING, "asprintf() failed\n");
+		$$ = NULL;
+	  } else {
+		free($1);
+		free($3);
+		$$ = linku1(nword(x, &@1), $5);
+	  }
+	}
 	| error switchlist {$$=$2;}
 	;
 

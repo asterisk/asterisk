@@ -1369,7 +1369,9 @@ static struct adsi_script *compile_script(char *script)
 	/* Create "main" as first subroutine */
 	getsubbyname(scr, "main", NULL, 0);
 	while (!feof(f)) {
-		fgets(buf, sizeof(buf), f);
+		if (!fgets(buf, sizeof(buf), f)) {
+			continue;
+		}
 		if (!feof(f)) {
 			lineno++;
 			/* Trim off trailing return */

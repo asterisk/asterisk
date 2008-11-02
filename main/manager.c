@@ -2211,7 +2211,9 @@ static int action_command(struct mansession *s, const struct message *m)
 	final_buf = ast_calloc(1, l + 1);
 	if (buf) {
 		lseek(fd, 0, SEEK_SET);
-		read(fd, buf, l);
+		if (read(fd, buf, l) < 0) {
+			ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
+		}
 		buf[l] = '\0';
 		if (final_buf) {
 			term_strip(final_buf, buf, l);

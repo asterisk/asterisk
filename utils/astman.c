@@ -151,10 +151,14 @@ static void __attribute__((format (printf, 2, 3))) fdprintf(int fd, char *fmt, .
 {
 	char stuff[4096];
 	va_list ap;
+	int res;
+
 	va_start(ap, fmt);
 	vsnprintf(stuff, sizeof(stuff), fmt, ap);
 	va_end(ap);
-	write(fd, stuff, strlen(stuff));
+	if ((res = write(fd, stuff, strlen(stuff))) < 0) {
+		fprintf(stderr, "write() failed: %s\n", strerror(errno));
+	}
 }
 
 static char *get_header(struct message *m, char *var)
@@ -418,13 +422,16 @@ static int __attribute__((format (printf, 2, 3))) manager_action(char *action, c
 	struct ast_mansession *s;
 	char tmp[4096];
 	va_list ap;
+	int res;
 
 	s = &session;
 	fdprintf(s->fd, "Action: %s\r\n", action);
 	va_start(ap, fmt);
 	vsnprintf(tmp, sizeof(tmp), fmt, ap);
 	va_end(ap);
-	write(s->fd, tmp, strlen(tmp));
+	if ((res = write(s->fd, tmp, strlen(tmp))) < 0) {
+		fprintf(stderr, "write() failed: %s\n", strerror(errno));
+	}
 	fdprintf(s->fd, "\r\n");
 	return 0;
 }

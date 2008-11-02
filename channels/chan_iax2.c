@@ -6641,8 +6641,10 @@ static int complete_dpreply(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 		}
 		/* Wake up waiters */
 		for (x = 0; x < ARRAY_LEN(dp->waiters); x++) {
-			if (dp->waiters[x] > -1)
-				write(dp->waiters[x], "asdf", 4);
+			if (dp->waiters[x] > -1) {
+				if (write(dp->waiters[x], "asdf", 4) < 0) {
+				}
+			}
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
@@ -11700,8 +11702,11 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 				   systems without leaving it unavailable once the server comes back online */
 				dp->expiry.tv_sec = dp->orig.tv_sec + 60;
 				for (x = 0; x < ARRAY_LEN(dp->waiters); x++) {
-					if (dp->waiters[x] > -1)
-						write(dp->waiters[x], "asdf", 4);
+					if (dp->waiters[x] > -1) {
+						if (write(dp->waiters[x], "asdf", 4) < 0) {
+							ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+						}
+					}
 				}
 			}
 		}

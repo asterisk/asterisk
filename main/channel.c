@@ -2273,8 +2273,11 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 				break;
 			case AST_FRAME_VOICE:
 				/* Write audio if appropriate */
-				if (audiofd > -1)
-					write(audiofd, f->data.ptr, f->datalen);
+				if (audiofd > -1) {
+					if (write(audiofd, f->data.ptr, f->datalen) < 0) {
+						ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+					}
+				}
 			default:
 				/* Ignore */
 				break;
@@ -2421,7 +2424,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				goto done;
 			}
 		}
-		read(chan->alertpipe[0], &blah, sizeof(blah));
+		if (read(chan->alertpipe[0], &blah, sizeof(blah)) < 0) {
+			ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
+		}
 	}
 
 	if (chan->timingfd > -1 && chan->fdno == AST_TIMING_FD) {
@@ -3888,7 +3893,10 @@ int ast_do_masquerade(struct ast_channel *original)
 			AST_LIST_INSERT_TAIL(&original->readq, current, frame_list);
 			if (original->alertpipe[1] > -1) {
 				int poke = 0;
-				write(original->alertpipe[1], &poke, sizeof(poke));
+
+				if (write(original->alertpipe[1], &poke, sizeof(poke)) < 0) {
+					ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+				}
 			}
 		}
 	}

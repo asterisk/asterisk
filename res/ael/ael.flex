@@ -773,7 +773,9 @@ struct pval *ael2_parse(char *filename, int *errors)
 	my_file = strdup(filename);
 	stat(filename, &stats);
 	buffer = (char*)malloc(stats.st_size+2);
-	fread(buffer, 1, stats.st_size, fin);
+	if (fread(buffer, 1, stats.st_size, fin) != stats.st_size) {
+		ast_log(LOG_ERROR, "fread() failed: %s\n", strerror(errno));
+	}			
 	buffer[stats.st_size]=0;
 	fclose(fin);
 
@@ -841,7 +843,9 @@ static void setup_filestack(char *fnamebuf2, int fnamebuf_siz, glob_t *globbuf, 
 			struct stat stats;
 			stat(fnamebuf2, &stats);
 			buffer = (char*)malloc(stats.st_size+1);
-			fread(buffer, 1, stats.st_size, in1);
+			if (fread(buffer, 1, stats.st_size, in1) != stats.st_size) {
+				ast_log(LOG_ERROR, "fread() failed: %s\n", strerror(errno));
+			}			
 			buffer[stats.st_size] = 0;
 			ast_log(LOG_NOTICE,"  --Read in included file %s, %d chars\n",fnamebuf2, (int)stats.st_size);
 			fclose(in1);

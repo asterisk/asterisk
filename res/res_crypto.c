@@ -106,7 +106,11 @@ static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 	
 	snprintf(prompt, sizeof(prompt), ">>>> passcode for %s key '%s': ",
 		 key->ktype == AST_KEY_PRIVATE ? "PRIVATE" : "PUBLIC", key->name);
-	write(key->outfd, prompt, strlen(prompt));
+	if (write(key->outfd, prompt, strlen(prompt)) < 0) {
+		ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+		key->infd = -2;
+		return -1;
+	}
 	memset(buf, 0, sizeof(buf));
 	tmp = ast_hide_password(key->infd);
 	memset(buf, 0, size);
@@ -177,7 +181,9 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 	while(!feof(f)) {
 		/* Calculate a "whatever" quality md5sum of the key */
 		char buf[256] = "";
-		fgets(buf, sizeof(buf), f);
+		if (!fgets(buf, sizeof(buf), f)) {
+			continue;
+		}
 		if (!feof(f))
 			MD5Update(&md5, (unsigned char *) buf, strlen(buf));
 	}

@@ -946,7 +946,9 @@ static char *lua_read_extensions_file(lua_State *L, long *size)
 		return NULL;
 	}
 
-	fread(data, sizeof(char), *size, f);
+	if (fread(data, sizeof(char), *size, f) != *size) {
+		ast_log(LOG_WARNING, "fread() failed: %s\n", strerror(errno));
+	}
 	fclose(f);
 
 	if (luaL_loadbuffer(L, data, *size, "extensions.lua")

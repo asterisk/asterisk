@@ -779,7 +779,9 @@ static void sms_log(sms_t * h, char status)
 		}
 		*p++ = '\n';
 		*p = 0;
-		write(o, line, strlen(line));
+		if (write(o, line, strlen(line)) < 0) {
+			ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+		}
 		close(o);
 	}
 	*h->oa = *h->da = h->udl = 0;

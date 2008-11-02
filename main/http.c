@@ -219,7 +219,9 @@ static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, 
 		ast_get_version(), buf, (int) st.st_size, mtype);
 
 	while ((len = read(fd, buf, sizeof(buf))) > 0) {
-		fwrite(buf, 1, len, ser->f);
+		if (fwrite(buf, 1, len, ser->f) != len) {
+			ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+		}
 	}
 
 	close(fd);
@@ -760,8 +762,12 @@ static void *httpd_helper_thread(void *data)
 			if (tmp) {
 				fprintf(ser->f, "Content-length: %d\r\n", contentlength);
 				/* first write the header, then the body */
-				fwrite(out->str, 1, (tmp + 4 - out->str), ser->f);
-				fwrite(tmp + 4, 1, contentlength, ser->f);
+				if (fwrite(out->str, 1, (tmp + 4 - out->str), ser->f) != tmp + 4 - out->str) {
+					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+				}
+				if (fwrite(tmp + 4, 1, contentlength, ser->f) != contentlength ) {
+					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+				}
 			}
 		}
 		ast_free(out);

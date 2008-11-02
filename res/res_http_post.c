@@ -222,8 +222,14 @@ static struct ast_str *http_post_callback(struct ast_tcptls_session_instance *se
 		if (content_len < res) {
 			res = content_len;
 		}
-		fread(buf, 1, res, ser->f);
-		fwrite(buf, 1, res, f);
+		if (fread(buf, 1, res, ser->f) != res) {
+			ast_log(LOG_WARNING, "fread() failed: %s\n", strerror(errno));
+			continue;
+		}
+		if (fwrite(buf, 1, res, f) != res) {
+			ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+			continue;
+		}
 	}
 
 	if (fseek(f, SEEK_SET, 0)) {

@@ -447,7 +447,9 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 			ast_get_version(), buf, len, route->file->mime_type);
 		
 		while ((len = read(fd, buf, sizeof(buf))) > 0) {
-			fwrite(buf, 1, len, ser->f);
+			if (fwrite(buf, 1, len, ser->f) != len) {
+				ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+			}
 		}
 
 		close(fd);

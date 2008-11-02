@@ -82,7 +82,9 @@ int main(int argc, char *argv[])
 		if (utime(argv[1], NULL)) {
 			/* Recreate the file if it doesn't exist */
 			if ((fd = open(argv[1], O_RDWR | O_TRUNC | O_CREAT, 0777)) > -1) {
-				write(fd, explanation, strlen(explanation));
+				if (write(fd, explanation, strlen(explanation)) < 0) {
+					exit(1);
+				}
 				close(fd);
 			} else {
 				exit(1);

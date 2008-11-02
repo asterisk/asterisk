@@ -512,7 +512,10 @@ static int spawn_mp3(struct mohclass *class)
 		ast_close_fds_above_n(STDERR_FILENO);
 
 		/* Child */
-		chdir(class->dir);
+		if (chdir(class->dir) < 0) {
+			ast_log(LOG_WARNING, "chdir() failed: %s\n", strerror(errno));
+			_exit(1);
+		}
 		if (ast_test_flag(class, MOH_CUSTOM)) {
 			execv(argv[0], argv);
 		} else {
@@ -924,8 +927,14 @@ static int moh_scan_files(struct mohclass *class) {
 
 	class->total_files = 0;
 	dirnamelen = strlen(class->dir) + 2;
-	getcwd(path, sizeof(path));
-	chdir(class->dir);
+	if (!getcwd(path, sizeof(path))) {
+		ast_log(LOG_WARNING, "getcwd() failed: %s\n", strerror(errno));
+		return -1;
+	}
+	if (chdir(class->dir) < 0) {
+		ast_log(LOG_WARNING, "chdir() failed: %s\n", strerror(errno));
+		return -1;
+	}
 	while ((files_dirent = readdir(files_DIR))) {
 		/* The file name must be at least long enough to have the file type extension */
 		if ((strlen(files_dirent->d_name) < 4))
@@ -962,7 +971,10 @@ static int moh_scan_files(struct mohclass *class) {
 	}
 
 	closedir(files_DIR);
-	chdir(path);
+	if (chdir(path) < 0) {
+		ast_log(LOG_WARNING, "chdir() failed: %s\n", strerror(errno));
+		return -1;
+	}
 	if (ast_test_flag(class, MOH_SORTALPHA))
 		qsort(&class->filearray[0], class->total_files, sizeof(char *), moh_sort_compare);
 	return class->total_files;

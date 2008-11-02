@@ -112,8 +112,11 @@ int main(int argc, char *argv[])
 
 		select(2, NULL, &wfds, NULL, &tv);
 
-		if (FD_ISSET(1, &wfds))
-			write(1, buf, res);
+		if (FD_ISSET(1, &wfds)) {
+			if (write(1, buf, res) < 1) {
+				break;
+			}
+		}
 	}
 
 	close(s);
