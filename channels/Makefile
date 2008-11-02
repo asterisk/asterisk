@@ -105,5 +105,6 @@ $(if $(filter chan_oss,$(EMBEDDED_MODS)),modules.link,chan_oss.so): console_vide
 chan_usbradio.o: ./xpmr/xpmr.c ./xpmr/xpmr.h ./xpmr/xpmr_coef.h
 
 chan_usbradio.so: LIBS+=-lusb -lasound
+chan_usbradio.so: ASTCFLAGS+=-DNDEBUG
 
 
