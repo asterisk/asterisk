@@ -498,6 +498,15 @@ doc/core-en_US.xml: $(foreach dir,$(MOD_SUBDIRS),$(wildcard $(dir)/*.c) $(wildca
 	@echo
 	@echo "</docs>" >> $@
 
+validate-docs: doc/core-en_US.xml
+ifeq ($(XMLSTARLET),:)
+	@echo "---------------------------------------------------------------"
+	@echo "--- Please install xmlstarlet to validate the documentation ---"
+	@echo "---------------------------------------------------------------"
+else
+	$(XMLSTARLET) val $<
+endif
+
 update: 
 	@if [ -d .svn ]; then \
 		echo "Updating from Subversion..." ; \
