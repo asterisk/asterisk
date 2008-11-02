@@ -94,6 +94,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "iax2-provision.h"
 #include "jitterbuf.h"
 
+/*** DOCUMENTATION
+	<application name="IAX2Provision" language="en_US">
+		<synopsis>
+			Provision a calling IAXy with a given template.
+		</synopsis>
+		<syntax>
+			<parameter name="template">
+				<para>If not specified, defaults to <literal>default</literal>.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Provisions the calling IAXy (assuming the calling entity is in fact an IAXy) with the
+			given <replaceable>template</replaceable>. Returns <literal>-1</literal> on error
+			or <literal>0</literal> on success.</para>
+		</description>
+	</application>
+ ***/
+
 /* Define SCHED_MULTITHREADED to run the scheduler in a special
    multithreaded mode. */
 #define SCHED_MULTITHREADED
@@ -10016,11 +10034,6 @@ static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const
 }
 
 static char *papp = "IAX2Provision";
-static char *psyn = "Provision a calling IAXy with a given template";
-static char *pdescrip = 
-"  IAX2Provision([template]): Provisions the calling IAXy (assuming\n"
-"the calling entity is in fact an IAXy) with the given template or\n"
-"default if one is not specified.  Returns -1 on error or 0 on success.\n";
 
 /*! iax2provision
 \ingroup applications
@@ -12420,7 +12433,7 @@ static int load_module(void)
 
 	ast_cli_register_multiple(cli_iax2, sizeof(cli_iax2) / sizeof(struct ast_cli_entry));
 
-	ast_register_application(papp, iax2_prov_app, psyn, pdescrip);
+	ast_register_application_xml(papp, iax2_prov_app);
 	
 	ast_manager_register( "IAXpeers", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peers, "List IAX Peers" );
 	ast_manager_register( "IAXpeerlist", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peer_list, "List IAX Peers" );
