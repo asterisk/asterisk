@@ -712,7 +712,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; callingpres                 callingpres
 ; permit                      permit
 ; deny                        deny
-; 			      remotesecret
+;                             remotesecret
 ; secret                      secret
 ; md5secret                   md5secret
 ; transport                   transport
@@ -783,7 +783,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 
 ;[sip_proxy-out]
 ;type=peer                        ; we only want to call out, not be called
-;remotesecret=guessit		  ; Our password to their service
+;remotesecret=guessit             ; Our password to their service
 ;defaultuser=yourusername         ; Authentication user for outbound proxies
 ;fromuser=yourusername            ; Many SIP providers require this!
 ;fromdomain=provider.sip.domain        
