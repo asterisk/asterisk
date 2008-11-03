@@ -43,13 +43,11 @@
 ; -------------------------------------------------------------
 ; Useful CLI commands to check peers/users:
 ;   sip show peers               Show all SIP peers (including friends)
-;   sip show users               Show all SIP users (including friends)
 ;   sip show registry            Show status of hosts we register with
 ;
 ;   sip set debug                Show all SIP messages
 ;
 ;   module reload chan_sip.so    Reload configuration file
-;                                Active SIP peers will not be reconfigured
 ;
 
 ; ** Deprecated configuration options **
@@ -380,15 +378,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; more database transactions if you are using realtime.
 ;callcounter = yes              ; Enable call counters on devices. This can be set per
                                 ; device too.
-;counteronpeer = yes            ; Apply call counting on peers only. This will improve 
-                                ; status notification when you are using type=friend
-                                ; Inbound calls, that really apply to the user part
-                                ; of a friend will now be added to and compared with
-                                ; the peer counter instead of applying two call counters,
-                                ; one for the peer and one for the user.
-                                ; "sip show inuse" will only show active calls on 
-                                ; the peer side of a "type=friend" object if this
-                                ; setting is turned on.
 
 ;----------------------------------------- T.38 FAX PASSTHROUGH SUPPORT -----------------------
 ;
@@ -438,7 +427,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;    unless you configure a [sip_proxy] section below, and configure a
 ;    context.
 ;    Tip 1: Avoid assigning hostname to a sip.conf section like [provider.com]
-;    Tip 2: Use separate type=peer and type=user sections for SIP providers
+;    Tip 2: Use separate inbound and outbound sections for SIP providers
 ;           (instead of type=friend) if you have calls in both directions
   
 ;registertimeout=20             ; retry registration calls every 20 seconds (default)
@@ -703,75 +692,92 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; Peer auth= override all other authentication settings if we match on realm
 
 ;------------------------------------------------------------------------------
-; Users and peers have different settings available. Friends have all settings,
-; since a friend is both a peer and a user
+; DEVICE CONFIGURATION
+; 
+; The SIP channel has two types of devices, the friend and the peer.
+; * The type=friend is a device type that accepts both incoming and outbound calls,
+;   where Asterisk match on the From: username on incoming calls.
+;   (A synonym for friend is "user"). This is a type you use for your local
+;   SIP phones.
+; * The type=peer also handles both incoming and outbound calls. On inbound calls,
+;   Asterisk only matches on IP/port, not on names. This is mostly used for SIP
+;   trunks.
 ;
-; User config options:        Peer configuration:
-; --------------------        -------------------
-; context                     context
-; callingpres                 callingpres
-; permit                      permit
-; deny                        deny
-;                             remotesecret
-; secret                      secret
-; md5secret                   md5secret
-; transport                   transport
-; dtmfmode                    dtmfmode
-; canreinvite                 canreinvite
-; nat                         nat
-; callgroup                   callgroup
-; pickupgroup                 pickupgroup
-; language                    language
-; allow                       allow
-; disallow                    disallow
-; insecure                    insecure
-; trustrpid                   trustrpid
-; progressinband              progressinband
-; promiscredir                promiscredir
-; useclientcode               useclientcode
-; accountcode                 accountcode
-; setvar                      setvar
-; callerid                    callerid
-; amaflags                    amaflags
-; call-limit                  call-limit        (deprecated)
-; callcounter                 callcounter
-; allowoverlap                allowoverlap
-; allowsubscribe              allowsubscribe
-; allowtransfer               allowtransfer
-; subscribecontext            subscribecontext
-; videosupport                videosupport
-; maxcallbitrate              maxcallbitrate
-; rfc2833compensate           mailbox
-; session-timers              busylevel
-; session-expires            
-; session-minse               template
-; session-refresher           fromdomain
-; t38pt_usertpsource          regexten
-;                             fromuser
-;                             host
-;                             port
-;                             qualify
-;                             defaultip
-;                             defaultuser
-;                             rtptimeout
-;                             rtpholdtimeout
-;                             sendrpid
-;                             outboundproxy
-;                             rfc2833compensate
-;                             callbackextension
-;                             registertrying
-;                             session-timers
-;                             session-expires
-;                             session-minse
-;                             session-refresher
-;                             timert1
-;                             timerb
-;                             qualifyfreq
-;                             t38pt_usertpsource
-;                             contactpermit         ; Limit what a host may register as (a neat trick
-;                             contactdeny           ; is to register at the same IP as a SIP provider,
-;                                                   ; then call oneself, and get redirected to that
-;                                                   ; same location).
+; For device names, we recommend using only a-z, numerics (0-9) and underscore
+; 
+; For local phones, type=friend works most of the time
+;
+; If you have one-way audio, you probably have NAT problems. 
+; If Asterisk is on a public IP, and the phone is inside of a NAT device
+; you will need to configure nat option for those phones.
+; Also, turn on qualify=yes to keep the nat session open
+; 
+; Configuration options available 
+; --------------------     
+; context
+; callingpres
+; permit
+; deny
+; secret
+; md5secret
+; remotesecret
+; transport
+; dtmfmode
+; canreinvite
+; nat
+; callgroup
+; pickupgroup
+; language
+; allow
+; disallow
+; insecure
+; trustrpid
+; progressinband
+; promiscredir
+; useclientcode
+; accountcode
+; setvar
+; callerid
+; amaflags
+; callcounter
+; busylevel
+; allowoverlap
+; allowsubscribe
+; allowtransfer
+; subscribecontext
+; template
+; videosupport
+; maxcallbitrate
+; rfc2833compensate
+; mailbox
+; session-timers
+; session-expires
+; session-minse
+; session-refresher
+; t38pt_usertpsource
+; regexten
+; fromdomain
+; fromuser
+; host
+; port
+; qualify
+; defaultip
+; defaultuser
+; rtptimeout
+; rtpholdtimeout
+; sendrpid
+; outboundproxy
+; rfc2833compensate
+; callbackextension
+; registertrying
+; timert1
+; timerb
+; qualifyfreq
+; t38pt_usertpsource
+; contactpermit         ; Limit what a host may register as (a neat trick
+; contactdeny           ; is to register at the same IP as a SIP provider,
+;                       ; then call oneself, and get redirected to that
+;                       ; same location).
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)
@@ -810,21 +816,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;                                 ;   accept both tcp and udp. Default is udp. The first transport
 ;                                 ;   listed will always be used for outgoing connections.
 
-;------------------------------------------------------------------------------
-; Definitions of locally connected SIP devices
-;
-; type = user        a device that authenticates to us by "from" field to place calls
-; type = peer        a device we place calls to or that calls us and we match by host
-; type = friend two configurations (peer+user) in one
-;
-; For device names, we recommend using only a-z, numerics (0-9) and underscore
-; 
-; For local phones, type=friend works most of the time
-;
-; If you have one-way audio, you probably have NAT problems. 
-; If Asterisk is on a public IP, and the phone is inside of a NAT device
-; you will need to configure nat option for those phones.
-; Also, turn on qualify=yes to keep the nat session open
 ;
 ; Because you might have a large number of similar sections, it is generally
 ; convenient to use templates for the common parameters, and add them
