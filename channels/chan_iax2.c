@@ -110,6 +110,70 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			or <literal>0</literal> on success.</para>
 		</description>
 	</application>
+	<function name="IAXPEER" language="en_US">
+		<synopsis>
+			Gets IAX peer information.
+		</synopsis>
+		<syntax>
+			<parameter name="peername" required="true">
+				<enumlist>
+					<enum name="CURRENTCHANNEL">
+						<para>If <replaceable>peername</replaceable> is specified to this value, return the IP address of the
+						endpoint of the current channel</para>
+					</enum>
+				</enumlist>
+			</parameter>
+			<parameter name="item">
+				<para>If <replaceable>peername</replaceable> is specified, valid items are:</para>
+				<enumlist>
+					<enum name="ip">
+						<para>(default) The IP address.</para>
+					</enum>
+					<enum name="status">
+						<para>The peer's status (if <literal>qualify=yes</literal>)</para>
+					</enum>
+					<enum name="mailbox">
+						<para>The configured mailbox.</para>
+					</enum>
+					<enum name="context">
+						<para>The configured context.</para>
+					</enum>
+					<enum name="expire">
+						<para>The epoch time of the next expire.</para>
+					</enum>
+					<enum name="dynamic">
+						<para>Is it dynamic? (yes/no).</para>
+					</enum>
+					<enum name="callerid_name">
+						<para>The configured Caller ID name.</para>
+					</enum>
+					<enum name="callerid_num">
+						<para>The configured Caller ID number.</para>
+					</enum>
+					<enum name="codecs">
+						<para>The configured codecs.</para>
+					</enum>
+					<enum name="codec[x]">
+						<para>Preferred codec index number <replaceable>x</replaceable> (beginning
+						with <literal>0</literal>)</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description />
+		<see-also>
+			<ref type="function">SIPPEER</ref>
+		</see-also>
+	</function>
+	<function name="IAXVAR" language="en_US">
+		<synopsis>
+			Sets or retrieves a remote variable.
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+		</syntax>
+		<description />
+	</function>
  ***/
 
 /* Define SCHED_MULTITHREADED to run the scheduler in a special
@@ -8132,8 +8196,6 @@ static int acf_iaxvar_write(struct ast_channel *chan, const char *cmd, char *dat
 
 static struct ast_custom_function iaxvar_function = {
 	.name = "IAXVAR",
-	.synopsis = "Sets or retrieves a remote variable",
-	.syntax = "IAXVAR(<varname>)",
 	.read = acf_iaxvar_read,
 	.write = acf_iaxvar_write,
 };
@@ -11989,23 +12051,7 @@ static int function_iaxpeer(struct ast_channel *chan, const char *cmd, char *dat
 
 struct ast_custom_function iaxpeer_function = {
 	.name = "IAXPEER",
-	.synopsis = "Gets IAX peer information",
-	.syntax = "IAXPEER(<peername|CURRENTCHANNEL>[,item])",
 	.read = function_iaxpeer,
-	.desc = "If peername specified, valid items are:\n"
-	"- ip (default)          The IP address.\n"
-	"- status                The peer's status (if qualify=yes)\n"
-	"- mailbox               The configured mailbox.\n"
-	"- context               The configured context.\n"
-	"- expire                The epoch time of the next expire.\n"
-	"- dynamic               Is it dynamic? (yes/no).\n"
-	"- callerid_name         The configured Caller ID name.\n"
-	"- callerid_num          The configured Caller ID number.\n"
-	"- codecs                The configured codecs.\n"
-	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
-	"\n"
-	"If CURRENTCHANNEL specified, returns IP address of current channel\n"
-	"\n"
 };
 
 static int acf_channel_write(struct ast_channel *chan, const char *function, char *args, const char *value)
