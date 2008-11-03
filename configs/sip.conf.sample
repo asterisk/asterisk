@@ -712,6 +712,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; callingpres                 callingpres
 ; permit                      permit
 ; deny                        deny
+; 			      remotesecret
 ; secret                      secret
 ; md5secret                   md5secret
 ; transport                   transport
@@ -782,7 +783,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 
 ;[sip_proxy-out]
 ;type=peer                        ; we only want to call out, not be called
-;secret=guessit
+;remotesecret=guessit		  ; Our password to their service
 ;defaultuser=yourusername         ; Authentication user for outbound proxies
 ;fromuser=yourusername            ; Many SIP providers require this!
 ;fromdomain=provider.sip.domain        
@@ -802,7 +803,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;type=peer
 ;host=sip.provider1.com
 ;fromuser=4015552299              ; how your provider knows you
-;secret=youwillneverguessit
+;remotesecret=youwillneverguessit ; The password we use to authenticate to them
+;secret=gissadetdu                ; The password they use to contact us
 ;callbackextension=123            ; Register with this server and require calls coming back to this extension
 ;transport=udp,tcp                ; This sets the transport type to udp for outgoing, and will
 ;                                 ;   accept both tcp and udp. Default is udp. The first transport

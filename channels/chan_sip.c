@@ -1751,14 +1751,17 @@ struct sip_mailbox {
 	AST_LIST_ENTRY(sip_mailbox) entry;
 };
 
-/*! \brief Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host) */
+/*! \brief Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host) 
+	\note This structure needs stringfields! Please!
+*/
 /* XXX field 'name' must be first otherwise sip_addrcmp() will fail */
 struct sip_peer {
 	char name[80];			/*!< peer->name is the unique name of this object */
 	struct sip_socket socket;	/*!< Socket used for this peer */
 	unsigned int transports:3;      /*!< Transports (enum sip_transport) that are acceptable for this peer */
-	char secret[80];		/*!< Password */
+	char secret[80];		/*!< Password for inbound auth */
 	char md5secret[80];		/*!< Password in MD5 */
+	char remotesecret[80];		/*!< Remote secret (trunks, remote devices) */
 	struct sip_auth *auth;		/*!< Realm authentication list */
 	char context[AST_MAX_CONTEXT];	/*!< Default context for incoming calls */
 	char subscribecontext[AST_MAX_CONTEXT];	/*!< Default context for subscriptions */
@@ -10420,8 +10423,9 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		ast_set_flag(&p->flags[0], SIP_OUTGOING);	/* Registration is outgoing call */
 		r->call = dialog_ref(p, "copying dialog into registry r->call");		/* Save pointer to SIP dialog */
 		p->registry = registry_addref(r, "transmit_register: addref to p->registry in transmit_register");	/* Add pointer to registry in packet */
-		if (!ast_strlen_zero(r->secret))	/* Secret (password) */
+		if (!ast_strlen_zero(r->secret)) {	/* Secret (password) */
 			ast_string_field_set(p, peersecret, r->secret);
+		}
 		if (!ast_strlen_zero(r->md5secret))
 			ast_string_field_set(p, peermd5secret, r->md5secret);
 		/* User name in this realm  
@@ -13899,6 +13903,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		}
 		ast_cli(fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret)?"<Not set>":"<Set>");
 		ast_cli(fd, "  MD5Secret    : %s\n", ast_strlen_zero(peer->md5secret)?"<Not set>":"<Set>");
+		ast_cli(fd, "  Remote Secret: %s\n", ast_strlen_zero(peer->remotesecret)?"<Not set>":"<Set>");
 		for (auth = peer->auth; auth; auth = auth->next) {
 			ast_cli(fd, "  Realm-auth   : Realm %-15.15s User %-10.20s ", auth->realm, auth->username);
 			ast_cli(fd, "%s\n", !ast_strlen_zero(auth->secret)?"<Secret set>":(!ast_strlen_zero(auth->md5secret)?"<MD5secret set>" : "<Not set>"));
@@ -14011,6 +14016,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "ObjectName: %s\r\n", peer->name);
 		astman_append(s, "ChanObjectType: peer\r\n");
 		astman_append(s, "SecretExist: %s\r\n", ast_strlen_zero(peer->secret)?"N":"Y");
+		astman_append(s, "RemoteSecretExist: %s\r\n", ast_strlen_zero(peer->remotesecret)?"N":"Y");
 		astman_append(s, "MD5SecretExist: %s\r\n", ast_strlen_zero(peer->md5secret)?"N":"Y");
 		astman_append(s, "Context: %s\r\n", peer->context);
 		astman_append(s, "Language: %s\r\n", peer->language);
@@ -21695,6 +21701,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 		peer->call_limit=999;
 	strcpy(peer->vmexten, default_vmexten);
 	peer->secret[0] = '\0';
+	peer->remotesecret[0] = '\0';
 	peer->md5secret[0] = '\0';
 	peer->cid_num[0] = '\0';
 	peer->cid_name[0] = '\0';
@@ -21866,9 +21873,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		} else if (!strcasecmp(v->name, "type")) {
 			if (!strcasecmp(v->value, "peer")) 
 				peer->onlymatchonip = TRUE;		/* For realtime support, add type=peer in the table */
-		} else if (!strcasecmp(v->name, "secret")) 
+		} else if (!strcasecmp(v->name, "remotesecret")) {
+			ast_copy_string(peer->remotesecret, v->value, sizeof(peer->remotesecret));
+		} else if (!strcasecmp(v->name, "secret")) {
 			ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
-		else if (!strcasecmp(v->name, "md5secret")) 
+		} else if (!strcasecmp(v->name, "md5secret")) 
 			ast_copy_string(peer->md5secret, v->value, sizeof(peer->md5secret));
 		else if (!strcasecmp(v->name, "auth"))
 			peer->auth = add_realm_authentication(peer->auth, v->value, v->lineno);
@@ -22205,7 +22214,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	if (!ast_strlen_zero(callback)) { /* build string from peer info */
 		char *reg_string;
 
-		if (asprintf(&reg_string, "%s:%s@%s/%s", peer->username, peer->secret, peer->tohost, callback) < 0) {
+		if (asprintf(&reg_string, "%s:%s@%s/%s", peer->username, peer->remotesecret ? peer->remotesecret : peer->secret, peer->tohost, callback) < 0) {
 			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
 		} else	if (reg_string) {
 			sip_register(reg_string, 0); /* XXX TODO: count in registry_count */

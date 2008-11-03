@@ -11,6 +11,10 @@ SIP Changes
    making the new/old message count available to local devices.
  * Added support for setting the domain in the URI for caller of an
    outbound call by using the SIPFROMDOMAIN channel variable.
+ * Added a new configuration option "remotesecret" for authentication to
+   remote services. For backwards compatibility, "secret" still has the
+   same function as before, but now you can configure both a remote secret and a
+   local secret for mutual authentication.
 
 Skinny Changes
 --------------
