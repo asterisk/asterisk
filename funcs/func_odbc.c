@@ -221,7 +221,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		if (!ast_strlen_zero(query->writehandle[dsn])) {
 			obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
 			if (obj)
-				stmt = ast_odbc_direct_execute(obj, generic_execute, buf);
+				stmt = ast_odbc_direct_execute(obj, generic_execute, buf->str);
 		}
 		if (stmt)
 			break;
