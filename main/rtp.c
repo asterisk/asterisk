@@ -1919,7 +1919,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	}
 	
 	/* Select a random port number in the range of possible RTP */
-	x = (ast_random() % (rtpend-rtpstart)) + rtpstart;
+	x = (rtpend == rtpstart) ? rtpstart : (ast_random() % (rtpend - rtpstart)) + rtpstart;
 	x = x & ~1;
 	/* Save it for future references. */
 	startplace = x;
