@@ -117,6 +117,9 @@
    attribute. */
 #undef HAVE_ATTRIBUTE_warn_unused_result
 
+/* Define to 1 if your GCC C compiler supports the 'weak' attribute. */
+#undef HAVE_ATTRIBUTE_weak
+
 /* Define this to indicate the ${BKTR_DESCRIP} library */
 #undef HAVE_BKTR
 

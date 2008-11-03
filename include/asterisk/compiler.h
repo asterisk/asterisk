@@ -68,4 +68,10 @@
 /* Some older version of GNU gcc (3.3.5 on OpenBSD 4.3 for example) dont like 'NULL' as sentinel */
 #define SENTINEL ((char *)NULL)
 
+#ifdef HAVE_ATTRIBUTE_weak
+#define attribute_weak __attribute__((weak))
+#else
+#define attribute_weak
+#endif
+
 #endif /* _ASTERISK_COMPILER_H */
