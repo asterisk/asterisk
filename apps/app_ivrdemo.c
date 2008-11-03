@@ -40,11 +40,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 
-static char *tdesc = "IVR Demo Application";
+/*** DOCUMENTATION
+	<application name="IVRDemo" language="en_US">
+		<synopsis>
+			IVR Demo Application.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true" />
+		</syntax>
+		<description>
+			<para>This is a skeleton application that shows you the basic structure to create your
+			own asterisk applications and demonstrates the IVR demo.</para>
+		</description>
+	</application>
+ ***/
+
 static char *app = "IVRDemo";
-static char *synopsis = 
-"  This is a skeleton application that shows you the basic structure to create your\n"
-"own asterisk applications and demonstrates the IVR demo.\n";
 
 static int ivr_demo_func(struct ast_channel *chan, void *data)
 {
@@ -109,7 +120,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, skel_exec, tdesc, synopsis);
+	return ast_register_application_xml(app, skel_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "IVR Demo Application");

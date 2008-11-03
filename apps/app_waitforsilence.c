@@ -48,37 +48,79 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dsp.h"
 #include "asterisk/module.h"
 
-static char *app_silence = "WaitForSilence";
-static char *synopsis_silence = "Waits for a specified amount of silence";
-static char *descrip_silence =
-"  WaitForSilence(silencerequired[,iterations][,timeout]):\n"
-"Wait for Silence: Waits for up to 'silencerequired' \n"
-"milliseconds of silence, 'iterations' times or once if omitted.\n"
-"An optional timeout specified the number of seconds to return\n"
-"after, even if we do not receive the specified amount of silence.\n"
-"Use 'timeout' with caution, as it may defeat the purpose of this\n"
-"application, which is to wait indefinitely until silence is detected\n"
-"on the line.  This is particularly useful for reverse-911-type\n"
-"call broadcast applications where you need to wait for an answering\n"
-"machine to complete its spiel before playing a message.\n"
-"The timeout parameter is specified only to avoid an infinite loop in\n"
-"cases where silence is never achieved.  Typically you will want to\n"
-"include two or more calls to WaitForSilence when dealing with an answering\n"
-"machine; first waiting for the spiel to finish, then waiting for the beep, etc.\n\n"
-  "Examples:\n"
-"  - WaitForSilence(500,2) will wait for 1/2 second of silence, twice\n"
-"  - WaitForSilence(1000) will wait for 1 second of silence, once\n"
-"  - WaitForSilence(300,3,10) will wait for 300ms silence, 3 times,\n"
-"     and returns after 10 sec, even if silence is not detected\n\n"
-"Sets the channel variable WAITSTATUS with to one of these values:\n"
-"SILENCE - if exited with silence detected\n"
-"TIMEOUT - if exited without silence detected after timeout\n";
+/*** DOCUMENTATION
+	<application name="WaitForSilence" language="en_US">
+		<synopsis>
+			Waits for a specified amount of silence.
+		</synopsis>
+		<syntax>
+			<parameter name="silencerequired" required="true" />
+			<parameter name="iterations">
+				<para>If not specified, defaults to <literal>1</literal>.</para>
+			</parameter>
+			<parameter name="timeout">
+				<para>Is specified only to avoid an infinite loop in cases where silence is never achieved.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Waits for up to <replaceable>silencerequired</replaceable> milliseconds of silence,
+			<replaceable>iterations</replaceable> times. An optional <replaceable>timeout</replaceable>
+			specified the number of seconds to return after, even if we do not receive the specified amount of silence.
+			Use <replaceable>timeout</replaceable> with caution, as it may defeat the purpose of this application, which
+			is to wait indefinitely until silence is detected on the line. This is particularly useful for reverse-911-type
+			call broadcast applications where you need to wait for an answering machine to complete its spiel before
+			playing a message.</para>
+			<para>Typically you will want to include two or more calls to WaitForSilence when dealing with an answering
+			machine; first waiting for the spiel to finish, then waiting for the beep, etc.</para>
+			<para>Examples:</para>
+			<para>WaitForSilence(500,2) will wait for 1/2 second of silence, twice</para>
+			<para>WaitForSilence(1000) will wait for 1 second of silence, once</para>
+			<para>WaitForSilence(300,3,10) will wait for 300ms silence, 3 times, and returns after 10 sec, even if silence
+			is not detected</para>
+			<para>Sets the channel variable <variable>WAITSTATUS</variable> to one of these values:</para>
+			<variablelist>
+				<variable name="WAITSTATUS">
+					<value name="SILENCE">
+						if exited with silence detected.
+					</value>
+					<value name="TIMEOUT">
+						if exited without silence detected after timeout.
+					</value>
+				</variable>
+			</variablelist>
+		</description>
+		<see-also>
+			<ref type="application">WaitForNoise</ref>
+		</see-also>
+	</application>
+	<application name="WaitForNoise" language="en_US">
+		<synopsis>
+			Waits for a specified amount of noise.
+		</synopsis>
+		<syntax>
+			<parameter name="noiserequired" required="true" />
+			<parameter name="iterations">
+				<para>If not specified, defaults to <literal>1</literal>.</para>
+			</parameter>
+			<parameter name="timeout">
+				<para>Is specified only to avoid an infinite loop in cases where silence is never achieved.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Waits for up to <replaceable>noiserequired</replaceable> milliseconds of noise,
+			<replaceable>iterations</replaceable> times. An optional <replaceable>timeout</replaceable>
+			specified the number of seconds to return after, even if we do not receive the specified amount of noise.
+			Use <replaceable>timeout</replaceable> with caution, as it may defeat the purpose of this application, which
+			is to wait indefinitely until noise is detected on the line.</para>
+		</description>
+		<see-also>
+			<ref type="application">WaitForSilence</ref>
+		</see-also>
+	</application>
+ ***/
 
+static char *app_silence = "WaitForSilence";
 static char *app_noise = "WaitForNoise";
-static char *synopsis_noise = "Waits for a specified amount of noise";
-static char *descrip_noise =
-"WaitForNoise(noiserequired[,iterations][,timeout]) \n"
-"Wait for Noise: The same as Wait for Silance but waits for noise that is above the threshold specified\n";
 
 static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, int timeout, int wait_for_silence) {
 	struct ast_frame *f = NULL;
@@ -211,8 +253,8 @@ static int load_module(void)
 {
 	int res;
 
-	res = ast_register_application(app_silence, waitforsilence_exec, synopsis_silence, descrip_silence);
-	res |= ast_register_application(app_noise, waitfornoise_exec, synopsis_noise, descrip_noise);
+	res = ast_register_application_xml(app_silence, waitforsilence_exec);
+	res |= ast_register_application_xml(app_noise, waitfornoise_exec);
 	return res;
 }
 
