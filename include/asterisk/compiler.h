@@ -53,4 +53,10 @@
 #define attribute_malloc
 #endif
 
+#ifdef HAVE_ATTRIBUTE_weak
+#define attribute_weak __attribute__((weak))
+#else
+#define attribute_weak
+#endif
+
 #endif /* _ASTERISK_COMPILER_H */

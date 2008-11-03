@@ -25,6 +25,10 @@
  * \ingroup applications
  */
 
+/*** MODULEINFO
+	<use>res_agi</use>
+ ***/
+
 #include "asterisk.h"
  
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -34,9 +38,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/manager.h"
 #include "asterisk/channel.h"
+
+/* usage of AGI is optional, so indicate that to the header file */
+#define ASTERISK_AGI_OPTIONAL
 #include "asterisk/agi.h"
 
-static int agi_loaded = 0;
 
 static const char *app_gosub = "Gosub";
 static const char *app_gosubif = "GosubIf";
@@ -485,7 +491,7 @@ static int unload_module(void)
 {
 	struct ast_context *con;
 
-	if (agi_loaded) {
+	if (ast_agi_unregister) {
 		ast_agi_unregister(ast_module_info->self, &gosub_agi_command);
 
 		if ((con = ast_context_find("app_stack_gosub_virtual_context"))) {
@@ -507,15 +513,10 @@ static int load_module(void)
 {
 	struct ast_context *con;
 
-	if (!ast_module_check("res_agi.so")) {
-		if (ast_load_resource("res_agi.so") == AST_MODULE_LOAD_SUCCESS) {
-			agi_loaded = 1;
-		}
-	} else {
-		agi_loaded = 1;
-	}
-
-	if (agi_loaded) {
+	/* usage of AGI is optional, so check to see if the ast_agi_register()
+	   function is available; if so, use it.
+	*/
+	if (ast_agi_register) {
 		con = ast_context_find_or_create(NULL, NULL, "app_stack_gosub_virtual_context", "app_stack");
 		if (!con) {
 			ast_log(LOG_ERROR, "Virtual context 'app_stack_gosub_virtual_context' does not exist and unable to create\n");
