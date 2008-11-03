@@ -274,6 +274,182 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/event.h"
 #include "asterisk/tcptls.h"
 
+/*** DOCUMENTATION
+	<application name="SIPDtmfMode" language="en_US">
+		<synopsis>
+			Change the dtmfmode for a SIP call.
+		</synopsis>
+		<syntax>
+			<parameter name="mode" required="true">
+				<enumlist>
+					<enum name="inband" />
+					<enum name="info" />
+					<enum name="rfc2833" />
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Changes the dtmfmode for a SIP call.</para>
+		</description>
+	</application>
+	<application name="SIPAddHeader" language="en_US">
+		<synopsis>
+			Add a SIP header to the outbound call.
+		</synopsis>
+		<syntax argsep=":">
+			<parameter name="Header" required="true" />
+			<parameter name="Content" required="true" />
+		</syntax>
+		<description>
+			<para>Adds a header to a SIP call placed with DIAL.</para>
+			<para>Remember to use the X-header if you are adding non-standard SIP
+			headers, like <literal>X-Asterisk-Accountcode:</literal>. Use this with care.
+			Adding the wrong headers may jeopardize the SIP dialog.</para>
+			<para>Always returns <literal>0</literal>.</para>
+		</description>
+	</application>
+	<function name="SIP_HEADER" language="en_US">
+		<synopsis>
+			Gets the specified SIP header.
+		</synopsis>
+		<syntax>
+			<parameter name="name" required="true" />
+			<parameter name="number">
+				<para>If not specified, defaults to <literal>1</literal>.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Since there are several headers (such as Via) which can occur multiple
+			times, SIP_HEADER takes an optional second argument to specify which header with
+			that name to retrieve. Headers start at offset <literal>1</literal>.</para>
+		</description>
+	</function>
+	<function name="SIPPEER" language="en_US">
+		<synopsis>
+			Gets SIP peer information.
+		</synopsis>
+		<syntax>
+			<parameter name="peername" required="true" />
+			<parameter name="item">
+				<enumlist>
+					<enum name="ip">
+						<para>(default) The ip address.</para>
+					</enum>
+					<enum name="port">
+						<para>The port number.</para>
+					</enum>
+					<enum name="mailbox">
+						<para>The configured mailbox.</para>
+					</enum>
+					<enum name="context">
+						<para>The configured context.</para>
+					</enum>
+					<enum name="expire">
+						<para>The epoch time of the next expire.</para>
+					</enum>
+					<enum name="dynamic">
+						<para>Is it dynamic? (yes/no).</para>
+					</enum>
+					<enum name="callerid_name">
+						<para>The configured Caller ID name.</para>
+					</enum>
+					<enum name="callerid_num">
+						<para>The configured Caller ID number.</para>
+					</enum>
+					<enum name="callgroup">
+						<para>The configured Callgroup.</para>
+					</enum>
+					<enum name="pickupgroup">
+						<para>The configured Pickupgroup.</para>
+					</enum>
+					<enum name="codecs">
+						<para>The configured codecs.</para>
+					</enum>
+					<enum name="status">
+						<para>Status (if qualify=yes).</para>
+					</enum>
+					<enum name="regexten">
+						<para>Registration extension.</para>
+					</enum>
+					<enum name="limit">
+						<para>Call limit (call-limit).</para>
+					</enum>
+					<enum name="busylevel">
+						<para>Configured call level for signalling busy.</para>
+					</enum>
+					<enum name="curcalls">
+						<para>Current amount of calls. Only available if call-limit is set.</para>
+					</enum>
+					<enum name="language">
+						<para>Default language for peer.</para>
+					</enum>
+					<enum name="accountcode">
+						<para>Account code for this peer.</para>
+					</enum>
+					<enum name="useragent">
+						<para>Current user agent id for peer.</para>
+					</enum>
+					<enum name="chanvar[name]">
+						<para>A channel variable configured with setvar for this peer.</para>
+					</enum>
+					<enum name="codec[x]">
+						<para>Preferred codec index number <replaceable>x</replaceable> (beginning with zero).</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description />
+	</function>
+	<function name="SIPCHANINFO" language="en_US">
+		<synopsis>
+			Gets the specified SIP parameter from the current channel.
+		</synopsis>
+		<syntax>
+			<parameter name="item" required="true">
+				<enumlist>
+					<enum name="peerip">
+						<para>The IP address of the peer.</para>
+					</enum>
+					<enum name="recvip">
+						<para>The source IP address of the peer.</para>
+					</enum>
+					<enum name="from">
+						<para>The URI from the <literal>From:</literal> header.</para>
+					</enum>
+					<enum name="uri">
+						<para>The URI from the <literal>Contact:</literal> header.</para>
+					</enum>
+					<enum name="useragent">
+						<para>The useragent.</para>
+					</enum>
+					<enum name="peername">
+						<para>The name of the peer.</para>
+					</enum>
+					<enum name="t38passthrough">
+						<para><literal>1</literal> if T38 is offered or enabled in this channel,
+						otherwise <literal>0</literal>.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description />
+	</function>
+	<function name="CHECKSIPDOMAIN" language="en_US">
+		<synopsis>
+			Checks if domain is a local domain.
+		</synopsis>
+		<syntax>
+			<parameter name="domain" required="true" />
+		</syntax>
+		<description>
+			<para>This function checks if the <replaceable>domain</replaceable> in the argument is configured
+			as a local SIP domain that this Asterisk server is configured to handle.
+			Returns the domain name if it is locally handled, otherwise an empty string.
+			Check the <literal>domain=</literal> configuration in <filename>sip.conf</filename>.</para>
+		</description>
+	</function>
+ ***/
+
 #ifndef FALSE
 #define FALSE    0
 #endif
@@ -15473,11 +15649,6 @@ static int func_header_read(struct ast_channel *chan, const char *function, char
 
 static struct ast_custom_function sip_header_function = {
 	.name = "SIP_HEADER",
-	.synopsis = "Gets the specified SIP header",
-	.syntax = "SIP_HEADER(<name>[,<number>])",
-	.desc = "Since there are several headers (such as Via) which can occur multiple\n"
-	"times, SIP_HEADER takes an optional second argument to specify which header with\n"
-	"that name to retrieve. Headers start at offset 1.\n",
 	.read = func_header_read,
 };
 
@@ -15497,13 +15668,7 @@ static int func_check_sipdomain(struct ast_channel *chan, const char *cmd, char 
 
 static struct ast_custom_function checksipdomain_function = {
 	.name = "CHECKSIPDOMAIN",
-	.synopsis = "Checks if domain is a local domain",
-	.syntax = "CHECKSIPDOMAIN(<domain|IP>)",
 	.read = func_check_sipdomain,
-	.desc = "This function checks if the domain in the argument is configured\n"
-		"as a local SIP domain that this Asterisk server is configured to handle.\n"
-		"Returns the domain name if it is locally handled, otherwise an empty string.\n"
-		"Check the domain= configuration in sip.conf\n",
 };
 
 /*! \brief  ${SIPPEER()} Dialplan function - reads peer data */
@@ -15596,33 +15761,7 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 /*! \brief Structure to declare a dialplan function: SIPPEER */
 static struct ast_custom_function sippeer_function = {
 	.name = "SIPPEER",
-	.synopsis = "Gets SIP peer information",
-	.syntax = "SIPPEER(<peername>[,item])",
 	.read = function_sippeer,
-	.desc = "Valid items are:\n"
-	"- ip (default)          The IP address.\n"
-	"- port                  The port number\n"
-	"- mailbox               The configured mailbox.\n"
-	"- context               The configured context.\n"
-	"- expire                The epoch time of the next expire.\n"
-	"- dynamic               Is it dynamic? (yes/no).\n"
-	"- callerid_name         The configured Caller ID name.\n"
-	"- callerid_num          The configured Caller ID number.\n"
-	"- callgroup             The configured Callgroup.\n"
-	"- pickupgroup           The configured Pickupgroup.\n"
-	"- codecs                The configured codecs.\n"
-	"- status                Status (if qualify=yes).\n"
-	"- regexten              Registration extension\n"
-	"- limit                 Call limit (call-limit)\n"
-	"- busylevel             Configured call level for signalling busy\n"
-	"- curcalls              Current amount of calls \n"
-	"                        Only available if call-limit is set\n"
-	"- language              Default language for peer\n"
-	"- accountcode           Account code for this peer\n"
-	"- useragent             Current user agent id for peer\n"
-	"- chanvar[name]         A channel variable configured with setvar for this peer.\n"
-	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
-	"\n"
 };
 
 /*! \brief ${SIPCHANINFO()} Dialplan function - reads sip channel data */
@@ -15687,17 +15826,7 @@ static int function_sipchaninfo_read(struct ast_channel *chan, const char *cmd, 
 /*! \brief Structure to declare a dialplan function: SIPCHANINFO */
 static struct ast_custom_function sipchaninfo_function = {
 	.name = "SIPCHANINFO",
-	.synopsis = "Gets the specified SIP parameter from the current channel",
-	.syntax = "SIPCHANINFO(item)",
 	.read = function_sipchaninfo_read,
-	.desc = "Valid items are:\n"
-	"- peerip                The IP address of the peer.\n"
-	"- recvip                The source IP address of the peer.\n"
-	"- from                  The URI from the From: header.\n"
-	"- uri                   The URI from the Contact: header.\n"
-	"- useragent             The useragent.\n"
-	"- peername              The name of the peer.\n"
-	"- t38passthrough        1 if T38 is offered or enabled in this channel, otherwise 0\n"
 };
 
 /*! \brief Parse 302 Moved temporalily response 
@@ -23248,21 +23377,8 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 	return 0;
 }
 
-static char *synopsis_dtmfmode = "Change the dtmfmode for a SIP call";
-static char *descrip_dtmfmode = "  SIPDtmfMode(inband|info|rfc2833): Changes the dtmfmode for a SIP call\n";
 static char *app_dtmfmode = "SIPDtmfMode";
-
 static char *app_sipaddheader = "SIPAddHeader";
-static char *synopsis_sipaddheader = "Add a SIP header to the outbound call";
-
-static char *descrip_sipaddheader = ""
-"  SIPAddHeader(Header: Content):\n"
-"Adds a header to a SIP call placed with DIAL.\n"
-"Remember to user the X-header if you are adding non-standard SIP\n"
-"headers, like \"X-Asterisk-Accountcode:\". Use this with care.\n"
-"Adding the wrong headers may jeopardize the SIP dialog.\n"
-"Always returns 0\n";
-
 
 /*! \brief Set the DTMFmode for an outbound SIP call (application) */
 static int sip_dtmfmode(struct ast_channel *chan, void *data)
@@ -23633,8 +23749,8 @@ static int load_module(void)
 	ast_udptl_proto_register(&sip_udptl);
 
 	/* Register dialplan applications */
-	ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
-	ast_register_application(app_sipaddheader, sip_addheader, synopsis_sipaddheader, descrip_sipaddheader);
+	ast_register_application_xml(app_dtmfmode, sip_dtmfmode);
+	ast_register_application_xml(app_sipaddheader, sip_addheader);
 
 	/* Register dialplan functions */
 	ast_custom_function_register(&sip_header_function);
