@@ -3750,10 +3750,16 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				gosub_argstart = strchr(gosubexec, ',');
 				if (gosub_argstart) {
 					*gosub_argstart = 0;
-					asprintf(&gosub_args, "%s,s,1(%s)", gosubexec, gosub_argstart + 1);
+					if (asprintf(&gosub_args, "%s,s,1(%s)", gosubexec, gosub_argstart + 1) < 0) {
+						ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+						gosub_args = NULL;
+					}
 					*gosub_argstart = '|';
 				} else {
-					asprintf(&gosub_args, "%s,s,1", gosubexec);
+					if (asprintf(&gosub_args, "%s,s,1", gosubexec) < 0) {
+						ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+						gosub_args = NULL;
+					}
 				}
 				if (gosub_args) {
 					res = pbx_exec(qe->chan, app, gosub_args);

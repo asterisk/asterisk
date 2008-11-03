@@ -959,8 +959,11 @@ int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*st
 		a->start_routine = start_routine;
 		a->data = data;
 		start_routine = dummy_start;
-		asprintf(&a->name, "%-20s started at [%5d] %s %s()",
-			 start_fn, line, file, caller);
+		if (asprintf(&a->name, "%-20s started at [%5d] %s %s()",
+			     start_fn, line, file, caller) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+			a->name = NULL;
+		}
 		data = a;
 	}
 #endif /* !LOW_MEMORY */

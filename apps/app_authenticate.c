@@ -151,7 +151,9 @@ static int auth_exec(struct ast_channel *chan, void *data)
 				if (feof(f))
 					break;
 
-				fgets(buf, sizeof(buf), f);
+				if (!fgets(buf, sizeof(buf), f)) {
+					continue;
+				}
 
 				if (ast_strlen_zero(buf))
 					continue;

@@ -3002,7 +3002,9 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 		if (AST_LIST_EMPTY(&trans->parent->trans)) {
 			/* Wake up sleeper */
 			if (trans->parent->pfds[1] > -1) {
-				write(trans->parent->pfds[1], "killa!", 6);
+				if (write(trans->parent->pfds[1], "killa!", 6) < 0) {
+					ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+				}
 			}
 		}
 	}
@@ -3769,7 +3771,10 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 	dr.expiration = dundi_cache_time;
 	dr.hmd = &hmd;
 	dr.pfds[0] = dr.pfds[1] = -1;
-	pipe(dr.pfds);
+	if (pipe(dr.pfds) < 0) {
+		ast_log(LOG_WARNING, "pipe() failed: %s\n", strerror(errno));
+		return -1;
+	}
 	build_transactions(&dr, ttl, 0, &foundcache, &skipped, 0, 1, 1, NULL, avoids, NULL);
 	optimize_transactions(&dr, 0);
 	foundanswers = 0;

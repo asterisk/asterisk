@@ -2656,7 +2656,8 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				/* If it's voice, write it to the audio pipe */
 				if ((agi->audio > -1) && (f->frametype == AST_FRAME_VOICE)) {
 					/* Write, ignoring errors */
-					write(agi->audio, f->data, f->datalen);
+					if (write(agi->audio, f->data, f->datalen) < 0) {
+					}
 				}
 				ast_frfree(f);
 			}

@@ -426,9 +426,15 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, char **arg
 	 * call a Gosub for the CALLEE channel in Dial or Queue.
 	 */
 	if (argc == 5) {
-		asprintf(&gosub_args, "%s,%s,%d(%s)", argv[1], argv[2], priority + 1, argv[4]);
+		if (asprintf(&gosub_args, "%s,%s,%d(%s)", argv[1], argv[2], priority + 1, argv[4]) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+			gosub_args = NULL;
+		}
 	} else {
-		asprintf(&gosub_args, "%s,%s,%d", argv[1], argv[2], priority + 1);
+		if (asprintf(&gosub_args, "%s,%s,%d", argv[1], argv[2], priority + 1) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+			gosub_args = NULL;
+		}
 	}
 
 	if (gosub_args) {

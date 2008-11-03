@@ -496,7 +496,9 @@ static int wav_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 		int i;
 		fseek(fs->f, 0, SEEK_END);
 		for (i=0; i< (offset - max) / MSGSM_FRAME_SIZE; i++) {
-			fwrite(msgsm_silence, 1, MSGSM_FRAME_SIZE, fs->f);
+			if (!fwrite(msgsm_silence, 1, MSGSM_FRAME_SIZE, fs->f)) {
+				ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+			}
 		}
 	}
 	s->secondhalf = 0;

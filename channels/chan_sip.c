@@ -20741,8 +20741,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	if (!ast_strlen_zero(callback)) { /* build string from peer info */
 		char *reg_string;
 
-		asprintf(&reg_string, "%s:%s@%s/%s", peer->username, peer->secret, peer->tohost, callback);
-		if (reg_string) {
+		if (asprintf(&reg_string, "%s:%s@%s/%s", peer->username, peer->secret, peer->tohost, callback) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+		} else	if (reg_string) {
 			sip_register(reg_string, 0); /* XXX TODO: count in registry_count */
 			ast_free(reg_string);
 		}

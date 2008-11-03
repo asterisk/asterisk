@@ -248,11 +248,18 @@ static char *build_filename(const char *filename, const char *ext)
 	if (!strcmp(ext, "wav49"))
 		ext = "WAV";
 
-	if (filename[0] == '/')
-		asprintf(&fn, "%s.%s", filename, ext);
-	else
-		asprintf(&fn, "%s/sounds/%s.%s",
-			ast_config_AST_DATA_DIR, filename, ext);
+	if (filename[0] == '/') {
+		if (asprintf(&fn, "%s.%s", filename, ext) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+			fn = NULL;
+		}
+	} else {
+		if (asprintf(&fn, "%s/sounds/%s.%s",
+			     ast_config_AST_DATA_DIR, filename, ext) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+			fn = NULL;
+		}
+	}
 	return fn;
 }
 
@@ -1183,8 +1190,11 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				break;
 			case AST_FRAME_VOICE:
 				/* Write audio if appropriate */
-				if (audiofd > -1)
-					write(audiofd, fr->data, fr->datalen);
+				if (audiofd > -1) {
+					if (write(audiofd, fr->data, fr->datalen) < 0) {
+						ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+					}
+				}
 			default:
 				/* Ignore all others */
 				break;

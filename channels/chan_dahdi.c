@@ -10079,8 +10079,11 @@ static void dahdi_pri_message(struct pri *pri, char *s)
 
 	ast_mutex_lock(&pridebugfdlock);
 
-	if (pridebugfd >= 0)
-		write(pridebugfd, s, strlen(s));
+	if (pridebugfd >= 0) {
+		if (write(pridebugfd, s, strlen(s)) < 0) {
+			ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+		}
+	}
 
 	ast_mutex_unlock(&pridebugfdlock);
 }
@@ -10115,8 +10118,11 @@ static void dahdi_pri_error(struct pri *pri, char *s)
 
 	ast_mutex_lock(&pridebugfdlock);
 
-	if (pridebugfd >= 0)
-		write(pridebugfd, s, strlen(s));
+	if (pridebugfd >= 0) {
+		if (write(pridebugfd, s, strlen(s)) < 0) {
+			ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+		}
+	}
 
 	ast_mutex_unlock(&pridebugfdlock);
 }
@@ -11417,7 +11423,9 @@ static char *complete_span_helper(const char *line, const char *word, int pos, i
 
 	for (which = span = 0; span < NUM_SPANS; span++) {
 		if (pris[span].pri && ++which > state) {
-			asprintf(&ret, "%d", span + 1);	/* user indexes start from 1 */
+			if (asprintf(&ret, "%d", span + 1) < 0) {	/* user indexes start from 1 */
+				ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+			}
 			break;
 		}
 	}

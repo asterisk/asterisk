@@ -126,7 +126,9 @@ static int gsm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 		int i;
 		fseeko(fs->f, 0, SEEK_END);
 		for (i=0; i< (offset - max) / GSM_FRAME_SIZE; i++) {
-			fwrite(gsm_silence, 1, GSM_FRAME_SIZE, fs->f);
+			if (!fwrite(gsm_silence, 1, GSM_FRAME_SIZE, fs->f)) {
+				ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+			}
 		}
 	}
 	return fseeko(fs->f, offset, SEEK_SET);

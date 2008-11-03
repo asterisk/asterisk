@@ -1375,10 +1375,15 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 	if (o->mixer_cmd) {
 		char *cmd;
 
-		asprintf(&cmd, "mixer %s", o->mixer_cmd);
-		ast_log(LOG_WARNING, "running [%s]\n", cmd);
-		system(cmd);
-		ast_free(cmd);
+		if (asprintf(&cmd, "mixer %s", o->mixer_cmd) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+		} else {
+			ast_log(LOG_WARNING, "running [%s]\n", cmd);
+			if (system(cmd) < 0) {
+				ast_log(LOG_WARNING, "system() failed: %s\n", strerror(errno));
+			}
+			ast_free(cmd);
+		}
 	}
 	if (o == &oss_default)		/* we are done with the default */
 		return NULL;

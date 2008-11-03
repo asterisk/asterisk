@@ -1204,8 +1204,11 @@ static void hup_handler(int num)
 	if (restartnow)
 		execvp(_argv[0], _argv);
 	sig_flags.need_reload = 1;
-	if (sig_alert_pipe[1] != -1)
-		write(sig_alert_pipe[1], &a, sizeof(a));
+	if (sig_alert_pipe[1] != -1) {
+		if (write(sig_alert_pipe[1], &a, sizeof(a)) < 0) {
+			fprintf(stderr, "hup_handler: write() failed: %s\n", strerror(errno));
+		}
+	}
 	signal(num, hup_handler);
 }
 
@@ -1420,8 +1423,11 @@ static void __quit_handler(int num)
 {
 	int a = 0;
 	sig_flags.need_quit = 1;
-	if (sig_alert_pipe[1] != -1)
-		write(sig_alert_pipe[1], &a, sizeof(a));
+	if (sig_alert_pipe[1] != -1) {
+		if (write(sig_alert_pipe[1], &a, sizeof(a)) < 0) {
+			fprintf(stderr, "hup_handler: write() failed: %s\n", strerror(errno));
+		}
+	}
 	/* There is no need to restore the signal handler here, since the app
 	 * is going to exit */
 }
@@ -1800,7 +1806,7 @@ static char *show_warranty(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		return NULL;
 	}
 
-	ast_cli(a->fd, warranty_lines);
+	ast_cli(a->fd, "%s", warranty_lines);
 
 	return CLI_SUCCESS;
 }
@@ -1837,7 +1843,7 @@ static char *show_license(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 		return NULL;
 	}
 
-	ast_cli(a->fd, license_lines);
+	ast_cli(a->fd, "%s", license_lines);
 
 	return CLI_SUCCESS;
 }
@@ -1957,9 +1963,12 @@ static int ast_el_read_char(EditLine *el, char *cp)
 			}
 
 			/* Write over the CLI prompt */
-			if (!ast_opt_exec && !lastpos)
-				write(STDOUT_FILENO, "\r", 1);
-			write(STDOUT_FILENO, buf, res);
+			if (!ast_opt_exec && !lastpos) {
+				if (write(STDOUT_FILENO, "\r", 1) < 0) {
+				}
+			}
+			if (write(STDOUT_FILENO, buf, res) < 0) {
+			}
 			if ((res < EL_BUF_SIZE - 1) && ((buf[res-1] == '\n') || (buf[res-2] == '\n'))) {
 				*cp = CC_REFRESH;
 				return(1);
@@ -2036,8 +2045,13 @@ static char *cli_prompt(EditLine *el)
 					if ((LOADAVG = fopen("/proc/loadavg", "r"))) {
 						float avg1, avg2, avg3;
 						int actproc, totproc, npid, which;
-						fscanf(LOADAVG, "%f %f %f %d/%d %d",
-							&avg1, &avg2, &avg3, &actproc, &totproc, &npid);
+
+						if (fscanf(LOADAVG, "%f %f %f %d/%d %d",
+							   &avg1, &avg2, &avg3, &actproc, &totproc, &npid) != 6) {
+							ast_log(LOG_WARNING, "parsing /proc/loadavg failed\n");
+							fclose(LOADAVG);
+							break;
+						}
 						if (sscanf(t, "%d", &which) == 1) {
 							switch (which) {
 							case 1:
@@ -2057,6 +2071,7 @@ static char *cli_prompt(EditLine *el)
 								break;
 							}
 						}
+						fclose(LOADAVG);
 					}
 					break;
 #endif
@@ -2388,7 +2403,9 @@ static int ast_el_read_history(char *filename)
 		return ret;
 
 	while (!feof(f)) {
-		fgets(buf, sizeof(buf), f);
+		if (!fgets(buf, sizeof(buf), f)) {
+			continue;
+		}
 		if (!strcmp(buf, "_HiStOrY_V2_\n"))
 			continue;
 		if (ast_all_zeros(buf))
@@ -2401,7 +2418,7 @@ static int ast_el_read_history(char *filename)
 	return ret;
 }
 
-static void ast_remotecontrol(char * data)
+static void ast_remotecontrol(char *data)
 {
 	char buf[80];
 	int res;
@@ -2416,9 +2433,15 @@ static void ast_remotecontrol(char * data)
 	char *ebuf;
 	int num = 0;
 
-	read(ast_consock, buf, sizeof(buf));
-	if (data)
-		write(ast_consock, data, strlen(data) + 1);
+	if (read(ast_consock, buf, sizeof(buf)) < 0) {
+		ast_log(LOG_ERROR, "read() failed: %s\n", strerror(errno));
+		return;
+	}
+	if (data) {
+		if (write(ast_consock, data, strlen(data) + 1) < 0) {
+			ast_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
+		}
+	}
 	stringp = buf;
 	hostname = strsep(&stringp, "/");
 	cpid = strsep(&stringp, "/");
@@ -2476,7 +2499,9 @@ static void ast_remotecontrol(char * data)
 				/* Skip verbose lines */
 				if (*curline != 127) {
 					not_written = 0;
-					write(STDOUT_FILENO, curline, nextline - curline);
+					if (write(STDOUT_FILENO, curline, nextline - curline) < 0) {
+						ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+					}
 				}
 				curline = nextline;
 			} while (!ast_strlen_zero(curline));
@@ -2792,7 +2817,8 @@ static void *monitor_sig_flags(void *unused)
 			sig_flags.need_quit = 0;
 			quit_handler(0, 0, 1, 0);
 		}
-		read(sig_alert_pipe[0], &a, sizeof(a));
+		if (read(sig_alert_pipe[0], &a, sizeof(a)) != sizeof(a)) {
+		}
 	}
 
 	return NULL;
@@ -3218,7 +3244,9 @@ int main(int argc, char *argv[])
 #if HAVE_WORKING_FORK
 	if (ast_opt_always_fork || !ast_opt_no_fork) {
 #ifndef HAVE_SBIN_LAUNCHD
-		daemon(1, 0);
+		if (daemon(1, 0) < 0) {
+			ast_log(LOG_ERROR, "daemon() failed: %s\n", strerror(errno));
+		}
 		ast_mainpid = getpid();
 		/* Blindly re-write pid file since we are forking */
 		unlink(ast_config_AST_PID);
