@@ -7740,7 +7740,7 @@ out:
 	/* expunge message - use UID Expunge if supported on IMAP server*/
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "*** Checking if we can expunge, deleted set to %d, expungeonhangup set to %d\n",deleted,expungeonhangup);
-	if (vmu && deleted == 1 && expungeonhangup == 1) {
+	if (vmu && deleted == 1 && expungeonhangup == 1 && vms.mailstream != NULL) {
 #ifdef HAVE_IMAP_TK2006
 		if (LEVELUIDPLUS (vms.mailstream)) {
 			mail_expunge_full(vms.mailstream,NIL,EX_UID);
