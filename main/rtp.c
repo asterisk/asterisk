@@ -66,8 +66,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static int dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 
-static int rtpstart;			/*!< First port for RTP sessions (set in rtp.conf) */
-static int rtpend;			/*!< Last port for RTP sessions (set in rtp.conf) */
+static int rtpstart = 5000;     /*!< First port for RTP sessions (set in rtp.conf) */
+static int rtpend = 31000;      /*!< Last port for RTP sessions (set in rtp.conf) */
 static int rtpdebug;			/*!< Are we debugging? */
 static int rtcpdebug;			/*!< Are we debugging RTCP? */
 static int rtcpstats;			/*!< Are we debugging RTCP? */
@@ -2248,7 +2248,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	 * next one, cannot be enforced in presence of a NAT box because the
 	 * mapping is not under our control.
 	 */
-	x = (ast_random() % (rtpend-rtpstart)) + rtpstart;
+	x = (rtpend == rtpstart) ? rtpstart : (ast_random() % (rtpend - rtpstart)) + rtpstart;
 	x = x & ~1;		/* make it an even number */
 	startplace = x;		/* remember the starting point */
 	/* this is constant across the loop */
