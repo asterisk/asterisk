@@ -723,10 +723,16 @@ static char *complete_context_remove_extension_deprecated(const char *line, cons
 						if (++which > state) {
 							/* If there is an extension then return exten@context. */
 							if (ast_get_extension_matchcid(e) && (!strchr(word, '@') || strchr(word, '/'))) {
-								asprintf(&ret, "%s/%s@%s", ast_get_extension_name(e), ast_get_extension_cidmatch(e), ast_get_context_name(c));
+								if (asprintf(&ret, "%s/%s@%s", ast_get_extension_name(e), ast_get_extension_cidmatch(e), ast_get_context_name(c)) < 0) {
+									ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+									ret = NULL;
+								}
 								break;
 							} else if (!ast_get_extension_matchcid(e) && !strchr(word, '/')) {
-								asprintf(&ret, "%s@%s", ast_get_extension_name(e), ast_get_context_name(c));
+								if (asprintf(&ret, "%s@%s", ast_get_extension_name(e), ast_get_context_name(c)) < 0) {
+									ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+									ret = NULL;
+								}
 								break;
 							}
 						}
@@ -863,10 +869,16 @@ static char *complete_context_remove_extension(const char *line, const char *wor
 						if (++which > state) {
 							/* If there is an extension then return exten@context. */
 							if (ast_get_extension_matchcid(e) && (!strchr(word, '@') || strchr(word, '/'))) {
-								asprintf(&ret, "%s/%s@%s", ast_get_extension_name(e), ast_get_extension_cidmatch(e), ast_get_context_name(c));
+								if (asprintf(&ret, "%s/%s@%s", ast_get_extension_name(e), ast_get_extension_cidmatch(e), ast_get_context_name(c)) < 0) {
+									ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+									ret = NULL;
+								}
 								break;
 							} else if (!ast_get_extension_matchcid(e) && !strchr(word, '/')) {
-								asprintf(&ret, "%s@%s", ast_get_extension_name(e), ast_get_context_name(c));
+								if (asprintf(&ret, "%s@%s", ast_get_extension_name(e), ast_get_context_name(c)) < 0) {
+									ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+									ret = NULL;
+								}
 								break;
 							}
 						}

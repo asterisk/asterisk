@@ -265,11 +265,18 @@ static char *build_filename(const char *filename, const char *ext)
 	if (!strcmp(ext, "wav49"))
 		ext = "WAV";
 
-	if (filename[0] == '/')
-		asprintf(&fn, "%s.%s", filename, ext);
-	else
-		asprintf(&fn, "%s/sounds/%s.%s",
-			ast_config_AST_DATA_DIR, filename, ext);
+	if (filename[0] == '/') {
+		if (asprintf(&fn, "%s.%s", filename, ext) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+			fn = NULL;
+		}
+	} else {
+		if (asprintf(&fn, "%s/sounds/%s.%s",
+			     ast_config_AST_DATA_DIR, filename, ext) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+			fn = NULL;
+		}
+	}
 	return fn;
 }
 

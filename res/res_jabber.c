@@ -629,8 +629,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 				sprintf(secret, "%s%s", pak->id, client->password);
 				ast_sha1_hash(shasum, secret);
 				handshake = NULL;
-				asprintf(&handshake, "<handshake>%s</handshake>", shasum);
-				if (handshake) {
+				if (asprintf(&handshake, "<handshake>%s</handshake>", shasum) > 0) {
 					iks_send_raw(client->p, handshake);
 					free(handshake);
 					handshake = NULL;
@@ -2205,8 +2204,7 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	}
 	if (!strchr(client->user, '/') && !client->component) { /*client */
 		resource = NULL;
-		asprintf(&resource, "%s/asterisk", client->user);
-		if (resource) {
+		if (asprintf(&resource, "%s/asterisk", client->user) > 0) {
 			client->jid = iks_id_new(client->stack, resource);
 			free(resource);
 		}
@@ -2222,8 +2220,7 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	}
 	if (!strchr(client->user, '/') && !client->component) { /*client */
 		resource = NULL;
-		asprintf(&resource, "%s/asterisk", client->user);
-		if (resource) {
+		if (asprintf(&resource, "%s/asterisk", client->user) > 0) {
 			client->jid = iks_id_new(client->stack, resource);
 			free(resource);
 		}

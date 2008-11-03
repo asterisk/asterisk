@@ -231,20 +231,23 @@ static struct ast_http_uri staticuri = {
 char *ast_http_error(int status, const char *title, const char *extra_header, const char *text)
 {
 	char *c = NULL;
-	asprintf(&c,
-		"Content-type: text/html\r\n"
-		"%s"
-		"\r\n"
-		"<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\r\n"
-		"<html><head>\r\n"
-		"<title>%d %s</title>\r\n"
-		"</head><body>\r\n"
-		"<h1>%s</h1>\r\n"
-		"<p>%s</p>\r\n"
-		"<hr />\r\n"
-		"<address>Asterisk Server</address>\r\n"
-		"</body></html>\r\n",
-			(extra_header ? extra_header : ""), status, title, title, text);
+	if (asprintf(&c,
+		     "Content-type: text/html\r\n"
+		     "%s"
+		     "\r\n"
+		     "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\r\n"
+		     "<html><head>\r\n"
+		     "<title>%d %s</title>\r\n"
+		     "</head><body>\r\n"
+		     "<h1>%s</h1>\r\n"
+		     "<p>%s</p>\r\n"
+		     "<hr />\r\n"
+		     "<address>Asterisk Server</address>\r\n"
+		     "</body></html>\r\n",
+		     (extra_header ? extra_header : ""), status, title, title, text) < 0) {
+		ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+		c = NULL;
+	}
 	return c;
 }
 

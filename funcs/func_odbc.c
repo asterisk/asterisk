@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 #include "asterisk/module.h"
 #include "asterisk/file.h"
@@ -405,6 +406,7 @@ static struct ast_custom_function escape_function = {
 static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_query **query)
 {
 	const char *tmp;
+	int res;
 
 	if (!cfg || !catg) {
 		return -1;
@@ -449,9 +451,13 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "prefix")) && !ast_strlen_zero(tmp)) {
-		asprintf((char **)&((*query)->acf->name), "%s_%s", tmp, catg);
+		if (asprintf((char **)&((*query)->acf->name), "%s_%s", tmp, catg) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+		}
 	} else {
-		asprintf((char **)&((*query)->acf->name), "ODBC_%s", catg);
+		if (asprintf((char **)&((*query)->acf->name), "ODBC_%s", catg) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+		}
 	}
 
 	if (!((*query)->acf->name)) {
@@ -461,7 +467,10 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		return -1;
 	}
 
-	asprintf((char **)&((*query)->acf->syntax), "%s(<arg1>[...[,<argN>]])", (*query)->acf->name);
+	if (asprintf((char **)&((*query)->acf->syntax), "%s(<arg1>[...[,<argN>]])", (*query)->acf->name) < 0) {
+		ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+		(*query)->acf->syntax = NULL;
+	}
 
 	if (!((*query)->acf->syntax)) {
 		free((char *)(*query)->acf->name);
@@ -471,36 +480,42 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		return -1;
 	}
 
+	res = 0;
 	(*query)->acf->synopsis = "Runs the referenced query with the specified arguments";
 	if (!ast_strlen_zero((*query)->sql_read) && !ast_strlen_zero((*query)->sql_write)) {
-		asprintf((char **)&((*query)->acf->desc),
-					"Runs the following query, as defined in func_odbc.conf, performing\n"
-				   	"substitution of the arguments into the query as specified by ${ARG1},\n"
-					"${ARG2}, ... ${ARGn}.  When setting the function, the values are provided\n"
-					"either in whole as ${VALUE} or parsed as ${VAL1}, ${VAL2}, ... ${VALn}.\n"
-					"\nRead:\n%s\n\nWrite:\n%s\n",
-					(*query)->sql_read,
-					(*query)->sql_write);
+		res = asprintf((char **)&((*query)->acf->desc),
+			       "Runs the following query, as defined in func_odbc.conf, performing\n"
+			       "substitution of the arguments into the query as specified by ${ARG1},\n"
+			       "${ARG2}, ... ${ARGn}.  When setting the function, the values are provided\n"
+			       "either in whole as ${VALUE} or parsed as ${VAL1}, ${VAL2}, ... ${VALn}.\n"
+			       "\nRead:\n%s\n\nWrite:\n%s\n",
+			       (*query)->sql_read,
+			       (*query)->sql_write);
 	} else if (!ast_strlen_zero((*query)->sql_read)) {
-		asprintf((char **)&((*query)->acf->desc),
-					"Runs the following query, as defined in func_odbc.conf, performing\n"
-				   	"substitution of the arguments into the query as specified by ${ARG1},\n"
-					"${ARG2}, ... ${ARGn}.  This function may only be read, not set.\n\nSQL:\n%s\n",
-					(*query)->sql_read);
+		res = asprintf((char **)&((*query)->acf->desc),
+			       "Runs the following query, as defined in func_odbc.conf, performing\n"
+			       "substitution of the arguments into the query as specified by ${ARG1},\n"
+			       "${ARG2}, ... ${ARGn}.  This function may only be read, not set.\n\nSQL:\n%s\n",
+			       (*query)->sql_read);
 	} else if (!ast_strlen_zero((*query)->sql_write)) {
-		asprintf((char **)&((*query)->acf->desc),
-					"Runs the following query, as defined in func_odbc.conf, performing\n"
-				   	"substitution of the arguments into the query as specified by ${ARG1},\n"
-					"${ARG2}, ... ${ARGn}.  The values are provided either in whole as\n"
-					"${VALUE} or parsed as ${VAL1}, ${VAL2}, ... ${VALn}.\n"
-					"This function may only be set.\nSQL:\n%s\n",
-					(*query)->sql_write);
+		res = asprintf((char **)&((*query)->acf->desc),
+			       "Runs the following query, as defined in func_odbc.conf, performing\n"
+			       "substitution of the arguments into the query as specified by ${ARG1},\n"
+			       "${ARG2}, ... ${ARGn}.  The values are provided either in whole as\n"
+			       "${VALUE} or parsed as ${VAL1}, ${VAL2}, ... ${VALn}.\n"
+			       "This function may only be set.\nSQL:\n%s\n",
+			       (*query)->sql_write);
 	} else {
 		ast_log(LOG_ERROR, "No SQL was found for func_odbc class '%s'\n", catg);
 	}
 
+	if (res < 0) {
+		ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+		(*query)->acf->desc = NULL;
+	}
+
 	/* Could be out of memory, or could be we have neither sql_read nor sql_write */
-	if (! ((*query)->acf->desc)) {
+	if (!((*query)->acf->desc)) {
 		free((char *)(*query)->acf->syntax);
 		free((char *)(*query)->acf->name);
 		free((*query)->acf);
