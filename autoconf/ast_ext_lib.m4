@@ -10,11 +10,15 @@ AC_DEFUN([AST_EXT_LIB_SETUP],
 [
     $1_DESCRIP="$2"
     $1_OPTION="$3"
+    PBX_$1=0
     AC_ARG_WITH([$3], AC_HELP_STRING([--with-$3=PATH],[use $2 files in PATH $4]),
     [
 	case ${withval} in
 	n|no)
 	USE_$1=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_$1=-1
 	;;
 	y|ye|yes)
 	ac_mandatory_list="${ac_mandatory_list} $1"
@@ -25,7 +29,6 @@ AC_DEFUN([AST_EXT_LIB_SETUP],
 	;;
 	esac
     ])
-    PBX_$1=0
     AC_SUBST([$1_LIB])
     AC_SUBST([$1_INCLUDE])
     AC_SUBST([$1_DIR])
