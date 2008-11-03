@@ -106,6 +106,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Removes last label on the stack, discarding it.</para>
 		</description>
 	</application>
+	<function name="LOCAL" language="en_US">
+		<synopsis>
+			Manage variables local to the gosub stack frame.
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+		</syntax>
+		<description>
+			<para>Read and write a variable local to the gosub stack frame, once we Return() it will be lost
+			(or it will go back to whatever value it had before the Gosub()).</para>
+		</description>
+		<see-also>
+			<ref type="application">Gosub</ref>
+			<ref type="application">GosubIf</ref>
+			<ref type="application">Return</ref>
+		</see-also>
+	</function>
  ***/
 
 static const char *app_gosub = "Gosub";
@@ -431,8 +448,6 @@ static int local_write(struct ast_channel *chan, const char *cmd, char *var, con
 
 static struct ast_custom_function local_function = {
 	.name = "LOCAL",
-	.synopsis = "Variables local to the gosub stack frame",
-	.syntax = "LOCAL(<varname>)",
 	.write = local_write,
 	.read = local_read,
 };
