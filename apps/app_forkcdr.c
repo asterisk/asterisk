@@ -37,91 +37,110 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/module.h"
 
-static char *app = "ForkCDR";
-static char *synopsis = 
-"Forks the Call Data Record";
-static char *descrip = 
-"  ForkCDR([options]):  Causes the Call Data Record to fork an additional\n"
-"cdr record starting from the time of the fork call. This new cdr record will\n"
-"be linked to end of the list of cdr records attached to the channel. The original CDR is\n"
-"has a LOCKED flag set, which forces most cdr operations to skip it, except\n"
-"for the functions that set the answer and end times, which ignore the LOCKED\n"
-"flag. This allows all the cdr records in the channel to be 'ended' together\n"
-"when the channel is closed.\n"
-"The CDR() func (when setting CDR values) normally ignores the LOCKED flag also,\n"
-"but has options to vary its behavior. The 'T' option (described below), can\n"
-"override this behavior, but beware the risks.\n"
-"\n"
-"Detailed Behavior Description:\n"
-"First, this app finds the last cdr record in the list, and makes\n"
-"a copy of it. This new copy will be the newly forked cdr record.\n"
-"Next, this new record is linked to the end of the cdr record list.\n"
-"Next, The new cdr record is RESET (unless you use an option to prevent this)\n"
-"This means that:\n"
-"   1. All flags are unset on the cdr record\n"
-"   2. the start, end, and answer times are all set to zero.\n"
-"   3. the billsec and duration fields are set to zero.\n"
-"   4. the start time is set to the current time.\n"
-"   5. the disposition is set to NULL.\n"
-"Next, unless you specified the 'v' option, all variables will be\n"
-"removed from the original cdr record. Thus, the 'v' option allows\n"
-"any CDR variables to be replicated to all new forked cdr records.\n"
-"Without the 'v' option, the variables on the original are effectively\n"
-"moved to the new forked cdr record.\n"
-"Next, if the 's' option is set, the provided variable and value\n"
-"are set on the original cdr record.\n"
-"Next, if the 'a' option is given, and the original cdr record has an\n"
-"answer time set, then the new forked cdr record will have its answer\n"
-"time set to its start time. If the old answer time were carried forward,\n"
-"the answer time would be earlier than the start time, giving strange\n"
-"duration and billsec times.\n"
-"Next, if the 'd' option was specified, the disposition is copied from\n"
-"the original cdr record to the new forked cdr.\n"
-"Next, if the 'D' option was specified, the destination channel field\n"
-"in the new forked CDR is erased.\n"
-"Next, if the 'e' option was specified, the 'end' time for the original\n"
-"cdr record is set to the current time. Future hang-up or ending events\n"
-"will not override this time stamp.\n"
-"Next, If the 'A' option is specified, the original cdr record will have\n"
-"it ANS_LOCKED flag set, which prevent future answer events\n"
-"from updating the original cdr record's disposition. Normally, an\n"
-"'ANSWERED' event would mark all cdr records in the chain as 'ANSWERED'.\n"
-"Next, if the 'T' option is specified, the original cdr record will have\n"
-"its 'DONT_TOUCH' flag set, which will force the cdr_answer, cdr_end, and\n"
-"cdr_setvar functions to leave that cdr record alone.\n"
-"And, last but not least, the original cdr record has its LOCKED flag\n"
-"set. Almost all internal CDR functions (except for the funcs that set\n"
-"the end, and answer times, and set a variable) will honor this flag\n"
-"and leave a LOCKED cdr record alone.\n"
-"This means that the newly created forked cdr record will affected\n"
-"by events transpiring within Asterisk, with the previously noted\n"
-"exceptions.\n"
-"  Options:\n"
-"    a - update the answer time on the NEW CDR just after it's been inited..\n"
-"         The new CDR may have been answered already, the reset that forkcdr.\n"
-"         does will erase the answer time. This will bring it back, but\n"
-"         the answer time will be a copy of the fork/start time. It will.\n"
-"         only do this if the initial cdr was indeed already answered..\n"
-"    A - Lock the original CDR against the answer time being updated.\n"
-"         This will allow the disposition on the original CDR to remain the same.\n"
-"    d - Copy the disposition forward from the old cdr, after the .\n"
-"         init..\n"
-"    D - Clear the dstchannel on the new CDR after reset..\n"
-"    e - end the original CDR. Do this after all the necc. data.\n"
-"         is copied from the original CDR to the new forked CDR..\n"
-"    R -  do NOT reset the new cdr..\n"
-"    s(name=val) - Set the CDR var 'name' in the original CDR, with value.\n"
-"                  'val'.\n"
-"    T -  Mark the original CDR with a DONT_TOUCH flag. setvar, answer, and end\n"
-"          cdr funcs will obey this flag; normally they don't honor the LOCKED\n"
-"          flag set on the original CDR record.\n"
-"          Beware-- using this flag may cause CDR's not to have their end times\n"
-"          updated! It is suggested that if you specify this flag, you might\n"
-"          wish to use the 'e' flag as well!\n"
-"    v  - When the new CDR is forked, it gets a copy of the vars attached\n"
-"         to the current CDR. The vars attached to the original CDR are removed\n"
-"         unless this option is specified.\n";
+/*** DOCUMENTATION
+	<application name="ForkCDR" language="en_US">
+		<synopsis>
+			Forks the Call Data Record.
+		</synopsis>
+		<syntax>
+			<parameter name="options">
+				<optionlist>
+					<option name="a">
+						<para>Update the answer time on the NEW CDR just after it's been inited.
+						The new CDR may have been answered already, the reset that forkcdr does
+						will erase the answer time. This will bring it back, but the answer time
+						will be a copy of the fork/start time. It will only do this if the initial
+						cdr was indeed already answered.</para>
+					</option>
+					<option name="A">
+						<para>Lock the original CDR against the answer time being updated. This
+						will allow the disposition on the original CDR to remain the same.</para>
+					</option>
+					<option name="d">
+						<para>Copy the disposition forward from the old cdr, after the init.</para>
+					</option>
+					<option name="D">
+						<para>Clear the <literal>dstchannel</literal> on the new CDR after
+						reset.</para>
+					</option>
+					<option name="e">
+						<para>End the original CDR. Do this after all the necc. data.</para>
+					</option>
+					<option name="r">
+						<para>Do <emphasis>NOT</emphasis> reset the new cdr.</para>
+					</option>
+					<option name="s(name=val)">
+						<para>Set the CDR var <replaceable>name</replaceable> in the original CDR,
+						with value <replaceable>val</replaceable></para>.
+					</option>
+					<option name="T">
+						<para>Mark the original CDR with a DONT_TOUCH flag. setvar, answer, and end
+						cdr funcs will obey this flag; normally they don't honor the LOCKED flag
+						set on the original CDR record.</para>
+						<note><para>Using this flag may cause CDR's not to have their end times
+						updated! It is suggested that if you specify this flag, you might wish
+						to use the <literal>e</literal> flag as well!.</para></note>
+					</option>
+					<option name="v">
+						<para>When the new CDR is forked, it gets a copy of the vars attached to
+						the current CDR. The vars attached to the original CDR are removed unless
+						this option is specified.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para> Causes the Call Data Record to fork an additional cdr record starting from the time
+			of the fork call. This new cdr record will be linked to end of the list of cdr records attached
+			to the channel.	The original CDR has a LOCKED flag set, which forces most cdr operations to skip
+			it, except for the functions that set the answer and end times, which ignore the LOCKED flag. This
+			allows all the cdr records in the channel to be 'ended' together when the channel is closed.</para>
+			<para>The CDR() func (when setting CDR values) normally ignores the LOCKED flag also, but has options
+			to vary its behavior. The 'T' option (described below), can override this behavior, but beware
+			the risks.</para>
+			<para>First, this app finds the last cdr record in the list, and makes a copy of it. This new copy
+			will be the newly forked cdr record. Next, this new record is linked to the end of the cdr record list.
+			Next, The new cdr record is RESET (unless you use an option to prevent this)</para>
+			<para>This means that:</para>
+			<para>   1. All flags are unset on the cdr record</para>
+			<para>   2. the start, end, and answer times are all set to zero.</para>
+			<para>   3. the billsec and duration fields are set to zero.</para>
+			<para>   4. the start time is set to the current time.</para>
+			<para>   5. the disposition is set to NULL.</para>
+			<para>Next, unless you specified the <literal>v</literal> option, all variables will be removed from
+			the original cdr record. Thus, the <literal>v</literal> option allows any CDR variables to be replicated
+			to all new forked cdr records. Without the <literal>v</literal> option, the variables on the original
+			are effectively moved to the new forked cdr record.</para>
+			<para>Next, if the <literal>s</literal> option is set, the provided variable and value are set on the
+			original cdr record.</para>
+			<para>Next, if the <literal>a</literal> option is given, and the original cdr record has an answer time
+			set, then the new forked cdr record will have its answer time set to its start time. If the old answer
+			time were carried forward, the answer time would be earlier than the start time, giving strange
+			duration and billsec times.</para>
+			<para>If the <literal>d</literal> option was specified, the disposition is copied from
+			the original cdr record to the new forked cdr. If the <literal>D</literal> option was specified,
+			the destination channel field in the new forked CDR is erased. If the <literal>e</literal> option
+			was specified, the 'end' time for the original cdr record is set to the current time. Future hang-up or
+			ending events will not override this time stamp. If the <literal>A</literal> option is specified,
+			the original cdr record will have it ANS_LOCKED flag set, which prevent future answer events from updating
+			the original cdr record's disposition. Normally, an <literal>ANSWERED</literal> event would mark all cdr
+			records in the chain as <literal>ANSWERED</literal>. If the <literal>T</literal> option is specified,
+			the original cdr record will have its <literal>DONT_TOUCH</literal> flag set, which will force the
+			cdr_answer, cdr_end, and cdr_setvar functions to leave that cdr record alone.</para>
+			<para>And, last but not least, the original cdr record has its LOCKED flag set. Almost all internal
+			CDR functions (except for the funcs that set the end, and answer times, and set a variable) will honor
+			this flag and leave a LOCKED cdr record alone. This means that the newly created forked cdr record
+			will be affected by events transpiring within Asterisk, with the previously noted exceptions.</para>
+		</description>
+		<see-also>
+			<ref type="function">CDR</ref>
+			<ref type="application">NoCDR</ref>
+			<ref type="application">ResetCDR</ref>
+		</see-also>
+	</application>
+ ***/
 
+static char *app = "ForkCDR";
 
 enum {
 	OPT_SETANS =            (1 << 0),
@@ -247,7 +266,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, forkcdr_exec, synopsis, descrip);
+	return ast_register_application_xml(app, forkcdr_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Fork The CDR into 2 separate entities");
