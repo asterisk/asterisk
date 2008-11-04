@@ -504,7 +504,7 @@ ifeq ($(XMLSTARLET),:)
 	@echo "--- Please install xmlstarlet to validate the documentation ---"
 	@echo "---------------------------------------------------------------"
 else
-	$(XMLSTARLET) val $<
+	$(XMLSTARLET) val -d doc/appdocsxml.dtd $<
 endif
 
 update: 
