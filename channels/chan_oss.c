@@ -34,7 +34,7 @@
  */
 
 /*** MODULEINFO
-	<depend>ossaudio</depend>
+	<depend>oss</depend>
  ***/
 
 #include "asterisk.h"

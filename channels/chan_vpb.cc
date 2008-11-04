@@ -30,7 +30,7 @@
  */
 
 /*** MODULEINFO
-	<depend>vpbapi</depend>
+	<depend>vpb</depend>
  ***/
 
 #include <vpbapi.h>

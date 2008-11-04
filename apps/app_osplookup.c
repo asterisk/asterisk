@@ -30,7 +30,7 @@
 
 /*** MODULEINFO
 	<depend>osptk</depend>
-	<depend>ssl</depend>
+	<depend>openssl</depend>
  ***/
 
 #include "asterisk.h"

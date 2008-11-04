@@ -27,7 +27,7 @@
  */
 
 /*** MODULEINFO
-	<depend>unixodbc_or_iodbc</depend>
+	<depend>odbc</depend>
 	<depend>ltdl</depend>
 	<depend>res_odbc</depend>
 	<use>unixodbc</use>

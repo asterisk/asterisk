@@ -683,7 +683,7 @@ HOST_CPU
 HOST_VENDOR
 HOST_OS
 OSARCH
-WINARCH
+PBX_WINARCH
 UNAME
 PBX_OSREV
 CXX
@@ -4116,7 +4116,7 @@ HOST_OS=${host_os}
 
 
 
-WINARCH=0
+PBX_WINARCH=0
 
 case "${host_os}" in
      freebsd*)
@@ -4133,11 +4133,11 @@ case "${host_os}" in
      ;;
      mingw32)
      OSARCH=mingw32
-     WINARCH=1
+     PBX_WINARCH=1
      ;;
      cygwin)
      OSARCH=cygwin
-     WINARCH=1
+     PBX_WINARCH=1
      ;;
      *)
      OSARCH=${host_os}
@@ -50960,6 +50960,16 @@ echo "$as_me: *** including --without-${a}." >&6;}
 echo "${ECHO_T}ok" >&6; }
 
 
+if test -f build_tools/menuselect-deps; then
+    # extract old values of all PBX_ variables from menuselect-deps
+    # and preserve them so that menuselect can determine whether
+    # any previously-met dependencies are no longer met and warn
+    # the user appropriately
+    while IFS="=:" read var val old_val; do
+        eval "PBX_${var}=\${PBX_${var}}:${val}"
+    done < build_tools/menuselect-deps
+fi
+
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
 # tests run on this system so they can be shared between configure
@@ -51642,7 +51652,7 @@ HOST_CPU!$HOST_CPU$ac_delim
 HOST_VENDOR!$HOST_VENDOR$ac_delim
 HOST_OS!$HOST_OS$ac_delim
 OSARCH!$OSARCH$ac_delim
-WINARCH!$WINARCH$ac_delim
+PBX_WINARCH!$PBX_WINARCH$ac_delim
 UNAME!$UNAME$ac_delim
 PBX_OSREV!$PBX_OSREV$ac_delim
 CXX!$CXX$ac_delim

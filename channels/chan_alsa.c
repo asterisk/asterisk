@@ -28,7 +28,7 @@
  */
 
 /*** MODULEINFO
-	<depend>asound</depend>
+	<depend>alsa</depend>
  ***/
 
 #include "asterisk.h"
