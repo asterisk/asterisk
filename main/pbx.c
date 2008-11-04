@@ -6468,7 +6468,7 @@ int ast_load_documentation(void)
 	ast_asprintf(&xmlpattern, "%s/documentation{/thirdparty/,/}*-{%s,%.2s_??,%s}.xml", ast_config_AST_DATA_DIR,
 			documentation_language, documentation_language, default_documentation_language);
 	globbuf.gl_offs = 0;    /* initialize it to silence gcc */
-	globret = glob(xmlpattern, MY_GLOB_FLAGS | GLOB_BRACE, NULL, &globbuf);
+	globret = glob(xmlpattern, MY_GLOB_FLAGS, NULL, &globbuf);
 	if (globret == GLOB_NOSPACE) {
 		ast_log(LOG_WARNING, "Glob Expansion of pattern '%s' failed: Not enough memory\n", xmlpattern);
 		ast_free(xmlpattern);
