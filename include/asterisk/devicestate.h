@@ -73,14 +73,15 @@ enum ast_device_state ast_state_chan2dev(enum ast_channel_state chanstate);
  *
  * \param devstate Current device state 
  */
-const char *devstate2str(enum ast_device_state devstate);
+const char *devstate2str(enum ast_device_state devstate) attribute_pure __attribute__ ((deprecated));
+const char *ast_devstate2str(enum ast_device_state devstate) attribute_pure;
 
 /*! 
  * \brief Convert device state to text string that is easier to parse 
  *
  * \param devstate Current device state 
  */
-const char *ast_devstate_str(enum ast_device_state devstate);
+const char *ast_devstate_str(enum ast_device_state devstate) attribute_pure;
 
 /*! 
  * \brief Convert device state from text to integer value

@@ -1007,9 +1007,9 @@ static int handle_statechange(void *datap)
 	}
 
 	if (found)
-		ast_debug(1, "Device '%s' changed to state '%d' (%s)\n", sc->dev, sc->state, devstate2str(sc->state));
+		ast_debug(1, "Device '%s' changed to state '%d' (%s)\n", sc->dev, sc->state, ast_devstate2str(sc->state));
 	else
-		ast_debug(3, "Device '%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", sc->dev, sc->state, devstate2str(sc->state));
+		ast_debug(3, "Device '%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", sc->dev, sc->state, ast_devstate2str(sc->state));
 
 	ast_free(sc);
 	return 0;
@@ -5692,7 +5692,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 					mem->dynamic ? " (dynamic)" : "",
 					mem->realtime ? " (realtime)" : "",
 					mem->paused ? " (paused)" : "",
-					devstate2str(mem->status));
+					ast_devstate2str(mem->status));
 				if (mem->calls)
 					ast_str_append(&out, 0, " has taken %d calls (last was %ld secs ago)",
 						mem->calls, (long) (time(NULL) - mem->lastcall));

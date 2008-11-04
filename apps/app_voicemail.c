@@ -1177,7 +1177,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 		/* save the results */
 		reset_user_pw(vmu->context, vmu->mailbox, newpassword);
 		ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
-		config_text_file_save(VOICEMAIL_CONFIG, cfg, "AppVoicemail");
+		ast_config_text_file_save(VOICEMAIL_CONFIG, cfg, "AppVoicemail");
 	}
 	category = NULL;
 	var = NULL;
@@ -1207,7 +1207,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 		/* save the results and clean things up */
 		reset_user_pw(vmu->context, vmu->mailbox, newpassword);	
 		ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
-		config_text_file_save("users.conf", cfg, "AppVoicemail");
+		ast_config_text_file_save("users.conf", cfg, "AppVoicemail");
 	}
 }
 
@@ -5928,7 +5928,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 				msg_cat = ast_category_get(msg_cfg, "message");
 				snprintf(duration_buf, 11, "%ld", *duration);
 				if (!ast_variable_update(msg_cat, "duration", duration_buf, NULL, 0)) {
-					config_text_file_save(textfile, msg_cfg, "app_voicemail");
+					ast_config_text_file_save(textfile, msg_cfg, "app_voicemail");
 				}
 			}
 

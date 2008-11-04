@@ -128,16 +128,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/event.h"
 
 /*! \brief Device state strings for printing */
-static const char *devstatestring[] = {
-	/* 0 AST_DEVICE_UNKNOWN */	"Unknown",	/*!< Valid, but unknown state */
-	/* 1 AST_DEVICE_NOT_INUSE */	"Not in use",	/*!< Not used */
-	/* 2 AST_DEVICE IN USE */	"In use",	/*!< In use */
-	/* 3 AST_DEVICE_BUSY */		"Busy",		/*!< Busy */
-	/* 4 AST_DEVICE_INVALID */	"Invalid",	/*!< Invalid - not known to Asterisk */
-	/* 5 AST_DEVICE_UNAVAILABLE */	"Unavailable",	/*!< Unavailable (not registred) */
-	/* 6 AST_DEVICE_RINGING */	"Ringing",	/*!< Ring, ring, ring */
-	/* 7 AST_DEVICE_RINGINUSE */	"Ring+Inuse",	/*!< Ring and in use */
-	/* 8 AST_DEVICE_ONHOLD */	"On Hold"	/*!< On Hold */
+static const char *devstatestring[][2] = {
+	{ /* 0 AST_DEVICE_UNKNOWN */     "Unknown",     "UNKNOWN"     }, /*!< Valid, but unknown state */
+	{ /* 1 AST_DEVICE_NOT_INUSE */   "Not in use",  "NOT_INUSE"   }, /*!< Not used */
+	{ /* 2 AST_DEVICE IN USE */      "In use",      "INUSE"       }, /*!< In use */
+	{ /* 3 AST_DEVICE_BUSY */        "Busy",        "BUSY"        }, /*!< Busy */
+	{ /* 4 AST_DEVICE_INVALID */     "Invalid",     "INVALID"     }, /*!< Invalid - not known to Asterisk */
+	{ /* 5 AST_DEVICE_UNAVAILABLE */ "Unavailable", "UNAVAILABLE" }, /*!< Unavailable (not registered) */
+	{ /* 6 AST_DEVICE_RINGING */     "Ringing",     "RINGING"     }, /*!< Ring, ring, ring */
+	{ /* 7 AST_DEVICE_RINGINUSE */   "Ring+Inuse",  "RINGINUSE"   }, /*!< Ring and in use */
+	{ /* 8 AST_DEVICE_ONHOLD */      "On Hold"      "ONHOLD"      }, /*!< On Hold */
 };
 
 /*!\brief Mapping for channel states to device states */
@@ -204,9 +204,15 @@ struct {
 static int getproviderstate(const char *provider, const char *address);
 
 /*! \brief Find devicestate as text message for output */
+const char *ast_devstate2str(enum ast_device_state devstate) 
+{
+	return devstatestring[devstate][0];
+}
+
+/* Deprecated interface (not prefixed with ast_) */
 const char *devstate2str(enum ast_device_state devstate) 
 {
-	return devstatestring[devstate];
+	return devstatestring[devstate][0];
 }
 
 enum ast_device_state ast_state_chan2dev(enum ast_channel_state chanstate)
@@ -221,40 +227,10 @@ enum ast_device_state ast_state_chan2dev(enum ast_channel_state chanstate)
 	return AST_DEVICE_UNKNOWN;
 }
 
+/* Parseable */
 const char *ast_devstate_str(enum ast_device_state state)
 {
-	const char *res = "UNKNOWN";
-
-	switch (state) {
-	case AST_DEVICE_UNKNOWN:
-		break;
-	case AST_DEVICE_NOT_INUSE:
-		res = "NOT_INUSE";
-		break;
-	case AST_DEVICE_INUSE:
-		res = "INUSE";
-		break;
-	case AST_DEVICE_BUSY:
-		res = "BUSY";
-		break;
-	case AST_DEVICE_INVALID:
-		res = "INVALID";
-		break;
-	case AST_DEVICE_UNAVAILABLE:
-		res = "UNAVAILABLE";
-		break;
-	case AST_DEVICE_RINGING:
-		res = "RINGING";
-		break;
-	case AST_DEVICE_RINGINUSE:
-		res = "RINGINUSE";
-		break;
-	case AST_DEVICE_ONHOLD:
-		res = "ONHOLD";
-		break;
-	}
-
-	return res;
+	return devstatestring[state][1];
 }
 
 enum ast_device_state ast_devstate_val(const char *val)
@@ -478,7 +454,7 @@ static void do_state_change(const char *device)
 
 	state = _ast_device_state(device, 0);
 
-	ast_debug(3, "Changing state for %s - state %d (%s)\n", device, state, devstate2str(state));
+	ast_debug(3, "Changing state for %s - state %d (%s)\n", device, state, ast_devstate2str(state));
 
 	devstate_event(device, state);
 }
@@ -623,7 +599,7 @@ static void process_collection(const char *device, struct change_collection *col
 
 	for (i = 0; i < collection->num_states; i++) {
 		ast_debug(1, "Adding per-server state of '%s' for '%s'\n", 
-			devstate2str(collection->states[i].state), device);
+			ast_devstate2str(collection->states[i].state), device);
 		ast_devstate_aggregate_add(&agg, collection->states[i].state);
 	}
 
@@ -645,13 +621,13 @@ static void process_collection(const char *device, struct change_collection *col
 		if (state == old_state) {
 			/* No change since last reported device state */
 			ast_debug(1, "Aggregate state for device '%s' has not changed from '%s'\n",
-				device, devstate2str(state));
+				device, ast_devstate2str(state));
 			return;
 		}
 	}
 
 	ast_debug(1, "Aggregate state for device '%s' has changed to '%s'\n",
-		device, devstate2str(state));
+		device, ast_devstate2str(state));
 
 	event = ast_event_new(AST_EVENT_DEVICE_STATE,
 		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,

@@ -459,7 +459,7 @@ static const char *findparkinglotname(struct ast_channel *chan)
 static void notify_metermaids(const char *exten, char *context, enum ast_device_state state)
 {
 	ast_debug(4, "Notification of state change to metermaids %s@%s\n to state '%s'", 
-		exten, context, devstate2str(state));
+		exten, context, ast_devstate2str(state));
 
 	ast_devstate_changed(state, "park:%s@%s", exten, context);
 }

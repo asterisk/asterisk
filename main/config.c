@@ -1560,6 +1560,11 @@ static void insert_leading_blank_lines(FILE *fp, struct inclfile *fi, struct ast
 
 int config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
 {
+	return ast_config_text_file_save(configfile, cfg, generator);
+}
+
+int ast_config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
+{
 	FILE *f;
 	char fn[256];
 	struct ast_variable *var;

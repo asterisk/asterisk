@@ -1452,7 +1452,7 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 	result = handle_updates(s, m, cfg, dfn);
 	if (!result) {
 		ast_include_rename(cfg, sfn, dfn); /* change the include references from dfn to sfn, so things match up */
-		res = config_text_file_save(dfn, cfg, "Manager");
+		res = ast_config_text_file_save(dfn, cfg, "Manager");
 		ast_config_destroy(cfg);
 		if (res) {
 			astman_send_error(s, m, "Save of config failed");
