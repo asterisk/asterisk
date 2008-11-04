@@ -5917,7 +5917,7 @@ static void *accept_thread(void *ignore)
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
 		AST_LIST_UNLOCK(&sessions);
 
-		if (ast_pthread_create_detached(&s->t, NULL, skinny_session, s)) {
+		if (ast_pthread_create(&s->t, NULL, skinny_session, s)) {
 			destroy_session(s);
 		}
 	}
