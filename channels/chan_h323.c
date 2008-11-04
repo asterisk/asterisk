@@ -2510,7 +2510,6 @@ restartsearch:
 
 static int restart_monitor(void)
 {
-	pthread_attr_t attr;
 	/* If we're supposed to be stopped -- stay stopped */
 	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
@@ -2529,17 +2528,13 @@ static int restart_monitor(void)
 		/* Wake up the thread */
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		/* Start a new monitor */
-		if (ast_pthread_create_background(&monitor_thread, &attr, do_monitor, NULL) < 0) {
+		if (ast_pthread_create_background(&monitor_thread, NULL, do_monitor, NULL) < 0) {
 			monitor_thread = AST_PTHREADT_NULL;
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
-			pthread_attr_destroy(&attr);
 			return -1;
 		}
-		pthread_attr_destroy(&attr);
 	}
 	ast_mutex_unlock(&monlock);
 	return 0;
@@ -3230,8 +3225,7 @@ static int unload_module(void)
 				pthread_cancel(monitor_thread);
 			}
 			pthread_kill(monitor_thread, SIGURG);
-			/* Cannot join detached threads */
-			/* pthread_join(monitor_thread, NULL); */
+			pthread_join(monitor_thread, NULL);
 		}
 		monitor_thread = AST_PTHREADT_STOP;
 		ast_mutex_unlock(&monlock);
