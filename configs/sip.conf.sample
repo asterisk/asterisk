@@ -376,6 +376,16 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;notifyhold = yes               ; Notify subscriptions on HOLD state (default: no)
                                 ; Turning on notifyringing and notifyhold will add a lot
                                 ; more database transactions if you are using realtime.
+;notifycid = yes                ; Control whether caller ID information is sent along with
+                                ; dialog-info+xml notifications (supported by snom phones).
+                                ; Note that this feature will only work properly when the
+                                ; incoming call is using the same extension and context that
+                                ; is being used as the hint for the called extension.  This means
+                                ; that it won't work when using subscribecontext for your sip
+                                ; user or peer (if subscribecontext is different than context).
+                                ; This is also limited to a single caller, meaning that if an
+                                ; extension is ringing because multiple calls are incoming,
+                                ; only one will be used as the source of caller ID.
 ;callcounter = yes              ; Enable call counters on devices. This can be set per
                                 ; device too.
 

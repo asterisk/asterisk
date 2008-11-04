@@ -961,6 +961,7 @@ static const struct cfsip_options {
 #define DEFAULT_ALLOW_EXT_DOM	TRUE		/*!< Allow external domains */
 #define DEFAULT_REALM		"asterisk"	/*!< Realm for HTTP digest authentication */
 #define DEFAULT_NOTIFYRINGING	TRUE		/*!< Notify devicestate system on ringing state */
+#define DEFAULT_NOTIFYCID		FALSE	/*!< Include CID with ringing notifications */
 #define DEFAULT_PEDANTIC	FALSE		/*!< Avoid following SIP standards for dialog matching */
 #define DEFAULT_AUTOCREATEPEER	FALSE		/*!< Don't create peers automagically */
 #define	DEFAULT_MATCHEXTERNIPLOCALLY FALSE	/*!< Match extern IP locally default setting */
@@ -1030,6 +1031,7 @@ static struct sip_settings sip_cfg;
 
 static int global_notifyringing;	/*!< Send notifications on ringing */
 static int global_notifyhold;		/*!< Send notifications on hold */
+static int global_notifycid;        /*!< Send CID with ringing notifications */
 static int global_match_auth_username;		/*!< Match auth username if available instead of From: Default off. */
 
 static int global_relaxdtmf;		/*!< Relax DTMF */
@@ -10029,23 +10031,42 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		ast_str_append(&tmp, 0, "<?xml version=\"1.0\"?>\n");
 		ast_str_append(&tmp, 0, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full" : "partial", mto);
 		if ((state & AST_EXTENSION_RINGING) && global_notifyringing) {
+			const char *local_display = p->exten, *local_target = mto;
+
+			/* There are some limitations to how this works.  The primary one is that the
+			   callee must be dialing the same extension that is being monitored.  Simply dialing
+			   the hint'd device is not sufficient. */
+			if (global_notifycid) {
+				struct ast_channel *caller = NULL;
+
+				while ((caller = ast_channel_walk_locked(caller))) {
+					if (caller->pbx &&
+						(!strcasecmp(caller->macroexten, p->exten) || !strcasecmp(caller->exten, p->exten)) &&
+						!strcasecmp(caller->context, p->context)) {
+						local_display = ast_strdupa(caller->cid.cid_name);
+						local_target = ast_strdupa(caller->cid.cid_num);
+						ast_channel_unlock(caller);
+						break;
+					}
+					ast_channel_unlock(caller);
+				}				
+			}
+
 			/* We create a fake call-id which the phone will send back in an INVITE
 			   Replaces header which we can grab and do some magic with. */
 			ast_str_append(&tmp, 0, 
 					"<dialog id=\"%s\" call-id=\"pickup-%s\" direction=\"recipient\">\n"
 					"<remote>\n"
-					/* Note that the identity and target elements for the local participant are currently
-					   (and may forever be) incorrect since we have no reliable way to get at that information 
-					   at the moment.  Luckily the phone seems to still live happily without it being correct */
-					"<identity>%s</identity>\n"
+					/* See the limitations of this above.  Luckily the phone seems to still be
+					   happy when these values are not correct. */
+					"<identity display=\"%s\">%s</identity>\n"
 					"<target uri=\"%s\"/>\n"
 					"</remote>\n"
 					"<local>\n"
 					"<identity>%s</identity>\n"
 					"<target uri=\"%s\"/>\n"
 					"</local>\n",
-					p->exten, p->callid,
-					mto, mto, mto, mto);
+					p->exten, p->callid, local_display, local_target, local_target, mto, mto);
 		} else {
 			ast_str_append(&tmp, 0, "<dialog id=\"%s\">\n", p->exten);
 		}
@@ -14457,6 +14478,9 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Outbound reg. timeout:  %d secs\n", global_reg_timeout);
 	ast_cli(a->fd, "  Outbound reg. attempts: %d\n", global_regattempts_max);
 	ast_cli(a->fd, "  Notify ringing state:   %s\n", cli_yesno(global_notifyringing));
+	if (global_notifyringing) {
+		ast_cli(a->fd, "    Include CID:          %s\n", cli_yesno(global_notifycid));
+	}
 	ast_cli(a->fd, "  Notify hold state:      %s\n", cli_yesno(global_notifyhold));
 	ast_cli(a->fd, "  SIP Transfer mode:      %s\n", transfermode2str(global_allowtransfer));
 	ast_cli(a->fd, "  Max Call Bitrate:       %d kbps\n", default_maxcallbitrate);
@@ -22393,6 +22417,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_regcontext[0] = '\0';
 	sip_cfg.regextenonqualify = DEFAULT_REGEXTENONQUALIFY;
 	global_notifyringing = DEFAULT_NOTIFYRINGING;
+	global_notifycid = DEFAULT_NOTIFYCID;
 	global_notifyhold = FALSE;		/*!< Keep track of hold status for a peer */
 	sip_cfg.directrtpsetup = FALSE;		/* Experimental feature, disabled by default */
 	sip_cfg.alwaysauthreject = DEFAULT_ALWAYSAUTHREJECT;
@@ -22608,6 +22633,8 @@ static int reload_config(enum channelreloadreason reason)
 			global_notifyringing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifyhold")) {
 			global_notifyhold = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "notifycid")) {
+			global_notifycid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "alwaysauthreject")) {
 			sip_cfg.alwaysauthreject = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "mohinterpret")) {
