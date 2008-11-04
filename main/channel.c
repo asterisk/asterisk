@@ -1226,6 +1226,24 @@ struct ast_channel *ast_walk_channel_by_exten_locked(const struct ast_channel *c
 	return channel_find_locked(chan, NULL, 0, context, exten);
 }
 
+/*! \brief Search for a channel based on the passed channel matching callback (first match) and return it, locked */
+struct ast_channel *ast_channel_search_locked(int (*is_match)(struct ast_channel *))
+{
+	struct ast_channel *c = NULL;
+
+	AST_RWLIST_RDLOCK(&channels);
+	AST_RWLIST_TRAVERSE(&channels, c, chan_list) {
+		ast_channel_lock(c);
+		if (is_match(c)) {
+			break;
+		}
+		ast_channel_unlock(c);
+	}
+	AST_RWLIST_UNLOCK(&channels);
+
+	return c;
+}
+
 /*! \brief Wait, look for hangups and condition arg */
 int ast_safe_sleep_conditional(struct ast_channel *chan, int ms, int (*cond)(void*), void *data)
 {

@@ -10037,19 +10037,21 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 			   callee must be dialing the same extension that is being monitored.  Simply dialing
 			   the hint'd device is not sufficient. */
 			if (global_notifycid) {
-				struct ast_channel *caller = NULL;
+				auto int find_calling_channel(struct ast_channel *c);
+				int find_calling_channel(struct ast_channel *c) {
+					return (c->pbx &&
+							(!strcasecmp(c->macroexten, p->exten) || !strcasecmp(c->exten, p->exten)) &&
+							!strcasecmp(c->context, p->context));
+				}
 
-				while ((caller = ast_channel_walk_locked(caller))) {
-					if (caller->pbx &&
-						(!strcasecmp(caller->macroexten, p->exten) || !strcasecmp(caller->exten, p->exten)) &&
-						!strcasecmp(caller->context, p->context)) {
-						local_display = ast_strdupa(caller->cid.cid_name);
-						local_target = ast_strdupa(caller->cid.cid_num);
-						ast_channel_unlock(caller);
-						break;
-					}
+				struct ast_channel *caller = ast_channel_search_locked(find_calling_channel);
+
+				if (caller) {
+					local_display = ast_strdupa(caller->cid.cid_name);
+					local_target = ast_strdupa(caller->cid.cid_num);
 					ast_channel_unlock(caller);
-				}				
+					caller = NULL;
+				}
 			}
 
 			/* We create a fake call-id which the phone will send back in an INVITE

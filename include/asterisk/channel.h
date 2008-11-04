@@ -1177,6 +1177,17 @@ struct ast_channel *ast_get_channel_by_exten_locked(const char *exten, const cha
 struct ast_channel *ast_walk_channel_by_exten_locked(const struct ast_channel *chan, const char *exten,
 						     const char *context);
 
+/*! \brief Search for a channel based on the passed channel matching callback
+ * Search for a channel based on the specified is_match callback, and return the
+ * first channel that we match.  When returned, the channel will be locked.  Note
+ * that the is_match callback is called with the passed channel locked, and should
+ * return 0 if there is no match, and non-zero if there is.
+ * \param is_match callback executed on each channel until non-zero is returned, or we
+ *        run out of channels to search.
+ * \return Returns the matched channel, or NULL if no channel was matched.
+ */
+struct ast_channel *ast_channel_search_locked(int (*is_match)(struct ast_channel *));
+
 /*! ! \brief Waits for a digit
  * \param c channel to wait for a digit on
  * \param ms how many milliseconds to wait
