@@ -2604,7 +2604,7 @@ static int restart_monitor(void)
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
 		/* Start a new monitor */
-		if (ast_pthread_create_detached_background(&monitor_thread, NULL, do_monitor, NULL) < 0) {
+		if (ast_pthread_create_background(&monitor_thread, NULL, do_monitor, NULL) < 0) {
 			monitor_thread = AST_PTHREADT_NULL;
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
@@ -3302,8 +3302,7 @@ static int unload_module(void)
 				pthread_cancel(monitor_thread);
 			}
 			pthread_kill(monitor_thread, SIGURG);
-			/* Cannot join detached threads */
-			/* pthread_join(monitor_thread, NULL); */
+			pthread_join(monitor_thread, NULL);
 		}
 		monitor_thread = AST_PTHREADT_STOP;
 		ast_mutex_unlock(&monlock);
