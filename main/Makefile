@@ -39,7 +39,7 @@ OBJS+=stdtime/localtime.o
 # by a module.
 OBJS+=say.o
 
-AST_LIBS += $(SSL_LIB)
+AST_LIBS += $(OPENSSL_LIB)
 AST_LIBS += $(BKTR_LIB)
 AST_LIBS += $(LIBXML2_LIB) 
 
