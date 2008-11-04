@@ -101,6 +101,41 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/event.h"
 #include "asterisk/devicestate.h"
 
+/*** DOCUMENTATION
+	<application name="DAHDISendKeypadFacility" language="en_US">
+		<synopsis>
+			Send digits out of band over a PRI.
+		</synopsis>
+		<syntax>
+			<parameter name="digits" required="true" />
+		</syntax>
+		<description>
+			<para>This application will send the given string of digits in a Keypad
+			Facility IE over the current channel.</para>
+		</description>
+	</application>
+	<application name="DAHDISendCallreroutingFacility" language="en_US">
+		<synopsis>
+			Send QSIG call rerouting facility over a PRI.
+		</synopsis>
+		<syntax argsep="|">
+			<parameter name="destination" required="true">
+				<para>Destination number.</para>	
+			</parameter>
+			<parameter name="original">
+				<para>Original called number.</para>
+			</parameter>
+			<parameter name="reason">
+				<para>Diversion reason, if not specified defaults to <literal>unknown</literal></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application will send a Callrerouting Facility IE over the
+			current channel.</para>
+		</description>
+	</application>
+ ***/
+
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
 
 static const char *lbostr[] = {
@@ -2913,12 +2948,6 @@ static void destroy_all_channels(void)
 #ifdef HAVE_PRI
 static char *dahdi_send_keypad_facility_app = "DAHDISendKeypadFacility";
 
-static char *dahdi_send_keypad_facility_synopsis = "Send digits out of band over a PRI";
-
-static char *dahdi_send_keypad_facility_descrip = 
-"  DAHDISendKeypadFacility(): This application will send the given string of digits in a Keypad Facility\n"
-"  IE over the current channel.\n";
-
 static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, void *data)
 {
 	/* Data will be our digit string */
@@ -2960,12 +2989,6 @@ static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, void *data)
 }
 
 static char *dahdi_send_callrerouting_facility_app = "DAHDISendCallreroutingFacility";
-
-static char *dahdi_send_callrerouting_facility_synopsis = "Send QSIG call rerouting facility over a PRI";
-
-static char *dahdi_send_callrerouting_facility_descrip =
-"  DAHDISendCallreroutingFacility(): This application will send a Callrerouting Facility\n"
-"  IE over the current channel.\n";
 
 static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, void *data)
 {
@@ -14798,10 +14821,8 @@ static int load_module(void)
 	}
 	pri_set_error(dahdi_pri_error);
 	pri_set_message(dahdi_pri_message);
-	ast_register_application(dahdi_send_keypad_facility_app, dahdi_send_keypad_facility_exec,
-			dahdi_send_keypad_facility_synopsis, dahdi_send_keypad_facility_descrip);
-	ast_register_application(dahdi_send_callrerouting_facility_app, dahdi_send_callrerouting_facility_exec,
-		dahdi_send_callrerouting_facility_synopsis, dahdi_send_callrerouting_facility_descrip);
+	ast_register_application_xml(dahdi_send_keypad_facility_app, dahdi_send_keypad_facility_exec);
+	ast_register_application_xml(dahdi_send_callrerouting_facility_app, dahdi_send_callrerouting_facility_exec);
 #endif
 #ifdef HAVE_SS7
 	memset(linksets, 0, sizeof(linksets));
