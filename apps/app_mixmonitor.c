@@ -99,6 +99,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</variable>
 			</variablelist>	
 		</description>
+		<see-also>
+			<ref type="application">Monitor</ref>
+			<ref type="application">StopMixMonitor</ref>
+			<ref type="application">PauseMonitor</ref>
+			<ref type="application">UnpauseMonitor</ref>
+		</see-also>
 	</application>
 	<application name="StopMixMonitor" language="en_US">
 		<synopsis>
@@ -109,6 +115,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Stops the audio recording that was started with a call to <literal>MixMonitor()</literal>
 			on the current channel.</para>
 		</description>
+		<see-also>
+			<ref type="application">MixMonitor</ref>
+		</see-also>
 	</application>
 		
  ***/
