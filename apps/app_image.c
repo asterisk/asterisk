@@ -62,6 +62,10 @@ static char *app = "SendImage";
 				</variable>
 			</variablelist>
 		</description>
+		<see-also>
+			<ref type="application">SendText</ref>
+			<ref type="application">SendURL</ref>
+		</see-also>
 	</application>
  ***/
 

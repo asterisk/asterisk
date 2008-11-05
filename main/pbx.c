@@ -4223,6 +4223,8 @@ static char *xmldoc_build_seealso(const char *type, const char *name)
 			ast_str_append(&outputstr, 0, "%s\n", content);
 		} else if (!strcasecmp(typename, "manpage")) {
 			ast_str_append(&outputstr, 0, "ManPage: %s\n", content);
+		} else if (!strcasecmp(typename, "filename")) {
+			ast_str_append(&outputstr, 0, "File: %s\n", content);
 		}
 		ast_xml_free_text(content);
 	}

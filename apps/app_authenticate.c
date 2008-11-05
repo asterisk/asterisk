@@ -98,6 +98,10 @@ static char *app = "Authenticate";
 			<para>When using a database key, the value associated with the key can be anything.</para>
 			<para>Users have three attempts to authenticate before the channel is hung up.</para>
 		</description>
+		<see-also>
+			<ref type="application">VMAuthenticate</ref>
+			<ref type="application">DISA</ref>
+		</see-also>
 	</application>
  ***/
 

@@ -104,6 +104,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			line, with the sole exception of the options. The file may contain blank
 			lines, or comments starting with <literal>#</literal> or <literal>;</literal>.</para>
 		</description>
+		<see-also>
+			<ref type="application">Authenticate</ref>
+			<ref type="application">VMAuthenticate</ref>
+		</see-also>
 	</application>
  ***/
 static char *app = "DISA";

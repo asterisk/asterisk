@@ -52,6 +52,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			displayed when the verbose level is currently set to that number
 			or greater.</para>
 		</description>
+		<see-also>
+			<ref type="application">NoOp</ref>
+			<ref type="application">Verbose</ref>
+		</see-also>
 	</application>
  ***/
 

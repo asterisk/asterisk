@@ -59,6 +59,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Jumps to the label specified, saving the return address.</para>
 		</description>
+		<see-also>
+			<ref type="application">GosubIf</ref>
+			<ref type="application">Macro</ref>
+			<ref type="application">Goto</ref>
+			<ref type="application">Return</ref>
+			<ref type="application">StackPop</ref>
+		</see-also>
 	</application>
 	<application name="GosubIf" language="en_US">
 		<synopsis>
@@ -82,6 +89,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			labeliffalse, if specified.  In either case, a jump saves the return point
 			in the dialplan, to be returned to with a Return.</para>
 		</description>
+		<see-also>
+			<ref type="application">Gosub</ref>
+			<ref type="application">Return</ref>
+			<ref type="application">MacroIf</ref>
+			<ref type="function">IF</ref>
+			<ref type="application">GotoIf</ref>
+		</see-also>
 	</application>
 	<application name="Return" language="en_US">
 		<synopsis>
@@ -96,6 +110,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Jumps to the last label on the stack, removing it. The return <replaceable>value</replaceable>, if
 			any, is saved in the channel variable <variable>GOSUB_RETVAL</variable>.</para>
 		</description>
+		<see-also>
+			<ref type="application">Gosub</ref>
+			<ref type="application">StackPop</ref>
+		</see-also>
 	</application>
 	<application name="StackPop" language="en_US">
 		<synopsis>
@@ -105,6 +123,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Removes last label on the stack, discarding it.</para>
 		</description>
+		<see-also>
+			<ref type="application">Return</ref>
+			<ref type="application">Gosub</ref>
+		</see-also>
 	</application>
 	<function name="LOCAL" language="en_US">
 		<synopsis>

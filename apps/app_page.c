@@ -91,6 +91,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			caller is dumped into the conference as a speaker and the room is
 			destroyed when the original callers leaves.</para>
 		</description>
+		<see-also>
+			<ref type="application">MeetMe</ref>
+		</see-also>
 	</application>
  ***/
 static const char *app_page= "Page";

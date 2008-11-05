@@ -164,6 +164,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			single digit extension exists in the correct context ChanSpy will exit to it.
 			This also disables choosing a channel based on <literal>chanprefix</literal> and a digit sequence.</para></note>
 		</description>
+		<see-also>
+			<ref type="application">ExtenSpy</ref>
+		</see-also>
 	</application>
 	<application name="ExtenSpy" language="en_US">
 		<synopsis>
@@ -279,6 +282,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			single digit extension exists in the correct context ChanSpy will exit to it.
 			This also disables choosing a channel based on <literal>chanprefix</literal> and a digit sequence.</para></note>
 		</description>
+		<see-also>
+			<ref type="application">ChanSpy</ref>
+		</see-also>
 	</application>
 
  ***/

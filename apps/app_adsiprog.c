@@ -60,6 +60,10 @@ static char *app = "ADSIProg";
 		<description>
 			<para>This application programs an ADSI Phone with the given script</para>
 		</description>
+		<see-also>
+			<ref type="application">GetCPEID</ref>
+			<ref type="filename">adsi.conf</ref>
+		</see-also>
 	</application>
  ***/
 
