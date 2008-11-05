@@ -37,7 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*** DOCUMENTATION
 	<application name="Morsecode" language="en_US">
 		<synopsis>
-			Plays morse code
+			Plays morse code.
 		</synopsis>
 		<syntax>
 			<parameter name="string" required="true">
@@ -57,6 +57,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</variable>
 			</variablelist>
 		</description>
+		<see-also>
+			<ref type="application">SayAlpha</ref>
+			<ref type="application">SayPhonetic</ref>
+		</see-also>
 	</application>
  ***/	
 static char *app_morsecode = "Morsecode";

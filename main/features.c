@@ -102,6 +102,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			context. If no extension is provided, then the first available
 			parked call will be acquired.</para>
 		</description>
+		<see-also>
+			<ref type="application">Park</ref>
+			<ref type="application">ParkAndAnnounce</ref>
+		</see-also>
 	</application>
 	<application name="Park" language="en_US">
 		<synopsis>
@@ -145,6 +149,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			parking context, Park() will park the call on that extension, unless
 			it already exists. In that case, execution will continue at next priority.</para>
 		</description>
+		<see-also>
+			<ref type="application">ParkAndAnnounce</ref>
+			<ref type="application">ParkedCall</ref>
+		</see-also>
 	</application>
  ***/
 

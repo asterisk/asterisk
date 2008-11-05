@@ -102,6 +102,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>If the call has not been answered, this application will
 			answer it. Otherwise, it has no effect on the call.</para>
 		</description>
+		<see-also>
+			<ref type="application">Hangup</ref>
+		</see-also>
 	</application>
 	<application name="BackGround" language="en_US">
 		<synopsis>
@@ -153,7 +156,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</variablelist>
 		</description>
 		<see-also>
-			<ref type="application">Playback</ref>
+			<ref type="application">ControlPlayback</ref>
+			<ref type="application">WaitExten</ref>
+			<ref type="application">BackgroundDetect</ref>
+			<ref type="function">TIMEOUT</ref>
 		</see-also>
 	</application>
 	<application name="Busy" language="en_US">
@@ -169,6 +175,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application will indicate the busy condition to the calling channel.</para>
 		</description>
+		<see-also>
+			<ref type="application">Congestion</ref>
+			<ref type="application">Progess</ref>
+			<ref type="application">Playtones</ref>
+			<ref type="application">Hangup</ref>
+		</see-also>
 	</application>
 	<application name="Congestion" language="en_US">
 		<synopsis>
@@ -183,6 +195,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application will indicate the congestion condition to the calling channel.</para>
 		</description>
+		<see-also>
+			<ref type="application">Busy</ref>
+			<ref type="application">Progess</ref>
+			<ref type="application">Playtones</ref>
+			<ref type="application">Hangup</ref>
+		</see-also>
 	</application>
 	<application name="ExecIfTime" language="en_US">
 		<synopsis>
@@ -203,6 +221,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This application will execute the specified dialplan application, with optional
 			arguments, if the current time matches the given time specification.</para>
 		</description>
+		<see-also>
+			<ref type="application">Exec</ref>
+			<ref type="application">TryExec</ref>
+		</see-also>
 	</application>
 	<application name="Goto" language="en_US">
 		<synopsis>
@@ -230,6 +252,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			it will not be possible to find the <literal>h</literal> or <literal>i</literal> extensions,
 			and the call will terminate!</para>
 		</description>
+		<see-also>
+			<ref type="application">GotoIf</ref>
+			<ref type="application">GotoIfTime</ref>
+			<ref type="application">Gosub</ref>
+			<ref type="application">Macro</ref>
+		</see-also>
 	</application>
 	<application name="GotoIf" language="en_US">
 		<synopsis>
@@ -261,6 +289,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			does not exist, then it will not be able to find any 'h' or 'i' extensions there, and
 			the channel and call will both be terminated!.</para>
 		</description>
+		<see-also>
+			<ref type="application">Goto</ref>
+			<ref type="application">GotoIfTime</ref>
+			<ref type="application">GosubIf</ref>
+			<ref type="application">MacroIf</ref>
+		</see-also>
 	</application>
 	<application name="GotoIfTime" language="en_US">
 		<synopsis>
@@ -289,6 +323,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Further information on the time specification can be found in examples
 			illustrating how to do time-based context includes in the dialplan.</para>
 		</description>
+		<see-also>
+			<ref type="application">GotoIf</ref>
+			<ref type="function">IFTIME</ref>
+		</see-also>
 	</application>
 	<application name="ImportVar" language="en_US">
 		<synopsis>
@@ -325,6 +363,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application will hang up the calling channel.</para>
 		</description>
+		<see-also>
+			<ref type="application">Answer</ref>
+			<ref type="application">Busy</ref>
+			<ref type="application">Congestion</ref>
+		</see-also>
 	</application>
 	<application name="Incomplete" language="en_US">
 		<synopsis>
@@ -341,7 +384,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			and that further input should be allowed before matching can be considered
 			to be complete.  Can be used within a pattern match when certain criteria warrants
 			a longer match.</para>
-			
 		</description>
 	</application>
 	<application name="KeepAlive" language="en_US">
@@ -369,6 +411,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 		<see-also>
 			<ref type="application">Verbose</ref>
+			<ref type="application">Log</ref>
 		</see-also>
 	</application>
 	<application name="Proceeding" language="en_US">
@@ -388,6 +431,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application will request that in-band progress information be provided to the calling channel.</para>
 		</description>
+		<see-also>
+			<ref type="application">Busy</ref>
+			<ref type="application">Congestion</ref>
+			<ref type="application">Ringing</ref>
+			<ref type="application">Playtones</ref>
+		</see-also>
 	</application>
 	<application name="RaiseException" language="en_US">
 		<synopsis>
@@ -400,6 +449,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This application will jump to the <literal>e</literal> extension in the current context, setting the
 			dialplan function EXCEPTION(). If the <literal>e</literal> extension does not exist, the call will hangup.</para>
 		</description>
+		<see-also>
+			<ref type="function">Exception</ref>
+		</see-also>
 	</application>
 	<application name="ResetCDR" language="en_US">
 		<synopsis>
@@ -426,6 +478,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application causes the Call Data Record to be reset.</para>
 		</description>
+		<see-also>
+			<ref type="application">ForkCDR</ref>
+			<ref type="application">NoCDR</ref>
+		</see-also>
 	</application>
 	<application name="Ringing" language="en_US">
 		<synopsis>
@@ -435,6 +491,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application will request that the channel indicate a ringing tone to the user.</para>
 		</description>
+		<see-also>
+			<ref type="application">Busy</ref>
+			<ref type="application">Congestion</ref>
+			<ref type="application">Progress</ref>
+			<ref type="application">Playtones</ref>
+		</see-also>
 	</application>
 	<application name="SayAlpha" language="en_US">
 		<synopsis>
@@ -447,6 +509,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This application will play the sounds that correspond to the letters of the
 			given <replaceable>string</replaceable>.</para>
 		</description>
+		<see-also>
+			<ref type="application">SayDigits</ref>
+			<ref type="application">SayNumber</ref>
+			<ref type="application">SayPhonetic</ref>
+			<ref type="function">CHANNEL</ref>
+		</see-also>
 	</application>
 	<application name="SayDigits" language="en_US">
 		<synopsis>
@@ -459,6 +527,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This application will play the sounds that correspond to the digits of
 			the given number. This will use the language that is currently set for the channel.</para>
 		</description>
+		<see-also>
+			<ref type="application">SayAlpha</ref>
+			<ref type="application">SayNumber</ref>
+			<ref type="application">SayPhonetic</ref>
+			<ref type="function">CHANNEL</ref>
+		</see-also>
 	</application>
 	<application name="SayNumber" language="en_US">
 		<synopsis>
@@ -473,6 +547,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Optionally, a <replaceable>gender</replaceable> may be specified. This will use the language that is currently
 			set for the channel. See the LANGUAGE() function for more information on setting the language for the channel.</para>
 		</description>
+		<see-also>
+			<ref type="application">SayAlpha</ref>
+			<ref type="application">SayDigits</ref>
+			<ref type="application">SayPhonetic</ref>
+			<ref type="function">CHANNEL</ref>
+		</see-also>
 	</application>
 	<application name="SayPhonetic" language="en_US">
 		<synopsis>
@@ -485,6 +565,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This application will play the sounds from the phonetic alphabet that correspond to the
 			letters in the given <replaceable>string</replaceable>.</para>
 		</description>
+		<see-also>
+			<ref type="application">SayAlpha</ref>
+			<ref type="application">SayDigits</ref>
+			<ref type="application">SayNumber</ref>
+		</see-also>
 	</application>
 	<application name="Set" language="en_US">
 		<synopsis>
@@ -510,6 +595,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			protect separators and quotes in various database access strings has been greatly
 			reduced by these changes.</para></note>
 		</description>
+		<see-also>
+			<ref type="application">MSet</ref>
+			<ref type="function">GLOBAL</ref>
+			<ref type="function">SET</ref>
+			<ref type="function">ENV</ref>
+		</see-also>
 	</application>
 	<application name="MSet" language="en_US">
 		<synopsis>
@@ -537,6 +628,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			character (comma or vert-bar), you will need to escape them by inserting a backslash
 			before them. Avoid its use if possible.</para>
 		</description>
+		<see-also>
+			<ref type="application">Set</ref>
+		</see-also>
 	</application>
 	<application name="SetAMAFlags" language="en_US">
 		<synopsis>
@@ -548,6 +642,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application will set the channel's AMA Flags for billing purposes.</para>
 		</description>
+		<see-also>
+			<ref type="function">CDR</ref>
+		</see-also>
 	</application>
 	<application name="Wait" language="en_US">
 		<synopsis>
@@ -588,8 +685,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			of <replaceable>seconds</replaceable>.</para>
 		</description>
 		<see-also>
-			<ref type="application">Playback</ref>
 			<ref type="application">Background</ref>
+			<ref type="function">TIMEOUT</ref>
 		</see-also>
 	</application>
 	<function name="EXCEPTION" language="en_US">
@@ -619,6 +716,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Retrieve the details (specified <replaceable>field</replaceable>) of the current dialplan exception.</para>
 		</description>
+		<see-also>
+			<ref type="application">RaiseException</ref>
+		</see-also>
 	</function>
  ***/
 

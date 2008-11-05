@@ -116,6 +116,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</variable>
 			</variablelist>
 		</description>
+		<see-also>
+			<ref type="application">WaitForSilence</ref>
+			<ref type="application">WaitForNoise</ref>
+		</see-also>
 	</application>
 
  ***/

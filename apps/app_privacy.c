@@ -71,6 +71,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</variable>
 			</variablelist>
 		</description>
+		<see-also>
+			<ref type="application">Zapateller</ref>
+		</see-also>
 	</application>
  ***/
 

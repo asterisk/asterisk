@@ -66,16 +66,22 @@ static char *app = "AlarmReceiver";
 /*** DOCUMENTATION
 	<application name="AlarmReceiver" language="en_US">
 		<synopsis>
-			Provide support for receiving alarm reports from a burglar or fire alarm panel
+			Provide support for receiving alarm reports from a burglar or fire alarm panel.
 		</synopsis>
 		<syntax />
 		<description>
 			<para>This application should be called whenever there is an alarm panel calling in to dump its events.
-			The application will handshake with the alarm panel, and receive events, validate them, handshake them, and store them until the panel hangs up.
-			Once the panel hangs up, the application will run the system command specified by the eventcmd setting in <filename>alarmreceiver.conf</filename> and pipe the events to the standard input of the application. 
-			The configuration file also contains settings for DTMF timing, and for the loudness of the acknowledgement tones.</para>
+			The application will handshake with the alarm panel, and receive events, validate them, handshake them,
+			and store them until the panel hangs up. Once the panel hangs up, the application will run the system
+			command specified by the eventcmd setting in <filename>alarmreceiver.conf</filename> and pipe the
+			events to the standard input of the application.
+			The configuration file also contains settings for DTMF timing, and for the loudness of the
+			acknowledgement tones.</para>
 			<note><para>Only 1 signalling format is supported at this time: Ademco Contact ID.</para></note>
 		</description>
+		<see-also>
+			<ref type="filename">alarmreceiver.conf</ref>
+		</see-also>
 	</application>
  ***/
 

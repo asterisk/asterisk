@@ -57,6 +57,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Uses some of the sound files stored in <directory>/var/lib/asterisk/sounds</directory> to construct a phrase 
 			saying the specified date and/or time in the specified format. </para>
 		</description>
+		<see-also>
+			<ref type="function">STRFTIME</ref>
+			<ref type="function">STRPTIME</ref>
+			<ref type="function">IFTIME</ref>
+		</see-also>
 	</application>
 	<application name="DateTime" language="en_US">
 		<synopsis>
