@@ -11,7 +11,7 @@
   <!ELEMENT see-also (ref*)>
 
   <!ELEMENT ref (#PCDATA)*>
-  <!ATTLIST ref type (application|function|astcli|link|manpage) #REQUIRED>
+  <!ATTLIST ref type (application|function|astcli|link|manpage|filename) #REQUIRED>
 
   <!ELEMENT synopsis (#PCDATA)>
   
