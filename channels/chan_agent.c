@@ -2453,7 +2453,7 @@ static int action_agent_callback_login(struct mansession *s, const struct messag
 				p->wrapuptime = 0;
 		}
 
-		if (strcasecmp(ackcall_s, "always"))
+		if (!strcasecmp(ackcall_s, "always"))
 			p->ackcall = 2;
 		else if (ast_true(ackcall_s))
 			p->ackcall = 1;
