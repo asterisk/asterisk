@@ -2425,7 +2425,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 		}
 		if (read(chan->alertpipe[0], &blah, sizeof(blah)) < 0) {
-			ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
+			if (errno != EINTR && errno != EAGAIN)
+				ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
 		}
 	}
 
