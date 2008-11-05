@@ -69,39 +69,112 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/event.h"
 
+/*** DOCUMENTATION
+	<application name="AgentLogin" language="en_US">
+		<synopsis>
+			Call agent login.
+		</synopsis>
+		<syntax>
+			<parameter name="AgentNo" />
+			<parameter name="options">
+				<optionlist>
+					<option name="s">
+						<para>silent login - do not announce the login ok segment after
+						agent logged on/off</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Asks the agent to login to the system. Always returns <literal>-1</literal>.
+			While logged in, the agent can receive calls and will hear a <literal>beep</literal>
+			when a new call comes in. The agent can dump the call by pressing the star key.</para>
+		</description>
+		<see-also>
+			<ref type="application">Queue</ref>
+			<ref type="application">AddQueueMember</ref>
+			<ref type="application">RemoveQueueMember</ref>
+			<ref type="application">PauseQueueMember</ref>
+			<ref type="application">UnpauseQueueMember</ref>
+			<ref type="function">AGENT</ref>
+			<ref type="filename">agents.conf</ref>
+			<ref type="filename">queues.conf</ref>
+		</see-also>
+	</application>
+	<application name="AgentMonitorOutgoing" language="en_US">
+		<synopsis>
+			Record agent's outgoing call.
+		</synopsis>
+		<syntax>
+			<parameter name="options">
+				<optionlist>
+					<option name="d">
+						<para>make the app return <literal>-1</literal> if there is an error condition.</para>
+					</option>
+					<option name="c">
+						<para>change the CDR so that the source of the call is
+						<literal>Agent/agent_id</literal></para>
+					</option>
+					<option name="n">
+						<para>don't generate the warnings when there is no callerid or the
+						agentid is not known. It's handy if you want to have one context
+						for agent and non-agent calls.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Tries to figure out the id of the agent who is placing outgoing call based on
+			comparison of the callerid of the current interface and the global variable
+			placed by the AgentCallbackLogin application. That's why it should be used only
+			with the AgentCallbackLogin app. Uses the monitoring functions in chan_agent
+			instead of Monitor application. That has to be configured in the
+			<filename>agents.conf</filename> file.</para>
+			<para>Normally the app returns <literal>0</literal> unless the options are passed.</para>
+		</description>
+		<see-also>
+			<ref type="filename">agents.conf</ref>
+		</see-also>
+	</application>
+	<function name="AGENT" language="en_US">
+		<synopsis>
+			Gets information about an Agent
+		</synopsis>
+		<syntax argsep=":">
+			<parameter name="agentid" required="true" />
+			<parameter name="item">
+				<para>The valid items to retrieve are:</para>
+				<enumlist>
+					<enum name="status">
+						<para>(default) The status of the agent (LOGGEDIN | LOGGEDOUT)</para>
+					</enum>
+					<enum name="password">
+						<para>The password of the agent</para>
+					</enum>
+					<enum name="name">
+						<para>The name of the agent</para>
+					</enum>
+					<enum name="mohclass">
+						<para>MusicOnHold class</para>
+					</enum>
+					<enum name="exten">
+						<para>The callback extension for the Agent (AgentCallbackLogin)</para>
+					</enum>
+					<enum name="channel">
+						<para>The name of the active channel for the Agent (AgentLogin)</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description />
+	</function>
+ ***/
+
 static const char tdesc[] = "Call Agent Proxy Channel";
 static const char config[] = "agents.conf";
 
 static const char app[] = "AgentLogin";
 static const char app3[] = "AgentMonitorOutgoing";
-
-static const char synopsis[] = "Call agent login";
-static const char synopsis3[] = "Record agent's outgoing call";
-
-static const char descrip[] =
-"  AgentLogin([AgentNo][,options]):\n"
-"Asks the agent to login to the system.  Always returns -1.  While\n"
-"logged in, the agent can receive calls and will hear a 'beep'\n"
-"when a new call comes in. The agent can dump the call by pressing\n"
-"the star key.\n"
-"The option string may contain zero or more of the following characters:\n"
-"      's' -- silent login - do not announce the login ok segment after agent logged on/off\n";
-
-static const char descrip3[] =
-"  AgentMonitorOutgoing([options]):\n"
-"Tries to figure out the id of the agent who is placing outgoing call based on\n"
-"comparison of the callerid of the current interface and the global variable \n"
-"placed by the AgentCallbackLogin application. That's why it should be used only\n"
-"with the AgentCallbackLogin app. Uses the monitoring functions in chan_agent \n"
-"instead of Monitor application. That has to be configured in the agents.conf file.\n"
-"\nReturn value:\n"
-"Normally the app returns 0 unless the options are passed.\n"
-"\nOptions:\n"
-"	'd' - make the app return -1 if there is an error condition\n"
-"	'c' - change the CDR so that the source of the call is 'Agent/agent_id'\n"
-"	'n' - don't generate the warnings when there is no callerid or the\n"
-"	      agentid is not known.\n"
-"             It's handy if you want to have one context for agent and non-agent calls.\n";
 
 static const char mandescr_agents[] =
 "Description: Will list info about all possible agents.\n"
@@ -2467,17 +2540,7 @@ static int function_agent(struct ast_channel *chan, const char *cmd, char *data,
 
 struct ast_custom_function agent_function = {
 	.name = "AGENT",
-	.synopsis = "Gets information about an Agent",
-	.syntax = "AGENT(<agentid>[:item])",
 	.read = function_agent,
-	.desc = "The valid items to retrieve are:\n"
-	"- status (default)      The status of the agent\n"
-	"                          LOGGEDIN | LOGGEDOUT\n"
-	"- password              The password of the agent\n"
-	"- name                  The name of the agent\n"
-	"- mohclass              MusicOnHold class\n"
-	"- exten                 The callback extension for the Agent (AgentCallbackLogin)\n"
-	"- channel               The name of the active channel for the Agent (AgentLogin)\n"
 };
 
 
@@ -2501,8 +2564,8 @@ static int load_module(void)
 	if (persistent_agents)
 		reload_agents();
 	/* Dialplan applications */
-	ast_register_application(app, login_exec, synopsis, descrip);
-	ast_register_application(app3, agentmonitoroutgoing_exec, synopsis3, descrip3);
+	ast_register_application_xml(app, login_exec);
+	ast_register_application_xml(app3, agentmonitoroutgoing_exec);
 
 	/* Manager commands */
 	ast_manager_register2("Agents", EVENT_FLAG_AGENT, action_agents, "Lists agents and their status", mandescr_agents);
