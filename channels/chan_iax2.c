@@ -778,7 +778,8 @@ struct iax2_thread {
 	time_t checktime;
 	ast_mutex_t lock;
 	ast_cond_t cond;
-	unsigned int ready_for_signal:1;
+	ast_mutex_t init_lock;
+	ast_cond_t init_cond;
 	/*! if this thread is processing a full frame,
 	  some information about that frame will be stored
 	  here, so we can avoid dispatching any more full
@@ -1119,6 +1120,9 @@ static struct iax2_thread *find_idle_thread(void)
 	/* Initialize lock and condition */
 	ast_mutex_init(&thread->lock);
 	ast_cond_init(&thread->cond, NULL);
+	ast_mutex_init(&thread->init_lock);
+	ast_cond_init(&thread->init_cond, NULL);
+	ast_mutex_lock(&thread->init_lock);
 
 	/* Create thread and send it on it's way */
 	if (ast_pthread_create_detached_background(&thread->threadid, NULL, iax2_process_thread, thread)) {
@@ -1133,8 +1137,10 @@ static struct iax2_thread *find_idle_thread(void)
 	memset(&thread->ffinfo, 0, sizeof(thread->ffinfo));
 
 	/* Wait for the thread to be ready before returning it to the caller */
-	while (!thread->ready_for_signal)
-		usleep(1);
+	ast_cond_wait(&thread->init_cond, &thread->init_lock);
+
+	/* Done with init_lock */
+	ast_mutex_unlock(&thread->init_lock);
 
 	return thread;
 }
@@ -9737,6 +9743,8 @@ static void iax2_process_thread_cleanup(void *data)
 	struct iax2_thread *thread = data;
 	ast_mutex_destroy(&thread->lock);
 	ast_cond_destroy(&thread->cond);
+	ast_mutex_destroy(&thread->init_lock);
+	ast_cond_destroy(&thread->init_cond);
 	ast_free(thread);
 	ast_atomic_dec_and_test(&iaxactivethreadcount);
 }
@@ -9747,6 +9755,7 @@ static void *iax2_process_thread(void *data)
 	struct timeval wait;
 	struct timespec ts;
 	int put_into_idle = 0;
+	int first_time = 1;
 
 	ast_atomic_fetchadd_int(&iaxactivethreadcount,1);
 	pthread_cleanup_push(iax2_process_thread_cleanup, data);
@@ -9755,8 +9764,11 @@ static void *iax2_process_thread(void *data)
 		ast_mutex_lock(&thread->lock);
 
 		/* Flag that we're ready to accept signals */
-		thread->ready_for_signal = 1;
-		
+		if (first_time) {
+			signal_condition(&thread->init_lock, &thread->init_cond);
+			first_time = 0;
+		}
+
 		/* Put into idle list if applicable */
 		if (put_into_idle)
 			insert_idle_thread(thread);
