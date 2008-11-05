@@ -55,6 +55,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>DTMF digits sent to a channel with half second pause</para>
 			<para>It will pass all digits or terminate if it encounters an error.</para>
 		</description>
+		<see-also>
+			<ref type="application">Read</ref>
+		</see-also>
 	</application>
  ***/
 static char *app = "SendDTMF";

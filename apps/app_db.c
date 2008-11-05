@@ -55,6 +55,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 		<see-also>
 			<ref type="function">DB_DELETE</ref>
+			<ref type="application">DBdeltree</ref>
+			<ref type="function">DB</ref>
 		</see-also>
 	</application>
 	<application name="DBdeltree" language="en_US">
@@ -69,6 +71,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This application will delete a <replaceable>family</replaceable> or <replaceable>keytree</replaceable>
 			from the Asterisk database.</para>
 		</description>
+		<see-also>
+			<ref type="function">DB_DELETE</ref>
+			<ref type="application">DBdel</ref>
+			<ref type="function">DB</ref>
+		</see-also>
 	</application>
  ***/
 

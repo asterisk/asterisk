@@ -56,6 +56,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			DB_RESULT.  If you wish to find out if an entry exists, use the DB_EXISTS
 			function.</para>
 		</description>
+		<see-also>
+			<ref type="application">DBdel</ref>
+			<ref type="function">DB_DELETE</ref>
+			<ref type="application">DBdeltree</ref>
+			<ref type="function">DB_EXISTS</ref>
+		</see-also>
 	</function>
 	<function name="DB_EXISTS" language="en_US">
 		<synopsis>
@@ -71,6 +77,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			it will return <literal>0</literal>.  Checking for existence of a database key will
 			also set the variable DB_RESULT to the key's value if it exists.</para>
 		</description>
+		<see-also>
+			<ref type="function">DB</ref>
+		</see-also>
 	</function>
 	<function name="DB_DELETE" language="en_US">
 		<synopsis>
@@ -85,6 +94,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			and then remove that key from the database. <variable>DB_RESULT</variable>
 			will be set to the key's value if it exists.</para>
 		</description>
+		<see-also>
+			<ref type="application">DBdel</ref>
+			<ref type="function">DB</ref>
+			<ref type="application">DBdeltree</ref>
+		</see-also>
 	</function>
  ***/
 

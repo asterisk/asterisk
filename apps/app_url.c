@@ -73,6 +73,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>SendURL continues normally if the URL was sent correctly or if the channel
 			does not support HTML transport.  Otherwise, the channel is hung up.</para>
 		</description>
+		<see-also>
+			<ref type="application">SendImage</ref>
+			<ref type="application">SendText</ref>
+		</see-also>
 	</application>
  ***/
 

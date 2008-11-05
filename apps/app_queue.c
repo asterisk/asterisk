@@ -214,6 +214,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</variable>
 			</variablelist>
 		</description>
+		<see-also>
+			<ref type="application">AddQueueMember</ref>
+			<ref type="application">RemoveQueueMember</ref>
+			<ref type="application">PauseQueueMember</ref>
+			<ref type="application">UnpauseQueueMember</ref>
+			<ref type="application">AgentLogin</ref>
+			<ref type="function">QUEUE_MEMBER_COUNT</ref>
+			<ref type="function">QUEUE_MEMBER_LIST</ref>
+			<ref type="function">QUEUE_WAITING_COUNT</ref>
+		</see-also>
 	</application>
 	<application name="AddQueueMember" language="en_US">
 		<synopsis>
@@ -240,6 +250,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</variable>
 			</variablelist>
 		</description>
+		<see-also>
+			<ref type="application">RemoveQueueMember</ref>
+			<ref type="application">PauseQueueMember</ref>
+			<ref type="application">UnpauseQueueMember</ref>
+			<ref type="application">AgentLogin</ref>
+		</see-also>
 	</application>
 	<application name="RemoveQueueMember" language="en_US">
 		<synopsis>
@@ -262,6 +278,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</variablelist>
 			<para>Example: RemoveQueueMember(techsupport,SIP/3000)</para>
 		</description>
+		<see-also>
+			<ref type="application">Queue</ref>
+			<ref type="application">AddQueueMember</ref>
+			<ref type="application">PauseQueueMember</ref>
+			<ref type="application">UnpauseQueueMember</ref>
+		</see-also>
 	</application>
 	<application name="PauseQueueMember" language="en_US">
 		<synopsis>
@@ -291,6 +313,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</variablelist>
 			<para>Example: PauseQueueMember(,SIP/3000)</para>
 		</description>
+		<see-also>
+			<ref type="application">UnpauseQueueMember</ref>
+		</see-also>
 	</application>
 	<application name="UnpauseQueueMember" language="en_US">
 		<synopsis>
@@ -317,6 +342,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</variablelist>
 			<para>Example: UnpauseQueueMember(,SIP/3000)</para>
 		</description>
+		<see-also>
+			<ref type="application">PauseQueueMember</ref>
+		</see-also>
 	</application>
 	<application name="QueueLog" language="en_US">
 		<synopsis>
@@ -333,6 +361,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Allows you to write your own events into the queue log.</para>
 			<para>Example: QueueLog(101,${UNIQUEID},${AGENT},WENTONBREAK,600)</para>
 		</description>
+		<see-also>
+			<ref type="application">Queue</ref>
+		</see-also>
 	</application>
 	<function name="QUEUE_VARIABLES" language="en_US">
 		<synopsis>
@@ -408,6 +439,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Returns the number of members currently associated with the specified <replaceable>queuename</replaceable>.</para>
 			<warning><para>This function has been deprecated in favor of the <literal>QUEUE_MEMBER()</literal> function</para></warning>
 		</description>
+		<see-also>
+			<ref type="function">QUEUE_MEMBER_LIST</ref>
+		</see-also>
 	</function>
 	<function name="QUEUE_WAITING_COUNT" language="en_US">
 		<synopsis>
@@ -430,6 +464,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Returns a comma-separated list of members associated with the specified <replaceable>queuename</replaceable>.</para>
 		</description>
+		<see-also>
+			<ref type="function">QUEUE_MEMBER_COUNT</ref>
+		</see-also>
 	</function>
 	<function name="QUEUE_MEMBER_PENALTY" language="en_US">
 		<synopsis>

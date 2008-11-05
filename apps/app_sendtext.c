@@ -63,6 +63,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</variablelist>
 			<note><para>At this moment, text is supposed to be 7 bit ASCII in most channels.</para></note>
 		</description>
+		<see-also>
+			<ref type="application">SendImage</ref>
+			<ref type="application">SendURL</ref>
+		</see-also>
 	</application>
  ***/
 

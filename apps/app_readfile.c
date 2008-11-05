@@ -58,6 +58,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Read the contents of a text file into channel variable <replaceable>varname</replaceable></para>
 			<warning><para>ReadFile has been deprecated in favor of Set(varname=${FILE(file,0,length)})</para></warning>
 		</description>
+		<see-also>
+			<ref type="application">System</ref>
+			<ref type="application">Read</ref>
+		</see-also>
 	</application>
  ***/
 

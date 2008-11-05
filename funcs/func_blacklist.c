@@ -45,6 +45,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Uses astdb to check if the Caller*ID is in family <literal>blacklist</literal>.
 			Returns <literal>1</literal> or <literal>0</literal>.</para>
 		</description>
+		<see-also>
+			<ref type="function">DB</ref>
+		</see-also>
 	</function>
 
 ***/
