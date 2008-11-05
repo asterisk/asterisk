@@ -1374,7 +1374,7 @@ static void quit_handler(int num, int niceness, int safeshutdown, int restart)
 		if (niceness)
 			ast_module_shutdown();
 	}
-	if (ast_opt_console || ast_opt_remote) {
+	if (ast_opt_console || (ast_opt_remote && !ast_opt_exec)) {
 		if (getenv("HOME")) 
 			snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 		if (!ast_strlen_zero(filename))
@@ -2474,17 +2474,6 @@ static void ast_remotecontrol(char *data)
 		else 
 			printf("log and verbose output currently muted ('logger mute' to unmute)\n");
 	}
-	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);
-	remotehostname = hostname;
-	if (getenv("HOME")) 
-		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
-	if (el_hist == NULL || el == NULL)
-		ast_el_initialize();
-
-	el_set(el, EL_GETCFN, ast_el_read_char);
-
-	if (!ast_strlen_zero(filename))
-		ast_el_read_history(filename);
 
 	if (ast_opt_exec && data) {  /* hack to print output then exit if asterisk -rx is used */
 		struct pollfd fds;
@@ -2523,6 +2512,19 @@ static void ast_remotecontrol(char *data)
 		}
 		return;
 	}
+
+	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);
+	remotehostname = hostname;
+	if (getenv("HOME")) 
+		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
+	if (el_hist == NULL || el == NULL)
+		ast_el_initialize();
+
+	el_set(el, EL_GETCFN, ast_el_read_char);
+
+	if (!ast_strlen_zero(filename))
+		ast_el_read_history(filename);
+
 	for (;;) {
 		ebuf = (char *)el_gets(el, &num);
 
