@@ -198,8 +198,8 @@ static int pickup_by_mark(struct ast_channel *chan, const char *mark)
 	int find_by_mark(struct ast_channel *c) {
 		const char *tmp;
 		return (tmp = pbx_builtin_getvar_helper(c, PICKUPMARK)) &&
-            !strcasecmp(tmp, mark) &&
-            can_pickup(c);
+			!strcasecmp(tmp, mark) &&
+			can_pickup(c);
 	}	
 
 	struct ast_channel *target = ast_channel_search_locked(find_by_mark);
