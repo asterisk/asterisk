@@ -37,6 +37,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision: 111213 $")
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <gmime/gmime.h>
+#if defined (__OpenBSD__)
+#include <libgen.h>
+#endif
 
 #include "asterisk/linkedlists.h"
 #include "asterisk/http.h"
