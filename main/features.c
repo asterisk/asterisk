@@ -3997,20 +3997,18 @@ static int manager_park(struct mansession *s, const struct message *m)
 */
 int ast_pickup_call(struct ast_channel *chan)
 {
-	struct ast_channel *cur = NULL;
-	int res = -1;
-
-	while ((cur = ast_channel_walk_locked(cur)) != NULL) {
-		if (!cur->pbx && 
-			(cur != chan) &&
-			(chan->pickupgroup & cur->callgroup) &&
-			((cur->_state == AST_STATE_RINGING) ||
-			 (cur->_state == AST_STATE_RING))) {
-			 	break;
-		}
-		ast_channel_unlock(cur);
+	auto int find_channel_by_group(struct ast_channel *);
+	int find_channel_by_group(struct ast_channel *c) {
+		return !c->pbx &&
+			(c != chan) &&
+			(chan->pickupgroup & c->callgroup) &&
+			((c->_state == AST_STATE_RINGING) ||
+			 (c->_state == AST_STATE_RING));
 	}
+	struct ast_channel *cur = ast_channel_search_locked(find_channel_by_group);
+
 	if (cur) {
+		int res = -1;
 		ast_debug(1, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
 		res = ast_answer(chan);
 		if (res)
@@ -4022,10 +4020,11 @@ int ast_pickup_call(struct ast_channel *chan)
 		if (res)
 			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
 		ast_channel_unlock(cur);
+		return res;
 	} else	{
 		ast_debug(1, "No call pickup possible...\n");
 	}
-	return res;
+	return -1;
 }
 
 static char *app_bridge = "Bridge";
