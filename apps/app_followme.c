@@ -58,21 +58,42 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dsp.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<application name="FollowMe" language="en_US">
+		<synopsis>
+			Find-Me/Follow-Me application.
+		</synopsis>
+		<syntax>
+			<parameter name="followmeid" required="true" />
+			<parameter name="options">
+				<optionlist>
+					<option name="s">
+						<para>Playback the incoming status message prior to starting
+						the follow-me step(s)</para>
+					</option>
+					<option name="a">
+						<para>Record the caller's name so it can be announced to the
+						callee on each step.</para>
+					</option>
+					<option name="n">
+						<para>Playback the unreachable status message if we've run out
+						of steps to reach the or the callee has elected not to be reachable.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application performs Find-Me/Follow-Me functionality for the caller
+			as defined in the profile matching the <replaceable>followmeid</replaceable> parameter in
+			<filename>followme.conf</filename>. If the specified <replaceable>followmeid</replaceable>
+			profile doesn't exist in <filename>followme.conf</filename>, execution will be returned
+			to the dialplan and call execution will continue at the next priority.</para>
+			<para>Returns -1 on hangup.</para>
+		</description>
+	</application>
+ ***/
+
 static char *app = "FollowMe";
-static char *synopsis = "Find-Me/Follow-Me application";
-static char *descrip = 
-"  FollowMe(followmeid[,options]):\n"
-"This application performs Find-Me/Follow-Me functionality for the caller\n"
-"as defined in the profile matching the <followmeid> parameter in\n"
-"followme.conf. If the specified <followmeid> profile doesn't exist in\n"
-"followme.conf, execution will be returned to the dialplan and call\n"
-"execution will continue at the next priority.\n\n"
-"  Options:\n"
-"    s    - Playback the incoming status message prior to starting the follow-me step(s)\n"
-"    a    - Record the caller's name so it can be announced to the callee on each step\n" 
-"    n    - Playback the unreachable status message if we've run out of steps to reach the\n"
-"           or the callee has elected not to be reachable.\n"
-"Returns -1 on hangup\n";
 
 /*! \brief Number structure */
 struct number {
@@ -1144,7 +1165,7 @@ static int load_module(void)
 	if(!reload_followme(0))
 		return AST_MODULE_LOAD_DECLINE;
 
-	return ast_register_application(app, app_exec, synopsis, descrip);
+	return ast_register_application_xml(app, app_exec);
 }
 
 static int reload(void)
