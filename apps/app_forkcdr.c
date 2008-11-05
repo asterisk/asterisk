@@ -71,7 +71,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</option>
 					<option name="s(name=val)">
 						<para>Set the CDR var <replaceable>name</replaceable> in the original CDR,
-						with value <replaceable>val</replaceable></para>.
+						with value <replaceable>val</replaceable>.</para>
 					</option>
 					<option name="T">
 						<para>Mark the original CDR with a DONT_TOUCH flag. setvar, answer, and end

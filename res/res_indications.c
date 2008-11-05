@@ -42,16 +42,43 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/indications.h"
 #include "asterisk/utils.h"
 
+/*** DOCUMENTATION
+	<application name="PlayTones" language="en_US">
+		<synopsis>
+			Play a tone list.
+		</synopsis>
+		<syntax>
+			<parameter name="arg" required="true">
+				<para>Arg is either the tone name defined in the <filename>indications.conf</filename>
+				configuration file, or a directly specified list of frequencies and durations.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Plays a tone list. Execution will continue with the next step immediately,
+			while the tones continue to play.</para>
+			<para>See the sample <filename>indications.conf</filename> for a description of the
+			specification of a tonelist.</para>
+		</description>
+		<see-also>
+			<ref type="application">StopPlayTones</ref>
+		</see-also>
+	</application>
+	<application name="StopPlayTones" language="en_US">
+		<synopsis>
+			Stop playing a tone list.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Stop playing a tone list, initiated by PlayTones().</para>
+		</description>
+		<see-also>
+			<ref type="application">PlayTones</ref>
+		</see-also>
+	</application>
+ ***/
+
 /* Globals */
 static const char config[] = "indications.conf";
-
-char *playtones_desc=
-"  PlayTones(arg): Plays a tone list. Execution will continue with the next step immediately,\n"
-"while the tones continue to play.\n"
-"Arg is either the tone name defined in the indications.conf configuration file, or a directly\n"
-"specified list of frequencies and durations.\n"
-"See the sample indications.conf for a description of the specification of a tonelist.\n\n"
-"Use the StopPlayTones application to stop the tones playing. \n";
 
 /*
  * Implementation of functions provided by this module
@@ -423,8 +450,8 @@ static int load_module(void)
 	if (ind_load_module(0))
 		return AST_MODULE_LOAD_DECLINE; 
 	ast_cli_register_multiple(cli_indications, sizeof(cli_indications) / sizeof(struct ast_cli_entry));
-	ast_register_application("PlayTones", handle_playtones, "Play a tone list", playtones_desc);
-	ast_register_application("StopPlayTones", handle_stopplaytones, "Stop playing a tone list","  StopPlayTones(): Stop playing a tone list");
+	ast_register_application_xml("PlayTones", handle_playtones);
+	ast_register_application_xml("StopPlayTones", handle_stopplaytones);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
