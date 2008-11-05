@@ -5806,7 +5806,11 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 					&& p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
+#ifdef HAVE_PRI_PROG_W_CAUSE
 						pri_progress_with_cause(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1, PRI_CAUSE_USER_BUSY); /* cause = 17 */
+#else
+						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+#endif
 						pri_rel(p->pri);
 					}
 					else
@@ -5903,7 +5907,11 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 					&& p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
+#ifdef HAVE_PRI_PROG_W_CAUSE
 						pri_progress_with_cause(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1, -1);  /* no cause at all */
+#else
+						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+#endif
 						pri_rel(p->pri);
 					}
 					else
@@ -5939,7 +5947,11 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 					&& p->pri && !p->outgoing) {
 				if (p->pri) {		
 					if (!pri_grab(p, p->pri)) {
+#ifdef HAVE_PRI_PROG_W_CAUSE
 						pri_progress_with_cause(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1, PRI_CAUSE_SWITCH_CONGESTION); /* cause = 42 */
+#else
+						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+#endif
 						pri_rel(p->pri);
 					} else
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
