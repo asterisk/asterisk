@@ -37,66 +37,123 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 
+/*** DOCUMENTATION
+	<application name="Macro" language="en_US">
+		<synopsis>
+			Macro Implementation.
+		</synopsis>
+		<syntax>
+			<parameter name="name" required="true">
+				<para>The name of the macro</para>
+			</parameter>
+			<parameter name="args">
+				<argument name="arg1" required="true" />
+				<argument name="arg2" multiple="true" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>Executes a macro using the context macro-<replaceable>name</replaceable>,
+			jumping to the <literal>s</literal> extension of that context and executing each step,
+			then returning when the steps end.</para>
+			<para>The calling extension, context, and priority are stored in <variable>MACRO_EXTEN</variable>,
+			<variable>MACRO_CONTEXT</variable> and <variable>MACRO_PRIORITY</variable> respectively. Arguments
+			become <variable>ARG1</variable>, <variable>ARG2</variable>, etc in the macro context.</para>
+			<para>If you Goto out of the Macro context, the Macro will terminate and control will be returned
+			at the location of the Goto.</para>
+			<para>If <variable>MACRO_OFFSET</variable> is set at termination, Macro will attempt to continue
+			at priority MACRO_OFFSET + N + 1 if such a step exists, and N + 1 otherwise.</para>
+			<para>Extensions: While a macro is being executed, it becomes the current context. This means that if
+			a hangup occurs, for instance, that the macro will be searched for an <literal>h</literal> extension,
+			NOT the context from which the macro was called. So, make sure to define all appropriate extensions
+			in your macro! (Note: AEL does not use macros)</para>
+			<warning><para>Because of the way Macro is implemented (it executes the priorities contained within
+			it via sub-engine), and a fixed per-thread memory stack allowance, macros are limited to 7 levels
+			of nesting (macro calling macro calling macro, etc.); It may be possible that stack-intensive
+			applications in deeply nested macros could cause asterisk to crash earlier than this limit.
+			It is advised that if you need to deeply nest macro calls, that you use the Gosub application
+			(now allows arguments like a Macro) with explict Return() calls instead.</para></warning>
+		</description>
+		<see-also>
+			<ref type="application">MacroExit</ref>
+			<ref type="application">Goto</ref>
+			<ref type="application">Gosub</ref>
+		</see-also>
+	</application>
+	<application name="MacroIf" language="en_US">
+		<synopsis>
+			Conditional Macro implementation.
+		</synopsis>
+		<syntax argsep="?">
+			<parameter name="expr" required="true" />
+			<parameter name="destination" required="true" argsep=":">
+				<argument name="macroiftrue" required="true">
+					<argument name="macroiftrue" required="true" />
+					<argument name="arg1" multiple="true" />
+				</argument>
+				<argument name="macroiffalse">
+					<argument name="macroiffalse" required="true" />
+					<argument name="arg1" multiple="true" />
+				</argument>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Executes macro defined in <replaceable>macroiftrue</replaceable> if
+			<replaceable>expr</replaceable> is true (otherwise <replaceable>macroiffalse</replaceable>
+			if provided)</para>
+			<para>Arguments and return values as in application Macro()</para>
+		</description>
+		<see-also>
+			<ref type="application">GotoIf</ref>
+			<ref type="application">GosubIf</ref>
+			<ref type="function">IF</ref>
+		</see-also>
+	</application>
+	<application name="MacroExclusive" language="en_US">
+		<synopsis>
+			Exclusive Macro Implementation.
+		</synopsis>
+		<syntax>
+			<parameter name="name" required="true">
+				<para>The name of the macro</para>
+			</parameter>
+			<parameter name="arg1" />
+			<parameter name="arg2" multiple="true" />
+		</syntax>
+		<description>
+			<para>Executes macro defined in the context macro-<replaceable>name</replaceable>.
+			Only one call at a time may run the macro. (we'll wait if another call is busy
+			executing in the Macro)</para>
+			<para>Arguments and return values as in application Macro()</para>
+		</description>
+		<see-also>
+			<ref type="application">Macro</ref>
+		</see-also>
+	</application>
+	<application name="MacroExit" language="en_US">
+		<synopsis>
+			Exit from Macro.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Causes the currently running macro to exit as if it had
+			ended normally by running out of priorities to execute.
+			If used outside a macro, will likely cause unexpected behavior.</para>
+		</description>
+		<see-also>
+			<ref type="application">Macro</ref>
+		</see-also>
+	</application>
+ ***/
+
 #define MAX_ARGS 80
 
 /* special result value used to force macro exit */
 #define MACRO_EXIT_RESULT 1024
 
-static char *descrip =
-"  Macro(macroname,arg1,arg2...): Executes a macro using the context\n"
-"'macro-<macroname>', jumping to the 's' extension of that context and\n"
-"executing each step, then returning when the steps end. \n"
-"The calling extension, context, and priority are stored in ${MACRO_EXTEN}, \n"
-"${MACRO_CONTEXT} and ${MACRO_PRIORITY} respectively.  Arguments become\n"
-"${ARG1}, ${ARG2}, etc in the macro context.\n"
-"If you Goto out of the Macro context, the Macro will terminate and control\n"
-"will be returned at the location of the Goto.\n"
-"If ${MACRO_OFFSET} is set at termination, Macro will attempt to continue\n"
-"at priority MACRO_OFFSET + N + 1 if such a step exists, and N + 1 otherwise.\n"
-"Extensions: While a macro is being executed, it becomes the current context.\n"
-"            This means that if a hangup occurs, for instance, that the macro\n"
-"            will be searched for an 'h' extension, NOT the context from which\n"
-"            the macro was called. So, make sure to define all appropriate\n"
-"            extensions in your macro! (Note: AEL does not use macros)\n"
-"WARNING: Because of the way Macro is implemented (it executes the priorities\n"
-"         contained within it via sub-engine), and a fixed per-thread\n"
-"         memory stack allowance, macros are limited to 7 levels\n"
-"         of nesting (macro calling macro calling macro, etc.); It\n"
-"         may be possible that stack-intensive applications in deeply nested macros\n"
-"         could cause asterisk to crash earlier than this limit. It is advised that\n"
-"         if you need to deeply nest macro calls, that you use the Gosub application\n"
-"         (now allows arguments like a Macro) with explict Return() calls instead.\n";
-
-static char *if_descrip =
-"  MacroIf(<expr>?macroname_a[,arg1][:macroname_b[,arg1]])\n"
-"Executes macro defined in <macroname_a> if <expr> is true\n"
-"(otherwise <macroname_b> if provided)\n"
-"Arguments and return values as in application Macro()\n";
-
-static char *exclusive_descrip =
-"  MacroExclusive(macroname,arg1,arg2...):\n"
-"Executes macro defined in the context 'macro-macroname'\n"
-"Only one call at a time may run the macro.\n"
-"(we'll wait if another call is busy executing in the Macro)\n"
-"Arguments and return values as in application Macro()\n";
-
-static char *exit_descrip =
-"  MacroExit():\n"
-"Causes the currently running macro to exit as if it had\n"
-"ended normally by running out of priorities to execute.\n"
-"If used outside a macro, will likely cause unexpected\n"
-"behavior.\n";
-
 static char *app = "Macro";
 static char *if_app = "MacroIf";
 static char *exclusive_app = "MacroExclusive";
 static char *exit_app = "MacroExit";
-
-static char *synopsis = "Macro Implementation";
-static char *if_synopsis = "Conditional Macro Implementation";
-static char *exclusive_synopsis = "Exclusive Macro Implementation";
-static char *exit_synopsis = "Exit From Macro";
-
 
 static struct ast_exten *find_matching_priority(struct ast_context *c, const char *exten, int priority, const char *callerid)
 {
@@ -524,10 +581,10 @@ static int load_module(void)
 {
 	int res;
 
-	res = ast_register_application(exit_app, macro_exit_exec, exit_synopsis, exit_descrip);
-	res |= ast_register_application(if_app, macroif_exec, if_synopsis, if_descrip);
-	res |= ast_register_application(exclusive_app, macroexclusive_exec, exclusive_synopsis, exclusive_descrip);
-	res |= ast_register_application(app, macro_exec, synopsis, descrip);
+	res = ast_register_application_xml(exit_app, macro_exit_exec);
+	res |= ast_register_application_xml(if_app, macroif_exec);
+	res |= ast_register_application_xml(exclusive_app, macroexclusive_exec);
+	res |= ast_register_application_xml(app, macro_exec);
 
 	return res;
 }
