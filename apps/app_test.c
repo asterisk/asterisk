@@ -41,18 +41,41 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 
-static char *tests_descrip = 
-	 "  TestServer(): Perform test server function and write call report.\n"
-	 "Results stored in /var/log/asterisk/testreports/<testid>-server.txt";
+/*** DOCUMENTATION
+	<application name="TestServer" language="en_US">
+		<synopsis>
+			Execute Interface Test Server.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Perform test server function and write call report. Results stored in
+			<filename>/var/log/asterisk/testreports/&lt;testid&gt;-server.txt</filename></para>
+		</description>
+		<see-also>
+			<ref type="application">TestClient</ref>
+		</see-also>
+	</application>
+	<application name="TestClient" language="en_US">
+		<synopsis>
+			Execute Interface Test Client.
+		</synopsis>
+		<syntax>
+			<parameter name="testid" required="true">
+				<para>An ID to identify this test.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Executes test client with given <replaceable>testid</replaceable>. Results stored in
+			<filename>/var/log/asterisk/testreports/&lt;testid&gt;-client.txt</filename></para>
+		</description>
+		<see-also>
+			<ref type="application">TestServer</ref>
+		</see-also>
+	</application>
+ ***/
+
 static char *tests_app = "TestServer";
-static char *tests_synopsis = "Execute Interface Test Server";
-
-static char *testc_descrip = 
-	 "  TestClient(testid): Executes test client with given testid.\n"
-	 "Results stored in /var/log/asterisk/testreports/<testid>-client.txt";
-
 static char *testc_app = "TestClient";
-static char *testc_synopsis = "Execute Interface Test Client";
 
 static int measurenoise(struct ast_channel *chan, int ms, char *who)
 {
@@ -458,8 +481,8 @@ static int load_module(void)
 {
 	int res;
 
-	res = ast_register_application(testc_app, testclient_exec, testc_synopsis, testc_descrip);
-	res |= ast_register_application(tests_app, testserver_exec, tests_synopsis, tests_descrip);
+	res = ast_register_application_xml(testc_app, testclient_exec);
+	res |= ast_register_application_xml(tests_app, testserver_exec);
 
 	return res;
 }
