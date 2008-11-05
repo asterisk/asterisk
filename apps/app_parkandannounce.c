@@ -43,28 +43,47 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<application name="ParkAndAnnounce" language="en_US">
+		<synopsis>
+			Park and Announce.
+		</synopsis>
+		<syntax>
+			<parameter name="announce_template" required="true" argsep=":">
+				<argument name="announce" required="true">
+					<para>Colon-separated list of files to announce. The word
+					<literal>PARKED</literal> will be replaced by a say_digits of the extension in which
+					the call is parked.</para>
+				</argument>
+				<argument name="announce1" multiple="true" />
+			</parameter>
+			<parameter name="timeout" required="true">
+				<para>Time in seconds before the call returns into the return
+				context.</para>
+			</parameter>
+			<parameter name="dial" required="true">
+				<para>The app_dial style resource to call to make the
+				announcement. Console/dsp calls the console.</para>
+			</parameter>
+			<parameter name="return_context">
+				<para>The goto-style label to jump the call back into after
+				timeout. Default <literal>priority+1</literal>.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Park a call into the parkinglot and announce the call to another channel.</para>
+			<para>The variable <variable>PARKEDAT</variable> will contain the parking extension
+			into which the call was placed.  Use with the Local channel to allow the dialplan to make
+			use of this information.</para>
+		</description>
+		<see-also>
+			<ref type="application">Park</ref>
+			<ref type="application">ParkedCall</ref>
+		</see-also>
+	</application>
+ ***/
+
 static char *app = "ParkAndAnnounce";
-
-static char *synopsis = "Park and Announce";
-
-static char *descrip =
-"  ParkAndAnnounce(announce:template,timeout,dial[,return_context]):\n"
-"Park a call into the parkinglot and announce the call to another channel.\n"
-"\n"
-"announce template: Colon-separated list of files to announce.  The word PARKED\n"
-"                   will be replaced by a say_digits of the extension in which\n"
-"                   the call is parked.\n"
-"timeout:           Time in seconds before the call returns into the return\n"
-"                   context.\n"
-"dial:              The app_dial style resource to call to make the\n"
-"                   announcement.  Console/dsp calls the console.\n"
-"return_context:    The goto-style label to jump the call back into after\n"
-"                   timeout.  Default <priority+1>.\n"
-"\n"
-"The variable ${PARKEDAT} will contain the parking extension into which the\n"
-"call was placed.  Use with the Local channel to allow the dialplan to make\n"
-"use of this information.\n";
-
 
 static int parkandannounce_exec(struct ast_channel *chan, void *data)
 {
@@ -182,7 +201,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	/* return ast_register_application(app, park_exec); */
-	return ast_register_application(app, parkandannounce_exec, synopsis, descrip);
+	return ast_register_application_xml(app, parkandannounce_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Call Parking and Announce Application");
