@@ -32,6 +32,9 @@ Dialplan Functions
  * Added debugging CLI functions to func_odbc, 'odbc read' and 'odbc write'.
  * func_odbc now may specify an insert query to execute, when the write query
    affects 0 rows (usually indicating that no such row exists).
+ * Added a new dialplan function, LISTFILTER, which permits removing elements
+   from a set list, by name.  Uses the same general syntax as the existing CUT
+   and FIELDQTY dialplan functions, which also manage lists.
 
 Applications
 ------------

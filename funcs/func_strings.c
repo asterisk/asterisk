@@ -39,6 +39,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/localtime.h"
 
+AST_THREADSTORAGE(result_buf);
+
 /*** DOCUMENTATION
 	<function name="FIELDQTY" language="en_US">
 		<synopsis>
@@ -50,6 +52,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Example: ${FIELDQTY(ex-amp-le,-)} returns 3</para>
+		</description>
+	</function>
+	<function name="LISTFILTER" language="en_US">
+		<synopsis>Remove an item from a list, by name.</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+			<parameter name="delim" required="true" default="," />
+			<parameter name="value" required="true" />
+		</syntax>
+		<description>
+			<para>Remove <replaceable>value</replaceable> from the list contained in the <replaceable>varname</replaceable>
+			variable, where the list delimiter is specified by the <replaceable>delim</replaceable> parameter.  This is
+			very useful for removing a single channel name from a list of channels, for example.</para>
 		</description>
 	</function>
 	<function name="FILTER" language="en_US">
@@ -320,6 +335,105 @@ static int function_fieldqty(struct ast_channel *chan, const char *cmd,
 static struct ast_custom_function fieldqty_function = {
 	.name = "FIELDQTY",
 	.read = function_fieldqty,
+};
+
+static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, char *buf, size_t len)
+{
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(listname);
+		AST_APP_ARG(delimiter);
+		AST_APP_ARG(fieldvalue);
+	);
+	const char *orig_list, *ptr;
+	const char *begin, *cur, *next;
+	int dlen, flen;
+	struct ast_str *result = ast_str_thread_get(&result_buf, 16);
+	char *delim;
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (args.argc < 3) {
+		ast_log(LOG_ERROR, "Usage: LISTFILTER(<listname>,<delimiter>,<fieldvalue>)\n");
+		return -1;
+	}
+
+	/* If we don't lock the channel, the variable could disappear out from underneath us. */
+	if (chan) {
+		ast_channel_lock(chan);
+	}
+	if (!(orig_list = pbx_builtin_getvar_helper(chan, args.listname))) {
+		ast_log(LOG_ERROR, "List variable '%s' not found\n", args.listname);
+		if (chan) {
+			ast_channel_unlock(chan);
+		}
+		return -1;
+	}
+
+	/* If the string isn't there, just copy out the string and be done with it. */
+	if (!(ptr = strstr(orig_list, args.fieldvalue))) {
+		ast_copy_string(buf, orig_list, len);
+		if (chan) {
+			ast_channel_unlock(chan);
+		}
+		return 0;
+	}
+
+	dlen = strlen(args.delimiter);
+	delim = alloca(dlen + 1);
+	ast_get_encoded_str(args.delimiter, delim, dlen + 1);
+
+	if ((dlen = strlen(delim)) == 0) {
+		delim = ",";
+		dlen = 1;
+	}
+
+	flen = strlen(args.fieldvalue);
+
+	ast_str_reset(result);
+	/* Enough space for any result */
+	ast_str_make_space(&result, strlen(orig_list) + 1);
+
+	begin = orig_list;
+	next = strstr(begin, delim);
+
+	do {
+		/* Find next boundary */
+		if (next) {
+			cur = next;
+			next = strstr(cur + dlen, delim);
+		} else {
+			cur = strchr(begin + dlen, '\0');
+		}
+
+		if (flen == cur - begin && !strncmp(begin, args.fieldvalue, flen)) {
+			/* Skip field */
+			begin += flen + dlen;
+		} else {
+			/* Copy field to output */
+			if (result->used) {
+				ast_str_append(&result, 0, "%s", delim);
+			}
+
+			/* Have to do it this way, since we're not null-terminated. */
+			strncpy(result->str + result->used, begin, cur - begin);
+			result->used += cur - begin;
+			result->str[result->used] = '\0';
+
+			begin = cur + dlen;
+		}
+	} while (*cur != '\0');
+	if (chan) {
+		ast_channel_unlock(chan);
+	}
+
+	ast_copy_string(buf, result->str, len);
+
+	return 0;
+}
+
+static struct ast_custom_function listfilter_function = {
+	.name = "LISTFILTER",
+	.read = listfilter,
 };
 
 static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *buf,
@@ -997,6 +1111,7 @@ static int unload_module(void)
 
 	res |= ast_custom_function_unregister(&fieldqty_function);
 	res |= ast_custom_function_unregister(&filter_function);
+	res |= ast_custom_function_unregister(&listfilter_function);
 	res |= ast_custom_function_unregister(&regex_function);
 	res |= ast_custom_function_unregister(&array_function);
 	res |= ast_custom_function_unregister(&quote_function);
@@ -1021,6 +1136,7 @@ static int load_module(void)
 
 	res |= ast_custom_function_register(&fieldqty_function);
 	res |= ast_custom_function_register(&filter_function);
+	res |= ast_custom_function_register(&listfilter_function);
 	res |= ast_custom_function_register(&regex_function);
 	res |= ast_custom_function_register(&array_function);
 	res |= ast_custom_function_register(&quote_function);
