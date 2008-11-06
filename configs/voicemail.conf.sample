@@ -290,8 +290,6 @@ european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
 
 
 [default]
-; Define maximum number of messages per folder for a particular context.
-;maxmsg=50
 
 1234 => 4242,Example Mailbox,root@localhost
 ;4200 => 9855,Mark Spencer,markster@linux-support.net,mypager@digium.com,attach=no|serveremail=myaddy@digium.com|tz=central|maxmsg=10
