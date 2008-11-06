@@ -66,11 +66,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <glob.h>
 
-#if defined(__Darwin__) || defined(__CYGWIN__)
+#if !defined(GLOB_ABORTED)
 #define GLOB_ABORTED GLOB_ABEND
 #endif
-# include <glob.h>
+
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
