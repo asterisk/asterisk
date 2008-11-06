@@ -52,13 +52,19 @@ static force_inline int ast_strlen_zero(const char *s)
 /*! \brief returns the equivalent of logic or for strings:
  * first one if not empty, otherwise second one.
  */
-#define S_OR(a, b)           (!ast_strlen_zero(a) ? (a) : (b))
+static force_inline char *S_OR(const char *a, const char *b)
+{
+	return ast_strlen_zero(a) ? (char *) b : (char *) a;
+}
 
 /*! \brief returns the equivalent of logic or for strings, with an additional boolean check:
  * second one if not empty and first one is true, otherwise third one.
  * example: S_COR(usewidget, widget, "<no widget>")
  */
-#define S_COR(a, b, c)   ((a && !ast_strlen_zero(b)) ? (b) : (c))
+static force_inline char *S_COR(unsigned char a, const char *b, const char *c)
+{
+	return a && !ast_strlen_zero(b) ? (char *) b : (char *) c;
+}
 
 /*!
   \brief Gets a pointer to the first non-whitespace character in a string.
