@@ -4269,6 +4269,7 @@ static char *xmldoc_build_seealso(const char *type, const char *name)
 	struct ast_xml_node *node;
 	const char *typename;
 	const char *content;
+	int first = 1;
 
 	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
 		return NULL;
@@ -4314,18 +4315,16 @@ static char *xmldoc_build_seealso(const char *type, const char *name)
 			ast_xml_free_attr(typename);
 			continue;
 		}
-		if (!strcasecmp(typename, "application") || !strcasecmp(typename, "function")) {
-			ast_str_append(&outputstr, 0, "%s: Type <astcli>core show %s %s</astcli> for more info.\n",
-				content, typename, content);
+		if (!strcasecmp(typename, "application")) {
+			ast_str_append(&outputstr, 0, "%s%s()",	(first ? "" : ", "), content);
+		} else if (!strcasecmp(typename, "function")) {
+			ast_str_append(&outputstr, 0, "%s%s", (first ? "" : ", "), content);
 		} else if (!strcasecmp(typename, "astcli")) {
-			ast_str_append(&outputstr, 0, "%s: Type <astcli>help %s</astcli> for more info.\n", content, content);
-		} else if (!strcasecmp(typename, "link")) {
-			ast_str_append(&outputstr, 0, "%s\n", content);
-		} else if (!strcasecmp(typename, "manpage")) {
-			ast_str_append(&outputstr, 0, "ManPage: %s\n", content);
-		} else if (!strcasecmp(typename, "filename")) {
-			ast_str_append(&outputstr, 0, "File: %s\n", content);
+			ast_str_append(&outputstr, 0, "%s<astcli>%s</astcli>", (first ? "" : ", "), content);
+		} else {
+			ast_str_append(&outputstr, 0, "%s%s", (first ? "" : ", "), content);
 		}
+		first = 0;
 		ast_xml_free_text(content);
 	}
 
