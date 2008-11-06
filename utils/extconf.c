@@ -49,11 +49,14 @@
 #include <pthread.h>
 #include <netdb.h>
 #include <sys/param.h>
+
 #define ASINCLUDE_GLOB 1
 #ifdef AST_INCLUDE_GLOB
-#if defined(__Darwin__) || defined(__CYGWIN__)
+
+#if !defined(GLOB_ABORTED)
 #define GLOB_ABORTED GLOB_ABEND
 #endif
+
 # include <glob.h>
 #endif
 
