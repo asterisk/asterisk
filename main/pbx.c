@@ -6546,19 +6546,16 @@ int ast_load_documentation(void)
 	/* setup default XML documentation language */
 	snprintf(documentation_language, sizeof(documentation_language), default_documentation_language);
 
-	if (!(cfg = ast_config_load2("asterisk.conf", "" /* core can't reload */, cnfflags))) {
-		ast_log(LOG_ERROR, "No asterisk.conf? That cannot be good.\n");
-		return 1;
-	}
-
-	for (var = ast_variable_browse(cfg, "options"); var; var = var->next) {
-		if (!strcasecmp(var->name, "documentation_language")) {
-			if (!ast_strlen_zero(var->value)) {
-				snprintf(documentation_language, sizeof(documentation_language), "%s", var->value);
+	if ((cfg = ast_config_load2("asterisk.conf", "" /* core can't reload */, cnfflags))) {
+		for (var = ast_variable_browse(cfg, "options"); var; var = var->next) {
+			if (!strcasecmp(var->name, "documentation_language")) {
+				if (!ast_strlen_zero(var->value)) {
+					snprintf(documentation_language, sizeof(documentation_language), "%s", var->value);
+				}
 			}
 		}
+		ast_config_destroy(cfg);
 	}
-        ast_config_destroy(cfg);
 
 	/* initialize the XML library. */
 	ast_xml_init();
