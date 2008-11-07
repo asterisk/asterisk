@@ -6548,6 +6548,7 @@ int ast_load_documentation(void)
 
 	if (!(cfg = ast_config_load2("asterisk.conf", "" /* core can't reload */, cnfflags))) {
 		ast_log(LOG_ERROR, "No asterisk.conf? That cannot be good.\n");
+		return 1;
 	}
 
 	for (var = ast_variable_browse(cfg, "options"); var; var = var->next) {
