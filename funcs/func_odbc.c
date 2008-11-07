@@ -277,6 +277,8 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		return -1;
 	}
 
+	ast_str_reset(colnames);
+
 	AST_RWLIST_RDLOCK(&queries);
 	AST_RWLIST_TRAVERSE(&queries, query, list) {
 		if (!strcmp(query->acf->name, cmd)) {
@@ -420,6 +422,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 					colnames->str[colnames->used++] = colname[i];
 
 					if (colname[i] == '\0') {
+						colnames->used--;
 						break;
 					}
 				}
