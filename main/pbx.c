@@ -4108,7 +4108,7 @@ static int xmldoc_parse_argument(struct ast_xml_node *fixnode, int insideparamet
 {
 	struct ast_xml_node *node = fixnode;
 	const char *argname;
-	int count=0, ret = 0;
+	int count = 0, ret = 0;
 
 	if (!node || !ast_xml_node_get_children(node)) {
 		return ret;
