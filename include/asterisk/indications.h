@@ -40,9 +40,9 @@
 	   first tone description not preceeded by !. Duration is
 	   specified in milliseconds */
 struct ind_tone_zone_sound {
-	struct ind_tone_zone_sound *next;	/*!< next element */
 	const char *name;			/*!< Identifing name */
 	const char *data;			/*!< Actual zone description */
+	AST_LIST_ENTRY(ind_tone_zone_sound) list;
 };
 
 struct ind_tone_zone {
@@ -52,7 +52,7 @@ struct ind_tone_zone {
 	char description[40];				/*!< Description */
 	int  nrringcadence;				/*!< # registered ringcadence elements */
 	int *ringcadence;				/*!< Ring cadence */
-	struct ind_tone_zone_sound *tones;		/*!< The known tones for this zone */
+	AST_LIST_HEAD_NOLOCK(, ind_tone_zone_sound) tones;		/*!< The known tones for this zone */
 };
 
 /*! \brief set the default tone country */
@@ -62,6 +62,8 @@ int ast_set_indication_country(const char *country);
 struct ind_tone_zone *ast_get_indication_zone(const char *country);
 /*! \brief locate a tone_zone_sound, given the tone_zone. if tone_zone == NULL, use the default tone_zone */
 struct ind_tone_zone_sound *ast_get_indication_tone(const struct ind_tone_zone *zone, const char *indication);
+/*! \brief deallocate the passed tone zone */
+void ast_destroy_indication_zone(struct ind_tone_zone *zone);
 
 /*! \brief add a new country, if country exists, it will be replaced. */
 int ast_register_indication_country(struct ind_tone_zone *country);

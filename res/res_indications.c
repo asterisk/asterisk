@@ -216,7 +216,7 @@ static char *handle_cli_indication_show(struct ast_cli_entry *e, int cmd, struct
 		int i, j;
 		for (i = 2; i < a->argc; i++) {
 			if (strcasecmp(tz->country, a->argv[i]) == 0 && !tz->alias[0]) {
-				struct ind_tone_zone_sound* ts;
+				struct ind_tone_zone_sound *ts;
 				if (!found_country) {
 					found_country = 1;
 					ast_cli(a->fd, "Country Indication      PlayList\n");
@@ -230,8 +230,9 @@ static char *handle_cli_indication_show(struct ast_cli_entry *e, int cmd, struct
 					j--;
 				ast_copy_string(buf + j, "\n", sizeof(buf) - j);
 				ast_cli(a->fd, "%s", buf);
-				for (ts = tz->tones; ts; ts = ts->next)
+				AST_LIST_TRAVERSE(&tz->tones, ts, list) {
 					ast_cli(a->fd, "%-7.7s %-15.15s %s\n", tz->country, ts->name, ts->data);
+				}
 				break;
 			}
 		}
@@ -274,23 +275,6 @@ static int handle_stopplaytones(struct ast_channel *chan, void *data)
 {
 	ast_playtones_stop(chan);
 	return 0;
-}
-
-/* helper function to delete a tone_zone in its entirety */
-static inline void free_zone(struct ind_tone_zone* zone)
-{
-	while (zone->tones) {
-		struct ind_tone_zone_sound *tmp = zone->tones->next;
-		ast_free((void *)zone->tones->name);
-		ast_free((void *)zone->tones->data);
-		ast_free(zone->tones);
-		zone->tones = tmp;
-	}
-
-	if (zone->ringcadence)
-		ast_free(zone->ringcadence);
-
-	ast_free(zone);
 }
 
 /*! \brief load indications module */
@@ -347,7 +331,7 @@ static int ind_load_module(int reload)
 					}					
 					if (!(tmp = ast_realloc(tones->ringcadence, (tones->nrringcadence + 1) * sizeof(int)))) {
 						ast_config_destroy(cfg);
-						free_zone(tones);
+						ast_destroy_indication_zone(tones);
 						return -1;
 					}
 					tones->ringcadence = tmp;
@@ -364,50 +348,49 @@ static int ind_load_module(int reload)
 					struct ind_tone_zone* azone;
 					if (!(azone = ast_calloc(1, sizeof(*azone)))) {
 						ast_config_destroy(cfg);
-						free_zone(tones);
+						ast_destroy_indication_zone(tones);
 						return -1;
 					}
 					ast_copy_string(azone->country, country, sizeof(azone->country));
 					ast_copy_string(azone->alias, cxt, sizeof(azone->alias));
 					if (ast_register_indication_country(azone)) {
 						ast_log(LOG_WARNING, "Unable to register indication alias at line %d.\n",v->lineno);
-						free_zone(tones);
+						ast_destroy_indication_zone(tones);
 					}
 					/* next item */
 					country = strsep(&c,",");
 				}
 			} else {
+				struct ind_tone_zone_sound *ts;
+
 				/* add tone to country */
-				struct ind_tone_zone_sound *ps,*ts;
-				for (ps=NULL,ts=tones->tones; ts; ps=ts, ts=ts->next) {
-					if (strcasecmp(v->name,ts->name)==0) {
+				AST_LIST_TRAVERSE(&tones->tones, ts, list) {
+					if (!strcasecmp(v->name, ts->name)) {
 						/* already there */
-						ast_log(LOG_NOTICE,"Duplicate entry '%s', skipped.\n",v->name);
+						ast_log(LOG_NOTICE, "Duplicate entry '%s' skipped.\n", v->name);
 						goto out;
 					}
 				}
-				/* not there, add it to the back */				
-				if (!(ts = ast_malloc(sizeof(*ts)))) {
+
+				/* not there, add it to the back */
+				if (!(ts = ast_calloc(1, sizeof(*ts)))) {
 					ast_config_destroy(cfg);
 					return -1;
 				}
-				ts->next = NULL;
 				ts->name = ast_strdup(v->name);
 				ts->data = ast_strdup(v->value);
-				if (ps)
-					ps->next = ts;
-				else
-					tones->tones = ts;
+
+				AST_LIST_INSERT_TAIL(&tones->tones, ts, list);
 			}
 out:			v = v->next;
 		}
-		if (tones->description[0] || tones->alias[0] || tones->tones) {
+		if (tones->description[0] || tones->alias[0] || !AST_LIST_EMPTY(&tones->tones)) {
 			if (ast_register_indication_country(tones)) {
 				ast_log(LOG_WARNING, "Unable to register indication at line %d.\n",v->lineno);
-				free_zone(tones);
+				ast_destroy_indication_zone(tones);
 			}
 		} else {
-			free_zone(tones);
+			ast_destroy_indication_zone(tones);
 		}
 
 		cxt = ast_category_browse(cfg, cxt);

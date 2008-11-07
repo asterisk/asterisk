@@ -432,7 +432,7 @@ struct ind_tone_zone_sound *ast_get_indication_tone(const struct ind_tone_zone *
 	}
 
 	/* Look through list of tones in the zone searching for the right one */
-	for (ts = zone->tones; ts; ts = ts->next) {
+	AST_LIST_TRAVERSE(&zone->tones, ts, list) {
 		if (!strcasecmp(ts->name, indication))
 			break;
 	}
@@ -442,15 +442,21 @@ struct ind_tone_zone_sound *ast_get_indication_tone(const struct ind_tone_zone *
 	return ts;
 }
 
-/* helper function to delete a tone_zone in its entirety */
-static inline void free_zone(struct ind_tone_zone* zone)
+static inline void clear_zone_sound(struct ind_tone_zone_sound *ts)
 {
-	while (zone->tones) {
-		struct ind_tone_zone_sound *tmp = zone->tones->next;
-		ast_free((void *)zone->tones->name);
-		ast_free((void *)zone->tones->data);
-		ast_free(zone->tones);
-		zone->tones = tmp;
+	/* Deconstify the 'const char *'s so the compiler doesn't complain. (but it's safe) */
+	ast_free((char *) ts->name);
+	ast_free((char *) ts->data);
+}
+
+/*! \brief deallocate the passed tone zone */
+void ast_destroy_indication_zone(struct ind_tone_zone *zone)
+{
+	struct ind_tone_zone_sound *current;
+
+	while ((current = AST_LIST_REMOVE_HEAD(&zone->tones, list))) {
+		clear_zone_sound(current);
+		ast_free(current);
 	}
 
 	if (zone->ringcadence)
@@ -477,7 +483,7 @@ int ast_register_indication_country(struct ind_tone_zone *zone)
 		/* Remove from the linked list */
 		AST_RWLIST_REMOVE_CURRENT(list);
 		/* Finally free the zone itself */
-		free_zone(tz);
+		ast_destroy_indication_zone(tz);
 		break;
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
@@ -512,7 +518,7 @@ int ast_unregister_indication_country(const char *country)
 		/* Remove from the list */
 		AST_RWLIST_REMOVE_CURRENT(list);
 		ast_verb(3, "Unregistered indication country '%s'\n", tz->country);
-		free_zone(tz);
+		ast_destroy_indication_zone(tz);
 		res = 0;
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
@@ -525,37 +531,39 @@ int ast_unregister_indication_country(const char *country)
  * exists, it will be replaced. */
 int ast_register_indication(struct ind_tone_zone *zone, const char *indication, const char *tonelist)
 {
-	struct ind_tone_zone_sound *ts, *ps;
+	struct ind_tone_zone_sound *ts;
+	int found = 0;
 
 	/* is it an alias? stop */
 	if (zone->alias[0])
 		return -1;
 
 	AST_RWLIST_WRLOCK(&tone_zones);
-	for (ps=NULL,ts=zone->tones; ts; ps=ts,ts=ts->next) {
-		if (!strcasecmp(indication,ts->name)) {
-			/* indication already there, replace */
-			ast_free((void*)ts->name);
-			ast_free((void*)ts->data);
+
+	AST_LIST_TRAVERSE(&zone->tones, ts, list) {
+		if (!strcasecmp(indication, ts->name)) {
+			clear_zone_sound(ts);
+			found = 1;
 			break;
 		}
 	}
 	if (!ts) {
 		/* not there, we have to add */
-		if (!(ts = ast_malloc(sizeof(*ts)))) {
+		if (!(ts = ast_calloc(1, sizeof(*ts)))) {
 			AST_RWLIST_UNLOCK(&tone_zones);
 			return -2;
 		}
-		ts->next = NULL;
 	}
 	if (!(ts->name = ast_strdup(indication)) || !(ts->data = ast_strdup(tonelist))) {
+		ast_free(ts);
 		AST_RWLIST_UNLOCK(&tone_zones);
 		return -2;
 	}
-	if (ps)
-		ps->next = ts;
-	else
-		zone->tones = ts;
+
+	if (!found) {
+		AST_LIST_INSERT_TAIL(&zone->tones, ts, list);
+	}
+
 	AST_RWLIST_UNLOCK(&tone_zones);
 	return 0;
 }
@@ -563,7 +571,7 @@ int ast_register_indication(struct ind_tone_zone *zone, const char *indication, 
 /* remove an existing country's indication. Both country and indication must exist */
 int ast_unregister_indication(struct ind_tone_zone *zone, const char *indication)
 {
-	struct ind_tone_zone_sound *ts,*ps = NULL, *tmp;
+	struct ind_tone_zone_sound *ts;
 	int res = -1;
 
 	/* is it an alias? stop */
@@ -571,27 +579,18 @@ int ast_unregister_indication(struct ind_tone_zone *zone, const char *indication
 		return -1;
 
 	AST_RWLIST_WRLOCK(&tone_zones);
-	ts = zone->tones;
-	while (ts) {
-		if (!strcasecmp(indication,ts->name)) {
-			/* indication found */
-			tmp = ts->next;
-			if (ps)
-				ps->next = tmp;
-			else
-				zone->tones = tmp;
-			ast_free((void*)ts->name);
-			ast_free((void*)ts->data);
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&zone->tones, ts, list) {
+		if (!strcasecmp(indication, ts->name)) {
+			AST_LIST_REMOVE_CURRENT(list);
+			clear_zone_sound(ts);
 			ast_free(ts);
-			ts = tmp;
 			res = 0;
-		}
-		else {
-			/* next zone please */
-			ps = ts;
-			ts = ts->next;
+			break;
 		}
 	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
 	/* indication not found, goodbye */
 	AST_RWLIST_UNLOCK(&tone_zones);
 	return res;
