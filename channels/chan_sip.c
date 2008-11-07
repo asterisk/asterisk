@@ -12972,7 +12972,8 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 				unref_peer(pi, "toss iterator peer ptr");
 			}
 			if (pruned) {
-				ao2_t_callback(peers, OBJ_NODATA|OBJ_UNLINK, peer_is_marked, 0, "initiating callback to remove marked peers");
+				ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, 0, 
+						"initiating callback to remove marked peers");
 				ast_cli(a->fd, "%d peers pruned.\n", pruned);
 			} else
 				ast_cli(a->fd, "No peers found to prune.\n");
@@ -12981,7 +12982,7 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 		if (prunepeer) {
 			struct sip_peer tmp;
 			ast_copy_string(tmp.name, name, sizeof(tmp.name));
-			if ((peer = ao2_t_find(peers, &tmp, OBJ_POINTER|OBJ_UNLINK, "finding to unlink from peers"))) {
+			if ((peer = ao2_t_find(peers, &tmp, OBJ_POINTER | OBJ_UNLINK, "finding to unlink from peers"))) {
 				if (peer->addr.sin_addr.s_addr) {
 					ao2_t_unlink(peers_by_ip, peer, "unlinking peer from peers_by_ip also");
 				}
@@ -19744,7 +19745,8 @@ static void *do_monitor(void *data)
 		   of time since the last time we did it (when MWI is being sent, we can
 		   get back to this point every millisecond or less)
 		*/
-		ao2_t_callback(dialogs, OBJ_UNLINK|OBJ_NODATA, dialog_needdestroy, &t, "callback to remove dialogs w/needdestroy");
+		ao2_t_callback(dialogs, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, dialog_needdestroy, &t, 
+				"callback to remove dialogs w/needdestroy");
 
 		/* the old methodology would be to restart the search for dialogs to delete with every 
 		   dialog that was found and destroyed, probably because the list contents would change,
@@ -20947,7 +20949,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		   during reload
 		*/
 		ast_copy_string(tmp_peer.name, name, sizeof(tmp_peer.name));
-		peer = ao2_t_find(peers, &tmp_peer, OBJ_POINTER|OBJ_UNLINK, "find and unlink peer from peers table");
+		peer = ao2_t_find(peers, &tmp_peer, OBJ_POINTER | OBJ_UNLINK, "find and unlink peer from peers table");
 	}
 	
 	if (peer) {
@@ -22712,7 +22714,8 @@ static int sip_do_reload(enum channelreloadreason reason)
 
 	start_poke = time(0);
 	/* Prune peers who still are supposed to be deleted */
-	ao2_t_callback(peers, OBJ_NODATA|OBJ_UNLINK, peer_is_marked, 0, "callback to remove marked peers");
+	ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, 0, 
+			"callback to remove marked peers");
 	
 	ast_debug(4, "--------------- Done destroying pruned peers\n");
 
