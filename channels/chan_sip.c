@@ -4848,7 +4848,6 @@ static int sip_hangup(struct ast_channel *ast)
 			if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 				/* stop retransmitting an INVITE that has not received a response */
 				__sip_pretend_ack(p);
-				p->invitestate = INV_CANCELLED;
 
 				/* if we can't send right now, mark it pending */
 				if (p->invitestate == INV_CALLING) {
@@ -4858,6 +4857,7 @@ static int sip_hangup(struct ast_channel *ast)
 					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 					append_history(p, "DELAY", "Not sending cancel, waiting for timeout");
 				} else {
+					p->invitestate = INV_CANCELLED;
 					/* Send a new request: CANCEL */
 					transmit_request(p, SIP_CANCEL, p->lastinvite, XMIT_RELIABLE, FALSE);
 					/* Actually don't destroy us yet, wait for the 487 on our original 
