@@ -1446,7 +1446,9 @@ static int pbx_load_config(const char *config_file)
 		pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 		pbx_builtin_setvar_helper(NULL, v->name, realvalue);
 	}
-	for (cxt = NULL; cxt; cxt = ast_category_browse(cfg, cxt)) {
+	for (cxt = ast_category_browse(cfg, NULL);
+	     cxt;
+	     cxt = ast_category_browse(cfg, cxt)) {
 		/* All categories but "general" or "globals" are considered contexts */
 		if (!strcasecmp(cxt, "general") || !strcasecmp(cxt, "globals")) {
 			continue;
