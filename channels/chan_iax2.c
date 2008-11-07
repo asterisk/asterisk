@@ -1399,7 +1399,7 @@ static int peer_hash_cb(const void *obj, const int flags)
 /*!
  * \note The only member of the peer passed here guaranteed to be set is the name field
  */
-static int peer_cmp_cb(void *obj, void *arg, int flags)
+static int peer_cmp_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct iax2_peer *peer = obj, *peer2 = arg;
 
@@ -1419,7 +1419,7 @@ static int user_hash_cb(const void *obj, const int flags)
 /*!
  * \note The only member of the user passed here guaranteed to be set is the name field
  */
-static int user_cmp_cb(void *obj, void *arg, int flags)
+static int user_cmp_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct iax2_user *user = obj, *user2 = arg;
 
@@ -1437,7 +1437,7 @@ static struct iax2_peer *find_peer(const char *name, int realtime)
 		.name = name,
 	};
 
-	peer = ao2_find(peers, &tmp_peer, OBJ_POINTER);
+	peer = ao2_find(peers, &tmp_peer, NULL, OBJ_POINTER);
 
 	/* Now go for realtime if applicable */
 	if(!peer && realtime)
@@ -1511,7 +1511,7 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 			.name = pvt->username,
 		};
 
-		user = ao2_find(users, &tmp_user, OBJ_POINTER);
+		user = ao2_find(users, &tmp_user, NULL, OBJ_POINTER);
 		if (user) {
 			ast_atomic_fetchadd_int(&user->curauthreq, -1);
 			user_unref(user);	
@@ -1778,7 +1778,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 
 			memcpy(&tmp_pvt.addr, sin, sizeof(tmp_pvt.addr));
 
-			if ((pvt = ao2_find(iax_peercallno_pvts, &tmp_pvt, OBJ_POINTER))) {
+			if ((pvt = ao2_find(iax_peercallno_pvts, &tmp_pvt, NULL, OBJ_POINTER))) {
 				if (return_locked) {
 					ast_mutex_lock(&iaxsl[pvt->callno]);
 				}
@@ -5407,7 +5407,7 @@ static char *handle_cli_iax2_unregister(struct ast_cli_entry *e, int cmd, struct
 			};
 			struct iax2_peer *peer;
 
-			peer = ao2_find(peers, &tmp_peer, OBJ_POINTER);
+			peer = ao2_find(peers, &tmp_peer, NULL, OBJ_POINTER);
 			if (peer) {
 				expire_registry(peer_ref(peer)); /* will release its own reference when done */
 				peer_unref(peer); /* ref from ao2_find() */
@@ -6299,7 +6299,7 @@ static int authenticate_request(int call_num)
 			.name = p->username,	
 		};
 
-		user = ao2_find(users, &tmp_user, OBJ_POINTER);
+		user = ao2_find(users, &tmp_user, NULL, OBJ_POINTER);
 		if (user) {
 			if (user->curauthreq == user->maxauthreq)
 				authreq_restrict = 1;
@@ -6349,7 +6349,7 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 		.name = p->username,	
 	};
 
-	user = ao2_find(users, &tmp_user, OBJ_POINTER);
+	user = ao2_find(users, &tmp_user, NULL, OBJ_POINTER);
 	if (user) {
 		if (ast_test_flag(p, IAX_MAXAUTHREQ)) {
 			ast_atomic_fetchadd_int(&user->curauthreq, -1);
@@ -10226,7 +10226,7 @@ static int iax2_poke_noanswer(const void *data)
 	return 0;
 }
 
-static int iax2_poke_peer_cb(void *obj, void *arg, int flags)
+static int iax2_poke_peer_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct iax2_peer *peer = obj;
 
@@ -10666,7 +10666,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 	};
 
 	if (!temponly) {
-		peer = ao2_find(peers, &tmp_peer, OBJ_POINTER);
+		peer = ao2_find(peers, &tmp_peer, NULL, OBJ_POINTER);
 		if (peer && !ast_test_flag(peer, IAX_DELME))
 			firstpass = 0;
 	}
@@ -10920,7 +10920,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 	};
 
 	if (!temponly) {
-		user = ao2_find(users, &tmp_user, OBJ_POINTER);
+		user = ao2_find(users, &tmp_user, NULL, OBJ_POINTER);
 		if (user && !ast_test_flag(user, IAX_DELME))
 			firstpass = 0;
 	}
@@ -11120,7 +11120,7 @@ cleanup:
 	return user;
 }
 
-static int peer_delme_cb(void *obj, void *arg, int flags)
+static int peer_delme_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct iax2_peer *peer = obj;
 
@@ -11129,7 +11129,7 @@ static int peer_delme_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static int user_delme_cb(void *obj, void *arg, int flags)
+static int user_delme_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct iax2_user *user = obj;
 
@@ -11142,7 +11142,7 @@ static void delete_users(void)
 {
 	struct iax2_registry *reg;
 
-	ao2_callback(users, 0, user_delme_cb, NULL);
+	ao2_callback(users, 0, user_delme_cb, NULL, NULL);
 
 	AST_LIST_LOCK(&registrations);
 	while ((reg = AST_LIST_REMOVE_HEAD(&registrations, entry))) {
@@ -11162,7 +11162,7 @@ static void delete_users(void)
 	}
 	AST_LIST_UNLOCK(&registrations);
 
-	ao2_callback(peers, 0, peer_delme_cb, NULL);
+	ao2_callback(peers, 0, peer_delme_cb, NULL, NULL);
 }
 
 static void prune_users(void)
@@ -12410,7 +12410,7 @@ static int unload_module(void)
 	return __unload_module();
 }
 
-static int peer_set_sock_cb(void *obj, void *arg, int flags)
+static int peer_set_sock_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct iax2_peer *peer = obj;
 
@@ -12427,7 +12427,7 @@ static int pvt_hash_cb(const void *obj, const int flags)
 	return pvt->peercallno;
 }
 
-static int pvt_cmp_cb(void *obj, void *arg, int flags)
+static int pvt_cmp_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct chan_iax2_pvt *pvt = obj, *pvt2 = arg;
 
@@ -12541,8 +12541,8 @@ static int load_module(void)
 		iax2_do_register(reg);
 	AST_LIST_UNLOCK(&registrations);	
 	
-	ao2_callback(peers, 0, peer_set_sock_cb, NULL);
-	ao2_callback(peers, 0, iax2_poke_peer_cb, NULL);
+	ao2_callback(peers, 0, peer_set_sock_cb, NULL, NULL);
+	ao2_callback(peers, 0, iax2_poke_peer_cb, NULL, NULL);
 
 
 	reload_firmware(0);
