@@ -6042,7 +6042,6 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 
 	if (ast_string_field_init(p, 512)) {
 		ao2_t_ref(p, -1, "failed to string_field_init, drop p");
-		ast_free(p);
 		return NULL;
 	}
 
