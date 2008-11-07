@@ -1754,29 +1754,36 @@ struct sip_mailbox {
 };
 
 /*! \brief Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host) 
-	\note This structure needs stringfields! Please!
 */
-/* XXX field 'name' must be first otherwise sip_addrcmp() will fail */
+/* XXX field 'name' must be first otherwise sip_addrcmp() will fail, as will astobj2 hashing of the structure */
 struct sip_peer {
-	char name[80];			/*!< peer->name is the unique name of this object */
+	char name[80];					/*!< the unique name of this object */
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(secret);		/*!< Password for inbound auth */
+		AST_STRING_FIELD(md5secret);		/*!< Password in MD5 */
+		AST_STRING_FIELD(remotesecret);		/*!< Remote secret (trunks, remote devices) */
+		AST_STRING_FIELD(context);		/*!< Default context for incoming calls */
+		AST_STRING_FIELD(subscribecontext);	/*!< Default context for subscriptions */
+		AST_STRING_FIELD(username);		/*!< Temporary username until registration */ 
+		AST_STRING_FIELD(accountcode);		/*!< Account code */
+		AST_STRING_FIELD(tohost);		/*!< If not dynamic, IP address */
+		AST_STRING_FIELD(regexten); 		/*!< Extension to register (if regcontext is used) */
+		AST_STRING_FIELD(fromuser);		/*!< From: user when calling this peer */
+		AST_STRING_FIELD(fromdomain);		/*!< From: domain when calling this peer */
+		AST_STRING_FIELD(fullcontact);		/*!< Contact registered with us (not in sip.conf) */
+		AST_STRING_FIELD(cid_num);		/*!< Caller ID num */
+		AST_STRING_FIELD(cid_name);		/*!< Caller ID name */
+		AST_STRING_FIELD(vmexten); 		/*!< Dialplan extension for MWI notify message*/
+		AST_STRING_FIELD(language);		/*!<  Default language for prompts */
+		AST_STRING_FIELD(mohinterpret);		/*!<  Music on Hold class */
+		AST_STRING_FIELD(mohsuggest);		/*!<  Music on Hold class */
+		AST_STRING_FIELD(parkinglot);		/*!<  Parkinglot */
+		AST_STRING_FIELD(useragent);		/*!<  User agent in SIP request (saved from registration) */
+		);
 	struct sip_socket socket;	/*!< Socket used for this peer */
 	unsigned int transports:3;      /*!< Transports (enum sip_transport) that are acceptable for this peer */
-	char secret[80];		/*!< Password for inbound auth */
-	char md5secret[80];		/*!< Password in MD5 */
-	char remotesecret[80];		/*!< Remote secret (trunks, remote devices) */
 	struct sip_auth *auth;		/*!< Realm authentication list */
-	char context[AST_MAX_CONTEXT];	/*!< Default context for incoming calls */
-	char subscribecontext[AST_MAX_CONTEXT];	/*!< Default context for subscriptions */
-	char username[80];		/*!< Temporary username until registration */ 
-	char accountcode[AST_MAX_ACCOUNT_CODE];	/*!< Account code */
 	int amaflags;			/*!< AMA Flags (for billing) */
-	char tohost[MAXHOSTNAMELEN];	/*!< If not dynamic, IP address */
-	char regexten[AST_MAX_EXTENSION]; /*!< Extension to register (if regcontext is used) */
-	char fromuser[80];		/*!< From: user when calling this peer */
-	char fromdomain[MAXHOSTNAMELEN];	/*!< From: domain when calling this peer */
-	char fullcontact[256];		/*!< Contact registered with us (not in sip.conf) */
-	char cid_num[80];		/*!< Caller ID num */
-	char cid_name[80];		/*!< Caller ID name */
 	int callingpres;		/*!< Calling id presentation */
 	int inUse;			/*!< Number of calls in use */
 	int inRinging;			/*!< Number of calls ringing */
@@ -1784,12 +1791,6 @@ struct sip_peer {
 	int call_limit;			/*!< Limit of concurrent calls */
 	int busy_level;			/*!< Level of active channels where we signal busy */
 	enum transfermodes allowtransfer;	/*! SIP Refer restriction scheme */
-	char vmexten[AST_MAX_EXTENSION]; /*!< Dialplan extension for MWI notify message*/
-	char language[MAX_LANGUAGE];	/*!<  Default language for prompts */
-	char mohinterpret[MAX_MUSICCLASS];/*!<  Music on Hold class */
-	char mohsuggest[MAX_MUSICCLASS];/*!<  Music on Hold class */
-	char parkinglot[AST_MAX_CONTEXT];/*!<  Parkinglot */
-	char useragent[256];		/*!<  User agent in SIP request (saved from registration) */
 	struct ast_codec_pref prefs;	/*!<  codec prefs */
 	int lastmsgssent;
 	unsigned int sipoptions;	/*!<  Supported SIP options */
@@ -2176,7 +2177,7 @@ static int transmit_info_with_digit(struct sip_pvt *p, const char digit, unsigne
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
 static int transmit_message_with_text(struct sip_pvt *p, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
-static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, char *vmexten);
+static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, const char *vmexten);
 static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *message, int terminate);
 static int transmit_notify_custom(struct sip_pvt *p, struct ast_variable *vars);
 static int transmit_register(struct sip_registry *r, int sipmethod, const char *auth, const char *authheader);
@@ -4189,6 +4190,8 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		ao2_ref(peer->socket.ser, -1);
 		peer->socket.ser = NULL;
 	}
+
+	ast_string_field_free_memory(peer);
 }
 
 /*! \brief Update peer data in database (if used) */
@@ -10098,7 +10101,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 	- We use the SIP Event package message-summary
 	 MIME type defaults to  "application/simple-message-summary";
  */
-static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, char *vmexten)
+static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, const char *vmexten)
 {
 	struct sip_request req;
 	struct ast_str *out = ast_str_alloca(500);
@@ -10870,9 +10873,9 @@ static void reg_source_db(struct sip_peer *peer)
 		return;
 
 	if (username)
-		ast_copy_string(peer->username, username, sizeof(peer->username));
+		ast_string_field_set(peer, username, username);
 	if (contact)
-		ast_copy_string(peer->fullcontact, contact, sizeof(peer->fullcontact));
+		ast_string_field_set(peer, fullcontact, contact);
 
 	ast_debug(2, "SIP Seeding peer from astdb: '%s' at %s@%s:%d for %d\n",
 	    peer->name, peer->username, ast_inet_ntoa(in), port, expire);
@@ -11051,8 +11054,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		destroy_association(peer);
 		
 		register_peer_exten(peer, FALSE);	/* Remove extension from regexten= setting in sip.conf */
-		peer->fullcontact[0] = '\0';
-		peer->useragent[0] = '\0';
+		ast_string_field_set(peer, fullcontact, "");
+		ast_string_field_set(peer, useragent, "");
 		peer->sipoptions = 0;
 		peer->lastms = 0;
 
@@ -11063,7 +11066,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	}
 
 	/* Store whatever we got as a contact from the client */
-	ast_copy_string(peer->fullcontact, curi, sizeof(peer->fullcontact));
+	ast_string_field_set(peer, fullcontact, curi);
 
 	/* For the 200 OK, we should use the received contact */
 	ast_string_field_build(pvt, our_contact, "<%s>", curi);
@@ -11095,7 +11098,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	hp = ast_gethostbyname(host, &ahp);
 	if (!hp)  {
 		ast_log(LOG_WARNING, "Invalid host '%s'\n", host);
-		*peer->fullcontact = '\0';
+		ast_string_field_set(peer, fullcontact, "");
 		ast_string_field_set(pvt, our_contact, "");
 		return PARSE_REGISTER_FAILED;
 	}
@@ -11103,7 +11106,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	if (ast_apply_ha(global_contact_ha, &testsin) != AST_SENSE_ALLOW ||
 			ast_apply_ha(peer->contactha, &testsin) != AST_SENSE_ALLOW) {
 		ast_log(LOG_WARNING, "Host '%s' disallowed by rule\n", host);
-		*peer->fullcontact = '\0';
+		ast_string_field_set(peer, fullcontact, "");
 		ast_string_field_set(pvt, our_contact, "");
 		return PARSE_REGISTER_FAILED;
 	}
@@ -11124,7 +11127,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	peer->sipoptions = pvt->sipoptions;
 
 	if (!ast_strlen_zero(curi) && ast_strlen_zero(peer->username))
-		ast_copy_string(peer->username, curi, sizeof(peer->username));
+		ast_string_field_set(peer, username, curi);
 
 	AST_SCHED_DEL_UNREF(sched, peer->expire,
 			unref_peer(peer, "remove register expire ref"));
@@ -11161,8 +11164,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	
 	/* Save User agent */
 	useragent = get_header(req, "User-Agent");
-	if (strcasecmp(useragent, peer->useragent)) {	/* XXX copy if they are different ? */
-		ast_copy_string(peer->useragent, useragent, sizeof(peer->useragent));
+	if (strcasecmp(useragent, peer->useragent)) {
+		ast_string_field_set(peer, useragent, useragent);
 		ast_verb(4, "Saved useragent \"%s\" for peer %s\n", peer->useragent, peer->name);
 	}
 	return PARSE_REGISTER_UPDATE;
@@ -21709,11 +21712,11 @@ static void set_peer_defaults(struct sip_peer *peer)
 	}
 	ast_copy_flags(&peer->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&peer->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
-	strcpy(peer->context, default_context);
-	strcpy(peer->subscribecontext, default_subscribecontext);
-	strcpy(peer->language, default_language);
-	strcpy(peer->mohinterpret, default_mohinterpret);
-	strcpy(peer->mohsuggest, default_mohsuggest);
+	ast_string_field_set(peer, context, default_context);
+	ast_string_field_set(peer, subscribecontext, default_subscribecontext);
+	ast_string_field_set(peer, language, default_language);
+	ast_string_field_set(peer, mohinterpret, default_mohinterpret);
+	ast_string_field_set(peer, mohsuggest, default_mohsuggest);
 	peer->addr.sin_family = AF_INET;
 	peer->defaddr.sin_family = AF_INET;
 	peer->capability = global_capability;
@@ -21726,15 +21729,15 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->qualifyfreq = global_qualifyfreq;
 	if (global_callcounter)
 		peer->call_limit=999;
-	strcpy(peer->vmexten, default_vmexten);
-	peer->secret[0] = '\0';
-	peer->remotesecret[0] = '\0';
-	peer->md5secret[0] = '\0';
-	peer->cid_num[0] = '\0';
-	peer->cid_name[0] = '\0';
-	peer->fromdomain[0] = '\0';
-	peer->fromuser[0] = '\0';
-	peer->regexten[0] = '\0';
+	ast_string_field_set(peer, vmexten, default_vmexten);
+	ast_string_field_set(peer, secret, "");
+	ast_string_field_set(peer, remotesecret, "");
+	ast_string_field_set(peer, md5secret, "");
+	ast_string_field_set(peer, cid_num, "");
+	ast_string_field_set(peer, cid_name, "");
+	ast_string_field_set(peer, fromdomain, "");
+	ast_string_field_set(peer, fromuser, "");
+	ast_string_field_set(peer, regexten, "");
 	peer->callgroup = 0;
 	peer->pickupgroup = 0;
 	peer->maxms = default_qualify;
@@ -21755,6 +21758,11 @@ static struct sip_peer *temp_peer(const char *name)
 
 	if (!(peer = ao2_t_alloc(sizeof(*peer), sip_destroy_peer_fn, "allocate a peer struct")))
 		return NULL;
+
+	if (ast_string_field_init(peer, 512)) {
+		ao2_t_ref(peer, -1, "failed to string_field_init, drop peer");
+		return NULL;
+	}
 
 	ast_atomic_fetchadd_int(&apeerobjs, 1);
 	set_peer_defaults(peer);
@@ -21830,6 +21838,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		if (!(peer = ao2_t_alloc(sizeof(*peer), sip_destroy_peer_fn, "allocate a peer struct")))
 			return NULL;
 
+		if (ast_string_field_init(peer, 512)) {
+			ao2_t_ref(peer, -1, "failed to string_field_init, drop peer");
+			return NULL;
+		}
+
 		if (realtime && !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
 			ast_atomic_fetchadd_int(&rpeerobjs, 1);
 			ast_debug(3, "-REALTIME- peer built. Name: %s. Peer objects: %d\n", name, rpeerobjs);
@@ -21901,29 +21914,33 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			if (!strcasecmp(v->value, "peer")) 
 				peer->onlymatchonip = TRUE;		/* For realtime support, add type=peer in the table */
 		} else if (!strcasecmp(v->name, "remotesecret")) {
-			ast_copy_string(peer->remotesecret, v->value, sizeof(peer->remotesecret));
+			ast_string_field_set(peer, remotesecret, v->value);
 		} else if (!strcasecmp(v->name, "secret")) {
-			ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
+			ast_string_field_set(peer, secret, v->value);
 		} else if (!strcasecmp(v->name, "md5secret")) 
-			ast_copy_string(peer->md5secret, v->value, sizeof(peer->md5secret));
+			ast_string_field_set(peer, md5secret, v->value);
 		else if (!strcasecmp(v->name, "auth"))
 			peer->auth = add_realm_authentication(peer->auth, v->value, v->lineno);
 		else if (!strcasecmp(v->name, "callerid")) {
-			ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name), peer->cid_num, sizeof(peer->cid_num));
+			char cid_name[80] = { '\0' }, cid_num[80] = { '\0' };
+
+			ast_callerid_split(v->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
+			ast_string_field_set(peer, cid_name, cid_name);
+			ast_string_field_set(peer, cid_num, cid_num);
 		} else if (!strcasecmp(v->name, "fullname")) {
-			ast_copy_string(peer->cid_name, v->value, sizeof(peer->cid_name));
+			ast_string_field_set(peer, cid_name, v->value);
 		} else if (!strcasecmp(v->name, "cid_number")) {
-			ast_copy_string(peer->cid_num, v->value, sizeof(peer->cid_num));
+			ast_string_field_set(peer, cid_num, v->value);
 		} else if (!strcasecmp(v->name, "context")) {
-			ast_copy_string(peer->context, v->value, sizeof(peer->context));
+			ast_string_field_set(peer, context, v->value);
 		} else if (!strcasecmp(v->name, "subscribecontext")) {
-			ast_copy_string(peer->subscribecontext, v->value, sizeof(peer->subscribecontext));
+			ast_string_field_set(peer, subscribecontext, v->value);
 		} else if (!strcasecmp(v->name, "fromdomain")) {
-			ast_copy_string(peer->fromdomain, v->value, sizeof(peer->fromdomain));
+			ast_string_field_set(peer, fromdomain, v->value);
 		} else if (!strcasecmp(v->name, "usereqphone")) {
 			ast_set2_flag(&peer->flags[0], ast_true(v->value), SIP_USEREQPHONE);
 		} else if (!strcasecmp(v->name, "fromuser")) {
-			ast_copy_string(peer->fromuser, v->value, sizeof(peer->fromuser));
+			ast_string_field_set(peer, fromuser, v->value);
 		} else if (!strcasecmp(v->name, "outboundproxy")) {
 			char *port, *next, *force, *proxyname;
 			int forceopt = FALSE;
@@ -21994,7 +22011,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			if (peer->callingpres == -1)
 				peer->callingpres = atoi(v->value);
 		} else if (!strcasecmp(v->name, "username") || !strcmp(v->name, "defaultuser")) {	/* "username" is deprecated */
-			ast_copy_string(peer->username, v->value, sizeof(peer->username));
+			ast_string_field_set(peer, username, v->value);
 			if (!strcasecmp(v->name, "username")) {
 				if (deprecation_warning) {
 					ast_log(LOG_NOTICE, "The 'username' field for sip peers has been deprecated in favor of the term 'defaultuser'\n");
@@ -22003,9 +22020,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->deprecated_username = 1;
 			}
 		} else if (!strcasecmp(v->name, "language")) {
-			ast_copy_string(peer->language, v->value, sizeof(peer->language));
+			ast_string_field_set(peer, language, v->value);
 		} else if (!strcasecmp(v->name, "regexten")) {
-			ast_copy_string(peer->regexten, v->value, sizeof(peer->regexten));
+			ast_string_field_set(peer, regexten, v->value);
 		} else if (!strcasecmp(v->name, "callbackextension")) {
 			ast_copy_string(callback, v->value, sizeof(callback));
 		} else if (!strcasecmp(v->name, "callcounter")) {
@@ -22026,13 +22043,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->amaflags = format;
 			}
 		} else if (!strcasecmp(v->name, "accountcode")) {
-			ast_copy_string(peer->accountcode, v->value, sizeof(peer->accountcode));
+			ast_string_field_set(peer, accountcode, v->value);
 		} else if (!strcasecmp(v->name, "mohinterpret")) {
-			ast_copy_string(peer->mohinterpret, v->value, sizeof(peer->mohinterpret));
+			ast_string_field_set(peer, mohinterpret, v->value);
 		} else if (!strcasecmp(v->name, "mohsuggest")) {
-			ast_copy_string(peer->mohsuggest, v->value, sizeof(peer->mohsuggest));
+			ast_string_field_set(peer, mohsuggest, v->value);
 		} else if (!strcasecmp(v->name, "parkinglot")) {
-			ast_copy_string(peer->parkinglot, v->value, sizeof(peer->parkinglot));
+			ast_string_field_set(peer, parkinglot, v->value);
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			add_peer_mailboxes(peer, v->value);
 		} else if (!strcasecmp(v->name, "hasvoicemail")) {
@@ -22044,7 +22061,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		} else if (!strcasecmp(v->name, "subscribemwi")) {
 			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_SUBSCRIBEMWIONLY);
 		} else if (!strcasecmp(v->name, "vmexten")) {
-			ast_copy_string(peer->vmexten, v->value, sizeof(peer->vmexten));
+			ast_string_field_set(peer, vmexten, v->value);
 		} else if (!strcasecmp(v->name, "callgroup")) {
 			peer->callgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "allowtransfer")) {
@@ -22171,7 +22188,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	}
 
 	if (fullcontact->used > 0) {
-		ast_copy_string(peer->fullcontact, fullcontact->str, sizeof(peer->fullcontact));
+		ast_string_field_set(peer, fullcontact, fullcontact->str);
 		peer->rt_fromcontact = TRUE;
 		/* We have a hostname in the fullcontact, but if we don't have an
 		 * address listed on the entry (or if it's 'dynamic'), then we need to
@@ -22200,7 +22217,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			return NULL;
 		}
 
-		ast_copy_string(peer->tohost, srvlookup, sizeof(peer->tohost));
+		ast_string_field_set(peer, tohost, srvlookup);
 	}
 
 	if (!peer->addr.sin_port)
