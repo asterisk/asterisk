@@ -511,7 +511,7 @@ Operations on container include:
     can be:
 	OBJ_UNLINK - to remove the object, once found, from the container.
 	OBJ_NODATA - don't return the object if found (no ref count change)
-	OBJ_MULTIPLE - don't stop at first match (not implemented)
+	OBJ_MULTIPLE - don't stop at first match (not fully implemented)
 	OBJ_POINTER	- if set, 'arg' is an object pointer, and a hashtable
                   search will be done. If not, a traversal is done.
 
@@ -523,7 +523,7 @@ Operations on container include:
       - flags can be 
 	     OBJ_UNLINK   - to remove the object, once found, from the container.
 	     OBJ_NODATA   - don't return the object if found (no ref count change)
-	     OBJ_MULTIPLE - don't stop at first match (not implemented)
+	     OBJ_MULTIPLE - don't stop at first match (not fully implemented)
 	     OBJ_POINTER  - if set, 'arg' is an object pointer, and a hashtable
                         search will be done. If not, a traversal is done through
                         all the hashtable 'buckets'..
@@ -615,7 +615,10 @@ enum search_flags {
 	 *  its refcount. */
 	OBJ_NODATA	 = (1 << 1),
 	/*! Don't stop at the first match in ao2_callback()
-	 *  \note This is not fully implemented. */
+	 *  \note This is not fully implemented.   Using OBJ_MULTIME with OBJ_NODATA
+	 *  is perfectly fine.  The part that is not implemented is the case where
+	 *  multiple objects should be returned by ao2_callback().
+	 */
 	OBJ_MULTIPLE = (1 << 2),
 	/*! obj is an object of the same type as the one being searched for,
 	 *  so use the object's hash function for optimized searching.
