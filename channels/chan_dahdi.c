@@ -9779,7 +9779,8 @@ static void *ss7_linkset(void *data)
 						ss7_start_call(p, linkset);
 				} else {
 					ast_debug(1, "Call on CIC for unconfigured extension %s\n", p->exten);
-					isup_rel(ss7, e->iam.call, -1);
+					p->alreadyhungup = 1;
+					isup_rel(ss7, e->iam.call, AST_CAUSE_UNALLOCATED);
 				}
 				ast_mutex_unlock(&p->lock);
 				break;
