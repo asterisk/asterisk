@@ -316,7 +316,6 @@ european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
 ; Pete telecommutes from Chicago, so we'll customize timestamps for him.
 ;
 ;[acme]
-;tz=eastern
 ;111 => 7383,Pete,pete@acme-widgets.com,,tz=central
 ;112 => 6262,Nancy,nancy@acme-widgets.com
 ;
