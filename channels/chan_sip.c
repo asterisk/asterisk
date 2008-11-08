@@ -19271,12 +19271,6 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	if (!(req.data = ast_str_create(SIP_MIN_PACKET)))
 		return 1;
 	ast_str_set(&req.data, 0, "%s", readbuf);
-	if (res == sizeof(req.data) - 1) {
-		ast_debug(1, "Received packet exceeds buffer. Data is possibly lost\n");
-		req.data->str[sizeof(req.data) - 1] = '\0';
- 	} else
-		req.data->str[res] = '\0';
-	req.len = res;
 
 	req.socket.fd 	= sipsock;
 	req.socket.type = SIP_TRANSPORT_UDP;
