@@ -548,7 +548,7 @@ struct ast_str *__ast_str_thread_get(struct ast_threadstorage *ts,
  * interface simplified).
  */
 enum {
-	/*! An error has occured and the contents of the dynamic string
+	/*! An error has occurred and the contents of the dynamic string
 	 *  are undefined */
 	AST_DYNSTR_BUILD_FAILED = -1,
 	/*! The buffer size for the dynamic string had to be increased, and

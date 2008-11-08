@@ -19267,10 +19267,16 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 			ast_log(LOG_WARNING, "Recv error: %s\n", strerror(errno));
 		return 1;
 	}
+
 	readbuf[res] = '\0';
-	if (!(req.data = ast_str_create(SIP_MIN_PACKET)))
+
+	if (!(req.data = ast_str_create(SIP_MIN_PACKET))) {
 		return 1;
-	ast_str_set(&req.data, 0, "%s", readbuf);
+	}
+
+	if (ast_str_set(&req.data, 0, "%s", readbuf) == AST_DYNSTR_BUILD_FAILED) {
+		return -1;
+	}
 
 	req.socket.fd 	= sipsock;
 	req.socket.type = SIP_TRANSPORT_UDP;
