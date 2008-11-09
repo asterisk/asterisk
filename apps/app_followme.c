@@ -971,6 +971,27 @@ static struct call_followme *find_realtime(const char *name)
 	return new;
 }
 
+static void end_bridge_callback(void *data)
+{
+	char buf[80];
+	time_t end;
+	struct ast_channel *chan = data;
+
+	time(&end);
+
+	ast_channel_lock(chan);
+	if (chan->cdr->answer.tv_sec) {
+		snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->answer.tv_sec);
+		pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", buf);
+	}
+
+	if (chan->cdr->start.tv_sec) {
+		snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->start.tv_sec);
+		pbx_builtin_setvar_helper(chan, "DIALEDTIME", buf);
+	}
+	ast_channel_unlock(chan);
+}
+
 static int app_exec(struct ast_channel *chan, void *data)
 {
 	struct fm_args targs;
@@ -1085,27 +1106,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 			ast_stream_and_wait(chan, targs.sorryprompt, "");
 		res = 0;
 	} else {
-		auto void end_bridge_callback(void);
-		void end_bridge_callback (void)
-		{
-			char buf[80];
-			time_t end;
-
-			time(&end);
-
-			ast_channel_lock(chan);
-			if (chan->cdr->answer.tv_sec) {
-				snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->answer.tv_sec);
-				pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", buf);
-			}
-
-			if (chan->cdr->start.tv_sec) {
-				snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->start.tv_sec);
-				pbx_builtin_setvar_helper(chan, "DIALEDTIME", buf);
-			}
-			ast_channel_unlock(chan);
-		}
-
 		caller = chan;
 		outbound = targs.outbound;
 		/* Bridge the two channels. */
@@ -1115,6 +1115,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		ast_set_flag(&(config.features_callee), AST_FEATURE_AUTOMON);
 		ast_set_flag(&(config.features_caller), AST_FEATURE_AUTOMON);
 		config.end_bridge_callback = end_bridge_callback;
+		config.end_bridge_callback_data = chan;
 
 		ast_moh_stop(caller);
 		/* Be sure no generators are left on it */
