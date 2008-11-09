@@ -169,17 +169,30 @@ static int pickup_by_channel(struct ast_channel *chan, char *pickup)
 	return res;
 }
 
+struct pickup_criteria {
+	const char *exten;
+	const char *context;
+};
+
+static int find_by_exten(struct ast_channel *c, void *data)
+{
+	struct pickup_criteria *info = data;
+
+	return (!strcasecmp(c->macroexten, info->exten) || !strcasecmp(c->exten, info->exten)) &&
+		!strcasecmp(c->dialcontext, info->context) &&
+		can_pickup(c);
+}
+
 /* Attempt to pick up specified extension with context */
 static int pickup_by_exten(struct ast_channel *chan, const char *exten, const char *context)
 {
-	auto int find_by_exten(struct ast_channel *c);
-	int find_by_exten(struct ast_channel *c) {
-		return (!strcasecmp(c->macroexten, exten) || !strcasecmp(c->exten, exten)) &&
-			!strcasecmp(c->dialcontext, context) &&
-			can_pickup(c);
-	}
+	struct ast_channel *target = NULL;
+	struct pickup_criteria search = {
+		.exten = exten,
+		.context = context,
+	};
 
-	struct ast_channel *target = ast_channel_search_locked(find_by_exten);
+	target = ast_channel_search_locked(find_by_exten, &search);
 
 	if (target) {
 		int res = pickup_do(chan, target);
@@ -191,18 +204,20 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 	return -1;
 }
 
+static int find_by_mark(struct ast_channel *c, void *data)
+{
+	const char *mark = data;
+	const char *tmp;
+
+	return (tmp = pbx_builtin_getvar_helper(c, PICKUPMARK)) &&
+		!strcasecmp(tmp, mark) &&
+		can_pickup(c);
+}
+
 /* Attempt to pick up specified mark */
 static int pickup_by_mark(struct ast_channel *chan, const char *mark)
 {
-	auto int find_by_mark(struct ast_channel *);
-	int find_by_mark(struct ast_channel *c) {
-		const char *tmp;
-		return (tmp = pbx_builtin_getvar_helper(c, PICKUPMARK)) &&
-			!strcasecmp(tmp, mark) &&
-			can_pickup(c);
-	}	
-
-	struct ast_channel *target = ast_channel_search_locked(find_by_mark);
+	struct ast_channel *target = ast_channel_search_locked(find_by_mark, (char *) mark);
 
 	if (target) {
 		int res = pickup_do(chan, target);

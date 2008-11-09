@@ -4421,6 +4421,26 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	return peer;
 }
 
+/* Function to assist finding peers by name only */
+static int find_by_name(void *obj, void *arg, void *data, int flags)
+{
+	struct sip_peer *search = obj, *match = arg;
+	int *forcenamematch = data;
+
+	/* Usernames in SIP uri's are case sensitive. Domains are not */
+	if (strcmp(search->name, match->name)) {
+		return 0;
+	}
+
+	/* If we're only looking for name matches, we should avoid type=peer devices,
+	   since these should not match on any name-based search */
+	if (*forcenamematch && search->onlymatchonip) {
+		return 0;
+	}
+
+	return CMP_MATCH | CMP_STOP;
+}
+
 /*! \brief Locate device by name or ip address 
  *	This is used on find matching device on name or ip/port.
 	If the device was declared as type=peer, we don't match on peer name on incoming INVITEs.
@@ -4433,31 +4453,10 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 {
 	struct sip_peer *p = NULL;
 	struct sip_peer tmp_peer;
-	
-	/* Inline function to assist finding peers by name only */
-	auto int find_by_name(void *obj, void *arg, void *data, int flags);
-
-	int find_by_name(void *obj, void *arg, void *data, int flags)
-	{
-		struct sip_peer *search = obj, *match = arg;
-
-		/* Usernames in SIP uri's are case sensitive. Domains are not */
-		if (strcmp(search->name, match->name)) {
-			return 0;
-		}
-
-		/* If we're only looking for name matches, we should avoid type=peer devices,
-		   since these should not match on any name-based search */
-		if (forcenamematch && search->onlymatchonip) {
-			return 0;
-		}
-
-		return CMP_MATCH | CMP_STOP;
-	}
 
 	if (peer) {
 		ast_copy_string(tmp_peer.name, peer, sizeof(tmp_peer.name));
-		p = ao2_t_callback(peers, OBJ_POINTER, find_by_name, &tmp_peer, NULL, "ao2_find in peers table");
+		p = ao2_t_callback(peers, OBJ_POINTER, find_by_name, &tmp_peer, &forcenamematch, "ao2_find in peers table");
 	} else if (sin) { /* search by addr? */
 		tmp_peer.addr.sin_addr.s_addr = sin->sin_addr.s_addr;
 		tmp_peer.addr.sin_port = sin->sin_port;
@@ -9870,8 +9869,21 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	
 	/* Actually send the packet */
 	transmit_invite(mwi->call, SIP_SUBSCRIBE, 0, 2);
-	
+
 	return 0;
+}
+
+struct caller_criteria {
+	const char *exten;
+	const char *context;
+};
+
+static int find_calling_channel(struct ast_channel *c, void *data) {
+	struct caller_criteria *info = data;
+
+	return (c->pbx &&
+			(!strcasecmp(c->macroexten, info->exten) || !strcasecmp(c->exten, info->exten)) &&
+			!strcasecmp(c->context, info->context));
 }
 
 /*! \brief Used in the SUBSCRIBE notification subsystem (RFC3265) */
@@ -10039,14 +10051,13 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 			   callee must be dialing the same extension that is being monitored.  Simply dialing
 			   the hint'd device is not sufficient. */
 			if (global_notifycid) {
-				auto int find_calling_channel(struct ast_channel *c);
-				int find_calling_channel(struct ast_channel *c) {
-					return (c->pbx &&
-							(!strcasecmp(c->macroexten, p->exten) || !strcasecmp(c->exten, p->exten)) &&
-							!strcasecmp(c->context, p->context));
-				}
+				struct ast_channel *caller = NULL;
+				struct caller_criteria data = {
+					.exten = p->exten,
+					.context = p->context,
+				};
 
-				struct ast_channel *caller = ast_channel_search_locked(find_calling_channel);
+				caller = ast_channel_search_locked(find_calling_channel, &data);
 
 				if (caller) {
 					local_display = ast_strdupa(caller->cid.cid_name);

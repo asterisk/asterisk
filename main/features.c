@@ -3987,6 +3987,18 @@ static int manager_park(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int find_channel_by_group(struct ast_channel *c, void *data) {
+	struct ast_channel *chan = data;
+
+	return !c->pbx &&
+		/* Accessing 'chan' here is safe without locking, because there is no way for
+		   the channel do disappear from under us at this point.  pickupgroup *could*
+		   change while we're here, but that isn't a problem. */
+		(c != chan) &&
+		(chan->pickupgroup & c->callgroup) &&
+		((c->_state == AST_STATE_RINGING) || (c->_state == AST_STATE_RING));
+}
+
 /*!
  * \brief Pickup a call
  * \param chan channel that initiated pickup.
@@ -3997,15 +4009,7 @@ static int manager_park(struct mansession *s, const struct message *m)
 */
 int ast_pickup_call(struct ast_channel *chan)
 {
-	auto int find_channel_by_group(struct ast_channel *);
-	int find_channel_by_group(struct ast_channel *c) {
-		return !c->pbx &&
-			(c != chan) &&
-			(chan->pickupgroup & c->callgroup) &&
-			((c->_state == AST_STATE_RINGING) ||
-			 (c->_state == AST_STATE_RING));
-	}
-	struct ast_channel *cur = ast_channel_search_locked(find_channel_by_group);
+	struct ast_channel *cur = ast_channel_search_locked(find_channel_by_group, chan);
 
 	if (cur) {
 		int res = -1;
