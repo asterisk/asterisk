@@ -1714,7 +1714,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	}
   before_you_go:
 	if (res != AST_PBX_KEEPALIVE && config->end_bridge_callback) {
-		config->end_bridge_callback();
+		config->end_bridge_callback(config->end_bridge_callback_data);
 	}
 
 	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);

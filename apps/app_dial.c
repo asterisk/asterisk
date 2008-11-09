@@ -832,6 +832,27 @@ static void set_dial_features(struct ast_flags *opts, struct ast_dial_features *
 		ast_set_flag(&(features->features_caller), AST_FEATURE_PARKCALL);
 }
 
+static void end_bridge_callback (void *data)
+{
+	char buf[80];
+	time_t end;
+	struct ast_channel *chan = data;
+
+	time(&end);
+
+	ast_channel_lock(chan);
+	if (chan->cdr->answer.tv_sec) {
+		snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->answer.tv_sec);
+		pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", buf);
+	}
+
+	if (chan->cdr->start.tv_sec) {
+		snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->start.tv_sec);
+		pbx_builtin_setvar_helper(chan, "DIALEDTIME", buf);
+	}
+	ast_channel_unlock(chan);
+}
+
 static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags *peerflags, int *continue_exec)
 {
 	int res = -1;
@@ -1735,27 +1756,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (!res) {
 			struct ast_bridge_config config;
 
-			auto void end_bridge_callback(void);
-			void end_bridge_callback (void)
-			{
-				char buf[80];
-				time_t end;
-
-				time(&end);
-
-				ast_channel_lock(chan);
-				if (chan->cdr->answer.tv_sec) {
-					snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->answer.tv_sec);
-					pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", buf);
-				}
-
-				if (chan->cdr->start.tv_sec) {
-					snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->start.tv_sec);
-					pbx_builtin_setvar_helper(chan, "DIALEDTIME", buf);
-				}
-				ast_channel_unlock(chan);
-			}
-
 			memset(&config,0,sizeof(struct ast_bridge_config));
 			if (play_to_caller)
 				ast_set_flag(&(config.features_caller), AST_FEATURE_PLAY_WARNING);
@@ -1787,6 +1787,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			config.end_sound = end_sound;
 			config.start_sound = start_sound;
 			config.end_bridge_callback = end_bridge_callback;
+			config.end_bridge_callback_data = chan;
 			if (moh) {
 				moh = 0;
 				ast_moh_stop(chan);
