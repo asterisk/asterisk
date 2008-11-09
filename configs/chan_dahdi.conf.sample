@@ -2,7 +2,7 @@
 ; DAHDI Telephony Configuration file
 ;
 ; You need to restart Asterisk to re-configure the DAHDI channel
-; CLI> reload chan_dahdi.so
+; CLI> module reload chan_dahdi.so
 ;      will reload the configuration file, but not all configuration options
 ;      are re-configured during a reload (signalling, as well as PRI and
 ;      SS7-related settings cannot be changed on a reload).
