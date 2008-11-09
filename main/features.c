@@ -2381,7 +2381,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	}
    before_you_go:
 	if (res != AST_PBX_KEEPALIVE && config->end_bridge_callback) {
-		config->end_bridge_callback();
+		config->end_bridge_callback(config->end_bridge_callback_data);
 	}
 
 	/* run the hangup exten on the chan object IFF it was NOT involved in a parking situation 

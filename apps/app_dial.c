@@ -1254,6 +1254,27 @@ static void set_dial_features(struct ast_flags64 *opts, struct ast_dial_features
 	ast_app_options2str64(dial_exec_options, &perm_opts, features->options, sizeof(features->options));
 }
 
+static void end_bridge_callback(void *data)
+{
+	char buf[80];
+	time_t end;
+	struct ast_channel *chan = data;
+
+	time(&end);
+
+	ast_channel_lock(chan);
+	if (chan->cdr->answer.tv_sec) {
+		snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->answer.tv_sec);
+		pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", buf);
+	}
+
+	if (chan->cdr->start.tv_sec) {
+		snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->start.tv_sec);
+		pbx_builtin_setvar_helper(chan, "DIALEDTIME", buf);
+	}
+	ast_channel_unlock(chan);
+}
+
 static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags64 *peerflags, int *continue_exec)
 {
 	int res = -1; /* default: error */
@@ -1909,27 +1930,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (res) { /* some error */
 			res = -1;
 		} else {
-			auto void end_bridge_callback(void);
-			void end_bridge_callback (void)
-			{
-				char buf[80];
-				time_t end;
-
-				time(&end);
-
-				ast_channel_lock(chan);
-				if (chan->cdr->answer.tv_sec) {
-					snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->answer.tv_sec);
-					pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", buf);
-				}
-
-				if (chan->cdr->start.tv_sec) {
-					snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->start.tv_sec);
-					pbx_builtin_setvar_helper(chan, "DIALEDTIME", buf);
-				}
-				ast_channel_unlock(chan);
-			}
-
 			if (ast_test_flag64(peerflags, OPT_CALLEE_TRANSFER))
 				ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
 			if (ast_test_flag64(peerflags, OPT_CALLER_TRANSFER))
@@ -1954,6 +1954,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_set_flag(&(config.features_caller), AST_FEATURE_NO_H_EXTEN);
 
 			config.end_bridge_callback = end_bridge_callback;
+			config.end_bridge_callback_data = chan;
 
 			if (moh) {
 				moh = 0;

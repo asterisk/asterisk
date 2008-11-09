@@ -3211,6 +3211,15 @@ static void setup_transfer_datastore(struct queue_ent *qe, struct member *member
 	ast_channel_unlock(qe->chan);
 }
 
+static void end_bridge_callback(void *data)
+{
+	struct queue_ent *qe = data;
+
+	ao2_lock(qe->parent);
+	set_queue_variables(qe);
+	ao2_unlock(qe->parent);
+}
+
 /*! \brief A large function which calls members, updates statistics, and bridges the caller and a member
  * 
  * Here is the process of this function
@@ -3278,13 +3287,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	int callcompletedinsl;
 	struct ao2_iterator memi;
 	struct ast_datastore *datastore;
-	auto void end_bridge_callback(void);
-	void end_bridge_callback(void)
-	{
-		ao2_lock(qe->parent);
-		set_queue_variables(qe);
-		ao2_unlock(qe->parent);
-	}
 
 	ast_channel_lock(qe->chan);
 	datastore = ast_channel_datastore_find(qe->chan, &dialed_interface_info, NULL);
@@ -3356,6 +3358,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 
 	bridge_config.end_bridge_callback = end_bridge_callback;
+	bridge_config.end_bridge_callback_data = qe;
 
 	/* Hold the lock while we setup the outgoing calls */
 	if (use_weight)
