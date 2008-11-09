@@ -1,26 +1,21 @@
 ;
-; DAHDI telephony
-;
-; Configuration file
+; DAHDI Telephony Configuration file
 ;
 ; You need to restart Asterisk to re-configure the DAHDI channel
-; CLI> reload chan_dahdi.so 
-;		will reload the configuration file,
-;		but not all configuration options are 
-; 		re-configured during a reload (signalling, as well as
-;               PRI and SS7-related settings cannot be changed on a
-;               reload.
+; CLI> reload chan_dahdi.so
+;      will reload the configuration file, but not all configuration options
+;      are re-configured during a reload (signalling, as well as PRI and
+;      SS7-related settings cannot be changed on a reload).
 ; 
-; This file documents many configuration variables.  Normally unless you
-; know what a variable means or that it should be changed, there's no
-; reason to unrem lines.
+; This file documents many configuration variables.  Normally unless you know
+; what a variable means or that it should be changed, there's no reason to
+; un-comment those lines.
 ;
-; remmed-out examples below (those lines that begin with a ';' but no
-; space afterwards) typically show a value that is not the defauult value,
-; but would make sense under cetain circumstances. The default values
-; are usually sane. Thus you should typically not touch them unless you 
-; know what they mean or you know you should change them.
-
+; Examples below that are commented out (those lines that begin with a ';' but
+; no space afterwards) typically show a value that is not the default value,
+; but would make sense under certain circumstances. The default values are
+; usually sane. Thus you should typically not touch them unless you know what
+; they mean or you know you should change them.
 
 [trunkgroups]
 ;
@@ -40,7 +35,7 @@
 ; Spanmap: Associates a span with a trunk group
 ;        spanmap => <dahdispan>,<trunkgroup>[,<logicalspan>]
 ;
-;        dahdispan     is the DAHDI span number to associate
+;        dahdispan   is the DAHDI span number to associate
 ;        trunkgroup  is the trunkgroup (specified above) for the mapping
 ;        logicalspan is the logical span number within the trunk group to use.
 ;                    if unspecified, no logical span number is used.
@@ -62,13 +57,13 @@
 ;
 ; Switchtype:  Only used for PRI.
 ;
-; national:	  National ISDN 2 (default)
-; dms100:	  Nortel DMS100
-; 4ess:           AT&T 4ESS
-; 5ess:	          Lucent 5ESS
-; euroisdn:       EuroISDN (common in Europe)
-; ni1:            Old National ISDN 1
-; qsig:           Q.SIG
+; national:    National ISDN 2 (default)
+; dms100:      Nortel DMS100
+; 4ess:        AT&T 4ESS
+; 5ess:        Lucent 5ESS
+; euroisdn:    EuroISDN (common in Europe)
+; ni1:         Old National ISDN 1
+; qsig:        Q.SIG
 ;
 ;switchtype=euroisdn
 ;
@@ -189,8 +184,8 @@
 ; If you need to use the logical channel mapping with your Q.SIG PRI instead
 ; of the physical mapping you must use the qsigchannelmapping option.
 ;
-; logical:	Use the logical channel mapping
-; physical:	Use physical channel mapping (default)
+; logical:  Use the logical channel mapping
+; physical: Use physical channel mapping (default)
 ;
 ;qsigchannelmapping=logical
 ;
@@ -235,8 +230,8 @@
 ; featdmf_ta:     Feature Group D (The real thing, MF (domestic, US)) through
 ;                 a Tandem Access point
 ; featb:          Feature Group B (MF (domestic, US))
-; fgccama	  Feature Group C-CAMA (DP DNIS, MF ANI)
-; fgccamamf	  Feature Group C-CAMA MF (MF DNIS, MF ANI)
+; fgccama:        Feature Group C-CAMA (DP DNIS, MF ANI)
+; fgccamamf:      Feature Group C-CAMA MF (MF DNIS, MF ANI)
 ; fxs_ls:         FXS (Loop Start)
 ; fxs_gs:         FXS (Ground Start)
 ; fxs_ks:         FXS (Kewl Start)
@@ -247,8 +242,8 @@
 ; pri_net:        PRI signalling, Network side
 ; gr303fxoks_net: GR-303 Signalling, FXO Loopstart, Network side
 ; gr303fxsks_cpe: GR-303 Signalling, FXS Loopstart, CPE side
-; sf:	          SF (Inband Tone) Signalling
-; sf_w:	          SF Wink
+; sf:             SF (Inband Tone) Signalling
+; sf_w:           SF Wink
 ; sf_featd:       SF Feature Group D (The fake, Adtran style, DTMF)
 ; sf_featdmf:     SF Feature Group D (The real thing, MF (domestic, US))
 ; sf_featb:       SF Feature Group B (MF (domestic, US))
@@ -333,7 +328,7 @@
 ; enable dring detection after caller ID for those countries like Australia
 ; where the ring cadence is changed *after* the caller ID spill:
 ;
-;distinctiveringaftercid=yes	
+;distinctiveringaftercid=yes
 ;
 ; Whether or not to use caller ID:
 ;
@@ -892,9 +887,9 @@ pickupgroup=1
 ;
 ; unknown:        Unknown
 ; subscriber:     Subscriber
-; national:	  National
+; national:       National
 ; international:  International
-; dynamic:	  Dynamically selects the appropriate dialplan
+; dynamic:        Dynamically selects the appropriate dialplan
 ;
 ;ss7_called_nai=dynamic
 ;
@@ -902,9 +897,9 @@ pickupgroup=1
 ;
 ; unknown:        Unknown
 ; subscriber:     Subscriber
-; national:	  National
+; national:       National
 ; international:  International
-; dynamic:	  Dynamically selects the appropriate dialplan
+; dynamic:        Dynamically selects the appropriate dialplan
 ;
 ;ss7_calling_nai=dynamic
 ;
