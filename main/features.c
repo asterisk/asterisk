@@ -2172,7 +2172,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	new_peer_cdr = pick_unlocked_cdr(peer->cdr); /* the proper chan cdr, if there are forked cdrs */
 
 	if (res != AST_PBX_KEEPALIVE && config->end_bridge_callback) {
-		config->end_bridge_callback();
+		config->end_bridge_callback(config->end_bridge_callback_data);
 	}
 
 	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
