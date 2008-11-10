@@ -84,7 +84,7 @@ static char *cli_realtime_update(struct ast_cli_entry *e, int cmd, struct ast_cl
 	case CLI_INIT:
 		e->command = "realtime update";
 		e->usage =
-			"Usage: realtime update <family> <colupdate> <newvalue> <colmatch> <valuematch>\n"
+			"Usage: realtime update <family> <colmatch> <valuematch> <colupdate> <newvalue>\n"
 			"       Update a single variable using the RealTime driver.\n"
 			"       You must supply a family name, a column to update on, a new value, column to match, and value to match.\n"
 			"       Ex: realtime update sipfriends name bobsphone port 4343\n"
@@ -117,7 +117,7 @@ static char *cli_realtime_update2(struct ast_cli_entry *e, int cmd, struct ast_c
 	case CLI_INIT:
 		e->command = "realtime update2";
 		e->usage =
-			"Usage: realtime update2 <family> <colupdate> <newvalue> <colmatch> <valuematch> [... <colmatch5> <valuematch5>]\n"
+			"Usage: realtime update2 <family> <colmatch> <valuematch> [... <colmatch5> <valuematch5>] NULL <colupdate> <newvalue>\n"
 			"       Update a single variable using the RealTime driver.\n"
 			"       You must supply a family name, a column to update on, a new value, column to match, and value to match.\n"
 			"       Ex: realtime update sipfriends name bobsphone port 4343\n"
@@ -131,15 +131,15 @@ static char *cli_realtime_update2(struct ast_cli_entry *e, int cmd, struct ast_c
 		return CLI_SHOWUSAGE;
 
 	if (a->argc == 7) {
-		res = ast_update2_realtime(a->argv[2], a->argv[5], a->argv[6], SENTINEL, a->argv[3], a->argv[4], SENTINEL);
+		res = ast_update2_realtime(a->argv[2], a->argv[3], a->argv[4], SENTINEL, a->argv[5], a->argv[6], SENTINEL);
 	} else if (a->argc == 9) {
-		res = ast_update2_realtime(a->argv[2], a->argv[5], a->argv[6], a->argv[7], a->argv[8], SENTINEL, a->argv[3], a->argv[4], SENTINEL);
+		res = ast_update2_realtime(a->argv[2], a->argv[3], a->argv[4], a->argv[5], a->argv[6], SENTINEL, a->argv[7], a->argv[8], SENTINEL);
 	} else if (a->argc == 11) {
-		res = ast_update2_realtime(a->argv[2], a->argv[5], a->argv[6], a->argv[7], a->argv[8], a->argv[9], a->argv[10], SENTINEL, a->argv[3], a->argv[4], SENTINEL);
+		res = ast_update2_realtime(a->argv[2], a->argv[3], a->argv[4], a->argv[5], a->argv[6], a->argv[7], a->argv[8], SENTINEL, a->argv[9], a->argv[10], SENTINEL);
 	} else if (a->argc == 13) {
-		res = ast_update2_realtime(a->argv[2], a->argv[5], a->argv[6], a->argv[7], a->argv[8], a->argv[9], a->argv[10], a->argv[11], a->argv[12], SENTINEL, a->argv[3], a->argv[4], SENTINEL);
+		res = ast_update2_realtime(a->argv[2], a->argv[3], a->argv[4], a->argv[5], a->argv[6], a->argv[7], a->argv[8], a->argv[9], a->argv[10], SENTINEL, a->argv[11], a->argv[12], SENTINEL);
 	} else if (a->argc == 15) {
-		res = ast_update2_realtime(a->argv[2], a->argv[5], a->argv[6], a->argv[7], a->argv[8], a->argv[9], a->argv[10], a->argv[11], a->argv[12], a->argv[13], a->argv[14], SENTINEL, a->argv[3], a->argv[4], SENTINEL);
+		res = ast_update2_realtime(a->argv[2], a->argv[3], a->argv[4], a->argv[5], a->argv[6], a->argv[7], a->argv[8], a->argv[9], a->argv[10], a->argv[11], a->argv[12], SENTINEL, a->argv[13], a->argv[14], SENTINEL);
 	} else {
 		return CLI_SHOWUSAGE;
 	}
@@ -162,7 +162,7 @@ static char *cli_realtime_store(struct ast_cli_entry *e, int cmd, struct ast_cli
 	case CLI_INIT:
 		e->command = "realtime store";
 		e->usage =
-			"Usage: realtime store <family> <colname1> <value1> [<colname2> <value2> [... <colmatch5> <valuematch5>]]\n"
+			"Usage: realtime store <family> <colname1> <value1> [<colname2> <value2> [... <colname5> <value5>]]\n"
 			"       Create a stored row using the RealTime driver.\n"
 			"       You must supply a family name and name/value pairs (up to 5).  If\n"
 			"       you need to store more than 5 key/value pairs, start with the first\n"
@@ -207,7 +207,7 @@ static char *cli_realtime_destroy(struct ast_cli_entry *e, int cmd, struct ast_c
 	case CLI_INIT:
 		e->command = "realtime destroy";
 		e->usage =
-			"Usage: realtime destroy <family> <colname1> <value1> [<colname2> <value2> [... <colmatch5> <valuematch5>]]\n"
+			"Usage: realtime destroy <family> <colmatch1> <valuematch1> [<colmatch2> <valuematch2> [... <colmatch5> <valuematch5>]]\n"
 			"       Remove a stored row using the RealTime driver.\n"
 			"       You must supply a family name and name/value pairs (up to 5).\n";
 		return NULL;
