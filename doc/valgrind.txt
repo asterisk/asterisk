@@ -24,3 +24,7 @@ of information about the crash.
 	option, note that valgrind.txt will have a trailing suffix.  That's fine,
 	just upload that file.
 
+Please note that even if valgrind prevents Asterisk from crashing, the
+information logged may STILL be of use to developers, so please upload the
+resulting log file whether Asterisk crashes or not.
+
