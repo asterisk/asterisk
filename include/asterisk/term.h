@@ -62,6 +62,10 @@ extern "C" {
 #define COLOR_BRWHITE   (37 | 128)
 /*@} */
 
+/*! \brief Maximum number of characters needed for a color escape sequence,
+ *         plus a null char */
+#define AST_TERM_MAX_ESCAPE_CHARS   23
+
 char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int maxout);
 
 /*!
