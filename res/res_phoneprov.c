@@ -80,6 +80,7 @@ enum pp_variables {
 	PP_CALLERID,
 	PP_TIMEZONE,
 	PP_LINENUMBER,
+	PP_LINEKEYS,
 	PP_VAR_LIST_LENGTH,	/* This entry must always be the last in the list */
 };
 
@@ -98,6 +99,7 @@ static const struct pp_variable_lookup {
 	{ PP_CALLERID, "cid_number", "CALLERID" },
 	{ PP_TIMEZONE, "timezone", "TIMEZONE" },
 	{ PP_LINENUMBER, "linenumber", "LINE" },
+ 	{ PP_LINEKEYS, "linekeys", "LINEKEYS" },
 };
 
 /*! \brief structure to hold file data */
@@ -746,6 +748,10 @@ static struct extension *build_extension(struct ast_config *cfg, const char *nam
 				tmp = "1";
 			}
 			exten->index = atoi(tmp);
+		} else if (i == PP_LINEKEYS) {
+			if (!tmp) {
+				tmp = "1";
+			}
 		}
 
 		if (tmp && (var = ast_var_assign(pp_variable_list[i].template_var, tmp))) {
