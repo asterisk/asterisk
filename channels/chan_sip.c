@@ -87,18 +87,9 @@
  * the sip_hangup() function
  */
 
-/*!  \page sip_tcp_tls SIP TCP and TLS support
- * The TCP and TLS support is unfortunately implemented in a way that is not 
- * SIP compliant and tested in a SIP infrastructure. We hope to fix this for 
- * at least release 1.6.2. This code was new in 1.6.0 and won't be fixed for
- * that release, due to the current release policy. Only bugs compared with
- * the working functionality in 1.4 will be fixed. Bugs in new features will
- * be fixed in the next release. As 1.6.1 is already in release
- * candidate mode, there will be a buggy SIP channel in that release too.
- *
- * If you have opinions about this release policy, send mail to the asterisk-dev
- * mailing list.
- *
+/*!  
+ * \page sip_tcp_tls SIP TCP and TLS support
+ * 
  * \par tcpfixes TCP implementation changes needed
  * \todo Fix TCP/TLS handling in dialplan, SRV records, transfers and much more
  * \todo Save TCP/TLS sessions in registry
