@@ -83,7 +83,7 @@ static char *cli_realtime_update(struct ast_cli_entry *e, int cmd, struct ast_cl
 	case CLI_INIT:
 		e->command = "realtime update";
 		e->usage =
-			"Usage: realtime update <family> <colupdate> <newvalue> <colmatch> <valuematch>\n"
+			"Usage: realtime update <family> <colmatch> <valuematch> <colupdate> <newvalue>\n"
 			"       Update a single variable using the RealTime driver.\n"
 			"       You must supply a family name, a column to update on, a new value, column to match, and value to match.\n"
 			"       Ex: realtime update sipfriends name bobsphone port 4343\n"
