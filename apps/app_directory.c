@@ -582,7 +582,7 @@ static int search_directory(const char *context, struct ast_config *vmcfg, struc
 		strsep(&bufptr, ",");
 		pos = strsep(&bufptr, ",");
 
-		res = check_match(&item, pos, v->name, ext, use_first_name);
+		res = check_match(&item, S_OR(pos, ""), v->name, ext, use_first_name);
 		if (!res)
 			continue;
 		else if (res < 0)
