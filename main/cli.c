@@ -166,14 +166,6 @@ static char *handle_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	return CLI_SUCCESS;
 }
 
-static char *handle_load_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	char *res = handle_load(e, cmd, a);
-	if (cmd == CLI_INIT)
-		e->command = "load";
-	return res;
-}
-
 static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int x;
@@ -207,14 +199,6 @@ static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		}
 	}
 	return CLI_SUCCESS;
-}
-
-static char *handle_reload_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	char *s = handle_reload(e, cmd, a);
-	if (cmd == CLI_INIT)		/* override command name */
-		e->command = "reload";
-	return s;
 }
 
 /*! 
@@ -426,14 +410,6 @@ static char *handle_unload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		}
 	}
 	return CLI_SUCCESS;
-}
-
-static char *handle_unload_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	char *res = handle_unload(e, cmd, a);
-	if (cmd == CLI_INIT)
-		e->command = "unload";	/* XXX override */
-	return res;
 }
 
 #define MODLIST_FORMAT  "%-30s %-40.40s %-10d\n"
@@ -948,18 +924,6 @@ static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, str
 	return CLI_SUCCESS;
 }
 
-static char *handle_debugchan_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	char *res;
-
-	if (cmd == CLI_HANDLER && a->argc != e->args + 1)
-		return CLI_SHOWUSAGE;
-	res = handle_core_set_debug_channel(e, cmd, a);
-	if (cmd == CLI_INIT)
-		e->command = "debug channel";
-	return res;
-}
-
 static char *handle_nodebugchan_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *res;
@@ -1175,11 +1139,6 @@ static char *group_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 #undef FORMAT_STRING
 }
 
-static struct ast_cli_entry cli_debug_channel_deprecated = AST_CLI_DEFINE(handle_debugchan_deprecated, "Enable debugging on channel");
-static struct ast_cli_entry cli_module_load_deprecated = AST_CLI_DEFINE(handle_load_deprecated, "Load a module");
-static struct ast_cli_entry cli_module_reload_deprecated = AST_CLI_DEFINE(handle_reload_deprecated, "reload modules by name");
-static struct ast_cli_entry cli_module_unload_deprecated = AST_CLI_DEFINE(handle_unload_deprecated, "unload modules by name");
-
 static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry cli_cli[] = {
@@ -1196,8 +1155,7 @@ static struct ast_cli_entry cli_cli[] = {
 
 	AST_CLI_DEFINE(handle_showchan, "Display information on a specific channel"),
 
-	AST_CLI_DEFINE(handle_core_set_debug_channel, "Enable/disable debugging on a channel",
-		.deprecate_cmd = &cli_debug_channel_deprecated),
+	AST_CLI_DEFINE(handle_core_set_debug_channel, "Enable/disable debugging on a channel"),
 
 	AST_CLI_DEFINE(handle_verbose, "Set level of debug/verbose chattiness"),
 
@@ -1209,11 +1167,11 @@ static struct ast_cli_entry cli_cli[] = {
 
 	AST_CLI_DEFINE(handle_modlist, "List modules and info"),
 
-	AST_CLI_DEFINE(handle_load, "Load a module by name", .deprecate_cmd = &cli_module_load_deprecated),
+	AST_CLI_DEFINE(handle_load, "Load a module by name"),
 
-	AST_CLI_DEFINE(handle_reload, "Reload configuration", .deprecate_cmd = &cli_module_reload_deprecated),
+	AST_CLI_DEFINE(handle_reload, "Reload configuration"),
 
-	AST_CLI_DEFINE(handle_unload, "Unload a module by name", .deprecate_cmd = &cli_module_unload_deprecated ),
+	AST_CLI_DEFINE(handle_unload, "Unload a module by name"),
 
 	AST_CLI_DEFINE(handle_showuptime, "Show uptime information"),
 
@@ -1340,14 +1298,17 @@ static char *is_prefix(const char *word, const char *token,
 }
 
 /*!
+ * \internal
  * \brief locate a cli command in the 'helpers' list (which must be locked).
- * exact has 3 values:
+ *     The search compares word by word taking care of regexps in e->cmda
+ *     This function will return NULL when nothing is matched, or the ast_cli_entry that matched.
+ * \param cmds
+ * \param match_type has 3 possible values:
  *      0       returns if the search key is equal or longer than the entry.
- *		note that trailing optional arguments are skipped.
+ *		            note that trailing optional arguments are skipped.
  *      -1      true if the mismatch is on the last word XXX not true!
  *      1       true only on complete, exact match.
  *
- * The search compares word by word taking care of regexps in e->cmda
  */
 static struct ast_cli_entry *find_cli(char *const cmds[], int match_type)
 {
@@ -1389,6 +1350,7 @@ static struct ast_cli_entry *find_cli(char *const cmds[], int match_type)
 			cand = e;
 		}
 	}
+
 	return e ? e : cand;
 }
 
@@ -1413,9 +1375,6 @@ static char *find_best(char *argv[])
 
 static int __ast_cli_unregister(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 {
-	if (e->deprecate_cmd) {
-		__ast_cli_unregister(e->deprecate_cmd, e);
-	}
 	if (e->inuse) {
 		ast_log(LOG_WARNING, "Can't remove command that is in use\n");
 	} else {
@@ -1462,24 +1421,11 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 	AST_RWLIST_WRLOCK(&helpers);
 	
 	if (find_cli(e->cmda, 1)) {
-		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", e->_full_cmd);
+		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", S_OR(e->_full_cmd, e->command));
 		goto done;
 	}
 	if (set_full_cmd(e))
 		goto done;
-	if (!ed) {
-		e->deprecated = 0;
-	} else {
-		e->deprecated = 1;
-		e->summary = ed->summary;
-		e->usage = ed->usage;
-		/* XXX If command A deprecates command B, and command B deprecates command C...
-		   Do we want to show command A or command B when telling the user to use new syntax?
-		   This currently would show command A.
-		   To show command B, you just need to always use ed->_full_cmd.
-		 */
-		e->_deprecated_by = S_OR(ed->_deprecated_by, ed->_full_cmd);
-	}
 
 	lf = e->cmdlen;
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&helpers, cur, list) {
@@ -1500,11 +1446,6 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 done:
 	AST_RWLIST_UNLOCK(&helpers);
 
-	if (e->deprecate_cmd) {
-		/* This command deprecates another command.  Register that one also. */
-		__ast_cli_register(e->deprecate_cmd, e);
-	}
-	
 	return ret;
 }
 
@@ -1564,9 +1505,6 @@ static char *help1(int fd, char *match[], int locked)
 		/* Hide commands that start with '_' */
 		if (e->_full_cmd[0] == '_')
 			continue;
-		/* Hide commands that are marked as deprecated. */
-		if (e->deprecated)
-			continue;
 		if (match && strncasecmp(matchstr, e->_full_cmd, len))
 			continue;
 		ast_cli(fd, "%30.30s %s\n", e->_full_cmd, S_OR(e->summary, "<no description available>"));
@@ -1586,37 +1524,39 @@ static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	char *res = CLI_SUCCESS;
 
 	if (cmd == CLI_INIT) {
-		e->command = "help";
+		e->command = "core show help";
 		e->usage =
-			"Usage: help [topic]\n"
+			"Usage: core show help [topic]\n"
 			"       When called with a topic as an argument, displays usage\n"
 			"       information on the given command. If called without a\n"
 			"       topic, it provides a list of commands.\n";
 		return NULL;
 
 	} else if (cmd == CLI_GENERATE) {
-		/* skip first 4 or 5 chars, "help " */
+		/* skip first 14 or 15 chars, "core show help " */
 		int l = strlen(a->line);
 
-		if (l > 5)
-			l = 5;
+		if (l > 15) {
+			l = 15;
+		}
 		/* XXX watch out, should stop to the non-generator parts */
 		return __ast_cli_generator(a->line + l, a->word, a->n, 0);
 	}
-	if (a->argc == 1)
+	if (a->argc == e->args) {
 		return help1(a->fd, NULL, 0);
+	}
 
 	AST_RWLIST_RDLOCK(&helpers);
-	my_e = find_cli(a->argv + 1, 1);	/* try exact match first */
+	my_e = find_cli(a->argv + 3, 1);	/* try exact match first */
 	if (!my_e) {
-		res = help1(a->fd, a->argv + 1, 1 /* locked */);
+		res = help1(a->fd, a->argv + 3, 1 /* locked */);
 		AST_RWLIST_UNLOCK(&helpers);
 		return res;
 	}
 	if (my_e->usage)
 		ast_cli(a->fd, "%s", my_e->usage);
 	else {
-		ast_join(fullcmd, sizeof(fullcmd), a->argv+1);
+		ast_join(fullcmd, sizeof(fullcmd), a->argv + 3);
 		ast_cli(a->fd, "No help text available for '%s'.\n", fullcmd);
 	}
 	AST_RWLIST_UNLOCK(&helpers);
@@ -1877,7 +1817,7 @@ int ast_cli_command(int fd, const char *s)
 		ast_atomic_fetchadd_int(&e->inuse, 1);
 	AST_RWLIST_UNLOCK(&helpers);
 	if (e == NULL) {
-		ast_cli(fd, "No such command '%s' (type 'help %s' for other possible commands)\n", s, find_best(args + 1));
+		ast_cli(fd, "No such command '%s' (type 'core show help %s' for other possible commands)\n", s, find_best(args + 1));
 		goto done;
 	}
 	/*
@@ -1890,19 +1830,9 @@ int ast_cli_command(int fd, const char *s)
 
 	if (retval == CLI_SHOWUSAGE) {
 		ast_cli(fd, "%s", S_OR(e->usage, "Invalid usage, but no usage information available.\n"));
-		AST_RWLIST_RDLOCK(&helpers);
-		if (e->deprecated)
-			ast_cli(fd, "The '%s' command is deprecated and will be removed in a future release. Please use '%s' instead.\n", e->_full_cmd, e->_deprecated_by);
-		AST_RWLIST_UNLOCK(&helpers);
 	} else {
 		if (retval == CLI_FAILURE)
 			ast_cli(fd, "Command '%s' failed.\n", s);
-		AST_RWLIST_RDLOCK(&helpers);
-		if (e->deprecated == 1) {
-			ast_cli(fd, "The '%s' command is deprecated and will be removed in a future release. Please use '%s' instead.\n", e->_full_cmd, e->_deprecated_by);
-			e->deprecated = 2;
-		}
-		AST_RWLIST_UNLOCK(&helpers);
 	}
 	ast_atomic_fetchadd_int(&e->inuse, -1);
 done:

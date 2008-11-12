@@ -154,21 +154,15 @@ struct ast_cli_entry {
 	const char *summary; 			/*!< Summary of the command (< 60 characters) */
 	const char *usage; 			/*!< Detailed usage information */
 
-	struct ast_cli_entry *deprecate_cmd;
-
 	int inuse; 				/*!< For keeping track of usage */
 	struct module *module;			/*!< module this belongs to */
 	char *_full_cmd;			/*!< built at load time from cmda[] */
 	int cmdlen;				/*!< len up to the first invalid char [<{% */
 	/*! \brief This gets set in ast_cli_register()
-	  It then gets set to something different when the deprecated command
-	  is run for the first time (ie; after we warn the user that it's deprecated)
 	 */
 	int args;				/*!< number of non-null entries in cmda */
 	char *command;				/*!< command, non-null for new-style entries */
-	int deprecated;
 	cli_fn handler;
-	char *_deprecated_by;			/*!< copied from the "parent" _full_cmd, on deprecated commands */
 	/*! For linking */
 	AST_LIST_ENTRY(ast_cli_entry) list;
 };

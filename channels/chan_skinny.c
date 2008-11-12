@@ -2540,35 +2540,6 @@ static struct ast_rtp_protocol skinny_rtp = {
 	.set_rtp_peer = skinny_set_rtp_peer,
 };
 
-static char *handle_skinny_set_debug_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "skinny set debug [off]";
-		e->usage =
-			"Usage: skinny set debug [off]\n"
-			"       Enables/Disables dumping of Skinny packets for debugging purposes\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-	
-	if (a->argc < 3 || a->argc > 4)
-		return CLI_SHOWUSAGE;
-
-	if (a->argc == 3) {
-		skinnydebug = 1;
-		ast_cli(a->fd, "Skinny Debugging Enabled\n");
-		return CLI_SUCCESS;
-	} else if (!strncasecmp(a->argv[3], "off", 3)) {
-		skinnydebug = 0;
-		ast_cli(a->fd, "Skinny Debugging Disabled\n");
-		return CLI_SUCCESS;
-	} else {
-		return CLI_SHOWUSAGE;
-	}
-}
-
 static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -3067,14 +3038,13 @@ static char *handle_skinny_show_settings(struct ast_cli_entry *e, int cmd, struc
 	return CLI_SUCCESS;
 }
 
-static struct ast_cli_entry cli_skinny_set_debug_deprecated = AST_CLI_DEFINE(handle_skinny_set_debug_deprecated, "Enable/Disable Skinny debugging");
 static struct ast_cli_entry cli_skinny[] = {
 	AST_CLI_DEFINE(handle_skinny_show_devices, "List defined Skinny devices"),
 	AST_CLI_DEFINE(handle_skinny_show_device, "List Skinny device information"),
 	AST_CLI_DEFINE(handle_skinny_show_lines, "List defined Skinny lines per device"),
 	AST_CLI_DEFINE(handle_skinny_show_line, "List Skinny line information"),
 	AST_CLI_DEFINE(handle_skinny_show_settings, "List global Skinny settings"),
-	AST_CLI_DEFINE(handle_skinny_set_debug, "Enable/Disable Skinny debugging", .deprecate_cmd = &cli_skinny_set_debug_deprecated),
+	AST_CLI_DEFINE(handle_skinny_set_debug, "Enable/Disable Skinny debugging"),
 	AST_CLI_DEFINE(handle_skinny_reset, "Reset Skinny device(s)"),
 };
 

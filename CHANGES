@@ -58,6 +58,8 @@ Miscellaneous
      same  =>     n,SomethingElse()
  * musiconhold.conf classes of type 'files' can now use relative directory paths,
    which are interpreted as relative to the astvarlibdir setting in asterisk.conf.
+ * All deprecated CLI commands are removed from the sourcecode. They are now handled
+   by the new clialiases module. See cli_aliases.conf.sample file.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.0 to Asterisk 1.6.1  -------------

@@ -6058,15 +6058,6 @@ static char *handle_show_globals(struct ast_cli_entry *e, int cmd, struct ast_cl
 	return CLI_SUCCESS;
 }
 
-static char *handle_show_globals_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-
-	char *res = handle_show_globals(e, cmd, a);
-	if (cmd == CLI_INIT)
-		e->command = "core show globals";
-	return res;
-}
-
 /*! \brief CLI support for listing chanvar's variables in a parseable way */
 static char *handle_show_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -6122,14 +6113,6 @@ static char *handle_set_global(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	return CLI_SUCCESS;
 }
 
-static char *handle_set_global_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	char *res = handle_set_global(e, cmd, a);
-	if (cmd == CLI_INIT)
-		e->command = "core set global";
-	return res;
-}
-
 static char *handle_set_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_channel *chan;
@@ -6163,14 +6146,6 @@ static char *handle_set_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli
 	ast_cli(a->fd, "\n    -- Channel variable '%s' set to '%s' for '%s'\n",  var_name, var_value, chan_name);
 
 	return CLI_SUCCESS;
-}
-
-static char *handle_set_chanvar_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	char *res = handle_set_chanvar(e, cmd, a);
-	if (cmd == CLI_INIT)
-		e->command = "core set chanvar";
-	return res;
 }
 
 static char *handle_set_extenpatternmatchnew(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -6230,14 +6205,6 @@ static char *handle_unset_extenpatternmatchnew(struct ast_cli_entry *e, int cmd,
 }
 
 /*
- * Deprecated CLI commands
- */
-
-static struct ast_cli_entry cli_show_globals_deprecated = AST_CLI_DEFINE(handle_show_globals_deprecated, "Show global dialplan variables.");
-static struct ast_cli_entry cli_set_chanvar_deprecated = AST_CLI_DEFINE(handle_set_chanvar_deprecated, "Set a channel variable.");
-static struct ast_cli_entry cli_set_global_deprecated = AST_CLI_DEFINE(handle_set_global_deprecated, "Set global dialplan variable.");
-
-/*
  * CLI entries for upper commands ...
  */
 static struct ast_cli_entry pbx_cli[] = {
@@ -6246,12 +6213,12 @@ static struct ast_cli_entry pbx_cli[] = {
 	AST_CLI_DEFINE(handle_show_switches, "Show alternative switches"),
 	AST_CLI_DEFINE(handle_show_hints, "Show dialplan hints"),
 	AST_CLI_DEFINE(handle_show_hint, "Show dialplan hint"),
-	AST_CLI_DEFINE(handle_show_globals, "Show global dialplan variables", .deprecate_cmd = &cli_show_globals_deprecated),
+	AST_CLI_DEFINE(handle_show_globals, "Show global dialplan variables"),
 	AST_CLI_DEFINE(handle_show_chanvar, "Show channel variables"),
 	AST_CLI_DEFINE(handle_show_function, "Describe a specific dialplan function"),
 	AST_CLI_DEFINE(handle_show_application, "Describe a specific dialplan application"),
-	AST_CLI_DEFINE(handle_set_global, "Set global dialplan variable", .deprecate_cmd = &cli_set_global_deprecated),
-	AST_CLI_DEFINE(handle_set_chanvar, "Set a channel variable", .deprecate_cmd = &cli_set_chanvar_deprecated),
+	AST_CLI_DEFINE(handle_set_global, "Set global dialplan variable"),
+	AST_CLI_DEFINE(handle_set_chanvar, "Set a channel variable"),
 	AST_CLI_DEFINE(handle_show_dialplan, "Show dialplan"),
 	AST_CLI_DEFINE(handle_debug_dialplan, "Show fast extension pattern matching data structures"),
 	AST_CLI_DEFINE(handle_unset_extenpatternmatchnew, "Use the Old extension pattern matching algorithm."),

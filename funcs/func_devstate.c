@@ -188,50 +188,6 @@ static enum ast_device_state custom_devstate_callback(const char *data)
 	return ast_devstate_val(buf);
 }
 
-static char *handle_cli_funcdevstate_list(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	struct ast_db_entry *db_entry, *db_tree;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "funcdevstate list";
-		e->usage =
-			"Usage: funcdevstate list\n"
-			"       List all custom device states that have been set by using\n"
-			"       the DEVICE_STATE dialplan function.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc != e->args)
-		return CLI_SHOWUSAGE;
-
-	ast_cli(a->fd, "\n"
-	        "---------------------------------------------------------------------\n"
-	        "--- Custom Device States --------------------------------------------\n"
-	        "---------------------------------------------------------------------\n"
-	        "---\n");
-
-	db_entry = db_tree = ast_db_gettree(astdb_family, NULL);
-	for (; db_entry; db_entry = db_entry->next) {
-		const char *dev_name = strrchr(db_entry->key, '/') + 1;
-		if (dev_name <= (const char *) 1)
-			continue;
-		ast_cli(a->fd, "--- Name: 'Custom:%s'  State: '%s'\n"
-		               "---\n", dev_name, db_entry->data);
-	}
-	ast_db_freetree(db_tree);
-	db_tree = NULL;
-
-	ast_cli(a->fd,
-	        "---------------------------------------------------------------------\n"
-	        "---------------------------------------------------------------------\n"
-	        "\n");
-
-	return CLI_SUCCESS;
-}
-
 static char *handle_cli_devstate_list(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_db_entry *db_entry, *db_tree;
@@ -339,9 +295,8 @@ static char *handle_cli_devstate_change(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
-static struct ast_cli_entry cli_funcdevstate_list_deprecated = AST_CLI_DEFINE(handle_cli_funcdevstate_list, "List currently known custom device states");
 static struct ast_cli_entry cli_funcdevstate[] = {
-	AST_CLI_DEFINE(handle_cli_devstate_list, "List currently known custom device states", .deprecate_cmd = &cli_funcdevstate_list_deprecated),
+	AST_CLI_DEFINE(handle_cli_devstate_list, "List currently known custom device states"),
 	AST_CLI_DEFINE(handle_cli_devstate_change, "Change a custom device state"),
 };
 

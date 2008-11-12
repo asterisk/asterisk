@@ -96,7 +96,6 @@ static void *aji_recv_loop(void *data);
 static int aji_initialize(struct aji_client *client);
 static int aji_client_connect(void *data, ikspak *pak);
 static void aji_set_presence(struct aji_client *client, char *to, char *from, int level, char *desc);
-static char *aji_do_debug_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *aji_do_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *aji_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *aji_show_clients(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
@@ -123,9 +122,8 @@ static int aji_register_transport(void *data, ikspak *pak);
 static int aji_register_transport2(void *data, ikspak *pak);
 */
 
-static struct ast_cli_entry cli_aji_do_debug_deprecated = AST_CLI_DEFINE(aji_do_debug_deprecated, "Enable/disable jabber debugging");
 static struct ast_cli_entry aji_cli[] = {
-	AST_CLI_DEFINE(aji_do_set_debug, "Enable/Disable Jabber debug", .deprecate_cmd = &cli_aji_do_debug_deprecated),
+	AST_CLI_DEFINE(aji_do_set_debug, "Enable/Disable Jabber debug"),
 	AST_CLI_DEFINE(aji_do_reload, "Reload Jabber configuration"),
 	AST_CLI_DEFINE(aji_show_clients, "Show state of clients and components"),
 	AST_CLI_DEFINE(aji_show_buddies, "Show buddy lists of our clients"),
@@ -2385,46 +2383,6 @@ static char *aji_do_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		});
 		ast_cli(a->fd, "Jabber Debugging Disabled.\n");
 		return CLI_SUCCESS;
-	}
-	return CLI_SHOWUSAGE; /* defaults to invalid */
-}
-
-/*!
- * \brief Turn on/off console debugging (deprecated, use aji_do_set_debug).
- * \return CLI_SUCCESS.
- */
-static char *aji_do_debug_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "jabber debug [off]";
-		e->usage =
-			"Usage: jabber debug [off]\n"
-			"       Enables/disables dumping of Jabber packets for debugging purposes.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc == 2) {
-		ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
-			ASTOBJ_RDLOCK(iterator); 
-			iterator->debug = 1;
-			ASTOBJ_UNLOCK(iterator);
-		});
-		ast_cli(a->fd, "Jabber Debugging Enabled.\n");
-		return CLI_SUCCESS;
-	} else if (a->argc == 3) {
-		if (!strncasecmp(a->argv[2], "off", 3)) {
-			ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
-				ASTOBJ_RDLOCK(iterator); 
-				iterator->debug = 0;
-				ASTOBJ_UNLOCK(iterator);
-			});
-			ast_cli(a->fd, "Jabber Debugging Disabled.\n");
-			return CLI_SUCCESS;
-		}
 	}
 	return CLI_SHOWUSAGE; /* defaults to invalid */
 }

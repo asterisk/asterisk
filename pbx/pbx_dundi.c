@@ -2156,30 +2156,6 @@ static int start_network_thread(void)
 	return 0;
 }
 
-static char *dundi_do_debug_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "dundi [no] debug";
-		e->usage = 
-			"Usage: dundi [no] debug\n"
-			"       Enables/Disables dumping of DUNDi packets for debugging purposes\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-	if (a->argc < 2 || a->argc > 3)
-		return CLI_SHOWUSAGE;
-	if (a->argc == 2) {
-		dundidebug = 1;
-		ast_cli(a->fd, "DUNDi Debugging Enabled\n");
-	} else {
-		dundidebug = 0;
-		ast_cli(a->fd, "DUNDi Debugging Disabled\n");
-	}
-	return CLI_SUCCESS;
-}
-
 static char *dundi_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -2202,32 +2178,6 @@ static char *dundi_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	} else {
 		dundidebug = 0;
 		ast_cli(a->fd, "DUNDi Debugging Disabled\n");
-	}
-	return CLI_SUCCESS;
-}
-
-static char *dundi_do_store_history_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "dundi [no] store history";
-		e->usage = 
-			"Usage: dundi [no] store history\n"
-			"       Enables/Disables storing of DUNDi requests and times for debugging\n"
-			"purposes\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-	if (a->argc < 3 || a->argc > 4)
-		return CLI_SHOWUSAGE;
-	
-	if (a->argc == 3) {
-		global_storehistory = 1;
-		ast_cli(a->fd, "DUNDi History Storage Enabled\n");
-	} else {
-		global_storehistory = 0;
-		ast_cli(a->fd, "DUNDi History Storage Disabled\n");
 	}
 	return CLI_SUCCESS;
 }
@@ -2819,11 +2769,9 @@ static char *dundi_show_precache(struct ast_cli_entry *e, int cmd, struct ast_cl
 #undef FORMAT2
 }
 
-static struct ast_cli_entry cli_dundi_do_debug_deprecated = AST_CLI_DEFINE(dundi_do_debug_deprecated, "Enable/Disable DUNDi debugging");
-static struct ast_cli_entry cli_dundi_do_store_history_deprecated = AST_CLI_DEFINE(dundi_do_store_history_deprecated, "Enable/Disable DUNDi historic records");
 static struct ast_cli_entry cli_dundi[] = {
-	AST_CLI_DEFINE(dundi_set_debug, "Enable/Disable DUNDi debugging", .deprecate_cmd = &cli_dundi_do_debug_deprecated),
-	AST_CLI_DEFINE(dundi_store_history, "Enable/Disable DUNDi historic records", .deprecate_cmd = &cli_dundi_do_store_history_deprecated),
+	AST_CLI_DEFINE(dundi_set_debug, "Enable/Disable DUNDi debugging"),
+	AST_CLI_DEFINE(dundi_store_history, "Enable/Disable DUNDi historic records"),
 	AST_CLI_DEFINE(dundi_flush, "Flush DUNDi cache"),
 	AST_CLI_DEFINE(dundi_show_peers, "Show defined DUNDi peers"),
 	AST_CLI_DEFINE(dundi_show_trans, "Show active DUNDi transactions"),

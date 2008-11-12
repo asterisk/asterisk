@@ -3013,30 +3013,6 @@ static int write_htmldump(char *filename)
 	return 0;
 }
 
-static char *handle_cli_agi_dumphtml_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "agi dumphtml";
-		e->usage =
-			"Usage: agi dumphtml <filename>\n"
-			"       Dumps the AGI command list in HTML format to the given\n"
-			"       file.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-	if (a->argc < e->args + 1)
-		return CLI_SHOWUSAGE;
-
-	if (write_htmldump(a->argv[2]) < 0) {
-		ast_cli(a->fd, "Could not create file '%s'\n", a->argv[2]);
-		return CLI_SHOWUSAGE;
-	}
-	ast_cli(a->fd, "AGI HTML commands dumped to: %s\n", a->argv[2]);
-	return CLI_SUCCESS;
-}
-
 static char *handle_cli_agi_dump_html(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -3164,13 +3140,11 @@ static int deadagi_exec(struct ast_channel *chan, void *data)
 	return agi_exec(chan, data);
 }
 
-static struct ast_cli_entry cli_agi_dumphtml_deprecated = AST_CLI_DEFINE(handle_cli_agi_dumphtml_deprecated, "Dumps a list of AGI commands in HTML format");
-
 static struct ast_cli_entry cli_agi[] = {
 	AST_CLI_DEFINE(handle_cli_agi_add_cmd,   "Add AGI command to a channel in Async AGI"),
 	AST_CLI_DEFINE(handle_cli_agi_debug,     "Enable/Disable AGI debugging"),
 	AST_CLI_DEFINE(handle_cli_agi_show,      "List AGI commands or specific help"),
-	AST_CLI_DEFINE(handle_cli_agi_dump_html, "Dumps a list of AGI commands in HTML format", .deprecate_cmd = &cli_agi_dumphtml_deprecated)
+	AST_CLI_DEFINE(handle_cli_agi_dump_html, "Dumps a list of AGI commands in HTML format")
 };
 
 static int unload_module(void)

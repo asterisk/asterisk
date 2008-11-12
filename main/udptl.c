@@ -1089,66 +1089,6 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	return -1;
 }
 
-static char *handle_cli_udptl_debug_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	struct hostent *hp;
-	struct ast_hostent ahp;
-	int port;
-	char *p;
-	char *arg;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "udptl debug [off|ip]";
-		e->usage = 
-			"Usage: udptl debug [off]|[ip host[:port]]\n"
-			"       Enable or disable dumping of UDPTL packets.\n"
-			"       If ip is specified, limit the dumped packets to those to and from\n"
-			"       the specified 'host' with optional port.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc < 2 || a->argc > 4)
-		return CLI_SHOWUSAGE;
-
-	if (a->argc == 2) { 
-		udptldebug = 1;
-		memset(&udptldebugaddr, 0, sizeof(udptldebugaddr));
-		ast_cli(a->fd, "UDPTL Debugging Enabled\n");
-	} else if (a->argc == 3) {
-		if (strncasecmp(a->argv[2], "off", 3))
-			return CLI_SHOWUSAGE;
-		udptldebug = 0;
-		ast_cli(a->fd, "UDPTL Debugging Disabled\n");
-	} else {
-		if (strncasecmp(a->argv[2], "ip", 2))
-			return CLI_SHOWUSAGE;
-		port = 0;
-		arg = a->argv[3];
-		p = strstr(arg, ":");
-		if (p) {
-			*p = '\0';
-			p++;
-			port = atoi(p);
-		}
-		hp = ast_gethostbyname(arg, &ahp);
-		if (hp == NULL)
-			return CLI_SHOWUSAGE;
-		udptldebugaddr.sin_family = AF_INET;
-		memcpy(&udptldebugaddr.sin_addr, hp->h_addr, sizeof(udptldebugaddr.sin_addr));
-		udptldebugaddr.sin_port = htons(port);
-		if (port == 0)
-			ast_cli(a->fd, "UDPTL Debugging Enabled for IP: %s\n", ast_inet_ntoa(udptldebugaddr.sin_addr));
-		else
-			ast_cli(a->fd, "UDPTL Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(udptldebugaddr.sin_addr), port);
-		udptldebug = 1;
-	}
-
-	return CLI_SUCCESS;
-}
-
 static char *handle_cli_udptl_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct hostent *hp;
@@ -1211,10 +1151,9 @@ static char *handle_cli_udptl_set_debug(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
-static struct ast_cli_entry cli_handle_udptl_debug_deprecated = AST_CLI_DEFINE(handle_cli_udptl_debug_deprecated, "Enable/Disable UDPTL debugging");
 
 static struct ast_cli_entry cli_udptl[] = {
-	AST_CLI_DEFINE(handle_cli_udptl_set_debug, "Enable/Disable UDPTL debugging", .deprecate_cmd = &cli_handle_udptl_debug_deprecated)
+	AST_CLI_DEFINE(handle_cli_udptl_set_debug, "Enable/Disable UDPTL debugging")
 };
 
 static void __ast_udptl_reload(int reload)
