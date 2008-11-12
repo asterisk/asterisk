@@ -212,7 +212,7 @@ static void load_config(int reload)
 			if (!(alias = ao2_alloc((sizeof(*alias) + strlen(v1->name) + strlen(v1->value) + 2), alias_destroy))) {
 				continue;
 			}
-			alias->alias = ((char *) alias) + sizeof(alias);
+			alias->alias = ((char *) alias) + sizeof(*alias);
 			alias->real_cmd = ((char *) alias) + strlen(v1->name) + 1;
 			strcpy(alias->alias, v1->name);
 			strcpy(alias->real_cmd, v1->value);
