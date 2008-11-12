@@ -128,6 +128,37 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			otherwise.</para>
 		</description>
 	</agi>
+	<agi name="database deltree" language="en_US">
+		<synopsis>
+			Removes database keytree/value
+		</synopsis>
+		<syntax>
+			<parameter name="family" required="true" />
+			<parameter name="keytree" />
+		</syntax>
+		<description>
+			<para>Deletes a <replaceable>family</replaceable> or specific <replaceable>keytree</replaceable>
+			within a <replaceable>family</replaceable> in the Asterisk database.</para>
+			<para>Returns <literal>1</literal> if successful, <literal>0</literal> otherwise.</para>
+		</description>
+	</agi>
+	<agi name="database get" language="en_US">
+		<synopsis>
+			Gets database value
+		</synopsis>
+		<syntax>
+			<parameter name="family" required="true" />
+			<parameter name="key" required="true" />
+		</syntax>
+		<description>
+			<para>Retrieves an entry in the Asterisk database for a given <replaceable>family</replaceable>
+			and <replaceable>key</replaceable>.</para>
+			<para>Returns <literal>0</literal> if <replaceable>key</replaceable> is not set.
+			Returns <literal>1</literal> if <replaceable>key</replaceable> is set and returns the variable
+			in parenthesis.</para>
+			<para>Example return code: 200 result=1 (testvariable)</para>
+		</description>
+	</agi>
 	<agi name="database put" language="en_US">
 		<synopsis>
 			Adds/updates database value
@@ -142,6 +173,51 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<replaceable>family</replaceable>, <replaceable>key</replaceable>, and
 			<replaceable>value</replaceable>.</para>
 			<para>Returns <literal>1</literal> if successful, <literal>0</literal> otherwise.</para>
+		</description>
+	</agi>
+	<agi name="exec" language="en_US">
+		<synopsis>
+			Executes a given Application
+		</synopsis>
+		<syntax>
+			<parameter name="application" required="true" />
+			<parameter name="options" required="true" />
+		</syntax>
+		<description>
+			<para>Executes <replaceable>application</replaceable> with given
+			<replaceable>options</replaceable>.</para>
+			<para>Returns whatever the <replaceable>application</replaceable> returns, or
+			<literal>-2</literal> on failure to find <replaceable>application</replaceable>.</para>
+		</description>
+	</agi>
+	<agi name="get data" language="en_US">
+		<synopsis>
+			Prompts for DTMF on a channel
+		</synopsis>
+		<syntax>
+			<parameter name="file" required="true" />
+			<parameter name="timeout" />
+			<parameter name="maxdigits" />
+		</syntax>
+		<description>
+			<para>Stream the given <replaceable>file</replaceable>, and recieve DTMF data.</para>
+			<para>Returns the digits received from the channel at the other end.</para>
+		</description>
+	</agi>
+	<agi name="get full variable" language="en_US">
+		<synopsis>
+			Evaluates a channel expression
+		</synopsis>
+		<syntax>
+			<parameter name="variablename" required="true" />
+			<parameter name="channel name" />
+		</syntax>
+		<description>
+			<para>Returns <literal>0</literal> if <replaceable>variablename</replaceable> is not set
+			or channel does not exist. Returns <literal>1</literal> if <replaceable>variablename</replaceable>
+			is set and returns the variable in parenthesis. Understands complex variable names and builtin
+			variables, unlike GET VARIABLE.</para>
+			<para>Example return code: 200 result=1 (testvariable)</para>
 		</description>
 	</agi>
 	<agi name="set music" language="en_US">
@@ -2106,20 +2182,6 @@ static int handle_asyncagi_break(struct ast_channel *chan, AGI *agi, int argc, c
 	return AST_PBX_KEEPALIVE;
 }
 
-static char usage_dbget[] =
-" Usage: DATABASE GET <family> <key>\n"
-"	Retrieves an entry in the Asterisk database for a\n"
-" given family and key.\n"
-" Returns 0 if <key> is not set.  Returns 1 if <key>\n"
-" is set and returns the variable in parentheses.\n"
-" Example return code: 200 result=1 (testvariable)\n";
-
-static char usage_dbdeltree[] =
-" Usage: DATABASE DELTREE <family> [keytree]\n"
-"	Deletes a family or specific keytree within a family\n"
-" in the Asterisk database.\n"
-" Returns 1 if successful, 0 otherwise.\n";
-
 static char usage_verbose[] =
 " Usage: VERBOSE <message> <level>\n"
 "	Sends <message> to the console via verbose message system.\n"
@@ -2132,24 +2194,12 @@ static char usage_getvariable[] =
 " is set and returns the variable in parentheses.\n"
 " example return code: 200 result=1 (testvariable)\n";
 
-static char usage_getvariablefull[] =
-" Usage: GET FULL VARIABLE <variablename> [<channel name>]\n"
-"	Returns 0 if <variablename> is not set or channel does not exist.  Returns 1\n"
-"if <variablename>  is set and returns the variable in parenthesis.  Understands\n"
-"complex variable names and builtin variables, unlike GET VARIABLE.\n"
-" example return code: 200 result=1 (testvariable)\n";
-
 static char usage_setvariable[] =
 " Usage: SET VARIABLE <variablename> <value>\n";
 
 static char usage_setcallerid[] =
 " Usage: SET CALLERID <number>\n"
 "	Changes the callerid of the current channel.\n";
-
-static char usage_exec[] =
-" Usage: EXEC <application> <options>\n"
-"	Executes <application> with given <options>.\n"
-" Returns whatever the application returns, or -2 on failure to find application\n";
 
 static char usage_hangup[] =
 " Usage: HANGUP [<channelname>]\n"
@@ -2276,11 +2326,6 @@ static char usage_sayphonetic[] =
 " completes without a digit pressed, the ASCII numerical value of the digit\n"
 " if one was pressed, or -1 on error/hangup.\n";
 
-static char usage_getdata[] =
-" Usage: GET DATA <file to be streamed> [timeout] [max digits]\n"
-"	Stream the given file, and recieve DTMF data. Returns the digits received\n"
-"from the channel at the other end.\n";
-
 static char usage_setcontext[] =
 " Usage: SET CONTEXT <desired context>\n"
 "	Sets the context for continuation upon exiting the application.\n";
@@ -2359,12 +2404,12 @@ static struct agi_command commands[] = {
 	{ { "answer", NULL }, handle_answer, NULL, NULL, 0 },
 	{ { "channel", "status", NULL }, handle_channelstatus, NULL, NULL, 0 },
 	{ { "database", "del", NULL }, handle_dbdel, NULL, NULL, 1 },
-	{ { "database", "deltree", NULL }, handle_dbdeltree, "Removes database keytree/value", usage_dbdeltree , 1 },
-	{ { "database", "get", NULL }, handle_dbget, "Gets database value", usage_dbget , 1 },
+	{ { "database", "deltree", NULL }, handle_dbdeltree, NULL, NULL, 1 },
+	{ { "database", "get", NULL }, handle_dbget, NULL, NULL, 1 },
 	{ { "database", "put", NULL }, handle_dbput, NULL, NULL, 1 },
-	{ { "exec", NULL }, handle_exec, "Executes a given Application", usage_exec , 1 },
-	{ { "get", "data", NULL }, handle_getdata, "Prompts for DTMF on a channel", usage_getdata , 0 },
-	{ { "get", "full", "variable", NULL }, handle_getvariablefull, "Evaluates a channel expression", usage_getvariablefull , 1 },
+	{ { "exec", NULL }, handle_exec, NULL, NULL, 1 },
+	{ { "get", "data", NULL }, handle_getdata, NULL, NULL, 0 },
+	{ { "get", "full", "variable", NULL }, handle_getvariablefull, NULL, NULL, 1 },
 	{ { "get", "option", NULL }, handle_getoption, "Stream file, prompt for DTMF, with timeout", usage_getoption , 0 },
 	{ { "get", "variable", NULL }, handle_getvariable, "Gets a channel variable", usage_getvariable , 1 },
 	{ { "hangup", NULL }, handle_hangup, "Hangup the current channel", usage_hangup , 0 },
