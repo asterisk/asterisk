@@ -1744,6 +1744,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (!res) {
 			if (calldurationlimit > 0) {
 				peer->whentohangup = time(NULL) + calldurationlimit;
+			} else if (timelimit > 0) {
+				/* Not enough granularity to make it less, but we can't use the special value 0 */
+				peer->whentohangup = time(NULL) + 1;
 			}
 			if (!ast_strlen_zero(dtmfcalled)) { 
 				if (option_verbose > 2)
@@ -1851,7 +1854,7 @@ out:
 			ast_log(LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
 		
 		if ((ast_test_flag(peerflags, OPT_GO_ON)) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE)) {
-			if (calldurationlimit)
+			if (timelimit)
 				chan->whentohangup = 0;
 			res = 0;
 		}
