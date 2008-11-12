@@ -1447,6 +1447,10 @@ static void sla_queue_event_full(enum sla_event_type type,
 {
 	struct sla_event *event;
 
+	if (sla.thread == AST_PTHREADT_NULL) {
+		return;
+	}
+
 	if (!(event = ast_calloc(1, sizeof(*event))))
 		return;
 
