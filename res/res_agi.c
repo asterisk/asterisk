@@ -57,8 +57,66 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/speech.h"
 #include "asterisk/manager.h"
 #include "asterisk/features.h"
+#include "asterisk/term.h"
+#include "asterisk/xmldoc.h"
+
+/*** DOCUMENTATION
+	<agi name="answer" language="en_US">
+		<synopsis>
+			Answer channel
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Answers channel if not already in answer state. Returns <literal>-1</literal> on
+			channel failure, or <literal>0</literal> if successful.</para>
+		</description>
+		<see-also>
+			<ref type="agi">hangup</ref>
+		</see-also>
+	</agi>
+	<agi name="channel status" language="en_US">
+		<synopsis>
+			Returns status of the connected channel.
+		</synopsis>
+		<syntax>
+			<parameter name="channelname" />
+		</syntax>
+		<description>
+			<para>Returns the status of the specified <replaceable>channelname</replaceable>.
+			If no channel name is given then returns the status of the current channel.</para>
+			<para>Return values:</para>
+			<enumlist>
+				<enum name="0">
+					<para>Channel is down and available.</para>
+				</enum>
+				<enum name="1">
+					<para>Channel is down, but reserved.</para>
+				</enum>
+				<enum name="2">
+					<para>Channel is off hook.</para>
+				</enum>
+				<enum name="3">
+					<para>Digits (or equivalent) have been dialed.</para>
+				</enum>
+				<enum name="4">
+					<para>Line is ringing.</para>
+				</enum>
+				<enum name="5">
+					<para>Remote end is ringing.</para>
+				</enum>
+				<enum name="6">
+					<para>Line is up.</para>
+				</enum>
+				<enum name="7">
+					<para>Line is busy.</para>
+				</enum>
+			</enumlist>
+		</description>
+	</agi>
+ ***/
 
 #define MAX_ARGS 128
+#define MAX_CMD_LEN 80
 #define AGI_NANDFS_RETRY 3
 #define AGI_BUF_LEN 2048
 
@@ -2047,20 +2105,6 @@ static char usage_getvariablefull[] =
 static char usage_setvariable[] =
 " Usage: SET VARIABLE <variablename> <value>\n";
 
-static char usage_channelstatus[] =
-" Usage: CHANNEL STATUS [<channelname>]\n"
-"	Returns the status of the specified channel.\n"
-" If no channel name is given the returns the status of the\n"
-" current channel.  Return values:\n"
-"  0 Channel is down and available\n"
-"  1 Channel is down, but reserved\n"
-"  2 Channel is off hook\n"
-"  3 Digits (or equivalent) have been dialed\n"
-"  4 Line is ringing\n"
-"  5 Remote end is ringing\n"
-"  6 Line is up\n"
-"  7 Line is busy\n";
-
 static char usage_setcallerid[] =
 " Usage: SET CALLERID <number>\n"
 "	Changes the callerid of the current channel.\n";
@@ -2074,11 +2118,6 @@ static char usage_hangup[] =
 " Usage: HANGUP [<channelname>]\n"
 "	Hangs up the specified channel.\n"
 " If no channel name is given, hangs up the current channel\n";
-
-static char usage_answer[] =
-" Usage: ANSWER\n"
-"	Answers channel if not already in answer state. Returns -1 on\n"
-" channel failure, or 0 if successful.\n";
 
 static char usage_waitfordigit[] =
 " Usage: WAIT FOR DIGIT <timeout>\n"
@@ -2280,8 +2319,8 @@ static char usage_speechrecognize[] =
  * \brief AGI commands list
  */
 static struct agi_command commands[] = {
-	{ { "answer", NULL }, handle_answer, "Answer channel", usage_answer , 0 },
-	{ { "channel", "status", NULL }, handle_channelstatus, "Returns status of the connected channel", usage_channelstatus , 0 },
+	{ { "answer", NULL }, handle_answer, NULL, NULL, 0 },
+	{ { "channel", "status", NULL }, handle_channelstatus, NULL, NULL, 0 },
 	{ { "database", "del", NULL }, handle_dbdel, "Removes database key/value", usage_dbdel , 1 },
 	{ { "database", "deltree", NULL }, handle_dbdeltree, "Removes database keytree/value", usage_dbdeltree , 1 },
 	{ { "database", "get", NULL }, handle_dbget, "Gets database value", usage_dbget , 1 },
@@ -2332,7 +2371,7 @@ static AST_RWLIST_HEAD_STATIC(agi_commands, agi_command);
 
 static char *help_workhorse(int fd, char *match[])
 {
-	char fullcmd[80], matchstr[80];
+	char fullcmd[MAX_CMD_LEN], matchstr[MAX_CMD_LEN];
 	struct agi_command *e;
 
 	if (match)
@@ -2358,11 +2397,21 @@ static char *help_workhorse(int fd, char *match[])
 
 int ast_agi_register(struct ast_module *mod, agi_command *cmd)
 {
-	char fullcmd[80];
+	char fullcmd[MAX_CMD_LEN];
 
 	ast_join(fullcmd, sizeof(fullcmd), cmd->cmda);
 
- 	if (!find_command(cmd->cmda,1)) {
+	if (!find_command(cmd->cmda,1)) {
+		cmd->docsrc = AST_STATIC_DOC;
+#ifdef AST_XML_DOCS
+		if (ast_strlen_zero(cmd->summary) && ast_strlen_zero(cmd->usage)) {
+			cmd->summary = ast_xmldoc_build_synopsis("agi", fullcmd);
+			cmd->usage = ast_xmldoc_build_description("agi", fullcmd);
+			cmd->syntax = ast_xmldoc_build_syntax("agi", fullcmd);
+			cmd->seealso = ast_xmldoc_build_seealso("agi", fullcmd);
+			cmd->docsrc = AST_XML_DOC;
+		}
+#endif
 		cmd->mod = mod;
 		AST_RWLIST_WRLOCK(&agi_commands);
 		AST_LIST_INSERT_TAIL(&agi_commands, cmd, list);
@@ -2381,7 +2430,7 @@ int ast_agi_unregister(struct ast_module *mod, agi_command *cmd)
 {
 	struct agi_command *e;
 	int unregistered = 0;
-	char fullcmd[80];
+	char fullcmd[MAX_CMD_LEN];
 
 	ast_join(fullcmd, sizeof(fullcmd), cmd->cmda);
 
@@ -2391,6 +2440,16 @@ int ast_agi_unregister(struct ast_module *mod, agi_command *cmd)
 			AST_RWLIST_REMOVE_CURRENT(list);
 			if (mod != ast_module_info->self)
 				ast_module_unref(ast_module_info->self);
+#ifdef AST_XML_DOCS
+			if (e->docsrc == AST_XML_DOC) {
+				ast_free(e->summary);
+				ast_free(e->usage);
+				ast_free(e->syntax);
+				ast_free(e->seealso);
+				e->summary = NULL, e->usage = NULL;
+				e->syntax = NULL, e->seealso = NULL;
+			}
+#endif
 			unregistered=1;
 			break;
 		}
@@ -2728,7 +2787,8 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 static char *handle_cli_agi_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct agi_command *command;
-	char fullcmd[80];
+	char fullcmd[MAX_CMD_LEN];
+	int error = 0;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2746,8 +2806,73 @@ static char *handle_cli_agi_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 	if (a->argc > e->args - 1) {
 		command = find_command(a->argv + e->args, 1);
 		if (command) {
-			ast_cli(a->fd, "%s", command->usage);
-			ast_cli(a->fd, " Runs Dead : %s\n", command->dead ? "Yes" : "No");
+			char *synopsis = NULL, *description = NULL, *syntax = NULL, *seealso = NULL;
+			char info[30 + MAX_CMD_LEN];					/* '-= Info about...' */
+			char infotitle[30 + MAX_CMD_LEN + AST_TERM_MAX_ESCAPE_CHARS];	/* '-= Info about...' with colors */
+			char syntitle[11 + AST_TERM_MAX_ESCAPE_CHARS];			/* [Syntax]\n with colors */
+			char desctitle[15 + AST_TERM_MAX_ESCAPE_CHARS];			/* [Description]\n with colors */
+			char deadtitle[13 + AST_TERM_MAX_ESCAPE_CHARS];			/* [Runs Dead]\n with colors */
+			char deadcontent[3 + AST_TERM_MAX_ESCAPE_CHARS];		/* 'Yes' or 'No' with colors */
+			char seealsotitle[12 + AST_TERM_MAX_ESCAPE_CHARS];		/* [See Also]\n with colors */
+			char stxtitle[10 + AST_TERM_MAX_ESCAPE_CHARS];			/* [Syntax]\n with colors */
+			size_t synlen, desclen, seealsolen, stxlen;
+
+			term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, sizeof(syntitle));
+			term_color(desctitle, "[Description]\n", COLOR_MAGENTA, 0, sizeof(desctitle));
+			term_color(deadtitle, "[Runs Dead]\n", COLOR_MAGENTA, 0, sizeof(deadtitle));
+			term_color(seealsotitle, "[See Also]\n", COLOR_MAGENTA, 0, sizeof(seealsotitle));
+			term_color(stxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, sizeof(stxtitle));
+			term_color(deadcontent, command->dead ? "Yes" : "No", COLOR_CYAN, 0, sizeof(deadcontent));
+
+			ast_join(fullcmd, sizeof(fullcmd), a->argv + e->args);
+			snprintf(info, sizeof(info), "\n  -= Info about agi '%s' =- ", fullcmd);
+			term_color(infotitle, info, COLOR_CYAN, 0, sizeof(infotitle));
+#ifdef AST_XML_DOCS
+			if (command->docsrc == AST_XML_DOC) {
+				synopsis = ast_xmldoc_printable(S_OR(command->summary, "Not available"), 1);
+				description = ast_xmldoc_printable(S_OR(command->usage, "Not available"), 1);
+				seealso = ast_xmldoc_printable(S_OR(command->seealso, "Not available"), 1);
+				if (!seealso || !description || !synopsis) {
+					error = 1;
+					goto return_cleanup;
+				}
+			} else
+#endif
+			{
+				synlen = strlen(S_OR(command->summary, "Not available")) + AST_TERM_MAX_ESCAPE_CHARS;
+				synopsis = ast_malloc(synlen);
+
+				desclen = strlen(S_OR(command->usage, "Not available")) + AST_TERM_MAX_ESCAPE_CHARS;
+				description = ast_malloc(desclen);
+
+				seealsolen = strlen(S_OR(command->seealso, "Not available")) + AST_TERM_MAX_ESCAPE_CHARS;
+				seealso = ast_malloc(seealsolen);
+
+				if (!synopsis || !description || !seealso) {
+					error = 1;
+					goto return_cleanup;
+				}
+				term_color(synopsis, S_OR(command->summary, "Not available"), COLOR_CYAN, 0, synlen);
+				term_color(description, S_OR(command->usage, "Not available"), COLOR_CYAN, 0, desclen);
+				term_color(seealso, S_OR(command->seealso, "Not available"), COLOR_CYAN, 0, seealsolen);
+			}
+
+			stxlen = strlen(S_OR(command->syntax, "Not available")) + AST_TERM_MAX_ESCAPE_CHARS;
+			syntax = ast_malloc(stxlen);
+			if (!syntax) {
+				error = 1;
+				goto return_cleanup;
+			}
+			term_color(syntax, S_OR(command->syntax, "Not available"), COLOR_CYAN, 0, stxlen);
+
+			ast_cli(a->fd, "%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n", infotitle, stxtitle, syntax,
+					desctitle, description, syntitle, synopsis, deadtitle, deadcontent,
+					seealsotitle, seealso);
+return_cleanup:
+			ast_free(synopsis);
+			ast_free(description);
+			ast_free(syntax);
+			ast_free(seealso);
 		} else {
 			if (find_command(a->argv + e->args, -1)) {
 				return help_workhorse(a->fd, a->argv + e->args);
@@ -2759,7 +2884,7 @@ static char *handle_cli_agi_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 	} else {
 		return help_workhorse(a->fd, NULL);
 	}
-	return CLI_SUCCESS;
+	return (error ? CLI_FAILURE : CLI_SUCCESS);
 }
 
 /*! \brief Convert string to use HTML escaped characters
@@ -2796,7 +2921,7 @@ static void write_html_escaped(FILE *htmlfile, char *str)
 static int write_htmldump(char *filename)
 {
 	struct agi_command *command;
-	char fullcmd[80];
+	char fullcmd[MAX_CMD_LEN];
 	FILE *htmlfile;
 
 	if (!(htmlfile = fopen(filename, "wt")))
@@ -2808,7 +2933,10 @@ static int write_htmldump(char *filename)
 
 	AST_RWLIST_RDLOCK(&agi_commands);
 	AST_RWLIST_TRAVERSE(&agi_commands, command, list) {
-		char *stringp, *tempstr;
+#ifdef AST_XML_DOCS
+		char *stringptmp;
+#endif
+		char *tempstr, *stringp;
 
 		if (!command->cmda[0])	/* end ? */
 			break;
@@ -2819,8 +2947,12 @@ static int write_htmldump(char *filename)
 
 		fprintf(htmlfile, "<TR><TD><TABLE BORDER=\"1\" CELLPADDING=\"5\" WIDTH=\"100%%\">\n");
 		fprintf(htmlfile, "<TR><TH ALIGN=\"CENTER\"><B>%s - %s</B></TH></TR>\n", fullcmd, command->summary);
-
+#ifdef AST_XML_DOCS
+		stringptmp = ast_xmldoc_printable(command->usage, 0);
+		stringp = stringptmp;
+#else
 		stringp = command->usage;
+#endif
 		tempstr = strsep(&stringp, "\n");
 
 		fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">");
@@ -2834,6 +2966,9 @@ static int write_htmldump(char *filename)
 		}
 		fprintf(htmlfile, "</TD></TR>\n");
 		fprintf(htmlfile, "</TABLE></TD></TR>\n\n");
+#ifdef AST_XML_DOCS
+		ast_free(stringptmp);
+#endif
 	}
 	AST_RWLIST_UNLOCK(&agi_commands);
 	fprintf(htmlfile, "</TABLE>\n</BODY>\n</HTML>\n");

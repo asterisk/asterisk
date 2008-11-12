@@ -57,6 +57,8 @@ struct documentation_tree {
 	AST_RWLIST_ENTRY(documentation_tree) entry;
 };
 
+static char *xmldoc_get_syntax_cmd(struct ast_xml_node *fixnode, const char *name, int printname);
+
 /*!
  * \brief Container of documentation trees
  *
@@ -548,17 +550,18 @@ static __attribute__((format(printf,4,5))) void xmldoc_reverse_helper(int revers
 }
 
 /*! \internal
- *  \brief Check if the passed node has <argument> tags inside it.
- *  \param node Root node to search argument elements.
+ *  \brief Check if the passed node has 'what' tags inside it.
+ *  \param node Root node to search 'what' elements.
+ *  \param what node name to search inside node.
  *  \retval 1 If a <argument> element is found inside 'node'.
  *  \retval 0 If no <argument> is found inside 'node'.
  */
-static int xmldoc_has_arguments(struct ast_xml_node *fixnode)
+static int xmldoc_has_inside(struct ast_xml_node *fixnode, const char *what)
 {
 	struct ast_xml_node *node = fixnode;
 
 	for (node = ast_xml_node_get_children(fixnode); node; node = ast_xml_node_get_next(node)) {
-		if (!strcasecmp(ast_xml_node_get_name(node), "argument")) {
+		if (!strcasecmp(ast_xml_node_get_name(node), what)) {
 			return 1;
 		}
 	}
@@ -575,7 +578,7 @@ static int xmldoc_has_arguments(struct ast_xml_node *fixnode)
  *  \retval NULL on error.
  *  \retval An ast_malloc'ed string with the syntax generated.
  */
-static char *xmldoc_get_syntax(struct ast_xml_node *rootnode, const char *rootname, const char *childname, int printparenthesis, int printrootname)
+static char *xmldoc_get_syntax_fun(struct ast_xml_node *rootnode, const char *rootname, const char *childname, int printparenthesis, int printrootname)
 {
 #define GOTONEXT(__rev, __a) (__rev ? ast_xml_node_get_prev(__a) : ast_xml_node_get_next(__a))
 #define ISLAST(__rev, __a)  (__rev == 1 ? (ast_xml_node_get_prev(__a) ? 0 : 1) : (ast_xml_node_get_next(__a) ? 0 : 1))
@@ -679,7 +682,7 @@ static char *xmldoc_get_syntax(struct ast_xml_node *rootnode, const char *rootna
 		}
 
 		/* Get the argument name, if it is not the leaf, go inside that parameter. */
-		if (xmldoc_has_arguments(node)) {
+		if (xmldoc_has_inside(node, "arguments")) {
 			parenthesis = ast_xml_get_attribute(node, "hasparams");
 			prnparenthesis = 0;
 			if (parenthesis) {
@@ -691,7 +694,7 @@ static char *xmldoc_get_syntax(struct ast_xml_node *rootnode, const char *rootna
 			}
 			argname = ast_xml_get_attribute(node, "name");
 			if (argname) {
-				paramname = xmldoc_get_syntax(node, argname, "argument", prnparenthesis, prnparenthesis);
+				paramname = xmldoc_get_syntax_fun(node, argname, "argument", prnparenthesis, prnparenthesis);
 				ast_xml_free_attr(argname);
 				paramnamemalloc = 1;
 			} else {
@@ -805,6 +808,182 @@ static char *xmldoc_get_syntax(struct ast_xml_node *rootnode, const char *rootna
 #undef MP
 }
 
+/*! \internal 
+ *  \brief Parse an enumlist inside a <parameter> to generate a COMMAND
+ *         syntax.
+ *  \param fixnode A pointer to the <enumlist> node.
+ *  \retval {<unknown>} on error.
+ *  \retval A string inside brackets {} with the enum's separated by pipes |. 
+ */
+static char *xmldoc_parse_cmd_enumlist(struct ast_xml_node *fixnode)
+{
+	struct ast_xml_node *node = fixnode;
+	struct ast_str *paramname;
+	char *enumname, *ret;
+	int first = 1;
+
+	paramname = ast_str_create(128);
+	if (!paramname) {
+		return ast_strdup("{<unkown>}");
+	}
+
+	ast_str_append(&paramname, 0, "{");
+
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		if (strcasecmp(ast_xml_node_get_name(node), "enum")) {
+			continue;
+		}
+
+		enumname = xmldoc_get_syntax_cmd(node, "", 0);
+		if (!enumname) {
+			continue;
+		}
+		if (!first) {
+			ast_str_append(&paramname, 0, "|");
+		}
+		ast_str_append(&paramname, 0, "%s", enumname);
+		first = 0;
+		ast_free(enumname);
+	}
+
+	ast_str_append(&paramname, 0, "}");
+
+	ret = ast_strdup(paramname->str);
+	ast_free(paramname);
+
+	return ret;
+}
+
+/*! \internal
+ *  \brief Generate a syntax of COMMAND type. 
+ *  \param fixnode The <syntax> node pointer.
+ *  \param name The name of the 'command'.
+ *  \param printname Print the name of the command before the paramters?
+ *  \retval On error, return just 'name'.
+ *  \retval On success return the generated syntax.
+ */
+static char *xmldoc_get_syntax_cmd(struct ast_xml_node *fixnode, const char *name, int printname)
+{
+	struct ast_str *syntax;
+	struct ast_xml_node *tmpnode, *node = fixnode;
+	char *ret;
+	const char *paramname, *paramtype, *attrname, *literal;
+	int required, isenum, first = 1, isliteral;
+
+	syntax = ast_str_create(128);
+	if (!syntax) {
+		/* at least try to return something... */
+		return ast_strdup(name);
+	}
+
+	/* append name to output string. */
+	if (printname) {
+		ast_str_append(&syntax, 0, "%s", name);
+		first = 0;
+	}
+
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		if (strcasecmp(ast_xml_node_get_name(node), "parameter")) {
+			continue;
+		}
+
+		if (xmldoc_has_inside(node, "parameter")) {
+			/* is this a recursive parameter. */
+			paramname = xmldoc_get_syntax_cmd(node, "", 0);
+			isenum = 1;
+		} else if (!xmldoc_has_inside(node, "enumlist")) {
+			/* this is a simple parameter. */
+			attrname = ast_xml_get_attribute(node, "name");
+			if (!attrname) {
+				/* ignore this bogus parameter and continue. */
+				continue;
+			}
+			paramname = ast_strdup(attrname);
+			ast_xml_free_attr(attrname);
+			isenum = 0;
+		} else {
+			/* parse enumlist (note that this is a special enumlist
+			that is used to describe a syntax like {<param1>|<param2>|...} */
+			for (tmpnode = ast_xml_node_get_children(node); tmpnode; tmpnode = ast_xml_node_get_next(tmpnode)) {
+				if (!strcasecmp(ast_xml_node_get_name(tmpnode), "enumlist")) {
+					break;
+				}
+			}
+			paramname = xmldoc_parse_cmd_enumlist(tmpnode);
+			isenum = 1;
+		}
+
+		/* Is this parameter required? */
+		required = 0;
+		paramtype = ast_xml_get_attribute(node, "required");
+		if (paramtype) {
+			required = ast_true(paramtype);
+			ast_xml_free_attr(paramtype);
+		}
+
+		/* Is this a replaceable value or a fixed parameter value? */
+		isliteral = 0;
+		literal = ast_xml_get_attribute(node, "literal");
+		if (literal) {
+			isliteral = ast_true(literal);
+			ast_xml_free_attr(literal);
+		}
+
+		/* if required="false" print with [...].
+		 * if literal="true" or is enum print without <..>.
+		 * if not first print a space at the beginning.
+		 */
+		ast_str_append(&syntax, 0, "%s%s%s%s%s%s",
+				(first ? "" : " "),
+				(required ? "" : "["),
+				(isenum || isliteral ? "" : "<"),
+				paramname,
+				(isenum || isliteral ? "" : ">"),
+				(required ? "" : "]"));
+		first = 0;
+		ast_xml_free_attr(paramname);
+	}
+
+	/* return a common string. */
+	ret = ast_strdup(syntax->str);
+	ast_free(syntax);
+
+	return ret;
+}
+
+/*! \brief Types of syntax that we are able to generate. */
+enum syntaxtype {
+	FUNCTION_SYNTAX,
+	COMMAND_SYNTAX
+};
+
+/*! \brief Mapping between type of node and type of syntax to generate. */
+struct strsyntaxtype {
+	const char *type;
+	enum syntaxtype stxtype;
+} stxtype[] = {
+	{ "function",		FUNCTION_SYNTAX	},
+	{ "application",	FUNCTION_SYNTAX	},
+	{ "agi",		COMMAND_SYNTAX	}
+};
+
+/*! \internal
+ *  \brief Get syntax type based on type of node.
+ *  \param type Type of node.
+ *  \retval The type of syntax to generate based on the type of node.
+ */
+static enum syntaxtype xmldoc_get_syntax_type(const char *type)
+{
+	int i;
+	for (i=0; i < ARRAY_LEN(stxtype); i++) {
+		if (!strcasecmp(stxtype[i].type, type)) {
+			return stxtype[i].stxtype;
+		}
+	}
+
+	return FUNCTION_SYNTAX;
+}
+
 char *ast_xmldoc_build_syntax(const char *type, const char *name)
 {
 	struct ast_xml_node *node;
@@ -822,7 +1001,11 @@ char *ast_xmldoc_build_syntax(const char *type, const char *name)
 	}
 
 	if (node) {
-		syntax = xmldoc_get_syntax(node, name, "parameter", 1, 1);
+		if (xmldoc_get_syntax_type(type) == FUNCTION_SYNTAX) {
+			syntax = xmldoc_get_syntax_fun(node, name, "parameter", 1, 1);
+		} else {
+			syntax = xmldoc_get_syntax_cmd(node, name, 1);
+		}
 	}
 	return syntax;
 }
@@ -1294,7 +1477,7 @@ static void xmldoc_parse_optionlist(struct ast_xml_node *fixnode, const char *ta
 			continue;
 		}
 
-		optionsyntax = xmldoc_get_syntax(node, optname, "argument", 0, 1);
+		optionsyntax = xmldoc_get_syntax_fun(node, optname, "argument", 0, 1);
 		if (!optionsyntax) {
 			continue;
 		}
@@ -1325,7 +1508,7 @@ static void xmldoc_parse_parameter(struct ast_xml_node *fixnode, const char *tab
 		return;
 	}
 
-	hasarguments = xmldoc_has_arguments(node);
+	hasarguments = xmldoc_has_inside(node, "arguments");
 	if (!(paramname = ast_xml_get_attribute(node, "name"))) {
 		/* parameter MUST have an attribute name. */
 		return;
