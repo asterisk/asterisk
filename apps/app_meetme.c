@@ -54,6 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/translate.h"
 #include "asterisk/ulaw.h"
+#include "asterisk/astobj2.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/dial.h"
 #include "asterisk/causes.h"
@@ -353,6 +354,20 @@ static const char *slatrunk_desc =
 #define MAX_CONFNUM 80
 #define MAX_PIN     80
 
+enum announcetypes {
+	CONF_HASJOIN,
+	CONF_HASLEFT
+};
+
+struct announce_listitem {
+	AST_LIST_ENTRY(announce_listitem) entry;
+	char namerecloc[PATH_MAX];				/*!< Name Recorded file Location */
+	char language[MAX_LANGUAGE];
+	struct ast_channel *confchan;
+	int confusers;
+	enum announcetypes announcetype;
+};
+
 /*! \brief The MeetMe Conference object */
 struct ast_conference {
 	ast_mutex_t playlock;                   /*!< Conference specific lock (players) */
@@ -385,6 +400,13 @@ struct ast_conference {
 	struct ast_trans_pvt *transpath[32];
 	AST_LIST_HEAD_NOLOCK(, ast_conf_user) userlist;
 	AST_LIST_ENTRY(ast_conference) list;
+	/* announce_thread related data */
+	pthread_t announcethread;
+	ast_mutex_t announcethreadlock;
+	unsigned int announcethread_stop:1;
+	ast_cond_t announcelist_addition;
+	AST_LIST_HEAD_NOLOCK(, announce_listitem) announcelist;
+	ast_mutex_t announcelistlock;
 };
 
 static AST_LIST_HEAD_STATIC(confs, ast_conference);
@@ -822,6 +844,8 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	ast_mutex_init(&cnf->listenlock);
 	cnf->recordthread = AST_PTHREADT_NULL;
 	ast_mutex_init(&cnf->recordthreadlock);
+	cnf->announcethread = AST_PTHREADT_NULL;
+	ast_mutex_init(&cnf->announcethreadlock);
 	ast_copy_string(cnf->confno, confno, sizeof(cnf->confno));
 	ast_copy_string(cnf->pin, pin, sizeof(cnf->pin));
 	ast_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
@@ -1345,6 +1369,7 @@ static void conf_flush(int fd, struct ast_channel *chan)
 static int conf_free(struct ast_conference *conf)
 {
 	int x;
+	struct announce_listitem *item;
 	
 	AST_LIST_REMOVE(&confs, conf, list);
 	manager_event(EVENT_FLAG_CALL, "MeetmeEnd", "Meetme: %s\r\n", conf->confno);
@@ -1367,6 +1392,20 @@ static int conf_free(struct ast_conference *conf)
 		if (conf->transpath[x])
 			ast_translator_free_path(conf->transpath[x]);
 	}
+	if (conf->announcethread != AST_PTHREADT_NULL) {
+		ast_mutex_lock(&conf->announcelistlock);
+		conf->announcethread_stop = 1;
+		ast_softhangup(conf->chan, AST_SOFTHANGUP_EXPLICIT);
+		ast_cond_signal(&conf->announcelist_addition);
+		ast_mutex_unlock(&conf->announcelistlock);
+		pthread_join(conf->announcethread, NULL);
+	
+		while ((item = AST_LIST_REMOVE_HEAD(&conf->announcelist, entry))) {
+			ast_filedelete(item->namerecloc, NULL);
+			ao2_ref(item, -1);
+		}
+		ast_mutex_destroy(&conf->announcelistlock);
+	}
 	if (conf->origframe)
 		ast_frfree(conf->origframe);
 	if (conf->lchan)
@@ -1384,6 +1423,7 @@ static int conf_free(struct ast_conference *conf)
 	ast_mutex_destroy(&conf->playlock);
 	ast_mutex_destroy(&conf->listenlock);
 	ast_mutex_destroy(&conf->recordthreadlock);
+	ast_mutex_destroy(&conf->announcethreadlock);
 	ast_free(conf);
 
 	return 0;
@@ -1502,6 +1542,73 @@ static void conf_start_moh(struct ast_channel *chan, const char *musicclass)
 	ast_channel_lock(chan);
 	ast_string_field_set(chan, musicclass, original_moh);
 	ast_channel_unlock(chan);
+}
+
+static const char *get_announce_filename(enum announcetypes type)
+{
+	switch (type) {
+	case CONF_HASLEFT:
+		return "conf-hasleft";
+		break;
+	case CONF_HASJOIN:
+		return "conf-hasjoin";
+		break;
+	default:
+		return "";
+	}
+}
+
+static void *announce_thread(void *data)
+{
+	struct announce_listitem *current;
+	struct ast_conference *conf = data;
+	int res;
+	char filename[PATH_MAX] = "";
+	AST_LIST_HEAD_NOLOCK(, announce_listitem) local_list;
+	AST_LIST_HEAD_INIT_NOLOCK(&local_list);
+
+	while (!conf->announcethread_stop) {
+		ast_mutex_lock(&conf->announcelistlock);
+		if (conf->announcethread_stop) {
+			ast_mutex_unlock(&conf->announcelistlock);
+			break;
+		}
+		if (AST_LIST_EMPTY(&conf->announcelist))
+			ast_cond_wait(&conf->announcelist_addition, &conf->announcelistlock);
+
+		AST_LIST_APPEND_LIST(&local_list, &conf->announcelist, entry);
+		AST_LIST_HEAD_INIT_NOLOCK(&conf->announcelist);
+
+		ast_mutex_unlock(&conf->announcelistlock);
+		if (conf->announcethread_stop) {
+			break;
+		}
+
+		for (; !conf->announcethread_stop && (current = AST_LIST_REMOVE_HEAD(&local_list, entry)); ao2_ref(current, -1)) {
+			ast_log(LOG_DEBUG, "About to play %s\n", current->namerecloc);
+			if (!ast_fileexists(current->namerecloc, NULL, NULL))
+				continue;
+			if ((current->confchan) && (current->confusers > 1) && !ast_check_hangup(current->confchan)) {
+				if (!ast_streamfile(current->confchan, current->namerecloc, current->language))
+					res = ast_waitstream(current->confchan, "");
+				if (!res) {
+					ast_copy_string(filename, get_announce_filename(current->announcetype), sizeof(filename));
+					if (!ast_streamfile(current->confchan, filename, current->language))
+						ast_waitstream(current->confchan, "");
+				}
+			}
+			if (current->announcetype == CONF_HASLEFT) {
+				ast_filedelete(current->namerecloc, NULL);
+			}
+		}
+	}
+
+	/* thread marked to stop, clean up */
+	while ((current = AST_LIST_REMOVE_HEAD(&local_list, entry))) {
+		ast_filedelete(current->namerecloc, NULL);
+		ao2_ref(current, -1);
+	}
+	return NULL;
 }
 
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags, char *optargs[])
@@ -1685,6 +1792,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		}
 	}
 	ast_mutex_unlock(&conf->recordthreadlock);
+
+	ast_mutex_lock(&conf->announcethreadlock);
+	if ((conf->announcethread == AST_PTHREADT_NULL) && !(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW))) {
+		ast_mutex_init(&conf->announcelistlock);
+		AST_LIST_HEAD_INIT_NOLOCK(&conf->announcelist);
+		ast_pthread_create_background(&conf->announcethread, NULL, announce_thread, conf);
+	}
+	ast_mutex_unlock(&conf->announcethreadlock);
 
 	time(&user->jointime);
 	
@@ -1926,15 +2041,25 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	dahdic.chan = 0;	
 	dahdic.confno = conf->dahdiconf;
 
-	ast_mutex_lock(&conf->playlock);
-
 	if (!(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW)) && conf->users > 1) {
-		if (conf->chan && ast_fileexists(user->namerecloc, NULL, NULL)) {
-			if (!ast_streamfile(conf->chan, user->namerecloc, chan->language))
-				ast_waitstream(conf->chan, "");
-			if (!ast_streamfile(conf->chan, "conf-hasjoin", chan->language))
-				ast_waitstream(conf->chan, "");
+		struct announce_listitem *item;
+		if (!(item = ao2_alloc(sizeof(*item), NULL)))
+			return -1;
+		ast_copy_string(item->namerecloc, user->namerecloc, sizeof(item->namerecloc));
+		ast_copy_string(item->language, chan->language, sizeof(item->language));
+		item->confchan = conf->chan;
+		item->confusers = conf->users;
+		item->announcetype = CONF_HASJOIN;
+		ast_mutex_lock(&conf->announcelistlock);
+		ao2_ref(item, +1); /* add one more so we can determine when announce_thread is done playing it */
+		AST_LIST_INSERT_TAIL(&conf->announcelist, item, entry);
+		ast_cond_signal(&conf->announcelist_addition);
+		ast_mutex_unlock(&conf->announcelistlock);
+
+		while (!ast_check_hangup(conf->chan) && ao2_ref(item, 0) == 2 && !ast_safe_sleep(chan, 1000)) {
+			;
 		}
+		ao2_ref(item, -1);
 	}
 
 	if (confflags & CONFFLAG_WAITMARKED && !conf->markedusers)
@@ -1949,7 +2074,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	if (ioctl(fd, DAHDI_SETCONF, &dahdic)) {
 		ast_log(LOG_WARNING, "Error setting conference\n");
 		close(fd);
-		ast_mutex_unlock(&conf->playlock);
 		goto outrun;
 	}
 	ast_debug(1, "Placed channel %s in DAHDI conf %d\n", chan->name, conf->dahdiconf);
@@ -1976,8 +2100,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			if (!(confflags & CONFFLAG_WAITMARKED) || ((confflags & CONFFLAG_MARKEDUSER) && (conf->markedusers >= 1)))
 				conf_play(chan, conf, ENTER);
 	}
-
-	ast_mutex_unlock(&conf->playlock);
 
 	conf_flush(fd, chan);
 
@@ -2659,22 +2781,26 @@ bailoutandtrynormal:
 
 	reset_volumes(user);
 
-	AST_LIST_LOCK(&confs);
 	if (!(confflags & CONFFLAG_QUIET) && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN))
 		conf_play(chan, conf, LEAVE);
 
-	if (!(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW))) {
-		if (ast_fileexists(user->namerecloc, NULL, NULL)) {
-			if ((conf->chan) && (conf->users > 1)) {
-				if (!ast_streamfile(conf->chan, user->namerecloc, chan->language))
-					ast_waitstream(conf->chan, "");
-				if (!ast_streamfile(conf->chan, "conf-hasleft", chan->language))
-					ast_waitstream(conf->chan, "");
-			}
-			ast_filedelete(user->namerecloc, NULL);
-		}
+	if (!(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW)) && conf->users > 1) {
+		struct announce_listitem *item;
+		if (!(item = ao2_alloc(sizeof(*item), NULL)))
+			return -1;
+		ast_copy_string(item->namerecloc, user->namerecloc, sizeof(item->namerecloc));
+		ast_copy_string(item->language, chan->language, sizeof(item->language));
+		item->confchan = conf->chan;
+		item->confusers = conf->users;
+		item->announcetype = CONF_HASLEFT;
+		ast_mutex_lock(&conf->announcelistlock);
+		AST_LIST_INSERT_TAIL(&conf->announcelist, item, entry);
+		ast_cond_signal(&conf->announcelist_addition);
+		ast_mutex_unlock(&conf->announcelistlock);
+	} else if (!(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW)) && conf->users == 1) {
+		/* Last person is leaving, so no reason to try and announce, but should delete the name recording */
+		ast_filedelete(user->namerecloc, NULL);
 	}
-	AST_LIST_UNLOCK(&confs);
 
  outrun:
 	AST_LIST_LOCK(&confs);
