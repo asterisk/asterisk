@@ -902,7 +902,7 @@ static int valid_priv_reply(struct ast_flags64 *opts, int res)
 }
 
 static int do_timelimit(struct ast_channel *chan, struct ast_bridge_config *config,
-	char *parse, unsigned int *calldurationlimit)
+	char *parse, struct timeval *calldurationlimit)
 {
 	char *stringp = ast_strdupa(parse);
 	char *limit_str, *warning_str, *warnfreq_str;
@@ -979,12 +979,15 @@ static int do_timelimit(struct ast_channel *chan, struct ast_bridge_config *conf
 	ast_channel_unlock(chan);
 
 	/* undo effect of S(x) in case they are both used */
-	*calldurationlimit = 0;
+	calldurationlimit->tv_sec = 0;
+	calldurationlimit->tv_usec = 0;
+
 	/* more efficient to do it like S(x) does since no advanced opts */
 	if (!config->play_warning && !config->start_sound && !config->end_sound && config->timelimit) {
-		*calldurationlimit = config->timelimit / 1000;
-		ast_verb(3, "Setting call duration limit to %d seconds.\n",
-			*calldurationlimit);
+		calldurationlimit->tv_sec = config->timelimit / 1000;
+		calldurationlimit->tv_usec = (config->timelimit % 1000) * 1000;
+		ast_verb(3, "Setting call duration limit to %.3lf seconds.\n",
+			calldurationlimit->tv_sec + calldurationlimit->tv_usec / 1000000.0);
 		config->timelimit = play_to_caller = play_to_callee =
 		config->play_warning = config->warning_freq = 0;
 	} else {
@@ -1292,7 +1295,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	char cidname[AST_MAX_EXTENSION] = "";
 
 	struct ast_bridge_config config = { { 0, } };
-	unsigned int calldurationlimit = 0;
+	struct timeval calldurationlimit = { 0, };
 	char *dtmfcalled = NULL, *dtmfcalling = NULL;
 	struct privacy_args pa = {
 		.sentringing = 0,
@@ -1353,13 +1356,13 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	}
 	
 	if (ast_test_flag64(&opts, OPT_DURATION_STOP) && !ast_strlen_zero(opt_args[OPT_ARG_DURATION_STOP])) {
-		calldurationlimit = atoi(opt_args[OPT_ARG_DURATION_STOP]);
-		if (!calldurationlimit) {
+		calldurationlimit.tv_sec = atoi(opt_args[OPT_ARG_DURATION_STOP]);
+		if (!calldurationlimit.tv_sec) {
 			ast_log(LOG_WARNING, "Dial does not accept S(%s), hanging up.\n", opt_args[OPT_ARG_DURATION_STOP]);
 			pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 			goto done;
 		}
-		ast_verb(3, "Setting call duration limit to %d seconds.\n", calldurationlimit);
+		ast_verb(3, "Setting call duration limit to %.3lf seconds.\n", calldurationlimit.tv_sec + calldurationlimit.tv_usec / 1000000.0);
 	}
 
 	if (ast_test_flag64(&opts, OPT_SENDDTMF) && !ast_strlen_zero(opt_args[OPT_ARG_SENDDTMF])) {
@@ -1917,8 +1920,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 
 		if (!res) {
-			if (calldurationlimit > 0) {
-				struct timeval whentohangup = { calldurationlimit, 0 };
+			if (!ast_tvzero(calldurationlimit)) {
+				struct timeval whentohangup = calldurationlimit;
 				peer->whentohangup = ast_tvadd(ast_tvnow(), whentohangup);
 			}
 			if (!ast_strlen_zero(dtmfcalled)) {
@@ -2050,7 +2053,7 @@ out:
 		ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);
 
 		if ((ast_test_flag64(peerflags, OPT_GO_ON)) && !ast_check_hangup(chan) && (res != AST_PBX_KEEPALIVE) && (res != AST_PBX_INCOMPLETE)) {
-			if (calldurationlimit)
+			if (!ast_tvzero(calldurationlimit))
 				memset(&chan->whentohangup, 0, sizeof(chan->whentohangup));
 			res = 0;
 		}
