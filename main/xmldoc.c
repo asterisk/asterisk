@@ -866,8 +866,8 @@ static char *xmldoc_get_syntax_cmd(struct ast_xml_node *fixnode, const char *nam
 {
 	struct ast_str *syntax;
 	struct ast_xml_node *tmpnode, *node = fixnode;
-	char *ret;
-	const char *paramname, *paramtype, *attrname, *literal;
+	char *ret, *paramname;
+	const char *paramtype, *attrname, *literal;
 	int required, isenum, first = 1, isliteral;
 
 	syntax = ast_str_create(128);
@@ -941,7 +941,7 @@ static char *xmldoc_get_syntax_cmd(struct ast_xml_node *fixnode, const char *nam
 				(isenum || isliteral ? "" : ">"),
 				(required ? "" : "]"));
 		first = 0;
-		ast_xml_free_attr(paramname);
+		ast_free(paramname);
 	}
 
 	/* return a common string. */
