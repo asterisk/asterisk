@@ -1690,13 +1690,13 @@ static int ext_cmp1(const char **p)
 		return 0x0000 | (c & 0xff);
 
 	case 'N':	/* 2..9 */
-		return 0x0700 | '2' ;
+		return 0x0800 | '2' ;
 
 	case 'X':	/* 0..9 */
-		return 0x0900 | '0';
+		return 0x0A00 | '0';
 
 	case 'Z':	/* 1..9 */
-		return 0x0800 | '1';
+		return 0x0900 | '1';
 
 	case '.':	/* wildcard */
 		return 0x10000;
