@@ -3054,11 +3054,6 @@ int main(int argc, char *argv[])
 	if (ast_opt_console && !option_verbose) 
 		ast_verbose("[ Booting...\n");
 
-	if (ast_opt_always_fork && (ast_opt_remote || ast_opt_console)) {
-		ast_log(LOG_WARNING, "'alwaysfork' is not compatible with console or remote console mode; ignored\n");
-		ast_clear_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
-	}
-
 	/* For remote connections, change the name of the remote connection.
 	 * We do this for the benefit of init scripts (which need to know if/when
 	 * the main asterisk process has died yet). */
@@ -3069,8 +3064,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (ast_opt_console && !option_verbose) 
+	if (ast_opt_console && !option_verbose) {
 		ast_verbose("[ Reading Master Configuration ]\n");
+	}
+
 	ast_readconfig();
 
 	if (ast_opt_remote && remotesock != NULL)
@@ -3078,6 +3075,11 @@ int main(int argc, char *argv[])
 
 	if (!ast_language_is_prefix && !ast_opt_remote)
 		ast_log(LOG_WARNING, "The 'languageprefix' option in asterisk.conf is deprecated; in a future release it will be removed, and your sound files will need to be organized in the 'new style' language layout.\n");
+
+	if (ast_opt_always_fork && (ast_opt_remote || ast_opt_console)) {
+		ast_log(LOG_WARNING, "'alwaysfork' is not compatible with console or remote console mode; ignored\n");
+		ast_clear_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
+	}
 
 	if (ast_opt_dump_core) {
 		struct rlimit l;
