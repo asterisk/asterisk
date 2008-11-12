@@ -40,7 +40,7 @@
   <!ATTLIST option implies CDATA "">
 
   <!ELEMENT enumlist (enum+)>
-  <!ELEMENT enum (para|note|warning)*>
+  <!ELEMENT enum (para|note|warning|parameter)*>
   <!ATTLIST enum name CDATA "">
 
   <!ELEMENT argument (para|note|warning|variablelist|argument)*>

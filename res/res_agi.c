@@ -113,6 +113,61 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</enumlist>
 		</description>
 	</agi>
+	<agi name="database del" language="en_US">
+		<synopsis>
+			Removes database key/value
+		</synopsis>
+		<syntax>
+			<parameter name="family" required="true" />
+			<parameter name="key" required="true" />
+		</syntax>
+		<description>
+			<para>Deletes an entry in the Asterisk database for a given
+			<replaceable>family</replaceable> and <replaceable>key</replaceable>.</para>
+			<para>Returns <literal>1</literal> if successful, <literal>0</literal>
+			otherwise.</para>
+		</description>
+	</agi>
+	<agi name="database put" language="en_US">
+		<synopsis>
+			Adds/updates database value
+		</synopsis>
+		<syntax>
+			<parameter name="family" required="true" />
+			<parameter name="key" required="true" />
+			<parameter name="value" required="true" />
+		</syntax>
+		<description>
+			<para>Adds or updates an entry in the Asterisk database for a given
+			<replaceable>family</replaceable>, <replaceable>key</replaceable>, and
+			<replaceable>value</replaceable>.</para>
+			<para>Returns <literal>1</literal> if successful, <literal>0</literal> otherwise.</para>
+		</description>
+	</agi>
+	<agi name="set music" language="en_US">
+		<synopsis>
+			Enable/Disable Music on hold generator
+		</synopsis>
+		<syntax>
+			<parameter required="true">
+				<enumlist>
+					<enum>
+						<parameter name="on" literal="true" required="true" />
+					</enum>
+					<enum>
+						<parameter name="off" literal="true" required="true" />
+					</enum>
+				</enumlist>
+			</parameter>
+			<parameter name="class" required="true" />
+		</syntax>
+		<description>
+			<para>Enables/Disables the music on hold generator. If <replaceable>class</replaceable>
+			is not specified, then the <literal>default</literal> music on hold class will be
+			used.</para>
+			<para>Always returns <literal>0</literal>.</para>
+		</description>
+	</agi>
  ***/
 
 #define MAX_ARGS 128
@@ -2051,18 +2106,6 @@ static int handle_asyncagi_break(struct ast_channel *chan, AGI *agi, int argc, c
 	return AST_PBX_KEEPALIVE;
 }
 
-static char usage_setmusic[] =
-" Usage: SET MUSIC ON <on|off> <class>\n"
-"	Enables/Disables the music on hold generator.  If <class> is\n"
-" not specified, then the default music on hold class will be used.\n"
-" Always returns 0.\n";
-
-static char usage_dbput[] =
-" Usage: DATABASE PUT <family> <key> <value>\n"
-"	Adds or updates an entry in the Asterisk database for a\n"
-" given family, key, and value.\n"
-" Returns 1 if successful, 0 otherwise.\n";
-
 static char usage_dbget[] =
 " Usage: DATABASE GET <family> <key>\n"
 "	Retrieves an entry in the Asterisk database for a\n"
@@ -2070,12 +2113,6 @@ static char usage_dbget[] =
 " Returns 0 if <key> is not set.  Returns 1 if <key>\n"
 " is set and returns the variable in parentheses.\n"
 " Example return code: 200 result=1 (testvariable)\n";
-
-static char usage_dbdel[] =
-" Usage: DATABASE DEL <family> <key>\n"
-"	Deletes an entry in the Asterisk database for a\n"
-" given family and key.\n"
-" Returns 1 if successful, 0 otherwise.\n";
 
 static char usage_dbdeltree[] =
 " Usage: DATABASE DELTREE <family> [keytree]\n"
@@ -2321,10 +2358,10 @@ static char usage_speechrecognize[] =
 static struct agi_command commands[] = {
 	{ { "answer", NULL }, handle_answer, NULL, NULL, 0 },
 	{ { "channel", "status", NULL }, handle_channelstatus, NULL, NULL, 0 },
-	{ { "database", "del", NULL }, handle_dbdel, "Removes database key/value", usage_dbdel , 1 },
+	{ { "database", "del", NULL }, handle_dbdel, NULL, NULL, 1 },
 	{ { "database", "deltree", NULL }, handle_dbdeltree, "Removes database keytree/value", usage_dbdeltree , 1 },
 	{ { "database", "get", NULL }, handle_dbget, "Gets database value", usage_dbget , 1 },
-	{ { "database", "put", NULL }, handle_dbput, "Adds/updates database value", usage_dbput , 1 },
+	{ { "database", "put", NULL }, handle_dbput, NULL, NULL, 1 },
 	{ { "exec", NULL }, handle_exec, "Executes a given Application", usage_exec , 1 },
 	{ { "get", "data", NULL }, handle_getdata, "Prompts for DTMF on a channel", usage_getdata , 0 },
 	{ { "get", "full", "variable", NULL }, handle_getvariablefull, "Evaluates a channel expression", usage_getvariablefull , 1 },
@@ -2348,7 +2385,7 @@ static struct agi_command commands[] = {
 	{ { "set", "callerid", NULL }, handle_setcallerid, "Sets callerid for the current channel", usage_setcallerid , 0 },
 	{ { "set", "context", NULL }, handle_setcontext, "Sets channel context", usage_setcontext , 0 },
 	{ { "set", "extension", NULL }, handle_setextension, "Changes channel extension", usage_setextension , 0 },
-	{ { "set", "music", NULL }, handle_setmusic, "Enable/Disable Music on hold generator", usage_setmusic , 0 },
+	{ { "set", "music", NULL }, handle_setmusic, NULL, NULL, 0 },
 	{ { "set", "priority", NULL }, handle_setpriority, "Set channel dialplan priority", usage_setpriority , 0 },
 	{ { "set", "variable", NULL }, handle_setvariable, "Sets a channel variable", usage_setvariable , 1 },
 	{ { "stream", "file", NULL }, handle_streamfile, "Sends audio file on channel", usage_streamfile , 0 },
