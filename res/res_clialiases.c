@@ -213,13 +213,14 @@ static void load_config(int reload)
 				continue;
 			}
 			alias->alias = ((char *) alias) + sizeof(*alias);
-			alias->real_cmd = ((char *) alias) + strlen(v1->name) + 1;
+			alias->real_cmd = ((char *) alias->alias) + strlen(v1->name) + 1;
 			strcpy(alias->alias, v1->name);
 			strcpy(alias->real_cmd, v1->value);
 			alias->cli_entry.handler = cli_alias_passthrough;
 			alias->cli_entry.command = alias->alias;
 			alias->cli_entry.usage = "Aliased CLI Command";
 
+			ast_cli_register(&alias->cli_entry);
 			ao2_link(cli_aliases, alias);
 			ast_verbose(VERBOSE_PREFIX_2 "Aliased CLI command '%s' to '%s'\n", v1->name, v1->value);
 			ao2_ref(alias, -1);
@@ -262,7 +263,7 @@ static int load_module(void)
 
 	load_config(0);
 
-	ast_cli_register_multiple(cli_alias, sizeof(cli_alias) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_alias, ARRAY_LEN(cli_alias));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
