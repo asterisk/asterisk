@@ -1562,7 +1562,7 @@ static void *announce_thread(void *data)
 {
 	struct announce_listitem *current;
 	struct ast_conference *conf = data;
-	int res;
+	int res = 0;
 	char filename[PATH_MAX] = "";
 	AST_LIST_HEAD_NOLOCK(, announce_listitem) local_list;
 	AST_LIST_HEAD_INIT_NOLOCK(&local_list);
