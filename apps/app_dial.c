@@ -1468,6 +1468,10 @@ static void end_bridge_callback(void *data)
 	time_t end;
 	struct ast_channel *chan = data;
 
+	if (!chan->cdr) {
+		return;
+	}
+
 	time(&end);
 
 	ast_channel_lock(chan);
