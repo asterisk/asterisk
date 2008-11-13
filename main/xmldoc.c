@@ -682,7 +682,7 @@ static char *xmldoc_get_syntax_fun(struct ast_xml_node *rootnode, const char *ro
 		}
 
 		/* Get the argument name, if it is not the leaf, go inside that parameter. */
-		if (xmldoc_has_inside(node, "arguments")) {
+		if (xmldoc_has_inside(node, "argument")) {
 			parenthesis = ast_xml_get_attribute(node, "hasparams");
 			prnparenthesis = 0;
 			if (parenthesis) {
@@ -1508,7 +1508,7 @@ static void xmldoc_parse_parameter(struct ast_xml_node *fixnode, const char *tab
 		return;
 	}
 
-	hasarguments = xmldoc_has_inside(node, "arguments");
+	hasarguments = xmldoc_has_inside(node, "argument");
 	if (!(paramname = ast_xml_get_attribute(node, "name"))) {
 		/* parameter MUST have an attribute name. */
 		return;
