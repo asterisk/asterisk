@@ -1245,17 +1245,17 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 	struct ast_category *category;
 	struct ast_variable *v;
 
-	for (x = 0; x < 100000; x++) {	//100000 = the max number of allowed updates + 1
+	for (x = 0; x < 100000; x++) {	/* 100000 = the max number of allowed updates + 1 */
 		unsigned int object = 0;
 
 		snprintf(hdr, sizeof(hdr), "Action-%06d", x);
 		action = astman_get_header(m, hdr);
-		if (ast_strlen_zero(action))		// breaks the for loop if no action header
-			break;				// this could cause problems if actions come in misnumbered
+		if (ast_strlen_zero(action))		/* breaks the for loop if no action header */
+			break;				/* this could cause problems if actions come in misnumbered */
 
 		snprintf(hdr, sizeof(hdr), "Cat-%06d", x);
 		cat = astman_get_header(m, hdr);
-		if (ast_strlen_zero(cat))		//every action needs a category
+		if (ast_strlen_zero(cat))		/* every action needs a category */
 			return UNSPECIFIED_CATEGORY;
 
 		snprintf(hdr, sizeof(hdr), "Var-%06d", x);
@@ -1275,8 +1275,8 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 		line = astman_get_header(m, hdr);
 
 		if (!strcasecmp(action, "newcat")) {
-			if (ast_category_get(cfg,cat))	//check to make sure the cat doesn't
-				return FAILURE_NEWCAT;	//already exist
+			if (ast_category_get(cfg,cat))		/* check to make sure the cat doesn't */
+				return FAILURE_NEWCAT;		/* already exist */
 			if (!(category = ast_category_new(cat, dfn, -1)))
 				return FAILURE_ALLOCATION;
 			if (ast_strlen_zero(match)) {
