@@ -11,6 +11,6 @@ AC_COMPILE_IFELSE(
 	AC_MSG_RESULT(yes)
 	AC_DEFINE_UNQUOTED([HAVE_ATTRIBUTE_$1], 1, [Define to 1 if your GCC C compiler supports the '$1' attribute.]),
 	AC_MSG_RESULT(no))
-CFLAGS="$saved_CFLAGS"
 ]
+CFLAGS="$saved_CFLAGS"
 )
