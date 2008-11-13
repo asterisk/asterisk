@@ -26,8 +26,6 @@ AC_DEFUN([AST_C_COMPILE_CHECK],
 	    ],
 	    [       AC_MSG_RESULT(no) ] 
 	)
-	AC_SUBST(PBX_$1)
-	AC_SUBST($1_INCLUDE)
 	CPPFLAGS="${saved_cppflags}"
     fi
 ])

@@ -965,8 +965,6 @@ AST_NO_STRICT_OVERFLOW
 AST_SHADOW_WARNINGS
 PBX_RTLD_NOLOAD
 PBX_IP_MTU_DISCOVER
-PBX_GETIFADDRS
-GETIFADDRS_INCLUDE
 GSM_INTERNAL
 PBX_MISDN_FAC_RESULT
 PBX_MISDN_FAC_ERROR
@@ -31344,8 +31342,6 @@ echo "${ECHO_T}no" >&6; }
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-
-
 	CPPFLAGS="${saved_cppflags}"
     fi
 
@@ -39799,8 +39795,6 @@ echo "${ECHO_T}no" >&6; }
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-
-
 	CPPFLAGS="${saved_cppflags}"
     fi
 
@@ -51011,8 +51005,6 @@ AST_NO_STRICT_OVERFLOW!$AST_NO_STRICT_OVERFLOW$ac_delim
 AST_SHADOW_WARNINGS!$AST_SHADOW_WARNINGS$ac_delim
 PBX_RTLD_NOLOAD!$PBX_RTLD_NOLOAD$ac_delim
 PBX_IP_MTU_DISCOVER!$PBX_IP_MTU_DISCOVER$ac_delim
-PBX_GETIFADDRS!$PBX_GETIFADDRS$ac_delim
-GETIFADDRS_INCLUDE!$GETIFADDRS_INCLUDE$ac_delim
 GSM_INTERNAL!$GSM_INTERNAL$ac_delim
 PBX_MISDN_FAC_RESULT!$PBX_MISDN_FAC_RESULT$ac_delim
 PBX_MISDN_FAC_ERROR!$PBX_MISDN_FAC_ERROR$ac_delim
@@ -51043,7 +51035,7 @@ CURL_CONFIG!$CURL_CONFIG$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 85; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 83; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
