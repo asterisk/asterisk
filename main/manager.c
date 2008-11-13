@@ -80,6 +80,7 @@ enum error_type {
 	UNSPECIFIED_CATEGORY,
 	UNSPECIFIED_ARGUMENT,
 	FAILURE_ALLOCATION,
+	FAILURE_NEWCAT,
 	FAILURE_DELCAT,
 	FAILURE_EMPTYCAT,
 	FAILURE_UPDATE,
@@ -1244,30 +1245,38 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 	struct ast_category *category;
 	struct ast_variable *v;
 
-	for (x = 0; x < 100000; x++) {
+	for (x = 0; x < 100000; x++) {	//100000 = the max number of allowed updates + 1
 		unsigned int object = 0;
 
 		snprintf(hdr, sizeof(hdr), "Action-%06d", x);
 		action = astman_get_header(m, hdr);
-		if (ast_strlen_zero(action))
-			break;
+		if (ast_strlen_zero(action))		// breaks the for loop if no action header
+			break;				// this could cause problems if actions come in misnumbered
+
 		snprintf(hdr, sizeof(hdr), "Cat-%06d", x);
 		cat = astman_get_header(m, hdr);
+		if (ast_strlen_zero(cat))		//every action needs a category
+			return UNSPECIFIED_CATEGORY;
+
 		snprintf(hdr, sizeof(hdr), "Var-%06d", x);
 		var = astman_get_header(m, hdr);
+
 		snprintf(hdr, sizeof(hdr), "Value-%06d", x);
 		value = astman_get_header(m, hdr);
 		if (!ast_strlen_zero(value) && *value == '>') {
 			object = 1;
 			value++;
 		}
+
 		snprintf(hdr, sizeof(hdr), "Match-%06d", x);
 		match = astman_get_header(m, hdr);
+
 		snprintf(hdr, sizeof(hdr), "Line-%06d", x);
 		line = astman_get_header(m, hdr);
+
 		if (!strcasecmp(action, "newcat")) {
-			if (ast_strlen_zero(cat))
-				return UNSPECIFIED_CATEGORY;
+			if (ast_category_get(cfg,cat))	//check to make sure the cat doesn't
+				return FAILURE_NEWCAT;	//already exist
 			if (!(category = ast_category_new(cat, dfn, -1)))
 				return FAILURE_ALLOCATION;
 			if (ast_strlen_zero(match)) {
@@ -1275,37 +1284,33 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 			} else
 				ast_category_insert(cfg, category, match);
 		} else if (!strcasecmp(action, "renamecat")) {
-			if (ast_strlen_zero(cat) || ast_strlen_zero(value))
+			if (ast_strlen_zero(value))
 				return UNSPECIFIED_ARGUMENT;
 			if (!(category = ast_category_get(cfg, cat)))
 				return UNKNOWN_CATEGORY;
 			ast_category_rename(category, value);
 		} else if (!strcasecmp(action, "delcat")) {
-			if (ast_strlen_zero(cat))
-				return UNSPECIFIED_CATEGORY;
 			if (ast_category_delete(cfg, cat))
 				return FAILURE_DELCAT;
 		} else if (!strcasecmp(action, "emptycat")) {
-			if (ast_strlen_zero(cat))
-				return UNSPECIFIED_CATEGORY;
 			if (ast_category_empty(cfg, cat))
 				return FAILURE_EMPTYCAT;
 		} else if (!strcasecmp(action, "update")) {
-			if (ast_strlen_zero(cat) || ast_strlen_zero(var))
+			if (ast_strlen_zero(var))
 				return UNSPECIFIED_ARGUMENT;
 			if (!(category = ast_category_get(cfg,cat)))
 				return UNKNOWN_CATEGORY;
 			if (ast_variable_update(category, var, value, match, object))
 				return FAILURE_UPDATE;
 		} else if (!strcasecmp(action, "delete")) {
-			if (ast_strlen_zero(cat) || (ast_strlen_zero(var) && ast_strlen_zero(line)))
+			if ((ast_strlen_zero(var) && ast_strlen_zero(line)))
 				return UNSPECIFIED_ARGUMENT;
 			if (!(category = ast_category_get(cfg, cat)))
 				return UNKNOWN_CATEGORY;
 			if (ast_variable_delete(category, var, match, line))
 				return FAILURE_DELETE;
 		} else if (!strcasecmp(action, "append")) {
-			if (ast_strlen_zero(cat) || ast_strlen_zero(var))
+			if (ast_strlen_zero(var))
 				return UNSPECIFIED_ARGUMENT;
 			if (!(category = ast_category_get(cfg, cat)))
 				return UNKNOWN_CATEGORY;	
@@ -1315,7 +1320,7 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 				v->object = 1;
 			ast_variable_append(category, v);
 		} else if (!strcasecmp(action, "insert")) {
-			if (ast_strlen_zero(cat) || ast_strlen_zero(var) || ast_strlen_zero(line))
+			if (ast_strlen_zero(var) || ast_strlen_zero(line))
 				return UNSPECIFIED_ARGUMENT;
 			if (!(category = ast_category_get(cfg, cat)))
 				return UNKNOWN_CATEGORY;
@@ -1395,6 +1400,9 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 			break;
 		case FAILURE_ALLOCATION:
 			astman_send_error(s, m, "Memory allocation failure, this should not happen");
+			break;
+		case FAILURE_NEWCAT:
+			astman_send_error(s, m, "Create category did not complete successfully");
 			break;
 		case FAILURE_DELCAT:
 			astman_send_error(s, m, "Delete category did not complete successfully");
