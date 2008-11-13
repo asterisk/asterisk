@@ -63,6 +63,365 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "enter.h"
 #include "leave.h"
 
+/*** DOCUMENTATION
+	<application name="MeetMe" language="en_US">
+		<synopsis>
+			MeetMe conference bridge.
+		</synopsis>
+		<syntax>
+			<parameter name="confno">
+				<para>The conference number</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="a">
+						<para>Set admin mode.</para>
+					</option>
+					<option name="A">
+						<para>Set marked mode.</para>
+					</option>
+					<option name="b">
+						<para>Run AGI script specified in <variable>MEETME_AGI_BACKGROUND</variable>
+						Default: <literal>conf-background.agi</literal>.</para>
+						<note><para>This does not work with non-DAHDI channels in the same
+						conference).</para></note>
+					</option>
+					<option name="c">
+						<para>Announce user(s) count on joining a conference.</para>
+					</option>
+					<option name="C">
+						<para>Continue in dialplan when kicked out of conference.</para>
+					</option>
+					<option name="d">
+						<para>Dynamically add conference.</para>
+					</option>
+					<option name="D">
+						<para>Dynamically add conference, prompting for a PIN.</para>
+					</option>
+					<option name="e">
+						<para>Select an empty conference.</para>
+					</option>
+					<option name="E">
+						<para>Select an empty pinless conference.</para>
+					</option>
+					<option name="F">
+						<para>Pass DTMF through the conference.</para>
+					</option>
+					<option name="i">
+						<para>Announce user join/leave with review.</para>
+					</option>
+					<option name="I">
+						<para>Announce user join/leave without review.</para>
+					</option>
+					<option name="l">
+						<para>Set listen only mode (Listen only, no talking).</para>
+					</option>
+					<option name="m">
+						<para>Set initially muted.</para>
+					</option>
+					<option name="M" hasparams="optional">
+						<para>Enable music on hold when the conference has a single caller. Optionally,
+						specify a musiconhold class to use. If one is not provided, it will use the
+						channel's currently set music class, or <literal>default</literal>.</para>
+						<argument name="class" required="true" />
+					</option>
+					<option name="o">
+						<para>Set talker optimization - treats talkers who aren't speaking as
+						being muted, meaning (a) No encode is done on transmission and (b)
+						Received audio that is not registered as talking is omitted causing no
+						buildup in background noise.</para>
+					</option>
+					<option name="p" hasparams="optional">
+						<para>Allow user to exit the conference by pressing <literal>#</literal> (default)
+						or any of the defined keys. If keys contain <literal>*</literal> this will override
+						option <literal>s</literal>. The key used is set to channel variable
+						<variable>MEETME_EXIT_KEY</variable>.</para>
+						<argument name="keys" required="true" />
+					</option>
+					<option name="P">
+						<para>Always prompt for the pin even if it is specified.</para>
+					</option>
+					<option name="q">
+						<para>Quiet mode (don't play enter/leave sounds).</para>
+					</option>
+					<option name="r">
+						<para>Record conference (records as <variable>MEETME_RECORDINGFILE</variable>
+						using format <variable>MEETME_RECORDINGFORMAT</variable>. Default filename is
+						<literal>meetme-conf-rec-${CONFNO}-${UNIQUEID}</literal> and the default format is
+						wav.</para>
+					</option>
+					<option name="s">
+						<para>Present menu (user or admin) when <literal>*</literal> is received
+						(send to menu).</para>
+					</option>
+					<option name="t">
+						<para>Set talk only mode. (Talk only, no listening).</para>
+					</option>
+					<option name="T">
+						<para>Set talker detection (sent to manager interface and meetme list).</para>
+					</option>
+					<option name="W" hasparams="optional">
+						<para>Wait until the marked user enters the conference.</para>
+						<argument name="secs" required="true" />
+					</option>
+					<option name="x">
+						<para>Close the conference when last marked user exits</para>
+					</option>
+					<option name="X">
+						<para>Allow user to exit the conference by entering a valid single digit
+						extension <variable>MEETME_EXIT_CONTEXT</variable> or the current context
+						if that variable is not defined.</para>
+					</option>
+					<option name="1">
+						<para>Do not play message when first person enters</para>
+					</option>
+					<option name="S">
+						<para>Kick the user <replaceable>x</replaceable> seconds <emphasis>after</emphasis> he entered into
+						the conference.</para>
+						<argument name="x" required="true" />
+					</option>
+					<option name="L" argsep=":">
+						<para>Limit the conference to <replaceable>x</replaceable> ms. Play a warning when
+						<replaceable>y</replaceable> ms are left. Repeat the warning every <replaceable>z</replaceable> ms.
+						The following special variables can be used with this option:</para>
+						<variablelist>
+							<variable name="CONF_LIMIT_TIMEOUT_FILE">
+								<para>File to play when time is up.</para>
+							</variable>
+							<variable name="CONF_LIMIT_WARNING_FILE">
+								<para>File to play as warning if <replaceable>y</replaceable> is defined. The
+								default is to say the time remaining.</para>
+							</variable>
+						</variablelist>
+						<argument name="x" />
+						<argument name="y" />
+						<argument name="z" />
+					</option>
+				</optionlist>
+			</parameter>
+			<parameter name="pin" />
+		</syntax>
+		<description>
+			<para>Enters the user into a specified MeetMe conference.  If the <replaceable>confno</replaceable>
+			is omitted, the user will be prompted to enter one.  User can exit the conference by hangup, or
+			if the <literal>p</literal> option is specified, by pressing <literal>#</literal>.</para>
+			<note><para>The DAHDI kernel modules and at least one hardware driver (or dahdi_dummy)
+			must be present for conferencing to operate properly. In addition, the chan_dahdi channel driver
+			must be loaded for the <literal>i</literal> and <literal>r</literal> options to operate at
+			all.</para></note>
+		</description>
+		<see-also>
+			<ref type="application">MeetMeCount</ref>
+			<ref type="application">MeetMeAdmin</ref>
+			<ref type="application">MeetMeChannelAdmin</ref>
+		</see-also>
+	</application>
+	<application name="MeetMeCount" language="en_US">
+		<synopsis>
+			MeetMe participant count.
+		</synopsis>
+		<syntax>
+			<parameter name="confno" required="true">
+				<para>Conference number.</para>
+			</parameter>
+			<parameter name="var" />
+		</syntax>
+		<description>
+			<para>Plays back the number of users in the specified MeetMe conference.
+			If <replaceable>var</replaceable> is specified, playback will be skipped and the value
+			will be returned in the variable. Upon application completion, MeetMeCount will hangup
+			the channel, unless priority <literal>n+1</literal> exists, in which case priority progress will
+			continue.</para>
+		</description>
+		<see-also>
+			<ref type="application">MeetMe</ref>
+		</see-also>
+	</application>
+	<application name="MeetMeAdmin" language="en_US">
+		<synopsis>
+			MeetMe conference administration.
+		</synopsis>
+		<syntax>
+			<parameter name="confno" required="true" />
+			<parameter name="command" required="true">
+				<optionlist>
+					<option name="e">
+						<para>Eject last user that joined.</para>
+					</option>
+					<option name="E">
+						<para>Extend conference end time, if scheduled.</para>
+					</option>
+					<option name="k">
+						<para>Kick one user out of conference.</para>
+					</option>
+					<option name="K">
+						<para>Kick all users out of conference.</para>
+					</option>
+					<option name="l">
+						<para>Unlock conference.</para>
+					</option>
+					<option name="L">
+						<para>Lock conference.</para>
+					</option>
+					<option name="m">
+						<para>Unmute one user.</para>
+					</option>
+					<option name="M">
+						<para>Mute one user.</para>
+					</option>
+					<option name="n">
+						<para>Unmute all users in the conference.</para>
+					</option>
+					<option name="N">
+						<para>Mute all non-admin users in the conference.</para>
+					</option>
+					<option name="r">
+						<para>Reset one user's volume settings.</para>
+					</option>
+					<option name="R">
+						<para>Reset all users volume settings.</para>
+					</option>
+					<option name="s">
+						<para>Lower entire conference speaking volume.</para>
+					</option>
+					<option name="S">
+						<para>Raise entire conference speaking volume.</para>
+					</option>
+					<option name="t">
+						<para>Lower one user's talk volume.</para>
+					</option>
+					<option name="T">
+						<para>Raise one user's talk volume.</para>
+					</option>
+					<option name="u">
+						<para>Lower one user's listen volume.</para>
+					</option>
+					<option name="U">
+						<para>Raise one user's listen volume.</para>
+					</option>
+					<option name="v">
+						<para>Lower entire conference listening volume.</para>
+					</option>
+					<option name="V">
+						<para>Raise entire conference listening volume.</para>
+					</option>
+				</optionlist>
+			</parameter>
+			<parameter name="user" />
+		</syntax>
+		<description>
+			<para>Run admin <replaceable>command</replaceable> for conference <replaceable>confno</replaceable>.</para>
+			<para>Will additionally set the variable <variable>MEETMEADMINSTATUS</variable> with one of
+			the following values:</para>
+			<variablelist>
+				<variable name="MEETMEADMINSTATUS">
+					<value name="NOPARSE">
+						Invalid arguments.
+					</value>
+					<value name="NOTFOUND">
+						User specified was not found.
+					</value>
+					<value name="FAILED">
+						Another failure occurred.
+					</value>
+					<value name="OK">
+						The operation was completed successfully.
+					</value>
+				</variable>
+			</variablelist>
+		</description>
+		<see-also>
+			<ref type="application">MeetMe</ref>
+		</see-also>
+	</application>
+	<application name="MeetMeChannelAdmin" language="en_US">
+		<synopsis>
+			MeetMe conference Administration (channel specific).
+		</synopsis>
+		<syntax>
+			<parameter name="channel" required="true" />
+			<parameter name="command" required="true">
+				<optionlist>
+					<option name="k">
+						<para>Kick the specified user out of the conference he is in.</para>
+					</option>
+					<option name="m">
+						<para>Unmute the specified user.</para>
+					</option>
+					<option name="M">
+						<para>Mute the specified user.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Run admin <replaceable>command</replaceable> for a specific
+			<replaceable>channel</replaceable> in any coference.</para>
+		</description>
+	</application>
+	<application name="SLAStation" language="en_US">
+		<synopsis>
+			Shared Line Appearance Station.
+		</synopsis>
+		<syntax>
+			<parameter name="station" required="true">
+				<para>Station name</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application should be executed by an SLA station. The argument depends
+			on how the call was initiated. If the phone was just taken off hook, then the argument
+			<replaceable>station</replaceable> should be just the station name. If the call was
+			initiated by pressing a line key, then the station name should be preceded by an underscore
+			and the trunk name associated with that line button.</para>
+			<para>For example: <literal>station1_line1</literal></para>
+			<para>On exit, this application will set the variable <variable>SLASTATION_STATUS</variable> to
+			one of the following values:</para>
+			<variablelist>
+				<variable name="SLASTATION_STATUS">
+					<value name="FAILURE" />
+					<value name="CONGESTION" />
+					<value name="SUCCESS" />
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+	<application name="SLATrunk" language="en_US">
+		<synopsis>
+			Shared Line Appearance Trunk.
+		</synopsis>
+		<syntax>
+			<parameter name="trunk" required="true">
+				<para>Trunk name</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="M" hasparams="optional">
+						<para>Play back the specified MOH <replaceable>class</replaceable>
+						instead of ringing</para>
+						<argument name="class" required="true" />
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application should be executed by an SLA trunk on an inbound call. The channel calling
+			this application should correspond to the SLA trunk with the name <replaceable>trunk</replaceable>
+			that is being passed as an argument.</para>
+			<para>On exit, this application will set the variable <variable>SLATRUNK_STATUS</variable> to
+			one of the following values:</para>
+			<variablelist>
+				<variable name="SLATRUNK_STATUS">
+					<value name="FAILURE" />
+					<value name="SUCCESS" />
+					<value name="UNANSWERED" />
+					<value name="RINGTIMEOUT" />
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+ ***/
+
 #define CONFIG_FILE_NAME "meetme.conf"
 #define SLA_CONFIG_FILE  "sla.conf"
 
@@ -208,13 +567,6 @@ static const char *app4 = "MeetMeChannelAdmin";
 static const char *slastation_app = "SLAStation";
 static const char *slatrunk_app = "SLATrunk";
 
-static const char *synopsis = "MeetMe conference bridge";
-static const char *synopsis2 = "MeetMe participant count";
-static const char *synopsis3 = "MeetMe conference Administration";
-static const char *synopsis4 = "MeetMe conference Administration (channel specific)";
-static const char *slastation_synopsis = "Shared Line Appearance Station";
-static const char *slatrunk_synopsis = "Shared Line Appearance Trunk";
-
 /* Lookup RealTime conferences based on confno and current time */
 static int rt_schedule;
 static int fuzzystart;
@@ -224,140 +576,6 @@ static int extendby;
 
 /* Log participant count to the RealTime backend */
 static int rt_log_members;
-
-static const char *descrip =
-"  MeetMe([confno][,[options][,pin]]): Enters the user into a specified MeetMe\n"
-"conference.  If the conference number is omitted, the user will be prompted\n"
-"to enter one.  User can exit the conference by hangup, or if the 'p' option\n"
-"is specified, by pressing '#'.\n"
-"Please note: The DAHDI kernel modules and at least one hardware driver (or dahdi_dummy)\n"
-"             must be present for conferencing to operate properly. In addition, the chan_dahdi\n"
-"             channel driver must be loaded for the 'i' and 'r' options to operate at all.\n\n"
-"The option string may contain zero or more of the following characters:\n"
-"      'a' -- set admin mode\n"
-"      'A' -- set marked mode\n"
-"      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND}\n"
-"             Default: conf-background.agi  (Note: This does not work with\n"
-"             non-DAHDI channels in the same conference)\n"
-"      'c' -- announce user(s) count on joining a conference\n"
-"      'C' -- continue in dialplan when kicked out of conference\n"
-"      'd' -- dynamically add conference\n"
-"      'D' -- dynamically add conference, prompting for a PIN\n"
-"      'e' -- select an empty conference\n"
-"      'E' -- select an empty pinless conference\n"
-"      'F' -- Pass DTMF through the conference.\n"
-"      'i' -- announce user join/leave with review\n"
-"      'I' -- announce user join/leave without review\n"
-"      'l' -- set listen only mode (Listen only, no talking)\n"
-"      'm' -- set initially muted\n"
-"      'M[(<class>)]'\n"
-"          -- enable music on hold when the conference has a single caller.\n"
-"             Optionally, specify a musiconhold class to use.  If one is not\n"
-"             provided, it will use the channel's currently set music class,\n"
-"             or \"default\".\n"
-"      'o' -- set talker optimization - treats talkers who aren't speaking as\n"
-"             being muted, meaning (a) No encode is done on transmission and\n"
-"             (b) Received audio that is not registered as talking is omitted\n"
-"             causing no buildup in background noise\n"
-"      'p[(<keys>)]'\n"
-"          -- allow user to exit the conference by pressing '#' (default)\n"
-"             or any of the defined keys. If keys contain '*' this will override\n"
-"             option 's'. The key used is set to channel variable MEETME_EXIT_KEY.\n"
-"      'P' -- always prompt for the pin even if it is specified\n"
-"      'q' -- quiet mode (don't play enter/leave sounds)\n"
-"      'r' -- Record conference (records as ${MEETME_RECORDINGFILE}\n"
-"             using format ${MEETME_RECORDINGFORMAT}). Default filename is\n"
-"             meetme-conf-rec-${CONFNO}-${UNIQUEID} and the default format is\n"
-"             wav.\n"
-"      's' -- Present menu (user or admin) when '*' is received ('send' to menu)\n"
-"      't' -- set talk only mode. (Talk only, no listening)\n"
-"      'T' -- set talker detection (sent to manager interface and meetme list)\n"
-"      'w[(<secs>)]'\n"
-"          -- wait until the marked user enters the conference\n"
-"      'x' -- close the conference when last marked user exits\n"
-"      'X' -- allow user to exit the conference by entering a valid single\n"
-"             digit extension ${MEETME_EXIT_CONTEXT} or the current context\n"
-"             if that variable is not defined.\n"
-"      '1' -- do not play message when first person enters\n"
-"      'S(x)' -- Kick the user 'x' seconds *after* he entered into the conference.\n"
-"      'L(x[:y][:z])' - Limit the conference to 'x' ms. Play a warning when 'y' ms are\n"
-"             left. Repeat the warning every 'z' ms. The following special\n"
-"             variables can be used with this option:\n"
-"              * CONF_LIMIT_TIMEOUT_FILE       File to play when time is up.\n"
-"              * CONF_LIMIT_WARNING_FILE       File to play as warning if 'y' is defined.\n"
-"                                              The default is to say the time remaining.\n"
-"";
-
-static const char *descrip2 =
-"  MeetMeCount(confno[,var]): Plays back the number of users in the specified\n"
-"MeetMe conference. If var is specified, playback will be skipped and the value\n"
-"will be returned in the variable. Upon app completion, MeetMeCount will hangup\n"
-"the channel, unless priority n+1 exists, in which case priority progress will\n"
-"continue.\n"
-"";
-
-static const char *descrip3 = 
-"  MeetMeAdmin(confno,command[,user]): Run admin command for conference\n"
-"      'e' -- Eject last user that joined\n"
-"      'E' -- Extend conference end time, if scheduled\n"
-"      'k' -- Kick one user out of conference\n"
-"      'K' -- Kick all users out of conference\n"
-"      'l' -- Unlock conference\n"
-"      'L' -- Lock conference\n"
-"      'm' -- Unmute one user\n"
-"      'M' -- Mute one user\n"
-"      'n' -- Unmute all users in the conference\n"
-"      'N' -- Mute all non-admin users in the conference\n"
-"      'r' -- Reset one user's volume settings\n"
-"      'R' -- Reset all users volume settings\n"
-"      's' -- Lower entire conference speaking volume\n"
-"      'S' -- Raise entire conference speaking volume\n"
-"      't' -- Lower one user's talk volume\n"
-"      'T' -- Raise one user's talk volume\n"
-"      'u' -- Lower one user's listen volume\n"
-"      'U' -- Raise one user's listen volume\n"
-"      'v' -- Lower entire conference listening volume\n"
-"      'V' -- Raise entire conference listening volume\n"
-"  MeetMeAdmin will additionally set the variable MEETMEADMINSTATUS with one\n"
-"of the following values:\n"
-"      'NOPARSE'  -- Invalid arguments\n"
-"      'NOTFOUND' -- User specified was not found\n"
-"      'FAILED'   -- Another failure occurred\n"
-"      'OK'       -- The operation was completed successfully\n"
-"";
-
-static const char *descrip4 = 
-"  MeetMeChannelAdmin(channel,command): Run admin command for a specific\n"
-"channel in any coference.\n"
-"      'k' -- Kick the specified user out of the conference he is in\n"
-"      'm' -- Unmute the specified user\n"
-"      'M' -- Mute the specified user\n"
-"";
-
-static const char *slastation_desc =
-"  SLAStation(<station name>):\n"
-"This application should be executed by an SLA station.  The argument depends\n"
-"on how the call was initiated.  If the phone was just taken off hook, then\n"
-"the argument \"station\" should be just the station name.  If the call was\n"
-"initiated by pressing a line key, then the station name should be preceded\n"
-"by an underscore and the trunk name associated with that line button.\n"
-"For example: \"station1_line1\"."
-"  On exit, this application will set the variable SLASTATION_STATUS to\n"
-"one of the following values:\n"
-"    FAILURE | CONGESTION | SUCCESS\n"
-"";
-
-static const char *slatrunk_desc =
-"  SLATrunk(<trunk name>[,options]):\n"
-"This application should be executed by an SLA trunk on an inbound call.\n"
-"The channel calling this application should correspond to the SLA trunk\n"
-"with the name \"trunk\" that is being passed as an argument.\n"
-"  On exit, this application will set the variable SLATRUNK_STATUS to\n"
-"one of the following values:\n"
-"   FAILURE | SUCCESS | UNANSWERED | RINGTIMEOUT\n"
-"  The available options are:\n"
-"    M[(<class>)]          - Play back the specified MOH class instead of ringing\n"
-"";
 
 #define MAX_CONFNUM 80
 #define MAX_PIN     80
@@ -6153,14 +6371,12 @@ static int load_module(void)
 				    action_meetmeunmute, "Unmute a Meetme user");
 	res |= ast_manager_register2("MeetmeList", EVENT_FLAG_REPORTING, 
 				    action_meetmelist, "List participants in a conference", mandescr_meetmelist);
-	res |= ast_register_application(app4, channel_admin_exec, synopsis4, descrip4);
-	res |= ast_register_application(app3, admin_exec, synopsis3, descrip3);
-	res |= ast_register_application(app2, count_exec, synopsis2, descrip2);
-	res |= ast_register_application(app, conf_exec, synopsis, descrip);
-	res |= ast_register_application(slastation_app, sla_station_exec,
-					slastation_synopsis, slastation_desc);
-	res |= ast_register_application(slatrunk_app, sla_trunk_exec,
-					slatrunk_synopsis, slatrunk_desc);
+	res |= ast_register_application_xml(app4, channel_admin_exec);
+	res |= ast_register_application_xml(app3, admin_exec);
+	res |= ast_register_application_xml(app2, count_exec);
+	res |= ast_register_application_xml(app, conf_exec);
+	res |= ast_register_application_xml(slastation_app, sla_station_exec);
+	res |= ast_register_application_xml(slatrunk_app, sla_trunk_exec);
 
 	res |= ast_devstate_prov_add("Meetme", meetmestate);
 	res |= ast_devstate_prov_add("SLA", sla_state);

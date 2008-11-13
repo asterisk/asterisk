@@ -1462,8 +1462,9 @@ static int xmldoc_parse_option(struct ast_xml_node *fixnode, const char *tabs, s
 static void xmldoc_parse_optionlist(struct ast_xml_node *fixnode, const char *tabs, struct ast_str **buffer)
 {
 	struct ast_xml_node *node;
-	const char *optname;
+	const char *optname, *hasparams;
 	char *optionsyntax;
+	int optparams;
 
 	for (node = ast_xml_node_get_children(fixnode); node; node = ast_xml_node_get_next(node)) {
 		/* Start appending every option tag. */
@@ -1477,8 +1478,16 @@ static void xmldoc_parse_optionlist(struct ast_xml_node *fixnode, const char *ta
 			continue;
 		}
 
-		optionsyntax = xmldoc_get_syntax_fun(node, optname, "argument", 0, 1);
+		optparams = 1;
+		hasparams = ast_xml_get_attribute(node, "hasparams");
+		if (hasparams && !strcasecmp(hasparams, "optional")) {
+			optparams = 2;
+		}
+
+		optionsyntax = xmldoc_get_syntax_fun(node, optname, "argument", 0, optparams);
 		if (!optionsyntax) {
+			ast_xml_free_attr(optname);
+			ast_xml_free_attr(hasparams);
 			continue;
 		}
 
@@ -1487,6 +1496,8 @@ static void xmldoc_parse_optionlist(struct ast_xml_node *fixnode, const char *ta
 		if (!xmldoc_parse_option(node, tabs, buffer)) {
 			ast_str_append(buffer, 0, "\n");
 		}
+		ast_xml_free_attr(optname);
+		ast_xml_free_attr(hasparams);
 	}
 }
 

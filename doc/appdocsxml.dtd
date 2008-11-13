@@ -38,6 +38,7 @@
   <!ATTLIST option name CDATA #REQUIRED>
   <!ATTLIST option argsep CDATA ",">
   <!ATTLIST option implies CDATA "">
+  <!ATTLIST option hasparams CDATA "">
 
   <!ELEMENT enumlist (enum+)>
   <!ELEMENT enum (para|note|warning|parameter)*>
