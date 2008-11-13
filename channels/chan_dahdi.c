@@ -11806,12 +11806,12 @@ static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		return CLI_SHOWUSAGE;
 	}
 
-	if (!strcasecmp(a->argv[4], "on")) {
+	if (!strcasecmp(a->argv[3], "on")) {
 		level = 1;
-	} else if (!strcasecmp(a->argv[4], "off")) {
+	} else if (!strcasecmp(a->argv[3], "off")) {
 		level = 0;
 	} else {
-		level = atoi(a->argv[4]);
+		level = atoi(a->argv[3]);
 	}
 	span = atoi(a->argv[5]);
 	if ((span < 1) || (span > NUM_SPANS)) {
