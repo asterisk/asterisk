@@ -73,7 +73,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 struct fast_originate_helper {
 	char tech[AST_MAX_EXTENSION];
-	char data[AST_MAX_EXTENSION];
+	/*! data can contain a channel name, extension number, username, password, etc. */
+	char data[512];
 	int timeout;
 	int format;
 	char app[AST_MAX_APP];
