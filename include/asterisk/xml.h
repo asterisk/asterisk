@@ -17,14 +17,14 @@
 #ifndef _ASTERISK_XML_H
 #define _ASTERISK_XML_H
 
-/*! \file 
+/*! \file
  *  \brief Asterisk XML abstraction layer
  */
 
 struct ast_xml_node;
 struct ast_xml_doc;
 
-/*! \brief Initialize the XML library implementation. 
+/*! \brief Initialize the XML library implementation.
  *         This function is used to setup everything needed
  *         to start working with the xml implementation.
  *  \retval 0 On success.
@@ -32,7 +32,7 @@ struct ast_xml_doc;
  */
 int ast_xml_init(void);
 
-/*! \brief Cleanup library allocated global data. 
+/*! \brief Cleanup library allocated global data.
  *  \retval 0 On success.
  *  \retval 1 On error.
  */
@@ -58,7 +58,7 @@ void ast_xml_close(struct ast_xml_doc *doc);
  */
 struct ast_xml_node *ast_xml_get_root(struct ast_xml_doc *doc);
 
-/*! \brief Free node 
+/*! \brief Free node
  *  \param node Node to be released.
  */
 void ast_xml_free_node(struct ast_xml_node *node);

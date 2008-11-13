@@ -38,7 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief Default documentation language. */
 static const char default_documentation_language[] = "en_US";
 
-/*! \brief Number of columns to print when showing the XML documentation with a 
+/*! \brief Number of columns to print when showing the XML documentation with a
  *         'core show application/function *' CLI command. Used in text wrapping.*/
 static const int xmldoc_text_columns = 74;
 
@@ -503,7 +503,7 @@ static struct ast_xml_node *xmldoc_get_node(const char *type, const char *name, 
 
 /*! \internal
  *  \brief Helper function used to build the syntax, it allocates the needed buffer (or reallocates it),
- *         and based on the reverse value it makes use of fmt to print the parameter list inside the 
+ *         and based on the reverse value it makes use of fmt to print the parameter list inside the
  *         realloced buffer (syntax).
  *  \param reverse We are going backwards while generating the syntax?
  *  \param len Current length of 'syntax' buffer.
@@ -808,12 +808,12 @@ static char *xmldoc_get_syntax_fun(struct ast_xml_node *rootnode, const char *ro
 #undef MP
 }
 
-/*! \internal 
+/*! \internal
  *  \brief Parse an enumlist inside a <parameter> to generate a COMMAND
  *         syntax.
  *  \param fixnode A pointer to the <enumlist> node.
  *  \retval {<unknown>} on error.
- *  \retval A string inside brackets {} with the enum's separated by pipes |. 
+ *  \retval A string inside brackets {} with the enum's separated by pipes |.
  */
 static char *xmldoc_parse_cmd_enumlist(struct ast_xml_node *fixnode)
 {
@@ -855,7 +855,7 @@ static char *xmldoc_parse_cmd_enumlist(struct ast_xml_node *fixnode)
 }
 
 /*! \internal
- *  \brief Generate a syntax of COMMAND type. 
+ *  \brief Generate a syntax of COMMAND type.
  *  \param fixnode The <syntax> node pointer.
  *  \param name The name of the 'command'.
  *  \param printname Print the name of the command before the paramters?
@@ -1050,7 +1050,7 @@ static int xmldoc_parse_para(struct ast_xml_node *node, const char *tabs, const 
 			ast_xml_free_text(tmptext);
 			if (tmpstr) {
 				if (strcasecmp(ast_xml_node_get_name(tmp), "text")) {
-					ast_str_append(buffer, 0, "<%s>%s</%s>", ast_xml_node_get_name(tmp), 
+					ast_str_append(buffer, 0, "<%s>%s</%s>", ast_xml_node_get_name(tmp),
 							tmpstr->str, ast_xml_node_get_name(tmp));
 				} else {
 					ast_str_append(buffer, 0, "%s", tmpstr->str);

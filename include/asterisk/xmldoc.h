@@ -17,7 +17,7 @@
 #ifndef _ASTERISK_XMLDOC_H
 #define _ASTERISK_XMLDOC_H
 
-/*! \file 
+/*! \file
  *  \brief Asterisk XML Documentation API
  */
 
