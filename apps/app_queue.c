@@ -67,6 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 #include <sys/signal.h>
 #include <netinet/in.h>
+#include <ctype.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -850,7 +851,8 @@ static int strat2int(const char *strategy)
 static int queue_hash_cb(const void *obj, const int flags)
 {
 	const struct call_queue *q = obj;
-	return ast_str_hash(q->name);
+
+	return ast_str_case_hash(q->name);
 }
 
 static int queue_cmp_cb(void *obj, void *arg, void *data, int flags)
@@ -1671,7 +1673,6 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 			/* Delete if unused (else will be deleted when last caller leaves). */
 			ao2_unlink(queues, q);
 			ao2_unlock(q);
-			queue_unref(q);
 		}
 		return NULL;
 	}
@@ -2192,8 +2193,6 @@ static void leave_queue(struct queue_ent *qe)
 	if (q->dead) {	
 		/* It's dead and nobody is in it, so kill it */
 		ao2_unlink(queues, q);
-		/* unref the container's reference to the queue */
-		queue_unref(q);
 	}
 	/* unref the explicit ref earlier in the function */
 	queue_unref(q);
@@ -2248,11 +2247,10 @@ static int compare_weight(struct call_queue *rq, struct member *member)
 			}
 		}
 		ao2_unlock(q);
+		queue_unref(q);
 		if (found) {
-			queue_unref(q);
 			break;
 		}
-		queue_unref(q);
 	}
 	return found;
 }
@@ -4186,6 +4184,8 @@ static int remove_from_queue(const char *queuename, const char *interface)
 			if (!mem->dynamic) {
 				ao2_ref(mem, -1);
 				ao2_unlock(q);
+				queue_unref(q);
+				ao2_unlock(queues);
 				return RES_NOT_DYNAMIC;
 			}
 			q->membercount--;
@@ -5691,13 +5691,15 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 		}
 	}
 
-	queue_iter = ao2_iterator_init(queues, 0);
+	queue_iter = ao2_iterator_init(queues, F_AO2I_DONTLOCK);
+	ao2_lock(queues);
 	while ((q = ao2_iterator_next(&queue_iter))) {
 		float sl;
 
 		ao2_lock(q);
 		if (argc == 3 && strcasecmp(q->name, argv[2])) {
 			ao2_unlock(q);
+			queue_unref(q);
 			continue;
 		}
 		found = 1;
@@ -5768,6 +5770,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 		}
 		queue_unref(q); /* Unref the iterator's reference */
 	}
+	ao2_unlock(queues);
 	if (!found) {
 		if (argc == 3)
 			ast_str_set(&out, 0, "No such queue: %s.", argv[2]);

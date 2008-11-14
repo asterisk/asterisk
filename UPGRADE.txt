@@ -291,6 +291,13 @@ Queues:
   new value has been added to the TRANSFER event that indicates the caller's
   original position in the queue they are being transfered from.
 
+* Prior to Asterisk 1.6.2, queue names were treated in a case-sensitive
+  manner, meaning that queues with names like "sales" and "sALeS" would
+  be seen as unique queues. The parsing logic has changed to use case-
+  insensitive comparisons now when originally hashing based on queue
+  names, meaning that now the two queues mentioned as examples earlier
+  will be seen as having the same name.
+
 iLBC Codec:
 
 * Previously, the Asterisk source code distribution included the iLBC
