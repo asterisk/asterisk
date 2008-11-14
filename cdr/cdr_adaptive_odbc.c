@@ -59,6 +59,7 @@ struct columns {
 	char *name;
 	char *cdrname;
 	char *filtervalue;
+	char *staticvalue;
 	SQLSMALLINT type;
 	SQLINTEGER size;
 	SQLSMALLINT decimals;
@@ -187,7 +188,7 @@ static int load_config(void)
 		}
 
 		while ((res = SQLFetch(stmt)) != SQL_NO_DATA && res != SQL_ERROR) {
-			char *cdrvar = "";
+			char *cdrvar = "", *staticvalue = "";
 
 			SQLGetData(stmt,  4, SQL_C_CHAR, columnname, sizeof(columnname), &sqlptr);
 
@@ -203,10 +204,19 @@ static int load_config(void)
 					cdrvar = ast_strip(alias);
 					ast_verb(3, "Found alias %s for column %s in %s@%s\n", cdrvar, columnname, tableptr->table, tableptr->connection);
 					break;
+				} else if (strncmp(var->name, "static", 6) == 0 && strcasecmp(var->value, columnname) == 0) {
+					char *item = ast_strdupa(var->name + 6);
+					item = ast_strip(item);
+					if (item[0] == '"' && item[strlen(item) - 1] == '"') {
+						/* Remove surrounding quotes */
+						item[strlen(item) - 1] = '\0';
+						item++;
+					}
+					staticvalue = item;
 				}
 			}
 
-			entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(columnname) + 1 + strlen(cdrvar) + 1);
+			entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(columnname) + 1 + strlen(cdrvar) + 1 + strlen(staticvalue) + 1);
 			if (!entry) {
 				ast_log(LOG_ERROR, "Out of memory creating entry for column '%s' in table '%s' on connection '%s'\n", columnname, table, connection);
 				res = -1;
@@ -218,8 +228,14 @@ static int load_config(void)
 			if (!ast_strlen_zero(cdrvar)) {
 				entry->cdrname = entry->name + strlen(columnname) + 1;
 				strcpy(entry->cdrname, cdrvar);
-			} else /* Point to same place as the column name */
+			} else { /* Point to same place as the column name */
 				entry->cdrname = (char *)entry + sizeof(*entry);
+			}
+
+			if (!ast_strlen_zero(staticvalue)) {
+				entry->staticvalue = entry->cdrname + strlen(entry->cdrname) + 1;
+				strcpy(entry->staticvalue, staticvalue);
+			}
 
 			SQLGetData(stmt,  5, SQL_C_SHORT, &entry->type, sizeof(entry->type), NULL);
 			SQLGetData(stmt,  7, SQL_C_LONG, &entry->size, sizeof(entry->size), NULL);
@@ -372,11 +388,14 @@ static int odbc_log(struct ast_cdr *cdr)
 			}
 
 			/* Check if we have a similarly named variable */
-			if (datefield && tableptr->usegmtime) {
+			if (entry->staticvalue) {
+				colptr = ast_strdupa(entry->staticvalue);
+			} else if (datefield && tableptr->usegmtime) {
 				struct timeval date_tv = (datefield == 1) ? cdr->start : (datefield == 2) ? cdr->answer : cdr->end;
 				struct ast_tm tm = { 0, };
 				ast_localtime(&date_tv, &tm, "UTC");
 				ast_strftime(colbuf, sizeof(colbuf), "%Y-%m-%d %H:%M:%S", &tm);
+				colptr = colbuf;
 			} else {
 				ast_cdr_getvar(cdr, entry->cdrname, &colptr, colbuf, sizeof(colbuf), 0, datefield ? 0 : 1);
 			}
@@ -410,15 +429,17 @@ static int odbc_log(struct ast_cdr *cdr)
 					/* For these two field names, get the rendered form, instead of the raw
 					 * form (but only when we're dealing with a character-based field).
 					 */
-					if (strcasecmp(entry->name, "disposition") == 0)
+					if (strcasecmp(entry->name, "disposition") == 0) {
 						ast_cdr_getvar(cdr, entry->name, &colptr, colbuf, sizeof(colbuf), 0, 0);
-					else if (strcasecmp(entry->name, "amaflags") == 0)
+					} else if (strcasecmp(entry->name, "amaflags") == 0) {
 						ast_cdr_getvar(cdr, entry->name, &colptr, colbuf, sizeof(colbuf), 0, 0);
+					}
 
 					/* Truncate too-long fields */
 					if (entry->type != SQL_GUID) {
-						if (strlen(colptr) > entry->octetlen)
+						if (strlen(colptr) > entry->octetlen) {
 							colptr[entry->octetlen] = '\0';
+						}
 					}
 
 					ast_str_append(&sql, 0, "%s,", entry->name);
@@ -451,8 +472,9 @@ static int odbc_log(struct ast_cdr *cdr)
 							break;
 						}
 
-						if (year > 0 && year < 100)
+						if (year > 0 && year < 100) {
 							year += 2000;
+						}
 
 						ast_str_append(&sql, 0, "%s,", entry->name);
 						LENGTHEN_BUF2(17);
@@ -492,8 +514,9 @@ static int odbc_log(struct ast_cdr *cdr)
 							break;
 						}
 
-						if (year > 0 && year < 100)
+						if (year > 0 && year < 100) {
 							year += 2000;
+						}
 
 						ast_str_append(&sql, 0, "%s,", entry->name);
 						LENGTHEN_BUF2(26);
@@ -624,10 +647,12 @@ early_release:
 	AST_RWLIST_UNLOCK(&odbc_tables);
 
 	/* Next time, just allocate buffers that are that big to start with. */
-	if (sql->used > maxsize)
+	if (sql->used > maxsize) {
 		maxsize = sql->used;
-	if (sql2->used > maxsize2)
+	}
+	if (sql2->used > maxsize2) {
 		maxsize2 = sql2->used;
+	}
 
 	ast_free(sql);
 	ast_free(sql2);

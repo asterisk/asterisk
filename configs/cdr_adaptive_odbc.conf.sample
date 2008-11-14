@@ -37,6 +37,11 @@
 ; Any filter specified MUST match exactly or the CDR will be discarded
 ;filter accountcode => somename
 ;filter src => 123
+;
+; Additionally, we now support setting static values per column.  Reason
+; for this is to allow different sections to specify different values for
+; a certain named column, presumably separated by filters.
+static "Some Special Value" => identifier_code
 
 
 ; On Wednesday 10 September 2008 21:11:16 Tilghman Lesher wrote:
