@@ -181,12 +181,16 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 
 	u = ast_module_user_add(chan);
 
+#if 0
 	/* dont want run away loops if the chan isn't even up
 	   this is up for debate since it slows things down a tad ......
+
+	   Debate is over... this prevents While/EndWhile from working
+	   within the "h" extension.  Not good.
 	*/
 	if (ast_waitfordigit(chan,1) < 0)
 		ALL_DONE(u,-1);
-
+#endif
 
 	for (x=0;;x++) {
 		if (get_index(chan, prefix, x)) {
