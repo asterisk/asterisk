@@ -9422,6 +9422,20 @@ static void ss7_handle_cqm(struct dahdi_ss7 *linkset, int startcic, int endcic, 
 	
 }
 
+static inline void ss7_hangup_cics(struct dahdi_ss7 *linkset, int startcic, int endcic, unsigned int dpc)
+{
+	int i;
+
+	for (i = 0; i < linkset->numchans; i++) {
+		if (linkset->pvts[i] && (linkset->pvts[i]->dpc == dpc && ((linkset->pvts[i]->cic >= startcic) && (linkset->pvts[i]->cic <= endcic)))) {
+			ast_mutex_lock(&linkset->pvts[i]->lock);
+			if (linkset->pvts[i]->owner)
+				linkset->pvts[i]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+			ast_mutex_unlock(&linkset->pvts[i]->lock);
+		}
+	}
+}
+
 static inline void ss7_block_cics(struct dahdi_ss7 *linkset, int startcic, int endcic, unsigned int dpc, unsigned char state[], int block)
 {
 	int i;
@@ -9715,15 +9729,11 @@ static void *ss7_linkset(void *data)
 			}
 
 			if (pollers[i].revents & POLLIN) {
-				ast_mutex_lock(&linkset->lock);
 				res = ss7_read(ss7, pollers[i].fd);
-				ast_mutex_unlock(&linkset->lock);
 			}
 
 			if (pollers[i].revents & POLLOUT) {
-				ast_mutex_lock(&linkset->lock);
 				res = ss7_write(ss7, pollers[i].fd);
-				ast_mutex_unlock(&linkset->lock);
 				if (res < 0) {
 					ast_debug(1, "Error in write %s\n", strerror(errno));
 				}
@@ -9816,6 +9826,7 @@ static void *ss7_linkset(void *data)
 				p = linkset->pvts[chanpos];
 				isup_gra(ss7, e->grs.startcic, e->grs.endcic, e->grs.opc);
 				ss7_block_cics(linkset, e->grs.startcic, e->grs.endcic, e->grs.opc, NULL, 0);
+				ss7_hangup_cics(linkset, e->grs.startcic, e->grs.endcic, e->grs.opc);
 				break;
 			case ISUP_EVENT_CQM:
 				ast_debug(1, "Got Circuit group query message from CICs %d to %d\n", e->cqm.startcic, e->cqm.endcic);
