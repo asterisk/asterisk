@@ -19278,6 +19278,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 		return -1;
 	}
 
+	req.len = res;
 	req.socket.fd 	= sipsock;
 	req.socket.type = SIP_TRANSPORT_UDP;
 	req.socket.ser	= NULL;
