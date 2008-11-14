@@ -1068,7 +1068,8 @@ static char mandescr_ping[] =
 static int action_ping(struct mansession *s, const struct message *m)
 {
 	astman_append(s, "Response: Success\r\n"
-			 "Ping: Pong\r\n");
+		"Ping: Pong\r\n"
+		"\r\n");
 	return 0;
 }
 
