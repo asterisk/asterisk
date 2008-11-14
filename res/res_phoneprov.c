@@ -28,7 +28,6 @@
 
 #include "asterisk.h"
 
-#include <ctype.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -245,7 +244,7 @@ static int profile_hash_fn(const void *obj, const int flags)
 {
 	const struct phone_profile *profile = obj;
 	
-	return ast_str_hash(profile->name);
+	return ast_str_case_hash(profile->name);
 }
 
 static int profile_cmp_fn(void *obj, void *arg, void *data, int flags)
@@ -290,15 +289,8 @@ static struct http_route *unref_route(struct http_route *route)
 static int routes_hash_fn(const void *obj, const int flags)
 {
 	const struct http_route *route = obj;
-	char *tmp,  *uri;
-   
-	uri = tmp = ast_strdupa(route->uri);
 
-	while (*tmp++) {
-		*tmp = tolower(*tmp);
-	}
-
-	return ast_str_hash(uri);
+	return ast_str_case_hash(route->uri);
 }
 
 static int routes_cmp_fn(void *obj, void *arg, void *data, int flags)
@@ -792,15 +784,8 @@ static struct user *find_user(const char *macaddress)
 static int users_hash_fn(const void *obj, const int flags)
 {
 	const struct user *user = obj;
-	char *tmp, *mac;
-
-	mac = tmp = ast_strdupa(user->macaddress);
-
-	while (*tmp++) {
-		*tmp = tolower(*tmp);
-	}
 	
-	return ast_str_hash(mac);
+	return ast_str_case_hash(user->macaddress);
 }
 
 static int users_cmp_fn(void *obj, void *arg, void *data, int flags)
@@ -844,7 +829,7 @@ static void delete_users(void)
 static struct user *build_user(const char *mac, struct phone_profile *profile)
 {
 	struct user *user;
-		
+
 	if (!(user = ao2_alloc(sizeof(*user), user_destructor))) {
 		profile = unref_profile(profile);
 		return NULL;
