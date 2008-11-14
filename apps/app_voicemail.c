@@ -8191,7 +8191,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 				if (cmd < 0)
 					break;
 
-				if ((cmd = ast_readstring(chan,newpassword2 + strlen(newpassword2),sizeof(newpassword2)-1,2000,10000,"#"))) {
+				if ((cmd = ast_readstring(chan,newpassword2 + strlen(newpassword2),sizeof(newpassword2)-1,2000,10000,"#")) < 0) {
 					break;
 				}
 			}
