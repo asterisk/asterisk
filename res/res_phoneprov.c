@@ -170,7 +170,7 @@ static struct {
 
 static char global_server[80] = "";	/*!< Server to substitute into templates */
 static char global_serverport[6] = "";	/*!< Server port to substitute into templates */
-static char global_default_profile[80] = "";	/*!< Default profile to use if one isn't specified */	
+static char global_default_profile[80] = "";	/*!< Default profile to use if one isn't specified */
 
 /*! \brief List of global variables currently available: VOICEMAIL_EXTEN, EXTENSION_LENGTH */
 static struct varshead global_variables;
@@ -188,7 +188,7 @@ static char *ftype2mtype(const char *ftype)
 		if (!strcasecmp(ftype, mimetypes[x].ext))
 			return mimetypes[x].mtype;
 	}
-	
+
 	return NULL;
 }
 
@@ -243,7 +243,7 @@ static struct phone_profile *find_profile(const char *name)
 static int profile_hash_fn(const void *obj, const int flags)
 {
 	const struct phone_profile *profile = obj;
-	
+
 	return ast_str_case_hash(profile->name);
 }
 
@@ -312,7 +312,7 @@ static int load_file(const char *filename, char **ret)
 {
 	int len = 0;
 	FILE *f;
-	
+
 	if (!(f = fopen(filename, "r"))) {
 		*ret = NULL;
 		return -1;
@@ -358,7 +358,7 @@ static void set_timezone_variables(struct varshead *headp, const char *zone)
 	snprintf(buffer, sizeof(buffer), "%d", tzoffset);
 	var = ast_var_assign("TZOFFSET", buffer);
 	if (var)
-		AST_LIST_INSERT_TAIL(headp, var, entries); 
+		AST_LIST_INSERT_TAIL(headp, var, entries);
 
 	if (!dstenable)
 		return;
@@ -366,7 +366,7 @@ static void set_timezone_variables(struct varshead *headp, const char *zone)
 	if ((var = ast_var_assign("DST_ENABLE", "1")))
 		AST_LIST_INSERT_TAIL(headp, var, entries);
 
-	when.tv_sec = dststart; 
+	when.tv_sec = dststart;
 	ast_localtime(&when, &tm_info, zone);
 
 	snprintf(buffer, sizeof(buffer), "%d", tm_info.tm_mon+1);
@@ -443,7 +443,7 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 			"Content-Length: %d\r\n"
 			"Content-Type: %s\r\n\r\n",
 			ast_get_version(), buf, len, route->file->mime_type);
-		
+
 		while ((len = read(fd, buf, sizeof(buf))) > 0) {
 			if (fwrite(buf, 1, len, ser->f) != len) {
 				ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
@@ -473,7 +473,7 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 
 		/* XXX This is a hack -- maybe sum length of all variables in route->user->headp and add that? */
  		bufsize = len + VAR_BUF_SIZE;
-		
+
 		/* malloc() instead of alloca() here, just in case the file is bigger than
 		 * we have enough stack space for. */
 		if (!(tmp = ast_calloc(1, bufsize))) {
@@ -506,7 +506,7 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 		}
 
 		pbx_substitute_variables_varshead(AST_LIST_FIRST(&route->user->extensions)->headp, file, tmp, bufsize);
-	
+
 		if (file) {
 			ast_free(file);
 		}
@@ -548,7 +548,7 @@ out500:
 static void build_route(struct phoneprov_file *pp_file, struct user *user, char *uri)
 {
 	struct http_route *route;
-	
+
 	if (!(route = ao2_alloc(sizeof(*route), route_destructor))) {
 		return;
 	}
@@ -585,7 +585,7 @@ static void build_profile(const char *name, struct ast_variable *v)
 		profile = unref_profile(profile);
 		return;
 	}
-	
+
 	if (!(profile->headp = ast_calloc(1, sizeof(*profile->headp)))) {
 		profile = unref_profile(profile);
 		return;
@@ -606,7 +606,7 @@ static void build_profile(const char *name, struct ast_variable *v)
 				AST_APP_ARG(varname);
 				AST_APP_ARG(varval);
 			);
-			
+
 			AST_NONSTANDARD_APP_ARGS(args, value_copy, '=');
 			do {
 				if (ast_strlen_zero(args.varname) || ast_strlen_zero(args.varval))
@@ -623,7 +623,7 @@ static void build_profile(const char *name, struct ast_variable *v)
 		} else {
 			struct phoneprov_file *pp_file;
 			char *file_extension;
-			char *value_copy = ast_strdupa(v->value); 
+			char *value_copy = ast_strdupa(v->value);
 
 			AST_DECLARE_APP_ARGS(args,
 				AST_APP_ARG(filename);
@@ -708,15 +708,15 @@ static struct extension *build_extension(struct ast_config *cfg, const char *nam
 	if (!(exten = ast_calloc(1, sizeof(*exten)))) {
 		return NULL;
 	}
-	
+
 	if (ast_string_field_init(exten, 32)) {
 		ast_free(exten);
 		exten = NULL;
 		return NULL;
 	}
-	
+
 	ast_string_field_set(exten, name, name);
-	
+
 	if (!(exten->headp = ast_calloc(1, sizeof(*exten->headp)))) {
 		ast_free(exten);
 		exten = NULL;
@@ -784,7 +784,7 @@ static struct user *find_user(const char *macaddress)
 static int users_hash_fn(const void *obj, const int flags)
 {
 	const struct user *user = obj;
-	
+
 	return ast_str_case_hash(user->macaddress);
 }
 
@@ -808,7 +808,7 @@ static void user_destructor(void *obj)
 	if (user->profile) {
 		user->profile = unref_profile(user->profile);
 	}
-	
+
 	ast_string_field_free_memory(user);
 }
 
@@ -834,7 +834,7 @@ static struct user *build_user(const char *mac, struct phone_profile *profile)
 		profile = unref_profile(profile);
 		return NULL;
 	}
-	
+
 	if (ast_string_field_init(user, 32)) {
 		profile = unref_profile(profile);
 		user = unref_user(user);
@@ -957,7 +957,7 @@ static int set_config(void)
 				else if (!strcasecmp(v->name, "default_profile"))
 					ast_copy_string(global_default_profile, v->value, sizeof(global_default_profile));
 			}
-		} else 
+		} else
 			build_profile(cat, ast_variable_browse(phoneprov_cfg, cat));
 	}
 
@@ -973,11 +973,11 @@ static int set_config(void)
 		if (!strcasecmp(cat, "general")) {
 			continue;
 		}
-			  
+
 		if (!strcasecmp(cat, "authentication"))
 			continue;
 
-		if (!((tmp = ast_variable_retrieve(cfg, cat, "autoprov")) && ast_true(tmp)))	
+		if (!((tmp = ast_variable_retrieve(cfg, cat, "autoprov")) && ast_true(tmp)))
 			continue;
 
 		if (!(mac = ast_variable_retrieve(cfg, cat, "macaddress"))) {
@@ -1051,7 +1051,7 @@ static void delete_routes(void)
 {
 	struct ao2_iterator i;
 	struct http_route *route;
-	
+
 	i = ao2_iterator_init(http_routes, 0);
 	while ((route = ao2_iterator_next(&i))) {
 		ao2_unlink(http_routes, route);
@@ -1122,11 +1122,11 @@ static int pp_each_extension_exec(struct ast_channel *chan, const char *cmd, cha
 	char path[PATH_MAX];
 	char *file;
 	int filelen;
-	AST_DECLARE_APP_ARGS(args, 
+	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(mac);
 		AST_APP_ARG(template);
 	);
-	
+
 	AST_STANDARD_APP_ARGS(args, data);
 
 	if (ast_strlen_zero(args.mac) || ast_strlen_zero(args.template)) {
@@ -1182,7 +1182,7 @@ static char *handle_show_routes(struct ast_cli_entry *e, int cmd, struct ast_cli
 #define FORMAT "%-40.40s  %-30.30s\n"
 	struct ao2_iterator i;
 	struct http_route *route;
-	
+
 	switch(cmd) {
 	case CLI_INIT:
 		e->command = "phoneprov show routes";
@@ -1242,13 +1242,13 @@ static int load_module(void)
 
 	AST_LIST_HEAD_INIT_NOLOCK(&global_variables);
 	ast_mutex_init(&globals_lock);
-	
+
 	ast_custom_function_register(&pp_each_user_function);
 	ast_custom_function_register(&pp_each_extension_function);
 	ast_cli_register_multiple(pp_cli, ARRAY_LEN(pp_cli));
 
 	set_config();
-	ast_http_uri_link(&phoneprovuri); 
+	ast_http_uri_link(&phoneprovuri);
 
 	return 0;
 }
@@ -1280,7 +1280,7 @@ static int unload_module(void)
 	return 0;
 }
 
-static int reload(void) 
+static int reload(void)
 {
 	struct ast_var_t *var;
 
