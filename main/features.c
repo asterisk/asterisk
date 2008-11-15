@@ -225,12 +225,14 @@ struct ast_bridge_thread_obj
 static int parkinglot_hash_cb(const void *obj, const int flags)
 {
 	const struct ast_parkinglot *parkinglot = obj;
-	return ast_str_hash(parkinglot->name);
+
+	return ast_str_case_hash(parkinglot->name);
 }
 
 static int parkinglot_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct ast_parkinglot *parkinglot = obj, *parkinglot2 = arg;
+
 	return !strcasecmp(parkinglot->name, parkinglot2->name) ? CMP_MATCH | CMP_STOP : 0;
 }
 
