@@ -1948,7 +1948,7 @@ static int peer_hash_cb(const void *obj, const int flags)
 {
 	const struct sip_peer *peer = obj;
 
-	return ast_str_hash(peer->name);
+	return ast_str_case_hash(peer->name);
 }
 
 /*!
@@ -2004,7 +2004,7 @@ static int dialog_hash_cb(const void *obj, const int flags)
 {
 	const struct sip_pvt *pvt = obj;
 
-	return ast_str_hash(pvt->callid);
+	return ast_str_case_hash(pvt->callid);
 }
 
 /*!

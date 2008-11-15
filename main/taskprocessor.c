@@ -331,7 +331,7 @@ static int tps_hash_cb(const void *obj, const int flags)
 {
 	const struct ast_taskprocessor *tps = obj;
 
-	return ast_str_hash(tps->name);
+	return ast_str_case_hash(tps->name);
 }
 
 /* compare callback for astobj2 */
