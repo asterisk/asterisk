@@ -1029,7 +1029,7 @@ SEARCH_INCLUDES        = YES
 # contain include files that are not input files but should be processed by 
 # the preprocessor.
 
-INCLUDE_PATH           = 
+INCLUDE_PATH           = include/ include/asterisk/
 
 # You can use the INCLUDE_FILE_PATTERNS tag to specify one or more wildcard 
 # patterns (like *.h and *.hpp) to filter out the header-files in the 
@@ -1046,14 +1046,59 @@ INCLUDE_FILE_PATTERNS  =
 # undefined via #undef or recursively expanded use the := operator 
 # instead of the = operator.
 
-PREDEFINED             = __GNUC__
+PREDEFINED             = \
+			__GNUC__ \
+			__attribute__(x)=
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then 
 # this tag can be used to specify a list of macro names that should be expanded. 
 # The macro definition that is found in the sources will be used. 
 # Use the PREDEFINED tag if you want to use a different macro definition.
 
-EXPAND_AS_DEFINED      = 
+EXPAND_AS_DEFINED      = \
+			AST_INLINE_API \
+			AST_DECLARE_STRING_FIELDS \
+			AST_STRING_FIELD \
+			AST_THREADSTORAGE \
+			AST_THREADSTORAGE_CUSTOM \
+			AST_MODULE_INFO \
+			AST_MODULE_INFO_STANDARD \
+			__AST_MUTEX_DEFINE \
+			AST_MUTEX_DEFINE_STATIC \
+			AST_MUTEX_DEFINE_STATIC_NOTRACKING \
+			__AST_RWLOCK_DEFINE \
+			AST_RWLOCK_DEFINE_STATIC \
+			AST_LIST_HEAD \
+			AST_RWLIST_HEAD \
+			AST_LIST_HEAD_NOLOCK \
+			AST_LIST_HEAD_STATIC \
+			AST_RWLIST_HEAD_STATIC \
+			AST_LIST_HEAD_NOLOCK_STATIC \
+			AST_LIST_ENTRY \
+			AST_RWLIST_ENTRY \
+			__ASTOBJ_HASH \
+			ASTOBJ_COMPONENTS_NOLOCK_FULL \
+			ASTOBJ_COMPONENTS_NOLOCK \
+			ASTOBJ_COMPONENTS_FULL \
+			ASTOBJ_COMPONENTS \
+			AST_IVR_DECLARE_MENU \
+			AST_DECLARE_APP_ARGS \
+			AST_DEFINE_APP_ARGS_TYPE \
+			AST_APP_ARG \
+			BEGIN_OPTIONS \
+			END_OPTIONS \
+			AST_APP_OPTIONS \
+			AST_APP_OPTION \
+			AST_APP_OPTION_ARG \
+			AST_DLLIST_HEAD \
+			AST_DLLIST_HEAD_STATIC \
+			AST_DLLIST_HEAD_NOLOCK \
+			AST_DLLIST_HEAD_NOLOCK_STATIC \
+			AST_RWDLLIST_HEAD \
+			AST_RWDLLIST_HEAD_STATIC \
+			AST_DLLIST_ENTRY \
+			AST_RWDLLIST_ENTRY \
+			AST_CLI_DEFINE
 
 # If the SKIP_FUNCTION_MACROS tag is set to YES (the default) then 
 # doxygen's preprocessor will remove all function-like macros that are alone 
