@@ -78,4 +78,4 @@ endif
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $^ $(PTHREAD_LIBS) $(LIBS)
 
-dist-clean::
+dist-clean:: clean
