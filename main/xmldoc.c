@@ -584,11 +584,10 @@ static char *xmldoc_get_syntax_fun(struct ast_xml_node *rootnode, const char *ro
 #define ISLAST(__rev, __a)  (__rev == 1 ? (ast_xml_node_get_prev(__a) ? 0 : 1) : (ast_xml_node_get_next(__a) ? 0 : 1))
 #define MP(__a) ((multiple ? __a : ""))
 	struct ast_xml_node *node = NULL, *firstparam = NULL, *lastparam = NULL;
-	const char *paramtype, *multipletype, *paramname, *attrargsep, *parenthesis, *argname;
+	const char *paramtype, *multipletype, *paramnameattr, *attrargsep, *parenthesis, *argname;
 	int reverse, required, paramcount = 0, openbrackets = 0, len = 0, hasparams=0;
-	int reqfinode = 0, reqlanode = 0, optmidnode = 0, prnparenthesis;
-	char *syntax = NULL, *argsep;
-	int paramnamemalloc, multiple;
+	int reqfinode = 0, reqlanode = 0, optmidnode = 0, prnparenthesis, multiple;
+	char *syntax = NULL, *argsep, *paramname;
 
 	if (ast_strlen_zero(rootname) || ast_strlen_zero(childname)) {
 		ast_log(LOG_WARNING, "Tried to look in XML tree with faulty rootname or childname while creating a syntax.\n");
@@ -696,16 +695,13 @@ static char *xmldoc_get_syntax_fun(struct ast_xml_node *rootnode, const char *ro
 			if (argname) {
 				paramname = xmldoc_get_syntax_fun(node, argname, "argument", prnparenthesis, prnparenthesis);
 				ast_xml_free_attr(argname);
-				paramnamemalloc = 1;
 			} else {
 				/* Malformed XML, print **UNKOWN** */
 				paramname = ast_strdup("**unknown**");
 			}
-			paramnamemalloc = 1;
 		} else {
-			paramnamemalloc = 0;
-			paramname = ast_xml_get_attribute(node, "name");
-			if (!paramname) {
+			paramnameattr = ast_xml_get_attribute(node, "name");
+			if (!paramnameattr) {
 				ast_log(LOG_WARNING, "Malformed XML %s: no %s name\n", rootname, childname);
 				if (syntax) {
 					/* Free already allocated syntax */
@@ -715,6 +711,8 @@ static char *xmldoc_get_syntax_fun(struct ast_xml_node *rootnode, const char *ro
 				ast_asprintf(&syntax, "%s%s", (printrootname ? rootname : ""), (printparenthesis ? "()" : ""));
 				return syntax;
 			}
+			paramname = ast_strdup(paramnameattr);
+			ast_xml_free_attr(paramnameattr);
 		}
 
 		/* Defaults to 'false'. */
@@ -779,11 +777,7 @@ static char *xmldoc_get_syntax_fun(struct ast_xml_node *rootnode, const char *ro
 				}
 			}
 		}
-		if (paramnamemalloc) {
-			ast_free((char *) paramname);
-		} else {
-			ast_xml_free_attr(paramname);
-		}
+		ast_free(paramname);
 
 		paramcount++;
 	}
