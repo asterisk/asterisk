@@ -43,12 +43,12 @@ ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
 endif
 
 # build rules for various targets
-%.o: %.c
-	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(MAKE_DEPS)
-
 %.o: %.i
 	$(ECHO_PREFIX) echo "   [CCi] $< -> $@"
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(MAKE_DEPS)
+
+%.o: %.c
+	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(MAKE_DEPS)
 
 %.i: %.c
