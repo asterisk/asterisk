@@ -1426,7 +1426,7 @@ static int pvt_hash_cb(const void *obj, const int flags)
 {
 	const struct console_pvt *pvt = obj;
 
-	return ast_str_hash(pvt->name);
+	return ast_str_case_hash(pvt->name);
 }
 
 static int pvt_cmp_cb(void *obj, void *arg, void *data, int flags)
