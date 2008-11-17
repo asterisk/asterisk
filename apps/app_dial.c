@@ -962,7 +962,7 @@ static int do_timelimit(struct ast_channel *chan, struct ast_bridge_config *conf
 		play_to_caller = 1;
 
 	var = pbx_builtin_getvar_helper(chan, "LIMIT_WARNING_FILE");
-	config->warning_sound = !ast_strlen_zero(var) ? ast_strdupa(var) : "timeleft";
+	config->warning_sound = !ast_strlen_zero(var) ? ast_strdup(var) : ast_strdup("timeleft");
 
 	/* The code looking at config wants a NULL, not just "", to decide
 	 * that the message should not be played, so we replace "" with NULL.
@@ -971,10 +971,10 @@ static int do_timelimit(struct ast_channel *chan, struct ast_bridge_config *conf
 	 */
 
 	var = pbx_builtin_getvar_helper(chan, "LIMIT_TIMEOUT_FILE");
-	config->end_sound = !ast_strlen_zero(var) ? ast_strdupa(var) : NULL;
+	config->end_sound = !ast_strlen_zero(var) ? ast_strdup(var) : NULL;
 
 	var = pbx_builtin_getvar_helper(chan, "LIMIT_CONNECT_FILE");
-	config->start_sound = !ast_strlen_zero(var) ? ast_strdupa(var) : NULL;
+	config->start_sound = !ast_strlen_zero(var) ? ast_strdup(var) : NULL;
 
 	ast_channel_unlock(chan);
 
@@ -2060,6 +2060,15 @@ out:
 	}
 
 done:
+	if (config.warning_sound) {
+		ast_free((char *)config.warning_sound);
+	}
+	if (config.end_sound) {
+		ast_free((char *)config.end_sound);
+	}
+	if (config.start_sound) {
+		ast_free((char *)config.start_sound);
+	}
 	return res;
 }
 
