@@ -1416,6 +1416,7 @@ struct sip_user {
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
 	int autoframing;
 	struct sip_st_cfg stimer;	/*!< SIP Session-Timers */
+	ast_mutex_t lock;
 };
 
 /*!
@@ -1509,6 +1510,7 @@ struct sip_peer {
 	int timer_t1;			/*!<  The maximum T1 value for the peer */
 	int timer_b;			/*!<  The maximum timer B (transaction timeouts) */
 	int deprecated_username; /*!< If it's a realtime peer, are they using the deprecated "username" instead of "defaultuser" */
+	ast_mutex_t lock;
 };
 
 
@@ -1690,9 +1692,6 @@ enum t38_action_flag {
 	SDP_T38_INITIATE, /*!< Remote side has requested T38 with us */
 	SDP_T38_ACCEPT,   /*!< Remote side accepted our T38 request */
 };
-
-/*! \brief Protect the callcounters inuse,inringing and the corresponding flags */
-AST_MUTEX_DEFINE_STATIC(callctrlock);
 
 /*---------------------------- Forward declarations of functions in chan_sip.c */
 /* Note: This is added to help splitting up chan_sip.c into several files
@@ -4490,6 +4489,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	int outgoing = fup->outgoing_call;
 	struct sip_user *u = NULL;
 	struct sip_peer *p = NULL;
+	ast_mutex_t *pu_lock;
 
 	ast_debug(3, "Updating call counter for %s call\n", outgoing ? "outgoing" : "incoming");
 
@@ -4506,11 +4506,13 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		inuse = &u->inUse;
 		call_limit = &u->call_limit;
 		inringing = NULL;
+		pu_lock = &u->lock;
 	} else if ( (p = find_peer(ast_strlen_zero(fup->peername) ? name : fup->peername, NULL, 1, 0) ) ) { /* Try to find peer */
 		inuse = &p->inUse;
 		call_limit = &p->call_limit;
 		inringing = &p->inRinging;
 		ast_copy_string(name, fup->peername, sizeof(name));
+		pu_lock = &p->lock;
 	}
 	if (!p && !u) {
 		ast_debug(2, "%s is not a local device, no call limit\n", name);
@@ -4522,36 +4524,43 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	case DEC_CALL_LIMIT:
 		/* Decrement inuse count if applicable */
 		if (inuse) {
-			ast_mutex_lock(&callctrlock);
+			sip_pvt_lock(fup);
+			ast_mutex_lock(pu_lock);
 			if ((*inuse > 0) && ast_test_flag(&fup->flags[0], SIP_INC_COUNT)) {
 				(*inuse)--;
 				ast_clear_flag(&fup->flags[0], SIP_INC_COUNT);
 			} else {
 				*inuse = 0;
 			}
-			ast_mutex_unlock(&callctrlock);
+			ast_mutex_unlock(pu_lock);
+			sip_pvt_unlock(fup);
 		}
 
 		/* Decrement ringing count if applicable */
 		if (inringing) {
-			ast_mutex_lock(&callctrlock);
+			sip_pvt_lock(fup);
+			ast_mutex_lock(pu_lock);
 			if ((*inringing > 0)&& ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
 				(*inringing)--;
 				ast_clear_flag(&fup->flags[0], SIP_INC_RINGING);
 			} else {
 			   *inringing = 0;
 			}
-			ast_mutex_unlock(&callctrlock);
+			ast_mutex_unlock(pu_lock);
+			sip_pvt_unlock(fup);
 		}
 
 		/* Decrement onhold count if applicable */
-		ast_mutex_lock(&callctrlock);
+			sip_pvt_lock(fup);
+			ast_mutex_lock(pu_lock);
 		if (ast_test_flag(&fup->flags[1], SIP_PAGE2_CALL_ONHOLD) && global_notifyhold) {
 			ast_clear_flag(&fup->flags[1], SIP_PAGE2_CALL_ONHOLD);
-			ast_mutex_unlock(&callctrlock);
+			ast_mutex_unlock(pu_lock);
+			sip_pvt_unlock(fup);
 			sip_peer_hold(fup, FALSE);
 		} else {
-			ast_mutex_unlock(&callctrlock);
+			ast_mutex_unlock(pu_lock);
+			sip_pvt_unlock(fup);
 		}
 		if (sipdebug)
 			ast_debug(2, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
@@ -4571,20 +4580,24 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 			}
 		}
 		if (inringing && (event == INC_CALL_RINGING)) {
-			ast_mutex_lock(&callctrlock);
+			sip_pvt_lock(fup);
+			ast_mutex_lock(pu_lock);
 			if (!ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
 				(*inringing)++;
 				ast_set_flag(&fup->flags[0], SIP_INC_RINGING);
 			}
-			ast_mutex_unlock(&callctrlock);
+			ast_mutex_unlock(pu_lock);
+			sip_pvt_unlock(fup);
 		}
 		if (inuse) {
-			ast_mutex_lock(&callctrlock);
+			sip_pvt_lock(fup);
+			ast_mutex_lock(pu_lock);
 			if (!ast_test_flag(&fup->flags[0], SIP_INC_COUNT)) {
 				(*inuse)++;
 				ast_set_flag(&fup->flags[0], SIP_INC_COUNT);
 			}
-			ast_mutex_unlock(&callctrlock);
+			ast_mutex_unlock(pu_lock);
+			sip_pvt_unlock(fup);
 		}
 		if (sipdebug) {
 			ast_debug(2, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
@@ -4593,12 +4606,14 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 
 	case DEC_CALL_RINGING:
 		if (inringing) {
-			ast_mutex_lock(&callctrlock);
+			sip_pvt_lock(fup);
+			ast_mutex_lock(pu_lock);
 			if (ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
 				(*inringing)--;
 				ast_clear_flag(&fup->flags[0], SIP_INC_RINGING);
 			}
-			ast_mutex_unlock(&callctrlock);
+			ast_mutex_unlock(pu_lock);
+			sip_pvt_unlock(fup);
 		}
 		break;
 
