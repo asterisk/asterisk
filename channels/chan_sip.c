@@ -1823,9 +1823,6 @@ enum t38_action_flag {
 	SDP_T38_ACCEPT,   /*!< Remote side accepted our T38 request */
 };
 
-/*! \brief Protect the callcounters inuse,inringing and the corresponding flags */
-AST_MUTEX_DEFINE_STATIC(callctrlock);
-
 /*---------------------------- Forward declarations of functions in chan_sip.c */
 /* Note: This is added to help splitting up chan_sip.c into several files
 	in coming releases. */
@@ -4727,36 +4724,43 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	case DEC_CALL_LIMIT:
 		/* Decrement inuse count if applicable */
 		if (inuse) {
-			ast_mutex_lock(&callctrlock);
+			sip_pvt_lock(fup);
+			ao2_lock(p);
 			if ((*inuse > 0) && ast_test_flag(&fup->flags[0], SIP_INC_COUNT)) {
 				(*inuse)--;
 				ast_clear_flag(&fup->flags[0], SIP_INC_COUNT);
 			} else {
 				*inuse = 0;
 			}
-			ast_mutex_unlock(&callctrlock);
+			ao2_unlock(p);
+			sip_pvt_unlock(fup);
 		}
 
 		/* Decrement ringing count if applicable */
 		if (inringing) {
-			ast_mutex_lock(&callctrlock);
+			sip_pvt_lock(fup);
+			ao2_lock(p);
 			if ((*inringing > 0)&& ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
 				(*inringing)--;
 				ast_clear_flag(&fup->flags[0], SIP_INC_RINGING);
 			} else {
 			   *inringing = 0;
 			}
-			ast_mutex_unlock(&callctrlock);
+			ao2_unlock(p);
+			sip_pvt_unlock(fup);
 		}
 
 		/* Decrement onhold count if applicable */
-		ast_mutex_lock(&callctrlock);
+		sip_pvt_lock(fup);
+		ao2_lock(p);
 		if (ast_test_flag(&fup->flags[1], SIP_PAGE2_CALL_ONHOLD) && global_notifyhold) {
 			ast_clear_flag(&fup->flags[1], SIP_PAGE2_CALL_ONHOLD);
-			ast_mutex_unlock(&callctrlock);
+			ao2_unlock(p);
+			sip_pvt_unlock(fup);
 			sip_peer_hold(fup, FALSE);
 		} else {
-			ast_mutex_unlock(&callctrlock);
+			ao2_unlock(p);
+			sip_pvt_unlock(fup);
 		}
 		if (sipdebug)
 			ast_debug(2, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", "peer", name, *call_limit);
@@ -4773,20 +4777,24 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 			}
 		}
 		if (inringing && (event == INC_CALL_RINGING)) {
-			ast_mutex_lock(&callctrlock);
+			sip_pvt_lock(fup);
+			ao2_lock(p);
 			if (!ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
 				(*inringing)++;
 				ast_set_flag(&fup->flags[0], SIP_INC_RINGING);
 			}
-			ast_mutex_unlock(&callctrlock);
+			ao2_unlock(p);
+			sip_pvt_unlock(fup);
 		}
 		if (inuse) {
-			ast_mutex_lock(&callctrlock);
+			sip_pvt_lock(fup);
+			ao2_lock(p);
 			if (!ast_test_flag(&fup->flags[0], SIP_INC_COUNT)) {
 				(*inuse)++;
 				ast_set_flag(&fup->flags[0], SIP_INC_COUNT);
 			}
-			ast_mutex_unlock(&callctrlock);
+			ao2_unlock(p);
+			sip_pvt_unlock(fup);
 		}
 		if (sipdebug) {
 			ast_debug(2, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", "peer", name, *inuse, *call_limit);
@@ -4795,12 +4803,14 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 
 	case DEC_CALL_RINGING:
 		if (inringing) {
-			ast_mutex_lock(&callctrlock);
+			sip_pvt_lock(fup);
+			ao2_lock(p);
 			if (ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
 				(*inringing)--;
 				ast_clear_flag(&fup->flags[0], SIP_INC_RINGING);
 			}
-			ast_mutex_unlock(&callctrlock);
+			ao2_unlock(p);
+			sip_pvt_unlock(fup);
 		}
 		break;
 
