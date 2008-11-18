@@ -586,6 +586,10 @@ struct ast_bridge_config {
 	unsigned int flags;
 	void (* end_bridge_callback)(void *);   /*!< A callback that is called after a bridge attempt */
 	void *end_bridge_callback_data;         /*!< Data passed to the callback */
+	/*! If the end_bridge_callback_data refers to a channel which no longer is going to
+	 * exist when the end_bridge_callback is called, then it needs to be fixed up properly
+	 */
+	void (*end_bridge_callback_data_fixup)(struct ast_bridge_config *bconfig, struct ast_channel *originator, struct ast_channel *terminator);
 };
 
 struct chanmon;
