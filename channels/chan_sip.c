@@ -5049,6 +5049,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 					ast_rtp_new_source(p->rtp);
+					p->invitestate = INV_EARLY_MEDIA;
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 				}
@@ -5066,6 +5067,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				if ((ast->_state != AST_STATE_UP) &&
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
+					p->invitestate = INV_EARLY_MEDIA;
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 				}
@@ -5083,6 +5085,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				if ((ast->_state != AST_STATE_UP) &&
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
+					p->invitestate = INV_EARLY_MEDIA;
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 				}
