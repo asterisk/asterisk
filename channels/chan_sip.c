@@ -258,7 +258,7 @@ enum invitestates {
 	INV_NONE = 0,	        /*!< No state at all, maybe not an INVITE dialog */
 	INV_CALLING = 1,	/*!< Invite sent, no answer */
 	INV_PROCEEDING = 2,	/*!< We got/sent 1xx message */
-	INV_EARLY_MEDIA = 3,    /*!< We got 18x message with to-tag back */
+	INV_EARLY_MEDIA = 3,    /*!< We got/sent 18x message with to-tag back */
 	INV_COMPLETED = 4,	/*!< Got final response with error. Wait for ACK, then CONFIRMED */
 	INV_CONFIRMED = 5,	/*!< Confirmed response - we've got an ack (Incoming calls only) */
 	INV_TERMINATED = 6,	/*!< Transaction done - either successful (AST_STATE_UP) or failed, but done 
@@ -3757,8 +3757,9 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 					ast_rtp_new_source(p->rtp);
+					p->invitestate = INV_EARLY_MEDIA;
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
-					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
+					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 				}
 				p->lastrtptx = time(NULL);
 				res = ast_rtp_write(p->rtp, frame);
@@ -3774,6 +3775,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				if ((ast->_state != AST_STATE_UP) &&
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
+					p->invitestate = INV_EARLY_MEDIA;
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 				}
