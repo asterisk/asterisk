@@ -1672,6 +1672,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(start_moh);
 	res |= ast_unregister_application(stop_moh);
 	ast_cli_unregister_multiple(cli_moh, sizeof(cli_moh) / sizeof(struct ast_cli_entry));
+	ast_unregister_atexit(ast_moh_destroy);
 	return res;
 }
 
