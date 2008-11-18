@@ -259,7 +259,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 			if (!ast_check_hangup(p->chan->_bridge)) {
 				if (!ast_channel_trylock(p->owner)) {
 					if (!ast_check_hangup(p->owner)) {
-						if(p->owner->monitor && !p->chan->_bridge->monitor) {
+						if (p->owner->monitor && !p->chan->_bridge->monitor) {
 							/* If a local channel is being monitored, we don't want a masquerade
 							 * to cause the monitor to go away. Since the masquerade swaps the monitors,
 							 * pre-swapping the monitors before the masquerade will ensure that the monitor
@@ -268,6 +268,12 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 							tmp = p->owner->monitor;
 							p->owner->monitor = p->chan->_bridge->monitor;
 							p->chan->_bridge->monitor = tmp;
+						}
+						if (p->chan->audiohooks) {
+							struct ast_audiohook_list *audiohooks_swapper;
+							audiohooks_swapper = p->chan->audiohooks;
+							p->chan->audiohooks = p->owner->audiohooks;
+							p->owner->audiohooks = audiohooks_swapper;
 						}
 						ast_channel_masquerade(p->owner, p->chan->_bridge);
 						ast_set_flag(p, LOCAL_ALREADY_MASQED);
