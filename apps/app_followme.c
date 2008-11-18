@@ -935,6 +935,11 @@ static void end_bridge_callback (void *data)
 	ast_channel_unlock(chan);
 }
 
+static void end_bridge_callback_data_fixup(struct ast_bridge_config *bconfig, struct ast_channel *originator, struct ast_channel *terminator)
+{
+	bconfig->end_bridge_callback_data = originator;
+}
+
 static int app_exec(struct ast_channel *chan, void *data)
 {
 	struct fm_args targs;
@@ -1057,6 +1062,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 			config.end_bridge_callback = end_bridge_callback;
 			config.end_bridge_callback_data = chan;
+			config.end_bridge_callback_data_fixup = end_bridge_callback_data_fixup;
 
 			ast_moh_stop(caller);
 			/* Be sure no generators are left on it */

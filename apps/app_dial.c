@@ -857,6 +857,10 @@ static void end_bridge_callback (void *data)
 	ast_channel_unlock(chan);
 }
 
+static void end_bridge_callback_data_fixup(struct ast_bridge_config *bconfig, struct ast_channel *originator, struct ast_channel *terminator) {
+	bconfig->end_bridge_callback_data = originator;
+}
+
 static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags *peerflags, int *continue_exec)
 {
 	int res = -1;
@@ -1795,6 +1799,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			config.start_sound = start_sound;
 			config.end_bridge_callback = end_bridge_callback;
 			config.end_bridge_callback_data = chan;
+			config.end_bridge_callback_data_fixup = end_bridge_callback_data_fixup;
 			if (moh) {
 				moh = 0;
 				ast_moh_stop(chan);
