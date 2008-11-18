@@ -1552,7 +1552,10 @@ static void insert_leading_blank_lines(FILE *fp, struct inclfile *fi, struct ast
 	   stored in the precomments, but not printed back out.
 	   I did have to make sure that comments following
 	   the ;! header comments were not also deleted in the process */
-	for (i=fi->lineno;i<lineno - precomment_lines; i++) {
+	if (lineno - precomment_lines - fi->lineno < 0) { /* insertions can mess up the line numbering and produce negative numbers that mess things up */
+		return;
+	}
+	for (i=fi->lineno; i<lineno - precomment_lines; i++) {
 		fprintf(fp,"\n");
 	}
 	fi->lineno = lineno+1; /* Advance the file lineno */
@@ -1641,7 +1644,7 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 					}
 				}
 			}
-			
+
 			insert_leading_blank_lines(f, fi, cat->precomments, cat->lineno);
 			/* Dump section with any appropriate comment */
 			for (cmt = cat->precomments; cmt; cmt=cmt->next) {
@@ -1655,8 +1658,6 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 				if (cmtp)
 					fprintf(f,"%s", cmtp);
 			}
-			if (!cat->precomments)
-				fprintf(f,"\n");
 			fprintf(f, "[%s]", cat->name);
 			if (cat->ignored || !AST_LIST_EMPTY(&cat->template_instances)) {
 				fprintf(f, "(");
