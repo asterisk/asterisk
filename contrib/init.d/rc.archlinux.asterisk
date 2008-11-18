@@ -1,0 +1,46 @@
+#!/bin/bash
+#
+# Start/stop/restart Asterisk PBX
+#
+# Version: 0.1 by Sherif Nagy AKA DarKnesS_WolF <sherif.nagy@gmail.com> BASED ON THE SLACKWARE INIT SCRIPT
+#
+# 10.10.2008 - Initial Version
+#
+. /etc/rc.conf
+. /etc/rc.d/functions
+
+case "$1" in
+  start)
+    stat_busy "Starting Asterisk..."
+    if [ -x /usr/sbin/asterisk ]; then
+      # Check if Asterisk is already running.  If it is, then bug out, because
+      # starting safe_asterisk when Asterisk is running is very bad.
+      VERSION=`/usr/sbin/asterisk -rx 'core show version'`
+      if [ "`echo $VERSION | cut -c 1-8`" = "Asterisk" ]; then
+         echo "Asterisk is already running.  $0 will exit now."
+         exit 1
+      fi
+      /usr/sbin/asterisk
+      stat_done
+    fi
+    ;;
+  stop)
+    if [ -r /var/run/asterisk.pid ]; then
+      stat_busy "Stoping Asterisk..."
+      asterisk -rx "core stop now" > /dev/null 2&>1
+      if [ $? -gt 0 ]; then
+        stat_fail
+      else
+        stat_done
+      fi
+    fi
+    ;;
+  restart)
+    $0 stop
+    sleep 2
+    $0 start
+    ;;
+  *)
+    echo "usage $0 start|stop|restart" ;;
+esac
+exit 0

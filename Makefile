@@ -811,6 +811,9 @@ config:
 		elif [ -f /etc/SuSE-release -o -f /etc/novell-release ]; then \
 			$(INSTALL) -m 755 contrib/init.d/rc.suse.asterisk $(DESTDIR)/etc/init.d/asterisk; \
 			if [ -z "$(DESTDIR)" ]; then /sbin/chkconfig --add asterisk; fi; \
+		elif [ -f /etc/arch-release -o -f /etc/arch-release ]; then \
+			$(INSTALL) -m 755 contrib/init.d/rc.archlinux.asterisk $(DESTDIR)/etc/rc.d/asterisk; \
+			echo "Archlinux is not currently supported, although an init script does exits for it. please add asterisk to your DAEMONS line in /etc/rc.conf to start it when computer boots."; \
 		elif [ -f /etc/slackware-version ]; then \
 			echo "Slackware is not currently supported, although an init script does exist for it." \
 		else \
