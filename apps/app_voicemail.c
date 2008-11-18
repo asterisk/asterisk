@@ -153,6 +153,7 @@ static void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pq
 static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int box, int target);
 static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, const char *flag);
 static void update_messages_by_imapuser(const char *user, unsigned long number);
+static int vm_delete(char *file);
 
 static int imap_remove_file (char *dir, int msgnum);
 static int imap_retrieve_file (const char *dir, const int msgnum, const char *mailbox, const char *context);
@@ -3510,6 +3511,7 @@ static void copy_plain_file(char *frompath, char *topath)
 	copy(frompath2, topath2);
 	ast_variables_destroy(var);
 }
+#endif
 
 /*! 
  * \brief Removes the voicemail sound and information file.
@@ -3536,7 +3538,6 @@ static int vm_delete(char *file)
 	unlink(txt);
 	return ast_filedelete(file, NULL);
 }
-#endif
 
 /*!
  * \brief utility used by inchar(), for base_encode()
@@ -5199,6 +5200,19 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		ast_log(AST_LOG_WARNING, "No format for saving voicemail?\n");
 leave_vm_out:
 	free_user(vmu);
+
+#ifdef IMAP_STORAGE
+	/* expunge message - use UID Expunge if supported on IMAP server*/
+	ast_debug(3, "*** Checking if we can expunge, expungeonhangup set to %d\n",expungeonhangup);
+	if (expungeonhangup == 1) {
+#ifdef HAVE_IMAP_TK2006
+		if (LEVELUIDPLUS (vms->mailstream)) {
+			mail_expunge_full(vms->mailstream,NIL,EX_UID);
+		} else 
+#endif
+			mail_expunge(vms->mailstream);
+	}
+#endif
 	
 	return res;
 }
@@ -6071,6 +6085,14 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 
 	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s@%s\r\nWaiting: %d\r\nNew: %d\r\nOld: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context, NULL), newmsgs, oldmsgs);
 	run_externnotify(vmu->context, vmu->mailbox, flag);
+
+#ifdef IMAP_STORAGE
+	vm_delete(fn);  /* Delete the file, but not the IMAP message */
+	if (ast_test_flag(vmu, VM_DELETE))  { /* Delete the IMAP message if delete = yes */
+		vm_imap_delete(vms->curmsg, vmu);
+		vms->newmessages--;  /* Fix new message count */
+	}
+#endif
 
 	return 0;
 }
