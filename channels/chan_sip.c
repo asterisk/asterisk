@@ -1416,7 +1416,6 @@ struct sip_user {
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
 	int autoframing;
 	struct sip_st_cfg stimer;	/*!< SIP Session-Timers */
-	ast_mutex_t lock;
 };
 
 /*!
@@ -1510,7 +1509,6 @@ struct sip_peer {
 	int timer_t1;			/*!<  The maximum T1 value for the peer */
 	int timer_b;			/*!<  The maximum timer B (transaction timeouts) */
 	int deprecated_username; /*!< If it's a realtime peer, are they using the deprecated "username" instead of "defaultuser" */
-	ast_mutex_t lock;
 };
 
 
@@ -4506,13 +4504,13 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		inuse = &u->inUse;
 		call_limit = &u->call_limit;
 		inringing = NULL;
-		pu_lock = &u->lock;
+		pu_lock = &u->_lock;
 	} else if ( (p = find_peer(ast_strlen_zero(fup->peername) ? name : fup->peername, NULL, 1, 0) ) ) { /* Try to find peer */
 		inuse = &p->inUse;
 		call_limit = &p->call_limit;
 		inringing = &p->inRinging;
 		ast_copy_string(name, fup->peername, sizeof(name));
-		pu_lock = &p->lock;
+		pu_lock = &p->_lock;
 	}
 	if (!p && !u) {
 		ast_debug(2, "%s is not a local device, no call limit\n", name);
