@@ -7,7 +7,7 @@
 === UPGRADE-1.6.txt -- Upgrade info for 1.4 to 1.6
 ===========================================================
 
-From 1.6.0.1 to 1.6.0.2 or later, or 1.6.1 or later:
+From 1.6.0.1 to 1.6.1:
 
 * The ast_agi_register_multiple() and ast_agi_unregister_multiple()
   API calls were added in 1.6.0, so that modules that provide multiple
@@ -25,3 +25,59 @@ From 1.6.0.1 to 1.6.0.2 or later, or 1.6.1 or later:
   to better match what it really does, and the argument order has been
   changed to be consistent with other API calls that perform similar
   operations.
+
+From 1.6.0.x to 1.6.1:
+
+* The following core commands dealing with dialplan have been deprecated: 'core
+  show globals', 'core set global' and 'core set chanvar'. Use the equivalent
+  'dialplan show globals', 'dialplan set global' and 'dialplan set chanvar'
+  instead.
+
+* In the dialplan expression parser, the logical value of spaces
+  immediately preceding a standalone 0 previously evaluated to
+  true. It now evaluates to false.  This has confused a good many
+  people in the past (typically because they failed to realize the
+  space had any significance).  Since this violates the Principle of
+  Least Surprise, it has been changed.
+
+* While app_directory has always relied on having a voicemail.conf or users.conf file
+  correctly set up, it now is dependent on app_voicemail being compiled as well.
+
+* SIP: All of the functionality in SIPCHANINFO() has been implemented in CHANNEL(),
+  and you should start using that function instead for retrieving information about
+  the channel in a technology-agnostic way.
+
+* If you have any third party modules which use a config file variable whose
+  name ends in a '+', please note that the append capability added to this
+  version may now conflict with that variable naming scheme.  An easy
+  workaround is to ensure that a space occurs between the '+' and the '=',
+  to differentiate your variable from the append operator.  This potential
+  conflict is unlikely, but is documented here to be thorough.
+
+From 1.6.1 to 1.6.2:
+
+* The default console now will use colors according to the default background
+  color, instead of forcing the background color to black.  If you are using a
+  light colored background for your console, you may wish to use the option
+  flag '-W' to present better color choices for the various messages.  However,
+  if you'd prefer the old method of forcing colors to white text on a black
+  background, the compatibility option -B is provided for this purpose.
+
+* SendImage() no longer hangs up the channel on transmission error or on
+  any other error; in those cases, a FAILURE status is stored in
+  SENDIMAGESTATUS and dialplan execution continues.  The possible
+  return values stored in SENDIMAGESTATUS are: SUCCESS, FAILURE, and
+  UNSUPPORTED. ('OK' has been replaced with 'SUCCESS', and 'NOSUPPORT'
+  has been replaced with 'UNSUPPORTED').  This change makes the
+  SendImage application more consistent with other applications.
+
+* skinny.conf now has seperate sections for lines and devices.
+  Please have a look at configs/skinny.conf.sample and update
+  your skinny.conf.
+
+* Queue names previously were treated in a case-sensitive manner,
+  meaning that queues with names like "sales" and "sALeS" would be
+  seen as unique queues. The parsing logic has changed to use
+  case-insensitive comparisons now when originally hashing based on
+  queue names, meaning that now the two queues mentioned as examples
+  earlier will be seen as having the same name.

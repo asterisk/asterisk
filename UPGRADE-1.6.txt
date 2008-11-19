@@ -4,6 +4,7 @@
 ===
 === UPGRADE-1.2.txt -- Upgrade info for 1.0 to 1.2
 === UPGRADE-1.4.txt -- Upgrade info for 1.2 to 1.4
+=== UPGRADE.txt     -- Upgrade info for 1.4 to 1.6
 =========================================================
 
 AEL:
@@ -62,27 +63,6 @@ Core:
 * The concise versions of various CLI commands are now deprecated. We recommend
   using the manager interface (AMI) for application integration with Asterisk.
 
-* The following core commands dealing with dialplan has been deprecated: 'core
-  show globals', 'core set global' and 'core set chanvar'. Use the equivalent
-  'dialplan show globals', 'dialplan set global' and 'dialplan set chanvar'
-  instead.
-
-* The silencethreshold used for various applications is now settable via a
-  centralized config option in dsp.conf.
-
-* The logical value of spaces immediately preceding a standalone 0 previously
-  evaluated to true.  It now evaluates to false.  This has confused a good
-  many people in the past (typically because they failed to realize the space
-  had any significance).  Since this violates the Principle of Least Surprise,
-  it has been changed.
-
-* The default console now will use colors according to the default background
-  color, instead of forcing the background color to black.  If you are using a
-  light colored background for your console, you may wish to use the option
-  flag '-W' to present better color choices for the various messages.  However,
-  if you'd prefer the old method of forcing colors to white text on a black
-  background, the compatiblity option -B is provided for this purpose.
-
 Voicemail:
 
 * The voicemail configuration values 'maxmessage' and 'minmessage' have
@@ -100,18 +80,8 @@ Voicemail:
   Examples of situations that would require this option are web interfaces to
   voicemail or an email client in the case of using IMAP storage.
 
-* The externnotify script should accept an additional (last) parameter
-  containing the number of urgent messages in the INBOX.
-
 Applications:
 
-* SendImage() no longer hangs up the channel on transmission error or on
-  another type of error; in those cases, a FAILURE status is stored in 
-  SENDIMAGESTATUS and dialplan execution continues.  The possible return values
-  stored in SENDIMAGESTATUS are: SUCCESS, FAILURE, and UNSUPPORTED. ('OK' has
-  been replaced with 'SUCCESS', and 'NOSUPPORT' has been replaced with
-  'UNSUPPORTED').  This change makes the SendImage application more consistent
-  with other applications.
 
 * ChanIsAvail() now has a 't' option, which allows the specified device
   to be queried for state without consulting the channel drivers. This
@@ -153,9 +123,6 @@ Applications:
 
 * SetMusicOnHold is now deprecated. You should use Set(CHANNEL(musicclass)=...)
   instead.
-
-* While app_directory has always relied on having a voicemail.conf or users.conf file
-  correctly set up, it now is dependent on app_voicemail being compiled as well.
 
 * The arguments in ExecIf changed a bit, to be more like other applications.
   The syntax is now ExecIf(<cond>?appiftrue(args):appiffalse(args)).
@@ -221,10 +188,6 @@ Channel Drivers:
   The "username" setting still work, but is deprecated and will not work in 
   the next version of Asterisk.
 
-* SIP: All of the functionality in SIPCHANINFO() has been implemented in CHANNEL(),
-  and you should start using that function instead for retrieving information about
-  the channel in a technology-agnostic way.
-
 * chan_local.c: the comma delimiter inside the channel name has been changed to a
   semicolon, in order to make the Local channel driver compatible with the comma
   delimiter change in applications.
@@ -257,17 +220,6 @@ Configuration:
 * queues.conf: the queue-lessthan sound file option is no longer available, and the
   queue-round-seconds option no longer takes '1' as a valid parameter.
 
-* If you have any third party modules which use a config file variable whose
-  name ends in a '+', please note that the append capability added to this
-  version may now conflict with that variable naming scheme.  An easy
-  workaround is to ensure that a space occurs between the '+' and the '=',
-  to differentiate your variable from the append operator.  This potential
-  conflict is unlikely, but is documented here to be thorough.
-
-* skinny.conf now has seperate sections for lines and devices.
-  Please have a look at configs/skinny.conf.sample and update
-  your skinny.conf.
-
 Manager:
 
 * Manager has been upgraded to version 1.1 with a lot of changes. 
@@ -277,25 +229,12 @@ Manager:
   output of the SIPpeers command.
 
 * cdr_manager now reports at the "cdr" level, not at "call"  You may need to
-  change your manager.conf to add the level to existing AMI users, if they
-  want to see the CDR events generated.
+   change your manager.conf to add the level to existing AMI users, if they
+   want to see the CDR events generated.
 
 * The Originate command now requires the Originate write permission.  For
-  Originate with the Application parameter, you need the additional System
-  privilege if you want to do anything that calls out to a subshell.
-
-Queues:
-
-* New queue log events ADDMEMBER and REMOVEMEMBER have been added.  Also, a
-  new value has been added to the TRANSFER event that indicates the caller's
-  original position in the queue they are being transfered from.
-
-* Prior to Asterisk 1.6.2, queue names were treated in a case-sensitive
-  manner, meaning that queues with names like "sales" and "sALeS" would
-  be seen as unique queues. The parsing logic has changed to use case-
-  insensitive comparisons now when originally hashing based on queue
-  names, meaning that now the two queues mentioned as examples earlier
-  will be seen as having the same name.
+   Originate with the Application parameter, you need the additional System
+   privilege if you want to do anything that calls out to a subshell.
 
 iLBC Codec:
 
