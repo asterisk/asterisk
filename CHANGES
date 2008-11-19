@@ -68,6 +68,8 @@ Application Changes
    wish to validate or invalidate the password given.  Arguments are:
    "mailbox" "context" "oldpass" "newpass".  See the sample voicemail.conf for
    more details
+ * The voicemail externnotify script now accepts an additional (last) parameter
+   containing the number of urgent messages in the INBOX.
  * Dial has a new option: F(context^extension^pri), which permits a callee to
    continue in the dialplan, at the specified label, if the caller hangs up.
  * ChanSpy and ExtenSpy have a new option, 's' which suppresses speaking the
