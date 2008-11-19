@@ -35,6 +35,8 @@ Dialplan Functions
  * Added a new dialplan function, LISTFILTER, which permits removing elements
    from a set list, by name.  Uses the same general syntax as the existing CUT
    and FIELDQTY dialplan functions, which also manage lists.
+ * Added REALTIME_FIELD and REALTIME_HASH, which should aid users in better
+   obtaining realtime data from the dialplan.
 
 Applications
 ------------
