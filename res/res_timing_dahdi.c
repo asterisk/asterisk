@@ -25,6 +25,8 @@
 
 /*** MODULEINFO
 	<depend>dahdi</depend>
+	<conflict>res_timing_timerfd</conflict>
+	<conflict>res_timing_pthread</conflict>
  ***/
 
 #include "asterisk.h"

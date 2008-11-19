@@ -23,6 +23,11 @@
  * \brief pthread timing interface 
  */
 
+/*** MODULEINFO
+	<conflict>res_timing_timerfd</conflict>
+	<conflict>res_timing_dahdi</conflict>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$");

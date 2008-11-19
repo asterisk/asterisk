@@ -252,3 +252,4 @@ TINFO_DIR=@TINFO_DIR@
 
 # if poll is not present, let the makefile know.
 POLL_AVAILABLE=@HAS_POLL@
+TIMERFD_INCLUDE=@TIMERFD_INCLUDE@

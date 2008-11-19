@@ -283,6 +283,7 @@ AST_EXT_LIB_SETUP([VORBIS], [Vorbis], [vorbis])
 AST_EXT_LIB_SETUP([VPB], [Voicetronix API], [vpb])
 AST_EXT_LIB_SETUP([X11], [X11 support], [x11])
 AST_EXT_LIB_SETUP([ZLIB], [zlib], [z])
+AST_EXT_LIB_SETUP([TIMERFD], [timerfd], [timerfd])
 
 # check for basic system features and functionality before
 # checking for package libraries
@@ -651,6 +652,7 @@ AST_EXT_LIB_CHECK([FLOOR], [m], [floor])
 AST_EXT_LIB_CHECK([CEIL], [m], [ceil])
 
 AST_C_COMPILE_CHECK([GETIFADDRS], [struct ifaddrs *p; getifaddrs(&p)], [ifaddrs.h], , [getifaddrs() support])
+AST_C_COMPILE_CHECK([TIMERFD], [timerfd_create(0,0); timerfd_settime(0,0,NULL,NULL);], [sys/timerfd.h], , [timerfd support])
 
 GSM_INTERNAL="yes"
 AC_SUBST(GSM_INTERNAL)

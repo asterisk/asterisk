@@ -994,6 +994,12 @@
 /* Define to 1 if you have the <termios.h> header file. */
 #undef HAVE_TERMIOS_H
 
+/* Define if your system has the TIMERFD headers. */
+#undef HAVE_TIMERFD
+
+/* Define TIMERFD headers version */
+#undef HAVE_TIMERFD_VERSION
+
 /* Define to 1 if your system defines timersub. */
 #undef HAVE_TIMERSUB
 
@@ -1202,9 +1208,6 @@
 #endif
 #ifndef _POSIX_PTHREAD_SEMANTICS
 # undef _POSIX_PTHREAD_SEMANTICS
-#endif
-#ifndef _TANDEM_SOURCE
-# undef _TANDEM_SOURCE
 #endif
 
 /* Define like PROTOTYPES; this can be used by system headers. */
