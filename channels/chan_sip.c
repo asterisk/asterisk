@@ -4487,7 +4487,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	int outgoing = fup->outgoing_call;
 	struct sip_user *u = NULL;
 	struct sip_peer *p = NULL;
-	ast_mutex_t *pu_lock;
+	ast_mutex_t *pu_lock = NULL;
 
 	ast_debug(3, "Updating call counter for %s call\n", outgoing ? "outgoing" : "incoming");
 
