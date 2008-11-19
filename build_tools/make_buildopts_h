@@ -26,13 +26,8 @@ then
 	echo "#define AST_DEVMODE 1"
 	TMP="${TMP} AST_DEVMODE"
 fi
-for x in md5 digest md5sum gmd5sum; do
-	BUILDSUM=`echo ${TMP} | $x 2> /dev/null`
-	if [ $? = 0 ]; then
-		BUILDSUM=`echo ${BUILDSUM} | cut -c1-32`
-		break;
-	fi
-done
+
+BUILDSUM=`echo ${TMP} | ${MD5} | cut -c1-32`
 
 echo "#define AST_BUILDOPT_SUM \"${BUILDSUM}\""
 echo "#define AST_BUILDOPTS \"${BUILDOPTS}\""

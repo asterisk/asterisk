@@ -716,6 +716,7 @@ XMLSTARLET
 FETCH
 DOWNLOAD
 SOXMIX
+MD5
 acx_pthread_config
 PTHREAD_CC
 PTHREAD_LIBS
@@ -7510,6 +7511,53 @@ _ACEOF
 
 fi
 
+for ac_prog in md5 md5sum gmd5sum digest
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+{ echo "$as_me:$LINENO: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6; }
+if test "${ac_cv_prog_MD5+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  if test -n "$MD5"; then
+  ac_cv_prog_MD5="$MD5" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_prog_MD5="$ac_prog"
+    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+IFS=$as_save_IFS
+
+fi
+fi
+MD5=$ac_cv_prog_MD5
+if test -n "$MD5"; then
+  { echo "$as_me:$LINENO: result: $MD5" >&5
+echo "${ECHO_T}$MD5" >&6; }
+else
+  { echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+fi
+
+
+  test -n "$MD5" && break
+done
+
+
+if test "${MD5}" = "digest" ; then
+   MD5="${MD5} -a md5"
+fi
+
 
 
 
@@ -13208,13 +13256,11 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-#include <sys/types.h> /* for off_t */
-     #include <stdio.h>
+#include <stdio.h>
 int
 main ()
 {
-int (*fp) (FILE *, off_t, int) = fseeko;
-     return fseeko (stdin, 0, 0) && fp (stdin, 0, 0);
+return fseeko (stdin, 0, 0) && (fseeko) (stdin, 0, 0);
   ;
   return 0;
 }
@@ -13254,13 +13300,11 @@ cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
 #define _LARGEFILE_SOURCE 1
-#include <sys/types.h> /* for off_t */
-     #include <stdio.h>
+#include <stdio.h>
 int
 main ()
 {
-int (*fp) (FILE *, off_t, int) = fseeko;
-     return fseeko (stdin, 0, 0) && fp (stdin, 0, 0);
+return fseeko (stdin, 0, 0) && (fseeko) (stdin, 0, 0);
   ;
   return 0;
 }
@@ -51988,6 +52032,7 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+MD5!$MD5$ac_delim
 acx_pthread_config!$acx_pthread_config$ac_delim
 PTHREAD_CC!$PTHREAD_CC$ac_delim
 PTHREAD_LIBS!$PTHREAD_LIBS$ac_delim
@@ -52084,7 +52129,6 @@ PBX_LTDL!$PBX_LTDL$ac_delim
 LUA_LIB!$LUA_LIB$ac_delim
 LUA_INCLUDE!$LUA_INCLUDE$ac_delim
 LUA_DIR!$LUA_DIR$ac_delim
-PBX_LUA!$PBX_LUA$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -52126,6 +52170,7 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+PBX_LUA!$PBX_LUA$ac_delim
 MISDN_LIB!$MISDN_LIB$ac_delim
 MISDN_INCLUDE!$MISDN_INCLUDE$ac_delim
 MISDN_DIR!$MISDN_DIR$ac_delim
@@ -52222,7 +52267,6 @@ SQLITE_LIB!$SQLITE_LIB$ac_delim
 SQLITE_INCLUDE!$SQLITE_INCLUDE$ac_delim
 SQLITE_DIR!$SQLITE_DIR$ac_delim
 PBX_SQLITE!$PBX_SQLITE$ac_delim
-SQLITE3_LIB!$SQLITE3_LIB$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -52264,6 +52308,7 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+SQLITE3_LIB!$SQLITE3_LIB$ac_delim
 SQLITE3_INCLUDE!$SQLITE3_INCLUDE$ac_delim
 SQLITE3_DIR!$SQLITE3_DIR$ac_delim
 PBX_SQLITE3!$PBX_SQLITE3$ac_delim
@@ -52360,7 +52405,7 @@ CURL_CONFIG!$CURL_CONFIG$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 94; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 95; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

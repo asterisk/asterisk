@@ -190,6 +190,12 @@ if test "${SOXMIX}" != ":" ; then
 	AC_DEFINE([HAVE_SOXMIX], 1, [Define to 1 if your system has soxmix application.])
 fi
 
+AC_CHECK_PROGS([MD5], [md5 md5sum gmd5sum digest])
+
+if test "${MD5}" = "digest" ; then
+   MD5="${MD5} -a md5"   
+fi
+
 ACX_PTHREAD
 
 AC_LANG(C)
