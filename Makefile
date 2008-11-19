@@ -92,6 +92,7 @@ export DOWNLOAD
 export AWK
 export GREP
 export ID
+export MD5
 
 # even though we could use '-include makeopts' here, use a wildcard
 # lookup anyway, so that make won't try to build makeopts if it doesn't

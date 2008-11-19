@@ -30,7 +30,7 @@ elif [ -d .svn ]; then
       fi
 
       if [ ${BRANCH} != 0 ] ; then
-	  if [ -z ${RESULT} ] ; then
+	  if [ -z "${RESULT}" ] ; then
 	    RESULT="${PART}"
 	  else
 	    RESULT="${RESULT}-${PART}"
@@ -39,7 +39,7 @@ elif [ -d .svn ]; then
       fi
 
       if [ ${TEAM} != 0 ] ; then
-	  if [ -z ${RESULT} ] ; then
+	  if [ -z "${RESULT}" ] ; then
 	    RESULT="${PART}"
 	  else
 	    RESULT="${RESULT}-${PART}"
