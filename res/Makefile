@@ -36,4 +36,4 @@ snmp/agent.o: ASTCFLAGS+=$(MENUSELECT_OPTS_res_snmp:%=-D%) $(foreach dep,$(MENUS
 $(if $(filter res_snmp,$(EMBEDDED_MODS)),modules.link,res_snmp.so): snmp/agent.o
 
 clean::
-	rm -f snmp/*.o
+	rm -f snmp/*.o snmp/*.i

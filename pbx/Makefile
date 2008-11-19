@@ -32,7 +32,7 @@ all: _all
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
 clean::
-	rm -f ael/*.o
+	rm -f ael/*.o ael/*.i
 
 ael/ael_lex.o: ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h
 ael/ael_lex.o: ASTCFLAGS+=-I. -Wno-unused
