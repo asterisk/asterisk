@@ -933,3 +933,11 @@ Miscellaneous
     consoles, you may want to try using this option. This option is enabled by default
     on Darwin systems since it is known that the Darwin poll() implementation has
     odd issues.
+
+Timer Changes
+--------------------
+* In addition to timing from DAHDI, there is a new timing module called
+  res_timing_timerfd. In order to use this, you must be running Linux with
+  a kernel version 2.6.25 or newer as well as glibc 2.8 or newer. The configure
+  script will be able to tell if you have the requirements. From menuselect, select
+  res_timing_timerfd from the Resource Modules menu.
