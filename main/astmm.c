@@ -114,6 +114,7 @@ static inline void *__ast_alloc_region(size_t size, const enum func_type which, 
 	if (!(reg = malloc(size + sizeof(*reg) + sizeof(*fence)))) {
 		astmm_log("Memory Allocation Failure - '%d' bytes in function %s "
 			  "at line %d of %s\n", (int) size, func, lineno, file);
+		return NULL;
 	}
 
 	ast_copy_string(reg->file, file, sizeof(reg->file));
