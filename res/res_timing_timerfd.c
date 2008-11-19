@@ -158,7 +158,7 @@ static void timerfd_timer_ack(int handle, unsigned int quantity)
 	} while (read_result != sizeof(expirations));
 
 	if (expirations != quantity) {
-		ast_debug(2, "Expected to acknowledge %u ticks but got %llu instead\n", quantity, expirations);
+		ast_debug(2, "Expected to acknowledge %u ticks but got %llu instead\n", quantity, (unsigned long long) expirations);
 	}
 }
 
