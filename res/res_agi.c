@@ -2731,7 +2731,7 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int
 		switch(res) {
 		case RESULT_SHOWUSAGE:
 			ast_agi_send(agi->fd, chan, "520-Invalid command syntax.  Proper usage follows:\n");
-			ast_agi_send(agi->fd, NULL, "%s", c->usage);
+			ast_agi_send(agi->fd, chan, "%s", c->usage);
 			ast_agi_send(agi->fd, chan, "520 End of proper usage.\n");
 			break;
 		case AST_PBX_KEEPALIVE:
