@@ -158,7 +158,7 @@ static int load_config(int reload)
 	struct ast_variable *mappingvar;
 	const char *tmp;
 
-	if (!(cfg = ast_config_load(config_file, config_flags))) {
+	if (!(cfg = ast_config_load(config_file, config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
 		if (reload)
 			ast_log(LOG_WARNING, "Failed to reload configuration file.\n");
 		else

@@ -370,7 +370,7 @@ static int config_module(int reload)
 	struct ast_config *cfg;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if ((cfg = ast_config_load(config, config_flags)) == NULL) {
+	if ((cfg = ast_config_load(config, config_flags)) == NULL || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "Unable to load config for PostgreSQL CDR's: %s\n", config);
 		return -1;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)

@@ -62,6 +62,11 @@ static int load_config(int reload)
 	if (cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 
+	if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file '%s' could not be parsed\n", CONF_FILE);
+		return 1;
+	}
+
 	if (reload && customfields) {
 		ast_free(customfields);
 	}

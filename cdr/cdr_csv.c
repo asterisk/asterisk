@@ -100,7 +100,7 @@ static int load_config(int reload)
 	loguniqueid = 0;
 	loguserfield = 0;
 
-	if (!(cfg = ast_config_load(config, config_flags))) {
+	if (!(cfg = ast_config_load(config, config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "unable to load config: %s\n", config);
 		return 0;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)

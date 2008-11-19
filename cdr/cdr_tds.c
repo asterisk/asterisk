@@ -426,7 +426,7 @@ static int tds_load_module(int reload)
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	cfg = ast_config_load(config, config_flags);
-	if (!cfg) {
+	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_NOTICE, "Unable to load TDS config for CDRs: %s\n", config);
 		return 0;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)

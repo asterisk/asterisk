@@ -190,7 +190,7 @@ static void load_config(int reload)
 	struct cli_alias *alias;
 	struct ast_variable *v, *v1;
 
-	if (!(cfg = ast_config_load(config_file, config_flags))) {
+	if (!(cfg = ast_config_load(config_file, config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "res_clialiases configuration file '%s' not found\n", config_file);
 		return;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {

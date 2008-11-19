@@ -67,6 +67,11 @@ static int load_config(int reload)
 	if ((cfg = ast_config_load("cdr_custom.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 
+	if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Invalid config file\n");
+		return 1;
+	}
+
 	strcpy(format, "");
 	strcpy(master, "");
 	ast_mutex_lock(&lock);

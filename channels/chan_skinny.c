@@ -6477,7 +6477,7 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
   	cfg = ast_config_load(config, config_flags);
   
   	/* We *must* have a config file otherwise stop immediately */
-  	if (!cfg) {
+  	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
  		ast_log(LOG_NOTICE, "Unable to load config %s, Skinny disabled.\n", config);
   		return -1;
   	}

@@ -1101,8 +1101,8 @@ int misdn_cfg_init(int this_max_ports, int reload)
 	struct ast_variable *v;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if (!(cfg = ast_config_load2(config, "chan_misdn", config_flags))) {
-		ast_log(LOG_WARNING, "missing file: misdn.conf\n");
+	if (!(cfg = ast_config_load2(config, "chan_misdn", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_WARNING, "missing or invalid file: misdn.conf\n");
 		return -1;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;

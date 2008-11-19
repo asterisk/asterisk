@@ -1721,7 +1721,7 @@ int ast_xmldoc_load_documentation(void)
 	/* setup default XML documentation language */
 	snprintf(documentation_language, sizeof(documentation_language), default_documentation_language);
 
-	if ((cfg = ast_config_load2("asterisk.conf", "" /* core can't reload */, cnfflags))) {
+	if ((cfg = ast_config_load2("asterisk.conf", "" /* core can't reload */, cnfflags)) && cfg != CONFIG_STATUS_FILEINVALID) {
 		for (var = ast_variable_browse(cfg, "options"); var; var = var->next) {
 			if (!strcasecmp(var->name, "documentation_language")) {
 				if (!ast_strlen_zero(var->value)) {

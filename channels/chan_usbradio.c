@@ -3510,7 +3510,7 @@ static struct chan_usbradio_pvt *store_config(struct ast_config *cfg, char *ctg)
 	o->txctcssadj = 200;
 	o->rxsquelchadj = 500;
 	o->devstr[0] = 0;
-	if (cfg1) {
+	if (cfg1 && cfg1 != CONFIG_STATUS_FILEINVALID) {
 		for (v = ast_variable_browse(cfg1, o->name); v; v = v->next) {
 	
 			M_START((char *)v->name, (char *)v->value);
@@ -3942,9 +3942,9 @@ static int load_module(void)
 
 	/* load config file */
 #ifdef	NEW_ASTERISK
-	if (!(cfg = ast_config_load(config,zeroflag))) {
+	if (!(cfg = ast_config_load(config,zeroflag)) || cfg == CONFIG_STATUS_FILEINVALID) {
 #else
-	if (!(cfg = ast_config_load(config))) {
+	if (!(cfg = ast_config_load(config))) || cfg == CONFIG_STATUS_FILEINVALID {
 #endif
 		ast_log(LOG_NOTICE, "Unable to load config %s\n", config);
 		return AST_MODULE_LOAD_DECLINE;

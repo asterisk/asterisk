@@ -97,7 +97,7 @@ static int load_config(void)
 	struct ast_flags config_flags = { 0 }; /* Part of our config comes from the database */
 
 	cfg = ast_config_load(CONFIG, config_flags);
-	if (!cfg) {
+	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "Unable to load " CONFIG ".  No adaptive ODBC CDRs.\n");
 		return -1;
 	}

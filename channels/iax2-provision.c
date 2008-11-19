@@ -493,7 +493,7 @@ int iax_provision_reload(int reload)
 		iax_provision_init();
 	
 	cfg = ast_config_load2("iaxprov.conf", "chan_iax2", config_flags);
-	if (cfg != NULL && cfg != CONFIG_STATUS_FILEUNCHANGED) {
+	if (cfg != NULL && cfg != CONFIG_STATUS_FILEUNCHANGED && cfg != CONFIG_STATUS_FILEINVALID) {
 		/* Mark all as dead.  No need for locking */
 		cur = templates;
 		while(cur) {

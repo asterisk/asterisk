@@ -475,7 +475,7 @@ static void load_config(void)
 	const char *cat = NULL;
 	struct ast_flags config_flags = { 0 };
 
-	if (!(cfg = ast_config_load(filename, config_flags)))
+	if (!(cfg = ast_config_load(filename, config_flags)) || cfg == CONFIG_STATUS_FILEINVALID)
 		return;
 
 	while ((cat = ast_category_browse(cfg, cat))) {
