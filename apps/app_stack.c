@@ -491,11 +491,11 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, char **arg
 		/* Lookup the priority label */
 		if ((priority = ast_findlabel_extension(chan, argv[1], argv[2], argv[3], chan->cid.cid_num)) < 0) {
 			ast_log(LOG_ERROR, "Priority '%s' not found in '%s@%s'\n", argv[3], argv[2], argv[1]);
-			ast_agi_fdprintf(chan, agi->fd, "200 result=-1 Gosub label not found\n");
+			ast_agi_send(agi->fd, chan, "200 result=-1 Gosub label not found\n");
 			return RESULT_FAILURE;
 		}
 	} else if (!ast_exists_extension(chan, argv[1], argv[2], priority, chan->cid.cid_num)) {
-		ast_agi_fdprintf(chan, agi->fd, "200 result=-1 Gosub label not found\n");
+		ast_agi_send(agi->fd, chan, "200 result=-1 Gosub label not found\n");
 		return RESULT_FAILURE;
 	}
 
@@ -506,7 +506,7 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, char **arg
 
 	if (!(theapp = pbx_findapp("Gosub"))) {
 		ast_log(LOG_ERROR, "Gosub() cannot be found in the list of loaded applications\n");
-		ast_agi_fdprintf(chan, agi->fd, "503 result=-2 Gosub is not loaded\n");
+		ast_agi_send(agi->fd, chan, "503 result=-2 Gosub is not loaded\n");
 		return RESULT_FAILURE;
 	}
 
@@ -540,19 +540,19 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, char **arg
 			struct ast_pbx *pbx = chan->pbx;
 			/* Suppress warning about PBX already existing */
 			chan->pbx = NULL;
-			ast_agi_fdprintf(chan, agi->fd, "100 result=0 Trying...\n");
+			ast_agi_send(agi->fd, chan, "100 result=0 Trying...\n");
 			ast_pbx_run(chan);
-			ast_agi_fdprintf(chan, agi->fd, "200 result=0 Gosub complete\n");
+			ast_agi_send(agi->fd, chan, "200 result=0 Gosub complete\n");
 			if (chan->pbx) {
 				ast_free(chan->pbx);
 			}
 			chan->pbx = pbx;
 		} else {
-			ast_agi_fdprintf(chan, agi->fd, "200 result=%d Gosub failed\n", res);
+			ast_agi_send(agi->fd, chan, "200 result=%d Gosub failed\n", res);
 		}
 		ast_free(gosub_args);
 	} else {
-		ast_agi_fdprintf(chan, agi->fd, "503 result=-2 Memory allocation failure\n");
+		ast_agi_send(agi->fd, chan, "503 result=-2 Memory allocation failure\n");
 		return RESULT_FAILURE;
 	}
 

@@ -66,11 +66,53 @@ typedef struct agi_command {
 #define AGI_WEAK
 #endif
 
-int AGI_WEAK ast_agi_fdprintf(struct ast_channel *chan, int fd, char *fmt, ...);
+/*!
+ * \brief
+ *
+ * Sends a string of text to an application connected via AGI.
+ *
+ * \param fd The file descriptor for the AGI session (from struct agi_state)
+ * \param chan Pointer to an associated Asterisk channel, if any
+ * \param fmt printf-style format string
+ * \return 0 for success, -1 for failure
+ *
+ */
+int AGI_WEAK ast_agi_send(int fd, struct ast_channel *chan, char *fmt, ...) __attribute__((format(printf, 3, 4)));
 int AGI_WEAK ast_agi_register(struct ast_module *mod, agi_command *cmd);
 int AGI_WEAK ast_agi_unregister(struct ast_module *mod, agi_command *cmd);
-void AGI_WEAK ast_agi_register_multiple(struct ast_module *mod, agi_command *cmd, int len);
-void AGI_WEAK ast_agi_unregister_multiple(struct ast_module *mod, agi_command *cmd, int len);
+
+/*!
+ * \brief
+ *
+ * Registers a group of AGI commands, provided as an array of struct agi_command
+ * entries.
+ *
+ * \param mod Pointer to the module_info structure for the module that is registering the commands
+ * \param cmd Pointer to the first entry in the array of commands
+ * \param len Length of the array (use the ARRAY_LEN macro to determine this easily)
+ * \return 0 on success, -1 on failure
+ *
+ * \note If any command fails to register, all commands previously registered during the operation
+ * will be unregistered. In other words, this function registers all the provided commands, or none
+ * of them.
+ */
+int AGI_WEAK ast_agi_register_multiple(struct ast_module *mod, struct agi_command *cmd, unsigned int len);
+
+/*!
+ * \brief
+ *
+ * Unregisters a group of AGI commands, provided as an array of struct agi_command
+ * entries.
+ *
+ * \param mod Pointer to the module_info structure for the module that is unregistering the commands
+ * \param cmd Pointer to the first entry in the array of commands
+ * \param len Length of the array (use the ARRAY_LEN macro to determine this easily)
+ * \return 0 on success, -1 on failure
+ *
+ * \note If any command fails to unregister, this function will continue to unregister the
+ * remaining commands in the array; it will not reregister the already-unregistered commands.
+ */
+int AGI_WEAK ast_agi_unregister_multiple(struct ast_module *mod, struct agi_command *cmd, unsigned int len);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
