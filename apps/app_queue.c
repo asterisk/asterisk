@@ -6369,7 +6369,7 @@ static char *handle_queue_remove_member(struct ast_cli_entry *e, int cmd, struct
 		ast_cli(a->fd, "Out of memory\n");
 		return CLI_FAILURE;
 	case RES_NOT_DYNAMIC:
-		ast_cli(a->fd, "Unable to remove interface '%s' from queue'%s': Member is not dynamic\n", interface, queuename);
+		ast_cli(a->fd, "Unable to remove interface '%s' from queue '%s': Member is not dynamic\n", interface, queuename);
 		return CLI_FAILURE;
 	default:
 		return CLI_FAILURE;
