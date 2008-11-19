@@ -1232,12 +1232,11 @@ void ast_backtrace(void)
 #endif
 }
 
-void __ast_verbose(const char *file, int line, const char *func, const char *fmt, ...)
+void __ast_verbose_ap(const char *file, int line, const char *func, const char *fmt, va_list ap)
 {
 	struct logmsg *logmsg = NULL;
 	struct ast_str *buf = NULL;
 	int res = 0;
-	va_list ap;
 
 	if (!(buf = ast_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE)))
 		return;
@@ -1261,9 +1260,7 @@ void __ast_verbose(const char *file, int line, const char *func, const char *fmt
 	}
 
 	/* Build string */
-	va_start(ap, fmt);
 	res = ast_str_set_va(&buf, 0, fmt, ap);
-	va_end(ap);
 
 	/* If the build failed then we can drop this allocated message */
 	if (res == AST_DYNSTR_BUILD_FAILED)
@@ -1289,6 +1286,25 @@ void __ast_verbose(const char *file, int line, const char *func, const char *fmt
 		logger_print_verbose(logmsg);
 		ast_free(logmsg);
 	}
+}
+
+void __ast_verbose(const char *file, int line, const char *func, const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	__ast_verbose_ap(file, line, func, fmt, ap);
+	va_end(ap);
+}
+
+/* No new code should use this directly, but we have the ABI for backwards compat */
+#undef ast_verbose
+void ast_verbose(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+void ast_verbose(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	__ast_verbose_ap("", 0, "", fmt, ap);
+	va_end(ap);
 }
 
 int ast_register_verbose(void (*v)(const char *string)) 

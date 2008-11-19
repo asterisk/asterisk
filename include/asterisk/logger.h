@@ -80,6 +80,10 @@ void __ast_verbose(const char *file, int line, const char *func, const char *fmt
 
 #define ast_verbose(...) __ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__,  __VA_ARGS__)
 
+void __ast_verbose_ap(const char *file, int line, const char *func, const char *fmt, va_list ap);
+
+#define ast_verbose_ap(fmt, ap)	__ast_verbose_ap(__FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ap)
+
 void ast_child_verbose(int level, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
