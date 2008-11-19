@@ -425,15 +425,17 @@ void ast_str_trim_blanks(struct ast_str *buf),
 AST_INLINE_API(
 int _ast_str_make_space(struct ast_str **buf, size_t new_len, const char *file, int lineno, const char *function),
 {
-	_DB1(struct ast_str *old_buf = *buf;)
+	struct ast_str *old_buf = *buf;
 
 	if (new_len <= (*buf)->len) 
 		return 0;	/* success */
 	if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
 		return -1;	/* cannot extend */
 	*buf = (struct ast_str *)__ast_realloc(*buf, new_len + sizeof(struct ast_str), file, lineno, function);
-	if (*buf == NULL) /* XXX watch out, we leak memory here */
+	if (*buf == NULL) {
+		*buf = old_buf;
 		return -1;
+	}
 	if ((*buf)->ts != DS_MALLOC) {
 		pthread_setspecific((*buf)->ts->key, *buf);
 		_DB1(__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));)
@@ -448,15 +450,17 @@ int _ast_str_make_space(struct ast_str **buf, size_t new_len, const char *file, 
 AST_INLINE_API(
 int ast_str_make_space(struct ast_str **buf, size_t new_len),
 {
-	_DB1(struct ast_str *old_buf = *buf;)
+	struct ast_str *old_buf = *buf;
 
 	if (new_len <= (*buf)->len) 
 		return 0;	/* success */
 	if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
 		return -1;	/* cannot extend */
 	*buf = (struct ast_str *)ast_realloc(*buf, new_len + sizeof(struct ast_str));
-	if (*buf == NULL) /* XXX watch out, we leak memory here */
+	if (*buf == NULL) {
+		*buf = old_buf;
 		return -1;
+	}
 	if ((*buf)->ts != DS_MALLOC) {
 		pthread_setspecific((*buf)->ts->key, *buf);
 		_DB1(__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));)
@@ -557,12 +561,8 @@ struct ast_str *__ast_str_thread_get(struct ast_threadstorage *ts,
 /*!
  * \brief Error codes from __ast_str_helper()
  * The undelying processing to manipulate dynamic string is done
- * by __ast_str_helper(), which can return a success, a
- * permanent failure (e.g. no memory), or a temporary one (when
- * the string needs to be reallocated, and we must run va_start()
- * again; XXX this convoluted interface is only here because
- * FreeBSD 4 lacks va_copy, but this will be fixed and the
- * interface simplified).
+ * by __ast_str_helper(), which can return a success or a
+ * permanent failure (e.g. no memory).
  */
 enum {
 	/*! An error has occurred and the contents of the dynamic string
@@ -570,10 +570,35 @@ enum {
 	AST_DYNSTR_BUILD_FAILED = -1,
 	/*! The buffer size for the dynamic string had to be increased, and
 	 *  __ast_str_helper() needs to be called again after
-	 *  a va_end() and va_start().
+	 *  a va_end() and va_start().  This return value is legacy and will
+	 *  no longer be used.
 	 */
 	AST_DYNSTR_BUILD_RETRY = -2
 };
+
+/*!
+ * \brief Core functionality of ast_str_(set|append)_va
+ *
+ * The arguments to this function are the same as those described for
+ * ast_str_set_va except for an addition argument, append.
+ * If append is non-zero, this will append to the current string instead of
+ * writing over it.
+ *
+ * AST_DYNSTR_BUILD_RETRY is a legacy define.  It should probably never
+ * again be used.
+ *
+ * A return of AST_DYNSTR_BUILD_FAILED indicates a memory allocation error.
+ *
+ * A return value greater than or equal to zero indicates the number of
+ * characters that have been written, not including the terminating '\0'.
+ * In the append case, this only includes the number of characters appended.
+ *
+ * \note This function should never need to be called directly.  It should
+ *       through calling one of the other functions or macros defined in this
+ *       file.
+ */
+int __ast_str_helper(struct ast_str **buf, size_t max_len,
+	int append, const char *fmt, va_list ap);
 
 /*!
  * \brief Set a dynamic string from a va_list
@@ -612,62 +637,23 @@ enum {
  *      ...
  * }
  * \endcode
- *
- * \note: the following two functions must be implemented as macros
- *	because we must do va_end()/va_start() on the original arguments.
  */
-#define ast_str_set_va(buf, max_len, fmt, ap)			\
-	({								\
-		int __res;						\
-		while ((__res = __ast_str_helper(buf, max_len,		\
-			0, fmt, ap)) == AST_DYNSTR_BUILD_RETRY) {	\
-			va_end(ap);					\
-			va_start(ap, fmt);				\
-		}							\
-		(__res);						\
-	})
+AST_INLINE_API(int ast_str_set_va(struct ast_str **buf, size_t max_len, const char *fmt, va_list ap),
+{
+	return __ast_str_helper(buf, max_len, 0, fmt, ap);
+}
+)
 
 /*!
  * \brief Append to a dynamic string using a va_list
  *
  * Same as ast_str_set_va(), but append to the current content.
  */
-#define ast_str_append_va(buf, max_len, fmt, ap)		\
-	({								\
-		int __res;						\
-		while ((__res = __ast_str_helper(buf, max_len,		\
-			1, fmt, ap)) == AST_DYNSTR_BUILD_RETRY) {	\
-			va_end(ap);					\
-			va_start(ap, fmt);				\
-		}							\
-		(__res);						\
-	})
-
-/*!
- * \brief Core functionality of ast_str_(set|append)_va
- *
- * The arguments to this function are the same as those described for
- * ast_str_set_va except for an addition argument, append.
- * If append is non-zero, this will append to the current string instead of
- * writing over it.
- *
- * In the case that this function is called and the buffer was not large enough
- * to hold the result, the partial write will be truncated, and the result
- * AST_DYNSTR_BUILD_RETRY will be returned to indicate that the buffer size
- * was increased, and the function should be called a second time.
- *
- * A return of AST_DYNSTR_BUILD_FAILED indicates a memory allocation error.
- *
- * A return value greater than or equal to zero indicates the number of
- * characters that have been written, not including the terminating '\0'.
- * In the append case, this only includes the number of characters appended.
- *
- * \note This function should never need to be called directly.  It should
- *       through calling one of the other functions or macros defined in this
- *       file.
- */
-int __ast_str_helper(struct ast_str **buf, size_t max_len,
-	int append, const char *fmt, va_list ap);
+AST_INLINE_API(int ast_str_append_va(struct ast_str **buf, size_t max_len, const char *fmt, va_list ap),
+{
+	return __ast_str_helper(buf, max_len, 1, fmt, ap);
+}
+)
 
 /*!
  * \brief Set a dynamic string using variable arguments
