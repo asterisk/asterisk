@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/translate.h"
 #include "asterisk/dsp.h"
+#include "asterisk/file.h"
 
 #ifdef TRACE_FRAMES
 static int headers;
@@ -307,10 +308,13 @@ static void frame_cache_cleanup(void *data)
 
 void ast_frame_free(struct ast_frame *fr, int cache)
 {
-	if (ast_test_flag(fr, AST_FRFLAG_FROM_TRANSLATOR))
+	if (ast_test_flag(fr, AST_FRFLAG_FROM_TRANSLATOR)) {
 		ast_translate_frame_freed(fr);
-	else if (ast_test_flag(fr, AST_FRFLAG_FROM_DSP))
+	} else if (ast_test_flag(fr, AST_FRFLAG_FROM_DSP)) {
 		ast_dsp_frame_freed(fr);
+	} else if (ast_test_flag(fr, AST_FRFLAG_FROM_FILESTREAM)) {
+		ast_filestream_frame_freed(fr);
+	}
 
 	if (!fr->mallocd)
 		return;
