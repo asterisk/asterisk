@@ -16067,7 +16067,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	 * response to a BYE.
 	 */
 	if (resp >= 400 && resp < 500 && sipmethod == SIP_BYE) {
-		pvt_set_needdestroy(p, "received 4XX response to a BYE");
+		p->needdestroy = 1;
 		return;
 	}
 
