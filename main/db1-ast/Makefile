@@ -46,8 +46,7 @@ $(PROG): db_dump185.o $(LIBDBSO)
 clean-depend:
 
 clean:
-	rm -f $(LIBDB) $(LIBDBSO) $(OBJS) $(SHOBJS)
-	rm -f *.s *.i
+	rm -f $(LIBDB) $(LIBDBSO) $(OBJS) $(SHOBJS) */*.s */*.i
 
 ASTCFLAGS:=-Wall -D__DBINTERFACE_PRIVATE -I. -I.. -Iinclude -Ihash -Ibtree -Irecno $(ASTCFLAGS)
 
