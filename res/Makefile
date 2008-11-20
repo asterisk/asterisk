@@ -49,5 +49,4 @@ ael/ael.tab.c ael/ael.tab.h:
 ael/pval.o: ael/pval.c
 
 clean::
-	rm -f snmp/*.o
-	rm -f ael/*.o
+	rm -f snmp/*.o snmp/*.i ael/*.o ael/*.i

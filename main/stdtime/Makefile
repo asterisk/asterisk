@@ -14,7 +14,7 @@ clean-depend:
 	rm -f .depend
 
 clean: clean-depend
-	rm -f libtime.a *.o test
+	rm -f libtime.a *.o test *.i
 
 depend: .depend
 
