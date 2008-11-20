@@ -276,7 +276,7 @@ the configuration options.
   If this release of Asterisk was downloaded from a tarball, then some
 additional documentation should have been included.
      * doc/tex/asterisk.pdf --- PDF version of the documentation
-	 * doc/tex/asterisk/index.html --- HTML version of the documentation
+     * doc/tex/asterisk/index.html --- HTML version of the documentation
 
   Finally, you may wish to visit the web site and join the mailing list if
 you're interested in getting more information.
