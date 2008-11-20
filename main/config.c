@@ -420,10 +420,13 @@ const char *ast_variable_retrieve(const struct ast_config *config, const char *c
 	} else {
 		struct ast_category *cat;
 
-		for (cat = config->root; cat; cat = cat->next)
-			for (v = cat->root; v; v = v->next)
-				if (!strcasecmp(variable, v->name))
+		for (cat = config->root; cat; cat = cat->next) {
+			for (v = cat->root; v; v = v->next) {
+				if (!strcasecmp(variable, v->name)) {
 					return v->value;
+				}
+			}
+		}
 	}
 
 	return NULL;
