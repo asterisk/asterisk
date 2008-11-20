@@ -1946,22 +1946,10 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	int r;
 	int exceed;
 	int bridging;
-	struct chan_list *ch = MISDN_ASTERISK_TECH_PVT(ast);
+	struct chan_list *ch;
 	struct misdn_bchannel *newbc;
-	char *opts = NULL, *ext, *tokb;
-	char *dest_cp = ast_strdupa(dest);
-
-	ext = strtok_r(dest_cp, "/", &tokb);
-
-	if (ext) {
-		ext = strtok_r(NULL, "/", &tokb);
-		if (ext) {
-			opts = strtok_r(NULL, "/", &tokb);
-		} else {
-			chan_misdn_log(0, 0, "misdn_call: No Extension given!\n");
-			return -1;
-		}
-	}
+	char *opts, *ext;
+	char *dest_cp;
 
 	if (!ast) {
 		ast_log(LOG_WARNING, " --> ! misdn_call called on ast_channel *ast where ast == NULL\n");
@@ -1975,6 +1963,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		return -1;
 	}
 
+	ch = MISDN_ASTERISK_TECH_PVT(ast);
 	if (!ch) {
 		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", ast->name);
 		ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
@@ -1983,13 +1972,28 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	
 	newbc = ch->bc;
-	
 	if (!newbc) {
 		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", ast->name);
 		ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
 		ast_setstate(ast, AST_STATE_DOWN);
 		return -1;
 	}
+	
+	/*
+	 * dest is ---v
+	 * Dial(mISDN/g:group_name[/extension[/options]])
+	 * Dial(mISDN/port[:preselected_channel][/extension[/options]])
+	 *
+	 * The dial extension could be empty if you are using MISDN_KEYPAD
+	 * to control ISDN provider features.
+	 */
+	dest_cp = ast_strdupa(dest);
+	strsep(&dest_cp, "/");/* Discard port/group token */
+	ext = strsep(&dest_cp, "/");
+	if (!ext) {
+		ext = "";
+	}
+	opts = dest_cp;
 	
 	port = newbc->port;
 
@@ -2979,23 +2983,30 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 {
 	struct ast_channel *tmp = NULL;
 	char group[BUFFERSIZE + 1] = "";
-	char buf[128];
-	char buf2[128], *ext = NULL, *port_str;
-	char *tokb = NULL, *p = NULL;
-	int channel = 0, port = 0;
+	char dial_str[128];
+	char *buf2 = ast_strdupa(data);
+	char *ext;
+	char *port_str;
+	char *p = NULL;
+	int channel = 0;
+	int port = 0;
 	struct misdn_bchannel *newbc = NULL;
 	int dec = 0;
 
 	struct chan_list *cl = init_chan_list(ORG_AST);
 
-	snprintf(buf, sizeof(buf), "%s/%s", misdn_type, (char*)data);
-	ast_copy_string(buf2, data, 128);
+	snprintf(dial_str, sizeof(dial_str), "%s/%s", misdn_type, (char *) data);
 
-	port_str = strtok_r(buf2, "/", &tokb);
-
-	ext = strtok_r(NULL, "/", &tokb);
-
-	if (port_str) {
+	/*
+	 * data is ---v
+	 * Dial(mISDN/g:group_name[/extension[/options]])
+	 * Dial(mISDN/port[:preselected_channel][/extension[/options]])
+	 *
+	 * The dial extension could be empty if you are using MISDN_KEYPAD
+	 * to control ISDN provider features.
+	 */
+	port_str = strsep(&buf2, "/");
+	if (!ast_strlen_zero(port_str)) {
 		if (port_str[0] == 'g' && port_str[1] == ':' ) {
 			/* We make a group call lets checkout which ports are in my group */
 			port_str += 2;
@@ -3011,8 +3022,13 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 			port = atoi(port_str);
 		}
 	} else {
-		ast_log(LOG_WARNING, " --> ! IND : CALL dad:%s WITHOUT PORT/Group, check extensions.conf\n", ext);
+		ast_log(LOG_WARNING, " --> ! IND : Dial(%s) WITHOUT Port or Group, check extensions.conf\n", dial_str);
 		return NULL;
+	}
+
+	ext = strsep(&buf2, "/");
+	if (!ext) {
+		ext = "";
 	}
 
 	if (misdn_cfg_is_group_method(group, METHOD_STANDARD_DEC)) {
@@ -3571,7 +3587,7 @@ static void do_immediate_setup(struct misdn_bchannel *bc, struct chan_list *ch, 
 
 	chan_misdn_log(1, bc->port, "* Starting Ast ctx:%s dad:%s oad:%s with 's' extension\n", ast->context, ast->exten, ast->cid.cid_num);
   
-	strncpy(ast->exten, "s", 2);
+	strcpy(ast->exten, "s");
   
 	if (pbx_start_chan(ch) < 0) {
 		ast = NULL;
@@ -4049,7 +4065,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->originator = ORG_MISDN;
 
 		chan = misdn_new(ch, AST_STATE_RESERVED, bc->dad, bc->oad, AST_FORMAT_ALAW, bc->port, bc->channel);
-
 		if (!chan) {
 			misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
 			ast_log(LOG_ERROR, "cb_events: misdn_new failed !\n"); 
