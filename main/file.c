@@ -407,6 +407,9 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 					ast_free(s);
 					continue;	/* cannot run open on file */
 				}
+				if (st.st_size == 0) {
+					ast_log(LOG_WARNING, "File %s detected to have zero size.\n", fn);
+				}
 				/* ok this is good for OPEN */
 				res = 1;	/* found */
 				s->lasttimeout = -1;
@@ -872,8 +875,19 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	struct ast_filestream *fs;
 	struct ast_filestream *vfs=NULL;
 	char fmt[256];
+	int seekattempt;
 
 	fs = ast_openstream(chan, filename, preflang);
+
+	/* check to see if there is any data present (not a zero length file),
+	 * done this way because there is no where for ast_openstream_full to
+	 * return the file had no data. */
+	seekattempt = fseek(fs->f, -1, SEEK_END);
+	if (!seekattempt)
+		fseek(fs->f, 0, SEEK_SET);
+	else
+		return 0;
+
 	if (fs)
 		vfs = ast_openvstream(chan, filename, preflang);
 	if (vfs) {
