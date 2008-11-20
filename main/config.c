@@ -359,16 +359,18 @@ void ast_variable_insert(struct ast_category *category, struct ast_variable *var
 	int lineno;
 	int insertline;
 
-	if (!variable || sscanf(line, "%d", &insertline) != 1)
+	if (!variable || sscanf(line, "%d", &insertline) != 1) {
 		return;
+	}
 	if (!insertline) {
 		variable->next = category->root;
 		category->root = variable;
 	} else {
 		for (lineno = 1; lineno < insertline; lineno++) {
 			cur = cur->next;
-			if (!cur->next)
+			if (!cur->next) {
 				break;
+			}
 		}
 		variable->next = cur->next;
 		cur->next = variable;
@@ -390,10 +392,11 @@ struct ast_variable *ast_variable_browse(const struct ast_config *config, const 
 {
 	struct ast_category *cat = NULL;
 
-	if (category && config->last_browse && (config->last_browse->name == category))
+	if (category && config->last_browse && (config->last_browse->name == category)) {
 		cat = config->last_browse;
-	else
+	} else {
 		cat = ast_category_get(config, category);
+	}
 
 	return (cat) ? cat->root : NULL;
 }
@@ -402,8 +405,9 @@ const char *ast_config_option(struct ast_config *cfg, const char *cat, const cha
 {
 	const char *tmp;
 	tmp = ast_variable_retrieve(cfg, cat, var);
-	if (!tmp)
+	if (!tmp) {
 		tmp = ast_variable_retrieve(cfg, "general", var);
+	}
 	return tmp;
 }
 
@@ -414,8 +418,9 @@ const char *ast_variable_retrieve(const struct ast_config *config, const char *c
 
 	if (category) {
 		for (v = ast_variable_browse(config, category); v; v = v->next) {
-			if (!strcasecmp(variable, v->name))
+			if (!strcasecmp(variable, v->name)) {
 				return v->value;
+			}
 		}
 	} else {
 		struct ast_category *cat;
