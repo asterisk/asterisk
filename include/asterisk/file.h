@@ -402,6 +402,21 @@ off_t ast_tellstream(struct ast_filestream *fs);
  */ 
 struct ast_frame *ast_readframe(struct ast_filestream *s);
 
+/*!\brief destroy a filestream using an ast_frame as input
+ *
+ * This is a hack that is used also by the ast_trans_pvt and
+ * ast_dsp structures. When a structure contains an ast_frame
+ * pointer as one of its fields. It may be that the frame is
+ * still used after the outer structure is freed. This leads to
+ * invalid memory accesses. This function allows for us to hold
+ * off on destroying the ast_filestream until we are done using
+ * the ast_frame pointer that is part of it
+ *
+ * \param fr The ast_frame that is part of an ast_filestream we wish
+ * to free.
+ */
+void ast_filestream_frame_freed(struct ast_frame *fr);
+
 /*! Initialize file stuff */
 /*!
  * Initializes all the various file stuff.  Basically just registers the cli stuff
