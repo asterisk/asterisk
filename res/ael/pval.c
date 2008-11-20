@@ -3862,7 +3862,7 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 					switch_null->context = this_context;
 					switch_null->is_switch = 1;
 					switch_empty = new_prio();
-					snprintf(buf1,sizeof(buf1),"sw-%d-.|10",local_control_statement_count);
+					snprintf(buf1,sizeof(buf1),"sw-%d-.,10",local_control_statement_count);
 					switch_empty->app = strdup("Goto");
 					switch_empty->appargs = strdup(buf1);
 					linkprio(switch_null, switch_empty, mother_exten);
