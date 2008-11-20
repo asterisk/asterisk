@@ -166,7 +166,7 @@ static int timerfd_timer_enable_continuous(int handle)
 {
 	int res;
 	struct itimerspec continuous_timer = {
-		.it_value.tv_nsec = 1L;
+		.it_value.tv_nsec = 1L,
 	};
 	struct timerfd_timer *our_timer, find_helper = {
 		.handle = handle,
