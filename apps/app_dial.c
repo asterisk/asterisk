@@ -1818,6 +1818,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			/* Again, keep going even if there's an error */
 			ast_debug(1, "ast call on peer returned %d\n", res);
 			ast_verb(3, "Couldn't call %s\n", numsubst);
+			if (tc->hangupcause) {
+				chan->hangupcause = tc->hangupcause;
+			}
 			ast_hangup(tc);
 			tc = NULL;
 			ast_free(tmp);

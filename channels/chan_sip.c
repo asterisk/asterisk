@@ -4870,8 +4870,11 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 
 	res = update_call_counter(p, INC_CALL_RINGING);
 
-	if (res == -1)
+	if (res == -1) {
 		return res;
+	} else {
+		ast->hangupcause = AST_CAUSE_USER_BUSY;
+	}
 
 	p->callingpres = ast->cid.cid_pres;
 	p->jointcapability = ast_translate_available_formats(p->capability, p->prefcodec);
