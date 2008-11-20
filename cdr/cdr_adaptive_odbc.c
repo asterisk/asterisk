@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief Adaptive ODBC CDR backend
- * 
+ *
  * \author Tilghman Lesher <cdr_adaptive_odbc__v1@the-tilghman.com>
  * \ingroup cdr_drivers
  */

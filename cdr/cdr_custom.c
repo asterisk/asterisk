@@ -57,7 +57,7 @@ static char *name = "cdr-custom";
 static char master[PATH_MAX];
 static char format[1024]="";
 
-static int load_config(int reload) 
+static int load_config(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
@@ -85,7 +85,7 @@ static int load_config(int reload)
 				strcat(format,"\n");
 				snprintf(master, sizeof(master),"%s/%s/%s", ast_config_AST_LOG_DIR, name, var->name);
 				if (var->next) {
-					ast_log(LOG_NOTICE, "Sorry, only one mapping is supported at this time, mapping '%s' will be ignored at line %d.\n", var->next->name, var->next->lineno); 
+					ast_log(LOG_NOTICE, "Sorry, only one mapping is supported at this time, mapping '%s' will be ignored at line %d.\n", var->next->name, var->next->lineno);
 					break;
 				}
 			} else
@@ -101,7 +101,7 @@ static int load_config(int reload)
 			ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
 	}
 	ast_mutex_unlock(&lock);
-	
+
 	return res;
 }
 
@@ -158,7 +158,7 @@ static int load_module(void)
 		if (res)
 			ast_log(LOG_ERROR, "Unable to register custom CDR handling\n");
 		return res;
-	} else 
+	} else
 		return AST_MODULE_LOAD_DECLINE;
 }
 

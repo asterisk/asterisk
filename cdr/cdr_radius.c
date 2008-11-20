@@ -21,7 +21,7 @@
  * \brief RADIUS CDR Support
  * \author Philippe Sultan
  * \extref The Radius Client Library - http://developer.berlios.de/projects/radiusclient-ng/
- * 
+ *
  * \arg See also \ref AstCDR
  * \ingroup cdr_drivers
  */
@@ -135,27 +135,27 @@ static int build_radius_record(VALUE_PAIR **tosend, struct ast_cdr *cdr)
 
 
 	/* Start Time */
-	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, 
+	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT,
 		ast_localtime(&cdr->start, &tm,
 			ast_test_flag(&global_flags, RADIUS_FLAG_USEGMTIME) ? "GMT" : NULL));
 	if (!rc_avpair_add(rh, tosend, PW_AST_START_TIME, timestr, strlen(timestr), VENDOR_CODE))
 		return -1;
 
 	/* Answer Time */
-	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, 
+	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT,
 		ast_localtime(&cdr->answer, &tm,
 			ast_test_flag(&global_flags, RADIUS_FLAG_USEGMTIME) ? "GMT" : NULL));
 	if (!rc_avpair_add(rh, tosend, PW_AST_ANSWER_TIME, timestr, strlen(timestr), VENDOR_CODE))
 		return -1;
 
 	/* End Time */
-	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, 
+	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT,
 		ast_localtime(&cdr->end, &tm,
 			ast_test_flag(&global_flags, RADIUS_FLAG_USEGMTIME) ? "GMT" : NULL));
 	if (!rc_avpair_add(rh, tosend, PW_AST_END_TIME, timestr, strlen(timestr), VENDOR_CODE))
 		return -1;
 
- 	/* Duration */ 
+ 	/* Duration */
 	if (!rc_avpair_add(rh, tosend, PW_AST_DURATION, &cdr->duration, 0, VENDOR_CODE))
 		return -1;
 
@@ -186,7 +186,7 @@ static int build_radius_record(VALUE_PAIR **tosend, struct ast_cdr *cdr)
 	}
 
 	/* Setting Acct-Session-Id & User-Name attributes for proper generation
-	   of Acct-Unique-Session-Id on server side */ 
+	   of Acct-Unique-Session-Id on server side */
 	/* Channel */
 	if (!rc_avpair_add(rh, tosend, PW_USER_NAME, &cdr->channel, strlen(cdr->channel), 0))
 		return -1;
@@ -207,7 +207,7 @@ static int radius_log(struct ast_cdr *cdr)
 		ast_debug(1, "Unable to create RADIUS record. CDR not recorded!\n");
 		return result;
 	}
-	
+
 	result = rc_acct(rh, 0, tosend);
 	if (result != OK_RC)
 		ast_log(LOG_ERROR, "Failed to record Radius CDR record!\n");
@@ -235,9 +235,9 @@ static int load_module(void)
 		if ((tmp = ast_variable_retrieve(cfg, "radius", "radiuscfg")))
 			ast_copy_string(radiuscfg, tmp, sizeof(radiuscfg));
 		ast_config_destroy(cfg);
-	} else 
+	} else
 		return AST_MODULE_LOAD_DECLINE;
-	
+
 	/* start logging */
 	rc_openlog("asterisk");
 
@@ -252,7 +252,7 @@ static int load_module(void)
 		ast_log(LOG_NOTICE, "Cannot load radiusclient-ng dictionary file.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	
+
 	res = ast_cdr_register(name, desc, radius_log);
 	return AST_MODULE_LOAD_SUCCESS;
 }

@@ -17,7 +17,7 @@
 /*! \file
  *
  * \brief Asterisk Call Manager CDR records.
- * 
+ *
  * See also
  * \arg \ref AstCDR
  * \arg \ref AstAMI
@@ -80,14 +80,14 @@ static int load_config(int reload)
 		enablecdr = 0;
 		return 0;
 	}
-	
+
 	while ( (cat = ast_category_browse(cfg, cat)) ) {
 		if (!strcasecmp(cat, "general")) {
 			v = ast_variable_browse(cfg, cat);
 			while (v) {
 				if (!strcasecmp(v->name, "enabled"))
 					newenablecdr = ast_true(v->value);
-				
+
 				v = v->next;
 			}
 		} else if (!strcasecmp(cat, "mappings")) {
@@ -102,13 +102,13 @@ static int load_config(int reload)
 						ast_log(LOG_WARNING, "No more buffer space to add other custom fields\n");
 						break;
 					}
-					
+
 				}
 				v = v->next;
 			}
 		}
 	}
-	
+
 	ast_config_destroy(cfg);
 
 	if (enablecdr && !newenablecdr)
@@ -134,7 +134,7 @@ static int manager_log(struct ast_cdr *cdr)
 
 	ast_localtime(&cdr->start, &timeresult, NULL);
 	ast_strftime(strStartTime, sizeof(strStartTime), DATE_FORMAT, &timeresult);
-	
+
 	if (cdr->answer.tv_sec)	{
 		ast_localtime(&cdr->answer, &timeresult, NULL);
 		ast_strftime(strAnswerTime, sizeof(strAnswerTime), DATE_FORMAT, &timeresult);
