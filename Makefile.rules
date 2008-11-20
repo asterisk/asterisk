@@ -3,7 +3,7 @@
 # 
 # Makefile rules
 #
-# Copyright (C) 2006, Digium, Inc.
+# Copyright (C) 2006-2008, Digium, Inc.
 #
 # Kevin P. Fleming <kpfleming@digium.com>
 #
@@ -11,7 +11,6 @@
 # the GNU General Public License
 #
 
-# Rules for various build phases.
 # Each command is preceded by a short comment on what to do.
 # Prefixing one or the other with @\# or @ or nothing makes the desired
 # behaviour. ECHO_PREFIX prefixes the comment, CMD_PREFIX prefixes the command.
@@ -21,15 +20,17 @@
 .PHONY: dist-clean
 
 # extra cflags to build dependencies. Recursively expanded.
-MAKE_DEPS= -MD -MT $@ -MF .$(subst /,_,$@).d -MP
+MAKE_DEPS=-MD -MT $@ -MF .$(subst /,_,$@).d -MP
 
 ifeq ($(NOISY_BUILD),)
     ECHO_PREFIX=@
     CMD_PREFIX=@
 else
-    ECHO_PREFIX=@\#
+    ECHO_PREFIX=@\# 
     CMD_PREFIX=
 endif
+
+OPTIMIZE?=-O6
 
 ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
     # More GSM codec optimization
@@ -38,30 +39,75 @@ ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
     # ppro's, etc, as well as the AMD K6 and K7.  
     #K6OPT=-DK6OPT
 
-    OPTIMIZE?=-O6
     ASTCFLAGS+=$(OPTIMIZE)
 endif
 
-# build rules for various targets
-%.o: %.i
-	$(ECHO_PREFIX) echo "   [CCi] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(MAKE_DEPS)
+# shortcuts for common combinations of flags; these must be recursively expanded so that
+# per-target settings will be applied
+CC_CFLAGS=$(PTHREAD_CFLAGS) $(ASTCFLAGS)
+CXX_CFLAGS=$(PTHREAD_CFLAGS) $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(AST_DECLARATION_AFTER_STATEMENT),$(ASTCFLAGS))
+CC_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK)
+CXX_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK)
+CC_LIBS=$(PTHREAD_LIBS) $(LIBS)
+CXX_LIBS=$(PTHREAD_LIBS) $(LIBS)
 
-%.o: %.c
-	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(MAKE_DEPS)
-
-%.i: %.c
-	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -E $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(MAKE_DEPS)
+# determine whether to double-compile so that the optimizer can report code path problems
+# this is only done when developer mode and DONT_OPTIMIZE are both enabled
+# in that case, we run the preprocessor to produce a .i or .ii file from the source
+# code, then compile once with optimizer enabled (and the output to /dev/null),
+# and if that doesn't fail then compile again with optimizer disabled
+ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))$(AST_DEVMODE),DONT_OPTIMIZEyes)
+COMPILE_DOUBLE=yes
+endif
 
 %.o: %.s
 	$(ECHO_PREFIX) echo "   [AS] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(MAKE_DEPS)
+ifeq ($(COMPILE_DOUBLE),yes)
+	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(CC_CFLAGS) $(OPTIMIZE)
+endif
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS)
+
+%.o: %.i
+	$(ECHO_PREFIX) echo "   [CCi] $< -> $@"
+ifeq ($(COMPILE_DOUBLE),yes)
+	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(CC_CFLAGS) $(OPTIMIZE)
+endif
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS)
+
+%.o: %.c
+	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
+ifeq ($(COMPILE_DOUBLE),yes)
+	$(CMD_PREFIX) $(CC) -o $(@:%.o=%.i) -E $< $(CC_CFLAGS) $(MAKE_DEPS)
+	$(CMD_PREFIX) $(CC) -o /dev/null -c $(@:%.o=%.i) $(CC_CFLAGS) $(OPTIMIZE)
+	$(CMD_PREFIX) $(CC) -o $@ -c $(@:%.o=%.i) $(CC_CFLAGS)
+else
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS) $(MAKE_DEPS)
+endif
+
+%.i: %.c
+	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
+	$(CMD_PREFIX) $(CC) -o $@ -E $< $(CC_CFLAGS) $(MAKE_DEPS)
+
+%.oo: %.ii
+	$(ECHO_PREFIX) echo "   [CXXi] $< -> $@"
+ifeq ($(COMPILE_DOUBLE),yes)
+	$(CMD_PREFIX) $(CXX) -o /dev/null -c $< $(CXX_CFLAGS) $(OPTIMIZE)
+endif
+	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(CXX_CFLAGS)
 
 %.oo: %.cc
 	$(ECHO_PREFIX) echo "   [CXX] $< -> $@"
-	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(PTHREAD_CFLAGS) $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(AST_DECLARATION_AFTER_STATEMENT),$(ASTCFLAGS)) $(MAKE_DEPS)
+ifeq ($(COMPILE_DOUBLE),yes)
+	$(CMD_PREFIX) $(CXX) -o $(@:%.oo=%.ii) -E $< $(CXX_CFLAGS) $(MAKE_DEPS)
+	$(CMD_PREFIX) $(CXX) -o /dev/null -c $(@:%.oo=%.ii) $(CXX_CFLAGS) $(MAKE_DEPS) $(OPTIMIZE)
+	$(CMD_PREFIX) $(CXX) -o $@ -c $(@:%.oo=%.ii) $(CXX_CFLAGS) $(MAKE_DEPS)
+else
+	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(CXX_CFLAGS) $(MAKE_DEPS)
+endif
+
+%.ii: %.cc
+	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
+	$(CMD_PREFIX) $(CXX) -o $@ -E $< $(CXX_CFLAGS) $(MAKE_DEPS)
 
 %.c: %.y
 	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"
@@ -73,11 +119,11 @@ endif
 
 %.so: %.o
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
-	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK) $^ $(PTHREAD_LIBS) $(LIBS)
+	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(CC_LDFLAGS_SO) $^ $(CC_LIBS)
 
 %.so: %.oo
 	$(ECHO_PREFIX) echo "   [LDXX] $^ -> $@"
-	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK) $^ $(PTHREAD_LIBS) $(LIBS)
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(CXX_LDFLAGS_SO) $^ $(CXX_LIBS)
 
 %.eo: %.o
 	$(ECHO_PREFIX) echo "   [EMBED] $< -> $@"
@@ -93,6 +139,6 @@ endif
 
 %: %.o
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
-	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $^ $(PTHREAD_LIBS) $(LIBS)
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $^ $(CXX_LIBS)
 
 dist-clean:: clean

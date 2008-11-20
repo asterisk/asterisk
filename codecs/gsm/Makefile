@@ -477,7 +477,7 @@ clean:	semi-clean
 			$(TOAST) $(TCAT) $(UNTOAST)	\
 			$(ROOT)/gsm-1.0.tar.Z
 		rm -rf lib
-		rm -f .*.d
+		rm -f .*.d *.i */*.i
 
 # Two tools that helped me generate gsm_encode.c and gsm_decode.c,
 # but aren't generally needed to port this.
