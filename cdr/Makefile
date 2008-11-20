@@ -1,6 +1,6 @@
 #
 # Asterisk -- A telephony toolkit for Linux.
-# 
+#
 # Makefile for CDR backends
 #
 # Copyright (C) 1999-2006, Digium, Inc.

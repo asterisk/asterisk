@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2003 - 2006
  *
- * Matthew D. Hardeman <mhardemn@papersoft.com> 
- * Adapted from the MySQL CDR logger originally by James Sharp 
+ * Matthew D. Hardeman <mhardemn@papersoft.com>
+ * Adapted from the MySQL CDR logger originally by James Sharp
  *
  * Modified September 2003
  * Matthew D. Hardeman <mhardemn@papersoft.com>
@@ -22,9 +22,9 @@
 
 /*! \file
  *
- * \brief PostgreSQL CDR logger 
- * 
- * \author Matthew D. Hardeman <mhardemn@papersoft.com> 
+ * \brief PostgreSQL CDR logger
+ *
+ * \author Matthew D. Hardeman <mhardemn@papersoft.com>
  * \extref PostgreSQL http://www.postgresql.org/
  *
  * See also
@@ -132,7 +132,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 		int lensql, lensql2, sizesql = maxsize, sizesql2 = maxsize2, newsize;
 		char *sql = ast_calloc(sizeof(char), sizesql), *sql2 = ast_calloc(sizeof(char), sizesql2), *tmp, *value;
 		char buf[257], escapebuf[513];
- 
+
 		if (!sql || !sql2) {
 			if (sql) {
 				ast_free(sql);
@@ -142,10 +142,10 @@ static int pgsql_log(struct ast_cdr *cdr)
 			}
 			return -1;
 		}
- 
+
 		lensql = snprintf(sql, sizesql, "INSERT INTO %s (", table);
 		lensql2 = snprintf(sql2, sizesql2, " VALUES (");
-  
+
 		AST_RWLIST_RDLOCK(&psql_columns);
 		AST_RWLIST_TRAVERSE(&psql_columns, cur, list) {
 			/* For fields not set, simply skip them */
@@ -164,7 +164,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 				}
 				continue;
 			}
-			
+
 			LENGTHEN_BUF1(strlen(cur->name) + 2);
 			lensql += snprintf(sql + lensql, sizesql - lensql, "\"%s\",", cur->name);
 
