@@ -134,6 +134,10 @@ enum {
 	 *  The dsp cannot be free'd if the frame inside of it still has
 	 *  this flag set. */
 	AST_FRFLAG_FROM_DSP = (1 << 2),
+	/*! This frame came from a filestream and is still the original frame.
+	 *  The filestream cannot be free'd if the frame inside of it still has
+	 *  this flag set. */
+	AST_FRFLAG_FROM_FILESTREAM = (1 << 3),
 };
 
 /*! \brief Data structure associated with a single frame of data
