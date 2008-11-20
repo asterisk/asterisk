@@ -1383,6 +1383,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_log(LOG_DEBUG, "ast call on peer returned %d\n", res);
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
+			if (tmp->chan->hangupcause) {
+				chan->hangupcause = tmp->chan->hangupcause;
+			}
 			ast_hangup(tmp->chan);
 			tmp->chan = NULL;
 			free(tmp);

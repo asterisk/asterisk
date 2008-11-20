@@ -3067,6 +3067,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 			AST_SCHED_DEL(sched, p->initid);
 			p->initid = ast_sched_add(sched, p->maxtime ? (p->maxtime * 4) : SIP_TRANS_TIMEOUT, auto_congest, p);
 		}
+	} else {
+		ast->hangupcause = AST_CAUSE_USER_BUSY;
 	}
 	return res;
 }
