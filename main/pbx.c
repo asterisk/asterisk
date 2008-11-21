@@ -7228,18 +7228,19 @@ int ast_async_goto_by_name(const char *channame, const char *context, const char
 static int ext_strncpy(char *dst, const char *src, int len)
 {
 	int count = 0;
+	int insquares = 0;
 
 	while (*src && (count < len - 1)) {
-		switch (*src) {
-		case ' ':
-			/*	otherwise exten => [a-b],1,... doesn't work */
-			/*		case '-': */
-			/* Ignore */
-			break;
-		default:
-			*dst = *src;
-			dst++;
+		if (*src == '[') {
+			insquares = 1;
+		} else if (*src == ']') {
+			insquares = 0;
+		} else if (*src == ' ' && !insquares) {
+			src++;
+			continue;
 		}
+		*dst = *src;
+		dst++;
 		src++;
 		count++;
 	}
