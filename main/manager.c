@@ -2768,6 +2768,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		}
 
 		astman_append(s,
+			"Event: CoreShowChannel\r\n"
 			"Channel: %s\r\n"
 			"UniqueID: %s\r\n"
 			"Context: %s\r\n"
