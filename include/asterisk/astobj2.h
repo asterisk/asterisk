@@ -452,7 +452,12 @@ int _ao2_ref(void *o, int delta);
  * \param a A pointer to the object we want to lock.
  * \return 0 on success, other values on error.
  */
+#ifndef DEBUG_THREADS
 int ao2_lock(void *a);
+#else
+#define ao2_lock(a) _ao2_lock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+int _ao2_lock(void *a, const char *file, const char *func, int line, const char *var);
+#endif
 
 /*! \brief
  * Unlock an object.
@@ -460,7 +465,12 @@ int ao2_lock(void *a);
  * \param a A pointer to the object we want unlock.
  * \return 0 on success, other values on error.
  */
+#ifndef DEBUG_THREADS
 int ao2_unlock(void *a);
+#else
+#define ao2_unlock(a) _ao2_unlock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+int _ao2_unlock(void *a, const char *file, const char *func, int line, const char *var);
+#endif
 
 /*! \brief
  * Try locking-- (don't block if fail)
