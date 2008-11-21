@@ -2468,7 +2468,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	if (res != AST_PBX_KEEPALIVE && !ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN) && ast_exists_extension(chan, chan->context, "h", 1, chan->cid.cid_num)) {
-		struct ast_cdr *swapper;
+		struct ast_cdr *swapper = NULL;
 		char savelastapp[AST_MAX_EXTENSION];
 		char savelastdata[AST_MAX_EXTENSION];
 		char save_exten[AST_MAX_EXTENSION];
@@ -2476,16 +2476,18 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		int  found = 0;	/* set if we find at least one match */
 		int  spawn_error = 0;
 		
-		if (ast_opt_end_cdr_before_h_exten) {
+		if (bridge_cdr && ast_opt_end_cdr_before_h_exten) {
 			ast_cdr_end(bridge_cdr);
 		}
 		/* swap the bridge cdr and the chan cdr for a moment, and let the endbridge
 		   dialplan code operate on it */
-		swapper = chan->cdr;
-		ast_copy_string(savelastapp, bridge_cdr->lastapp, sizeof(bridge_cdr->lastapp));
-		ast_copy_string(savelastdata, bridge_cdr->lastdata, sizeof(bridge_cdr->lastdata));
 		ast_channel_lock(chan);
-		chan->cdr = bridge_cdr;
+		if (bridge_cdr) {
+			swapper = chan->cdr;
+			ast_copy_string(savelastapp, bridge_cdr->lastapp, sizeof(bridge_cdr->lastapp));
+			ast_copy_string(savelastdata, bridge_cdr->lastdata, sizeof(bridge_cdr->lastdata));
+			chan->cdr = bridge_cdr;
+		}
 		ast_copy_string(save_exten, chan->exten, sizeof(save_exten));
 		save_prio = chan->priority;
 		ast_copy_string(chan->exten, "h", sizeof(chan->exten));
@@ -2503,12 +2505,15 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		ast_channel_lock(chan);
 		ast_copy_string(chan->exten, save_exten, sizeof(chan->exten));
 		chan->priority = save_prio;
-		chan->cdr = swapper;
+		if (bridge_cdr)
+			chan->cdr = swapper;
 		ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN);
 		ast_channel_unlock(chan);
 		/* protect the lastapp/lastdata against the effects of the hangup/dialplan code */
-		ast_copy_string(bridge_cdr->lastapp, savelastapp, sizeof(bridge_cdr->lastapp));
-		ast_copy_string(bridge_cdr->lastdata, savelastdata, sizeof(bridge_cdr->lastdata));
+		if (bridge_cdr) {
+			ast_copy_string(bridge_cdr->lastapp, savelastapp, sizeof(bridge_cdr->lastapp));
+			ast_copy_string(bridge_cdr->lastdata, savelastdata, sizeof(bridge_cdr->lastdata));
+		}
 	}
 	ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
 
