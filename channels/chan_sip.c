@@ -4985,6 +4985,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		p->registry = registry_unref(p->registry, "delete p->registry");
 	}
 	
+	if (p->mwi) {
+		p->mwi->call = NULL;
+	}
+
 	if (dumphistory)
 		sip_dump_history(p);
 
