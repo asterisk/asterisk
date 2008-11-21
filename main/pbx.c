@@ -7523,7 +7523,7 @@ int ast_add_extension2(struct ast_context *con,
 	}
 	res = 0; /* some compilers will think it is uninitialized otherwise */
 	for (e = con->root; e; el = e, e = e->next) {   /* scan the extension list */
-		res = ext_cmp(e->exten, extension);
+		res = ext_cmp(e->exten, tmp->exten);
 		if (res == 0) { /* extension match, now look at cidmatch */
 			if (!e->matchcid && !tmp->matchcid)
 				res = 0;
