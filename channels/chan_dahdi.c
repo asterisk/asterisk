@@ -298,8 +298,8 @@ static int matchdigittimeout = 3000;
 AST_MUTEX_DEFINE_STATIC(iflock);
 
 /* QSIG channel mapping option types */
-#define DAHDI_CHAN_MAPPING_LOGICAL	0
-#define DAHDI_CHAN_MAPPING_PHYSICAL	1
+#define DAHDI_CHAN_MAPPING_PHYSICAL	0
+#define DAHDI_CHAN_MAPPING_LOGICAL	1
 
 
 static int ifcount = 0;
@@ -814,6 +814,7 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void) {
 			.dialplan = PRI_UNKNOWN + 1,
 			.localdialplan = PRI_NATIONAL_ISDN + 1,
 			.nodetype = PRI_CPE,
+			.qsigchannelmapping = DAHDI_CHAN_MAPPING_PHYSICAL,
 
 			.minunused = 2,
 			.idleext = "",
