@@ -2515,13 +2515,15 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	/* obey the NoCDR() wishes. -- move the DISABLED flag to the bridge CDR if it was set on the channel during the bridge... */
 	if (res != AST_PBX_KEEPALIVE) {
 		new_chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
-		if (new_chan_cdr && ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED))
+		if (bridge_cdr && new_chan_cdr && ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED))
 			ast_set_flag(bridge_cdr, AST_CDR_FLAG_POST_DISABLED);
 	}
 
 	/* we can post the bridge CDR at this point */
-	ast_cdr_end(bridge_cdr);
-	ast_cdr_detach(bridge_cdr);
+	if (bridge_cdr) {
+		ast_cdr_end(bridge_cdr);
+		ast_cdr_detach(bridge_cdr);
+	}
 	
 	/* do a specialized reset on the beginning channel
 	   CDR's, if they still exist, so as not to mess up
