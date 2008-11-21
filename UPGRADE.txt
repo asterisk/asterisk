@@ -1,10 +1,21 @@
 ===========================================================
+===
 === Information for upgrading between Asterisk 1.6 versions
 ===
+=== These files document all the changes that MUST be taken
+=== into account when upgrading between the Asterisk
+=== versions listed below. These changes may require that
+=== you modify your configuration files, dialplan or (in
+=== some cases) source code if you have your own Asterisk
+=== modules or patches. These files also includes advance
+=== notice of any functionality that has been marked as
+=== 'deprecated' and may be removed in a future release,
+=== along with the suggested replacement functionality.
 ===
 === UPGRADE-1.2.txt -- Upgrade info for 1.0 to 1.2
 === UPGRADE-1.4.txt -- Upgrade info for 1.2 to 1.4
 === UPGRADE-1.6.txt -- Upgrade info for 1.4 to 1.6
+===
 ===========================================================
 
 From 1.6.0.1 to 1.6.1:

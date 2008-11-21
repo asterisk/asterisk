@@ -1,3 +1,13 @@
+======================================================================
+===
+=== This file documents the new and/or enhanced functionality added in
+=== the Asterisk versions listed below. This file does NOT include
+=== changes in behavior that would not be backwards compatible with
+=== previous versions; for that information see the UPGRADE.txt file
+=== and the other UPGRADE files for older releases.
+===
+======================================================================
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
 ------------------------------------------------------------------------------
