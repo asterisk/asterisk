@@ -4682,7 +4682,8 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 				l->name, d->name, sub->callid);
 		}
 	}
-	if ((l->hookstate == SKINNY_ONHOOK) && (AST_LIST_NEXT(sub, list) && !AST_LIST_NEXT(sub, list)->rtp)) {
+	/* The bit commented below gives a very occasional core dump. */
+	if ((l->hookstate == SKINNY_ONHOOK) && (AST_LIST_NEXT(sub, list) /*&& !AST_LIST_NEXT(sub, list)->rtp*/)) {
 		do_housekeeping(s);
 	}
 	return 1;
