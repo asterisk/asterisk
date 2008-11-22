@@ -3574,6 +3574,8 @@ static char *control2str(int ind) {
 		return "Hold";
 	case AST_CONTROL_UNHOLD:
 		return "Unhold";
+	case AST_CONTROL_SRCUPDATE:
+		return "Media Source Update";
 	case -1:
 		return "Stop tone";
 	default:
