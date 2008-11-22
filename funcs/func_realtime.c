@@ -252,7 +252,7 @@ static int realtimefield_read(struct ast_channel *chan, const char *cmd, char *d
 	struct ast_str *escapebuf = ast_str_thread_get(&buf1, 16);
 	struct ast_str *fields = ast_str_thread_get(&buf2, 16);
 	struct ast_str *values = ast_str_thread_get(&buf3, 16);
-	int first = NULL;
+	int first = 0;
 	enum { rtfield, rthash } which;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(family);
