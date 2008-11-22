@@ -11998,7 +11998,7 @@ static int reload(void)
  * AST_MODULE_INFO(, , "DAHDI Telephony"
  */
 
-#ifdef DAHDI_PRI
+#ifdef HAVE_PRI
 #define tdesc "DAHDI Telephony w/PRI"
 #else
 #define tdesc "DAHDI Telephony"
