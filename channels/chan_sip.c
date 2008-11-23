@@ -9915,17 +9915,12 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	return 0;
 }
 
-struct caller_criteria {
-	const char *exten;
-	const char *context;
-};
-
 static int find_calling_channel(struct ast_channel *c, void *data) {
-	struct caller_criteria *info = data;
+	struct sip_pvt *p = data;
 
 	return (c->pbx &&
-			(!strcasecmp(c->macroexten, info->exten) || !strcasecmp(c->exten, info->exten)) &&
-			!strcasecmp(c->context, info->context));
+			(!strcasecmp(c->macroexten, p->exten) || !strcasecmp(c->exten, p->exten)) &&
+			!strcasecmp(c->context, p->context));
 }
 
 /*! \brief Used in the SUBSCRIBE notification subsystem (RFC3265) */
@@ -10093,13 +10088,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 			   callee must be dialing the same extension that is being monitored.  Simply dialing
 			   the hint'd device is not sufficient. */
 			if (global_notifycid) {
-				struct ast_channel *caller = NULL;
-				struct caller_criteria data = {
-					.exten = p->exten,
-					.context = p->context,
-				};
-
-				caller = ast_channel_search_locked(find_calling_channel, &data);
+				struct ast_channel *caller = ast_channel_search_locked(find_calling_channel, p);
 
 				if (caller) {
 					local_display = ast_strdupa(caller->cid.cid_name);
