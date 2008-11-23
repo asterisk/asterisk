@@ -775,6 +775,13 @@ enum sipmethod {
 	SIP_PING,		/*!< Not supported at all, no standard but still implemented out there */
 };
 
+/*! \brief Settings for the 'notifycid' option, see sip.conf.sample for details. */
+enum notifycid_setting {
+	DISABLED       = 0,
+	ENABLED        = 1,
+	IGNORE_CONTEXT = 2,
+};
+
 /*! \brief The core structure to setup dialogs. We parse incoming messages by using
 	structure and then route the messages according to the type.
 
@@ -952,7 +959,7 @@ static const struct cfsip_options {
 #define DEFAULT_ALLOW_EXT_DOM	TRUE		/*!< Allow external domains */
 #define DEFAULT_REALM		"asterisk"	/*!< Realm for HTTP digest authentication */
 #define DEFAULT_NOTIFYRINGING	TRUE		/*!< Notify devicestate system on ringing state */
-#define DEFAULT_NOTIFYCID		FALSE	/*!< Include CID with ringing notifications */
+#define DEFAULT_NOTIFYCID		DISABLED	/*!< Include CID with ringing notifications */
 #define DEFAULT_PEDANTIC	FALSE		/*!< Avoid following SIP standards for dialog matching */
 #define DEFAULT_AUTOCREATEPEER	FALSE		/*!< Don't create peers automagically */
 #define	DEFAULT_MATCHEXTERNIPLOCALLY FALSE	/*!< Match extern IP locally default setting */
@@ -1022,8 +1029,9 @@ static struct sip_settings sip_cfg;
 
 static int global_notifyringing;	/*!< Send notifications on ringing */
 static int global_notifyhold;		/*!< Send notifications on hold */
-static int global_notifycid;        /*!< Send CID with ringing notifications */
 static int global_match_auth_username;		/*!< Match auth username if available instead of From: Default off. */
+
+static enum notifycid_setting global_notifycid; /*!< Send CID with ringing notifications */
 
 static int global_relaxdtmf;		/*!< Relax DTMF */
 static int global_rtptimeout;		/*!< Time out call if no RTP */
@@ -9920,7 +9928,7 @@ static int find_calling_channel(struct ast_channel *c, void *data) {
 
 	return (c->pbx &&
 			(!strcasecmp(c->macroexten, p->exten) || !strcasecmp(c->exten, p->exten)) &&
-			!strcasecmp(c->context, p->context));
+			(global_notifycid == IGNORE_CONTEXT || !strcasecmp(c->context, p->context)));
 }
 
 /*! \brief Used in the SUBSCRIBE notification subsystem (RFC3265) */
@@ -14526,7 +14534,9 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Outbound reg. attempts: %d\n", global_regattempts_max);
 	ast_cli(a->fd, "  Notify ringing state:   %s\n", cli_yesno(global_notifyringing));
 	if (global_notifyringing) {
-		ast_cli(a->fd, "    Include CID:          %s\n", cli_yesno(global_notifycid));
+		ast_cli(a->fd, "    Include CID:          %s%s\n",
+				cli_yesno(global_notifycid),
+				global_notifycid == IGNORE_CONTEXT ? " (Ignoring context)" : "");
 	}
 	ast_cli(a->fd, "  Notify hold state:      %s\n", cli_yesno(global_notifyhold));
 	ast_cli(a->fd, "  SIP Transfer mode:      %s\n", transfermode2str(global_allowtransfer));
@@ -22681,7 +22691,11 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "notifyhold")) {
 			global_notifyhold = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifycid")) {
-			global_notifycid = ast_true(v->value);
+			if (!strcasecmp(v->value, "ignore-context")) {
+				global_notifycid = IGNORE_CONTEXT;
+			} else {
+				global_notifycid = ast_true(v->value);
+			}
 		} else if (!strcasecmp(v->name, "alwaysauthreject")) {
 			sip_cfg.alwaysauthreject = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "mohinterpret")) {

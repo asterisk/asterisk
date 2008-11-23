@@ -385,7 +385,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; user or peer (if subscribecontext is different than context).
                                 ; This is also limited to a single caller, meaning that if an
                                 ; extension is ringing because multiple calls are incoming,
-                                ; only one will be used as the source of caller ID.
+                                ; only one will be used as the source of caller ID.  Specify
+                                ; 'ignore-context' to ignore the called context when looking
+                                ; for the caller's channel.  The default value is 'no.'
 ;callcounter = yes              ; Enable call counters on devices. This can be set per
                                 ; device too.
 
