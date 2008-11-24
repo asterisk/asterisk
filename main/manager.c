@@ -336,6 +336,7 @@ static struct permalias {
 	{ EVENT_FLAG_CDR, "cdr" },
 	{ EVENT_FLAG_DIALPLAN, "dialplan" },
 	{ EVENT_FLAG_ORIGINATE, "originate" },
+	{ EVENT_FLAG_AGI, "agi" },
 	{ -1, "all" },
 	{ 0, "none" },
 };

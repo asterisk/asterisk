@@ -71,6 +71,7 @@
 #define EVENT_FLAG_CDR			(1 << 10) /* CDR events */
 #define EVENT_FLAG_DIALPLAN		(1 << 11) /* Dialplan events (VarSet, NewExten) */
 #define EVENT_FLAG_ORIGINATE	(1 << 12) /* Originate a call to an extension */
+#define EVENT_FLAG_AGI			(1 << 13) /* AGI events */
 /*@} */
 
 /*! \brief Export manager structures */

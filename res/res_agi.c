@@ -620,7 +620,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 	   care of AGI commands on this channel can decide which AGI commands
 	   to execute based on the setup info */
 	ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, 1);
-	manager_event(EVENT_FLAG_CALL, "AsyncAGI", "SubEvent: Start\r\nChannel: %s\r\nEnv: %s\r\n", chan->name, ami_buffer);
+	manager_event(EVENT_FLAG_AGI, "AsyncAGI", "SubEvent: Start\r\nChannel: %s\r\nEnv: %s\r\n", chan->name, ami_buffer);
 	while (1) {
 		/* bail out if we need to hangup */
 		if (ast_check_hangup(chan)) {
@@ -653,9 +653,9 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 			agi_buffer[res] = '\0';
 			ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, 1);
 			if (ast_strlen_zero(cmd->cmd_id))
-				manager_event(EVENT_FLAG_CALL, "AsyncAGI", "SubEvent: Exec\r\nChannel: %s\r\nResult: %s\r\n", chan->name, ami_buffer);
+				manager_event(EVENT_FLAG_AGI, "AsyncAGI", "SubEvent: Exec\r\nChannel: %s\r\nResult: %s\r\n", chan->name, ami_buffer);
 			else
-				manager_event(EVENT_FLAG_CALL, "AsyncAGI", "SubEvent: Exec\r\nChannel: %s\r\nCommandID: %s\r\nResult: %s\r\n", chan->name, cmd->cmd_id, ami_buffer);
+				manager_event(EVENT_FLAG_AGI, "AsyncAGI", "SubEvent: Exec\r\nChannel: %s\r\nCommandID: %s\r\nResult: %s\r\n", chan->name, cmd->cmd_id, ami_buffer);
 			free_agi_cmd(cmd);
 		} else {
 			/* no command so far, wait a bit for a frame to read */
@@ -685,7 +685,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 quit:
 	/* notify manager users this channel cannot be
 	   controlled anymore by Async AGI */
-	manager_event(EVENT_FLAG_CALL, "AsyncAGI", "SubEvent: End\r\nChannel: %s\r\n", chan->name);
+	manager_event(EVENT_FLAG_AGI, "AsyncAGI", "SubEvent: End\r\nChannel: %s\r\n", chan->name);
 
 	/* close the pipe */
 	close(fds[0]);
@@ -2701,7 +2701,7 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int
 	char *ami_cmd = ast_strdupa(buf);
 	int command_id = ast_random(), resultcode = 200;
 
-	manager_event(EVENT_FLAG_CALL, "AGIExec",
+	manager_event(EVENT_FLAG_AGI, "AGIExec",
 			"SubEvent: Start\r\n"
 			"Channel: %s\r\n"
 			"CommandId: %d\r\n"
@@ -2721,7 +2721,7 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int
 		case RESULT_FAILURE: ami_res = "Failure"; resultcode = -1; break;
 		case RESULT_SUCCESS: ami_res = "Success"; resultcode = 200; break;
 		}
-		manager_event(EVENT_FLAG_CALL, "AGIExec",
+		manager_event(EVENT_FLAG_AGI, "AGIExec",
 				"SubEvent: End\r\n"
 				"Channel: %s\r\n"
 				"CommandId: %d\r\n"
@@ -2745,7 +2745,7 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int
 		}
 	} else if ((c = find_command(argv, 0))) {
 		ast_agi_send(agi->fd, chan, "511 Command Not Permitted on a dead channel\n");
-		manager_event(EVENT_FLAG_CALL, "AGIExec",
+		manager_event(EVENT_FLAG_AGI, "AGIExec",
 				"SubEvent: End\r\n"
 				"Channel: %s\r\n"
 				"CommandId: %d\r\n"
@@ -2754,7 +2754,7 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int
 				"Result: Command not permitted on a dead channel\r\n", chan->name, command_id, ami_cmd);
 	} else {
 		ast_agi_send(agi->fd, chan, "510 Invalid or unknown command\n");
-		manager_event(EVENT_FLAG_CALL, "AGIExec",
+		manager_event(EVENT_FLAG_AGI, "AGIExec",
 				"SubEvent: End\r\n"
 				"Channel: %s\r\n"
 				"CommandId: %d\r\n"
@@ -3243,7 +3243,7 @@ static int load_module(void)
 	(void) ast_agi_register_multiple(ast_module_info->self, commands, ARRAY_LEN(commands));
 	ast_register_application(deadapp, deadagi_exec, deadsynopsis, descrip);
 	ast_register_application(eapp, eagi_exec, esynopsis, descrip);
-	ast_manager_register2("AGI", EVENT_FLAG_CALL, action_add_agi_cmd, "Add an AGI command to execute by Async AGI", mandescr_asyncagi);
+	ast_manager_register2("AGI", EVENT_FLAG_AGI, action_add_agi_cmd, "Add an AGI command to execute by Async AGI", mandescr_asyncagi);
 	return ast_register_application(app, agi_exec, synopsis, descrip);
 }
 
