@@ -105,6 +105,13 @@ static struct progress {
 	{ GSAMP_SIZE_UK, { 400 } },                                	/*!< UK */
 };
 
+/*!\brief This value is the minimum threshold, calculated by averaging all
+ * of the samples within a frame, for which a frame is determined to either
+ * be silence (below the threshold) or noise (above the threshold).  Please
+ * note that while the default threshold is an even exponent of 2, there is
+ * no requirement that it be so.  The threshold will accept any value between
+ * 0 and 32767.
+ */
 #define DEFAULT_THRESHOLD	512
 
 enum busy_detect {
