@@ -170,6 +170,230 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/callerid.h"
+#include "asterisk/event.h"
+
+/*** DOCUMENTATION
+<application name="MinivmRecord" language="en_US">
+	<synopsis>
+		Receive Mini-Voicemail and forward via e-mail.
+	</synopsis>
+	<syntax>
+		<parameter name="mailbox" required="true" argsep="@">
+			<argument name="username" required="true">
+				<para>Voicemail username</para>
+			</argument>
+			<argument name="domain" required="true">
+				<para>Voicemail domain</para>
+			</argument>
+		</parameter>
+		<parameter name="options" required="false">
+			<optionlist>
+				<option name="0">
+					<para>Jump to the <literal>o</literal> extension in the current dialplan context.</para>
+				</option>
+				<option name="*">
+					<para>Jump to the <literal>a</literal> extension in the current dialplan context.</para>
+				</option>
+				<option name="g">
+					<argument name="gain">
+						<para>Amount of gain to use</para>
+					</argument>
+					<para>Use the specified amount of gain when recording the voicemail message.  The units are whole-number decibels (dB).</para>
+				</option>
+			</optionlist>
+		</parameter>
+	</syntax>
+	<description>
+		<para>his application is part of the Mini-Voicemail system, configured in minivm.conf</para>
+		<para>MiniVM records audio file in configured format and forwards message to e-mail and pager.</para>
+		<para>If there's no user account for that address, a temporary account will be used with default options.</para>
+		<para>The recorded file name and path will be stored in MINIVM_FILENAME and the duration of the message will be stored in MINIVM_DURATION</para>
+		<para>Note: If the caller hangs up after the recording, the only way to send the message and clean up is to execute in the <literal>h</literal> extension.  The application will exit if any of the following DTMF digits are received and the requested extension exist in the current context.</para>
+		<variablelist>
+			<variable name="MINIVM_RECORD_STATUS">
+				<para>This is the status of the record operation</para>
+				<value name="SUCCESS" />
+				<value name="USEREXIT" />
+				<value name="FAILED" />
+			</variable>
+		</variablelist>
+	</description>
+</application>
+
+<application name="MinivmGreet" language="en_US">
+	<synopsis>
+		Play Mini-Voicemail prompts.
+	</synopsis>
+	<syntax>
+		<parameter name="mailbox" required="true" argsep="@">
+			<argument name="username" required="true">
+				<para>Voicemail username</para>
+			</argument>
+			<argument name="domain" required="true">
+				<para>Voicemail domain</para>
+			</argument>
+		</parameter>
+		<parameter name="options" required="false">
+			<optionlist>
+				<option name="b">
+					<para>Play the <literal>busy</literal> greeting to the calling party.</para>
+				</option>
+				<option name="s">
+					<para>Skip the playback of instructions for leaving a message to the calling party.</para>
+				</option>
+				<option name="u">
+					<para>Play the <literal>unavailable</literal> greeting.</para>
+				</option>
+			</optionlist>
+		</parameter>
+	</syntax>
+	<description>
+		<para>This application is part of the Mini-Voicemail system, configured in minivm.conf.</para>
+		<para>MinivmGreet() plays default prompts or user specific prompts for an account.</para>
+		<para>Busy and unavailable messages can be choosen, but will be overridden if a temporary message exists for the account.</para>
+		<variablelist>
+			<variable name="MINIVM_GREET_STATUS">
+				<para>This is the status of the greeting playback.</para>
+				<value name="SUCCESS" />
+				<value name="USEREXIT" />
+				<value name="FAILED" />
+			</variable>
+		</variablelist>
+	</description>
+</application>
+
+<application name="MinivmNotify" language="en_US">
+	<synopsis>
+		Notify voicemail owner about new messages.
+	</synopsis>
+	<syntax>
+		<parameter name="mailbox" required="true" argsep="@">
+			<argument name="username" required="true">
+				<para>Voicemail username</para>
+			</argument>
+			<argument name="domain" required="true">
+				<para>Voicemail domain</para>
+			</argument>
+		</parameter>
+		<parameter name="options" required="false">
+			<optionlist>
+				<option name="template">
+					<para>E-mail template to use for voicemail notification</para>
+				</option>
+			</optionlist>
+		</parameter>
+	</syntax>
+	<description>
+		<para>This application is part of the Mini-Voicemail system, configured in minivm.conf.</para>
+		<para>MiniVMnotify forwards messages about new voicemail to e-mail and pager.  If there's no user account for that address, a temporary account will be used with default options (set in minivm.conf).</para>
+		<para>If the channel variable MVM_COUNTER is set, this will be used in the message file name and available in the template for the message.</para>
+		<para>If no template is given, the default email template will be used to send email and default pager template to send paging message (if the user account is configured with a paging address.</para>
+		<variablelist>
+			<variable name="MINIVM_NOTIFY_STATUS">
+				<para>This is the status of the notification attempt</para>
+				<value name="SUCCESS" />
+				<value name="FAILED" />
+			</variable>
+		</variablelist>
+	</description>
+</application>
+
+<application name="MinivmDelete" language="en_US">
+	<synopsis>
+		Delete Mini-Voicemail voicemail messages
+	</synopsis>
+	<syntax>
+		<parameter name="filename" required="true">
+			<para>File to delete</para>
+		</parameter>
+	</syntax>
+	<description>
+		<para>This application is part of the Mini-Voicemail system, configured in minivm.conf.</para>
+		<para>It deletes voicemail file set in MVM_FILENAME or given filename.</para>
+		<variablelist>
+			<variable name="MINIVM_DELETE_STATUS">
+				<para>This is the status of the delete operation.</para>
+				<value name="SUCCESS" />
+				<value name="FAILED" />
+			</variable>
+		</variablelist>
+	</description>
+</application>
+
+<application name="MinivmAccMess" language="en_US">
+	<synopsis>
+		Record account specific messages.
+	</synopsis>
+	<syntax>
+		<parameter name="mailbox" required="true" argsep="@">
+			<argument name="username" required="true">
+				<para>Voicemail username</para>
+			</argument>
+			<argument name="domain" required="true">
+				<para>Voicemail domain</para>
+			</argument>
+		</parameter>
+		<parameter name="options" required="false">
+			<optionlist>
+				<option name="u">
+					<para>Record the <literal>unavailable</literal> greeting.</para>
+				</option>
+				<option name="b">
+					<para>Record the <literal>busy</literal> greeting.</para>
+				</option>
+				<option name="t">
+					<para>Record the temporary greeting.</para>
+				</option>
+				<option name="n">
+					<para>Account name.</para>
+				</option>
+			</optionlist>
+		</parameter>
+	</syntax>
+	<description>
+		<para>This application is part of the Mini-Voicemail system, configured in minivm.conf.</para>
+		<para>Use this application to record account specific audio/video messages for busy, unavailable and temporary messages.</para>
+		<para>Account specific directories will be created if they do not exist.</para>
+		<variablelist>
+			<variable name="MINIVM_ACCMESS_STATUS">
+				<para>This is the result of the attempt to record the specified greeting.</para>
+				<para><literal>FAILED</literal> is set if the file can't be created.</para>
+				<value name="SUCCESS" />
+				<value name="FAILED" />
+			</variable>
+		</variablelist>
+	</description>
+</application>
+
+<application name="MinivmMWI" language="en_US">
+	<synopsis>
+		Send Message Waiting Notification to subscriber(s) of mailbox.
+	</synopsis>
+	<syntax>
+		<parameter name="mailbox" required="true" argsep="@">
+			<argument name="username" required="true">
+				<para>Voicemail username</para>
+			</argument>
+			<argument name="domain" required="true">
+				<para>Voicemail domain</para>
+			</argument>
+		</parameter>
+		<parameter name="urgent" required="true">
+			<para>Number of urgent messages in mailbox.</para>
+		</parameter>
+		<parameter name="new" required="true">
+			<para>Number of new messages in mailbox.</para>
+		</parameter>
+		<parameter name="old" required="true">
+			<para>Number of old messages in mailbox.</para>
+		</parameter>
+	</syntax>
+	<description>
+		<para>This application is part of the Mini-Voicemail system, configured in minivm.conf.</para>
+		<para>MinivmMWI is used to send message waiting indication to any devices whose channels have subscribed to the mailbox passed in the first parameter.</para>
+	</description>
+</application>
+***/
 
 #ifndef TRUE
 #define TRUE 1
@@ -220,94 +444,9 @@ static char *app_minivm_greet = "MinivmGreet";		/* Play voicemail prompts */
 static char *app_minivm_notify = "MinivmNotify";	/* Notify about voicemail by using one of several methods */
 static char *app_minivm_delete = "MinivmDelete";	/* Notify about voicemail by using one of several methods */
 static char *app_minivm_accmess = "MinivmAccMess";	/* Record personal voicemail messages */
+static char *app_minivm_mwi = "MinivmMWI";
 
-static char *synopsis_minivm_record = "Receive Mini-Voicemail and forward via e-mail";
-static char *descrip_minivm_record = 
-	"  MinivmRecord(username@domain[,options]):\n"
-	"This application is part of the Mini-Voicemail system, configured in minivm.conf.\n"
-	"MiniVM records audio file in configured format and forwards message to e-mail and pager.\n"
-	"If there's no user account for that address, a temporary account will\n"
-	"be used with default options.\n"
-	"The recorded file name and path will be stored in MINIVM_FILENAME and the \n"
-	"duration of the message will be stored in MINIVM_DURATION\n"
-	"\nNote: If the caller hangs up after the recording, the only way to send\n"
-	"the message and clean up is to execute in the \"h\" extension.\n"
-	"\nThe application will exit if any of the following DTMF digits are \n"
-	"received and the requested extension exist in the current context.\n"
-	"    0 - Jump to the 'o' extension in the current dialplan context.\n"
-	"    * - Jump to the 'a' extension in the current dialplan context.\n"
-	"\n"
-	"Result is given in channel variable MINIVM_RECORD_STATUS\n"
-	"        The possible values are:     SUCCESS | USEREXIT | FAILED\n\n"
-	"  Options:\n"
-	"    g(#) - Use the specified amount of gain when recording the voicemail\n"
-	"           message. The units are whole-number decibels (dB).\n"
-	"\n";
 
-static char *synopsis_minivm_greet = "Play Mini-Voicemail prompts";
-static char *descrip_minivm_greet = 
-	"  MinivmGreet(username@domain[,options]):\n"
-	"This application is part of the Mini-Voicemail system, configured in minivm.conf.\n"
-	"MinivmGreet() plays default prompts or user specific prompts for an account.\n"
-	"Busy and unavailable messages can be choosen, but will be overridden if a temporary\n"
-	"message exists for the account.\n"
-	"\n"
-	"Result is given in channel variable MINIVM_GREET_STATUS\n"
-	"        The possible values are:     SUCCESS | USEREXIT | FAILED\n\n"
-	"  Options:\n"
-	"    b    - Play the 'busy' greeting to the calling party.\n"
-	"    s    - Skip the playback of instructions for leaving a message to the\n"
-	"           calling party.\n"
-	"    u    - Play the 'unavailable greeting.\n"
-	"\n";
-
-static char *synopsis_minivm_notify = "Notify voicemail owner about new messages.";
-static char *descrip_minivm_notify = 
-	"  MinivmNotify(username@domain[,template]):\n"
-	"This application is part of the Mini-Voicemail system, configured in minivm.conf.\n"
-	"MiniVMnotify forwards messages about new voicemail to e-mail and pager.\n"
-	"If there's no user account for that address, a temporary account will\n"
-	"be used with default options (set in minivm.conf).\n"
-	"The recorded file name and path will be read from MVM_FILENAME and the \n"
-	"duration of the message will be accessed from MVM_DURATION (set by MinivmRecord() )\n"
-	"If the channel variable MVM_COUNTER is set, this will be used in the\n"
-	"message file name and available in the template for the message.\n"
-	"If not template is given, the default email template will be used to send email and\n"
-	"default pager template to send paging message (if the user account is configured with\n"
-	"a paging address.\n"
-	"\n"
-	"Result is given in channel variable MINIVM_NOTIFY_STATUS\n"
-	"        The possible values are:     SUCCESS | FAILED\n"
-	"\n";
-
-static char *synopsis_minivm_delete = "Delete Mini-Voicemail voicemail messages";
-static char *descrip_minivm_delete = 
-	"  MinivmDelete(filename):\n"
-	"This application is part of the Mini-Voicemail system, configured in minivm.conf.\n"
-	"It deletes voicemail file set in MVM_FILENAME or given filename.\n"
-	"\n"
-	"Result is given in channel variable MINIVM_DELETE_STATUS\n"
-	"        The possible values are:     SUCCESS |  FAILED\n"
-	"	 FAILED is set if the file does not exist or can't be deleted.\n"
-	"\n";
-
-static char *synopsis_minivm_accmess = "Record account specific messages";
-static char *descrip_minivm_accmess = 
-	"  MinivmAccmess(username@domain,option):\n"
-	"This application is part of the Mini-Voicemail system, configured in minivm.conf.\n"
-	"Use this application to record account specific audio/video messages for\n"
-	"busy, unavailable and temporary messages.\n"
-	"Account specific directories will be created if they do not exist.\n"
-	"\nThe option selects message to be recorded:\n"
-	"   u      Unavailable\n"
-	"   b      Busy\n"
-	"   t      Temporary (overrides busy and unavailable)\n"
-	"   n      Account name\n"
-	"\n"
-	"Result is given in channel variable MINIVM_ACCMESS_STATUS\n"
-	"        The possible values are:     SUCCESS |  FAILED\n"
-	"	 FAILED is set if the file can't be created.\n"
-	"\n";
 
 enum {
 	OPT_SILENT =	   (1 << 0),
@@ -1615,6 +1754,74 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 	pbx_builtin_setvar_helper(chan, "MINIVM_RECORD_STATUS", "SUCCESS");
 	return res;
 }
+
+/*! \brief Queue a message waiting event */
+static void queue_mwi_event(const char *mbx, const char *ctx, int urgent, int new, int old)
+{
+	struct ast_event *event;
+	char *mailbox, *context;
+
+	mailbox = ast_strdupa(mbx);
+	context = ast_strdupa(ctx);
+	if (ast_strlen_zero(context)) {
+		context = "default";
+	}
+
+	if (!(event = ast_event_new(AST_EVENT_MWI,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
+			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, (new+urgent),
+			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, old,
+			AST_EVENT_IE_END))) {
+ 		return;
+	}
+
+	ast_event_queue_and_cache(event,
+		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR,
+		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR,
+		AST_EVENT_IE_END);
+}
+
+/*! \brief Send MWI using interal Asterisk event subsystem */
+static int minivm_mwi_exec(struct ast_channel *chan, void *data)
+{
+	int argc;
+	char *argv[4];
+	int res = 0;
+	char *tmpptr;
+	char tmp[PATH_MAX];
+	char *mailbox;
+	char *domain;
+	if (ast_strlen_zero(data))  {
+                ast_log(LOG_ERROR, "Minivm needs at least an account argument \n");
+                return -1;
+        }
+        tmpptr = ast_strdupa((char *)data);
+        if (!tmpptr) {
+                ast_log(LOG_ERROR, "Out of memory\n");
+                return -1;
+        }
+        argc = ast_app_separate_args(tmpptr, ',', argv, ARRAY_LEN(argv));
+	if (argc < 4) {
+		ast_log(LOG_ERROR, "%d arguments passed to MiniVM_MWI, need 4.\n", argc);
+		return -1;
+	}
+        ast_copy_string(tmp, argv[0], sizeof(tmp));
+        mailbox = tmp;
+        domain = strchr(tmp, '@');
+        if (domain) {
+                *domain = '\0';
+                domain++;
+        }
+        if (ast_strlen_zero(domain) || ast_strlen_zero(mailbox)) {
+                ast_log(LOG_ERROR, "Need mailbox@context as argument. Sorry. Argument 0 %s\n", argv[0]);
+                return -1;
+        }
+	queue_mwi_event(mailbox, domain, atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+
+	return res;
+}
+
 
 /*! \brief Notify voicemail account owners - either generic template or user specific */
 static int minivm_notify_exec(struct ast_channel *chan, void *data)
@@ -3052,11 +3259,12 @@ static int load_module(void)
 {
 	int res;
 
-	res = ast_register_application(app_minivm_record, minivm_record_exec, synopsis_minivm_record, descrip_minivm_record);
-	res = ast_register_application(app_minivm_greet, minivm_greet_exec, synopsis_minivm_greet, descrip_minivm_greet);
-	res = ast_register_application(app_minivm_notify, minivm_notify_exec, synopsis_minivm_notify, descrip_minivm_notify);
-	res = ast_register_application(app_minivm_delete, minivm_delete_exec, synopsis_minivm_delete, descrip_minivm_delete);
-	res = ast_register_application(app_minivm_accmess, minivm_accmess_exec, synopsis_minivm_accmess, descrip_minivm_accmess);
+	res = ast_register_application_xml(app_minivm_record, minivm_record_exec);
+	res = ast_register_application_xml(app_minivm_greet, minivm_greet_exec);
+	res = ast_register_application_xml(app_minivm_notify, minivm_notify_exec);
+	res = ast_register_application_xml(app_minivm_delete, minivm_delete_exec);
+	res = ast_register_application_xml(app_minivm_accmess, minivm_accmess_exec);
+	res = ast_register_application_xml(app_minivm_mwi, minivm_mwi_exec);
 
 	ast_custom_function_register(&minivm_account_function);
 	ast_custom_function_register(&minivm_counter_function);
