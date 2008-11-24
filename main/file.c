@@ -900,6 +900,10 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	int seekattempt;
 
 	fs = ast_openstream(chan, filename, preflang);
+	if (!fs) {
+		ast_log(LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, ast_getformatname_multiple(fmt, sizeof(fmt), chan->nativeformats), strerror(errno));
+		return -1;
+	}
 
 	/* check to see if there is any data present (not a zero length file),
 	 * done this way because there is no where for ast_openstream_full to
@@ -910,28 +914,24 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	else
 		return 0;
 
-	if (fs)
-		vfs = ast_openvstream(chan, filename, preflang);
+	vfs = ast_openvstream(chan, filename, preflang);
 	if (vfs) {
 		ast_debug(1, "Ooh, found a video stream, too, format %s\n", ast_getformatname(vfs->fmt->format));
 	}
-	if (fs){
-		int res;
-		if (ast_test_flag(chan, AST_FLAG_MASQ_NOSTREAM))
-			fs->orig_chan_name = ast_strdup(chan->name);
-		if (ast_applystream(chan, fs))
-			return -1;
-		if (vfs && ast_applystream(chan, vfs))
-			return -1;
-		res = ast_playstream(fs);
-		if (!res && vfs)
-			res = ast_playstream(vfs);
-		ast_verb(3, "<%s> Playing '%s.%s' (language '%s')\n", chan->name, filename, ast_getformatname(chan->writeformat), preflang ? preflang : "default");
 
-		return res;
-	}
-	ast_log(LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, ast_getformatname_multiple(fmt, sizeof(fmt), chan->nativeformats), strerror(errno));
-	return -1;
+	int res;
+	if (ast_test_flag(chan, AST_FLAG_MASQ_NOSTREAM))
+		fs->orig_chan_name = ast_strdup(chan->name);
+	if (ast_applystream(chan, fs))
+		return -1;
+	if (vfs && ast_applystream(chan, vfs))
+		return -1;
+	res = ast_playstream(fs);
+	if (!res && vfs)
+		res = ast_playstream(vfs);
+	ast_verb(3, "<%s> Playing '%s.%s' (language '%s')\n", chan->name, filename, ast_getformatname(chan->writeformat), preflang ? preflang : "default");
+
+	return res;
 }
 
 struct ast_filestream *ast_readfile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
