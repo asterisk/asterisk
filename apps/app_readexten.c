@@ -1,9 +1,8 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2007 Dave Chappell
- *
- * David Chappell <David.Chappell@trincoll.edu>
+ * Copyright (C) 2007-2008, Trinity College Computing Center
+ * Written by David Chappell <David.Chappell@trincoll.edu>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -77,10 +76,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						A valid extension exists in ${variable}.
 					</value>
 					<value name="TIMEOUT">
-						No extension was entered in the specified time.
+						No extension was entered in the specified time.  Also sets ${variable} to "t".
 					</value>
 					<value name="INVALID">
-						An invalid extension, ${INVALID_EXTEN}, was entered.
+						An invalid extension, ${INVALID_EXTEN}, was entered.  Also sets ${variable} to "i".
 					</value>
 					<value name="SKIP">
 						Line was not up and the option 's' was specified.
@@ -154,7 +153,7 @@ static int readexten_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(arglist, argcopy);
 
 	if (ast_strlen_zero(arglist.variable)) {
-		ast_log(LOG_WARNING, "Invalid! Usage: ReadExten(variable[|filename][|context][|options][|timeout])\n\n");
+		ast_log(LOG_WARNING, "Usage: ReadExten(variable[,filename[,context[,options[,timeout]]]])\n");
 		pbx_builtin_setvar_helper(chan, "READEXTENSTATUS", "ERROR");
 		return 0;
 	}
@@ -218,10 +217,12 @@ static int readexten_exec(struct ast_channel *chan, void *data)
 			timeout = digit_timeout;
 
 			if (res < 1) {		/* timeout expired or hangup */
-				if (ast_check_hangup(chan))
+				if (ast_check_hangup(chan)) {
 					status = "HANGUP";
-				else
+				} else {
+					pbx_builtin_setvar_helper(chan, arglist.variable, "t");
 					status = "TIMEOUT";
+				}
 				break;
 			} else if (res == '#') {
 				break;
@@ -242,6 +243,7 @@ static int readexten_exec(struct ast_channel *chan, void *data)
 			status = "OK";
 		} else {
 			ast_debug(3, "User dialed invalid extension '%s' in context '%s' on %s\n", exten, arglist.context, chan->name);
+			pbx_builtin_setvar_helper(chan, arglist.variable, "i");
 			pbx_builtin_setvar_helper(chan, "INVALID_EXTEN", exten);
 			status = "INVALID";
 		}
