@@ -361,6 +361,13 @@ usecallerid=yes
 ;
 ;hidecallerid=yes
 ;
+; On UK analog lines, the caller hanging up determines the end of calls.  So
+; Asterisk hanging up the line may or may not end a call (DAHDI could just as
+; easily be re-attaching to a prior incoming call that was not yet hung up).
+; This option changes the hangup to wait for a dialtone on the line, before
+; marking the line as once again available for use with outgoing calls.
+;waitfordialtone=yes
+;
 ; The following option enables receiving MWI on FXO lines.  The default
 ; value is no.  When this is enabled, and MWI notification indicates on or off,
 ; the script specified by the mwimonitornotify option is executed.  Also, an

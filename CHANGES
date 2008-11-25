@@ -32,6 +32,11 @@ Skinny Changes
    Please have a look at configs/skinny.conf.sample and change your skinny.conf
    accordingly.
 
+DAHDI Changes
+-------------
+ * The UK option waitfordialtone has been added for use with BT analog
+   lines.
+
 Dialplan Functions
 ------------------
  * Added a new dialplan function, CURLOPT, which permits setting various

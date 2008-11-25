@@ -712,6 +712,8 @@ static struct dahdi_pvt {
 	int busy_tonelength;
 	int busy_quietlength;
 	int callprogress;
+	int waitfordialtone;
+	struct timeval waitingfordt;			/*!< Time we started waiting for dialtone */
 	struct timeval flashtime;			/*!< Last flash-hook time */
 	struct ast_dsp *dsp;
 	int cref;					/*!< Call reference number */
@@ -2182,6 +2184,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
+	p->waitingfordt.tv_sec = 0;
 	p->dialednone = 0;
 	if ((p->radio || (p->oprmode < 0)))  /* if a radio channel, up immediately */
 	{
@@ -2405,6 +2408,20 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 			p->dop.dialstr[strlen(p->dop.dialstr)-2] = '\0';
 		} else
 			p->echobreak = 0;
+
+		/* waitfordialtone ? */
+#ifdef HAVE_PRI
+		if (!p->pri) {
+#endif
+			if( p->waitfordialtone && CANPROGRESSDETECT(p) && p->dsp ) {
+				ast_log(LOG_DEBUG, "Defer dialling for %dms or dialtone\n", p->waitfordialtone);
+				gettimeofday(&p->waitingfordt,NULL);
+				ast_setstate(ast, AST_STATE_OFFHOOK);
+				break;
+			}
+#ifdef HAVE_PRI
+		}
+#endif
 		if (!res) {
 			if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop)) {
 				int saveerr = errno;
@@ -3446,6 +3463,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 		p->callwaitcas = 0;
 		p->callwaiting = p->permcallwaiting;
 		p->hidecallerid = p->permhidecallerid;
+		p->waitingfordt.tv_sec = 0;
 		p->dialing = 0;
 		p->rdnis[0] = '\0';
 		update_conf(p);
@@ -5183,6 +5201,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		case DAHDI_EVENT_HOOKCOMPLETE:
 			if (p->inalarm) break;
 			if ((p->radio || (p->oprmode < 0))) break;
+			if (p->waitingfordt.tv_sec) break;
 			switch (mysig) {
 			case SIG_FXSLS:  /* only interesting for FXS */
 			case SIG_FXSGS:
@@ -5639,8 +5658,8 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 		p->subs[idx].f.data.ptr = NULL;
 		p->subs[idx].f.datalen= 0;
 	}
-	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect  || p->callprogress) && !idx) {
-		/* Perform busy detection. etc on the dahdi line */
+	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect || p->callprogress || p->waitingfordt.tv_sec) && !idx) {
+		/* Perform busy detection etc on the dahdi line */
 		int mute;
 
 		f = ast_dsp_process(ast, p->dsp, &p->subs[idx].f);
@@ -5671,6 +5690,35 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 #endif				
 				/* DSP clears us of being pulse */
 				p->pulsedial = 0;
+			} else if (p->waitingfordt.tv_sec) {
+				if (ast_tvdiff_ms(ast_tvnow(), p->waitingfordt) >= p->waitfordialtone ) {
+					p->waitingfordt.tv_sec = 0;
+					ast_log(LOG_WARNING, "Never saw dialtone on channel %d\n", p->channel);
+					f=NULL;
+				} else if (f->frametype == AST_FRAME_VOICE) {
+					f->frametype = AST_FRAME_NULL;
+					f->subclass = 0;
+					if ((ast_dsp_get_tstate(p->dsp) == DSP_TONE_STATE_DIALTONE || ast_dsp_get_tstate(p->dsp) == DSP_TONE_STATE_RINGING) && ast_dsp_get_tcount(p->dsp) > 9) {
+						p->waitingfordt.tv_sec = 0;
+						p->dsp_features &= ~DSP_FEATURE_WAITDIALTONE;
+						ast_dsp_set_features(p->dsp, p->dsp_features);
+						ast_log(LOG_DEBUG, "Got 10 samples of dialtone!\n");
+						if (!ast_strlen_zero(p->dop.dialstr)) { /* Dial deferred digits */
+							res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop);
+							if (res < 0) {
+								ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
+								p->dop.dialstr[0] = '\0';
+								return NULL;
+							} else {
+								ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", p->dop.dialstr);
+								p->dialing = 1;
+								p->dop.dialstr[0] = '\0';
+								p->dop.op = DAHDI_DIAL_OP_REPLACE;
+								ast_setstate(ast, AST_STATE_DIALING);
+							}
+						}
+					}
+				}
 			}
 		}
 	} else 
@@ -6094,6 +6142,8 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 			features |= DSP_FEATURE_BUSY_DETECT;
 		if ((i->callprogress & CALLPROGRESS_PROGRESS) && CANPROGRESSDETECT(i))
 			features |= DSP_FEATURE_CALL_PROGRESS;
+		if ((i->waitfordialtone) && CANPROGRESSDETECT(i))
+			features |= DSP_FEATURE_WAITDIALTONE;
 		if ((!i->outgoing && (i->callprogress & CALLPROGRESS_FAX_INCOMING)) || 
 		    (i->outgoing && (i->callprogress & CALLPROGRESS_FAX_OUTGOING))) {
 			features |= DSP_FEATURE_FAX_DETECT;
@@ -8809,6 +8859,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->busy_tonelength = conf->chan.busy_tonelength;
 		tmp->busy_quietlength = conf->chan.busy_quietlength;
 		tmp->callprogress = conf->chan.callprogress;
+		tmp->waitfordialtone = conf->chan.waitfordialtone;
 		tmp->cancallforward = conf->chan.cancallforward;
 		tmp->dtmfrelax = conf->chan.dtmfrelax;
 		tmp->callwaiting = tmp->permcallwaiting;
@@ -12471,6 +12522,7 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 			} else {
 				ast_cli(a->fd, "\tnone\n");
 			}
+			ast_cli(a->fd, "Wait for dialtone: %dms\n", tmp->waitfordialtone);
 			if (tmp->master)
 				ast_cli(a->fd, "Master Channel: %d\n", tmp->master->channel);
 			for (x = 0; x < MAX_SLAVES; x++) {
@@ -13917,6 +13969,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			confp->chan.callprogress &= ~CALLPROGRESS_PROGRESS;
 			if (ast_true(v->value))
 				confp->chan.callprogress |= CALLPROGRESS_PROGRESS;
+		} else if (!strcasecmp(v->name, "waitfordialtone")) {
+			confp->chan.waitfordialtone = atoi(v->value);
 		} else if (!strcasecmp(v->name, "faxdetect")) {
 			confp->chan.callprogress &= ~CALLPROGRESS_FAX;
 			if (!strcasecmp(v->value, "incoming")) {

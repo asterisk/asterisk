@@ -41,6 +41,7 @@
 #define DSP_PROGRESS_BUSY		(1 << 18)		/*!< Enable busy tone detection */
 #define DSP_PROGRESS_CONGESTION		(1 << 19)		/*!< Enable congestion tone detection */
 #define DSP_FEATURE_CALL_PROGRESS	(DSP_PROGRESS_TALK | DSP_PROGRESS_RINGING | DSP_PROGRESS_BUSY | DSP_PROGRESS_CONGESTION)
+#define DSP_FEATURE_WAITDIALTONE	(1 << 20)		/*!< Enable dial tone detection */
 
 #define DSP_FAXMODE_DETECT_CNG	(1 << 0)
 #define DSP_FAXMODE_DETECT_CED	(1 << 1)
