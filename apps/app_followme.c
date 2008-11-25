@@ -260,7 +260,7 @@ static void profile_set_param(struct call_followme *f, const char *param, const 
 		ast_copy_string(f->norecordingprompt, val, sizeof(f->norecordingprompt));
 	else if (!strcasecmp(param, "followme-options-prompt") || !strcasecmp(param, "options_prompt")) 
 		ast_copy_string(f->optionsprompt, val, sizeof(f->optionsprompt));
-	else if (!strcasecmp(param, "followme-pls-hold-prompt") || !strcasecmp(param, "hold_prompt"))
+	else if (!strcasecmp(param, "followme-pls-hold-prompt") || !strcasecmp(param, "pls_hold_prompt"))
 		ast_copy_string(f->plsholdprompt, val, sizeof(f->plsholdprompt));
 	else if (!strcasecmp(param, "followme-status-prompt") || !strcasecmp(param, "status_prompt")) 
 		ast_copy_string(f->statusprompt, val, sizeof(f->statusprompt));
