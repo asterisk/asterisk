@@ -178,6 +178,9 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 if you have the `ioperm' function. */
+#undef HAVE_IOPERM
+
 /* Define to 1 if your system has PMTU discovery on UDP sockets. */
 #undef HAVE_IP_MTU_DISCOVER
 
@@ -460,6 +463,9 @@
 
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
 #undef HAVE_SYS_IOCTL_H
+
+/* Define to 1 if you have the <sys/io.h> header file. */
+#undef HAVE_SYS_IO_H
 
 /* Define to 1 if you have the <sys/ndir.h> header file, and it defines `DIR'.
    */
