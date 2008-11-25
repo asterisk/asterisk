@@ -129,6 +129,7 @@ static int send_waveform_to_fd(char *waveform, int length, int fd)
 	int res;
 #ifdef __PPC__ 
 	char c;
+	int x;
 #endif
 
 	res = ast_safe_fork(0);
