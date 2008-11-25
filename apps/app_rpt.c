@@ -331,7 +331,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
+#ifdef HAVE_SYS_IO_H
 #include <sys/io.h>
+#endif
 #include <sys/vfs.h>
 #include <math.h>
 #include <dahdi/user.h>
@@ -4483,6 +4485,7 @@ struct dahdi_params par;
 		{
 			res = set_ic706(myrpt);
 		}
+#ifdef HAVE_IOPERM
 		else if(!strcmp(myrpt->remoterig, remote_rig_rbi)||!strcmp(myrpt->remoterig, remote_rig_ppp16))
 		{
 			if (ioperm(myrpt->p.iobase,1,1) == -1)
@@ -4493,6 +4496,7 @@ struct dahdi_params par;
 			}
 			else res = setrbi(myrpt);
 		}
+#endif
 		else if(!strcmp(myrpt->remoterig, remote_rig_kenwood))
 		{
 			if (myrpt->iofd >= 0) setdtr(myrpt->iofd,1);
@@ -10756,7 +10760,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		rpt_mutex_unlock(&myrpt->lock);
 		usleep(100000);
 		rpt_mutex_lock(&myrpt->lock);
-	}	
+	}
+#ifdef HAVE_IOPERM
 	if ((!strcmp(myrpt->remoterig, remote_rig_rbi)) &&
 	  (ioperm(myrpt->p.iobase,1,1) == -1))
 	{
@@ -10765,6 +10770,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
+#endif
 	strncpy(tmpstr,myrpt->rxchanname,sizeof(tmpstr) - 1);
 	tele = strchr(tmpstr,'/');
 	if (!tele)
@@ -13721,6 +13727,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
+#ifdef HAVE_IOPERM
 	if ( (!strcmp(myrpt->remoterig, remote_rig_rbi)||!strcmp(myrpt->remoterig, remote_rig_ppp16)) &&
 	  (ioperm(myrpt->p.iobase,1,1) == -1))
 	{
@@ -13728,6 +13735,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Can't get io permission on IO port %x hex\n",myrpt->p.iobase);
 		return -1;
 	}
+#endif
 	myrpt->remoteon = 1;
 #ifdef	OLD_ASTERISK
 	LOCAL_USER_ADD(u);

@@ -56,7 +56,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#ifdef HAVE_SYS_IO_H
 #include <sys/io.h>
+#endif
 #include <fcntl.h>
 #include <sys/time.h>
 #include <stdlib.h>
