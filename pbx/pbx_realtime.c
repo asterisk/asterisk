@@ -75,6 +75,12 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 	char *ematch;
 	char rexten[AST_MAX_EXTENSION + 20]="";
 	int match;
+	/* Optimization: since we don't support hints in realtime, it's silly to
+	 * query for a hint here, since we won't actually do anything with it.
+	 * This just wastes CPU time and resources. */
+	if (priority < 0) {
+		return NULL;
+	}
 	snprintf(pri, sizeof(pri), "%d", priority);
 	switch(mode) {
 	case MODE_MATCHMORE:
