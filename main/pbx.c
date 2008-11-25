@@ -762,6 +762,7 @@ struct ast_app;
 static struct ast_taskprocessor *device_state_tps;
 
 AST_THREADSTORAGE(switch_data);
+AST_THREADSTORAGE(extensionstate_buf);
 
 /*!
    \brief ast_exten: An extension
@@ -3707,7 +3708,7 @@ static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *c
 /*! \brief Check state of extension by using hints */
 static int ast_extension_state2(struct ast_exten *e)
 {
-	char hint[AST_MAX_EXTENSION] = "";
+	struct ast_str *hint = ast_str_thread_get(&extensionstate_buf, 16);
 	char *cur, *rest;
 	struct ast_devstate_aggregate agg;
 	enum ast_device_state state;
@@ -3717,9 +3718,9 @@ static int ast_extension_state2(struct ast_exten *e)
 
 	ast_devstate_aggregate_init(&agg);
 
-	ast_copy_string(hint, ast_get_extension_app(e), sizeof(hint));
+	ast_str_set(&hint, 0, "%s", ast_get_extension_app(e));
 
-	rest = hint;	/* One or more devices separated with a & character */
+	rest = hint->str;	/* One or more devices separated with a & character */
 
 	while ( (cur = strsep(&rest, "&")) )
 		ast_devstate_aggregate_add(&agg, ast_device_state(cur));
