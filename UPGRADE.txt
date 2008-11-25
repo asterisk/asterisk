@@ -65,6 +65,9 @@ From 1.6.0.x to 1.6.1:
   to differentiate your variable from the append operator.  This potential
   conflict is unlikely, but is documented here to be thorough.
 
+* The "Join" event from app_queue now uses the CallerIDNum header instead of
+  the CallerID header to indicate the CallerID number.
+
 From 1.6.1 to 1.6.2:
 
 * The default console now will use colors according to the default background

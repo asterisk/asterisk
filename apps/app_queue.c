@@ -1920,7 +1920,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 		q->count++;
 		res = 0;
 		manager_event(EVENT_FLAG_CALL, "Join",
-			"Channel: %s\r\nCallerID: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\nUniqueid: %s\r\n",
+			"Channel: %s\r\nCallerIDNum: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\nUniqueid: %s\r\n",
 			qe->chan->name,
 			S_OR(qe->chan->cid.cid_num, "unknown"), /* XXX somewhere else it is <unknown> */
 			S_OR(qe->chan->cid.cid_name, "unknown"),
