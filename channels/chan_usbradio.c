@@ -1028,7 +1028,9 @@ static int usbradio_write(struct ast_channel *c, struct ast_frame *f)
 			tbuff[i] = ((i16 *)(f->data))[i / 2];
 			tbuff[i + 1] = o->txkeyed * M_Q13;
 		}
-		fwrite(tbuff, 2, f->datalen, ftxcapraw);
+		if (fwrite(tbuff, 2, f->datalen, ftxcapraw) != f->datalen) {
+			ast_log(LOG_ERROR, "fwrite() failed: %s\n", strerror(errno));
+		}
 		/*fwrite(f->data,1,f->datalen,ftxcapraw); */
 	}
 	#endif
@@ -1041,8 +1043,9 @@ static int usbradio_write(struct ast_channel *c, struct ast_frame *f)
 	#endif
 
 	#if DEBUG_CAPTURES == 1
-    if (o->b.txcap2 && ftxcaptrace)
-		fwrite((o->pmrChan->ptxDebug), 1, FRAME_SIZE * 2 * 16, ftxcaptrace);
+    if ((o->b.txcap2 && ftxcaptrace) && (fwrite((o->pmrChan->ptxDebug), 1, FRAME_SIZE * 2 * 16, ftxcaptrace) != FRAME_SIZE * 2 * 16)) {
+		ast_log(LOG_ERROR, "fwrite() failed: %s\n", strerror(errno));
+	}
 	#endif
 
 	src = 0;					/* read position into f->data */
@@ -1111,8 +1114,9 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 		return f;
 
 	#if DEBUG_CAPTURES == 1
-	if (o->b.rxcapraw && frxcapraw)
-		fwrite((o->usbradio_read_buf + AST_FRIENDLY_OFFSET), 1, FRAME_SIZE * 2 * 2 * 6, frxcapraw);
+	if ((o->b.rxcapraw && frxcapraw) && (fwrite((o->usbradio_read_buf + AST_FRIENDLY_OFFSET), 1, FRAME_SIZE * 2 * 2 * 6, frxcapraw) != FRAME_SIZE * 2 * 2 * 6)) {
+		ast_log(LOG_ERROR, "fwrite() failed: %s\n", strerror(errno));
+	}
 	#endif
 
 	#if 1
@@ -1149,7 +1153,9 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 	#endif
 
 	#if DEBUG_CAPTURES == 1
-    if (frxcaptrace && o->b.rxcap2) fwrite((o->pmrChan->prxDebug), 1, FRAME_SIZE * 2 * 16, frxcaptrace);
+    if ((frxcaptrace && o->b.rxcap2) && (fwrite((o->pmrChan->prxDebug), 1, FRAME_SIZE * 2 * 16, frxcaptrace) != FRAME_SIZE * 2 * 16)) {
+		ast_log(LOG_ERROR, "fwrite() error: %s\n", strerror(errno));
+	}
 	#endif
 
 	if (o->rxcdtype == CD_HID && (o->pmrChan->rxExtCarrierDetect != o->rxhidsq))
@@ -2423,7 +2429,9 @@ int RxTestIt(struct chan_usbradio_pvt *o)
 
 		PmrRx(pChan, iBuff, oBuff);
 
-		fwrite((void *)pChan->prxDebug, 2, numSamples * numChannels, hOutput);
+		if (fwrite((void *)pChan->prxDebug, 2, numSamples * numChannels, hOutput) != numSamples * numChannels) {
+			ast_log(LOG_ERROR, "fwrite() failed: %s\n", strerror(errno));
+		}
 	}
 	pChan->b.txCapture = 0;
 	pChan->b.rxCapture = 0;
