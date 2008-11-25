@@ -898,6 +898,7 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	struct ast_filestream *vfs=NULL;
 	char fmt[256];
 	int seekattempt;
+	int res;
 
 	fs = ast_openstream(chan, filename, preflang);
 	if (!fs) {
@@ -919,7 +920,6 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 		ast_debug(1, "Ooh, found a video stream, too, format %s\n", ast_getformatname(vfs->fmt->format));
 	}
 
-	int res;
 	if (ast_test_flag(chan, AST_FLAG_MASQ_NOSTREAM))
 		fs->orig_chan_name = ast_strdup(chan->name);
 	if (ast_applystream(chan, fs))
