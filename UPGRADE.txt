@@ -64,3 +64,6 @@ From 1.6.0.x to 1.6.1:
   workaround is to ensure that a space occurs between the '+' and the '=',
   to differentiate your variable from the append operator.  This potential
   conflict is unlikely, but is documented here to be thorough.
+
+* The "Join" event from app_queue now uses the CallerIDNum header instead of
+  the CallerID header to indicate the CallerID number.
