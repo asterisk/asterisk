@@ -7208,7 +7208,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 
 	/* Make sure our call still exists, an INVAL at the right point may make it go away */
 	if (!iaxs[callno]) {
-		res = 0;
+		res = -1;
 		goto return_unref;
 	}
 
