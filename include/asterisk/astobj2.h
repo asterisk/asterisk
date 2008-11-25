@@ -192,6 +192,13 @@ int ao2_lock(void *a);
 int _ao2_lock(void *a, const char *file, const char *func, int line, const char *var);
 #endif
 
+#ifndef DEBUG_THREADS
+int ao2_trylock(void *a);
+#else
+#define ao2_trylock(a) _ao2_trylock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+int _ao2_trylock(void *a, const char *file, const char *func, int line, const char *var);
+#endif
+
 /*!
  * Unlock an object.
  * 

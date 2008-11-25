@@ -148,6 +148,33 @@ int _ao2_lock(void *user_data, const char *file, const char *func, int line, con
 }
 
 #ifndef DEBUG_THREADS
+int ao2_trylock(void *user_data)
+#else
+int _ao2_trylock(void *user_data, const char *file, const char *func, int line, const char *var)
+#endif
+{
+	struct astobj2 *p = INTERNAL_OBJ(user_data);
+	int res;
+
+	if (p == NULL)
+		return -1;
+
+#ifndef DEBUG_THREADS
+	res = ast_mutex_trylock(&p->priv_data.lock);
+#else
+	res = __ast_pthread_mutex_trylock(file, line, func, var, &p->priv_data.lock);
+#endif
+
+#ifdef AO2_DEBUG
+	if (!res) {
+		ast_atomic_fetchadd_int(&ao2.total_locked, 1);
+	}
+#endif
+
+	return res;
+}
+
+#ifndef DEBUG_THREADS
 int ao2_unlock(void *user_data)
 #else
 int _ao2_unlock(void *user_data, const char *file, const char *func, int line, const char *var)
