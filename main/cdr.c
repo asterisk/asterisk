@@ -754,6 +754,9 @@ int ast_cdr_disposition(struct ast_cdr *cdr, int cause)
 		case AST_CAUSE_BUSY:
 			ast_cdr_busy(cdr);
 			break;
+		case AST_CAUSE_NO_ANSWER:
+			ast_cdr_noanswer(cdr);
+			break;
 		case AST_CAUSE_NORMAL:
 			break;
 		default:
