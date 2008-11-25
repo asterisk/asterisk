@@ -80,7 +80,7 @@ static int timerfd_timer_hash(const void *obj, const int flags)
 	return timer->handle;
 }
 
-static int timerfd_timer_cmp(void *obj, void *args, void *data, int flags)
+static int timerfd_timer_cmp(void *obj, void *args, int flags)
 {
 	struct timerfd_timer *timer1 = obj, *timer2 = args;
 	return timer1->handle == timer2->handle ? CMP_MATCH | CMP_STOP : 0;
@@ -120,7 +120,7 @@ static void timerfd_timer_close(int handle)
 		.handle = handle,
 	};
 
-	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, NULL, OBJ_POINTER))) {
+	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
 		return;
 	}
@@ -172,7 +172,7 @@ static int timerfd_timer_enable_continuous(int handle)
 		.handle = handle,
 	};
 
-	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, NULL, OBJ_POINTER))) {
+	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
 		return -1;
 	}
@@ -198,7 +198,7 @@ static int timerfd_timer_disable_continuous(int handle)
 		.handle = handle,
 	};
 
-	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, NULL, OBJ_POINTER))) {
+	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
 		return -1;
 	}
@@ -225,7 +225,7 @@ static enum ast_timing_event timerfd_timer_get_event(int handle)
 		.handle = handle,
 	};
 
-	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, NULL, OBJ_POINTER))) {
+	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
 		return -1;
 	}

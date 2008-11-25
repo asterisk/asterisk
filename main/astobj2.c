@@ -120,6 +120,11 @@ static inline struct astobj2 *INTERNAL_OBJ(void *user_data)
 	return p;
 }
 
+enum ao2_callback_type {
+	DEFAULT,
+	WITH_DATA,
+};
+
 /*!
  * \brief convert from a pointer _p to an astobj2 object
  *
@@ -135,7 +140,7 @@ static struct ao2_container *__ao2_container_alloc(struct ao2_container *c, cons
 											ao2_callback_fn *cmp_fn);
 static struct bucket_list *__ao2_link(struct ao2_container *c, void *user_data);
 static void *__ao2_callback(struct ao2_container *c,
-	const enum search_flags flags, ao2_callback_fn *cb_fn, void *arg, void *data,
+	const enum search_flags flags, void *cb_fn, void *arg, void *data, enum ao2_callback_type type,
 					 char *tag, char *file, int line, const char *funcname);
 static void * __ao2_iterator_next(struct ao2_iterator *a, struct bucket_list **q);
 
@@ -527,7 +532,7 @@ void *_ao2_link(struct ao2_container *c, void *user_data)
 /*!
  * \brief another convenience function is a callback that matches on address
  */
-int ao2_match_by_addr(void *user_data, void *arg, void *data, int flags)
+int ao2_match_by_addr(void *user_data, void *arg, int flags)
 {
 	return (user_data == arg) ? (CMP_MATCH | CMP_STOP) : 0;
 }
@@ -542,7 +547,7 @@ void *_ao2_unlink_debug(struct ao2_container *c, void *user_data, char *tag,
 	if (INTERNAL_OBJ(user_data) == NULL)	/* safety check on the argument */
 		return NULL;
 
-	_ao2_callback_debug(c, OBJ_UNLINK | OBJ_POINTER | OBJ_NODATA, ao2_match_by_addr, user_data, NULL, tag, file, line, funcname);
+	_ao2_callback_debug(c, OBJ_UNLINK | OBJ_POINTER | OBJ_NODATA, ao2_match_by_addr, user_data, tag, file, line, funcname);
 
 	return NULL;
 }
@@ -552,7 +557,7 @@ void *_ao2_unlink(struct ao2_container *c, void *user_data)
 	if (INTERNAL_OBJ(user_data) == NULL)	/* safety check on the argument */
 		return NULL;
 
-	_ao2_callback(c, OBJ_UNLINK | OBJ_POINTER | OBJ_NODATA, ao2_match_by_addr, user_data, NULL);
+	_ao2_callback(c, OBJ_UNLINK | OBJ_POINTER | OBJ_NODATA, ao2_match_by_addr, user_data);
 
 	return NULL;
 }
@@ -560,9 +565,18 @@ void *_ao2_unlink(struct ao2_container *c, void *user_data)
 /*! 
  * \brief special callback that matches all 
  */ 
-static int cb_true(void *user_data, void *arg, void *data, int flags)
+static int cb_true(void *user_data, void *arg, int flags)
 {
-	ast_log(LOG_ERROR,"If you see this, something is strange!\n");
+	ast_log(LOG_ERROR, "Using default callback (cb_true).  If you see this, something is strange!\n");
+	return CMP_MATCH;
+}
+
+/*!
+ * \brief similar to cb_true, but is an ao2_callback_data_fn instead
+ */
+static int cb_true_data(void *user_data, void *arg, void *data, int flags)
+{
+	ast_log(LOG_ERROR, "Using default callback (cb_true_data).  If you see this, something is strange!\n");
 	return CMP_MATCH;
 }
 
@@ -575,11 +589,13 @@ static int cb_true(void *user_data, void *arg, void *data, int flags)
  * called as often as, say, the ao2_ref func is called.
  */
 static void *__ao2_callback(struct ao2_container *c,
-	const enum search_flags flags, ao2_callback_fn *cb_fn, void *arg, void *data,
+	const enum search_flags flags, void *cb_fn, void *arg, void *data, enum ao2_callback_type type,
 	char *tag, char *file, int line, const char *funcname)
 {
 	int i, last;	/* search boundaries */
 	void *ret = NULL;
+	ao2_callback_fn *cb_default = NULL;
+	ao2_callback_data_fn *cb_withdata = NULL;
 
 	if (INTERNAL_OBJ(c) == NULL)	/* safety check on the argument */
 		return NULL;
@@ -590,8 +606,22 @@ static void *__ao2_callback(struct ao2_container *c,
 	}
 
 	/* override the match function if necessary */
-	if (cb_fn == NULL)	/* if NULL, match everything */
-		cb_fn = cb_true;
+	if (cb_fn == NULL) { /* if NULL, match everything */
+		if (type == WITH_DATA) {
+			cb_withdata = cb_true_data;
+		} else {
+			cb_default = cb_true;
+		}
+	} else {
+		/* We do this here to avoid the per object casting penalty (even though
+		   that is probably optimized away anyway. */
+		if (type == WITH_DATA) {
+			cb_withdata = cb_fn;
+		} else {
+			cb_default = cb_fn;
+		}
+	}
+
 	/*
 	 * XXX this can be optimized.
 	 * If we have a hash function and lookup by pointer,
@@ -618,7 +648,13 @@ static void *__ao2_callback(struct ao2_container *c,
 		struct bucket_list *cur;
 
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&c->buckets[i], cur, entry) {
-			int match = cb_fn(EXTERNAL_OBJ(cur->astobj), arg, data, flags) & (CMP_MATCH | CMP_STOP);
+			int match = (CMP_MATCH | CMP_STOP);
+
+			if (type == WITH_DATA) {
+				match &= cb_withdata(EXTERNAL_OBJ(cur->astobj), arg, data, flags);
+			} else {
+				match &= cb_default(EXTERNAL_OBJ(cur->astobj), arg, flags);
+			}
 
 			/* we found the object, performing operations according flags */
 			if (match == 0) {	/* no match, no stop, continue */
@@ -674,29 +710,43 @@ static void *__ao2_callback(struct ao2_container *c,
 
 void *_ao2_callback_debug(struct ao2_container *c,
 						 const enum search_flags flags,
-						 ao2_callback_fn *cb_fn, void *arg, void *data,
+						 ao2_callback_fn *cb_fn, void *arg,
 						 char *tag, char *file, int line, const char *funcname)
 {
-	return __ao2_callback(c,flags, cb_fn, arg, data, tag, file, line, funcname);
+	return __ao2_callback(c,flags, cb_fn, arg, NULL, DEFAULT, tag, file, line, funcname);
 }
 
-void *_ao2_callback(struct ao2_container *c,const enum search_flags flags,
-                    ao2_callback_fn *cb_fn, void *arg, void *data)
+void *_ao2_callback(struct ao2_container *c, const enum search_flags flags,
+                    ao2_callback_fn *cb_fn, void *arg)
 {
-	return __ao2_callback(c,flags, cb_fn, arg, data, NULL, NULL, 0, NULL);
+	return __ao2_callback(c,flags, cb_fn, arg, NULL, DEFAULT, NULL, NULL, 0, NULL);
+}
+
+void *_ao2_callback_data_debug(struct ao2_container *c,
+						 const enum search_flags flags,
+						 ao2_callback_data_fn *cb_fn, void *arg, void *data,
+						 char *tag, char *file, int line, const char *funcname)
+{
+	return __ao2_callback(c, flags, cb_fn, arg, data, WITH_DATA, tag, file, line, funcname);
+}
+
+void *_ao2_callback_data(struct ao2_container *c, const enum search_flags flags,
+					ao2_callback_data_fn *cb_fn, void *arg, void *data)
+{
+	return __ao2_callback(c, flags, cb_fn, arg, data, WITH_DATA, NULL, NULL, 0, NULL);
 }
 
 /*!
  * the find function just invokes the default callback with some reasonable flags.
  */
-void *_ao2_find_debug(struct ao2_container *c, void *arg, void *data, enum search_flags flags, char *tag, char *file, int line, const char *funcname)
+void *_ao2_find_debug(struct ao2_container *c, void *arg, enum search_flags flags, char *tag, char *file, int line, const char *funcname)
 {
-	return _ao2_callback_debug(c, flags, c->cmp_fn, arg, data, tag, file, line, funcname);
+	return _ao2_callback_debug(c, flags, c->cmp_fn, arg, tag, file, line, funcname);
 }
 
-void *_ao2_find(struct ao2_container *c, void *arg, void *data, enum search_flags flags)
+void *_ao2_find(struct ao2_container *c, void *arg, enum search_flags flags)
 {
-	return _ao2_callback(c, flags, c->cmp_fn, arg, data);
+	return _ao2_callback(c, flags, c->cmp_fn, arg);
 }
 
 /*!
@@ -809,13 +859,13 @@ void * _ao2_iterator_next(struct ao2_iterator *a)
 /* callback for destroying container.
  * we can make it simple as we know what it does
  */
-static int cd_cb(void *obj, void *arg, void *data, int flag)
+static int cd_cb(void *obj, void *arg, int flag)
 {
 	_ao2_ref(obj, -1);
 	return 0;
 }
 	
-static int cd_cb_debug(void *obj, void *arg, void *data, int flag)
+static int cd_cb_debug(void *obj, void *arg, int flag)
 {
 	_ao2_ref_debug(obj, -1, "deref object via container destroy",  __FILE__, __LINE__, __PRETTY_FUNCTION__);
 	return 0;
@@ -826,7 +876,7 @@ static void container_destruct(void *_c)
 	struct ao2_container *c = _c;
 	int i;
 
-	_ao2_callback(c, OBJ_UNLINK, cd_cb, NULL, NULL);
+	_ao2_callback(c, OBJ_UNLINK, cd_cb, NULL);
 
 	for (i = 0; i < c->n_buckets; i++) {
 		struct bucket_list *current;
@@ -846,7 +896,7 @@ static void container_destruct_debug(void *_c)
 	struct ao2_container *c = _c;
 	int i;
 
-	_ao2_callback_debug(c, OBJ_UNLINK, cd_cb_debug, NULL, NULL, "container_destruct_debug called", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+	_ao2_callback_debug(c, OBJ_UNLINK, cd_cb_debug, NULL, "container_destruct_debug called", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
 	for (i = 0; i < c->n_buckets; i++) {
 		struct bucket_list *current;
@@ -862,7 +912,7 @@ static void container_destruct_debug(void *_c)
 }
 
 #ifdef AO2_DEBUG
-static int print_cb(void *obj, void *arg, void *data, int flag)
+static int print_cb(void *obj, void *arg, int flag)
 {
 	int *fd = arg;
 	char *s = (char *)obj;
@@ -954,7 +1004,7 @@ static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cl
 		ao2_t_ref(obj, -1, "test");
 	}
 	ast_cli(a->fd, "testing callbacks\n");
-	ao2_t_callback(c1, 0, print_cb, &a->fd, NULL, "test callback");
+	ao2_t_callback(c1, 0, print_cb, &a->fd, "test callback");
 	ast_cli(a->fd, "testing iterators, remove every second object\n");
 	{
 		struct ao2_iterator ai;
@@ -975,7 +1025,7 @@ static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cl
 		}
 	}
 	ast_cli(a->fd, "testing callbacks again\n");
-	ao2_t_callback(c1, 0, print_cb, &a->fd, NULL, "test callback");
+	ao2_t_callback(c1, 0, print_cb, &a->fd, "test callback");
 
 	ast_verbose("now you should see an error message:\n");
 	ao2_t_ref(&i, -1, "");	/* i is not a valid object so we print an error here */

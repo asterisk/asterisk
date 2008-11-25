@@ -93,7 +93,7 @@ AST_MUTEX_DEFINE_STATIC(cli_ping_cond_lock);
 /*! \brief The astobj2 hash callback for taskprocessors */
 static int tps_hash_cb(const void *obj, const int flags);
 /*! \brief The astobj2 compare callback for taskprocessors */
-static int tps_cmp_cb(void *obj, void *arg, void *data, int flags);
+static int tps_cmp_cb(void *obj, void *arg, int flags);
 
 /*! \brief The task processing function executed by a taskprocessor */
 static void *tps_processing_function(void *data);
@@ -335,7 +335,7 @@ static int tps_hash_cb(const void *obj, const int flags)
 }
 
 /* compare callback for astobj2 */
-static int tps_cmp_cb(void *obj, void *arg, void *data, int flags)
+static int tps_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct ast_taskprocessor *lhs = obj, *rhs = arg;
 
@@ -415,7 +415,7 @@ struct ast_taskprocessor *ast_taskprocessor_get(char *name, enum ast_tps_options
 		return NULL;
 	}
 	ao2_lock(tps_singletons);
-	p = ao2_find(tps_singletons, &tmp_tps, NULL, OBJ_POINTER);
+	p = ao2_find(tps_singletons, &tmp_tps, OBJ_POINTER);
 	if (p) {
 		ao2_unlock(tps_singletons);
 		return p;

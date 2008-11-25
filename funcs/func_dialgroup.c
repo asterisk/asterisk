@@ -96,7 +96,7 @@ static int group_hash_fn(const void *obj, const int flags)
 	return ast_str_hash(g->name);
 }
 
-static int group_cmp_fn(void *obj1, void *name2, void *data, int flags)
+static int group_cmp_fn(void *obj1, void *name2, int flags)
 {
 	struct group *g1 = obj1, *g2 = name2;
 	char *name = name2;
@@ -112,7 +112,7 @@ static int entry_hash_fn(const void *obj, const int flags)
 	return ast_str_hash(e->name);
 }
 
-static int entry_cmp_fn(void *obj1, void *name2, void *data, int flags)
+static int entry_cmp_fn(void *obj1, void *name2, int flags)
 {
 	struct group_entry *e1 = obj1, *e2 = name2;
 	char *name = name2;
@@ -125,7 +125,7 @@ static int entry_cmp_fn(void *obj1, void *name2, void *data, int flags)
 static int dialgroup_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct ao2_iterator i;
-	struct group *grhead = ao2_find(group_container, data, NULL, 0);
+	struct group *grhead = ao2_find(group_container, data, 0);
 	struct group_entry *entry;
 	size_t bufused = 0;
 	int trunc_warning = 0;
@@ -206,7 +206,7 @@ static int dialgroup_write(struct ast_channel *chan, const char *cmd, char *data
 	AST_STANDARD_APP_ARGS(args, data);
 	AST_NONSTANDARD_APP_ARGS(inter, value, '&');
 
-	if (!(grhead = ao2_find(group_container, args.group, NULL, 0))) {
+	if (!(grhead = ao2_find(group_container, args.group, 0))) {
 		/* Create group */
 		grhead = ao2_alloc(sizeof(*grhead), group_destroy);
 		if (!grhead)
@@ -245,7 +245,7 @@ static int dialgroup_write(struct ast_channel *chan, const char *cmd, char *data
 		}
 	} else if (strncasecmp(args.op, "del", 3) == 0) {
 		for (j = 0; j < inter.argc; j++) {
-			if ((entry = ao2_find(grhead->entries, inter.faces[j], NULL, OBJ_UNLINK))) {
+			if ((entry = ao2_find(grhead->entries, inter.faces[j], OBJ_UNLINK))) {
 				ao2_ref(entry, -1);
 			} else {
 				ast_log(LOG_WARNING, "Interface '%s' not found in dialgroup '%s'\n", inter.faces[j], grhead->name);

@@ -3568,7 +3568,7 @@ static int variable_count_hash_fn(const void *vvc, const int flags)
 	return res;
 }
 
-static int variable_count_cmp_fn(void *obj, void *vstr, void *data, int flags)
+static int variable_count_cmp_fn(void *obj, void *vstr, int flags)
 {
 	/* Due to the simplicity of struct variable_count, it makes no difference
 	 * if you pass in objects or strings, the same operation applies. This is
@@ -3677,7 +3677,7 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *v
 
 		if (!in_data) {	/* build appropriate line start */
 			ast_str_append(out, 0, xml ? " " : "<tr><td>");
-			if ((vc = ao2_find(vco, var, NULL, 0)))
+			if ((vc = ao2_find(vco, var, 0)))
 				vc->count++;
 			else {
 				/* Create a new entry for this one */

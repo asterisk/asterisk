@@ -296,7 +296,7 @@ static int parkinglot_hash_cb(const void *obj, const int flags)
 	return ast_str_case_hash(parkinglot->name);
 }
 
-static int parkinglot_cmp_cb(void *obj, void *arg, void *data, int flags)
+static int parkinglot_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct ast_parkinglot *parkinglot = obj, *parkinglot2 = arg;
 
@@ -2855,7 +2855,7 @@ struct ast_parkinglot *find_parkinglot(const char *name)
 
 	ast_copy_string(tmp_parkinglot.name, name, sizeof(tmp_parkinglot.name));
 
-	parkinglot = ao2_find(parkinglots, &tmp_parkinglot, NULL, OBJ_POINTER);
+	parkinglot = ao2_find(parkinglots, &tmp_parkinglot, OBJ_POINTER);
 
 	if (parkinglot && option_debug)
 		ast_log(LOG_DEBUG, "Found Parkinglot: %s\n", parkinglot->name);

@@ -597,9 +597,21 @@ to define callback and hash functions and their arguments.
  * \param flags flags from ao2_callback()
  *
  * The return values are a combination of enum _cb_results.
- * Callback functions are used to search or manipulate objects in a container,
+ * Callback functions are used to search or manipulate objects in a container.
  */
-typedef int (ao2_callback_fn)(void *obj, void *arg, void *data, int flags);
+typedef int (ao2_callback_fn)(void *obj, void *arg, int flags);
+
+/*! \brief
+ * Type of a generic callback function
+ * \param obj pointer to the (user-defined part) of an object.
+ * \param arg callback argument from ao2_callback()
+ * \param data arbitrary data from ao2_callback()
+ * \param flags flags from ao2_callback()
+ *
+ * The return values are a combination of enum _cb_results.
+ * Callback functions are used to search or manipulate objects in a container.
+ */
+typedef int (ao2_callback_data_fn)(void *obj, void *arg, void *data, int flags);
 
 /*! \brief a very common callback is one that matches by address. */
 ao2_callback_fn ao2_match_by_addr;
@@ -832,31 +844,60 @@ struct ao2_list {
  * be used to free the additional reference possibly created by this function.
  */
 #ifdef REF_DEBUG
-#define ao2_t_callback(arg1,arg2,arg3,arg4,arg5,arg6) _ao2_callback_debug((arg1), (arg2), (arg3), (arg4), (arg5), (arg6), __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ao2_callback(arg1,arg2,arg3,arg4,arg5)        _ao2_callback_debug((arg1), (arg2), (arg3), (arg4), (arg5), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_t_callback(arg1,arg2,arg3,arg4,arg5) _ao2_callback_debug((arg1), (arg2), (arg3), (arg4), (arg5), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_callback(arg1,arg2,arg3,arg4)        _ao2_callback_debug((arg1), (arg2), (arg3), (arg4), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
-#define ao2_t_callback(arg1,arg2,arg3,arg4,arg5,arg6) _ao2_callback((arg1), (arg2), (arg3), (arg4), (arg5))
-#define ao2_callback(arg1,arg2,arg3,arg4,arg5)        _ao2_callback((arg1), (arg2), (arg3), (arg4), (arg5))
+#define ao2_t_callback(arg1,arg2,arg3,arg4,arg5) _ao2_callback((arg1), (arg2), (arg3), (arg4))
+#define ao2_callback(arg1,arg2,arg3,arg4)        _ao2_callback((arg1), (arg2), (arg3), (arg4))
 #endif
 void *_ao2_callback_debug(struct ao2_container *c, enum search_flags flags,
-						  ao2_callback_fn *cb_fn, void *arg, void *data, char *tag, 
+						  ao2_callback_fn *cb_fn, void *arg, char *tag, 
 						  char *file, int line, const char *funcname);
 void *_ao2_callback(struct ao2_container *c,
 					enum search_flags flags,
-					ao2_callback_fn *cb_fn, void *arg, void *data);
+					ao2_callback_fn *cb_fn, void *arg);
+
+/*! \brief
+ * ao2_callback_data() is a generic function that applies cb_fn() to all objects
+ * in a container.  It is functionally identical to ao2_callback() except that
+ * instead of taking an ao2_callback_fn *, it takes an ao2_callback_data_fn *, and
+ * allows the caller to pass in arbitrary data.
+ *
+ * This call would be used instead of ao2_callback() when the caller needs to pass
+ * OBJ_POINTER as part of the flags argument (which in turn requires passing in a
+ * prototype ao2 object for 'arg') and also needs access to other non-global data
+ * to complete it's comparison or task.
+ *
+ * See the documentation for ao2_callback() for argument descriptions.
+ *
+ * \see ao2_callback()
+ */
+#ifdef REF_DEBUG
+#define ao2_t_callback_data(arg1,arg2,arg3,arg4,arg5,arg6) _ao2_callback_data_debug((arg1), (arg2), (arg3), (arg4), (arg5), (arg6), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_callback_data(arg1,arg2,arg3,arg4,arg5)        _ao2_callback_data_debug((arg1), (arg2), (arg3), (arg4), (arg5), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#else
+#define ao2_t_callback_data(arg1,arg2,arg3,arg4,arg5,arg6) _ao2_callback_data((arg1), (arg2), (arg3), (arg4), (arg5))
+#define ao2_callback_data(arg1,arg2,arg3,arg4,arg5)        _ao2_callback_data((arg1), (arg2), (arg3), (arg4), (arg5))
+#endif
+void *_ao2_callback_data_debug(struct ao2_container *c, enum search_flags flags,
+						  ao2_callback_data_fn *cb_fn, void *arg, void *data, char *tag, 
+						  char *file, int line, const char *funcname);
+void *_ao2_callback_data(struct ao2_container *c,
+					enum search_flags flags,
+					ao2_callback_data_fn *cb_fn, void *arg, void *data);
 
 /*! ao2_find() is a short hand for ao2_callback(c, flags, c->cmp_fn, arg)
  * XXX possibly change order of arguments ?
  */
 #ifdef REF_DEBUG
-#define ao2_t_find(arg1,arg2,arg3,arg4,arg5) _ao2_find_debug((arg1), (arg2), (arg3), (arg4), (arg5), __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ao2_find(arg1,arg2,arg3,arg4)        _ao2_find_debug((arg1), (arg2), (arg3), (arg4), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_t_find(arg1,arg2,arg3,arg4) _ao2_find_debug((arg1), (arg2), (arg3), (arg4), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_find(arg1,arg2,arg3)        _ao2_find_debug((arg1), (arg2), (arg3), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
-#define ao2_t_find(arg1,arg2,arg3,arg4,arg5) _ao2_find((arg1), (arg2), (arg3), (arg4))
-#define ao2_find(arg1,arg2,arg3,arg4)        _ao2_find((arg1), (arg2), (arg3), (arg4))
+#define ao2_t_find(arg1,arg2,arg3,arg4) _ao2_find((arg1), (arg2), (arg3))
+#define ao2_find(arg1,arg2,arg3)        _ao2_find((arg1), (arg2), (arg3))
 #endif
-void *_ao2_find_debug(struct ao2_container *c, void *arg, void *data, enum search_flags flags, char *tag, char *file, int line, const char *funcname);
-void *_ao2_find(struct ao2_container *c, void *arg, void *data, enum search_flags flags);
+void *_ao2_find_debug(struct ao2_container *c, void *arg, enum search_flags flags, char *tag, char *file, int line, const char *funcname);
+void *_ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
 
 /*! \brief
  *

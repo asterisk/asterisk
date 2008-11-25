@@ -80,7 +80,7 @@ static int hash_string(const void *obj, const int flags)
 	return total;
 }
 
-static int hashtab_compare_strings(void *a, void *b, void *data, int flags)
+static int hashtab_compare_strings(void *a, void *b, int flags)
 {
 	const struct ht_element *ae = a, *be = b;
 	return !strcmp(ae->key, be->key) ? CMP_MATCH | CMP_STOP : 0;
@@ -137,7 +137,7 @@ static void add_element(void)
 	els_added++; /* unprotected, sometimes off, but, not really important, either */
 }
 
-static int do_nothing_cb(void *obj, void *arg, void *data, int flags)
+static int do_nothing_cb(void *obj, void *arg, int flags)
 {
 	return 0;
 }
@@ -147,7 +147,7 @@ static void traverse_elements(void)
 #ifdef DEBUG
 	printf("Traverse hashtab\n");
 #endif
-	ao2_callback(glob_hashtab, OBJ_NODATA, do_nothing_cb, NULL, NULL);
+	ao2_callback(glob_hashtab, OBJ_NODATA, do_nothing_cb, NULL);
 	els_traversals++; /* unprotected, sometimes off, but, not really important, either */
 }
 
@@ -164,7 +164,7 @@ static void * del_element(unsigned int *seedp)
 	printf("- %s", keybuf);
 #endif
 	lookup.key = keybuf;
-	el = ao2_find(glob_hashtab, &lookup, NULL, OBJ_POINTER);
+	el = ao2_find(glob_hashtab, &lookup, OBJ_POINTER);
 	if (el) {
 #ifdef DEBUG
 		printf("...YES (el=%x)\n", (unsigned long)el);
@@ -190,7 +190,7 @@ static int lookup_element(unsigned int *seedp)
 	x = my_rand(0,glob_highwater-1,seedp);
 	sprintf(keybuf, "key%08d", x);
 	lookup.key = keybuf;
-	el = ao2_find(glob_hashtab, &lookup, NULL, OBJ_POINTER);
+	el = ao2_find(glob_hashtab, &lookup, OBJ_POINTER);
 	els_lookedup++;
 	if (el) {
 		els_found++;

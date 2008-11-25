@@ -273,7 +273,7 @@ static struct pthread_timer *find_timer(int handle, int unlinkobj)
 		flags |= OBJ_UNLINK;
 	}
 
-	if (!(timer = ao2_find(pthread_timers, &tmp_timer, NULL, flags))) {
+	if (!(timer = ao2_find(pthread_timers, &tmp_timer, flags))) {
 		ast_assert(timer != NULL);
 		return NULL;
 	}
@@ -309,7 +309,7 @@ static int pthread_timer_hash(const void *obj, const int flags)
 /*!
  * \note only PIPE_READ is guaranteed valid 
  */
-static int pthread_timer_cmp(void *obj, void *arg, void *data, int flags)
+static int pthread_timer_cmp(void *obj, void *arg, int flags)
 {
 	struct pthread_timer *timer1 = obj, *timer2 = arg;
 
@@ -401,7 +401,7 @@ static void write_byte(int wr_fd)
 	} while (0);
 }
 
-static int run_timer(void *obj, void *arg, void *data, int flags)
+static int run_timer(void *obj, void *arg, int flags)
 {
 	struct pthread_timer *timer = obj;
 
@@ -427,7 +427,7 @@ static void *do_timing(void *arg)
 	while (!timing_thread.stop) {
 		struct timespec ts = { 0, };
 
-		ao2_callback(pthread_timers, OBJ_NODATA, run_timer, NULL, NULL);
+		ao2_callback(pthread_timers, OBJ_NODATA, run_timer, NULL);
 
 		next_wakeup = ast_tvadd(next_wakeup, ast_tv(0, 5000));
 

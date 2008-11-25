@@ -59,7 +59,7 @@ static int alias_hash_cb(const void *obj, const int flags)
 }
 
 /*! \brief Comparison function used for aliases */
-static int alias_cmp_cb(void *obj, void *arg, void *data, int flags)
+static int alias_cmp_cb(void *obj, void *arg, int flags)
 {
 	const struct cli_alias *alias0 = obj, *alias1 = arg;
 
@@ -88,7 +88,7 @@ static char *cli_alias_passthrough(struct ast_cli_entry *e, int cmd, struct ast_
 	const char *line;
 
 	/* Try to find the alias based on the CLI entry */
-	if (!(alias = ao2_find(cli_aliases, &tmp, NULL, OBJ_POINTER))) {
+	if (!(alias = ao2_find(cli_aliases, &tmp, OBJ_POINTER))) {
 		return 0;
 	}
 
@@ -168,7 +168,7 @@ static struct ast_cli_entry cli_alias[] = {
 };
 
 /*! \brief Function called to mark an alias for destruction */
-static int alias_mark(void *obj, void *arg, void *data, int flags)
+static int alias_mark(void *obj, void *arg, int flags)
 {
 	struct cli_alias *alias = obj;
 	alias->marked = 1;
@@ -176,7 +176,7 @@ static int alias_mark(void *obj, void *arg, void *data, int flags)
 }
 
 /*! \brief Function called to see if an alias is marked for destruction */
-static int alias_marked(void *obj, void *arg, void *data, int flags)
+static int alias_marked(void *obj, void *arg, int flags)
 {
 	struct cli_alias *alias = obj;
 	return alias->marked ? CMP_MATCH : 0;
@@ -199,7 +199,7 @@ static void load_config(int reload)
 
 	/* Mark CLI aliases for pruning */
 	if (reload) {
-		ao2_callback(cli_aliases, OBJ_NODATA, alias_mark, NULL, NULL);
+		ao2_callback(cli_aliases, OBJ_NODATA, alias_mark, NULL);
 	}
 
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
@@ -229,7 +229,7 @@ static void load_config(int reload)
 
 	/* Drop any CLI aliases that should no longer exist */
 	if (reload) {
-		ao2_callback(cli_aliases, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE , alias_marked, NULL, NULL);
+		ao2_callback(cli_aliases, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE , alias_marked, NULL);
 	}
 
 	ast_config_destroy(cfg);

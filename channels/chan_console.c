@@ -251,7 +251,7 @@ static struct console_pvt *find_pvt(const char *name)
 		.name = name,
 	};
 
-	return ao2_find(pvts, &tmp_pvt, NULL, OBJ_POINTER);
+	return ao2_find(pvts, &tmp_pvt, OBJ_POINTER);
 }
 
 /*!
@@ -1351,7 +1351,7 @@ static void build_device(struct ast_config *cfg, const char *name)
 	unref_pvt(pvt);
 }
 
-static int pvt_mark_destroy_cb(void *obj, void *arg, void *data, int flags)
+static int pvt_mark_destroy_cb(void *obj, void *arg, int flags)
 {
 	struct console_pvt *pvt = obj;
 	pvt->destroy = 1;
@@ -1403,7 +1403,7 @@ static int load_config(int reload)
 		return -1;
 	}
 	
-	ao2_callback(pvts, OBJ_NODATA, pvt_mark_destroy_cb, NULL, NULL);
+	ao2_callback(pvts, OBJ_NODATA, pvt_mark_destroy_cb, NULL);
 
 	ast_mutex_lock(&globals_lock);
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next)
@@ -1429,7 +1429,7 @@ static int pvt_hash_cb(const void *obj, const int flags)
 	return ast_str_case_hash(pvt->name);
 }
 
-static int pvt_cmp_cb(void *obj, void *arg, void *data, int flags)
+static int pvt_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct console_pvt *pvt = obj, *pvt2 = arg;
 

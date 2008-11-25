@@ -1962,7 +1962,7 @@ static int peer_hash_cb(const void *obj, const int flags)
 /*!
  * \note The only member of the peer used here is the name field
  */
-static int peer_cmp_cb(void *obj, void *arg, void *data, int flags)
+static int peer_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct sip_peer *peer = obj, *peer2 = arg;
 
@@ -1989,7 +1989,7 @@ static int peer_iphash_cb(const void *obj, const int flags)
 /*!
  * \note the peer's addr struct provides to fields combined to make a key: the sin_addr.s_addr and sin_port fields.
  */
-static int peer_ipcmp_cb(void *obj, void *arg, void *data, int flags)
+static int peer_ipcmp_cb(void *obj, void *arg, int flags)
 {
 	struct sip_peer *peer = obj, *peer2 = arg;
 
@@ -2018,7 +2018,7 @@ static int dialog_hash_cb(const void *obj, const int flags)
 /*!
  * \note The only member of the dialog used here callid string
  */
-static int dialog_cmp_cb(void *obj, void *arg, void *data, int flags)
+static int dialog_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct sip_pvt *pvt = obj, *pvt2 = arg;
 	
@@ -4454,15 +4454,15 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 
 	if (peer) {
 		ast_copy_string(tmp_peer.name, peer, sizeof(tmp_peer.name));
-		p = ao2_t_callback(peers, OBJ_POINTER, find_by_name, &tmp_peer, &forcenamematch, "ao2_find in peers table");
+		p = ao2_t_callback_data(peers, OBJ_POINTER, find_by_name, &tmp_peer, &forcenamematch, "ao2_find in peers table");
 	} else if (sin) { /* search by addr? */
 		tmp_peer.addr.sin_addr.s_addr = sin->sin_addr.s_addr;
 		tmp_peer.addr.sin_port = sin->sin_port;
 		tmp_peer.flags[0].flags = 0;
-		p = ao2_t_find(peers_by_ip, &tmp_peer, NULL, OBJ_POINTER, "ao2_find in peers_by_ip table"); /* WAS:  p = ASTOBJ_CONTAINER_FIND_FULL(&peerl, sin, name, sip_addr_hashfunc, 1, sip_addrcmp); */
+		p = ao2_t_find(peers_by_ip, &tmp_peer, OBJ_POINTER, "ao2_find in peers_by_ip table"); /* WAS:  p = ASTOBJ_CONTAINER_FIND_FULL(&peerl, sin, name, sip_addr_hashfunc, 1, sip_addrcmp); */
 		if (!p) {
 			ast_set_flag(&tmp_peer.flags[0], SIP_INSECURE_PORT);
-			p = ao2_t_find(peers_by_ip, &tmp_peer, NULL, OBJ_POINTER, "ao2_find in peers_by_ip table 2"); /* WAS:  p = ASTOBJ_CONTAINER_FIND_FULL(&peerl, sin, name, sip_addr_hashfunc, 1, sip_addrcmp); */
+			p = ao2_t_find(peers_by_ip, &tmp_peer, OBJ_POINTER, "ao2_find in peers_by_ip table 2"); /* WAS:  p = ASTOBJ_CONTAINER_FIND_FULL(&peerl, sin, name, sip_addr_hashfunc, 1, sip_addrcmp); */
 			if (p) {
 				return p;
 			}
@@ -6615,7 +6615,7 @@ struct find_call_cb_arg {
  * code to determine whether this is the pvt that we are looking for.
  * Return FALSE if not found, true otherwise. p is unlocked.
  */
-static int find_call_cb(void *__pvt, void *__arg, void *data, int flags)
+static int find_call_cb(void *__pvt, void *__arg, int flags)
 {
 	struct sip_pvt *p = __pvt;
 	struct find_call_cb_arg *arg = __arg;
@@ -6713,7 +6713,7 @@ restartsearch:
 		struct sip_pvt tmp_dialog = {
 			.callid = callid,
 		};			
-		sip_pvt_ptr = ao2_t_find(dialogs, &tmp_dialog, NULL, OBJ_POINTER, "ao2_find in dialogs");
+		sip_pvt_ptr = ao2_t_find(dialogs, &tmp_dialog, OBJ_POINTER, "ao2_find in dialogs");
 		if (sip_pvt_ptr) {  /* well, if we don't find it-- what IS in there? */
 			/* Found the call */
 			sip_pvt_lock(sip_pvt_ptr);
@@ -6721,7 +6721,7 @@ restartsearch:
 		}
 	} else { /* in pedantic mode! -- do the fancy linear search */
 		ao2_lock(dialogs);
-		p = ao2_t_callback(dialogs, 0 /* single, data */, find_call_cb, &arg, NULL, "pedantic linear search for dialog");
+		p = ao2_t_callback(dialogs, 0 /* single, data */, find_call_cb, &arg, "pedantic linear search for dialog");
 		if (p) {
 			if (sip_pvt_trylock(p)) {
 				ao2_unlock(dialogs);
@@ -12082,7 +12082,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 
 	/* Search dialogs and find the match */
 	
-	sip_pvt_ptr = ao2_t_find(dialogs, &tmp_dialog, NULL, OBJ_POINTER, "ao2_find of dialog in dialogs table");
+	sip_pvt_ptr = ao2_t_find(dialogs, &tmp_dialog, OBJ_POINTER, "ao2_find of dialog in dialogs table");
 	if (sip_pvt_ptr) {
 		/* Go ahead and lock it (and its owner) before returning */
 		sip_pvt_lock(sip_pvt_ptr);
@@ -13425,7 +13425,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 #undef FORMAT2
 }
 
-static int peer_dump_func(void *userobj, void *arg, void *data, int flags)
+static int peer_dump_func(void *userobj, void *arg, int flags)
 {
 	struct sip_peer *peer = userobj;
 	int refc = ao2_t_ref(userobj, 0, "");
@@ -13436,7 +13436,7 @@ static int peer_dump_func(void *userobj, void *arg, void *data, int flags)
 	return 0;
 }
 
-static int dialog_dump_func(void *userobj, void *arg, void *data, int flags)
+static int dialog_dump_func(void *userobj, void *arg, int flags)
 {
 	struct sip_pvt *pvt = userobj;
 	int refc = ao2_t_ref(userobj, 0, "");
@@ -13467,11 +13467,11 @@ static char *sip_show_objects(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 	ast_cli(a->fd, "-= Peer objects: %d static, %d realtime, %d autocreate =-\n\n", speerobjs, rpeerobjs, apeerobjs);
-	ao2_t_callback(peers, OBJ_NODATA, peer_dump_func, &a->fd, NULL, "initiate ao2_callback to dump peers");
+	ao2_t_callback(peers, OBJ_NODATA, peer_dump_func, &a->fd, "initiate ao2_callback to dump peers");
 	ast_cli(a->fd, "-= Registry objects: %d =-\n\n", regobjs);
 	ASTOBJ_CONTAINER_DUMP(a->fd, tmp, sizeof(tmp), &regl);
 	ast_cli(a->fd, "-= Dialog objects:\n\n");
-	ao2_t_callback(dialogs, OBJ_NODATA, dialog_dump_func, &a->fd, NULL, "initiate ao2_callback to dump dialogs");
+	ao2_t_callback(dialogs, OBJ_NODATA, dialog_dump_func, &a->fd, "initiate ao2_callback to dump dialogs");
 	return CLI_SUCCESS;
 }
 /*! \brief Print call group and pickup group */
@@ -13551,7 +13551,7 @@ static void cleanup_stale_contexts(char *new, char *old)
    to be destroyed, toss it into the queue. Have a separate
    thread do the locking and destruction */
 
-static int dialog_needdestroy(void *dialogobj, void *arg, void *data, int flags) 
+static int dialog_needdestroy(void *dialogobj, void *arg, int flags) 
 {
 	struct sip_pvt *dialog = dialogobj;
 	time_t *t = arg;
@@ -13615,7 +13615,7 @@ static int dialog_needdestroy(void *dialogobj, void *arg, void *data, int flags)
 
 /* this func is used with ao2_callback to unlink/delete all marked
    peers */
-static int peer_is_marked(void *peerobj, void *arg, void *data, int flags)
+static int peer_is_marked(void *peerobj, void *arg, int flags)
 {
 	struct sip_peer *peer = peerobj;
 	return peer->the_mark ? CMP_MATCH : 0;
@@ -13722,7 +13722,7 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 				unref_peer(pi, "toss iterator peer ptr");
 			}
 			if (pruned) {
-				ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, NULL, NULL,
+				ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, NULL,
 						"initiating callback to remove marked peers");
 				ast_cli(a->fd, "%d peers pruned.\n", pruned);
 			} else
@@ -13732,7 +13732,7 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 		if (prunepeer) {
 			struct sip_peer tmp;
 			ast_copy_string(tmp.name, name, sizeof(tmp.name));
-			if ((peer = ao2_t_find(peers, &tmp, NULL, OBJ_POINTER | OBJ_UNLINK, "finding to unlink from peers"))) {
+			if ((peer = ao2_t_find(peers, &tmp, OBJ_POINTER | OBJ_UNLINK, "finding to unlink from peers"))) {
 				if (peer->addr.sin_addr.s_addr) {
 					ao2_t_unlink(peers_by_ip, peer, "unlinking peer from peers_by_ip also");
 				}
@@ -14296,7 +14296,7 @@ static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 }
 
 /*! \brief Callback for show_chanstats */
-static int show_chanstats_cb(void *__cur, void *__arg, void *data, int flags)
+static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 {
 #define FORMAT2 "%-15.15s  %-11.11s  %-8.8s %-10.10s  %-10.10s (%-2.2s) %-6.6s %-10.10s  %-10.10s ( %%) %-6.6s\n"
 #define FORMAT  "%-15.15s  %-11.11s  %-8.8s %-10.10u%-1.1s %-10.10u (%-2.2u%%) %-6.6u %-10.10u%-1.1s %-10.10u (%-2.2u%%) %-6.6u\n"
@@ -14375,7 +14375,7 @@ static char *sip_show_channelstats(struct ast_cli_entry *e, int cmd, struct ast_
 
 	ast_cli(a->fd, FORMAT2, "Peer", "Call ID", "Duration", "Recv: Pack", "Lost", "%", "Jitter", "Send: Pack", "Lost", "Jitter");
 	/* iterate on the container and invoke the callback on each item */
-	ao2_t_callback(dialogs, OBJ_NODATA, show_chanstats_cb, &arg, NULL, "callback to sip show chanstats");
+	ao2_t_callback(dialogs, OBJ_NODATA, show_chanstats_cb, &arg, "callback to sip show chanstats");
 	ast_cli(a->fd, "%d active SIP channel%s\n", arg.numchans, (arg.numchans != 1) ? "s" : ""); 
 	return CLI_SUCCESS;
 }
@@ -14652,7 +14652,7 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 #define FORMAT  "%-15.15s  %-10.10s  %-15.15s  %-15.15s  %-3.3s %-3.3s  %-15.15s %-10.10s\n"
 
 /*! \brief callback for show channel|subscription */
-static int show_channels_cb(void *__cur, void *__arg, void *data, int flags)
+static int show_channels_cb(void *__cur, void *__arg, int flags)
 {
 	struct sip_pvt *cur = __cur;
 	struct __show_chan_arg *arg = __arg;
@@ -14724,7 +14724,7 @@ static char *sip_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_cli(arg.fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type", "Mailbox", "Expiry");
 
 	/* iterate on the container and invoke the callback on each item */
-	ao2_t_callback(dialogs, OBJ_NODATA, show_channels_cb, &arg, NULL, "callback to show channels");
+	ao2_t_callback(dialogs, OBJ_NODATA, show_channels_cb, &arg, "callback to show channels");
 	
 	/* print summary information */
 	ast_cli(arg.fd, "%d active SIP %s%s\n", arg.numchans,
@@ -20653,7 +20653,7 @@ static void *do_monitor(void *data)
 		   of time since the last time we did it (when MWI is being sent, we can
 		   get back to this point every millisecond or less)
 		*/
-		ao2_t_callback(dialogs, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, dialog_needdestroy, &t, NULL,
+		ao2_t_callback(dialogs, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, dialog_needdestroy, &t,
 				"callback to remove dialogs w/needdestroy");
 
 		/* the old methodology would be to restart the search for dialogs to delete with every 
@@ -21863,7 +21863,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		   during reload
 		*/
 		ast_copy_string(tmp_peer.name, name, sizeof(tmp_peer.name));
-		peer = ao2_t_find(peers, &tmp_peer, NULL, OBJ_POINTER | OBJ_UNLINK, "find and unlink peer from peers table");
+		peer = ao2_t_find(peers, &tmp_peer, OBJ_POINTER | OBJ_UNLINK, "find and unlink peer from peers table");
 	}
 	
 	if (peer) {
@@ -22305,7 +22305,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	return peer;
 }
 
-static int peer_markall_func(void *device, void *arg, void *data, int flags)
+static int peer_markall_func(void *device, void *arg, int flags)
 {
 	struct sip_peer *peer = device;
 	peer->the_mark = 1;
@@ -22410,7 +22410,7 @@ static int reload_config(enum channelreloadreason reason)
 		/* Then, actually destroy users and registry */
 		ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
 		ast_debug(4, "--------------- Done destroying registry list\n");
-		ao2_t_callback(peers, OBJ_NODATA, peer_markall_func, NULL, NULL, "callback to mark all peers");
+		ao2_t_callback(peers, OBJ_NODATA, peer_markall_func, NULL, "callback to mark all peers");
 	}
 	
 	/* Reset certificate handling for TLS sessions */
@@ -23709,7 +23709,7 @@ static int sip_do_reload(enum channelreloadreason reason)
 
 	start_poke = time(0);
 	/* Prune peers who still are supposed to be deleted */
-	ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, NULL, NULL,
+	ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, NULL,
 			"callback to remove marked peers");
 	
 	ast_debug(4, "--------------- Done destroying pruned peers\n");
