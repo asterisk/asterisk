@@ -121,6 +121,7 @@ static int send_waveform_to_fd(char *waveform, int length, int fd)
 	int x;
 #ifdef __PPC__ 
 	char c;
+	int x;
 #endif
 	sigset_t fullset, oldset;
 
