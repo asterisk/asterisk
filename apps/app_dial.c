@@ -735,6 +735,7 @@ static void do_forward(struct chanlist *o,
 	if (!c) {
 		ast_clear_flag64(o, DIAL_STILLGOING);
 		handle_cause(cause, num);
+		ast_hangup(original);
 	} else {
 		char *new_cid_num, *new_cid_name;
 		struct ast_channel *src;
@@ -762,6 +763,7 @@ static void do_forward(struct chanlist *o,
 			ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 			ast_clear_flag64(o, DIAL_STILLGOING);
 			ast_hangup(original);
+			ast_hangup(c);
 			c = o->chan = NULL;
 			num->nochan++;
 		} else {
