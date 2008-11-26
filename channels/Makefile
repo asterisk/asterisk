@@ -94,11 +94,11 @@ gentone: gentone.c
 	$(CMD_PREFIX) $(HOST_CC) $(STATIC_BUILD) -o $@ $(HOST_CFLAGS) $(HOST_LDFLAGS) $^ $(LIBS)
 gentone: LIBS+=-lm
 
-busy.h:
-	./gentone busy 480 620
+busy_tone.h:
+	./gentone busy_tone 480 620
 
-ringtone.h:
-	./gentone ringtone 440 480
+ring_tone.h:
+	./gentone ring_tone 440 480
 
 $(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): iax2-parser.o iax2-provision.o
 

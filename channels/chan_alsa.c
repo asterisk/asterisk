@@ -63,8 +63,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 #include "asterisk/musiconhold.h"
 
-#include "busy.h"
-#include "ringtone.h"
+#include "busy_tone.h"
+#include "ring_tone.h"
 #include "ring10.h"
 #include "answer.h"
 
