@@ -56,7 +56,7 @@ uninstall:
 
 clean:
 	rm -f *.o $(ALL_UTILS) check_expr *.s *.i
-	rm -f .*.o.d .*.oo.d
+	rm -f .*.d
 	rm -f md5.c strcompat.c ast_expr2.c ast_expr2f.c pbx_ael.c
 	rm -f aelparse.c aelbison.c
 

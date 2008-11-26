@@ -19,6 +19,11 @@
 
 .PHONY: dist-clean
 
+# If 'make' decides to create intermediate files to satisfy a build requirement
+# (like producing a .i from a .c), we want to keep them, so tell make to keep
+# all intermediate files
+.SECONDARY:
+
 # extra cflags to build dependencies. Recursively expanded.
 MAKE_DEPS=-MD -MT $@ -MF .$(subst /,_,$@).d -MP
 
@@ -74,13 +79,9 @@ ifeq ($(COMPILE_DOUBLE),yes)
 endif
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS)
 
+ifneq ($(COMPILE_DOUBLE),yes)
 %.o: %.c
 	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
-ifeq ($(COMPILE_DOUBLE),yes)
-	$(CMD_PREFIX) $(CC) -o $(@:%.o=%.i) -E $< $(CC_CFLAGS) $(MAKE_DEPS)
-	$(CMD_PREFIX) $(CC) -o /dev/null -c $(@:%.o=%.i) $(CC_CFLAGS) $(OPTIMIZE)
-	$(CMD_PREFIX) $(CC) -o $@ -c $(@:%.o=%.i) $(CC_CFLAGS)
-else
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS) $(MAKE_DEPS)
 endif
 
@@ -95,13 +96,9 @@ ifeq ($(COMPILE_DOUBLE),yes)
 endif
 	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(CXX_CFLAGS)
 
+ifneq ($(COMPILE_DOUBLE),yes)
 %.oo: %.cc
 	$(ECHO_PREFIX) echo "   [CXX] $< -> $@"
-ifeq ($(COMPILE_DOUBLE),yes)
-	$(CMD_PREFIX) $(CXX) -o $(@:%.oo=%.ii) -E $< $(CXX_CFLAGS) $(MAKE_DEPS)
-	$(CMD_PREFIX) $(CXX) -o /dev/null -c $(@:%.oo=%.ii) $(CXX_CFLAGS) $(MAKE_DEPS) $(OPTIMIZE)
-	$(CMD_PREFIX) $(CXX) -o $@ -c $(@:%.oo=%.ii) $(CXX_CFLAGS) $(MAKE_DEPS)
-else
 	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(CXX_CFLAGS) $(MAKE_DEPS)
 endif
 

@@ -66,7 +66,7 @@ all: _all
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
 clean::
-	rm -f busy.h ringtone.h gentone
+	rm -f gentone
 	$(MAKE) -C misdn clean
 
 ifneq ($(wildcard h323/Makefile.ast),)
@@ -94,17 +94,13 @@ gentone: gentone.c
 	$(CMD_PREFIX) $(HOST_CC) $(STATIC_BUILD) -o $@ $(HOST_CFLAGS) $(HOST_LDFLAGS) $^ $(LIBS)
 gentone: LIBS+=-lm
 
-busy.h: gentone
+busy.h:
 	./gentone busy 480 620
 
-ringtone.h: gentone
+ringtone.h:
 	./gentone ringtone 440 480
 
-chan_oss.o: busy.h ringtone.h
-
 $(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): iax2-parser.o iax2-provision.o
-
-chan_alsa.o: busy.h ringtone.h
 
 ifeq ($(OSARCH),linux-gnu)
 chan_h323.so: chan_h323.o h323/libchanh323.a h323/Makefile.ast
