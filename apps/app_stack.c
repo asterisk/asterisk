@@ -38,9 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/manager.h"
 #include "asterisk/channel.h"
-
-/* usage of AGI is optional, so indicate that to the header file */
-#define ASTERISK_AGI_OPTIONAL
 #include "asterisk/agi.h"
 
 /*** DOCUMENTATION
@@ -576,9 +573,7 @@ static int unload_module(void)
 {
 	struct ast_context *con;
 
-	if (ast_agi_unregister) {
-		ast_agi_unregister(ast_module_info->self, &gosub_agi_command);
-
+	if (ast_agi_unregister(ast_module_info->self, &gosub_agi_command) == 1) {
 		if ((con = ast_context_find("app_stack_gosub_virtual_context"))) {
 			ast_context_remove_extension2(con, "s", 1, NULL, 0);
 			ast_context_destroy(con, "app_stack"); /* leave nothing behind */
@@ -598,19 +593,13 @@ static int load_module(void)
 {
 	struct ast_context *con;
 
-	/* usage of AGI is optional, so check to see if the ast_agi_register()
-	   function is available; if so, use it.
-	*/
-	if (ast_agi_register) {
-		con = ast_context_find_or_create(NULL, NULL, "app_stack_gosub_virtual_context", "app_stack");
-		if (!con) {
+	if (ast_agi_register(ast_module_info->self, &gosub_agi_command) == 1) {
+		if (!(con = ast_context_find_or_create(NULL, NULL, "app_stack_gosub_virtual_context", "app_stack"))) {
 			ast_log(LOG_ERROR, "Virtual context 'app_stack_gosub_virtual_context' does not exist and unable to create\n");
 			return AST_MODULE_LOAD_DECLINE;
 		} else {
 			ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free_ptr, "app_stack");
 		}
-
-		ast_agi_register(ast_module_info->self, &gosub_agi_command);
 	}
 
 	ast_register_application_xml(app_pop, pop_exec);

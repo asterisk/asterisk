@@ -91,6 +91,9 @@
 /* Define to 1 if you have the `atexit' function. */
 #undef HAVE_ATEXIT
 
+/* Define to 1 if your GCC C compiler supports the 'alias' attribute. */
+#undef HAVE_ATTRIBUTE_alias
+
 /* Define to 1 if your GCC C compiler supports the 'always_inline' attribute.
    */
 #undef HAVE_ATTRIBUTE_always_inline

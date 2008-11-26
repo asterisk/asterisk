@@ -480,6 +480,7 @@ AST_GCC_ATTRIBUTE(deprecated)
 AST_GCC_ATTRIBUTE(sentinel)
 AST_GCC_ATTRIBUTE(warn_unused_result)
 AST_GCC_ATTRIBUTE(weak)
+AST_GCC_ATTRIBUTE(alias, [alias("foo")])
 
 AC_MSG_CHECKING(for -ffunction-sections support)
 saved_CFLAGS="${CFLAGS}"

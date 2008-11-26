@@ -17093,6 +17093,9 @@ rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
 echo $ECHO_N "checking for compiler 'attribute pure' support... $ECHO_C" >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Werror"
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -17138,17 +17141,73 @@ sed 's/^/| /' conftest.$ac_ext >&5
 
 	{ echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
+
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+else
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__(()) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_pure 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
 
 CFLAGS="$saved_CFLAGS"
+
 
 
 { echo "$as_me:$LINENO: checking for compiler 'attribute malloc' support" >&5
 echo $ECHO_N "checking for compiler 'attribute malloc' support... $ECHO_C" >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Werror"
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -17194,17 +17253,73 @@ sed 's/^/| /' conftest.$ac_ext >&5
 
 	{ echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
+
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+else
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__(()) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_malloc 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
 
 CFLAGS="$saved_CFLAGS"
+
 
 
 { echo "$as_me:$LINENO: checking for compiler 'attribute const' support" >&5
 echo $ECHO_N "checking for compiler 'attribute const' support... $ECHO_C" >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Werror"
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -17250,17 +17365,73 @@ sed 's/^/| /' conftest.$ac_ext >&5
 
 	{ echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
+
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+else
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__(()) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_const 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
 
 CFLAGS="$saved_CFLAGS"
+
 
 
 { echo "$as_me:$LINENO: checking for compiler 'attribute unused' support" >&5
 echo $ECHO_N "checking for compiler 'attribute unused' support... $ECHO_C" >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Werror"
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -17306,17 +17477,73 @@ sed 's/^/| /' conftest.$ac_ext >&5
 
 	{ echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
+
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+else
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__(()) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_unused 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
 
 CFLAGS="$saved_CFLAGS"
+
 
 
 { echo "$as_me:$LINENO: checking for compiler 'attribute always_inline' support" >&5
 echo $ECHO_N "checking for compiler 'attribute always_inline' support... $ECHO_C" >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Werror"
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -17362,17 +17589,73 @@ sed 's/^/| /' conftest.$ac_ext >&5
 
 	{ echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
+
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+else
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__(()) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_always_inline 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
 
 CFLAGS="$saved_CFLAGS"
+
 
 
 { echo "$as_me:$LINENO: checking for compiler 'attribute deprecated' support" >&5
 echo $ECHO_N "checking for compiler 'attribute deprecated' support... $ECHO_C" >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Werror"
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -17418,17 +17701,73 @@ sed 's/^/| /' conftest.$ac_ext >&5
 
 	{ echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
+
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+else
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__(()) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_deprecated 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
 
 CFLAGS="$saved_CFLAGS"
+
 
 
 { echo "$as_me:$LINENO: checking for compiler 'attribute sentinel' support" >&5
 echo $ECHO_N "checking for compiler 'attribute sentinel' support... $ECHO_C" >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Werror"
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -17474,17 +17813,73 @@ sed 's/^/| /' conftest.$ac_ext >&5
 
 	{ echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
+
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+else
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__(()) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_sentinel 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
 
 CFLAGS="$saved_CFLAGS"
+
 
 
 { echo "$as_me:$LINENO: checking for compiler 'attribute warn_unused_result' support" >&5
 echo $ECHO_N "checking for compiler 'attribute warn_unused_result' support... $ECHO_C" >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Werror"
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -17530,17 +17925,73 @@ sed 's/^/| /' conftest.$ac_ext >&5
 
 	{ echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
+
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+else
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__(()) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_warn_unused_result 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
 
 CFLAGS="$saved_CFLAGS"
+
 
 
 { echo "$as_me:$LINENO: checking for compiler 'attribute weak' support" >&5
 echo $ECHO_N "checking for compiler 'attribute weak' support... $ECHO_C" >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Werror"
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -17586,11 +18037,176 @@ sed 's/^/| /' conftest.$ac_ext >&5
 
 	{ echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
+
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+else
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__(()) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_weak 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
 
 CFLAGS="$saved_CFLAGS"
+
+
+
+{ echo "$as_me:$LINENO: checking for compiler 'attribute alias' support" >&5
+echo $ECHO_N "checking for compiler 'attribute alias' support... $ECHO_C" >&6; }
+saved_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -Werror"
+
+if test "xalias("foo")" = "x"
+then
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__((alias)) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_alias 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+else
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__((alias("foo"))) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_alias 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+
+CFLAGS="$saved_CFLAGS"
+
 
 
 { echo "$as_me:$LINENO: checking for -ffunction-sections support" >&5

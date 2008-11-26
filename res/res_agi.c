@@ -51,7 +51,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/strings.h"
-#include "asterisk/agi.h"
 #include "asterisk/manager.h"
 #include "asterisk/ast_version.h"
 #include "asterisk/speech.h"
@@ -59,6 +58,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/features.h"
 #include "asterisk/term.h"
 #include "asterisk/xmldoc.h"
+
+#define AST_API_MODULE
+#include "asterisk/agi.h"
 
 /*** DOCUMENTATION
 	<agi name="answer" language="en_US">
