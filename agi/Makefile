@@ -48,8 +48,7 @@ uninstall:
 
 clean:
 	rm -f *.so *.o look eagi-test eagi-sphinx-test
-	rm -f .*.o.d .*.oo.d
-	rm -f *.s *.i
+	rm -f .*.d *.s *.i
 	rm -f strcompat.c
 
 ifneq ($(wildcard .*.d),)

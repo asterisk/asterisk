@@ -111,7 +111,7 @@ modules.link:
 
 clean::
 	rm -f *.so *.o *.oo *.eo *.i *.ii
-	rm -f .*.o.d .*.oo.d
+	rm -f .*.d
 	rm -f *.s *.i
 	rm -f modules.link
 
@@ -124,7 +124,6 @@ uninstall::
 dist-clean::
 	rm -f .*.moduleinfo .moduleinfo
 	rm -f .*.makeopts .makeopts
-	rm -f .*.d
 
 .%.moduleinfo: %.c
 	@echo "<member name=\"$*\" displayname=\"$(shell $(GREP) -e AST_MODULE_INFO $< | head -n 1 | cut -d '"' -f 2)\" remove_on_change=\"$(SUBDIR)/$*.o $(SUBDIR)/$*.so\">" > $@
