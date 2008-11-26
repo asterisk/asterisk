@@ -225,6 +225,14 @@ struct ast_event_sub *agent_devicestate_sub = NULL;
 
 #define GETAGENTBYCALLERID	"AGENTBYCALLERID"
 
+enum {
+	AGENT_FLAG_ACKCALL = (1 << 0),
+	AGENT_FLAG_AUTOLOGOFF = (1 << 1),
+	AGENT_FLAG_WRAPUPTIME = (1 << 2),
+	AGENT_FLAG_ACCEPTDTMF = (1 << 3),
+	AGENT_FLAG_ENDDTMF = (1 << 4),
+};
+
 /*! \brief Structure representing an agent.  */
 struct agent_pvt {
 	ast_mutex_t lock;              /*!< Channel private lock */
@@ -254,6 +262,7 @@ struct agent_pvt {
 	char loginchan[80];            /**< channel they logged in from */
 	char logincallerid[80];        /**< Caller ID they had when they logged in */
 	struct ast_channel *chan;      /**< Channel we use */
+	unsigned int flags;            /**< Flags show if settings were applied with channel vars */
 	AST_LIST_ENTRY(agent_pvt) list;	/**< Next Agent in the linked list. */
 };
 
@@ -453,14 +462,22 @@ static struct agent_pvt *add_agent(const char *agent, int pending)
 	ast_copy_string(p->password, password ? password : "", sizeof(p->password));
 	ast_copy_string(p->name, name ? name : "", sizeof(p->name));
 	ast_copy_string(p->moh, moh, sizeof(p->moh));
-	p->ackcall = ackcall;
-	p->autologoff = autologoff;
-	p->acceptdtmf = acceptdtmf;
-	p->enddtmf = enddtmf;
+	if (!ast_test_flag(p, AGENT_FLAG_ACKCALL)) {
+		p->ackcall = ackcall;
+	}
+	if (!ast_test_flag(p, AGENT_FLAG_AUTOLOGOFF)) {
+		p->autologoff = autologoff;
+	}
+	if (!ast_test_flag(p, AGENT_FLAG_ACCEPTDTMF)) {
+		p->acceptdtmf = acceptdtmf;
+	}
+	if (!ast_test_flag(p, AGENT_FLAG_ENDDTMF)) {
+		p->enddtmf = enddtmf;
+	}
 
 	/* If someone reduces the wrapuptime and reloads, we want it
 	 * to change the wrapuptime immediately on all calls */
-	if (p->wrapuptime > wrapuptime) {
+	if (!ast_test_flag(p, AGENT_FLAG_WRAPUPTIME) && p->wrapuptime > wrapuptime) {
 		struct timeval now = ast_tvnow();
 		/* XXX check what is this exactly */
 
@@ -2093,6 +2110,7 @@ static int login_exec(struct ast_channel *chan, void *data)
 						p->ackcall = 0;
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTACKCALL");
 					ast_verb(3, "Saw variable AGENTACKCALL=%s, setting ackcall to: %d for Agent '%s'.\n", tmpoptions, p->ackcall, p->agent);
+					ast_set_flag(p, AGENT_FLAG_ACKCALL);
 				} else {
 					p->ackcall = ackcall;
 				}
@@ -2102,6 +2120,7 @@ static int login_exec(struct ast_channel *chan, void *data)
 						p->autologoff = 0;
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF");
 					ast_verb(3, "Saw variable AGENTAUTOLOGOFF=%s, setting autologff to: %d for Agent '%s'.\n", tmpoptions, p->autologoff, p->agent);
+					ast_set_flag(p, AGENT_FLAG_AUTOLOGOFF);
 				} else {
 					p->autologoff = autologoff;
 				}
@@ -2111,6 +2130,7 @@ static int login_exec(struct ast_channel *chan, void *data)
 						p->wrapuptime = 0;
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME");
 					ast_verb(3, "Saw variable AGENTWRAPUPTIME=%s, setting wrapuptime to: %d for Agent '%s'.\n", tmpoptions, p->wrapuptime, p->agent);
+					ast_set_flag(p, AGENT_FLAG_WRAPUPTIME);
 				} else {
 					p->wrapuptime = wrapuptime;
 				}
@@ -2118,11 +2138,13 @@ static int login_exec(struct ast_channel *chan, void *data)
 				if (!ast_strlen_zero(tmpoptions)) {
 					p->acceptdtmf = *tmpoptions;
 					ast_verb(3, "Saw variable AGENTACCEPTDTMF=%s, setting acceptdtmf to: %c for Agent '%s'.\n", tmpoptions, p->acceptdtmf, p->agent);
+					ast_set_flag(p, AGENT_FLAG_ACCEPTDTMF);
 				}
 				tmpoptions = pbx_builtin_getvar_helper(chan, "AGENTENDDTMF");
 				if (!ast_strlen_zero(tmpoptions)) {
 					p->enddtmf = *tmpoptions;
 					ast_verb(3, "Saw variable AGENTENDDTMF=%s, setting enddtmf to: %c for Agent '%s'.\n", tmpoptions, p->enddtmf, p->agent);
+					ast_set_flag(p, AGENT_FLAG_ENDDTMF);
 				}
 				ast_channel_unlock(chan);
 				unlock_channel = 0;
