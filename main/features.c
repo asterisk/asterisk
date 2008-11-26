@@ -2892,10 +2892,8 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(options);
 	);
 
-	if (!ast_strlen_zero(data)) {
-		parse = ast_strdupa(data);
-		AST_STANDARD_APP_ARGS(app_args, parse);
-	}
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(app_args, parse);
 
 	ast_copy_string(orig_exten, chan->exten, sizeof(orig_exten));
 
