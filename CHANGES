@@ -78,6 +78,21 @@ Miscellaneous
  * All deprecated CLI commands are removed from the sourcecode. They are now handled
    by the new clialiases module. See cli_aliases.conf.sample file.
 
+Asterisk Manager Interface
+--------------------------
+ * When using the AMI over HTTP, you can now include a 'SuppressEvents' header (with
+   a non-empty value) in your request. If you do this, any pending AMI events will
+   *not* be included in the response to your request as they would normally, but
+   will be left in the event queue for the next request you make to retrieve. For
+   some applications, this will allow you to guarantee that you will only see
+   events in responses to 'WaitEvent' actions, and can better know when to expect them.
+   To know whether the Asterisk server supports this header or not, your client can
+   inspect the first response back from the server to see if it includes this header:
+
+   Pragma: SuppressEvents
+
+   If this is included, the server supports event suppression.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.0 to Asterisk 1.6.1  -------------
 ------------------------------------------------------------------------------

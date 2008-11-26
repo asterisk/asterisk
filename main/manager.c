@@ -2974,8 +2974,14 @@ static int process_message(struct mansession *s, const struct message *m)
 	}
 	if (ret)
 		return ret;
-	/* Once done with our message, deliver any pending events */
-	return process_events(s);
+	/* Once done with our message, deliver any pending events unless the
+	   requester doesn't want them as part of this response.
+	*/
+	if (ast_strlen_zero(astman_get_header(m, "SuppressEvents"))) {
+		return process_events(s);
+	} else {
+		return ret;
+	}
 }
 
 /*!
@@ -3796,6 +3802,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		       "Content-type: text/%s\r\n"
 		       "Cache-Control: no-cache;\r\n"
 		       "Set-Cookie: mansession_id=\"%08x\"; Version=\"1\"; Max-Age=%d\r\n"
+		       "Pragma: SuppressEvents\r\n"
 		       "\r\n",
 			contenttype[format],
 			s->managerid, httptimeout);
