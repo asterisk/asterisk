@@ -955,7 +955,8 @@ static void new_find_extension(const char *str, struct scoreboard *score,
 		struct match_char *tree, int length, int spec, const char *callerid, 
 		const char *label, enum ext_match_t action);
 static struct match_char *already_in_tree(struct match_char *current, char *pat);
-static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1, int findonly);
+static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, 
+		struct ast_exten *e1, int findonly);
 static struct match_char *add_pattern_node(struct ast_context *con, 
 		struct match_char *current, char *pattern, int is_pattern, 
 		int already, int specificity, struct match_char **parent);
