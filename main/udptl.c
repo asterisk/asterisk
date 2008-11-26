@@ -74,8 +74,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define TRUE (!FALSE)
 #endif
 
-static int udptlstart;
-static int udptlend;
+static int udptlstart = 4500;
+static int udptlend = 4599;
 static int udptldebug;	                    /*!< Are we debugging? */
 static struct sockaddr_in udptldebugaddr;   /*!< Debug packets to/from this host */
 #ifdef SO_NO_CHECK
@@ -808,7 +808,7 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struc
 		setsockopt(udptl->fd, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
 #endif
 	/* Find us a place */
-	x = (ast_random() % (udptlend - udptlstart)) + udptlstart;
+	x = (udptlstart == udptlend) ? udptlstart : (ast_random() % (udptlend - udptlstart)) + udptlstart;
 	startplace = x;
 	for (;;) {
 		udptl->us.sin_port = htons(x);
