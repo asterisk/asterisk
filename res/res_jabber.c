@@ -2726,14 +2726,6 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	} else {
 		iks_filter_add_rule(client->f, aji_client_info_handler, client, IKS_RULE_NS, "http://jabber.org/protocol/disco#info", IKS_RULE_DONE);
 	}
-	if (!strchr(client->user, '/') && !client->component) { /*client */
-		resource = NULL;
-		if (asprintf(&resource, "%s/asterisk", client->user) >= 0) {
-			client->jid = iks_id_new(client->stack, resource);
-			ast_free(resource);
-		}
-	} else
-		client->jid = iks_id_new(client->stack, client->user);
 	iks_set_log_hook(client->p, aji_log_hook);
 	ASTOBJ_UNLOCK(client);
 	ASTOBJ_CONTAINER_LINK(&clients,client);
