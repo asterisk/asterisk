@@ -1106,7 +1106,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 	}
 #endif	
 	if (p->pending)
-		tmp = ast_channel_alloc(0, state, 0, 0, "", p->chan ? p->chan->exten:"", p->chan ? p->chan->context:"", 0, "Agent/P%s-%d", p->agent, ast_random() & 0xffff);
+		tmp = ast_channel_alloc(0, state, 0, 0, "", p->chan ? p->chan->exten:"", p->chan ? p->chan->context:"", 0, "Agent/P%s-%d", p->agent, (int) ast_random() & 0xffff);
 	else
 		tmp = ast_channel_alloc(0, state, 0, 0, "", p->chan ? p->chan->exten:"", p->chan ? p->chan->context:"", 0, "Agent/%s", p->agent);
 	if (!tmp) {

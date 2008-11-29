@@ -237,7 +237,13 @@ endif
 ASTCFLAGS+=-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
 
 ifeq ($(AST_DEVMODE),yes)
-  ASTCFLAGS+=-Werror -Wunused -Wundef $(AST_DECLARATION_AFTER_STATEMENT) -Wmissing-format-attribute -Wformat=2
+  ASTCFLAGS+=-Werror
+  ASTCFLAGS+=-Wunused
+  ASTCFLAGS+=$(AST_DECLARATION_AFTER_STATEMENT)
+  ASTCFLAGS+=$(AST_FORTIFY_SOURCE)
+  ASTCFLAGS+=-Wundef 
+  ASTCFLAGS+=-Wmissing-format-attribute
+  ASTCFLAGS+=-Wformat=2
 endif
 
 ifneq ($(findstring BSD,$(OSARCH)),)

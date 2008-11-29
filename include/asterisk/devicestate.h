@@ -73,7 +73,7 @@ enum ast_device_state ast_state_chan2dev(enum ast_channel_state chanstate);
  *
  * \param devstate Current device state 
  */
-const char *devstate2str(enum ast_device_state devstate) attribute_pure __attribute__ ((deprecated));
+const char *devstate2str(enum ast_device_state devstate) attribute_pure __attribute__((deprecated));
 const char *ast_devstate2str(enum ast_device_state devstate) attribute_pure;
 
 /*! 
@@ -135,7 +135,7 @@ enum ast_device_state ast_device_state(const char *device);
  * \retval -1 on failure
  */
 int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
+	__attribute__((format(printf, 2, 3)));
 
 /*! 
  * \brief Tells Asterisk the State for Device is changed
@@ -166,7 +166,7 @@ int ast_devstate_changed_literal(enum ast_device_state state, const char *device
  * \note This is deprecated in favor of ast_devstate_changed()
  */
 int ast_device_state_changed(const char *fmt, ...)
-	__attribute__ ((deprecated,format (printf, 1, 2)));
+	__attribute__((deprecated,format(printf, 1, 2)));
 
 /*! 
  * \brief Tells Asterisk the State for Device is changed 
@@ -182,7 +182,7 @@ int ast_device_state_changed(const char *fmt, ...)
  * \note This is deprecated in favor of ast_devstate_changed_literal()
  */
 int ast_device_state_changed_literal(const char *device)
-	__attribute__ ((deprecated));
+	__attribute__((deprecated));
 
 /*! 
  * \brief Add device state provider 

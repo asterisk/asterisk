@@ -91,7 +91,7 @@ struct odbc_cache_tables {
  * This function really only ever worked with MySQL, where the statement handle is
  * not prepared on the server.  If you are not using MySQL, you should avoid it.
  */
-int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) __attribute__ ((deprecated));
+int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) __attribute__((deprecated));
 
 /*! 
  * \brief Retrieves a connected ODBC object

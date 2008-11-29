@@ -979,7 +979,7 @@ static void iax_error_output(const char *data)
 	ast_log(LOG_WARNING, "%s", data);
 }
 
-static void __attribute__((format (printf, 1, 2))) jb_error_output(const char *fmt, ...)
+static void __attribute__((format(printf, 1, 2))) jb_error_output(const char *fmt, ...)
 {
 	va_list args;
 	char buf[1024];
@@ -991,7 +991,7 @@ static void __attribute__((format (printf, 1, 2))) jb_error_output(const char *f
 	ast_log(LOG_ERROR, "%s", buf);
 }
 
-static void __attribute__((format (printf, 1, 2))) jb_warning_output(const char *fmt, ...)
+static void __attribute__((format(printf, 1, 2))) jb_warning_output(const char *fmt, ...)
 {
 	va_list args;
 	char buf[1024];
@@ -1003,7 +1003,7 @@ static void __attribute__((format (printf, 1, 2))) jb_warning_output(const char 
 	ast_log(LOG_WARNING, "%s", buf);
 }
 
-static void __attribute__((format (printf, 1, 2))) jb_debug_output(const char *fmt, ...)
+static void __attribute__((format(printf, 1, 2))) jb_debug_output(const char *fmt, ...)
 {
 	va_list args;
 	char buf[1024];

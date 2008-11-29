@@ -389,7 +389,7 @@ int ast_variable_update(struct ast_category *category, const char *variable,
 						const char *value, const char *match, unsigned int object);
 
 int ast_config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator);
-int config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator) __attribute__ ((deprecated));
+int config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator) __attribute__((deprecated));
 
 struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl_file, const char *who_asked);
 

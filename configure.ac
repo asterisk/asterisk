@@ -515,6 +515,16 @@ else
 fi
 AC_SUBST(AST_DECLARATION_AFTER_STATEMENT)
 
+AC_MSG_CHECKING(for _FORTIFY_SOURCE support)
+if $(${CC} -D_FORTIFY_SOURCE=2 -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+	AC_MSG_RESULT(yes)
+	AST_FORTIFY_SOURCE=-D_FORTIFY_SOURCE=2
+else
+	AC_MSG_RESULT(no)
+	AST_FORTIFY_SOURCE=
+fi
+AC_SUBST(AST_FORTIFY_SOURCE)
+
 AC_MSG_CHECKING(for -fno-strict-overflow)
 if $(${CC} -O2 -fno-strict-overflow -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
 	AC_MSG_RESULT(yes)

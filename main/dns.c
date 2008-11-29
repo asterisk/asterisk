@@ -156,7 +156,7 @@ struct dn_answer {
 	unsigned short class;
 	unsigned int ttl;
 	unsigned short size;
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 static int skip_name(unsigned char *s, int len)
 {

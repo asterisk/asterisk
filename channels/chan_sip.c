@@ -2895,7 +2895,7 @@ static struct ast_udptl_protocol sip_udptl = {
 };
 
 static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
+	__attribute__((format(printf, 2, 3)));
 
 
 /*! \brief Convert transfer status to string */
@@ -3206,9 +3206,9 @@ static void build_via(struct sip_pvt *p)
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	ast_string_field_build(p, via, "SIP/2.0/%s %s:%d;branch=z9hG4bK%08x%s",
-			get_transport_pvt(p),
-			ast_inet_ntoa(p->ourip.sin_addr),
-			ntohs(p->ourip.sin_port), p->branch, rport);
+			       get_transport_pvt(p),
+			       ast_inet_ntoa(p->ourip.sin_addr),
+			       ntohs(p->ourip.sin_port), (int) p->branch, rport);
 }
 
 /*! \brief NAT fix - decide which IP address to use for Asterisk server?
@@ -3269,7 +3269,7 @@ static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us)
 }
 
 /*! \brief Append to SIP dialog history with arg list  */
-static __attribute__((format (printf, 2, 0))) void append_history_va(struct sip_pvt *p, const char *fmt, va_list ap)
+static __attribute__((format(printf, 2, 0))) void append_history_va(struct sip_pvt *p, const char *fmt, va_list ap)
 {
 	char buf[80], *c = buf; /* max history length */
 	struct sip_history *hist;

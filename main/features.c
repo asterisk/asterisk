@@ -334,7 +334,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 
 	goto_on_transfer = ast_strdupa(val);
 
-	if (!(xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, chan->name)))
+	if (!(xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "%s", chan->name)))
 		return;
 
 	for (x = goto_on_transfer; x && *x; x++) {

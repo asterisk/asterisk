@@ -285,7 +285,7 @@ static pthread_t misdn_tasks_thread;
 static int *misdn_ports;
 
 static void chan_misdn_log(int level, int port, char *tmpl, ...)
-	__attribute__ ((format (printf, 3, 4)));
+	__attribute__((format(printf, 3, 4)));
 
 static struct ast_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, int format, int port, int c);
 static void send_digit_to_chan(struct chan_list *cl, char digit );

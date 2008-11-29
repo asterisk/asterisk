@@ -510,7 +510,7 @@ static struct ast_xml_node *xmldoc_get_node(const char *type, const char *name, 
  *  \param syntax Output buffer for the concatenated values.
  *  \param fmt A format string that will be used in a sprintf call.
  */
-static __attribute__((format(printf,4,5))) void xmldoc_reverse_helper(int reverse, int *len, char **syntax, const char *fmt, ...)
+static void __attribute__((format(printf, 4, 5))) xmldoc_reverse_helper(int reverse, int *len, char **syntax, const char *fmt, ...)
 {
 	int totlen, tmpfmtlen;
 	char *tmpfmt, tmp;

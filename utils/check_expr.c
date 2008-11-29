@@ -40,7 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  *	ast_str_set_va(...)
  *	ast_str_append_va(...)
  */
-int __attribute__((format (printf, 4, 0))) __ast_str_helper(struct ast_str **buf, size_t max_len,
+int __attribute__((format(printf, 4, 0))) __ast_str_helper(struct ast_str **buf, size_t max_len,
 	int append, const char *fmt, va_list ap)
 {
 	int res, need;
@@ -148,7 +148,7 @@ struct varz *global_varlist;
 
 /* Our own version of ast_log, since the expr parser uses it. */
 
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
+void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__((format(printf,5,6)));
 
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {

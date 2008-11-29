@@ -58,15 +58,14 @@ extern "C" {
  */
 
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
-	__attribute__ ((format (printf, 5, 6)));
+	__attribute__((format(printf, 5, 6)));
 
 void ast_backtrace(void);
 
 /*! \brief Reload logger without rotating log files */
 int logger_reload(void);
 
-void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
-	__attribute__ ((format (printf, 5, 6)));
+void __attribute__((format(printf, 5, 6))) ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...);
 
 /*! Send a verbose message (based on verbose level)
  	\brief This works like ast_log, but prints verbose messages to the console depending on verbosity level set.
@@ -75,17 +74,15 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
  	Note the abscence of a comma after the VERBOSE_PREFIX_3.  This is important.
  	VERBOSE_PREFIX_1 through VERBOSE_PREFIX_3 are defined.
  */
-void __ast_verbose(const char *file, int line, const char *func, const char *fmt, ...)
-	__attribute__ ((format (printf, 4, 5)));
+void __attribute__((format(printf, 4, 5))) __ast_verbose(const char *file, int line, const char *func, const char *fmt, ...);
 
 #define ast_verbose(...) __ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__,  __VA_ARGS__)
 
-void __ast_verbose_ap(const char *file, int line, const char *func, const char *fmt, va_list ap);
+void __attribute__((format(printf, 4, 0))) __ast_verbose_ap(const char *file, int line, const char *func, const char *fmt, va_list ap);
 
 #define ast_verbose_ap(fmt, ap)	__ast_verbose_ap(__FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ap)
 
-void ast_child_verbose(int level, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
+void __attribute__((format(printf, 2, 3))) ast_child_verbose(int level, const char *fmt, ...);
 
 int ast_register_verbose(void (*verboser)(const char *string)) attribute_warn_unused_result;
 int ast_unregister_verbose(void (*verboser)(const char *string)) attribute_warn_unused_result;

@@ -554,7 +554,7 @@ char * attribute_malloc _ast_strndup(const char *str, size_t len, const char *fi
 #define ast_asprintf(ret, fmt, ...) \
 	_ast_asprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, __VA_ARGS__)
 
-int __attribute__((format (printf, 5, 6)))
+int __attribute__((format(printf, 5, 6)))
 	_ast_asprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, ...);
 
 /*!
@@ -569,7 +569,7 @@ int __attribute__((format (printf, 5, 6)))
 	_ast_vasprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, (fmt), (ap))
 
 AST_INLINE_API(
-__attribute__((format (printf, 5, 0)))
+__attribute__((format(printf, 5, 0)))
 int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, va_list ap),
 {
 	int res;
@@ -676,7 +676,7 @@ static void force_inline _ast_assert(int condition, const char *condition_str,
  */
 struct ast_eid {
 	unsigned char eid[6];
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 /*!
  * \brief Global EID
