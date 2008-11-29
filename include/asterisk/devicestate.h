@@ -83,7 +83,7 @@ int ast_device_state(const char *device);
  * Returns 0 on success, -1 on failure
  */
 int ast_device_state_changed(const char *fmt, ...)
-	__attribute__ ((format (printf, 1, 2)));
+	__attribute__((format(printf, 1, 2)));
 
 
 /*! \brief Tells Asterisk the State for Device is changed 

@@ -60,7 +60,7 @@ extern "C" {
 	\param fmt	This is what is important.  The format is the same as your favorite breed of printf.  You know how that works, right? :-)
  */
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
-	__attribute__ ((format (printf, 5, 6)));
+	__attribute__((format(printf, 5, 6)));
 
 void ast_backtrace(void);
 
@@ -68,7 +68,7 @@ void ast_backtrace(void);
 int logger_reload(void);
 
 void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
-	__attribute__ ((format (printf, 5, 6)));
+	__attribute__((format(printf, 5, 6)));
 
 /*! Send a verbose message (based on verbose level)
  	\brief This works like ast_log, but prints verbose messages to the console depending on verbosity level set.
@@ -78,7 +78,7 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
  	VERBOSE_PREFIX_1 through VERBOSE_PREFIX_3 are defined.
  */
 void ast_verbose(const char *fmt, ...)
-	__attribute__ ((format (printf, 1, 2)));
+	__attribute__((format(printf, 1, 2)));
 
 int ast_register_verbose(void (*verboser)(const char *string));
 int ast_unregister_verbose(void (*verboser)(const char *string));

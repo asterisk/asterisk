@@ -655,7 +655,7 @@ void close_logger(void)
 	return;
 }
 
-static void ast_log_vsyslog(int level, const char *file, int line, const char *function, const char *fmt, va_list args) 
+static void __attribute__((format(printf, 5, 0))) ast_log_vsyslog(int level, const char *file, int line, const char *function, const char *fmt, va_list args) 
 {
 	char buf[BUFSIZ];
 	char *s;

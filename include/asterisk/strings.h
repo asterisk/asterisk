@@ -190,7 +190,7 @@ void ast_copy_string(char *dst, const char *src, size_t size),
   \param fmt printf-style format string
   \return 0 on success, non-zero on failure.
 */
-int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
 
 /*!
   \brief Build a string in a buffer, designed to be called repeatedly
@@ -204,7 +204,7 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attri
   \param fmt printf-style format string
   \param ap varargs list of arguments for format
 */
-int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap);
+int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap) __attribute__((format(printf, 3, 0)));
 
 /*! Make sure something is true */
 /*!

@@ -165,7 +165,7 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 */
 void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 				    ast_string_field *fields, int num_fields,
-				    int index, const char *format, ...);
+				    int index, const char *format, ...) __attribute__((format(printf, 5, 6)));
 
 /*!
   \internal
@@ -181,7 +181,7 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 */
 void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
 				       ast_string_field *fields, int num_fields,
-				       int index, const char *format, va_list a1, va_list a2);
+				       int index, const char *format, va_list a1, va_list a2)  __attribute__((format(printf, 5, 0)));
 
 /*!
   \brief Declare a string field

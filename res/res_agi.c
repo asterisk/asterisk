@@ -119,7 +119,7 @@ enum agi_result {
 	AGI_RESULT_HANGUP
 };
 
-static int agi_debug_cli(int fd, char *fmt, ...)
+static int __attribute__((format(printf, 2, 3))) agi_debug_cli(int fd, char *fmt, ...)
 {
 	char *stuff;
 	int res = 0;
@@ -1815,7 +1815,7 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 		switch(res) {
 		case RESULT_SHOWUSAGE:
 			fdprintf(agi->fd, "520-Invalid command syntax.  Proper usage follows:\n");
-			fdprintf(agi->fd, c->usage);
+			fdprintf(agi->fd, "%s", c->usage);
 			fdprintf(agi->fd, "520 End of proper usage.\n");
 			break;
 		case AST_PBX_KEEPALIVE:

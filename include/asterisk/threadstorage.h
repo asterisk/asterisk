@@ -364,7 +364,7 @@ enum {
  * writing over it.
  */
 int ast_dynamic_str_thread_build_va(struct ast_dynamic_str **buf, size_t max_len,
-	struct ast_threadstorage *ts, int append, const char *fmt, va_list ap);
+				    struct ast_threadstorage *ts, int append, const char *fmt, va_list ap)  __attribute__((format(printf, 5, 0)));
 
 /*!
  * \brief Set a thread locally stored dynamic string using variable arguments
@@ -406,7 +406,7 @@ int ast_dynamic_str_thread_build_va(struct ast_dynamic_str **buf, size_t max_len
  * \endcode
  */
 AST_INLINE_API(
-int __attribute__ ((format (printf, 4, 5))) ast_dynamic_str_thread_set(
+int __attribute__((format(printf, 4, 5))) ast_dynamic_str_thread_set(
 	struct ast_dynamic_str **buf, size_t max_len, 
 	struct ast_threadstorage *ts, const char *fmt, ...),
 {
@@ -429,7 +429,7 @@ int __attribute__ ((format (printf, 4, 5))) ast_dynamic_str_thread_set(
  * the string, this function appends to the current value.
  */
 AST_INLINE_API(
-int __attribute__ ((format (printf, 4, 5))) ast_dynamic_str_thread_append(
+int __attribute__((format(printf, 4, 5))) ast_dynamic_str_thread_append(
 	struct ast_dynamic_str **buf, size_t max_len, 
 	struct ast_threadstorage *ts, const char *fmt, ...),
 {
@@ -457,7 +457,7 @@ int __attribute__ ((format (printf, 4, 5))) ast_dynamic_str_thread_append(
  *         family of functions.
  */
 AST_INLINE_API(
-int __attribute__ ((format (printf, 3, 4))) ast_dynamic_str_set(
+int __attribute__((format(printf, 3, 4))) ast_dynamic_str_set(
 	struct ast_dynamic_str **buf, size_t max_len,
 	const char *fmt, ...),
 {
@@ -480,7 +480,7 @@ int __attribute__ ((format (printf, 3, 4))) ast_dynamic_str_set(
  * of setting a new value.
  */
 AST_INLINE_API(
-int __attribute__ ((format (printf, 3, 4))) ast_dynamic_str_append(
+int __attribute__((format(printf, 3, 4))) ast_dynamic_str_append(
 	struct ast_dynamic_str **buf, size_t max_len,
 	const char *fmt, ...),
 {

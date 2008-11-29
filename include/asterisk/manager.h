@@ -126,7 +126,7 @@ int astman_verify_session_writepermissions(uint32_t ident, int perm);
 	\param event	Event name
 	\param contents	Contents of event
 */
-int __attribute__ ((format (printf, 3,4))) manager_event(int category, const char *event, const char *contents, ...);
+int __attribute__((format(printf, 3,4))) manager_event(int category, const char *event, const char *contents, ...);
 
 /*! Get header from mananger transaction */
 const char *astman_get_header(const struct message *m, char *var);
@@ -139,7 +139,7 @@ void astman_send_error(struct mansession *s, const struct message *m, char *erro
 void astman_send_response(struct mansession *s, const struct message *m, char *resp, char *msg);
 void astman_send_ack(struct mansession *s, const struct message *m, char *msg);
 
-void __attribute__ ((format (printf, 2, 3))) astman_append(struct mansession *s, const char *fmt, ...);
+void __attribute__((format(printf, 2, 3))) astman_append(struct mansession *s, const char *fmt, ...);
 
 /*! Called by Asterisk initialization */
 int init_manager(void);

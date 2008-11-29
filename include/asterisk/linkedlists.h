@@ -242,11 +242,11 @@ struct name {								\
 	struct type *last;						\
 	ast_mutex_t lock;						\
 } name;									\
-static void  __attribute__ ((constructor)) init_##name(void)		\
+static void  __attribute__((constructor)) init_##name(void)		\
 {									\
         AST_LIST_HEAD_INIT(&name);					\
 }									\
-static void  __attribute__ ((destructor)) fini_##name(void)		\
+static void  __attribute__((destructor)) fini_##name(void)		\
 {									\
         AST_LIST_HEAD_DESTROY(&name);					\
 }									\
@@ -284,11 +284,11 @@ struct name {                                                           \
         struct type *last;                                              \
         ast_rwlock_t lock;                                              \
 } name;                                                                 \
-static void  __attribute__ ((constructor)) init_##name(void)            \
+static void  __attribute__((constructor)) init_##name(void)            \
 {                                                                       \
         AST_RWLIST_HEAD_INIT(&name);                                    \
 }                                                                       \
-static void  __attribute__ ((destructor)) fini_##name(void)             \
+static void  __attribute__((destructor)) fini_##name(void)             \
 {                                                                       \
         AST_RWLIST_HEAD_DESTROY(&name);                                 \
 }                                                                       \

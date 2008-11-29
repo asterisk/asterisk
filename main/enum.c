@@ -92,7 +92,7 @@ AST_MUTEX_DEFINE_STATIC(enumlock);
 struct naptr {
 	unsigned short order;
 	unsigned short pref;
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 /*! \brief Parse NAPTR record information elements */
 static unsigned int parse_ie(char *data, unsigned int maxdatalen, unsigned char *src, unsigned int srclen)

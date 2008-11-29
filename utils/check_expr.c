@@ -41,7 +41,7 @@ struct varz *global_varlist;
 
 /* Our own version of ast_log, since the expr parser uses it. */
 
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
+void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__((format(printf,5,6)));
 
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {

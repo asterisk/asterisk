@@ -237,11 +237,11 @@ void ast_module_unref(struct ast_module *);
 		flags_to_set | AST_MODFLAG_BUILDSUM,	\
 		AST_BUILDOPT_SUM,			\
 	};						\
-	static void  __attribute__ ((constructor)) __reg_module(void) \
+	static void  __attribute__((constructor)) __reg_module(void) \
 	{ \
 		ast_module_register(&__mod_info); \
 	} \
-	static void  __attribute__ ((destructor)) __unreg_module(void) \
+	static void  __attribute__((destructor)) __unreg_module(void) \
 	{ \
 		ast_module_unregister(&__mod_info); \
 	} \
@@ -268,11 +268,11 @@ const static __attribute__((unused)) struct ast_module_info *ast_module_info;
 		.buildopt_sum = AST_BUILDOPT_SUM,		\
 		fields						\
 	};							\
-	static void  __attribute__ ((constructor)) __reg_module(void) \
+	static void  __attribute__((constructor)) __reg_module(void) \
 	{ \
 		ast_module_register(&__mod_info); \
 	} \
-	static void  __attribute__ ((destructor)) __unreg_module(void) \
+	static void  __attribute__((destructor)) __unreg_module(void) \
 	{ \
 		ast_module_unregister(&__mod_info); \
 	} \

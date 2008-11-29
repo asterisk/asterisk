@@ -968,7 +968,7 @@ int workloop( FILE *theinfile, FILE *theoutfile,
   return TRUE;      /* Input file done with, no errors. */
 }
 
-int chat( const char *format, ...)
+int __attribute__((format(printf, 1, 2))) chat( const char *format, ...)
 {
     va_list ap;
     int result = 0;
@@ -983,7 +983,7 @@ int chat( const char *format, ...)
 }
 
 
-int inform( const char *format, ...)
+int __attribute__((format(printf, 1, 2))) inform( const char *format, ...)
 {
     va_list ap;
     int result = 0;
@@ -997,7 +997,7 @@ int inform( const char *format, ...)
     return result;
 }
 
-int error( const char *format, ...)
+int __attribute__((format(printf, 1, 2))) error( const char *format, ...)
 {
     va_list ap;
     int result;
@@ -1008,7 +1008,7 @@ int error( const char *format, ...)
     return result;
 }
 
-void fatalerror( const char *format, ...)
+void __attribute__((format(printf, 1, 2))) fatalerror( const char *format, ...)
 {
     va_list ap;
 
@@ -1024,7 +1024,7 @@ void fatalperror( const char *string)
   myexit( 1);
 }
 
-int say( const char *format, ...)
+int __attribute__((format(printf, 1, 2))) say( const char *format, ...)
 {
     va_list ap;
     int result;
