@@ -85,7 +85,7 @@ From 1.6.1 to 1.6.2:
   has been replaced with 'UNSUPPORTED').  This change makes the
   SendImage application more consistent with other applications.
 
-* skinny.conf now has seperate sections for lines and devices.
+* skinny.conf now has separate sections for lines and devices.
   Please have a look at configs/skinny.conf.sample and update
   your skinny.conf.
 
@@ -95,3 +95,8 @@ From 1.6.1 to 1.6.2:
   case-insensitive comparisons now when originally hashing based on
   queue names, meaning that now the two queues mentioned as examples
   earlier will be seen as having the same name.
+
+* The SPRINTF() dialplan function has been moved into its own module,
+  func_sprintf, and is no longer included in func_strings. If you use this
+  function and do not use 'autoload=yes' in modules.conf, you will need
+  to explicitly load func_sprintf for it to be available.

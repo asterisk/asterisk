@@ -18,3 +18,10 @@ MENUSELECT_DESCRIPTION=Dialplan Functions
 all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
+
+# the SPRINTF() function in func_sprintf accepts format specifiers
+# and thus passes them to snprintf() as non-literal strings; the compiler
+# can't check the string and arguments to ensure they match, so this
+# warning must be disabled; for safety reasons, SPRINTF() is kept in
+# a separate module so that as little code as possible is left unchecked
+func_sprintf.o: ASTCFLAGS+=-Wno-format-nonliteral

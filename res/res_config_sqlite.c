@@ -555,8 +555,7 @@ static char *sql_create_cdr_table =
 /*!
  * SQL query format to describe the table structure
  */
-static char *sql_table_structure =
-"SELECT sql FROM sqlite_master WHERE type='table' AND tbl_name='%s'";
+#define sql_table_structure "SELECT sql FROM sqlite_master WHERE type='table' AND tbl_name='%s'"
 
 /*!
  * SQL query format to fetch the static configuration of a file.
@@ -564,11 +563,11 @@ static char *sql_table_structure =
  *
  * \see add_cfg_entry()
  */
-static const char *sql_get_config_table =
-"SELECT *"
-"	FROM '%q'"
-"	WHERE filename = '%q' AND commented = 0"
-"	ORDER BY cat_metric ASC, var_metric ASC;";
+#define sql_get_config_table \
+	"SELECT *" \
+	"	FROM '%q'" \
+	"	WHERE filename = '%q' AND commented = 0" \
+	"	ORDER BY cat_metric ASC, var_metric ASC;"
 
 static void free_table(struct sqlite_cache_tables *tblptr)
 {
