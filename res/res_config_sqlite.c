@@ -77,7 +77,6 @@
 
 #include "asterisk.h"
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-
 #include <sqlite.h>
 
 #include "asterisk/logger.h"
@@ -524,46 +523,46 @@ static char *sql_create_cdr_table =
 ");";
 
 /*! SQL query format to insert a CDR entry. */
-static char *sql_add_cdr_entry =
-"INSERT INTO '%q' ("
-"	clid,"
-"	src,"
-"	dst,"
-"	dcontext,"
-"	channel,"
-"	dstchannel,"
-"	lastapp,"
-"	lastdata,"
-"	start,"
-"	answer,"
-"	end,"
-"	duration,"
-"	billsec,"
-"	disposition,"
-"	amaflags,"
-"	accountcode,"
-"	uniqueid,"
-"	userfield"
-") VALUES ("
-"	'%q',"
-"	'%q',"
-"	'%q',"
-"	'%q',"
-"	'%q',"
-"	'%q',"
-"	'%q',"
-"	'%q',"
-"	datetime(%d,'unixepoch','localtime'),"
-"	datetime(%d,'unixepoch','localtime'),"
-"	datetime(%d,'unixepoch','localtime'),"
-"	'%ld',"
-"	'%ld',"
-"	'%ld',"
-"	'%ld',"
-"	'%q',"
-"	'%q',"
-"	'%q'"
-");";
+#define sql_add_cdr_entry \
+	"INSERT INTO '%q' (" \
+	"	clid," \
+	"	src," \
+	"	dst," \
+	"	dcontext," \
+	"	channel," \
+	"	dstchannel," \
+	"	lastapp," \
+	"	lastdata," \
+	"	start," \
+	"	answer," \
+	"	end," \
+	"	duration," \
+	"	billsec," \
+	"	disposition," \
+	"	amaflags," \
+	"	accountcode," \
+	"	uniqueid," \
+	"	userfield" \
+	") VALUES (" \
+	"	'%q'," \
+	"	'%q'," \
+	"	'%q'," \
+	"	'%q'," \
+	"	'%q'," \
+	"	'%q'," \
+	"	'%q'," \
+	"	'%q'," \
+	"	datetime(%d,'unixepoch','localtime')," \
+	"	datetime(%d,'unixepoch','localtime')," \
+	"	datetime(%d,'unixepoch','localtime')," \
+	"	'%ld'," \
+	"	'%ld'," \
+	"	'%ld'," \
+	"	'%ld'," \
+	"	'%q'," \
+	"	'%q'," \
+	"	'%q'" \
+	");"
 
 /*!
  * SQL query format to fetch the static configuration of a file.
@@ -571,11 +570,11 @@ static char *sql_add_cdr_entry =
  *
  * \see add_cfg_entry()
  */
-static char *sql_get_config_table =
-"SELECT *"
-"	FROM '%q'"
-"	WHERE filename = '%q' AND commented = 0"
-"	ORDER BY cat_metric ASC, var_metric ASC;";
+#define sql_get_config_table \
+	"SELECT *" \
+	"	FROM '%q'" \
+	"	WHERE filename = '%q' AND commented = 0" \
+	"	ORDER BY cat_metric ASC, var_metric ASC;"
 
 static int set_var(char **var, const char *name, const char *value)
 {

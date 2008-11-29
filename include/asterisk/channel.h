@@ -727,7 +727,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state);
  * \note By default, new channels are set to the "s" extension
  *       and "default" context.
  */
-struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_num, const char *cid_name, const char *acctcode, const char *exten, const char *context, const int amaflag, const char *name_fmt, ...);
+struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_num, const char *cid_name, const char *acctcode, const char *exten, const char *context, const int amaflag, const char *name_fmt, ...) __attribute__((format(printf, 9, 10)));
 
 /*! 
  * \brief Queue an outgoing frame 

@@ -28,7 +28,7 @@
 struct naptr {
 	unsigned short order;
 	unsigned short pref;
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 struct enum_naptr_rr {
 	struct naptr naptr; /*!< order and preference of RR */

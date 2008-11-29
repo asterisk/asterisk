@@ -18,3 +18,5 @@ MENUSELECT_DESCRIPTION=Dialplan Functions
 all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
+
+func_strings.o: ASTCFLAGS+=-Wno-format-nonliteral

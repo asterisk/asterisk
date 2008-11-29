@@ -58,15 +58,14 @@ extern "C" {
  */
 
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
-	__attribute__ ((format (printf, 5, 6)));
+	__attribute__((format(printf, 5, 6)));
 
 void ast_backtrace(void);
 
 /*! \brief Reload logger without rotating log files */
 int logger_reload(void);
 
-void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
-	__attribute__ ((format (printf, 5, 6)));
+void __attribute__((format(printf, 5, 6))) ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...);
 
 /*! Send a verbose message (based on verbose level)
  	\brief This works like ast_log, but prints verbose messages to the console depending on verbosity level set.

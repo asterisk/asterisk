@@ -221,7 +221,7 @@ void ast_copy_string(char *dst, const char *src, size_t size),
   \retval 0 on success
   \retval non-zero on failure.
 */
-int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
 
 /*!
   \brief Build a string in a buffer, designed to be called repeatedly
@@ -235,7 +235,7 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attri
   \param fmt printf-style format string
   \param ap varargs list of arguments for format
 */
-int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap) __attribute__((format (printf, 3, 0)));
+int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap) __attribute__((format(printf, 3, 0)));
 
 /*! 
  * \brief Make sure something is true.
@@ -630,8 +630,8 @@ enum {
  *       through calling one of the other functions or macros defined in this
  *       file.
  */
-int __ast_str_helper(struct ast_str **buf, size_t max_len,
-	int append, const char *fmt, va_list ap);
+int __attribute__((format(printf, 4, 0))) __ast_str_helper(struct ast_str **buf, size_t max_len,
+							   int append, const char *fmt, va_list ap);
 
 /*!
  * \brief Set a dynamic string using variable arguments
@@ -651,7 +651,7 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
  * All the rest is the same as ast_str_set_va()
  */
 AST_INLINE_API(
-int __attribute__ ((format (printf, 3, 4))) ast_str_set(
+int __attribute__((format(printf, 3, 4))) ast_str_set(
 	struct ast_str **buf, size_t max_len, const char *fmt, ...),
 {
 	int res;
@@ -672,7 +672,7 @@ int __attribute__ ((format (printf, 3, 4))) ast_str_set(
  * ast_str_set(), but the new data is appended to the current value.
  */
 AST_INLINE_API(
-int __attribute__ ((format (printf, 3, 4))) ast_str_append(
+int __attribute__((format(printf, 3, 4))) ast_str_append(
 	struct ast_str **buf, size_t max_len, const char *fmt, ...),
 {
 	int res;

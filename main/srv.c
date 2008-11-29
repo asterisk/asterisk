@@ -73,7 +73,7 @@ static int parse_srv(unsigned char *answer, int len, unsigned char *msg, struct 
 		unsigned short priority;
 		unsigned short weight;
 		unsigned short port;
-	} __attribute__ ((__packed__)) *srv = (struct srv *) answer;
+	} __attribute__((__packed__)) *srv = (struct srv *) answer;
 
 	int res = 0;
 	char repl[256] = "";

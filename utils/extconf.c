@@ -89,10 +89,10 @@ struct ast_channel
 void ast_backtrace(void);
 
 void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
-	__attribute__ ((format (printf, 5, 6)));
+	__attribute__((format(printf, 5, 6)));
 
 /* IN CONFLICT: void ast_verbose(const char *fmt, ...)
-   __attribute__ ((format (printf, 1, 2))); */
+   __attribute__((format(printf, 1, 2))); */
 
 int ast_register_verbose(void (*verboser)(const char *string));
 int ast_unregister_verbose(void (*verboser)(const char *string));
@@ -666,11 +666,11 @@ static inline int ast_cond_timedwait(ast_cond_t *cond, ast_mutex_t *t, const str
  constructors/destructors to create/destroy mutexes.  */
 #define __AST_MUTEX_DEFINE(scope, mutex) \
 	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE; \
-static void  __attribute__ ((constructor)) init_##mutex(void) \
+static void  __attribute__((constructor)) init_##mutex(void) \
 { \
 	ast_mutex_init(&mutex); \
 } \
-static void  __attribute__ ((destructor)) fini_##mutex(void) \
+static void  __attribute__((destructor)) fini_##mutex(void) \
 { \
 	ast_mutex_destroy(&mutex); \
 }
@@ -754,11 +754,11 @@ static inline int ast_rwlock_trywrlock(ast_rwlock_t *prwlock)
 #ifndef HAVE_PTHREAD_RWLOCK_INITIALIZER
 #define __AST_RWLOCK_DEFINE(scope, rwlock) \
         scope ast_rwlock_t rwlock; \
-static void  __attribute__ ((constructor)) init_##rwlock(void) \
+static void  __attribute__((constructor)) init_##rwlock(void) \
 { \
         ast_rwlock_init(&rwlock); \
 } \
-static void  __attribute__ ((destructor)) fini_##rwlock(void) \
+static void  __attribute__((destructor)) fini_##rwlock(void) \
 { \
         ast_rwlock_destroy(&rwlock); \
 }
@@ -1074,7 +1074,7 @@ char * attribute_malloc _ast_strndup(const char *str, size_t len, const char *fi
 	_ast_asprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, __VA_ARGS__)
 
 AST_INLINE_API(
-__attribute__((format (printf, 5, 6)))
+__attribute__((format(printf, 5, 6)))
 int _ast_asprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, ...),
 {
 	int res;
@@ -1101,7 +1101,7 @@ int _ast_asprintf(char **ret, const char *file, int lineno, const char *func, co
 	_ast_vasprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, (fmt), (ap))
 
 AST_INLINE_API(
-__attribute__((format (printf, 5, 0)))
+__attribute__((format(printf, 5, 0)))
 int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, va_list ap),
 {
 	int res;
@@ -2014,11 +2014,11 @@ struct name {								\
 	struct type *last;						\
 	ast_mutex_t lock;						\
 } name;									\
-static void  __attribute__ ((constructor)) init_##name(void)		\
+static void  __attribute__((constructor)) init_##name(void)		\
 {									\
         AST_LIST_HEAD_INIT(&name);					\
 }									\
-static void  __attribute__ ((destructor)) fini_##name(void)		\
+static void  __attribute__((destructor)) fini_##name(void)		\
 {									\
         AST_LIST_HEAD_DESTROY(&name);					\
 }									\
@@ -2056,11 +2056,11 @@ struct name {                                                           \
         struct type *last;                                              \
         ast_rwlock_t lock;                                              \
 } name;                                                                 \
-static void  __attribute__ ((constructor)) init_##name(void)            \
+static void  __attribute__((constructor)) init_##name(void)            \
 {                                                                       \
         AST_RWLIST_HEAD_INIT(&name);                                    \
 }                                                                       \
-static void  __attribute__ ((destructor)) fini_##name(void)             \
+static void  __attribute__((destructor)) fini_##name(void)             \
 {                                                                       \
         AST_RWLIST_HEAD_DESTROY(&name);                                 \
 }                                                                       \
@@ -2671,7 +2671,7 @@ static void ast_log(int level, const char *file, int line, const char *function,
 	va_end(vars);
 }
 
-void __attribute__((format (printf, 1, 2))) ast_verbose(const char *fmt, ...)
+void __attribute__((format(printf, 1, 2))) ast_verbose(const char *fmt, ...)
 {
 	va_list vars;
 	va_start(vars,fmt);
