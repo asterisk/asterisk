@@ -39,13 +39,13 @@ struct dundi_hdr {
 	unsigned char cmdresp;			/*!< Command / Response */
 	unsigned char cmdflags;			/*!< Command / Response specific flags*/
 	unsigned char ies[0];
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 struct dundi_ie_hdr {
 	unsigned char ie;
 	unsigned char len;
 	unsigned char iedata[0];
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 #define DUNDI_FLAG_RETRANS		(1 << 16)	/*!< Applies to dtrans */
 #define DUNDI_FLAG_RESERVED		(1 << 16)	/*!< Applies to strans */
@@ -97,7 +97,7 @@ enum {
 struct dundi_encblock {				/*!< AES-128 encrypted block */
 	unsigned char iv[16];			/*!< Initialization vector of random data */
 	unsigned char encdata[0];		/*!< Encrypted / compressed data */
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 struct dundi_answer {
 	dundi_eid eid;				/*!< Original source of answer */
@@ -105,12 +105,12 @@ struct dundi_answer {
 	unsigned short flags;			/*!< Flags relating to answer */
 	unsigned short weight;			/*!< Weight of answers */
 	unsigned char data[0];			/*!< Protocol specific URI */
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 struct dundi_hint {
 	unsigned short flags;			/*!< Flags relating to answer */
 	unsigned char data[0];			/*!< For data for hint */
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 enum {
 	/*! Success */
@@ -134,14 +134,14 @@ enum {
 struct dundi_cause {			
 	unsigned char causecode;		/*!< Numerical cause (DUNDI_CAUSE_*) */
 	char desc[0];				/*!< Textual description */
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 struct dundi_peer_status {
 	unsigned int flags;
 	unsigned short netlag;
 	unsigned short querylag;
 	dundi_eid peereid;
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 enum {
 	DUNDI_PEER_PRIMARY =        (1 << 0),

@@ -147,7 +147,7 @@ static void del_chan(char *name)
 }
 
 
-static void __attribute__((format (printf, 2, 3))) fdprintf(int fd, char *fmt, ...)
+static void __attribute__((format(printf, 2, 3))) fdprintf(int fd, char *fmt, ...)
 {
 	char stuff[4096];
 	va_list ap;
@@ -417,7 +417,7 @@ static struct message *wait_for_response(int timeout)
 }
 
 
-static int __attribute__((format (printf, 2, 3))) manager_action(char *action, char *fmt, ...)
+static int __attribute__((format(printf, 2, 3))) manager_action(char *action, char *fmt, ...)
 {
 	struct ast_mansession *s;
 	char tmp[4096];

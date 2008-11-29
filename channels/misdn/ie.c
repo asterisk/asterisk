@@ -1347,7 +1347,7 @@ static void enc_ie_useruser(unsigned char **ntmode, msg_t *msg, int protocol, ch
 	i = 0;
 	while(i < user_len)
 	{
-		if (MISDN_IE_DEBG) printf(debug+(i*3), " %02x", user[i]);
+		if (MISDN_IE_DEBG) sprintf(debug+(i*3), " %02x", user[i]);
 		i++;
 	}
 		
@@ -1393,7 +1393,7 @@ static void dec_ie_useruser(unsigned char *p, Q931_info_t *qi, int *protocol, ch
 	i = 0;
 	while(i < *user_len)
 	{
-		if (MISDN_IE_DEBG) printf(debug+(i*3), " %02x", user[i]);
+		if (MISDN_IE_DEBG) sprintf(debug+(i*3), " %02x", user[i]);
 		i++;
 	}
 	debug[i*3] = '\0';

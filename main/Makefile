@@ -142,7 +142,7 @@ ifneq ($(findstring ENABLE_UPLOADS,$(MENUSELECT_CFLAGS)),)
 http.o: ASTCFLAGS+=$(GMIME_INCLUDE)
 endif
 
-stdtime/localtime.o: ASTCFLAGS+=$(AST_NO_STRICT_OVERFLOW)
+stdtime/localtime.o: ASTCFLAGS+=$(AST_NO_STRICT_OVERFLOW) -Wno-format-nonliteral
 
 AST_EMBED_LDSCRIPTS:=$(sort $(EMBED_LDSCRIPTS))
 AST_EMBED_LDFLAGS:=$(foreach dep,$(EMBED_LDFLAGS),$(value $(dep)))

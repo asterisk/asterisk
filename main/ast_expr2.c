@@ -372,7 +372,7 @@ enum valtype {
 } ;
 
 #ifdef STANDALONE
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
+void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__((format(printf,5,6)));
 #endif
 
 struct val {

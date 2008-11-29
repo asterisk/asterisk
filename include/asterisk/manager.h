@@ -181,7 +181,7 @@ int astman_verify_session_writepermissions(uint32_t ident, int perm);
 #define manager_event(category, event, contents , ...)	\
         __manager_event(category, event, __FILE__, __LINE__, __PRETTY_FUNCTION__, contents , ## __VA_ARGS__)
 
-int __attribute__ ((format(printf, 6, 7))) __manager_event(int category, const char *event,
+int __attribute__((format(printf, 6, 7))) __manager_event(int category, const char *event,
 							   const char *file, int line, const char *func,
 							   const char *contents, ...);
 
@@ -203,7 +203,7 @@ void astman_send_ack(struct mansession *s, const struct message *m, char *msg);
 /*! \brief Send ack in manager list transaction */
 void astman_send_listack(struct mansession *s, const struct message *m, char *msg, char *listflag);
 
-void __attribute__ ((format (printf, 2, 3))) astman_append(struct mansession *s, const char *fmt, ...);
+void __attribute__((format(printf, 2, 3))) astman_append(struct mansession *s, const char *fmt, ...);
 
 /*! \brief Determinie if a manager session ident is authenticated */
 int astman_is_authed(uint32_t ident);

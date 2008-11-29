@@ -30,7 +30,7 @@ extern "C" {
 #include "asterisk/linkedlists.h"
 
 void ast_cli(int fd, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
+	__attribute__((format(printf, 2, 3)));
 
 #define RESULT_SUCCESS		0
 #define RESULT_SHOWUSAGE	1

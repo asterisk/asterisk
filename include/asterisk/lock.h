@@ -1622,7 +1622,7 @@ static inline int ast_rwlock_trywrlock(ast_rwlock_t *prwlock)
  */
 #define __AST_MUTEX_DEFINE(scope, mutex, init_val, track)	\
 	scope ast_mutex_t mutex = init_val;			\
-static void  __attribute__ ((constructor)) init_##mutex(void)	\
+static void  __attribute__((constructor)) init_##mutex(void)	\
 {								\
 	if (track)						\
 		ast_mutex_init(&mutex);				\
@@ -1630,7 +1630,7 @@ static void  __attribute__ ((constructor)) init_##mutex(void)	\
 		ast_mutex_init_notracking(&mutex);		\
 }								\
 								\
-static void  __attribute__ ((destructor)) fini_##mutex(void)	\
+static void  __attribute__((destructor)) fini_##mutex(void)	\
 {								\
 	ast_mutex_destroy(&mutex);				\
 }
@@ -1671,14 +1671,14 @@ static void  __attribute__ ((destructor)) fini_##mutex(void)	\
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
 #define __AST_RWLOCK_DEFINE(scope, rwlock, init_val, track) \
         scope ast_rwlock_t rwlock = init_val; \
-static void  __attribute__ ((constructor)) init_##rwlock(void) \
+static void  __attribute__((constructor)) init_##rwlock(void) \
 { \
 	if (track) \
         	ast_rwlock_init(&rwlock); \
 	else \
 		ast_rwlock_init_notracking(&rwlock); \
 } \
-static void  __attribute__ ((destructor)) fini_##rwlock(void) \
+static void  __attribute__((destructor)) fini_##rwlock(void) \
 { \
         ast_rwlock_destroy(&rwlock); \
 }

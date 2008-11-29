@@ -52,7 +52,7 @@ struct ast_event_ie {
 	/*! Total length of the IE payload */
 	uint16_t ie_payload_len;
 	unsigned char ie_payload[0];
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 /*!
  * \brief An event
@@ -72,7 +72,7 @@ struct ast_event {
 	uint16_t event_len:16;
 	/*! The data payload of the event, made up of information elements */
 	unsigned char payload[0];
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 struct ast_event_ref {
 	struct ast_event *event;

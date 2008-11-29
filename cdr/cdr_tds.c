@@ -103,7 +103,7 @@ static char *anti_injection(const char *, int);
 static void get_date(char *, size_t len, struct timeval);
 
 static int execute_and_consume(DBPROCESS *dbproc, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
+	__attribute__((format(printf, 2, 3)));
 
 static int mssql_connect(void);
 static int mssql_disconnect(void);

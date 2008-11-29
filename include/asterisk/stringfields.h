@@ -183,7 +183,7 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 */
 void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
 				  struct ast_string_field_pool **pool_head,
-				  const ast_string_field *ptr, const char *format, ...);
+				  const ast_string_field *ptr, const char *format, ...) __attribute((format(printf, 4, 5)));
 
 /*!
   \internal
@@ -198,7 +198,7 @@ void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
 */
 void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 				     struct ast_string_field_pool **pool_head,
-				     const ast_string_field *ptr, const char *format, va_list a1, va_list a2);
+				     const ast_string_field *ptr, const char *format, va_list a1, va_list a2) __attribute((format(printf, 4, 0)));
 
 /*!
   \brief Declare a string field

@@ -1298,7 +1298,7 @@ void __ast_verbose(const char *file, int line, const char *func, const char *fmt
 
 /* No new code should use this directly, but we have the ABI for backwards compat */
 #undef ast_verbose
-void ast_verbose(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+void __attribute__((format(printf, 1,2))) ast_verbose(const char *fmt, ...);
 void ast_verbose(const char *fmt, ...)
 {
 	va_list ap;
