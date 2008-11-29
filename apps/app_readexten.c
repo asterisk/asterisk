@@ -169,12 +169,13 @@ static int readexten_exec(struct ast_channel *chan, void *data)
 				else
 					status = "TIMEOUT";
 				break;
-			} else if (res == '#') {
-				break;
 			}
 
 			exten[x] = res;
 			if (!ast_matchmore_extension(chan, arglist.context, exten, 1 /* priority */, chan->cid.cid_num)) {
+				if (!ast_exists_extension(chan, arglist.context, exten, 1, chan->cid.cid_num) && res == '#') {
+					exten[x] = '\0';
+				}
 				break;
 			}
 		}
