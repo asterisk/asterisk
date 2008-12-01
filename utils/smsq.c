@@ -400,7 +400,9 @@ static void rxqcheck (char *dir, char *queue, char *process)
             setenv ("ud16", temp, 1);
          }
          /* run the command */
-         system (process);
+         if (system (process) == -1) {
+            fprintf(stderr, "Failed to fork process '%s'\n", process);
+         }
       }
    closedir (d);
 }
