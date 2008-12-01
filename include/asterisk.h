@@ -176,6 +176,14 @@ struct ast_module;
 struct ast_variable;
 struct ast_str;
 
+#ifdef bzero
+#undef bzero
+#endif
+
+#ifdef bcopy
+#undef bcopy
+#endif
+
 #define bzero  0x__dont_use_bzero__use_memset_instead""
 #define bcopy  0x__dont_use_bcopy__use_memmove_instead()
 
