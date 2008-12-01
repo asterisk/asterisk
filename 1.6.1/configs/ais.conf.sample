@@ -1,0 +1,76 @@
+;
+; Sample configuration file for res_ais 
+;   * SAForum AIS (Application Interface Specification)
+;
+; More information on the AIS specification is available from the SAForum.
+;   * http://www.saforum.org/
+;
+; A nice open source implementation of AIS is available called openais. Visit
+; the openais website for downloads and more information.
+;   * http://www.openais.org/
+;
+
+;
+; [general]
+; The general section is reserved but not currently used.
+;
+
+;
+; Event channels are named distributed groups that share events.  Each node
+; that is the member of the event channel should have an entry in their
+; ais.conf file that indicates that they are a member of the event channel.
+; Each node's entry for the event channel also indicates which event types
+; will be published to other nodes, as well as which event types this node
+; will subscribe to from other nodes in the event channel.
+;
+; The name of the event channel is the name in brackets that begin a section
+; in the configuration file.
+;    [mwi]
+;
+; To define an event channel, this entry must be in the configuration section:
+;    type=event_channel
+;
+; Indicate that a node is capable of publishing events of a certain type by
+; using the publish_event directive.
+;    publish_event=mwi
+;
+; Indicate that a node is interested in receiving events of a certain type
+; from other nodes in the event channel by using the subscribe_event directive.
+;    subscribe_event=mwi
+;
+; Supported event types include: mwi, device_state
+;
+
+;
+; This example is for a node that can provide MWI state information, but should
+; also be listening for MWI state changes from other nodes.  Examples of when
+; this would be used are when this is both a voicemail server and also has
+; phones directly registered to it.
+;
+; [mwi]
+; type=event_channel
+; publish_event=mwi
+; subscribe_event=mwi
+;
+
+;
+; This example would be used for a node that can provide MWI state to other
+; nodes, but does not need to know about MWI state changes that happen on
+; any other node.  This would most likely be a voicemail server where no
+; phones are directly registered.
+;
+; [mwi]
+; type=event_channel
+; publish_event=mwi
+;
+
+;
+; This example would be used for a node that has phones directly registered
+; to it, but does not have direct access to voicemail.  So, this node wants
+; to be informed about MWI state changes on other voicemail server nodes, but 
+; is not capable of publishing any state changes.
+;
+; [mwi]
+; type=event_channel
+; subscribe_event=mwi
+;

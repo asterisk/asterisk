@@ -1,0 +1,307 @@
+\section{Introduction}
+
+Asterisk includes basic phone provisioning support through the res\_phoneprov module. The 
+current implementation is based on a templating system using Asterisk dialplan function 
+and variable substitution and obtains information to substitute into those templates from 
+\path{phoneprov.conf} and \path{users.conf}.  A profile and set of templates is provided 
+for provisioning Polycom phones. Note that res\_phoneprov is currently limited to 
+provisioning a single user per device.
+
+\section{Configuration of phoneprov.conf}
+
+The configuration file, \path{phoneprov.conf}, is used to set up the built-in variables 
+SEVER and SERVER\_PORT, to define a default phone profile to use, and to define different 
+phone profiles available for provisioning.
+
+\subsection{The [general] section}
+
+Below is a sample of the general section of \path{phoneprov.conf}:
+
+\begin{astlisting}
+\begin{verbatim}
+[general]
+;serveriface=eth0
+;serveraddr=192.168.1.1
+;serverport=5060
+default_profile=polycom
+\end{verbatim}
+\end{astlisting}
+
+By default, res\_phoneprov will set the SERVER variable to the IP address on the server
+that the requesting phone uses to contact the asterisk HTTP server.  The SERVER\_PORT
+variable will default to the \textbf{bindport} setting in sip.conf.
+
+Should the defaults be insufficient, there are two choices for overriding the default 
+setting of the SERVER variable. If the IP address of the server is known, or the hostname 
+resolvable by the phones, the appropriate \textbf{serveraddr} value should be set.  
+Alternatively, the network interface that the server listens on can be set by specifying a
+\textbf{serveriface} and SERVER will be set to the IP address of that interface.  Only one
+of these options should be set.
+
+The default SERVER\_PORT variable can be overridden by setting the \textbf{serverport}.
+If \textbf{bindport} is not set in \path{sip.conf} and serverport is not specified, it 
+is set to a default value of 5060.
+
+Any user set for auto-provisioning in users.conf without a specified profile will be 
+assumed to belong to the profile set with \textbf{default\_profile}.
+
+\subsection{Creating phone profiles}
+
+A phone profile is basically a list of files that a particular group of phones needs to 
+function.  For most phone types there are files that are identical for all phones 
+(firmware, for instance) as well as a configuration file that is specific to individual 
+phones.  res\_phoneprov breaks these two groups of files into static files and dynamic 
+files, respectively. A sample profile:
+
+\begin{astlisting}
+\begin{verbatim}
+[polycom]
+staticdir => configs/
+mime_type => text/xml
+setvar => CUSTOM_CONFIG=/var/lib/asterisk/phoneprov/configs/custom.cfg
+static_file => bootrom.ld,application/octet-stream
+static_file => bootrom.ver,plain/text
+static_file => sip.ld,application/octet-stream
+static_file => sip.ver,plain/text
+static_file => sip.cfg
+static_file => custom.cfg
+${TOLOWER(${MAC})}.cfg => 000000000000.cfg
+${TOLOWER(${MAC})}-phone.cfg => 000000000000-phone.cfg
+config/${TOLOWER(${MAC})} => polycom.xml
+${TOLOWER(${MAC})}-directory.xml => 000000000000-directory.xml
+\end{verbatim}
+\end{astlisting}
+
+A \textbf{static\_file} is set by specifying the file name, relative to 
+\path{AST\_DATA\_DIR/phoneprov}.  The mime-type of the file can optionally be specified 
+after a comma.  If \textbf{staticdir} is set, all static files will be relative to the 
+subdirectory of AST\_DATA\_DIR/phoneprov specified.
+
+Since phone-specific config files generally have file names based on phone-specifc data, 
+dynamic filenames in res\_phoneprov can be defined with Asterisk dialplan function and 
+variable substitution. In the above example, \$\{TOLOWER(\$\{MAC\})\}.cfg $\Rightarrow$ 
+000000000000.cfg would define a relative URI to be served that matches the format of 
+MACADDRESS.cfg, all lower case. A request for that file would then point to the template 
+found at AST\_DATA\_DIR/phoneprov/000000000000.cfg. The template can be followed by a 
+comma and mime-type. Notice that the dynamic filename (URI) can contain contain 
+directories. Since these files are dynamically generated, the config file itself does not 
+reside on the filesystem--only the template. To view the generated config file, open it 
+in a web browser. If the config file is XML, Firefox should display it. Some browsers 
+will require viewing the source of the page requested.
+
+A default mime-type for the profile can be defined by setting \textbf{mime-type}.  If a 
+custom variable is required for a template, it can be specified with \textbf{setvar}. 
+Variable substitution on this value is done while building the route list, so 
+\$\{USERNAME\} would expand to the username of the users.conf user that registers the 
+dynamic filename.
+
+NOTE: Any dialplan function that is used for generation of dynamic file names MUST be 
+loaded before res\_phoneprov. Add "preload $\Rightarrow$ modulename.so" to 
+\path{modules.conf} for required functions. In the example above, "preload $\Rightarrow$ 
+func\_strings.so" would be required.
+
+\section{Configuration of users.conf}
+
+The asterisk-gui sets up extensions, SIP/IAX2 peers, and a host of other settings. 
+User-specific settings are stored in users.conf. If the asterisk-gui is not being used, 
+manual entries to users.conf can be made.
+
+\subsection{The [general] section}
+
+There are only two settings in the general section of \path{users.conf} that apply to 
+phone provisioning: localextenlength which maps to template variable EXTENSION\_LENGTH 
+and \textbf{vmexten} which maps to the VOICEMAIL\_EXTEN variable.
+
+\subsection{Invdividual Users}
+
+To enable auto-provisioning of a phone, the user in \path{users.conf} needs to have:
+
+\begin{astlisting}
+\begin{verbatim}
+...
+autoprov=yes
+macaddress=deadbeef4dad
+profile=polycom
+\end{verbatim}
+\end{astlisting}
+
+The profile is optional if a \textbf{default\_profile} is set in \path{phoneprov.conf}. 
+The following is a sample users.conf entry, with the template variables commented next to 
+the settings:
+
+\begin{astlisting}
+\begin{verbatim}
+[6001]
+callwaiting = yes
+context = numberplan-custom-1
+hasagent = no
+hasdirectory = yes
+hasiax = no
+hasmanager = no
+hassip = yes
+hasvoicemail = yes
+host = dynamic
+mailbox = 6001
+threewaycalling = yes
+deletevoicemail = no
+autoprov = yes
+profile = polycom
+canreinvite = no
+nat = no
+fullname = User Two ; ${DISPLAY_NAME}
+secret = test ; ${SECRET}
+username = 6001 ; ${USERNAME}
+macaddress = deadbeef4dad ; ${MAC}
+label = 6001 ; ${LABEL}
+cid_number = 6001 ; ${CALLERID}
+\end{verbatim}
+\end{astlisting}
+
+The variables above, are the user-specfic variables that can be substituted into dynamic 
+filenames and config templates.
+
+\section{Templates}
+
+Configuration templates are a generic way to configure phones with text-based 
+configuration files. Templates can use any loaded dialplan function and all of the 
+variables created by \path{phoneprov.conf} and \path{users.conf}. A short example is the 
+included 000000000000.cfg Polycom template:
+
+\begin{astlisting}
+\begin{verbatim}
+<?xml version="1.0" standalone="yes"?>
+  <APPLICATION 
+    APP_FILE_PATH="sip.ld"
+    CONFIG_FILES="${IF($[${STAT(e|${CUSTOM_CONFIG})}] ? "custom.cfg, 
+")}config/${TOLOWER(${MAC})}, sip.cfg"
+    MISC_FILES="" LOG_FILE_DIRECTORY=""
+  />
+\end{verbatim}
+\end{astlisting}
+
+This template uses dialplan functions, expressions, and a couple of variables to generate 
+a config file to instruct the Polycom where to pull other needed config files. If a phone 
+with MAC address 0xDEADBEEF4DAD requests this config file, and the filename that is 
+stored in variable CUSTOM\_CONFIG does not exist, then the generated output would be:
+
+\begin{astlisting}
+\begin{verbatim}
+<?xml version="1.0" standalone="yes"?>
+  <APPLICATION
+    APP_FILE_PATH="sip.ld"
+    CONFIG_FILES="config/deadbeef4dad, sip.cfg"
+    MISC_FILES="" LOG_FILE_DIRECTORY=""
+  />
+\end{verbatim}
+\end{astlisting}
+
+The Polycom phone would then download both sip.cfg (which would be registered in 
+\path{phoneprov.conf} as a static file) and config/deadbeef4dad (which would be 
+registered as a dynamic file pointing to another template, polycom.xml). 
+
+res\_phoneprov also registers its own dialplan function: PP\_EACH\_USER. This function 
+was designed to be able to print out a particular string for each user that 
+res\_phoneprov knows about. An example use of this function is the template for a Polycom 
+contact directory:
+
+\begin{astlisting}
+\begin{verbatim}
+<?xml version="1.0" standalone="yes"?>
+<directory>
+  <item_list>
+    ${PP_EACH_USER(<item><fn>%{DISPLAY_NAME}</fn><ct>%{CALLERID}</ct><bw>1</bw></item>|${MAC})}
+  </item_list>
+</directory>
+\end{verbatim}
+\end{astlisting}
+
+PP\_EACH\_USER takes two arguments.  The first is the string to be printed for each user. 
+Any variables that are to be substituted need to be in the format \%\{VARNAME\} so that
+Asterisk doesn't try to substitute the variable immediately before it is passed to
+PP\_EACH\_USER. The second, optional, argument is a MAC address to exclude from the list 
+iterated over (so, in this case, a phone won't be listed in its own contact directory).
+
+\section{Putting it all together}
+
+Make sure that \path{manager.conf} has:
+
+\begin{astlisting}
+\begin{verbatim}
+[general]
+enabled = yes
+webenabled = yes
+\end{verbatim}
+\end{astlisting}
+
+and that \path{http.conf} has:
+
+\begin{astlisting}
+\begin{verbatim}
+[general]
+enabled = yes
+bindaddr = 192.168.1.1 ; Your IP here ;-)
+bindport = 8088 ; Or port 80 if it is the only http server running on the machine
+\end{verbatim}
+\end{astlisting}
+
+With \path{phoneprov.conf} and \path{users.conf} in place, start Astersik. From the CLI, 
+type "http show status". An example output:
+\begin{astlisting}
+\begin{verbatim}
+HTTP Server Status:
+Prefix: /asterisk
+Server Enabled and Bound to 192.168.1.1:8088
+
+Enabled URI's:
+/asterisk/httpstatus => Asterisk HTTP General Status
+/asterisk/phoneprov/... => Asterisk HTTP Phone Provisioning Tool
+/asterisk/manager => HTML Manager Event Interface
+/asterisk/rawman => Raw HTTP Manager Event Interface
+/asterisk/static/... => Asterisk HTTP Static Delivery
+/asterisk/mxml => XML Manager Event Interface
+
+Enabled Redirects:
+  None.
+
+POST mappings:
+None.
+\end{verbatim}
+\end{astlisting}
+
+There should be a phoneprov URI listed. Next, from the CLI, type "phoneprov show routes" 
+and verify that the information there is correct. An example output for Polycom phones 
+woud look like:
+
+\begin{astlisting}
+\begin{verbatim}
+Static routes
+
+Relative URI                              Physical location             
+sip.ver                                   configs/sip.ver               
+sip.ld                                    configs/sip.ld                
+bootrom.ver                               configs/bootrom.ver           
+sip.cfg                                   configs/sip.cfg               
+bootrom.ld                                configs/bootrom.ld            
+custom.cfg                                configs/custom.cfg            
+
+Dynamic routes
+
+Relative URI                              Template                      
+deadbeef4dad.cfg                          000000000000.cfg              
+deadbeef4dad-directory.xml                000000000000-directory.xml    
+deadbeef4dad-phone.cfg                    000000000000-phone.cfg        
+config/deadbeef4dad                       polycom.xml                   
+\end{verbatim}
+\end{astlisting}
+
+With the above examples, the phones would be pointed to 
+\url{http://192.168.1.1:8080/asterisk/phoneprov} for pulling config files. Templates 
+would all be placed in AST\_DATA\_DIR/phoneprov and static files would be placed in 
+AST\_DATA\_DIR/phoneprov/configs. Examples of valid URIs would be:
+
+\begin{itemize}
+\item http://192.168.1.1:8080/asterisk/phoneprov/sip.cfg
+\item http://192.168.1.1:8080/asterisk/phoneprov/deadbeef4dad.cfg
+\item http://192.168.1.1:8080/asterisk/phoneprov/config/deadbeef4dad
+\end{itemize}
+

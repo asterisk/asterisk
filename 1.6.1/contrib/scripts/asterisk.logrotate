@@ -1,0 +1,13 @@
+__LOGDIR__/debug __LOGDIR__/console __LOGDIR__/full __LOGDIR__/messages __LOGDIR__/*log {
+	weekly
+	missingok
+	rotate 52
+	compress
+	delaycompress
+	notifempty
+	create 640 root root 
+	sharedscripts
+	postrotate
+		__SBINDIR__/asterisk -rx 'logger reload' > /dev/null 2> /dev/null	
+	endscript
+} 

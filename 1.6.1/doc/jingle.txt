@@ -1,0 +1,10 @@
+(Jingle support in asterisk is experimental)
+Jingle is an xmpp based protocol for signalling the transfer of media.
+Currently asterisk supports the proprietary GoogleTalk protocol that is
+very similar to jingle, and hopes to soon support true jingle specs
+(JEP-166,167,176,177,180,181 etc) as more clients support the true standard.
+Jingle's configuration is very similar to sip.conf only as we are not the
+jabber server in this case you must provide a connection for the peer to
+travel out on.
+chan_gtalk is for supporting the non-jingle google/libjingle spec and 
+chan_jingle will continue to move in the direction of the correct spec.

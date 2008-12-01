@@ -1,0 +1,97 @@
+Asterisk SIP/TLS Transport
+==========================
+
+When using TLS the client will typically check the validity of the
+certificate chain.  So that means you either need a certificate that is
+signed by one of the larger CAs, or if you use a self signed certificate
+you must install a copy of your CA certificate on the client.
+
+So far this code has been test with:
+- Asterisk as client and server (TLS and TCP)
+- Polycom Soundpoint IP Phones (TLS and TCP)
+	Polycom phones require that the host (ip or hostname) that is
+	configured match the 'common name' in the certificate
+- Minisip Softphone (TLS and TCP)
+- Cisco IOS Gateways (TCP only)
+- SNOM 360 (TLS only)
+- Zoiper Biz Softphone (TLS and TCP)
+
+
+sip.conf options
+----------------
+tlsenable=[yes|no]
+	Enable TLS server, default is no
+
+tlsbindaddr=<ip address>
+	Specify IP address to bind TLS server to, default is 0.0.0.0
+
+tlscertfile=</path/to/certificate>
+	The server's certificate file. Should include the key and 
+	certificate.  This is mandatory if your going to run a TLS server.
+
+tlscafile=</path/to/certificate>
+	If the server your connecting to uses a self signed certificate
+	you should have their certificate installed here so the code can 
+	verify the authenticity of their certificate.
+
+tlscadir=</path/to/ca/dir>
+	A directory full of CA certificates.  The files must be named with 
+	the CA subject name hash value. 
+	(see man SSL_CTX_load_verify_locations for more info) 
+
+tlsdontverifyserver=[yes|no]
+	If set to yes, don't verify the servers certificate when acting as 
+	a client.  If you don't have the server's CA certificate you can
+	set this and it will connect without requiring tlscafile to be set.
+	Default is no.
+
+tlscipher=<SSL cipher string>
+	A string specifying which SSL ciphers to use or not use
+	A list of valid SSL cipher strings can be found at: 
+		http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
+
+
+Sample config
+-------------
+
+Here are the relevant bits of config for setting up TLS between 2
+asterisk servers.  With server_a registering to server_b
+
+On server_a:
+
+[general]
+tlsenable=yes
+tlscertfile=/etc/asterisk/asterisk.pem
+tlscafile=/etc/ssl/ca.pem  ; This is the CA file used to generate both certificates
+register => tls://100:test@192.168.0.100:5061
+
+[101]
+type=friend
+context=internal
+host=192.168.0.100 ; The host should be either IP or hostname and should 
+                   ; match the 'common name' field in the servers certificate
+secret=test
+dtmfmode=rfc2833
+disallow=all
+allow=ulaw
+transport=tls 
+port=5061
+
+On server_b:
+[general]
+tlsenable=yes
+tlscertfile=/etc/asterisk/asterisk.pem
+
+[100]
+type=friend
+context=internal
+host=dynamic
+secret=test
+dtmfmode=rfc2833
+disallow=all
+allow=ulaw
+;You can specify transport= and port=5061 for TLS, but its not necessary in
+;the server configuration, any type of SIP transport will work
+;transport=tls 
+;port=5061
+

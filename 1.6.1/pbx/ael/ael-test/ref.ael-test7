@@ -1,0 +1,19 @@
+
+(If you find progress and other non-error messages irritating, you can use -q to suppress them)
+
+(You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
+LOG: lev:2 file:pbx_ael.c  line:113 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:126 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 22-42: The macro stdexten does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 44-49: The macro announce_minutes does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 59-89: The macro checkanddial does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 91-100: The macro trunkdial does not end with a return; I will insert one.
+LOG: lev:4 file:pval.c  line:2468 func: check_pval_item  Error: file ./extensions.ael, line 98-98: The macro call to checkanddial has 5 arguments, but the macro definition has 7 arguments
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 102-112: The macro checklocal does not end with a return; I will insert one.
+LOG: lev:4 file:pval.c  line:2468 func: check_pval_item  Error: file ./extensions.ael, line 107-107: The macro call to checkanddial has 5 arguments, but the macro definition has 7 arguments
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 114-119: The macro autodial does not end with a return; I will insert one.
+LOG: lev:4 file:pval.c  line:2468 func: check_pval_item  Error: file ./extensions.ael, line 284-284: The macro call to checkanddial has 5 arguments, but the macro definition has 7 arguments
+LOG: lev:4 file:pval.c  line:2468 func: check_pval_item  Error: file ./extensions.ael, line 287-287: The macro call to checkanddial has 5 arguments, but the macro definition has 7 arguments
+LOG: lev:3 file:pval.c  line:2426 func: check_pval_item  Warning: file ./extensions.ael, line 452-452: macro call to non-existent std-exten-ael! (Not even in the extensions.conf stuff!)
+LOG: lev:4 file:pbx_ael.c  line:139 func: pbx_load_module  Sorry, but 0 syntax errors and 4 semantic errors were detected. It doesn't make sense to compile.
+LOG: lev:4 file:ael2_parse  line:531 func: main  0 contexts, 0 extensions, 0 priorities

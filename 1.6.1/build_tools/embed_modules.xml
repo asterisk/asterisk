@@ -1,0 +1,26 @@
+	<category name="MENUSELECT_EMBED" displayname="Module Embedding" positive_output="yes" remove_on_change="main/asterisk">
+		<member name="APPS" displayname="Applications" remove_on_change="apps/*.o">
+			<depend>gnu_ld</depend>
+		</member>
+		<member name="CDR" displayname="Call Detail Recording" remove_on_change="cdr/*.o">
+			<depend>gnu_ld</depend>
+		</member>
+		<member name="CHANNELS" displayname="Channels" remove_on_change="channels/*.o channels/misdn/*.o">
+			<depend>gnu_ld</depend>
+		</member>
+		<member name="CODECS" displayname="Coders/Decoders" remove_on_change="codecs/*.o codecs/gsm/src/*.o codecs/ilbc/*.o codecs/lpc10/*.o codecs/gsm/lib/libgsm.a codecs/lpc10/liblpc10.a codecs/ilbc/libilbc.a codecs/g722/libg722.a">
+			<depend>gnu_ld</depend>
+		</member>
+		<member name="FORMATS" displayname="File Formats" remove_on_change="formats/*.o">
+			<depend>gnu_ld</depend>
+		</member>
+		<member name="FUNCS" displayname="Dialplan Functions" remove_on_change="funcs/*.o">
+			<depend>gnu_ld</depend>
+		</member>
+		<member name="PBX" displayname="PBX Functionality" remove_on_change="pbx/*.o pbx/ael/*.o">
+			<depend>gnu_ld</depend>
+		</member>
+		<member name="RES" displayname="Resource Modules" remove_on_change="res/*.o res/snmp/*.o">
+			<depend>gnu_ld</depend>
+		</member>
+	</category>

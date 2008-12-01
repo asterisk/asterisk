@@ -1,0 +1,99 @@
+
+(If you find progress and other non-error messages irritating, you can use -q to suppress them)
+
+(You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
+LOG: lev:2 file:pbx_ael.c  line:115 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:ael.flex  line:672 func: setup_filestack    --Read in included file ././include1.ael2, 78 chars
+LOG: lev:2 file:ael.flex  line:672 func: setup_filestack    --Read in included file ././include2.ael2, 98 chars
+LOG: lev:2 file:ael.flex  line:672 func: setup_filestack    --Read in included file ././include3.ael2, 57 chars
+LOG: lev:2 file:ael.flex  line:672 func: setup_filestack    --Read in included file ././include5.ael2, 56 chars
+LOG: lev:2 file:ael.flex  line:672 func: setup_filestack    --Read in included file ././include4.ael2, 87 chars
+LOG: lev:2 file:ael.flex  line:672 func: setup_filestack    --Read in included file ././telemarket_torture.ael2, 28036 chars
+LOG: lev:2 file:pbx_ael.c  line:128 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 14-34: The macro std-exten does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:1362 func: check_goto  Warning: file ./extensions.ael, line 17-17: It's bad form to have a goto in a macro to a target outside the macro!
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 36-59: The macro std-priv-exten_1 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 62-85: The macro std-priv-exten_2 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 88-111: The macro std-priv-exten_3 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 114-137: The macro std-priv-exten_4 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 140-163: The macro std-priv-exten_5 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 166-189: The macro std-priv-exten_6 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 192-215: The macro std-priv-exten_7 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 218-241: The macro std-priv-exten_8 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 244-267: The macro std-priv-exten_9 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 270-293: The macro std-priv-exten_10 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 296-319: The macro std-priv-exten_11 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 322-345: The macro std-priv-exten_12 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 348-371: The macro std-priv-exten_13 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 374-397: The macro std-priv-exten_14 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 400-423: The macro std-priv-exten_15 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 426-449: The macro std-priv-exten_16 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 452-475: The macro std-priv-exten_17 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 478-501: The macro std-priv-exten_18 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 504-527: The macro std-priv-exten_19 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 530-553: The macro std-priv-exten_20 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 556-579: The macro std-priv-exten_21 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 582-605: The macro std-priv-exten_22 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 608-631: The macro std-priv-exten_23 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 634-657: The macro std-priv-exten_24 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 660-683: The macro std-priv-exten_25 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 686-709: The macro std-priv-exten_26 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 712-735: The macro std-priv-exten_27 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 738-761: The macro std-priv-exten_28 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 764-787: The macro std-priv-exten_29 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 790-813: The macro std-priv-exten_30 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 816-839: The macro std-priv-exten_31 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 842-865: The macro std-priv-exten_32 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 868-891: The macro std-priv-exten_33 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 894-917: The macro std-priv-exten_34 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 920-943: The macro std-priv-exten_35 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 946-969: The macro std-priv-exten_36 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 972-995: The macro std-priv-exten_37 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 998-1021: The macro std-priv-exten_38 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1024-1047: The macro std-priv-exten_39 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1050-1073: The macro std-priv-exten_40 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1076-1099: The macro std-priv-exten_41 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1102-1125: The macro std-priv-exten_42 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1128-1151: The macro std-priv-exten_43 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1154-1177: The macro std-priv-exten_44 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1180-1203: The macro std-priv-exten_45 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1206-1229: The macro std-priv-exten_46 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1232-1255: The macro std-priv-exten_47 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1258-1281: The macro std-priv-exten_48 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1284-1307: The macro std-priv-exten_49 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1310-1333: The macro std-priv-exten_50 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1336-1359: The macro std-priv-exten_51 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1362-1385: The macro std-priv-exten_52 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1388-1411: The macro std-priv-exten_53 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1414-1437: The macro std-priv-exten_54 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1440-1463: The macro std-priv-exten_55 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1466-1489: The macro std-priv-exten_56 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1492-1515: The macro std-priv-exten_57 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1518-1541: The macro std-priv-exten_58 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1544-1567: The macro std-priv-exten_59 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1570-1593: The macro std-priv-exten_60 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1596-1619: The macro std-priv-exten_61 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1622-1645: The macro std-priv-exten_62 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1648-1671: The macro std-priv-exten_63 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1674-1697: The macro std-priv-exten_64 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1700-1723: The macro std-priv-exten_65 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1726-1749: The macro std-priv-exten_66 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1752-1775: The macro std-priv-exten_67 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1778-1801: The macro std-priv-exten_68 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1804-1827: The macro std-priv-exten_69 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1830-1853: The macro std-priv-exten_70 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1856-1879: The macro std-priv-exten_71 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1882-1905: The macro std-priv-exten_72 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1908-1931: The macro std-priv-exten_73 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1934-1957: The macro std-priv-exten does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1959-1995: The macro fillcidname does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 1997-2015: The macro ciddial does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 2017-2028: The macro ciddial3 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 2030-2048: The macro ciddial2 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 2050-2065: The macro callerid-liar does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 2067-2072: The macro callerid-bad does not end with a return; I will insert one.
+LOG: lev:2 file:pbx_ael.c  line:131 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:134 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:139 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:142 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:518 func: main  172 contexts, 934 extensions, 2558 priorities

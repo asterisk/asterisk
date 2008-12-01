@@ -1,0 +1,81 @@
+;
+; IAX2 Provisioning Information
+;
+; Contains provisioning information for templates and for specific service
+; entries.
+;
+; Templates provide a group of settings from which provisioning takes place.
+; A template may be based upon any template that has been specified before
+; it.  If the template that an entry is based on is not specified then it is
+; presumed to be 'default' (unless it is the first of course).  
+;
+; Templates which begin with 'si-' are used for provisioning units with
+; specific service identifiers.  For example the entry "si-000364000126"
+; would be used when the device with the corresponding service identifier of
+; "000364000126" attempts to register or make a call.
+;
+[default]
+;
+; The port number the device should use to bind to.  The default is 4569.
+;
+;port=4569
+;
+; server is our PRIMARY server for registration and placing calls
+;
+;server=192.168.69.3
+;
+; altserver is the BACKUP server for registration and placing calls in the
+; event the primary server is unavailable.
+;
+;altserver=192.168.69.4
+;
+; port is the port number to use for IAX2 outbound.  The connections to the
+; server and altserver -- default is of course 4569.
+;serverport=4569
+;
+; language is the preferred language for the device
+;
+;language=en
+;
+; codec is the requested codec.  The iaxy supports ulaw and adpcm
+;
+codec=ulaw
+;
+; flags is a comma separated list of flags which the device should
+; use and may contain any of the following keywords:
+;
+;  "register"  - Register with server
+;  "secure"    - Do not accept calls / provisioning not originated by the server
+;  "heartbeat" - Generate status packets on port 9999 sent to 255.255.255.255
+;  "debug"     - Output extra debugging to port 9999
+;
+;  Note that use can use += and -= to adjust parameters
+;
+flags=register,heartbeat
+;
+; See qos.tex or Quality of Service section of asterisk.pdf for a description of this parameter.
+;tos=ef
+;
+; Example iaxy provisioning
+;
+;[si-000364000126]
+;user=iaxy
+;pass=bitsy
+;flags += debug
+
+;[si-000364000127]
+;user=iaxy2
+;pass=bitsy2
+;template=si-000364000126
+;flags += debug
+
+;
+;[*]
+;
+;  If specified, the '*' provisioning is used for all devices which do not
+;  have another provisioning entry within the file.  If unspecified, no
+;  provisioning will take place for devices which have no entry.  DO NOT
+;  USE A '*' PROVISIONING ENTRY UNLESS YOU KNOW WHAT YOU'RE DOING.
+;
+;template=default
+

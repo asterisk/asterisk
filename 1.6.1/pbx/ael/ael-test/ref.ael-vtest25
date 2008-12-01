@@ -1,0 +1,7 @@
+
+
+[test11]
+exten => 841,1,Gosub(test234,s,1("testing", ${CUT(EXTEN,,3)}))
+exten => 841,2,Goto(${DB(uri/${uri_string})},1)
+exten => 841,3,Set(line=${DB(uri/${uri_string})})
+exten => 841,4,Goto(${line},1)

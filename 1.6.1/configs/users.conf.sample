@@ -1,0 +1,85 @@
+;
+; User configuration
+;
+; Creating entries in users.conf is a "shorthand" for creating individual
+; entries in each configuration file.  Using users.conf is not intended to 
+; provide you with as much flexibility as using the separate configuration
+; files (e.g. sip.conf, iax.conf, etc) but is intended to accelerate the
+; simple task of adding users.  Note that creating individual items (e.g.
+; custom SIP peers, IAX friends, etc.) will allow you to override specific 
+; parameters within this file.  Parameter names here are the same as they
+; appear in the other configuration files.  There is no way to change the
+; value of a parameter here for just one subsystem.
+;
+
+[general]
+;
+; Full name of a user
+;
+fullname = New User
+;
+; Starting point of allocation of extensions
+;
+userbase = 6000
+;
+; Create voicemail mailbox and use use macro-stdexten
+;
+hasvoicemail = yes
+;
+; Set voicemail mailbox 6000 password to 1234
+;
+vmsecret = 1234
+;
+; Create SIP Peer
+;
+hassip = yes
+;
+; Create IAX friend
+;
+hasiax = yes
+;
+; Create H.323 friend
+;
+;hash323 = yes
+;
+; Create manager entry
+;
+hasmanager = no
+;
+; Set permissions for manager entry (see manager.conf.sample for documentation)
+; (defaults to *all* permissions)
+;managerread = system,call,log,verbose,command,agent,user,config
+;managerwrite = system,call,log,verbose,command,agent,user,config
+;
+; Remaining options are not specific to users.conf entries but are general.
+;
+callwaiting = yes
+threewaycalling = yes
+callwaitingcallerid = yes
+transfer = yes
+canpark = yes
+cancallforward = yes
+callreturn = yes
+callgroup = 1
+pickupgroup = 1
+
+
+;[6000]
+;fullname = Joe User
+;email = joe@foo.bar
+;secret = 1234
+;dahdichan = 1
+;hasvoicemail = yes
+;vmsecret = 1234
+;hassip = yes
+;hasiax = no
+;hash323 = no
+;hasmanager = no
+;callwaiting = no
+;context = international
+;
+; Some administrators choose alphanumeric extensions, but still want their
+; users to be reachable by traditional numeric extensions, specified by the
+; alternateexts entry.
+;
+;alternateexts = 7057,3249

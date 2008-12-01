@@ -1,0 +1,262 @@
+;
+; DUNDi configuration file
+; 
+; For more information about DUNDi, see http://www.dundi.com
+;
+;
+[general]
+;
+; The "general" section contains general parameters relating
+; to the operation of the dundi client and server.
+;
+; The first part should be your complete contact information
+; should someone else in your peer group need to contact you.
+;
+;department=Your Department
+;organization=Your Company, Inc.
+;locality=Your City
+;stateprov=ST
+;country=US
+;email=your@email.com
+;phone=+12565551212
+;
+;
+; Specify bind address and port number.  Default is
+; 4520
+;
+;bindaddr=0.0.0.0
+;port=4520
+;
+; See qos.tex or Quality of Service section of asterisk.pdf for a description of the tos parameter.
+;tos=ef
+;
+; Our entity identifier (Should generally be the MAC address of the
+; machine it's running on.  Defaults to the first eth address, but you
+; can override it here, as long as you set it to the MAC of *something*
+; you own!)  The EID can be overridden by a setting in asterisk.conf,
+; or by setting this option.
+;
+;entityid=00:07:E9:3B:76:60
+;
+; Peers shall cache our query responses for the specified time,
+; given in seconds. Default is 3600.
+;
+;cachetime=3600
+;
+; This defines the max depth in which to search the DUNDi system.
+; Note that the maximum time that we will wait for a response is
+; (2000 + 200 * ttl) ms.
+;
+ttl=32
+;
+; If we don't get ACK to our DPDISCOVER within 2000ms, and autokill is set
+; to yes, then we cancel the whole thing (that's enough time for one 
+; retransmission only).  This is used to keep things from stalling for a long
+; time for a host that is not available, but would be ill advised for bad 
+; connections.  In addition to 'yes' or 'no' you can also specify a number
+; of milliseconds.  See 'qualify' for individual peers to turn on for just
+; a specific peer.
+;
+autokill=yes
+;
+; pbx_dundi creates a rotating key called "secret", under the family
+; 'secretpath'.  The default family is dundi (resulting in 
+; the key being held at dundi/secret).
+;
+;secretpath=dundi
+;
+; The 'storehistory' option (also changeable at runtime with
+; 'dundi store history' and 'dundi no store history') will
+; cause the DUNDi engine to keep track of the last several
+; queries and the amount of time each query took to execute
+; for the purpose of tracking slow nodes.  This option is
+; off by default due to performance impacts.
+;
+;storehistory=yes
+
+[mappings]
+;
+; The "mappings" section maps DUNDi contexts
+; to contexts on the local asterisk system.  Remember
+; that numbers that are made available under the e164 
+; DUNDi context are regulated by the DUNDi General Peering 
+; Agreement (GPA) if you are a member of the DUNDi E.164
+; Peering System.
+;
+; dundi_context => local_context,weight,tech,dest[,options]]
+;
+; 'dundi_context' is the name of the context being requested
+; within the DUNDi request
+;
+; 'local_context' is the name of the context on the local system
+; in which numbers can be looked up for which responses shall be given.
+;
+; 'weight' is the weight to use for the responses provided from this
+; mapping.  The number must be >= 0 and < 60000.  Since it is totally
+; valid to receive multiple responses to a query, responses received
+; with a lower weight are tried first.  Note that the weight has a
+; special meaning in the e164 context - see the GPA for more details.
+;
+; 'tech' is the technology to use (IAX, SIP, H323)
+;
+; 'dest' is the destination to supply for reaching that number.  The
+; following variables can be used in the destination string and will
+; be automatically substituted:
+; ${NUMBER}: The number being requested
+; ${IPADDR}: The IP address to connect to
+; ${SECRET}: The current rotating secret key to be used
+;
+; Further options may include:
+;
+; nounsolicited:  No unsolicited calls of any type permitted via this 
+;                 route
+; nocomunsolicit: No commercial unsolicited calls permitted via 
+;                 this route
+; residential:    This number is known to be a residence
+; commercial:     This number is known to be a business
+; mobile:         This number is known to be a mobile phone
+; nocomunsolicit: No commercial unsolicited calls permitted via 
+;                 this route
+; nopartial:      Do not search for partial matches
+;
+; There *must* exist an entry in mappings for DUNDi to respond
+; to any request, although it may be empty.
+;
+;e164 => dundi-e164-canonical,0,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
+;e164 => dundi-e164-customers,100,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
+;e164 => dundi-e164-via-pstn,400,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
+
+;digexten => default,0,IAX2,guest@lappy/${NUMBER}
+;asdf =>
+
+;
+; Weights for mappings can be set a few different ways:
+;
+; 1) It can be set as a static number.
+;testmap1 => context1,222,IAX2,guest@peer1/${NUMBER}
+;
+; 2) It can be an Asterisk global variable.
+;testmap2 => context2,${DUNDITESTVAR},IAX2,guest@peer2${NUMBER}
+;
+; 3) It can be retrieved using a dialplan function.  This can be extremely
+;    useful if you want to let an external script decide what the weight
+;    in a response shouuld be.
+;testmap3 => context3,${SHELL(echo 123)},IAX2,guest@peer3/${NUMBER}
+;
+; Note than when using a global variable or dialplan function to set the
+; weight for a mapping, that response caching should be disabled if you
+; plan for these values to change frequently at all.  If the results are
+; cached, then any change in value will not take effect until the cache
+; has expired.
+;
+
+;
+; The remaining sections represent the peers
+; that we fundamentally trust.  The section name
+; represents the name and optionally at a specific
+; DUNDi context if you want the trust to be established
+; for only a specific DUNDi context.
+;
+; inkey - What key they will be authenticating to us with
+;
+; outkey - What key we use to authenticate to them
+;
+; host - What their host is
+;
+; order - What search order to use.  May be 'primary', 'secondary', 
+;         'tertiary' or 'quartiary'.  In large systems, it is beneficial
+;         to only query one up-stream host in order to maximize caching
+;         value.  Adding one with primary and one with secondary gives you
+;         redundancy without sacrificing performance.
+;
+; include - Includes this peer when searching a particular context
+;           for lookup (set "all" to perform all lookups with that
+;           host.  This is also the context in which peers are permitted
+;           to precache.
+;
+; noinclude - Disincludes this peer when searching a particular context
+;             for lookup (set "all" to perform no lookups with that
+;             host.
+;
+; permit - Permits this peer to search a given DUNDi context on
+;          the local system.  Set "all" to permit this host to
+;          lookup all contexts.  This is also a context for which
+;          we will create/forward PRECACHE commands.
+;
+; deny -   Denies this peer to search a given DUNDi context on
+;          the local system.  Set "all" to deny this host to
+;          lookup all contexts.
+;
+; model - inbound, outbound, or symmetric for whether we receive 
+;         requests only, transmit requests only, or do both.
+;
+; precache - Utilize/Permit precaching with this peer (to pre
+;            cache means to provide an answer when no request
+;            was made and is used so that machines with few
+;            routes can push those routes up a to a higher level).
+;            outgoing means we send precache routes to this peer,
+;            incoming means we permit this peer to send us
+;            precache routes.  symmetric means we do both.
+;
+; Note: You cannot mix symmetric/outbound model with symmetric/inbound
+; precache, nor can you mix symmetric/inbound model with symmetric/outbound
+; precache.
+;
+;
+; The '*' peer is special and matches an unspecified entity
+;
+
+;
+; Sample Primary e164 DUNDi peer
+;
+;[00:50:8B:F3:75:BB]
+;model = symmetric
+;host = 64.215.96.114
+;inkey = digium
+;outkey = misery
+;include = e164
+;permit = e164
+;qualify = yes
+
+;
+; Sample Secondary e164 DUNDi peer
+;
+;[00:A0:C9:96:92:84]
+;model = symmetric
+;host = misery.digium.com
+;inkey = misery
+;outkey = ourkey
+;include = e164
+;permit = e164
+;qualify = yes
+;order = secondary
+
+;
+; Sample "push mode" downstream host
+;
+;[00:0C:76:96:75:28]
+;model = inbound
+;host = dynamic
+;precache = inbound
+;inkey = littleguy
+;outkey = ourkey
+;include = e164	; In this case used only for precaching
+;permit = e164      
+;qualify = yes
+
+;
+; Sample "push mode" upstream host
+;
+;[00:07:E9:3B:76:60]
+;model = outbound
+;precache = outbound
+;host = 216.207.245.34
+;register = yes
+;inkey = dhcp34
+;permit = all ; In this case used only for precaching
+;include = all 
+;qualify = yes
+;outkey=foo
+
+;[*]
+;

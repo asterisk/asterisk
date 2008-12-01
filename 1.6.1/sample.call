@@ -1,0 +1,84 @@
+#
+# This is a sample file that can be dumped in /var/spool/asterisk/outgoing
+# to generate a call.  For Asterisk to read call files, you must have the
+# pbx_spool.so module loaded.
+#
+# Comments are indicated by a '#' character that begins a line, or follows
+# a space or tab character.  To be consistent with the configuration files
+# in Asterisk, comments can also be indicated by a semicolon.  However, the
+# multiline comments (;-- --;) used in Asterisk configuration files are not 
+# supported.  Semicolons can be escaped by a backslash.
+#
+
+# Obviously, you MUST specify at least a channel in the same format as you
+# would for the "Dial" application.  Only one channel name is permitted.
+#
+Channel: DAHDI/1
+#
+# You can specify codecs for the call
+Codecs: alaw, speex, h264
+#
+# You may also specify a wait time (default is 45 seconds) for how long to
+# wait for the channel to be answered, a retry time (default is 5 mins)
+# for how soon to retry this call, and a maximum number of retries (default
+# is 0) for how many times to retry this call.
+#
+MaxRetries: 2
+RetryTime: 60
+WaitTime: 30
+
+#
+# Once the call is answered, you must provide either an application/data
+# combination, or a context/extension/priority in which to start the PBX.
+#
+Context: default
+Extension: s
+Priority: 1
+
+#
+# Alternatively you can specify just an application
+# and its arguments to be run, instead of a context
+# extension and priority
+#
+#Application: VoiceMailMain
+#Data: 1234
+
+#
+# You can set the callerid that will be used for the outgoing call
+#
+#Callerid: Wakeup Call Service <(555) 555-5555>
+
+#
+# An account code can be specified the following way:
+#
+#Account: mysuperfunaccountcode
+
+#
+# Normally, a call file is always deleted after the call is successful
+# or the maximum number of tries is reached even if the modification
+# time of the call file was changed during the call to be in the
+# future.  By Setting AlwaysDelete to No the modification time of the
+# call file will be checked after the call is completed or the maximum
+# number of retries is reached.  If the modification time is in the
+# future, the call file will not be deleted.
+#
+#AlwaysDelete: Yes
+
+#
+# You can set channel variables that will be passed to the channel.
+# This includes writable dialplan functions. To set a writable dialplan
+# function, the module containing this function *must* be loaded.
+#
+#Set: file1=/tmp/to
+#Set: file2=/tmp/msg
+#Set: timestamp=20021023104500
+#Set: CDR(userfield|r)=42
+
+#
+# Setting Archive to yes the call file is never deleted, but is moved
+# in the subdir "outgoing_done" of the spool directory. In this case 
+# will be appended a line with "Status: value", where value can be 
+# Completed, Expired or Failed.
+#
+#Archive: yes
+

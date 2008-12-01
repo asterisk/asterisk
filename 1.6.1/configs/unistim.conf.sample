@@ -1,0 +1,76 @@
+;
+; chan_unistim configuration file.
+;
+
+[general]
+port=5000                    ; UDP port
+;
+; See qos.tex or Quality of Service section of asterisk.pdf for a description of these parameters.
+;tos=cs3                ; Sets TOS for signaling packets.
+;tos_audio=ef           ; Sets TOS for RTP audio packets.
+;cos=3                  ; Sets 802.1p priority for signaling packets.
+;cos_audio=5            ; Sets 802.1p priority for RTP audio packets.
+;
+;keepalive=120               ; in seconds, default = 120
+;public_ip=                  ; if asterisk is behind a nat, specify your public IP
+;autoprovisioning=no         ; Allow undeclared phones to register an extension. See README for important
+                             ; informations. no (default), yes, tn.
+;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
+                              ; SIP channel. Defaults to "no". An enabled jitterbuffer will
+                              ; be used only if the sending side can create and the receiving
+                              ; side can not accept jitter. The SIP channel can accept jitter,
+                              ; thus a jitterbuffer on the receive SIP side will be used only
+                              ; if it is forced and enabled.
+
+; jbforce = no                ; Forces the use of a jitterbuffer on the receive side of a SIP
+                              ; channel. Defaults to "no".
+
+; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
+
+; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
+                              ; resynchronized. Useful to improve the quality of the voice, with
+                              ; big jumps in/broken timestamps, usually sent from exotic devices
+                              ; and programs. Defaults to 1000.
+
+; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a SIP
+                              ; channel. Two implementations are currently available - "fixed"
+                              ; (with size always equals to jbmaxsize) and "adaptive" (with
+                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
+
+; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
+;-----------------------------------------------------------------------------------
+
+
+;[black]                     ; name of the device
+;device=000ae4012345         ; mac address of the phone
+;rtp_port=10000              ; RTP port used by the phone, default = 10000. RTCP = rtp_port+1
+;rtp_method=0                ; If you don't have sound, you can try 1, 2 or 3, default = 0
+;status_method=0             ; If you don't see status text, try 1, default = 0
+;titledefault=Asterisk       ; default = "TimeZone (your time zone)". 12 characters max
+;maintext0="you can insert"  ; default = "Welcome", 24 characters max
+;maintext1="a custom text"   ; default = the name of the device, 24 characters max
+;maintext2="(main page)"     ; default = the public IP of the phone, 24 characters max
+;dateformat=1                ; 0 = month/day, 1 (default) = day/month
+;timeformat=1                ; 0 = 0:00am ; 1 (default) = 0h00, 2 = 0:00
+;contrast=8                  ; define the contrast of the LCD. From 0 to 15. Default = 8
+;country=us                  ; country (ccTLD) for dial tone frequency. See README, default = us
+;ringvolume=2                ; ring volume : 0,1,2,3, can be overrided by Dial(), default = 2
+;ringstyle=3                 ; ring style : 0 to 7, can be overrided by Dial(), default = 3
+;callhistory=1               ; 0 = disable, 1 = enable call history, default = 1
+;callerid="Customer Support" <555-234-5678>
+;context=default             ; context, default="default"
+;mailbox=1234                ; Specify the mailbox number. Used by Message Waiting Indication
+;linelabel="Support"         ; Softkey label for the next line=> entry, 9 char max.
+;extension=none              ; Add an extension into the dialplan. Only valid in context specified previously.
+                             ; none=don't add (default), ask=prompt user, line=use the line number
+;line => 100                 ; Only one line by device is currently supported.
+                             ; Beware ! only bookmark and softkey entries are allowed after line=>
+;bookmark=Hans C.@123        ; Use a softkey to dial 123. Name : 9 char max
+;bookmark=Mailbox@011@54     ; 54 shows a mailbox icon. See #define FAV_ICON_ for other values (32 to 63)
+;bookmark=Test@*@USTM/violet ; Display an icon if violet is connected (dynamic), only for unistim device
+;bookmark=4@Pager@54321@51   ; Display a pager icon and dial 54321 when softkey 4 is pressed 
+
+;[violet]
+;device=006038abcdef
+;line => 102

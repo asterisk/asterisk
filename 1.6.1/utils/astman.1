@@ -1,0 +1,102 @@
+.\" $Header$
+.\"
+.\"	transcript compatibility for postscript use.
+.\"
+.\"	synopsis:  .P! <file.ps>
+.\"
+.de P!
+.fl
+\!!1 setgray
+.fl
+\\&.\"
+.fl
+\!!0 setgray
+.fl			\" force out current output buffer
+\!!save /psv exch def currentpoint translate 0 0 moveto
+\!!/showpage{}def
+.fl			\" prolog
+.sy sed \-e 's/^/!/' \\$1\" bring in postscript file
+\!!psv restore
+.
+.de pF
+.ie     \\*(f1 .ds f1 \\n(.f
+.el .ie \\*(f2 .ds f2 \\n(.f
+.el .ie \\*(f3 .ds f3 \\n(.f
+.el .ie \\*(f4 .ds f4 \\n(.f
+.el .tm ? font overflow
+.ft \\$1
+..
+.de fP
+.ie     !\\*(f4 \{\
+.	ft \\*(f4
+.	ds f4\"
+'	br \}
+.el .ie !\\*(f3 \{\
+.	ft \\*(f3
+.	ds f3\"
+'	br \}
+.el .ie !\\*(f2 \{\
+.	ft \\*(f2
+.	ds f2\"
+'	br \}
+.el .ie !\\*(f1 \{\
+.	ft \\*(f1
+.	ds f1\"
+'	br \}
+.el .tm ? font underflow
+..
+.ds f1\"
+.ds f2\"
+.ds f3\"
+.ds f4\"
+'\" t 
+.ta 8n 16n 24n 32n 40n 48n 56n 64n 72n  
+.TH ASTMAN 1 "Jun 12th, 2005" "astman" "Linux Programmer's Manual"
+.SH NAME
+.B astman
+-- a client to asterisk's manager interface
+.SH SYNOPSIS
+.PP 
+.B astman
+.I hostname
+
+.SH DESCRIPTION
+.B astman
+This program is a full-screen (terminal) client for Asterisk's manager
+interface.
+
+.SH OPTIONS
+.B hostname
+
+The host name or IP address to connect to (TCP port 5038). If astman 
+fails to connect it will exit immidiately.
+
+.SH USAGE
+If \fBastman\fR has successfully cunnected to the manager port it will 
+prompt the user for a username and a secret (password) for the manager 
+interface on the remote Asterisk manager interface. It will then be able 
+to report existing channels (calls). You will then be able to redirect 
+calls to or terminate them.
+
+.SH "SEE ALSO" 
+asterisk(8)
+
+http://www.voip-info.org/wiki-Asterisk+astman
+
+.SH BUGS
+The hostname does not default to localhost.  
+
+Impossible to use a port other than 5038.
+
+The username and password cannot be defined from the command-line.
+
+I mean, what's the point in a man page if the syntax is so simple?
+
+.SH "AUTHOR" 
+This manual page was written by Tzafrir Cohen <tzafrir.cohen@xorcom.com> 
+Permission is granted to copy, distribute and/or modify this document under 
+the terms of the GNU General Public License, Version 2 any  
+later version published by the Free Software Foundation. 
+
+On Debian systems, the complete text of the GNU General Public 
+License can be found in /usr/share/common-licenses/GPL. 

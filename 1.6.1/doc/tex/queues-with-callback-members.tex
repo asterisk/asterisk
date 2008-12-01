@@ -1,0 +1,551 @@
+
+\section{Introduction}
+
+Pardon, but the dialplan in this tutorial will be expressed
+in AEL, the new Asterisk Extension Language. If you are
+not used to its syntax, we hope you will find it to some
+degree intuitive. If not, there are documents explaining
+its syntax and constructs.
+
+
+\section{Configuring Call Queues}
+
+\subsection{queues.conf}
+First of all, set up call queues in queue.conf
+
+Here is an example:
+
+\begin{astlisting}
+\begin{verbatim}
+   =========== queues.conf ===========
+   | ; Cool Digium Queues            |
+   | [general]                       |
+   | persistentmembers = yes         |
+   |                                 |
+   | ; General sales queue           |
+   | [sales-general]                 |
+   | music=default                   |
+   | context=sales                   |
+   | strategy=ringall                |
+   | joinempty=strict                |
+   | leavewhenempty=strict           |
+   |                                 |
+   | ; Customer service queue        |
+   | [customerservice]               |
+   | music=default                   |
+   | context=customerservice         |
+   | strategy=ringall                |
+   | joinempty=strict                |
+   | leavewhenempty=strict           |
+   |                                 |
+   | ; Support dispatch queue        |
+   | [dispatch]                      |
+   | music=default                   |
+   | context=dispatch                |
+   | strategy=ringall                |
+   | joinempty=strict                |
+   | leavewhenempty=strict           |
+   ===================================
+\end{verbatim}
+\end{astlisting}
+
+In the above, we have defined 3 separate calling queues:
+sales-general, customerservice, and dispatch.
+
+Please note that the sales-general queue specifies a
+context of "sales", and that customerservice specifies the
+context of "customerservice", and the dispatch
+queue specifies the context "dispatch". These three
+contexts must be defined somewhere in your dialplan.
+We will show them after the main menu below.
+
+In the [general] section, specifying the persistentmembers=yes,
+will cause the agent lists to be stored in astdb, and
+recalled on startup.
+
+The strategy=ringall will cause all agents to be dialed
+together, the first to answer is then assigned the incoming
+call.
+
+"joinempty" set to "strict" will keep incoming callers from
+being placed in queues where there are no agents to take calls.
+The Queue() application will return, and the dial plan can
+determine what to do next.
+
+If there are calls queued, and the last agent logs out, the
+remaining incoming callers will immediately be removed from
+the queue, and the Queue() call will return, IF the "leavewhenempty" is
+set to "strict".
+
+\subsection{Routing incoming Calls to Queues}
+
+
+Then in extensions.ael, you can do these things:
+
+\subsubsection{The Main Menu}
+
+At Digium, incoming callers are sent to the "mainmenu" context, where they
+are greeted, and directed to the numbers they choose...
+
+\begin{astlisting}
+\begin{verbatim}
+context mainmenu {
+
+	includes {
+		digium;
+		queues-loginout;
+	}
+
+        0 => goto dispatch,s,1;
+        2 => goto sales,s,1;
+        3 => goto customerservice,s,1;
+        4 => goto dispatch,s,1;
+
+        s => {
+                Ringing();
+                Wait(1);
+                Set(attempts=0);
+                Answer();
+                Wait(1);
+                Background(digium/ThankYouForCallingDigium);
+                Background(digium/YourOpenSourceTelecommunicationsSupplier);
+                WaitExten(0.3);
+        repeat:
+                Set(attempts=$[${attempts} + 1]);
+                Background(digium/IfYouKnowYourPartysExtensionYouMayDialItAtAnyTime);
+                WaitExten(0.1);
+                Background(digium/Otherwise);
+                WaitExten(0.1);
+                Background(digium/ForSalesPleasePress2);
+                WaitExten(0.2);
+                Background(digium/ForCustomerServicePleasePress3);
+                WaitExten(0.2);
+                Background(digium/ForAllOtherDepartmentsPleasePress4);
+                WaitExten(0.2);
+                Background(digium/ToSpeakWithAnOperatorPleasePress0AtAnyTime);
+                if( ${attempts} < 2 ) {
+                        WaitExten(0.3);
+                        Background(digium/ToHearTheseOptionsRepeatedPleaseHold);
+                }
+                WaitExten(5);
+                if( ${attempts} < 2 ) goto repeat;
+                Background(digium/YouHaveMadeNoSelection);
+                Background(digium/ThisCallWillBeEnded);
+                Background(goodbye);
+                Hangup();
+        }
+}
+\end{verbatim}
+\end{astlisting}
+
+\subsubsection{The Contexts referenced from the queues.conf file}
+
+\begin{astlisting}
+\begin{verbatim}
+context sales {
+
+        0 => goto dispatch,s,1;
+        8 => Voicemail(${SALESVM});
+
+        s => {
+                Ringing();
+                Wait(2);
+                Background(digium/ThankYouForContactingTheDigiumSalesDepartment);
+                WaitExten(0.3);
+                Background(digium/PleaseHoldAndYourCallWillBeAnsweredByOurNextAvailableSalesRepresentative);
+                WaitExten(0.3);
+                Background(digium/AtAnyTimeYouMayPress0ToSpeakWithAnOperatorOr8ToLeaveAMessage);
+                Set(CALLERID(name)=Sales);
+                Queue(sales-general,t);
+                Set(CALLERID(name)=EmptySalQ);
+                goto dispatch,s,1;
+                Playback(goodbye);
+                Hangup();
+        }
+}
+\end{verbatim}
+\end{astlisting}
+
+Please note that there is only one attempt to queue a call in the sales queue. All sales agents that
+are logged in will be rung.
+
+\begin{astlisting}
+\begin{verbatim}
+context customerservice {
+
+        0 => {
+                SetCIDName(CSVTrans);
+                goto dispatch|s|1;
+        }
+        8 => Voicemail(${CUSTSERVVM});
+
+        s => {
+                Ringing();
+                Wait(2);
+                Background(digium/ThankYouForCallingDigiumCustomerService);
+                WaitExten(0.3);
+        notracking:
+                Background(digium/PleaseWaitForTheNextAvailableCustomerServiceRepresentative);
+                WaitExten(0.3);
+                Background(digium/AtAnyTimeYouMayPress0ToSpeakWithAnOperatorOr8ToLeaveAMessage);
+                Set(CALLERID(name)=Cust Svc);
+                Set(QUEUE_MAX_PENALTY=10);
+                Queue(customerservice,t);
+                Set(QUEUE_MAX_PENALTY=0);
+                Queue(customerservice,t);
+                Set(CALLERID(name)=EmptyCSVQ);
+                goto dispatch,s,1;
+                Background(digium/NoCustomerServiceRepresentativesAreAvailableAtThisTime);
+                Background(digium/PleaseLeaveAMessageInTheCustomerServiceVoiceMailBox);
+                Voicemail(${CUSTSERVVM});
+                Playback(goodbye);
+                Hangup();
+        }
+}
+\end{verbatim}
+\end{astlisting}
+
+Note that calls coming into customerservice will first be try to queue
+calls to those agents with a QUEUE\_MAX\_PENALTY of 10, and if none are available,
+then all agents are rung.
+
+\begin{astlisting}
+\begin{verbatim}
+context dispatch
+{
+
+        s => {
+                Ringing();
+                Wait(2);
+                Background(digium/ThankYouForCallingDigium);
+                WaitExten(0.3);
+                Background(digium/YourCallWillBeAnsweredByOurNextAvailableOperator);
+                Background(digium/PleaseHold);
+                Set(QUEUE_MAX_PENALTY=10);
+                Queue(dispatch|t);
+                Set(QUEUE_MAX_PENALTY=20);
+                Queue(dispatch|t);
+                Set(QUEUE_MAX_PENALTY=0);
+                Queue(dispatch|t);
+                Background(digium/NoOneIsAvailableToTakeYourCall);
+                Background(digium/PleaseLeaveAMessageInOurGeneralVoiceMailBox);
+                Voicemail(${DISPATCHVM});
+                Playback(goodbye);
+                Hangup();
+        }
+}
+\end{verbatim}
+\end{astlisting}
+
+And in the dispatch context, first agents of priority 10 are tried, then
+20, and if none are available, all agents are tried.
+
+Notice that a common pattern is followed in each of the three queue contexts:
+
+First, you set QUEUE\_MAX\_PENALTY to a value, then you call
+Queue($<$queue-name$>$,option,...) (see the Queue application documetation for details)
+
+In the above, note that the "t" option is specified, and this allows the
+agent picking up the incoming call the luxury of transferring the call to
+other parties.
+
+The purpose of specifying the QUEUE\_MAX\_PENALTY is to develop a set of priorities
+amongst agents. By the above usage, agents with lower number priorities will
+be given the calls first, and then, if no-one picks up the call, the QUEUE\_MAX\_PENALTY
+will be incremented, and the queue tried again. Hopefully, along the line, someone
+will pick up the call, and the Queue application will end with a hangup.
+
+The final attempt to queue in most of our examples sets the QUEUE\_MAX\_PENALTY
+to zero, which means to try all available agents.
+
+
+\subsection{Assigning agents to Queues}
+
+In this example dialplan, we want to be able to add and remove agents to
+handle incoming calls, as they feel they are available. As they log in,
+they are added to the queue's agent list, and as they log out, they are
+removed. If no agents are available, the queue command will terminate, and
+it is the duty of the dialplan to do something appropriate, be it sending
+the incoming caller to voicemail, or trying the queue again with a higher
+QUEUE\_MAX\_PENALTY.
+
+Because a single agent can make themselves available to more than one queue,
+the process of joining multiple queues can be handled automatically by the
+dialplan.
+
+\subsubsection{Agents Log In and Out}
+
+\begin{astlisting}
+\begin{verbatim}
+context queues-loginout
+{
+        6092 => {
+                        Answer();
+                        Read(AGENT_NUMBER,agent-enternum);
+                        VMAuthenticate(${AGENT_NUMBER}@default,s);
+                        Set(queue-announce-success=1);
+                        goto queues-manip,I${AGENT_NUMBER},1;
+                }
+
+        6093 => {
+                        Answer();
+                        Read(AGENT_NUMBER,agent-enternum);
+                        Set(queue-announce-success=1);
+                        goto queues-manip,O${AGENT_NUMBER},1;
+                }
+}
+\end{verbatim}
+\end{astlisting}
+
+In the above contexts, the agents dial 6092 to log into their queues,
+and they dial 6093 to log out of their queues. The agent is prompted
+for their agent number, and if they are logging in, their passcode,
+and then they are transferred to the proper extension in the
+queues-manip context.  The queues-manip context does all the
+actual work:
+
+\begin{astlisting}
+\begin{verbatim}
+context queues-manip {
+
+        // Raquel Squelch
+        _[IO]6121 => {
+                &queue-addremove(dispatch,10,${EXTEN});
+                &queue-success(${EXTEN});
+        }
+
+        // Brittanica Spears
+        _[IO]6165 => {
+                &queue-addremove(dispatch,20,${EXTEN});
+                &queue-success(${EXTEN});
+        }
+
+        // Rock Hudson
+        _[IO]6170 => {
+                &queue-addremove(sales-general,10,${EXTEN});
+                &queue-addremove(customerservice,20,${EXTEN});
+                &queue-addremove(dispatch,30,${EXTEN});
+                &queue-success(${EXTEN});
+        }
+
+        // Saline Dye-on
+        _[IO]6070 => {
+                &queue-addremove(sales-general,20,${EXTEN});
+                &queue-addremove(customerservice,30,${EXTEN});
+                &queue-addremove(dispatch,30,${EXTEN});
+                &queue-success(${EXTEN});
+        }
+}
+\end{verbatim}
+\end{astlisting}
+
+In the above extensions, note that the queue-addremove macro is used
+to actually add or remove the agent from the applicable queue,
+with the applicable priority level. Note that agents with a
+priority level of 10 will be called before agents with levels
+of 20 or 30.
+
+In the above example, Raquel will be dialed first in the dispatch
+queue, if she has logged in. If she is not, then the second call of
+Queue() with priority of 20 will dial Brittanica if she is present,
+otherwise the third call of Queue() with MAX\_PENALTY of 0 will
+dial Rock and Saline simultaneously.
+
+Also note that Rock will be among the first to be called in the sales-general
+queue, and among the last in the dispatch queue. As you can see in
+main menu, the callerID is set in the main menu so they can tell
+which queue incoming calls are coming from.
+
+The call to queue-success() gives some feedback to the agent
+as they log in and out, that the process has completed.
+
+\begin{astlisting}
+\begin{verbatim}
+macro queue-success(exten)
+{
+        if( ${queue-announce-success} > 0 )
+        {
+                switch(${exten:0:1})
+                {
+                case I:
+                        Playback(agent-loginok);
+                        Hangup();
+                        break;
+                case O:
+                        Playback(agent-loggedoff);
+                        Hangup();
+                        break;
+                }
+        }
+}
+\end{verbatim}
+\end{astlisting}
+
+The queue-addremove macro is defined in this manner:
+
+\begin{astlisting}
+\begin{verbatim}
+macro queue-addremove(queuename,penalty,exten)
+{
+        switch(${exten:0:1})
+        {
+        case I:  // Login
+                 AddQueueMember(${queuename},Local/${exten:1}@agents,${penalty});
+		 break;
+        case O:  // Logout
+                 RemoveQueueMember(${queuename},Local/${exten:1}@agents);
+		 break;
+        case P:  // Pause
+                 PauseQueueMember(${queuename},Local/${exten:1}@agents);
+		 break;
+        case U:  // Unpause
+                 UnpauseQueueMember(${queuename},Local/${exten:1}@agents);
+		 break;
+        default: // Invalid
+                 Playback(invalid);
+                 break;
+        }
+}
+\end{verbatim}
+\end{astlisting}
+
+Basically, it uses the first character of the exten variable, to determine the
+proper actions to take. In the above dial plan code, only the cases I or O are used,
+which correspond to the Login and Logout actions.
+
+
+\subsection{Controlling The Way Queues Call the Agents}
+
+Notice in the above, that the commands to manipulate agents in queues have
+"@agents" in their arguments. This is a reference to the agents context:
+
+\begin{astlisting}
+\begin{verbatim}
+context agents
+{
+	// General sales queue
+	8010 =>
+	{
+		Set(QUEUE_MAX_PENALTY=10);
+		Queue(sales-general,t);
+		Set(QUEUE_MAX_PENALTY=0);
+		Queue(sales-general,t);
+		Set(CALLERID(name)=EmptySalQ);
+		goto dispatch,s,1;
+	}
+	// Customer Service queue
+	8011 =>
+	{
+		Set(QUEUE_MAX_PENALTY=10);
+		Queue(customerservice,t);
+		Set(QUEUE_MAX_PENALTY=0);
+		Queue(customerservice,t);
+		Set(CALLERID(name)=EMptyCSVQ);
+		goto dispatch,s,1;
+	}
+	8013 =>
+	{
+		Dial(iax2/sweatshop/9456@from-ecstacy);
+
+		Set(CALLERID(name)=EmptySupQ);
+		Set(QUEUE_MAX_PENALTY=10);
+		Queue(support-dispatch,t);
+		Set(QUEUE_MAX_PENALTY=20);
+		Queue(support-dispatch,t);
+		Set(QUEUE_MAX_PENALTY=0); // means no max
+		Queue(support-dispatch,t);
+		goto dispatch,s,1;
+	}
+	6121 => &callagent(${RAQUEL},${EXTEN});
+	6165 => &callagent(${SPEARS},${EXTEN});
+	6170 => &callagent(${ROCK},${EXTEN});
+	6070 => &callagent(${SALINE},${EXTEN});
+}
+\end{verbatim}
+\end{astlisting}
+
+In the above, the variables \$\{RAQUEL\}, etc stand for
+actual devices to ring that person's
+phone (like DAHDI/37).
+
+The 8010, 8011, and 8013 extensions are purely for transferring
+incoming callers to queues. For instance, a customer service
+agent might want to transfer the caller to talk to sales. The
+agent only has to transfer to extension 8010, in this case.
+
+Here is the callagent macro, note that if a person in the
+queue is called, but does not answer, then they are automatically
+removed from the queue.
+
+\begin{astlisting}
+\begin{verbatim}
+macro callagent(device,exten)
+{
+	if( ${GROUP_COUNT(${exten}@agents)}=0 )
+	{
+		Set(OUTBOUND_GROUP=${exten}@agents);
+		Dial(${device},300,t);
+		switch(${DIALSTATUS})
+		{
+		case BUSY:
+			Busy();
+			break;
+		case NOANSWER:
+			Set(queue-announce-success=0);
+			goto queues-manip,O${exten},1;
+		default:
+			Hangup();
+			break;
+		}
+	}
+	else
+	{
+		Busy();
+	}
+}
+\end{verbatim}
+\end{astlisting}
+
+In the callagent macro above, the \$\{exten\} will
+be 6121, or 6165, etc, which is the extension of the agent.
+
+The use of the GROUP\_COUNT, and OUTBOUND\_GROUP follow this line
+of thinking. Incoming calls can be queued to ring all agents in the
+current priority. If some of those agents are already talking, they
+would get bothersome call-waiting tones. To avoid this inconvenience,
+when an agent gets a call, the OUTBOUND\_GROUP assigns that
+conversation to the group specified, for instance 6171@agents.
+The \$\{GROUP\_COUNT()\} variable on a subsequent call should return
+"1" for that group. If GROUP\_COUNT returns 1, then the busy()
+is returned without actually trying to dial the agent.
+
+\subsection{Pre Acknowledgement Message}
+
+If you would like to have a pre acknowledge message with option to reject the message
+you can use the following dialplan Macro as a base with the 'M' dial argument.
+
+\begin{astlisting}
+\begin{verbatim}
+[macro-screen]
+exten=>s,1,Wait(.25)
+exten=>s,2,Read(ACCEPT,screen-callee-options,1)
+exten=>s,3,Gotoif($[${ACCEPT} = 1] ?50)
+exten=>s,4,Gotoif($[${ACCEPT} = 2] ?30)
+exten=>s,5,Gotoif($[${ACCEPT} = 3] ?40)
+exten=>s,6,Gotoif($[${ACCEPT} = 4] ?30:30)
+exten=>s,30,Set(MACRO_RESULT=CONTINUE)
+exten=>s,40,Read(TEXTEN,custom/screen-exten,)
+exten=>s,41,Gotoif($[${LEN(${TEXTEN})} = 3]?42:45)
+exten=>s,42,Set(MACRO_RESULT=GOTO:from-internal^${TEXTEN}^1)
+exten=>s,45,Gotoif($[${TEXTEN} = 0] ?46:4)
+exten=>s,46,Set(MACRO_RESULT=CONTINUE)
+exten=>s,50,Playback(after-the-tone)
+exten=>s,51,Playback(connected)
+exten=>s,52,Playback(beep)
+\end{verbatim}
+\end{astlisting}
+
+\subsection{Caveats}
+
+In the above examples, some of the possible error checking has been omitted,
+to reduce clutter and make the examples clearer.
