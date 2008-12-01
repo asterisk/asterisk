@@ -1501,7 +1501,7 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	if (varname[strlen(varname) - 1] == ')') {
 		char *copy = ast_strdupa(varname);
 		if (!c) {
-			c = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/%p", (char *) NULL);
+			c = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/manager");
 			if (c) {
 				ast_func_read(c, copy, workspace, sizeof(workspace));
 				ast_channel_free(c);
